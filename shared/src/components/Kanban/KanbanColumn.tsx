@@ -14,6 +14,7 @@ import {
   Circle,
   CircleDashed,
   CheckCircle2,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import { Fragment, type CSSProperties } from "react";
@@ -144,13 +145,15 @@ export function KanbanColumn({
             {column.title}
           </span>
           {!column.isPlaceholder && (
+            // Count pill — surface fill + accent text (the global lumen accent,
+            // not the column hue) so the badge reads consistently across
+            // folder / status / tag columns (mock: --le-surface + --le-accent).
             <span
               aria-label={labels.countAriaLabel(column.cards.length)}
               className={cn(
                 "min-w-6 rounded-full px-2 py-0.5 text-center text-xs font-bold",
-                "bg-lumen-bg text-lumen-text-secondary",
+                "bg-lumen-bg text-lumen-accent",
               )}
-              style={{ color: "var(--kanban-col-accent)" }}
             >
               {column.cards.length}
             </span>
@@ -176,8 +179,16 @@ export function KanbanColumn({
             {labels.placeholderHint}
           </div>
         ) : column.cards.length === 0 ? (
-          <div className="px-3 py-7 text-center text-sm leading-relaxed text-lumen-text-secondary">
-            {labels.emptyColumn}
+          // Empty column — centered icon + one-line hint (mock's empty folder).
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <ClipboardCheck
+              size={24}
+              aria-hidden
+              className="text-lumen-text-tertiary"
+            />
+            <span className="text-xs leading-relaxed text-lumen-text-secondary">
+              {labels.emptyColumn}
+            </span>
           </div>
         ) : (
           column.cards.map((card) =>

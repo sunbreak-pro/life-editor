@@ -308,20 +308,57 @@
       "modified": "Modified",
       "cancel": "Cancel",
       "osGlobalShortcuts": "OS Global Shortcuts",
-      "osGlobalShortcutsDesc": "Work even when the app is not focused"
+      "osGlobalShortcutsDesc": "Work even when the app is not focused",
+      "done": "Done",
+      "editTitle": "Keyboard Shortcuts",
+      "editDescription": "Press \"Change\" on a row, then type the keys to assign.",
+      "waiting": "Waiting for input · Esc to stop",
+      "categories": {
+        "global": "General",
+        "navigation": "Navigation",
+        "edit": "Editing"
+      }
     },
+    "pageDescription": "Adjust appearance, language, and keyboard shortcuts here. Changes apply immediately.",
     "appearance": "Appearance",
-    "darkMode": "Dark Mode",
-    "darkModeDesc": "Switch between light and dark themes",
+    "theme": "Theme",
     "light": "Light",
     "dark": "Dark",
     "fontSize": "Font Size",
-    "fontSizeSmall": "Small",
-    "fontSizeLarge": "Large",
+    "fontSizeValue": "{{px}}px ({{step}}/{{max}})",
+    "fontSizeSmall": "Small 12px",
+    "fontSizeLarge": "Large 25px",
+    "previewText": "Today's tasks: make a shopping list and prep dinner",
     "language": "Language",
-    "languageDesc": "Choose interface language",
+    "languageDesc": "Switch the display language. Changes apply across the whole app instantly.",
     "english": "English",
     "japanese": "Japanese",
+    "detail": {
+      "previewHeading": "Current appearance",
+      "windowTitle": "Today's tasks",
+      "previewTitle": "Today's tasks",
+      "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
+      "tipsHeading": "Tips",
+      "tasks": {
+        "shopping": "Make a shopping list",
+        "coffee": "Order coffee beans",
+        "dinner": "Prep dinner"
+      },
+      "tips": {
+        "immediate": {
+          "title": "Changes save instantly",
+          "body": "There is no save button. Toggling applies to the whole app right away."
+        },
+        "fontSize": {
+          "title": "Font size affects body text",
+          "body": "Headings and UI stay fixed; only body readability is adjusted."
+        },
+        "palette": {
+          "title": "Search & change from ⌘K",
+          "body": "You can also change shortcut assignments from the command palette."
+        }
+      }
+    },
     "editorSettings": "Editor",
     "editorFontSize": "Editor Font Size",
     "editorFontFamily": "Font Family",
@@ -695,7 +732,8 @@
     "endTime": "End",
     "showEndTime": "End time",
     "clearSchedule": "Clear schedule",
-    "emptyState": "Select a task to view details"
+    "emptyState": "Select a task to view details",
+    "tags": "Tags"
   },
   "kanban": {
     "viewFolder": "By folder",
@@ -728,7 +766,72 @@
     "notes": "Notes"
   },
   "materials": {
-    "title": "Materials"
+    "title": "Materials",
+    "tasks": {
+      "filterLabel": "Filter by status",
+      "statusSheetTitle": "Change status",
+      "quickAddTitle": "Add task",
+      "quickAddPlaceholder": "Enter a title",
+      "quickAddSubmit": "Add",
+      "empty": "No tasks yet",
+      "addCta": "Add task"
+    },
+    "notes": {
+      "searchPlaceholder": "Search notes…",
+      "folderCta": "Folder",
+      "addCta": "Note",
+      "empty": "No notes yet",
+      "trash": "Trash",
+      "content": "Content",
+      "links": "Links",
+      "deleteNote": "Delete note",
+      "pinnedSection": "Pinned",
+      "allNotes": "All notes",
+      "quickAddTitle": "Add note",
+      "quickAddPlaceholder": "Enter a title",
+      "quickAddSubmit": "Add",
+      "newFolderPrompt": "New folder name",
+      "lockedHint": "This note is locked"
+    },
+    "daily": {
+      "toToday": "Today",
+      "saved": "Saved",
+      "unsaved": "Unsaved",
+      "pin": "Pin entry",
+      "unpin": "Unpin entry",
+      "pinned": "Pinned",
+      "delete": "Delete entry",
+      "placeholder": "Write about your day…",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "datePicker": "Pick a date",
+      "dateStripLabel": "Select a date",
+      "entriesCount": "Entries ({{count}})",
+      "pastEntries": "Past entries"
+    },
+    "tags": {
+      "tagsCount": "Tags ({{count}})",
+      "groupsCount": "Groups ({{count}})",
+      "addCta": "Tag",
+      "addPlaceholder": "Enter a tag name",
+      "empty": "No tags yet",
+      "rename": "Rename tag",
+      "colorLabel": "Color",
+      "deleteTag": "Delete tag",
+      "quickAddTitle": "Add tag",
+      "quickAddPlaceholder": "Enter a tag name",
+      "quickAddSubmit": "Add",
+      "createGroup": "Group",
+      "newGroupPrompt": "New group name",
+      "addTagToGroup": "Add tag",
+      "addTagSearchPlaceholder": "Search tags…",
+      "removeFromGroup": "Remove from group",
+      "noCandidates": "No more tags to add",
+      "groupsEmpty": "No groups yet",
+      "memberCount": "{{count}} tags",
+      "expandGroup": "Expand group",
+      "collapseGroup": "Collapse group"
+    }
   },
   "files": {
     "settingsTitle": "File Explorer",
@@ -1070,6 +1173,34 @@
   },
   "analytics": {
     "title": "Analytics",
+    "tabsLabel": "Analytics views",
+    "datePreset": {
+      "label": "Date range",
+      "7d": "7 days",
+      "30d": "30 days",
+      "thisMonth": "This month",
+      "3m": "3 months",
+      "all": "All time"
+    },
+    "empty": {
+      "work": {
+        "title": "No work sessions yet",
+        "description": "Start your first pomodoro with the Work timer and your work-time analytics will appear here."
+      },
+      "schedule": {
+        "title": "No events in this range",
+        "description": "Complete events and routines and their completion rates and trends will show up here."
+      },
+      "mobile": {
+        "title": "Nothing recorded yet",
+        "description": "Once you start using the timer or the schedule, your daily summary will appear here."
+      }
+    },
+    "mobile": {
+      "weekTitle": "This Week",
+      "routineTitle": "Routine Rate",
+      "top3": "Top 3"
+    },
     "tabs": {
       "overview": "Overview",
       "time": "Time",
@@ -1122,6 +1253,9 @@
     },
     "heatmap": {
       "title": "Activity Heatmap",
+      "meta": "Hour × Day",
+      "less": "Less",
+      "more": "More",
       "tooltip": "{{minutes}} min",
       "mon": "Mon",
       "tue": "Tue",
@@ -2487,9 +2621,7 @@
     "groups": "Groups",
     "create": "Create Group",
     "edit": "Edit Group",
-    "create": "Create Group",
     "createNew": "New Group",
-    "groups": "Groups",
     "untitled": "Untitled",
     "assignToGroup": "Assigned Groups",
     "noGroupsHint": "No groups yet — create one above.",

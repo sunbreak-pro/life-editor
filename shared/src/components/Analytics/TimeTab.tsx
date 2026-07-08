@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Clock, Hash, TrendingUp } from "lucide-react";
+import { Clock, Hash, TrendingUp, Timer } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
 import type { Period } from "./PeriodSelector";
 import { computeSummary } from "../../utils/analyticsAggregation";
@@ -21,15 +21,17 @@ import {
   type WorkBreakBalanceLabels,
 } from "./WorkBreakBalance";
 import { DailyTimeline, type DailyTimelineLabels } from "./DailyTimeline";
+import { EmptyState } from "./EmptyState";
 
 export interface TimeTabLabels {
   /** Summary stat cards. */
   totalWorkTime: string;
   sessions: string;
   avgPerDay: string;
-  /** Section heading + period selector + empty state. */
+  /** Section heading + period selector. */
   workTime: string;
-  noSessions: string;
+  /** Designed empty-state copy (no sessions). */
+  empty: { title: string; description: string };
   formatHours: (minutes: number) => string;
   period: PeriodSelectorLabels;
   workTimeChart: WorkTimeChartLabels;
@@ -68,84 +70,71 @@ export function TimeTab({
 
   if (sessions.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto w-full">
-        <p className="text-sm text-lumen-text-secondary mt-4 text-center">
-          {labels.noSessions}
-        </p>
-      </div>
+      <EmptyState
+        icon={<Timer size={26} />}
+        title={labels.empty.title}
+        description={labels.empty.description}
+      />
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6">
+    <div className="space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <AnalyticsStatCard
-          icon={<Clock size={20} />}
+          icon={<Clock size={16} />}
           label={labels.totalWorkTime}
           value={labels.formatHours(summary.totalMinutes)}
-          color="text-lumen-accent"
+          tone="accent"
         />
         <AnalyticsStatCard
-          icon={<Hash size={20} />}
+          icon={<Hash size={16} />}
           label={labels.sessions}
           value={String(summary.totalSessions)}
-          color="text-purple-500"
+          tone="accent"
         />
         <AnalyticsStatCard
-          icon={<TrendingUp size={20} />}
+          icon={<TrendingUp size={16} />}
           label={labels.avgPerDay}
           value={labels.formatHours(summary.avgMinutesPerDay)}
-          color="text-orange-500"
+          tone="accent"
         />
       </div>
 
-      {/* Period selector + Work time chart */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-lumen-text">
-            {labels.workTime}
-          </h3>
-          <PeriodSelector
-            value={period}
-            onChange={setPeriod}
-            labels={labels.period}
-          />
-        </div>
+      {/* Chart cards — 2-column grid for density */}
+      <div className="grid grid-cols-2 gap-3">
         <WorkTimeChart
           sessions={sessions}
           period={period}
           labels={labels.workTimeChart}
+          control={
+            <PeriodSelector
+              value={period}
+              onChange={setPeriod}
+              labels={labels.period}
+            />
+          }
+        />
+        <WorkTimeHeatmap sessions={sessions} labels={labels.heatmap} />
+        <PomodoroCompletionRate
+          sessions={sessions}
+          days={days}
+          targetPerDay={targetPerDay}
+          labels={labels.pomodoroRate}
+        />
+        <WorkBreakBalance
+          sessions={sessions}
+          days={days}
+          labels={labels.workBreak}
+        />
+        <DailyTimeline sessions={sessions} labels={labels.timeline} />
+        <TaskWorkTimeChart
+          sessions={sessions}
+          taskNameMap={taskNameMap}
+          labels={labels.taskWorkTime}
         />
       </div>
-
-      {/* Heatmap */}
-      <WorkTimeHeatmap sessions={sessions} labels={labels.heatmap} />
-
-      {/* Pomodoro Rate */}
-      <PomodoroCompletionRate
-        sessions={sessions}
-        days={days}
-        targetPerDay={targetPerDay}
-        labels={labels.pomodoroRate}
-      />
-
-      {/* Work/Break Balance */}
-      <WorkBreakBalance
-        sessions={sessions}
-        days={days}
-        labels={labels.workBreak}
-      />
-
-      {/* Daily Timeline */}
-      <DailyTimeline sessions={sessions} labels={labels.timeline} />
-
-      {/* Task work time */}
-      <TaskWorkTimeChart
-        sessions={sessions}
-        taskNameMap={taskNameMap}
-        labels={labels.taskWorkTime}
-      />
     </div>
   );
 }

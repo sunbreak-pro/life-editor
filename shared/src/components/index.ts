@@ -153,8 +153,30 @@ export {
 export {
   SettingsShortcuts,
   type SettingsShortcutsProps,
+  type SettingsShortcutsLabels,
   type ShortcutRow,
 } from "./SettingsShortcuts";
+// Settings building blocks (ClaudeDesign port). Pure presentation, lumen-*
+// tokens, props-injected copy (§3.1 / §6.4).
+export {
+  ThemePreviewCard,
+  type ThemePreviewCardProps,
+} from "./ThemePreviewCard";
+export {
+  SteppedSlider,
+  type SteppedSliderProps,
+} from "./SteppedSlider";
+export {
+  ShortcutEditModal,
+  type ShortcutEditModalProps,
+  type ShortcutEditModalLabels,
+} from "./ShortcutEditModal";
+export {
+  SettingsDetailPanel,
+  type SettingsDetailPanelProps,
+  type SettingsDetailTip,
+  type SettingsDetailTask,
+} from "./SettingsDetailPanel";
 export {
   CommandPalette,
   type CommandPaletteProps,
@@ -232,3 +254,13 @@ export * from "./schedule";
 // column builders. Pure presentational: the host maps TaskNode[] →
 // columns and injects copy (§6.4). Folder + Status views; Tag view is K2.
 export * from "./Kanban";
+// Empty state + skeleton (Materials mini-plan Step 1) — the brief-standard
+// blank/loading states (icon+message+accent CTA stack / same-shape pulse
+// rows, no spinners). Pure presentation: props-injected copy, lumen-* tokens
+// (§3.1 / §5).
+export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
+// Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
+// / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the
+// feature can grow exports without touching here (matches Analytics/Connect).
+export * from "./materials";

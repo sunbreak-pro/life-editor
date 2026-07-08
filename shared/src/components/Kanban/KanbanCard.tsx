@@ -59,16 +59,6 @@ function statusText(status: TaskStatus, labels: KanbanLabels): string {
 /** Max tag chips shown on a card before collapsing the rest into "+N". */
 const MAX_TAG_CHIPS = 3;
 
-/** Tinted tag-chip style from the tag's own color (K2). color-mix keeps the
- *  fill subtle + theme-aware (mirrors the HTML mock's .tag-chip). */
-function tagChipStyle(color: string): CSSProperties {
-  return {
-    borderColor: `color-mix(in srgb, ${color} 40%, transparent)`,
-    backgroundColor: `color-mix(in srgb, ${color} 13%, var(--color-bg-primary))`,
-    color: `color-mix(in srgb, ${color} 78%, var(--color-text-primary))`,
-  };
-}
-
 export interface KanbanCardProps {
   card: KanbanCardModel;
   labels: KanbanLabels;
@@ -173,33 +163,29 @@ export function KanbanCard({
             </span>
           )}
 
-          {visibleTags.map((tag) =>
-            tag.color ? (
+          {visibleTags.map((tag) => (
+            // Design mock's tag chip: a neutral bg-secondary pill carrying a
+            // 6px color dot (the tag's own hue) — the fill stays neutral so
+            // many chips read calmly; the dot alone encodes the tag color.
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-1.5 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-[0.6875rem] text-lumen-text-secondary"
+            >
               <span
-                key={tag.id}
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.6875rem] font-semibold"
-                style={tagChipStyle(tag.color)}
-              >
-                <span
-                  aria-hidden
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: tag.color }}
-                />
-                {tag.name}
-              </span>
-            ) : (
-              <span
-                key={tag.id}
-                className="inline-flex items-center gap-1 rounded-full border border-lumen-border px-2 py-0.5 text-[0.6875rem] font-semibold text-lumen-text-secondary"
-              >
-                <span
-                  aria-hidden
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-lumen-border-strong"
-                />
-                {tag.name}
-              </span>
-            ),
-          )}
+                aria-hidden
+                className={cn(
+                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                  tag.color ? "" : "bg-lumen-border-strong",
+                )}
+                style={
+                  tag.color
+                    ? ({ backgroundColor: tag.color } as CSSProperties)
+                    : undefined
+                }
+              />
+              {tag.name}
+            </span>
+          ))}
 
           {overflowCount > 0 && (
             <span className="inline-flex items-center rounded-full border border-lumen-border px-1.5 py-0.5 text-[0.6875rem] font-semibold text-lumen-text-secondary">

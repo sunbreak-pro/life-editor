@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { Button } from "./Button";
 import { cn } from "./cn";
-import type { KeyBinding, ShortcutId } from "../types/shortcut";
+import { CategoryLabel, KbdChips, groupByCategory } from "./shortcutParts";
+import { ShortcutEditModal } from "./ShortcutEditModal";
+import type {
+  KeyBinding,
+  ShortcutCategory,
+  ShortcutConfig,
+  ShortcutId,
+} from "../types/shortcut";
 
 /** One row's view-model — already-resolved label + accelerator (host owns t()). */
 export interface ShortcutRow {
   id: ShortcutId;
+  /** Category for grouping (global / navigation / edit). */
+  category: ShortcutCategory;
   /** Translated action name. */
   label: string;
   /** Human-readable accelerator (e.g. "⌘ + K"). */
@@ -15,8 +24,29 @@ export interface ShortcutRow {
   isModified: boolean;
 }
 
+export interface SettingsShortcutsLabels {
+  heading: string;
+  resetAll: string;
+  change: string;
+  reset: string;
+  modified: string;
+  cancel: string;
+  done: string;
+  /** Modal title + description. */
+  editTitle: string;
+  editDescription: string;
+  /** Capture hint, e.g. "キー入力を待機中 · Esc で中止". */
+  waiting: string;
+  /** `{{action}}` replaced with the conflicting action label. */
+  conflictTemplate: string;
+  /** Category captions. */
+  categories: Record<ShortcutCategory, string>;
+}
+
 export interface SettingsShortcutsProps {
   rows: ShortcutRow[];
+  /** Current overrides — passed through to the edit modal for cancel-restore. */
+  config: ShortcutConfig;
   /** Commit a captured binding for `id`. */
   onRebind: (id: ShortcutId, binding: KeyBinding) => void;
   /** Reset a single shortcut to its default. */
@@ -25,203 +55,126 @@ export interface SettingsShortcutsProps {
   onResetAll: () => void;
   /**
    * Returns the translated label of the shortcut that already uses `binding`
-   * (excluding `id`), or null when there is no conflict. Host wires this to
-   * the ShortcutConfig context's findConflict.
+   * (excluding `id`), or null when there is no conflict.
    */
   getConflictLabel: (binding: KeyBinding, id: ShortcutId) => string | null;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
-  labels: {
-    heading: string;
-    resetAll: string;
-    change: string;
-    reset: string;
-    pressKey: string;
-    cancel: string;
-    /** Suffix appended when the row is modified, e.g. "Modified". */
-    modified: string;
-    /** `{{action}}` is replaced with the conflicting action label. */
-    conflictTemplate: string;
-  };
-}
-
-/** Pure: turn a keydown into a KeyBinding. Modifier-only presses return null. */
-function keyEventToBinding(e: React.KeyboardEvent): KeyBinding | null {
-  const { key, code } = e;
-  if (key === "Meta" || key === "Control" || key === "Shift" || key === "Alt") {
-    return null;
-  }
-  const binding: KeyBinding = {
-    meta: e.metaKey,
-    ctrl: e.ctrlKey,
-    shift: e.shiftKey,
-    alt: e.altKey,
-  };
-  // Prefer physical `code` for letters/punctuation (layout-stable); fall back
-  // to `key` for named keys (Arrow*, Enter, Space, digits).
-  if (/^Key[A-Z]$/.test(code) || code === "Comma" || code === "Period") {
-    binding.code = code;
-  } else {
-    binding.key = key;
-  }
-  return binding;
-}
-
-function fillConflict(template: string, action: string): string {
-  return template.replace("{{action}}", action);
+  labels: SettingsShortcutsLabels;
 }
 
 /*
- * Keyboard shortcuts settings part (W1). Minimal, pure / props-injected:
- * list + rebind (key capture) + conflict display + reset. The ShortcutConfig
- * context (rebind/conflict/reset logic) is owned by the HOST and reaches this
- * primitive only through callbacks + the `rows` view-model (CLAUDE.md §6.4).
- * lumen-* tokens, opaque rows.
+ * Keyboard shortcuts settings card (W1, redesigned). Pure / props-injected
+ * (§6.4), lumen-* tokens, opaque surfaces (§5). Shows the full binding list
+ * grouped by category; the "変更" button opens a rebind modal (capture + live
+ * conflict) instead of expanding inline, so the card never shifts height.
  */
 export function SettingsShortcuts({
   rows,
+  config,
   onRebind,
   onResetOne,
   onResetAll,
   getConflictLabel,
   labels,
 }: SettingsShortcutsProps) {
-  // Which row is currently capturing a key, plus its live conflict warning.
-  const [capturingId, setCapturingId] = useState<ShortcutId | null>(null);
-  const [conflict, setConflict] = useState<string | null>(null);
-
-  // Esc cancels capture; handled at window level so it works even when focus
-  // sits on the capture button.
-  useEffect(() => {
-    if (!capturingId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setCapturingId(null);
-        setConflict(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [capturingId]);
-
-  const handleCapture = useCallback(
-    (id: ShortcutId, e: React.KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.key === "Escape") {
-        setCapturingId(null);
-        setConflict(null);
-        return;
-      }
-      const binding = keyEventToBinding(e);
-      if (!binding) return; // modifier-only — keep waiting
-      const conflictLabel = getConflictLabel(binding, id);
-      if (conflictLabel) {
-        setConflict(fillConflict(labels.conflictTemplate, conflictLabel));
-        return; // do not commit a conflicting binding
-      }
-      onRebind(id, binding);
-      setCapturingId(null);
-      setConflict(null);
-    },
-    [getConflictLabel, labels.conflictTemplate, onRebind],
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [initialCaptureId, setInitialCaptureId] = useState<ShortcutId | null>(
+    null,
   );
 
+  const openEditor = (id: ShortcutId | null) => {
+    setInitialCaptureId(id);
+    setEditorOpen(true);
+  };
+
+  const groups = groupByCategory(rows);
+
   return (
-    <div className="space-y-4" data-section-id="shortcuts">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-lumen-text">
+    <div className="flex flex-col gap-1" data-section-id="shortcuts">
+      <div className="mb-1 flex items-center justify-between">
+        <h3 className="text-base font-semibold text-lumen-text">
           {labels.heading}
         </h3>
         <Button
           variant="ghost"
           size="sm"
-          leadingIcon={<RotateCcw size={14} />}
+          leadingIcon={<RotateCcw size={13} />}
           onClick={onResetAll}
         >
           {labels.resetAll}
         </Button>
       </div>
 
-      <ul className="divide-y divide-lumen-border rounded-lg border border-lumen-border bg-lumen-bg">
-        {rows.map((row) => {
-          const capturing = capturingId === row.id;
-          return (
-            <li
-              key={row.id}
-              className="flex items-center justify-between gap-3 px-3 py-2.5"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm text-lumen-text">{row.label}</p>
+      {groups.map(({ category, rows: groupRows }, groupIdx) => (
+        <div key={category}>
+          <CategoryLabel>{labels.categories[category]}</CategoryLabel>
+          {groupRows.map((row, rowIdx) => {
+            const isLast =
+              groupIdx === groups.length - 1 && rowIdx === groupRows.length - 1;
+            return (
+              <div
+                key={row.id}
+                className={cn(
+                  "flex min-h-11 items-center gap-2 px-0.5",
+                  !isLast && "border-b border-lumen-border",
+                )}
+              >
+                <span className="flex-1 truncate text-sm text-lumen-text">
+                  {row.label}
+                </span>
                 {row.isModified && (
-                  <span className="text-xs text-lumen-text-secondary">
+                  <span className="inline-flex h-5 items-center rounded-lumen-md bg-lumen-chip-mint-bg px-2 text-[11px] font-medium text-lumen-chip-mint-fg">
                     {labels.modified}
                   </span>
                 )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {capturing ? (
-                  <div className="flex flex-col items-end gap-1">
-                    <button
-                      type="button"
-                      autoFocus
-                      onKeyDown={(e) => handleCapture(row.id, e)}
-                      className={cn(
-                        "rounded-md border border-lumen-accent bg-lumen-bg-secondary",
-                        "px-2.5 py-1 text-xs text-lumen-accent",
-                        "focus-visible:outline-none focus-visible:ring-2",
-                        "focus-visible:ring-lumen-accent",
-                      )}
-                    >
-                      {labels.pressKey}
-                    </button>
-                    {conflict && (
-                      <span className="text-xs text-lumen-danger">
-                        {conflict}
-                      </span>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setCapturingId(null);
-                        setConflict(null);
-                      }}
-                    >
-                      {labels.cancel}
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <kbd className="rounded border border-lumen-border bg-lumen-bg-secondary px-2 py-0.5 text-xs tabular-nums text-lumen-text">
-                      {row.displayString || "—"}
-                    </kbd>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setConflict(null);
-                        setCapturingId(row.id);
-                      }}
-                    >
-                      {labels.change}
-                    </Button>
-                    {row.isModified && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onResetOne(row.id)}
-                      >
-                        {labels.reset}
-                      </Button>
-                    )}
-                  </>
+                <KbdChips displayString={row.displayString} />
+                <button
+                  type="button"
+                  onClick={() => openEditor(row.id)}
+                  className="ml-1 inline-flex h-[26px] items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg px-2.5 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+                >
+                  {labels.change}
+                </button>
+                {row.isModified && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onResetOne(row.id)}
+                  >
+                    {labels.reset}
+                  </Button>
                 )}
               </div>
-            </li>
-          );
-        })}
-      </ul>
+            );
+          })}
+        </div>
+      ))}
+
+      <ShortcutEditModal
+        open={editorOpen}
+        rows={rows}
+        config={config}
+        initialCaptureId={initialCaptureId}
+        onRebind={onRebind}
+        onResetOne={onResetOne}
+        onResetAll={onResetAll}
+        getConflictLabel={getConflictLabel}
+        onDone={() => setEditorOpen(false)}
+        onCancel={() => setEditorOpen(false)}
+        labels={{
+          title: labels.editTitle,
+          description: labels.editDescription,
+          waiting: labels.waiting,
+          change: labels.change,
+          cancel: labels.cancel,
+          reset: labels.reset,
+          modified: labels.modified,
+          resetAll: labels.resetAll,
+          done: labels.done,
+          conflictTemplate: labels.conflictTemplate,
+          categories: labels.categories,
+        }}
+      />
     </div>
   );
 }

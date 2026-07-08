@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   CalendarCheck2,
+  CalendarClock,
   CheckCircle2,
   Percent,
   RefreshCw,
@@ -11,6 +12,7 @@ import type { RoutineNode } from "../../types/routine";
 import { useAnalyticsFilter } from "./AnalyticsFilterContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
+import { EmptyState } from "./EmptyState";
 import {
   EventCompletionTrend,
   type EventCompletionTrendLabels,
@@ -30,7 +32,8 @@ export interface ScheduleTabLabels {
   completionRate: string;
   activeRoutines: string;
   routineRate: string;
-  noEvents: string;
+  /** Designed empty-state copy (no events in range). */
+  empty: { title: string; description: string };
   eventTrend: EventCompletionTrendLabels;
   timeDistribution: EventTimeDistributionLabels;
   routineCompletion: RoutineCompletionChartLabels;
@@ -91,15 +94,23 @@ export function ScheduleTab({
   }, [items, routines]);
 
   // Initial (or empty) fetch in flight: show a skeleton instead of flashing the
-  // "no events" copy. No text → no new i18n key needed.
+  // "no events" copy (design 1k). No text → no new i18n key needed.
   if (loading && items.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto w-full" aria-busy="true">
-        <div className="grid grid-cols-3 gap-4">
+      <div className="space-y-4" aria-busy="true">
+        <div className="grid grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="h-20 rounded-lg bg-lumen-bg-secondary animate-pulse"
+              className="h-[68px] animate-pulse rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary"
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-56 animate-pulse rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary"
             />
           ))}
         </div>
@@ -109,11 +120,11 @@ export function ScheduleTab({
 
   if (items.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto w-full">
-        <p className="text-sm text-lumen-text-secondary mt-4 text-center">
-          {labels.noEvents}
-        </p>
-      </div>
+      <EmptyState
+        icon={<CalendarClock size={26} />}
+        title={labels.empty.title}
+        description={labels.empty.description}
+      />
     );
   }
 
@@ -126,37 +137,37 @@ export function ScheduleTab({
   );
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6" aria-busy={loading}>
-      <div className="grid grid-cols-3 gap-4">
+    <div className="space-y-4" aria-busy={loading}>
+      <div className="grid grid-cols-3 gap-3 lg:grid-cols-5">
         <AnalyticsStatCard
-          icon={<CalendarCheck2 size={20} />}
+          icon={<CalendarCheck2 size={16} />}
           label={labels.totalEvents}
           value={stats.totalEvents}
-          color="text-lumen-accent"
+          tone="accent"
         />
         <AnalyticsStatCard
-          icon={<CheckCircle2 size={20} />}
+          icon={<CheckCircle2 size={16} />}
           label={labels.completedEvents}
           value={stats.completedEvents}
-          color="text-lumen-success"
+          tone="mint"
         />
         <AnalyticsStatCard
-          icon={<Percent size={20} />}
+          icon={<Percent size={16} />}
           label={labels.completionRate}
           value={`${stats.completionRate}%`}
-          color="text-orange-500"
+          tone="mint"
         />
         <AnalyticsStatCard
-          icon={<RefreshCw size={20} />}
+          icon={<RefreshCw size={16} />}
           label={labels.activeRoutines}
           value={stats.activeRoutines}
-          color="text-purple-500"
+          tone="accent"
         />
         <AnalyticsStatCard
-          icon={<Activity size={20} />}
+          icon={<Activity size={16} />}
           label={labels.routineRate}
           value={`${stats.routineRate}%`}
-          color="text-lumen-accent"
+          tone="mint"
         />
       </div>
 
@@ -165,12 +176,14 @@ export function ScheduleTab({
         days={days}
         labels={labels.eventTrend}
       />
-      <EventTimeDistribution items={items} labels={labels.timeDistribution} />
-      <RoutineCompletionChart
-        items={items}
-        routines={routines}
-        labels={labels.routineCompletion}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <EventTimeDistribution items={items} labels={labels.timeDistribution} />
+        <RoutineCompletionChart
+          items={items}
+          routines={routines}
+          labels={labels.routineCompletion}
+        />
+      </div>
     </div>
   );
 }

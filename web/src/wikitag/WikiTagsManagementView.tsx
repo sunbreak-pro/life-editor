@@ -1,300 +1,353 @@
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Palette,
+  Pencil,
+  Plus,
+  Tag,
+  Trash2,
+} from "lucide-react";
 import {
   useWikiTagsUnifiedContext,
+  useMediaQuery,
+  useTranslation,
+  RightSidebarPortal,
+  TagGroupsPanel,
+  EmptyState,
+  SkeletonList,
+  ColorPicker,
+  QuickAddSheet,
+  cn,
   type WikiTagUnified,
-  type WikiTagGroupUnified,
+  type TagGroupsPanelGroup,
 } from "@life-editor/shared";
-import { TagPill } from "./TagPill";
 
 /*
- * WikiTagsManagementView — DU-F Step 11.
+ * Web Tags tab (Materials mini-plan Step 5). Re-shaped from the old two-column
+ * master view to the target-IA ClaudeDesign import:
  *
- * The one place users see ALL tags / groups / memberships and can edit
- * the master. Lives under the new `tags` section in MainScreen.
+ *   - Desktop (isWide): a centered max-width 800px card — a "Tags (N)" heading
+ *     + tag rows (36px, color dot + #name, hover reveals rename / palette /
+ *     delete). Rename is inline; palette expands the shared <ColorPicker>
+ *     below the row; delete soft-deletes. A "+ Tag" accent action row heads the
+ *     card (差分宣言 #1 — the tab-row slot is shell-owned). Group management is
+ *     PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal + the new
+ *     shared <TagGroupsPanel> (always-present content, not selection-driven).
+ *   - Mobile (narrow): read + shortest-add only (brief). "Tags (N)" heading →
+ *     read-only rows (no hover actions), "Groups (N)" heading → collapsible
+ *     read-only group cards (chevron; open = member chips, closed = "N tags"),
+ *     and a floating "+" → QuickAddSheet.
  *
- * Layout:
- *   ┌──── Tags master ───────┐  ┌──── Groups ────────────┐
- *   │ create / rename / del  │  │ create / rename / del  │
- *   │ pill list              │  │ for each group:        │
- *   │                        │  │   - assigned tags      │
- *   │                        │  │   - "+ tag" picker     │
- *   └────────────────────────┘  └────────────────────────┘
+ * Data stays context-side (useWikiTagsUnifiedContext); this view is
+ * DataService-free (§3.1) and takes all copy from useTranslation → props
+ * (§6.4). No hex — lumen-* only; tag dot colors are user data (inline style).
  *
- * State strategy: reads everything from the bulk caches in
- * WikiTagsUnifiedContext (allTags / allGroups / allGroupAssignments).
- * Mutations are optimistic — the hook updates the local state and the
- * UI re-derives. A Sync round refreshes from the DB on syncVersion bump.
+ * Per-tag usage counts (the design shows a number per row) are NOT rendered:
+ * the unified WikiTags context exposes item→tag lookups (getTagsForItem) but
+ * not the tag→item aggregate, so a per-tag count is underivable without an
+ * N+1 fetch loop (forbidden). Group member counts (Mobile "N tags") ARE
+ * derived from allGroupAssignments.
  */
 
 const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-1 focus-visible:ring-offset-lumen-bg";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
-function PromptRow({
+const ACCENT_BUTTON = cn(
+  "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
+  "text-[13px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+  FOCUS_RING,
+);
+
+function Dot({
+  color,
+  className,
+}: {
+  color: string | null;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "shrink-0 rounded-full",
+        color ? "" : "bg-lumen-border-strong",
+        className,
+      )}
+      style={color ? { backgroundColor: color } : undefined}
+    />
+  );
+}
+
+// ---- Desktop inline add row -----------------------------------------------
+
+function AddTagRow({
   placeholder,
+  submitLabel,
   onSubmit,
+  onClose,
 }: {
   placeholder: string;
-  onSubmit: (value: string) => void | Promise<void>;
+  submitLabel: string;
+  onSubmit: (name: string) => void;
+  onClose: () => void;
 }) {
   const [value, setValue] = useState("");
+  const submit = () => {
+    const next = value.trim();
+    if (!next) return;
+    onSubmit(next);
+    setValue("");
+  };
   return (
     <form
-      className="flex gap-1"
       onSubmit={(e) => {
         e.preventDefault();
-        const v = value.trim();
-        if (!v) return;
-        void onSubmit(v);
-        setValue("");
+        submit();
       }}
+      className="mb-1.5 flex gap-1.5 px-0.5"
     >
       <input
-        type="text"
+        autoFocus
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          // Route Enter through here (not the form's implicit submit) so the
+          // isComposing guard covers IME confirmation, matching DesktopTagRow
+          // rename / QuickAddSheet.
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+            return;
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onClose();
+          }
+        }}
         placeholder={placeholder}
-        className={`min-w-[8rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text ${FOCUS_RING}`}
+        aria-label={placeholder}
+        className={cn(
+          "h-9 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 text-[13.5px] text-lumen-text",
+          "placeholder:text-lumen-text-tertiary",
+          FOCUS_RING,
+        )}
       />
-      <button
-        type="submit"
-        className={`inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
-        aria-label="Create"
-      >
-        <Plus size={12} aria-hidden />
-        Add
+      <button type="submit" className={ACCENT_BUTTON}>
+        <Plus size={14} aria-hidden />
+        {submitLabel}
       </button>
     </form>
   );
 }
 
-function TagRow({
+// ---- Desktop tag row ------------------------------------------------------
+
+function DesktopTagRow({
   tag,
+  colorOpen,
+  onToggleColor,
   onRename,
+  onSetColor,
   onDelete,
+  renameLabel,
+  colorLabel,
+  colorClearLabel,
+  colorCustomLabel,
+  deleteLabel,
 }: {
   tag: WikiTagUnified;
+  colorOpen: boolean;
+  onToggleColor: (id: string) => void;
   onRename: (id: string, name: string) => void;
+  onSetColor: (id: string, color: string | null) => void;
   onDelete: (id: string) => void;
+  renameLabel: string;
+  colorLabel: string;
+  colorClearLabel: string;
+  colorCustomLabel: string;
+  deleteLabel: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tag.name);
+
+  const commit = () => {
+    const next = draft.trim();
+    if (next && next !== tag.name) onRename(tag.id, next);
+    setEditing(false);
+  };
+
+  const actionButton =
+    "grid h-6 w-6 place-items-center rounded-lumen-md text-lumen-text-secondary";
+
   return (
-    <li className="flex items-center justify-between gap-2 rounded-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1">
-      {editing ? (
-        <form
-          className="flex flex-1 gap-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const next = draft.trim();
-            if (next && next !== tag.name) onRename(tag.id, next);
-            setEditing(false);
-          }}
-        >
+    <li className="group flex flex-col">
+      <div
+        className={cn(
+          "flex h-9 items-center gap-2.5 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5",
+          "transition-colors group-hover:border-lumen-border-strong group-hover:bg-lumen-hover",
+        )}
+      >
+        <Dot color={tag.color} className="h-2.5 w-2.5" />
+        {editing ? (
           <input
-            value={draft}
             autoFocus
+            value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => {
-              const next = draft.trim();
-              if (next && next !== tag.name) onRename(tag.id, next);
-              setEditing(false);
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setDraft(tag.name);
+                setEditing(false);
+              }
             }}
-            className={`flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-0.5 text-sm text-lumen-text ${FOCUS_RING}`}
+            aria-label={`${renameLabel}: ${tag.name}`}
+            className={cn(
+              "min-w-0 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-0.5 text-[13.5px] text-lumen-text",
+              FOCUS_RING,
+            )}
           />
-        </form>
-      ) : (
-        <div className="flex flex-1 items-center gap-2">
-          <TagPill name={tag.name} color={tag.color} size="md" />
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-[13.5px] text-lumen-text">
+            #{tag.name}
+          </span>
+        )}
+
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(tag.name);
+              setEditing((v) => !v);
+            }}
+            aria-label={`${renameLabel}: ${tag.name}`}
+            className={cn(actionButton, "hover:text-lumen-text", FOCUS_RING)}
+          >
+            <Pencil size={14} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleColor(tag.id)}
+            aria-expanded={colorOpen}
+            aria-label={`${colorLabel}: ${tag.name}`}
+            className={cn(actionButton, "hover:text-lumen-text", FOCUS_RING)}
+          >
+            <Palette size={14} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(tag.id)}
+            aria-label={`${deleteLabel}: ${tag.name}`}
+            className={cn(actionButton, "hover:text-lumen-danger", FOCUS_RING)}
+          >
+            <Trash2 size={14} aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      {colorOpen && (
+        <div className="px-2.5 pb-1.5 pt-1">
+          <ColorPicker
+            current={tag.color ?? undefined}
+            label={colorLabel}
+            clearLabel={colorClearLabel}
+            customLabel={colorCustomLabel}
+            onPick={(color) => onSetColor(tag.id, color)}
+          />
         </div>
       )}
-      <div className="flex gap-1">
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(tag.name);
-            setEditing((v) => !v);
-          }}
-          aria-label={`Rename tag ${tag.name}`}
-          className={`text-lumen-text-secondary hover:text-lumen-text ${FOCUS_RING} rounded p-1`}
-        >
-          <Pencil size={12} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(tag.id)}
-          aria-label={`Delete tag ${tag.name}`}
-          className={`text-lumen-text-secondary hover:text-lumen-danger ${FOCUS_RING} rounded p-1`}
-        >
-          <Trash2 size={12} aria-hidden />
-        </button>
-      </div>
     </li>
   );
 }
 
-function GroupCard({
+// ---- Mobile group card (read-only, collapsible) ---------------------------
+
+function MobileGroupCard({
   group,
-  memberTagIds,
-  candidateTags,
-  onRename,
-  onDelete,
-  onAddTag,
-  onRemoveTag,
-  tagsById,
+  memberCountLabel,
+  expandLabel,
+  collapseLabel,
 }: {
-  group: WikiTagGroupUnified;
-  memberTagIds: string[];
-  candidateTags: WikiTagUnified[];
-  onRename: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
-  onAddTag: (groupId: string, tagId: string) => void;
-  onRemoveTag: (groupId: string, tagId: string) => void;
-  tagsById: Map<string, WikiTagUnified>;
+  group: TagGroupsPanelGroup;
+  memberCountLabel: string;
+  expandLabel: string;
+  collapseLabel: string;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(group.name);
-  const [addQuery, setAddQuery] = useState("");
-
-  const filteredCandidates = useMemo(() => {
-    const q = addQuery.trim().toLowerCase();
-    if (!q) return candidateTags.slice(0, 8);
-    return candidateTags
-      .filter((t) => t.name.toLowerCase().includes(q))
-      .slice(0, 8);
-  }, [addQuery, candidateTags]);
-
+  const [open, setOpen] = useState(false);
   return (
-    <article className="space-y-2 rounded-md border border-lumen-border bg-lumen-bg-secondary p-2">
-      <header className="flex items-center justify-between gap-2">
-        {editing ? (
-          <form
-            className="flex flex-1 gap-1"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const next = draft.trim();
-              if (next && next !== group.name) onRename(group.id, next);
-              setEditing(false);
-            }}
-          >
-            <input
-              value={draft}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={() => {
-                const next = draft.trim();
-                if (next && next !== group.name) onRename(group.id, next);
-                setEditing(false);
-              }}
-              className={`flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-0.5 text-sm text-lumen-text ${FOCUS_RING}`}
-            />
-          </form>
-        ) : (
-          <h3 className="flex-1 text-sm font-semibold text-lumen-text">
-            {group.name}
-          </h3>
+    <div className="rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={open ? collapseLabel : expandLabel}
+        className={cn(
+          "flex w-full items-center gap-2 px-3 py-2.5 text-left",
+          FOCUS_RING,
         )}
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(group.name);
-            setEditing((v) => !v);
-          }}
-          aria-label={`Rename group ${group.name}`}
-          className={`text-lumen-text-secondary hover:text-lumen-text ${FOCUS_RING} rounded p-1`}
-        >
-          <Pencil size={12} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(group.id)}
-          aria-label={`Delete group ${group.name}`}
-          className={`text-lumen-text-secondary hover:text-lumen-danger ${FOCUS_RING} rounded p-1`}
-        >
-          <Trash2 size={12} aria-hidden />
-        </button>
-      </header>
-
-      <div className="flex flex-wrap gap-1">
-        {memberTagIds.length === 0 && (
-          <span className="text-xs text-lumen-text-secondary">
-            No tags assigned.
+      >
+        {open ? (
+          <ChevronDown
+            size={13}
+            aria-hidden
+            className="shrink-0 text-lumen-text-secondary"
+          />
+        ) : (
+          <ChevronRight
+            size={13}
+            aria-hidden
+            className="shrink-0 text-lumen-text-secondary"
+          />
+        )}
+        <span className="flex-1 text-[13.5px] font-semibold text-lumen-text">
+          {group.name}
+        </span>
+        {!open && (
+          <span className="text-[12px] text-lumen-text-secondary">
+            {memberCountLabel}
           </span>
         )}
-        {memberTagIds.map((tagId) => {
-          const tag = tagsById.get(tagId);
-          if (!tag) return null;
-          return (
+      </button>
+      {open && (
+        <div className="flex flex-wrap gap-1.5 px-3 pb-3 pl-[34px]">
+          {group.members.map((member) => (
             <span
-              key={tagId}
-              className="inline-flex items-center gap-1 rounded-md border border-lumen-border bg-lumen-bg px-1.5 py-0.5 text-xs text-lumen-text"
+              key={member.tagId}
+              className="inline-flex items-center gap-1.5 rounded-full border border-lumen-border bg-lumen-bg px-2.5 py-1 text-[12px] text-lumen-text-secondary"
             >
-              <TagPill name={tag.name} color={tag.color} size="sm" />
-              <button
-                type="button"
-                onClick={() => onRemoveTag(group.id, tagId)}
-                aria-label={`Remove ${tag.name} from group ${group.name}`}
-                className={`text-lumen-text-secondary hover:text-lumen-danger ${FOCUS_RING} rounded`}
-              >
-                <X size={10} aria-hidden />
-              </button>
+              <Dot color={member.color} className="h-[7px] w-[7px]" />#
+              {member.name}
             </span>
-          );
-        })}
-      </div>
-
-      <div className="space-y-1">
-        <input
-          value={addQuery}
-          onChange={(e) => setAddQuery(e.target.value)}
-          placeholder="Search tag to add…"
-          className={`w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text ${FOCUS_RING}`}
-        />
-        <ul className="max-h-32 space-y-0.5 overflow-y-auto">
-          {filteredCandidates.length === 0 ? (
-            <li className="px-2 py-1 text-xs text-lumen-text-secondary">
-              No more tags to add.
-            </li>
-          ) : (
-            filteredCandidates.map((tag) => (
-              <li key={tag.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onAddTag(group.id, tag.id);
-                    setAddQuery("");
-                  }}
-                  className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
-                >
-                  {tag.color && (
-                    <span
-                      aria-hidden
-                      className="inline-block h-2 w-2 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                  )}
-                  <span>{tag.name}</span>
-                </button>
-              </li>
-            ))
-          )}
-        </ul>
-      </div>
-    </article>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 export function WikiTagsManagementView() {
   const wiki = useWikiTagsUnifiedContext();
+  const { t } = useTranslation();
+  const isWide = useMediaQuery("(min-width: 768px)", true);
+
+  const [addingTag, setAddingTag] = useState(false);
+  const [colorEditId, setColorEditId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const tagsById = useMemo(() => {
     const map = new Map<string, WikiTagUnified>();
-    for (const t of wiki.allTags) map.set(t.id, t);
+    for (const tag of wiki.allTags) map.set(tag.id, tag);
     return map;
   }, [wiki.allTags]);
 
-  // Group → assigned tagIds (active assignments only — DELETE prunes the
-  // local cache in the hook, so no extra filter is needed here).
+  // group → assigned tagIds (active assignments only — the hook prunes the
+  // local cache on delete, so no extra filter is needed).
   const membersByGroup = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const g of wiki.allGroups) map.set(g.id, []);
@@ -306,113 +359,245 @@ export function WikiTagsManagementView() {
   }, [wiki.allGroups, wiki.allGroupAssignments]);
 
   const assignmentByGroupAndTag = useMemo(() => {
-    const map = new Map<string, string>(); // `${groupId}:${tagId}` -> assignmentId
+    const map = new Map<string, string>(); // `${groupId}:${tagId}` → assignmentId
     for (const a of wiki.allGroupAssignments) {
       map.set(`${a.groupId}:${a.tagId}`, a.id);
     }
     return map;
   }, [wiki.allGroupAssignments]);
 
-  const handleCreateTag = async (name: string) => {
-    try {
-      await wiki.createTag(name, null);
-    } catch (err) {
-      console.error("createTag failed", err);
-    }
+  const panelGroups = useMemo<TagGroupsPanelGroup[]>(
+    () =>
+      wiki.allGroups.map((g) => {
+        const memberIds = membersByGroup.get(g.id) ?? [];
+        const memberSet = new Set(memberIds);
+        const members = memberIds
+          .map((id) => tagsById.get(id))
+          .filter((tag): tag is WikiTagUnified => tag != null)
+          .map((tag) => ({ tagId: tag.id, name: tag.name, color: tag.color }));
+        const candidates = wiki.allTags
+          .filter((tag) => !memberSet.has(tag.id))
+          .map((tag) => ({ tagId: tag.id, name: tag.name, color: tag.color }));
+        return { id: g.id, name: g.name, members, candidates };
+      }),
+    [wiki.allGroups, wiki.allTags, membersByGroup, tagsById],
+  );
+
+  // -- mutations (context-side; optimistic in the hook) --------------------
+
+  const handleCreateTag = (name: string) => {
+    void wiki.createTag(name, null).catch((e) => console.error(e));
   };
   const handleRenameTag = (id: string, name: string) => {
     void wiki.renameTag(id, name).catch((e) => console.error(e));
+  };
+  const handleSetTagColor = (id: string, color: string | null) => {
+    void wiki.setTagColor(id, color).catch((e) => console.error(e));
   };
   const handleDeleteTag = (id: string) => {
     void wiki.deleteTag(id).catch((e) => console.error(e));
   };
 
-  const handleCreateGroup = async (name: string) => {
-    try {
-      await wiki.createGroup(name);
-    } catch (err) {
-      console.error("createGroup failed", err);
-    }
+  const handleCreateGroup = () => {
+    const name = window.prompt(t("materials.tags.newGroupPrompt"), "");
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    void wiki.createGroup(trimmed).catch((e) => console.error(e));
   };
-  const handleRenameGroup = (id: string, name: string) => {
-    void wiki.renameGroup(id, name).catch((e) => console.error(e));
-  };
-  const handleDeleteGroup = (id: string) => {
-    void wiki.deleteGroup(id).catch((e) => console.error(e));
-  };
-
-  const handleAddTagToGroup = (groupId: string, tagId: string) => {
+  const handleAddMember = (groupId: string, tagId: string) => {
     void wiki.assignTagToGroup(tagId, groupId).catch((e) => console.error(e));
   };
-  const handleRemoveTagFromGroup = (groupId: string, tagId: string) => {
+  const handleRemoveMember = (groupId: string, tagId: string) => {
     const assignmentId = assignmentByGroupAndTag.get(`${groupId}:${tagId}`);
     if (!assignmentId) return;
     void wiki.unassignTagFromGroup(assignmentId).catch((e) => console.error(e));
   };
 
   if (wiki.loading) {
-    return <p className="text-sm text-lumen-text-secondary">Loading…</p>;
+    return (
+      <div className="px-4 pt-4">
+        <SkeletonList rows={8} rowHeight={36} gap={4} />
+      </div>
+    );
   }
 
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-lumen-text">
-          Tags ({wiki.allTags.length})
-        </h2>
-        <PromptRow placeholder="New tag name" onSubmit={handleCreateTag} />
-        {wiki.allTags.length === 0 ? (
-          <p className="text-xs text-lumen-text-secondary">
-            No tags yet. Create one above.
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {wiki.allTags.map((tag) => (
-              <TagRow
-                key={tag.id}
-                tag={tag}
-                onRename={handleRenameTag}
-                onDelete={handleDeleteTag}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+  const tagCount = wiki.allTags.length;
+  const hasTags = tagCount > 0;
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-lumen-text">
-          Groups ({wiki.allGroups.length})
-        </h2>
-        <PromptRow placeholder="New group name" onSubmit={handleCreateGroup} />
-        {wiki.allGroups.length === 0 ? (
-          <p className="text-xs text-lumen-text-secondary">
-            No groups yet. Create one above.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {wiki.allGroups.map((group) => {
-              const memberIds = membersByGroup.get(group.id) ?? [];
-              const memberSet = new Set(memberIds);
-              const candidateTags = wiki.allTags.filter(
-                (t) => !memberSet.has(t.id),
-              );
-              return (
-                <GroupCard
-                  key={group.id}
-                  group={group}
-                  memberTagIds={memberIds}
-                  candidateTags={candidateTags}
-                  onRename={handleRenameGroup}
-                  onDelete={handleDeleteGroup}
-                  onAddTag={handleAddTagToGroup}
-                  onRemoveTag={handleRemoveTagFromGroup}
-                  tagsById={tagsById}
-                />
-              );
-            })}
+  const tagRows = wiki.allTags.map((tag) => (
+    <DesktopTagRow
+      key={tag.id}
+      tag={tag}
+      colorOpen={colorEditId === tag.id}
+      onToggleColor={(id) =>
+        setColorEditId((current) => (current === id ? null : id))
+      }
+      onRename={handleRenameTag}
+      onSetColor={(id, color) => {
+        handleSetTagColor(id, color);
+      }}
+      onDelete={handleDeleteTag}
+      renameLabel={t("materials.tags.rename")}
+      colorLabel={t("materials.tags.colorLabel")}
+      colorClearLabel={t("colorPicker.default")}
+      colorCustomLabel={t("colorPicker.custom")}
+      deleteLabel={t("materials.tags.deleteTag")}
+    />
+  ));
+
+  // ---- Desktop --------------------------------------------------------
+
+  const desktopBody = (
+    <div className="flex min-h-0 flex-1 flex-col px-7 pb-6 pt-5">
+      <div className="mx-auto flex w-full max-w-[800px] justify-end pb-3">
+        <button
+          type="button"
+          onClick={() => setAddingTag((v) => !v)}
+          className={ACCENT_BUTTON}
+        >
+          <Plus size={14} aria-hidden />
+          {t("materials.tags.addCta")}
+        </button>
+      </div>
+
+      <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
+        <div className="px-3.5 pb-2 pt-3.5 text-[14px] font-semibold text-lumen-text">
+          {t("materials.tags.tagsCount", { count: tagCount })}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+          {addingTag && (
+            <AddTagRow
+              placeholder={t("materials.tags.addPlaceholder")}
+              submitLabel={t("materials.tags.quickAddSubmit")}
+              onSubmit={handleCreateTag}
+              onClose={() => setAddingTag(false)}
+            />
+          )}
+          {!hasTags ? (
+            <EmptyState
+              icon={<Tag aria-hidden />}
+              message={t("materials.tags.empty")}
+              cta={{
+                label: t("materials.tags.addCta"),
+                onClick: () => setAddingTag(true),
+              }}
+            />
+          ) : (
+            <ul className="flex flex-col gap-[3px]">{tagRows}</ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ---- Mobile ---------------------------------------------------------
+
+  const mobileBody = (
+    <div className="flex h-full flex-col px-4 pt-2">
+      {!hasTags ? (
+        <EmptyState
+          icon={<Tag aria-hidden />}
+          message={t("materials.tags.empty")}
+          cta={{
+            label: t("materials.tags.addCta"),
+            onClick: () => setAddOpen(true),
+          }}
+        />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pb-20">
+          <div className="flex items-baseline gap-1 px-0.5 pb-1 pt-0.5">
+            <span className="text-[14px] font-semibold text-lumen-text">
+              {t("materials.tags.tagsCount", { count: tagCount })}
+            </span>
           </div>
+          {wiki.allTags.map((tag) => (
+            <div
+              key={tag.id}
+              className="flex h-10 items-center gap-2.5 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-3 text-[14px]"
+            >
+              <Dot color={tag.color} className="h-2.5 w-2.5" />
+              <span className="min-w-0 flex-1 truncate text-lumen-text">
+                #{tag.name}
+              </span>
+            </div>
+          ))}
+
+          <div className="flex items-baseline gap-1 px-0.5 pb-1 pt-3">
+            <span className="text-[14px] font-semibold text-lumen-text">
+              {t("materials.tags.groupsCount", {
+                count: wiki.allGroups.length,
+              })}
+            </span>
+          </div>
+          {panelGroups.map((group) => (
+            <MobileGroupCard
+              key={group.id}
+              group={group}
+              memberCountLabel={t("materials.tags.memberCount", {
+                count: group.members.length,
+              })}
+              expandLabel={t("materials.tags.expandGroup")}
+              collapseLabel={t("materials.tags.collapseGroup")}
+            />
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setAddOpen(true)}
+        aria-label={t("materials.tags.quickAddTitle")}
+        className={cn(
+          "absolute bottom-5 right-5 grid h-12 w-12 place-items-center rounded-full",
+          "bg-lumen-accent text-lumen-on-accent shadow-lumen-md transition-opacity hover:opacity-90",
+          FOCUS_RING,
         )}
-      </section>
+      >
+        <Plus size={22} aria-hidden />
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="relative flex h-full min-h-0 flex-col">
+      {isWide ? desktopBody : mobileBody}
+
+      {/* Group management — pushed into the shared rightSidebar (wide-only,
+          always-present content like DailyEntriesPanel). */}
+      {isWide && (
+        <RightSidebarPortal>
+          <TagGroupsPanel
+            heading={t("materials.tags.groupsCount", {
+              count: wiki.allGroups.length,
+            })}
+            createGroupLabel={t("materials.tags.createGroup")}
+            groups={panelGroups}
+            onCreateGroup={handleCreateGroup}
+            onAddMember={handleAddMember}
+            onRemoveMember={handleRemoveMember}
+            addTagLabel={t("materials.tags.addTagToGroup")}
+            addTagSearchPlaceholder={t(
+              "materials.tags.addTagSearchPlaceholder",
+            )}
+            removeMemberLabel={t("materials.tags.removeFromGroup")}
+            noCandidatesLabel={t("materials.tags.noCandidates")}
+            emptyLabel={t("materials.tags.groupsEmpty")}
+          />
+        </RightSidebarPortal>
+      )}
+
+      {/* Mobile quick-add. */}
+      {!isWide && (
+        <QuickAddSheet
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          title={t("materials.tags.quickAddTitle")}
+          placeholder={t("materials.tags.quickAddPlaceholder")}
+          submitLabel={t("materials.tags.quickAddSubmit")}
+          onSubmit={handleCreateTag}
+        />
+      )}
     </div>
   );
 }
