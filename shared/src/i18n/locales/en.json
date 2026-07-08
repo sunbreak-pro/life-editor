@@ -668,7 +668,8 @@
     "endTime": "End",
     "showEndTime": "End time",
     "clearSchedule": "Clear schedule",
-    "emptyState": "Select a task to view details"
+    "emptyState": "Select a task to view details",
+    "tags": "Tags"
   },
   "kanban": {
     "viewFolder": "By folder",
@@ -701,7 +702,16 @@
     "notes": "Notes"
   },
   "materials": {
-    "title": "Materials"
+    "title": "Materials",
+    "tasks": {
+      "filterLabel": "Filter by status",
+      "statusSheetTitle": "Change status",
+      "quickAddTitle": "Add task",
+      "quickAddPlaceholder": "Enter a title",
+      "quickAddSubmit": "Add",
+      "empty": "No tasks yet",
+      "addCta": "Add task"
+    }
   },
   "files": {
     "settingsTitle": "File Explorer",

@@ -668,7 +668,8 @@
     "endTime": "終了",
     "showEndTime": "終了時刻",
     "clearSchedule": "スケジュールをクリア",
-    "emptyState": "タスクを選択して詳細を表示"
+    "emptyState": "タスクを選択して詳細を表示",
+    "tags": "タグ"
   },
   "kanban": {
     "viewFolder": "フォルダ別",
@@ -701,7 +702,16 @@
     "notes": "ノート"
   },
   "materials": {
-    "title": "マテリアル"
+    "title": "マテリアル",
+    "tasks": {
+      "filterLabel": "ステータスで絞り込む",
+      "statusSheetTitle": "ステータスを変更",
+      "quickAddTitle": "タスクを追加",
+      "quickAddPlaceholder": "タイトルを入力",
+      "quickAddSubmit": "追加",
+      "empty": "タスクがありません",
+      "addCta": "タスクを追加"
+    }
   },
   "files": {
     "settingsTitle": "ファイルエクスプローラー",

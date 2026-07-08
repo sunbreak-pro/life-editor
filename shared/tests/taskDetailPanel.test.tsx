@@ -166,6 +166,54 @@ describe("TaskDetailPanel (W7)", () => {
     expect(onToggleStatus).toHaveBeenCalledWith("task-a");
   });
 
+  it("renders the tag row when a tagsSlot is provided", () => {
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="Write the plan"
+        status="NOT_STARTED"
+        onTitleCommit={() => {}}
+        onToggleStatus={() => {}}
+        tagsLabel="Tags"
+        tagsSlot={<span>review</span>}
+        {...LABELS}
+      />,
+    );
+    expect(screen.getByText("Tags")).toBeInTheDocument();
+    expect(screen.getByText("review")).toBeInTheDocument();
+  });
+
+  it("omits the tag row when no tagsSlot is passed (additive prop)", () => {
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="Write the plan"
+        status="NOT_STARTED"
+        onTitleCommit={() => {}}
+        onToggleStatus={() => {}}
+        tagsLabel="Tags"
+        {...LABELS}
+      />,
+    );
+    expect(screen.queryByText("Tags")).not.toBeInTheDocument();
+  });
+
+  it("omits the tag row for a folder even when a tagsSlot is passed", () => {
+    render(
+      <TaskDetailPanel
+        taskId="folder-a"
+        title="Project"
+        isFolder
+        onTitleCommit={() => {}}
+        tagsLabel="Tags"
+        tagsSlot={<span>review</span>}
+        {...LABELS}
+      />,
+    );
+    expect(screen.queryByText("Tags")).not.toBeInTheDocument();
+    expect(screen.queryByText("review")).not.toBeInTheDocument();
+  });
+
   it("hides the status control and content for a folder", () => {
     render(
       <TaskDetailPanel

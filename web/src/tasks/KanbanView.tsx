@@ -5,21 +5,26 @@ import {
   MeasuringStrategy,
   closestCorners,
 } from "@dnd-kit/core";
-import { Plus } from "lucide-react";
+import { ListTodo, Plus } from "lucide-react";
 import {
   KanbanBoard,
   KanbanCard,
   buildFolderColumns,
   buildStatusColumns,
   buildTagColumns,
-  TaskDetailModal,
+  EmptyState,
+  SkeletonList,
+  RightSidebarPortal,
   TaskDetailPanel,
   TaskAddDialog,
+  useMediaQuery,
+  useRightSidebarContext,
   useTaskTreeContext,
   useWikiTagsUnifiedContext,
   useTranslation,
   readKanbanViewMode,
   persistKanbanViewMode,
+  cn,
   type KanbanCardModel,
   type KanbanCardTag,
   type KanbanColumnModel,
@@ -30,6 +35,7 @@ import {
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
+import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
 
 /*
@@ -74,16 +80,25 @@ export function KanbanView(): React.JSX.Element {
   const wikiTags = useWikiTagsUnifiedContext();
   const { allTags, getTagsForItem, setTagColor } = wikiTags;
   const { t } = useTranslation();
+  // Desktop (wide) = the full DnD board + rightSidebar detail; Mobile (narrow)
+  // = the stripped-down MobileTaskList (brief). Same 768px breakpoint the
+  // AppShell uses (its own read — useMediaQuery is a pure display hook).
+  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const rightSidebar = useRightSidebarContext();
   const [viewMode, setViewMode] = useState<KanbanViewMode>(() =>
     readKanbanViewMode("folder"),
   );
   const [moveError, setMoveError] = useState<string | null>(null);
 
-  // Open the detail modal for the clicked card (the modal is a centered
-  // overlay now, so no grow-from-pointer origin is needed — W-UX).
+  // Desktop card click → select + push the detail into the rightSidebar panel
+  // (auto-open). Narrow uses its own BottomSheet inside MobileTaskList, so this
+  // handler is the wide-board path only.
   const handleSelectCard = useCallback(
-    (id: string) => tree.setSelectedTaskId(id),
-    [tree],
+    (id: string) => {
+      tree.setSelectedTaskId(id);
+      rightSidebar.open();
+    },
+    [tree, rightSidebar],
   );
 
   // Add-task / folder dialog (W-UX). The board had no create entry point; this
@@ -183,6 +198,14 @@ export function KanbanView(): React.JSX.Element {
     }
   }, [viewMode, tree.nodes, labels, tags, tagsByTask]);
 
+  // The three status columns for the Mobile list (cards already carry the
+  // folder pill + tags via the pure builder). Built regardless of the desktop
+  // viewMode so switching wide↔narrow needs no extra plumbing.
+  const statusColumns = useMemo<KanbanColumnModel[]>(
+    () => buildStatusColumns(tree.nodes, labels, tagsByTask),
+    [tree.nodes, labels, tagsByTask],
+  );
+
   // Persist a folder / tag color change. The shared column reports its id;
   // the host maps it back to a folder node (folder view) or a tag (tag view).
   const handleColorChange = useCallback(
@@ -223,17 +246,23 @@ export function KanbanView(): React.JSX.Element {
   }, [dnd.activeCardId, columns]);
 
   if (tree.isLoading) {
-    return <p className="text-lumen-text-secondary">Loading tasks…</p>;
+    // Same-shape skeleton (brief §3 — never a spinner).
+    return (
+      <div className="px-4 pt-4">
+        <SkeletonList rows={5} rowHeight={64} gap={10} />
+      </div>
+    );
   }
 
-  // "+ Add" entry point in the board toolbar — opens the add dialog.
+  // "+ Add" entry point in the board toolbar — opens the add dialog. Accent
+  // pill (mock): Plus 14 + 13px medium label, 8px radius.
   const addButton = (
     <button
       type="button"
       onClick={() => setAddOpen(true)}
-      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-semibold text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
     >
-      <Plus size={15} aria-hidden />
+      <Plus size={14} aria-hidden />
       {t("kanban.addTask")}
     </button>
   );
@@ -301,34 +330,89 @@ export function KanbanView(): React.JSX.Element {
     </DndContext>
   );
 
-  // K3 — centered detail overlay for the selected card (W-UX).
+  // K3 (target-IA) — the selected task's detail now lives in the shared
+  // rightSidebar panel (Desktop) instead of a centered modal. narrow uses the
+  // MobileTaskList's own BottomSheet, so the portal is wide-only.
   const selected = tree.selectedTask;
   const isFolder = selected?.type === "folder";
-  const parentFolder = selected?.parentId
-    ? tree.nodes.find((n) => n.id === selected.parentId)
-    : undefined;
+  const selectedTags = selected ? (tagsByTask.get(selected.id) ?? []) : [];
+
+  // Tag chips for the detail panel's tag row (mock: bg pill + 6px color dot).
+  // Omitted (undefined) when the task carries no tags so the row disappears.
+  const tagsSlot =
+    !isFolder && selectedTags.length > 0
+      ? selectedTags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-1.5 rounded-full border border-lumen-border bg-lumen-bg px-2 py-0.5 text-[0.6875rem] text-lumen-text-secondary"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                tag.color ? "" : "bg-lumen-border-strong",
+              )}
+              style={tag.color ? { backgroundColor: tag.color } : undefined}
+            />
+            {tag.name}
+          </span>
+        ))
+      : undefined;
 
   return (
-    <div className="flex h-full flex-col px-2 pt-4">
+    <div className="flex h-full min-h-0 flex-col">
       {moveError && (
         <p
           role="alert"
-          className="mb-2 rounded-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
+          className="mx-2 mt-2 rounded-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
         >
           {moveError}
         </p>
       )}
-      {board}
-      {selected && (
-        <TaskDetailModal
-          open
-          onClose={() => tree.setSelectedTaskId(null)}
-          status={selected.status}
-          folderName={parentFolder?.title}
-          folderColor={parentFolder?.color}
-          breadcrumbTaskLabel={t("kanban.breadcrumbTask")}
-          closeLabel={t("kanban.modalClose")}
-        >
+
+      {isWide ? (
+        <div className="flex min-h-0 flex-1 flex-col px-2 pt-4">
+          {columns.length === 0 ? (
+            <EmptyState
+              icon={<ListTodo aria-hidden />}
+              message={t("materials.tasks.empty")}
+              cta={{
+                label: t("materials.tasks.addCta"),
+                onClick: () => setAddOpen(true),
+              }}
+            />
+          ) : (
+            board
+          )}
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1">
+          <MobileTaskList
+            statusColumns={statusColumns}
+            cardLabels={labels}
+            labels={{
+              statusNotStarted: t("taskDetail.statusNotStarted"),
+              statusInProgress: t("taskDetail.statusInProgress"),
+              statusDone: t("taskDetail.statusDone"),
+              filterLabel: t("materials.tasks.filterLabel"),
+              statusSheetTitle: t("materials.tasks.statusSheetTitle"),
+              empty: t("materials.tasks.empty"),
+              addCta: t("materials.tasks.addCta"),
+              quickAddTitle: t("materials.tasks.quickAddTitle"),
+              quickAddPlaceholder: t("materials.tasks.quickAddPlaceholder"),
+              quickAddSubmit: t("materials.tasks.quickAddSubmit"),
+            }}
+            onSetStatus={tree.setTaskStatus}
+            onQuickAdd={(title) => tree.addNode("task", null, title)}
+          />
+        </div>
+      )}
+
+      {/* Desktop detail — pushed into the shared rightSidebar panel. The portal
+          renders nothing until the panel is open (handleSelectCard opens it),
+          and stays wide-only so narrow never fills the MobileDrawer. */}
+      {isWide && selected && (
+        <RightSidebarPortal>
           <TaskDetailPanel
             taskId={selected.id}
             title={selected.title}
@@ -340,6 +424,8 @@ export function KanbanView(): React.JSX.Element {
             statusLabel={t("taskDetail.status")}
             statusText={t(STATUS_TEXT_KEY[selected.status ?? "NOT_STARTED"])}
             contentLabel={t("taskDetail.content")}
+            tagsLabel={t("taskDetail.tags")}
+            tagsSlot={tagsSlot}
             contentEditor={
               isFolder ? undefined : (
                 <RichTextEditor
@@ -353,25 +439,28 @@ export function KanbanView(): React.JSX.Element {
               )
             }
           />
-        </TaskDetailModal>
+        </RightSidebarPortal>
       )}
-      <TaskAddDialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onSubmit={handleAddSubmit}
-        folders={folderOptions}
-        labels={{
-          title: t("kanban.addDialogTitle"),
-          typeTask: t("kanban.addTypeTask"),
-          typeFolder: t("kanban.addTypeFolder"),
-          titleLabel: t("kanban.addTitleLabel"),
-          titlePlaceholder: t("kanban.addTitlePlaceholder"),
-          folderLabel: t("kanban.addFolderLabel"),
-          rootOption: t("kanban.addFolderRoot"),
-          submit: t("kanban.addSubmit"),
-          cancel: t("kanban.addCancel"),
-        }}
-      />
+
+      {isWide && (
+        <TaskAddDialog
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          onSubmit={handleAddSubmit}
+          folders={folderOptions}
+          labels={{
+            title: t("kanban.addDialogTitle"),
+            typeTask: t("kanban.addTypeTask"),
+            typeFolder: t("kanban.addTypeFolder"),
+            titleLabel: t("kanban.addTitleLabel"),
+            titlePlaceholder: t("kanban.addTitlePlaceholder"),
+            folderLabel: t("kanban.addFolderLabel"),
+            rootOption: t("kanban.addFolderRoot"),
+            submit: t("kanban.addSubmit"),
+            cancel: t("kanban.addCancel"),
+          }}
+        />
+      )}
     </div>
   );
 }
