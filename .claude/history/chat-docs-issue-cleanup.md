@@ -1,5 +1,16 @@
 # HISTORY (chat-docs-issue-cleanup)
 
+### 2026-07-08 - docs-consistency-cleanup クローズ（Phase 8）
+
+#### 概要
+
+PR #177 が merge され #154/#155 が自動 close されたことを実測確認。計画書を COMPLETED 化して archive へ移動し、本レーンの作業を完了した。
+
+#### 変更点
+
+- **計画書**: Status を COMPLETED に更新し `archive/2026-07-07-docs-consistency-cleanup.md` へ移動（計画書: archive/2026-07-07-docs-consistency-cleanup.md）
+- **確認**: PR #177 MERGED（2026-07-08 12:51Z）・#154/#155 CLOSED・origin/main 再取り込み conflict 0
+
 ### 2026-07-08 - docs-consistency-cleanup Phase 0〜7 実装
 
 #### 概要
