@@ -308,20 +308,57 @@
       "modified": "Modified",
       "cancel": "Cancel",
       "osGlobalShortcuts": "OS Global Shortcuts",
-      "osGlobalShortcutsDesc": "Work even when the app is not focused"
+      "osGlobalShortcutsDesc": "Work even when the app is not focused",
+      "done": "Done",
+      "editTitle": "Keyboard Shortcuts",
+      "editDescription": "Press \"Change\" on a row, then type the keys to assign.",
+      "waiting": "Waiting for input · Esc to stop",
+      "categories": {
+        "global": "General",
+        "navigation": "Navigation",
+        "edit": "Editing"
+      }
     },
+    "pageDescription": "Adjust appearance, language, and keyboard shortcuts here. Changes apply immediately.",
     "appearance": "Appearance",
-    "darkMode": "Dark Mode",
-    "darkModeDesc": "Switch between light and dark themes",
+    "theme": "Theme",
     "light": "Light",
     "dark": "Dark",
     "fontSize": "Font Size",
-    "fontSizeSmall": "Small",
-    "fontSizeLarge": "Large",
+    "fontSizeValue": "{{px}}px ({{step}}/{{max}})",
+    "fontSizeSmall": "Small 12px",
+    "fontSizeLarge": "Large 25px",
+    "previewText": "Today's tasks: make a shopping list and prep dinner",
     "language": "Language",
-    "languageDesc": "Choose interface language",
+    "languageDesc": "Switch the display language. Changes apply across the whole app instantly.",
     "english": "English",
     "japanese": "Japanese",
+    "detail": {
+      "previewHeading": "Current appearance",
+      "windowTitle": "Today's tasks",
+      "previewTitle": "Today's tasks",
+      "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
+      "tipsHeading": "Tips",
+      "tasks": {
+        "shopping": "Make a shopping list",
+        "coffee": "Order coffee beans",
+        "dinner": "Prep dinner"
+      },
+      "tips": {
+        "immediate": {
+          "title": "Changes save instantly",
+          "body": "There is no save button. Toggling applies to the whole app right away."
+        },
+        "fontSize": {
+          "title": "Font size affects body text",
+          "body": "Headings and UI stay fixed; only body readability is adjusted."
+        },
+        "palette": {
+          "title": "Search & change from ⌘K",
+          "body": "You can also change shortcut assignments from the command palette."
+        }
+      }
+    },
     "editorSettings": "Editor",
     "editorFontSize": "Editor Font Size",
     "editorFontFamily": "Font Family",
