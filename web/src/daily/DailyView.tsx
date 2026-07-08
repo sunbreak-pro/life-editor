@@ -195,7 +195,12 @@ export function DailyView() {
   const todayIso = useMemo(() => isoDay(0), []);
   const yesterdayIso = useMemo(() => isoDay(-1), []);
 
-  const commit = () => upsertDaily(selectedDate, draft);
+  // Guard blur-commit against no-op saves: upsertDaily would otherwise mint an
+  // empty DailyNode for an untouched day and bump updatedAt (sync cursor) on
+  // every focus→blur. selectedContent is the stored body ("" when absent).
+  const commit = () => {
+    if (draft !== selectedContent) upsertDaily(selectedDate, draft);
+  };
 
   // Chronological entries (newest first) for the rightSidebar panel + mobile.
   const sortedDailies = useMemo(

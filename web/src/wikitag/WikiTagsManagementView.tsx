@@ -112,7 +112,15 @@ function AddTagRow({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
+          // Route Enter through here (not the form's implicit submit) so the
+          // isComposing guard covers IME confirmation, matching DesktopTagRow
+          // rename / QuickAddSheet.
           if (e.nativeEvent.isComposing) return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+            return;
+          }
           if (e.key === "Escape") {
             e.preventDefault();
             onClose();

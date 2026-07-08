@@ -730,6 +730,11 @@ export function NotesView() {
     : null;
   const readGated =
     !!readNote?.hasPassword && !unlocked.has(readNote?.id ?? "");
+  // The LIST omits note bodies (content=""); the body arrives only after the
+  // async hydrate driven by handleOpenRead. selectedNote.id matches readNoteId
+  // exactly when that hydrate has completed, so gate the editor mount on it —
+  // RichTextEditor ignores initialContent changes once mounted under a stable key.
+  const readReady = readNoteId != null && notes.selectedNote?.id === readNoteId;
 
   // ---- Desktop rightSidebar detail ------------------------------------
 
@@ -789,7 +794,11 @@ export function NotesView() {
             pinLabel={t("notesView.unpin")}
             unpinLabel={t("notesView.pin")}
             deleteLabel={t("materials.notes.deleteNote")}
-            tagsSlot={<TagPicker itemId={selected.id} showLabel size="sm" />}
+            tagsSlot={
+              selected.type === "folder" ? undefined : (
+                <TagPicker itemId={selected.id} showLabel size="sm" />
+              )
+            }
             contentLabel={t("materials.notes.content")}
             contentEditor={
               selected.type === "folder" ? undefined : detailContentEditor
@@ -838,14 +847,16 @@ export function NotesView() {
                     {t("materials.notes.lockedHint")}
                   </span>
                 </button>
-              ) : (
+              ) : readReady ? (
                 <RichTextEditor
                   key={readNote.id}
                   noteId={readNote.id}
-                  initialContent={readNote.content || undefined}
+                  initialContent={notes.selectedNote?.content || undefined}
                   editable={false}
                   onUpdate={() => {}}
                 />
+              ) : (
+                <SkeletonList rows={4} rowHeight={20} gap={8} />
               )}
             </div>
           )}

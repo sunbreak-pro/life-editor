@@ -61,9 +61,9 @@ import { RichTextEditor } from "../notes/RichTextEditor";
  * WikiTags context (getTagsForItem) and persists color changes via
  * updateNode (folder) / setTagColor (tag).
  *
- * K3: clicking a card opens the selected task in a full-screen animated
- * <TaskDetailModal> hosting the shared <TaskDetailPanel> + the web TipTap
- * editor. The card's pointer position seeds the modal's grow-from origin.
+ * K3: clicking a card opens the selected task in the right sidebar via
+ * <RightSidebarPortal>, hosting the shared <TaskDetailPanel> + the web TipTap
+ * editor.
  *
  * @dnd-kit lives only in web/ (useKanbanDnd + KanbanColumnDroppable +
  * KanbanCardDraggable); the shared Kanban package never imports it.
