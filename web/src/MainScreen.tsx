@@ -3,14 +3,7 @@ import {
   CheckSquare,
   CalendarDays,
   FileText,
-  Clock,
   Tag,
-  Library,
-  Timer as TimerIcon,
-  BarChart3,
-  Network,
-  Settings as SettingsIcon,
-  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -39,6 +32,12 @@ import {
   AudioProvider,
   AudioChimeBridge,
   useTranslation,
+  SECTIONS,
+  MAIN_SECTIONS,
+  UTILITY_SECTIONS,
+  MOBILE_SECTIONS,
+  type SectionId,
+  type SectionDef,
   type Command,
   type NavSection,
   type Session,
@@ -89,65 +88,23 @@ import { GlobalShortcuts } from "./GlobalShortcuts";
  * their Provider nesting are unchanged from the flat layout.
  */
 
-/** Mainline + utility sections (target IA). `terminal` is retired (§8) and
- *  the shared `SectionId` is left untouched — this is the web-local set. */
-type Section =
-  | "schedule"
-  | "materials"
-  | "connect"
-  | "work"
-  | "analytics"
-  | "settings"
-  | "trash";
+/*
+ * Section identity, order, icons, and the desktop/mobile nav views all come
+ * from the shared section registry (SSOT — shared/src/sections.ts). This host
+ * derives its nav from SECTIONS / MAIN_SECTIONS / UTILITY_SECTIONS /
+ * MOBILE_SECTIONS instead of hand-maintaining parallel literal lists.
+ * The old REPL section is retired (§8) and never appears in the registry.
+ */
 
 /** In-Materials tab — the four document surfaces addressed by one section. */
 type MaterialsTab = "tasks" | "notes" | "daily" | "tags";
 
-const NAV_MAIN: readonly Section[] = [
-  "schedule",
-  "materials",
-  "connect",
-  "work",
-  "analytics",
-];
-const NAV_UTILITY: readonly Section[] = ["settings", "trash"];
-// Mobile bottom-bar priority: fixed 4 = schedule/materials/work/analytics,
-// More overflow = connect/settings/trash (target IA — surface the focus +
-// review tabs over the graph on the narrow layout).
-const MOBILE_ORDER: readonly Section[] = [
-  "schedule",
-  "materials",
-  "work",
-  "analytics",
-  "connect",
-  "settings",
-  "trash",
-];
-const ALL_SECTIONS: readonly Section[] = [
-  "schedule",
-  "materials",
-  "connect",
-  "work",
-  "analytics",
-  "settings",
-  "trash",
-];
 const MATERIALS_TABS: readonly MaterialsTab[] = [
   "tasks",
   "notes",
   "daily",
   "tags",
 ];
-
-const SECTION_ICON: Record<Section, LucideIcon> = {
-  schedule: Clock,
-  materials: Library,
-  connect: Network,
-  work: TimerIcon,
-  analytics: BarChart3,
-  settings: SettingsIcon,
-  trash: Trash2,
-};
 
 const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   tasks: CheckSquare,
@@ -159,7 +116,7 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
-  const [section, setSection] = useState<Section>("materials");
+  const [section, setSection] = useState<SectionId>("materials");
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
@@ -198,12 +155,12 @@ export function MainScreen({ session }: { session: Session }) {
 
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
-    const sectionCmds = ALL_SECTIONS.map<Command>((s) => ({
-      id: `section-${s}`,
-      title: t(`section.${s}`, { defaultValue: s }),
+    const sectionCmds = SECTIONS.map<Command>((s) => ({
+      id: `section-${s.id}`,
+      title: t(s.labelKey, { defaultValue: s.id }),
       category: goTo,
-      icon: SECTION_ICON[s],
-      action: () => setSection(s),
+      icon: s.icon,
+      action: () => setSection(s.id),
     }));
     const materialsCmds = MATERIALS_TABS.map<Command>((tab) => ({
       id: `materials-${tab}`,
@@ -223,20 +180,26 @@ export function MainScreen({ session }: { session: Session }) {
   // (§6.4). Mainline vs utility vs mobile order are three views of the same
   // sections keyed by Section id.
   const toSections = useCallback(
-    (ids: readonly Section[]): AppShellSection[] =>
-      ids.map((s) => {
-        const Icon = SECTION_ICON[s];
+    (defs: readonly SectionDef[]): AppShellSection[] =>
+      defs.map((s) => {
+        const Icon = s.icon;
         return {
-          id: s,
-          label: t(`section.${s}`, { defaultValue: s }),
+          id: s.id,
+          label: t(s.labelKey, { defaultValue: s.id }),
           icon: <Icon size={18} />,
         };
       }),
     [t],
   );
-  const navSections = useMemo(() => toSections(NAV_MAIN), [toSections]);
-  const utilitySections = useMemo(() => toSections(NAV_UTILITY), [toSections]);
-  const mobileSections = useMemo(() => toSections(MOBILE_ORDER), [toSections]);
+  const navSections = useMemo(() => toSections(MAIN_SECTIONS), [toSections]);
+  const utilitySections = useMemo(
+    () => toSections(UTILITY_SECTIONS),
+    [toSections],
+  );
+  const mobileSections = useMemo(
+    () => toSections(MOBILE_SECTIONS),
+    [toSections],
+  );
 
   // Materials in-section tab defs (Tasks / Notes / Daily / Tags). No count
   // badges — the incomplete-task count lives inside TaskTreeProvider, deeper
@@ -522,7 +485,7 @@ export function MainScreen({ session }: { session: Session }) {
                   utilitySections={utilitySections}
                   mobileSections={mobileSections}
                   activeSection={section}
-                  onNavigate={(id) => setSection(id as Section)}
+                  onNavigate={(id) => setSection(id as SectionId)}
                   onTogglePalette={() => setPaletteOpen((v) => !v)}
                   userEmail={session.user.email ?? ""}
                   onSignOut={() => void signOut()}

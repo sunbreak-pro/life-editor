@@ -29,8 +29,9 @@ export { ColorPicker, type ColorPickerProps } from "./ColorPicker";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 // Lumen shipping primitives (ClaudeDesign port). Pure presentation: lumen-*
 // tokens only (§3.1), opaque container surfaces (§3.5), props-injected copy
-// (§6). Toast = notification card + fixed stack; Sheet = any-edge drawer;
-// Sidebar = grouped nav rows (Lumen selected/mint states); Menu = dropdown.
+// (§6). Toast = notification card + fixed stack; Menu = dropdown. (The legacy
+// Sheet drawer + Sidebar nav rows were retired in the app-integration cleanup
+// — BottomSheet / MobileDrawer + SidebarNav are the live surfaces.)
 export {
   Toast,
   ToastViewport,
@@ -39,14 +40,6 @@ export {
   type ToastViewportProps,
   type ToastViewportPosition,
 } from "./Toast";
-export { Sheet, type SheetProps, type SheetSide } from "./Sheet";
-export {
-  Sidebar,
-  SidebarItem,
-  type SidebarProps,
-  type SidebarItemProps,
-  type SidebarItemTone,
-} from "./Sidebar";
 export {
   Menu,
   MenuItem,
@@ -62,10 +55,6 @@ export { MasterDetail, type MasterDetailProps } from "./MasterDetail";
 // Tasks MasterDetail. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
 export { TaskDetailPanel, type TaskDetailPanelProps } from "./TaskDetailPanel";
-// Task detail modal (K3) — full-screen animated modal shell the Kanban opens
-// on card click. Pure presentation: host injects the detail surface as
-// children + props-injected copy (§3.1 / §6.4).
-export { TaskDetailModal, type TaskDetailModalProps } from "./TaskDetailModal";
 // Task add dialog (W-UX) — small centered overlay to create a task / folder.
 // Pure presentation: host injects folder options + copy, receives create
 // intent via onSubmit (§3.1 / §6.4).
@@ -162,10 +151,7 @@ export {
   ThemePreviewCard,
   type ThemePreviewCardProps,
 } from "./ThemePreviewCard";
-export {
-  SteppedSlider,
-  type SteppedSliderProps,
-} from "./SteppedSlider";
+export { SteppedSlider, type SteppedSliderProps } from "./SteppedSlider";
 export {
   ShortcutEditModal,
   type ShortcutEditModalProps,

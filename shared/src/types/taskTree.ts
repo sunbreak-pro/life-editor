@@ -1,11 +1,10 @@
-export type SectionId =
-  | "schedule"
-  | "materials"
-  | "connect"
-  | "work"
-  | "analytics"
-  | "settings"
-  | "terminal";
+// SectionId is derived from the section registry (SSOT) — see
+// shared/src/sections.ts. Re-exported here because CLAUDE.md §3.2 documents
+// `types/taskTree.ts::SectionId` as the canonical reference. The 7-section
+// target IA set (schedule / materials / connect / work / analytics / settings
+// / trash) is defined once in the registry; the old REPL section is retired
+// (§8).
+export type { SectionId } from "../sections";
 
 export type NodeType = "folder" | "task";
 export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";

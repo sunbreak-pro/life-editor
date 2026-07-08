@@ -1,10 +1,11 @@
 /*
  * Shortcut types (W1, web-lean). Selected from the FROZEN
  * `frontend/src/types/shortcut.ts` to ONLY the IDs that map to a real web
- * section/feature (no dead commands). Excluded vs. the Tauri set: terminal /
- * sidebar / right-sidebar / work-timer / play-pause / reset-timer / view
- * toggles / tree nav / calendar nav / tab nav — none of those surfaces exist
- * in the web build. The web `nav:*` IDs are re-keyed to the web MainScreen
+ * section/feature (no dead commands). Excluded vs. the Tauri set: the retired
+ * REPL panel (§8) / sidebar / right-sidebar / work-timer / play-pause /
+ * reset-timer / view toggles / tree nav / calendar nav / tab nav — none of
+ * those surfaces exist in the web build. The web `nav:*` IDs are re-keyed to
+ * the web MainScreen
  * sections (tasks/daily/notes/schedule/tags), NOT the Tauri section names
  * (schedule/ideas/work/analytics/materials), so every binding is live.
  */
