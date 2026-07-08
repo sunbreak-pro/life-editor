@@ -37,7 +37,10 @@ const LABELS: ScheduleTabLabels = {
   completionRate: "Completion rate",
   activeRoutines: "Active routines",
   routineRate: "Routine rate",
-  noEvents: "No events in this range",
+  empty: {
+    title: "No events in this range",
+    description: "Add events to see analytics.",
+  },
   eventTrend: { title: "Trend", completed: "Completed" },
   timeDistribution: { title: "By hour", count: "Count" },
   routineCompletion: { title: "Routines", rate: "Rate" },
@@ -132,7 +135,7 @@ describe("ScheduleTab loading state (per-range fetch in flight)", () => {
 
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
     expect(container.querySelector(".animate-pulse")).not.toBeNull();
-    expect(screen.queryByText(LABELS.noEvents)).not.toBeInTheDocument();
+    expect(screen.queryByText(LABELS.empty.title)).not.toBeInTheDocument();
   });
 
   it("keeps rendering in-range items (not the skeleton) while re-fetching", () => {
@@ -160,6 +163,6 @@ describe("ScheduleTab loading state (per-range fetch in flight)", () => {
       </AnalyticsFilterProvider>,
     );
 
-    expect(screen.getByText(LABELS.noEvents)).toBeInTheDocument();
+    expect(screen.getByText(LABELS.empty.title)).toBeInTheDocument();
   });
 });

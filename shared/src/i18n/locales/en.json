@@ -960,6 +960,34 @@
   },
   "analytics": {
     "title": "Analytics",
+    "tabsLabel": "Analytics views",
+    "datePreset": {
+      "label": "Date range",
+      "7d": "7 days",
+      "30d": "30 days",
+      "thisMonth": "This month",
+      "3m": "3 months",
+      "all": "All time"
+    },
+    "empty": {
+      "work": {
+        "title": "No work sessions yet",
+        "description": "Start your first pomodoro with the Work timer and your work-time analytics will appear here."
+      },
+      "schedule": {
+        "title": "No events in this range",
+        "description": "Complete events and routines and their completion rates and trends will show up here."
+      },
+      "mobile": {
+        "title": "Nothing recorded yet",
+        "description": "Once you start using the timer or the schedule, your daily summary will appear here."
+      }
+    },
+    "mobile": {
+      "weekTitle": "This Week",
+      "routineTitle": "Routine Rate",
+      "top3": "Top 3"
+    },
     "tabs": {
       "overview": "Overview",
       "time": "Time",
@@ -1012,6 +1040,9 @@
     },
     "heatmap": {
       "title": "Activity Heatmap",
+      "meta": "Hour × Day",
+      "less": "Less",
+      "more": "More",
       "tooltip": "{{minutes}} min",
       "mon": "Mon",
       "tue": "Tue",

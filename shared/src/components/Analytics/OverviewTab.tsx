@@ -135,65 +135,67 @@ export function OverviewTab({
   ]);
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6">
-      {/* Multi-domain stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div className="space-y-4">
+      {/* Multi-domain stat cards (full-width 3-col grid) */}
+      <div className="grid grid-cols-3 gap-3">
         <AnalyticsStatCard
-          icon={<BarChart3 size={20} />}
+          icon={<BarChart3 size={16} />}
           label={labels.tasks}
           value={stats.totalTasks}
-          color="text-lumen-accent"
+          tone="mint"
           subtitle={`${stats.completedTasks} ${labels.completed} (${stats.taskRate}%)`}
         />
         <AnalyticsStatCard
-          icon={<CalendarCheck2 size={20} />}
+          icon={<CalendarCheck2 size={16} />}
           label={labels.events}
           value={stats.todayEvents}
-          color="text-lumen-accent"
+          tone="accent"
           subtitle={`${stats.todayEventsCompleted} ${labels.completed} ${labels.today}`}
         />
         <AnalyticsStatCard
-          icon={<FileText size={20} />}
+          icon={<FileText size={16} />}
           label={labels.notes}
           value={stats.totalNotes}
-          color="text-purple-500"
+          tone="accent"
           subtitle={`+${stats.notesThisWeek} ${labels.thisWeek}`}
         />
         <AnalyticsStatCard
-          icon={<Clock size={20} />}
+          icon={<Clock size={16} />}
           label={labels.work}
           value={stats.totalWorkTime}
-          color="text-orange-500"
+          tone="accent"
           subtitle={`${stats.todayWorkTime} ${labels.today}`}
         />
         <AnalyticsStatCard
-          icon={<RefreshCw size={20} />}
+          icon={<RefreshCw size={16} />}
           label={labels.routines}
           value={stats.activeRoutines}
-          color="text-lumen-success"
+          tone="mint"
           subtitle={`${stats.routineRate}% ${labels.rate}`}
         />
         <AnalyticsStatCard
-          icon={<Tag size={20} />}
+          icon={<Tag size={16} />}
           label={labels.tags}
           value={stats.totalTags}
-          color="text-yellow-500"
+          tone="accent"
           subtitle={`${stats.totalAssignments} ${labels.assigned}`}
         />
       </div>
 
-      {/* Today Dashboard */}
-      <TodayDashboard
-        sessions={sessions}
-        nodes={nodes}
-        labels={labels.todayCard}
-      />
-
-      {/* Weekly Summary */}
-      <WeeklySummary sessions={sessions} nodes={nodes} labels={labels.weekly} />
-
-      {/* Streak Display */}
-      <StreakDisplay sessions={sessions} labels={labels.streak} />
+      {/* Today / Weekly / Streak — 3-col ChartCard row */}
+      <div className="grid grid-cols-3 gap-3">
+        <TodayDashboard
+          sessions={sessions}
+          nodes={nodes}
+          labels={labels.todayCard}
+        />
+        <WeeklySummary
+          sessions={sessions}
+          nodes={nodes}
+          labels={labels.weekly}
+        />
+        <StreakDisplay sessions={sessions} labels={labels.streak} />
+      </div>
     </div>
   );
 }

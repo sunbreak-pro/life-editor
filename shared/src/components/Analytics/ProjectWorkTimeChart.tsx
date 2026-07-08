@@ -10,6 +10,7 @@ import {
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
 import { aggregateByFolder } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface ProjectWorkTimeChartLabels {
   title: string;
@@ -27,16 +28,16 @@ interface ProjectWorkTimeChartProps {
 // colours for distinct categories, not themeable container chrome — sourced
 // from the centralized --color-chart-cat-* tokens (tokens.css).
 const COLORS = [
-  "var(--color-chart-cat-1, #2563eb)",
-  "var(--color-chart-cat-2, #22c55e)",
-  "var(--color-chart-cat-3, #f59e0b)",
-  "var(--color-chart-cat-4, #ef4444)",
-  "var(--color-chart-cat-5, #8b5cf6)",
-  "var(--color-chart-cat-6, #ec4899)",
-  "var(--color-chart-cat-7, #06b6d4)",
-  "var(--color-chart-cat-8, #84cc16)",
-  "var(--color-chart-cat-9, #f97316)",
-  "var(--color-chart-cat-10, #6366f1)",
+  "var(--color-chart-cat-1)",
+  "var(--color-chart-cat-2)",
+  "var(--color-chart-cat-3)",
+  "var(--color-chart-cat-4)",
+  "var(--color-chart-cat-5)",
+  "var(--color-chart-cat-6)",
+  "var(--color-chart-cat-7)",
+  "var(--color-chart-cat-8)",
+  "var(--color-chart-cat-9)",
+  "var(--color-chart-cat-10)",
 ];
 
 export function ProjectWorkTimeChart({
@@ -56,22 +57,16 @@ export function ProjectWorkTimeChart({
 
   if (data.length === 0) {
     return (
-      <div>
-        <h3 className="text-sm font-semibold text-lumen-text mb-3">
-          {labels.title}
-        </h3>
-        <p className="text-xs text-lumen-text-secondary text-center py-4">
+      <ChartCard title={labels.title}>
+        <p className="py-4 text-center text-xs text-lumen-text-secondary">
           {labels.noData}
         </p>
-      </div>
+      </ChartCard>
     );
   }
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <PieChart>
@@ -95,8 +90,8 @@ export function ProjectWorkTimeChart({
             </Pie>
             <Tooltip
               contentStyle={{
-                background: "var(--color-lumen-bg, #fff)",
-                border: "1px solid var(--color-lumen-border, #e5e5e5)",
+                background: "var(--color-lumen-bg)",
+                border: "1px solid var(--color-lumen-border)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -108,6 +103,6 @@ export function ProjectWorkTimeChart({
           </PieChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 }

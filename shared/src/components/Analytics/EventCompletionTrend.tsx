@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import type { ScheduleItem } from "../../types/schedule";
 import { aggregateEventCompletionByDay } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface EventCompletionTrendLabels {
   title: string;
@@ -37,39 +38,27 @@ export function EventCompletionTrend({
   );
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart
-            data={data}
-            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-          >
+          <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-lumen-border, #e5e5e5)"
+              stroke="var(--color-lumen-border)"
             />
             <XAxis
               dataKey="date"
-              tick={{
-                fontSize: 10,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{
-                fontSize: 10,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
               allowDecimals={false}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-lumen-bg, #fff)",
-                border: "1px solid var(--color-lumen-border, #e5e5e5)",
+                background: "var(--color-lumen-bg)",
+                border: "1px solid var(--color-lumen-border)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -81,14 +70,14 @@ export function EventCompletionTrend({
             <Area
               type="monotone"
               dataKey="completed"
-              stroke="var(--color-lumen-accent, #1d4ed8)"
-              fill="var(--color-lumen-accent, #1d4ed8)"
+              stroke="var(--color-lumen-accent)"
+              fill="var(--color-lumen-accent)"
               fillOpacity={0.15}
               strokeWidth={2}
             />
           </AreaChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 }

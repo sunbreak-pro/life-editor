@@ -11,6 +11,7 @@ import {
 import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineNode } from "../../types/routine";
 import { aggregateRoutineCompletion } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface RoutineCompletionChartLabels {
   title: string;
@@ -45,10 +46,7 @@ export function RoutineCompletionChart({
   if (data.length === 0) return null;
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div style={{ height: Math.max(160, data.length * 32 + 40) }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
@@ -58,30 +56,24 @@ export function RoutineCompletionChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-lumen-border, #e5e5e5)"
+              stroke="var(--color-lumen-border)"
             />
             <XAxis
               type="number"
               domain={[0, 100]}
-              tick={{
-                fontSize: 10,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
               tickFormatter={(v) => `${v}%`}
             />
             <YAxis
               type="category"
               dataKey="name"
-              tick={{
-                fontSize: 10,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
               width={100}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-lumen-bg, #fff)",
-                border: "1px solid var(--color-lumen-border, #e5e5e5)",
+                background: "var(--color-lumen-bg)",
+                border: "1px solid var(--color-lumen-border)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -92,12 +84,12 @@ export function RoutineCompletionChart({
             />
             <Bar
               dataKey="rate"
-              fill="var(--color-lumen-success, #22c55e)"
+              fill="var(--color-lumen-accent-secondary)"
               radius={[0, 4, 4, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 }

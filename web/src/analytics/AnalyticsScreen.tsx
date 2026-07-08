@@ -72,6 +72,9 @@ export function AnalyticsScreen({
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const [data, setData] = useState<AnalyticsData>(EMPTY);
+  // First-load flag: drives AnalyticsView's skeleton so the dashboard lays out
+  // its frame instead of flashing zeros before the mount fetch resolves.
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Schedule tab data — fetched per selected range, not up front.
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
@@ -114,10 +117,13 @@ export function AnalyticsScreen({
             assignmentCount: assignments.length,
             targetPerDay: timerSettings.targetSessions ?? 4,
           });
+          setInitialLoading(false);
         },
       )
       .catch(() => {
-        if (!cancelled) setData(EMPTY);
+        if (cancelled) return;
+        setData(EMPTY);
+        setInitialLoading(false);
       });
 
     return () => {
@@ -174,12 +180,39 @@ export function AnalyticsScreen({
           hours: Math.floor(minutes / 60),
           minutes: Math.round(minutes % 60),
         }),
-      noSessions: t("analytics.noSessions"),
+      tabsLabel: t("analytics.tabsLabel"),
       tabs: {
         overview: t("analytics.tabs.overview"),
         tasks: t("analytics.tabs.tasks"),
         schedule: t("analytics.tabs.schedule"),
         work: t("analytics.tabs.work"),
+      },
+      datePreset: {
+        label: t("analytics.datePreset.label"),
+        options: {
+          "7d": t("analytics.datePreset.7d"),
+          "30d": t("analytics.datePreset.30d"),
+          thisMonth: t("analytics.datePreset.thisMonth"),
+          "3m": t("analytics.datePreset.3m"),
+          all: t("analytics.datePreset.all"),
+        },
+      },
+      emptyWork: {
+        title: t("analytics.empty.work.title"),
+        description: t("analytics.empty.work.description"),
+      },
+      emptySchedule: {
+        title: t("analytics.empty.schedule.title"),
+        description: t("analytics.empty.schedule.description"),
+      },
+      emptyMobile: {
+        title: t("analytics.empty.mobile.title"),
+        description: t("analytics.empty.mobile.description"),
+      },
+      mobile: {
+        weekTitle: t("analytics.mobile.weekTitle"),
+        routineTitle: t("analytics.mobile.routineTitle"),
+        top3: t("analytics.mobile.top3"),
       },
       period: {
         day: t("analytics.period.day"),
@@ -225,6 +258,9 @@ export function AnalyticsScreen({
       },
       heatmap: {
         title: t("analytics.heatmap.title"),
+        meta: t("analytics.heatmap.meta"),
+        less: t("analytics.heatmap.less"),
+        more: t("analytics.heatmap.more"),
         days: {
           mon: t("analytics.heatmap.mon"),
           tue: t("analytics.heatmap.tue"),
@@ -270,7 +306,6 @@ export function AnalyticsScreen({
         completionRate: t("analytics.schedule.completionRate"),
         activeRoutines: t("analytics.schedule.activeRoutines"),
         routineRate: t("analytics.schedule.routineRate"),
-        noEvents: t("analytics.schedule.noEvents"),
         eventTrend: {
           title: t("analytics.schedule.eventTrend.title"),
           completed: t("analytics.schedule.eventTrend.completed"),
@@ -296,6 +331,7 @@ export function AnalyticsScreen({
       scheduleItems={scheduleItems}
       onScheduleRangeChange={handleScheduleRangeChange}
       scheduleLoading={scheduleLoading}
+      initialLoading={initialLoading}
       notes={data.notes}
       routines={data.routines}
       taskNameMap={taskNameMap}

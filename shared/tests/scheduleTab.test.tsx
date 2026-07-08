@@ -29,7 +29,10 @@ const LABELS: ScheduleTabLabels = {
   completionRate: "Completion rate",
   activeRoutines: "Active routines",
   routineRate: "Routine rate",
-  noEvents: "No events in this range",
+  empty: {
+    title: "No events in this range",
+    description: "Add events to see analytics.",
+  },
   eventTrend: { title: "Trend", completed: "Completed" },
   timeDistribution: { title: "By hour", count: "Count" },
   routineCompletion: { title: "Routines", rate: "Rate" },
@@ -86,7 +89,7 @@ describe("ScheduleTab date-range filtering (per-range presentation)", () => {
     // deleted one are excluded). "2" is unique among the rendered stat values.
     expect(screen.getByText("2")).toBeInTheDocument();
     // Not the empty state.
-    expect(screen.queryByText(LABELS.noEvents)).not.toBeInTheDocument();
+    expect(screen.queryByText(LABELS.empty.title)).not.toBeInTheDocument();
   });
 
   it("shows the empty state when no item falls inside the range", () => {
@@ -97,7 +100,7 @@ describe("ScheduleTab date-range filtering (per-range presentation)", () => {
 
     renderTab(items);
 
-    expect(screen.getByText(LABELS.noEvents)).toBeInTheDocument();
+    expect(screen.getByText(LABELS.empty.title)).toBeInTheDocument();
   });
 
   it("tints the totalEvents stat icon with an lumen-* token, not a raw literal", () => {

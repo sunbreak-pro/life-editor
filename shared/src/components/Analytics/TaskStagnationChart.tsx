@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { TaskNode } from "../../types/taskTree";
 import { aggregateTaskStagnation } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface TaskStagnationChartLabels {
   title: string;
@@ -32,10 +33,7 @@ export function TaskStagnationChart({
   if (!hasData) return null;
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
@@ -45,30 +43,24 @@ export function TaskStagnationChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-lumen-border, #e5e5e5)"
+              stroke="var(--color-lumen-border)"
               horizontal={false}
             />
             <XAxis
               type="number"
-              tick={{
-                fontSize: 10,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
               allowDecimals={false}
             />
             <YAxis
               dataKey="label"
               type="category"
-              tick={{
-                fontSize: 10,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
               width={80}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-lumen-bg, #fff)",
-                border: "1px solid var(--color-lumen-border, #e5e5e5)",
+                background: "var(--color-lumen-bg)",
+                border: "1px solid var(--color-lumen-border)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -84,6 +76,6 @@ export function TaskStagnationChart({
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 }

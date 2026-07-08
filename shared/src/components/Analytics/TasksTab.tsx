@@ -31,14 +31,16 @@ export function TasksTab({
   labels,
 }: TasksTabProps): React.JSX.Element {
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6">
+    <div className="space-y-4">
       <TaskCompletionTrend nodes={nodes} days={30} labels={labels.taskTrend} />
-      <TaskStagnationChart nodes={nodes} labels={labels.stagnation} />
-      <ProjectWorkTimeChart
-        sessions={sessions}
-        nodes={nodes}
-        labels={labels.projectTime}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <TaskStagnationChart nodes={nodes} labels={labels.stagnation} />
+        <ProjectWorkTimeChart
+          sessions={sessions}
+          nodes={nodes}
+          labels={labels.projectTime}
+        />
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import type { TimerSession } from "../../types/timer";
 import { aggregateByTask } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface TaskWorkTimeChartLabels {
   title: string;
@@ -44,10 +45,7 @@ export function TaskWorkTimeChart({
   const chartHeight = Math.max(120, data.length * barHeight + 40);
 
   return (
-    <div className="bg-lumen-bg-secondary rounded-lg p-4 border border-lumen-border">
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
@@ -57,15 +55,12 @@ export function TaskWorkTimeChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-lumen-text, #e5e5e5)"
+              stroke="var(--color-lumen-border)"
               horizontal={false}
             />
             <XAxis
               type="number"
-              tick={{
-                fontSize: 11,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
               tickLine={false}
               axisLine={false}
               unit="h"
@@ -74,18 +69,15 @@ export function TaskWorkTimeChart({
               type="category"
               dataKey="name"
               width={120}
-              tick={{
-                fontSize: 11,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
               cursor={{ fill: "var(--color-lumen-hover)" }}
               contentStyle={{
-                background: "var(--color-lumen-bg, #fff)",
-                border: "1px solid var(--color-lumen-border, #e5e5e5)",
+                background: "var(--color-lumen-bg)",
+                border: "1px solid var(--color-lumen-border)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -100,12 +92,12 @@ export function TaskWorkTimeChart({
             />
             <Bar
               dataKey="hours"
-              fill="var(--color-lumen-success, #22c55e)"
+              fill="var(--color-lumen-accent)"
               radius={[0, 4, 4, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 }

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Flame, Trophy } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
 import { computeWorkStreak } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface StreakDisplayLabels {
   title: string;
@@ -24,22 +25,23 @@ export function StreakDisplay({
 
   if (streak.currentStreak === 0 && streak.longestStreak === 0) {
     return (
-      <div className="bg-lumen-bg-secondary rounded-lg p-4 text-center">
-        <p className="text-sm text-lumen-text-secondary">{labels.noStreak}</p>
-      </div>
+      <ChartCard title={labels.title}>
+        <p className="py-2 text-center text-sm text-lumen-text-secondary">
+          {labels.noStreak}
+        </p>
+      </ChartCard>
     );
   }
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-lumen-bg-secondary rounded-lg p-4 flex items-center gap-3">
-          <Flame size={24} className="text-orange-500 shrink-0" />
-          <div>
-            <p className="text-2xl font-bold text-lumen-text">
+        <div className="flex items-center gap-3">
+          <span className="grid h-[34px] w-[34px] flex-shrink-0 place-items-center rounded-lumen-md bg-lumen-chip-progress-bg text-lumen-chip-progress-fg">
+            <Flame size={18} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-lg font-semibold tabular-nums text-lumen-text">
               {streak.currentStreak}
             </p>
             <p className="text-xs text-lumen-text-secondary">
@@ -47,10 +49,12 @@ export function StreakDisplay({
             </p>
           </div>
         </div>
-        <div className="bg-lumen-bg-secondary rounded-lg p-4 flex items-center gap-3">
-          <Trophy size={24} className="text-yellow-500 shrink-0" />
-          <div>
-            <p className="text-2xl font-bold text-lumen-text">
+        <div className="flex items-center gap-3 border-l border-lumen-border pl-3">
+          <span className="grid h-[34px] w-[34px] flex-shrink-0 place-items-center rounded-lumen-md bg-lumen-chip-mint-bg text-lumen-chip-mint-fg">
+            <Trophy size={18} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-lg font-semibold tabular-nums text-lumen-text">
               {streak.longestStreak}
             </p>
             <p className="text-xs text-lumen-text-secondary">
@@ -59,6 +63,6 @@ export function StreakDisplay({
           </div>
         </div>
       </div>
-    </div>
+    </ChartCard>
   );
 }

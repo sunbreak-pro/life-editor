@@ -960,6 +960,34 @@
   },
   "analytics": {
     "title": "分析",
+    "tabsLabel": "分析ビュー",
+    "datePreset": {
+      "label": "期間",
+      "7d": "7日",
+      "30d": "30日",
+      "thisMonth": "今月",
+      "3m": "3ヶ月",
+      "all": "全期間"
+    },
+    "empty": {
+      "work": {
+        "title": "まだ作業セッションがありません",
+        "description": "Work のタイマーで最初のポモドーロを始めると、ここに作業時間の分析が表示されます。"
+      },
+      "schedule": {
+        "title": "この期間の予定がありません",
+        "description": "予定やルーチンをこなすと、達成率やトレンドがここに表示されます。"
+      },
+      "mobile": {
+        "title": "まだ記録がありません",
+        "description": "タイマーやスケジュールを使い始めると、ここに今日のサマリーが表示されます。"
+      }
+    },
+    "mobile": {
+      "weekTitle": "今週",
+      "routineTitle": "ルーチン達成率",
+      "top3": "上位 3 件"
+    },
     "tabs": {
       "overview": "概要",
       "time": "時間",
@@ -1012,6 +1040,9 @@
     },
     "heatmap": {
       "title": "アクティビティヒートマップ",
+      "meta": "時間帯 × 曜日",
+      "less": "少ない",
+      "more": "多い",
       "tooltip": "{{minutes}}分",
       "mon": "月",
       "tue": "火",
