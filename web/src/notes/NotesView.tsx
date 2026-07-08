@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -18,13 +18,25 @@ import {
   GripVertical,
   Lock,
   Pin,
+  Plus,
+  Search,
   Trash2,
   RotateCcw,
 } from "lucide-react";
 import {
   useNotesUnifiedContext,
+  useWikiTagsUnifiedContext,
   useTranslation,
-  MasterDetail,
+  useMediaQuery,
+  useRightSidebarContext,
+  RightSidebarPortal,
+  NoteDetailPanel,
+  EmptyState,
+  SkeletonList,
+  ExcerptListItem,
+  QuickAddSheet,
+  BottomSheet,
+  cn,
   type NoteNode,
 } from "@life-editor/shared";
 import { useNoteTreeDnd } from "./useNoteTreeDnd";
@@ -39,19 +51,31 @@ import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
- * Web Notes UI (S3). New, purpose-built lumen-token UI (NOT a port of
- * the Tauri Notes screen) that exercises every shared Note data path:
- * hierarchical tree, expand/collapse, @dnd-kit reorder + into-folder +
- * to-root, create note/folder, rename, pin, soft-delete + restore +
- * purge, lean TipTap content edit, and the password / edit-lock
- * subsystem. Heavier Tauri features (wiki/note links, sidebar grouping,
- * search dropdown, sort UI chrome) are out of this milestone's scope.
+ * Web Notes tab (Materials mini-plan Step 3). Re-shaped from the old
+ * MasterDetail layout to the target-IA design:
+ *
+ *   - Desktop (isWide): a centered max-width 800px surface card — a search
+ *     field + "folder" create button, the note tree (34px rows, chevron
+ *     folders, hover grip + trash, pin / lock indicators), and a bottom
+ *     "Trash (N)" row. The selected note's detail (title / pin / delete /
+ *     tags / content / links) is PUSHED INTO THE SHARED rightSidebar via
+ *     RightSidebarPortal + the new shared <NoteDetailPanel>, mirroring the
+ *     Tasks tab's isWide + portal pattern. No MasterDetail.
+ *   - Mobile (narrow): a read + shortest-add surface (brief). A "Pinned"
+ *     section, an "All notes (N)" tree of collapsible folder headings +
+ *     ExcerptListItem rows, a 92%-height read sheet (title + read-only tags
+ *     + read-only body, unlock gate preserved), and a "+" QuickAddSheet.
+ *     Edit / move / folder-create / tag-edit are Desktop-only (brief).
+ *
+ * DnD (reorder / move-into-folder / to-root), the password / unlock
+ * subsystem, and Trash restore/purge are preserved from the previous
+ * milestone. Data stays context-side (useNotesUnifiedContext); this view is
+ * DataService-free (§3.1) and takes copy from useTranslation → props.
  */
 
-// i18n strings live in the host shell (CLAUDE.md §6.4 — never a
-// useTranslation() inside shared/UI leaf components). English only for
-// the web build so far; a real i18n table arrives with the Settings
-// section S-step.
+// Password dialog copy. Kept as local constants (the Notes i18n追い付き is
+// scoped to Daily/Tags in this plan); promoting these to catalog keys is a
+// follow-up.
 const DIALOG_LABELS = {
   setTitle: "Set note password",
   removeTitle: "Remove note password",
@@ -67,9 +91,6 @@ const DIALOG_LABELS = {
   saveFailed: "Could not save. Please try again.",
 } as const;
 
-// Shared focus-visible ring (lumen tokens only — no hardcoded colors).
-// Kept in sync with the identical constant in NotePasswordDialog.tsx;
-// promoting it to a shared export is out of this focused pass's scope.
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
@@ -77,12 +98,12 @@ interface FlatRow {
   node: NoteNode;
   depth: number;
   hasChildren: boolean;
-  // True when this row is the last of its parent's visible children. Drives
-  // the TreeNodeIndent "elbow" (deepest guide rule drawn at half height).
   isLastChild: boolean;
 }
 
-function NoteRow({
+// ---- Desktop tree row -------------------------------------------------
+
+function DesktopNoteRow({
   row,
   expanded,
   selected,
@@ -90,52 +111,34 @@ function NoteRow({
   onToggleExpand,
   onSelect,
   onDelete,
+  deleteLabel,
 }: {
   row: FlatRow;
   expanded: boolean;
   selected: boolean;
-  // Drop indicator for THIS row while a drag is over it. null when this
-  // row is not the current drop target (or no drag is active).
   dropPosition: "above" | "below" | "inside" | null;
   onToggleExpand: (id: string) => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  deleteLabel: string;
 }) {
   const { node, depth, hasChildren, isLastChild } = row;
   const { attributes, listeners, setNodeRef } = useSortable({ id: node.id });
-
-  // The list stays completely static during a drag. @dnd-kit's sortable
-  // strategy still computes per-row shift transforms, but we deliberately
-  // do NOT apply them, and the dragged row keeps full opacity in place —
-  // the list block itself never moves. The "what am I dragging" cue is a
-  // faint floating ghost (DragOverlay, below) that trails the cursor,
-  // while the blue indicator (insertion line / light-blue folder wash)
-  // shows where it will land. The actual reorder/move happens on drop.
-  // Depth is now expressed as TreeNodeIndent guide columns (TaskTree
-  // parity), not a paddingLeft — so no inline style is needed.
-
-  // "Drop inside this folder" — opaque light-blue wash + accent border so
-  // it reads distinctly from the selected row (which uses border + hover
-  // bg). Selected styling is suppressed while showing the inside cue to
-  // avoid a muddled double-treatment.
-  const showInside = dropPosition === "inside";
   const isFolder = node.type === "folder";
+  const showInside = dropPosition === "inside";
+  const highlighted = showInside || selected;
 
   return (
     <li
       ref={setNodeRef}
-      className={`group relative flex items-center gap-1 rounded-md border px-2 py-1.5 ${
-        showInside
+      className={cn(
+        "group relative flex items-center gap-2 rounded-lumen-md border px-2",
+        "h-[34px] text-[13.5px]",
+        highlighted
           ? "border-lumen-accent bg-lumen-accent-subtle"
-          : selected
-            ? "border-lumen-accent bg-lumen-hover"
-            : "border-lumen-border bg-lumen-bg-secondary"
-      }`}
+          : "border-transparent hover:bg-lumen-hover",
+      )}
     >
-      {/* Reorder insertion line — 2px accent bar pinned to the row's top
-          or bottom edge. Purely visual; @dnd-kit announces the move via
-          its own live region, so this is aria-hidden. No transition: it
-          must track the pointer instantly without trailing. */}
       {dropPosition === "above" && (
         <span
           aria-hidden
@@ -148,187 +151,125 @@ function NoteRow({
           className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-lumen-accent"
         />
       )}
-      {/* Grip — hover-revealed (TaskTree parity). Stays focusable so a
-          keyboard user can still tab to it; group-hover surfaces it for
-          the mouse. */}
+
+      {/* Grip — hover-revealed (TaskTree parity), keyboard-focusable. */}
       <button
         type="button"
         {...attributes}
         {...listeners}
         aria-label="Drag to reorder or move"
-        className={`shrink-0 cursor-grab text-lumen-text-secondary opacity-0 transition-opacity hover:text-lumen-text focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+        className={cn(
+          "shrink-0 cursor-grab text-lumen-text-tertiary opacity-0 transition-opacity",
+          "hover:text-lumen-text focus-visible:opacity-100 group-hover:opacity-100",
+          FOCUS_RING,
+        )}
       >
-        <GripVertical size={14} aria-hidden />
+        <GripVertical size={13} aria-hidden />
       </button>
 
       <TreeNodeIndent depth={depth} isLastChild={isLastChild} />
 
-      {/* Leading glyph: folders show a Folder icon at rest that swaps to a
-          twisty (chevron) on row hover — one control, one click target —
-          mirroring the Desktop TaskTree. Notes show a static FileText. */}
       {isFolder ? (
         <button
           type="button"
           onClick={() => onToggleExpand(node.id)}
           aria-label={expanded ? "Collapse folder" : "Expand folder"}
           aria-expanded={expanded}
-          className={`relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-lumen-text-secondary hover:text-lumen-text ${FOCUS_RING}`}
+          className={cn(
+            "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-lumen-text-secondary hover:text-lumen-text",
+            FOCUS_RING,
+          )}
         >
-          <Folder
-            size={14}
-            aria-hidden
-            className="absolute opacity-100 transition-opacity group-hover:opacity-0"
-          />
-          {hasChildren ? (
-            expanded ? (
-              <ChevronDown
-                size={14}
-                aria-hidden
-                className="absolute opacity-0 transition-opacity group-hover:opacity-100"
-              />
-            ) : (
-              <ChevronRight
-                size={14}
-                aria-hidden
-                className="absolute opacity-0 transition-opacity group-hover:opacity-100"
-              />
-            )
+          {expanded ? (
+            <ChevronDown size={14} aria-hidden />
           ) : (
-            // Empty folder: still toggleable (a no-op visually), but show
-            // the Folder→Folder so hover does not flash an empty box.
-            <Folder
-              size={14}
-              aria-hidden
-              className="absolute opacity-0 transition-opacity group-hover:opacity-100"
-            />
+            <ChevronRight size={14} aria-hidden />
           )}
         </button>
       ) : (
         <FileText
           size={14}
           aria-hidden
-          className="shrink-0 text-lumen-text-secondary"
+          className={cn(
+            "shrink-0",
+            selected ? "text-lumen-accent" : "text-lumen-text-secondary",
+          )}
         />
       )}
 
       <button
         type="button"
         onClick={() => (isFolder ? onToggleExpand(node.id) : onSelect(node.id))}
-        className={`flex flex-1 items-center gap-1.5 text-left text-sm text-lumen-text ${FOCUS_RING}`}
+        className={cn(
+          "flex flex-1 items-center gap-1.5 truncate text-left",
+          FOCUS_RING,
+        )}
       >
-        <span className={node.isPinned ? "font-medium" : ""}>
+        <span
+          className={cn(
+            "truncate",
+            isFolder || node.isPinned ? "font-medium" : "",
+            selected ? "text-lumen-accent" : "text-lumen-text",
+          )}
+        >
           {node.title || "(untitled)"}
         </span>
-        {node.isPinned && (
-          <Pin size={11} aria-label="Pinned" className="text-lumen-accent" />
+        {!hasChildren && node.isPinned && (
+          <Pin
+            size={12}
+            aria-label="Pinned"
+            className="shrink-0 text-lumen-accent"
+          />
         )}
         {node.hasPassword && (
           <Lock
-            size={11}
+            size={12}
             aria-label="Password protected"
-            className="text-lumen-text-secondary"
+            className="shrink-0 text-lumen-text-tertiary"
           />
         )}
       </button>
 
-      <button
-        type="button"
-        onClick={(e) => {
-          // Row click handles select/expand; the delete action must not
-          // bubble to it (and folders are not selectable at all).
-          e.stopPropagation();
-          onDelete(node.id);
-        }}
-        aria-label={`Delete ${
-          node.type === "folder" ? "folder" : "note"
-        } ${node.title || "untitled"}`}
-        className={`text-lumen-text-secondary opacity-0 transition-opacity hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-      >
-        <Trash2 size={14} aria-hidden />
-      </button>
+      {!isFolder && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(node.id);
+          }}
+          aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
+          className={cn(
+            "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
+            "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
+            FOCUS_RING,
+          )}
+        >
+          <Trash2 size={14} aria-hidden />
+        </button>
+      )}
     </li>
-  );
-}
-
-/*
- * Note title field (B2). The previous inline <input> called `updateNote`
- * on every keystroke — a DataService write per character, and writes
- * mid-IME-composition. This mirrors RichTextEditor's debounce-and-flush
- * pattern exactly: a local draft, a 300ms debounced persist, an
- * immediate flush on blur, and a final flush on unmount. The parent
- * remounts this via `key={selected.id}` so a note switch (id change)
- * re-seeds the draft cleanly with no setState-in-effect / ref-in-render.
- * The key intentionally excludes `title`: the debounced persist mutates
- * `selected.title`, and keying on it would remount mid-typing and steal
- * focus (single-user app — an external rename re-seed is not needed).
- * The eventually-persisted value is unchanged — only the write cadence
- * differs.
- */
-function NoteTitleInput({
-  noteId,
-  initialTitle,
-  onCommit,
-}: {
-  noteId: string;
-  initialTitle: string;
-  onCommit: (id: string, title: string) => void;
-}) {
-  const [draft, setDraft] = useState(initialTitle);
-  const timerRef = useRef<number | null>(null);
-  const pendingRef = useRef<string | null>(null);
-  const onCommitRef = useRef(onCommit);
-  useEffect(() => {
-    onCommitRef.current = onCommit;
-  });
-
-  const flush = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (pendingRef.current !== null) {
-      onCommitRef.current(noteId, pendingRef.current);
-      pendingRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    // flush only touches refs (stable for this component lifetime), so
-    // an empty dep array is correct — same as RichTextEditor.
-    return () => flush();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <input
-      value={draft}
-      onChange={(e) => {
-        const value = e.target.value;
-        setDraft(value);
-        pendingRef.current = value;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(flush, 300);
-      }}
-      onBlur={flush}
-      aria-label="Note title"
-      className={`flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text ${FOCUS_RING}`}
-    />
   );
 }
 
 export function NotesView() {
   const notes = useNotesUnifiedContext();
+  const { allTags, getTagsForItem } = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
+  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const rightSidebar = useRightSidebarContext();
+
   const [pwDialog, setPwDialog] = useState<{
     mode: NotePasswordMode;
     noteId: string;
   } | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
+  const [trashOpen, setTrashOpen] = useState(false);
+  // Mobile-only: the note whose read sheet is open + the quick-add sheet.
+  const [readNoteId, setReadNoteId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
-  // Linkable candidates pool for the LinkPanel (DU-F Step 9): active
-  // notes only. Cross-role links (note → task / event / daily) still
-  // need a raw id paste — DU-G removes this per-role wiring once
-  // items_meta resolver is unified.
+  // Linkable candidates pool for the LinkPanel: active notes only.
   const linkableItems = useMemo(
     () =>
       notes.notes
@@ -344,10 +285,6 @@ export function NotesView() {
     if (!n) return undefined;
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
-  // Session unlock set (no re-lock for the session — mirrors the legacy
-  // ScreenLockContext `unlockedIds: Set`). A correct verify adds the note
-  // id; switching notes and coming back keeps it unlocked.
-  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
 
   const dnd = useNoteTreeDnd({
     notes: notes.notes,
@@ -379,34 +316,61 @@ export function NotesView() {
     };
     walk(null, 0);
     return rows;
-    // `notes` is the memoised shared context value — its identity changes
-    // whenever notes/expandedIds change, so it fully covers this memo.
   }, [notes]);
 
   const selected = notes.selectedNote;
 
-  const promptTitle = (label: string, current?: string): string | null => {
-    const next = window.prompt(label, current ?? "");
-    if (next === null) return null;
-    return next.trim();
+  // Read-only tag pills for a note (Mobile read sheet). Desktop uses the
+  // editable TagPicker instead.
+  const tagsById = useMemo(() => {
+    const map = new Map<string, (typeof allTags)[number]>();
+    for (const tag of allTags) map.set(tag.id, tag);
+    return map;
+  }, [allTags]);
+
+  const renderReadonlyTags = (noteId: string) => {
+    const assignments = getTagsForItem(noteId).filter((a) => !a.isDeleted);
+    if (assignments.length === 0) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {assignments.map((a) => {
+          const tag = tagsById.get(a.tagId);
+          if (!tag) return null;
+          return (
+            <span
+              key={a.id}
+              className="inline-flex items-center gap-1.5 rounded-full border border-lumen-border bg-lumen-bg px-2 py-0.5 text-[11.5px] text-lumen-text-secondary"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                  tag.color ? "" : "bg-lumen-border-strong",
+                )}
+                style={tag.color ? { backgroundColor: tag.color } : undefined}
+              />
+              {tag.name}
+            </span>
+          );
+        })}
+      </div>
+    );
   };
 
-  const addNote = () => {
-    const title = promptTitle("New note title");
-    if (title === null) return;
-    notes.createNote(title || "Untitled");
+  const handleSelectDesktop = (id: string) => {
+    notes.setSelectedNoteId(id);
+    rightSidebar.open();
+  };
+
+  const handleOpenRead = (id: string) => {
+    notes.setSelectedNoteId(id); // hydrates the body before the sheet reads it
+    setReadNoteId(id);
   };
 
   const addFolder = () => {
-    const title = promptTitle("New folder title");
+    const title = window.prompt(t("materials.notes.newFolderPrompt"), "");
     if (title === null) return;
-    notes.createFolder(title || "New Folder");
-  };
-
-  const rename = (node: NoteNode) => {
-    const title = promptTitle("New title", node.title);
-    if (title === null || !title || title === node.title) return;
-    notes.updateNote(node.id, { title });
+    notes.createFolder(title.trim() || t("notes.newFolder"));
   };
 
   const handlePwSubmit = async (password: string) => {
@@ -427,122 +391,180 @@ export function NotesView() {
     }
   };
 
-  const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
-
   if (notes.isLoading) {
-    return <p className="text-lumen-text-secondary">Loading notes…</p>;
+    return (
+      <div className="px-4 pt-4">
+        <SkeletonList rows={6} rowHeight={34} gap={4} />
+      </div>
+    );
   }
 
-  // Master pane — the note tree, create controls, errors and the trash
-  // drawer. Selection stays owned here (notes.selectedNote); MasterDetail is
-  // a pure layout shell that only takes detailOpen + onCloseDetail (§3.1).
-  const master = (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={addNote}
-            className={`rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 ${FOCUS_RING}`}
-          >
-            + Note
-          </button>
+  const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
+  const hasNotes = flat.length > 0;
+
+  // ---- Desktop body ---------------------------------------------------
+
+  const desktopBody = (
+    <div className="flex min-h-0 flex-1 flex-col px-7 pb-6 pt-5">
+      {/* Action row — "+ Note" CTA (差分宣言 #1: the tab-row slot is shell-
+          owned, so the create entry lives at the content head). */}
+      <div className="mx-auto flex w-full max-w-[800px] justify-end pb-3">
+        <button
+          type="button"
+          onClick={() => notes.createNote()}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
+            "text-[13px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+            FOCUS_RING,
+          )}
+        >
+          <Plus size={14} aria-hidden />
+          {t("materials.notes.addCta")}
+        </button>
+      </div>
+
+      <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
+        {/* Search + folder create. */}
+        <div className="flex gap-2 px-3 pb-2 pt-3">
+          <div className="flex h-8 flex-1 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
+            <Search
+              size={13}
+              aria-hidden
+              className="shrink-0 text-lumen-text-tertiary"
+            />
+            <input
+              value={notes.searchQuery}
+              onChange={(e) => notes.setSearchQuery(e.target.value)}
+              placeholder={t("materials.notes.searchPlaceholder")}
+              aria-label={t("materials.notes.searchPlaceholder")}
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
+            />
+          </div>
           <button
             type="button"
             onClick={addFolder}
-            className={`rounded-md border border-lumen-border px-3 py-1.5 text-sm text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3",
+              "text-[12.5px] font-medium text-lumen-text-secondary hover:bg-lumen-hover",
+              FOCUS_RING,
+            )}
           >
-            + Folder
+            <Folder size={13} aria-hidden />
+            {t("materials.notes.folderCta")}
           </button>
         </div>
 
-        {notes.error && (
-          <p
-            role="alert"
-            className="rounded-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
-          >
-            {notes.error}
-          </p>
-        )}
+        {/* Tree. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-0.5">
+          {moveError && (
+            <p
+              role="alert"
+              className="mb-2 rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
+            >
+              {moveError}
+            </p>
+          )}
+          {notes.error && (
+            <p
+              role="alert"
+              className="mb-2 rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
+            >
+              {notes.error}
+            </p>
+          )}
+          {!hasNotes ? (
+            <EmptyState
+              icon={<FileText aria-hidden />}
+              message={t("materials.notes.empty")}
+              cta={{
+                label: t("materials.notes.addCta"),
+                onClick: () => notes.createNote(),
+              }}
+            />
+          ) : (
+            <DndContext
+              sensors={dnd.sensors}
+              collisionDetection={treeCollisionDetection}
+              measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+              onDragStart={dnd.handleDragStart}
+              onDragMove={dnd.handleDragMove}
+              onDragEnd={dnd.handleDragEnd}
+              onDragCancel={dnd.handleDragCancel}
+            >
+              <SortableContext
+                items={ids}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="flex flex-col gap-px">
+                  {flat.map((row) => (
+                    <DesktopNoteRow
+                      key={row.node.id}
+                      row={row}
+                      expanded={notes.expandedIds.has(row.node.id)}
+                      selected={selected?.id === row.node.id}
+                      dropPosition={
+                        dnd.overInfo?.overId === row.node.id &&
+                        dnd.activeId !== row.node.id
+                          ? dnd.overInfo.position
+                          : null
+                      }
+                      onToggleExpand={notes.toggleExpanded}
+                      onSelect={handleSelectDesktop}
+                      onDelete={notes.softDeleteNote}
+                      deleteLabel={t("materials.notes.deleteNote")}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+              <DragOverlay>
+                {dnd.activeNode ? (
+                  <TreeDragGhost title={dnd.activeNode.title} />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          )}
+        </div>
 
-        {moveError && (
-          <p
-            role="alert"
-            className="rounded-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
+        {/* Trash row. */}
+        <div className="border-t border-lumen-border">
+          <button
+            type="button"
+            onClick={() => setTrashOpen((v) => !v)}
+            aria-expanded={trashOpen}
+            className={cn(
+              "flex w-full items-center gap-2 px-3 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+              FOCUS_RING,
+            )}
           >
-            {moveError}
-          </p>
-        )}
-
-        {flat.length === 0 ? (
-          <p className="text-lumen-text-secondary">
-            No notes yet. Create one above.
-          </p>
-        ) : (
-          <DndContext
-            sensors={dnd.sensors}
-            collisionDetection={treeCollisionDetection}
-            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-            onDragStart={dnd.handleDragStart}
-            onDragMove={dnd.handleDragMove}
-            onDragEnd={dnd.handleDragEnd}
-            onDragCancel={dnd.handleDragCancel}
-          >
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <ul className="space-y-1">
-                {flat.map((row) => (
-                  <NoteRow
-                    key={row.node.id}
-                    row={row}
-                    expanded={notes.expandedIds.has(row.node.id)}
-                    selected={selected?.id === row.node.id}
-                    dropPosition={
-                      // Only the current over-target row (and never the
-                      // row being dragged) shows an indicator.
-                      dnd.overInfo?.overId === row.node.id &&
-                      dnd.activeId !== row.node.id
-                        ? dnd.overInfo.position
-                        : null
-                    }
-                    onToggleExpand={notes.toggleExpanded}
-                    onSelect={notes.setSelectedNoteId}
-                    onDelete={notes.softDeleteNote}
-                  />
-                ))}
-              </ul>
-            </SortableContext>
-            {/* Faint drag ghost — a translucent copy of the grabbed row
-                that trails the cursor for orientation. It renders in a
-                portal, so it never moves the list block itself (the source
-                row stays put in place). Purely a "what am I holding" cue;
-                the blue indicator above is the real drop-target signal. */}
-            <DragOverlay>
-              {dnd.activeNode ? (
-                <TreeDragGhost title={dnd.activeNode.title} />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        )}
-
-        {notes.deletedNotes.length > 0 && (
-          <details className="rounded-md border border-lumen-border px-3 py-2">
-            <summary className="cursor-pointer text-sm text-lumen-text-secondary">
-              Trash ({notes.deletedNotes.length})
-            </summary>
-            <ul className="mt-2 space-y-1">
+            {trashOpen ? (
+              <ChevronDown size={13} aria-hidden />
+            ) : (
+              <ChevronRight size={13} aria-hidden />
+            )}
+            <Trash2 size={14} aria-hidden />
+            <span>
+              {t("materials.notes.trash")}（{notes.deletedNotes.length}）
+            </span>
+          </button>
+          {trashOpen && notes.deletedNotes.length > 0 && (
+            <ul className="max-h-40 space-y-1 overflow-y-auto px-3 pb-2">
               {notes.deletedNotes.map((n) => (
                 <li
                   key={n.id}
-                  className="flex items-center justify-between text-sm"
+                  className="flex items-center justify-between gap-2 text-sm"
                 >
-                  <span className="text-lumen-text-secondary line-through">
+                  <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
                     {n.title || "(untitled)"}
                   </span>
-                  <span className="flex gap-2">
+                  <span className="flex shrink-0 gap-2">
                     <button
                       type="button"
                       onClick={() => notes.restoreNote(n.id)}
                       aria-label={`Restore ${n.title || "untitled"}`}
-                      className={`text-lumen-accent hover:opacity-80 ${FOCUS_RING}`}
+                      className={cn(
+                        "text-lumen-accent hover:opacity-80",
+                        FOCUS_RING,
+                      )}
                     >
                       <RotateCcw size={14} aria-hidden />
                     </button>
@@ -550,7 +572,10 @@ export function NotesView() {
                       type="button"
                       onClick={() => notes.permanentDeleteNote(n.id)}
                       aria-label={`Permanently delete ${n.title || "untitled"}`}
-                      className={`text-lumen-danger hover:opacity-80 ${FOCUS_RING}`}
+                      className={cn(
+                        "text-lumen-danger hover:opacity-80",
+                        FOCUS_RING,
+                      )}
                     >
                       <Trash2 size={14} aria-hidden />
                     </button>
@@ -558,134 +583,287 @@ export function NotesView() {
                 </li>
               ))}
             </ul>
-          </details>
-        )}
+          )}
+        </div>
+      </div>
     </div>
   );
 
-  // Detail pane — the selected note's editor + metadata. Rendered only when a
-  // note is selected; MasterDetail shows emptyDetail otherwise (wide) or keeps
-  // the sheet closed (narrow). RichTextEditor / NoteTitleInput keep their
-  // key={selected.id} remount strategy (title is NOT keyed — see L254-257).
-  const detail = selected ? (
-    <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <NoteTitleInput
-                key={selected.id}
-                noteId={selected.id}
-                initialTitle={selected.title}
-                onCommit={(id, title) => notes.updateNote(id, { title })}
-              />
-              <button
-                type="button"
-                onClick={() => notes.togglePin(selected.id)}
-                aria-pressed={selected.isPinned}
-                aria-label={selected.isPinned ? "Unpin note" : "Pin note"}
-                className={`rounded-md border border-lumen-border p-1.5 text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
-              >
-                <Pin
-                  size={14}
-                  aria-hidden
-                  className={selected.isPinned ? "text-lumen-accent" : ""}
-                />
-              </button>
-              {/*
-               * DU-F note (2026-05-24): Edit-lock / password / "Unlock"
-               * buttons were removed because their legacy backends
-               * (`toggleNoteEditLock` / `setNotePassword` /
-               * `removeNotePassword` / `verifyNotePassword`) still throw
-               * `_pendingDuRewrite` — the DU-F bridge ports only CRUD +
-               * DnD. DU-G re-adds these once the Unified service grows
-               * the password/lock subsystem. See git history (commit
-               * before this comment) for the original button block.
-               */}
-              <button
-                type="button"
-                onClick={() => rename(selected)}
-                className={`rounded-md border border-lumen-border px-2 py-1.5 text-xs text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                onClick={() => notes.softDeleteNote(selected.id)}
-                className={`rounded-md border border-lumen-border px-2 py-1.5 text-xs text-lumen-danger hover:bg-lumen-hover ${FOCUS_RING}`}
-              >
-                Delete
-              </button>
-            </div>
+  // ---- Mobile body ----------------------------------------------------
 
-            <div className="flex flex-wrap items-center gap-2">
-              <TagPicker itemId={selected.id} showLabel size="sm" />
-            </div>
-            <LinkPanel
-              itemId={selected.id}
-              resolveTitle={resolveTitle}
-              linkableItems={linkableItems}
-            />
+  const pinnedNotes = flat.filter(
+    (r) => r.node.type === "note" && r.node.isPinned,
+  );
 
-            {(() => {
-              const gated =
-                !!selected.hasPassword && !unlocked.has(selected.id);
-              return (
-                <div className="relative">
-                  <div
-                    className={
-                      gated
-                        ? "select-none blur-md pointer-events-none"
-                        : undefined
-                    }
-                    aria-hidden={gated}
-                  >
-                    <RichTextEditor
-                      key={selected.id}
-                      noteId={selected.id}
-                      initialContent={selected.content || undefined}
-                      editable={!selected.isEditLocked}
-                      onUpdate={(content) =>
-                        notes.updateNote(selected.id, { content })
-                      }
+  const mobileBody = (
+    <div className="flex h-full flex-col px-4 pt-2">
+      {!hasNotes ? (
+        <EmptyState
+          icon={<FileText aria-hidden />}
+          message={t("materials.notes.empty")}
+          cta={{
+            label: t("materials.notes.addCta"),
+            onClick: () => setAddOpen(true),
+          }}
+        />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-4">
+          {pinnedNotes.length > 0 && (
+            <>
+              <div className="px-0.5 text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+                {t("materials.notes.pinnedSection")}
+              </div>
+              {pinnedNotes.map((r) => (
+                <ExcerptListItem
+                  key={`pin-${r.node.id}`}
+                  title={r.node.title || "(untitled)"}
+                  leading={<FileText size={14} aria-hidden />}
+                  meta={
+                    <Pin
+                      size={13}
+                      aria-label="Pinned"
+                      className="text-lumen-accent"
                     />
-                  </div>
-                  {gated && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPwDialog({ mode: "verify", noteId: selected.id })
-                      }
-                      className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border border-lumen-border bg-lumen-bg-secondary text-lumen-text ${FOCUS_RING}`}
-                    >
-                      <Lock size={20} aria-hidden />
-                      <span className="text-sm">
-                        This note is password protected
-                      </span>
-                      <span className="text-xs text-lumen-text-secondary">
-                        Click to unlock
-                      </span>
-                    </button>
+                  }
+                  onClick={() => handleOpenRead(r.node.id)}
+                />
+              ))}
+            </>
+          )}
+
+          <div className="px-0.5 pt-1 text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+            {t("materials.notes.allNotes")}（
+            {flat.filter((r) => r.node.type === "note").length}）
+          </div>
+
+          {flat.map((r) => {
+            const { node, depth } = r;
+            if (node.type === "folder") {
+              const expanded = notes.expandedIds.has(node.id);
+              const count = notes
+                .getChildren(node.id)
+                .filter((n) => !n.isDeleted).length;
+              return (
+                <button
+                  key={node.id}
+                  type="button"
+                  onClick={() => notes.toggleExpanded(node.id)}
+                  aria-expanded={expanded}
+                  style={{ marginLeft: depth * 20 }}
+                  className={cn(
+                    "flex items-center gap-2 px-1 py-1.5 text-left",
+                    FOCUS_RING,
                   )}
-                </div>
+                >
+                  {expanded ? (
+                    <ChevronDown
+                      size={13}
+                      aria-hidden
+                      className="shrink-0 text-lumen-text-secondary"
+                    />
+                  ) : (
+                    <ChevronRight
+                      size={13}
+                      aria-hidden
+                      className="shrink-0 text-lumen-text-secondary"
+                    />
+                  )}
+                  <Folder
+                    size={14}
+                    aria-hidden
+                    className="shrink-0 text-lumen-text-secondary"
+                  />
+                  <span className="text-sm font-semibold text-lumen-text">
+                    {node.title || "(untitled)"}
+                  </span>
+                  <span className="text-[13px] text-lumen-text-tertiary">
+                    （{count}）
+                  </span>
+                </button>
               );
-            })()}
-            {selected.isEditLocked && (
-              <p className="text-xs text-lumen-text-secondary">
-                This note is edit-locked. Unlock it to make changes.
-              </p>
-            )}
+            }
+            // Pinned notes already surfaced in the Pinned section; skip the
+            // duplicate here so the list reads cleanly.
+            if (node.isPinned) return null;
+            return (
+              <div key={node.id} style={{ marginLeft: depth * 20 }}>
+                <ExcerptListItem
+                  title={node.title || "(untitled)"}
+                  leading={<FileText size={14} aria-hidden />}
+                  meta={
+                    node.hasPassword ? (
+                      <Lock
+                        size={13}
+                        aria-label="Password protected"
+                        className="text-lumen-text-tertiary"
+                      />
+                    ) : undefined
+                  }
+                  onClick={() => handleOpenRead(node.id)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Floating "+" quick-add. */}
+      <button
+        type="button"
+        onClick={() => setAddOpen(true)}
+        aria-label={t("materials.notes.quickAddTitle")}
+        className={cn(
+          "absolute bottom-5 right-5 grid h-12 w-12 place-items-center rounded-full",
+          "bg-lumen-accent text-lumen-on-accent shadow-lumen-md transition-opacity hover:opacity-90",
+          FOCUS_RING,
+        )}
+      >
+        <Plus size={22} aria-hidden />
+      </button>
     </div>
-  ) : null;
+  );
+
+  // ---- Mobile read sheet ----------------------------------------------
+
+  const readNote = readNoteId
+    ? notes.notes.find((n) => n.id === readNoteId)
+    : null;
+  const readGated =
+    !!readNote?.hasPassword && !unlocked.has(readNote?.id ?? "");
+
+  // ---- Desktop rightSidebar detail ------------------------------------
+
+  const detailGated =
+    !!selected?.hasPassword && !unlocked.has(selected?.id ?? "");
+
+  const detailContentEditor = selected ? (
+    <div className="relative">
+      <div
+        className={
+          detailGated ? "pointer-events-none select-none blur-md" : undefined
+        }
+        aria-hidden={detailGated}
+      >
+        <RichTextEditor
+          key={selected.id}
+          noteId={selected.id}
+          initialContent={selected.content || undefined}
+          editable={!selected.isEditLocked}
+          onUpdate={(content) => notes.updateNote(selected.id, { content })}
+        />
+      </div>
+      {detailGated && (
+        <button
+          type="button"
+          onClick={() => setPwDialog({ mode: "verify", noteId: selected.id })}
+          className={cn(
+            "absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary text-lumen-text",
+            FOCUS_RING,
+          )}
+        >
+          <Lock size={20} aria-hidden />
+          <span className="text-sm">{t("materials.notes.lockedHint")}</span>
+        </button>
+      )}
+    </div>
+  ) : undefined;
 
   return (
-    <>
-      <MasterDetail
-        master={master}
-        detail={detail}
-        detailOpen={selected != null}
-        onCloseDetail={() => notes.setSelectedNoteId(null)}
-        emptyDetail={t("notesView.detailEmpty")}
-        detailTitle={selected?.title || t("notesView.detailTitle")}
-        closeLabel={t("notesView.closeDetail")}
-      />
+    <div className="relative flex h-full min-h-0 flex-col">
+      {isWide ? desktopBody : mobileBody}
+
+      {/* Desktop detail — pushed into the shared rightSidebar (wide-only). */}
+      {isWide && selected && (
+        <RightSidebarPortal>
+          <NoteDetailPanel
+            noteId={selected.id}
+            title={selected.title}
+            isPinned={selected.isPinned}
+            onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+            onTogglePin={notes.togglePin}
+            onDelete={(id) => {
+              notes.softDeleteNote(id);
+              rightSidebar.close();
+            }}
+            titleLabel={t("notesView.detailTitle")}
+            pinLabel={t("notesView.unpin")}
+            unpinLabel={t("notesView.pin")}
+            deleteLabel={t("materials.notes.deleteNote")}
+            tagsSlot={<TagPicker itemId={selected.id} showLabel size="sm" />}
+            contentLabel={t("materials.notes.content")}
+            contentEditor={
+              selected.type === "folder" ? undefined : detailContentEditor
+            }
+            linksLabel={t("materials.notes.links")}
+            linksSlot={
+              selected.type === "folder" ? undefined : (
+                <LinkPanel
+                  itemId={selected.id}
+                  resolveTitle={resolveTitle}
+                  linkableItems={linkableItems}
+                />
+              )
+            }
+          />
+        </RightSidebarPortal>
+      )}
+
+      {/* Mobile read sheet — 92% height, read-only. */}
+      {!isWide && (
+        <BottomSheet
+          open={readNote != null}
+          onClose={() => setReadNoteId(null)}
+          title={readNote?.title || t("notesView.detailTitle")}
+          className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
+        >
+          {readNote && (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+              <h2 className="text-lg font-semibold text-lumen-text">
+                {readNote.title || "(untitled)"}
+              </h2>
+              {renderReadonlyTags(readNote.id)}
+              {readGated ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPwDialog({ mode: "verify", noteId: readNote.id })
+                  }
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary py-12 text-lumen-text",
+                    FOCUS_RING,
+                  )}
+                >
+                  <Lock size={20} aria-hidden />
+                  <span className="text-sm">
+                    {t("materials.notes.lockedHint")}
+                  </span>
+                </button>
+              ) : (
+                <RichTextEditor
+                  key={readNote.id}
+                  noteId={readNote.id}
+                  initialContent={readNote.content || undefined}
+                  editable={false}
+                  onUpdate={() => {}}
+                />
+              )}
+            </div>
+          )}
+        </BottomSheet>
+      )}
+
+      {/* Mobile quick-add. */}
+      {!isWide && (
+        <QuickAddSheet
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          title={t("materials.notes.quickAddTitle")}
+          placeholder={t("materials.notes.quickAddPlaceholder")}
+          submitLabel={t("materials.notes.quickAddSubmit")}
+          onSubmit={(title) => notes.createNote(title)}
+        />
+      )}
+
       {pwDialog && (
         <NotePasswordDialog
           mode={pwDialog.mode}
@@ -694,6 +872,6 @@ export function NotesView() {
           onClose={() => setPwDialog(null)}
         />
       )}
-    </>
+    </div>
   );
 }

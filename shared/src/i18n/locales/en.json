@@ -711,6 +711,23 @@
       "quickAddSubmit": "Add",
       "empty": "No tasks yet",
       "addCta": "Add task"
+    },
+    "notes": {
+      "searchPlaceholder": "Search notes…",
+      "folderCta": "Folder",
+      "addCta": "Note",
+      "empty": "No notes yet",
+      "trash": "Trash",
+      "content": "Content",
+      "links": "Links",
+      "deleteNote": "Delete note",
+      "pinnedSection": "Pinned",
+      "allNotes": "All notes",
+      "quickAddTitle": "Add note",
+      "quickAddPlaceholder": "Enter a title",
+      "quickAddSubmit": "Add",
+      "newFolderPrompt": "New folder name",
+      "lockedHint": "This note is locked"
     }
   },
   "files": {
@@ -2387,9 +2404,7 @@
     "groups": "Groups",
     "create": "Create Group",
     "edit": "Edit Group",
-    "create": "Create Group",
     "createNew": "New Group",
-    "groups": "Groups",
     "untitled": "Untitled",
     "assignToGroup": "Assigned Groups",
     "noGroupsHint": "No groups yet — create one above.",

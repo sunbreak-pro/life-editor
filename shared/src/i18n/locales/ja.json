@@ -711,6 +711,23 @@
       "quickAddSubmit": "追加",
       "empty": "タスクがありません",
       "addCta": "タスクを追加"
+    },
+    "notes": {
+      "searchPlaceholder": "ノートを検索…",
+      "folderCta": "フォルダ",
+      "addCta": "ノート",
+      "empty": "ノートはまだありません",
+      "trash": "ゴミ箱",
+      "content": "内容",
+      "links": "リンク",
+      "deleteNote": "ノートを削除",
+      "pinnedSection": "ピン留め",
+      "allNotes": "すべてのノート",
+      "quickAddTitle": "ノートを追加",
+      "quickAddPlaceholder": "タイトルを入力",
+      "quickAddSubmit": "追加",
+      "newFolderPrompt": "新しいフォルダ名",
+      "lockedHint": "このノートはロックされています"
     }
   },
   "files": {
