@@ -744,6 +744,29 @@
       "dateStripLabel": "日付を選ぶ",
       "entriesCount": "エントリ（{{count}}）",
       "pastEntries": "過去のエントリ"
+    },
+    "tags": {
+      "tagsCount": "タグ（{{count}}）",
+      "groupsCount": "グループ（{{count}}）",
+      "addCta": "タグ",
+      "addPlaceholder": "タグ名を入力",
+      "empty": "タグはまだありません",
+      "rename": "タグ名を変更",
+      "colorLabel": "色",
+      "deleteTag": "タグを削除",
+      "quickAddTitle": "タグを追加",
+      "quickAddPlaceholder": "タグ名を入力",
+      "quickAddSubmit": "追加",
+      "createGroup": "グループ",
+      "newGroupPrompt": "新しいグループ名",
+      "addTagToGroup": "タグを追加",
+      "addTagSearchPlaceholder": "タグを検索…",
+      "removeFromGroup": "グループから外す",
+      "noCandidates": "追加できるタグがありません",
+      "groupsEmpty": "グループはまだありません",
+      "memberCount": "{{count}} タグ",
+      "expandGroup": "グループを開く",
+      "collapseGroup": "グループを閉じる"
     }
   },
   "files": {

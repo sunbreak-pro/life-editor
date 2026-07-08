@@ -744,6 +744,29 @@
       "dateStripLabel": "Select a date",
       "entriesCount": "Entries ({{count}})",
       "pastEntries": "Past entries"
+    },
+    "tags": {
+      "tagsCount": "Tags ({{count}})",
+      "groupsCount": "Groups ({{count}})",
+      "addCta": "Tag",
+      "addPlaceholder": "Enter a tag name",
+      "empty": "No tags yet",
+      "rename": "Rename tag",
+      "colorLabel": "Color",
+      "deleteTag": "Delete tag",
+      "quickAddTitle": "Add tag",
+      "quickAddPlaceholder": "Enter a tag name",
+      "quickAddSubmit": "Add",
+      "createGroup": "Group",
+      "newGroupPrompt": "New group name",
+      "addTagToGroup": "Add tag",
+      "addTagSearchPlaceholder": "Search tags…",
+      "removeFromGroup": "Remove from group",
+      "noCandidates": "No more tags to add",
+      "groupsEmpty": "No groups yet",
+      "memberCount": "{{count}} tags",
+      "expandGroup": "Expand group",
+      "collapseGroup": "Collapse group"
     }
   },
   "files": {

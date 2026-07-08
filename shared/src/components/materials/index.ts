@@ -19,3 +19,9 @@ export {
   type DailyEntriesPanelProps,
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
+export {
+  TagGroupsPanel,
+  type TagGroupsPanelProps,
+  type TagGroupsPanelGroup,
+  type TagGroupsPanelMember,
+} from "./TagGroupsPanel";
