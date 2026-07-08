@@ -2,24 +2,27 @@
 
 未解決 Issue + 解決済みバグの Root Cause を一覧管理するインデックス。Claude / 開発者が再発時に最短で過去知見に辿り着くための入口。
 
-> ⚠️ **2026-07-04 以降、Active/Monitoring の課題は GitHub Issues に移行**（追跡の正 = Issues。`gh issue list -R sunbreak-pro/life-editor`）。
-> 本ディレクトリは **Fixed の Root Cause 凍結アーカイブ（参照専用・grep 資産）**。新規バグは GitHub Issue で起票し、本 INDEX には追加しない。
+> ⚠️ **2026-07-04 以降、プロダクト課題は GitHub Issues に移行**（追跡の正 = Issues。`gh issue list -R sunbreak-pro/life-editor`）。
+> 本ディレクトリの役割は 2 つ: **① Fixed の Root Cause 凍結アーカイブ（参照専用・grep 資産）** と **② 環境系（Claude Code 作業環境・Issue 化対象外。例: 026 formatter 挙動 / 028 cwd 漂流）の管理台帳**。プロダクトバグは GitHub Issue で起票し、本 INDEX には追加しない。
 >
 > 🧭 **種別の区別（2026-07-05・#155）**: 下記のうち一部は「プロダクト課題」ではない。
+>
 > - **環境系（Claude Code 作業環境・Issue 化対象外）**: `026`（PostToolUse formatter 挙動）/ `028`（Bash cwd 漂流）。life-editor のコードを直しても直らないため、追跡は本ディレクトリ + `rules/` で行い GitHub Issue には積まない（起票済みの #117/#119 は整理のため close 済み）。
 > - **移行で解消**: `006`（Desktop app_data_dir 分裂）は Tauri → Web/Electron 移行で問題自体が消滅する見込み（#120 は close 済み）。
 
 ---
 
-## Active（未解決）
+## Active / Workaround（環境系・Issue 化対象外）
 
-| ID  | Title                                                                                                                           | Category | Since      |
-| --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- |
-| 028 | [Bash の `cd` が worktree を跨いで持続し、以降の相対パス操作が別 worktree に着地する](./028-bash-cwd-drift-across-worktrees.md) | Tooling  | 2026-05-26 |
-| 027 | [Notes/Daily password が plaintext で保存される (N>1 化前に必須)](./027-notes-password-plaintext-debt.md)                       | Security | 2026-05-24 |
-| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)           | Tooling  | 2026-05-24 |
+> ここに残す未解決項目は **環境系（Claude Code 作業環境・Issue 化対象外）** のみ。プロダクト課題の追跡は GitHub Issues が正。
 
-> ↑ GitHub Issues へ移行済み: 028→[#117](https://github.com/sunbreak-pro/life-editor/issues/117) / 027→[#118](https://github.com/sunbreak-pro/life-editor/issues/118) / 026→[#119](https://github.com/sunbreak-pro/life-editor/issues/119)
+| ID  | Title                                                                                                                           | Category | Since      | Status     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- | ---------- |
+| 028 | [Bash の `cd` が worktree を跨いで持続し、以降の相対パス操作が別 worktree に着地する](./028-bash-cwd-drift-across-worktrees.md) | Tooling  | 2026-05-26 | Workaround |
+| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)           | Tooling  | 2026-05-24 | Active     |
+
+> - **027**（Notes/Daily plaintext password）は追跡を GitHub Issue [#118](https://github.com/sunbreak-pro/life-editor/issues/118) へ移行済み。本ディレクトリの 027 本文は参照用（file Status は Active (Backlog) のまま。集計では Active に計上）。
+> - **Issue 追跡は 027→#118 のみ**。026 / 028 は環境系のため本ディレクトリが正（起票済みだった #117 / #119 は整理のため close 済み）。
 
 ## Monitoring（すぐ対処しないが監視）
 
@@ -27,7 +30,7 @@
 | --- | ----------------------------------------------------------------------------------------- | ---------- | ---------- |
 | 006 | [Desktop app_data_dir が bundle ID で分裂](./006-desktop-data-dir-bundle-id-migration.md) | Structural | 2026-04-18 |
 
-> ↑ GitHub Issues へ移行済み: 006→[#120](https://github.com/sunbreak-pro/life-editor/issues/120)
+> ↑ 006 は GitHub Issue [#120](https://github.com/sunbreak-pro/life-editor/issues/120) を **close 済み**。Tauri → Web/Electron 移行で問題自体が解消する見込みのため、追跡は本ディレクトリで継続（file Status = Monitoring）。
 
 ## Fixed（Root Cause 参考、再発防止用）
 
@@ -70,11 +73,12 @@
 - **環境系（Claude Code 作業環境・GitHub Issue 化対象外 → #155）**: 026, 028
 - **移行で解消（Tauri→Web で消滅見込み）**: 006
 
-## Status 集計
+## Status 集計（個別ファイル frontmatter と一致）
 
-- Active: 3 件 (028, 027, 026)
+- Active: 2 件 (026 / 027 — 027 の追跡は GitHub #118 が正・本文は参照用)
+- Workaround: 1 件 (028)
 - Monitoring: 1 件 (006)
-- Fixed: 22 件
+- Fixed: 22 件 (012 を含む — server 側暫定対応で Fixed 確定・恒久対応は #172)
 - 合計: 26 件
 
 ## 統合履歴
@@ -84,9 +88,11 @@
 
 ---
 
-## 新規 Issue の起票手順
+## 新規起票手順（環境系のみ）
+
+> ⚠️ 本ディレクトリへの新規追加は **環境系（Claude Code 作業環境・Issue 化対象外。判定 = 「life-editor のコードを直せば直るか？」が No）** に限る。プロダクトバグは GitHub Issue へ起票する（`.github/ISSUE_TEMPLATE/known-issue.yml`）。
 
 1. `_TEMPLATE.md` をコピーして `NNN-<slug>.md` を作成（NNN は連番）
 2. Status / Category / Severity / Discovered を記入
-3. 本 `INDEX.md` の該当セクション（Active / Monitoring / Fixed）に 1 行追加
+3. 本 `INDEX.md` の該当セクション（Active / Workaround / Monitoring / Fixed）に 1 行追加
 4. Fixed に移す際は Active から削除 + Resolved 日付付きで Fixed に追記

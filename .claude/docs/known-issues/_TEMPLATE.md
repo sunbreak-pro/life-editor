@@ -30,11 +30,15 @@
 
 ## References
 
-- 関連ファイル: `path/to/file.rs:LINE`
-- 関連 ADR: `.claude/docs/adr/XXXX-*.md`
-- 関連 plan: `.claude/feature_plans/YYYY-MM-DD-*.md`
-- 関連 HISTORY: `.claude/HISTORY.md` の該当セッション日付
+- 関連ファイル: `path/to/file.ts:LINE`
+- 関連 plan: `.claude/docs/vision/plans/YYYY-MM-DD-*.md`
+- 関連 history: `.claude/history/chat-<self>.md` の該当セッション
+- 関連 GitHub Issue: #NNN（プロダクトバグは Issue が追跡の正）
 
 ## Lessons Learned
 
 次に似たコード・似た症状に出くわしたときのチェックポイント。検索で引っかかるキーワードも残す。
+
+## Close-out Checklist（Fixed 化・PR merge 時）
+
+- [ ] 対応 plan・per-chat memory の Status を更新した（PR merge 時の docs 追随）
