@@ -1,4 +1,12 @@
-import { FileText, ArrowLeft } from "lucide-react";
+import {
+  Folder,
+  FileText,
+  Calendar,
+  Hash,
+  ArrowLeft,
+  type LucideIcon,
+} from "lucide-react";
+import type { GraphNode, GraphNodeType } from "./graph/graph-types";
 
 /** One incoming-link entry, already resolved to a display label by the host. */
 export interface BacklinkEntry {
@@ -6,78 +14,115 @@ export interface BacklinkEntry {
   id: string;
   /** resolved display label (host falls back to "Untitled") */
   label: string;
+  /** node type of the source, for the row icon (defaults to note) */
+  type?: GraphNodeType;
 }
 
 export interface BacklinkViewLabels {
-  /** backlinks.title */
-  title: string;
-  /** backlinks.empty */
+  /** connect.sidebar.incomingLinks — "Links to this note" section header */
+  incomingLinks: string;
+  /** backlinks.empty — selection has no incoming links */
   empty: string;
+  /** connect.graph.selectNodeHint — nothing selected yet */
+  selectHint: string;
 }
 
+const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
+  project: Folder,
+  note: FileText,
+  daily: Calendar,
+  tag: Hash,
+};
+
 interface BacklinkViewProps {
-  /** label of the currently selected node (null = nothing selected) */
-  targetLabel: string | null;
+  /** currently selected node (null = nothing selected) */
+  node: GraphNode | null;
   entries: BacklinkEntry[];
   labels: BacklinkViewLabels;
   /** select a backlink source (re-centers the graph on it) */
   onSelect: (id: string) => void;
 }
 
-/**
- * Presentational backlink panel. The host computes `entries` from the unified
- * item-link data (filtering `listAllTagConnections` by selected id, or calling
- * `listLinksToItem`) and resolves labels — this part only renders + emits
- * select intents. lumen-* tokens, opaque panel (§6.4 / §5).
+/*
+ * Backlinks tab content for the shell rightSidebar (App Shell Turn 2). The
+ *常設 aside w-64 frame is gone — this now renders straight into the panel well
+ * of <ConnectSidebarPanel>. The host computes `entries` from the unified
+ * item-link data and resolves labels; this part only renders + emits select
+ * intents. lumen-* tokens, opaque surfaces (§5 / §6.4).
  */
 export function BacklinkView({
-  targetLabel,
+  node,
   entries,
   labels,
   onSelect,
 }: BacklinkViewProps) {
+  if (!node) {
+    return (
+      <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-[11px] text-lumen-text-secondary">
+        {labels.selectHint}
+      </div>
+    );
+  }
+
+  const NodeIcon = TYPE_ICON[node.type];
+
   return (
-    <aside className="flex flex-col h-full w-64 shrink-0 border-l border-lumen-border bg-lumen-bg">
-      <div className="px-3 py-2.5 border-b border-lumen-border">
-        <div className="text-[11px] uppercase tracking-[0.14em] font-medium text-lumen-text-secondary">
-          {labels.title}
+    <div className="flex flex-col gap-3.5">
+      {/* Selected-node header card */}
+      <div className="flex items-center gap-2.5 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2.5">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lumen-md bg-lumen-hover text-lumen-text">
+          <NodeIcon size={14} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-[12px] font-medium text-lumen-text">
+            {node.label}
+          </span>
+          <span className="truncate font-mono text-[10px] text-lumen-text-tertiary">
+            {node.id}
+          </span>
+        </span>
+      </div>
+
+      <div>
+        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-lumen-text-tertiary">
+          <ArrowLeft size={11} />
+          <span>{labels.incomingLinks}</span>
+          <span className="ml-auto font-mono font-normal">
+            {entries.length}
+          </span>
         </div>
-        {targetLabel && (
-          <div className="mt-0.5 text-[12px] truncate text-lumen-text">
-            {targetLabel}
+        {entries.length === 0 ? (
+          <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-[11px] text-lumen-text-secondary">
+            {labels.empty}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {entries.map((entry) => {
+              const RowIcon = TYPE_ICON[entry.type ?? "note"];
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => onSelect(entry.id)}
+                  className="flex items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left hover:bg-lumen-hover"
+                >
+                  <RowIcon
+                    size={12}
+                    className="shrink-0 text-lumen-text-secondary"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-lumen-text">
+                    {entry.label}
+                  </span>
+                  <ArrowLeft
+                    size={11}
+                    className="shrink-0 text-lumen-text-tertiary"
+                  />
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
-
-      {entries.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center px-4 text-center text-[12px] text-lumen-text-secondary">
-          {labels.empty}
-        </div>
-      ) : (
-        <ul className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-          {entries.map((entry) => (
-            <li key={entry.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(entry.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-lumen-hover text-left"
-              >
-                <ArrowLeft
-                  size={11}
-                  className="text-lumen-text-secondary shrink-0"
-                />
-                <FileText
-                  size={12}
-                  className="text-lumen-text-secondary shrink-0"
-                />
-                <span className="text-[12px] truncate text-lumen-text">
-                  {entry.label}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </aside>
+    </div>
   );
 }

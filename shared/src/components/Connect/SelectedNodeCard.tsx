@@ -8,6 +8,7 @@ import {
   Link2,
   Plus,
   Crosshair,
+  ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
 import type { GraphNode, GraphNodeType } from "./graph/graph-types";
@@ -36,6 +37,10 @@ interface SelectedNodeCardProps {
   onClose: () => void;
   /** double-click / open intent (note/daily navigation) */
   onActivate?: (id: string) => void;
+  /** number of items linking TO this node (shown as a meta-row jump link) */
+  backlinkCount?: number;
+  /** jump to the backlinks tab (opens the rightSidebar + selects the tab) */
+  onViewBacklinks?: () => void;
   /** datalist candidates for the "add link" input (self/tag nodes excluded) */
   linkableItems?: LinkableItem[];
   /** neighbourId → wiki_tag_connections.id for deletable outgoing links */
@@ -65,6 +70,8 @@ export function SelectedNodeCard({
   onSelect,
   onClose,
   onActivate,
+  backlinkCount,
+  onViewBacklinks,
   linkableItems = [],
   outgoingLinkIds,
   onCreateLink,
@@ -118,7 +125,7 @@ export function SelectedNodeCard({
   };
 
   return (
-    <div className="absolute bottom-3 left-3 w-80 rounded-lg bg-lumen-bg border border-lumen-border p-3.5 space-y-3 shadow-lg">
+    <div className="absolute bottom-3 left-4 w-80 rounded-lumen-lg bg-lumen-bg border border-lumen-border p-3.5 space-y-3 shadow-lumen-lg">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5 min-w-0">
           <span className="mt-0.5 w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-lumen-hover text-lumen-text">
@@ -148,13 +155,26 @@ export function SelectedNodeCard({
         </button>
       </div>
 
-      <div className="flex items-center gap-3 text-[10px] text-lumen-text-secondary">
+      <div className="flex items-center gap-3 text-[11px] text-lumen-text-secondary">
         <span className="flex items-center gap-1">
-          <Link2 size={10} /> {linkCount} {labels.links}
+          <Link2 size={11} /> {linkCount} {labels.links}
         </span>
         <span className="flex items-center gap-1">
-          <Hash size={10} /> {tagCount} {labels.tagsShort}
+          <Hash size={11} /> {tagCount} {labels.tagsShort}
         </span>
+        {onViewBacklinks && (
+          <button
+            type="button"
+            onClick={onViewBacklinks}
+            className="flex items-center gap-1 text-lumen-accent hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent rounded-lumen-sm"
+          >
+            <ArrowLeft size={11} />
+            {labels.viewBacklinks.replace(
+              "{{count}}",
+              String(backlinkCount ?? 0),
+            )}
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-2 text-[10px] pt-1 border-t border-lumen-border">

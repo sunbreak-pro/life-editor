@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import {
   Search,
   Filter,
@@ -49,7 +48,13 @@ interface GraphControlPanelProps {
   totalTypeCounts: Record<string, number>;
   selectedLabel: string | null;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
-  onClose: () => void;
+  /**
+   * Mobile settings-sheet mode: drop the Desktop-only Local Graph section
+   * (the peek sheet already carries a depth chip row) and the keyboard-shortcut
+   * hints footer (no physical keyboard on touch). Desktop omits it → false →
+   * the full panel, unchanged.
+   */
+  compact?: boolean;
 }
 
 export function GraphControlPanel({
@@ -70,25 +75,8 @@ export function GraphControlPanel({
   totalTypeCounts,
   selectedLabel,
   searchInputRef,
-  onClose,
+  compact = false,
 }: GraphControlPanelProps) {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  // Close when clicking anywhere outside the panel (except the topbar toggle,
-  // which manages open/close itself and would otherwise immediately reopen).
-  useEffect(() => {
-    function onPointerDown(e: PointerEvent) {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      if (panelRef.current?.contains(target)) return;
-      if (target.closest('[data-marker="panel-toggle"]')) return;
-      onClose();
-    }
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [onClose]);
-
   const typeLabel: Record<GraphNodeType, string> = {
     project: labels.typeProject,
     note: labels.typeNote,
@@ -96,26 +84,11 @@ export function GraphControlPanel({
     tag: labels.typeTag,
   };
 
+  // Pure content — the floating frame / outside-click / close affordance are
+  // gone (the shell rightSidebar owns open/close now). This renders straight
+  // into the "Graph settings" tab well of <ConnectSidebarPanel>.
   return (
-    <aside
-      ref={panelRef}
-      className="absolute top-3 bottom-3 right-3 w-72 flex flex-col gap-5 p-4 overflow-y-auto rounded-lg bg-lumen-bg border border-lumen-border shadow-lg"
-    >
-      <div className="flex items-center justify-between -mb-1">
-        <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-lumen-text-secondary">
-          {labels.togglePanel}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          title={labels.closePanel}
-          aria-label={labels.closePanel}
-          className="w-6 h-6 rounded flex items-center justify-center text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text"
-        >
-          <X size={14} />
-        </button>
-      </div>
-
+    <div className="flex flex-col gap-5">
       <Section title={labels.search} icon={Search}>
         <div className="relative">
           <Search
@@ -134,6 +107,7 @@ export function GraphControlPanel({
             <button
               type="button"
               onClick={() => onSearchChange("")}
+              aria-label={labels.clearSearch}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-lumen-text-secondary hover:bg-lumen-hover"
             >
               <X size={11} />
@@ -170,9 +144,7 @@ export function GraphControlPanel({
                   <span
                     className={
                       "text-[11px] " +
-                      (active
-                        ? "text-lumen-text"
-                        : "text-lumen-text-secondary")
+                      (active ? "text-lumen-text" : "text-lumen-text-secondary")
                     }
                   >
                     {typeLabel[key]}
@@ -229,27 +201,29 @@ export function GraphControlPanel({
         </div>
       </Section>
 
-      <Section title={labels.localGraph} icon={Crosshair}>
-        {selectedLabel ? (
-          <>
-            <div className="text-[10px] text-lumen-text-secondary">
-              {selectedLabel}
+      {!compact && (
+        <Section title={labels.localGraph} icon={Crosshair}>
+          {selectedLabel ? (
+            <>
+              <div className="text-[10px] text-lumen-text-secondary">
+                {selectedLabel}
+              </div>
+              <Slider
+                label={labels.depth}
+                value={filter.localDepth}
+                onChange={onLocalDepthChange}
+                min={0}
+                max={2}
+                suffix={filter.localDepth === 0 ? ` (${labels.off})` : "-hop"}
+              />
+            </>
+          ) : (
+            <div className="text-[10px] px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
+              {labels.selectNodeHint}
             </div>
-            <Slider
-              label={labels.depth}
-              value={filter.localDepth}
-              onChange={onLocalDepthChange}
-              min={0}
-              max={2}
-              suffix={filter.localDepth === 0 ? ` (${labels.off})` : "-hop"}
-            />
-          </>
-        ) : (
-          <div className="text-[10px] px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
-            {labels.selectNodeHint}
-          </div>
-        )}
-      </Section>
+          )}
+        </Section>
+      )}
 
       <Section title={labels.display} icon={Eye}>
         <Toggle
@@ -299,6 +273,12 @@ export function GraphControlPanel({
           step={0.05}
         />
       </Section>
-    </aside>
+
+      {!compact && (
+        <div className="border-t border-lumen-border pt-2.5 text-[11px] text-lumen-text-tertiary">
+          {labels.hintKeys}
+        </div>
+      )}
+    </div>
   );
 }
