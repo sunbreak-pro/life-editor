@@ -695,7 +695,8 @@
     "endTime": "終了",
     "showEndTime": "終了時刻",
     "clearSchedule": "スケジュールをクリア",
-    "emptyState": "タスクを選択して詳細を表示"
+    "emptyState": "タスクを選択して詳細を表示",
+    "tags": "タグ"
   },
   "kanban": {
     "viewFolder": "フォルダ別",
@@ -728,7 +729,72 @@
     "notes": "ノート"
   },
   "materials": {
-    "title": "マテリアル"
+    "title": "マテリアル",
+    "tasks": {
+      "filterLabel": "ステータスで絞り込む",
+      "statusSheetTitle": "ステータスを変更",
+      "quickAddTitle": "タスクを追加",
+      "quickAddPlaceholder": "タイトルを入力",
+      "quickAddSubmit": "追加",
+      "empty": "タスクがありません",
+      "addCta": "タスクを追加"
+    },
+    "notes": {
+      "searchPlaceholder": "ノートを検索…",
+      "folderCta": "フォルダ",
+      "addCta": "ノート",
+      "empty": "ノートはまだありません",
+      "trash": "ゴミ箱",
+      "content": "内容",
+      "links": "リンク",
+      "deleteNote": "ノートを削除",
+      "pinnedSection": "ピン留め",
+      "allNotes": "すべてのノート",
+      "quickAddTitle": "ノートを追加",
+      "quickAddPlaceholder": "タイトルを入力",
+      "quickAddSubmit": "追加",
+      "newFolderPrompt": "新しいフォルダ名",
+      "lockedHint": "このノートはロックされています"
+    },
+    "daily": {
+      "toToday": "今日へ",
+      "saved": "保存済み",
+      "unsaved": "未保存",
+      "pin": "ピン留めする",
+      "unpin": "ピン留めを解除",
+      "pinned": "ピン留め済み",
+      "delete": "エントリを削除",
+      "placeholder": "今日のことを書く…",
+      "today": "今日",
+      "yesterday": "昨日",
+      "datePicker": "日付を選択",
+      "dateStripLabel": "日付を選ぶ",
+      "entriesCount": "エントリ（{{count}}）",
+      "pastEntries": "過去のエントリ"
+    },
+    "tags": {
+      "tagsCount": "タグ（{{count}}）",
+      "groupsCount": "グループ（{{count}}）",
+      "addCta": "タグ",
+      "addPlaceholder": "タグ名を入力",
+      "empty": "タグはまだありません",
+      "rename": "タグ名を変更",
+      "colorLabel": "色",
+      "deleteTag": "タグを削除",
+      "quickAddTitle": "タグを追加",
+      "quickAddPlaceholder": "タグ名を入力",
+      "quickAddSubmit": "追加",
+      "createGroup": "グループ",
+      "newGroupPrompt": "新しいグループ名",
+      "addTagToGroup": "タグを追加",
+      "addTagSearchPlaceholder": "タグを検索…",
+      "removeFromGroup": "グループから外す",
+      "noCandidates": "追加できるタグがありません",
+      "groupsEmpty": "グループはまだありません",
+      "memberCount": "{{count}} タグ",
+      "expandGroup": "グループを開く",
+      "collapseGroup": "グループを閉じる"
+    }
   },
   "files": {
     "settingsTitle": "ファイルエクスプローラー",

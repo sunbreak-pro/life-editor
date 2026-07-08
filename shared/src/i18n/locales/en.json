@@ -695,7 +695,8 @@
     "endTime": "End",
     "showEndTime": "End time",
     "clearSchedule": "Clear schedule",
-    "emptyState": "Select a task to view details"
+    "emptyState": "Select a task to view details",
+    "tags": "Tags"
   },
   "kanban": {
     "viewFolder": "By folder",
@@ -728,7 +729,72 @@
     "notes": "Notes"
   },
   "materials": {
-    "title": "Materials"
+    "title": "Materials",
+    "tasks": {
+      "filterLabel": "Filter by status",
+      "statusSheetTitle": "Change status",
+      "quickAddTitle": "Add task",
+      "quickAddPlaceholder": "Enter a title",
+      "quickAddSubmit": "Add",
+      "empty": "No tasks yet",
+      "addCta": "Add task"
+    },
+    "notes": {
+      "searchPlaceholder": "Search notes…",
+      "folderCta": "Folder",
+      "addCta": "Note",
+      "empty": "No notes yet",
+      "trash": "Trash",
+      "content": "Content",
+      "links": "Links",
+      "deleteNote": "Delete note",
+      "pinnedSection": "Pinned",
+      "allNotes": "All notes",
+      "quickAddTitle": "Add note",
+      "quickAddPlaceholder": "Enter a title",
+      "quickAddSubmit": "Add",
+      "newFolderPrompt": "New folder name",
+      "lockedHint": "This note is locked"
+    },
+    "daily": {
+      "toToday": "Today",
+      "saved": "Saved",
+      "unsaved": "Unsaved",
+      "pin": "Pin entry",
+      "unpin": "Unpin entry",
+      "pinned": "Pinned",
+      "delete": "Delete entry",
+      "placeholder": "Write about your day…",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "datePicker": "Pick a date",
+      "dateStripLabel": "Select a date",
+      "entriesCount": "Entries ({{count}})",
+      "pastEntries": "Past entries"
+    },
+    "tags": {
+      "tagsCount": "Tags ({{count}})",
+      "groupsCount": "Groups ({{count}})",
+      "addCta": "Tag",
+      "addPlaceholder": "Enter a tag name",
+      "empty": "No tags yet",
+      "rename": "Rename tag",
+      "colorLabel": "Color",
+      "deleteTag": "Delete tag",
+      "quickAddTitle": "Add tag",
+      "quickAddPlaceholder": "Enter a tag name",
+      "quickAddSubmit": "Add",
+      "createGroup": "Group",
+      "newGroupPrompt": "New group name",
+      "addTagToGroup": "Add tag",
+      "addTagSearchPlaceholder": "Search tags…",
+      "removeFromGroup": "Remove from group",
+      "noCandidates": "No more tags to add",
+      "groupsEmpty": "No groups yet",
+      "memberCount": "{{count}} tags",
+      "expandGroup": "Expand group",
+      "collapseGroup": "Collapse group"
+    }
   },
   "files": {
     "settingsTitle": "File Explorer",
@@ -2487,9 +2553,7 @@
     "groups": "Groups",
     "create": "Create Group",
     "edit": "Edit Group",
-    "create": "Create Group",
     "createNew": "New Group",
-    "groups": "Groups",
     "untitled": "Untitled",
     "assignToGroup": "Assigned Groups",
     "noGroupsHint": "No groups yet — create one above.",

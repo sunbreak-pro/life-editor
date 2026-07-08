@@ -115,6 +115,13 @@ export interface TaskDetailPanelProps {
   statusText?: string;
   /** Already-translated caption above the content editor. */
   contentLabel?: string;
+  /** Already-translated caption preceding the tag row (§6.4). Paired with
+   *  `tagsSlot`; when either is absent the tag row is omitted. */
+  tagsLabel?: string;
+  /** Host-injected tag chips (e.g. the task's assigned WikiTags). Additive —
+   *  existing callers that omit it keep the original title/status/content
+   *  layout unchanged. Rendered between the status row and the content editor. */
+  tagsSlot?: ReactNode;
   className?: string;
 }
 
@@ -130,6 +137,8 @@ export function TaskDetailPanel({
   statusLabel,
   statusText,
   contentLabel,
+  tagsLabel,
+  tagsSlot,
   className,
 }: TaskDetailPanelProps) {
   const resolvedStatus = status ?? "NOT_STARTED";
@@ -167,6 +176,19 @@ export function TaskDetailPanel({
             </span>
             <span>{statusText}</span>
           </button>
+        </div>
+      )}
+
+      {!isFolder && tagsSlot != null && (
+        <div className="flex items-center gap-2">
+          {tagsLabel && (
+            <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+              {tagsLabel}
+            </span>
+          )}
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {tagsSlot}
+          </div>
         </div>
       )}
 

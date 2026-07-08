@@ -1,0 +1,123 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { NoteDetailPanel } from "../src/components";
+
+/*
+ * Materials mini-plan Step 3 — Notes detail (rightSidebar, Desktop). Pure
+ * presentation: title debounce-and-flush commits on blur, the pin toggle
+ * reports its state via aria-pressed, delete fires the injected callback,
+ * and the tag / content / links sections render only when their slot is
+ * provided (additive slots). MasterDetail / rightSidebar plumbing is covered
+ * elsewhere and deliberately not re-tested here.
+ */
+
+const LABELS = {
+  titleLabel: "Note title",
+  pinLabel: "Unpin note",
+  unpinLabel: "Pin note",
+  deleteLabel: "Delete note",
+  contentLabel: "Content",
+  linksLabel: "Links",
+};
+
+describe("NoteDetailPanel", () => {
+  it("renders the title, tag slot, content editor and links slot", () => {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="Supabase migration notes"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        tagsSlot={<span>design</span>}
+        contentEditor={<div>editor slot</div>}
+        linksSlot={<span>sync pitfalls</span>}
+        {...LABELS}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Note title") as HTMLInputElement).value,
+    ).toBe("Supabase migration notes");
+    expect(screen.getByText("design")).toBeInTheDocument();
+    expect(screen.getByText("editor slot")).toBeInTheDocument();
+    expect(screen.getByText("Content")).toBeInTheDocument();
+    expect(screen.getByText("sync pitfalls")).toBeInTheDocument();
+    expect(screen.getByText("Links")).toBeInTheDocument();
+  });
+
+  it("commits a title edit on blur", () => {
+    const onTitleCommit = vi.fn();
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="old"
+        isPinned={false}
+        onTitleCommit={onTitleCommit}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    const input = screen.getByLabelText("Note title");
+    fireEvent.change(input, { target: { value: "new" } });
+    fireEvent.blur(input);
+    expect(onTitleCommit).toHaveBeenCalledWith("note-a", "new");
+  });
+
+  it("reflects the pin state via aria-pressed and toggles on click", () => {
+    const onTogglePin = vi.fn();
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="pinned note"
+        isPinned
+        onTitleCommit={() => {}}
+        onTogglePin={onTogglePin}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    // When pinned the aria-label is the "Unpin" copy.
+    const pin = screen.getByRole("button", { name: "Unpin note" });
+    expect(pin).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(pin);
+    expect(onTogglePin).toHaveBeenCalledWith("note-a");
+  });
+
+  it("fires onDelete with the note id on delete click", () => {
+    const onDelete = vi.fn();
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="doomed"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={onDelete}
+        {...LABELS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+    expect(onDelete).toHaveBeenCalledWith("note-a");
+  });
+
+  it("omits the tag, content and links sections when their slots are absent", () => {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="bare"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    // Title + the two icon buttons still render...
+    expect(screen.getByLabelText("Note title")).toBeInTheDocument();
+    // ...but the captioned sections do not (their slots were undefined).
+    expect(screen.queryByText("Content")).not.toBeInTheDocument();
+    expect(screen.queryByText("Links")).not.toBeInTheDocument();
+  });
+});
