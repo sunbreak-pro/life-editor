@@ -64,4 +64,4 @@
 - 計画書: [`../docs/vision/plans/2026-05-26-autonomous-dev-routine.md`](../docs/vision/plans/2026-05-26-autonomous-dev-routine.md)
 - CLAUDE.md §7.3 Plan Gate Convention / §7.4 Multi-chat Worktree Policy
 - 既存 Routine: `project_weekly_learning_routine` / `project_commute_mobile_dev_routine` (MEMORY)
-- Skills: `schedule` / `lead-pipeline` / `execution-router` / `git-orchestrator`
+- Skills: `schedule` / `lead-pipeline` / `execution-router` / `git-workflow`（+ `git-branch-flow` / `git-conflict-resolver`）
