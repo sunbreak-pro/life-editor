@@ -42,6 +42,16 @@ export interface SectionDef {
   readonly labelKey: string;
   /** Mobile bottom-bar priority (ascending). Fixed 4 = lowest, rest → More. */
   readonly mobileOrder: number;
+  /**
+   * Whether this section owns detail-panel (rightSidebar) content. The host
+   * only renders the RightSidebarToggle for a section when this is true — a
+   * section that supplies no `RightSidebarPortal` content (Analytics / Trash)
+   * would otherwise open an empty panel. Sections marked true supply content
+   * either through the shared push-in panel (Connect / Work / Settings) or
+   * their own in-section chrome (Materials tabs / Schedule). SSOT for the
+   * "toggle shown ⟺ content supplied" invariant (plan 2026-07-08 Step 3).
+   */
+  readonly rightSidebar: boolean;
 }
 
 /*
@@ -56,6 +66,9 @@ export const SECTIONS = [
     icon: Clock,
     labelKey: "section.schedule",
     mobileOrder: 0,
+    // Schedule owns its detail toggle inside ScheduleScreen (CalendarTab
+    // supplies the RightSidebarPortal); the host skips the generic toolbar.
+    rightSidebar: true,
   },
   {
     id: "materials",
@@ -63,6 +76,9 @@ export const SECTIONS = [
     icon: Library,
     labelKey: "section.materials",
     mobileOrder: 1,
+    // Materials carries its toggle in the tab switcher; each surface
+    // (Kanban / Notes / Daily / Tags) supplies its own RightSidebarPortal.
+    rightSidebar: true,
   },
   {
     id: "connect",
@@ -70,6 +86,8 @@ export const SECTIONS = [
     icon: Network,
     labelKey: "section.connect",
     mobileOrder: 4,
+    // ConnectGraphView portals its Graph settings / Backlinks panel.
+    rightSidebar: true,
   },
   {
     id: "work",
@@ -77,6 +95,8 @@ export const SECTIONS = [
     icon: Timer,
     labelKey: "section.work",
     mobileOrder: 2,
+    // WorkScreen portals the Pomodoro settings / task-selector panel.
+    rightSidebar: true,
   },
   {
     id: "analytics",
@@ -84,6 +104,9 @@ export const SECTIONS = [
     icon: BarChart3,
     labelKey: "section.analytics",
     mobileOrder: 3,
+    // Dashboard with no per-item detail context — no panel content, so the
+    // host hides the toggle (would otherwise open an empty panel).
+    rightSidebar: false,
   },
   {
     id: "settings",
@@ -91,6 +114,8 @@ export const SECTIONS = [
     icon: Settings,
     labelKey: "section.settings",
     mobileOrder: 5,
+    // SettingsScreen portals the SettingsDetailPanel.
+    rightSidebar: true,
   },
   {
     id: "trash",
@@ -98,6 +123,9 @@ export const SECTIONS = [
     icon: Trash2,
     labelKey: "section.trash",
     mobileOrder: 6,
+    // Cross-category restore list with no selection detail — no panel
+    // content, so the host hides the toggle.
+    rightSidebar: false,
   },
 ] as const satisfies readonly SectionDef[];
 
@@ -127,4 +155,15 @@ export const SECTION_ICONS: Readonly<Record<SectionId, LucideIcon>> =
   Object.fromEntries(SECTIONS.map((s) => [s.id, s.icon])) as Record<
     SectionId,
     LucideIcon
+  >;
+
+/**
+ * Detail-panel (rightSidebar) ownership by section id. The host gates the
+ * RightSidebarToggle on this so a section without portal content never opens
+ * an empty panel (plan 2026-07-08 Step 3 — "toggle shown ⟺ content supplied").
+ */
+export const SECTION_HAS_RIGHT_SIDEBAR: Readonly<Record<SectionId, boolean>> =
+  Object.fromEntries(SECTIONS.map((s) => [s.id, s.rightSidebar])) as Record<
+    SectionId,
+    boolean
   >;

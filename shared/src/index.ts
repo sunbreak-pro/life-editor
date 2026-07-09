@@ -23,10 +23,19 @@ export {
   MOBILE_SECTIONS,
   SECTION_IDS,
   SECTION_ICONS,
+  SECTION_HAS_RIGHT_SIDEBAR,
   type SectionDef,
   type SectionGroup,
   type SectionId,
 } from "./sections";
+
+// Materials tab count badges (target IA) — pure derivation from fetched data.
+export {
+  computeMaterialsCounts,
+  EMPTY_MATERIALS_COUNTS,
+  type MaterialsCounts,
+  type MaterialsCountsInput,
+} from "./materials/materialsCounts";
 
 // Types
 export type { TaskNode, NodeType, TaskStatus } from "./types/taskTree";
