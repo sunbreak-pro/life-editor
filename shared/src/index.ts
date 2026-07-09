@@ -14,6 +14,29 @@ export {
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";
 
+// Section registry (SSOT) — target-IA section list + derived nav views.
+// Hosts import these instead of hand-maintaining parallel section lists.
+export {
+  SECTIONS,
+  MAIN_SECTIONS,
+  UTILITY_SECTIONS,
+  MOBILE_SECTIONS,
+  SECTION_IDS,
+  SECTION_ICONS,
+  SECTION_HAS_RIGHT_SIDEBAR,
+  type SectionDef,
+  type SectionGroup,
+  type SectionId,
+} from "./sections";
+
+// Materials tab count badges (target IA) — pure derivation from fetched data.
+export {
+  computeMaterialsCounts,
+  EMPTY_MATERIALS_COUNTS,
+  type MaterialsCounts,
+  type MaterialsCountsInput,
+} from "./materials/materialsCounts";
+
 // Types
 export type { TaskNode, NodeType, TaskStatus } from "./types/taskTree";
 export type { MoveResult, MoveRejectionReason } from "./types/moveResult";

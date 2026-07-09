@@ -26,7 +26,7 @@
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
 - **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`（旧 `frontend/src/services/` は FROZEN）。バックエンドが替わってもこの境界は不変
-- **3.2 Section Routing**: React Router なし。`App.tsx::activeSection`（型 `types/taskTree.ts::SectionId`）で切替。現行型は 7 種（schedule / materials / connect / work / analytics / settings / terminal）だが `terminal` は退役決定済み（§8）で実効 6 種。`SectionId` からの `terminal` 除去と旧 `TerminalPanel`（かつて全画面共通だった下部パネル）撤去はコード整理 Issue で追跡
+- **3.2 Section Routing**: React Router なし。`web/src/MainScreen.tsx` の section state で切替（旧 frontend は `App.tsx::activeSection`）。セクション定義（`SectionId`・nav 順・グループ・アイコン・mobile 順）は **`shared/src/sections.ts` の registry が SSOT**（`types/taskTree.ts::SectionId` は registry 派生の再 export・一覧はコードが正）。旧 `terminal` セクションは SectionId / nav / i18n から除去済み（#146・退役の経緯 → §8）
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
 - **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 

@@ -75,7 +75,20 @@ const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
   DONE: "taskDetail.statusDone",
 };
 
-export function KanbanView(): React.JSX.Element {
+export interface KanbanViewProps {
+  /**
+   * Shell "new task" intent (global:new-task). When it flips true the board
+   * opens its add dialog (create-and-focus) and calls onConsumeNewTask to clear
+   * the flag — so returning to the Tasks tab later never re-opens it.
+   */
+  pendingNewTask?: boolean;
+  onConsumeNewTask?: () => void;
+}
+
+export function KanbanView({
+  pendingNewTask = false,
+  onConsumeNewTask,
+}: KanbanViewProps = {}): React.JSX.Element {
   const tree = useTaskTreeContext();
   const wikiTags = useWikiTagsUnifiedContext();
   const { allTags, getTagsForItem, setTagColor } = wikiTags;
@@ -104,7 +117,30 @@ export function KanbanView(): React.JSX.Element {
   // Add-task / folder dialog (W-UX). The board had no create entry point; this
   // small centered overlay creates a task (optionally inside a folder) or a
   // root folder, then opens a new task straight into the detail modal.
-  const [addOpen, setAddOpen] = useState(false);
+  //
+  // The shell's global:new-task intent (pendingNewTask) opens this dialog on
+  // the wide board (TaskAddDialog auto-focuses its title input and creates the
+  // task on submit via the TaskTree provider) — the app's own create-and-focus
+  // entry. Two entry timings: a fresh mount already carrying the flag (user
+  // came from another section) → the lazy initializer; a flip while already on
+  // the Tasks tab → the guarded during-render tracker below. Both derive state
+  // from the prop WITHOUT a synchronous setState inside an effect (which would
+  // cascade — react-hooks/set-state-in-effect); this is React's "adjust state
+  // while rendering" pattern. Narrow relies on the MobileTaskList quick-add.
+  const [addOpen, setAddOpen] = useState(() => pendingNewTask && isWide);
+  const [prevPendingNewTask, setPrevPendingNewTask] = useState(pendingNewTask);
+  if (pendingNewTask !== prevPendingNewTask) {
+    setPrevPendingNewTask(pendingNewTask);
+    if (pendingNewTask && isWide) setAddOpen(true);
+  }
+
+  // Clear the shell flag once it has been observed so returning to the Tasks
+  // tab later never re-opens the dialog. onConsumeNewTask is an opaque parent
+  // callback (not a local setState), so it is safe in an effect.
+  useEffect(() => {
+    if (pendingNewTask) onConsumeNewTask?.();
+  }, [pendingNewTask, onConsumeNewTask]);
+
   const folderOptions = useMemo(
     () =>
       tree.nodes

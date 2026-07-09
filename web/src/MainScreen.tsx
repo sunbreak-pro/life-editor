@@ -3,14 +3,7 @@ import {
   CheckSquare,
   CalendarDays,
   FileText,
-  Clock,
   Tag,
-  Library,
-  Timer as TimerIcon,
-  BarChart3,
-  Network,
-  Settings as SettingsIcon,
-  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -39,10 +32,20 @@ import {
   AudioProvider,
   AudioChimeBridge,
   useTranslation,
+  SECTIONS,
+  MAIN_SECTIONS,
+  UTILITY_SECTIONS,
+  MOBILE_SECTIONS,
+  SECTION_HAS_RIGHT_SIDEBAR,
+  EMPTY_MATERIALS_COUNTS,
+  type MaterialsCounts,
+  type SectionId,
+  type SectionDef,
   type Command,
   type NavSection,
   type Session,
 } from "@life-editor/shared";
+import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
 import { TrashScreen } from "./trash/TrashScreen";
 import { KanbanView } from "./tasks/KanbanView";
 import { DailyView } from "./daily/DailyView";
@@ -89,65 +92,23 @@ import { GlobalShortcuts } from "./GlobalShortcuts";
  * their Provider nesting are unchanged from the flat layout.
  */
 
-/** Mainline + utility sections (target IA). `terminal` is retired (§8) and
- *  the shared `SectionId` is left untouched — this is the web-local set. */
-type Section =
-  | "schedule"
-  | "materials"
-  | "connect"
-  | "work"
-  | "analytics"
-  | "settings"
-  | "trash";
+/*
+ * Section identity, order, icons, and the desktop/mobile nav views all come
+ * from the shared section registry (SSOT — shared/src/sections.ts). This host
+ * derives its nav from SECTIONS / MAIN_SECTIONS / UTILITY_SECTIONS /
+ * MOBILE_SECTIONS instead of hand-maintaining parallel literal lists.
+ * The old REPL section is retired (§8) and never appears in the registry.
+ */
 
 /** In-Materials tab — the four document surfaces addressed by one section. */
 type MaterialsTab = "tasks" | "notes" | "daily" | "tags";
 
-const NAV_MAIN: readonly Section[] = [
-  "schedule",
-  "materials",
-  "connect",
-  "work",
-  "analytics",
-];
-const NAV_UTILITY: readonly Section[] = ["settings", "trash"];
-// Mobile bottom-bar priority: fixed 4 = schedule/materials/work/analytics,
-// More overflow = connect/settings/trash (target IA — surface the focus +
-// review tabs over the graph on the narrow layout).
-const MOBILE_ORDER: readonly Section[] = [
-  "schedule",
-  "materials",
-  "work",
-  "analytics",
-  "connect",
-  "settings",
-  "trash",
-];
-const ALL_SECTIONS: readonly Section[] = [
-  "schedule",
-  "materials",
-  "connect",
-  "work",
-  "analytics",
-  "settings",
-  "trash",
-];
 const MATERIALS_TABS: readonly MaterialsTab[] = [
   "tasks",
   "notes",
   "daily",
   "tags",
 ];
-
-const SECTION_ICON: Record<Section, LucideIcon> = {
-  schedule: Clock,
-  materials: Library,
-  connect: Network,
-  work: TimerIcon,
-  analytics: BarChart3,
-  settings: SettingsIcon,
-  trash: Trash2,
-};
 
 const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   tasks: CheckSquare,
@@ -159,9 +120,18 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
-  const [section, setSection] = useState<Section>("materials");
+  const [section, setSection] = useState<SectionId>("materials");
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // global:new-task intent, consumed once by the Kanban when it mounts (see
+  // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
+  // the Tasks tab later never re-opens the add dialog.
+  const [pendingNewTask, setPendingNewTask] = useState(false);
+  // Materials tab count badges, fed by the headless MaterialsCountsBridge
+  // (mounted inside SyncProvider so it can refetch on Realtime changes).
+  const [materialsCounts, setMaterialsCounts] = useState<MaterialsCounts>(
+    EMPTY_MATERIALS_COUNTS,
+  );
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
   // Independent of AppShell's own wide/narrow switch (same query, own read).
   const isWide = useMediaQuery("(min-width: 768px)", true);
@@ -185,25 +155,29 @@ export function MainScreen({ session }: { session: Session }) {
     setMaterialsTab(nav);
   }, []);
 
-  // global:new-task executor (W3-B). The web has no shell-level "create task"
-  // entry — task creation lives inside the Kanban, which is section-scoped
-  // behind its own Provider, so a true create-and-focus can't be driven from
-  // here without lifting that state. Navigating to Materials → Tasks is the
-  // honest receiver: it takes the user to the task surface where the new-task
-  // input lives. (Lifting create-task state to the shell is W4.)
+  // global:new-task executor. Task creation lives inside the Kanban (mounted
+  // per-tab behind its own Provider), so the shell can't call the create API
+  // directly. Instead it navigates to Materials → Tasks and raises a "pending
+  // new task" flag; the Kanban consumes it on mount and opens its add dialog
+  // (which auto-focuses the title input and creates the task on submit via the
+  // TaskTree provider). That is the app's own create-and-focus entry — no new
+  // DataService API, no title-less junk rows.
   const handleNewTask = useCallback(() => {
     setSection("materials");
     setMaterialsTab("tasks");
+    setPendingNewTask(true);
   }, []);
+  // Kanban calls this once it has acted on the pending-new-task flag.
+  const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
 
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
-    const sectionCmds = ALL_SECTIONS.map<Command>((s) => ({
-      id: `section-${s}`,
-      title: t(`section.${s}`, { defaultValue: s }),
+    const sectionCmds = SECTIONS.map<Command>((s) => ({
+      id: `section-${s.id}`,
+      title: t(s.labelKey, { defaultValue: s.id }),
       category: goTo,
-      icon: SECTION_ICON[s],
-      action: () => setSection(s),
+      icon: s.icon,
+      action: () => setSection(s.id),
     }));
     const materialsCmds = MATERIALS_TABS.map<Command>((tab) => ({
       id: `materials-${tab}`,
@@ -223,32 +197,42 @@ export function MainScreen({ session }: { session: Session }) {
   // (§6.4). Mainline vs utility vs mobile order are three views of the same
   // sections keyed by Section id.
   const toSections = useCallback(
-    (ids: readonly Section[]): AppShellSection[] =>
-      ids.map((s) => {
-        const Icon = SECTION_ICON[s];
+    (defs: readonly SectionDef[]): AppShellSection[] =>
+      defs.map((s) => {
+        const Icon = s.icon;
         return {
-          id: s,
-          label: t(`section.${s}`, { defaultValue: s }),
+          id: s.id,
+          label: t(s.labelKey, { defaultValue: s.id }),
           icon: <Icon size={18} />,
         };
       }),
     [t],
   );
-  const navSections = useMemo(() => toSections(NAV_MAIN), [toSections]);
-  const utilitySections = useMemo(() => toSections(NAV_UTILITY), [toSections]);
-  const mobileSections = useMemo(() => toSections(MOBILE_ORDER), [toSections]);
+  const navSections = useMemo(() => toSections(MAIN_SECTIONS), [toSections]);
+  const utilitySections = useMemo(
+    () => toSections(UTILITY_SECTIONS),
+    [toSections],
+  );
+  const mobileSections = useMemo(
+    () => toSections(MOBILE_SECTIONS),
+    [toSections],
+  );
 
-  // Materials in-section tab defs (Tasks / Notes / Daily / Tags). No count
-  // badges — the incomplete-task count lives inside TaskTreeProvider, deeper
-  // than this shell wiring can reach, so the badge prop is left unset (the
-  // HeaderTabs badge affordance is still exercised by its unit tests).
+  // Materials in-section tab defs (Tasks / Notes / Daily / Tags). Each tab
+  // shows a count badge (Tasks = unfinished count; the rest = live item count)
+  // fed by the MaterialsCountsBridge. A zero count leaves the badge unset so
+  // empty surfaces don't render a noisy "0" pill.
   const materialsTabDefs = useMemo(
     () =>
-      MATERIALS_TABS.map((id) => ({
-        id,
-        label: t(`section.${id}`, { defaultValue: id }),
-      })),
-    [t],
+      MATERIALS_TABS.map((id) => {
+        const count = materialsCounts[id];
+        return {
+          id,
+          label: t(`section.${id}`, { defaultValue: id }),
+          badge: count > 0 ? count : undefined,
+        };
+      }),
+    [t, materialsCounts],
   );
 
   const shellLabels = useMemo(
@@ -314,11 +298,15 @@ export function MainScreen({ session }: { session: Session }) {
     </div>
   );
 
-  // Toolbar row for the six non-Materials sections (Schedule / Connect / Work /
-  // Analytics / Settings / Trash). Desktop pins the panel toggle to the right;
-  // Mobile shows the hamburger at the left. Materials carries its own toggle in
-  // the tab switcher above.
-  const sectionToolbar = isWide ? (
+  // Detail-panel toggle row for the non-Materials sections. Only rendered when
+  // the active section actually owns rightSidebar content (SECTION_HAS_RIGHT_
+  // SIDEBAR, the registry SSOT) — Analytics / Trash supply no portal content,
+  // so their toggle is hidden to avoid opening an empty panel (plan Step 3).
+  // Schedule / Materials are handled by their own branches below (own chrome),
+  // so this row covers Connect / Work / Settings. Desktop pins the panel toggle
+  // to the right; Mobile shows the hamburger at the left.
+  const showSectionToggle = SECTION_HAS_RIGHT_SIDEBAR[section];
+  const sectionToolbar = !showSectionToggle ? null : isWide ? (
     <div className="flex items-center">
       <RightSidebarToggle
         variant="panel"
@@ -351,7 +339,10 @@ export function MainScreen({ session }: { session: Session }) {
       {materialsTab === "tasks" && (
         <WikiTagsUnifiedProvider dataService={ds}>
           <TaskTreeProvider dataService={ds}>
-            <KanbanView />
+            <KanbanView
+              pendingNewTask={pendingNewTask}
+              onConsumeNewTask={consumeNewTask}
+            />
           </TaskTreeProvider>
         </WikiTagsUnifiedProvider>
       )}
@@ -456,6 +447,13 @@ export function MainScreen({ session }: { session: Session }) {
     <ToastProvider dismissLabel={t("common.close")}>
       <SyncProvider>
         {/*
+         * Materials tab count badges (target IA). Headless — sits inside
+         * SyncProvider so it can refetch the four Materials lists on every
+         * Realtime `syncVersion` bump, then reports the derived counts up to
+         * the shell (materialsTabDefs badges). DataService is injected (§6.4).
+         */}
+        <MaterialsCountsBridge dataService={ds} onCounts={setMaterialsCounts} />
+        {/*
          * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
          * mounted here on the web host only. Per §6.2 Theme is outer (it lives
          * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
@@ -469,8 +467,13 @@ export function MainScreen({ session }: { session: Session }) {
            * useShortcutConfig) and wires keydown to section nav + palette toggle.
            * Reads the live (rebindable) config, so Settings rebinds apply at
            * once. nav:* + new-task route through the target-IA mapping
-           * (handleNavigate / handleNewTask → Materials + tab). undo / redo
-           * still have no web surface (no UndoRedo on web yet) → left unwired.
+           * (handleNavigate / handleNewTask → Materials + tab + create dialog).
+           *
+           * undo / redo are DEFERRED (plan 2026-07-08 Step 4): the web build
+           * has no UndoRedo base (no provider / command stack), so wiring the
+           * shortcuts would mean building that whole subsystem — out of scope
+           * for this integration pass. Left unwired (no-op) by design, not by
+           * omission; revisit when a web UndoRedo provider lands.
            */}
           <GlobalShortcuts
             onNavigate={handleNavigate}
@@ -522,7 +525,7 @@ export function MainScreen({ session }: { session: Session }) {
                   utilitySections={utilitySections}
                   mobileSections={mobileSections}
                   activeSection={section}
-                  onNavigate={(id) => setSection(id as Section)}
+                  onNavigate={(id) => setSection(id as SectionId)}
                   onTogglePalette={() => setPaletteOpen((v) => !v)}
                   userEmail={session.user.email ?? ""}
                   onSignOut={() => void signOut()}
@@ -564,9 +567,11 @@ export function MainScreen({ session }: { session: Session }) {
                     </div>
                   ) : fluidSection ? (
                     <div className="flex h-full flex-col">
-                      <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">
-                        {sectionToolbar}
-                      </div>
+                      {sectionToolbar && (
+                        <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">
+                          {sectionToolbar}
+                        </div>
+                      )}
                       <div className="min-h-0 flex-1">{nonMaterialsBody}</div>
                     </div>
                   ) : (

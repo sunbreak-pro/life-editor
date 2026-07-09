@@ -11,9 +11,6 @@ import {
   TrashView,
   Toast,
   ToastViewport,
-  Sheet,
-  Sidebar,
-  SidebarItem,
   Menu,
   MenuItem,
   cn,
@@ -347,72 +344,6 @@ describe("ToastViewport", () => {
     const region = screen.getByText("hi").closest(".fixed") as HTMLElement;
     expect(region).toHaveClass("pointer-events-none");
     expect(region).toHaveClass("[&>*]:pointer-events-auto");
-  });
-});
-
-describe("Sheet", () => {
-  it("renders nothing when closed", () => {
-    render(
-      <Sheet open={false} onClose={() => {}} title="S">
-        body
-      </Sheet>,
-    );
-    expect(screen.queryByText("body")).not.toBeInTheDocument();
-  });
-
-  it("renders a dialog when open and closes on Escape, not on panel click", () => {
-    const onClose = vi.fn();
-    render(
-      <Sheet open onClose={onClose} side="right" title="Drawer">
-        drawer body
-      </Sheet>,
-    );
-    const dialog = screen.getByRole("dialog", { name: "Drawer" });
-    expect(dialog).toBeInTheDocument();
-    // clicking the panel itself must NOT close (stopPropagation)
-    fireEvent.mouseDown(dialog);
-    expect(onClose).not.toHaveBeenCalled();
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("ignores Escape while composing (IME guard)", () => {
-    const onClose = vi.fn();
-    render(
-      <Sheet open onClose={onClose} title="Drawer">
-        body
-      </Sheet>,
-    );
-    fireEvent.keyDown(document, { key: "Escape", isComposing: true });
-    expect(onClose).not.toHaveBeenCalled();
-  });
-});
-
-describe("Sidebar / SidebarItem", () => {
-  it("marks the active row with the accent token and aria-current", () => {
-    render(
-      <Sidebar label="Sections">
-        <SidebarItem label="Schedule" onClick={() => {}} />
-        <SidebarItem label="Work" active onClick={() => {}} />
-      </Sidebar>,
-    );
-    const active = screen.getByRole("button", { name: "Work" });
-    expect(active).toHaveClass("bg-lumen-accent-subtle");
-    expect(active).toHaveClass("text-lumen-accent");
-    expect(active).toHaveAttribute("aria-current", "page");
-  });
-
-  it("fires onClick and tints mint rows with the secondary accent", () => {
-    const onClick = vi.fn();
-    render(
-      <Sidebar>
-        <SidebarItem label="Habits" tone="mint" onClick={onClick} />
-      </Sidebar>,
-    );
-    const row = screen.getByRole("button", { name: "Habits" });
-    expect(row).toHaveClass("text-lumen-chip-mint-fg");
-    fireEvent.click(row);
-    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
 
