@@ -140,6 +140,7 @@ function TaskRow({
           {STATUS_GLYPH[card.status]}
         </span>
         <span
+          title={card.title || untitled}
           className={cn(
             "min-w-0 flex-1 truncate",
             selected ? "text-lumen-accent" : "text-lumen-text",
@@ -148,7 +149,10 @@ function TaskRow({
           {card.title || untitled}
         </span>
         {card.folderName && (
-          <span className="shrink-0 max-w-[38%] truncate text-[11.5px] text-lumen-text-tertiary">
+          <span
+            title={card.folderName}
+            className="shrink-0 max-w-[38%] truncate text-[11.5px] text-lumen-text-tertiary"
+          >
             {card.folderName}
           </span>
         )}
@@ -215,7 +219,9 @@ export function TaskListPanel({
               )}
             >
               <Icon size={13} aria-hidden className="shrink-0" />
-              <span className="truncate">{viewLabel(mode)}</span>
+              <span className="truncate" title={viewLabel(mode)}>
+                {viewLabel(mode)}
+              </span>
             </button>
           );
         })}
@@ -265,7 +271,10 @@ export function TaskListPanel({
                       : undefined
                   }
                 />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-lumen-text">
+                <span
+                  title={column.title}
+                  className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-lumen-text"
+                >
                   {column.title}
                 </span>
                 <span
