@@ -61,14 +61,6 @@ export interface AppShellProps {
   /** How many sections show as fixed tabs on the narrow bottom bar. */
   maxBottomTabs?: number;
   /**
-   * When true, the active section body fills the main area edge-to-edge —
-   * the centered max-w / padding wrapper is dropped so canvas-like sections
-   * (Connect graph, calendar) can take the full width AND height. The host is
-   * then responsible for giving the section its own h-full layout. Default
-   * false keeps the readable centered column for document-style sections.
-   */
-  fluidContent?: boolean;
-  /**
    * When set, the target-IA detail panel is mounted (App Shell Turn 2): a
    * push-in <RightSidebar> as a flex sibling of <main> on the wide layout, and
    * a left <MobileDrawer> on the narrow layout. Both read open/width/portal
@@ -89,6 +81,14 @@ const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
  * by the host (§3.2 — no React Router), all labels/state injected as props
  * (§6.4). The host slots the active section body into `children`.
  *
+ * Scope (Layout Standard v1, Issue #180): the shell only owns the STRUCTURE
+ * — the wide↔narrow switch, the nav chrome, and the detail-panel siblings.
+ * Content width, page gutter, and body scrolling are NOT the shell's job:
+ * <main> is a bare overflow-hidden flex child, and the host wraps `children`
+ * in a <PageContainer> that owns max-w / gutter / self-scroll. That keeps
+ * canvas-style sections full-bleed and document sections centered without
+ * the shell branching on content shape.
+ *
  * Sidebar-collapsed is a shell-display concern (not section state), so the
  * shell persists it locally via useLocalStorage rather than lifting it.
  */
@@ -105,7 +105,6 @@ export function AppShell({
   children,
   wideQuery = "(min-width: 768px)",
   maxBottomTabs = 4,
-  fluidContent = false,
   detailPanelLabels,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
@@ -136,13 +135,7 @@ export function AppShell({
           onSignOut={onSignOut}
           labels={labels}
         />
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          {fluidContent ? (
-            children
-          ) : (
-            <div className="mx-auto max-w-3xl px-6 py-6">{children}</div>
-          )}
-        </main>
+        <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
         {detailPanelLabels && (
           <RightSidebar
             title={detailPanelLabels.title}
@@ -160,12 +153,7 @@ export function AppShell({
       className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
       style={{ overscrollBehavior: "none" }}
     >
-      <main
-        className="min-h-0 flex-1 overflow-y-auto"
-        style={{ overscrollBehavior: "contain" }}
-      >
-        {fluidContent ? children : <div className="px-4 py-4">{children}</div>}
-      </main>
+      <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       <BottomTabBar
         sections={bottomSections}
         activeSection={activeSection}
