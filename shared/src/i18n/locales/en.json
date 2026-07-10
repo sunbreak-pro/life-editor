@@ -774,7 +774,17 @@
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
       "empty": "No tasks yet",
-      "addCta": "Add task"
+      "addCta": "Add task",
+      "mainEmpty": "Select a task or create a new one",
+      "layoutList": "List",
+      "layoutBoard": "Board",
+      "layoutGroupLabel": "Layout",
+      "expandGroup": "Expand group",
+      "collapseGroup": "Collapse group",
+      "emptyGroup": "No tasks",
+      "untitled": "(untitled)",
+      "unfiled": "Unfiled",
+      "taskCount": "{{count}} tasks"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
@@ -791,7 +801,8 @@
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
       "newFolderPrompt": "New folder name",
-      "lockedHint": "This note is locked"
+      "lockedHint": "This note is locked",
+      "mainEmpty": "Select a note or create a new one"
     },
     "daily": {
       "toToday": "Today",

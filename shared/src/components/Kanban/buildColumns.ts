@@ -42,6 +42,15 @@ const STATUS_BAND_VAR: Record<TaskStatus, string> = {
 /** Neutral accent for the "untagged" bucket column (tag view). */
 const UNTAGGED_ACCENT = "var(--color-border-strong)";
 
+/**
+ * Column id for the synthetic "unfiled" bucket in the folder view: active tasks
+ * that sit directly at the tree root (no parent folder). Mirrors the internal
+ * childrenByParent grouping key below so root tasks map straight into it. Kept
+ * in sync with the web DnD glue (useKanbanDnd), which routes a drop onto this
+ * column to moveToRoot rather than moveNodeInto a (non-existent) folder.
+ */
+export const FOLDER_ROOT_BUCKET_ID = "__root__";
+
 function statusLabel(status: TaskStatus, labels: KanbanLabels): string {
   switch (status) {
     case "NOT_STARTED":
@@ -102,12 +111,13 @@ function toCard(
 export function buildFolderColumns(
   nodes: TaskNode[],
   tagsByTask?: TagsByTask,
+  rootLabel?: string,
 ): KanbanColumnModel[] {
   const folders = nodes.filter(isActiveFolder);
   const childrenByParent = new Map<string, TaskNode[]>();
   for (const node of nodes) {
     if (!isActiveTask(node)) continue;
-    const key = node.parentId ?? "__root__";
+    const key = node.parentId ?? FOLDER_ROOT_BUCKET_ID;
     const list = childrenByParent.get(key);
     if (list) list.push(node);
     else childrenByParent.set(key, [node]);
@@ -127,6 +137,25 @@ export function buildFolderColumns(
       toCard(task, { tags: tagsFor(task.id, tagsByTask) }),
     ),
   }));
+
+  // Trailing "unfiled" bucket: active tasks that sit at the tree root with no
+  // parent folder. Before this, the folder view only carded folder CHILDREN, so
+  // a root-level task was unreachable — a root-only tree rendered as an empty
+  // board even though the tab badge still counted it. Additive + guarded: only
+  // appended when such tasks exist AND the host injects a label, so existing
+  // folder-only boards keep their exact look. Neutral accent + not
+  // color-editable (it is a synthetic bucket, not a real folder node).
+  const rootTasks = childrenByParent.get(FOLDER_ROOT_BUCKET_ID);
+  if (rootLabel !== undefined && rootTasks && rootTasks.length > 0) {
+    columns.push({
+      id: FOLDER_ROOT_BUCKET_ID,
+      title: rootLabel,
+      accentColor: UNTAGGED_ACCENT,
+      cards: sortByOrder(rootTasks).map((task) =>
+        toCard(task, { tags: tagsFor(task.id, tagsByTask) }),
+      ),
+    });
+  }
 
   return columns;
 }

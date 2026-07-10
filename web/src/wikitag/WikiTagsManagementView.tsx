@@ -448,9 +448,11 @@ export function WikiTagsManagementView() {
 
   // ---- Desktop --------------------------------------------------------
 
+  // PageContainer (reading) owns width, gutter and the document scroll — the
+  // card renders content-height instead of filling and self-scrolling.
   const desktopBody = (
-    <div className="flex min-h-0 flex-1 flex-col px-7 pb-6 pt-5">
-      <div className="mx-auto flex w-full max-w-[800px] justify-end pb-3">
+    <div className="flex flex-col">
+      <div className="flex w-full justify-end pb-3">
         <button
           type="button"
           onClick={() => setAddingTag((v) => !v)}
@@ -461,11 +463,11 @@ export function WikiTagsManagementView() {
         </button>
       </div>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
+      <div className="flex w-full flex-col rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
         <div className="px-3.5 pb-2 pt-3.5 text-[14px] font-semibold text-lumen-text">
           {t("materials.tags.tagsCount", { count: tagCount })}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+        <div className="px-2 pb-2">
           {addingTag && (
             <AddTagRow
               placeholder={t("materials.tags.addPlaceholder")}
@@ -476,6 +478,7 @@ export function WikiTagsManagementView() {
           )}
           {!hasTags ? (
             <EmptyState
+              className="min-h-[40vh]"
               icon={<Tag aria-hidden />}
               message={t("materials.tags.empty")}
               cta={{

@@ -8,12 +8,13 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import type {
-  KanbanColumnModel,
-  KanbanViewMode,
-  TaskStatus,
-  MoveResult,
-  MoveRejectionReason,
+import {
+  FOLDER_ROOT_BUCKET_ID,
+  type KanbanColumnModel,
+  type KanbanViewMode,
+  type TaskStatus,
+  type MoveResult,
+  type MoveRejectionReason,
 } from "@life-editor/shared";
 
 /*
@@ -38,6 +39,10 @@ import type {
 
 const STATUS_COL_PREFIX = "status-";
 
+// Dropping a card onto the synthetic FOLDER_ROOT_BUCKET_ID bucket removes it
+// from its folder (moveToRoot) rather than moving it INTO a non-existent
+// folder.
+
 function parseStatusColumnId(columnId: string): TaskStatus | null {
   if (!columnId.startsWith(STATUS_COL_PREFIX)) return null;
   const raw = columnId.slice(STATUS_COL_PREFIX.length);
@@ -52,6 +57,7 @@ interface UseKanbanDndParams {
   columns: KanbanColumnModel[];
   setTaskStatus: (id: string, status: TaskStatus) => void;
   moveNodeInto: (activeId: string, targetFolderId: string) => MoveResult;
+  moveToRoot: (activeId: string) => MoveResult;
   moveNode: (
     activeId: string,
     overId: string,
@@ -82,6 +88,7 @@ export function useKanbanDnd({
   columns,
   setTaskStatus,
   moveNodeInto,
+  moveToRoot,
   moveNode,
   onMoveRejected,
 }: UseKanbanDndParams): UseKanbanDndResult {
@@ -147,8 +154,14 @@ export function useKanbanDnd({
 
       // folder view
       if (!sameColumn) {
-        // Cross-column → move into the target folder.
-        handleResult(moveNodeInto(activeId, targetColumnId), onMoveRejected);
+        // Cross-column → drop onto the synthetic "unfiled" bucket removes the
+        // task from its folder (moveToRoot); any other column is a real folder
+        // (moveNodeInto).
+        if (targetColumnId === FOLDER_ROOT_BUCKET_ID) {
+          handleResult(moveToRoot(activeId), onMoveRejected);
+        } else {
+          handleResult(moveNodeInto(activeId, targetColumnId), onMoveRejected);
+        }
         return;
       }
 
@@ -173,6 +186,7 @@ export function useKanbanDnd({
       resolveOverColumn,
       setTaskStatus,
       moveNodeInto,
+      moveToRoot,
       moveNode,
       onMoveRejected,
     ],
