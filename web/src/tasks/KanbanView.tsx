@@ -138,7 +138,15 @@ export function KanbanView({
   // detail opens it on card-click). Gate on breakpoint + layout only — a bare
   // selection change must not reopen/close the panel.
   useEffect(() => {
-    if (!isWide) return;
+    // Crossing wide→narrow: the list/detail moved out of the shared panel into
+    // the narrow layout, but rightSidebar.isOpen persists — leaving the mobile
+    // Details drawer (its bg-black/30 overlay) covering the screen. Close it.
+    // The narrow hamburger path is untouched: this effect only fires on the
+    // isWide / isListMode transition, not on a bare open() from the shell.
+    if (!isWide) {
+      rightSidebar.close();
+      return;
+    }
     if (isListMode) rightSidebar.open();
     else if (!tree.selectedTaskId) rightSidebar.close();
     // rightSidebar.open/close are stable; tree.selectedTaskId is read as a

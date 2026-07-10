@@ -267,8 +267,14 @@ export function NotesView() {
   // starts false, so without this the list would be hidden on mount. open() is
   // idempotent (setState bails when already true); gate on the breakpoint only.
   useEffect(() => {
+    // Crossing wide→narrow: the tree moved out of the shared panel into the
+    // narrow layout, but rightSidebar.isOpen persists — leaving the mobile
+    // Details drawer (its bg-black/30 overlay) covering the screen. Close it.
+    // The narrow hamburger path is untouched: this effect only fires on the
+    // isWide transition, not on a bare open() from the shell.
     if (isWide) rightSidebar.open();
-    // rightSidebar.open is stable for the panel's lifetime.
+    else rightSidebar.close();
+    // rightSidebar.open/close are stable for the panel's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWide]);
 
