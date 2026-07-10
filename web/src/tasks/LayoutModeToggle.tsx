@@ -1,5 +1,6 @@
 import { List, Columns3 } from "lucide-react";
 import { cn } from "@life-editor/shared";
+import type { TaskLayoutMode } from "./layoutMode";
 
 /*
  * Tasks layout-mode toggle (web-owned). A self-contained 2-option control
@@ -7,33 +8,9 @@ import { cn } from "@life-editor/shared";
  * of the shell's SegmentedControl on purpose (a parallel worktree owns that
  * component). Pure presentation: copy injected by the host (KanbanView), lumen-*
  * tokens only. Style mirrors the Kanban board's grouping tablist for a
- * consistent read. The persistence helpers live here so the one storage key
- * stays co-located with the control.
+ * consistent read. Persistence helpers live in ./layoutMode (this file exports
+ * only the component — fast-refresh constraint).
  */
-
-export type TaskLayoutMode = "list" | "board";
-
-const LAYOUT_KEY = "life-editor.tasks.layout-mode";
-
-export function readTaskLayoutMode(): TaskLayoutMode {
-  if (typeof window === "undefined") return "list";
-  try {
-    return window.localStorage.getItem(LAYOUT_KEY) === "board"
-      ? "board"
-      : "list";
-  } catch {
-    return "list";
-  }
-}
-
-export function persistTaskLayoutMode(mode: TaskLayoutMode): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(LAYOUT_KEY, mode);
-  } catch {
-    /* storage unavailable (private mode / quota) — non-fatal */
-  }
-}
 
 export interface LayoutModeToggleProps {
   mode: TaskLayoutMode;

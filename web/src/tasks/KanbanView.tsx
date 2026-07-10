@@ -39,12 +39,12 @@ import { useKanbanDnd } from "./useKanbanDnd";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
 import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
+import { LayoutModeToggle } from "./LayoutModeToggle";
 import {
-  LayoutModeToggle,
   readTaskLayoutMode,
   persistTaskLayoutMode,
   type TaskLayoutMode,
-} from "./LayoutModeToggle";
+} from "./layoutMode";
 
 /*
  * Web Tasks Kanban host (K1 + K-DnD + K2 + K3). Replaces the tree in the
