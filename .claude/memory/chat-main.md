@@ -2,7 +2,14 @@
 
 ## 進行中
 
-（なし）
+### 🔧 レイアウト統一 fan-out + shared-fix ルート新設（着手日: 2026-07-10）
+
+**対象**: `.claude/docs/vision/plans/2026-07-10-layout-unification-fanout.md`（新規）・GitHub Issues（label `shared-fix`）・`.claude/CLAUDE.md §9`
+**計画書**: `.claude/docs/vision/plans/2026-07-10-layout-unification-fanout.md`
+
+- 前回: —
+- 現在: レイアウト実態監査（Explore）→ 計画書作成 + shared-fix ラベル/Issue 起票（smoke findings 2 件 = Analytics Today カード / Schedule セグメント間隔 → 各 refine worktree へ）
+- 次: 計画書 PR 作成（一時 worktree 経由 push）→ ユーザーが各 refine worktree チャットへ boot 行を投入
 
 ## 直近の完了
 
