@@ -443,30 +443,33 @@ export function NotesView() {
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
           />
         </div>
-        <div className="flex gap-2">
+        {/* "+ note" primary fills the row; folder-create is a secondary
+            icon-only square (aria-label carries the copy) so both stay
+            comfortable at the 240px min panel width. */}
+        <div className="flex items-stretch gap-2">
           <button
             type="button"
             onClick={() => notes.createNote()}
             className={cn(
-              "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
+              "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
               "text-[12.5px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
               FOCUS_RING,
             )}
           >
-            <Plus size={14} aria-hidden />
-            {t("materials.notes.addCta")}
+            <Plus size={14} aria-hidden className="shrink-0" />
+            <span className="truncate">{t("materials.notes.addCta")}</span>
           </button>
           <button
             type="button"
             onClick={addFolder}
+            aria-label={t("materials.notes.folderCta")}
+            title={t("materials.notes.folderCta")}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-1.5",
-              "text-[12.5px] font-medium text-lumen-text-secondary hover:bg-lumen-hover",
+              "grid w-8 shrink-0 place-items-center rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               FOCUS_RING,
             )}
           >
-            <Folder size={13} aria-hidden />
-            {t("materials.notes.folderCta")}
+            <Folder size={14} aria-hidden />
           </button>
         </div>
       </div>
