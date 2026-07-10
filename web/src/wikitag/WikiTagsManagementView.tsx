@@ -478,6 +478,7 @@ export function WikiTagsManagementView() {
           )}
           {!hasTags ? (
             <EmptyState
+              className="min-h-[40vh]"
               icon={<Tag aria-hidden />}
               message={t("materials.tags.empty")}
               cta={{

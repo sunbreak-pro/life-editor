@@ -8,12 +8,13 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import type {
-  KanbanColumnModel,
-  KanbanViewMode,
-  TaskStatus,
-  MoveResult,
-  MoveRejectionReason,
+import {
+  FOLDER_ROOT_BUCKET_ID,
+  type KanbanColumnModel,
+  type KanbanViewMode,
+  type TaskStatus,
+  type MoveResult,
+  type MoveRejectionReason,
 } from "@life-editor/shared";
 
 /*
@@ -38,10 +39,9 @@ import type {
 
 const STATUS_COL_PREFIX = "status-";
 
-// Mirrors FOLDER_ROOT_BUCKET_ID in the shared folder-column builder
-// (buildColumns.ts). Dropping a card onto this synthetic bucket removes it from
-// its folder (moveToRoot) rather than moving it INTO a non-existent folder.
-const FOLDER_ROOT_BUCKET_ID = "__root__";
+// Dropping a card onto the synthetic FOLDER_ROOT_BUCKET_ID bucket removes it
+// from its folder (moveToRoot) rather than moving it INTO a non-existent
+// folder.
 
 function parseStatusColumnId(columnId: string): TaskStatus | null {
   if (!columnId.startsWith(STATUS_COL_PREFIX)) return null;
