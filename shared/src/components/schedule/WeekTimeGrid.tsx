@@ -554,14 +554,16 @@ export function WeekTimeGrid({
                   />
                 ))}
                 {/* Empty-slot click catcher (create) — only when host opts in.
-                    Hover paints a faint dashed ghost so the click-to-create
-                    affordance reads. */}
+                    Hover paints a faint accent ghost + dashed accent border so
+                    the click-to-create affordance reads. Accent (not the grey
+                    hover) so it stays distinct from the grid lines AND remains
+                    visible over the accent-subtle "today" column. */}
                 {onCreateAt && (
                   <button
                     type="button"
                     aria-label={createSlotLabel ?? `Create on ${key}`}
                     onClick={(e) => handleSlotClick(e, key)}
-                    className="absolute inset-0 z-0 cursor-pointer rounded-sm border border-transparent transition-colors hover:border-dashed hover:border-lumen-border-strong hover:bg-lumen-hover"
+                    className="absolute inset-0 z-0 cursor-pointer rounded-sm border border-transparent transition-colors hover:border-dashed hover:border-lumen-accent hover:bg-lumen-accent-subtle"
                   />
                 )}
                 {/* Timed events */}

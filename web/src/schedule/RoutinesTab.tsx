@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import {
   useRoutineContext,
+  useRightSidebarOptional,
   useTranslation,
-  MasterDetail,
+  RightSidebarPortal,
   RoutineEditorForm,
+  ScheduleSidebarTabs,
   type RoutineEditorRoutine,
   type RoutineEditorGroup,
 } from "@life-editor/shared";
@@ -15,9 +17,11 @@ import {
 } from "./scheduleLabels";
 
 /*
- * Routines tab (target-IA, Desktop only — brief §3). A MasterDetail over the
- * routine set: the left list shows title + time + frequency summary, the right
- * pane edits the selected routine through the shared pure <RoutineEditorForm>.
+ * Routines tab (target-IA, Desktop only — brief §3). The list stays in the main
+ * area; editing the selected routine happens in the shared rightSidebar "詳細"
+ * tab (RightSidebarPortal → ScheduleSidebarTabs), matching the Calendar tab's
+ * chrome. The routine list shows title + time + frequency summary; the pure
+ * <RoutineEditorForm> edits the selection.
  *
  * DataService is reached ONLY through useRoutineContext (§3.1). i18n is
  * resolved here and injected into the pure form (§6.4). Group membership rides
@@ -35,8 +39,19 @@ export function RoutinesTab() {
     setGroupsForRoutine,
     getGroupIdsForRoutine,
   } = useRoutineContext();
+  // Null-safe (tests / standalone). `open` surfaces the panel on selection.
+  const rightSidebar = useRightSidebarOptional();
+  const openSidebar = rightSidebar?.open;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Selecting (or creating) a routine surfaces the rightSidebar. Done at the
+  // event, not in an effect, so re-selecting the same routine after manually
+  // closing the panel reopens it (matches CalendarTab's handleSelectItem).
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+    openSidebar?.();
+  };
 
   const weekdayLabels = useMemo(() => buildWeekdayLabels(t), [t]);
   const freqCopy = useMemo<FrequencyLabelCopy>(
@@ -95,7 +110,7 @@ export function RoutinesTab() {
 
   const handleCreate = () => {
     const id = createRoutine(t("scheduleScreen.newRoutine"));
-    setSelectedId(id);
+    handleSelect(id);
   };
 
   const handlePatch = (id: string, patch: Partial<RoutineEditorRoutine>) => {
@@ -131,7 +146,7 @@ export function RoutinesTab() {
               <button
                 type="button"
                 aria-pressed={selected}
-                onClick={() => setSelectedId(r.id)}
+                onClick={() => handleSelect(r.id)}
                 className={
                   selected
                     ? "flex w-full flex-col gap-0.5 rounded-lumen-md border border-lumen-accent bg-lumen-accent-subtle px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
@@ -154,25 +169,31 @@ export function RoutinesTab() {
   );
 
   return (
-    <MasterDetail
-      master={master}
-      detail={
-        editorRoutine ? (
-          <RoutineEditorForm
-            routine={editorRoutine}
-            groups={groups}
-            onPatch={handlePatch}
-            onDelete={handleDelete}
-            weekdayLabels={weekdayLabels}
-            labels={formLabels}
-          />
-        ) : null
-      }
-      detailOpen={!!editorRoutine}
-      onCloseDetail={() => setSelectedId(null)}
-      emptyDetail={t("scheduleScreen.selectHint")}
-      detailTitle={t("scheduleScreen.detailTitle")}
-      closeLabel={t("scheduleScreen.closeMenu")}
-    />
+    <>
+      <RightSidebarPortal>
+        <ScheduleSidebarTabs
+          tabs={[{ id: "detail", label: t("scheduleScreen.tabDetail") }]}
+          value="detail"
+          onChange={() => {}}
+          label={t("scheduleScreen.detailPanelLabel")}
+        >
+          {editorRoutine ? (
+            <RoutineEditorForm
+              routine={editorRoutine}
+              groups={groups}
+              onPatch={handlePatch}
+              onDelete={handleDelete}
+              weekdayLabels={weekdayLabels}
+              labels={formLabels}
+            />
+          ) : (
+            <p className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-6 text-center text-sm text-lumen-text-secondary">
+              {t("scheduleScreen.selectHint")}
+            </p>
+          )}
+        </ScheduleSidebarTabs>
+      </RightSidebarPortal>
+      {master}
+    </>
   );
 }
