@@ -11,6 +11,11 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
+export {
+  TaskListPanel,
+  type TaskListPanelProps,
+  type TaskListPanelLabels,
+} from "./TaskListPanel";
 export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";

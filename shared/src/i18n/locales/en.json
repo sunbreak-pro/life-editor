@@ -774,7 +774,15 @@
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
       "empty": "No tasks yet",
-      "addCta": "Add task"
+      "addCta": "Add task",
+      "mainEmpty": "Select a task or create a new one",
+      "layoutList": "List",
+      "layoutBoard": "Board",
+      "layoutGroupLabel": "Layout",
+      "expandGroup": "Expand group",
+      "collapseGroup": "Collapse group",
+      "emptyGroup": "No tasks",
+      "untitled": "(untitled)"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",

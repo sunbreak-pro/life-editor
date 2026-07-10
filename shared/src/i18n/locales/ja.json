@@ -774,7 +774,15 @@
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",
       "empty": "タスクがありません",
-      "addCta": "タスクを追加"
+      "addCta": "タスクを追加",
+      "mainEmpty": "タスクを選ぶか、新しく作成してください",
+      "layoutList": "リスト",
+      "layoutBoard": "ボード",
+      "layoutGroupLabel": "レイアウト",
+      "expandGroup": "グループを展開",
+      "collapseGroup": "グループを折りたたむ",
+      "emptyGroup": "タスクなし",
+      "untitled": "(無題)"
     },
     "notes": {
       "searchPlaceholder": "ノートを検索…",
