@@ -245,7 +245,7 @@ export function KanbanView({
       cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
       emptyColumn: t("kanban.emptyColumn"),
       placeholderHint: t("kanban.placeholderHint"),
-      countAriaLabel: (n) => `${n}`,
+      countAriaLabel: (n) => t("materials.tasks.taskCount", { count: n }),
       untagged: t("kanban.untagged"),
       colorPickerLabel: t("kanban.colorPickerLabel"),
       colorClearLabel: t("kanban.colorClearLabel"),
@@ -270,7 +270,7 @@ export function KanbanView({
       collapseGroup: t("materials.tasks.collapseGroup"),
       untitled: t("materials.tasks.untitled"),
       emptyGroup: t("materials.tasks.emptyGroup"),
-      countAriaLabel: (n) => `${n}`,
+      countAriaLabel: (n) => t("materials.tasks.taskCount", { count: n }),
     }),
     [t],
   );

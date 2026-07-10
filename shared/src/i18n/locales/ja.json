@@ -783,7 +783,8 @@
       "collapseGroup": "グループを折りたたむ",
       "emptyGroup": "タスクなし",
       "untitled": "(無題)",
-      "unfiled": "未分類"
+      "unfiled": "未分類",
+      "taskCount": "タスク {{count}} 件"
     },
     "notes": {
       "searchPlaceholder": "ノートを検索…",

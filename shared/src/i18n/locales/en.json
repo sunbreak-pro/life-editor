@@ -783,7 +783,8 @@
       "collapseGroup": "Collapse group",
       "emptyGroup": "No tasks",
       "untitled": "(untitled)",
-      "unfiled": "Unfiled"
+      "unfiled": "Unfiled",
+      "taskCount": "{{count}} tasks"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
