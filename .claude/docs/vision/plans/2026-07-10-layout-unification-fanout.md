@@ -83,7 +83,7 @@ adoption（#181・各 refine worktree）: 自セクション配下のみ（Issue
 ## Acceptance Criteria (機械検証可能)
 
 - [ ] `gh issue list -R sunbreak-pro/life-editor --label shared-fix --state open` が 0 件（#180〜#183 全消化）
-- [ ] セクション画面コード（`web/src/**` / `shared/src/components/**`）から独自の `max-w-[720px]` / `max-w-[800px]` / `max-w-[1000px]` / `max-w-3xl` ハードコードが消えている（標準部品・トークン定義内は除く）
+- [ ] セクション画面コード（`web/src/**` / `shared/src/components/**`）から独自の `max-w-[720px]` / `max-w-[768px]` / `max-w-[800px]` / `max-w-[1000px]` / `max-w-3xl` ハードコードが消えている（標準部品・トークン定義内は除く）
 - [ ] 7 セクション巡回の playwright smoke で console error / warning 0
 - [ ] `cd shared && npm run build && npm run test` / `cd web && npm run build` が関連全ブランチで pass
 - [ ] 完了・退役・supersede 時: 本計画 Status 更新 + archive 移動 + 対応 Issue close + per-chat memory 更新（DoD）
@@ -124,6 +124,7 @@ shared-fix 確認: gh issue list -R sunbreak-pro/life-editor --label shared-fix 
 - **shell 部品の所有権競合**: app-integration チャットが稼働中の場合、AppShell / MainScreen の編集が衝突しうる → #180 着手前に outbox 確認を DoD 化済み
 - **行番号の陳腐化**: #181 チェックリストの file:line は 2026-07-10 main（b1c2dffe）時点。rebase 後の目印として扱う
 - **worktree の .env.local 欠落**（memory `worktree-supabase-treeshake`）: layout-standard worktree で dev 確認する場合は main の `web/.env.local` をコピー
+- **shared-fix 発見が best-effort**（QA 指摘 2026-07-10）: 現状の発見手段は「各チャットが自発的に `gh issue list` を叩く + ユーザーの boot 行」のみで hook 未連動。follow-up 候補 = `session-start-check.sh` or session-loader スキルに open 件数の informational 表示を追加（環境系のため Issue 化せず、ここに記録）
 - 関連 known-issue: サブエージェント監査の実測必須則（`rules/docs-consistency.md` §5）— 本計画の file:line は 8 箇所 spot check 済
 
 ---
