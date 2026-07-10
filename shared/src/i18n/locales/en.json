@@ -1159,7 +1159,9 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "openPanel": "Open detail panel",
-    "closePanel": "Close detail panel"
+    "closePanel": "Close detail panel",
+    "tabDetail": "Detail",
+    "detailPanelLabel": "Detail panel"
   },
   "schedulePanel": {
     "existingTasks": "Existing Tasks",

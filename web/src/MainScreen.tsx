@@ -11,6 +11,8 @@ import {
   signOut,
   AppShell,
   type AppShellSection,
+  PageContainer,
+  type PageContainerWidth,
   HeaderTabs,
   SegmentedControl,
   RightSidebarProvider,
@@ -249,16 +251,18 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
-  // Full-width sections fill the shell edge-to-edge; the rest keep the
-  // centered, readable max-w column. AppShell drops its max-w/padding wrapper
-  // when fluid, and the section body itself goes full-height (h-full).
-  //   - connect: the Canvas node graph fills the viewport.
-  //   - Materials → Tasks (Kanban): a horizontal-scroll full-width strip, so
-  //     it needs the max-w wrapper removed to use the whole width.
-  const fluidSection =
+  // Layout Standard v1 (#180): width variant per section. fluid = canvas/board
+  // surfaces that own their full-bleed layout (Connect graph, Schedule calendar,
+  // Materials→Tasks Kanban) plus Analytics (its shared view already implements
+  // the standard "full-width tab band + centered data column" shape itself);
+  // data = wide dashboard column; reading = document column (the default).
+  const pageWidth: PageContainerWidth =
     section === "connect" ||
     section === "schedule" ||
-    (section === "materials" && materialsTab === "tasks");
+    section === "analytics" ||
+    (section === "materials" && materialsTab === "tasks")
+      ? "fluid"
+      : "reading";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -530,55 +534,39 @@ export function MainScreen({ session }: { session: Session }) {
                   userEmail={session.user.email ?? ""}
                   onSignOut={() => void signOut()}
                   labels={shellLabels}
-                  fluidContent={fluidSection}
                   detailPanelLabels={detailPanelLabels}
                 >
                   {/*
-                   * Materials carries its detail toggle in the tab switcher; the
-                   * six other sections get a thin toolbar row above the body. In
-                   * both cases a fluid section (Connect / Materials→Tasks) wraps
-                   * as "toolbar shrink-0 + body flex-1 min-h-0" so canvas views
-                   * keep their h-full layout.
+                   * PageContainer (Layout Standard v1, #180) owns width + gutter
+                   * + scroll for every section. The Materials tab band and the
+                   * other sections' toolbar go into its `header` slot, so they
+                   * render at the SAME left offset whether the body is fluid
+                   * (Kanban / calendar) or a centered column — no more per-shape
+                   * hand-rolled wrappers. Analytics is fluid because its shared
+                   * view already draws the standard "full-width tab band +
+                   * centered data column" itself.
                    */}
                   {section === "materials" ? (
-                    fluidSection ? (
-                      <div className="flex h-full flex-col">
-                        <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">
-                          {materialsTabSwitcher}
-                        </div>
-                        <div className="min-h-0 flex-1">{materialsView}</div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {materialsTabSwitcher}
-                        {materialsView}
-                      </div>
-                    )
+                    <PageContainer
+                      width={pageWidth}
+                      header={materialsTabSwitcher}
+                    >
+                      {materialsView}
+                    </PageContainer>
                   ) : section === "schedule" ? (
-                    /*
-                     * Schedule owns its own chrome (Calendar/Routines tab row +
-                     * detail-panel toggle live inside ScheduleScreen, like
-                     * Materials), so it gets the full-height frame WITHOUT the
-                     * generic sectionToolbar — otherwise the panel toggle would
-                     * render twice.
-                     */
-                    <div className="flex h-full flex-col">
+                    /* Schedule owns its own chrome (tab row + toggle inside
+                       ScheduleScreen), so no header slot — otherwise the panel
+                       toggle would render twice. */
+                    <PageContainer width="fluid">
                       {nonMaterialsBody}
-                    </div>
-                  ) : fluidSection ? (
-                    <div className="flex h-full flex-col">
-                      {sectionToolbar && (
-                        <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">
-                          {sectionToolbar}
-                        </div>
-                      )}
-                      <div className="min-h-0 flex-1">{nonMaterialsBody}</div>
-                    </div>
+                    </PageContainer>
                   ) : (
-                    <div className="space-y-4">
-                      {sectionToolbar}
+                    <PageContainer
+                      width={pageWidth}
+                      header={sectionToolbar ?? undefined}
+                    >
                       {nonMaterialsBody}
-                    </div>
+                    </PageContainer>
                   )}
                 </AppShell>
 

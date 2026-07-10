@@ -23,7 +23,9 @@ export interface SegmentedControlProps {
  * segments; the active segment lifts onto the base surface with a small
  * elevation. No badges (Mobile drops the count pills). WAI-ARIA tablist with
  * roving tabindex: ←/→ move focus + activate. Pure presentation: labels
- * injected already-translated (§6.4), lumen-* tokens only (§5).
+ * injected already-translated (§6.4), lumen-* tokens only (§5). Segments carry
+ * horizontal padding (px-3) so they stay visually separated even under
+ * intrinsic (w-auto) width, where flex-1 no longer pads them apart.
  */
 export function SegmentedControl({
   options,
@@ -57,7 +59,7 @@ export function SegmentedControl({
       role="tablist"
       aria-label={label}
       className={cn(
-        "flex rounded-lumen-md bg-lumen-bg-secondary p-0.5",
+        "flex gap-0.5 rounded-lumen-md bg-lumen-bg-secondary p-0.5",
         className,
       )}
     >
@@ -76,7 +78,7 @@ export function SegmentedControl({
             onClick={() => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
-              "flex-1 rounded-lumen-sm py-1.5 text-center text-sm",
+              "flex-1 rounded-lumen-sm px-3 py-1.5 text-center text-sm",
               "transition-colors focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
               active

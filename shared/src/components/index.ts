@@ -110,6 +110,15 @@ export {
   type AppShellLabels,
   type DetailPanelLabels,
 } from "./AppShell";
+// Page container (Layout Standard v1, Issue #180) — the single owner of a
+// section's content width + page gutter. reading/data centered columns or a
+// fluid full-bleed passthrough, with a full-width header slot for tab bands.
+// Pure presentation: DataService-free, no i18n (§3.1 / §6.4).
+export {
+  PageContainer,
+  type PageContainerProps,
+  type PageContainerWidth,
+} from "./PageContainer";
 // Auth (target-IA D8) — shell-independent pre-login entry card + its two
 // field-level parts. SegmentedToggle is the *form-mode* sibling of the
 // shell-owned SegmentedControl (radiogroup vs tablist — see each file's
