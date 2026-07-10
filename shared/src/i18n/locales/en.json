@@ -791,7 +791,8 @@
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
       "newFolderPrompt": "New folder name",
-      "lockedHint": "This note is locked"
+      "lockedHint": "This note is locked",
+      "mainEmpty": "Select a note or create a new one"
     },
     "daily": {
       "toToday": "Today",

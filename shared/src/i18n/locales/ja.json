@@ -791,7 +791,8 @@
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",
       "newFolderPrompt": "新しいフォルダ名",
-      "lockedHint": "このノートはロックされています"
+      "lockedHint": "このノートはロックされています",
+      "mainEmpty": "ノートを選ぶか、新しく作成してください"
     },
     "daily": {
       "toToday": "今日へ",
