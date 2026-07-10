@@ -782,7 +782,8 @@
       "expandGroup": "グループを展開",
       "collapseGroup": "グループを折りたたむ",
       "emptyGroup": "タスクなし",
-      "untitled": "(無題)"
+      "untitled": "(無題)",
+      "unfiled": "未分類"
     },
     "notes": {
       "searchPlaceholder": "ノートを検索…",

@@ -782,7 +782,8 @@
       "expandGroup": "Expand group",
       "collapseGroup": "Collapse group",
       "emptyGroup": "No tasks",
-      "untitled": "(untitled)"
+      "untitled": "(untitled)",
+      "unfiled": "Unfiled"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",

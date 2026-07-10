@@ -299,13 +299,17 @@ export function KanbanView({
   const columns = useMemo<KanbanColumnModel[]>(() => {
     switch (viewMode) {
       case "folder":
-        return buildFolderColumns(tree.nodes, tagsByTask);
+        return buildFolderColumns(
+          tree.nodes,
+          tagsByTask,
+          t("materials.tasks.unfiled"),
+        );
       case "status":
         return buildStatusColumns(tree.nodes, labels, tagsByTask);
       case "tag":
         return buildTagColumns(tree.nodes, tags, tagsByTask, labels);
     }
-  }, [viewMode, tree.nodes, labels, tags, tagsByTask]);
+  }, [viewMode, tree.nodes, labels, tags, tagsByTask, t]);
 
   // The three status columns for the Mobile list (cards already carry the
   // folder pill + tags via the pure builder). Built regardless of the desktop
@@ -339,6 +343,7 @@ export function KanbanView({
     columns,
     setTaskStatus: tree.setTaskStatus,
     moveNodeInto: tree.moveNodeInto,
+    moveToRoot: tree.moveToRoot,
     moveNode: tree.moveNode,
     onMoveRejected: (reason) =>
       setMoveError(`Move rejected: ${reason.replace(/_/g, " ")}`),

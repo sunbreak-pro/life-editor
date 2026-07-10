@@ -116,6 +116,28 @@ describe("TaskListPanel", () => {
     expect(onViewModeChange).toHaveBeenCalledWith("status");
   });
 
+  it("renders the folder-view 'unfiled' bucket like any other group", () => {
+    // The bucket the folder builder appends for root-level tasks is just
+    // another column to the panel — heading + rows surface with no special
+    // casing, so root tasks are reachable in the default list view.
+    renderPanel({
+      columns: [
+        {
+          id: "folder-a",
+          title: "Inbox",
+          cards: [{ id: "task-1", title: "Write plan", status: "NOT_STARTED" }],
+        },
+        {
+          id: "__root__",
+          title: "Unfiled",
+          cards: [{ id: "root-1", title: "Loose task", status: "NOT_STARTED" }],
+        },
+      ],
+    });
+    expect(screen.getByText("Unfiled")).toBeInTheDocument();
+    expect(screen.getByText("Loose task")).toBeInTheDocument();
+  });
+
   it("falls back to the untitled label for a task with no title", () => {
     renderPanel({
       columns: [
