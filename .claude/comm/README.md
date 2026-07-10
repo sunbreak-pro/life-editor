@@ -199,6 +199,20 @@ mv .claude/comm/outbox/chat-engineer.md .claude/comm/archive/2026-05/
 # 新しい outbox ファイルを作り直す
 ```
 
+## Shared-fix ルート（worktree 横断の共有修正タスク・2026-07-10〜）
+
+Outbox が「チャット間の書き置き」なのに対し、**複数 worktree に波及するプロダクト修正タスクの正本は GitHub Issues の label `shared-fix`**。git のブランチ状態に依存しないため、どの worktree のどのブランチからでも同じ最新一覧が見える（git 追跡ファイルの台帳だと feature ブランチからは古い版しか見えない問題を回避）。
+
+- **登録**: `gh issue create -R sunbreak-pro/life-editor --label shared-fix ...`（+ 種別 `type:*`）。タイトル prefix で宛先を指定する: `[<worktree-slug>]`（特定 worktree 宛・例 `[schedule-refine]`）/ `[all]`（全 worktree 宛）
+- **発見**: 各 worktree チャットは**セッション開始時と作業の区切り**に次を確認し、自分宛（自分の slug または `[all]`）を拾う:
+
+  ```bash
+  gh issue list -R sunbreak-pro/life-editor --label shared-fix --state open
+  ```
+
+- **完了**: 担当分を終えたら Issue にコメント + チェックリスト更新。全消化したら close
+- **使い分け**: 特定チャットへの連絡・引き継ぎ・作業宣言 = Outbox ／ 複数 worktree で共有・統一すべきコード修正タスク = shared-fix Issue（プロダクト課題なので CLAUDE.md §9 の「追跡の正 = GitHub Issues」とも整合）
+
 ## アンチパターン
 
 - ❌ 他チャットの outbox を編集する（衝突が起きる）
