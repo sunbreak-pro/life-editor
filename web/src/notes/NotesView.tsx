@@ -802,59 +802,55 @@ export function NotesView() {
   // Folders never reach the main surface (the tree toggles them, never selects
   // them), but the folder guards on the slots are kept as defence in depth.
 
-  const desktopMain = (
-    <div className="flex h-full min-h-0 flex-col px-7 pb-6 pt-5">
-      <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-y-auto">
-        {selected ? (
-          <NoteDetailPanel
-            variant="main"
-            noteId={selected.id}
-            title={selected.title}
-            isPinned={selected.isPinned}
-            onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-            onTogglePin={notes.togglePin}
-            onDelete={(id) => notes.softDeleteNote(id)}
-            titleLabel={t("notesView.detailTitle")}
-            pinLabel={t("notesView.unpin")}
-            unpinLabel={t("notesView.pin")}
-            deleteLabel={t("materials.notes.deleteNote")}
-            tagsSlot={
-              selected.type === "folder" ? undefined : (
-                <TagPicker itemId={selected.id} showLabel size="sm" />
-              )
-            }
-            contentLabel={t("materials.notes.content")}
-            contentEditor={
-              selected.type === "folder" ? undefined : detailContentEditor
-            }
-            linksLabel={t("materials.notes.links")}
-            linksSlot={
-              selected.type === "folder" ? undefined : (
-                <LinkPanel
-                  itemId={selected.id}
-                  resolveTitle={resolveTitle}
-                  linkableItems={linkableItems}
-                />
-              )
-            }
+  // PageContainer (width="reading", Issue #181) owns the centered measure + page
+  // gutter + scroll for this tab, so the main surface adds none of its own — just
+  // the panel (or the select-or-create empty state), letting the reading column
+  // govern the width.
+  const desktopMain = selected ? (
+    <NoteDetailPanel
+      variant="main"
+      noteId={selected.id}
+      title={selected.title}
+      isPinned={selected.isPinned}
+      onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+      onTogglePin={notes.togglePin}
+      onDelete={(id) => notes.softDeleteNote(id)}
+      titleLabel={t("notesView.detailTitle")}
+      pinLabel={t("notesView.unpin")}
+      unpinLabel={t("notesView.pin")}
+      deleteLabel={t("materials.notes.deleteNote")}
+      tagsSlot={
+        selected.type === "folder" ? undefined : (
+          <TagPicker itemId={selected.id} showLabel size="sm" />
+        )
+      }
+      contentLabel={t("materials.notes.content")}
+      contentEditor={
+        selected.type === "folder" ? undefined : detailContentEditor
+      }
+      linksLabel={t("materials.notes.links")}
+      linksSlot={
+        selected.type === "folder" ? undefined : (
+          <LinkPanel
+            itemId={selected.id}
+            resolveTitle={resolveTitle}
+            linkableItems={linkableItems}
           />
-        ) : (
-          <div className="flex flex-1 items-center justify-center">
-            <EmptyState
-              icon={<FileText aria-hidden />}
-              message={
-                hasNotes
-                  ? t("materials.notes.mainEmpty")
-                  : t("materials.notes.empty")
-              }
-              cta={{
-                label: t("materials.notes.addCta"),
-                onClick: () => notes.createNote(),
-              }}
-            />
-          </div>
-        )}
-      </div>
+        )
+      }
+    />
+  ) : (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <EmptyState
+        icon={<FileText aria-hidden />}
+        message={
+          hasNotes ? t("materials.notes.mainEmpty") : t("materials.notes.empty")
+        }
+        cta={{
+          label: t("materials.notes.addCta"),
+          onClick: () => notes.createNote(),
+        }}
+      />
     </div>
   );
 

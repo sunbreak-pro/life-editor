@@ -567,19 +567,19 @@ export function KanbanView({
           // LIST MODE — centered detail/empty main; the list lives in the
           // rightSidebar (portal below). A top action row carries the layout
           // toggle + "+ Add" (the board's headerActions equivalent).
-          <div className="flex min-h-0 flex-1 flex-col px-7 pb-6 pt-5">
-            <div className="mx-auto flex w-full max-w-[800px] items-center justify-end gap-2 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col px-lumen-gutter pb-6 pt-5 md:px-lumen-gutter-wide">
+            <div className="mx-auto flex w-full max-w-lumen-reading items-center justify-end gap-2 pb-4">
               {layoutToggle}
               {addButton}
             </div>
-            <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-y-auto">
+            <div className="mx-auto flex min-h-0 w-full max-w-lumen-reading flex-1 flex-col overflow-y-auto">
               {selected && !isFolder ? taskDetail : mainEmpty}
             </div>
           </div>
         ) : (
           // BOARD MODE — full-width DnD board (unchanged). The board's own
           // toolbar hosts the grouping switch + headerActions (layout + Add).
-          <div className="flex min-h-0 flex-1 flex-col px-2 pt-4">
+          <div className="flex min-h-0 flex-1 flex-col px-lumen-gutter pt-4 md:px-lumen-gutter-wide">
             {columns.length === 0 ? (
               <EmptyState
                 icon={<ListTodo aria-hidden />}

@@ -305,11 +305,12 @@ export function DailyView() {
 
   if (isWide) {
     return (
-      <div className="flex h-full min-h-0 flex-col px-7 pb-6 pt-5">
-        <div className="mx-auto flex w-full max-w-[800px] justify-end pb-3">
-          {toTodayButton}
-        </div>
-        <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col">
+      // PageContainer (width="reading", Issue #181) owns the centered measure +
+      // page gutter + scroll for this tab, so the surface keeps only its own
+      // vertical rhythm + the editor's fill structure — no width cap / gutter.
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex justify-end pb-3">{toTodayButton}</div>
+        <div className="flex min-h-0 flex-1 flex-col">
           <EditorCard
             dateLabel={fullDateLabel(selectedDate)}
             dateClassName="text-[28px] font-bold leading-tight tracking-tight text-lumen-text"
