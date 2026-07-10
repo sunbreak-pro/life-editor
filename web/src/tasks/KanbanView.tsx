@@ -16,6 +16,7 @@ import {
   SkeletonList,
   RightSidebarPortal,
   TaskDetailPanel,
+  TaskListPanel,
   TaskAddDialog,
   useMediaQuery,
   useRightSidebarContext,
@@ -30,6 +31,7 @@ import {
   type KanbanColumnModel,
   type KanbanLabels,
   type KanbanViewMode,
+  type TaskListPanelLabels,
   type TaskAddType,
   type TaskStatus,
 } from "@life-editor/shared";
@@ -37,6 +39,12 @@ import { useKanbanDnd } from "./useKanbanDnd";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
 import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
+import {
+  LayoutModeToggle,
+  readTaskLayoutMode,
+  persistTaskLayoutMode,
+  type TaskLayoutMode,
+} from "./LayoutModeToggle";
 
 /*
  * Web Tasks Kanban host (K1 + K-DnD + K2 + K3). Replaces the tree in the
@@ -65,8 +73,20 @@ import { RichTextEditor } from "../notes/RichTextEditor";
  * <RightSidebarPortal>, hosting the shared <TaskDetailPanel> + the web TipTap
  * editor.
  *
+ * Layout mode (list / board) — persisted, default "list":
+ *   - list (standard): the shared <TaskListPanel> (grouped vertical list) is
+ *     pushed into the rightSidebar as always-present nav (wide entry auto-opens
+ *     it), and the selected task's <TaskDetailPanel> + editor fills the centered
+ *     max-w-800px main surface (nothing selected → the select-or-create empty
+ *     state). Grouping (folder/status/tag) lives in the list's own switch.
+ *   - board: the full-width DnD board (below) is preserved verbatim — cards +
+ *     @dnd-kit + card-click → detail in the rightSidebar.
+ * The grouping axis (viewMode) is shared across both modes via the one
+ * persistKanbanViewMode key; the list/board axis is orthogonal (its own key).
+ *
  * @dnd-kit lives only in web/ (useKanbanDnd + KanbanColumnDroppable +
- * KanbanCardDraggable); the shared Kanban package never imports it.
+ * KanbanCardDraggable); the shared Kanban package never imports it. The list
+ * mode has no DnD (reordering stays a board affordance).
  */
 
 const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
@@ -101,17 +121,49 @@ export function KanbanView({
   const [viewMode, setViewMode] = useState<KanbanViewMode>(() =>
     readKanbanViewMode("folder"),
   );
+  const [layoutMode, setLayoutMode] = useState<TaskLayoutMode>(() =>
+    readTaskLayoutMode(),
+  );
+  const isListMode = layoutMode === "list";
   const [moveError, setMoveError] = useState<string | null>(null);
 
-  // Desktop card click → select + push the detail into the rightSidebar panel
-  // (auto-open). Narrow uses its own BottomSheet inside MobileTaskList, so this
-  // handler is the wide-board path only.
+  const handleLayoutModeChange = useCallback((mode: TaskLayoutMode) => {
+    setLayoutMode(mode);
+    persistTaskLayoutMode(mode);
+  }, []);
+
+  // Wide entry / mode switch: in list mode the rightSidebar hosts the task list
+  // (= this tab's nav), so open it (isOpen is non-persisted / starts false).
+  // Switching to board with nothing selected closes it again (the board's own
+  // detail opens it on card-click). Gate on breakpoint + layout only — a bare
+  // selection change must not reopen/close the panel.
+  useEffect(() => {
+    if (!isWide) return;
+    if (isListMode) rightSidebar.open();
+    else if (!tree.selectedTaskId) rightSidebar.close();
+    // rightSidebar.open/close are stable; tree.selectedTaskId is read as a
+    // one-shot condition on mode change, not a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWide, isListMode]);
+
+  // Desktop board card click → select + push the detail into the rightSidebar
+  // panel (auto-open). Narrow uses its own BottomSheet inside MobileTaskList, so
+  // this handler is the wide-board path only.
   const handleSelectCard = useCallback(
     (id: string) => {
       tree.setSelectedTaskId(id);
       rightSidebar.open();
     },
     [tree, rightSidebar],
+  );
+
+  // List mode: selecting a row fills the MAIN detail; the sidebar (= the list)
+  // stays open, so just flip the selection (no open()).
+  const handleSelectListItem = useCallback(
+    (id: string) => {
+      tree.setSelectedTaskId(id);
+    },
+    [tree],
   );
 
   // Add-task / folder dialog (W-UX). The board had no create entry point; this
@@ -190,6 +242,27 @@ export function KanbanView({
       colorPickerLabel: t("kanban.colorPickerLabel"),
       colorClearLabel: t("kanban.colorClearLabel"),
       colorCustomLabel: t("kanban.colorCustomLabel"),
+    }),
+    [t],
+  );
+
+  // Copy for the list-mode panel. Reuses the Kanban grouping labels (the axis is
+  // shared) + the task status labels; the list-specific captions come from the
+  // materials.tasks.* catalog.
+  const taskListLabels = useMemo<TaskListPanelLabels>(
+    () => ({
+      viewFolder: t("kanban.viewFolder"),
+      viewStatus: t("kanban.viewStatus"),
+      viewTag: t("kanban.viewTag"),
+      groupingGroupLabel: t("kanban.segmentedGroupLabel"),
+      statusNotStarted: t("taskDetail.statusNotStarted"),
+      statusInProgress: t("taskDetail.statusInProgress"),
+      statusDone: t("taskDetail.statusDone"),
+      expandGroup: t("materials.tasks.expandGroup"),
+      collapseGroup: t("materials.tasks.collapseGroup"),
+      untitled: t("materials.tasks.untitled"),
+      emptyGroup: t("materials.tasks.emptyGroup"),
+      countAriaLabel: (n) => `${n}`,
     }),
     [t],
   );
@@ -303,6 +376,27 @@ export function KanbanView({
     </button>
   );
 
+  // list / board layout toggle — the content's top action row (headerActions
+  // slot on the board; its own row in list mode). web-owned (kept off the
+  // shell's SegmentedControl).
+  const layoutToggle = (
+    <LayoutModeToggle
+      mode={layoutMode}
+      onChange={handleLayoutModeChange}
+      listLabel={t("materials.tasks.layoutList")}
+      boardLabel={t("materials.tasks.layoutBoard")}
+      groupLabel={t("materials.tasks.layoutGroupLabel")}
+    />
+  );
+
+  // Board toolbar trailing actions: layout toggle + "+ Add".
+  const boardHeaderActions = (
+    <div className="flex items-center gap-2">
+      {layoutToggle}
+      {addButton}
+    </div>
+  );
+
   // Tag view (read-only DnD) → plain board; folder/status → DnD board.
   const board = !dnd.enabled ? (
     <KanbanBoard
@@ -312,7 +406,7 @@ export function KanbanView({
       onViewModeChange={handleViewModeChange}
       onSelectCard={handleSelectCard}
       onColorChange={handleColorChange}
-      headerActions={addButton}
+      headerActions={boardHeaderActions}
     />
   ) : (
     <DndContext
@@ -330,7 +424,7 @@ export function KanbanView({
         onViewModeChange={handleViewModeChange}
         onSelectCard={handleSelectCard}
         onColorChange={handleColorChange}
-        headerActions={addButton}
+        headerActions={boardHeaderActions}
         renderColumn={({
           column,
           showFolderPill,
@@ -395,6 +489,55 @@ export function KanbanView({
         ))
       : undefined;
 
+  // The selected task's detail (title / status / tags / editor). Shared by both
+  // layout modes: list mode renders it in the centered main surface, board mode
+  // pushes it into the rightSidebar. Null when nothing is selected.
+  const taskDetail = selected ? (
+    <TaskDetailPanel
+      taskId={selected.id}
+      title={selected.title}
+      status={selected.status}
+      isFolder={isFolder}
+      onTitleCommit={(id, title) => tree.updateNode(id, { title })}
+      onToggleStatus={tree.toggleTaskStatus}
+      titleLabel={t("taskDetail.titleLabel")}
+      statusLabel={t("taskDetail.status")}
+      statusText={t(STATUS_TEXT_KEY[selected.status ?? "NOT_STARTED"])}
+      contentLabel={t("taskDetail.content")}
+      tagsLabel={t("taskDetail.tags")}
+      tagsSlot={tagsSlot}
+      contentEditor={
+        isFolder ? undefined : (
+          <RichTextEditor
+            key={selected.id}
+            noteId={selected.id}
+            initialContent={selected.content || undefined}
+            onUpdate={(content) => tree.updateNode(selected.id, { content })}
+          />
+        )
+      }
+    />
+  ) : null;
+
+  // Main empty state (list mode, nothing selected). Distinct copy when there are
+  // no tasks at all vs. tasks exist but none is selected.
+  const mainEmpty = (
+    <div className="flex flex-1 items-center justify-center">
+      <EmptyState
+        icon={<ListTodo aria-hidden />}
+        message={t(
+          columns.length === 0
+            ? "materials.tasks.empty"
+            : "materials.tasks.mainEmpty",
+        )}
+        cta={{
+          label: t("materials.tasks.addCta"),
+          onClick: () => setAddOpen(true),
+        }}
+      />
+    </div>
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {moveError && (
@@ -407,20 +550,37 @@ export function KanbanView({
       )}
 
       {isWide ? (
-        <div className="flex min-h-0 flex-1 flex-col px-2 pt-4">
-          {columns.length === 0 ? (
-            <EmptyState
-              icon={<ListTodo aria-hidden />}
-              message={t("materials.tasks.empty")}
-              cta={{
-                label: t("materials.tasks.addCta"),
-                onClick: () => setAddOpen(true),
-              }}
-            />
-          ) : (
-            board
-          )}
-        </div>
+        isListMode ? (
+          // LIST MODE — centered detail/empty main; the list lives in the
+          // rightSidebar (portal below). A top action row carries the layout
+          // toggle + "+ Add" (the board's headerActions equivalent).
+          <div className="flex min-h-0 flex-1 flex-col px-7 pb-6 pt-5">
+            <div className="mx-auto flex w-full max-w-[800px] items-center justify-end gap-2 pb-4">
+              {layoutToggle}
+              {addButton}
+            </div>
+            <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-y-auto">
+              {selected && !isFolder ? taskDetail : mainEmpty}
+            </div>
+          </div>
+        ) : (
+          // BOARD MODE — full-width DnD board (unchanged). The board's own
+          // toolbar hosts the grouping switch + headerActions (layout + Add).
+          <div className="flex min-h-0 flex-1 flex-col px-2 pt-4">
+            {columns.length === 0 ? (
+              <EmptyState
+                icon={<ListTodo aria-hidden />}
+                message={t("materials.tasks.empty")}
+                cta={{
+                  label: t("materials.tasks.addCta"),
+                  onClick: () => setAddOpen(true),
+                }}
+              />
+            ) : (
+              board
+            )}
+          </div>
+        )
       ) : (
         <div className="min-h-0 flex-1">
           <MobileTaskList
@@ -444,38 +604,25 @@ export function KanbanView({
         </div>
       )}
 
-      {/* Desktop detail — pushed into the shared rightSidebar panel. The portal
-          renders nothing until the panel is open (handleSelectCard opens it),
-          and stays wide-only so narrow never fills the MobileDrawer. */}
-      {isWide && selected && (
+      {/* Desktop rightSidebar content (wide-only, so narrow never fills the
+          MobileDrawer):
+          - list mode: the grouped task list = this tab's nav, always present.
+          - board mode: the selected task's detail (the portal renders nothing
+            until a card-click both selects and opens the panel). */}
+      {isWide && isListMode && (
         <RightSidebarPortal>
-          <TaskDetailPanel
-            taskId={selected.id}
-            title={selected.title}
-            status={selected.status}
-            isFolder={isFolder}
-            onTitleCommit={(id, title) => tree.updateNode(id, { title })}
-            onToggleStatus={tree.toggleTaskStatus}
-            titleLabel={t("taskDetail.titleLabel")}
-            statusLabel={t("taskDetail.status")}
-            statusText={t(STATUS_TEXT_KEY[selected.status ?? "NOT_STARTED"])}
-            contentLabel={t("taskDetail.content")}
-            tagsLabel={t("taskDetail.tags")}
-            tagsSlot={tagsSlot}
-            contentEditor={
-              isFolder ? undefined : (
-                <RichTextEditor
-                  key={selected.id}
-                  noteId={selected.id}
-                  initialContent={selected.content || undefined}
-                  onUpdate={(content) =>
-                    tree.updateNode(selected.id, { content })
-                  }
-                />
-              )
-            }
+          <TaskListPanel
+            columns={columns}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            selectedTaskId={tree.selectedTaskId}
+            onSelectTask={handleSelectListItem}
+            labels={taskListLabels}
           />
         </RightSidebarPortal>
+      )}
+      {isWide && !isListMode && selected && (
+        <RightSidebarPortal>{taskDetail}</RightSidebarPortal>
       )}
 
       {isWide && (
