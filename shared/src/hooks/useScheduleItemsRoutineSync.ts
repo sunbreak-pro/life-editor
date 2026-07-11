@@ -5,7 +5,7 @@ import type { RoutineGroup } from "../types/routineGroup";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
-import { formatDateKey } from "../utils/dateKey";
+import { formatDateKey, todayDateKey } from "../utils/dateKey";
 import {
   diffRoutineScheduleItems,
   shouldCreateRoutineItem,
@@ -214,8 +214,10 @@ export function useScheduleItemsRoutineSync(
 
         const routineMap = new Map(routines.map((r) => [r.id, r]));
 
-        // Cleanup: delete routine items that no longer match frequency
-        const today = formatDateKey(new Date());
+        // Cleanup: delete routine items that no longer match frequency.
+        // "today" honors the day-start-hour pref (#218) so the still-running
+        // late-night day is treated as editable, not past.
+        const today = todayDateKey();
         const toDeleteIds = new Set<string>();
         for (const item of existing) {
           if (!item.routineId) continue;
@@ -267,7 +269,7 @@ export function useScheduleItemsRoutineSync(
     ) => {
       try {
         const lastDate = await ds.fetchLastRoutineDate();
-        const today = formatDateKey(new Date());
+        const today = todayDateKey();
         if (!lastDate || lastDate >= today) return;
 
         const start = new Date(lastDate + "T00:00:00");
@@ -367,7 +369,7 @@ export function useScheduleItemsRoutineSync(
     ) => {
       try {
         const allItems = await ds.fetchScheduleItemsByRoutineId(routine.id);
-        const today = formatDateKey(new Date());
+        const today = todayDateKey();
 
         // Delete non-matching items (today onward only)
         const toDeleteIds = allItems
