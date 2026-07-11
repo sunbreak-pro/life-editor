@@ -1,5 +1,22 @@
 # HISTORY (chat-layout-standard)
 
+### 2026-07-11 - 幅切替タブ撤去・全画面 wide 統一（Issue #203 / draft PR #210）
+
+#### 概要
+
+Layout Standard v2 §5 の方針転換（実装後のユーザー決定 = 全幅統一）を受け、直前 PR #196 で入れた幅切替 2 段タブを丸ごと撤去し全セクションを wide（全幅）基準に統一した。着手前に §9 新ルールどおり shared-fix Issue #203 を自チャットで起票。origin/main を two-step pull で取り込み（#202 policy + #205 schedule adoption 含む・MainScreen は #205 の scheduleTab と自動マージ）。
+
+#### 変更点
+
+- **削除**: PageWidthToggle.tsx / usePageWidthPrefs.ts（本体 + テスト 2 本）
+- **sections.ts**: PageWidthMode 型 / defaultPageWidth / SECTION_DEFAULT_PAGE_WIDTH を撤去（rightSidebar 常設は維持）
+- **export バレル + i18n**: shared/src/index.ts・components/index.ts の該当 export、layout.width\*（en/ja）を掃除
+- **MainScreen**: 幅を固定マッピングに単純化 — fluid（Connect/Schedule/Analytics/Materials→Tasks）/ full（work/settings/trash/Materials→Tags）/ reading（Materials の Notes/Daily のみ）。ヘッダー右端は rightSidebar トグルのみ
+- **実装判断（ユーザー確認 via AskUserQuestion）**: Notes/Daily は文章面の可読性で reading 幅（768px 中央寄せ）維持 → `--container-lumen-reading` トークン + PageContainer reading variant 存続。PageContainer/SectionHeader/sections.ts の幅タブ言及コメントを更新
+- **計画書**: §5 に Notes/Daily reading 例外を追記・Worklog エントリ 3 追加（親計画は adoption 継続のため IN PROGRESS のまま・archive しない）
+- **検証**: shared build + web build + layout テスト（sections/sectionHeader/pageContainer/headerTabs）緑。full suite の 4 失敗は main 由来 bcrypt タイムアウトフレーク（本 diff 無関係・2 ファイル単独実行で pass 確認）。role-qa 独立監査 PASS（撤去完全・dangling 参照ゼロ・mobile 等価 <768px reading≡full・スコープ遵守）
+- **コミット**: 138d5c66（撤去）+ 551135e7（outbox 告知）→ push。draft PR #210（base main・merge は 🛑 人手ゲート）。outbox で materials/schedule/settings-refine へ確定仕様告知（旧 10:45/11:10 エントリを上書き）
+
 ### 2026-07-11 - Layout Standard v2 共通部品（draft PR #196）
 
 #### 概要

@@ -77,15 +77,10 @@ export {
 // Header tabs (target-IA Desktop standard) + segmented control (its Mobile
 // echo). Pure presentation: props-injected copy, lumen-* tokens (§3.1 / §5).
 export { HeaderTabs, type HeaderTabsProps, type HeaderTab } from "./HeaderTabs";
-// Standard section header row + its width tab (Layout Standard v2 §1/§5) —
-// title-or-tab-band left, width tab + rightSidebar toggle right, full-width
-// divider below. Mounted in AppShell's `header` slot (wide layout).
+// Standard section header row (Layout Standard v2 §1) — title-or-tab-band
+// left, rightSidebar toggle right, full-width divider below. Mounted in
+// AppShell's `header` slot (wide layout).
 export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
-export {
-  PageWidthToggle,
-  type PageWidthToggleProps,
-  type PageWidthToggleLabels,
-} from "./PageWidthToggle";
 // RightSidebar detail panel (App Shell Turn 2) — push-in Desktop panel +
 // left Mobile drawer + open/close toggle + the portal a section uses to push
 // its detail UI into the panel. Pure presentation: props-injected copy,
