@@ -7,9 +7,9 @@
 **対象**: `shared/src/services/SupabaseNotesUnifiedService.ts` `shared/src/services/SupabaseDailiesUnifiedService.ts` `shared/src/utils/passwordHash.ts`（新設）
 **計画書**: `.claude/docs/vision/plans/2026-07-11-notes-daily-password-hashing.md`（orders: `2026-07-11-materials-refine-orders.md`）
 
-- 前回: —
-- 現在: #181 materials 行の再実測完了（ハードコードは #189 で撤去済み・build/test 再検証中）。#118 の方式計画確定（Web Crypto PBKDF2 client-side + lazy rehash・DDL 不要）
-- 次: role-engineer で #118 実装 → sync-auditor 監査 → #181 の materials 行チェック + コメント
+- 前回: #181 materials 行消化（実測 → チェック + コメント済み）。#118 実装完了（PBKDF2 + lazy rehash・security-review / role-qa PASS / sync-auditor Blocking 0・790 tests 緑）
+- 現在: draft PR #195 提出 → ユーザーレビュー待ち（🛑 merge = 人手）。merge 時に Issue #118 が auto-close
+- 次: merge 後に plan COMPLETED + archive 移動。以降は v2 adoption（部品 merge 待ち）・life-tags レビュー（合図待ち）
 
 ## 直近の完了
 
