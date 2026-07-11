@@ -13,6 +13,7 @@ import {
 } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
+import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
 
 /*
  * SupabaseNotesUnifiedService (DU-D Step 2).
@@ -48,33 +49,41 @@ export class SupabaseNotesUnifiedService {
     // demand by getNoteUnified when a note is opened. Consumers must not
     // treat the empty list `content` as authoritative (see
     // useNotesUnifiedAPI's hydrate-on-select).
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_NOTE_COLUMNS)
-      .eq("role", "note")
-      .eq("is_deleted", false);
-    if (metaErr)
-      throw new Error(`listNotesUnified meta failed: ${metaErr.message}`);
+    const metas = await fetchAllPages<ItemsMetaNoteRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_NOTE_COLUMNS)
+          .eq("role", "note")
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "listNotesUnified meta failed",
+    );
 
-    const ids = (metas ?? []).map((m) => (m as unknown as ItemsMetaNoteRow).id);
+    const ids = metas.map((m) => m.id);
     if (ids.length === 0) return [];
 
-    const { data: payloads, error: payErr } = await this.client
-      .from("notes_payload")
-      .select(NOTES_PAYLOAD_LIST_COLUMNS)
-      .in("item_id", ids);
-    if (payErr)
-      throw new Error(`listNotesUnified payload failed: ${payErr.message}`);
+    const payloads = await fetchByIdChunks<NotesPayloadListRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("notes_payload")
+            .select(NOTES_PAYLOAD_LIST_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "listNotesUnified payload failed",
+      ),
+    );
 
     const payloadById = new Map<string, NotesPayloadListRow>();
-    for (const p of payloads ?? []) {
-      const row = p as unknown as NotesPayloadListRow;
+    for (const row of payloads) {
       payloadById.set(row.item_id, row);
     }
 
     const out: NoteNode[] = [];
-    for (const m of metas ?? []) {
-      const meta = m as unknown as ItemsMetaNoteRow;
+    for (const meta of metas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
       out.push(rowsToNoteNodeLite(meta, payload));
@@ -250,40 +259,45 @@ export class SupabaseNotesUnifiedService {
    * (`ORDER BY deleted_at DESC`).
    */
   async fetchDeletedNotesUnified(): Promise<NoteNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_NOTE_COLUMNS)
-      .eq("role", "note")
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (metaErr)
-      throw new Error(
-        `fetchDeletedNotesUnified meta failed: ${metaErr.message}`,
-      );
+    // Trailing .order("id") = unique tiebreaker for deterministic pages.
+    const metas = await fetchAllPages<ItemsMetaNoteRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_NOTE_COLUMNS)
+          .eq("role", "note")
+          .eq("is_deleted", true)
+          .order("deleted_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      "fetchDeletedNotesUnified meta failed",
+    );
 
-    const ids = (metas ?? []).map((m) => (m as unknown as ItemsMetaNoteRow).id);
+    const ids = metas.map((m) => m.id);
     if (ids.length === 0) return [];
 
     // M1 (perf): Trash likewise never renders the body (restore /
     // permanentDelete only need id/parentId), so it uses the light query.
-    const { data: payloads, error: payErr } = await this.client
-      .from("notes_payload")
-      .select(NOTES_PAYLOAD_LIST_COLUMNS)
-      .in("item_id", ids);
-    if (payErr)
-      throw new Error(
-        `fetchDeletedNotesUnified payload failed: ${payErr.message}`,
-      );
+    const payloads = await fetchByIdChunks<NotesPayloadListRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("notes_payload")
+            .select(NOTES_PAYLOAD_LIST_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "fetchDeletedNotesUnified payload failed",
+      ),
+    );
 
     const payloadById = new Map<string, NotesPayloadListRow>();
-    for (const p of payloads ?? []) {
-      const row = p as unknown as NotesPayloadListRow;
+    for (const row of payloads) {
       payloadById.set(row.item_id, row);
     }
 
     const out: NoteNode[] = [];
-    for (const m of metas ?? []) {
-      const meta = m as unknown as ItemsMetaNoteRow;
+    for (const meta of metas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
       out.push(rowsToNoteNodeLite(meta, payload));
@@ -413,50 +427,62 @@ export class SupabaseNotesUnifiedService {
     // switches to `.or("title.ilike.<v>,content.ilike.<v>")` (DU-G Step 5
     // multi-column widening, see L665 JSDoc + QA-3 review note).
     const safe = pgrstQuoteValueLocal(trimmed);
-    const { data: titleHits, error: titleErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_NOTE_COLUMNS)
-      .eq("role", "note")
-      .eq("is_deleted", false)
-      .ilike("title", `%${trimmed}%`);
-    if (titleErr)
-      throw new Error(`searchNotesUnified title failed: ${titleErr.message}`);
+    const titleHits = await fetchAllPages<ItemsMetaNoteRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_NOTE_COLUMNS)
+          .eq("role", "note")
+          .eq("is_deleted", false)
+          .ilike("title", `%${trimmed}%`)
+          .order("id")
+          .range(from, to),
+      "searchNotesUnified title failed",
+    );
 
     // Step 2: notes_payload rows whose content_json ilike matches. We
     // need the payload ids, then look up meta for those ids that are
     // still live (composite filter is_deleted=false applied via items_meta
     // step 3).
-    const { data: contentHits, error: contentErr } = await this.client
-      .from("notes_payload")
-      .select("item_id")
-      .ilike("content_json::text", `%${trimmed}%`);
-    if (contentErr)
-      throw new Error(
-        `searchNotesUnified content failed: ${contentErr.message}`,
-      );
+    const contentHits = await fetchAllPages<{ item_id: string }>(
+      (from, to) =>
+        this.client
+          .from("notes_payload")
+          .select("item_id")
+          .ilike("content_json::text", `%${trimmed}%`)
+          .order("item_id")
+          .range(from, to),
+      "searchNotesUnified content failed",
+    );
 
     // Step 3: merge id sets — title hits already include meta rows; for
     // content-only hits we need to fetch their meta + filter is_deleted.
     const titleMetaById = new Map<string, ItemsMetaNoteRow>();
-    for (const m of titleHits ?? []) {
-      const row = m as unknown as ItemsMetaNoteRow;
+    for (const row of titleHits) {
       titleMetaById.set(row.id, row);
     }
-    const contentOnlyIds = (contentHits ?? [])
-      .map((c) => (c as { item_id: string }).item_id)
+    const contentOnlyIds = contentHits
+      .map((c) => c.item_id)
       .filter((cid) => !titleMetaById.has(cid));
 
     let extraMetas: ItemsMetaNoteRow[] = [];
     if (contentOnlyIds.length > 0) {
-      const { data: extraData, error: extraErr } = await this.client
-        .from("items_meta")
-        .select(ITEMS_META_NOTE_COLUMNS)
-        .eq("role", "note")
-        .eq("is_deleted", false)
-        .in("id", contentOnlyIds);
-      if (extraErr)
-        throw new Error(`searchNotesUnified meta failed: ${extraErr.message}`);
-      extraMetas = (extraData ?? []) as unknown as ItemsMetaNoteRow[];
+      extraMetas = await fetchByIdChunks<ItemsMetaNoteRow>(
+        contentOnlyIds,
+        (chunk) =>
+          fetchAllPages(
+            (from, to) =>
+              this.client
+                .from("items_meta")
+                .select(ITEMS_META_NOTE_COLUMNS)
+                .eq("role", "note")
+                .eq("is_deleted", false)
+                .in("id", chunk)
+                .order("id")
+                .range(from, to),
+            "searchNotesUnified meta failed",
+          ),
+      );
     }
 
     const allMetas = [...titleMetaById.values(), ...extraMetas];
@@ -469,16 +495,21 @@ export class SupabaseNotesUnifiedService {
     }
 
     // Step 4: fetch payloads for the merged id set + join.
-    const { data: payloads, error: payErr } = await this.client
-      .from("notes_payload")
-      .select(NOTES_PAYLOAD_COLUMNS)
-      .in("item_id", allIds);
-    if (payErr)
-      throw new Error(`searchNotesUnified payload failed: ${payErr.message}`);
+    const payloads = await fetchByIdChunks<NotesPayloadRow>(allIds, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("notes_payload")
+            .select(NOTES_PAYLOAD_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "searchNotesUnified payload failed",
+      ),
+    );
 
     const payloadById = new Map<string, NotesPayloadRow>();
-    for (const p of payloads ?? []) {
-      const row = p as unknown as NotesPayloadRow;
+    for (const row of payloads) {
       payloadById.set(row.item_id, row);
     }
 

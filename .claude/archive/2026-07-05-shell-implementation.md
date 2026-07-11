@@ -1,5 +1,5 @@
 ---
-Status: Implemented — draft PR #160（目視 Step 7 + merge Step 8 = ユーザーゲート待ち）
+Status: COMPLETED — PR #160 merged（2026-07-06）。enum 正規化 + archive 移動 = 2026-07-11 #173 docs-lint 導入時
 Created: 2026-07-05
 Branch: claude/shell-impl
 Owner-chat: shell-impl

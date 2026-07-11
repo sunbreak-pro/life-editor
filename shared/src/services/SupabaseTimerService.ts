@@ -21,6 +21,7 @@ import {
   type TimerSessionRow,
   type PomodoroPresetRow,
 } from "./timerMapper";
+import { fetchAllPages } from "./postgrestFetchAll";
 
 /*
  * SupabaseTimerService (W3-A). I/O layer over the independent timer tables
@@ -58,8 +59,7 @@ export class SupabaseTimerService {
       .select(TIMER_SETTINGS_COLUMNS)
       .eq("id", 1)
       .single();
-    if (error)
-      throw new Error(`fetchTimerSettings failed: ${error.message}`);
+    if (error) throw new Error(`fetchTimerSettings failed: ${error.message}`);
     return rowToTimerSettings(data as unknown as TimerSettingsRow);
   }
 
@@ -87,8 +87,7 @@ export class SupabaseTimerService {
       .eq("id", 1)
       .select(TIMER_SETTINGS_COLUMNS)
       .single();
-    if (error)
-      throw new Error(`updateTimerSettings failed: ${error.message}`);
+    if (error) throw new Error(`updateTimerSettings failed: ${error.message}`);
     return rowToTimerSettings(data as unknown as TimerSettingsRow);
   }
 
@@ -101,7 +100,11 @@ export class SupabaseTimerService {
     taskId?: string,
   ): Promise<TimerSession> {
     const startedAt = new Date().toISOString();
-    const insert = newTimerSessionInsert(sessionType, taskId ?? null, startedAt);
+    const insert = newTimerSessionInsert(
+      sessionType,
+      taskId ?? null,
+      startedAt,
+    );
     const { data, error } = await this.client
       .from("timer_sessions")
       .insert(insert)
@@ -148,27 +151,35 @@ export class SupabaseTimerService {
   }
 
   async fetchTimerSessions(): Promise<TimerSession[]> {
-    const { data, error } = await this.client
-      .from("timer_sessions")
-      .select(TIMER_SESSION_COLUMNS)
-      .order("started_at", { ascending: false });
-    if (error) throw new Error(`fetchTimerSessions failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToTimerSession(r as unknown as TimerSessionRow),
+    // timer_sessions grows a row per start/close, so it is the first
+    // table to outgrow the PostgREST max-rows cap — paged read required.
+    // Trailing .order("id") = unique tiebreaker for deterministic pages.
+    const rows = await fetchAllPages<TimerSessionRow>(
+      (from, to) =>
+        this.client
+          .from("timer_sessions")
+          .select(TIMER_SESSION_COLUMNS)
+          .order("started_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      "fetchTimerSessions failed",
     );
+    return rows.map(rowToTimerSession);
   }
 
   async fetchSessionsByTaskId(taskId: string): Promise<TimerSession[]> {
-    const { data, error } = await this.client
-      .from("timer_sessions")
-      .select(TIMER_SESSION_COLUMNS)
-      .eq("task_id", taskId)
-      .order("started_at", { ascending: false });
-    if (error)
-      throw new Error(`fetchSessionsByTaskId failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToTimerSession(r as unknown as TimerSessionRow),
+    const rows = await fetchAllPages<TimerSessionRow>(
+      (from, to) =>
+        this.client
+          .from("timer_sessions")
+          .select(TIMER_SESSION_COLUMNS)
+          .eq("task_id", taskId)
+          .order("started_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      "fetchSessionsByTaskId failed",
     );
+    return rows.map(rowToTimerSession);
   }
 
   // -------------------------------------------------------------------------
@@ -176,14 +187,17 @@ export class SupabaseTimerService {
   // -------------------------------------------------------------------------
 
   async fetchPomodoroPresets(): Promise<PomodoroPreset[]> {
-    const { data, error } = await this.client
-      .from("pomodoro_presets")
-      .select(POMODORO_PRESET_COLUMNS)
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchPomodoroPresets failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToPomodoroPreset(r as unknown as PomodoroPresetRow),
+    const rows = await fetchAllPages<PomodoroPresetRow>(
+      (from, to) =>
+        this.client
+          .from("pomodoro_presets")
+          .select(POMODORO_PRESET_COLUMNS)
+          .order("created_at", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "fetchPomodoroPresets failed",
     );
+    return rows.map(rowToPomodoroPreset);
   }
 
   async createPomodoroPreset(
@@ -212,7 +226,9 @@ export class SupabaseTimerService {
       .select(POMODORO_PRESET_COLUMNS)
       .single();
     if (error)
-      throw new Error(`updatePomodoroPreset (id=${id}) failed: ${error.message}`);
+      throw new Error(
+        `updatePomodoroPreset (id=${id}) failed: ${error.message}`,
+      );
     return rowToPomodoroPreset(data as unknown as PomodoroPresetRow);
   }
 
@@ -222,7 +238,9 @@ export class SupabaseTimerService {
       .delete()
       .eq("id", id);
     if (error)
-      throw new Error(`deletePomodoroPreset (id=${id}) failed: ${error.message}`);
+      throw new Error(
+        `deletePomodoroPreset (id=${id}) failed: ${error.message}`,
+      );
   }
 }
 

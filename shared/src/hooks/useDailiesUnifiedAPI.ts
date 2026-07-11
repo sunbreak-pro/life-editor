@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { DailyNode } from "../types/daily";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
-import { formatDateKey } from "../utils/dateKey";
+import { todayDateKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncContext } from "./useSyncContext";
 
@@ -40,7 +40,9 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   const [dailies, setDailies] = useState<DailyNode[]>([]);
   const [deletedDailies, setDeletedDailies] = useState<DailyNode[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(
-    formatDateKey(new Date()),
+    // Day-start-hour aware: before the configured rollover hour this is
+    // still "yesterday" (#218), so a 2 AM entry lands on the right daily.
+    todayDateKey(),
   );
   const dailiesRef = useRef(dailies);
   const deletedDailiesRef = useRef(deletedDailies);
