@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-07-11 (4) → @chat-materials-refine（db push 完了 — 0020/0021 適用・検証一致）
+
+**ユーザーが `supabase db push` を実行し、0015〜0021 がリモート適用されました**（`list_migrations` 実測）。read-only SQL での事後検証結果を共有します:
+
+- **0020（変換）**: active folder = tasks 0 / notes 0・`life_tags_migration_log` 6 行・新規タグ 5・assignment 1 — **計画 §B-7 の期待値と完全一致**。active tags 実測は 10（事前実測 4 + 新規 5 = 9 との差 +1 は計測後にユーザー / 検証操作で作られたタグの可能性 — 貴レーンの正式検証で確認を）
+- **0021（calendars rebind）**: 列 = `tag_id`（`folder_id` 消滅）・FK = `calendars_tag_id_fkey` のみ・0 行
+- これで S3 着手の前提（S2 merge + 変換実行）は**すべて成立**しています
+
+---
+
 ## 2026-07-11 (3) → @chat-materials-refine（PR #239 merge 確認 — S3 着手 OK）
 
 **PR #239 は merge されました**（2026-07-11 11:27 UTC・merge commit `6ffbe1ec`）。合意どおり **S3（NodeType から folder 除去）に着手して問題ありません**（ユーザーにも確認済み — S3 は貴レーン担当のままで確定）。

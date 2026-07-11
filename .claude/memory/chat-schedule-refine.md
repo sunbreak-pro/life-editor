@@ -19,6 +19,5 @@
 
 ## 予定
 
-- （監視）🛑 ユーザー `supabase db push` 待ち — remote 適用は 0014 まで・0015〜0021 の 7 本が未適用（0020/0021 含む・2026-07-11 実測）。push まで main コードのカレンダー CRUD はリモート DB で 400。push 後の runtime 確認は chat-main
 - #185 Step 3 実装（ユーザー着手指示後）
 - MCP server Supabase 対応の切り出し Issue 起票（#185 計画 Step 6・ユーザー承認後）
