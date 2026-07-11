@@ -7,9 +7,9 @@
 **対象**: `web/src/schedule/**`
 **計画書**: `.claude/docs/vision/plans/2026-07-11-schedule-refine-orders.md`
 
-- 前回: Layout Standard v2 adoption（#204 — タブ帯を標準 SectionHeader へ移行・PR #205 merge 済み・role-qa PASS）
-- 現在: #204 は runtime 表示確認（chat-main 実測）のみ残し open 維持
-- 次: #185 実装（詳細計画は PR #191 で merge 済み = 承認。Step 2 繰り返し編集部品の共通化から）
+- 前回: Layout Standard v2 adoption（#204 — PR #205 merge 済み・runtime 表示確認のみ chat-main 待ちで open 維持）
+- 現在: #185 実装 Step 2 完了（FrequencyEditor 切り出し・shared 802/802 + web build pass）
+- 次: #185 Step 3（Event 編集フローへ繰り返しセクション組込 + detachRoutine 新規実装）— ユーザーの着手指示待ち
 
 ## 直近の完了
 
