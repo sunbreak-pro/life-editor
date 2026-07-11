@@ -1,5 +1,5 @@
 ---
-Status: REFERENCE — Phase 5 で削除予定の対象リスト（実削除は本ファイルではなく移行 SSOT 側で行う）
+Status: REFERENCE — 実削除は 2026-07-11 に完了（src-tauri = #197 Stage A / PR #199・frontend = #197 Stage B）。本ファイルは棚卸しの歴史記録
 Created: 2026-05-24 (cleanup-and-consolidation Phase 4-2)
 Updated: 2026-05-24
 Branch: refactor/cleanup-and-consolidation

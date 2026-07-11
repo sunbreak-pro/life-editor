@@ -8,7 +8,7 @@
 > 元 note: life-editor → ノート → iOS追加機能要件（2026-04-22 取得）
 > 関連: `vision/mobile-porting.md` / `vision/mobile-data-parity.md`（いずれも旧構成の歴史参照・現存せず） / CLAUDE.md §2 Platform / §6 Coding Standards（Provider 順序の詳細は rules/frontend.md）
 >
-> ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの Owner 記述は退役スタック（旧 Tauri `src-tauri/` / iOS Tauri / `portable-pty`）を指す。現行本流は `shared/` + `web/`（Mobile は Capacitor 包装・`mobile/` 実在）。Owner 行の全面改訂は Phase 5。
+> ⚠️ **退役スタック注記 (2026-07-04 doc-sync / 2026-07-11 #197 更新)**: 本ファイルの Owner 記述は退役スタック（旧 Tauri `src-tauri/` / iOS Tauri / `portable-pty`）を指す。旧スタックは 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）。現行本流は `shared/` + `web/`（Mobile は Capacitor 包装・`mobile/` 実在）。Owner 行の全面改訂は Phase 5。
 
 iOS は Desktop の **Consumption + Quick capture** 役割（CLAUDE.md §2）に位置付けられているが、
 実機運用で「Desktop と同等まで揃えたい挙動」がいくつか抽出されたため、機能要件として固定する。

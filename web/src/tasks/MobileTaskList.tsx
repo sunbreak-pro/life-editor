@@ -23,21 +23,20 @@ import {
 /*
  * Mobile Tasks list (Materials mini-plan Step 2, narrow layout). The brief
  * strips the desktop board down for touch: no DnD, no horizontal columns, no
- * color / tag / folder view switching. Instead —
+ * color / tag view switching. Instead —
  *
  *   - a single-select StatusFilterChips row (未着手 / 進行中 / 完了 with live
  *     counts; re-tapping the active chip clears back to "all"),
- *   - a full-width vertical card list across ALL folders (reusing the shared
- *     KanbanCard with its folder pill + tag chips so the visual matches the
- *     desktop card 1:1),
+ *   - a full-width vertical card list (reusing the shared KanbanCard with its
+ *     tag chips so the visual matches the desktop card 1:1),
  *   - tapping a card opens a ~60% BottomSheet with the 3 status choices
  *     (picking one sets the status + closes),
  *   - a "+" CTA opens a QuickAddSheet (title-only capture).
  *
  * Data stays host-side: KanbanView builds the three status columns (cards
- * already carry folderName / folderColor / tags via the pure builder) and
- * injects them here + the status-mutation / quick-add callbacks. This leaf is
- * DataService-free (§3.1) and takes all copy as props (§6.4).
+ * already carry their tags via the pure builder) and injects them here + the
+ * status-mutation / quick-add callbacks. This leaf is DataService-free (§3.1)
+ * and takes all copy as props (§6.4).
  */
 
 const STATUS_ORDER: readonly TaskStatus[] = [
@@ -187,7 +186,6 @@ export function MobileTaskList({
               key={card.id}
               card={card}
               labels={cardLabels}
-              showFolderPill
               showTags
               onSelect={setSheetTaskId}
             />

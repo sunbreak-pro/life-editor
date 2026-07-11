@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { TaskNode, NodeType } from "../types/taskTree";
 import type { DataService } from "../services/DataService";
-import { useTaskTreeCRUD, type TaskTreeCRUDConfig } from "./useTaskTreeCRUD";
+import { useTaskTreeCRUD } from "./useTaskTreeCRUD";
 import { useTaskTreeDeletion } from "./useTaskTreeDeletion";
 import { useTaskTreeMovement } from "./useTaskTreeMovement";
 import {
@@ -21,20 +21,17 @@ function generateId(type: NodeType): string {
 
 /**
  * Options the host injects. The Tauri version reached into a module
- * singleton (`getDataService()`), a host UndoRedo Context, and
- * `localStorage`; the shared hook takes all three by injection so it is
- * host-agnostic (CLAUDE.md §6.4). `undoRedo` defaults to a no-op (web S1
- * — real UndoRedo lands in S6); `config` carries the localStorage-derived
- * behaviour flags.
+ * singleton (`getDataService()`) and a host UndoRedo Context; the shared hook
+ * takes both by injection so it is host-agnostic (CLAUDE.md §6.4). `undoRedo`
+ * defaults to a no-op (web S1 — real UndoRedo lands in S6).
  */
 export interface UseTaskTreeAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
-  config?: TaskTreeCRUDConfig;
 }
 
 export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
-  const { dataService: ds, config } = options;
+  const { dataService: ds } = options;
   const undoRedo = options.undoRedo ?? createNoopUndoRedo();
 
   const [nodes, setNodes] = useState<TaskNode[]>([]);
@@ -169,14 +166,11 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     toggleExpanded,
     toggleTaskStatus,
     setTaskStatus,
-    completeFolderWithChildren,
-    uncompleteFolder,
   } = useTaskTreeCRUD(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
     generateId,
-    config,
   );
   const {
     softDelete: rawSoftDelete,
@@ -252,8 +246,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       toggleExpanded,
       toggleTaskStatus,
       setTaskStatus,
-      completeFolderWithChildren,
-      uncompleteFolder,
       softDelete,
       restoreNode,
       permanentDelete,
@@ -282,8 +274,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       toggleExpanded,
       toggleTaskStatus,
       setTaskStatus,
-      completeFolderWithChildren,
-      uncompleteFolder,
       softDelete,
       restoreNode,
       permanentDelete,

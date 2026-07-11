@@ -1,8 +1,9 @@
 name: CI — live stack (web + shared)
 
 # 生きている本流（shared → web）の型検査・テスト・ビルドを自動検証する。
-# 旧 Tauri ビルド (.github/workflows/build.yml) とは独立。frozen な frontend/ src-tauri/
-# は対象外。Phase 3 の desktop / Phase 4 の mobile は未着手のため当面ここには含めない。
+# 旧 Tauri スタック（frontend/ + src-tauri/ + 旧 build.yml）は 2026-07-11 に削除済み
+# （#197・復元 = git tag pre-tauri-removal）。Phase 3 の desktop / Phase 4 の mobile は
+# 未着手のため当面ここには含めない。
 #
 # 検証済みの手順をそのまま写したもの（2026-06-20 ローカル実測: shared 491 tests 緑 /
 # web vite build 緑）。手元で再現するには ai-context.md §6 のコマンドを参照。

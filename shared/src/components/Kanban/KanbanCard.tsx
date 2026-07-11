@@ -8,6 +8,10 @@
  *
  * Status hue is fixed (todo=blue / progress=amber / done=green) via the
  * lumen status-band + chip tokens (bg-lumen-status-*-band / -chip-*).
+ *
+ * The card carries its assigned tags as chips (status view); the tag view
+ * omits them since the column already conveys the tag. Folders no longer group
+ * tasks (life-tags S1), so there is no folder pill.
  */
 
 import {
@@ -62,10 +66,8 @@ const MAX_TAG_CHIPS = 3;
 export interface KanbanCardProps {
   card: KanbanCardModel;
   labels: KanbanLabels;
-  /** Show the folder pill (status / tag views). Folder view omits it. */
-  showFolderPill?: boolean;
-  /** Show tag chips (folder / status views). Tag view omits them (the column
-   *  already conveys the tag). */
+  /** Show tag chips (status view). Tag view omits them (the column already
+   *  conveys the tag). */
   showTags?: boolean;
   onSelect: (id: string) => void;
   /** DnD wiring injected by the host (optional — omitted on read-only views).
@@ -76,7 +78,6 @@ export interface KanbanCardProps {
 export function KanbanCard({
   card,
   labels,
-  showFolderPill = false,
   showTags = false,
   onSelect,
   dnd,
@@ -84,14 +85,10 @@ export function KanbanCard({
   const Icon = STATUS_ICON[card.status];
   const text = statusText(card.status, labels);
   const isDone = card.status === "DONE";
-  const folderDotStyle = card.folderColor
-    ? ({ backgroundColor: card.folderColor } as CSSProperties)
-    : undefined;
   const tags = showTags ? (card.tags ?? []) : [];
   const visibleTags = tags.slice(0, MAX_TAG_CHIPS);
   const overflowCount = tags.length - visibleTags.length;
-  const hasFolderPill = showFolderPill && !!card.folderName;
-  const hasMeta = hasFolderPill || tags.length > 0;
+  const hasMeta = tags.length > 0;
 
   return (
     <button
@@ -149,20 +146,6 @@ export function KanbanCard({
 
       {hasMeta && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          {hasFolderPill && (
-            <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-lumen-text-secondary">
-              <span
-                aria-hidden
-                className={cn(
-                  "h-2 w-2 shrink-0 rounded-[3px]",
-                  folderDotStyle ? "" : "bg-lumen-border-strong",
-                )}
-                style={folderDotStyle}
-              />
-              {card.folderName}
-            </span>
-          )}
-
           {visibleTags.map((tag) => (
             // Design mock's tag chip: a neutral bg-secondary pill carrying a
             // 6px color dot (the tag's own hue) — the fill stays neutral so

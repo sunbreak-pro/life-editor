@@ -1,37 +1,30 @@
 /*
- * TaskAddDialog (W-UX) — the "add a task / folder" overlay for the Kanban.
- * Pure presentation (§6.4): the host injects the folder options + already-
- * translated copy and receives the create intent via onSubmit; no DataService
- * / no useTranslation here.
+ * TaskAddDialog (W-UX) — the "add a task" overlay for the Kanban. Pure
+ * presentation (§6.4): the host injects already-translated copy and receives
+ * the create intent via onSubmit; no DataService / no useTranslation here.
  *
  * Built on the shared <Modal> so it is a small CENTERED overlay that dims (not
  * covers) the board behind it — the requested "faintly show the background"
- * pattern. A type toggle picks task vs folder; tasks may target a folder
- * (folders are created at the root). Enter submits (IME-guarded so Japanese
- * conversion is never stolen — §frontend gotcha).
+ * pattern. Enter submits (IME-guarded so Japanese conversion is never stolen —
+ * §frontend gotcha).
+ *
+ * life-tags S1: folders no longer group tasks, so the task/folder type toggle
+ * and the "file under folder" select were retired — this dialog now only
+ * captures a task title (organizing is done via tags).
  */
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "./cn";
 import { Modal } from "./Modal";
 
-export type TaskAddType = "task" | "folder";
-
-export interface TaskAddFolderOption {
-  id: string;
-  name: string;
-}
+/** The dialog only creates tasks now (folders retired — life-tags S1). */
+export type TaskAddType = "task";
 
 export interface TaskAddDialogLabels {
   /** Dialog title. */
   title: string;
-  typeTask: string;
-  typeFolder: string;
   titleLabel: string;
   titlePlaceholder: string;
-  folderLabel: string;
-  /** "No folder / root" option in the folder select. */
-  rootOption: string;
   submit: string;
   cancel: string;
 }
@@ -44,8 +37,6 @@ export interface TaskAddDialogProps {
     title: string;
     parentId: string | null;
   }) => void;
-  /** Folders the new task can be filed under (root is always offered). */
-  folders: TaskAddFolderOption[];
   labels: TaskAddDialogLabels;
 }
 
@@ -53,20 +44,15 @@ export function TaskAddDialog({
   open,
   onClose,
   onSubmit,
-  folders,
   labels,
 }: TaskAddDialogProps): React.JSX.Element {
-  const [type, setType] = useState<TaskAddType>("task");
   const [title, setTitle] = useState("");
-  const [parentId, setParentId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Reset to a clean form each time the dialog opens, then focus the title.
   useEffect(() => {
     if (!open) return;
-    setType("task");
     setTitle("");
-    setParentId(null);
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(raf);
   }, [open]);
@@ -76,17 +62,8 @@ export function TaskAddDialog({
 
   const submit = () => {
     if (!canSubmit) return;
-    onSubmit({
-      type,
-      title: trimmed,
-      // Folders live at the root; only tasks honor the folder target.
-      parentId: type === "task" ? parentId : null,
-    });
+    onSubmit({ type: "task", title: trimmed, parentId: null });
   };
-
-  const TYPES: TaskAddType[] = ["task", "folder"];
-  const typeLabel = (t: TaskAddType) =>
-    t === "task" ? labels.typeTask : labels.typeFolder;
 
   return (
     <Modal open={open} onClose={onClose} title={labels.title}>
@@ -97,35 +74,6 @@ export function TaskAddDialog({
         }}
         className="space-y-3"
       >
-        {/* Type toggle — task vs folder */}
-        <div
-          role="radiogroup"
-          aria-label={labels.title}
-          className="inline-flex gap-0.5 rounded-lg border border-lumen-border bg-lumen-bg-secondary p-0.5"
-        >
-          {TYPES.map((t) => {
-            const selected = t === type;
-            return (
-              <button
-                key={t}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => setType(t)}
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm font-semibold transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                  selected
-                    ? "bg-lumen-bg text-lumen-text shadow-lumen-sm"
-                    : "text-lumen-text-secondary hover:text-lumen-text",
-                )}
-              >
-                {typeLabel(t)}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Title */}
         <label className="block space-y-1">
           <span className="text-xs font-medium text-lumen-text-secondary">
@@ -152,30 +100,6 @@ export function TaskAddDialog({
             )}
           />
         </label>
-
-        {/* Folder target — tasks only */}
-        {type === "task" && (
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-lumen-text-secondary">
-              {labels.folderLabel}
-            </span>
-            <select
-              value={parentId ?? ""}
-              onChange={(e) => setParentId(e.target.value || null)}
-              className={cn(
-                "w-full rounded-md border border-lumen-border bg-lumen-bg px-3 py-1.5 text-sm text-lumen-text",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-              )}
-            >
-              <option value="">{labels.rootOption}</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-1">

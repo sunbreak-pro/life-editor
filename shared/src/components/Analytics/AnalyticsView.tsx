@@ -23,15 +23,23 @@ import type { AnalyticsLabels } from "./labels";
  * W4 Analytics — shared presentational dashboard root (design-analytics-v2).
  * PURE PRESENTATION: every string arrives via the typed `labels` object and
  * every dataset arrives as props (CLAUDE.md §6.4 — no useTranslation /
- * getDataService here). Desktop (≥768px) = the 4-tab dashboard with the header
- * date-range preset pills + shell-standard underline HeaderTabs; Mobile
- * (<768px) = a single Consumption scroll (MobileAnalyticsView). The former
- * accent-filled tab pills and the per-chart visibility sidebar are dropped.
+ * getDataService here). Desktop (≥768px) = the 4-tab dashboard; the tab band
+ * lifts into the shell's standard SectionHeader when the host drives `activeTab`
+ * (v2 §1 — controlled), leaving just the date-range preset in-body. Omit the
+ * controlled props and the in-body HeaderTabs owns tab state, exactly as before
+ * (backward-compatible). Mobile (<768px) = a single Consumption scroll
+ * (MobileAnalyticsView). The former accent-filled tab pills and the per-chart
+ * visibility sidebar are dropped.
  */
 
 export type AnalyticsTab = "overview" | "tasks" | "work" | "schedule";
 
-const TAB_ORDER: readonly AnalyticsTab[] = [
+/*
+ * Canonical tab order (SSOT). Exported so the shell (MainScreen) builds its
+ * lifted SectionHeader tab band from the same list this view uses for content
+ * — the two never drift (数値の非複製原則).
+ */
+export const ANALYTICS_TAB_ORDER: readonly AnalyticsTab[] = [
   "overview",
   "tasks",
   "work",
@@ -83,7 +91,13 @@ export interface AnalyticsViewProps {
    * backward-compatible.
    */
   activeTab?: AnalyticsTab;
-  /** Fires on tab select. Pair with `activeTab` for controlled (shell-driven) mode. */
+  /**
+   * Fires on tab select from the in-body HeaderTabs — i.e. only in UNCONTROLLED
+   * mode. When controlled (shell-lifted band), the shell owns tab selection
+   * directly and drives `activeTab`, so this never fires; it stays for API
+   * symmetry and the uncontrolled fallback. Pair with `activeTab` for
+   * controlled (shell-driven) mode.
+   */
   onTabChange?: (tab: AnalyticsTab) => void;
   labels: AnalyticsLabels;
 }
@@ -140,33 +154,47 @@ function DesktopAnalytics({
   };
 
   const tabs = useMemo<HeaderTab[]>(
-    () => TAB_ORDER.map((tab) => ({ id: tab, label: labels.tabs[tab] })),
+    () =>
+      ANALYTICS_TAB_ORDER.map((tab) => ({ id: tab, label: labels.tabs[tab] })),
     [labels.tabs],
+  );
+
+  // Shared between the two header-band branches (controlled ↔ uncontrolled) so
+  // the preset's props stay defined in one place.
+  const presetSelector = (
+    <DateRangePresetSelector
+      value={preset}
+      onChange={applyPreset}
+      label={labels.datePreset.label}
+      options={labels.datePreset.options}
+    />
   );
 
   return (
     <div className="flex h-full flex-col">
-      {/* In-body chrome (v2 §1 adoption): the shell SectionHeader owns the
-          section title, so the old h2 row is gone — the date-range presets
-          ride the tab band's trailing slot. Moving the tab band itself into
-          the header row needs a shell tabs slot for analytics
-          (layout-standard lane). */}
-      <div className="flex-shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
-        <HeaderTabs
-          tabs={tabs}
-          activeTab={activeTab}
-          onSelect={(id) => selectTab(id as AnalyticsTab)}
-          label={labels.tabsLabel}
-          trailing={
-            <DateRangePresetSelector
-              value={preset}
-              onChange={applyPreset}
-              label={labels.datePreset.label}
-              options={labels.datePreset.options}
-            />
-          }
-        />
-      </div>
+      {/* v2 §1 adoption — the tab band doubles as the section title. When the
+          shell lifts it into the standard SectionHeader (controlled: MainScreen
+          owns `activeTab`), only the date-range preset stays in-body, right-
+          aligned to the data column. When uncontrolled (tests / any non-lifted
+          host), the in-body HeaderTabs owns tab switching with the preset in
+          its trailing slot — the prior behavior, fully backward-compatible. */}
+      {controlledTab === undefined ? (
+        <div className="flex-shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
+          <HeaderTabs
+            tabs={tabs}
+            activeTab={activeTab}
+            onSelect={(id) => selectTab(id as AnalyticsTab)}
+            label={labels.tabsLabel}
+            trailing={presetSelector}
+          />
+        </div>
+      ) : (
+        <div className="flex-shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
+          <div className="mx-auto flex w-full max-w-lumen-data justify-end">
+            {presetSelector}
+          </div>
+        </div>
+      )}
 
       {/* Content: centered max-w-lumen-data column */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-lumen-gutter py-4 md:px-lumen-gutter-wide md:py-6">

@@ -55,14 +55,13 @@ export { MasterDetail, type MasterDetailProps } from "./MasterDetail";
 // Tasks MasterDetail. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
 export { TaskDetailPanel, type TaskDetailPanelProps } from "./TaskDetailPanel";
-// Task add dialog (W-UX) — small centered overlay to create a task / folder.
-// Pure presentation: host injects folder options + copy, receives create
-// intent via onSubmit (§3.1 / §6.4).
+// Task add dialog (W-UX) — small centered overlay to create a task. Pure
+// presentation: host injects copy, receives create intent via onSubmit
+// (§3.1 / §6.4).
 export {
   TaskAddDialog,
   type TaskAddDialogProps,
   type TaskAddDialogLabels,
-  type TaskAddFolderOption,
   type TaskAddType,
 } from "./TaskAddDialog";
 // App shell (W5) — responsive single shell + its nav pieces. Pure
@@ -278,3 +277,6 @@ export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 // / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the
 // feature can grow exports without touching here (matches Analytics/Connect).
 export * from "./materials";
+// Notes (life-tags unification S1) — pure tag-heading grouping (buildTagGroups)
+// for the Notes side list. UI-free: the interactive list + DnD stay host-side.
+export * from "./notes";

@@ -22,6 +22,7 @@ boot 行:
 
 - section:work の open Issue は **2026-07-11 時点で 0 件**
 - **#181 work 行（v1 adoption）**: WorkScreen の `max-w-[720px]` + `px-8` 独自値 → 標準へ（幅基準は 2026-07-11 に wide 統一へ変更 — 親計画 §5。reading 中央寄せには寄せない）。モバイル側 wrapper の追随確認も。完了したら #181 の自分の行をチェック
+  - ✅ **完了**: PR #192（`refactor(work): adopt layout standard v1`）2026-07-11 merged。desktop / mobile 両分岐の独自フレーム撤去 → PageContainer（#180）へ移譲を main 上で実測確認。#181 の work 行チェック済み + 確認コメント（issuecomment-4944633540）。※実装当時は reading 幅基準 → その後 wide 統一へ方針変更（親計画 §5）のため、全幅化は下の v2 adoption 側で追随
 
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 

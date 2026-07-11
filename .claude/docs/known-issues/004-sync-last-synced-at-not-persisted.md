@@ -1,5 +1,7 @@
 # 004: sync_last_synced_at が空で毎回 1970 からフル push
 
+> ⚠️ **Tauri スタック retired 注記（2026-07-11 #197）**: 本文中の `src-tauri/` / `frontend/` / `@tauri-apps` 等のパス・コードは旧 Tauri スタック当時の記録。旧スタックは 2026-07-11 に削除済み（復元 = git tag `pre-tauri-removal`）。Root Cause 知見としてはそのまま有効。
+
 **Status**: Fixed
 **Category**: Bug
 **Severity**: Important

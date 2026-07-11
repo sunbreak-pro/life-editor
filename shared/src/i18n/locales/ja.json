@@ -512,9 +512,6 @@
     "deviceId": "デバイスID"
   },
   "trash": {
-    "title": "ゴミ箱",
-    "description": "削除した項目はここから元に戻せます。自動では消えないので、不要なものは完全に削除してください。",
-    "totalCount": "全 {{count}} 件",
     "empty": "ゴミ箱は空です",
     "emptyDescription": "削除した項目がここに表示されます。",
     "emptyCategory": "{{category}}のゴミ箱をからにする",
@@ -823,7 +820,11 @@
       "quickAddSubmit": "追加",
       "newFolderPrompt": "新しいフォルダ名",
       "lockedHint": "このノートはロックされています",
-      "mainEmpty": "ノートを選ぶか、新しく作成してください"
+      "mainEmpty": "ノートを選ぶか、新しく作成してください",
+      "untagged": "未分類",
+      "collapseGroup": "グループを折りたたむ",
+      "expandGroup": "グループを展開",
+      "assignTagHint": "タグにドロップして付与"
     },
     "daily": {
       "toToday": "今日へ",

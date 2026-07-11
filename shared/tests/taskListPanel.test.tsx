@@ -7,12 +7,12 @@ import type { KanbanColumnModel } from "../src/components/Kanban/types";
 /*
  * Tasks list-mode panel. Pure presentation over pre-built Kanban columns:
  * grouping switch, collapsible group headings (label + count), task rows
- * (status glyph + title + folder pill + selection highlight). Collapse is
- * view-local. DataService-free; all copy injected (§6.4).
+ * (status glyph + title + selection highlight). Collapse is view-local.
+ * DataService-free; all copy injected (§6.4). life-tags S1 retired the folder
+ * grouping — only status / tag remain.
  */
 
 const LABELS: TaskListPanelLabels = {
-  viewFolder: "Folder",
   viewStatus: "Status",
   viewTag: "Tag",
   groupingGroupLabel: "Group by",
@@ -51,7 +51,7 @@ function renderPanel(
   render(
     <TaskListPanel
       columns={COLUMNS}
-      viewMode="folder"
+      viewMode="status"
       onViewModeChange={onViewModeChange}
       selectedTaskId={null}
       onSelectTask={onSelectTask}
@@ -108,33 +108,33 @@ describe("TaskListPanel", () => {
   it("renders the grouping switch and reports a mode change", () => {
     const { onViewModeChange } = renderPanel();
     const tablist = screen.getByRole("tablist", { name: "Group by" });
-    const statusTab = within(tablist).getByRole("tab", { name: "Status" });
+    const tagTab = within(tablist).getByRole("tab", { name: "Tag" });
     expect(
-      within(tablist).getByRole("tab", { name: "Folder" }),
+      within(tablist).getByRole("tab", { name: "Status" }),
     ).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(statusTab);
-    expect(onViewModeChange).toHaveBeenCalledWith("status");
+    fireEvent.click(tagTab);
+    expect(onViewModeChange).toHaveBeenCalledWith("tag");
   });
 
-  it("renders the folder-view 'unfiled' bucket like any other group", () => {
-    // The bucket the folder builder appends for root-level tasks is just
-    // another column to the panel — heading + rows surface with no special
-    // casing, so root tasks are reachable in the default list view.
+  it("renders any pre-built column generically (heading + rows)", () => {
+    // The panel is agnostic to how the host grouped the columns — it just
+    // renders each column's heading + rows, so an arbitrary bucket surfaces
+    // with no special casing.
     renderPanel({
       columns: [
         {
-          id: "folder-a",
-          title: "Inbox",
+          id: "status-NOT_STARTED",
+          title: "Not started",
           cards: [{ id: "task-1", title: "Write plan", status: "NOT_STARTED" }],
         },
         {
-          id: "__root__",
-          title: "Unfiled",
+          id: "tag-__none__",
+          title: "No tag",
           cards: [{ id: "root-1", title: "Loose task", status: "NOT_STARTED" }],
         },
       ],
     });
-    expect(screen.getByText("Unfiled")).toBeInTheDocument();
+    expect(screen.getByText("No tag")).toBeInTheDocument();
     expect(screen.getByText("Loose task")).toBeInTheDocument();
   });
 

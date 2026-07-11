@@ -13,6 +13,10 @@ import { cn } from "./cn";
  * come via props (CLAUDE.md §6.4); the host (web TrashScreen) fetches the
  * soft-deleted rows and resolves i18n.
  *
+ * Layout Standard v2: the shell's standard SectionHeader owns the section
+ * title, so this view renders no in-body heading — content starts at the
+ * category groups (per-group counts stay as badges).
+ *
  * Danger asymmetry (brief §3): restore is the labeled primary affordance,
  * permanent delete stays an icon-only danger button one step quieter, and
  * always passes through an explicit confirm step (Modal on wide, BottomSheet
@@ -24,11 +28,7 @@ import { cn } from "./cn";
 
 /** The five soft-delete categories surfaced in the web build (W2 scope). */
 export type TrashCategory =
-  | "tasks"
-  | "notes"
-  | "dailies"
-  | "routines"
-  | "events";
+  "tasks" | "notes" | "dailies" | "routines" | "events";
 
 export interface TrashItem {
   id: string;
@@ -53,12 +53,6 @@ export interface TrashBusy {
 }
 
 export interface TrashViewLabels {
-  /** Screen heading. */
-  title: string;
-  /** Header sub-line ("items can be restored from here…"). */
-  description: string;
-  /** Header total-count template. `{count}` is substituted. */
-  totalCount: string;
   /** Shown when every category is empty. */
   empty: string;
   /** Sub-line under the global empty state. */
@@ -180,27 +174,6 @@ export function TrashView({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h1 className="text-xl font-semibold text-lumen-text">
-            {labels.title}
-          </h1>
-          <p className="text-sm leading-relaxed text-lumen-text-secondary">
-            {labels.description}
-          </p>
-        </div>
-        {totalCount > 0 ? (
-          <span
-            className={cn(
-              "mt-1 shrink-0 whitespace-nowrap text-sm tabular-nums",
-              "text-lumen-text-secondary",
-            )}
-          >
-            {labels.totalCount.replace("{count}", String(totalCount))}
-          </span>
-        ) : null}
-      </header>
-
       {totalCount === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <Trash2
@@ -263,7 +236,9 @@ export function TrashView({
                     aria-busy={rowBusy ? true : undefined}
                     className={cn(
                       "flex items-center",
-                      wide ? "gap-3 py-2 pl-4 pr-3" : "gap-2 py-1.5 pl-3.5 pr-1.5",
+                      wide
+                        ? "gap-3 py-2 pl-4 pr-3"
+                        : "gap-2 py-1.5 pl-3.5 pr-1.5",
                       rowBusy && "bg-lumen-bg-subsidebar",
                       anyBusy && !rowBusy && "opacity-60",
                     )}

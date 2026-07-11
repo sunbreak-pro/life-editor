@@ -42,9 +42,6 @@ function makeCommands(spy: () => void): Command[] {
 }
 
 const TRASH_LABELS: TrashViewLabels = {
-  title: "Trash",
-  description: "Deleted items can be restored from here.",
-  totalCount: "{count} total",
   empty: "Trash is empty",
   emptyDescription: "Deleted items will appear here.",
   restore: "Restore",
