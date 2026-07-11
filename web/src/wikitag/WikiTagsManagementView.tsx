@@ -448,8 +448,11 @@ export function WikiTagsManagementView() {
 
   // ---- Desktop --------------------------------------------------------
 
-  // PageContainer (reading) owns width, gutter and the document scroll — the
-  // card renders content-height instead of filling and self-scrolling.
+  // PageContainer owns width, gutter and the document scroll — the card renders
+  // content-height instead of filling and self-scrolling. v2 §5 unifies materials
+  // to full width (素の全幅): once #203 flips this tab from reading to full the
+  // card spans the gutter-padded full width (until then it renders in the reading
+  // column).
   const desktopBody = (
     <div className="flex flex-col">
       <div className="flex w-full justify-end pb-3">
