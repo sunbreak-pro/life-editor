@@ -137,4 +137,4 @@ web/src/<section>/**              ← adoption（各 refine・自セクション
 
 ## Worklog
 
-- 2026-07-11: 計画作成（chat-docs-workspace）。ユーザー要件 1〜5 を精査し v2 標準定義として整理。進め方（v2 先行 + life-tags 別計画）を AskUserQuestion で確定。v2 Issue 起票は権限承認待ちのため Step 2 に配置
+- 2026-07-11: Step 3 共通部品実装（chat-layout-standard）。§1 `SectionHeader`（タイトル or タブ帯 + 右端コントロール + 全幅区切り線）/ §5 `PageWidthToggle`（wide・narrow 2 段・icon=lucide UnfoldHorizontal / FoldHorizontal・`usePageWidthPrefs` で localStorage 永続化）/ §4 AppShell に `header` スロット新設（wide レイアウトを「サイドバー | ヘッダー行 → main+パネル行」の縦積みへ構造変更）/ §3 `sections.ts` の `rightSidebar` フラグ廃止（トグル全セクション常設・analytics / trash は共有 empty state がプレースホルダー）→ `defaultPageWidth` に置換（§5 初期値表の runtime SSOT）/ PageContainer に `full` variant 追加（document 面の wide = gutter 付き全幅。fluid はキャンバス面専用）。**実装判断**: materials の幅 scope はサブタブ単位（`materials:<tab>`・初期値 tasks=wide / 他 narrow = 現状の見た目維持）で暫定実装 — materials-refine へ outbox で調整打診。mobile は §非goal どおり不変（幅タブ・標準ヘッダーは wide のみ / narrow は v1 の行を維持・Desktop の幅選択が mobile に漏れない静的マッピング）。過渡期: Schedule のタブ帯/トグル二重表示は schedule-refine の adoption で撤去（orders 記載済）
