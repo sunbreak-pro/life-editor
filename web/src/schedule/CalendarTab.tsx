@@ -780,7 +780,7 @@ export function CalendarTab({
     return (
       <>
         {sidebarPortal}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4 pt-3 md:px-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pb-4 pt-3 md:px-lumen-gutter-wide">
           <ScheduleToolbar
             className="shrink-0 flex-wrap gap-y-2"
             periodLabel={periodLabel}
@@ -859,7 +859,7 @@ export function CalendarTab({
   return (
     <>
       {sidebarPortal}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
         <div className="flex shrink-0 items-center gap-2">
           <RightSidebarToggle
             variant="hamburger"

@@ -21,12 +21,12 @@ boot 行:
 ## 今すぐ着手可（v2 部品を待たない）
 
 - section:settings の open Issue は **2026-07-11 時点で 0 件**
-- **#181 settings 行（v1 adoption）**: SettingsScreen の `max-w-[768px]` 二重センタリング解消 → 標準幅へ。完了したら #181 の自分の行をチェック
+- **#181 settings 行（v1 adoption）**: SettingsScreen の `max-w-[768px]` 二重センタリング解消 → 標準へ（幅基準は 2026-07-11 に wide 統一へ変更 — 親計画 §5）。完了したら #181 の自分の行をチェック
 
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 
 - タイトル（h1）はあるが**区切り線が無い** → 標準セクションヘッダー（タイトル + 区切り線 + 右端アイコン群）へ移行し、自前 h1 + 説明文まわりの重複を整理
-- **幅切替タブ**: 初期値は親計画 §5 の表が正（転記しない）。wide 時の設定カード列の伸び・行長の確認
+- **幅は全画面 wide 統一**（幅切替タブは 2026-07-11 廃止 — 親計画 §5）: settings は reading 幅中央寄せ → 全幅へ変わる主対象。設定カード列の伸び・行長の確認
 - SettingsDetailPanel が「区切り線の下で開閉」に変わった後の表示確認
 
 ## 後続: life-tags（[兄弟計画](./2026-07-11-life-tags-unification.md)参照・着手は合図待ち）

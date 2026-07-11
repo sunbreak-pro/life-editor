@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseNotesUnifiedService } from "../src/services/SupabaseNotesUnifiedService";
 import type { NoteNode } from "../src/types/note";
+import { hashPassword, verifyPassword } from "../src/utils/passwordHash";
+
+// Low iteration count for the fixtures — still inside the accepted
+// [100_000, 1_000_000] range so verify's range check passes.
+const TEST_ITER = 100_000;
 
 /*
  * Service-level tests for SupabaseNotesUnifiedService (DU-G PR1). Unlike
@@ -23,8 +28,11 @@ import type { NoteNode } from "../src/types/note";
  * "is_deleted=true" / "role='note'" filter shape is asserted via
  * `.calls`, not via subset filtering.
  *
- * No bcrypt / crypto: legacy plaintext-equality contract preserved (see
- * SupabaseNotesUnifiedService password gate header for the rationale).
+ * Password gate (Issue #118): password_hash now stores a PBKDF2 string
+ * (utils/passwordHash.ts), not plaintext. verify accepts a legacy plaintext
+ * row and lazily rehashes it via a payload-only UPDATE (no items_meta bump —
+ * see the service's lazyRehashNotePassword rationale). These tests stage real
+ * PBKDF2 fixtures (low iteration count) and plaintext fixtures to cover both.
  */
 
 // ---------------------------------------------------------------------------
@@ -611,13 +619,18 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       const out = await service.setNotePasswordUnified("note-001", "secret");
       expect(out.hasPassword).toBe(true);
 
-      // Assert payload UPDATE patch carries password_hash plaintext (parity).
+      // Assert payload UPDATE patch carries a PBKDF2 hash (NOT plaintext) that
+      // verifies back to the original password (Issue #118).
       const payUpdate = stub.calls.find(
         (c) => c.table === "notes_payload" && c.op === "update",
       );
       expect(payUpdate).toBeDefined();
       const payPatch = payUpdate!.args[0] as { password_hash: string };
-      expect(payPatch.password_hash).toBe("secret");
+      expect(payPatch.password_hash).not.toBe("secret");
+      expect(payPatch.password_hash.startsWith("pbkdf2$v1$")).toBe(true);
+      expect((await verifyPassword("secret", payPatch.password_hash)).ok).toBe(
+        true,
+      );
 
       // Assert meta UPDATE patch carries version bump (4 -> 5) + updated_at.
       const metaUpdate = stub.calls.find(
@@ -665,9 +678,10 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
     });
 
     it("nulls password_hash + bumps version on a matching password", async () => {
-      // verify: match
+      // verify: match against an already-hashed row (no lazy rehash fires).
+      const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("notes_payload", "select", {
-        data: { password_hash: "secret" },
+        data: { password_hash: hashed },
         error: null,
       });
       // nextVersion
@@ -705,24 +719,74 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("verifyNotePasswordUnified", () => {
-    it("returns true when the plaintext password matches", async () => {
+    it("returns true for a matching PBKDF2 hash (no rehash write)", async () => {
+      const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("notes_payload", "select", {
-        data: { password_hash: "secret" },
+        data: { password_hash: hashed },
         error: null,
       });
       await expect(
         service.verifyNotePasswordUnified("note-001", "secret"),
       ).resolves.toBe(true);
+      // Already hashed => no lazy rehash UPDATE.
+      expect(
+        stub.calls.find(
+          (c) => c.table === "notes_payload" && c.op === "update",
+        ),
+      ).toBeUndefined();
     });
 
     it("returns false when the password is wrong", async () => {
+      const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("notes_payload", "select", {
-        data: { password_hash: "secret" },
+        data: { password_hash: hashed },
         error: null,
       });
       await expect(
         service.verifyNotePasswordUnified("note-001", "nope"),
       ).resolves.toBe(false);
+    });
+
+    it("legacy plaintext: verify succeeds and lazily rehashes (payload-only UPDATE, no items_meta write)", async () => {
+      // verify read: legacy plaintext row
+      stub.stage("notes_payload", "select", {
+        data: { password_hash: "secret" },
+        error: null,
+      });
+      // rehash payload UPDATE
+      stub.stage("notes_payload", "update", { data: null, error: null });
+
+      await expect(
+        service.verifyNotePasswordUnified("note-001", "secret"),
+      ).resolves.toBe(true);
+
+      // The rehash is a single payload UPDATE carrying a PBKDF2 hash...
+      const payUpdates = stub.calls.filter(
+        (c) => c.table === "notes_payload" && c.op === "update",
+      );
+      expect(payUpdates).toHaveLength(1);
+      const patch = payUpdates[0].args[0] as { password_hash: string };
+      expect(patch.password_hash.startsWith("pbkdf2$v1$")).toBe(true);
+      expect((await verifyPassword("secret", patch.password_hash)).ok).toBe(
+        true,
+      );
+      // ...and DB-Q2 exception: NO items_meta write (no updated_at reorder).
+      expect(stub.calls.find((c) => c.table === "items_meta")).toBeUndefined();
+    });
+
+    it("legacy plaintext: still returns true when the rehash write fails (best-effort)", async () => {
+      stub.stage("notes_payload", "select", {
+        data: { password_hash: "secret" },
+        error: null,
+      });
+      // rehash UPDATE fails — must be swallowed, verify still true.
+      stub.stage("notes_payload", "update", {
+        data: null,
+        error: { message: "rehash-write-failed" },
+      });
+      await expect(
+        service.verifyNotePasswordUnified("note-001", "secret"),
+      ).resolves.toBe(true);
     });
 
     it("returns false when no hash is set (hasPassword=false)", async () => {
@@ -746,9 +810,11 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       // The dedicated verify path is the ONLY one that touches the raw
       // hash. Other reads must stay on NOTES_PAYLOAD_COLUMNS which never
       // names password_hash. This guards against an accidental widening
-      // (security regression).
+      // (security regression). Stage a hashed row so no rehash SELECT/UPDATE
+      // muddies the assertion.
+      const hashed = await hashPassword("x", TEST_ITER);
       stub.stage("notes_payload", "select", {
-        data: { password_hash: "x" },
+        data: { password_hash: hashed },
         error: null,
       });
       await service.verifyNotePasswordUnified("note-001", "x");
