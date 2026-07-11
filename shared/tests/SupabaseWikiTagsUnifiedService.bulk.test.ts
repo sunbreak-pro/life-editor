@@ -54,6 +54,14 @@ function makeStub() {
         calls.push({ table, op: "eq", args: [_col, _val] });
         return builder;
       },
+      order(_col: string, _opts: unknown) {
+        calls.push({ table, op: "order", args: [_col, _opts] });
+        return builder;
+      },
+      range(_from: number, _to: number) {
+        calls.push({ table, op: "range", args: [_from, _to] });
+        return builder;
+      },
       then(resolve: (v: StagedResult) => unknown) {
         return Promise.resolve(result()).then(resolve);
       },
