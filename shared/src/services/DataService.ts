@@ -81,11 +81,7 @@ import type {
  * - "notes":    notes rows
  */
 export type CalendarDataKind =
-  | "tasks"
-  | "events"
-  | "routines"
-  | "dailies"
-  | "notes";
+  "tasks" | "events" | "routines" | "dailies" | "notes";
 
 export interface BulkSoftDeleteResult {
   tasks: number;
@@ -283,6 +279,7 @@ export interface DataService {
     noteId?: string,
     isAllDay?: boolean,
     content?: string,
+    memo?: string,
   ): Promise<ScheduleItem>;
   updateScheduleItem(
     id: string,

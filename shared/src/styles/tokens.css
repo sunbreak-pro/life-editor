@@ -96,6 +96,19 @@
   --color-chip-event-bg: #f3e8ff;
   --color-chip-event-fg: #6d28d9;
   --color-chip-event-dot: #8b5cf6;
+  /* Schedule status tag (#222). The derived-status pill on calendar surfaces
+     (notStarted=grey / inProgress=blue / done=green). Distinct from the Kanban
+     status bands (progress=amber there) — this is a schedule-only semantic set
+     the user fixed (grey/blue/green). Each has fg (text) / border / bg (tint). */
+  --color-schedule-tag-notstarted-bg: #f1f5f9;
+  --color-schedule-tag-notstarted-fg: #64748b;
+  --color-schedule-tag-notstarted-border: #cbd5e1;
+  --color-schedule-tag-inprogress-bg: #dbeafe;
+  --color-schedule-tag-inprogress-fg: #2563eb;
+  --color-schedule-tag-inprogress-border: #93c5fd;
+  --color-schedule-tag-done-bg: #ecfdf5;
+  --color-schedule-tag-done-fg: #047857;
+  --color-schedule-tag-done-border: #6ee7b7;
   /* Task chip mirrors the primary accent (was the old teal). Retuned to the
      cobalt family so "task" reads as the brand color, not a stray blue. */
   --color-chip-task-bg: #dbeafe;
@@ -188,6 +201,16 @@
   --color-chip-event-bg: #2e1065;
   --color-chip-event-fg: #c4b5fd;
   --color-chip-event-dot: #a78bfa;
+  /* Schedule status tag (#222) dark counterparts (grey/blue/green). */
+  --color-schedule-tag-notstarted-bg: #1e293b;
+  --color-schedule-tag-notstarted-fg: #94a3b8;
+  --color-schedule-tag-notstarted-border: #475569;
+  --color-schedule-tag-inprogress-bg: #1e2a48;
+  --color-schedule-tag-inprogress-fg: #93c5fd;
+  --color-schedule-tag-inprogress-border: #3b5b80;
+  --color-schedule-tag-done-bg: #052e1f;
+  --color-schedule-tag-done-fg: #6ee7b7;
+  --color-schedule-tag-done-border: #10b981;
   --color-chip-task-bg: #1d2348;
   --color-chip-task-fg: #aebcff;
   --color-chip-task-dot: #5b8cff;
@@ -274,6 +297,30 @@
   --color-lumen-chip-event-bg: var(--color-chip-event-bg);
   --color-lumen-chip-event-fg: var(--color-chip-event-fg);
   --color-lumen-chip-event-dot: var(--color-chip-event-dot);
+  /* Schedule status tag (#222) → bg-/border-/text-lumen-schedule-tag-*-*.
+     ScheduleStatusTag paints the derived status with these (no hardcoded
+     colors, §6). notStarted=grey / inProgress=blue / done=green. */
+  --color-lumen-schedule-tag-notstarted-bg: var(
+    --color-schedule-tag-notstarted-bg
+  );
+  --color-lumen-schedule-tag-notstarted-fg: var(
+    --color-schedule-tag-notstarted-fg
+  );
+  --color-lumen-schedule-tag-notstarted-border: var(
+    --color-schedule-tag-notstarted-border
+  );
+  --color-lumen-schedule-tag-inprogress-bg: var(
+    --color-schedule-tag-inprogress-bg
+  );
+  --color-lumen-schedule-tag-inprogress-fg: var(
+    --color-schedule-tag-inprogress-fg
+  );
+  --color-lumen-schedule-tag-inprogress-border: var(
+    --color-schedule-tag-inprogress-border
+  );
+  --color-lumen-schedule-tag-done-bg: var(--color-schedule-tag-done-bg);
+  --color-lumen-schedule-tag-done-fg: var(--color-schedule-tag-done-fg);
+  --color-lumen-schedule-tag-done-border: var(--color-schedule-tag-done-border);
   /* Elevation tokens → shadow-lumen-sm / -md / -lg utilities. Theme-aware
      (the underlying --shadow-elevation-* vars switch with [data-theme]). */
   --shadow-lumen-sm: var(--shadow-elevation-sm);

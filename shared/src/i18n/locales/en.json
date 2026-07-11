@@ -1182,7 +1182,13 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "tabDetail": "Detail",
-    "detailPanelLabel": "Detail panel"
+    "detailPanelLabel": "Detail panel",
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "copySuffix": " (copy)",
+    "statusNotStarted": "Not started",
+    "statusInProgress": "In progress",
+    "statusDone": "Done"
   },
   "schedulePanel": {
     "existingTasks": "Existing Tasks",

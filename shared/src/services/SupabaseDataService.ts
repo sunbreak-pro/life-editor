@@ -1414,6 +1414,7 @@ class SupabaseScheduleItemsService {
     noteId?: string,
     isAllDay?: boolean,
     content?: string,
+    memo?: string,
   ): Promise<ScheduleItem> {
     void templateId; // dropped — no events_payload column
     void noteId; // dropped — events<->notes use wiki_tag_connections
@@ -1430,7 +1431,7 @@ class SupabaseScheduleItemsService {
       completedAt: null,
       routineId: routineId ?? null,
       templateId: null,
-      memo: null,
+      memo: memo ?? null,
       noteId: null,
       content: null,
       isDeleted: false,

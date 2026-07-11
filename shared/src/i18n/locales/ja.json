@@ -1182,7 +1182,13 @@
     "openMenu": "メニューを開く",
     "closeMenu": "メニューを閉じる",
     "tabDetail": "詳細",
-    "detailPanelLabel": "詳細パネル"
+    "detailPanelLabel": "詳細パネル",
+    "rename": "名称の変更",
+    "duplicate": "複製",
+    "copySuffix": "（コピー）",
+    "statusNotStarted": "未着手",
+    "statusInProgress": "着手中",
+    "statusDone": "完了"
   },
   "schedulePanel": {
     "existingTasks": "既存タスク",

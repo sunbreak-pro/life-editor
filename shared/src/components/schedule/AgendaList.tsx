@@ -1,7 +1,9 @@
 import { Fragment, useMemo } from "react";
-import { Check, Repeat } from "lucide-react";
+import { Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { minutesFromMidnight } from "../../utils/scheduleGridLayout";
+import { ScheduleStatusTag } from "./ScheduleStatusTag";
+import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
  * AgendaList (W8 target-IA) — pure, presentational day agenda. Backs the
@@ -22,6 +24,8 @@ export interface AgendaItem {
   endTime: string; // HH:MM
   isAllDay?: boolean;
   completed?: boolean;
+  /** Derived status (#222) — drives the row-end status tag. */
+  status?: ScheduleStatus;
   variant?: "routine" | "event";
 }
 
@@ -34,6 +38,8 @@ export interface AgendaListLabels {
   nowLabel?: string;
   /** Accessible name for the per-row completion toggle. */
   complete?: string;
+  /** Already-translated status-tag labels (#222). */
+  statusLabels?: Record<ScheduleStatus, string>;
 }
 
 export interface AgendaListProps {
@@ -137,22 +143,23 @@ export function AgendaList({
             />
           )}
         </button>
-        {onToggleComplete && !it.isAllDay && (
-          <button
-            type="button"
-            aria-pressed={!!it.completed}
-            aria-label={labels.complete}
-            onClick={() => onToggleComplete(it.id)}
-            className={cn(
-              "flex size-[18px] shrink-0 items-center justify-center rounded-full border-2",
-              FOCUS,
-              it.completed
-                ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
-                : "border-lumen-border-strong text-transparent",
-            )}
-          >
-            <Check aria-hidden className="size-2.5" strokeWidth={3} />
-          </button>
+        {it.status && labels.statusLabels && (
+          <span className="shrink-0 pr-1">
+            {/* Timed rows: the tag toggles completion (replaces the old round
+                check). All-day rows keep the tag informational (they had no
+                toggle before), so pass onClick only when timed. */}
+            <ScheduleStatusTag
+              status={it.status}
+              label={labels.statusLabels[it.status]}
+              ariaLabel={labels.complete}
+              pressed={it.completed}
+              onClick={
+                onToggleComplete && !it.isAllDay
+                  ? () => onToggleComplete(it.id)
+                  : undefined
+              }
+            />
+          </span>
         )}
       </li>
     );
