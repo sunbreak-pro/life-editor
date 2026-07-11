@@ -1935,7 +1935,8 @@ class SupabaseScheduleItemsService {
 /*
  * Calendars domain (S4-2). VERSIONED but PHYSICAL-delete (0006 omits
  * is_deleted — the frontend never soft-deletes a calendar). 1:1 port of
- * src-tauri/src/db/calendar_repository.rs.
+ * the retired Tauri calendar_repository.rs (removed 2026-07-11, see tag
+ * `pre-tauri-removal`).
  *
  * PARITY DIVERGENCE (documented, not silent): the Rust `update` accepts
  * `folderId` too, but the S4-1 QA-passed `calendarUpdatesToPatch`
