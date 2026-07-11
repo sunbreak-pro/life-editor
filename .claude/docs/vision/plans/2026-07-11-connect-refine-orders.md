@@ -26,7 +26,7 @@ boot 行:
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 
 - ConnectHeader（自前の `border-b` 付きタイトルタブ）を**標準セクションヘッダーへ移行**し、MainScreen 側 sectionToolbar 経由だった rightSidebar トグル配線の重複を撤去
-- **幅切替タブ**: 初期値 wide。narrow 時のグラフキャンバス挙動を実測 — 成立しない場合は親計画の未定事項ルートで報告（connect はタブ無効化検討の筆頭候補）
+- **幅切替タブ**: 初期値は親計画 §5 の表が正（connect は推論値 — 表の注記参照）。narrow 時のグラフキャンバス挙動を実測 — 成立しない場合は親計画の未定事項ルートで報告（connect はタブ無効化検討の筆頭候補）
 - graph settings / backlinks パネルが「区切り線の下で開閉」に変わった後の表示確認
 
 ## 後続: life-tags（[兄弟計画](./2026-07-11-life-tags-unification.md)参照・着手は合図待ち）

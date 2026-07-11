@@ -48,19 +48,21 @@ Parent: 2026-07-10-layout-unification-fanout.md
 ### §5 幅切替 2 段タブ
 
 - 位置: rightSidebar トグルの**直左**（全セクション共通）
-- 2 値: **wide「広い」= 全幅**（現 schedule / connect / materials→Tasks の見た目）/ **narrow「狭い」= reading 幅 768px 中央寄せ**（現 work / settings / trash の見た目）。幅・gutter の実値は v1 のトークンが正
+- 2 値: **wide「広い」= 全幅**（現 schedule / connect / materials→Tasks の見た目）/ **narrow「狭い」= reading 幅（`--container-lumen-reading`）中央寄せ**（現 work / settings / trash の見た目）。幅・gutter の実値は v1 のトークン（`shared/src/styles/tokens.css`）が正 — 本計画に生値は書かない
 - 両方に**アイコン + ラベル**のセット（アイコン選定は実装判断・lucide から）
-- 選択は**セクション単位で永続化**（localStorage — RightSidebar width と同じ流儀）。初期値 = 現状の見た目:
+- 選択は**セクション単位で永続化**（localStorage — RightSidebar width と同じ流儀）。**初期値の正本 = 下表**（orders 側には転記しない）。初期値 = 現状の見た目:
 
-| section   | 幅タブ初期値                                    |
-| --------- | ----------------------------------------------- |
-| schedule  | wide                                            |
-| materials | wide（サブタブ単位の扱いは未定事項参照）        |
-| connect   | wide                                            |
-| work      | narrow                                          |
-| analytics | wide（data 列 1000px 維持 — v1 実装判断の継承） |
-| settings  | narrow                                          |
-| trash     | narrow                                          |
+| section   | 幅タブ初期値                                                        |
+| --------- | ------------------------------------------------------------------- |
+| schedule  | wide                                                                |
+| materials | wide（サブタブ単位の扱いは未定事項参照）                            |
+| connect   | wide ※                                                              |
+| work      | narrow                                                              |
+| analytics | wide ※（data 列 `--container-lumen-data` 維持 — v1 実装判断の継承） |
+| settings  | narrow                                                              |
+| trash     | narrow                                                              |
+
+※ connect / analytics はユーザー要件 5 で例示されていないため、現状の見た目からの**推論値**（ユーザー確認前提 — 変更指示があれば本表のみ更新）
 
 ### 未定事項（未定のまま進めて OK・確定したら本節を更新）
 

@@ -27,7 +27,7 @@ boot 行:
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 
 - ScheduleScreen は HeaderTabs の trailing に自前で rightSidebar トグルを配線している → **標準セクションヘッダーへ移行**し重複配線を撤去
-- **幅切替タブ**: 初期値 wide（親計画の初期値表が正）。narrow 時にカレンダーグリッドが「詰まって醜い」場合は親計画の未定事項ルートで報告（そのセクションのみタブ無効化の検討材料）
+- **幅切替タブ**: 初期値は親計画 §5 の表が正（転記しない）。narrow 時にカレンダーグリッドが「詰まって醜い」場合は親計画の未定事項ルートで報告（そのセクションのみタブ無効化の検討材料）
 - rightSidebar パネル（今日の流れ / item detail タブ — #187 成果）が「区切り線の下で開閉」に変わった後の表示確認
 
 ## 後続: life-tags（[兄弟計画](./2026-07-11-life-tags-unification.md)参照・着手は合図待ち）
