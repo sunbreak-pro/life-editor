@@ -1,5 +1,22 @@
 # HISTORY (chat-layout-standard)
 
+### 2026-07-11 - Layout Standard v2 共通部品（draft PR #196）
+
+#### 概要
+
+親計画 2026-07-11-layout-standard-v2.md の標準定義 §1〜§5 を v2 共通部品として実装（Step 3）。全 7 セクションに共通セクションヘッダー・幅切替 2 段タブ・rightSidebar トグル常設を配線し、パネルがヘッダー区切り線の下で開閉する AppShell 構造に変更した。
+
+#### 変更点
+
+- **SectionHeader 新設**: 左 = タイトル or タブ帯（HeaderTabs divider={false}）/ 右端 = 幅タブ → パネルトグル / 直下に全幅区切り線。v1 gutter トークンで左端整列
+- **PageWidthToggle + usePageWidthPrefs 新設**: wide「広い」/ narrow「狭い」（lucide UnfoldHorizontal / FoldHorizontal・radiogroup）。localStorage 1 キーの scope→mode マップでセクション単位永続化（materials はサブタブ単位暫定 — outbox で materials-refine へ調整打診）
+- **AppShell**: `header` スロット新設。wide を「サイドバー | (ヘッダー行 → main+RightSidebar 行)」の縦積みへ構造変更（§4）。narrow は不変（mobile non-goal）
+- **sections.ts**: `rightSidebar` フラグ + SECTION_HAS_RIGHT_SIDEBAR 廃止（トグル全セクション常設・analytics/trash は共有 empty state がプレースホルダー）→ `defaultPageWidth` + SECTION_DEFAULT_PAGE_WIDTH に置換（§5 初期値表の runtime SSOT）
+- **PageContainer**: `full` variant 追加（document 面の wide = gutter 付き全幅・スクロール維持）
+- **MainScreen**: 標準ヘッダー配線・旧 sectionToolbar/materialsTabSwitcher の wide 分を撤去（mobile 行は維持）・幅タブ → PageContainer マッピング（narrow=reading / wide=fluid or full）
+- **i18n**: layout.width / widthWide / widthNarrow を en/ja 両 catalog に追加
+- **検証**: shared tsc -b + 781 tests PASS / web build PASS / playwright 7 セクション smoke PASS（console 0・パネル開閉前後でコントロール座標完全一致・push 実測 1530↔1210・永続化リロード実測）。所見 2 件（settings 内部 max-w cap・settings/trash タイトル二重）は adoption 領分として outbox 連絡済み
+
 ### 2026-07-11 - Layout Standard v1 共通部品（Issue #180）
 
 #### 概要
