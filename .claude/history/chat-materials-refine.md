@@ -1,6 +1,18 @@
 # HISTORY (chat-materials-refine)
 
-### 2026-07-11 - Layout Standard v2 adoption 着手（#207 起票・#203 依存で先行準備）
+### 2026-07-11 - life-tags 統一 Step 2 詳細設計（#225 起票・実測込み設計・S2 合意依頼）+ #118 後始末
+
+#### 概要
+
+life-tags 統一（folder 廃止 → WikiTag 一本化）の Materials 領分に着手。Supabase 本番の read-only 実測を根拠に、計画書へ Step 2 詳細設計（平坦化規則・変換 migration + 検証クエリ + rollback・UI 波及・S1/S2/S3 ステージング）を追記し Status → IN PROGRESS。あわせて merge 済み PR #195（#118 パスワードハッシュ化）の DoD 後始末を実施。
+
+#### 変更点
+
+- **Issue #225 起票**: type:task + shared-fix・タイトル prefix [materials-refine]。共有コアの単一書込者 = materials-refine（chat-main 采配）
+- **実データ実測（Supabase Management API read-only SQL）**: active folder = tasks 3 + notes 2（全ルート直下・入れ子なし）/ deleted 6 は全て folder_type='complete' / folder 直下 active アイテムは task 1 件のみ / calendars **0 行** / タグ名衝突 0 / user 2 名義（set-based 必須）。**MCP life-editor は旧 SQLite 読みで本番と別データ**と判明（実測は Supabase 側を正とした）
+- **設計確定**: 平坦化 = 直近 folder 名のみ付与 / 'complete' folder は変換対象外 / 同名は 1 タグへ dedupe（partial unique `uq_wiki_tags_name` 準拠）/ 直下アイテム re-root（tasks は original_parent_id 退避・notes は移行ログ）/ folder はソフトデリート保持 / 期待値 = 5 タグ・1 assignment・1 re-root
+- **outbox → schedule-refine**: CalendarView の folder バインド置換（S2）の合意依頼。NodeType folder 除去（S3）は S2 完了後のみと約束
+- **#118 後始末**: PR #195 merge 確認 → plan COMPLETED + `.claude/archive/` 移動・memory 更新
 
 #### 概要
 
