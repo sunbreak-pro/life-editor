@@ -8,6 +8,7 @@
 > 🧭 **種別の区別（2026-07-05・#155）**: 下記のうち一部は「プロダクト課題」ではない。
 >
 > - **環境系（Claude Code 作業環境・Issue 化対象外）**: `026`（PostToolUse formatter 挙動）/ `028`（Bash cwd 漂流）。life-editor のコードを直しても直らないため、追跡は本ディレクトリ + `rules/` で行い GitHub Issue には積まない（起票済みの #117/#119 は整理のため close 済み）。
+> - **Tauri retired（2026-07-11 #197）**: 旧 Tauri スタック（`frontend/` + `src-tauri/`）は削除済み（復元 = git tag `pre-tauri-removal`）。Tauri 時代のパスを含む Fixed 項目には各ファイル冒頭に retired 注記を付与済み。
 > - **移行で解消**: `006`（Desktop app_data_dir 分裂）は Tauri → Web/Electron 移行で問題自体が消滅する見込み（#120 は close 済み）。
 
 ---
