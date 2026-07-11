@@ -42,7 +42,6 @@
     "editOnDesktop": "Edit links from the desktop app"
   },
   "settings": {
-    "title": "Settings",
     "general": "General",
     "notificationsTab": "Notifications",
     "dataTab": "Data",
@@ -319,7 +318,6 @@
         "edit": "Editing"
       }
     },
-    "pageDescription": "Adjust appearance, language, and keyboard shortcuts here. Changes apply immediately.",
     "appearance": "Appearance",
     "theme": "Theme",
     "light": "Light",
