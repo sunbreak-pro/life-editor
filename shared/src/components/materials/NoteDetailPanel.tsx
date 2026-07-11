@@ -117,6 +117,14 @@ export interface NoteDetailPanelProps {
   linksLabel: string;
   /** Host-injected link list. Omitted → the links section is hidden. */
   linksSlot?: ReactNode;
+  /**
+   * Surface treatment. "sidebar" (default) is the compact card the Notes tab
+   * pushes into the rightSidebar. "main" is the larger centered editor surface
+   * (opaque lumen-surface, roomier padding, taller content floor) used when the
+   * detail is the tab's main content. Additive — omitting it keeps the original
+   * sidebar look, so existing callers are unaffected.
+   */
+  variant?: "sidebar" | "main";
   className?: string;
 }
 
@@ -136,12 +144,17 @@ export function NoteDetailPanel({
   contentEditor,
   linksLabel,
   linksSlot,
+  variant = "sidebar",
   className,
 }: NoteDetailPanelProps) {
+  const isMain = variant === "main";
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-3",
+        "flex flex-col border border-lumen-border",
+        isMain
+          ? "gap-4 rounded-lumen-lg bg-lumen-surface p-5 shadow-lumen-sm"
+          : "gap-3 rounded-lumen-md bg-lumen-bg-secondary p-3",
         className,
       )}
     >
@@ -194,7 +207,14 @@ export function NoteDetailPanel({
           only the caption + a min-height floor via the wrapper — no competing
           border/surface (avoids a double frame). */}
       {contentEditor != null && (
-        <div className="flex flex-col gap-1 [&_.note-editor]:min-h-[220px]">
+        <div
+          className={cn(
+            "flex flex-col gap-1",
+            isMain
+              ? "[&_.note-editor]:min-h-[420px]"
+              : "[&_.note-editor]:min-h-[220px]",
+          )}
+        >
           <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
             {contentLabel}
           </span>

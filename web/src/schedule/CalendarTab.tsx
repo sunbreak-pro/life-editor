@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
+  useRightSidebarOptional,
   useTranslation,
   useMediaQuery,
   WeekTimeGrid,
@@ -13,6 +14,7 @@ import {
   RoutineSummaryCard,
   RightSidebarPortal,
   RightSidebarToggle,
+  ScheduleSidebarTabs,
   SegmentedControl,
   BottomSheet,
   Modal,
@@ -189,11 +191,17 @@ export function CalendarTab({
     deleteScheduleItem,
   } = useScheduleItemsContext();
   const { routines } = useRoutineContext();
+  // Null-safe: the section can render without a RightSidebarProvider (tests /
+  // standalone). `open` re-opens the panel when a calendar item is picked.
+  const rightSidebar = useRightSidebarOptional();
+  const openSidebar = rightSidebar?.open;
 
   const today = useMemo(() => todayLocalKey(), []);
   const [anchorDate, setAnchorDate] = useState(today);
   const [view, setView] = useState("week");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Which rightSidebar tab is showing on Desktop ("今日の流れ" ↔ "詳細").
+  const [sidebarTab, setSidebarTab] = useState<"flow" | "detail">("flow");
   const [rangeItems, setRangeItems] = useState<ScheduleItem[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [calendarsOpen, setCalendarsOpen] = useState(false);
@@ -207,6 +215,21 @@ export function CalendarTab({
     const id = setInterval(() => setNowMinutes(nowMinutesLocal()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Unified item selection. On Desktop it also flips the shared rightSidebar to
+  // its "詳細" tab and opens the panel if collapsed (done here, at the event, not
+  // in an effect — react-hooks/set-state-in-effect). Mobile keeps the editor in
+  // its BottomSheet, so the tab/open side-effects are wide-only.
+  const handleSelectItem = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      if (isWide) {
+        setSidebarTab("detail");
+        openSidebar?.();
+      }
+    },
+    [isWide, openSidebar],
+  );
 
   // The single `view` state carries both layouts; each layout normalises it to
   // its own option set (Desktop day/week/month ↔ Mobile list/time/month) so a
@@ -315,9 +338,9 @@ export function CalendarTab({
         end,
         t("scheduleCalendar.newEvent"),
       );
-      setSelectedId(id);
+      handleSelectItem(id);
     },
-    [createAtTimes, t],
+    [createAtTimes, handleSelectItem, t],
   );
 
   const handleAddEvent = useCallback(() => {
@@ -327,11 +350,11 @@ export function CalendarTab({
       "10:00",
       t("scheduleCalendar.newEvent"),
     );
-    setSelectedId(id);
+    handleSelectItem(id);
     // The month layout has no editor pane, so adding from it would leave the
     // new event selected but uneditable — jump to the day view instead.
     if (desktopView === "month") setView("day");
-  }, [createAtTimes, anchorDate, t, desktopView]);
+  }, [createAtTimes, handleSelectItem, anchorDate, t, desktopView]);
 
   const handleQuickAdd = useCallback(
     (title: string, start: string, end: string) => {
@@ -654,31 +677,90 @@ export function CalendarTab({
   const showLoading = isLoading && rangeItems.length === 0;
   const showError = !!error;
 
-  // "今日の流れ" — pushed into the shared detail panel (AppShell owns the frame).
-  const todayFlow = (
-    <RightSidebarPortal>
-      <div className="flex flex-col gap-3 p-1">
-        <div className="flex flex-col gap-0.5">
+  // Shared rightSidebar (AppShell owns the frame). Desktop shows a 2-tab
+  // switcher ("今日の流れ" ↔ "詳細") inside ONE portal so contentCount stays 1;
+  // Mobile shows only the flow (its item editor lives in the BottomSheet below).
+  const sidebarTabs = useMemo(
+    () => [
+      { id: "flow", label: t("scheduleScreen.todayFlow") },
+      { id: "detail", label: t("scheduleScreen.tabDetail") },
+    ],
+    [t],
+  );
+
+  const flowBody = (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-0.5">
+        {/* Wide mode already labels the tab "今日の流れ"; the heading would be a
+            duplicate, so it is Mobile-only (no tabs there). */}
+        {!isWide && (
           <h3 className="text-sm font-semibold text-lumen-text">
             {t("scheduleScreen.todayFlow")}
           </h3>
-          <p className="text-xs text-lumen-text-secondary">
-            {todayLabel} ·{" "}
-            {t("scheduleScreen.doneSummary", {
-              done: todayDone,
-              total: todayTotal,
-            })}
-          </p>
-        </div>
-        <AgendaList
-          items={todayAgenda}
-          nowMinutes={nowMinutes}
-          onToggleComplete={handleToggle}
-          onSelectItem={setSelectedId}
-          selectedId={selectedId}
-          labels={agendaLabels}
-        />
+        )}
+        <p className="text-xs text-lumen-text-secondary">
+          {todayLabel} ·{" "}
+          {t("scheduleScreen.doneSummary", {
+            done: todayDone,
+            total: todayTotal,
+          })}
+        </p>
       </div>
+      <AgendaList
+        items={todayAgenda}
+        nowMinutes={nowMinutes}
+        onToggleComplete={handleToggle}
+        onSelectItem={handleSelectItem}
+        selectedId={selectedId}
+        labels={agendaLabels}
+      />
+      {/* Routine-completion summary rides the flow tab (Desktop only — Mobile
+          keeps its lean drawer). It used to live in the main-area <aside>,
+          which this change removed. */}
+      {isWide && (
+        <RoutineSummaryCard
+          routines={summaryRows}
+          completedCount={routineDone}
+          totalCount={routineTotal}
+          summaryText={t("scheduleScreen.doneSummary", {
+            done: routineDone,
+            total: routineTotal,
+          })}
+          labels={{
+            title: t("scheduleScreen.summaryTitle"),
+            empty: t("scheduleScreen.summaryEmpty"),
+            cta: t("scheduleScreen.openRoutinesCta"),
+          }}
+          onOpenRoutines={onOpenRoutines}
+        />
+      )}
+    </div>
+  );
+
+  const detailBody = (
+    <div className="flex flex-col gap-3">
+      {editorPane ?? (
+        <p className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-6 text-center text-sm text-lumen-text-secondary">
+          {t("scheduleScreen.selectHint")}
+        </p>
+      )}
+    </div>
+  );
+
+  const sidebarPortal = (
+    <RightSidebarPortal>
+      {isWide ? (
+        <ScheduleSidebarTabs
+          tabs={sidebarTabs}
+          value={sidebarTab}
+          onChange={(id) => setSidebarTab(id as "flow" | "detail")}
+          label={t("scheduleScreen.detailPanelLabel")}
+        >
+          {sidebarTab === "flow" ? flowBody : detailBody}
+        </ScheduleSidebarTabs>
+      ) : (
+        flowBody
+      )}
     </RightSidebarPortal>
   );
 
@@ -697,7 +779,7 @@ export function CalendarTab({
   if (isWide) {
     return (
       <>
-        {todayFlow}
+        {sidebarPortal}
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4 pt-3 md:px-6">
           <ScheduleToolbar
             className="shrink-0 flex-wrap gap-y-2"
@@ -734,7 +816,7 @@ export function CalendarTab({
                     setAnchorDate(it.date);
                     setView("day");
                   }
-                  setSelectedId(id);
+                  handleSelectItem(id);
                 }}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
@@ -745,13 +827,15 @@ export function CalendarTab({
               />
             </div>
           ) : (
-            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
+            // Item detail moved into the rightSidebar "詳細" tab, so the grid
+            // takes the full width the editor <aside> used to share.
+            <div className="min-h-0 flex-1">
               <WeekTimeGrid
                 weekStart={desktopView === "day" ? anchorDate : weekStart}
                 days={desktopView === "day" ? 1 : 7}
                 items={gridItems}
                 selectedId={selectedId}
-                onSelectItem={setSelectedId}
+                onSelectItem={handleSelectItem}
                 onCreateAt={handleCreateAt}
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
@@ -763,25 +847,6 @@ export function CalendarTab({
                 fillHeight
                 formatDayDate={formatDayDate}
               />
-              <aside className="min-w-0 overflow-y-auto">
-                {editorPane ?? (
-                  <RoutineSummaryCard
-                    routines={summaryRows}
-                    completedCount={routineDone}
-                    totalCount={routineTotal}
-                    summaryText={t("scheduleScreen.doneSummary", {
-                      done: routineDone,
-                      total: routineTotal,
-                    })}
-                    labels={{
-                      title: t("scheduleScreen.summaryTitle"),
-                      empty: t("scheduleScreen.summaryEmpty"),
-                      cta: t("scheduleScreen.openRoutinesCta"),
-                    }}
-                    onOpenRoutines={onOpenRoutines}
-                  />
-                )}
-              </aside>
             </div>
           )}
         </div>
@@ -793,7 +858,7 @@ export function CalendarTab({
   // ── Mobile ───────────────────────────────────────────────────────────────
   return (
     <>
-      {todayFlow}
+      {sidebarPortal}
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3">
         <div className="flex shrink-0 items-center gap-2">
           <RightSidebarToggle
@@ -847,7 +912,7 @@ export function CalendarTab({
               items={toAgenda(anchorDayItems)}
               nowMinutes={anchorDate === today ? nowMinutes : null}
               onToggleComplete={handleToggle}
-              onSelectItem={setSelectedId}
+              onSelectItem={handleSelectItem}
               selectedId={selectedId}
               labels={agendaLabels}
               className="rounded-md border border-lumen-border bg-lumen-bg px-2"
@@ -858,7 +923,7 @@ export function CalendarTab({
               days={1}
               items={gridItems}
               selectedId={selectedId}
-              onSelectItem={setSelectedId}
+              onSelectItem={handleSelectItem}
               onCreateAt={handleCreateAt}
               onMoveItem={handleMoveItem}
               onResizeItem={handleResizeItem}
@@ -878,7 +943,7 @@ export function CalendarTab({
                 weekdayLabels={weekdayLabels}
                 compact
                 onSelectDay={(day) => setMobileSelectedDay(day)}
-                onSelectItem={(id) => setSelectedId(id)}
+                onSelectItem={(id) => handleSelectItem(id)}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
                 }
@@ -889,7 +954,7 @@ export function CalendarTab({
                 items={toAgenda(monthDayItems)}
                 nowMinutes={mobileSelectedDay === today ? nowMinutes : null}
                 onToggleComplete={handleToggle}
-                onSelectItem={setSelectedId}
+                onSelectItem={handleSelectItem}
                 selectedId={selectedId}
                 labels={agendaLabels}
                 className="rounded-md border border-lumen-border bg-lumen-bg px-2"

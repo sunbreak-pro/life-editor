@@ -137,6 +137,57 @@ describe("buildFolderColumns", () => {
     expect(cols[0].accentColor).toBe("#2563eb");
     expect(cols[0].cards[0].folderColor).toBeUndefined();
   });
+
+  it("appends a trailing 'unfiled' bucket for root-level tasks when a label is given", () => {
+    const nodes: TaskNode[] = [
+      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
+      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
+      makeNode({ id: "r1", parentId: null, title: "Root A", order: 0 }),
+      makeNode({ id: "r2", parentId: null, title: "Root B", order: 1 }),
+    ];
+    const cols = buildFolderColumns(nodes, undefined, "Unfiled");
+    // The bucket trails the real folders, keyed by the shared bucket id.
+    expect(cols.map((c) => c.id)).toEqual(["f1", "__root__"]);
+    const bucket = cols[cols.length - 1];
+    expect(bucket.title).toBe("Unfiled");
+    expect(bucket.colorEditable).toBeFalsy();
+    // Root tasks are sorted by order, folders unaffected.
+    expect(bucket.cards.map((c) => c.id)).toEqual(["r1", "r2"]);
+  });
+
+  it("omits the 'unfiled' bucket when there are no root-level tasks", () => {
+    const nodes: TaskNode[] = [
+      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
+      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
+    ];
+    const cols = buildFolderColumns(nodes, undefined, "Unfiled");
+    expect(cols.map((c) => c.id)).toEqual(["f1"]);
+  });
+
+  it("omits the 'unfiled' bucket when no label is injected (back-compat)", () => {
+    const nodes: TaskNode[] = [
+      makeNode({ id: "r1", parentId: null, title: "Root A", order: 0 }),
+    ];
+    // Legacy 2-arg callers get the old folder-only shape (here: no folders → []).
+    const cols = buildFolderColumns(nodes);
+    expect(cols).toEqual([]);
+  });
+
+  it("excludes deleted root tasks from the 'unfiled' bucket", () => {
+    const nodes: TaskNode[] = [
+      makeNode({ id: "r1", parentId: null, title: "Root A", order: 0 }),
+      makeNode({
+        id: "rdel",
+        parentId: null,
+        title: "Gone",
+        order: 1,
+        isDeleted: true,
+      }),
+    ];
+    const cols = buildFolderColumns(nodes, undefined, "Unfiled");
+    expect(cols.map((c) => c.id)).toEqual(["__root__"]);
+    expect(cols[0].cards.map((c) => c.id)).toEqual(["r1"]);
+  });
 });
 
 describe("buildStatusColumns", () => {
