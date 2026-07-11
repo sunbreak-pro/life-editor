@@ -30,13 +30,18 @@ vi.mock("../src/services/supabaseClient", () => ({
         table === "items_meta"
           ? { data: state.metas, error: null }
           : { data: state.payloads, error: null };
-      // A thenable query builder: every chained filter returns `this`, and
-      // awaiting it resolves to { data, error } for the requested table.
+      // A thenable query builder: every chained filter (and the
+      // .order/.range pagination pair from fetchAllPages, #172) returns
+      // `this`, and awaiting it resolves to { data, error } for the
+      // requested table. Staged rows stay < POSTGREST_PAGE_SIZE, so the
+      // first page is short and pagination stops after one pull.
       const builder: Record<string, unknown> = {};
       const chain = () => builder;
       builder.select = chain;
       builder.eq = chain;
       builder.in = chain;
+      builder.order = chain;
+      builder.range = chain;
       builder.then = (resolve: (v: unknown) => unknown) => resolve(result);
       return builder;
     };
