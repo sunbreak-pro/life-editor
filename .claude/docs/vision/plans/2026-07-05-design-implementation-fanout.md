@@ -1,5 +1,5 @@
 ---
-Status: IN_PROGRESS
+Status: IN PROGRESS
 Created: 2026-07-05
 Branch: claude/design-impl-fanout-plan
 Owner-chat: frontend

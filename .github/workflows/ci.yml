@@ -19,6 +19,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # docs 整合の機械検査（#173）。検査内容の正本 = scripts/docs-lint.sh
+  # （相対リンク実在 / 旧トークン残存 / plans Status enum / 完了プラン残置）
+  docs-lint:
+    name: docs-lint (.claude docs consistency)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run docs-lint
+        run: bash scripts/docs-lint.sh
+
   verify:
     name: typecheck + test + build
     runs-on: ubuntu-latest

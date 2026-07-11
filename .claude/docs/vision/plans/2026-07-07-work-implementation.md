@@ -1,5 +1,5 @@
 ---
-Status: IN_PROGRESS
+Status: IN PROGRESS
 Created: 2026-07-07
 Branch: claude/work-impl
 Owner-chat: work-impl

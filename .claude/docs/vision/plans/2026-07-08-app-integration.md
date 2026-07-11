@@ -1,5 +1,5 @@
 ---
-Status: IN_PROGRESS
+Status: IN PROGRESS
 Created: 2026-07-08
 Branch: claude/app-integration
 Owner-chat: app-integration
