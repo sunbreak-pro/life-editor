@@ -7,10 +7,8 @@ export { KanbanBoard, type KanbanBoardProps } from "./KanbanBoard";
 export { KanbanColumn, type KanbanColumnProps } from "./KanbanColumn";
 export { KanbanCard, type KanbanCardProps } from "./KanbanCard";
 export {
-  buildFolderColumns,
   buildStatusColumns,
   buildTagColumns,
-  FOLDER_ROOT_BUCKET_ID,
   type TagsByTask,
 } from "./buildColumns";
 export { KANBAN_COLOR_PRESETS } from "./colors";

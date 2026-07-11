@@ -17,7 +17,6 @@ import type {
  */
 
 const LABELS: KanbanLabels = {
-  viewFolder: "By folder",
   viewStatus: "By status",
   viewTag: "By tag",
   segmentedGroupLabel: "Switch view",

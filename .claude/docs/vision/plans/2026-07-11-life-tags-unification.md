@@ -184,4 +184,5 @@ supabase/migrations/*.sql         ← 移行 DDL・変換スクリプト
 ## Worklog
 
 - 2026-07-11: 計画作成（chat-docs-workspace）。方向 4 点（WikiTag 拡張一本化 / folder ノードのみ廃止 / status 独立軸 / v2 後に着手）をユーザーと AskUserQuestion で確定
+- 2026-07-11 (2): **S1 実装完了**（chat-materials-refine・role-engineer 3 レーン並列: Kanban 2 ビュー化 / Notes タグ見出しグルーピング / 変換 migration 0020 + verify + rollback）。shared build + test 851 green・web build green。監査 = role-qa PASS / migration-validator Blocking 0 / sync-auditor Blocking 0（Nit 反映済み: assignTagHint 配線・stale コメント・rollback ヘッダに delta 復活時の soft-delete 切替注記）。S3（NodeType folder 除去）と各セクション adoption・i18n / docs sweep は schedule-refine の S2 合意待ちのまま。follow-up: applyStatusChange の DONE 沈み reorder 専用ユニットテスト（S3 で追加）
 - 2026-07-11: Step 2 詳細設計を追記（chat-materials-refine・Status → IN PROGRESS）。Supabase 本番の read-only 実測（active folder = tasks 3 + notes 2・全ルート直下・calendars 0 行・タグ名衝突 0）で平坦化規則を「直近 folder 名のみ」で確定。epic Issue #225 起票（type:task + shared-fix）。共有コアの単一書込者 = materials-refine（chat-main 采配）。CalendarView の folder 依存（S2)について schedule-refine へ outbox で合意依頼を送付

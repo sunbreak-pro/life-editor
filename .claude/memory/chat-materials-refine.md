@@ -7,9 +7,9 @@
 **対象**: `shared/src/types/taskTree.ts` `shared/src/components/Kanban/**` Notes/Daily フォルダツリー UI `supabase/migrations/*.sql`（folder→tag 変換）
 **計画書**: `.claude/docs/vision/plans/2026-07-11-life-tags-unification.md`（方向の正本・共有コアは materials-refine が単一書込者）
 
-- 前回: Issue #225 起票（type:task + shared-fix）。Supabase 本番を read-only SQL で実測（active folder = tasks 3 + notes 2・全ルート直下・calendars 0 行・タグ名衝突 0・user 2 名義）。計画書へ Step 2 詳細設計を追記（平坦化 = 直近 folder 名のみ・変換 migration + 検証クエリ + rollback 設計・S1/S2/S3 ステージング）し Status → IN PROGRESS。schedule-refine へ outbox で S2（CalendarView の folder バインド置換）合意依頼
-- 現在: Step 2 設計 PR 提出
-- 次: S1 実装（Kanban 2 ビュー化 + viewModeStorage legacy 変換 + Notes タグ見出しグルーピング + 変換 migration ファイル・NodeType は温存）— v2 共通部品 merge 後。S3（NodeType folder 除去）は schedule-refine の S2 合意後のみ
+- 前回: S1 実装完了（role-engineer 3 レーン並列: Kanban 2 ビュー化 + viewModeStorage legacy "folder"→"tag" 自己修復 + TaskAddDialog task 専用化 + Complete-folder 自動管理退役 / Notes タグ見出しグルーピング + useNoteTagDnd / migration 0020 + verify.sql + rollback）。shared 851 tests + web build green。監査 role-qa PASS・migration-validator / sync-auditor Blocking 0・Nit 反映済み
+- 現在: S1 PR 提出（migration 0020 の実行 = 🛑 ユーザー `supabase db push` + verify.sql BEFORE/AFTER。CalendarView の folder select が空になるため S2 と同期実行を推奨）
+- 次: schedule-refine の S2（CalendarView folder バインド置換）合意・完了待ち → S3（NodeType folder 除去 + mapper / analytics / connect / i18n / docs sweep + applyStatusChange DONE 沈み reorder のユニットテスト追加）
 
 ### ⏸️ Layout Standard v2 adoption（materials・#203 依存待ち）（着手日: 2026-07-11）
 

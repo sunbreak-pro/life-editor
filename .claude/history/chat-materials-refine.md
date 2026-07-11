@@ -1,5 +1,19 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-07-11 - life-tags 統一 S1 実装（Kanban 2 ビュー化・Notes タグ見出し UI・変換 migration 0020）
+
+#### 概要
+
+life-tags 統一 S1 を role-engineer 3 レーン並列で実装。Kanban / タスク一覧から folder ビューを廃して status / tag の 2 ビューへ、Notes サイドリストをタグ見出しグルーピングへ置換、folder→tag 変換 migration 一式を作成。NodeType の "folder" は温存（S3 = schedule-refine S2 合意後）。
+
+#### 変更点
+
+- **Kanban レーン（18 ファイル）**: KanbanViewMode 2 値化・default "tag"・buildFolderColumns / FOLDER_ROOT_BUCKET_ID 削除・folder pill / accent 除去・viewModeStorage の legacy "folder"→"tag" 自己修復・TaskListPanel 双子追随・TaskAddDialog task 専用化・useTaskTreeCRUD の Complete-folder 自動管理退役（status 遷移 + completedAt + DONE 沈み reorder は維持）・web/src/tasks host 追随
+- **Notes レーン**: buildTagGroups 純関数（shared/components/notes 新設・多タグ重複表示・untagged バケツ・folder 配下ノートも parentId 無関係に可視）・NotesView をタグ見出しグルーピングへ書換・useNoteTagDnd（見出しドロップ = assignTagToItem・複合 draggable id・untagged は no-op）・useNoteTreeDnd 削除・i18n 4 キー追加（en/ja）
+- **migration レーン**: 0020_life_tags_folder_migration.sql（log テーブル + set-based 変換・冪等・LWW bump）+ scripts/life_tags_verify.sql（期待値 5 タグ / 1 assignment / 1 re-root）+ migrations_archive_rollback/0020_rollback.sql（対称・新規タグのみ削除）。実行 = 🛑 ユーザー
+- **検証**: shared build + 851 tests green・web build green。統合時の NotesView activeNode/activeNote 取り違え 2 行をメインが修正
+- **監査**: role-qa PASS（Blocker 0）・migration-validator Blocking 0・sync-auditor Blocking 0。Nit 反映 = assignTagHint props 配線・KanbanView stale コメント修正・rollback ヘッダに「delta-pull 復活時は soft-delete へ」注記
+
 ### 2026-07-11 - life-tags 統一 Step 2 詳細設計（#225 起票・実測込み設計・S2 合意依頼）+ #118 後始末
 
 #### 概要

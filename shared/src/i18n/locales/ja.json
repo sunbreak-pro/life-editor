@@ -820,7 +820,11 @@
       "quickAddSubmit": "追加",
       "newFolderPrompt": "新しいフォルダ名",
       "lockedHint": "このノートはロックされています",
-      "mainEmpty": "ノートを選ぶか、新しく作成してください"
+      "mainEmpty": "ノートを選ぶか、新しく作成してください",
+      "untagged": "未分類",
+      "collapseGroup": "グループを折りたたむ",
+      "expandGroup": "グループを展開",
+      "assignTagHint": "タグにドロップして付与"
     },
     "daily": {
       "toToday": "今日へ",
