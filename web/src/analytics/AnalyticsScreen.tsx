@@ -4,6 +4,7 @@ import {
   useTranslation,
   type DataService,
   type AnalyticsLabels,
+  type AnalyticsTab,
   type DateRange,
   type TimerSession,
   type TaskNode,
@@ -25,12 +26,19 @@ import {
  * scheduleRange effect + AnalyticsView.onScheduleRangeChange), so we no longer
  * load all history up front.
  *
- * Keep the call site `<AnalyticsScreen dataService={ds} />` stable (MainScreen
- * depends on it).
+ * v2 §1 adoption (#208): the Overview/Tasks/Work/Schedule tab band is lifted
+ * into the shell's standard SectionHeader (MainScreen owns `analyticsTab`, same
+ * as Materials / Schedule). This host just forwards that tab state down to the
+ * pure <AnalyticsView>; the shared view then drops its in-body tab band and
+ * keeps only the date-range preset.
  */
 
 interface AnalyticsScreenProps {
   dataService: DataService;
+  /** Active tab, owned by the shell SectionHeader (v2 §1 lift). */
+  tab: AnalyticsTab;
+  /** Fires on tab select from the shell band. */
+  onTabChange: (tab: AnalyticsTab) => void;
 }
 
 // Data fetched once on mount (independent of the selected analytics range).
@@ -69,6 +77,8 @@ function todayKey(): string {
 
 export function AnalyticsScreen({
   dataService: ds,
+  tab,
+  onTabChange,
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const [data, setData] = useState<AnalyticsData>(EMPTY);
@@ -338,6 +348,8 @@ export function AnalyticsScreen({
       tagCount={data.tagCount}
       assignmentCount={data.assignmentCount}
       targetPerDay={data.targetPerDay}
+      activeTab={tab}
+      onTabChange={onTabChange}
       labels={labels}
     />
   );
