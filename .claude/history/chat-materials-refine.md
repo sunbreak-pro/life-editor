@@ -1,5 +1,7 @@
 # HISTORY (chat-materials-refine)
 
+- 2026-07-11: [途中] life-tags 統一 Materials 領分 — PR #244 の CI 失敗を修正（main #243 ページ分割 fetchAllPages の .order/.range にテストモック追随・origin/main merge・457237c8 push・vitest 879/879 + build green・role-qa PASS）。残 = PR merge + 実データ変換（ユーザーゲート）
+
 ### 2026-07-11 - life-tags 統一 S3 実装（NodeType folder 除去・legacy 行 fetch 除外・i18n/docs sweep）
 
 #### 概要
