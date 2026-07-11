@@ -44,8 +44,7 @@ export const EMPTY_MATERIALS_COUNTS: MaterialsCounts = {
  * Derive the four Materials tab badge counts.
  *
  *   - tasks: task nodes (nested ones included) that are not done and not
- *     soft-deleted (the "still to do" count — folders and DONE tasks don't
- *     count).
+ *     soft-deleted (the "still to do" count — DONE tasks don't count).
  *   - notes / daily / tags: live (non-soft-deleted) item counts.
  */
 export function computeMaterialsCounts({

@@ -7,11 +7,13 @@ import {
 } from "../src/components/Kanban/buildColumns";
 
 /*
- * Column builders (life-tags S1: folder view retired). Pure mapping from the
- * active TaskNode set → KanbanColumnModel[] per view mode. Tests pin: status
- * grouping, order sorting, deleted-node exclusion, the "folders are containers,
- * never cards" invariant, and the tag-by view (one column per tag + a trailing
- * untagged bucket, multi-tag fan-out).
+ * Column builders (life-tags S1: folder view retired; S3 #225: folder node
+ * type removed). Pure mapping from the active TaskNode set →
+ * KanbanColumnModel[] per view mode. Tests pin: status grouping, order
+ * sorting, deleted-node exclusion, transitional orphan tolerance (a task
+ * pointing at a legacy — now excluded — folder parent still surfaces), and
+ * the tag-by view (one column per tag + a trailing untagged bucket, multi-tag
+ * fan-out).
  */
 
 function makeNode(overrides: Partial<TaskNode> & { id: string }): TaskNode {
@@ -70,12 +72,13 @@ describe("buildStatusColumns", () => {
     expect(byId["status-DONE"].cards.map((c) => c.id)).toEqual(["t2"]);
   });
 
-  it("surfaces a task that still sits under a legacy folder (folders no longer group)", () => {
-    // Transitional invariant (life-tags S1): folder nodes still exist in the
-    // data, but tasks under them must appear by status all the same.
+  it("surfaces a task that still points at a legacy (excluded) folder parent", () => {
+    // Transitional invariant (life-tags S3): the legacy folder row is dropped
+    // by the fetch filter and can no longer be constructed as a node, but a
+    // task still referencing that (now-missing) parent id must appear by
+    // status all the same.
     const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
-      makeNode({ id: "t1", parentId: "f1", status: "DONE" }),
+      makeNode({ id: "t1", parentId: "f1-legacy", status: "DONE" }),
       makeNode({ id: "t2", parentId: null, status: "DONE" }),
     ];
     const cols = buildStatusColumns(nodes, LABELS);
@@ -83,9 +86,8 @@ describe("buildStatusColumns", () => {
     expect(done.cards.map((c) => c.id).sort()).toEqual(["t1", "t2"]);
   });
 
-  it("excludes deleted tasks and never cards folders", () => {
+  it("excludes deleted tasks", () => {
     const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", order: 0 }),
       makeNode({ id: "t1", status: "NOT_STARTED" }),
       makeNode({ id: "tdel", status: "NOT_STARTED", isDeleted: true }),
     ];
@@ -153,9 +155,8 @@ describe("buildTagColumns", () => {
     expect(cols[0].cards).toEqual([]);
   });
 
-  it("excludes deleted tasks and never cards folders", () => {
+  it("excludes deleted tasks", () => {
     const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", order: 0 }),
       makeNode({ id: "t1", order: 1 }),
       makeNode({ id: "tdel", order: 2, isDeleted: true }),
     ];
@@ -165,15 +166,13 @@ describe("buildTagColumns", () => {
     ]);
     const cols = buildTagColumns(nodes, [RED], tagsByTask, LABELS);
     expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]);
-    // f1 (folder) is a container, never a card, even with no tag.
     const untagged = cols[cols.length - 1];
     expect(untagged.cards.map((c) => c.id)).toEqual([]);
   });
 
-  it("surfaces a folder-parented task in its tag column (folders no longer group)", () => {
+  it("surfaces a task pointing at a legacy (missing) folder parent in its tag column", () => {
     const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
-      makeNode({ id: "t1", parentId: "f1", order: 1 }),
+      makeNode({ id: "t1", parentId: "f1-legacy", order: 1 }),
     ];
     const tagsByTask = new Map([["t1", [RED]]]);
     const cols = buildTagColumns(nodes, [RED], tagsByTask, LABELS);

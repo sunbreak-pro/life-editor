@@ -381,7 +381,7 @@ export function KanbanView({
     </div>
   );
 
-  // Tag view (read-only DnD) → plain board; folder/status → DnD board.
+  // Tag view (read-only DnD) → plain board; status view → DnD board.
   const board = !dnd.enabled ? (
     <KanbanBoard
       columns={columns}
@@ -440,13 +440,12 @@ export function KanbanView({
   // rightSidebar panel (Desktop) instead of a centered modal. narrow uses the
   // MobileTaskList's own BottomSheet, so the portal is wide-only.
   const selected = tree.selectedTask;
-  const isFolder = selected?.type === "folder";
   const selectedTags = selected ? (tagsByTask.get(selected.id) ?? []) : [];
 
   // Tag chips for the detail panel's tag row (mock: bg pill + 6px color dot).
   // Omitted (undefined) when the task carries no tags so the row disappears.
   const tagsSlot =
-    !isFolder && selectedTags.length > 0
+    selectedTags.length > 0
       ? selectedTags.map((tag) => (
           <span
             key={tag.id}
@@ -473,7 +472,6 @@ export function KanbanView({
       taskId={selected.id}
       title={selected.title}
       status={selected.status}
-      isFolder={isFolder}
       onTitleCommit={(id, title) => tree.updateNode(id, { title })}
       onToggleStatus={tree.toggleTaskStatus}
       titleLabel={t("taskDetail.titleLabel")}
@@ -483,14 +481,12 @@ export function KanbanView({
       tagsLabel={t("taskDetail.tags")}
       tagsSlot={tagsSlot}
       contentEditor={
-        isFolder ? undefined : (
-          <RichTextEditor
-            key={selected.id}
-            noteId={selected.id}
-            initialContent={selected.content || undefined}
-            onUpdate={(content) => tree.updateNode(selected.id, { content })}
-          />
-        )
+        <RichTextEditor
+          key={selected.id}
+          noteId={selected.id}
+          initialContent={selected.content || undefined}
+          onUpdate={(content) => tree.updateNode(selected.id, { content })}
+        />
       }
     />
   ) : null;
@@ -536,7 +532,7 @@ export function KanbanView({
               {addButton}
             </div>
             <div className="mx-auto flex min-h-0 w-full max-w-lumen-reading flex-1 flex-col overflow-y-auto">
-              {selected && !isFolder ? taskDetail : mainEmpty}
+              {selected ? taskDetail : mainEmpty}
             </div>
           </div>
         ) : (

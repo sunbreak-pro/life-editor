@@ -38,10 +38,6 @@ function makeTask(id: string, parentId: string | null = null): TaskNode {
   };
 }
 
-function makeFolder(id: string, parentId: string | null = null): TaskNode {
-  return { id, type: "folder", title: id, parentId, order: 0, createdAt: "x" };
-}
-
 function makeDataService(initial: TaskNode[]): DataService {
   return {
     fetchTaskTree: async () => initial.filter((n) => !n.isDeleted),
@@ -87,17 +83,18 @@ describe("useTaskTreeAPI selection basis (W7)", () => {
     expect(result.current.selectedTask).toBeNull();
   });
 
-  it("clears the selection when an ancestor folder is deleted", async () => {
+  it("clears the selection when an ancestor task is deleted", async () => {
     const { result } = await renderTaskTree([
-      makeFolder("folder-a"),
-      makeTask("task-a", "folder-a"),
+      makeTask("parent-a"),
+      makeTask("task-a", "parent-a"),
     ]);
     act(() => result.current.setSelectedTaskId("task-a"));
     expect(result.current.selectedTask?.id).toBe("task-a");
 
-    // Deleting the parent folder cascades to the child — the selection,
-    // which sits inside the removed subtree, must be cleared.
-    act(() => result.current.softDelete("folder-a"));
+    // Deleting the parent task cascades to its subtask — the selection, which
+    // sits inside the removed subtree, must be cleared. (S3 #225: folders are
+    // gone; subtask cascade is the generic behaviour this guards.)
+    act(() => result.current.softDelete("parent-a"));
     expect(result.current.selectedTaskId).toBeNull();
   });
 
@@ -196,39 +193,5 @@ describe("TaskDetailPanel (W7)", () => {
       />,
     );
     expect(screen.queryByText("Tags")).not.toBeInTheDocument();
-  });
-
-  it("omits the tag row for a folder even when a tagsSlot is passed", () => {
-    render(
-      <TaskDetailPanel
-        taskId="folder-a"
-        title="Project"
-        isFolder
-        onTitleCommit={() => {}}
-        tagsLabel="Tags"
-        tagsSlot={<span>review</span>}
-        {...LABELS}
-      />,
-    );
-    expect(screen.queryByText("Tags")).not.toBeInTheDocument();
-    expect(screen.queryByText("review")).not.toBeInTheDocument();
-  });
-
-  it("hides the status control and content for a folder", () => {
-    render(
-      <TaskDetailPanel
-        taskId="folder-a"
-        title="Project"
-        isFolder
-        onTitleCommit={() => {}}
-        contentEditor={<div>editor slot</div>}
-        {...LABELS}
-      />,
-    );
-    expect(screen.getByLabelText("Task title")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Status" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("editor slot")).not.toBeInTheDocument();
   });
 });

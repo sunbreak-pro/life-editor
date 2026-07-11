@@ -13,13 +13,9 @@ export function sortTaskNodes(
   mode: SortMode,
   direction: SortDirection = "asc",
 ): TaskNode[] {
-  // Separate complete system folders — always rendered last
-  const completeFolders = nodes.filter((n) => n.folderType === "complete");
-  const rest = nodes.filter((n) => n.folderType !== "complete");
-
-  const folders = rest.filter((n) => n.type === "folder");
-  const tasks = rest.filter((n) => n.type !== "folder");
-
+  // life-tags S3 (#225): the Tasks domain no longer has folder nodes, so
+  // there is a single task group — no folder-first / complete-folder-last
+  // partitioning. The per-mode ordering below is unchanged.
   const sortGroup = (group: TaskNode[]): TaskNode[] => {
     if (mode === "manual") return group;
 
@@ -58,5 +54,5 @@ export function sortTaskNodes(
     return sorted;
   };
 
-  return [...sortGroup(folders), ...sortGroup(tasks), ...completeFolders];
+  return sortGroup(nodes);
 }
