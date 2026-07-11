@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Settings フォント種別（Serif/Mono）が本文に効かない不具合修正（`web/src/index.css` で font-family を body→html へ移設・Issue #228 / PR #233）✅（2026-07-11）
 - Settings 軽量プリファレンス拡張（auto theme / font-family / reduce-motion / startup-section / reset-cache ＋共通 prefs 基盤・Issue #216）✅（2026-07-11）
 - Settings Layout Standard v2 adoption（本文内タイトル行撤去・PR #211 / Issue #209）✅（2026-07-11）
-- #181 settings 行の実装 + PR #193 ✅（2026-07-11）
 
 ## 予定
 

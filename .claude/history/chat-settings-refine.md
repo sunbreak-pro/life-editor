@@ -1,5 +1,19 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-07-11 - Settings フォント種別が本文に効かない不具合修正（Issue #228 / PR #233）
+
+#### 概要
+
+Settings → Appearance → Font で Serif/Monospace を選んでも本文の書体が変わらない不具合を修正。ThemeContext は選択フォントを `document.documentElement.style.fontFamily`（`<html>`）に書き、継承で本文に届ける設計だが、`web/src/index.css` が `body { font-family: var(--font-sans) }` を body に直接当てていて継承値を毎回上書きしていたのが原因。CSS 1 ファイルのみで修正（ThemeContext は無変更）。
+
+#### 変更点
+
+- **web/src/index.css**: `font-family: var(--font-sans)` を body から外し、新設 `html { font-family: var(--font-sans) }` へ移設。body は継承のみ（margin/bg/color/min-height 維持）。system は inline を `""` で消去し `html` ルールへフォールバック
+- **カスケード実測（独立 QA・ビルド済み CSS）**: 未レイヤーの html ルールは Tailwind v4 `@layer base` preflight に勝つ（二重に堅牢で preflight の `--default-font-family` も `var(--font-sans)` 解決）。`<html>` inline style は最優先。form 要素は preflight `font:inherit` で継承鎖に乗る。`code`/`pre` は preflight monospace 明示で Serif 選択時も等幅維持 → 本文だけ書体が変わる（#228 意図どおり）
+- **検証**: `cd web && npm run build` exit 0 / `cd shared && npm run test` 845 pass（`themeContext.test.tsx` の font-family アサーション含む・ThemeContext 無変更で緑）。role-qa 独立レビュー PASS（Blocker 0・scope 越境なし）
+- **PR**: #233（Closes #228）commit f9ccb3e3。実ブラウザ `getComputedStyle(document.body).fontFamily` の最終実測は §7.4 に従い merge 後に chat-main の playwright で
+- **#181 [all] layout-standard**: settings 行は既に main で対応済み（commit 7c4c3723 / PR #193・MainScreen PageContainer が幅所有・`web/src/settings` にローカル max-w なし）を確認 → Issue の settings チェックボックスを ✅ 化＋根拠コメント投稿。close は chat-main に委譲（全行消化待ち）
+
 ### 2026-07-11 - Settings 軽量プリファレンス拡張（Issue #216）
 
 #### 概要

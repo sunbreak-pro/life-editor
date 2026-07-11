@@ -13,9 +13,20 @@
 @import "../../shared/src/styles/tokens.css";
 @source "../../shared/src";
 
+/*
+ * Font-family lives on <html> (documentElement), not <body>, so the font
+ * preference — applied by ThemeContext as an inline font-family on
+ * documentElement — cascades to the whole app through inheritance. body used
+ * to set font-family directly, which beat the inherited html value and
+ * silently defeated the Serif/Monospace preference (Issue #228). "system"
+ * clears the inline style, falling back to var(--font-sans) declared here.
+ */
+html {
+  font-family: var(--font-sans);
+}
+
 body {
   margin: 0;
-  font-family: var(--font-sans);
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   min-height: 100vh;
