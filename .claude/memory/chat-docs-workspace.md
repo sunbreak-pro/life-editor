@@ -6,6 +6,7 @@
 
 ## 直近の完了
 
+- Tauri 残骸除去の起票 + Stage A 実行（Issue #197・tag `pre-tauri-removal`・一時 worktree から PR）+ playwright/dev server は chat-main のみルールを CLAUDE.md §7.4 に明記 ✅（2026-07-11）
 - 計画書 8 枚作成（layout standard v2 親 + life-tags 親 + 6 worktree orders）→ PR #190 ✅（2026-07-11）
 
 ## 予定
