@@ -26,7 +26,7 @@ CLAUDE.md §8 Feature Tier Map の詳細版。各機能の Purpose / Boundary / 
 
 **Tier**: 1 | 2 | 3
 **Status**: ◎完成 / ○基本完成 / △基盤のみ / ×未着手
-**Owner Provider/Module**: 例 `TaskTreeProvider` / `src-tauri/src/commands/task.rs`
+**Owner Provider/Module**: 例 `TaskTreeProvider` / `shared/src/services/SupabaseDataService.ts`（旧例の `src-tauri/` は 2026-07-11 削除済み #197）
 **MCP Coverage**: 対応ツール名一覧 / —
 **Supports Value Prop**: V1 / V2 / V3（CLAUDE.md §1 参照）
 
@@ -86,6 +86,6 @@ Tier 1: 5 件以上 / Tier 2: 3-5 件 / Tier 3: 1-3 件（簡略版）
 移行 SSOT (`2026-05-04-cross-platform-migration.md`) に基づく Stack 並立期間中、各 Tier ファイルは以下を追加する:
 
 - **Feature 単位（AC 単位ではない）に `Stack:` 行を持つ**。書式: `Stack: <現行> → <移行先> (<移行 Phase>)`
-- 例: `Stack: Tauri SQLite (frontend/ + src-tauri/) → Supabase Postgres (shared/ + web/, 移行 SSOT Phase 2 進行中)`
+- 例: `Stack: Tauri SQLite (frontend/ + src-tauri/) → Supabase Postgres (shared/ + web/, 移行 SSOT Phase 2 進行中)`（旧スタックのパスは 2026-07-11 削除済み #197 — 例中の表記は歴史参照）
 - 移行が完了していない Feature でも記入する（並立期間中の参照透明性）
 - 移行 Phase 5 完了時に Stack 行は廃止し、移行後スタックの単一記述に統合する

@@ -1,17 +1,17 @@
 ---
 paths:
-  - "frontend/src/**"
   - "shared/src/**"
+  - "web/src/**"
 ---
 
 # Frontend 実装規約（path-scoped rule）
 
-> CLAUDE.md §6 の詳細。`frontend/` / `shared/` のファイルを扱う時のみ自動ロードされる。
+> CLAUDE.md §6 の詳細。`shared/` / `web/` のファイルを扱う時のみ自動ロードされる。
 > 作成手順は `add-component` スキル、デザイン判断は `frontend-react-designer` スキル（rules = 不変式と表、skills = 手順）。
 
 ## UI 2 層モデル（W0 2026-06-07 確定 = 案 A）
 
-- `frontend/`（Tauri 時代）は **FROZEN**。新規 UI は `shared/src/components/` に集約し、Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`
+- 新規 UI は `shared/src/components/`（部品層）に集約し、画面層は `web/src/`。Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`。旧 `frontend/`（Tauri 時代）は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）
 
 ## 命名（プロジェクト固有のみ）
 
@@ -32,16 +32,17 @@ paths:
 
 `context/index.ts` に Provider / Context / type を export。例外: 他 Provider が依存しない自己完結なら単一ファイル可（例 `ToastContext`）。
 
-## 共有コンポーネント配置（FROZEN な frontend/ 内）
+## 共有コンポーネント配置（shared/ 内）
 
-| 種別          | 配置先                                           |
-| ------------- | ------------------------------------------------ |
-| 共有 UI       | `frontend/src/components/shared/`                |
-| 共有フック    | `frontend/src/hooks/`                            |
-| Context       | `frontend/src/context/`                          |
-| 共有型        | `frontend/src/types/`                            |
-| Schedule 共通 | `frontend/src/components/Tasks/Schedule/shared/` |
-| UndoRedo      | `frontend/src/utils/undoRedo/`                   |
+| 種別          | 配置先                            |
+| ------------- | --------------------------------- |
+| 共有 UI       | `shared/src/components/`          |
+| 共有フック    | `shared/src/hooks/`               |
+| Context       | `shared/src/context/`             |
+| 共有型        | `shared/src/types/`               |
+| Schedule 共通 | `shared/src/components/schedule/` |
+
+（旧 frontend/ 内の配置表は削除済み。UndoRedo は web 未移植 — 参照は git tag `pre-tauri-removal`）
 
 ## デザイン規約（不変式）
 

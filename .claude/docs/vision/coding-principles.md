@@ -7,7 +7,7 @@
 
 ## 1. Tauri IPC 命名方針（旧 ADR-0006 要旨）
 
-> ⚠️ **Phase 5 で全削除予定**: 移行 SSOT に従い Tauri 削除後、本章全体（`src-tauri/` / `frontend/src/services/TauriDataService.ts` / `bridge.ts` / `events.ts` 依存）は不要になる。Electron IPC / Supabase RLS への置換に伴い、新規 IPC 規約は Phase 5 で別途確定。
+> ⚠️ **retired（2026-07-11 #197）**: 旧 Tauri スタック（`src-tauri/` / `frontend/`、本章が依存を列挙していた `TauriDataService.ts` / `bridge.ts` / `events.ts` 含む）は削除済み（復元 = git tag `pre-tauri-removal`）。本章は当時の規約と障害経緯の歴史的記録として保持する。新規 IPC 規約は Electron 包装（Phase 3 以降）で別途確定。
 
 ### 規約
 

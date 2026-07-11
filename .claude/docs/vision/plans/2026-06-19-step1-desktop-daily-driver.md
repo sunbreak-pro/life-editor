@@ -39,7 +39,7 @@ desktop/electron-builder.yml     ← トレイ用 icon を extraResources で同
 **対象外（明示・無改変）**:
 
 - `desktop/src/preload/index.ts`（expose 関数 4 のまま。renderer は新 API を必要としない）
-- `shared/` / `web/` / `frontend/` / `src-tauri/` / `cloud/` / `mobile/`
+- `shared/` / `web/` / `frontend/` / `src-tauri/` / `cloud/` / `mobile/`（`frontend/` `src-tauri/` `cloud/` は 2026-07-11 削除済み #197 — 無改変対象として自明化）
 - `supabase/`（DDL なし）
 - 署名 / 公証 / autoUpdater 有効化（$0 ポリシー・Phase 5 + コード署名とセット）
 
