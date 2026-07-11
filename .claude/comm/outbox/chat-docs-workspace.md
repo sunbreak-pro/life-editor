@@ -20,7 +20,7 @@
 ### 起票依頼（chat-main へ・issue-dispatch）
 
 1. **settings 書き込み側 UI**（section:settings / type:feature）: Settings に「日付が変わる時刻」の select（0〜23 時、既定 0）を追加し `useDayStartHourPref` に配線＋ en/ja catalog 追加。読み手側契約は PR #242 で確定済みなので配線のみ。#216 がスコープ外とした分の残り。
-2. **analytics の「今日」追随の要否判断**（section:analytics）: `TodayDashboard.tsx:29` / `MobileAnalyticsView.tsx:57` / `DailyTimeline.tsx:36` が `formatDateKey(new Date())`（00:00 境界）のまま。daily と境界を揃えるなら `todayDateKey()` への置き換え 3 行。採用判断は chat-main へ。
+2. **analytics の「今日」追随の要否判断**（section:analytics）: `TodayDashboard.tsx:29` / `MobileAnalyticsView.tsx:57` / `DailyTimeline.tsx:36` が `formatDateKey(new Date())`（00:00 境界）のまま。加えて `web/src/analytics/AnalyticsScreen.tsx:74` のローカル `todayKey()` も同境界（role-qa 監査で検出した 4 箇所目）。daily と境界を揃えるなら `todayDateKey()` への置き換え計 4 箇所。採用判断は chat-main へ。
 
 ### 補足
 
