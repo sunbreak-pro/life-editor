@@ -7,9 +7,9 @@
 **対象**: `web/src/schedule/**`
 **計画書**: `.claude/docs/vision/plans/2026-07-11-schedule-refine-orders.md`
 
-- 前回: Layout Standard v2 adoption（#204 — タブ帯を標準 SectionHeader へ移行・MainScreen 最小配線は outbox 告知済み）
-- 現在: #204 PR 提出済み・merge 待ち
-- 次: #185 実装（詳細計画は PR #191 で merge 済み = 承認。Step 2 繰り返し編集部品の共通化から）。#204 の runtime 表示確認は merge 後 chat-main 実測
+- 前回: Layout Standard v2 adoption（#204 — タブ帯を標準 SectionHeader へ移行・PR #205 merge 済み・role-qa PASS）
+- 現在: #204 は runtime 表示確認（chat-main 実測）のみ残し open 維持
+- 次: #185 実装（詳細計画は PR #191 で merge 済み = 承認。Step 2 繰り返し編集部品の共通化から）
 
 ## 直近の完了
 
