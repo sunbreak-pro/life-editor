@@ -13,6 +13,10 @@ import {
  * row is a straight bijection (no coercion). The mapper is pure (no
  * `new Date()`, no Supabase) so rows are built by hand.
  *
+ * life-tags S2 (Issue #231 / 0021): the bind column is `tag_id` ->
+ * wiki_tags(id), renamed from the retired `folder_id`. The roundtrips
+ * below exercise the tagId <-> tag_id mapping.
+ *
  * Cases:
  *   1. domain -> row -> domain roundtrip preserves every field
  *   2. row -> domain -> row roundtrip (server-side `user_id` re-attached)
@@ -45,7 +49,7 @@ describe("rowToCalendar ∘ calendarToRow roundtrip", () => {
     const node: CalendarNode = {
       id: "calendar-1",
       title: "Work",
-      folderId: "folder-7",
+      tagId: "tag-7",
       order: 3,
       createdAt: NOW,
       updatedAt: NOW,
@@ -57,7 +61,7 @@ describe("rowToCalendar ∘ calendarToRow roundtrip", () => {
     const node: CalendarNode = {
       id: "calendar-2",
       title: "Top",
-      folderId: "folder-0",
+      tagId: "tag-0",
       order: 0,
       createdAt: NOW,
       updatedAt: NOW,
@@ -76,7 +80,7 @@ describe("calendarToRow ∘ rowToCalendar roundtrip", () => {
       id: "calendar-3",
       user_id: TEST_USER_ID,
       title: "Personal",
-      folder_id: "folder-9",
+      tag_id: "tag-9",
       order: 5,
       created_at: NOW,
       updated_at: NOW,
@@ -85,7 +89,7 @@ describe("calendarToRow ∘ rowToCalendar roundtrip", () => {
     const writeRow = calendarToRow(rowToCalendar(row));
     expect(writeRow.id).toBe(row.id);
     expect(writeRow.title).toBe(row.title);
-    expect(writeRow.folder_id).toBe(row.folder_id);
+    expect(writeRow.tag_id).toBe(row.tag_id);
     expect(writeRow.order).toBe(row.order);
     expect(writeRow.created_at).toBe(row.created_at);
     expect(writeRow.updated_at).toBe(row.updated_at);
@@ -101,7 +105,7 @@ describe("calendarToRow INSERT defaults", () => {
     const node: CalendarNode = {
       id: "calendar-v1",
       title: "Fresh",
-      folderId: "folder-1",
+      tagId: "tag-1",
       order: 0,
       createdAt: NOW,
       updatedAt: NOW,

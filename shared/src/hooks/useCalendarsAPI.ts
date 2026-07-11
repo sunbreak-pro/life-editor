@@ -66,19 +66,19 @@ export function useCalendarsAPI(options: UseCalendarsAPIOptions) {
   }, [ds, syncVersion]);
 
   const createCalendar = useCallback(
-    (title: string, folderId: string): string => {
+    (title: string, tagId: string): string => {
       const id = generateId("calendar");
       const now = new Date().toISOString();
       const optimistic: CalendarNode = {
         id,
         title,
-        folderId,
+        tagId,
         order: calendarsRef.current.length,
         createdAt: now,
         updatedAt: now,
       };
       setCalendars((prev) => [...prev, optimistic]);
-      ds.createCalendar(id, title, folderId)
+      ds.createCalendar(id, title, tagId)
         .then((saved) =>
           setCalendars((prev) => prev.map((c) => (c.id === id ? saved : c))),
         )
@@ -94,7 +94,7 @@ export function useCalendarsAPI(options: UseCalendarsAPIOptions) {
   const updateCalendar = useCallback(
     (
       id: string,
-      updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
+      updates: Partial<Pick<CalendarNode, "title" | "tagId" | "order">>,
     ) => {
       setCalendars((p) =>
         p.map((c) =>
