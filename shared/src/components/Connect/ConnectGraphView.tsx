@@ -11,7 +11,7 @@ import { useRightSidebarOptional } from "../../hooks/useRightSidebarContext";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { RightSidebarPortal } from "../RightSidebarPortal";
 import { GraphCanvas } from "./GraphCanvas";
-import { ConnectHeader } from "./ConnectHeader";
+import { ConnectGraphActions } from "./ConnectGraphActions";
 import { GraphLegend } from "./GraphLegend";
 import { GraphStates } from "./GraphStates";
 import { GraphControlPanel } from "./GraphControlPanel";
@@ -408,19 +408,12 @@ export function ConnectGraphView({
   }
 
   // ---- Desktop layout ------------------------------------------------------
+  // v2 adoption: the standard SectionHeader (shell header slot) now owns the
+  // title + rightSidebar/width toggles, so the in-body ConnectHeader is gone.
+  // Its graph actions (count / reheat / fit / clear-filters) moved into the
+  // rightSidebar settings tab as <ConnectGraphActions> (user decision 2026-07-11).
   return (
     <div className="flex h-full w-full flex-col">
-      <ConnectHeader
-        labels={labels}
-        nodeCount={filters.filtered.nodes.length}
-        totalCount={snapshot.nodes.length}
-        edgeCount={filters.filtered.links.length}
-        activeFilterCount={filters.activeFilterCount}
-        onClearFilters={filters.clearAll}
-        onReheat={() => apiRef.current?.reheat()}
-        onResetView={() => apiRef.current?.resetView()}
-      />
-
       <div className="relative min-h-0 flex-1 min-w-0">
         <GraphCanvas
           snapshot={filters.filtered}
@@ -489,6 +482,18 @@ export function ConnectGraphView({
           activeTab={sidebarTab}
           onTabChange={setSidebarTab}
           backlinkCount={backlinks.length}
+          settingsHeader={
+            <ConnectGraphActions
+              labels={labels}
+              nodeCount={filters.filtered.nodes.length}
+              totalCount={snapshot.nodes.length}
+              edgeCount={filters.filtered.links.length}
+              activeFilterCount={filters.activeFilterCount}
+              onClearFilters={filters.clearAll}
+              onReheat={() => apiRef.current?.reheat()}
+              onResetView={() => apiRef.current?.resetView()}
+            />
+          }
           settingsContent={settingsContent}
           backlinksContent={backlinksContent}
         />

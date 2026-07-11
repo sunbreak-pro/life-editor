@@ -1,17 +1,17 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "../cn";
-import { SegmentedControl } from "../SegmentedControl";
-import type { FrequencyType, RoutineNode } from "../../types/routine";
+import { FrequencyEditor, type FrequencyEditorGroup } from "./FrequencyEditor";
+import type { RoutineNode } from "../../types/routine";
 
 /*
  * RoutineEditorForm (W8 target-IA) — the Routines-tab detail form (MasterDetail
- * right pane). Edits one routine: title / start-end / frequency (daily |
- * weekdays | interval | group) with the type-specific controls (weekday chips /
- * interval + start-date / group chips). Pure presentation (§3.1 / §6.4): every
- * edit is an onPatch callback (no save button — the host persists immediately;
- * a `footer` slot lets it add one if it wants). Title is a commit-on-blur draft
- * (Enter blurs; IME composition respected). lumen-* tokens only (§5).
+ * right pane). Edits one routine: title / start-end / frequency via the shared
+ * <FrequencyEditor> (#185 Step 2 — the same part backs the Event editor's
+ * repeat section). Pure presentation (§3.1 / §6.4): every edit is an onPatch
+ * callback (no save button — the host persists immediately; a `footer` slot
+ * lets it add one if it wants). Title is a commit-on-blur draft (Enter blurs;
+ * IME composition respected). lumen-* tokens only (§5).
  */
 
 /** The RoutineNode subset this form edits. */
@@ -28,12 +28,8 @@ export type RoutineEditorRoutine = Pick<
   | "groupIds"
 >;
 
-export interface RoutineEditorGroup {
-  id: string;
-  name: string;
-  /** Data-driven group color (applied via inline style, not a token). */
-  color: string;
-}
+/** Group entry (id / name / data-driven color) — shape owned by FrequencyEditor. */
+export type RoutineEditorGroup = FrequencyEditorGroup;
 
 export interface RoutineEditorFormLabels {
   title: string;
@@ -69,8 +65,6 @@ export interface RoutineEditorFormProps {
 const FIELD =
   "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 const FIELD_LABEL = "text-xs text-lumen-text-secondary";
-const CHIP_FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 function TitleInput({
   routineId,
@@ -115,29 +109,6 @@ export function RoutineEditorForm({
   footer,
   className,
 }: RoutineEditorFormProps) {
-  const freqOptions = [
-    { id: "daily", label: labels.frequencyDaily },
-    { id: "weekdays", label: labels.frequencyWeekdays },
-    { id: "interval", label: labels.frequencyInterval },
-    { id: "group", label: labels.frequencyGroup },
-  ];
-
-  const toggleDay = (d: number) => {
-    const has = routine.frequencyDays.includes(d);
-    const next = has
-      ? routine.frequencyDays.filter((x) => x !== d)
-      : [...routine.frequencyDays, d].sort((a, b) => a - b);
-    onPatch(routine.id, { frequencyDays: next });
-  };
-
-  const toggleGroup = (gid: string) => {
-    const cur = routine.groupIds ?? [];
-    const next = cur.includes(gid)
-      ? cur.filter((x) => x !== gid)
-      : [...cur, gid];
-    onPatch(routine.id, { groupIds: next });
-  };
-
   return (
     <div
       className={cn(
@@ -181,113 +152,15 @@ export function RoutineEditorForm({
         </label>
       </div>
 
-      {/* Frequency type */}
-      <div className="flex flex-col gap-1.5">
-        <span className={FIELD_LABEL}>{labels.frequency}</span>
-        <SegmentedControl
-          options={freqOptions}
-          value={routine.frequencyType}
-          onChange={(id) =>
-            onPatch(routine.id, { frequencyType: id as FrequencyType })
-          }
-          label={labels.frequency}
-        />
-      </div>
-
-      {/* Weekday chips */}
-      {routine.frequencyType === "weekdays" && (
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from({ length: 7 }, (_, d) => {
-            const active = routine.frequencyDays.includes(d);
-            return (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={active}
-                aria-label={weekdayLabels[d] ?? String(d)}
-                onClick={() => toggleDay(d)}
-                className={cn(
-                  "flex size-[34px] items-center justify-center rounded-full border text-xs font-medium transition-colors",
-                  CHIP_FOCUS,
-                  active
-                    ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
-                    : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover",
-                )}
-              >
-                {weekdayLabels[d] ?? ""}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Interval */}
-      {routine.frequencyType === "interval" && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-sm text-lumen-text">
-            <span>{labels.intervalEvery}</span>
-            <input
-              type="number"
-              min={1}
-              value={routine.frequencyInterval ?? 1}
-              onChange={(e) =>
-                onPatch(routine.id, {
-                  frequencyInterval: Math.max(1, Number(e.target.value) || 1),
-                })
-              }
-              aria-label={labels.frequencyInterval}
-              className={cn(FIELD, "w-20 tabular-nums")}
-            />
-            <span>{labels.intervalDays}</span>
-          </div>
-          <label className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>{labels.startDate}</span>
-            <input
-              type="date"
-              value={routine.frequencyStartDate ?? ""}
-              onChange={(e) =>
-                onPatch(routine.id, { frequencyStartDate: e.target.value })
-              }
-              aria-label={labels.startDate}
-              className={cn(FIELD, "tabular-nums")}
-            />
-          </label>
-        </div>
-      )}
-
-      {/* Group memberships */}
-      {routine.frequencyType === "group" && (
-        <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>{labels.groups}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {groups.map((g) => {
-              const active = (routine.groupIds ?? []).includes(g.id);
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => toggleGroup(g.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                    CHIP_FOCUS,
-                    active
-                      ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-text"
-                      : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: g.color }}
-                  />
-                  {g.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Frequency (type + type-specific controls) — shared with the Event
+          editor's repeat section (#185). */}
+      <FrequencyEditor
+        value={routine}
+        onChange={(patch) => onPatch(routine.id, patch)}
+        groups={groups}
+        weekdayLabels={weekdayLabels}
+        labels={labels}
+      />
 
       {footer}
 

@@ -42,7 +42,6 @@
     "editOnDesktop": "Edit links from the desktop app"
   },
   "settings": {
-    "title": "Settings",
     "general": "General",
     "notificationsTab": "Notifications",
     "dataTab": "Data",
@@ -319,7 +318,6 @@
         "edit": "Editing"
       }
     },
-    "pageDescription": "Adjust appearance, language, and keyboard shortcuts here. Changes apply immediately.",
     "appearance": "Appearance",
     "theme": "Theme",
     "light": "Light",
@@ -358,6 +356,29 @@
           "body": "You can also change shortcut assignments from the command palette."
         }
       }
+    },
+    "themeSystem": "System",
+    "fontFamilyLabel": "Font",
+    "fontFamilyDesc": "Applies to body text across the app.",
+    "fontFamilySystem": "System",
+    "fontFamilySerif": "Serif",
+    "fontFamilyMono": "Monospace",
+    "reduceMotionLabel": "Reduce motion",
+    "reduceMotionDesc": "Limit animations and transitions.",
+    "reduceMotionSystem": "Follow system",
+    "reduceMotionReduce": "Reduce",
+    "reduceMotionOff": "Off",
+    "startup": {
+      "heading": "Startup",
+      "description": "Choose which section opens when the app starts.",
+      "sectionLabel": "Open on launch",
+      "lastVisited": "Resume where I left off"
+    },
+    "reset": {
+      "heading": "Reset & local data",
+      "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
+      "button": "Reset preferences",
+      "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected."
     },
     "editorSettings": "Editor",
     "editorFontSize": "Editor Font Size",
@@ -1160,10 +1181,14 @@
     "detailTitle": "Event details",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "openPanel": "Open detail panel",
-    "closePanel": "Close detail panel",
     "tabDetail": "Detail",
-    "detailPanelLabel": "Detail panel"
+    "detailPanelLabel": "Detail panel",
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "copySuffix": " (copy)",
+    "statusNotStarted": "Not started",
+    "statusInProgress": "In progress",
+    "statusDone": "Done"
   },
   "schedulePanel": {
     "existingTasks": "Existing Tasks",
@@ -2265,11 +2290,6 @@
     "close": "Close details",
     "empty": "Nothing selected yet",
     "resize": "Resize details panel"
-  },
-  "layout": {
-    "width": "Content width",
-    "widthWide": "Wide",
-    "widthNarrow": "Narrow"
   },
   "music": {
     "title": "Music",

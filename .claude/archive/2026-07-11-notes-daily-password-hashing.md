@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED # PR #195 merged 2026-07-11・Issue #118 auto-close
 Created: 2026-07-11
 Branch: claude/materials-refine
 Owner-chat: materials-refine

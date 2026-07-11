@@ -15,6 +15,7 @@ import {
   RightSidebarPortal,
   RightSidebarToggle,
   ScheduleSidebarTabs,
+  ScheduleItemContextMenu,
   SegmentedControl,
   BottomSheet,
   Modal,
@@ -24,6 +25,8 @@ import {
   startOfWeekKey,
   monthGridKeys,
   minutesToTime,
+  deriveScheduleStatus,
+  type ScheduleStatus,
   type ScheduleItem,
   type WeekTimeGridItem,
   type MonthGridItem,
@@ -208,11 +211,23 @@ export function CalendarTab({
   const [quickOpen, setQuickOpen] = useState(false);
   const [mobileSelectedDay, setMobileSelectedDay] = useState(today);
   const [nowMinutes, setNowMinutes] = useState(() => nowMinutesLocal());
+  // Real "now" Date, ticked alongside nowMinutes. Drives deriveScheduleStatus
+  // (#222) — nowMinutes alone (minutes-from-midnight) can't compare across days.
+  const [now, setNow] = useState(() => new Date());
+  // Right-click context menu on a calendar item (Desktop only, #223).
+  const [contextMenu, setContextMenu] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // 1-minute now ticker (drives the now-line + agenda divider). Cleared on
   // unmount so it never leaks across section changes.
   useEffect(() => {
-    const id = setInterval(() => setNowMinutes(nowMinutesLocal()), 60_000);
+    const id = setInterval(() => {
+      setNowMinutes(nowMinutesLocal());
+      setNow(new Date());
+    }, 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -350,11 +365,27 @@ export function CalendarTab({
       "10:00",
       t("scheduleCalendar.newEvent"),
     );
+    // The detail editor now lives in the rightSidebar (not the main grid), so
+    // the month layout can edit a new event in place — no jump to day view
+    // (#224). handleSelectItem opens the detail panel on Desktop.
     handleSelectItem(id);
-    // The month layout has no editor pane, so adding from it would leave the
-    // new event selected but uneditable — jump to the day view instead.
-    if (desktopView === "month") setView("day");
-  }, [createAtTimes, handleSelectItem, anchorDate, t, desktopView]);
+  }, [createAtTimes, handleSelectItem, anchorDate, t]);
+
+  // Month-cell day tap → create a default-time event on that day and open its
+  // detail panel in place, instead of switching to the day view (#224).
+  const handleCreateOnDay = useCallback(
+    (day: string) => {
+      setAnchorDate(day);
+      const id = createAtTimes(
+        day,
+        "09:00",
+        "10:00",
+        t("scheduleCalendar.newEvent"),
+      );
+      handleSelectItem(id);
+    },
+    [createAtTimes, handleSelectItem, t],
+  );
 
   const handleQuickAdd = useCallback(
     (title: string, start: string, end: string) => {
@@ -396,6 +427,68 @@ export function CalendarTab({
       setSelectedId((cur) => (cur === id ? null : cur));
     },
     [deleteScheduleItem],
+  );
+
+  // ── Context menu (rename / duplicate / delete) ─────────────────────────────
+
+  const handleItemContextMenu = useCallback(
+    (id: string, pos: { x: number; y: number }) => {
+      setContextMenu({ id, x: pos.x, y: pos.y });
+    },
+    [],
+  );
+
+  const handleRename = useCallback(
+    (id: string, title: string) => {
+      handleUpdate(id, { title });
+    },
+    [handleUpdate],
+  );
+
+  const handleDuplicate = useCallback(
+    (id: string) => {
+      const src =
+        rangeItems.find((i) => i.id === id) ??
+        contextItems.find((i) => i.id === id);
+      if (!src) return;
+      const title = `${src.title}${t("scheduleScreen.copySuffix")}`;
+      // createScheduleItem folds date/title/times + isAllDay/content/noteId/
+      // memo into a single INSERT (#223 → QA fix): memo used to be patched with
+      // a follow-up updateScheduleItem, but that UPDATE could race ahead of the
+      // create's INSERT (unordered Promises) and miss the row. Carrying memo in
+      // the create arg makes the memo write atomic AND keeps duplicate on one
+      // undo entry (the create's own undo), so Ctrl+Z removes the copy once.
+      const newId = createScheduleItem(
+        src.date,
+        title,
+        src.startTime,
+        src.endTime,
+        {
+          isAllDay: src.isAllDay,
+          content: src.content ?? undefined,
+          noteId: src.noteId ?? undefined,
+          memo: src.memo ?? undefined,
+        },
+      );
+      setRangeItems((prev) => [
+        ...prev,
+        {
+          ...makeOptimisticItem(
+            newId,
+            src.date,
+            title,
+            src.startTime,
+            src.endTime,
+          ),
+          isAllDay: src.isAllDay ?? false,
+          content: src.content ?? null,
+          noteId: src.noteId ?? null,
+          memo: src.memo ?? null,
+        },
+      ]);
+      handleSelectItem(newId);
+    },
+    [rangeItems, contextItems, createScheduleItem, handleSelectItem, t],
   );
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -534,9 +627,10 @@ export function CalendarTab({
         endTime: i.endTime,
         isAllDay: i.isAllDay,
         completed: i.completed,
+        status: deriveScheduleStatus(i, now),
         variant: itemVariant(i),
       })),
-    [rangeItems],
+    [rangeItems, now],
   );
   const monthItems = useMemo<MonthGridItem[]>(
     () =>
@@ -551,22 +645,29 @@ export function CalendarTab({
     [rangeItems],
   );
 
-  const toAgenda = (arr: ScheduleItem[]): AgendaItem[] =>
-    sortDayItems(arr).map((i) => ({
-      id: i.id,
-      title: i.title,
-      startTime: i.startTime,
-      endTime: i.endTime,
-      isAllDay: i.isAllDay,
-      completed: i.completed,
-      variant: itemVariant(i),
-    }));
+  const toAgenda = useCallback(
+    (arr: ScheduleItem[]): AgendaItem[] =>
+      sortDayItems(arr).map((i) => ({
+        id: i.id,
+        title: i.title,
+        startTime: i.startTime,
+        endTime: i.endTime,
+        isAllDay: i.isAllDay,
+        completed: i.completed,
+        status: deriveScheduleStatus(i, now),
+        variant: itemVariant(i),
+      })),
+    [now],
+  );
 
   const todayItems = useMemo(
     () => contextItems.filter((i) => !i.isDeleted && !i.isDismissed),
     [contextItems],
   );
-  const todayAgenda = useMemo(() => toAgenda(todayItems), [todayItems]);
+  const todayAgenda = useMemo(
+    () => toAgenda(todayItems),
+    [todayItems, toAgenda],
+  );
   const todayDone = todayItems.filter((i) => i.completed).length;
   const todayTotal = todayItems.length;
 
@@ -595,6 +696,7 @@ export function CalendarTab({
         startTime: selected.startTime,
         endTime: selected.endTime,
         completed: selected.completed,
+        status: deriveScheduleStatus(selected, now),
         memo: selected.memo ?? "",
         isRoutine: selected.routineId != null,
       }
@@ -622,14 +724,25 @@ export function CalendarTab({
   const routineDone = routineTodayItems.filter((i) => i.completed).length;
   const routineTotal = routineTodayItems.length;
 
+  const statusLabels = useMemo<Record<ScheduleStatus, string>>(
+    () => ({
+      notStarted: t("scheduleScreen.statusNotStarted"),
+      inProgress: t("scheduleScreen.statusInProgress"),
+      done: t("scheduleScreen.statusDone"),
+    }),
+    [t],
+  );
+
   const agendaLabels = {
     allDay: t("scheduleScreen.allDay"),
     empty: t("scheduleScreen.emptyToday"),
     nowLabel: minutesToTime(nowMinutes),
     complete: t("scheduleScreen.complete"),
+    statusLabels,
   };
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
+    statusLabels,
     title: t("scheduleScreen.title"),
     startTime: t("scheduleScreen.startTime"),
     endTime: t("scheduleScreen.endTime"),
@@ -775,6 +888,28 @@ export function CalendarTab({
     </Modal>
   );
 
+  const contextMenuTarget = contextMenu
+    ? (rangeItems.find((i) => i.id === contextMenu.id) ??
+      contextItems.find((i) => i.id === contextMenu.id) ??
+      null)
+    : null;
+  const contextMenuEl =
+    contextMenu && contextMenuTarget ? (
+      <ScheduleItemContextMenu
+        position={{ x: contextMenu.x, y: contextMenu.y }}
+        currentTitle={contextMenuTarget.title}
+        labels={{
+          rename: t("scheduleScreen.rename"),
+          duplicate: t("scheduleScreen.duplicate"),
+          delete: t("scheduleScreen.delete"),
+        }}
+        onRename={(title) => handleRename(contextMenu.id, title)}
+        onDuplicate={() => handleDuplicate(contextMenu.id)}
+        onDelete={() => handleDelete(contextMenu.id)}
+        onClose={() => setContextMenu(null)}
+      />
+    ) : null;
+
   // ── Desktop ────────────────────────────────────────────────────────────────
   if (isWide) {
     return (
@@ -806,18 +941,9 @@ export function CalendarTab({
                 items={monthItems}
                 todayKey={today}
                 weekdayLabels={weekdayLabels}
-                onSelectDay={(day) => {
-                  setAnchorDate(day);
-                  setView("day");
-                }}
-                onSelectItem={(id) => {
-                  const it = rangeItems.find((x) => x.id === id);
-                  if (it) {
-                    setAnchorDate(it.date);
-                    setView("day");
-                  }
-                  handleSelectItem(id);
-                }}
+                onSelectDay={handleCreateOnDay}
+                onSelectItem={handleSelectItem}
+                onItemContextMenu={handleItemContextMenu}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
                 }
@@ -836,11 +962,13 @@ export function CalendarTab({
                 items={gridItems}
                 selectedId={selectedId}
                 onSelectItem={handleSelectItem}
+                onItemContextMenu={handleItemContextMenu}
                 onCreateAt={handleCreateAt}
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
                 weekdayLabels={weekdayLabels}
                 allDayLabel={t("scheduleScreen.allDay")}
+                statusLabels={statusLabels}
                 createSlotLabel={t("scheduleCalendar.createSlot")}
                 todayKey={today}
                 nowMinutes={nowMinutes}
@@ -851,6 +979,7 @@ export function CalendarTab({
           )}
         </div>
         {calendarsModal}
+        {contextMenuEl}
       </>
     );
   }
@@ -929,6 +1058,7 @@ export function CalendarTab({
               onResizeItem={handleResizeItem}
               weekdayLabels={weekdayLabels}
               allDayLabel={t("scheduleScreen.allDay")}
+              statusLabels={statusLabels}
               createSlotLabel={t("scheduleCalendar.createSlot")}
               todayKey={today}
               nowMinutes={nowMinutes}
