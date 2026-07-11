@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AnalyticsView } from "../src/components/Analytics/AnalyticsView";
 import type { AnalyticsViewProps } from "../src/components/Analytics/AnalyticsView";
@@ -185,6 +185,22 @@ describe("AnalyticsView responsive branch", () => {
   it("Desktop switches tab content on click (Work tab → empty state)", () => {
     render(<AnalyticsView {...baseProps()} />);
     fireEvent.click(screen.getByRole("tab", { name: "Work" }));
+    expect(screen.getByText("No work sessions yet")).toBeInTheDocument();
+  });
+
+  it("Desktop controlled (shell-lifted band) drops the in-body tabs, keeps the preset, and follows activeTab", () => {
+    render(
+      <AnalyticsView
+        {...baseProps({ activeTab: "work", onTabChange: vi.fn() })}
+      />,
+    );
+    // The shell SectionHeader owns the tab band now — no in-body tabs.
+    expect(screen.queryByRole("tab")).toBeNull();
+    // The date-range preset stays in-body (right-aligned to the data column).
+    expect(
+      screen.getByRole("radiogroup", { name: "Date range" }),
+    ).toBeInTheDocument();
+    // Content follows the controlled activeTab (Work → its empty state).
     expect(screen.getByText("No work sessions yet")).toBeInTheDocument();
   });
 

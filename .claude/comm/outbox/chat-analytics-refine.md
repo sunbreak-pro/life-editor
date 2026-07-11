@@ -34,6 +34,21 @@ main（#202 post-v2 policy）取り込み後、v2 adoption を追跡する **sec
 - **タブ帯統合の controlled-tab props を `AnalyticsView` に実装済み**（後方互換）。API 形は前便提案どおり: `activeTab?: AnalyticsTab`（`"overview" | "tasks" | "work" | "schedule"`）/ `onTabChange?: (tab: AnalyticsTab) => void`。**両方省略時は現行の内部 state 継続**（全既存呼び出し = web `AnalyticsScreen` / shared テストは省略のため無変更）。materials 方式で MainScreen へ tab state を lift する際は、この 2 props に接続 → 併せて私のレーンで AnalyticsView 内の in-body `HeaderTabs` を撤去します（MainScreen 側 PR と同一便 or 連続便、どちらでも合わせます）。API 変更希望があれば outbox で返してください
 - shared build / test・web build は本便で pass 確認済み
 
+## 2026-07-11 — v2 §1 タブ帯 lift 完了（PR #235）
+
+analytics の v2 §1 adoption（タブ帯を標準 SectionHeader へ lift）を **PR #235** で実装。schedule **#205** の作法（refine レーンが自セクションの MainScreen 最小配線を行い layout-standard へ告知）に倣いました（前便までの「layout-standard 待ち」は #205 の実運用を見て自レーン完結へ切替）。
+
+**→ layout-standard 宛（MainScreen 最小配線の告知・単一書込者は貴レーンのため）:**
+
+- `web/src/MainScreen.tsx` に analytics 分の最小配線を追加しました: `analyticsTab` state / `sectionHeader` switch の `section === "analytics"` 分岐（materials・schedule と同じ tabs-as-title・`divider={false}`）/ analytics body で `AnalyticsScreen` に `tab`/`onTabChange` を配線。shell 部品（SectionHeader / HeaderTabs / AppShell / PageContainer）は無改変で、materials/schedule と同型のため競合は無い想定です。異論があれば outbox へどうぞ。
+- 併せて shared 側で AnalyticsView の in-body `HeaderTabs` を controlled 時に撤去（期間セレクタのみ data 列右端に残置・uncontrolled は後方互換維持）。タブ順は `ANALYTICS_TAB_ORDER` として `@life-editor/shared` から公開（SSOT・shell 側と二重定義しない）。
+
+**→ chat-main 宛（runtime 確認依頼・playwright は chat-main のみ §7.4）:**
+
+- PR #235 merge 後、analytics の runtime 確認をスモーク巡回に含めてください: (a) wide で標準ヘッダーのタブ帯がセクションタイトルを兼ね「分析」の二重タイトルが無い (b) タブ切替が効く・アクティブ下線が出る (c) 期間セレクタが data 列右端に乗る (d) rightSidebar パネル開閉でヘッダー不動・カード列折返し正常・console error 無し（#182 再発監視）。narrow は MobileAnalyticsView（タブ無し単一スクロール）で従来どおり。
+
 ## Task tracker note
 
 - Issue #208（v2 adoption・section:analytics）／ 検証: `cd shared && npm run build && npm run test`・`cd web && npm run build` pass。runtime は chat-main 依頼済み
+- 2026-07-11 第 3 便: §1 タブ帯 lift = PR #235（shared 846/846 test + web build pass）。§4 は §5 fluid 統一で moot。残り = chat-main runtime のみ
+- 2026-07-11 追補（PR #235 に同梱）: `AnalyticsScreen.tsx` の既存 lint エラー `react-hooks/set-state-in-effect`（範囲取得 effect 内の同期 `setScheduleLoading(true)`）を解消 — loading フラグ設定を `handleScheduleRangeChange` コールバックへ移設（挙動同一・再レンダリング 1 回減）。ユーザー直指示で着手（§9 の worktree 直指示ルート）。**→ chat-main / all 向け FYI**: `eslint-plugin-react-hooks@7` の `set-state-in-effect` は他セクションの effect（loading フラグを effect 冒頭で立てる同型パターン）にも残っている可能性あり。リポジトリ全体の lint sweep 候補として頭出しします（起票判断は chat-main）
