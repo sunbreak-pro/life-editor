@@ -70,6 +70,29 @@ describe("HeaderTabs", () => {
     expect(onSelect).toHaveBeenCalledWith("daily");
   });
 
+  it("drops its own bottom border when divider={false} (v2 SectionHeader owns the line)", () => {
+    const withDivider = render(
+      <HeaderTabs tabs={TABS} activeTab="tasks" onSelect={vi.fn()} />,
+    );
+    expect(withDivider.container.querySelector(".border-b")).not.toBeNull();
+    withDivider.unmount();
+
+    const noDivider = render(
+      <HeaderTabs
+        tabs={TABS}
+        activeTab="tasks"
+        onSelect={vi.fn()}
+        divider={false}
+      />,
+    );
+    // Only the row's own border is dropped — the active tab keeps its
+    // border-b-2 underline (it overlaps the SectionHeader's divider).
+    expect(noDivider.container.firstElementChild?.className).not.toMatch(
+      /border-b(?!-)/,
+    );
+    expect(noDivider.container.querySelector(".border-b-2")).not.toBeNull();
+  });
+
   it("renders a trailing node outside the tablist (Turn 2 rightSidebar toggle slot)", () => {
     renderTabs({ trailing: <button type="button">panel</button> });
     // The tablist still exposes exactly the declared tabs (trailing is NOT a tab).

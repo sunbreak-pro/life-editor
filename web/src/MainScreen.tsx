@@ -15,9 +15,12 @@ import {
   type PageContainerWidth,
   HeaderTabs,
   SegmentedControl,
+  SectionHeader,
+  PageWidthToggle,
   RightSidebarProvider,
   RightSidebarToggle,
   useMediaQuery,
+  usePageWidthPrefs,
   isMac,
   CommandPalette,
   ToastProvider,
@@ -38,9 +41,10 @@ import {
   MAIN_SECTIONS,
   UTILITY_SECTIONS,
   MOBILE_SECTIONS,
-  SECTION_HAS_RIGHT_SIDEBAR,
+  SECTION_DEFAULT_PAGE_WIDTH,
   EMPTY_MATERIALS_COUNTS,
   type MaterialsCounts,
+  type PageWidthMode,
   type SectionId,
   type SectionDef,
   type Command,
@@ -118,6 +122,33 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   daily: CalendarDays,
   tags: Tag,
 };
+
+/*
+ * Layout Standard v2 §5 — Materials scopes its width tab PER TAB (storage
+ * scope "materials:<tab>") while the section-vs-tab decision is pending (v2
+ * plan 未定事項; coordinated with materials-refine via outbox). Initial
+ * values mirror the pre-v2 look: Tasks was full-width, the other three were
+ * centered reading columns.
+ */
+const MATERIALS_TAB_DEFAULT_WIDTH: Record<MaterialsTab, PageWidthMode> = {
+  tasks: "wide",
+  notes: "narrow",
+  daily: "narrow",
+  tags: "narrow",
+};
+
+/*
+ * v2 keeps the NARROW layout untouched (non-goal: mobile unchanged): the
+ * in-body hamburger row appears only where it did pre-v2. Schedule and
+ * Materials own their narrow chrome; Analytics / Trash had no row (they had
+ * no panel before v2 — their new placeholder panel is Desktop-header-only
+ * for now).
+ */
+const MOBILE_HAMBURGER_SECTIONS: ReadonlySet<SectionId> = new Set([
+  "connect",
+  "work",
+  "settings",
+]);
 
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
@@ -251,18 +282,40 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
-  // Layout Standard v1 (#180): width variant per section. fluid = canvas/board
-  // surfaces that own their full-bleed layout (Connect graph, Schedule calendar,
-  // Materials→Tasks Kanban) plus Analytics (its shared view already implements
-  // the standard "full-width tab band + centered data column" shape itself);
-  // data = wide dashboard column; reading = document column (the default).
-  const pageWidth: PageContainerWidth =
+  // Layout Standard v2 §5 — the header width tab. Persisted per section
+  // (Materials per tab — see MATERIALS_TAB_DEFAULT_WIDTH) with the registry
+  // defaults as the fallback.
+  const [widthPrefs, setPageWidthPref] = usePageWidthPrefs();
+  const widthScope =
+    section === "materials" ? `materials:${materialsTab}` : section;
+  const widthMode: PageWidthMode =
+    widthPrefs[widthScope] ??
+    (section === "materials"
+      ? MATERIALS_TAB_DEFAULT_WIDTH[materialsTab]
+      : SECTION_DEFAULT_PAGE_WIDTH[section]);
+
+  // Width-tab → PageContainer mapping. narrow = centered reading column. On
+  // wide, canvas/board surfaces that own their full-bleed layout stay "fluid"
+  // (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus Analytics
+  // whose shared view draws its own centered data column — the v1 judgment
+  // carried forward); document surfaces get the gutter-padded "full" column.
+  const ownsFullBleed =
     section === "connect" ||
     section === "schedule" ||
     section === "analytics" ||
-    (section === "materials" && materialsTab === "tasks")
+    (section === "materials" && materialsTab === "tasks");
+  // The width tab is a Desktop-header control; the NARROW layout keeps the
+  // pre-v2 static mapping (v2 non-goal: mobile untouched) so a width choice
+  // persisted on Desktop can never restructure the mobile screens.
+  const pageWidth: PageContainerWidth = !isWide
+    ? ownsFullBleed
       ? "fluid"
-      : "reading";
+      : "reading"
+    : widthMode === "narrow"
+      ? "reading"
+      : ownsFullBleed
+        ? "fluid"
+        : "full";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -271,21 +324,62 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t("detailPanel.open");
   const detailCloseLabel = t("detailPanel.close");
 
-  const materialsTabSwitcher = isWide ? (
-    <HeaderTabs
-      tabs={materialsTabDefs}
-      activeTab={materialsTab}
-      onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
-      label={t("section.materials")}
-      trailing={
-        <RightSidebarToggle
-          variant="panel"
-          openLabel={detailOpenLabel}
-          closeLabel={detailCloseLabel}
-        />
-      }
-    />
-  ) : (
+  // Standard header controls (v2 §1/§5), right-end order fixed: width tab
+  // first, then the rightSidebar toggle. The toggle is now UNCONDITIONAL for
+  // all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR gate is
+  // retired); Analytics / Trash open the shared placeholder empty state until
+  // their refine pass defines panel content.
+  const headerControls = (
+    <>
+      <PageWidthToggle
+        value={widthMode}
+        onChange={(mode) => setPageWidthPref(widthScope, mode)}
+        labels={{
+          group: t("layout.width"),
+          wide: t("layout.widthWide"),
+          narrow: t("layout.widthNarrow"),
+        }}
+      />
+      <RightSidebarToggle
+        variant="panel"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+      />
+    </>
+  );
+
+  // Standard section header row (v2 §1), mounted in AppShell's header slot —
+  // ABOVE the main + detail-panel flex row (§4), so the divider spans both
+  // and the controls never move when the panel opens. Materials' tab band
+  // doubles as its title (divider={false}: the SectionHeader owns the line);
+  // every other section shows its translated title. Sections that still draw
+  // their own in-body chrome (Schedule tabs, Connect/Analytics internal
+  // headers) migrate to this row in their v2 adoption pass (orders plans).
+  const sectionHeader =
+    section === "materials" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={materialsTabDefs}
+            activeTab={materialsTab}
+            onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
+            label={t("section.materials")}
+          />
+        }
+        controls={headerControls}
+      />
+    ) : (
+      <SectionHeader
+        title={t(`section.${section}`, { defaultValue: section })}
+        controls={headerControls}
+      />
+    );
+
+  // NARROW layout rows — unchanged from v1 (v2 non-goal: mobile untouched).
+  // Materials keeps its hamburger + segmented tab row; Connect / Work /
+  // Settings keep their hamburger row (MOBILE_HAMBURGER_SECTIONS).
+  const materialsMobileSwitcher = (
     <div className="flex items-center gap-2">
       <RightSidebarToggle
         variant="hamburger"
@@ -301,33 +395,16 @@ export function MainScreen({ session }: { session: Session }) {
       />
     </div>
   );
-
-  // Detail-panel toggle row for the non-Materials sections. Only rendered when
-  // the active section actually owns rightSidebar content (SECTION_HAS_RIGHT_
-  // SIDEBAR, the registry SSOT) — Analytics / Trash supply no portal content,
-  // so their toggle is hidden to avoid opening an empty panel (plan Step 3).
-  // Schedule / Materials are handled by their own branches below (own chrome),
-  // so this row covers Connect / Work / Settings. Desktop pins the panel toggle
-  // to the right; Mobile shows the hamburger at the left.
-  const showSectionToggle = SECTION_HAS_RIGHT_SIDEBAR[section];
-  const sectionToolbar = !showSectionToggle ? null : isWide ? (
-    <div className="flex items-center">
-      <RightSidebarToggle
-        variant="panel"
-        openLabel={detailOpenLabel}
-        closeLabel={detailCloseLabel}
-        className="ml-auto"
-      />
-    </div>
-  ) : (
-    <div className="flex items-center">
-      <RightSidebarToggle
-        variant="hamburger"
-        openLabel={detailOpenLabel}
-        closeLabel={detailCloseLabel}
-      />
-    </div>
-  );
+  const sectionToolbar =
+    !isWide && MOBILE_HAMBURGER_SECTIONS.has(section) ? (
+      <div className="flex items-center">
+        <RightSidebarToggle
+          variant="hamburger"
+          openLabel={detailOpenLabel}
+          closeLabel={detailCloseLabel}
+        />
+      </div>
+    ) : null;
 
   const detailPanelLabels = {
     title: t("detailPanel.title"),
@@ -535,30 +612,23 @@ export function MainScreen({ session }: { session: Session }) {
                   onSignOut={() => void signOut()}
                   labels={shellLabels}
                   detailPanelLabels={detailPanelLabels}
+                  header={sectionHeader}
                 >
                   {/*
-                   * PageContainer (Layout Standard v1, #180) owns width + gutter
-                   * + scroll for every section. The Materials tab band and the
-                   * other sections' toolbar go into its `header` slot, so they
-                   * render at the SAME left offset whether the body is fluid
-                   * (Kanban / calendar) or a centered column — no more per-shape
-                   * hand-rolled wrappers. Analytics is fluid because its shared
-                   * view already draws the standard "full-width tab band +
-                   * centered data column" itself.
+                   * PageContainer (Layout Standard v1 #180 / v2) owns width +
+                   * gutter + scroll for every section. On the WIDE layout the
+                   * section chrome now lives in AppShell's header slot (the
+                   * standard SectionHeader above), so the header slot here only
+                   * carries the NARROW-layout rows: Materials' hamburger +
+                   * segmented tab row, and the Connect / Work / Settings
+                   * hamburger row (all unchanged from v1 — mobile non-goal).
                    */}
                   {section === "materials" ? (
                     <PageContainer
                       width={pageWidth}
-                      header={materialsTabSwitcher}
+                      header={isWide ? undefined : materialsMobileSwitcher}
                     >
                       {materialsView}
-                    </PageContainer>
-                  ) : section === "schedule" ? (
-                    /* Schedule owns its own chrome (tab row + toggle inside
-                       ScheduleScreen), so no header slot — otherwise the panel
-                       toggle would render twice. */
-                    <PageContainer width="fluid">
-                      {nonMaterialsBody}
                     </PageContainer>
                   ) : (
                     <PageContainer

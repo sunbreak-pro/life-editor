@@ -93,9 +93,28 @@ describe("AppShell (wide)", () => {
       screen.getByRole("button", { name: "Expand sidebar" }),
     ).toBeInTheDocument();
   });
+
+  it("renders the v2 header slot above the section body", () => {
+    mockMatchMedia(true);
+    renderShell({ header: <div data-testid="header">section header</div> });
+    const header = screen.getByTestId("header");
+    const body = screen.getByText("section body");
+    expect(header).toBeInTheDocument();
+    // §4: the header precedes the main row in the content column, so the
+    // panel (a flex sibling of <main>) can only open BELOW the divider.
+    expect(
+      header.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });
 
 describe("AppShell (narrow)", () => {
+  it("does not render the v2 header slot (mobile layout unchanged)", () => {
+    mockMatchMedia(false);
+    renderShell({ header: <div data-testid="header">section header</div> });
+    expect(screen.queryByTestId("header")).not.toBeInTheDocument();
+  });
+
   it("renders bottom tabs and a More sheet for overflow sections", () => {
     mockMatchMedia(false);
     const { onNavigate } = renderShell();
