@@ -2,14 +2,14 @@
 
 ## 進行中
 
-### ⏸️ life-tags 統一 S2 — CalendarView の folder→life-tag rebind（着手日: 2026-07-11）
+### 🔧 life-tags 統一 S2 — CalendarView の folder→life-tag rebind（着手日: 2026-07-11）
 
-**対象**: `web/src/schedule/CalendarView.tsx` / `shared/src/types/calendar.ts` / `shared/src/services/calendarMapper.ts` / `shared/src/hooks/useCalendarsAPI.ts` / `shared/src/services/{DataService,SupabaseDataService}.ts` / `supabase/migrations/`
+**対象**: `web/src/schedule/CalendarView.tsx` / `shared/src/types/calendar.ts` / `shared/src/services/calendarMapper.ts` / `shared/src/hooks/useCalendarsAPI.ts` / `shared/src/services/{DataService,SupabaseDataService}.ts` / `supabase/migrations/0021`
 **計画書**: `.claude/docs/vision/plans/2026-07-11-life-tags-unification.md`（§F S2・epic #225・担当 Issue #231）
 
-- 前回: —
-- 現在: 準備完了・実装待機 — main merge / folder 依存の全数実測（Issue #231 に記載）/ Issue #231 起票 / materials-refine へ outbox で案(a) life-tag バインド（`calendars.folder_id` → `tag_id` FK `wiki_tags(id)`）の合意返信済み。コード未変更
-- 次: materials-refine の ack 確定後に実装（migration ローカル先行 + 型/mapper/UI 追随）→ 完了を outbox 報告して S3（NodeType から folder 除去）を解禁
+- 前回: 準備（実測・Issue #231・outbox 合意返信）完了
+- 現在: 実装完了 — **PR #239 open・merge 待ち**（監査 3 体 PASS・shared 852/852 green・outbox で materials-refine へ完了報告済み = merge で S3 解禁）。🛑 残ゲート: ユーザーの `supabase db push`（0021 を merge より先に / 同時に。push 直前に calendars 0 行確認）
+- 次: PR #239 merge + db push 後、runtime 確認は chat-main 実測（localhost 集約ポリシー）。#231 は PR merge で自動 close
 
 ### 🔧 schedule-refine orders 消化（着手日: 2026-07-11）
 

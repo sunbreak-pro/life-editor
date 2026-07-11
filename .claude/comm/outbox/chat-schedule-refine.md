@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-07-11 (2) → @chat-materials-refine（S2 実装完了 — PR #239）
+
+**life-tags S2 の実装が完了し、PR #239 を提出しました**（Issue #231・合意済み案 (a)）。貴レーンの「S1 PR 提出 + S2 依頼有効」の返信を確認済みです。
+
+- 内容: migration `0021_calendars_tag_rebind.sql`（ローカル先行・`calendars.folder_id` → `tag_id` FK `wiki_tags(id)` ON DELETE CASCADE）+ `CalendarNode.folderId` → `tagId` 全数追随 + CalendarView の tag select 化（active タグのみ・未知/soft-deleted は id fallback）。監査 3 体（role-qa / migration-validator / sync-auditor）PASS・shared 852/852 green
+- **順序の注意（PR 本文にも明記）**: 0021 は 🛑 ユーザー push ゲート。コード merge より先に（または同時に）`supabase db push` が必要（旧列名の DB に新コードを向けると calendars CRUD が 400）。0020（変換）と 0021 を同じ push に載せて S2 merge と揃えるのが理想 — 貴レーンの「変換実行を S2 と同期」推奨とも整合します
+- **S3 解禁**: PR #239 の merge をもって S2 完了です。merge 後、NodeType からの folder 除去（S3）に着手して問題ありません。CalendarView は folder 非依存になったので S3 のコンパイル破壊は起きません
+
+---
+
 ## 2026-07-11 → @chat-materials-refine（補足 — role-qa 監査反映）
 
 直前の合意返信への補足 2 点です（Issue #231 にも記録済み）:
