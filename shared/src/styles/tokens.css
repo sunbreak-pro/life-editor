@@ -299,6 +299,16 @@
   --spacing-lumen-4: 16px;
   --spacing-lumen-5: 20px;
   --spacing-lumen-6: 24px;
+  /* Content width scale (Layout Standard v1, Issue #180) → max-w-lumen-reading /
+     max-w-lumen-data. reading = document-style centered column (768px — the
+     shell standard width docs call out); data = wide dashboard column (1000px,
+     analytics). Owned by PageContainer; sections must not hardcode page widths. */
+  --container-lumen-reading: 768px;
+  --container-lumen-data: 1000px;
+  /* Layout Standard v1 page gutter — horizontal padding 16px narrow / 24px ≥md,
+     consumed as px-lumen-gutter / md:px-lumen-gutter-wide. */
+  --spacing-lumen-gutter: 16px;
+  --spacing-lumen-gutter-wide: 24px;
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";

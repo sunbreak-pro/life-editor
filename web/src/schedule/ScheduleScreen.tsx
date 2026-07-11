@@ -38,8 +38,11 @@ export function ScheduleScreen({ dataService }: { dataService: DataService }) {
           RoutineScheduleSync.tsx). Renders nothing. */}
       <RoutineScheduleSync dataService={dataService} />
 
+      {/* Standard page gutter tokens (#180) — px-based, so the tab band's
+          left offset matches PageContainer's header slot even when the root
+          font-size scales (rem-based px-4/px-6 drifts at non-16px roots). */}
       {isWide && (
-        <div className="shrink-0 px-4 pt-3 md:px-6">
+        <div className="shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide">
           <HeaderTabs
             tabs={[
               { id: "calendar", label: t("scheduleScreen.calendar") },

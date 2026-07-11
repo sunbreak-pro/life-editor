@@ -102,6 +102,42 @@ describe("NoteDetailPanel", () => {
     expect(onDelete).toHaveBeenCalledWith("note-a");
   });
 
+  it("defaults to the sidebar surface and switches to the main surface via variant", () => {
+    const { container, rerender } = render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="surface"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    // Default (variant omitted) = the compact sidebar card.
+    const sidebarRoot = container.firstElementChild as HTMLElement;
+    expect(sidebarRoot.className).toContain("bg-lumen-bg-secondary");
+    expect(sidebarRoot.className).not.toContain("bg-lumen-surface");
+
+    // variant="main" = the larger opaque editor surface.
+    rerender(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="surface"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        variant="main"
+        {...LABELS}
+      />,
+    );
+    const mainRoot = container.firstElementChild as HTMLElement;
+    expect(mainRoot.className).toContain("bg-lumen-surface");
+    expect(mainRoot.className).toContain("shadow-lumen-sm");
+    expect(mainRoot.className).not.toContain("bg-lumen-bg-secondary");
+  });
+
   it("omits the tag, content and links sections when their slots are absent", () => {
     render(
       <NoteDetailPanel

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -51,26 +51,30 @@ import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
- * Web Notes tab (Materials mini-plan Step 3). Re-shaped from the old
- * MasterDetail layout to the target-IA design:
+ * Web Notes tab. Flipped to the Daily操作モデル ("sidebar = list / main =
+ * editor") so Notes / Daily read the same way:
  *
- *   - Desktop (isWide): a centered max-width 800px surface card — a search
- *     field + "folder" create button, the note tree (34px rows, chevron
- *     folders, hover grip + trash, pin / lock indicators), and a bottom
- *     "Trash (N)" row. The selected note's detail (title / pin / delete /
- *     tags / content / links) is PUSHED INTO THE SHARED rightSidebar via
- *     RightSidebarPortal + the new shared <NoteDetailPanel>, mirroring the
- *     Tasks tab's isWide + portal pattern. No MasterDetail.
- *   - Mobile (narrow): a read + shortest-add surface (brief). A "Pinned"
- *     section, an "All notes (N)" tree of collapsible folder headings +
- *     ExcerptListItem rows, a 92%-height read sheet (title + read-only tags
- *     + read-only body, unlock gate preserved), and a "+" QuickAddSheet.
- *     Edit / move / folder-create / tag-edit are Desktop-only (brief).
+ *   - Desktop (isWide): the MAIN content is the selected note's editor — the
+ *     shared <NoteDetailPanel variant="main"> (title / pin / delete meta row +
+ *     tags + TipTap body + links) in a centered max-width 800px surface, the
+ *     Daily EditorCard's slot. Nothing selected → the shared <EmptyState>
+ *     select-or-create CTA. The note tree (search + "+ note" / folder create,
+ *     34px rows with chevron folders, hover grip + trash, pin / lock
+ *     indicators, and a "Trash (N)" row) is PUSHED INTO THE SHARED
+ *     rightSidebar via RightSidebarPortal — it is always-present nav content
+ *     (not selection-driven), so the portal renders whenever wide. On mount we
+ *     call rightSidebar.open() (isOpen is non-persisted / starts false) so the
+ *     list = the tab's nav is visible on entry. Context method only — the
+ *     shell files stay untouched.
+ *   - Mobile (narrow): unchanged. A read + shortest-add surface (brief): a
+ *     "Pinned" section, an "All notes (N)" tree of collapsible folder headings
+ *     + ExcerptListItem rows, a 92%-height read sheet (title + read-only tags +
+ *     read-only body, unlock gate preserved), and a "+" QuickAddSheet.
  *
  * DnD (reorder / move-into-folder / to-root), the password / unlock
- * subsystem, and Trash restore/purge are preserved from the previous
- * milestone. Data stays context-side (useNotesUnifiedContext); this view is
- * DataService-free (§3.1) and takes copy from useTranslation → props.
+ * subsystem, and Trash restore/purge are preserved. Data stays context-side
+ * (useNotesUnifiedContext); this view is DataService-free (§3.1) and takes copy
+ * from useTranslation → props.
  */
 
 // Password dialog copy. Kept as local constants (the Notes i18n追い付き is
@@ -258,6 +262,22 @@ export function NotesView() {
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
 
+  // On wide entry, open the shared rightSidebar so the note tree (now the
+  // panel's content = this tab's nav) is visible. isOpen is non-persisted and
+  // starts false, so without this the list would be hidden on mount. open() is
+  // idempotent (setState bails when already true); gate on the breakpoint only.
+  useEffect(() => {
+    // Crossing wide→narrow: the tree moved out of the shared panel into the
+    // narrow layout, but rightSidebar.isOpen persists — leaving the mobile
+    // Details drawer (its bg-black/30 overlay) covering the screen. Close it.
+    // The narrow hamburger path is untouched: this effect only fires on the
+    // isWide transition, not on a bare open() from the shell.
+    if (isWide) rightSidebar.open();
+    else rightSidebar.close();
+    // rightSidebar.open/close are stable for the panel's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWide]);
+
   const [pwDialog, setPwDialog] = useState<{
     mode: NotePasswordMode;
     noteId: string;
@@ -357,9 +377,10 @@ export function NotesView() {
     );
   };
 
+  // Selecting from the sidebar tree fills the MAIN editor; the sidebar (= the
+  // tree/nav) stays open, so no open()/close() here — just flip the selection.
   const handleSelectDesktop = (id: string) => {
     notes.setSelectedNoteId(id);
-    rightSidebar.open();
   };
 
   const handleOpenRead = (id: string) => {
@@ -402,189 +423,189 @@ export function NotesView() {
   const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
   const hasNotes = flat.length > 0;
 
-  // ---- Desktop body ---------------------------------------------------
+  // ---- Desktop sidebar tree -------------------------------------------
+  //
+  // The note tree/nav, pushed into the shared rightSidebar (wide-only). The
+  // panel well (RightSidebarContents) supplies the p-3 padding + scroll, so
+  // this is frameless natural-flow content: search + create controls, the
+  // tree, then the Trash section — no card frame of its own.
 
-  const desktopBody = (
-    <div className="flex min-h-0 flex-1 flex-col px-7 pb-6 pt-5">
-      {/* Action row — "+ Note" CTA (差分宣言 #1: the tab-row slot is shell-
-          owned, so the create entry lives at the content head). */}
-      <div className="mx-auto flex w-full max-w-[800px] justify-end pb-3">
-        <button
-          type="button"
-          onClick={() => notes.createNote()}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
-            "text-[13px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
-            FOCUS_RING,
-          )}
-        >
-          <Plus size={14} aria-hidden />
-          {t("materials.notes.addCta")}
-        </button>
-      </div>
-
-      <div className="mx-auto flex min-h-0 w-full max-w-[800px] flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
-        {/* Search + folder create. */}
-        <div className="flex gap-2 px-3 pb-2 pt-3">
-          <div className="flex h-8 flex-1 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
-            <Search
-              size={13}
-              aria-hidden
-              className="shrink-0 text-lumen-text-tertiary"
-            />
-            <input
-              value={notes.searchQuery}
-              onChange={(e) => notes.setSearchQuery(e.target.value)}
-              placeholder={t("materials.notes.searchPlaceholder")}
-              aria-label={t("materials.notes.searchPlaceholder")}
-              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
-            />
-          </div>
+  const sidebarTree = (
+    <div className="flex flex-col gap-2">
+      {/* Search + create controls. Stacked so each stays legible at the panel's
+          240px min width. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
+          <Search
+            size={13}
+            aria-hidden
+            className="shrink-0 text-lumen-text-tertiary"
+          />
+          <input
+            value={notes.searchQuery}
+            onChange={(e) => notes.setSearchQuery(e.target.value)}
+            placeholder={t("materials.notes.searchPlaceholder")}
+            aria-label={t("materials.notes.searchPlaceholder")}
+            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
+          />
+        </div>
+        {/* "+ note" primary fills the row; folder-create is a secondary
+            icon-only square (aria-label carries the copy) so both stay
+            comfortable at the 240px min panel width. */}
+        <div className="flex items-stretch gap-2">
+          <button
+            type="button"
+            onClick={() => notes.createNote()}
+            className={cn(
+              "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
+              "text-[12.5px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+              FOCUS_RING,
+            )}
+          >
+            <Plus size={14} aria-hidden className="shrink-0" />
+            <span className="truncate">{t("materials.notes.addCta")}</span>
+          </button>
           <button
             type="button"
             onClick={addFolder}
+            aria-label={t("materials.notes.folderCta")}
+            title={t("materials.notes.folderCta")}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3",
-              "text-[12.5px] font-medium text-lumen-text-secondary hover:bg-lumen-hover",
+              "grid w-8 shrink-0 place-items-center rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               FOCUS_RING,
             )}
           >
-            <Folder size={13} aria-hidden />
-            {t("materials.notes.folderCta")}
+            <Folder size={14} aria-hidden />
           </button>
         </div>
+      </div>
 
-        {/* Tree. */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-0.5">
-          {moveError && (
-            <p
-              role="alert"
-              className="mb-2 rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
-            >
-              {moveError}
-            </p>
-          )}
-          {notes.error && (
-            <p
-              role="alert"
-              className="mb-2 rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
-            >
-              {notes.error}
-            </p>
-          )}
-          {!hasNotes ? (
-            <EmptyState
-              icon={<FileText aria-hidden />}
-              message={t("materials.notes.empty")}
-              cta={{
-                label: t("materials.notes.addCta"),
-                onClick: () => notes.createNote(),
-              }}
-            />
-          ) : (
-            <DndContext
-              sensors={dnd.sensors}
-              collisionDetection={treeCollisionDetection}
-              measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-              onDragStart={dnd.handleDragStart}
-              onDragMove={dnd.handleDragMove}
-              onDragEnd={dnd.handleDragEnd}
-              onDragCancel={dnd.handleDragCancel}
-            >
-              <SortableContext
-                items={ids}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul className="flex flex-col gap-px">
-                  {flat.map((row) => (
-                    <DesktopNoteRow
-                      key={row.node.id}
-                      row={row}
-                      expanded={notes.expandedIds.has(row.node.id)}
-                      selected={selected?.id === row.node.id}
-                      dropPosition={
-                        dnd.overInfo?.overId === row.node.id &&
-                        dnd.activeId !== row.node.id
-                          ? dnd.overInfo.position
-                          : null
-                      }
-                      onToggleExpand={notes.toggleExpanded}
-                      onSelect={handleSelectDesktop}
-                      onDelete={notes.softDeleteNote}
-                      deleteLabel={t("materials.notes.deleteNote")}
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
-              <DragOverlay>
-                {dnd.activeNode ? (
-                  <TreeDragGhost title={dnd.activeNode.title} />
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          )}
-        </div>
+      {moveError && (
+        <p
+          role="alert"
+          className="rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
+        >
+          {moveError}
+        </p>
+      )}
+      {notes.error && (
+        <p
+          role="alert"
+          className="rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
+        >
+          {notes.error}
+        </p>
+      )}
 
-        {/* Trash row. */}
-        <div className="border-t border-lumen-border">
-          <button
-            type="button"
-            onClick={() => setTrashOpen((v) => !v)}
-            aria-expanded={trashOpen}
-            className={cn(
-              "flex w-full items-center gap-2 px-3 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-              FOCUS_RING,
-            )}
-          >
-            {trashOpen ? (
-              <ChevronDown size={13} aria-hidden />
-            ) : (
-              <ChevronRight size={13} aria-hidden />
-            )}
-            <Trash2 size={14} aria-hidden />
-            <span>
-              {t("materials.notes.trash")}（{notes.deletedNotes.length}）
-            </span>
-          </button>
-          {trashOpen && notes.deletedNotes.length > 0 && (
-            <ul className="max-h-40 space-y-1 overflow-y-auto px-3 pb-2">
-              {notes.deletedNotes.map((n) => (
-                <li
-                  key={n.id}
-                  className="flex items-center justify-between gap-2 text-sm"
-                >
-                  <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
-                    {n.title || "(untitled)"}
-                  </span>
-                  <span className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => notes.restoreNote(n.id)}
-                      aria-label={`Restore ${n.title || "untitled"}`}
-                      className={cn(
-                        "text-lumen-accent hover:opacity-80",
-                        FOCUS_RING,
-                      )}
-                    >
-                      <RotateCcw size={14} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => notes.permanentDeleteNote(n.id)}
-                      aria-label={`Permanently delete ${n.title || "untitled"}`}
-                      className={cn(
-                        "text-lumen-danger hover:opacity-80",
-                        FOCUS_RING,
-                      )}
-                    >
-                      <Trash2 size={14} aria-hidden />
-                    </button>
-                  </span>
-                </li>
+      {/* Tree. */}
+      {!hasNotes ? (
+        <EmptyState
+          icon={<FileText aria-hidden />}
+          message={t("materials.notes.empty")}
+          cta={{
+            label: t("materials.notes.addCta"),
+            onClick: () => notes.createNote(),
+          }}
+        />
+      ) : (
+        <DndContext
+          sensors={dnd.sensors}
+          collisionDetection={treeCollisionDetection}
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+          onDragStart={dnd.handleDragStart}
+          onDragMove={dnd.handleDragMove}
+          onDragEnd={dnd.handleDragEnd}
+          onDragCancel={dnd.handleDragCancel}
+        >
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            <ul className="flex flex-col gap-px">
+              {flat.map((row) => (
+                <DesktopNoteRow
+                  key={row.node.id}
+                  row={row}
+                  expanded={notes.expandedIds.has(row.node.id)}
+                  selected={selected?.id === row.node.id}
+                  dropPosition={
+                    dnd.overInfo?.overId === row.node.id &&
+                    dnd.activeId !== row.node.id
+                      ? dnd.overInfo.position
+                      : null
+                  }
+                  onToggleExpand={notes.toggleExpanded}
+                  onSelect={handleSelectDesktop}
+                  onDelete={notes.softDeleteNote}
+                  deleteLabel={t("materials.notes.deleteNote")}
+                />
               ))}
             </ul>
+          </SortableContext>
+          <DragOverlay>
+            {dnd.activeNode ? (
+              <TreeDragGhost title={dnd.activeNode.title} />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
+
+      {/* Trash section. */}
+      <div className="border-t border-lumen-border pt-1">
+        <button
+          type="button"
+          onClick={() => setTrashOpen((v) => !v)}
+          aria-expanded={trashOpen}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+            FOCUS_RING,
           )}
-        </div>
+        >
+          {trashOpen ? (
+            <ChevronDown size={13} aria-hidden className="shrink-0" />
+          ) : (
+            <ChevronRight size={13} aria-hidden className="shrink-0" />
+          )}
+          <Trash2 size={14} aria-hidden className="shrink-0" />
+          <span className="truncate">
+            {t("materials.notes.trash")}（{notes.deletedNotes.length}）
+          </span>
+        </button>
+        {trashOpen && notes.deletedNotes.length > 0 && (
+          <ul className="max-h-40 space-y-1 overflow-y-auto pb-2">
+            {notes.deletedNotes.map((n) => (
+              <li
+                key={n.id}
+                className="flex items-center justify-between gap-2 px-1 text-sm"
+              >
+                <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
+                  {n.title || "(untitled)"}
+                </span>
+                <span className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => notes.restoreNote(n.id)}
+                    aria-label={`Restore ${n.title || "untitled"}`}
+                    className={cn(
+                      "text-lumen-accent hover:opacity-80",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <RotateCcw size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => notes.permanentDeleteNote(n.id)}
+                    aria-label={`Permanently delete ${n.title || "untitled"}`}
+                    className={cn(
+                      "text-lumen-danger hover:opacity-80",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Trash2 size={14} aria-hidden />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -773,49 +794,73 @@ export function NotesView() {
     </div>
   ) : undefined;
 
+  // ---- Desktop main editor --------------------------------------------
+  //
+  // The selected note's detail (meta row + tags + TipTap body + links) as the
+  // tab's MAIN content — a centered max-width 800px surface (the Daily
+  // EditorCard slot). Nothing selected → the select-or-create empty state.
+  // Folders never reach the main surface (the tree toggles them, never selects
+  // them), but the folder guards on the slots are kept as defence in depth.
+
+  // PageContainer (width="reading", Issue #181) owns the centered measure + page
+  // gutter + scroll for this tab, so the main surface adds none of its own — just
+  // the panel (or the select-or-create empty state), letting the reading column
+  // govern the width.
+  const desktopMain = selected ? (
+    <NoteDetailPanel
+      variant="main"
+      noteId={selected.id}
+      title={selected.title}
+      isPinned={selected.isPinned}
+      onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+      onTogglePin={notes.togglePin}
+      onDelete={(id) => notes.softDeleteNote(id)}
+      titleLabel={t("notesView.detailTitle")}
+      pinLabel={t("notesView.unpin")}
+      unpinLabel={t("notesView.pin")}
+      deleteLabel={t("materials.notes.deleteNote")}
+      tagsSlot={
+        selected.type === "folder" ? undefined : (
+          <TagPicker itemId={selected.id} showLabel size="sm" />
+        )
+      }
+      contentLabel={t("materials.notes.content")}
+      contentEditor={
+        selected.type === "folder" ? undefined : detailContentEditor
+      }
+      linksLabel={t("materials.notes.links")}
+      linksSlot={
+        selected.type === "folder" ? undefined : (
+          <LinkPanel
+            itemId={selected.id}
+            resolveTitle={resolveTitle}
+            linkableItems={linkableItems}
+          />
+        )
+      }
+    />
+  ) : (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <EmptyState
+        icon={<FileText aria-hidden />}
+        message={
+          hasNotes ? t("materials.notes.mainEmpty") : t("materials.notes.empty")
+        }
+        cta={{
+          label: t("materials.notes.addCta"),
+          onClick: () => notes.createNote(),
+        }}
+      />
+    </div>
+  );
+
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {isWide ? desktopBody : mobileBody}
+      {isWide ? desktopMain : mobileBody}
 
-      {/* Desktop detail — pushed into the shared rightSidebar (wide-only). */}
-      {isWide && selected && (
-        <RightSidebarPortal>
-          <NoteDetailPanel
-            noteId={selected.id}
-            title={selected.title}
-            isPinned={selected.isPinned}
-            onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-            onTogglePin={notes.togglePin}
-            onDelete={(id) => {
-              notes.softDeleteNote(id);
-              rightSidebar.close();
-            }}
-            titleLabel={t("notesView.detailTitle")}
-            pinLabel={t("notesView.unpin")}
-            unpinLabel={t("notesView.pin")}
-            deleteLabel={t("materials.notes.deleteNote")}
-            tagsSlot={
-              selected.type === "folder" ? undefined : (
-                <TagPicker itemId={selected.id} showLabel size="sm" />
-              )
-            }
-            contentLabel={t("materials.notes.content")}
-            contentEditor={
-              selected.type === "folder" ? undefined : detailContentEditor
-            }
-            linksLabel={t("materials.notes.links")}
-            linksSlot={
-              selected.type === "folder" ? undefined : (
-                <LinkPanel
-                  itemId={selected.id}
-                  resolveTitle={resolveTitle}
-                  linkableItems={linkableItems}
-                />
-              )
-            }
-          />
-        </RightSidebarPortal>
-      )}
+      {/* Note tree — pushed into the shared rightSidebar as always-present nav
+          content (wide-only, so narrow never fills the MobileDrawer). */}
+      {isWide && <RightSidebarPortal>{sidebarTree}</RightSidebarPortal>}
 
       {/* Mobile read sheet — 92% height, read-only. */}
       {!isWide && (

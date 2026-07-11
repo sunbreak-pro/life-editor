@@ -120,15 +120,14 @@ function DesktopAnalytics({
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
 
   const tabs = useMemo<HeaderTab[]>(
-    () =>
-      TAB_ORDER.map((tab) => ({ id: tab, label: labels.tabs[tab] })),
+    () => TAB_ORDER.map((tab) => ({ id: tab, label: labels.tabs[tab] })),
     [labels.tabs],
   );
 
   return (
     <div className="flex h-full flex-col">
       {/* Header: title + date-range preset pills, then shell-standard tabs */}
-      <div className="flex flex-shrink-0 flex-col gap-3 px-6 pt-4">
+      <div className="flex flex-shrink-0 flex-col gap-3 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-lumen-text">
             {labels.title}
@@ -148,9 +147,9 @@ function DesktopAnalytics({
         />
       </div>
 
-      {/* Content: centered max-w-1000 column */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="mx-auto w-full max-w-[1000px]">
+      {/* Content: centered max-w-lumen-data column */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-lumen-gutter py-4 md:px-lumen-gutter-wide md:py-6">
+        <div className="mx-auto w-full max-w-lumen-data">
           {initialLoading ? (
             <DesktopSkeleton />
           ) : (

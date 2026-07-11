@@ -8,7 +8,11 @@ export { WeekTimeGrid } from "./WeekTimeGrid";
 export type { WeekTimeGridProps, WeekTimeGridItem } from "./WeekTimeGrid";
 // Target-IA presentational parts (W8): month grid + day agenda + toolbar +
 // event editor + routine summary/editor. Pure presentation (§3.1 / §6.4).
-export { MonthGrid, type MonthGridProps, type MonthGridItem } from "./MonthGrid";
+export {
+  MonthGrid,
+  type MonthGridProps,
+  type MonthGridItem,
+} from "./MonthGrid";
 export {
   AgendaList,
   type AgendaListProps,
@@ -39,6 +43,13 @@ export {
   type RoutineEditorRoutine,
   type RoutineEditorGroup,
 } from "./RoutineEditorForm";
+// Target-IA rightSidebar frame: 2-tab (Calendar) / 1-tab (Routines) switcher
+// the Schedule tabs portal into the shared detail panel.
+export {
+  ScheduleSidebarTabs,
+  type ScheduleSidebarTabsProps,
+  type ScheduleSidebarTab,
+} from "./ScheduleSidebarTabs";
 export {
   layoutDayItems,
   minutesFromMidnight,
