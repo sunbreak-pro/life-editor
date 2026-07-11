@@ -1,6 +1,15 @@
 # HISTORY (chat-shell-refine)
 
-### 2026-07-11 - shell-refine レーン初回セッション: #229（PR #234）/ #181 trash 行 / #197 Stage B+C
+### 2026-07-11 - chat-main 采配 2 件: #173 docs-lint（PR #241）/ #172 PostgREST pagination（PR #243）
+
+#### 概要
+
+chat-main 采配で自分宛となった #173（docs-lint 機械検査）と #172（sync delta pull の client 側 pagination = 現行スタックでは PostgREST max-rows 無音切り捨て対策）を 1 Issue = 1 PR で処理した。両 PR とも CI 全緑・merge はユーザーゲート待ち。
+
+#### 変更点
+
+- **#173 docs-lint（PR #241・ブランチ claude/shell-refine-173）**: `scripts/docs-lint.sh` 新設（(a) 相対リンク実在 / (b) 旧トークン notion-\*・ink-\* 残存（known-issues/ + 歴史注記行除外）/ (c) plans Status enum / (d) 完了プラン残置）+ ci.yml に docs-lint ジョブ追加。新 lint が検出した既存違反 8 件を同一 PR で解消（壊れリンク 2 / IN_PROGRESS 正規化 3 / merge 済みプラン 3 本 = shell-implementation・connect-implementation・materials-impl を COMPLETED + archive/ 移動）。CI 初回失敗（git 非追跡の派生 INDEX への CLAUDE.md リンク）は派生ビュー除外で修正。gotcha: `git mv` は index の旧 blob のまま rename を stage するため sed 後の内容が commit から漏れる — 追いコミットで是正
+- **#172 PostgREST pagination（PR #243・ブランチ claude/shell-refine-172）**: `shared/src/services/postgrestFetchAll.ts` 新設（fetchAllPages = 一意 order + range の追い pull / chunkIds・fetchByIdChunks・forEachIdChunk = .in() の 200 件分割）。SupabaseDataService + Notes/Dailies/WikiTags Unified + Timer + Audio の全「全件 read」と id 収集 → .in() write 経路に適用（シグネチャ不変）。テスト 14 件新設 + 既存スタブ 3 ファイルに .order/.range 追加。life-editor-sync-auditor 監査 = PASS with notes → Medium 2 件（bulkCreate pre-check の直積 .in().in() 未 paginate / R2 cleanup DELETE 未チャンク）を同 PR で修正、db-conventions に §11（ページ分割規約 + max-rows 運用注意）新設。検証 = shared tsc -b + vitest 865/865（フル 2 回）/ web build 緑
 
 #### 概要
 
