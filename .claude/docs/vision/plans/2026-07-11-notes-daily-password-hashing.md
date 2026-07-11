@@ -33,7 +33,7 @@ pbkdf2$v1$<iterations>$<salt(base64)>$<hash(base64)>
 
 self-describing format を無検証で信じない:
 
-- verify 時、stored 値の **iterations は許容レンジ [100,000, 1,000,000] にクランプ検証** — 範囲外は即 `ok: false`（毒値による PBKDF2 フリーズ = DoS の遮断）
+- verify 時、stored 値の **iterations は許容レンジ [100,000, 1,000,000] でレンジ検証（clamp ではなく reject）** — 範囲外・数字以外の混入は即 `ok: false`（毒値による PBKDF2 フリーズ = DoS の遮断）
 - salt はデコード後 **厳密 16 bytes** / hash は **厳密 32 bytes** — 外れたら `ok: false`
 - **`pbkdf2$` prefix があるのに parse / 検証が通らない値（malformed）は plaintext eq に fallback しない**（downgrade 経路の遮断）— `ok: false` で終わる
 - 含意: legacy 平文パスワードが偶然 `pbkdf2$` で始まる場合はロックアウトになる（確率は無視できる水準・境界仕様としてテストで固定）
@@ -81,14 +81,15 @@ select count(*) from dailies_payload where password_hash is not null and passwor
 
 ## Files
 
-| File | Operation | Notes |
-| --- | --- | --- |
-| `shared/src/utils/passwordHash.ts` | create | PBKDF2 helper + 形式 parse |
-| `shared/src/utils/passwordHash.test.ts` | create | 単体テスト |
-| `shared/src/services/SupabaseNotesUnifiedService.ts` | edit | set/verify 経路 + lazy rehash |
-| `shared/src/services/SupabaseDailiesUnifiedService.ts` | edit | 同上 |
-| `shared/src/services/SupabaseNotesUnifiedService.test.ts` | edit | plaintext 前提テストの置換 |
-| `shared/src/services/SupabaseDailiesUnifiedService.test.ts` | edit | 同上 |
+| File                                                   | Operation | Notes                                                                                                 |
+| ------------------------------------------------------ | --------- | ----------------------------------------------------------------------------------------------------- |
+| `shared/src/utils/passwordHash.ts`                     | create    | PBKDF2 helper + 形式 parse                                                                            |
+| `shared/tests/passwordHash.test.ts`                    | create    | 単体テスト（テストは `tests/` 配下 — `src/` 内は dist に emit されるため禁止・vitest.config.ts 参照） |
+| `shared/src/services/SupabaseNotesUnifiedService.ts`   | edit      | set/verify 経路 + lazy rehash                                                                         |
+| `shared/src/services/SupabaseDailiesUnifiedService.ts` | edit      | 同上                                                                                                  |
+| `shared/tests/SupabaseNotesUnifiedService.test.ts`     | edit      | plaintext 前提テストの置換                                                                            |
+| `shared/tests/SupabaseDailiesUnifiedService.test.ts`   | edit      | 同上                                                                                                  |
+| `shared/tests/setup.ts`                                | edit      | jsdom に `crypto.subtle` 注入（node:crypto webcrypto・テスト環境のみ）                                |
 
 ## Verification
 

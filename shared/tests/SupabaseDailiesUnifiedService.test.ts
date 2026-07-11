@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseDailiesUnifiedService } from "../src/services/SupabaseDailiesUnifiedService";
 import { DAILIES_PAYLOAD_COLUMNS } from "../src/services/dailiesUnifiedMapper";
+import { hashPassword, verifyPassword } from "../src/utils/passwordHash";
+
+// Low iteration count for the fixtures — still inside the accepted
+// [100_000, 1_000_000] range so verify's range check passes.
+const TEST_ITER = 100_000;
 
 /*
  * Service-level tests for SupabaseDailiesUnifiedService (DU-G G2). Same
@@ -18,8 +23,11 @@ import { DAILIES_PAYLOAD_COLUMNS } from "../src/services/dailiesUnifiedMapper";
  *  - restore bumps `version` (not just updated_at) so Sync LWW propagates
  *    a restore unambiguously even when content is unchanged.
  *
- * No bcrypt / crypto: legacy plaintext-equality contract preserved (parity
- * with Notes G1; SECURITY DEBT — see known-issues 027).
+ * Password gate (Issue #118): password_hash now stores a PBKDF2 string
+ * (utils/passwordHash.ts), not plaintext. verify accepts a legacy plaintext
+ * row and lazily rehashes it via a payload-only UPDATE (no items_meta bump —
+ * see the service's lazyRehashDailyPassword rationale). These tests stage real
+ * PBKDF2 fixtures (low iteration count) and plaintext fixtures to cover both.
  */
 
 // ---------------------------------------------------------------------------
@@ -470,11 +478,16 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       const out = await service.setDailyPasswordUnified(DEFAULT_ID, "secret");
       expect(out.hasPassword).toBe(true);
 
+      // PBKDF2 hash (NOT plaintext) that verifies back (Issue #118).
       const payUpdate = stub.calls.find(
         (c) => c.table === "dailies_payload" && c.op === "update",
       );
       const payPatch = payUpdate!.args[0] as { password_hash: string };
-      expect(payPatch.password_hash).toBe("secret");
+      expect(payPatch.password_hash).not.toBe("secret");
+      expect(payPatch.password_hash.startsWith("pbkdf2$v1$")).toBe(true);
+      expect((await verifyPassword("secret", payPatch.password_hash)).ok).toBe(
+        true,
+      );
 
       const metaUpdate = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
@@ -530,9 +543,10 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
     });
 
     it("nulls password_hash + bumps version on a matching password", async () => {
-      // verify: match
+      // verify: match against an already-hashed row (no lazy rehash fires).
+      const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("dailies_payload", "select", {
-        data: { password_hash: "secret" },
+        data: { password_hash: hashed },
         error: null,
       });
       // nextVersion
@@ -580,24 +594,69 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("verifyDailyPasswordUnified", () => {
-    it("returns true when the plaintext password matches", async () => {
+    it("returns true for a matching PBKDF2 hash (no rehash write)", async () => {
+      const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("dailies_payload", "select", {
-        data: { password_hash: "secret" },
+        data: { password_hash: hashed },
         error: null,
       });
       await expect(
         service.verifyDailyPasswordUnified(DEFAULT_ID, "secret"),
       ).resolves.toBe(true);
+      expect(
+        stub.calls.find(
+          (c) => c.table === "dailies_payload" && c.op === "update",
+        ),
+      ).toBeUndefined();
     });
 
     it("returns false when the password is wrong", async () => {
+      const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("dailies_payload", "select", {
-        data: { password_hash: "secret" },
+        data: { password_hash: hashed },
         error: null,
       });
       await expect(
         service.verifyDailyPasswordUnified(DEFAULT_ID, "nope"),
       ).resolves.toBe(false);
+    });
+
+    it("legacy plaintext: verify succeeds and lazily rehashes (payload-only UPDATE, no items_meta write)", async () => {
+      stub.stage("dailies_payload", "select", {
+        data: { password_hash: "secret" },
+        error: null,
+      });
+      stub.stage("dailies_payload", "update", { data: null, error: null });
+
+      await expect(
+        service.verifyDailyPasswordUnified(DEFAULT_ID, "secret"),
+      ).resolves.toBe(true);
+
+      const payUpdates = stub.calls.filter(
+        (c) => c.table === "dailies_payload" && c.op === "update",
+      );
+      expect(payUpdates).toHaveLength(1);
+      const patch = payUpdates[0].args[0] as { password_hash: string };
+      expect(patch.password_hash.startsWith("pbkdf2$v1$")).toBe(true);
+      expect((await verifyPassword("secret", patch.password_hash)).ok).toBe(
+        true,
+      );
+      // DB-Q2 exception: NO items_meta write (no updated_at reorder).
+      expect(stub.calls.find((c) => c.table === "items_meta")).toBeUndefined();
+    });
+
+    it("legacy plaintext: still returns true when the rehash write fails (best-effort)", async () => {
+      stub.stage("dailies_payload", "select", {
+        data: { password_hash: "secret" },
+        error: null,
+      });
+      stub.stage("dailies_payload", "update", {
+        data: null,
+        error: { message: "rehash-write-failed" },
+      });
+      await expect(
+        service.verifyDailyPasswordUnified(DEFAULT_ID, "secret"),
+      ).resolves.toBe(true);
     });
 
     it("returns false when no hash is set (hasPassword=false)", async () => {
@@ -621,9 +680,10 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       // Dedicated verify path is the ONLY one that touches the raw hash.
       // Other reads must stay on DAILIES_PAYLOAD_COLUMNS which never names
       // password_hash. Guards against an accidental widening (security
-      // regression — parity with Notes G1).
+      // regression — parity with Notes G1). Hashed row => no rehash noise.
+      const hashed = await hashPassword("x", TEST_ITER);
       stub.stage("dailies_payload", "select", {
-        data: { password_hash: "x" },
+        data: { password_hash: hashed },
         error: null,
       });
       await service.verifyDailyPasswordUnified(DEFAULT_ID, "x");
