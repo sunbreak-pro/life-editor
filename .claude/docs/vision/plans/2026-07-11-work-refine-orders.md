@@ -22,6 +22,7 @@ boot 行:
 
 - section:work の open Issue は **2026-07-11 時点で 0 件**
 - **#181 work 行（v1 adoption）**: WorkScreen の `max-w-[720px]` + `px-8` 独自値 → 標準幅（reading）へ。モバイル側 wrapper の追随確認も。完了したら #181 の自分の行をチェック
+  - ✅ 2026-07-11 実装済み（commit 910af963 → draft PR #192・merge 待ち）。desktop / mobile 両分岐の独自フレーム撤去・build/test pass・role-qa PASS。#181 の行チェックは本文編集権限が無く、コメントで代理チェックを依頼済み
 
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 
