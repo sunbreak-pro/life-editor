@@ -69,6 +69,15 @@ export interface AppShellProps {
    * (no-panel) shell — behavior is then byte-identical to before.
    */
   detailPanelLabels?: DetailPanelLabels;
+  /**
+   * Standard section header row (Layout Standard v2 §1/§4 — a
+   * <SectionHeader>). Rendered ABOVE the main + detail-panel flex row, so
+   * its full-width divider spans main AND panel, the panel opens BELOW the
+   * line, and the header's right-end controls never move when the panel
+   * opens/closes. WIDE LAYOUT ONLY — the narrow layout keeps its in-body
+   * rows untouched (v2 non-goal: mobile layout unchanged).
+   */
+  header?: ReactNode;
 }
 
 const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
@@ -81,13 +90,13 @@ const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
  * by the host (§3.2 — no React Router), all labels/state injected as props
  * (§6.4). The host slots the active section body into `children`.
  *
- * Scope (Layout Standard v1, Issue #180): the shell only owns the STRUCTURE
- * — the wide↔narrow switch, the nav chrome, and the detail-panel siblings.
- * Content width, page gutter, and body scrolling are NOT the shell's job:
- * <main> is a bare overflow-hidden flex child, and the host wraps `children`
- * in a <PageContainer> that owns max-w / gutter / self-scroll. That keeps
- * canvas-style sections full-bleed and document sections centered without
- * the shell branching on content shape.
+ * Scope (Layout Standard v1 #180 / v2): the shell only owns the STRUCTURE
+ * — the wide↔narrow switch, the nav chrome, the v2 `header` slot, and the
+ * detail-panel siblings. Content width, page gutter, and body scrolling are
+ * NOT the shell's job: <main> is a bare overflow-hidden flex child, and the
+ * host wraps `children` in a <PageContainer> that owns max-w / gutter /
+ * self-scroll. That keeps canvas-style sections full-bleed and document
+ * sections centered without the shell branching on content shape.
  *
  * Sidebar-collapsed is a shell-display concern (not section state), so the
  * shell persists it locally via useLocalStorage rather than lifting it.
@@ -106,6 +115,7 @@ export function AppShell({
   wideQuery = "(min-width: 768px)",
   maxBottomTabs = 4,
   detailPanelLabels,
+  header,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(
@@ -121,6 +131,9 @@ export function AppShell({
   ];
 
   if (isWide) {
+    // v2 §4 structure: the section header row sits in the content COLUMN,
+    // above the main + detail-panel flex ROW — the header's divider spans
+    // both, and the panel pushes only the area below the line.
     return (
       <div className="flex h-screen overflow-hidden bg-lumen-bg text-lumen-text">
         <SidebarNav
@@ -135,15 +148,20 @@ export function AppShell({
           onSignOut={onSignOut}
           labels={labels}
         />
-        <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
-        {detailPanelLabels && (
-          <RightSidebar
-            title={detailPanelLabels.title}
-            closeLabel={detailPanelLabels.close}
-            emptyLabel={detailPanelLabels.empty}
-            resizeLabel={detailPanelLabels.resize}
-          />
-        )}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {header}
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
+            {detailPanelLabels && (
+              <RightSidebar
+                title={detailPanelLabels.title}
+                closeLabel={detailPanelLabels.close}
+                emptyLabel={detailPanelLabels.empty}
+                resizeLabel={detailPanelLabels.resize}
+              />
+            )}
+          </div>
+        </div>
       </div>
     );
   }
