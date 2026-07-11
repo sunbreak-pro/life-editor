@@ -4,6 +4,7 @@ import type { TaskNode } from "../../types/taskTree";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
 import { formatDateKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
+import { SummaryRow } from "./SummaryRow";
 
 export interface WeeklySummaryLabels {
   title: string;
@@ -75,22 +76,5 @@ export function WeeklySummary({
         />
       </div>
     </ChartCard>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}): React.JSX.Element {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-lumen-text-secondary">{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-lumen-text">
-        {value}
-      </span>
-    </div>
   );
 }

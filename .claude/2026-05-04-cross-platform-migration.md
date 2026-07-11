@@ -400,7 +400,7 @@ life-editor/
 #### 5-C: 旧スタック削除 + ドキュメント整理
 
 - [ ] `frontend/` を `archive/frontend-tauri/` に移動 or 削除
-- [ ] `src-tauri/` 削除
+- [x] `src-tauri/` 削除（2026-07-11 前倒し実行 #197 Stage A — 復元保険 = git tag `pre-tauri-removal`。root package.json の tauri スクリプト / `@tauri-apps/cli` も同時撤去）
 - [x] `cloud/`(Cloudflare Workers + D1)削除（2026-06-28 先行撤去 — dead stack）
 - [ ] **CLAUDE.md 全面改訂**(アーキテクチャ章を新スタック前提に書き換え)
 - [ ] **`docs/vision/core.md` 全面改訂**(Web UI 否定 / Desktop ネイティブのみ を反転、移行警告ヘッダ削除)

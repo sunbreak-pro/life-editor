@@ -7,8 +7,9 @@ import type { NoteLink, NoteLinkType } from "../types/noteLink";
  *
  * SYNC CLASS: VERSIONED. note_links has `version` + `is_deleted` +
  * `deleted_at`; the data layer bumps `version` and uses soft-delete
- * (mirrors the Tauri `src-tauri/src/db/note_link_repository.rs`
- * `version = version + 1` + `is_deleted = 1` semantics).
+ * (mirrors the retired Tauri note_link_repository.rs — removed 2026-07-11,
+ * see tag `pre-tauri-removal` — `version = version + 1` + `is_deleted = 1`
+ * semantics).
  *
  * COLUMN-NAME NOTE: 0005_notes_full_schema.sql is the canonical column
  * source and names the daily/memo source column `source_memo_date`
