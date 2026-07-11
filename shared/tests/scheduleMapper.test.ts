@@ -236,17 +236,19 @@ describe("scheduleItemUpdatesToPatch — date/title/time partial safety", () => 
 });
 
 describe("calendarUpdatesToPatch — whitelist", () => {
-  it("emits only title/order, never folder_id/id/version", () => {
+  it("emits only title/order, never tag_id/id/version", () => {
     expect(calendarUpdatesToPatch({ title: "C" })).toEqual({ title: "C" });
     const sneaky = {
       title: "C",
-      folderId: "folder-evil",
+      // tag_id is immutable through the update path (rebind = recreate,
+      // life-tags S2 #231) — a sneaky tagId must never leak into the patch.
+      tagId: "tag-evil",
       id: "calendar-evil",
       version: 7,
     } as unknown as Parameters<typeof calendarUpdatesToPatch>[0];
     const patch = calendarUpdatesToPatch(sneaky);
     expect(patch).toEqual({ title: "C" });
-    expect("folder_id" in patch).toBe(false);
+    expect("tag_id" in patch).toBe(false);
     expect("version" in patch).toBe(false);
   });
 });

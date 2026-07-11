@@ -503,27 +503,26 @@ export function MainScreen({ session }: { session: Session }) {
        * enabled on Mobile (§2). The Routine→schedule_items generator (S4-5) is
        * the headless RoutineScheduleSync, mounted inside the Providers.
        *
-       * TaskTreeProvider is mounted here so CalendarView can offer a
-       * folder-task <select> (bug1 fix: calendars.folder_id FKs tasks(id) ON
-       * DELETE CASCADE). WikiTagsUnifiedProvider provides the Event Tag/Link
-       * surface for ScheduleItemsView (DU-F Step 7).
+       * WikiTagsUnifiedProvider provides both the Event Tag/Link surface for
+       * ScheduleItemsView (DU-F Step 7) and the life-tag <select> for
+       * CalendarView (life-tags S2: calendars.tag_id FKs wiki_tags(id) ON
+       * DELETE CASCADE — the folder-scoped view is now a tag-scoped view, so
+       * TaskTreeProvider is no longer needed on this branch).
        */}
       {section === "schedule" && (
-        <TaskTreeProvider dataService={ds}>
-          <WikiTagsUnifiedProvider dataService={ds}>
-            <CalendarProvider dataService={ds}>
-              <RoutineProvider dataService={ds}>
-                <ScheduleItemsProvider dataService={ds}>
-                  <ScheduleScreen
-                    dataService={ds}
-                    tab={scheduleTab}
-                    onTabChange={setScheduleTab}
-                  />
-                </ScheduleItemsProvider>
-              </RoutineProvider>
-            </CalendarProvider>
-          </WikiTagsUnifiedProvider>
-        </TaskTreeProvider>
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <CalendarProvider dataService={ds}>
+            <RoutineProvider dataService={ds}>
+              <ScheduleItemsProvider dataService={ds}>
+                <ScheduleScreen
+                  dataService={ds}
+                  tab={scheduleTab}
+                  onTabChange={setScheduleTab}
+                />
+              </ScheduleItemsProvider>
+            </RoutineProvider>
+          </CalendarProvider>
+        </WikiTagsUnifiedProvider>
       )}
       {/*
        * Settings (W1) — reads useThemeContext + useShortcutConfig (the

@@ -1,7 +1,7 @@
 export interface CalendarNode {
   id: string;
   title: string;
-  folderId: string;
+  tagId: string;
   order: number;
   createdAt: string;
   updatedAt: string;

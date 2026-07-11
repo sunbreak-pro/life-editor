@@ -2,6 +2,15 @@
 
 ## 進行中
 
+### 🔧 life-tags 統一 S2 — CalendarView の folder→life-tag rebind（着手日: 2026-07-11）
+
+**対象**: `web/src/schedule/CalendarView.tsx` / `shared/src/types/calendar.ts` / `shared/src/services/calendarMapper.ts` / `shared/src/hooks/useCalendarsAPI.ts` / `shared/src/services/{DataService,SupabaseDataService}.ts` / `supabase/migrations/0021`
+**計画書**: `.claude/docs/vision/plans/2026-07-11-life-tags-unification.md`（§F S2・epic #225・担当 Issue #231）
+
+- 前回: 準備（実測・Issue #231・outbox 合意返信）完了
+- 現在: 実装完了 — **PR #239 open・merge 待ち**（監査 3 体 PASS・shared 852/852 green・outbox で materials-refine へ完了報告済み = merge で S3 解禁）。🛑 残ゲート: ユーザーの `supabase db push`（0021 を merge より先に / 同時に。push 直前に calendars 0 行確認）
+- 次: PR #239 merge + db push 後、runtime 確認は chat-main 実測（localhost 集約ポリシー）。#231 は PR merge で自動 close
+
 ### 🔧 schedule-refine orders 消化（着手日: 2026-07-11）
 
 **対象**: `web/src/schedule/**`
