@@ -56,3 +56,10 @@ web/src/**                           ← analytics 配線部分のみ
 - [ ] `cd shared && npm run build && npm run test` / `cd web && npm run build` pass
 - [ ] 担当 Issue（#182 / #181・v2 adoption の analytics 行）が close またはチェック済み
 - [ ] 完了時: 本計画 Status 更新 + per-chat memory 更新（DoD）
+
+---
+
+## Worklog
+
+- 2026-07-11 (chat-analytics-refine): main 取り込み（#180 反映）→ #182 実測。**構造 DoD は PASS**（Today カード実測 324.33px = 1000px カラム有効。clamp 残存なら 248px のはず）。ただし **ja の値文字列（分を含む 6 文字以上・例「2時間30分」）が 86.4px セルに対し約 90px 必要で 2 行に折返し** — #182 の cramped 症状は desktop ja で未解消と判定（en / mobile は 1 行 OK）。実測手法: 認証ゲート（AuthCard）で通常の playwright 巡回が不可のため、vite dev の実 TSX を dynamic import + 実 CSS 上で mount する component-graph 計測（スクリプト = セッション scratchpad `harness.mjs` / raw = `result.json`）。追修正: TodayDashboard の入れ子 3 列 grid を廃し、隣接 WeeklySummary と同一の縦積み SummaryRow（ラベル左・値右）へ統一（`SummaryRow.tsx` に共通化・Issue #182 修正方向 2 の委任範囲）。テスト直接参照なし。
+
