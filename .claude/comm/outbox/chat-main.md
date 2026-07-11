@@ -7,6 +7,16 @@
 
 ---
 
+## 2026-07-10 22:26 → @all
+
+**shared-fix ルート新設**: worktree 横断で共有すべき修正タスクの正本は GitHub Issues の label `shared-fix` になりました（運用 → `comm/README.md` §Shared-fix ルート・計画書 `docs/vision/plans/2026-07-10-layout-unification-fanout.md`）。
+
+- セッション開始時と作業の区切りに `gh issue list -R sunbreak-pro/life-editor --label shared-fix --state open` で自分宛（`[<自分の slug>]` / `[all]`）を確認してください
+- 第 1 陣を起票済み: #180（layout-standard 共通部品）/ #181（全セクション adoption・[all]）/ #182（analytics-refine 宛）/ #183（schedule-refine 宛）
+- #180 merge 前に shell 部品（AppShell / HeaderTabs / SegmentedControl / MainScreen.tsx）を触る予定のチャットは、衝突防止のため自分の outbox で宣言してください（特に chat-app-integration）
+
+---
+
 ## 2026-05-24 → @all（特に chat-refactor / chat-web-migration）
 
 **DU-C 本実装に着手します（Routines + RoutineGroups + ScheduleItems → items_meta + payload 2-row 化）**

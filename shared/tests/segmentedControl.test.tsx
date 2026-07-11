@@ -31,6 +31,27 @@ function renderControl(
 }
 
 describe("SegmentedControl", () => {
+  it("renders one role=tab per option", () => {
+    renderControl();
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(OPTIONS.length);
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      "Tasks",
+      "Notes",
+      "Daily",
+      "Tags",
+    ]);
+  });
+
+  it("pads each segment horizontally so intrinsic-width labels stay separated", () => {
+    // Regression guard for #183: under w-auto the segments must not collapse
+    // into a run-on label (e.g. "DayWeekMonth"). px-3 keeps them apart.
+    renderControl();
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("px-3");
+    }
+  });
+
   it("marks the selected segment with aria-selected", () => {
     renderControl();
     expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute(
