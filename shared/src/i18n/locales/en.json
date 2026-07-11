@@ -823,7 +823,11 @@
       "quickAddSubmit": "Add",
       "newFolderPrompt": "New folder name",
       "lockedHint": "This note is locked",
-      "mainEmpty": "Select a note or create a new one"
+      "mainEmpty": "Select a note or create a new one",
+      "untagged": "No tag",
+      "collapseGroup": "Collapse group",
+      "expandGroup": "Expand group",
+      "assignTagHint": "Drop onto a tag to assign it"
     },
     "daily": {
       "toToday": "Today",

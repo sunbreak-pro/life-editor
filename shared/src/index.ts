@@ -170,10 +170,7 @@ export {
   createNoopUndoRedo,
   type UndoRedoLike,
 } from "./hooks/useTaskTreeHistory";
-export type {
-  TaskTreeCRUDConfig,
-  AddNodeOptions,
-} from "./hooks/useTaskTreeCRUD";
+export type { AddNodeOptions } from "./hooks/useTaskTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // DU-G G4: the legacy Daily Provider / context hook / API hook were

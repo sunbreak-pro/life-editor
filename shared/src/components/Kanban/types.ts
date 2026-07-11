@@ -10,11 +10,14 @@ import type { TaskStatus } from "../../types/taskTree";
 
 /**
  * Which axis the board groups cards by.
- * - folder: one column per folder (header tinted with the folder color)
  * - status: three fixed columns (未着手 / 進行中 / 完了)
- * - tag:    one column per tag (K2 — placeholder column in K1)
+ * - tag:    one column per tag (+ a trailing "untagged" bucket)
+ *
+ * The legacy "folder" axis was retired (life-tags unification S1) — folders no
+ * longer group the board; tags are the organizing concept, status the progress
+ * axis.
  */
-export type KanbanViewMode = "folder" | "status" | "tag";
+export type KanbanViewMode = "status" | "tag";
 
 /**
  * A tag rendered as a chip on a card / a column header (K2). Color is the
@@ -34,14 +37,8 @@ export interface KanbanCardModel {
   id: string;
   title: string;
   status: TaskStatus;
-  /** Folder pill shown on non-folder views (status / tag). Omitted on the
-   *  folder view since the column already conveys the folder. */
-  folderName?: string;
-  /** Folder color for the folder pill dot. Optional — defaults to a neutral
-   *  token when the folder has no color. */
-  folderColor?: string;
-  /** Tags assigned to this task (K2). Rendered as chips on folder/status
-   *  views; omitted on the tag view (the column already conveys the tag). */
+  /** Tags assigned to this task. Rendered as chips on the status view;
+   *  omitted on the tag view (the column already conveys the tag). */
   tags?: KanbanCardTag[];
 }
 
@@ -55,19 +52,18 @@ export interface KanbanColumnModel {
   id: string;
   title: string;
   cards: KanbanCardModel[];
-  /** CSS color for the column accent (folder color / fixed status color /
-   *  tag color). Passed through inline style as a CSS var (user-data driven,
-   *  §6 allows inline CSS vars for user colors). */
+  /** CSS color for the column accent (fixed status color / tag color). Passed
+   *  through inline style as a CSS var (user-data driven, §6 allows inline CSS
+   *  vars for user colors). */
   accentColor?: string;
   /** Status columns render a round/solid status icon in the header instead
-   *  of a plain dot; folder/tag columns use the dot. */
+   *  of a plain dot; tag columns use the dot. */
   statusKind?: TaskStatus;
   /** Tag columns render a round (vs squared) header dot. */
   roundDot?: boolean;
   /** When true the header shows a color-picker control that calls
-   *  onColorChange (folder columns / tag columns — not status, not the
-   *  "untagged" bucket). The host maps the column id back to a folder node
-   *  or a tag and persists the chosen color. */
+   *  onColorChange (tag columns — not status, not the "untagged" bucket). The
+   *  host maps the column id back to a tag and persists the chosen color. */
   colorEditable?: boolean;
   /** A placeholder column renders its emptyHint, not cards. (Unused once the
    *  tag view is wired; kept for forward-compat.) */
@@ -104,7 +100,6 @@ export interface KanbanColumnDndAdapter {
 /** All copy the board + its children need, resolved by the host via t(). */
 export interface KanbanLabels {
   /** Segmented control: view-mode labels. */
-  viewFolder: string;
   viewStatus: string;
   viewTag: string;
   segmentedGroupLabel: string;

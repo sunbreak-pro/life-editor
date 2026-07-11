@@ -2,17 +2,16 @@ import { describe, it, expect } from "vitest";
 import type { TaskNode } from "../src/types/taskTree";
 import type { KanbanLabels } from "../src/components/Kanban/types";
 import {
-  buildFolderColumns,
   buildStatusColumns,
   buildTagColumns,
 } from "../src/components/Kanban/buildColumns";
 
 /*
- * K1 + K2 column builders. Pure mapping from the active TaskNode set →
- * KanbanColumnModel[] per view mode. Tests pin: folder/status grouping,
- * order sorting, deleted-node exclusion, the "folders are containers, never
- * cards" invariant, folder-pill resolution, and the tag-by view (one column
- * per tag + a trailing untagged bucket, multi-tag fan-out).
+ * Column builders (life-tags S1: folder view retired). Pure mapping from the
+ * active TaskNode set → KanbanColumnModel[] per view mode. Tests pin: status
+ * grouping, order sorting, deleted-node exclusion, the "folders are containers,
+ * never cards" invariant, and the tag-by view (one column per tag + a trailing
+ * untagged bucket, multi-tag fan-out).
  */
 
 function makeNode(overrides: Partial<TaskNode> & { id: string }): TaskNode {
@@ -27,7 +26,6 @@ function makeNode(overrides: Partial<TaskNode> & { id: string }): TaskNode {
 }
 
 const LABELS: KanbanLabels = {
-  viewFolder: "By folder",
   viewStatus: "By status",
   viewTag: "By tag",
   segmentedGroupLabel: "Switch board view",
@@ -43,152 +41,6 @@ const LABELS: KanbanLabels = {
   colorClearLabel: "Default color",
   colorCustomLabel: "Custom",
 };
-
-describe("buildFolderColumns", () => {
-  it("makes one column per active folder, with its direct task children", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
-      makeNode({ id: "f2", type: "folder", title: "Home", order: 1 }),
-      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
-      makeNode({ id: "t2", parentId: "f1", title: "B", order: 1 }),
-      makeNode({ id: "t3", parentId: "f2", title: "C", order: 0 }),
-    ];
-    const cols = buildFolderColumns(nodes);
-    expect(cols.map((c) => c.id)).toEqual(["f1", "f2"]);
-    expect(cols[0].cards.map((c) => c.id)).toEqual(["t1", "t2"]);
-    expect(cols[1].cards.map((c) => c.id)).toEqual(["t3"]);
-  });
-
-  it("keeps a folder with no tasks as an empty column", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Empty", order: 0 }),
-    ];
-    const cols = buildFolderColumns(nodes);
-    expect(cols).toHaveLength(1);
-    expect(cols[0].cards).toEqual([]);
-  });
-
-  it("sorts folders and cards by order, not insertion", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "f2", type: "folder", title: "Second", order: 5 }),
-      makeNode({ id: "f1", type: "folder", title: "First", order: 1 }),
-      makeNode({ id: "tb", parentId: "f1", title: "B", order: 9 }),
-      makeNode({ id: "ta", parentId: "f1", title: "A", order: 2 }),
-    ];
-    const cols = buildFolderColumns(nodes);
-    expect(cols.map((c) => c.id)).toEqual(["f1", "f2"]);
-    expect(cols[0].cards.map((c) => c.id)).toEqual(["ta", "tb"]);
-  });
-
-  it("excludes deleted tasks/folders and never cards a folder", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
-      makeNode({
-        id: "fdel",
-        type: "folder",
-        title: "Gone",
-        order: 1,
-        isDeleted: true,
-      }),
-      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
-      makeNode({
-        id: "tdel",
-        parentId: "f1",
-        title: "DeletedTask",
-        order: 1,
-        isDeleted: true,
-      }),
-      // A nested folder under f1 must NOT appear as a card in f1.
-      makeNode({ id: "sub", type: "folder", parentId: "f1", order: 2 }),
-    ];
-    const cols = buildFolderColumns(nodes);
-    expect(cols.map((c) => c.id)).toEqual(["f1", "sub"]);
-    expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]);
-  });
-
-  it("propagates the folder color as the column accent", () => {
-    const nodes: TaskNode[] = [
-      makeNode({
-        id: "f1",
-        type: "folder",
-        title: "Colored",
-        order: 0,
-        color: "#2563eb",
-      }),
-    ];
-    const cols = buildFolderColumns(nodes);
-    expect(cols[0].accentColor).toBe("#2563eb");
-  });
-
-  it("does not stamp folderColor on folder-view cards (the column conveys it)", () => {
-    const nodes: TaskNode[] = [
-      makeNode({
-        id: "f1",
-        type: "folder",
-        title: "Colored",
-        order: 0,
-        color: "#2563eb",
-      }),
-      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
-    ];
-    const cols = buildFolderColumns(nodes);
-    // Folder view tints the PANEL (column.accentColor), not the cards — so the
-    // folder color rides on the column, and cards carry no folderColor here.
-    expect(cols[0].accentColor).toBe("#2563eb");
-    expect(cols[0].cards[0].folderColor).toBeUndefined();
-  });
-
-  it("appends a trailing 'unfiled' bucket for root-level tasks when a label is given", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
-      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
-      makeNode({ id: "r1", parentId: null, title: "Root A", order: 0 }),
-      makeNode({ id: "r2", parentId: null, title: "Root B", order: 1 }),
-    ];
-    const cols = buildFolderColumns(nodes, undefined, "Unfiled");
-    // The bucket trails the real folders, keyed by the shared bucket id.
-    expect(cols.map((c) => c.id)).toEqual(["f1", "__root__"]);
-    const bucket = cols[cols.length - 1];
-    expect(bucket.title).toBe("Unfiled");
-    expect(bucket.colorEditable).toBeFalsy();
-    // Root tasks are sorted by order, folders unaffected.
-    expect(bucket.cards.map((c) => c.id)).toEqual(["r1", "r2"]);
-  });
-
-  it("omits the 'unfiled' bucket when there are no root-level tasks", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
-      makeNode({ id: "t1", parentId: "f1", title: "A", order: 0 }),
-    ];
-    const cols = buildFolderColumns(nodes, undefined, "Unfiled");
-    expect(cols.map((c) => c.id)).toEqual(["f1"]);
-  });
-
-  it("omits the 'unfiled' bucket when no label is injected (back-compat)", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "r1", parentId: null, title: "Root A", order: 0 }),
-    ];
-    // Legacy 2-arg callers get the old folder-only shape (here: no folders → []).
-    const cols = buildFolderColumns(nodes);
-    expect(cols).toEqual([]);
-  });
-
-  it("excludes deleted root tasks from the 'unfiled' bucket", () => {
-    const nodes: TaskNode[] = [
-      makeNode({ id: "r1", parentId: null, title: "Root A", order: 0 }),
-      makeNode({
-        id: "rdel",
-        parentId: null,
-        title: "Gone",
-        order: 1,
-        isDeleted: true,
-      }),
-    ];
-    const cols = buildFolderColumns(nodes, undefined, "Unfiled");
-    expect(cols.map((c) => c.id)).toEqual(["__root__"]);
-    expect(cols[0].cards.map((c) => c.id)).toEqual(["r1"]);
-  });
-});
 
 describe("buildStatusColumns", () => {
   it("makes three fixed columns in NOT_STARTED / IN_PROGRESS / DONE order", () => {
@@ -218,25 +70,17 @@ describe("buildStatusColumns", () => {
     expect(byId["status-DONE"].cards.map((c) => c.id)).toEqual(["t2"]);
   });
 
-  it("resolves the folder pill name/color from the task's parent folder", () => {
+  it("surfaces a task that still sits under a legacy folder (folders no longer group)", () => {
+    // Transitional invariant (life-tags S1): folder nodes still exist in the
+    // data, but tasks under them must appear by status all the same.
     const nodes: TaskNode[] = [
-      makeNode({
-        id: "f1",
-        type: "folder",
-        title: "Work",
-        order: 0,
-        color: "#2563eb",
-      }),
+      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
       makeNode({ id: "t1", parentId: "f1", status: "DONE" }),
       makeNode({ id: "t2", parentId: null, status: "DONE" }),
     ];
     const cols = buildStatusColumns(nodes, LABELS);
     const done = cols.find((c) => c.id === "status-DONE")!;
-    const card1 = done.cards.find((c) => c.id === "t1")!;
-    const card2 = done.cards.find((c) => c.id === "t2")!;
-    expect(card1.folderName).toBe("Work");
-    expect(card1.folderColor).toBe("#2563eb");
-    expect(card2.folderName).toBeUndefined();
+    expect(done.cards.map((c) => c.id).sort()).toEqual(["t1", "t2"]);
   });
 
   it("excludes deleted tasks and never cards folders", () => {
@@ -326,21 +170,13 @@ describe("buildTagColumns", () => {
     expect(untagged.cards.map((c) => c.id)).toEqual([]);
   });
 
-  it("resolves the folder pill from the task's parent folder", () => {
+  it("surfaces a folder-parented task in its tag column (folders no longer group)", () => {
     const nodes: TaskNode[] = [
-      makeNode({
-        id: "f1",
-        type: "folder",
-        title: "Work",
-        order: 0,
-        color: "#2563eb",
-      }),
+      makeNode({ id: "f1", type: "folder", title: "Work", order: 0 }),
       makeNode({ id: "t1", parentId: "f1", order: 1 }),
     ];
     const tagsByTask = new Map([["t1", [RED]]]);
     const cols = buildTagColumns(nodes, [RED], tagsByTask, LABELS);
-    const card = cols[0].cards.find((c) => c.id === "t1")!;
-    expect(card.folderName).toBe("Work");
-    expect(card.folderColor).toBe("#2563eb");
+    expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]);
   });
 });

@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-07-11 (2) → @chat-schedule-refine
+
+**life-tags S1 を PR 提出しました**（#225・NodeType の "folder" は約束どおり温存 — Schedule のコンパイルに影響なし）。下記エントリの **S2 合意依頼は引き続き有効**です。補足 2 点: (1) 変換 migration 0020 はユーザーが `supabase db push` した時点で CalendarView の folder select が空になります（calendars 0 行なので既存データは壊れません）。S2 の実装と時期を揃えるのが理想です。(2) S3（NodeType から folder 除去）は S2 完了の返信を受けてから着手します。
+
+---
+
 ## 2026-07-11 → @chat-schedule-refine
 
 **life-tags 統一（folder 廃止）の CalendarView 影響について合意依頼**です（計画書 = `docs/vision/plans/2026-07-11-life-tags-unification.md`・epic Issue #225・共有コアの単一書込者 = materials-refine）。
