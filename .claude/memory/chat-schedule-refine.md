@@ -2,7 +2,14 @@
 
 ## 進行中
 
-（なし）
+### 🔧 schedule-refine orders 消化（着手日: 2026-07-11）
+
+**対象**: `web/src/schedule/**`
+**計画書**: `.claude/docs/vision/plans/2026-07-11-schedule-refine-orders.md`
+
+- 前回: —
+- 現在: #183 実測（desktop/mobile 分離確認済・close 準備）+ #181 schedule 行（gutter トークン化実装済・build/test 768/768 pass）
+- 次: #185 Event/Routine 統合の詳細計画化（実装調査を Explore agent で実行中）
 
 ## 直近の完了
 
@@ -10,6 +17,5 @@
 
 ## 予定
 
-- playwright runtime 検証の再実行（Schedule は認証ゲートの先のためテスト資格情報待ち — ユーザー確認要）
-- #183 SegmentedControl 表示不良の schedule 側追随（#180 merge 待ち）
-- #181 レイアウト標準 adoption の schedule 行（#180 merge 待ち）
+- #185 詳細計画書の作成 → 計画 PR
+- Layout Standard v2 adoption（v2 共通部品 merge 待ち — orders 台帳参照）
