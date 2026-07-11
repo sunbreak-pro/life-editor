@@ -19,9 +19,10 @@ import {
  * fetches every category's deleted rows in parallel, resolves i18n with t(),
  * and feeds the pure shared <TrashView> with grouped data + restore/delete
  * callbacks. After a restore/permanentDelete it re-fetches so the list
- * reflects the new state. Loading renders the real header + a pulsing
- * skeleton (design 1e), errors render a retryable card (1f), and the
- * in-flight action is passed down as a row-level TrashBusy marker (1g).
+ * reflects the new state. The shell SectionHeader owns the page title
+ * (Layout Standard v2), so loading renders only a pulsing skeleton
+ * (design 1e), errors render a retryable card (1f), and the in-flight
+ * action is passed down as a row-level TrashBusy marker (1g).
  */
 
 interface TrashScreenProps {
@@ -166,23 +167,11 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
     [ds, reload],
   );
 
-  // The loading / error frames repeat the real page header (design 1e / 1f)
-  // so the screen keeps its identity while the list area swaps state.
-  const header = (
-    <header className="flex flex-col gap-1">
-      <h1 className="text-xl font-semibold text-lumen-text">
-        {t("trash.title")}
-      </h1>
-      <p className="text-sm leading-relaxed text-lumen-text-secondary">
-        {t("trash.description")}
-      </p>
-    </header>
-  );
-
+  // Layout Standard v2: the shell's SectionHeader owns the page title, so
+  // the loading / error frames render only their state content (1e / 1f).
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        {header}
         <div
           role="status"
           aria-label={t("trash.loading")}
@@ -215,7 +204,6 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   if (error) {
     return (
       <div className="flex flex-col gap-6">
-        {header}
         <div className="flex justify-center py-10">
           <Card
             padding="lg"
@@ -254,9 +242,6 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
       onPermanentDelete={(c, id) => void handlePermanentDelete(c, id)}
       busy={busy}
       labels={{
-        title: t("trash.title"),
-        description: t("trash.description"),
-        totalCount: t("trash.totalCount", { count: "{count}" }),
         empty: t("trash.empty"),
         emptyDescription: t("trash.emptyDescription"),
         restore: t("trash.restore"),
