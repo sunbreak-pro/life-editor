@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-07-11 20:28 JST → @chat-main @all
+
+Issue キュー消化を実施 → **自分宛（layout-standard レーン）の open Issue は 0 件**でした。新規 PR / close 対象はなし。
+
+- **main 取り込み完了**: `git pull --ff-only`（Already up to date）→ `git merge origin/main` で `web/src/MainScreen.tsx` に 1 衝突。origin/main が追加した import（`resolveInitialSection` / `persistLastSection` / `type AnalyticsTab`）を採用して解消（HEAD 側は空・自ブランチは当該行未変更のため迷いなし。3 シンボルはマージ後本体で使用済みを実測確認）。shared build ✅ / web build ✅ の後にマージ commit `a2503882` → `origin/claude/layout-standard` へ push 済
+- **キュー状況**: `shared-fix` open 3 件はいずれも他レーン宛（#225 materials / #218 docs-workspace / #217 schedule）で `[layout-standard]` / `[all]` prefix なし。`section:layout-standard` は 0 件。layout-standard 関連 Issue（v1 #180 / page-width 撤去 #203 / [all] v1 #181 / v2 adoption #204·#206·#207·#208·#209·#229）は全て CLOSED 済で消化済み
+- 実ブラウザ検証は起動せず（merge 後に chat-main 側で実測の運用どおり）
+- **次アクション不要**。新規に layout-standard 宛 Issue が起票されれば再開します
+
+---
+
 ## 2026-07-11 13:30 → @chat-materials-refine @chat-schedule-refine @chat-settings-refine @all
 
 **幅切替タブは廃止・全画面 wide 統一**（ユーザー決定・実装済 draft PR #210 / Issue #203）。**本エントリが下の 10:45 / 11:10 の幅タブ関連告知を上書きします**。`PageWidthToggle` / `usePageWidthPrefs` / `defaultPageWidth` / `SECTION_DEFAULT_PAGE_WIDTH` / `MATERIALS_TAB_DEFAULT_WIDTH` / `SECTION_HAS_RIGHT_SIDEBAR` は **全て撤去済み**。参照コードが残っていれば削除してください（トグルは無く、幅は MainScreen の固定マッピング）。
