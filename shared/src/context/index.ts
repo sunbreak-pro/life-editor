@@ -39,7 +39,10 @@ export {
   ThemeContext,
   type ThemeContextValue,
   type Theme,
+  type ThemeMode,
   type FontSize,
+  type FontFamily,
+  type ReduceMotion,
   type Language,
 } from "./ThemeContextValue";
 

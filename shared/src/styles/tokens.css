@@ -371,12 +371,39 @@
   animation: kanban-modal-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
 }
 
+/*
+ * Reduce-motion — three-state control (§216 lightweight prefs). The user
+ * preference is reflected on <html> as data-reduce-motion:
+ *   - attribute ABSENT → "system": follow the OS prefers-reduced-motion. The
+ *     media-query block below is scoped with :not([data-reduce-motion="off"])
+ *     so choosing "off" still overrides an OS reduce request.
+ *   - "reduce" → force animations/transitions off regardless of the OS.
+ *   - "off"    → keep motion even when the OS asks to reduce it (media block
+ *     is excluded via the :not(), and no forced block matches).
+ * Declarations neutralize animation + transition app-wide (the kanban modal's
+ * rise is additionally flattened). Near-zero (not 0) durations keep any
+ * transitionend/animationend listeners firing so nothing hangs waiting.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .kanban-modal-backdrop,
-  .kanban-modal-panel {
+  :root:not([data-reduce-motion="off"]) *,
+  :root:not([data-reduce-motion="off"]) *::before,
+  :root:not([data-reduce-motion="off"]) *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
-  .kanban-modal-panel {
+  :root:not([data-reduce-motion="off"]) .kanban-modal-panel {
     transform: none !important;
   }
+}
+
+:root[data-reduce-motion="reduce"] *,
+:root[data-reduce-motion="reduce"] *::before,
+:root[data-reduce-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+:root[data-reduce-motion="reduce"] .kanban-modal-panel {
+  transform: none !important;
 }

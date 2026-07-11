@@ -1,4 +1,12 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CheckSquare,
   CalendarDays,
@@ -39,6 +47,8 @@ import {
   MAIN_SECTIONS,
   UTILITY_SECTIONS,
   MOBILE_SECTIONS,
+  resolveInitialSection,
+  persistLastSection,
   EMPTY_MATERIALS_COUNTS,
   type MaterialsCounts,
   type SectionId,
@@ -135,7 +145,12 @@ const MOBILE_HAMBURGER_SECTIONS: ReadonlySet<SectionId> = new Set([
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
-  const [section, setSection] = useState<SectionId>("materials");
+  // Startup section (§216): resolve the initial section from the user's
+  // preference (resume last-visited / a fixed section), falling back to the
+  // default. Lazy init so the localStorage read runs once.
+  const [section, setSection] = useState<SectionId>(() =>
+    resolveInitialSection(),
+  );
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
   // Schedule's Calendar / Routines tab, lifted here (v2 adoption #204) so the
   // standard SectionHeader can render the band — same pattern as materialsTab.
@@ -153,6 +168,13 @@ export function MainScreen({ session }: { session: Session }) {
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
   // Independent of AppShell's own wide/narrow switch (same query, own read).
   const isWide = useMediaQuery("(min-width: 768px)", true);
+
+  // Startup section (§216): remember the last-visited section so the "resume"
+  // startup preference can restore it on the next launch. Writes on every
+  // section change (localStorage only — no re-render).
+  useEffect(() => {
+    persistLastSection(section);
+  }, [section]);
 
   // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
   // (§6.2 … → Timer → Audio → …), so the Timer's onSessionComplete can't read

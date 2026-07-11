@@ -357,6 +357,29 @@
         }
       }
     },
+    "themeSystem": "System",
+    "fontFamilyLabel": "Font",
+    "fontFamilyDesc": "Applies to body text across the app.",
+    "fontFamilySystem": "System",
+    "fontFamilySerif": "Serif",
+    "fontFamilyMono": "Monospace",
+    "reduceMotionLabel": "Reduce motion",
+    "reduceMotionDesc": "Limit animations and transitions.",
+    "reduceMotionSystem": "Follow system",
+    "reduceMotionReduce": "Reduce",
+    "reduceMotionOff": "Off",
+    "startup": {
+      "heading": "Startup",
+      "description": "Choose which section opens when the app starts.",
+      "sectionLabel": "Open on launch",
+      "lastVisited": "Resume where I left off"
+    },
+    "reset": {
+      "heading": "Reset & local data",
+      "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
+      "button": "Reset preferences",
+      "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected."
+    },
     "editorSettings": "Editor",
     "editorFontSize": "Editor Font Size",
     "editorFontFamily": "Font Family",
