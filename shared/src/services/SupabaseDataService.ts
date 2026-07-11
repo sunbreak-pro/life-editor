@@ -41,6 +41,7 @@ import {
   rowsToTaskNode,
   taskNodeToRows,
   taskUpdatesToPatches,
+  isLegacyFolderRow,
   type ItemsMetaRow,
   type TasksPayloadRow,
 } from "./taskMapper";
@@ -226,6 +227,14 @@ class SupabaseTasksService {
    * orphan) is silently dropped from the result so a half-born row
    * never surfaces in the UI. The orphan is still detectable via the
    * R2 detection SQL in db-conventions.md.
+   *
+   * life-tags S3 (#225): legacy folder rows (task_type='folder') are
+   * excluded here client-side (isLegacyFolderRow). Filtering in-app
+   * rather than query-side (`.neq`) is deliberate — a PostgREST
+   * inequality would also drop NULL task_type rows (NULL comparison),
+   * silently hiding plain legacy tasks. A task whose parentId points at
+   * an excluded folder still surfaces (orphan tolerance): its own
+   * task_type is 'task', so only the folder row itself is dropped.
    */
   async fetchTaskTree(): Promise<TaskNode[]> {
     const { data: metas, error: metaErr } = await this.client
@@ -252,12 +261,17 @@ class SupabaseTasksService {
     for (const m of metaRows) {
       const p = payloadById.get(m.id);
       if (!p) continue; // R2 orphan: meta without payload — skip
+      if (isLegacyFolderRow(p)) continue; // S3: exclude legacy folder rows
       out.push(rowsToTaskNode(m, p));
     }
     return out;
   }
 
-  /** Trashed counterpart of fetchTaskTree (Trash UI). */
+  /**
+   * Trashed counterpart of fetchTaskTree (Trash UI). Legacy folder rows
+   * (task_type='folder') are excluded client-side too (S3 #225 — prod
+   * has soft-deleted folders that must not surface in Trash).
+   */
   async fetchDeletedTasks(): Promise<TaskNode[]> {
     const { data: metas, error: metaErr } = await this.client
       .from("items_meta")
@@ -284,6 +298,7 @@ class SupabaseTasksService {
     for (const m of metaRows) {
       const p = payloadById.get(m.id);
       if (!p) continue;
+      if (isLegacyFolderRow(p)) continue; // S3: exclude legacy folder rows
       out.push(rowsToTaskNode(m, p));
     }
     return out;

@@ -7,9 +7,9 @@
 **対象**: `shared/src/types/taskTree.ts` `shared/src/components/Kanban/**` Notes/Daily フォルダツリー UI `supabase/migrations/*.sql`（folder→tag 変換）
 **計画書**: `.claude/docs/vision/plans/2026-07-11-life-tags-unification.md`（方向の正本・共有コアは materials-refine が単一書込者）
 
-- 前回: S1 実装完了（role-engineer 3 レーン並列: Kanban 2 ビュー化 + viewModeStorage legacy "folder"→"tag" 自己修復 + TaskAddDialog task 専用化 + Complete-folder 自動管理退役 / Notes タグ見出しグルーピング + useNoteTagDnd / migration 0020 + verify.sql + rollback）。shared 851 tests + web build green。監査 role-qa PASS・migration-validator / sync-auditor Blocking 0・Nit 反映済み
-- 現在: S1 PR 提出（migration 0020 の実行 = 🛑 ユーザー `supabase db push` + verify.sql BEFORE/AFTER。CalendarView の folder select が空になるため S2 と同期実行を推奨）
-- 次: schedule-refine の S2（CalendarView folder バインド置換）合意・完了待ち → S3（NodeType folder 除去 + mapper / analytics / connect / i18n / docs sweep + applyStatusChange DONE 沈み reorder のユニットテスト追加）
+- 前回: S3 実装完了（NodeType folder 除去・isLegacyFolderRow fetch 除外・i18n/docs sweep・新規テスト 2 本）。855 tests + build + lint green・role-qa PASS・sync-auditor Blocking 0
+- 現在: S3 PR 提出（Closes #225）。merge = こうだいさん操作・merge 後の実ブラウザ確認 = chat-main
+- 次: 🛑 残ゲート = 実データ変換（ユーザー `supabase db push` 0020 + 0021 + verify.sql・plan Step 5）→ 完了時に plan COMPLETED + archive。chat-main へ起票依頼済み: analytics tag 後継集計 / Notes folder 退役 + Connect グラフ後継
 
 ### ⏸️ Layout Standard v2 adoption（materials・#203 依存待ち）（着手日: 2026-07-11）
 

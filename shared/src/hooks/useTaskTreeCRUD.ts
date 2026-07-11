@@ -21,43 +21,33 @@ export function useTaskTreeCRUD(
       title: string,
       options?: AddNodeOptions,
     ) => {
-      // life-tags S1 retired the default-folder behaviour (folders no longer
-      // group tasks); a new task keeps the caller's parent verbatim.
-      const effectiveParentId = parentId;
-
+      // life-tags S1 retired the default-folder behaviour and S3 (#225)
+      // removed the folder node type entirely — a new node is always a task
+      // and keeps the caller's parent verbatim (subtask nesting still works).
       const siblings = nodes.filter(
-        (n) => !n.isDeleted && n.parentId === effectiveParentId,
+        (n) => !n.isDeleted && n.parentId === parentId,
       );
 
-      let newOrder: number;
-      let updatedNodes = nodes;
-
-      if (type === "task") {
-        // Insert new task at the top of the task group (order: 0)
-        const taskSiblings = siblings.filter(
-          (n) => n.type === "task" && n.status !== "DONE",
-        );
-        newOrder = 0;
-        const shiftIds = new Set(taskSiblings.map((n) => n.id));
-        updatedNodes = nodes.map((n) =>
-          shiftIds.has(n.id) ? { ...n, order: n.order + 1 } : n,
-        );
-      } else {
-        newOrder = siblings.filter((n) => n.type === "folder").length;
-      }
+      // Insert the new task at the top of the incomplete group (order: 0),
+      // shifting the existing incomplete siblings down by one.
+      const shiftIds = new Set(
+        siblings.filter((n) => n.status !== "DONE").map((n) => n.id),
+      );
+      const updatedNodes = nodes.map((n) =>
+        shiftIds.has(n.id) ? { ...n, order: n.order + 1 } : n,
+      );
 
       const newNode: TaskNode = {
         id: generateId(type),
         type,
         title,
-        parentId: effectiveParentId,
-        order: newOrder,
+        parentId,
+        order: 0,
         status: "NOT_STARTED",
-        isExpanded: type !== "task" ? true : undefined,
         createdAt: new Date().toISOString(),
-        scheduledAt: type === "task" ? options?.scheduledAt : undefined,
-        scheduledEndAt: type === "task" ? options?.scheduledEndAt : undefined,
-        isAllDay: type === "task" ? options?.isAllDay : undefined,
+        scheduledAt: options?.scheduledAt,
+        scheduledEndAt: options?.scheduledEndAt,
+        isAllDay: options?.isAllDay,
       };
       if (options?.skipUndo) {
         persistSilent([...updatedNodes, newNode]);

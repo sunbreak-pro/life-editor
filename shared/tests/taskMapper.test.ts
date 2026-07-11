@@ -4,6 +4,8 @@ import {
   rowsToTaskNode,
   taskNodeToRows,
   taskUpdatesToPatches,
+  toNodeType,
+  isLegacyFolderRow,
   type ItemsMetaRow,
   type TasksPayloadRow,
   type TasksPayloadWriteRow,
@@ -134,38 +136,61 @@ describe("rowsToTaskNode ∘ taskNodeToRows roundtrip — 5 shapes", () => {
     expect(r.completedAt).toBe("2026-05-23T12:00:00.000Z");
   });
 
-  it("folder normal", () => {
-    const node: TaskNode = {
-      id: "task-4",
-      type: "folder",
-      title: "Folder",
-      parentId: null,
-      order: 0,
-      folderType: "normal",
-      isExpanded: true,
-      createdAt: "2026-05-23T10:00:00.000Z",
-    };
-    const r = roundtrip(node);
-    expect(r.type).toBe("folder");
-    expect(r.folderType).toBe("normal");
-  });
-
-  it("folder complete (soft-deleted)", () => {
+  it("soft-deleted task round-trips with deletedAt", () => {
+    // Replaces the retired "folder complete (soft-deleted)" case (S3 #225):
+    // folders are gone, but soft-delete + restore must still round-trip.
     const node: TaskNode = {
       id: "task-5",
-      type: "folder",
+      type: "task",
       title: "Done bucket",
       parentId: null,
       order: 2,
-      folderType: "complete",
+      status: "DONE",
       isDeleted: true,
       deletedAt: "2026-05-23T11:00:00.000Z",
       createdAt: "2026-05-23T10:00:00.000Z",
     };
     const r = roundtrip(node);
-    expect(r.folderType).toBe("complete");
+    expect(r.type).toBe("task");
     expect(r.isDeleted).toBe(true);
     expect(r.deletedAt).toBe("2026-05-23T11:00:00.000Z");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1b. life-tags S3 (#225): folder_type / original_parent_id are always NULL
+//     on client-written rows, and legacy folder rows are detectable.
+// ---------------------------------------------------------------------------
+
+describe("S3 folder retirement — write shape + legacy detection", () => {
+  it("taskNodeToRows writes folder_type=null and original_parent_id=null", () => {
+    const node: TaskNode = {
+      id: "task-s3",
+      type: "task",
+      title: "plain",
+      parentId: "task-parent",
+      order: 0,
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+    const { payload } = taskNodeToRows(node, TEST_USER_ID);
+    expect(payload.task_type).toBe("task");
+    expect(payload.folder_type).toBeNull();
+    expect(payload.original_parent_id).toBeNull();
+  });
+
+  it("isLegacyFolderRow flags task_type='folder' only (NULL is a task)", () => {
+    expect(isLegacyFolderRow({ task_type: "folder" })).toBe(true);
+    expect(isLegacyFolderRow({ task_type: "task" })).toBe(false);
+    expect(isLegacyFolderRow({ task_type: null })).toBe(false);
+  });
+
+  it("toNodeType coerces a legacy 'folder' value to 'task'", () => {
+    // Defence-in-depth: folder rows are excluded upstream, but if one reaches
+    // the mapper it must not throw — it materialises as a plain task.
+    expect(toNodeType("folder")).toBe("task");
+    expect(toNodeType("task")).toBe("task");
+    expect(toNodeType(null)).toBe("task");
+    expect(() => toNodeType("weird")).toThrow();
   });
 });
 

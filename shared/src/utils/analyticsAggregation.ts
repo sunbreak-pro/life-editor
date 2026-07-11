@@ -443,17 +443,18 @@ export function aggregateByFolder(
   const nodeMap = new Map<string, TaskNode>();
   for (const n of nodes) nodeMap.set(n.id, n);
 
-  // Find root folder for a given task
+  // life-tags S3 (#225): the Tasks domain no longer has folder nodes, so
+  // there is no root folder to attribute a task's work time to —
+  // findRootFolder always returns null and aggregateByFolder returns [].
+  // The "Project work time" chart renders empty; tag-based aggregation is a
+  // separate lane (not redesigned here). Kept nodeMap-driven for a minimal
+  // diff.
   function findRootFolder(taskId: string): TaskNode | null {
     let current = nodeMap.get(taskId);
-    if (!current) return null;
-    let lastFolder: TaskNode | null = null;
-    while (current) {
-      if (current.type === "folder") lastFolder = current;
-      if (!current.parentId) break;
+    while (current?.parentId) {
       current = nodeMap.get(current.parentId);
     }
-    return lastFolder;
+    return null;
   }
 
   const map = new Map<string, FolderBucket>();

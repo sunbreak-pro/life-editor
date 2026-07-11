@@ -38,11 +38,11 @@ describe("sortByDepthDesc", () => {
     //  └─ B
     //      └─ B1
     const pool: TaskNode[] = [
-      node("root", null, "folder"),
-      node("A", "root", "folder"),
+      node("root", null),
+      node("A", "root"),
       node("A1", "A"),
       node("A2", "A"),
-      node("B", "root", "folder"),
+      node("B", "root"),
       node("B1", "B"),
     ];
     const ids = ["root", "A", "A1", "A2", "B", "B1"];
@@ -60,7 +60,7 @@ describe("sortByDepthDesc", () => {
   it("keeps caller order stable across equal-depth siblings", () => {
     // Two siblings at depth 1; the sort must not shuffle them.
     const pool: TaskNode[] = [
-      node("root", null, "folder"),
+      node("root", null),
       node("S1", "root"),
       node("S2", "root"),
     ];
