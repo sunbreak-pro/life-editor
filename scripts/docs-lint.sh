@@ -32,7 +32,10 @@ PLANS_DIR=".claude/docs/vision/plans"
 # ---------------------------------------------------------------------------
 # (a) 相対リンク実在チェック
 #     対象: .claude/CLAUDE.md + .claude/docs/**/*.md
-#     除外: http(s) / mailto / file: の絶対 URL、ページ内アンカー（#...）
+#     除外: http(s) / mailto / file: の絶対 URL、ページ内アンカー（#...）、
+#           git 非追跡の派生ビュー（memory/INDEX.md / history/INDEX.md —
+#           hooks/regen-index.sh が再生成するため CI の checkout には
+#           存在しない。CLAUDE.md §9 参照）
 # ---------------------------------------------------------------------------
 for f in .claude/CLAUDE.md ${DOCS_FILES}; do
   dir=$(dirname "$f")
@@ -43,6 +46,9 @@ for f in .claude/CLAUDE.md ${DOCS_FILES}; do
     esac
     path="${target%%#*}"
     [ -z "$path" ] && continue
+    case "$path" in
+      *memory/INDEX.md | *history/INDEX.md) continue ;; # derived views
+    esac
     if [ ! -e "$dir/$path" ]; then
       report "docs-lint(a) broken link: $f -> $target"
     fi
