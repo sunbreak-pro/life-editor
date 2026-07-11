@@ -27,7 +27,7 @@ boot 行:
 
 - **rightSidebar トグル新設**: analytics は現在 rightSidebar 無効の 2 セクションの片方（親計画 §3）。トグルは shell が常設する → analytics 側の作業は表示確認と、**パネル中身の定義（未定のままで OK — 将来タグ別・期間別の集計フィルタ等の候補メモを残す程度で可）**
 - 標準セクションヘッダーへの統合確認（現構成 = h2 タイトル + 期間セレクタ + HeaderTabs）
-- **幅切替タブ**: 初期値と data 列の扱いは親計画 §5 の表が正（analytics は推論値 — 表の注記参照。生値はトークンが正）。wide / narrow 両状態でカード列の折返し確認（#182 の再発監視を兼ねる）
+- **幅は全画面 wide 統一**（幅切替タブは 2026-07-11 廃止 — 親計画 §5。data 列 clamp の扱いも §5 参照）: 全幅でのカード列折返し確認（#182 の再発監視を兼ねる）
 
 ## 後続: life-tags（[兄弟計画](./2026-07-11-life-tags-unification.md)参照・着手は合図待ち）
 
@@ -56,10 +56,3 @@ web/src/**                           ← analytics 配線部分のみ
 - [ ] `cd shared && npm run build && npm run test` / `cd web && npm run build` pass
 - [ ] 担当 Issue（#182 / #181・v2 adoption の analytics 行）が close またはチェック済み
 - [ ] 完了時: 本計画 Status 更新 + per-chat memory 更新（DoD）
-
----
-
-## Worklog
-
-- 2026-07-11 (chat-analytics-refine, v2 adoption 第 1 便): #196（v2 共通部品）merge を確認しゲート解除 → in-scope 分を実施。**AnalyticsView の内部 h2 タイトル行を撤去**（shell SectionHeader の「分析」と二重だった過渡事象 — #196 既知リスト記載分）。期間セレクタは HeaderTabs の `trailing` スロットへ移設し 1 行化。**残タスク（shell 協調が必要・outbox で layout-standard へ提案済み）**: (a) タブ帯の SectionHeader 統合（v2 §1 の tab-band-as-title。MainScreen のタブ state lift が必要 — materials 方式）/ (b) narrow 時の二重 gutter・二重スクロール（PageContainer reading × AnalyticsView 内部 chrome の重なり。wide→data variant 化 + 内部 chrome 撤去の協調パスを提案）。**runtime 検証は chat-main へ依頼**（playwright 起動は chat-main のみの 2026-07-11 決定に従う）。v2 adoption Issue は未起票（起票され次第 analytics 行を追随）。パネル中身はプレースホルダー継続（候補メモ = タグ別・期間別集計フィルタ）
-- 2026-07-11 (chat-analytics-refine): main 取り込み（#180 反映）→ #182 実測。**構造 DoD は PASS**（Today カード実測 324.33px = 1000px カラム有効。clamp 残存なら 248px のはず）。ただし **ja の値文字列（分を含む 6 文字以上・例「2時間30分」）が 86.4px セルに対し約 90px 必要で 2 行に折返し** — #182 の cramped 症状は desktop ja で未解消と判定（en / mobile は 1 行 OK）。実測手法: 認証ゲート（AuthCard）で通常の playwright 巡回が不可のため、vite dev の実 TSX を dynamic import + 実 CSS 上で mount する component-graph 計測（スクリプト = セッション scratchpad `harness.mjs` / raw = `result.json`）。追修正: TodayDashboard の入れ子 3 列 grid を廃し、隣接 WeeklySummary と同一の縦積み SummaryRow（ラベル左・値右）へ統一（`SummaryRow.tsx` に共通化・Issue #182 修正方向 2 の委任範囲）。テスト直接参照なし。
