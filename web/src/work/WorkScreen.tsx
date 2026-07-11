@@ -30,8 +30,11 @@ import { X, ChevronDown } from "lucide-react";
  * allowance TrashScreen uses (§6.4).
  *
  * Layout (isWide = min-width 768px):
- *  - Desktop → three cards (timer / task / ambient) stacked, max-w-720 centred;
- *    the settings + presets editor is pushed into the shell rightSidebar via
+ *  - Desktop → three cards (timer / task / ambient) stacked; the shell's
+ *    PageContainer (width="reading", #180 — adopted here per #181) owns the
+ *    centered measure + page gutter, so this view keeps only its own card
+ *    rhythm. The settings +
+ *    presets editor is pushed into the shell rightSidebar via
  *    RightSidebarPortal (dimmed while the timer runs).
  *  - Mobile  → a single fullscreen timer face; the task chip opens a BottomSheet
  *    picker; the settings editor lives only in the shell's left drawer (also the
@@ -314,7 +317,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
 
   if (!isWide) {
     return (
-      <div className="flex flex-col px-6 pb-4 pt-3">
+      <div className="flex flex-col">
         {timerFace("fullscreen", mobileTaskSlot)}
         <RightSidebarPortal>{settingsPanel}</RightSidebarPortal>
         <PomodoroTaskSheet
@@ -335,7 +338,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-4 px-8 pb-6 pt-2">
+    <div className="flex flex-col gap-4">
       {timerFace("card")}
       <PomodoroTaskSelector
         tasks={tasks}

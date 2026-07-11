@@ -313,7 +313,7 @@ export function ConnectGraphView({
     const showLegend = hasNodes && !isLoading && graphState !== "nomatch";
     return (
       <div className="flex h-full w-full flex-col">
-        <div className="flex shrink-0 items-center gap-2 px-4 pt-1">
+        <div className="flex shrink-0 items-center gap-2 px-lumen-gutter pt-1">
           <Network size={16} className="shrink-0 text-lumen-accent" />
           <span className="text-[16px] font-semibold text-lumen-text">
             {labels.title}
@@ -346,7 +346,7 @@ export function ConnectGraphView({
         </div>
 
         {showLegend && (
-          <div className="shrink-0 overflow-x-auto px-4 pt-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="shrink-0 overflow-x-auto px-lumen-gutter pt-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <GraphLegend labels={labels} className="w-max" />
           </div>
         )}

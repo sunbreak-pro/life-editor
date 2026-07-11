@@ -39,7 +39,7 @@ export function ConnectHeader({
     "grid h-7 w-7 place-items-center rounded-lumen-sm text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
   return (
-    <div className="flex-shrink-0 bg-lumen-bg px-4 md:px-6">
+    <div className="flex-shrink-0 bg-lumen-bg px-lumen-gutter md:px-lumen-gutter-wide">
       <div className="flex items-stretch border-b border-lumen-border">
         <div className="-mb-px flex items-center gap-2 border-b-2 border-lumen-accent py-2 text-[14px] font-semibold text-lumen-text">
           <Network size={16} />
