@@ -18,15 +18,17 @@ import {
 } from "@life-editor/shared";
 
 /*
- * Settings screen (W1, web host — redesigned). Single column: page header +
- * Appearance / Language / Shortcuts cards (opaque, immediate-apply, no save
- * button). Width + centering + gutter are owned by the PageContainer wrapper
- * in MainScreen (Layout Standard v1, #180/#181). This is the HOST side: it owns
- * the hooks (useThemeContext / useShortcutConfig / useTranslation / media
- * query) and injects values + setters + already-translated copy into the
- * shared PURE primitives (CLAUDE.md §6.4). The Shortcuts card is Desktop-only
- * (ShortcutConfig is a Mobile 省略 Provider — §2). A live appearance preview +
- * tips are pushed into the shared detail panel via RightSidebarPortal.
+ * Settings screen (W1, web host — redesigned). Single column of Appearance /
+ * Language / Shortcuts cards (opaque, immediate-apply, no save button). The
+ * section title now lives in the shell's standard SectionHeader (Layout
+ * Standard v2, #209 adoption) — this screen renders NO in-body header. Width +
+ * gutter + scroll are owned by the PageContainer wrapper in MainScreen. This is
+ * the HOST side: it owns the hooks (useThemeContext / useShortcutConfig /
+ * useTranslation / media query) and injects values + setters + already-
+ * translated copy into the shared PURE primitives (CLAUDE.md §6.4). The
+ * Shortcuts card is Desktop-only (ShortcutConfig is a Mobile 省略 Provider —
+ * §2). A live appearance preview + tips are pushed into the shared detail panel
+ * via RightSidebarPortal.
  */
 export function SettingsScreen() {
   const { t } = useTranslation();
@@ -100,15 +102,6 @@ export function SettingsScreen() {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-xl font-semibold text-lumen-text">
-          {t("settings.title")}
-        </h1>
-        <p className="text-sm text-lumen-text-secondary">
-          {t("settings.pageDescription")}
-        </p>
-      </div>
-
       <div className={cardClass}>
         <SettingsAppearance
           theme={theme}
