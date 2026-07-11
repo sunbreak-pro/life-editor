@@ -23,11 +23,9 @@ export {
   MOBILE_SECTIONS,
   SECTION_IDS,
   SECTION_ICONS,
-  SECTION_DEFAULT_PAGE_WIDTH,
   type SectionDef,
   type SectionGroup,
   type SectionId,
-  type PageWidthMode,
 } from "./sections";
 
 // Materials tab count badges (target IA) — pure derivation from fetched data.
@@ -110,8 +108,6 @@ export { useThemeContext } from "./hooks/useThemeContext";
 export { useLocalStorage } from "./hooks/useLocalStorage";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
-// Layout Standard v2 §5 — per-section width-tab persistence (scope→mode map).
-export { usePageWidthPrefs } from "./hooks/usePageWidthPrefs";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider

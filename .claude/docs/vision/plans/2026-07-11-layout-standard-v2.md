@@ -49,7 +49,8 @@ Parent: 2026-07-10-layout-unification-fanout.md
 ### §5 幅 — 全画面 wide 統一（幅切替タブは廃止）
 
 - **2026-07-11 ユーザー決定（実装後の所感）**: 幅切替 2 段タブ（wide / narrow）は**作らない**。全 7 セクションを **wide（全幅）基準**に統一する
-- 現在 reading 幅中央寄せの **work / settings / trash も全幅へ移行**（中央寄せ clamp を撤去）。analytics の data 列 clamp や `--container-lumen-reading` 等の幅トークンを残すか退役するかは layout-standard の実装判断（他用途が無ければ v2 部品 PR で退役提案）
+- 現在 reading 幅中央寄せの **work / settings / trash も全幅へ移行**（中央寄せ clamp を撤去）
+- **例外 = Materials の Notes / Daily サブタブは reading 幅（~768px 中央寄せ）を維持**（2026-07-11 ユーザー決定・撤去実装時に確認）: 文章を書くテキスト面のみ可読性のため reading 列を残す。Materials の他サブタブ（Tasks=fluid / Tags=full）と work/settings/trash は全幅。→ `--container-lumen-reading` トークンは Notes/Daily で現用のため**退役しない**（PageContainer の reading variant も存続）
 - 幅の永続化・セクション別初期値表・タブ無効化検討は、廃止に伴いすべて削除（旧仕様は git 履歴参照）
 
 ### 未定事項（未定のまま進めて OK・確定したら本節を更新）
@@ -124,4 +125,6 @@ web/src/<section>/**              ← adoption（各 refine・自セクション
 ## Worklog
 
 - 2026-07-11: 計画作成（chat-docs-workspace）。ユーザー要件 1〜5 を精査し v2 標準定義として整理。進め方（v2 先行 + life-tags 別計画）を AskUserQuestion で確定。v2 Issue 起票は権限承認待ちのため Step 2 に配置
+- 2026-07-11: Step 3 共通部品実装（chat-layout-standard）。§1 `SectionHeader`（タイトル or タブ帯 + 右端コントロール + 全幅区切り線）/ §5 `PageWidthToggle`（wide・narrow 2 段・icon=lucide UnfoldHorizontal / FoldHorizontal・`usePageWidthPrefs` で localStorage 永続化）/ §4 AppShell に `header` スロット新設（wide レイアウトを「サイドバー | ヘッダー行 → main+パネル行」の縦積みへ構造変更）/ §3 `sections.ts` の `rightSidebar` フラグ廃止（トグル全セクション常設・analytics / trash は共有 empty state がプレースホルダー）→ `defaultPageWidth` に置換（§5 初期値表の runtime SSOT）/ PageContainer に `full` variant 追加（document 面の wide = gutter 付き全幅。fluid はキャンバス面専用）。**実装判断**: materials の幅 scope はサブタブ単位（`materials:<tab>`・初期値 tasks=wide / 他 narrow = 現状の見た目維持）で暫定実装 — materials-refine へ outbox で調整打診。mobile は §非goal どおり不変（幅タブ・標準ヘッダーは wide のみ / narrow は v1 の行を維持・Desktop の幅選択が mobile に漏れない静的マッピング）。過渡期: Schedule のタブ帯/トグル二重表示は schedule-refine の adoption で撤去（orders 記載済）
 - 2026-07-11 (2): 実装後の所感を反映（chat-docs-workspace）— §5 幅切替タブを**廃止**し全画面 wide 統一へ改訂。§1 に共通コンポーネント 1 実装の明示を追加。以後の計画書作成はオーケストレーター（chat-main）へ移管（CLAUDE.md §7.4・#181 に幅基準変更をコメント告知）
+- 2026-07-11 (3): §5 撤去実装（chat-layout-standard・Issue #203 shared-fix）。`PageWidthToggle` / `usePageWidthPrefs`（本体 + テスト）をファイル削除・`sections.ts` から `PageWidthMode` / `defaultPageWidth` / `SECTION_DEFAULT_PAGE_WIDTH` 撤去・export バレル 2 つ + i18n `layout.width*`（en/ja）掃除。MainScreen の幅を全幅統一（`ownsFullBleed ? "fluid" : …`）に単純化。**実装判断**: Materials の Notes / Daily サブタブのみ reading 幅を維持（§5 例外・ユーザー確認済）→ PageContainer reading variant と `--container-lumen-reading` は存続。role-qa 独立監査 PASS（撤去完全・mobile 等価は < 768px で reading≡full が成立・スコープ遵守）。shared build/test（794）+ web build 緑。過渡期の各 refine 所有ファイルの stale コメント（NotesView/DailyView/WorkScreen/WikiTags の `width="reading"` 言及）は adoption（#181 系）で解消

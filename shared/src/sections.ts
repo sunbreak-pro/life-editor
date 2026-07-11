@@ -31,12 +31,6 @@ import {
 /** Sidebar grouping: mainline nav rows vs. the utility (settings/trash) set. */
 export type SectionGroup = "main" | "utility";
 
-/**
- * Header width-tab mode (Layout Standard v2 §5): "wide" = full width,
- * "narrow" = centered reading column (--container-lumen-reading).
- */
-export type PageWidthMode = "wide" | "narrow";
-
 export interface SectionDef {
   /** Stable section id (widened to string here; the literal union is
    *  derived from the const list below as `SectionId`). */
@@ -48,20 +42,22 @@ export interface SectionDef {
   readonly labelKey: string;
   /** Mobile bottom-bar priority (ascending). Fixed 4 = lowest, rest → More. */
   readonly mobileOrder: number;
-  /**
-   * Initial value of the section's header width tab (Layout Standard v2 §5)
-   * — the look before the user flips it (the choice is then persisted per
-   * section, usePageWidthPrefs). Initial values mirror each section's pre-v2
-   * look; the v2 plan's §5 table is the decision record, this field is the
-   * runtime SSOT.
-   *
-   * The former `rightSidebar` gate is retired (v2 §3): every section now
-   * shows the detail-panel toggle. Sections without portal content
-   * (Analytics / Trash) open the shared placeholder empty state until their
-   * refine pass defines panel content.
-   */
-  readonly defaultPageWidth: PageWidthMode;
 }
+
+/*
+ * Content width is no longer a per-section knob. The Layout Standard v2 §5
+ * width tab (wide/narrow) was retired 2026-07-11 — sections are unified to
+ * wide. The host maps each surface straight to a PageContainer width with no
+ * persisted per-section choice: "fluid" for canvas surfaces that own their
+ * full-bleed scroll, "full" for gutter-padded documents, and "reading" kept
+ * only for the Materials text editors (Notes / Daily) whose line length still
+ * wants the ~768px column (see web/src/MainScreen.tsx).
+ *
+ * The `rightSidebar` gate is likewise retired (v2 §3): every section shows
+ * the detail-panel toggle. Sections without portal content (Analytics /
+ * Trash) open the shared placeholder empty state until their refine pass
+ * defines panel content.
+ */
 
 /*
  * Canonical order = desktop sidebar order (main group first, then utility).
@@ -75,8 +71,6 @@ export const SECTIONS = [
     icon: Clock,
     labelKey: "section.schedule",
     mobileOrder: 0,
-    // Full-bleed calendar canvas — pre-v2 look is full width.
-    defaultPageWidth: "wide",
   },
   {
     id: "materials",
@@ -84,11 +78,6 @@ export const SECTIONS = [
     icon: Library,
     labelKey: "section.materials",
     mobileOrder: 1,
-    // Section-level default per the v2 §5 table. The web host currently
-    // scopes the width tab PER MATERIALS TAB (tasks=wide, others=narrow —
-    // the pre-v2 look) while the section-vs-tab decision is pending (v2 §5
-    // 未定事項; being coordinated with materials-refine via outbox).
-    defaultPageWidth: "wide",
   },
   {
     id: "connect",
@@ -96,8 +85,6 @@ export const SECTIONS = [
     icon: Network,
     labelKey: "section.connect",
     mobileOrder: 4,
-    // Full-bleed node-graph canvas.
-    defaultPageWidth: "wide",
   },
   {
     id: "work",
@@ -105,8 +92,6 @@ export const SECTIONS = [
     icon: Timer,
     labelKey: "section.work",
     mobileOrder: 2,
-    // Centered timer column (reading width).
-    defaultPageWidth: "narrow",
   },
   {
     id: "analytics",
@@ -114,10 +99,6 @@ export const SECTIONS = [
     icon: BarChart3,
     labelKey: "section.analytics",
     mobileOrder: 3,
-    // Wide: the shared AnalyticsView keeps drawing its own centered data
-    // column (--container-lumen-data) inside the full-width body — the v1
-    // implementation judgment carried forward (v2 §5 table).
-    defaultPageWidth: "wide",
   },
   {
     id: "settings",
@@ -125,8 +106,6 @@ export const SECTIONS = [
     icon: Settings,
     labelKey: "section.settings",
     mobileOrder: 5,
-    // Centered settings column (reading width).
-    defaultPageWidth: "narrow",
   },
   {
     id: "trash",
@@ -134,8 +113,6 @@ export const SECTIONS = [
     icon: Trash2,
     labelKey: "section.trash",
     mobileOrder: 6,
-    // Centered restore list (reading width).
-    defaultPageWidth: "narrow",
   },
 ] as const satisfies readonly SectionDef[];
 
@@ -166,14 +143,3 @@ export const SECTION_ICONS: Readonly<Record<SectionId, LucideIcon>> =
     SectionId,
     LucideIcon
   >;
-
-/**
- * Header width-tab initial value by section id (Layout Standard v2 §5). The
- * host falls back to this when the user has not flipped the section's width
- * tab yet (usePageWidthPrefs holds the persisted choices).
- */
-export const SECTION_DEFAULT_PAGE_WIDTH: Readonly<
-  Record<SectionId, PageWidthMode>
-> = Object.fromEntries(
-  SECTIONS.map((s) => [s.id, s.defaultPageWidth]),
-) as Record<SectionId, PageWidthMode>;
