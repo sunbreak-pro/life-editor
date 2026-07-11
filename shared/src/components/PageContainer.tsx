@@ -13,8 +13,8 @@ export interface PageContainerProps {
    *   - "fluid": no centering/scroll wrapper; the child owns its full-bleed
    *     h-full layout + self-scroll (canvas / board / calendar surfaces).
    *   - "full": full-width column that KEEPS the gutter + self-scroll wrapper
-   *     (Layout Standard v2 §5 — a document surface whose width tab is set to
-   *     "wide"; unlike fluid, the child stays a normal scrolled document).
+   *     (Layout Standard v2 §5 — the standard wide document surface; unlike
+   *     fluid, the child stays a normal scrolled document).
    */
   width: PageContainerWidth;
   /**

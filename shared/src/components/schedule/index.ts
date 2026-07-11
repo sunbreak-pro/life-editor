@@ -43,6 +43,15 @@ export {
   type RoutineEditorRoutine,
   type RoutineEditorGroup,
 } from "./RoutineEditorForm";
+// #185 Step 2: repeat-settings editor shared between RoutineEditorForm and the
+// Event editor's repeat section.
+export {
+  FrequencyEditor,
+  type FrequencyEditorProps,
+  type FrequencyEditorLabels,
+  type FrequencyEditorValue,
+  type FrequencyEditorGroup,
+} from "./FrequencyEditor";
 // Target-IA rightSidebar frame: 2-tab (Calendar) / 1-tab (Routines) switcher
 // the Schedule tabs portal into the shared detail panel.
 export {

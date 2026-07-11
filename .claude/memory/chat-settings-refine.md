@@ -2,18 +2,13 @@
 
 ## 進行中
 
-### 🔧 settings-refine orders — #181 adoption + Layout Standard v2 adoption（着手日: 2026-07-11）
-
-**対象**: `web/src/settings/**`
-**計画書**: `.claude/docs/vision/plans/2026-07-11-settings-refine-orders.md`
-
-- 前回: —
-- 現在: #181 settings 行（二重センタリング解消）実装完了・draft PR #193 の merge 待ち。merge 後に #181 の settings 行チェック + Issue コメント（コメント投稿は権限ポリシーで未実施 — ユーザー承認待ち）
-- 次: Layout Standard v2 adoption（v2 共通部品が main に merge されてから着手 — 親計画 `2026-07-11-layout-standard-v2.md` Step 4 以降）
+（なし）
 
 ## 直近の完了
 
-- #181 settings 行の実装 + draft PR #193 作成 ✅（2026-07-11）
+- Settings 軽量プリファレンス拡張（auto theme / font-family / reduce-motion / startup-section / reset-cache ＋共通 prefs 基盤・Issue #216）✅（2026-07-11）
+- Settings Layout Standard v2 adoption（本文内タイトル行撤去・PR #211 / Issue #209）✅（2026-07-11）
+- #181 settings 行の実装 + PR #193 ✅（2026-07-11）
 
 ## 予定
 

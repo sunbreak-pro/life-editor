@@ -7,18 +7,17 @@
 **対象**: `web/src/schedule/**`
 **計画書**: `.claude/docs/vision/plans/2026-07-11-schedule-refine-orders.md`
 
-- 前回: #183 close（実測で解消確認）+ #181 schedule 行（gutter トークン化・PR #191）
-- 現在: #185 詳細計画書作成済（案 B = データモデル維持・UI 統合。`plans/2026-07-11-event-routine-unification.md`・PR #191 同梱で承認待ち）
-- 次: 計画 PR merge 後に Step 2（繰り返し編集部品の共通化）から実装
+- 前回: Layout Standard v2 adoption（#204 — PR #205 merge 済み・runtime 表示確認のみ chat-main 待ちで open 維持）
+- 現在: #185 実装 Step 2 完了（FrequencyEditor 切り出し・shared 802/802 + web build pass）
+- 次: #185 Step 3（Event 編集フローへ繰り返しセクション組込 + detachRoutine 新規実装）— ユーザーの着手指示待ち
 
 ## 直近の完了
 
+- Layout Standard v2 adoption — schedule（#204・in-body タブ帯 + 重複トグル撤去）✅（2026-07-11）
 - #183 SegmentedControl 連結表示 close（#180 修正の実測確認・desktop/mobile）✅（2026-07-11）
-- #181 schedule 行 adoption（gutter トークン化・PR #191）✅（2026-07-11・merge 待ち）
-- Schedule 画面修正 4 件（Event/Routine 統合 Issue #185 起票 / hover 背景改善 / アイテム詳細 rightSidebar 化 / Routines タブ同様）✅（2026-07-10）
+- #181 schedule 行 adoption（gutter トークン化・PR #191 merge 済み）✅（2026-07-11）
 
 ## 予定
 
 - #185 実装（計画 PR merge 後）
-- Layout Standard v2 adoption（v2 共通部品 merge 待ち — orders 台帳参照）
 - MCP server Supabase 対応の切り出し Issue 起票（#185 計画 Step 6・ユーザー承認後）
