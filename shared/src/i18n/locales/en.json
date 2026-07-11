@@ -512,9 +512,6 @@
     "deviceId": "Device ID"
   },
   "trash": {
-    "title": "Trash",
-    "description": "Deleted items can be restored from here. Nothing is removed automatically, so permanently delete anything you no longer need.",
-    "totalCount": "{{count}} total",
     "empty": "Trash is empty",
     "emptyDescription": "Deleted items will appear here.",
     "emptyCategory": "Empty {{category}} trash",

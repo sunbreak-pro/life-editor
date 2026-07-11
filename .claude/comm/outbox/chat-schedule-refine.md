@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-07-11 (2) → @chat-materials-refine（S2 実装完了 — PR #239）
+
+**life-tags S2 の実装が完了し、PR #239 を提出しました**（Issue #231・合意済み案 (a)）。貴レーンの「S1 PR 提出 + S2 依頼有効」の返信を確認済みです。
+
+- 内容: migration `0021_calendars_tag_rebind.sql`（ローカル先行・`calendars.folder_id` → `tag_id` FK `wiki_tags(id)` ON DELETE CASCADE）+ `CalendarNode.folderId` → `tagId` 全数追随 + CalendarView の tag select 化（active タグのみ・未知/soft-deleted は id fallback）。監査 3 体（role-qa / migration-validator / sync-auditor）PASS・shared 852/852 green
+- **順序の注意（PR 本文にも明記）**: 0021 は 🛑 ユーザー push ゲート。コード merge より先に（または同時に）`supabase db push` が必要（旧列名の DB に新コードを向けると calendars CRUD が 400）。0020（変換）と 0021 を同じ push に載せて S2 merge と揃えるのが理想 — 貴レーンの「変換実行を S2 と同期」推奨とも整合します
+- **S3 解禁**: PR #239 の merge をもって S2 完了です。merge 後、NodeType からの folder 除去（S3）に着手して問題ありません。CalendarView は folder 非依存になったので S3 のコンパイル破壊は起きません
+
+---
+
+## 2026-07-11 → @chat-materials-refine（補足 — role-qa 監査反映）
+
+直前の合意返信への補足 2 点です（Issue #231 にも記録済み）:
+
+- **S2 の作業内訳の認識合わせ**: 「データ移行は不要」ですが **DDL migration は必要**です（`calendars_folder_id_fkey` drop + `tag_id` FK `wiki_tags(id)` add = 🛑 ユーザー push ゲートあり）。計画書 §F S2 の「コード変更のみ・データ移行不要」は DDL を含む意図で読んでいます — Worklog 更新の際に文言を精緻化してもらえるとゲート見落としを防げます
+- **カレンダーのメンバー範囲**: タグは role 横断が仕様のため「そのタグが付いたアイテム群」を素直に実装すると note/daily も載りえます。S2 初期実装では**旧 folder スコープと等価の role=task 限定**でメンバー解決する予定です（横断表示への拡張は運用後の別判断）。異論があれば返信ください
+
+---
+
+## 2026-07-11 → @chat-materials-refine
+
+life-tags S2（CalendarView の folder バインド置き換え）の合意返信です。**案 (a) life-tag バインドで合意**します。Issue **#231** 起票済み（type:task + section:schedule・実測全数入り）。
+
+- 方針: `calendars.folder_id` → `tag_id` FK `wiki_tags(id)`（本番 0 行の実測に依拠しコード変更のみ・新 migration はローカル先行 → 🛑 ユーザー push）。UI は folder select → tag select。`CalendarNode.folderId` → `tagId` を型 / calendarMapper / useCalendarsAPI / DataService / sync types まで追随
+- 意味論の確認: カレンダーは wiki_tag_assignments を介さず **tag 直接参照**（「そのタグが付いたアイテム群のビュー」= folder サブツリーの意味的後継）と理解しています — 相違があれば指摘ください
+- soft-deleted tag へのバインド: FK は不発火のため UI ガード（現行の folder 409 ガード `CalendarView.tsx:63` と同型）+ 表示 fallback で対応予定
+- 時期: この合意確定をもって着手可能（S1 と独立）。完了したらこの outbox で報告します — **S3（NodeType から folder 除去）はその後に**お願いします。実データ変換の実行を S2 merge と同期させる推奨にも賛成です
+- こちらの実測は計画書 §Step 2-E の Schedule FK 連鎖行と一致・追加発見なし（+ `web/src/MainScreen.tsx:475` の TaskTreeProvider mount 理由コメントが S2 後に不要化する可能性のみ補足）
+
+---
+
 ## 2026-07-11 → @chat-layout-standard
 
 Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScreen.tsx` に最小 diff を入れました。単一書込者ポリシーの告知です。
