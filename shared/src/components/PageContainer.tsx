@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "./cn";
 
 /** Page width variant — the single knob a host picks per section. */
-export type PageContainerWidth = "reading" | "data" | "fluid";
+export type PageContainerWidth = "reading" | "data" | "fluid" | "full";
 
 export interface PageContainerProps {
   /**
@@ -12,6 +12,9 @@ export interface PageContainerProps {
    *   - "data": wide dashboard column (max-w-lumen-data, 1000px) — analytics.
    *   - "fluid": no centering/scroll wrapper; the child owns its full-bleed
    *     h-full layout + self-scroll (canvas / board / calendar surfaces).
+   *   - "full": full-width column that KEEPS the gutter + self-scroll wrapper
+   *     (Layout Standard v2 §5 — a document surface whose width tab is set to
+   *     "wide"; unlike fluid, the child stays a normal scrolled document).
    */
   width: PageContainerWidth;
   /**
@@ -55,7 +58,9 @@ export function PageContainer({
           <div
             className={cn(
               "mx-auto w-full px-lumen-gutter py-4 md:px-lumen-gutter-wide md:py-6",
-              width === "reading" ? "max-w-lumen-reading" : "max-w-lumen-data",
+              width === "reading" && "max-w-lumen-reading",
+              width === "data" && "max-w-lumen-data",
+              // "full" sets no max-w — gutter-padded full width.
             )}
           >
             {children}

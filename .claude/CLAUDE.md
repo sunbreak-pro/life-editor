@@ -103,6 +103,9 @@ cd web && npm run dev           # ローカル起動（vite）
 - メイン（`/Users/newlife/dev/apps/life-editor`）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は `.claude/worktrees/<slug>/` から
 - **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
 - **Orca ADE 利用時の例外処理**: Orca の GUI worktree 作成は `.session-branch` / `.session-name` を書かないため hook が無音スキップする。Orca で作った worktree は Claude 起動前に `echo <branch> > .claude/comm/.session-branch`（必要なら `.session-name` も）を手動で書くか、Orca 内蔵ターミナルで上記 4 ステップを踏むこと。メインリポジトリは Orca から開いてもブランチ切替しない（`main` 専有を維持）
+- **playwright MCP（実ブラウザ検証）と進捗確認用 dev server は chat-main（メインリポジトリ）のみで起動する**（2026-07-11 ユーザー決定）: 複数 worktree で localhost を重複起動するとポートずれで「どの画面がどの変更か」の確認が壊れるため。各 worktree チャットは build / 型検証（+ vitest）まで — 実ブラウザでの表示確認は PR merge 後に chat-main 側で実測する
+- **計画書はオーケストレーター（chat-main）が作成する**（2026-07-11 ユーザー決定）: 実装計画・fan-out orders は main で起動した Claude が一元作成する（commit / PR は main 直 push 禁止のため一時 worktree 経由 — push 後即削除）。fan-out 計画書は **worktree 分担表**を必ず持ち、各 worktree へは 1 行 boot「計画書 `<path>` を把握し、自身の worktree 名と一致している部分を実装すること」だけを渡す（テンプレート = [`_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) §Worktree 分担）
+- **worktree は作業開始前に origin/main を取り込む**（2026-07-11 ユーザー決定）: セッション開始時・着手前に `git fetch origin && git merge origin/main --no-edit` で main との差分を正常に取り込んでから作業する。コンフリクトは細心の注意で手動解消 — 判断に迷う衝突は自動解消せず停止して chat-main / ユーザーに報告
 - 既知制約（npm install / .tsbuildinfo 非共有・二重 checkout 不可）・prune 手順 → [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
