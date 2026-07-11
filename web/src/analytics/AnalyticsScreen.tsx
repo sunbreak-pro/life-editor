@@ -147,7 +147,6 @@ export function AnalyticsScreen({
   useEffect(() => {
     if (!scheduleRange) return;
     let cancelled = false;
-    setScheduleLoading(true);
 
     const from = dateKey(scheduleRange.start);
     const to = dateKey(scheduleRange.end);
@@ -171,6 +170,11 @@ export function AnalyticsScreen({
   }, [ds, scheduleRange]);
 
   const handleScheduleRangeChange = useCallback((range: DateRange) => {
+    // Flip the loading flag here (a callback), not synchronously inside the
+    // fetch effect — the effect body would trip react-hooks/set-state-in-effect
+    // and cost an extra render. AnalyticsView calls this on mount and on every
+    // range change, i.e. exactly when a new fetch is about to run.
+    setScheduleLoading(true);
     setScheduleRange(range);
   }, []);
 
