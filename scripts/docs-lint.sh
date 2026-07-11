@@ -60,7 +60,7 @@ done
 #     known-issues/ は凍結アーカイブ（旧トークン本文を意図して保持）のため除外。
 #     歴史注記行（旧称 / 仮称 / retired / 旧トークン を含む行）も除外。
 # ---------------------------------------------------------------------------
-OLD_TOKEN_HITS=$(grep -rnE '\b(notion|ink)-[a-z0-9]' .claude/CLAUDE.md .claude/docs .claude/rules 2>/dev/null |
+OLD_TOKEN_HITS=$(grep -rnE --include='*.md' '\b(notion|ink)-[a-z0-9]' .claude/CLAUDE.md .claude/docs .claude/rules 2>/dev/null |
   grep -v '\.claude/docs/known-issues/' |
   grep -vE '旧称|仮称|retired|旧トークン' || true)
 if [ -n "${OLD_TOKEN_HITS}" ]; then
