@@ -1,22 +1,25 @@
 import { useMemo, useState } from "react";
-import { useCalendarContext, useTaskTreeContext } from "@life-editor/shared";
+import {
+  useCalendarContext,
+  useWikiTagsUnifiedContext,
+} from "@life-editor/shared";
 
 /*
- * Web Schedule UI — S4-6 Calendars slice.
+ * Web Schedule UI — S4-6 Calendars slice (life-tags S2 rebind, Issue #231).
  *
  * Lean, purpose-built lumen-token view (NOT a port of the Tauri
  * calendar grid — intentionally out of scope, plan §スコープ外). It
  * exercises every shared `calendars` data path S4-6 exposes: create
- * (title + folderId — a calendar is a folder-scoped view, folder_id FKs
- * tasks(id) with ON DELETE CASCADE), inline title edit, physical
- * delete.
+ * (title + tagId — a calendar is now a life-tag-scoped view; tag_id FKs
+ * wiki_tags(id) with ON DELETE CASCADE per migration 0021), inline title
+ * edit, physical delete.
  *
- * bug1 fix: folderId is no longer free-text. A free-text id that does
- * not exist in tasks(id) raised 409 calendars_folder_id_fkey on insert.
- * It is now a <select> over the folder-type tasks from
- * useTaskTreeContext (the same model the Tauri CalendarView uses —
- * getDescendantTasks(activeCalendar.folderId, nodes) walks an existing
- * folder task). If no folder task exists, Add is disabled with a hint.
+ * bug1 fix (carried through S2): the bind id is not free-text. A free-text
+ * id that does not exist in wiki_tags(id) would raise 409
+ * calendars_tag_id_fkey on insert. It is a <select> over the active
+ * life-tags from useWikiTagsUnifiedContext (`allTags` is already
+ * soft-delete filtered by the service). If no tag exists, Add is disabled
+ * with a hint.
  *
  * `calendars` has NO
  * trash path (S4-0: 0006 omits is_deleted — physical-delete only), so
@@ -37,33 +40,31 @@ export function CalendarView() {
     deleteCalendar,
   } = useCalendarContext();
 
-  const { nodes } = useTaskTreeContext();
-  const folderTasks = useMemo(
-    () =>
-      nodes
-        .filter((n) => n.type === "folder")
-        .slice()
-        .sort((a, b) => a.title.localeCompare(b.title)),
-    [nodes],
+  const { allTags } = useWikiTagsUnifiedContext();
+  // `allTags` is already active-only (the service filters is_deleted=false),
+  // so every entry is a valid FK target for calendars.tag_id.
+  const tags = useMemo(
+    () => allTags.slice().sort((a, b) => a.name.localeCompare(b.name)),
+    [allTags],
   );
-  const folderTitleById = useMemo(
-    () => new Map(folderTasks.map((f) => [f.id, f.title])),
-    [folderTasks],
+  const tagNameById = useMemo(
+    () => new Map(tags.map((t) => [t.id, t.name])),
+    [tags],
   );
 
   const [newTitle, setNewTitle] = useState("");
-  const [newFolderId, setNewFolderId] = useState("");
+  const [newTagId, setNewTagId] = useState("");
 
   const handleCreate = () => {
     const title = newTitle.trim();
-    const folderId = newFolderId;
-    if (!title || !folderId) return;
-    // Guard: only allow ids that resolve to a known folder task — a
-    // stale/unknown id would still trip calendars_folder_id_fkey (409).
-    if (!folderTitleById.has(folderId)) return;
-    createCalendar(title, folderId);
+    const tagId = newTagId;
+    if (!title || !tagId) return;
+    // Guard: only allow ids that resolve to a known active tag — a
+    // stale/soft-deleted id would still trip calendars_tag_id_fkey (409).
+    if (!tagNameById.has(tagId)) return;
+    createCalendar(title, tagId);
     setNewTitle("");
-    setNewFolderId("");
+    setNewTagId("");
   };
 
   if (isLoading) {
@@ -86,10 +87,10 @@ export function CalendarView() {
         Calendars ({calendars.length})
       </h2>
 
-      {folderTasks.length === 0 ? (
+      {tags.length === 0 ? (
         <p className="text-sm text-lumen-text-secondary">
-          フォルダタスクを先に作成してください。カレンダーは既存のフォルダ
-          タスクに紐づくビューです (folder-type task が 0 件のため作成不可)。
+          タグを先に作成してください。カレンダーは既存の life-tag が付いた
+          アイテム群のビューです (tag が 0 件のため作成不可)。
         </p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
@@ -106,22 +107,22 @@ export function CalendarView() {
             className="min-w-[10rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
           />
           <select
-            value={newFolderId}
-            onChange={(e) => setNewFolderId(e.target.value)}
-            aria-label="Folder task"
+            value={newTagId}
+            onChange={(e) => setNewTagId(e.target.value)}
+            aria-label="Life tag"
             className="min-w-[8rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
           >
-            <option value="">Select a folder…</option>
-            {folderTasks.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.title}
+            <option value="">Select a tag…</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
             ))}
           </select>
           <button
             type="button"
             onClick={handleCreate}
-            disabled={!newTitle.trim() || !newFolderId}
+            disabled={!newTitle.trim() || !newTagId}
             className="rounded-md border border-lumen-border px-3 py-1 text-sm text-lumen-text hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Add
@@ -145,7 +146,7 @@ export function CalendarView() {
               className="min-w-[8rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
             />
             <span className="text-xs text-lumen-text-secondary">
-              folder: {folderTitleById.get(cal.folderId) ?? cal.folderId}
+              tag: {tagNameById.get(cal.tagId) ?? cal.tagId}
             </span>
             <button
               type="button"

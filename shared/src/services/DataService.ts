@@ -210,11 +210,11 @@ export interface DataService {
   createCalendar(
     id: string,
     title: string,
-    folderId: string,
+    tagId: string,
   ): Promise<CalendarNode>;
   updateCalendar(
     id: string,
-    updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
+    updates: Partial<Pick<CalendarNode, "title" | "tagId" | "order">>,
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
 

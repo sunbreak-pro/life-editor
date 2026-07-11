@@ -13,14 +13,15 @@ import type { CalendarNode } from "../types/calendar";
 
 /**
  * SELECTED row shape of `public.calendars`
- * (0006_schedule_full_schema.sql). `user_id` is server-derived (RLS
+ * (0006_schedule_full_schema.sql; `folder_id` rebound to `tag_id` ->
+ * wiki_tags(id) in 0021, life-tags S2). `user_id` is server-derived (RLS
  * default `auth.uid()`). `version` is bumped by the data layer (LWW).
  */
 export interface CalendarRow {
   id: string;
   user_id: string;
   title: string;
-  folder_id: string;
+  tag_id: string;
   order: number;
   created_at: string;
   updated_at: string;
@@ -37,7 +38,7 @@ export type CalendarWriteRow = Omit<CalendarRow, "user_id">;
  * expression; the S2 recurrence-prevention rule). `"order"` is quoted.
  */
 export const CALENDAR_SELECT_COLUMNS =
-  'id, user_id, title, folder_id, "order", created_at, updated_at, version';
+  'id, user_id, title, tag_id, "order", created_at, updated_at, version';
 
 /**
  * DB row -> domain CalendarNode. Straight bijection (every field
@@ -47,7 +48,7 @@ export function rowToCalendar(row: CalendarRow): CalendarNode {
   return {
     id: row.id,
     title: row.title,
-    folderId: row.folder_id,
+    tagId: row.tag_id,
     order: row.order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -63,7 +64,7 @@ export function calendarToRow(node: CalendarNode): CalendarWriteRow {
   return {
     id: node.id,
     title: node.title,
-    folder_id: node.folderId,
+    tag_id: node.tagId,
     order: node.order,
     created_at: node.createdAt,
     updated_at: node.updatedAt,
@@ -74,8 +75,9 @@ export function calendarToRow(node: CalendarNode): CalendarWriteRow {
 /**
  * Build a snake_case patch from a partial CalendarNode update. Only keys
  * PRESENT on `updates` are emitted (Issue 020 partial-payload safety).
- * `id` / `folder_id` / `created_at` / `version` are NOT mutable through
- * this path (a calendar is rebound by recreation, not folder reparent).
+ * `id` / `tag_id` / `created_at` / `version` are NOT mutable through
+ * this path (a calendar is rebound to a new life-tag by recreation, not
+ * by mutating tag_id in place).
  */
 export function calendarUpdatesToPatch(
   updates: Partial<Pick<CalendarNode, "title" | "order">>,
