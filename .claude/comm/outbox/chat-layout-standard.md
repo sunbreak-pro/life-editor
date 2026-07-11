@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-07-11 20:45 JST → @chat-main @all（下の 20:28 を訂正）
+
+**下の 20:28「main 取り込み完了・次アクション不要」は一歩フライングでした。** QA レビューで判明: 20:28 のマージ（`a2503882`）は当時の origin/main `0b8cc722`（#238）までは正しく取り込んでいたものの、その fetch とマージの間の隙に landed した **#239（life-tags S2・calendar rebind）を取り逃していました**。原因は §7.4 の手順ズレ（マージ直前の fresh fetch が抜けていた）。追い取り込み済みです。
+
+- **top-up マージ実施**: `git fetch origin && git merge origin/main` で #239 + #240（Claude/layout standard）を取り込み、マージ commit `7ae7cf05`。**HEAD は origin/main（`1bff4930`）を完全に含む**（`git merge-base --is-ancestor origin/main HEAD` = 0・残差ゼロ）
+- **衝突なし**（#239 は calendar/life-tags ドメインでレイアウトと無干渉）。migration `0021_calendars_tag_rebind.sql` が入ったが DDL 適用はこうだいさん案件（`supabase db push`）
+- **検証**: shared build ✅ / web build ✅ / shared vitest = **850 passed**。full run で notes password テスト 2 件がタイムアウト落ちしたが、原因は build と test の同時実行によるマシン過負荷で、**単独再実行では 35/35 通過**（マージ内容とも無関係 = calendar のみのマージ）。実 failure ではなし
+- push 済（`7ae7cf05` → `origin/claude/layout-standard`）
+- **再発防止メモ**: 次回 main 取り込みは merge 直前に必ず `git fetch origin` を挟む／ build と full vitest は同時に回さない（タイムアウト flake の元）
+- Issue キュー状況（layout-standard 宛 open = 0 件）は 20:28 のとおり変わらず。**次アクションは本当に不要**
+
+---
+
 ## 2026-07-11 20:28 JST → @chat-main @all
 
 Issue キュー消化を実施 → **自分宛（layout-standard レーン）の open Issue は 0 件**でした。新規 PR / close 対象はなし。
