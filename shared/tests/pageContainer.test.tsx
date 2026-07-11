@@ -33,6 +33,20 @@ describe("PageContainer", () => {
     expect(container.querySelector(".max-w-lumen-reading")).toBeNull();
   });
 
+  it("keeps the gutter + scroll wrapper but drops max-w for width='full'", () => {
+    // v2 §5: a document surface whose width tab is "wide" — full width,
+    // still a normal gutter-padded scrolled column (unlike fluid).
+    const { container } = render(
+      <PageContainer width="full">
+        <p>body</p>
+      </PageContainer>,
+    );
+    expect(container.querySelector(".max-w-lumen-reading")).toBeNull();
+    expect(container.querySelector(".max-w-lumen-data")).toBeNull();
+    expect(container.querySelector(".overflow-y-auto")).not.toBeNull();
+    expect(container.querySelector(".px-lumen-gutter")).not.toBeNull();
+  });
+
   it("passes fluid children through with no centering wrapper", () => {
     const { container } = render(
       <PageContainer width="fluid">

@@ -23,6 +23,24 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ---
 
+## Worktree 分担（fan-out 計画のみ・単一 worktree の計画では本節を削除）
+
+fan-out 計画は、各 worktree チャットが **worktree 名だけで自分の担当を特定できる**分担表を必ず持つ。
+これにより boot プロンプトは次の 1 行で足りる（計画書の作成・boot 配布はオーケストレーター = chat-main — CLAUDE.md §7.4）:
+
+```text
+計画書 .claude/docs/vision/plans/YYYY-MM-DD-<slug>.md を把握し、自身の worktree 名と一致している部分を実装すること
+```
+
+| worktree | 担当                | 触ってよいパス | 完了条件             |
+| -------- | ------------------- | -------------- | -------------------- |
+| `<slug>` | <担当範囲を 1 行で> | `<パス>`       | <機械検証可能な条件> |
+
+- 各 worktree は着手前に `git pull --ff-only` → `git fetch origin && git merge origin/main --no-edit` の 2 段階で main との差分を取り込む（コンフリクトは手動解消・迷ったら停止して報告 — CLAUDE.md §7.4）
+- 分担表に無い worktree 名で boot された場合は「本計画に担当なし」と報告して停止する
+
+---
+
 ## Scope (Touchable Paths)
 
 このプランで変更してよいパスを宣言する。git diff の範囲と照合して宣言外パスへの変更を scope drift

@@ -26,8 +26,7 @@ boot 行:
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 
 - タブ帯は HeaderTabs 済み → 標準セクションヘッダーへの乗り換え確認・トグルの trailing / hamburger 二形態の配線を標準へ
-- **幅切替タブのサブタブ扱い**（セクション単位 or Tasks / Notes / Daily / Tags のサブタブ単位）は親計画の未定事項 — **layout-standard と outbox で調整**（materials は現状 Tasks=全幅・他 3 タブ=中央寄せの混在で、この調整の主対象）
-- 各サブタブで wide / narrow 両状態の表示崩れ確認
+- **幅は全画面 wide 統一**（幅切替タブは 2026-07-11 廃止 — 親計画 §5）: 現状「Tasks=全幅・他 3 タブ=中央寄せ」の混在を解消し、Notes / Daily / Tags も全幅基準へ。各サブタブで表示崩れ確認
 
 ## 後続: life-tags（[兄弟計画](./2026-07-11-life-tags-unification.md)参照・着手は合図待ち）
 

@@ -4,12 +4,10 @@
   "description": "Immersive task management app with ambient sounds and pomodoro timer",
   "private": true,
   "scripts": {
-    "dev": "cargo tauri dev",
-    "build": "cargo tauri build",
-    "postinstall": "cd frontend && npm install"
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.5.0",
     "typescript": "~5.9.3"
   }
 }

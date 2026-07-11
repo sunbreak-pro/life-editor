@@ -103,6 +103,9 @@ cd web && npm run dev           # ローカル起動（vite）
 - メイン（`/Users/newlife/dev/apps/life-editor`）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は `.claude/worktrees/<slug>/` から
 - **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
 - **Orca ADE 利用時の例外処理**: Orca の GUI worktree 作成は `.session-branch` / `.session-name` を書かないため hook が無音スキップする。Orca で作った worktree は Claude 起動前に `echo <branch> > .claude/comm/.session-branch`（必要なら `.session-name` も）を手動で書くか、Orca 内蔵ターミナルで上記 4 ステップを踏むこと。メインリポジトリは Orca から開いてもブランチ切替しない（`main` 専有を維持）
+- **playwright MCP（実ブラウザ検証）と進捗確認用 dev server は chat-main（メインリポジトリ）のみで起動する**（2026-07-11 ユーザー決定）: 複数 worktree で localhost を重複起動するとポートずれで「どの画面がどの変更か」の確認が壊れるため。各 worktree チャットは build / 型検証（+ vitest）まで — 実ブラウザでの表示確認は PR merge 後に chat-main 側で実測する
+- **計画書はオーケストレーター（chat-main）が作成する**（2026-07-11 ユーザー決定）: 実装計画・fan-out orders は main で起動した Claude が一元作成する（commit / PR は main 直 push 禁止のため一時 worktree 経由 — push 後即削除）。fan-out 計画書は **worktree 分担表**を必ず持ち、各 worktree へは 1 行 boot「計画書 `<path>` を把握し、自身の worktree 名と一致している部分を実装すること」だけを渡す（テンプレート = [`_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) §Worktree 分担）
+- **worktree は作業開始前に main との差分を取り込む**（2026-07-11 ユーザー決定）: セッション開始時・着手前に **(1)** `git pull --ff-only`（自ブランチの origin 追従・履歴が割れていたら停止）→ **(2)** `git fetch origin && git merge origin/main --no-edit`（main の差分取り込み）の 2 段階。feature ブランチでは (2) を `pull --ff-only` で代替できない（fast-forward 不成立で必ず失敗する）。コンフリクトは細心の注意で手動解消 — 判断に迷う衝突は自動解消せず停止して chat-main / ユーザーに報告。chat-main（main ブランチ）だけは `git pull --ff-only` のみで良い
 - 既知制約（npm install / .tsbuildinfo 非共有・二重 checkout 不可）・prune 手順 → [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
@@ -121,4 +124,5 @@ cd web && npm run dev           # ローカル起動（vite）
 - **GitHub Issues のスコープ境界**: Issue はプロダクト課題（life-editor のコードを直せば直るもの）専用。**Claude Code の作業環境・hook・ツール挙動に関する知見は Issue 化せず `docs/known-issues/` + `rules/` で管理する**。判定 = 「life-editor のコードを直せば直るか？」— No なら環境系として Issue 化しない（例: cwd 漂流 028 / formatter 挙動 026）
 - **並行チャット通信**: `.claude/comm/`（自分の Outbox にのみ append → [`comm/README.md`](./comm/README.md)）
 - **worktree 横断の共有修正タスク（2026-07-10〜）**: 正本 = GitHub Issues の label **`shared-fix`**（宛先 = タイトル prefix `[<worktree-slug>]` / `[all]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（運用詳細 → [`comm/README.md`](./comm/README.md) §Shared-fix ルート）
+- **セクション固有の修正指示・起票は各 worktree チャットが実行する（2026-07-11〜）**: 細かい UI 修正やセクション内バグはユーザーが当該 worktree チャットへ**直接指示**する。指示を受けたチャットは**着手前に自分で Issue を起票**（`gh issue create` — `section:<id>` + `type:*` ラベル）し、Issue 駆動で実装 → close まで担う。オーケストレーター（chat-main）は横断仕様・計画書・shared-fix の采配のみ（§7.4）
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）

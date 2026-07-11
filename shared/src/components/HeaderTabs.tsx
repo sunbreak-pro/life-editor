@@ -27,6 +27,13 @@ export interface HeaderTabsProps {
    * row is wrapped: outer border-b flex row > inner tablist + trailing.
    */
   trailing?: ReactNode;
+  /**
+   * Draw the row's own bottom border (default). Set false when the band sits
+   * inside a SectionHeader, which owns the full-width divider (Layout
+   * Standard v2 §1) — the active tab's -mb-px underline then overlaps the
+   * header's border instead of a second line.
+   */
+  divider?: boolean;
   className?: string;
 }
 
@@ -44,6 +51,7 @@ export function HeaderTabs({
   onSelect,
   label,
   trailing,
+  divider = true,
   className,
 }: HeaderTabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -67,7 +75,13 @@ export function HeaderTabs({
   };
 
   return (
-    <div className={cn("flex border-b border-lumen-border", className)}>
+    <div
+      className={cn(
+        "flex",
+        divider && "border-b border-lumen-border",
+        className,
+      )}
+    >
       <div role="tablist" aria-label={label} className="flex gap-2">
         {tabs.map((tab, i) => {
           const active = tab.id === activeTab;
