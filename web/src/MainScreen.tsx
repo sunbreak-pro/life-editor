@@ -16,11 +16,9 @@ import {
   HeaderTabs,
   SegmentedControl,
   SectionHeader,
-  PageWidthToggle,
   RightSidebarProvider,
   RightSidebarToggle,
   useMediaQuery,
-  usePageWidthPrefs,
   isMac,
   CommandPalette,
   ToastProvider,
@@ -41,10 +39,8 @@ import {
   MAIN_SECTIONS,
   UTILITY_SECTIONS,
   MOBILE_SECTIONS,
-  SECTION_DEFAULT_PAGE_WIDTH,
   EMPTY_MATERIALS_COUNTS,
   type MaterialsCounts,
-  type PageWidthMode,
   type SectionId,
   type SectionDef,
   type Command,
@@ -121,20 +117,6 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   notes: FileText,
   daily: CalendarDays,
   tags: Tag,
-};
-
-/*
- * Layout Standard v2 §5 — Materials scopes its width tab PER TAB (storage
- * scope "materials:<tab>") while the section-vs-tab decision is pending (v2
- * plan 未定事項; coordinated with materials-refine via outbox). Initial
- * values mirror the pre-v2 look: Tasks was full-width, the other three were
- * centered reading columns.
- */
-const MATERIALS_TAB_DEFAULT_WIDTH: Record<MaterialsTab, PageWidthMode> = {
-  tasks: "wide",
-  notes: "narrow",
-  daily: "narrow",
-  tags: "narrow",
 };
 
 /*
@@ -282,40 +264,32 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
-  // Layout Standard v2 §5 — the header width tab. Persisted per section
-  // (Materials per tab — see MATERIALS_TAB_DEFAULT_WIDTH) with the registry
-  // defaults as the fallback.
-  const [widthPrefs, setPageWidthPref] = usePageWidthPrefs();
-  const widthScope =
-    section === "materials" ? `materials:${materialsTab}` : section;
-  const widthMode: PageWidthMode =
-    widthPrefs[widthScope] ??
-    (section === "materials"
-      ? MATERIALS_TAB_DEFAULT_WIDTH[materialsTab]
-      : SECTION_DEFAULT_PAGE_WIDTH[section]);
-
-  // Width-tab → PageContainer mapping. narrow = centered reading column. On
-  // wide, canvas/board surfaces that own their full-bleed layout stay "fluid"
-  // (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus Analytics
-  // whose shared view draws its own centered data column — the v1 judgment
-  // carried forward); document surfaces get the gutter-padded "full" column.
+  // Content width (Layout Standard v2 §5 — the width tab was retired
+  // 2026-07-11; sections are unified to wide). Three outcomes:
+  //   - "fluid": canvas/board surfaces that own their full-bleed layout
+  //     (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus
+  //     Analytics whose shared view draws its own centered data column — the
+  //     v1 judgment carried forward).
+  //   - "reading": the Materials text editors (Notes / Daily) keep the ~768px
+  //     centered reading column for comfortable line length (2026-07-11 user
+  //     decision — the only reading surfaces left after the wide unification).
+  //   - "full": every other document surface, gutter-padded full width
+  //     (work / settings / trash / Materials→Tags).
+  // Mobile is visually unchanged: below 768px "reading" and "full" render
+  // identically (the 768px reading clamp never engages there).
   const ownsFullBleed =
     section === "connect" ||
     section === "schedule" ||
     section === "analytics" ||
     (section === "materials" && materialsTab === "tasks");
-  // The width tab is a Desktop-header control; the NARROW layout keeps the
-  // pre-v2 static mapping (v2 non-goal: mobile untouched) so a width choice
-  // persisted on Desktop can never restructure the mobile screens.
-  const pageWidth: PageContainerWidth = !isWide
-    ? ownsFullBleed
-      ? "fluid"
-      : "reading"
-    : widthMode === "narrow"
+  const keepsReadingColumn =
+    section === "materials" &&
+    (materialsTab === "notes" || materialsTab === "daily");
+  const pageWidth: PageContainerWidth = ownsFullBleed
+    ? "fluid"
+    : keepsReadingColumn
       ? "reading"
-      : ownsFullBleed
-        ? "fluid"
-        : "full";
+      : "full";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -324,28 +298,18 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t("detailPanel.open");
   const detailCloseLabel = t("detailPanel.close");
 
-  // Standard header controls (v2 §1/§5), right-end order fixed: width tab
-  // first, then the rightSidebar toggle. The toggle is now UNCONDITIONAL for
-  // all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR gate is
-  // retired); Analytics / Trash open the shared placeholder empty state until
-  // their refine pass defines panel content.
+  // Standard header control (v2 §1) — the rightSidebar toggle, now
+  // UNCONDITIONAL for all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR
+  // gate is retired; Analytics / Trash open the shared placeholder empty state
+  // until their refine pass defines panel content). The v2 §5 width tab was
+  // retired 2026-07-11 (all sections wide), so this is the only right-end
+  // control now.
   const headerControls = (
-    <>
-      <PageWidthToggle
-        value={widthMode}
-        onChange={(mode) => setPageWidthPref(widthScope, mode)}
-        labels={{
-          group: t("layout.width"),
-          wide: t("layout.widthWide"),
-          narrow: t("layout.widthNarrow"),
-        }}
-      />
-      <RightSidebarToggle
-        variant="panel"
-        openLabel={detailOpenLabel}
-        closeLabel={detailCloseLabel}
-      />
-    </>
+    <RightSidebarToggle
+      variant="panel"
+      openLabel={detailOpenLabel}
+      closeLabel={detailCloseLabel}
+    />
   );
 
   // Standard section header row (v2 §1), mounted in AppShell's header slot —

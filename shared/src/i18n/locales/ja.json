@@ -2266,11 +2266,6 @@
     "empty": "表示する詳細はありません",
     "resize": "詳細パネルの幅を変更"
   },
-  "layout": {
-    "width": "コンテンツ幅",
-    "widthWide": "広い",
-    "widthNarrow": "狭い"
-  },
   "music": {
     "title": "ミュージック",
     "stop": "停止",

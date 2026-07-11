@@ -2266,11 +2266,6 @@
     "empty": "Nothing selected yet",
     "resize": "Resize details panel"
   },
-  "layout": {
-    "width": "Content width",
-    "widthWide": "Wide",
-    "widthNarrow": "Narrow"
-  },
   "music": {
     "title": "Music",
     "stop": "Stop",
