@@ -26,9 +26,11 @@ boot 行:
 
 ## Layout Standard v2 adoption（v2 共通部品 merge 後 — 親計画 Step 4 以降）
 
-- ScheduleScreen は HeaderTabs の trailing に自前で rightSidebar トグルを配線している → **標準セクションヘッダーへ移行**し重複配線を撤去
-- **幅は全画面 wide 統一**（幅切替タブは 2026-07-11 廃止 — 親計画 §5）: schedule は現状も全幅のため見た目の変化なし。全幅での表示確認のみ
-- rightSidebar パネル（今日の流れ / item detail タブ — #187 成果）が「区切り線の下で開閉」に変わった後の表示確認
+> 2026-07-11: Issue **#204** で起票・実装済み（本 worktree）。タブ state を MainScreen へ持ち上げ標準 SectionHeader の tabs slot へ（Materials と同形）。MainScreen の最小 diff は outbox で layout-standard へ告知済み。
+
+- [x] ScheduleScreen の自前 rightSidebar トグル + in-body タブ帯を撤去 → **標準セクションヘッダーへ移行**（#204）
+- [ ] **幅は全画面 wide 統一**（幅切替タブは 2026-07-11 廃止 — 親計画 §5）: schedule は現状も全幅のため見た目の変化なし。全幅での表示確認のみ（chat-main 実測 — playwright は chat-main 集約 = CLAUDE.md §7.4）
+- [ ] rightSidebar パネル（今日の流れ / item detail タブ — #187 成果）が「区切り線の下で開閉」に変わった後の表示確認（同上・chat-main 実測）
 
 ## 後続: life-tags（[兄弟計画](./2026-07-11-life-tags-unification.md)参照・着手は合図待ち）
 

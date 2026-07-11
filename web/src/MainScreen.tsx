@@ -60,7 +60,7 @@ import { DailyView } from "./daily/DailyView";
 const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
-import { ScheduleScreen } from "./schedule/ScheduleScreen";
+import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
@@ -137,6 +137,9 @@ export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
   const [section, setSection] = useState<SectionId>("materials");
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
+  // Schedule's Calendar / Routines tab, lifted here (v2 adoption #204) so the
+  // standard SectionHeader can render the band — same pattern as materialsTab.
+  const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   const [paletteOpen, setPaletteOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
@@ -314,11 +317,12 @@ export function MainScreen({ session }: { session: Session }) {
 
   // Standard section header row (v2 §1), mounted in AppShell's header slot —
   // ABOVE the main + detail-panel flex row (§4), so the divider spans both
-  // and the controls never move when the panel opens. Materials' tab band
-  // doubles as its title (divider={false}: the SectionHeader owns the line);
-  // every other section shows its translated title. Sections that still draw
-  // their own in-body chrome (Schedule tabs, Connect/Analytics internal
-  // headers) migrate to this row in their v2 adoption pass (orders plans).
+  // and the controls never move when the panel opens. Materials' and
+  // Schedule's tab bands double as their titles (divider={false}: the
+  // SectionHeader owns the line); every other section shows its translated
+  // title. Sections that still draw their own in-body chrome (Connect /
+  // Analytics internal headers) migrate to this row in their v2 adoption
+  // pass (orders plans).
   const sectionHeader =
     section === "materials" ? (
       <SectionHeader
@@ -329,6 +333,22 @@ export function MainScreen({ session }: { session: Session }) {
             activeTab={materialsTab}
             onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
             label={t("section.materials")}
+          />
+        }
+        controls={headerControls}
+      />
+    ) : section === "schedule" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "calendar", label: t("scheduleScreen.calendar") },
+              { id: "routines", label: t("scheduleScreen.routines") },
+            ]}
+            activeTab={scheduleTab}
+            onSelect={(id) => setScheduleTab(id as ScheduleTab)}
+            label={t("section.schedule", { defaultValue: "Schedule" })}
           />
         }
         controls={headerControls}
@@ -441,7 +461,11 @@ export function MainScreen({ session }: { session: Session }) {
             <CalendarProvider dataService={ds}>
               <RoutineProvider dataService={ds}>
                 <ScheduleItemsProvider dataService={ds}>
-                  <ScheduleScreen dataService={ds} />
+                  <ScheduleScreen
+                    dataService={ds}
+                    tab={scheduleTab}
+                    onTabChange={setScheduleTab}
+                  />
                 </ScheduleItemsProvider>
               </RoutineProvider>
             </CalendarProvider>
