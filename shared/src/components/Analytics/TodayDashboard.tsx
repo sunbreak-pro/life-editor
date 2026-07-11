@@ -4,6 +4,7 @@ import type { TaskNode } from "../../types/taskTree";
 import { formatDateKey } from "../../utils/dateKey";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { SummaryRow } from "./SummaryRow";
 
 export interface TodayDashboardLabels {
   title: string;
@@ -51,47 +52,20 @@ export function TodayDashboard({
 
   return (
     <ChartCard title={labels.title}>
-      <div className="grid grid-cols-3 gap-3">
-        <MiniStat
+      <div className="flex flex-col gap-2">
+        <SummaryRow
           label={labels.workTime}
           value={labels.formatHours(stats.workMinutes)}
         />
-        <MiniStat
+        <SummaryRow
           label={labels.completedTasks}
           value={String(stats.completedToday)}
-          divider
         />
-        <MiniStat
+        <SummaryRow
           label={labels.pomodoroCount}
           value={String(stats.pomodoroCount)}
-          divider
         />
       </div>
     </ChartCard>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  divider,
-}: {
-  label: string;
-  value: string;
-  divider?: boolean;
-}): React.JSX.Element {
-  return (
-    <div
-      className={
-        divider
-          ? "flex flex-col gap-0.5 border-l border-lumen-border pl-3"
-          : "flex flex-col gap-0.5"
-      }
-    >
-      <span className="text-lg font-semibold tabular-nums text-lumen-text">
-        {value}
-      </span>
-      <span className="text-xs text-lumen-text-secondary">{label}</span>
-    </div>
   );
 }
