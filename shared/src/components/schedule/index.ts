@@ -59,6 +59,24 @@ export {
   type ScheduleSidebarTabsProps,
   type ScheduleSidebarTab,
 } from "./ScheduleSidebarTabs";
+// #223: right-click context menu (rename / duplicate / delete) for a calendar
+// item block/chip.
+export {
+  ScheduleItemContextMenu,
+  type ScheduleItemContextMenuProps,
+  type ScheduleItemContextMenuLabels,
+} from "./ScheduleItemContextMenu";
+// #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
+// in place of the round completion checkmark.
+export {
+  ScheduleStatusTag,
+  type ScheduleStatusTagProps,
+} from "./ScheduleStatusTag";
+export {
+  deriveScheduleStatus,
+  type ScheduleStatus,
+  type DerivableScheduleItem,
+} from "../../utils/scheduleStatus";
 export {
   layoutDayItems,
   minutesFromMidnight,

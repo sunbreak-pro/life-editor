@@ -7,6 +7,8 @@ import {
 } from "react";
 import { Repeat } from "lucide-react";
 import { cn } from "../cn";
+import { ScheduleStatusTag } from "./ScheduleStatusTag";
+import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import {
   dayOfWeek,
   layoutDayItems,
@@ -55,6 +57,8 @@ export interface WeekTimeGridItem {
   endTime: string; // HH:MM
   isAllDay?: boolean;
   completed?: boolean;
+  /** Derived status (#222) — drives the in-block status tag. */
+  status?: ScheduleStatus;
   /**
    * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
    * Repeat glyph, "event" (default) = 紫 face + border. Distinguishes
@@ -71,6 +75,12 @@ export interface WeekTimeGridProps {
   items: WeekTimeGridItem[];
   selectedId?: string | null;
   onSelectItem?: (id: string) => void;
+  /**
+   * Right-click (contextmenu) on an item block → host opens a context menu at
+   * the given viewport coordinates. When omitted, the browser's native menu is
+   * left untouched. Desktop-only (#223).
+   */
+  onItemContextMenu?: (id: string, pos: { x: number; y: number }) => void;
   /**
    * Empty-slot click → create. `dateISO` is the column's YYYY-MM-DD; `minutes`
    * is the snapped minutes-from-midnight of the click. When omitted the grid is
@@ -105,6 +115,11 @@ export interface WeekTimeGridProps {
   weekdayLabels: string[];
   /** Already-translated label for the all-day lane (§6.4). */
   allDayLabel: string;
+  /**
+   * Already-translated status-tag labels (#222). When supplied, each timed
+   * block renders its derived-status tag; omitted → no tag (read-only hosts).
+   */
+  statusLabels?: Record<ScheduleStatus, string>;
   /** Already-translated accessible label for an empty-slot create target (§6.4). */
   createSlotLabel?: string;
   /** Date key (YYYY-MM-DD) to highlight as "today", or null. */
@@ -192,6 +207,7 @@ export function WeekTimeGrid({
   items,
   selectedId,
   onSelectItem,
+  onItemContextMenu,
   onCreateAt,
   onMoveItem,
   onResizeItem,
@@ -201,6 +217,7 @@ export function WeekTimeGrid({
   hourHeight = 48,
   weekdayLabels,
   allDayLabel,
+  statusLabels,
   createSlotLabel,
   todayKey,
   nowMinutes,
@@ -483,6 +500,17 @@ export function WeekTimeGrid({
                     key={it.id}
                     type="button"
                     onClick={() => onSelectItem?.(it.id)}
+                    onContextMenu={
+                      onItemContextMenu
+                        ? (e) => {
+                            e.preventDefault();
+                            onItemContextMenu(it.id, {
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }
+                        : undefined
+                    }
                     title={it.title}
                     className={cn(
                       "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
@@ -587,6 +615,17 @@ export function WeekTimeGrid({
                       onPointerDown={
                         movable ? (e) => beginDrag(e, it, "move") : undefined
                       }
+                      onContextMenu={
+                        onItemContextMenu
+                          ? (e) => {
+                              e.preventDefault();
+                              onItemContextMenu(it.id, {
+                                x: e.clientX,
+                                y: e.clientY,
+                              });
+                            }
+                          : undefined
+                      }
                       title={`${it.startTime}–${it.endTime} ${it.title}`}
                       className={cn(
                         "absolute overflow-hidden rounded px-1 py-0.5 text-left text-[11px] leading-tight hover:z-10 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
@@ -623,8 +662,19 @@ export function WeekTimeGrid({
                           {it.title || " "}
                         </span>
                       </span>
-                      <span className="block truncate text-[10px] opacity-80">
-                        {it.startTime}
+                      <span className="flex items-center gap-1 overflow-hidden">
+                        <span className="truncate text-[10px] opacity-80">
+                          {it.startTime}
+                        </span>
+                        {/* Derived-status tag (#222). Compact xs; the block's
+                            overflow-hidden clips it on very short blocks. */}
+                        {statusLabels && it.status && (
+                          <ScheduleStatusTag
+                            size="xs"
+                            status={it.status}
+                            label={statusLabels[it.status]}
+                          />
+                        )}
                       </span>
                       {/* Resize handle (bottom edge) — only when host opts in */}
                       {onResizeItem && (

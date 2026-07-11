@@ -14,6 +14,11 @@ import {
 
 const LABELS: EventEditorLabels = {
   complete: "Mark complete",
+  statusLabels: {
+    notStarted: "Not started",
+    inProgress: "In progress",
+    done: "Done",
+  },
   title: "Title",
   startTime: "Start",
   endTime: "End",
@@ -30,6 +35,7 @@ const routineItem: EventEditorItem = {
   startTime: "19:00",
   endTime: "20:30",
   completed: false,
+  status: "notStarted",
   memo: "",
   isRoutine: true,
 };

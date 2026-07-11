@@ -13,6 +13,11 @@ const LABELS = {
   empty: "Nothing today",
   nowLabel: "Now",
   complete: "Toggle complete",
+  statusLabels: {
+    notStarted: "Not started",
+    inProgress: "In progress",
+    done: "Done",
+  },
 };
 
 const ITEMS: AgendaItem[] = [
@@ -22,6 +27,7 @@ const ITEMS: AgendaItem[] = [
     startTime: "00:00",
     endTime: "00:00",
     isAllDay: true,
+    status: "inProgress",
   },
   {
     id: "a",
@@ -30,6 +36,7 @@ const ITEMS: AgendaItem[] = [
     endTime: "07:15",
     variant: "routine",
     completed: true,
+    status: "done",
   },
   {
     id: "b",
@@ -37,6 +44,7 @@ const ITEMS: AgendaItem[] = [
     startTime: "15:00",
     endTime: "16:00",
     variant: "event",
+    status: "notStarted",
   },
 ];
 
@@ -101,8 +109,10 @@ describe("AgendaList", () => {
     ).toBeTruthy();
   });
 
-  it("fires onToggleComplete from the completion circle", () => {
+  it("fires onToggleComplete from the timed-row status tag", () => {
     const { onToggleComplete } = renderList();
+    // Only timed rows expose a clickable status tag ("a", "b"); the all-day
+    // row's tag is informational (no toggle), so toggles[0] is "a".
     const toggles = screen.getAllByRole("button", { name: "Toggle complete" });
     fireEvent.click(toggles[0]);
     expect(onToggleComplete).toHaveBeenCalledWith("a");
