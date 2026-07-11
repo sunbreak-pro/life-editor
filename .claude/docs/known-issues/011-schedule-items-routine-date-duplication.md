@@ -1,5 +1,7 @@
 # 011: schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積
 
+> ⚠️ **Tauri スタック retired 注記（2026-07-11 #197）**: 本文中の `src-tauri/` / `frontend/` / `@tauri-apps` 等のパス・コードは旧 Tauri スタック当時の記録。旧スタックは 2026-07-11 に削除済み（復元 = git tag `pre-tauri-removal`）。Root Cause 知見としてはそのまま有効。
+
 **Status**: Fixed
 **Category**: Bug / Schema / Sync
 **Severity**: Important

@@ -42,7 +42,6 @@
     "editOnDesktop": "リンクの編集はデスクトップで行ってください"
   },
   "settings": {
-    "title": "設定",
     "general": "一般",
     "notificationsTab": "通知",
     "dataTab": "データ",
@@ -319,7 +318,6 @@
         "edit": "編集"
       }
     },
-    "pageDescription": "外観・言語・キーボード操作をここで調整します。変更はすぐに反映されます。",
     "appearance": "外観",
     "theme": "テーマ",
     "light": "ライト",
@@ -358,6 +356,29 @@
           "body": "コマンドパレットでもショートカットの割り当てを変更できます。"
         }
       }
+    },
+    "themeSystem": "システム",
+    "fontFamilyLabel": "フォント",
+    "fontFamilyDesc": "アプリ全体の本文に適用されます。",
+    "fontFamilySystem": "システム",
+    "fontFamilySerif": "明朝（セリフ）",
+    "fontFamilyMono": "等幅",
+    "reduceMotionLabel": "アニメーションを抑える",
+    "reduceMotionDesc": "アニメーションや画面切り替えの動きを控えめにします。",
+    "reduceMotionSystem": "システムに従う",
+    "reduceMotionReduce": "抑える",
+    "reduceMotionOff": "オフ",
+    "startup": {
+      "heading": "起動時",
+      "description": "アプリを起動したときに開くセクションを選びます。",
+      "sectionLabel": "起動時に開く",
+      "lastVisited": "前回の続きから開く"
+    },
+    "reset": {
+      "heading": "リセットとローカルデータ",
+      "description": "この端末に保存された設定（テーマ・フォント・ショートカット・レイアウト）をすべて消して再読み込みします。同期済みのデータには影響しません。",
+      "button": "設定をリセット",
+      "confirm": "ローカルの設定をすべてリセットしてアプリを再読み込みしますか？この端末のテーマ・フォント・ショートカット・レイアウトの設定が消えます。同期済みのデータには影響しません。"
     },
     "editorSettings": "エディタ",
     "editorFontSize": "エディタのフォントサイズ",
@@ -491,9 +512,6 @@
     "deviceId": "デバイスID"
   },
   "trash": {
-    "title": "ゴミ箱",
-    "description": "削除した項目はここから元に戻せます。自動では消えないので、不要なものは完全に削除してください。",
-    "totalCount": "全 {{count}} 件",
     "empty": "ゴミ箱は空です",
     "emptyDescription": "削除した項目がここに表示されます。",
     "emptyCategory": "{{category}}のゴミ箱をからにする",
@@ -802,7 +820,11 @@
       "quickAddSubmit": "追加",
       "newFolderPrompt": "新しいフォルダ名",
       "lockedHint": "このノートはロックされています",
-      "mainEmpty": "ノートを選ぶか、新しく作成してください"
+      "mainEmpty": "ノートを選ぶか、新しく作成してください",
+      "untagged": "未分類",
+      "collapseGroup": "グループを折りたたむ",
+      "expandGroup": "グループを展開",
+      "assignTagHint": "タグにドロップして付与"
     },
     "daily": {
       "toToday": "今日へ",
@@ -1161,7 +1183,13 @@
     "openMenu": "メニューを開く",
     "closeMenu": "メニューを閉じる",
     "tabDetail": "詳細",
-    "detailPanelLabel": "詳細パネル"
+    "detailPanelLabel": "詳細パネル",
+    "rename": "名称の変更",
+    "duplicate": "複製",
+    "copySuffix": "（コピー）",
+    "statusNotStarted": "未着手",
+    "statusInProgress": "着手中",
+    "statusDone": "完了"
   },
   "schedulePanel": {
     "existingTasks": "既存タスク",

@@ -12,26 +12,21 @@ import { KanbanCardDraggable } from "./KanbanCardDraggable";
 
 /*
  * Host-side droppable wrapper for a Kanban column (K-DnD). Registers the
- * column as a @dnd-kit droppable (its id IS the column id — a folder id in
- * folder view, `status-<STATUS>` in status view) and wraps its cards in a
- * SortableContext for within-column reordering. Feeds the resulting refs/flags
- * into the PURE shared <KanbanColumn> via its `dnd` + `renderCard` props, so
- * @dnd-kit stays entirely in web/.
+ * column as a @dnd-kit droppable (its id IS the column id — `status-<STATUS>`
+ * in status view) and wraps its cards in a SortableContext. Feeds the
+ * resulting refs/flags into the PURE shared <KanbanColumn> via its `dnd` +
+ * `renderCard` props, so @dnd-kit stays entirely in web/.
  */
 export function KanbanColumnDroppable({
   column,
   labels,
-  showFolderPill,
   showTags,
-  showFolderAccent,
   onSelectCard,
   onColorChange,
 }: {
   column: KanbanColumnModel;
   labels: KanbanLabels;
-  showFolderPill: boolean;
   showTags: boolean;
-  showFolderAccent: boolean;
   onSelectCard: (id: string) => void;
   onColorChange?: (columnId: string, color: string | null) => void;
 }): React.JSX.Element {
@@ -43,9 +38,7 @@ export function KanbanColumnDroppable({
       <KanbanColumn
         column={column}
         labels={labels}
-        showFolderPill={showFolderPill}
         showTags={showTags}
-        showFolderAccent={showFolderAccent}
         onSelectCard={onSelectCard}
         onColorChange={onColorChange}
         dnd={{ setNodeRef, isOver }}
@@ -53,7 +46,6 @@ export function KanbanColumnDroppable({
           <KanbanCardDraggable
             card={card}
             labels={labels}
-            showFolderPill={showFolderPill}
             showTags={showTags}
             onSelect={onSelectCard}
           />

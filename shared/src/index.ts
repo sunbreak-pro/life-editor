@@ -101,11 +101,30 @@ export {
   ThemeContext,
   type ThemeContextValue,
   type Theme,
+  type ThemeMode,
   type FontSize,
+  type FontFamily,
+  type ReduceMotion,
   type Language,
 } from "./context";
 export { useThemeContext } from "./hooks/useThemeContext";
 export { useLocalStorage } from "./hooks/useLocalStorage";
+export { FONT_FAMILY_STACK, fontFamilyToStack } from "./constants/fontFamily";
+// Startup section preference (§216) — pure resolve/persist helpers (host seeds
+// useState + persists on nav) + the Settings-side pref hook.
+export {
+  resolveInitialSection,
+  persistLastSection,
+  useStartupSectionPref,
+  DEFAULT_STARTUP_SECTION,
+  type StartupSectionPref,
+} from "./hooks/useStartupSection";
+// Reset local preferences (§216) — clears the app's localStorage namespace and
+// reloads. Pure helpers for the host's confirm-then-reset flow.
+export {
+  resetLocalPreferences,
+  collectPreferenceKeys,
+} from "./utils/resetPreferences";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
 
@@ -151,10 +170,7 @@ export {
   createNoopUndoRedo,
   type UndoRedoLike,
 } from "./hooks/useTaskTreeHistory";
-export type {
-  TaskTreeCRUDConfig,
-  AddNodeOptions,
-} from "./hooks/useTaskTreeCRUD";
+export type { AddNodeOptions } from "./hooks/useTaskTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // DU-G G4: the legacy Daily Provider / context hook / API hook were

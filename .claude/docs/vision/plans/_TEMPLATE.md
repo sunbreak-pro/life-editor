@@ -25,19 +25,16 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ## Worktree 分担（fan-out 計画のみ・単一 worktree の計画では本節を削除）
 
-fan-out 計画は、各 worktree チャットが **worktree 名だけで自分の担当を特定できる**分担表を必ず持つ。
-これにより boot プロンプトは次の 1 行で足りる（計画書の作成・boot 配布はオーケストレーター = chat-main — CLAUDE.md §7.4）:
+作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main の `issue-dispatch` スキル・宛先 = `section:<id>` / `shared-fix` ラベル — CLAUDE.md §7.4 / §9）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
 
-```text
-計画書 .claude/docs/vision/plans/YYYY-MM-DD-<slug>.md を把握し、自身の worktree 名と一致している部分を実装すること
-```
+| worktree | 担当（1 行）        | 対応 Issue | 触ってよいパス |
+| -------- | ------------------- | ---------- | -------------- |
+| `<slug>` | <担当範囲を 1 行で> | #NNN       | `<パス>`       |
 
-| worktree | 担当                | 触ってよいパス | 完了条件             |
-| -------- | ------------------- | -------------- | -------------------- |
-| `<slug>` | <担当範囲を 1 行で> | `<パス>`       | <機械検証可能な条件> |
-
+- 完了条件（DoD）は各 Issue の body に機械検証可能な形で書く（表には Issue 番号だけを置き、内容を転記しない — 数値の非複製原則）
+- 常設 worktree へはラベル付き起票だけでタスクが届く（boot 不要）。新規・休眠チャットを起こす場合のみ 1 行 boot: 「`gh issue list -R sunbreak-pro/life-editor --label section:<id> --state open` と `--label shared-fix --state open` で自分宛 open Issue を確認し、順に実装して close まで担うこと」
 - 各 worktree は着手前に `git pull --ff-only` → `git fetch origin && git merge origin/main --no-edit` の 2 段階で main との差分を取り込む（コンフリクトは手動解消・迷ったら停止して報告 — CLAUDE.md §7.4）
-- 分担表に無い worktree 名で boot された場合は「本計画に担当なし」と報告して停止する
+- 自分宛 open Issue が 0 件なら「担当なし」と報告して停止する
 
 ---
 

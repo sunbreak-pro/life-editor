@@ -199,19 +199,21 @@ mv .claude/comm/outbox/chat-engineer.md .claude/comm/archive/2026-05/
 # 新しい outbox ファイルを作り直す
 ```
 
-## Shared-fix ルート（worktree 横断の共有修正タスク・2026-07-10〜）
+## Issue dispatch ルート（タスク分配の正本・2026-07-11〜。旧称 Shared-fix ルート 2026-07-10）
 
-Outbox が「チャット間の書き置き」なのに対し、**複数 worktree に波及するプロダクト修正タスクの正本は GitHub Issues の label `shared-fix`**。git のブランチ状態に依存しないため、どの worktree のどのブランチからでも同じ最新一覧が見える（git 追跡ファイルの台帳だと feature ブランチからは古い版しか見えない問題を回避）。
+Outbox が「チャット間の書き置き」なのに対し、**プロダクト課題・作業タスクの正本は GitHub Issues**。git のブランチ状態に依存しないため、どの worktree のどのブランチからでも同じ最新一覧が見える（git 追跡ファイルの台帳だと feature ブランチからは古い版しか見えない問題を回避）。2026-07-11 に「横断タスク専用（shared-fix）」から**全タスクの分配キュー**へ拡張した。
 
-- **登録**: `gh issue create -R sunbreak-pro/life-editor --label shared-fix ...`（+ 種別 `type:*`）。タイトル prefix で宛先を指定する: `[<worktree-slug>]`（特定 worktree 宛・例 `[schedule-refine]`）/ `[all]`（全 worktree 宛）
-- **発見**: 各 worktree チャットは**セッション開始時と作業の区切り**に次を確認し、自分宛（自分の slug または `[all]`）を拾う:
+- **起票 = chat-main のみ**（`issue-dispatch` スキル・2026-07-11 ユーザー決定）。worktree チャットは起票しない — 課題を見つけたら自分の outbox に起票依頼を append し、chat-main が重複チェックの上で起票する（実装自体はユーザー直接指示なら即着手してよい）
+- **宛先はラベルで表現**: `section:<id>` = 担当 worktree 直行 ／ `shared-fix` = 横断タスク（タイトル prefix `[<worktree-slug>]` / `[all]` で宛先指定）／ 担当 worktree が無い課題（例: trash）= chat-main 采配
+- **発見**: 各 worktree チャットは**セッション開始時と作業の区切り**に次の 2 本を確認し、自分宛（自分の section / 自分の slug / `[all]`）を拾う:
 
   ```bash
+  gh issue list -R sunbreak-pro/life-editor --label section:<id> --state open
   gh issue list -R sunbreak-pro/life-editor --label shared-fix --state open
   ```
 
-- **完了**: 担当分を終えたら Issue にコメント + チェックリスト更新。全消化したら close
-- **使い分け**: 特定チャットへの連絡・引き継ぎ・作業宣言 = Outbox ／ 複数 worktree で共有・統一すべきコード修正タスク = shared-fix Issue（プロダクト課題なので CLAUDE.md §9 の「追跡の正 = GitHub Issues」とも整合）
+- **完了**: 実装 → PR → merge 後に Issue close。複数 worktree 分担型（shared-fix `[all]`）は担当分を終えたら Issue にコメント + チェックリスト更新、全消化で close
+- **使い分け**: 特定チャットへの連絡・引き継ぎ・作業宣言・起票依頼 = Outbox ／ 実装タスクそのもの = Issue（CLAUDE.md §9 の「追跡の正 = GitHub Issues」と同根）
 
 ## アンチパターン
 

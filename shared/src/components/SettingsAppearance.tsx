@@ -1,14 +1,24 @@
 import { cn } from "./cn";
 import { ThemePreviewCard } from "./ThemePreviewCard";
 import { SteppedSlider } from "./SteppedSlider";
-import type { Theme, FontSize } from "../context/ThemeContextValue";
+import { SettingsSegment } from "./SettingsSegment";
+import type {
+  ThemeMode,
+  FontSize,
+  FontFamily,
+  ReduceMotion,
+} from "../context/ThemeContextValue";
 import { fontSizeToPx } from "../constants/fontSize";
 
 export interface SettingsAppearanceProps {
-  theme: Theme;
+  themeMode: ThemeMode;
   fontSize: FontSize;
-  onThemeChange: (theme: Theme) => void;
+  fontFamily: FontFamily;
+  reduceMotion: ReduceMotion;
+  onThemeModeChange: (mode: ThemeMode) => void;
   onFontSizeChange: (size: FontSize) => void;
+  onFontFamilyChange: (family: FontFamily) => void;
+  onReduceMotionChange: (reduceMotion: ReduceMotion) => void;
   /** Larger touch targets (Mobile): bumps the slider thumb. */
   touch?: boolean;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
@@ -17,6 +27,8 @@ export interface SettingsAppearanceProps {
     theme: string;
     light: string;
     dark: string;
+    /** OS-follow theme option. */
+    system: string;
     fontSize: string;
     /** Formatted current value, e.g. "16px（4/10）". */
     fontSizeValue: string;
@@ -24,21 +36,40 @@ export interface SettingsAppearanceProps {
     fontSizeLarge: string;
     /** Live preview sentence rendered at the current font size. */
     previewText: string;
+    /** Font-family group. */
+    fontFamily: string;
+    fontFamilyDesc: string;
+    fontFamilySystem: string;
+    fontFamilySerif: string;
+    fontFamilyMono: string;
+    /** Reduce-motion group. */
+    reduceMotion: string;
+    reduceMotionDesc: string;
+    reduceMotionSystem: string;
+    reduceMotionReduce: string;
+    reduceMotionOff: string;
   };
 }
 
 /*
- * Appearance settings card (W1, redesigned). Pure / props-injected: theme +
- * fontSize + setters from the host (it owns useThemeContext), copy via
- * `labels`. lumen-* tokens only, no hardcoded colors (CLAUDE.md §6.4).
- * Theme = miniature preview radios; font size = discrete tick slider + a live
- * preview sentence at the current px.
+ * Appearance settings card (W1, redesigned; §216 extended). Pure /
+ * props-injected: theme mode + fontSize + fontFamily + reduceMotion + setters
+ * from the host (it owns useThemeContext), copy via `labels`. lumen-* tokens
+ * only, no hardcoded colors (CLAUDE.md §6.4).
+ *   - Theme = light/dark miniature preview radios + a "system" (OS-follow) card.
+ *   - Font size = discrete tick slider + a live preview sentence at the px.
+ *   - Font family = 3-way segment (system/serif/mono).
+ *   - Reduce motion = 3-way segment (system/reduce/off).
  */
 export function SettingsAppearance({
-  theme,
+  themeMode,
   fontSize,
-  onThemeChange,
+  fontFamily,
+  reduceMotion,
+  onThemeModeChange,
   onFontSizeChange,
+  onFontFamilyChange,
+  onReduceMotionChange,
   touch = false,
   labels,
 }: SettingsAppearanceProps) {
@@ -57,19 +88,25 @@ export function SettingsAppearance({
         <div
           role="radiogroup"
           aria-label={labels.theme}
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-3 gap-3"
         >
           <ThemePreviewCard
             value="light"
             label={labels.light}
-            selected={theme === "light"}
-            onSelect={onThemeChange}
+            selected={themeMode === "light"}
+            onSelect={onThemeModeChange}
           />
           <ThemePreviewCard
             value="dark"
             label={labels.dark}
-            selected={theme === "dark"}
-            onSelect={onThemeChange}
+            selected={themeMode === "dark"}
+            onSelect={onThemeModeChange}
+          />
+          <ThemePreviewCard
+            value="system"
+            label={labels.system}
+            selected={themeMode === "system"}
+            onSelect={onThemeModeChange}
           />
         </div>
       </div>
@@ -101,6 +138,30 @@ export function SettingsAppearance({
           {labels.previewText}
         </p>
       </div>
+
+      <SettingsSegment
+        label={labels.fontFamily}
+        description={labels.fontFamilyDesc}
+        value={fontFamily}
+        onChange={onFontFamilyChange}
+        options={[
+          { value: "system", label: labels.fontFamilySystem },
+          { value: "serif", label: labels.fontFamilySerif },
+          { value: "mono", label: labels.fontFamilyMono },
+        ]}
+      />
+
+      <SettingsSegment
+        label={labels.reduceMotion}
+        description={labels.reduceMotionDesc}
+        value={reduceMotion}
+        onChange={onReduceMotionChange}
+        options={[
+          { value: "system", label: labels.reduceMotionSystem },
+          { value: "reduce", label: labels.reduceMotionReduce },
+          { value: "off", label: labels.reduceMotionOff },
+        ]}
+      />
     </div>
   );
 }

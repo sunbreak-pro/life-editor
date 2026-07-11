@@ -1,18 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  MeasuringStrategy,
-  type UniqueIdentifier,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {
   FileText,
-  Folder,
   ChevronRight,
   ChevronDown,
   GripVertical,
@@ -36,45 +31,46 @@ import {
   ExcerptListItem,
   QuickAddSheet,
   BottomSheet,
+  buildTagGroups,
   cn,
   type NoteNode,
+  type NoteTagGroup,
 } from "@life-editor/shared";
-import { useNoteTreeDnd } from "./useNoteTreeDnd";
+import {
+  useNoteTagDnd,
+  tagDroppableId,
+  noteDraggableId,
+} from "./useNoteTagDnd";
 import { RichTextEditor } from "./RichTextEditor";
 import {
   NotePasswordDialog,
   type NotePasswordMode,
 } from "./NotePasswordDialog";
 import { TagPicker, LinkPanel } from "../wikitag";
-import { TreeNodeIndent } from "../components/TreeNodeIndent";
-import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
- * Web Notes tab. Flipped to the Daily操作モデル ("sidebar = list / main =
- * editor") so Notes / Daily read the same way:
+ * Web Notes tab (life-tags unification S1). The former folder tree is gone:
+ * the side list now GROUPS active notes under a heading per life-tag (name-
+ * sorted, color dot) plus a trailing "untagged" bucket. Grouping keys off tag
+ * assignments only (buildTagGroups, shared) — NOT the tree position — so real
+ * data still carrying folder nodes / folder-nested notes stays fully visible
+ * while the data-layer folder retirement waits for S3.
  *
  *   - Desktop (isWide): the MAIN content is the selected note's editor — the
- *     shared <NoteDetailPanel variant="main"> (title / pin / delete meta row +
- *     tags + TipTap body + links) in a centered max-width 800px surface, the
- *     Daily EditorCard's slot. Nothing selected → the shared <EmptyState>
- *     select-or-create CTA. The note tree (search + "+ note" / folder create,
- *     34px rows with chevron folders, hover grip + trash, pin / lock
- *     indicators, and a "Trash (N)" row) is PUSHED INTO THE SHARED
- *     rightSidebar via RightSidebarPortal — it is always-present nav content
- *     (not selection-driven), so the portal renders whenever wide. On mount we
- *     call rightSidebar.open() (isOpen is non-persisted / starts false) so the
- *     list = the tab's nav is visible on entry. Context method only — the
- *     shell files stay untouched.
- *   - Mobile (narrow): unchanged. A read + shortest-add surface (brief): a
- *     "Pinned" section, an "All notes (N)" tree of collapsible folder headings
- *     + ExcerptListItem rows, a 92%-height read sheet (title + read-only tags +
- *     read-only body, unlock gate preserved), and a "+" QuickAddSheet.
+ *     shared <NoteDetailPanel variant="main"> in a centered surface. Nothing
+ *     selected → the shared <EmptyState>. The grouped side list (search + "+
+ *     note", collapsible tag headings, draggable note rows, a "Trash (N)" row)
+ *     is PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal.
+ *   - Mobile (narrow): the same tag groups as collapsible headings +
+ *     ExcerptListItem rows, a 92%-height read sheet, and a "+" QuickAddSheet.
  *
- * DnD (reorder / move-into-folder / to-root), the password / unlock
- * subsystem, and Trash restore/purge are preserved. Data stays context-side
- * (useNotesUnifiedContext); this view is DataService-free (§3.1) and takes copy
- * from useTranslation → props.
+ * DnD: drag a note onto a tag heading = assign that tag (useNoteTagDnd). The
+ * untagged bucket is NOT a drop target (dropping there would mean "remove all
+ * tags" — destructive, so a no-op). No reorder / move-into: sort_order carries
+ * no meaning across the many-to-many tag model. Data stays context-side
+ * (useNotesUnifiedContext / useWikiTagsUnifiedContext); this view is
+ * DataService-free (§3.1) and takes copy from useTranslation → props.
  */
 
 // Password dialog copy. Kept as local constants (the Notes i18n追い付き is
@@ -98,39 +94,55 @@ const DIALOG_LABELS = {
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
-interface FlatRow {
-  node: NoteNode;
-  depth: number;
-  hasChildren: boolean;
-  isLastChild: boolean;
+// Collapse state for tag-group headings. Persisted so a folded group stays
+// folded across reloads. The untagged bucket uses the sentinel key below.
+const LS_TAG_GROUPS_COLLAPSED = "note-tag-groups-collapsed";
+const UNTAGGED_KEY = "__untagged__";
+
+const groupKey = (group: NoteTagGroup): string => group.tagId ?? UNTAGGED_KEY;
+
+function loadCollapsedGroups(): Set<string> {
+  try {
+    const saved = localStorage.getItem(LS_TAG_GROUPS_COLLAPSED);
+    if (saved) return new Set(JSON.parse(saved) as string[]);
+  } catch {
+    // ignore malformed / unavailable storage
+  }
+  return new Set();
 }
 
-// ---- Desktop tree row -------------------------------------------------
+function saveCollapsedGroups(keys: Set<string>): void {
+  try {
+    localStorage.setItem(LS_TAG_GROUPS_COLLAPSED, JSON.stringify([...keys]));
+  } catch {
+    // ignore storage write failures (private mode / quota)
+  }
+}
+
+// ---- Desktop draggable note row -------------------------------------------
 
 function DesktopNoteRow({
-  row,
-  expanded,
+  node,
+  dragId,
   selected,
-  dropPosition,
-  onToggleExpand,
   onSelect,
   onDelete,
   deleteLabel,
+  dragHintLabel,
 }: {
-  row: FlatRow;
-  expanded: boolean;
+  node: NoteNode;
+  dragId: string;
   selected: boolean;
-  dropPosition: "above" | "below" | "inside" | null;
-  onToggleExpand: (id: string) => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   deleteLabel: string;
+  dragHintLabel: string;
 }) {
-  const { node, depth, hasChildren, isLastChild } = row;
-  const { attributes, listeners, setNodeRef } = useSortable({ id: node.id });
-  const isFolder = node.type === "folder";
-  const showInside = dropPosition === "inside";
-  const highlighted = showInside || selected;
+  // dragId is group-scoped: the same note renders under every tag heading it
+  // has, and @dnd-kit needs globally-unique draggable ids.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: dragId,
+  });
 
   return (
     <li
@@ -138,30 +150,18 @@ function DesktopNoteRow({
       className={cn(
         "group relative flex items-center gap-2 rounded-lumen-md border px-2",
         "h-[34px] text-[13.5px]",
-        highlighted
+        isDragging && "opacity-40",
+        selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
           : "border-transparent hover:bg-lumen-hover",
       )}
     >
-      {dropPosition === "above" && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-lumen-accent"
-        />
-      )}
-      {dropPosition === "below" && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-lumen-accent"
-        />
-      )}
-
-      {/* Grip — hover-revealed (TaskTree parity), keyboard-focusable. */}
+      {/* Grip — hover-revealed, keyboard-focusable. Starts the drag. */}
       <button
         type="button"
         {...attributes}
         {...listeners}
-        aria-label="Drag to reorder or move"
+        aria-label={dragHintLabel}
         className={cn(
           "shrink-0 cursor-grab text-lumen-text-tertiary opacity-0 transition-opacity",
           "hover:text-lumen-text focus-visible:opacity-100 group-hover:opacity-100",
@@ -171,39 +171,18 @@ function DesktopNoteRow({
         <GripVertical size={13} aria-hidden />
       </button>
 
-      <TreeNodeIndent depth={depth} isLastChild={isLastChild} />
-
-      {isFolder ? (
-        <button
-          type="button"
-          onClick={() => onToggleExpand(node.id)}
-          aria-label={expanded ? "Collapse folder" : "Expand folder"}
-          aria-expanded={expanded}
-          className={cn(
-            "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-lumen-text-secondary hover:text-lumen-text",
-            FOCUS_RING,
-          )}
-        >
-          {expanded ? (
-            <ChevronDown size={14} aria-hidden />
-          ) : (
-            <ChevronRight size={14} aria-hidden />
-          )}
-        </button>
-      ) : (
-        <FileText
-          size={14}
-          aria-hidden
-          className={cn(
-            "shrink-0",
-            selected ? "text-lumen-accent" : "text-lumen-text-secondary",
-          )}
-        />
-      )}
+      <FileText
+        size={14}
+        aria-hidden
+        className={cn(
+          "shrink-0",
+          selected ? "text-lumen-accent" : "text-lumen-text-secondary",
+        )}
+      />
 
       <button
         type="button"
-        onClick={() => (isFolder ? onToggleExpand(node.id) : onSelect(node.id))}
+        onClick={() => onSelect(node.id)}
         className={cn(
           "flex flex-1 items-center gap-1.5 truncate text-left",
           FOCUS_RING,
@@ -212,13 +191,13 @@ function DesktopNoteRow({
         <span
           className={cn(
             "truncate",
-            isFolder || node.isPinned ? "font-medium" : "",
+            node.isPinned ? "font-medium" : "",
             selected ? "text-lumen-accent" : "text-lumen-text",
           )}
         >
           {node.title || "(untitled)"}
         </span>
-        {!hasChildren && node.isPinned && (
+        {node.isPinned && (
           <Pin
             size={12}
             aria-label="Pinned"
@@ -234,44 +213,113 @@ function DesktopNoteRow({
         )}
       </button>
 
-      {!isFolder && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(node.id);
-          }}
-          aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
-          className={cn(
-            "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
-            "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
-            FOCUS_RING,
-          )}
-        >
-          <Trash2 size={14} aria-hidden />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(node.id);
+        }}
+        aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
+        className={cn(
+          "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
+          "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
+          FOCUS_RING,
+        )}
+      >
+        <Trash2 size={14} aria-hidden />
+      </button>
     </li>
+  );
+}
+
+// ---- Desktop droppable tag heading ----------------------------------------
+
+function DesktopTagHeading({
+  group,
+  collapsed,
+  onToggle,
+  collapseLabel,
+  expandLabel,
+}: {
+  group: NoteTagGroup;
+  collapsed: boolean;
+  onToggle: (key: string) => void;
+  collapseLabel: string;
+  expandLabel: string;
+}) {
+  const isUntagged = group.tagId === null;
+  // Untagged is a no-op drop target: disabled so it never becomes `over`.
+  const { setNodeRef, isOver } = useDroppable({
+    id: isUntagged ? "note-untagged-nodrop" : tagDroppableId(group.tagId!),
+    disabled: isUntagged,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-lumen-md border",
+        isOver
+          ? "border-lumen-accent bg-lumen-accent-subtle"
+          : "border-transparent",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onToggle(groupKey(group))}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? expandLabel : collapseLabel}
+        className={cn(
+          "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1.5 text-left hover:bg-lumen-hover",
+          FOCUS_RING,
+        )}
+      >
+        {collapsed ? (
+          <ChevronRight
+            size={13}
+            aria-hidden
+            className="shrink-0 text-lumen-text-secondary"
+          />
+        ) : (
+          <ChevronDown
+            size={13}
+            aria-hidden
+            className="shrink-0 text-lumen-text-secondary"
+          />
+        )}
+        <span
+          aria-hidden
+          className={cn(
+            "h-2 w-2 shrink-0 rounded-full",
+            group.tagColor ? "" : "bg-lumen-border-strong",
+          )}
+          style={
+            group.tagColor ? { backgroundColor: group.tagColor } : undefined
+          }
+        />
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-lumen-text">
+          {group.tagName}
+        </span>
+        <span className="shrink-0 text-[12px] text-lumen-text-tertiary">
+          {group.notes.length}
+        </span>
+      </button>
+    </div>
   );
 }
 
 export function NotesView() {
   const notes = useNotesUnifiedContext();
-  const { allTags, getTagsForItem } = useWikiTagsUnifiedContext();
+  const { allTags, getTagsForItem, assignTagToItem } =
+    useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
 
-  // On wide entry, open the shared rightSidebar so the note tree (now the
+  // On wide entry, open the shared rightSidebar so the note list (now the
   // panel's content = this tab's nav) is visible. isOpen is non-persisted and
-  // starts false, so without this the list would be hidden on mount. open() is
-  // idempotent (setState bails when already true); gate on the breakpoint only.
+  // starts false, so without this the list would be hidden on mount.
   useEffect(() => {
-    // Crossing wide→narrow: the tree moved out of the shared panel into the
-    // narrow layout, but rightSidebar.isOpen persists — leaving the mobile
-    // Details drawer (its bg-black/30 overlay) covering the screen. Close it.
-    // The narrow hamburger path is untouched: this effect only fires on the
-    // isWide transition, not on a bare open() from the shell.
     if (isWide) rightSidebar.open();
     else rightSidebar.close();
     // rightSidebar.open/close are stable for the panel's lifetime.
@@ -282,12 +330,23 @@ export function NotesView() {
     mode: NotePasswordMode;
     noteId: string;
   } | null>(null);
-  const [moveError, setMoveError] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [trashOpen, setTrashOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] =
+    useState<Set<string>>(loadCollapsedGroups);
   // Mobile-only: the note whose read sheet is open + the quick-add sheet.
   const [readNoteId, setReadNoteId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  const toggleGroup = useCallback((key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      saveCollapsedGroups(next);
+      return next;
+    });
+  }, []);
 
   // Linkable candidates pool for the LinkPanel: active notes only.
   const linkableItems = useMemo(
@@ -306,37 +365,45 @@ export function NotesView() {
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
 
-  const dnd = useNoteTreeDnd({
-    notes: notes.notes,
-    expandedIds: notes.expandedIds,
-    toggleExpanded: notes.toggleExpanded,
-    moveNode: notes.moveNode,
-    moveNodeInto: notes.moveNodeInto,
-    moveToRoot: notes.moveToRoot,
-    onMoveRejected: (reason) =>
-      setMoveError(`Move rejected: ${reason.replace(/_/g, " ")}`),
-  });
+  // Search filter (title-only — the list is body-free under M1). Applied
+  // before grouping so a query narrows every tag heading at once.
+  const searchedNotes = useMemo(() => {
+    const q = notes.searchQuery.trim().toLowerCase();
+    if (!q) return notes.notes;
+    return notes.notes.filter((n) => (n.title || "").toLowerCase().includes(q));
+  }, [notes.notes, notes.searchQuery]);
 
-  const flat = useMemo<FlatRow[]>(() => {
-    const rows: FlatRow[] = [];
-    const walk = (parentId: string | null, depth: number) => {
-      const children = notes.getChildren(parentId).filter((n) => !n.isDeleted);
-      children.forEach((node, index) => {
-        const grand = notes.getChildren(node.id).filter((n) => !n.isDeleted);
-        rows.push({
-          node,
-          depth,
-          hasChildren: grand.length > 0,
-          isLastChild: index === children.length - 1,
-        });
-        if (node.type === "folder" && notes.expandedIds.has(node.id)) {
-          walk(node.id, depth + 1);
-        }
-      });
-    };
-    walk(null, 0);
-    return rows;
-  }, [notes]);
+  // Flat assignment pool for the notes in view. getTagsForItem reads the
+  // Provider's bulk cache synchronously (no N+1); buildTagGroups drops
+  // deleted assignments / deleted-tag assignments itself.
+  const assignments = useMemo(
+    () => searchedNotes.flatMap((n) => getTagsForItem(n.id)),
+    [searchedNotes, getTagsForItem],
+  );
+
+  const groups = useMemo(
+    () =>
+      buildTagGroups({
+        notes: searchedNotes,
+        tags: allTags,
+        assignments,
+        untaggedLabel: t("materials.notes.untagged"),
+      }),
+    [searchedNotes, allTags, assignments, t],
+  );
+
+  const handleAssignTag = useCallback(
+    (noteId: string, tagId: string) => {
+      const already = getTagsForItem(noteId).some(
+        (a) => !a.isDeleted && a.tagId === tagId,
+      );
+      if (already) return;
+      void assignTagToItem(noteId, tagId);
+    },
+    [getTagsForItem, assignTagToItem],
+  );
+
+  const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
 
   const selected = notes.selectedNote;
 
@@ -349,11 +416,11 @@ export function NotesView() {
   }, [allTags]);
 
   const renderReadonlyTags = (noteId: string) => {
-    const assignments = getTagsForItem(noteId).filter((a) => !a.isDeleted);
-    if (assignments.length === 0) return null;
+    const noteAssignments = getTagsForItem(noteId).filter((a) => !a.isDeleted);
+    if (noteAssignments.length === 0) return null;
     return (
       <div className="flex flex-wrap items-center gap-1.5">
-        {assignments.map((a) => {
+        {noteAssignments.map((a) => {
           const tag = tagsById.get(a.tagId);
           if (!tag) return null;
           return (
@@ -377,8 +444,7 @@ export function NotesView() {
     );
   };
 
-  // Selecting from the sidebar tree fills the MAIN editor; the sidebar (= the
-  // tree/nav) stays open, so no open()/close() here — just flip the selection.
+  // Selecting from the side list fills the MAIN editor; the list stays open.
   const handleSelectDesktop = (id: string) => {
     notes.setSelectedNoteId(id);
   };
@@ -386,12 +452,6 @@ export function NotesView() {
   const handleOpenRead = (id: string) => {
     notes.setSelectedNoteId(id); // hydrates the body before the sheet reads it
     setReadNoteId(id);
-  };
-
-  const addFolder = () => {
-    const title = window.prompt(t("materials.notes.newFolderPrompt"), "");
-    if (title === null) return;
-    notes.createFolder(title.trim() || t("notes.newFolder"));
   };
 
   const handlePwSubmit = async (password: string) => {
@@ -420,20 +480,17 @@ export function NotesView() {
     );
   }
 
-  const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
-  const hasNotes = flat.length > 0;
+  const hasNotes = groups.length > 0;
 
-  // ---- Desktop sidebar tree -------------------------------------------
+  // ---- Desktop side list ----------------------------------------------
   //
-  // The note tree/nav, pushed into the shared rightSidebar (wide-only). The
-  // panel well (RightSidebarContents) supplies the p-3 padding + scroll, so
-  // this is frameless natural-flow content: search + create controls, the
-  // tree, then the Trash section — no card frame of its own.
+  // The tag-grouped note list, pushed into the shared rightSidebar (wide-
+  // only). The panel well supplies padding + scroll, so this is frameless
+  // natural-flow content: search + create, the groups, then the Trash section.
 
-  const sidebarTree = (
+  const sidebarList = (
     <div className="flex flex-col gap-2">
-      {/* Search + create controls. Stacked so each stays legible at the panel's
-          240px min width. */}
+      {/* Search + create. Folder-create is gone — organization is tags now. */}
       <div className="flex flex-col gap-2">
         <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
           <Search
@@ -449,45 +506,20 @@ export function NotesView() {
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
           />
         </div>
-        {/* "+ note" primary fills the row; folder-create is a secondary
-            icon-only square (aria-label carries the copy) so both stay
-            comfortable at the 240px min panel width. */}
-        <div className="flex items-stretch gap-2">
-          <button
-            type="button"
-            onClick={() => notes.createNote()}
-            className={cn(
-              "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
-              "text-[12.5px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
-              FOCUS_RING,
-            )}
-          >
-            <Plus size={14} aria-hidden className="shrink-0" />
-            <span className="truncate">{t("materials.notes.addCta")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={addFolder}
-            aria-label={t("materials.notes.folderCta")}
-            title={t("materials.notes.folderCta")}
-            className={cn(
-              "grid w-8 shrink-0 place-items-center rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-              FOCUS_RING,
-            )}
-          >
-            <Folder size={14} aria-hidden />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => notes.createNote()}
+          className={cn(
+            "inline-flex w-full items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
+            "text-[12.5px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+            FOCUS_RING,
+          )}
+        >
+          <Plus size={14} aria-hidden className="shrink-0" />
+          <span className="truncate">{t("materials.notes.addCta")}</span>
+        </button>
       </div>
 
-      {moveError && (
-        <p
-          role="alert"
-          className="rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
-        >
-          {moveError}
-        </p>
-      )}
       {notes.error && (
         <p
           role="alert"
@@ -497,7 +529,7 @@ export function NotesView() {
         </p>
       )}
 
-      {/* Tree. */}
+      {/* Tag groups. */}
       {!hasNotes ? (
         <EmptyState
           icon={<FileText aria-hidden />}
@@ -510,38 +542,48 @@ export function NotesView() {
       ) : (
         <DndContext
           sensors={dnd.sensors}
-          collisionDetection={treeCollisionDetection}
-          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+          collisionDetection={pointerWithin}
           onDragStart={dnd.handleDragStart}
-          onDragMove={dnd.handleDragMove}
+          onDragOver={dnd.handleDragOver}
           onDragEnd={dnd.handleDragEnd}
           onDragCancel={dnd.handleDragCancel}
         >
-          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            <ul className="flex flex-col gap-px">
-              {flat.map((row) => (
-                <DesktopNoteRow
-                  key={row.node.id}
-                  row={row}
-                  expanded={notes.expandedIds.has(row.node.id)}
-                  selected={selected?.id === row.node.id}
-                  dropPosition={
-                    dnd.overInfo?.overId === row.node.id &&
-                    dnd.activeId !== row.node.id
-                      ? dnd.overInfo.position
-                      : null
-                  }
-                  onToggleExpand={notes.toggleExpanded}
-                  onSelect={handleSelectDesktop}
-                  onDelete={notes.softDeleteNote}
-                  deleteLabel={t("materials.notes.deleteNote")}
-                />
-              ))}
-            </ul>
-          </SortableContext>
+          <ul className="flex flex-col gap-1.5">
+            {groups.map((group) => {
+              const key = groupKey(group);
+              const collapsed = collapsedGroups.has(key);
+              return (
+                <li key={key} className="flex flex-col gap-px">
+                  <DesktopTagHeading
+                    group={group}
+                    collapsed={collapsed}
+                    onToggle={toggleGroup}
+                    collapseLabel={t("materials.notes.collapseGroup")}
+                    expandLabel={t("materials.notes.expandGroup")}
+                  />
+                  {!collapsed && (
+                    <ul className="flex flex-col gap-px pl-3">
+                      {group.notes.map((node) => (
+                        <DesktopNoteRow
+                          key={`${key}-${node.id}`}
+                          node={node}
+                          dragId={noteDraggableId(key, node.id)}
+                          selected={selected?.id === node.id}
+                          onSelect={handleSelectDesktop}
+                          onDelete={notes.softDeleteNote}
+                          deleteLabel={t("materials.notes.deleteNote")}
+                          dragHintLabel={t("materials.notes.assignTagHint")}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
           <DragOverlay>
-            {dnd.activeNode ? (
-              <TreeDragGhost title={dnd.activeNode.title} />
+            {dnd.activeNote ? (
+              <TreeDragGhost title={dnd.activeNote.title} />
             ) : null}
           </DragOverlay>
         </DndContext>
@@ -612,10 +654,6 @@ export function NotesView() {
 
   // ---- Mobile body ----------------------------------------------------
 
-  const pinnedNotes = flat.filter(
-    (r) => r.node.type === "note" && r.node.isPinned,
-  );
-
   const mobileBody = (
     <div className="flex h-full flex-col px-4 pt-2">
       {!hasNotes ? (
@@ -629,99 +667,82 @@ export function NotesView() {
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-4">
-          {pinnedNotes.length > 0 && (
-            <>
-              <div className="px-0.5 text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
-                {t("materials.notes.pinnedSection")}
-              </div>
-              {pinnedNotes.map((r) => (
-                <ExcerptListItem
-                  key={`pin-${r.node.id}`}
-                  title={r.node.title || "(untitled)"}
-                  leading={<FileText size={14} aria-hidden />}
-                  meta={
-                    <Pin
-                      size={13}
-                      aria-label="Pinned"
-                      className="text-lumen-accent"
-                    />
-                  }
-                  onClick={() => handleOpenRead(r.node.id)}
-                />
-              ))}
-            </>
-          )}
-
-          <div className="px-0.5 pt-1 text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
-            {t("materials.notes.allNotes")}（
-            {flat.filter((r) => r.node.type === "note").length}）
-          </div>
-
-          {flat.map((r) => {
-            const { node, depth } = r;
-            if (node.type === "folder") {
-              const expanded = notes.expandedIds.has(node.id);
-              const count = notes
-                .getChildren(node.id)
-                .filter((n) => !n.isDeleted).length;
-              return (
+          {groups.map((group) => {
+            const key = groupKey(group);
+            const collapsed = collapsedGroups.has(key);
+            return (
+              <div key={key} className="flex flex-col gap-1">
                 <button
-                  key={node.id}
                   type="button"
-                  onClick={() => notes.toggleExpanded(node.id)}
-                  aria-expanded={expanded}
-                  style={{ marginLeft: depth * 20 }}
+                  onClick={() => toggleGroup(key)}
+                  aria-expanded={!collapsed}
+                  aria-label={
+                    collapsed
+                      ? t("materials.notes.expandGroup")
+                      : t("materials.notes.collapseGroup")
+                  }
                   className={cn(
                     "flex items-center gap-2 px-1 py-1.5 text-left",
                     FOCUS_RING,
                   )}
                 >
-                  {expanded ? (
-                    <ChevronDown
-                      size={13}
-                      aria-hidden
-                      className="shrink-0 text-lumen-text-secondary"
-                    />
-                  ) : (
+                  {collapsed ? (
                     <ChevronRight
                       size={13}
                       aria-hidden
                       className="shrink-0 text-lumen-text-secondary"
                     />
+                  ) : (
+                    <ChevronDown
+                      size={13}
+                      aria-hidden
+                      className="shrink-0 text-lumen-text-secondary"
+                    />
                   )}
-                  <Folder
-                    size={14}
+                  <span
                     aria-hidden
-                    className="shrink-0 text-lumen-text-secondary"
+                    className={cn(
+                      "h-2 w-2 shrink-0 rounded-full",
+                      group.tagColor ? "" : "bg-lumen-border-strong",
+                    )}
+                    style={
+                      group.tagColor
+                        ? { backgroundColor: group.tagColor }
+                        : undefined
+                    }
                   />
                   <span className="text-sm font-semibold text-lumen-text">
-                    {node.title || "(untitled)"}
+                    {group.tagName}
                   </span>
                   <span className="text-[13px] text-lumen-text-tertiary">
-                    （{count}）
+                    （{group.notes.length}）
                   </span>
                 </button>
-              );
-            }
-            // Pinned notes already surfaced in the Pinned section; skip the
-            // duplicate here so the list reads cleanly.
-            if (node.isPinned) return null;
-            return (
-              <div key={node.id} style={{ marginLeft: depth * 20 }}>
-                <ExcerptListItem
-                  title={node.title || "(untitled)"}
-                  leading={<FileText size={14} aria-hidden />}
-                  meta={
-                    node.hasPassword ? (
-                      <Lock
-                        size={13}
-                        aria-label="Password protected"
-                        className="text-lumen-text-tertiary"
+                {!collapsed &&
+                  group.notes.map((node) => (
+                    <div key={`${key}-${node.id}`} className="pl-4">
+                      <ExcerptListItem
+                        title={node.title || "(untitled)"}
+                        leading={<FileText size={14} aria-hidden />}
+                        meta={
+                          node.hasPassword ? (
+                            <Lock
+                              size={13}
+                              aria-label="Password protected"
+                              className="text-lumen-text-tertiary"
+                            />
+                          ) : node.isPinned ? (
+                            <Pin
+                              size={13}
+                              aria-label="Pinned"
+                              className="text-lumen-accent"
+                            />
+                          ) : undefined
+                        }
+                        onClick={() => handleOpenRead(node.id)}
                       />
-                    ) : undefined
-                  }
-                  onClick={() => handleOpenRead(node.id)}
-                />
+                    </div>
+                  ))}
               </div>
             );
           })}
@@ -797,15 +818,11 @@ export function NotesView() {
   // ---- Desktop main editor --------------------------------------------
   //
   // The selected note's detail (meta row + tags + TipTap body + links) as the
-  // tab's MAIN content — a centered max-width 800px surface (the Daily
-  // EditorCard slot). Nothing selected → the select-or-create empty state.
-  // Folders never reach the main surface (the tree toggles them, never selects
-  // them), but the folder guards on the slots are kept as defence in depth.
+  // tab's MAIN content — a centered surface. Nothing selected → the select-or-
+  // create empty state. Folders can no longer be selected (they are never
+  // rendered as rows), but the folder guards on the slots are kept as defence
+  // in depth while real data still carries folder nodes.
 
-  // PageContainer (width="reading", Issue #181) owns the centered measure + page
-  // gutter + scroll for this tab, so the main surface adds none of its own — just
-  // the panel (or the select-or-create empty state), letting the reading column
-  // govern the width.
   const desktopMain = selected ? (
     <NoteDetailPanel
       variant="main"
@@ -858,9 +875,9 @@ export function NotesView() {
     <div className="relative flex h-full min-h-0 flex-col">
       {isWide ? desktopMain : mobileBody}
 
-      {/* Note tree — pushed into the shared rightSidebar as always-present nav
+      {/* Note list — pushed into the shared rightSidebar as always-present nav
           content (wide-only, so narrow never fills the MobileDrawer). */}
-      {isWide && <RightSidebarPortal>{sidebarTree}</RightSidebarPortal>}
+      {isWide && <RightSidebarPortal>{sidebarList}</RightSidebarPortal>}
 
       {/* Mobile read sheet — 92% height, read-only. */}
       {!isWide && (

@@ -1,4 +1,12 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CheckSquare,
   CalendarDays,
@@ -39,8 +47,12 @@ import {
   MAIN_SECTIONS,
   UTILITY_SECTIONS,
   MOBILE_SECTIONS,
+  resolveInitialSection,
+  persistLastSection,
   EMPTY_MATERIALS_COUNTS,
+  ANALYTICS_TAB_ORDER,
   type MaterialsCounts,
+  type AnalyticsTab,
   type SectionId,
   type SectionDef,
   type Command,
@@ -135,11 +147,20 @@ const MOBILE_HAMBURGER_SECTIONS: ReadonlySet<SectionId> = new Set([
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
-  const [section, setSection] = useState<SectionId>("materials");
+  // Startup section (§216): resolve the initial section from the user's
+  // preference (resume last-visited / a fixed section), falling back to the
+  // default. Lazy init so the localStorage read runs once.
+  const [section, setSection] = useState<SectionId>(() =>
+    resolveInitialSection(),
+  );
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
   // Schedule's Calendar / Routines tab, lifted here (v2 adoption #204) so the
   // standard SectionHeader can render the band — same pattern as materialsTab.
   const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
+  // Analytics's Overview/Tasks/Work/Schedule tab, lifted here (v2 adoption
+  // #208) so the standard SectionHeader renders the band — same tabs-as-title
+  // pattern as materialsTab / scheduleTab.
+  const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
   const [paletteOpen, setPaletteOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
@@ -153,6 +174,13 @@ export function MainScreen({ session }: { session: Session }) {
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
   // Independent of AppShell's own wide/narrow switch (same query, own read).
   const isWide = useMediaQuery("(min-width: 768px)", true);
+
+  // Startup section (§216): remember the last-visited section so the "resume"
+  // startup preference can restore it on the next launch. Writes on every
+  // section change (localStorage only — no re-render).
+  useEffect(() => {
+    persistLastSection(section);
+  }, [section]);
 
   // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
   // (§6.2 … → Timer → Audio → …), so the Timer's onSessionComplete can't read
@@ -253,6 +281,19 @@ export function MainScreen({ session }: { session: Session }) {
     [t, materialsCounts],
   );
 
+  // Analytics in-section tab defs (Overview / Tasks / Work / Schedule). No
+  // count badges — these tabs are views, not item lists. Order comes from the
+  // shared ANALYTICS_TAB_ORDER (SSOT) so the shell band and AnalyticsView's
+  // content never drift.
+  const analyticsTabDefs = useMemo(
+    () =>
+      ANALYTICS_TAB_ORDER.map((id) => ({
+        id,
+        label: t(`analytics.tabs.${id}`, { defaultValue: id }),
+      })),
+    [t],
+  );
+
   const shellLabels = useMemo(
     () => ({
       appName: "Life Editor",
@@ -317,12 +358,11 @@ export function MainScreen({ session }: { session: Session }) {
 
   // Standard section header row (v2 §1), mounted in AppShell's header slot —
   // ABOVE the main + detail-panel flex row (§4), so the divider spans both
-  // and the controls never move when the panel opens. Materials' and
-  // Schedule's tab bands double as their titles (divider={false}: the
+  // and the controls never move when the panel opens. Materials', Schedule's,
+  // and Analytics' tab bands double as their titles (divider={false}: the
   // SectionHeader owns the line); every other section shows its translated
-  // title. Sections that still draw their own in-body chrome (Connect /
-  // Analytics internal headers) migrate to this row in their v2 adoption
-  // pass (orders plans).
+  // title. Sections that still draw their own in-body chrome (Connect internal
+  // header) migrate to this row in their v2 adoption pass (orders plans).
   const sectionHeader =
     section === "materials" ? (
       <SectionHeader
@@ -349,6 +389,19 @@ export function MainScreen({ session }: { session: Session }) {
             activeTab={scheduleTab}
             onSelect={(id) => setScheduleTab(id as ScheduleTab)}
             label={t("section.schedule", { defaultValue: "Schedule" })}
+          />
+        }
+        controls={headerControls}
+      />
+    ) : section === "analytics" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={analyticsTabDefs}
+            activeTab={analyticsTab}
+            onSelect={(id) => setAnalyticsTab(id as AnalyticsTab)}
+            label={t("analytics.tabsLabel")}
           />
         }
         controls={headerControls}
@@ -495,7 +548,13 @@ export function MainScreen({ session }: { session: Session }) {
        * Host fetches sessions/tasks/schedule/routines via DataService and
        * injects data + t into the pure shared <AnalyticsView>.
        */}
-      {section === "analytics" && <AnalyticsScreen dataService={ds} />}
+      {section === "analytics" && (
+        <AnalyticsScreen
+          dataService={ds}
+          tab={analyticsTab}
+          onTabChange={setAnalyticsTab}
+        />
+      )}
       {/*
        * Trash (W2). Crosses all five soft-delete categories, so it uses no
        * per-section Provider — TrashScreen calls the injected DataService

@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Folder,
-  CircleDot,
-  Tag,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { CircleDot, Tag, ChevronDown, ChevronRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../cn";
 import type { TaskStatus } from "../../types/taskTree";
@@ -20,21 +14,20 @@ import type {
  * Kanban board: the Tasks tab pushes this into the shared rightSidebar (Desktop
  * only) as always-present nav content, and the selected task's detail fills the
  * main surface. Pure presentation, DataService-free (§3.1): the host builds the
- * grouped columns with the pure Kanban builders (buildFolderColumns /
- * buildStatusColumns / buildTagColumns), injects the selection + copy, and
- * receives select / grouping intents via callbacks. lumen-* tokens only; @dnd-kit
- * is NOT imported here (reordering stays in the board mode's web layer).
+ * grouped columns with the pure Kanban builders (buildStatusColumns /
+ * buildTagColumns), injects the selection + copy, and receives select /
+ * grouping intents via callbacks. lumen-* tokens only; @dnd-kit is NOT imported
+ * here (reordering stays in the board mode's web layer).
  *
- * Layout: a grouping switch (folder / status / tag) heading, then one collapsible
- * group per column — a heading (accent dot + label + count + collapse toggle) and
- * the group's task rows (status glyph + title + optional folder pill + selection
- * highlight). Collapse state is local (view-only, not persisted).
+ * Layout: a grouping switch (status / tag) heading, then one collapsible group
+ * per column — a heading (accent dot + label + count + collapse toggle) and the
+ * group's task rows (status glyph + title + selection highlight). Collapse state
+ * is local (view-only, not persisted).
  */
 
-const VIEW_ORDER: readonly KanbanViewMode[] = ["folder", "status", "tag"];
+const VIEW_ORDER: readonly KanbanViewMode[] = ["status", "tag"];
 
 const VIEW_ICON: Record<KanbanViewMode, LucideIcon> = {
-  folder: Folder,
   status: CircleDot,
   tag: Tag,
 };
@@ -58,8 +51,7 @@ const FOCUS_RING =
 
 /** All copy the panel needs, resolved by the host via t() (§6.4). */
 export interface TaskListPanelLabels {
-  /** Grouping switch: the three view-mode labels + its group aria-label. */
-  viewFolder: string;
+  /** Grouping switch: the view-mode labels + its group aria-label. */
   viewStatus: string;
   viewTag: string;
   groupingGroupLabel: string;
@@ -148,14 +140,6 @@ function TaskRow({
         >
           {card.title || untitled}
         </span>
-        {card.folderName && (
-          <span
-            title={card.folderName}
-            className="shrink-0 max-w-[38%] truncate text-[11.5px] text-lumen-text-tertiary"
-          >
-            {card.folderName}
-          </span>
-        )}
       </button>
     </li>
   );
@@ -182,8 +166,6 @@ export function TaskListPanel({
 
   const viewLabel = (mode: KanbanViewMode): string => {
     switch (mode) {
-      case "folder":
-        return labels.viewFolder;
       case "status":
         return labels.viewStatus;
       case "tag":

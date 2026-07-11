@@ -6,6 +6,8 @@
 
 **Tier 3 機能数**: 6（暫定、Phase B-3 で確定）
 
+> ⚠️ **退役スタック注記 (2026-07-11 #197)**: 本ファイルの Owner 記述は旧 Tauri スタック（`frontend/` / `src-tauri/`）を指す。旧スタックは 2026-07-11 削除済み（復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
+
 > ⚠️ **旧構成の歴史参照注記 (2026-07-07 consistency-cleanup)**: 本ファイル中の `.claude/docs/adr/` / `.claude/archive/adr/` などのパス参照や ADR-0005 参照は旧ディレクトリ構成時点のもので、現存しないパスを含む（ADR は作らない方針へ移行済 → `docs/vision/coding-principles.md §5`）。個別リンクは追わず歴史参照として残す。
 
 ---
