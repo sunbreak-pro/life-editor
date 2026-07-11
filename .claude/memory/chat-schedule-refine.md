@@ -2,33 +2,23 @@
 
 ## 進行中
 
-### 🔧 life-tags 統一 S2 — CalendarView の folder→life-tag rebind（着手日: 2026-07-11）
-
-**対象**: `web/src/schedule/CalendarView.tsx` / `shared/src/types/calendar.ts` / `shared/src/services/calendarMapper.ts` / `shared/src/hooks/useCalendarsAPI.ts` / `shared/src/services/{DataService,SupabaseDataService}.ts` / `supabase/migrations/0021`
-**計画書**: `.claude/docs/vision/plans/2026-07-11-life-tags-unification.md`（§F S2・epic #225・担当 Issue #231）
-
-- 前回: 準備（実測・Issue #231・outbox 合意返信）完了
-- 現在: 実装完了 — **PR #239 open・merge 待ち**（監査 3 体 PASS・shared 852/852 green・outbox で materials-refine へ完了報告済み = merge で S3 解禁）。🛑 残ゲート: ユーザーの `supabase db push`（0021 を merge より先に / 同時に。push 直前に calendars 0 行確認）
-- 次: PR #239 merge + db push 後、runtime 確認は chat-main 実測（localhost 集約ポリシー）。#231 は PR merge で自動 close
-
-### 🔧 schedule-refine orders 消化（着手日: 2026-07-11）
+### ⏸️ schedule-refine orders 消化（着手日: 2026-07-11）
 
 **対象**: `web/src/schedule/**`
 **計画書**: `.claude/docs/vision/plans/2026-07-11-schedule-refine-orders.md`
 
-- 前回: #185 Step 2 完了（FrequencyEditor 切り出し・PR #221 merge 済み）
-- 現在: UX 改修 3 件（#222 status タグ / #223 右クリックメニュー / #224 セルクリック→パネル）実装・QA 反映済み — **PR #230 open・merge 待ち**。merge 後 chat-main で runtime 確認（タグ配色 light/dark・メニュー端クランプ・月セル作成 undo・memo 付き複製）
+- 前回: UX 改修 3 件（#222 status タグ / #223 右クリックメニュー / #224 セルクリック→パネル）完了 — **PR #230 merge 済み**
+- 現在: runtime 確認（タグ配色 light/dark・メニュー端クランプ・月セル作成 undo・memo 付き複製）は chat-main 実測待ち
 - 次: #185 Step 3（Event 編集フローへ繰り返しセクション組込 + detachRoutine 新規実装）— ユーザーの着手指示待ち
 
 ## 直近の完了
 
-- Schedule UX 3 件（#222/#223/#224・PR #230 提出）✅（2026-07-11）
+- life-tags 統一 S2 — calendars の folder→tag rebind（#231 closed・PR #239 merge 済み。S3 = materials-refine へ引き継ぎ）✅（2026-07-11）
+- Schedule UX 3 件（#222/#223/#224・PR #230 merge 済み）✅（2026-07-11）
 - #185 Step 2 FrequencyEditor 切り出し（PR #221 merge 済み）✅（2026-07-11）
-- Layout Standard v2 adoption — schedule（#204・in-body タブ帯 + 重複トグル撤去）✅（2026-07-11）
-- #183 SegmentedControl 連結表示 close（#180 修正の実測確認・desktop/mobile）✅（2026-07-11）
-- #181 schedule 行 adoption（gutter トークン化・PR #191 merge 済み）✅（2026-07-11）
 
 ## 予定
 
-- #185 実装（計画 PR merge 後）
+- （監視）🛑 ユーザー `supabase db push` 待ち — remote 適用は 0014 まで・0015〜0021 の 7 本が未適用（0020/0021 含む・2026-07-11 実測）。push まで main コードのカレンダー CRUD はリモート DB で 400。push 後の runtime 確認は chat-main
+- #185 Step 3 実装（ユーザー着手指示後）
 - MCP server Supabase 対応の切り出し Issue 起票（#185 計画 Step 6・ユーザー承認後）

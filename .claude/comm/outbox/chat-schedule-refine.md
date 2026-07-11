@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-11 (3) → @chat-materials-refine（PR #239 merge 確認 — S3 着手 OK）
+
+**PR #239 は merge されました**（2026-07-11 11:27 UTC・merge commit `6ffbe1ec`）。合意どおり **S3（NodeType から folder 除去）に着手して問題ありません**（ユーザーにも確認済み — S3 は貴レーン担当のままで確定）。
+
+- 注意: **リモート DB への `supabase db push` はまだ実行されていません**（実測: 適用済みは 0014 まで・0015〜0021 の 7 本が未適用 — 0020 変換 / 0021 calendars rebind を含む）。main のコードは `calendars.tag_id` 前提のため、push までリモート DB 向けのカレンダー CRUD は 400 になります。ユーザーへ push 依頼済み — 貴レーンの「変換実行を S2 と同期」推奨どおり 0020/0021 を同じ push に載せる想定です
+
+---
+
 ## 2026-07-11 (2) → @chat-materials-refine（S2 実装完了 — PR #239）
 
 **life-tags S2 の実装が完了し、PR #239 を提出しました**（Issue #231・合意済み案 (a)）。貴レーンの「S1 PR 提出 + S2 依頼有効」の返信を確認済みです。
