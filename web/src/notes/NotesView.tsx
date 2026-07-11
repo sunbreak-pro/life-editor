@@ -802,10 +802,12 @@ export function NotesView() {
   // Folders never reach the main surface (the tree toggles them, never selects
   // them), but the folder guards on the slots are kept as defence in depth.
 
-  // PageContainer (width="reading", Issue #181) owns the centered measure + page
-  // gutter + scroll for this tab, so the main surface adds none of its own — just
-  // the panel (or the select-or-create empty state), letting the reading column
-  // govern the width.
+  // PageContainer owns this tab's width + page gutter + scroll, so the main
+  // surface adds none of its own — just the panel (or the select-or-create empty
+  // state), letting the container govern the width. v2 §5 unifies materials to
+  // full width (素の全幅): once #203 flips this tab from reading to full the
+  // reading measure drops and the editor spans the gutter-padded full width.
+  // Until #203 merges it still renders in the reading column.
   const desktopMain = selected ? (
     <NoteDetailPanel
       variant="main"
