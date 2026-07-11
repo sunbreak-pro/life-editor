@@ -107,6 +107,11 @@ import {
   calendarUpdatesToPatch,
   type CalendarRow,
 } from "./calendarMapper";
+import {
+  fetchAllPages,
+  fetchByIdChunks,
+  forEachIdChunk,
+} from "./postgrestFetchAll";
 /*
  * Phase 2 S1 Supabase implementation.
  *
@@ -228,23 +233,32 @@ class SupabaseTasksService {
    * R2 detection SQL in db-conventions.md.
    */
   async fetchTaskTree(): Promise<TaskNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_TASK_COLUMNS)
-      .eq("role", "task")
-      .eq("is_deleted", false);
-    if (metaErr)
-      throw new Error(`fetchTaskTree items_meta: ${metaErr.message}`);
-    const metaRows = (metas as unknown as ItemsMetaRow[]) ?? [];
+    const metaRows = await fetchAllPages<ItemsMetaRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_TASK_COLUMNS)
+          .eq("role", "task")
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "fetchTaskTree items_meta",
+    );
     if (metaRows.length === 0) return [];
 
     const ids = metaRows.map((m) => m.id);
-    const { data: payloads, error: pErr } = await this.client
-      .from("tasks_payload")
-      .select(TASKS_PAYLOAD_COLUMNS)
-      .in("item_id", ids);
-    if (pErr) throw new Error(`fetchTaskTree tasks_payload: ${pErr.message}`);
-    const payloadRows = (payloads as unknown as TasksPayloadRow[]) ?? [];
+    const payloadRows = await fetchByIdChunks<TasksPayloadRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("tasks_payload")
+            .select(TASKS_PAYLOAD_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "fetchTaskTree tasks_payload",
+      ),
+    );
     const payloadById = new Map<string, TasksPayloadRow>();
     for (const p of payloadRows) payloadById.set(p.item_id, p);
 
@@ -259,24 +273,32 @@ class SupabaseTasksService {
 
   /** Trashed counterpart of fetchTaskTree (Trash UI). */
   async fetchDeletedTasks(): Promise<TaskNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_TASK_COLUMNS)
-      .eq("role", "task")
-      .eq("is_deleted", true);
-    if (metaErr)
-      throw new Error(`fetchDeletedTasks items_meta: ${metaErr.message}`);
-    const metaRows = (metas as unknown as ItemsMetaRow[]) ?? [];
+    const metaRows = await fetchAllPages<ItemsMetaRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_TASK_COLUMNS)
+          .eq("role", "task")
+          .eq("is_deleted", true)
+          .order("id")
+          .range(from, to),
+      "fetchDeletedTasks items_meta",
+    );
     if (metaRows.length === 0) return [];
 
     const ids = metaRows.map((m) => m.id);
-    const { data: payloads, error: pErr } = await this.client
-      .from("tasks_payload")
-      .select(TASKS_PAYLOAD_COLUMNS)
-      .in("item_id", ids);
-    if (pErr)
-      throw new Error(`fetchDeletedTasks tasks_payload: ${pErr.message}`);
-    const payloadRows = (payloads as unknown as TasksPayloadRow[]) ?? [];
+    const payloadRows = await fetchByIdChunks<TasksPayloadRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("tasks_payload")
+            .select(TASKS_PAYLOAD_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "fetchDeletedTasks tasks_payload",
+      ),
+    );
     const payloadById = new Map<string, TasksPayloadRow>();
     for (const p of payloadRows) payloadById.set(p.item_id, p);
 
@@ -644,24 +666,34 @@ class SupabaseRoutinesService {
    * routines_payload) joined in-app. Missing payload (R2 orphan) skipped.
    */
   async fetchAllRoutines(): Promise<RoutineNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_ROUTINE_COLUMNS)
-      .eq("role", "routine")
-      .eq("is_deleted", false);
-    if (metaErr)
-      throw new Error(`fetchAllRoutines items_meta: ${metaErr.message}`);
-    const metaRows = (metas as unknown as ItemsMetaRoutineRow[]) ?? [];
+    const metaRows = await fetchAllPages<ItemsMetaRoutineRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_ROUTINE_COLUMNS)
+          .eq("role", "routine")
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "fetchAllRoutines items_meta",
+    );
     if (metaRows.length === 0) return [];
 
     const ids = metaRows.map((m) => m.id);
-    const { data: payloads, error: pErr } = await this.client
-      .from("routines_payload")
-      .select(ROUTINES_PAYLOAD_COLUMNS)
-      .in("item_id", ids);
-    if (pErr)
-      throw new Error(`fetchAllRoutines routines_payload: ${pErr.message}`);
-    const payloadRows = (payloads as unknown as RoutinesPayloadRow[]) ?? [];
+    const payloadRows = await fetchByIdChunks<RoutinesPayloadRow>(
+      ids,
+      (chunk) =>
+        fetchAllPages(
+          (from, to) =>
+            this.client
+              .from("routines_payload")
+              .select(ROUTINES_PAYLOAD_COLUMNS)
+              .in("item_id", chunk)
+              .order("item_id")
+              .range(from, to),
+          "fetchAllRoutines routines_payload",
+        ),
+    );
     const payloadById = new Map<string, RoutinesPayloadRow>();
     for (const p of payloadRows) payloadById.set(p.item_id, p);
 
@@ -676,24 +708,34 @@ class SupabaseRoutinesService {
 
   /** Trashed counterpart (Trash UI). */
   async fetchDeletedRoutines(): Promise<RoutineNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_ROUTINE_COLUMNS)
-      .eq("role", "routine")
-      .eq("is_deleted", true);
-    if (metaErr)
-      throw new Error(`fetchDeletedRoutines items_meta: ${metaErr.message}`);
-    const metaRows = (metas as unknown as ItemsMetaRoutineRow[]) ?? [];
+    const metaRows = await fetchAllPages<ItemsMetaRoutineRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_ROUTINE_COLUMNS)
+          .eq("role", "routine")
+          .eq("is_deleted", true)
+          .order("id")
+          .range(from, to),
+      "fetchDeletedRoutines items_meta",
+    );
     if (metaRows.length === 0) return [];
 
     const ids = metaRows.map((m) => m.id);
-    const { data: payloads, error: pErr } = await this.client
-      .from("routines_payload")
-      .select(ROUTINES_PAYLOAD_COLUMNS)
-      .in("item_id", ids);
-    if (pErr)
-      throw new Error(`fetchDeletedRoutines routines_payload: ${pErr.message}`);
-    const payloadRows = (payloads as unknown as RoutinesPayloadRow[]) ?? [];
+    const payloadRows = await fetchByIdChunks<RoutinesPayloadRow>(
+      ids,
+      (chunk) =>
+        fetchAllPages(
+          (from, to) =>
+            this.client
+              .from("routines_payload")
+              .select(ROUTINES_PAYLOAD_COLUMNS)
+              .in("item_id", chunk)
+              .order("item_id")
+              .range(from, to),
+          "fetchDeletedRoutines routines_payload",
+        ),
+    );
     const payloadById = new Map<string, RoutinesPayloadRow>();
     for (const p of payloadRows) payloadById.set(p.item_id, p);
 
@@ -888,18 +930,21 @@ class SupabaseRoutinesService {
     const now = new Date().toISOString();
 
     // 1. Find live routine-generated events (items_meta ids) that
-    //    point at this routine.
-    const { data: eventRows, error: findErr } = await this.client
-      .from("events_payload")
-      .select("item_id")
-      .eq("routine_item_id", id)
-      .eq("is_deleted_cache", false);
-    if (findErr)
-      throw new Error(`softDeleteRoutine find events: ${findErr.message}`);
-    const eventIds =
-      (eventRows as unknown as { item_id: string }[] | null)?.map(
-        (r) => r.item_id,
-      ) ?? [];
+    //    point at this routine. Paged: a long-lived routine accumulates
+    //    events past the max-rows cap, and a truncated id list here
+    //    would leave live events pointing at a trashed routine.
+    const eventRows = await fetchAllPages<{ item_id: string }>(
+      (from, to) =>
+        this.client
+          .from("events_payload")
+          .select("item_id")
+          .eq("routine_item_id", id)
+          .eq("is_deleted_cache", false)
+          .order("item_id")
+          .range(from, to),
+      "softDeleteRoutine find events",
+    );
+    const eventIds = eventRows.map((r) => r.item_id);
 
     // 2. Soft-delete the routine itself (items_meta).
     const { error: routineErr } = await this.client
@@ -916,12 +961,15 @@ class SupabaseRoutinesService {
     //    but here we're doing a direct UPDATE so we bump updated_at
     //    explicitly.
     if (eventIds.length > 0) {
-      const { error: eventErr } = await this.client
-        .from("items_meta")
-        .update({ is_deleted: true, deleted_at: now, updated_at: now })
-        .in("id", eventIds);
-      if (eventErr)
-        throw new Error(`softDeleteRoutine events: ${eventErr.message}`);
+      await forEachIdChunk(
+        eventIds,
+        (chunk) =>
+          this.client
+            .from("items_meta")
+            .update({ is_deleted: true, deleted_at: now, updated_at: now })
+            .in("id", chunk),
+        "softDeleteRoutine events",
+      );
     }
 
     return { deletedScheduleItemIds: eventIds };
@@ -957,16 +1005,17 @@ class SupabaseRoutinesService {
     //    (live + trashed — the partial-UNIQUE filter on is_deleted_cache
     //    excludes trashed events, but the composite FK does NOT, so we
     //    must clear them too).
-    const { data: eventRows, error: findErr } = await this.client
-      .from("events_payload")
-      .select("item_id")
-      .eq("routine_item_id", id);
-    if (findErr)
-      throw new Error(`permanentDeleteRoutine find events: ${findErr.message}`);
-    const eventIds =
-      (eventRows as unknown as { item_id: string }[] | null)?.map(
-        (r) => r.item_id,
-      ) ?? [];
+    const eventRows = await fetchAllPages<{ item_id: string }>(
+      (from, to) =>
+        this.client
+          .from("events_payload")
+          .select("item_id")
+          .eq("routine_item_id", id)
+          .order("item_id")
+          .range(from, to),
+      "permanentDeleteRoutine find events",
+    );
+    const eventIds = eventRows.map((r) => r.item_id);
 
     // 2. Hard-delete event items_meta rows. events_payload cascades via
     //    the 0008 item_id FK. Done one-by-one to mirror the Tasks
@@ -1017,14 +1066,20 @@ class SupabaseRoutineGroupsService {
    * never surfaces trashed groups).
    */
   async fetchRoutineGroups(): Promise<RoutineGroup[]> {
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .select(ROUTINE_GROUPS_COLUMNS)
-      .eq("is_deleted", false)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchRoutineGroups: ${error.message}`);
-    const rows = (data as unknown as RoutineGroupRowV2[]) ?? [];
+    // Trailing .order("id") = unique tiebreaker so .range() pages are
+    // deterministic (sort_order/created_at can tie).
+    const rows = await fetchAllPages<RoutineGroupRowV2>(
+      (from, to) =>
+        this.client
+          .from("routine_groups")
+          .select(ROUTINE_GROUPS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "fetchRoutineGroups",
+    );
     return rows.map(rowToRoutineGroupV2);
   }
 
@@ -1152,13 +1207,16 @@ class SupabaseRoutineGroupAssignmentsService {
    * once for the whole list view.
    */
   async fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]> {
-    const { data, error } = await this.client
-      .from("routine_group_assignments")
-      .select(ROUTINE_GROUP_ASSIGNMENTS_COLUMNS)
-      .eq("is_deleted", false);
-    if (error)
-      throw new Error(`fetchAllRoutineGroupAssignments: ${error.message}`);
-    const rows = (data as unknown as RoutineGroupAssignmentRowV2[]) ?? [];
+    const rows = await fetchAllPages<RoutineGroupAssignmentRowV2>(
+      (from, to) =>
+        this.client
+          .from("routine_group_assignments")
+          .select(ROUTINE_GROUP_ASSIGNMENTS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "fetchAllRoutineGroupAssignments",
+    );
     return rows.map(rowToRoutineGroupAssignmentV2);
   }
 
@@ -1296,26 +1354,36 @@ class SupabaseScheduleItemsService {
     ) => any,
     metaIsDeleted: boolean,
   ): Promise<ScheduleItem[]> {
-    // 1. payload first (filterable by start_at / routine_item_id etc.)
-    const pQuery = payloadFilter(
-      this.client.from("events_payload").select(EVENTS_PAYLOAD_COLUMNS),
+    // 1. payload first (filterable by start_at / routine_item_id etc.).
+    //    Paged: fetchEvents / fetchDeletedScheduleItems have no date
+    //    bound, so the event history outgrows the max-rows cap first.
+    const payloadRows = await fetchAllPages<EventsPayloadRow>(
+      (from, to) =>
+        payloadFilter(
+          this.client.from("events_payload").select(EVENTS_PAYLOAD_COLUMNS),
+        )
+          .order("item_id")
+          .range(from, to),
+      "fetchScheduleItems events_payload",
     );
-    const { data: payloads, error: pErr } = await pQuery;
-    if (pErr)
-      throw new Error(`fetchScheduleItems events_payload: ${pErr.message}`);
-    const payloadRows = (payloads as unknown as EventsPayloadRow[]) ?? [];
     if (payloadRows.length === 0) return [];
 
     // 2. metas (filter by role + is_deleted)
     const ids = payloadRows.map((p) => p.item_id);
-    const { data: metas, error: mErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_EVENT_COLUMNS)
-      .eq("role", "event")
-      .eq("is_deleted", metaIsDeleted)
-      .in("id", ids);
-    if (mErr) throw new Error(`fetchScheduleItems items_meta: ${mErr.message}`);
-    const metaRows = (metas as unknown as ItemsMetaEventRow[]) ?? [];
+    const metaRows = await fetchByIdChunks<ItemsMetaEventRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("items_meta")
+            .select(ITEMS_META_EVENT_COLUMNS)
+            .eq("role", "event")
+            .eq("is_deleted", metaIsDeleted)
+            .in("id", chunk)
+            .order("id")
+            .range(from, to),
+        "fetchScheduleItems items_meta",
+      ),
+    );
     const metaById = new Map<string, ItemsMetaEventRow>();
     for (const m of metaRows) metaById.set(m.id, m);
 
@@ -1793,20 +1861,27 @@ class SupabaseScheduleItemsService {
       const sourceDates = Array.from(
         new Set(routinePairs.map((p) => p.payload.source_date as string)),
       );
-      const { data: existing, error: existErr } = await this.client
-        .from("events_payload")
-        .select("routine_item_id, source_date")
-        .in("routine_item_id", routineIds)
-        .in("source_date", sourceDates)
-        .eq("is_deleted_cache", false);
-      if (existErr)
-        throw new Error(
-          `bulkCreateScheduleItems pre-check: ${existErr.message}`,
-        );
-      for (const r of (existing as unknown as {
+      // Paged: the .in().in() filter is a CROSS-PRODUCT — the result
+      // scales with the existing live rows matching |routineIds| ×
+      // |sourceDates|, not with the insert batch. A capped pre-check
+      // would let already-live pairs through to the INSERT and turn the
+      // whole batch into a 23505 → R2-cleanup throw.
+      const existing = await fetchAllPages<{
         routine_item_id: string;
         source_date: string;
-      }[]) ?? []) {
+      }>(
+        (from, to) =>
+          this.client
+            .from("events_payload")
+            .select("routine_item_id, source_date")
+            .in("routine_item_id", routineIds)
+            .in("source_date", sourceDates)
+            .eq("is_deleted_cache", false)
+            .order("item_id")
+            .range(from, to),
+        "bulkCreateScheduleItems pre-check",
+      );
+      for (const r of existing) {
         liveSet.add(`${r.routine_item_id}|${r.source_date}`);
       }
     }
@@ -1843,8 +1918,19 @@ class SupabaseScheduleItemsService {
           `bulkCreateScheduleItems events_payload: ${pErr.message}`,
         );
     } catch (err) {
+      // R2 cleanup, chunked so a large batch's ids fit the URL. Best-
+      // effort: a cleanup failure must not mask the original INSERT
+      // error (leftover orphans are swept by the R2 detection SQL).
       const ids = pairs.map((p) => p.meta.id);
-      await this.client.from("items_meta").delete().in("id", ids);
+      try {
+        await forEachIdChunk(
+          ids,
+          (chunk) => this.client.from("items_meta").delete().in("id", chunk),
+          "bulkCreateScheduleItems R2 cleanup",
+        );
+      } catch {
+        // swallow — rethrow the original err below
+      }
       throw err;
     }
   }
@@ -1867,21 +1953,20 @@ class SupabaseScheduleItemsService {
   ): Promise<number> {
     const now = new Date().toISOString();
 
-    // 1. Find affected rows.
-    const { data: rows, error: findErr } = await this.client
-      .from("events_payload")
-      .select("item_id")
-      .eq("routine_item_id", routineId)
-      .eq("is_deleted_cache", false)
-      .gte("start_at", fromDate);
-    if (findErr)
-      throw new Error(
-        `updateFutureScheduleItemsByRoutine find: ${findErr.message}`,
-      );
-    const ids =
-      (rows as unknown as { item_id: string }[] | null)?.map(
-        (r) => r.item_id,
-      ) ?? [];
+    // 1. Find affected rows (paged — same rationale as softDeleteRoutine).
+    const rows = await fetchAllPages<{ item_id: string }>(
+      (from, to) =>
+        this.client
+          .from("events_payload")
+          .select("item_id")
+          .eq("routine_item_id", routineId)
+          .eq("is_deleted_cache", false)
+          .gte("start_at", fromDate)
+          .order("item_id")
+          .range(from, to),
+      "updateFutureScheduleItemsByRoutine find",
+    );
+    const ids = rows.map((r) => r.item_id);
     if (ids.length === 0) return 0;
 
     // 2. payload patch (start/end time).
@@ -1890,14 +1975,15 @@ class SupabaseScheduleItemsService {
       payloadPatch.start_time = updates.startTime;
     if (updates.endTime !== undefined) payloadPatch.end_time = updates.endTime;
     if (Object.keys(payloadPatch).length > 0) {
-      const { error: pErr } = await this.client
-        .from("events_payload")
-        .update(payloadPatch)
-        .in("item_id", ids);
-      if (pErr)
-        throw new Error(
-          `updateFutureScheduleItemsByRoutine events_payload: ${pErr.message}`,
-        );
+      await forEachIdChunk(
+        ids,
+        (chunk) =>
+          this.client
+            .from("events_payload")
+            .update(payloadPatch)
+            .in("item_id", chunk),
+        "updateFutureScheduleItemsByRoutine events_payload",
+      );
     }
 
     // 3. meta patch (title + updated_at bump for every row).
@@ -1905,14 +1991,12 @@ class SupabaseScheduleItemsService {
       updated_at: now,
     };
     if (updates.title !== undefined) metaPatch.title = updates.title;
-    const { error: mErr } = await this.client
-      .from("items_meta")
-      .update(metaPatch)
-      .in("id", ids);
-    if (mErr)
-      throw new Error(
-        `updateFutureScheduleItemsByRoutine items_meta: ${mErr.message}`,
-      );
+    await forEachIdChunk(
+      ids,
+      (chunk) =>
+        this.client.from("items_meta").update(metaPatch).in("id", chunk),
+      "updateFutureScheduleItemsByRoutine items_meta",
+    );
 
     return ids.length;
   }
@@ -1924,11 +2008,11 @@ class SupabaseScheduleItemsService {
    */
   async bulkDeleteScheduleItems(ids: string[]): Promise<number> {
     if (ids.length === 0) return 0;
-    const { error } = await this.client
-      .from("items_meta")
-      .delete()
-      .in("id", ids);
-    if (error) throw new Error(`bulkDeleteScheduleItems: ${error.message}`);
+    await forEachIdChunk(
+      ids,
+      (chunk) => this.client.from("items_meta").delete().in("id", chunk),
+      "bulkDeleteScheduleItems",
+    );
     return ids.length;
   }
 }
@@ -1959,13 +2043,18 @@ class SupabaseCalendarsService {
 
   /** Tauri `fetch_all`: ORDER BY "order" ASC, created_at ASC. */
   async fetchCalendars(): Promise<CalendarNode[]> {
-    const { data, error } = await this.client
-      .from("calendars")
-      .select(CALENDAR_SELECT_COLUMNS)
-      .order("order", { ascending: true })
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchCalendars failed: ${error.message}`);
-    return (data as unknown as CalendarRow[]).map(rowToCalendar);
+    const rows = await fetchAllPages<CalendarRow>(
+      (from, to) =>
+        this.client
+          .from("calendars")
+          .select(CALENDAR_SELECT_COLUMNS)
+          .order("order", { ascending: true })
+          .order("created_at", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "fetchCalendars failed",
+    );
+    return rows.map(rowToCalendar);
   }
 
   /**

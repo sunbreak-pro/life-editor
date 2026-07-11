@@ -16,6 +16,7 @@ import {
   type PlaylistRow,
   type PlaylistItemRow,
 } from "./audioMapper";
+import { fetchAllPages } from "./postgrestFetchAll";
 
 /*
  * SupabaseAudioService (W3-A). I/O layer over the independent audio tables
@@ -35,13 +36,16 @@ export class SupabaseAudioService {
   // -------------------------------------------------------------------------
 
   async fetchSoundSettings(): Promise<SoundSettings[]> {
-    const { data, error } = await this.client
-      .from("sound_settings")
-      .select(SOUND_SETTINGS_COLUMNS);
-    if (error) throw new Error(`fetchSoundSettings failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToSoundSettings(r as unknown as SoundSettingsRow),
+    const rows = await fetchAllPages<SoundSettingsRow>(
+      (from, to) =>
+        this.client
+          .from("sound_settings")
+          .select(SOUND_SETTINGS_COLUMNS)
+          .order("id")
+          .range(from, to),
+      "fetchSoundSettings failed",
     );
+    return rows.map(rowToSoundSettings);
   }
 
   /**
@@ -89,12 +93,19 @@ export class SupabaseAudioService {
   // -------------------------------------------------------------------------
 
   async fetchPlaylists(): Promise<Playlist[]> {
-    const { data, error } = await this.client
-      .from("playlists")
-      .select(PLAYLIST_COLUMNS)
-      .order("sort_order", { ascending: true });
-    if (error) throw new Error(`fetchPlaylists failed: ${error.message}`);
-    return (data ?? []).map((r) => rowToPlaylist(r as unknown as PlaylistRow));
+    // Trailing .order("id") = unique tiebreaker so .range() pages are
+    // deterministic (sort_order can tie).
+    const rows = await fetchAllPages<PlaylistRow>(
+      (from, to) =>
+        this.client
+          .from("playlists")
+          .select(PLAYLIST_COLUMNS)
+          .order("sort_order", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "fetchPlaylists failed",
+    );
+    return rows.map(rowToPlaylist);
   }
 
   async createPlaylist(id: string, name: string): Promise<Playlist> {
@@ -129,10 +140,7 @@ export class SupabaseAudioService {
 
   /** playlist_items are removed by the 0018 ON DELETE CASCADE FK. */
   async deletePlaylist(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("playlists")
-      .delete()
-      .eq("id", id);
+    const { error } = await this.client.from("playlists").delete().eq("id", id);
     if (error)
       throw new Error(`deletePlaylist (id=${id}) failed: ${error.message}`);
   }
@@ -142,27 +150,32 @@ export class SupabaseAudioService {
   // -------------------------------------------------------------------------
 
   async fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
-    const { data, error } = await this.client
-      .from("playlist_items")
-      .select(PLAYLIST_ITEM_COLUMNS)
-      .eq("playlist_id", playlistId)
-      .order("sort_order", { ascending: true });
-    if (error) throw new Error(`fetchPlaylistItems failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToPlaylistItem(r as unknown as PlaylistItemRow),
+    const rows = await fetchAllPages<PlaylistItemRow>(
+      (from, to) =>
+        this.client
+          .from("playlist_items")
+          .select(PLAYLIST_ITEM_COLUMNS)
+          .eq("playlist_id", playlistId)
+          .order("sort_order", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "fetchPlaylistItems failed",
     );
+    return rows.map(rowToPlaylistItem);
   }
 
   async fetchAllPlaylistItems(): Promise<PlaylistItem[]> {
-    const { data, error } = await this.client
-      .from("playlist_items")
-      .select(PLAYLIST_ITEM_COLUMNS)
-      .order("sort_order", { ascending: true });
-    if (error)
-      throw new Error(`fetchAllPlaylistItems failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToPlaylistItem(r as unknown as PlaylistItemRow),
+    const rows = await fetchAllPages<PlaylistItemRow>(
+      (from, to) =>
+        this.client
+          .from("playlist_items")
+          .select(PLAYLIST_ITEM_COLUMNS)
+          .order("sort_order", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "fetchAllPlaylistItems failed",
     );
+    return rows.map(rowToPlaylistItem);
   }
 
   /**
@@ -202,7 +215,9 @@ export class SupabaseAudioService {
       .delete()
       .eq("id", itemId);
     if (error)
-      throw new Error(`removePlaylistItem (id=${itemId}) failed: ${error.message}`);
+      throw new Error(
+        `removePlaylistItem (id=${itemId}) failed: ${error.message}`,
+      );
   }
 
   /**
