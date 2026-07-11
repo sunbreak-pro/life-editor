@@ -18,9 +18,10 @@ import {
 } from "@life-editor/shared";
 
 /*
- * Settings screen (W1, web host — redesigned). Centered single column
- * (max-width 768px): page header + Appearance / Language / Shortcuts cards
- * (opaque, immediate-apply, no save button). This is the HOST side: it owns
+ * Settings screen (W1, web host — redesigned). Single column: page header +
+ * Appearance / Language / Shortcuts cards (opaque, immediate-apply, no save
+ * button). Width + centering + gutter are owned by the PageContainer wrapper
+ * in MainScreen (Layout Standard v1, #180/#181). This is the HOST side: it owns
  * the hooks (useThemeContext / useShortcutConfig / useTranslation / media
  * query) and injects values + setters + already-translated copy into the
  * shared PURE primitives (CLAUDE.md §6.4). The Shortcuts card is Desktop-only
@@ -98,7 +99,7 @@ export function SettingsScreen() {
     "rounded-lumen-lg border border-lumen-border bg-lumen-bg p-5 shadow-lumen-sm md:px-6";
 
   return (
-    <div className="mx-auto flex max-w-[768px] flex-col gap-6 pb-12">
+    <div className="flex flex-col gap-6 pb-12">
       <div className="flex flex-col gap-1.5">
         <h1 className="text-xl font-semibold text-lumen-text">
           {t("settings.title")}
