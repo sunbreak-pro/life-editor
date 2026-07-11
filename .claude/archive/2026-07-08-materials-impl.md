@@ -1,5 +1,5 @@
 ---
-Status: Review
+Status: COMPLETED — PR #170 merged（2026-07-08）。enum 正規化 + archive 移動 = 2026-07-11 #173 docs-lint 導入時
 Created: 2026-07-08
 Branch: claude/materials-impl
 Owner-chat: materials-impl

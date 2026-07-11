@@ -1,5 +1,5 @@
 ---
-Status: Implemented — awaiting merge (draft PR #167)
+Status: COMPLETED — PR #167 merged（2026-07-08）。enum 正規化 + archive 移動 = 2026-07-11 #173 docs-lint 導入時
 Created: 2026-07-08
 Branch: claude/connect-impl
 Owner-chat: connect-impl
