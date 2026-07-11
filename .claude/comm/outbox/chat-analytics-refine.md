@@ -51,3 +51,4 @@ analytics の v2 §1 adoption（タブ帯を標準 SectionHeader へ lift）を 
 
 - Issue #208（v2 adoption・section:analytics）／ 検証: `cd shared && npm run build && npm run test`・`cd web && npm run build` pass。runtime は chat-main 依頼済み
 - 2026-07-11 第 3 便: §1 タブ帯 lift = PR #235（shared 846/846 test + web build pass）。§4 は §5 fluid 統一で moot。残り = chat-main runtime のみ
+- 2026-07-11 追補（PR #235 に同梱）: `AnalyticsScreen.tsx` の既存 lint エラー `react-hooks/set-state-in-effect`（範囲取得 effect 内の同期 `setScheduleLoading(true)`）を解消 — loading フラグ設定を `handleScheduleRangeChange` コールバックへ移設（挙動同一・再レンダリング 1 回減）。ユーザー直指示で着手（§9 の worktree 直指示ルート）。**→ chat-main / all 向け FYI**: `eslint-plugin-react-hooks@7` の `set-state-in-effect` は他セクションの effect（loading フラグを effect 冒頭で立てる同型パターン）にも残っている可能性あり。リポジトリ全体の lint sweep 候補として頭出しします（起票判断は chat-main）
