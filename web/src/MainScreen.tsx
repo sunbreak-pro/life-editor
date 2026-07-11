@@ -289,7 +289,7 @@ export function MainScreen({ session }: { session: Session }) {
     () =>
       ANALYTICS_TAB_ORDER.map((id) => ({
         id,
-        label: t(`analytics.tabs.${id}`),
+        label: t(`analytics.tabs.${id}`, { defaultValue: id }),
       })),
     [t],
   );

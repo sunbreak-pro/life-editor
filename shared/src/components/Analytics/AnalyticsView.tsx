@@ -91,7 +91,13 @@ export interface AnalyticsViewProps {
    * backward-compatible.
    */
   activeTab?: AnalyticsTab;
-  /** Fires on tab select. Pair with `activeTab` for controlled (shell-driven) mode. */
+  /**
+   * Fires on tab select from the in-body HeaderTabs — i.e. only in UNCONTROLLED
+   * mode. When controlled (shell-lifted band), the shell owns tab selection
+   * directly and drives `activeTab`, so this never fires; it stays for API
+   * symmetry and the uncontrolled fallback. Pair with `activeTab` for
+   * controlled (shell-driven) mode.
+   */
   onTabChange?: (tab: AnalyticsTab) => void;
   labels: AnalyticsLabels;
 }
@@ -153,6 +159,17 @@ function DesktopAnalytics({
     [labels.tabs],
   );
 
+  // Shared between the two header-band branches (controlled ↔ uncontrolled) so
+  // the preset's props stay defined in one place.
+  const presetSelector = (
+    <DateRangePresetSelector
+      value={preset}
+      onChange={applyPreset}
+      label={labels.datePreset.label}
+      options={labels.datePreset.options}
+    />
+  );
+
   return (
     <div className="flex h-full flex-col">
       {/* v2 §1 adoption — the tab band doubles as the section title. When the
@@ -168,25 +185,13 @@ function DesktopAnalytics({
             activeTab={activeTab}
             onSelect={(id) => selectTab(id as AnalyticsTab)}
             label={labels.tabsLabel}
-            trailing={
-              <DateRangePresetSelector
-                value={preset}
-                onChange={applyPreset}
-                label={labels.datePreset.label}
-                options={labels.datePreset.options}
-              />
-            }
+            trailing={presetSelector}
           />
         </div>
       ) : (
         <div className="flex-shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
           <div className="mx-auto flex w-full max-w-lumen-data justify-end">
-            <DateRangePresetSelector
-              value={preset}
-              onChange={applyPreset}
-              label={labels.datePreset.label}
-              options={labels.datePreset.options}
-            />
+            {presetSelector}
           </div>
         </div>
       )}
