@@ -399,22 +399,22 @@ life-editor/
 
 #### 5-C: 旧スタック削除 + ドキュメント整理
 
-- [ ] `frontend/` を `archive/frontend-tauri/` に移動 or 削除
+- [x] `frontend/` 削除（2026-07-11 #197 Stage B — 移植完全性検証で「生きたビルドグラフからの参照 0」を実測し、archive 移動ではなく削除を選択。未移植機能のインベントリは #197 コメントに記録。復元 = git tag `pre-tauri-removal`）
 - [x] `src-tauri/` 削除（2026-07-11 前倒し実行 #197 Stage A — 復元保険 = git tag `pre-tauri-removal`。root package.json の tauri スクリプト / `@tauri-apps/cli` も同時撤去）
 - [x] `cloud/`(Cloudflare Workers + D1)削除（2026-06-28 先行撤去 — dead stack）
 - [ ] **CLAUDE.md 全面改訂**(アーキテクチャ章を新スタック前提に書き換え)
 - [ ] **`docs/vision/core.md` 全面改訂**(Web UI 否定 / Desktop ネイティブのみ を反転、移行警告ヘッダ削除)
 - [ ] **`docs/vision/db-conventions.md` を Postgres + RLS 版に書き換え**
-- [ ] `docs/known-issues/` の Tauri 関連項目を archive
+- [x] `docs/known-issues/` の Tauri 関連項目へ retired 注記を付与（2026-07-11 #197 Stage C — 本ディレクトリ自体が Fixed の凍結アーカイブ台帳のため移動はせず注記方式）
 - [x] `.claude/2026-04-26-windows-android-port.md` は削除済み・逐語は git 履歴（本プランで完全に置換）
-- [ ] README.md 更新
+- [x] README.md 更新（2026-07-11 #197 — Tauri 前提の記述を現行スタックのクイックスタートへ全面書き換え）
 
 #### Phase 5 完了判定 = **完成**
 
 - [ ] terminal-division から Life Editor MCP 経由で Tasks 操作可能（⚠️ Terminal 退役 2026-07-05 — 導線再設計後に再定義）
 - [ ] electron-updater で auto-update が GitHub Releases から流れる
 - [ ] Web URL が公開されている
-- [ ] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない
+- [x] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない（2026-07-11 #197 — 3 ツリーとも削除済み。旧 build.yml / .ignore / loop-engine check.sh の残存参照も同時整理）
 - [ ] CLAUDE.md / vision / requirements が新スタック前提
 - [ ] cargo / Rust / portable-pty への依存ゼロ
 - [ ] Electron ビルド時間 < 3 分（macOS aarch64 ローカル）

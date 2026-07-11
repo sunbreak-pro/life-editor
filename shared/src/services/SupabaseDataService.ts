@@ -1414,6 +1414,7 @@ class SupabaseScheduleItemsService {
     noteId?: string,
     isAllDay?: boolean,
     content?: string,
+    memo?: string,
   ): Promise<ScheduleItem> {
     void templateId; // dropped — no events_payload column
     void noteId; // dropped — events<->notes use wiki_tag_connections
@@ -1430,7 +1431,7 @@ class SupabaseScheduleItemsService {
       completedAt: null,
       routineId: routineId ?? null,
       templateId: null,
-      memo: null,
+      memo: memo ?? null,
       noteId: null,
       content: null,
       isDeleted: false,
@@ -1938,14 +1939,16 @@ class SupabaseScheduleItemsService {
  * the retired Tauri calendar_repository.rs (removed 2026-07-11, see tag
  * `pre-tauri-removal`).
  *
- * PARITY DIVERGENCE (documented, not silent): the Rust `update` accepts
- * `folderId` too, but the S4-1 QA-passed `calendarUpdatesToPatch`
+ * PARITY DIVERGENCE (documented, not silent): the Rust `update` accepted
+ * the bind column too, but the S4-1 QA-passed `calendarUpdatesToPatch`
  * whitelist (the contract per the "frontend type is the SSOT" S2/S3
  * rule) only exposes title/order. The DataService interface's
- * `updateCalendar` signature also only accepts title/folderId/order;
- * folderId in `updates` is therefore accepted by the type but dropped
+ * `updateCalendar` signature also only accepts title/tagId/order;
+ * tagId in `updates` is therefore accepted by the type but dropped
  * by the patch builder. This matches the mapper SSOT; a calendar is
- * rebound by recreation in current UI flows. Flagged for QA.
+ * rebound to a new life-tag by recreation in current UI flows. Flagged
+ * for QA. (life-tags S2 / 0021: the bind column is now tag_id ->
+ * wiki_tags(id), was folder_id -> items_meta(id).)
  */
 class SupabaseCalendarsService {
   private readonly client: SupabaseClient;
@@ -1967,20 +1970,20 @@ class SupabaseCalendarsService {
 
   /**
    * Tauri `create`: `"order"` = next_order (MAX+1), version default 1.
-   * `folderId` references tasks(id) (the 0006 FK) — a calendar is a
-   * folder-scoped view. `user_id` RLS-derived.
+   * `tagId` references wiki_tags(id) (the 0021 FK) — a calendar is a
+   * life-tag-scoped view. `user_id` RLS-derived.
    */
   async createCalendar(
     id: string,
     title: string,
-    folderId: string,
+    tagId: string,
   ): Promise<CalendarNode> {
     const nextOrder = await this.nextOrder();
     const now = new Date().toISOString();
     const payload = {
       id,
       title,
-      folder_id: folderId,
+      tag_id: tagId,
       order: nextOrder,
       created_at: now,
       updated_at: now,
@@ -1997,13 +2000,13 @@ class SupabaseCalendarsService {
 
   /**
    * Tauri `update`: whitelisted columns (calendarUpdatesToPatch =
-   * title/order; see class header re folderId divergence). Empty patch
+   * title/order; see class header re tagId divergence). Empty patch
    * = re-read NO version bump. Otherwise version + 1 (read-then-written)
    * + updated_at.
    */
   async updateCalendar(
     id: string,
-    updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
+    updates: Partial<Pick<CalendarNode, "title" | "tagId" | "order">>,
   ): Promise<CalendarNode> {
     const patch = calendarUpdatesToPatch(updates);
     if (Object.keys(patch).length === 0) {

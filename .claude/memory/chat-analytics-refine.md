@@ -2,20 +2,15 @@
 
 ## 進行中
 
-### 🔧 Layout Standard v2 adoption — analytics（着手日: 2026-07-11）
-
-**対象**: `shared/src/components/Analytics/AnalyticsView.tsx`
-**計画書**: `.claude/docs/vision/plans/2026-07-11-analytics-refine-orders.md`
-
-- 前回: #196 merge でゲート解除を確認
-- 現在: in-scope 第 1 便（内部 h2 タイトル撤去 + 期間セレクタを HeaderTabs trailing へ）実装・検証済み → PR 提出
-- 次: layout-standard の返答待ち（タブ帯 SectionHeader 統合の API / narrow 二重 chrome の解消パス — outbox 提案済み）。chat-main の runtime 確認待ち。v2 adoption Issue 起票され次第 analytics 行チェック
+（なし）
 
 ## 直近の完了
 
+- Layout Standard v2 §1 タブ帯 lift — analytics（PR #235・Refs #208）✅（2026-07-11）— タブ帯を標準 SectionHeader へ lift（MainScreen 最小配線 = schedule #205 の作法）/ AnalyticsView controlled 時に in-body HeaderTabs 撤去（期間セレクタは data 列右端）/ `ANALYTICS_TAB_ORDER` を shared 公開（SSOT）。§4 は §5 fluid 統一で moot。shared 846/846 + web build pass。残り = chat-main runtime + PR merge（外部）
 - #182 Today カード折返しの実測 + 追修正（SummaryRow 縦積み化・PR #198 merged・#182 closed）・#181 analytics 行チェック ✅（2026-07-11）
 
 ## 予定
 
-- v2 adoption 第 2 便（shell 協調分: タブ帯統合 / narrow chrome 一本化 — layout-standard の判断待ち）
+- #208 の最終 close: chat-main の runtime 確認（wide タブ帯がタイトル兼務・二重「分析」無し・パネル開閉・#182 再発監視）通過で close。PR #235 merge はこうだいさん操作
 - analytics rightSidebar パネル中身の定義（プレースホルダー継続可・タグ別/期間別集計フィルタが候補）
+- 後続: life-tags（兄弟計画・着手は合図待ち）— タグ別集計は候補

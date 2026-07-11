@@ -9,7 +9,6 @@ import { ListTodo, Plus } from "lucide-react";
 import {
   KanbanBoard,
   KanbanCard,
-  buildFolderColumns,
   buildStatusColumns,
   buildTagColumns,
   EmptyState,
@@ -51,23 +50,20 @@ import {
  * Tasks section. Owns the data + i18n wiring; the shared <KanbanBoard> and
  * its children stay pure (§6.4):
  *
- *   - data: useTaskTreeContext() → nodes / status + folder mutations;
+ *   - data: useTaskTreeContext() → nodes / status mutations;
  *     useWikiTagsUnifiedContext() → tag master + assignments + tag color.
  *     Columns are built by the pure shared builders, keyed off the active
- *     view mode.
+ *     view mode (status / tag — folder view retired in life-tags S1).
  *   - i18n: useTranslation() here → a KanbanLabels object injected as props.
  *
- * K-DnD (folder/status views): drag a card between columns to mutate it.
- *   - status view: cross-column drop SETS the task status (setTaskStatus).
- *   - folder view: cross-column drop MOVES the task into the target folder
- *     (moveNodeInto); same-column drop onto another card reorders siblings.
+ * K-DnD (status view only): drag a card between status columns to SET the task
+ * status (setTaskStatus).
  *   - tag view: NOT draggable (reassigning a multi-tag card by drag is
  *     ambiguous) — the host renders the plain board there.
  *
- * K2: tag-by view (one column per tag + an "untagged" bucket) and
- * folder/tag color editing. The host resolves each task's tags from the
- * WikiTags context (getTagsForItem) and persists color changes via
- * updateNode (folder) / setTagColor (tag).
+ * K2: tag-by view (one column per tag + an "untagged" bucket) and tag color
+ * editing. The host resolves each task's tags from the WikiTags context
+ * (getTagsForItem) and persists color changes via setTagColor.
  *
  * K3: clicking a card opens the selected task in the right sidebar via
  * <RightSidebarPortal>, hosting the shared <TaskDetailPanel> + the web TipTap
@@ -78,7 +74,7 @@ import {
  *     pushed into the rightSidebar as always-present nav (wide entry auto-opens
  *     it), and the selected task's <TaskDetailPanel> + editor fills the centered
  *     max-w-800px main surface (nothing selected → the select-or-create empty
- *     state). Grouping (folder/status/tag) lives in the list's own switch.
+ *     state). Grouping (status / tag) lives in the list's own switch.
  *   - board: the full-width DnD board (below) is preserved verbatim — cards +
  *     @dnd-kit + card-click → detail in the rightSidebar.
  * The grouping axis (viewMode) is shared across both modes via the one
@@ -119,7 +115,7 @@ export function KanbanView({
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
   const [viewMode, setViewMode] = useState<KanbanViewMode>(() =>
-    readKanbanViewMode("folder"),
+    readKanbanViewMode("tag"),
   );
   const [layoutMode, setLayoutMode] = useState<TaskLayoutMode>(() =>
     readTaskLayoutMode(),
@@ -174,9 +170,9 @@ export function KanbanView({
     [tree],
   );
 
-  // Add-task / folder dialog (W-UX). The board had no create entry point; this
-  // small centered overlay creates a task (optionally inside a folder) or a
-  // root folder, then opens a new task straight into the detail modal.
+  // Add-task dialog (W-UX). The board had no create entry point; this small
+  // centered overlay creates a task, then opens it straight into the detail
+  // modal.
   //
   // The shell's global:new-task intent (pendingNewTask) opens this dialog on
   // the wide board (TaskAddDialog auto-focuses its title input and creates the
@@ -201,18 +197,11 @@ export function KanbanView({
     if (pendingNewTask) onConsumeNewTask?.();
   }, [pendingNewTask, onConsumeNewTask]);
 
-  const folderOptions = useMemo(
-    () =>
-      tree.nodes
-        .filter((n) => n.type === "folder" && !n.isDeleted)
-        .map((n) => ({ id: n.id, name: n.title || "(untitled)" })),
-    [tree.nodes],
-  );
   const handleAddSubmit = useCallback(
     (input: { type: TaskAddType; title: string; parentId: string | null }) => {
       const node = tree.addNode(input.type, input.parentId, input.title);
       setAddOpen(false);
-      if (input.type === "task") tree.setSelectedTaskId(node.id);
+      tree.setSelectedTaskId(node.id);
     },
     [tree],
   );
@@ -235,7 +224,6 @@ export function KanbanView({
 
   const labels = useMemo<KanbanLabels>(
     () => ({
-      viewFolder: t("kanban.viewFolder"),
       viewStatus: t("kanban.viewStatus"),
       viewTag: t("kanban.viewTag"),
       segmentedGroupLabel: t("kanban.segmentedGroupLabel"),
@@ -259,7 +247,6 @@ export function KanbanView({
   // materials.tasks.* catalog.
   const taskListLabels = useMemo<TaskListPanelLabels>(
     () => ({
-      viewFolder: t("kanban.viewFolder"),
       viewStatus: t("kanban.viewStatus"),
       viewTag: t("kanban.viewTag"),
       groupingGroupLabel: t("kanban.segmentedGroupLabel"),
@@ -306,55 +293,39 @@ export function KanbanView({
   // Build only the active view's columns.
   const columns = useMemo<KanbanColumnModel[]>(() => {
     switch (viewMode) {
-      case "folder":
-        return buildFolderColumns(
-          tree.nodes,
-          tagsByTask,
-          t("materials.tasks.unfiled"),
-        );
       case "status":
         return buildStatusColumns(tree.nodes, labels, tagsByTask);
       case "tag":
         return buildTagColumns(tree.nodes, tags, tagsByTask, labels);
     }
-  }, [viewMode, tree.nodes, labels, tags, tagsByTask, t]);
+  }, [viewMode, tree.nodes, labels, tags, tagsByTask]);
 
   // The three status columns for the Mobile list (cards already carry the
-  // folder pill + tags via the pure builder). Built regardless of the desktop
+  // tag chips via the pure builder). Built regardless of the desktop
   // viewMode so switching wide↔narrow needs no extra plumbing.
   const statusColumns = useMemo<KanbanColumnModel[]>(
     () => buildStatusColumns(tree.nodes, labels, tagsByTask),
     [tree.nodes, labels, tagsByTask],
   );
 
-  // Persist a folder / tag color change. The shared column reports its id;
-  // the host maps it back to a folder node (folder view) or a tag (tag view).
+  // Persist a tag column's color change. The shared column reports its id; the
+  // host maps it back to a tag (the tag view is the only color-editable view).
   const handleColorChange = useCallback(
     (columnId: string, color: string | null) => {
-      if (viewMode === "folder") {
-        tree.updateNode(columnId, { color: color ?? undefined });
-      } else if (viewMode === "tag") {
-        if (columnId === "tag-__none__") return;
-        const tagId = columnId.startsWith("tag-")
-          ? columnId.slice(4)
-          : columnId;
-        void setTagColor(tagId, color).catch(() => {
-          setMoveError("Failed to update tag color");
-        });
-      }
+      if (viewMode !== "tag") return;
+      if (columnId === "tag-__none__") return;
+      const tagId = columnId.startsWith("tag-") ? columnId.slice(4) : columnId;
+      void setTagColor(tagId, color).catch(() => {
+        setMoveError("Failed to update tag color");
+      });
     },
-    [viewMode, tree, setTagColor],
+    [viewMode, setTagColor],
   );
 
   const dnd = useKanbanDnd({
     viewMode,
     columns,
     setTaskStatus: tree.setTaskStatus,
-    moveNodeInto: tree.moveNodeInto,
-    moveToRoot: tree.moveToRoot,
-    moveNode: tree.moveNode,
-    onMoveRejected: (reason) =>
-      setMoveError(`Move rejected: ${reason.replace(/_/g, " ")}`),
   });
 
   // The card currently being dragged, for the DragOverlay ghost.
@@ -438,18 +409,11 @@ export function KanbanView({
         onSelectCard={handleSelectCard}
         onColorChange={handleColorChange}
         headerActions={boardHeaderActions}
-        renderColumn={({
-          column,
-          showFolderPill,
-          showTags,
-          showFolderAccent,
-        }) => (
+        renderColumn={({ column, showTags }) => (
           <KanbanColumnDroppable
             column={column}
             labels={labels}
-            showFolderPill={showFolderPill}
             showTags={showTags}
-            showFolderAccent={showFolderAccent}
             onSelectCard={handleSelectCard}
             onColorChange={handleColorChange}
           />
@@ -461,7 +425,6 @@ export function KanbanView({
                 <KanbanCard
                   card={activeCard}
                   labels={labels}
-                  showFolderPill={viewMode !== "folder"}
                   showTags={viewMode !== "tag"}
                   onSelect={() => undefined}
                 />
@@ -643,15 +606,10 @@ export function KanbanView({
           open={addOpen}
           onClose={() => setAddOpen(false)}
           onSubmit={handleAddSubmit}
-          folders={folderOptions}
           labels={{
             title: t("kanban.addDialogTitle"),
-            typeTask: t("kanban.addTypeTask"),
-            typeFolder: t("kanban.addTypeFolder"),
             titleLabel: t("kanban.addTitleLabel"),
             titlePlaceholder: t("kanban.addTitlePlaceholder"),
-            folderLabel: t("kanban.addFolderLabel"),
-            rootOption: t("kanban.addFolderRoot"),
             submit: t("kanban.addSubmit"),
             cancel: t("kanban.addCancel"),
           }}

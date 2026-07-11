@@ -1,5 +1,7 @@
 # 012: `/sync/changes` の LIMIT=500 + client hasMore 未処理で初回 pull が途切れる
 
+> ⚠️ **Tauri スタック retired 注記（2026-07-11 #197）**: 本文中の `src-tauri/` / `frontend/` / `@tauri-apps` 等のパス・コードは旧 Tauri スタック当時の記録。旧スタックは 2026-07-11 に削除済み（復元 = git tag `pre-tauri-removal`）。Root Cause 知見としてはそのまま有効。
+
 **Status**: Fixed（server 側 LIMIT 引き上げによる暫定対応をもって Fixed 確定・2026-07-08。恒久対応 = client pagination は #172 で追跡）
 **Category**: Bug / Sync
 **Severity**: Important

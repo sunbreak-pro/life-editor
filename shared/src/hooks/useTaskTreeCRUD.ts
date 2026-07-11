@@ -8,29 +8,12 @@ export interface AddNodeOptions {
   skipUndo?: boolean;
 }
 
-/**
- * Behaviour flags the Tauri version pulled from `localStorage`
- * (DEFAULT_TASK_FOLDER / AUTO_COMPLETE_PARENT). The shared hook is
- * host-agnostic, so the host injects these instead of the hook reaching
- * into a global (CLAUDE.md §6.4 — no direct platform access in shared
- * hooks). All optional; defaults match the Tauri "unset" behaviour.
- */
-export interface TaskTreeCRUDConfig {
-  /** Folder id new root-level tasks default into. */
-  defaultTaskFolderId?: string | null;
-  /** When true, a folder auto-completes once all its tasks are DONE. */
-  autoCompleteParent?: boolean;
-}
-
 export function useTaskTreeCRUD(
   nodes: TaskNode[],
   persistWithHistory: (currentNodes: TaskNode[], updated: TaskNode[]) => void,
   persistSilent: (updated: TaskNode[]) => void,
   generateId: (type: NodeType) => string,
-  config: TaskTreeCRUDConfig = {},
 ) {
-  const { defaultTaskFolderId = null, autoCompleteParent = false } = config;
-
   const addNode = useCallback(
     (
       type: NodeType,
@@ -38,18 +21,9 @@ export function useTaskTreeCRUD(
       title: string,
       options?: AddNodeOptions,
     ) => {
-      // Apply default folder if parentId is null and type is task
-      const resolvedParentId =
-        parentId === null && type === "task" ? defaultTaskFolderId : parentId;
-      // Verify the default folder exists
-      const effectiveParentId =
-        resolvedParentId &&
-        nodes.some(
-          (n) =>
-            n.id === resolvedParentId && n.type === "folder" && !n.isDeleted,
-        )
-          ? resolvedParentId
-          : parentId;
+      // life-tags S1 retired the default-folder behaviour (folders no longer
+      // group tasks); a new task keeps the caller's parent verbatim.
+      const effectiveParentId = parentId;
 
       const siblings = nodes.filter(
         (n) => !n.isDeleted && n.parentId === effectiveParentId,
@@ -92,7 +66,7 @@ export function useTaskTreeCRUD(
       }
       return newNode;
     },
-    [nodes, persistWithHistory, persistSilent, generateId, defaultTaskFolderId],
+    [nodes, persistWithHistory, persistSilent, generateId],
   );
 
   const updateNode = useCallback(
@@ -113,95 +87,29 @@ export function useTaskTreeCRUD(
     [nodes, persistSilent],
   );
 
-  /** Apply a status change with Complete-folder auto-management */
+  /**
+   * Apply a status change. Sets status + completedAt and re-sorts the task's
+   * siblings so DONE items sink below the incomplete ones. life-tags S1 retired
+   * the Complete-folder auto-management (folders no longer group tasks; status
+   * = DONE is the successor) — the task keeps its parent verbatim, so subtask
+   * hierarchy is untouched.
+   */
   const applyStatusChange = useCallback(
     (id: string, newStatus: TaskStatus) => {
       const target = nodes.find((n) => n.id === id);
       if (!target || target.type !== "task") return;
       if (target.status === newStatus) return;
 
-      const currentStatus = target.status ?? "NOT_STARTED";
-      let workingNodes = [...nodes];
-      let targetParentId = target.parentId;
-      let updatedTarget: TaskNode = {
+      const targetParentId = target.parentId;
+      const updatedTarget: TaskNode = {
         ...target,
         status: newStatus,
         completedAt:
           newStatus === "DONE" ? new Date().toISOString() : undefined,
       };
 
-      // --- Complete folder logic (only for tasks inside a folder) ---
-      if (newStatus === "DONE" && targetParentId !== null) {
-        // Find or create a Complete folder inside the parent
-        let completeFolder = workingNodes.find(
-          (n) =>
-            n.parentId === targetParentId &&
-            n.folderType === "complete" &&
-            !n.isDeleted,
-        );
-        if (!completeFolder) {
-          const parentSiblings = workingNodes.filter(
-            (n) => n.parentId === targetParentId && !n.isDeleted,
-          );
-          completeFolder = {
-            id: generateId("folder"),
-            type: "folder",
-            title: "Complete",
-            parentId: targetParentId,
-            order: parentSiblings.length,
-            status: "NOT_STARTED",
-            isExpanded: false,
-            folderType: "complete",
-            createdAt: new Date().toISOString(),
-          };
-          workingNodes = [...workingNodes, completeFolder];
-        }
-        // Move task into Complete folder
-        updatedTarget = {
-          ...updatedTarget,
-          originalParentId: targetParentId,
-          parentId: completeFolder.id,
-        };
-        targetParentId = completeFolder.id;
-      } else if (
-        currentStatus === "DONE" &&
-        newStatus !== "DONE" &&
-        target.parentId !== null
-      ) {
-        // Moving out of DONE: check if currently inside a Complete folder
-        const parentFolder = workingNodes.find((n) => n.id === target.parentId);
-        if (parentFolder?.folderType === "complete") {
-          const restoreParentId =
-            target.originalParentId ?? parentFolder.parentId;
-          updatedTarget = {
-            ...updatedTarget,
-            parentId: restoreParentId,
-            originalParentId: undefined,
-          };
-          targetParentId = restoreParentId;
-
-          // Check if Complete folder will be empty after this move
-          const remaining = workingNodes.filter(
-            (n) =>
-              n.parentId === parentFolder.id && !n.isDeleted && n.id !== id,
-          );
-          if (remaining.length === 0) {
-            // Auto-delete the empty Complete folder
-            workingNodes = workingNodes.map((n) =>
-              n.id === parentFolder.id
-                ? {
-                    ...n,
-                    isDeleted: true,
-                    deletedAt: new Date().toISOString(),
-                  }
-                : n,
-            );
-          }
-        }
-      }
-
-      // --- Reorder siblings in destination parent ---
-      const siblings = workingNodes
+      // --- Reorder siblings in the SAME parent (DONE sinks to the bottom) ---
+      const siblings = nodes
         .filter(
           (n) => !n.isDeleted && n.parentId === targetParentId && n.id !== id,
         )
@@ -218,7 +126,7 @@ export function useTaskTreeCRUD(
       const orderMap = new Map<string, number>();
       reordered.forEach((n, i) => orderMap.set(n.id, i));
 
-      let finalNodes = workingNodes.map((n) => {
+      const finalNodes = nodes.map((n) => {
         if (n.id === id)
           return {
             ...updatedTarget,
@@ -228,43 +136,9 @@ export function useTaskTreeCRUD(
         return n;
       });
 
-      // Auto-complete parent when all children are done
-      if (newStatus === "DONE" && autoCompleteParent) {
-        let currentParentId = target.parentId;
-        let depth = 0;
-        while (currentParentId && depth < 10) {
-          const parent = finalNodes.find((n) => n.id === currentParentId);
-          if (!parent || parent.type !== "folder" || parent.isDeleted) break;
-          if (parent.folderType === "complete") break;
-
-          const childTasks = finalNodes.filter(
-            (n) =>
-              n.parentId === currentParentId &&
-              n.type === "task" &&
-              !n.isDeleted,
-          );
-          const allDone =
-            childTasks.length > 0 &&
-            childTasks.every((n) => n.status === "DONE");
-          if (!allDone) break;
-
-          finalNodes = finalNodes.map((n) =>
-            n.id === currentParentId
-              ? {
-                  ...n,
-                  status: "DONE" as TaskStatus,
-                  completedAt: new Date().toISOString(),
-                }
-              : n,
-          );
-          currentParentId = parent.parentId;
-          depth++;
-        }
-      }
-
       persistWithHistory(nodes, finalNodes);
     },
-    [nodes, persistWithHistory, generateId, autoCompleteParent],
+    [nodes, persistWithHistory],
   );
 
   const toggleTaskStatus = useCallback(
@@ -291,62 +165,11 @@ export function useTaskTreeCRUD(
     [applyStatusChange],
   );
 
-  const completeFolderWithChildren = useCallback(
-    (folderId: string) => {
-      const now = new Date().toISOString();
-      const idsToComplete = new Set<string>();
-
-      const collectDescendants = (parentId: string) => {
-        idsToComplete.add(parentId);
-        for (const n of nodes) {
-          if (!n.isDeleted && n.parentId === parentId) {
-            if (n.type === "folder") {
-              collectDescendants(n.id);
-            } else {
-              idsToComplete.add(n.id);
-            }
-          }
-        }
-      };
-      collectDescendants(folderId);
-
-      persistWithHistory(
-        nodes,
-        nodes.map((n) =>
-          idsToComplete.has(n.id) && n.status !== "DONE"
-            ? { ...n, status: "DONE" as TaskStatus, completedAt: now }
-            : n,
-        ),
-      );
-    },
-    [nodes, persistWithHistory],
-  );
-
-  const uncompleteFolder = useCallback(
-    (folderId: string) => {
-      persistWithHistory(
-        nodes,
-        nodes.map((n) =>
-          n.id === folderId
-            ? {
-                ...n,
-                status: "NOT_STARTED" as TaskStatus,
-                completedAt: undefined,
-              }
-            : n,
-        ),
-      );
-    },
-    [nodes, persistWithHistory],
-  );
-
   return {
     addNode,
     updateNode,
     toggleExpanded,
     toggleTaskStatus,
     setTaskStatus,
-    completeFolderWithChildren,
-    uncompleteFolder,
   };
 }

@@ -25,7 +25,7 @@
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
-- **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`（旧 `frontend/src/services/` は FROZEN）。バックエンドが替わってもこの境界は不変
+- **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`（旧 `frontend/` は 2026-07-11 削除 #197・復元 = git tag `pre-tauri-removal`）。バックエンドが替わってもこの境界は不変
 - **3.2 Section Routing**: React Router なし。`web/src/MainScreen.tsx` の section state で切替（旧 frontend は `App.tsx::activeSection`）。セクション定義（`SectionId`・nav 順・グループ・アイコン・mobile 順）は **`shared/src/sections.ts` の registry が SSOT**（`types/taskTree.ts::SectionId` は registry 派生の再 export・一覧はコードが正）。旧 `terminal` セクションは SectionId / nav / i18n から除去済み（#146・退役の経緯 → §8）
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
 - **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
@@ -49,7 +49,7 @@
 
 - **詳細規約 = [`.claude/rules/frontend.md`](./rules/frontend.md)**（path-scoped: `frontend/src/**` / `shared/src/**` を扱う時のみ自動ロード）: Provider 順序 / Pattern A / 配置表 / デザイン規約 / IME 等の gotcha
 - 不変式の要約: `lumen-*` トークン必須（色ハードコード禁止）/ i18n は props 経由・en / ja 両 catalog / DataService はコールバック注入 / 主要 UI 背景に透明度禁止
-- **新規 UI は `shared/src/components/` に集約**（`frontend/` は FROZEN — W0 案 A → `docs/vision/coding-principles.md §6`）
+- **新規 UI は `shared/src/components/` に集約**（W0 案 A → `docs/vision/coding-principles.md §6`。旧 `frontend/` は 2026-07-11 削除済み #197）
 - **Web/Mobile UI デザインの追跡正本 = ClaudeDesign fan-out 計画書**（[`docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`](./docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md)）。旧 W-parity ロードマップ（#121/#127）は完了・`archive/` 済でこれに一本化
 
 ## 7. Development Workflows
@@ -62,6 +62,7 @@
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
 | 実装タスク全体の采配 | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン） |
 | 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断） |
+| 課題の起票・worktree への分配 | `issue-dispatch` スキル（chat-main 専用。起票は chat-main に一元化・宛先はラベル — §9。旧 parallel-orchestrator と orders .md fan-out は 2026-07-11 retire・本スキルに吸収） |
 | 要件分解 / 実装 / 独立監査 | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止） |
 | セッション開始/中断/終了 | `session-loader` / `task-tracker` / `session-verifier` |
 | 品質ゲート | `session-verifier`（commit 前） |
@@ -75,7 +76,7 @@
 
 ### 7.1 開発コマンド
 
-> 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は FROZEN（実行しない）。
+> 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み（2026-07-11 #197）。
 
 ```bash
 cd shared && npm run test       # vitest（本体ロジック / mapper）
@@ -104,7 +105,7 @@ cd web && npm run dev           # ローカル起動（vite）
 - **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
 - **Orca ADE 利用時の例外処理**: Orca の GUI worktree 作成は `.session-branch` / `.session-name` を書かないため hook が無音スキップする。Orca で作った worktree は Claude 起動前に `echo <branch> > .claude/comm/.session-branch`（必要なら `.session-name` も）を手動で書くか、Orca 内蔵ターミナルで上記 4 ステップを踏むこと。メインリポジトリは Orca から開いてもブランチ切替しない（`main` 専有を維持）
 - **playwright MCP（実ブラウザ検証）と進捗確認用 dev server は chat-main（メインリポジトリ）のみで起動する**（2026-07-11 ユーザー決定）: 複数 worktree で localhost を重複起動するとポートずれで「どの画面がどの変更か」の確認が壊れるため。各 worktree チャットは build / 型検証（+ vitest）まで — 実ブラウザでの表示確認は PR merge 後に chat-main 側で実測する
-- **計画書はオーケストレーター（chat-main）が作成する**（2026-07-11 ユーザー決定）: 実装計画・fan-out orders は main で起動した Claude が一元作成する（commit / PR は main 直 push 禁止のため一時 worktree 経由 — push 後即削除）。fan-out 計画書は **worktree 分担表**を必ず持ち、各 worktree へは 1 行 boot「計画書 `<path>` を把握し、自身の worktree 名と一致している部分を実装すること」だけを渡す（テンプレート = [`_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) §Worktree 分担）
+- **課題分配は GitHub Issue 駆動・起票は chat-main に一元化する**（2026-07-11 ユーザー決定 — 同日運用の orders .md 台帳 fan-out と worktree 自己起票を SUPERSEDE）: chat-main が課題を worktree 関係なくラベル付きで Issue 起票し（手順 = `issue-dispatch` スキル）、各 worktree は自分宛 open Issue をタスクキューとして実行 → close まで担う（§9）。大型の仕様詳細は従来どおり plans/ 計画書として chat-main が一元作成する（commit / PR は main 直 push 禁止のため一時 worktree 経由 — push 後即削除）が、**作業分配・進捗追跡の台帳 .md（orders 等）は新規作成しない**（テンプレート = [`_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) §Worktree 分担は Issue 参照型）
 - **worktree は作業開始前に main との差分を取り込む**（2026-07-11 ユーザー決定）: セッション開始時・着手前に **(1)** `git pull --ff-only`（自ブランチの origin 追従・履歴が割れていたら停止）→ **(2)** `git fetch origin && git merge origin/main --no-edit`（main の差分取り込み）の 2 段階。feature ブランチでは (2) を `pull --ff-only` で代替できない（fast-forward 不成立で必ず失敗する）。コンフリクトは細心の注意で手動解消 — 判断に迷う衝突は自動解消せず停止して chat-main / ユーザーに報告。chat-main（main ブランチ）だけは `git pull --ff-only` のみで良い
 - 既知制約（npm install / .tsbuildinfo 非共有・二重 checkout 不可）・prune 手順 → [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
 
@@ -120,9 +121,9 @@ cd web && npm run dev           # ローカル起動（vite）
 - **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 `memory/INDEX.md` / `history/INDEX.md` は **git 非追跡の派生ビュー**（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
 - **実装プラン**: `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動。Status 語彙は enum のみ: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)。移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。ADR は作らない（理由 → `docs/vision/coding-principles.md` 冒頭）
 - **Known Issue / 課題管理（2026-07-04〜）**: 追跡の正 = **GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor` で読み書き・種別 = label `type:*`）。新規バグは Issue で起票（`.github/ISSUE_TEMPLATE/known-issue.yml`）。`docs/known-issues/` は Fixed の凍結アーカイブ ＋ 環境系知見（Issue 化対象外 — 例 026/028）の管理台帳。**類似バグは `gh issue list --search` + INDEX.md grep の両輪**。計画書 .md 更新時は対応 Issue の DoD も更新（.md=詳細 / Issue=追跡）
-- **worktree 担当ルーティング（2026-07-10〜）**: セクション単位の Issue には `section:<id>` ラベルを付与（`<id>` は `shared/src/sections.ts` の SectionId と一致。trash は担当 worktree がないため運用外）。各セクション worktree は `gh issue list -R sunbreak-pro/life-editor --label section:<id>` で自分の担当タスクを判断する。セクションに紐づかない横断タスク（app-integration / layout-standard / docs-workspace 等のレーン）は `shared-fix` ラベルに集約（運用詳細 → `comm/README.md` §Shared-fix ルート）。ラベル一覧の正本は GitHub（`gh label list`）
+- **worktree 担当ルーティング（2026-07-10〜）**: セクション単位の Issue には `section:<id>` ラベルを付与（`<id>` は `shared/src/sections.ts` の SectionId と一致。trash は担当 worktree がないため chat-main 采配）。各セクション worktree は `gh issue list -R sunbreak-pro/life-editor --label section:<id>` で自分の担当タスクを判断する。セクションに紐づかない横断タスク（app-integration / layout-standard / docs-workspace 等のレーン）は `shared-fix` ラベルに集約（運用詳細 → `comm/README.md` §Issue dispatch ルート）。ラベル一覧の正本は GitHub（`gh label list`）
 - **GitHub Issues のスコープ境界**: Issue はプロダクト課題（life-editor のコードを直せば直るもの）専用。**Claude Code の作業環境・hook・ツール挙動に関する知見は Issue 化せず `docs/known-issues/` + `rules/` で管理する**。判定 = 「life-editor のコードを直せば直るか？」— No なら環境系として Issue 化しない（例: cwd 漂流 028 / formatter 挙動 026）
 - **並行チャット通信**: `.claude/comm/`（自分の Outbox にのみ append → [`comm/README.md`](./comm/README.md)）
-- **worktree 横断の共有修正タスク（2026-07-10〜）**: 正本 = GitHub Issues の label **`shared-fix`**（宛先 = タイトル prefix `[<worktree-slug>]` / `[all]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（運用詳細 → [`comm/README.md`](./comm/README.md) §Shared-fix ルート）
-- **セクション固有の修正指示・起票は各 worktree チャットが実行する（2026-07-11〜）**: 細かい UI 修正やセクション内バグはユーザーが当該 worktree チャットへ**直接指示**する。指示を受けたチャットは**着手前に自分で Issue を起票**（`gh issue create` — `section:<id>` + `type:*` ラベル）し、Issue 駆動で実装 → close まで担う。オーケストレーター（chat-main）は横断仕様・計画書・shared-fix の采配のみ（§7.4）
+- **worktree 横断の共有修正タスク（2026-07-10〜）**: 正本 = GitHub Issues の label **`shared-fix`**（宛先 = タイトル prefix `[<worktree-slug>]` / `[all]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（運用詳細 → [`comm/README.md`](./comm/README.md) §Issue dispatch ルート）
+- **Issue 起票は chat-main に一元化する（2026-07-11 (2) ユーザー決定 — 同日の worktree 自己起票運用を SUPERSEDE）**: 課題の起票はすべて chat-main が `issue-dispatch` スキルで行う（重複チェック → ラベル routing → DoD 付き body）。ユーザーが worktree チャットへ直接指示した場合、実装は即着手してよいが、そのチャットは自分で起票せず**自分の outbox に起票依頼を append** する（chat-main が拾って起票）。各 worktree はセッション開始時と作業の区切りに自分宛 open Issue（`section:<id>` + `shared-fix`）を確認して実行 → close まで担う
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）

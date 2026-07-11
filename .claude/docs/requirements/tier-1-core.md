@@ -5,7 +5,7 @@
 
 **Tier 1 機能数**: 8（暫定、Phase B-1 で確定。うち Terminal は 2026-07-05 RETIRED / Database は凍結 → 実効稼働は CLAUDE.md §8 の 6。本文は履歴として全 8 件を保持）
 
-> ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` は FROZEN・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
+> ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` + `src-tauri/` は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 
 > ⚠️ **旧構成の歴史参照注記 (2026-07-07 consistency-cleanup)**: 本ファイル中の `.claude/archive/adr/` / `.claude/docs/adr/` / `.claude/archive/dropped/` などのパス参照は旧ディレクトリ構成時点のもので、現存しないパスを含む（ADR は作らない方針へ移行済 → `docs/vision/coding-principles.md §5`）。個別リンクは追わず歴史参照として残す。
 

@@ -81,11 +81,7 @@ import type {
  * - "notes":    notes rows
  */
 export type CalendarDataKind =
-  | "tasks"
-  | "events"
-  | "routines"
-  | "dailies"
-  | "notes";
+  "tasks" | "events" | "routines" | "dailies" | "notes";
 
 export interface BulkSoftDeleteResult {
   tasks: number;
@@ -214,11 +210,11 @@ export interface DataService {
   createCalendar(
     id: string,
     title: string,
-    folderId: string,
+    tagId: string,
   ): Promise<CalendarNode>;
   updateCalendar(
     id: string,
-    updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
+    updates: Partial<Pick<CalendarNode, "title" | "tagId" | "order">>,
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
 
@@ -283,6 +279,7 @@ export interface DataService {
     noteId?: string,
     isAllDay?: boolean,
     content?: string,
+    memo?: string,
   ): Promise<ScheduleItem>;
   updateScheduleItem(
     id: string,

@@ -6,7 +6,12 @@
  * only ever mounts <AnalyticsView> and feeds it data + labels (§6.4).
  * The global components/index.ts re-exports this with `export *`.
  */
-export { AnalyticsView, type AnalyticsViewProps } from "./AnalyticsView";
+export {
+  AnalyticsView,
+  ANALYTICS_TAB_ORDER,
+  type AnalyticsViewProps,
+  type AnalyticsTab,
+} from "./AnalyticsView";
 export type { AnalyticsLabels } from "./labels";
 // The date-range shape the host receives via onScheduleRangeChange (per-range
 // fetch). The AnalyticsFilterContext itself stays internal; only this type

@@ -8,15 +8,14 @@ import {
 
 /*
  * Target-IA TrashView behaviors (ClaudeDesign import 2026-07-05): empty
- * categories collapse, header/count badges, confirm-dialog cascade warning,
- * row-level busy, and the wide↔narrow confirm chrome (Modal vs BottomSheet).
- * The basic restore/confirm-delete flows stay in components.test.tsx.
+ * categories collapse, per-category count badges, confirm-dialog cascade
+ * warning, row-level busy, and the wide↔narrow confirm chrome (Modal vs
+ * BottomSheet). Layout Standard v2: the shell SectionHeader owns the title,
+ * so the view renders no in-body heading. The basic restore/confirm-delete
+ * flows stay in components.test.tsx.
  */
 
 const LABELS: TrashViewLabels = {
-  title: "Trash",
-  description: "Deleted items can be restored from here.",
-  totalCount: "{count} total",
   empty: "Trash is empty",
   emptyDescription: "Deleted items will appear here.",
   restore: "Restore",
@@ -85,17 +84,14 @@ describe("TrashView — target IA", () => {
     expect(screen.queryByRole("region", { name: "Notes" })).toBeNull();
   });
 
-  it("shows the header description, total count and per-category badges", () => {
+  it("renders no in-body heading (v2: the shell owns the title) and shows per-category badges", () => {
     renderView();
-    expect(
-      screen.getByText("Deleted items can be restored from here."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("3 total")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     const tasks = screen.getByRole("region", { name: "Tasks" });
     expect(within(tasks).getByText("2")).toBeInTheDocument();
   });
 
-  it("shows the global empty state without a total count", () => {
+  it("shows the global empty state", () => {
     renderView({
       groups: [
         { category: "tasks", title: "Tasks", items: [] },
@@ -106,7 +102,6 @@ describe("TrashView — target IA", () => {
     expect(
       screen.getByText("Deleted items will appear here."),
     ).toBeInTheDocument();
-    expect(screen.queryByText("0 total")).toBeNull();
   });
 
   it("confirms in a Modal on wide screens with cancel first and the cascade warning", () => {
