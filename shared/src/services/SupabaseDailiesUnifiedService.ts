@@ -11,6 +11,7 @@ import {
   type DailiesPayloadRow,
 } from "./dailiesUnifiedMapper";
 import type { DailyNode } from "../types/daily";
+import { hashPassword, verifyPassword } from "../utils/passwordHash";
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -335,33 +336,31 @@ export class SupabaseDailiesUnifiedService {
   }
 
   // -------------------------------------------------------------------------
-  // Password gate (DU-G G2)
+  // Password gate (DU-G G2 / hardened for Issue #118)
   //
-  // SECURITY DEBT (carried from legacy / Notes G1 parity): the
-  // `password_hash` column stores PLAINTEXT (bcrypt / argon2 not applied).
-  // The DAILIES_PAYLOAD_COLUMNS SELECT list deliberately omits
+  // password_hash now stores a PBKDF2-HMAC-SHA256 derivation
+  // (`pbkdf2$v1$...`, see utils/passwordHash.ts), NOT plaintext. Legacy
+  // plaintext rows (pre-#118, old known-issues 027) are still accepted by
+  // verify and lazily rehashed into PBKDF2 form on the next successful
+  // unlock. The DAILIES_PAYLOAD_COLUMNS SELECT list still omits
   // `password_hash`, so the raw value never crosses the public SELECT path;
   // only verifyDailyPasswordUnified projects the single column. RLS scopes
   // every read to auth.uid()'s rows. `has_password` is the generated stored
-  // boolean projected back to the client.
-  //
-  // Tracking: docs/known-issues/027 (Notes/Daily password plaintext debt).
-  // Must be replaced with a real hash before the N>1 Cloud Sync expansion.
+  // boolean projected back to the client (true for a hash string as well).
   // -------------------------------------------------------------------------
 
   /**
-   * Write password_hash into dailies_payload. DailyNode round-trip done via
-   * id-based re-read so the GENERATED `has_password` column reflects on the
-   * returned domain object. Bumps items_meta.updated_at + version so Sync
-   * LWW propagates.
-   *
-   * SECURITY DEBT: plaintext storage. See known-issues 027.
+   * Hash `password` (PBKDF2, Issue #118) and write it into dailies_payload.
+   * DailyNode round-trip done via id-based re-read so the GENERATED
+   * `has_password` column reflects on the returned domain object. Bumps
+   * items_meta.updated_at + version so Sync LWW propagates.
    */
   async setDailyPasswordUnified(
     id: string,
     password: string,
   ): Promise<DailyNode> {
     assertDailyId(id);
+    const passwordHash = await hashPassword(password);
     const now = new Date().toISOString();
     const nextVersion = await this.nextVersion(id, "setDailyPasswordUnified");
 
@@ -377,7 +376,7 @@ export class SupabaseDailiesUnifiedService {
 
     const { error: payErr } = await this.client
       .from("dailies_payload")
-      .update({ password_hash: password })
+      .update({ password_hash: passwordHash })
       .eq("item_id", id);
     if (payErr)
       throw new Error(
@@ -390,8 +389,8 @@ export class SupabaseDailiesUnifiedService {
   /**
    * Verify-then-clear. A wrong currentPassword must NOT mutate the row, so
    * verify is the first step and rejects on mismatch (Notes G1 parity).
-   *
-   * SECURITY DEBT: plaintext eq. See known-issues 027.
+   * Verify hashes via PBKDF2 (Issue #118); a legacy plaintext match is
+   * lazily rehashed inside verify before the row is cleared here.
    */
   async removeDailyPasswordUnified(
     id: string,
@@ -430,11 +429,16 @@ export class SupabaseDailiesUnifiedService {
   }
 
   /**
-   * Plaintext equality. SELECTs password_hash from dailies_payload (RLS
-   * scopes to auth.uid()'s rows). Returns `false` when no hash is set OR
-   * the row does not exist (maybeSingle -> null).
+   * Verify `password` against the stored PBKDF2 hash (Issue #118). SELECTs
+   * password_hash from dailies_payload (RLS scopes to auth.uid()'s rows).
+   * Returns `false` when no hash is set OR the row does not exist
+   * (maybeSingle -> null). A legacy plaintext row that matches is lazily
+   * rehashed into PBKDF2 form (best-effort — see lazyRehashDailyPassword).
    *
-   * SECURITY DEBT: plaintext eq. See known-issues 027.
+   * DEBT status: the plaintext-at-rest debt (old known-issues 027) is
+   * RESOLVED. The RPC debt REMAINS — ideally a `security invoker` RPC so the
+   * hash never leaves Postgres; today the SELECT list only keeps it off the
+   * public read path (defence in depth, not a substitute).
    */
   async verifyDailyPasswordUnified(
     id: string,
@@ -447,9 +451,51 @@ export class SupabaseDailiesUnifiedService {
       .maybeSingle();
     if (error)
       throw new Error(`verifyDailyPasswordUnified failed: ${error.message}`);
-    const hash = (data as { password_hash: string | null } | null)
+    const stored = (data as { password_hash: string | null } | null)
       ?.password_hash;
-    return hash != null && hash === password;
+    if (stored == null) return false;
+
+    const { ok, needsRehash } = await verifyPassword(password, stored);
+    if (ok && needsRehash) await this.lazyRehashDailyPassword(id, password);
+    return ok;
+  }
+
+  /**
+   * Migrate a legacy plaintext password to PBKDF2 form (Issue #118) after a
+   * successful verify.
+   *
+   * DELIBERATE DB-Q2 EXCEPTION — payload-only UPDATE, NO items_meta bump:
+   * password_hash sits outside every `*_PAYLOAD_COLUMNS` SELECT shape, so it
+   * is absent from the sync surface, and verify always re-reads the single
+   * column straight from the cloud row (no client cache). LWW propagation is
+   * therefore unnecessary, and bumping updated_at would be harmful (a mere
+   * unlock would reorder updated_at DESC views). A payload-only write is also
+   * atomic. has_password stays true throughout (plaintext -> hash non-null).
+   *
+   * Best-effort: a write failure is swallowed so it never changes the verify
+   * result; the next successful unlock retries the migration.
+   */
+  private async lazyRehashDailyPassword(
+    id: string,
+    password: string,
+  ): Promise<void> {
+    try {
+      const passwordHash = await hashPassword(password);
+      const { error: payErr } = await this.client
+        .from("dailies_payload")
+        .update({ password_hash: passwordHash })
+        .eq("item_id", id);
+      if (payErr)
+        throw new Error(
+          `lazyRehashDailyPassword payload failed: ${payErr.message}`,
+        );
+    } catch (err) {
+      // Swallow (but log): rehash is opportunistic. The verify already
+      // succeeded and the plaintext still verifies next time, so a failed
+      // migration simply retries on the next unlock. The warn keeps a
+      // chronically failing migration observable.
+      console.warn(`lazyRehashDailyPassword(${id}) failed:`, err);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -531,8 +577,7 @@ export class SupabaseDailiesUnifiedService {
       .maybeSingle();
     if (payErr)
       throw new Error(`${label} re-read payload failed: ${payErr.message}`);
-    if (!payload)
-      throw new Error(`${label}: payload vanished (id="${id}")`);
+    if (!payload) throw new Error(`${label}: payload vanished (id="${id}")`);
 
     return rowsToDailyNode(
       meta as unknown as ItemsMetaDailyRow,

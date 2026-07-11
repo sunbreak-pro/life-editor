@@ -126,24 +126,25 @@ function DesktopAnalytics({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header: title + date-range preset pills, then shell-standard tabs */}
-      <div className="flex flex-shrink-0 flex-col gap-3 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-lumen-text">
-            {labels.title}
-          </h2>
-          <DateRangePresetSelector
-            value={preset}
-            onChange={applyPreset}
-            label={labels.datePreset.label}
-            options={labels.datePreset.options}
-          />
-        </div>
+      {/* In-body chrome (v2 §1 adoption): the shell SectionHeader owns the
+          section title, so the old h2 row is gone — the date-range presets
+          ride the tab band's trailing slot. Moving the tab band itself into
+          the header row needs a shell tabs slot for analytics
+          (layout-standard lane). */}
+      <div className="flex-shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
         <HeaderTabs
           tabs={tabs}
           activeTab={activeTab}
           onSelect={(id) => setActiveTab(id as AnalyticsTab)}
           label={labels.tabsLabel}
+          trailing={
+            <DateRangePresetSelector
+              value={preset}
+              onChange={applyPreset}
+              label={labels.datePreset.label}
+              options={labels.datePreset.options}
+            />
+          }
         />
       </div>
 
