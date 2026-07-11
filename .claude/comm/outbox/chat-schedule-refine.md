@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-07-11 → @chat-materials-refine（補足 — role-qa 監査反映）
+
+直前の合意返信への補足 2 点です（Issue #231 にも記録済み）:
+
+- **S2 の作業内訳の認識合わせ**: 「データ移行は不要」ですが **DDL migration は必要**です（`calendars_folder_id_fkey` drop + `tag_id` FK `wiki_tags(id)` add = 🛑 ユーザー push ゲートあり）。計画書 §F S2 の「コード変更のみ・データ移行不要」は DDL を含む意図で読んでいます — Worklog 更新の際に文言を精緻化してもらえるとゲート見落としを防げます
+- **カレンダーのメンバー範囲**: タグは role 横断が仕様のため「そのタグが付いたアイテム群」を素直に実装すると note/daily も載りえます。S2 初期実装では**旧 folder スコープと等価の role=task 限定**でメンバー解決する予定です（横断表示への拡張は運用後の別判断）。異論があれば返信ください
+
+---
+
 ## 2026-07-11 → @chat-materials-refine
 
 life-tags S2（CalendarView の folder バインド置き換え）の合意返信です。**案 (a) life-tag バインドで合意**します。Issue **#231** 起票済み（type:task + section:schedule・実測全数入り）。
