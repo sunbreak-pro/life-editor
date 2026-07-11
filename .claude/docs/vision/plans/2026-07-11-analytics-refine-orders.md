@@ -61,5 +61,5 @@ web/src/**                           ← analytics 配線部分のみ
 
 ## Worklog
 
+- 2026-07-11 (chat-analytics-refine, v2 adoption 第 1 便): #196（v2 共通部品）merge を確認しゲート解除 → in-scope 分を実施。**AnalyticsView の内部 h2 タイトル行を撤去**（shell SectionHeader の「分析」と二重だった過渡事象 — #196 既知リスト記載分）。期間セレクタは HeaderTabs の `trailing` スロットへ移設し 1 行化。**残タスク（shell 協調が必要・outbox で layout-standard へ提案済み）**: (a) タブ帯の SectionHeader 統合（v2 §1 の tab-band-as-title。MainScreen のタブ state lift が必要 — materials 方式）/ (b) narrow 時の二重 gutter・二重スクロール（PageContainer reading × AnalyticsView 内部 chrome の重なり。wide→data variant 化 + 内部 chrome 撤去の協調パスを提案）。**runtime 検証は chat-main へ依頼**（playwright 起動は chat-main のみの 2026-07-11 決定に従う）。v2 adoption Issue は未起票（起票され次第 analytics 行を追随）。パネル中身はプレースホルダー継続（候補メモ = タグ別・期間別集計フィルタ）
 - 2026-07-11 (chat-analytics-refine): main 取り込み（#180 反映）→ #182 実測。**構造 DoD は PASS**（Today カード実測 324.33px = 1000px カラム有効。clamp 残存なら 248px のはず）。ただし **ja の値文字列（分を含む 6 文字以上・例「2時間30分」）が 86.4px セルに対し約 90px 必要で 2 行に折返し** — #182 の cramped 症状は desktop ja で未解消と判定（en / mobile は 1 行 OK）。実測手法: 認証ゲート（AuthCard）で通常の playwright 巡回が不可のため、vite dev の実 TSX を dynamic import + 実 CSS 上で mount する component-graph 計測（スクリプト = セッション scratchpad `harness.mjs` / raw = `result.json`）。追修正: TodayDashboard の入れ子 3 列 grid を廃し、隣接 WeeklySummary と同一の縦積み SummaryRow（ラベル左・値右）へ統一（`SummaryRow.tsx` に共通化・Issue #182 修正方向 2 の委任範囲）。テスト直接参照なし。
-
