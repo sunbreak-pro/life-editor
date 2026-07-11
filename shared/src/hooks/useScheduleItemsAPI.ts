@@ -146,7 +146,12 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
       title: string,
       startTime: string,
       endTime: string,
-      opts?: { isAllDay?: boolean; content?: string; noteId?: string },
+      opts?: {
+        isAllDay?: boolean;
+        content?: string;
+        noteId?: string;
+        memo?: string;
+      },
     ): string => {
       const id = generateId("schedule");
       const now = new Date().toISOString();
@@ -160,7 +165,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         completedAt: null,
         routineId: null,
         templateId: null,
-        memo: null,
+        memo: opts?.memo ?? null,
         noteId: opts?.noteId ?? null,
         content: opts?.content ?? null,
         isDeleted: false,
@@ -188,6 +193,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         opts?.noteId,
         opts?.isAllDay,
         opts?.content,
+        opts?.memo,
       )
         .then((saved) => {
           if (isSameDate(saved, date)) {
