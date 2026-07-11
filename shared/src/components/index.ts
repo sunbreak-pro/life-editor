@@ -158,11 +158,26 @@ export {
   type SettingsShortcutsLabels,
   type ShortcutRow,
 } from "./SettingsShortcuts";
+// Settings §216 (lightweight prefs) — General (startup section), Reset (clear
+// local prefs), and the reusable labeled 3-way Segment. Pure presentation,
+// lumen-* tokens, props-injected copy (§3.1 / §6.4).
+export {
+  SettingsGeneral,
+  type SettingsGeneralProps,
+  type SettingsGeneralOption,
+} from "./SettingsGeneral";
+export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
+export {
+  SettingsSegment,
+  type SettingsSegmentProps,
+  type SettingsSegmentOption,
+} from "./SettingsSegment";
 // Settings building blocks (ClaudeDesign port). Pure presentation, lumen-*
 // tokens, props-injected copy (§3.1 / §6.4).
 export {
   ThemePreviewCard,
   type ThemePreviewCardProps,
+  type ThemePreview,
 } from "./ThemePreviewCard";
 export { SteppedSlider, type SteppedSliderProps } from "./SteppedSlider";
 export {

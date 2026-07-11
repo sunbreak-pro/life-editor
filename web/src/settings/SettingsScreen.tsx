@@ -3,12 +3,17 @@ import {
   SettingsAppearance,
   SettingsLanguage,
   SettingsShortcuts,
+  SettingsGeneral,
+  SettingsReset,
   SettingsDetailPanel,
   RightSidebarPortal,
   DEFAULT_SHORTCUTS,
+  MAIN_SECTIONS,
   fontSizeToPx,
   useThemeContext,
   useShortcutConfig,
+  useStartupSectionPref,
+  resetLocalPreferences,
   useMediaQuery,
   useTranslation,
   type ShortcutRow,
@@ -18,22 +23,36 @@ import {
 } from "@life-editor/shared";
 
 /*
- * Settings screen (W1, web host — redesigned). Single column of Appearance /
- * Language / Shortcuts cards (opaque, immediate-apply, no save button). The
- * section title now lives in the shell's standard SectionHeader (Layout
- * Standard v2, #209 adoption) — this screen renders NO in-body header. Width +
- * gutter + scroll are owned by the PageContainer wrapper in MainScreen. This is
- * the HOST side: it owns the hooks (useThemeContext / useShortcutConfig /
- * useTranslation / media query) and injects values + setters + already-
+ * Settings screen (W1, web host — redesigned; §216 lightweight prefs). Single
+ * column of Appearance / General / Language / Shortcuts / Reset cards (opaque,
+ * immediate-apply, no save button). The section title lives in the shell's
+ * standard SectionHeader (Layout Standard v2, #209). Width + gutter + scroll
+ * are owned by the PageContainer wrapper in MainScreen. This is the HOST side:
+ * it owns the hooks (useThemeContext / useShortcutConfig / useStartupSectionPref
+ * / useTranslation / media query) and injects values + setters + already-
  * translated copy into the shared PURE primitives (CLAUDE.md §6.4). The
  * Shortcuts card is Desktop-only (ShortcutConfig is a Mobile 省略 Provider —
- * §2). A live appearance preview + tips are pushed into the shared detail panel
- * via RightSidebarPortal.
+ * §2). The Reset card owns the destructive confirm + clear-and-reload (kept out
+ * of the pure primitive). A live appearance preview + tips are pushed into the
+ * shared detail panel via RightSidebarPortal.
  */
 export function SettingsScreen() {
   const { t } = useTranslation();
-  const { theme, fontSize, language, setTheme, setFontSize, setLanguage } =
-    useThemeContext();
+  const {
+    theme,
+    themeMode,
+    fontSize,
+    fontFamily,
+    reduceMotion,
+    language,
+    setThemeMode,
+    setFontSize,
+    setFontFamily,
+    setReduceMotion,
+    setLanguage,
+  } = useThemeContext();
+  const { pref: startupPref, setPref: setStartupPref } =
+    useStartupSectionPref();
   const isWide = useMediaQuery("(min-width: 768px)");
 
   // Optional (Mobile 省略 Provider). On web the Provider is always mounted, so
@@ -46,8 +65,29 @@ export function SettingsScreen() {
     step: fontSize,
     max: 10,
   });
+  // Detail-summary theme label reflects the CHOICE (system shows "System",
+  // otherwise the resolved light/dark). `theme` (resolved) still drives the
+  // preview surface itself.
   const themeLabel =
-    theme === "light" ? t("settings.light") : t("settings.dark");
+    themeMode === "system"
+      ? t("settings.themeSystem")
+      : theme === "light"
+        ? t("settings.light")
+        : t("settings.dark");
+
+  // Startup options: the "resume" entry first, then the mainline content
+  // sections only (MAIN_SECTIONS — utility sections trash/settings are not
+  // sensible landing screens). All resolved to translated copy here (§6.4).
+  const startupOptions = useMemo(
+    () => [
+      { value: "last", label: t("settings.startup.lastVisited") },
+      ...MAIN_SECTIONS.map((s) => ({
+        value: s.id,
+        label: t(s.labelKey, { defaultValue: s.id }),
+      })),
+    ],
+    [t],
+  );
 
   const rows: ShortcutRow[] = useMemo(() => {
     if (!shortcuts) return [];
@@ -74,6 +114,17 @@ export function SettingsScreen() {
     global: t("settings.shortcuts.categories.global"),
     navigation: t("settings.shortcuts.categories.navigation"),
     edit: t("settings.shortcuts.categories.edit"),
+  };
+
+  // Reset preferences — the host owns the destructive confirm + clear-and-
+  // reload (the pure SettingsReset primitive only raises onReset). window.confirm
+  // is the app's existing lightweight confirm affordance for a one-shot
+  // destructive action; resetLocalPreferences() then clears the app's
+  // localStorage namespace and reloads.
+  const handleReset = () => {
+    if (window.confirm(t("settings.reset.confirm"))) {
+      resetLocalPreferences();
+    }
   };
 
   const detailTasks = [
@@ -104,21 +155,49 @@ export function SettingsScreen() {
     <div className="flex flex-col gap-6 pb-12">
       <div className={cardClass}>
         <SettingsAppearance
-          theme={theme}
+          themeMode={themeMode}
           fontSize={fontSize}
-          onThemeChange={setTheme}
+          fontFamily={fontFamily}
+          reduceMotion={reduceMotion}
+          onThemeModeChange={setThemeMode}
           onFontSizeChange={setFontSize}
+          onFontFamilyChange={setFontFamily}
+          onReduceMotionChange={setReduceMotion}
           touch={!isWide}
           labels={{
             heading: t("settings.appearance"),
             theme: t("settings.theme"),
             light: t("settings.light"),
             dark: t("settings.dark"),
+            system: t("settings.themeSystem"),
             fontSize: t("settings.fontSize"),
             fontSizeValue,
             fontSizeSmall: t("settings.fontSizeSmall"),
             fontSizeLarge: t("settings.fontSizeLarge"),
             previewText: t("settings.previewText"),
+            fontFamily: t("settings.fontFamilyLabel"),
+            fontFamilyDesc: t("settings.fontFamilyDesc"),
+            fontFamilySystem: t("settings.fontFamilySystem"),
+            fontFamilySerif: t("settings.fontFamilySerif"),
+            fontFamilyMono: t("settings.fontFamilyMono"),
+            reduceMotion: t("settings.reduceMotionLabel"),
+            reduceMotionDesc: t("settings.reduceMotionDesc"),
+            reduceMotionSystem: t("settings.reduceMotionSystem"),
+            reduceMotionReduce: t("settings.reduceMotionReduce"),
+            reduceMotionOff: t("settings.reduceMotionOff"),
+          }}
+        />
+      </div>
+
+      <div className={cardClass}>
+        <SettingsGeneral
+          value={startupPref}
+          onChange={(value) => setStartupPref(value as typeof startupPref)}
+          options={startupOptions}
+          labels={{
+            heading: t("settings.startup.heading"),
+            description: t("settings.startup.description"),
+            sectionLabel: t("settings.startup.sectionLabel"),
           }}
         />
       </div>
@@ -165,6 +244,17 @@ export function SettingsScreen() {
           />
         </div>
       )}
+
+      <div className={cardClass}>
+        <SettingsReset
+          onReset={handleReset}
+          labels={{
+            heading: t("settings.reset.heading"),
+            description: t("settings.reset.description"),
+            button: t("settings.reset.button"),
+          }}
+        />
+      </div>
 
       <RightSidebarPortal>
         <SettingsDetailPanel
