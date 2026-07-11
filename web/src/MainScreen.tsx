@@ -1,4 +1,12 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CheckSquare,
   CalendarDays,
@@ -16,11 +24,9 @@ import {
   HeaderTabs,
   SegmentedControl,
   SectionHeader,
-  PageWidthToggle,
   RightSidebarProvider,
   RightSidebarToggle,
   useMediaQuery,
-  usePageWidthPrefs,
   isMac,
   CommandPalette,
   ToastProvider,
@@ -41,10 +47,10 @@ import {
   MAIN_SECTIONS,
   UTILITY_SECTIONS,
   MOBILE_SECTIONS,
-  SECTION_DEFAULT_PAGE_WIDTH,
+  resolveInitialSection,
+  persistLastSection,
   EMPTY_MATERIALS_COUNTS,
   type MaterialsCounts,
-  type PageWidthMode,
   type SectionId,
   type SectionDef,
   type Command,
@@ -64,7 +70,7 @@ import { DailyView } from "./daily/DailyView";
 const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
-import { ScheduleScreen } from "./schedule/ScheduleScreen";
+import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
@@ -124,20 +130,6 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
 };
 
 /*
- * Layout Standard v2 §5 — Materials scopes its width tab PER TAB (storage
- * scope "materials:<tab>") while the section-vs-tab decision is pending (v2
- * plan 未定事項; coordinated with materials-refine via outbox). Initial
- * values mirror the pre-v2 look: Tasks was full-width, the other three were
- * centered reading columns.
- */
-const MATERIALS_TAB_DEFAULT_WIDTH: Record<MaterialsTab, PageWidthMode> = {
-  tasks: "wide",
-  notes: "narrow",
-  daily: "narrow",
-  tags: "narrow",
-};
-
-/*
  * v2 keeps the NARROW layout untouched (non-goal: mobile unchanged): the
  * in-body hamburger row appears only where it did pre-v2. Schedule and
  * Materials own their narrow chrome; Analytics / Trash had no row (they had
@@ -153,8 +145,16 @@ const MOBILE_HAMBURGER_SECTIONS: ReadonlySet<SectionId> = new Set([
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
-  const [section, setSection] = useState<SectionId>("materials");
+  // Startup section (§216): resolve the initial section from the user's
+  // preference (resume last-visited / a fixed section), falling back to the
+  // default. Lazy init so the localStorage read runs once.
+  const [section, setSection] = useState<SectionId>(() =>
+    resolveInitialSection(),
+  );
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
+  // Schedule's Calendar / Routines tab, lifted here (v2 adoption #204) so the
+  // standard SectionHeader can render the band — same pattern as materialsTab.
+  const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   const [paletteOpen, setPaletteOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
@@ -168,6 +168,13 @@ export function MainScreen({ session }: { session: Session }) {
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
   // Independent of AppShell's own wide/narrow switch (same query, own read).
   const isWide = useMediaQuery("(min-width: 768px)", true);
+
+  // Startup section (§216): remember the last-visited section so the "resume"
+  // startup preference can restore it on the next launch. Writes on every
+  // section change (localStorage only — no re-render).
+  useEffect(() => {
+    persistLastSection(section);
+  }, [section]);
 
   // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
   // (§6.2 … → Timer → Audio → …), so the Timer's onSessionComplete can't read
@@ -282,40 +289,32 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
-  // Layout Standard v2 §5 — the header width tab. Persisted per section
-  // (Materials per tab — see MATERIALS_TAB_DEFAULT_WIDTH) with the registry
-  // defaults as the fallback.
-  const [widthPrefs, setPageWidthPref] = usePageWidthPrefs();
-  const widthScope =
-    section === "materials" ? `materials:${materialsTab}` : section;
-  const widthMode: PageWidthMode =
-    widthPrefs[widthScope] ??
-    (section === "materials"
-      ? MATERIALS_TAB_DEFAULT_WIDTH[materialsTab]
-      : SECTION_DEFAULT_PAGE_WIDTH[section]);
-
-  // Width-tab → PageContainer mapping. narrow = centered reading column. On
-  // wide, canvas/board surfaces that own their full-bleed layout stay "fluid"
-  // (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus Analytics
-  // whose shared view draws its own centered data column — the v1 judgment
-  // carried forward); document surfaces get the gutter-padded "full" column.
+  // Content width (Layout Standard v2 §5 — the width tab was retired
+  // 2026-07-11; sections are unified to wide). Three outcomes:
+  //   - "fluid": canvas/board surfaces that own their full-bleed layout
+  //     (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus
+  //     Analytics whose shared view draws its own centered data column — the
+  //     v1 judgment carried forward).
+  //   - "reading": the Materials text editors (Notes / Daily) keep the ~768px
+  //     centered reading column for comfortable line length (2026-07-11 user
+  //     decision — the only reading surfaces left after the wide unification).
+  //   - "full": every other document surface, gutter-padded full width
+  //     (work / settings / trash / Materials→Tags).
+  // Mobile is visually unchanged: below 768px "reading" and "full" render
+  // identically (the 768px reading clamp never engages there).
   const ownsFullBleed =
     section === "connect" ||
     section === "schedule" ||
     section === "analytics" ||
     (section === "materials" && materialsTab === "tasks");
-  // The width tab is a Desktop-header control; the NARROW layout keeps the
-  // pre-v2 static mapping (v2 non-goal: mobile untouched) so a width choice
-  // persisted on Desktop can never restructure the mobile screens.
-  const pageWidth: PageContainerWidth = !isWide
-    ? ownsFullBleed
-      ? "fluid"
-      : "reading"
-    : widthMode === "narrow"
+  const keepsReadingColumn =
+    section === "materials" &&
+    (materialsTab === "notes" || materialsTab === "daily");
+  const pageWidth: PageContainerWidth = ownsFullBleed
+    ? "fluid"
+    : keepsReadingColumn
       ? "reading"
-      : ownsFullBleed
-        ? "fluid"
-        : "full";
+      : "full";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -324,37 +323,28 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t("detailPanel.open");
   const detailCloseLabel = t("detailPanel.close");
 
-  // Standard header controls (v2 §1/§5), right-end order fixed: width tab
-  // first, then the rightSidebar toggle. The toggle is now UNCONDITIONAL for
-  // all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR gate is
-  // retired); Analytics / Trash open the shared placeholder empty state until
-  // their refine pass defines panel content.
+  // Standard header control (v2 §1) — the rightSidebar toggle, now
+  // UNCONDITIONAL for all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR
+  // gate is retired; Analytics / Trash open the shared placeholder empty state
+  // until their refine pass defines panel content). The v2 §5 width tab was
+  // retired 2026-07-11 (all sections wide), so this is the only right-end
+  // control now.
   const headerControls = (
-    <>
-      <PageWidthToggle
-        value={widthMode}
-        onChange={(mode) => setPageWidthPref(widthScope, mode)}
-        labels={{
-          group: t("layout.width"),
-          wide: t("layout.widthWide"),
-          narrow: t("layout.widthNarrow"),
-        }}
-      />
-      <RightSidebarToggle
-        variant="panel"
-        openLabel={detailOpenLabel}
-        closeLabel={detailCloseLabel}
-      />
-    </>
+    <RightSidebarToggle
+      variant="panel"
+      openLabel={detailOpenLabel}
+      closeLabel={detailCloseLabel}
+    />
   );
 
   // Standard section header row (v2 §1), mounted in AppShell's header slot —
   // ABOVE the main + detail-panel flex row (§4), so the divider spans both
-  // and the controls never move when the panel opens. Materials' tab band
-  // doubles as its title (divider={false}: the SectionHeader owns the line);
-  // every other section shows its translated title. Sections that still draw
-  // their own in-body chrome (Schedule tabs, Connect/Analytics internal
-  // headers) migrate to this row in their v2 adoption pass (orders plans).
+  // and the controls never move when the panel opens. Materials' and
+  // Schedule's tab bands double as their titles (divider={false}: the
+  // SectionHeader owns the line); every other section shows its translated
+  // title. Sections that still draw their own in-body chrome (Connect /
+  // Analytics internal headers) migrate to this row in their v2 adoption
+  // pass (orders plans).
   const sectionHeader =
     section === "materials" ? (
       <SectionHeader
@@ -365,6 +355,22 @@ export function MainScreen({ session }: { session: Session }) {
             activeTab={materialsTab}
             onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
             label={t("section.materials")}
+          />
+        }
+        controls={headerControls}
+      />
+    ) : section === "schedule" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "calendar", label: t("scheduleScreen.calendar") },
+              { id: "routines", label: t("scheduleScreen.routines") },
+            ]}
+            activeTab={scheduleTab}
+            onSelect={(id) => setScheduleTab(id as ScheduleTab)}
+            label={t("section.schedule", { defaultValue: "Schedule" })}
           />
         }
         controls={headerControls}
@@ -477,7 +483,11 @@ export function MainScreen({ session }: { session: Session }) {
             <CalendarProvider dataService={ds}>
               <RoutineProvider dataService={ds}>
                 <ScheduleItemsProvider dataService={ds}>
-                  <ScheduleScreen dataService={ds} />
+                  <ScheduleScreen
+                    dataService={ds}
+                    tab={scheduleTab}
+                    onTabChange={setScheduleTab}
+                  />
                 </ScheduleItemsProvider>
               </RoutineProvider>
             </CalendarProvider>

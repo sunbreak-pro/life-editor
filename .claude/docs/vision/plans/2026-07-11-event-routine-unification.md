@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: IN PROGRESS
 Created: 2026-07-11
 Branch: claude/schedule-refine
 Owner-chat: schedule-refine
@@ -123,4 +123,5 @@ DDL なし（`supabase/migrations/` に触らない）。shell 部品（AppShell
 ## Worklog
 
 - 2026-07-11: 計画作成（chat-schedule-refine）。Explore agent の実装マップを spot check（0008 partial UNIQUE / 0011 generated column / MCP legacy 単一表 / EventEditorPane isRoutine — 全一致）した上で案 B を採択。mcp-server が全 handler 未移行（Supabase 接続自体なし）と判明したため MCP 移行の切り出しを Step 6 に組込
+- 2026-07-11: Step 1 完了（本計画 PR #191 merge = 案 B + MCP 切り出しのサインオフ）。Step 2 実装 — RoutineEditorForm の頻度部を `FrequencyEditor`（`shared/src/components/schedule/`）へ切り出し。Event 側（Step 3）用に「なし」選択肢（`onSelectNone`）と group 新規設定不可（`allowGroup: false`・現在値が group の場合のみ表示継続）を props で先行実装。既存 routineEditorForm.test 無修正で緑 = RoutinesTab 挙動不変。shared 802/802 + web build pass
 - 2026-07-11: role-qa 監査（Major 1 件）を反映。「繰り返し解除」の仕様が実コードと矛盾していた — `softDeleteRoutine` は日付/完了フィルタなしの全 cascade（`SupabaseDataService.ts:885-928` 実測）・`ensureRoutineItemsForDateRange` cleanup は soft-delete 済み routine 由来の行を skip（`if (!routine) continue;` 実測）。過去実績の保全を優先し、新規メソッド `detachRoutine`（今日以降・未完了のみ soft-delete → routine 本体を cascade なしで soft-delete）を Step 3 に追加。あわせて移行パス不要の明示（DoD 3 対応）と MCP DoD 変更のサインオフ手順を明記

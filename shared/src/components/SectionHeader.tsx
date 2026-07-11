@@ -14,9 +14,10 @@ export interface SectionHeaderProps {
    */
   tabs?: ReactNode;
   /**
-   * Right-end controls, order fixed by the standard (v2 §1/§5): width tab
-   * first, then the rightSidebar toggle. Rendered ABOVE the divider, so the
-   * controls never move when the panel below opens/closes (v2 §4).
+   * Right-end controls (v2 §1) — currently the rightSidebar toggle (the
+   * width tab was retired 2026-07-11; all sections are wide). Rendered ABOVE
+   * the divider, so the controls never move when the panel below opens/closes
+   * (v2 §4).
    */
   controls?: ReactNode;
   className?: string;
@@ -25,9 +26,9 @@ export interface SectionHeaderProps {
 /*
  * SectionHeader — the standard section header row (Layout Standard v2 §1).
  * One row for all 7 sections: left = section title (or a tab band doubling
- * as the title), right end = width tab + rightSidebar toggle, and a
- * full-width divider (border-lumen-border — the v1 tab-band underline token)
- * directly below.
+ * as the title), right end = the rightSidebar toggle (the v2 §5 width tab was
+ * retired 2026-07-11 — all sections are wide), and a full-width divider
+ * (border-lumen-border — the v1 tab-band underline token) directly below.
  *
  * The host mounts this in AppShell's `header` slot, ABOVE the main +
  * detail-panel flex row (v2 §4): the divider then spans main AND panel, the

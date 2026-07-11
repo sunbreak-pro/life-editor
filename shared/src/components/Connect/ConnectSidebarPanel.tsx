@@ -10,6 +10,12 @@ interface ConnectSidebarPanelProps {
   onTabChange: (tab: ConnectSidebarTab) => void;
   /** backlink count for the tab badge */
   backlinkCount: number;
+  /**
+   * Graph actions (count / reheat / fit / clear-filters) shown ABOVE the
+   * settings content — the v2-adoption home for what the retired ConnectHeader
+   * used to hold. Only rendered on the settings tab.
+   */
+  settingsHeader?: ReactNode;
   settingsContent: ReactNode;
   backlinksContent: ReactNode;
 }
@@ -26,6 +32,7 @@ export function ConnectSidebarPanel({
   activeTab,
   onTabChange,
   backlinkCount,
+  settingsHeader,
   settingsContent,
   backlinksContent,
 }: ConnectSidebarPanelProps) {
@@ -68,7 +75,14 @@ export function ConnectSidebarPanel({
       </div>
 
       <div className="pt-4">
-        {activeTab === "settings" ? settingsContent : backlinksContent}
+        {activeTab === "settings" ? (
+          <div className="space-y-4">
+            {settingsHeader}
+            {settingsContent}
+          </div>
+        ) : (
+          backlinksContent
+        )}
       </div>
     </div>
   );

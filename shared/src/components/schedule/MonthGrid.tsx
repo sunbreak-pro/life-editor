@@ -40,6 +40,12 @@ export interface MonthGridProps {
   weekdayLabels: string[];
   onSelectDay: (dateKey: string) => void;
   onSelectItem?: (id: string) => void;
+  /**
+   * Right-click (contextmenu) on an item chip → host opens a context menu at
+   * the given viewport coordinates. When omitted, the native menu is left
+   * untouched. Desktop-only (#223).
+   */
+  onItemContextMenu?: (id: string, pos: { x: number; y: number }) => void;
   /** Already-translated "他 N 件" formatter (§6.4). */
   formatMoreCount: (n: number) => string;
   /** Accessible name for a day cell. Default = the raw date key. */
@@ -74,6 +80,7 @@ export function MonthGrid({
   weekdayLabels,
   onSelectDay,
   onSelectItem,
+  onItemContextMenu,
   formatMoreCount,
   formatDayLabel = (k) => k,
   compact = false,
@@ -197,6 +204,18 @@ export function MonthGrid({
                           e.stopPropagation();
                           onSelectItem?.(it.id);
                         }}
+                        onContextMenu={
+                          onItemContextMenu
+                            ? (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onItemContextMenu(it.id, {
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                });
+                              }
+                            : undefined
+                        }
                         title={it.title}
                         className={cn(
                           "pointer-events-auto block truncate rounded px-1 py-0.5 text-left text-[10px] font-medium",
