@@ -66,7 +66,7 @@ export interface AppShellProps {
    * a left <MobileDrawer> on the narrow layout. Both read open/width/portal
    * state from a RightSidebarContext, so the HOST MUST wrap this AppShell in a
    * <RightSidebarProvider> when passing these labels. Omit for the legacy
-   * (no-panel) shell — behavior is then byte-identical to before.
+   * (no-panel) shell — the panel is then simply not mounted.
    */
   detailPanelLabels?: DetailPanelLabels;
   /**

@@ -305,9 +305,12 @@ export function DailyView() {
 
   if (isWide) {
     return (
-      // PageContainer (width="reading", Issue #181) owns the centered measure +
-      // page gutter + scroll for this tab, so the surface keeps only its own
-      // vertical rhythm + the editor's fill structure — no width cap / gutter.
+      // PageContainer owns this tab's width + page gutter + scroll, so the
+      // surface keeps only its own vertical rhythm + the editor's fill structure
+      // — no width cap / gutter of its own. v2 §5 unifies materials to full width
+      // (素の全幅): once #203 flips this tab from reading to full the editor spans
+      // the gutter-padded full width. Until #203 merges it still renders in the
+      // reading column.
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex justify-end pb-3">{toTodayButton}</div>
         <div className="flex min-h-0 flex-1 flex-col">

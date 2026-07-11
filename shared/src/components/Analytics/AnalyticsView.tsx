@@ -75,6 +75,16 @@ export interface AnalyticsViewProps {
   assignmentCount: number;
   /** Pomodoro daily target (Work tab; host: fetchTimerSettings().targetSessions). */
   targetPerDay: number;
+  /**
+   * Controlled active tab (v2 §1 adoption hook): when layout-standard lifts the
+   * tab band into the shell SectionHeader (materials-style), the shell owns tab
+   * state and drives it here. Omit both `activeTab` and `onTabChange` to keep
+   * the in-body HeaderTabs' own state — the current default, fully
+   * backward-compatible.
+   */
+  activeTab?: AnalyticsTab;
+  /** Fires on tab select. Pair with `activeTab` for controlled (shell-driven) mode. */
+  onTabChange?: (tab: AnalyticsTab) => void;
   labels: AnalyticsLabels;
 }
 
@@ -114,10 +124,20 @@ function DesktopAnalytics({
   tagCount,
   assignmentCount,
   targetPerDay,
+  activeTab: controlledTab,
+  onTabChange,
   labels,
 }: AnalyticsViewProps): React.JSX.Element {
   const { preset, applyPreset } = useAnalyticsFilter();
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
+  // Controlled when the shell supplies `activeTab` (v2 §1: tab band lifts into
+  // the standard SectionHeader); otherwise the in-body HeaderTabs owns its
+  // state, exactly as before. Backward-compatible.
+  const [internalTab, setInternalTab] = useState<AnalyticsTab>("overview");
+  const activeTab = controlledTab ?? internalTab;
+  const selectTab = (tab: AnalyticsTab): void => {
+    if (controlledTab === undefined) setInternalTab(tab);
+    onTabChange?.(tab);
+  };
 
   const tabs = useMemo<HeaderTab[]>(
     () => TAB_ORDER.map((tab) => ({ id: tab, label: labels.tabs[tab] })),
@@ -135,7 +155,7 @@ function DesktopAnalytics({
         <HeaderTabs
           tabs={tabs}
           activeTab={activeTab}
-          onSelect={(id) => setActiveTab(id as AnalyticsTab)}
+          onSelect={(id) => selectTab(id as AnalyticsTab)}
           label={labels.tabsLabel}
           trailing={
             <DateRangePresetSelector

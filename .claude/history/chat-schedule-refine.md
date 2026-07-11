@@ -1,5 +1,33 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-11 - Schedule UX 3 件: status タグ / 右クリックメニュー / セルクリック→パネル (#222 #223 #224, PR #230)
+
+#### 概要
+
+ユーザー直接指示 3 件を Issue 起票(#222/#223/#224)→ role-engineer 2 体逐次実装 → role-qa 独立監査 → Important 指摘修正の流れで消化し、PR #230 を提出した。先行して #185 Step 2(FrequencyEditor)分を PR #221 として提出し、ユーザー merge 済み。
+
+#### 変更点
+
+- **#222 status タグ**: `deriveScheduleStatus`(shared/src/utils/scheduleStatus.ts)で時刻から 3 値導出(DB 変更なし = ユーザー決定)。`ScheduleStatusTag` 新設(未着手=グレー/着手中=青/完了=緑・`schedule-tag-*` 9 トークンを tokens.css に light/dark で追加)。AgendaList(丸チェック置換・タグクリックでトグル・aria-pressed 維持)/ EventEditorPane / WeekTimeGrid に配線。MonthGrid chip は幅都合で非適用
+- **#223 右クリックメニュー**: `ScheduleItemContextMenu` 新設(portal・端クランプ・Escape/外側 close・lumen)。rename(インライン・IME ガード)/ duplicate / delete(ソフト)。WeekTimeGrid・MonthGrid に `onItemContextMenu` prop 追加。Desktop 限定
+- **#224 セルクリック**: 月セル・アイテムクリックの `setView("day")` 撤去 → 作成(デフォルト時刻)+ rightSidebar 詳細パネル表示に変更。Toolbar の明示 view 切替と mobile 分岐は温存
+- **QA Important 修正**: 複製時 memo の後追い UPDATE が create INSERT と競合し得る問題 → memo を `createScheduleItem`(DataService 層まで optional param)に畳み込み単一 INSERT 化。複製の undo も 1 回に
+- **検証**: shared vitest 845/845(+26 新規)・shared/web build pass・eslint CalendarTab 0 warn。runtime 実測は merge 後 chat-main(localhost 集約ポリシー)
+
+### 2026-07-11 - Layout Standard v2 adoption — schedule (#204)
+
+#### 概要
+
+v2 共通部品 merge 後の adoption として、Schedule の Calendar / Routines タブ帯を標準 SectionHeader（AppShell header slot）へ移行し、二重ヘッダー（標準タイトル行 + in-body タブ帯）と重複 rightSidebar トグルを解消した。担当 Issue 不在のため #204 を自分で起票してから着手（section:schedule 運用）。
+
+#### 変更点
+
+- **ScheduleScreen.tsx**: タブ state を props（`tab` / `onTabChange`）化し、in-body HeaderTabs + 自前 RightSidebarToggle を撤去。narrow は従来どおり常に Calendar（AppShell header slot は wide 専用 = v2 non-goal）
+- **MainScreen.tsx（最小 diff・layout-standard へ outbox 告知）**: `scheduleTab` state 追加 + `sectionHeader` に schedule 分岐（Materials と同形の tabs パターン・divider={false}）+ ScheduleScreen への props 注入
+- **i18n**: 撤去で未使用化した `scheduleScreen.openPanel` / `closePanel` を en/ja から削除（標準ヘッダーは `detailPanel.open/close` を使用）
+- **orders 台帳**: v2 adoption 節を #204 実装済みに更新（全幅表示・パネル開閉位置の runtime 確認は chat-main 実測待ち）
+- **検証**: shared tsc -b + vitest 803/803 pass・web tsc -b + vite build pass
+
 ### 2026-07-11 - #183 close + #181 schedule 行 adoption (PR #191) + #185 詳細計画化
 
 #### 概要

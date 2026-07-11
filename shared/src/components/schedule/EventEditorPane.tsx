@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent } from "react";
-import { Check, Repeat, Trash2 } from "lucide-react";
+import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { ScheduleStatusTag } from "./ScheduleStatusTag";
+import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
@@ -21,12 +23,16 @@ export interface EventEditorItem {
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   completed: boolean;
+  /** Derived status (#222) — shown as a tag on the completion toggle. */
+  status: ScheduleStatus;
   memo: string;
   isRoutine: boolean;
 }
 
 export interface EventEditorLabels {
   complete: string;
+  /** Already-translated status-tag labels (#222). */
+  statusLabels: Record<ScheduleStatus, string>;
   title: string;
   startTime: string;
   endTime: string;
@@ -96,24 +102,20 @@ function EventEditorFields({
 
   return (
     <div className="flex flex-col gap-3.5">
-      {/* Completion */}
+      {/* Completion — the status tag (#222) doubles as the toggle. Clicking
+          flips completed; the derived status paints the tag. */}
       <button
         type="button"
         aria-pressed={item.completed}
+        aria-label={labels.complete}
         onClick={() => onToggleComplete(item.id)}
-        className="flex items-center gap-2 self-start rounded-sm text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        className="flex items-center gap-2 self-start rounded-sm text-sm text-lumen-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
-        <span
-          className={cn(
-            "flex size-[18px] items-center justify-center rounded border-2",
-            item.completed
-              ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
-              : "border-lumen-border-strong text-transparent",
-          )}
-        >
-          <Check aria-hidden className="size-3" strokeWidth={3} />
-        </span>
-        {labels.complete}
+        <ScheduleStatusTag
+          status={item.status}
+          label={labels.statusLabels[item.status]}
+        />
+        <span>{labels.complete}</span>
       </button>
 
       {/* Title */}
