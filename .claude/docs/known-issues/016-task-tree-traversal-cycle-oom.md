@@ -35,7 +35,7 @@
 
 ## Fix / Workaround
 
-- **修正済み（Fixed, 2026-05-16）**: 本リファクタ計画 [`.claude/docs/vision/plans/2026-05-16-frontend-refactor-pre-migration.md`](../vision/plans/2026-05-16-frontend-refactor-pre-migration.md) Phase 2-6 にて、4 関数すべてに visited Set ガードを最小追加。`frontend/src/utils/buildCompletedTree.ts` の既存 cycle-safe 実装をモデルとした。
+- **修正済み（Fixed, 2026-05-16）**: 本リファクタ計画 [`.claude/archive/2026-05-16-frontend-refactor-pre-migration.md`](../../archive/2026-05-16-frontend-refactor-pre-migration.md) Phase 2-6 にて、4 関数すべてに visited Set ガードを最小追加。`frontend/src/utils/buildCompletedTree.ts` の既存 cycle-safe 実装をモデルとした。
   - `getDescendantTasks`: 新規 `visited` Set。子フォルダ id を `stack.push` する直前に `visited.has` チェック。
   - `collectDescendantIds`: 既存 `ids` Set を visited ガードとして流用。`stack.push(childId)` 前に `if (ids.has(childId)) continue`。
   - `isDescendantOf`: 新規 `visited` Set。target 一致判定（`id === childId`）は guard より**前**に置き、2 ノード循環で直接到達可能な子は即 `true` を返す既存挙動を保持。
@@ -50,7 +50,7 @@
   - `frontend/src/utils/folderProgress.ts:15`（`countDescendantTasks` 再帰）
   - `frontend/src/utils/buildCompletedTree.ts`（cycle-safe な参照実装）
 - 関連テスト: `frontend/src/utils/getDescendantTasks.test.ts` / `frontend/src/utils/folderProgress.test.ts`（`it.skip` で再現記録）
-- 関連 plan: `.claude/docs/vision/plans/2026-05-16-frontend-refactor-pre-migration.md`（Phase 0+ / Phase 2-6）
+- 関連 plan: `.claude/archive/2026-05-16-frontend-refactor-pre-migration.md`（Phase 0+ / Phase 2-6）
 
 ## Lessons Learned
 

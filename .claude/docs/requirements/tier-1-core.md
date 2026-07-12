@@ -22,15 +22,15 @@
 
 ### Purpose
 
-フォルダ / サブフォルダ / タスクの階層を自由に組める TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。
+タスク / サブタスクの階層を自由に組める TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。タスク親子 = サブタスクは存続）
 
 ### Boundary
 
 - やる:
-  - 階層型ツリー（`folder` / `task` 2 種、無限ネスト、`parentId` + `order` で順序管理）
+  - 階層型ツリー（`task` 単一種・無限ネストのサブタスク、`parentId` + `order` で順序管理。旧 `folder` 種は 2026-07-11 #225 で退役・整理は life-tags へ）
   - 3 段階ステータス（`NOT_STARTED` / `IN_PROGRESS` / `DONE`）+ DONE 時の紙吹雪演出 + `completedAt` 記録
   - DnD（上部 25% / 下部 25% → 並び替え、中央 → 階層移動）+ 無限ループ検出と拒否通知
-  - `folderType='complete'` による DONE タスク自動集約フォルダ
+  - ~~`folderType='complete'` による DONE タスク自動集約フォルダ~~ → **Retired (2026-07-11 #225)**: status=DONE の沈み込み並べ替えが後継
   - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `workDurationMinutes` / `timeMemo` / `color` / `icon` / `content` を保持
   - ソフトデリート（`is_deleted` + `deleted_at`）+ ゴミ箱からの復元 / 完全削除
   - UndoRedo（`useTaskTreeHistory` 経由、Cmd+Z / Cmd+Shift+Z）
@@ -42,16 +42,16 @@
 
 ### Acceptance Criteria
 
-- [ ] AC1: 任意のフォルダ配下にサブフォルダ・タスクを作成でき、`parentId` と `order` が DB に即時保存される（アプリ再起動後も順序維持）
+- [ ] AC1: 任意のタスク配下にサブタスクを作成でき、`parentId` と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換）
 - [ ] AC2: タスク行をクリックすると `NOT_STARTED → IN_PROGRESS → DONE` の順にステータス遷移し、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される
 - [ ] AC3: TaskNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される
-- [ ] AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ
-- [ ] AC5: 任意のタスク / フォルダを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる
+- [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
+- [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
 - [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される
 - [ ] AC8: 実行中タスクには TaskTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
 - [ ] AC9: Claude Code が MCP `get_task_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
-- [ ] AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ
+- [ ] ~~AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ~~ → **Retired (2026-07-11 #225)**: 色はタグ（life-tags）側が保持 — folder→tag 変換で色は tag へ継承済み
 
 ### Dependencies
 
@@ -89,6 +89,8 @@
 ### Purpose
 
 1 日の運用（Day）と反復パターン（Routine）とカテゴリ分類（Calendar Tag）を独立した Provider で管理しつつ、Routine → ScheduleItems の自動同期 / backfill によって「ルーチン定義 1 回で日々の予定が自動展開される」状態を作る。Tasks / Notes / WikiTags とも紐付き、1 日の運用中枢として機能する。
+
+> 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `docs/vision/plans/2026-07-11-event-routine-unification.md`（本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
 
 ### Boundary
 
@@ -163,7 +165,7 @@
 ### Boundary
 
 - やる:
-  - `type='folder' | 'note'` のツリー階層（`parentId` + `order`）
+  - `type='folder' | 'note'` のツリー階層（`parentId` + `order`）— **過渡期注記 (2026-07-11 #225)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換済み・note folder データは folder→tag 変換で退役予定。`NoteNodeType` の folder 除去は Connect グラフ後継設計と併せて別レーン（Tasks 側の型は除去済み）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）
@@ -177,7 +179,7 @@
 
 ### Acceptance Criteria
 
-- [ ] AC1: Note フォルダを作成し、配下に note を作って TipTap で編集すると、`content` が TipTap JSON として DB に保存される
+- [ ] AC1: note を作成して TipTap で編集すると、`content` が TipTap JSON として DB に保存される（旧「Note フォルダ配下」前提は 2026-07-11 #225 で退役 — 整理はタグ見出しグルーピング）
 - [ ] AC2: スラッシュコマンド（`/heading` / `/bullet` 等）とバブルツールバーが TipTap エディタ内で動作する
 - [ ] AC3: 2 つの既存ノートを選択して接続すると `note_connections` にレコードが追加され、双方のノート詳細に相互リンクが表示される（解除で両方向から消える）
 - [ ] AC4: Note を Pin すると一覧の先頭（Pinned セクション）に固定され、再起動後も維持される

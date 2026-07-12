@@ -119,6 +119,16 @@ export {
   DEFAULT_STARTUP_SECTION,
   type StartupSectionPref,
 } from "./hooks/useStartupSection";
+// Day-start (rollover) hour preference (#218, split from §216) — pure readers
+// (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
+export {
+  todayDateKey,
+  getDayStartHour,
+  parseDayStartHour,
+  DAY_START_HOUR_STORAGE_KEY,
+  DEFAULT_DAY_START_HOUR,
+} from "./utils/dateKey";
+export { useDayStartHourPref } from "./hooks/useDayStartHour";
 // Reset local preferences (§216) — clears the app's localStorage namespace and
 // reloads. Pure helpers for the host's confirm-then-reset flow.
 export {
@@ -339,7 +349,6 @@ export {
 
 // Tasks domain — tree utilities (host UI builds on these)
 export {
-  getDescendantTasks,
   collectDescendantIds,
   isDescendantOf,
 } from "./utils/getDescendantTasks";
@@ -348,7 +357,6 @@ export {
   type SortMode,
   type SortDirection,
 } from "./utils/sortTaskNodes";
-export { getFolderTag, truncateFolderTag } from "./utils/folderTag";
 // Platform detection. isNativeMobile() (Phase 4) lets the host gate the Mobile
 // 省略 Provider 5 種 (CLAUDE.md §2) on the Capacitor shells — see platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";

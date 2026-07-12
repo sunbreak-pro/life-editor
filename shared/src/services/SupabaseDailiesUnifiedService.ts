@@ -12,6 +12,7 @@ import {
 } from "./dailiesUnifiedMapper";
 import type { DailyNode } from "../types/daily";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
+import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -30,35 +31,41 @@ export class SupabaseDailiesUnifiedService {
   // -------------------------------------------------------------------------
 
   async listDailiesUnified(): Promise<DailyNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_DAILY_COLUMNS)
-      .eq("role", "daily")
-      .eq("is_deleted", false);
-    if (metaErr)
-      throw new Error(`listDailiesUnified meta failed: ${metaErr.message}`);
-
-    const ids = (metas ?? []).map(
-      (m) => (m as unknown as ItemsMetaDailyRow).id,
+    const metas = await fetchAllPages<ItemsMetaDailyRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_DAILY_COLUMNS)
+          .eq("role", "daily")
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "listDailiesUnified meta failed",
     );
+
+    const ids = metas.map((m) => m.id);
     if (ids.length === 0) return [];
 
-    const { data: payloads, error: payErr } = await this.client
-      .from("dailies_payload")
-      .select(DAILIES_PAYLOAD_COLUMNS)
-      .in("item_id", ids);
-    if (payErr)
-      throw new Error(`listDailiesUnified payload failed: ${payErr.message}`);
+    const payloads = await fetchByIdChunks<DailiesPayloadRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("dailies_payload")
+            .select(DAILIES_PAYLOAD_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "listDailiesUnified payload failed",
+      ),
+    );
 
     const payloadById = new Map<string, DailiesPayloadRow>();
-    for (const p of payloads ?? []) {
-      const row = p as unknown as DailiesPayloadRow;
+    for (const row of payloads) {
       payloadById.set(row.item_id, row);
     }
 
     const out: DailyNode[] = [];
-    for (const m of metas ?? []) {
-      const meta = m as unknown as ItemsMetaDailyRow;
+    for (const meta of metas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue;
       out.push(rowsToDailyNode(meta, payload));
@@ -253,40 +260,43 @@ export class SupabaseDailiesUnifiedService {
    * Notes G1 — see SupabaseNotesUnifiedService.permanentDeleteNoteUnified).
    */
   async fetchDeletedDailiesUnified(): Promise<DailyNode[]> {
-    const { data: metas, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_DAILY_COLUMNS)
-      .eq("role", "daily")
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (metaErr)
-      throw new Error(
-        `fetchDeletedDailiesUnified meta failed: ${metaErr.message}`,
-      );
-
-    const ids = (metas ?? []).map(
-      (m) => (m as unknown as ItemsMetaDailyRow).id,
+    // Trailing .order("id") = unique tiebreaker for deterministic pages.
+    const metas = await fetchAllPages<ItemsMetaDailyRow>(
+      (from, to) =>
+        this.client
+          .from("items_meta")
+          .select(ITEMS_META_DAILY_COLUMNS)
+          .eq("role", "daily")
+          .eq("is_deleted", true)
+          .order("deleted_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      "fetchDeletedDailiesUnified meta failed",
     );
+
+    const ids = metas.map((m) => m.id);
     if (ids.length === 0) return [];
 
-    const { data: payloads, error: payErr } = await this.client
-      .from("dailies_payload")
-      .select(DAILIES_PAYLOAD_COLUMNS)
-      .in("item_id", ids);
-    if (payErr)
-      throw new Error(
-        `fetchDeletedDailiesUnified payload failed: ${payErr.message}`,
-      );
+    const payloads = await fetchByIdChunks<DailiesPayloadRow>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("dailies_payload")
+            .select(DAILIES_PAYLOAD_COLUMNS)
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "fetchDeletedDailiesUnified payload failed",
+      ),
+    );
 
     const payloadById = new Map<string, DailiesPayloadRow>();
-    for (const p of payloads ?? []) {
-      const row = p as unknown as DailiesPayloadRow;
+    for (const row of payloads) {
       payloadById.set(row.item_id, row);
     }
 
     const out: DailyNode[] = [];
-    for (const m of metas ?? []) {
-      const meta = m as unknown as ItemsMetaDailyRow;
+    for (const meta of metas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
       out.push(rowsToDailyNode(meta, payload));

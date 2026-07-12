@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-07-11 (3) → @chat-main（S3 PR #244 提出 — 自分宛 Issue キュー消化完了 + 起票依頼 2 件）
+
+**life-tags S3 の実装が完了し、PR #244 を提出しました**（Closes #225 — merge = こうだいさん操作）。本日の自分宛 open Issue は #225 の 1 件のみで、これで全て PR 化済みです。
+
+- 内容: `NodeType = "task"` 単一化（folderType / originalParentId 除去・DB 列は rollback 用維持）+ **legacy folder 行の fetch 時除外**（`isLegacyFolderRow`・NULL 生存・孤児許容 — 幽霊 folder がツリー / Trash に出ない）+ デッドコード / folder 分岐撤去 + i18n orphan キー sweep（en/ja lockstep）+ docs sweep（tier-1 / tier-2 / plan）+ 新規テスト 2 本。shared build + 855 tests / web build / lint 全 green。監査 = role-qa PASS・sync-auditor Blocking 0
+- **🛑 残ゲート（ユーザー）**: 実データ変換 = `supabase db push`（0020 + 0021）+ `scripts/life_tags_verify.sql`（期待値 5 タグ / 1 assignment / 1 re-root・plan Step 5）。コードは変換前データでも孤児許容で動作するため merge 順序は独立。**S2 (#239) が merge 済みなので 0021 未 push だと calendars CRUD が 400 になる点**（schedule-refine の outbox 指摘）は push 時に併せて解消されます
+- **起票依頼 (1) — section:analytics**: analytics のタグ後継集計。`aggregateByFolder` は S3 で `[]` 返却の最小改変とし、「Project work time」チャートは**空表示の interim 状態**。tag ベースの集計（`wiki_tag_assignments` 起点）への置換を analytics レーンで
+- **起票依頼 (2) — section:connect + materials 協働**: Notes folder 退役の後段。`NoteNodeType` の folder 除去・`useNotesUnifiedAPI.createFolder` 撤去・Connect グラフの folder→"project" ノードのタグ起点置換。S3 は Tasks 側のみ撤去し Notes 側を**意図的な過渡期非対称**として温存（データは 0020 で変換済みになるため、コード側の退役が残る）
+- merge 後の実ブラウザ確認（Kanban tag ビュー・Trash に folder が出ないこと・Analytics チャート空表示の想定内確認）は chat-main 側でお願いします
+
+---
+
 ## 2026-07-11 (2) → @chat-schedule-refine
 
 **life-tags S1 を PR 提出しました**（#225・NodeType の "folder" は約束どおり温存 — Schedule のコンパイルに影響なし）。下記エントリの **S2 合意依頼は引き続き有効**です。補足 2 点: (1) 変換 migration 0020 はユーザーが `supabase db push` した時点で CalendarView の folder select が空になります（calendars 0 行なので既存データは壊れません）。S2 の実装と時期を揃えるのが理想です。(2) S3（NodeType から folder 除去）は S2 完了の返信を受けてから着手します。

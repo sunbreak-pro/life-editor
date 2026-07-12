@@ -2,6 +2,12 @@ import { useState, type KeyboardEvent } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
+import {
+  FrequencyEditor,
+  type FrequencyEditorValue,
+  type FrequencyEditorGroup,
+  type FrequencyEditorLabels,
+} from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
@@ -15,6 +21,16 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
  * Dismissed ("skip this day"), NEVER deleted — deleting it lets the generator
  * revive it. A manual item is the inverse: Delete only, no Dismiss. The
  * component enforces this from `item.isRoutine`; the host cannot cross-wire it.
+ *
+ * Repeat section (#185 Step 3): when the host wires the repeat props
+ * (`repeatLabels` + `repeatWeekdayLabels` + `onChangeRepeat`), every event
+ * gains a "繰り返し" section backed by the shared <FrequencyEditor>. For a
+ * routine-derived occurrence it replaces the old read-only "元 Routine" chip
+ * and edits the whole series (host patches the source routine); "なし"
+ * (onSelectNone → onDetachRepeat) turns the repeat off. For a manual item the
+ * section starts at "なし" (value null) and choosing a frequency asks the host
+ * to spin up a routine behind the scenes. group is not newly choosable here
+ * (allowGroup=false — group routines stay editable in the Routines tab).
  */
 
 export interface EventEditorItem {
@@ -62,6 +78,21 @@ export interface EventEditorPaneProps {
   /** Delete (manual items only). */
   onDelete?: (id: string) => void;
   labels: EventEditorLabels;
+  /**
+   * Repeat section (#185 Step 3). Present the section only when the host
+   * wires it (labels + weekday labels + onChangeRepeat); otherwise the pane
+   * falls back to the read-only origin chip. `repeat` is the routine's
+   * frequency for a routine occurrence, or null for a manual item ("なし").
+   */
+  repeat?: FrequencyEditorValue | null;
+  repeatGroups?: FrequencyEditorGroup[];
+  repeatWeekdayLabels?: string[];
+  repeatLabels?: FrequencyEditorLabels;
+  /** Frequency patch — host applies it to the source routine (or creates one
+   *  for a manual item). */
+  onChangeRepeat?: (patch: Partial<FrequencyEditorValue>) => void;
+  /** "なし" selected — host turns the repeat off (detach the series). */
+  onDetachRepeat?: () => void;
   className?: string;
 }
 
@@ -82,9 +113,34 @@ function EventEditorFields({
   onDismiss,
   onDelete,
   labels,
+  repeat,
+  repeatGroups,
+  repeatWeekdayLabels,
+  repeatLabels,
+  onChangeRepeat,
+  onDetachRepeat,
 }: Omit<EventEditorPaneProps, "className">) {
   const [titleDraft, setTitleDraft] = useState(item.title);
   const [memoDraft, setMemoDraft] = useState(item.memo);
+
+  // The repeat section renders only when the host fully wires it (labels +
+  // weekday labels + change handler). Existing hosts/tests that omit it keep
+  // the legacy read-only origin chip.
+  const showRepeat =
+    !!onChangeRepeat && !!repeatLabels && !!repeatWeekdayLabels;
+  const repeatSection = showRepeat ? (
+    <div className="flex flex-col gap-2 border-t border-lumen-border pt-3">
+      <FrequencyEditor
+        value={repeat ?? null}
+        onChange={onChangeRepeat}
+        onSelectNone={onDetachRepeat}
+        allowGroup={false}
+        groups={repeatGroups}
+        weekdayLabels={repeatWeekdayLabels}
+        labels={repeatLabels}
+      />
+    </div>
+  ) : null;
 
   const commitTitle = () => {
     if (titleDraft !== item.title) onCommitTitle(item.id, titleDraft);
@@ -155,20 +211,26 @@ function EventEditorFields({
         </label>
       </div>
 
-      {/* Origin chip + provenance action (Issue 017) */}
+      {/* Origin chip + provenance action (Issue 017). The repeat section
+          (#185) replaces the read-only routine chip when the host wires it;
+          otherwise the legacy chip renders. */}
       {item.isRoutine ? (
         <>
-          <div className="flex items-start gap-1.5 rounded-lumen-md bg-lumen-chip-routine-bg px-2.5 py-2 text-xs leading-relaxed text-lumen-chip-routine-fg">
-            <Repeat
-              aria-hidden
-              className="mt-0.5 size-3 shrink-0"
-              strokeWidth={2.5}
-            />
-            <span>
-              {labels.originRoutine}
-              {originDetail ? ` — ${originDetail}` : ""}
-            </span>
-          </div>
+          {showRepeat ? (
+            repeatSection
+          ) : (
+            <div className="flex items-start gap-1.5 rounded-lumen-md bg-lumen-chip-routine-bg px-2.5 py-2 text-xs leading-relaxed text-lumen-chip-routine-fg">
+              <Repeat
+                aria-hidden
+                className="mt-0.5 size-3 shrink-0"
+                strokeWidth={2.5}
+              />
+              <span>
+                {labels.originRoutine}
+                {originDetail ? ` — ${originDetail}` : ""}
+              </span>
+            </div>
+          )}
           {onDismiss && (
             <button
               type="button"
@@ -180,9 +242,12 @@ function EventEditorFields({
           )}
         </>
       ) : (
-        <div className="flex items-center gap-1.5 self-start rounded-lumen-md bg-lumen-chip-event-bg px-2.5 py-1 text-xs font-medium text-lumen-chip-event-fg">
-          {labels.originEvent}
-        </div>
+        <>
+          <div className="flex items-center gap-1.5 self-start rounded-lumen-md bg-lumen-chip-event-bg px-2.5 py-1 text-xs font-medium text-lumen-chip-event-fg">
+            {labels.originEvent}
+          </div>
+          {repeatSection}
+        </>
       )}
 
       {/* Memo */}

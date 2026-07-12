@@ -32,6 +32,7 @@ import {
   type MonthGridItem,
   type AgendaItem,
   type EventEditorItem,
+  type FrequencyEditorValue,
   type RoutineSummaryRow,
   type SegmentedOption,
 } from "@life-editor/shared";
@@ -193,7 +194,15 @@ export function CalendarTab({
     dismiss,
     deleteScheduleItem,
   } = useScheduleItemsContext();
-  const { routines } = useRoutineContext();
+  const {
+    routines,
+    routineGroups,
+    createRoutine,
+    updateRoutine,
+    setGroupsForRoutine,
+    getGroupIdsForRoutine,
+    detachRoutine,
+  } = useRoutineContext();
   // Null-safe: the section can render without a RightSidebarProvider (tests /
   // standalone). `open` re-opens the panel when a calendar item is picked.
   const rightSidebar = useRightSidebarOptional();
@@ -708,6 +717,114 @@ export function CalendarTab({
     return r ? frequencyLabel(r, freqCopy, weekdayLabels) : undefined;
   }, [selected, routines, freqCopy, weekdayLabels]);
 
+  // ── Repeat section (#185 Step 3) ───────────────────────────────────────────
+  // The source routine of the selected occurrence (null for a manual event).
+  const selectedRoutine = useMemo(() => {
+    if (!selected || selected.routineId == null) return null;
+    return routines.find((r) => r.id === selected.routineId) ?? null;
+  }, [selected, routines]);
+
+  // The frequency the <FrequencyEditor> edits. null = "なし" (manual event).
+  const repeatValue = useMemo<FrequencyEditorValue | null>(() => {
+    if (!selectedRoutine) return null;
+    return {
+      frequencyType: selectedRoutine.frequencyType,
+      frequencyDays: selectedRoutine.frequencyDays,
+      frequencyInterval: selectedRoutine.frequencyInterval,
+      frequencyStartDate: selectedRoutine.frequencyStartDate,
+      groupIds: getGroupIdsForRoutine(selectedRoutine.id),
+    };
+  }, [selectedRoutine, getGroupIdsForRoutine]);
+
+  const repeatGroups = useMemo(
+    () =>
+      routineGroups.map((g) => ({ id: g.id, name: g.name, color: g.color })),
+    [routineGroups],
+  );
+
+  const repeatLabels = useMemo(
+    () => ({
+      frequency: t("scheduleScreen.frequency"),
+      frequencyNone: t("scheduleScreen.frequencyNone"),
+      frequencyDaily: t("scheduleScreen.frequencyDaily"),
+      frequencyWeekdays: t("scheduleScreen.frequencyWeekdays"),
+      frequencyInterval: t("scheduleScreen.frequencyInterval"),
+      frequencyGroup: t("scheduleScreen.frequencyGroup"),
+      intervalEvery: t("scheduleScreen.intervalEvery"),
+      intervalDays: t("scheduleScreen.intervalDays"),
+      startDate: t("scheduleScreen.startDate"),
+      groups: t("scheduleScreen.groupsLabel"),
+    }),
+    [t],
+  );
+
+  // Frequency change from the editor. For a routine occurrence this is a
+  // series edit (patch the source routine). For a manual event, choosing a
+  // frequency spins up a routine seeded from the event, then drops the
+  // standalone seed — the generator materialises occurrences going forward.
+  const handleChangeRepeat = useCallback(
+    (patch: Partial<FrequencyEditorValue>) => {
+      if (!selected) return;
+      if (selected.routineId != null) {
+        const { groupIds, ...rest } = patch;
+        if (groupIds !== undefined)
+          setGroupsForRoutine(selected.routineId, groupIds);
+        if (Object.keys(rest).length > 0) {
+          updateRoutine(selected.routineId, rest);
+        }
+        return;
+      }
+      // Manual → turn a repeat on. group is not offered here (allowGroup=false),
+      // so only a concrete daily/weekdays/interval type reaches this branch.
+      const type = patch.frequencyType;
+      if (!type || type === "group") return;
+      const [yy, mm, dd] = selected.date.split("-").map(Number);
+      const seedWeekday = new Date(yy, mm - 1, dd).getDay();
+      createRoutine(
+        selected.title,
+        selected.startTime,
+        selected.endTime,
+        type,
+        type === "weekdays" ? [seedWeekday] : [],
+        type === "interval" ? 1 : null,
+        type === "interval" ? selected.date : null,
+      );
+      handleDelete(selected.id);
+    },
+    [selected, setGroupsForRoutine, updateRoutine, createRoutine, handleDelete],
+  );
+
+  // "なし" selected → turn the repeat off (detach the series from today on).
+  const handleDetachRepeat = useCallback(() => {
+    if (!selected || selected.routineId == null) return; // manual = no-op
+    const routineId = selected.routineId;
+    const occurrenceId = selected.id;
+    setSelectedId((cur) => (cur === occurrenceId ? null : cur));
+    void (async () => {
+      try {
+        // Reconcile off the SERVER's own delete set (the returned ids) rather
+        // than a client-side date predicate — the two must not drift (the
+        // service's "today" honours the day-start-hour pref; a local
+        // todayLocalKey memo would disagree in the late-night window).
+        const { deletedScheduleItemIds } = await detachRoutine(routineId);
+        const removed = new Set(deletedScheduleItemIds);
+        setRangeItems((prev) =>
+          prev
+            .filter((i) => !removed.has(i.id))
+            // Survivors keep their row but lose the routine origin (the band
+            // goes away) — mirrors the server NULLing routine_item_id.
+            .map((i) =>
+              i.routineId === routineId ? { ...i, routineId: null } : i,
+            ),
+        );
+      } catch {
+        // Detach did not land server-side: force a full range reload so the
+        // view returns to the DB truth (nothing navigated to trigger it).
+        setReloadKey((k) => k + 1);
+      }
+    })();
+  }, [selected, detachRoutine]);
+
   const summaryRows = useMemo<RoutineSummaryRow[]>(
     () =>
       routines
@@ -765,6 +882,12 @@ export function CalendarTab({
       onDismiss={handleDismiss}
       onDelete={handleDelete}
       labels={editorLabels}
+      repeat={repeatValue}
+      repeatGroups={repeatGroups}
+      repeatWeekdayLabels={weekdayLabels}
+      repeatLabels={repeatLabels}
+      onChangeRepeat={handleChangeRepeat}
+      onDetachRepeat={handleDetachRepeat}
     />
   ) : null;
 

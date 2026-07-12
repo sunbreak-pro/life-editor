@@ -389,9 +389,6 @@
     "behaviors": "動作設定",
     "startupScreen": "起動時の画面",
     "startupScreenDesc": "アプリ起動時に表示するセクションを選択",
-    "defaultTaskFolder": "デフォルトのタスクフォルダ",
-    "defaultTaskFolderDesc": "親フォルダ未指定の新規タスクをこのフォルダに作成",
-    "noDefaultFolder": "なし（ルートレベル）",
     "autoArchive": "完了タスクの自動アーカイブ",
     "autoArchiveDesc": "完了したタスクを一定期間後にゴミ箱へ移動",
     "autoArchiveDays": "{{days}}日後",
@@ -399,7 +396,6 @@
     "hideCompletedTasks": "完了タスクを非表示",
     "hideCompletedTasksDesc": "タスクツリーから完了済みタスクを隠す",
     "autoCompleteParent": "親タスクの自動完了",
-    "autoCompleteParentDesc": "すべての子タスクが完了したら親フォルダも自動で完了にする",
     "system": "システム",
     "autoLaunch": "ログイン時に起動",
     "autoLaunchDesc": "ログイン時にLife Editorを自動的に起動する",
@@ -534,7 +530,6 @@
     "tabSounds": "サウンド",
     "event": "イベント",
     "events": "イベント",
-    "folders": "フォルダ",
     "routines": "ルーティン",
     "routine": "ルーティン",
     "daily": "デイリー",
@@ -710,11 +705,8 @@
   "taskTree": {
     "title": "タスクツリー",
     "newTask": "新しいタスク...",
-    "newFolder": "新しいプロジェクト...",
     "completed": "完了済み",
-    "newFolderDefault": "新しいフォルダ",
     "newTaskDefault": "新しいタスク",
-    "folderCompleteConfirm": "フォルダ内の未完了タスクもすべて完了になります。よろしいですか？",
     "deleteConfirm": "「{{name}}」を削除しますか？ゴミ箱に移動されます。",
     "taskComplete": "{{name}} 完了！",
     "sort": "並べ替え",
@@ -727,10 +719,9 @@
     "undo": "元に戻す",
     "redo": "やり直す",
     "move": {
-      "circularReference": "フォルダを自身のサブフォルダに移動できません",
+      "circularReference": "タスクを自身のサブツリーに移動できません",
       "deletedNode": "削除済みのアイテムは移動できません。先に復元してください。"
-    },
-    "completeFolder": "完了"
+    }
   },
   "taskDetail": {
     "detailEmpty": "タスクを選択すると、ここで表示・編集できます。",
@@ -754,7 +745,6 @@
     "tags": "タグ"
   },
   "kanban": {
-    "viewFolder": "フォルダ別",
     "viewStatus": "ステータス別",
     "viewTag": "タグ別",
     "segmentedGroupLabel": "ボード表示切替",
@@ -768,13 +758,10 @@
     "modalClose": "閉じる (Esc)",
     "breadcrumbTask": "タスク",
     "addTask": "追加",
-    "addDialogTitle": "タスク・フォルダを追加",
+    "addDialogTitle": "タスクを追加",
     "addTypeTask": "タスク",
-    "addTypeFolder": "フォルダ",
     "addTitleLabel": "タイトル",
     "addTitlePlaceholder": "タイトルを入力",
-    "addFolderLabel": "追加先フォルダ",
-    "addFolderRoot": "フォルダなし",
     "addSubmit": "追加",
     "addCancel": "キャンセル"
   },
@@ -806,7 +793,6 @@
     },
     "notes": {
       "searchPlaceholder": "ノートを検索…",
-      "folderCta": "フォルダ",
       "addCta": "ノート",
       "empty": "ノートはまだありません",
       "trash": "ゴミ箱",
@@ -818,7 +804,6 @@
       "quickAddTitle": "ノートを追加",
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",
-      "newFolderPrompt": "新しいフォルダ名",
       "lockedHint": "このノートはロックされています",
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "untagged": "未分類",
@@ -1127,7 +1112,7 @@
   },
   "scheduleScreen": {
     "calendar": "カレンダー",
-    "routines": "ルーチン",
+    "routines": "繰り返し",
     "viewDay": "日",
     "viewWeek": "週",
     "viewMonth": "月",
@@ -1157,8 +1142,9 @@
     "now": "現在",
     "routineListTitle": "マイルーチン",
     "newRoutine": "新規ルーチン",
-    "frequency": "頻度",
+    "frequency": "繰り返し",
     "viewLabel": "表示",
+    "frequencyNone": "なし",
     "frequencyDaily": "毎日",
     "frequencyWeekdays": "曜日",
     "frequencyInterval": "N日ごと",
@@ -1169,7 +1155,7 @@
     "groupsLabel": "所属グループ",
     "deleteRoutine": "ルーチンを削除",
     "summaryTitle": "マイルーチン",
-    "openRoutinesCta": "Routines タブを開く",
+    "openRoutinesCta": "「繰り返し」タブを開く",
     "summaryEmpty": "ルーチンはまだありません",
     "loading": "読み込み中…",
     "loadError": "予定を読み込めませんでした",
@@ -1252,7 +1238,6 @@
     "totalTasks": "全タスク",
     "completed": "完了",
     "inProgress": "進行中",
-    "folders": "フォルダ",
     "todayRate": "今日の完了率",
     "totalRate": "全体の完了率",
     "comingSoon": "より詳細な分析は近日公開予定です。",
@@ -1341,8 +1326,6 @@
         "all": "全期間"
       },
       "dateRange": "日付範囲",
-      "folder": "プロジェクトフィルター",
-      "allFolders": "すべてのプロジェクト",
       "charts": "表示チャート",
       "showAll": "すべて表示",
       "hideAll": "すべて非表示",
@@ -1465,10 +1448,6 @@
               "title": "右サイドバーで当日表示",
               "description": "カレンダー表示中は、右サイドバーに選択日のタスク・ルーティン・予定が並びます。"
             },
-            "folderFilter": {
-              "title": "フォルダで絞り込み",
-              "description": "タスクツリーでフォルダを選択すると、そのフォルダ配下のタスクだけが表示されます。"
-            },
             "contentFilter": {
               "title": "種類で絞り込み",
               "description": "右サイドバーで Routine / Tasks / Events / Daily / Notes をオンオフして表示量を調整します。"
@@ -1476,10 +1455,6 @@
             "holidays": {
               "title": "祝日表示",
               "description": "祝日設定をオンにすると、国民の祝日が赤色で表示されます。"
-            },
-            "folderColor": {
-              "title": "フォルダの色を継承",
-              "description": "タスクは所属フォルダの色を引き継ぐため、プロジェクトが一目でわかります。"
             },
             "addRoutineFromCell": {
               "title": "日付からルーティン追加",
@@ -1625,10 +1600,6 @@
             "search": {
               "title": "名前で検索",
               "description": "入力するとタスク名で絞り込まれます。"
-            },
-            "folderSearch": {
-              "title": "フォルダ/タスク 形式の検索",
-              "description": "「フォルダ名/タスク名」と入力すると、特定フォルダ内に検索を限定できます。"
             },
             "freeSession": {
               "title": "フリーセッション",
@@ -2161,7 +2132,6 @@
     "startTimer": "タイマー開始",
     "task": "タスク",
     "note": "ノート",
-    "selectFolder": "フォルダ",
     "routineIndicator": "{{completed}}/{{total}}",
     "noteItem": "ノート",
     "memoPreviewEmpty": "内容なし",
@@ -2183,7 +2153,6 @@
     "dailyExists": "この日付のデイリーは既に存在します",
     "filters": "フィルター",
     "status": "ステータス",
-    "folder": "フォルダ",
     "createTask": "タスク",
     "createNote": "ノート",
     "createDaily": "日記",
@@ -2349,7 +2318,6 @@
   "notes": {
     "title": "ノート",
     "newNote": "新しいノート",
-    "newFolder": "新しいフォルダ",
     "searchNotes": "ノートを検索...",
     "noMatching": "一致するノートがありません",
     "noNotes": "ノートはまだありません",
@@ -2361,8 +2329,6 @@
   "contextMenu": {
     "rename": "名前を変更",
     "addTask": "タスクを追加",
-    "addFolder": "プロジェクトを追加",
-    "completeFolder": "フォルダを完了",
     "markIncomplete": "未完了に戻す",
     "startTimer": "タイマーを開始",
     "moveToRoot": "ルートに移動",
@@ -2384,12 +2350,10 @@
     "copyFailed": "コピーに失敗しました"
   },
   "taskActions": {
-    "completeFolder": "フォルダを完了",
     "markIncomplete": "未完了に戻す"
   },
   "taskSelector": {
     "createNewTask": "新しいタスクを作成...",
-    "newTaskIn": "{{folder}} に新しいタスク...",
     "taskName": "タスク名...",
     "noTasks": "タスクがありません"
   },
@@ -2423,8 +2387,6 @@
     "title": "新しいカレンダー",
     "titleLabel": "タイトル",
     "placeholder": "カレンダー名",
-    "folderLabel": "フォルダ",
-    "noFolders": "フォルダがありません。先にフォルダを作成してください。",
     "cancel": "キャンセル",
     "create": "作成"
   },
@@ -2440,10 +2402,6 @@
     "detailTitle": "ノート",
     "closeDetail": "ノートを閉じる"
   },
-  "folderFilter": {
-    "all": "すべて",
-    "filterByFolder": "フォルダでフィルター"
-  },
   "taskDetailPanel": {
     "selectTask": "タスクを選択して詳細を表示",
     "totalTasks": "合計: {{count}} タスク",
@@ -2453,11 +2411,9 @@
   "taskDetailSidebar": {
     "memo": "メモ",
     "memoPlaceholder": "メモを追加...",
-    "folderColor": "フォルダカラー",
-    "folderIcon": "アイコンを変更",
     "schedule": "スケジュール",
     "duration": "作業時間",
-    "noSelection": "タスクまたはフォルダを選択して詳細を表示",
+    "noSelection": "タスクを選択して詳細を表示",
     "dontShowAgain": "今後表示しない"
   },
   "folderContents": {

@@ -389,9 +389,6 @@
     "behaviors": "Behaviors",
     "startupScreen": "Startup Screen",
     "startupScreenDesc": "Choose which section opens when the app starts",
-    "defaultTaskFolder": "Default Task Folder",
-    "defaultTaskFolderDesc": "New tasks without a parent will be created in this folder",
-    "noDefaultFolder": "None (root level)",
     "autoArchive": "Auto-archive Completed Tasks",
     "autoArchiveDesc": "Automatically move completed tasks to trash after a set period",
     "autoArchiveDays": "After {{days}} days",
@@ -399,7 +396,6 @@
     "hideCompletedTasks": "Hide Completed Tasks",
     "hideCompletedTasksDesc": "Hide completed tasks from the task tree",
     "autoCompleteParent": "Auto-complete Parent",
-    "autoCompleteParentDesc": "Automatically complete a folder when all its tasks are done",
     "system": "System",
     "autoLaunch": "Launch at Startup",
     "autoLaunchDesc": "Automatically start Life Editor when you log in",
@@ -534,7 +530,6 @@
     "tabSounds": "Sounds",
     "event": "event",
     "events": "Events",
-    "folders": "Folders",
     "routines": "Routines",
     "routine": "routine",
     "daily": "Daily",
@@ -710,11 +705,8 @@
   "taskTree": {
     "title": "Task Tree",
     "newTask": "New task...",
-    "newFolder": "New project...",
     "completed": "Completed",
-    "newFolderDefault": "New Folder",
     "newTaskDefault": "New Task",
-    "folderCompleteConfirm": "All incomplete tasks in the folder will also be marked as completed. Are you sure?",
     "deleteConfirm": "Delete \"{{name}}\"? It will be moved to Trash.",
     "taskComplete": "{{name}} Complete!",
     "sort": "Sort",
@@ -727,10 +719,9 @@
     "undo": "Undo",
     "redo": "Redo",
     "move": {
-      "circularReference": "Cannot move a folder into its own subfolder",
+      "circularReference": "Cannot move a task into its own subtree",
       "deletedNode": "Cannot move a deleted item. Restore it first."
-    },
-    "completeFolder": "Complete"
+    }
   },
   "taskDetail": {
     "detailEmpty": "Select a task to view and edit it.",
@@ -754,7 +745,6 @@
     "tags": "Tags"
   },
   "kanban": {
-    "viewFolder": "By folder",
     "viewStatus": "By status",
     "viewTag": "By tag",
     "segmentedGroupLabel": "Switch board view",
@@ -768,13 +758,10 @@
     "modalClose": "Close (Esc)",
     "breadcrumbTask": "Task",
     "addTask": "Add",
-    "addDialogTitle": "Add task or folder",
+    "addDialogTitle": "Add task",
     "addTypeTask": "Task",
-    "addTypeFolder": "Folder",
     "addTitleLabel": "Title",
     "addTitlePlaceholder": "Enter a title",
-    "addFolderLabel": "Folder",
-    "addFolderRoot": "No folder",
     "addSubmit": "Add",
     "addCancel": "Cancel"
   },
@@ -806,7 +793,6 @@
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
-      "folderCta": "Folder",
       "addCta": "Note",
       "empty": "No notes yet",
       "trash": "Trash",
@@ -818,7 +804,6 @@
       "quickAddTitle": "Add note",
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
-      "newFolderPrompt": "New folder name",
       "lockedHint": "This note is locked",
       "mainEmpty": "Select a note or create a new one",
       "untagged": "No tag",
@@ -1127,7 +1112,7 @@
   },
   "scheduleScreen": {
     "calendar": "Calendar",
-    "routines": "Routines",
+    "routines": "Repeats",
     "viewDay": "Day",
     "viewWeek": "Week",
     "viewMonth": "Month",
@@ -1157,8 +1142,9 @@
     "now": "Now",
     "routineListTitle": "My routines",
     "newRoutine": "New routine",
-    "frequency": "Frequency",
+    "frequency": "Repeat",
     "viewLabel": "View",
+    "frequencyNone": "None",
     "frequencyDaily": "Daily",
     "frequencyWeekdays": "Weekdays",
     "frequencyInterval": "Every N days",
@@ -1169,7 +1155,7 @@
     "groupsLabel": "Groups",
     "deleteRoutine": "Delete routine",
     "summaryTitle": "My routines",
-    "openRoutinesCta": "Open the Routines tab",
+    "openRoutinesCta": "Open the Repeats tab",
     "summaryEmpty": "No routines yet",
     "loading": "Loading…",
     "loadError": "Could not load your schedule",
@@ -1252,7 +1238,6 @@
     "totalTasks": "Total Tasks",
     "completed": "Completed",
     "inProgress": "In Progress",
-    "folders": "Folders",
     "todayRate": "Today's Completion Rate",
     "totalRate": "Total Completion Rate",
     "comingSoon": "More detailed analytics coming soon.",
@@ -1341,8 +1326,6 @@
         "all": "All time"
       },
       "dateRange": "Date Range",
-      "folder": "Project Filter",
-      "allFolders": "All Projects",
       "charts": "Visible Charts",
       "showAll": "Show all",
       "hideAll": "Hide all",
@@ -1465,10 +1448,6 @@
               "title": "Right sidebar shows the day",
               "description": "The right sidebar shows that day's tasks, routines, and events while the calendar is open."
             },
-            "folderFilter": {
-              "title": "Filter by folder",
-              "description": "Pick a folder from the task tree to show only tasks from that folder on the calendar."
-            },
             "contentFilter": {
               "title": "Filter content types",
               "description": "Toggle Routines / Tasks / Events / Daily / Notes from the right sidebar to hide what you don't need."
@@ -1476,10 +1455,6 @@
             "holidays": {
               "title": "Holidays",
               "description": "National holidays show with a red tint when the holiday option is enabled."
-            },
-            "folderColor": {
-              "title": "Folder color",
-              "description": "Tasks inherit their folder's color so projects are easy to spot at a glance."
             },
             "addRoutineFromCell": {
               "title": "Add a routine from a date",
@@ -1625,10 +1600,6 @@
             "search": {
               "title": "Search by name",
               "description": "Start typing to filter tasks by title."
-            },
-            "folderSearch": {
-              "title": "Folder/Task search",
-              "description": "Type FolderName/TaskName to limit the search to a specific folder."
             },
             "freeSession": {
               "title": "Free session",
@@ -2161,7 +2132,6 @@
     "startTimer": "Start timer",
     "task": "Task",
     "note": "Note",
-    "selectFolder": "Folder",
     "routineIndicator": "{{completed}}/{{total}}",
     "noteItem": "Note",
     "memoPreviewEmpty": "No content",
@@ -2183,7 +2153,6 @@
     "dailyExists": "Daily already exists for this date",
     "filters": "Filters",
     "status": "Status",
-    "folder": "Folder",
     "createTask": "Task",
     "createNote": "Note",
     "createDaily": "Daily",
@@ -2349,7 +2318,6 @@
   "notes": {
     "title": "Notes",
     "newNote": "New note",
-    "newFolder": "New folder",
     "searchNotes": "Search notes...",
     "noMatching": "No matching notes",
     "noNotes": "No notes yet",
@@ -2361,8 +2329,6 @@
   "contextMenu": {
     "rename": "Rename",
     "addTask": "Add Task",
-    "addFolder": "Add Project",
-    "completeFolder": "Complete Folder",
     "markIncomplete": "Mark Incomplete",
     "startTimer": "Start Timer",
     "moveToRoot": "Move to Root",
@@ -2384,12 +2350,10 @@
     "copyFailed": "Copy failed"
   },
   "taskActions": {
-    "completeFolder": "Complete Folder",
     "markIncomplete": "Mark Incomplete"
   },
   "taskSelector": {
     "createNewTask": "Create new task...",
-    "newTaskIn": "New task in {{folder}}...",
     "taskName": "Task name...",
     "noTasks": "No tasks available"
   },
@@ -2423,8 +2387,6 @@
     "title": "New Calendar",
     "titleLabel": "Title",
     "placeholder": "Calendar name",
-    "folderLabel": "Folder",
-    "noFolders": "No folders. Create a folder first.",
     "cancel": "Cancel",
     "create": "Create"
   },
@@ -2440,10 +2402,6 @@
     "detailTitle": "Note",
     "closeDetail": "Close note"
   },
-  "folderFilter": {
-    "all": "All",
-    "filterByFolder": "Filter by folder"
-  },
   "taskDetailPanel": {
     "selectTask": "Select a task to view details",
     "totalTasks": "Total: {{count}} tasks",
@@ -2453,11 +2411,9 @@
   "taskDetailSidebar": {
     "memo": "Memo",
     "memoPlaceholder": "Add a memo...",
-    "folderColor": "Folder Color",
-    "folderIcon": "Change icon",
     "schedule": "Schedule",
     "duration": "Duration",
-    "noSelection": "Select a task or folder to view details",
+    "noSelection": "Select a task to view details",
     "dontShowAgain": "Don't show again"
   },
   "folderContents": {

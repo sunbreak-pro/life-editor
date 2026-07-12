@@ -26,6 +26,7 @@ import {
   rowToWikiTagGroupAssignment,
   type WikiTagGroupAssignmentRow,
 } from "./wikiTagGroupAssignmentMapper";
+import { fetchAllPages } from "./postgrestFetchAll";
 import type {
   WikiTag,
   WikiTagAssignment,
@@ -59,14 +60,20 @@ export class SupabaseWikiTagsUnifiedService {
   // -------------------------------------------------------------------------
 
   async listAllWikiTagsUnified(): Promise<WikiTag[]> {
-    const { data, error } = await this.client
-      .from("wiki_tags")
-      .select(WIKI_TAGS_COLUMNS)
-      .eq("is_deleted", false)
-      .order("name", { ascending: true });
-    if (error)
-      throw new Error(`listAllWikiTagsUnified failed: ${error.message}`);
-    return (data ?? []).map((r) => rowToWikiTag(r as unknown as WikiTagRow));
+    // Trailing .order("id") = unique tiebreaker so .range() pages are
+    // deterministic (names can tie).
+    const rows = await fetchAllPages<WikiTagRow>(
+      (from, to) =>
+        this.client
+          .from("wiki_tags")
+          .select(WIKI_TAGS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("name", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "listAllWikiTagsUnified failed",
+    );
+    return rows.map(rowToWikiTag);
   }
 
   async createWikiTagUnified(
@@ -140,15 +147,17 @@ export class SupabaseWikiTagsUnifiedService {
    * `listTagsForItem` query per visible row (N+1 elimination).
    */
   async listAllTagAssignments(): Promise<WikiTagAssignment[]> {
-    const { data, error } = await this.client
-      .from("wiki_tag_assignments")
-      .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
-      .eq("is_deleted", false);
-    if (error)
-      throw new Error(`listAllTagAssignments failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToWikiTagAssignment(r as unknown as WikiTagAssignmentRow),
+    const rows = await fetchAllPages<WikiTagAssignmentRow>(
+      (from, to) =>
+        this.client
+          .from("wiki_tag_assignments")
+          .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "listAllTagAssignments failed",
     );
+    return rows.map(rowToWikiTagAssignment);
   }
 
   async assignTagToItem(
@@ -216,15 +225,17 @@ export class SupabaseWikiTagsUnifiedService {
    * `listAllTagAssignments` / `listAllWikiTagGroupAssignments`.
    */
   async listAllTagConnections(): Promise<WikiTagConnection[]> {
-    const { data, error } = await this.client
-      .from("wiki_tag_connections")
-      .select(WIKI_TAG_CONNECTIONS_COLUMNS)
-      .eq("is_deleted", false);
-    if (error)
-      throw new Error(`listAllTagConnections failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToWikiTagConnection(r as unknown as WikiTagConnectionRow),
+    const rows = await fetchAllPages<WikiTagConnectionRow>(
+      (from, to) =>
+        this.client
+          .from("wiki_tag_connections")
+          .select(WIKI_TAG_CONNECTIONS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "listAllTagConnections failed",
     );
+    return rows.map(rowToWikiTagConnection);
   }
 
   async createItemLink(
@@ -266,16 +277,18 @@ export class SupabaseWikiTagsUnifiedService {
   // -------------------------------------------------------------------------
 
   async listAllWikiTagGroupsUnified(): Promise<WikiTagGroup[]> {
-    const { data, error } = await this.client
-      .from("wiki_tag_groups")
-      .select(WIKI_TAG_GROUPS_COLUMNS)
-      .eq("is_deleted", false)
-      .order("name", { ascending: true });
-    if (error)
-      throw new Error(`listAllWikiTagGroupsUnified failed: ${error.message}`);
-    return (data ?? []).map((r) =>
-      rowToWikiTagGroup(r as unknown as WikiTagGroupRow),
+    const rows = await fetchAllPages<WikiTagGroupRow>(
+      (from, to) =>
+        this.client
+          .from("wiki_tag_groups")
+          .select(WIKI_TAG_GROUPS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("name", { ascending: true })
+          .order("id")
+          .range(from, to),
+      "listAllWikiTagGroupsUnified failed",
     );
+    return rows.map(rowToWikiTagGroup);
   }
 
   async createWikiTagGroupUnified(
@@ -329,17 +342,17 @@ export class SupabaseWikiTagsUnifiedService {
   // -------------------------------------------------------------------------
 
   async listAllWikiTagGroupAssignments(): Promise<WikiTagGroupAssignment[]> {
-    const { data, error } = await this.client
-      .from("wiki_tag_group_assignments")
-      .select(WIKI_TAG_GROUP_ASSIGNMENTS_COLUMNS)
-      .eq("is_deleted", false);
-    if (error)
-      throw new Error(
-        `listAllWikiTagGroupAssignments failed: ${error.message}`,
-      );
-    return (data ?? []).map((r) =>
-      rowToWikiTagGroupAssignment(r as unknown as WikiTagGroupAssignmentRow),
+    const rows = await fetchAllPages<WikiTagGroupAssignmentRow>(
+      (from, to) =>
+        this.client
+          .from("wiki_tag_group_assignments")
+          .select(WIKI_TAG_GROUP_ASSIGNMENTS_COLUMNS)
+          .eq("is_deleted", false)
+          .order("id")
+          .range(from, to),
+      "listAllWikiTagGroupAssignments failed",
     );
+    return rows.map(rowToWikiTagGroupAssignment);
   }
 
   async assignTagToGroup(

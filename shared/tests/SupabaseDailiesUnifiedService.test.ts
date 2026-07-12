@@ -88,6 +88,10 @@ function makeStub() {
         calls.push({ table, op: "order", args: [_col, _opts] });
         return builder;
       },
+      range(_from: number, _to: number) {
+        calls.push({ table, op: "range", args: [_from, _to] });
+        return builder;
+      },
       maybeSingle() {
         calls.push({ table, op: "maybeSingle", args: [] });
         return Promise.resolve(result());
