@@ -79,6 +79,11 @@ supabase/.env
 **/.env.local
 **/.env.*.local
 
+# Claude Code machine-local settings (per-PC MCP enable/disable — never share
+# across machines. Claude Code auto-ignores this only via each user's global
+# git ignore; this rule makes the guarantee machine-independent)
+.claude/settings.local.json
+
 # MCP Server
 mcp-server/dist/
 mcp-server/node_modules/
