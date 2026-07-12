@@ -308,6 +308,38 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     [ds, push],
   );
 
+  // "Turn the repeat off" (#185 Step 3). Optimistically drop the routine
+  // from the live list (so the generator stops materialising it and the UI
+  // updates at once), then let the service soft-delete future/incomplete
+  // occurrences + detach the survivors + soft-delete the routine. No undo
+  // entry: detach is a deliberate, calendar-app "delete this and following
+  // events" action, and the survivors (past + completed occurrences) are
+  // intentionally kept.
+  //
+  // On failure the optimistic removal is rolled back AND the error is
+  // re-thrown (not swallowed) so the caller can distinguish success from
+  // failure and reconcile its own view (the Schedule host re-reads the
+  // visible range instead of trusting an optimistic delete that never
+  // landed server-side).
+  const detachRoutine = useCallback(
+    async (id: string): Promise<{ deletedScheduleItemIds: string[] }> => {
+      const target = routinesRef.current.find((r) => r.id === id);
+      setRoutines((prev) => prev.filter((r) => r.id !== id));
+      try {
+        return await ds.detachRoutine(id);
+      } catch (e) {
+        logServiceError("Routines", "detach", e);
+        if (target) {
+          setRoutines((prev) =>
+            prev.some((r) => r.id === id) ? prev : [...prev, target],
+          );
+        }
+        throw e;
+      }
+    },
+    [ds],
+  );
+
   const loadDeletedRoutines = useCallback(async () => {
     try {
       const data = await ds.fetchDeletedRoutines();
@@ -647,6 +679,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       createRoutine,
       updateRoutine,
       deleteRoutine,
+      detachRoutine,
       loadDeletedRoutines,
       restoreRoutine,
       permanentDeleteRoutine,
@@ -667,6 +700,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       createRoutine,
       updateRoutine,
       deleteRoutine,
+      detachRoutine,
       loadDeletedRoutines,
       restoreRoutine,
       permanentDeleteRoutine,

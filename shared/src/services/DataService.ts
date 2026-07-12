@@ -258,6 +258,20 @@ export interface DataService {
   deleteRoutine(id: string): Promise<void>;
   fetchDeletedRoutines(): Promise<RoutineNode[]>;
   softDeleteRoutine(id: string): Promise<{ deletedScheduleItemIds: string[] }>;
+  /**
+   * "Turn the repeat off" (#185): soft-delete every future, incomplete,
+   * still-live occurrence of the routine, then soft-delete the routine
+   * itself WITHOUT cascading to its past occurrences (completed or not) —
+   * those stay as the user's life record. Unlike softDeleteRoutine (which
+   * trashes ALL live occurrences), this is the calendar-app "delete this and
+   * following events" semantics. `today` defaults to the day-start-hour-aware
+   * todayDateKey(); callers/tests may pass an explicit key for determinism.
+   * Returns the soft-deleted occurrence ids so the UI can reconcile in-memory.
+   */
+  detachRoutine(
+    id: string,
+    today?: string,
+  ): Promise<{ deletedScheduleItemIds: string[] }>;
   restoreRoutine(id: string): Promise<void>;
   permanentDeleteRoutine(id: string): Promise<void>;
 
