@@ -48,6 +48,7 @@ import {
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { generateId } from "../utils/generateId";
+import { todayDateKey } from "../utils/dateKey";
 import {
   NOTE_LINK_SELECT_COLUMNS,
   rowToNoteLink,
@@ -663,7 +664,10 @@ class SupabaseNoteConnectionService {
  *     items_meta rows and returns the affected ids so the Schedule UI
  *     can reconcile in-memory state.
  */
-class SupabaseRoutinesService {
+// Exported for unit testing (detachRoutine / softDeleteRoutine cascade
+// semantics — #185). The Proxy in createSupabaseDataService remains the
+// production entry point; tests construct this class with a mock client.
+export class SupabaseRoutinesService {
   private readonly client: SupabaseClient;
   // Keep legacy mapper imports statically referenced (verbatimModuleSyntax)
   // until DU-C cleanup deletes them.
@@ -988,6 +992,131 @@ class SupabaseRoutinesService {
     }
 
     return { deletedScheduleItemIds: eventIds };
+  }
+
+  /**
+   * "Turn the repeat off" (#185 Step 3): detach a routine series from
+   * today onward. Unlike softDeleteRoutine — which trashes EVERY live
+   * occurrence regardless of date/completion — this keeps the user's life
+   * record intact: only future, still-incomplete, still-live occurrences
+   * are soft-deleted; past occurrences (completed or not) and any already
+   * completed future one stay. The routine itself is then soft-deleted
+   * WITHOUT cascading to those survivors.
+   *
+   * Survivor detach (QA #185, data-preservation): the survivors must NOT
+   * keep pointing at the now-trashed routine, or a later
+   * `permanentDeleteRoutine` — which hard-deletes EVERY event referencing
+   * the routine (composite-FK ordering) before dropping it — would silently
+   * purge the very life record this method set out to preserve ("detach →
+   * empty the trash" data loss). So every LIVE survivor has its
+   * events_payload.routine_item_id + source_date NULLed (truly cut loose),
+   * with its items_meta.updated_at bumped (payload has no own updated_at —
+   * DB-Q2 LWW). routine_item_role is a 0011 generated-stored column ('event'
+   * / 'routine') so it is never written; the composite FK is MATCH SIMPLE so
+   * a NULL routine_item_id is unenforced; the partial UNIQUE
+   * uq_events_payload_routine_date is `WHERE routine_item_id IS NOT NULL` so
+   * a NULLed row drops out of the index (no violation). Trashed referencing
+   * rows are left untouched — purge removing an already-binned occurrence is
+   * expected. Accepted trade-offs: survivors lose their routine variant
+   * (indigo band), and a detach → restore-from-trash can re-generate a
+   * duplicate on view — both judged lighter than losing the record to purge.
+   *
+   * Why the routine can be trashed without reviving the survivors: the
+   * generator (RoutineScheduleSync) drives off the LIVE routine list, and
+   * `shouldCreateRoutineItem` returns false for a deleted routine — a
+   * trashed routine is simply absent, so no occurrence is ever regenerated.
+   *
+   * `today` honours the day-start-hour pref (#218/#242) via todayDateKey()
+   * so a still-running late-night day is treated as editable, not past.
+   * Paging (#243) mirrors softDeleteRoutine: a long-lived routine can
+   * accumulate occurrences past the max-rows cap, and a truncated id list
+   * would leave rows either alive (future) or still bound (survivors).
+   */
+  async detachRoutine(
+    id: string,
+    today: string = todayDateKey(),
+  ): Promise<{ deletedScheduleItemIds: string[] }> {
+    const now = new Date().toISOString();
+
+    // 1. Read ALL live occurrences of this routine (item_id + the two fields
+    //    that decide the partition). Paged so the id list is never silently
+    //    truncated past the max-rows cap.
+    const rows = await fetchAllPages<{
+      item_id: string;
+      start_at: string;
+      done: boolean;
+    }>(
+      (from, to) =>
+        this.client
+          .from("events_payload")
+          .select("item_id, start_at, done")
+          .eq("routine_item_id", id)
+          .eq("is_deleted_cache", false)
+          .order("item_id")
+          .range(from, to),
+      "detachRoutine find events",
+    );
+
+    // Partition: future (start_at >= today) AND incomplete → soft-delete;
+    // everything else live (past, or completed) → detach (NULL the link).
+    const isFutureIncomplete = (r: { start_at: string; done: boolean }) =>
+      r.start_at >= today && !r.done;
+    const deleteIds = rows.filter(isFutureIncomplete).map((r) => r.item_id);
+    const detachIds = rows
+      .filter((r) => !isFutureIncomplete(r))
+      .map((r) => r.item_id);
+
+    // 2. Soft-delete the future/incomplete occurrences (items_meta). The
+    //    0008 UPDATE-side trigger mirrors is_deleted into events_payload.
+    //    is_deleted_cache so the partial-UNIQUE generator filter stays in
+    //    sync. updated_at is bumped for every row (DB-Q2 LWW cursor).
+    if (deleteIds.length > 0) {
+      await forEachIdChunk(
+        deleteIds,
+        (chunk) =>
+          this.client
+            .from("items_meta")
+            .update({ is_deleted: true, deleted_at: now, updated_at: now })
+            .in("id", chunk),
+        "detachRoutine events",
+      );
+    }
+
+    // 3. Detach the survivors: NULL the routine link on events_payload, then
+    //    bump each survivor's items_meta.updated_at (payload carries no own
+    //    updated_at — the meta bump is the LWW signal for the payload edit).
+    if (detachIds.length > 0) {
+      await forEachIdChunk(
+        detachIds,
+        (chunk) =>
+          this.client
+            .from("events_payload")
+            .update({ routine_item_id: null, source_date: null })
+            .in("item_id", chunk),
+        "detachRoutine survivors payload",
+      );
+      await forEachIdChunk(
+        detachIds,
+        (chunk) =>
+          this.client
+            .from("items_meta")
+            .update({ updated_at: now })
+            .in("id", chunk),
+        "detachRoutine survivors meta",
+      );
+    }
+
+    // 4. Soft-delete the routine itself — NO cascade to the survivors (that
+    //    is what makes this different from softDeleteRoutine). Bump
+    //    updated_at so Cloud Sync's LWW cursor advances (DB-Q2).
+    const { error: routineErr } = await this.client
+      .from("items_meta")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .eq("id", id);
+    if (routineErr)
+      throw new Error(`detachRoutine routine: ${routineErr.message}`);
+
+    return { deletedScheduleItemIds: deleteIds };
   }
 
   /**
@@ -2202,6 +2331,7 @@ const PHASE2_ROUTINES_METHODS = new Set<string>([
   "updateRoutine",
   "deleteRoutine",
   "softDeleteRoutine",
+  "detachRoutine",
   "restoreRoutine",
   "permanentDeleteRoutine",
 ]);

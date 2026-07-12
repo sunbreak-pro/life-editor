@@ -90,6 +90,8 @@
 
 1 日の運用（Day）と反復パターン（Routine）とカテゴリ分類（Calendar Tag）を独立した Provider で管理しつつ、Routine → ScheduleItems の自動同期 / backfill によって「ルーチン定義 1 回で日々の予定が自動展開される」状態を作る。Tasks / Notes / WikiTags とも紐付き、1 日の運用中枢として機能する。
 
+> 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `docs/vision/plans/2026-07-11-event-routine-unification.md`（本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
+
 ### Boundary
 
 - やる:
