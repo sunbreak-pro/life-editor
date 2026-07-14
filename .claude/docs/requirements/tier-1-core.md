@@ -103,7 +103,7 @@
   - **Routine 変更の反映**: 頻度 / 時刻を変更したときに既存 ScheduleItem へ reconciliation → **未配線（同上）**: `reconcileRoutineScheduleItems` は再設計 Step 4 で配線予定（競合解決ルールは下記「競合解決ルール」）
   - **カスケード削除**: Routine 削除時に紐づく ScheduleItem も削除（配線済み。繰り返し解除 = `detachRoutine` は過去実績を保全 — #185 実装済み）
   - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与 → CalendarTags は DU-F で全プラットフォーム撤去済み（履歴）。分類の後継 = カレンダー台帳（calendars）のタグフィルタ配線（再設計 Step 6）+ life-tags
-  - **3 サブタブ UI**: Calendar（月 / 週 / 日）/ DayFlow（1 日の時系列）/ Routine（定義一覧 + 達成率）
+  - **3 サブタブ UI**: Calendar（月 / 週 / 日）/ DayFlow（1 日の時系列）/ Routine（定義一覧 + 達成率）→ 本行は Tauri 期の履歴（2026-07-14 注記）: DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Routine（Repeats）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）
   - Preview 編集 UI（編集内容の即時プレビュー）、タイムドラッグによる時刻変更
   - MCP 5 ツール（個別 ScheduleItem の CRUD + toggle 完了）
 - やらない:
@@ -132,14 +132,14 @@
 1. **実績は不可侵**: 完了（`done`）または dismiss 済みの occurrence は、再生成・reconcile・カスケード削除のいずれからも上書き / 削除されない（生活記録の保全）。dismiss 済み行は live 扱いで同日の再生成もブロックする（`uq_events_payload_routine_date` の意味論 — #185 計画書 Risks 参照）
 2. **手動編集は Routine 変更に勝つ**: occurrence 単位で個別編集（タイトル / 時刻 / メモ等）された行は、Routine の頻度 / 時刻変更の未来伝播（reconcile）が上書きしない。伝播対象は「未完了・未 dismiss・手動未編集」の materialise 済み未来行のみ（手動編集の判定は Routine テンプレート値との差分比較を基本とし、実装詳細は Step 4 で確定 — DDL ゼロ制約内）
 3. **頻度変更で発火日から外れた未来行**: 未完了・手動未編集の行のみ掃除（soft-delete）する。完了 / dismiss 済みはルール 1 のとおり残す
-4. **繰り返し解除（`detachRoutine`）**: 今日以降の未完了 occurrence のみ soft-delete し、過去の occurrence（完了 / 未完了とも）は残す（#185 で実装済みの意味論）
+4. **繰り返し解除（`detachRoutine`）**: 今日以降の未完了 occurrence のみ soft-delete し、それ以外の生存 occurrence（過去分の完了 / 未完了、および未来の完了済み分）は残す。残す occurrence は `routine_item_id` を NULL 化して Routine から真に切り離す（#185 の 2026-07-12 S-1 — 「detach → ゴミ箱を空にする」が過去実績を巻き込む事故経路の封鎖。detach 後は過去分の routine variant 表示が外れるトレードオフは受容済み）
 
 ### Dependencies
 
 - DB Tables: `schedule_items` / `routines` / `routine_logs` / `routine_groups` / `routine_tag_definitions` / `routine_tag_assignments` / `calendars` / `calendar_tag_definitions` / `calendar_tag_assignments`
 - IPC Commands: `db_schedule_items_fetch_by_date[_all|_range]` / `db_schedule_items_create|update|delete|soft_delete|restore` / `db_routines_fetch_all|create|update|delete|soft_delete|restore|permanent_delete` / `db_routine_tags_*` / `db_routine_groups_*` / `db_calendar_tags_*`
 - 他機能: Tasks（`scheduledAt` 経由で双方向同期）/ Notes（`noteId` 連携）/ WikiTags / Reminders
-- 外部サービス（将来）: Google Calendar (ICS 購読 → OAuth)
+- 外部サービス（将来）: Google Calendar (ICS 購読 → OAuth) → **見送り（2026-07-14 路線変更 — ICS 経路含む）**: 再開条件は上記 Boundary「やらない」/ `tier-3-experimental.md` §Google Calendar 連携を参照
 
 ### Known Issues / Tech Debt
 

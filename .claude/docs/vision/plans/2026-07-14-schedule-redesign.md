@@ -49,7 +49,7 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 
 - `TaskNode.scheduledAt / scheduledEndAt / isAllDay` は**型・Mapper・MCP に存在するが、UI（.tsx）での出現は 0 件**
 - tier-1 の **Tasks AC7**（scheduledAt → Calendar 表示・双方向）と **Schedule AC10**（ドラッグ変更 → Tasks へ双方向同期）は**未達**
-- 孤立 i18n `schedulePanel`（en/ja に `existingTasks / tabTask / tabEvent / tabRoutine / searchTasks` 等 17 キー、参照 0 件）が「Task/Event/Routine 一括作成パネル」構想の痕跡として残っている → 本日の Todo トレイ（§4-A-3）の種として再利用可
+- 孤立 i18n `schedulePanel`（en/ja に `existingTasks / tabTask / tabEvent / tabRoutine / searchTasks` 等の孤立キー群 — 参照 0 件・個数はコードが正）が「Task/Event/Routine 一括作成パネル」構想の痕跡として残っている → 本日の Todo トレイ（§4-A-3）の種として再利用可
 - ※「AC7」は 2 つある（Tasks の AC7 = 双方向同期 / Schedule の AC7 = CalendarTags 色。後者は CalendarTags 全撤去で形骸化 → Step 0 で Retired 化済み）。混同注意
 
 ### 2-5. その他の形骸化・未接続（コードの事実）
@@ -148,3 +148,4 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 ## Worklog
 
 - 2026-07-14: **Step 0 実施（worktree schedule-redesign-step0）**。旧 handoff（`schedule-session-handoff.md`）を本計画書として正式化（案 c 確定を反映）。docs 追随: `tier-1-core.md`（Schedule Status 更新・再設計注記・backfill/reconciliation の実測訂正・AC1/AC2/AC8/AC10 注記・AC7/AC9 Retired 化・競合解決ルール新設・RoutineGroup 削除とリマインダー凍結の明記・GCal 見送り + 再開条件・Tasks AC7 未達注記）/ `2026-07-11-event-routine-unification.md`（UX 仕様 4 補遺 = 案 B タブ畳み込み・RoutineGroup 削除決定・Worklog）/ `tier-3-experimental.md`（GCal Verdict 凍結化 + 再開条件）/ `briefs/schedule.md`（backfill 訂正・RoutineGroup 削除注記）
+- 2026-07-14: role-qa 監査（事実主張 全 PASS・Should 3 / Nit 2）を反映 — tier-1 の「3 サブタブ UI」行と Dependencies「Google Calendar (ICS → OAuth)」行に見送り注記を追加（現行化 sweep 漏れ）、競合解決ルール #4 に detachRoutine の S-1 意味論（生存 occurrence の `routine_item_id` NULL 化）を補記、本書 §2-4 の i18n キー個数直書きを削除（数値の非複製原則）。Nit-2（briefs/schedule.md 主要操作行の退役ファイル名参照 — 既存 stale）は次のブリーフ更新時に対応
