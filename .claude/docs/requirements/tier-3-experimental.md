@@ -97,7 +97,7 @@
 
 **Tier**: 3
 **Status**: ×未着手（構想のみ）
-**Verdict**: **未着手（ICS 購読を短期 Phase 1 として予定）**
+**Verdict**: **凍結（2026-07-14 路線変更）** — アプリ内蔵連携・一時検討した「Claude 側ミラー」案とも当面しない。「本日の Todo」はアプリ内の Task で完結させる。**再開条件 = 朝刊（Briefing）ループが安定運用に入った後、ユーザーが改めて望んだ場合のみ**（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md` §5 決定 7。旧 Verdict「ICS 購読を短期 Phase 1 として予定」は SUPERSEDED）
 **Owner Provider/Module**: 未実装
 
 ### Boundary
@@ -112,8 +112,8 @@
   - Phase 1: ICS URL 購読（実装コスト最小、片方向 import）
   - Phase 2: OAuth 連携（双方向同期まで）
   - Claude からの参照は google-calendar MCP を併用
-- Schedule 機能の Future Enhancement（§Schedule 短期 / 中期）と統合
-- Verdict 根拠: Tier 1 Schedule の補完として価値が高く、ICS 購読は小さく始められる。Tier 2 昇格 or Schedule 内部実装として吸収する可能性あり（Phase C 以降で再評価）
+- Schedule 機能の Future Enhancement（§Schedule 短期 / 中期）と統合 → 2026-07-14 に tier-1 Schedule 側の Future Enhancements から削除済み（見送りの明記）
+- Verdict 根拠: Tier 1 Schedule の補完として価値が高く、ICS 購読は小さく始められる。Tier 2 昇格 or Schedule 内部実装として吸収する可能性あり（Phase C 以降で再評価）→ 2026-07-14 路線変更により上記の再開条件を満たすまで凍結
 
 ### Dependencies
 
