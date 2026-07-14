@@ -2244,7 +2244,8 @@
     "connect": "Connect",
     "tags": "Tags",
     "settings": "Settings",
-    "trash": "Trash"
+    "trash": "Trash",
+    "briefing": "Briefing"
   },
   "nav": {
     "collapse": "Collapse sidebar",
@@ -2913,5 +2914,22 @@
       "noSession": "Signed up, but no session was started. Check that confirm-email is disabled (Phase 1).",
       "generic": "Authentication failed. Please wait a moment and try again."
     }
+  },
+  "briefing": {
+    "masthead": "LIFE EDITOR BRIEFING",
+    "focusLabel": "TODAY'S FOCUS",
+    "aiTitle": "A WORD ON YESTERDAY",
+    "aiSource": "Claude ・ from the Briefing section",
+    "noBriefing": "No briefing yet. Write a \"Briefing\" heading section in today's daily and it will appear here.",
+    "scheduleTitle": "TODAY'S PROMISES",
+    "noSchedule": "Nothing scheduled today",
+    "routineTag": "Routine",
+    "allDay": "All day",
+    "tasksTitle": "TODAY'S TASKS — AND WHY",
+    "noTasks": "No tasks scheduled for today",
+    "vizTitle": "YOU, UP TO YESTERDAY",
+    "carryoverTitle": "CARRYOVER",
+    "carryoverDays": "day {{count}}",
+    "toggleComplete": "Toggle complete"
   }
 }
