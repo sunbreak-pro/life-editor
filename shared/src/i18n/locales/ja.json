@@ -2244,7 +2244,8 @@
     "connect": "つながり",
     "tags": "タグ",
     "settings": "設定",
-    "trash": "ゴミ箱"
+    "trash": "ゴミ箱",
+    "briefing": "朝刊"
   },
   "nav": {
     "collapse": "サイドバーを折りたたむ",
@@ -2913,5 +2914,22 @@
       "noSession": "登録は完了しましたが、セッションを開始できませんでした。confirm-email 設定（Phase 1 では無効）を確認してください。",
       "generic": "認証に失敗しました。時間をおいて再度お試しください。"
     }
+  },
+  "briefing": {
+    "masthead": "LIFE EDITOR 朝刊",
+    "focusLabel": "今日のフォーカス",
+    "aiTitle": "昨日へのひとこと",
+    "aiSource": "Claude ・ 朝刊セクションより",
+    "noBriefing": "今日の朝刊はまだ届いていません。デイリーに「朝刊」見出しのセクションが書かれると、ここに表示されます。",
+    "scheduleTitle": "今日の約束",
+    "noSchedule": "今日の予定はありません",
+    "routineTag": "ルーチン",
+    "allDay": "終日",
+    "tasksTitle": "今日のタスクと、その目的",
+    "noTasks": "今日に予定されたタスクはありません",
+    "vizTitle": "きのうまでの自分",
+    "carryoverTitle": "持ち越し",
+    "carryoverDays": "{{count}}日目",
+    "toggleComplete": "完了を切り替える"
   }
 }

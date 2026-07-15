@@ -255,6 +255,11 @@ export {
 // presentational: aggregation is pure, data + t are injected by the web host
 // (§6.4). Sub-barrel so the feature can grow exports without touching here.
 export * from "./Analytics";
+// Briefing (Briefing plan Step 1) — the morning-paper home surface. Pure
+// presentational: the host fetches/aggregates (today's schedule + tasks +
+// sessions + the daily's Briefing section) and injects data + labels (§6.4).
+// Reuses the 3 adopted Analytics widgets internally (Analytics shrink).
+export * from "./briefing";
 // Connect (W4) — Canvas 2D + d3-force node graph + backlink view over the
 // unified item-link model (listAllTagConnections / listLinksToItem). Pure
 // presentational: data + t injected (§6.4). Legacy note_links are NOT used.
