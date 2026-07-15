@@ -22,15 +22,15 @@
 
 ### Purpose
 
-フォルダ / サブフォルダ / タスクの階層を自由に組める TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。
+タスク / サブタスクの階層を自由に組める TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。タスク親子 = サブタスクは存続）
 
 ### Boundary
 
 - やる:
-  - 階層型ツリー（`folder` / `task` 2 種、無限ネスト、`parentId` + `order` で順序管理）
+  - 階層型ツリー（`task` 単一種・無限ネストのサブタスク、`parentId` + `order` で順序管理。旧 `folder` 種は 2026-07-11 #225 で退役・整理は life-tags へ）
   - 3 段階ステータス（`NOT_STARTED` / `IN_PROGRESS` / `DONE`）+ DONE 時の紙吹雪演出 + `completedAt` 記録
   - DnD（上部 25% / 下部 25% → 並び替え、中央 → 階層移動）+ 無限ループ検出と拒否通知
-  - `folderType='complete'` による DONE タスク自動集約フォルダ
+  - ~~`folderType='complete'` による DONE タスク自動集約フォルダ~~ → **Retired (2026-07-11 #225)**: status=DONE の沈み込み並べ替えが後継
   - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `workDurationMinutes` / `timeMemo` / `color` / `icon` / `content` を保持
   - ソフトデリート（`is_deleted` + `deleted_at`）+ ゴミ箱からの復元 / 完全削除
   - UndoRedo（`useTaskTreeHistory` 経由、Cmd+Z / Cmd+Shift+Z）
@@ -42,16 +42,16 @@
 
 ### Acceptance Criteria
 
-- [ ] AC1: 任意のフォルダ配下にサブフォルダ・タスクを作成でき、`parentId` と `order` が DB に即時保存される（アプリ再起動後も順序維持）
+- [ ] AC1: 任意のタスク配下にサブタスクを作成でき、`parentId` と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換）
 - [ ] AC2: タスク行をクリックすると `NOT_STARTED → IN_PROGRESS → DONE` の順にステータス遷移し、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される
 - [ ] AC3: TaskNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される
-- [ ] AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ
-- [ ] AC5: 任意のタスク / フォルダを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる
+- [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
+- [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
-- [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される
+- [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される（2026-07-14 注記: **未達** — `scheduledAt` / `scheduledEndAt` / `isAllDay` は型・Mapper・MCP に存在するが UI 出現 0 件。旧 DayFlow は退役済みのため表示先は Calendar（Week / Day / Month / 今日の流れ）に読み替え。Schedule 再設計 Step 1–3 で実装予定 → `docs/vision/plans/2026-07-14-schedule-redesign.md`）
 - [ ] AC8: 実行中タスクには TaskTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
 - [ ] AC9: Claude Code が MCP `get_task_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
-- [ ] AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ
+- [ ] ~~AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ~~ → **Retired (2026-07-11 #225)**: 色はタグ（life-tags）側が保持 — folder→tag 変換で色は tag へ継承済み
 
 ### Dependencies
 
@@ -80,7 +80,7 @@
 ## Feature: Schedule (Routine + ScheduleItems + CalendarTags)
 
 **Tier**: 1
-**Status**: ◎完成（3 Provider 分割済み、ADR-0003）
+**Status**: ○基本完成 → **再設計中（2026-07-14 — 「今日を組む場所」化。正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）**
 **Owner Provider/Module**: `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider` / `frontend/src/components/Tasks/Schedule/` / `src-tauri/src/commands/{routine,schedule_item,calendar,calendar_tag,routine_tag,routine_group}_commands.rs`
 **MCP Coverage**: `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `toggle_schedule_complete`
 **Supports Value Prop**: V1 / V2
@@ -90,59 +90,73 @@
 
 1 日の運用（Day）と反復パターン（Routine）とカテゴリ分類（Calendar Tag）を独立した Provider で管理しつつ、Routine → ScheduleItems の自動同期 / backfill によって「ルーチン定義 1 回で日々の予定が自動展開される」状態を作る。Tasks / Notes / WikiTags とも紐付き、1 日の運用中枢として機能する。
 
+> 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `docs/vision/plans/2026-07-11-event-routine-unification.md`（本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
+>
+> 2026-07-14 再設計（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）: Schedule は「今日を見る場所」から**「今日を組む場所」（タイムブロッキング特化）**へ再定義し、閲覧責務は Briefing（朝刊）へ移譲する。あわせて実測訂正: 現行で配線済みの自動生成は表示中日付の `ensureRoutineItemsForDate`（materialise + 当日 diff）のみで、「1 週間先まで backfill」「Routine 変更の reconciliation」は未配線（デッドコード — 再設計 Step 4 で `reconcileRoutineScheduleItems` のみ配線し、他の未配線生成器は削除予定）。3 サブタブのうち DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Repeats（旧 Routine）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）。
+
 ### Boundary
 
 - やる:
-  - **Routine**: `frequencyType`（`daily` / `weekdays` / `interval`）+ `frequencyDays` / `frequencyInterval` / `frequencyStartDate` による反復定義、リマインダー、グループ化、タグ付与
+  - **Routine**: `frequencyType`（`daily` / `weekdays` / `interval`）+ `frequencyDays` / `frequencyInterval` / `frequencyStartDate` による反復定義、リマインダー、グループ化、タグ付与（`group` 頻度 = RoutineGroup は **2026-07-14 削除決定** — グループ管理 UI が存在せず割当対象が常に空で実質機能していないため、再設計 Step 4 でコード撤去・DB テーブルは DDL ルールに従い当面残置。**リマインダーは凍結を明記**: `reminderEnabled` / `reminderOffset` は型 + 作成 API のみで UI / 通知発火なし — 再開 = 通知基盤（Electron 包装 Phase 3）以降）
   - **ScheduleItem**: 日次アイテム CRUD（`date` / `startTime` / `endTime` / `isAllDay` / `completed` / `content` / `memo` / `reminderEnabled`）、Routine 由来（`routineId`）と個別作成の両方
-  - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）
-  - **Routine 変更の反映**: 頻度 / 時刻を変更したときに既存 ScheduleItem へ reconciliation
-  - **カスケード削除**: Routine 削除時に紐づく ScheduleItem も削除
-  - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与
-  - **3 サブタブ UI**: Calendar（月 / 週 / 日）/ DayFlow（1 日の時系列）/ Routine（定義一覧 + 達成率）
+  - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）→ **未配線（2026-07-14 実測訂正）**: `ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` 等はテスト以外から未呼び出しのデッドコード。現行の実挙動は表示中日付の `ensureRoutineItemsForDate` のみ
+  - **Routine 変更の反映**: 頻度 / 時刻を変更したときに既存 ScheduleItem へ reconciliation → **未配線（同上）**: `reconcileRoutineScheduleItems` は再設計 Step 4 で配線予定（競合解決ルールは下記「競合解決ルール」）
+  - **カスケード削除**: Routine 削除時に紐づく ScheduleItem も削除（配線済み。繰り返し解除 = `detachRoutine` は過去実績を保全 — #185 実装済み）
+  - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与 → CalendarTags は DU-F で全プラットフォーム撤去済み（履歴）。分類の後継 = カレンダー台帳（calendars）のタグフィルタ配線（再設計 Step 6）+ life-tags
+  - **3 サブタブ UI**: Calendar（月 / 週 / 日）/ DayFlow（1 日の時系列）/ Routine（定義一覧 + 達成率）→ 本行は Tauri 期の履歴（2026-07-14 注記）: DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Routine（Repeats）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）
   - Preview 編集 UI（編集内容の即時プレビュー）、タイムドラッグによる時刻変更
   - MCP 5 ツール（個別 ScheduleItem の CRUD + toggle 完了）
 - やらない:
-  - Google Calendar 双方向同期（Future Enhancements、まずは ICS 購読で片方向）
+  - Google Calendar 連携（**2026-07-14 路線変更**: アプリ内蔵・Claude 側ミラーとも当面しない。tier-3 凍結のまま — 再開条件 = 朝刊（Briefing）ループが安定運用に入った後、ユーザーが改めて望んだ場合のみ。旧記述「まずは ICS 購読で片方向」は見送り）
   - 複数ユーザーでの予定共有 / 招待（§1 Non-Goals）
   - Mobile での Calendar Tag 管理（CalendarTagsProvider は §2 Platform 参照。現行は CalendarTags 自体が全プラットフォーム撤去済 — 詳細は Owner 全面改訂 Phase 5）
   - Routine 自体の MCP 操作（現状 ScheduleItem 経由のみ）
 
 ### Acceptance Criteria
 
-- [ ] AC1: `frequencyType=weekdays` + `frequencyDays=[1,3,5]` のルーチンを作成すると、今後 1 週間の月水金に ScheduleItem が自動生成され Calendar / DayFlow に表示される
-- [ ] AC2: 既存 Routine の `startTime` を変更すると、未完了の関連 ScheduleItem の時刻が追従し、完了済みアイテムは影響を受けない
+- [ ] AC1: `frequencyType=weekdays` + `frequencyDays=[1,3,5]` のルーチンを作成すると、今後 1 週間の月水金に ScheduleItem が自動生成され Calendar / DayFlow に表示される（2026-07-14 訂正: 現行の実挙動は「該当日を Calendar で表示した時点で materialise」— 週先行 backfill は未配線。DayFlow は退役済み）
+- [ ] AC2: 既存 Routine の `startTime` を変更すると、未完了の関連 ScheduleItem の時刻が追従し、完了済みアイテムは影響を受けない（2026-07-14 注記: materialise 済み未来行への一括伝播は未配線 — 再設計 Step 4 の reconcile 配線で成立予定。追従の詳細は下記「競合解決ルール」）
 - [ ] AC3: Routine を削除（ソフトデリート）すると、その `routineId` を持つ未完了 ScheduleItem が同時に削除される（カスケード）
 - [ ] AC4: `toggle_schedule_complete` で ScheduleItem を完了すると `completed=true` + `completedAt` が保存され、`routineId` がある場合は `routine_logs` に日次完了が記録される
 - [ ] AC5: Calendar ビューの月 / 週 / 日表示が同じデータを一貫して表示し、どの画面で編集しても即時相互反映される（`useScheduleItemsContext` 共有）
 - [ ] AC6: ScheduleItem を編集モードに入ると編集内容がリアルタイムでプレビュー表示され、キャンセル時は変更前の状態に戻る
-- [ ] AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される
-- [ ] AC8: Claude Code が MCP `list_schedule` を呼ぶと、指定日 / 日付範囲の ScheduleItem（Routine 由来含む）が UI と同じ内容で返る
-- [ ] AC9: Mobile（iOS）では CalendarTagsProvider は hydrate されず、タグ関連 UI が出現せず、他機能（Calendar 月表示 / Routine）は動作する
-- [ ] AC10: ドラッグで ScheduleItem の時間 / 日付を変更すると DB に永続化され、Tasks (`scheduledAt`) と双方向同期される
+- [ ] ~~AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags は DU-F で全プラットフォーム撤去済みのため形骸化。分類の後継 = カレンダー台帳（calendars）のタグフィルタ（再設計 Step 6 で配線）
+- [ ] AC8: Claude Code が MCP `list_schedule` を呼ぶと、指定日 / 日付範囲の ScheduleItem（Routine 由来含む）が UI と同じ内容で返る（2026-07-14 注記: MCP schedule handler は旧 SQLite 単一表のまま Supabase 未接続 — 再設計 並走 α で対応）
+- [ ] ~~AC9: Mobile（iOS）では CalendarTagsProvider は hydrate されず、タグ関連 UI が出現せず、他機能（Calendar 月表示 / Routine）は動作する~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags 全撤去により前提が消滅。Mobile の責務は再設計 Step 5 で List（今日）+ FAB に絞る
+- [ ] AC10: ドラッグで ScheduleItem の時間 / 日付を変更すると DB に永続化され、Tasks (`scheduledAt`) と双方向同期される（2026-07-14 注記: 前段のドラッグ永続化は実装済み。Tasks 双方向同期は**未達** — 再設計 Step 2 で実装予定）
+
+### 競合解決ルール（Routine 自動生成 × 手動編集 — 2026-07-14 文書化）
+
+同一 Routine から materialise 済みの occurrence（Event 行）と、Routine 定義の変更・再生成との競合は次のルールで解決する（テストは再設計 Step 4 = reconcile 配線と同時に張る）:
+
+1. **実績は不可侵**: 完了（`done`）または dismiss 済みの occurrence は、再生成・reconcile・カスケード削除のいずれからも上書き / 削除されない（生活記録の保全）。dismiss 済み行は live 扱いで同日の再生成もブロックする（`uq_events_payload_routine_date` の意味論 — #185 計画書 Risks 参照）
+2. **手動編集は Routine 変更に勝つ**: occurrence 単位で個別編集（タイトル / 時刻 / メモ等）された行は、Routine の頻度 / 時刻変更の未来伝播（reconcile）が上書きしない。伝播対象は「未完了・未 dismiss・手動未編集」の materialise 済み未来行のみ（手動編集の判定は Routine テンプレート値との差分比較を基本とし、実装詳細は Step 4 で確定 — DDL ゼロ制約内）
+3. **頻度変更で発火日から外れた未来行**: 未完了・手動未編集の行のみ掃除（soft-delete）する。完了 / dismiss 済みはルール 1 のとおり残す
+4. **繰り返し解除（`detachRoutine`）**: 今日以降の未完了 occurrence のみ soft-delete し、それ以外の生存 occurrence（過去分の完了 / 未完了、および未来の完了済み分）は残す。残す occurrence は `routine_item_id` を NULL 化して Routine から真に切り離す（#185 の 2026-07-12 S-1 — 「detach → ゴミ箱を空にする」が過去実績を巻き込む事故経路の封鎖。detach 後は過去分の routine variant 表示が外れるトレードオフは受容済み）
 
 ### Dependencies
 
 - DB Tables: `schedule_items` / `routines` / `routine_logs` / `routine_groups` / `routine_tag_definitions` / `routine_tag_assignments` / `calendars` / `calendar_tag_definitions` / `calendar_tag_assignments`
 - IPC Commands: `db_schedule_items_fetch_by_date[_all|_range]` / `db_schedule_items_create|update|delete|soft_delete|restore` / `db_routines_fetch_all|create|update|delete|soft_delete|restore|permanent_delete` / `db_routine_tags_*` / `db_routine_groups_*` / `db_calendar_tags_*`
 - 他機能: Tasks（`scheduledAt` 経由で双方向同期）/ Notes（`noteId` 連携）/ WikiTags / Reminders
-- 外部サービス（将来）: Google Calendar (ICS 購読 → OAuth)
+- 外部サービス（将来）: Google Calendar (ICS 購読 → OAuth) → **見送り（2026-07-14 路線変更 — ICS 経路含む）**: 再開条件は上記 Boundary「やらない」/ `tier-3-experimental.md` §Google Calendar 連携を参照
 
 ### Known Issues / Tech Debt
 
 - ADR-0003 統合済み（3 Provider 分割でパフォーマンス改善）
 - CLAUDE.md §2 Platform 参照（Mobile では CalendarTagsProvider 省略 → 現行は CalendarTags 全撤去済・全面改訂 Phase 5）
 - Routine マスタ自体の MCP CRUD 未対応（Claude から頻度変更ができない）
-- conflict: 同じ Routine から手動編集された ScheduleItem と自動再生成の競合解決ルールが未文書化
+- ~~conflict: 同じ Routine から手動編集された ScheduleItem と自動再生成の競合解決ルールが未文書化~~ → **解消 (2026-07-14)**: 上記「競合解決ルール」に文書化（テストは再設計 Step 4）
 
 ### Future Enhancements
 
-- 短期: Google Calendar ICS 購読（片方向 import）、Routine の MCP ツール化
-- 中期: Google Calendar OAuth 双方向同期、Routine 未達成通知、Claude による「今日のスケジュール提案」（ADR-0005 Phase 2）
+- 短期: Routine の MCP ツール化（MCP schedule handler の Supabase 対応 = 再設計 並走 α に統合）
+- 中期: Routine 未達成通知、Claude による「今日のスケジュール提案」（ADR-0005 Phase 2）
+- ~~Google Calendar 連携（ICS 購読 / OAuth 双方向）~~ → **見送り（2026-07-14 路線変更）**: 再開条件 = 朝刊（Briefing）ループの安定運用後にユーザーが改めて望んだ場合のみ（→ `tier-3-experimental.md` §Google Calendar 連携）
 
 ### Related Plans
 
-- IN_PROGRESS: なし
+- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`（Schedule 再設計 — 本節 2026-07-14 現行化の出典）/ `docs/vision/plans/2026-07-11-event-routine-unification.md`（#185 — Event/Routine UI 統合）
 - 関連 ADR: `.claude/archive/adr/0003-schedule-provider-decomposition.md` / `.claude/archive/adr/0004-schedule-shared-components.md`
 
 ---
@@ -163,7 +177,7 @@
 ### Boundary
 
 - やる:
-  - `type='folder' | 'note'` のツリー階層（`parentId` + `order`）
+  - `type='folder' | 'note'` のツリー階層（`parentId` + `order`）— **過渡期注記 (2026-07-11 #225)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換済み・note folder データは folder→tag 変換で退役予定。`NoteNodeType` の folder 除去は Connect グラフ後継設計と併せて別レーン（Tasks 側の型は除去済み）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）
@@ -177,7 +191,7 @@
 
 ### Acceptance Criteria
 
-- [ ] AC1: Note フォルダを作成し、配下に note を作って TipTap で編集すると、`content` が TipTap JSON として DB に保存される
+- [ ] AC1: note を作成して TipTap で編集すると、`content` が TipTap JSON として DB に保存される（旧「Note フォルダ配下」前提は 2026-07-11 #225 で退役 — 整理はタグ見出しグルーピング）
 - [ ] AC2: スラッシュコマンド（`/heading` / `/bullet` 等）とバブルツールバーが TipTap エディタ内で動作する
 - [ ] AC3: 2 つの既存ノートを選択して接続すると `note_connections` にレコードが追加され、双方のノート詳細に相互リンクが表示される（解除で両方向から消える）
 - [ ] AC4: Note を Pin すると一覧の先頭（Pinned セクション）に固定され、再起動後も維持される

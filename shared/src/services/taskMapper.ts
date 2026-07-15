@@ -151,22 +151,48 @@ export const TASKS_PAYLOAD_COLUMNS =
 //    these at the DB layer, but a corrupt/legacy row should fail loud).
 // ---------------------------------------------------------------------------
 
+// NODE_TYPES still includes the legacy "folder" value: the DB column keeps
+// it (rollback), and a folder row must be *recognisable* (isLegacyFolderRow)
+// even though it can no longer be materialised as a distinct NodeType.
 const NODE_TYPES: ReadonlySet<string> = new Set(["folder", "task"]);
 const TASK_STATUSES: ReadonlySet<string> = new Set([
   "NOT_STARTED",
   "IN_PROGRESS",
   "DONE",
 ]);
-const FOLDER_TYPES: ReadonlySet<string> = new Set(["normal", "complete"]);
 const PRIORITIES: ReadonlySet<number> = new Set([1, 2, 3, 4]);
 
-/** Narrow a DB `task_type` value to the `NodeType` union. */
+/**
+ * Narrow a DB `task_type` value to the `NodeType` union.
+ *
+ * life-tags S3 (#225): NodeType is now single-valued ("task"). The DB column
+ * still carries a legacy "folder" value for rows created before the
+ * retirement; those rows are excluded upstream by the fetch filter
+ * (`isLegacyFolderRow` / SupabaseDataService.fetchTaskTree), so this narrower
+ * normally only ever sees "task" | null. A stray "folder" that reaches here
+ * is coerced to "task" (defence-in-depth — it has already been filtered out
+ * of every UI-facing fetch). A genuinely unknown value still throws.
+ */
 export function toNodeType(value: string | null): NodeType {
   if (value === null) return "task"; // legacy / unset → task
-  if (NODE_TYPES.has(value)) return value as NodeType;
+  if (NODE_TYPES.has(value)) return "task"; // "task" | legacy "folder" → task
   throw new Error(
     `tasks_payload: invalid task_type "${value}" (expected folder|task)`,
   );
+}
+
+/**
+ * True when a tasks_payload row is a legacy folder (task_type = 'folder').
+ * life-tags S3 retired the folder node type, but prod still has a handful of
+ * such rows (active + soft-deleted) until the user runs the data migration.
+ * The fetch paths use this to exclude them from the materialised TaskNode set
+ * so they never surface as phantom nodes. A NULL task_type is NOT a folder
+ * (legacy / unset rows default to a plain task).
+ */
+export function isLegacyFolderRow(
+  payload: Pick<TasksPayloadRow, "task_type">,
+): boolean {
+  return payload.task_type === "folder";
 }
 
 export function toStatus(value: string | null): TaskStatus | undefined {
@@ -175,14 +201,6 @@ export function toStatus(value: string | null): TaskStatus | undefined {
   throw new Error(
     `tasks_payload: invalid status "${value}" (expected NOT_STARTED|IN_PROGRESS|DONE)`,
   );
-}
-
-export function toFolderType(
-  value: string | null,
-): "normal" | "complete" | undefined {
-  if (value === null) return undefined;
-  if (FOLDER_TYPES.has(value)) return value as "normal" | "complete";
-  throw new Error(`tasks_payload: invalid folder_type "${value}"`);
 }
 
 export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
@@ -211,8 +229,9 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
  *   meta.updated_at      <- updatedAt
  *   meta.version         <- version
  *   payload.parent_item_id <- parentId
- *   payload.task_type    <- type
- *   payload.folder_type  <- folderType
+ *   payload.task_type    <- type             (S3: only 'task' now; legacy
+ *                                             'folder' rows are excluded
+ *                                             upstream — see isLegacyFolderRow)
  *   payload.sort_order   <- order            (DU-A m1 rename)
  *   payload.is_expanded  <- isExpanded
  *   payload.is_all_day   <- isAllDay
@@ -223,7 +242,6 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
  *   payload.completed_at     <- completedAt
  *   payload.work_duration_minutes <- workDurationMinutes
  *   payload.time_memo        <- timeMemo
- *   payload.original_parent_id <- originalParentId
  *   payload.{content,color,icon,priority,status} pass-through
  *   payload.{start_at,due_at}  — NOT YET surfaced (no TaskNode field;
  *     reserved for future scheduling work, written as NULL by
@@ -272,10 +290,6 @@ export function rowsToTaskNode(
   if (payload.icon !== null) node.icon = payload.icon;
   if (payload.time_memo !== null) node.timeMemo = payload.time_memo;
   node.version = meta.version;
-  const folderType = toFolderType(payload.folder_type);
-  if (folderType !== undefined) node.folderType = folderType;
-  if (payload.original_parent_id !== null)
-    node.originalParentId = payload.original_parent_id;
   node.priority = toPriority(payload.priority);
   node.reminderEnabled = payload.reminder_enabled;
   if (payload.reminder_offset !== null)
@@ -319,8 +333,11 @@ export function taskNodeToRows(
     item_id: node.id,
     user_id: userId,
     parent_item_id: node.parentId,
+    // S3: NodeType is single-valued, so task_type is always 'task' and
+    // folder_type is always NULL for client-written rows. The columns
+    // survive for rollback / legacy-row detection only.
     task_type: node.type,
-    folder_type: node.folderType ?? null,
+    folder_type: null,
     // start_at / due_at have no TaskNode field yet — write NULL so an
     // UPSERT fully specifies the row without clobbering future data.
     start_at: null,
@@ -339,7 +356,7 @@ export function taskNodeToRows(
     scheduled_end_at: node.scheduledEndAt ?? null,
     is_all_day: node.isAllDay ?? false,
     completed_at: node.completedAt ?? null,
-    original_parent_id: node.originalParentId ?? null,
+    original_parent_id: null,
     sort_order: node.order,
   };
 
@@ -416,10 +433,8 @@ export function taskUpdatesToPatches(
   if ("color" in updates) payloadPatch.color = updates.color ?? null;
   if ("icon" in updates) payloadPatch.icon = updates.icon ?? null;
   if ("timeMemo" in updates) payloadPatch.time_memo = updates.timeMemo ?? null;
-  if ("folderType" in updates)
-    payloadPatch.folder_type = updates.folderType ?? null;
-  if ("originalParentId" in updates)
-    payloadPatch.original_parent_id = updates.originalParentId ?? null;
+  // S3: folderType / originalParentId are no longer TaskNode fields, so no
+  // update path emits folder_type / original_parent_id patches.
   if ("priority" in updates) payloadPatch.priority = updates.priority ?? null;
   if ("reminderEnabled" in updates)
     payloadPatch.reminder_enabled = updates.reminderEnabled ?? false;

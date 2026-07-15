@@ -83,3 +83,12 @@ partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/
 - 動作: 既に live な (routine, date) ペアがあれば silent skip → 生成器が month-flip 連打しても duplicate を作らない (Issue 011 contract)
 - ⚠️ `source_date` は generator 経路でのみ populate (routine_item_id 非 null の時 `start_at` から patch)。手動 event は source_date=null で partial UNIQUE は発火しない
 - R2 cleanup: payload upsert が例外 (NW / RLS / unexpected) で throw した場合のみ、INSERT 済 items_meta 群を `.in("id", ids)` で hard delete (孤児防止)。ignoreDuplicates の silent skip は throw しないので cleanup 対象外
+
+## 11. PostgREST list read のページ分割規約（#172）
+
+PostgREST は全 SELECT をサーバ側 `max-rows`（Supabase 既定 1000）で**無音切り捨て**する（known-issue 012 と同型の failure shape）。全件系の list read は `shared/src/services/postgrestFetchAll.ts` の helper 経由で書く。
+
+- **fetchAllPages**: 全件 read は `.order(一意カラム末尾)` + `.range()` の追い pull。末尾 order が一意でないとページ跨ぎで重複/取りこぼしが出る
+- **fetchByIdChunks / forEachIdChunk**: `.in(col, ids)` の id リストは 200 件ずつに分割（URL 長 + max-rows の両対策）。write の部分適用は Realtime では自己修復しない（caller の retry / 冪等パッチ前提）
+- **有界 read は適用不要**: 単一 item の join・1 routine のグループ所属など、入力で件数が構造的に抑えられる read はそのままでよい。ただし `.in().in()` の直積フィルタは「バッチで有界」に見えて既存行数でスケールするため対象（bulkCreate pre-check の実例）
+- ⚠️ **運用注意**: Supabase 側で `db.max_rows` を `POSTGREST_PAGE_SIZE`（=1000）未満に下げると short-page 停止条件が壊れ、全 paginated read が再び無音切り捨てに戻る（012 再来）。max-rows を変更する場合は先に POSTGREST_PAGE_SIZE を追随させること

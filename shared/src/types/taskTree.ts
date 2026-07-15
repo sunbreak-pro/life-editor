@@ -6,10 +6,16 @@
 // (§8).
 export type { SectionId } from "../sections";
 
-export type NodeType = "folder" | "task";
+// life-tags S3 (2026-07-11 #225): the Tasks domain no longer has a folder
+// node type — status = DONE succeeded folder-grouping (S1), and calendars
+// rebound to tags (S2). NodeType is now single-valued; the DB columns
+// (task_type / folder_type / original_parent_id) survive for rollback and
+// legacy-row detection (see taskMapper + SupabaseDataService fetch filter),
+// but they no longer surface as TaskNode fields. NoteNodeType still keeps its
+// folder variant — the Notes folder feature is an intentional interim
+// asymmetry.
+export type NodeType = "task";
 export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
-
-export const FOLDER_PAD_TOP = 0; // px – visual separator above folders in Projects section
 
 export interface TaskNode {
   id: string;
@@ -33,8 +39,6 @@ export interface TaskNode {
   timeMemo?: string;
   updatedAt?: string;
   version?: number;
-  folderType?: "normal" | "complete";
-  originalParentId?: string | null;
   priority?: 1 | 2 | 3 | 4 | null;
   reminderEnabled?: boolean;
   reminderOffset?: number;

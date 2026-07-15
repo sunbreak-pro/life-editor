@@ -20,15 +20,25 @@ import {
  * Web-side @dnd-kit glue for the task tree (DU-G). A 1:1 mirror of
  * `web/src/notes/useNoteTreeDnd.ts` for TaskNodes, so both trees share the
  * exact same pointer→intent translation (shared `computeNoteDropIntent`
- * zones, below-folder = sibling reorder, inside = moveNodeInto). It lives
- * in `web/` (not `shared/`) so the shared package stays UI/dnd-free.
+ * zones). It lives in `web/` (not `shared/`) so the shared package stays
+ * UI/dnd-free.
+ *
+ * life-tags S3 (#225): the Tasks domain no longer has folder nodes. Any task
+ * can hold subtasks, so EVERY node offers the 3-zone drop intent — above /
+ * below (moveNode sibling reorder) and inside (moveNodeInto = nest as a
+ * child). The movement hook's isDescendantOf cycle guard still rejects an
+ * illegal parent→descendant move.
  *
  * Web Tasks keep expand/collapse state in a VIEW-LOCAL `collapsed: Set`
- * (a folder id IN the set = collapsed) rather than on the context, so this
- * hook takes that set plus collapse/expand callbacks instead of the
+ * (an id IN the set = collapsed) rather than on the context, so this hook
+ * takes that set plus collapse/expand callbacks instead of the
  * `expandedIds` / `toggleExpanded` pair the Notes hook uses. Rule 1 below
- * is expressed in those terms: grabbing an EXPANDED folder (= one NOT in
- * `collapsedIds`) adds it to the set for the drag's duration.
+ * is expressed in those terms: grabbing an EXPANDED node that HAS children
+ * (= one NOT in `collapsedIds`) adds it to the set for the drag's duration.
+ *
+ * NOTE: this hook is currently dormant — no web Tasks view imports it (the
+ * Kanban board owns Tasks DnD). Kept compiling + semantically sane for a
+ * future tree view.
  */
 
 export interface TaskOverInfo {
@@ -96,8 +106,9 @@ export function useTaskTreeDnd({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overInfo, setOverInfo] = useState<TaskOverInfo | null>(null);
   const overInfoRef = useRef<TaskOverInfo | null>(null);
-  // Rule 1: if grabbing an expanded folder collapsed it, remember its id so
-  // a cancelled drag can re-expand it (a completed drop leaves it collapsed).
+  // Rule 1: if grabbing an expanded node with children collapsed it, remember
+  // its id so a cancelled drag can re-expand it (a completed drop leaves it
+  // collapsed).
   const collapsedOnDragRef = useRef<string | null>(null);
 
   const setOver = useCallback((next: TaskOverInfo | null) => {
@@ -124,12 +135,14 @@ export function useTaskTreeDnd({
     (event: DragStartEvent) => {
       const id = event.active.id as string;
       setActiveId(id);
-      // Rule 1: grabbing an EXPANDED folder (NOT in collapsedIds) collapses
-      // it for the duration of the drag, so it travels as one compact block
-      // (and its children stop being drop targets mid-drag). Restored on
-      // cancel; left collapsed after a completed drop.
+      // Rule 1: grabbing an EXPANDED node that has children (NOT in
+      // collapsedIds) collapses it for the duration of the drag, so it
+      // travels as one compact block (and its children stop being drop
+      // targets mid-drag). Restored on cancel; left collapsed after a
+      // completed drop.
       const node = nodes.find((n) => n.id === id);
-      if (node && node.type === "folder" && !collapsedIds.has(id)) {
+      const hasChildren = node ? nodes.some((n) => n.parentId === id) : false;
+      if (node && hasChildren && !collapsedIds.has(id)) {
         collapsedOnDragRef.current = id;
         collapse(id);
       } else {
@@ -154,16 +167,18 @@ export function useTaskTreeDnd({
         return;
       }
 
-      const isFolder = overNode.type === "folder";
+      // S3: every task node can accept a child (subtask nesting), so the
+      // 3-zone intent (above/inside/below) applies to all nodes — pass
+      // isFolder:true to enable the "inside" zone uniformly.
       let newPosition: NoteDropPosition;
       const pointerY = getPointerY(event);
 
       if (!pointerY || !over.rect) {
-        newPosition = isFolder ? "inside" : "below";
+        newPosition = "inside";
       } else {
         newPosition = computeNoteDropIntent({
           pointerRatio: pointerRatioOf(pointerY, over.rect),
-          isFolder,
+          isFolder: true,
         });
       }
 
@@ -195,67 +210,44 @@ export function useTaskTreeDnd({
       const overNode = nodes.find((n) => n.id === overId);
       if (!overNode) return;
 
-      if (overNode.type === "folder") {
-        const pointerY = getPointerY(event);
-        if (!pointerY || !over.rect) {
-          if (activeNode.parentId !== overNode.id) {
-            handleResult(
-              moveNodeInto(active.id as string, over.id as string),
-              onMoveRejected,
-            );
-          }
-          return;
+      // S3: every task node accepts a child, so the same 3-zone intent
+      // applies uniformly — "inside" nests via moveNodeInto (skipped when it
+      // is already the parent), above/below reorder as siblings. The
+      // movement hook's isDescendantOf guard rejects an illegal
+      // parent→descendant move.
+      const pointerY = getPointerY(event);
+      if (!pointerY || !over.rect) {
+        if (activeNode.parentId !== overNode.id) {
+          handleResult(
+            moveNodeInto(active.id as string, over.id as string),
+            onMoveRejected,
+          );
         }
+        return;
+      }
 
-        const position = computeNoteDropIntent({
-          pointerRatio: pointerRatioOf(pointerY, over.rect),
-          isFolder: true,
-        });
+      const position = computeNoteDropIntent({
+        pointerRatio: pointerRatioOf(pointerY, over.rect),
+        isFolder: true,
+      });
 
-        if (position === "above") {
-          handleResult(
-            moveNode(active.id as string, over.id as string, "above"),
-            onMoveRejected,
-          );
-        } else if (position === "below") {
-          // TaskTree parity: below a folder (expanded or not) drops as the
-          // folder's sibling, right after it — never "first child". No
-          // expanded-folder special case (the old web Tasks DnD had one;
-          // dropping it is the whole point of this unification).
-          handleResult(
-            moveNode(active.id as string, over.id as string, "below"),
-            onMoveRejected,
-          );
-        } else {
-          if (activeNode.parentId !== overNode.id) {
-            handleResult(
-              moveNodeInto(active.id as string, over.id as string),
-              onMoveRejected,
-            );
-          }
-        }
-      } else {
-        const pointerY = getPointerY(event);
-        if (!pointerY || !over.rect) {
-          handleResult(
-            moveNode(active.id as string, over.id as string, "below"),
-            onMoveRejected,
-          );
-          return;
-        }
-        const position = computeNoteDropIntent({
-          pointerRatio: pointerRatioOf(pointerY, over.rect),
-          isFolder: false,
-        });
-        // Non-folder intent is only ever "above" | "below".
+      if (position === "above") {
         handleResult(
-          moveNode(
-            active.id as string,
-            over.id as string,
-            position as "above" | "below",
-          ),
+          moveNode(active.id as string, over.id as string, "above"),
           onMoveRejected,
         );
+      } else if (position === "below") {
+        handleResult(
+          moveNode(active.id as string, over.id as string, "below"),
+          onMoveRejected,
+        );
+      } else {
+        if (activeNode.parentId !== overNode.id) {
+          handleResult(
+            moveNodeInto(active.id as string, over.id as string),
+            onMoveRejected,
+          );
+        }
       }
     },
     [nodes, moveNode, moveNodeInto, moveToRoot, setOver, onMoveRejected],

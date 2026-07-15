@@ -36,7 +36,7 @@
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 - **ID 不変式**: TaskNode `<type>-<timestamp+counter>` / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
 - **items_meta + composite FK**: 5 role（task / event / routine / note / daily）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照
-- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）
+- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（2026-07-11 #185 決定）
 - **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象: Tasks / Notes / Dailies / Routines / Databases / Templates
 - PropertyType 実装済み: text / number / select / date / checkbox。汎用 DB は MCP 未対応（新型追加時に MCP ツールも整備）
 

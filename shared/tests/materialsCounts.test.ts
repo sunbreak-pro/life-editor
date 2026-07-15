@@ -68,14 +68,15 @@ describe("computeMaterialsCounts", () => {
     expect(computeMaterialsCounts(input)).toEqual(EMPTY_MATERIALS_COUNTS);
   });
 
-  it("counts only unfinished leaf tasks (skips DONE, folders, deleted)", () => {
+  it("counts only unfinished tasks (skips DONE and deleted)", () => {
+    // S3 (#225): folders are gone from the Tasks domain, so the folder-
+    // exclusion case is retired — only DONE / soft-deleted are skipped.
     const nodes: TaskNode[] = [
       task({ id: "a", status: "NOT_STARTED" }),
       task({ id: "b", status: "IN_PROGRESS" }),
       task({ id: "c", status: "DONE" }), // done → excluded
       task({ id: "d", status: undefined }), // no status = not done → counts
       task({ id: "e", status: "NOT_STARTED", isDeleted: true }), // deleted → excluded
-      task({ id: "f", type: "folder" }), // folder → excluded
     ];
     const counts = computeMaterialsCounts({
       nodes,

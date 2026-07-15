@@ -72,6 +72,7 @@ import { DailyView } from "./daily/DailyView";
 const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
+import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
@@ -496,6 +497,16 @@ export function MainScreen({ session }: { session: Session }) {
   // flat layout (§6.2) — only wrapped below with a detail-panel toolbar row.
   const nonMaterialsBody = (
     <>
+      {/*
+       * Briefing (Briefing plan Step 1) — the morning-paper home surface and
+       * the default landing section (useStartupSection). Crosses four domains
+       * (schedule / tasks / timer / dailies) read-only, so it uses no
+       * per-section Provider — BriefingScreen calls the injected DataService
+       * directly (same pattern as TrashScreen) and re-fetches on Realtime
+       * syncVersion bumps, which is how a briefing written by Claude via MCP
+       * appears without a reload.
+       */}
+      {section === "briefing" && <BriefingScreen dataService={ds} />}
       {/*
        * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each
        * inner Provider may read the outer one (ScheduleItems sits INSIDE

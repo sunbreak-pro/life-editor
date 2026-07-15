@@ -10,7 +10,6 @@ import {
   type UndoRedoLike,
 } from "./useTaskTreeHistory";
 import { logServiceError } from "../utils/logError";
-import { getFolderTag } from "../utils/folderTag";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { useSyncContext } from "./useSyncContext";
 
@@ -135,7 +134,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   // sort) so getChildren is an O(1) Map lookup instead of an O(n) filter+
   // sort per call. TaskTreeView's flatten calls getChildren twice per node
   // (children + hasChildren probe) -> O(n^2); the Map collapses that to O(n).
-  // Sort order (folder-first, then order) is identical to the old filter.
+  // life-tags S3: folders were retired, so siblings sort by `order` alone.
   const childrenByParent = useMemo(() => {
     const map = new Map<string | null, TaskNode[]>();
     for (const n of activeNodes) {
@@ -144,11 +143,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       else map.set(n.parentId, [n]);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => {
-        if (a.type === "folder" && b.type !== "folder") return -1;
-        if (a.type !== "folder" && b.type === "folder") return 1;
-        return a.order - b.order;
-      });
+      list.sort((a, b) => a.order - b.order);
     }
     return map;
   }, [activeNodes]);
@@ -211,11 +206,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     guardedPersistWithHistory,
   );
 
-  const getFolderTagForTask = useCallback(
-    (taskId: string) => getFolderTag(taskId, nodeMap),
-    [nodeMap],
-  );
-
   // Resolve the selected node from the live map (null when nothing is
   // selected or the id no longer exists). Mirrors Notes' `selectedNote`.
   const selectedTask = useMemo(
@@ -235,7 +225,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       selectedTaskId,
       setSelectedTaskId,
       selectedTask,
-      getFolderTagForTask,
       refetch,
       undo,
       redo,
@@ -263,7 +252,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       persistError,
       selectedTaskId,
       selectedTask,
-      getFolderTagForTask,
       refetch,
       undo,
       redo,

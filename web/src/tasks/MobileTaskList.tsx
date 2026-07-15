@@ -71,7 +71,7 @@ export interface MobileTaskListLabels {
 
 export interface MobileTaskListProps {
   /** The three status columns (from buildStatusColumns) — cards already carry
-   *  folder pill + tags. */
+   *  their tag chips. */
   statusColumns: KanbanColumnModel[];
   /** KanbanCard copy (shared with the desktop board). */
   cardLabels: KanbanLabels;
@@ -172,7 +172,7 @@ export function MobileTaskList({
         </button>
       </div>
 
-      {/* Card list — full-width vertical stack across all folders. */}
+      {/* Card list — full-width vertical stack across all tasks. */}
       {visibleCards.length === 0 ? (
         <EmptyState
           icon={<ListTodo aria-hidden />}

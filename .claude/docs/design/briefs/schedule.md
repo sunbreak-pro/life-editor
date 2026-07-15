@@ -16,11 +16,11 @@ Branch: claude/design-schedule-v2
 
 （`.claude/docs/requirements/tier-1-core.md` の「Feature: Schedule (Routine + ScheduleItems + CalendarTags)」`tier-1-core.md:78` と現行実装から）
 
-- **目的 / 主ユースケース**: 1 日の運用（Day）と反復パターン（Routine）を束ねる「1 日の運用中枢」（`tier-1-core.md:89`）。ルーチンを 1 回定義すると日々の予定（ScheduleItem）が自動展開され（1 週間先まで backfill、`shared/src/hooks/useScheduleItemsRoutineSync.ts:157`）、単発の予定と同じカレンダーに並ぶ。朝に今日の流れを確認し、日中に完了チェックを付け、週末に翌週を計画する、という使い方が主軸。
+- **目的 / 主ユースケース**: 1 日の運用（Day）と反復パターン（Routine）を束ねる「1 日の運用中枢」（`tier-1-core.md:89`）。ルーチンを 1 回定義すると日々の予定（ScheduleItem）が自動展開され（1 週間先まで backfill、`shared/src/hooks/useScheduleItemsRoutineSync.ts:157`）、単発の予定と同じカレンダーに並ぶ。朝に今日の流れを確認し、日中に完了チェックを付け、週末に翌週を計画する、という使い方が主軸。（2026-07-14 訂正: 週先行 backfill は未配線のデッドコード — 実挙動は表示中日付の materialise のみ。→ `plans/2026-07-14-schedule-redesign.md` §2-1）
 - **表示するデータ**:
   - `ScheduleItem`（`shared/src/types/schedule.ts:1`）: `date` / `startTime` / `endTime` / `isAllDay` / `completed` / `memo` / `routineId`（`tier-1-core.md:95`）。週あたり 15〜40 件で Routine 由来が過半。例:「朝のストレッチ 7:00–7:15」「歯科検診 14:00–15:00」
   - `RoutineNode`: `frequencyType = "daily" | "weekdays" | "interval" | "group"`（`shared/src/types/routine.ts:4`）+ `frequencyDays`（曜日）/ `frequencyInterval`（N 日ごと）/ `frequencyStartDate`（起点日）（`tier-1-core.md:94`）。5〜15 件。例:「ジム 月水金 19:00–20:30」
-  - `RoutineGroup`: 名前 + 色 + 独自の頻度定義。`frequencyType="group"` のルーチンは所属グループの頻度の OR で発火（`shared/src/utils/routineFrequency.ts:18` は group を呼び出し側解決に委譲）
+  - `RoutineGroup`: 名前 + 色 + 独自の頻度定義。`frequencyType="group"` のルーチンは所属グループの頻度の OR で発火（`shared/src/utils/routineFrequency.ts:18` は group を呼び出し側解決に委譲）（2026-07-14 削除決定: グループ管理 UI が存在せず実質機能していないため再設計 Step 4 でコード撤去 — デザイン対象外）
 - **主要操作**: 空きスロットクリックで 60 分イベント即作成（`web/src/schedule/ScheduleCalendarView.tsx:194`）/ ドラッグ移動・下端リサイズ（30 分スナップ、`shared/src/components/schedule/WeekTimeGrid.tsx:71` `:76`）/ 完了トグル / タイトル・時刻編集 / Routine の CRUD と頻度編集（`web/src/schedule/ScheduleView.tsx:27`）/ Routine 由来イベントは削除でなく Dismiss（この日だけスキップ。`web/src/schedule/ScheduleItemsView.tsx:24-31`）。ドラッグでの時刻変更は Tasks の `scheduledAt` と双方向同期（`tier-1-core.md:120`）
 - **Desktop / Mobile の責務分割**（Mobile = Consumption + Quick capture）:
   - Desktop = 全機能。週タイムグリッドが主役

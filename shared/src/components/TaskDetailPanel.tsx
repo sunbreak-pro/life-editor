@@ -97,10 +97,8 @@ export interface TaskDetailPanelProps {
   taskId: string;
   /** Current title (seed for the debounced draft). */
   title: string;
-  /** Current status. Undefined for folders (the status row is hidden). */
+  /** Current status. */
   status?: TaskStatus;
-  /** True when the selected node is a folder (no status / content edit). */
-  isFolder?: boolean;
   /** Persist a title edit (host injects DataService write — §3.1). */
   onTitleCommit: (id: string, title: string) => void;
   /** Cycle the task status (host injects the toggle). */
@@ -129,7 +127,6 @@ export function TaskDetailPanel({
   taskId,
   title,
   status,
-  isFolder = false,
   onTitleCommit,
   onToggleStatus,
   contentEditor,
@@ -157,29 +154,27 @@ export function TaskDetailPanel({
         onCommit={onTitleCommit}
       />
 
-      {!isFolder && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
-            {statusLabel}
+      <div className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+          {statusLabel}
+        </span>
+        <button
+          type="button"
+          onClick={() => onToggleStatus?.(taskId)}
+          aria-label={statusLabel}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover",
+            FOCUS_RING,
+          )}
+        >
+          <span aria-hidden className="text-lumen-text-secondary">
+            {STATUS_GLYPH[resolvedStatus]}
           </span>
-          <button
-            type="button"
-            onClick={() => onToggleStatus?.(taskId)}
-            aria-label={statusLabel}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover",
-              FOCUS_RING,
-            )}
-          >
-            <span aria-hidden className="text-lumen-text-secondary">
-              {STATUS_GLYPH[resolvedStatus]}
-            </span>
-            <span>{statusText}</span>
-          </button>
-        </div>
-      )}
+          <span>{statusText}</span>
+        </button>
+      </div>
 
-      {!isFolder && tagsSlot != null && (
+      {tagsSlot != null && (
         <div className="flex items-center gap-2">
           {tagsLabel && (
             <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
@@ -192,7 +187,7 @@ export function TaskDetailPanel({
         </div>
       )}
 
-      {!isFolder && contentEditor && (
+      {contentEditor && (
         <div className="space-y-1">
           {contentLabel && (
             <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">

@@ -1,46 +1,6 @@
 import type { TaskNode } from "../types/taskTree";
 
 /**
- * Recursively collects all descendant tasks under a given folder.
- * Returns tasks at all nesting levels (not just direct children).
- */
-export function getDescendantTasks(
-  folderId: string,
-  allNodes: TaskNode[],
-): TaskNode[] {
-  const childrenMap = new Map<string | null, TaskNode[]>();
-  for (const node of allNodes) {
-    const pid = node.parentId;
-    const list = childrenMap.get(pid);
-    if (list) {
-      list.push(node);
-    } else {
-      childrenMap.set(pid, [node]);
-    }
-  }
-
-  const result: TaskNode[] = [];
-  // visited guard: a cyclic / self-referential parentId chain would otherwise
-  // push the same folder forever and OOM the worker (see known-issue 016).
-  // On a cycle we stop descending; whatever was collected so far is returned.
-  const visited = new Set<string>([folderId]);
-  const stack = [folderId];
-  while (stack.length > 0) {
-    const parentId = stack.pop()!;
-    const children = childrenMap.get(parentId);
-    if (!children) continue;
-    for (const child of children) {
-      result.push(child);
-      if (child.type === "folder" && !visited.has(child.id)) {
-        visited.add(child.id);
-        stack.push(child.id);
-      }
-    }
-  }
-  return result;
-}
-
-/**
  * Collects the IDs of a node and all its descendants.
  * Uses a parentMap for O(n) performance.
  */
