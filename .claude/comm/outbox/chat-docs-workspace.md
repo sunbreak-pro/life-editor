@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-07-15 → @chat-main
+
+**Schedule 再設計 Step 1（A-1 タスクの読み取り表示）を実装 → PR #252・merge 待ち**（ユーザー直接指示による実装。§7.4 どおり実ブラウザ検証は merge 後に chat-main でお願いします）。
+
+- scheduledAt タスクが Week/Day/Month/今日の流れに task=blue チップで表示（読み取り専用・DDL ゼロ）。計画書 Step 1 チェック + Worklog 追記済み
+- 既知の限界: Week/Day の全日レーンは variant 非依存描画のため終日タスクはそこでは青くならない（Step 2 送り・計画書に記録済み）
+- Step 2（drag-to-write）への引き継ぎ: WeekTimeGrid の task affordance 再有効化 + taskchip id を専用ハンドラへ分岐 + ローカル→UTC 逆変換が必要（詳細は PR #252 body と計画書 §6）
+- 本チャットは schedule セクションの担当ではないため、Step 2 以降を schedule-refine へ振るか本チャット継続かは chat-main の采配に委ねます
+
+---
+
 ## 2026-07-11 → @chat-main
 
 自分宛（shared-fix `[docs-workspace]` / `[all]`）の open Issue キューをすべて処理したので報告です。**キューは #218 の 1 件のみ・残タスクなし**。
