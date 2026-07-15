@@ -1,5 +1,20 @@
 # HISTORY (chat-docs-workspace)
 
+### 2026-07-15 - Schedule 再設計 Step 1: scheduledAt タスクをカレンダーに blue チップで読み取り表示（A-1）
+
+#### 概要
+
+ユーザー直接指示で `2026-07-14-schedule-redesign.md` Step 1 を実装。scheduledAt を持つ TaskNode が Week/Day/Month/今日の流れに task=blue チップで表示される（読み取り専用・DDL ゼロ）。着手前に main を merge（コンフリクト 2 件 = dateKey.ts の DST 注記 / 自 outbox — 双方とも自分側の新しい版を採用して解消）。
+
+#### 変更点
+
+- **純ヘルパー**: `shared/src/utils/taskCalendarChips.ts` 新設（UTC ISO → ローカル date/HH:MM・終日 / 60 分デフォルト・deleted 除外・done は completed 保持・複数日は開始日のみ）+ barrel export + TZ 非依存テスト 7 件
+- **3 コンポーネント**: WeekTimeGrid / MonthGrid / AgendaList の variant union に `"task"` 追加（blue トークン。Repeat グリフ / 左バンドなし。WeekTimeGrid は task に drag/resize affordance 非付与）
+- **トークン**: `--color-schedule-task-bg`（light #dbeafe / dark #1d2348）+ `@theme` エイリアス `lumen-schedule-task-bg`・欠落していた `lumen-chip-task-dot` を追加
+- **配線**: `MainScreen` schedule 分岐最外に `TaskTreeProvider`、`CalendarTab` は派生層（gridItems/monthItems/agenda）でのみ合流。`taskchip-` prefix で select/toggle/move/resize/contextMenu 全 no-op・`rangeItems` 非混入
+- **i18n**: `scheduleScreen.originTask`（en/ja。配線は Step 2/3 で消費する先行キー）
+- **検証**: shared vitest 891 pass / shared・web tsc -b green / web vite build green。role-qa 独立監査 PASS（Blocker 0。既知の限界 = Week/Day 全日レーンは variant 非依存描画のため終日タスクは青くならない — Step 2 送り・計画書に記録済み）。実ブラウザ検証は merge 後 chat-main
+
 ### 2026-07-11 - Issue #218: day-start-hour pref を daily/routine の「今日」計算に配線（PR #242）
 
 #### 概要

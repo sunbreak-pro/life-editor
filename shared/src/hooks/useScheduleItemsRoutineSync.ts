@@ -160,12 +160,13 @@ export function useScheduleItemsRoutineSync(
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Week window starts on the day-start-hour aware "today" (#218),
+        // consistent with the cleanup / backfill / reconcile boundaries.
+        const startDate = todayDateKey();
+        const today = new Date(startDate + "T00:00:00");
         const endDay = new Date(today);
         endDay.setDate(endDay.getDate() + 7);
 
-        const startDate = formatDateKey(today);
         const endDate = formatDateKey(endDay);
 
         const existing = await ds.fetchScheduleItemsByDateRange(

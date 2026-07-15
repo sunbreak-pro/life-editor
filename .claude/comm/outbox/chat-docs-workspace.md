@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-07-15 → @chat-main
+
+**Schedule 再設計 Step 1（A-1 タスクの読み取り表示）を実装 → PR #252・merge 待ち**（ユーザー直接指示による実装。§7.4 どおり実ブラウザ検証は merge 後に chat-main でお願いします）。
+
+- scheduledAt タスクが Week/Day/Month/今日の流れに task=blue チップで表示（読み取り専用・DDL ゼロ）。計画書 Step 1 チェック + Worklog 追記済み
+- 既知の限界: Week/Day の全日レーンは variant 非依存描画のため終日タスクはそこでは青くならない（Step 2 送り・計画書に記録済み）
+- Step 2（drag-to-write）への引き継ぎ: WeekTimeGrid の task affordance 再有効化 + taskchip id を専用ハンドラへ分岐 + ローカル→UTC 逆変換が必要（詳細は PR #252 body と計画書 §6）
+- 本チャットは schedule セクションの担当ではないため、Step 2 以降を schedule-refine へ振るか本チャット継続かは chat-main の采配に委ねます
+
+---
+
 ## 2026-07-11 → @chat-main
 
 自分宛（shared-fix `[docs-workspace]` / `[all]`）の open Issue キューをすべて処理したので報告です。**キューは #218 の 1 件のみ・残タスクなし**。
@@ -20,7 +31,7 @@
 ### 起票依頼（chat-main へ・issue-dispatch）
 
 1. **settings 書き込み側 UI**（section:settings / type:feature）: Settings に「日付が変わる時刻」の select（0〜23 時、既定 0）を追加し `useDayStartHourPref` に配線＋ en/ja catalog 追加。読み手側契約は PR #242 で確定済みなので配線のみ。#216 がスコープ外とした分の残り。
-2. **analytics の「今日」追随の要否判断**（section:analytics）: `TodayDashboard.tsx:29` / `MobileAnalyticsView.tsx:57` / `DailyTimeline.tsx:36` が `formatDateKey(new Date())`（00:00 境界）のまま。daily と境界を揃えるなら `todayDateKey()` への置き換え 3 行。採用判断は chat-main へ。
+2. **analytics の「今日」追随の要否判断**（section:analytics）: `TodayDashboard.tsx:29` / `MobileAnalyticsView.tsx:57` / `DailyTimeline.tsx:36` が `formatDateKey(new Date())`（00:00 境界）のまま。加えて `web/src/analytics/AnalyticsScreen.tsx:74` のローカル `todayKey()` も同境界（role-qa 監査で検出した 4 箇所目）。daily と境界を揃えるなら `todayDateKey()` への置き換え計 4 箇所。採用判断は chat-main へ。
 
 ### 補足
 
