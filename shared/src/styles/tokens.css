@@ -90,6 +90,11 @@
   --color-schedule-other-bg: #f1f2f4;
   --color-schedule-event-bg: #f3e8ff;
   --color-schedule-event-border: #8b5cf6;
+  /* Task block face (schedule redesign A-1): a scheduled TaskNode shows as a
+     blue block on the week/day grid. Mirrors the chip-task blue family so
+     "task" reads as the brand color. Paired with text-lumen-chip-task-fg (no
+     border, no left band, no Repeat glyph — those stay routine-only). */
+  --color-schedule-task-bg: #dbeafe;
   --color-chip-routine-bg: #ebf0fe;
   --color-chip-routine-fg: #3b5bdb;
   --color-chip-routine-dot: #5b6cdb;
@@ -195,6 +200,9 @@
   --color-schedule-other-bg: #1f2937;
   --color-schedule-event-bg: #2e1065;
   --color-schedule-event-border: #a78bfa;
+  /* Task block face dark counterpart — mirrors the chip-task dark bg so it
+     keeps contrast with text-lumen-chip-task-fg (#aebcff). */
+  --color-schedule-task-bg: #1d2348;
   --color-chip-routine-bg: #1e2a48;
   --color-chip-routine-fg: #93c5fd;
   --color-chip-routine-dot: #818cf8;
@@ -270,6 +278,7 @@
      bg-lumen-status-*-band (no hardcoded colors, §6). */
   --color-lumen-chip-task-bg: var(--color-chip-task-bg);
   --color-lumen-chip-task-fg: var(--color-chip-task-fg);
+  --color-lumen-chip-task-dot: var(--color-chip-task-dot);
   --color-lumen-chip-progress-bg: var(--color-chip-progress-bg);
   --color-lumen-chip-progress-fg: var(--color-chip-progress-fg);
   /* Pomodoro LONG_BREAK phase accent (amber). Reuses the theme-invariant
@@ -291,6 +300,7 @@
   --color-lumen-schedule-other-bg: var(--color-schedule-other-bg);
   --color-lumen-schedule-event-bg: var(--color-schedule-event-bg);
   --color-lumen-schedule-event-border: var(--color-schedule-event-border);
+  --color-lumen-schedule-task-bg: var(--color-schedule-task-bg);
   --color-lumen-chip-routine-bg: var(--color-chip-routine-bg);
   --color-lumen-chip-routine-fg: var(--color-chip-routine-fg);
   --color-lumen-chip-routine-dot: var(--color-chip-routine-dot);

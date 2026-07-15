@@ -521,19 +521,25 @@ export function MainScreen({ session }: { session: Session }) {
        * TaskTreeProvider is no longer needed on this branch).
        */}
       {section === "schedule" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <CalendarProvider dataService={ds}>
-            <RoutineProvider dataService={ds}>
-              <ScheduleItemsProvider dataService={ds}>
-                <ScheduleScreen
-                  dataService={ds}
-                  tab={scheduleTab}
-                  onTabChange={setScheduleTab}
-                />
-              </ScheduleItemsProvider>
-            </RoutineProvider>
-          </CalendarProvider>
-        </WikiTagsUnifiedProvider>
+        // TaskTreeProvider is OUTERMOST here (schedule redesign A-1): the
+        // Calendar reads scheduled TaskNodes to render task=blue chips. Provider
+        // order (§6.2) places TaskTree before Calendar, and TaskTree depends on
+        // neither WikiTags nor Calendar, so it sits at the very outside.
+        <TaskTreeProvider dataService={ds}>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <CalendarProvider dataService={ds}>
+              <RoutineProvider dataService={ds}>
+                <ScheduleItemsProvider dataService={ds}>
+                  <ScheduleScreen
+                    dataService={ds}
+                    tab={scheduleTab}
+                    onTabChange={setScheduleTab}
+                  />
+                </ScheduleItemsProvider>
+              </RoutineProvider>
+            </CalendarProvider>
+          </WikiTagsUnifiedProvider>
+        </TaskTreeProvider>
       )}
       {/*
        * Settings (W1) — reads useThemeContext + useShortcutConfig (the

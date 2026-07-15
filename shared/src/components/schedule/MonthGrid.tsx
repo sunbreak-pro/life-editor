@@ -23,7 +23,7 @@ export interface MonthGridItem {
   id: string;
   date: string; // YYYY-MM-DD (local)
   title: string;
-  variant?: "routine" | "event";
+  variant?: "routine" | "event" | "task";
   completed?: boolean;
   isAllDay?: boolean;
 }
@@ -60,16 +60,26 @@ export interface MonthGridProps {
 const CELL_FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset";
 
-function chipFaceClasses(variant: "routine" | "event"): string {
-  return variant === "routine"
-    ? "bg-lumen-chip-routine-bg text-lumen-chip-routine-fg"
-    : "bg-lumen-chip-event-bg text-lumen-chip-event-fg";
+function chipFaceClasses(variant: "routine" | "event" | "task"): string {
+  switch (variant) {
+    case "routine":
+      return "bg-lumen-chip-routine-bg text-lumen-chip-routine-fg";
+    case "task":
+      return "bg-lumen-chip-task-bg text-lumen-chip-task-fg";
+    default:
+      return "bg-lumen-chip-event-bg text-lumen-chip-event-fg";
+  }
 }
 
-function dotColorClasses(variant: "routine" | "event"): string {
-  return variant === "routine"
-    ? "bg-lumen-chip-routine-dot"
-    : "bg-lumen-chip-event-dot";
+function dotColorClasses(variant: "routine" | "event" | "task"): string {
+  switch (variant) {
+    case "routine":
+      return "bg-lumen-chip-routine-dot";
+    case "task":
+      return "bg-lumen-chip-task-dot";
+    default:
+      return "bg-lumen-chip-event-dot";
+  }
 }
 
 export function MonthGrid({

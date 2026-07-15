@@ -1131,6 +1131,7 @@
     "memo": "メモ",
     "originRoutine": "ルーチンから生成",
     "originEvent": "予定",
+    "originTask": "タスク",
     "skipThisDay": "この日はスキップ",
     "delete": "削除",
     "selectHint": "編集する予定を選択",

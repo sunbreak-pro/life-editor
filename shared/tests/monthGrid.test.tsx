@@ -14,6 +14,7 @@ const ITEMS: MonthGridItem[] = [
   { id: "a", date: "2026-07-09", title: "Gym", variant: "routine" },
   { id: "b", date: "2026-07-09", title: "Dentist", variant: "event" },
   { id: "c", date: "2026-07-09", title: "Groceries", variant: "event" },
+  { id: "t", date: "2026-07-10", title: "Write report", variant: "task" },
 ];
 
 function renderGrid(props?: Partial<Parameters<typeof MonthGrid>[0]>) {
@@ -74,5 +75,35 @@ describe("MonthGrid", () => {
     // No chip buttons in compact mode — only the per-cell day-select buttons.
     expect(screen.queryByRole("button", { name: "Gym" })).toBeNull();
     expect(screen.queryByText("+1 more")).toBeNull();
+  });
+
+  it("renders a task chip with the blue task face", () => {
+    renderGrid();
+    const chip = screen.getByRole("button", { name: "Write report" });
+    expect(chip.className).toContain("bg-lumen-chip-task-bg");
+    expect(chip.className).toContain("text-lumen-chip-task-fg");
+  });
+
+  it("paints the task dot with the task dot color in compact mode", () => {
+    const { container } = render(
+      <MonthGrid
+        monthKey="2026-07-15"
+        items={[
+          {
+            id: "t",
+            date: "2026-07-10",
+            title: "Write report",
+            variant: "task",
+          },
+        ]}
+        todayKey="2026-07-09"
+        weekdayLabels={WEEKDAYS}
+        onSelectDay={vi.fn()}
+        onSelectItem={vi.fn()}
+        formatMoreCount={(n) => `+${n} more`}
+        compact
+      />,
+    );
+    expect(container.querySelector(".bg-lumen-chip-task-dot")).not.toBeNull();
   });
 });

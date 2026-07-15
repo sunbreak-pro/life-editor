@@ -1131,6 +1131,7 @@
     "memo": "Memo",
     "originRoutine": "Generated from routine",
     "originEvent": "Event",
+    "originTask": "Task",
     "skipThisDay": "Skip this day",
     "delete": "Delete",
     "selectHint": "Select an event to edit",
