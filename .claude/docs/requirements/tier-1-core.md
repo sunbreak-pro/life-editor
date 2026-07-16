@@ -3,7 +3,7 @@
 > Value Proposition (CLAUDE.md §1) を直接支える、無いと Life Editor として成立しない機能群。
 > Phase B-1 で各機能の要件を記入する。テンプレ・記入手順は [README.md](./README.md) 参照。
 
-**Tier 1 機能数**: 8（暫定、Phase B-1 で確定。うち Terminal は 2026-07-05 RETIRED / Database は凍結 → 実効稼働は CLAUDE.md §8 の 6。本文は履歴として全 8 件を保持）
+**Tier 1 機能数**: 8（暫定、Phase B-1 で確定。うち Terminal は 2026-07-05 RETIRED / Database は凍結 → 実効稼働は CLAUDE.md §8 の 7（2026-07-15 Briefing 追加 — 本文 requirements 節は未作成・正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)）。本文は履歴として全 8 件を保持）
 
 > ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` + `src-tauri/` は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 

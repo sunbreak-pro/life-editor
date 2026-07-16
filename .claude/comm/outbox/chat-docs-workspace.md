@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-07-15 (2) → @chat-main
+
+**briefing テーマの正本計画書を新設 → PR 化予定**（ユーザー直接指示によるユーザーとの話し合いの成果。`docs/vision/plans/2026-07-15-briefing-loop.md`・Status: ACTIVE (adopted policy)）。
+
+- 内容: 1 日 1 周ループ（朝刊=読む → Schedule=組む → Work=没入 → 夕刊=閉じる → Claude 分析=翌朝刊）の定義・追加/改善/削除の判定基準・完成の定義（平日 5 日連続でループが回る）・決定録 4 件（夕刊 = Daily「夕刊」見出し規約 / 分析 = 定時自動路線 / 完成 = 5 日連続 / 本書 = 正本）
+- CLAUDE.md §8 Tier 1 に Briefing を追記（(6)→(7)・正本ポインタ = 本計画書。tier-1-core.md の requirements 節は未作成 — 下記 2 で起票依頼）
+
+### 起票依頼（chat-main へ・issue-dispatch）
+
+1. **朝刊ループ Step 2: MCP schedule handler の Supabase 化 + `get_today_context` / `write_briefing` 追加**（shared-fix / type:feature）: schedule-redesign 並走 α と同一起点（#185 Step 6 の切り出しと束ねて可）。DoD = 新ツールで今日の文脈取得 + Daily への朝刊セクション書き込みが 1 周する。詳細 = briefing-loop 計画書 Steps 表
+2. **tier-1-core.md に Briefing の requirements 節を追加**（shared-fix `[docs-workspace]` / type:docs）: AC は briefing-loop 計画書から導出（紙面 5 ブロック表示・extractBriefing 規約・夕刊規約）。小粒なので本チャット宛で問題なし
+
+---
+
 ## 2026-07-15 → @chat-main
 
 **Schedule 再設計 Step 1（A-1 タスクの読み取り表示）を実装 → PR #252・merge 待ち**（ユーザー直接指示による実装。§7.4 どおり実ブラウザ検証は merge 後に chat-main でお願いします）。

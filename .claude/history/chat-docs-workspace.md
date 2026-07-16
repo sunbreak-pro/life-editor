@@ -1,5 +1,19 @@
 # HISTORY (chat-docs-workspace)
 
+### 2026-07-16 - briefing テーマの正本計画書（briefing-loop）新設 + CLAUDE.md §8 追随（PR #253）
+
+#### 概要
+
+ユーザーとのビジョン話し合い（「何を軸に機能を改善・削除・追加するか」）の成果を `docs/vision/plans/2026-07-15-briefing-loop.md`（Status: ACTIVE (adopted policy)）として正本化。コードコメントが参照していた「Briefing plan」のリポジトリ内実体が初めてできた。
+
+#### 変更点
+
+- **計画書新設**: 1 日 1 周ループ（朝刊=読む → Schedule=組む → Work=没入 → 夕刊=閉じる → Claude 分析=翌朝刊を書く）の定義・追加/改善/削除/凍結の判定基準・完成の定義（平日 5 日連続でループ完走 = Daily の朝刊/夕刊セクション存在で機械判定可能な AC）・現在地マップ・ロードマップ Step 1〜6（Step 1 = #249 出荷済み、番号はコード既存参照と整合）
+- **決定録 4 件（2026-07-15 ユーザー確定）**: 夕刊 = Daily「夕刊」見出しセクション（新 UI ゼロ・DDL ゼロ・1 行でも成立）/ Claude 分析 = 定時自動路線（経路設計 = Step 5・確定まで手動 `claude` 起動）/ 完成 = 5 日連続ループ / 本書 = briefing 正本
+- **CLAUDE.md §8**: Tier 1 に Briefing 追記（(6)→(7)・正本ポインタ = 本計画書。tier-1-core の requirements 節は起票依頼で後続）
+- **outbox**: chat-main 宛起票依頼 2 件（朝刊ループ Step 2 = MCP schedule handler の Supabase 化 + `get_today_context` / `write_briefing`、tier-1 Briefing requirements 節）
+- **PR**: commit 0c8f49b1 → PR #253 open（merge = 人手ゲート・docs のみで build 影響なし）
+
 ### 2026-07-15 - Schedule 再設計 Step 1: scheduledAt タスクをカレンダーに blue チップで読み取り表示（A-1）
 
 #### 概要
