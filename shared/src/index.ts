@@ -255,6 +255,10 @@ export {
   type RoutineSyncUpdate,
 } from "./utils/routineScheduleSync";
 export {
+  tasksToCalendarChips,
+  type TaskCalendarChip,
+} from "./utils/taskCalendarChips";
+export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,
 } from "./hooks/useScheduleItemsRoutineSync";

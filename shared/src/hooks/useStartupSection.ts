@@ -20,8 +20,9 @@ const LAST_SECTION_STORAGE_KEY = "life-editor-last-section";
 /** "last" (resume the last-visited section) or a fixed SectionId. */
 export type StartupSectionPref = "last" | SectionId;
 
-/** Fallback when nothing valid is stored (the app's default landing section). */
-export const DEFAULT_STARTUP_SECTION: SectionId = "materials";
+/** Fallback when nothing valid is stored (the app's default landing section).
+ *  Briefing plan Step 1: the morning paper is the app's home. */
+export const DEFAULT_STARTUP_SECTION: SectionId = "briefing";
 
 function isSectionId(value: string): value is SectionId {
   return (SECTION_IDS as readonly string[]).includes(value);

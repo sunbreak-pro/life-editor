@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
+  useTaskTreeContext,
   useRightSidebarOptional,
   useTranslation,
   useMediaQuery,
@@ -26,12 +27,15 @@ import {
   monthGridKeys,
   minutesToTime,
   deriveScheduleStatus,
+  tasksToCalendarChips,
+  type TaskCalendarChip,
   type ScheduleStatus,
   type ScheduleItem,
   type WeekTimeGridItem,
   type MonthGridItem,
   type AgendaItem,
   type EventEditorItem,
+  type FrequencyEditorValue,
   type RoutineSummaryRow,
   type SegmentedOption,
 } from "@life-editor/shared";
@@ -66,6 +70,16 @@ const ICON_BTN =
 const FIELD =
   "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 const CREATE_DURATION_MIN = 60;
+
+/*
+ * Scheduled-task chips (schedule redesign A-1) are merged into the grid/agenda
+ * as synthetic items. Their ids are prefixed so the host handlers can tell them
+ * apart from ScheduleItem ids and no-op (A-1 is read-only: no select/edit/drag/
+ * toggle on task chips — Steps 2/3 wire writes). The prefix also guarantees no
+ * id collision with a ScheduleItem.
+ */
+const TASK_CHIP_PREFIX = "taskchip-";
+const isTaskChip = (id: string): boolean => id.startsWith(TASK_CHIP_PREFIX);
 
 function makeOptimisticItem(
   id: string,
@@ -193,7 +207,18 @@ export function CalendarTab({
     dismiss,
     deleteScheduleItem,
   } = useScheduleItemsContext();
-  const { routines } = useRoutineContext();
+  const {
+    routines,
+    routineGroups,
+    createRoutine,
+    updateRoutine,
+    setGroupsForRoutine,
+    getGroupIdsForRoutine,
+    detachRoutine,
+  } = useRoutineContext();
+  // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
+  // already excludes soft-deleted tasks (useTaskTreeAPI). Read-only in A-1.
+  const { nodes: taskNodes } = useTaskTreeContext();
   // Null-safe: the section can render without a RightSidebarProvider (tests /
   // standalone). `open` re-opens the panel when a calendar item is picked.
   const rightSidebar = useRightSidebarOptional();
@@ -237,6 +262,9 @@ export function CalendarTab({
   // its BottomSheet, so the tab/open side-effects are wide-only.
   const handleSelectItem = useCallback(
     (id: string) => {
+      // A-1: task chips are read-only display — clicking one must not open the
+      // ScheduleItem editor (the id isn't a ScheduleItem). No-op here.
+      if (isTaskChip(id)) return;
       setSelectedId(id);
       if (isWide) {
         setSidebarTab("detail");
@@ -313,6 +341,9 @@ export function CalendarTab({
 
   const handleToggle = useCallback(
     (id: string) => {
+      // A-1: task chips don't own a ScheduleItem completion. Completion for
+      // scheduled tasks is wired in Step 3 (TaskTree completion API). No-op.
+      if (isTaskChip(id)) return;
       // Mirror the provider's toggle field set (completed + completedAt) on the
       // local range copy so the grid/agenda stay consistent without a refetch.
       setRangeItems((prev) =>
@@ -396,6 +427,9 @@ export function CalendarTab({
 
   const handleMoveItem = useCallback(
     (id: string, dateISO: string, startISO: string, endISO: string) => {
+      // A-1: task chips are read-only (WeekTimeGrid also omits their drag
+      // affordances). Step 2 wires drag → updateTaskNode(scheduledAt). No-op.
+      if (isTaskChip(id)) return;
       const patch = { date: dateISO, startTime: startISO, endTime: endISO };
       patchRange(id, patch);
       updateScheduleItem(id, patch);
@@ -405,6 +439,7 @@ export function CalendarTab({
 
   const handleResizeItem = useCallback(
     (id: string, endISO: string) => {
+      if (isTaskChip(id)) return; // A-1: task chips read-only (see handleMoveItem)
       patchRange(id, { endTime: endISO });
       updateScheduleItem(id, { endTime: endISO });
     },
@@ -433,6 +468,7 @@ export function CalendarTab({
 
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
+      if (isTaskChip(id)) return; // A-1: no rename/duplicate/delete on task chips
       setContextMenu({ id, x: pos.x, y: pos.y });
     },
     [],
@@ -617,38 +653,29 @@ export function CalendarTab({
     view: t("scheduleScreen.viewLabel"),
   };
 
-  const gridItems = useMemo<WeekTimeGridItem[]>(
-    () =>
-      rangeItems.map((i) => ({
-        id: i.id,
-        date: i.date,
-        title: i.title,
-        startTime: i.startTime,
-        endTime: i.endTime,
-        isAllDay: i.isAllDay,
-        completed: i.completed,
-        status: deriveScheduleStatus(i, now),
-        variant: itemVariant(i),
-      })),
-    [rangeItems, now],
+  // Scheduled-task chips (schedule redesign A-1). `rangeTaskChips` backs the
+  // grid + month (visible range); `todayTaskChips` backs the "今日の流れ" flow,
+  // which always shows today regardless of the grid's visible range. Task chips
+  // are merged only at this derived (map) layer — never into `rangeItems`
+  // (the optimistic ScheduleItem mutation store).
+  const scheduledTasks = useMemo(
+    () => taskNodes.filter((n) => n.scheduledAt != null),
+    [taskNodes],
   );
-  const monthItems = useMemo<MonthGridItem[]>(
-    () =>
-      rangeItems.map((i) => ({
-        id: i.id,
-        date: i.date,
-        title: i.title,
-        variant: itemVariant(i),
-        completed: i.completed,
-        isAllDay: i.isAllDay,
-      })),
-    [rangeItems],
+  const rangeTaskChips = useMemo(
+    () => tasksToCalendarChips(scheduledTasks, rangeStart, rangeEnd),
+    [scheduledTasks, rangeStart, rangeEnd],
+  );
+  const todayTaskChips = useMemo(
+    () => tasksToCalendarChips(scheduledTasks, today, today),
+    [scheduledTasks, today],
   );
 
-  const toAgenda = useCallback(
-    (arr: ScheduleItem[]): AgendaItem[] =>
-      sortDayItems(arr).map((i) => ({
+  const gridItems = useMemo<WeekTimeGridItem[]>(
+    () => [
+      ...rangeItems.map((i) => ({
         id: i.id,
+        date: i.date,
         title: i.title,
         startTime: i.startTime,
         endTime: i.endTime,
@@ -657,6 +684,67 @@ export function CalendarTab({
         status: deriveScheduleStatus(i, now),
         variant: itemVariant(i),
       })),
+      ...rangeTaskChips.map((c) => ({
+        id: TASK_CHIP_PREFIX + c.id,
+        date: c.date,
+        title: c.title,
+        startTime: c.startTime,
+        endTime: c.endTime,
+        isAllDay: c.isAllDay,
+        completed: c.completed,
+        variant: "task" as const,
+      })),
+    ],
+    [rangeItems, now, rangeTaskChips],
+  );
+  const monthItems = useMemo<MonthGridItem[]>(
+    () => [
+      ...rangeItems.map((i) => ({
+        id: i.id,
+        date: i.date,
+        title: i.title,
+        variant: itemVariant(i),
+        completed: i.completed,
+        isAllDay: i.isAllDay,
+      })),
+      ...rangeTaskChips.map((c) => ({
+        id: TASK_CHIP_PREFIX + c.id,
+        date: c.date,
+        title: c.title,
+        variant: "task" as const,
+        completed: c.completed,
+        isAllDay: c.isAllDay,
+      })),
+    ],
+    [rangeItems, rangeTaskChips],
+  );
+
+  // Merge schedule items + task chips into a single sorted agenda. Task rows
+  // carry no derived status, so AgendaList renders no toggle tag for them —
+  // completion for scheduled tasks lands in Step 3 (TaskTree API).
+  const toAgenda = useCallback(
+    (arr: ScheduleItem[], chips: TaskCalendarChip[] = []): AgendaItem[] => {
+      const scheduleAgenda: AgendaItem[] = arr.map((i) => ({
+        id: i.id,
+        title: i.title,
+        startTime: i.startTime,
+        endTime: i.endTime,
+        isAllDay: i.isAllDay,
+        completed: i.completed,
+        status: deriveScheduleStatus(i, now),
+        variant: itemVariant(i),
+      }));
+      const taskAgenda: AgendaItem[] = chips.map((c) => ({
+        id: TASK_CHIP_PREFIX + c.id,
+        title: c.title,
+        startTime: c.startTime,
+        endTime: c.endTime,
+        isAllDay: c.isAllDay,
+        completed: c.completed,
+        variant: "task" as const,
+      }));
+      return sortDayItems([...scheduleAgenda, ...taskAgenda]);
+    },
     [now],
   );
 
@@ -665,8 +753,8 @@ export function CalendarTab({
     [contextItems],
   );
   const todayAgenda = useMemo(
-    () => toAgenda(todayItems),
-    [todayItems, toAgenda],
+    () => toAgenda(todayItems, todayTaskChips),
+    [todayItems, todayTaskChips, toAgenda],
   );
   const todayDone = todayItems.filter((i) => i.completed).length;
   const todayTotal = todayItems.length;
@@ -707,6 +795,114 @@ export function CalendarTab({
     const r = routines.find((x) => x.id === selected.routineId);
     return r ? frequencyLabel(r, freqCopy, weekdayLabels) : undefined;
   }, [selected, routines, freqCopy, weekdayLabels]);
+
+  // ── Repeat section (#185 Step 3) ───────────────────────────────────────────
+  // The source routine of the selected occurrence (null for a manual event).
+  const selectedRoutine = useMemo(() => {
+    if (!selected || selected.routineId == null) return null;
+    return routines.find((r) => r.id === selected.routineId) ?? null;
+  }, [selected, routines]);
+
+  // The frequency the <FrequencyEditor> edits. null = "なし" (manual event).
+  const repeatValue = useMemo<FrequencyEditorValue | null>(() => {
+    if (!selectedRoutine) return null;
+    return {
+      frequencyType: selectedRoutine.frequencyType,
+      frequencyDays: selectedRoutine.frequencyDays,
+      frequencyInterval: selectedRoutine.frequencyInterval,
+      frequencyStartDate: selectedRoutine.frequencyStartDate,
+      groupIds: getGroupIdsForRoutine(selectedRoutine.id),
+    };
+  }, [selectedRoutine, getGroupIdsForRoutine]);
+
+  const repeatGroups = useMemo(
+    () =>
+      routineGroups.map((g) => ({ id: g.id, name: g.name, color: g.color })),
+    [routineGroups],
+  );
+
+  const repeatLabels = useMemo(
+    () => ({
+      frequency: t("scheduleScreen.frequency"),
+      frequencyNone: t("scheduleScreen.frequencyNone"),
+      frequencyDaily: t("scheduleScreen.frequencyDaily"),
+      frequencyWeekdays: t("scheduleScreen.frequencyWeekdays"),
+      frequencyInterval: t("scheduleScreen.frequencyInterval"),
+      frequencyGroup: t("scheduleScreen.frequencyGroup"),
+      intervalEvery: t("scheduleScreen.intervalEvery"),
+      intervalDays: t("scheduleScreen.intervalDays"),
+      startDate: t("scheduleScreen.startDate"),
+      groups: t("scheduleScreen.groupsLabel"),
+    }),
+    [t],
+  );
+
+  // Frequency change from the editor. For a routine occurrence this is a
+  // series edit (patch the source routine). For a manual event, choosing a
+  // frequency spins up a routine seeded from the event, then drops the
+  // standalone seed — the generator materialises occurrences going forward.
+  const handleChangeRepeat = useCallback(
+    (patch: Partial<FrequencyEditorValue>) => {
+      if (!selected) return;
+      if (selected.routineId != null) {
+        const { groupIds, ...rest } = patch;
+        if (groupIds !== undefined)
+          setGroupsForRoutine(selected.routineId, groupIds);
+        if (Object.keys(rest).length > 0) {
+          updateRoutine(selected.routineId, rest);
+        }
+        return;
+      }
+      // Manual → turn a repeat on. group is not offered here (allowGroup=false),
+      // so only a concrete daily/weekdays/interval type reaches this branch.
+      const type = patch.frequencyType;
+      if (!type || type === "group") return;
+      const [yy, mm, dd] = selected.date.split("-").map(Number);
+      const seedWeekday = new Date(yy, mm - 1, dd).getDay();
+      createRoutine(
+        selected.title,
+        selected.startTime,
+        selected.endTime,
+        type,
+        type === "weekdays" ? [seedWeekday] : [],
+        type === "interval" ? 1 : null,
+        type === "interval" ? selected.date : null,
+      );
+      handleDelete(selected.id);
+    },
+    [selected, setGroupsForRoutine, updateRoutine, createRoutine, handleDelete],
+  );
+
+  // "なし" selected → turn the repeat off (detach the series from today on).
+  const handleDetachRepeat = useCallback(() => {
+    if (!selected || selected.routineId == null) return; // manual = no-op
+    const routineId = selected.routineId;
+    const occurrenceId = selected.id;
+    setSelectedId((cur) => (cur === occurrenceId ? null : cur));
+    void (async () => {
+      try {
+        // Reconcile off the SERVER's own delete set (the returned ids) rather
+        // than a client-side date predicate — the two must not drift (the
+        // service's "today" honours the day-start-hour pref; a local
+        // todayLocalKey memo would disagree in the late-night window).
+        const { deletedScheduleItemIds } = await detachRoutine(routineId);
+        const removed = new Set(deletedScheduleItemIds);
+        setRangeItems((prev) =>
+          prev
+            .filter((i) => !removed.has(i.id))
+            // Survivors keep their row but lose the routine origin (the band
+            // goes away) — mirrors the server NULLing routine_item_id.
+            .map((i) =>
+              i.routineId === routineId ? { ...i, routineId: null } : i,
+            ),
+        );
+      } catch {
+        // Detach did not land server-side: force a full range reload so the
+        // view returns to the DB truth (nothing navigated to trigger it).
+        setReloadKey((k) => k + 1);
+      }
+    })();
+  }, [selected, detachRoutine]);
 
   const summaryRows = useMemo<RoutineSummaryRow[]>(
     () =>
@@ -765,6 +961,12 @@ export function CalendarTab({
       onDismiss={handleDismiss}
       onDelete={handleDelete}
       labels={editorLabels}
+      repeat={repeatValue}
+      repeatGroups={repeatGroups}
+      repeatWeekdayLabels={weekdayLabels}
+      repeatLabels={repeatLabels}
+      onChangeRepeat={handleChangeRepeat}
+      onDetachRepeat={handleDetachRepeat}
     />
   ) : null;
 
@@ -1038,7 +1240,10 @@ export function CalendarTab({
             errorCard
           ) : mobileView === "list" ? (
             <AgendaList
-              items={toAgenda(anchorDayItems)}
+              items={toAgenda(
+                anchorDayItems,
+                rangeTaskChips.filter((c) => c.date === anchorDate),
+              )}
               nowMinutes={anchorDate === today ? nowMinutes : null}
               onToggleComplete={handleToggle}
               onSelectItem={handleSelectItem}
@@ -1081,7 +1286,10 @@ export function CalendarTab({
                 ariaLabel={t("scheduleScreen.calendar")}
               />
               <AgendaList
-                items={toAgenda(monthDayItems)}
+                items={toAgenda(
+                  monthDayItems,
+                  rangeTaskChips.filter((c) => c.date === mobileSelectedDay),
+                )}
                 nowMinutes={mobileSelectedDay === today ? nowMinutes : null}
                 onToggleComplete={handleToggle}
                 onSelectItem={handleSelectItem}

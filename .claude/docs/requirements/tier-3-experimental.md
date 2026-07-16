@@ -44,7 +44,7 @@
 
 **Tier**: 3
 **Status**: △基盤のみ（基本統計 + 作業時間グラフ + Recharts 複数タブ、ダッシュボード未成熟）
-**Verdict**: **凍結継続（ADR-0005 Phase 4 と統合検討）**
+**Verdict**: **凍結継続 — 破棄しない（2026-07-16 ユーザー決定で追認: 現行デザイン維持・配線/開発は凍結・完成間近に更新再開。ADR-0005 Phase 4 との統合検討は当時の記述）**
 **Owner Provider/Module**: `AnalyticsFilterProvider` / `frontend/src/components/Analytics/` / `src-tauri/src/commands/diagnostics_commands.rs`
 **Supports Value Prop**: なし（Tier 3 候補）
 
@@ -60,6 +60,7 @@
 - 実利用状況（作者）: 未確認（Phase C でヒアリング）
 - 関連: **ADR-0005 Phase 4（自己最適化）**で `reflect_on_day` / `analyze_patterns` が生成する分析データの可視化パネルとして再利用想定
 - Verdict 根拠: 基盤は完成しており、Claude 駆動分析（ADR-0005 Phase 2）の出力を表示する UI として活用する方針。単独ではなく Cognitive Architecture と統合する形で残す
+- 2026-07-16 ユーザー決定（briefing-loop 摩擦除去の話し合い）: **破棄しない**。現行の shared/web 版ダッシュボード（`shared/src/components/Analytics/` + `web/src/analytics/` — 上記 Owner 欄の frontend/ 表記は旧 Tauri 時代の記述）のデザインを維持し、配線・開発を凍結。完成間近に更新を再開する（記録 = `docs/vision/plans/2026-07-16-loop-friction-fixes.md` 決定 6）
 
 ### Dependencies
 
@@ -97,7 +98,7 @@
 
 **Tier**: 3
 **Status**: ×未着手（構想のみ）
-**Verdict**: **未着手（ICS 購読を短期 Phase 1 として予定）**
+**Verdict**: **凍結（2026-07-14 路線変更）** — アプリ内蔵連携・一時検討した「Claude 側ミラー」案とも当面しない。「本日の Todo」はアプリ内の Task で完結させる。**再開条件 = 朝刊（Briefing）ループが安定運用に入った後、ユーザーが改めて望んだ場合のみ**（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md` §5 決定 7。旧 Verdict「ICS 購読を短期 Phase 1 として予定」は SUPERSEDED）
 **Owner Provider/Module**: 未実装
 
 ### Boundary
@@ -112,8 +113,8 @@
   - Phase 1: ICS URL 購読（実装コスト最小、片方向 import）
   - Phase 2: OAuth 連携（双方向同期まで）
   - Claude からの参照は google-calendar MCP を併用
-- Schedule 機能の Future Enhancement（§Schedule 短期 / 中期）と統合
-- Verdict 根拠: Tier 1 Schedule の補完として価値が高く、ICS 購読は小さく始められる。Tier 2 昇格 or Schedule 内部実装として吸収する可能性あり（Phase C 以降で再評価）
+- Schedule 機能の Future Enhancement（§Schedule 短期 / 中期）と統合 → 2026-07-14 に tier-1 Schedule 側の Future Enhancements から削除済み（見送りの明記）
+- Verdict 根拠: Tier 1 Schedule の補完として価値が高く、ICS 購読は小さく始められる。Tier 2 昇格 or Schedule 内部実装として吸収する可能性あり（Phase C 以降で再評価）→ 2026-07-14 路線変更により上記の再開条件を満たすまで凍結
 
 ### Dependencies
 

@@ -43,6 +43,8 @@ export function getDayStartHour(): number {
  * Local date key for "today", honoring the day-start hour: an instant
  * before HH:00 counts as the previous day (exactly HH:00 is the new day).
  * With the default 0 this is identical to `formatDateKey(new Date())`.
+ * The fixed-ms shift assumes a DST-less timezone (JST, N=1 user); around
+ * a DST switch the wall-clock boundary would drift by an hour.
  */
 export function todayDateKey(
   now: Date = new Date(),

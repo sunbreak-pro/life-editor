@@ -27,6 +27,14 @@ const ITEMS: WeekTimeGridItem[] = [
     endTime: "13:00",
     variant: "event",
   },
+  {
+    id: "report",
+    date: "2026-07-09",
+    title: "Write report",
+    startTime: "09:00",
+    endTime: "10:00",
+    variant: "task",
+  },
 ];
 
 function renderGrid(props?: Partial<Parameters<typeof WeekTimeGrid>[0]>) {
@@ -55,6 +63,18 @@ describe("WeekTimeGrid — provenance variants", () => {
     const block = screen.getByTitle("12:00–13:00 Dinner");
     expect(block.className).toContain("bg-lumen-schedule-event-bg");
     expect(block.className).toContain("border-lumen-schedule-event-border");
+  });
+
+  it("gives a task item the blue face and no Repeat glyph / band", () => {
+    renderGrid();
+    const block = screen.getByTitle("09:00–10:00 Write report");
+    expect(block.className).toContain("bg-lumen-schedule-task-bg");
+    expect(block.className).toContain("text-lumen-chip-task-fg");
+    // Not the routine face, and no border like the event face.
+    expect(block.className).not.toContain("bg-lumen-schedule-routine-bg");
+    expect(block.className).not.toContain("border-lumen-schedule-event-border");
+    // No routine left-band / Repeat glyph on a task block.
+    expect(block.querySelector("svg")).toBeNull();
   });
 });
 
