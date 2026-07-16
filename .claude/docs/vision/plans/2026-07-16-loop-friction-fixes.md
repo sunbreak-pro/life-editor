@@ -5,7 +5,7 @@ Branch: claude/docs-workspace
 Owner-chat: docs-workspace
 ---
 
-# Plan: Loop Friction Fixes — ループを回すための摩擦除去（2026-07-16 ユーザー要件 6 件）
+# Plan: Loop Friction Fixes — ループを回すための摩擦除去（2026-07-16 ユーザー要件）
 
 > **親計画** = [`2026-07-15-briefing-loop.md`](./2026-07-15-briefing-loop.md)。位置づけ = 判定基準「改善: 朝 5 分・夜 5 分の妨げから直す」の適用第 1 弾 ＋ ループ成立の**前提工事**（F-1）。
 > 本書は仕様と決定の正本。起票は chat-main（issue-dispatch）・実装は各担当 worktree・進捗追跡は各 Issue が持つ。
@@ -16,6 +16,7 @@ Owner-chat: docs-workspace
 
 - 2026-07-15 に briefing-loop を正本化した直後、ユーザーから運用上の摩擦 6 件が提示された（docs-workspace チャットへの直接指示）
 - 精査の過程で**ループの土台欠陥**が判明: **手書きの朝刊・夕刊は現状の Daily では成立しない**（→ 事実 1・F-1）。要件 1 は見た目の不便ではなく「閉じる・読む」の手動経路そのものの欠陥だった
+- 同日の第 2 ラウンドで、ユーザーから「夕刊を朝刊と同じページに（ヘッダータブ切替・専用入力ページ）」が追加提案され、決定 7・F-6 として確定した（Daily へ飛んで書くより朝刊・夕刊をセットで扱うほうが自然、という動線の摩擦除去）
 
 ## 事実確認（2026-07-16 実測。file:line は本日時点）
 
@@ -35,6 +36,7 @@ Owner-chat: docs-workspace
 4. **Claude の起動口 = 定時自動（briefing-loop Step 5）を先行**。アプリ内ボタンは後続候補（Desktop 限定・Electron 経由でローカル `claude` 起動・$0 維持。Claude API 直課金経路は Non-Goal のため不採用）→ 実装なし・briefing-loop 決定録 5 に記録
 5. **名称変更は表示ラベル（i18n en/ja catalog）のみ**: 「タスク」→「Todo」・「約束」→「予定」。コード識別子・DB・SectionId は改名しない（全層改名はループに仕えない工事のため）→ F-4
 6. **Analytics は破棄しない**: 現行デザイン維持・配線と開発は凍結・完成間近に再開（tier-3 の「凍結継続」Verdict を追認・明文化）→ 実装なし・tier-3 に記録
+7. **夕刊の入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ**（同日第 2 ラウンドで確定）。専用ページは「Daily の夕刊セクションの専用編集ビュー」であり**保存先は Daily のまま**（新テーブル・新保存先なし）。気分（五段階）は夕刊セクション内のテキスト規約「気分: n/5」で保存（DDL ゼロ維持・専用列への昇格は Analytics 再開時に判断）→ F-6。briefing-loop 決定 1 の「新 UI ゼロ」部分を更新（保存規約は不変）
 
 ## 要件 → 対応マップ
 
@@ -46,8 +48,9 @@ Owner-chat: docs-workspace
 | 4. Claude ループボタン                            | 決定 4（定時自動先行）— 新規実装なし                                                         | —                                            |
 | 5. 約束/タスクの違い不明・名称変更・反映されない  | **F-4** ラベル改名 ＋ **F-5** 反映バグ検証                                                   | shared-fix [all] / type:bug（chat-main）     |
 | 6. Analytics を破棄しないでほしい                 | 決定 6 — tier-3 追認・実装なし                                                               | —                                            |
+| 7. 夕刊を朝刊と同じページに（タブ切替・専用入力） | **F-6** 夕刊専用ページ（F-1 依存）                                                           | briefing 担当 worktree なし → chat-main 采配 |
 
-## F-1〜F-5 仕様
+## F-1〜F-6 仕様
 
 ### F-1: Daily エディタの TipTap 化（ループ前提工事・最優先）
 
@@ -85,11 +88,21 @@ Owner-chat: docs-workspace
 - 要・実ブラウザ再現（chat-main・playwright）。再現すれば根治 Issue 化、再現しなければ「反映は復帰時 refetch ＋ 数百 ms」の仕様として記録して close
 - **AC**: 再現手順の確定 or 仕様として記録して close
 
+### F-6: 夕刊専用ページ（Briefing ヘッダータブ・F-1 依存）
+
+- Briefing の SectionHeader にタブ「朝刊 / 夕刊」を追加（Materials / Analytics と同じ HeaderTabs パターン）。初期タブは時刻で自動選択（夕方以降 = 夕刊。しきい値は実装 Issue で決定 — day-start-hour pref との整合を確認）
+- 夕刊タブ = 1 日の締めページ。構成: ① リッチテキストフィールド（F-1 と同じ TipTap 部品 — Daily / Note と同じ書き味）② 現状の残り Todo（表示専用・生データ読み）③ 今後の予定（表示専用）④ 気分の五段階入力（★ タップ UI → テキスト規約「気分: n/5」として夕刊セクション先頭に書き込み）
+- **保存 = DailyNode content の「夕刊」見出しセクション**（専用編集ビュー。新テーブル・新保存先なし・DDL ゼロ）。Daily 側から直接書いても同じ場所に落ちる（どちらから書いても正）
+- 残り Todo・今後の予定は本文へ書き写さない（分析は Step 2 の `get_today_context` が生データを直接読む。本文に書くのはユーザー自身の振り返りだけ）
+- **依存: F-1 先行必須** — 現行 Daily の平文 textarea と構造化書き込み（本ページ・MCP）が同じ Daily を触ると保存形式が衝突して壊し合うため
+- briefing-loop Step 4（宣言 → 講評）の置き場になる想定。モバイルでも入力可（Quick capture の範囲・気分タップ ＋ ひと言で成立）
+- **AC**: 夕刊タブで書いた内容が Daily の夕刊セクションとして保存され Daily 側でも読める / 気分行が規約どおり記録される / 残り Todo・今後の予定が表示される / 初期タブが時刻で切り替わる
+
 ## Scope (Touchable Paths)
 
 ```
 .claude/docs/vision/plans/2026-07-16-loop-friction-fixes.md
-.claude/docs/vision/plans/2026-07-15-briefing-loop.md      # 決定録 5・Risks・Worklog 追記のみ
+.claude/docs/vision/plans/2026-07-15-briefing-loop.md      # 決定録 5〜6・Step 3 改訂・Risks・Worklog 追記のみ
 .claude/docs/requirements/tier-3-experimental.md            # Analytics 決定 6 の追記のみ
 .claude/comm/outbox/chat-docs-workspace.md                   # chat-main 宛起票依頼
 ```
@@ -101,13 +114,14 @@ Owner-chat: docs-workspace
 | #   | Step                                                                                 | Gate                |
 | --- | ------------------------------------------------------------------------------------ | ------------------- |
 | 1   | 本書作成 ＋ 関連 docs 追随 ＋ outbox 起票依頼                                        | 🤖（本 PR）         |
-| 2   | chat-main 起票（F-1〜F-5）                                                           | 🛑（chat-main）     |
+| 2   | chat-main 起票（F-1〜F-6）                                                           | 🛑（chat-main）     |
 | 3   | 各 worktree 実装 → close                                                             | 🤖 / 👀（各 Issue） |
 | 4   | F-1 完了後: 手書きの朝刊・夕刊で 1 周を実測（briefing-loop AC の手動経路が開通する） | 👀                  |
 
 ## Acceptance Criteria
 
-- [ ] F-1〜F-5 の Issue がすべて close（F-5 は仕様記録での close も可）
+- [ ] F-1〜F-6 の Issue がすべて close（F-5 は仕様記録での close も可）
+- [ ] 夕刊タブから 1 日を閉じられる（F-6 の AC 一式）
 - [ ] 手書きの「朝刊」「夕刊」見出しが Briefing 紙面に表示される（= ループ手動経路の開通）
 - [ ] 完了時: 本書 Status → COMPLETED ＋ archive 移動 ＋ per-chat memory 更新
 
@@ -116,6 +130,7 @@ Owner-chat: docs-workspace
 - **F-1 後方互換**: 平文 Daily の変換バグは日記データの見かけ上の破壊につながる。読み込み時のみ変換・編集で初めて JSON 保存の遅延方式で、未編集データに手を触れない
 - **F-4 用語重複**: 「Todo」は schedule-redesign の「本日の Todo トレイ」と用語が揃う（好都合だが sweep 時に混同注意）。「予定」はカレンダー既存文言との衝突を要確認
 - **F-2 ジャンプ導線**: Materials > Tasks はセクション＋タブの 2 段状態を持つ — セクション切替とタブ指定を併せて渡す導線設計が実装 Issue で必要
+- **F-6 の編集競合**: 夕刊ページと Daily 本体は同じ content を編集する — 夕刊セクションの書き込みは content 全体の読み出し → セクション差し替え → 書き戻しになるため、同時編集時に片方の入力が消えないようセクション単位のマージ書き込みを実装 Issue で設計する
 
 ## References
 
@@ -126,3 +141,4 @@ Owner-chat: docs-workspace
 ## Worklog
 
 - 2026-07-16: 初版。ユーザー要件 6 件を実測精査（Explore 3 本 ＋ メイン spot check）し、AskUserQuestion で決定 1・3・4 を確定、決定 2 はユーザー詳細指定（名称横の移動ボタン ＋ 名称タップ = 完了トグル維持）。ループ土台欠陥（手書き朝刊が紙面に出ない）を発見し F-1 を最優先に設定。起票依頼 5 件を outbox へ
+- 2026-07-16 (2): 同日第 2 ラウンド。ユーザー提案「夕刊を朝刊と同じページに」を精査し決定 7・F-6 として確定（保存先 = Daily のまま・気分 = テキスト規約）。briefing-loop の決定録 6 と Step 3 を改訂し、outbox の起票依頼に F-6 を追加
