@@ -10,6 +10,7 @@ import {
   type BriefingScheduleEntry,
   type BriefingTaskEntry,
   type DataService,
+  type NavSection,
   type NoteNode,
   type ScheduleItem,
   type TaskNode,
@@ -40,6 +41,7 @@ import {
 
 interface BriefingScreenProps {
   dataService: DataService;
+  onNavigate: (nav: NavSection) => void;
 }
 
 /** Lexical "YYYY-MM-DD" from a scheduledAt-ish string ("YYYY-MM-DD…"). */
@@ -56,6 +58,7 @@ function daysBetween(a: string, b: string): number {
 
 export function BriefingScreen({
   dataService: ds,
+  onNavigate,
 }: BriefingScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { syncVersion } = useSyncContext();
@@ -152,8 +155,7 @@ export function BriefingScreen({
   );
 
   const liveTasks = useMemo(
-    () =>
-      taskNodes.filter((n) => n.type === "task" && n.isDeleted !== true),
+    () => taskNodes.filter((n) => n.type === "task" && n.isDeleted !== true),
     [taskNodes],
   );
 
@@ -175,7 +177,12 @@ export function BriefingScreen({
       liveTasks
         .filter((n) => {
           const key = dateKeyOf(n.scheduledAt);
-          return key !== null && key < todayKey && n.status !== "DONE";
+          if (key === null || key >= todayKey) return false;
+          if (n.status !== "DONE") return true;
+          return (
+            n.completedAt !== undefined &&
+            Date.parse(n.completedAt) >= Date.parse(`${todayKey}T00:00:00`)
+          );
         })
         .map((n) => ({
           node: n,
@@ -187,6 +194,7 @@ export function BriefingScreen({
           id: node.id,
           title: node.title,
           daysLabel: t("briefing.carryoverDays", { count: days + 1 }),
+          completed: node.status === "DONE",
         })),
     [liveTasks, todayKey, t],
   );
@@ -233,6 +241,27 @@ export function BriefingScreen({
     [ds],
   );
 
+  const handleToggleTask = useCallback(
+    (id: string) => {
+      const target = taskNodes.find((n) => n.id === id);
+      if (target === undefined) return;
+      const done = target.status === "DONE";
+      void ds
+        .updateTask(
+          id,
+          done
+            ? { status: "NOT_STARTED", completedAt: undefined }
+            : { status: "DONE", completedAt: new Date().toISOString() },
+        )
+        .then((updated) => {
+          setTaskNodes((prev) =>
+            prev.map((n) => (n.id === updated.id ? updated : n)),
+          );
+        });
+    },
+    [ds, taskNodes],
+  );
+
   // ── Labels (§6.4 — resolved here, injected as props) ─────────────────
   const labels = useMemo(
     () => ({
@@ -250,6 +279,8 @@ export function BriefingScreen({
       vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
+      jumpToSchedule: t("briefing.jumpToSchedule"),
+      jumpToTasks: t("briefing.jumpToTasks"),
     }),
     [t],
   );
@@ -291,6 +322,9 @@ export function BriefingScreen({
       trendLabels={trendLabels}
       balanceLabels={balanceLabels}
       onToggleScheduleItem={handleToggleScheduleItem}
+      onToggleTask={handleToggleTask}
+      onJumpToSchedule={() => onNavigate("schedule")}
+      onJumpToTasks={() => onNavigate("tasks")}
     />
   );
 }
