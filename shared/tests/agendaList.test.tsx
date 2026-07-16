@@ -46,6 +46,14 @@ const ITEMS: AgendaItem[] = [
     variant: "event",
     status: "notStarted",
   },
+  {
+    id: "t",
+    title: "Write report",
+    startTime: "09:00",
+    endTime: "10:00",
+    variant: "task",
+    // No status → no toggle tag (task rows are read-only in A-1).
+  },
 ];
 
 function renderList(props?: Partial<Parameters<typeof AgendaList>[0]>) {
@@ -121,5 +129,14 @@ describe("AgendaList", () => {
   it("shows the empty label when there are no items", () => {
     render(<AgendaList items={[]} labels={LABELS} />);
     expect(screen.getByText("Nothing today")).toBeInTheDocument();
+  });
+
+  it("renders a task row with the task dot and no Repeat glyph", () => {
+    renderList();
+    const row = screen.getByText("Write report").closest("li");
+    expect(row).not.toBeNull();
+    expect(row?.querySelector(".bg-lumen-chip-task-dot")).not.toBeNull();
+    // No routine Repeat glyph on a task row.
+    expect(row?.querySelector("svg")).toBeNull();
   });
 });

@@ -19,6 +19,7 @@
  */
 import type { LucideIcon } from "lucide-react";
 import {
+  Sunrise,
   Clock,
   Library,
   Network,
@@ -65,54 +66,67 @@ export interface SectionDef {
  * union) while validating each row against SectionDef.
  */
 export const SECTIONS = [
+  /*
+   * Briefing (Briefing plan Step 1) — the morning-paper home surface and the
+   * app's default landing section (DEFAULT_STARTUP_SECTION follows this id).
+   * First in both the sidebar and the mobile bottom bar: the whole point of
+   * the section is "the first screen you open in the morning".
+   */
+  {
+    id: "briefing",
+    group: "main",
+    icon: Sunrise,
+    labelKey: "section.briefing",
+    mobileOrder: 0,
+  },
   {
     id: "schedule",
     group: "main",
     icon: Clock,
     labelKey: "section.schedule",
-    mobileOrder: 0,
+    mobileOrder: 1,
   },
   {
     id: "materials",
     group: "main",
     icon: Library,
     labelKey: "section.materials",
-    mobileOrder: 1,
+    mobileOrder: 2,
   },
   {
     id: "connect",
     group: "main",
     icon: Network,
     labelKey: "section.connect",
-    mobileOrder: 4,
+    mobileOrder: 5,
   },
   {
     id: "work",
     group: "main",
     icon: Timer,
     labelKey: "section.work",
-    mobileOrder: 2,
+    mobileOrder: 3,
   },
   {
     id: "analytics",
     group: "main",
     icon: BarChart3,
     labelKey: "section.analytics",
-    mobileOrder: 3,
+    mobileOrder: 4,
   },
   {
     id: "settings",
     group: "utility",
     icon: Settings,
     labelKey: "section.settings",
-    mobileOrder: 5,
+    mobileOrder: 6,
   },
   {
     id: "trash",
     group: "utility",
     icon: Trash2,
     labelKey: "section.trash",
-    mobileOrder: 6,
+    mobileOrder: 7,
   },
 ] as const satisfies readonly SectionDef[];
 

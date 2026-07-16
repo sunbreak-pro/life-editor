@@ -26,7 +26,7 @@ export interface AgendaItem {
   completed?: boolean;
   /** Derived status (#222) — drives the row-end status tag. */
   status?: ScheduleStatus;
-  variant?: "routine" | "event";
+  variant?: "routine" | "event" | "task";
 }
 
 export interface AgendaListLabels {
@@ -57,10 +57,15 @@ export interface AgendaListProps {
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset";
 
-function dotColorClasses(variant: "routine" | "event"): string {
-  return variant === "routine"
-    ? "bg-lumen-chip-routine-dot"
-    : "bg-lumen-chip-event-dot";
+function dotColorClasses(variant: "routine" | "event" | "task"): string {
+  switch (variant) {
+    case "routine":
+      return "bg-lumen-chip-routine-dot";
+    case "task":
+      return "bg-lumen-chip-task-dot";
+    default:
+      return "bg-lumen-chip-event-dot";
+  }
 }
 
 export function AgendaList({
