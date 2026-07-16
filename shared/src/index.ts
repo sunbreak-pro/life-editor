@@ -129,6 +129,16 @@ export {
   DEFAULT_DAY_START_HOUR,
 } from "./utils/dateKey";
 export { useDayStartHourPref } from "./hooks/useDayStartHour";
+// Week-start preference (#217, split from §216) — the calendar hosts wire it
+// into startOfWeekKey / monthGridKeys / MonthGrid; Settings owns the write UI.
+export {
+  useWeekStartPref,
+  getWeekStartsOn,
+  parseWeekStart,
+  WEEK_START_STORAGE_KEY,
+  DEFAULT_WEEK_START,
+  type WeekStartsOn,
+} from "./hooks/useWeekStart";
 // Reset local preferences (§216) — clears the app's localStorage namespace and
 // reloads. Pure helpers for the host's confirm-then-reset flow.
 export {

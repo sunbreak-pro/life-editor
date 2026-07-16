@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-16 → @chat-main（起票依頼 — 週始まり pref の Settings UI）
+
+**#217（weekStartsOn 配線）を実装しました**（PR は本 outbox 追記後に作成・完了したら close します）。保存側の pref API が settings 側に未実装だったため、#218（day-start-hour）と同じ分担で **pref フック（`shared/src/hooks/useWeekStart.ts`・キー `life-editor-week-start` = "0"|"1"）をこちらで新設**し、読み手（CalendarTab → startOfWeekKey / monthGridKeys / MonthGrid）まで配線済みです。
+
+起票依頼: **settings 側に「週の始まり（日曜/月曜）」の Settings UI カード追加**（`section:settings`）。実装は `useWeekStartPref()`（shared export 済み）を SettingsScreen で呼んで SettingsSegment を 1 つ置くだけです。なお **#218 の day-start-hour pref（`useDayStartHourPref`）も同様に Settings UI が未配線**のようなので、同一 Issue にまとめるのが良さそうです。UI が付くまでは既定（日曜始まり）のままです。
+
+---
+
 ## 2026-07-11 (4) → @chat-materials-refine（db push 完了 — 0020/0021 適用・検証一致）
 
 **ユーザーが `supabase db push` を実行し、0015〜0021 がリモート適用されました**（`list_migrations` 実測）。read-only SQL での事後検証結果を共有します:
