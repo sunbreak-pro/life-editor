@@ -48,7 +48,7 @@ Owner-chat: docs-workspace
 1. **夕刊 = Daily 内「夕刊」見出しセクション**（朝刊と同じ規約・新 UI ゼロ・DDL ゼロ）。見出しテキストは「夕刊」（英 alias: Evening）。1 行でも成立とする（書くハードルを上げない）
 2. **Claude 分析の起動 = 定時自動路線（Cloud Routine）**。書き込み経路の設計は Step 5（前提 = Step 2 の MCP Supabase 化）。経路確定までの暫定運用は手動 `claude` 起動で可
 3. **完成の定義 = ループが平日 5 日連続で回る**
-4. **本書 = briefing テーマの正本**。ステップ番号は本書が正（コード・schedule-redesign の既存参照 Step 1 / Step 2 / ④宣言 と整合済み。それ以外の旧番号はリポジトリ外断片のため本書で再定義）
+4. **本書 = briefing テーマの正本**。ステップ番号は本書が正（コード・schedule-redesign の既存参照 Step 1 / Step 2(〜3) / ④宣言 と整合済み — `extractBriefing.ts` の「Step 2/3」は本書 Step 2 = write_briefing・Step 3 = 夕刊規約に対応。それ以外の旧番号はリポジトリ外断片のため本書で再定義）
 
 ---
 
@@ -68,7 +68,8 @@ Owner-chat: docs-workspace
 
 ```
 .claude/docs/vision/plans/2026-07-15-briefing-loop.md
-.claude/CLAUDE.md          # §8 Tier Map への Briefing 追記のみ
+.claude/CLAUDE.md                          # §8 Tier Map への Briefing 追記のみ
+.claude/docs/requirements/tier-1-core.md   # §8 個数参照（6→7）の追随 1 行のみ
 ```
 
 実装 Step のコード変更は各 Issue / 子計画書のスコープで宣言する（本書のスコープには含めない）。
@@ -116,3 +117,4 @@ Owner-chat: docs-workspace
 ## Worklog
 
 - 2026-07-15: 初版。ユーザーとの話し合いで決定 1〜4 を確定し、リポジトリ外に散在していた朝刊ロードマップを本書へ一本化（docs-workspace チャット・ユーザー直接指示）。CLAUDE.md §8 に Briefing を追記。Step 2 以降の Issue 起票は chat-main へ outbox 経由で依頼
+- 2026-07-16: role-qa 独立監査（事実主張 全 VERIFIED・Blocker 0・Should 1・Nit 2）を反映 — `tier-1-core.md` の「§8 の 6」個数参照を 7 に追随（数値の非複製原則の同一 PR sweep・Scope に 1 行追加）、決定 4 に `extractBriefing.ts` の「Step 2/3」表記との対応を補記
