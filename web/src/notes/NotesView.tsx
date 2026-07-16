@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronDown,
   GripVertical,
+  Link2,
   Lock,
   Pin,
   Plus,
@@ -332,6 +333,9 @@ export function NotesView() {
   } | null>(null);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [trashOpen, setTrashOpen] = useState(false);
+  // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
+  // here from the note body so reading/writing stays unobstructed.
+  const [linksOpen, setLinksOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] =
     useState<Set<string>>(loadCollapsedGroups);
   // Mobile-only: the note whose read sheet is open + the quick-add sheet.
@@ -589,6 +593,43 @@ export function NotesView() {
         </DndContext>
       )}
 
+      {/* Links panel — the selected note's item↔item links, moved out of the
+          note body (F-3 #260). Same divider + disclosure structure as the
+          Trash section below (layout-standard v2 "panel under the divider"). */}
+      <div className="border-t border-lumen-border pt-1">
+        <button
+          type="button"
+          onClick={() => setLinksOpen((v) => !v)}
+          aria-expanded={linksOpen}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+            FOCUS_RING,
+          )}
+        >
+          {linksOpen ? (
+            <ChevronDown size={13} aria-hidden className="shrink-0" />
+          ) : (
+            <ChevronRight size={13} aria-hidden className="shrink-0" />
+          )}
+          <Link2 size={14} aria-hidden className="shrink-0" />
+          <span className="truncate">{t("materials.notes.links")}</span>
+        </button>
+        {linksOpen &&
+          (selected && selected.type !== "folder" ? (
+            <div className="pb-2">
+              <LinkPanel
+                itemId={selected.id}
+                resolveTitle={resolveTitle}
+                linkableItems={linkableItems}
+              />
+            </div>
+          ) : (
+            <p className="px-1 pb-2 text-xs text-lumen-text-tertiary">
+              {t("materials.notes.mainEmpty")}
+            </p>
+          ))}
+      </div>
+
       {/* Trash section. */}
       <div className="border-t border-lumen-border pt-1">
         <button
@@ -817,9 +858,9 @@ export function NotesView() {
 
   // ---- Desktop main editor --------------------------------------------
   //
-  // The selected note's detail (meta row + tags + TipTap body + links) as the
-  // tab's MAIN content — a centered surface. Nothing selected → the select-or-
-  // create empty state. Folders can no longer be selected (they are never
+  // The selected note's detail (meta row + tags + TipTap body) as the tab's
+  // MAIN content — a centered surface (links live in the sidebar Links panel
+  // — F-3 #260). Nothing selected → the select-or-create empty state. Folders can no longer be selected (they are never
   // rendered as rows), but the folder guards on the slots are kept as defence
   // in depth while real data still carries folder nodes.
 
@@ -844,16 +885,6 @@ export function NotesView() {
       contentLabel={t("materials.notes.content")}
       contentEditor={
         selected.type === "folder" ? undefined : detailContentEditor
-      }
-      linksLabel={t("materials.notes.links")}
-      linksSlot={
-        selected.type === "folder" ? undefined : (
-          <LinkPanel
-            itemId={selected.id}
-            resolveTitle={resolveTitle}
-            linkableItems={linkableItems}
-          />
-        )
       }
     />
   ) : (
