@@ -1,5 +1,20 @@
 # HISTORY (chat-docs-workspace)
 
+### 2026-07-16 - ループ摩擦除去計画書（loop-friction-fixes）新設 + briefing-loop / tier-3 追随（PR #254）
+
+#### 概要
+
+ユーザー要件 6 件（Daily 見出し / 朝刊の操作性 / Note Links / Claude 起動ボタン / 名称変更・反映バグ / Analytics 維持）を実測精査し、`docs/vision/plans/2026-07-16-loop-friction-fixes.md`（Status: IN PROGRESS・briefing-loop の子計画）として正本化。精査で「手書きの朝刊・夕刊は現状の Daily では紙面に出ない」というループ土台欠陥を発見した。
+
+#### 変更点
+
+- **計画書新設**: 事実確認 7 件（file:line 付き・Explore 3 本 + メイン spot check）・決定録 6 件（Daily TipTap 化 / 朝刊行操作 = 名称横の移動ボタン + 名称タップ = 完了トグル / Links = rightSidebar 開閉パネル / Claude 起動口 = 定時自動先行・API 直課金不採用 / ラベル改名は i18n のみ / Analytics 破棄しない）・F-1〜F-5 の仕様と AC
+- **重要発見**: Daily 本文 = 平文 textarea（`DailyView.tsx:102`）・`extractBriefing` = TipTap 見出しノード必須 → **F-1（Daily TipTap 化）が Step 2（MCP 書き込み）と並ぶループ開通の 2 大前提**
+- **briefing-loop.md**: 決定録 5（Claude 起動口）+ Risks（手書き不成立）+ References / Worklog 追記
+- **tier-3-experimental.md**: Analytics Verdict に「破棄しない・現行デザイン維持・配線/開発凍結・完成間近に再開」（2026-07-16 ユーザー決定）を追記
+- **outbox**: chat-main 宛起票依頼 5 件（F-1〜F-5・ラベル案 + DoD 付き）
+- **PR**: commit 5b77c158 → PR #254 open（merge = 人手ゲート・docs のみ）。前タスクの PR #253 は本日 merge 済みを確認し memory の記載を追随（docs-consistency §4）
+
 ### 2026-07-16 - briefing テーマの正本計画書（briefing-loop）新設 + CLAUDE.md §8 追随（PR #253）
 
 #### 概要
