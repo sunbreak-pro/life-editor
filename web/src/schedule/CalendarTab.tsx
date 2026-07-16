@@ -7,6 +7,7 @@ import {
   useRightSidebarOptional,
   useTranslation,
   useMediaQuery,
+  useWeekStartPref,
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
@@ -295,9 +296,18 @@ export function CalendarTab({
           : "list";
   const effView = isWide ? desktopView : mobileView;
 
-  const weekStart = useMemo(() => startOfWeekKey(anchorDate, 0), [anchorDate]);
+  // Week-start pref (#217): read once per mount (same reload semantics as the
+  // other lightweight prefs — a Settings change applies on section re-entry).
+  const { weekStartsOn } = useWeekStartPref();
+  const weekStart = useMemo(
+    () => startOfWeekKey(anchorDate, weekStartsOn),
+    [anchorDate, weekStartsOn],
+  );
   const weekEnd = useMemo(() => addDaysKey(weekStart, 6), [weekStart]);
-  const monthRows = useMemo(() => monthGridKeys(anchorDate, 0), [anchorDate]);
+  const monthRows = useMemo(
+    () => monthGridKeys(anchorDate, weekStartsOn),
+    [anchorDate, weekStartsOn],
+  );
 
   // Visible fetch window per effective view (day/list/time = single day).
   const [rangeStart, rangeEnd] = useMemo<[string, string]>(() => {
@@ -1142,6 +1152,7 @@ export function CalendarTab({
                 monthKey={anchorDate}
                 items={monthItems}
                 todayKey={today}
+                weekStartsOn={weekStartsOn}
                 weekdayLabels={weekdayLabels}
                 onSelectDay={handleCreateOnDay}
                 onSelectItem={handleSelectItem}
@@ -1275,6 +1286,7 @@ export function CalendarTab({
                 monthKey={anchorDate}
                 items={monthItems}
                 todayKey={today}
+                weekStartsOn={weekStartsOn}
                 weekdayLabels={weekdayLabels}
                 compact
                 onSelectDay={(day) => setMobileSelectedDay(day)}
