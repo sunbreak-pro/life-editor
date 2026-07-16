@@ -1,5 +1,17 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-07-16 - #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（PR #264）
+
+#### 概要
+
+loop-friction-fixes §F-3 / §F-4 を実装し PR #264（Closes #260 / #261）を提出。Note 本文最下部の Links を rightSidebar の開閉パネルへ移設し、表示ラベルをタスク→Todo・約束→予定へ i18n catalog のみで改名した。
+
+#### 変更点
+
+- **F-3（#260）**: `NoteDetailPanel` から `linksSlot`/`linksLabel` を削除（呼び出し元は NotesView のみ）・rightSidebar のノート一覧の下に Trash と同型の「区切り線 + 開閉」Links セクションを新設（LinkPanel を選択ノートで表示・未選択時は mainEmpty ヒント・mobile は Links 非表示のまま）・noteDetailPanel.test 追随
+- **F-4（#261）**: en/ja catalog の値のみ一括改名（キー・`{{task}}`/`{{tasks}}` プレースホルダー変数・コード識別子・DB・SectionId は不変）。JSON パース → 値 walk のスクリプト変換 + 和欧間スペース調整（TodoID→Todo ID / Todo ・→Todo・）。en は Task(s)→Todo(s)・PROMISES→PLANS。i18n.test の期待値と Briefing コード内コメントも追随
+- **docs sweep（同一 PR）**: schedule-redesign（約束→予定 + F-4 注記）・briefing-loop 読む行・tier-1-core AC2・settings brief プレビュー文。outbox / per-chat history / F-4 仕様文中の引用は歴史的記述として維持
+- **検証**: shared vitest 112 files / 902 tests green・shared tsc -b green・web build green（既存 chunk-size warning のみ）・catalog JSON parse 検証・shared/web ソースの タスク/約束 残存 0（prototype/ は対象外）
 - 2026-07-11: [途中] life-tags 統一 Materials 領分 — PR #244 の CI 失敗を修正（main #243 ページ分割 fetchAllPages の .order/.range にテストモック追随・origin/main merge・457237c8 push・vitest 879/879 + build green・role-qa PASS）。残 = PR merge + 実データ変換（ユーザーゲート）
 
 ### 2026-07-11 - life-tags 統一 S3 実装（NodeType folder 除去・legacy 行 fetch 除外・i18n/docs sweep）

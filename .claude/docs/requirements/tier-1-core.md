@@ -372,7 +372,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Acceptance Criteria
 
 - [ ] AC1: Life Editor 起動中に `claude` コマンドを実行すると、MCP Server `life-editor` が自動接続され、`/mcp` コマンドで 32 ツールが列挙される（起動導線だったアプリ内ターミナルは 2026-07-05 退役・常設起動導線は再設計中 → §Terminal）
-- [ ] AC2: Claude に「今日のタスク一覧を見せて」と指示すると MCP `list_tasks` が呼ばれ、UI で表示されている内容と同じタスクが返る
+- [ ] AC2: Claude に「今日の Todo 一覧を見せて」と指示すると MCP `list_tasks` が呼ばれ、UI で表示されている内容と同じ Todo が返る
 - [ ] AC3: Claude が `create_task` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
 - [ ] AC4: `search_all` で複数ドメイン（tasks / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
 - [ ] AC5: `tag_entity` で WikiTag を任意エンティティに付与し、`search_by_tag` / `get_entity_tags` で取得できる（UI 側のタグ一覧と一致）

@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（タスク→Todo・約束→予定）✅（2026-07-16 — PR #264 提出済み。残ゲート = merge（こうだいさん）→ Issue 自動 close → 実ブラウザ確認は chat-main）
 - Layout Standard v2 adoption（materials・#207）✅（2026-07-11 — #207 は COMPLETED で close 済み・#203 全幅化と併せて解消。materials 各サブタブの全幅表示の実確認だけ次セッション冒頭に実施）
 - #118 Notes/Daily パスワードハッシュ化 + #181 materials 行消化（PR #195 merge 済み・plan archive 済み）✅（2026-07-11）
-- Notes/Tasks レイアウト反転（PR #189 merge 済み）✅（2026-07-11）
 
 ## 予定
 
