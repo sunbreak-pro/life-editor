@@ -49,6 +49,7 @@ Owner-chat: docs-workspace
 2. **Claude 分析の起動 = 定時自動路線（Cloud Routine）**。書き込み経路の設計は Step 5（前提 = Step 2 の MCP Supabase 化）。経路確定までの暫定運用は手動 `claude` 起動で可
 3. **完成の定義 = ループが平日 5 日連続で回る**
 4. **本書 = briefing テーマの正本**。ステップ番号は本書が正（コード・schedule-redesign の既存参照 Step 1 / Step 2(〜3) / ④宣言 と整合済み — `extractBriefing.ts` の「Step 2/3」は本書 Step 2 = write_briefing・Step 3 = 夕刊規約に対応。それ以外の旧番号はリポジトリ外断片のため本書で再定義）
+5. **Claude 分析の起動口 = 定時自動（Step 5）を先行し、アプリ内ボタンは後続候補**（2026-07-16 ユーザー確定）。ボタンは Desktop 限定・Electron 経由でローカル `claude` 起動でのみ実現可（$0 維持。MCP は Claude → アプリ方向の口でありアプリから Claude は呼べない）。Claude API 直課金経路は Non-Goal のため不採用
 
 ---
 
@@ -99,6 +100,7 @@ Owner-chat: docs-workspace
 
 ## Risks
 
+- **手書きの朝刊・夕刊は現状の Daily では成立しない**（Daily 本文が平文 textarea・紙面パーサは TipTap 見出しノード必須 — 2026-07-16 実測）。前提工事 = [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md) F-1（Daily の TipTap 化）。Step 2（MCP 書き込み）完了までは自動経路も未開通のため、**F-1 と Step 2 がループ開通の 2 大前提**
 - **Cloud Routine はローカル MCP に接続できない**（クラウド実行）。Step 5 の経路候補: (a) ローカル定時実行（launchd/cron + `claude -p` ヘッドレス + ローカル MCP Server）(b) Cloud Routine + Supabase 直接書き込み。どちらも $0 で成立するが、(b) は items_meta の updated_at bump 等の書き込み整合を MCP を介さず守る設計が別途必要 → Step 2 完了後に判断する
 - 夕刊が書かれない日が続くと分析の材料が涸れる → 決定 1 のとおり「1 行でも成立」を規約とし、書くハードルを上げない
 - 朝刊の執筆品質（講評が的外れ・冗長）は運用で調整する領域 — プロンプト / Routine 指示の改善であり、アプリ機能で解決しない（判定基準「追加」に照らして UI を足さない）
@@ -107,7 +109,7 @@ Owner-chat: docs-workspace
 
 ## References
 
-- 子計画書: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（「組む」の正本。§1 中心思想は本書と同一のループ）
+- 子計画書: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（「組む」の正本。§1 中心思想は本書と同一のループ）/ [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md)（摩擦除去 F-1〜F-5。F-1 = Daily TipTap 化はループ手動経路の前提工事）
 - コードの正: `shared/src/sections.ts`（briefing セクション定義・デフォルト起動）/ `shared/src/components/briefing/`（BriefingView / extractBriefing）/ `web/src/briefing/BriefingScreen.tsx`
 - 要件: `docs/requirements/tier-1-core.md`（Briefing の requirements 節は未作成 — 追って追加。CLAUDE.md §8 は本書をポインタとして参照）
 - デザイン: `docs/design/briefs/` に briefing.md は未作成（紙面の意匠は当面 BriefingView の実装コメントが正）
@@ -118,3 +120,4 @@ Owner-chat: docs-workspace
 
 - 2026-07-15: 初版。ユーザーとの話し合いで決定 1〜4 を確定し、リポジトリ外に散在していた朝刊ロードマップを本書へ一本化（docs-workspace チャット・ユーザー直接指示）。CLAUDE.md §8 に Briefing を追記。Step 2 以降の Issue 起票は chat-main へ outbox 経由で依頼
 - 2026-07-16: role-qa 独立監査（事実主張 全 VERIFIED・Blocker 0・Should 1・Nit 2）を反映 — `tier-1-core.md` の「§8 の 6」個数参照を 7 に追随（数値の非複製原則の同一 PR sweep・Scope に 1 行追加）、決定 4 に `extractBriefing.ts` の「Step 2/3」表記との対応を補記
+- 2026-07-16 (2): ユーザー要件 6 件（摩擦除去）を受けて子計画 [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md) を新設・決定録 5 を追記。手書き朝刊・夕刊が現状不成立（Daily 平文 textarea vs TipTap 見出しパーサ）の欠陥を Risks に記録（PR #253 は merge 済み — 本追記は後続 PR）
