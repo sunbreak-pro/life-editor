@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
-- Issue #218 実装 → PR #242（day-start-hour pref の読み手側配線: `todayDateKey()` 契約定義 + daily/routine sync 4 箇所 + `useDayStartHourPref` + 単体テスト。settings UI / analytics 追随の起票依頼は outbox 経由で chat-main へ）✅（2026-07-11）
-- 実装後所感の反映: 幅切替タブ廃止 → 全画面 wide 統一（v2 親計画 + orders 6 枚改訂・#181 に告知）+ オーケストレーター運用（計画書は chat-main・pull 徹底・1 行 boot 規約）を CLAUDE.md §7.4 / _TEMPLATE.md に明記 ✅（2026-07-11）
-- Tauri 残骸除去の起票 + Stage A 実行（Issue #197・tag `pre-tauri-removal`・一時 worktree から PR）+ playwright/dev server は chat-main のみルールを CLAUDE.md §7.4 に明記 ✅（2026-07-11）
+- ループ摩擦除去計画書 `2026-07-16-loop-friction-fixes.md` 新設（ユーザー要件 6 件 + 第 2 ラウンドの夕刊専用ページ → 実測精査 + 決定 7 件確定。重要発見 = 手書き朝刊・夕刊は Daily 平文 textarea のため現状不成立 → F-1 Daily TipTap 化が Step 2 と並ぶループ開通の前提。F-6 = 夕刊専用ページ（保存先 = Daily のまま・F-1 依存）。briefing-loop 決定録 5〜6 / tier-3 Analytics「破棄しない」追記・outbox 起票依頼 6 件 F-1〜F-6）→ PR #254 open・merge 待ち ✅（2026-07-16）
+- briefing テーマの正本計画書 `2026-07-15-briefing-loop.md` 新設（ビジョン話し合い → 決定 4 件: 夕刊 = Daily「夕刊」見出し / Claude 分析 = 定時自動路線 / 完成の定義 = 平日 5 日連続でループ完走 / 本書 = briefing 正本。CLAUDE.md §8 Tier 1 に Briefing 追記 (6)→(7)・outbox に chat-main 宛起票依頼 2 件）→ PR #253 merged（2026-07-16 確認）✅（2026-07-16）
+- Schedule 再設計 Step 1（A-1 タスクの読み取り表示: `tasksToCalendarChips` 純ヘルパー + 3 コンポーネント task variant + TaskTreeProvider 配線 + CalendarTab 派生層マージ。role-qa PASS・Blocker 0。ユーザー直接指示につき起票は chat-main へ委譲不要の実装のみ）✅（2026-07-15）
 
 ## 予定
 

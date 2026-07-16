@@ -13,6 +13,9 @@
 # Logs
 *.log
 
+# Playwright MCP runtime output (screenshots, page snapshots — regenerated per verify run)
+.playwright-mcp/
+
 # Node (root)
 /node_modules/
 

@@ -61,10 +61,11 @@ export interface WeekTimeGridItem {
   status?: ScheduleStatus;
   /**
    * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
-   * Repeat glyph, "event" (default) = 紫 face + border. Distinguishes
-   * Routine-generated items from single events without relying on color alone.
+   * Repeat glyph, "event" (default) = 紫 face + border, "task" = blue face
+   * (scheduled TaskNode, schedule redesign A-1 — no band/glyph, read-only in
+   * this step). Distinguishes provenance without relying on color alone.
    */
-  variant?: "routine" | "event";
+  variant?: "routine" | "event" | "task";
 }
 
 export interface WeekTimeGridProps {
@@ -167,13 +168,19 @@ function defaultFormatNowLabel(minutes: number): string {
 
 /**
  * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
- * inner left band is rendered separately); event (default) = 紫 face + border.
- * Color-coded AND badge/border-differentiated so it never relies on hue alone.
+ * inner left band is rendered separately); event (default) = 紫 face + border;
+ * task = blue face (scheduled TaskNode — no band/glyph). Color-coded AND
+ * badge/border-differentiated so it never relies on hue alone.
  */
-function variantBlockClasses(variant: "routine" | "event"): string {
-  return variant === "routine"
-    ? "bg-lumen-schedule-routine-bg text-lumen-chip-routine-fg"
-    : "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
+function variantBlockClasses(variant: "routine" | "event" | "task"): string {
+  switch (variant) {
+    case "routine":
+      return "bg-lumen-schedule-routine-bg text-lumen-chip-routine-fg";
+    case "task":
+      return "bg-lumen-schedule-task-bg text-lumen-chip-task-fg";
+    default:
+      return "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
+  }
 }
 
 /** Live drag state held in a ref so the window listeners read fresh values. */
@@ -600,8 +607,10 @@ export function WeekTimeGrid({
                   if (!p) return null; // all-day handled above
                   const selected = it.id === selectedId;
                   const widthPct = 100 / p.columns;
-                  const movable = !!onMoveItem;
                   const variant = it.variant ?? "event";
+                  // Task chips are read-only in A-1 (no drag/resize). Move/resize
+                  // affordances are wired in Step 2 (drag-to-write).
+                  const movable = !!onMoveItem && variant !== "task";
                   return (
                     <button
                       key={it.id}
@@ -676,8 +685,9 @@ export function WeekTimeGrid({
                           />
                         )}
                       </span>
-                      {/* Resize handle (bottom edge) — only when host opts in */}
-                      {onResizeItem && (
+                      {/* Resize handle (bottom edge) — only when host opts in.
+                          Task chips are read-only in A-1 (no resize). */}
+                      {onResizeItem && variant !== "task" && (
                         <span
                           aria-hidden
                           onPointerDown={(e) => beginDrag(e, it, "resize")}
