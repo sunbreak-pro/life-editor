@@ -13,6 +13,7 @@ shared-fix `[docs-workspace]` キューの Issue #257 を実行。`docs/requirem
 - **briefing-loop.md**: References の「未作成 — 追って追加」を追加済みへ更新 + Worklog 追記
 - **実測**: 節の記述は `extractBriefing.ts` / `BriefingView.tsx` / loop-friction-fixes F-6 をコード・計画書で直接確認して書き起こし（sweep で「追って追加 / 未作成」残骸ゼロ確認・outbox の過去ログは履歴として残置）
 - **PR**: commit 630cad69 → PR #267 open（merge = 人手ゲート・docs のみ。merge で #257 自動 close）。前タスクの PR #254 は merge 済みを確認し memory を追随
+- **role-qa 独立監査反映**: Blocker 0・Should 1・Nit 2 → 全件修正の後続 commit を PR #267 に追加。Should 1 = 「約束行の名称タップ = 完了トグル（現行）」が実装と逆（現行はチェックアイコンボタン `BriefingView.tsx:202-213`・名称タップは F-2 目標 — メイン実測で CONFIRMED）。Nit = ウィジェット個数「3」の非複製化 / 「段落」→「非空テキストブロック」の厳密化
 
 ### 2026-07-16 - ループ摩擦除去計画書（loop-friction-fixes）新設 + briefing-loop / tier-3 追随（PR #254）
 
