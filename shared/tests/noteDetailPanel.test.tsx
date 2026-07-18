@@ -116,7 +116,10 @@ describe("NoteDetailPanel", () => {
     expect(sidebarRoot.className).toContain("bg-lumen-bg-secondary");
     expect(sidebarRoot.className).not.toContain("bg-lumen-surface");
 
-    // variant="main" = the larger opaque editor surface.
+    // variant="main" = the larger opaque editor surface. Both variants now use
+    // the opaque bg-lumen-bg-secondary (the old bg-lumen-surface token is
+    // undefined and fell transparent, §5 — 2026-07-19 fix); main is instead
+    // distinguished by its lg radius, roomier padding, and the drop shadow.
     rerender(
       <NoteDetailPanel
         noteId="note-a"
@@ -130,9 +133,11 @@ describe("NoteDetailPanel", () => {
       />,
     );
     const mainRoot = container.firstElementChild as HTMLElement;
-    expect(mainRoot.className).toContain("bg-lumen-surface");
+    expect(mainRoot.className).toContain("bg-lumen-bg-secondary");
     expect(mainRoot.className).toContain("shadow-lumen-sm");
-    expect(mainRoot.className).not.toContain("bg-lumen-bg-secondary");
+    expect(mainRoot.className).toContain("rounded-lumen-lg");
+    // Never the undefined token that silently falls transparent (§5).
+    expect(mainRoot.className).not.toContain("bg-lumen-surface");
   });
 
   it("omits the tag and content sections when their slots are absent", () => {
