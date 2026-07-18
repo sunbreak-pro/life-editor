@@ -51,6 +51,8 @@ import {
   persistLastSection,
   EMPTY_MATERIALS_COUNTS,
   ANALYTICS_TAB_ORDER,
+  defaultBriefingTab,
+  type BriefingTab,
   type MaterialsCounts,
   type AnalyticsTab,
   type SectionId,
@@ -162,6 +164,13 @@ export function MainScreen({ session }: { session: Session }) {
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab / scheduleTab.
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
+  // Briefing's 朝刊/夕刊 tab (#263 F-6), lifted here so the standard
+  // SectionHeader renders the band — same tabs-as-title pattern as
+  // materialsTab / scheduleTab. Lazy init: the initial tab follows the clock
+  // (evening from 17:00, honoring the day-start pref's post-midnight tail).
+  const [briefingTab, setBriefingTab] = useState<BriefingTab>(() =>
+    defaultBriefingTab(),
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
@@ -418,6 +427,22 @@ export function MainScreen({ session }: { session: Session }) {
         }
         controls={headerControls}
       />
+    ) : section === "briefing" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "morning", label: t("briefing.tabs.morning") },
+              { id: "evening", label: t("briefing.tabs.evening") },
+            ]}
+            activeTab={briefingTab}
+            onSelect={(id) => setBriefingTab(id as BriefingTab)}
+            label={t("briefing.tabsLabel")}
+          />
+        }
+        controls={headerControls}
+      />
     ) : (
       <SectionHeader
         title={t(`section.${section}`, { defaultValue: section })}
@@ -518,7 +543,11 @@ export function MainScreen({ session }: { session: Session }) {
        * appears without a reload.
        */}
       {section === "briefing" && (
-        <BriefingScreen dataService={ds} onNavigate={handleBriefingNavigate} />
+        <BriefingScreen
+          dataService={ds}
+          onNavigate={handleBriefingNavigate}
+          tab={briefingTab}
+        />
       )}
       {/*
        * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each

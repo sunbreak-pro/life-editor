@@ -2933,6 +2933,23 @@
     "carryoverDays": "{{count}}日目",
     "toggleComplete": "完了を切り替える",
     "jumpToSchedule": "スケジュールで開く",
-    "jumpToTasks": "タスクで開く"
+    "jumpToTasks": "タスクで開く",
+    "tabsLabel": "朝刊 / 夕刊",
+    "tabs": {
+      "morning": "朝刊",
+      "evening": "夕刊"
+    },
+    "evening": {
+      "masthead": "LIFE EDITOR 夕刊",
+      "moodTitle": "今日の気分",
+      "moodStar": "気分 {{value}}/5",
+      "reflectionTitle": "一日の締めくくり",
+      "placeholder": "今日はどんな一日でしたか…",
+      "todosTitle": "残りの Todo",
+      "noTodos": "残っている Todo はありません",
+      "upcomingTitle": "今後の予定",
+      "noUpcoming": "この先の予定はありません",
+      "tomorrowTag": "明日"
+    }
   }
 }
