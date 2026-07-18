@@ -80,14 +80,14 @@ Owner-chat: docs-workspace
 
 ## Steps（ロードマップ）
 
-| #   | Step                                                                                                                     | Gate                          | Acceptance                                                                               |
-| --- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| 1   | ✅ Briefing セクション（読む面）                                                                                         | —（#249 merge 済み）          | 出荷済み                                                                                 |
-| 2   | ⬜ MCP Supabase 化 + `get_today_context` / `write_briefing`（分析の配管。schedule-redesign 並走 α と同一起点）           | 🤖 実装 / 🛑 起票 = chat-main | 新ツールで今日の文脈が取得でき、Daily に朝刊セクションを書き込める（vitest + 手動 1 周） |
-| 3   | ⬜ 夕刊規約の実装 — 入力 UI = Briefing 内「夕刊」タブの専用ページ（決定 6・loop-friction-fixes F-6・F-1 依存）           | 🤖 / 👀                       | 夕刊タブで書いた内容が Daily の夕刊セクションに保存され、翌朝の分析が拾う                |
-| 4   | ⬜ 宣言（intentions）— 朝刊で今日の宣言 → 夕刊・翌朝刊で講評（schedule-redesign A-3「本日の Todo」トレイの最終形と合流） | 🤖 / 👀                       | 宣言 → 講評が 1 往復する                                                                 |
-| 5   | ⬜ 定時自動化 — 毎朝の翌朝刊執筆を自動実行する経路の選定・設定（→ §Risks の経路候補）                                    | 🛑（経路選定・Routine 設定）  | 手を触れずに朝刊が届いた日が 1 日ある                                                    |
-| 6   | ⬜ 完成判定 — 5 営業日連続のループ完走を実測                                                                             | 👀                            | §Acceptance の判定が 5 日連続で真                                                        |
+| #   | Step                                                                                                                                                                           | Gate                          | Acceptance                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| 1   | ✅ Briefing セクション（読む面）                                                                                                                                               | —（#249 merge 済み）          | 出荷済み                                                                                 |
+| 2   | ✅ MCP Supabase 化 + `get_today_context` / `write_briefing`（分析の配管。schedule-redesign 並走 α と同一起点。実装 + vitest 済み #256 — 手動 1 周の実測は chat-main 担当・未） | 🤖 実装 / 🛑 起票 = chat-main | 新ツールで今日の文脈が取得でき、Daily に朝刊セクションを書き込める（vitest + 手動 1 周） |
+| 3   | ⬜ 夕刊規約の実装 — 入力 UI = Briefing 内「夕刊」タブの専用ページ（決定 6・loop-friction-fixes F-6・F-1 依存）                                                                 | 🤖 / 👀                       | 夕刊タブで書いた内容が Daily の夕刊セクションに保存され、翌朝の分析が拾う                |
+| 4   | ⬜ 宣言（intentions）— 朝刊で今日の宣言 → 夕刊・翌朝刊で講評（schedule-redesign A-3「本日の Todo」トレイの最終形と合流）                                                       | 🤖 / 👀                       | 宣言 → 講評が 1 往復する                                                                 |
+| 5   | ⬜ 定時自動化 — 毎朝の翌朝刊執筆を自動実行する経路の選定・設定（→ §Risks の経路候補）                                                                                          | 🛑（経路選定・Routine 設定）  | 手を触れずに朝刊が届いた日が 1 日ある                                                    |
+| 6   | ⬜ 完成判定 — 5 営業日連続のループ完走を実測                                                                                                                                   | 👀                            | §Acceptance の判定が 5 日連続で真                                                        |
 
 ---
 
@@ -124,3 +124,4 @@ Owner-chat: docs-workspace
 - 2026-07-16 (2): ユーザー要件 6 件（摩擦除去）を受けて子計画 [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md) を新設・決定録 5 を追記。手書き朝刊・夕刊が現状不成立（Daily 平文 textarea vs TipTap 見出しパーサ）の欠陥を Risks に記録（PR #253 は merge 済み — 本追記は後続 PR）
 - 2026-07-16 (3): 決定録 6（夕刊の専用ページ化 — Briefing ヘッダータブ・保存先は Daily のまま）を追記し、Step 3 を専用ページ方式に改訂（ユーザー提案の採用。仕様 = loop-friction-fixes F-6）
 - 2026-07-17: Issue #257 — `tier-1-core.md` に Briefing requirements 節を追加（本書を正本ポインタとして参照）。CLAUDE.md §8 の「requirements 節は追って追加」注記と本書 References の「未作成」記述を解消
+- 2026-07-18: Step 2 実装（Issue #256・briefing-section チャット）— MCP schedule handler 全 7 関数を旧 SQLite 単一表から Supabase `items_meta` + `events_payload` の 2 行分割モデルへ載せ替え（§10.2 updated_at bump / §10.5 orphan recovery / delete はソフトデリート化）。`get_today_context`（今日の予定・スケジュール済み/持ち越し/進行中タスク・直近 3 日の Daily・当日 Daily の朝刊有無）と `write_briefing`（当日 DailyNode content へ「朝刊」見出しセクションを upsert・Daily 不在時は `daily-<date>` ペアを新規作成）を追加。認証は anon key + 本人 email/password の env 供給（RLS 維持・service_role 不使用）。朝刊セクション書き込みは純関数化し、shared `extractBriefing` との往復を vitest で機械検証。**手動 1 周の実測（DoD 残）は chat-main 担当**

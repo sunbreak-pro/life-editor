@@ -2933,6 +2933,23 @@
     "carryoverDays": "day {{count}}",
     "toggleComplete": "Toggle complete",
     "jumpToSchedule": "Open in Schedule",
-    "jumpToTasks": "Open in Tasks"
+    "jumpToTasks": "Open in Tasks",
+    "tabsLabel": "Morning / Evening",
+    "tabs": {
+      "morning": "Morning",
+      "evening": "Evening"
+    },
+    "evening": {
+      "masthead": "LIFE EDITOR EVENING",
+      "moodTitle": "TODAY'S MOOD",
+      "moodStar": "Mood {{value}}/5",
+      "reflectionTitle": "CLOSING THE DAY",
+      "placeholder": "How was your day…",
+      "todosTitle": "REMAINING TODOS",
+      "noTodos": "No todos left — all clear",
+      "upcomingTitle": "COMING UP",
+      "noUpcoming": "Nothing coming up",
+      "tomorrowTag": "Tomorrow"
+    }
   }
 }

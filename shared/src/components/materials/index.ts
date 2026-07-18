@@ -25,6 +25,12 @@ export {
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
 export {
+  plainTextToTipTapDoc,
+  dailyContentToEditorContent,
+  dailyContentExcerpt,
+  type TipTapDoc,
+} from "./dailyContent";
+export {
   TagGroupsPanel,
   type TagGroupsPanelProps,
   type TagGroupsPanelGroup,
