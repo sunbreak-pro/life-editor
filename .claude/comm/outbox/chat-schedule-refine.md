@@ -15,10 +15,10 @@
 
 **対象ファイル（実測済み・DDL ゼロ成立）**:
 
-- `web/src/schedule/CalendarTab.tsx` — `handleMoveItem`（L438-448）/ `handleResizeItem`（L450-455）の `isTaskChip` no-op を分岐実装に置換。`TASK_CHIP_PREFIX`（L82・`"taskchip-"`）を strip して TaskNode id を復元し、`useTaskTreeContext()` の `updateNode(id, {scheduledAt, scheduledEndAt})` を呼ぶ（現在 L222 は `nodes` のみ destructure — `updateNode` を追加取得）。task チップは `rangeItems`（楽観ストア）非混入の派生層マージ（L666-709）なので、`patchRange` は呼ばず TaskTree 状態更新の再レンダーで楽観反映される
+- `web/src/schedule/CalendarTab.tsx` — `handleMoveItem`（L438-448）/ `handleResizeItem`（L450-457）の `isTaskChip` no-op を分岐実装に置換。`TASK_CHIP_PREFIX`（L82・`"taskchip-"`）を strip して TaskNode id を復元し、`useTaskTreeContext()` の `updateNode(id, {scheduledAt, scheduledEndAt})` を呼ぶ（現在 L222 は `nodes` のみ destructure — `updateNode` を追加取得）。task チップは `rangeItems`（楽観ストア）非混入の派生層マージ（L666-709）なので、`patchRange` は呼ばず TaskTree 状態更新の再レンダーで楽観反映される
 - `shared/src/components/schedule/WeekTimeGrid.tsx` — task ガード 2 箇所の解除: `movable = !!onMoveItem && variant !== "task"`（L613）とリサイズハンドルの `variant !== "task"`（L690）。ドラッグ機構自体（`beginDrag` → pointer-up commit・local `dateISO` + `HH:MM` payload）は variant 非依存で流用可
 - `shared/src/utils/taskCalendarChips.ts` — **逆変換ヘルパー新設**（local date + HH:MM → UTC ISO）。表示側 UTC→local（本ファイル既存）の対。リサイズは `scheduledEndAt` のみ、ドラッグ移動は両方を書く。`scheduledEndAt` 未設定タスク（表示上 60 分デフォルト・L30）の move/resize 時に end を実体化する仕様を Issue 本文に明記のこと
-- 永続化は**変更不要**: `updateNode` → `persistSilent` → `ds.syncTaskTree`（`useTaskTreeAPI.ts` L93）→ `taskMapper.ts` が `scheduled_at`/`scheduled_end_at` の patch に対応済み（L424-426）
+- 永続化は**変更不要**: `updateNode` → `persistSilent` → `ds.syncTaskTree`（`useTaskTreeAPI.ts` L93）→ `taskMapper.ts` が `scheduled_at`/`scheduled_end_at` の patch に対応済み（L424-427）
 
 **スコープ外（実測に基づく境界）**:
 
@@ -42,6 +42,8 @@
 
 1. **undo**: `updateNode` は `persistSilent`（undo 履歴なし）。ScheduleItem の move も現状 undo 対象外の同型なので、**推奨 = パリティ維持（undo なし）で AC に含めない**（必要になったら別 Issue）
 2. **全日レーンの task 色**: Step 1 の既知の限界（全日レーンは variant 非依存描画・計画書 §6 Step 1 注記「Step 2 で variant 色を通すか要件側で明文化」）。**推奨 = Step 2 に含めて `variantBlockClasses` 相当を全日チップにも適用**（小差分・同一ファイル内）。見送るなら要件側への明文化を DoD に
+
+**補足（role-qa 実測・Blocking/Should ゼロ PASS）**: 本ドラフトの file:line 引用は role-qa の第三者監査で全件裏取り済みです。1 点申し送り — PR #265 は squash merge のため、本ブランチには元コミット `a5fb55ac` が未 squash のまま重複保持されています（tracker 記述の誤りではありません）。Step 2 着手前に main への reset で差分ノイズを消すのが綺麗です。
 
 ---
 
