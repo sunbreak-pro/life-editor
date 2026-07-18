@@ -23,8 +23,9 @@ import type { ExtractedBriefing } from "./extractBriefing";
  * (web/src/briefing/BriefingScreen.tsx) fetches + aggregates and injects
  * everything through props. Layout language is "紙面, not dashboard":
  * a single centered reading column, generous rules (borders), serif display
- * type for the masthead/focus line, and the accent color reserved for
- * "today / action" marks. All colors are lumen-* tokens (no hardcodes).
+ * type for the masthead/focus line, and the Briefing accent duo (#269):
+ * 朱 lumen-briefing-shu for "today / action" marks, 琥珀 lumen-briefing-kohaku
+ * for context / annotations. All colors are lumen-* tokens (no hardcodes).
  *
  * The visual zone deliberately reuses the three Analytics widgets
  * (StreakDisplay / TaskCompletionTrend / WorkBreakBalance) — the Analytics
@@ -114,15 +115,19 @@ export interface BriefingViewProps {
   onJumpToTasks: () => void;
 }
 
-/** Section heading row — small-caps kicker over a hairline. */
+/** Section heading row — 段標 (朱 bar) + small-caps kicker over a hairline. */
 function BlockHead({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="mb-3 flex items-baseline justify-between">
-      <h3 className="text-xs font-bold tracking-[0.25em] text-lumen-text-secondary">
+      <h3 className="flex items-center gap-2.5 text-xs font-bold tracking-[0.25em] text-lumen-text-secondary">
+        <span
+          aria-hidden="true"
+          className="inline-block h-3.5 w-[7px] bg-lumen-briefing-shu"
+        />
         {title}
       </h3>
       {hint !== undefined && (
-        <span className="text-[10px] tracking-wider text-lumen-text-secondary">
+        <span className="text-[10px] tracking-wider text-lumen-briefing-kohaku">
           {hint}
         </span>
       )}
@@ -166,7 +171,7 @@ export function BriefingView({
 
       {/* ── Focus line ───────────────────────────────────────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
-        <p className="mb-2 text-[10px] font-bold tracking-[0.3em] text-lumen-accent">
+        <p className="mb-2 text-[10px] font-bold tracking-[0.3em] text-lumen-briefing-shu">
           {labels.focusLabel}
         </p>
         {briefing?.focus !== null && briefing?.focus !== undefined ? (
@@ -185,7 +190,7 @@ export function BriefingView({
       {briefing !== null && briefing.paragraphs.length > 0 && (
         <section className="border-b border-lumen-border py-5">
           <BlockHead title={labels.aiTitle} hint={labels.aiSource} />
-          <div className="rounded-lumen-md border-l-2 border-lumen-accent bg-lumen-accent-subtle px-4 py-3">
+          <div className="rounded-lumen-md border-l-2 border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-4 py-3">
             {briefing.paragraphs.map((text, i) => (
               <p
                 key={i}
@@ -209,7 +214,7 @@ export function BriefingView({
           <ul className="space-y-1">
             {data.schedule.map((item) => (
               <li key={item.id} className="flex items-baseline gap-3 py-1">
-                <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-accent">
+                <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
                   {item.isAllDay ? labels.allDay : item.startTime}
                 </span>
                 <button
@@ -219,7 +224,7 @@ export function BriefingView({
                   className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
                 >
                   {item.completed ? (
-                    <Check size={15} className="text-lumen-accent" />
+                    <Check size={15} className="text-lumen-briefing-shu" />
                   ) : (
                     <Circle size={15} />
                   )}
@@ -244,7 +249,7 @@ export function BriefingView({
                   <ArrowUpRight size={13} aria-hidden="true" />
                 </button>
                 {item.isRoutine && (
-                  <span className="rounded-full bg-lumen-chip-routine-bg px-2 text-[10px] text-lumen-chip-routine-fg">
+                  <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-[10px] text-lumen-briefing-kohaku">
                     {labels.routineTag}
                   </span>
                 )}
@@ -276,7 +281,7 @@ export function BriefingView({
                       aria-hidden="true"
                       className={
                         task.status === "DONE"
-                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-accent text-lumen-on-accent"
+                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
                           : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
                       }
                     >
@@ -303,7 +308,7 @@ export function BriefingView({
                 </div>
                 {task.purposes.length > 0 && (
                   <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
-                    <span className="font-semibold text-lumen-accent">
+                    <span className="font-semibold text-lumen-briefing-kohaku">
                       ◈ {task.purposes.join(" ・ ")}
                     </span>
                   </p>
@@ -344,7 +349,7 @@ export function BriefingView({
                 key={item.id}
                 className="flex items-center gap-2 text-sm text-lumen-text-secondary"
               >
-                <span className="font-bold text-lumen-accent">
+                <span className="font-bold text-lumen-briefing-shu">
                   {item.daysLabel}
                 </span>
                 <button
@@ -356,7 +361,7 @@ export function BriefingView({
                     aria-hidden="true"
                     className={
                       item.completed
-                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-accent text-lumen-on-accent"
+                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
                         : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
                     }
                   >

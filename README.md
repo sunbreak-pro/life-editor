@@ -30,6 +30,8 @@ cd ../web && npm install && npm run dev     # Web renderer（Vite）
 
 MCP: `.mcp.json` の life-editor サーバーは macOS のパスを既定値に持ち、他マシンでは環境変数 `LIFE_EDITOR_MCP_ENTRY` / `LIFE_EDITOR_DB_PATH` / `LIFE_EDITOR_FILES_ROOT` で上書きする。マシンごとの有効 / 無効は `.claude/settings.local.json`（git 非追跡）の `enabledMcpjsonServers` / `disabledMcpjsonServers` で切り替える。supabase サーバーは環境変数 `SUPABASE_ACCESS_TOKEN` の設定のみで全マシン共通。
 
+life-editor MCP の schedule / briefing ツール（`list_schedule` 系・`get_today_context`・`write_briefing`）は Supabase 接続で、環境変数 `LIFE_EDITOR_SUPABASE_URL` / `LIFE_EDITOR_SUPABASE_ANON_KEY`（`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` でも可）+ `LIFE_EDITOR_SUPABASE_EMAIL` / `LIFE_EDITOR_SUPABASE_PASSWORD` が必要（anon key + 本人ログインで RLS 維持・値の平文コミット禁止）。この場合 `LIFE_EDITOR_DB_PATH` は省略可（旧 SQLite ツール利用時のみ必要）。
+
 ## ドキュメント
 
 - [統合定義書（ビジョン・アーキテクチャ・規約・機能マップ）](.claude/CLAUDE.md) — **SSOT**
