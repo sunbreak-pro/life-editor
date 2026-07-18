@@ -29,49 +29,58 @@
    miniature inside a dark app. Same declaration block, so no value can drift. */
 :root,
 [data-theme="light"] {
-  /* Brand: Lumen (Cobalt Ink + Mint lineage, 2026-06-20; primary accent
-     aligned to Lumen blue, deepened to blue-700 on 2026-07-05 so accent-
-     colored text/icons clear WCAG AA 4.5:1 even on the hover background).
-     Mono cobalt-grey neutrals, a Lumen-blue primary accent (#1d4ed8), and a
-     light-mint secondary accent. The former Notion teal-blue (#2eaadc) is
-     retired. Canonical values + rationale: shared/design-system/PRINCIPLES.md §3.3. */
-  --color-bg-primary: #fafafa;
-  --color-bg-secondary: #f1f1f3;
-  --color-bg-subsidebar: #f5f5f6;
+  /* Brand: Lumen — 朝刊・夕刊 (Asakan/Yukan) edition palette, 2026-07-18
+     (Issue #269; proposal = asakan-yukan-theme.html, all pairs WCAG AA
+     verified). Light = 朝刊: warm eggshell paper neutrals with a rising-sun
+     燈色 (hiiro) accent (#ad4409). Dark = 夕刊: indigo (藍) night-sky
+     neutrals with a moonlight pale-indigo accent. Supersedes the Cobalt
+     Ink + Mint chrome/accent values (2026-06-20 → 2026-07-05 lineage); the
+     mint secondary accent and all Functional/Data colors stay unchanged.
+     Canonical values + rationale: shared/design-system/PRINCIPLES.md §3.3. */
+  --color-bg-primary: #fbf4e8;
+  --color-bg-secondary: #f5ebda;
+  --color-bg-subsidebar: #f8efe1;
   /* Recessed surface — an inset "well" that sits *below* the base bg
      (search fields, code blocks, sunken list areas, sheet body wells).
      Opaque per §3.5. Slightly darker than bg-secondary so the recess
      reads without a border. */
-  --color-surface-sunken: #ececef;
-  --color-text-primary: #1a1a1f;
-  --color-text-secondary: #5c5c66;
+  --color-surface-sunken: #efe3cd;
+  --color-text-primary: #2b2015;
+  --color-text-secondary: #6b5a45;
   /* Third text tier — de-emphasized meta / hints, one step quieter than
      text-secondary (row tags, counts, timestamps). Kept ≥ 3:1 on bg per
      PRINCIPLES §3.6 (do not use for body copy). */
-  --color-text-tertiary: #767680;
-  --color-border: #e3e3e7;
-  --color-border-strong: #cfcfd6;
-  --color-accent: #1d4ed8;
-  --color-accent-hover: #1e40af;
+  --color-text-tertiary: #857054;
+  --color-border: #eadec6;
+  --color-border-strong: #d6c3a2;
+  --color-accent: #ad4409;
+  --color-accent-hover: #8f3807;
   /* Foreground for text/icons sitting on the accent fill (buttons, selected
-     pills). Light theme uses white on the deep cobalt; the dark theme
-     overrides this to near-black ink because its accent is a light blue. */
+     pills). Light theme uses white on the deep 燈色; the dark theme
+     overrides this to near-black ink because its accent is a light indigo. */
   --color-on-accent: #ffffff;
   /* Ink for text/icons on the vivid mint/amber phase fills (Pomodoro BREAK /
      LONG_BREAK primary buttons). Those fills are mid-tone in both themes, so
      white fails WCAG AA in light mode — this stays near-black in both. */
   --color-on-vivid: #0a1024;
-  /* Opaque light-cobalt wash for the DnD "drop inside this folder" cue
+  /* Opaque light-amber wash for the DnD "drop inside this folder" cue
      (DU-G). Opaque on purpose (§5). */
-  --color-accent-subtle: #dbeafe;
+  --color-accent-subtle: #fbe3c6;
   /* Mint secondary accent — the light-green "touch". Used for positive /
      secondary states (chips, tags, secondary highlights). Primary actions
-     and primary selection stay cobalt. */
+     and primary selection stay on the primary accent (燈色 / 薄藍). */
   --color-accent-secondary: #1fa56e;
   --color-accent-secondary-hover: #18895b;
   --color-chip-mint-bg: #daf3e7;
   --color-chip-mint-fg: #0c6f4e;
-  --color-hover: #e8e8ec;
+  --color-hover: #f0e5d0;
+  /* Briefing 紙面アクセント duo (Issue #269): 朱 (shu) = action / today marks,
+     琥珀 (kohaku) = context / annotations. Theme-variable like the other
+     accents; roles + AA pairs: asakan-yukan-theme.html §3. */
+  --color-briefing-shu: #ad2f1d;
+  --color-briefing-shu-subtle: #f7e0d6;
+  --color-briefing-kohaku: #8a5c06;
+  --color-briefing-kohaku-subtle: #f6e7c8;
   --color-success: #0f7b6c;
   --color-danger: #d92d20;
   /* Subtle danger wash — the flat face behind inline error/alert bands
@@ -114,8 +123,8 @@
   --color-schedule-tag-done-bg: #ecfdf5;
   --color-schedule-tag-done-fg: #047857;
   --color-schedule-tag-done-border: #6ee7b7;
-  /* Task chip mirrors the primary accent (was the old teal). Retuned to the
-     cobalt family so "task" reads as the brand color, not a stray blue. */
+  /* Task chip stays in the old cobalt family (entity-encoding, Functional/
+     Data §3.2) — it does NOT follow the #269 accent change to 燈色. */
   --color-chip-task-bg: #dbeafe;
   --color-chip-task-fg: #1e40af;
   --color-chip-task-dot: #1d4ed8;
@@ -167,28 +176,34 @@
 }
 
 [data-theme="dark"] {
-  --color-bg-primary: #16161a;
-  --color-bg-secondary: #1e1e23;
-  --color-bg-subsidebar: #1e1e23;
-  --color-surface-sunken: #101013;
-  --color-text-primary: #f2f2f5;
-  --color-text-secondary: #a0a0ad;
-  --color-text-tertiary: #74747e;
-  --color-border: #2e2e35;
-  --color-border-strong: #44444d;
-  --color-accent: #5b8cff;
-  --color-accent-hover: #7aa2ff;
-  /* The dark accent is a light cobalt, so on-accent flips to near-black ink
+  --color-bg-primary: #101a2c;
+  --color-bg-secondary: #18243c;
+  --color-bg-subsidebar: #18243c;
+  --color-surface-sunken: #0a1220;
+  --color-text-primary: #edf1f9;
+  --color-text-secondary: #a4b2ca;
+  --color-text-tertiary: #75839d;
+  --color-border: #263650;
+  --color-border-strong: #3c4e70;
+  --color-accent: #85aaff;
+  --color-accent-hover: #a3c0ff;
+  /* The dark accent is a light indigo, so on-accent flips to near-black ink
      (the :root default is white) to keep button labels legible on the fill. */
   --color-on-accent: #0a1024;
-  /* Dark-theme counterpart: a desaturated cobalt that sits just above the
+  /* Dark-theme counterpart: a desaturated indigo that sits just above the
      dark row background instead of glowing. Opaque (see :root note). */
-  --color-accent-subtle: #21273f;
+  --color-accent-subtle: #1e2d4b;
   --color-accent-secondary: #5fd1a0;
   --color-accent-secondary-hover: #74d9af;
   --color-chip-mint-bg: #133024;
   --color-chip-mint-fg: #7fe0b3;
-  --color-hover: #2a2a31;
+  --color-hover: #22314e;
+  /* Briefing duo dark counterparts — 朱/琥珀 lighten to stay AA on the
+     indigo paper (asakan-yukan-theme.html §5). */
+  --color-briefing-shu: #f0907c;
+  --color-briefing-shu-subtle: #35201f;
+  --color-briefing-kohaku: #dcb267;
+  --color-briefing-kohaku-subtle: #2e2513;
   --color-success: #4dab9a;
   --color-danger: #ef4444;
   /* Dark counterpart: danger 8% flattened against the dark bg-secondary. */
@@ -273,6 +288,13 @@
   --color-lumen-surface-sunken: var(--color-surface-sunken);
   --color-lumen-text-tertiary: var(--color-text-tertiary);
   --color-lumen-calendar-header: var(--color-calendar-header);
+  /* Briefing 紙面アクセント duo (Issue #269) → text-/bg-/border-lumen-
+     briefing-*. Mapped BEFORE BriefingView uses the classes — undefined
+     lumen-* classes silently fall transparent (§5). */
+  --color-lumen-briefing-shu: var(--color-briefing-shu);
+  --color-lumen-briefing-shu-subtle: var(--color-briefing-shu-subtle);
+  --color-lumen-briefing-kohaku: var(--color-briefing-kohaku);
+  --color-lumen-briefing-kohaku-subtle: var(--color-briefing-kohaku-subtle);
   /* Kanban status (K1) — chip faces + the 4px status bands. Mapped so
      shared Kanban primitives can use bg-lumen-chip-* / text-lumen-chip-* /
      bg-lumen-status-*-band (no hardcoded colors, §6). */

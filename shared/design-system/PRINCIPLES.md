@@ -5,7 +5,7 @@
 > デザイン関連の不変式を 1 枚に移植・統合したもの。実装規約の正本は引き続き
 > CLAUDE.md §6-7、本書は「デザインを作るときに従う原則」を集約する。
 >
-> Status: ACTIVE（ブランドパレット = Cobalt + Mint 確定・§3.3 / tokens.css 反映済み・2026-06-20）
+> Status: ACTIVE（ブランドパレット = 朝刊・夕刊（燈色 + 藍）確定・§3.3 / tokens.css 反映済み・2026-07-18 #269。旧 Cobalt + Mint のうち Chrome/Accent を置換・Mint 第2アクセントと Functional/Data は継続）
 > Home: `shared/design-system/`（部品・トークンと同じ `shared/` 配下に集約）
 
 ---
@@ -66,31 +66,46 @@
 - **on-accent は白固定**でよい（accent 上で両テーマとも読めるため `tokens.css` でも共有）。
 - **Functional / Data 系を新規追加するときは light/dark 同値**にする（既存の status band / chart series がそうなっている）。
 
-### 3.3 ブランドパレット — Lumen（Cobalt Ink + Mint 系譜 / accent は Lumen blue・2026-07-05）
+### 3.3 ブランドパレット — Lumen（朝刊・夕刊 系譜 / light = 燈色・dark = 藍・2026-07-18 #269）
 
-> ✅ **確定**: ほぼモノクロのコバルトグレー neutrals ＋ Lumen blue 系（accent は blue-700 `#1d4ed8`。
-> ホバー背景上の accent 文字も WCAG AA 4.5:1 を満たす深さ）の主アクセント ＋
-> ライトミントの第2アクセント。旧 Notion teal-blue（`#2eaadc`）は退役。トークン名は `lumen-*`。
+> ✅ **確定**: 「朝刊・夕刊」エディションパレット（提案正本 = `asakan-yukan-theme.html`・全ペア WCAG AA 機械検証済み）。
+> Light = **朝刊**: 生成り（卵殻色）の紙 neutrals ＋ 朝日の**燈色（ひいろ）** accent `#ad4409`。
+> Dark = **夕刊**: 藍染めの夜空 neutrals ＋ 月明かりの薄藍 accent `#85aaff`。
+> 旧 Cobalt Ink + Mint 系譜（2026-06-20〜07-05）の Chrome/Accent を置換。ライトミントの
+> 第2アクセントは継続、旧 Notion teal-blue（`#2eaadc`）は退役済み。トークン名は `lumen-*`。
 > 実体は `shared/src/styles/tokens.css`。本表と tokens.css は常に同期させる（片方だけ変えない）。
 
 **Chrome / Accent / Semantic（テーマ可変）**
 
 | Role           | Light     | Dark      | lumen トークン         |
 | -------------- | --------- | --------- | ---------------------- |
-| bg-primary     | `#fafafa` | `#16161a` | `lumen-bg`             |
-| bg-secondary   | `#f1f1f3` | `#1e1e23` | `lumen-bg-secondary`   |
-| bg-subsidebar  | `#f5f5f6` | `#1e1e23` | `lumen-bg-subsidebar`  |
-| text-primary   | `#1a1a1f` | `#f2f2f5` | `lumen-text`           |
-| text-secondary | `#5c5c66` | `#a0a0ad` | `lumen-text-secondary` |
-| border         | `#e3e3e7` | `#2e2e35` | `lumen-border`         |
-| border-strong  | `#cfcfd6` | `#44444d` | `lumen-border-strong`  |
-| accent         | `#1d4ed8` | `#5b8cff` | `lumen-accent`         |
-| accent-hover   | `#1e40af` | `#7aa2ff` | `lumen-accent-hover`   |
+| bg-primary     | `#fbf4e8` | `#101a2c` | `lumen-bg`             |
+| bg-secondary   | `#f5ebda` | `#18243c` | `lumen-bg-secondary`   |
+| bg-subsidebar  | `#f8efe1` | `#18243c` | `lumen-bg-subsidebar`  |
+| surface-sunken | `#efe3cd` | `#0a1220` | `lumen-surface-sunken` |
+| text-primary   | `#2b2015` | `#edf1f9` | `lumen-text`           |
+| text-secondary | `#6b5a45` | `#a4b2ca` | `lumen-text-secondary` |
+| text-tertiary  | `#857054` | `#75839d` | `lumen-text-tertiary`  |
+| border         | `#eadec6` | `#263650` | `lumen-border`         |
+| border-strong  | `#d6c3a2` | `#3c4e70` | `lumen-border-strong`  |
+| accent         | `#ad4409` | `#85aaff` | `lumen-accent`         |
+| accent-hover   | `#8f3807` | `#a3c0ff` | `lumen-accent-hover`   |
 | on-accent      | `#ffffff` | `#0a1024` | `lumen-on-accent`      |
-| accent-subtle  | `#dbeafe` | `#21273f` | `lumen-accent-subtle`  |
-| hover          | `#e8e8ec` | `#2a2a31` | `lumen-hover`          |
+| accent-subtle  | `#fbe3c6` | `#1e2d4b` | `lumen-accent-subtle`  |
+| hover          | `#f0e5d0` | `#22314e` | `lumen-hover`          |
 | success        | `#0f7b6c` | `#4dab9a` | `lumen-success`        |
 | danger         | `#d92d20` | `#ef4444` | `lumen-danger`         |
+
+**Briefing 紙面アクセント duo — 朱 × 琥珀（テーマ可変・#269 新設）**
+
+朱 = 行動と現在（段標・焦点約物・時刻数字・完了チェック・持ち越し日数）、琥珀 = 文脈と補足（AI コメント罫と地・purpose・ルーティン札・補足ヒント）。Briefing 紙面専用 — 汎用ボタン等の主アクセントは `lumen-accent` を使う。
+
+| Role                   | Light     | Dark      | lumen トークン                 |
+| ---------------------- | --------- | --------- | ------------------------------ |
+| briefing-shu           | `#ad2f1d` | `#f0907c` | `lumen-briefing-shu`           |
+| briefing-shu-subtle    | `#f7e0d6` | `#35201f` | `lumen-briefing-shu-subtle`    |
+| briefing-kohaku        | `#8a5c06` | `#dcb267` | `lumen-briefing-kohaku`        |
+| briefing-kohaku-subtle | `#f6e7c8` | `#2e2513` | `lumen-briefing-kohaku-subtle` |
 
 **Mint 第2アクセント（light-green の差し色）**
 
@@ -101,17 +116,17 @@
 | chip-mint-bg           | `#daf3e7` | `#133024` | `lumen-chip-mint-bg`           |
 | chip-mint-fg           | `#0c6f4e` | `#7fe0b3` | `lumen-chip-mint-fg`           |
 
-- **on-accent はテーマで切替**: light = 白 / dark = near-black `#0a1024`（dark accent が明るいコバルトのため白だとボタン文字が読めない）。
-- **mint は差し色**: チップ / タグ / ポジティブ状態に使う。**主アクション・主選択は cobalt 固定**。
-- **task チップは accent をミラー**: 旧 teal だったので cobalt 系に再調整済み（他の chip = routine 藍 / event 紫 / completed 緑 / progress 琥珀は entity 別色なので不変）。
+- **on-accent はテーマで切替**: light = 白 / dark = near-black `#0a1024`（dark accent が明るい薄藍のため白だとボタン文字が読めない）。
+- **mint は差し色**: チップ / タグ / ポジティブ状態に使う。**主アクション・主選択は accent（燈色 / 薄藍）固定**。
+- **task チップは旧 cobalt 系のまま維持**: chip は Functional/Data（entity 符号化）なので #269 の Chrome/Accent 置換に追随しない（routine 藍 / event 紫 / completed 緑 / progress 琥珀と同様に不変）。
 - Functional/Data（status band・chart series・schedule bg・calendar-header）は**テーマ固定の符号化**として現状維持（§3.2）。
 
 ### 3.4 ライト / ダークの作り方
 
-- **ダークは pure #000 を使わない**。ブランド色相を帯びた near-black（`#16161a`）にする。
-- **ライトは clinical な pure #ffffff を避ける**（cobalt mono でも `#fafafa`）。わずかな地色のほうが長時間読書で疲れない。
+- **ダークは pure #000 を使わない**。ブランド色相を帯びた near-black（藍の夜空 `#101a2c`）にする。
+- **ライトは clinical な pure #ffffff を避ける**（朝刊は生成りの `#fbf4e8`）。わずかな地色のほうが長時間読書で疲れない。
 - chrome は light↔dark で別値を入れる（`[data-theme="dark"]` ブロック）。Functional/Data は同値のまま。
-- **accent はダークで明度を上げる**（`#1d4ed8` → dark `#5b8cff`）。明るくした分、**dark の on-accent は near-black に切替**（白だとコントラスト不足）。
+- **accent はダークで明度を上げる**（燈色 `#ad4409` → dark 薄藍 `#85aaff`）。明るくした分、**dark の on-accent は near-black に切替**（白だとコントラスト不足）。
 
 ### 3.5 透明度ポリシー（coding-principles §5 を移植）
 
