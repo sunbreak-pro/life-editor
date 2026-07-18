@@ -62,6 +62,8 @@ interface RichTextEditorProps {
   onUpdate: (content: string) => void;
   editable?: boolean;
   placeholder?: string;
+  /** Container chrome override (the Daily card supplies its own fill/scroll). */
+  className?: string;
 }
 
 function tryParseJSON(str: string): Record<string, unknown> | string {
@@ -78,6 +80,7 @@ export function RichTextEditor({
   onUpdate,
   editable = true,
   placeholder = "Write your note…",
+  className = "rounded-md border border-lumen-border bg-lumen-bg p-3",
 }: RichTextEditorProps) {
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
@@ -174,7 +177,7 @@ export function RichTextEditor({
   }, [editor, editable]);
 
   return (
-    <div className="note-editor rounded-md border border-lumen-border bg-lumen-bg p-3">
+    <div className={`note-editor ${className}`}>
       <EditorContent editor={editor} />
     </div>
   );
