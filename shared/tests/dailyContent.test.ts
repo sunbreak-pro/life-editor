@@ -36,6 +36,16 @@ describe("plainTextToTipTapDoc", () => {
   it("converts a single line to a single paragraph", () => {
     expect(plainTextToTipTapDoc("hello").content).toHaveLength(1);
   });
+
+  it("strips CRLF line endings (no trailing \\r in paragraph text)", () => {
+    expect(plainTextToTipTapDoc("one\r\ntwo")).toEqual({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "one" }] },
+        { type: "paragraph", content: [{ type: "text", text: "two" }] },
+      ],
+    });
+  });
 });
 
 describe("dailyContentToEditorContent", () => {
