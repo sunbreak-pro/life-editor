@@ -2710,6 +2710,13 @@
       "toggleList": "トグルリスト"
     }
   },
+  "itemLink": {
+    "empty": "一致する項目がありません",
+    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入",
+    "createNote": "「{{query}}」のノートを作成してリンク",
+    "roleNote": "ノート",
+    "roleDaily": "デイリー"
+  },
   "iconPicker": {
     "search": "アイコンを検索...",
     "empty": "アイコンが見つかりません",

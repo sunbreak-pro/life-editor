@@ -379,6 +379,12 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         skipUndo?: boolean;
         parentId?: string | null;
         initialContent?: string;
+        /**
+         * Whether to select the new note (default true). The "[[" link-create
+         * flow passes false so creating a note to link to does NOT switch the
+         * editor away from the note the user is currently writing in.
+         */
+        select?: boolean;
       },
     ) => {
       const id = generateId("note");
@@ -400,7 +406,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // re-fetch (which could race the still-in-flight content write and
       // clobber the local body with an empty server row).
       contentLoadedIdsRef.current.add(id);
-      setSelectedNoteId(id);
+      if (opts?.select !== false) setSelectedNoteId(id);
       ds.createNoteUnified(
         buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
       )

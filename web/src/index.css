@@ -101,6 +101,24 @@ body {
   color: var(--color-accent);
   text-decoration: underline;
 }
+/* Wiki-style item links ("[[…]]" — itemLinkNode.ts). Resolved = accent + solid
+   underline + pointer (click navigates); unresolved = tertiary + dashed
+   underline (inert until it resolves). lumen-* tokens only. */
+.note-editor .ProseMirror .item-link {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: 0.2rem;
+}
+.note-editor .ProseMirror .item-link:hover {
+  background-color: var(--color-accent-subtle);
+}
+.note-editor .ProseMirror .item-link--unresolved {
+  color: var(--color-text-tertiary);
+  text-decoration-style: dashed;
+  cursor: text;
+}
 .note-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--color-text-secondary);

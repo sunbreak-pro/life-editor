@@ -1,7 +1,15 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
+  useWikiTagsUnifiedContext,
   useMediaQuery,
   useTranslation,
   Menu,
@@ -15,8 +23,11 @@ import {
   dailyContentExcerpt,
   type DailyEntriesPanelEntry,
   type DateStripDay,
+  type DataService,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
+import { useItemLinkTargets } from "../notes/useItemLinkTargets";
+import type { ItemLinkTarget } from "../notes/itemLinkSuggestion";
 
 /*
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
@@ -78,6 +89,9 @@ function EditorCard({
   initialContent,
   onUpdate,
   placeholder,
+  linkTargets,
+  onNavigateToItem,
+  onResolvedLinkInserted,
 }: {
   dateLabel: string;
   dateClassName: string;
@@ -88,6 +102,9 @@ function EditorCard({
   initialContent?: string;
   onUpdate: (content: string) => void;
   placeholder: string;
+  linkTargets?: ItemLinkTarget[];
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  onResolvedLinkInserted?: (targetId: string) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary shadow-lumen-sm">
@@ -110,13 +127,35 @@ function EditorCard({
         initialContent={initialContent}
         onUpdate={onUpdate}
         placeholder={placeholder}
+        // "[[" wiki-link autocomplete + click navigation (Issue #285). No
+        // create-note row here (Daily has no note-create path) — the daily
+        // editor only links to EXISTING items.
+        linkTargets={linkTargets}
+        onNavigateToItem={onNavigateToItem}
+        onResolvedLinkInserted={onResolvedLinkInserted}
         className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
       />
     </div>
   );
 }
 
-export function DailyView() {
+interface DailyViewProps {
+  /** Injected for the "[[" link-target pool (notes + dailies, cross-domain). */
+  dataService?: DataService;
+  /** Navigate to a link target (MainScreen owns section + tab switching). */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /** A pending daily date to open (arrived via a link click from another tab). */
+  pendingSelectDate?: string | null;
+  /** Clear the pending selection once consumed. */
+  onConsumePendingSelect?: () => void;
+}
+
+export function DailyView({
+  dataService,
+  onNavigateToItem,
+  pendingSelectDate,
+  onConsumePendingSelect,
+}: DailyViewProps = {}) {
   const {
     dailies,
     selectedDate,
@@ -127,8 +166,45 @@ export function DailyView() {
     togglePin,
     getDailyForDate,
   } = useDailiesUnifiedContext();
+  const { createItemLink, getLinksForItem } = useWikiTagsUnifiedContext();
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
+
+  // "[[" link-target pool (notes + dailies, cross-domain).
+  const linkTargets = useItemLinkTargets(dataService);
+
+  // A link click from the Notes tab lands here with a pending date — open it
+  // once, then clear.
+  useEffect(() => {
+    if (!pendingSelectDate) return;
+    setSelectedDate(pendingSelectDate);
+    onConsumePendingSelect?.();
+    // setSelectedDate / onConsumePendingSelect are stable; rerun on new date.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSelectDate]);
+
+  // Mirror a resolved "[[" link into the item_links graph as an edge from the
+  // current daily to the target. GUARDED on selectedDaily: a brand-new day has
+  // no items_meta row yet (upsertDaily creates it on the debounced save), and
+  // wiki_tag_connections.from_item_id is a NOT NULL FK to items_meta — creating
+  // the edge before the row exists would violate it. The visual link + click
+  // navigation still work; only the graph edge waits until the day is saved.
+  // Duplicate-guarded; never auto-deleted (item_links has no origin column).
+  const handleResolvedLinkInserted = useCallback(
+    (targetId: string) => {
+      if (!selectedDaily) return;
+      const fromId = selectedDaily.id;
+      if (!fromId || fromId === targetId) return;
+      const already = getLinksForItem(fromId).outgoing.some(
+        (l) => !l.isDeleted && l.toItemId === targetId,
+      );
+      if (already) return;
+      void createItemLink(fromId, targetId).catch((e) =>
+        console.error("[DailyView] item link upsert failed", e),
+      );
+    },
+    [selectedDaily, getLinksForItem, createItemLink],
+  );
 
   // Header actions kebab (#284) — collapsed pin / delete menu.
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -379,6 +455,9 @@ export function DailyView() {
             initialContent={editorContent}
             onUpdate={handleEditorUpdate}
             placeholder={t("materials.daily.placeholder")}
+            linkTargets={linkTargets}
+            onNavigateToItem={onNavigateToItem}
+            onResolvedLinkInserted={handleResolvedLinkInserted}
           />
         </div>
 
@@ -435,6 +514,9 @@ export function DailyView() {
           initialContent={editorContent}
           onUpdate={handleEditorUpdate}
           placeholder={t("materials.daily.placeholder")}
+          linkTargets={linkTargets}
+          onNavigateToItem={onNavigateToItem}
+          onResolvedLinkInserted={handleResolvedLinkInserted}
         />
       </div>
 
