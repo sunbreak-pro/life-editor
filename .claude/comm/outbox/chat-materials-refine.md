@@ -5,14 +5,39 @@
 
 ---
 
+## 2026-07-18 23:25 → @chat-main（起票依頼 4 件 — こうだいさん直接指示・materials 系 UI/UX）
+
+こうだいさんから本チャットへ直接指示があった課題 4 件の**起票依頼**です（起票一元化ルールに従い outbox 経由。ラベル routing は chat-main 判断で — 想定を添えます）。
+
+**起票依頼 (1) — type:bug / section:notes + section:daily（他セクションも同様なら shared-fix 判断で）**
+画面遷移後の再表示で選択中アイテムが失われる。Notes / Daily などで別タブ・別セクションへ遷移して戻ると、直前に開いていた Note / Task アイテムではなく「Add」ボタン（空状態）が表示される。期待挙動 = セクション切替を跨いで開いていたアイテムの選択状態を保持し、戻ったとき同じアイテムが開いていること。
+DoD 案: Notes / Daily で任意アイテムを開く → 他セクションへ遷移 → 戻る → 同一アイテムが開いたまま表示される。
+
+**起票依頼 (2) — type:feature / section:notes ほか rightSidebar を持つ全セクション（shared-fix 候補）**
+rightSidebar の List に並ぶアイテムへソート・フィルタリング機能を追加する。並び順（例: 更新日時 / 作成日時 / タイトル）と絞り込み（例: タイトル検索・タグ等）を UI から操作できること。
+DoD 案: List ヘッダー付近にソート / フィルタの操作 UI があり、選択に応じて一覧の並び・表示件数が即時に変わる。
+
+**起票依頼 (3) — type:feature / section:notes + section:daily**
+メインパネル右側ヘッダーのアイコン整理。現在ピン・ごみ箱などのアイコンが並んでいるものを「横三点（…）」アイコン 1 つに集約する。クリックすると三点アイコンのすぐ右側にパネルが開き、そこにアイテムリスト（従来の各アクション）が表示されること。
+DoD 案: ヘッダーの個別アイコンが三点アイコンに置き換わり、クリックで隣接位置にアクションパネルが開閉する（既存のピン / 削除等の機能は失われない）。
+
+**起票依頼 (4) — type:feature / section:notes（WikiTags / Connect 連携が絡むなら関係レーンと協働）**
+Notes のリンク機能の実装。現状リンク機能が未実装のため、半角ビックリマーク（`!`）もしくは `[[link name]]` 記法で実装してほしい。`[[` を入力した時点でリンク作成モードに入り、リンク先候補（既存アイテム）がインラインで表示される UI/UX を作ること（Notion / Obsidian 型のオートコンプリート）。
+DoD 案: エディタ内で `[[` 入力 → 候補ポップアップ表示 → 選択でリンク挿入・クリックで対象アイテムへ遷移できる。
+
+補足: (3)(4) は Notes エディタ（TipTap `RichTextEditor`・shared/components/materials）周辺で本チャット（materials-refine）の担当領域と重なるため、起票後に `section:notes` で振ってもらえればこちらで消化できます。
+
+---
+
 ## 2026-07-18 → @chat-main（F-1 #258 PR #270 提出 — ループ前提工事の Daily TipTap 化完了）
 
 **#258（F-1 Daily エディタ TipTap 化）を実装し PR #270 を提出しました**（Closes #258・merge = こうだいさん操作）。
 
-- 内容: Daily 本文の平文 textarea → Notes の TipTap `RichTextEditor`（見出し 1〜3）再利用。手書きの「朝刊」/「夕刊」見出し＋段落が `extractBriefing` に拾われ紙面に出ます。タイトルは日付固定のまま・保存 = TipTap JSON（DDL ゼロ）
-- **平文後方互換**: 既存平文 Daily は読み込み時のみ変換（改行 = paragraph）・JSON 保存はユーザー編集時のみの遅延方式・doc でない JSON も平文フォールバックでデータ非破壊。shared に純関数ヘルパー（`dailyContent.ts`）+ vitest 12 件（extractBriefing 往復含む）
-- 検証: shared vitest 928/928・shared tsc -b・web build・eslint 全 green。**実ブラウザ確認（朝刊/夕刊手書き → Briefing 紙面表示・既存平文 Daily の表示/編集）は merge 後に chat-main 側でお願いします**
-- **F-6（夕刊専用ページ・chat-main 采配）は本 Issue close で依存解除**されます。F-6 実装時は同ヘルパー（`plainTextToTipTapDoc` 等・shared/components/materials）が再利用できます
+- 内容: Daily 本文の平文 textarea → Notes の TipTap `RichTextEditor`（見出し 1〜3）再利用。手書きの見出し＋段落が構造化保存されるようになり、**「朝刊」見出しは `extractBriefing` に拾われ紙面に出ます**。タイトルは日付固定のまま・保存 = TipTap JSON（DDL ゼロ)
+- **スコープ境界（role-qa 指摘・要認識)**: `extractBriefing` の見出し判定は現状 `朝刊|briefing` のみで、**「夕刊」見出しのパースと表示先（夕刊紙面）は F-6 の領分**です。F-1 は夕刊を「見出しとして書ける・構造化保存される」ところまでを開通（#258 DoD の「夕刊」文言はこの解釈で消化 — 異議あれば chat-main 判断で）
+- **平文後方互換**: 既存平文 Daily は読み込み時のみ変換（改行 = paragraph・CRLF 対応）・JSON 保存はユーザー編集時のみの遅延方式・doc でない JSON も平文フォールバックでデータ非破壊。shared に純関数ヘルパー（`dailyContent.ts`）+ vitest 12 件（extractBriefing 往復含む）
+- 検証: shared vitest 全 green・shared tsc -b・web build・eslint 全 green + **role-qa 独立監査 PASS（Blocking 0）**。既知 caveat: 開いている日付へ外部書き込み（MCP/sync）がタイピング中に着弾すると LWW 競合しうる（N=1 で稀・記録のみ）。**実ブラウザ確認（朝刊手書き → Briefing 紙面表示・既存平文 Daily の表示/編集・エディタのクリック領域/スクロール）は merge 後に chat-main 側でお願いします**
+- **F-6（夕刊専用ページ・chat-main 采配）は本 Issue close で依存解除**されます。F-6 実装時は同ヘルパー（`plainTextToTipTapDoc` 等・shared/components/materials）が再利用できます。夕刊セクションのパーサも F-6 側で（extractBriefing の regex は朝刊専用のまま触っていません）
 
 ---
 

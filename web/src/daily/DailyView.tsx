@@ -141,24 +141,33 @@ export function DailyView() {
   // a sync refetch, an MCP write. Our own saves echo back through upsertDaily's
   // optimistic update — lastEmitted recognises them (its setState batches with
   // upsertDaily's, so the echo render sees both) and typing never remounts
-  // (which would drop cursor + IME state). "Adjust state during render"
+  // (which would drop cursor + IME state). lastEmitted carries its date so an
+  // unmount flush racing a date switch never leaks into the new date's
+  // comparisons. "Adjust state during render"
   // (https://react.dev/learn/you-might-not-need-an-effect).
   const selectedContent = selectedDaily?.content ?? "";
-  const [lastEmitted, setLastEmitted] = useState<string | null>(null);
+  const [lastEmitted, setLastEmitted] = useState<{
+    date: string;
+    json: string;
+  } | null>(null);
   const [editorGen, setEditorGen] = useState(0);
   const [syncedFrom, setSyncedFrom] = useState<{
     date: string;
     content: string;
   }>({ date: selectedDate, content: selectedContent });
 
+  const ownEcho =
+    lastEmitted !== null &&
+    lastEmitted.date === selectedDate &&
+    lastEmitted.json === selectedContent;
+
   if (
     syncedFrom.date !== selectedDate ||
     syncedFrom.content !== selectedContent
   ) {
-    if (syncedFrom.date === selectedDate && selectedContent !== lastEmitted) {
+    if (syncedFrom.date === selectedDate && !ownEcho) {
       setEditorGen((g) => g + 1);
     }
-    if (syncedFrom.date !== selectedDate) setLastEmitted(null);
     setSyncedFrom({ date: selectedDate, content: selectedContent });
   }
 
@@ -168,13 +177,23 @@ export function DailyView() {
   const editorKey = `${selectedDate}:${editorGen}`;
 
   const handleEditorUpdate = (json: string) => {
-    setLastEmitted(json);
+    // The old blur-commit skipped no-op saves; keep its spirit for the one
+    // case TipTap still emits without visible content: typing then deleting
+    // everything on a day that has no stored entry would otherwise mint an
+    // empty DailyNode (and bump the sync cursor).
+    if (selectedContent === "" && dailyContentExcerpt(json) === undefined) {
+      return;
+    }
+    setLastEmitted({ date: selectedDate, json });
     upsertDaily(selectedDate, json);
   };
 
-  // Saves are automatic (debounced + flushed on unmount), so the caption only
-  // reads unsaved in the brief window before a save echo lands.
-  const isSaved = lastEmitted === null || lastEmitted === selectedContent;
+  // Saves are automatic (debounced + flushed on unmount); with batched echo
+  // renders this caption effectively always reads saved — kept as reassurance.
+  const isSaved =
+    lastEmitted === null ||
+    lastEmitted.date !== selectedDate ||
+    lastEmitted.json === selectedContent;
   const savedLabel = isSaved
     ? t("materials.daily.saved")
     : t("materials.daily.unsaved");

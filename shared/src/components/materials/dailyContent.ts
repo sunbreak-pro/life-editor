@@ -58,7 +58,9 @@ function parseTipTapDoc(content: string): TipTapDoc | null {
 export function plainTextToTipTapDoc(text: string): TipTapDoc {
   return {
     type: "doc",
-    content: text.split("\n").map((line): TipTapNode => {
+    // \r?\n: Windows-era plain bodies would otherwise leave a trailing \r
+    // on every paragraph.
+    content: text.split(/\r?\n/).map((line): TipTapNode => {
       // TipTap forbids empty text nodes — an empty line is a bare paragraph.
       if (line === "") return { type: "paragraph" };
       return { type: "paragraph", content: [{ type: "text", text: line }] };

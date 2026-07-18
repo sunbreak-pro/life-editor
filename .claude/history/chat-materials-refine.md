@@ -11,7 +11,7 @@ loop-friction-fixes §F-1（ループ前提工事・最優先）を実装し PR 
 - **shared 純関数ヘルパー新設**: `components/materials/dailyContent.ts` — `plainTextToTipTapDoc`（改行 = paragraph）/ `dailyContentToEditorContent`（平文は読み込み時のみ変換・doc でない JSON も平文扱いでデータ非破壊）/ `dailyContentExcerpt`（平文・TipTap 両対応の抜粋）+ vitest 12 件（extractBriefing 往復テスト含む）
 - **DailyView**: EditorCard の textarea → RichTextEditor（web/notes 再利用・`className` prop 新設で card 内フィル表示）。JSON 保存はユーザー編集時のみの遅延方式・remount は日付切替/外部変更時のみ（保存エコーは lastEmitted state で判別 — カーソル/IME 保持）。タイトルは日付固定のまま。過去エントリ抜粋を両形式対応に
 - **CSS**: `.daily-editor` バリアント（カード内フィル + クリック全域フォーカス）
-- **検証**: shared vitest 928/928・shared tsc -b・web build green・web eslint clean（react-hooks/refs 9 件を state 化で解消）。実ブラウザ確認 = merge 後 chat-main
+- **検証**: shared vitest 929/929・shared tsc -b・web build green・web eslint clean（react-hooks/refs 9 件を state 化で解消）。role-qa 独立監査 PASS（Blocking 0）— 指摘反映: CRLF split / 空 doc mint ガード / lastEmitted に日付付与（切替直後の誤 unsaved 解消）/ CSS 詳細度固定。夕刊パースは F-6 領分とスコープ明確化（extractBriefing は朝刊専用のまま）。実ブラウザ確認 = merge 後 chat-main
 - **状況同期**: PR #244（#225 life-tags S3）・PR #264（#260/#261）の merge 済みを確認し memory へ反映。life-tags 残 = ユーザー db push のみ
 
 ### 2026-07-16 - #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（PR #264）

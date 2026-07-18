@@ -144,17 +144,19 @@ body {
  * area is clickable-to-focus (the old textarea behaviour). EditorContent
  * renders a wrapper div around .ProseMirror — stretch both with flex.
  */
-.daily-editor {
+.note-editor.daily-editor {
   display: flex;
   flex-direction: column;
 }
-.daily-editor > div {
+.note-editor.daily-editor > div {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
-.daily-editor .ProseMirror {
+/* Compound selector outranks `.note-editor .ProseMirror` (min-height: 220px)
+   by specificity, not by source order. */
+.note-editor.daily-editor .ProseMirror {
   flex: 1;
   min-height: 0;
 }
