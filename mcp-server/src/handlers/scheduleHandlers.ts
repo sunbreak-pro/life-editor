@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getSupabase } from "../supabase.js";
-import { localToday, localDayUtcRange } from "../utils/localDate.js";
+import {
+  localToday,
+  localDayUtcRange,
+  assertDateKey,
+} from "../utils/localDate.js";
 
 /*
  * Schedule handlers — Supabase edition (briefing-loop Step 2 / Issue #256).
@@ -190,6 +194,8 @@ export async function listSchedule(args: {
   end_date?: string;
 }) {
   if (args.start_date && args.end_date) {
+    assertDateKey(args.start_date);
+    assertDateKey(args.end_date);
     const [scheduleItems, scheduledTasks] = await Promise.all([
       fetchEvents((q) =>
         q
@@ -202,7 +208,7 @@ export async function listSchedule(args: {
     return { scheduleItems, scheduledTasks };
   }
 
-  const date = args.date ?? localToday();
+  const date = assertDateKey(args.date ?? localToday());
   const [scheduleItems, scheduledTasks] = await Promise.all([
     fetchEvents((q) => q.eq("start_at", date).eq("is_dismissed", false)),
     fetchScheduledTasks(date, date),

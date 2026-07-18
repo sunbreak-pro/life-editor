@@ -12,6 +12,7 @@ import {
   localToday,
   addDays,
   localDayUtcRange,
+  assertDateKey,
 } from "../src/utils/localDate.js";
 
 function doc(...content: unknown[]): string {
@@ -173,6 +174,13 @@ describe("localDate helpers", () => {
   it("addDays crosses month boundaries in local time", () => {
     expect(addDays("2026-07-01", -1)).toBe("2026-06-30");
     expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
+  });
+
+  it("assertDateKey accepts YYYY-MM-DD and rejects everything else", () => {
+    expect(assertDateKey("2026-07-18")).toBe("2026-07-18");
+    for (const bad of ["garbage", "2026-7-18", "2026-07-18T00:00", ""]) {
+      expect(() => assertDateKey(bad)).toThrow(/Invalid date/);
+    }
   });
 
   it("localDayUtcRange spans exactly 24h starting at local midnight", () => {

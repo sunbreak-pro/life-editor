@@ -10,6 +10,14 @@ export function localToday(): string {
   return new Date().toLocaleDateString("sv-SE");
 }
 
+/** Guard a tool-supplied date before it reaches Date()/toISOString(). */
+export function assertDateKey(date: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`Invalid date "${date}" (expected YYYY-MM-DD)`);
+  }
+  return date;
+}
+
 /** date ± n days, in local time ("YYYY-MM-DD" in, "YYYY-MM-DD" out). */
 export function addDays(date: string, n: number): string {
   const d = new Date(`${date}T00:00:00`);

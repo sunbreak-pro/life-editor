@@ -1,5 +1,10 @@
 import { getSupabase } from "../supabase.js";
-import { localToday, addDays, localDayUtcRange } from "../utils/localDate.js";
+import {
+  localToday,
+  addDays,
+  localDayUtcRange,
+  assertDateKey,
+} from "../utils/localDate.js";
 import {
   upsertBriefingSection,
   hasBriefingSection,
@@ -82,7 +87,7 @@ interface OpenTaskRow {
 const OPEN_TASK_COLUMNS = "item_id, due_at, status, priority, scheduled_at";
 
 export async function getTodayContext(args: { date?: string }) {
-  const date = args.date ?? localToday();
+  const date = assertDateKey(args.date ?? localToday());
   const { client } = await getSupabase();
 
   // Today's events (live, not dismissed) + tasks scheduled onto today.
@@ -90,7 +95,7 @@ export async function getTodayContext(args: { date?: string }) {
   const [
     { data: eventPayloads, error: eErr },
     { data: scheduledTaskRows, error: sErr },
-    { data: dueTaskRows, error: dErr },
+    { data: carryoverRows, error: cErr },
     { data: inProgressRows, error: iErr },
     recentDailyPayloads,
     todayDailyPayloads,
@@ -108,15 +113,18 @@ export async function getTodayContext(args: { date?: string }) {
       .gte("scheduled_at", startIso)
       .lt("scheduled_at", endIso)
       .order("scheduled_at", { ascending: true }),
-    // Due today or overdue (carry-over), not yet DONE. NB: a plain
-    // .neq("status", "DONE") would also drop NULL-status rows (SQL
-    // three-valued logic), so NULL is allowed explicitly.
+    // Carry-over: scheduled BEFORE today and not yet DONE — the same
+    // definition BriefingScreen uses for 持ち越し. `due_at` is a dead
+    // column (taskNodeToRows always writes NULL); `scheduled_at` is the
+    // field the app actually populates. NB: a plain .neq("status",
+    // "DONE") would also drop NULL-status rows (SQL three-valued
+    // logic), so NULL is allowed explicitly.
     client
       .from("tasks_payload")
       .select(OPEN_TASK_COLUMNS)
       .eq("task_type", "task")
-      .not("due_at", "is", null)
-      .lte("due_at", date)
+      .not("scheduled_at", "is", null)
+      .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
     client
       .from("tasks_payload")
@@ -128,14 +136,14 @@ export async function getTodayContext(args: { date?: string }) {
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled tasks: ${sErr.message}`);
-  if (dErr) throw new Error(`due tasks: ${dErr.message}`);
+  if (cErr) throw new Error(`carry-over tasks: ${cErr.message}`);
   if (iErr) throw new Error(`in-progress tasks: ${iErr.message}`);
 
-  // Merge the two open-task queries (a task can be both overdue and
+  // Merge the two open-task queries (a task can be both carried over and
   // in-progress) and resolve titles + liveness via items_meta in one shot.
   const openTaskById = new Map<string, OpenTaskRow>();
   for (const row of [
-    ...((dueTaskRows ?? []) as OpenTaskRow[]),
+    ...((carryoverRows ?? []) as OpenTaskRow[]),
     ...((inProgressRows ?? []) as OpenTaskRow[]),
   ])
     openTaskById.set(row.item_id, row);
@@ -194,10 +202,11 @@ export async function getTodayContext(args: { date?: string }) {
       .map((t) => ({
         id: t.item_id,
         title: titleById.get(t.item_id),
+        scheduledAt: t.scheduled_at,
         dueAt: t.due_at,
         status: t.status,
         priority: t.priority,
-        overdue: t.due_at !== null && t.due_at < date,
+        carriedOver: t.scheduled_at !== null && t.scheduled_at < startIso,
       })),
     recentDailies: recentDailyPayloads.map((d) => ({
       date: d.date,
@@ -216,10 +225,7 @@ export async function writeBriefing(args: {
   focus: string;
   paragraphs?: string[];
 }) {
-  const date = args.date ?? localToday();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error(`write_briefing: invalid date "${date}"`);
-  }
+  const date = assertDateKey(args.date ?? localToday());
   const paragraphs = args.paragraphs ?? [];
   const { client, userId } = await getSupabase();
   const now = new Date().toISOString();
