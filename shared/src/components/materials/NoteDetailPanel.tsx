@@ -34,11 +34,14 @@ function NoteTitleInput({
   initialTitle,
   label,
   onCommit,
+  isMain,
 }: {
   noteId: string;
   initialTitle: string;
   label: string;
   onCommit: (id: string, title: string) => void;
+  /** "main" surface → big borderless heading matching the Daily date title. */
+  isMain: boolean;
 }) {
   const [draft, setDraft] = useState(initialTitle);
   const timerRef = useRef<number | null>(null);
@@ -79,7 +82,14 @@ function NoteTitleInput({
       onBlur={flush}
       aria-label={label}
       className={cn(
-        "min-w-0 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text",
+        "min-w-0 flex-1 text-lumen-text",
+        // "main" → borderless 28px bold heading (same size/font as the Daily
+        // date title, 2026-07-19: the only visual difference between Notes and
+        // Daily should be the tag/link affordances). Compact "sidebar" keeps the
+        // bordered small input.
+        isMain
+          ? "border-none bg-transparent px-0 py-0.5 text-[28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary"
+          : "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium",
         FOCUS_RING,
       )}
     />
@@ -147,7 +157,7 @@ export function NoteDetailPanel({
       className={cn(
         "flex flex-col border border-lumen-border",
         isMain
-          ? "gap-4 rounded-lumen-lg bg-lumen-surface p-5 shadow-lumen-sm"
+          ? "gap-4 rounded-lumen-lg bg-lumen-bg-secondary p-5 shadow-lumen-sm"
           : "gap-3 rounded-lumen-md bg-lumen-bg-secondary p-3",
         className,
       )}
@@ -161,6 +171,7 @@ export function NoteDetailPanel({
           initialTitle={title}
           label={titleLabel}
           onCommit={onTitleCommit}
+          isMain={isMain}
         />
         <button
           type="button"
@@ -196,10 +207,11 @@ export function NoteDetailPanel({
         <div className="flex flex-wrap items-center gap-1.5">{tagsSlot}</div>
       )}
 
-      {/* Content — "内容" caption + injected editor. The editor supplies its
-          own bordered box (§: NotesView RichTextEditor), so this section adds
-          only the caption + a min-height floor via the wrapper — no competing
-          border/surface (avoids a double frame). */}
+      {/* Content — injected editor + a min-height floor via the wrapper. The
+          "main" surface (Notes tab body) drops the caption and lets the editor
+          sit flush in the card, matching the Daily editor's clean single-card
+          look (2026-07-18). The compact "sidebar" variant keeps the "内容"
+          caption for orientation. */}
       {contentEditor != null && (
         <div
           className={cn(
@@ -209,9 +221,11 @@ export function NoteDetailPanel({
               : "[&_.note-editor]:min-h-[220px]",
           )}
         >
-          <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
-            {contentLabel}
-          </span>
+          {!isMain && (
+            <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+              {contentLabel}
+            </span>
+          )}
           {contentEditor}
         </div>
       )}
