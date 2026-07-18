@@ -108,3 +108,55 @@ body {
   height: 0;
   pointer-events: none;
 }
+/* Checkbox (task) lists — slash-command "checkbox list" + "[] " shortcut. */
+.note-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.note-editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.note-editor .ProseMirror ul[data-type="taskList"] li > label {
+  margin-top: 0.2em;
+  user-select: none;
+}
+.note-editor .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+.note-editor
+  .ProseMirror
+  ul[data-type="taskList"]
+  li[data-checked="true"]
+  > div {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+/*
+ * Daily card variant (F-1 #258): the editor fills the card body and the whole
+ * area is clickable-to-focus (the old textarea behaviour). EditorContent
+ * renders a wrapper div around .ProseMirror — stretch both with flex.
+ */
+.note-editor.daily-editor {
+  display: flex;
+  flex-direction: column;
+}
+.note-editor.daily-editor > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Compound selector outranks `.note-editor .ProseMirror` (min-height: 220px)
+   by specificity, not by source order. */
+.note-editor.daily-editor .ProseMirror {
+  flex: 1;
+  min-height: 0;
+}

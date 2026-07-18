@@ -9,9 +9,12 @@ import {
   DateStrip,
   ExcerptListItem,
   cn,
+  dailyContentToEditorContent,
+  dailyContentExcerpt,
   type DailyEntriesPanelEntry,
   type DateStripDay,
 } from "@life-editor/shared";
+import { RichTextEditor } from "../notes/RichTextEditor";
 
 /*
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
@@ -28,11 +31,15 @@ import {
  *     two weeks (entry-dot per day), the same editor card (19px date), and a
  *     "過去のエントリ" excerpt list of the two most recent other entries.
  *
- * The rich TipTap editor / password-lock / tags / links / trash subsystems the
- * old view carried are intentionally NOT part of this design (see the plan's
- * "デザイン → 実装のずれ" — the import shows a plain journal editor). Data stays
- * context-side (useDailiesUnifiedContext); this view is DataService-free (§3.1)
- * and takes all copy from useTranslation → props (§6.4). No hex — lumen-* only.
+ * The body is the shared Notes TipTap editor (F-1 #258 — headings are what
+ * makes handwritten 朝刊/夕刊 sections visible to extractBriefing). The title
+ * stays the fixed date ("date IS the identity"). Legacy plain-text dailies are
+ * converted to a TipTap doc AT READ TIME only (dailyContentToEditorContent);
+ * JSON is persisted lazily on the user's first edit, so untouched entries are
+ * never rewritten. Password-lock / tags / links / trash subsystems remain out
+ * of scope. Data stays context-side (useDailiesUnifiedContext); this view is
+ * DataService-free (§3.1) and takes all copy from useTranslation → props
+ * (§6.4). No hex — lumen-* only.
  */
 
 const FOCUS_RING =
@@ -57,16 +64,6 @@ function parseIso(date: string): Date {
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
 }
 
-/** First non-empty line of a plain-text body, for a one-line excerpt. */
-function firstLine(content: string | undefined): string | undefined {
-  if (!content) return undefined;
-  const line = content
-    .split("\n")
-    .map((s) => s.trim())
-    .find(Boolean);
-  return line || undefined;
-}
-
 // ---- Editor card (shared between Desktop / Mobile, size via props) --------
 
 function EditorCard({
@@ -74,24 +71,24 @@ function EditorCard({
   dateClassName,
   savedLabel,
   headerActions,
-  draft,
-  onDraftChange,
-  onCommit,
+  editorKey,
+  date,
+  initialContent,
+  onUpdate,
   placeholder,
-  bodyClassName,
 }: {
   dateLabel: string;
   dateClassName: string;
   savedLabel: string;
   headerActions?: ReactNode;
-  draft: string;
-  onDraftChange: (value: string) => void;
-  onCommit: () => void;
+  editorKey: string;
+  date: string;
+  initialContent?: string;
+  onUpdate: (content: string) => void;
   placeholder: string;
-  bodyClassName: string;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary shadow-lumen-sm">
       <div className="flex items-start gap-2.5 px-5 pb-1 pt-4">
         <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
         <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
@@ -99,16 +96,19 @@ function EditorCard({
         </span>
         {headerActions}
       </div>
-      <textarea
-        value={draft}
-        onChange={(e) => onDraftChange(e.target.value)}
-        onBlur={onCommit}
+      {/* TipTap (F-1 #258). IME composition is handled natively by
+          ProseMirror (no manual keydown here — the isComposing gotcha cannot
+          be broken); persistence is the editor's 800ms debounce + flush on
+          unmount/beforeunload, the onBlur-commit equivalent. The key remounts
+          the editor on date switch / external content change only — never on
+          our own save echo — so typing keeps cursor + IME state. */}
+      <RichTextEditor
+        key={editorKey}
+        noteId={`daily-${date}`}
+        initialContent={initialContent}
+        onUpdate={onUpdate}
         placeholder={placeholder}
-        className={cn(
-          "min-h-0 flex-1 resize-none bg-transparent px-5 pb-5 pt-2 text-lumen-text",
-          "placeholder:text-lumen-text-tertiary focus:outline-none",
-          bodyClassName,
-        )}
+        className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
       />
     </div>
   );
@@ -135,27 +135,65 @@ export function DailyView() {
     [localeTag],
   );
 
-  // Editable draft mirrors the selected daily's stored content. Resynced when
-  // the selection changes OR when the persisted content for the current
-  // selection changes (finishes loading / a refetch lands). "Adjust state
-  // during render" (https://react.dev/learn/you-might-not-need-an-effect) —
-  // avoids the cascading-render an effect-based prop→state sync causes.
-  const [draft, setDraft] = useState(selectedDaily?.content ?? "");
+  // The TipTap editor owns its draft and ignores initialContent changes once
+  // mounted, so remount (key bump) exactly when the STORED content for the
+  // open date changes from outside this editor: initial async load landing,
+  // a sync refetch, an MCP write. Our own saves echo back through upsertDaily's
+  // optimistic update — lastEmitted recognises them (its setState batches with
+  // upsertDaily's, so the echo render sees both) and typing never remounts
+  // (which would drop cursor + IME state). lastEmitted carries its date so an
+  // unmount flush racing a date switch never leaks into the new date's
+  // comparisons. "Adjust state during render"
+  // (https://react.dev/learn/you-might-not-need-an-effect).
+  const selectedContent = selectedDaily?.content ?? "";
+  const [lastEmitted, setLastEmitted] = useState<{
+    date: string;
+    json: string;
+  } | null>(null);
+  const [editorGen, setEditorGen] = useState(0);
   const [syncedFrom, setSyncedFrom] = useState<{
     date: string;
     content: string;
-  }>({ date: selectedDate, content: selectedDaily?.content ?? "" });
+  }>({ date: selectedDate, content: selectedContent });
 
-  const selectedContent = selectedDaily?.content ?? "";
+  const ownEcho =
+    lastEmitted !== null &&
+    lastEmitted.date === selectedDate &&
+    lastEmitted.json === selectedContent;
+
   if (
     syncedFrom.date !== selectedDate ||
     syncedFrom.content !== selectedContent
   ) {
+    if (syncedFrom.date === selectedDate && !ownEcho) {
+      setEditorGen((g) => g + 1);
+    }
     setSyncedFrom({ date: selectedDate, content: selectedContent });
-    setDraft(selectedContent);
   }
 
-  const isSaved = draft === selectedContent;
+  // Lazy plain→TipTap conversion happens here, at read time; JSON is only
+  // persisted when the editor emits an update (i.e. the user edited).
+  const editorContent = dailyContentToEditorContent(selectedContent);
+  const editorKey = `${selectedDate}:${editorGen}`;
+
+  const handleEditorUpdate = (json: string) => {
+    // The old blur-commit skipped no-op saves; keep its spirit for the one
+    // case TipTap still emits without visible content: typing then deleting
+    // everything on a day that has no stored entry would otherwise mint an
+    // empty DailyNode (and bump the sync cursor).
+    if (selectedContent === "" && dailyContentExcerpt(json) === undefined) {
+      return;
+    }
+    setLastEmitted({ date: selectedDate, json });
+    upsertDaily(selectedDate, json);
+  };
+
+  // Saves are automatic (debounced + flushed on unmount); with batched echo
+  // renders this caption effectively always reads saved — kept as reassurance.
+  const isSaved =
+    lastEmitted === null ||
+    lastEmitted.date !== selectedDate ||
+    lastEmitted.json === selectedContent;
   const savedLabel = isSaved
     ? t("materials.daily.saved")
     : t("materials.daily.unsaved");
@@ -195,13 +233,6 @@ export function DailyView() {
   const todayIso = useMemo(() => isoDay(0), []);
   const yesterdayIso = useMemo(() => isoDay(-1), []);
 
-  // Guard blur-commit against no-op saves: upsertDaily would otherwise mint an
-  // empty DailyNode for an untouched day and bump updatedAt (sync cursor) on
-  // every focus→blur. selectedContent is the stored body ("" when absent).
-  const commit = () => {
-    if (draft !== selectedContent) upsertDaily(selectedDate, draft);
-  };
-
   // Chronological entries (newest first) for the rightSidebar panel + mobile.
   const sortedDailies = useMemo(
     () => [...dailies].sort((a, b) => b.date.localeCompare(a.date)),
@@ -213,7 +244,7 @@ export function DailyView() {
       sortedDailies.map((d) => ({
         date: d.date,
         dayLabel: entryDayLabel(d.date),
-        excerpt: firstLine(d.content),
+        excerpt: dailyContentExcerpt(d.content),
         isPinned: d.isPinned,
         selected: d.date === selectedDate,
       })),
@@ -324,11 +355,11 @@ export function DailyView() {
                 {deleteButton}
               </div>
             }
-            draft={draft}
-            onDraftChange={setDraft}
-            onCommit={commit}
+            editorKey={editorKey}
+            date={selectedDate}
+            initialContent={editorContent}
+            onUpdate={handleEditorUpdate}
             placeholder={t("materials.daily.placeholder")}
-            bodyClassName="text-[14.5px] leading-[1.85]"
           />
         </div>
 
@@ -380,11 +411,11 @@ export function DailyView() {
           dateLabel={shortDateLabel(selectedDate)}
           dateClassName="text-[19px] font-bold leading-tight tracking-tight text-lumen-text"
           savedLabel={savedLabel}
-          draft={draft}
-          onDraftChange={setDraft}
-          onCommit={commit}
+          editorKey={editorKey}
+          date={selectedDate}
+          initialContent={editorContent}
+          onUpdate={handleEditorUpdate}
           placeholder={t("materials.daily.placeholder")}
-          bodyClassName="text-[14px] leading-[1.8]"
         />
       </div>
 
@@ -397,7 +428,7 @@ export function DailyView() {
             <ExcerptListItem
               key={d.id}
               title={entryDayLabel(d.date)}
-              excerpt={firstLine(d.content)}
+              excerpt={dailyContentExcerpt(d.content)}
               meta={
                 d.isPinned ? (
                   <Pin

@@ -8,16 +8,21 @@ import Code from "@tiptap/extension-code";
 import Blockquote from "@tiptap/extension-blockquote";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { useTranslation } from "@life-editor/shared";
+import { createSlashCommand } from "./slashCommand";
 
 /*
  * Lean web Notes rich-text editor (S3). A deliberately reduced
  * re-implementation of frontend/src/components/shared/RichTextEditor.tsx
- * — only the marks/blocks Notes needs at this milestone: headings (1-3),
- * bullet/ordered lists, blockquote, inline code + code block, bold /
- * italic / strike, links. Heavy extensions (tables, task-lists, color,
- * highlight, images, wiki/note-link suggestion, bubble/context menus)
- * are intentionally NOT ported — they land in a later S-step if needed
- * (scope-creep guard).
+ * — the marks/blocks Notes needs: headings (1-3), bullet/ordered/checkbox
+ * (task) lists, blockquote, inline code + code block, bold / italic /
+ * strike, links. A "/" slash-command menu inserts the block types
+ * (slashCommand.ts); checkbox lists also accept the "[] " input shortcut
+ * (TaskList's built-in rule). Heavier extensions (tables, color, highlight,
+ * images, wiki/note-link suggestion, bubble/context menus) are still NOT
+ * ported — they land in a later S-step if needed (scope-creep guard).
  *
  * Like the source, the StarterKit built-ins for the customised marks are
  * disabled and replaced by `*NoInputRules` variants so typing `**`, `*`,
@@ -62,6 +67,10 @@ interface RichTextEditorProps {
   onUpdate: (content: string) => void;
   editable?: boolean;
   placeholder?: string;
+  /** Container chrome override (the Daily card supplies its own fill/scroll). */
+  className?: string;
+  /** Enable the "/" slash-command block menu (default: true). */
+  slashMenu?: boolean;
 }
 
 function tryParseJSON(str: string): Record<string, unknown> | string {
@@ -78,7 +87,10 @@ export function RichTextEditor({
   onUpdate,
   editable = true,
   placeholder = "Write your note…",
+  className = "rounded-md border border-lumen-border bg-lumen-bg p-3",
+  slashMenu = true,
 }: RichTextEditorProps) {
+  const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
   const latestContentRef = useRef<string | null>(null);
@@ -137,6 +149,25 @@ export function RichTextEditor({
           defaultProtocol: "https",
         }),
         Placeholder.configure({ placeholder }),
+        // Checkbox lists — the built-in input rule turns a leading "[] " (or
+        // "[x] ") into a task item; nested items allow indented sub-tasks.
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        // "/" slash-command block menu (headings + lists). Labels reuse the
+        // turn-into catalog so the picker matches the rest of the app.
+        ...(slashMenu
+          ? [
+              createSlashCommand({
+                heading1: t("blockMenu.turnIntoItems.heading1"),
+                heading2: t("blockMenu.turnIntoItems.heading2"),
+                heading3: t("blockMenu.turnIntoItems.heading3"),
+                bulletList: t("blockMenu.turnIntoItems.bulletList"),
+                orderedList: t("blockMenu.turnIntoItems.orderedList"),
+                taskList: t("blockMenu.turnIntoItems.taskList"),
+                empty: t("blockMenu.noMatch"),
+              }),
+            ]
+          : []),
       ],
       editable,
       content: initialContent ? tryParseJSON(initialContent) : undefined,
@@ -174,7 +205,7 @@ export function RichTextEditor({
   }, [editor, editable]);
 
   return (
-    <div className="note-editor rounded-md border border-lumen-border bg-lumen-bg p-3">
+    <div className={`note-editor ${className}`}>
       <EditorContent editor={editor} />
     </div>
   );

@@ -123,6 +123,7 @@ export {
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {
   todayDateKey,
+  formatDateKey,
   getDayStartHour,
   parseDayStartHour,
   DAY_START_HOUR_STORAGE_KEY,

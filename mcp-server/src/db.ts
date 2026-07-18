@@ -3,7 +3,12 @@ import Database from "better-sqlite3";
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
-  if (!db) throw new Error("Database not initialized. Call initDb() first.");
+  if (!db)
+    throw new Error(
+      "Legacy SQLite DB not configured — this tool is not yet migrated to " +
+        "Supabase. Start the server with a DB path (argv[2] or DB_PATH) to " +
+        "use it.",
+    );
   return db;
 }
 

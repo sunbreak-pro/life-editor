@@ -1,15 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BriefingView,
+  EveningView,
   extractBriefing,
+  extractEveningSection,
+  isEmptyDocJson,
+  mergeEveningSection,
   todayDateKey,
+  formatDateKey,
   useSyncContext,
   useTranslation,
   type BriefingCarryoverEntry,
   type BriefingData,
   type BriefingScheduleEntry,
+  type BriefingTab,
   type BriefingTaskEntry,
   type DataService,
+  type EveningScheduleEntry,
+  type EveningTodoEntry,
   type NavSection,
   type NoteNode,
   type ScheduleItem,
@@ -17,6 +25,7 @@ import {
   type TimerSession,
   type WikiTagConnectionUnified,
 } from "@life-editor/shared";
+import { RichTextEditor } from "../notes/RichTextEditor";
 
 /*
  * Briefing host shell (Briefing plan Step 1). Owns data fetching (it may
@@ -42,6 +51,8 @@ import {
 interface BriefingScreenProps {
   dataService: DataService;
   onNavigate: (nav: NavSection) => void;
+  /** Active header tab (朝刊 / 夕刊, #263 F-6) — lifted to MainScreen. */
+  tab: BriefingTab;
 }
 
 /** Lexical "YYYY-MM-DD" from a scheduledAt-ish string ("YYYY-MM-DD…"). */
@@ -56,15 +67,24 @@ function daysBetween(a: string, b: string): number {
   return Math.max(0, Math.round(ms / 86_400_000));
 }
 
+/** The "YYYY-MM-DD" key of the day after `key` (local-time arithmetic). */
+function nextDateKey(key: string): string {
+  const d = new Date(`${key}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  return formatDateKey(d);
+}
+
 export function BriefingScreen({
   dataService: ds,
   onNavigate,
+  tab,
 }: BriefingScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { syncVersion } = useSyncContext();
 
   const [loading, setLoading] = useState(true);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [tomorrowItems, setTomorrowItems] = useState<ScheduleItem[]>([]);
   const [taskNodes, setTaskNodes] = useState<TaskNode[]>([]);
   const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
@@ -74,6 +94,7 @@ export function BriefingScreen({
   );
 
   const todayKey = todayDateKey();
+  const tomorrowKey = nextDateKey(todayKey);
 
   useEffect(() => {
     // loading starts true (useState) so the initial fetch shows the skeleton;
@@ -87,9 +108,10 @@ export function BriefingScreen({
       ds.getDailyByDateUnified(todayKey),
       ds.listNotesUnified(),
       ds.listAllTagConnections(),
+      ds.fetchScheduleItemsByDate(tomorrowKey),
     ]).then((results) => {
       if (cancelled) return;
-      const [sched, tasks, sess, daily, allNotes, links] = results;
+      const [sched, tasks, sess, daily, allNotes, links, tomorrow] = results;
       if (sched.status === "fulfilled") setScheduleItems(sched.value);
       if (tasks.status === "fulfilled") setTaskNodes(tasks.value);
       if (sess.status === "fulfilled") setSessions(sess.value);
@@ -97,12 +119,13 @@ export function BriefingScreen({
         setDailyContent(daily.value?.content ?? null);
       if (allNotes.status === "fulfilled") setNotes(allNotes.value);
       if (links.status === "fulfilled") setConnections(links.value);
+      if (tomorrow.status === "fulfilled") setTomorrowItems(tomorrow.value);
       setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [ds, todayKey, syncVersion]);
+  }, [ds, todayKey, tomorrowKey, syncVersion]);
 
   // ── Aggregation (host-side; the view stays pure) ─────────────────────
   const noteTitleById = useMemo(() => {
@@ -230,6 +253,151 @@ export function BriefingScreen({
     ],
   );
 
+  // ── Evening tab (#263 F-6) ───────────────────────────────────────────
+  // The 夕刊 tab is a dedicated editing view of the daily's evening section.
+  // Persistence is a SECTION-MERGE write (Risks): each save re-reads the
+  // freshest daily content, replaces only the 夕刊 range via
+  // mergeEveningSection, and writes the whole document back — a save from
+  // here can never clobber the 朝刊 section or Daily-side edits. Writes are
+  // serialized through a promise chain so the editor's debounced emissions
+  // and mood taps cannot interleave their read-merge-write cycles.
+  const eveningStored = useMemo(
+    () => extractEveningSection(dailyContent),
+    [dailyContent],
+  );
+
+  // Editor remount bookkeeping (same idea as DailyView): bump the key only
+  // when the STORED evening body changes from OUTSIDE this editor (sync
+  // refetch / MCP / Daily-side edit). Our own save echoes match
+  // lastEmittedBody and never remount, so typing keeps cursor + IME state.
+  const [lastEmittedBody, setLastEmittedBody] = useState<string | null>(null);
+  const [eveningGen, setEveningGen] = useState(0);
+  const [syncedBody, setSyncedBody] = useState<string | null>(
+    eveningStored.bodyDocJson,
+  );
+  // Mood draft: undefined = no local draft (show stored), null = cleared.
+  const [moodDraft, setMoodDraft] = useState<number | null | undefined>(
+    undefined,
+  );
+  const [syncedMood, setSyncedMood] = useState<number | null>(
+    eveningStored.mood,
+  );
+  if (syncedBody !== eveningStored.bodyDocJson) {
+    if (eveningStored.bodyDocJson !== lastEmittedBody) {
+      setEveningGen((g) => g + 1);
+    }
+    setSyncedBody(eveningStored.bodyDocJson);
+  }
+  // Mood reconcile: when the STORED mood changes (external edit or our own
+  // echo), drop a diverging local draft so the tab tracks Daily-side edits;
+  // a draft the store just caught up with is kept (equal — no visual jump).
+  if (syncedMood !== eveningStored.mood) {
+    if (moodDraft !== undefined && moodDraft !== eveningStored.mood) {
+      setMoodDraft(undefined);
+    }
+    setSyncedMood(eveningStored.mood);
+  }
+
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  // Each save carries ONLY what the user just changed (a body emission OR a
+  // mood tap) — mergeEveningSection keeps the freshest stored value for the
+  // undefined half, so a mood tap can never write back a stale body that an
+  // external edit (Daily side / another device / MCP) has since replaced.
+  const persistEvening = useCallback(
+    (patch: { bodyDocJson?: string | null; mood?: number | null }) => {
+      saveChainRef.current = saveChainRef.current.then(async () => {
+        try {
+          const fresh = await ds.getDailyByDateUnified(todayKey);
+          const freshContent = fresh?.content ?? "";
+          const merged = mergeEveningSection(freshContent, patch);
+          if (merged === freshContent) return;
+          const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
+          setDailyContent(updated.content ?? merged);
+        } catch (err) {
+          console.error("[BriefingScreen] evening section save failed", err);
+        }
+      });
+    },
+    [ds, todayKey],
+  );
+
+  const handleEveningUpdate = useCallback(
+    (json: string) => {
+      // A cleared editor round-trips to a null stored body — normalize the
+      // echo target so clearing doesn't remount mid-typing.
+      setLastEmittedBody(isEmptyDocJson(json) ? null : json);
+      persistEvening({ bodyDocJson: json });
+    },
+    [persistEvening],
+  );
+
+  const eveningMood = moodDraft === undefined ? eveningStored.mood : moodDraft;
+
+  const handleSelectMood = useCallback(
+    (n: number) => {
+      const next = eveningMood === n ? null : n; // tap again to clear
+      setMoodDraft(next);
+      persistEvening({ mood: next });
+    },
+    [eveningMood, persistEvening],
+  );
+
+  const eveningSaved =
+    (lastEmittedBody === null ||
+      lastEmittedBody === eveningStored.bodyDocJson) &&
+    (moodDraft === undefined || moodDraft === eveningStored.mood);
+
+  //「残りの Todo」— today's unfinished + open carryover (display only).
+  const remainingTodos = useMemo<EveningTodoEntry[]>(
+    () => [
+      ...todayTasks
+        .filter((task) => task.status !== "DONE")
+        .map(({ id, title }) => ({ id, title })),
+      ...carryover
+        .filter((item) => !item.completed)
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          meta: item.daysLabel,
+        })),
+    ],
+    [todayTasks, carryover],
+  );
+
+  //「今後の予定」— the rest of today (from now) + all of tomorrow.
+  const upcoming = useMemo<EveningScheduleEntry[]>(() => {
+    const now = new Date();
+    const nowHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes(),
+    ).padStart(2, "0")}`;
+    const todayRest = schedule
+      .filter((s) => !s.completed && (s.isAllDay || s.startTime >= nowHHMM))
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        startTime: s.startTime,
+        isAllDay: s.isAllDay,
+        isTomorrow: false,
+      }));
+    const tomorrow = tomorrowItems
+      .filter((s) => s.isDeleted !== true && s.isDismissed !== true)
+      .sort((a, b) => {
+        const aAll = a.isAllDay === true ? 0 : 1;
+        const bAll = b.isAllDay === true ? 0 : 1;
+        if (aAll !== bAll) return aAll - bAll;
+        return a.startTime.localeCompare(b.startTime);
+      })
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        startTime: s.startTime,
+        isAllDay: s.isAllDay === true,
+        isTomorrow: true,
+      }));
+    return [...todayRest, ...tomorrow];
+  }, [schedule, tomorrowItems]);
+
   const handleToggleScheduleItem = useCallback(
     (id: string) => {
       void ds.toggleScheduleItemComplete(id).then((updated) => {
@@ -312,6 +480,51 @@ export function BriefingScreen({
     }),
     [t],
   );
+
+  const eveningLabels = useMemo(
+    () => ({
+      masthead: t("briefing.evening.masthead"),
+      moodTitle: t("briefing.evening.moodTitle"),
+      moodStars: [1, 2, 3, 4, 5].map((n) =>
+        t("briefing.evening.moodStar", { value: n }),
+      ),
+      reflectionTitle: t("briefing.evening.reflectionTitle"),
+      savedCaption: eveningSaved
+        ? t("materials.daily.saved")
+        : t("materials.daily.unsaved"),
+      todosTitle: t("briefing.evening.todosTitle"),
+      noTodos: t("briefing.evening.noTodos"),
+      upcomingTitle: t("briefing.evening.upcomingTitle"),
+      noUpcoming: t("briefing.evening.noUpcoming"),
+      tomorrowTag: t("briefing.evening.tomorrowTag"),
+      allDay: t("briefing.allDay"),
+    }),
+    [t, eveningSaved],
+  );
+
+  if (tab === "evening") {
+    return (
+      <EveningView
+        loading={loading}
+        dateLine={dateLine}
+        mood={eveningMood}
+        onSelectMood={handleSelectMood}
+        editorSlot={
+          <RichTextEditor
+            key={`evening:${todayKey}:${eveningGen}`}
+            noteId={`evening-${todayKey}`}
+            initialContent={eveningStored.bodyDocJson ?? undefined}
+            onUpdate={handleEveningUpdate}
+            placeholder={t("briefing.evening.placeholder")}
+            className="min-h-[180px] px-4 py-3"
+          />
+        }
+        todos={remainingTodos}
+        schedule={upcoming}
+        labels={eveningLabels}
+      />
+    );
+  }
 
   return (
     <BriefingView

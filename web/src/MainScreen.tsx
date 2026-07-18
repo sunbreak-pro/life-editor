@@ -51,6 +51,8 @@ import {
   persistLastSection,
   EMPTY_MATERIALS_COUNTS,
   ANALYTICS_TAB_ORDER,
+  defaultBriefingTab,
+  type BriefingTab,
   type MaterialsCounts,
   type AnalyticsTab,
   type SectionId,
@@ -162,6 +164,13 @@ export function MainScreen({ session }: { session: Session }) {
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab / scheduleTab.
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
+  // Briefing's 朝刊/夕刊 tab (#263 F-6), lifted here so the standard
+  // SectionHeader renders the band — same tabs-as-title pattern as
+  // materialsTab / scheduleTab. Lazy init: the initial tab follows the clock
+  // (evening from 17:00, honoring the day-start pref's post-midnight tail).
+  const [briefingTab, setBriefingTab] = useState<BriefingTab>(() =>
+    defaultBriefingTab(),
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
@@ -326,25 +335,24 @@ export function MainScreen({ session }: { session: Session }) {
   //     (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus
   //     Analytics whose shared view draws its own centered data column — the
   //     v1 judgment carried forward).
-  //   - "reading": the Materials text editors (Notes / Daily) keep the ~768px
-  //     centered reading column for comfortable line length (2026-07-11 user
-  //     decision — the only reading surfaces left after the wide unification).
-  //   - "full": every other document surface, gutter-padded full width
-  //     (work / settings / trash / Materials→Tags).
-  // Mobile is visually unchanged: below 768px "reading" and "full" render
-  // identically (the 768px reading clamp never engages there).
+  //   - "wide": the Notes / Daily editors — a 1120px mid-point column (2026-07-19
+  //     user request: full-bleed felt too wide, reading too narrow).
+  //   - "full": every other document surface, gutter-padded full width (work /
+  //     settings / trash / Materials→Tags).
+  // Mobile is visually unchanged: below 768px both "wide" and "full" render
+  // gutter-padded full width (the max-w clamp never engages there either).
   const ownsFullBleed =
     section === "connect" ||
     section === "schedule" ||
     section === "analytics" ||
     (section === "materials" && materialsTab === "tasks");
-  const keepsReadingColumn =
+  const ownsWideColumn =
     section === "materials" &&
     (materialsTab === "notes" || materialsTab === "daily");
   const pageWidth: PageContainerWidth = ownsFullBleed
     ? "fluid"
-    : keepsReadingColumn
-      ? "reading"
+    : ownsWideColumn
+      ? "wide"
       : "full";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
@@ -414,6 +422,22 @@ export function MainScreen({ session }: { session: Session }) {
             activeTab={analyticsTab}
             onSelect={(id) => setAnalyticsTab(id as AnalyticsTab)}
             label={t("analytics.tabsLabel")}
+          />
+        }
+        controls={headerControls}
+      />
+    ) : section === "briefing" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "morning", label: t("briefing.tabs.morning") },
+              { id: "evening", label: t("briefing.tabs.evening") },
+            ]}
+            activeTab={briefingTab}
+            onSelect={(id) => setBriefingTab(id as BriefingTab)}
+            label={t("briefing.tabsLabel")}
           />
         }
         controls={headerControls}
@@ -518,7 +542,11 @@ export function MainScreen({ session }: { session: Session }) {
        * appears without a reload.
        */}
       {section === "briefing" && (
-        <BriefingScreen dataService={ds} onNavigate={handleBriefingNavigate} />
+        <BriefingScreen
+          dataService={ds}
+          onNavigate={handleBriefingNavigate}
+          tab={briefingTab}
+        />
       )}
       {/*
        * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each
