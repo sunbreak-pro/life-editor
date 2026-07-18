@@ -88,7 +88,7 @@ function EditorCard({
   placeholder: string;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-surface shadow-lumen-sm">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary shadow-lumen-sm">
       <div className="flex items-start gap-2.5 px-5 pb-1 pt-4">
         <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
         <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">

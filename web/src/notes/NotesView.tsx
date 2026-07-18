@@ -150,7 +150,7 @@ function DesktopNoteRow({
       ref={setNodeRef}
       className={cn(
         "group relative flex items-center gap-2 rounded-lumen-md border px-2",
-        "h-[34px] text-[13.5px]",
+        "h-[36px] text-[13px]",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
@@ -271,37 +271,37 @@ function DesktopTagHeading({
         aria-expanded={!collapsed}
         aria-label={collapsed ? expandLabel : collapseLabel}
         className={cn(
-          "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1.5 text-left hover:bg-lumen-hover",
+          "flex w-full items-center gap-2 rounded-lumen-md px-1.5 py-2 text-left hover:bg-lumen-hover",
           FOCUS_RING,
         )}
       >
         {collapsed ? (
           <ChevronRight
-            size={13}
+            size={14}
             aria-hidden
-            className="shrink-0 text-lumen-text-secondary"
+            className="shrink-0 text-lumen-text-tertiary"
           />
         ) : (
           <ChevronDown
-            size={13}
+            size={14}
             aria-hidden
-            className="shrink-0 text-lumen-text-secondary"
+            className="shrink-0 text-lumen-text-tertiary"
           />
         )}
         <span
           aria-hidden
           className={cn(
-            "h-2 w-2 shrink-0 rounded-full",
+            "h-2.5 w-2.5 shrink-0 rounded-full",
             group.tagColor ? "" : "bg-lumen-border-strong",
           )}
           style={
             group.tagColor ? { backgroundColor: group.tagColor } : undefined
           }
         />
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-lumen-text">
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-lumen-text">
           {group.tagName}
         </span>
-        <span className="shrink-0 text-[12px] text-lumen-text-tertiary">
+        <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-[11px] font-medium tabular-nums text-lumen-text-secondary">
           {group.notes.length}
         </span>
       </button>
@@ -566,7 +566,7 @@ export function NotesView() {
                     expandLabel={t("materials.notes.expandGroup")}
                   />
                   {!collapsed && (
-                    <ul className="flex flex-col gap-px pl-3">
+                    <ul className="ml-[10px] flex flex-col gap-0.5 border-l border-lumen-border pl-2.5">
                       {group.notes.map((node) => (
                         <DesktopNoteRow
                           key={`${key}-${node.id}`}
@@ -838,6 +838,10 @@ export function NotesView() {
           initialContent={selected.content || undefined}
           editable={!selected.isEditLocked}
           onUpdate={(content) => notes.updateNote(selected.id, { content })}
+          // Borderless — sit flush inside the NoteDetailPanel card so the note
+          // body reads as a single clean surface, matching the Daily editor
+          // card (2026-07-18: align Notes main formatting to Daily).
+          className="pt-1"
         />
       </div>
       {detailGated && (
