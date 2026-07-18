@@ -4,9 +4,10 @@ import { NoteDetailPanel } from "../src/components";
 
 /*
  * Materials mini-plan Step 3 — Notes detail (rightSidebar, Desktop). Pure
- * presentation: title debounce-and-flush commits on blur, the pin toggle
- * reports its state via aria-pressed, delete fires the injected callback,
- * and the tag / content sections render only when their slot is provided
+ * presentation: title debounce-and-flush commits on blur, and the pin / delete
+ * actions now live behind a single kebab (#284) — opening it exposes the pin
+ * toggle (label reflects the pin state) and delete, each firing the injected
+ * callback. The tag / content sections render only when their slot is provided
  * (additive slots; the links slot moved to the rightSidebar Links panel —
  * F-3 #260). MasterDetail / rightSidebar plumbing is covered elsewhere and
  * deliberately not re-tested here.
@@ -17,6 +18,7 @@ const LABELS = {
   pinLabel: "Unpin note",
   unpinLabel: "Pin note",
   deleteLabel: "Delete note",
+  moreActionsLabel: "More actions",
   contentLabel: "Content",
 };
 
@@ -62,7 +64,7 @@ describe("NoteDetailPanel", () => {
     expect(onTitleCommit).toHaveBeenCalledWith("note-a", "new");
   });
 
-  it("reflects the pin state via aria-pressed and toggles on click", () => {
+  it("hides the actions until the kebab is opened, then toggles pin", () => {
     const onTogglePin = vi.fn();
     render(
       <NoteDetailPanel
@@ -75,14 +77,35 @@ describe("NoteDetailPanel", () => {
         {...LABELS}
       />,
     );
-    // When pinned the aria-label is the "Unpin" copy.
-    const pin = screen.getByRole("button", { name: "Unpin note" });
-    expect(pin).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(pin);
+    // Actions are collapsed behind the kebab — not in the DOM until opened.
+    expect(
+      screen.queryByRole("menuitem", { name: "Unpin note" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    // When pinned the pin item shows the "Unpin" copy.
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unpin note" }));
     expect(onTogglePin).toHaveBeenCalledWith("note-a");
   });
 
-  it("fires onDelete with the note id on delete click", () => {
+  it("shows the 'Pin' copy in the menu when the note is not pinned", () => {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="loose note"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      screen.getByRole("menuitem", { name: "Pin note" }),
+    ).toBeInTheDocument();
+  });
+
+  it("fires onDelete with the note id from the actions menu", () => {
     const onDelete = vi.fn();
     render(
       <NoteDetailPanel
@@ -95,7 +118,8 @@ describe("NoteDetailPanel", () => {
         {...LABELS}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete note" }));
     expect(onDelete).toHaveBeenCalledWith("note-a");
   });
 
@@ -152,8 +176,11 @@ describe("NoteDetailPanel", () => {
         {...LABELS}
       />,
     );
-    // Title + the two icon buttons still render...
+    // Title + the kebab trigger still render...
     expect(screen.getByLabelText("Note title")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "More actions" }),
+    ).toBeInTheDocument();
     // ...but the captioned sections do not (their slots were undefined).
     expect(screen.queryByText("Content")).not.toBeInTheDocument();
   });

@@ -815,6 +815,7 @@
       "unpin": "Unpin entry",
       "pinned": "Pinned",
       "delete": "Delete entry",
+      "moreActions": "More actions",
       "placeholder": "Write about your day…",
       "today": "Today",
       "yesterday": "Yesterday",
@@ -2398,7 +2399,8 @@
     "emptyState": "Select a note or create a new one",
     "detailEmpty": "Select a note to view and edit it.",
     "detailTitle": "Note",
-    "closeDetail": "Close note"
+    "closeDetail": "Close note",
+    "moreActions": "More actions"
   },
   "taskDetailPanel": {
     "selectTask": "Select a todo to view details",

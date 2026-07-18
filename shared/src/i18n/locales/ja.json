@@ -815,6 +815,7 @@
       "unpin": "ピン留めを解除",
       "pinned": "ピン留め済み",
       "delete": "エントリを削除",
+      "moreActions": "その他の操作",
       "placeholder": "今日のことを書く…",
       "today": "今日",
       "yesterday": "昨日",
@@ -2398,7 +2399,8 @@
     "emptyState": "ノートを選択するか、新しく作成してください",
     "detailEmpty": "ノートを選択すると、ここで表示・編集できます。",
     "detailTitle": "ノート",
-    "closeDetail": "ノートを閉じる"
+    "closeDetail": "ノートを閉じる",
+    "moreActions": "その他の操作"
   },
   "taskDetailPanel": {
     "selectTask": "Todo を選択して詳細を表示",

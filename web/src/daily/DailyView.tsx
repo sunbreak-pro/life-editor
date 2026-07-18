@@ -1,9 +1,11 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Calendar, Pin, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
   useMediaQuery,
   useTranslation,
+  Menu,
+  MenuItem,
   RightSidebarPortal,
   DailyEntriesPanel,
   DateStrip,
@@ -127,6 +129,10 @@ export function DailyView() {
   } = useDailiesUnifiedContext();
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
+
+  // Header actions kebab (#284) — collapsed pin / delete menu.
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsTriggerRef = useRef<HTMLButtonElement>(null);
 
   const isJa = i18n.language.startsWith("ja");
   const localeTag = isJa ? "ja-JP" : "en-US";
@@ -292,44 +298,62 @@ export function DailyView() {
     </button>
   );
 
-  const pinButton = (variant: "icon" | "boxed") => (
-    <button
-      type="button"
-      onClick={() => togglePin(selectedDate)}
-      aria-pressed={selectedDaily?.isPinned ?? false}
-      aria-label={
-        selectedDaily?.isPinned
-          ? t("materials.daily.unpin")
-          : t("materials.daily.pin")
-      }
-      className={cn(
-        "grid shrink-0 place-items-center rounded-lumen-md",
-        variant === "boxed"
-          ? "h-8 w-8 border border-lumen-border bg-lumen-bg"
-          : "h-7 w-7",
-        selectedDaily?.isPinned
-          ? "bg-lumen-accent-subtle text-lumen-accent"
-          : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-        FOCUS_RING,
-      )}
-    >
-      <Pin size={14} aria-hidden />
-    </button>
-  );
-
-  const deleteButton = (
-    <button
-      type="button"
-      onClick={() => deleteDaily(selectedDate)}
-      aria-label={t("materials.daily.delete")}
-      className={cn(
-        "grid h-7 w-7 shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
-        "hover:bg-lumen-hover hover:text-lumen-danger",
-        FOCUS_RING,
-      )}
-    >
-      <Trash2 size={14} aria-hidden />
-    </button>
+  // A single kebab that collapses the pin / delete actions behind one
+  // affordance (#284). The menu opens right-anchored just beneath the trigger
+  // (align="end" — a rightward panel would overflow the header's right edge).
+  // Desktop / Mobile never render at once (isWide early-returns), so one open
+  // state + one trigger ref is enough. Mobile now gains a delete entry point;
+  // dailies are soft-deleted (Trash restore), so it is safe and matches desktop.
+  const actionsMenu = (variant: "icon" | "boxed") => (
+    <div className="relative shrink-0">
+      <button
+        ref={actionsTriggerRef}
+        type="button"
+        onClick={() => setActionsOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={actionsOpen}
+        aria-label={t("materials.daily.moreActions")}
+        className={cn(
+          "grid shrink-0 place-items-center rounded-lumen-md",
+          variant === "boxed"
+            ? "h-8 w-8 border border-lumen-border bg-lumen-bg"
+            : "h-7 w-7",
+          "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+          FOCUS_RING,
+        )}
+      >
+        <MoreHorizontal size={variant === "boxed" ? 16 : 15} aria-hidden />
+      </button>
+      <Menu
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        anchorRef={actionsTriggerRef}
+        align="end"
+        label={t("materials.daily.moreActions")}
+      >
+        <MenuItem
+          icon={<Pin size={14} aria-hidden />}
+          onSelect={() => {
+            togglePin(selectedDate);
+            setActionsOpen(false);
+          }}
+        >
+          {selectedDaily?.isPinned
+            ? t("materials.daily.unpin")
+            : t("materials.daily.pin")}
+        </MenuItem>
+        <MenuItem
+          icon={<Trash2 size={14} aria-hidden />}
+          variant="danger"
+          onSelect={() => {
+            deleteDaily(selectedDate);
+            setActionsOpen(false);
+          }}
+        >
+          {t("materials.daily.delete")}
+        </MenuItem>
+      </Menu>
+    </div>
   );
 
   // ---- Desktop --------------------------------------------------------
@@ -349,12 +373,7 @@ export function DailyView() {
             dateLabel={fullDateLabel(selectedDate)}
             dateClassName="text-[28px] font-bold leading-tight tracking-tight text-lumen-text"
             savedLabel={savedLabel}
-            headerActions={
-              <div className="flex items-center gap-1">
-                {pinButton("icon")}
-                {deleteButton}
-              </div>
-            }
+            headerActions={actionsMenu("icon")}
             editorKey={editorKey}
             date={selectedDate}
             initialContent={editorContent}
@@ -395,7 +414,7 @@ export function DailyView() {
     <div className="flex h-full min-h-0 flex-col px-4 pt-2">
       <div className="flex items-center justify-end gap-2 pb-3">
         {toTodayButton}
-        {pinButton("boxed")}
+        {actionsMenu("boxed")}
       </div>
 
       <DateStrip

@@ -881,6 +881,7 @@ export function NotesView() {
       pinLabel={t("notesView.unpin")}
       unpinLabel={t("notesView.pin")}
       deleteLabel={t("materials.notes.deleteNote")}
+      moreActionsLabel={t("notesView.moreActions")}
       tagsSlot={
         selected.type === "folder" ? undefined : (
           <TagPicker itemId={selected.id} showLabel size="sm" />
