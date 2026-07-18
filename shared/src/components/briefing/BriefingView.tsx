@@ -33,7 +33,7 @@ import type { ExtractedBriefing } from "./extractBriefing";
  * existing analytics.* i18n keys, so no copy is duplicated.
  */
 
-/** One row of「今日の約束」— today's schedule, host-shaped. */
+/** One row of「今日の予定」— today's schedule, host-shaped. */
 export interface BriefingScheduleEntry {
   id: string;
   title: string;
@@ -45,7 +45,7 @@ export interface BriefingScheduleEntry {
   isAllDay: boolean;
 }
 
-/** One row of「今日のタスク」— host-shaped, purposes resolved to titles. */
+/** One row of「今日の Todo」— host-shaped, purposes resolved to titles. */
 export interface BriefingTaskEntry {
   id: string;
   title: string;

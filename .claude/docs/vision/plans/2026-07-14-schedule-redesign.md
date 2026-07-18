@@ -19,7 +19,7 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 **Schedule は「今日を見る場所」から「今日を組む場所」へ。**
 
 - ループの中での位置づけ: **朝刊（Briefing）= 読む → Schedule = 組む → Work = 没入する → 夕刊 = 閉じる**
-- 朝刊が「今日の約束の表示先」になったので、Schedule は閲覧責務を朝刊に譲り、**編集（タイムブロッキング）に特化**する
+- 朝刊が「今日の予定の表示先」になったので、Schedule は閲覧責務を朝刊に譲り、**編集（タイムブロッキング）に特化**する（「約束」は 2026-07-16 F-4 #261 で「予定」へ表示改名）
 - デザインは既存の Schedule デザインブリーフ（`.claude/docs/design/briefs/schedule.md`）と lumen トークンに従う。**エンティティ色符号は既に task=blue / routine=藍（#ebf0fe/#3b5bdb）/ event=紫（#f3e8ff/#6d28d9）と定義済み** — デザイン側は「タスクが日面に載る日」を既に待っている
 
 ---

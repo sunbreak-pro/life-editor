@@ -24,8 +24,8 @@ import {
  * aggregated BriefingData + labels into the pure shared <BriefingView>.
  *
  * Data sources (all EXISTING APIs — Step 1 ships with zero DDL):
- *   - fetchScheduleItemsByDate(today)     → 今日の約束
- *   - fetchTaskTree()                     → 今日のタスク / 持ち越し / trend widget
+ *   - fetchScheduleItemsByDate(today)     → 今日の予定
+ *   - fetchTaskTree()                     → 今日の Todo / 持ち越し / trend widget
  *   - fetchTimerSessions()                → streak + work/break widgets
  *   - getDailyByDateUnified(today)        → the "Briefing"/「朝刊」 section
  *     (extractBriefing convention — written later by MCP write_briefing,
