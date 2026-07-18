@@ -18,6 +18,7 @@ import {
   dismissScheduleItem,
   undismissScheduleItem,
 } from "./handlers/scheduleHandlers.js";
+import { getTodayContext, writeBriefing } from "./handlers/briefingHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
 import { generateContent, formatContent } from "./handlers/contentHandlers.js";
 import {
@@ -273,13 +274,9 @@ export const TOOLS: Tool[] = [
           type: "boolean",
           description: "All-day event (default: false)",
         },
-        note_id: {
+        memo: {
           type: "string",
-          description: "Link to an existing note ID",
-        },
-        content: {
-          type: "string",
-          description: "Additional content/description",
+          description: "Plain-text memo attached to the event",
         },
       },
       required: ["date", "title", "start_time", "end_time"],
@@ -294,6 +291,10 @@ export const TOOLS: Tool[] = [
       properties: {
         id: { type: "string", description: "Schedule item ID" },
         title: { type: "string", description: "New title" },
+        date: {
+          type: "string",
+          description: "New date (YYYY-MM-DD) — moves the event",
+        },
         start_time: {
           type: "string",
           description: "New start time (HH:MM)",
@@ -304,14 +305,14 @@ export const TOOLS: Tool[] = [
         },
         memo: { type: "string", description: "Memo/notes about the item" },
         is_all_day: { type: "boolean", description: "All-day event flag" },
-        content: { type: "string", description: "New content/description" },
       },
       required: ["id"],
     },
   },
   {
     name: "delete_schedule_item",
-    description: "Delete a schedule item permanently.",
+    description:
+      "Soft-delete a schedule item (moves it to trash; restorable from the Trash view).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -353,6 +354,47 @@ export const TOOLS: Tool[] = [
         id: { type: "string", description: "Schedule item ID" },
       },
       required: ["id"],
+    },
+  },
+  {
+    name: "get_today_context",
+    description:
+      "Get everything needed to write the morning briefing (朝刊) in one call: today's events, tasks scheduled onto today, open tasks (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        date: {
+          type: "string",
+          description:
+            "Target date in YYYY-MM-DD (default: today in local time)",
+        },
+      },
+    },
+  },
+  {
+    name: "write_briefing",
+    description:
+      "Write the morning briefing (朝刊) into the daily note for a date. Upserts a '朝刊' heading section at the top of the DailyNode content: paragraph 1 = the focus line (今日のフォーカス), following paragraphs = the AI comment body. An existing 朝刊 section is replaced; all other daily content (e.g. the 夕刊 section) is preserved. Creates the daily if it does not exist yet.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        date: {
+          type: "string",
+          description:
+            "Target date in YYYY-MM-DD (default: today in local time)",
+        },
+        focus: {
+          type: "string",
+          description: "The focus line — one short sentence, rendered large",
+        },
+        paragraphs: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Comment body paragraphs (yesterday's review, priorities, encouragement, etc.)",
+        },
+      },
+      required: ["focus"],
     },
   },
   {
@@ -770,10 +812,10 @@ export const TOOLS: Tool[] = [
 
 type ToolArgs = Record<string, unknown>;
 
-export function callTool(
+export async function callTool(
   name: string,
   args: ToolArgs,
-): { content: Array<{ type: "text"; text: string }> } {
+): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   let result: unknown;
 
   switch (name) {
@@ -808,37 +850,45 @@ export function callTool(
       result = updateNote(args as Parameters<typeof updateNote>[0]);
       break;
     case "list_schedule":
-      result = listSchedule(args as Parameters<typeof listSchedule>[0]);
+      result = await listSchedule(args as Parameters<typeof listSchedule>[0]);
       break;
     case "create_schedule_item":
-      result = createScheduleItem(
+      result = await createScheduleItem(
         args as Parameters<typeof createScheduleItem>[0],
       );
       break;
     case "update_schedule_item":
-      result = updateScheduleItem(
+      result = await updateScheduleItem(
         args as Parameters<typeof updateScheduleItem>[0],
       );
       break;
     case "delete_schedule_item":
-      result = deleteScheduleItem(
+      result = await deleteScheduleItem(
         args as Parameters<typeof deleteScheduleItem>[0],
       );
       break;
     case "toggle_schedule_complete":
-      result = toggleScheduleComplete(
+      result = await toggleScheduleComplete(
         args as Parameters<typeof toggleScheduleComplete>[0],
       );
       break;
     case "dismiss_schedule_item":
-      result = dismissScheduleItem(
+      result = await dismissScheduleItem(
         args as Parameters<typeof dismissScheduleItem>[0],
       );
       break;
     case "undismiss_schedule_item":
-      result = undismissScheduleItem(
+      result = await undismissScheduleItem(
         args as Parameters<typeof undismissScheduleItem>[0],
       );
+      break;
+    case "get_today_context":
+      result = await getTodayContext(
+        args as Parameters<typeof getTodayContext>[0],
+      );
+      break;
+    case "write_briefing":
+      result = await writeBriefing(args as Parameters<typeof writeBriefing>[0]);
       break;
     case "search_all":
       result = searchAll(args as Parameters<typeof searchAll>[0]);
