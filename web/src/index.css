@@ -108,3 +108,23 @@ body {
   height: 0;
   pointer-events: none;
 }
+
+/*
+ * Daily card variant (F-1 #258): the editor fills the card body and the whole
+ * area is clickable-to-focus (the old textarea behaviour). EditorContent
+ * renders a wrapper div around .ProseMirror — stretch both with flex.
+ */
+.daily-editor {
+  display: flex;
+  flex-direction: column;
+}
+.daily-editor > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.daily-editor .ProseMirror {
+  flex: 1;
+  min-height: 0;
+}
