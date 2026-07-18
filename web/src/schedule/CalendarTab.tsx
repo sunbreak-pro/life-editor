@@ -246,6 +246,13 @@ export function CalendarTab({
     x: number;
     y: number;
   } | null>(null);
+  // A click-created event stays a "pending draft" until first edited (#278).
+  // While one is live and untouched, empty-slot / month-cell clicks must not
+  // spawn another default item — they re-focus the pending draft instead.
+  const [pendingDraft, setPendingDraft] = useState<{
+    id: string;
+    date: string;
+  } | null>(null);
 
   // 1-minute now ticker (drives the now-line + agenda divider). Cleared on
   // unmount so it never leaks across section changes.
@@ -341,12 +348,19 @@ export function CalendarTab({
     );
   }, []);
 
+  // Any real edit (field commit / drag / toggle) or removal counts as
+  // "saved / discarded" and releases the pending-draft guard (#278).
+  const resolveDraft = useCallback((id: string) => {
+    setPendingDraft((cur) => (cur && cur.id === id ? null : cur));
+  }, []);
+
   const handleUpdate = useCallback(
     (id: string, patch: Partial<ScheduleItem>) => {
       patchRange(id, patch);
       updateScheduleItem(id, patch);
+      resolveDraft(id);
     },
-    [patchRange, updateScheduleItem],
+    [patchRange, updateScheduleItem, resolveDraft],
   );
 
   const handleToggle = useCallback(
@@ -368,8 +382,9 @@ export function CalendarTab({
         ),
       );
       toggleComplete(id);
+      resolveDraft(id);
     },
-    [toggleComplete],
+    [toggleComplete, resolveDraft],
   );
 
   const createAtTimes = useCallback(
@@ -384,8 +399,26 @@ export function CalendarTab({
     [createScheduleItem],
   );
 
+  // True = a pending draft exists → block this create and bring the draft
+  // back into view/selection instead (#278). Self-heals when the draft
+  // vanished through a path the handlers don't own (undo, sync): the visible
+  // range no longer contains it, so the guard clears and the click proceeds.
+  const draftGuardBlocks = useCallback((): boolean => {
+    if (!pendingDraft) return false;
+    const inVisibleRange =
+      pendingDraft.date >= rangeStart && pendingDraft.date <= rangeEnd;
+    if (inVisibleRange && !rangeItems.some((i) => i.id === pendingDraft.id)) {
+      setPendingDraft(null);
+      return false;
+    }
+    setAnchorDate(pendingDraft.date);
+    handleSelectItem(pendingDraft.id);
+    return true;
+  }, [pendingDraft, rangeStart, rangeEnd, rangeItems, handleSelectItem]);
+
   const handleCreateAt = useCallback(
     (dateISO: string, minutes: number) => {
+      if (draftGuardBlocks()) return;
       const start = minutesToTime(minutes);
       const end = minutesToTime(minutes + CREATE_DURATION_MIN);
       const id = createAtTimes(
@@ -394,12 +427,14 @@ export function CalendarTab({
         end,
         t("scheduleCalendar.newEvent"),
       );
+      setPendingDraft({ id, date: dateISO });
       handleSelectItem(id);
     },
-    [createAtTimes, handleSelectItem, t],
+    [draftGuardBlocks, createAtTimes, handleSelectItem, t],
   );
 
   const handleAddEvent = useCallback(() => {
+    if (draftGuardBlocks()) return;
     const id = createAtTimes(
       anchorDate,
       "09:00",
@@ -409,13 +444,15 @@ export function CalendarTab({
     // The detail editor now lives in the rightSidebar (not the main grid), so
     // the month layout can edit a new event in place — no jump to day view
     // (#224). handleSelectItem opens the detail panel on Desktop.
+    setPendingDraft({ id, date: anchorDate });
     handleSelectItem(id);
-  }, [createAtTimes, handleSelectItem, anchorDate, t]);
+  }, [draftGuardBlocks, createAtTimes, handleSelectItem, anchorDate, t]);
 
   // Month-cell day tap → create a default-time event on that day and open its
   // detail panel in place, instead of switching to the day view (#224).
   const handleCreateOnDay = useCallback(
     (day: string) => {
+      if (draftGuardBlocks()) return;
       setAnchorDate(day);
       const id = createAtTimes(
         day,
@@ -423,9 +460,10 @@ export function CalendarTab({
         "10:00",
         t("scheduleCalendar.newEvent"),
       );
+      setPendingDraft({ id, date: day });
       handleSelectItem(id);
     },
-    [createAtTimes, handleSelectItem, t],
+    [draftGuardBlocks, createAtTimes, handleSelectItem, t],
   );
 
   const handleQuickAdd = useCallback(
@@ -443,8 +481,9 @@ export function CalendarTab({
       const patch = { date: dateISO, startTime: startISO, endTime: endISO };
       patchRange(id, patch);
       updateScheduleItem(id, patch);
+      resolveDraft(id);
     },
-    [patchRange, updateScheduleItem],
+    [patchRange, updateScheduleItem, resolveDraft],
   );
 
   const handleResizeItem = useCallback(
@@ -452,8 +491,9 @@ export function CalendarTab({
       if (isTaskChip(id)) return; // A-1: task chips read-only (see handleMoveItem)
       patchRange(id, { endTime: endISO });
       updateScheduleItem(id, { endTime: endISO });
+      resolveDraft(id);
     },
-    [patchRange, updateScheduleItem],
+    [patchRange, updateScheduleItem, resolveDraft],
   );
 
   const handleDismiss = useCallback(
@@ -461,8 +501,9 @@ export function CalendarTab({
       dismiss(id);
       setRangeItems((prev) => prev.filter((i) => i.id !== id));
       setSelectedId((cur) => (cur === id ? null : cur));
+      resolveDraft(id);
     },
-    [dismiss],
+    [dismiss, resolveDraft],
   );
 
   const handleDelete = useCallback(
@@ -470,8 +511,9 @@ export function CalendarTab({
       deleteScheduleItem(id);
       setRangeItems((prev) => prev.filter((i) => i.id !== id));
       setSelectedId((cur) => (cur === id ? null : cur));
+      resolveDraft(id);
     },
-    [deleteScheduleItem],
+    [deleteScheduleItem, resolveDraft],
   );
 
   // ── Context menu (rename / duplicate / delete) ─────────────────────────────
