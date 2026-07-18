@@ -5,6 +5,48 @@
 
 ---
 
+## 2026-07-18 → @chat-main（起票依頼 — schedule-redesign Step 2: Task↔Schedule 双方向書き込み A-2）
+
+**#217 は PR #265 merge を確認し、tracker を完了確定しました**（実ブラウザ確認は貴レーンの §7.4 実測待ち）。section:schedule のキューが空のため、計画書（`plans/2026-07-14-schedule-redesign.md` §6 Step 2）の指示どおり **Step 2（A-2: ドラッグ/リサイズ → `updateNode(scheduledAt/scheduledEndAt)`）の実装 Issue 起票を依頼します**。以下は本日の読み取り専用実測（Grep/Read・コード変更なし）に基づくドラフトです。
+
+### Issue ドラフト: `feat(schedule): drag/resize task chips to write scheduledAt (redesign Step 2 / A-2)`
+
+**ラベル**: `section:schedule` / `type:feature`　**正本**: `plans/2026-07-14-schedule-redesign.md` §4-A-2・§6 Step 2
+
+**対象ファイル（実測済み・DDL ゼロ成立）**:
+
+- `web/src/schedule/CalendarTab.tsx` — `handleMoveItem`（L438-448）/ `handleResizeItem`（L450-457）の `isTaskChip` no-op を分岐実装に置換。`TASK_CHIP_PREFIX`（L82・`"taskchip-"`）を strip して TaskNode id を復元し、`useTaskTreeContext()` の `updateNode(id, {scheduledAt, scheduledEndAt})` を呼ぶ（現在 L222 は `nodes` のみ destructure — `updateNode` を追加取得）。task チップは `rangeItems`（楽観ストア）非混入の派生層マージ（L666-709）なので、`patchRange` は呼ばず TaskTree 状態更新の再レンダーで楽観反映される
+- `shared/src/components/schedule/WeekTimeGrid.tsx` — task ガード 2 箇所の解除: `movable = !!onMoveItem && variant !== "task"`（L613）とリサイズハンドルの `variant !== "task"`（L690）。ドラッグ機構自体（`beginDrag` → pointer-up commit・local `dateISO` + `HH:MM` payload）は variant 非依存で流用可
+- `shared/src/utils/taskCalendarChips.ts` — **逆変換ヘルパー新設**（local date + HH:MM → UTC ISO）。表示側 UTC→local（本ファイル既存）の対。リサイズは `scheduledEndAt` のみ、ドラッグ移動は両方を書く。`scheduledEndAt` 未設定タスク（表示上 60 分デフォルト・L30）の move/resize 時に end を実体化する仕様を Issue 本文に明記のこと
+- 永続化は**変更不要**: `updateNode` → `persistSilent` → `ds.syncTaskTree`（`useTaskTreeAPI.ts` L93）→ `taskMapper.ts` が `scheduled_at`/`scheduled_end_at` の patch に対応済み（L424-427）
+
+**スコープ外（実測に基づく境界）**:
+
+- **MonthGrid はドラッグ非対応**（event 含め `onMoveItem` prop 自体なし）→ Step 2 は WeekTimeGrid（Week/Day）のみ
+- **全日レーンはそもそも非ドラッグ**（WeekTimeGrid L496-534 は click/contextMenu のみの button）→ 終日タスク（`isAllDay`）の日面配置は Step 3 のトレイと同時に設計
+- select / 完了トグル / コンテキストメニューの taskchip no-op（L268 / L356 / L481）は **Step 3 領分のまま維持**
+
+**AC 案**:
+
+1. Week/Day グリッドで timed task チップをドラッグ → `scheduledAt`/`scheduledEndAt` が UTC ISO で更新され、Tasks ツリー・Briefing の表示日時に反映される（= Schedule AC10）
+2. 下端リサイズ → `scheduledEndAt` のみ更新（`scheduledAt` 不変）
+3. ScheduleItem の move/resize 挙動に回帰なし（既存分岐は無変更）
+4. shared `tsc -b` + vitest / web `tsc -b` + `vite build` green・DDL ゼロ・DataService 境界維持・逆変換ヘルパーの純関数テスト追加
+
+**依存・被り確認**:
+
+- 依存なし（Step 1 = PR merge 済み・main 取り込み済み）。Step 3（本日の Todo トレイ）が本 Step の後続
+- **#256（briefing-section の MCP schedule handler Supabase 化）との被りなし**: 本 Step は UI/provider 層のみで `mcp-server/` 無差分。taskMapper / DataService も変更不要と実測済み
+
+**判断ポイント 2 件（起票時に決めてほしい・こちらの推奨付き）**:
+
+1. **undo**: `updateNode` は `persistSilent`（undo 履歴なし）。ScheduleItem の move も現状 undo 対象外の同型なので、**推奨 = パリティ維持（undo なし）で AC に含めない**（必要になったら別 Issue）
+2. **全日レーンの task 色**: Step 1 の既知の限界（全日レーンは variant 非依存描画・計画書 §6 Step 1 注記「Step 2 で variant 色を通すか要件側で明文化」）。**推奨 = Step 2 に含めて `variantBlockClasses` 相当を全日チップにも適用**（小差分・同一ファイル内）。見送るなら要件側への明文化を DoD に
+
+**補足（role-qa 実測・Blocking/Should ゼロ PASS）**: 本ドラフトの file:line 引用は role-qa の第三者監査で全件裏取り済みです。1 点申し送り — PR #265 は squash merge のため、本ブランチには元コミット `a5fb55ac` が未 squash のまま重複保持されています（tracker 記述の誤りではありません）。Step 2 着手前に main への reset で差分ノイズを消すのが綺麗です。
+
+---
+
 ## 2026-07-16 → @chat-main（起票依頼 — 週始まり pref の Settings UI）
 
 **#217（weekStartsOn 配線）を実装しました**（PR は本 outbox 追記後に作成・完了したら close します）。保存側の pref API が settings 側に未実装だったため、#218（day-start-hour）と同じ分担で **pref フック（`shared/src/hooks/useWeekStart.ts`・キー `life-editor-week-start` = "0"|"1"）をこちらで新設**し、読み手（CalendarTab → startOfWeekKey / monthGridKeys / MonthGrid）まで配線済みです。
