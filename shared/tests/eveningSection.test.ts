@@ -96,6 +96,21 @@ describe("extractEveningSection", () => {
     expect(out.bodyDocJson).toBeNull();
   });
 
+  it("only treats the FIRST paragraph as the mood line — later ones are prose", () => {
+    const content = doc(
+      heading("夕刊"),
+      para("振り返りの本文"),
+      para("気分: 3/5"),
+    );
+    const out = extractEveningSection(content);
+    expect(out.mood).toBeNull();
+    const body = parse(out.bodyDocJson!);
+    expect(body.content.map((n) => n.content?.[0]?.text)).toEqual([
+      "振り返りの本文",
+      "気分: 3/5",
+    ]);
+  });
+
   it("stops at the next heading", () => {
     const content = doc(
       heading("夕刊"),
@@ -225,6 +240,17 @@ describe("mergeEveningSection", () => {
         mood: null,
       }),
     ).toBe(existing);
+  });
+
+  it("a mood-only patch never writes back a stale body (BLOCKING-1 regression)", () => {
+    // External edit replaced the body with "world"; a mood tap must keep it.
+    const stored = doc(heading("夕刊"), para("気分: 2/5"), para("world"));
+    const merged = parse(mergeEveningSection(stored, { mood: 4 }));
+    expect(merged.content.map((n) => n.content?.[0]?.text)).toEqual([
+      "夕刊",
+      moodLineText(4),
+      "world",
+    ]);
   });
 
   it("round-trips with extractEveningSection", () => {

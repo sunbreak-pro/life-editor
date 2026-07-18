@@ -279,45 +279,55 @@ export function BriefingScreen({
   const [moodDraft, setMoodDraft] = useState<number | null | undefined>(
     undefined,
   );
+  const [syncedMood, setSyncedMood] = useState<number | null>(
+    eveningStored.mood,
+  );
   if (syncedBody !== eveningStored.bodyDocJson) {
     if (eveningStored.bodyDocJson !== lastEmittedBody) {
       setEveningGen((g) => g + 1);
-      setMoodDraft(undefined);
     }
     setSyncedBody(eveningStored.bodyDocJson);
   }
+  // Mood reconcile: when the STORED mood changes (external edit or our own
+  // echo), drop a diverging local draft so the tab tracks Daily-side edits;
+  // a draft the store just caught up with is kept (equal — no visual jump).
+  if (syncedMood !== eveningStored.mood) {
+    if (moodDraft !== undefined && moodDraft !== eveningStored.mood) {
+      setMoodDraft(undefined);
+    }
+    setSyncedMood(eveningStored.mood);
+  }
 
-  // Latest user intent, read at write time inside the serialized chain.
-  // undefined = untouched (mergeEveningSection keeps the stored value).
-  const pendingBodyRef = useRef<string | null | undefined>(undefined);
-  const pendingMoodRef = useRef<number | null | undefined>(undefined);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
-  const persistEvening = useCallback(() => {
-    saveChainRef.current = saveChainRef.current.then(async () => {
-      try {
-        const fresh = await ds.getDailyByDateUnified(todayKey);
-        const freshContent = fresh?.content ?? "";
-        const merged = mergeEveningSection(freshContent, {
-          bodyDocJson: pendingBodyRef.current,
-          mood: pendingMoodRef.current,
-        });
-        if (merged === freshContent) return;
-        const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
-        setDailyContent(updated.content ?? merged);
-      } catch (err) {
-        console.error("[BriefingScreen] evening section save failed", err);
-      }
-    });
-  }, [ds, todayKey]);
+  // Each save carries ONLY what the user just changed (a body emission OR a
+  // mood tap) — mergeEveningSection keeps the freshest stored value for the
+  // undefined half, so a mood tap can never write back a stale body that an
+  // external edit (Daily side / another device / MCP) has since replaced.
+  const persistEvening = useCallback(
+    (patch: { bodyDocJson?: string | null; mood?: number | null }) => {
+      saveChainRef.current = saveChainRef.current.then(async () => {
+        try {
+          const fresh = await ds.getDailyByDateUnified(todayKey);
+          const freshContent = fresh?.content ?? "";
+          const merged = mergeEveningSection(freshContent, patch);
+          if (merged === freshContent) return;
+          const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
+          setDailyContent(updated.content ?? merged);
+        } catch (err) {
+          console.error("[BriefingScreen] evening section save failed", err);
+        }
+      });
+    },
+    [ds, todayKey],
+  );
 
   const handleEveningUpdate = useCallback(
     (json: string) => {
       // A cleared editor round-trips to a null stored body — normalize the
       // echo target so clearing doesn't remount mid-typing.
       setLastEmittedBody(isEmptyDocJson(json) ? null : json);
-      pendingBodyRef.current = json;
-      persistEvening();
+      persistEvening({ bodyDocJson: json });
     },
     [persistEvening],
   );
@@ -328,8 +338,7 @@ export function BriefingScreen({
     (n: number) => {
       const next = eveningMood === n ? null : n; // tap again to clear
       setMoodDraft(next);
-      pendingMoodRef.current = next;
-      persistEvening();
+      persistEvening({ mood: next });
     },
     [eveningMood, persistEvening],
   );

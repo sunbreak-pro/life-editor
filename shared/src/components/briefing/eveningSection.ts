@@ -151,17 +151,18 @@ export function extractEveningSection(
   if (range === null)
     return { mood: null, bodyDocJson: null, hasSection: false };
 
+  // Per the contract the mood line is paragraph #1 ONLY — a「気分: n/5」
+  // string later in the reflection body is the user's prose and stays put
+  // (also keeps the emitted-body ↔ stored-body echo comparison stable).
   let mood: number | null = null;
-  const nodes: TipTapNode[] = [];
-  for (const node of body.slice(range.start + 1, range.end)) {
-    if (mood === null) {
-      const m = MOOD_LINE_RE.exec(textOf(node).trim());
-      if (m !== null) {
-        mood = Number(m[1]);
-        continue; // the mood line is UI state, not editor body
-      }
+  let nodes = body.slice(range.start + 1, range.end);
+  const first = nodes[0];
+  if (first !== undefined) {
+    const m = MOOD_LINE_RE.exec(textOf(first).trim());
+    if (m !== null) {
+      mood = Number(m[1]);
+      nodes = nodes.slice(1);
     }
-    nodes.push(node);
   }
   return {
     mood,
