@@ -2931,6 +2931,8 @@
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",
-    "toggleComplete": "Toggle complete"
+    "toggleComplete": "Toggle complete",
+    "jumpToSchedule": "Open in Schedule",
+    "jumpToTasks": "Open in Tasks"
   }
 }

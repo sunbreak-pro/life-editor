@@ -111,7 +111,7 @@ cd web && npm run dev           # ローカル起動（vite）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
-- **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Tasks / Schedule / Notes / Daily / MCP Server / Cloud Sync（Briefing の正本 = [`2026-07-15-briefing-loop.md`](./docs/vision/plans/2026-07-15-briefing-loop.md)・tier-1 requirements 節は追って追加 / Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
+- **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Tasks / Schedule / Notes / Daily / MCP Server / Cloud Sync（Briefing の正本 = [`2026-07-15-briefing-loop.md`](./docs/vision/plans/2026-07-15-briefing-loop.md)・requirements 節 = tier-1-core.md §Briefing / Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
 - **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（File Explorer は退役 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
 - **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
 - 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
