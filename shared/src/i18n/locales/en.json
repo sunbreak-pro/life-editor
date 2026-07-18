@@ -780,10 +780,6 @@
       "quickAddSubmit": "Add",
       "empty": "No todos yet",
       "addCta": "Add todo",
-      "mainEmpty": "Select a todo or create a new one",
-      "layoutList": "List",
-      "layoutBoard": "Board",
-      "layoutGroupLabel": "Layout",
       "expandGroup": "Expand group",
       "collapseGroup": "Collapse group",
       "emptyGroup": "No todos",
@@ -2665,6 +2661,7 @@
   },
   "blockMenu": {
     "turnInto": "Turn Into",
+    "noMatch": "No matching blocks",
     "color": "Color",
     "background": "Background",
     "duplicate": "Duplicate",
@@ -2933,7 +2930,7 @@
     "carryoverDays": "day {{count}}",
     "toggleComplete": "Toggle complete",
     "jumpToSchedule": "Open in Schedule",
-    "jumpToTasks": "Open in Tasks",
+    "jumpToTasks": "Open in Todos",
     "tabsLabel": "Morning / Evening",
     "tabs": {
       "morning": "Morning",
