@@ -1,5 +1,19 @@
 # HISTORY (chat-docs-workspace)
 
+### 2026-07-17 - Issue #257: tier-1-core.md に Briefing requirements 節を追加（PR #267）
+
+#### 概要
+
+shared-fix `[docs-workspace]` キューの Issue #257 を実行。`docs/requirements/tier-1-core.md` に `Feature: Briefing（朝刊 — ホーム面）` 節を新設し、CLAUDE.md §8 の「tier-1 requirements 節は追って追加」注記と briefing-loop References の「未作成」記述を同一 PR で解消した。
+
+#### 変更点
+
+- **tier-1-core.md**: Briefing 節を §8 の並び順どおり先頭に追加。紙面ブロック（列挙の出典 = briefing-loop §1・全ブロック構成の正 = `BriefingView.tsx`）/ `extractBriefing` 規約（TipTap `heading` ノード「朝刊」/「Briefing」大文字小文字不問・段落 1 = フォーカス・次 heading で終了）/ 夕刊規約（「夕刊」見出し・英 alias Evening・1 行成立・「気分: n/5」・入力 UI = F-6 ヘッダータブ）を要件化。AC 5 件（Step 2 / 3 依存分は明記）。冒頭の機能数記述は数値の非複製原則に沿って CLAUDE.md §8 参照へ整理
+- **CLAUDE.md §8**: 「tier-1 requirements 節は追って追加」→「requirements 節 = tier-1-core.md §Briefing」に解消
+- **briefing-loop.md**: References の「未作成 — 追って追加」を追加済みへ更新 + Worklog 追記
+- **実測**: 節の記述は `extractBriefing.ts` / `BriefingView.tsx` / loop-friction-fixes F-6 をコード・計画書で直接確認して書き起こし（sweep で「追って追加 / 未作成」残骸ゼロ確認・outbox の過去ログは履歴として残置）
+- **PR**: commit 630cad69 → PR #267 open（merge = 人手ゲート・docs のみ。merge で #257 自動 close）。前タスクの PR #254 は merge 済みを確認し memory を追随
+
 ### 2026-07-16 - ループ摩擦除去計画書（loop-friction-fixes）新設 + briefing-loop / tier-3 追随（PR #254）
 
 #### 概要
@@ -57,16 +71,3 @@ shared-fix `[docs-workspace]` キューの #218 を実装し PR #242 を open。
 - **書き込み側フック**: `useDayStartHourPref`（`useStartupSectionPref` と同型）を新設・barrel export
 - **テスト**: `shared/tests/dayStartHour.test.ts`（parse / read / 境界 / 月跨ぎ / localStorage 連携）— shared vitest 863 pass / shared・web build green
 - **調整**: main 取り込み時の CLAUDE.md / _TEMPLATE.md コンフリクト解消（origin/main の Issue 駆動 dispatch 側を採用）。outbox に結果報告 + settings UI / analytics 追随の起票依頼を append
-
-### 2026-07-11 - レイアウト統一 v2 + life-tags の計画書 8 枚作成（PR #190）
-
-#### 概要
-
-2026-07-11 ユーザー要件（全画面レイアウト統一 5 項目 + life-tags 統一）を精査し、GitHub Issue ラベル（section:\* / shared-fix）から各 worktree の作業台帳を含む計画書 8 枚を作成して PR #190 を open。
-
-#### 変更点
-
-- **親計画 layout-standard-v2**: 要件 1〜5 の仕様正本（共通セクションヘッダー / rightSidebar 全 7 セクション化 / パネルは区切り線の下で開閉 / 幅切替 2 段タブ + 初期値表）。v1（#180/#181）と同じ「共通部品先行 → adoption」2 段構え
-- **親計画 life-tags-unification**: 要件 6 の方向正本。ユーザー AskUserQuestion 4 決定 = WikiTag 拡張一本化 / folder ノードのみ廃止（サブタスク存続）/ status 独立軸 / v2 後着手
-- **orders × 6**（schedule / materials / connect / work / analytics / settings）: 担当 Issue スナップショット（#185 #183 #182 #118 #181）+ v2 adoption 個別メモ + boot 行
-- **未実施**: v2 Issue 2 枚の起票（権限の自動判定で拒否 → 親計画 Step 2 にユーザー承認ゲートとして配置）

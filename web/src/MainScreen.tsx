@@ -202,6 +202,17 @@ export function MainScreen({ session }: { session: Session }) {
     setMaterialsTab(nav);
   }, []);
 
+  // Briefing rows deep-link into Schedule / Tasks. Force the Schedule calendar
+  // tab first so a "promise" jump doesn't land on the routines tab (where the
+  // schedule item isn't shown).
+  const handleBriefingNavigate = useCallback(
+    (nav: NavSection) => {
+      if (nav === "schedule") setScheduleTab("calendar");
+      handleNavigate(nav);
+    },
+    [handleNavigate],
+  );
+
   // global:new-task executor. Task creation lives inside the Kanban (mounted
   // per-tab behind its own Provider), so the shell can't call the create API
   // directly. Instead it navigates to Materials → Tasks and raises a "pending
@@ -506,7 +517,9 @@ export function MainScreen({ session }: { session: Session }) {
        * syncVersion bumps, which is how a briefing written by Claude via MCP
        * appears without a reload.
        */}
-      {section === "briefing" && <BriefingScreen dataService={ds} />}
+      {section === "briefing" && (
+        <BriefingScreen dataService={ds} onNavigate={handleBriefingNavigate} />
+      )}
       {/*
        * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each
        * inner Provider may read the outer one (ScheduleItems sits INSIDE

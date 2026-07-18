@@ -1,6 +1,6 @@
 {
   "sidebar": {
-    "tasks": "Tasks",
+    "tasks": "Todos",
     "memo": "Memo",
     "music": "Music",
     "work": "Work",
@@ -56,11 +56,11 @@
       "confirm": "Delete selected",
       "cancel": "Cancel",
       "footnote": "Soft-deleted items remain in Trash and can be restored later.",
-      "success": "Deleted — tasks {{tasks}} / events {{events}} / routines {{routines}} (incl. {{cascaded}} generated entries) / dailies {{dailies}} / notes {{notes}}",
+      "success": "Deleted — todos {{tasks}} / events {{events}} / routines {{routines}} (incl. {{cascaded}} generated entries) / dailies {{dailies}} / notes {{notes}}",
       "failed": "Bulk delete failed: {{error}}",
       "noSelection": "Select at least one kind to delete.",
       "kinds": {
-        "tasks": "Scheduled tasks",
+        "tasks": "Scheduled todos",
         "events": "Events",
         "routines": "Routines (also deletes generated entries)",
         "dailies": "Dailies",
@@ -69,7 +69,7 @@
     },
     "claude": {
       "title": "Claude Code",
-      "description": "Register the MCP Server so Claude Code can access your tasks, schedules, and memos via natural language.",
+      "description": "Register the MCP Server so Claude Code can access your todos, schedules, and memos via natural language.",
       "register": "Register MCP Server",
       "registering": "Registering...",
       "success": "MCP Server registered successfully.",
@@ -95,7 +95,7 @@
       "required": "required",
       "optional": "optional",
       "toolCategories": {
-        "tasks": "Tasks",
+        "tasks": "Todos",
         "memos": "Memos",
         "notes": "Notes",
         "schedule": "Schedule",
@@ -105,7 +105,7 @@
       },
       "tools": {
         "list_tasks": {
-          "description": "Retrieve a list of tasks. You can filter by status, date range, or folder.",
+          "description": "Retrieve a list of todos. You can filter by status, date range, or folder.",
           "params": {
             "status": "Filter by status (not started / in progress / done)",
             "date_range": "Filter by date range (ISO 8601)",
@@ -113,42 +113,42 @@
           }
         },
         "get_task": {
-          "description": "Get a single task by its ID.",
+          "description": "Get a single todo by its ID.",
           "params": {
-            "id": "Task ID"
+            "id": "Todo ID"
           }
         },
         "get_task_tree": {
-          "description": "Get tasks as a folder hierarchy tree. Useful for seeing the big picture.",
+          "description": "Get todos as a folder hierarchy tree. Useful for seeing the big picture.",
           "params": {
-            "root_id": "Folder/task ID to start from (omit for full tree)",
-            "include_done": "Include completed tasks (default: yes)",
+            "root_id": "Folder/todo ID to start from (omit for full tree)",
+            "include_done": "Include completed todos (default: yes)",
             "max_depth": "How many levels deep to retrieve (omit for unlimited)"
           }
         },
         "create_task": {
-          "description": "Create a new task.",
+          "description": "Create a new todo.",
           "params": {
-            "title": "Task title",
-            "parent_id": "Folder to place the task in",
+            "title": "Todo title",
+            "parent_id": "Folder to place the todo in",
             "scheduled_at": "Scheduled start (ISO 8601)",
             "scheduled_end_at": "Scheduled end (ISO 8601)",
             "is_all_day": "Make it an all-day event"
           }
         },
         "update_task": {
-          "description": "Update an existing task. Only specify the fields you want to change.",
+          "description": "Update an existing todo. Only specify the fields you want to change.",
           "params": {
-            "id": "Task ID",
+            "id": "Todo ID",
             "title": "New title",
             "status": "New status (not started / in progress / done)",
             "content": "New body text (Markdown)"
           }
         },
         "delete_task": {
-          "description": "Move a task to the trash (can be restored later).",
+          "description": "Move a todo to the trash (can be restored later).",
           "params": {
-            "id": "Task ID"
+            "id": "Todo ID"
           }
         },
         "get_memo": {
@@ -186,7 +186,7 @@
           }
         },
         "list_schedule": {
-          "description": "Get the schedule (events and tasks) for a specific date.",
+          "description": "Get the schedule (events and todos) for a specific date.",
           "params": {
             "date": "Date (YYYY-MM-DD)"
           }
@@ -228,10 +228,10 @@
           }
         },
         "search_all": {
-          "description": "Search across tasks, memos, and notes with a keyword.",
+          "description": "Search across todos, memos, and notes with a keyword.",
           "params": {
             "query": "Search keyword",
-            "domains": "Where to search (tasks / memos / notes, default: all)",
+            "domains": "Where to search (todos / memos / notes, default: all)",
             "limit": "Max results per category (default: 10)"
           }
         },
@@ -254,30 +254,30 @@
           }
         },
         "list_wiki_tags": {
-          "description": "List all wiki tags. Tags are labels that connect tasks, memos, and notes across domains.",
+          "description": "List all wiki tags. Tags are labels that connect todos, memos, and notes across domains.",
           "params": {
             "query": "Filter by tag name"
           }
         },
         "tag_entity": {
-          "description": "Assign a wiki tag to a task, memo, or note. Creates the tag automatically if it doesn't exist.",
+          "description": "Assign a wiki tag to a todo, memo, or note. Creates the tag automatically if it doesn't exist.",
           "params": {
             "tag_name": "Tag name",
             "entity_id": "Target ID",
-            "entity_type": "Target type (task / memo / note)"
+            "entity_type": "Target type (todo / memo / note)"
           }
         },
         "search_by_tag": {
-          "description": "Find tasks, memos, and notes that have a specific wiki tag.",
+          "description": "Find todos, memos, and notes that have a specific wiki tag.",
           "params": {
             "tag_name": "Tag name to search for",
-            "entity_type": "Narrow by type (task / memo / note, omit for all)"
+            "entity_type": "Narrow by type (todo / memo / note, omit for all)"
           }
         },
         "get_entity_tags": {
-          "description": "Get all wiki tags assigned to a specific task, memo, or note.",
+          "description": "Get all wiki tags assigned to a specific todo, memo, or note.",
           "params": {
-            "entity_id": "Target ID (task, memo, or note)"
+            "entity_id": "Target ID (todo, memo, or note)"
           }
         }
       }
@@ -285,8 +285,8 @@
     "shortcutLabels": {
       "commandPalette": "Open command palette",
       "openSettings": "Open settings",
-      "newTask": "Create new task",
-      "goToTasks": "Go to Tasks",
+      "newTask": "Create new todo",
+      "goToTasks": "Go to Todos",
       "goToDaily": "Go to Daily",
       "goToNotes": "Go to Notes",
       "goToSchedule": "Go to Schedule",
@@ -326,15 +326,15 @@
     "fontSizeValue": "{{px}}px ({{step}}/{{max}})",
     "fontSizeSmall": "Small 12px",
     "fontSizeLarge": "Large 25px",
-    "previewText": "Today's tasks: make a shopping list and prep dinner",
+    "previewText": "Today's todos: make a shopping list and prep dinner",
     "language": "Language",
     "languageDesc": "Switch the display language. Changes apply across the whole app instantly.",
     "english": "English",
     "japanese": "Japanese",
     "detail": {
       "previewHeading": "Current appearance",
-      "windowTitle": "Today's tasks",
-      "previewTitle": "Today's tasks",
+      "windowTitle": "Today's todos",
+      "previewTitle": "Today's todos",
       "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
       "tipsHeading": "Tips",
       "tasks": {
@@ -389,12 +389,12 @@
     "behaviors": "Behaviors",
     "startupScreen": "Startup Screen",
     "startupScreenDesc": "Choose which section opens when the app starts",
-    "autoArchive": "Auto-archive Completed Tasks",
-    "autoArchiveDesc": "Automatically move completed tasks to trash after a set period",
+    "autoArchive": "Auto-archive Completed Todos",
+    "autoArchiveDesc": "Automatically move completed todos to trash after a set period",
     "autoArchiveDays": "After {{days}} days",
     "autoArchiveDisabled": "Disabled",
-    "hideCompletedTasks": "Hide Completed Tasks",
-    "hideCompletedTasksDesc": "Hide completed tasks from the task tree",
+    "hideCompletedTasks": "Hide Completed Todos",
+    "hideCompletedTasksDesc": "Hide completed todos from the todo tree",
     "autoCompleteParent": "Auto-complete Parent",
     "system": "System",
     "autoLaunch": "Launch at Startup",
@@ -412,7 +412,7 @@
     "globalShortcuts": "Global Shortcuts",
     "globalShortcutsDesc": "Keyboard shortcuts that work even when the app is not focused",
     "toggleTimerShortcut": "Toggle Timer",
-    "quickAddTaskShortcut": "Quick Add Task",
+    "quickAddTaskShortcut": "Quick Add Todo",
     "mobileAccess": {
       "title": "Mobile Access",
       "description": "Access Life Editor from your iPhone/iPad on the same WiFi network.",
@@ -446,8 +446,8 @@
   },
   "reminders": {
     "title": "Reminders",
-    "taskReminders": "Task Due Date Reminders",
-    "taskRemindersDesc": "Get notified before a task's scheduled time",
+    "taskReminders": "Todo Due Date Reminders",
+    "taskRemindersDesc": "Get notified before a todo's scheduled time",
     "defaultOffset": "Default Reminder Time",
     "offset5": "5 minutes before",
     "offset10": "10 minutes before",
@@ -459,7 +459,7 @@
     "dailyReview": "Daily Review Reminder",
     "dailyReviewDesc": "Get a notification to review and plan your day",
     "dailyReviewTime": "Reminder Time",
-    "taskDueNotification": "Task due: {{title}}",
+    "taskDueNotification": "Todo due: {{title}}",
     "itemReminderToggle": "Reminder",
     "setReminder": "Set Reminder",
     "removeReminder": "Remove Reminder",
@@ -514,15 +514,15 @@
     "emptyCategoryConfirm": "Permanently empty the {{category}} trash. {{count}} item(s) will be deleted forever and cannot be restored. Proceed?",
     "emptyCategoryDone": "Emptied {{category}} trash ({{count}} item(s))",
     "emptying": "Deleting...",
-    "tasks": "Tasks",
+    "tasks": "Todos",
     "notes": "Notes",
     "restore": "Restore",
     "deletePermanently": "Delete permanently",
-    "task": "task",
+    "task": "todo",
     "note": "note",
     "sounds": "Sounds",
     "sound": "sound",
-    "tabTasks": "Tasks",
+    "tabTasks": "Todos",
     "tabRoutine": "Routine",
     "tabEvents": "Events",
     "tabMaterials": "Materials",
@@ -622,11 +622,11 @@
     },
     "freeSession": "Free Session",
     "sessionComplete": "Session Complete",
-    "taskComplete": "Task Complete",
+    "taskComplete": "Todo Complete",
     "confirmSessionTitle": "End Session",
     "confirmSessionMessage": "End this session and start a break?",
-    "confirmTaskTitle": "Complete Task",
-    "confirmTaskMessage": "Mark this task as complete?",
+    "confirmTaskTitle": "Complete Todo",
+    "confirmTaskMessage": "Mark this todo as complete?",
     "status": {
       "paused": "Paused"
     },
@@ -645,13 +645,13 @@
       "LONG_BREAK": "Long Break"
     },
     "taskSelector": {
-      "heading": "Linked Task",
-      "placeholder": "Select a task…",
-      "none": "No tasks available",
-      "clear": "Clear task",
-      "select": "Choose a task",
+      "heading": "Linked Todo",
+      "placeholder": "Select a todo…",
+      "none": "No todos available",
+      "clear": "Clear todo",
+      "select": "Choose a todo",
       "clearSelection": "Clear selection",
-      "emptyHint": "No tasks to link. Create a task in Materials to select one."
+      "emptyHint": "No todos to link. Create a todo in Materials to select one."
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -703,10 +703,10 @@
     "longRest": "LONG REST"
   },
   "taskTree": {
-    "title": "Task Tree",
-    "newTask": "New task...",
+    "title": "Todo Tree",
+    "newTask": "New todo...",
     "completed": "Completed",
-    "newTaskDefault": "New Task",
+    "newTaskDefault": "New Todo",
     "deleteConfirm": "Delete \"{{name}}\"? It will be moved to Trash.",
     "taskComplete": "{{name}} Complete!",
     "sort": "Sort",
@@ -719,15 +719,15 @@
     "undo": "Undo",
     "redo": "Redo",
     "move": {
-      "circularReference": "Cannot move a task into its own subtree",
+      "circularReference": "Cannot move a todo into its own subtree",
       "deletedNode": "Cannot move a deleted item. Restore it first."
     }
   },
   "taskDetail": {
-    "detailEmpty": "Select a task to view and edit it.",
-    "detailTitle": "Task",
-    "closeDetail": "Close task",
-    "titleLabel": "Task title",
+    "detailEmpty": "Select a todo to view and edit it.",
+    "detailTitle": "Todo",
+    "closeDetail": "Close todo",
+    "titleLabel": "Todo title",
     "status": "Status",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
@@ -741,25 +741,25 @@
     "endTime": "End",
     "showEndTime": "End time",
     "clearSchedule": "Clear schedule",
-    "emptyState": "Select a task to view details",
+    "emptyState": "Select a todo to view details",
     "tags": "Tags"
   },
   "kanban": {
     "viewStatus": "By status",
     "viewTag": "By tag",
     "segmentedGroupLabel": "Switch board view",
-    "emptyColumn": "No tasks here yet",
+    "emptyColumn": "No todos here yet",
     "placeholderHint": "Tag view is coming soon",
-    "boardLabel": "Task board",
+    "boardLabel": "Todo board",
     "untagged": "No tag",
     "colorPickerLabel": "Change color",
     "colorClearLabel": "Default color",
     "colorCustomLabel": "Custom",
     "modalClose": "Close (Esc)",
-    "breadcrumbTask": "Task",
+    "breadcrumbTask": "Todo",
     "addTask": "Add",
-    "addDialogTitle": "Add task",
-    "addTypeTask": "Task",
+    "addDialogTitle": "Add todo",
+    "addTypeTask": "Todo",
     "addTitleLabel": "Title",
     "addTitlePlaceholder": "Enter a title",
     "addSubmit": "Add",
@@ -775,21 +775,21 @@
     "tasks": {
       "filterLabel": "Filter by status",
       "statusSheetTitle": "Change status",
-      "quickAddTitle": "Add task",
+      "quickAddTitle": "Add todo",
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
-      "empty": "No tasks yet",
-      "addCta": "Add task",
-      "mainEmpty": "Select a task or create a new one",
+      "empty": "No todos yet",
+      "addCta": "Add todo",
+      "mainEmpty": "Select a todo or create a new one",
       "layoutList": "List",
       "layoutBoard": "Board",
       "layoutGroupLabel": "Layout",
       "expandGroup": "Expand group",
       "collapseGroup": "Collapse group",
-      "emptyGroup": "No tasks",
+      "emptyGroup": "No todos",
       "untitled": "(untitled)",
       "unfiled": "Unfiled",
-      "taskCount": "{{count}} tasks"
+      "taskCount": "{{count}} todos"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
@@ -1011,7 +1011,7 @@
     "newRoutine": "New Routine",
     "editRoutine": "Edit Routine",
     "editEvent": "Edit Event",
-    "editTask": "Edit Task",
+    "editTask": "Edit Todo",
     "routineTitle": "Title",
     "routineTitlePlaceholder": "Routine name",
     "start": "Start",
@@ -1043,7 +1043,7 @@
     "achievementRate": "Achieved: {{completed}}/{{total}} ({{rate}}%)",
     "noRoutineItems": "No routine items for this day.",
     "noActiveRoutines": "No active routines for today.",
-    "searchTasks": "Search tasks...",
+    "searchTasks": "Search todos...",
     "searchEvents": "Search events...",
     "stats": {
       "title": "Stats",
@@ -1131,7 +1131,7 @@
     "memo": "Memo",
     "originRoutine": "Generated from routine",
     "originEvent": "Event",
-    "originTask": "Task",
+    "originTask": "Todo",
     "skipThisDay": "Skip this day",
     "delete": "Delete",
     "selectHint": "Select an event to edit",
@@ -1179,20 +1179,20 @@
     "statusDone": "Done"
   },
   "schedulePanel": {
-    "existingTasks": "Existing Tasks",
-    "newTask": "New Task",
+    "existingTasks": "Existing Todos",
+    "newTask": "New Todo",
     "scheduled": "scheduled",
-    "searchTasks": "Search tasks",
+    "searchTasks": "Search todos",
     "allDay": "All day",
     "endTime": "End time",
-    "noTasksFound": "No tasks found",
+    "noTasksFound": "No todos found",
     "existingNote": "Existing Note",
     "newNote": "New Note",
     "searchNotes": "Search notes...",
     "noteTitle": "Note title",
     "untitledNote": "Untitled",
     "noNotes": "No notes found",
-    "tabTask": "Task",
+    "tabTask": "Todo",
     "tabEvent": "Event",
     "tabRoutine": "Routine",
     "useExisting": "Select existing"
@@ -1230,20 +1230,20 @@
     "tabs": {
       "overview": "Overview",
       "time": "Time",
-      "tasks": "Tasks",
+      "tasks": "Todos",
       "schedule": "Schedule",
       "materials": "Materials",
       "work": "Work",
       "connect": "Connect"
     },
-    "totalTasks": "Total Tasks",
+    "totalTasks": "Total Todos",
     "completed": "Completed",
     "inProgress": "In Progress",
     "todayRate": "Today's Completion Rate",
     "totalRate": "Total Completion Rate",
     "comingSoon": "More detailed analytics coming soon.",
     "workTime": "Work Time",
-    "taskWorkTime": "Work Time by Task",
+    "taskWorkTime": "Work Time by Todo",
     "period": {
       "day": "Day",
       "week": "Week",
@@ -1306,12 +1306,12 @@
       "noSessions": "No sessions for this day"
     },
     "taskTrend": {
-      "title": "Task Completion Trend",
+      "title": "Todo Completion Trend",
       "completedCount": "Completed"
     },
     "stagnation": {
-      "title": "Task Age Distribution",
-      "tasks": "tasks"
+      "title": "Todo Age Distribution",
+      "tasks": "todos"
     },
     "projectTime": {
       "title": "Work Time by Project",
@@ -1332,14 +1332,14 @@
       "hideAll": "Hide all",
       "chartGroup": {
         "work": "Work Charts",
-        "tasks": "Task Charts",
+        "tasks": "Todo Charts",
         "schedule": "Schedule Charts",
         "materials": "Materials Charts",
         "connect": "Connect Charts"
       }
     },
     "overview": {
-      "tasks": "Tasks",
+      "tasks": "Todos",
       "events": "Events",
       "notes": "Notes",
       "work": "Work Time",
@@ -1406,7 +1406,7 @@
       },
       "byEntityType": {
         "title": "Tags by Entity Type",
-        "task": "Tasks",
+        "task": "Todos",
         "note": "Notes",
         "daily": "Daily"
       },
@@ -1447,11 +1447,11 @@
             },
             "rightSidebar": {
               "title": "Right sidebar shows the day",
-              "description": "The right sidebar shows that day's tasks, routines, and events while the calendar is open."
+              "description": "The right sidebar shows that day's todos, routines, and events while the calendar is open."
             },
             "contentFilter": {
               "title": "Filter content types",
-              "description": "Toggle Routines / Tasks / Events / Daily / Notes from the right sidebar to hide what you don't need."
+              "description": "Toggle Routines / Todos / Events / Daily / Notes from the right sidebar to hide what you don't need."
             },
             "holidays": {
               "title": "Holidays",
@@ -1521,7 +1521,7 @@
             },
             "dragTime": {
               "title": "Drag to change time",
-              "description": "Grab a task or routine block and drag it vertically to change its start time."
+              "description": "Grab a todo or routine block and drag it vertically to change its start time."
             },
             "dualColumn": {
               "title": "Dual-column layout",
@@ -1529,7 +1529,7 @@
             },
             "contextAdd": {
               "title": "Click an empty slot",
-              "description": "Click an empty time slot to add a routine, task, or note at that time."
+              "description": "Click an empty time slot to add a routine, todo, or note at that time."
             },
             "rightClickEdit": {
               "title": "Right-click for actions",
@@ -1592,31 +1592,31 @@
       "header": "Work tips",
       "tabs": {
         "taskSelect": {
-          "label": "Task",
+          "label": "Todo",
           "items": {
             "openSelector": {
-              "title": "Pick a task at the top",
-              "description": "The task selector sits at the top of the Work screen; click to choose what you'll focus on."
+              "title": "Pick a todo at the top",
+              "description": "The todo selector sits at the top of the Work screen; click to choose what you'll focus on."
             },
             "search": {
               "title": "Search by name",
-              "description": "Start typing to filter tasks by title."
+              "description": "Start typing to filter todos by title."
             },
             "freeSession": {
               "title": "Free session",
-              "description": "Skip task selection to run a free, untied focus session."
+              "description": "Skip todo selection to run a free, untied focus session."
             },
             "startFromTree": {
-              "title": "Start from the task tree",
-              "description": "Click the play button next to any task in the task tree to jump into Work with it selected."
+              "title": "Start from the todo tree",
+              "description": "Click the play button next to any todo in the todo tree to jump into Work with it selected."
             },
             "switchTask": {
               "title": "Switch mid-session",
-              "description": "Selecting a different task while the timer is running switches focus instantly without resetting it."
+              "description": "Selecting a different todo while the timer is running switches focus instantly without resetting it."
             },
             "completionPrompt": {
               "title": "Completion modal",
-              "description": "When a session ends a modal lets you mark the task done or start the next session."
+              "description": "When a session ends a modal lets you mark the todo done or start the next session."
             }
           }
         },
@@ -1641,7 +1641,7 @@
             },
             "miniWidget": {
               "title": "Sidebar mini timer",
-              "description": "While a session is active the left sidebar shows the running task and remaining time."
+              "description": "While a session is active the left sidebar shows the running todo and remaining time."
             },
             "extend": {
               "title": "Add 5 minutes",
@@ -1682,7 +1682,7 @@
             },
             "completionEffects": {
               "title": "Completion celebration",
-              "description": "Confetti and a sound effect fire when you finish a task during a session."
+              "description": "Confetti and a sound effect fire when you finish a todo during a session."
             }
           }
         },
@@ -2003,7 +2003,7 @@
             },
             "todayDashboard": {
               "title": "Today dashboard",
-              "description": "The top of Overview shows today's totals: focus time, completed tasks, and pomodoro count."
+              "description": "The top of Overview shows today's totals: focus time, completed todos, and pomodoro count."
             },
             "periodSelector": {
               "title": "Right sidebar period",
@@ -2023,36 +2023,36 @@
             },
             "switchTabs": {
               "title": "Six tabs",
-              "description": "Switch between Overview / Tasks / Schedule / Materials / Work / Connect for focused views."
+              "description": "Switch between Overview / Todos / Schedule / Materials / Work / Connect for focused views."
             }
           }
         },
         "tasks": {
-          "label": "Tasks",
+          "label": "Todos",
           "items": {
             "completionTrend": {
               "title": "Completion trend",
-              "description": "Track completed and created tasks across the chosen period."
+              "description": "Track completed and created todos across the chosen period."
             },
             "stagnation": {
               "title": "Stagnation chart",
-              "description": "Highlights tasks that have been open the longest without progress."
+              "description": "Highlights todos that have been open the longest without progress."
             },
             "byProject": {
               "title": "Project work time",
               "description": "Compare focused time across folders / projects."
             },
             "workTime": {
-              "title": "Per-task work time",
-              "description": "Spot which individual tasks consumed the most focused time."
+              "title": "Per-todo work time",
+              "description": "Spot which individual todos consumed the most focused time."
             },
             "filterPeriod": {
               "title": "Period filter",
-              "description": "All task analytics respect the period selector in the right sidebar."
+              "description": "All todo analytics respect the period selector in the right sidebar."
             },
             "tabFocus": {
               "title": "Focused view",
-              "description": "The Tasks tab strips away cross-domain noise and focuses on task metrics."
+              "description": "The Todos tab strips away cross-domain noise and focuses on todo metrics."
             }
           }
         },
@@ -2110,7 +2110,7 @@
             },
             "tagEntityType": {
               "title": "Tag × entity type",
-              "description": "Breaks tag assignments down by entity type (note / memo / task)."
+              "description": "Breaks tag assignments down by entity type (note / memo / todo)."
             },
             "connectSummary": {
               "title": "Connection summary",
@@ -2127,11 +2127,11 @@
     "all": "All",
     "inbox": "Inbox",
     "memo": "Memo",
-    "taskNamePlaceholder": "Task name",
+    "taskNamePlaceholder": "Todo name",
     "noteNamePlaceholder": "Note title",
     "openDetail": "Open detail",
     "startTimer": "Start timer",
-    "task": "Task",
+    "task": "Todo",
     "note": "Note",
     "routineIndicator": "{{completed}}/{{total}}",
     "noteItem": "Note",
@@ -2141,20 +2141,20 @@
     "endLabel": "End",
     "clearSchedule": "Clear schedule",
     "clearTime": "Clear time",
-    "deleteTaskTitle": "Delete Task",
-    "deleteTaskMessage": "Are you sure you want to delete this task?",
+    "deleteTaskTitle": "Delete Todo",
+    "deleteTaskMessage": "Are you sure you want to delete this todo?",
     "deleteNoteTitle": "Delete Note",
     "deleteNoteMessage": "Are you sure you want to delete this note?",
     "contentType": "Content",
     "filterAll": "All",
     "filterDaily": "Daily",
     "filterNotes": "Notes",
-    "filterTasks": "Tasks",
+    "filterTasks": "Todos",
     "daily": "Daily",
     "dailyExists": "Daily already exists for this date",
     "filters": "Filters",
     "status": "Status",
-    "createTask": "Task",
+    "createTask": "Todo",
     "createNote": "Note",
     "createDaily": "Daily",
     "createEvent": "Create Event",
@@ -2165,7 +2165,7 @@
     "calendarTags": "Calendar Tags",
     "startTime": "Start",
     "endTime": "End",
-    "roleTask": "Task",
+    "roleTask": "Todo",
     "roleEvent": "Event",
     "roleNote": "Note",
     "roleDaily": "Daily",
@@ -2174,8 +2174,8 @@
     "searchPlaceholder": "Search items..."
   },
   "search": {
-    "placeholder": "Search tasks...",
-    "noResults": "No matching tasks",
+    "placeholder": "Search todos...",
+    "noResults": "No matching todos",
     "clear": "Clear search",
     "rootLevel": "Root level",
     "searchSettings": "Search settings...",
@@ -2198,7 +2198,7 @@
     "untitled": "Untitled"
   },
   "tasks": {
-    "title": "Tasks"
+    "title": "Todos"
   },
   "memoTree": {
     "title": "Memo Tree",
@@ -2206,9 +2206,9 @@
     "notes": "Notes"
   },
   "tabs": {
-    "taskTree": "Task Tree",
+    "taskTree": "Todo Tree",
     "memoTree": "Memo Tree",
-    "tasks": "Tasks",
+    "tasks": "Todos",
     "schedule": "Schedule",
     "incomplete": "Incomplete",
     "complete": "Complete",
@@ -2227,7 +2227,7 @@
     "all": "All",
     "markDone": "Mark as done",
     "markInProgress": "Mark as in progress",
-    "noCompleted": "No completed tasks"
+    "noCompleted": "No completed todos"
   },
   "commandPalette": {
     "placeholder": "Type a command...",
@@ -2235,7 +2235,7 @@
     "goTo": "Go to"
   },
   "section": {
-    "tasks": "Tasks",
+    "tasks": "Todos",
     "daily": "Daily",
     "notes": "Notes",
     "materials": "Materials",
@@ -2330,7 +2330,7 @@
   },
   "contextMenu": {
     "rename": "Rename",
-    "addTask": "Add Task",
+    "addTask": "Add Todo",
     "markIncomplete": "Mark Incomplete",
     "startTimer": "Start Timer",
     "moveToRoot": "Move to Root",
@@ -2355,14 +2355,14 @@
     "markIncomplete": "Mark Incomplete"
   },
   "taskSelector": {
-    "createNewTask": "Create new task...",
-    "taskName": "Task name...",
-    "noTasks": "No tasks available"
+    "createNewTask": "Create new todo...",
+    "taskName": "Todo name...",
+    "noTasks": "No todos available"
   },
   "sessionModal": {
     "workComplete": "WORK Complete!",
     "takeBreak": "Take a break",
-    "completeTask": "Complete task",
+    "completeTask": "Complete todo",
     "extend": "Extend",
     "minutes": "{{min}}m",
     "restComplete": "REST Complete!",
@@ -2378,11 +2378,11 @@
   "calendarSidebar": {
     "title": "Schedule",
     "newCalendar": "New calendar",
-    "allTasks": "All Tasks",
+    "allTasks": "All Todos",
     "rename": "Rename",
     "delete": "Delete",
-    "empty": "No calendars yet. Create one to filter tasks by folder.",
-    "tasksTab": "Tasks",
+    "empty": "No calendars yet. Create one to filter todos by folder.",
+    "tasksTab": "Todos",
     "memoTab": "Memo"
   },
   "calendarCreate": {
@@ -2405,8 +2405,8 @@
     "closeDetail": "Close note"
   },
   "taskDetailPanel": {
-    "selectTask": "Select a task to view details",
-    "totalTasks": "Total: {{count}} tasks",
+    "selectTask": "Select a todo to view details",
+    "totalTasks": "Total: {{count}} todos",
     "incomplete": "Incomplete: {{count}}",
     "completed": "Completed: {{count}}"
   },
@@ -2415,17 +2415,17 @@
     "memoPlaceholder": "Add a memo...",
     "schedule": "Schedule",
     "duration": "Duration",
-    "noSelection": "Select a task to view details",
+    "noSelection": "Select a todo to view details",
     "dontShowAgain": "Don't show again"
   },
   "folderContents": {
     "title": "Contents",
     "folders": "Folders",
-    "tasks": "Tasks",
+    "tasks": "Todos",
     "empty": "Empty"
   },
   "taskTreeHeader": {
-    "allTasks": "All Tasks",
+    "allTasks": "All Todos",
     "navigateToFolder": "Navigate to folder"
   },
   "music.saved": "Saved!",
@@ -2436,11 +2436,11 @@
   "dayFlow": {
     "filterAll": "All",
     "filterRoutine": "Routine",
-    "filterTasks": "Tasks",
+    "filterTasks": "Todos",
     "filterEvents": "Events",
     "filterDaily": "Daily",
     "filterNotes": "Notes",
-    "addTask": "Add task",
+    "addTask": "Add todo",
     "selectTime": "Set time",
     "noItems": "No items",
     "sidebarProgress": "Progress",
@@ -2448,7 +2448,7 @@
     "dualColumn": "Dual Column",
     "singleColumn": "Single Column",
     "selectRoutine": "Select Routine",
-    "selectTask": "Select Task",
+    "selectTask": "Select Todo",
     "selectEvent": "Select Event",
     "selectNote": "Select Note",
     "itemCount": "{{count}} items"
@@ -2463,7 +2463,7 @@
     "shrink15": "-15 min",
     "copyTime": "Copy time",
     "moveToDay": "Move to another day",
-    "linkToTask": "Link to task",
+    "linkToTask": "Link to todo",
     "convertToRoutine": "Convert to routine",
     "duplicate": "Duplicate"
   },
@@ -2526,7 +2526,7 @@
   },
   "wikiTags": {
     "title": "Tags",
-    "description": "Manage wiki tags used across tasks, memos, and notes. Type @tag in any editor to create inline tags.",
+    "description": "Manage wiki tags used across todos, memos, and notes. Type @tag in any editor to create inline tags.",
     "selectOrCreate": "Select or create a tag",
     "createNew": "Create",
     "create": "Create",
@@ -2553,13 +2553,13 @@
   "taskDetail.timeMemo": "Time memo",
   "soundEffects": {
     "title": "Sound Effects",
-    "taskComplete": "Task Complete",
+    "taskComplete": "Todo Complete",
     "sessionStart": "Session Start",
     "sessionComplete": "Session Complete",
     "pomodoroComplete": "Pomodoro Complete",
     "confetti": "Visual Effects",
     "confettiLabel": "Confetti animation",
-    "confettiDescription": "Show confetti when a task is completed"
+    "confettiDescription": "Show confetti when a todo is completed"
   },
   "events": {
     "emptyState": "Select an event to view details",
@@ -2706,7 +2706,7 @@
       "codeBlock": "Code Block",
       "bulletList": "Bullet List",
       "orderedList": "Ordered List",
-      "taskList": "Task List",
+      "taskList": "Todo List",
       "callout": "Callout",
       "toggleList": "Toggle List"
     }
@@ -2738,7 +2738,7 @@
       "monthly": "Monthly",
       "dayflow": "Day Flow",
       "today": "Today",
-      "tasks": "Tasks",
+      "tasks": "Todos",
       "schedule": "Schedule",
       "empty": "No items for this day",
       "itemCount": "{{count}} items",
@@ -2784,10 +2784,10 @@
       "contentPlaceholder": "Start writing..."
     },
     "work": {
-      "selectTask": "Select a task...",
-      "searchTask": "Search tasks...",
-      "clearTask": "Clear selected task",
-      "noTasks": "No tasks found",
+      "selectTask": "Select a todo...",
+      "searchTask": "Search todos...",
+      "clearTask": "Clear selected todo",
+      "noTasks": "No todos found",
       "focusTitle": "Focus",
       "activeTaskLabel": "IN PROGRESS",
       "sessionLabel": {
@@ -2826,7 +2826,7 @@
         "permissionBlocked": "Notifications blocked by system",
         "unsupported": "Not supported on this device",
         "routineReminders": "Routine reminders",
-        "taskDeadlineReminders": "Task deadline reminders"
+        "taskDeadlineReminders": "Todo deadline reminders"
       },
       "timer": {
         "title": "Timer defaults",
@@ -2886,10 +2886,10 @@
     },
     "schedule": {
       "loadFailed": "Failed to load schedule",
-      "loadTasksFailed": "Failed to load tasks",
+      "loadTasksFailed": "Failed to load todos",
       "loadMonthFailed": "Failed to load month items",
       "toggleFailed": "Failed to toggle schedule item",
-      "toggleTaskFailed": "Failed to toggle task",
+      "toggleTaskFailed": "Failed to toggle todo",
       "saveFailed": "Failed to save schedule item",
       "deleteFailed": "Failed to delete schedule item"
     }
@@ -2922,15 +2922,17 @@
     "aiTitle": "A WORD ON YESTERDAY",
     "aiSource": "Claude ・ from the Briefing section",
     "noBriefing": "No briefing yet. Write a \"Briefing\" heading section in today's daily and it will appear here.",
-    "scheduleTitle": "TODAY'S PROMISES",
+    "scheduleTitle": "TODAY'S PLANS",
     "noSchedule": "Nothing scheduled today",
     "routineTag": "Routine",
     "allDay": "All day",
-    "tasksTitle": "TODAY'S TASKS — AND WHY",
-    "noTasks": "No tasks scheduled for today",
+    "tasksTitle": "TODAY'S TODOS — AND WHY",
+    "noTasks": "No todos scheduled for today",
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",
-    "toggleComplete": "Toggle complete"
+    "toggleComplete": "Toggle complete",
+    "jumpToSchedule": "Open in Schedule",
+    "jumpToTasks": "Open in Tasks"
   }
 }

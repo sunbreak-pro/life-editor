@@ -7,8 +7,8 @@ import { cn } from "../cn";
  * Notes tab pushes into the shared rightSidebar (Desktop only) for the
  * selected note. Pure presentation, DataService-free (§3.1): every mutation
  * is a host-injected callback (onTitleCommit / onTogglePin / onDelete), the
- * rich-text editor + tag UI + link list arrive as ReactNode slots (TipTap /
- * WikiTags are web dependencies and must not be pulled into shared), and all
+ * rich-text editor + tag UI arrive as ReactNode slots (TipTap / WikiTags are
+ * web dependencies and must not be pulled into shared), and all
  * copy is already-translated props (§6.4 — no useTranslation here). lumen-*
  * tokens only; the card surface is opaque (§5).
  *
@@ -113,10 +113,6 @@ export interface NoteDetailPanelProps {
   contentLabel: string;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
-  /** Already-translated caption above the links list. */
-  linksLabel: string;
-  /** Host-injected link list. Omitted → the links section is hidden. */
-  linksSlot?: ReactNode;
   /**
    * Surface treatment. "sidebar" (default) is the compact card the Notes tab
    * pushes into the rightSidebar. "main" is the larger centered editor surface
@@ -142,8 +138,6 @@ export function NoteDetailPanel({
   tagsSlot,
   contentLabel,
   contentEditor,
-  linksLabel,
-  linksSlot,
   variant = "sidebar",
   className,
 }: NoteDetailPanelProps) {
@@ -219,16 +213,6 @@ export function NoteDetailPanel({
             {contentLabel}
           </span>
           {contentEditor}
-        </div>
-      )}
-
-      {/* Links — "リンク" caption + injected link list. */}
-      {linksSlot != null && (
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
-            {linksLabel}
-          </span>
-          {linksSlot}
         </div>
       )}
     </div>

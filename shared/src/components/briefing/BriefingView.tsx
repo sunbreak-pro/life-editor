@@ -1,4 +1,4 @@
-import { Check, Circle, Sunrise } from "lucide-react";
+import { ArrowUpRight, Check, Circle, Sunrise } from "lucide-react";
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
@@ -33,7 +33,7 @@ import type { ExtractedBriefing } from "./extractBriefing";
  * existing analytics.* i18n keys, so no copy is duplicated.
  */
 
-/** One row of「今日の約束」— today's schedule, host-shaped. */
+/** One row of「今日の予定」— today's schedule, host-shaped. */
 export interface BriefingScheduleEntry {
   id: string;
   title: string;
@@ -45,7 +45,7 @@ export interface BriefingScheduleEntry {
   isAllDay: boolean;
 }
 
-/** One row of「今日のタスク」— host-shaped, purposes resolved to titles. */
+/** One row of「今日の Todo」— host-shaped, purposes resolved to titles. */
 export interface BriefingTaskEntry {
   id: string;
   title: string;
@@ -60,6 +60,8 @@ export interface BriefingCarryoverEntry {
   title: string;
   /** Host-formatted "N日目" label (i18n interpolation stays host-side). */
   daysLabel: string;
+  /** True once completed today — kept on the board with a strikethrough. */
+  completed: boolean;
 }
 
 export interface BriefingData {
@@ -91,6 +93,8 @@ export interface BriefingLabels {
   vizTitle: string;
   carryoverTitle: string;
   toggleComplete: string;
+  jumpToSchedule: string;
+  jumpToTasks: string;
 }
 
 export interface BriefingViewProps {
@@ -102,6 +106,12 @@ export interface BriefingViewProps {
   balanceLabels: WorkBreakBalanceLabels;
   /** Completes / un-completes a schedule item (host → DataService). */
   onToggleScheduleItem: (id: string) => void;
+  /** Completes / un-completes a task or carryover row (host → DataService). */
+  onToggleTask: (id: string) => void;
+  /** Jumps to the Schedule section (host → nav). */
+  onJumpToSchedule: () => void;
+  /** Jumps to the Tasks section (host → nav). */
+  onJumpToTasks: () => void;
 }
 
 /** Section heading row — small-caps kicker over a hairline. */
@@ -128,6 +138,9 @@ export function BriefingView({
   trendLabels,
   balanceLabels,
   onToggleScheduleItem,
+  onToggleTask,
+  onJumpToSchedule,
+  onJumpToTasks,
 }: BriefingViewProps): React.JSX.Element {
   if (loading) {
     return (
@@ -211,15 +224,25 @@ export function BriefingView({
                     <Circle size={15} />
                   )}
                 </button>
-                <span
+                <button
+                  type="button"
+                  onClick={() => onToggleScheduleItem(item.id)}
                   className={
                     item.completed
-                      ? "text-sm text-lumen-text-secondary line-through"
-                      : "text-sm text-lumen-text"
+                      ? "text-left text-sm text-lumen-text-secondary line-through transition-colors hover:text-lumen-accent"
+                      : "text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent"
                   }
                 >
                   {item.title}
-                </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onJumpToSchedule}
+                  aria-label={labels.jumpToSchedule}
+                  className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
+                >
+                  <ArrowUpRight size={13} aria-hidden="true" />
+                </button>
                 {item.isRoutine && (
                   <span className="rounded-full bg-lumen-chip-routine-bg px-2 text-[10px] text-lumen-chip-routine-fg">
                     {labels.routineTag}
@@ -244,25 +267,39 @@ export function BriefingView({
                 className="border-b border-dashed border-lumen-border py-2.5 last:border-b-0"
               >
                 <div className="flex items-center gap-2.5">
-                  <span
-                    aria-hidden="true"
-                    className={
-                      task.status === "DONE"
-                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-accent text-lumen-on-accent"
-                        : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                    }
+                  <button
+                    type="button"
+                    onClick={() => onToggleTask(task.id)}
+                    className="flex items-center gap-2.5 text-left"
                   >
-                    {task.status === "DONE" && <Check size={11} />}
-                  </span>
-                  <span
-                    className={
-                      task.status === "DONE"
-                        ? "text-sm text-lumen-text-secondary line-through"
-                        : "text-sm text-lumen-text"
-                    }
+                    <span
+                      aria-hidden="true"
+                      className={
+                        task.status === "DONE"
+                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-accent text-lumen-on-accent"
+                          : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
+                      }
+                    >
+                      {task.status === "DONE" && <Check size={11} />}
+                    </span>
+                    <span
+                      className={
+                        task.status === "DONE"
+                          ? "text-sm text-lumen-text-secondary line-through"
+                          : "text-sm text-lumen-text"
+                      }
+                    >
+                      {task.title}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onJumpToTasks}
+                    aria-label={labels.jumpToTasks}
+                    className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
                   >
-                    {task.title}
-                  </span>
+                    <ArrowUpRight size={13} aria-hidden="true" />
+                  </button>
                 </div>
                 {task.purposes.length > 0 && (
                   <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
@@ -305,12 +342,38 @@ export function BriefingView({
             {data.carryover.map((item) => (
               <li
                 key={item.id}
-                className="flex items-baseline gap-2 text-sm text-lumen-text-secondary"
+                className="flex items-center gap-2 text-sm text-lumen-text-secondary"
               >
                 <span className="font-bold text-lumen-accent">
                   {item.daysLabel}
                 </span>
-                <span>{item.title}</span>
+                <button
+                  type="button"
+                  onClick={() => onToggleTask(item.id)}
+                  className="flex items-center gap-2.5 text-left"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={
+                      item.completed
+                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-accent text-lumen-on-accent"
+                        : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
+                    }
+                  >
+                    {item.completed && <Check size={11} />}
+                  </span>
+                  <span className={item.completed ? "line-through" : undefined}>
+                    {item.title}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onJumpToTasks}
+                  aria-label={labels.jumpToTasks}
+                  className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
+                >
+                  <ArrowUpRight size={13} aria-hidden="true" />
+                </button>
               </li>
             ))}
           </ul>

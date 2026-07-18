@@ -3,11 +3,74 @@
 > Value Proposition (CLAUDE.md §1) を直接支える、無いと Life Editor として成立しない機能群。
 > Phase B-1 で各機能の要件を記入する。テンプレ・記入手順は [README.md](./README.md) 参照。
 
-**Tier 1 機能数**: 8（暫定、Phase B-1 で確定。うち Terminal は 2026-07-05 RETIRED / Database は凍結 → 実効稼働は CLAUDE.md §8 の 7（2026-07-15 Briefing 追加 — 本文 requirements 節は未作成・正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)）。本文は履歴として全 8 件を保持）
+**Tier 1 機能数**: 実効稼働の一覧・個数は CLAUDE.md §8 が正（数値の非複製原則）。本文は履歴として退役・凍結分（Terminal = 2026-07-05 RETIRED / Database = 凍結）も保持する。Briefing の requirements 節は 2026-07-17 追加済み（#257・正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)）
 
 > ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` + `src-tauri/` は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 
 > ⚠️ **旧構成の歴史参照注記 (2026-07-07 consistency-cleanup)**: 本ファイル中の `.claude/archive/adr/` / `.claude/docs/adr/` / `.claude/archive/dropped/` などのパス参照は旧ディレクトリ構成時点のもので、現存しないパスを含む（ADR は作らない方針へ移行済 → `docs/vision/coding-principles.md §5`）。個別リンクは追わず歴史参照として残す。
+
+---
+
+## Feature: Briefing（朝刊 — ホーム面）
+
+**Tier**: 1
+**Status**: △Step 1（読む面）出荷済み（#249）— ループ全体は進行中。**テーマ正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)**（Steps 索引・決定録・完成判定 = 同書 §Acceptance「ループが平日 5 日連続で回る」）
+**Owner Provider/Module**: `shared/src/components/briefing/`（`BriefingView` / `extractBriefing`）+ `web/src/briefing/BriefingScreen.tsx`（ホスト = fetch / i18n 解決）。セクション定義・デフォルト起動 = `shared/src/sections.ts`
+**MCP Coverage**: —（briefing-loop Step 2 で `get_today_context` / `write_briefing` を追加予定 — 未実装）
+**Supports Value Prop**: V1
+**Stack**: `shared/` + `web/` 本流のみ（Supabase Postgres。旧 Tauri 期の実装を持たない）
+
+### Purpose
+
+1 日 1 周ループ（朝刊 = 読む → Schedule = 組む → Work = 没入 → 夕刊 = 閉じる → Claude 分析 → 翌朝刊）の「読む」面。今日の文脈を新聞の紙面のように読み下せるホーム面で、Schedule から閲覧責務を移譲した（`2026-07-14-schedule-redesign.md` §1）。朝刊本文は当日 DailyNode content 内の「朝刊」見出しセクションとして保存され（DDL ゼロ）、書き手は Claude（`write_briefing` — Step 2）と手書き（F-1 後）の両方を許す。
+
+### Boundary
+
+- やる:
+  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TaskNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）
+  - **朝刊の保存規約（`extractBriefing`）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
+  - **夕刊規約（Step 3・決定録 1 + 6）**: Daily 内「夕刊」見出しセクション（英 alias: Evening）・朝刊と同じ規約・DDL ゼロ。**1 行でも成立**（書くハードルを上げない）。気分（五段階）はテキスト規約「気分: n/5」で夕刊セクション内に保存。入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ（loop-friction-fixes F-6 — 保存先は Daily のまま・Daily 側から直接書いても同じ場所に落ちる）
+  - 約束行の名称タップ = 完了トグル（現行）。タスク行への同型追加 + 各行からの移動ボタンは loop-friction-fixes F-2
+- やらない:
+  - Claude API 直課金の生成経路（$0 制約 — briefing-loop Context。定時自動化 Step 5 もサブスク範囲内の経路で選定）
+  - 朝刊・夕刊のための新テーブル / DDL（`dailies_payload` 内のセクション規約で表現）
+  - 多人数向け配信（N=1・§1 Non-Goals）
+  - 講評品質の UI 的解決（プロンプト / Routine 指示の運用領域 — briefing-loop Risks）
+  - Google Calendar 連携（凍結 — 再開条件は `tier-3-experimental.md` 参照）
+
+### Acceptance Criteria
+
+> ループ全体の完成判定は briefing-loop §Acceptance Criteria が正（本節は「読む」面と保存規約の機能 AC のみ）。
+
+- [ ] AC1: アプリ起動時のデフォルトセクションが Briefing で、紙面ブロック（今日の約束・タスク・持ち越し・フォーカス・AI 講評 — 構成の正 = `BriefingView.tsx`）が表示される
+- [ ] AC2: 当日 DailyNode content に「朝刊」（or Briefing）見出し + 段落があると、段落 1 がフォーカス行・段落 2 以降が AI 講評として紙面に出る。セクションが無い / パース不能な日は空状態が出てクラッシュしない
+- [ ] AC3: 約束行の名称タップで完了トグル（取り消し線）が働き、Schedule 側と同じ完了状態を共有する
+- [ ] AC4: （Step 3 実装後）夕刊タブで書いた内容が Daily の「夕刊」見出しセクションとして保存され、Daily 側でも読める。1 行だけでも成立し、「気分: n/5」行が規約どおり記録される
+- [ ] AC5: （Step 2 実装後）MCP `write_briefing` で当日 Daily に朝刊セクションを書き込むと、次回表示時に紙面へ反映される
+
+### Dependencies
+
+- DB Tables: 専用テーブルなし（保存先 = `dailies_payload.content_json` 内の見出しセクション — DDL ゼロ）
+- 読み取り: ScheduleItem（今日の約束）/ TaskNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
+- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Tasks / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
+- 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6）
+
+### Known Issues / Tech Debt
+
+- **手書きの朝刊・夕刊は現状不成立**（Daily 本文が平文 textarea・パーサは TipTap `heading` ノード必須 — 2026-07-16 実測）。前提工事 = loop-friction-fixes F-1（Daily の TipTap 化）。F-1 と Step 2 がループ開通の 2 大前提（briefing-loop Risks）
+- MCP schedule handler が旧 SQLite のまま Supabase 未接続（Step 2 = MCP Supabase 化と同一起点）
+- 表示ラベルは F-4 で改名予定（「タスク」→「Todo」・「約束」→「予定」— i18n catalog のみ・識別子は不変）
+
+### Future Enhancements
+
+- Step 4: 宣言（intentions）— 朝刊で今日の宣言 → 夕刊・翌朝刊で講評の 1 往復
+- Step 5: 定時自動化（経路候補 = briefing-loop Risks。アプリ内ボタンは後続候補 — 技術検証 = `2026-07-16-briefing-headless-claude-prototype.md`）
+
+### Related Plans
+
+- ACTIVE: `docs/vision/plans/2026-07-15-briefing-loop.md`(テーマ正本)
+- IN PROGRESS: `docs/vision/plans/2026-07-16-loop-friction-fixes.md` / `docs/vision/plans/2026-07-14-schedule-redesign.md`
+- REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
 
 ---
 
@@ -372,7 +435,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Acceptance Criteria
 
 - [ ] AC1: Life Editor 起動中に `claude` コマンドを実行すると、MCP Server `life-editor` が自動接続され、`/mcp` コマンドで 32 ツールが列挙される（起動導線だったアプリ内ターミナルは 2026-07-05 退役・常設起動導線は再設計中 → §Terminal）
-- [ ] AC2: Claude に「今日のタスク一覧を見せて」と指示すると MCP `list_tasks` が呼ばれ、UI で表示されている内容と同じタスクが返る
+- [ ] AC2: Claude に「今日の Todo 一覧を見せて」と指示すると MCP `list_tasks` が呼ばれ、UI で表示されている内容と同じ Todo が返る
 - [ ] AC3: Claude が `create_task` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
 - [ ] AC4: `search_all` で複数ドメイン（tasks / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
 - [ ] AC5: `tag_entity` で WikiTag を任意エンティティに付与し、`search_by_tag` / `get_entity_tags` で取得できる（UI 側のタグ一覧と一致）
