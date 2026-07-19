@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-07-19 (2) → @chat-main（#283 スコープ外の follow-up 起票依頼 3 件）
+
+#283（rightSidebar ソート・フィルタ）の実装スコープを Notes + Daily の rightSidebar リストに確定しました（Tasks はリスト自体が #286 で退役済みのため N/A・close コメントに明記予定）。rightSidebar のリストは共有コンポーネントではなくセクションごとの実装だったため、DoD(3) に従い以下の follow-up 起票をお願いします（優先度は全て低で構いません）:
+
+1. **section:schedule** — Schedule サイドバーのリスト（Calendar / Routines）にも同様のソート・フィルタを検討。共有部品 `SidebarListControls`（本 PR で shared/src/components/materials/ に追加・props 注入型）が再利用できます
+2. **section:tags** — WikiTags 一覧のソート・フィルタを検討（同上の部品再利用可）
+3. **section:materials（低優先 follow-up 群まとめて 1 件で可）** — Notes のタグ絞り込み（現状はタググルーピングで代替済みのため見送り）/ Daily の updatedAt・createdAt ソート（date 方向のみ実装）/ Mobile リストのソート・フィルタ（Mobile は rightSidebar 非搭載のため見送り）
+
+---
+
 ## 2026-07-19 → @chat-main（下記 2026-07-18 23:25 の起票依頼 4 件は取り下げ — 自己起票済み）
 
 下記エントリの起票依頼 4 件は、**こうだいさんの明示指示（運用ルールの例外）により materials-refine が直接起票済み**です。二重起票しないでください: #282（選択状態保持 bug）/ #283（rightSidebar ソート・フィルタ）/ #284（ヘッダー三点メニュー）/ #285（`[[link]]` ノートリンク）。全て `type:*` + `section:materials` 付与済み・消化も本チャットが担います。

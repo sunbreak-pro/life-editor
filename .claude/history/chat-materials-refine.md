@@ -1,5 +1,18 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-07-19 - #282 選択状態のタブ跨ぎ保持 + #283 rightSidebar ソート・フィルタ（PR #289）
+
+#### 概要
+
+Materials の Notes/Daily/Tasks で選択中アイテムがセクション・タブ切替で失われるバグ（#282）を in-memory 選択ストアで修正し、rightSidebar リストにソート・フィルタ UI（#283・Notes + Daily）を追加。PR #289 提出（Closes #282/#283・merge = こうだいさん）。
+
+#### 変更点
+
+- **#282 選択ストア**: `shared/src/state/materialsSelectionStore.ts` 新設（モジュールスコープ・意図的に localStorage 不使用 = 再起動リセットで stale id 復元ゼロ）。3 フックに write-through + one-shot 復元を配線。Notes は hydrate-first（`getNoteUnified` 完了後にのみ選択が立つ — 空エディタ上書きのデータ損失経路を排除）・存在検証で消えた id はクリア・取得失敗ではクリアしない（一時エラー耐性）。TaskTree は `persistSelection` オプトイン（Schedule mount の非干渉を構造化）。Daily は「今日」選択でストアをクリア（日跨ぎ固定を防止）
+- **#283 ソート・フィルタ**: `SidebarListControls` 新設（props 注入・lumen トークン・IME 安全な onChange のみ filter）。Notes = 3 モード × 方向をタググループ内に適用・sortMode を `life-editor:note-sort-mode` に新規永続化・ソート実装を `utils/noteSort.ts` に一本化。Daily = 日付方向（`life-editor:daily-sort-direction`）+ テキスト絞り込み（`utils/dailyListView.ts`）。Tasks は N/A（リスト退役済み #286）・他セクション水平展開は outbox で起票依頼
+- **プロセス**: ultracode 采配 = 偵察 3 並列 → role-pm 分解 → engineer 3 本（A/B1 並列 → B2）→ role-qa + 敵対的レビュー並列監査。監査指摘 4 件（createNote ストア書き込み漏れ / fetch 失敗時の誤クリア / Schedule mount への復元リーク / Daily today 固定）を全修正 + 回帰テスト 5 件
+- **検証**: shared tsc -b / vitest 122 files・998 tests（新規 47）/ web build / eslint 全 green。実ブラウザ確認 = merge 後 chat-main（PR 本文にチェックリスト）
+
 ### 2026-07-18 - #258 F-1 Daily エディタ TipTap 化（PR #270）
 
 #### 概要
