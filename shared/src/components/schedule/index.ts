@@ -66,6 +66,20 @@ export {
   type ScheduleItemContextMenuProps,
   type ScheduleItemContextMenuLabels,
 } from "./ScheduleItemContextMenu";
+// #279: this / future / all scope chooser for editing or deleting a
+// routine-derived occurrence.
+export {
+  RepeatScopeDialog,
+  type RepeatScopeDialogProps,
+  type RepeatScopeDialogLabels,
+  type RepeatScope,
+} from "./RepeatScopeDialog";
+// #280: Mobile FAB quick-capture form (moved from web CalendarTab).
+export {
+  QuickCaptureSheet,
+  type QuickCaptureSheetProps,
+  type QuickCaptureLabels,
+} from "./QuickCaptureSheet";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {

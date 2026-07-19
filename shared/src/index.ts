@@ -123,6 +123,7 @@ export {
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {
   todayDateKey,
+  todayCalendarKey,
   formatDateKey,
   getDayStartHour,
   parseDayStartHour,
@@ -267,8 +268,30 @@ export {
 } from "./utils/routineScheduleSync";
 export {
   tasksToCalendarChips,
+  taskChipId,
+  isTaskChip,
+  TASK_CHIP_PREFIX,
   type TaskCalendarChip,
 } from "./utils/taskCalendarChips";
+// Schedule host domain helpers (#280, extracted from web CalendarTab /
+// scheduleLabels): pure label mapping, view-mode normalisation + visible
+// range, and the optimistic-create row factory.
+export {
+  buildWeekdayLabels,
+  frequencyLabel,
+  nowMinutesLocal,
+  sortDayItems,
+  itemVariant,
+  type FrequencyLabelCopy,
+} from "./utils/scheduleLabels";
+export {
+  normalizeDesktopView,
+  normalizeMobileView,
+  visibleCalendarRange,
+  type DesktopCalendarView,
+  type MobileCalendarView,
+} from "./utils/calendarView";
+export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,

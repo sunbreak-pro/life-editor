@@ -54,6 +54,10 @@ export function Modal({
       // Esc here would cancel an IME conversion, not close the dialog.
       if (e.isComposing || e.keyCode === 229) return;
       if (e.key === "Escape") {
+        // Capture-phase stop so an underlying sheet/dialog (e.g. Mobile's
+        // BottomSheet, which listens on document in the bubble phase) does
+        // not close on the same keypress — one Esc = one layer.
+        e.stopPropagation();
         onClose();
         return;
       }

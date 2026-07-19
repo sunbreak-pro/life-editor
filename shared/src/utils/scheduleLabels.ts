@@ -1,11 +1,13 @@
-import type { RoutineNode, ScheduleItem } from "@life-editor/shared";
+import type { RoutineNode } from "../types/routine";
+import type { ScheduleItem } from "../types/schedule";
 
 /*
- * Shared label + mapping helpers for the target-IA Schedule host (CalendarTab
+ * Shared label + mapping helpers for the target-IA Schedule hosts (CalendarTab
  * / RoutinesTab). Pure functions — no React, no DataService. i18n copy is
  * passed in already-resolved (§6.4) so the same string set drives the Calendar
  * summary rows and the Routines master list without duplicating the branch
- * logic in two files.
+ * logic in two files. Moved from web/src/schedule/scheduleLabels.ts (#280);
+ * the old todayLocalKey() was unified into dateKey.todayCalendarKey().
  */
 
 /** scheduleCalendar.* weekday keys, indexed 0 (Sun) – 6 (Sat). */
@@ -53,15 +55,6 @@ export function frequencyLabel(
     default:
       return r.frequencyType;
   }
-}
-
-/** Local YYYY-MM-DD for "today" (no UTC conversion — S4-0 convention). */
-export function todayLocalKey(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 /** Current wall-clock time as minutes-from-midnight. */

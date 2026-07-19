@@ -1,6 +1,7 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED
 Created: 2026-07-16
+Completed: 2026-07-19
 Branch: claude/docs-workspace
 Owner-chat: docs-workspace
 ---
@@ -86,7 +87,8 @@ Owner-chat: docs-workspace
 - 症状（ユーザー報告）: カレンダーで約束の時刻を変更しても rightSidebar「今日の流れ」・朝刊に即反映されない
 - コード読解では「今日の流れ」は共有 provider の optimistic 更新で即時反映される作り（事実 5）。朝刊はセクション復帰時 refetch ＋ Realtime（300ms debounce）で自癒する設計
 - 要・実ブラウザ再現（chat-main・playwright）。再現すれば根治 Issue 化、再現しなければ「反映は復帰時 refetch ＋ 数百 ms」の仕様として記録して close
-- **AC**: 再現手順の確定 or 仕様として記録して close
+- **結果（2026-07-18 chat-main 実機確認・再現なし → 仕様として close）**: 時刻変更で「今日の流れ」（CalendarTab と同一 provider・optimistic）も朝刊（自前 fetch・syncVersion 待ち）も正しく追従することをユーザーが実ブラウザで確認。バグではなく設計どおりのため Issue 起票せず。機構 = 「今日の流れ」は共有 provider の optimistic で即時、朝刊は Realtime エコー（postgres_changes・300ms debounce）による syncVersion bump もしくは Briefing 復帰時の remount で追従（`SyncContext.tsx` / `BriefingScreen.tsx:105`）
+- **AC**: 再現手順の確定 or 仕様として記録して close → ✅ 仕様として記録・close（再現なし）
 
 ### F-6: 夕刊専用ページ（Briefing ヘッダータブ・F-1 依存）
 
@@ -120,10 +122,10 @@ Owner-chat: docs-workspace
 
 ## Acceptance Criteria
 
-- [ ] F-1〜F-6 の Issue がすべて close（F-5 は仕様記録での close も可）
-- [ ] 夕刊タブから 1 日を閉じられる（F-6 の AC 一式）
-- [ ] 手書きの「朝刊」「夕刊」見出しが Briefing 紙面に表示される（= ループ手動経路の開通）
-- [ ] 完了時: 本書 Status → COMPLETED ＋ archive 移動 ＋ per-chat memory 更新
+- [x] F-1〜F-6 の Issue がすべて close（F-5 は仕様記録での close・#258〜#263 全 CLOSED を 2026-07-19 gh 実測確認）
+- [x] 夕刊タブから 1 日を閉じられる（F-6 の AC 一式・PR #274 merged 2026-07-18）
+- [x] 手書きの「朝刊」「夕刊」見出しが Briefing 紙面に表示される（機構は F-1 TipTap 化 PR #270 merged 2026-07-18 で開通。**手書き 1 周の実ブラウザ実測は briefing-loop Step 6「平日 5 日連続ループ実測」へ引き継ぐ** — chat-main 担当）
+- [x] 完了時: 本書 Status → COMPLETED ＋ archive 移動 ＋ per-chat memory 更新（2026-07-19 chat-main）
 
 ## Risks
 
@@ -142,3 +144,4 @@ Owner-chat: docs-workspace
 
 - 2026-07-16: 初版。ユーザー要件 6 件を実測精査（Explore 3 本 ＋ メイン spot check）し、AskUserQuestion で決定 1・3・4 を確定、決定 2 はユーザー詳細指定（名称横の移動ボタン ＋ 名称タップ = 完了トグル維持）。ループ土台欠陥（手書き朝刊が紙面に出ない）を発見し F-1 を最優先に設定。起票依頼 5 件を outbox へ
 - 2026-07-16 (2): 同日第 2 ラウンド。ユーザー提案「夕刊を朝刊と同じページに」を精査し決定 7・F-6 として確定（保存先 = Daily のまま・気分 = テキスト規約）。briefing-loop の決定録 6 と Step 3 を改訂し、outbox の起票依頼に F-6 を追加
+- 2026-07-19: **本書 COMPLETED 化（chat-main）**。F-1〜F-6 の Issue が全 close 済みであることを gh で実測確認（#258 F-1 / #259 F-2 / #260 F-3 / #261 F-4 / #262 F-5 = 仕様 close / #263 F-6 — 全 CLOSED）。対応 PR: F-1 = #270（merged 2026-07-18）・F-2 = #266・F-3/F-4 = #264・F-6 = #274（merged 2026-07-18）。INDEX 派生ビューが一部 PR を「open / merge 待ち」と古く表示していた stale を実態（全 merge・全 close）に是正。残る「手書き 1 周の実ブラウザ実測」は briefing-loop Step 6 へ引き継ぎ。archive/ へ移動

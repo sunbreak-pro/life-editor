@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-07-19 (2) → @chat-main（スプリント完了報告 — PR #292 merge 依頼 + Step 2 子 Issue 待ち）
+
+**section:schedule スプリント（#281 #278 #279 #280）を全件 close し、PR #292 を提出しました**（branch `claude/schedule-refine`・Fixes 4 Issue・shared 992 tests + 両 build green・QA アドバーサリアル監査済み）。merge は 🛑 ユーザーゲートです。merge 後の実ブラウザ確認は §7.4 どおり貴レーンでお願いします — 重点確認: ①Event→Repeats 変換後に週ビューへ即出現するか ②繰り返し由来の編集/削除で中央ダイアログ（この予定のみ/今後/すべて）が出るか ③時刻入力が blur まで確定しないか。
+
+Epic #290 の Step 2 子 Issue はまだ open に見えないため、**本 outbox 2026-07-18 エントリの Issue ドラフト（A-2 ドラッグ→scheduledAt 書き込み）での起票をお願いします**。注意: 同ドラフトの file:line は #280 リファクタ前の実測です — `handleMoveItem`/`handleResizeItem` の taskchip no-op は現在 `web/src/schedule/useScheduleMutations.ts` に移動しています（`TASK_CHIP_PREFIX`/`isTaskChip` は shared/utils/taskCalendarChips.ts へ）。起票時に対象ファイルをこの 2 点だけ読み替えてください。次点の申し送りは直下エントリ（routineFrequency の frequencyStartDate）です。
+
+---
+
+## 2026-07-19 → @chat-main（起票依頼 — routineFrequency が daily/weekdays で frequencyStartDate を無視する件・redesign Step 4 候補）
+
+**#279（範囲選択ダイアログ + Repeats 変換の可視化）の実装中に確認した既存挙動の申し送りです**（#279 のリグレッションではなく pre-existing。コード変更なしの実測）。
+
+### Issue ドラフト: `fix(schedule): shouldRoutineRunOnDate ignores frequencyStartDate for daily/weekdays`
+
+**ラベル**: `section:schedule` / `type:bug`　**正本候補**: `plans/2026-07-14-schedule-redesign.md` §6 Step 4（reconcile 配線と同時が効率的）
+
+- **事実**: `shared/src/utils/routineFrequency.ts::shouldRoutineRunOnDate` は `interval` のみ `frequencyStartDate` を参照し、`daily` / `weekdays` は開始日より前の日付でも true を返す。ファイルは「1:1 移植・変更禁止」ヘッダ付きの凍結移植のため #279 では不変更とした
+- **影響**: Event → 繰り返し変換で作った routine（seed 日 = 開始日）でも、過去日を Calendar で表示すると生成器（`ensureRoutineItemsForDate`）が seed 日より前に occurrence を作りうる。#279 では変換経路側に窓クランプ（`[rangeStart, seedDate, today]` の max 以降のみ ensure）を入れて変換時の捏造は防いだが、**後日の過去日ナビゲーションで生成される経路は残っている**
+- **提案**: Step 4 の reconcile 配線と同時に、`shouldRoutineRunOnDate` へ「`frequencyStartDate` 以前は全頻度で false」を追加（凍結解除の判断込み）。既存 routine は frequencyStartDate が null / 過去のものが大半で実害は限定的の見込みだが、AC には「変換 seed 日より前に occurrence が生成されない」を含めてほしい
+
+---
+
 ## 2026-07-18 → @chat-main（起票依頼 — schedule-redesign Step 2: Task↔Schedule 双方向書き込み A-2）
 
 **#217 は PR #265 merge を確認し、tracker を完了確定しました**（実ブラウザ確認は貴レーンの §7.4 実測待ち）。section:schedule のキューが空のため、計画書（`plans/2026-07-14-schedule-redesign.md` §6 Step 2）の指示どおり **Step 2（A-2: ドラッグ/リサイズ → `updateNode(scheduledAt/scheduledEndAt)`）の実装 Issue 起票を依頼します**。以下は本日の読み取り専用実測（Grep/Read・コード変更なし）に基づくドラフトです。

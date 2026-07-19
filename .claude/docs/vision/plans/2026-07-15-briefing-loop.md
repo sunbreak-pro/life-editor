@@ -101,7 +101,7 @@ Owner-chat: docs-workspace
 
 ## Risks
 
-- **手書きの朝刊・夕刊は現状の Daily では成立しない**（Daily 本文が平文 textarea・紙面パーサは TipTap 見出しノード必須 — 2026-07-16 実測）。前提工事 = [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md) F-1（Daily の TipTap 化）。Step 2（MCP 書き込み）完了までは自動経路も未開通のため、**F-1 と Step 2 がループ開通の 2 大前提**
+- **手書きの朝刊・夕刊は現状の Daily では成立しない**（Daily 本文が平文 textarea・紙面パーサは TipTap 見出しノード必須 — 2026-07-16 実測）。前提工事 = [`2026-07-16-loop-friction-fixes.md`](../../../archive/2026-07-16-loop-friction-fixes.md) F-1（Daily の TipTap 化）。Step 2（MCP 書き込み）完了までは自動経路も未開通のため、**F-1 と Step 2 がループ開通の 2 大前提**
 - **Cloud Routine はローカル MCP に接続できない**（クラウド実行）。Step 5 の経路候補: (a) ローカル定時実行（launchd/cron + `claude -p` ヘッドレス + ローカル MCP Server）(b) Cloud Routine + Supabase 直接書き込み。どちらも $0 で成立するが、(b) は items_meta の updated_at bump 等の書き込み整合を MCP を介さず守る設計が別途必要 → Step 2 完了後に判断する
 - 夕刊が書かれない日が続くと分析の材料が涸れる → 決定 1 のとおり「1 行でも成立」を規約とし、書くハードルを上げない
 - 朝刊の執筆品質（講評が的外れ・冗長）は運用で調整する領域 — プロンプト / Routine 指示の改善であり、アプリ機能で解決しない（判定基準「追加」に照らして UI を足さない）
@@ -110,7 +110,7 @@ Owner-chat: docs-workspace
 
 ## References
 
-- 子計画書: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（「組む」の正本。§1 中心思想は本書と同一のループ）/ [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md)（摩擦除去 F-1〜F-5。F-1 = Daily TipTap 化はループ手動経路の前提工事）
+- 子計画書: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（「組む」の正本。§1 中心思想は本書と同一のループ）/ [`2026-07-16-loop-friction-fixes.md`](../../../archive/2026-07-16-loop-friction-fixes.md)（摩擦除去 F-1〜F-5。F-1 = Daily TipTap 化はループ手動経路の前提工事）
 - コードの正: `shared/src/sections.ts`（briefing セクション定義・デフォルト起動）/ `shared/src/components/briefing/`（紙面ビューとセクション規約 — 一覧はコードが正）/ `web/src/briefing/BriefingScreen.tsx`
 - 要件: `docs/requirements/tier-1-core.md` §Briefing（2026-07-17 #257 で追加。CLAUDE.md §8 は本書をポインタとして参照）
 - デザイン: `docs/design/briefs/` に briefing.md は未作成（紙面の意匠は当面 BriefingView の実装コメントが正）
@@ -121,7 +121,7 @@ Owner-chat: docs-workspace
 
 - 2026-07-15: 初版。ユーザーとの話し合いで決定 1〜4 を確定し、リポジトリ外に散在していた朝刊ロードマップを本書へ一本化（docs-workspace チャット・ユーザー直接指示）。CLAUDE.md §8 に Briefing を追記。Step 2 以降の Issue 起票は chat-main へ outbox 経由で依頼
 - 2026-07-16: role-qa 独立監査（事実主張 全 VERIFIED・Blocker 0・Should 1・Nit 2）を反映 — `tier-1-core.md` の「§8 の 6」個数参照を 7 に追随（数値の非複製原則の同一 PR sweep・Scope に 1 行追加）、決定 4 に `extractBriefing.ts` の「Step 2/3」表記との対応を補記
-- 2026-07-16 (2): ユーザー要件 6 件（摩擦除去）を受けて子計画 [`2026-07-16-loop-friction-fixes.md`](./2026-07-16-loop-friction-fixes.md) を新設・決定録 5 を追記。手書き朝刊・夕刊が現状不成立（Daily 平文 textarea vs TipTap 見出しパーサ）の欠陥を Risks に記録（PR #253 は merge 済み — 本追記は後続 PR）
+- 2026-07-16 (2): ユーザー要件 6 件（摩擦除去）を受けて子計画 [`2026-07-16-loop-friction-fixes.md`](../../../archive/2026-07-16-loop-friction-fixes.md) を新設・決定録 5 を追記。手書き朝刊・夕刊が現状不成立（Daily 平文 textarea vs TipTap 見出しパーサ）の欠陥を Risks に記録（PR #253 は merge 済み — 本追記は後続 PR）
 - 2026-07-16 (3): 決定録 6（夕刊の専用ページ化 — Briefing ヘッダータブ・保存先は Daily のまま）を追記し、Step 3 を専用ページ方式に改訂（ユーザー提案の採用。仕様 = loop-friction-fixes F-6）
 - 2026-07-17: Issue #257 — `tier-1-core.md` に Briefing requirements 節を追加（本書を正本ポインタとして参照）。CLAUDE.md §8 の「requirements 節は追って追加」注記と本書 References の「未作成」記述を解消
 - 2026-07-18: Step 2 実装（Issue #256・briefing-section チャット）— MCP schedule handler 全 7 関数を旧 SQLite 単一表から Supabase `items_meta` + `events_payload` の 2 行分割モデルへ載せ替え（§10.2 updated_at bump / §10.5 orphan recovery / delete はソフトデリート化）。`get_today_context`（今日の予定・スケジュール済み/持ち越し/進行中タスク・直近 3 日の Daily・当日 Daily の朝刊有無）と `write_briefing`（当日 DailyNode content へ「朝刊」見出しセクションを upsert・Daily 不在時は `daily-<date>` ペアを新規作成）を追加。認証は anon key + 本人 email/password の env 供給（RLS 維持・service_role 不使用）。朝刊セクション書き込みは純関数化し、shared `extractBriefing` との往復を vitest で機械検証。**手動 1 周の実測（DoD 残）は chat-main 担当**

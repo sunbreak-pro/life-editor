@@ -4,6 +4,7 @@ import {
   formatDateKey,
   getDayStartHour,
   parseDayStartHour,
+  todayCalendarKey,
   todayDateKey,
 } from "../src/utils/dateKey";
 
@@ -81,5 +82,23 @@ describe("todayDateKey", () => {
     localStorage.setItem(DAY_START_HOUR_STORAGE_KEY, "4");
     expect(todayDateKey(new Date("2026-07-11T02:30:00"))).toBe("2026-07-10");
     expect(todayDateKey(new Date("2026-07-11T05:00:00"))).toBe("2026-07-11");
+  });
+});
+
+describe("todayCalendarKey (#280)", () => {
+  it("is the plain local calendar day (midnight boundary)", () => {
+    expect(todayCalendarKey(new Date("2026-07-11T02:30:00"))).toBe(
+      "2026-07-11",
+    );
+    expect(todayCalendarKey(new Date("2026-07-11T23:59:59"))).toBe(
+      "2026-07-11",
+    );
+  });
+
+  it("ignores the day-start-hour pref (unlike todayDateKey)", () => {
+    localStorage.setItem(DAY_START_HOUR_STORAGE_KEY, "4");
+    const lateNight = new Date("2026-07-11T02:30:00");
+    expect(todayCalendarKey(lateNight)).toBe("2026-07-11");
+    expect(todayDateKey(lateNight)).toBe("2026-07-10");
   });
 });
