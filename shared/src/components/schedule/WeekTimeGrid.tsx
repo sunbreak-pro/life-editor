@@ -104,6 +104,13 @@ export interface WeekTimeGridProps {
    * time changes. When omitted, no resize handle is rendered.
    */
   onResizeItem?: (id: string, endISO: string) => void;
+  /**
+   * When true, `variant: "task"` blocks are draggable/resizable like events
+   * (schedule redesign A-2 / #297 — drag-to-write `scheduledAt`). Default
+   * false keeps the A-1 read-only semantics; the callbacks still decide
+   * whether any block moves at all.
+   */
+  taskInteractive?: boolean;
   /** Snap granularity in minutes for create/move/resize. Default 30. */
   snapMinutesStep?: number;
   /** Default duration (minutes) of an event created via empty-slot click. Default 60. */
@@ -218,6 +225,7 @@ export function WeekTimeGrid({
   onCreateAt,
   onMoveItem,
   onResizeItem,
+  taskInteractive = false,
   snapMinutesStep = DEFAULT_SNAP_MINUTES,
   defaultCreateDuration = 60,
   hourRange = [0, 24],
@@ -610,9 +618,12 @@ export function WeekTimeGrid({
                   const selected = it.id === selectedId;
                   const widthPct = 100 / p.columns;
                   const variant = it.variant ?? "event";
-                  // Task chips are read-only in A-1 (no drag/resize). Move/resize
-                  // affordances are wired in Step 2 (drag-to-write).
-                  const movable = !!onMoveItem && variant !== "task";
+                  // A-1 made task chips read-only; A-2 (#297) opts them back in
+                  // via `taskInteractive` so a drag writes scheduledAt. Events/
+                  // routines are always movable when the callback is present.
+                  const interactiveVariant =
+                    variant !== "task" || taskInteractive;
+                  const movable = !!onMoveItem && interactiveVariant;
                   return (
                     <button
                       key={it.id}
@@ -688,8 +699,8 @@ export function WeekTimeGrid({
                         )}
                       </span>
                       {/* Resize handle (bottom edge) — only when host opts in.
-                          Task chips are read-only in A-1 (no resize). */}
-                      {onResizeItem && variant !== "task" && (
+                          Task chips resize only when taskInteractive (A-2). */}
+                      {onResizeItem && interactiveVariant && (
                         <span
                           aria-hidden
                           onPointerDown={(e) => beginDrag(e, it, "resize")}

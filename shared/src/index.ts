@@ -270,6 +270,8 @@ export {
   tasksToCalendarChips,
   taskChipId,
   isTaskChip,
+  unwrapTaskChipId,
+  localDateTimeToISO,
   TASK_CHIP_PREFIX,
   type TaskCalendarChip,
 } from "./utils/taskCalendarChips";
@@ -292,6 +294,7 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+export { buildGroupForRoutineMap } from "./utils/groupForRoutine";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,

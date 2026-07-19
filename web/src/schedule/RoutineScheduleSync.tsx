@@ -3,8 +3,8 @@ import {
   useRoutineContext,
   useScheduleItemsContext,
   useScheduleItemsRoutineSync,
+  buildGroupForRoutineMap,
   type DataService,
-  type RoutineGroup,
 } from "@life-editor/shared";
 
 /*
@@ -70,21 +70,13 @@ export function RoutineScheduleSync({
 
   // Resolve the `group` frequency: Map<routineId, RoutineGroup[]> built
   // from the membership map + the loaded groups. shouldCreateRoutineItem
-  // ignores it unless a routine's frequencyType === "group".
-  const groupForRoutine = useMemo(() => {
-    const byId = new Map<string, RoutineGroup>(
-      routineGroups.map((g) => [g.id, g]),
-    );
-    const map = new Map<string, RoutineGroup[]>();
-    for (const r of routines) {
-      if (r.frequencyType !== "group") continue;
-      const groups = getGroupIdsForRoutine(r.id)
-        .map((gid) => byId.get(gid))
-        .filter((g): g is RoutineGroup => g !== undefined);
-      if (groups.length > 0) map.set(r.id, groups);
-    }
-    return map;
-  }, [routines, routineGroups, getGroupIdsForRoutine]);
+  // ignores it unless a routine's frequencyType === "group". Shared helper
+  // (#296) so the Calendar host's range-ensure resolves the exact same map.
+  const groupForRoutine = useMemo(
+    () =>
+      buildGroupForRoutineMap(routines, routineGroups, getGroupIdsForRoutine),
+    [routines, routineGroups, getGroupIdsForRoutine],
+  );
 
   const ensure = generator.ensureRoutineItemsForDate;
 

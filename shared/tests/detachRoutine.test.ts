@@ -338,6 +338,38 @@ describe("detachRoutine — future/incomplete occurrence pruning", () => {
     }
   });
 
+  it("pins keepItemIds as detached survivors instead of deleting them (#296)", async () => {
+    // The repeat-off editor pins the occurrence the user is editing —
+    // today's incomplete row, which the plain partition would delete.
+    const { client, updates } = makeClient(seed());
+    const svc = new SupabaseRoutinesService(client);
+
+    const result = await svc.detachRoutine(ROUTINE, TODAY, {
+      keepItemIds: ["e-today"],
+    });
+
+    // Only the OTHER future/incomplete occurrence is deleted.
+    expect([...result.deletedScheduleItemIds].sort()).toEqual(["e-future"]);
+    expect(softDeletedIds(updates)).toEqual(["e-future"]);
+
+    // The pinned row joins the detach partition: link NULLed + meta bumped.
+    const payloadEdit = updates.find((u) => u.table === "events_payload");
+    expect(payloadEdit).toBeDefined();
+    expect(payloadEdit!.patch.routine_item_id).toBeNull();
+    expect([...(payloadEdit!.filter.val as string[])].sort()).toEqual([
+      "e-futuredone",
+      "e-past",
+      "e-pastdone",
+      "e-today",
+    ]);
+
+    // The routine itself is still soft-deleted (repeat is OFF).
+    const routineUpdate = updates.find(
+      (u) => u.filter.op === "eq" && u.filter.val === ROUTINE,
+    );
+    expect(routineUpdate?.patch.is_deleted).toBe(true);
+  });
+
   it("detaches survivors + soft-deletes the routine when there are no future occurrences", async () => {
     // Only past + completed occurrences: nothing to soft-delete, but the
     // survivors must still be cut loose and the routine detached.
