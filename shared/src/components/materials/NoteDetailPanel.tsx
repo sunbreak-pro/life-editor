@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pin, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { Menu, MenuItem } from "../Menu";
 
 /*
  * Note detail panel (Materials mini-plan Step 3). The right-hand pane the
@@ -117,6 +118,8 @@ export interface NoteDetailPanelProps {
   unpinLabel: string;
   /** Already-translated aria-label for the delete button. */
   deleteLabel: string;
+  /** Already-translated aria-label for the kebab (more-actions) trigger. */
+  moreActionsLabel: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
   /** Already-translated caption above the content editor. */
@@ -145,6 +148,7 @@ export function NoteDetailPanel({
   pinLabel,
   unpinLabel,
   deleteLabel,
+  moreActionsLabel,
   tagsSlot,
   contentLabel,
   contentEditor,
@@ -152,6 +156,8 @@ export function NoteDetailPanel({
   className,
 }: NoteDetailPanelProps) {
   const isMain = variant === "main";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   return (
     <div
       className={cn(
@@ -162,8 +168,9 @@ export function NoteDetailPanel({
         className,
       )}
     >
-      {/* Title row — title input + pin toggle (26px, accent-subtle when
-          pinned) + delete. */}
+      {/* Title row — title input + a single kebab (26px) that opens the actions
+          menu (pin / delete) right-anchored just beneath it. Collapsing the
+          per-action icons behind one affordance declutters the header (#284). */}
       <div className="flex items-center gap-1.5">
         <NoteTitleInput
           key={noteId}
@@ -173,33 +180,50 @@ export function NoteDetailPanel({
           onCommit={onTitleCommit}
           isMain={isMain}
         />
-        <button
-          type="button"
-          onClick={() => onTogglePin(noteId)}
-          aria-pressed={isPinned}
-          aria-label={isPinned ? pinLabel : unpinLabel}
-          className={cn(
-            "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md",
-            isPinned
-              ? "bg-lumen-accent-subtle text-lumen-accent"
-              : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-            FOCUS_RING,
-          )}
-        >
-          <Pin size={13} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(noteId)}
-          aria-label={deleteLabel}
-          className={cn(
-            "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
-            "hover:bg-lumen-hover hover:text-lumen-danger",
-            FOCUS_RING,
-          )}
-        >
-          <Trash2 size={13} aria-hidden />
-        </button>
+        <div className="relative shrink-0">
+          <button
+            ref={menuTriggerRef}
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={moreActionsLabel}
+            className={cn(
+              "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
+              "hover:bg-lumen-hover hover:text-lumen-text",
+              FOCUS_RING,
+            )}
+          >
+            <MoreHorizontal size={16} aria-hidden />
+          </button>
+          <Menu
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            anchorRef={menuTriggerRef}
+            align="end"
+            label={moreActionsLabel}
+          >
+            <MenuItem
+              icon={<Pin size={14} aria-hidden />}
+              onSelect={() => {
+                onTogglePin(noteId);
+                setMenuOpen(false);
+              }}
+            >
+              {isPinned ? pinLabel : unpinLabel}
+            </MenuItem>
+            <MenuItem
+              icon={<Trash2 size={14} aria-hidden />}
+              variant="danger"
+              onSelect={() => {
+                onDelete(noteId);
+                setMenuOpen(false);
+              }}
+            >
+              {deleteLabel}
+            </MenuItem>
+          </Menu>
+        </div>
       </div>
 
       {/* Tag row — host-injected TagPicker (chips + "+ tag" pill). */}
