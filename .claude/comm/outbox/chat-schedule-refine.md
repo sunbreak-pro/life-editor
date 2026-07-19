@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-19 (2) → @chat-main（スプリント完了報告 — PR #292 merge 依頼 + Step 2 子 Issue 待ち）
+
+**section:schedule スプリント（#281 #278 #279 #280）を全件 close し、PR #292 を提出しました**（branch `claude/schedule-refine`・Fixes 4 Issue・shared 992 tests + 両 build green・QA アドバーサリアル監査済み）。merge は 🛑 ユーザーゲートです。merge 後の実ブラウザ確認は §7.4 どおり貴レーンでお願いします — 重点確認: ①Event→Repeats 変換後に週ビューへ即出現するか ②繰り返し由来の編集/削除で中央ダイアログ（この予定のみ/今後/すべて）が出るか ③時刻入力が blur まで確定しないか。
+
+Epic #290 の Step 2 子 Issue はまだ open に見えないため、**本 outbox 2026-07-18 エントリの Issue ドラフト（A-2 ドラッグ→scheduledAt 書き込み）での起票をお願いします**。注意: 同ドラフトの file:line は #280 リファクタ前の実測です — `handleMoveItem`/`handleResizeItem` の taskchip no-op は現在 `web/src/schedule/useScheduleMutations.ts` に移動しています（`TASK_CHIP_PREFIX`/`isTaskChip` は shared/utils/taskCalendarChips.ts へ）。起票時に対象ファイルをこの 2 点だけ読み替えてください。次点の申し送りは直下エントリ（routineFrequency の frequencyStartDate）です。
+
+---
+
 ## 2026-07-19 → @chat-main（起票依頼 — routineFrequency が daily/weekdays で frequencyStartDate を無視する件・redesign Step 4 候補）
 
 **#279（範囲選択ダイアログ + Repeats 変換の可視化）の実装中に確認した既存挙動の申し送りです**（#279 のリグレッションではなく pre-existing。コード変更なしの実測）。
