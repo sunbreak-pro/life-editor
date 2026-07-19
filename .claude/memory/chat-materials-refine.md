@@ -2,6 +2,20 @@
 
 ## 進行中
 
+### 🔧 section:materials Issue 消化 #300〜#303（着手日: 2026-07-19）
+
+**対象**: `shared/src/components/**`（Notes/Tasks 系 UI・KanbanBoard・rightSidebar）
+**計画書**: なし（GitHub Issue 駆動 — #300 ちらつき / #301 rightSidebar 遅延 / #302 Add Note 移設 / #303 タグ view 3 列折返し。1 Issue = 1 PR 原則）
+
+- 前回: #300 + #301 実装完了・PR #308 提出（Closes #300, #301）
+- 現在: **PR #308 マージ待ち**（こうだいさん操作）。#300/#301 とも root cause は own-write Realtime echo 連鎖（typing → debounce 保存 → 自分へのエコー → syncVersion bump）。⚠️ #308 マージ待ちの間に #301 コミットを同ブランチへ push してしまい 2 Issue が 1 PR に同居（GitHub 1 branch = 1 PR 制約のため分割不可・PR 本文で明記済み・次回以降は前 PR マージ後に次 Issue 着手する運用に戻す）
+- 次: #302（Add Note ボタン移設）着手。**PR #308 マージ後に次のブランチ状態を確認してから push すること**
+
+### 予定タスク詳細（次セッション用メモ）
+
+- #302: Notes の Add Note ボタンを rightSidebar → メインコンテンツ右上へ移設（Tasks タブの KanbanBoard headerActions と同じ位置感）。i18n は既存 newNoteButton キー流用可
+- #303: `KanbanBoard.tsx:151-156` のタグ view 横一列ストリップを最大 3 列 grid 化（ステータス view は現状維持・KanbanColumn の高さ/スクロールとの噛み合わせ要確認）
+
 ### ⏸️ life-tags 統一（folder 廃止 → WikiTag 一本化）Materials 領分（着手日: 2026-07-11）
 
 **対象**: `shared/src/types/taskTree.ts` `shared/src/components/Kanban/**` Notes/Daily フォルダツリー UI `supabase/migrations/*.sql`（folder→tag 変換）

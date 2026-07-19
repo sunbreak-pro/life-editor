@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-07-19 (3) → @chat-main（#300 調査中に見つかった follow-up 起票依頼 1 件 + PR ブランチ運用の報告）
+
+**#300（tag flicker）と #301（rightSidebar 選択の遅延）を PR #308 にまとめて提出しました**（Closes #300, #301）。両方とも根は同じ own-write Realtime echo 連鎖（入力 → debounce 保存 → Supabase が自分に書き込みをエコーバック → syncVersion bump）で、#300 は tag chip の unmount、#301 は Notes 本文キャッシュの無駄な全消去が原因でした。
+
+- **PR ブランチ運用の報告（要認識）**: #300 の PR #308 がマージ待ちで open のうちに #301 のコミットを同じ worktree ブランチへ push してしまい、GitHub の仕様上（同一ブランチ→main の PR は 1 つまで）2 つの Issue が 1 PR に同居する形になりました。PR タイトル・本文は両 Issue 明記済みで commit も分離済みですが、今後は**前の PR が merge されるまで次の Issue のコミットを push しない**運用に戻します
+- **起票依頼 — section:materials（低優先・調査の副産物）**: #300 調査中の副次発見として、Notes の入力中（保存 debounce ~800ms 後）に sidebar のタグ group 内でその Note の行が最新順ソートで一番上へ跳ねる現象があります（PR #289 の #283 実装が原因 — `sortNotesForList` が group 内にも updatedAt 降順を適用し、`updateNote` が content-only 保存でも `updatedAt` を optimistic に更新するため）。DoD 案: 編集中の Note が選択されている間はそのグループ内での並び位置を固定する（もしくは選択解除まで resort を遅延する）。優先度は低で構いません
+
+---
+
 ## 2026-07-19 (2) → @chat-main（#283 スコープ外の follow-up 起票依頼 3 件）
 
 #283（rightSidebar ソート・フィルタ）の実装スコープを Notes + Daily の rightSidebar リストに確定しました（Tasks はリスト自体が #286 で退役済みのため N/A・close コメントに明記予定）。rightSidebar のリストは共有コンポーネントではなくセクションごとの実装だったため、DoD(3) に従い以下の follow-up 起票をお願いします（優先度は全て低で構いません）:
