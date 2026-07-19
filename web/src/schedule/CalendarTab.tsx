@@ -31,6 +31,19 @@ import {
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
+  taskChipId,
+  isTaskChip,
+  todayCalendarKey,
+  normalizeDesktopView,
+  normalizeMobileView,
+  visibleCalendarRange,
+  makeOptimisticScheduleItem,
+  buildWeekdayLabels,
+  frequencyLabel,
+  itemVariant,
+  nowMinutesLocal,
+  sortDayItems,
+  type FrequencyLabelCopy,
   type TaskCalendarChip,
   type ScheduleStatus,
   type ScheduleItem,
@@ -46,15 +59,6 @@ import {
   type DataService,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
-import {
-  buildWeekdayLabels,
-  frequencyLabel,
-  itemVariant,
-  nowMinutesLocal,
-  sortDayItems,
-  todayLocalKey,
-  type FrequencyLabelCopy,
-} from "./scheduleLabels";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -76,46 +80,6 @@ const ICON_BTN =
 const FIELD =
   "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 const CREATE_DURATION_MIN = 60;
-
-/*
- * Scheduled-task chips (schedule redesign A-1) are merged into the grid/agenda
- * as synthetic items. Their ids are prefixed so the host handlers can tell them
- * apart from ScheduleItem ids and no-op (A-1 is read-only: no select/edit/drag/
- * toggle on task chips — Steps 2/3 wire writes). The prefix also guarantees no
- * id collision with a ScheduleItem.
- */
-const TASK_CHIP_PREFIX = "taskchip-";
-const isTaskChip = (id: string): boolean => id.startsWith(TASK_CHIP_PREFIX);
-
-function makeOptimisticItem(
-  id: string,
-  date: string,
-  title: string,
-  startTime: string,
-  endTime: string,
-): ScheduleItem {
-  const now = new Date().toISOString();
-  return {
-    id,
-    date,
-    title,
-    startTime,
-    endTime,
-    completed: false,
-    completedAt: null,
-    routineId: null,
-    templateId: null,
-    memo: null,
-    noteId: null,
-    content: null,
-    isDeleted: false,
-    deletedAt: null,
-    isDismissed: false,
-    isAllDay: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
 
 interface QuickCaptureLabels {
   title: string;
@@ -240,7 +204,7 @@ export function CalendarTab({
   const rightSidebar = useRightSidebarOptional();
   const openSidebar = rightSidebar?.open;
 
-  const today = useMemo(() => todayLocalKey(), []);
+  const today = useMemo(() => todayCalendarKey(), []);
   const [anchorDate, setAnchorDate] = useState(today);
   const [view, setView] = useState("week");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -310,25 +274,11 @@ export function CalendarTab({
     [isWide, openSidebar],
   );
 
-  // The single `view` state carries both layouts; each layout normalises it to
-  // its own option set (Desktop day/week/month ↔ Mobile list/time/month) so a
-  // resize keeps a sensible view without a second piece of state.
-  const desktopView =
-    view === "list"
-      ? "day"
-      : view === "time"
-        ? "week"
-        : view === "day" || view === "week" || view === "month"
-          ? view
-          : "week";
-  const mobileView =
-    view === "day"
-      ? "list"
-      : view === "week"
-        ? "time"
-        : view === "list" || view === "time" || view === "month"
-          ? view
-          : "list";
+  // The single `view` state carries both layouts; the normalisation lives in
+  // shared calendarView (#280) so a resize keeps a sensible view without a
+  // second piece of state.
+  const desktopView = normalizeDesktopView(view);
+  const mobileView = normalizeMobileView(view);
   const effView = isWide ? desktopView : mobileView;
 
   // Week-start pref (#217): read once per mount (same reload semantics as the
@@ -345,15 +295,18 @@ export function CalendarTab({
   );
 
   // Visible fetch window per effective view (day/list/time = single day).
-  const [rangeStart, rangeEnd] = useMemo<[string, string]>(() => {
-    if (effView === "month") {
-      const first = monthRows[0][0];
-      const last = monthRows[monthRows.length - 1][6];
-      return [first, last];
-    }
-    if (isWide && effView === "week") return [weekStart, weekEnd];
-    return [anchorDate, anchorDate];
-  }, [effView, isWide, monthRows, weekStart, weekEnd, anchorDate]);
+  const [rangeStart, rangeEnd] = useMemo<[string, string]>(
+    () =>
+      visibleCalendarRange({
+        effView,
+        isWide,
+        anchorDate,
+        weekStart,
+        weekEnd,
+        monthRows,
+      }),
+    [effView, isWide, monthRows, weekStart, weekEnd, anchorDate],
+  );
 
   // Read the visible range (cancelled-guard mirrors useScheduleItemsAPI). Edits
   // patch rangeItems optimistically below, so only navigation + retry reload.
@@ -449,7 +402,7 @@ export function CalendarTab({
       const id = createScheduleItem(date, title, start, end);
       setRangeItems((prev) => [
         ...prev,
-        makeOptimisticItem(id, date, title, start, end),
+        makeOptimisticScheduleItem(id, date, title, start, end),
       ]);
       return id;
     },
@@ -670,7 +623,7 @@ export function CalendarTab({
       setRangeItems((prev) => [
         ...prev,
         {
-          ...makeOptimisticItem(
+          ...makeOptimisticScheduleItem(
             newId,
             src.date,
             title,
@@ -846,7 +799,7 @@ export function CalendarTab({
         variant: itemVariant(i),
       })),
       ...rangeTaskChips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         date: c.date,
         title: c.title,
         startTime: c.startTime,
@@ -869,7 +822,7 @@ export function CalendarTab({
         isAllDay: i.isAllDay,
       })),
       ...rangeTaskChips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         date: c.date,
         title: c.title,
         variant: "task" as const,
@@ -896,7 +849,7 @@ export function CalendarTab({
         variant: itemVariant(i),
       }));
       const taskAgenda: AgendaItem[] = chips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         title: c.title,
         startTime: c.startTime,
         endTime: c.endTime,
