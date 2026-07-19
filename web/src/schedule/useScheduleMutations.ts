@@ -126,6 +126,19 @@ export interface UseScheduleMutationsArgs {
   // routine with no resolvable groups as "should never exist" — omitting
   // this map would let its cleanup soft-delete every group-driven row.
   groupForRoutine: Map<string, RoutineGroup[]>;
+  // Task-chip drag-to-write (#297 A-2). Task chips are derived from the
+  // TaskTree, not `rangeItems`, so the write lives in the host (which holds
+  // taskNodes + updateNode); this layer only routes a task-chip id to it.
+  // Both receive the SYNTHETIC chip id (the host unwraps it). Required — the
+  // sole consumer (CalendarTab) always wires them; a read-only host passes
+  // no-op handlers rather than omitting them.
+  onMoveTaskChip: (
+    chipId: string,
+    dateISO: string,
+    startISO: string,
+    endISO: string,
+  ) => void;
+  onResizeTaskChip: (chipId: string, endISO: string) => void;
   // Copy, resolved by the host (§6.4)
   newEventTitle: string;
   copySuffix: string;
@@ -161,6 +174,8 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
     groupForRoutine,
+    onMoveTaskChip,
+    onResizeTaskChip,
     newEventTitle,
     copySuffix,
   } = args;
@@ -356,9 +371,13 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
 
   const handleMoveItem = useCallback(
     (id: string, dateISO: string, startISO: string, endISO: string) => {
-      // A-1: task chips are read-only (WeekTimeGrid also omits their drag
-      // affordances). Step 2 wires drag → updateTaskNode(scheduledAt). No-op.
-      if (isTaskChip(id)) return;
+      // A-2 (#297): a task chip drag writes scheduledAt/scheduledEndAt on the
+      // underlying TaskNode. The host owns that write (it holds taskNodes +
+      // updateNode); this layer only routes.
+      if (isTaskChip(id)) {
+        onMoveTaskChip(id, dateISO, startISO, endISO);
+        return;
+      }
       const item = findScheduleItem(id);
       // Same-day drag of a routine occurrence is a time edit → scope dialog
       // (#279). A cross-day drag stays occurrence-level without asking: the
@@ -377,12 +396,16 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         endTime: endISO,
       });
     },
-    [findScheduleItem, applyOccurrencePatch],
+    [findScheduleItem, applyOccurrencePatch, onMoveTaskChip],
   );
 
   const handleResizeItem = useCallback(
     (id: string, endISO: string) => {
-      if (isTaskChip(id)) return; // A-1: task chips read-only (see handleMoveItem)
+      // A-2 (#297): a task chip resize writes scheduledEndAt (see handleMoveItem).
+      if (isTaskChip(id)) {
+        onResizeTaskChip(id, endISO);
+        return;
+      }
       const item = findScheduleItem(id);
       if (item?.routineId) {
         setScopeRequest({ mode: "edit", item, patch: { endTime: endISO } });
@@ -390,7 +413,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       }
       applyOccurrencePatch(id, { endTime: endISO });
     },
-    [findScheduleItem, applyOccurrencePatch],
+    [findScheduleItem, applyOccurrencePatch, onResizeTaskChip],
   );
 
   const handleDismiss = useCallback(

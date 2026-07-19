@@ -3,6 +3,8 @@ import {
   TASK_CHIP_PREFIX,
   isTaskChip,
   taskChipId,
+  unwrapTaskChipId,
+  localDateTimeToISO,
   tasksToCalendarChips,
 } from "../src/utils/taskCalendarChips";
 import type { TaskNode } from "../src/types/taskTree";
@@ -134,5 +136,53 @@ describe("taskChipId / isTaskChip (#280)", () => {
   it("does not flag ScheduleItem-style ids", () => {
     expect(isTaskChip("si-1752900000001")).toBe(false);
     expect(isTaskChip("daily-2026-07-19")).toBe(false);
+  });
+});
+
+describe("unwrapTaskChipId (#297)", () => {
+  it("recovers the source TaskNode id from a synthetic chip id", () => {
+    expect(unwrapTaskChipId(taskChipId("task-123"))).toBe("task-123");
+  });
+
+  it("returns a non-prefixed id unchanged (defensive)", () => {
+    expect(unwrapTaskChipId("task-123")).toBe("task-123");
+    expect(unwrapTaskChipId("si-1752900000001")).toBe("si-1752900000001");
+  });
+});
+
+describe("localDateTimeToISO (#297)", () => {
+  /*
+   * localDateTimeToISO is the write-side inverse of tasksToCalendarChips'
+   * UTC→local read: a chip's (date, time) built from a UTC instant must convert
+   * back to that same instant. Both sides interpret parts in LOCAL time, so the
+   * round-trip holds regardless of the machine's timezone (ISO has 0 sec/ms, so
+   * minute granularity loses nothing).
+   */
+  it("round-trips a chip's start/end back to the source UTC instant", () => {
+    const task = makeTask({
+      id: "task-rt",
+      scheduledAt: ISO,
+      scheduledEndAt: ISO_END,
+    });
+    const key = localKey(new Date(ISO));
+    const chip = tasksToCalendarChips([task], key, key)[0];
+
+    expect(localDateTimeToISO(chip.date, chip.startTime)).toBe(ISO);
+    expect(localDateTimeToISO(chip.date, chip.endTime)).toBe(ISO_END);
+  });
+
+  it("normalises a 24:00 end to the next day's 00:00 (same instant)", () => {
+    expect(localDateTimeToISO("2026-07-09", "24:00")).toBe(
+      localDateTimeToISO("2026-07-10", "00:00"),
+    );
+  });
+
+  it("advances the local day for a 24:00 end", () => {
+    // 24:00 on the 9th and 00:00 on the 10th are the same local wall-clock,
+    // so their absolute instants match (timezone-agnostic).
+    const asNextMidnight = new Date(localDateTimeToISO("2026-07-09", "24:00"));
+    expect(asNextMidnight.getDate()).toBe(10);
+    expect(asNextMidnight.getHours()).toBe(0);
+    expect(asNextMidnight.getMinutes()).toBe(0);
   });
 });

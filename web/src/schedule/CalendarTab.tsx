@@ -30,6 +30,8 @@ import {
   tasksToCalendarChips,
   taskChipId,
   isTaskChip,
+  unwrapTaskChipId,
+  localDateTimeToISO,
   buildWeekdayLabels,
   frequencyLabel,
   itemVariant,
@@ -113,8 +115,9 @@ export function CalendarTab({
     dataService,
   });
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
-  // already excludes soft-deleted tasks (useTaskTreeAPI). Read-only in A-1.
-  const { nodes: taskNodes } = useTaskTreeContext();
+  // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
+  // scheduledAt back via updateNode on grid drag/resize.
+  const { nodes: taskNodes, updateNode } = useTaskTreeContext();
   // Null-safe: the section can render without a RightSidebarProvider (tests /
   // standalone). `open` re-opens the panel when a calendar item is picked.
   const rightSidebar = useRightSidebarOptional();
@@ -182,6 +185,44 @@ export function CalendarTab({
       }
     },
     [isWide, openSidebar],
+  );
+
+  // A-2 (#297): grid drag of a task chip → write scheduledAt/scheduledEndAt on
+  // the underlying TaskNode. The grid hands both new times on the same day
+  // (it moves the block preserving duration), so both fields are rewritten.
+  // isAllDay:false — a timed grid placement is by definition not all-day
+  // (an all-day chip sits in the all-day lane and is not drag-moved here).
+  // updateNode is optimistic, so the chip re-derives at the new position
+  // without a manual patch. Schedule AC10 (bidirectional) closes here.
+  const handleTaskChipMove = useCallback(
+    (chipId: string, dateISO: string, startISO: string, endISO: string) => {
+      const taskId = unwrapTaskChipId(chipId);
+      updateNode(taskId, {
+        scheduledAt: localDateTimeToISO(dateISO, startISO),
+        scheduledEndAt: localDateTimeToISO(dateISO, endISO),
+        isAllDay: false,
+      });
+    },
+    [updateNode],
+  );
+
+  // A-2 (#297): resize gives only the new end time — keep the task's current
+  // day (from its scheduledAt) and rewrite scheduledEndAt on it.
+  const handleTaskChipResize = useCallback(
+    (chipId: string, endISO: string) => {
+      const taskId = unwrapTaskChipId(chipId);
+      const task = taskNodes.find((n) => n.id === taskId);
+      if (!task?.scheduledAt) return;
+      const start = new Date(task.scheduledAt);
+      if (Number.isNaN(start.getTime())) return;
+      const dateKey = `${start.getFullYear()}-${String(
+        start.getMonth() + 1,
+      ).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+      updateNode(taskId, {
+        scheduledEndAt: localDateTimeToISO(dateKey, endISO),
+      });
+    },
+    [taskNodes, updateNode],
   );
 
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
@@ -270,6 +311,8 @@ export function CalendarTab({
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
     groupForRoutine,
+    onMoveTaskChip: handleTaskChipMove,
+    onResizeTaskChip: handleTaskChipResize,
     newEventTitle: t("scheduleCalendar.newEvent"),
     copySuffix: t("scheduleScreen.copySuffix"),
   });
@@ -915,6 +958,7 @@ export function CalendarTab({
                 onCreateAt={handleCreateAt}
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
+                taskInteractive
                 weekdayLabels={weekdayLabels}
                 allDayLabel={t("scheduleScreen.allDay")}
                 statusLabels={statusLabels}
@@ -1010,6 +1054,7 @@ export function CalendarTab({
               onCreateAt={handleCreateAt}
               onMoveItem={handleMoveItem}
               onResizeItem={handleResizeItem}
+              taskInteractive
               weekdayLabels={weekdayLabels}
               allDayLabel={t("scheduleScreen.allDay")}
               statusLabels={statusLabels}

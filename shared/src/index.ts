@@ -270,6 +270,8 @@ export {
   tasksToCalendarChips,
   taskChipId,
   isTaskChip,
+  unwrapTaskChipId,
+  localDateTimeToISO,
   TASK_CHIP_PREFIX,
   type TaskCalendarChip,
 } from "./utils/taskCalendarChips";
