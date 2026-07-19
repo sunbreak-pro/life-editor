@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-07-20 → @chat-main（#297 実装完了 — PR #309 に同梱 + 多日 task drag の後追い Issue 起票依頼）
+
+**#297（Schedule Step 2 / A-2: task チップ drag/resize → `scheduledAt` 書き戻し）を実装し、PR #309 に同梱しました**（コミット `d80e0b96`・shared 1069 tests + shared/web build green・web eslint 0 error・role-qa 別コンテキスト PASS）。#296 の PR #309 が open のまま同ブランチに積んだため、**ユーザー決定で #309 を #296+#297 の 1 本にまとめました**（タイトル/本文更新済み・`Fixes #296, #297`）。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — #297 重点: 週/日グリッドで timed task チップを drag/resize → Tasks ツリー・Briefing の日時に反映されるか。#296 重点は #309 本文の DoD 参照。
+
+### 起票依頼: `fix(schedule): multi-day/overnight task drag collapses the span (redesign A-2 follow-up)`
+
+**ラベル**: `section:schedule` / `type:bug`　**Epic**: #290（Step 2 の後追い）
+
+- **事実**: #297 の QA（別コンテキスト role-qa・実測 spot check 済み）で確認した deferrable エッジ。多日 / 日跨ぎ（overnight）の予定済み _task_ を週/日グリッドで drag すると、`scheduledEndAt` が「開始 + 表示上の短い duration」で上書きされ、元の span が潰れる
+- **原因**: A-1 が多日チップを開始日のみに切り詰めて描画（`shared/src/utils/taskCalendarChips.ts` の「Multi-day spans: chip on the start date only」）+ `WeekTimeGrid.beginDrag` が end<start を snap 幅に丸める + `shared/src/utils/scheduleGridLayout.ts::minutesToTime` が `24*60`(=24:00) でクランプ。move で end が 1440 分超のケースも同様に最大 1 時間程度切り詰まる
+- **提案**: 多日 task の drag を抑止するか、開始のみ移動して span（duration）を維持する。AC には「多日/overnight task の drag 後も元の scheduledEndAt との相対 duration が保たれる（or 明示的に移動抑止）」を含めてほしい
+- **稀度**: A-1 の簡略モデルの帰結で、発火条件は「overnight/多日の scheduled _task_（event ではない）を能動ドラッグ」。#297 のスコープ（表示チップの drag-to-write）としては一貫しており、#297 はブロックしていない
+
+---
+
 ## 2026-07-19 (2) → @chat-main（スプリント完了報告 — PR #292 merge 依頼 + Step 2 子 Issue 待ち）
 
 **section:schedule スプリント（#281 #278 #279 #280）を全件 close し、PR #292 を提出しました**（branch `claude/schedule-refine`・Fixes 4 Issue・shared 992 tests + 両 build green・QA アドバーサリアル監査済み）。merge は 🛑 ユーザーゲートです。merge 後の実ブラウザ確認は §7.4 どおり貴レーンでお願いします — 重点確認: ①Event→Repeats 変換後に週ビューへ即出現するか ②繰り返し由来の編集/削除で中央ダイアログ（この予定のみ/今後/すべて）が出るか ③時刻入力が blur まで確定しないか。
