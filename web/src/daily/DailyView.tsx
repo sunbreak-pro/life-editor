@@ -24,6 +24,7 @@ import {
   dailyContentToEditorContent,
   dailyContentExcerpt,
   filterAndSortDailyEntries,
+  jsonDocEquals,
   type DailyEntriesPanelEntry,
   type DailyListDirection,
   type DateStripDay,
@@ -242,10 +243,17 @@ export function DailyView({
     content: string;
   }>({ date: selectedDate, content: selectedContent });
 
-  const ownEcho =
-    lastEmitted !== null &&
-    lastEmitted.date === selectedDate &&
-    lastEmitted.json === selectedContent;
+  // Semantic (not byte) comparison: the stored content round-trips through a
+  // Postgres jsonb column, which reorders object keys — the refetched echo of
+  // our own save comes back byte-different but document-identical, and a
+  // byte-exact check here remounted the editor on every save echo (#300).
+  const ownEcho = useMemo(
+    () =>
+      lastEmitted !== null &&
+      lastEmitted.date === selectedDate &&
+      jsonDocEquals(lastEmitted.json, selectedContent),
+    [lastEmitted, selectedDate, selectedContent],
+  );
 
   if (
     syncedFrom.date !== selectedDate ||
@@ -276,10 +284,10 @@ export function DailyView({
 
   // Saves are automatic (debounced + flushed on unmount); with batched echo
   // renders this caption effectively always reads saved — kept as reassurance.
+  // ownEcho (semantic compare) rather than byte equality: the canonicalized
+  // jsonb echo would otherwise flip this to "unsaved" after every save.
   const isSaved =
-    lastEmitted === null ||
-    lastEmitted.date !== selectedDate ||
-    lastEmitted.json === selectedContent;
+    lastEmitted === null || lastEmitted.date !== selectedDate || ownEcho;
   const savedLabel = isSaved
     ? t("materials.daily.saved")
     : t("materials.daily.unsaved");
