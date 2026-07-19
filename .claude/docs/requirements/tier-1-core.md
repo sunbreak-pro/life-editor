@@ -55,7 +55,7 @@
 - DB Tables: 専用テーブルなし（保存先 = `dailies_payload.content_json` 内の見出しセクション — DDL ゼロ）
 - 読み取り: ScheduleItem（今日の約束）/ TaskNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
 - 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Tasks / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
-- 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6）
+- 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
 
 ### Known Issues / Tech Debt
 
@@ -71,7 +71,8 @@
 ### Related Plans
 
 - ACTIVE: `docs/vision/plans/2026-07-15-briefing-loop.md`(テーマ正本)
-- IN PROGRESS: `docs/vision/plans/2026-07-16-loop-friction-fixes.md` / `docs/vision/plans/2026-07-14-schedule-redesign.md`
+- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`
+- COMPLETED: `archive/2026-07-16-loop-friction-fixes.md`（2026-07-19 archive 移動）
 - REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
 
 ---
