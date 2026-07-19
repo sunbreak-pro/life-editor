@@ -71,4 +71,12 @@ describe("QuickCaptureSheet", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onAdd).toHaveBeenCalledWith("Standup", "09:00", "10:00");
   });
+
+  it("ignores Enter during IME composition (§frontend gotcha)", () => {
+    const { onAdd } = renderSheet();
+    const input = screen.getByPlaceholderText("Event title");
+    fireEvent.change(input, { target: { value: "予定" } });
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+    expect(onAdd).not.toHaveBeenCalled();
+  });
 });
