@@ -32,9 +32,12 @@ import {
   ExcerptListItem,
   QuickAddSheet,
   BottomSheet,
+  SidebarListControls,
   buildTagGroups,
+  sortNotesForList,
   cn,
   type NoteNode,
+  type NoteSortMode,
   type NoteTagGroup,
 } from "@life-editor/shared";
 import {
@@ -396,6 +399,44 @@ export function NotesView() {
     [searchedNotes, allTags, assignments, t],
   );
 
+  // #283 sort controls (desktop sidebar). Mode ids map 1:1 to NoteSortMode.
+  const sortModes = useMemo(
+    () => [
+      { id: "updatedAt", label: t("materials.notes.sortUpdated") },
+      { id: "createdAt", label: t("materials.notes.sortCreated") },
+      { id: "title", label: t("materials.notes.sortTitle") },
+    ],
+    [t],
+  );
+
+  // buildTagGroups re-sorts each group internally (pinned-first then title), so
+  // the user's chosen sort is applied AFTER grouping — within each tag group,
+  // preserving pinned-first. Group ORDER (by tag name) is left unchanged.
+  const sortedGroups = useMemo(
+    () =>
+      groups.map((group) => ({
+        ...group,
+        notes: sortNotesForList(
+          group.notes,
+          notes.sortMode,
+          notes.sortDirection,
+        ),
+      })),
+    [groups, notes.sortMode, notes.sortDirection],
+  );
+
+  // Direction label must describe the REAL rendered order. For the date modes
+  // the comparator's "asc" reads as newest-first (compareNotes quirk), so date
+  // modes use newest/oldest; title uses ascending/descending.
+  const isTitleSort = notes.sortMode === "title";
+  const directionLabel = isTitleSort
+    ? notes.sortDirection === "asc"
+      ? t("materials.sidebar.ascending")
+      : t("materials.sidebar.descending")
+    : notes.sortDirection === "asc"
+      ? t("materials.sidebar.newest")
+      : t("materials.sidebar.oldest");
+
   const handleAssignTag = useCallback(
     (noteId: string, tagId: string) => {
       const already = getTagsForItem(noteId).some(
@@ -524,6 +565,21 @@ export function NotesView() {
         </button>
       </div>
 
+      {/* Sort controls (#283) — mode picker + direction toggle above the list.
+          No filter row: title search already exists via the search box above. */}
+      <SidebarListControls
+        modes={sortModes}
+        activeModeId={notes.sortMode}
+        onModeChange={(id) => notes.setSortMode(id as NoteSortMode)}
+        sortLabel={t("materials.sidebar.sort")}
+        direction={notes.sortDirection}
+        onToggleDirection={() =>
+          notes.setSortDirection(notes.sortDirection === "asc" ? "desc" : "asc")
+        }
+        directionLabel={directionLabel}
+        directionToggleLabel={t("materials.sidebar.toggleDirection")}
+      />
+
       {notes.error && (
         <p
           role="alert"
@@ -553,7 +609,7 @@ export function NotesView() {
           onDragCancel={dnd.handleDragCancel}
         >
           <ul className="flex flex-col gap-1.5">
-            {groups.map((group) => {
+            {sortedGroups.map((group) => {
               const key = groupKey(group);
               const collapsed = collapsedGroups.has(key);
               return (

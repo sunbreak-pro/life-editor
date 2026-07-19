@@ -12,6 +12,11 @@ import {
 import { logServiceError } from "../utils/logError";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { useSyncContext } from "./useSyncContext";
+import {
+  getTaskSelection,
+  setTaskSelection,
+  clearTaskSelection,
+} from "../state/materialsSelectionStore";
 
 let idCounter = Date.now();
 function generateId(type: NodeType): string {
@@ -27,11 +32,19 @@ function generateId(type: NodeType): string {
 export interface UseTaskTreeAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
+  /**
+   * #282: opt-in cross-remount selection persistence via the module-level
+   * materialsSelectionStore. Only the Materials Tasks mount passes true —
+   * the Schedule section mounts this hook too (MainScreen) and must neither
+   * restore nor overwrite the Materials selection.
+   */
+  persistSelection?: boolean;
 }
 
 export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const { dataService: ds } = options;
   const undoRedo = options.undoRedo ?? createNoopUndoRedo();
+  const persistSelection = options.persistSelection ?? false;
 
   const [nodes, setNodes] = useState<TaskNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,11 +54,27 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   // `selectedNoteId` (useNotesUnifiedAPI). Drives the Tasks MasterDetail
   // detail pane; the ref lets the delete wrappers below clear a selection
   // that falls inside a deleted subtree without re-subscribing.
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskIdState] = useState<string | null>(
+    null,
+  );
   const selectedTaskIdRef = useRef(selectedTaskId);
   useEffect(() => {
     selectedTaskIdRef.current = selectedTaskId;
   }, [selectedTaskId]);
+  // #282: write-through wrapper for the PUBLIC setter so a Materials tab/
+  // section switch can restore the selection after this provider remounts.
+  // null clears the store entry. Task ids need existence validation on
+  // restore (see the restore effect), unlike Daily's always-valid date key,
+  // so we do NOT seed the initial state from the store here.
+  const setSelectedTaskId = useCallback(
+    (id: string | null): void => {
+      setSelectedTaskIdState(id);
+      if (!persistSelection) return;
+      if (id === null) clearTaskSelection();
+      else setTaskSelection(id);
+    },
+    [persistSelection],
+  );
   const loadedRef = useRef(false);
   const { syncVersion } = useSyncContext();
 
@@ -74,6 +103,33 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       cancelled = true;
     };
   }, [ds, syncVersion]);
+
+  // One-shot RESTORE (#282): re-select the task the user had open before the
+  // provider unmounted (Materials tab/section switch). The id lives in the
+  // module-level materialsSelectionStore, which outlives this React tree. Runs
+  // at most once per mount (restoredRef) and never fights a user action already
+  // made (bail if something is already selected). A stored id that is missing
+  // or soft-deleted in the loaded set clears the store entry.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!persistSelection) return; // non-Materials mount (Schedule) — no restore
+    if (restoredRef.current) return;
+    if (isLoading) return; // wait until nodes have loaded
+    // A failed fetch must NOT consume the one-shot nor clear the store — a
+    // transient error would otherwise permanently erase the remembered
+    // selection. `nodes` in the deps retries after a successful reload.
+    if (!loadedRef.current) return;
+    restoredRef.current = true;
+    const storedId = getTaskSelection();
+    if (storedId === null) return;
+    if (selectedTaskIdRef.current !== null) return; // user already selected
+    const node = nodes.find((n) => n.id === storedId);
+    if (!node || node.isDeleted) {
+      clearTaskSelection(); // stale/soft-deleted id — drop it
+      return;
+    }
+    setSelectedTaskIdState(storedId); // store already holds it, no write-through
+  }, [persistSelection, isLoading, nodes]);
 
   const refetch = useCallback(async () => {
     try {
@@ -186,20 +242,26 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     (id: string, options?: { skipUndo?: boolean }) => {
       const subtree = collectDescendantIds(id, nodes);
       const current = selectedTaskIdRef.current;
-      if (current !== null && subtree.has(current)) setSelectedTaskId(null);
+      if (current !== null && subtree.has(current)) {
+        setSelectedTaskIdState(null);
+        if (persistSelection) clearTaskSelection(); // #282: don't restore a soft-deleted task
+      }
       rawSoftDelete(id, options);
     },
-    [nodes, rawSoftDelete],
+    [nodes, rawSoftDelete, persistSelection],
   );
 
   const permanentDelete = useCallback(
     (id: string) => {
       const subtree = collectDescendantIds(id, nodes);
       const current = selectedTaskIdRef.current;
-      if (current !== null && subtree.has(current)) setSelectedTaskId(null);
+      if (current !== null && subtree.has(current)) {
+        setSelectedTaskIdState(null);
+        if (persistSelection) clearTaskSelection(); // #282: don't restore a permanently-deleted task
+      }
       rawPermanentDelete(id);
     },
-    [nodes, rawPermanentDelete],
+    [nodes, rawPermanentDelete, persistSelection],
   );
   const { moveNode, moveNodeInto, moveToRoot } = useTaskTreeMovement(
     nodes,
@@ -251,6 +313,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       error,
       persistError,
       selectedTaskId,
+      setSelectedTaskId,
       selectedTask,
       refetch,
       undo,

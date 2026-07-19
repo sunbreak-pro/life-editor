@@ -379,6 +379,22 @@ export {
   computeNoteDropIntent,
   type NoteDropPosition,
 } from "./utils/noteDropIntent";
+// Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
+// `sortedFilteredNotes` comparator, so the host list + the extracted util
+// share one ordering source.
+export {
+  compareNotes,
+  sortNotesForList,
+  type NoteSortDirection as NoteListSortDirection,
+} from "./utils/noteSort";
+// Daily sidebar list view (#283) — pure filter + date-sort helper, generic
+// over any date-keyed entry.
+export {
+  filterAndSortDailyEntries,
+  type DailyListEntry,
+  type DailyListViewOptions,
+  type DailyListDirection,
+} from "./utils/dailyListView";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from

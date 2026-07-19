@@ -805,7 +805,10 @@
       "untagged": "未分類",
       "collapseGroup": "グループを折りたたむ",
       "expandGroup": "グループを展開",
-      "assignTagHint": "タグにドロップして付与"
+      "assignTagHint": "タグにドロップして付与",
+      "sortUpdated": "更新日時",
+      "sortCreated": "作成日時",
+      "sortTitle": "タイトル"
     },
     "daily": {
       "toToday": "今日へ",
@@ -821,7 +824,9 @@
       "datePicker": "日付を選択",
       "dateStripLabel": "日付を選ぶ",
       "entriesCount": "エントリ（{{count}}）",
-      "pastEntries": "過去のエントリ"
+      "pastEntries": "過去のエントリ",
+      "filterPlaceholder": "エントリを絞り込む…",
+      "filterLabel": "エントリを絞り込む"
     },
     "tags": {
       "tagsCount": "タグ（{{count}}）",
@@ -845,6 +850,14 @@
       "memberCount": "{{count}} タグ",
       "expandGroup": "グループを開く",
       "collapseGroup": "グループを閉じる"
+    },
+    "sidebar": {
+      "sort": "並び替え",
+      "toggleDirection": "並び順を切り替え",
+      "newest": "新しい順",
+      "oldest": "古い順",
+      "ascending": "昇順",
+      "descending": "降順"
     }
   },
   "files": {

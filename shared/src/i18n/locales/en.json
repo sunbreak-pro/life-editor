@@ -805,7 +805,10 @@
       "untagged": "No tag",
       "collapseGroup": "Collapse group",
       "expandGroup": "Expand group",
-      "assignTagHint": "Drop onto a tag to assign it"
+      "assignTagHint": "Drop onto a tag to assign it",
+      "sortUpdated": "Updated",
+      "sortCreated": "Created",
+      "sortTitle": "Title"
     },
     "daily": {
       "toToday": "Today",
@@ -821,7 +824,9 @@
       "datePicker": "Pick a date",
       "dateStripLabel": "Select a date",
       "entriesCount": "Entries ({{count}})",
-      "pastEntries": "Past entries"
+      "pastEntries": "Past entries",
+      "filterPlaceholder": "Filter entries…",
+      "filterLabel": "Filter entries"
     },
     "tags": {
       "tagsCount": "Tags ({{count}})",
@@ -845,6 +850,14 @@
       "memberCount": "{{count}} tags",
       "expandGroup": "Expand group",
       "collapseGroup": "Collapse group"
+    },
+    "sidebar": {
+      "sort": "Sort",
+      "toggleDirection": "Toggle sort direction",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "ascending": "Ascending",
+      "descending": "Descending"
     }
   },
   "files": {

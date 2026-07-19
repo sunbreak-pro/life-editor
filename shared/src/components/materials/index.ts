@@ -36,3 +36,12 @@ export {
   type TagGroupsPanelGroup,
   type TagGroupsPanelMember,
 } from "./TagGroupsPanel";
+// Sidebar list controls (#283) — compact sort + optional-filter header row for
+// the Materials rightSidebar lists (Notes / Daily). Pure presentation.
+export {
+  SidebarListControls,
+  type SidebarListControlsProps,
+  type SidebarSortMode,
+  type SidebarSortDirection,
+  type SidebarFilterConfig,
+} from "./SidebarListControls";
