@@ -18,9 +18,11 @@ import {
   RightSidebarToggle,
   ScheduleSidebarTabs,
   ScheduleItemContextMenu,
+  RepeatScopeDialog,
   SegmentedControl,
   BottomSheet,
   Modal,
+  useScheduleItemsRoutineSync,
   addDaysKey,
   addMonthsKey,
   startOfMonthKey,
@@ -37,8 +39,11 @@ import {
   type AgendaItem,
   type EventEditorItem,
   type FrequencyEditorValue,
+  type RepeatScope,
+  type RoutineNode,
   type RoutineSummaryRow,
   type SegmentedOption,
+  type DataService,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
 import {
@@ -191,8 +196,10 @@ function QuickCaptureSheet({
 }
 
 export function CalendarTab({
+  dataService,
   onOpenRoutines,
 }: {
+  dataService: DataService;
   onOpenRoutines: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -213,10 +220,18 @@ export function CalendarTab({
     routineGroups,
     createRoutine,
     updateRoutine,
+    deleteRoutine,
     setGroupsForRoutine,
     getGroupIdsForRoutine,
     detachRoutine,
+    updateFutureOccurrences,
   } = useRoutineContext();
+  // Range materialiser (#279): after an Event→Repeats conversion, the new
+  // routine's occurrences are generated for the visible range right away —
+  // the always-on RoutineScheduleSync only covers today.
+  const { ensureRoutineItemsForDateRange } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted tasks (useTaskTreeAPI). Read-only in A-1.
   const { nodes: taskNodes } = useTaskTreeContext();
@@ -232,6 +247,12 @@ export function CalendarTab({
   // Which rightSidebar tab is showing on Desktop ("今日の流れ" ↔ "詳細").
   const [sidebarTab, setSidebarTab] = useState<"flow" | "detail">("flow");
   const [rangeItems, setRangeItems] = useState<ScheduleItem[]>([]);
+  // The [start, end] the CURRENT rangeItems actually came from (#278 guard):
+  // set together with setRangeItems when a fetch settles, so absence of an
+  // id in rangeItems is only trusted once the covering fetch has resolved.
+  const [fetchedRange, setFetchedRange] = useState<[string, string] | null>(
+    null,
+  );
   const [reloadKey, setReloadKey] = useState(0);
   const [calendarsOpen, setCalendarsOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -252,6 +273,13 @@ export function CalendarTab({
   const [pendingDraft, setPendingDraft] = useState<{
     id: string;
     date: string;
+  } | null>(null);
+  // #279: pending this/future/all chooser. Edits/deletes of a routine-derived
+  // occurrence are parked here until the user picks a scope in the dialog.
+  const [scopeRequest, setScopeRequest] = useState<{
+    mode: "edit" | "delete";
+    item: ScheduleItem;
+    patch?: Partial<ScheduleItem>;
   } | null>(null);
 
   // 1-minute now ticker (drives the now-line + agenda divider). Cleared on
@@ -335,6 +363,7 @@ export function CalendarTab({
       const list = await loadDateRange(rangeStart, rangeEnd);
       if (!cancelled) {
         setRangeItems(list.filter((i) => !i.isDeleted && !i.isDismissed));
+        setFetchedRange([rangeStart, rangeEnd]);
       }
     })();
     return () => {
@@ -354,13 +383,41 @@ export function CalendarTab({
     setPendingDraft((cur) => (cur && cur.id === id ? null : cur));
   }, []);
 
-  const handleUpdate = useCallback(
+  const findScheduleItem = useCallback(
+    (id: string): ScheduleItem | undefined =>
+      rangeItems.find((i) => i.id === id) ??
+      contextItems.find((i) => i.id === id),
+    [rangeItems, contextItems],
+  );
+
+  const applyOccurrencePatch = useCallback(
     (id: string, patch: Partial<ScheduleItem>) => {
       patchRange(id, patch);
       updateScheduleItem(id, patch);
       resolveDraft(id);
     },
     [patchRange, updateScheduleItem, resolveDraft],
+  );
+
+  // Field edits route through here. A routine-derived occurrence with a
+  // series-propagatable patch (title / times, never date or memo — the
+  // routine template has neither a concrete date nor a memo) parks the patch
+  // in the scope dialog (#279); everything else applies to the single row.
+  const handleUpdate = useCallback(
+    (id: string, patch: Partial<ScheduleItem>) => {
+      const item = findScheduleItem(id);
+      const propagatable =
+        patch.date === undefined &&
+        (patch.title !== undefined ||
+          patch.startTime !== undefined ||
+          patch.endTime !== undefined);
+      if (item?.routineId && propagatable) {
+        setScopeRequest({ mode: "edit", item, patch });
+        return;
+      }
+      applyOccurrencePatch(id, patch);
+    },
+    [findScheduleItem, applyOccurrencePatch],
   );
 
   const handleToggle = useCallback(
@@ -401,20 +458,43 @@ export function CalendarTab({
 
   // True = a pending draft exists → block this create and bring the draft
   // back into view/selection instead (#278). Self-heals when the draft
-  // vanished through a path the handlers don't own (undo, sync): the visible
-  // range no longer contains it, so the guard clears and the click proceeds.
+  // vanished through a path the handlers don't own (undo, sync) — but only
+  // once a SETTLED fetch covering the draft's date says it is gone:
+  // rangeItems holds the previous range's list while a navigation fetch is
+  // in flight, and trusting that stale absence would re-open the very
+  // duplicate-create hole this guard exists to close.
   const draftGuardBlocks = useCallback((): boolean => {
     if (!pendingDraft) return false;
-    const inVisibleRange =
-      pendingDraft.date >= rangeStart && pendingDraft.date <= rangeEnd;
-    if (inVisibleRange && !rangeItems.some((i) => i.id === pendingDraft.id)) {
+    const fetchSettled =
+      !!fetchedRange &&
+      pendingDraft.date >= fetchedRange[0] &&
+      pendingDraft.date <= fetchedRange[1];
+    const live =
+      rangeItems.some((i) => i.id === pendingDraft.id) ||
+      contextItems.some(
+        (i) => i.id === pendingDraft.id && !i.isDeleted && !i.isDismissed,
+      );
+    if (fetchSettled && !live) {
       setPendingDraft(null);
       return false;
     }
-    setAnchorDate(pendingDraft.date);
+    // Jump only when the draft is off-screen — an unconditional anchor move
+    // would flip the month view to the adjacent month for a draft sitting on
+    // a spillover cell that is already visible.
+    const inVisibleRange =
+      pendingDraft.date >= rangeStart && pendingDraft.date <= rangeEnd;
+    if (!inVisibleRange) setAnchorDate(pendingDraft.date);
     handleSelectItem(pendingDraft.id);
     return true;
-  }, [pendingDraft, rangeStart, rangeEnd, rangeItems, handleSelectItem]);
+  }, [
+    pendingDraft,
+    fetchedRange,
+    rangeItems,
+    contextItems,
+    rangeStart,
+    rangeEnd,
+    handleSelectItem,
+  ]);
 
   const handleCreateAt = useCallback(
     (dateISO: string, minutes: number) => {
@@ -478,22 +558,38 @@ export function CalendarTab({
       // A-1: task chips are read-only (WeekTimeGrid also omits their drag
       // affordances). Step 2 wires drag → updateTaskNode(scheduledAt). No-op.
       if (isTaskChip(id)) return;
-      const patch = { date: dateISO, startTime: startISO, endTime: endISO };
-      patchRange(id, patch);
-      updateScheduleItem(id, patch);
-      resolveDraft(id);
+      const item = findScheduleItem(id);
+      // Same-day drag of a routine occurrence is a time edit → scope dialog
+      // (#279). A cross-day drag stays occurrence-level without asking: the
+      // routine template has no concrete date to propagate a day move to.
+      if (item?.routineId && dateISO === item.date) {
+        setScopeRequest({
+          mode: "edit",
+          item,
+          patch: { startTime: startISO, endTime: endISO },
+        });
+        return;
+      }
+      applyOccurrencePatch(id, {
+        date: dateISO,
+        startTime: startISO,
+        endTime: endISO,
+      });
     },
-    [patchRange, updateScheduleItem, resolveDraft],
+    [findScheduleItem, applyOccurrencePatch],
   );
 
   const handleResizeItem = useCallback(
     (id: string, endISO: string) => {
       if (isTaskChip(id)) return; // A-1: task chips read-only (see handleMoveItem)
-      patchRange(id, { endTime: endISO });
-      updateScheduleItem(id, { endTime: endISO });
-      resolveDraft(id);
+      const item = findScheduleItem(id);
+      if (item?.routineId) {
+        setScopeRequest({ mode: "edit", item, patch: { endTime: endISO } });
+        return;
+      }
+      applyOccurrencePatch(id, { endTime: endISO });
     },
-    [patchRange, updateScheduleItem, resolveDraft],
+    [findScheduleItem, applyOccurrencePatch],
   );
 
   const handleDismiss = useCallback(
@@ -506,14 +602,23 @@ export function CalendarTab({
     [dismiss, resolveDraft],
   );
 
+  // Delete routes every entry point (editor pane, context menu) through one
+  // gate: a routine-derived occurrence opens the scope dialog (#279) — a
+  // plain single-row delete would let the generator revive it (Issue 017) —
+  // while a manual item soft-deletes directly.
   const handleDelete = useCallback(
     (id: string) => {
+      const item = findScheduleItem(id);
+      if (item?.routineId) {
+        setScopeRequest({ mode: "delete", item });
+        return;
+      }
       deleteScheduleItem(id);
       setRangeItems((prev) => prev.filter((i) => i.id !== id));
       setSelectedId((cur) => (cur === id ? null : cur));
       resolveDraft(id);
     },
-    [deleteScheduleItem, resolveDraft],
+    [findScheduleItem, deleteScheduleItem, resolveDraft],
   );
 
   // ── Context menu (rename / duplicate / delete) ─────────────────────────────
@@ -533,6 +638,10 @@ export function CalendarTab({
     [handleUpdate],
   );
 
+  // Deliberately NOT routed through the #278 draft guard: Duplicate is an
+  // explicit context-menu action (not an accidental empty-slot click), and
+  // the copy carries a real title, so it neither scatters default drafts nor
+  // becomes one itself.
   const handleDuplicate = useCallback(
     (id: string) => {
       const src =
@@ -911,18 +1020,85 @@ export function CalendarTab({
       if (!type || type === "group") return;
       const [yy, mm, dd] = selected.date.split("-").map(Number);
       const seedWeekday = new Date(yy, mm - 1, dd).getDay();
-      createRoutine(
+      const frequencyDays = type === "weekdays" ? [seedWeekday] : [];
+      const frequencyInterval = type === "interval" ? 1 : null;
+      const frequencyStartDate = type === "interval" ? selected.date : null;
+      const routineId = createRoutine(
         selected.title,
         selected.startTime,
         selected.endTime,
         type,
-        type === "weekdays" ? [seedWeekday] : [],
-        type === "interval" ? 1 : null,
-        type === "interval" ? selected.date : null,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
       );
       handleDelete(selected.id);
+      // #279: materialise the new routine's occurrences for the visible range
+      // right away — otherwise the converted event vanishes from the week
+      // view (the always-on generator only covers today, and rangeItems only
+      // reloads on navigation). Passing ONLY the new routine keeps the
+      // range-ensure's frequency-mismatch cleanup away from other routines'
+      // (possibly hand-moved) occurrences.
+      const now = new Date().toISOString();
+      const optimisticRoutine: RoutineNode = {
+        id: routineId,
+        title: selected.title,
+        startTime: selected.startTime,
+        endTime: selected.endTime,
+        isArchived: false,
+        isVisible: true,
+        isDeleted: false,
+        deletedAt: null,
+        order: 0,
+        frequencyType: type,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
+        createdAt: now,
+        updatedAt: now,
+      };
+      // Clamp the ensure window: never materialise BEFORE today or before
+      // the seed — a repeat conceptually starts at the converted occurrence,
+      // and fabricating not-done rows into past days would pollute the life
+      // record (tier-1 rule 1 spirit). A past-dated seed re-materialises
+      // exactly its own day (1:1 replacement of the deleted seed event, so
+      // the converted item stays visible), nothing in between.
+      const seedDate = selected.date;
+      const windowStart = [rangeStart, seedDate, today].reduce((a, b) =>
+        a >= b ? a : b,
+      );
+      void (async () => {
+        if (seedDate < windowStart) {
+          await ensureRoutineItemsForDateRange(seedDate, seedDate, [
+            optimisticRoutine,
+          ]);
+        }
+        if (windowStart <= rangeEnd) {
+          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+            optimisticRoutine,
+          ]);
+          // Second idempotent pass: the always-on today generator can race
+          // the first batch on today's row (23505 → whole-batch rollback
+          // inside ensure). The re-run's pre-check sees the winner and fills
+          // in the remaining days.
+          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+            optimisticRoutine,
+          ]);
+        }
+        setReloadKey((k) => k + 1);
+      })();
     },
-    [selected, setGroupsForRoutine, updateRoutine, createRoutine, handleDelete],
+    [
+      selected,
+      setGroupsForRoutine,
+      updateRoutine,
+      createRoutine,
+      handleDelete,
+      ensureRoutineItemsForDateRange,
+      rangeStart,
+      rangeEnd,
+      today,
+    ],
   );
 
   // "なし" selected → turn the repeat off (detach the series from today on).
@@ -955,6 +1131,156 @@ export function CalendarTab({
       }
     })();
   }, [selected, detachRoutine]);
+
+  // #279: apply the scope the user picked in the RepeatScopeDialog.
+  // Edit — this: single-row patch (the manual edit then wins over any later
+  // series propagation, tier-1 §Schedule rule 2); future/all: patch the
+  // routine template + the still-unedited, not-done, not-dismissed
+  // materialised rows from the anchor date (all = from the epoch).
+  // Delete — this: Dismiss (a plain delete would be revived by the
+  // generator, Issue 017); future: detach the series from this occurrence's
+  // date (past/completed survive as detached records); all: soft-delete the
+  // routine with full cascade (Trash-restorable).
+  const handleScopeChoose = useCallback(
+    (scope: RepeatScope) => {
+      const req = scopeRequest;
+      setScopeRequest(null);
+      if (!req?.item.routineId) return;
+      const routineId = req.item.routineId;
+
+      // A FUTURE-dated anchor needs the days between today and the anchor
+      // materialised BEFORE the series is mutated: those occurrences only
+      // exist on demand, and both detachRoutine (routine soft-deleted) and a
+      // template update would otherwise erase / rewrite days the user did
+      // not select. The fresh rows carry the PRE-edit template, so they
+      // survive a "future" edit (fromDate filter) and a "future" delete
+      // (start_at < anchor ⇒ detached survivors) alike.
+      const fillUpToAnchor = async (routine: RoutineNode, anchor: string) => {
+        if (anchor <= today) return;
+        const end = addDaysKey(anchor, -1);
+        const start = today;
+        if (start <= end) {
+          await ensureRoutineItemsForDateRange(start, end, [routine]);
+        }
+      };
+
+      if (req.mode === "edit") {
+        const patch = req.patch ?? {};
+        if (scope === "this") {
+          applyOccurrencePatch(req.item.id, patch);
+          return;
+        }
+        const routine = routines.find((r) => r.id === routineId);
+        if (!routine) {
+          // Routines not loaded (or the routine vanished): propagating
+          // without the pre-edit template would drop the manual-edit
+          // protection (rule 2) — degrade to a this-only edit.
+          applyOccurrencePatch(req.item.id, patch);
+          return;
+        }
+        const updates: {
+          title?: string;
+          startTime?: string;
+          endTime?: string;
+        } = {};
+        if (patch.title !== undefined) updates.title = patch.title;
+        if (patch.startTime !== undefined) updates.startTime = patch.startTime;
+        if (patch.endTime !== undefined) updates.endTime = patch.endTime;
+        // The PRE-edit template identifies never-individually-edited rows —
+        // manual edits win over the series edit (tier-1 §Schedule rule 2).
+        const template = {
+          title: routine.title,
+          startTime: routine.startTime,
+          endTime: routine.endTime,
+        };
+        const fromDate = scope === "future" ? req.item.date : "0000-01-01";
+        // Optimistic: the edited occurrence itself reflects the change now.
+        applyOccurrencePatch(req.item.id, patch);
+        void (async () => {
+          try {
+            if (scope === "future") {
+              await fillUpToAnchor(routine, req.item.date);
+            }
+            await updateFutureOccurrences(
+              routineId,
+              updates,
+              fromDate,
+              template,
+            );
+            // Template update so future generation follows the new values.
+            updateRoutine(routineId, updates);
+          } catch {
+            // Propagation did not land — the range reload below restores the
+            // DB truth either way.
+          } finally {
+            setReloadKey((k) => k + 1);
+          }
+        })();
+        return;
+      }
+
+      // delete
+      if (scope === "this") {
+        handleDismiss(req.item.id);
+        return;
+      }
+      setSelectedId((cur) => (cur === req.item.id ? null : cur));
+      if (scope === "future") {
+        const routine = routines.find((r) => r.id === routineId);
+        void (async () => {
+          try {
+            if (routine) await fillUpToAnchor(routine, req.item.date);
+            const { deletedScheduleItemIds } = await detachRoutine(
+              routineId,
+              req.item.date,
+            );
+            const removed = new Set(deletedScheduleItemIds);
+            setRangeItems((prev) =>
+              prev
+                .filter((i) => !removed.has(i.id))
+                .map((i) =>
+                  i.routineId === routineId ? { ...i, routineId: null } : i,
+                ),
+            );
+            // The pre-anchor fill may have written rows inside the visible
+            // range — re-read so they show as detached survivors.
+            if (routine && req.item.date > today) setReloadKey((k) => k + 1);
+          } catch {
+            setReloadKey((k) => k + 1);
+          }
+        })();
+        return;
+      }
+      void (async () => {
+        try {
+          const { deletedScheduleItemIds } = await deleteRoutine(routineId);
+          const removed = new Set(deletedScheduleItemIds);
+          // deleteRoutine swallows service errors (hook-wide log-and-continue
+          // convention) and returns [] — an empty cascade is also legitimate,
+          // so re-read instead of guessing which one happened.
+          if (removed.size === 0) {
+            setReloadKey((k) => k + 1);
+            return;
+          }
+          setRangeItems((prev) => prev.filter((i) => !removed.has(i.id)));
+        } catch {
+          setReloadKey((k) => k + 1);
+        }
+      })();
+    },
+    [
+      scopeRequest,
+      routines,
+      applyOccurrencePatch,
+      updateFutureOccurrences,
+      updateRoutine,
+      handleDismiss,
+      detachRoutine,
+      deleteRoutine,
+      ensureRoutineItemsForDateRange,
+      today,
+    ],
+  );
 
   const summaryRows = useMemo<RoutineSummaryRow[]>(
     () =>
@@ -1164,6 +1490,26 @@ export function CalendarTab({
       />
     ) : null;
 
+  // #279: this/future/all chooser — centered on every layout per the issue.
+  const scopeDialogEl = (
+    <RepeatScopeDialog
+      open={!!scopeRequest}
+      mode={scopeRequest?.mode ?? "edit"}
+      labels={{
+        title:
+          scopeRequest?.mode === "delete"
+            ? t("scheduleScreen.deleteScopeTitle")
+            : t("scheduleScreen.editScopeTitle"),
+        thisOnly: t("scheduleScreen.scopeThisOnly"),
+        thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
+        all: t("scheduleScreen.scopeAll"),
+        cancel: t("scheduleScreen.scopeCancel"),
+      }}
+      onChoose={handleScopeChoose}
+      onClose={() => setScopeRequest(null)}
+    />
+  );
+
   // ── Desktop ────────────────────────────────────────────────────────────────
   if (isWide) {
     return (
@@ -1235,6 +1581,7 @@ export function CalendarTab({
         </div>
         {calendarsModal}
         {contextMenuEl}
+        {scopeDialogEl}
       </>
     );
   }
@@ -1386,6 +1733,8 @@ export function CalendarTab({
       >
         {editorPane}
       </BottomSheet>
+
+      {scopeDialogEl}
     </>
   );
 }

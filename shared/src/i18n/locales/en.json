@@ -1172,7 +1172,13 @@
     "copySuffix": " (copy)",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
-    "statusDone": "Done"
+    "statusDone": "Done",
+    "editScopeTitle": "Edit recurring event",
+    "deleteScopeTitle": "Delete recurring event",
+    "scopeThisOnly": "This event only",
+    "scopeThisAndFuture": "This and following events",
+    "scopeAll": "All events (including past)",
+    "scopeCancel": "Cancel"
   },
   "schedulePanel": {
     "existingTasks": "Existing Todos",

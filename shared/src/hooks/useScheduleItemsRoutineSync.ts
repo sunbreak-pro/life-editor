@@ -114,22 +114,22 @@ export function useScheduleItemsRoutineSync(
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       const existing = await ds.fetchScheduleItemsByDate(date);
-      const { toCreate, toUpdate } = diffRoutineScheduleItems(
+      const { toCreate } = diffRoutineScheduleItems(
         existing,
         routines,
         date,
         groupForRoutine,
       );
 
-      if (toUpdate.length > 0) {
-        for (const upd of toUpdate) {
-          ds.updateScheduleItem(upd.id, {
-            title: upd.title,
-            startTime: upd.startTime,
-            endTime: upd.endTime,
-          }).catch((e) => logServiceError("ScheduleItems", "update", e));
-        }
-      }
+      // #279 conflict-rule gate (tier-1 §Schedule rules 1-2): the diff's
+      // toUpdate bucket is NOT applied here anymore. It cannot tell a manual
+      // per-occurrence edit (which must WIN over the template, rule 2) from
+      // template drift, and its input includes completed rows (rule 1) —
+      // applying it reverted 「この予定のみ」 scope edits and rewrote done
+      // records whenever a routines refetch re-fired this generator.
+      // Creation-only until the Step 4 reconcile lands with a real
+      // manual-edit discriminator. Series edits propagate explicitly via
+      // updateFutureScheduleItemsByRoutine (scope dialog).
 
       // DU-C-6 hardening (chat-main HISTORY 2026-05-23 landmine fix):
       // notifyChanged() must NOT fire when bulkCreate threw. Pre-DU-C-6
@@ -147,7 +147,7 @@ export function useScheduleItemsRoutineSync(
           bulkCreateOk = false;
         }
       }
-      if (bulkCreateOk && (toCreate.length > 0 || toUpdate.length > 0)) {
+      if (bulkCreateOk && toCreate.length > 0) {
         notifyChanged();
       }
     },

@@ -2,7 +2,14 @@
 
 ## 進行中
 
-（なし）
+### 🔧 section:schedule スプリント — Issues #281 #278 #279 #280（着手日: 2026-07-19）
+
+**対象**: `shared/src/components/`（Schedule 系）+ `web/`
+**計画書**: `.claude/docs/vision/plans/2026-07-14-schedule-redesign.md`（関連正本）
+
+- 前回: #279 Repeats 可視化 + this/future/all 範囲ダイアログ実装（QA 4 観点監査の指摘全反映・shared 964 tests + 両 build green・コミット済み）
+- 現在: #281 / #278 / #279 の Issue close + push
+- 次: #280 責務分離リファクタ（CalendarTab 分解 + vitest・behavior-preserving）
 
 ## 直近の完了
 
@@ -12,4 +19,4 @@
 
 ## 予定
 
-- schedule-redesign Step 2（Task↔Schedule 統合）の下調べ → Step 2 実装 Issue ドラフトを outbox で chat-main へ起票依頼（正本 = plans/2026-07-14-schedule-redesign.md §2-4）
+- schedule-redesign Step 2（Task↔Schedule 双方向書き込み = 計画書 §4-A-2 / Step 3）— #280 完了後。Issue は chat-main が追って起票（`gh issue list --label section:schedule --state open` を区切りで確認）
