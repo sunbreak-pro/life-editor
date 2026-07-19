@@ -235,17 +235,40 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       try {
         const loaded = await ds.listNotesUnified();
         if (!cancelled) {
-          // M1: the fresh list is body-free again, so any previously
-          // hydrated bodies are stale/absent — invalidate the cache.
-          contentLoadedIdsRef.current = new Set();
-          setNotes(loaded);
+          // #301 perf: `loaded` rows are body-free (M1) but metadata-fresh.
+          // Blanket-clearing the hydrated-body cache here forced a network
+          // re-fetch for EVERY previously-viewed note on EVERY syncVersion
+          // bump — and typing anywhere bumps syncVersion ~1.1s later (own-
+          // write Realtime echo, see #300), so re-selecting an already-open
+          // note almost never hit the cache. A row's `updatedAt` only moves
+          // when something actually wrote to that note, so keep the cached
+          // body for any hydrated id whose `updatedAt` is unchanged, and
+          // only drop the ones that were genuinely touched (by this client,
+          // another tab, or MCP) since our last hydrate.
+          const prevById = new Map(notesRef.current.map((n) => [n.id, n]));
+          const stillHydrated = new Set<string>();
+          const merged = loaded.map((row) => {
+            const prev = prevById.get(row.id);
+            if (
+              prev &&
+              contentLoadedIdsRef.current.has(row.id) &&
+              prev.updatedAt === row.updatedAt
+            ) {
+              stillHydrated.add(row.id);
+              return { ...row, content: prev.content };
+            }
+            return row;
+          });
+          contentLoadedIdsRef.current = stillHydrated;
+          setNotes(merged);
           listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
           // Keep the currently-open note's body correct after a
           // sync-triggered reload (the editor is keyed by note id so it
           // won't remount; this just refills `notes[id].content` so a later
-          // read of `selectedNote.content` is accurate).
+          // read of `selectedNote.content` is accurate). Skipped when the
+          // merge above already proved nothing wrote to it.
           const openId = selectedNoteIdRef.current;
-          if (openId) void hydrateContent(openId);
+          if (openId && !stillHydrated.has(openId)) void hydrateContent(openId);
         }
       } catch (e) {
         logServiceError("Notes", "fetch", e);
