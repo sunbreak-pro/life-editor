@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
@@ -12,6 +12,11 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { useTranslation } from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
+import { createItemLinkNode } from "./itemLinkNode";
+import {
+  createItemLinkSuggestion,
+  type ItemLinkTarget,
+} from "./itemLinkSuggestion";
 
 /*
  * Lean web Notes rich-text editor (S3). A deliberately reduced
@@ -20,9 +25,13 @@ import { createSlashCommand } from "./slashCommand";
  * (task) lists, blockquote, inline code + code block, bold / italic /
  * strike, links. A "/" slash-command menu inserts the block types
  * (slashCommand.ts); checkbox lists also accept the "[] " input shortcut
- * (TaskList's built-in rule). Heavier extensions (tables, color, highlight,
- * images, wiki/note-link suggestion, bubble/context menus) are still NOT
- * ported — they land in a later S-step if needed (scope-creep guard).
+ * (TaskList's built-in rule). A "[[" suggestion inserts `itemLink` atoms —
+ * Notion/Obsidian-style wiki links to other items (itemLinkNode.ts +
+ * itemLinkSuggestion.ts, gated on the `linkTargets` prop; the node itself is
+ * ALWAYS registered so stored `[[…]]` JSON round-trips on every surface).
+ * Heavier extensions (tables, color, highlight, images, bubble/context menus)
+ * are still NOT ported — they land in a later S-step if needed (scope-creep
+ * guard).
  *
  * Like the source, the StarterKit built-ins for the customised marks are
  * disabled and replaced by `*NoInputRules` variants so typing `**`, `*`,
@@ -71,6 +80,18 @@ interface RichTextEditorProps {
   className?: string;
   /** Enable the "/" slash-command block menu (default: true). */
   slashMenu?: boolean;
+  /**
+   * Candidate pool for the "[[" link autocomplete. Presence (even an empty
+   * array) enables the suggestion + click navigation; `undefined` leaves both
+   * off (the itemLink node is still registered so stored links round-trip).
+   */
+  linkTargets?: ItemLinkTarget[];
+  /** Navigate to a resolved link's target (section switch + item select). */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /** A resolved link was inserted — the host upserts the item_links edge. */
+  onResolvedLinkInserted?: (targetId: string) => void;
+  /** Create a note for `label` from the "[[" menu; returns its id or null. */
+  onCreateNoteForLink?: (label: string) => Promise<{ id: string } | null>;
 }
 
 function tryParseJSON(str: string): Record<string, unknown> | string {
@@ -89,15 +110,41 @@ export function RichTextEditor({
   placeholder = "Write your note…",
   className = "rounded-md border border-lumen-border bg-lumen-bg p-3",
   slashMenu = true,
+  linkTargets,
+  onNavigateToItem,
+  onResolvedLinkInserted,
+  onCreateNoteForLink,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
   const latestContentRef = useRef<string | null>(null);
 
+  // The editor is rebuilt only on [noteId] (below), so link wiring is read
+  // through refs kept fresh every render — capturing the values directly would
+  // freeze the candidate pool + callbacks at mount (stale on every re-render).
+  const linkTargetsRef = useRef<ItemLinkTarget[]>(linkTargets ?? []);
+  const onResolvedInsertedRef = useRef(onResolvedLinkInserted);
+  const onCreateNoteRef = useRef(onCreateNoteForLink);
+  const linkEnabled = linkTargets !== undefined;
+
   useEffect(() => {
     onUpdateRef.current = onUpdate;
+    linkTargetsRef.current = linkTargets ?? [];
+    onResolvedInsertedRef.current = onResolvedLinkInserted;
+    onCreateNoteRef.current = onCreateNoteForLink;
   });
+
+  // Stable getters over the refs above. Wrapping them in useCallback (rather
+  // than inlining `() => ref.current` in the extension list) keeps the ref read
+  // out of the render path — the extensions, built once per [noteId], call
+  // these later to reach the latest closures without the pool going stale.
+  const getTargets = useCallback(() => linkTargetsRef.current, []);
+  const getOnResolvedInserted = useCallback(
+    () => onResolvedInsertedRef.current,
+    [],
+  );
+  const getCreateNote = useCallback(() => onCreateNoteRef.current, []);
 
   const flushPending = () => {
     if (debounceRef.current) {
@@ -165,6 +212,31 @@ export function RichTextEditor({
                 orderedList: t("blockMenu.turnIntoItems.orderedList"),
                 taskList: t("blockMenu.turnIntoItems.taskList"),
                 empty: t("blockMenu.noMatch"),
+              }),
+            ]
+          : []),
+        // itemLink atom — ALWAYS registered so stored `[[…]]` JSON round-trips
+        // on every surface (schema must know the node even where the "[["
+        // suggestion is off). Click navigation reads the host callback via ref.
+        createItemLinkNode({
+          onNavigate: onNavigateToItem,
+        }),
+        // "[[" wiki-link autocomplete — gated on the linkTargets prop. Targets +
+        // callbacks are read through refs so the pool never goes stale.
+        ...(linkEnabled
+          ? [
+              createItemLinkSuggestion({
+                getTargets,
+                getOnResolvedInserted,
+                getCreateNote,
+                labels: {
+                  empty: t("itemLink.empty"),
+                  unresolved: (query) =>
+                    t("itemLink.insertUnresolved", { query }),
+                  create: (query) => t("itemLink.createNote", { query }),
+                  roleNote: t("itemLink.roleNote"),
+                  roleDaily: t("itemLink.roleDaily"),
+                },
               }),
             ]
           : []),

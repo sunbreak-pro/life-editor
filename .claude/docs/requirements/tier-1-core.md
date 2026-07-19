@@ -30,6 +30,7 @@
   - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TaskNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）
   - **朝刊の保存規約（`extractBriefing`）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
   - **夕刊規約（Step 3・決定録 1 + 6）**: Daily 内「夕刊」見出しセクション（英 alias: Evening）・朝刊と同じ規約・DDL ゼロ。**1 行でも成立**（書くハードルを上げない）。気分（五段階）はテキスト規約「気分: n/5」で夕刊セクション内に保存。入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ（loop-friction-fixes F-6 — 保存先は Daily のまま・Daily 側から直接書いても同じ場所に落ちる）
+  - **宣言規約（Step 4・DDL ゼロ）**: Daily 内「宣言」見出しセクション（英 alias: Intention / Intentions）。朝刊紙面の「今日の宣言」欄で編集（保存 = 行ごと段落のセクション差し替えマージ — 朝刊・夕刊セクションを壊さない）・夕刊タブは同セクションを「今朝の宣言」として表示専用で再掲。講評は翌朝刊の朝刊セクションが担う（`get_today_context` は Daily 本文を素で読むため MCP 変更なし）
   - 約束行の名称タップ = 完了トグル（現行）。タスク行への同型追加 + 各行からの移動ボタンは loop-friction-fixes F-2
 - やらない:
   - Claude API 直課金の生成経路（$0 制約 — briefing-loop Context。定時自動化 Step 5 もサブスク範囲内の経路で選定）
@@ -47,13 +48,14 @@
 - [ ] AC3: 約束行の名称タップで完了トグル（取り消し線）が働き、Schedule 側と同じ完了状態を共有する
 - [ ] AC4: （Step 3 実装後）夕刊タブで書いた内容が Daily の「夕刊」見出しセクションとして保存され、Daily 側でも読める。1 行だけでも成立し、「気分: n/5」行が規約どおり記録される
 - [ ] AC5: （Step 2 実装後）MCP `write_briefing` で当日 Daily に朝刊セクションを書き込むと、次回表示時に紙面へ反映される
+- [ ] AC6: （Step 4 実装後）朝刊の宣言欄で書いた内容が Daily の「宣言」見出しセクションとして保存され、夕刊タブに「今朝の宣言」として表示される。宣言の保存で朝刊・夕刊セクションが壊れない
 
 ### Dependencies
 
 - DB Tables: 専用テーブルなし（保存先 = `dailies_payload.content_json` 内の見出しセクション — DDL ゼロ）
 - 読み取り: ScheduleItem（今日の約束）/ TaskNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
 - 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Tasks / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
-- 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6）
+- 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
 
 ### Known Issues / Tech Debt
 
@@ -69,7 +71,8 @@
 ### Related Plans
 
 - ACTIVE: `docs/vision/plans/2026-07-15-briefing-loop.md`(テーマ正本)
-- IN PROGRESS: `docs/vision/plans/2026-07-16-loop-friction-fixes.md` / `docs/vision/plans/2026-07-14-schedule-redesign.md`
+- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`
+- COMPLETED: `archive/2026-07-16-loop-friction-fixes.md`（2026-07-19 archive 移動）
 - REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
 
 ---

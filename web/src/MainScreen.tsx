@@ -237,6 +237,31 @@ export function MainScreen({ session }: { session: Session }) {
   // Kanban calls this once it has acted on the pending-new-task flag.
   const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
 
+  // "[[" wiki-link navigation (Issue #285). A resolved link click in the Notes
+  // or Daily editor routes here; MainScreen owns the section + Materials-tab
+  // switch (the target view lives behind a different domain Provider), then
+  // stashes a pending selection the destination view consumes on mount — the
+  // same idiom as pendingNewTask. v1 handles note / daily targets; other roles
+  // (tasks) have no cross-section item selection yet, so they no-op.
+  const [pendingItemNav, setPendingItemNav] = useState<{
+    id: string;
+    role: string;
+  } | null>(null);
+  const navigateToItem = useCallback((target: { id: string; role: string }) => {
+    if (target.role === "note" || target.role === "daily") {
+      setSection("materials");
+      setMaterialsTab(target.role === "note" ? "notes" : "daily");
+      setPendingItemNav(target);
+    }
+  }, []);
+  const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
+  const pendingNoteSelect =
+    pendingItemNav?.role === "note" ? pendingItemNav.id : null;
+  const pendingDailySelect =
+    pendingItemNav?.role === "daily"
+      ? pendingItemNav.id.replace(/^daily-/, "")
+      : null;
+
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
     const sectionCmds = SECTIONS.map<Command>((s) => ({
@@ -492,7 +517,7 @@ export function MainScreen({ session }: { session: Session }) {
     <>
       {materialsTab === "tasks" && (
         <WikiTagsUnifiedProvider dataService={ds}>
-          <TaskTreeProvider dataService={ds}>
+          <TaskTreeProvider dataService={ds} persistSelection>
             <KanbanView
               pendingNewTask={pendingNewTask}
               onConsumeNewTask={consumeNewTask}
@@ -508,7 +533,12 @@ export function MainScreen({ session }: { session: Session }) {
                 <p className="text-lumen-text-secondary">Loading notes…</p>
               }
             >
-              <NotesView />
+              <NotesView
+                dataService={ds}
+                onNavigateToItem={navigateToItem}
+                pendingSelectNoteId={pendingNoteSelect}
+                onConsumePendingSelect={consumeItemNav}
+              />
             </Suspense>
           </NotesUnifiedProvider>
         </WikiTagsUnifiedProvider>
@@ -516,7 +546,12 @@ export function MainScreen({ session }: { session: Session }) {
       {materialsTab === "daily" && (
         <WikiTagsUnifiedProvider dataService={ds}>
           <DailiesUnifiedProvider dataService={ds}>
-            <DailyView />
+            <DailyView
+              dataService={ds}
+              onNavigateToItem={navigateToItem}
+              pendingSelectDate={pendingDailySelect}
+              onConsumePendingSelect={consumeItemNav}
+            />
           </DailiesUnifiedProvider>
         </WikiTagsUnifiedProvider>
       )}

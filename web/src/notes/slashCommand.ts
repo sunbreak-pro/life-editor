@@ -1,5 +1,6 @@
 import { Extension } from "@tiptap/core";
 import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
+import { PluginKey } from "@tiptap/pm/state";
 import { ReactRenderer } from "@tiptap/react";
 import {
   Heading1,
@@ -153,12 +154,18 @@ function slashRender(emptyLabel: string): SlashRender {
  * Build the slash-command extension with host-injected (translated) labels.
  * Returns null-safe config: pass to the editor's extension list.
  */
+// Own PluginKey — @tiptap/suggestion falls back to one SHARED default key, and
+// ProseMirror throws (RangeError: keyed plugin twice) when this and the "[["
+// suggestion are both registered on the same editor.
+const slashCommandPluginKey = new PluginKey("slashCommand");
+
 export function createSlashCommand(labels: SlashMenuLabels): Extension {
   return Extension.create({
     name: "slashCommand",
     addProseMirrorPlugins() {
       return [
         Suggestion<SlashMenuItem>({
+          pluginKey: slashCommandPluginKey,
           editor: this.editor,
           char: "/",
           startOfLine: false,
