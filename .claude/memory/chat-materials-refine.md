@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- #282 選択アイテムのタブ/セクション跨ぎ保持 + #283 rightSidebar ソート・フィルタ ✅（2026-07-19 — **PR #289 提出済み**（Closes #282/#283）。in-memory 選択ストア + hydrate-first 復元 / SidebarListControls（Notes ソート・Daily ソート+絞り込み・Tasks は N/A）。role-qa + 敵対的レビューの指摘 4 件修正済み・998 tests green。merge = こうだいさん → 実ブラウザ確認 = chat-main。#283 スコープ外の follow-up 起票依頼 3 件は outbox 2026-07-19 (2)）
 - #258 F-1 Daily エディタ TipTap 化（平文後方互換 = 読み込み時変換・編集時のみ JSON 保存）✅（2026-07-18 — PR #270 提出済み。残ゲート = merge（こうだいさん）→ Issue 自動 close → 実ブラウザ確認は chat-main。F-6 夕刊専用ページは本 Issue close 待ち）
 - #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（タスク→Todo・約束→予定）✅（2026-07-16 — **PR #264 は 2026-07-16 merge 済み**・実ブラウザ確認は chat-main）
-- Layout Standard v2 adoption（materials・#207）✅（2026-07-11 — #207 は COMPLETED で close 済み・#203 全幅化と併せて解消。materials 各サブタブの全幅表示の実確認だけ次セッション冒頭に実施）
 
 ## 予定
 

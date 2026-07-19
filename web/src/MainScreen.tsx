@@ -517,7 +517,7 @@ export function MainScreen({ session }: { session: Session }) {
     <>
       {materialsTab === "tasks" && (
         <WikiTagsUnifiedProvider dataService={ds}>
-          <TaskTreeProvider dataService={ds}>
+          <TaskTreeProvider dataService={ds} persistSelection>
             <KanbanView
               pendingNewTask={pendingNewTask}
               onConsumeNewTask={consumeNewTask}

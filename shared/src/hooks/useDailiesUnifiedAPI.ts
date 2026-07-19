@@ -5,6 +5,11 @@ import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncContext } from "./useSyncContext";
+import {
+  getDailySelection,
+  setDailySelection,
+  clearDailySelection,
+} from "../state/materialsSelectionStore";
 
 /**
  * Options the host injects. The shared hook takes the DataService and a
@@ -39,11 +44,26 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
 
   const [dailies, setDailies] = useState<DailyNode[]>([]);
   const [deletedDailies, setDeletedDailies] = useState<DailyNode[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    // Day-start-hour aware: before the configured rollover hour this is
-    // still "yesterday" (#218), so a 2 AM entry lands on the right daily.
-    todayDateKey(),
+  const [selectedDate, setSelectedDateState] = useState<string>(
+    // #282: seed from the module-level store so a Materials tab/section switch
+    // returns to the date the user was on. Falls back to today when the store
+    // is empty (fresh session). Day-start-hour aware: before the configured
+    // rollover hour this is still "yesterday" (#218), so a 2 AM entry lands on
+    // the right daily.
+    () => getDailySelection() ?? todayDateKey(),
   );
+  // #282: write-through wrapper. Every PUBLIC setSelectedDate call is
+  // user-driven, so persist it to the store. The today-default initializer
+  // above deliberately does NOT write (an untouched default must not pin the
+  // store to today and mask a later restore). Picking TODAY clears the store
+  // instead of pinning today's concrete date — a pinned date would reopen
+  // yesterday after midnight in a long-lived session, while an empty store
+  // already means "today" on restore.
+  const setSelectedDate = useCallback((date: string): void => {
+    setSelectedDateState(date);
+    if (date === todayDateKey()) clearDailySelection();
+    else setDailySelection(date);
+  }, []);
   const dailiesRef = useRef(dailies);
   const deletedDailiesRef = useRef(deletedDailies);
   useEffect(() => {
@@ -340,6 +360,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       dailies,
       deletedDailies,
       selectedDate,
+      setSelectedDate,
       selectedDaily,
       upsertDaily,
       deleteDaily,

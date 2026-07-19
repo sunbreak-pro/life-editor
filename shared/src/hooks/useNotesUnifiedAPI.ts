@@ -3,9 +3,15 @@ import type { NoteNode, NoteSortMode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { sortNotesForList } from "../utils/noteSort";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncContext } from "./useSyncContext";
 import { useNoteTreeMovement } from "./useNoteTreeMovement";
+import {
+  getNotesSelection,
+  setNotesSelection,
+  clearNotesSelection,
+} from "../state/materialsSelectionStore";
 
 /**
  * DU-G G4: behaviour-preserving port of the former legacy Notes hook, with the
@@ -29,6 +35,10 @@ export type NoteSortDirection = "asc" | "desc";
 
 const LS_EXPANDED = "note-tree-expanded";
 const LS_SORT_DIRECTION = "note-sort-direction";
+// #283: sort MODE persistence. Namespaced (`life-editor:` prefix) — the newer
+// convention. The sibling LS_SORT_DIRECTION stays un-namespaced on purpose:
+// renaming it would silently discard the user's already-saved direction.
+const LS_SORT_MODE = "life-editor:note-sort-mode";
 
 function loadExpandedIds(): Set<string> {
   try {
@@ -56,6 +66,18 @@ function loadSortDirection(): NoteSortDirection {
     // ignore
   }
   return "asc";
+}
+
+function loadSortMode(): NoteSortMode {
+  try {
+    const saved = localStorage.getItem(LS_SORT_MODE);
+    if (saved === "updatedAt" || saved === "createdAt" || saved === "title") {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return "updatedAt";
 }
 
 /**
@@ -103,7 +125,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const [deletedNotes, setDeletedNotes] = useState<NoteNode[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortMode, setSortMode] = useState<NoteSortMode>("updatedAt");
+  const [sortMode, setSortModeState] = useState<NoteSortMode>(loadSortMode);
   const [sortDirection, setSortDirectionState] =
     useState<NoteSortDirection>(loadSortDirection);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(loadExpandedIds);
@@ -163,18 +185,23 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       const token = ++selectTokenRef.current;
       if (id === null) {
         setSelectedNoteId(null);
+        clearNotesSelection(); // #282: persist deselection across remounts
         return;
       }
       const node = notesRef.current.find((n) => n.id === id);
       if (node?.type === "folder" || contentLoadedIdsRef.current.has(id)) {
         if (node?.type === "folder") contentLoadedIdsRef.current.add(id);
         setSelectedNoteId(id);
+        setNotesSelection(id); // #282
         return;
       }
       void (async () => {
         const ok = await hydrateContent(id);
         if (selectTokenRef.current !== token) return; // superseded
-        if (ok) setSelectedNoteId(id);
+        if (ok) {
+          setSelectedNoteId(id);
+          setNotesSelection(id); // #282
+        }
       })();
     },
     [hydrateContent],
@@ -189,6 +216,19 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     }
   }, []);
 
+  const setSortMode = useCallback((mode: NoteSortMode) => {
+    setSortModeState(mode);
+    try {
+      localStorage.setItem(LS_SORT_MODE, mode);
+    } catch {
+      // ignore storage write failures
+    }
+  }, []);
+
+  // #282: flips only when a list fetch actually succeeded — the load effect's
+  // `finally` clears isLoading even on error, so isLoading alone cannot tell
+  // "loaded, id absent" apart from "load failed".
+  const listLoadedRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -199,6 +239,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
           // hydrated bodies are stale/absent — invalidate the cache.
           contentLoadedIdsRef.current = new Set();
           setNotes(loaded);
+          listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
           // Keep the currently-open note's body correct after a
           // sync-triggered reload (the editor is keyed by note id so it
           // won't remount; this just refills `notes[id].content` so a later
@@ -231,6 +272,51 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       cancelled = true;
     };
   }, [ds, syncVersion, hydrateContent]);
+
+  // One-shot RESTORE (#282): re-open the note the user had selected before the
+  // provider unmounted (Materials tab/section switch). The id lives in the
+  // module-level materialsSelectionStore, which outlives this React tree. Runs
+  // at most once per mount (restoredRef) and never fights a user action already
+  // in flight (bail if something is already selected). Restore MUST take the
+  // same hydrate-first path as selectNote — the web editor initialises its
+  // content once per noteId and never re-syncs, so flipping selectedNoteId onto
+  // an un-hydrated id would open a blank editor over a note that has a body
+  // (DATA LOSS). A stored id absent from the loaded list, or a hydrate failure,
+  // clears the store entry (no retry loops).
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (isLoading) return; // wait until the list has loaded
+    // A failed list fetch must NOT consume the one-shot nor clear the store —
+    // a transient error (offline blip) would otherwise permanently erase the
+    // remembered selection. `notes` in the deps retries after a successful
+    // reload (syncVersion) repopulates the list.
+    if (!listLoadedRef.current) return;
+    restoredRef.current = true;
+    const storedId = getNotesSelection();
+    if (storedId === null) return;
+    if (selectedNoteIdRef.current !== null) return; // user already selected
+    const node = notes.find((n) => n.id === storedId);
+    if (!node) {
+      clearNotesSelection(); // stale id — item gone since last session tab
+      return;
+    }
+    const token = ++selectTokenRef.current;
+    if (node.type === "folder" || contentLoadedIdsRef.current.has(storedId)) {
+      if (node.type === "folder") contentLoadedIdsRef.current.add(storedId);
+      setSelectedNoteId(storedId);
+      return;
+    }
+    void (async () => {
+      const ok = await hydrateContent(storedId);
+      if (selectTokenRef.current !== token) return; // superseded by user select
+      if (ok) {
+        setSelectedNoteId(storedId);
+      } else {
+        clearNotesSelection(); // hydrate failed — drop the id, don't retry
+      }
+    })();
+  }, [isLoading, notes, hydrateContent]);
 
   // Tree helpers. `childrenByParent` is built once per `notes` change (O(n)
   // group + sort) so `getChildren` is an O(1) Map lookup instead of an
@@ -311,23 +397,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       );
     }
 
-    // Sort: pinned first, then by sort mode within each group
-    const dir = sortDirection === "desc" ? -1 : 1;
-    const compare = (a: NoteNode, b: NoteNode): number => {
-      switch (sortMode) {
-        case "updatedAt":
-          return b.updatedAt.localeCompare(a.updatedAt) * dir;
-        case "createdAt":
-          return b.createdAt.localeCompare(a.createdAt) * dir;
-        case "title":
-          return a.title.localeCompare(b.title) * dir;
-        default:
-          return 0;
-      }
-    };
-    const pinned = result.filter((n) => n.isPinned).sort(compare);
-    const unpinned = result.filter((n) => !n.isPinned).sort(compare);
-    return [...pinned, ...unpinned];
+    // Sort: pinned first, then by sort mode within each group. Single sort
+    // implementation shared with the host list (#283) — see noteSort.ts.
+    return sortNotesForList(result, sortMode, sortDirection);
   }, [notes, searchQuery, sortMode, sortDirection]);
 
   // Persist tree to DB. Unified has no bulk sync — apply moves
@@ -406,7 +478,13 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // re-fetch (which could race the still-in-flight content write and
       // clobber the local body with an empty server row).
       contentLoadedIdsRef.current.add(id);
-      if (opts?.select !== false) setSelectedNoteId(id);
+      // #285 background create (select:false) must not switch the editor —
+      // and must not retarget the #282 restore either, so the store write
+      // stays inside the same guard.
+      if (opts?.select !== false) {
+        setSelectedNoteId(id);
+        setNotesSelection(id); // #282: restore the just-created note after a tab switch
+      }
       ds.createNoteUnified(
         buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
       )
@@ -422,7 +500,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
           label: "createNote",
           undo: () => {
             setNotes((p) => p.filter((n) => n.id !== id));
-            if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
+            if (selectedNoteIdRef.current === id) {
+              setSelectedNoteId(null);
+              clearNotesSelection(); // #282: don't restore a removed note
+            }
             ds.permanentDeleteNoteUnified(id).catch((e) =>
               logServiceError("Notes", "undoCreate", e),
             );
@@ -431,6 +512,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
             setNotes((p) => [newNote, ...p]);
             contentLoadedIdsRef.current.add(id);
             setSelectedNoteId(id);
+            setNotesSelection(id); // #282
             ds.createNoteUnified(
               buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
             )
@@ -594,6 +676,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         subtreeIds.has(selectedNoteIdRef.current)
       ) {
         setSelectedNoteId(null);
+        clearNotesSelection(); // #282: don't restore a soft-deleted note
       }
       // Surface the removed nodes in Trash immediately (the deepest-first
       // order keeps ancestors above descendants once prepended). restore /
@@ -840,6 +923,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       selectedNote,
       searchQuery,
       sortMode,
+      setSortMode,
       sortDirection,
       setSortDirection,
       sortedFilteredNotes,
