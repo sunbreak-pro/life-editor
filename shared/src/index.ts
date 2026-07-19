@@ -275,6 +275,8 @@ export {
   TASK_CHIP_PREFIX,
   type TaskCalendarChip,
 } from "./utils/taskCalendarChips";
+// A-3 (#298): "add from tasks" selector for the Today's Todo tray.
+export { pickAddableTasks, type AddableTask } from "./utils/todayTodo";
 // Schedule host domain helpers (#280, extracted from web CalendarTab /
 // scheduleLabels): pure label mapping, view-mode normalisation + visible
 // range, and the optimistic-create row factory.

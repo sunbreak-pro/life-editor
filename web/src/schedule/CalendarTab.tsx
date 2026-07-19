@@ -11,6 +11,7 @@ import {
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
+  TodayTodoTray,
   ScheduleToolbar,
   EventEditorPane,
   RoutineSummaryCard,
@@ -32,6 +33,7 @@ import {
   isTaskChip,
   unwrapTaskChipId,
   localDateTimeToISO,
+  pickAddableTasks,
   buildWeekdayLabels,
   frequencyLabel,
   itemVariant,
@@ -39,6 +41,7 @@ import {
   sortDayItems,
   type FrequencyLabelCopy,
   type TaskCalendarChip,
+  type TodayTodoRow,
   type ScheduleStatus,
   type ScheduleItem,
   type WeekTimeGridItem,
@@ -75,9 +78,12 @@ const ICON_BTN =
 export function CalendarTab({
   dataService,
   onOpenRoutines,
+  onOpenTasks,
 }: {
   dataService: DataService;
   onOpenRoutines: () => void;
+  /** Jump to the Tasks section (Today's Todo tray title click — A-3 / #298). */
+  onOpenTasks: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
@@ -117,7 +123,7 @@ export function CalendarTab({
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
-  const { nodes: taskNodes, updateNode } = useTaskTreeContext();
+  const { nodes: taskNodes, updateNode, setTaskStatus } = useTaskTreeContext();
   // Null-safe: the section can render without a RightSidebarProvider (tests /
   // standalone). `open` re-opens the panel when a calendar item is picked.
   const rightSidebar = useRightSidebarOptional();
@@ -144,8 +150,11 @@ export function CalendarTab({
   } = useCalendarNav(isWide);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Which rightSidebar tab is showing on Desktop ("今日の流れ" ↔ "詳細").
-  const [sidebarTab, setSidebarTab] = useState<"flow" | "detail">("flow");
+  // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "詳細" / "本日の
+  // Todo" — the A-3 tray, #298).
+  const [sidebarTab, setSidebarTab] = useState<"flow" | "detail" | "todo">(
+    "flow",
+  );
   const [calendarsOpen, setCalendarsOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [nowMinutes, setNowMinutes] = useState(() => nowMinutesLocal());
@@ -223,6 +232,31 @@ export function CalendarTab({
       });
     },
     [taskNodes, updateNode],
+  );
+
+  // A-3 (#298) Today's Todo tray. Completion routes to the TaskTree status API
+  // (the tray owns no completion state of its own); a plain binary toggle, not
+  // the 3-state cycle (NOT_STARTED ↔ DONE).
+  const handleTodoToggleComplete = useCallback(
+    (taskId: string) => {
+      const task = taskNodes.find((n) => n.id === taskId);
+      setTaskStatus(taskId, task?.status === "DONE" ? "NOT_STARTED" : "DONE");
+    },
+    [taskNodes, setTaskStatus],
+  );
+
+  // "Add to today" (案 c staging): give the task scheduledAt = today midnight +
+  // all-day (time undefined). It then surfaces in the tray's unplaced group and
+  // as an all-day chip on the grid; dragging it into the time body (place)
+  // promotes it to placed. DDL zero — reuses the existing scheduledAt columns.
+  const handleTodoAddCandidate = useCallback(
+    (taskId: string) => {
+      updateNode(taskId, {
+        scheduledAt: localDateTimeToISO(today, "00:00"),
+        isAllDay: true,
+      });
+    },
+    [today, updateNode],
   );
 
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
@@ -450,6 +484,30 @@ export function CalendarTab({
     () => tasksToCalendarChips(scheduledTasks, today, today),
     [scheduledTasks, today],
   );
+
+  // A-3 (#298) Today's Todo tray groups. Reuse today's chips: a time = placed,
+  // all-day = an unplaced candidate (案 c staging). "Add from tasks" offers the
+  // incomplete, unscheduled leaves (pickAddableTasks).
+  const todoPlaced = useMemo<TodayTodoRow[]>(
+    () =>
+      todayTaskChips
+        .filter((c) => !c.isAllDay)
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          timeLabel: c.startTime,
+          completed: c.completed,
+        })),
+    [todayTaskChips],
+  );
+  const todoUnplaced = useMemo<TodayTodoRow[]>(
+    () =>
+      todayTaskChips
+        .filter((c) => c.isAllDay)
+        .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
+    [todayTaskChips],
+  );
+  const todoAddable = useMemo(() => pickAddableTasks(taskNodes), [taskNodes]);
 
   const gridItems = useMemo<WeekTimeGridItem[]>(
     () => [
@@ -738,6 +796,7 @@ export function CalendarTab({
     () => [
       { id: "flow", label: t("scheduleScreen.todayFlow") },
       { id: "detail", label: t("scheduleScreen.tabDetail") },
+      { id: "todo", label: t("scheduleScreen.tabTodo") },
     ],
     [t],
   );
@@ -830,16 +889,44 @@ export function CalendarTab({
     </div>
   );
 
+  // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
+  // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
+  const todoBody = (
+    <TodayTodoTray
+      placed={todoPlaced}
+      unplaced={todoUnplaced}
+      addable={todoAddable}
+      onToggleComplete={handleTodoToggleComplete}
+      onAddCandidate={handleTodoAddCandidate}
+      onOpenTask={() => onOpenTasks()}
+      labels={{
+        placedHeading: t("scheduleScreen.todoPlacedHeading"),
+        unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
+        emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
+        emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
+        addHeading: t("scheduleScreen.todoAddHeading"),
+        addAction: t("scheduleScreen.todoAddAction"),
+        emptyAddable: t("scheduleScreen.todoEmptyAddable"),
+        complete: t("scheduleScreen.complete"),
+        openInTasks: t("scheduleScreen.todoOpenInTasks"),
+      }}
+    />
+  );
+
   const sidebarPortal = (
     <RightSidebarPortal>
       {isWide ? (
         <ScheduleSidebarTabs
           tabs={sidebarTabs}
           value={sidebarTab}
-          onChange={(id) => setSidebarTab(id as "flow" | "detail")}
+          onChange={(id) => setSidebarTab(id as "flow" | "detail" | "todo")}
           label={t("scheduleScreen.detailPanelLabel")}
         >
-          {sidebarTab === "flow" ? flowBody : detailBody}
+          {sidebarTab === "flow"
+            ? flowBody
+            : sidebarTab === "detail"
+              ? detailBody
+              : todoBody}
         </ScheduleSidebarTabs>
       ) : (
         flowBody

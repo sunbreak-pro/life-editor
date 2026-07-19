@@ -59,6 +59,15 @@ export {
   type ScheduleSidebarTabsProps,
   type ScheduleSidebarTab,
 } from "./ScheduleSidebarTabs";
+// A-3 (#298): rightSidebar "Today's Todo" tray — placed / unplaced task groups
+// + an "add from tasks" picker. Pure presentation (§3.1 / §6.4).
+export {
+  TodayTodoTray,
+  type TodayTodoTrayProps,
+  type TodayTodoTrayLabels,
+  type TodayTodoRow,
+  type TodayTodoAddableRow,
+} from "./TodayTodoTray";
 // #223: right-click context menu (rename / duplicate / delete) for a calendar
 // item block/chip.
 export {
