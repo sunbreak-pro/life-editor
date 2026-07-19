@@ -1143,6 +1143,8 @@
     "originEvent": "Event",
     "originTask": "Todo",
     "skipThisDay": "Skip this day",
+    "skippedTitle": "Skipped ({{count}})",
+    "restoreSkipped": "Restore",
     "delete": "Delete",
     "selectHint": "Select an event to edit",
     "todayFlow": "Today's flow",

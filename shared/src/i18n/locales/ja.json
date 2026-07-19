@@ -1143,6 +1143,8 @@
     "originEvent": "予定",
     "originTask": "Todo",
     "skipThisDay": "この日はスキップ",
+    "skippedTitle": "スキップ済み（{{count}}件）",
+    "restoreSkipped": "戻す",
     "delete": "削除",
     "selectHint": "編集する予定を選択",
     "todayFlow": "今日の流れ",

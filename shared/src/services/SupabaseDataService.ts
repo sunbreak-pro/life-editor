@@ -845,6 +845,84 @@ export class SupabaseRoutinesService {
   }
 
   /**
+   * Event→Repeats conversion (#185 / #296). Sequenced writes:
+   *   1. createRoutine — AWAITED, so the attach below can never lose the
+   *      0011 composite-FK race (the old UI flow fired the routine INSERT
+   *      and the occurrence writes as unordered promises).
+   *   2. Bump the seed's items_meta.updated_at FIRST (DB-Q2 — payload rows
+   *      carry no own LWW cursor), THEN attach the routine link on
+   *      events_payload. This ORDER matters for clean rollback: while the
+   *      seed's events_payload.routine_item_id is still null, the routine
+   *      has no inbound composite FK (0011, ON DELETE NO ACTION), so a
+   *      rollback delete of the routine is unblocked. Attaching first and
+   *      failing the bump would wedge the rollback behind that FK, leaving
+   *      a half-converted routine+seed pair. A pre-attach bump that never
+   *      reaches the attach is a harmless spurious cursor advance (the
+   *      seed's payload is unchanged).
+   *   3. Attach the seed: events_payload.routine_item_id + source_date :=
+   *      the seed's own day (the (routine, source_date) partial UNIQUE then
+   *      treats the seed as that day's occurrence, so the generator will
+   *      not mint a duplicate).
+   * The seed row is NEVER deleted. If any step after createRoutine fails,
+   * the just-created routine is rolled back (hard delete — nothing
+   * references it yet) and the error is re-thrown: the conversion simply
+   * did not happen, the seed event keeps its data (routine link still null).
+   */
+  async convertEventToRoutine(
+    eventId: string,
+    routineId: string,
+    init: {
+      title: string;
+      startTime?: string;
+      endTime?: string;
+      frequencyType?: string;
+      frequencyDays?: number[];
+      frequencyInterval?: number | null;
+      frequencyStartDate?: string | null;
+      sourceDate: string;
+    },
+  ): Promise<RoutineNode> {
+    const routine = await this.createRoutine(
+      routineId,
+      init.title,
+      init.startTime,
+      init.endTime,
+      init.frequencyType,
+      init.frequencyDays,
+      init.frequencyInterval,
+      init.frequencyStartDate,
+    );
+    try {
+      const now = new Date().toISOString();
+      const { error: mErr } = await this.client
+        .from("items_meta")
+        .update({ updated_at: now })
+        .eq("id", eventId);
+      if (mErr)
+        throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
+      const { error: pErr } = await this.client
+        .from("events_payload")
+        .update({ routine_item_id: routineId, source_date: init.sourceDate })
+        .eq("item_id", eventId);
+      if (pErr)
+        throw new Error(`convertEventToRoutine attach: ${pErr.message}`);
+      return routine;
+    } catch (err) {
+      // Roll the routine back so a half-converted state cannot survive.
+      // The seed's routine link is still null on every failure path (the
+      // attach either did not run or did not land), so this delete is never
+      // blocked by the 0011 composite FK. Best-effort: a rollback failure
+      // must not mask the original error.
+      try {
+        await this.client.from("items_meta").delete().eq("id", routineId);
+      } catch {
+        // swallow — rethrow the original err below
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Mapper-driven dual UPDATE. metaPatch ALWAYS carries updated_at
    * (DB-Q2 enforcement is in routineUpdatesToPatches). Empty payload
    * patch skips the no-op write.
@@ -1039,8 +1117,13 @@ export class SupabaseRoutinesService {
   async detachRoutine(
     id: string,
     today: string = todayDateKey(),
+    opts?: { keepItemIds?: string[] },
   ): Promise<{ deletedScheduleItemIds: string[] }> {
     const now = new Date().toISOString();
+    // #296: ids the caller pins as survivors (the occurrence the user is
+    // editing when they turn the repeat off). They move from the delete
+    // partition to the detach partition below.
+    const keep = new Set(opts?.keepItemIds ?? []);
 
     // 1. Read ALL live occurrences of this routine (item_id + the two fields
     //    that decide the partition). Paged so the id list is never silently
@@ -1062,9 +1145,13 @@ export class SupabaseRoutinesService {
     );
 
     // Partition: future (start_at >= today) AND incomplete → soft-delete;
-    // everything else live (past, or completed) → detach (NULL the link).
-    const isFutureIncomplete = (r: { start_at: string; done: boolean }) =>
-      r.start_at >= today && !r.done;
+    // everything else live (past, completed, or caller-pinned keepItemIds)
+    // → detach (NULL the link).
+    const isFutureIncomplete = (r: {
+      item_id: string;
+      start_at: string;
+      done: boolean;
+    }) => r.start_at >= today && !r.done && !keep.has(r.item_id);
     const deleteIds = rows.filter(isFutureIncomplete).map((r) => r.item_id);
     const detachIds = rows
       .filter((r) => !isFutureIncomplete(r))
@@ -2223,6 +2310,27 @@ export class SupabaseScheduleItemsService {
     );
     return ids.length;
   }
+
+  /**
+   * Bulk soft-delete (Trash-recoverable — items_meta.is_deleted, the 0008
+   * trigger mirrors is_deleted_cache onto events_payload). The generator's
+   * frequency-mismatch cleanup calls THIS (#296): hard bulkDelete there
+   * destroyed hand-moved occurrences beyond any recovery.
+   */
+  async bulkSoftDeleteScheduleItems(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const now = new Date().toISOString();
+    await forEachIdChunk(
+      ids,
+      (chunk) =>
+        this.client
+          .from("items_meta")
+          .update({ is_deleted: true, deleted_at: now, updated_at: now })
+          .in("id", chunk),
+      "bulkSoftDeleteScheduleItems",
+    );
+    return ids.length;
+  }
 }
 
 /*
@@ -2392,6 +2500,7 @@ const PHASE2_ROUTINES_METHODS = new Set<string>([
   "fetchAllRoutines",
   "fetchDeletedRoutines",
   "createRoutine",
+  "convertEventToRoutine",
   "updateRoutine",
   "deleteRoutine",
   "softDeleteRoutine",
@@ -2431,6 +2540,7 @@ const PHASE2_SCHEDULE_ITEM_METHODS = new Set<string>([
   "updateFutureScheduleItemsByRoutine",
   "fetchScheduleItemsByRoutineId",
   "bulkDeleteScheduleItems",
+  "bulkSoftDeleteScheduleItems",
   "fetchEvents",
 ]);
 

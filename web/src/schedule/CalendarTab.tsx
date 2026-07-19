@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
+  useSyncContext,
   useTaskTreeContext,
   useRightSidebarOptional,
   useTranslation,
@@ -23,6 +24,7 @@ import {
   BottomSheet,
   Modal,
   useScheduleItemsRoutineSync,
+  buildGroupForRoutineMap,
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
@@ -86,12 +88,13 @@ export function CalendarTab({
     updateScheduleItem,
     toggleComplete,
     dismiss,
+    undismiss,
     deleteScheduleItem,
   } = useScheduleItemsContext();
   const {
     routines,
     routineGroups,
-    createRoutine,
+    convertEventToRoutine,
     updateRoutine,
     deleteRoutine,
     setGroupsForRoutine,
@@ -99,6 +102,10 @@ export function CalendarTab({
     detachRoutine,
     updateFutureOccurrences,
   } = useRoutineContext();
+  // Realtime change cursor: rows written outside the visible-range store
+  // (the always-on generator, undo, another device) refetch the range when
+  // this bumps (#296 — pre-fix they stayed invisible until navigation).
+  const { syncVersion } = useSyncContext();
   // Range materialiser (#279): after an Event→Repeats conversion, the new
   // routine's occurrences are generated for the visible range right away —
   // the always-on RoutineScheduleSync only covers today.
@@ -178,9 +185,30 @@ export function CalendarTab({
   );
 
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
-  // rangeItems optimistically, so only navigation, reload() and retry refetch.
-  const { rangeItems, setRangeItems, fetchedRange, patchRange, reload } =
-    useVisibleRangeItems({ loadDateRange, rangeStart, rangeEnd });
+  // rangeItems optimistically; navigation, reload(), retry and Realtime
+  // (syncVersion) refetch.
+  const {
+    rangeItems,
+    setRangeItems,
+    fetchedRange,
+    patchRange,
+    reload,
+    rangeError,
+  } = useVisibleRangeItems({
+    loadDateRange,
+    rangeStart,
+    rangeEnd,
+    refreshKey: syncVersion,
+  });
+
+  // `group`-frequency lookup for the range materialiser (#296): built with
+  // the same shared helper RoutineScheduleSync uses, so the ensure cleanup
+  // never mistakes group-driven rows for stale ones.
+  const groupForRoutine = useMemo(
+    () =>
+      buildGroupForRoutineMap(routines, routineGroups, getGroupIdsForRoutine),
+    [routines, routineGroups, getGroupIdsForRoutine],
+  );
 
   // The selected ScheduleItem — resolved before the mutation layer, which
   // acts on the selection (repeat conversion / detach / scope dialog).
@@ -234,13 +262,14 @@ export function CalendarTab({
     dismiss,
     deleteScheduleItem,
     routines,
-    createRoutine,
+    convertEventToRoutine,
     updateRoutine,
     deleteRoutine,
     setGroupsForRoutine,
     detachRoutine,
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
+    groupForRoutine,
     newEventTitle: t("scheduleCalendar.newEvent"),
     copySuffix: t("scheduleScreen.copySuffix"),
   });
@@ -460,6 +489,22 @@ export function CalendarTab({
     () => contextItems.filter((i) => !i.isDeleted && !i.isDismissed),
     [contextItems],
   );
+  // "この予定のみ削除" dismisses the row; pre-#296 nothing surfaced it again
+  // (not in Trash, no undismiss UI — effectively unrecoverable). The flow
+  // tab lists today's skipped items with a restore action.
+  const skippedToday = useMemo(
+    () => contextItems.filter((i) => !i.isDeleted && i.isDismissed),
+    [contextItems],
+  );
+  const handleRestoreSkipped = useCallback(
+    (id: string) => {
+      undismiss(id);
+      // Fast path; if the refetch races ahead of the undismiss write, the
+      // syncVersion-driven refetch reconciles once the write lands.
+      reload();
+    },
+    [undismiss, reload],
+  );
   const todayAgenda = useMemo(
     () => toAgenda(todayItems, todayTaskChips),
     [todayItems, todayTaskChips, toAgenda],
@@ -622,7 +667,26 @@ export function CalendarTab({
     </div>
   );
   const showLoading = isLoading && rangeItems.length === 0;
-  const showError = !!error;
+  // Full-screen error only when there is nothing to show; a range-fetch
+  // failure with stale items on screen degrades to the retry banner below
+  // (#296 — blanking a populated calendar over a transient error reads as
+  // "my items vanished").
+  const showError = !!error || (rangeError && rangeItems.length === 0);
+  const rangeErrorBanner =
+    rangeError && rangeItems.length > 0 ? (
+      <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2">
+        <p className="text-xs text-lumen-text-secondary">
+          {t("scheduleScreen.loadError")}
+        </p>
+        <button
+          type="button"
+          onClick={reload}
+          className="rounded-lumen-md border border-lumen-border-strong px-2.5 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          {t("scheduleScreen.retry")}
+        </button>
+      </div>
+    ) : null;
 
   // Shared rightSidebar (AppShell owns the frame). Desktop shows a 2-tab
   // switcher ("今日の流れ" ↔ "詳細") inside ONE portal so contentCount stays 1;
@@ -661,6 +725,35 @@ export function CalendarTab({
         selectedId={selectedId}
         labels={agendaLabels}
       />
+      {/* Restore surface for skipped (dismissed) items — #296. */}
+      {skippedToday.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2">
+          <h4 className="text-xs font-semibold text-lumen-text-secondary">
+            {t("scheduleScreen.skippedTitle", {
+              count: skippedToday.length,
+            })}
+          </h4>
+          <ul className="flex flex-col gap-1">
+            {skippedToday.map((i) => (
+              <li
+                key={i.id}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="min-w-0 flex-1 truncate text-xs text-lumen-text-secondary line-through">
+                  {i.isAllDay ? i.title : `${i.startTime} ${i.title}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRestoreSkipped(i.id)}
+                  className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+                >
+                  {t("scheduleScreen.restoreSkipped")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Routine-completion summary rides the flow tab (Desktop only — Mobile
           keeps its lean drawer). It used to live in the main-area <aside>,
           which this change removed. */}
@@ -784,6 +877,7 @@ export function CalendarTab({
             addEventLabel={t("scheduleScreen.addEvent")}
             labels={toolbarLabels}
           />
+          {rangeErrorBanner}
           {showLoading ? (
             loadingCard
           ) : showError ? (
@@ -887,6 +981,7 @@ export function CalendarTab({
           onChange={setView}
           label={t("scheduleScreen.viewLabel")}
         />
+        {rangeErrorBanner}
         <div className="min-h-0 flex-1 overflow-y-auto pb-24">
           {showLoading ? (
             loadingCard

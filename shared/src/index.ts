@@ -292,6 +292,7 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+export { buildGroupForRoutineMap } from "./utils/groupForRoutine";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,

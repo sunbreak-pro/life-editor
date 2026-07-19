@@ -267,11 +267,45 @@ export interface DataService {
    * following events" semantics. `today` defaults to the day-start-hour-aware
    * todayDateKey(); callers/tests may pass an explicit key for determinism.
    * Returns the soft-deleted occurrence ids so the UI can reconcile in-memory.
+   *
+   * `opts.keepItemIds` (#296): occurrence ids that must SURVIVE as detached
+   * one-offs even when they fall in the future/incomplete delete partition.
+   * The repeat-off editor passes the occurrence the user is looking at —
+   * deleting the very item they are editing reads as data loss.
    */
   detachRoutine(
     id: string,
     today?: string,
+    opts?: { keepItemIds?: string[] },
   ): Promise<{ deletedScheduleItemIds: string[] }>;
+  /**
+   * Event→Repeats conversion (#185 / #296): create the routine, then attach
+   * the EXISTING seed event to it (events_payload.routine_item_id +
+   * source_date = the seed's own day) as its first materialised occurrence.
+   * The seed row is never deleted — its id, memo, completion state and
+   * selection survive the conversion. Writes are sequenced (routine INSERT
+   * settles before the attach UPDATE) so the attach cannot lose the 0011
+   * composite-FK race; if the attach fails the just-created routine is
+   * rolled back and the seed is left untouched (the conversion simply did
+   * not happen — nothing is lost).
+   */
+  convertEventToRoutine(
+    eventId: string,
+    routineId: string,
+    init: {
+      title: string;
+      startTime?: string;
+      endTime?: string;
+      frequencyType?: string;
+      frequencyDays?: number[];
+      frequencyInterval?: number | null;
+      frequencyStartDate?: string | null;
+      /** The seed event's date key — becomes events_payload.source_date so
+       *  the (routine, source_date) partial UNIQUE treats the converted seed
+       *  as that day's occurrence. */
+      sourceDate: string;
+    },
+  ): Promise<RoutineNode>;
   restoreRoutine(id: string): Promise<void>;
   permanentDeleteRoutine(id: string): Promise<void>;
 
@@ -355,6 +389,13 @@ export interface DataService {
   ): Promise<number>;
   fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]>;
   bulkDeleteScheduleItems(ids: string[]): Promise<number>;
+  /**
+   * Bulk soft-delete (items_meta.is_deleted = true — Trash-recoverable).
+   * The generator's frequency-mismatch cleanup uses THIS, not the hard
+   * bulkDeleteScheduleItems: auto-cleanup destroying rows beyond recovery
+   * was #296's worst data-loss path.
+   */
+  bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
 
   // Routine Groups

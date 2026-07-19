@@ -325,11 +325,12 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     async (
       id: string,
       fromDate?: string,
+      opts?: { keepItemIds?: string[] },
     ): Promise<{ deletedScheduleItemIds: string[] }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       setRoutines((prev) => prev.filter((r) => r.id !== id));
       try {
-        return await ds.detachRoutine(id, fromDate);
+        return await ds.detachRoutine(id, fromDate, opts);
       } catch (e) {
         logServiceError("Routines", "detach", e);
         if (target) {
@@ -337,6 +338,64 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             prev.some((r) => r.id === id) ? prev : [...prev, target],
           );
         }
+        throw e;
+      }
+    },
+    [ds],
+  );
+
+  // Event→Repeats conversion (#296). AWAITED, unlike createRoutine: the
+  // seed event is attached to the routine inside the same service call, so
+  // the caller must know whether the conversion actually landed before it
+  // materialises further occurrences.
+  //
+  // The new routine is added to the live list ONLY after the service
+  // resolves — deliberately NOT optimistically. An optimistic pre-await add
+  // would enter `routines`, wake RoutineScheduleSync's generator (dep:
+  // routines) mid-conversion, and let it INSERT an occurrence for the
+  // anchor day while the seed attach is still in flight. If that generated
+  // row landed first, the attach would hit the (routine, source_date)
+  // partial UNIQUE, roll back — and the rollback's routine hard-delete
+  // would then be blocked by the generated row's 0011 composite FK,
+  // stranding an orphan routine. Adding post-resolve means the generator
+  // only ever runs once the attach has committed (the seed already owns the
+  // slot), so it cannot race. The seed itself stays on the calendar
+  // throughout (it is a live event the whole time — #296), and the host
+  // paints the routine band optimistically via patchRange. No undo entry:
+  // the inverse of a conversion is detachRoutine with the seed pinned, and
+  // the repeat editor offers exactly that ("なし") as a first-class action.
+  const convertEventToRoutine = useCallback(
+    async (
+      eventId: string,
+      init: {
+        title: string;
+        startTime?: string;
+        endTime?: string;
+        frequencyType?: FrequencyType;
+        frequencyDays?: number[];
+        frequencyInterval?: number | null;
+        frequencyStartDate?: string | null;
+        sourceDate: string;
+      },
+    ): Promise<string> => {
+      const id = generateId("routine");
+      try {
+        const routine = await ds.convertEventToRoutine(eventId, id, {
+          title: init.title,
+          startTime: init.startTime,
+          endTime: init.endTime,
+          frequencyType: init.frequencyType,
+          frequencyDays: init.frequencyDays,
+          frequencyInterval: init.frequencyInterval,
+          frequencyStartDate: init.frequencyStartDate,
+          sourceDate: init.sourceDate,
+        });
+        setRoutines((prev) =>
+          prev.some((r) => r.id === id) ? prev : [...prev, routine],
+        );
+        return id;
+      } catch (e) {
+        logServiceError("Routines", "convertEventToRoutine", e);
         throw e;
       }
     },
@@ -710,6 +769,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       isLoading,
       error,
       createRoutine,
+      convertEventToRoutine,
       updateRoutine,
       deleteRoutine,
       detachRoutine,
@@ -732,6 +792,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       isLoading,
       error,
       createRoutine,
+      convertEventToRoutine,
       updateRoutine,
       deleteRoutine,
       detachRoutine,

@@ -7,6 +7,7 @@ import {
   addDaysKey,
   type FrequencyEditorValue,
   type RepeatScope,
+  type RoutineGroup,
   type RoutineNode,
   type ScheduleItem,
 } from "@life-editor/shared";
@@ -64,15 +65,22 @@ export interface UseScheduleMutationsArgs {
   deleteScheduleItem: (id: string) => void;
   // Routines provider
   routines: RoutineNode[];
-  createRoutine: (
-    title: string,
-    startTime?: string,
-    endTime?: string,
-    frequencyType?: RoutineNode["frequencyType"],
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
-  ) => string;
+  // #296: Event→Repeats conversion — attaches the seed event in place
+  // (id/memo/completion survive) instead of delete-and-recreate. Awaited:
+  // resolves only once the routine + attach landed in the DB.
+  convertEventToRoutine: (
+    eventId: string,
+    init: {
+      title: string;
+      startTime?: string;
+      endTime?: string;
+      frequencyType?: RoutineNode["frequencyType"];
+      frequencyDays?: number[];
+      frequencyInterval?: number | null;
+      frequencyStartDate?: string | null;
+      sourceDate: string;
+    },
+  ) => Promise<string>;
   updateRoutine: (
     id: string,
     updates: Partial<
@@ -93,6 +101,7 @@ export interface UseScheduleMutationsArgs {
   detachRoutine: (
     id: string,
     fromDate?: string,
+    opts?: { keepItemIds?: string[] },
   ) => Promise<{ deletedScheduleItemIds: string[] }>;
   updateFutureOccurrences: (
     routineId: string,
@@ -104,12 +113,19 @@ export interface UseScheduleMutationsArgs {
       endTime: string | null;
     },
   ) => Promise<number>;
-  // Range materialiser (#279 — see CalendarTab's useScheduleItemsRoutineSync)
+  // Range materialiser (#279 — see CalendarTab's useScheduleItemsRoutineSync).
+  // Resolves false when the pass failed (#296): destructive follow-ups
+  // (scope-dialog detach) must abort on false.
   ensureRoutineItemsForDateRange: (
     startDate: string,
     endDate: string,
     routines: RoutineNode[],
-  ) => Promise<unknown>;
+    groupForRoutine?: Map<string, RoutineGroup[]>,
+  ) => Promise<boolean>;
+  // `group`-frequency lookup (#296): the range-ensure treats a group-type
+  // routine with no resolvable groups as "should never exist" — omitting
+  // this map would let its cleanup soft-delete every group-driven row.
+  groupForRoutine: Map<string, RoutineGroup[]>;
   // Copy, resolved by the host (§6.4)
   newEventTitle: string;
   copySuffix: string;
@@ -137,13 +153,14 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     dismiss,
     deleteScheduleItem,
     routines,
-    createRoutine,
+    convertEventToRoutine,
     updateRoutine,
     deleteRoutine,
     setGroupsForRoutine,
     detachRoutine,
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
+    groupForRoutine,
     newEventTitle,
     copySuffix,
   } = args;
@@ -477,8 +494,12 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
 
   // Frequency change from the editor. For a routine occurrence this is a
   // series edit (patch the source routine). For a manual event, choosing a
-  // frequency spins up a routine seeded from the event, then drops the
-  // standalone seed — the generator materialises occurrences going forward.
+  // frequency converts the event IN PLACE (#296): the seed row itself is
+  // attached to a new routine as that day's occurrence — its id, memo,
+  // completion state and the current selection all survive, and a failed
+  // conversion leaves a plain manual event. The old delete-then-recreate
+  // flow soft-deleted the seed BEFORE the replacement was durable, so any
+  // failure in the chain vanished the event beyond a reload.
   const handleChangeRepeat = useCallback(
     (patch: Partial<FrequencyEditorValue>) => {
       if (!selected) return;
@@ -495,72 +516,81 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // so only a concrete daily/weekdays/interval type reaches this branch.
       const type = patch.frequencyType;
       if (!type || type === "group") return;
-      const [yy, mm, dd] = selected.date.split("-").map(Number);
+      const seed = selected;
+      const [yy, mm, dd] = seed.date.split("-").map(Number);
       const seedWeekday = new Date(yy, mm - 1, dd).getDay();
       const frequencyDays = type === "weekdays" ? [seedWeekday] : [];
       const frequencyInterval = type === "interval" ? 1 : null;
-      const frequencyStartDate = type === "interval" ? selected.date : null;
-      const routineId = createRoutine(
-        selected.title,
-        selected.startTime,
-        selected.endTime,
-        type,
-        frequencyDays,
-        frequencyInterval,
-        frequencyStartDate,
-      );
-      handleDelete(selected.id);
-      // #279: materialise the new routine's occurrences for the visible range
-      // right away — otherwise the converted event vanishes from the week
-      // view (the always-on generator only covers today, and rangeItems only
-      // reloads on navigation). Passing ONLY the new routine keeps the
-      // range-ensure's frequency-mismatch cleanup away from other routines'
-      // (possibly hand-moved) occurrences.
-      const now = new Date().toISOString();
-      const optimisticRoutine: RoutineNode = {
-        id: routineId,
-        title: selected.title,
-        startTime: selected.startTime,
-        endTime: selected.endTime,
-        isArchived: false,
-        isVisible: true,
-        isDeleted: false,
-        deletedAt: null,
-        order: 0,
-        frequencyType: type,
-        frequencyDays,
-        frequencyInterval,
-        frequencyStartDate,
-        createdAt: now,
-        updatedAt: now,
-      };
-      // Clamp the ensure window: never materialise BEFORE today or before
-      // the seed — a repeat conceptually starts at the converted occurrence,
-      // and fabricating not-done rows into past days would pollute the life
-      // record (tier-1 rule 1 spirit). A past-dated seed re-materialises
-      // exactly its own day (1:1 replacement of the deleted seed event, so
-      // the converted item stays visible), nothing in between.
-      const seedDate = selected.date;
-      const windowStart = [rangeStart, seedDate, today].reduce((a, b) =>
-        a >= b ? a : b,
-      );
+      const frequencyStartDate = type === "interval" ? seed.date : null;
       void (async () => {
-        if (seedDate < windowStart) {
-          await ensureRoutineItemsForDateRange(seedDate, seedDate, [
-            optimisticRoutine,
-          ]);
+        let routineId: string;
+        try {
+          routineId = await convertEventToRoutine(seed.id, {
+            title: seed.title,
+            startTime: seed.startTime,
+            endTime: seed.endTime,
+            frequencyType: type,
+            frequencyDays,
+            frequencyInterval,
+            frequencyStartDate,
+            sourceDate: seed.date,
+          });
+        } catch {
+          // Conversion did not land — the seed is untouched server-side.
+          // Re-read so the repeat editor's optimistic state snaps back.
+          reload();
+          return;
         }
+        patchRange(seed.id, { routineId, sourceDate: seed.date });
+        resolveDraft(seed.id);
+        // #279: materialise the rest of the visible range right away —
+        // the always-on generator only covers today, and rangeItems only
+        // reloads on navigation. Passing ONLY the new routine keeps the
+        // range-ensure's frequency-mismatch cleanup away from other
+        // routines' occurrences. Clamp the window: never materialise
+        // BEFORE today or before the seed — a repeat conceptually starts
+        // at the converted occurrence, and fabricating not-done rows into
+        // past days would pollute the life record (tier-1 rule 1 spirit).
+        // The seed's own day needs no extra pass: the seed row IS that
+        // day's occurrence now (source_date claims the slot).
+        const now = new Date().toISOString();
+        const optimisticRoutine: RoutineNode = {
+          id: routineId,
+          title: seed.title,
+          startTime: seed.startTime,
+          endTime: seed.endTime,
+          isArchived: false,
+          isVisible: true,
+          isDeleted: false,
+          deletedAt: null,
+          order: 0,
+          frequencyType: type,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const windowStart = [rangeStart, seed.date, today].reduce((a, b) =>
+          a >= b ? a : b,
+        );
         if (windowStart <= rangeEnd) {
-          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-            optimisticRoutine,
-          ]);
+          await ensureRoutineItemsForDateRange(
+            windowStart,
+            rangeEnd,
+            [optimisticRoutine],
+            groupForRoutine,
+          );
           // Second idempotent pass: the always-on today generator can race
           // the first batch on today's row (23505 → whole-batch rollback
           // inside ensure). The re-run's pre-check sees the winner and fills
           // in the remaining days.
-          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-            optimisticRoutine,
-          ]);
+          await ensureRoutineItemsForDateRange(
+            windowStart,
+            rangeEnd,
+            [optimisticRoutine],
+            groupForRoutine,
+          );
         }
         reload();
       })();
@@ -569,9 +599,11 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       selected,
       setGroupsForRoutine,
       updateRoutine,
-      createRoutine,
-      handleDelete,
+      convertEventToRoutine,
+      patchRange,
+      resolveDraft,
       ensureRoutineItemsForDateRange,
+      groupForRoutine,
       rangeStart,
       rangeEnd,
       today,
@@ -580,18 +612,26 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   );
 
   // "なし" selected → turn the repeat off (detach the series from today on).
+  // #296: the occurrence the user is editing is PINNED as a survivor
+  // (keepItemIds) — it stays on the calendar as a detached one-off and the
+  // selection stays on it. Only the OTHER today/future incomplete generated
+  // rows are trashed. Pre-fix, the detach deleted the very item the user
+  // had open, so a repeat ON→OFF round-trip erased everything.
   const handleDetachRepeat = useCallback(() => {
     if (!selected || selected.routineId == null) return; // manual = no-op
     const routineId = selected.routineId;
     const occurrenceId = selected.id;
-    setSelectedId((cur) => (cur === occurrenceId ? null : cur));
     void (async () => {
       try {
         // Reconcile off the SERVER's own delete set (the returned ids) rather
         // than a client-side date predicate — the two must not drift (the
         // service's "today" honours the day-start-hour pref; a local
         // todayCalendarKey memo would disagree in the late-night window).
-        const { deletedScheduleItemIds } = await detachRoutine(routineId);
+        const { deletedScheduleItemIds } = await detachRoutine(
+          routineId,
+          undefined,
+          { keepItemIds: [occurrenceId] },
+        );
         const removed = new Set(deletedScheduleItemIds);
         setRangeItems((prev) =>
           prev
@@ -599,7 +639,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
             // Survivors keep their row but lose the routine origin (the band
             // goes away) — mirrors the server NULLing routine_item_id.
             .map((i) =>
-              i.routineId === routineId ? { ...i, routineId: null } : i,
+              i.routineId === routineId
+                ? { ...i, routineId: null, sourceDate: null }
+                : i,
             ),
         );
       } catch {
@@ -608,7 +650,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         reload();
       }
     })();
-  }, [selected, detachRoutine, setRangeItems, setSelectedId, reload]);
+  }, [selected, detachRoutine, setRangeItems, reload]);
 
   // #279: apply the scope the user picked in the RepeatScopeDialog.
   // Edit — this: single-row patch (the manual edit then wins over any later
@@ -633,13 +675,28 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // not select. The fresh rows carry the PRE-edit template, so they
       // survive a "future" edit (fromDate filter) and a "future" delete
       // (start_at < anchor ⇒ detached survivors) alike.
-      const fillUpToAnchor = async (routine: RoutineNode, anchor: string) => {
-        if (anchor <= today) return;
+      // Returns false when the fill did not fully land (#296) — the caller
+      // must then ABORT its destructive follow-up: detaching / rewriting the
+      // series after a failed fill would erase days the user did not select
+      // (they only exist on demand). groupForRoutine is threaded through so
+      // a group-frequency routine's rows read as legitimate — omitting the
+      // map made the ensure cleanup treat every one of them as stale.
+      const fillUpToAnchor = async (
+        routine: RoutineNode,
+        anchor: string,
+      ): Promise<boolean> => {
+        if (anchor <= today) return true;
         const end = addDaysKey(anchor, -1);
         const start = today;
         if (start <= end) {
-          await ensureRoutineItemsForDateRange(start, end, [routine]);
+          return ensureRoutineItemsForDateRange(
+            start,
+            end,
+            [routine],
+            groupForRoutine,
+          );
         }
+        return true;
       };
 
       if (req.mode === "edit") {
@@ -677,7 +734,12 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         void (async () => {
           try {
             if (scope === "future") {
-              await fillUpToAnchor(routine, req.item.date);
+              const ok = await fillUpToAnchor(routine, req.item.date);
+              // Fill failed: propagating anyway would let the pre-anchor
+              // days later materialise with the POST-edit template (they
+              // were supposed to keep the pre-edit values). Abort — the
+              // finally-reload snaps the optimistic patch back to DB truth.
+              if (!ok) return;
             }
             await updateFutureOccurrences(
               routineId,
@@ -707,7 +769,15 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         const routine = routines.find((r) => r.id === routineId);
         void (async () => {
           try {
-            if (routine) await fillUpToAnchor(routine, req.item.date);
+            if (routine) {
+              const ok = await fillUpToAnchor(routine, req.item.date);
+              if (!ok) {
+                // Fill failed — detaching now would erase the un-materialised
+                // days between today and the anchor (#296). Abort and re-read.
+                reload();
+                return;
+              }
+            }
             const { deletedScheduleItemIds } = await detachRoutine(
               routineId,
               req.item.date,
@@ -717,7 +787,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
               prev
                 .filter((i) => !removed.has(i.id))
                 .map((i) =>
-                  i.routineId === routineId ? { ...i, routineId: null } : i,
+                  i.routineId === routineId
+                    ? { ...i, routineId: null, sourceDate: null }
+                    : i,
                 ),
             );
             // The pre-anchor fill may have written rows inside the visible
@@ -756,6 +828,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       detachRoutine,
       deleteRoutine,
       ensureRoutineItemsForDateRange,
+      groupForRoutine,
       today,
       setRangeItems,
       setSelectedId,
