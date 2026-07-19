@@ -575,7 +575,10 @@ export function WeekTimeGrid({
                 key={key}
                 className={cn(
                   "relative border-r border-lumen-border last:border-r-0",
-                  isToday && "bg-lumen-accent-subtle",
+                  // Today tint only makes sense when there are sibling columns
+                  // to contrast with; with days={1} it would wash the whole
+                  // day view in accent-subtle (#281).
+                  isToday && dayKeys.length > 1 && "bg-lumen-accent-subtle",
                 )}
                 style={{ height: bodyHeight }}
               >
@@ -589,16 +592,15 @@ export function WeekTimeGrid({
                   />
                 ))}
                 {/* Empty-slot click catcher (create) — only when host opts in.
-                    Hover paints a faint accent ghost + dashed accent border so
-                    the click-to-create affordance reads. Accent (not the grey
-                    hover) so it stays distinct from the grid lines AND remains
-                    visible over the accent-subtle "today" column. */}
+                    No hover paint: the catcher spans the whole day column, so
+                    any hover background/border would tint the full column and
+                    drown the hour gridlines (#281). */}
                 {onCreateAt && (
                   <button
                     type="button"
                     aria-label={createSlotLabel ?? `Create on ${key}`}
                     onClick={(e) => handleSlotClick(e, key)}
-                    className="absolute inset-0 z-0 cursor-pointer rounded-sm border border-transparent transition-colors hover:border-dashed hover:border-lumen-accent hover:bg-lumen-accent-subtle"
+                    className="absolute inset-0 z-0 cursor-pointer"
                   />
                 )}
                 {/* Timed events */}

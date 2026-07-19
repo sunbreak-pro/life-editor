@@ -50,6 +50,10 @@ import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { generateId } from "../utils/generateId";
 import { todayDateKey } from "../utils/dateKey";
 import {
+  DEFAULT_ROUTINE_START_TIME,
+  DEFAULT_ROUTINE_END_TIME,
+} from "../utils/routineScheduleSync";
+import {
   NOTE_LINK_SELECT_COLUMNS,
   rowToNoteLink,
   type NoteLinkRow,
@@ -1463,7 +1467,10 @@ class SupabaseRoutineGroupAssignmentsService {
  *     reminders; the bulkCreate signature doesn't carry timezone info
  *     so we drop reminderOffset on the floor.
  */
-class SupabaseScheduleItemsService {
+// Exported for unit tests (mirrors SupabaseRoutinesService / detachRoutine):
+// updateFutureScheduleItemsByRoutine's conflict-rule filtering (#279) is
+// exercised against a query-builder mock.
+export class SupabaseScheduleItemsService {
   private readonly client: SupabaseClient;
   // Keep legacy mapper imports statically referenced.
   private static readonly _unused_select = SCHEDULE_ITEM_SELECT_COLUMNS;
@@ -2094,15 +2101,28 @@ class SupabaseScheduleItemsService {
     routineId: string,
     updates: { title?: string; startTime?: string; endTime?: string },
     fromDate: string,
+    template?: {
+      title: string;
+      startTime: string | null;
+      endTime: string | null;
+    },
   ): Promise<number> {
     const now = new Date().toISOString();
 
     // 1. Find affected rows (paged — same rationale as softDeleteRoutine).
-    const rows = await fetchAllPages<{ item_id: string }>(
+    //    Conflict rules (tier-1 §Schedule, #279): done / dismissed occurrences
+    //    are the user's life record and are never patched by a series edit.
+    const rows = await fetchAllPages<{
+      item_id: string;
+      start_time: string;
+      end_time: string;
+      done: boolean;
+      is_dismissed: boolean;
+    }>(
       (from, to) =>
         this.client
           .from("events_payload")
-          .select("item_id")
+          .select("item_id, start_time, end_time, done, is_dismissed")
           .eq("routine_item_id", routineId)
           .eq("is_deleted_cache", false)
           .gte("start_at", fromDate)
@@ -2110,10 +2130,52 @@ class SupabaseScheduleItemsService {
           .range(from, to),
       "updateFutureScheduleItemsByRoutine find",
     );
-    const ids = rows.map((r) => r.item_id);
+    let candidates = rows.filter((r) => !r.done && !r.is_dismissed);
+
+    // Manual edits win over series edits (tier-1 §Schedule rule 2): when the
+    // caller supplies the routine's pre-edit template, only rows still
+    // matching it (= never individually edited) receive the patch. A null
+    // template time is NOT a wildcard — a time-less routine materialises
+    // with the generator defaults, so compare against those effective values
+    // (otherwise every hand-moved row of a default-time routine would lose
+    // its rule-2 protection).
+    if (template) {
+      const templateStart = template.startTime ?? DEFAULT_ROUTINE_START_TIME;
+      const templateEnd = template.endTime ?? DEFAULT_ROUTINE_END_TIME;
+      candidates = candidates.filter(
+        (r) => r.start_time === templateStart && r.end_time === templateEnd,
+      );
+      if (template.title != null && candidates.length > 0) {
+        const titleRows = await fetchByIdChunks(
+          candidates.map((r) => r.item_id),
+          async (chunk) => {
+            const { data, error } = await this.client
+              .from("items_meta")
+              .select("id, title")
+              .in("id", chunk);
+            if (error)
+              throw new Error(
+                `updateFutureScheduleItemsByRoutine titles: ${error.message}`,
+              );
+            return (data ?? []) as Array<{ id: string; title: string }>;
+          },
+        );
+        const titleById = new Map(titleRows.map((r) => [r.id, r.title]));
+        candidates = candidates.filter(
+          (r) => titleById.get(r.item_id) === template.title,
+        );
+      }
+    }
+
+    const ids = candidates.map((r) => r.item_id);
     if (ids.length === 0) return 0;
 
-    // 2. payload patch (start/end time).
+    // 2. payload patch (start/end time). The done/dismissed predicates are
+    // re-asserted server-side: a row completed or dismissed on another
+    // device between the SELECT above and this UPDATE stays untouched
+    // (rule 1 — cross-device TOCTOU guard; the meta bump below cannot carry
+    // the same predicate, so a raced row may get a harmless updated_at/title
+    // bump but never a time rewrite).
     const payloadPatch: { start_time?: string; end_time?: string } = {};
     if (updates.startTime !== undefined)
       payloadPatch.start_time = updates.startTime;
@@ -2125,7 +2187,9 @@ class SupabaseScheduleItemsService {
           this.client
             .from("events_payload")
             .update(payloadPatch)
-            .in("item_id", chunk),
+            .in("item_id", chunk)
+            .eq("done", false)
+            .eq("is_dismissed", false),
         "updateFutureScheduleItemsByRoutine events_payload",
       );
     }

@@ -335,10 +335,23 @@ export interface DataService {
       reminderOffset?: number;
     }>,
   ): Promise<void>;
+  /**
+   * Series edit propagation (#279 scope dialog "今後" / "すべて"). Patches the
+   * routine's materialised occurrences with start_at >= fromDate, honouring
+   * the tier-1 §Schedule conflict rules: done / dismissed occurrences are
+   * never touched, and when `template` (the routine's PRE-edit title/times)
+   * is supplied, occurrences deviating from it (= manually edited) are
+   * skipped — manual edits win over series edits. Returns patched count.
+   */
   updateFutureScheduleItemsByRoutine(
     routineId: string,
     updates: { title?: string; startTime?: string; endTime?: string },
     fromDate: string,
+    template?: {
+      title: string;
+      startTime: string | null;
+      endTime: string | null;
+    },
   ): Promise<number>;
   fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]>;
   bulkDeleteScheduleItems(ids: string[]): Promise<number>;

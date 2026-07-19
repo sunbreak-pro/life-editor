@@ -1186,7 +1186,13 @@
     "copySuffix": "（コピー）",
     "statusNotStarted": "未着手",
     "statusInProgress": "着手中",
-    "statusDone": "完了"
+    "statusDone": "完了",
+    "editScopeTitle": "繰り返しの予定を変更",
+    "deleteScopeTitle": "繰り返しの予定を削除",
+    "scopeThisOnly": "この予定のみ",
+    "scopeThisAndFuture": "この予定と今後の予定",
+    "scopeAll": "すべての予定（過去分も含む）",
+    "scopeCancel": "キャンセル"
   },
   "schedulePanel": {
     "existingTasks": "既存 Todo",

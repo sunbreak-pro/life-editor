@@ -7,7 +7,7 @@ import type { TaskNode } from "../types/taskTree";
  * items with variant "task".
  *
  * UTC → LOCAL: `scheduledAt` / `scheduledEndAt` are ISO-8601 UTC. Grids key on
- * LOCAL date/time (the "no UTC" convention — see scheduleLabels.todayLocalKey),
+ * LOCAL date/time (the "no UTC" convention — see dateKey.todayCalendarKey),
  * so we build the date/time parts with the local Date getters here.
  */
 
@@ -24,6 +24,25 @@ export interface TaskCalendarChip {
   isAllDay: boolean;
   /** status === "DONE" — done tasks are kept (grids render completed styling). */
   completed: boolean;
+}
+
+/*
+ * Synthetic chip ids (#280, moved from CalendarTab): chips are merged into
+ * grids whose other ids are ScheduleItem ids, so chip ids carry a prefix the
+ * host handlers use to tell them apart and no-op (A-1 read-only semantics —
+ * Steps 2/3 wire writes). The prefix also guarantees no id collision with a
+ * ScheduleItem.
+ */
+export const TASK_CHIP_PREFIX = "taskchip-";
+
+/** Synthetic grid id for a chip (prefix + source TaskNode id). */
+export function taskChipId(id: string): string {
+  return TASK_CHIP_PREFIX + id;
+}
+
+/** True when a grid/agenda id denotes a (read-only, A-1) task chip. */
+export function isTaskChip(id: string): boolean {
+  return id.startsWith(TASK_CHIP_PREFIX);
 }
 
 /** Timed tasks with no explicit end get a 1-hour block. */

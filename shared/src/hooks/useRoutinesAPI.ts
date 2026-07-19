@@ -322,11 +322,14 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   // visible range instead of trusting an optimistic delete that never
   // landed server-side).
   const detachRoutine = useCallback(
-    async (id: string): Promise<{ deletedScheduleItemIds: string[] }> => {
+    async (
+      id: string,
+      fromDate?: string,
+    ): Promise<{ deletedScheduleItemIds: string[] }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       setRoutines((prev) => prev.filter((r) => r.id !== id));
       try {
-        return await ds.detachRoutine(id);
+        return await ds.detachRoutine(id, fromDate);
       } catch (e) {
         logServiceError("Routines", "detach", e);
         if (target) {
@@ -334,6 +337,36 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             prev.some((r) => r.id === id) ? prev : [...prev, target],
           );
         }
+        throw e;
+      }
+    },
+    [ds],
+  );
+
+  // Series edit propagation (#279 scope dialog). Thin pass-through — the
+  // conflict-rule filtering (skip done / dismissed / manually-edited) lives in
+  // the DataService implementation. No undo entry: the bulk patch has no
+  // single-row inverse; the caller re-reads the range after it lands.
+  const updateFutureOccurrences = useCallback(
+    async (
+      routineId: string,
+      updates: { title?: string; startTime?: string; endTime?: string },
+      fromDate: string,
+      template?: {
+        title: string;
+        startTime: string | null;
+        endTime: string | null;
+      },
+    ): Promise<number> => {
+      try {
+        return await ds.updateFutureScheduleItemsByRoutine(
+          routineId,
+          updates,
+          fromDate,
+          template,
+        );
+      } catch (e) {
+        logServiceError("Routines", "updateFutureOccurrences", e);
         throw e;
       }
     },
@@ -680,6 +713,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       updateRoutine,
       deleteRoutine,
       detachRoutine,
+      updateFutureOccurrences,
       loadDeletedRoutines,
       restoreRoutine,
       permanentDeleteRoutine,
@@ -701,6 +735,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       updateRoutine,
       deleteRoutine,
       detachRoutine,
+      updateFutureOccurrences,
       loadDeletedRoutines,
       restoreRoutine,
       permanentDeleteRoutine,

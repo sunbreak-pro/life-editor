@@ -158,14 +158,14 @@
 
 > 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `docs/vision/plans/2026-07-11-event-routine-unification.md`（本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
 >
-> 2026-07-14 再設計（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）: Schedule は「今日を見る場所」から**「今日を組む場所」（タイムブロッキング特化）**へ再定義し、閲覧責務は Briefing（朝刊）へ移譲する。あわせて実測訂正: 現行で配線済みの自動生成は表示中日付の `ensureRoutineItemsForDate`（materialise + 当日 diff）のみで、「1 週間先まで backfill」「Routine 変更の reconciliation」は未配線（デッドコード — 再設計 Step 4 で `reconcileRoutineScheduleItems` のみ配線し、他の未配線生成器は削除予定）。3 サブタブのうち DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Repeats（旧 Routine）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）。
+> 2026-07-14 再設計（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）: Schedule は「今日を見る場所」から**「今日を組む場所」（タイムブロッキング特化）**へ再定義し、閲覧責務は Briefing（朝刊）へ移譲する。あわせて実測訂正: 現行で配線済みの自動生成は表示中日付の `ensureRoutineItemsForDate`（materialise のみ — 当日 diff 更新は 2026-07-19 #279 で停止: done / 手動編集済み行を巻き戻すため creation-only 化。既存行への伝播は範囲選択ダイアログ経由の明示操作のみ）で、「1 週間先まで backfill」「Routine 変更の reconciliation」は未配線（デッドコード — 再設計 Step 4 で `reconcileRoutineScheduleItems` のみ配線し、他の未配線生成器は削除予定）。3 サブタブのうち DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Repeats（旧 Routine）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）。
 
 ### Boundary
 
 - やる:
   - **Routine**: `frequencyType`（`daily` / `weekdays` / `interval`）+ `frequencyDays` / `frequencyInterval` / `frequencyStartDate` による反復定義、リマインダー、グループ化、タグ付与（`group` 頻度 = RoutineGroup は **2026-07-14 削除決定** — グループ管理 UI が存在せず割当対象が常に空で実質機能していないため、再設計 Step 4 でコード撤去・DB テーブルは DDL ルールに従い当面残置。**リマインダーは凍結を明記**: `reminderEnabled` / `reminderOffset` は型 + 作成 API のみで UI / 通知発火なし — 再開 = 通知基盤（Electron 包装 Phase 3）以降）
   - **ScheduleItem**: 日次アイテム CRUD（`date` / `startTime` / `endTime` / `isAllDay` / `completed` / `content` / `memo` / `reminderEnabled`）、Routine 由来（`routineId`）と個別作成の両方
-  - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）→ **未配線（2026-07-14 実測訂正）**: `ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` 等はテスト以外から未呼び出しのデッドコード。現行の実挙動は表示中日付の `ensureRoutineItemsForDate` のみ
+  - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）→ **未配線（2026-07-14 実測訂正）**: `ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` 等はテスト以外から未呼び出しのデッドコード。現行の実挙動は表示中日付の `ensureRoutineItemsForDate` のみ（2026-07-19 #279 で creation-only 化 — 既存行の diff 更新は行わない）
   - **Routine 変更の反映**: 頻度 / 時刻を変更したときに既存 ScheduleItem へ reconciliation → **未配線（同上）**: `reconcileRoutineScheduleItems` は再設計 Step 4 で配線予定（競合解決ルールは下記「競合解決ルール」）
   - **カスケード削除**: Routine 削除時に紐づく ScheduleItem も削除（配線済み。繰り返し解除 = `detachRoutine` は過去実績を保全 — #185 実装済み）
   - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与 → CalendarTags は DU-F で全プラットフォーム撤去済み（履歴）。分類の後継 = カレンダー台帳（calendars）のタグフィルタ配線（再設計 Step 6）+ life-tags
@@ -199,6 +199,7 @@
 2. **手動編集は Routine 変更に勝つ**: occurrence 単位で個別編集（タイトル / 時刻 / メモ等）された行は、Routine の頻度 / 時刻変更の未来伝播（reconcile）が上書きしない。伝播対象は「未完了・未 dismiss・手動未編集」の materialise 済み未来行のみ（手動編集の判定は Routine テンプレート値との差分比較を基本とし、実装詳細は Step 4 で確定 — DDL ゼロ制約内）
 3. **頻度変更で発火日から外れた未来行**: 未完了・手動未編集の行のみ掃除（soft-delete）する。完了 / dismiss 済みはルール 1 のとおり残す
 4. **繰り返し解除（`detachRoutine`）**: 今日以降の未完了 occurrence のみ soft-delete し、それ以外の生存 occurrence（過去分の完了 / 未完了、および未来の完了済み分）は残す。残す occurrence は `routine_item_id` を NULL 化して Routine から真に切り離す（#185 の 2026-07-12 S-1 — 「detach → ゴミ箱を空にする」が過去実績を巻き込む事故経路の封鎖。detach 後は過去分の routine variant 表示が外れるトレードオフは受容済み）
+5. **範囲選択ダイアログ（2026-07-19 #279 — #185 の「編集は常に系列全体・この回のみは Non-goal」決定を SUPERSEDE）**: 繰り返し由来 occurrence のタイトル / 時刻の編集、および削除は、画面中央の範囲選択ダイアログ（この予定のみ / この予定と今後の予定 / すべての予定）を経由する。編集 = この予定のみ → 当該行のみ patch（以後ルール 2 の手動編集扱い）／今後・すべて → Routine テンプレート更新 + `updateFutureScheduleItemsByRoutine`（ルール 1・2 準拠: done / dismiss / 手動編集済み行は伝播対象外。anchor = 当該 occurrence 日付、すべて = epoch）。削除 = この予定のみ → dismiss（Issue 017 の再生成防止意味論）／今後 → `detachRoutine(id, 当該日)` ／すべて → `softDeleteRoutine`（全 live occurrence をゴミ箱へ = ユーザーの明示選択・Trash から復元可）。日付をまたぐドラッグ移動と memo 編集はテンプレートに対応概念が無いため常に occurrence 単位（ダイアログなし）
 
 ### Dependencies
 

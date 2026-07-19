@@ -7,7 +7,6 @@ import {
   useRightSidebarOptional,
   useTranslation,
   useMediaQuery,
-  useWeekStartPref,
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
@@ -18,17 +17,23 @@ import {
   RightSidebarToggle,
   ScheduleSidebarTabs,
   ScheduleItemContextMenu,
+  RepeatScopeDialog,
+  QuickCaptureSheet,
   SegmentedControl,
   BottomSheet,
   Modal,
-  addDaysKey,
-  addMonthsKey,
-  startOfMonthKey,
-  startOfWeekKey,
-  monthGridKeys,
+  useScheduleItemsRoutineSync,
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
+  taskChipId,
+  isTaskChip,
+  buildWeekdayLabels,
+  frequencyLabel,
+  itemVariant,
+  nowMinutesLocal,
+  sortDayItems,
+  type FrequencyLabelCopy,
   type TaskCalendarChip,
   type ScheduleStatus,
   type ScheduleItem,
@@ -39,17 +44,12 @@ import {
   type FrequencyEditorValue,
   type RoutineSummaryRow,
   type SegmentedOption,
+  type DataService,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
-import {
-  buildWeekdayLabels,
-  frequencyLabel,
-  itemVariant,
-  nowMinutesLocal,
-  sortDayItems,
-  todayLocalKey,
-  type FrequencyLabelCopy,
-} from "./scheduleLabels";
+import { useCalendarNav } from "./useCalendarNav";
+import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useScheduleMutations } from "./useScheduleMutations";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -68,131 +68,11 @@ import {
 
 const ICON_BTN =
   "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-const FIELD =
-  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-const CREATE_DURATION_MIN = 60;
-
-/*
- * Scheduled-task chips (schedule redesign A-1) are merged into the grid/agenda
- * as synthetic items. Their ids are prefixed so the host handlers can tell them
- * apart from ScheduleItem ids and no-op (A-1 is read-only: no select/edit/drag/
- * toggle on task chips — Steps 2/3 wire writes). The prefix also guarantees no
- * id collision with a ScheduleItem.
- */
-const TASK_CHIP_PREFIX = "taskchip-";
-const isTaskChip = (id: string): boolean => id.startsWith(TASK_CHIP_PREFIX);
-
-function makeOptimisticItem(
-  id: string,
-  date: string,
-  title: string,
-  startTime: string,
-  endTime: string,
-): ScheduleItem {
-  const now = new Date().toISOString();
-  return {
-    id,
-    date,
-    title,
-    startTime,
-    endTime,
-    completed: false,
-    completedAt: null,
-    routineId: null,
-    templateId: null,
-    memo: null,
-    noteId: null,
-    content: null,
-    isDeleted: false,
-    deletedAt: null,
-    isDismissed: false,
-    isAllDay: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-interface QuickCaptureLabels {
-  title: string;
-  placeholder: string;
-  add: string;
-  startTime: string;
-  endTime: string;
-}
-
-function QuickCaptureSheet({
-  open,
-  onClose,
-  onAdd,
-  labels,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onAdd: (title: string, start: string, end: string) => void;
-  labels: QuickCaptureLabels;
-}) {
-  const [title, setTitle] = useState("");
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("10:00");
-
-  const submit = () => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    onAdd(trimmed, start, end);
-    setTitle("");
-    onClose();
-  };
-
-  return (
-    <BottomSheet open={open} onClose={onClose} title={labels.title}>
-      <div className="flex flex-col gap-3">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
-          }}
-          placeholder={labels.placeholder}
-          aria-label={labels.title}
-          className={FIELD}
-        />
-        <div className="flex gap-2">
-          <label className="flex flex-1 flex-col gap-1 text-xs text-lumen-text-secondary">
-            {labels.startTime}
-            <input
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              aria-label={labels.startTime}
-              className={`${FIELD} tabular-nums`}
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1 text-xs text-lumen-text-secondary">
-            {labels.endTime}
-            <input
-              type="time"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              aria-label={labels.endTime}
-              className={`${FIELD} tabular-nums`}
-            />
-          </label>
-        </div>
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
-        >
-          {labels.add}
-        </button>
-      </div>
-    </BottomSheet>
-  );
-}
-
 export function CalendarTab({
+  dataService,
   onOpenRoutines,
 }: {
+  dataService: DataService;
   onOpenRoutines: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -213,10 +93,18 @@ export function CalendarTab({
     routineGroups,
     createRoutine,
     updateRoutine,
+    deleteRoutine,
     setGroupsForRoutine,
     getGroupIdsForRoutine,
     detachRoutine,
+    updateFutureOccurrences,
   } = useRoutineContext();
+  // Range materialiser (#279): after an Event→Repeats conversion, the new
+  // routine's occurrences are generated for the visible range right away —
+  // the always-on RoutineScheduleSync only covers today.
+  const { ensureRoutineItemsForDateRange } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted tasks (useTaskTreeAPI). Read-only in A-1.
   const { nodes: taskNodes } = useTaskTreeContext();
@@ -225,17 +113,31 @@ export function CalendarTab({
   const rightSidebar = useRightSidebarOptional();
   const openSidebar = rightSidebar?.open;
 
-  const today = useMemo(() => todayLocalKey(), []);
-  const [anchorDate, setAnchorDate] = useState(today);
-  const [view, setView] = useState("week");
+  // Navigation + visible fetch window (#280 → useCalendarNav).
+  const {
+    today,
+    anchorDate,
+    setAnchorDate,
+    setView,
+    desktopView,
+    mobileView,
+    effView,
+    weekStartsOn,
+    weekStart,
+    weekEnd,
+    rangeStart,
+    rangeEnd,
+    mobileSelectedDay,
+    setMobileSelectedDay,
+    step,
+    goToday,
+  } = useCalendarNav(isWide);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Which rightSidebar tab is showing on Desktop ("今日の流れ" ↔ "詳細").
   const [sidebarTab, setSidebarTab] = useState<"flow" | "detail">("flow");
-  const [rangeItems, setRangeItems] = useState<ScheduleItem[]>([]);
-  const [reloadKey, setReloadKey] = useState(0);
   const [calendarsOpen, setCalendarsOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [mobileSelectedDay, setMobileSelectedDay] = useState(today);
   const [nowMinutes, setNowMinutes] = useState(() => nowMinutesLocal());
   // Real "now" Date, ticked alongside nowMinutes. Drives deriveScheduleStatus
   // (#222) — nowMinutes alone (minutes-from-midnight) can't compare across days.
@@ -275,206 +177,76 @@ export function CalendarTab({
     [isWide, openSidebar],
   );
 
-  // The single `view` state carries both layouts; each layout normalises it to
-  // its own option set (Desktop day/week/month ↔ Mobile list/time/month) so a
-  // resize keeps a sensible view without a second piece of state.
-  const desktopView =
-    view === "list"
-      ? "day"
-      : view === "time"
-        ? "week"
-        : view === "day" || view === "week" || view === "month"
-          ? view
-          : "week";
-  const mobileView =
-    view === "day"
-      ? "list"
-      : view === "week"
-        ? "time"
-        : view === "list" || view === "time" || view === "month"
-          ? view
-          : "list";
-  const effView = isWide ? desktopView : mobileView;
+  // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
+  // rangeItems optimistically, so only navigation, reload() and retry refetch.
+  const { rangeItems, setRangeItems, fetchedRange, patchRange, reload } =
+    useVisibleRangeItems({ loadDateRange, rangeStart, rangeEnd });
 
-  // Week-start pref (#217): read once per mount (same reload semantics as the
-  // other lightweight prefs — a Settings change applies on section re-entry).
-  const { weekStartsOn } = useWeekStartPref();
-  const weekStart = useMemo(
-    () => startOfWeekKey(anchorDate, weekStartsOn),
-    [anchorDate, weekStartsOn],
-  );
-  const weekEnd = useMemo(() => addDaysKey(weekStart, 6), [weekStart]);
-  const monthRows = useMemo(
-    () => monthGridKeys(anchorDate, weekStartsOn),
-    [anchorDate, weekStartsOn],
-  );
-
-  // Visible fetch window per effective view (day/list/time = single day).
-  const [rangeStart, rangeEnd] = useMemo<[string, string]>(() => {
-    if (effView === "month") {
-      const first = monthRows[0][0];
-      const last = monthRows[monthRows.length - 1][6];
-      return [first, last];
-    }
-    if (isWide && effView === "week") return [weekStart, weekEnd];
-    return [anchorDate, anchorDate];
-  }, [effView, isWide, monthRows, weekStart, weekEnd, anchorDate]);
-
-  // Read the visible range (cancelled-guard mirrors useScheduleItemsAPI). Edits
-  // patch rangeItems optimistically below, so only navigation + retry reload.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const list = await loadDateRange(rangeStart, rangeEnd);
-      if (!cancelled) {
-        setRangeItems(list.filter((i) => !i.isDeleted && !i.isDismissed));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDateRange, rangeStart, rangeEnd, reloadKey]);
-
-  const patchRange = useCallback((id: string, patch: Partial<ScheduleItem>) => {
-    setRangeItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+  // The selected ScheduleItem — resolved before the mutation layer, which
+  // acts on the selection (repeat conversion / detach / scope dialog).
+  const selected = useMemo(() => {
+    if (!selectedId) return null;
+    return (
+      rangeItems.find((i) => i.id === selectedId) ??
+      contextItems.find((i) => i.id === selectedId) ??
+      null
     );
-  }, []);
+  }, [selectedId, rangeItems, contextItems]);
 
-  const handleUpdate = useCallback(
-    (id: string, patch: Partial<ScheduleItem>) => {
-      patchRange(id, patch);
-      updateScheduleItem(id, patch);
-    },
-    [patchRange, updateScheduleItem],
-  );
+  // Mutation layer (#280 → useScheduleMutations): every write path plus the
+  // #278 pending-draft guard and the #279 repeat/scope machinery.
+  const {
+    scopeRequest,
+    closeScopeRequest,
+    handleScopeChoose,
+    handleUpdate,
+    handleToggle,
+    handleCreateAt,
+    handleAddEvent,
+    handleCreateOnDay,
+    handleQuickAdd,
+    handleMoveItem,
+    handleResizeItem,
+    handleDismiss,
+    handleDelete,
+    handleRename,
+    handleDuplicate,
+    handleChangeRepeat,
+    handleDetachRepeat,
+  } = useScheduleMutations({
+    rangeItems,
+    setRangeItems,
+    patchRange,
+    fetchedRange,
+    reload,
+    contextItems,
+    rangeStart,
+    rangeEnd,
+    today,
+    anchorDate,
+    setAnchorDate,
+    selected,
+    setSelectedId,
+    onSelectItem: handleSelectItem,
+    createScheduleItem,
+    updateScheduleItem,
+    toggleComplete,
+    dismiss,
+    deleteScheduleItem,
+    routines,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    setGroupsForRoutine,
+    detachRoutine,
+    updateFutureOccurrences,
+    ensureRoutineItemsForDateRange,
+    newEventTitle: t("scheduleCalendar.newEvent"),
+    copySuffix: t("scheduleScreen.copySuffix"),
+  });
 
-  const handleToggle = useCallback(
-    (id: string) => {
-      // A-1: task chips don't own a ScheduleItem completion. Completion for
-      // scheduled tasks is wired in Step 3 (TaskTree completion API). No-op.
-      if (isTaskChip(id)) return;
-      // Mirror the provider's toggle field set (completed + completedAt) on the
-      // local range copy so the grid/agenda stay consistent without a refetch.
-      setRangeItems((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                completed: !i.completed,
-                completedAt: !i.completed ? new Date().toISOString() : null,
-              }
-            : i,
-        ),
-      );
-      toggleComplete(id);
-    },
-    [toggleComplete],
-  );
-
-  const createAtTimes = useCallback(
-    (date: string, start: string, end: string, title: string): string => {
-      const id = createScheduleItem(date, title, start, end);
-      setRangeItems((prev) => [
-        ...prev,
-        makeOptimisticItem(id, date, title, start, end),
-      ]);
-      return id;
-    },
-    [createScheduleItem],
-  );
-
-  const handleCreateAt = useCallback(
-    (dateISO: string, minutes: number) => {
-      const start = minutesToTime(minutes);
-      const end = minutesToTime(minutes + CREATE_DURATION_MIN);
-      const id = createAtTimes(
-        dateISO,
-        start,
-        end,
-        t("scheduleCalendar.newEvent"),
-      );
-      handleSelectItem(id);
-    },
-    [createAtTimes, handleSelectItem, t],
-  );
-
-  const handleAddEvent = useCallback(() => {
-    const id = createAtTimes(
-      anchorDate,
-      "09:00",
-      "10:00",
-      t("scheduleCalendar.newEvent"),
-    );
-    // The detail editor now lives in the rightSidebar (not the main grid), so
-    // the month layout can edit a new event in place — no jump to day view
-    // (#224). handleSelectItem opens the detail panel on Desktop.
-    handleSelectItem(id);
-  }, [createAtTimes, handleSelectItem, anchorDate, t]);
-
-  // Month-cell day tap → create a default-time event on that day and open its
-  // detail panel in place, instead of switching to the day view (#224).
-  const handleCreateOnDay = useCallback(
-    (day: string) => {
-      setAnchorDate(day);
-      const id = createAtTimes(
-        day,
-        "09:00",
-        "10:00",
-        t("scheduleCalendar.newEvent"),
-      );
-      handleSelectItem(id);
-    },
-    [createAtTimes, handleSelectItem, t],
-  );
-
-  const handleQuickAdd = useCallback(
-    (title: string, start: string, end: string) => {
-      createAtTimes(anchorDate, start, end, title);
-    },
-    [createAtTimes, anchorDate],
-  );
-
-  const handleMoveItem = useCallback(
-    (id: string, dateISO: string, startISO: string, endISO: string) => {
-      // A-1: task chips are read-only (WeekTimeGrid also omits their drag
-      // affordances). Step 2 wires drag → updateTaskNode(scheduledAt). No-op.
-      if (isTaskChip(id)) return;
-      const patch = { date: dateISO, startTime: startISO, endTime: endISO };
-      patchRange(id, patch);
-      updateScheduleItem(id, patch);
-    },
-    [patchRange, updateScheduleItem],
-  );
-
-  const handleResizeItem = useCallback(
-    (id: string, endISO: string) => {
-      if (isTaskChip(id)) return; // A-1: task chips read-only (see handleMoveItem)
-      patchRange(id, { endTime: endISO });
-      updateScheduleItem(id, { endTime: endISO });
-    },
-    [patchRange, updateScheduleItem],
-  );
-
-  const handleDismiss = useCallback(
-    (id: string) => {
-      dismiss(id);
-      setRangeItems((prev) => prev.filter((i) => i.id !== id));
-      setSelectedId((cur) => (cur === id ? null : cur));
-    },
-    [dismiss],
-  );
-
-  const handleDelete = useCallback(
-    (id: string) => {
-      deleteScheduleItem(id);
-      setRangeItems((prev) => prev.filter((i) => i.id !== id));
-      setSelectedId((cur) => (cur === id ? null : cur));
-    },
-    [deleteScheduleItem],
-  );
-
-  // ── Context menu (rename / duplicate / delete) ─────────────────────────────
+  // ── Context menu (rename / duplicate / delete: handlers in the mutation
+  // layer; only the menu position state lives here) ──────────────────────────
 
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
@@ -482,59 +254,6 @@ export function CalendarTab({
       setContextMenu({ id, x: pos.x, y: pos.y });
     },
     [],
-  );
-
-  const handleRename = useCallback(
-    (id: string, title: string) => {
-      handleUpdate(id, { title });
-    },
-    [handleUpdate],
-  );
-
-  const handleDuplicate = useCallback(
-    (id: string) => {
-      const src =
-        rangeItems.find((i) => i.id === id) ??
-        contextItems.find((i) => i.id === id);
-      if (!src) return;
-      const title = `${src.title}${t("scheduleScreen.copySuffix")}`;
-      // createScheduleItem folds date/title/times + isAllDay/content/noteId/
-      // memo into a single INSERT (#223 → QA fix): memo used to be patched with
-      // a follow-up updateScheduleItem, but that UPDATE could race ahead of the
-      // create's INSERT (unordered Promises) and miss the row. Carrying memo in
-      // the create arg makes the memo write atomic AND keeps duplicate on one
-      // undo entry (the create's own undo), so Ctrl+Z removes the copy once.
-      const newId = createScheduleItem(
-        src.date,
-        title,
-        src.startTime,
-        src.endTime,
-        {
-          isAllDay: src.isAllDay,
-          content: src.content ?? undefined,
-          noteId: src.noteId ?? undefined,
-          memo: src.memo ?? undefined,
-        },
-      );
-      setRangeItems((prev) => [
-        ...prev,
-        {
-          ...makeOptimisticItem(
-            newId,
-            src.date,
-            title,
-            src.startTime,
-            src.endTime,
-          ),
-          isAllDay: src.isAllDay ?? false,
-          content: src.content ?? null,
-          noteId: src.noteId ?? null,
-          memo: src.memo ?? null,
-        },
-      ]);
-      handleSelectItem(newId);
-    },
-    [rangeItems, contextItems, createScheduleItem, handleSelectItem, t],
   );
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -623,27 +342,6 @@ export function CalendarTab({
     [fullDayFmt],
   );
 
-  const step = useCallback(
-    (dir: number) => {
-      const next =
-        effView === "month"
-          ? addMonthsKey(anchorDate, dir)
-          : isWide && effView === "week"
-            ? addDaysKey(anchorDate, dir * 7)
-            : addDaysKey(anchorDate, dir);
-      setAnchorDate(next);
-      // Month nav: keep the Mobile month-agenda day inside the shown month —
-      // a stale day from the previous month sits outside the fetched range and
-      // renders an always-empty agenda until the user taps a cell.
-      if (effView === "month") setMobileSelectedDay(startOfMonthKey(next));
-    },
-    [effView, isWide, anchorDate],
-  );
-  const goToday = useCallback(() => {
-    setAnchorDate(today);
-    setMobileSelectedDay(today);
-  }, [today]);
-
   const desktopViewOptions: SegmentedOption[] = [
     { id: "day", label: t("scheduleScreen.viewDay") },
     { id: "week", label: t("scheduleScreen.viewWeek") },
@@ -695,7 +393,7 @@ export function CalendarTab({
         variant: itemVariant(i),
       })),
       ...rangeTaskChips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         date: c.date,
         title: c.title,
         startTime: c.startTime,
@@ -718,7 +416,7 @@ export function CalendarTab({
         isAllDay: i.isAllDay,
       })),
       ...rangeTaskChips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         date: c.date,
         title: c.title,
         variant: "task" as const,
@@ -745,7 +443,7 @@ export function CalendarTab({
         variant: itemVariant(i),
       }));
       const taskAgenda: AgendaItem[] = chips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         title: c.title,
         startTime: c.startTime,
         endTime: c.endTime,
@@ -777,15 +475,6 @@ export function CalendarTab({
     () => rangeItems.filter((i) => i.date === mobileSelectedDay),
     [rangeItems, mobileSelectedDay],
   );
-
-  const selected = useMemo(() => {
-    if (!selectedId) return null;
-    return (
-      rangeItems.find((i) => i.id === selectedId) ??
-      contextItems.find((i) => i.id === selectedId) ??
-      null
-    );
-  }, [selectedId, rangeItems, contextItems]);
 
   const editorItem: EventEditorItem | null = selected
     ? {
@@ -846,73 +535,6 @@ export function CalendarTab({
     }),
     [t],
   );
-
-  // Frequency change from the editor. For a routine occurrence this is a
-  // series edit (patch the source routine). For a manual event, choosing a
-  // frequency spins up a routine seeded from the event, then drops the
-  // standalone seed — the generator materialises occurrences going forward.
-  const handleChangeRepeat = useCallback(
-    (patch: Partial<FrequencyEditorValue>) => {
-      if (!selected) return;
-      if (selected.routineId != null) {
-        const { groupIds, ...rest } = patch;
-        if (groupIds !== undefined)
-          setGroupsForRoutine(selected.routineId, groupIds);
-        if (Object.keys(rest).length > 0) {
-          updateRoutine(selected.routineId, rest);
-        }
-        return;
-      }
-      // Manual → turn a repeat on. group is not offered here (allowGroup=false),
-      // so only a concrete daily/weekdays/interval type reaches this branch.
-      const type = patch.frequencyType;
-      if (!type || type === "group") return;
-      const [yy, mm, dd] = selected.date.split("-").map(Number);
-      const seedWeekday = new Date(yy, mm - 1, dd).getDay();
-      createRoutine(
-        selected.title,
-        selected.startTime,
-        selected.endTime,
-        type,
-        type === "weekdays" ? [seedWeekday] : [],
-        type === "interval" ? 1 : null,
-        type === "interval" ? selected.date : null,
-      );
-      handleDelete(selected.id);
-    },
-    [selected, setGroupsForRoutine, updateRoutine, createRoutine, handleDelete],
-  );
-
-  // "なし" selected → turn the repeat off (detach the series from today on).
-  const handleDetachRepeat = useCallback(() => {
-    if (!selected || selected.routineId == null) return; // manual = no-op
-    const routineId = selected.routineId;
-    const occurrenceId = selected.id;
-    setSelectedId((cur) => (cur === occurrenceId ? null : cur));
-    void (async () => {
-      try {
-        // Reconcile off the SERVER's own delete set (the returned ids) rather
-        // than a client-side date predicate — the two must not drift (the
-        // service's "today" honours the day-start-hour pref; a local
-        // todayLocalKey memo would disagree in the late-night window).
-        const { deletedScheduleItemIds } = await detachRoutine(routineId);
-        const removed = new Set(deletedScheduleItemIds);
-        setRangeItems((prev) =>
-          prev
-            .filter((i) => !removed.has(i.id))
-            // Survivors keep their row but lose the routine origin (the band
-            // goes away) — mirrors the server NULLing routine_item_id.
-            .map((i) =>
-              i.routineId === routineId ? { ...i, routineId: null } : i,
-            ),
-        );
-      } catch {
-        // Detach did not land server-side: force a full range reload so the
-        // view returns to the DB truth (nothing navigated to trigger it).
-        setReloadKey((k) => k + 1);
-      }
-    })();
-  }, [selected, detachRoutine]);
 
   const summaryRows = useMemo<RoutineSummaryRow[]>(
     () =>
@@ -992,7 +614,7 @@ export function CalendarTab({
       </p>
       <button
         type="button"
-        onClick={() => setReloadKey((k) => k + 1)}
+        onClick={reload}
         className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-[13px] font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
         {t("scheduleScreen.retry")}
@@ -1122,6 +744,26 @@ export function CalendarTab({
       />
     ) : null;
 
+  // #279: this/future/all chooser — centered on every layout per the issue.
+  const scopeDialogEl = (
+    <RepeatScopeDialog
+      open={!!scopeRequest}
+      mode={scopeRequest?.mode ?? "edit"}
+      labels={{
+        title:
+          scopeRequest?.mode === "delete"
+            ? t("scheduleScreen.deleteScopeTitle")
+            : t("scheduleScreen.editScopeTitle"),
+        thisOnly: t("scheduleScreen.scopeThisOnly"),
+        thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
+        all: t("scheduleScreen.scopeAll"),
+        cancel: t("scheduleScreen.scopeCancel"),
+      }}
+      onChoose={handleScopeChoose}
+      onClose={closeScopeRequest}
+    />
+  );
+
   // ── Desktop ────────────────────────────────────────────────────────────────
   if (isWide) {
     return (
@@ -1193,6 +835,7 @@ export function CalendarTab({
         </div>
         {calendarsModal}
         {contextMenuEl}
+        {scopeDialogEl}
       </>
     );
   }
@@ -1344,6 +987,8 @@ export function CalendarTab({
       >
         {editorPane}
       </BottomSheet>
+
+      {scopeDialogEl}
     </>
   );
 }

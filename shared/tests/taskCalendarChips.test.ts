@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { tasksToCalendarChips } from "../src/utils/taskCalendarChips";
+import {
+  TASK_CHIP_PREFIX,
+  isTaskChip,
+  taskChipId,
+  tasksToCalendarChips,
+} from "../src/utils/taskCalendarChips";
 import type { TaskNode } from "../src/types/taskTree";
 
 /*
@@ -116,5 +121,18 @@ describe("tasksToCalendarChips", () => {
     expect(tasksToCalendarChips([task], "2026-01-01", "2026-12-31")).toEqual(
       [],
     );
+  });
+});
+
+describe("taskChipId / isTaskChip (#280)", () => {
+  it("round-trips: a composed chip id is recognised as a chip", () => {
+    const gridId = taskChipId("task-123");
+    expect(gridId).toBe(`${TASK_CHIP_PREFIX}task-123`);
+    expect(isTaskChip(gridId)).toBe(true);
+  });
+
+  it("does not flag ScheduleItem-style ids", () => {
+    expect(isTaskChip("si-1752900000001")).toBe(false);
+    expect(isTaskChip("daily-2026-07-19")).toBe(false);
   });
 });

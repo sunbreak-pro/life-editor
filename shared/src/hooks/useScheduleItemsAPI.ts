@@ -3,6 +3,7 @@ import type { ScheduleItem } from "../types/schedule";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { todayCalendarKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncContext } from "./useSyncContext";
 
@@ -42,18 +43,11 @@ export interface UseScheduleItemsAPIOptions {
   /**
    * The date the view is anchored on (`YYYY-MM-DD`). The initial load +
    * every `syncVersion` bump refetches the live items for this date.
-   * Defaults to today (local — `new Date()` then slice, matching the
-   * frontend's local-date convention; S4-0: no UTC conversion).
+   * Defaults to today (local calendar day via `todayCalendarKey` — the
+   * plain-midnight boundary, no day-start-hour shift; S4-0: no UTC
+   * conversion).
    */
   date?: string;
-}
-
-function todayLocal(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
@@ -61,7 +55,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
   const { push } = options.undoRedo ?? createNoopUndoRedo();
   const { syncVersion } = useSyncContext();
 
-  const date = options.date ?? todayLocal();
+  const date = options.date ?? todayCalendarKey();
 
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [deletedItems, setDeletedItems] = useState<ScheduleItem[]>([]);

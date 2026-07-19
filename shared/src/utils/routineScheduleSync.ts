@@ -40,6 +40,15 @@ export interface RoutineSyncUpdate {
 }
 
 /**
+ * Fallback times a time-less routine (startTime/endTime = null) materialises
+ * with. Exported so rule-2 template matching (#279 —
+ * updateFutureScheduleItemsByRoutine) compares against the same effective
+ * values instead of treating a null template as match-everything.
+ */
+export const DEFAULT_ROUTINE_START_TIME = "09:00";
+export const DEFAULT_ROUTINE_END_TIME = "09:30";
+
+/**
  * Diff existing schedule items against routines for a given date.
  * Returns items to create and items to update.
  */
@@ -68,8 +77,8 @@ export function diffRoutineScheduleItems(
     const existingItem = existingByKey.get(`${routine.id}:${date}`);
     if (existingItem) {
       const newTitle = routine.title;
-      const newStart = routine.startTime ?? "09:00";
-      const newEnd = routine.endTime ?? "09:30";
+      const newStart = routine.startTime ?? DEFAULT_ROUTINE_START_TIME;
+      const newEnd = routine.endTime ?? DEFAULT_ROUTINE_END_TIME;
       if (
         existingItem.title !== newTitle ||
         existingItem.startTime !== newStart ||
@@ -89,8 +98,8 @@ export function diffRoutineScheduleItems(
       id: generateId("si"),
       date,
       title: routine.title,
-      startTime: routine.startTime ?? "09:00",
-      endTime: routine.endTime ?? "09:30",
+      startTime: routine.startTime ?? DEFAULT_ROUTINE_START_TIME,
+      endTime: routine.endTime ?? DEFAULT_ROUTINE_END_TIME,
       routineId: routine.id,
       reminderEnabled: routine.reminderEnabled,
       reminderOffset: routine.reminderOffset,
@@ -178,8 +187,8 @@ export function collectRoutineItemsForDates(
         id: generateId("si"),
         date: dk,
         title: routine.title,
-        startTime: routine.startTime ?? "09:00",
-        endTime: routine.endTime ?? "09:30",
+        startTime: routine.startTime ?? DEFAULT_ROUTINE_START_TIME,
+        endTime: routine.endTime ?? DEFAULT_ROUTINE_END_TIME,
         routineId: routine.id,
         reminderEnabled: routine.reminderEnabled,
         reminderOffset: routine.reminderOffset,
