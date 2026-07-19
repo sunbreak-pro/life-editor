@@ -1,5 +1,6 @@
 import { Extension, type Editor, type Range } from "@tiptap/core";
 import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
+import { PluginKey } from "@tiptap/pm/state";
 import { ReactRenderer } from "@tiptap/react";
 import { FileText, CalendarDays, CheckSquare, Link2, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -273,6 +274,11 @@ function itemLinkRender(emptyLabel: string): ItemLinkRender {
  * Build the "[[" item-link suggestion extension. Host wiring (targets +
  * callbacks) is read through getters so the extension never goes stale.
  */
+// Own PluginKey — @tiptap/suggestion falls back to one SHARED default key, and
+// ProseMirror throws (RangeError: keyed plugin twice) when this and the "/"
+// slash-command suggestion are both registered on the same editor.
+const itemLinkPluginKey = new PluginKey("itemLinkSuggestion");
+
 export function createItemLinkSuggestion(
   deps: ItemLinkSuggestionDeps,
 ): Extension {
@@ -281,6 +287,7 @@ export function createItemLinkSuggestion(
     addProseMirrorPlugins() {
       return [
         Suggestion<ItemLinkMenuItem>({
+          pluginKey: itemLinkPluginKey,
           editor: this.editor,
           char: "[[",
           allowSpaces: true,
