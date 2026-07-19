@@ -818,6 +818,7 @@
       "unpin": "ピン留めを解除",
       "pinned": "ピン留め済み",
       "delete": "エントリを削除",
+      "moreActions": "その他の操作",
       "placeholder": "今日のことを書く…",
       "today": "今日",
       "yesterday": "昨日",
@@ -2411,7 +2412,8 @@
     "emptyState": "ノートを選択するか、新しく作成してください",
     "detailEmpty": "ノートを選択すると、ここで表示・編集できます。",
     "detailTitle": "ノート",
-    "closeDetail": "ノートを閉じる"
+    "closeDetail": "ノートを閉じる",
+    "moreActions": "その他の操作"
   },
   "taskDetailPanel": {
     "selectTask": "Todo を選択して詳細を表示",
@@ -2721,6 +2723,13 @@
       "toggleList": "トグルリスト"
     }
   },
+  "itemLink": {
+    "empty": "一致する項目がありません",
+    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入",
+    "createNote": "「{{query}}」のノートを作成してリンク",
+    "roleNote": "ノート",
+    "roleDaily": "デイリー"
+  },
   "iconPicker": {
     "search": "アイコンを検索...",
     "empty": "アイコンが見つかりません",
@@ -2932,6 +2941,8 @@
     "aiTitle": "昨日へのひとこと",
     "aiSource": "Claude ・ 朝刊セクションより",
     "noBriefing": "今日の朝刊はまだ届いていません。デイリーに「朝刊」見出しのセクションが書かれると、ここに表示されます。",
+    "intentionTitle": "今日の宣言",
+    "intentionPlaceholder": "今日は何をやり遂げますか。一行から宣言できます…",
     "scheduleTitle": "今日の予定",
     "noSchedule": "今日の予定はありません",
     "routineTag": "ルーチン",
@@ -2953,6 +2964,7 @@
       "masthead": "LIFE EDITOR 夕刊",
       "moodTitle": "今日の気分",
       "moodStar": "気分 {{value}}/5",
+      "intentionTitle": "今朝の宣言",
       "reflectionTitle": "一日の締めくくり",
       "placeholder": "今日はどんな一日でしたか…",
       "todosTitle": "残りの Todo",

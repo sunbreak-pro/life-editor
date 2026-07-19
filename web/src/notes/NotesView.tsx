@@ -39,6 +39,7 @@ import {
   type NoteNode,
   type NoteSortMode,
   type NoteTagGroup,
+  type DataService,
 } from "@life-editor/shared";
 import {
   useNoteTagDnd,
@@ -46,6 +47,7 @@ import {
   noteDraggableId,
 } from "./useNoteTagDnd";
 import { RichTextEditor } from "./RichTextEditor";
+import { useItemLinkTargets } from "./useItemLinkTargets";
 import {
   NotePasswordDialog,
   type NotePasswordMode,
@@ -312,10 +314,35 @@ function DesktopTagHeading({
   );
 }
 
-export function NotesView() {
+interface NotesViewProps {
+  /**
+   * Injected for the "[[" link-target pool (notes + dailies fetched cross-
+   * domain — the Notes tab has no DailiesUnifiedProvider). Everything else in
+   * this view stays context-side; link features are off when it is absent.
+   */
+  dataService?: DataService;
+  /** Navigate to a link target (MainScreen owns section + tab switching). */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /** A pending note id to select (arrived via a link click from another tab). */
+  pendingSelectNoteId?: string | null;
+  /** Clear the pending selection once consumed. */
+  onConsumePendingSelect?: () => void;
+}
+
+export function NotesView({
+  dataService,
+  onNavigateToItem,
+  pendingSelectNoteId,
+  onConsumePendingSelect,
+}: NotesViewProps = {}) {
   const notes = useNotesUnifiedContext();
-  const { allTags, getTagsForItem, assignTagToItem } =
-    useWikiTagsUnifiedContext();
+  const {
+    allTags,
+    getTagsForItem,
+    assignTagToItem,
+    createItemLink,
+    getLinksForItem,
+  } = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
@@ -371,6 +398,52 @@ export function NotesView() {
     if (!n) return undefined;
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
+
+  // "[[" link-target pool (notes + dailies, cross-domain) for the editor's
+  // wiki-link autocomplete. Absent when no DataService is injected.
+  const linkTargets = useItemLinkTargets(dataService);
+
+  // A link click from another tab lands here with a pending note id — select
+  // it once (the async note load resolves selectedNote afterwards), then clear.
+  useEffect(() => {
+    if (!pendingSelectNoteId) return;
+    notes.setSelectedNoteId(pendingSelectNoteId);
+    onConsumePendingSelect?.();
+    // notes.setSelectedNoteId / onConsumePendingSelect are stable enough; rerun
+    // only when a new pending id arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSelectNoteId]);
+
+  // Mirror a resolved "[[" link into the item_links graph (Connect / backlinks)
+  // as an edge from the CURRENT note to the target. Duplicate-guarded against
+  // the bulk cache; NEVER deleted when the text link is removed — item_links has
+  // no origin column, so a delete-sync would also destroy links the user added
+  // by hand in the LinkPanel. Self-links are skipped (createItemLink rejects
+  // them anyway).
+  const handleResolvedLinkInserted = useCallback(
+    (fromId: string, targetId: string) => {
+      if (!fromId || fromId === targetId) return;
+      const already = getLinksForItem(fromId).outgoing.some(
+        (l) => !l.isDeleted && l.toItemId === targetId,
+      );
+      if (already) return;
+      void createItemLink(fromId, targetId).catch((e) =>
+        console.error("[NotesView] item link upsert failed", e),
+      );
+    },
+    [getLinksForItem, createItemLink],
+  );
+
+  // "[[" create-a-note-and-link. select:false keeps the editor on the note the
+  // user is writing in (createNote otherwise switches selection, remounting the
+  // editor mid-insert); skipUndo avoids polluting the undo stack for a link.
+  const handleCreateNoteForLink = useCallback(
+    async (label: string): Promise<{ id: string } | null> => {
+      const id = notes.createNote(label, { select: false, skipUndo: true });
+      return id ? { id } : null;
+    },
+    [notes],
+  );
 
   // Search filter (title-only — the list is body-free under M1). Applied
   // before grouping so a query narrows every tag heading at once.
@@ -894,6 +967,13 @@ export function NotesView() {
           initialContent={selected.content || undefined}
           editable={!selected.isEditLocked}
           onUpdate={(content) => notes.updateNote(selected.id, { content })}
+          // "[[" wiki-link autocomplete + click navigation (Issue #285).
+          linkTargets={linkTargets}
+          onNavigateToItem={onNavigateToItem}
+          onResolvedLinkInserted={(targetId) =>
+            handleResolvedLinkInserted(selected.id, targetId)
+          }
+          onCreateNoteForLink={handleCreateNoteForLink}
           // Borderless — sit flush inside the NoteDetailPanel card so the note
           // body reads as a single clean surface, matching the Daily editor
           // card (2026-07-18: align Notes main formatting to Daily).
@@ -937,6 +1017,7 @@ export function NotesView() {
       pinLabel={t("notesView.unpin")}
       unpinLabel={t("notesView.pin")}
       deleteLabel={t("materials.notes.deleteNote")}
+      moreActionsLabel={t("notesView.moreActions")}
       tagsSlot={
         selected.type === "folder" ? undefined : (
           <TagPicker itemId={selected.id} showLabel size="sm" />
@@ -1007,6 +1088,9 @@ export function NotesView() {
                   initialContent={notes.selectedNote?.content || undefined}
                   editable={false}
                   onUpdate={() => {}}
+                  // Read-only: no "[[" suggestion (linkTargets omitted), but
+                  // resolved links stay clickable for navigation.
+                  onNavigateToItem={onNavigateToItem}
                 />
               ) : (
                 <SkeletonList rows={4} rowHeight={20} gap={8} />
