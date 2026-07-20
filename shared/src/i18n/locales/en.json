@@ -1120,6 +1120,13 @@
     "newEvent": "New event",
     "createSlot": "Create event at this time"
   },
+  "itemActions": {
+    "changeColor": "Change color",
+    "addTag": "Add tag",
+    "pin": "Pin",
+    "move": "Move",
+    "soon": "Soon"
+  },
   "scheduleScreen": {
     "calendar": "Calendar",
     "routines": "Repeats",

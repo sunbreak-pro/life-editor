@@ -22,6 +22,24 @@ export {
 export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
+// Item operation panels (Issue #307) — the generic ContextMenu / Popover /
+// DetailOverlay set + declarative ItemAction vocabulary. Any section reuses
+// them for right-click / single-click / double-click item operations.
+export {
+  ItemContextMenu,
+  type ItemContextMenuProps,
+  ItemActionPopover,
+  type ItemActionPopoverProps,
+  ItemDetailOverlay,
+  type ItemDetailOverlayProps,
+  ItemActionRow,
+  type ItemActionRowProps,
+  ITEM_ACTION_ROW_CLASS,
+  useFloatingDismiss,
+  clampToViewport,
+  type ItemAction,
+  type ItemActionInlineInput,
+} from "./itemActions";
 // Color picker (W-UX) — shared color-change control (presets + custom hex +
 // clear). Promoted from the Kanban's KanbanColorControl so folder / tag / any
 // future surface reuse one component. Pure presentation (§6.4).
