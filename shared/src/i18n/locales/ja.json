@@ -1120,6 +1120,13 @@
     "newEvent": "新規予定",
     "createSlot": "この時刻に予定を作成"
   },
+  "itemActions": {
+    "changeColor": "色を変更",
+    "addTag": "タグを付与",
+    "pin": "ピン留め",
+    "move": "移動",
+    "soon": "近日"
+  },
   "scheduleScreen": {
     "calendar": "カレンダー",
     "routines": "繰り返し",
