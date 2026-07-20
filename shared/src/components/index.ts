@@ -22,6 +22,9 @@ export {
 export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
+// UndoRedo header controls (Issue #304) — the undo/redo icon button pair.
+// Pure presentation; the host injects can-flags / handlers / labels.
+export { UndoRedoButtons, type UndoRedoButtonsProps } from "./UndoRedoButtons";
 // Color picker (W-UX) — shared color-change control (presets + custom hex +
 // clear). Promoted from the Kanban's KanbanColorControl so folder / tag / any
 // future surface reuse one component. Pure presentation (§6.4).

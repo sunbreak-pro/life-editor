@@ -192,6 +192,22 @@ export {
   createNoopUndoRedo,
   type UndoRedoLike,
 } from "./hooks/useTaskTreeHistory";
+// UndoRedo (Issue #304) — global single-stack manager + context + hooks.
+export {
+  UndoRedoManager,
+  MAX_HISTORY_SIZE,
+  type UndoCommand,
+} from "./utils/undoRedo/UndoRedoManager";
+export {
+  useUndoRedoContext,
+  useUndoRedoOptional,
+} from "./hooks/useUndoRedoContext";
+export {
+  UndoRedoProvider,
+  type UndoRedoProviderProps,
+  UndoRedoContext,
+  type UndoRedoContextValue,
+} from "./context";
 export type { AddNodeOptions } from "./hooks/useTaskTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
