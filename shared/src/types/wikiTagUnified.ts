@@ -28,17 +28,6 @@ export interface WikiTag {
   deletedAt: string | null;
 }
 
-/** Tag group master (wiki_tag_groups). VERSIONED dedicated table. */
-export interface WikiTagGroup {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-  isDeleted: boolean;
-  deletedAt: string | null;
-}
-
 /**
  * Item↔tag assignment (wiki_tag_assignments). RELATION + soft-delete,
  * no version. `itemId` references `items_meta(id)` for any of the 5 roles
@@ -68,20 +57,6 @@ export interface WikiTagConnection {
   id: string;
   fromItemId: string;
   toItemId: string;
-  updatedAt: string;
-  isDeleted: boolean;
-  deletedAt: string | null;
-}
-
-/**
- * Tag↔group membership (wiki_tag_group_assignments). RELATION +
- * soft-delete, no version. UNIQUE(tag_id, group_id) where is_deleted=
- * false at DB layer (a soft-deleted membership can be re-added).
- */
-export interface WikiTagGroupAssignment {
-  id: string;
-  tagId: string;
-  groupId: string;
   updatedAt: string;
   isDeleted: boolean;
   deletedAt: string | null;

@@ -5,16 +5,10 @@ import {
   wikiTagAssignmentUpdatesToPatch,
   type WikiTagAssignmentRow,
 } from "../src/services/wikiTagAssignmentMapper";
-import {
-  rowToWikiTagGroupAssignment,
-  wikiTagGroupAssignmentToRow,
-  wikiTagGroupAssignmentUpdatesToPatch,
-  type WikiTagGroupAssignmentRow,
-} from "../src/services/wikiTagGroupAssignmentMapper";
 
 /*
- * wikiTagAssignmentMapper + wikiTagGroupAssignmentMapper vitest suite
- * (DU-C+ Step 3). Both relation tables, no version, soft-delete-aware.
+ * wikiTagAssignmentMapper vitest suite (DU-C+ Step 3). A relation table,
+ * no version, soft-delete-aware.
  *
  * Cases:
  *   1. row -> domain -> insert-row roundtrip
@@ -73,36 +67,5 @@ describe("wikiTagAssignmentMapper", () => {
     );
     expect(patch.is_deleted).toBe(true);
     expect(patch.deleted_at).toBe(NOW);
-  });
-});
-
-describe("wikiTagGroupAssignmentMapper", () => {
-  function fresh(
-    overrides: Partial<WikiTagGroupAssignmentRow> = {},
-  ): WikiTagGroupAssignmentRow {
-    return {
-      id: "tga-1",
-      user_id: USER,
-      tag_id: "tag-1",
-      group_id: "tgroup-1",
-      updated_at: "2026-05-24T11:00:00.000Z",
-      is_deleted: false,
-      deleted_at: null,
-      ...overrides,
-    };
-  }
-
-  it("roundtrips row -> domain -> insert-row", () => {
-    const row = fresh();
-    const dom = rowToWikiTagGroupAssignment(row);
-    const ins = wikiTagGroupAssignmentToRow(dom, USER);
-    expect(ins.id).toBe(row.id);
-    expect(ins.tag_id).toBe(row.tag_id);
-    expect(ins.group_id).toBe(row.group_id);
-  });
-
-  it("updates patch ALWAYS emits updated_at", () => {
-    const empty = wikiTagGroupAssignmentUpdatesToPatch({}, NOW);
-    expect(empty).toEqual({ updated_at: NOW });
   });
 });

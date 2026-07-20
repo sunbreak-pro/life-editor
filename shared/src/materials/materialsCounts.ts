@@ -14,7 +14,6 @@
 import type { TaskNode } from "../types/taskTree";
 import type { NoteNode } from "../types/note";
 import type { DailyNode } from "../types/daily";
-import type { WikiTag as WikiTagUnified } from "../types/wikiTagUnified";
 
 /** Badge count per Materials tab (keys mirror the MaterialsTab union). */
 export interface MaterialsCounts {
@@ -22,14 +21,12 @@ export interface MaterialsCounts {
   tasks: number;
   notes: number;
   daily: number;
-  tags: number;
 }
 
 export interface MaterialsCountsInput {
   nodes: readonly TaskNode[];
   notes: readonly NoteNode[];
   dailies: readonly DailyNode[];
-  tags: readonly WikiTagUnified[];
 }
 
 /** All-zero counts — the initial / error fallback (no badges shown). */
@@ -37,21 +34,19 @@ export const EMPTY_MATERIALS_COUNTS: MaterialsCounts = {
   tasks: 0,
   notes: 0,
   daily: 0,
-  tags: 0,
 };
 
 /**
- * Derive the four Materials tab badge counts.
+ * Derive the Materials tab badge counts.
  *
  *   - tasks: task nodes (nested ones included) that are not done and not
  *     soft-deleted (the "still to do" count — DONE tasks don't count).
- *   - notes / daily / tags: live (non-soft-deleted) item counts.
+ *   - notes / daily: live (non-soft-deleted) item counts.
  */
 export function computeMaterialsCounts({
   nodes,
   notes,
   dailies,
-  tags,
 }: MaterialsCountsInput): MaterialsCounts {
   return {
     tasks: nodes.filter(
@@ -59,6 +54,5 @@ export function computeMaterialsCounts({
     ).length,
     notes: notes.filter((n) => !n.isDeleted).length,
     daily: dailies.filter((d) => !d.isDeleted).length,
-    tags: tags.filter((t) => !t.isDeleted).length,
   };
 }

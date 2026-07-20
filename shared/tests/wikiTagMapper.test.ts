@@ -5,17 +5,10 @@ import {
   wikiTagUpdatesToPatch,
   type WikiTagRow,
 } from "../src/services/wikiTagMapper";
-import {
-  rowToWikiTagGroup,
-  wikiTagGroupToRow,
-  wikiTagGroupUpdatesToPatch,
-  type WikiTagGroupRow,
-} from "../src/services/wikiTagGroupMapper";
-import type { WikiTag, WikiTagGroup } from "../src/types/wikiTagUnified";
 
 /*
- * wikiTagMapper + wikiTagGroupMapper vitest suite (DU-C+ Step 3).
- * Both are pure mappers over VERSIONED dedicated tables.
+ * wikiTagMapper vitest suite (DU-C+ Step 3).
+ * A pure mapper over a VERSIONED dedicated table.
  *
  * Mandatory cases:
  *   1. row -> domain -> insert-row roundtrip preserves all fields
@@ -83,37 +76,5 @@ describe("wikiTagMapper", () => {
     );
     expect(patch.is_deleted).toBe(true);
     expect(patch.deleted_at).toBe(NOW);
-  });
-});
-
-describe("wikiTagGroupMapper", () => {
-  function freshGroupRow(
-    overrides: Partial<WikiTagGroupRow> = {},
-  ): WikiTagGroupRow {
-    return {
-      id: "tgroup-1",
-      user_id: USER,
-      name: "projects",
-      is_deleted: false,
-      deleted_at: null,
-      created_at: "2026-05-24T10:00:00.000Z",
-      updated_at: "2026-05-24T11:00:00.000Z",
-      version: 1,
-      ...overrides,
-    };
-  }
-
-  it("roundtrips row -> domain -> insert-row preserving fields", () => {
-    const row = freshGroupRow();
-    const group = rowToWikiTagGroup(row);
-    const insert = wikiTagGroupToRow(group, USER);
-    expect(insert.id).toBe(row.id);
-    expect(insert.name).toBe(row.name);
-    expect(insert.version).toBe(1);
-  });
-
-  it("wikiTagGroupUpdatesToPatch ALWAYS emits updated_at", () => {
-    const patch = wikiTagGroupUpdatesToPatch({}, NOW);
-    expect(patch).toEqual({ updated_at: NOW });
   });
 });

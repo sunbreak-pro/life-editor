@@ -348,8 +348,6 @@ export type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
-  WikiTagGroup as WikiTagGroupUnified,
-  WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "./types/wikiTagUnified";
 
 // Timer domain (W3-B) — Pomodoro Provider + context hook + pure reducer

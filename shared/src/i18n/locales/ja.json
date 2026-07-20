@@ -831,7 +831,6 @@
     },
     "tags": {
       "tagsCount": "タグ（{{count}}）",
-      "groupsCount": "グループ（{{count}}）",
       "addCta": "タグ",
       "addPlaceholder": "タグ名を入力",
       "empty": "タグはまだありません",
@@ -840,17 +839,7 @@
       "deleteTag": "タグを削除",
       "quickAddTitle": "タグを追加",
       "quickAddPlaceholder": "タグ名を入力",
-      "quickAddSubmit": "追加",
-      "createGroup": "グループ",
-      "newGroupPrompt": "新しいグループ名",
-      "addTagToGroup": "タグを追加",
-      "addTagSearchPlaceholder": "タグを検索…",
-      "removeFromGroup": "グループから外す",
-      "noCandidates": "追加できるタグがありません",
-      "groupsEmpty": "グループはまだありません",
-      "memberCount": "{{count}} タグ",
-      "expandGroup": "グループを開く",
-      "collapseGroup": "グループを閉じる"
+      "quickAddSubmit": "追加"
     },
     "sidebar": {
       "sort": "並び替え",

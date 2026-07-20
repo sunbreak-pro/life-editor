@@ -7,10 +7,10 @@ import type { DataService } from "../src/services/DataService";
 
 /*
  * #300 — a background refetch (syncVersion bump) must NOT resurrect the
- * loading state. `loading` means "no data yet": TagPicker / LinkPanel / the
- * Tags tab all gate their already-rendered chips on it, so flipping it during
- * the own-write Realtime echo's refetch unmounted every visible tag pill for
- * the length of a 5-query round-trip — once per typing pause.
+ * loading state. `loading` means "no data yet": TagPicker / LinkPanel all gate
+ * their already-rendered chips on it, so flipping it during the own-write
+ * Realtime echo's refetch unmounted every visible tag pill for the length of a
+ * 3-query round-trip — once per typing pause.
  */
 
 // Bumpable Sync provider — the captured setter lets a test simulate a
@@ -27,7 +27,7 @@ function BumpableSyncProvider({ children }: { children: ReactNode }) {
 }
 
 // DataService stub: the initial round resolves immediately; after
-// deferNextRound() the five bulk list calls hang until releaseAll().
+// deferNextRound() the three bulk list calls hang until releaseAll().
 function makeDS() {
   let defer = false;
   const pending: Array<(rows: never[]) => void> = [];
@@ -39,8 +39,6 @@ function makeDS() {
   };
   const ds = {
     listAllWikiTagsUnified: list,
-    listAllWikiTagGroupsUnified: list,
-    listAllWikiTagGroupAssignments: list,
     listAllTagAssignments: list,
     listAllTagConnections: list,
   } as unknown as DataService;
@@ -75,8 +73,8 @@ describe("useWikiTagsUnifiedAPI loading (#300)", () => {
 
     deferNextRound();
     act(() => bumpSyncVersion());
-    // The refetch has started (all five bulk queries in flight)…
-    await waitFor(() => expect(pendingCount()).toBe(5));
+    // The refetch has started (all three bulk queries in flight)…
+    await waitFor(() => expect(pendingCount()).toBe(3));
     // …but the previously rendered tag data must stay up — no loading flip.
     expect(hook.result.current.loading).toBe(false);
 
