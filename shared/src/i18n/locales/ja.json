@@ -2249,6 +2249,7 @@
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",
+    "trigger": "検索・コマンド実行",
     "noResults": "結果が見つかりません",
     "goTo": "移動"
   },

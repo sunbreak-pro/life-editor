@@ -2249,6 +2249,7 @@
   },
   "commandPalette": {
     "placeholder": "Type a command...",
+    "trigger": "Search or run a command",
     "noResults": "No results found",
     "goTo": "Go to"
   },
