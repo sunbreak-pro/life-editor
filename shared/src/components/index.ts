@@ -22,6 +22,9 @@ export {
 export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
+// UndoRedo header controls (Issue #304) — the undo/redo icon button pair.
+// Pure presentation; the host injects can-flags / handlers / labels.
+export { UndoRedoButtons, type UndoRedoButtonsProps } from "./UndoRedoButtons";
 // Header command-palette trigger (Issue #306) — input-styled search field that
 // opens the CommandPalette overlay; collapses to an icon button on narrow.
 export {

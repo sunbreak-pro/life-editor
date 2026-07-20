@@ -125,3 +125,15 @@ export {
   type AudioContextValue,
   type AudioPresetState,
 } from "./AudioContextValue";
+
+// UndoRedo (Issue #304): app-wide single-stack undo/redo. Pattern A. Mounted
+// just inside SyncProvider (§6.2: Sync → UndoRedo → …), OUTSIDE the domain
+// providers it feeds. Domain providers auto-connect via useUndoRedoOptional.
+export {
+  UndoRedoProvider,
+  type UndoRedoProviderProps,
+} from "./UndoRedoContext";
+export {
+  UndoRedoContext,
+  type UndoRedoContextValue,
+} from "./UndoRedoContextValue";

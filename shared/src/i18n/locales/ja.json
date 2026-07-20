@@ -2206,6 +2206,13 @@
     "searchSettings": "設定を検索...",
     "searchTrash": "ゴミ箱を検索..."
   },
+  "undoRedo": {
+    "undone": "元に戻しました: {{label}}",
+    "redone": "やり直しました: {{label}}",
+    "labels": {
+      "taskTreeChange": "タスクの変更"
+    }
+  },
   "common": {
     "cancel": "キャンセル",
     "ok": "OK",

@@ -2206,6 +2206,13 @@
     "searchSettings": "Search settings...",
     "searchTrash": "Search trash..."
   },
+  "undoRedo": {
+    "undone": "Undid: {{label}}",
+    "redone": "Redid: {{label}}",
+    "labels": {
+      "taskTreeChange": "task change"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "ok": "OK",
