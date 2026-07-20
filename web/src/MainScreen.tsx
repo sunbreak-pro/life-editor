@@ -26,6 +26,7 @@ import {
   SectionHeader,
   RightSidebarProvider,
   RightSidebarToggle,
+  CommandSearchField,
   useMediaQuery,
   isMac,
   CommandPalette,
@@ -382,18 +383,26 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t("detailPanel.open");
   const detailCloseLabel = t("detailPanel.close");
 
-  // Standard header control (v2 §1) — the rightSidebar toggle, now
-  // UNCONDITIONAL for all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR
-  // gate is retired; Analytics / Trash open the shared placeholder empty state
-  // until their refine pass defines panel content). The v2 §5 width tab was
-  // retired 2026-07-11 (all sections wide), so this is the only right-end
-  // control now.
+  // Standard header controls (v2 §1). Left→right: the command-palette search
+  // field (#306), then the rightSidebar toggle. Undo/Redo buttons (#304) land
+  // between the field and the toggle when that Epic ships; the order is already
+  // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
+  // UNCONDITIONAL for all 7 sections (v2 §3); the v2 §5 width tab was retired
+  // 2026-07-11 (all sections wide).
   const headerControls = (
-    <RightSidebarToggle
-      variant="panel"
-      openLabel={detailOpenLabel}
-      closeLabel={detailCloseLabel}
-    />
+    <>
+      <CommandSearchField
+        onOpen={() => setPaletteOpen(true)}
+        placeholder={t("commandPalette.trigger")}
+        label={t("nav.commandPalette")}
+        shortcutHint={isMac ? "⌘K" : "Ctrl K"}
+      />
+      <RightSidebarToggle
+        variant="panel"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+      />
+    </>
   );
 
   // Standard section header row (v2 §1), mounted in AppShell's header slot —
