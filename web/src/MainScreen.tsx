@@ -26,6 +26,7 @@ import {
   SectionHeader,
   RightSidebarProvider,
   RightSidebarToggle,
+  CommandSearchField,
   useMediaQuery,
   isMac,
   CommandPalette,
@@ -356,31 +357,26 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
-  // Content width (Layout Standard v2 §5 — the width tab was retired
-  // 2026-07-11; sections are unified to wide). Three outcomes:
-  //   - "fluid": canvas/board surfaces that own their full-bleed layout
-  //     (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus
-  //     Analytics whose shared view draws its own centered data column — the
-  //     v1 judgment carried forward).
-  //   - "wide": the Notes / Daily editors — a 1120px mid-point column (2026-07-19
-  //     user request: full-bleed felt too wide, reading too narrow).
-  //   - "full": every other document surface, gutter-padded full width (work /
-  //     settings / trash / Materials→Tags).
-  // Mobile is visually unchanged: below 768px both "wide" and "full" render
-  // gutter-padded full width (the max-w clamp never engages there either).
+  // Content width (Issue #305 — every section/tab is unified to a centered
+  // ~1120px column, max-w-lumen-wide). The only thing that varies now is the
+  // SCROLL OWNERSHIP, so PageContainer still gets two variants (both clamped to
+  // max-w-lumen-wide, see PageContainer.tsx):
+  //   - "fluid": canvas/board surfaces that own their full-bleed h-full layout
+  //     + self-scroll inside the clamped box (Connect graph, Schedule calendar,
+  //     Materials→Tasks Kanban, plus Analytics whose shared view draws its own
+  //     centered data column). Their internal horizontal scroll (kanban board /
+  //     week grid) stays inside the 1120px column — no page-level scroll.
+  //   - "wide": every document surface — PageContainer owns the vertical scroll
+  //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash /
+  //     Materials→Tags).
+  // Mobile is visually unchanged: below 768px the max-w clamp never engages, so
+  // both variants render gutter-padded full width.
   const ownsFullBleed =
     section === "connect" ||
     section === "schedule" ||
     section === "analytics" ||
     (section === "materials" && materialsTab === "tasks");
-  const ownsWideColumn =
-    section === "materials" &&
-    (materialsTab === "notes" || materialsTab === "daily");
-  const pageWidth: PageContainerWidth = ownsFullBleed
-    ? "fluid"
-    : ownsWideColumn
-      ? "wide"
-      : "full";
+  const pageWidth: PageContainerWidth = ownsFullBleed ? "fluid" : "wide";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -397,6 +393,20 @@ export function MainScreen({ session }: { session: Session }) {
   const headerControls = (
     <>
       <HeaderUndoRedo />
+  // Standard header controls (v2 §1). Left→right: the command-palette search
+  // field (#306), then the rightSidebar toggle. Undo/Redo buttons (#304) land
+  // between the field and the toggle when that Epic ships; the order is already
+  // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
+  // UNCONDITIONAL for all 7 sections (v2 §3); the v2 §5 width tab was retired
+  // 2026-07-11 (all sections wide).
+  const headerControls = (
+    <>
+      <CommandSearchField
+        onOpen={() => setPaletteOpen(true)}
+        placeholder={t("commandPalette.trigger")}
+        label={t("nav.commandPalette")}
+        shortcutHint={isMac ? "⌘K" : "Ctrl K"}
+      />
       <RightSidebarToggle
         variant="panel"
         openLabel={detailOpenLabel}
