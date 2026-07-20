@@ -81,6 +81,36 @@ describe("UndoRedoProvider", () => {
     expect(onCommandApplied).toHaveBeenLastCalledWith("redo", "taskTreeChange");
   });
 
+  it("clear() empties the stack through the context (unmount safety valve)", async () => {
+    // TaskTreeProvider clears the global stack on unmount to avoid running a
+    // dead provider's command after navigation (#304 child-1 safety valve).
+    function ClearProbe() {
+      const { push, clear, canUndo } = useUndoRedoContext();
+      return (
+        <div>
+          <span data-testid="cu">{String(canUndo())}</span>
+          <button
+            onClick={() =>
+              push("d", { label: "l", undo: () => {}, redo: () => {} })
+            }
+          >
+            push
+          </button>
+          <button onClick={() => clear()}>clear</button>
+        </div>
+      );
+    }
+    render(
+      <UndoRedoProvider>
+        <ClearProbe />
+      </UndoRedoProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByText("push")));
+    expect(screen.getByTestId("cu").textContent).toBe("true");
+    await act(async () => fireEvent.click(screen.getByText("clear")));
+    expect(screen.getByTestId("cu").textContent).toBe("false");
+  });
+
   it("runs the command's undo/redo closures", async () => {
     const log: string[] = [];
     function Runner() {
