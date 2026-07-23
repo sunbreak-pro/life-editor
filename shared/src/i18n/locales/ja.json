@@ -2206,6 +2206,13 @@
     "searchSettings": "設定を検索...",
     "searchTrash": "ゴミ箱を検索..."
   },
+  "undoRedo": {
+    "undone": "元に戻しました: {{label}}",
+    "redone": "やり直しました: {{label}}",
+    "labels": {
+      "taskTreeChange": "タスクの変更"
+    }
+  },
   "common": {
     "cancel": "キャンセル",
     "ok": "OK",
@@ -2256,6 +2263,7 @@
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",
+    "trigger": "検索・コマンド実行",
     "noResults": "結果が見つかりません",
     "goTo": "移動"
   },

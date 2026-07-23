@@ -2206,6 +2206,13 @@
     "searchSettings": "Search settings...",
     "searchTrash": "Search trash..."
   },
+  "undoRedo": {
+    "undone": "Undid: {{label}}",
+    "redone": "Redid: {{label}}",
+    "labels": {
+      "taskTreeChange": "task change"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "ok": "OK",
@@ -2256,6 +2263,7 @@
   },
   "commandPalette": {
     "placeholder": "Type a command...",
+    "trigger": "Search or run a command",
     "noResults": "No results found",
     "goTo": "Go to"
   },
