@@ -10,13 +10,13 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
-  GripVertical,
   Link2,
   Lock,
   Pin,
   Plus,
   Search,
   Trash2,
+  Tag,
   Tags,
   RotateCcw,
 } from "lucide-react";
@@ -35,6 +35,7 @@ import {
   BottomSheet,
   SidebarListControls,
   TagEditModal,
+  resolveTagIcon,
   buildTagGroups,
   sortNotesForList,
   cn,
@@ -154,32 +155,27 @@ function DesktopNoteRow({
   });
 
   return (
+    // Grip removed (#312): the whole row is the drag activator now — press-drag
+    // anywhere onto a tag heading assigns that tag. @dnd-kit's PointerSensor has
+    // a 5px activation distance (useNoteTagDnd), so a plain click still falls
+    // through to the inner select/delete buttons; only a >5px drag picks the row
+    // up. `attributes` make the row keyboard-draggable (role=button, tabIndex),
+    // decoupled from the inner buttons' own Enter/click.
     <li
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      aria-label={dragHintLabel}
       className={cn(
-        "group relative flex items-center gap-2 rounded-lumen-md border px-2",
+        "group relative flex cursor-grab items-center gap-2 rounded-lumen-md border px-2",
         "h-[36px] text-[13px]",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
           : "border-transparent hover:bg-lumen-hover",
+        FOCUS_RING,
       )}
     >
-      {/* Grip — hover-revealed, keyboard-focusable. Starts the drag. */}
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label={dragHintLabel}
-        className={cn(
-          "shrink-0 cursor-grab text-lumen-text-tertiary opacity-0 transition-opacity",
-          "hover:text-lumen-text focus-visible:opacity-100 group-hover:opacity-100",
-          FOCUS_RING,
-        )}
-      >
-        <GripVertical size={13} aria-hidden />
-      </button>
-
       <FileText
         size={14}
         aria-hidden
@@ -263,14 +259,21 @@ function DesktopTagHeading({
     disabled: isUntagged,
   });
 
+  // Divider-style heading (#311): [tag icon] [color-band name] [count] ——rule.
+  // The former chevron+dot+flat-name folder look is gone; the name sits in a
+  // rounded color band (same tint math as TagPill) and a rule fills the row.
+  const color = group.tagColor;
+  const Icon = resolveTagIcon(group.tagIcon) ?? Tag;
+  const bandStyle = color
+    ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
+    : undefined;
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-lumen-md border",
-        isOver
-          ? "border-lumen-accent bg-lumen-accent-subtle"
-          : "border-transparent",
+        "rounded-lumen-md",
+        isOver && "bg-lumen-accent-subtle ring-1 ring-inset ring-lumen-accent",
       )}
     >
       <button
@@ -279,10 +282,29 @@ function DesktopTagHeading({
         aria-expanded={!collapsed}
         aria-label={collapsed ? expandLabel : collapseLabel}
         className={cn(
-          "flex w-full items-center gap-2 rounded-lumen-md px-1.5 py-2 text-left hover:bg-lumen-hover",
+          "flex w-full items-center gap-2 rounded-lumen-md px-1 py-1.5 text-left hover:bg-lumen-hover",
           FOCUS_RING,
         )}
       >
+        <Icon
+          size={15}
+          aria-hidden
+          className="shrink-0 text-lumen-text-secondary"
+          style={color ? { color } : undefined}
+        />
+        <span
+          className={cn(
+            "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
+            color ? "" : "border-lumen-border bg-lumen-bg-secondary",
+          )}
+          style={bandStyle}
+        >
+          {group.tagName}
+        </span>
+        <span className="shrink-0 text-[11px] font-medium tabular-nums text-lumen-text-tertiary">
+          {group.notes.length}
+        </span>
+        <span aria-hidden className="h-px min-w-4 flex-1 bg-lumen-border" />
         {collapsed ? (
           <ChevronRight
             size={14}
@@ -296,22 +318,6 @@ function DesktopTagHeading({
             className="shrink-0 text-lumen-text-tertiary"
           />
         )}
-        <span
-          aria-hidden
-          className={cn(
-            "h-2.5 w-2.5 shrink-0 rounded-full",
-            group.tagColor ? "" : "bg-lumen-border-strong",
-          )}
-          style={
-            group.tagColor ? { backgroundColor: group.tagColor } : undefined
-          }
-        />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-lumen-text">
-          {group.tagName}
-        </span>
-        <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-[11px] font-medium tabular-nums text-lumen-text-secondary">
-          {group.notes.length}
-        </span>
       </button>
     </div>
   );
@@ -633,7 +639,8 @@ export function NotesView({
 
   const sidebarList = (
     <div className="flex flex-col gap-2">
-      {/* Search + create. Folder-create is gone — organization is tags now. */}
+      {/* Search only. Create moved to the main-content top-right (#302); folder-
+          create is gone — organization is tags now. */}
       <div className="flex flex-col gap-2">
         <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
           <Search
@@ -649,18 +656,6 @@ export function NotesView({
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => notes.createNote()}
-          className={cn(
-            "inline-flex w-full items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
-            "text-[12.5px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
-            FOCUS_RING,
-          )}
-        >
-          <Plus size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">{t("materials.notes.addCta")}</span>
-        </button>
       </div>
 
       {/* Sort controls (#283) — mode picker + direction toggle above the list.
@@ -720,7 +715,7 @@ export function NotesView({
                     expandLabel={t("materials.notes.expandGroup")}
                   />
                   {!collapsed && (
-                    <ul className="ml-[10px] flex flex-col gap-0.5 border-l border-lumen-border pl-2.5">
+                    <ul className="flex flex-col gap-0.5">
                       {group.notes.map((node) => (
                         <DesktopNoteRow
                           key={`${key}-${node.id}`}
@@ -882,6 +877,12 @@ export function NotesView({
           {groups.map((group) => {
             const key = groupKey(group);
             const collapsed = collapsedGroups.has(key);
+            // Divider-style heading (#311), mobile twin of DesktopTagHeading.
+            const color = group.tagColor;
+            const HeadingIcon = resolveTagIcon(group.tagIcon) ?? Tag;
+            const bandStyle = color
+              ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
+              : undefined;
             return (
               <div key={key} className="flex flex-col gap-1">
                 <button
@@ -894,45 +895,49 @@ export function NotesView({
                       : t("materials.notes.collapseGroup")
                   }
                   className={cn(
-                    "flex items-center gap-2 px-1 py-1.5 text-left",
+                    "flex w-full items-center gap-2 px-1 py-1.5 text-left",
                     FOCUS_RING,
                   )}
                 >
+                  <HeadingIcon
+                    size={15}
+                    aria-hidden
+                    className="shrink-0 text-lumen-text-secondary"
+                    style={color ? { color } : undefined}
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
+                      color ? "" : "border-lumen-border bg-lumen-bg-secondary",
+                    )}
+                    style={bandStyle}
+                  >
+                    {group.tagName}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-lumen-text-tertiary">
+                    {group.notes.length}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-px min-w-4 flex-1 bg-lumen-border"
+                  />
                   {collapsed ? (
                     <ChevronRight
-                      size={13}
+                      size={14}
                       aria-hidden
-                      className="shrink-0 text-lumen-text-secondary"
+                      className="shrink-0 text-lumen-text-tertiary"
                     />
                   ) : (
                     <ChevronDown
-                      size={13}
+                      size={14}
                       aria-hidden
-                      className="shrink-0 text-lumen-text-secondary"
+                      className="shrink-0 text-lumen-text-tertiary"
                     />
                   )}
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      group.tagColor ? "" : "bg-lumen-border-strong",
-                    )}
-                    style={
-                      group.tagColor
-                        ? { backgroundColor: group.tagColor }
-                        : undefined
-                    }
-                  />
-                  <span className="text-sm font-semibold text-lumen-text">
-                    {group.tagName}
-                  </span>
-                  <span className="text-[13px] text-lumen-text-tertiary">
-                    （{group.notes.length}）
-                  </span>
                 </button>
                 {!collapsed &&
                   group.notes.map((node) => (
-                    <div key={`${key}-${node.id}`} className="pl-4">
+                    <div key={`${key}-${node.id}`}>
                       <ExcerptListItem
                         title={node.title || "(untitled)"}
                         leading={<FileText size={14} aria-hidden />}
@@ -1046,43 +1051,63 @@ export function NotesView({
   // rendered as rows), but the folder guards on the slots are kept as defence
   // in depth while real data still carries folder nodes.
 
-  const desktopMain = selected ? (
-    <NoteDetailPanel
-      variant="main"
-      noteId={selected.id}
-      title={selected.title}
-      isPinned={selected.isPinned}
-      onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-      onTogglePin={notes.togglePin}
-      onDelete={(id) => notes.softDeleteNote(id)}
-      titleLabel={t("notesView.detailTitle")}
-      pinLabel={t("notesView.unpin")}
-      unpinLabel={t("notesView.pin")}
-      deleteLabel={t("materials.notes.deleteNote")}
-      moreActionsLabel={t("notesView.moreActions")}
-      tagsSlot={
-        selected.type === "folder" ? undefined : (
-          <TagPicker itemId={selected.id} showLabel size="sm" />
-        )
-      }
-      contentLabel={t("materials.notes.content")}
-      contentEditor={
-        selected.type === "folder" ? undefined : detailContentEditor
-      }
-    />
-  ) : (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <EmptyState
-        icon={<FileText aria-hidden />}
-        message={
-          hasNotes ? t("materials.notes.mainEmpty") : t("materials.notes.empty")
-        }
-        cta={{
-          label: t("materials.notes.addCta"),
-          onClick: () => notes.createNote(),
-        }}
-      />
-    </div>
+  // Main-content toolbar (#302): "+ Add Note" now lives at the main-content
+  // top-right — same accent pill + position sense as the Tasks board toolbar —
+  // and the sidebar create entry was removed. Always present so a new note can
+  // be made with nothing selected.
+  const desktopMain = (
+    <>
+      <div className="flex items-center justify-end px-1 pb-3">
+        <button
+          type="button"
+          onClick={() => notes.createNote()}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          <Plus size={14} aria-hidden />
+          {t("materials.notes.addCta")}
+        </button>
+      </div>
+      {selected ? (
+        <NoteDetailPanel
+          variant="main"
+          noteId={selected.id}
+          title={selected.title}
+          isPinned={selected.isPinned}
+          onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+          onTogglePin={notes.togglePin}
+          onDelete={(id) => notes.softDeleteNote(id)}
+          titleLabel={t("notesView.detailTitle")}
+          pinLabel={t("notesView.unpin")}
+          unpinLabel={t("notesView.pin")}
+          deleteLabel={t("materials.notes.deleteNote")}
+          moreActionsLabel={t("notesView.moreActions")}
+          tagsSlot={
+            selected.type === "folder" ? undefined : (
+              <TagPicker itemId={selected.id} showLabel size="sm" />
+            )
+          }
+          contentLabel={t("materials.notes.content")}
+          contentEditor={
+            selected.type === "folder" ? undefined : detailContentEditor
+          }
+        />
+      ) : (
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <EmptyState
+            icon={<FileText aria-hidden />}
+            message={
+              hasNotes
+                ? t("materials.notes.mainEmpty")
+                : t("materials.notes.empty")
+            }
+            cta={{
+              label: t("materials.notes.addCta"),
+              onClick: () => notes.createNote(),
+            }}
+          />
+        </div>
+      )}
+    </>
   );
 
   return (
