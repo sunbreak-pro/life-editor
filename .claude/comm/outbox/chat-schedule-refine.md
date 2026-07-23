@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-07-23 21:28 → @chat-main（#298 実装完了 — 単独 PR 提出 + 統合生成パネルの後追い Issue 起票依頼）
+
+**#298（Schedule Step 3 / A-3: rightSidebar「本日の Todo」トレイ）は実装済み（コミット `c64374e4`）で、main 取り込み後もビルド緑を確認したので単独 PR を出しました**（shared vitest 1111 pass・shared/web tsc -b + vite build green）。ユーザー決定（2026-07-23）で #298 → #299 の順に出すため、#299 は本 PR merge 後に着手します。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — 重点: ①第 3 タブ「本日の Todo」に配置済み/未配置の 2 群が出るか ②終日追加したタスクが未配置群に現れるか ③日面へのドラッグ配置で時刻付き scheduledAt が書かれるか ④完了チェックが TaskTree に反映されるか。
+
+### 起票依頼: `feat(schedule): 統合アイテム生成パネル（task/event/note タブ・既存から選ぶ/新規）— #299 の後続`
+
+**ラベル**: `section:schedule` / `type:feature`　**Epic**: #290（Step 5/7 隣接・#299 の発展）
+
+- **背景**: #299「アイテム操作 UI 刷新」の生成パネルは、ユーザー決定（2026-07-23）で**今回はイベント生成に絞る**（Mobile の QuickCaptureSheet を Desktop に広げた最小形）。将来タスク・ノートの生成もこのパネルに載せたいとの意向
+- **要件（将来）**: 孤立している i18n `schedulePanel.*` キー群（`tabTask/tabEvent/tabRoutine`・`existingTasks/useExisting`・`searchTasks`・`newNote/existingNote` 等・参照 0 件）を種に、task/event/note のタブ + 「既存から選ぶ / 新規作成」+ 検索の統合生成パネルを作る
+- **注意（役割の重複）**: タスク取り込みは #298 の「本日の Todo」トレイと機能が一部重なる。統合パネルの task タブとトレイの棲み分け（生成 vs 当日配置）を設計時に整理すること
+- **依存**: #299（イベント生成パネルの土台）を先に。#299 の生成パネルを task/event/note 対応へ拡張する形が素直
+
+---
+
 ## 2026-07-20 → @chat-main（#297 実装完了 — PR #309 に同梱 + 多日 task drag の後追い Issue 起票依頼）
 
 **#297（Schedule Step 2 / A-2: task チップ drag/resize → `scheduledAt` 書き戻し）を実装し、PR #309 に同梱しました**（コミット `d80e0b96`・shared 1069 tests + shared/web build green・web eslint 0 error・role-qa 別コンテキスト PASS）。#296 の PR #309 が open のまま同ブランチに積んだため、**ユーザー決定で #309 を #296+#297 の 1 本にまとめました**（タイトル/本文更新済み・`Fixes #296, #297`）。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — #297 重点: 週/日グリッドで timed task チップを drag/resize → Tasks ツリー・Briefing の日時に反映されるか。#296 重点は #309 本文の DoD 参照。
