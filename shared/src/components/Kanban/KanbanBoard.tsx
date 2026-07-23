@@ -105,6 +105,7 @@ export function KanbanBoard({
   // Tag view: the column already conveys the tag, so cards omit tag chips.
   // Status view: show tag chips on each card.
   const showTags = activeMode !== "tag";
+  const isTagView = activeMode === "tag";
 
   return (
     <div className="flex h-full flex-col">
@@ -143,16 +144,30 @@ export function KanbanBoard({
         {headerActions}
       </div>
 
-      {/* Board — horizontal-scroll column strip. The outer div owns the
-          scroll; the inner row is `w-fit mx-auto` so the columns center when
-          they fit the viewport and stay flush-left (no clipping) when they
-          overflow and scroll. `justify-center` alone would clip the left edge
-          on overflow, so we deliberately avoid it. */}
-      <div className="flex-1 overflow-x-auto px-1 pb-4">
+      {/* Board.
+          Status view — one horizontal-scroll column strip (the outer div owns
+          the scroll; the inner row is `w-fit mx-auto` so the columns center
+          when they fit and stay flush-left, no clipping, when they overflow and
+          scroll — `justify-center` alone would clip the left edge on overflow).
+          Tag view (#303) — wrap at most 3 columns: max-w = 3×316px + 2×gap(16)
+          = 980px caps a row at three, and flex-wrap drops it to 2 / 1 as the
+          clamped board narrows. The board scrolls vertically here, not
+          horizontally. */}
+      <div
+        className={cn(
+          "flex-1 px-1 pb-4",
+          isTagView ? "overflow-y-auto" : "overflow-x-auto",
+        )}
+      >
         <div
           role="list"
           aria-label={viewLabel(activeMode)}
-          className="mx-auto flex h-full w-fit max-w-full gap-4"
+          className={cn(
+            "mx-auto gap-4",
+            isTagView
+              ? "flex max-w-[980px] flex-wrap items-start"
+              : "flex h-full w-fit max-w-full",
+          )}
         >
           {columns.map((column) =>
             renderColumn ? (
