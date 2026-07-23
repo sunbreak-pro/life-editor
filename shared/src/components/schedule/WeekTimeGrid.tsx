@@ -190,10 +190,18 @@ function variantBlockClasses(variant: "routine" | "event" | "task"): string {
   }
 }
 
-/** Live drag state held in a ref so the window listeners read fresh values. */
+/**
+ * Live drag state held in a ref so the window listeners read fresh values.
+ *
+ * "place" (schedule redesign A-3 / #298): an all-day task chip is dragged out
+ * of the all-day lane into the time body to gain a start time. Unlike "move"
+ * (delta from the block's own time origin) it has no time origin, so the drop
+ * time is read from the ABSOLUTE pointer Y over the scroll body; the day stays
+ * the chip's own (no horizontal day change) and the write reuses `onMoveItem`.
+ */
 interface DragState {
   id: string;
-  mode: "move" | "resize";
+  mode: "move" | "resize" | "place";
   startX: number;
   startY: number;
   /** Width of one day column in px (move = horizontal day mapping). */
@@ -213,6 +221,8 @@ interface DragPreview {
   date: string;
   startTime: string;
   endTime: string;
+  /** "place" flips the previewed chip to timed so it leaves the all-day lane. */
+  isAllDay?: boolean;
 }
 
 export function WeekTimeGrid({
@@ -299,6 +309,9 @@ export function WeekTimeGrid({
             date: dragPreview.date,
             startTime: dragPreview.startTime,
             endTime: dragPreview.endTime,
+            // "place" flips an all-day chip to timed so it moves from the
+            // all-day lane into the positioned time body during the drag.
+            isAllDay: dragPreview.isAllDay ?? it.isAllDay,
           }
         : it,
     );
@@ -318,19 +331,32 @@ export function WeekTimeGrid({
   const beginDrag = (
     e: React.PointerEvent,
     item: WeekTimeGridItem,
-    mode: "move" | "resize",
+    mode: "move" | "resize" | "place",
   ) => {
-    if (e.button !== 0 || item.isAllDay) return;
-    if (mode === "move" && !onMoveItem) return;
+    if (e.button !== 0) return;
+    // move/resize act on timed blocks only; "place" is the sole path allowed to
+    // start on an all-day chip (it gives it a time — A-3 / #298).
+    if (mode !== "place" && item.isAllDay) return;
+    if ((mode === "move" || mode === "place") && !onMoveItem) return;
     if (mode === "resize" && !onResizeItem) return;
     e.stopPropagation();
     // The event button's offsetParent is its day column; its width maps a
     // horizontal drag to a whole-day offset. Resize ignores width.
     const col = (e.currentTarget as HTMLElement)
       .offsetParent as HTMLElement | null;
-    const startMin = minutesFromMidnight(item.startTime);
-    const rawEnd = minutesFromMidnight(item.endTime);
-    const endMin = Math.max(rawEnd, startMin + snapMinutesStep);
+    // "place": an all-day chip has no time origin — seed a default block anchored
+    // at the top of the visible window; the real start comes from the absolute
+    // pointer Y over the time body (onMove). Its day stays fixed (no horizontal
+    // day change), so colWidth is irrelevant.
+    const startMin =
+      mode === "place" ? startHour * 60 : minutesFromMidnight(item.startTime);
+    const durationMin =
+      mode === "place"
+        ? defaultCreateDuration
+        : Math.max(
+            minutesFromMidnight(item.endTime),
+            startMin + snapMinutesStep,
+          ) - startMin;
     dragRef.current = {
       id: item.id,
       mode,
@@ -339,7 +365,7 @@ export function WeekTimeGrid({
       colWidth: col ? col.getBoundingClientRect().width : 0,
       origDayIdx: dayKeys.indexOf(item.date),
       origStartMin: startMin,
-      durationMin: endMin - startMin,
+      durationMin,
       moved: false,
       final: null,
     };
@@ -359,7 +385,23 @@ export function WeekTimeGrid({
       let dayIdx = d.origDayIdx;
       let startMin = d.origStartMin;
       let endMin: number;
-      if (d.mode === "move") {
+      if (d.mode === "place") {
+        // Absolute drop: map the pointer's Y over the scroll body to a start
+        // time (same mapping as empty-slot create). The day stays the chip's
+        // own — no horizontal remap — and the block is kept fully in-window.
+        const el = scrollBodyRef.current;
+        let mins = d.origStartMin;
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const yInBody = ev.clientY - rect.top + el.scrollTop;
+          mins = pxToMinutes(yInBody, hourHeight, hourRange);
+        }
+        startMin = Math.min(
+          Math.max(snapMinutes(mins, snapMinutesStep), startHour * 60),
+          endHour * 60 - d.durationMin,
+        );
+        endMin = startMin + d.durationMin;
+      } else if (d.mode === "move") {
         startMin = snapMinutes(d.origStartMin + deltaMin, snapMinutesStep);
         endMin = startMin + d.durationMin;
         if (d.colWidth > 0 && dayKeys.length > 1) {
@@ -385,13 +427,17 @@ export function WeekTimeGrid({
         date: dateISO,
         startTime: minutesToTime(startMin),
         endTime: minutesToTime(endMin),
+        isAllDay: d.mode === "place" ? false : undefined,
       });
     };
     const onUp = () => {
       const d = dragRef.current;
       if (d) {
         if (d.moved && d.final) {
-          if (d.mode === "move") {
+          if (d.mode === "move" || d.mode === "place") {
+            // "place" writes through the same host callback as move — the host
+            // routes a task chip to updateNode(scheduledAt/…, isAllDay:false),
+            // turning the all-day candidate into a timed block (A-3 / #298).
             onMoveItem?.(
               d.id,
               d.final.dateISO,
@@ -419,6 +465,9 @@ export function WeekTimeGrid({
     dragging,
     dayKeys,
     hourHeight,
+    hourRange,
+    startHour,
+    endHour,
     snapMinutesStep,
     onMoveItem,
     onResizeItem,
@@ -510,11 +559,22 @@ export function WeekTimeGrid({
             >
               {allDay.map((it) => {
                 const selected = it.id === selectedId;
+                // A-3 (#298): an all-day task chip can be dragged down into the
+                // time body to gain a start time (only task chips, only when the
+                // host opts in via taskInteractive + onMoveItem). Events/routines
+                // in the all-day lane stay click/contextMenu only.
+                const placeable =
+                  it.variant === "task" && taskInteractive && !!onMoveItem;
                 return (
                   <button
                     key={it.id}
                     type="button"
-                    onClick={() => onSelectItem?.(it.id)}
+                    onPointerDown={
+                      placeable ? (e) => beginDrag(e, it, "place") : undefined
+                    }
+                    onClick={
+                      placeable ? undefined : () => onSelectItem?.(it.id)
+                    }
                     onContextMenu={
                       onItemContextMenu
                         ? (e) => {
@@ -530,8 +590,10 @@ export function WeekTimeGrid({
                     className={cn(
                       "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                       selected && "ring-2 ring-lumen-accent",
+                      placeable && "cursor-grab",
                       it.completed && "text-lumen-text-secondary line-through",
                     )}
+                    style={placeable ? { touchAction: "none" } : undefined}
                   >
                     {it.title || " "}
                   </button>
