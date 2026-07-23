@@ -159,12 +159,16 @@ function DesktopNoteRow({
     // anywhere onto a tag heading assigns that tag. @dnd-kit's PointerSensor has
     // a 5px activation distance (useNoteTagDnd), so a plain click still falls
     // through to the inner select/delete buttons; only a >5px drag picks the row
-    // up. `attributes` make the row keyboard-draggable (role=button, tabIndex),
-    // decoupled from the inner buttons' own Enter/click.
+    // up. `attributes`+`listeners` (tabIndex + keydown) make the row keyboard-
+    // draggable, decoupled from the inner buttons' own Enter/click. We override
+    // role back to "listitem" (attributes default it to "button") so the row
+    // keeps the <ul> list semantics and the inner buttons aren't nested inside
+    // an interactive role.
     <li
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      role="listitem"
       aria-label={dragHintLabel}
       className={cn(
         "group relative flex cursor-grab items-center gap-2 rounded-lumen-md border px-2",
