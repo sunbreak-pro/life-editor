@@ -193,6 +193,16 @@ export {
   type ShortcutEditModalProps,
   type ShortcutEditModalLabels,
 } from "./ShortcutEditModal";
+// Tag edit modal (#310) — add/rename/delete/icon/color a wiki_tag with usage
+// counts. Pure presentational: DataService callbacks + labels injected (§6.4).
+// `tagIcon` resolves lucide names for the picker (and #311 tag headings).
+export {
+  TagEditModal,
+  type TagEditModalProps,
+  type TagEditModalLabels,
+  type TagEditRow,
+} from "./TagEditModal";
+export { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
 export {
   SettingsDetailPanel,
   type SettingsDetailPanelProps,

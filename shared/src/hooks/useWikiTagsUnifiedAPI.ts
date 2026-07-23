@@ -101,6 +101,15 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
+  const setTagIcon = useCallback(
+    async (id: string, icon: string | null): Promise<WikiTag> => {
+      const updated = await ds.updateWikiTagUnified(id, { icon });
+      setAllTags((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      return updated;
+    },
+    [ds],
+  );
+
   const deleteTag = useCallback(
     async (id: string): Promise<void> => {
       await ds.softDeleteWikiTagUnified(id);
@@ -190,6 +199,21 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     return map;
   }, [allAssignments]);
 
+  // tagId → number of active items carrying that tag (role-agnostic). Built
+  // from the same `allAssignments` cache — no extra fetch. `allAssignments` is
+  // already active-only (service filters is_deleted=false) and
+  // `wiki_tag_assignments` is UNIQUE(item_id, tag_id), so a plain count is the
+  // distinct item count. The `!isDeleted` guard is belt-and-suspenders against
+  // any optimistic local rows.
+  const countsByTag = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of allAssignments) {
+      if (a.isDeleted) continue;
+      map.set(a.tagId, (map.get(a.tagId) ?? 0) + 1);
+    }
+    return map;
+  }, [allAssignments]);
+
   // itemId → { outgoing, incoming } links. A link is bucketed under its
   // `fromItemId` (outgoing) and its `toItemId` (incoming) so LinkPanel
   // reads both directions for a row synchronously.
@@ -242,11 +266,13 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     () => ({
       allTags,
       allConnections,
+      countsByTag,
       loading,
       refresh,
       createTag,
       renameTag,
       setTagColor,
+      setTagIcon,
       deleteTag,
       listTagsForItem,
       assignTagToItem,
@@ -261,11 +287,13 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [
       allTags,
       allConnections,
+      countsByTag,
       loading,
       refresh,
       createTag,
       renameTag,
       setTagColor,
+      setTagIcon,
       deleteTag,
       listTagsForItem,
       assignTagToItem,

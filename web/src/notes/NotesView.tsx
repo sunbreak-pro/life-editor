@@ -17,6 +17,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Tags,
   RotateCcw,
 } from "lucide-react";
 import {
@@ -33,12 +34,14 @@ import {
   QuickAddSheet,
   BottomSheet,
   SidebarListControls,
+  TagEditModal,
   buildTagGroups,
   sortNotesForList,
   cn,
   type NoteNode,
   type NoteSortMode,
   type NoteTagGroup,
+  type TagEditRow,
   type DataService,
 } from "@life-editor/shared";
 import {
@@ -338,10 +341,16 @@ export function NotesView({
   const notes = useNotesUnifiedContext();
   const {
     allTags,
+    countsByTag,
     getTagsForItem,
     assignTagToItem,
     createItemLink,
     getLinksForItem,
+    createTag,
+    renameTag,
+    deleteTag,
+    setTagColor,
+    setTagIcon,
   } = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
@@ -363,6 +372,8 @@ export function NotesView({
   } | null>(null);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [trashOpen, setTrashOpen] = useState(false);
+  // Tag edit modal (#310) — opened from the sidebar bottom entry.
+  const [tagEditOpen, setTagEditOpen] = useState(false);
   // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
   // here from the note body so reading/writing stays unobstructed.
   const [linksOpen, setLinksOpen] = useState(false);
@@ -398,6 +409,20 @@ export function NotesView({
     if (!n) return undefined;
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
+
+  // Rows for the Tag edit modal: every tag with its icon/color + active usage
+  // count (role-agnostic, from the WikiTags hook's derived countsByTag).
+  const tagEditRows = useMemo<TagEditRow[]>(
+    () =>
+      allTags.map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        icon: tag.icon,
+        count: countsByTag.get(tag.id) ?? 0,
+      })),
+    [allTags, countsByTag],
+  );
 
   // "[[" link-target pool (notes + dailies, cross-domain) for the editor's
   // wiki-link autocomplete. Absent when no DataService is injected.
@@ -819,6 +844,23 @@ export function NotesView({
           </ul>
         )}
       </div>
+
+      {/* Tag edit entry (#310) — opens the manage-tags modal. Same divider +
+          row styling as the Links/Trash disclosures, but a plain action (no
+          chevron) since it launches a modal instead of expanding in place. */}
+      <div className="border-t border-lumen-border pt-1">
+        <button
+          type="button"
+          onClick={() => setTagEditOpen(true)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+            FOCUS_RING,
+          )}
+        >
+          <Tags size={14} aria-hidden className="ml-[21px] shrink-0" />
+          <span className="truncate">{t("materials.tags.editCta")}</span>
+        </button>
+      </div>
     </div>
   );
 
@@ -1120,6 +1162,31 @@ export function NotesView({
           onClose={() => setPwDialog(null)}
         />
       )}
+
+      <TagEditModal
+        open={tagEditOpen}
+        onClose={() => setTagEditOpen(false)}
+        tags={tagEditRows}
+        onCreate={(name) => void createTag(name)}
+        onRename={(id, name) => void renameTag(id, name)}
+        onDelete={(id) => void deleteTag(id)}
+        onSetColor={(id, color) => void setTagColor(id, color)}
+        onSetIcon={(id, icon) => void setTagIcon(id, icon)}
+        formatCount={(count) => t("materials.tags.usageCount", { count })}
+        labels={{
+          title: t("materials.tags.editTitle"),
+          addPlaceholder: t("materials.tags.addPlaceholder"),
+          addButton: t("materials.tags.addTag"),
+          empty: t("materials.tags.empty"),
+          renameLabel: t("materials.tags.rename"),
+          deleteLabel: t("materials.tags.deleteTag"),
+          iconLabel: t("materials.tags.iconLabel"),
+          clearIconLabel: t("materials.tags.clearIcon"),
+          colorLabel: t("materials.tags.colorLabel"),
+          colorClearLabel: t("materials.tags.colorClearLabel"),
+          colorCustomLabel: t("materials.tags.colorCustomLabel"),
+        }}
+      />
     </div>
   );
 }

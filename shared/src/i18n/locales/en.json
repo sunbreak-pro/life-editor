@@ -839,7 +839,15 @@
       "deleteTag": "Delete tag",
       "quickAddTitle": "Add tag",
       "quickAddPlaceholder": "Enter a tag name",
-      "quickAddSubmit": "Add"
+      "quickAddSubmit": "Add",
+      "editTitle": "Edit tags",
+      "editCta": "Edit tags",
+      "addTag": "Add",
+      "iconLabel": "Icon",
+      "clearIcon": "Default icon",
+      "colorClearLabel": "Default color",
+      "colorCustomLabel": "Custom",
+      "usageCount": "{{count}} items"
     },
     "sidebar": {
       "sort": "Sort",

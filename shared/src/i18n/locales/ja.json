@@ -839,7 +839,15 @@
       "deleteTag": "タグを削除",
       "quickAddTitle": "タグを追加",
       "quickAddPlaceholder": "タグ名を入力",
-      "quickAddSubmit": "追加"
+      "quickAddSubmit": "追加",
+      "editTitle": "タグを編集",
+      "editCta": "タグ編集",
+      "addTag": "追加",
+      "iconLabel": "アイコン",
+      "clearIcon": "デフォルトのアイコン",
+      "colorClearLabel": "デフォルトの色",
+      "colorCustomLabel": "カスタム",
+      "usageCount": "{{count}} 件"
     },
     "sidebar": {
       "sort": "並び替え",

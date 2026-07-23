@@ -26,6 +26,7 @@ function freshRow(overrides: Partial<WikiTagRow> = {}): WikiTagRow {
     user_id: USER,
     name: "work",
     color: "#3b82f6",
+    icon: "Star",
     is_deleted: false,
     deleted_at: null,
     created_at: "2026-05-24T10:00:00.000Z",
@@ -44,6 +45,7 @@ describe("wikiTagMapper", () => {
     expect(insert.user_id).toBe(USER);
     expect(insert.name).toBe(row.name);
     expect(insert.color).toBe(row.color);
+    expect(insert.icon).toBe(row.icon);
     expect(insert.is_deleted).toBe(false);
     expect(insert.deleted_at).toBeNull();
     expect(insert.version).toBe(1);
@@ -52,6 +54,21 @@ describe("wikiTagMapper", () => {
   it("rowToWikiTag preserves null color (no defaulting)", () => {
     const tag = rowToWikiTag(freshRow({ color: null }));
     expect(tag.color).toBeNull();
+  });
+
+  it("rowToWikiTag preserves icon (and null icon, no defaulting)", () => {
+    expect(rowToWikiTag(freshRow({ icon: "Tag" })).icon).toBe("Tag");
+    expect(rowToWikiTag(freshRow({ icon: null })).icon).toBeNull();
+  });
+
+  it("wikiTagUpdatesToPatch passes through icon (present ↔ null)", () => {
+    const set = wikiTagUpdatesToPatch({ icon: "Heart" }, NOW);
+    expect(set.icon).toBe("Heart");
+    const cleared = wikiTagUpdatesToPatch({ icon: null }, NOW);
+    expect("icon" in cleared).toBe(true);
+    expect(cleared.icon).toBeNull();
+    const absent = wikiTagUpdatesToPatch({ name: "x" }, NOW);
+    expect("icon" in absent).toBe(false);
   });
 
   it("wikiTagUpdatesToPatch ALWAYS emits updated_at (LWW)", () => {

@@ -21,6 +21,9 @@ export interface WikiTag {
   name: string;
   /** Optional UI tint color. */
   color: string | null;
+  /** Optional lucide-react icon name (e.g. "Tag" / "Star"); resolved to a
+   *  component by `resolveTagIcon`. null = use the default icon. */
+  icon: string | null;
   createdAt: string;
   updatedAt: string;
   version: number;
