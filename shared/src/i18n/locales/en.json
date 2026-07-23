@@ -1120,6 +1120,13 @@
     "newEvent": "New event",
     "createSlot": "Create event at this time"
   },
+  "itemActions": {
+    "changeColor": "Change color",
+    "addTag": "Add tag",
+    "pin": "Pin",
+    "move": "Move",
+    "soon": "Soon"
+  },
   "scheduleScreen": {
     "calendar": "Calendar",
     "routines": "Repeats",
@@ -2208,6 +2215,13 @@
     "searchSettings": "Search settings...",
     "searchTrash": "Search trash..."
   },
+  "undoRedo": {
+    "undone": "Undid: {{label}}",
+    "redone": "Redid: {{label}}",
+    "labels": {
+      "taskTreeChange": "task change"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "ok": "OK",
@@ -2258,6 +2272,7 @@
   },
   "commandPalette": {
     "placeholder": "Type a command...",
+    "trigger": "Search or run a command",
     "noResults": "No results found",
     "goTo": "Go to"
   },

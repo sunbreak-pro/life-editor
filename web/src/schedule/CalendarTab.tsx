@@ -959,6 +959,11 @@ export function CalendarTab({
           rename: t("scheduleScreen.rename"),
           duplicate: t("scheduleScreen.duplicate"),
           delete: t("scheduleScreen.delete"),
+          changeColor: t("itemActions.changeColor"),
+          addTag: t("itemActions.addTag"),
+          pin: t("itemActions.pin"),
+          move: t("itemActions.move"),
+          soon: t("itemActions.soon"),
         }}
         onRename={(title) => handleRename(contextMenu.id, title)}
         onDuplicate={() => handleDuplicate(contextMenu.id)}
