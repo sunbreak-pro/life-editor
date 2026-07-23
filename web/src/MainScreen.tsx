@@ -385,17 +385,8 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t("detailPanel.open");
   const detailCloseLabel = t("detailPanel.close");
 
-  // Standard header controls (v2 §1). Left→right: app-level Undo/Redo (#304),
-  // then the rightSidebar toggle. The command search field (#306) sits to the
-  // left of Undo/Redo when that lands, giving [search][Undo][Redo][rightSidebar].
-  // The rightSidebar toggle is UNCONDITIONAL for all 7 sections (v2 §3); the v2
-  // §5 width tab was retired 2026-07-11 (all sections wide).
-  const headerControls = (
-    <>
-      <HeaderUndoRedo />
   // Standard header controls (v2 §1). Left→right: the command-palette search
-  // field (#306), then the rightSidebar toggle. Undo/Redo buttons (#304) land
-  // between the field and the toggle when that Epic ships; the order is already
+  // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:
   // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
   // UNCONDITIONAL for all 7 sections (v2 §3); the v2 §5 width tab was retired
   // 2026-07-11 (all sections wide).
@@ -407,6 +398,7 @@ export function MainScreen({ session }: { session: Session }) {
         label={t("nav.commandPalette")}
         shortcutHint={isMac ? "⌘K" : "Ctrl K"}
       />
+      <HeaderUndoRedo />
       <RightSidebarToggle
         variant="panel"
         openLabel={detailOpenLabel}
