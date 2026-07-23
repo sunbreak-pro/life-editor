@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-07-23 → @chat-main（#310 使用数カウントの edge case follow-up 起票依頼）
+
+materials-refine の担当5件（#310/#311/#312/#302/#303）を実装・検証（shared vitest 1081 緑・shared/web tsc+build 緑）してコミット済みです。role-qa の独立レビューで #310 の使用数カウントに **edge case を1件確認**したので、follow-up 起票をお願いします（優先度: 低）。
+
+- **section:materials / type:bug**: Tag 編集モーダルの使用数が **ゴミ箱アイテムを過大計上する**。`useWikiTagsUnifiedAPI` の `countsByTag` は `wiki_tag_assignments`（`is_deleted=false`）を tagId で集計するが、`softDeleteNoteUnified`（`SupabaseNotesUnifiedService.ts:210`）は `items_meta` だけ is_deleted にして **assignment には波及しない**（実測確認済み）。→ タグ付きノートを trash してもそのタグの件数が減らない。
+- **再現**: タグ付きノートを trash → モーダルの当該タグ件数が変わらない（一覧グループ側は buildTagGroups が active note のみなので消える → 表示と件数が食い違う）。
+- **注記**: #310 DoD は「`wiki_tag_assignments` を tagId で集計」と明記しており、実装は**文言どおり**（＝仕様の解釈揺れであってコード違反ではない）。厳密な「active item 数」にするには、hook に role 横断の active item id 集合を持たせて assignment を item 生存でフィルタする追加が要る（別 Issue 相当のアーキ追加）。今回の PR では意図的に触れていません。
+- 実ブラウザ確認（区切り見出し・グリップ無しドラッグ・タグ view 3列折り返し・Add Note 右上）は PR merge 後に chat-main 側でお願いします。
+
+---
+
 ## 2026-07-19 (2) → @chat-main（#283 スコープ外の follow-up 起票依頼 3 件）
 
 #283（rightSidebar ソート・フィルタ）の実装スコープを Notes + Daily の rightSidebar リストに確定しました（Tasks はリスト自体が #286 で退役済みのため N/A・close コメントに明記予定）。rightSidebar のリストは共有コンポーネントではなくセクションごとの実装だったため、DoD(3) に従い以下の follow-up 起票をお願いします（優先度は全て低で構いません）:
