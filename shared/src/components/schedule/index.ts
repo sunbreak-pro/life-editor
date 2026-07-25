@@ -59,6 +59,15 @@ export {
   type ScheduleSidebarTabsProps,
   type ScheduleSidebarTab,
 } from "./ScheduleSidebarTabs";
+// A-3 (#298): rightSidebar "Today's Todo" tray — placed / unplaced task groups
+// + an "add from tasks" picker. Pure presentation (§3.1 / §6.4).
+export {
+  TodayTodoTray,
+  type TodayTodoTrayProps,
+  type TodayTodoTrayLabels,
+  type TodayTodoRow,
+  type TodayTodoAddableRow,
+} from "./TodayTodoTray";
 // #223: right-click context menu (rename / duplicate / delete) for a calendar
 // item block/chip.
 export {
@@ -80,6 +89,13 @@ export {
   type QuickCaptureSheetProps,
   type QuickCaptureLabels,
 } from "./QuickCaptureSheet";
+// #299: shared create-event fields (title + start/end + submit) backing both
+// the Desktop creation overlay and the Mobile QuickCaptureSheet.
+export {
+  EventCreateFields,
+  type EventCreateFieldsProps,
+  type EventCreateFieldsLabels,
+} from "./EventCreateFields";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {

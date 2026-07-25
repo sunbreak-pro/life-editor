@@ -604,6 +604,7 @@ export function MainScreen({ session }: { session: Session }) {
                     dataService={ds}
                     tab={scheduleTab}
                     onTabChange={setScheduleTab}
+                    onOpenTasks={() => handleNavigate("tasks")}
                   />
                 </ScheduleItemsProvider>
               </RoutineProvider>
