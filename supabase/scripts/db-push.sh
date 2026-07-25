@@ -57,7 +57,17 @@ bash "${SCRIPT_DIR}/check-rls.sh"
 
 echo
 echo "Step 2/2: pushing pending migrations to remote ..."
-npx --yes supabase db push --db-url "${SUPABASE_DB_URL}" --include-all
+# The CLI resolves the migrations directory as "<cwd>/supabase/migrations".
+# npm runs this script with cwd = supabase/, so an unqualified invocation
+# looks in supabase/supabase/migrations — which does not exist. The local
+# migration list then comes back empty and the push aborts with
+# "Remote migration versions not found in local migrations directory",
+# naming every already-applied version. Run from the repo root so the CLI
+# sees supabase/migrations. (--workdir does the same thing but takes a
+# native path, which breaks under Git Bash on Windows; a subshell cd does
+# not.)
+REPO_ROOT="$(cd "${SUPABASE_DIR}/.." && pwd)"
+( cd "${REPO_ROOT}" && npx --yes supabase db push --db-url "${SUPABASE_DB_URL}" --include-all )
 
 echo
 echo "db:push complete."

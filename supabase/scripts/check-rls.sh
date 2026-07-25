@@ -186,5 +186,5 @@ if [[ -n "${BLOCKING}" ]]; then
 fi
 
 echo "RLS gate: PASS — every public table has RLS + owner-scoped policies." >&2
-echo "Safe to run: npx supabase db push" >&2
+echo "Safe to push. Use: cd supabase && npm run db:push" >&2
 exit 0
