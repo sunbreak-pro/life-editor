@@ -409,11 +409,6 @@ export {
   collectDescendantIds,
   isDescendantOf,
 } from "./utils/getDescendantTasks";
-export {
-  sortTaskNodes,
-  type SortMode,
-  type SortDirection,
-} from "./utils/sortTaskNodes";
 // Shared UI class-string tokens + task-status visuals (C5 dedup) — the web
 // host imports these through the barrel.
 export { FOCUS_RING, FOCUS_RING_TIGHT } from "./components/styleTokens";

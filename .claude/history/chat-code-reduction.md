@@ -1,5 +1,34 @@
 # HISTORY (chat-code-reduction)
 
+### 2026-07-25 - code-reduction 残り全 Step 完遂 (PR #344〜#351)
+
+#### 概要
+
+計画書 `2026-07-25-code-reduction.md` の残り 8 Step（4/5/7/9/10/11/12/13）を、ユーザーの全実行承認（「凍結解除予定なし」「prototype は git 履歴で足りる」）を受けて Step ごとの PR 8 本で実行した。role-qa の敵対的監査 2 本（削除系 6 PR / リファクタ系 2 PR）は両方 PASS・Blocker ゼロで、監査指摘の follow-up（取りこぼし統合 2 件・.gitignore 死にルール・stop-check 強化・prettier）も各 PR に反映済み。merge はユーザー判断待ち。
+
+#### 変更点
+
+- **削除系（全て追加 0 行）**: #344 prototype/ 42 ファイル −20,893（.gitignore 死にルール込み）/ #345 凍結 Database 型 + i18n −265 / #346 MasterDetail + sortTaskNodes −256（A15 は #333 配線済みで SUPERSEDED）/ #347 root typescript devDep −3 + lock 同期 +1/−237（stale @tauri-apps/cli 残骸込み）/ #348 孤児 i18n キー 552 個（1,176→624・en/ja 対称・テスト見本キーを B5 保護の section.tasks へ差し替え）
+- **修理**: #349 stop-check.sh — CLAUDE_PROJECT_DIR 相対化 + shared/web 監視 + QA 指摘の未追跡ファイル検知・node_modules 未導入ガード
+- **リファクタ**: #350 C1 ItemsMetaRow 5 重複→taskMapper のジェネリック + エイリアス（呼び出し側変更ゼロ）/ C3 isDescendantOf ツイン統合（KI-016 テスト import 維持）/ C6 formatDateKeyFromParts リネーム / C7 resolveLinkTarget 抽出。#351 C2 recharts prop 定数（ChartFrame は recharts の child-type フィルタで不可と判明・チャートは実測 10 本）/ C4 日付フォーマッタ（生存 2 コピーのみ・formatDateKey で挙動保存）/ C5 FOCUS_RING 2 変種 + FIELD + STATUS 系を styleTokens / taskStatusVisuals へ / C8 stepSegmentFocus 抽出（ARIA ロールは別のまま）
+- **検証**: 各 Step で shared build / web build exit 0・vitest 137 files / 1,084 tests pass・全 PR CI green。QA は 552 キー全件 grep + 全 t() リテラル逆方向検証 + 6 PR merge-tree 統合シミュレーション（全順序 clean）まで実施
+- **知見**: 動的 i18n キーは template prefix 収集 + ドメイン解決（ANALYTICS_TAB_ORDER）で機械判定できた。keyPrefix / 文字列連結による構築はこのリポジトリにゼロ。計画書の C4/C6 前提は実測で 2 件覆った（docs-consistency §5 の実例）
+- **残タスク**: merge（ユーザー）→ chat-main の実ブラウザ確認（#348/#351）→ Step 14 起票と計画書 COMPLETED 化（chat-main へ outbox 依頼済み）
+
+### 2026-07-25 - code-reduction Steps 6+8 (PR #341 / PR #342)
+
+#### 概要
+
+計画書 `2026-07-25-code-reduction.md` の Step 6（A2/B1 = i18n 完全死亡 namespace 削除）と Step 8（A10/A12/A13/A21/A23/A25 = リポジトリ周辺残骸）を /goal 指示で実行し、Step ごとに PR を作成した（PR #341: 追加 0 / 削除 2,976 行、PR #342: 追加 0 / 削除 400 行 + バイナリ 1。いずれも 100% 削除 diff・merge はユーザー判断待ち）。
+
+#### 変更点
+
+- **Step 6（PR #341）**: en/ja から死亡 namespace 54 個を各 1,488 行削除。削除前に live source 554 ファイルへの部分文字列スキャン + 動的 t() 呼び出し全数チェックで実測し、**計画書 B1 が死亡と記載した blockMenu が現役（web/src/notes/RichTextEditor.tsx:208-214）と判明したため残置**。database namespace は Step 5（👀 ゲート）領分として残置。B5 動的キー 11 個の生存・en/ja 対称性（残 1,176 キー）・builds/tests green を検証済み
+- **Step 8（PR #342）**: ROUTINE.md / loop-engine 4 ファイル（check.sh は残置）/ Android 雛形テスト 2 本 / .gitignore 重複+Tauri ブロック 9 行 / d3-ease 依存 4 行 / Vite scaffold アセット 4 ファイル（favicon.svg は残置）。A23 のロック再生成（npm install）も追加 0 行の純粋削除（shared/web 各 -2 行）
+- **手法**: 削除は全て Bash + node スクリプトによる外科的行削除（Edit ツールの保存時整形による追加行を回避 — Steps 1-3 の運用知見を踏襲）。JSON 末尾カンマ調整は結果的に不要だった
+- **検証**: shared build / web build exit 0・vitest 137 files / 1,084 tests all pass（両 Step とも）・PR #341 CI 両ジョブ pass
+- **記録**: docs-lint がローカル（Git Bash）で 2026-06-19 plan の Status 行を FAILED 判定するが CI（ubuntu）は pass する環境差を確認 — outbox で chat-main へ FYI 済み
+
 ### 2026-07-25 - code-reduction Steps 1-3 (PR #338) + A19 follow-up (PR #339)
 
 #### 概要

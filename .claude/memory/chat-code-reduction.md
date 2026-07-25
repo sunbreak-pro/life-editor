@@ -6,11 +6,13 @@
 
 ## 直近の完了
 
-- code-reduction plan Steps 1-3（A3/A4/A5/A6/A11/A14/A16/A20/A22/A24）✅（2026-07-25 — PR #338 merge 済み・main `04e2b6e1`・追加 0 行 / 削除 1,152 行・role-qa 独立監査 PASS）
-- A19 follow-up（RoutineStats 削除）✅（2026-07-25 — PR #339 merge 済み・main `cbac4976`・追加 1 行 / 削除 25 行。barrel 書き換え 1 行はユーザー明示承認）
+- code-reduction plan 残り全 Step（4/5/7/9/10/11/12/13）✅（2026-07-25 — ユーザー全実行承認「凍結解除予定なし / prototype は git 履歴で足りる」。PR #344 prototype +0/−20,893 / #345 Database +0/−265 / #346 A7+A17 +0/−256 / #347 root ts devDep + stale lock 同期 / #348 孤児キー 552 個・en/ja 対称 624 キー / #349 stop-check 修理 / #350 C1/C3/C6/C7 net−93 / #351 C2/C4/C5/C8 +239/−315。role-qa 敵対監査 2 本 PASS・Blocker 0・指摘 follow-up 反映済み。merge はユーザー待ち）
+- code-reduction plan Steps 6+8（A2/B1 + A10/A12/A13/A21/A23/A25）✅（2026-07-25 — PR #341（i18n 54 namespace・追加 0 / 削除 2,976 行）+ PR #342（周辺残骸・追加 0 / 削除 400 行）。merge 済み。role-qa 監査 PASS）
+- code-reduction plan Steps 1-3 + A19 ✅（2026-07-25 — PR #338/#339 merge 済み・追加 1 / 削除 1,177 行・role-qa 監査 PASS）
 
 ## 予定
 
-- 計画書 `2026-07-25-code-reduction.md` への修正依頼 4 件は outbox で chat-main へ送付済み（A19 前提訂正 / A15 SUPERSEDED 化 / A3 に A8 境界注記 / 孤児型 CalendarDataKind・BulkSoftDeleteResult の追記）— chat-main の反映待ち
-- Step 5（A8 Databases ブロック・👀 目視ゲート「凍結解除予定なし」のユーザー確認）以降は chat-main の采配待ち
+- PR #343〜#351 の merge 待ち（ユーザー）。merge 順の推奨と conflict 時の対応（#346×#351 の barrel 隣接）は outbox 21:45 参照
+- merge 後の chat-main 実測: #348 生キー露出チェック（実ブラウザ）/ #351 Analytics・Kanban・Mobile の見た目
+- Step 14（Flagged 起票）と計画書の COMPLETED 化・archive 移動は chat-main へ依頼済み（outbox 21:45）
 - 次着手前に `gh issue list --label shared-fix --state open` で自分宛を確認

@@ -1,4 +1,10 @@
 import type { NoteNode, NoteNodeType } from "../types/note";
+import {
+  ITEMS_META_COLUMNS,
+  type ItemsMetaRow,
+  type ItemsMetaInsertRow,
+  type ItemsMetaUpdatePatch,
+} from "./taskMapper";
 
 /*
  * Pure NoteNode <-> 2-row (items_meta + notes_payload) mappers (DU-D Step 1).
@@ -50,22 +56,12 @@ import type { NoteNode, NoteNodeType } from "../types/note";
 // ---------------------------------------------------------------------------
 
 /**
- * Row shape of `public.items_meta` for role='note'. `role` is a CHECK
- * column with 5 allowed values; this mapper is the Notes-only view, so
- * `role` is narrowed to the `'note'` literal. `user_id` is server-derived
- * (RLS default `auth.uid()`) and clients never write it.
+ * items_meta shapes for role='note' — aliases of the canonical generics
+ * in `taskMapper` (the 5 role mappers carried byte-identical copies).
  */
-export interface ItemsMetaNoteRow {
-  id: string;
-  user_id: string;
-  role: "note";
-  title: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
+export type ItemsMetaNoteRow = ItemsMetaRow<"note">;
+export type ItemsMetaNoteInsertRow = ItemsMetaInsertRow<"note">;
+export type ItemsMetaNoteUpdatePatch = ItemsMetaUpdatePatch;
 
 /**
  * Row shape of `public.notes_payload`. After 0014, `parent_item_role` is
@@ -103,17 +99,6 @@ export interface NotesPayloadRow {
 export type NotesPayloadListRow = Omit<NotesPayloadRow, "content_json">;
 
 /**
- * Writable subset for INSERT on items_meta. `user_id` is the only
- * items_meta column the client supplies (RLS default would fill it, but
- * explicit is safer for cross-device parity); `created_at` / `updated_at`
- * are left to column DEFAULT `now()` on first INSERT.
- */
-export type ItemsMetaNoteInsertRow = Omit<
-  ItemsMetaNoteRow,
-  "created_at" | "updated_at"
->;
-
-/**
  * Writable subset for INSERT/UPDATE on notes_payload. After 0014,
  * `parent_item_role` is a generated stored column — keep it OFF the
  * write type by construction (type-level guard, not runtime check).
@@ -124,13 +109,6 @@ export type ItemsMetaNoteInsertRow = Omit<
 export type NotesPayloadWriteRow = Omit<
   NotesPayloadRow,
   "parent_item_role" | "has_password"
->;
-
-/** UPDATE patch for items_meta. `id` / `user_id` / `role` / `created_at`
- * are never patched. `updated_at` is ALWAYS present (bump responsibility,
- * see `noteUpdatesToPatches`). */
-export type ItemsMetaNoteUpdatePatch = Partial<
-  Omit<ItemsMetaNoteRow, "id" | "user_id" | "role" | "created_at">
 >;
 
 /** UPDATE patch for notes_payload. `item_id` / `user_id` /
@@ -146,13 +124,8 @@ export type NotesPayloadUpdatePatch = Partial<
 // 2. SELECT column lists
 // ---------------------------------------------------------------------------
 
-/**
- * SELECT column list for `items_meta` rows of role='note'. The role filter
- * is the caller's responsibility (e.g. `.eq('role', 'note')`).
- */
-export const ITEMS_META_NOTE_COLUMNS =
-  "id, user_id, role, title, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
+/** Role-scoped alias of `ITEMS_META_COLUMNS` for Notes call sites. */
+export const ITEMS_META_NOTE_COLUMNS = ITEMS_META_COLUMNS;
 
 /**
  * SELECT column list for `notes_payload`. Includes `parent_item_role`

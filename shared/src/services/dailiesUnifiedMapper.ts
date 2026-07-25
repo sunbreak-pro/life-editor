@@ -1,4 +1,10 @@
 import type { DailyNode } from "../types/daily";
+import {
+  ITEMS_META_COLUMNS,
+  type ItemsMetaRow,
+  type ItemsMetaInsertRow,
+  type ItemsMetaUpdatePatch,
+} from "./taskMapper";
 
 /*
  * Pure DailyNode <-> 2-row (items_meta + dailies_payload) mappers (DU-D Step 1).
@@ -34,20 +40,12 @@ import type { DailyNode } from "../types/daily";
 // ---------------------------------------------------------------------------
 
 /**
- * Row shape of `public.items_meta` for role='daily'. `role` narrowed to
- * the `'daily'` literal. `user_id` server-derived (RLS default).
+ * items_meta shapes for role='daily' — aliases of the canonical generics
+ * in `taskMapper` (the 5 role mappers carried byte-identical copies).
  */
-export interface ItemsMetaDailyRow {
-  id: string;
-  user_id: string;
-  role: "daily";
-  title: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
+export type ItemsMetaDailyRow = ItemsMetaRow<"daily">;
+export type ItemsMetaDailyInsertRow = ItemsMetaInsertRow<"daily">;
+export type ItemsMetaDailyUpdatePatch = ItemsMetaUpdatePatch;
 
 /**
  * Row shape of `public.dailies_payload`. `has_password` is a generated
@@ -65,21 +63,9 @@ export interface DailiesPayloadRow {
   has_password: boolean;
 }
 
-/** Writable subset for INSERT on items_meta (role='daily'). */
-export type ItemsMetaDailyInsertRow = Omit<
-  ItemsMetaDailyRow,
-  "created_at" | "updated_at"
->;
-
 /** Writable subset for INSERT/UPSERT on dailies_payload. `has_password`
  * is generated — keep it off the write type. */
 export type DailiesPayloadWriteRow = Omit<DailiesPayloadRow, "has_password">;
-
-/** UPDATE patch for items_meta. `id` / `user_id` / `role` / `created_at`
- * are never patched. `updated_at` ALWAYS present. */
-export type ItemsMetaDailyUpdatePatch = Partial<
-  Omit<ItemsMetaDailyRow, "id" | "user_id" | "role" | "created_at">
->;
 
 /** UPDATE patch for dailies_payload. `item_id` / `user_id` /
  * `has_password` are never patched (date typically not either, but allowed
@@ -92,9 +78,8 @@ export type DailiesPayloadUpdatePatch = Partial<
 // 2. SELECT column lists
 // ---------------------------------------------------------------------------
 
-export const ITEMS_META_DAILY_COLUMNS =
-  "id, user_id, role, title, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
+/** Role-scoped alias of `ITEMS_META_COLUMNS` for Dailies call sites. */
+export const ITEMS_META_DAILY_COLUMNS = ITEMS_META_COLUMNS;
 
 export const DAILIES_PAYLOAD_COLUMNS =
   "item_id, user_id, date, content_json, is_pinned, is_edit_locked, " +

@@ -6,8 +6,5 @@
   "scripts": {
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build"
-  },
-  "devDependencies": {
-    "typescript": "~5.9.3"
   }
 }

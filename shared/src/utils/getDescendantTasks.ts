@@ -42,16 +42,16 @@ export function collectDescendantIds(
 /**
  * Checks if `childId` is a descendant of `parentId`.
  * Uses a parentMap + iterative BFS for O(n) performance.
+ * Generic over any `{ id, parentId }` flat tree (TaskNode / NoteNode —
+ * the note twin in useNoteTreeMovement re-exports this one).
  * @param parentId - The ancestor node to search from (root of the subtree)
  * @param childId - The node to find within the subtree
- * @param nodes - Flat array of all task nodes
+ * @param nodes - Flat array of all nodes
  * @returns true if childId exists anywhere under parentId's subtree
  */
-export function isDescendantOf(
-  parentId: string,
-  childId: string,
-  nodes: TaskNode[],
-): boolean {
+export function isDescendantOf<
+  T extends { id: string; parentId: string | null },
+>(parentId: string, childId: string, nodes: T[]): boolean {
   const childrenMap = new Map<string | null, string[]>();
   for (const node of nodes) {
     const pid = node.parentId;
