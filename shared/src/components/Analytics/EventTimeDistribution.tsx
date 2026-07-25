@@ -40,17 +40,13 @@ export function EventTimeDistribution({
     <ChartCard title={labels.title}>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <BarChart
+            data={data}
+            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          >
             <CartesianGrid {...CHART_GRID} />
-            <XAxis
-              dataKey="hour"
-              tick={CHART_TICK}
-              interval={2}
-            />
-            <YAxis
-              tick={CHART_TICK}
-              allowDecimals={false}
-            />
+            <XAxis dataKey="hour" tick={CHART_TICK} interval={2} />
+            <YAxis tick={CHART_TICK} allowDecimals={false} />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [

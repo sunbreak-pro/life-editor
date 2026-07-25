@@ -102,7 +102,6 @@ const DIALOG_LABELS = {
   saveFailed: "Could not save. Please try again.",
 } as const;
 
-
 // Collapse state for tag-group headings. Persisted so a folded group stays
 // folded across reloads. The untagged bucket uses the sentinel key below.
 const LS_TAG_GROUPS_COLLAPSED = "note-tag-groups-collapsed";

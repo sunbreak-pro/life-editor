@@ -103,7 +103,6 @@ export interface EventEditorPaneProps {
   className?: string;
 }
 
-
 /** Inner fields, keyed by item.id from the pane so a selection change reseeds
  *  the commit-on-blur drafts cleanly. */
 function EventEditorFields({

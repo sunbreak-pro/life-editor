@@ -62,7 +62,6 @@ import type { ItemLinkTarget } from "../notes/itemLinkSuggestion";
  * (§6.4). No hex — lumen-* only.
  */
 
-
 function isoDay(offsetDays: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);

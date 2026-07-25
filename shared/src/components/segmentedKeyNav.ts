@@ -7,7 +7,7 @@ import type { KeyboardEvent } from "react";
  * consolidated. Returns the option to activate, or null when the event is
  * not an arrow key (caller then leaves the event alone).
  */
-export function stepSegmentFocus<O>(
+export function stepSegmentFocus<O extends object>(
   e: KeyboardEvent<HTMLButtonElement>,
   index: number,
   options: readonly O[],

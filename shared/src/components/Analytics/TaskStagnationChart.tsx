@@ -43,11 +43,7 @@ export function TaskStagnationChart({
             margin={{ top: 5, right: 20, left: 10, bottom: 0 }}
           >
             <CartesianGrid {...CHART_GRID} horizontal={false} />
-            <XAxis
-              type="number"
-              tick={CHART_TICK}
-              allowDecimals={false}
-            />
+            <XAxis type="number" tick={CHART_TICK} allowDecimals={false} />
             <YAxis
               dataKey="label"
               type="category"

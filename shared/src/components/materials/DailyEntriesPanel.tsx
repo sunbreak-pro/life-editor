@@ -14,7 +14,6 @@ import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
  * label formatting stays host-side. lumen-* tokens only; opaque surfaces (§5).
  */
 
-
 export interface DailyEntriesPanelEntry {
   /** YYYY-MM-DD — the stable identifier + onSelectEntry payload. */
   date: string;

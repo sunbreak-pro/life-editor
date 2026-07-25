@@ -47,17 +47,17 @@ export function WorkBreakBalance({
     <ChartCard title={labels.title}>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <BarChart
+            data={data}
+            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          >
             <CartesianGrid {...CHART_GRID} />
             <XAxis
               dataKey="date"
               tick={CHART_TICK}
               interval="preserveStartEnd"
             />
-            <YAxis
-              tick={CHART_TICK}
-              unit="m"
-            />
+            <YAxis tick={CHART_TICK} unit="m" />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [`${value ?? 0}m`]}

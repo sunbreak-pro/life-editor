@@ -1,7 +1,11 @@
 import { cn } from "../cn";
 import { SegmentedControl } from "../SegmentedControl";
 import type { FrequencyType, RoutineNode } from "../../types/routine";
-import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT as CHIP_FOCUS } from "../styleTokens";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING_TIGHT as CHIP_FOCUS,
+} from "../styleTokens";
 
 /*
  * FrequencyEditor (#185 Step 2) — the repeat-settings editor shared between the
@@ -67,7 +71,6 @@ export interface FrequencyEditorProps {
   labels: FrequencyEditorLabels;
   className?: string;
 }
-
 
 /** Sentinel id for the "no repeat" segment (not a FrequencyType). */
 const NONE_ID = "none";

@@ -19,7 +19,6 @@ import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
  * Daily list passes a single mode and only toggles direction).
  */
 
-
 export type SidebarSortDirection = "asc" | "desc";
 
 export interface SidebarSortMode {

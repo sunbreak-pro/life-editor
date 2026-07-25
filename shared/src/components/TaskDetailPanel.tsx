@@ -24,7 +24,6 @@ const STATUS_GLYPH: Record<TaskStatus, string> = {
   DONE: "●",
 };
 
-
 /*
  * Title field. Mirrors NotesView's NoteTitleInput debounce-and-flush
  * exactly: a local draft, a 300ms debounced persist, an immediate flush on

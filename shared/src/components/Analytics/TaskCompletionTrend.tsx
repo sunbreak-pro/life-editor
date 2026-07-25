@@ -52,10 +52,7 @@ export function TaskCompletionTrend({
               tick={CHART_TICK}
               interval="preserveStartEnd"
             />
-            <YAxis
-              tick={CHART_TICK}
-              allowDecimals={false}
-            />
+            <YAxis tick={CHART_TICK} allowDecimals={false} />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [

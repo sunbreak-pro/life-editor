@@ -19,7 +19,6 @@ import { FOCUS_RING } from "../styleTokens";
  * so this panel simply renders whatever content node it receives.
  */
 
-
 /*
  * Title field. Mirrors NoteTitleInput / TaskTitleInput debounce-and-flush
  * exactly: a local draft, a 300ms debounced persist, an immediate flush on

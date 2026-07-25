@@ -16,7 +16,6 @@ import { FIELD } from "../styleTokens";
  * slot), it should remount this with a `key` derived from the prefill.
  */
 
-
 export interface EventCreateFieldsLabels {
   /** Already-translated aria-label for the title input. */
   title: string;
