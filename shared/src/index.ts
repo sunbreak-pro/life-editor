@@ -409,11 +409,6 @@ export {
   collectDescendantIds,
   isDescendantOf,
 } from "./utils/getDescendantTasks";
-export {
-  sortTaskNodes,
-  type SortMode,
-  type SortDirection,
-} from "./utils/sortTaskNodes";
 // Platform detection. isNativeMobile() (Phase 4) lets the host gate the Mobile
 // 省略 Provider 5 種 (CLAUDE.md §2) on the Capacitor shells — see platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";
