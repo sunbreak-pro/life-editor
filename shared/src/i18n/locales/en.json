@@ -1,261 +1,8 @@
 {
   "sidebar": {
-    "tasks": "Todos",
-    "memo": "Memo",
-    "music": "Music",
-    "work": "Work",
-    "schedule": "Schedule",
-    "analytics": "Analytics",
-    "settings": "Settings",
-    "tips": "Tips",
-    "materials": "Materials",
-    "connect": "Connect",
-    "trash": "Trash",
-    "freeSession": "Free Session",
-    "launchClaude": "Launch Claude",
-    "tipsButton": "Tips"
+    "settings": "Settings"
   },
   "settings": {
-    "general": "General",
-    "notificationsTab": "Notifications",
-    "dataTab": "Data",
-    "advancedTab": "Advanced",
-    "shortcutsTab": "Shortcuts",
-    "calendarReset": {
-      "title": "Bulk delete calendar data",
-      "description": "Move the selected data to Trash (soft delete). Choosing \"Routines\" also deletes the schedule entries generated from those routines. Everything can be restored from Trash at any time.",
-      "openButton": "Open bulk delete",
-      "selectAll": "Select all",
-      "deselectAll": "Clear selection",
-      "confirm": "Delete selected",
-      "cancel": "Cancel",
-      "footnote": "Soft-deleted items remain in Trash and can be restored later.",
-      "success": "Deleted — todos {{tasks}} / events {{events}} / routines {{routines}} (incl. {{cascaded}} generated entries) / dailies {{dailies}} / notes {{notes}}",
-      "failed": "Bulk delete failed: {{error}}",
-      "noSelection": "Select at least one kind to delete.",
-      "kinds": {
-        "tasks": "Scheduled todos",
-        "events": "Events",
-        "routines": "Routines (also deletes generated entries)",
-        "dailies": "Dailies",
-        "notes": "Notes"
-      }
-    },
-    "claude": {
-      "title": "Claude Code",
-      "description": "Register the MCP Server so Claude Code can access your todos, schedules, and memos via natural language.",
-      "register": "Register MCP Server",
-      "registering": "Registering...",
-      "success": "MCP Server registered successfully.",
-      "failed": "Registration failed: {{error}}",
-      "notInstalled": "Claude Code is not installed. Install it first, then try again.",
-      "setup": "Setup",
-      "mcpTools": "MCP Tools",
-      "claudeMd": "CLAUDE.md",
-      "skills": "Skills",
-      "mcpToolsDescription": "Available MCP tools that Claude Code can use to interact with your data.",
-      "claudeMdDescription": "Edit the CLAUDE.md instructions file used by Claude Code in ~/life-editor/.",
-      "skillsDescription": "Manage Claude Code skills installed in ~/life-editor/.claude/skills/.",
-      "save": "Save",
-      "saveSuccess": "Saved successfully.",
-      "saveFailed": "Failed to save.",
-      "install": "Install",
-      "uninstall": "Uninstall",
-      "installed": "Installed",
-      "scopeGlobal": "Global",
-      "scopeProject": "Project",
-      "noSkillsFound": "No available skills found.",
-      "toolParameters": "Parameters",
-      "required": "required",
-      "optional": "optional",
-      "toolCategories": {
-        "tasks": "Todos",
-        "memos": "Memos",
-        "notes": "Notes",
-        "schedule": "Schedule",
-        "search": "Search",
-        "content": "Content",
-        "wikiTags": "Wiki Tags"
-      },
-      "tools": {
-        "list_tasks": {
-          "description": "Retrieve a list of todos. You can filter by status, date range, or folder.",
-          "params": {
-            "status": "Filter by status (not started / in progress / done)",
-            "date_range": "Filter by date range (ISO 8601)",
-            "folder_id": "Filter by folder ID"
-          }
-        },
-        "get_task": {
-          "description": "Get a single todo by its ID.",
-          "params": {
-            "id": "Todo ID"
-          }
-        },
-        "get_task_tree": {
-          "description": "Get todos as a folder hierarchy tree. Useful for seeing the big picture.",
-          "params": {
-            "root_id": "Folder/todo ID to start from (omit for full tree)",
-            "include_done": "Include completed todos (default: yes)",
-            "max_depth": "How many levels deep to retrieve (omit for unlimited)"
-          }
-        },
-        "create_task": {
-          "description": "Create a new todo.",
-          "params": {
-            "title": "Todo title",
-            "parent_id": "Folder to place the todo in",
-            "scheduled_at": "Scheduled start (ISO 8601)",
-            "scheduled_end_at": "Scheduled end (ISO 8601)",
-            "is_all_day": "Make it an all-day event"
-          }
-        },
-        "update_task": {
-          "description": "Update an existing todo. Only specify the fields you want to change.",
-          "params": {
-            "id": "Todo ID",
-            "title": "New title",
-            "status": "New status (not started / in progress / done)",
-            "content": "New body text (Markdown)"
-          }
-        },
-        "delete_task": {
-          "description": "Move a todo to the trash (can be restored later).",
-          "params": {
-            "id": "Todo ID"
-          }
-        },
-        "get_memo": {
-          "description": "Get the daily memo for a specific date.",
-          "params": {
-            "date": "Date (YYYY-MM-DD)"
-          }
-        },
-        "upsert_memo": {
-          "description": "Create or update a daily memo.",
-          "params": {
-            "date": "Date (YYYY-MM-DD)",
-            "content": "Memo content (Markdown)"
-          }
-        },
-        "list_notes": {
-          "description": "List all notes. You can search by keyword.",
-          "params": {
-            "query": "Search keyword (searches title and content)"
-          }
-        },
-        "create_note": {
-          "description": "Create a new note.",
-          "params": {
-            "title": "Note title",
-            "content": "Note body (Markdown)"
-          }
-        },
-        "update_note": {
-          "description": "Update an existing note. Only specify the fields you want to change.",
-          "params": {
-            "id": "Note ID",
-            "title": "New title",
-            "content": "New body (Markdown)"
-          }
-        },
-        "list_schedule": {
-          "description": "Get the schedule (events and todos) for a specific date.",
-          "params": {
-            "date": "Date (YYYY-MM-DD)"
-          }
-        },
-        "create_schedule_item": {
-          "description": "Create a new event on the calendar.",
-          "params": {
-            "date": "Date (YYYY-MM-DD)",
-            "title": "Event title",
-            "start_time": "Start time (HH:MM)",
-            "end_time": "End time (HH:MM)",
-            "is_all_day": "Make it an all-day event",
-            "note_id": "Link to an existing note",
-            "content": "Additional notes"
-          }
-        },
-        "update_schedule_item": {
-          "description": "Update an existing schedule event. Only specify the fields you want to change.",
-          "params": {
-            "id": "Event ID",
-            "title": "New title",
-            "start_time": "New start time (HH:MM)",
-            "end_time": "New end time (HH:MM)",
-            "memo": "Memo",
-            "is_all_day": "Make it an all-day event",
-            "content": "New additional notes"
-          }
-        },
-        "delete_schedule_item": {
-          "description": "Permanently delete a schedule event.",
-          "params": {
-            "id": "Event ID"
-          }
-        },
-        "toggle_schedule_complete": {
-          "description": "Toggle completion status of a schedule event.",
-          "params": {
-            "id": "Event ID"
-          }
-        },
-        "search_all": {
-          "description": "Search across todos, memos, and notes with a keyword.",
-          "params": {
-            "query": "Search keyword",
-            "domains": "Where to search (todos / memos / notes, default: all)",
-            "limit": "Max results per category (default: 10)"
-          }
-        },
-        "generate_content": {
-          "description": "Generate rich content (headings, lists, tables, etc.) and write it to a note or memo.",
-          "params": {
-            "target": "Where to write (note / memo)",
-            "structure": "Array of content blocks",
-            "target_id": "Existing note/memo ID to update (omit to create new)",
-            "title": "Title for new note"
-          }
-        },
-        "format_content": {
-          "description": "Restructure existing note or memo content. Wrap in callouts, add headings, and more.",
-          "params": {
-            "target": "Target type (note / memo)",
-            "operations": "Array of operations to apply",
-            "target_id": "Note ID",
-            "target_date": "Memo date (YYYY-MM-DD)"
-          }
-        },
-        "list_wiki_tags": {
-          "description": "List all wiki tags. Tags are labels that connect todos, memos, and notes across domains.",
-          "params": {
-            "query": "Filter by tag name"
-          }
-        },
-        "tag_entity": {
-          "description": "Assign a wiki tag to a todo, memo, or note. Creates the tag automatically if it doesn't exist.",
-          "params": {
-            "tag_name": "Tag name",
-            "entity_id": "Target ID",
-            "entity_type": "Target type (todo / memo / note)"
-          }
-        },
-        "search_by_tag": {
-          "description": "Find todos, memos, and notes that have a specific wiki tag.",
-          "params": {
-            "tag_name": "Tag name to search for",
-            "entity_type": "Narrow by type (todo / memo / note, omit for all)"
-          }
-        },
-        "get_entity_tags": {
-          "description": "Get all wiki tags assigned to a specific todo, memo, or note.",
-          "params": {
-            "entity_id": "Target ID (todo, memo, or note)"
-          }
-        }
-      }
-    },
     "shortcutLabels": {
       "commandPalette": "Open command palette",
       "openSettings": "Open settings",
@@ -273,15 +20,9 @@
       "resetAll": "Reset all shortcuts",
       "reset": "Reset",
       "change": "Change",
-      "pressKey": "Press a key combination...",
       "conflict": "Already assigned to \"{{action}}\"",
-      "save": "Save",
-      "searchPlaceholder": "Search shortcuts...",
-      "noResults": "No shortcuts found",
       "modified": "Modified",
       "cancel": "Cancel",
-      "osGlobalShortcuts": "OS Global Shortcuts",
-      "osGlobalShortcutsDesc": "Work even when the app is not focused",
       "done": "Done",
       "editTitle": "Keyboard Shortcuts",
       "editDescription": "Press \"Change\" on a row, then type the keys to assign.",
@@ -353,107 +94,28 @@
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
       "button": "Reset preferences",
       "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected."
-    },
-    "editorSettings": "Editor",
-    "editorFontSize": "Editor Font Size",
-    "editorFontFamily": "Font Family",
-    "editorLineHeight": "Line Height",
-    "editorPaddingInline": "Content Padding",
-    "developerTools": "Developer Tools",
-    "behaviors": "Behaviors",
-    "startupScreen": "Startup Screen",
-    "startupScreenDesc": "Choose which section opens when the app starts",
-    "autoArchive": "Auto-archive Completed Todos",
-    "autoArchiveDesc": "Automatically move completed todos to trash after a set period",
-    "autoArchiveDays": "After {{days}} days",
-    "autoArchiveDisabled": "Disabled",
-    "hideCompletedTasks": "Hide Completed Todos",
-    "hideCompletedTasksDesc": "Hide completed todos from the todo tree",
-    "autoCompleteParent": "Auto-complete Parent",
-    "system": "System",
-    "autoLaunch": "Launch at Startup",
-    "autoLaunchDesc": "Automatically start Life Editor when you log in",
-    "startMinimized": "Start Minimized",
-    "startMinimizedDesc": "Launch the app in the background without showing the window",
-    "trayIcon": "System Tray Icon",
-    "trayIconDesc": "Show an icon in the system tray with timer display",
-    "browser": {
-      "title": "Default browser for sidebar links",
-      "description": "URL links from the sidebar open in this browser. Falls back to the system default when none is selected.",
-      "systemDefault": "System default",
-      "none": "No supported browsers detected in /Applications. The system default will be used."
-    },
-    "globalShortcuts": "Global Shortcuts",
-    "globalShortcutsDesc": "Keyboard shortcuts that work even when the app is not focused",
-    "toggleTimerShortcut": "Toggle Timer",
-    "quickAddTaskShortcut": "Quick Add Todo",
-    "mobileAccess": {
-      "title": "Mobile Access",
-      "description": "Access Life Editor from your iPhone/iPad on the same WiFi network.",
-      "enable": "Enable Mobile Access",
-      "disable": "Disable Mobile Access",
-      "scanQr": "Scan this QR code with your phone's camera",
-      "copy": "Copy URL",
-      "copied": "Copied!",
-      "regenerate": "Regenerate Token (invalidates current sessions)"
     }
   },
   "timerSettings": {
-    "title": "Timer",
-    "workDuration": "Work Duration",
-    "breakDuration": "Break Duration",
-    "longBreakDuration": "Long Break Duration",
-    "sessionsBeforeLongBreak": "Sessions Before Long Break",
-    "autoStartBreaks": "Auto-start Breaks",
-    "autoStartBreaksDesc": "Automatically start break timer when work session ends",
-    "targetSessions": "Daily Target Sessions",
-    "runningWarning": "Timer is running. Changes will apply to the next session.",
-    "minutes": "min"
+    "targetSessions": "Daily Target Sessions"
   },
   "data": {
-    "title": "Data Management",
-    "export": "Export Data",
-    "import": "Import Data",
-    "importWarning": "Import will overwrite all current data. A backup is created automatically before importing.",
-    "exportSuccess": "Data exported successfully.",
-    "exportFailed": "Export failed: {{error}}",
-    "importSuccess": "Data imported. Reloading...",
-    "importFailed": "Import failed: {{error}}",
-    "reset": "Reset All Data",
-    "resetConfirm": "All data will be deleted and the app will return to its initial state. This action cannot be undone. A backup is created automatically before resetting. Are you sure?",
-    "resetSuccess": "Data reset. Reloading...",
-    "resetFailed": "Reset failed: {{error}}",
-    "unknownError": "Unknown error",
-    "openTrash": "Open Trash"
+    "title": "Data Management"
   },
   "trash": {
     "empty": "Trash is empty",
     "emptyDescription": "Deleted items will appear here.",
-    "emptyCategory": "Empty {{category}} trash",
-    "emptyCategoryConfirm": "Permanently empty the {{category}} trash. {{count}} item(s) will be deleted forever and cannot be restored. Proceed?",
-    "emptyCategoryDone": "Emptied {{category}} trash ({{count}} item(s))",
-    "emptying": "Deleting...",
     "tasks": "Todos",
     "notes": "Notes",
     "restore": "Restore",
     "deletePermanently": "Delete permanently",
     "task": "todo",
     "note": "note",
-    "sounds": "Sounds",
-    "sound": "sound",
-    "tabTasks": "Todos",
-    "tabRoutine": "Routine",
-    "tabEvents": "Events",
-    "tabMaterials": "Materials",
-    "tabMemo": "Memo",
-    "tabSounds": "Sounds",
     "event": "event",
     "events": "Events",
     "routines": "Routines",
     "routine": "routine",
-    "daily": "Daily",
     "dailies": "Dailies",
-    "memo": "memo",
     "loading": "Loading trash...",
     "error": "Failed to load trash.",
     "errorTitle": "Couldn't load the trash",
@@ -462,62 +124,18 @@
     "restoring": "Restoring…",
     "deleting": "Deleting…",
     "cascadeWarning": "Related sub-items and tag assignments are deleted together.",
-    "emptyCategoryLine": "No deleted items.",
     "permanentDeleteConfirm": "\"{{name}}\" will be permanently deleted. This cannot be undone."
   },
   "updates": {
-    "title": "Updates",
-    "checkForUpdates": "Check for Updates",
-    "download": "Download",
-    "restartToUpdate": "Restart to Update",
-    "checking": "Checking for updates...",
-    "available": "Update v{{version}} is available.",
-    "upToDate": "You are running the latest version.",
-    "downloading": "Downloading... {{percent}}%",
-    "downloaded": "v{{version}} downloaded. Restart to apply.",
-    "error": "Update error: {{message}}",
-    "unknown": "Unknown"
+    "title": "Updates"
   },
   "work": {
     "title": "Work",
-    "tabTimer": "Timer",
-    "tabPomodoro": "Pomodoro",
-    "tabMusic": "Music",
-    "tabHistory": "History",
-    "history": {
-      "last7Days": "Last 7 days",
-      "empty": "No recorded sessions yet. Start a Pomodoro or Free session to begin."
-    },
-    "toast": {
-      "recordedToTask": "✓ Recorded {{minutes}}min to {{task}}",
-      "recordedFreeWork": "✓ Recorded {{minutes}}min"
-    },
-    "setBackgroundSound": "Set Background Sound",
-    "noPlaylist": "No playlist (silent)",
-    "backgroundPlaylist": "Background Playlist",
-    "playingPlaylist": "Playing: {{name}}",
     "sidebar": {
-      "nowPlaying": "Now Playing",
-      "noPlaylist": "No playlist active",
-      "pomodoroSettings": "Pomodoro Settings",
-      "todayStats": "Today's Sessions",
       "sessions": "{{count}} sessions",
-      "totalTime": "{{minutes}} min",
-      "workTime": "Work Time",
       "targetSessions": "Target",
-      "goalTime": "Goal Time",
-      "sessionsProgress": "{{completed}} / {{target}} sessions",
-      "timeProgress": "{{actual}}m / {{goal}}m",
-      "selectPlaylist": "Select playlist",
-      "selectNone": "None"
+      "sessionsProgress": "{{completed}} / {{target}} sessions"
     },
-    "freeSession": "Free Session",
-    "sessionComplete": "Session Complete",
-    "taskComplete": "Todo Complete",
-    "confirmSessionTitle": "End Session",
-    "confirmSessionMessage": "End this session and start a break?",
-    "confirmTaskTitle": "Complete Todo",
-    "confirmTaskMessage": "Mark this todo as complete?",
     "status": {
       "paused": "Paused"
     },
@@ -538,7 +156,6 @@
     "taskSelector": {
       "heading": "Linked Todo",
       "placeholder": "Select a todo…",
-      "none": "No todos available",
       "clear": "Clear todo",
       "select": "Choose a todo",
       "clearSelection": "Clear selection",
@@ -553,7 +170,6 @@
       "close": "Close"
     },
     "settings": {
-      "minutesUnit": "min",
       "presetNamePlaceholder": "Preset name",
       "saveAsPreset": "Save",
       "apply": "Apply",
@@ -579,39 +195,19 @@
     "longBreakDuration": "Long break duration between sets",
     "sessionsPerSet": "Sessions per set",
     "presets": "Presets",
-    "saveAsPreset": "Save current as preset",
-    "presetName": "Preset name",
     "deletePreset": "Delete preset",
-    "currentConfig": "Current Config",
-    "autoStartBreaks": "Auto-start breaks",
-    "todaySessions": "Today's sessions",
-    "todayWorkTime": "Today's work time",
-    "adjustTime": "Adjust time"
+    "autoStartBreaks": "Auto-start breaks"
   },
   "timer": {
-    "work": "WORK",
-    "rest": "REST",
-    "longRest": "LONG REST"
+    "work": "WORK"
   },
   "taskDetail": {
-    "detailEmpty": "Select a todo to view and edit it.",
-    "detailTitle": "Todo",
-    "closeDetail": "Close todo",
     "titleLabel": "Todo title",
     "status": "Status",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
     "statusDone": "Done",
     "content": "Notes",
-    "start": "Start",
-    "useGlobalDefault": "Use global default ({{min}}m)",
-    "schedule": "Set schedule",
-    "allDay": "All day",
-    "startTime": "Start",
-    "endTime": "End",
-    "showEndTime": "End time",
-    "clearSchedule": "Clear schedule",
-    "emptyState": "Select a todo to view details",
     "tags": "Tags"
   },
   "kanban": {
@@ -620,23 +216,18 @@
     "segmentedGroupLabel": "Switch board view",
     "emptyColumn": "No todos here yet",
     "placeholderHint": "Tag view is coming soon",
-    "boardLabel": "Todo board",
     "untagged": "No tag",
     "colorPickerLabel": "Change color",
     "colorClearLabel": "Default color",
     "colorCustomLabel": "Custom",
-    "modalClose": "Close (Esc)",
-    "breadcrumbTask": "Todo",
     "addTask": "Add",
     "addDialogTitle": "Add todo",
-    "addTypeTask": "Todo",
     "addTitleLabel": "Title",
     "addTitlePlaceholder": "Enter a title",
     "addSubmit": "Add",
     "addCancel": "Cancel"
   },
   "materials": {
-    "title": "Materials",
     "tasks": {
       "filterLabel": "Filter by status",
       "statusSheetTitle": "Change status",
@@ -645,11 +236,6 @@
       "quickAddSubmit": "Add",
       "empty": "No todos yet",
       "addCta": "Add todo",
-      "expandGroup": "Expand group",
-      "collapseGroup": "Collapse group",
-      "emptyGroup": "No todos",
-      "untitled": "(untitled)",
-      "unfiled": "Unfiled",
       "taskCount": "{{count}} todos"
     },
     "notes": {
@@ -660,8 +246,6 @@
       "content": "Content",
       "links": "Links",
       "deleteNote": "Delete note",
-      "pinnedSection": "Pinned",
-      "allNotes": "All notes",
       "quickAddTitle": "Add note",
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",
@@ -695,16 +279,11 @@
       "filterLabel": "Filter entries"
     },
     "tags": {
-      "tagsCount": "Tags ({{count}})",
-      "addCta": "Tag",
       "addPlaceholder": "Enter a tag name",
       "empty": "No tags yet",
       "rename": "Rename tag",
       "colorLabel": "Color",
       "deleteTag": "Delete tag",
-      "quickAddTitle": "Add tag",
-      "quickAddPlaceholder": "Enter a tag name",
-      "quickAddSubmit": "Add",
       "editTitle": "Edit tags",
       "editCta": "Edit tags",
       "addTag": "Add",
@@ -725,17 +304,6 @@
   },
   "connect": {
     "title": "Connect",
-    "toggleConnectMode": "Connect mode: drag between nodes to link",
-    "linkEdges": "Note links",
-    "panel": {
-      "title": "Link these two",
-      "searchPlaceholder": "Search tags or type a new name...",
-      "createNew": "Create \"{{name}}\" as a new tag",
-      "connect": "Connect",
-      "cancel": "Cancel",
-      "alreadyLinked": "already on both",
-      "noTags": "No tags yet"
-    },
     "graph": {
       "search": "Search nodes...",
       "nodeTypes": "Node Types",
@@ -753,7 +321,6 @@
       "noMatch": "No nodes match the current filters",
       "reheat": "Reheat",
       "resetView": "Reset view",
-      "togglePanel": "Toggle panel",
       "closePanel": "Close panel",
       "depth": "Depth",
       "off": "off",
@@ -764,11 +331,8 @@
       "linkCreateFailed": "Failed to add link",
       "linkDeleteFailed": "Failed to remove link",
       "selectNodeHint": "Select a node on the canvas to enable Local Graph",
-      "tapHint": "Tap a node to center it. Drag to move. Pinch / scroll to zoom.",
       "links": "links",
       "tagsShort": "tags",
-      "match_one": "{{count}} match",
-      "match_other": "{{count}} matches",
       "typeProject": "Project",
       "typeNote": "Note",
       "typeDaily": "Daily",
@@ -794,95 +358,11 @@
     "mobile": {
       "linksTab": "Connections",
       "backlinksTab": "Backlinks",
-      "settingsTitle": "Graph settings",
-      "searchPlaceholder": "Search notes, dailies, tags"
+      "settingsTitle": "Graph settings"
     }
   },
   "schedule": {
-    "todayFlow": "Today Flow",
-    "noItems": "No items for this day",
-    "complete": "Complete",
-    "undoComplete": "Undo Complete",
-    "dayFlow": "Day Flow",
-    "routines": "Routines",
-    "newRoutine": "New Routine",
-    "editRoutine": "Edit Routine",
-    "editEvent": "Edit Event",
-    "editTask": "Edit Todo",
-    "routineTitle": "Title",
-    "routineTitlePlaceholder": "Routine name",
-    "start": "Start",
-    "end": "End",
-    "create": "Create",
-    "removeFromDay": "Remove from day",
-    "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen",
-    "achievement": "Achievement",
-    "achievementDetails": "Achievement Details",
-    "routineFlow": "Routine Flow",
-    "frequency": "Frequency",
-    "frequencyDaily": "Daily",
-    "frequencyWeekdays": "Specific days",
-    "frequencyInterval": "Every N days",
-    "frequencyGroup": "Group",
-    "everyNDays": "Every {{n}} days",
-    "intervalDays": "Interval (days)",
-    "startDate": "Start date",
-    "sun": "Sun",
-    "mon": "Mon",
-    "tue": "Tue",
-    "wed": "Wed",
-    "thu": "Thu",
-    "fri": "Fri",
-    "sat": "Sat",
-    "achieved": "Achieved",
-    "notAchieved": "Not Achieved",
-    "achievementRate": "Achieved: {{completed}}/{{total}} ({{rate}}%)",
-    "noRoutineItems": "No routine items for this day.",
-    "noActiveRoutines": "No active routines for today.",
-    "searchTasks": "Search todos...",
-    "searchEvents": "Search events...",
-    "stats": {
-      "title": "Stats",
-      "details": "Details",
-      "dayStreak": "day streak",
-      "currentStreak": "Current",
-      "longestStreak": "Longest",
-      "totalAchievedDays": "Days",
-      "perRoutine": "Per Routine",
-      "individual": "Individual",
-      "groups": "Groups",
-      "monthlyHeatmap": "90-Day Heatmap"
-    },
-    "routineDeleteConfirm": {
-      "title": "Delete Routine",
-      "description": "How would you like to remove \"{{title}}\"?",
-      "dismissOnly": "Remove for today only",
-      "dismissOnlyDesc": "Hides it from today's schedule. It will appear again tomorrow.",
-      "archiveRoutine": "Remove from future schedules",
-      "archiveRoutineDesc": "Archives the routine so it won't be auto-generated anymore. You can restore it from routine management.",
-      "cancel": "Cancel"
-    },
-    "routineTimeChange": {
-      "title": "Update routine time?",
-      "description": "\"{{title}}\" was changed to {{time}}.",
-      "thisOnly": "This time only",
-      "thisOnlyDesc": "Only change today's schedule. The routine template stays the same.",
-      "applyToRoutine": "Update routine template",
-      "applyToRoutineDesc": "Also update the routine's default time for future schedules."
-    },
-    "routineEditTimeChange": {
-      "title": "Update existing schedules?",
-      "description": "\"{{title}}\" template time was changed to {{time}}.",
-      "templateOnly": "Template only",
-      "templateOnlyDesc": "Only change the routine's default time. Existing schedules are not affected.",
-      "applyToAll": "Update existing schedules",
-      "applyToAllDesc": "Also update all scheduled items from today onward."
-    },
-    "itemTitlePlaceholder": "Schedule item name",
-    "allDay": "All day",
-    "materials": "Materials",
-    "dailyMemo": "Daily"
+    "complete": "Complete"
   },
   "scheduleCalendar": {
     "weekdaySun": "Sun",
@@ -892,18 +372,6 @@
     "weekdayThu": "Thu",
     "weekdayFri": "Fri",
     "weekdaySat": "Sat",
-    "allDay": "All-day",
-    "today": "Today",
-    "prevWeek": "Previous week",
-    "nextWeek": "Next week",
-    "prevDay": "Previous day",
-    "nextDay": "Next day",
-    "empty": "No events",
-    "selectHint": "Select an event to edit",
-    "title": "Title",
-    "startTime": "Start",
-    "endTime": "End",
-    "complete": "Mark complete",
     "newEvent": "New event",
     "createSlot": "Create event at this time"
   },
@@ -935,7 +403,6 @@
     "memo": "Memo",
     "originRoutine": "Generated from routine",
     "originEvent": "Event",
-    "originTask": "Todo",
     "skipThisDay": "Skip this day",
     "skippedTitle": "Skipped ({{count}})",
     "restoreSkipped": "Restore",
@@ -946,8 +413,6 @@
     "done": "Done",
     "doneSummary": "{{done}} of {{total}} done",
     "emptyToday": "Nothing scheduled for today",
-    "now": "Now",
-    "routineListTitle": "My routines",
     "newRoutine": "New routine",
     "frequency": "Repeat",
     "viewLabel": "View",
@@ -967,8 +432,6 @@
     "loading": "Loading…",
     "loadError": "Could not load your schedule",
     "retry": "Retry",
-    "emptyTitle": "No events this week",
-    "emptyBody": "Click an empty slot to create one.",
     "moreCount": "+{{count}} more",
     "quickAddTitle": "Add event",
     "quickAddPlaceholder": "Enter an event…",
@@ -1033,19 +496,10 @@
     },
     "tabs": {
       "overview": "Overview",
-      "time": "Time",
       "tasks": "Todos",
       "schedule": "Schedule",
-      "materials": "Materials",
-      "work": "Work",
-      "connect": "Connect"
+      "work": "Work"
     },
-    "totalTasks": "Total Todos",
-    "completed": "Completed",
-    "inProgress": "In Progress",
-    "todayRate": "Today's Completion Rate",
-    "totalRate": "Total Completion Rate",
-    "comingSoon": "More detailed analytics coming soon.",
     "workTime": "Work Time",
     "taskWorkTime": "Work Time by Todo",
     "period": {
@@ -1057,7 +511,6 @@
     "sessions": "Sessions",
     "avgPerDay": "Avg / Day",
     "hours": "{{hours}}h {{minutes}}m",
-    "noSessions": "No work sessions recorded yet. Start a timer to track your work time.",
     "today": {
       "title": "Today",
       "workTime": "Work Time",
@@ -1066,9 +519,6 @@
     },
     "weekly": {
       "title": "Weekly Comparison",
-      "thisWeek": "This Week",
-      "lastWeek": "Last Week",
-      "change": "Change",
       "workTimeLabel": "Work Time",
       "sessionsLabel": "Sessions",
       "completedLabel": "Completed"
@@ -1121,27 +571,6 @@
       "title": "Work Time by Project",
       "noData": "No project data available"
     },
-    "sidebar": {
-      "period": "Period",
-      "preset": {
-        "7d": "Last 7 days",
-        "30d": "Last 30 days",
-        "thisMonth": "This month",
-        "3m": "Last 3 months",
-        "all": "All time"
-      },
-      "dateRange": "Date Range",
-      "charts": "Visible Charts",
-      "showAll": "Show all",
-      "hideAll": "Hide all",
-      "chartGroup": {
-        "work": "Work Charts",
-        "tasks": "Todo Charts",
-        "schedule": "Schedule Charts",
-        "materials": "Materials Charts",
-        "connect": "Connect Charts"
-      }
-    },
     "overview": {
       "tasks": "Todos",
       "events": "Events",
@@ -1149,10 +578,8 @@
       "work": "Work Time",
       "routines": "Routines",
       "tags": "Tags",
-      "total": "total",
       "completed": "completed",
       "today": "today",
-      "active": "active",
       "rate": "rate",
       "thisWeek": "this week",
       "assigned": "assigned"
@@ -1174,65 +601,11 @@
       "routineCompletion": {
         "title": "Routine Completion Rates",
         "rate": "Rate"
-      },
-      "noEvents": "No events in this period."
-    },
-    "materials": {
-      "totalNotes": "Total Notes",
-      "noteFolders": "Folders",
-      "pinnedNotes": "Pinned",
-      "createdPeriod": "Created (Period)",
-      "totalMemos": "Total Memos",
-      "memosPeriod": "Memos (Period)",
-      "creationTrend": {
-        "title": "Note Creation Trend",
-        "count": "Created"
-      },
-      "memoHeatmap": {
-        "title": "Memo Activity",
-        "tooltip": "{{count}} memo(s)"
-      },
-      "byFolder": {
-        "title": "Notes by Folder",
-        "count": "Notes",
-        "noFolder": "No Folder"
-      },
-      "noNotes": "No notes yet."
-    },
-    "connect": {
-      "totalTags": "Total Tags",
-      "totalAssignments": "Assignments",
-      "uniqueEntities": "Tagged Items",
-      "coverageRate": "Coverage",
-      "topTags": {
-        "title": "Top Tags by Usage",
-        "count": "Assignments"
-      },
-      "byEntityType": {
-        "title": "Tags by Entity Type",
-        "task": "Todos",
-        "note": "Notes",
-        "daily": "Daily"
-      },
-      "connections": {
-        "title": "Connection Statistics",
-        "tagConnections": "Tag Connections",
-        "noteConnections": "Note Connections",
-        "mostConnected": "Most Connected",
-        "isolatedTags": "Isolated Tags",
-        "avgConnections": "Avg Connections",
-        "density": "Density"
-      },
-      "noTags": "No tags yet."
+      }
     }
   },
   "search": {
-    "placeholder": "Search todos...",
-    "noResults": "No matching todos",
-    "clear": "Clear search",
-    "rootLevel": "Root level",
-    "searchSettings": "Search settings...",
-    "searchTrash": "Search trash..."
+    "clear": "Clear search"
   },
   "undoRedo": {
     "undone": "Undid: {{label}}",
@@ -1243,34 +616,15 @@
   },
   "common": {
     "cancel": "Cancel",
-    "ok": "OK",
-    "delete": "Delete",
-    "confirm": "Confirm",
-    "save": "Save",
     "close": "Close",
-    "comingSoon": "Coming Soon",
     "undo": "Undo",
     "redo": "Redo",
-    "reloadApp": "Reload application",
-    "create": "Create",
-    "edit": "Edit",
-    "openManagement": "Open Management",
     "untitled": "Untitled"
   },
   "tabs": {
-    "taskTree": "Todo Tree",
-    "memoTree": "Memo Tree",
     "tasks": "Todos",
     "schedule": "Schedule",
-    "incomplete": "Incomplete",
-    "complete": "Complete",
-    "calendar": "Calendar",
-    "dayflow": "Dayflow",
-    "routine": "Routine",
-    "events": "Events",
-    "overview": "Overview",
-    "detail": "Detail",
-    "tree": "Tree"
+    "overview": "Overview"
   },
   "commandPalette": {
     "placeholder": "Type a command...",
@@ -1308,83 +662,29 @@
     "resize": "Resize details panel"
   },
   "notes": {
-    "title": "Notes",
-    "newNote": "New note",
-    "searchNotes": "Search notes...",
-    "noMatching": "No matching notes",
-    "noNotes": "No notes yet",
-    "untitled": "Untitled",
     "sortUpdated": "Updated",
     "sortCreated": "Created",
     "sortTitle": "Title"
   },
   "notesView": {
-    "untitled": "Untitled",
     "unpin": "Unpin",
     "pin": "Pin",
-    "favorite": "Favorite",
-    "unfavorite": "Unfavorite",
-    "loadingEditor": "Loading editor...",
-    "emptyState": "Select a note or create a new one",
-    "detailEmpty": "Select a note to view and edit it.",
     "detailTitle": "Note",
-    "closeDetail": "Close note",
     "moreActions": "More actions"
   },
   "backlinks": {
-    "title": "Backlinks",
-    "unlinkedMentions": "Unlinked mentions",
-    "empty": "No notes link here yet.",
-    "noUnlinkedMentions": "No unlinked mentions.",
-    "loading": "Loading..."
+    "empty": "No notes link here yet."
   },
   "blockMenu": {
     "turnInto": "Turn Into",
     "noMatch": "No matching blocks",
-    "color": "Color",
-    "background": "Background",
-    "duplicate": "Duplicate",
-    "delete": "Delete",
-    "addIcon": "Add Icon",
-    "textColors": {
-      "default": "Default",
-      "red": "Red",
-      "blue": "Blue",
-      "green": "Green",
-      "yellow": "Yellow",
-      "gray": "Gray",
-      "purple": "Purple",
-      "orange": "Orange"
-    },
-    "bgColors": {
-      "default": "Default",
-      "gray": "Gray",
-      "blue": "Blue",
-      "green": "Green",
-      "yellow": "Yellow",
-      "red": "Red",
-      "purple": "Purple"
-    },
-    "calloutColors": {
-      "default": "Default",
-      "blue": "Blue",
-      "green": "Green",
-      "yellow": "Yellow",
-      "red": "Red",
-      "purple": "Purple"
-    },
     "turnIntoItems": {
-      "paragraph": "Paragraph",
       "heading1": "Heading 1",
       "heading2": "Heading 2",
       "heading3": "Heading 3",
-      "blockquote": "Blockquote",
-      "codeBlock": "Code Block",
       "bulletList": "Bullet List",
       "orderedList": "Ordered List",
-      "taskList": "Todo List",
-      "callout": "Callout",
-      "toggleList": "Toggle List"
+      "taskList": "Todo List"
     }
   },
   "itemLink": {
