@@ -16,6 +16,12 @@ export {
 } from "./BriefingView";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
 export {
+  extractIntentionSection,
+  mergeIntentionSection,
+  normalizeIntentionText,
+  type ExtractedIntentionSection,
+} from "./intentionSection";
+export {
   EveningView,
   type EveningViewProps,
   type EveningLabels,

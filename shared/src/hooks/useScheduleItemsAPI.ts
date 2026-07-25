@@ -3,6 +3,7 @@ import type { ScheduleItem } from "../types/schedule";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { todayCalendarKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncContext } from "./useSyncContext";
 
@@ -42,18 +43,11 @@ export interface UseScheduleItemsAPIOptions {
   /**
    * The date the view is anchored on (`YYYY-MM-DD`). The initial load +
    * every `syncVersion` bump refetches the live items for this date.
-   * Defaults to today (local — `new Date()` then slice, matching the
-   * frontend's local-date convention; S4-0: no UTC conversion).
+   * Defaults to today (local calendar day via `todayCalendarKey` — the
+   * plain-midnight boundary, no day-start-hour shift; S4-0: no UTC
+   * conversion).
    */
   date?: string;
-}
-
-function todayLocal(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
@@ -61,7 +55,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
   const { push } = options.undoRedo ?? createNoopUndoRedo();
   const { syncVersion } = useSyncContext();
 
-  const date = options.date ?? todayLocal();
+  const date = options.date ?? todayCalendarKey();
 
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [deletedItems, setDeletedItems] = useState<ScheduleItem[]>([]);
@@ -85,6 +79,10 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         const list = await ds.fetchScheduleItemsByDateAll(date);
         if (cancelled) return;
         setItems(list);
+        // #296: clear a previously latched error — without this, one
+        // transient fetch failure kept the section's error card up forever
+        // (no code path ever reset `error` back to null).
+        setError(null);
       } catch (e) {
         logServiceError("ScheduleItems", "fetch", e);
         if (!cancelled) {
@@ -113,7 +111,10 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
     async (target: string) => {
       try {
         const list = await ds.fetchScheduleItemsByDateAll(target);
-        if (target === (options.date ?? date)) setItems(list);
+        if (target === (options.date ?? date)) {
+          setItems(list);
+          setError(null); // #296: un-latch (see the fetch effect)
+        }
         return list;
       } catch (e) {
         logServiceError("ScheduleItems", "fetch", e);
@@ -126,13 +127,21 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
     [ds, options.date, date],
   );
 
+  // #296: re-throws on failure instead of returning []. The old
+  // swallow-into-empty made a transient fetch failure indistinguishable
+  // from a genuinely empty week — the visible-range store then rendered
+  // the whole calendar blank and marked that emptiness as settled truth.
+  // Sole consumer is useVisibleRangeItems, which catches and keeps the
+  // previous list on screen.
   const loadDateRange = useCallback(
     async (startDate: string, endDate: string) => {
       try {
         return await ds.fetchScheduleItemsByDateRange(startDate, endDate);
       } catch (e) {
         logServiceError("ScheduleItems", "fetchRange", e);
-        return [];
+        throw e instanceof Error
+          ? e
+          : new Error("Failed to load schedule items range");
       }
     },
     [ds],

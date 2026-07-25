@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Editor — 朝刊・夕刊テーマ提案</title>
+<style>
+  /* ============================================================
+     朝刊・夕刊テーマ提案 — JavaScript不要版
+     切り替えは CSS の :has() + ラジオボタンのみで動作します。
+     朝刊 = 淡いオレンジ(朝日色) / 夕刊 = 藍色
+     全テキスト/背景ペアは WCAG AA 検証済み(数値は静的に記載)
+     ============================================================ */
+  body {
+    /* ---- 朝刊 (light) ---- */
+    --bg-primary: #fbf4e8;
+    --bg-secondary: #f5ebda;
+    --surface-sunken: #efe3cd;
+    --text-primary: #2b2015;
+    --text-secondary: #6b5a45;
+    --text-tertiary: #857054;
+    --border: #eadec6;
+    --border-strong: #d6c3a2;
+    --accent: #ad4409;
+    --accent-hover: #8f3807;
+    --on-accent: #ffffff;
+    --accent-subtle: #fbe3c6;
+    --hover: #f0e5d0;
+    --briefing-shu: #ad2f1d;
+    --briefing-shu-subtle: #f7e0d6;
+    --briefing-kohaku: #8a5c06;
+    --briefing-kohaku-subtle: #f6e7c8;
+    --shadow-md: 0 2px 8px -1px rgb(64 42 15 / 0.10), 0 1px 3px -1px rgb(64 42 15 / 0.06);
+  }
+  body:has(#ed-dark:checked) {
+    /* ---- 夕刊 (dark / 藍) ---- */
+    --bg-primary: #101a2c;
+    --bg-secondary: #18243c;
+    --surface-sunken: #0a1220;
+    --text-primary: #edf1f9;
+    --text-secondary: #a4b2ca;
+    --text-tertiary: #75839d;
+    --border: #263650;
+    --border-strong: #3c4e70;
+    --accent: #85aaff;
+    --accent-hover: #a3c0ff;
+    --on-accent: #0a1024;
+    --accent-subtle: #1e2d4b;
+    --hover: #22314e;
+    --briefing-shu: #f0907c;
+    --briefing-shu-subtle: #35201f;
+    --briefing-kohaku: #dcb267;
+    --briefing-kohaku-subtle: #2e2513;
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+  }
+
+  /* 朝刊専用 / 夕刊専用コンテンツの出し分け(すべて静的に埋め込み済み) */
+  .only-dark { display: none !important; }
+  body:has(#ed-dark:checked) .only-dark { display: revert !important; }
+  body:has(#ed-dark:checked) .only-light { display: none !important; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.35s ease, color 0.35s ease;
+    line-height: 1.7;
+  }
+  .serif { font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---- page header ---- */
+  .page-head {
+    padding: 44px 0 20px;
+    border-bottom: 4px double var(--border-strong);
+    text-align: center;
+  }
+  .page-head .kicker {
+    font-size: 11px; letter-spacing: 0.35em; color: var(--text-secondary);
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .page-head h1 { font-size: 30px; letter-spacing: 0.18em; font-weight: 600; }
+  .page-head .date {
+    margin-top: 10px; font-size: 12px; letter-spacing: 0.25em; color: var(--text-secondary);
+  }
+
+  /* ---- edition toggle (CSSのみ / ラジオボタン) ---- */
+  .toggle-row {
+    display: flex; justify-content: center; gap: 12px; margin: 26px 0 8px;
+  }
+  .toggle-row input[type="radio"] {
+    position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+  }
+  label.edition-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    min-width: 132px; padding: 12px 22px;
+    border: 1px solid var(--border-strong); border-radius: 10px;
+    background: var(--bg-secondary); color: var(--text-secondary);
+    cursor: pointer; user-select: none;
+    transition: all 0.25s ease;
+  }
+  label.edition-btn .glyph { font-size: 20px; line-height: 1; }
+  label.edition-btn .name { font-size: 15px; font-weight: 700; letter-spacing: 0.3em; text-indent: 0.3em; }
+  label.edition-btn .sub { font-size: 10.5px; letter-spacing: 0.08em; }
+  label.edition-btn:hover { background: var(--hover); color: var(--text-primary); }
+  #ed-light:checked ~ .toggle-row label[for="ed-light"],
+  #ed-dark:checked  ~ .toggle-row label[for="ed-dark"],
+  body:has(#ed-light:checked) label[for="ed-light"],
+  body:has(#ed-dark:checked)  label[for="ed-dark"] {
+    background: var(--accent); color: var(--on-accent);
+    border-color: var(--accent); box-shadow: var(--shadow-md);
+  }
+  .toggle-row input[type="radio"]:focus-visible + label {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .toggle-hint {
+    text-align: center; font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.1em;
+  }
+
+  /* ---- sections ---- */
+  section { margin-top: 56px; }
+  .sec-head {
+    display: flex; align-items: baseline; gap: 14px;
+    border-bottom: 2px solid var(--text-primary);
+    padding-bottom: 8px; margin-bottom: 22px;
+  }
+  .sec-head .no { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.1em; }
+  .sec-head h2 { font-size: 20px; letter-spacing: 0.14em; font-weight: 600; }
+  .sec-head .en {
+    margin-left: auto; font-size: 10.5px; letter-spacing: 0.28em;
+    color: var(--text-tertiary); text-transform: uppercase;
+  }
+  .lead { font-size: 14px; color: var(--text-secondary); margin-bottom: 22px; }
+  .lead strong, .lead b { color: var(--text-primary); }
+
+  /* ---- concept cards ---- */
+  .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .concept-grid { grid-template-columns: 1fr; } }
+  .concept-card {
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 22px; background: var(--bg-secondary);
+  }
+  .concept-card h3 { font-size: 15px; letter-spacing: 0.2em; margin-bottom: 8px; font-weight: 700; }
+  .concept-card h3 .tag {
+    display: inline-block; font-size: 10px; letter-spacing: 0.1em;
+    padding: 1px 8px; border-radius: 999px; margin-left: 8px; vertical-align: 2px;
+  }
+  .concept-card p { font-size: 13px; color: var(--text-secondary); }
+  .concept-card .chipline { margin-top: 12px; display: flex; gap: 6px; }
+  .concept-card .chipline span {
+    height: 22px; flex: 1; border-radius: 5px; border: 1px solid rgb(0 0 0 / 0.06);
+  }
+
+  /* ---- swatches ---- */
+  .swatch-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 12px;
+  }
+  .swatch {
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    background: var(--bg-secondary);
+  }
+  .swatch .face {
+    height: 62px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+  }
+  .swatch .meta { padding: 9px 12px 11px; }
+  .swatch .token {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px; color: var(--text-secondary); display: block;
+  }
+  .swatch .hex {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em;
+  }
+  .swatch .was {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px; color: var(--text-tertiary); text-decoration: line-through;
+    margin-left: 6px;
+  }
+  .role-note { font-size: 11.5px; color: var(--text-tertiary); margin-top: 10px; }
+
+  /* ---- briefing accent duo ---- */
+  .duo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .duo-grid { grid-template-columns: 1fr; } }
+  .duo-card {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    background: var(--bg-secondary);
+  }
+  .duo-card .band { height: 10px; }
+  .duo-card .inner { padding: 18px 20px 20px; }
+  .duo-card h3 { font-size: 17px; letter-spacing: 0.24em; font-weight: 700; }
+  .duo-card .hexline {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+    color: var(--text-secondary); margin: 4px 0 10px;
+  }
+  .duo-card ul { list-style: none; }
+  .duo-card li {
+    font-size: 12.5px; color: var(--text-secondary);
+    padding: 5px 0 5px 16px; position: relative;
+    border-bottom: 1px dashed var(--border);
+  }
+  .duo-card li:last-child { border-bottom: none; }
+  .duo-card li::before { content: "◆"; position: absolute; left: 0; top: 5px; font-size: 9px; }
+  .duo-demo { margin-top: 14px; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; }
+
+  /* ============ newspaper mockup ============ */
+  .paper {
+    margin-top: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: var(--shadow-md);
+    padding: 34px 38px 30px;
+    position: relative;
+  }
+  .paper::before {
+    content: ""; position: absolute; inset: 0; border-radius: 4px;
+    pointer-events: none; border: 1px solid var(--border);
+    margin: 7px;
+  }
+  .masthead {
+    text-align: center; border-bottom: 4px double var(--border-strong);
+    padding-bottom: 16px; position: relative;
+  }
+  .masthead .edition-seal {
+    position: absolute; left: 4px; top: 2px;
+    writing-mode: vertical-rl; font-size: 11px; letter-spacing: 0.35em;
+    padding: 8px 4px; border: 1px solid currentColor; border-radius: 3px;
+    color: var(--briefing-shu); font-weight: 700;
+  }
+  .masthead h2 { font-size: 26px; letter-spacing: 0.42em; text-indent: 0.42em; font-weight: 600; }
+  .masthead .mdate { margin-top: 8px; font-size: 11px; letter-spacing: 0.24em; color: var(--text-secondary); }
+  .masthead .mmeta {
+    display: flex; justify-content: space-between; margin-top: 10px;
+    font-size: 10px; letter-spacing: 0.18em; color: var(--text-tertiary);
+    border-top: 1px solid var(--border); padding-top: 7px;
+  }
+
+  .focus-zone { text-align: center; padding: 26px 10px 24px; border-bottom: 1px solid var(--border); }
+  .focus-zone .flabel {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.42em; text-indent: 0.42em;
+    color: var(--briefing-shu); border: 1px solid var(--briefing-shu);
+    padding: 3px 14px; border-radius: 2px; margin-bottom: 14px;
+  }
+  .focus-zone .fline { font-size: 21px; font-weight: 600; line-height: 1.6; }
+  .focus-zone .fline .maru {
+    background: linear-gradient(transparent 68%, var(--briefing-shu-subtle) 68%);
+    padding: 0 2px;
+  }
+
+  .np-block { padding: 20px 6px; border-bottom: 1px solid var(--border); }
+  .np-block:last-child { border-bottom: none; }
+  .np-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .np-head h4 {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.3em;
+    color: var(--text-secondary);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .np-head h4::before {
+    content: ""; display: inline-block; width: 7px; height: 14px;
+    background: var(--briefing-shu);
+  }
+  .np-head .hint { font-size: 10px; letter-spacing: 0.14em; color: var(--briefing-kohaku); }
+
+  .ai-box {
+    border-left: 3px solid var(--briefing-kohaku);
+    background: var(--briefing-kohaku-subtle);
+    border-radius: 6px; padding: 13px 17px;
+    font-size: 13px; line-height: 1.9;
+  }
+  .ai-box .drop { color: var(--briefing-kohaku); font-weight: 700; }
+
+  .sched li { list-style: none; display: flex; align-items: baseline; gap: 13px; padding: 6px 0; }
+  .sched .time {
+    width: 52px; flex-shrink: 0; font-size: 12px; font-weight: 700;
+    font-variant-numeric: tabular-nums; color: var(--briefing-shu);
+  }
+  .sched .mark { flex-shrink: 0; font-size: 13px; color: var(--text-tertiary); }
+  .sched .mark.done { color: var(--briefing-shu); }
+  .sched .title { font-size: 13.5px; }
+  .sched .title.done { color: var(--text-secondary); text-decoration: line-through; }
+  .sched .rtag {
+    font-size: 9.5px; letter-spacing: 0.1em; padding: 1px 9px;
+    background: var(--briefing-kohaku-subtle); color: var(--briefing-kohaku);
+    border: 1px solid var(--briefing-kohaku); border-radius: 2px;
+  }
+
+  .tasks li { list-style: none; padding: 9px 0; border-bottom: 1px dashed var(--border); }
+  .tasks li:last-child { border-bottom: none; }
+  .tasks .row { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .tasks .cb {
+    width: 15px; height: 15px; flex-shrink: 0; border-radius: 3px;
+    border: 1.5px solid var(--border-strong); display: grid; place-items: center;
+  }
+  .tasks .cb.done {
+    background: var(--briefing-shu); border-color: var(--briefing-shu);
+    color: var(--bg-primary); font-size: 10px;
+  }
+  .tasks .purpose { margin-left: 25px; font-size: 11.5px; color: var(--briefing-kohaku); font-weight: 600; }
+  .tasks .done-title { color: var(--text-secondary); text-decoration: line-through; }
+
+  .carry li {
+    list-style: none; display: flex; gap: 10px; font-size: 13px;
+    color: var(--text-secondary); padding: 4px 0;
+  }
+  .carry .days { color: var(--briefing-shu); font-weight: 700; }
+
+  /* ---- contrast table ---- */
+  table.contrast { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.contrast th, table.contrast td {
+    text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  }
+  table.contrast th {
+    font-size: 10.5px; letter-spacing: 0.14em; color: var(--text-tertiary);
+    border-bottom: 2px solid var(--border-strong);
+  }
+  table.contrast .mono { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+  .pass {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    padding: 1px 8px; border-radius: 999px;
+    background: var(--accent-subtle); color: var(--accent);
+  }
+  .dot {
+    display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+    vertical-align: -1px; margin-right: 6px; border: 1px solid rgb(0 0 0 / 0.08);
+  }
+
+  /* ---- code block ---- */
+  pre.code {
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 22px; overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; line-height: 1.75; color: var(--text-primary);
+    user-select: all;
+  }
+
+  .footnote {
+    margin-top: 48px; padding-top: 16px; border-top: 4px double var(--border-strong);
+    font-size: 11px; color: var(--text-tertiary); text-align: center; letter-spacing: 0.12em;
+  }
+
+  /* :has() 非対応環境への注意書き(対応環境では自動で消える) */
+  .has-warning {
+    margin: 18px auto 0; max-width: 560px; text-align: center;
+    font-size: 12px; padding: 10px 16px; border-radius: 8px;
+    background: #f7e0d6; color: #8a2417; border: 1px solid #ad2f1d;
+  }
+  @supports selector(body:has(a)) { .has-warning { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- テーマ切り替え用ラジオ(CSSのみで動作 / JS不要) -->
+<input type="radio" name="edition" id="ed-light" checked>
+<input type="radio" name="edition" id="ed-dark">
+
+<div class="wrap">
+
+  <!-- ═══════════ header ═══════════ -->
+  <header class="page-head">
+    <p class="kicker">Life Editor — Theme Proposal</p>
+    <h1 class="serif">朝刊・夕刊 配色計画</h1>
+    <p class="date">二〇二六年七月十六日 木曜日 &nbsp;|&nbsp; lumen-* トークン改定案 第一号</p>
+  </header>
+
+  <div class="toggle-row" role="group" aria-label="テーマ切り替え">
+    <label class="edition-btn" for="ed-light">
+      <span class="glyph">☀</span>
+      <span class="name serif">朝 刊</span>
+      <span class="sub">淡橙 — 朝日色</span>
+    </label>
+    <label class="edition-btn" for="ed-dark">
+      <span class="glyph">☾</span>
+      <span class="name serif">夕 刊</span>
+      <span class="sub">藍色 — 宵の空</span>
+    </label>
+  </div>
+  <p class="toggle-hint">「朝刊」「夕刊」を押すとページ全体が切り替わります(JavaScript不要のCSS切り替え)</p>
+  <p class="has-warning">お使いの表示環境がCSSの :has() に未対応のため切り替えが動きません。その場合はこのファイルをChrome / Safari / Edgeで開いてください。</p>
+
+  <!-- ═══════════ 1. concept ═══════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="no">第一面</span><h2 class="serif">紙面の思想</h2><span class="en">Concept</span>
+    </div>
+    <p class="lead">
+      「一日のはじまりに朝刊を開き、一日の終わりに夕刊を畳む」— テーマの切り替えを単なる明暗の反転ではなく、<strong>刊行時間の移ろい</strong>として設計します。UIの構造・余白・罫線はそのまま、紙とインクの色だけが刻とともに変わります。
+    </p>
+    <div class="concept-grid">
+      <div class="concept-card">
+        <h3 class="serif">朝刊 <span class="tag" style="background:#fbe3c6;color:#8f3807;">Light</span></h3>
+        <p>朝日が差した生成りの紙。ベースは白ではなく<b>淡い卵殻色</b>にオレンジを一滴。アクセントは昇る朝日の<b>燈色(ひいろ) #ad4409</b>。墨はセピアに寄せ、目覚めの目に硬すぎない紙面に。</p>
+        <div class="chipline">
+          <span style="background:#fbf4e8"></span><span style="background:#f5ebda"></span>
+          <span style="background:#fbe3c6"></span><span style="background:#ad4409"></span>
+          <span style="background:#2b2015"></span>
+        </div>
+      </div>
+      <div class="concept-card">
+        <h3 class="serif">夕刊 <span class="tag" style="background:#1e2d4b;color:#a3c0ff;">Dark</span></h3>
+        <p>日没後の<b>藍(あい)</b>。真っ黒ではなく藍染めの夜空 <b>#101a2c</b> を紙に、月明かりの<b>薄藍 #85aaff</b> をアクセントに。現行のコバルト系ダークの読みやすさを保ちつつ、色相を藍へ統一します。</p>
+        <div class="chipline">
+          <span style="background:#101a2c"></span><span style="background:#18243c"></span>
+          <span style="background:#1e2d4b"></span><span style="background:#85aaff"></span>
+          <span style="background:#edf1f9"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 2. core palette ═══════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="no">第二面</span><h2 class="serif">コアパレット</h2><span class="en">Core Tokens</span>
+    </div>
+    <p class="lead">
+      表示中のテーマの提案値です(上のボタンで切り替え)。打ち消し線は現行 tokens.css の値。役割は現行の <b>lumen-*</b> 体系と1対1で対応するため、<b>tokens.css の値の差し替えだけ</b>で全画面に適用できます。
+    </p>
+
+    <!-- 朝刊パレット -->
+    <div class="swatch-grid only-light">
+      <div class="swatch"><div class="face" style="background:#fbf4e8;color:#2b2015;">紙面の地</div>
+        <div class="meta"><span class="token">--color-bg-primary</span><span class="hex">#fbf4e8</span><span class="was">#fafafa</span></div></div>
+      <div class="swatch"><div class="face" style="background:#f5ebda;color:#2b2015;">サイドバー等</div>
+        <div class="meta"><span class="token">--color-bg-secondary</span><span class="hex">#f5ebda</span><span class="was">#f1f1f3</span></div></div>
+      <div class="swatch"><div class="face" style="background:#efe3cd;color:#2b2015;">窪み面</div>
+        <div class="meta"><span class="token">--color-surface-sunken</span><span class="hex">#efe3cd</span><span class="was">#ececef</span></div></div>
+      <div class="swatch"><div class="face" style="background:#2b2015;color:#fbf4e8;">本文の墨</div>
+        <div class="meta"><span class="token">--color-text-primary</span><span class="hex">#2b2015</span><span class="was">#1a1a1f</span></div></div>
+      <div class="swatch"><div class="face" style="background:#6b5a45;color:#fbf4e8;">第二層</div>
+        <div class="meta"><span class="token">--color-text-secondary</span><span class="hex">#6b5a45</span><span class="was">#5c5c66</span></div></div>
+      <div class="swatch"><div class="face" style="background:#857054;color:#fbf4e8;">第三層</div>
+        <div class="meta"><span class="token">--color-text-tertiary</span><span class="hex">#857054</span><span class="was">#767680</span></div></div>
+      <div class="swatch"><div class="face" style="background:#eadec6;color:#2b2015;">罫線</div>
+        <div class="meta"><span class="token">--color-border</span><span class="hex">#eadec6</span><span class="was">#e3e3e7</span></div></div>
+      <div class="swatch"><div class="face" style="background:#d6c3a2;color:#2b2015;">強罫線</div>
+        <div class="meta"><span class="token">--color-border-strong</span><span class="hex">#d6c3a2</span><span class="was">#cfcfd6</span></div></div>
+      <div class="swatch"><div class="face" style="background:#ad4409;color:#ffffff;">朝日の燈色</div>
+        <div class="meta"><span class="token">--color-accent</span><span class="hex">#ad4409</span><span class="was">#1d4ed8</span></div></div>
+      <div class="swatch"><div class="face" style="background:#8f3807;color:#ffffff;">hover</div>
+        <div class="meta"><span class="token">--color-accent-hover</span><span class="hex">#8f3807</span><span class="was">#1e40af</span></div></div>
+      <div class="swatch"><div class="face" style="background:#fbe3c6;color:#8f3807;">淡アクセント面</div>
+        <div class="meta"><span class="token">--color-accent-subtle</span><span class="hex">#fbe3c6</span><span class="was">#dbeafe</span></div></div>
+      <div class="swatch"><div class="face" style="background:#f0e5d0;color:#2b2015;">行hover</div>
+        <div class="meta"><span class="token">--color-hover</span><span class="hex">#f0e5d0</span><span class="was">#e8e8ec</span></div></div>
+    </div>
+
+    <!-- 夕刊パレット -->
+    <div class="swatch-grid only-dark">
+      <div class="swatch"><div class="face" style="background:#101a2c;color:#edf1f9;">藍の夜空</div>
+        <div class="meta"><span class="token">--color-bg-primary</span><span class="hex">#101a2c</span><span class="was">#16161a</span></div></div>
+      <div class="swatch"><div class="face" style="background:#18243c;color:#edf1f9;">サイドバー等</div>
+        <div class="meta"><span class="token">--color-bg-secondary</span><span class="hex">#18243c</span><span class="was">#1e1e23</span></div></div>
+      <div class="swatch"><div class="face" style="background:#0a1220;color:#edf1f9;">窪み面</div>
+        <div class="meta"><span class="token">--color-surface-sunken</span><span class="hex">#0a1220</span><span class="was">#101013</span></div></div>
+      <div class="swatch"><div class="face" style="background:#edf1f9;color:#101a2c;">本文</div>
+        <div class="meta"><span class="token">--color-text-primary</span><span class="hex">#edf1f9</span><span class="was">#f2f2f5</span></div></div>
+      <div class="swatch"><div class="face" style="background:#a4b2ca;color:#101a2c;">第二層</div>
+        <div class="meta"><span class="token">--color-text-secondary</span><span class="hex">#a4b2ca</span><span class="was">#a0a0ad</span></div></div>
+      <div class="swatch"><div class="face" style="background:#75839d;color:#101a2c;">第三層</div>
+        <div class="meta"><span class="token">--color-text-tertiary</span><span class="hex">#75839d</span><span class="was">#74747e</span></div></div>
+      <div class="swatch"><div class="face" style="background:#263650;color:#edf1f9;">罫線</div>
+        <div class="meta"><span class="token">--color-border</span><span class="hex">#263650</span><span class="was">#2e2e35</span></div></div>
+      <div class="swatch"><div class="face" style="background:#3c4e70;color:#edf1f9;">強罫線</div>
+        <div class="meta"><span class="token">--color-border-strong</span><span class="hex">#3c4e70</span><span class="was">#44444d</span></div></div>
+      <div class="swatch"><div class="face" style="background:#85aaff;color:#0a1024;">月明かりの薄藍</div>
+        <div class="meta"><span class="token">--color-accent</span><span class="hex">#85aaff</span><span class="was">#5b8cff</span></div></div>
+      <div class="swatch"><div class="face" style="background:#a3c0ff;color:#0a1024;">hover</div>
+        <div class="meta"><span class="token">--color-accent-hover</span><span class="hex">#a3c0ff</span><span class="was">#7aa2ff</span></div></div>
+      <div class="swatch"><div class="face" style="background:#1e2d4b;color:#a3c0ff;">淡アクセント面</div>
+        <div class="meta"><span class="token">--color-accent-subtle</span><span class="hex">#1e2d4b</span><span class="was">#21273f</span></div></div>
+      <div class="swatch"><div class="face" style="background:#22314e;color:#edf1f9;">行hover</div>
+        <div class="meta"><span class="token">--color-hover</span><span class="hex">#22314e</span><span class="was">#2a2a31</span></div></div>
+    </div>
+
+    <p class="role-note">
+      ※ success / danger / info / warning、chip・schedule・status 系の機能色は現行値を維持する前提です(状態を符号化する色はテーマを跨いで固定、という現行設計に従う)。必要ならこの2テーマに馴染む微調整案を追補します。
+    </p>
+  </section>
+
+  <!-- ═══════════ 3. briefing duo ═══════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="no">第三面</span><h2 class="serif">Briefing 紙面アクセント — 朱と琥珀</h2><span class="en">Briefing Duo</span>
+    </div>
+    <p class="lead">
+      新聞の紙面で使われる<b>朱(しゅ)</b>と、朝日・行灯に馴染む<b>琥珀(こはく)</b>。色相の近い暖色2色(色相差 約30°)なので紙面がうるさくならず、それでいて「主役の印」と「脇の註」が読み分けられます。<b>朱=行動と現在</b>、<b>琥珀=文脈と補足</b>という役割分担です。
+    </p>
+    <div class="duo-grid">
+      <div class="duo-card">
+        <div class="band" style="background:var(--briefing-shu)"></div>
+        <div class="inner">
+          <h3 class="serif" style="color:var(--briefing-shu)">朱色</h3>
+          <p class="hexline">朝刊 #ad2f1d ／ 夕刊 #f0907c<br>token: <b>--color-briefing-shu</b></p>
+          <ul>
+            <li>見出しの段標(■)・「本日の焦点」の約物</li>
+            <li>予定の時刻数字・完了チェック(今日の行動の印)</li>
+            <li>持ち越し日数「N日目」の強調</li>
+            <li>題字横の「朝刊/夕刊」の印判</li>
+          </ul>
+          <div class="duo-demo" style="background:var(--briefing-shu-subtle); color:var(--briefing-shu); font-weight:700;">
+            淡色面 --color-briefing-shu-subtle の上でもAA確保
+          </div>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="band" style="background:var(--briefing-kohaku)"></div>
+        <div class="inner">
+          <h3 class="serif" style="color:var(--briefing-kohaku)">琥珀色</h3>
+          <p class="hexline">朝刊 #8a5c06 ／ 夕刊 #dcb267<br>token: <b>--color-briefing-kohaku</b></p>
+          <ul>
+            <li>AIコメント欄の罫と地(考察・文脈の色)</li>
+            <li>タスクに紐づく目的(◈ purposes)の表示</li>
+            <li>ルーティン札・出典などの小さな註釈</li>
+            <li>見出し右の補足ヒント文字</li>
+          </ul>
+          <div class="duo-demo" style="background:var(--briefing-kohaku-subtle); color:var(--briefing-kohaku); font-weight:700;">
+            淡色面 --color-briefing-kohaku-subtle の上でもAA確保
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 4. mockup ═══════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="no">第四面</span><h2 class="serif">紙面見本 — Briefing</h2><span class="en">Mockup</span>
+    </div>
+    <p class="lead">
+      現行 BriefingView の構造(題字→焦点→AIコメント→今日の約束→今日のタスク→持ち越し)に提案色を流し込んだ見本です。テーマを切り替えて朝刊・夕刊の両紙面を確認してください。
+    </p>
+    <div class="paper serif">
+      <header class="masthead">
+        <span class="edition-seal only-light">朝刊</span>
+        <span class="edition-seal only-dark">夕刊</span>
+        <h2>ライフ・エディター</h2>
+        <p class="mdate">2026年7月16日 木曜日</p>
+        <div class="mmeta"><span>第 128 号</span><span>発行 · Life Editor</span><span>個人版</span></div>
+      </header>
+
+      <div class="focus-zone">
+        <span class="flabel">本日の焦点</span>
+        <p class="fline">Cloud Sync の設計を<span class="maru">一区切り</span>させ、夕方は散歩に出る</p>
+      </div>
+
+      <div class="np-block">
+        <div class="np-head"><h4>AIからのひとこと</h4><span class="hint">昨夜の日誌より</span></div>
+        <div class="ai-box">
+          <span class="drop">◆</span> 昨日はADR-0005のレビューで集中が続いた一日でした。今朝は頭が温まる前に、いちばん重いCloud Syncの同期境界の判断から着手するのがよさそうです。持ち越し3日目の「READMEの図の差し替え」は15分で終わる粒度なので、昼食前に片付けてしまいましょう。
+        </div>
+      </div>
+
+      <div class="np-block">
+        <div class="np-head"><h4>今日の約束</h4></div>
+        <ul class="sched">
+          <li><span class="time">07:30</span><span class="mark done">✓</span><span class="title done">朝のジャーナリング</span><span class="rtag">ルーティン</span></li>
+          <li><span class="time">10:00</span><span class="mark">○</span><span class="title">Cloud Sync 設計レビュー</span></li>
+          <li><span class="time">15:00</span><span class="mark">○</span><span class="title">歯医者</span></li>
+          <li><span class="time">終日</span><span class="mark">○</span><span class="title">週次ふりかえりの下書き</span><span class="rtag">ルーティン</span></li>
+        </ul>
+      </div>
+
+      <div class="np-block">
+        <div class="np-head"><h4>今日のタスク</h4></div>
+        <ul class="tasks">
+          <li>
+            <div class="row"><span class="cb done">✓</span><span class="done-title">同期コンフリクトの解決方針をまとめる</span></div>
+            <p class="purpose">◈ Cloud Sync を今月中に動かす</p>
+          </li>
+          <li>
+            <div class="row"><span class="cb"></span><span>supabase スキーマのマイグレーション作成</span></div>
+            <p class="purpose">◈ Cloud Sync を今月中に動かす ・ 学習ログを残す</p>
+          </li>
+          <li>
+            <div class="row"><span class="cb"></span><span>README の構成図を差し替える</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="np-block">
+        <div class="np-head"><h4>持ち越し</h4></div>
+        <ul class="carry">
+          <li><span class="days">3日目</span><span>README の構成図を差し替える</span></li>
+          <li><span class="days">2日目</span><span>モバイル版のビルドエラー調査</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 5. contrast ═══════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="no">第五面</span><h2 class="serif">コントラスト検証</h2><span class="en">WCAG AA</span>
+    </div>
+    <p class="lead">
+      主要ペアをWCAG 2.2の算定式で機械計算済み。<b>全32ペアがAA合格</b>(本文4.5:1以上、第三層テキストは3:1以上)。代表値を抜粋します。
+    </p>
+
+    <!-- 朝刊 -->
+    <table class="contrast only-light">
+      <thead><tr><th>ペア(朝刊)</th><th>前景</th><th>背景</th><th>比</th><th>判定</th></tr></thead>
+      <tbody>
+        <tr><td>本文 / 紙面</td><td class="mono"><span class="dot" style="background:#2b2015"></span>#2b2015</td><td class="mono"><span class="dot" style="background:#fbf4e8"></span>#fbf4e8</td><td class="mono"><b>14.55</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>第二層テキスト / 紙面</td><td class="mono"><span class="dot" style="background:#6b5a45"></span>#6b5a45</td><td class="mono"><span class="dot" style="background:#fbf4e8"></span>#fbf4e8</td><td class="mono"><b>6.05</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>第三層テキスト / 紙面</td><td class="mono"><span class="dot" style="background:#857054"></span>#857054</td><td class="mono"><span class="dot" style="background:#fbf4e8"></span>#fbf4e8</td><td class="mono"><b>4.32</b> : 1</td><td><span class="pass">AA ✓ (基準 3.0)</span></td></tr>
+        <tr><td>アクセント(燈) / 紙面</td><td class="mono"><span class="dot" style="background:#ad4409"></span>#ad4409</td><td class="mono"><span class="dot" style="background:#fbf4e8"></span>#fbf4e8</td><td class="mono"><b>5.32</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>on-accent / アクセント</td><td class="mono"><span class="dot" style="background:#ffffff"></span>#ffffff</td><td class="mono"><span class="dot" style="background:#ad4409"></span>#ad4409</td><td class="mono"><b>5.82</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>朱 / 紙面</td><td class="mono"><span class="dot" style="background:#ad2f1d"></span>#ad2f1d</td><td class="mono"><span class="dot" style="background:#fbf4e8"></span>#fbf4e8</td><td class="mono"><b>6.00</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>琥珀 / 紙面</td><td class="mono"><span class="dot" style="background:#8a5c06"></span>#8a5c06</td><td class="mono"><span class="dot" style="background:#fbf4e8"></span>#fbf4e8</td><td class="mono"><b>5.31</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>朱 / 朱subtle</td><td class="mono"><span class="dot" style="background:#ad2f1d"></span>#ad2f1d</td><td class="mono"><span class="dot" style="background:#f7e0d6"></span>#f7e0d6</td><td class="mono"><b>5.18</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>琥珀 / 琥珀subtle</td><td class="mono"><span class="dot" style="background:#8a5c06"></span>#8a5c06</td><td class="mono"><span class="dot" style="background:#f6e7c8"></span>#f6e7c8</td><td class="mono"><b>4.75</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+      </tbody>
+    </table>
+
+    <!-- 夕刊 -->
+    <table class="contrast only-dark">
+      <thead><tr><th>ペア(夕刊)</th><th>前景</th><th>背景</th><th>比</th><th>判定</th></tr></thead>
+      <tbody>
+        <tr><td>本文 / 藍紙面</td><td class="mono"><span class="dot" style="background:#edf1f9"></span>#edf1f9</td><td class="mono"><span class="dot" style="background:#101a2c"></span>#101a2c</td><td class="mono"><b>15.38</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>第二層テキスト / 藍紙面</td><td class="mono"><span class="dot" style="background:#a4b2ca"></span>#a4b2ca</td><td class="mono"><span class="dot" style="background:#101a2c"></span>#101a2c</td><td class="mono"><b>8.12</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>第三層テキスト / 藍紙面</td><td class="mono"><span class="dot" style="background:#75839d"></span>#75839d</td><td class="mono"><span class="dot" style="background:#101a2c"></span>#101a2c</td><td class="mono"><b>4.55</b> : 1</td><td><span class="pass">AA ✓ (基準 3.0)</span></td></tr>
+        <tr><td>アクセント(薄藍) / 藍紙面</td><td class="mono"><span class="dot" style="background:#85aaff"></span>#85aaff</td><td class="mono"><span class="dot" style="background:#101a2c"></span>#101a2c</td><td class="mono"><b>7.62</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>on-accent / アクセント</td><td class="mono"><span class="dot" style="background:#0a1024"></span>#0a1024</td><td class="mono"><span class="dot" style="background:#85aaff"></span>#85aaff</td><td class="mono"><b>8.26</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>朱 / 藍紙面</td><td class="mono"><span class="dot" style="background:#f0907c"></span>#f0907c</td><td class="mono"><span class="dot" style="background:#101a2c"></span>#101a2c</td><td class="mono"><b>7.45</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>琥珀 / 藍紙面</td><td class="mono"><span class="dot" style="background:#dcb267"></span>#dcb267</td><td class="mono"><span class="dot" style="background:#101a2c"></span>#101a2c</td><td class="mono"><b>8.79</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>朱 / 朱subtle</td><td class="mono"><span class="dot" style="background:#f0907c"></span>#f0907c</td><td class="mono"><span class="dot" style="background:#35201f"></span>#35201f</td><td class="mono"><b>6.52</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+        <tr><td>琥珀 / 琥珀subtle</td><td class="mono"><span class="dot" style="background:#dcb267"></span>#dcb267</td><td class="mono"><span class="dot" style="background:#2e2513"></span>#2e2513</td><td class="mono"><b>7.63</b> : 1</td><td><span class="pass">AA ✓ (基準 4.5)</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════ 6. tokens.css ═══════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="no">附録</span><h2 class="serif">tokens.css 差し替え案</h2><span class="en">Code</span>
+    </div>
+    <p class="lead">
+      <b>shared/src/styles/tokens.css</b> のコア部分の差し替え + Briefing 用の新トークン(@theme への追記込み)。コードをクリックすると全選択されるので、⌘C でコピーできます。
+    </p>
+<pre class="code">/* ── 朝刊 (light) ─────────────────────────────── */
+:root, [data-theme="light"] {
+  --color-bg-primary: #fbf4e8;      /* was #fafafa */
+  --color-bg-secondary: #f5ebda;    /* was #f1f1f3 */
+  --color-bg-subsidebar: #f8efe1;   /* was #f5f5f6 */
+  --color-surface-sunken: #efe3cd;  /* was #ececef */
+  --color-text-primary: #2b2015;    /* was #1a1a1f */
+  --color-text-secondary: #6b5a45;  /* was #5c5c66 */
+  --color-text-tertiary: #857054;   /* was #767680 */
+  --color-border: #eadec6;          /* was #e3e3e7 */
+  --color-border-strong: #d6c3a2;   /* was #cfcfd6 */
+  --color-accent: #ad4409;          /* 朝日の燈色 was #1d4ed8 */
+  --color-accent-hover: #8f3807;    /* was #1e40af */
+  --color-on-accent: #ffffff;
+  --color-accent-subtle: #fbe3c6;   /* was #dbeafe */
+  --color-hover: #f0e5d0;           /* was #e8e8ec */
+
+  /* Briefing 紙面アクセント (新設): 朱 × 琥珀 */
+  --color-briefing-shu: #ad2f1d;
+  --color-briefing-shu-subtle: #f7e0d6;
+  --color-briefing-kohaku: #8a5c06;
+  --color-briefing-kohaku-subtle: #f6e7c8;
+}
+
+/* ── 夕刊 (dark / 藍) ─────────────────────────── */
+[data-theme="dark"] {
+  --color-bg-primary: #101a2c;      /* was #16161a */
+  --color-bg-secondary: #18243c;    /* was #1e1e23 */
+  --color-bg-subsidebar: #18243c;   /* was #1e1e23 */
+  --color-surface-sunken: #0a1220;  /* was #101013 */
+  --color-text-primary: #edf1f9;    /* was #f2f2f5 */
+  --color-text-secondary: #a4b2ca;  /* was #a0a0ad */
+  --color-text-tertiary: #75839d;   /* was #74747e */
+  --color-border: #263650;          /* was #2e2e35 */
+  --color-border-strong: #3c4e70;   /* was #44444d */
+  --color-accent: #85aaff;          /* 月明かりの薄藍 was #5b8cff */
+  --color-accent-hover: #a3c0ff;    /* was #7aa2ff */
+  --color-on-accent: #0a1024;
+  --color-accent-subtle: #1e2d4b;   /* was #21273f */
+  --color-hover: #22314e;           /* was #2a2a31 */
+
+  --color-briefing-shu: #f0907c;
+  --color-briefing-shu-subtle: #35201f;
+  --color-briefing-kohaku: #dcb267;
+  --color-briefing-kohaku-subtle: #2e2513;
+}
+
+/* ── @theme への追記 (Tailwind クラス化) ────────── */
+@theme {
+  /* bg-lumen-briefing-shu / text-lumen-briefing-shu 等 */
+  --color-lumen-briefing-shu: var(--color-briefing-shu);
+  --color-lumen-briefing-shu-subtle: var(--color-briefing-shu-subtle);
+  --color-lumen-briefing-kohaku: var(--color-briefing-kohaku);
+  --color-lumen-briefing-kohaku-subtle: var(--color-briefing-kohaku-subtle);
+}</pre>
+    <p class="role-note" style="margin-top:14px;">
+      適用時のメモ: ① 未定義トークンはTailwind v4で透明落ちするため、BriefingView側でクラスを使う前に必ずこの @theme 追記を先に入れる。 ② BriefingViewの text-lumen-accent 系を text-lumen-briefing-shu 等へ置き換える改修が第2段。 ③ ダークの藍化でchip系(routine/eventなど)の背景が既存の藍系背景と近づくため、実機で一度確認を推奨。
+    </p>
+  </section>
+
+  <footer class="footnote">
+    LIFE EDITOR 配色計画 · 全ペア WCAG 2.2 AA 機械検証済 · 2026.07.16
+  </footer>
+</div>
+</body>
+</html>

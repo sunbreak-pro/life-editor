@@ -240,6 +240,10 @@ export function rowsToScheduleItem(
 
   item.isDeleted = meta.is_deleted;
   if (meta.deleted_at !== null) item.deletedAt = meta.deleted_at;
+  // #296: surface the generator's origin day so the cleanup can tell a
+  // hand-moved occurrence (date ≠ sourceDate) from a stale generated row.
+  // Absent when null — same round-trip diff contract as deletedAt.
+  if (payload.source_date !== null) item.sourceDate = payload.source_date;
   item.isDismissed = payload.is_dismissed;
   item.isAllDay = payload.is_all_day;
   // Phase 2 compat: derive the flag — events_payload has no

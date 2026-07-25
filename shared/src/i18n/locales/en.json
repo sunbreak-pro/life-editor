@@ -805,7 +805,10 @@
       "untagged": "No tag",
       "collapseGroup": "Collapse group",
       "expandGroup": "Expand group",
-      "assignTagHint": "Drop onto a tag to assign it"
+      "assignTagHint": "Drop onto a tag to assign it",
+      "sortUpdated": "Updated",
+      "sortCreated": "Created",
+      "sortTitle": "Title"
     },
     "daily": {
       "toToday": "Today",
@@ -822,7 +825,9 @@
       "datePicker": "Pick a date",
       "dateStripLabel": "Select a date",
       "entriesCount": "Entries ({{count}})",
-      "pastEntries": "Past entries"
+      "pastEntries": "Past entries",
+      "filterPlaceholder": "Filter entries…",
+      "filterLabel": "Filter entries"
     },
     "tags": {
       "tagsCount": "Tags ({{count}})",
@@ -846,6 +851,14 @@
       "memberCount": "{{count}} tags",
       "expandGroup": "Expand group",
       "collapseGroup": "Collapse group"
+    },
+    "sidebar": {
+      "sort": "Sort",
+      "toggleDirection": "Toggle sort direction",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "ascending": "Ascending",
+      "descending": "Descending"
     }
   },
   "files": {
@@ -1107,6 +1120,13 @@
     "newEvent": "New event",
     "createSlot": "Create event at this time"
   },
+  "itemActions": {
+    "changeColor": "Change color",
+    "addTag": "Add tag",
+    "pin": "Pin",
+    "move": "Move",
+    "soon": "Soon"
+  },
   "scheduleScreen": {
     "calendar": "Calendar",
     "routines": "Repeats",
@@ -1130,6 +1150,8 @@
     "originEvent": "Event",
     "originTask": "Todo",
     "skipThisDay": "Skip this day",
+    "skippedTitle": "Skipped ({{count}})",
+    "restoreSkipped": "Restore",
     "delete": "Delete",
     "selectHint": "Select an event to edit",
     "todayFlow": "Today's flow",
@@ -1168,12 +1190,29 @@
     "closeMenu": "Close menu",
     "tabDetail": "Detail",
     "detailPanelLabel": "Detail panel",
+    "editDetail": "Edit details",
+    "itemActionsLabel": "Event actions",
+    "tabTodo": "Today's Todo",
+    "todoPlacedHeading": "Scheduled",
+    "todoUnplacedHeading": "Candidates",
+    "todoEmptyPlaced": "Nothing scheduled with a time yet",
+    "todoEmptyUnplaced": "No candidates for today",
+    "todoAddHeading": "Add from tasks",
+    "todoAddAction": "Add to today",
+    "todoEmptyAddable": "No unscheduled tasks",
+    "todoOpenInTasks": "Open in Tasks",
     "rename": "Rename",
     "duplicate": "Duplicate",
     "copySuffix": " (copy)",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
-    "statusDone": "Done"
+    "statusDone": "Done",
+    "editScopeTitle": "Edit recurring event",
+    "deleteScopeTitle": "Delete recurring event",
+    "scopeThisOnly": "This event only",
+    "scopeThisAndFuture": "This and following events",
+    "scopeAll": "All events (including past)",
+    "scopeCancel": "Cancel"
   },
   "schedulePanel": {
     "existingTasks": "Existing Todos",
@@ -2178,6 +2217,13 @@
     "searchSettings": "Search settings...",
     "searchTrash": "Search trash..."
   },
+  "undoRedo": {
+    "undone": "Undid: {{label}}",
+    "redone": "Redid: {{label}}",
+    "labels": {
+      "taskTreeChange": "task change"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "ok": "OK",
@@ -2228,6 +2274,7 @@
   },
   "commandPalette": {
     "placeholder": "Type a command...",
+    "trigger": "Search or run a command",
     "noResults": "No results found",
     "goTo": "Go to"
   },
@@ -2928,6 +2975,8 @@
     "aiTitle": "A WORD ON YESTERDAY",
     "aiSource": "Claude ・ from the Briefing section",
     "noBriefing": "No briefing yet. Write a \"Briefing\" heading section in today's daily and it will appear here.",
+    "intentionTitle": "TODAY'S INTENTION",
+    "intentionPlaceholder": "What will you get done today? One line is enough…",
     "scheduleTitle": "TODAY'S PLANS",
     "noSchedule": "Nothing scheduled today",
     "routineTag": "Routine",
@@ -2949,6 +2998,7 @@
       "masthead": "LIFE EDITOR EVENING",
       "moodTitle": "TODAY'S MOOD",
       "moodStar": "Mood {{value}}/5",
+      "intentionTitle": "THIS MORNING'S INTENTION",
       "reflectionTitle": "CLOSING THE DAY",
       "placeholder": "How was your day…",
       "todosTitle": "REMAINING TODOS",

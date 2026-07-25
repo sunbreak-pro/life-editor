@@ -3,14 +3,14 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
+  useSyncContext,
   useTaskTreeContext,
-  useRightSidebarOptional,
   useTranslation,
   useMediaQuery,
-  useWeekStartPref,
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
+  TodayTodoTray,
   ScheduleToolbar,
   EventEditorPane,
   RoutineSummaryCard,
@@ -18,18 +18,32 @@ import {
   RightSidebarToggle,
   ScheduleSidebarTabs,
   ScheduleItemContextMenu,
+  RepeatScopeDialog,
+  QuickCaptureSheet,
+  EventCreateFields,
+  ItemActionPopover,
+  ItemDetailOverlay,
   SegmentedControl,
   BottomSheet,
   Modal,
-  addDaysKey,
-  addMonthsKey,
-  startOfMonthKey,
-  startOfWeekKey,
-  monthGridKeys,
+  useScheduleItemsRoutineSync,
+  buildGroupForRoutineMap,
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
+  taskChipId,
+  isTaskChip,
+  unwrapTaskChipId,
+  localDateTimeToISO,
+  pickAddableTasks,
+  buildWeekdayLabels,
+  frequencyLabel,
+  itemVariant,
+  nowMinutesLocal,
+  sortDayItems,
+  type FrequencyLabelCopy,
   type TaskCalendarChip,
+  type TodayTodoRow,
   type ScheduleStatus,
   type ScheduleItem,
   type WeekTimeGridItem,
@@ -39,17 +53,12 @@ import {
   type FrequencyEditorValue,
   type RoutineSummaryRow,
   type SegmentedOption,
+  type DataService,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
-import {
-  buildWeekdayLabels,
-  frequencyLabel,
-  itemVariant,
-  nowMinutesLocal,
-  sortDayItems,
-  todayLocalKey,
-  type FrequencyLabelCopy,
-} from "./scheduleLabels";
+import { useCalendarNav } from "./useCalendarNav";
+import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useScheduleMutations } from "./useScheduleMutations";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -68,132 +77,17 @@ import {
 
 const ICON_BTN =
   "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-const FIELD =
-  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+// Default duration (minutes) prefilled when creating from an empty-slot click.
 const CREATE_DURATION_MIN = 60;
-
-/*
- * Scheduled-task chips (schedule redesign A-1) are merged into the grid/agenda
- * as synthetic items. Their ids are prefixed so the host handlers can tell them
- * apart from ScheduleItem ids and no-op (A-1 is read-only: no select/edit/drag/
- * toggle on task chips — Steps 2/3 wire writes). The prefix also guarantees no
- * id collision with a ScheduleItem.
- */
-const TASK_CHIP_PREFIX = "taskchip-";
-const isTaskChip = (id: string): boolean => id.startsWith(TASK_CHIP_PREFIX);
-
-function makeOptimisticItem(
-  id: string,
-  date: string,
-  title: string,
-  startTime: string,
-  endTime: string,
-): ScheduleItem {
-  const now = new Date().toISOString();
-  return {
-    id,
-    date,
-    title,
-    startTime,
-    endTime,
-    completed: false,
-    completedAt: null,
-    routineId: null,
-    templateId: null,
-    memo: null,
-    noteId: null,
-    content: null,
-    isDeleted: false,
-    deletedAt: null,
-    isDismissed: false,
-    isAllDay: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-interface QuickCaptureLabels {
-  title: string;
-  placeholder: string;
-  add: string;
-  startTime: string;
-  endTime: string;
-}
-
-function QuickCaptureSheet({
-  open,
-  onClose,
-  onAdd,
-  labels,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onAdd: (title: string, start: string, end: string) => void;
-  labels: QuickCaptureLabels;
-}) {
-  const [title, setTitle] = useState("");
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("10:00");
-
-  const submit = () => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    onAdd(trimmed, start, end);
-    setTitle("");
-    onClose();
-  };
-
-  return (
-    <BottomSheet open={open} onClose={onClose} title={labels.title}>
-      <div className="flex flex-col gap-3">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
-          }}
-          placeholder={labels.placeholder}
-          aria-label={labels.title}
-          className={FIELD}
-        />
-        <div className="flex gap-2">
-          <label className="flex flex-1 flex-col gap-1 text-xs text-lumen-text-secondary">
-            {labels.startTime}
-            <input
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              aria-label={labels.startTime}
-              className={`${FIELD} tabular-nums`}
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1 text-xs text-lumen-text-secondary">
-            {labels.endTime}
-            <input
-              type="time"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              aria-label={labels.endTime}
-              className={`${FIELD} tabular-nums`}
-            />
-          </label>
-        </div>
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
-        >
-          {labels.add}
-        </button>
-      </div>
-    </BottomSheet>
-  );
-}
-
 export function CalendarTab({
+  dataService,
   onOpenRoutines,
+  onOpenTasks,
 }: {
+  dataService: DataService;
   onOpenRoutines: () => void;
+  /** Jump to the Tasks section (Today's Todo tray title click — A-3 / #298). */
+  onOpenTasks: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
@@ -206,36 +100,76 @@ export function CalendarTab({
     updateScheduleItem,
     toggleComplete,
     dismiss,
+    undismiss,
     deleteScheduleItem,
   } = useScheduleItemsContext();
   const {
     routines,
     routineGroups,
-    createRoutine,
+    convertEventToRoutine,
     updateRoutine,
+    deleteRoutine,
     setGroupsForRoutine,
     getGroupIdsForRoutine,
     detachRoutine,
+    updateFutureOccurrences,
   } = useRoutineContext();
+  // Realtime change cursor: rows written outside the visible-range store
+  // (the always-on generator, undo, another device) refetch the range when
+  // this bumps (#296 — pre-fix they stayed invisible until navigation).
+  const { syncVersion } = useSyncContext();
+  // Range materialiser (#279): after an Event→Repeats conversion, the new
+  // routine's occurrences are generated for the visible range right away —
+  // the always-on RoutineScheduleSync only covers today.
+  const { ensureRoutineItemsForDateRange } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
-  // already excludes soft-deleted tasks (useTaskTreeAPI). Read-only in A-1.
-  const { nodes: taskNodes } = useTaskTreeContext();
-  // Null-safe: the section can render without a RightSidebarProvider (tests /
-  // standalone). `open` re-opens the panel when a calendar item is picked.
-  const rightSidebar = useRightSidebarOptional();
-  const openSidebar = rightSidebar?.open;
+  // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
+  // scheduledAt back via updateNode on grid drag/resize.
+  const { nodes: taskNodes, updateNode, setTaskStatus } = useTaskTreeContext();
 
-  const today = useMemo(() => todayLocalKey(), []);
-  const [anchorDate, setAnchorDate] = useState(today);
-  const [view, setView] = useState("week");
+  // Navigation + visible fetch window (#280 → useCalendarNav).
+  const {
+    today,
+    anchorDate,
+    setView,
+    desktopView,
+    mobileView,
+    effView,
+    weekStartsOn,
+    weekStart,
+    weekEnd,
+    rangeStart,
+    rangeEnd,
+    mobileSelectedDay,
+    setMobileSelectedDay,
+    step,
+    goToday,
+  } = useCalendarNav(isWide);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Which rightSidebar tab is showing on Desktop ("今日の流れ" ↔ "詳細").
-  const [sidebarTab, setSidebarTab] = useState<"flow" | "detail">("flow");
-  const [rangeItems, setRangeItems] = useState<ScheduleItem[]>([]);
-  const [reloadKey, setReloadKey] = useState(0);
+  // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "本日の Todo" —
+  // the A-3 tray, #298). The old "詳細" tab was removed in #299 (item detail
+  // now lives in a body-level overlay, not the rightSidebar).
+  const [sidebarTab, setSidebarTab] = useState<"flow" | "todo">("flow");
+  // #299 single-click bubble popover: anchor id + viewport coords (Desktop).
+  const [popover, setPopover] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  // #299 detail-edit overlay open flag (Desktop; Mobile keeps the BottomSheet).
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  // #299 event-creation panel: the target day + prefilled start/end. null =
+  // closed. Desktop shows it in an ItemDetailOverlay-style modal; Mobile in the
+  // QuickCaptureSheet. Replaces the old eager-create + Mobile `quickOpen`.
+  const [createPanel, setCreatePanel] = useState<{
+    date: string;
+    start: string;
+    end: string;
+  } | null>(null);
   const [calendarsOpen, setCalendarsOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
-  const [mobileSelectedDay, setMobileSelectedDay] = useState(today);
   const [nowMinutes, setNowMinutes] = useState(() => nowMinutesLocal());
   // Real "now" Date, ticked alongside nowMinutes. Drives deriveScheduleStatus
   // (#222) — nowMinutes alone (minutes-from-midnight) can't compare across days.
@@ -257,224 +191,225 @@ export function CalendarTab({
     return () => clearInterval(id);
   }, []);
 
-  // Unified item selection. On Desktop it also flips the shared rightSidebar to
-  // its "詳細" tab and opens the panel if collapsed (done here, at the event, not
-  // in an effect — react-hooks/set-state-in-effect). Mobile keeps the editor in
-  // its BottomSheet, so the tab/open side-effects are wide-only.
-  const handleSelectItem = useCallback(
-    (id: string) => {
-      // A-1: task chips are read-only display — clicking one must not open the
-      // ScheduleItem editor (the id isn't a ScheduleItem). No-op here.
-      if (isTaskChip(id)) return;
-      setSelectedId(id);
-      if (isWide) {
-        setSidebarTab("detail");
-        openSidebar?.();
-      }
-    },
-    [isWide, openSidebar],
-  );
-
-  // The single `view` state carries both layouts; each layout normalises it to
-  // its own option set (Desktop day/week/month ↔ Mobile list/time/month) so a
-  // resize keeps a sensible view without a second piece of state.
-  const desktopView =
-    view === "list"
-      ? "day"
-      : view === "time"
-        ? "week"
-        : view === "day" || view === "week" || view === "month"
-          ? view
-          : "week";
-  const mobileView =
-    view === "day"
-      ? "list"
-      : view === "week"
-        ? "time"
-        : view === "list" || view === "time" || view === "month"
-          ? view
-          : "list";
-  const effView = isWide ? desktopView : mobileView;
-
-  // Week-start pref (#217): read once per mount (same reload semantics as the
-  // other lightweight prefs — a Settings change applies on section re-entry).
-  const { weekStartsOn } = useWeekStartPref();
-  const weekStart = useMemo(
-    () => startOfWeekKey(anchorDate, weekStartsOn),
-    [anchorDate, weekStartsOn],
-  );
-  const weekEnd = useMemo(() => addDaysKey(weekStart, 6), [weekStart]);
-  const monthRows = useMemo(
-    () => monthGridKeys(anchorDate, weekStartsOn),
-    [anchorDate, weekStartsOn],
-  );
-
-  // Visible fetch window per effective view (day/list/time = single day).
-  const [rangeStart, rangeEnd] = useMemo<[string, string]>(() => {
-    if (effView === "month") {
-      const first = monthRows[0][0];
-      const last = monthRows[monthRows.length - 1][6];
-      return [first, last];
-    }
-    if (isWide && effView === "week") return [weekStart, weekEnd];
-    return [anchorDate, anchorDate];
-  }, [effView, isWide, monthRows, weekStart, weekEnd, anchorDate]);
-
-  // Read the visible range (cancelled-guard mirrors useScheduleItemsAPI). Edits
-  // patch rangeItems optimistically below, so only navigation + retry reload.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const list = await loadDateRange(rangeStart, rangeEnd);
-      if (!cancelled) {
-        setRangeItems(list.filter((i) => !i.isDeleted && !i.isDismissed));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDateRange, rangeStart, rangeEnd, reloadKey]);
-
-  const patchRange = useCallback((id: string, patch: Partial<ScheduleItem>) => {
-    setRangeItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...patch } : i)),
-    );
+  // Selection = highlight only (#299). The grid ring follows selectedId; the
+  // duplicate handler re-selects the copy. Bubble / overlay opening is handled
+  // by the activate/open-detail handlers below.
+  const handleSelectItem = useCallback((id: string) => {
+    // A-1: task chips are read-only display — the id isn't a ScheduleItem.
+    if (isTaskChip(id)) return;
+    setSelectedId(id);
   }, []);
 
-  const handleUpdate = useCallback(
-    (id: string, patch: Partial<ScheduleItem>) => {
-      patchRange(id, patch);
-      updateScheduleItem(id, patch);
-    },
-    [patchRange, updateScheduleItem],
-  );
-
-  const handleToggle = useCallback(
-    (id: string) => {
-      // A-1: task chips don't own a ScheduleItem completion. Completion for
-      // scheduled tasks is wired in Step 3 (TaskTree completion API). No-op.
+  // #299 single-click: open the bubble popover next to the item (Desktop). On
+  // Mobile a single tap opens the BottomSheet editor directly (selectedId →
+  // editorPane → sheet), matching the existing lean-drawer flow.
+  const handleItemActivate = useCallback(
+    (id: string, pos: { x: number; y: number }) => {
+      // A-1: task chips stay read-only — no bubble, no editor (#297 preserved).
       if (isTaskChip(id)) return;
-      // Mirror the provider's toggle field set (completed + completedAt) on the
-      // local range copy so the grid/agenda stay consistent without a refetch.
-      setRangeItems((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                completed: !i.completed,
-                completedAt: !i.completed ? new Date().toISOString() : null,
-              }
-            : i,
-        ),
-      );
-      toggleComplete(id);
+      setSelectedId(id);
+      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
     },
-    [toggleComplete],
+    [isWide],
   );
 
-  const createAtTimes = useCallback(
-    (date: string, start: string, end: string, title: string): string => {
-      const id = createScheduleItem(date, title, start, end);
-      setRangeItems((prev) => [
-        ...prev,
-        makeOptimisticItem(id, date, title, start, end),
-      ]);
-      return id;
+  // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
+  // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
+  // drives it). Closes any open bubble.
+  const handleItemOpenDetail = useCallback(
+    (id: string) => {
+      if (isTaskChip(id)) return;
+      setSelectedId(id);
+      setPopover(null);
+      if (isWide) setOverlayOpen(true);
     },
-    [createScheduleItem],
+    [isWide],
   );
 
-  const handleCreateAt = useCallback(
-    (dateISO: string, minutes: number) => {
-      const start = minutesToTime(minutes);
-      const end = minutesToTime(minutes + CREATE_DURATION_MIN);
-      const id = createAtTimes(
+  // #299 open the creation panel prefilled for a target day + time window.
+  const openCreatePanel = useCallback(
+    (date: string, start: string, end: string) => {
+      setPopover(null);
+      setCreatePanel({ date, start, end });
+    },
+    [],
+  );
+  // Toolbar "Add event" / Mobile FAB → default 09:00–10:00 on the anchor day.
+  const handleToolbarAdd = useCallback(
+    () => openCreatePanel(anchorDate, "09:00", "10:00"),
+    [openCreatePanel, anchorDate],
+  );
+  // Empty-slot click (week/day grid) → prefill from the clicked slot time.
+  const handleGridCreateAt = useCallback(
+    (dateISO: string, minutes: number) =>
+      openCreatePanel(
         dateISO,
-        start,
-        end,
-        t("scheduleCalendar.newEvent"),
-      );
-      handleSelectItem(id);
-    },
-    [createAtTimes, handleSelectItem, t],
+        minutesToTime(minutes),
+        minutesToTime(minutes + CREATE_DURATION_MIN),
+      ),
+    [openCreatePanel],
+  );
+  // Month-cell day click (Desktop) → default 09:00–10:00 on that day.
+  const handleMonthCreate = useCallback(
+    (day: string) => openCreatePanel(day, "09:00", "10:00"),
+    [openCreatePanel],
   );
 
-  const handleAddEvent = useCallback(() => {
-    const id = createAtTimes(
-      anchorDate,
-      "09:00",
-      "10:00",
-      t("scheduleCalendar.newEvent"),
+  // A-2 (#297): grid drag of a task chip → write scheduledAt/scheduledEndAt on
+  // the underlying TaskNode. The grid hands both new times on the same day
+  // (it moves the block preserving duration), so both fields are rewritten.
+  // isAllDay:false — a timed grid placement is by definition not all-day
+  // (an all-day chip sits in the all-day lane and is not drag-moved here).
+  // updateNode is optimistic, so the chip re-derives at the new position
+  // without a manual patch. Schedule AC10 (bidirectional) closes here.
+  const handleTaskChipMove = useCallback(
+    (chipId: string, dateISO: string, startISO: string, endISO: string) => {
+      const taskId = unwrapTaskChipId(chipId);
+      updateNode(taskId, {
+        scheduledAt: localDateTimeToISO(dateISO, startISO),
+        scheduledEndAt: localDateTimeToISO(dateISO, endISO),
+        isAllDay: false,
+      });
+    },
+    [updateNode],
+  );
+
+  // A-2 (#297): resize gives only the new end time — keep the task's current
+  // day (from its scheduledAt) and rewrite scheduledEndAt on it.
+  const handleTaskChipResize = useCallback(
+    (chipId: string, endISO: string) => {
+      const taskId = unwrapTaskChipId(chipId);
+      const task = taskNodes.find((n) => n.id === taskId);
+      if (!task?.scheduledAt) return;
+      const start = new Date(task.scheduledAt);
+      if (Number.isNaN(start.getTime())) return;
+      const dateKey = `${start.getFullYear()}-${String(
+        start.getMonth() + 1,
+      ).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+      updateNode(taskId, {
+        scheduledEndAt: localDateTimeToISO(dateKey, endISO),
+      });
+    },
+    [taskNodes, updateNode],
+  );
+
+  // A-3 (#298) Today's Todo tray. Completion routes to the TaskTree status API
+  // (the tray owns no completion state of its own); a plain binary toggle, not
+  // the 3-state cycle (NOT_STARTED ↔ DONE).
+  const handleTodoToggleComplete = useCallback(
+    (taskId: string) => {
+      const task = taskNodes.find((n) => n.id === taskId);
+      setTaskStatus(taskId, task?.status === "DONE" ? "NOT_STARTED" : "DONE");
+    },
+    [taskNodes, setTaskStatus],
+  );
+
+  // "Add to today" (案 c staging): give the task scheduledAt = today midnight +
+  // all-day (time undefined). It then surfaces in the tray's unplaced group and
+  // as an all-day chip on the grid; dragging it into the time body (place)
+  // promotes it to placed. DDL zero — reuses the existing scheduledAt columns.
+  const handleTodoAddCandidate = useCallback(
+    (taskId: string) => {
+      updateNode(taskId, {
+        scheduledAt: localDateTimeToISO(today, "00:00"),
+        isAllDay: true,
+      });
+    },
+    [today, updateNode],
+  );
+
+  // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
+  // rangeItems optimistically; navigation, reload(), retry and Realtime
+  // (syncVersion) refetch.
+  const { rangeItems, setRangeItems, patchRange, reload, rangeError } =
+    useVisibleRangeItems({
+      loadDateRange,
+      rangeStart,
+      rangeEnd,
+      refreshKey: syncVersion,
+    });
+
+  // `group`-frequency lookup for the range materialiser (#296): built with
+  // the same shared helper RoutineScheduleSync uses, so the ensure cleanup
+  // never mistakes group-driven rows for stale ones.
+  const groupForRoutine = useMemo(
+    () =>
+      buildGroupForRoutineMap(routines, routineGroups, getGroupIdsForRoutine),
+    [routines, routineGroups, getGroupIdsForRoutine],
+  );
+
+  // The selected ScheduleItem — resolved before the mutation layer, which
+  // acts on the selection (repeat conversion / detach / scope dialog).
+  const selected = useMemo(() => {
+    if (!selectedId) return null;
+    return (
+      rangeItems.find((i) => i.id === selectedId) ??
+      contextItems.find((i) => i.id === selectedId) ??
+      null
     );
-    // The detail editor now lives in the rightSidebar (not the main grid), so
-    // the month layout can edit a new event in place — no jump to day view
-    // (#224). handleSelectItem opens the detail panel on Desktop.
-    handleSelectItem(id);
-  }, [createAtTimes, handleSelectItem, anchorDate, t]);
+  }, [selectedId, rangeItems, contextItems]);
 
-  // Month-cell day tap → create a default-time event on that day and open its
-  // detail panel in place, instead of switching to the day view (#224).
-  const handleCreateOnDay = useCallback(
-    (day: string) => {
-      setAnchorDate(day);
-      const id = createAtTimes(
-        day,
-        "09:00",
-        "10:00",
-        t("scheduleCalendar.newEvent"),
-      );
-      handleSelectItem(id);
-    },
-    [createAtTimes, handleSelectItem, t],
-  );
+  // Mutation layer (#280 → useScheduleMutations): every write path plus the
+  // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
+  const {
+    scopeRequest,
+    closeScopeRequest,
+    handleScopeChoose,
+    handleUpdate,
+    handleToggle,
+    handleCreate,
+    handleMoveItem,
+    handleResizeItem,
+    handleDismiss,
+    handleDelete,
+    handleRename,
+    handleDuplicate,
+    handleChangeRepeat,
+    handleDetachRepeat,
+  } = useScheduleMutations({
+    rangeItems,
+    setRangeItems,
+    patchRange,
+    reload,
+    contextItems,
+    rangeStart,
+    rangeEnd,
+    today,
+    selected,
+    setSelectedId,
+    onSelectItem: handleSelectItem,
+    createScheduleItem,
+    updateScheduleItem,
+    toggleComplete,
+    dismiss,
+    deleteScheduleItem,
+    routines,
+    convertEventToRoutine,
+    updateRoutine,
+    deleteRoutine,
+    setGroupsForRoutine,
+    detachRoutine,
+    updateFutureOccurrences,
+    ensureRoutineItemsForDateRange,
+    groupForRoutine,
+    onMoveTaskChip: handleTaskChipMove,
+    onResizeTaskChip: handleTaskChipResize,
+    copySuffix: t("scheduleScreen.copySuffix"),
+  });
 
-  const handleQuickAdd = useCallback(
+  // #299 create-panel submit: the panel carries the target day; the fields hand
+  // over the trimmed title + times. Reuses the mutation layer's single create.
+  const handleCreateSubmit = useCallback(
     (title: string, start: string, end: string) => {
-      createAtTimes(anchorDate, start, end, title);
+      if (!createPanel) return;
+      handleCreate(createPanel.date, title, start, end);
+      setCreatePanel(null);
     },
-    [createAtTimes, anchorDate],
+    [createPanel, handleCreate],
   );
 
-  const handleMoveItem = useCallback(
-    (id: string, dateISO: string, startISO: string, endISO: string) => {
-      // A-1: task chips are read-only (WeekTimeGrid also omits their drag
-      // affordances). Step 2 wires drag → updateTaskNode(scheduledAt). No-op.
-      if (isTaskChip(id)) return;
-      const patch = { date: dateISO, startTime: startISO, endTime: endISO };
-      patchRange(id, patch);
-      updateScheduleItem(id, patch);
-    },
-    [patchRange, updateScheduleItem],
-  );
-
-  const handleResizeItem = useCallback(
-    (id: string, endISO: string) => {
-      if (isTaskChip(id)) return; // A-1: task chips read-only (see handleMoveItem)
-      patchRange(id, { endTime: endISO });
-      updateScheduleItem(id, { endTime: endISO });
-    },
-    [patchRange, updateScheduleItem],
-  );
-
-  const handleDismiss = useCallback(
-    (id: string) => {
-      dismiss(id);
-      setRangeItems((prev) => prev.filter((i) => i.id !== id));
-      setSelectedId((cur) => (cur === id ? null : cur));
-    },
-    [dismiss],
-  );
-
-  const handleDelete = useCallback(
-    (id: string) => {
-      deleteScheduleItem(id);
-      setRangeItems((prev) => prev.filter((i) => i.id !== id));
-      setSelectedId((cur) => (cur === id ? null : cur));
-    },
-    [deleteScheduleItem],
-  );
-
-  // ── Context menu (rename / duplicate / delete) ─────────────────────────────
+  // ── Context menu (rename / duplicate / delete: handlers in the mutation
+  // layer; only the menu position state lives here) ──────────────────────────
 
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
@@ -482,59 +417,6 @@ export function CalendarTab({
       setContextMenu({ id, x: pos.x, y: pos.y });
     },
     [],
-  );
-
-  const handleRename = useCallback(
-    (id: string, title: string) => {
-      handleUpdate(id, { title });
-    },
-    [handleUpdate],
-  );
-
-  const handleDuplicate = useCallback(
-    (id: string) => {
-      const src =
-        rangeItems.find((i) => i.id === id) ??
-        contextItems.find((i) => i.id === id);
-      if (!src) return;
-      const title = `${src.title}${t("scheduleScreen.copySuffix")}`;
-      // createScheduleItem folds date/title/times + isAllDay/content/noteId/
-      // memo into a single INSERT (#223 → QA fix): memo used to be patched with
-      // a follow-up updateScheduleItem, but that UPDATE could race ahead of the
-      // create's INSERT (unordered Promises) and miss the row. Carrying memo in
-      // the create arg makes the memo write atomic AND keeps duplicate on one
-      // undo entry (the create's own undo), so Ctrl+Z removes the copy once.
-      const newId = createScheduleItem(
-        src.date,
-        title,
-        src.startTime,
-        src.endTime,
-        {
-          isAllDay: src.isAllDay,
-          content: src.content ?? undefined,
-          noteId: src.noteId ?? undefined,
-          memo: src.memo ?? undefined,
-        },
-      );
-      setRangeItems((prev) => [
-        ...prev,
-        {
-          ...makeOptimisticItem(
-            newId,
-            src.date,
-            title,
-            src.startTime,
-            src.endTime,
-          ),
-          isAllDay: src.isAllDay ?? false,
-          content: src.content ?? null,
-          noteId: src.noteId ?? null,
-          memo: src.memo ?? null,
-        },
-      ]);
-      handleSelectItem(newId);
-    },
-    [rangeItems, contextItems, createScheduleItem, handleSelectItem, t],
   );
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -623,27 +505,6 @@ export function CalendarTab({
     [fullDayFmt],
   );
 
-  const step = useCallback(
-    (dir: number) => {
-      const next =
-        effView === "month"
-          ? addMonthsKey(anchorDate, dir)
-          : isWide && effView === "week"
-            ? addDaysKey(anchorDate, dir * 7)
-            : addDaysKey(anchorDate, dir);
-      setAnchorDate(next);
-      // Month nav: keep the Mobile month-agenda day inside the shown month —
-      // a stale day from the previous month sits outside the fetched range and
-      // renders an always-empty agenda until the user taps a cell.
-      if (effView === "month") setMobileSelectedDay(startOfMonthKey(next));
-    },
-    [effView, isWide, anchorDate],
-  );
-  const goToday = useCallback(() => {
-    setAnchorDate(today);
-    setMobileSelectedDay(today);
-  }, [today]);
-
   const desktopViewOptions: SegmentedOption[] = [
     { id: "day", label: t("scheduleScreen.viewDay") },
     { id: "week", label: t("scheduleScreen.viewWeek") },
@@ -681,6 +542,30 @@ export function CalendarTab({
     [scheduledTasks, today],
   );
 
+  // A-3 (#298) Today's Todo tray groups. Reuse today's chips: a time = placed,
+  // all-day = an unplaced candidate (案 c staging). "Add from tasks" offers the
+  // incomplete, unscheduled leaves (pickAddableTasks).
+  const todoPlaced = useMemo<TodayTodoRow[]>(
+    () =>
+      todayTaskChips
+        .filter((c) => !c.isAllDay)
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          timeLabel: c.startTime,
+          completed: c.completed,
+        })),
+    [todayTaskChips],
+  );
+  const todoUnplaced = useMemo<TodayTodoRow[]>(
+    () =>
+      todayTaskChips
+        .filter((c) => c.isAllDay)
+        .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
+    [todayTaskChips],
+  );
+  const todoAddable = useMemo(() => pickAddableTasks(taskNodes), [taskNodes]);
+
   const gridItems = useMemo<WeekTimeGridItem[]>(
     () => [
       ...rangeItems.map((i) => ({
@@ -695,7 +580,7 @@ export function CalendarTab({
         variant: itemVariant(i),
       })),
       ...rangeTaskChips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         date: c.date,
         title: c.title,
         startTime: c.startTime,
@@ -718,7 +603,7 @@ export function CalendarTab({
         isAllDay: i.isAllDay,
       })),
       ...rangeTaskChips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         date: c.date,
         title: c.title,
         variant: "task" as const,
@@ -745,7 +630,7 @@ export function CalendarTab({
         variant: itemVariant(i),
       }));
       const taskAgenda: AgendaItem[] = chips.map((c) => ({
-        id: TASK_CHIP_PREFIX + c.id,
+        id: taskChipId(c.id),
         title: c.title,
         startTime: c.startTime,
         endTime: c.endTime,
@@ -762,6 +647,22 @@ export function CalendarTab({
     () => contextItems.filter((i) => !i.isDeleted && !i.isDismissed),
     [contextItems],
   );
+  // "この予定のみ削除" dismisses the row; pre-#296 nothing surfaced it again
+  // (not in Trash, no undismiss UI — effectively unrecoverable). The flow
+  // tab lists today's skipped items with a restore action.
+  const skippedToday = useMemo(
+    () => contextItems.filter((i) => !i.isDeleted && i.isDismissed),
+    [contextItems],
+  );
+  const handleRestoreSkipped = useCallback(
+    (id: string) => {
+      undismiss(id);
+      // Fast path; if the refetch races ahead of the undismiss write, the
+      // syncVersion-driven refetch reconciles once the write lands.
+      reload();
+    },
+    [undismiss, reload],
+  );
   const todayAgenda = useMemo(
     () => toAgenda(todayItems, todayTaskChips),
     [todayItems, todayTaskChips, toAgenda],
@@ -777,15 +678,6 @@ export function CalendarTab({
     () => rangeItems.filter((i) => i.date === mobileSelectedDay),
     [rangeItems, mobileSelectedDay],
   );
-
-  const selected = useMemo(() => {
-    if (!selectedId) return null;
-    return (
-      rangeItems.find((i) => i.id === selectedId) ??
-      contextItems.find((i) => i.id === selectedId) ??
-      null
-    );
-  }, [selectedId, rangeItems, contextItems]);
 
   const editorItem: EventEditorItem | null = selected
     ? {
@@ -846,73 +738,6 @@ export function CalendarTab({
     }),
     [t],
   );
-
-  // Frequency change from the editor. For a routine occurrence this is a
-  // series edit (patch the source routine). For a manual event, choosing a
-  // frequency spins up a routine seeded from the event, then drops the
-  // standalone seed — the generator materialises occurrences going forward.
-  const handleChangeRepeat = useCallback(
-    (patch: Partial<FrequencyEditorValue>) => {
-      if (!selected) return;
-      if (selected.routineId != null) {
-        const { groupIds, ...rest } = patch;
-        if (groupIds !== undefined)
-          setGroupsForRoutine(selected.routineId, groupIds);
-        if (Object.keys(rest).length > 0) {
-          updateRoutine(selected.routineId, rest);
-        }
-        return;
-      }
-      // Manual → turn a repeat on. group is not offered here (allowGroup=false),
-      // so only a concrete daily/weekdays/interval type reaches this branch.
-      const type = patch.frequencyType;
-      if (!type || type === "group") return;
-      const [yy, mm, dd] = selected.date.split("-").map(Number);
-      const seedWeekday = new Date(yy, mm - 1, dd).getDay();
-      createRoutine(
-        selected.title,
-        selected.startTime,
-        selected.endTime,
-        type,
-        type === "weekdays" ? [seedWeekday] : [],
-        type === "interval" ? 1 : null,
-        type === "interval" ? selected.date : null,
-      );
-      handleDelete(selected.id);
-    },
-    [selected, setGroupsForRoutine, updateRoutine, createRoutine, handleDelete],
-  );
-
-  // "なし" selected → turn the repeat off (detach the series from today on).
-  const handleDetachRepeat = useCallback(() => {
-    if (!selected || selected.routineId == null) return; // manual = no-op
-    const routineId = selected.routineId;
-    const occurrenceId = selected.id;
-    setSelectedId((cur) => (cur === occurrenceId ? null : cur));
-    void (async () => {
-      try {
-        // Reconcile off the SERVER's own delete set (the returned ids) rather
-        // than a client-side date predicate — the two must not drift (the
-        // service's "today" honours the day-start-hour pref; a local
-        // todayLocalKey memo would disagree in the late-night window).
-        const { deletedScheduleItemIds } = await detachRoutine(routineId);
-        const removed = new Set(deletedScheduleItemIds);
-        setRangeItems((prev) =>
-          prev
-            .filter((i) => !removed.has(i.id))
-            // Survivors keep their row but lose the routine origin (the band
-            // goes away) — mirrors the server NULLing routine_item_id.
-            .map((i) =>
-              i.routineId === routineId ? { ...i, routineId: null } : i,
-            ),
-        );
-      } catch {
-        // Detach did not land server-side: force a full range reload so the
-        // view returns to the DB truth (nothing navigated to trigger it).
-        setReloadKey((k) => k + 1);
-      }
-    })();
-  }, [selected, detachRoutine]);
 
   const summaryRows = useMemo<RoutineSummaryRow[]>(
     () =>
@@ -992,7 +817,7 @@ export function CalendarTab({
       </p>
       <button
         type="button"
-        onClick={() => setReloadKey((k) => k + 1)}
+        onClick={reload}
         className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-[13px] font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
         {t("scheduleScreen.retry")}
@@ -1000,15 +825,35 @@ export function CalendarTab({
     </div>
   );
   const showLoading = isLoading && rangeItems.length === 0;
-  const showError = !!error;
+  // Full-screen error only when there is nothing to show; a range-fetch
+  // failure with stale items on screen degrades to the retry banner below
+  // (#296 — blanking a populated calendar over a transient error reads as
+  // "my items vanished").
+  const showError = !!error || (rangeError && rangeItems.length === 0);
+  const rangeErrorBanner =
+    rangeError && rangeItems.length > 0 ? (
+      <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2">
+        <p className="text-xs text-lumen-text-secondary">
+          {t("scheduleScreen.loadError")}
+        </p>
+        <button
+          type="button"
+          onClick={reload}
+          className="rounded-lumen-md border border-lumen-border-strong px-2.5 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          {t("scheduleScreen.retry")}
+        </button>
+      </div>
+    ) : null;
 
   // Shared rightSidebar (AppShell owns the frame). Desktop shows a 2-tab
-  // switcher ("今日の流れ" ↔ "詳細") inside ONE portal so contentCount stays 1;
-  // Mobile shows only the flow (its item editor lives in the BottomSheet below).
+  // switcher ("今日の流れ" ↔ "本日の Todo") inside ONE portal so contentCount
+  // stays 1 (#299 removed the old "詳細" tab — item detail now lives in a
+  // body-level overlay); Mobile shows only the flow.
   const sidebarTabs = useMemo(
     () => [
       { id: "flow", label: t("scheduleScreen.todayFlow") },
-      { id: "detail", label: t("scheduleScreen.tabDetail") },
+      { id: "todo", label: t("scheduleScreen.tabTodo") },
     ],
     [t],
   );
@@ -1035,10 +880,40 @@ export function CalendarTab({
         items={todayAgenda}
         nowMinutes={nowMinutes}
         onToggleComplete={handleToggle}
-        onSelectItem={handleSelectItem}
+        onItemActivate={handleItemActivate}
+        onItemDoubleClick={handleItemOpenDetail}
         selectedId={selectedId}
         labels={agendaLabels}
       />
+      {/* Restore surface for skipped (dismissed) items — #296. */}
+      {skippedToday.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2">
+          <h4 className="text-xs font-semibold text-lumen-text-secondary">
+            {t("scheduleScreen.skippedTitle", {
+              count: skippedToday.length,
+            })}
+          </h4>
+          <ul className="flex flex-col gap-1">
+            {skippedToday.map((i) => (
+              <li
+                key={i.id}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="min-w-0 flex-1 truncate text-xs text-lumen-text-secondary line-through">
+                  {i.isAllDay ? i.title : `${i.startTime} ${i.title}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRestoreSkipped(i.id)}
+                  className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+                >
+                  {t("scheduleScreen.restoreSkipped")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Routine-completion summary rides the flow tab (Desktop only — Mobile
           keeps its lean drawer). It used to live in the main-area <aside>,
           which this change removed. */}
@@ -1062,14 +937,28 @@ export function CalendarTab({
     </div>
   );
 
-  const detailBody = (
-    <div className="flex flex-col gap-3">
-      {editorPane ?? (
-        <p className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-6 text-center text-sm text-lumen-text-secondary">
-          {t("scheduleScreen.selectHint")}
-        </p>
-      )}
-    </div>
+  // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
+  // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
+  const todoBody = (
+    <TodayTodoTray
+      placed={todoPlaced}
+      unplaced={todoUnplaced}
+      addable={todoAddable}
+      onToggleComplete={handleTodoToggleComplete}
+      onAddCandidate={handleTodoAddCandidate}
+      onOpenTask={() => onOpenTasks()}
+      labels={{
+        placedHeading: t("scheduleScreen.todoPlacedHeading"),
+        unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
+        emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
+        emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
+        addHeading: t("scheduleScreen.todoAddHeading"),
+        addAction: t("scheduleScreen.todoAddAction"),
+        emptyAddable: t("scheduleScreen.todoEmptyAddable"),
+        complete: t("scheduleScreen.complete"),
+        openInTasks: t("scheduleScreen.todoOpenInTasks"),
+      }}
+    />
   );
 
   const sidebarPortal = (
@@ -1078,10 +967,10 @@ export function CalendarTab({
         <ScheduleSidebarTabs
           tabs={sidebarTabs}
           value={sidebarTab}
-          onChange={(id) => setSidebarTab(id as "flow" | "detail")}
+          onChange={(id) => setSidebarTab(id as "flow" | "todo")}
           label={t("scheduleScreen.detailPanelLabel")}
         >
-          {sidebarTab === "flow" ? flowBody : detailBody}
+          {sidebarTab === "flow" ? flowBody : todoBody}
         </ScheduleSidebarTabs>
       ) : (
         flowBody
@@ -1114,6 +1003,11 @@ export function CalendarTab({
           rename: t("scheduleScreen.rename"),
           duplicate: t("scheduleScreen.duplicate"),
           delete: t("scheduleScreen.delete"),
+          changeColor: t("itemActions.changeColor"),
+          addTag: t("itemActions.addTag"),
+          pin: t("itemActions.pin"),
+          move: t("itemActions.move"),
+          soon: t("itemActions.soon"),
         }}
         onRename={(title) => handleRename(contextMenu.id, title)}
         onDuplicate={() => handleDuplicate(contextMenu.id)}
@@ -1121,6 +1015,105 @@ export function CalendarTab({
         onClose={() => setContextMenu(null)}
       />
     ) : null;
+
+  // #279: this/future/all chooser — centered on every layout per the issue.
+  const scopeDialogEl = (
+    <RepeatScopeDialog
+      open={!!scopeRequest}
+      mode={scopeRequest?.mode ?? "edit"}
+      labels={{
+        title:
+          scopeRequest?.mode === "delete"
+            ? t("scheduleScreen.deleteScopeTitle")
+            : t("scheduleScreen.editScopeTitle"),
+        thisOnly: t("scheduleScreen.scopeThisOnly"),
+        thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
+        all: t("scheduleScreen.scopeAll"),
+        cancel: t("scheduleScreen.scopeCancel"),
+      }}
+      onChoose={handleScopeChoose}
+      onClose={closeScopeRequest}
+    />
+  );
+
+  // #299 single-click bubble (Desktop): summary + quick actions + "詳細を編集".
+  // `selected` is the popover's item (activate sets selectedId + popover to the
+  // same id); guard against a transient mismatch. Portalled to body → does not
+  // touch the rightSidebar contentCount invariant.
+  const popoverEl =
+    isWide && popover && selected && selected.id === popover.id ? (
+      <ItemActionPopover
+        position={{ x: popover.x, y: popover.y }}
+        summary={
+          <div className="flex flex-col gap-0.5">
+            <p className="truncate font-semibold text-lumen-text">
+              {selected.title || t("scheduleCalendar.newEvent")}
+            </p>
+            <p className="text-lumen-text-secondary">
+              {selected.isAllDay
+                ? t("scheduleScreen.allDay")
+                : `${selected.startTime}–${selected.endTime}`}
+            </p>
+          </div>
+        }
+        actions={[
+          {
+            id: "duplicate",
+            label: t("scheduleScreen.duplicate"),
+            onSelect: () => handleDuplicate(popover.id),
+          },
+          {
+            id: "delete",
+            label: t("scheduleScreen.delete"),
+            danger: true,
+            onSelect: () => handleDelete(popover.id),
+          },
+        ]}
+        onEditDetail={() => handleItemOpenDetail(popover.id)}
+        editDetailLabel={t("scheduleScreen.editDetail")}
+        label={t("scheduleScreen.itemActionsLabel")}
+        onClose={() => setPopover(null)}
+      />
+    ) : null;
+
+  // #299 detail-edit overlay (Desktop): the former rightSidebar "詳細" tab body
+  // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
+  const detailOverlayEl = (
+    <ItemDetailOverlay
+      open={isWide && overlayOpen && !!editorPane}
+      title={t("scheduleScreen.detailTitle")}
+      onClose={() => setOverlayOpen(false)}
+    >
+      {editorPane}
+    </ItemDetailOverlay>
+  );
+
+  // #299 event-creation overlay (Desktop): the shared create fields in an
+  // ItemDetailOverlay-style modal. Keyed on the prefill so a new empty-slot
+  // click while open re-seeds the fields.
+  const createOverlayEl = (
+    <ItemDetailOverlay
+      open={isWide && !!createPanel}
+      title={t("scheduleScreen.addEvent")}
+      onClose={() => setCreatePanel(null)}
+    >
+      {createPanel && (
+        <EventCreateFields
+          key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
+          initialStart={createPanel.start}
+          initialEnd={createPanel.end}
+          onSubmit={handleCreateSubmit}
+          labels={{
+            title: t("scheduleScreen.title"),
+            placeholder: t("scheduleScreen.quickAddPlaceholder"),
+            add: t("scheduleScreen.addEvent"),
+            startTime: t("scheduleScreen.startTime"),
+            endTime: t("scheduleScreen.endTime"),
+          }}
+        />
+      )}
+    </ItemDetailOverlay>
+  );
 
   // ── Desktop ────────────────────────────────────────────────────────────────
   if (isWide) {
@@ -1138,10 +1131,11 @@ export function CalendarTab({
             viewOptions={desktopViewOptions}
             onChangeView={setView}
             onOpenSettings={() => setCalendarsOpen(true)}
-            onAddEvent={handleAddEvent}
+            onAddEvent={handleToolbarAdd}
             addEventLabel={t("scheduleScreen.addEvent")}
             labels={toolbarLabels}
           />
+          {rangeErrorBanner}
           {showLoading ? (
             loadingCard
           ) : showError ? (
@@ -1154,8 +1148,9 @@ export function CalendarTab({
                 todayKey={today}
                 weekStartsOn={weekStartsOn}
                 weekdayLabels={weekdayLabels}
-                onSelectDay={handleCreateOnDay}
-                onSelectItem={handleSelectItem}
+                onSelectDay={handleMonthCreate}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 onItemContextMenu={handleItemContextMenu}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
@@ -1166,7 +1161,7 @@ export function CalendarTab({
               />
             </div>
           ) : (
-            // Item detail moved into the rightSidebar "詳細" tab, so the grid
+            // Item detail moved into a body-level overlay (#299), so the grid
             // takes the full width the editor <aside> used to share.
             <div className="min-h-0 flex-1">
               <WeekTimeGrid
@@ -1174,11 +1169,13 @@ export function CalendarTab({
                 days={desktopView === "day" ? 1 : 7}
                 items={gridItems}
                 selectedId={selectedId}
-                onSelectItem={handleSelectItem}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 onItemContextMenu={handleItemContextMenu}
-                onCreateAt={handleCreateAt}
+                onCreateAt={handleGridCreateAt}
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
+                taskInteractive
                 weekdayLabels={weekdayLabels}
                 allDayLabel={t("scheduleScreen.allDay")}
                 statusLabels={statusLabels}
@@ -1193,6 +1190,10 @@ export function CalendarTab({
         </div>
         {calendarsModal}
         {contextMenuEl}
+        {popoverEl}
+        {detailOverlayEl}
+        {createOverlayEl}
+        {scopeDialogEl}
       </>
     );
   }
@@ -1244,6 +1245,7 @@ export function CalendarTab({
           onChange={setView}
           label={t("scheduleScreen.viewLabel")}
         />
+        {rangeErrorBanner}
         <div className="min-h-0 flex-1 overflow-y-auto pb-24">
           {showLoading ? (
             loadingCard
@@ -1257,7 +1259,8 @@ export function CalendarTab({
               )}
               nowMinutes={anchorDate === today ? nowMinutes : null}
               onToggleComplete={handleToggle}
-              onSelectItem={handleSelectItem}
+              onItemActivate={handleItemActivate}
+              onItemDoubleClick={handleItemOpenDetail}
               selectedId={selectedId}
               labels={agendaLabels}
               className="rounded-md border border-lumen-border bg-lumen-bg px-2"
@@ -1268,10 +1271,12 @@ export function CalendarTab({
               days={1}
               items={gridItems}
               selectedId={selectedId}
-              onSelectItem={handleSelectItem}
-              onCreateAt={handleCreateAt}
+              onItemActivate={handleItemActivate}
+              onItemDoubleClick={handleItemOpenDetail}
+              onCreateAt={handleGridCreateAt}
               onMoveItem={handleMoveItem}
               onResizeItem={handleResizeItem}
+              taskInteractive
               weekdayLabels={weekdayLabels}
               allDayLabel={t("scheduleScreen.allDay")}
               statusLabels={statusLabels}
@@ -1290,7 +1295,8 @@ export function CalendarTab({
                 weekdayLabels={weekdayLabels}
                 compact
                 onSelectDay={(day) => setMobileSelectedDay(day)}
-                onSelectItem={(id) => handleSelectItem(id)}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
                 }
@@ -1304,7 +1310,8 @@ export function CalendarTab({
                 )}
                 nowMinutes={mobileSelectedDay === today ? nowMinutes : null}
                 onToggleComplete={handleToggle}
-                onSelectItem={handleSelectItem}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 selectedId={selectedId}
                 labels={agendaLabels}
                 className="rounded-md border border-lumen-border bg-lumen-bg px-2"
@@ -1314,20 +1321,24 @@ export function CalendarTab({
         </div>
       </div>
 
-      {/* FAB → Quick capture (safe-area aware). */}
+      {/* FAB → creation panel (safe-area aware). */}
       <button
         type="button"
-        onClick={() => setQuickOpen(true)}
+        onClick={handleToolbarAdd}
         aria-label={t("scheduleScreen.addEvent")}
         className="fixed bottom-6 right-6 z-30 mb-[env(safe-area-inset-bottom)] flex size-14 items-center justify-center rounded-full bg-lumen-accent text-lumen-on-accent shadow-lumen-lg transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
       >
         <Plus aria-hidden className="size-6" />
       </button>
 
+      {/* Mobile creation panel (#299): the FAB opens with defaults, an
+          empty-slot tap opens with the tapped slot's time prefilled. */}
       <QuickCaptureSheet
-        open={quickOpen}
-        onClose={() => setQuickOpen(false)}
-        onAdd={handleQuickAdd}
+        open={!!createPanel}
+        onClose={() => setCreatePanel(null)}
+        onAdd={handleCreateSubmit}
+        initialStart={createPanel?.start}
+        initialEnd={createPanel?.end}
         labels={{
           title: t("scheduleScreen.quickAddTitle"),
           placeholder: t("scheduleScreen.quickAddPlaceholder"),
@@ -1344,6 +1355,8 @@ export function CalendarTab({
       >
         {editorPane}
       </BottomSheet>
+
+      {scopeDialogEl}
     </>
   );
 }

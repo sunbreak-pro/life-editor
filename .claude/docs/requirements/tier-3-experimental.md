@@ -60,7 +60,7 @@
 - 実利用状況（作者）: 未確認（Phase C でヒアリング）
 - 関連: **ADR-0005 Phase 4（自己最適化）**で `reflect_on_day` / `analyze_patterns` が生成する分析データの可視化パネルとして再利用想定
 - Verdict 根拠: 基盤は完成しており、Claude 駆動分析（ADR-0005 Phase 2）の出力を表示する UI として活用する方針。単独ではなく Cognitive Architecture と統合する形で残す
-- 2026-07-16 ユーザー決定（briefing-loop 摩擦除去の話し合い）: **破棄しない**。現行の shared/web 版ダッシュボード（`shared/src/components/Analytics/` + `web/src/analytics/` — 上記 Owner 欄の frontend/ 表記は旧 Tauri 時代の記述）のデザインを維持し、配線・開発を凍結。完成間近に更新を再開する（記録 = `docs/vision/plans/2026-07-16-loop-friction-fixes.md` 決定 6）
+- 2026-07-16 ユーザー決定（briefing-loop 摩擦除去の話し合い）: **破棄しない**。現行の shared/web 版ダッシュボード（`shared/src/components/Analytics/` + `web/src/analytics/` — 上記 Owner 欄の frontend/ 表記は旧 Tauri 時代の記述）のデザインを維持し、配線・開発を凍結。完成間近に更新を再開する（記録 = `archive/2026-07-16-loop-friction-fixes.md` 決定 6）
 
 ### Dependencies
 

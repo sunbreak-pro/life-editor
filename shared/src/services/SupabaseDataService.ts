@@ -50,6 +50,10 @@ import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { generateId } from "../utils/generateId";
 import { todayDateKey } from "../utils/dateKey";
 import {
+  DEFAULT_ROUTINE_START_TIME,
+  DEFAULT_ROUTINE_END_TIME,
+} from "../utils/routineScheduleSync";
+import {
   NOTE_LINK_SELECT_COLUMNS,
   rowToNoteLink,
   type NoteLinkRow,
@@ -841,6 +845,84 @@ export class SupabaseRoutinesService {
   }
 
   /**
+   * Event→Repeats conversion (#185 / #296). Sequenced writes:
+   *   1. createRoutine — AWAITED, so the attach below can never lose the
+   *      0011 composite-FK race (the old UI flow fired the routine INSERT
+   *      and the occurrence writes as unordered promises).
+   *   2. Bump the seed's items_meta.updated_at FIRST (DB-Q2 — payload rows
+   *      carry no own LWW cursor), THEN attach the routine link on
+   *      events_payload. This ORDER matters for clean rollback: while the
+   *      seed's events_payload.routine_item_id is still null, the routine
+   *      has no inbound composite FK (0011, ON DELETE NO ACTION), so a
+   *      rollback delete of the routine is unblocked. Attaching first and
+   *      failing the bump would wedge the rollback behind that FK, leaving
+   *      a half-converted routine+seed pair. A pre-attach bump that never
+   *      reaches the attach is a harmless spurious cursor advance (the
+   *      seed's payload is unchanged).
+   *   3. Attach the seed: events_payload.routine_item_id + source_date :=
+   *      the seed's own day (the (routine, source_date) partial UNIQUE then
+   *      treats the seed as that day's occurrence, so the generator will
+   *      not mint a duplicate).
+   * The seed row is NEVER deleted. If any step after createRoutine fails,
+   * the just-created routine is rolled back (hard delete — nothing
+   * references it yet) and the error is re-thrown: the conversion simply
+   * did not happen, the seed event keeps its data (routine link still null).
+   */
+  async convertEventToRoutine(
+    eventId: string,
+    routineId: string,
+    init: {
+      title: string;
+      startTime?: string;
+      endTime?: string;
+      frequencyType?: string;
+      frequencyDays?: number[];
+      frequencyInterval?: number | null;
+      frequencyStartDate?: string | null;
+      sourceDate: string;
+    },
+  ): Promise<RoutineNode> {
+    const routine = await this.createRoutine(
+      routineId,
+      init.title,
+      init.startTime,
+      init.endTime,
+      init.frequencyType,
+      init.frequencyDays,
+      init.frequencyInterval,
+      init.frequencyStartDate,
+    );
+    try {
+      const now = new Date().toISOString();
+      const { error: mErr } = await this.client
+        .from("items_meta")
+        .update({ updated_at: now })
+        .eq("id", eventId);
+      if (mErr)
+        throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
+      const { error: pErr } = await this.client
+        .from("events_payload")
+        .update({ routine_item_id: routineId, source_date: init.sourceDate })
+        .eq("item_id", eventId);
+      if (pErr)
+        throw new Error(`convertEventToRoutine attach: ${pErr.message}`);
+      return routine;
+    } catch (err) {
+      // Roll the routine back so a half-converted state cannot survive.
+      // The seed's routine link is still null on every failure path (the
+      // attach either did not run or did not land), so this delete is never
+      // blocked by the 0011 composite FK. Best-effort: a rollback failure
+      // must not mask the original error.
+      try {
+        await this.client.from("items_meta").delete().eq("id", routineId);
+      } catch {
+        // swallow — rethrow the original err below
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Mapper-driven dual UPDATE. metaPatch ALWAYS carries updated_at
    * (DB-Q2 enforcement is in routineUpdatesToPatches). Empty payload
    * patch skips the no-op write.
@@ -1035,8 +1117,13 @@ export class SupabaseRoutinesService {
   async detachRoutine(
     id: string,
     today: string = todayDateKey(),
+    opts?: { keepItemIds?: string[] },
   ): Promise<{ deletedScheduleItemIds: string[] }> {
     const now = new Date().toISOString();
+    // #296: ids the caller pins as survivors (the occurrence the user is
+    // editing when they turn the repeat off). They move from the delete
+    // partition to the detach partition below.
+    const keep = new Set(opts?.keepItemIds ?? []);
 
     // 1. Read ALL live occurrences of this routine (item_id + the two fields
     //    that decide the partition). Paged so the id list is never silently
@@ -1058,9 +1145,13 @@ export class SupabaseRoutinesService {
     );
 
     // Partition: future (start_at >= today) AND incomplete → soft-delete;
-    // everything else live (past, or completed) → detach (NULL the link).
-    const isFutureIncomplete = (r: { start_at: string; done: boolean }) =>
-      r.start_at >= today && !r.done;
+    // everything else live (past, completed, or caller-pinned keepItemIds)
+    // → detach (NULL the link).
+    const isFutureIncomplete = (r: {
+      item_id: string;
+      start_at: string;
+      done: boolean;
+    }) => r.start_at >= today && !r.done && !keep.has(r.item_id);
     const deleteIds = rows.filter(isFutureIncomplete).map((r) => r.item_id);
     const detachIds = rows
       .filter((r) => !isFutureIncomplete(r))
@@ -1463,7 +1554,10 @@ class SupabaseRoutineGroupAssignmentsService {
  *     reminders; the bulkCreate signature doesn't carry timezone info
  *     so we drop reminderOffset on the floor.
  */
-class SupabaseScheduleItemsService {
+// Exported for unit tests (mirrors SupabaseRoutinesService / detachRoutine):
+// updateFutureScheduleItemsByRoutine's conflict-rule filtering (#279) is
+// exercised against a query-builder mock.
+export class SupabaseScheduleItemsService {
   private readonly client: SupabaseClient;
   // Keep legacy mapper imports statically referenced.
   private static readonly _unused_select = SCHEDULE_ITEM_SELECT_COLUMNS;
@@ -2094,15 +2188,28 @@ class SupabaseScheduleItemsService {
     routineId: string,
     updates: { title?: string; startTime?: string; endTime?: string },
     fromDate: string,
+    template?: {
+      title: string;
+      startTime: string | null;
+      endTime: string | null;
+    },
   ): Promise<number> {
     const now = new Date().toISOString();
 
     // 1. Find affected rows (paged — same rationale as softDeleteRoutine).
-    const rows = await fetchAllPages<{ item_id: string }>(
+    //    Conflict rules (tier-1 §Schedule, #279): done / dismissed occurrences
+    //    are the user's life record and are never patched by a series edit.
+    const rows = await fetchAllPages<{
+      item_id: string;
+      start_time: string;
+      end_time: string;
+      done: boolean;
+      is_dismissed: boolean;
+    }>(
       (from, to) =>
         this.client
           .from("events_payload")
-          .select("item_id")
+          .select("item_id, start_time, end_time, done, is_dismissed")
           .eq("routine_item_id", routineId)
           .eq("is_deleted_cache", false)
           .gte("start_at", fromDate)
@@ -2110,10 +2217,52 @@ class SupabaseScheduleItemsService {
           .range(from, to),
       "updateFutureScheduleItemsByRoutine find",
     );
-    const ids = rows.map((r) => r.item_id);
+    let candidates = rows.filter((r) => !r.done && !r.is_dismissed);
+
+    // Manual edits win over series edits (tier-1 §Schedule rule 2): when the
+    // caller supplies the routine's pre-edit template, only rows still
+    // matching it (= never individually edited) receive the patch. A null
+    // template time is NOT a wildcard — a time-less routine materialises
+    // with the generator defaults, so compare against those effective values
+    // (otherwise every hand-moved row of a default-time routine would lose
+    // its rule-2 protection).
+    if (template) {
+      const templateStart = template.startTime ?? DEFAULT_ROUTINE_START_TIME;
+      const templateEnd = template.endTime ?? DEFAULT_ROUTINE_END_TIME;
+      candidates = candidates.filter(
+        (r) => r.start_time === templateStart && r.end_time === templateEnd,
+      );
+      if (template.title != null && candidates.length > 0) {
+        const titleRows = await fetchByIdChunks(
+          candidates.map((r) => r.item_id),
+          async (chunk) => {
+            const { data, error } = await this.client
+              .from("items_meta")
+              .select("id, title")
+              .in("id", chunk);
+            if (error)
+              throw new Error(
+                `updateFutureScheduleItemsByRoutine titles: ${error.message}`,
+              );
+            return (data ?? []) as Array<{ id: string; title: string }>;
+          },
+        );
+        const titleById = new Map(titleRows.map((r) => [r.id, r.title]));
+        candidates = candidates.filter(
+          (r) => titleById.get(r.item_id) === template.title,
+        );
+      }
+    }
+
+    const ids = candidates.map((r) => r.item_id);
     if (ids.length === 0) return 0;
 
-    // 2. payload patch (start/end time).
+    // 2. payload patch (start/end time). The done/dismissed predicates are
+    // re-asserted server-side: a row completed or dismissed on another
+    // device between the SELECT above and this UPDATE stays untouched
+    // (rule 1 — cross-device TOCTOU guard; the meta bump below cannot carry
+    // the same predicate, so a raced row may get a harmless updated_at/title
+    // bump but never a time rewrite).
     const payloadPatch: { start_time?: string; end_time?: string } = {};
     if (updates.startTime !== undefined)
       payloadPatch.start_time = updates.startTime;
@@ -2125,7 +2274,9 @@ class SupabaseScheduleItemsService {
           this.client
             .from("events_payload")
             .update(payloadPatch)
-            .in("item_id", chunk),
+            .in("item_id", chunk)
+            .eq("done", false)
+            .eq("is_dismissed", false),
         "updateFutureScheduleItemsByRoutine events_payload",
       );
     }
@@ -2156,6 +2307,27 @@ class SupabaseScheduleItemsService {
       ids,
       (chunk) => this.client.from("items_meta").delete().in("id", chunk),
       "bulkDeleteScheduleItems",
+    );
+    return ids.length;
+  }
+
+  /**
+   * Bulk soft-delete (Trash-recoverable — items_meta.is_deleted, the 0008
+   * trigger mirrors is_deleted_cache onto events_payload). The generator's
+   * frequency-mismatch cleanup calls THIS (#296): hard bulkDelete there
+   * destroyed hand-moved occurrences beyond any recovery.
+   */
+  async bulkSoftDeleteScheduleItems(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const now = new Date().toISOString();
+    await forEachIdChunk(
+      ids,
+      (chunk) =>
+        this.client
+          .from("items_meta")
+          .update({ is_deleted: true, deleted_at: now, updated_at: now })
+          .in("id", chunk),
+      "bulkSoftDeleteScheduleItems",
     );
     return ids.length;
   }
@@ -2328,6 +2500,7 @@ const PHASE2_ROUTINES_METHODS = new Set<string>([
   "fetchAllRoutines",
   "fetchDeletedRoutines",
   "createRoutine",
+  "convertEventToRoutine",
   "updateRoutine",
   "deleteRoutine",
   "softDeleteRoutine",
@@ -2367,6 +2540,7 @@ const PHASE2_SCHEDULE_ITEM_METHODS = new Set<string>([
   "updateFutureScheduleItemsByRoutine",
   "fetchScheduleItemsByRoutineId",
   "bulkDeleteScheduleItems",
+  "bulkSoftDeleteScheduleItems",
   "fetchEvents",
 ]);
 

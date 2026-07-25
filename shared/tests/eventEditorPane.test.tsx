@@ -7,8 +7,10 @@ import {
 } from "../src/components";
 
 /*
- * EventEditorPane — the selected-event editor. Enforces Issue 017: a routine
- * item can only be Dismissed (never Deleted); a manual item is the inverse.
+ * EventEditorPane — the selected-event editor. Issue 017 / #279 action
+ * gating: a routine item offers Dismiss AND Delete (the host routes Delete
+ * into the this/future/all scope dialog, whose "this only" performs a
+ * revival-safe Dismiss); a manual item offers plain Delete only, no Dismiss.
  * Title/memo are commit-on-blur drafts.
  */
 
@@ -64,11 +66,14 @@ function renderPane(
   return fns;
 }
 
-describe("EventEditorPane — Issue 017 action gating", () => {
-  it("shows Dismiss and hides Delete for a routine item", () => {
-    renderPane(routineItem);
+describe("EventEditorPane — Issue 017 / #279 action gating", () => {
+  it("shows Dismiss and Delete for a routine item (#279 scope dialog entry)", () => {
+    const { onDelete } = renderPane(routineItem);
     expect(screen.getByText("Skip this day")).toBeInTheDocument();
-    expect(screen.queryByText("Delete")).toBeNull();
+    const del = screen.getByText("Delete");
+    expect(del).toBeInTheDocument();
+    fireEvent.click(del);
+    expect(onDelete).toHaveBeenCalledWith("r1");
   });
 
   it("shows Delete and hides Dismiss for a manual item", () => {
@@ -91,5 +96,25 @@ describe("EventEditorPane — commit-on-blur", () => {
     const { onCommitTitle } = renderPane(manualItem);
     fireEvent.blur(screen.getByLabelText("Title"));
     expect(onCommitTitle).not.toHaveBeenCalled();
+  });
+
+  it("commits start/end times on blur, not per keystroke (#279 scope dialog spam)", () => {
+    const { onChangeStart, onChangeEnd } = renderPane(manualItem);
+    const start = screen.getByLabelText("Start");
+    fireEvent.change(start, { target: { value: "20:00" } });
+    expect(onChangeStart).not.toHaveBeenCalled();
+    fireEvent.blur(start);
+    expect(onChangeStart).toHaveBeenCalledWith("m1", "20:00");
+
+    const end = screen.getByLabelText("End");
+    fireEvent.change(end, { target: { value: "21:00" } });
+    fireEvent.blur(end);
+    expect(onChangeEnd).toHaveBeenCalledWith("m1", "21:00");
+  });
+
+  it("does not commit an unchanged time on blur", () => {
+    const { onChangeStart } = renderPane(manualItem);
+    fireEvent.blur(screen.getByLabelText("Start"));
+    expect(onChangeStart).not.toHaveBeenCalled();
   });
 });

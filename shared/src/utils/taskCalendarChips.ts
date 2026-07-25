@@ -7,7 +7,7 @@ import type { TaskNode } from "../types/taskTree";
  * items with variant "task".
  *
  * UTC → LOCAL: `scheduledAt` / `scheduledEndAt` are ISO-8601 UTC. Grids key on
- * LOCAL date/time (the "no UTC" convention — see scheduleLabels.todayLocalKey),
+ * LOCAL date/time (the "no UTC" convention — see dateKey.todayCalendarKey),
  * so we build the date/time parts with the local Date getters here.
  */
 
@@ -24,6 +24,53 @@ export interface TaskCalendarChip {
   isAllDay: boolean;
   /** status === "DONE" — done tasks are kept (grids render completed styling). */
   completed: boolean;
+}
+
+/*
+ * Synthetic chip ids (#280, moved from CalendarTab): chips are merged into
+ * grids whose other ids are ScheduleItem ids, so chip ids carry a prefix the
+ * host handlers use to tell them apart and no-op (A-1 read-only semantics —
+ * Steps 2/3 wire writes). The prefix also guarantees no id collision with a
+ * ScheduleItem.
+ */
+export const TASK_CHIP_PREFIX = "taskchip-";
+
+/** Synthetic grid id for a chip (prefix + source TaskNode id). */
+export function taskChipId(id: string): string {
+  return TASK_CHIP_PREFIX + id;
+}
+
+/** True when a grid/agenda id denotes a task chip. */
+export function isTaskChip(id: string): boolean {
+  return id.startsWith(TASK_CHIP_PREFIX);
+}
+
+/**
+ * Inverse of `taskChipId`: recover the source TaskNode id from a synthetic
+ * chip id. A non-prefixed id is returned unchanged (defensive — callers gate
+ * on `isTaskChip` first). Used by the Step-2 drag-to-write path to address the
+ * underlying TaskNode.
+ */
+export function unwrapTaskChipId(id: string): string {
+  return id.startsWith(TASK_CHIP_PREFIX)
+    ? id.slice(TASK_CHIP_PREFIX.length)
+    : id;
+}
+
+/**
+ * Inverse of the module's UTC→LOCAL read conversion: build a UTC ISO instant
+ * from a grid's LOCAL date key (YYYY-MM-DD) + LOCAL time (HH:MM). The grid
+ * writes back through here on drag/resize (schedule redesign A-2 / #297).
+ *
+ * `new Date(y, monthIndex, d, hh, mm)` interprets its parts in LOCAL time, so
+ * the resulting instant round-trips with `tasksToCalendarChips` at minute
+ * granularity. A "24:00" end (minutesToTime clamps to 24*60) normalises to the
+ * next day's 00:00 — the correct absolute instant for an end-of-day block.
+ */
+export function localDateTimeToISO(dateKey: string, timeHHMM: string): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const [hh, mm] = timeHHMM.split(":").map(Number);
+  return new Date(y, m - 1, d, hh, mm).toISOString();
 }
 
 /** Timed tasks with no explicit end get a 1-hour block. */

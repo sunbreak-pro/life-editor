@@ -71,3 +71,13 @@
 
 - 着手前の main 取り込みで `.claude/CLAUDE.md` / `plans/_TEMPLATE.md` にコンフリクトが出たため解消済み（どちらも origin/main 側 = Issue 駆動 dispatch 運用が同日 SUPERSEDE 明記のため main 側を採用。マーカーは formatter に壊されたが手動除去済み）。
 - #217（weekStartsOn 配線・schedule-refine 宛）も同じ「pref 参照方法待ち」状態のはず。#242 の `useDayStartHourPref` / `useStartupSectionPref` パターンが前例になる旨、schedule-refine への共有をお願いします。
+
+---
+
+### 2026-07-25 - 起票依頼（chat-main へ・issue-dispatch）: Mobile 省略 Provider 記述の実態乖離
+
+Issue #319（mobile 機能限定の要件定義・PR #324）の実測で判明した別枠課題。docs のコード整合として起票をお願いします。
+
+- **内容**: `.claude/rules/frontend.md` の Provider 順序節および CLAUDE.md §2「Mobile 省略 Provider（4 種）」が実装実態と乖離。web ホストでは Provider の Mobile 省略ロジックが未実装（ScreenLock / FileExplorer / CalendarTags / SidebarLinks Provider はコード上に非存在、Audio / ShortcutConfig は `MainScreen.tsx` で無条件マウント・isWide 分岐なし）。Tauri 時代の名残。
+- **あるべき**: 規約側を実装実態に合わせて書き直す（Mobile の機能省略は「消費 UI 側の幅出し分け」であって Provider 層ではない、と明確化）。`mobile-scope.md` §6 に別枠メモとして記録済み。
+- **ラベル案**: `type:task` + `shared-fix`（宛先 = `[all]` または docs 整合レーン）。DoD = frontend.md / CLAUDE.md §2 の該当記述が実装（`MainScreen.tsx` の Provider マウント実態）と一致。

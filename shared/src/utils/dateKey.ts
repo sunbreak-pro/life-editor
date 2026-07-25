@@ -52,3 +52,15 @@ export function todayDateKey(
 ): string {
   return formatDateKey(new Date(now.getTime() - dayStartHour * 60 * 60_000));
 }
+
+/**
+ * Plain calendar-day "today" (local midnight boundary — NO day-start-hour
+ * shift). The Schedule hosts key their grids on the wall calendar, where a
+ * 2 AM edit belongs to the new date; `todayDateKey()` above is the
+ * Daily / routine-sync "today" that rolls over at the configured hour.
+ * Single implementation (#280) — replaces the todayLocal / todayLocalKey
+ * copies that lived in useScheduleItemsAPI and web scheduleLabels.
+ */
+export function todayCalendarKey(now: Date = new Date()): string {
+  return formatDateKey(now);
+}

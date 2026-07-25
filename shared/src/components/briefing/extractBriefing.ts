@@ -20,27 +20,13 @@
  * extractBriefing.test.ts.
  */
 
-interface TipTapNode {
-  type?: string;
-  text?: string;
-  content?: TipTapNode[];
-}
+import { BRIEFING_HEADING_RE, textOf, type TipTapNode } from "./dailySections";
 
 export interface ExtractedBriefing {
   /** First paragraph of the section — rendered big as the focus line. */
   focus: string | null;
   /** Remaining paragraphs — rendered as the AI comment block. */
   paragraphs: string[];
-}
-
-/** Section heading marker (case-insensitive, trimmed). */
-const BRIEFING_HEADING_RE = /^(briefing|朝刊)$/i;
-
-/** Flatten a TipTap node subtree to plain text. */
-function textOf(node: TipTapNode): string {
-  if (typeof node.text === "string") return node.text;
-  if (!Array.isArray(node.content)) return "";
-  return node.content.map(textOf).join("");
 }
 
 /**

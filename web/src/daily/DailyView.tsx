@@ -9,6 +9,7 @@ import {
 import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
+  useLocalStorage,
   useWikiTagsUnifiedContext,
   useMediaQuery,
   useTranslation,
@@ -18,10 +19,14 @@ import {
   DailyEntriesPanel,
   DateStrip,
   ExcerptListItem,
+  SidebarListControls,
   cn,
   dailyContentToEditorContent,
   dailyContentExcerpt,
+  filterAndSortDailyEntries,
+  jsonDocEquals,
   type DailyEntriesPanelEntry,
+  type DailyListDirection,
   type DateStripDay,
   type DataService,
 } from "@life-editor/shared";
@@ -238,10 +243,17 @@ export function DailyView({
     content: string;
   }>({ date: selectedDate, content: selectedContent });
 
-  const ownEcho =
-    lastEmitted !== null &&
-    lastEmitted.date === selectedDate &&
-    lastEmitted.json === selectedContent;
+  // Semantic (not byte) comparison: the stored content round-trips through a
+  // Postgres jsonb column, which reorders object keys — the refetched echo of
+  // our own save comes back byte-different but document-identical, and a
+  // byte-exact check here remounted the editor on every save echo (#300).
+  const ownEcho = useMemo(
+    () =>
+      lastEmitted !== null &&
+      lastEmitted.date === selectedDate &&
+      jsonDocEquals(lastEmitted.json, selectedContent),
+    [lastEmitted, selectedDate, selectedContent],
+  );
 
   if (
     syncedFrom.date !== selectedDate ||
@@ -272,10 +284,10 @@ export function DailyView({
 
   // Saves are automatic (debounced + flushed on unmount); with batched echo
   // renders this caption effectively always reads saved — kept as reassurance.
+  // ownEcho (semantic compare) rather than byte equality: the canonicalized
+  // jsonb echo would otherwise flip this to "unsaved" after every save.
   const isSaved =
-    lastEmitted === null ||
-    lastEmitted.date !== selectedDate ||
-    lastEmitted.json === selectedContent;
+    lastEmitted === null || lastEmitted.date !== selectedDate || ownEcho;
   const savedLabel = isSaved
     ? t("materials.daily.saved")
     : t("materials.daily.unsaved");
@@ -315,25 +327,60 @@ export function DailyView({
   const todayIso = useMemo(() => isoDay(0), []);
   const yesterdayIso = useMemo(() => isoDay(-1), []);
 
-  // Chronological entries (newest first) for the rightSidebar panel + mobile.
+  // Chronological entries (newest first) for the Mobile past-entries list.
+  // The desktop sidebar panel builds its own filtered/direction-aware list.
   const sortedDailies = useMemo(
     () => [...dailies].sort((a, b) => b.date.localeCompare(a.date)),
     [dailies],
   );
 
-  const panelEntries = useMemo<DailyEntriesPanelEntry[]>(
-    () =>
-      sortedDailies.map((d) => ({
+  // #283 desktop sidebar: persisted sort direction ("desc" = newest-first, the
+  // prior default) + a non-persisted filter query.
+  const [dailySortDirection, setDailySortDirection] =
+    useLocalStorage<DailyListDirection>(
+      "life-editor:daily-sort-direction",
+      "desc",
+    );
+  const [dailyFilterQuery, setDailyFilterQuery] = useState("");
+
+  const dailySortModes = useMemo(
+    () => [{ id: "date", label: t("materials.sidebar.sort") }],
+    [t],
+  );
+
+  // "desc" renders newest-first, "asc" oldest-first (filterAndSortDailyEntries).
+  const dailyDirectionLabel =
+    dailySortDirection === "desc"
+      ? t("materials.sidebar.newest")
+      : t("materials.sidebar.oldest");
+
+  const panelEntries = useMemo<DailyEntriesPanelEntry[]>(() => {
+    const enriched = dailies.map((d) => {
+      const dayLabel = entryDayLabel(d.date);
+      const excerpt = dailyContentExcerpt(d.content);
+      return {
         date: d.date,
-        dayLabel: entryDayLabel(d.date),
-        excerpt: dailyContentExcerpt(d.content),
+        dayLabel,
+        excerpt,
         isPinned: d.isPinned,
         selected: d.date === selectedDate,
-      })),
+        // searchText drives the filter: day label + the entry's body excerpt.
+        searchText: `${dayLabel} ${excerpt ?? ""}`,
+      };
+    });
+    return filterAndSortDailyEntries(enriched, {
+      direction: dailySortDirection,
+      query: dailyFilterQuery,
+    });
     // entryDayLabel depends only on locale (weekdayShort) — listed indirectly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sortedDailies, selectedDate, weekdayShort],
-  );
+  }, [
+    dailies,
+    selectedDate,
+    weekdayShort,
+    dailySortDirection,
+    dailyFilterQuery,
+  ]);
 
   // DateStrip window: the last 14 days, oldest → newest (today at the right).
   const stripDays = useMemo<DateStripDay[]>(() => {
@@ -464,24 +511,47 @@ export function DailyView({
         {/* Past entries — always-present content pushed into the shared
             rightSidebar (wide-only, so narrow never fills the MobileDrawer). */}
         <RightSidebarPortal>
-          <DailyEntriesPanel
-            todayLabel={t("materials.daily.today")}
-            yesterdayLabel={t("materials.daily.yesterday")}
-            todaySelected={selectedDate === todayIso}
-            yesterdaySelected={selectedDate === yesterdayIso}
-            onSelectToday={() => setSelectedDate(todayIso)}
-            onSelectYesterday={() => setSelectedDate(yesterdayIso)}
-            pickerDate={selectedDate}
-            pickerLabel={selectedDate.replaceAll("-", "/")}
-            datePickerLabel={t("materials.daily.datePicker")}
-            onPickDate={setSelectedDate}
-            entriesHeading={t("materials.daily.entriesCount", {
-              count: sortedDailies.length,
-            })}
-            entries={panelEntries}
-            onSelectEntry={setSelectedDate}
-            pinnedLabel={t("materials.daily.pinned")}
-          />
+          <div className="flex flex-col gap-2">
+            {/* Sort direction + filter (#283), above the past-entries panel. */}
+            <SidebarListControls
+              modes={dailySortModes}
+              activeModeId="date"
+              onModeChange={() => {}}
+              sortLabel={t("materials.sidebar.sort")}
+              direction={dailySortDirection}
+              onToggleDirection={() =>
+                setDailySortDirection(
+                  dailySortDirection === "desc" ? "asc" : "desc",
+                )
+              }
+              directionLabel={dailyDirectionLabel}
+              directionToggleLabel={t("materials.sidebar.toggleDirection")}
+              filter={{
+                value: dailyFilterQuery,
+                onChange: setDailyFilterQuery,
+                placeholder: t("materials.daily.filterPlaceholder"),
+                ariaLabel: t("materials.daily.filterLabel"),
+              }}
+            />
+            <DailyEntriesPanel
+              todayLabel={t("materials.daily.today")}
+              yesterdayLabel={t("materials.daily.yesterday")}
+              todaySelected={selectedDate === todayIso}
+              yesterdaySelected={selectedDate === yesterdayIso}
+              onSelectToday={() => setSelectedDate(todayIso)}
+              onSelectYesterday={() => setSelectedDate(yesterdayIso)}
+              pickerDate={selectedDate}
+              pickerLabel={selectedDate.replaceAll("-", "/")}
+              datePickerLabel={t("materials.daily.datePicker")}
+              onPickDate={setSelectedDate}
+              entriesHeading={t("materials.daily.entriesCount", {
+                count: panelEntries.length,
+              })}
+              entries={panelEntries}
+              onSelectEntry={setSelectedDate}
+              pinnedLabel={t("materials.daily.pinned")}
+            />
+          </div>
         </RightSidebarPortal>
       </div>
     );

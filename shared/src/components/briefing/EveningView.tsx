@@ -42,6 +42,7 @@ export interface EveningLabels {
   moodTitle: string;
   /** Aria labels for the five stars, index 0 =「気分 1/5」etc. */
   moodStars: string[];
+  intentionTitle: string;
   reflectionTitle: string;
   /** Saved-state caption next to the reflection title (host-computed). */
   savedCaption: string;
@@ -63,6 +64,12 @@ export interface EveningViewProps {
   onSelectMood: (mood: number) => void;
   /** The host-mounted TipTap editor bound to the evening section body. */
   editorSlot: ReactNode;
+  /**
+   * Today's declaration (宣言 section, newline-separated) shown back while
+   * the day is closed — null hides the block. Display only (Step 4: the
+   * critique round-trip is written in the reflection / next morning).
+   */
+  intention: string | null;
   todos: EveningTodoEntry[];
   schedule: EveningScheduleEntry[];
   labels: EveningLabels;
@@ -94,6 +101,7 @@ export function EveningView({
   mood,
   onSelectMood,
   editorSlot,
+  intention,
   todos,
   schedule,
   labels,
@@ -149,6 +157,23 @@ export function EveningView({
           })}
         </div>
       </section>
+
+      {/* ── This morning's intention (宣言 — display only) ───────── */}
+      {intention !== null && (
+        <section className="border-b border-lumen-border py-5">
+          <BlockHead title={labels.intentionTitle} />
+          <div className="rounded-lumen-md border-l-2 border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-4 py-3">
+            {intention.split("\n").map((line, i) => (
+              <p
+                key={i}
+                className="font-serif text-sm leading-relaxed text-lumen-text [&+&]:mt-1"
+              >
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Reflection (the evening editor — host-mounted TipTap) ── */}
       <section className="border-b border-lumen-border py-5">

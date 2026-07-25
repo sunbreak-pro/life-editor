@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DataService } from "../services/DataService";
 import type {
   WikiTag,
@@ -42,9 +42,16 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const [allAssignments, setAllAssignments] = useState<WikiTagAssignment[]>([]);
   const [allConnections, setAllConnections] = useState<WikiTagConnection[]>([]);
   const [loading, setLoading] = useState(true);
+  // #300: `loading` means "no data yet", NOT "a refresh is in flight". A
+  // syncVersion bump lands here ~1.1s after every typing pause (own-write
+  // Realtime echo), and every tag surface (TagPicker pills / LinkPanel /
+  // Tags-tab list) gates its already-rendered chips on this flag — flipping
+  // it during a background refetch unmounts them all for the round-trip,
+  // which is the reported flicker. Stale data stays visible instead.
+  const hasLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       const [tags, groups, groupAssignments, assignments, connections] =
         await Promise.all([
@@ -59,6 +66,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       setAllGroupAssignments(groupAssignments);
       setAllAssignments(assignments);
       setAllConnections(connections);
+      hasLoadedRef.current = true;
     } finally {
       setLoading(false);
     }

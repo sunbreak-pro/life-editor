@@ -20,6 +20,9 @@ const LABELS: BriefingLabels = {
   aiTitle: "AI",
   aiSource: "Claude",
   noBriefing: "No briefing",
+  intentionTitle: "INTENTION",
+  intentionCaption: "Saved",
+  intentionPlaceholder: "Declare today…",
   scheduleTitle: "PROMISES",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
@@ -91,6 +94,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleTask = vi.fn();
   const onJumpToSchedule = vi.fn();
   const onJumpToTasks = vi.fn();
+  const onIntentionChange = vi.fn();
+  const onIntentionBlur = vi.fn();
   const result = render(
     <BriefingView
       loading={false}
@@ -99,6 +104,9 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       streakLabels={STREAK_LABELS}
       trendLabels={TREND_LABELS}
       balanceLabels={BALANCE_LABELS}
+      intentionText=""
+      onIntentionChange={onIntentionChange}
+      onIntentionBlur={onIntentionBlur}
       onToggleScheduleItem={onToggleScheduleItem}
       onToggleTask={onToggleTask}
       onJumpToSchedule={onJumpToSchedule}
@@ -112,6 +120,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     onToggleTask,
     onJumpToSchedule,
     onJumpToTasks,
+    onIntentionChange,
+    onIntentionBlur,
   };
 }
 
@@ -187,5 +197,19 @@ describe("BriefingView row actions", () => {
   it("never nests a button inside another button", () => {
     const { container } = renderView();
     expect(container.querySelectorAll("button button").length).toBe(0);
+  });
+});
+
+describe("BriefingView intention field (宣言 — Step 4)", () => {
+  it("shows the stored declaration and reports edits + blur to the host", () => {
+    const { onIntentionChange, onIntentionBlur } = renderView({
+      intentionText: "Ship the report",
+    });
+    const field = screen.getByPlaceholderText("Declare today…");
+    expect((field as HTMLTextAreaElement).value).toBe("Ship the report");
+    fireEvent.change(field, { target: { value: "Ship the report\nRun" } });
+    expect(onIntentionChange).toHaveBeenCalledWith("Ship the report\nRun");
+    fireEvent.blur(field);
+    expect(onIntentionBlur).toHaveBeenCalledTimes(1);
   });
 });

@@ -14,13 +14,15 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
  * Desktop right pane and the Mobile detail sheet. Pure presentation (§3.1 /
  * §6.4): copy injected already translated, every mutation is a callback.
- * Title + memo are commit-on-blur local drafts (Enter blurs the title; IME
- * composition is respected). lumen-* tokens only (§5).
+ * Title + memo + start/end time are commit-on-blur local drafts (Enter blurs;
+ * IME composition is respected). lumen-* tokens only (§5).
  *
- * Issue 017 (routine ghost-revival): a routine-generated item can only be
- * Dismissed ("skip this day"), NEVER deleted — deleting it lets the generator
- * revive it. A manual item is the inverse: Delete only, no Dismiss. The
- * component enforces this from `item.isRoutine`; the host cannot cross-wire it.
+ * Issue 017 (routine ghost-revival): a routine-generated item is never
+ * hard/soft-deleted as a single row — deleting it lets the generator revive
+ * it. Since #279 the delete button renders for routine items too, but the
+ * host routes it into the this/future/all scope dialog whose "this only"
+ * choice performs a Dismiss (revival-safe). Dismiss ("skip this day") stays
+ * routine-only; a manual item keeps the plain delete.
  *
  * Repeat section (#185 Step 3): when the host wires the repeat props
  * (`repeatLabels` + `repeatWeekdayLabels` + `onChangeRepeat`), every event
@@ -60,7 +62,7 @@ export interface EventEditorLabels {
   originEvent: string;
   /** "この日はスキップ" (routine only). */
   skipThisDay: string;
-  /** "削除" (manual only). */
+  /** "削除" — manual: plain delete / routine: opens the scope dialog (#279). */
   delete: string;
 }
 
@@ -75,7 +77,11 @@ export interface EventEditorPaneProps {
   onChangeMemo: (id: string, memo: string) => void;
   /** Skip this occurrence (routine-generated items only). */
   onDismiss?: (id: string) => void;
-  /** Delete (manual items only). */
+  /**
+   * Delete. Manual items: plain single-item delete. Routine items (#279):
+   * the host MUST route this into the this/future/all scope dialog — a
+   * plain single-row delete would be revived by the generator (Issue 017).
+   */
   onDelete?: (id: string) => void;
   labels: EventEditorLabels;
   /**
@@ -122,6 +128,13 @@ function EventEditorFields({
 }: Omit<EventEditorPaneProps, "className">) {
   const [titleDraft, setTitleDraft] = useState(item.title);
   const [memoDraft, setMemoDraft] = useState(item.memo);
+  // #279: start/end are commit-on-blur drafts too. A write-through onChange
+  // fired per keystroke segment, which routed a HALF-TYPED time into the
+  // host's scope dialog for routine occurrences (focus stolen mid-edit,
+  // intermediate value committed to the series). Blur commits one complete
+  // value exactly once.
+  const [startDraft, setStartDraft] = useState(item.startTime);
+  const [endDraft, setEndDraft] = useState(item.endTime);
 
   // The repeat section renders only when the host fully wires it (labels +
   // weekday labels + change handler). Existing hosts/tests that omit it keep
@@ -147,6 +160,14 @@ function EventEditorFields({
   };
   const commitMemo = () => {
     if (memoDraft !== item.memo) onChangeMemo(item.id, memoDraft);
+  };
+  // Empty guard: a time input reports "" while cleared — never commit that.
+  const commitStart = () => {
+    if (startDraft && startDraft !== item.startTime)
+      onChangeStart(item.id, startDraft);
+  };
+  const commitEnd = () => {
+    if (endDraft && endDraft !== item.endTime) onChangeEnd(item.id, endDraft);
   };
   const blurOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
     // IME guard: do not treat a composition-confirming Enter as commit.
@@ -193,8 +214,10 @@ function EventEditorFields({
           <span className={FIELD_LABEL}>{labels.startTime}</span>
           <input
             type="time"
-            value={item.startTime}
-            onChange={(e) => onChangeStart(item.id, e.target.value)}
+            value={startDraft}
+            onChange={(e) => setStartDraft(e.target.value)}
+            onBlur={commitStart}
+            onKeyDown={blurOnEnter}
             aria-label={labels.startTime}
             className={cn(FIELD, "tabular-nums")}
           />
@@ -203,8 +226,10 @@ function EventEditorFields({
           <span className={FIELD_LABEL}>{labels.endTime}</span>
           <input
             type="time"
-            value={item.endTime}
-            onChange={(e) => onChangeEnd(item.id, e.target.value)}
+            value={endDraft}
+            onChange={(e) => setEndDraft(e.target.value)}
+            onBlur={commitEnd}
+            onKeyDown={blurOnEnter}
             aria-label={labels.endTime}
             className={cn(FIELD, "tabular-nums")}
           />
@@ -263,8 +288,11 @@ function EventEditorFields({
         />
       </label>
 
-      {/* Delete (manual only) */}
-      {!item.isRoutine && onDelete && (
+      {/* Delete. Manual: plain single-item delete. Routine (#279): the host
+          opens the this/future/all scope dialog instead of deleting directly
+          — "this only" maps to Dismiss there, so the Issue 017 ghost-revival
+          guard (a deleted occurrence would be regenerated) still holds. */}
+      {onDelete && (
         <button
           type="button"
           onClick={() => onDelete(item.id)}

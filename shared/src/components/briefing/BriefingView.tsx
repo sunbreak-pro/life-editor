@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ArrowUpRight, Check, Circle, Sunrise } from "lucide-react";
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { TimerSession } from "../../types/timer";
@@ -85,6 +86,10 @@ export interface BriefingLabels {
   aiTitle: string;
   aiSource: string;
   noBriefing: string;
+  intentionTitle: string;
+  /** Saved-state caption next to the intention title (host-computed). */
+  intentionCaption: string;
+  intentionPlaceholder: string;
   scheduleTitle: string;
   noSchedule: string;
   routineTag: string;
@@ -105,6 +110,12 @@ export interface BriefingViewProps {
   streakLabels: StreakDisplayLabels;
   trendLabels: TaskCompletionTrendLabels;
   balanceLabels: WorkBreakBalanceLabels;
+  /** Today's declaration (宣言 — Step 4), newline-separated lines. */
+  intentionText: string;
+  /** Every keystroke — the host owns draft state + debounced persistence. */
+  onIntentionChange: (text: string) => void;
+  /** Blur — the host flushes a pending debounced save. */
+  onIntentionBlur: () => void;
   /** Completes / un-completes a schedule item (host → DataService). */
   onToggleScheduleItem: (id: string) => void;
   /** Completes / un-completes a task or carryover row (host → DataService). */
@@ -135,6 +146,42 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
+/**
+ * 宣言 input — an auto-growing bare textarea so the declaration reads as
+ * ink on the paper, not a form control. Sits on the 朱 side of the accent
+ * duo (the user's action voice; Claude's 講評 block is 琥珀).
+ */
+function IntentionField({
+  value,
+  placeholder,
+  onChange,
+  onBlur,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (text: string) => void;
+  onBlur: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      rows={1}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      className="w-full resize-none overflow-hidden rounded-lumen-md border-l-2 border-lumen-briefing-shu bg-lumen-briefing-shu-subtle px-4 py-3 font-serif text-base leading-relaxed text-lumen-text outline-none placeholder:font-sans placeholder:text-sm placeholder:text-lumen-text-secondary"
+    />
+  );
+}
+
 export function BriefingView({
   loading,
   data,
@@ -142,6 +189,9 @@ export function BriefingView({
   streakLabels,
   trendLabels,
   balanceLabels,
+  intentionText,
+  onIntentionChange,
+  onIntentionBlur,
   onToggleScheduleItem,
   onToggleTask,
   onJumpToSchedule,
@@ -202,6 +252,20 @@ export function BriefingView({
           </div>
         </section>
       )}
+
+      {/* ── Today's intention (宣言 — Step 4) ────────────────────── */}
+      <section className="border-b border-lumen-border py-5">
+        <BlockHead
+          title={labels.intentionTitle}
+          hint={labels.intentionCaption}
+        />
+        <IntentionField
+          value={intentionText}
+          placeholder={labels.intentionPlaceholder}
+          onChange={onIntentionChange}
+          onBlur={onIntentionBlur}
+        />
+      </section>
 
       {/* ── Today's schedule ─────────────────────────────────────── */}
       <section className="border-b border-lumen-border py-5">

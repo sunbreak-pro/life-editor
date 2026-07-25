@@ -41,6 +41,14 @@ export interface MonthGridProps {
   onSelectDay: (dateKey: string) => void;
   onSelectItem?: (id: string) => void;
   /**
+   * Single-click on a chip → host opens a bubble popover anchored at the
+   * click's viewport coords (#299). Preferred over `onSelectItem` when both
+   * are supplied; falls back to `onSelectItem` when omitted.
+   */
+  onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
+  /** Double-click on a chip → host opens the detail overlay (#299). */
+  onItemDoubleClick?: (id: string) => void;
+  /**
    * Right-click (contextmenu) on an item chip → host opens a context menu at
    * the given viewport coordinates. When omitted, the native menu is left
    * untouched. Desktop-only (#223).
@@ -90,6 +98,8 @@ export function MonthGrid({
   weekdayLabels,
   onSelectDay,
   onSelectItem,
+  onItemActivate,
+  onItemDoubleClick,
   onItemContextMenu,
   formatMoreCount,
   formatDayLabel = (k) => k,
@@ -212,7 +222,16 @@ export function MonthGrid({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectItem?.(it.id);
+                          if (onItemActivate)
+                            onItemActivate(it.id, {
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          else onSelectItem?.(it.id);
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          onItemDoubleClick?.(it.id);
                         }}
                         onContextMenu={
                           onItemContextMenu

@@ -24,19 +24,14 @@
  * shared/tests/eveningSection.test.ts.
  */
 
-import { plainTextToTipTapDoc } from "../materials/dailyContent";
 import { getDayStartHour } from "../../utils/dateKey";
-
-interface TipTapNode {
-  type?: string;
-  text?: string;
-  attrs?: Record<string, unknown>;
-  content?: TipTapNode[];
-  [key: string]: unknown;
-}
-
-/** Section heading marker (case-insensitive, trimmed) — mirrors 朝刊's RE. */
-const EVENING_HEADING_RE = /^(夕刊|evening)$/i;
+import {
+  EVENING_HEADING_RE,
+  findSectionRange,
+  parseDailyDoc,
+  textOf,
+  type TipTapNode,
+} from "./dailySections";
 
 /**
  * The mood-line text convention (decision 7: DDL-zero, text convention only).
@@ -47,65 +42,6 @@ const MOOD_LINE_RE = /^気分[:：]\s*([1-5])\s*\/\s*5$/;
 /** Serialize a mood value to its conventional line. */
 export function moodLineText(mood: number): string {
   return `気分: ${mood}/5`;
-}
-
-function textOf(node: TipTapNode): string {
-  if (typeof node.text === "string") return node.text;
-  if (!Array.isArray(node.content)) return "";
-  return node.content.map(textOf).join("");
-}
-
-/**
- * Parse a stored daily body into a TipTap doc for section surgery. Empty →
- * empty doc; a plain-text legacy body → paragraph-per-line doc (F-1 rule);
- * a TipTap doc JSON → parsed as-is.
- */
-function parseDailyDoc(contentJson: string | null | undefined): TipTapNode {
-  if (
-    contentJson === null ||
-    contentJson === undefined ||
-    contentJson.trim() === ""
-  ) {
-    return { type: "doc", content: [] };
-  }
-  try {
-    const parsed: unknown = JSON.parse(contentJson);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      !Array.isArray(parsed) &&
-      (parsed as TipTapNode).type === "doc" &&
-      Array.isArray((parsed as TipTapNode).content)
-    ) {
-      return parsed as TipTapNode;
-    }
-  } catch {
-    // fall through — legacy plain text
-  }
-  return plainTextToTipTapDoc(contentJson) as TipTapNode;
-}
-
-/**
- * Locate the evening section among top-level nodes: [start, end) where start
- * is the 夕刊 heading and end is the next heading or document end.
- */
-function findEveningRange(
-  body: TipTapNode[],
-): { start: number; end: number } | null {
-  for (let i = 0; i < body.length; i++) {
-    const node = body[i];
-    if (node === undefined || node.type !== "heading") continue;
-    if (!EVENING_HEADING_RE.test(textOf(node).trim())) continue;
-    let end = body.length;
-    for (let j = i + 1; j < body.length; j++) {
-      if (body[j]?.type === "heading") {
-        end = j;
-        break;
-      }
-    }
-    return { start: i, end };
-  }
-  return null;
 }
 
 /** True when every node is a text-empty paragraph (an "empty" editor body). */
@@ -147,7 +83,7 @@ export function extractEveningSection(
   contentJson: string | null | undefined,
 ): ExtractedEveningSection {
   const body = parseDailyDoc(contentJson).content ?? [];
-  const range = findEveningRange(body);
+  const range = findSectionRange(body, EVENING_HEADING_RE);
   if (range === null)
     return { mood: null, bodyDocJson: null, hasSection: false };
 
@@ -200,7 +136,7 @@ export function mergeEveningSection(
   const original = contentJson ?? "";
   const doc = parseDailyDoc(contentJson);
   const body = doc.content ?? [];
-  const range = findEveningRange(body);
+  const range = findSectionRange(body, EVENING_HEADING_RE);
 
   const stored = extractEveningSection(contentJson);
   const mood = patch.mood === undefined ? stored.mood : patch.mood;
