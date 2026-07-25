@@ -1,261 +1,8 @@
 {
   "sidebar": {
-    "tasks": "Todo",
-    "memo": "メモ",
-    "music": "ミュージック",
-    "work": "ワーク",
-    "schedule": "スケジュール",
-    "analytics": "分析",
-    "settings": "設定",
-    "tips": "ヒント",
-    "materials": "マテリアル",
-    "connect": "コネクト",
-    "trash": "ゴミ箱",
-    "freeSession": "フリーセッション",
-    "launchClaude": "Claude起動",
-    "tipsButton": "Tips"
+    "settings": "設定"
   },
   "settings": {
-    "general": "一般",
-    "notificationsTab": "通知",
-    "dataTab": "データ",
-    "advancedTab": "詳細",
-    "shortcutsTab": "ショートカット",
-    "calendarReset": {
-      "title": "カレンダーデータの一括削除",
-      "description": "選択したデータをゴミ箱に移します（ソフト削除）。「ルーティン」を選ぶと、そのルーティンから生成された予定もまとめて削除されます。すべてゴミ箱からいつでも復元できます。",
-      "openButton": "一括削除を開く",
-      "selectAll": "全選択",
-      "deselectAll": "全解除",
-      "confirm": "選択したものを削除",
-      "cancel": "キャンセル",
-      "footnote": "ソフト削除のため、ゴミ箱からいつでも復元できます。",
-      "success": "削除しました — Todo {{tasks}} 件 / イベント {{events}} 件 / ルーティン {{routines}} 件（生成された予定 {{cascaded}} 件を含む）/ デイリー {{dailies}} 件 / ノート {{notes}} 件",
-      "failed": "一括削除に失敗しました: {{error}}",
-      "noSelection": "削除対象を 1 つ以上選択してください。",
-      "kinds": {
-        "tasks": "予定付き Todo",
-        "events": "イベント（単発の予定）",
-        "routines": "ルーティン（生成された予定も削除）",
-        "dailies": "デイリー",
-        "notes": "ノート"
-      }
-    },
-    "claude": {
-      "title": "Claude Code",
-      "description": "MCP Server を登録すると、Claude Code から自然言語で Todo・スケジュール・メモを操作できます。",
-      "register": "MCP Server を登録",
-      "registering": "登録中...",
-      "success": "MCP Server の登録に成功しました。",
-      "failed": "登録に失敗しました: {{error}}",
-      "notInstalled": "Claude Code がインストールされていません。先にインストールしてから再試行してください。",
-      "setup": "セットアップ",
-      "mcpTools": "MCPツール",
-      "claudeMd": "CLAUDE.md",
-      "skills": "スキル",
-      "mcpToolsDescription": "Claude Code がデータ操作に使用できるMCPツール一覧です。",
-      "claudeMdDescription": "~/life-editor/ の CLAUDE.md 指示ファイルを編集します。",
-      "skillsDescription": "~/life-editor/.claude/skills/ にインストールされたClaude Codeスキルを管理します。",
-      "save": "保存",
-      "saveSuccess": "保存しました。",
-      "saveFailed": "保存に失敗しました。",
-      "install": "インストール",
-      "uninstall": "アンインストール",
-      "installed": "インストール済み",
-      "scopeGlobal": "グローバル",
-      "scopeProject": "プロジェクト",
-      "noSkillsFound": "利用可能なスキルが見つかりません。",
-      "toolParameters": "パラメータ",
-      "required": "必須",
-      "optional": "任意",
-      "toolCategories": {
-        "tasks": "Todo",
-        "memos": "メモ",
-        "notes": "ノート",
-        "schedule": "スケジュール",
-        "search": "横断検索",
-        "content": "コンテンツ生成",
-        "wikiTags": "Wikiタグ"
-      },
-      "tools": {
-        "list_tasks": {
-          "description": "Todo の一覧を取得します。ステータスや日付、フォルダで絞り込みも可能です。",
-          "params": {
-            "status": "ステータスで絞り込み（未着手 / 進行中 / 完了）",
-            "date_range": "日付範囲で絞り込み（ISO 8601形式）",
-            "folder_id": "フォルダIDで絞り込み"
-          }
-        },
-        "get_task": {
-          "description": "指定したIDの Todo を1件取得します。",
-          "params": {
-            "id": "Todo ID"
-          }
-        },
-        "get_task_tree": {
-          "description": "Todo をフォルダ階層のツリー構造で取得します。全体像の把握に便利です。",
-          "params": {
-            "root_id": "起点にするフォルダ/Todo ID（省略で全体ツリー）",
-            "include_done": "完了済み Todo を含めるか（デフォルト: はい）",
-            "max_depth": "取得する階層の深さ（省略で無制限）"
-          }
-        },
-        "create_task": {
-          "description": "新しい Todo を作成します。",
-          "params": {
-            "title": "Todo のタイトル",
-            "parent_id": "配置先のフォルダID",
-            "scheduled_at": "開始予定日時（ISO 8601形式）",
-            "scheduled_end_at": "終了予定日時（ISO 8601形式）",
-            "is_all_day": "終日イベントにするか"
-          }
-        },
-        "update_task": {
-          "description": "既存の Todo を更新します。変更したい項目だけ指定できます。",
-          "params": {
-            "id": "Todo ID",
-            "title": "新しいタイトル",
-            "status": "新しいステータス（未着手 / 進行中 / 完了）",
-            "content": "新しい本文（Markdown形式）"
-          }
-        },
-        "delete_task": {
-          "description": "Todo をゴミ箱に移動します（復元可能）。",
-          "params": {
-            "id": "Todo ID"
-          }
-        },
-        "get_memo": {
-          "description": "指定した日付のデイリーメモを取得します。",
-          "params": {
-            "date": "日付（YYYY-MM-DD形式）"
-          }
-        },
-        "upsert_memo": {
-          "description": "デイリーメモを作成または更新します。",
-          "params": {
-            "date": "日付（YYYY-MM-DD形式）",
-            "content": "メモの内容（Markdown形式）"
-          }
-        },
-        "list_notes": {
-          "description": "ノートの一覧を取得します。キーワードで検索もできます。",
-          "params": {
-            "query": "検索キーワード（タイトルと本文を検索）"
-          }
-        },
-        "create_note": {
-          "description": "新しいノートを作成します。",
-          "params": {
-            "title": "ノートのタイトル",
-            "content": "ノートの本文（Markdown形式）"
-          }
-        },
-        "update_note": {
-          "description": "既存のノートを更新します。変更したい項目だけ指定できます。",
-          "params": {
-            "id": "ノートID",
-            "title": "新しいタイトル",
-            "content": "新しい本文（Markdown形式）"
-          }
-        },
-        "list_schedule": {
-          "description": "指定した日付のスケジュール（予定と Todo）を取得します。",
-          "params": {
-            "date": "日付（YYYY-MM-DD形式）"
-          }
-        },
-        "create_schedule_item": {
-          "description": "カレンダーに新しい予定を作成します。",
-          "params": {
-            "date": "日付（YYYY-MM-DD形式）",
-            "title": "予定のタイトル",
-            "start_time": "開始時刻（HH:MM形式）",
-            "end_time": "終了時刻（HH:MM形式）",
-            "is_all_day": "終日イベントにするか",
-            "note_id": "関連するノートのID",
-            "content": "補足メモ"
-          }
-        },
-        "update_schedule_item": {
-          "description": "既存のスケジュール予定を更新します。変更したい項目だけ指定できます。",
-          "params": {
-            "id": "予定ID",
-            "title": "新しいタイトル",
-            "start_time": "新しい開始時刻（HH:MM形式）",
-            "end_time": "新しい終了時刻（HH:MM形式）",
-            "memo": "メモ",
-            "is_all_day": "終日イベントにするか",
-            "content": "新しい補足メモ"
-          }
-        },
-        "delete_schedule_item": {
-          "description": "スケジュール予定を完全に削除します。",
-          "params": {
-            "id": "予定ID"
-          }
-        },
-        "toggle_schedule_complete": {
-          "description": "スケジュール予定の完了/未完了を切り替えます。",
-          "params": {
-            "id": "予定ID"
-          }
-        },
-        "search_all": {
-          "description": "Todo・メモ・ノートを横断してキーワード検索します。",
-          "params": {
-            "query": "検索キーワード",
-            "domains": "検索対象（Todo / メモ / ノート、デフォルト: すべて）",
-            "limit": "各カテゴリの最大件数（デフォルト: 10）"
-          }
-        },
-        "generate_content": {
-          "description": "見出し・リスト・テーブルなどのリッチコンテンツを生成してノートやメモに書き込みます。",
-          "params": {
-            "target": "書き込み先（ノート / メモ）",
-            "structure": "コンテンツブロックの配列",
-            "target_id": "更新対象のノート/メモID（省略で新規作成）",
-            "title": "新規ノートのタイトル"
-          }
-        },
-        "format_content": {
-          "description": "既存のノートやメモの内容を整形・再構成します。コールアウトで囲む、見出し追加などが可能です。",
-          "params": {
-            "target": "対象の種類（ノート / メモ）",
-            "operations": "適用する操作の配列",
-            "target_id": "ノートID",
-            "target_date": "メモの日付（YYYY-MM-DD形式）"
-          }
-        },
-        "list_wiki_tags": {
-          "description": "Wikiタグの一覧を取得します。タグは Todo・メモ・ノートを横断してつなげるラベルです。",
-          "params": {
-            "query": "タグ名で絞り込み"
-          }
-        },
-        "tag_entity": {
-          "description": "Todo・メモ・ノートにWikiタグを付けます。タグが存在しない場合は自動作成されます。",
-          "params": {
-            "tag_name": "タグ名",
-            "entity_id": "対象のID",
-            "entity_type": "対象の種類（Todo / メモ / ノート）"
-          }
-        },
-        "search_by_tag": {
-          "description": "指定したWikiタグが付いている Todo・メモ・ノートを検索します。",
-          "params": {
-            "tag_name": "検索するタグ名",
-            "entity_type": "対象を絞る種類（Todo / メモ / ノート、省略で全て）"
-          }
-        },
-        "get_entity_tags": {
-          "description": "指定した Todo・メモ・ノートに付いているWikiタグを全て取得します。",
-          "params": {
-            "entity_id": "対象のID（Todo / メモ / ノート）"
-          }
-        }
-      }
-    },
     "shortcutLabels": {
       "commandPalette": "コマンドパレットを開く",
       "openSettings": "設定を開く",
@@ -273,15 +20,9 @@
       "resetAll": "すべてリセット",
       "reset": "リセット",
       "change": "変更",
-      "pressKey": "キーの組み合わせを入力...",
       "conflict": "「{{action}}」に割り当て済み",
-      "save": "保存",
-      "searchPlaceholder": "ショートカットを検索...",
-      "noResults": "ショートカットが見つかりません",
       "modified": "変更済み",
       "cancel": "キャンセル",
-      "osGlobalShortcuts": "OSグローバルショートカット",
-      "osGlobalShortcutsDesc": "アプリが非アクティブでも動作",
       "done": "完了",
       "editTitle": "キーボードショートカット",
       "editDescription": "行の「変更」を押し、割り当てたいキーを入力します",
@@ -353,107 +94,28 @@
       "description": "この端末に保存された設定（テーマ・フォント・ショートカット・レイアウト）をすべて消して再読み込みします。同期済みのデータには影響しません。",
       "button": "設定をリセット",
       "confirm": "ローカルの設定をすべてリセットしてアプリを再読み込みしますか？この端末のテーマ・フォント・ショートカット・レイアウトの設定が消えます。同期済みのデータには影響しません。"
-    },
-    "editorSettings": "エディタ",
-    "editorFontSize": "エディタのフォントサイズ",
-    "editorFontFamily": "フォントファミリー",
-    "editorLineHeight": "行間",
-    "editorPaddingInline": "コンテンツの余白",
-    "developerTools": "開発者ツール",
-    "behaviors": "動作設定",
-    "startupScreen": "起動時の画面",
-    "startupScreenDesc": "アプリ起動時に表示するセクションを選択",
-    "autoArchive": "完了 Todo の自動アーカイブ",
-    "autoArchiveDesc": "完了した Todo を一定期間後にゴミ箱へ移動",
-    "autoArchiveDays": "{{days}}日後",
-    "autoArchiveDisabled": "無効",
-    "hideCompletedTasks": "完了 Todo を非表示",
-    "hideCompletedTasksDesc": "Todo ツリーから完了済み Todo を隠す",
-    "autoCompleteParent": "親 Todo の自動完了",
-    "system": "システム",
-    "autoLaunch": "ログイン時に起動",
-    "autoLaunchDesc": "ログイン時にLife Editorを自動的に起動する",
-    "startMinimized": "最小化で起動",
-    "startMinimizedDesc": "ウィンドウを表示せずバックグラウンドで起動する",
-    "trayIcon": "システムトレイアイコン",
-    "trayIconDesc": "システムトレイにアイコンとタイマー表示を追加",
-    "browser": {
-      "title": "サイドバーリンクのデフォルトブラウザ",
-      "description": "サイドバーから開く URL リンクで使うブラウザ。未選択時はシステムデフォルトを使用します。",
-      "systemDefault": "システムデフォルト",
-      "none": "/Applications に対応ブラウザが検出されませんでした。システムデフォルトを使用します。"
-    },
-    "globalShortcuts": "グローバルショートカット",
-    "globalShortcutsDesc": "アプリが非アクティブでも動作するキーボードショートカット",
-    "toggleTimerShortcut": "タイマー切替",
-    "quickAddTaskShortcut": "クイック Todo 追加",
-    "mobileAccess": {
-      "title": "モバイルアクセス",
-      "description": "同じWiFiネットワーク上のiPhone/iPadからLife Editorにアクセスできます。",
-      "enable": "モバイルアクセスを有効化",
-      "disable": "モバイルアクセスを無効化",
-      "scanQr": "スマートフォンのカメラでQRコードをスキャン",
-      "copy": "URLをコピー",
-      "copied": "コピーしました！",
-      "regenerate": "トークンを再生成（現在のセッションは無効化されます）"
     }
   },
   "timerSettings": {
-    "title": "タイマー",
-    "workDuration": "作業時間",
-    "breakDuration": "休憩時間",
-    "longBreakDuration": "ロング休憩時間",
-    "sessionsBeforeLongBreak": "ロング休憩までのセッション数",
-    "autoStartBreaks": "休憩の自動開始",
-    "autoStartBreaksDesc": "作業セッション終了時に自動的に休憩タイマーを開始",
-    "targetSessions": "1日の目標セッション数",
-    "runningWarning": "タイマー実行中です。変更は次のセッションから適用されます。",
-    "minutes": "分"
+    "targetSessions": "1日の目標セッション数"
   },
   "data": {
-    "title": "データ管理",
-    "export": "データをエクスポート",
-    "import": "データをインポート",
-    "importWarning": "インポートすると現在のデータがすべて上書きされます。インポート前にバックアップが自動作成されます。",
-    "exportSuccess": "データのエクスポートに成功しました。",
-    "exportFailed": "エクスポート失敗: {{error}}",
-    "importSuccess": "データをインポートしました。再読み込み中...",
-    "importFailed": "インポート失敗: {{error}}",
-    "reset": "すべてのデータをリセット",
-    "resetConfirm": "すべてのデータが削除され、アプリが初期状態に戻ります。この操作は取り消せません。リセット前にバックアップが自動作成されます。本当にリセットしますか？",
-    "resetSuccess": "データをリセットしました。再読み込み中...",
-    "resetFailed": "リセット失敗: {{error}}",
-    "unknownError": "不明なエラー",
-    "openTrash": "ゴミ箱を開く"
+    "title": "データ管理"
   },
   "trash": {
     "empty": "ゴミ箱は空です",
     "emptyDescription": "削除した項目がここに表示されます。",
-    "emptyCategory": "{{category}}のゴミ箱をからにする",
-    "emptyCategoryConfirm": "「{{category}}」のゴミ箱を完全に空にします。{{count}} 件が完全に削除され、復元できません。実行しますか？",
-    "emptyCategoryDone": "{{category}}のゴミ箱を空にしました（{{count}} 件）",
-    "emptying": "削除中...",
     "tasks": "Todo",
     "notes": "ノート",
     "restore": "復元",
     "deletePermanently": "完全に削除",
     "task": "Todo",
     "note": "ノート",
-    "sounds": "サウンド",
-    "sound": "サウンド",
-    "tabTasks": "Todo",
-    "tabRoutine": "ルーティン",
-    "tabEvents": "イベント",
-    "tabMaterials": "素材",
-    "tabMemo": "メモ",
-    "tabSounds": "サウンド",
     "event": "イベント",
     "events": "イベント",
     "routines": "ルーティン",
     "routine": "ルーティン",
-    "daily": "デイリー",
     "dailies": "デイリー",
-    "memo": "メモ",
     "loading": "ゴミ箱を読み込み中...",
     "error": "ゴミ箱の読み込みに失敗しました。",
     "errorTitle": "ゴミ箱を読み込めませんでした",
@@ -462,62 +124,18 @@
     "restoring": "復元中…",
     "deleting": "削除中…",
     "cascadeWarning": "関連する子項目やタグの割り当ても一緒に削除されます。",
-    "emptyCategoryLine": "削除済みの項目はありません。",
     "permanentDeleteConfirm": "「{{name}}」を完全に削除します。この操作は取り消せません。"
   },
   "updates": {
-    "title": "アップデート",
-    "checkForUpdates": "アップデートを確認",
-    "download": "ダウンロード",
-    "restartToUpdate": "再起動して更新",
-    "checking": "アップデートを確認中...",
-    "available": "アップデート v{{version}} が利用可能です。",
-    "upToDate": "最新バージョンを使用しています。",
-    "downloading": "ダウンロード中... {{percent}}%",
-    "downloaded": "v{{version}} ダウンロード完了。再起動して適用します。",
-    "error": "アップデートエラー: {{message}}",
-    "unknown": "不明"
+    "title": "アップデート"
   },
   "work": {
     "title": "ワーク",
-    "tabTimer": "タイマー",
-    "tabPomodoro": "ポモドーロ",
-    "tabMusic": "ミュージック",
-    "tabHistory": "履歴",
-    "history": {
-      "last7Days": "直近 7 日間",
-      "empty": "セッション記録はまだありません。Pomodoro か Free セッションを開始してください。"
-    },
-    "toast": {
-      "recordedToTask": "✓ {{task}} に {{minutes}}分 を記録",
-      "recordedFreeWork": "✓ {{minutes}}分 を記録"
-    },
-    "setBackgroundSound": "バックグラウンドサウンドを設定する",
-    "noPlaylist": "プレイリスト未選択（無音）",
-    "backgroundPlaylist": "バックグラウンドプレイリスト",
-    "playingPlaylist": "再生中: {{name}}",
     "sidebar": {
-      "nowPlaying": "再生中",
-      "noPlaylist": "プレイリスト未選択",
-      "pomodoroSettings": "ポモドーロ設定",
-      "todayStats": "今日のセッション",
       "sessions": "{{count}} セッション",
-      "totalTime": "{{minutes}} 分",
-      "workTime": "ワーク時間",
       "targetSessions": "目標",
-      "goalTime": "目標時間",
-      "sessionsProgress": "{{completed}} / {{target}} セッション",
-      "timeProgress": "{{actual}}m / {{goal}}m",
-      "selectPlaylist": "プレイリストを選択",
-      "selectNone": "なし"
+      "sessionsProgress": "{{completed}} / {{target}} セッション"
     },
-    "freeSession": "フリーセッション",
-    "sessionComplete": "セッション完了",
-    "taskComplete": "Todo 完了",
-    "confirmSessionTitle": "セッション終了",
-    "confirmSessionMessage": "セッションを終了して休憩に入りますか？",
-    "confirmTaskTitle": "Todo 完了",
-    "confirmTaskMessage": "この Todo を完了しますか？",
     "status": {
       "paused": "一時停止中"
     },
@@ -538,7 +156,6 @@
     "taskSelector": {
       "heading": "紐づける Todo",
       "placeholder": "Todo を選択…",
-      "none": "Todo がありません",
       "clear": "Todo を解除",
       "select": "Todo を選ぶ",
       "clearSelection": "選択を外す",
@@ -553,7 +170,6 @@
       "close": "閉じる"
     },
     "settings": {
-      "minutesUnit": "分",
       "presetNamePlaceholder": "プリセット名",
       "saveAsPreset": "保存",
       "apply": "適用",
@@ -579,39 +195,19 @@
     "longBreakDuration": "セット間の休憩時間",
     "sessionsPerSet": "1セットあたりのセッション数",
     "presets": "プリセット",
-    "saveAsPreset": "現在の設定をプリセットとして保存",
-    "presetName": "プリセット名",
     "deletePreset": "プリセット削除",
-    "currentConfig": "現在の設定",
-    "autoStartBreaks": "休憩を自動開始",
-    "todaySessions": "今日のセッション",
-    "todayWorkTime": "今日の作業時間",
-    "adjustTime": "時間調整"
+    "autoStartBreaks": "休憩を自動開始"
   },
   "timer": {
-    "work": "ワーク",
-    "rest": "レスト",
-    "longRest": "ロングレスト"
+    "work": "ワーク"
   },
   "taskDetail": {
-    "detailEmpty": "Todo を選択すると、ここで表示・編集できます。",
-    "detailTitle": "Todo",
-    "closeDetail": "Todo を閉じる",
     "titleLabel": "Todo のタイトル",
     "status": "ステータス",
     "statusNotStarted": "未着手",
     "statusInProgress": "進行中",
     "statusDone": "完了",
     "content": "メモ",
-    "start": "開始",
-    "useGlobalDefault": "デフォルトを使用 ({{min}}分)",
-    "schedule": "スケジュール設定",
-    "allDay": "終日",
-    "startTime": "開始",
-    "endTime": "終了",
-    "showEndTime": "終了時刻",
-    "clearSchedule": "スケジュールをクリア",
-    "emptyState": "Todo を選択して詳細を表示",
     "tags": "タグ"
   },
   "kanban": {
@@ -620,23 +216,18 @@
     "segmentedGroupLabel": "ボード表示切替",
     "emptyColumn": "Todo はまだありません",
     "placeholderHint": "タグ別ビューは準備中です",
-    "boardLabel": "Todo ボード",
     "untagged": "タグなし",
     "colorPickerLabel": "色を変更",
     "colorClearLabel": "デフォルト色",
     "colorCustomLabel": "カスタム",
-    "modalClose": "閉じる (Esc)",
-    "breadcrumbTask": "Todo",
     "addTask": "追加",
     "addDialogTitle": "Todo を追加",
-    "addTypeTask": "Todo",
     "addTitleLabel": "タイトル",
     "addTitlePlaceholder": "タイトルを入力",
     "addSubmit": "追加",
     "addCancel": "キャンセル"
   },
   "materials": {
-    "title": "マテリアル",
     "tasks": {
       "filterLabel": "ステータスで絞り込む",
       "statusSheetTitle": "ステータスを変更",
@@ -645,11 +236,6 @@
       "quickAddSubmit": "追加",
       "empty": "Todo がありません",
       "addCta": "Todo を追加",
-      "expandGroup": "グループを展開",
-      "collapseGroup": "グループを折りたたむ",
-      "emptyGroup": "Todo なし",
-      "untitled": "(無題)",
-      "unfiled": "未分類",
       "taskCount": "Todo {{count}} 件"
     },
     "notes": {
@@ -660,8 +246,6 @@
       "content": "内容",
       "links": "リンク",
       "deleteNote": "ノートを削除",
-      "pinnedSection": "ピン留め",
-      "allNotes": "すべてのノート",
       "quickAddTitle": "ノートを追加",
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",
@@ -695,16 +279,11 @@
       "filterLabel": "エントリを絞り込む"
     },
     "tags": {
-      "tagsCount": "タグ（{{count}}）",
-      "addCta": "タグ",
       "addPlaceholder": "タグ名を入力",
       "empty": "タグはまだありません",
       "rename": "タグ名を変更",
       "colorLabel": "色",
       "deleteTag": "タグを削除",
-      "quickAddTitle": "タグを追加",
-      "quickAddPlaceholder": "タグ名を入力",
-      "quickAddSubmit": "追加",
       "editTitle": "タグを編集",
       "editCta": "タグ編集",
       "addTag": "追加",
@@ -725,17 +304,6 @@
   },
   "connect": {
     "title": "コネクト",
-    "toggleConnectMode": "Connectモード: ノード間をドラッグして繋ぐ",
-    "linkEdges": "ノートリンク",
-    "panel": {
-      "title": "2つを繋ぐ",
-      "searchPlaceholder": "タグを検索 / 新規タグ名を入力...",
-      "createNew": "「{{name}}」を新規タグとして作成",
-      "connect": "繋ぐ",
-      "cancel": "キャンセル",
-      "alreadyLinked": "両方に付与済み",
-      "noTags": "タグがまだありません"
-    },
     "graph": {
       "search": "ノードを検索...",
       "nodeTypes": "ノード種別",
@@ -753,7 +321,6 @@
       "noMatch": "条件に一致するノードがありません",
       "reheat": "再配置",
       "resetView": "ビューをリセット",
-      "togglePanel": "パネル切替",
       "closePanel": "パネルを閉じる",
       "depth": "深さ",
       "off": "オフ",
@@ -764,11 +331,8 @@
       "linkCreateFailed": "リンクの追加に失敗しました",
       "linkDeleteFailed": "リンクの削除に失敗しました",
       "selectNodeHint": "キャンバスでノードを選択するとローカルグラフが有効になります",
-      "tapHint": "ノードをタップで中央へ。ドラッグで移動。ピンチ / スクロールでズーム。",
       "links": "リンク",
       "tagsShort": "タグ",
-      "match_one": "{{count}} 件一致",
-      "match_other": "{{count}} 件一致",
       "typeProject": "プロジェクト",
       "typeNote": "ノート",
       "typeDaily": "デイリー",
@@ -794,95 +358,11 @@
     "mobile": {
       "linksTab": "つながり",
       "backlinksTab": "バックリンク",
-      "settingsTitle": "グラフ設定",
-      "searchPlaceholder": "ノート・デイリー・タグを検索"
+      "settingsTitle": "グラフ設定"
     }
   },
   "schedule": {
-    "todayFlow": "Today Flow",
-    "noItems": "この日のアイテムはありません",
-    "complete": "完了",
-    "undoComplete": "完了を取り消す",
-    "dayFlow": "Day Flow",
-    "routines": "ルーティン",
-    "newRoutine": "ルーティンを追加",
-    "editRoutine": "ルーティンを編集",
-    "editEvent": "イベントを編集",
-    "editTask": "Todo を編集",
-    "routineTitle": "タイトル",
-    "routineTitlePlaceholder": "ルーティン名",
-    "start": "開始",
-    "end": "終了",
-    "create": "作成",
-    "removeFromDay": "外す",
-    "fullscreen": "全画面",
-    "exitFullscreen": "全画面を終了",
-    "achievement": "実績",
-    "achievementDetails": "実績詳細",
-    "routineFlow": "Routine Flow",
-    "frequency": "頻度",
-    "frequencyDaily": "毎日",
-    "frequencyWeekdays": "曜日指定",
-    "frequencyInterval": "N日ごと",
-    "frequencyGroup": "グループ",
-    "everyNDays": "{{n}}日ごと",
-    "intervalDays": "間隔（日数）",
-    "startDate": "開始日",
-    "sun": "日",
-    "mon": "月",
-    "tue": "火",
-    "wed": "水",
-    "thu": "木",
-    "fri": "金",
-    "sat": "土",
-    "achieved": "達成",
-    "notAchieved": "未達成",
-    "achievementRate": "達成: {{completed}}/{{total}} ({{rate}}%)",
-    "noRoutineItems": "この日のルーティン項目はありません。",
-    "noActiveRoutines": "今日のアクティブなルーティンはありません。",
-    "searchTasks": "Todo を検索...",
-    "searchEvents": "イベントを検索...",
-    "stats": {
-      "title": "統計",
-      "details": "詳細",
-      "dayStreak": "日連続",
-      "currentStreak": "現在",
-      "longestStreak": "最長",
-      "totalAchievedDays": "達成日数",
-      "perRoutine": "ルーティン別",
-      "individual": "個別",
-      "groups": "グループ",
-      "monthlyHeatmap": "90日間ヒートマップ"
-    },
-    "routineDeleteConfirm": {
-      "title": "ルーティンを削除",
-      "description": "「{{title}}」をどのように削除しますか？",
-      "dismissOnly": "今回のみ削除",
-      "dismissOnlyDesc": "今日のスケジュールから非表示にします。明日以降は通常通り表示されます。",
-      "archiveRoutine": "今後のルーティンからも削除",
-      "archiveRoutineDesc": "ルーティンをアーカイブし、今後自動生成されなくなります。ルーティン管理画面から復元できます。",
-      "cancel": "キャンセル"
-    },
-    "routineTimeChange": {
-      "title": "ルーティンの時間を更新しますか？",
-      "description": "「{{title}}」の時間が {{time}} に変更されました。",
-      "thisOnly": "今回のみ変更",
-      "thisOnlyDesc": "今日のスケジュールのみ変更します。ルーティンのテンプレートはそのままです。",
-      "applyToRoutine": "ルーティンテンプレートも更新",
-      "applyToRoutineDesc": "今後のスケジュールにも反映されるよう、ルーティンのデフォルト時間を更新します。"
-    },
-    "routineEditTimeChange": {
-      "title": "既存スケジュールも更新しますか？",
-      "description": "「{{title}}」のテンプレート時間が {{time}} に変更されました。",
-      "templateOnly": "テンプレートのみ更新",
-      "templateOnlyDesc": "ルーティンのデフォルト時間のみ変更します。既存のスケジュールには影響しません。",
-      "applyToAll": "既存スケジュールも更新",
-      "applyToAllDesc": "今日以降のスケジュール済みアイテムの時間も同時に更新します。"
-    },
-    "itemTitlePlaceholder": "スケジュールアイテム名",
-    "allDay": "終日",
-    "materials": "マテリアル",
-    "dailyMemo": "デイリー"
+    "complete": "完了"
   },
   "scheduleCalendar": {
     "weekdaySun": "日",
@@ -892,18 +372,6 @@
     "weekdayThu": "木",
     "weekdayFri": "金",
     "weekdaySat": "土",
-    "allDay": "終日",
-    "today": "今日",
-    "prevWeek": "前の週",
-    "nextWeek": "次の週",
-    "prevDay": "前の日",
-    "nextDay": "次の日",
-    "empty": "予定なし",
-    "selectHint": "編集する予定を選択",
-    "title": "タイトル",
-    "startTime": "開始",
-    "endTime": "終了",
-    "complete": "完了にする",
     "newEvent": "新規予定",
     "createSlot": "この時刻に予定を作成"
   },
@@ -935,7 +403,6 @@
     "memo": "メモ",
     "originRoutine": "ルーチンから生成",
     "originEvent": "予定",
-    "originTask": "Todo",
     "skipThisDay": "この日はスキップ",
     "skippedTitle": "スキップ済み（{{count}}件）",
     "restoreSkipped": "戻す",
@@ -946,8 +413,6 @@
     "done": "完了",
     "doneSummary": "{{total}}件中{{done}}件完了",
     "emptyToday": "今日の予定はありません",
-    "now": "現在",
-    "routineListTitle": "マイルーチン",
     "newRoutine": "新規ルーチン",
     "frequency": "繰り返し",
     "viewLabel": "表示",
@@ -967,8 +432,6 @@
     "loading": "読み込み中…",
     "loadError": "予定を読み込めませんでした",
     "retry": "再試行",
-    "emptyTitle": "この週の予定はありません",
-    "emptyBody": "空いた時間をクリックして作成できます。",
     "moreCount": "他 {{count}} 件",
     "quickAddTitle": "予定を追加",
     "quickAddPlaceholder": "予定を入力…",
@@ -1033,19 +496,10 @@
     },
     "tabs": {
       "overview": "概要",
-      "time": "時間",
       "tasks": "Todo",
       "schedule": "スケジュール",
-      "materials": "マテリアル",
-      "work": "作業",
-      "connect": "コネクト"
+      "work": "作業"
     },
-    "totalTasks": "全 Todo",
-    "completed": "完了",
-    "inProgress": "進行中",
-    "todayRate": "今日の完了率",
-    "totalRate": "全体の完了率",
-    "comingSoon": "より詳細な分析は近日公開予定です。",
     "workTime": "作業時間",
     "taskWorkTime": "Todo 別作業時間",
     "period": {
@@ -1057,7 +511,6 @@
     "sessions": "セッション数",
     "avgPerDay": "日平均",
     "hours": "{{hours}}時間{{minutes}}分",
-    "noSessions": "まだ作業セッションが記録されていません。タイマーを開始して作業時間を追跡しましょう。",
     "today": {
       "title": "今日",
       "workTime": "作業時間",
@@ -1066,9 +519,6 @@
     },
     "weekly": {
       "title": "週間比較",
-      "thisWeek": "今週",
-      "lastWeek": "先週",
-      "change": "変化",
       "workTimeLabel": "作業時間",
       "sessionsLabel": "セッション",
       "completedLabel": "完了 Todo"
@@ -1121,27 +571,6 @@
       "title": "プロジェクト別作業時間",
       "noData": "プロジェクトデータがありません"
     },
-    "sidebar": {
-      "period": "期間",
-      "preset": {
-        "7d": "過去7日間",
-        "30d": "過去30日間",
-        "thisMonth": "今月",
-        "3m": "過去3ヶ月",
-        "all": "全期間"
-      },
-      "dateRange": "日付範囲",
-      "charts": "表示チャート",
-      "showAll": "すべて表示",
-      "hideAll": "すべて非表示",
-      "chartGroup": {
-        "work": "作業チャート",
-        "tasks": "Todo チャート",
-        "schedule": "スケジュールチャート",
-        "materials": "マテリアルチャート",
-        "connect": "コネクトチャート"
-      }
-    },
     "overview": {
       "tasks": "Todo",
       "events": "イベント",
@@ -1149,10 +578,8 @@
       "work": "作業時間",
       "routines": "ルーティン",
       "tags": "タグ",
-      "total": "合計",
       "completed": "完了",
       "today": "今日",
-      "active": "アクティブ",
       "rate": "達成率",
       "thisWeek": "今週",
       "assigned": "割り当て"
@@ -1174,65 +601,11 @@
       "routineCompletion": {
         "title": "ルーティン別達成率",
         "rate": "達成率"
-      },
-      "noEvents": "この期間のイベントはありません。"
-    },
-    "materials": {
-      "totalNotes": "ノート数",
-      "noteFolders": "フォルダ数",
-      "pinnedNotes": "ピン留め",
-      "createdPeriod": "作成数(期間)",
-      "totalMemos": "メモ数",
-      "memosPeriod": "メモ数(期間)",
-      "creationTrend": {
-        "title": "ノート作成トレンド",
-        "count": "作成数"
-      },
-      "memoHeatmap": {
-        "title": "メモアクティビティ",
-        "tooltip": "{{count}}件のメモ"
-      },
-      "byFolder": {
-        "title": "フォルダ別ノート数",
-        "count": "ノート数",
-        "noFolder": "フォルダなし"
-      },
-      "noNotes": "ノートはまだありません。"
-    },
-    "connect": {
-      "totalTags": "タグ数",
-      "totalAssignments": "割り当て数",
-      "uniqueEntities": "タグ付きアイテム",
-      "coverageRate": "カバー率",
-      "topTags": {
-        "title": "使用頻度の高いタグ",
-        "count": "割り当て数"
-      },
-      "byEntityType": {
-        "title": "エンティティ種別別タグ",
-        "task": "Todo",
-        "note": "ノート",
-        "daily": "デイリー"
-      },
-      "connections": {
-        "title": "コネクション統計",
-        "tagConnections": "タグコネクション",
-        "noteConnections": "ノートコネクション",
-        "mostConnected": "最多接続",
-        "isolatedTags": "孤立タグ",
-        "avgConnections": "平均接続数",
-        "density": "密度"
-      },
-      "noTags": "タグはまだありません。"
+      }
     }
   },
   "search": {
-    "placeholder": "Todo を検索...",
-    "noResults": "一致する Todo はありません",
-    "clear": "検索をクリア",
-    "rootLevel": "ルート直下",
-    "searchSettings": "設定を検索...",
-    "searchTrash": "ゴミ箱を検索..."
+    "clear": "検索をクリア"
   },
   "undoRedo": {
     "undone": "元に戻しました: {{label}}",
@@ -1243,34 +616,15 @@
   },
   "common": {
     "cancel": "キャンセル",
-    "ok": "OK",
-    "delete": "削除",
-    "confirm": "確認",
-    "save": "保存",
     "close": "閉じる",
-    "comingSoon": "Coming Soon",
     "undo": "元に戻す",
     "redo": "やり直す",
-    "reloadApp": "アプリを再読み込み",
-    "create": "作成",
-    "edit": "編集",
-    "openManagement": "管理画面を開く",
     "untitled": "無題"
   },
   "tabs": {
-    "taskTree": "Todo ツリー",
-    "memoTree": "メモツリー",
     "tasks": "Todo",
     "schedule": "スケジュール",
-    "incomplete": "未完了",
-    "complete": "完了",
-    "calendar": "カレンダー",
-    "dayflow": "デイフロー",
-    "routine": "ルーティン",
-    "events": "予定",
-    "overview": "概要",
-    "detail": "詳細",
-    "tree": "ツリー"
+    "overview": "概要"
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",
@@ -1308,35 +662,18 @@
     "resize": "詳細パネルの幅を変更"
   },
   "notes": {
-    "title": "ノート",
-    "newNote": "新しいノート",
-    "searchNotes": "ノートを検索...",
-    "noMatching": "一致するノートがありません",
-    "noNotes": "ノートはまだありません",
-    "untitled": "無題",
     "sortUpdated": "更新日順",
     "sortCreated": "作成日順",
     "sortTitle": "タイトル順"
   },
   "notesView": {
-    "untitled": "無題",
     "unpin": "ピン解除",
     "pin": "ピン留め",
-    "favorite": "お気に入りに追加",
-    "unfavorite": "お気に入りから削除",
-    "loadingEditor": "エディタを読み込み中...",
-    "emptyState": "ノートを選択するか、新しく作成してください",
-    "detailEmpty": "ノートを選択すると、ここで表示・編集できます。",
     "detailTitle": "ノート",
-    "closeDetail": "ノートを閉じる",
     "moreActions": "その他の操作"
   },
   "backlinks": {
-    "title": "被リンク",
-    "unlinkedMentions": "未リンク言及",
-    "empty": "このノートへのリンクはまだありません。",
-    "noUnlinkedMentions": "未リンクの言及はありません。",
-    "loading": "読み込み中..."
+    "empty": "このノートへのリンクはまだありません。"
   },
   "database": {
     "loading": "読み込み中...",
@@ -1403,50 +740,13 @@
   "blockMenu": {
     "turnInto": "変換",
     "noMatch": "該当する項目がありません",
-    "color": "カラー",
-    "background": "背景",
-    "duplicate": "複製",
-    "delete": "削除",
-    "addIcon": "アイコンを追加",
-    "textColors": {
-      "default": "デフォルト",
-      "red": "赤",
-      "blue": "青",
-      "green": "緑",
-      "yellow": "黄",
-      "gray": "グレー",
-      "purple": "紫",
-      "orange": "オレンジ"
-    },
-    "bgColors": {
-      "default": "デフォルト",
-      "gray": "グレー",
-      "blue": "青",
-      "green": "緑",
-      "yellow": "黄",
-      "red": "赤",
-      "purple": "紫"
-    },
-    "calloutColors": {
-      "default": "デフォルト",
-      "blue": "青",
-      "green": "緑",
-      "yellow": "黄",
-      "red": "赤",
-      "purple": "紫"
-    },
     "turnIntoItems": {
-      "paragraph": "段落",
       "heading1": "見出し 1",
       "heading2": "見出し 2",
       "heading3": "見出し 3",
-      "blockquote": "引用",
-      "codeBlock": "コードブロック",
       "bulletList": "箇条書き",
       "orderedList": "番号付きリスト",
-      "taskList": "Todo リスト",
-      "callout": "コールアウト",
-      "toggleList": "トグルリスト"
+      "taskList": "Todo リスト"
     }
   },
   "itemLink": {

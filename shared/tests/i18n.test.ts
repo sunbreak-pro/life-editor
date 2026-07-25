@@ -20,9 +20,9 @@ describe("shared i18n", () => {
 
   it("resolves the same key differently per language", async () => {
     await i18n.changeLanguage("en");
-    expect(i18n.t("sidebar.tasks")).toBe("Todos");
+    expect(i18n.t("section.tasks")).toBe("Todos");
     await i18n.changeLanguage("ja");
-    expect(i18n.t("sidebar.tasks")).toBe("Todo");
+    expect(i18n.t("section.tasks")).toBe("Todo");
     // restore default so test ordering stays neutral
     await i18n.changeLanguage("en");
   });
