@@ -85,7 +85,7 @@ export function TagWorkTimeChart({
         // rounding per slice would drift the ring off the real total. The
         // tooltip formats them for display.
         return {
-          name: d.tagName ?? "",
+          name: d.tagName,
           value: d.totalMinutes,
           color: d.tagColor,
         };

@@ -65,22 +65,29 @@ export interface StagnationBucket {
   color: string;
 }
 
-export interface TagWorkTimeBucket {
-  /**
-   * "tag" = one life-tag. "other" = every tag past the top-N cap, folded
-   * together. "untagged" = work on a task with no tag (or with no task at
-   * all). The two synthetic buckets keep the total honest — the host supplies
-   * their labels, since the shared tree holds no strings.
-   */
-  kind: "tag" | "other" | "untagged";
-  /** Tag id; null for the synthetic buckets. */
-  tagId: string | null;
-  /** Tag name; null for the synthetic buckets. */
-  tagName: string | null;
-  /** Tag colour as authored in Materials; null when unset / synthetic. */
-  tagColor: string | null;
-  totalMinutes: number;
-}
+/**
+ * One slice of the tag work-time ring. A discriminated union so a "tag" slice
+ * is statically guaranteed to carry a name — the two synthetic buckets ("other"
+ * = tags past the top-N cap, folded together; "untagged" = work on a task with
+ * no tag, or with no task at all) carry none, because the host supplies their
+ * labels: the shared tree holds no strings.
+ */
+export type TagWorkTimeBucket =
+  | {
+      kind: "tag";
+      tagId: string;
+      tagName: string;
+      /** Tag colour as authored in Materials; null when the tag has none. */
+      tagColor: string | null;
+      totalMinutes: number;
+    }
+  | {
+      kind: "other" | "untagged";
+      tagId: null;
+      tagName: null;
+      tagColor: null;
+      totalMinutes: number;
+    };
 
 export interface WorkStreak {
   currentStreak: number;

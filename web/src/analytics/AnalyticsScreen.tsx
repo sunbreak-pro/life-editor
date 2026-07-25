@@ -186,11 +186,16 @@ export function AnalyticsScreen({
   const labels = useMemo<AnalyticsLabels>(
     () => ({
       title: t("analytics.title"),
-      formatHours: (minutes: number) =>
-        t("analytics.hours", {
-          hours: Math.floor(minutes / 60),
-          minutes: Math.round(minutes % 60),
-        }),
+      formatHours: (minutes: number) => {
+        // Round once, then split — rounding the remainder on its own renders
+        // 119.7 as "1h 60m". Charts pass raw minutes (the tag ring splits
+        // multi-tag sessions into fractions), so this is the only guard.
+        const total = Math.round(minutes);
+        return t("analytics.hours", {
+          hours: Math.floor(total / 60),
+          minutes: total % 60,
+        });
+      },
       tabsLabel: t("analytics.tabsLabel"),
       tabs: {
         overview: t("analytics.tabs.overview"),
