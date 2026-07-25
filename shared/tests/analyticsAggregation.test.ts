@@ -1,11 +1,19 @@
 import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
+import type { TaskNode } from "../src/types/taskTree";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTag";
+import type {
+  WikiTag as WikiTagUnified,
+  WikiTagAssignment as WikiTagAssignmentUnified,
+} from "../src/types/wikiTagUnified";
 import {
   aggregateByDay,
   aggregateByTask,
   computeSummary,
   aggregateTagByEntityType,
+  aggregateWorkTimeByTag,
+  aggregateTaskCompletionTrend,
+  aggregateTaskStagnation,
 } from "../src/utils/analyticsAggregation";
 
 function makeAssignment(
@@ -193,4 +201,187 @@ describe("aggregateTagByEntityType (V64 entityType regression)", () => {
     // the stale "memo" literal while V64 writes "daily".
     expect(result[0]?.dailyCount).toBe(1);
   });
+});
+
+/*
+ * #334: the folder-based "Project work time" ring is replaced by tag-based
+ * aggregation. These pin the attribution rules (even split across a task's
+ * tags, trailing untagged bucket) and — since the retired aggregateByFolder
+ * walked `parentId` without a visited guard — that no analytics aggregation
+ * hangs on a cyclic task graph (KI-016 class).
+ */
+function makeUnifiedTag(
+  overrides: Partial<WikiTagUnified> = {},
+): WikiTagUnified {
+  return {
+    id: "tag-a",
+    name: "Tag A",
+    color: "#ff0000",
+    icon: null,
+    createdAt: "2025-01-01T00:00:00.000Z",
+    updatedAt: "2025-01-01T00:00:00.000Z",
+    version: 1,
+    isDeleted: false,
+    deletedAt: null,
+    ...overrides,
+  };
+}
+
+function makeUnifiedAssignment(
+  overrides: Partial<WikiTagAssignmentUnified> = {},
+): WikiTagAssignmentUnified {
+  return {
+    id: "asg-1",
+    itemId: "task-1",
+    tagId: "tag-a",
+    updatedAt: "2025-01-01T00:00:00.000Z",
+    isDeleted: false,
+    deletedAt: null,
+    ...overrides,
+  };
+}
+
+describe("aggregateWorkTimeByTag", () => {
+  it("attributes a task's work time to its tag", () => {
+    const result = aggregateWorkTimeByTag(
+      [makeSession({ taskId: "task-1", duration: 1500 })],
+      [makeUnifiedAssignment()],
+      [makeUnifiedTag()],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      tagId: "tag-a",
+      tagName: "Tag A",
+      tagColor: "#ff0000",
+    });
+    expect(result[0].totalMinutes).toBeCloseTo(25);
+  });
+
+  it("splits a multi-tag task's minutes evenly so the buckets sum to the real total", () => {
+    const result = aggregateWorkTimeByTag(
+      [makeSession({ taskId: "task-1", duration: 1800 })], // 30 min
+      [
+        makeUnifiedAssignment({ id: "asg-1", tagId: "tag-a" }),
+        makeUnifiedAssignment({ id: "asg-2", tagId: "tag-b" }),
+      ],
+      [makeUnifiedTag(), makeUnifiedTag({ id: "tag-b", name: "Tag B" })],
+    );
+
+    expect(result.map((b) => b.totalMinutes)).toEqual([15, 15]);
+    const total = result.reduce((sum, b) => sum + b.totalMinutes, 0);
+    expect(total).toBeCloseTo(30);
+  });
+
+  it("counts a duplicated assignment once (no double weighting)", () => {
+    const result = aggregateWorkTimeByTag(
+      [makeSession({ taskId: "task-1", duration: 1800 })],
+      [
+        makeUnifiedAssignment({ id: "asg-1", tagId: "tag-a" }),
+        makeUnifiedAssignment({ id: "asg-2", tagId: "tag-a" }),
+        makeUnifiedAssignment({ id: "asg-3", tagId: "tag-b" }),
+      ],
+      [makeUnifiedTag(), makeUnifiedTag({ id: "tag-b", name: "Tag B" })],
+    );
+
+    expect(result.map((b) => b.totalMinutes)).toEqual([15, 15]);
+  });
+
+  it("puts untagged work — and work with no task — in a trailing null bucket", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, taskId: "task-1", duration: 1200 }), // tagged, 20 min
+        makeSession({ id: 2, taskId: "task-2", duration: 600 }), // untagged, 10 min
+        makeSession({ id: 3, taskId: null, duration: 300 }), // no task, 5 min
+      ],
+      [makeUnifiedAssignment()],
+      [makeUnifiedTag()],
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0].tagId).toBe("tag-a");
+    // Untagged always comes last so it never crowds out a real tag.
+    expect(result[result.length - 1]).toMatchObject({
+      tagId: null,
+      tagName: null,
+      tagColor: null,
+    });
+    expect(result[1].totalMinutes).toBeCloseTo(15);
+  });
+
+  it("ignores non-WORK sessions and soft-deleted tags / assignments", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, taskId: "task-1", duration: 600 }),
+        makeSession({ id: 2, taskId: "task-1", duration: 600, sessionType: "BREAK" }),
+      ],
+      [
+        makeUnifiedAssignment({ id: "asg-1", isDeleted: true }),
+        makeUnifiedAssignment({ id: "asg-2", tagId: "tag-gone" }),
+      ],
+      [makeUnifiedTag({ id: "tag-gone", isDeleted: true })],
+    );
+
+    // Both assignments drop out, so the WORK session reads as untagged and
+    // the BREAK session is filtered entirely.
+    expect(result).toEqual([
+      { tagId: null, tagName: null, tagColor: null, totalMinutes: 10 },
+    ]);
+  });
+
+  it("keeps only the top-N tags, untagged excluded from the cap", () => {
+    const tags = Array.from({ length: 12 }, (_, i) =>
+      makeUnifiedTag({ id: `tag-${i}`, name: `Tag ${i}` }),
+    );
+    const sessions = tags.map((t, i) =>
+      makeSession({ id: i + 1, taskId: `task-${i}`, duration: (i + 1) * 60 }),
+    );
+    const assignments = tags.map((t, i) =>
+      makeUnifiedAssignment({ id: `asg-${i}`, itemId: `task-${i}`, tagId: t.id }),
+    );
+    // Plus one untagged session so the trailing bucket is present too.
+    sessions.push(makeSession({ id: 99, taskId: "task-none", duration: 60 }));
+
+    const result = aggregateWorkTimeByTag(sessions, assignments, tags);
+
+    expect(result).toHaveLength(11); // 10 tags + untagged
+    expect(result[0].tagId).toBe("tag-11"); // longest first
+    expect(result[result.length - 1].tagId).toBeNull();
+  });
+
+  it("returns [] when there is no work time at all", () => {
+    expect(aggregateWorkTimeByTag([], [makeUnifiedAssignment()], [makeUnifiedTag()])).toEqual([]);
+  });
+});
+
+describe("analytics aggregation over a cyclic task graph (KI-016 class)", () => {
+  function cyclicNodes(): TaskNode[] {
+    // A -> B -> A plus a self-reference: the shape that made the retired
+    // findRootFolder spin forever and freeze the Analytics screen.
+    return [
+      { id: "A", type: "task", title: "A", parentId: "B", order: 0, createdAt: "2025-01-01T00:00:00.000Z" },
+      { id: "B", type: "task", title: "B", parentId: "A", order: 1, createdAt: "2025-01-01T00:00:00.000Z" },
+      { id: "C", type: "task", title: "C", parentId: "C", order: 2, createdAt: "2025-01-01T00:00:00.000Z" },
+    ];
+  }
+
+  it("terminates for every node-driven aggregation", () => {
+    const nodes = cyclicNodes();
+    const sessions = [
+      makeSession({ taskId: "A", duration: 1500 }),
+      makeSession({ id: 2, taskId: "C", duration: 600 }),
+    ];
+
+    expect(aggregateTaskCompletionTrend(nodes, 7)).toHaveLength(7);
+    expect(aggregateTaskStagnation(nodes)).toHaveLength(5);
+    // The tag ring reads assignments, not the task tree — a cycle is simply
+    // never traversed.
+    expect(
+      aggregateWorkTimeByTag(
+        sessions,
+        [makeUnifiedAssignment({ itemId: "A" })],
+        [makeUnifiedTag()],
+      ),
+    ).toHaveLength(2);
+  }, 5000);
 });

@@ -8,26 +8,29 @@ import {
   Legend,
 } from "recharts";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
-import { aggregateByFolder } from "../../utils/analyticsAggregation";
+import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
+import { aggregateWorkTimeByTag } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import { CHART_TOOLTIP_STYLE } from "./chartTheme";
 
-export interface ProjectWorkTimeChartLabels {
+export interface TagWorkTimeChartLabels {
   title: string;
   noData: string;
+  /** Slice label for work on tasks that carry no tag. */
+  untagged: string;
   formatHours: (minutes: number) => string;
 }
 
-interface ProjectWorkTimeChartProps {
+interface TagWorkTimeChartProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
-  labels: ProjectWorkTimeChartLabels;
+  assignments: WikiTagAssignment[];
+  tags: WikiTag[];
+  labels: TagWorkTimeChartLabels;
 }
 
-// Categorical palette for the pie slices (one tint per project). Data-series
-// colours for distinct categories, not themeable container chrome — sourced
-// from the centralized --color-chart-cat-* tokens (tokens.css).
+// Fallback palette for tags with no colour of their own. Data-series colours
+// for distinct categories, not themeable container chrome — sourced from the
+// centralized --color-chart-cat-* tokens (tokens.css).
 const COLORS = [
   "var(--color-chart-cat-1)",
   "var(--color-chart-cat-2)",
@@ -41,19 +44,30 @@ const COLORS = [
   "var(--color-chart-cat-10)",
 ];
 
-export function ProjectWorkTimeChart({
+// The untagged slice stays deliberately muted so tagged work reads first.
+const UNTAGGED_COLOR = "var(--color-lumen-text-tertiary)";
+
+/*
+ * Work time split by life-tag (#334). Replaces the folder-based "Project work
+ * time" chart: folders are gone since #225, so that chart could only ever
+ * render empty. A tag's slice is its share of real work time — sessions on
+ * multi-tag tasks are split evenly and untagged work keeps its own slice, so
+ * the ring always adds up to the time actually logged.
+ */
+export function TagWorkTimeChart({
   sessions,
-  nodes,
+  assignments,
+  tags,
   labels,
-}: ProjectWorkTimeChartProps): React.JSX.Element {
+}: TagWorkTimeChartProps): React.JSX.Element {
   const data = useMemo(
     () =>
-      aggregateByFolder(sessions, nodes).map((d) => ({
-        name: d.folderName,
+      aggregateWorkTimeByTag(sessions, assignments, tags).map((d) => ({
+        name: d.tagName ?? labels.untagged,
         value: Math.round(d.totalMinutes),
-        taskCount: d.taskCount,
+        color: d.tagId === null ? UNTAGGED_COLOR : d.tagColor,
       })),
-    [sessions, nodes],
+    [sessions, assignments, tags, labels.untagged],
   );
 
   if (data.length === 0) {
@@ -85,8 +99,11 @@ export function ProjectWorkTimeChart({
               }
               labelLine={{ strokeWidth: 1 }}
             >
-              {data.map((_, index) => (
-                <Cell key={index} fill={COLORS[index % COLORS.length]} />
+              {data.map((d, index) => (
+                <Cell
+                  key={index}
+                  fill={d.color ?? COLORS[index % COLORS.length]}
+                />
               ))}
             </Pie>
             <Tooltip
