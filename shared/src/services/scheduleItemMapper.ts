@@ -1,4 +1,10 @@
 import type { ScheduleItem } from "../types/schedule";
+import {
+  ITEMS_META_COLUMNS,
+  type ItemsMetaRow,
+  type ItemsMetaInsertRow,
+  type ItemsMetaUpdatePatch,
+} from "./taskMapper";
 
 /*
  * Pure ScheduleItem <-> 2-row (items_meta + events_payload) mappers
@@ -55,21 +61,12 @@ import type { ScheduleItem } from "../types/schedule";
 // ---------------------------------------------------------------------------
 
 /**
- * Row shape of `public.items_meta` for role='event'. `role` is a CHECK
- * column with 5 allowed values; this mapper is the Events-only view, so
- * `role` is narrowed to the `'event'` literal.
+ * items_meta shapes for role='event' — aliases of the canonical generics
+ * in `taskMapper` (the 5 role mappers carried byte-identical copies).
  */
-export interface ItemsMetaEventRow {
-  id: string;
-  user_id: string;
-  role: "event";
-  title: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
+export type ItemsMetaEventRow = ItemsMetaRow<"event">;
+export type ItemsMetaEventInsertRow = ItemsMetaInsertRow<"event">;
+export type ItemsMetaEventUpdatePatch = ItemsMetaUpdatePatch;
 
 /**
  * Row shape of `public.events_payload` (0008 + 0011). `routine_item_role`
@@ -112,17 +109,6 @@ export interface EventsPayloadRow {
 }
 
 /**
- * Writable subset for INSERT. `user_id` is the only items_meta column
- * the client must supply explicitly (RLS default would fill it, but
- * explicit is safer for cross-device parity); `created_at` /
- * `updated_at` are left to the column DEFAULT `now()` on first INSERT.
- */
-export type ItemsMetaEventInsertRow = Omit<
-  ItemsMetaEventRow,
-  "created_at" | "updated_at"
->;
-
-/**
  * Writable subset for INSERT/UPDATE on events_payload. Strips:
  *   - `routine_item_role` (0011 generated stored — SELECT-only, type-
  *     level guard, not a runtime check; same defence as
@@ -133,13 +119,6 @@ export type ItemsMetaEventInsertRow = Omit<
 export type EventsPayloadWriteRow = Omit<
   EventsPayloadRow,
   "routine_item_role" | "is_deleted_cache"
->;
-
-/** UPDATE patch for items_meta. `id` / `user_id` / `role` / `created_at`
- * are never patched. `updated_at` is ALWAYS present (bump responsibility,
- * see `scheduleItemUpdatesToPatches`). */
-export type ItemsMetaEventUpdatePatch = Partial<
-  Omit<ItemsMetaEventRow, "id" | "user_id" | "role" | "created_at">
 >;
 
 /** UPDATE patch for events_payload. `item_id` / `user_id` /
@@ -155,10 +134,8 @@ export type EventsPayloadUpdatePatch = Partial<
 // 2. SELECT column lists
 // ---------------------------------------------------------------------------
 
-/** SELECT column list for `items_meta` rows of role='event'. */
-export const ITEMS_META_EVENT_COLUMNS =
-  "id, user_id, role, title, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
+/** Role-scoped alias of `ITEMS_META_COLUMNS` for Events call sites. */
+export const ITEMS_META_EVENT_COLUMNS = ITEMS_META_COLUMNS;
 
 /**
  * SELECT column list for `events_payload`. Includes the 0011

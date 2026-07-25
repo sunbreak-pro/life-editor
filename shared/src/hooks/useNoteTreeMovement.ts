@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { NoteNode } from "../types/note";
 import type { MoveResult } from "../types/moveResult";
+import { isDescendantOf } from "../utils/getDescendantTasks";
 
 /**
  * Pure note-tree move logic. 1:1 port of
@@ -12,43 +13,10 @@ import type { MoveResult } from "../types/moveResult";
  * S1/S2).
  */
 
-// Exported for the cycle-safety regression test (KI-016 anchor). Behaviour
-// unchanged — visibility only.
-export function isDescendantOf(
-  parentId: string,
-  childId: string,
-  nodes: NoteNode[],
-): boolean {
-  const childrenMap = new Map<string | null, string[]>();
-  for (const node of nodes) {
-    const pid = node.parentId;
-    const list = childrenMap.get(pid);
-    if (list) {
-      list.push(node.id);
-    } else {
-      childrenMap.set(pid, [node.id]);
-    }
-  }
-
-  // visited guard against cyclic / self-referential parentId chains, which
-  // would otherwise push the same node forever and OOM the worker (see
-  // known-issue 016). The target match is still checked BEFORE the guard so
-  // a directly-reachable child in a 2-node cycle is found immediately.
-  const visited = new Set<string>();
-  const stack = [parentId];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    const children = childrenMap.get(current);
-    if (!children) continue;
-    for (const id of children) {
-      if (id === childId) return true;
-      if (visited.has(id)) continue;
-      visited.add(id);
-      stack.push(id);
-    }
-  }
-  return false;
-}
+// Re-exported for the cycle-safety regression test (KI-016 anchor). The
+// implementation is the generic twin in getDescendantTasks — the local
+// byte-identical copy was removed (C3 dedup); behaviour unchanged.
+export { isDescendantOf };
 
 export function useNoteTreeMovement(
   notes: NoteNode[],

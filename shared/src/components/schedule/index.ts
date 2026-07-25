@@ -115,7 +115,7 @@ export {
   weekDayKeys,
   dayOfWeek,
   parseDateKey,
-  formatDateKey,
+  formatDateKeyFromParts,
   pxToMinutes,
   minutesToPx,
   snapMinutes,

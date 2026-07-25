@@ -37,15 +37,17 @@ import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
 // ---------------------------------------------------------------------------
 
 /**
- * Row shape of `public.items_meta` for role='task'. `role` is a CHECK
- * column with 5 allowed values; this mapper is the Tasks-only view, so
- * `role` is narrowed to the `'task'` literal. `user_id` is server-derived
- * (RLS default `auth.uid()`) and clients never write it.
+ * Row shape of `public.items_meta`. `role` is a CHECK column with 5
+ * allowed values; each role mapper narrows `R` to its own literal
+ * (default `'task'` — this file is the canonical home of the shape; the
+ * other 4 mappers alias it instead of keeping byte-identical copies).
+ * `user_id` is server-derived (RLS default `auth.uid()`) and clients
+ * never write it.
  */
-export interface ItemsMetaRow {
+export interface ItemsMetaRow<R extends string = "task"> {
   id: string;
   user_id: string;
-  role: "task";
+  role: R;
   title: string;
   is_deleted: boolean;
   deleted_at: string | null;
@@ -94,8 +96,8 @@ export interface TasksPayloadRow {
  * safer for cross-device parity); `created_at` / `updated_at` are left
  * to the column DEFAULT `now()` on first INSERT.
  */
-export type ItemsMetaInsertRow = Omit<
-  ItemsMetaRow,
+export type ItemsMetaInsertRow<R extends string = "task"> = Omit<
+  ItemsMetaRow<R>,
   "created_at" | "updated_at"
 >;
 
@@ -109,7 +111,8 @@ export type ItemsMetaInsertRow = Omit<
 export type TasksPayloadWriteRow = Omit<TasksPayloadRow, "parent_item_role">;
 
 /** UPDATE patch for items_meta. `id` / `user_id` / `role` / `created_at`
- * are never patched. `updated_at` is ALWAYS present (bump responsibility,
+ * are never patched, so this shape is role-independent (all 5 role
+ * mappers alias it). `updated_at` is ALWAYS present (bump responsibility,
  * see `taskUpdatesToPatches`). */
 export type ItemsMetaUpdatePatch = Partial<
   Omit<ItemsMetaRow, "id" | "user_id" | "role" | "created_at">
@@ -126,12 +129,18 @@ export type TasksPayloadUpdatePatch = Partial<
 // ---------------------------------------------------------------------------
 
 /**
- * SELECT column list for `items_meta` rows of role='task'. The role
- * filter is the caller's responsibility (e.g. `.eq('role', 'task')`).
+ * SELECT column list for `items_meta` rows (identical for all 5 roles —
+ * the role filter is the caller's responsibility, e.g.
+ * `.eq('role', 'task')`). The per-role constants below and in the other
+ * mappers are thin aliases so query call sites keep their role-scoped
+ * names.
  */
-export const ITEMS_META_TASK_COLUMNS =
+export const ITEMS_META_COLUMNS =
   "id, user_id, role, title, is_deleted, deleted_at, " +
   "created_at, updated_at, version";
+
+/** Role-scoped alias of `ITEMS_META_COLUMNS` for Tasks call sites. */
+export const ITEMS_META_TASK_COLUMNS = ITEMS_META_COLUMNS;
 
 /**
  * SELECT column list for `tasks_payload`. Includes `parent_item_role`
