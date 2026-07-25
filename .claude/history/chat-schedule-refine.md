@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-25 - #299 アイテム操作 UI 刷新（生成パネル化 + 吹き出し + 詳細オーバーレイ）
+
+#### 概要
+
+Schedule のアイテム操作を「1クリック=吹き出し / ダブルクリック=詳細オーバーレイ / 右クリック=既存メニュー維持」に再編し、イベント生成をパネル化、rightSidebar の detail 編集タブを撤去した（flow/todo タブは温存）。前提部品 #307 itemActions（ItemActionPopover / ItemDetailOverlay / floating.ts）を merge 済み土台として消費。今回はイベント生成に絞り、task/note 統合パネルは将来 Issue（前回 outbox 起票依頼済み）。role-pm → role-engineer → role-qa（別コンテキスト独立監査 PASS・Blocking 0）のフルチェーン。
+
+#### 変更点
+
+- **塊0 グリッド配管**: WeekTimeGrid / MonthGrid / AgendaList に `onItemActivate(id,{x,y})` + `onItemDoubleClick` を追加。WeekTimeGrid は pointer-up の非ドラッグ分岐（`d.moved` false）でのみ activate 発火し #297 drag/resize と非衝突・座標は pointerup event から取得
+- **塊1 吹き出し**: CalendarTab に popover state 追加、handleSelectItem を detail タブ遷移から ItemActionPopover 表示へ。概要 + 「詳細を編集」+ duplicate/delete クイック操作。Escape / 外側クリックで閉じる（floating.ts の IME ガード済み dismiss）
+- **塊2 詳細オーバーレイ**: ItemDetailOverlay（Modal ラップ・不透明・focus trap）に既存 EventEditorPane を children としてホスト。ダブルクリック / 「詳細を編集」の両経路から開く
+- **塊3 生成パネル化 + detail タブ撤去**: 新規 `EventCreateFields`（title/start/end 共有生成フォーム・IME ガード・prefill）を QuickCaptureSheet に内包。ツールバー「イベント追加」+ グリッド空きスロット + 月セルの 3 経路を生成オーバーレイ（Desktop）/ QuickCaptureSheet（Mobile）に統一・空きスロットはクリック時刻をプリフィル。#278 pendingDraft の eager-create を撤去し `handleCreate(date,title,start,end)` の送信時生成へ一本化。sidebarTab 型を `"flow"|"detail"|"todo"` → `"flow"|"todo"` に縮小し detailBody 削除（`tabDetail`/`selectHint` は RoutinesTab が消費中のため catalog 保持・CalendarTab 参照のみ除去）
+- **i18n**: `scheduleScreen.editDetail` / `itemActionsLabel` を en/ja 追加
+- **検証**: shared `tsc -b` + vitest **1115 pass**（140 files・新規 eventCreateFields 4 本）/ web `tsc -b --force` + vite build green。メイン独立実測でも一致（docs-consistency §5 spot check 済み）
+- **follow-up（outbox 経由 chat-main へ起票依頼）**: N1 ダブルクリック時の吹き出し一瞬フラッシュ（cosmetic）/ N2 生成オーバーレイに対象日非表示（UX 改善）/ N4 生成後に新規アイテム未オープン（プロダクト判断）
+- **PR**: `claude/schedule-refine` から提出（`Closes #299`・merge は 🛑 ユーザーゲート・実ブラウザ確認は merge 後 chat-main）
+
 ### 2026-07-20 - #296 消失バグ + #297 A-2 双方向書き込み（PR #309 同梱）
 
 #### 概要

@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from "react";
 import {
   isTaskChip,
   makeOptimisticScheduleItem,
-  minutesToTime,
   addDaysKey,
   type FrequencyEditorValue,
   type RepeatScope,
@@ -14,37 +13,32 @@ import {
 
 /*
  * Schedule mutation layer (#280, extracted from CalendarTab): every write
- * path of the Calendar host — create (click / FAB / month cell / quick
- * capture), field edits, drag/resize, toggle, dismiss/delete, duplicate —
- * plus the #278 pending-draft guard and the #279 repeat/scope machinery
- * (Event→Repeats conversion, detach, this/future/all chooser).
+ * path of the Calendar host — create (panel submit — #299), field edits,
+ * drag/resize, toggle, dismiss/delete, duplicate — plus the #279 repeat/scope
+ * machinery (Event→Repeats conversion, detach, this/future/all chooser).
  *
  * Everything is injected (§3.1 / §6.4): provider callbacks, the visible-range
  * optimistic store, selection callbacks and already-resolved copy strings.
- * The hook owns only the two mutation-scoped states: the pending draft and
- * the parked scope request.
+ * The hook owns only one mutation-scoped state: the parked scope request
+ * (#299 retired the #278 pending-draft with the eager-create flow).
  */
-
-const CREATE_DURATION_MIN = 60;
 
 export interface UseScheduleMutationsArgs {
   // Visible-range optimistic store (useVisibleRangeItems)
   rangeItems: ScheduleItem[];
   setRangeItems: Dispatch<SetStateAction<ScheduleItem[]>>;
   patchRange: (id: string, patch: Partial<ScheduleItem>) => void;
-  fetchedRange: [string, string] | null;
   reload: () => void;
-  // Today-anchored provider items (draft self-heal + duplicate lookup)
+  // Today-anchored provider items (find-by-id + duplicate lookup)
   contextItems: ScheduleItem[];
-  // Navigation (useCalendarNav)
+  // Visible range window (#279 repeat materialiser clamp)
   rangeStart: string;
   rangeEnd: string;
   today: string;
-  anchorDate: string;
-  setAnchorDate: (date: string) => void;
   // Selection (owned by the host)
   selected: ScheduleItem | null;
   setSelectedId: Dispatch<SetStateAction<string | null>>;
+  // Highlight the given item after a duplicate (host owns selectedId).
   onSelectItem: (id: string) => void;
   // ScheduleItems provider
   createScheduleItem: (
@@ -140,7 +134,6 @@ export interface UseScheduleMutationsArgs {
   ) => void;
   onResizeTaskChip: (chipId: string, endISO: string) => void;
   // Copy, resolved by the host (§6.4)
-  newEventTitle: string;
   copySuffix: string;
 }
 
@@ -149,14 +142,11 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     rangeItems,
     setRangeItems,
     patchRange,
-    fetchedRange,
     reload,
     contextItems,
     rangeStart,
     rangeEnd,
     today,
-    anchorDate,
-    setAnchorDate,
     selected,
     setSelectedId,
     onSelectItem,
@@ -176,17 +166,13 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     groupForRoutine,
     onMoveTaskChip,
     onResizeTaskChip,
-    newEventTitle,
     copySuffix,
   } = args;
 
-  // A click-created event stays a "pending draft" until first edited (#278).
-  // While one is live and untouched, empty-slot / month-cell clicks must not
-  // spawn another default item — they re-focus the pending draft instead.
-  const [pendingDraft, setPendingDraft] = useState<{
-    id: string;
-    date: string;
-  } | null>(null);
+  // #299: creation is now panel-driven (input → submit → create), so the
+  // #278 eager-create + pending-draft guard is gone (there is no default
+  // "New event" row to re-focus / de-duplicate anymore). Panelled create runs
+  // through `handleCreate` below.
   // #279: pending this/future/all chooser. Edits/deletes of a routine-derived
   // occurrence are parked here until the user picks a scope in the dialog.
   const [scopeRequest, setScopeRequest] = useState<{
@@ -194,12 +180,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     item: ScheduleItem;
     patch?: Partial<ScheduleItem>;
   } | null>(null);
-
-  // Any real edit (field commit / drag / toggle) or removal counts as
-  // "saved / discarded" and releases the pending-draft guard (#278).
-  const resolveDraft = useCallback((id: string) => {
-    setPendingDraft((cur) => (cur && cur.id === id ? null : cur));
-  }, []);
 
   const findScheduleItem = useCallback(
     (id: string): ScheduleItem | undefined =>
@@ -212,9 +192,8 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     (id: string, patch: Partial<ScheduleItem>) => {
       patchRange(id, patch);
       updateScheduleItem(id, patch);
-      resolveDraft(id);
     },
-    [patchRange, updateScheduleItem, resolveDraft],
+    [patchRange, updateScheduleItem],
   );
 
   // Field edits route through here. A routine-derived occurrence with a
@@ -257,13 +236,19 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         ),
       );
       toggleComplete(id);
-      resolveDraft(id);
     },
-    [setRangeItems, toggleComplete, resolveDraft],
+    [setRangeItems, toggleComplete],
   );
 
-  const createAtTimes = useCallback(
-    (date: string, start: string, end: string, title: string): string => {
+  // #299: the single create path. Panelled create (Desktop overlay + Mobile
+  // QuickCaptureSheet) hands over the target day + title + times already
+  // resolved (the empty-slot click prefills the times from the slot; the
+  // toolbar / FAB seed defaults). Optimistically mirrors the INSERT into the
+  // visible range and returns the new id. No eager draft, no selection: the
+  // panel closes and the row simply appears (the #278 pending-draft guard is
+  // retired with the eager-create flow it protected).
+  const handleCreate = useCallback(
+    (date: string, title: string, start: string, end: string): string => {
       const id = createScheduleItem(date, title, start, end);
       setRangeItems((prev) => [
         ...prev,
@@ -272,101 +257,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       return id;
     },
     [createScheduleItem, setRangeItems],
-  );
-
-  // True = a pending draft exists → block this create and bring the draft
-  // back into view/selection instead (#278). Self-heals when the draft
-  // vanished through a path the handlers don't own (undo, sync) — but only
-  // once a SETTLED fetch covering the draft's date says it is gone:
-  // rangeItems holds the previous range's list while a navigation fetch is
-  // in flight, and trusting that stale absence would re-open the very
-  // duplicate-create hole this guard exists to close.
-  const draftGuardBlocks = useCallback((): boolean => {
-    if (!pendingDraft) return false;
-    const fetchSettled =
-      !!fetchedRange &&
-      pendingDraft.date >= fetchedRange[0] &&
-      pendingDraft.date <= fetchedRange[1];
-    const live =
-      rangeItems.some((i) => i.id === pendingDraft.id) ||
-      contextItems.some(
-        (i) => i.id === pendingDraft.id && !i.isDeleted && !i.isDismissed,
-      );
-    if (fetchSettled && !live) {
-      setPendingDraft(null);
-      return false;
-    }
-    // Jump only when the draft is off-screen — an unconditional anchor move
-    // would flip the month view to the adjacent month for a draft sitting on
-    // a spillover cell that is already visible.
-    const inVisibleRange =
-      pendingDraft.date >= rangeStart && pendingDraft.date <= rangeEnd;
-    if (!inVisibleRange) setAnchorDate(pendingDraft.date);
-    onSelectItem(pendingDraft.id);
-    return true;
-  }, [
-    pendingDraft,
-    fetchedRange,
-    rangeItems,
-    contextItems,
-    rangeStart,
-    rangeEnd,
-    setAnchorDate,
-    onSelectItem,
-  ]);
-
-  const handleCreateAt = useCallback(
-    (dateISO: string, minutes: number) => {
-      if (draftGuardBlocks()) return;
-      const start = minutesToTime(minutes);
-      const end = minutesToTime(minutes + CREATE_DURATION_MIN);
-      const id = createAtTimes(dateISO, start, end, newEventTitle);
-      setPendingDraft({ id, date: dateISO });
-      onSelectItem(id);
-    },
-    [draftGuardBlocks, createAtTimes, onSelectItem, newEventTitle],
-  );
-
-  const handleAddEvent = useCallback(() => {
-    if (draftGuardBlocks()) return;
-    const id = createAtTimes(anchorDate, "09:00", "10:00", newEventTitle);
-    // The detail editor now lives in the rightSidebar (not the main grid), so
-    // the month layout can edit a new event in place — no jump to day view
-    // (#224). onSelectItem opens the detail panel on Desktop.
-    setPendingDraft({ id, date: anchorDate });
-    onSelectItem(id);
-  }, [
-    draftGuardBlocks,
-    createAtTimes,
-    onSelectItem,
-    anchorDate,
-    newEventTitle,
-  ]);
-
-  // Month-cell day tap → create a default-time event on that day and open its
-  // detail panel in place, instead of switching to the day view (#224).
-  const handleCreateOnDay = useCallback(
-    (day: string) => {
-      if (draftGuardBlocks()) return;
-      setAnchorDate(day);
-      const id = createAtTimes(day, "09:00", "10:00", newEventTitle);
-      setPendingDraft({ id, date: day });
-      onSelectItem(id);
-    },
-    [
-      draftGuardBlocks,
-      createAtTimes,
-      onSelectItem,
-      setAnchorDate,
-      newEventTitle,
-    ],
-  );
-
-  const handleQuickAdd = useCallback(
-    (title: string, start: string, end: string) => {
-      createAtTimes(anchorDate, start, end, title);
-    },
-    [createAtTimes, anchorDate],
   );
 
   const handleMoveItem = useCallback(
@@ -421,9 +311,8 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       dismiss(id);
       setRangeItems((prev) => prev.filter((i) => i.id !== id));
       setSelectedId((cur) => (cur === id ? null : cur));
-      resolveDraft(id);
     },
-    [dismiss, setRangeItems, setSelectedId, resolveDraft],
+    [dismiss, setRangeItems, setSelectedId],
   );
 
   // Delete routes every entry point (editor pane, context menu) through one
@@ -440,15 +329,8 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       deleteScheduleItem(id);
       setRangeItems((prev) => prev.filter((i) => i.id !== id));
       setSelectedId((cur) => (cur === id ? null : cur));
-      resolveDraft(id);
     },
-    [
-      findScheduleItem,
-      deleteScheduleItem,
-      setRangeItems,
-      setSelectedId,
-      resolveDraft,
-    ],
+    [findScheduleItem, deleteScheduleItem, setRangeItems, setSelectedId],
   );
 
   const handleRename = useCallback(
@@ -565,7 +447,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           return;
         }
         patchRange(seed.id, { routineId, sourceDate: seed.date });
-        resolveDraft(seed.id);
         // #279: materialise the rest of the visible range right away —
         // the always-on generator only covers today, and rangeItems only
         // reloads on navigation. Passing ONLY the new routine keeps the
@@ -624,7 +505,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       updateRoutine,
       convertEventToRoutine,
       patchRange,
-      resolveDraft,
       ensureRoutineItemsForDateRange,
       groupForRoutine,
       rangeStart,
@@ -869,10 +749,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     // CRUD + create entry points
     handleUpdate,
     handleToggle,
-    handleCreateAt,
-    handleAddEvent,
-    handleCreateOnDay,
-    handleQuickAdd,
+    handleCreate,
     handleMoveItem,
     handleResizeItem,
     handleDismiss,

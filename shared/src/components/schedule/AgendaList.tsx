@@ -49,6 +49,14 @@ export interface AgendaListProps {
   nowMinutes?: number | null;
   onToggleComplete?: (id: string) => void;
   onSelectItem?: (id: string) => void;
+  /**
+   * Single-click on a row → host opens a bubble popover anchored at the click's
+   * viewport coords (#299). Preferred over `onSelectItem` when both are set;
+   * falls back to `onSelectItem` when omitted.
+   */
+  onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
+  /** Double-click on a row → host opens the detail overlay (#299). */
+  onItemDoubleClick?: (id: string) => void;
   selectedId?: string | null;
   labels: AgendaListLabels;
   className?: string;
@@ -73,6 +81,8 @@ export function AgendaList({
   nowMinutes,
   onToggleComplete,
   onSelectItem,
+  onItemActivate,
+  onItemDoubleClick,
   selectedId,
   labels,
   className,
@@ -108,7 +118,12 @@ export function AgendaList({
       >
         <button
           type="button"
-          onClick={() => onSelectItem?.(it.id)}
+          onClick={(e) => {
+            if (onItemActivate)
+              onItemActivate(it.id, { x: e.clientX, y: e.clientY });
+            else onSelectItem?.(it.id);
+          }}
+          onDoubleClick={() => onItemDoubleClick?.(it.id)}
           className={cn(
             "flex min-h-[42px] flex-1 items-center gap-2 rounded-sm py-1 pl-1 text-left",
             FOCUS,

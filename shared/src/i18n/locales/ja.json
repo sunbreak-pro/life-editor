@@ -1190,6 +1190,8 @@
     "closeMenu": "メニューを閉じる",
     "tabDetail": "詳細",
     "detailPanelLabel": "詳細パネル",
+    "editDetail": "詳細を編集",
+    "itemActionsLabel": "予定の操作",
     "tabTodo": "本日の Todo",
     "todoPlacedHeading": "配置済み",
     "todoUnplacedHeading": "未配置の候補",
