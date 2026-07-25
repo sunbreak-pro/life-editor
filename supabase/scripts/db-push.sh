@@ -46,7 +46,12 @@ if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
   cat >&2 <<'EOF'
 ERROR: SUPABASE_DB_URL is not set.
        Set it in supabase/.env (gitignored) as a single line:
-         SUPABASE_DB_URL=postgresql://postgres.<ref>:<urlencoded-pwd>@<host>:6543/postgres?pgbouncer=true
+         SUPABASE_DB_URL=postgresql://postgres.<ref>:<urlencoded-pwd>@<host>:5432/postgres
+       Use the SESSION pooler (port 5432), not the transaction pooler
+       (6543). Transaction pooling multiplexes backends, so the CLI's
+       prepared statements collide:
+         ERROR: prepared statement "lrupsc_1_0" already exists (SQLSTATE 42P05)
+       Do not append ?pgbouncer=true for the same reason.
        The password MUST be percent-encoded (e.g. ! -> %21, @ -> %40).
 EOF
   exit 2
