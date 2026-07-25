@@ -1,5 +1,20 @@
 # HISTORY (chat-code-reduction)
 
+### 2026-07-25 - code-reduction 残り全 Step 完遂 (PR #344〜#351)
+
+#### 概要
+
+計画書 `2026-07-25-code-reduction.md` の残り 8 Step（4/5/7/9/10/11/12/13）を、ユーザーの全実行承認（「凍結解除予定なし」「prototype は git 履歴で足りる」）を受けて Step ごとの PR 8 本で実行した。role-qa の敵対的監査 2 本（削除系 6 PR / リファクタ系 2 PR）は両方 PASS・Blocker ゼロで、監査指摘の follow-up（取りこぼし統合 2 件・.gitignore 死にルール・stop-check 強化・prettier）も各 PR に反映済み。merge はユーザー判断待ち。
+
+#### 変更点
+
+- **削除系（全て追加 0 行）**: #344 prototype/ 42 ファイル −20,893（.gitignore 死にルール込み）/ #345 凍結 Database 型 + i18n −265 / #346 MasterDetail + sortTaskNodes −256（A15 は #333 配線済みで SUPERSEDED）/ #347 root typescript devDep −3 + lock 同期 +1/−237（stale @tauri-apps/cli 残骸込み）/ #348 孤児 i18n キー 552 個（1,176→624・en/ja 対称・テスト見本キーを B5 保護の section.tasks へ差し替え）
+- **修理**: #349 stop-check.sh — CLAUDE_PROJECT_DIR 相対化 + shared/web 監視 + QA 指摘の未追跡ファイル検知・node_modules 未導入ガード
+- **リファクタ**: #350 C1 ItemsMetaRow 5 重複→taskMapper のジェネリック + エイリアス（呼び出し側変更ゼロ）/ C3 isDescendantOf ツイン統合（KI-016 テスト import 維持）/ C6 formatDateKeyFromParts リネーム / C7 resolveLinkTarget 抽出。#351 C2 recharts prop 定数（ChartFrame は recharts の child-type フィルタで不可と判明・チャートは実測 10 本）/ C4 日付フォーマッタ（生存 2 コピーのみ・formatDateKey で挙動保存）/ C5 FOCUS_RING 2 変種 + FIELD + STATUS 系を styleTokens / taskStatusVisuals へ / C8 stepSegmentFocus 抽出（ARIA ロールは別のまま）
+- **検証**: 各 Step で shared build / web build exit 0・vitest 137 files / 1,084 tests pass・全 PR CI green。QA は 552 キー全件 grep + 全 t() リテラル逆方向検証 + 6 PR merge-tree 統合シミュレーション（全順序 clean）まで実施
+- **知見**: 動的 i18n キーは template prefix 収集 + ドメイン解決（ANALYTICS_TAB_ORDER）で機械判定できた。keyPrefix / 文字列連結による構築はこのリポジトリにゼロ。計画書の C4/C6 前提は実測で 2 件覆った（docs-consistency §5 の実例）
+- **残タスク**: merge（ユーザー）→ chat-main の実ブラウザ確認（#348/#351）→ Step 14 起票と計画書 COMPLETED 化（chat-main へ outbox 依頼済み）
+
 ### 2026-07-25 - code-reduction Steps 6+8 (PR #341 / PR #342)
 
 #### 概要
