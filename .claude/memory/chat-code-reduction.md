@@ -6,7 +6,7 @@
 
 ## 直近の完了
 
-- code-reduction plan Steps 6+8（A2/B1 + A10/A12/A13/A21/A23/A25）✅（2026-07-25 — PR #341（i18n 54 namespace・追加 0 / 削除 2,976 行）+ PR #342（周辺残骸 16 ファイル・追加 0 / 削除 400 行 + バイナリ 1）。merge はユーザー待ち。blockMenu は現役と実測判明のため残置・database は Step 5 領分で残置）
+- code-reduction plan Steps 6+8（A2/B1 + A10/A12/A13/A21/A23/A25）✅（2026-07-25 — PR #341（i18n 54 namespace・追加 0 / 削除 2,976 行）+ PR #342（周辺残骸 16 ファイル変更・うち削除 11 ファイル・追加 0 / 削除 400 行 + バイナリ 1）。merge はユーザー待ち。blockMenu は現役と実測判明のため残置・database は Step 5 領分で残置。role-qa 独立監査 PASS（#341/#342/#343 全て）
 - code-reduction plan Steps 1-3（A3/A4/A5/A6/A11/A14/A16/A20/A22/A24）✅（2026-07-25 — PR #338 merge 済み・main `04e2b6e1`・追加 0 行 / 削除 1,152 行・role-qa 独立監査 PASS）
 - A19 follow-up（RoutineStats 削除）✅（2026-07-25 — PR #339 merge 済み・main `cbac4976`・追加 1 行 / 削除 25 行。barrel 書き換え 1 行はユーザー明示承認）
 

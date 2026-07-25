@@ -11,7 +11,14 @@ Steps 6 + 8 の完了報告です（/goal 指示による実行・merge はユ�
 
 **Step 6（A2/B1・PR #341）**: i18n 完全死亡 namespace を en/ja から削除。**追加 0 行・削除 2,976 行**（各 1,488 行）。対称性スクリプト exit 0（残 1,176 キー）・B5 動的キー 11 個生存・builds/tests green・CI 両ジョブ pass。
 
-**Step 8（A10/A12/A13/A21/A23/A25・PR #342）**: 周辺残骸 16 ファイル削除。**追加 0 行・削除 400 行 + バイナリ 1**。check.sh / favicon.svg は指示どおり残置。A23 のロック再生成も純粋削除（shared/web 各 -2 行）でした。
+**Step 8（A10/A12/A13/A21/A23/A25・PR #342）**: 周辺残骸 16 ファイル変更（うち削除 11 ファイル・残り 5 は .gitignore + package/lock の行削除）。**追加 0 行・削除 400 行 + バイナリ 1**。check.sh / favicon.svg は指示どおり残置。A23 のロック再生成も純粋削除（shared/web 各 -2 行）でした。
+
+**role-qa 独立監査は #341 / #342 / #343 とも PASS（Blocker なし）**。非ブロッキングの追随候補が 4 件出たので、計画書修正依頼とあわせて chat-main 側での処理をお願いします:
+
+1. `scripts/loop-engine/check.sh` の 11 行目・16 行目のコメントが削除済み loop.sh を前提にしたまま（動作影響なし。削除のみ PR の制約で今回は触っていません — 別 PR か Issue で文言整理を）
+2. `shared/src/components/Connect/labels.ts:5` の doc コメントが、今回削除した `ideas.*` を「existing leaf」と記述したまま（実害なしのコメント 1 語）
+3. 計画書 A21 の「削除 8 行」は実測 9 行（`# Tauri` ブロック直前の空行 1 行を含めて削除するのが正 — 残すと末尾に空行が浮くため）
+4. FYI: `chat-schedule-refine` の outbox にあった「孤立 i18n `schedulePanel.*` キー群の将来対応」要望は PR #341 が解消済み。schedule-refine 側の項目を消化済み扱いにできます
 
 **計画書への修正依頼（新規 2 件）**:
 
