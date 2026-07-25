@@ -61,10 +61,11 @@ export interface WeekTimeGridItem {
   status?: ScheduleStatus;
   /**
    * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
-   * Repeat glyph, "event" (default) = 紫 face + border. Distinguishes
-   * Routine-generated items from single events without relying on color alone.
+   * Repeat glyph, "event" (default) = 紫 face + border, "task" = blue face
+   * (scheduled TaskNode, schedule redesign A-1 — no band/glyph, read-only in
+   * this step). Distinguishes provenance without relying on color alone.
    */
-  variant?: "routine" | "event";
+  variant?: "routine" | "event" | "task";
 }
 
 export interface WeekTimeGridProps {
@@ -75,6 +76,16 @@ export interface WeekTimeGridProps {
   items: WeekTimeGridItem[];
   selectedId?: string | null;
   onSelectItem?: (id: string) => void;
+  /**
+   * Single-click on an item block/chip → host opens a bubble popover anchored
+   * at the click's viewport coords (#299). Preferred over `onSelectItem` when
+   * both are supplied (the pointer-up "click" of a movable block also routes
+   * here — it fires only when the pointer did NOT drag, §297 guard). Falls back
+   * to `onSelectItem` when omitted.
+   */
+  onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
+  /** Double-click on an item block/chip → host opens the detail overlay (#299). */
+  onItemDoubleClick?: (id: string) => void;
   /**
    * Right-click (contextmenu) on an item block → host opens a context menu at
    * the given viewport coordinates. When omitted, the browser's native menu is
@@ -103,6 +114,13 @@ export interface WeekTimeGridProps {
    * time changes. When omitted, no resize handle is rendered.
    */
   onResizeItem?: (id: string, endISO: string) => void;
+  /**
+   * When true, `variant: "task"` blocks are draggable/resizable like events
+   * (schedule redesign A-2 / #297 — drag-to-write `scheduledAt`). Default
+   * false keeps the A-1 read-only semantics; the callbacks still decide
+   * whether any block moves at all.
+   */
+  taskInteractive?: boolean;
   /** Snap granularity in minutes for create/move/resize. Default 30. */
   snapMinutesStep?: number;
   /** Default duration (minutes) of an event created via empty-slot click. Default 60. */
@@ -167,19 +185,33 @@ function defaultFormatNowLabel(minutes: number): string {
 
 /**
  * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
- * inner left band is rendered separately); event (default) = 紫 face + border.
- * Color-coded AND badge/border-differentiated so it never relies on hue alone.
+ * inner left band is rendered separately); event (default) = 紫 face + border;
+ * task = blue face (scheduled TaskNode — no band/glyph). Color-coded AND
+ * badge/border-differentiated so it never relies on hue alone.
  */
-function variantBlockClasses(variant: "routine" | "event"): string {
-  return variant === "routine"
-    ? "bg-lumen-schedule-routine-bg text-lumen-chip-routine-fg"
-    : "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
+function variantBlockClasses(variant: "routine" | "event" | "task"): string {
+  switch (variant) {
+    case "routine":
+      return "bg-lumen-schedule-routine-bg text-lumen-chip-routine-fg";
+    case "task":
+      return "bg-lumen-schedule-task-bg text-lumen-chip-task-fg";
+    default:
+      return "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
+  }
 }
 
-/** Live drag state held in a ref so the window listeners read fresh values. */
+/**
+ * Live drag state held in a ref so the window listeners read fresh values.
+ *
+ * "place" (schedule redesign A-3 / #298): an all-day task chip is dragged out
+ * of the all-day lane into the time body to gain a start time. Unlike "move"
+ * (delta from the block's own time origin) it has no time origin, so the drop
+ * time is read from the ABSOLUTE pointer Y over the scroll body; the day stays
+ * the chip's own (no horizontal day change) and the write reuses `onMoveItem`.
+ */
 interface DragState {
   id: string;
-  mode: "move" | "resize";
+  mode: "move" | "resize" | "place";
   startX: number;
   startY: number;
   /** Width of one day column in px (move = horizontal day mapping). */
@@ -199,6 +231,8 @@ interface DragPreview {
   date: string;
   startTime: string;
   endTime: string;
+  /** "place" flips the previewed chip to timed so it leaves the all-day lane. */
+  isAllDay?: boolean;
 }
 
 export function WeekTimeGrid({
@@ -207,10 +241,13 @@ export function WeekTimeGrid({
   items,
   selectedId,
   onSelectItem,
+  onItemActivate,
+  onItemDoubleClick,
   onItemContextMenu,
   onCreateAt,
   onMoveItem,
   onResizeItem,
+  taskInteractive = false,
   snapMinutesStep = DEFAULT_SNAP_MINUTES,
   defaultCreateDuration = 60,
   hourRange = [0, 24],
@@ -284,6 +321,9 @@ export function WeekTimeGrid({
             date: dragPreview.date,
             startTime: dragPreview.startTime,
             endTime: dragPreview.endTime,
+            // "place" flips an all-day chip to timed so it moves from the
+            // all-day lane into the positioned time body during the drag.
+            isAllDay: dragPreview.isAllDay ?? it.isAllDay,
           }
         : it,
     );
@@ -303,19 +343,32 @@ export function WeekTimeGrid({
   const beginDrag = (
     e: React.PointerEvent,
     item: WeekTimeGridItem,
-    mode: "move" | "resize",
+    mode: "move" | "resize" | "place",
   ) => {
-    if (e.button !== 0 || item.isAllDay) return;
-    if (mode === "move" && !onMoveItem) return;
+    if (e.button !== 0) return;
+    // move/resize act on timed blocks only; "place" is the sole path allowed to
+    // start on an all-day chip (it gives it a time — A-3 / #298).
+    if (mode !== "place" && item.isAllDay) return;
+    if ((mode === "move" || mode === "place") && !onMoveItem) return;
     if (mode === "resize" && !onResizeItem) return;
     e.stopPropagation();
     // The event button's offsetParent is its day column; its width maps a
     // horizontal drag to a whole-day offset. Resize ignores width.
     const col = (e.currentTarget as HTMLElement)
       .offsetParent as HTMLElement | null;
-    const startMin = minutesFromMidnight(item.startTime);
-    const rawEnd = minutesFromMidnight(item.endTime);
-    const endMin = Math.max(rawEnd, startMin + snapMinutesStep);
+    // "place": an all-day chip has no time origin — seed a default block anchored
+    // at the top of the visible window; the real start comes from the absolute
+    // pointer Y over the time body (onMove). Its day stays fixed (no horizontal
+    // day change), so colWidth is irrelevant.
+    const startMin =
+      mode === "place" ? startHour * 60 : minutesFromMidnight(item.startTime);
+    const durationMin =
+      mode === "place"
+        ? defaultCreateDuration
+        : Math.max(
+            minutesFromMidnight(item.endTime),
+            startMin + snapMinutesStep,
+          ) - startMin;
     dragRef.current = {
       id: item.id,
       mode,
@@ -324,7 +377,7 @@ export function WeekTimeGrid({
       colWidth: col ? col.getBoundingClientRect().width : 0,
       origDayIdx: dayKeys.indexOf(item.date),
       origStartMin: startMin,
-      durationMin: endMin - startMin,
+      durationMin,
       moved: false,
       final: null,
     };
@@ -344,7 +397,23 @@ export function WeekTimeGrid({
       let dayIdx = d.origDayIdx;
       let startMin = d.origStartMin;
       let endMin: number;
-      if (d.mode === "move") {
+      if (d.mode === "place") {
+        // Absolute drop: map the pointer's Y over the scroll body to a start
+        // time (same mapping as empty-slot create). The day stays the chip's
+        // own — no horizontal remap — and the block is kept fully in-window.
+        const el = scrollBodyRef.current;
+        let mins = d.origStartMin;
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const yInBody = ev.clientY - rect.top + el.scrollTop;
+          mins = pxToMinutes(yInBody, hourHeight, hourRange);
+        }
+        startMin = Math.min(
+          Math.max(snapMinutes(mins, snapMinutesStep), startHour * 60),
+          endHour * 60 - d.durationMin,
+        );
+        endMin = startMin + d.durationMin;
+      } else if (d.mode === "move") {
         startMin = snapMinutes(d.origStartMin + deltaMin, snapMinutesStep);
         endMin = startMin + d.durationMin;
         if (d.colWidth > 0 && dayKeys.length > 1) {
@@ -370,13 +439,17 @@ export function WeekTimeGrid({
         date: dateISO,
         startTime: minutesToTime(startMin),
         endTime: minutesToTime(endMin),
+        isAllDay: d.mode === "place" ? false : undefined,
       });
     };
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
       const d = dragRef.current;
       if (d) {
         if (d.moved && d.final) {
-          if (d.mode === "move") {
+          if (d.mode === "move" || d.mode === "place") {
+            // "place" writes through the same host callback as move — the host
+            // routes a task chip to updateNode(scheduledAt/…, isAllDay:false),
+            // turning the all-day candidate into a timed block (A-3 / #298).
             onMoveItem?.(
               d.id,
               d.final.dateISO,
@@ -387,7 +460,12 @@ export function WeekTimeGrid({
             onResizeItem?.(d.id, minutesToTime(d.final.endMin));
           }
         } else {
-          onSelectItem?.(d.id);
+          // Non-drag pointer-up = a click on a movable block (#297 guard). Open
+          // the bubble anchored at the pointer, not the old rightSidebar select
+          // (#299). Task-chip ids are no-op'd by the host.
+          if (onItemActivate)
+            onItemActivate(d.id, { x: ev.clientX, y: ev.clientY });
+          else onSelectItem?.(d.id);
         }
       }
       dragRef.current = null;
@@ -404,11 +482,22 @@ export function WeekTimeGrid({
     dragging,
     dayKeys,
     hourHeight,
+    hourRange,
+    startHour,
+    endHour,
     snapMinutesStep,
     onMoveItem,
     onResizeItem,
     onSelectItem,
+    onItemActivate,
   ]);
+
+  // 1-click activation (#299): prefer the coord-carrying onItemActivate so the
+  // host can anchor a bubble popover at the cursor; fall back to onSelectItem.
+  const activateItem = (id: string, clientX: number, clientY: number) => {
+    if (onItemActivate) onItemActivate(id, { x: clientX, y: clientY });
+    else onSelectItem?.(id);
+  };
 
   const handleSlotClick = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -495,11 +584,27 @@ export function WeekTimeGrid({
             >
               {allDay.map((it) => {
                 const selected = it.id === selectedId;
+                // A-3 (#298): an all-day task chip can be dragged down into the
+                // time body to gain a start time (only task chips, only when the
+                // host opts in via taskInteractive + onMoveItem). Events/routines
+                // in the all-day lane stay click/contextMenu only.
+                const placeable =
+                  it.variant === "task" && taskInteractive && !!onMoveItem;
                 return (
                   <button
                     key={it.id}
                     type="button"
-                    onClick={() => onSelectItem?.(it.id)}
+                    onPointerDown={
+                      placeable ? (e) => beginDrag(e, it, "place") : undefined
+                    }
+                    onClick={
+                      placeable
+                        ? undefined
+                        : (e) => activateItem(it.id, e.clientX, e.clientY)
+                    }
+                    onDoubleClick={
+                      placeable ? undefined : () => onItemDoubleClick?.(it.id)
+                    }
                     onContextMenu={
                       onItemContextMenu
                         ? (e) => {
@@ -515,8 +620,10 @@ export function WeekTimeGrid({
                     className={cn(
                       "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                       selected && "ring-2 ring-lumen-accent",
+                      placeable && "cursor-grab",
                       it.completed && "text-lumen-text-secondary line-through",
                     )}
+                    style={placeable ? { touchAction: "none" } : undefined}
                   >
                     {it.title || " "}
                   </button>
@@ -568,7 +675,10 @@ export function WeekTimeGrid({
                 key={key}
                 className={cn(
                   "relative border-r border-lumen-border last:border-r-0",
-                  isToday && "bg-lumen-accent-subtle",
+                  // Today tint only makes sense when there are sibling columns
+                  // to contrast with; with days={1} it would wash the whole
+                  // day view in accent-subtle (#281).
+                  isToday && dayKeys.length > 1 && "bg-lumen-accent-subtle",
                 )}
                 style={{ height: bodyHeight }}
               >
@@ -582,16 +692,15 @@ export function WeekTimeGrid({
                   />
                 ))}
                 {/* Empty-slot click catcher (create) — only when host opts in.
-                    Hover paints a faint accent ghost + dashed accent border so
-                    the click-to-create affordance reads. Accent (not the grey
-                    hover) so it stays distinct from the grid lines AND remains
-                    visible over the accent-subtle "today" column. */}
+                    No hover paint: the catcher spans the whole day column, so
+                    any hover background/border would tint the full column and
+                    drown the hour gridlines (#281). */}
                 {onCreateAt && (
                   <button
                     type="button"
                     aria-label={createSlotLabel ?? `Create on ${key}`}
                     onClick={(e) => handleSlotClick(e, key)}
-                    className="absolute inset-0 z-0 cursor-pointer rounded-sm border border-transparent transition-colors hover:border-dashed hover:border-lumen-accent hover:bg-lumen-accent-subtle"
+                    className="absolute inset-0 z-0 cursor-pointer"
                   />
                 )}
                 {/* Timed events */}
@@ -600,18 +709,24 @@ export function WeekTimeGrid({
                   if (!p) return null; // all-day handled above
                   const selected = it.id === selectedId;
                   const widthPct = 100 / p.columns;
-                  const movable = !!onMoveItem;
                   const variant = it.variant ?? "event";
+                  // A-1 made task chips read-only; A-2 (#297) opts them back in
+                  // via `taskInteractive` so a drag writes scheduledAt. Events/
+                  // routines are always movable when the callback is present.
+                  const interactiveVariant =
+                    variant !== "task" || taskInteractive;
+                  const movable = !!onMoveItem && interactiveVariant;
                   return (
                     <button
                       key={it.id}
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
                         // When move drag is wired, pointer-up already handles
-                        // selection (and is suppressed after a real drag). Keep
+                        // activation (and is suppressed after a real drag). Keep
                         // the click handler for the read-only / non-movable case.
-                        if (!movable) onSelectItem?.(it.id);
+                        if (!movable) activateItem(it.id, e.clientX, e.clientY);
                       }}
+                      onDoubleClick={() => onItemDoubleClick?.(it.id)}
                       onPointerDown={
                         movable ? (e) => beginDrag(e, it, "move") : undefined
                       }
@@ -676,8 +791,9 @@ export function WeekTimeGrid({
                           />
                         )}
                       </span>
-                      {/* Resize handle (bottom edge) — only when host opts in */}
-                      {onResizeItem && (
+                      {/* Resize handle (bottom edge) — only when host opts in.
+                          Task chips resize only when taskInteractive (A-2). */}
+                      {onResizeItem && interactiveVariant && (
                         <span
                           aria-hidden
                           onPointerDown={(e) => beginDrag(e, it, "resize")}

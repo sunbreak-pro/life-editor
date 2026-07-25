@@ -19,10 +19,16 @@ paths:
 
 ## Provider 順序（依存制約）
 
-- **Desktop**（外→内）: ErrorBoundary → Theme → Toast → Sync → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig → SidebarLinks
-- **Mobile**: ScreenLock / FileExplorer / CalendarTags / Audio / ShortcutConfig を省く（WikiTag / SidebarLinks は両方有効）
+一本鎖ではなく **2 階建て**: 常時マウントの**グローバル層**と、section switch の内側で入れ替わる**セクション層**。実際のネストはコードが正（`web/src/main.tsx` + `web/src/MainScreen.tsx`）。
+
+- **グローバル層**（外→内）: I18n → Theme（`main.tsx`）→ Toast → Sync → UndoRedo（`UndoRedoHost` 経由）→ ShortcutConfig → Timer → Audio → RightSidebar（`MainScreen.tsx`）
+- **セクション層**（section switch の内側。セクションごとに独立した鎖で、横並びの兄弟関係）:
+  - Materials: WikiTagsUnified → TaskTree / NotesUnified / DailiesUnified
+  - Schedule: Calendar → Routine → ScheduleItems
+  - Analytics: AnalyticsFilter（`components/Analytics/AnalyticsView.tsx` 内）
 - **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider）
-- Mobile 省略 Provider は **Optional バリアント必須**（→ `docs/vision/coding-principles.md §4`）
+- **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TaskTreeContext.tsx` の unmount 時 UndoRedo stack clear）
+- **Mobile 省略 Provider は未実装**（設計意図のみ）: `mobile/` は `web/dist` を包む Capacitor 殻で独自の Provider 構成を持たず、`isNativeMobile()`（`utils/platform.ts`）は export されているだけでゲートに未接続。実装する際は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）
 
 ## Pattern A（Context/Provider 標準 — 3 ファイル）
 
@@ -53,9 +59,9 @@ paths:
 - ジェネリクスで型外部化
 - 詳細 → `docs/vision/coding-principles.md §5`
 
-## Schedule 3 分割
+## Schedule Provider 分割
 
-- `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider`。`useScheduleContext()` は後方互換ファサード — 新コードは個別 hook を直接使用。複数参照される部品は `Schedule/shared/` へ（背景 → `docs/vision/coding-principles.md §3`）
+- 現行は `CalendarProvider` → `RoutineProvider` → `ScheduleItemsProvider`（外→内）。`CalendarTagsProvider` は DU-F Step 3-5 で撤去済み（tag/link は `WikiTagsUnified` が引き継ぎ）、後方互換ファサード `useScheduleContext()` も現存しない — 個別 hook を直接使用する。複数参照される部品は `shared/src/components/schedule/` へ（背景 → `docs/vision/coding-principles.md §3`）
 
 ## Gotchas
 

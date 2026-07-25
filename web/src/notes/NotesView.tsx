@@ -10,12 +10,14 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
-  GripVertical,
+  Link2,
   Lock,
   Pin,
   Plus,
   Search,
   Trash2,
+  Tag,
+  Tags,
   RotateCcw,
 } from "lucide-react";
 import {
@@ -31,10 +33,17 @@ import {
   ExcerptListItem,
   QuickAddSheet,
   BottomSheet,
+  SidebarListControls,
+  TagEditModal,
+  resolveTagIcon,
   buildTagGroups,
+  sortNotesForList,
   cn,
   type NoteNode,
+  type NoteSortMode,
   type NoteTagGroup,
+  type TagEditRow,
+  type DataService,
 } from "@life-editor/shared";
 import {
   useNoteTagDnd,
@@ -42,6 +51,7 @@ import {
   noteDraggableId,
 } from "./useNoteTagDnd";
 import { RichTextEditor } from "./RichTextEditor";
+import { useItemLinkTargets } from "./useItemLinkTargets";
 import {
   NotePasswordDialog,
   type NotePasswordMode,
@@ -145,32 +155,31 @@ function DesktopNoteRow({
   });
 
   return (
+    // Grip removed (#312): the whole row is the drag activator now — press-drag
+    // anywhere onto a tag heading assigns that tag. @dnd-kit's PointerSensor has
+    // a 5px activation distance (useNoteTagDnd), so a plain click still falls
+    // through to the inner select/delete buttons; only a >5px drag picks the row
+    // up. `attributes`+`listeners` (tabIndex + keydown) make the row keyboard-
+    // draggable, decoupled from the inner buttons' own Enter/click. We override
+    // role back to "listitem" (attributes default it to "button") so the row
+    // keeps the <ul> list semantics and the inner buttons aren't nested inside
+    // an interactive role.
     <li
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      role="listitem"
+      aria-label={dragHintLabel}
       className={cn(
-        "group relative flex items-center gap-2 rounded-lumen-md border px-2",
-        "h-[34px] text-[13.5px]",
+        "group relative flex cursor-grab items-center gap-2 rounded-lumen-md border px-2",
+        "h-[36px] text-[13px]",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
           : "border-transparent hover:bg-lumen-hover",
+        FOCUS_RING,
       )}
     >
-      {/* Grip — hover-revealed, keyboard-focusable. Starts the drag. */}
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label={dragHintLabel}
-        className={cn(
-          "shrink-0 cursor-grab text-lumen-text-tertiary opacity-0 transition-opacity",
-          "hover:text-lumen-text focus-visible:opacity-100 group-hover:opacity-100",
-          FOCUS_RING,
-        )}
-      >
-        <GripVertical size={13} aria-hidden />
-      </button>
-
       <FileText
         size={14}
         aria-hidden
@@ -254,14 +263,21 @@ function DesktopTagHeading({
     disabled: isUntagged,
   });
 
+  // Divider-style heading (#311): [tag icon] [color-band name] [count] ——rule.
+  // The former chevron+dot+flat-name folder look is gone; the name sits in a
+  // rounded color band (same tint math as TagPill) and a rule fills the row.
+  const color = group.tagColor;
+  const Icon = resolveTagIcon(group.tagIcon) ?? Tag;
+  const bandStyle = color
+    ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
+    : undefined;
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-lumen-md border",
-        isOver
-          ? "border-lumen-accent bg-lumen-accent-subtle"
-          : "border-transparent",
+        "rounded-lumen-md",
+        isOver && "bg-lumen-accent-subtle ring-1 ring-inset ring-lumen-accent",
       )}
     >
       <button
@@ -270,48 +286,82 @@ function DesktopTagHeading({
         aria-expanded={!collapsed}
         aria-label={collapsed ? expandLabel : collapseLabel}
         className={cn(
-          "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1.5 text-left hover:bg-lumen-hover",
+          "flex w-full items-center gap-2 rounded-lumen-md px-1 py-1.5 text-left hover:bg-lumen-hover",
           FOCUS_RING,
         )}
       >
+        <Icon
+          size={15}
+          aria-hidden
+          className="shrink-0 text-lumen-text-secondary"
+          style={color ? { color } : undefined}
+        />
+        <span
+          className={cn(
+            "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
+            color ? "" : "border-lumen-border bg-lumen-bg-secondary",
+          )}
+          style={bandStyle}
+        >
+          {group.tagName}
+        </span>
+        <span className="shrink-0 text-[11px] font-medium tabular-nums text-lumen-text-tertiary">
+          {group.notes.length}
+        </span>
+        <span aria-hidden className="h-px min-w-4 flex-1 bg-lumen-border" />
         {collapsed ? (
           <ChevronRight
-            size={13}
+            size={14}
             aria-hidden
-            className="shrink-0 text-lumen-text-secondary"
+            className="shrink-0 text-lumen-text-tertiary"
           />
         ) : (
           <ChevronDown
-            size={13}
+            size={14}
             aria-hidden
-            className="shrink-0 text-lumen-text-secondary"
+            className="shrink-0 text-lumen-text-tertiary"
           />
         )}
-        <span
-          aria-hidden
-          className={cn(
-            "h-2 w-2 shrink-0 rounded-full",
-            group.tagColor ? "" : "bg-lumen-border-strong",
-          )}
-          style={
-            group.tagColor ? { backgroundColor: group.tagColor } : undefined
-          }
-        />
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-lumen-text">
-          {group.tagName}
-        </span>
-        <span className="shrink-0 text-[12px] text-lumen-text-tertiary">
-          {group.notes.length}
-        </span>
       </button>
     </div>
   );
 }
 
-export function NotesView() {
+interface NotesViewProps {
+  /**
+   * Injected for the "[[" link-target pool (notes + dailies fetched cross-
+   * domain — the Notes tab has no DailiesUnifiedProvider). Everything else in
+   * this view stays context-side; link features are off when it is absent.
+   */
+  dataService?: DataService;
+  /** Navigate to a link target (MainScreen owns section + tab switching). */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /** A pending note id to select (arrived via a link click from another tab). */
+  pendingSelectNoteId?: string | null;
+  /** Clear the pending selection once consumed. */
+  onConsumePendingSelect?: () => void;
+}
+
+export function NotesView({
+  dataService,
+  onNavigateToItem,
+  pendingSelectNoteId,
+  onConsumePendingSelect,
+}: NotesViewProps = {}) {
   const notes = useNotesUnifiedContext();
-  const { allTags, getTagsForItem, assignTagToItem } =
-    useWikiTagsUnifiedContext();
+  const {
+    allTags,
+    countsByTag,
+    getTagsForItem,
+    assignTagToItem,
+    createItemLink,
+    getLinksForItem,
+    createTag,
+    renameTag,
+    deleteTag,
+    setTagColor,
+    setTagIcon,
+  } = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
@@ -332,6 +382,11 @@ export function NotesView() {
   } | null>(null);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [trashOpen, setTrashOpen] = useState(false);
+  // Tag edit modal (#310) — opened from the sidebar bottom entry.
+  const [tagEditOpen, setTagEditOpen] = useState(false);
+  // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
+  // here from the note body so reading/writing stays unobstructed.
+  const [linksOpen, setLinksOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] =
     useState<Set<string>>(loadCollapsedGroups);
   // Mobile-only: the note whose read sheet is open + the quick-add sheet.
@@ -365,6 +420,66 @@ export function NotesView() {
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
 
+  // Rows for the Tag edit modal: every tag with its icon/color + active usage
+  // count (role-agnostic, from the WikiTags hook's derived countsByTag).
+  const tagEditRows = useMemo<TagEditRow[]>(
+    () =>
+      allTags.map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        icon: tag.icon,
+        count: countsByTag.get(tag.id) ?? 0,
+      })),
+    [allTags, countsByTag],
+  );
+
+  // "[[" link-target pool (notes + dailies, cross-domain) for the editor's
+  // wiki-link autocomplete. Absent when no DataService is injected.
+  const linkTargets = useItemLinkTargets(dataService);
+
+  // A link click from another tab lands here with a pending note id — select
+  // it once (the async note load resolves selectedNote afterwards), then clear.
+  useEffect(() => {
+    if (!pendingSelectNoteId) return;
+    notes.setSelectedNoteId(pendingSelectNoteId);
+    onConsumePendingSelect?.();
+    // notes.setSelectedNoteId / onConsumePendingSelect are stable enough; rerun
+    // only when a new pending id arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSelectNoteId]);
+
+  // Mirror a resolved "[[" link into the item_links graph (Connect / backlinks)
+  // as an edge from the CURRENT note to the target. Duplicate-guarded against
+  // the bulk cache; NEVER deleted when the text link is removed — item_links has
+  // no origin column, so a delete-sync would also destroy links the user added
+  // by hand in the LinkPanel. Self-links are skipped (createItemLink rejects
+  // them anyway).
+  const handleResolvedLinkInserted = useCallback(
+    (fromId: string, targetId: string) => {
+      if (!fromId || fromId === targetId) return;
+      const already = getLinksForItem(fromId).outgoing.some(
+        (l) => !l.isDeleted && l.toItemId === targetId,
+      );
+      if (already) return;
+      void createItemLink(fromId, targetId).catch((e) =>
+        console.error("[NotesView] item link upsert failed", e),
+      );
+    },
+    [getLinksForItem, createItemLink],
+  );
+
+  // "[[" create-a-note-and-link. select:false keeps the editor on the note the
+  // user is writing in (createNote otherwise switches selection, remounting the
+  // editor mid-insert); skipUndo avoids polluting the undo stack for a link.
+  const handleCreateNoteForLink = useCallback(
+    async (label: string): Promise<{ id: string } | null> => {
+      const id = notes.createNote(label, { select: false, skipUndo: true });
+      return id ? { id } : null;
+    },
+    [notes],
+  );
+
   // Search filter (title-only — the list is body-free under M1). Applied
   // before grouping so a query narrows every tag heading at once.
   const searchedNotes = useMemo(() => {
@@ -391,6 +506,44 @@ export function NotesView() {
       }),
     [searchedNotes, allTags, assignments, t],
   );
+
+  // #283 sort controls (desktop sidebar). Mode ids map 1:1 to NoteSortMode.
+  const sortModes = useMemo(
+    () => [
+      { id: "updatedAt", label: t("materials.notes.sortUpdated") },
+      { id: "createdAt", label: t("materials.notes.sortCreated") },
+      { id: "title", label: t("materials.notes.sortTitle") },
+    ],
+    [t],
+  );
+
+  // buildTagGroups re-sorts each group internally (pinned-first then title), so
+  // the user's chosen sort is applied AFTER grouping — within each tag group,
+  // preserving pinned-first. Group ORDER (by tag name) is left unchanged.
+  const sortedGroups = useMemo(
+    () =>
+      groups.map((group) => ({
+        ...group,
+        notes: sortNotesForList(
+          group.notes,
+          notes.sortMode,
+          notes.sortDirection,
+        ),
+      })),
+    [groups, notes.sortMode, notes.sortDirection],
+  );
+
+  // Direction label must describe the REAL rendered order. For the date modes
+  // the comparator's "asc" reads as newest-first (compareNotes quirk), so date
+  // modes use newest/oldest; title uses ascending/descending.
+  const isTitleSort = notes.sortMode === "title";
+  const directionLabel = isTitleSort
+    ? notes.sortDirection === "asc"
+      ? t("materials.sidebar.ascending")
+      : t("materials.sidebar.descending")
+    : notes.sortDirection === "asc"
+      ? t("materials.sidebar.newest")
+      : t("materials.sidebar.oldest");
 
   const handleAssignTag = useCallback(
     (noteId: string, tagId: string) => {
@@ -490,7 +643,8 @@ export function NotesView() {
 
   const sidebarList = (
     <div className="flex flex-col gap-2">
-      {/* Search + create. Folder-create is gone — organization is tags now. */}
+      {/* Search only. Create moved to the main-content top-right (#302); folder-
+          create is gone — organization is tags now. */}
       <div className="flex flex-col gap-2">
         <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
           <Search
@@ -506,19 +660,22 @@ export function NotesView() {
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => notes.createNote()}
-          className={cn(
-            "inline-flex w-full items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5",
-            "text-[12.5px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
-            FOCUS_RING,
-          )}
-        >
-          <Plus size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">{t("materials.notes.addCta")}</span>
-        </button>
       </div>
+
+      {/* Sort controls (#283) — mode picker + direction toggle above the list.
+          No filter row: title search already exists via the search box above. */}
+      <SidebarListControls
+        modes={sortModes}
+        activeModeId={notes.sortMode}
+        onModeChange={(id) => notes.setSortMode(id as NoteSortMode)}
+        sortLabel={t("materials.sidebar.sort")}
+        direction={notes.sortDirection}
+        onToggleDirection={() =>
+          notes.setSortDirection(notes.sortDirection === "asc" ? "desc" : "asc")
+        }
+        directionLabel={directionLabel}
+        directionToggleLabel={t("materials.sidebar.toggleDirection")}
+      />
 
       {notes.error && (
         <p
@@ -549,7 +706,7 @@ export function NotesView() {
           onDragCancel={dnd.handleDragCancel}
         >
           <ul className="flex flex-col gap-1.5">
-            {groups.map((group) => {
+            {sortedGroups.map((group) => {
               const key = groupKey(group);
               const collapsed = collapsedGroups.has(key);
               return (
@@ -562,7 +719,7 @@ export function NotesView() {
                     expandLabel={t("materials.notes.expandGroup")}
                   />
                   {!collapsed && (
-                    <ul className="flex flex-col gap-px pl-3">
+                    <ul className="flex flex-col gap-0.5">
                       {group.notes.map((node) => (
                         <DesktopNoteRow
                           key={`${key}-${node.id}`}
@@ -588,6 +745,43 @@ export function NotesView() {
           </DragOverlay>
         </DndContext>
       )}
+
+      {/* Links panel — the selected note's item↔item links, moved out of the
+          note body (F-3 #260). Same divider + disclosure structure as the
+          Trash section below (layout-standard v2 "panel under the divider"). */}
+      <div className="border-t border-lumen-border pt-1">
+        <button
+          type="button"
+          onClick={() => setLinksOpen((v) => !v)}
+          aria-expanded={linksOpen}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+            FOCUS_RING,
+          )}
+        >
+          {linksOpen ? (
+            <ChevronDown size={13} aria-hidden className="shrink-0" />
+          ) : (
+            <ChevronRight size={13} aria-hidden className="shrink-0" />
+          )}
+          <Link2 size={14} aria-hidden className="shrink-0" />
+          <span className="truncate">{t("materials.notes.links")}</span>
+        </button>
+        {linksOpen &&
+          (selected && selected.type !== "folder" ? (
+            <div className="pb-2">
+              <LinkPanel
+                itemId={selected.id}
+                resolveTitle={resolveTitle}
+                linkableItems={linkableItems}
+              />
+            </div>
+          ) : (
+            <p className="px-1 pb-2 text-xs text-lumen-text-tertiary">
+              {t("materials.notes.mainEmpty")}
+            </p>
+          ))}
+      </div>
 
       {/* Trash section. */}
       <div className="border-t border-lumen-border pt-1">
@@ -649,6 +843,23 @@ export function NotesView() {
           </ul>
         )}
       </div>
+
+      {/* Tag edit entry (#310) — opens the manage-tags modal. Same divider +
+          row styling as the Links/Trash disclosures, but a plain action (no
+          chevron) since it launches a modal instead of expanding in place. */}
+      <div className="border-t border-lumen-border pt-1">
+        <button
+          type="button"
+          onClick={() => setTagEditOpen(true)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+            FOCUS_RING,
+          )}
+        >
+          <Tags size={14} aria-hidden className="ml-[21px] shrink-0" />
+          <span className="truncate">{t("materials.tags.editCta")}</span>
+        </button>
+      </div>
     </div>
   );
 
@@ -670,6 +881,12 @@ export function NotesView() {
           {groups.map((group) => {
             const key = groupKey(group);
             const collapsed = collapsedGroups.has(key);
+            // Divider-style heading (#311), mobile twin of DesktopTagHeading.
+            const color = group.tagColor;
+            const HeadingIcon = resolveTagIcon(group.tagIcon) ?? Tag;
+            const bandStyle = color
+              ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
+              : undefined;
             return (
               <div key={key} className="flex flex-col gap-1">
                 <button
@@ -682,45 +899,49 @@ export function NotesView() {
                       : t("materials.notes.collapseGroup")
                   }
                   className={cn(
-                    "flex items-center gap-2 px-1 py-1.5 text-left",
+                    "flex w-full items-center gap-2 px-1 py-1.5 text-left",
                     FOCUS_RING,
                   )}
                 >
+                  <HeadingIcon
+                    size={15}
+                    aria-hidden
+                    className="shrink-0 text-lumen-text-secondary"
+                    style={color ? { color } : undefined}
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
+                      color ? "" : "border-lumen-border bg-lumen-bg-secondary",
+                    )}
+                    style={bandStyle}
+                  >
+                    {group.tagName}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-lumen-text-tertiary">
+                    {group.notes.length}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-px min-w-4 flex-1 bg-lumen-border"
+                  />
                   {collapsed ? (
                     <ChevronRight
-                      size={13}
+                      size={14}
                       aria-hidden
-                      className="shrink-0 text-lumen-text-secondary"
+                      className="shrink-0 text-lumen-text-tertiary"
                     />
                   ) : (
                     <ChevronDown
-                      size={13}
+                      size={14}
                       aria-hidden
-                      className="shrink-0 text-lumen-text-secondary"
+                      className="shrink-0 text-lumen-text-tertiary"
                     />
                   )}
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      group.tagColor ? "" : "bg-lumen-border-strong",
-                    )}
-                    style={
-                      group.tagColor
-                        ? { backgroundColor: group.tagColor }
-                        : undefined
-                    }
-                  />
-                  <span className="text-sm font-semibold text-lumen-text">
-                    {group.tagName}
-                  </span>
-                  <span className="text-[13px] text-lumen-text-tertiary">
-                    （{group.notes.length}）
-                  </span>
                 </button>
                 {!collapsed &&
                   group.notes.map((node) => (
-                    <div key={`${key}-${node.id}`} className="pl-4">
+                    <div key={`${key}-${node.id}`}>
                       <ExcerptListItem
                         title={node.title || "(untitled)"}
                         leading={<FileText size={14} aria-hidden />}
@@ -797,6 +1018,17 @@ export function NotesView() {
           initialContent={selected.content || undefined}
           editable={!selected.isEditLocked}
           onUpdate={(content) => notes.updateNote(selected.id, { content })}
+          // "[[" wiki-link autocomplete + click navigation (Issue #285).
+          linkTargets={linkTargets}
+          onNavigateToItem={onNavigateToItem}
+          onResolvedLinkInserted={(targetId) =>
+            handleResolvedLinkInserted(selected.id, targetId)
+          }
+          onCreateNoteForLink={handleCreateNoteForLink}
+          // Borderless — sit flush inside the NoteDetailPanel card so the note
+          // body reads as a single clean surface, matching the Daily editor
+          // card (2026-07-18: align Notes main formatting to Daily).
+          className="pt-1"
         />
       </div>
       {detailGated && (
@@ -817,58 +1049,69 @@ export function NotesView() {
 
   // ---- Desktop main editor --------------------------------------------
   //
-  // The selected note's detail (meta row + tags + TipTap body + links) as the
-  // tab's MAIN content — a centered surface. Nothing selected → the select-or-
-  // create empty state. Folders can no longer be selected (they are never
+  // The selected note's detail (meta row + tags + TipTap body) as the tab's
+  // MAIN content — a centered surface (links live in the sidebar Links panel
+  // — F-3 #260). Nothing selected → the select-or-create empty state. Folders can no longer be selected (they are never
   // rendered as rows), but the folder guards on the slots are kept as defence
   // in depth while real data still carries folder nodes.
 
-  const desktopMain = selected ? (
-    <NoteDetailPanel
-      variant="main"
-      noteId={selected.id}
-      title={selected.title}
-      isPinned={selected.isPinned}
-      onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-      onTogglePin={notes.togglePin}
-      onDelete={(id) => notes.softDeleteNote(id)}
-      titleLabel={t("notesView.detailTitle")}
-      pinLabel={t("notesView.unpin")}
-      unpinLabel={t("notesView.pin")}
-      deleteLabel={t("materials.notes.deleteNote")}
-      tagsSlot={
-        selected.type === "folder" ? undefined : (
-          <TagPicker itemId={selected.id} showLabel size="sm" />
-        )
-      }
-      contentLabel={t("materials.notes.content")}
-      contentEditor={
-        selected.type === "folder" ? undefined : detailContentEditor
-      }
-      linksLabel={t("materials.notes.links")}
-      linksSlot={
-        selected.type === "folder" ? undefined : (
-          <LinkPanel
-            itemId={selected.id}
-            resolveTitle={resolveTitle}
-            linkableItems={linkableItems}
+  // Main-content toolbar (#302): "+ Add Note" now lives at the main-content
+  // top-right — same accent pill + position sense as the Tasks board toolbar —
+  // and the sidebar create entry was removed. Always present so a new note can
+  // be made with nothing selected.
+  const desktopMain = (
+    <>
+      <div className="flex items-center justify-end px-1 pb-3">
+        <button
+          type="button"
+          onClick={() => notes.createNote()}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          <Plus size={14} aria-hidden />
+          {t("materials.notes.addCta")}
+        </button>
+      </div>
+      {selected ? (
+        <NoteDetailPanel
+          variant="main"
+          noteId={selected.id}
+          title={selected.title}
+          isPinned={selected.isPinned}
+          onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+          onTogglePin={notes.togglePin}
+          onDelete={(id) => notes.softDeleteNote(id)}
+          titleLabel={t("notesView.detailTitle")}
+          pinLabel={t("notesView.unpin")}
+          unpinLabel={t("notesView.pin")}
+          deleteLabel={t("materials.notes.deleteNote")}
+          moreActionsLabel={t("notesView.moreActions")}
+          tagsSlot={
+            selected.type === "folder" ? undefined : (
+              <TagPicker itemId={selected.id} showLabel size="sm" />
+            )
+          }
+          contentLabel={t("materials.notes.content")}
+          contentEditor={
+            selected.type === "folder" ? undefined : detailContentEditor
+          }
+        />
+      ) : (
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <EmptyState
+            icon={<FileText aria-hidden />}
+            message={
+              hasNotes
+                ? t("materials.notes.mainEmpty")
+                : t("materials.notes.empty")
+            }
+            cta={{
+              label: t("materials.notes.addCta"),
+              onClick: () => notes.createNote(),
+            }}
           />
-        )
-      }
-    />
-  ) : (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <EmptyState
-        icon={<FileText aria-hidden />}
-        message={
-          hasNotes ? t("materials.notes.mainEmpty") : t("materials.notes.empty")
-        }
-        cta={{
-          label: t("materials.notes.addCta"),
-          onClick: () => notes.createNote(),
-        }}
-      />
-    </div>
+        </div>
+      )}
+    </>
   );
 
   return (
@@ -916,6 +1159,9 @@ export function NotesView() {
                   initialContent={notes.selectedNote?.content || undefined}
                   editable={false}
                   onUpdate={() => {}}
+                  // Read-only: no "[[" suggestion (linkTargets omitted), but
+                  // resolved links stay clickable for navigation.
+                  onNavigateToItem={onNavigateToItem}
                 />
               ) : (
                 <SkeletonList rows={4} rowHeight={20} gap={8} />
@@ -945,6 +1191,31 @@ export function NotesView() {
           onClose={() => setPwDialog(null)}
         />
       )}
+
+      <TagEditModal
+        open={tagEditOpen}
+        onClose={() => setTagEditOpen(false)}
+        tags={tagEditRows}
+        onCreate={(name) => void createTag(name)}
+        onRename={(id, name) => void renameTag(id, name)}
+        onDelete={(id) => void deleteTag(id)}
+        onSetColor={(id, color) => void setTagColor(id, color)}
+        onSetIcon={(id, icon) => void setTagIcon(id, icon)}
+        formatCount={(count) => t("materials.tags.usageCount", { count })}
+        labels={{
+          title: t("materials.tags.editTitle"),
+          addPlaceholder: t("materials.tags.addPlaceholder"),
+          addButton: t("materials.tags.addTag"),
+          empty: t("materials.tags.empty"),
+          renameLabel: t("materials.tags.rename"),
+          deleteLabel: t("materials.tags.deleteTag"),
+          iconLabel: t("materials.tags.iconLabel"),
+          clearIconLabel: t("materials.tags.clearIcon"),
+          colorLabel: t("materials.tags.colorLabel"),
+          colorClearLabel: t("materials.tags.colorClearLabel"),
+          colorCustomLabel: t("materials.tags.colorCustomLabel"),
+        }}
+      />
     </div>
   );
 }

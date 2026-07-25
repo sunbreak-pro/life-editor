@@ -2,19 +2,37 @@ import { useState, type KeyboardEvent } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
+import {
+  FrequencyEditor,
+  type FrequencyEditorValue,
+  type FrequencyEditorGroup,
+  type FrequencyEditorLabels,
+} from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
  * Desktop right pane and the Mobile detail sheet. Pure presentation (§3.1 /
  * §6.4): copy injected already translated, every mutation is a callback.
- * Title + memo are commit-on-blur local drafts (Enter blurs the title; IME
- * composition is respected). lumen-* tokens only (§5).
+ * Title + memo + start/end time are commit-on-blur local drafts (Enter blurs;
+ * IME composition is respected). lumen-* tokens only (§5).
  *
- * Issue 017 (routine ghost-revival): a routine-generated item can only be
- * Dismissed ("skip this day"), NEVER deleted — deleting it lets the generator
- * revive it. A manual item is the inverse: Delete only, no Dismiss. The
- * component enforces this from `item.isRoutine`; the host cannot cross-wire it.
+ * Issue 017 (routine ghost-revival): a routine-generated item is never
+ * hard/soft-deleted as a single row — deleting it lets the generator revive
+ * it. Since #279 the delete button renders for routine items too, but the
+ * host routes it into the this/future/all scope dialog whose "this only"
+ * choice performs a Dismiss (revival-safe). Dismiss ("skip this day") stays
+ * routine-only; a manual item keeps the plain delete.
+ *
+ * Repeat section (#185 Step 3): when the host wires the repeat props
+ * (`repeatLabels` + `repeatWeekdayLabels` + `onChangeRepeat`), every event
+ * gains a "繰り返し" section backed by the shared <FrequencyEditor>. For a
+ * routine-derived occurrence it replaces the old read-only "元 Routine" chip
+ * and edits the whole series (host patches the source routine); "なし"
+ * (onSelectNone → onDetachRepeat) turns the repeat off. For a manual item the
+ * section starts at "なし" (value null) and choosing a frequency asks the host
+ * to spin up a routine behind the scenes. group is not newly choosable here
+ * (allowGroup=false — group routines stay editable in the Routines tab).
  */
 
 export interface EventEditorItem {
@@ -44,7 +62,7 @@ export interface EventEditorLabels {
   originEvent: string;
   /** "この日はスキップ" (routine only). */
   skipThisDay: string;
-  /** "削除" (manual only). */
+  /** "削除" — manual: plain delete / routine: opens the scope dialog (#279). */
   delete: string;
 }
 
@@ -59,9 +77,28 @@ export interface EventEditorPaneProps {
   onChangeMemo: (id: string, memo: string) => void;
   /** Skip this occurrence (routine-generated items only). */
   onDismiss?: (id: string) => void;
-  /** Delete (manual items only). */
+  /**
+   * Delete. Manual items: plain single-item delete. Routine items (#279):
+   * the host MUST route this into the this/future/all scope dialog — a
+   * plain single-row delete would be revived by the generator (Issue 017).
+   */
   onDelete?: (id: string) => void;
   labels: EventEditorLabels;
+  /**
+   * Repeat section (#185 Step 3). Present the section only when the host
+   * wires it (labels + weekday labels + onChangeRepeat); otherwise the pane
+   * falls back to the read-only origin chip. `repeat` is the routine's
+   * frequency for a routine occurrence, or null for a manual item ("なし").
+   */
+  repeat?: FrequencyEditorValue | null;
+  repeatGroups?: FrequencyEditorGroup[];
+  repeatWeekdayLabels?: string[];
+  repeatLabels?: FrequencyEditorLabels;
+  /** Frequency patch — host applies it to the source routine (or creates one
+   *  for a manual item). */
+  onChangeRepeat?: (patch: Partial<FrequencyEditorValue>) => void;
+  /** "なし" selected — host turns the repeat off (detach the series). */
+  onDetachRepeat?: () => void;
   className?: string;
 }
 
@@ -82,15 +119,55 @@ function EventEditorFields({
   onDismiss,
   onDelete,
   labels,
+  repeat,
+  repeatGroups,
+  repeatWeekdayLabels,
+  repeatLabels,
+  onChangeRepeat,
+  onDetachRepeat,
 }: Omit<EventEditorPaneProps, "className">) {
   const [titleDraft, setTitleDraft] = useState(item.title);
   const [memoDraft, setMemoDraft] = useState(item.memo);
+  // #279: start/end are commit-on-blur drafts too. A write-through onChange
+  // fired per keystroke segment, which routed a HALF-TYPED time into the
+  // host's scope dialog for routine occurrences (focus stolen mid-edit,
+  // intermediate value committed to the series). Blur commits one complete
+  // value exactly once.
+  const [startDraft, setStartDraft] = useState(item.startTime);
+  const [endDraft, setEndDraft] = useState(item.endTime);
+
+  // The repeat section renders only when the host fully wires it (labels +
+  // weekday labels + change handler). Existing hosts/tests that omit it keep
+  // the legacy read-only origin chip.
+  const showRepeat =
+    !!onChangeRepeat && !!repeatLabels && !!repeatWeekdayLabels;
+  const repeatSection = showRepeat ? (
+    <div className="flex flex-col gap-2 border-t border-lumen-border pt-3">
+      <FrequencyEditor
+        value={repeat ?? null}
+        onChange={onChangeRepeat}
+        onSelectNone={onDetachRepeat}
+        allowGroup={false}
+        groups={repeatGroups}
+        weekdayLabels={repeatWeekdayLabels}
+        labels={repeatLabels}
+      />
+    </div>
+  ) : null;
 
   const commitTitle = () => {
     if (titleDraft !== item.title) onCommitTitle(item.id, titleDraft);
   };
   const commitMemo = () => {
     if (memoDraft !== item.memo) onChangeMemo(item.id, memoDraft);
+  };
+  // Empty guard: a time input reports "" while cleared — never commit that.
+  const commitStart = () => {
+    if (startDraft && startDraft !== item.startTime)
+      onChangeStart(item.id, startDraft);
+  };
+  const commitEnd = () => {
+    if (endDraft && endDraft !== item.endTime) onChangeEnd(item.id, endDraft);
   };
   const blurOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
     // IME guard: do not treat a composition-confirming Enter as commit.
@@ -137,8 +214,10 @@ function EventEditorFields({
           <span className={FIELD_LABEL}>{labels.startTime}</span>
           <input
             type="time"
-            value={item.startTime}
-            onChange={(e) => onChangeStart(item.id, e.target.value)}
+            value={startDraft}
+            onChange={(e) => setStartDraft(e.target.value)}
+            onBlur={commitStart}
+            onKeyDown={blurOnEnter}
             aria-label={labels.startTime}
             className={cn(FIELD, "tabular-nums")}
           />
@@ -147,28 +226,36 @@ function EventEditorFields({
           <span className={FIELD_LABEL}>{labels.endTime}</span>
           <input
             type="time"
-            value={item.endTime}
-            onChange={(e) => onChangeEnd(item.id, e.target.value)}
+            value={endDraft}
+            onChange={(e) => setEndDraft(e.target.value)}
+            onBlur={commitEnd}
+            onKeyDown={blurOnEnter}
             aria-label={labels.endTime}
             className={cn(FIELD, "tabular-nums")}
           />
         </label>
       </div>
 
-      {/* Origin chip + provenance action (Issue 017) */}
+      {/* Origin chip + provenance action (Issue 017). The repeat section
+          (#185) replaces the read-only routine chip when the host wires it;
+          otherwise the legacy chip renders. */}
       {item.isRoutine ? (
         <>
-          <div className="flex items-start gap-1.5 rounded-lumen-md bg-lumen-chip-routine-bg px-2.5 py-2 text-xs leading-relaxed text-lumen-chip-routine-fg">
-            <Repeat
-              aria-hidden
-              className="mt-0.5 size-3 shrink-0"
-              strokeWidth={2.5}
-            />
-            <span>
-              {labels.originRoutine}
-              {originDetail ? ` — ${originDetail}` : ""}
-            </span>
-          </div>
+          {showRepeat ? (
+            repeatSection
+          ) : (
+            <div className="flex items-start gap-1.5 rounded-lumen-md bg-lumen-chip-routine-bg px-2.5 py-2 text-xs leading-relaxed text-lumen-chip-routine-fg">
+              <Repeat
+                aria-hidden
+                className="mt-0.5 size-3 shrink-0"
+                strokeWidth={2.5}
+              />
+              <span>
+                {labels.originRoutine}
+                {originDetail ? ` — ${originDetail}` : ""}
+              </span>
+            </div>
+          )}
           {onDismiss && (
             <button
               type="button"
@@ -180,9 +267,12 @@ function EventEditorFields({
           )}
         </>
       ) : (
-        <div className="flex items-center gap-1.5 self-start rounded-lumen-md bg-lumen-chip-event-bg px-2.5 py-1 text-xs font-medium text-lumen-chip-event-fg">
-          {labels.originEvent}
-        </div>
+        <>
+          <div className="flex items-center gap-1.5 self-start rounded-lumen-md bg-lumen-chip-event-bg px-2.5 py-1 text-xs font-medium text-lumen-chip-event-fg">
+            {labels.originEvent}
+          </div>
+          {repeatSection}
+        </>
       )}
 
       {/* Memo */}
@@ -198,8 +288,11 @@ function EventEditorFields({
         />
       </label>
 
-      {/* Delete (manual only) */}
-      {!item.isRoutine && onDelete && (
+      {/* Delete. Manual: plain single-item delete. Routine (#279): the host
+          opens the this/future/all scope dialog instead of deleting directly
+          — "this only" maps to Dismiss there, so the Issue 017 ghost-revival
+          guard (a deleted occurrence would be regenerated) still holds. */}
+      {onDelete && (
         <button
           type="button"
           onClick={() => onDelete(item.id)}

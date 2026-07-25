@@ -1,6 +1,7 @@
 import {
   useGlobalShortcuts,
   useShortcutConfig,
+  useUndoRedoOptional,
   type NavSection,
 } from "@life-editor/shared";
 
@@ -15,9 +16,10 @@ import {
  *
  * Renders nothing — it only installs the window keydown listener. Callbacks are
  * injected as props (CLAUDE.md §6.4). `onNewTask` is wired in W3-B (the host
- * navigates to the Tasks section — see MainScreen). undo / redo still have no
- * web surface (no UndoRedo on web yet), so they're left unwired = no-op until
- * W4.
+ * navigates to the Tasks section — see MainScreen). undo / redo (#304) route
+ * through the ambient global UndoRedo context (⌘Z / ⌘⇧Z; the shared executor
+ * already skips text fields / contentEditable and IME composition, so TipTap
+ * keeps its own history). No provider mounted → left as no-op.
  */
 export function GlobalShortcuts({
   onNavigate,
@@ -31,12 +33,15 @@ export function GlobalShortcuts({
   onNewTask?: () => void;
 }) {
   const shortcutConfig = useShortcutConfig();
+  const undoRedo = useUndoRedoOptional();
   useGlobalShortcuts(shortcutConfig, {
     onNavigate,
     onOpenSettings,
     onTogglePalette,
     onNewTask,
-    // undo / redo: no web handler yet (W4).
+    // #304: app-level undo/redo via the ambient global stack (null → no-op).
+    onUndo: undoRedo ? () => undoRedo.undo() : undefined,
+    onRedo: undoRedo ? () => undoRedo.redo() : undefined,
   });
   return null;
 }

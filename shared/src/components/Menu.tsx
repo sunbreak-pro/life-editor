@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
-import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import type {
+  HTMLAttributes,
+  KeyboardEvent,
+  ReactNode,
+  RefObject,
+} from "react";
 import { cn } from "./cn";
 
 export type MenuItemVariant = "default" | "danger";
@@ -11,6 +16,13 @@ export interface MenuProps {
   label?: string;
   /** Horizontal edge to align to, relative to the positioned anchor. */
   align?: "start" | "end";
+  /**
+   * Ref to the trigger element (e.g. a kebab button). Pointerdowns landing on
+   * it are treated as INSIDE, so a naive `setOpen(v => !v)` toggle trigger can
+   * close the menu without the outside-pointerdown guard closing-then-reopening
+   * it (see the trigger-wiring note below). Omit for non-toggle triggers.
+   */
+  anchorRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
   className?: string;
 }
@@ -42,16 +54,20 @@ const ENABLED_ITEMS = '[role="menuitem"]:not([aria-disabled="true"])';
  * outside-pointerdown close. First enabled item is focused on open. Copy is
  * injected (§6).
  *
- * Trigger wiring: drive `open` from the host, but do NOT wire the trigger as a
- * naive toggle — the outside-pointerdown close fires before the trigger's
- * click, so a toggle would immediately re-open (flicker). Open on click and let
- * this component own closing, or stopPropagation on the trigger's pointerdown.
+ * Trigger wiring: drive `open` from the host. A naive `setOpen(v => !v)` toggle
+ * is unsafe on its own — the outside-pointerdown close (a document capture
+ * listener) fires before the trigger's click, so the toggle would close then
+ * immediately re-open (flicker). Fix it by passing the trigger's ref as
+ * `anchorRef`: pointerdowns on the trigger are then treated as inside and skip
+ * the outside-close, so the toggle's click closes cleanly. (Alternatively open
+ * on click only and let this component own closing.)
  */
 export function Menu({
   open,
   onClose,
   label,
   align = "start",
+  anchorRef,
   children,
   className,
 }: MenuProps) {
@@ -61,7 +77,11 @@ export function Menu({
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      const target = e.target as Node;
+      // The menu itself and the anchor (toggle trigger) count as inside.
+      if (ref.current?.contains(target)) return;
+      if (anchorRef?.current?.contains(target)) return;
+      onClose();
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
@@ -73,7 +93,7 @@ export function Menu({
       document.removeEventListener("pointerdown", onPointer, true);
       document.removeEventListener("keydown", onKey, true);
     };
-  }, [open, onClose]);
+  }, [open, onClose, anchorRef]);
 
   // Focus the first enabled item on open.
   useEffect(() => {

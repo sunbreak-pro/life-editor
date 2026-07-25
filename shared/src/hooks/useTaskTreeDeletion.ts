@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { TaskNode } from "../types/taskTree";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
+import { walkAncestors } from "../utils/walkAncestors";
 
 export function useTaskTreeDeletion(
   nodes: TaskNode[],
@@ -33,15 +34,13 @@ export function useTaskTreeDeletion(
 
       const idsToRestore = collectDescendantIds(id, nodes);
 
-      // Also restore ancestors if they're deleted
-      let current = node;
-      while (current.parentId) {
-        const parent = nodes.find((n) => n.id === current.parentId);
-        if (parent && parent.isDeleted) {
-          idsToRestore.add(parent.id);
-        }
-        if (!parent) break;
-        current = parent;
+      // Also restore ancestors if they're deleted. walkAncestors carries the
+      // visited-Set guard (KI-016 class): the bare `while (current.parentId)`
+      // climb this replaces looped forever on a cyclic parentId chain, hanging
+      // the tab on restore. It also drops the O(n) find-per-level to O(1).
+      const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+      for (const ancestor of walkAncestors(id, nodeMap)) {
+        if (ancestor.isDeleted) idsToRestore.add(ancestor.id);
       }
 
       const updated = nodes.map((n) =>

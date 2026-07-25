@@ -28,6 +28,8 @@ export interface NoteTagGroup {
   tagName: string;
   /** Tag tint color, or null (untagged has none). */
   tagColor: string | null;
+  /** Tag lucide icon name, or null (untagged / no icon → default icon). */
+  tagIcon: string | null;
   /** Active, non-folder notes under this heading (may repeat across groups). */
   notes: NoteNode[];
 }
@@ -91,6 +93,7 @@ export function buildTagGroups({
       tagId: tag.id,
       tagName: tag.name,
       tagColor: tag.color,
+      tagIcon: tag.icon,
       notes: sortNotes(members),
     });
   }
@@ -104,6 +107,7 @@ export function buildTagGroups({
       tagId: null,
       tagName: untaggedLabel,
       tagColor: null,
+      tagIcon: null,
       notes: sortNotes(untagged),
     });
   }

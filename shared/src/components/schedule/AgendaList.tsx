@@ -26,7 +26,7 @@ export interface AgendaItem {
   completed?: boolean;
   /** Derived status (#222) — drives the row-end status tag. */
   status?: ScheduleStatus;
-  variant?: "routine" | "event";
+  variant?: "routine" | "event" | "task";
 }
 
 export interface AgendaListLabels {
@@ -49,6 +49,14 @@ export interface AgendaListProps {
   nowMinutes?: number | null;
   onToggleComplete?: (id: string) => void;
   onSelectItem?: (id: string) => void;
+  /**
+   * Single-click on a row → host opens a bubble popover anchored at the click's
+   * viewport coords (#299). Preferred over `onSelectItem` when both are set;
+   * falls back to `onSelectItem` when omitted.
+   */
+  onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
+  /** Double-click on a row → host opens the detail overlay (#299). */
+  onItemDoubleClick?: (id: string) => void;
   selectedId?: string | null;
   labels: AgendaListLabels;
   className?: string;
@@ -57,10 +65,15 @@ export interface AgendaListProps {
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset";
 
-function dotColorClasses(variant: "routine" | "event"): string {
-  return variant === "routine"
-    ? "bg-lumen-chip-routine-dot"
-    : "bg-lumen-chip-event-dot";
+function dotColorClasses(variant: "routine" | "event" | "task"): string {
+  switch (variant) {
+    case "routine":
+      return "bg-lumen-chip-routine-dot";
+    case "task":
+      return "bg-lumen-chip-task-dot";
+    default:
+      return "bg-lumen-chip-event-dot";
+  }
 }
 
 export function AgendaList({
@@ -68,6 +81,8 @@ export function AgendaList({
   nowMinutes,
   onToggleComplete,
   onSelectItem,
+  onItemActivate,
+  onItemDoubleClick,
   selectedId,
   labels,
   className,
@@ -103,7 +118,12 @@ export function AgendaList({
       >
         <button
           type="button"
-          onClick={() => onSelectItem?.(it.id)}
+          onClick={(e) => {
+            if (onItemActivate)
+              onItemActivate(it.id, { x: e.clientX, y: e.clientY });
+            else onSelectItem?.(it.id);
+          }}
+          onDoubleClick={() => onItemDoubleClick?.(it.id)}
           className={cn(
             "flex min-h-[42px] flex-1 items-center gap-2 rounded-sm py-1 pl-1 text-left",
             FOCUS,

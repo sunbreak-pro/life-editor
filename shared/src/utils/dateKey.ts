@@ -43,10 +43,24 @@ export function getDayStartHour(): number {
  * Local date key for "today", honoring the day-start hour: an instant
  * before HH:00 counts as the previous day (exactly HH:00 is the new day).
  * With the default 0 this is identical to `formatDateKey(new Date())`.
+ * The fixed-ms shift assumes a DST-less timezone (JST, N=1 user); around
+ * a DST switch the wall-clock boundary would drift by an hour.
  */
 export function todayDateKey(
   now: Date = new Date(),
   dayStartHour: number = getDayStartHour(),
 ): string {
   return formatDateKey(new Date(now.getTime() - dayStartHour * 60 * 60_000));
+}
+
+/**
+ * Plain calendar-day "today" (local midnight boundary — NO day-start-hour
+ * shift). The Schedule hosts key their grids on the wall calendar, where a
+ * 2 AM edit belongs to the new date; `todayDateKey()` above is the
+ * Daily / routine-sync "today" that rolls over at the configured hour.
+ * Single implementation (#280) — replaces the todayLocal / todayLocalKey
+ * copies that lived in useScheduleItemsAPI and web scheduleLabels.
+ */
+export function todayCalendarKey(now: Date = new Date()): string {
+  return formatDateKey(now);
 }

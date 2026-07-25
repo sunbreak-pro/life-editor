@@ -9,13 +9,11 @@ import {
 import { initDb, closeDb } from "./db.js";
 import { TOOLS, callTool } from "./tools.js";
 
+// Optional legacy SQLite path. Supabase-backed tools (schedule / briefing)
+// authenticate from env (see supabase.ts) and need no local DB; the
+// remaining SQLite tools error at call time when no path is given.
 const dbPath = process.argv[2] || process.env.DB_PATH;
-if (!dbPath) {
-  console.error("Usage: life-editor-mcp <path-to-life-editor.db>");
-  process.exit(1);
-}
-
-initDb(dbPath);
+if (dbPath) initDb(dbPath);
 
 const server = new Server(
   { name: "life-editor", version: "1.0.0" },
@@ -29,7 +27,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
-    return callTool(name, args ?? {});
+    // `await` is load-bearing: without it an async handler rejection
+    // escapes this try/catch and crashes the server.
+    return await callTool(name, args ?? {});
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {

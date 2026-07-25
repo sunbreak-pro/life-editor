@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "./cn";
 
 /** Page width variant — the single knob a host picks per section. */
-export type PageContainerWidth = "reading" | "data" | "fluid" | "full";
+export type PageContainerWidth = "reading" | "data" | "wide" | "fluid" | "full";
 
 export interface PageContainerProps {
   /**
@@ -10,8 +10,16 @@ export interface PageContainerProps {
    *   - "reading": document-style centered column (max-w-lumen-reading, 768px)
    *     — the default for text surfaces.
    *   - "data": wide dashboard column (max-w-lumen-data, 1000px) — analytics.
-   *   - "fluid": no centering/scroll wrapper; the child owns its full-bleed
-   *     h-full layout + self-scroll (canvas / board / calendar surfaces).
+   *   - "wide": the Notes / Daily editor column (max-w-lumen-wide, 1120px) — a
+   *     mid-point between reading and full-bleed for text surfaces that want
+   *     more room than a reading column but not the full page width.
+   *   - "fluid": the child owns its full-bleed h-full layout + self-scroll
+   *     (canvas / board / calendar surfaces). Still centered + clamped to
+   *     max-w-lumen-wide (Issue #305 — width is unified across sections; only
+   *     the SCROLL OWNERSHIP differs from "wide"). No vertical-scroll wrapper:
+   *     the child fills the clamped box and manages its own overflow, so its
+   *     internal horizontal scroll (kanban board / week grid) stays inside the
+   *     1120px column and never spills to the page.
    *   - "full": full-width column that KEEPS the gutter + self-scroll wrapper
    *     (Layout Standard v2 §5 — the standard wide document surface; unlike
    *     fluid, the child stays a normal scrolled document).
@@ -52,7 +60,9 @@ export function PageContainer({
         </div>
       )}
       {width === "fluid" ? (
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="mx-auto flex min-h-0 w-full max-w-lumen-wide flex-1 flex-col">
+          {children}
+        </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div
@@ -60,6 +70,7 @@ export function PageContainer({
               "mx-auto w-full px-lumen-gutter py-4 md:px-lumen-gutter-wide md:py-6",
               width === "reading" && "max-w-lumen-reading",
               width === "data" && "max-w-lumen-data",
+              width === "wide" && "max-w-lumen-wide",
               // "full" sets no max-w — gutter-padded full width.
             )}
           >

@@ -114,22 +114,22 @@ export function useScheduleItemsRoutineSync(
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       const existing = await ds.fetchScheduleItemsByDate(date);
-      const { toCreate, toUpdate } = diffRoutineScheduleItems(
+      const { toCreate } = diffRoutineScheduleItems(
         existing,
         routines,
         date,
         groupForRoutine,
       );
 
-      if (toUpdate.length > 0) {
-        for (const upd of toUpdate) {
-          ds.updateScheduleItem(upd.id, {
-            title: upd.title,
-            startTime: upd.startTime,
-            endTime: upd.endTime,
-          }).catch((e) => logServiceError("ScheduleItems", "update", e));
-        }
-      }
+      // #279 conflict-rule gate (tier-1 §Schedule rules 1-2): the diff's
+      // toUpdate bucket is NOT applied here anymore. It cannot tell a manual
+      // per-occurrence edit (which must WIN over the template, rule 2) from
+      // template drift, and its input includes completed rows (rule 1) —
+      // applying it reverted 「この予定のみ」 scope edits and rewrote done
+      // records whenever a routines refetch re-fired this generator.
+      // Creation-only until the Step 4 reconcile lands with a real
+      // manual-edit discriminator. Series edits propagate explicitly via
+      // updateFutureScheduleItemsByRoutine (scope dialog).
 
       // DU-C-6 hardening (chat-main HISTORY 2026-05-23 landmine fix):
       // notifyChanged() must NOT fire when bulkCreate threw. Pre-DU-C-6
@@ -147,7 +147,7 @@ export function useScheduleItemsRoutineSync(
           bulkCreateOk = false;
         }
       }
-      if (bulkCreateOk && (toCreate.length > 0 || toUpdate.length > 0)) {
+      if (bulkCreateOk && toCreate.length > 0) {
         notifyChanged();
       }
     },
@@ -160,12 +160,13 @@ export function useScheduleItemsRoutineSync(
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Week window starts on the day-start-hour aware "today" (#218),
+        // consistent with the cleanup / backfill / reconcile boundaries.
+        const startDate = todayDateKey();
+        const today = new Date(startDate + "T00:00:00");
         const endDay = new Date(today);
         endDay.setDate(endDay.getDate() + 7);
 
-        const startDate = formatDateKey(today);
         const endDate = formatDateKey(endDay);
 
         const existing = await ds.fetchScheduleItemsByDateRange(
@@ -199,13 +200,19 @@ export function useScheduleItemsRoutineSync(
     [ds, notifyChanged],
   );
 
+  /**
+   * Returns true when the pass fully applied, false when any write/read
+   * failed (#296): callers that SEQUENCE destructive work behind this fill
+   * (the scope dialog's fillUpToAnchor → detach) must abort on false — the
+   * old void-swallow let a failed fill silently feed rows to the deleter.
+   */
   const ensureRoutineItemsForDateRange = useCallback(
     async (
       startDate: string,
       endDate: string,
       routines: RoutineNode[],
       groupForRoutine?: Map<string, RoutineGroup[]>,
-    ) => {
+    ): Promise<boolean> => {
       try {
         const existing = await ds.fetchScheduleItemsByDateRange(
           startDate,
@@ -214,14 +221,21 @@ export function useScheduleItemsRoutineSync(
 
         const routineMap = new Map(routines.map((r) => [r.id, r]));
 
-        // Cleanup: delete routine items that no longer match frequency.
-        // "today" honors the day-start-hour pref (#218) so the still-running
-        // late-night day is treated as editable, not past.
+        // Cleanup: soft-delete routine items that no longer match frequency
+        // (#296: soft, NOT the hard bulkDelete — auto-cleanup must stay
+        // Trash-recoverable). "today" honors the day-start-hour pref (#218)
+        // so the still-running late-night day is treated as editable, not
+        // past. Hand-moved rows (date drifted from the generator's
+        // source_date) are user edits — they never match the frequency for
+        // their new day, and deleting them was #296's unrecoverable-loss
+        // path. Skip them.
         const today = todayDateKey();
         const toDeleteIds = new Set<string>();
         for (const item of existing) {
           if (!item.routineId) continue;
           if (item.completed || item.date < today) continue;
+          if (item.sourceDate != null && item.sourceDate !== item.date)
+            continue;
           const routine = routineMap.get(item.routineId);
           if (!routine) continue;
           if (!shouldCreateRoutineItem(routine, item.date, groupForRoutine)) {
@@ -229,10 +243,17 @@ export function useScheduleItemsRoutineSync(
           }
         }
         if (toDeleteIds.size > 0) {
-          await ds.bulkDeleteScheduleItems([...toDeleteIds]);
+          await ds.bulkSoftDeleteScheduleItems([...toDeleteIds]);
         }
 
-        // Build existingSet excluding deleted items
+        // Build existingSet excluding deleted items. Keyed on the CALENDAR
+        // date (mirrors collectRoutineItemsForDates, which iterates by
+        // calendar date and mints source_date = that date). A hand-moved
+        // row's own (routine, source_date) slot is still protected from a
+        // duplicate INSERT by the service-layer pre-check in
+        // bulkCreateScheduleItems, so keying here on source_date instead
+        // would leave the vacated calendar day free to regenerate — a
+        // spurious extra occurrence. That cross-day reconcile is Step 4.
         const existingSet = new Set<string>();
         for (const item of existing) {
           if (item.routineId && !toDeleteIds.has(item.id)) {
@@ -255,8 +276,10 @@ export function useScheduleItemsRoutineSync(
         if (toDeleteIds.size > 0 || toCreate.length > 0) {
           notifyChanged();
         }
+        return true;
       } catch (e) {
         logServiceError("ScheduleItems", "ensureRoutineItemsForDateRange", e);
+        return false;
       }
     },
     [ds, notifyChanged],
@@ -371,11 +394,14 @@ export function useScheduleItemsRoutineSync(
         const allItems = await ds.fetchScheduleItemsByRoutineId(routine.id);
         const today = todayDateKey();
 
-        // Delete non-matching items (today onward only)
+        // Soft-delete non-matching items (today onward only; #296 — keep
+        // them Trash-recoverable, and never touch hand-moved rows).
         const toDeleteIds = allItems
           .filter((item) => {
             if (item.completed) return false;
             if (item.date < today) return false;
+            if (item.sourceDate != null && item.sourceDate !== item.date)
+              return false;
             const match = group
               ? shouldRoutineRunOnDate(
                   group.frequencyType,
@@ -396,7 +422,7 @@ export function useScheduleItemsRoutineSync(
           .map((item) => item.id);
 
         if (toDeleteIds.length > 0) {
-          await ds.bulkDeleteScheduleItems(toDeleteIds);
+          await ds.bulkSoftDeleteScheduleItems(toDeleteIds);
         }
 
         // Create missing items for matching dates in range

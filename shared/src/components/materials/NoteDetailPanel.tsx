@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pin, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { Menu, MenuItem } from "../Menu";
 
 /*
  * Note detail panel (Materials mini-plan Step 3). The right-hand pane the
  * Notes tab pushes into the shared rightSidebar (Desktop only) for the
  * selected note. Pure presentation, DataService-free (§3.1): every mutation
  * is a host-injected callback (onTitleCommit / onTogglePin / onDelete), the
- * rich-text editor + tag UI + link list arrive as ReactNode slots (TipTap /
- * WikiTags are web dependencies and must not be pulled into shared), and all
+ * rich-text editor + tag UI arrive as ReactNode slots (TipTap / WikiTags are
+ * web dependencies and must not be pulled into shared), and all
  * copy is already-translated props (§6.4 — no useTranslation here). lumen-*
  * tokens only; the card surface is opaque (§5).
  *
@@ -34,11 +35,14 @@ function NoteTitleInput({
   initialTitle,
   label,
   onCommit,
+  isMain,
 }: {
   noteId: string;
   initialTitle: string;
   label: string;
   onCommit: (id: string, title: string) => void;
+  /** "main" surface → big borderless heading matching the Daily date title. */
+  isMain: boolean;
 }) {
   const [draft, setDraft] = useState(initialTitle);
   const timerRef = useRef<number | null>(null);
@@ -79,7 +83,14 @@ function NoteTitleInput({
       onBlur={flush}
       aria-label={label}
       className={cn(
-        "min-w-0 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text",
+        "min-w-0 flex-1 text-lumen-text",
+        // "main" → borderless 28px bold heading (same size/font as the Daily
+        // date title, 2026-07-19: the only visual difference between Notes and
+        // Daily should be the tag/link affordances). Compact "sidebar" keeps the
+        // bordered small input.
+        isMain
+          ? "border-none bg-transparent px-0 py-0.5 text-[28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary"
+          : "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium",
         FOCUS_RING,
       )}
     />
@@ -107,16 +118,14 @@ export interface NoteDetailPanelProps {
   unpinLabel: string;
   /** Already-translated aria-label for the delete button. */
   deleteLabel: string;
+  /** Already-translated aria-label for the kebab (more-actions) trigger. */
+  moreActionsLabel: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
   /** Already-translated caption above the content editor. */
   contentLabel: string;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
-  /** Already-translated caption above the links list. */
-  linksLabel: string;
-  /** Host-injected link list. Omitted → the links section is hidden. */
-  linksSlot?: ReactNode;
   /**
    * Surface treatment. "sidebar" (default) is the compact card the Notes tab
    * pushes into the rightSidebar. "main" is the larger centered editor surface
@@ -139,27 +148,29 @@ export function NoteDetailPanel({
   pinLabel,
   unpinLabel,
   deleteLabel,
+  moreActionsLabel,
   tagsSlot,
   contentLabel,
   contentEditor,
-  linksLabel,
-  linksSlot,
   variant = "sidebar",
   className,
 }: NoteDetailPanelProps) {
   const isMain = variant === "main";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   return (
     <div
       className={cn(
         "flex flex-col border border-lumen-border",
         isMain
-          ? "gap-4 rounded-lumen-lg bg-lumen-surface p-5 shadow-lumen-sm"
+          ? "gap-4 rounded-lumen-lg bg-lumen-bg-secondary p-5 shadow-lumen-sm"
           : "gap-3 rounded-lumen-md bg-lumen-bg-secondary p-3",
         className,
       )}
     >
-      {/* Title row — title input + pin toggle (26px, accent-subtle when
-          pinned) + delete. */}
+      {/* Title row — title input + a single kebab (26px) that opens the actions
+          menu (pin / delete) right-anchored just beneath it. Collapsing the
+          per-action icons behind one affordance declutters the header (#284). */}
       <div className="flex items-center gap-1.5">
         <NoteTitleInput
           key={noteId}
@@ -167,34 +178,52 @@ export function NoteDetailPanel({
           initialTitle={title}
           label={titleLabel}
           onCommit={onTitleCommit}
+          isMain={isMain}
         />
-        <button
-          type="button"
-          onClick={() => onTogglePin(noteId)}
-          aria-pressed={isPinned}
-          aria-label={isPinned ? pinLabel : unpinLabel}
-          className={cn(
-            "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md",
-            isPinned
-              ? "bg-lumen-accent-subtle text-lumen-accent"
-              : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-            FOCUS_RING,
-          )}
-        >
-          <Pin size={13} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(noteId)}
-          aria-label={deleteLabel}
-          className={cn(
-            "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
-            "hover:bg-lumen-hover hover:text-lumen-danger",
-            FOCUS_RING,
-          )}
-        >
-          <Trash2 size={13} aria-hidden />
-        </button>
+        <div className="relative shrink-0">
+          <button
+            ref={menuTriggerRef}
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={moreActionsLabel}
+            className={cn(
+              "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
+              "hover:bg-lumen-hover hover:text-lumen-text",
+              FOCUS_RING,
+            )}
+          >
+            <MoreHorizontal size={16} aria-hidden />
+          </button>
+          <Menu
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            anchorRef={menuTriggerRef}
+            align="end"
+            label={moreActionsLabel}
+          >
+            <MenuItem
+              icon={<Pin size={14} aria-hidden />}
+              onSelect={() => {
+                onTogglePin(noteId);
+                setMenuOpen(false);
+              }}
+            >
+              {isPinned ? pinLabel : unpinLabel}
+            </MenuItem>
+            <MenuItem
+              icon={<Trash2 size={14} aria-hidden />}
+              variant="danger"
+              onSelect={() => {
+                onDelete(noteId);
+                setMenuOpen(false);
+              }}
+            >
+              {deleteLabel}
+            </MenuItem>
+          </Menu>
+        </div>
       </div>
 
       {/* Tag row — host-injected TagPicker (chips + "+ tag" pill). */}
@@ -202,10 +231,11 @@ export function NoteDetailPanel({
         <div className="flex flex-wrap items-center gap-1.5">{tagsSlot}</div>
       )}
 
-      {/* Content — "内容" caption + injected editor. The editor supplies its
-          own bordered box (§: NotesView RichTextEditor), so this section adds
-          only the caption + a min-height floor via the wrapper — no competing
-          border/surface (avoids a double frame). */}
+      {/* Content — injected editor + a min-height floor via the wrapper. The
+          "main" surface (Notes tab body) drops the caption and lets the editor
+          sit flush in the card, matching the Daily editor's clean single-card
+          look (2026-07-18). The compact "sidebar" variant keeps the "内容"
+          caption for orientation. */}
       {contentEditor != null && (
         <div
           className={cn(
@@ -215,20 +245,12 @@ export function NoteDetailPanel({
               : "[&_.note-editor]:min-h-[220px]",
           )}
         >
-          <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
-            {contentLabel}
-          </span>
+          {!isMain && (
+            <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+              {contentLabel}
+            </span>
+          )}
           {contentEditor}
-        </div>
-      )}
-
-      {/* Links — "リンク" caption + injected link list. */}
-      {linksSlot != null && (
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
-            {linksLabel}
-          </span>
-          {linksSlot}
         </div>
       )}
     </div>

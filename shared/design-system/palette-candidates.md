@@ -3,7 +3,9 @@
 > ブランドパレット 4 案の記録。視覚比較は `.claude/reports/2026-06-20-brand-palette-4options.html`（git 非追跡）。
 > 生成: brand-palette workflow（6 方向探索 → 4 厳選 / WCAG AA 検証済み）。
 >
-> ✅ **確定（2026-06-20）**: **Cobalt Ink** をベースに **ライトミントの第2アクセントを追加した「B. Cobalt + Mint」** を採用。
+> ⚠️ **SUPERSEDED（2026-07-18 #269）**: Chrome/Accent は「朝刊・夕刊」パレット（light = 燈色 / dark = 藍）に置換。現行値は `PRINCIPLES.md §3.3` / `tokens.css` を参照。Mint 第2アクセントと Functional/Data は継続。以下は当時の採用記録。
+>
+> ✅ **確定（2026-06-20・当時）**: **Cobalt Ink** をベースに **ライトミントの第2アクセントを追加した「B. Cobalt + Mint」** を採用。
 > 確定値は `PRINCIPLES.md §3.3` + `shared/src/styles/tokens.css` に反映済み。
 > 緑バリアント比較: `.claude/reports/2026-06-20-cobalt-green-variants.html`。
 

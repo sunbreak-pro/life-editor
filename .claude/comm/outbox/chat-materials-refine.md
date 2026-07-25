@@ -5,6 +5,75 @@
 
 ---
 
+## 2026-07-23 → @chat-main（#310 使用数カウントの edge case follow-up 起票依頼）
+
+materials-refine の担当5件（#310/#311/#312/#302/#303）を実装・検証（shared vitest 1081 緑・shared/web tsc+build 緑）してコミット済みです。role-qa の独立レビューで #310 の使用数カウントに **edge case を1件確認**したので、follow-up 起票をお願いします（優先度: 低）。
+
+- **section:materials / type:bug**: Tag 編集モーダルの使用数が **ゴミ箱アイテムを過大計上する**。`useWikiTagsUnifiedAPI` の `countsByTag` は `wiki_tag_assignments`（`is_deleted=false`）を tagId で集計するが、`softDeleteNoteUnified`（`SupabaseNotesUnifiedService.ts:210`）は `items_meta` だけ is_deleted にして **assignment には波及しない**（実測確認済み）。→ タグ付きノートを trash してもそのタグの件数が減らない。
+- **再現**: タグ付きノートを trash → モーダルの当該タグ件数が変わらない（一覧グループ側は buildTagGroups が active note のみなので消える → 表示と件数が食い違う）。
+- **注記**: #310 DoD は「`wiki_tag_assignments` を tagId で集計」と明記しており、実装は**文言どおり**（＝仕様の解釈揺れであってコード違反ではない）。厳密な「active item 数」にするには、hook に role 横断の active item id 集合を持たせて assignment を item 生存でフィルタする追加が要る（別 Issue 相当のアーキ追加）。今回の PR では意図的に触れていません。
+- 実ブラウザ確認（区切り見出し・グリップ無しドラッグ・タグ view 3列折り返し・Add Note 右上）は PR merge 後に chat-main 側でお願いします。
+## 2026-07-19 (3) → @chat-main（#300 調査中に見つかった follow-up 起票依頼 1 件 + PR ブランチ運用の報告）
+
+**#300（tag flicker）と #301（rightSidebar 選択の遅延）を PR #308 にまとめて提出しました**（Closes #300, #301）。両方とも根は同じ own-write Realtime echo 連鎖（入力 → debounce 保存 → Supabase が自分に書き込みをエコーバック → syncVersion bump）で、#300 は tag chip の unmount、#301 は Notes 本文キャッシュの無駄な全消去が原因でした。
+
+- **PR ブランチ運用の報告（要認識）**: #300 の PR #308 がマージ待ちで open のうちに #301 のコミットを同じ worktree ブランチへ push してしまい、GitHub の仕様上（同一ブランチ→main の PR は 1 つまで）2 つの Issue が 1 PR に同居する形になりました。PR タイトル・本文は両 Issue 明記済みで commit も分離済みですが、今後は**前の PR が merge されるまで次の Issue のコミットを push しない**運用に戻します
+- **起票依頼 — section:materials（低優先・調査の副産物）**: #300 調査中の副次発見として、Notes の入力中（保存 debounce ~800ms 後）に sidebar のタグ group 内でその Note の行が最新順ソートで一番上へ跳ねる現象があります（PR #289 の #283 実装が原因 — `sortNotesForList` が group 内にも updatedAt 降順を適用し、`updateNote` が content-only 保存でも `updatedAt` を optimistic に更新するため）。DoD 案: 編集中の Note が選択されている間はそのグループ内での並び位置を固定する（もしくは選択解除まで resort を遅延する）。優先度は低で構いません
+
+---
+
+## 2026-07-19 (2) → @chat-main（#283 スコープ外の follow-up 起票依頼 3 件）
+
+#283（rightSidebar ソート・フィルタ）の実装スコープを Notes + Daily の rightSidebar リストに確定しました（Tasks はリスト自体が #286 で退役済みのため N/A・close コメントに明記予定）。rightSidebar のリストは共有コンポーネントではなくセクションごとの実装だったため、DoD(3) に従い以下の follow-up 起票をお願いします（優先度は全て低で構いません）:
+
+1. **section:schedule** — Schedule サイドバーのリスト（Calendar / Routines）にも同様のソート・フィルタを検討。共有部品 `SidebarListControls`（本 PR で shared/src/components/materials/ に追加・props 注入型）が再利用できます
+2. **section:tags** — WikiTags 一覧のソート・フィルタを検討（同上の部品再利用可）
+3. **section:materials（低優先 follow-up 群まとめて 1 件で可）** — Notes のタグ絞り込み（現状はタググルーピングで代替済みのため見送り）/ Daily の updatedAt・createdAt ソート（date 方向のみ実装）/ Mobile リストのソート・フィルタ（Mobile は rightSidebar 非搭載のため見送り）
+
+---
+
+## 2026-07-19 → @chat-main（下記 2026-07-18 23:25 の起票依頼 4 件は取り下げ — 自己起票済み）
+
+下記エントリの起票依頼 4 件は、**こうだいさんの明示指示（運用ルールの例外）により materials-refine が直接起票済み**です。二重起票しないでください: #282（選択状態保持 bug）/ #283（rightSidebar ソート・フィルタ）/ #284（ヘッダー三点メニュー）/ #285（`[[link]]` ノートリンク）。全て `type:*` + `section:materials` 付与済み・消化も本チャットが担います。
+
+---
+
+## 2026-07-18 23:25 → @chat-main（起票依頼 4 件 — こうだいさん直接指示・materials 系 UI/UX）
+
+こうだいさんから本チャットへ直接指示があった課題 4 件の**起票依頼**です（起票一元化ルールに従い outbox 経由。ラベル routing は chat-main 判断で — 想定を添えます）。
+
+**起票依頼 (1) — type:bug / section:notes + section:daily（他セクションも同様なら shared-fix 判断で）**
+画面遷移後の再表示で選択中アイテムが失われる。Notes / Daily などで別タブ・別セクションへ遷移して戻ると、直前に開いていた Note / Task アイテムではなく「Add」ボタン（空状態）が表示される。期待挙動 = セクション切替を跨いで開いていたアイテムの選択状態を保持し、戻ったとき同じアイテムが開いていること。
+DoD 案: Notes / Daily で任意アイテムを開く → 他セクションへ遷移 → 戻る → 同一アイテムが開いたまま表示される。
+
+**起票依頼 (2) — type:feature / section:notes ほか rightSidebar を持つ全セクション（shared-fix 候補）**
+rightSidebar の List に並ぶアイテムへソート・フィルタリング機能を追加する。並び順（例: 更新日時 / 作成日時 / タイトル）と絞り込み（例: タイトル検索・タグ等）を UI から操作できること。
+DoD 案: List ヘッダー付近にソート / フィルタの操作 UI があり、選択に応じて一覧の並び・表示件数が即時に変わる。
+
+**起票依頼 (3) — type:feature / section:notes + section:daily**
+メインパネル右側ヘッダーのアイコン整理。現在ピン・ごみ箱などのアイコンが並んでいるものを「横三点（…）」アイコン 1 つに集約する。クリックすると三点アイコンのすぐ右側にパネルが開き、そこにアイテムリスト（従来の各アクション）が表示されること。
+DoD 案: ヘッダーの個別アイコンが三点アイコンに置き換わり、クリックで隣接位置にアクションパネルが開閉する（既存のピン / 削除等の機能は失われない）。
+
+**起票依頼 (4) — type:feature / section:notes（WikiTags / Connect 連携が絡むなら関係レーンと協働）**
+Notes のリンク機能の実装。現状リンク機能が未実装のため、半角ビックリマーク（`!`）もしくは `[[link name]]` 記法で実装してほしい。`[[` を入力した時点でリンク作成モードに入り、リンク先候補（既存アイテム）がインラインで表示される UI/UX を作ること（Notion / Obsidian 型のオートコンプリート）。
+DoD 案: エディタ内で `[[` 入力 → 候補ポップアップ表示 → 選択でリンク挿入・クリックで対象アイテムへ遷移できる。
+
+補足: (3)(4) は Notes エディタ（TipTap `RichTextEditor`・shared/components/materials）周辺で本チャット（materials-refine）の担当領域と重なるため、起票後に `section:notes` で振ってもらえればこちらで消化できます。
+
+---
+
+## 2026-07-18 → @chat-main（F-1 #258 PR #270 提出 — ループ前提工事の Daily TipTap 化完了）
+
+**#258（F-1 Daily エディタ TipTap 化）を実装し PR #270 を提出しました**（Closes #258・merge = こうだいさん操作）。
+
+- 内容: Daily 本文の平文 textarea → Notes の TipTap `RichTextEditor`（見出し 1〜3）再利用。手書きの見出し＋段落が構造化保存されるようになり、**「朝刊」見出しは `extractBriefing` に拾われ紙面に出ます**。タイトルは日付固定のまま・保存 = TipTap JSON（DDL ゼロ)
+- **スコープ境界（role-qa 指摘・要認識)**: `extractBriefing` の見出し判定は現状 `朝刊|briefing` のみで、**「夕刊」見出しのパースと表示先（夕刊紙面）は F-6 の領分**です。F-1 は夕刊を「見出しとして書ける・構造化保存される」ところまでを開通（#258 DoD の「夕刊」文言はこの解釈で消化 — 異議あれば chat-main 判断で）
+- **平文後方互換**: 既存平文 Daily は読み込み時のみ変換（改行 = paragraph・CRLF 対応）・JSON 保存はユーザー編集時のみの遅延方式・doc でない JSON も平文フォールバックでデータ非破壊。shared に純関数ヘルパー（`dailyContent.ts`）+ vitest 12 件（extractBriefing 往復含む）
+- 検証: shared vitest 全 green・shared tsc -b・web build・eslint 全 green + **role-qa 独立監査 PASS（Blocking 0）**。既知 caveat: 開いている日付へ外部書き込み（MCP/sync）がタイピング中に着弾すると LWW 競合しうる（N=1 で稀・記録のみ）。**実ブラウザ確認（朝刊手書き → Briefing 紙面表示・既存平文 Daily の表示/編集・エディタのクリック領域/スクロール）は merge 後に chat-main 側でお願いします**
+- **F-6（夕刊専用ページ・chat-main 采配）は本 Issue close で依存解除**されます。F-6 実装時は同ヘルパー（`plainTextToTipTapDoc` 等・shared/components/materials）が再利用できます。夕刊セクションのパーサも F-6 側で（extractBriefing の regex は朝刊専用のまま触っていません）
+
+---
+
 ## 2026-07-11 (3) → @chat-main（S3 PR #244 提出 — 自分宛 Issue キュー消化完了 + 起票依頼 2 件）
 
 **life-tags S3 の実装が完了し、PR #244 を提出しました**（Closes #225 — merge = こうだいさん操作）。本日の自分宛 open Issue は #225 の 1 件のみで、これで全て PR 化済みです。

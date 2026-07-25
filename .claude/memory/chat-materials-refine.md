@@ -2,20 +2,28 @@
 
 ## 進行中
 
+### ⏸️ materials-refine 担当5件バッチ（#310/#311/#312/#302/#303）実装完了・merge ゲート待ち（着手日: 2026-07-23）
+
+**対象**: `web/src/notes/NotesView.tsx` `shared/src/components/notes/buildTagGroups.ts` `shared/src/components/Kanban/KanbanBoard.tsx` `web/src/MainScreen.tsx` `shared/src/components/{TagEditModal.tsx,tagIcon.ts}` `supabase/migrations/0022_wiki_tags_icon.sql`
+
+- 前回: —
+- 現在: 全5件 実装＋検証（shared vitest 1081 緑・shared/web tsc+build 緑）＋ role-qa PASS（Blocking 0・a11y 1件修正済 / 使用数の trash 過大計上 edge case は outbox で chat-main へ起票依頼）。ローカル commit 済み（15e9ef45 #310p2 / 83f2f5bd merge origin/main / fbca99c5 #311+#312+#302 / b49595ac #303 / 018bb125 #312 a11y / e5583964 outbox）
+- 次: 🛑 ユーザーゲート = (1) `git push --force-with-lease`（ツール権限で拒否 → こうだいさん実行）(2) main への PR 作成（push 後 Claude が実行可）(3) migration 0022 の `supabase db push`（こうだいさん・今回実行を選択）(4) merge → 各 Issue close → 実ブラウザ確認は chat-main
+
 ### ⏸️ life-tags 統一（folder 廃止 → WikiTag 一本化）Materials 領分（着手日: 2026-07-11）
 
 **対象**: `shared/src/types/taskTree.ts` `shared/src/components/Kanban/**` Notes/Daily フォルダツリー UI `supabase/migrations/*.sql`（folder→tag 変換）
 **計画書**: `.claude/docs/vision/plans/2026-07-11-life-tags-unification.md`（方向の正本・共有コアは materials-refine が単一書込者）
 
-- 前回: S3 実装完了・PR #244（Closes #225）提出後、main #243（PostgREST ページ分割 = fetchAllPages が .order().range() を必ず呼ぶ）とのマージ後ツリーで CI 2 件失敗 → origin/main merge（コンフリクトなし）+ legacyFolderFilter.test.ts モックに .order/.range 追随（457237c8）で解消
-- 現在: PR #244 CI green（typecheck+test+build / docs-lint 両 pass・vitest 879/879・role-qa PASS Blocking 0）。merge = こうだいさん操作・merge 後の実ブラウザ確認 = chat-main
-- 次: 🛑 残ゲート = PR #244 merge → 実データ変換（ユーザー `supabase db push` 0020 + 0021 + verify.sql・plan Step 5）→ 完了時に plan COMPLETED + archive。chat-main へ起票依頼済み: analytics tag 後継集計 / Notes folder 退役 + Connect グラフ後継
+- 前回: PR #244 提出 → CI green 化（origin/main merge + legacyFolderFilter.test モック追随 457237c8）
+- 現在: **PR #244 は 2026-07-11 merge 済み・#225 close 済み**（2026-07-18 確認）。実ブラウザ確認 = chat-main
+- 次: 🛑 残ゲート = 実データ変換のみ（ユーザー `supabase db push` 0020 + 0021 + `scripts/life_tags_verify.sql`・plan Step 5）→ 完了時に plan COMPLETED + archive。chat-main へ起票依頼済み: analytics tag 後継集計 / Notes folder 退役 + Connect グラフ後継
 
 ## 直近の完了
 
-- Layout Standard v2 adoption（materials・#207）✅（2026-07-11 — #207 は COMPLETED で close 済み・#203 全幅化と併せて解消。materials 各サブタブの全幅表示の実確認だけ次セッション冒頭に実施）
-- #118 Notes/Daily パスワードハッシュ化 + #181 materials 行消化（PR #195 merge 済み・plan archive 済み）✅（2026-07-11）
-- Notes/Tasks レイアウト反転（PR #189 merge 済み）✅（2026-07-11）
+- #282 選択アイテムのタブ/セクション跨ぎ保持 + #283 rightSidebar ソート・フィルタ ✅（2026-07-19 — **PR #289 提出済み**（Closes #282/#283）。in-memory 選択ストア + hydrate-first 復元 / SidebarListControls（Notes ソート・Daily ソート+絞り込み・Tasks は N/A）。role-qa + 敵対的レビューの指摘 4 件修正済み・998 tests green。merge = こうだいさん → 実ブラウザ確認 = chat-main。#283 スコープ外の follow-up 起票依頼 3 件は outbox 2026-07-19 (2)）
+- #258 F-1 Daily エディタ TipTap 化（平文後方互換 = 読み込み時変換・編集時のみ JSON 保存）✅（2026-07-18 — PR #270 提出済み。残ゲート = merge（こうだいさん）→ Issue 自動 close → 実ブラウザ確認は chat-main。F-6 夕刊専用ページは本 Issue close 待ち）
+- #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（タスク→Todo・約束→予定）✅（2026-07-16 — **PR #264 は 2026-07-16 merge 済み**・実ブラウザ確認は chat-main）
 
 ## 予定
 

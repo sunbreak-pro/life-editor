@@ -123,12 +123,24 @@ export {
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {
   todayDateKey,
+  todayCalendarKey,
+  formatDateKey,
   getDayStartHour,
   parseDayStartHour,
   DAY_START_HOUR_STORAGE_KEY,
   DEFAULT_DAY_START_HOUR,
 } from "./utils/dateKey";
 export { useDayStartHourPref } from "./hooks/useDayStartHour";
+// Week-start preference (#217, split from §216) — the calendar hosts wire it
+// into startOfWeekKey / monthGridKeys / MonthGrid; Settings owns the write UI.
+export {
+  useWeekStartPref,
+  getWeekStartsOn,
+  parseWeekStart,
+  WEEK_START_STORAGE_KEY,
+  DEFAULT_WEEK_START,
+  type WeekStartsOn,
+} from "./hooks/useWeekStart";
 // Reset local preferences (§216) — clears the app's localStorage namespace and
 // reloads. Pure helpers for the host's confirm-then-reset flow.
 export {
@@ -180,6 +192,22 @@ export {
   createNoopUndoRedo,
   type UndoRedoLike,
 } from "./hooks/useTaskTreeHistory";
+// UndoRedo (Issue #304) — global single-stack manager + context + hooks.
+export {
+  UndoRedoManager,
+  MAX_HISTORY_SIZE,
+  type UndoCommand,
+} from "./utils/undoRedo/UndoRedoManager";
+export {
+  useUndoRedoContext,
+  useUndoRedoOptional,
+} from "./hooks/useUndoRedoContext";
+export {
+  UndoRedoProvider,
+  type UndoRedoProviderProps,
+  UndoRedoContext,
+  type UndoRedoContextValue,
+} from "./context";
 export type { AddNodeOptions } from "./hooks/useTaskTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
@@ -255,6 +283,37 @@ export {
   type RoutineSyncUpdate,
 } from "./utils/routineScheduleSync";
 export {
+  tasksToCalendarChips,
+  taskChipId,
+  isTaskChip,
+  unwrapTaskChipId,
+  localDateTimeToISO,
+  TASK_CHIP_PREFIX,
+  type TaskCalendarChip,
+} from "./utils/taskCalendarChips";
+// A-3 (#298): "add from tasks" selector for the Today's Todo tray.
+export { pickAddableTasks, type AddableTask } from "./utils/todayTodo";
+// Schedule host domain helpers (#280, extracted from web CalendarTab /
+// scheduleLabels): pure label mapping, view-mode normalisation + visible
+// range, and the optimistic-create row factory.
+export {
+  buildWeekdayLabels,
+  frequencyLabel,
+  nowMinutesLocal,
+  sortDayItems,
+  itemVariant,
+  type FrequencyLabelCopy,
+} from "./utils/scheduleLabels";
+export {
+  normalizeDesktopView,
+  normalizeMobileView,
+  visibleCalendarRange,
+  type DesktopCalendarView,
+  type MobileCalendarView,
+} from "./utils/calendarView";
+export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+export { buildGroupForRoutineMap } from "./utils/groupForRoutine";
+export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,
 } from "./hooks/useScheduleItemsRoutineSync";
@@ -291,8 +350,6 @@ export type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
-  WikiTagGroup as WikiTagGroupUnified,
-  WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "./types/wikiTagUnified";
 
 // Timer domain (W3-B) — Pomodoro Provider + context hook + pure reducer
@@ -364,6 +421,24 @@ export {
   computeNoteDropIntent,
   type NoteDropPosition,
 } from "./utils/noteDropIntent";
+// Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
+// `sortedFilteredNotes` comparator, so the host list + the extracted util
+// share one ordering source.
+export {
+  compareNotes,
+  sortNotesForList,
+  type NoteSortDirection as NoteListSortDirection,
+} from "./utils/noteSort";
+// Daily sidebar list view (#283) — pure filter + date-sort helper, generic
+// over any date-keyed entry.
+export {
+  filterAndSortDailyEntries,
+  type DailyListEntry,
+  type DailyListViewOptions,
+  type DailyListDirection,
+} from "./utils/dailyListView";
+// jsonb-canonicalization-proof own-echo test (#300) — see file header.
+export { jsonDocEquals } from "./utils/jsonDocEquals";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from

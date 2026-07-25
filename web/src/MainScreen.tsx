@@ -11,7 +11,6 @@ import {
   CheckSquare,
   CalendarDays,
   FileText,
-  Tag,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -26,6 +25,7 @@ import {
   SectionHeader,
   RightSidebarProvider,
   RightSidebarToggle,
+  CommandSearchField,
   useMediaQuery,
   isMac,
   CommandPalette,
@@ -51,6 +51,8 @@ import {
   persistLastSection,
   EMPTY_MATERIALS_COUNTS,
   ANALYTICS_TAB_ORDER,
+  defaultBriefingTab,
+  type BriefingTab,
   type MaterialsCounts,
   type AnalyticsTab,
   type SectionId,
@@ -72,13 +74,15 @@ import { DailyView } from "./daily/DailyView";
 const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
+import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
-import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
 import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
 import { ConnectScreen } from "./connect/ConnectScreen";
 import { GlobalShortcuts } from "./GlobalShortcuts";
+import { UndoRedoHost } from "./UndoRedoHost";
+import { HeaderUndoRedo } from "./HeaderUndoRedo";
 
 /*
  * Phase 2 S1+S2 host shell — target-IA wiring (App Shell).
@@ -100,7 +104,7 @@ import { GlobalShortcuts } from "./GlobalShortcuts";
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). The target IA
  * (IA.md 2026-07-05) collapses the old flat sections into 5 mainline + 2
- * utility, with the four document surfaces (Tasks / Notes / Daily / Tags)
+ * utility, with the document surfaces (Tasks / Notes / Daily)
  * folded under a single "Materials" section addressed by an in-section tab
  * (`materialsTab`). This host only wires the shell — the section bodies +
  * their Provider nesting are unchanged from the flat layout.
@@ -114,21 +118,15 @@ import { GlobalShortcuts } from "./GlobalShortcuts";
  * The old REPL section is retired (§8) and never appears in the registry.
  */
 
-/** In-Materials tab — the four document surfaces addressed by one section. */
-type MaterialsTab = "tasks" | "notes" | "daily" | "tags";
+/** In-Materials tab — the document surfaces addressed by one section. */
+type MaterialsTab = "tasks" | "notes" | "daily";
 
-const MATERIALS_TABS: readonly MaterialsTab[] = [
-  "tasks",
-  "notes",
-  "daily",
-  "tags",
-];
+const MATERIALS_TABS: readonly MaterialsTab[] = ["tasks", "notes", "daily"];
 
 const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   tasks: CheckSquare,
   notes: FileText,
   daily: CalendarDays,
-  tags: Tag,
 };
 
 /*
@@ -161,6 +159,13 @@ export function MainScreen({ session }: { session: Session }) {
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab / scheduleTab.
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
+  // Briefing's 朝刊/夕刊 tab (#263 F-6), lifted here so the standard
+  // SectionHeader renders the band — same tabs-as-title pattern as
+  // materialsTab / scheduleTab. Lazy init: the initial tab follows the clock
+  // (evening from 17:00, honoring the day-start pref's post-midnight tail).
+  const [briefingTab, setBriefingTab] = useState<BriefingTab>(() =>
+    defaultBriefingTab(),
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
@@ -191,15 +196,28 @@ export function MainScreen({ session }: { session: Session }) {
 
   // Map the shared nav:* shortcuts (tasks/daily/notes/schedule/tags) onto the
   // target IA: schedule is its own section; the document surfaces route to the
-  // Materials section + the matching tab.
+  // Materials section + the matching tab. The Tags tab was retired (#310), so a
+  // legacy nav:tags shortcut now no-ops rather than routing to a dead tab.
   const handleNavigate = useCallback((nav: NavSection) => {
     if (nav === "schedule") {
       setSection("schedule");
       return;
     }
+    if (nav === "tags") return;
     setSection("materials");
     setMaterialsTab(nav);
   }, []);
+
+  // Briefing rows deep-link into Schedule / Tasks. Force the Schedule calendar
+  // tab first so a "promise" jump doesn't land on the routines tab (where the
+  // schedule item isn't shown).
+  const handleBriefingNavigate = useCallback(
+    (nav: NavSection) => {
+      if (nav === "schedule") setScheduleTab("calendar");
+      handleNavigate(nav);
+    },
+    [handleNavigate],
+  );
 
   // global:new-task executor. Task creation lives inside the Kanban (mounted
   // per-tab behind its own Provider), so the shell can't call the create API
@@ -215,6 +233,31 @@ export function MainScreen({ session }: { session: Session }) {
   }, []);
   // Kanban calls this once it has acted on the pending-new-task flag.
   const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
+
+  // "[[" wiki-link navigation (Issue #285). A resolved link click in the Notes
+  // or Daily editor routes here; MainScreen owns the section + Materials-tab
+  // switch (the target view lives behind a different domain Provider), then
+  // stashes a pending selection the destination view consumes on mount — the
+  // same idiom as pendingNewTask. v1 handles note / daily targets; other roles
+  // (tasks) have no cross-section item selection yet, so they no-op.
+  const [pendingItemNav, setPendingItemNav] = useState<{
+    id: string;
+    role: string;
+  } | null>(null);
+  const navigateToItem = useCallback((target: { id: string; role: string }) => {
+    if (target.role === "note" || target.role === "daily") {
+      setSection("materials");
+      setMaterialsTab(target.role === "note" ? "notes" : "daily");
+      setPendingItemNav(target);
+    }
+  }, []);
+  const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
+  const pendingNoteSelect =
+    pendingItemNav?.role === "note" ? pendingItemNav.id : null;
+  const pendingDailySelect =
+    pendingItemNav?.role === "daily"
+      ? pendingItemNav.id.replace(/^daily-/, "")
+      : null;
 
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
@@ -264,10 +307,10 @@ export function MainScreen({ session }: { session: Session }) {
     [toSections],
   );
 
-  // Materials in-section tab defs (Tasks / Notes / Daily / Tags). Each tab
-  // shows a count badge (Tasks = unfinished count; the rest = live item count)
-  // fed by the MaterialsCountsBridge. A zero count leaves the badge unset so
-  // empty surfaces don't render a noisy "0" pill.
+  // Materials in-section tab defs (Tasks / Notes / Daily). Each tab shows a
+  // count badge (Tasks = unfinished count; the rest = live item count) fed by
+  // the MaterialsCountsBridge. A zero count leaves the badge unset so empty
+  // surfaces don't render a noisy "0" pill.
   const materialsTabDefs = useMemo(
     () =>
       MATERIALS_TABS.map((id) => {
@@ -308,32 +351,25 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
-  // Content width (Layout Standard v2 §5 — the width tab was retired
-  // 2026-07-11; sections are unified to wide). Three outcomes:
-  //   - "fluid": canvas/board surfaces that own their full-bleed layout
-  //     (Connect graph, Schedule calendar, Materials→Tasks Kanban, plus
-  //     Analytics whose shared view draws its own centered data column — the
-  //     v1 judgment carried forward).
-  //   - "reading": the Materials text editors (Notes / Daily) keep the ~768px
-  //     centered reading column for comfortable line length (2026-07-11 user
-  //     decision — the only reading surfaces left after the wide unification).
-  //   - "full": every other document surface, gutter-padded full width
-  //     (work / settings / trash / Materials→Tags).
-  // Mobile is visually unchanged: below 768px "reading" and "full" render
-  // identically (the 768px reading clamp never engages there).
+  // Content width (Issue #305 — every section/tab is unified to a centered
+  // ~1120px column, max-w-lumen-wide). The only thing that varies now is the
+  // SCROLL OWNERSHIP, so PageContainer still gets two variants (both clamped to
+  // max-w-lumen-wide, see PageContainer.tsx):
+  //   - "fluid": canvas/board surfaces that own their full-bleed h-full layout
+  //     + self-scroll inside the clamped box (Connect graph, Schedule calendar,
+  //     Materials→Tasks Kanban, plus Analytics whose shared view draws its own
+  //     centered data column). Their internal horizontal scroll (kanban board /
+  //     week grid) stays inside the 1120px column — no page-level scroll.
+  //   - "wide": every document surface — PageContainer owns the vertical scroll
+  //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash).
+  // Mobile is visually unchanged: below 768px the max-w clamp never engages, so
+  // both variants render gutter-padded full width.
   const ownsFullBleed =
     section === "connect" ||
     section === "schedule" ||
     section === "analytics" ||
     (section === "materials" && materialsTab === "tasks");
-  const keepsReadingColumn =
-    section === "materials" &&
-    (materialsTab === "notes" || materialsTab === "daily");
-  const pageWidth: PageContainerWidth = ownsFullBleed
-    ? "fluid"
-    : keepsReadingColumn
-      ? "reading"
-      : "full";
+  const pageWidth: PageContainerWidth = ownsFullBleed ? "fluid" : "wide";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -342,18 +378,26 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t("detailPanel.open");
   const detailCloseLabel = t("detailPanel.close");
 
-  // Standard header control (v2 §1) — the rightSidebar toggle, now
-  // UNCONDITIONAL for all 7 sections (v2 §3 — the old SECTION_HAS_RIGHT_SIDEBAR
-  // gate is retired; Analytics / Trash open the shared placeholder empty state
-  // until their refine pass defines panel content). The v2 §5 width tab was
-  // retired 2026-07-11 (all sections wide), so this is the only right-end
-  // control now.
+  // Standard header controls (v2 §1). Left→right: the command-palette search
+  // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:
+  // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
+  // UNCONDITIONAL for all 7 sections (v2 §3); the v2 §5 width tab was retired
+  // 2026-07-11 (all sections wide).
   const headerControls = (
-    <RightSidebarToggle
-      variant="panel"
-      openLabel={detailOpenLabel}
-      closeLabel={detailCloseLabel}
-    />
+    <>
+      <CommandSearchField
+        onOpen={() => setPaletteOpen(true)}
+        placeholder={t("commandPalette.trigger")}
+        label={t("nav.commandPalette")}
+        shortcutHint={isMac ? "⌘K" : "Ctrl K"}
+      />
+      <HeaderUndoRedo />
+      <RightSidebarToggle
+        variant="panel"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+      />
+    </>
   );
 
   // Standard section header row (v2 §1), mounted in AppShell's header slot —
@@ -406,6 +450,22 @@ export function MainScreen({ session }: { session: Session }) {
         }
         controls={headerControls}
       />
+    ) : section === "briefing" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "morning", label: t("briefing.tabs.morning") },
+              { id: "evening", label: t("briefing.tabs.evening") },
+            ]}
+            activeTab={briefingTab}
+            onSelect={(id) => setBriefingTab(id as BriefingTab)}
+            label={t("briefing.tabsLabel")}
+          />
+        }
+        controls={headerControls}
+      />
     ) : (
       <SectionHeader
         title={t(`section.${section}`, { defaultValue: section })}
@@ -450,13 +510,13 @@ export function MainScreen({ session }: { session: Session }) {
     resize: t("detailPanel.resize"),
   };
 
-  // The four Materials document surfaces. Provider nesting is verbatim from
+  // The Materials document surfaces. Provider nesting is verbatim from
   // the old flat sections (§6.2) — only the addressing changed (section+tab).
   const materialsView = (
     <>
       {materialsTab === "tasks" && (
         <WikiTagsUnifiedProvider dataService={ds}>
-          <TaskTreeProvider dataService={ds}>
+          <TaskTreeProvider dataService={ds} persistSelection>
             <KanbanView
               pendingNewTask={pendingNewTask}
               onConsumeNewTask={consumeNewTask}
@@ -472,7 +532,12 @@ export function MainScreen({ session }: { session: Session }) {
                 <p className="text-lumen-text-secondary">Loading notes…</p>
               }
             >
-              <NotesView />
+              <NotesView
+                dataService={ds}
+                onNavigateToItem={navigateToItem}
+                pendingSelectNoteId={pendingNoteSelect}
+                onConsumePendingSelect={consumeItemNav}
+              />
             </Suspense>
           </NotesUnifiedProvider>
         </WikiTagsUnifiedProvider>
@@ -480,13 +545,13 @@ export function MainScreen({ session }: { session: Session }) {
       {materialsTab === "daily" && (
         <WikiTagsUnifiedProvider dataService={ds}>
           <DailiesUnifiedProvider dataService={ds}>
-            <DailyView />
+            <DailyView
+              dataService={ds}
+              onNavigateToItem={navigateToItem}
+              pendingSelectDate={pendingDailySelect}
+              onConsumePendingSelect={consumeItemNav}
+            />
           </DailiesUnifiedProvider>
-        </WikiTagsUnifiedProvider>
-      )}
-      {materialsTab === "tags" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <WikiTagsManagementView />
         </WikiTagsUnifiedProvider>
       )}
     </>
@@ -496,6 +561,22 @@ export function MainScreen({ session }: { session: Session }) {
   // flat layout (§6.2) — only wrapped below with a detail-panel toolbar row.
   const nonMaterialsBody = (
     <>
+      {/*
+       * Briefing (Briefing plan Step 1) — the morning-paper home surface and
+       * the default landing section (useStartupSection). Crosses four domains
+       * (schedule / tasks / timer / dailies) read-only, so it uses no
+       * per-section Provider — BriefingScreen calls the injected DataService
+       * directly (same pattern as TrashScreen) and re-fetches on Realtime
+       * syncVersion bumps, which is how a briefing written by Claude via MCP
+       * appears without a reload.
+       */}
+      {section === "briefing" && (
+        <BriefingScreen
+          dataService={ds}
+          onNavigate={handleBriefingNavigate}
+          tab={briefingTab}
+        />
+      )}
       {/*
        * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each
        * inner Provider may read the outer one (ScheduleItems sits INSIDE
@@ -510,19 +591,26 @@ export function MainScreen({ session }: { session: Session }) {
        * TaskTreeProvider is no longer needed on this branch).
        */}
       {section === "schedule" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <CalendarProvider dataService={ds}>
-            <RoutineProvider dataService={ds}>
-              <ScheduleItemsProvider dataService={ds}>
-                <ScheduleScreen
-                  dataService={ds}
-                  tab={scheduleTab}
-                  onTabChange={setScheduleTab}
-                />
-              </ScheduleItemsProvider>
-            </RoutineProvider>
-          </CalendarProvider>
-        </WikiTagsUnifiedProvider>
+        // TaskTreeProvider is OUTERMOST here (schedule redesign A-1): the
+        // Calendar reads scheduled TaskNodes to render task=blue chips. Provider
+        // order (§6.2) places TaskTree before Calendar, and TaskTree depends on
+        // neither WikiTags nor Calendar, so it sits at the very outside.
+        <TaskTreeProvider dataService={ds}>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <CalendarProvider dataService={ds}>
+              <RoutineProvider dataService={ds}>
+                <ScheduleItemsProvider dataService={ds}>
+                  <ScheduleScreen
+                    dataService={ds}
+                    tab={scheduleTab}
+                    onTabChange={setScheduleTab}
+                    onOpenTasks={() => handleNavigate("tasks")}
+                  />
+                </ScheduleItemsProvider>
+              </RoutineProvider>
+            </CalendarProvider>
+          </WikiTagsUnifiedProvider>
+        </TaskTreeProvider>
       )}
       {/*
        * Settings (W1) — reads useThemeContext + useShortcutConfig (the
@@ -581,127 +669,136 @@ export function MainScreen({ session }: { session: Session }) {
          */}
         <MaterialsCountsBridge dataService={ds} onCounts={setMaterialsCounts} />
         {/*
-         * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
-         * mounted here on the web host only. Per §6.2 Theme is outer (it lives
-         * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
-         * the section switch, so the (currently settings-only) consumer reads a
-         * stable Provider regardless of the active section.
+         * UndoRedoHost (#304) — mounts the app-wide UndoRedo provider just
+         * inside Sync (§6.2 Sync → UndoRedo), wrapping the shortcut executor,
+         * the domain providers (which auto-connect via useUndoRedoOptional), and
+         * the shell (whose header hosts the Undo/Redo buttons). Raises a toast
+         * of what was undone/redone.
          */}
-        <ShortcutConfigProvider>
+        <UndoRedoHost>
           {/*
-           * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
-           * ShortcutConfigProvider (MainScreen's own body can't read
-           * useShortcutConfig) and wires keydown to section nav + palette toggle.
-           * Reads the live (rebindable) config, so Settings rebinds apply at
-           * once. nav:* + new-task route through the target-IA mapping
-           * (handleNavigate / handleNewTask → Materials + tab + create dialog).
-           *
-           * undo / redo are DEFERRED (plan 2026-07-08 Step 4): the web build
-           * has no UndoRedo base (no provider / command stack), so wiring the
-           * shortcuts would mean building that whole subsystem — out of scope
-           * for this integration pass. Left unwired (no-op) by design, not by
-           * omission; revisit when a web UndoRedo provider lands.
+           * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
+           * mounted here on the web host only. Per §6.2 Theme is outer (it lives
+           * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
+           * the section switch, so the (currently settings-only) consumer reads a
+           * stable Provider regardless of the active section.
            */}
-          <GlobalShortcuts
-            onNavigate={handleNavigate}
-            onOpenSettings={() => setSection("settings")}
-            onTogglePalette={() => setPaletteOpen((v) => !v)}
-            onNewTask={handleNewTask}
-          />
-          {/*
-           * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
-           * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
-           * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
-           * section switch) so the Pomodoro keeps running while the user navigates
-           * away from the Work tab. The future W3-C AudioProvider nests INSIDE
-           * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
-           * inner-most shell Provider here. DataService is injected (§6.4).
-           */}
-          <TimerProvider
-            dataService={ds}
-            onSessionComplete={() => chimeRef.current?.()}
-          >
+          <ShortcutConfigProvider>
             {/*
-             * AudioProvider (W3-C) — Mobile 省略 Provider (CLAUDE.md §2), mounted
-             * on the web host only, nested INSIDE TimerProvider (§6.2 … → Timer →
-             * Audio → …). The headless AudioChimeBridge sits inside it and pipes
-             * the live playCompletionChime up to chimeRef so the Timer's
-             * onSessionComplete (declared on the outer Provider) can ring it.
+             * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
+             * ShortcutConfigProvider (MainScreen's own body can't read
+             * useShortcutConfig) and wires keydown to section nav + palette toggle.
+             * Reads the live (rebindable) config, so Settings rebinds apply at
+             * once. nav:* + new-task route through the target-IA mapping
+             * (handleNavigate / handleNewTask → Materials + tab + create dialog).
+             *
+             * undo / redo are DEFERRED (plan 2026-07-08 Step 4): the web build
+             * has no UndoRedo base (no provider / command stack), so wiring the
+             * shortcuts would mean building that whole subsystem — out of scope
+             * for this integration pass. Left unwired (no-op) by design, not by
+             * omission; revisit when a web UndoRedo provider lands.
              */}
-            <AudioProvider dataService={ds}>
-              <AudioChimeBridge targetRef={chimeRef} />
+            <GlobalShortcuts
+              onNavigate={handleNavigate}
+              onOpenSettings={() => setSection("settings")}
+              onTogglePalette={() => setPaletteOpen((v) => !v)}
+              onNewTask={handleNewTask}
+            />
+            {/*
+             * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
+             * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
+             * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
+             * section switch) so the Pomodoro keeps running while the user navigates
+             * away from the Work tab. The future W3-C AudioProvider nests INSIDE
+             * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
+             * inner-most shell Provider here. DataService is injected (§6.4).
+             */}
+            <TimerProvider
+              dataService={ds}
+              onSessionComplete={() => chimeRef.current?.()}
+            >
               {/*
-               * RightSidebarProvider (App Shell Turn 2) — host mount for the
-               * target-IA detail panel. Sits OUTSIDE the section switch (like
-               * ToastProvider), wrapping the shell + CommandPalette so the panel
-               * survives navigation and every section body can portal into it.
-               * Pure UI state (DataService-free, §3.1).
+               * AudioProvider (W3-C) — Mobile 省略 Provider (CLAUDE.md §2), mounted
+               * on the web host only, nested INSIDE TimerProvider (§6.2 … → Timer →
+               * Audio → …). The headless AudioChimeBridge sits inside it and pipes
+               * the live playCompletionChime up to chimeRef so the Timer's
+               * onSessionComplete (declared on the outer Provider) can ring it.
                */}
-              <RightSidebarProvider>
+              <AudioProvider dataService={ds}>
+                <AudioChimeBridge targetRef={chimeRef} />
                 {/*
-                 * W5 app shell — responsive single shell (wide sidebar ↔ narrow
-                 * bottom tabs via useMediaQuery). Section state stays here
-                 * (useState switch, no React Router — §3.2); the shell is pure
-                 * presentation (DataService-free, §3.1) and receives section
-                 * list / labels / callbacks as props (§6.4). detailPanelLabels
-                 * mounts the Turn 2 push-in panel (Desktop) / left drawer
-                 * (Mobile) — valid because we wrap in RightSidebarProvider above.
+                 * RightSidebarProvider (App Shell Turn 2) — host mount for the
+                 * target-IA detail panel. Sits OUTSIDE the section switch (like
+                 * ToastProvider), wrapping the shell + CommandPalette so the panel
+                 * survives navigation and every section body can portal into it.
+                 * Pure UI state (DataService-free, §3.1).
                  */}
-                <AppShell
-                  sections={navSections}
-                  utilitySections={utilitySections}
-                  mobileSections={mobileSections}
-                  activeSection={section}
-                  onNavigate={(id) => setSection(id as SectionId)}
-                  onTogglePalette={() => setPaletteOpen((v) => !v)}
-                  userEmail={session.user.email ?? ""}
-                  onSignOut={() => void signOut()}
-                  labels={shellLabels}
-                  detailPanelLabels={detailPanelLabels}
-                  header={sectionHeader}
-                >
+                <RightSidebarProvider>
                   {/*
-                   * PageContainer (Layout Standard v1 #180 / v2) owns width +
-                   * gutter + scroll for every section. On the WIDE layout the
-                   * section chrome now lives in AppShell's header slot (the
-                   * standard SectionHeader above), so the header slot here only
-                   * carries the NARROW-layout rows: Materials' hamburger +
-                   * segmented tab row, and the Connect / Work / Settings
-                   * hamburger row (all unchanged from v1 — mobile non-goal).
+                   * W5 app shell — responsive single shell (wide sidebar ↔ narrow
+                   * bottom tabs via useMediaQuery). Section state stays here
+                   * (useState switch, no React Router — §3.2); the shell is pure
+                   * presentation (DataService-free, §3.1) and receives section
+                   * list / labels / callbacks as props (§6.4). detailPanelLabels
+                   * mounts the Turn 2 push-in panel (Desktop) / left drawer
+                   * (Mobile) — valid because we wrap in RightSidebarProvider above.
                    */}
-                  {section === "materials" ? (
-                    <PageContainer
-                      width={pageWidth}
-                      header={isWide ? undefined : materialsMobileSwitcher}
-                    >
-                      {materialsView}
-                    </PageContainer>
-                  ) : (
-                    <PageContainer
-                      width={pageWidth}
-                      header={sectionToolbar ?? undefined}
-                    >
-                      {nonMaterialsBody}
-                    </PageContainer>
-                  )}
-                </AppShell>
+                  <AppShell
+                    sections={navSections}
+                    utilitySections={utilitySections}
+                    mobileSections={mobileSections}
+                    activeSection={section}
+                    onNavigate={(id) => setSection(id as SectionId)}
+                    onTogglePalette={() => setPaletteOpen((v) => !v)}
+                    userEmail={session.user.email ?? ""}
+                    onSignOut={() => void signOut()}
+                    labels={shellLabels}
+                    detailPanelLabels={detailPanelLabels}
+                    header={sectionHeader}
+                  >
+                    {/*
+                     * PageContainer (Layout Standard v1 #180 / v2) owns width +
+                     * gutter + scroll for every section. On the WIDE layout the
+                     * section chrome now lives in AppShell's header slot (the
+                     * standard SectionHeader above), so the header slot here only
+                     * carries the NARROW-layout rows: Materials' hamburger +
+                     * segmented tab row, and the Connect / Work / Settings
+                     * hamburger row (all unchanged from v1 — mobile non-goal).
+                     */}
+                    {section === "materials" ? (
+                      <PageContainer
+                        width={pageWidth}
+                        header={isWide ? undefined : materialsMobileSwitcher}
+                      >
+                        {materialsView}
+                      </PageContainer>
+                    ) : (
+                      <PageContainer
+                        width={pageWidth}
+                        header={sectionToolbar ?? undefined}
+                      >
+                        {nonMaterialsBody}
+                      </PageContainer>
+                    )}
+                  </AppShell>
 
-                {/*
-                 * Command palette mounted ONCE at the shell level, outside the
-                 * section switch (so Cmd+K works from any section). Copy is
-                 * injected as props — the primitive never calls useTranslation.
-                 */}
-                <CommandPalette
-                  isOpen={paletteOpen}
-                  onClose={() => setPaletteOpen(false)}
-                  commands={commands}
-                  placeholder={t("commandPalette.placeholder")}
-                  noResultsLabel={t("commandPalette.noResults")}
-                />
-              </RightSidebarProvider>
-            </AudioProvider>
-          </TimerProvider>
-        </ShortcutConfigProvider>
+                  {/*
+                   * Command palette mounted ONCE at the shell level, outside the
+                   * section switch (so Cmd+K works from any section). Copy is
+                   * injected as props — the primitive never calls useTranslation.
+                   */}
+                  <CommandPalette
+                    isOpen={paletteOpen}
+                    onClose={() => setPaletteOpen(false)}
+                    commands={commands}
+                    placeholder={t("commandPalette.placeholder")}
+                    noResultsLabel={t("commandPalette.noResults")}
+                  />
+                </RightSidebarProvider>
+              </AudioProvider>
+            </TimerProvider>
+          </ShortcutConfigProvider>
+        </UndoRedoHost>
       </SyncProvider>
     </ToastProvider>
   );

@@ -27,8 +27,6 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
-  WikiTagGroup as WikiTagGroupUnified,
-  WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "../types/wikiTagUnified";
 import type {
   NoteLink,
@@ -188,6 +186,54 @@ export interface DataService {
   deleteRoutine(id: string): Promise<void>;
   fetchDeletedRoutines(): Promise<RoutineNode[]>;
   softDeleteRoutine(id: string): Promise<{ deletedScheduleItemIds: string[] }>;
+  /**
+   * "Turn the repeat off" (#185): soft-delete every future, incomplete,
+   * still-live occurrence of the routine, then soft-delete the routine
+   * itself WITHOUT cascading to its past occurrences (completed or not) —
+   * those stay as the user's life record. Unlike softDeleteRoutine (which
+   * trashes ALL live occurrences), this is the calendar-app "delete this and
+   * following events" semantics. `today` defaults to the day-start-hour-aware
+   * todayDateKey(); callers/tests may pass an explicit key for determinism.
+   * Returns the soft-deleted occurrence ids so the UI can reconcile in-memory.
+   *
+   * `opts.keepItemIds` (#296): occurrence ids that must SURVIVE as detached
+   * one-offs even when they fall in the future/incomplete delete partition.
+   * The repeat-off editor passes the occurrence the user is looking at —
+   * deleting the very item they are editing reads as data loss.
+   */
+  detachRoutine(
+    id: string,
+    today?: string,
+    opts?: { keepItemIds?: string[] },
+  ): Promise<{ deletedScheduleItemIds: string[] }>;
+  /**
+   * Event→Repeats conversion (#185 / #296): create the routine, then attach
+   * the EXISTING seed event to it (events_payload.routine_item_id +
+   * source_date = the seed's own day) as its first materialised occurrence.
+   * The seed row is never deleted — its id, memo, completion state and
+   * selection survive the conversion. Writes are sequenced (routine INSERT
+   * settles before the attach UPDATE) so the attach cannot lose the 0011
+   * composite-FK race; if the attach fails the just-created routine is
+   * rolled back and the seed is left untouched (the conversion simply did
+   * not happen — nothing is lost).
+   */
+  convertEventToRoutine(
+    eventId: string,
+    routineId: string,
+    init: {
+      title: string;
+      startTime?: string;
+      endTime?: string;
+      frequencyType?: string;
+      frequencyDays?: number[];
+      frequencyInterval?: number | null;
+      frequencyStartDate?: string | null;
+      /** The seed event's date key — becomes events_payload.source_date so
+       *  the (routine, source_date) partial UNIQUE treats the converted seed
+       *  as that day's occurrence. */
+      sourceDate: string;
+    },
+  ): Promise<RoutineNode>;
   restoreRoutine(id: string): Promise<void>;
   permanentDeleteRoutine(id: string): Promise<void>;
 
@@ -251,13 +297,33 @@ export interface DataService {
       reminderOffset?: number;
     }>,
   ): Promise<void>;
+  /**
+   * Series edit propagation (#279 scope dialog "今後" / "すべて"). Patches the
+   * routine's materialised occurrences with start_at >= fromDate, honouring
+   * the tier-1 §Schedule conflict rules: done / dismissed occurrences are
+   * never touched, and when `template` (the routine's PRE-edit title/times)
+   * is supplied, occurrences deviating from it (= manually edited) are
+   * skipped — manual edits win over series edits. Returns patched count.
+   */
   updateFutureScheduleItemsByRoutine(
     routineId: string,
     updates: { title?: string; startTime?: string; endTime?: string },
     fromDate: string,
+    template?: {
+      title: string;
+      startTime: string | null;
+      endTime: string | null;
+    },
   ): Promise<number>;
   fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]>;
   bulkDeleteScheduleItems(ids: string[]): Promise<number>;
+  /**
+   * Bulk soft-delete (items_meta.is_deleted = true — Trash-recoverable).
+   * The generator's frequency-mismatch cleanup uses THIS, not the hard
+   * bulkDeleteScheduleItems: auto-cleanup destroying rows beyond recovery
+   * was #296's worst data-loss path.
+   */
+  bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
 
   // Routine Groups
@@ -354,28 +420,6 @@ export interface DataService {
     toItemId: string,
   ): Promise<WikiTagConnectionUnified>;
   deleteItemLink(linkId: string): Promise<void>;
-
-  // Wiki Tag Groups Unified (DU-F Step 11) — group master + tag↔group
-  // membership for the WikiTagsManagementView CRUD UI. Sibling of the
-  // tag/link block above; the legacy polymorphic group block (above)
-  // stays untouched until DU-G deletes it in cohort.
-  listAllWikiTagGroupsUnified(): Promise<WikiTagGroupUnified[]>;
-  createWikiTagGroupUnified(
-    id: string,
-    name: string,
-  ): Promise<WikiTagGroupUnified>;
-  updateWikiTagGroupUnified(
-    id: string,
-    updates: Partial<WikiTagGroupUnified>,
-  ): Promise<WikiTagGroupUnified>;
-  softDeleteWikiTagGroupUnified(id: string): Promise<void>;
-  listAllWikiTagGroupAssignments(): Promise<WikiTagGroupAssignmentUnified[]>;
-  assignTagToGroup(
-    assignmentId: string,
-    tagId: string,
-    groupId: string,
-  ): Promise<WikiTagGroupAssignmentUnified>;
-  unassignTagFromGroup(assignmentId: string): Promise<void>;
 
   // Notes Unified (DU-D — items_meta + notes_payload 2-row pattern).
   // Coexists with the legacy single-table Notes block above; DU-F retires

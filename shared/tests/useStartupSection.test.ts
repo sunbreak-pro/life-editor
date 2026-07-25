@@ -18,7 +18,7 @@ beforeEach(() => {
 
 describe("resolveInitialSection", () => {
   it("falls back to the default when nothing is stored", () => {
-    expect(resolveInitialSection()).toBe("materials");
+    expect(resolveInitialSection()).toBe("briefing");
   });
 
   it("resumes the last-visited section when the pref is absent (implicit last)", () => {
@@ -40,13 +40,13 @@ describe("resolveInitialSection", () => {
 
   it("falls back to the default for an invalid fixed section id", () => {
     localStorage.setItem(STARTUP_KEY, "does-not-exist");
-    expect(resolveInitialSection()).toBe("materials");
+    expect(resolveInitialSection()).toBe("briefing");
   });
 
   it("falls back to the default for an invalid stored last-section", () => {
     localStorage.setItem(STARTUP_KEY, "last");
     localStorage.setItem(LAST_KEY, "bogus-section");
-    expect(resolveInitialSection()).toBe("materials");
+    expect(resolveInitialSection()).toBe("briefing");
   });
 });
 

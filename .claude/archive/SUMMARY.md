@@ -330,3 +330,11 @@ Tauri/Cloudflare 固有部分は破棄。web-first（Supabase + Capacitor）後�
 
 - **W-parity ロードマップ + 子計画 6 本を archive**（`2026-06-07-web-desktop-parity-roadmap` 親 / `2026-06-14-web-parity-w4-analytics-connect`・`-w4-analytics`・`-w4-connect`・`2026-06-15-web-parity-w5-app-shell`・`2026-06-18-web-parity-w7-task-detail`・`2026-06-19-web-parity-w8-schedule-calendar`）。全 Status = COMPLETED。
 - 結果/採否: 採用・完遂（W0–W8 実装マージ済）。W4 の並行 2 レーン（-analytics / -connect）は -analytics-connect に統合実装（Superseded）。**Web/Mobile UI の追跡正本は後継の ClaudeDesign fan-out 計画（`docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`）へ一本化**し、parity Epic #121 / W4 #127 を決着（二重管理の解消）。
+
+---
+
+## 2026-07-25 追加分（orders .md 台帳 6 本の retire）
+
+- **worktree 別 orders 台帳 6 本を archive**（`2026-07-11-analytics-refine-orders` / `-connect-` / `-materials-` / `-schedule-` / `-settings-` / `-work-refine-orders`）。全 Status = SUPERSEDED。
+- 結果/採否: **不採用（運用ごと retire）**。作成と同日の 2026-07-11 に「作業分配・進捗追跡の台帳 .md は新規作成しない」とユーザー決定（CLAUDE.md §7.0 / §7.4）され、分配は **GitHub Issues + `issue-dispatch` スキル**（`section:<id>` / `shared-fix` ラベル）に一本化された。6 本は 2026-07-11 時点のスナップショットとして歴史記録のみ保持する。
+- 残した恒久知見: 各台帳の共通仕様の正本は親計画 `docs/vision/plans/2026-07-11-layout-standard-v2.md` 側にあり、台帳自体は転記を持たない設計だったため失われる知見はない。担当の一次情報は常に `gh issue list -R sunbreak-pro/life-editor --label section:<id>`。

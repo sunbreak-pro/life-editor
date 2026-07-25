@@ -9,8 +9,8 @@ import {
 /*
  * Headless Materials badge bridge (plan 2026-07-08 Step 4).
  *
- * The Materials tab count badges (Tasks unfinished / Notes / Daily / Tags) need
- * numbers for ALL four surfaces at once, but each surface's Provider is mounted
+ * The Materials tab count badges (Tasks unfinished / Notes / Daily) need
+ * numbers for ALL surfaces at once, but each surface's Provider is mounted
  * per-tab inside the section body — so the shell can't read the counts from
  * context (they only exist while that tab is active). This tiny child sits
  * inside SyncProvider, fetches the four lists directly via the injected
@@ -36,11 +36,10 @@ export function MaterialsCountsBridge({
       ds.fetchTaskTree(),
       ds.listNotesUnified(),
       ds.listDailiesUnified(),
-      ds.listAllWikiTagsUnified(),
     ])
-      .then(([nodes, notes, dailies, tags]) => {
+      .then(([nodes, notes, dailies]) => {
         if (cancelled) return;
-        onCounts(computeMaterialsCounts({ nodes, notes, dailies, tags }));
+        onCounts(computeMaterialsCounts({ nodes, notes, dailies }));
       })
       // Keep the last known counts on a failed refetch (transient network /
       // Realtime blip) rather than flashing the badges back to zero.

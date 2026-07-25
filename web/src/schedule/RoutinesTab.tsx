@@ -7,14 +7,12 @@ import {
   RightSidebarPortal,
   RoutineEditorForm,
   ScheduleSidebarTabs,
-  type RoutineEditorRoutine,
-  type RoutineEditorGroup,
-} from "@life-editor/shared";
-import {
   buildWeekdayLabels,
   frequencyLabel,
   type FrequencyLabelCopy,
-} from "./scheduleLabels";
+  type RoutineEditorRoutine,
+  type RoutineEditorGroup,
+} from "@life-editor/shared";
 
 /*
  * Routines tab (target-IA, Desktop only — brief §3). The list stays in the main

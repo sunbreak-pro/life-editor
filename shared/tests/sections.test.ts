@@ -9,13 +9,15 @@ import {
 } from "../src/sections";
 
 /*
- * Section registry (SSOT) contract. These lock the target-IA 7-section set,
+ * Section registry (SSOT) contract. These lock the target-IA 8-section set
+ * (7 + Briefing, added by the Briefing plan Step 1 as the home surface),
  * both nav orders, and the icon/label coverage so the web host can derive its
  * nav from here (web/src/MainScreen.tsx) without parallel literal lists.
  */
 describe("section registry", () => {
-  it("holds exactly the target-IA 7 sections in canonical (desktop) order", () => {
+  it("holds exactly the target-IA 8 sections in canonical (desktop) order", () => {
     expect(SECTION_IDS).toEqual([
+      "briefing",
       "schedule",
       "materials",
       "connect",
@@ -32,6 +34,7 @@ describe("section registry", () => {
 
   it("splits mainline vs. utility groups", () => {
     expect(MAIN_SECTIONS.map((s) => s.id)).toEqual([
+      "briefing",
       "schedule",
       "materials",
       "connect",
@@ -42,8 +45,10 @@ describe("section registry", () => {
   });
 
   it("orders the mobile bottom bar as fixed-4 + More overflow", () => {
-    // Fixed 4 = schedule/materials/work/analytics; More = connect/settings/trash.
+    // Fixed 4 = briefing/schedule/materials/work;
+    // More = analytics/connect/settings/trash.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
+      "briefing",
       "schedule",
       "materials",
       "work",
@@ -71,8 +76,8 @@ describe("section registry", () => {
     expect(Object.keys(SECTION_ICONS).sort()).toEqual([...SECTION_IDS].sort());
   });
 
-  it("assigns each group correctly (main = 5, utility = 2)", () => {
-    expect(SECTIONS.filter((s) => s.group === "main")).toHaveLength(5);
+  it("assigns each group correctly (main = 6, utility = 2)", () => {
+    expect(SECTIONS.filter((s) => s.group === "main")).toHaveLength(6);
     expect(SECTIONS.filter((s) => s.group === "utility")).toHaveLength(2);
   });
 });

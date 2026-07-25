@@ -1,5 +1,75 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-07-23 - materials-refine 担当5件（#310/#311/#312/#302/#303）実装 + main 取り込み
+
+#### 概要
+
+section:materials の担当5 Issue を実装・検証・ローカルコミット。放置されていた未コミット WIP が実は #310 の残り（タグ編集モーダル + アイコン + 使用数）だったので完成させ、Notes の見出し/行/生成導線と Kanban タグ view を刷新。origin/main 取り込みで #322 の barrel 破損（8 テスト落ち）も回収。push は権限拒否のためユーザー実行待ち。
+
+#### 変更点
+
+- **#310（tag 編集集約）**: 放置 WIP を完成 = shared `TagEditModal` + `tagIcon`（curated lucide picker）+ `wiki_tags.icon`（type/mapper/WIKI_TAGS_COLUMNS）+ migration `0022`（local-first・DDL push は🛑人手）+ `useWikiTagsUnifiedAPI` に `setTagIcon`/`countsByTag`（role 横断 active assignment 集計）+ NotesView サイドバー下部に編集導線。commit 15e9ef45
+- **#311（見出し区切り化）**: `DesktopTagHeading` を [アイコン]+[色帯 pill（TagPill と同 tint）]+[件数]+[罫線]へ。folder 風 `border-l` インデント撤去・モバイル見出しも同調。`NoteTagGroup` に `tagIcon` 追加 + buildTagGroups 単体テスト
+- **#312（グリップ撤去）**: `GripVertical` 撤去・行全体を drag activator に（既存 PointerSensor `distance:5` で click＝開く / drag＝タグ付与を切り分け）。a11y 追随で `<li>` の role を listitem に戻す（attributes の button 化がリスト構造を壊すため）。commit 018bb125
+- **#302（生成導線）**: Add Note を rightSidebar → メインコンテンツ右上へ移設（Tasks board toolbar と同位置感）。サイドバーは検索 + sort/filter 残置・モバイルは floating + 維持
+- **#303（Kanban タグ view）**: タグ view のみ `flex-wrap max-w-[980px]`（3×316+2×gap）で最大3列折り返し・縦スクロール化。status view は無変更
+- **git**: `merge origin/main`（MainScreen `headerControls` conflict を #322 側採用 → `HeaderUndoRedo` 重複解消・itemContextMenu 8 テスト回復）。リモート旧 `claude/materials-refine`（54 コミット）は全て squash merge 済みと確認（PR #264/#270/#289/#308）→ `--force-with-lease` 貼り替え方針
+- **QA / 残**: role-qa 独立レビュー PASS（Blocking 0）。使用数の trash 過大計上 edge case（note soft-delete が assignment に非波及）を outbox で chat-main へ低優先起票依頼。残ゲート = push（拒否→ユーザー）/ PR / `supabase db push` 0022 / merge / Issue close
+### 2026-07-19 - #300 tag chip ちらつき + #301 rightSidebar Notes 選択の遅延（PR #308）
+
+#### 概要
+
+section:materials の Issue キュー消化。#300（入力中の Tag 表示ちらつき）と #301（rightSidebar アイテム選択の遅延）を調査・修正し PR #308 を提出（Closes #300, #301・merge = こうだいさん）。両方とも根は同じ own-write Realtime echo 連鎖（typing → 800ms debounce 保存 → Supabase が自分の書き込みを自分にエコーバック → 300ms debounce 後 syncVersion bump）。
+
+#### 変更点
+
+- **調査（#300）**: 4 並列偵察（sync-refetch / TipTap decoration / context identity / 直近 regression の git 調査）→ 統合 → 上位仮説 2 件を敵対的検証（両方 CONFIRMED）のワークフローで root cause 特定
+- **#300 修正 1（tag chip 全般）**: `useWikiTagsUnifiedAPI` の `loading` が syncVersion bump のたびに true へ戻り、TagPicker/LinkPanel/Tags タブ全てが表示中の chip を unmount していた。`hasLoadedRef` で「初回ロード未完了時のみ loading」に変更 — 3 surface 同時に解消
+- **#300 修正 2（Daily editor 全体 remount）**: `DailyView` の own-echo 判定がバイト比較で、Postgres jsonb のキー順再配置により自分の保存エコーを外部編集と誤認し editor 全体を remount（カーソル飛び + `[[wiki-link]]` pill 明滅）。`jsonDocEquals`（新規 shared ユーティリティ・JSON 意味比較、非 JSON はバイト比較 fallback）に差し替え
+- **#301 修正（Notes 選択遅延）**: `useNotesUnifiedAPI` の sync-triggered list reload が syncVersion bump のたびに hydrated body キャッシュ（`contentLoadedIdsRef`）を全消去 — 入力はどこでやっても bump が飛ぶため、既読 Note の再選択がほぼ毎回ネットワーク往復（`ds.getNoteUnified`）になっていた。`updatedAt` 不変なら旧 body を維持する merge 方式に変更（実際に書き込まれた note のみ無効化）
+- **テスト**: 新規 3 ファイル 15 件（`jsonDocEquals.test.ts` / `wikiTagsRefreshLoading.test.tsx` / `notesHydrateCachePerf.test.tsx`）。shared vitest 132 files / 1067 tests green・shared tsc -b・web build 全 green
+- **プロセス注記**: #308 マージ待ちの間に #301 コミットを同ブランチへ push してしまい 2 Issue が 1 PR に同居（GitHub は同一ブランチ→main の PR を 1 つしか許さないため分割不可・PR タイトル/本文で両 Issue 明記して対応。次回は前 PR マージ後に次 Issue へ着手する運用に戻す）
+- **outbox**: follow-up 起票依頼 1 件（PR #289 由来・編集中 Note がタグ group 内で最新順ソートにより跳ねる現象）+ 上記プロセス注記を chat-main へ報告
+
+### 2026-07-19 - #282 選択状態のタブ跨ぎ保持 + #283 rightSidebar ソート・フィルタ（PR #289）
+
+#### 概要
+
+Materials の Notes/Daily/Tasks で選択中アイテムがセクション・タブ切替で失われるバグ（#282）を in-memory 選択ストアで修正し、rightSidebar リストにソート・フィルタ UI（#283・Notes + Daily）を追加。PR #289 提出（Closes #282/#283・merge = こうだいさん）。
+
+#### 変更点
+
+- **#282 選択ストア**: `shared/src/state/materialsSelectionStore.ts` 新設（モジュールスコープ・意図的に localStorage 不使用 = 再起動リセットで stale id 復元ゼロ）。3 フックに write-through + one-shot 復元を配線。Notes は hydrate-first（`getNoteUnified` 完了後にのみ選択が立つ — 空エディタ上書きのデータ損失経路を排除）・存在検証で消えた id はクリア・取得失敗ではクリアしない（一時エラー耐性）。TaskTree は `persistSelection` オプトイン（Schedule mount の非干渉を構造化）。Daily は「今日」選択でストアをクリア（日跨ぎ固定を防止）
+- **#283 ソート・フィルタ**: `SidebarListControls` 新設（props 注入・lumen トークン・IME 安全な onChange のみ filter）。Notes = 3 モード × 方向をタググループ内に適用・sortMode を `life-editor:note-sort-mode` に新規永続化・ソート実装を `utils/noteSort.ts` に一本化。Daily = 日付方向（`life-editor:daily-sort-direction`）+ テキスト絞り込み（`utils/dailyListView.ts`）。Tasks は N/A（リスト退役済み #286）・他セクション水平展開は outbox で起票依頼
+- **プロセス**: ultracode 采配 = 偵察 3 並列 → role-pm 分解 → engineer 3 本（A/B1 並列 → B2）→ role-qa + 敵対的レビュー並列監査。監査指摘 4 件（createNote ストア書き込み漏れ / fetch 失敗時の誤クリア / Schedule mount への復元リーク / Daily today 固定）を全修正 + 回帰テスト 5 件
+- **検証**: shared tsc -b / vitest 122 files・998 tests（新規 47）/ web build / eslint 全 green。実ブラウザ確認 = merge 後 chat-main（PR 本文にチェックリスト）
+
+### 2026-07-18 - #258 F-1 Daily エディタ TipTap 化（PR #270）
+
+#### 概要
+
+loop-friction-fixes §F-1（ループ前提工事・最優先）を実装し PR #270（Closes #258）を提出。Daily 本文の平文 textarea を Notes の TipTap RichTextEditor（見出し 1〜3）に載せ替え、手書きの朝刊・夕刊見出しが extractBriefing に拾われるようにした。
+
+#### 変更点
+
+- **shared 純関数ヘルパー新設**: `components/materials/dailyContent.ts` — `plainTextToTipTapDoc`（改行 = paragraph）/ `dailyContentToEditorContent`（平文は読み込み時のみ変換・doc でない JSON も平文扱いでデータ非破壊）/ `dailyContentExcerpt`（平文・TipTap 両対応の抜粋）+ vitest 12 件（extractBriefing 往復テスト含む）
+- **DailyView**: EditorCard の textarea → RichTextEditor（web/notes 再利用・`className` prop 新設で card 内フィル表示）。JSON 保存はユーザー編集時のみの遅延方式・remount は日付切替/外部変更時のみ（保存エコーは lastEmitted state で判別 — カーソル/IME 保持）。タイトルは日付固定のまま。過去エントリ抜粋を両形式対応に
+- **CSS**: `.daily-editor` バリアント（カード内フィル + クリック全域フォーカス）
+- **検証**: shared vitest 929/929・shared tsc -b・web build green・web eslint clean（react-hooks/refs 9 件を state 化で解消）。role-qa 独立監査 PASS（Blocking 0）— 指摘反映: CRLF split / 空 doc mint ガード / lastEmitted に日付付与（切替直後の誤 unsaved 解消）/ CSS 詳細度固定。夕刊パースは F-6 領分とスコープ明確化（extractBriefing は朝刊専用のまま）。実ブラウザ確認 = merge 後 chat-main
+- **状況同期**: PR #244（#225 life-tags S3）・PR #264（#260/#261）の merge 済みを確認し memory へ反映。life-tags 残 = ユーザー db push のみ
+
+### 2026-07-16 - #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（PR #264）
+
+#### 概要
+
+loop-friction-fixes §F-3 / §F-4 を実装し PR #264（Closes #260 / #261）を提出。Note 本文最下部の Links を rightSidebar の開閉パネルへ移設し、表示ラベルをタスク→Todo・約束→予定へ i18n catalog のみで改名した。
+
+#### 変更点
+
+- **F-3（#260）**: `NoteDetailPanel` から `linksSlot`/`linksLabel` を削除（呼び出し元は NotesView のみ）・rightSidebar のノート一覧の下に Trash と同型の「区切り線 + 開閉」Links セクションを新設（LinkPanel を選択ノートで表示・未選択時は mainEmpty ヒント・mobile は Links 非表示のまま）・noteDetailPanel.test 追随
+- **F-4（#261）**: en/ja catalog の値のみ一括改名（キー・`{{task}}`/`{{tasks}}` プレースホルダー変数・コード識別子・DB・SectionId は不変）。JSON パース → 値 walk のスクリプト変換 + 和欧間スペース調整（TodoID→Todo ID / Todo ・→Todo・）。en は Task(s)→Todo(s)・PROMISES→PLANS。i18n.test の期待値と Briefing コード内コメントも追随
+- **docs sweep（同一 PR）**: schedule-redesign（約束→予定 + F-4 注記）・briefing-loop 読む行・tier-1-core AC2・settings brief プレビュー文。outbox / per-chat history / F-4 仕様文中の引用は歴史的記述として維持
+- **検証**: shared vitest 112 files / 902 tests green・shared tsc -b green・web build green（既存 chunk-size warning のみ）・catalog JSON parse 検証・shared/web ソースの タスク/約束 残存 0（prototype/ は対象外）
 - 2026-07-11: [途中] life-tags 統一 Materials 領分 — PR #244 の CI 失敗を修正（main #243 ページ分割 fetchAllPages の .order/.range にテストモック追随・origin/main merge・457237c8 push・vitest 879/879 + build green・role-qa PASS）。残 = PR merge + 実データ変換（ユーザーゲート）
 
 ### 2026-07-11 - life-tags 統一 S3 実装（NodeType folder 除去・legacy 行 fetch 除外・i18n/docs sweep）
@@ -17,72 +87,3 @@ S1 (PR #237) / S2 (PR #239・schedule-refine) の merge を受けて S3 を実�
 - **i18n**: folder 系 orphan キー削除（en/ja lockstep・キー parity 機械確認）。FileExplorer / Notes folder 系は温存
 - **docs sweep**: tier-1-core（Tasks Purpose/Boundary/AC1/AC4/AC5/AC10・Notes AC1 に retired 注記）・tier-2（WikiTags → life-tags 昇格・Tasks tagging 解禁）・plan Worklog 追記
 - **検証・監査**: shared build + 855 tests / web build / web lint 全 green。role-qa PASS（Blocking 0）・sync-auditor Blocking 0（Nit 1 = original_parent_id の null 上書きは rollback SSOT が log テーブルのため実害なし）
-
-### 2026-07-11 - life-tags 統一 S1 実装（Kanban 2 ビュー化・Notes タグ見出し UI・変換 migration 0020）
-
-#### 概要
-
-life-tags 統一 S1 を role-engineer 3 レーン並列で実装。Kanban / タスク一覧から folder ビューを廃して status / tag の 2 ビューへ、Notes サイドリストをタグ見出しグルーピングへ置換、folder→tag 変換 migration 一式を作成。NodeType の "folder" は温存（S3 = schedule-refine S2 合意後）。
-
-#### 変更点
-
-- **Kanban レーン（18 ファイル）**: KanbanViewMode 2 値化・default "tag"・buildFolderColumns / FOLDER_ROOT_BUCKET_ID 削除・folder pill / accent 除去・viewModeStorage の legacy "folder"→"tag" 自己修復・TaskListPanel 双子追随・TaskAddDialog task 専用化・useTaskTreeCRUD の Complete-folder 自動管理退役（status 遷移 + completedAt + DONE 沈み reorder は維持）・web/src/tasks host 追随
-- **Notes レーン**: buildTagGroups 純関数（shared/components/notes 新設・多タグ重複表示・untagged バケツ・folder 配下ノートも parentId 無関係に可視）・NotesView をタグ見出しグルーピングへ書換・useNoteTagDnd（見出しドロップ = assignTagToItem・複合 draggable id・untagged は no-op）・useNoteTreeDnd 削除・i18n 4 キー追加（en/ja）
-- **migration レーン**: 0020_life_tags_folder_migration.sql（log テーブル + set-based 変換・冪等・LWW bump）+ scripts/life_tags_verify.sql（期待値 5 タグ / 1 assignment / 1 re-root）+ migrations_archive_rollback/0020_rollback.sql（対称・新規タグのみ削除）。実行 = 🛑 ユーザー
-- **検証**: shared build + 851 tests green・web build green。統合時の NotesView activeNode/activeNote 取り違え 2 行をメインが修正
-- **監査**: role-qa PASS（Blocker 0）・migration-validator Blocking 0・sync-auditor Blocking 0。Nit 反映 = assignTagHint props 配線・KanbanView stale コメント修正・rollback ヘッダに「delta-pull 復活時は soft-delete へ」注記
-
-### 2026-07-11 - life-tags 統一 Step 2 詳細設計（#225 起票・実測込み設計・S2 合意依頼）+ #118 後始末
-
-#### 概要
-
-life-tags 統一（folder 廃止 → WikiTag 一本化）の Materials 領分に着手。Supabase 本番の read-only 実測を根拠に、計画書へ Step 2 詳細設計（平坦化規則・変換 migration + 検証クエリ + rollback・UI 波及・S1/S2/S3 ステージング）を追記し Status → IN PROGRESS。あわせて merge 済み PR #195（#118 パスワードハッシュ化）の DoD 後始末を実施。
-
-#### 変更点
-
-- **Issue #225 起票**: type:task + shared-fix・タイトル prefix [materials-refine]。共有コアの単一書込者 = materials-refine（chat-main 采配）
-- **実データ実測（Supabase Management API read-only SQL）**: active folder = tasks 3 + notes 2（全ルート直下・入れ子なし）/ deleted 6 は全て folder_type='complete' / folder 直下 active アイテムは task 1 件のみ / calendars **0 行** / タグ名衝突 0 / user 2 名義（set-based 必須）。**MCP life-editor は旧 SQLite 読みで本番と別データ**と判明（実測は Supabase 側を正とした）
-- **設計確定**: 平坦化 = 直近 folder 名のみ付与 / 'complete' folder は変換対象外 / 同名は 1 タグへ dedupe（partial unique `uq_wiki_tags_name` 準拠）/ 直下アイテム re-root（tasks は original_parent_id 退避・notes は移行ログ）/ folder はソフトデリート保持 / 期待値 = 5 タグ・1 assignment・1 re-root
-- **outbox → schedule-refine**: CalendarView の folder バインド置換（S2）の合意依頼。NodeType folder 除去（S3）は S2 完了後のみと約束
-- **#118 後始末**: PR #195 merge 確認 → plan COMPLETED + `.claude/archive/` 移動・memory 更新
-
-#### 概要
-
-materials の v2「全画面 wide 統一」adoption を精査。全幅化の shell 実装は #203（layout-standard・未着手）依存で materials-refine 単独では完遂不能と判明。今セッションは adoption Issue #207 起票 + #203 への fluid 要望 + reading 前提コメントの素の全幅移行意図の先行明記まで。実確認は #203 merge 後に残す。
-
-#### 変更点
-
-- **方針決定（ユーザー 2026-07-11）**: 素の全幅（エディタ本文・タグ一覧も画面幅いっぱい・内部 reading カラムで絞らない）。進め方 = 「#203 待ち + 先行準備」
-- **依存の同定**: #203 が `pageWidth = ownsFullBleed ? "fluid" : "full"` に単純化 → notes/daily/tags は `full`。素の全幅は中身ほぼ無改修で成立。shell（MainScreen/SectionHeader/PageContainer）は編集禁止（単一書込者 = layout-standard）
-- **#207 起票**: section:materials + type:task。#203 merge 後の各サブタブ全幅確認チェックリスト付き
-- **outbox 要望**: @chat-layout-standard へ「notes/daily は縦も fill する fluid 化を検討」（full だとエディタが content 高さで止まる）。tags は full で可
-- **コメント先行更新**: NotesView/DailyView/WikiTagsManagementView の reading 前提コメントに v2 全幅移行意図を明記（実クラス名は #203 依存のため不変・手戻りなし）
-- **#181 再実測**: main 取り込み後、`max-w-[800px]` 二重ラップ撤去済み・余計な幅ハードコードなしを確認（materials 行 [x] は正）
-
-### 2026-07-11 - #118 パスワード PBKDF2 ハッシュ化（draft PR #195）+ #181 materials 行消化
-
-#### 概要
-
-Notes/Daily パスワードの平文保存を PBKDF2-HMAC-SHA256（Web Crypto・client-side）に置換し、legacy 平文は unlock 成功時の lazy rehash で移行する実装を draft PR #195 として提出。#181（layout v1 adoption）の materials 行は再実測で PR #189 消化済みと確認しチェック。
-
-#### 変更点
-
-- **passwordHash util 新設**: `pbkdf2$v1$<iter>$<salt>$<hash>` 自己記述形式・iterations [100k,1M] レンジ reject・salt/hash 厳密長・malformed の plaintext fallback 禁止・定数時間比較。TS 5.6（shared）/ 6.0（web）両対応の型調整（realm 越え Web Crypto の罠込み）
-- **Notes/Daily 両サービス**: set=hash 保存 / verify=検証 + legacy 一致時 lazy rehash（payload 単独 UPDATE = DB-Q2 意図的例外・meta bump なし — unlock で一覧が並び替わる副作用を回避）/ RPC debt コメント引き継ぎ
-- **品質ゲート**: security-review（計画段階・High 2 を計画反映）→ role-qa PASS（Blocking 0）→ sync-auditor Blocking 0（sync 面不在を実測確認）→ shared 790 tests + web build 緑
-- **#181**: materials 行チェック + 実測コメント（NotesView/DailyView/KanbanView のハードコードは #189 で撤去済み）
-- **前タスク完了処理**: Notes/Tasks flip 計画を COMPLETED + archive 移動（PR #189 merge 確認）
-
-### 2026-07-11 - Materials Notes/Tasks レイアウト反転（リスト = rightSidebar / 本文・詳細 = メイン）
-
-#### 概要
-
-Notes / Tasks を Daily 同型の「サイドバー = 一覧・メイン = 編集/詳細」に反転し、Tasks は看板をトグル（board モード）で温存。あわせて layout standard v1（#188）を merge し PageContainer adoption（#181 materials 分・Tags 込み）を実施。
-
-#### 変更点
-
-- **Notes 反転**: ノートツリー（検索/フォルダ/DnD/Trash 行）→ RightSidebarPortal、NoteDetailPanel（variant="main" 追加）+ RichTextEditor → メイン。wide mount で rightSidebar 自動オープン・未選択 EmptyState
-- **Tasks layout-mode**: 新規 shared `TaskListPanel`（folder/status/tag グルーピング + 折りたたみ + 件数）を sidebar に、TaskDetailPanel をメインに（list 標準・localStorage `life-editor.tasks.layout-mode`）。board = 従来看板を完全維持
-- **検証起点の修正**: folder ビューに Unfiled（root）バケット追加（buildFolderColumns additive + moveToRoot DnD 配線）/ wide→narrow 境界のドロワー残留 close / 件数バッジ aria-label / PageContainer 二重ラップ剥がし（Notes/Daily/Tags/KanbanView gutter）
-- **品質ゲート**: role-qa 2 回 PASS（Blocking 0）・playwright 実ブラウザ 2 回 PASS（フル 14 項目 + 修正 5 項目）・shared 768 tests 緑
-- **既知の残件**: 409 sync（items_meta on_conflict=id vs 複合制約・既存データ層バグ・Issue 起票はユーザー判断待ち）/ board での Unfiled 列への cross-column DnD は手動確認推奨

@@ -1,6 +1,6 @@
 /*
  * Materials sub-barrel (mini-plan Step 1). Pure-presentation primitives for
- * the Materials 4-tab views (Tasks / Notes / Daily / Tags). lumen-* tokens
+ * the Materials tab views (Tasks / Notes / Daily). lumen-* tokens
  * only, opaque surfaces, props-injected copy — no useTranslation /
  * getDataService inside (§6.4). Sub-barrel so the feature can grow exports
  * without touching the top-level component barrel.
@@ -25,8 +25,17 @@ export {
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
 export {
-  TagGroupsPanel,
-  type TagGroupsPanelProps,
-  type TagGroupsPanelGroup,
-  type TagGroupsPanelMember,
-} from "./TagGroupsPanel";
+  plainTextToTipTapDoc,
+  dailyContentToEditorContent,
+  dailyContentExcerpt,
+  type TipTapDoc,
+} from "./dailyContent";
+// Sidebar list controls (#283) — compact sort + optional-filter header row for
+// the Materials rightSidebar lists (Notes / Daily). Pure presentation.
+export {
+  SidebarListControls,
+  type SidebarListControlsProps,
+  type SidebarSortMode,
+  type SidebarSortDirection,
+  type SidebarFilterConfig,
+} from "./SidebarListControls";

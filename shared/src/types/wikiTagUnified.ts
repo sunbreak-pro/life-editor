@@ -21,17 +21,9 @@ export interface WikiTag {
   name: string;
   /** Optional UI tint color. */
   color: string | null;
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-  isDeleted: boolean;
-  deletedAt: string | null;
-}
-
-/** Tag group master (wiki_tag_groups). VERSIONED dedicated table. */
-export interface WikiTagGroup {
-  id: string;
-  name: string;
+  /** Optional lucide-react icon name (e.g. "Tag" / "Star"); resolved to a
+   *  component by `resolveTagIcon`. null = use the default icon. */
+  icon: string | null;
   createdAt: string;
   updatedAt: string;
   version: number;
@@ -68,20 +60,6 @@ export interface WikiTagConnection {
   id: string;
   fromItemId: string;
   toItemId: string;
-  updatedAt: string;
-  isDeleted: boolean;
-  deletedAt: string | null;
-}
-
-/**
- * Tag↔group membership (wiki_tag_group_assignments). RELATION +
- * soft-delete, no version. UNIQUE(tag_id, group_id) where is_deleted=
- * false at DB layer (a soft-deleted membership can be re-added).
- */
-export interface WikiTagGroupAssignment {
-  id: string;
-  tagId: string;
-  groupId: string;
   updatedAt: string;
   isDeleted: boolean;
   deletedAt: string | null;

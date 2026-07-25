@@ -13,16 +13,15 @@
 
 ## 直近の完了
 
+- [chat-main] **Notes/Daily エディタ即クラッシュ修正（tiptap Suggestion PluginKey 衝突）** ✅（2026-07-19・Issue #293・**PR #294**・commit `11acaac0`）— "/" スラッシュメニューと "[[" 補完（#285）の両 Suggestion が `@tiptap/suggestion` の共有デフォルト PluginKey に二重登録 → マウント時 `RangeError` で Notes/Daily が真っ白。各々に固有 PluginKey 付与（2 files +14）。web build / eslint / role-qa 緑。merge 後の実ブラウザ確認は「予定」参照
 - [chat-main] **Loop Engineering 自動検証ループ Step 3（loop.sh）** ✅（2026-06-27 実装・**PR #106 merged 2026-06-27**。2026-07-08 cross-lane 同期で完了化）— loop.sh = run-once を PASS/上限まで反復（4 停止条件 + 課金同意ゲート）・パス相対化・count_todo 修正。スタブ harness 5/5。follow-up は「予定」参照
-
 - [chat-main] **W8 対話グリッド救出** ✅（2026-06-27・**PR #105 merged**・merge commit `9b633068`）— 放棄ブランチにのみ存在した W8-2/W8-3 対話編集（クリック作成/ドラッグ移動/リサイズ）を shared プリミティブ + web ホストへ移植。`pxToMinutes` ゼロ高さ修正 + 対話テスト4本（jsdom PointerEvent 非実装の罠を回避）。検証緑
-- [chat-main] **並行レーン棚卸し（cross-lane reconciliation）** ✅（2026-06-27）— 全 per-chat memory を git/gh 実態照合。phase3 #79 / phase4 #88 / work-mobile #51 / prototype #40・#46・#48 を MERGED 済と gh 確認し各 memory を完了化（ユーザー認可で単一書込者を override）。**connect-link-ui = 台帳外の生きたレーン**（Connect リンク UI・独自 commit `8711acfe`・`.session-name`/memory 無し・PR 未作成・MainScreen.tsx 編集中）検出。`stash@{1}`=DU-F 未コミット宙吊り
-- [chat-main] **デザインシステム整備 + Cobalt+Mint リブランド** ✅（2026-06-20・**PR #102 merged**・merge `d6103eec`）— Pencil クラッシュで ClaudeDesign(DesignSync) へ切替、「Cobalt Ink + Mint」を `tokens.css` light/dark 適用・旧 teal 退役。`shared/design-system/PRINCIPLES.md` + 11 カード投入
 
 ## 予定
 
 ### 👀 ユーザー実機目視待ち（merge 済み機能・未確認のもの）
 
+- **Notes/Daily エディタ復旧確認**（PR #294 merge 後）: main を pull → Notes アイテムクリックで本文表示 / Daily エディタ表示 / 同一エディタで "/" メニューと "[[" 補完の併用動作（Issue #293 DoD・Console に RangeError なし）
 - **W8 カレンダーコア**（#96/#97 merged）: [広幅] 週グリッド時刻配置 / 曜日ヘッダ・今日強調 / 終日レーン / イベントクリック→右ペイン編集→即反映 / 重なり横並び / 週ナビ。[狭幅] 日アジェンダ / 日ナビ / タップ→BottomSheet 編集。**env あり実機**で
 - **W4**（#78 merged）: テーマ追従 / 4タブのチャート描画 / Connect グラフ表示・ノードクリック遷移 / backlink。**最重要 = Connect グラフが実データで空でない**こと（env あり実機で・過去 treeshake 誤報前例）
 - **Phase 3 Electron**（#79 merged）: `npm run dev` 起動→ログイン→Tasks CRUD / `build:mac` で DMG（実機ゲート）

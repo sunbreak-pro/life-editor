@@ -1,5 +1,88 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-25 - #299 アイテム操作 UI 刷新（生成パネル化 + 吹き出し + 詳細オーバーレイ）
+
+#### 概要
+
+Schedule のアイテム操作を「1クリック=吹き出し / ダブルクリック=詳細オーバーレイ / 右クリック=既存メニュー維持」に再編し、イベント生成をパネル化、rightSidebar の detail 編集タブを撤去した（flow/todo タブは温存）。前提部品 #307 itemActions（ItemActionPopover / ItemDetailOverlay / floating.ts）を merge 済み土台として消費。今回はイベント生成に絞り、task/note 統合パネルは将来 Issue（前回 outbox 起票依頼済み）。role-pm → role-engineer → role-qa（別コンテキスト独立監査 PASS・Blocking 0）のフルチェーン。
+
+#### 変更点
+
+- **塊0 グリッド配管**: WeekTimeGrid / MonthGrid / AgendaList に `onItemActivate(id,{x,y})` + `onItemDoubleClick` を追加。WeekTimeGrid は pointer-up の非ドラッグ分岐（`d.moved` false）でのみ activate 発火し #297 drag/resize と非衝突・座標は pointerup event から取得
+- **塊1 吹き出し**: CalendarTab に popover state 追加、handleSelectItem を detail タブ遷移から ItemActionPopover 表示へ。概要 + 「詳細を編集」+ duplicate/delete クイック操作。Escape / 外側クリックで閉じる（floating.ts の IME ガード済み dismiss）
+- **塊2 詳細オーバーレイ**: ItemDetailOverlay（Modal ラップ・不透明・focus trap）に既存 EventEditorPane を children としてホスト。ダブルクリック / 「詳細を編集」の両経路から開く
+- **塊3 生成パネル化 + detail タブ撤去**: 新規 `EventCreateFields`（title/start/end 共有生成フォーム・IME ガード・prefill）を QuickCaptureSheet に内包。ツールバー「イベント追加」+ グリッド空きスロット + 月セルの 3 経路を生成オーバーレイ（Desktop）/ QuickCaptureSheet（Mobile）に統一・空きスロットはクリック時刻をプリフィル。#278 pendingDraft の eager-create を撤去し `handleCreate(date,title,start,end)` の送信時生成へ一本化。sidebarTab 型を `"flow"|"detail"|"todo"` → `"flow"|"todo"` に縮小し detailBody 削除（`tabDetail`/`selectHint` は RoutinesTab が消費中のため catalog 保持・CalendarTab 参照のみ除去）
+- **i18n**: `scheduleScreen.editDetail` / `itemActionsLabel` を en/ja 追加
+- **検証**: shared `tsc -b` + vitest **1115 pass**（140 files・新規 eventCreateFields 4 本）/ web `tsc -b --force` + vite build green。メイン独立実測でも一致（docs-consistency §5 spot check 済み）
+- **follow-up（outbox 経由 chat-main へ起票依頼）**: N1 ダブルクリック時の吹き出し一瞬フラッシュ（cosmetic）/ N2 生成オーバーレイに対象日非表示（UX 改善）/ N4 生成後に新規アイテム未オープン（プロダクト判断）
+- **PR**: `claude/schedule-refine` から提出（`Closes #299`・merge は 🛑 ユーザーゲート・実ブラウザ確認は merge 後 chat-main）
+
+### 2026-07-20 - #296 消失バグ + #297 A-2 双方向書き込み（PR #309 同梱）
+
+#### 概要
+
+#296（Schedule アイテムが繰り返し操作周辺で消える）と #297（Step 2 / A-2: 予定済み task チップを drag/resize して `scheduledAt`/`scheduledEndAt` を書き戻す双方向連携）を実装。#296 の PR #309 が open のまま同ブランチに #297 を積んだため、ユーザー決定で **#309 を #296+#297 の 1 本に統合**した（`Fixes #296, #297`）。role-qa は両 Issue とも別コンテキストで PASS。
+
+#### 変更点
+
+- **#296** (`39b51c99`): `detachRoutine` に `keepItemIds`（編集中 occurrence をピン留め）/ 新設 `convertEventToRoutine`（seed を in-place attach・routine 作成→meta bump→attach 順で失敗時ロールバック・楽観 routine のリスト追加を await 後に遅延）/ 生成器の掃除を物理削除→ソフトデリート化・hand-moved 行（`date≠sourceDate`）除外 / `loadDateRange` throw 化 + visible-range 前回リスト保持 + retry バナー + `syncVersion` 再取得 / この予定のみ削除に「スキップ済み」+戻す UI。`events_payload.source_date`→`ScheduleItem.sourceDate`（read-only）を通した。vitest 3 本追加
+- **#297** (`d80e0b96`): `taskCalendarChips` に純関数 `unwrapTaskChipId` + `localDateTimeToISO`（UTC→local 読み取りの逆変換・`24:00`→翌日`00:00`）追加 / `WeekTimeGrid` に `taskInteractive` prop（default false で A-1 読み取り専用維持）/ `useScheduleMutations` が task チップの move/resize を host コールバックへ委譲 / `CalendarTab` が `updateNode` で scheduled フィールドを書き両グリッドに `taskInteractive` 注入。純関数テスト 5 本追加
+- **検証**: shared `tsc -b` + vitest **1069 pass** / web `tsc -b` + vite build green / web eslint 0 error（1 warning は非対象 `DebouncedTextInput.tsx` の既存分）
+- **後追い**: 多日/overnight task を drag すると span が潰れる deferrable エッジ（A-1 の切り詰め描画 + `minutesToTime` 24:00 クランプ）を outbox で chat-main に Issue 起票依頼（Epic #290 配下）
+- **PR 運用メモ**: `claude/schedule-refine` は long-lived ブランチで、open PR に次 Issue を積むと同梱される。厳密な 1 Issue=1 PR は「前 PR が merge されるまで次を積まない」運用が前提
+
+### 2026-07-19 - section:schedule スプリント完了（#281 #278 #279 #280）
+
+#### 概要
+
+section:schedule の open Issue 4 件を実装 → 検証 → close した。#279 は範囲選択ダイアログ（この予定のみ/今後/すべて）+ Repeats 変換の可視化、#280 は CalendarTab の責務分離リファクタ（1740 → 994 行・behavior-preserving）。全段で QA アドバーサリアル監査を通し、shared 992 tests + shared/web build green。
+
+#### 変更点
+
+- **#281** (`0c4837c3`): 週ビュー hover 背景の除去 + Day ビュー背景の標準トークン化
+- **#278** (`dcb57550`): 未保存 draft がある間のクリック新規生成防止（fetchedRange による自己修復ガード）
+- **#279** (`3205cc5e`): RepeatScopeDialog 新設（i18n en/ja・Cancel 先頭フォーカス）/ `updateFutureScheduleItemsByRoutine`（競合ルール 1・2 準拠フィルタ・null テンプレはデフォルト時刻照合）/ 変換時の窓クランプ付き materialise / 生成器 creation-only 化 / 時刻入力 commit-on-blur / Modal Esc stopPropagation。docs 追随 = tier-1-core 競合ルール 5 + unification plan 補遺
+- **#280 Stage A** (`3205cc5e` 後続): 純ドメインを shared/utils へ — scheduleLabels 移設・todayCalendarKey 統合（3 重実装解消）・calendarView 正規化/可視範囲・taskChipId/isTaskChip・makeOptimisticScheduleItem。全モジュールに vitest
+- **#280 Stage B** (`0270728e`): CalendarTab を useCalendarNav / useVisibleRangeItems / useScheduleMutations に分割・QuickCaptureSheet を shared 部品化（IME ガードテスト含む）
+- **運用**: outbox に routineFrequency の frequencyStartDate 無視問題（Step 4 候補）の起票依頼を append
+
+### 2026-07-18 - #217 完了確定（PR #265 merge 取り込み）
+
+#### 概要
+
+PR #265（weekStartsOn prefs のカレンダー配線・Closes #217）の merge を origin/main から取り込み、tracker を完了へ確定した。実ブラウザでの表示確認は chat-main 側で実測する（§7.4 localhost 集約ポリシー）。
+
+#### 変更点
+
+- **git 同期**: `git pull --ff-only`（自ブランチ up to date）+ `origin/main` merge（briefing/notes/i18n 系の差分・衝突なし）
+- **tracker**: 進行中を空にし、#217 を直近の完了へ移動。予定に schedule-redesign Step 2（Task↔Schedule 統合）の下調べを登録
+
+### 2026-07-16 - #217 weekStartsOn prefs のカレンダー配線 (PR #265)
+
+#### 概要
+
+週の始まり（日曜/月曜）prefs をカレンダー描画に配線した。settings 側の保存 API が未実装だったため、#218（day-start-hour）と同じ分担で pref フック自体を shared に新設し、読み手（CalendarTab）まで配線して PR #265 を提出した（Closes #217・merge = 🛑 ユーザーゲート）。
+
+#### 変更点
+
+- **shared**: `hooks/useWeekStart.ts` 新規 — キー `life-editor-week-start`（"0"=日曜既定 / "1"=月曜）、`useWeekStartPref()` + 純関数 `parseWeekStart` / `getWeekStartsOn`（React 外読み手用・#218 の `getDayStartHour` と対）。index.ts から export
+- **web**: `CalendarTab.tsx` — `startOfWeekKey` / `monthGridKeys` / `MonthGrid`（desktop + mobile）へ pref を配線（従来はハードコード 0）。`WeekTimeGrid` は day key からラベル導出のため props 不要（`weekStart` の補正だけで追随）
+- **テスト**: `shared/tests/useWeekStart.test.ts` 新規（parse/read の純関数テスト）。shared vitest 113 files / 908 tests green・shared/web build green
+- **運用**: Settings 書き込み UI は settings 領分のため未実装 — chat-main へ起票依頼を outbox に追記（#218 の day-start-hour UI 未配線も同 Issue に含める提案）。worktree 環境整備として node_modules install + `.claude/comm/.session-name`（schedule-refine）を作成
+
+### 2026-07-12 - life-tags S3 完了確認 + #185 Step 3-4 外部完了の記録整理
+
+#### 概要
+
+materials-refine の S3（NodeType folder 除去・PR #244）の merge をこのレーンから実測確認し、schedule 側の無事故（build/test green）を検証した。また #185 Step 3-4 が別セッション（chat-schedule-event-routine・PR #245）で完了・#185 closed になっていたため tracker を整理した。
+
+#### 変更点
+
+- **S3 確認**: PR #244 merge・epic #225 closed・`NodeType = "task"` 単一値（残る "folder" は経緯コメントのみ — taskTree.ts / Kanban を grep 実測）。main 取り込み（衝突なし）後、shared build + vitest 884/884・web build green — schedule レーンに S3 起因の破壊なし
+- **db push 事後**: 0015〜0021 適用済み・0021（calendars.tag_id + FK）・0020（変換 = 新規タグ 5 / assignment 1 / active folder 0 = 計画 §B-7 一致）を read-only SQL で検証済み（前セッション）
+- **#185**: Step 3-4（Event 編集の繰り返しセクション + detachRoutine）は PR #245 で実装済み・#185 closed。残 Step 5（runtime 確認）/ Step 6（MCP 切り出し起票）は chat-main 領分 — 本レーンの予定から除去
+- **次タスク**: open Issue #217（weekStartsOn prefs のカレンダー配線）が本レーンの唯一のキュー
+
 - 2026-07-11: [途中] life-tags 統一 S2（CalendarView folder→life-tag rebind）— main merge・folder 依存の全数実測・Issue #231 起票・materials-refine へ案(a) life-tag バインド合意返信（outbox）。実装は合意確定後
 
 ### 2026-07-11 - life-tags 統一 S2: calendars の folder→life-tag rebind (#231, PR #239)
@@ -43,31 +126,3 @@ v2 共通部品 merge 後の adoption として、Schedule の Calendar / Routin
 - **i18n**: 撤去で未使用化した `scheduleScreen.openPanel` / `closePanel` を en/ja から削除（標準ヘッダーは `detailPanel.open/close` を使用）
 - **orders 台帳**: v2 adoption 節を #204 実装済みに更新（全幅表示・パネル開閉位置の runtime 確認は chat-main 実測待ち）
 - **検証**: shared tsc -b + vitest 803/803 pass・web tsc -b + vite build pass
-
-### 2026-07-11 - #183 close + #181 schedule 行 adoption (PR #191) + #185 詳細計画化
-
-#### 概要
-
-orders 台帳（2026-07-11-schedule-refine-orders.md）の「今すぐ着手可」3 件を消化した。#183 は #180 修正の実測確認で close、#181 schedule 行は gutter トークン化を PR #191 で提出、#185 は案 B（DDL ゼロの UI 統合）の詳細計画書を作成し同 PR に同梱（merge = 承認ゲート）。
-
-#### 変更点
-
-- **#183 close**: SegmentedControl 連結表示の解消を playwright で実測（desktop: 各セグメント独立幅 + 2px gap / mobile 390px: 3px gap・console error 0）。検証用アカウントは Sign up で即時作成できると判明（メール確認なし — user memory に知見保存）
-- **#181 schedule 行**: `CalendarTab.tsx`（desktop/mobile wrapper）+ `ScheduleScreen.tsx`（Routines タブ wrapper）の rem ベース gutter 3 箇所を `px-lumen-gutter` / `md:px-lumen-gutter-wide` へ移行。shared test 768/768 pass（初回 15 fail は並行 worktree 負荷の 5s timeout フレーク・再実行で全 pass）
-- **#185 計画書**: `plans/2026-07-11-event-routine-unification.md` 新規作成。Explore agent の実装マップを spot check の上で案 B を採択。mcp-server が全 handler 未移行（Supabase 接続なし）と実測判明 → MCP 移行の shared-fix 切り出しを Issue #185 に提案
-
-### 2026-07-10 - Schedule: アイテム詳細の rightSidebar 化 + grid hover 改善 + Event/Routine 統合起票
-
-#### 概要
-
-Schedule セクションの UI 修正 3 件を実装し、Event/Routine 統合要件を Issue #185 として起票した。shell 所有ファイル（MainScreen / RightSidebar 系 / SegmentedControl 等）と tokens.css には無差分（#181 単一書込者原則を遵守）。
-
-#### 変更点
-
-- **hover 改善**: `WeekTimeGrid.tsx` の空きスロット hover を `bg-lumen-hover`（grid 線とほぼ同色のグレー）→ `bg-lumen-accent-subtle` + `border-lumen-accent` 破線に変更。Day/Week 両ビュー対応（同一コンポーネント）
-- **rightSidebar 2 タブ化**: `CalendarTab.tsx` — 単一 RightSidebarPortal 内に ScheduleSidebarTabs（今日の流れ / 詳細）を新設。アイテム選択で詳細タブへ自動切替 + open()。メイン `<aside>` の editorPane を撤去し grid 全幅化。Mobile は BottomSheet 維持
-- **Routines タブ**: `RoutinesTab.tsx` — MasterDetail を廃し RoutineEditorForm を rightSidebar へ移設。選択・作成はハンドラ直呼びで open（再選択でも開く — QA 指摘反映）
-- **新規部品**: `shared/src/components/schedule/ScheduleSidebarTabs.tsx`（純表示・i18n props 注入・単一タブ時は shell 見出しと重複しないよう switcher 非表示・tabpanel a11y）
-- **i18n**: `scheduleScreen.tabDetail` / `detailPanelLabel` を en/ja 追加
-- **Issue 起票**: #185 Event/Routine 単一アイテム統合（データモデル実測・方針案 A/B・影響範囲を記載、shared-fix ラベルで他 worktree へ共有）
-- **検証**: shared tsc/vitest 749 pass・web build/lint pass・role-qa PASS。playwright runtime 検証は認証ゲートで BLOCKED（テスト資格情報待ち）
