@@ -2,7 +2,11 @@ import type { TimerSession } from "../types/timer";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
-import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
+import type {
+  WikiTag,
+  WikiTagAssignment,
+  WikiTagConnection,
+} from "../types/wikiTag";
 import { formatDateKey as toDateStr } from "./dateKey";
 
 export interface DayBucket {

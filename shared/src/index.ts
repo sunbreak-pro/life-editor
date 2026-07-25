@@ -48,7 +48,7 @@ export type {
   RoutineGroup,
   RoutineGroupAssignment,
 } from "./types/routineGroup";
-export type { ScheduleItem } from "./types/schedule";
+export type { ScheduleItem, RoutineStats } from "./types/schedule";
 export type { CalendarNode } from "./types/calendar";
 
 // Tasks domain — context (Pattern A) + hooks
