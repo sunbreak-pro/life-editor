@@ -44,6 +44,7 @@ import {
   type NoteTagGroup,
   type TagEditRow,
   type DataService,
+  FOCUS_RING,
 } from "@life-editor/shared";
 import {
   useNoteTagDnd,
@@ -101,8 +102,6 @@ const DIALOG_LABELS = {
   saveFailed: "Could not save. Please try again.",
 } as const;
 
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 // Collapse state for tag-group headings. Persisted so a folded group stays
 // folded across reloads. The untagged bucket uses the sentinel key below.

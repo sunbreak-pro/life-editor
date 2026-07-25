@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
+import { FOCUS_RING } from "../styleTokens";
 
 /*
  * Note detail panel (Materials mini-plan Step 3). The right-hand pane the
@@ -18,8 +19,6 @@ import { Menu, MenuItem } from "../Menu";
  * so this panel simply renders whatever content node it receives.
  */
 
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 /*
  * Title field. Mirrors NoteTitleInput / TaskTitleInput debounce-and-flush

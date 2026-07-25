@@ -11,6 +11,7 @@ import {
   type ScheduleItem,
   type NoteNode,
   type RoutineNode,
+  formatDateKey,
 } from "@life-editor/shared";
 
 /*
@@ -64,15 +65,8 @@ const EMPTY: AnalyticsData = {
   targetPerDay: 4,
 };
 
-function dateKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 function todayKey(): string {
-  return dateKey(new Date());
+  return formatDateKey(new Date());
 }
 
 export function AnalyticsScreen({
@@ -148,8 +142,8 @@ export function AnalyticsScreen({
     if (!scheduleRange) return;
     let cancelled = false;
 
-    const from = dateKey(scheduleRange.start);
-    const to = dateKey(scheduleRange.end);
+    const from = formatDateKey(scheduleRange.start);
+    const to = formatDateKey(scheduleRange.end);
 
     void ds
       .fetchScheduleItemsByDateRange(from, to)

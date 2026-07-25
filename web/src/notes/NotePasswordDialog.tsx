@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { FOCUS_RING } from "@life-editor/shared";
 
 /*
  * Note password / edit-lock dialog (S3, required incl. UI). Wires the
@@ -22,10 +23,6 @@ import { useEffect, useId, useRef, useState } from "react";
  */
 
 // Shared focus-visible ring (lumen tokens only — no hardcoded colors).
-// Kept in sync with the identical constant in NotesView.tsx; promoting it
-// to a shared export is out of this focused pass's scope.
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 export type NotePasswordMode = "set" | "remove" | "verify";
 

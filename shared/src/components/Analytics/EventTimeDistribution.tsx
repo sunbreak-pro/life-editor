@@ -11,6 +11,7 @@ import {
 import type { ScheduleItem } from "../../types/schedule";
 import { aggregateEventsByHour } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface EventTimeDistributionLabels {
   title: string;
@@ -40,26 +41,18 @@ export function EventTimeDistribution({
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--color-lumen-border)"
-            />
+            <CartesianGrid {...CHART_GRID} />
             <XAxis
               dataKey="hour"
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK}
               interval={2}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK}
               allowDecimals={false}
             />
             <Tooltip
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [
                 value ?? 0,
                 labels.count,

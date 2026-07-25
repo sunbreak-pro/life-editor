@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowDownUp, Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
+import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
 
 /*
  * Sidebar list controls (#283). A compact sort + optional-filter header row the
@@ -18,8 +19,6 @@ import { Menu, MenuItem } from "../Menu";
  * Daily list passes a single mode and only toggles direction).
  */
 
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 export type SidebarSortDirection = "asc" | "desc";
 

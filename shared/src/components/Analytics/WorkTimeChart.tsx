@@ -17,6 +17,7 @@ import {
   type DayBucket,
 } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_GRID, CHART_TICK_11, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface WorkTimeChartLabels {
   /** Chart heading + tooltip series name. */
@@ -76,30 +77,22 @@ export function WorkTimeChart({
             data={data}
             margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--color-lumen-border)"
-            />
+            <CartesianGrid {...CHART_GRID} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK_11}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK_11}
               tickLine={false}
               axisLine={false}
               unit="h"
             />
             <Tooltip
               cursor={{ fill: "var(--color-lumen-hover)" }}
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [
                 `${value ?? 0}h`,
                 labels.workTime,

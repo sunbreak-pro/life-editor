@@ -1,6 +1,7 @@
 import { Calendar, ChevronDown, Pin } from "lucide-react";
 import { cn } from "../cn";
 import { ExcerptListItem } from "./ExcerptListItem";
+import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
 
 /*
  * Daily past-entries panel (Materials mini-plan Step 4). The right-hand pane
@@ -13,8 +14,6 @@ import { ExcerptListItem } from "./ExcerptListItem";
  * label formatting stays host-side. lumen-* tokens only; opaque surfaces (§5).
  */
 
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 export interface DailyEntriesPanelEntry {
   /** YYYY-MM-DD — the stable identifier + onSelectEntry payload. */

@@ -14,26 +14,15 @@
  * tasks (life-tags S1), so there is no folder pill.
  */
 
-import {
-  Circle,
-  CircleDashed,
-  CheckCircle2,
-  type LucideIcon,
-} from "lucide-react";
 import type { CSSProperties } from "react";
 import { cn } from "../cn";
+import { STATUS_ICON } from "../taskStatusVisuals";
 import type { TaskStatus } from "../../types/taskTree";
 import type {
   KanbanCardDndAdapter,
   KanbanCardModel,
   KanbanLabels,
 } from "./types";
-
-const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
-  NOT_STARTED: Circle,
-  IN_PROGRESS: CircleDashed,
-  DONE: CheckCircle2,
-};
 
 // Left 4px band per status (lumen tokens — no hardcoded color, §6).
 const STATUS_BAND_CLASS: Record<TaskStatus, string> = {

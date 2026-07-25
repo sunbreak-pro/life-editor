@@ -12,6 +12,7 @@ import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineNode } from "../../types/routine";
 import { aggregateRoutineCompletion } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface RoutineCompletionChartLabels {
   title: string;
@@ -54,29 +55,21 @@ export function RoutineCompletionChart({
             layout="vertical"
             margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--color-lumen-border)"
-            />
+            <CartesianGrid {...CHART_GRID} />
             <XAxis
               type="number"
               domain={[0, 100]}
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK}
               tickFormatter={(v) => `${v}%`}
             />
             <YAxis
               type="category"
               dataKey="name"
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK}
               width={100}
             />
             <Tooltip
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [
                 `${value ?? 0}%`,
                 labels.rate,

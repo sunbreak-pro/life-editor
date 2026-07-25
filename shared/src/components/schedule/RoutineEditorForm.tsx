@@ -3,6 +3,7 @@ import { Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { FrequencyEditor, type FrequencyEditorGroup } from "./FrequencyEditor";
 import type { RoutineNode } from "../../types/routine";
+import { FIELD, FIELD_LABEL } from "../styleTokens";
 
 /*
  * RoutineEditorForm (W8 target-IA) — the Routines-tab detail form (MasterDetail
@@ -62,9 +63,6 @@ export interface RoutineEditorFormProps {
   className?: string;
 }
 
-const FIELD =
-  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-const FIELD_LABEL = "text-xs text-lumen-text-secondary";
 
 function TitleInput({
   routineId,

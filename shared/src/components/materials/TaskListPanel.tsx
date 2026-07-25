@@ -8,6 +8,8 @@ import type {
   KanbanColumnModel,
   KanbanViewMode,
 } from "../Kanban/types";
+import { FOCUS_RING } from "../styleTokens";
+import { statusLabel } from "../taskStatusVisuals";
 
 /*
  * Task list panel (Tasks list-mode). The vertical-list counterpart of the
@@ -46,9 +48,6 @@ const STATUS_BAND: Record<TaskStatus, string> = {
   DONE: "var(--color-status-done-band)",
 };
 
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
-
 /** All copy the panel needs, resolved by the host via t() (§6.4). */
 export interface TaskListPanelLabels {
   /** Grouping switch: the view-mode labels + its group aria-label. */
@@ -83,17 +82,6 @@ export interface TaskListPanelProps {
   onSelectTask: (id: string) => void;
   labels: TaskListPanelLabels;
   className?: string;
-}
-
-function statusLabel(status: TaskStatus, labels: TaskListPanelLabels): string {
-  switch (status) {
-    case "NOT_STARTED":
-      return labels.statusNotStarted;
-    case "IN_PROGRESS":
-      return labels.statusInProgress;
-    case "DONE":
-      return labels.statusDone;
-  }
 }
 
 function TaskRow({

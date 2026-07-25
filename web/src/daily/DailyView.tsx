@@ -29,6 +29,8 @@ import {
   type DailyListDirection,
   type DateStripDay,
   type DataService,
+  FOCUS_RING_TIGHT as FOCUS_RING,
+  formatDateKey,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import { useItemLinkTargets } from "../notes/useItemLinkTargets";
@@ -60,21 +62,11 @@ import type { ItemLinkTarget } from "../notes/itemLinkSuggestion";
  * (§6.4). No hex — lumen-* only.
  */
 
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-
-function isoOf(d: Date): string {
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
-}
 
 function isoDay(offsetDays: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return isoOf(d);
+  return formatDateKey(d);
 }
 
 function parseIso(date: string): Date {

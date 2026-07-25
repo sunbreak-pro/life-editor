@@ -414,6 +414,15 @@ export {
   type SortMode,
   type SortDirection,
 } from "./utils/sortTaskNodes";
+// Shared UI class-string tokens + task-status visuals (C5 dedup) — the web
+// host imports these through the barrel.
+export { FOCUS_RING, FOCUS_RING_TIGHT } from "./components/styleTokens";
+export {
+  STATUS_ORDER,
+  STATUS_ICON,
+  statusLabel,
+  type StatusLabelSet,
+} from "./components/taskStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the host gate the Mobile
 // 省略 Provider 5 種 (CLAUDE.md §2) on the Capacitor shells — see platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";
