@@ -13,13 +13,6 @@ export interface SoundPreset {
   createdAt: Date;
 }
 
-export interface SoundSettingsMap {
-  [soundType: string]: {
-    volume: number;
-    enabled: boolean;
-  };
-}
-
 export interface SoundTag {
   id: number;
   name: string;

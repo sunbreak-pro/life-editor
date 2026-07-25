@@ -18,16 +18,6 @@ function hasStorage(): boolean {
   return typeof localStorage !== "undefined";
 }
 
-export function loadPositions(): PositionMap {
-  if (!hasStorage()) return {};
-  try {
-    const raw = localStorage.getItem(POSITIONS_KEY);
-    return raw ? (JSON.parse(raw) as PositionMap) : {};
-  } catch {
-    return {};
-  }
-}
-
 export function savePositions(positions: PositionMap): void {
   if (!hasStorage()) return;
   try {
