@@ -337,6 +337,17 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
+  // Briefing in-section tab defs (朝刊 / 夕刊). One list feeds BOTH controls —
+  // the wide SectionHeader band and the narrow in-body segmented control
+  // (#318) — so the two can never drift apart.
+  const briefingTabDefs = useMemo(
+    () => [
+      { id: "morning", label: t("briefing.tabs.morning") },
+      { id: "evening", label: t("briefing.tabs.evening") },
+    ],
+    [t],
+  );
+
   const shellLabels = useMemo(
     () => ({
       appName: "Life Editor",
@@ -455,10 +466,7 @@ export function MainScreen({ session }: { session: Session }) {
         tabs={
           <HeaderTabs
             divider={false}
-            tabs={[
-              { id: "morning", label: t("briefing.tabs.morning") },
-              { id: "evening", label: t("briefing.tabs.evening") },
-            ]}
+            tabs={briefingTabDefs}
             activeTab={briefingTab}
             onSelect={(id) => setBriefingTab(id as BriefingTab)}
             label={t("briefing.tabsLabel")}
@@ -492,6 +500,21 @@ export function MainScreen({ session }: { session: Session }) {
       />
     </div>
   );
+
+  // Briefing's narrow-width 朝刊/夕刊 switcher (#318). AppShell renders its
+  // header slot on the WIDE branch only, so below 768px the SectionHeader band
+  // — the sole route to 夕刊 — is gone. Briefing's body is a centered "paper"
+  // rather than a list, so unlike Materials the band is re-issued INSIDE the
+  // view (under the masthead) instead of in a PageContainer toolbar row.
+  const briefingMobileSwitcher = isWide ? undefined : (
+    <SegmentedControl
+      options={briefingTabDefs}
+      value={briefingTab}
+      onChange={(id) => setBriefingTab(id as BriefingTab)}
+      label={t("briefing.tabsLabel")}
+    />
+  );
+
   const sectionToolbar =
     !isWide && MOBILE_HAMBURGER_SECTIONS.has(section) ? (
       <div className="flex items-center">
@@ -575,6 +598,7 @@ export function MainScreen({ session }: { session: Session }) {
           dataService={ds}
           onNavigate={handleBriefingNavigate}
           tab={briefingTab}
+          tabSwitcher={briefingMobileSwitcher}
         />
       )}
       {/*

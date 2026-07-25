@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { ArrowUpRight, Check, Circle, Sunrise } from "lucide-react";
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { TimerSession } from "../../types/timer";
@@ -124,6 +125,14 @@ export interface BriefingViewProps {
   onJumpToSchedule: () => void;
   /** Jumps to the Tasks section (host → nav). */
   onJumpToTasks: () => void;
+  /**
+   * In-body 朝刊/夕刊 switcher for the NARROW layout (#318). AppShell only
+   * renders its header slot on the wide branch, so below 768px the
+   * SectionHeader tab band — the only way to reach 夕刊 — disappears; the host
+   * re-issues it here instead. Left undefined on the wide layout, where the
+   * SectionHeader keeps owning the tabs (unchanged).
+   */
+  tabSwitcher?: ReactNode;
 }
 
 /** Section heading row — 段標 (朱 bar) + small-caps kicker over a hairline. */
@@ -196,10 +205,14 @@ export function BriefingView({
   onToggleTask,
   onJumpToSchedule,
   onJumpToTasks,
+  tabSwitcher,
 }: BriefingViewProps): React.JSX.Element {
   if (loading) {
+    // The switcher rides along the skeleton too — a slow fetch must never
+    // strand a narrow-width reader on the tab they can no longer leave.
     return (
       <div className="mx-auto w-full max-w-2xl py-8">
+        {tabSwitcher != null && <div className="mb-4 px-2">{tabSwitcher}</div>}
         <SkeletonList rows={8} rowHeight={44} gap={12} />
       </div>
     );
@@ -218,6 +231,13 @@ export function BriefingView({
           {data.dateLine}
         </p>
       </header>
+
+      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ────────── */}
+      {tabSwitcher != null && (
+        <div className="border-b border-lumen-border px-2 py-3">
+          {tabSwitcher}
+        </div>
+      )}
 
       {/* ── Focus line ───────────────────────────────────────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
