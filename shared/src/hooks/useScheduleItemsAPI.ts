@@ -57,6 +57,14 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
 
   const date = options.date ?? todayCalendarKey();
 
+  // Live anchored date for the undo/redo closures (#304 child-2): a command
+  // pushed on day A may run after the view moved to day B, and comparing
+  // against the CAPTURED `date` would splice day-A rows into day-B's list
+  // (display-only, but wrong until the next refetch). Same render-time-ref
+  // idiom as UndoRedoContext's appliedRef.
+  const dateRef = useRef(date);
+  dateRef.current = date;
+
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [deletedItems, setDeletedItems] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -221,7 +229,9 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         },
         redo: () => {
           setItems((prev) =>
-            isSameDate(optimistic, date) ? [...prev, optimistic] : prev,
+            isSameDate(optimistic, dateRef.current)
+              ? [...prev, optimistic]
+              : prev,
           );
           ds.restoreScheduleItem(id).catch((e) =>
             logServiceError("ScheduleItems", "redoCreate", e),
@@ -443,7 +453,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
           label: "deleteScheduleItem",
           undo: () => {
             setItems((prev) =>
-              isSameDate(target, date) ? [...prev, target] : prev,
+              isSameDate(target, dateRef.current) ? [...prev, target] : prev,
             );
             setDeletedItems((prev) => prev.filter((i) => i.id !== id));
             ds.restoreScheduleItem(id).catch((e) =>
