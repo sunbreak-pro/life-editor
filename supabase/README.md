@@ -77,10 +77,26 @@ string — the public anon key cannot read `pg_catalog`.
 | ----------------- | ------------------------------------------------------------------------- |
 | `SUPABASE_DB_URL` | Postgres connection URI for the linked project (a secret — never commit). |
 
-Get it from: **Supabase Dashboard → Project Settings → Database →
-Connection string (URI)**. Use the direct connection or the pooler URI.
+Get it from the **Connect** button at the top of the dashboard (it is no
+longer under Project Settings). Pick the **Session pooler** tab and copy the
+URI verbatim, then substitute the password.
+
+> ⚠️ **Session pooler (5432), not transaction pooler (6543).** Transaction
+> pooling multiplexes many clients onto shared backends, so the CLI's
+> prepared statements collide and the push dies with
+> `ERROR: prepared statement "lrupsc_1_0" already exists (SQLSTATE 42P05)`.
+> For the same reason, do not append `?pgbouncer=true`. The direct
+> connection (`db.<ref>.supabase.co:5432`) also works but is IPv6-only on
+> newer projects, so it may be unreachable depending on your network — the
+> session pooler is IPv4-friendly and is the safe default. (2026-07-25)
+
+The database password cannot be read back after project creation — if you do
+not have it, reset it at **Settings → Database → Database password**.
+Resetting does not affect the app, which authenticates with the anon key
+(`web/.env.local`), not this password.
+
 Percent-encode the password if it contains reserved characters
-(`@ : / ? # [ ]`).
+(`@ : / ? # [ ]`) — e.g. `!` → `%21`, `@` → `%40`.
 
 Provide it in **one** of these ways:
 
