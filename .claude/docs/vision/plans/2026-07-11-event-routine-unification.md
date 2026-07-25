@@ -3,7 +3,7 @@ Status: IN PROGRESS
 Created: 2026-07-11
 Branch: claude/schedule-refine
 Owner-chat: schedule-refine
-Parent: 2026-07-11-schedule-refine-orders.md
+Parent: (なし — 旧 Parent の 2026-07-11-schedule-refine-orders.md は台帳運用 retire に伴い archive へ移動)
 ---
 
 # Plan: Event / Routine 統合 — UI 単一アイテム型化（#185）
@@ -118,7 +118,7 @@ DDL なし（`supabase/migrations/` に触らない）。shell 部品（AppShell
 
 ## References
 
-- Issue: #185（要件の一次情報）/ 台帳: [`2026-07-11-schedule-refine-orders.md`](./2026-07-11-schedule-refine-orders.md)
+- Issue: #185（要件の一次情報）/ 旧台帳: [`2026-07-11-schedule-refine-orders.md`](../../../archive/2026-07-11-schedule-refine-orders.md)（SUPERSEDED・archive 保管。担当の一次情報は `gh issue list --label section:schedule`）
 - 実装マップの根拠: `shared/src/types/{schedule,routine}.ts` / `supabase/migrations/{0008,0011,0016}*.sql` / `shared/src/hooks/useScheduleItemsRoutineSync.ts` / `shared/src/services/{scheduleItemMapper,routineMapper}.ts` / `SupabaseDataService.ts` / `mcp-server/src/handlers/scheduleHandlers.ts`
 - 規約: `docs/vision/db-conventions.md` §10 / CLAUDE.md §3.3・§4
 
