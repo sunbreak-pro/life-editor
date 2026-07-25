@@ -37,21 +37,29 @@ below), never by weakening the detector.
 
 ```bash
 cd supabase
-
-# 1. Gate FIRST. Never skip this before pushing schema changes.
-npm run db:check-rls          # exit 0 = safe, 1 = leak, 2 = inconclusive
-
-# 2. Only if the gate is GREEN (exit 0):
-npx supabase db push
+npm run db:push
 ```
 
-`npm run db:push` does both in one step (gate, then push only if the
-gate passed) and is the recommended entry point:
+That is the **only** entry point you should use. It runs the gate first and
+pushes only if the gate passed, and it invokes the CLI from the repo root
+(see below).
+
+To run the gate alone without pushing:
 
 ```bash
 cd supabase
-npm run db:push
+npm run db:check-rls          # exit 0 = safe, 1 = leak, 2 = inconclusive
 ```
+
+> ⚠️ **Do not call `npx supabase db push` by hand from `supabase/`.** The CLI
+> resolves migrations as `<cwd>/supabase/migrations`, so from inside
+> `supabase/` it looks in `supabase/supabase/migrations`, finds nothing, and
+> aborts with `Remote migration versions not found in local migrations
+directory` listing every already-applied version. **That message is a
+> false alarm — it does not mean the history is broken, and the
+> `supabase migration repair` / `supabase db pull` commands the CLI suggests
+> would rewrite a perfectly good history.** If you must call the CLI
+> directly, run it from the repo root. (2026-07-25, CLI 2.109.1.)
 
 > Rule: **a migration is not "done" until `db:check-rls` is green AND
 > `db push` has been run.** Treat exit code 2 (inconclusive — e.g. the
