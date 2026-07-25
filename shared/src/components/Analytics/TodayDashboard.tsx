@@ -48,6 +48,9 @@ export function TodayDashboard({
       (n) =>
         n.type === "task" &&
         n.completedAt &&
+        // NOTE: completedAt is a UTC ISO prefix, not a calendar key — in JST a
+        // task finished before 09:00 counts as yesterday. Pre-existing drift,
+        // reported separately; out of #356's scope.
         n.completedAt.substring(0, 10) === todayStr,
     ).length;
 

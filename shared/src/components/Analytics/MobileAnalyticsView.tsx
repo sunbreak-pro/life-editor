@@ -81,6 +81,9 @@ export function MobileAnalyticsView(
       (n) =>
         n.type === "task" &&
         n.completedAt &&
+        // NOTE: completedAt is a UTC ISO prefix, not a calendar key (same
+        // drift as the desktop TodayDashboard, and as the week window below).
+        // Pre-existing, reported separately; out of #356's scope.
         n.completedAt.substring(0, 10) === todayStr,
     ).length;
 

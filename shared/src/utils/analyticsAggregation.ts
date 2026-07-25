@@ -501,11 +501,13 @@ export function computeWorkStreak(sessions: TimerSession[]): WorkStreak {
   let streak = 1;
 
   // Check if today or yesterday is in the set to start current streak.
-  // Calendar day (#356) — `days` above is keyed the same way.
-  const today = todayCalendarKey();
-  const yesterday = new Date();
+  // Calendar days (#356) — `days` above is keyed the same way. One clock read
+  // for both, so a midnight tick between them can't make them the same date.
+  const now = new Date();
+  const today = todayCalendarKey(now);
+  const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = toDateStr(yesterday);
+  const yesterdayStr = todayCalendarKey(yesterday);
 
   for (let i = 1; i < sorted.length; i++) {
     const prev = new Date(sorted[i - 1]);
