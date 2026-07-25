@@ -68,7 +68,7 @@
 
 ### 3.3 ブランドパレット — Lumen（朝刊・夕刊 系譜 / light = 燈色・dark = 藍・2026-07-18 #269）
 
-> ✅ **確定**: 「朝刊・夕刊」エディションパレット（提案正本 = `asakan-yukan-theme.html`・全ペア WCAG AA 機械検証済み）。
+> ✅ **確定**: 「朝刊・夕刊」エディションパレット（提案書 = [`.claude/archive/asakan-yukan-theme.html`](../../.claude/archive/asakan-yukan-theme.html)・全ペア WCAG AA 機械検証済み。採用済みのため archive 保管で、現行値の正本は下記 tokens.css）。
 > Light = **朝刊**: 生成り（卵殻色）の紙 neutrals ＋ 朝日の**燈色（ひいろ）** accent `#ad4409`。
 > Dark = **夕刊**: 藍染めの夜空 neutrals ＋ 月明かりの薄藍 accent `#85aaff`。
 > 旧 Cobalt Ink + Mint 系譜（2026-06-20〜07-05）の Chrome/Accent を置換。ライトミントの
