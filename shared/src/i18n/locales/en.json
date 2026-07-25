@@ -1338,68 +1338,6 @@
     "noUnlinkedMentions": "No unlinked mentions.",
     "loading": "Loading..."
   },
-  "database": {
-    "loading": "Loading...",
-    "notFound": "Database not found",
-    "empty": "Empty database",
-    "addProperty": "Add a property",
-    "newRow": "New",
-    "filter": "Filter",
-    "filterValue": "value",
-    "sort": "Sort",
-    "ascending": "Ascending",
-    "descending": "Descending",
-    "propertyNamePlaceholder": "Property name",
-    "propertyDefaultName": "Property",
-    "typeLabel": "Type",
-    "noOptions": "No options",
-    "nameProperty": "Name",
-    "invalidName": "This name is invalid",
-    "createOption": "Create",
-    "searchOrCreate": "Search or create...",
-    "types": {
-      "text": "Text",
-      "number": "Number",
-      "select": "Select",
-      "date": "Date",
-      "checkbox": "Checkbox"
-    },
-    "operators": {
-      "equals": "is",
-      "not_equals": "is not",
-      "contains": "contains",
-      "not_contains": "doesn't contain",
-      "is_empty": "is empty",
-      "is_not_empty": "is not empty",
-      "greater_than": ">",
-      "less_than": "<",
-      "is_checked": "is checked",
-      "is_not_checked": "is not checked",
-      "before": "before",
-      "after": "after"
-    },
-    "contextMenu": {
-      "rename": "Rename",
-      "changeType": "Change type",
-      "delete": "Delete property",
-      "overflow": {
-        "wrap": "Wrap cell content",
-        "truncate": "Truncate cell content"
-      }
-    },
-    "aggregation": {
-      "label": "Calculate",
-      "none": "None",
-      "sum": "Sum",
-      "count": "Count all",
-      "countValues": "Count values",
-      "countChecked": "Checked",
-      "countUnchecked": "Unchecked",
-      "avg": "Average",
-      "min": "Min",
-      "max": "Max"
-    }
-  },
   "blockMenu": {
     "turnInto": "Turn Into",
     "noMatch": "No matching blocks",

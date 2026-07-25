@@ -34,14 +34,6 @@ import type {
   BacklinkHit,
   UnlinkedMention,
 } from "../types/noteLink";
-import type {
-  DatabaseEntity,
-  DatabaseFull,
-  DatabaseProperty,
-  DatabaseRow,
-  DatabaseCell,
-  PropertyType,
-} from "../types/database";
 
 /**
  * Kinds of calendar-displayed data the user can bulk soft-delete from
@@ -509,45 +501,6 @@ export interface DataService {
 
   // Shell
   openExternal(url: string): Promise<void>;
-
-  // Databases
-  fetchAllDatabases(): Promise<DatabaseEntity[]>;
-  fetchDatabaseFull(id: string): Promise<DatabaseFull | undefined>;
-  createDatabase(id: string, title: string): Promise<DatabaseEntity>;
-  updateDatabase(id: string, title: string): Promise<DatabaseEntity>;
-  softDeleteDatabase(id: string): Promise<void>;
-  permanentDeleteDatabase(id: string): Promise<void>;
-  addDatabaseProperty(
-    id: string,
-    databaseId: string,
-    name: string,
-    type: PropertyType,
-    order: number,
-    config: DatabaseProperty["config"],
-  ): Promise<DatabaseProperty>;
-  updateDatabaseProperty(
-    id: string,
-    updates: {
-      name?: string;
-      type?: PropertyType;
-      order?: number;
-      config?: DatabaseProperty["config"];
-    },
-  ): Promise<void>;
-  removeDatabaseProperty(id: string): Promise<void>;
-  addDatabaseRow(
-    id: string,
-    databaseId: string,
-    order: number,
-  ): Promise<DatabaseRow>;
-  reorderDatabaseRows(rowIds: string[]): Promise<void>;
-  removeDatabaseRow(id: string): Promise<void>;
-  upsertDatabaseCell(
-    id: string,
-    rowId: string,
-    propertyId: string,
-    value: string,
-  ): Promise<DatabaseCell>;
 
   // System Integration
   getAutoLaunch(): Promise<boolean>;
