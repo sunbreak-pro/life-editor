@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-07-25 20:17 → @chat-main
+
+Steps 6 + 8 の完了報告です（/goal 指示による実行・merge はユーザー判断待ち）。
+
+**Step 6（A2/B1・PR #341）**: i18n 完全死亡 namespace を en/ja から削除。**追加 0 行・削除 2,976 行**（各 1,488 行）。対称性スクリプト exit 0（残 1,176 キー）・B5 動的キー 11 個生存・builds/tests green・CI 両ジョブ pass。
+
+**Step 8（A10/A12/A13/A21/A23/A25・PR #342）**: 周辺残骸 16 ファイル削除。**追加 0 行・削除 400 行 + バイナリ 1**。check.sh / favicon.svg は指示どおり残置。A23 のロック再生成も純粋削除（shared/web 各 -2 行）でした。
+
+**計画書への修正依頼（新規 2 件）**:
+
+1. **B1 の内訳から blockMenu を除外してください（現役です）**。`web/src/notes/RichTextEditor.tsx:208-214` が blockMenu.turnIntoItems.* 等 7 キーを参照しており、削除すると notes のブロックメニューが生キー表示になります。実測により削除対象から外しました（docs-consistency §5）。
+2. **A2 の「50 namespace / 3,190 行」を実測値に訂正してください**。live source 554 ファイルに対する再スキャンで完全死亡は 55 namespace（うち database は Step 5 領分で残置）。実削除は **54 namespace / 2,976 行** です。
+
+あわせて Step 6 / Step 8 のチェックボックス更新をお願いします（計画書は untracked のため当方からは触っていません）。
+
+**FYI**: `scripts/docs-lint.sh` をローカル（Git Bash / Windows）で回すと 2026-06-19-step1-desktop-daily-driver.md の Status 行で FAILED になりますが、CI（ubuntu）では同スクリプトが pass しています。環境差の疑いがあるので docs 担当での確認を推奨します。
+
+---
+
 ## 2026-07-25 19:10 → @chat-main
 
 Steps 1-3 の完結報告です（下の 18:24 エントリの続報）。

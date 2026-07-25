@@ -1,5 +1,19 @@
 # HISTORY (chat-code-reduction)
 
+### 2026-07-25 - code-reduction Steps 6+8 (PR #341 / PR #342)
+
+#### 概要
+
+計画書 `2026-07-25-code-reduction.md` の Step 6（A2/B1 = i18n 完全死亡 namespace 削除）と Step 8（A10/A12/A13/A21/A23/A25 = リポジトリ周辺残骸）を /goal 指示で実行し、Step ごとに PR を作成した（PR #341: 追加 0 / 削除 2,976 行、PR #342: 追加 0 / 削除 400 行 + バイナリ 1。いずれも 100% 削除 diff・merge はユーザー判断待ち）。
+
+#### 変更点
+
+- **Step 6（PR #341）**: en/ja から死亡 namespace 54 個を各 1,488 行削除。削除前に live source 554 ファイルへの部分文字列スキャン + 動的 t() 呼び出し全数チェックで実測し、**計画書 B1 が死亡と記載した blockMenu が現役（web/src/notes/RichTextEditor.tsx:208-214）と判明したため残置**。database namespace は Step 5（👀 ゲート）領分として残置。B5 動的キー 11 個の生存・en/ja 対称性（残 1,176 キー）・builds/tests green を検証済み
+- **Step 8（PR #342）**: ROUTINE.md / loop-engine 4 ファイル（check.sh は残置）/ Android 雛形テスト 2 本 / .gitignore 重複+Tauri ブロック 9 行 / d3-ease 依存 4 行 / Vite scaffold アセット 4 ファイル（favicon.svg は残置）。A23 のロック再生成（npm install）も追加 0 行の純粋削除（shared/web 各 -2 行）
+- **手法**: 削除は全て Bash + node スクリプトによる外科的行削除（Edit ツールの保存時整形による追加行を回避 — Steps 1-3 の運用知見を踏襲）。JSON 末尾カンマ調整は結果的に不要だった
+- **検証**: shared build / web build exit 0・vitest 137 files / 1,084 tests all pass（両 Step とも）・PR #341 CI 両ジョブ pass
+- **記録**: docs-lint がローカル（Git Bash）で 2026-06-19 plan の Status 行を FAILED 判定するが CI（ubuntu）は pass する環境差を確認 — outbox で chat-main へ FYI 済み
+
 ### 2026-07-25 - code-reduction Steps 1-3 (PR #338) + A19 follow-up (PR #339)
 
 #### 概要
