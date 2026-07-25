@@ -48,11 +48,6 @@ import {
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { generateId } from "../utils/generateId";
-import {
-  NOTE_LINK_SELECT_COLUMNS,
-  rowToNoteLink,
-  type NoteLinkRow,
-} from "./noteLinkMapper";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
@@ -565,9 +560,6 @@ function _pendingDuRewrite(method: string, domain: string): never {
 
 class SupabaseNoteLinkService {
   private readonly client: SupabaseClient;
-  private static readonly _unused_select = NOTE_LINK_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToNoteLink;
-  declare private _unused_row: NoteLinkRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
@@ -2354,8 +2346,6 @@ export type {
   ItemsMetaUpdatePatch,
   TasksPayloadUpdatePatch,
 } from "./taskMapper";
-export { rowToNoteLink, noteLinkToRow, toNoteLinkType } from "./noteLinkMapper";
-export type { NoteLinkRow, NoteLinkWriteRow } from "./noteLinkMapper";
 
 // Schedule domain (S4-2) — mapper re-exports for round-trip / host use.
 export {

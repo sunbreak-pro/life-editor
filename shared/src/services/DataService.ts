@@ -7,12 +7,8 @@ import type {
 } from "../types/timer";
 import type {
   SoundSettings,
-  SoundPreset,
-  SoundTag,
-  SoundDisplayMeta,
 } from "../types/sound";
 import type { DailyNode } from "../types/daily";
-import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
@@ -24,16 +20,7 @@ import type {
 } from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
-  LogEntry,
-  IpcChannelMetrics,
-  SystemInfo,
-} from "../types/diagnostics";
-import type {
   WikiTag,
-  WikiTagAssignment,
-  WikiTagConnection,
-  WikiTagGroup,
-  WikiTagGroupMember,
   NoteConnection,
 } from "../types/wikiTag";
 import type {
@@ -43,32 +30,12 @@ import type {
   WikiTagGroup as WikiTagGroupUnified,
   WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "../types/wikiTagUnified";
-import type { TimeMemo } from "../types/timeMemo";
 import type {
   NoteLink,
   NoteLinkPayload,
   BacklinkHit,
   UnlinkedMention,
 } from "../types/noteLink";
-import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
-import type { AttachmentMeta } from "../types/attachment";
-import type { FileEntry, FileInfo } from "../types/fileExplorer";
-import type {
-  DatabaseEntity,
-  DatabaseFull,
-  DatabaseProperty,
-  DatabaseRow,
-  DatabaseCell,
-  PropertyType,
-} from "../types/database";
-import type { Template } from "../types/template";
-import type { SyncResult, SyncStatus } from "../types/sync";
-import type {
-  SidebarLink,
-  SidebarLinkUpdate,
-  BrowserInfo,
-  InstalledApp,
-} from "../types/sidebarLink";
 
 /**
  * Kinds of calendar-displayed data the user can bulk soft-delete from
@@ -162,48 +129,11 @@ export interface DataService {
    * simply yields a URL that 404s on play.
    */
   getSoundAssetUrl(objectName: string): Promise<string>;
-  fetchSoundPresets(): Promise<SoundPreset[]>;
-  createSoundPreset(name: string, settingsJson: string): Promise<SoundPreset>;
-  deleteSoundPreset(id: number): Promise<void>;
-
-  // Sound Tags
-  fetchAllSoundTags(): Promise<SoundTag[]>;
-  createSoundTag(name: string, color: string): Promise<SoundTag>;
-  updateSoundTag(
-    id: number,
-    updates: { name?: string; color?: string; textColor?: string | null },
-  ): Promise<SoundTag>;
-  deleteSoundTag(id: number): Promise<void>;
-  fetchTagsForSound(soundId: string): Promise<SoundTag[]>;
-  setTagsForSound(soundId: string, tagIds: number[]): Promise<void>;
-  fetchAllSoundTagAssignments(): Promise<
-    Array<{ soundId: string; tagId: number }>
-  >;
-  fetchAllSoundDisplayMeta(): Promise<SoundDisplayMeta[]>;
-  updateSoundDisplayMeta(soundId: string, displayName: string): Promise<void>;
-  fetchWorkscreenSelections(): Promise<
-    Array<{ soundId: string; displayOrder: number }>
-  >;
-  setWorkscreenSelections(soundIds: string[]): Promise<void>;
 
   // Daily / Notes legacy method signatures were removed in DU-G G4.
   // The Daily + Notes write paths now go through the *Unified blocks below
   // (items_meta + dailies_payload / notes_payload 2-row pattern); the
   // legacy Bridge that mapped legacy → Unified names has been retired.
-
-  // Custom Sounds
-  saveCustomSound(
-    id: string,
-    data: ArrayBuffer,
-    meta: CustomSoundMeta,
-  ): Promise<void>;
-  loadCustomSound(id: string): Promise<ArrayBuffer | null>;
-  deleteCustomSound(id: string): Promise<void>;
-  fetchCustomSoundMetas(): Promise<CustomSoundMeta[]>;
-  fetchDeletedCustomSounds(): Promise<CustomSoundMeta[]>;
-  restoreCustomSound(id: string): Promise<void>;
-  permanentDeleteCustomSound(id: string): Promise<void>;
-  updateCustomSoundLabel(id: string, label: string): Promise<void>;
 
   // Calendars
   fetchCalendars(): Promise<CalendarNode[]>;
@@ -385,65 +315,10 @@ export interface DataService {
 
   // Wiki Tags
   fetchWikiTags(): Promise<WikiTag[]>;
-  searchWikiTags(query: string): Promise<WikiTag[]>;
-  createWikiTag(name: string, color: string): Promise<WikiTag>;
-  createWikiTagWithId(
-    id: string,
-    name: string,
-    color: string,
-  ): Promise<WikiTag>;
-  updateWikiTag(
-    id: string,
-    updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
-  ): Promise<WikiTag>;
-  deleteWikiTag(id: string): Promise<void>;
-  mergeWikiTags(sourceId: string, targetId: string): Promise<WikiTag>;
-  fetchWikiTagsForEntity(entityId: string): Promise<WikiTag[]>;
   setWikiTagsForEntity(
     entityId: string,
     entityType: string,
     tagIds: string[],
-  ): Promise<void>;
-  syncInlineWikiTags(
-    entityId: string,
-    entityType: string,
-    tagNames: string[],
-  ): Promise<void>;
-  fetchAllWikiTagAssignments(): Promise<WikiTagAssignment[]>;
-  restoreWikiTagAssignment(
-    tagId: string,
-    entityId: string,
-    entityType: string,
-    source: string,
-  ): Promise<void>;
-
-  // Wiki Tag Groups
-  fetchWikiTagGroups(): Promise<WikiTagGroup[]>;
-  createWikiTagGroup(
-    name: string,
-    noteIds: string[],
-    filterTags?: string[],
-  ): Promise<WikiTagGroup>;
-  updateWikiTagGroup(
-    id: string,
-    updates: { name?: string; filterTags?: string[] },
-  ): Promise<WikiTagGroup>;
-  deleteWikiTagGroup(id: string): Promise<void>;
-  fetchAllWikiTagGroupMembers(): Promise<WikiTagGroupMember[]>;
-  setWikiTagGroupMembers(groupId: string, noteIds: string[]): Promise<void>;
-  addWikiTagGroupMember(groupId: string, noteId: string): Promise<void>;
-  removeWikiTagGroupMember(groupId: string, noteId: string): Promise<void>;
-
-  // Wiki Tag Connections
-  fetchWikiTagConnections(): Promise<WikiTagConnection[]>;
-  createWikiTagConnection(
-    sourceTagId: string,
-    targetTagId: string,
-  ): Promise<WikiTagConnection>;
-  deleteWikiTagConnection(id: string): Promise<void>;
-  deleteWikiTagConnectionByPair(
-    sourceTagId: string,
-    targetTagId: string,
   ): Promise<void>;
 
   // Wiki Tags Unified (DU-C+ — items_meta-based tag/link, 5 roles)
@@ -580,262 +455,10 @@ export interface DataService {
   deleteNoteLinksForNote(sourceNoteId: string): Promise<void>;
   fetchUnlinkedMentions(sourceNoteId: string): Promise<UnlinkedMention[]>;
 
-  // Time Memos
-  fetchTimeMemosByDate(date: string): Promise<TimeMemo[]>;
-  upsertTimeMemo(
-    id: string,
-    date: string,
-    hour: number,
-    content: string,
-  ): Promise<TimeMemo>;
-  deleteTimeMemo(id: string): Promise<void>;
-
-  // Paper Boards
-  fetchPaperBoards(): Promise<PaperBoard[]>;
-  fetchPaperBoardById(id: string): Promise<PaperBoard | null>;
-  fetchPaperBoardByNoteId(noteId: string): Promise<PaperBoard | null>;
-  createPaperBoard(
-    name: string,
-    linkedNoteId?: string | null,
-  ): Promise<PaperBoard>;
-  updatePaperBoard(
-    id: string,
-    updates: Partial<
-      Pick<
-        PaperBoard,
-        | "name"
-        | "linkedNoteId"
-        | "viewportX"
-        | "viewportY"
-        | "viewportZoom"
-        | "order"
-      >
-    >,
-  ): Promise<PaperBoard>;
-  deletePaperBoard(id: string): Promise<void>;
-
-  // Paper Nodes
-  fetchPaperNodeCountsByBoard(): Promise<Record<string, number>>;
-  fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]>;
-  createPaperNode(params: {
-    id?: string;
-    boardId: string;
-    nodeType: PaperNode["nodeType"];
-    positionX: number;
-    positionY: number;
-    width?: number;
-    height?: number;
-    zIndex?: number;
-    parentNodeId?: string | null;
-    refEntityId?: string | null;
-    refEntityType?: string | null;
-    textContent?: string | null;
-    frameColor?: string | null;
-    frameLabel?: string | null;
-    label?: string | null;
-    hidden?: boolean;
-  }): Promise<PaperNode>;
-  updatePaperNode(
-    id: string,
-    updates: Partial<
-      Pick<
-        PaperNode,
-        | "positionX"
-        | "positionY"
-        | "width"
-        | "height"
-        | "zIndex"
-        | "parentNodeId"
-        | "textContent"
-        | "frameColor"
-        | "frameLabel"
-        | "label"
-        | "hidden"
-      >
-    >,
-  ): Promise<PaperNode>;
-  bulkUpdatePaperNodePositions(
-    updates: Array<{
-      id: string;
-      positionX: number;
-      positionY: number;
-      parentNodeId: string | null;
-    }>,
-  ): Promise<void>;
-  bulkUpdatePaperNodeZIndices(
-    updates: Array<{
-      id: string;
-      zIndex: number;
-      parentNodeId: string | null;
-    }>,
-  ): Promise<void>;
-  deletePaperNode(id: string): Promise<void>;
-
-  // Paper Edges
-  fetchPaperEdgesByBoard(boardId: string): Promise<PaperEdge[]>;
-  createPaperEdge(params: {
-    boardId: string;
-    sourceNodeId: string;
-    targetNodeId: string;
-    sourceHandle?: string | null;
-    targetHandle?: string | null;
-    label?: string | null;
-    styleJson?: string | null;
-  }): Promise<PaperEdge>;
-  deletePaperEdge(id: string): Promise<void>;
-
-  // Data I/O
-  exportData(): Promise<boolean>;
-  importData(): Promise<boolean>;
-  resetData(): Promise<boolean>;
-  bulkSoftDeleteCalendarData(
-    kinds: CalendarDataKind[],
-  ): Promise<BulkSoftDeleteResult>;
-
-  // Diagnostics
-  fetchLogs(options?: { level?: string; limit?: number }): Promise<LogEntry[]>;
-  openLogFolder(): Promise<void>;
-  exportLogs(): Promise<boolean>;
-  fetchMetrics(): Promise<IpcChannelMetrics[]>;
-  resetMetrics(): Promise<boolean>;
-  fetchSystemInfo(): Promise<SystemInfo>;
-
   // Shell
   openExternal(url: string): Promise<void>;
-  openAttachmentFile(id: string): Promise<void>;
-
-  // Attachments
-  saveAttachment(meta: AttachmentMeta, data: ArrayBuffer): Promise<void>;
-  loadAttachment(id: string): Promise<ArrayBuffer | null>;
-  deleteAttachment(id: string): Promise<void>;
-  fetchAttachmentMetas(): Promise<AttachmentMeta[]>;
-
-  // Updater
-  checkForUpdates(): Promise<void>;
-  downloadUpdate(): Promise<void>;
-  installUpdate(): Promise<void>;
-
-  // Databases
-  fetchAllDatabases(): Promise<DatabaseEntity[]>;
-  fetchDatabaseFull(id: string): Promise<DatabaseFull | undefined>;
-  createDatabase(id: string, title: string): Promise<DatabaseEntity>;
-  updateDatabase(id: string, title: string): Promise<DatabaseEntity>;
-  softDeleteDatabase(id: string): Promise<void>;
-  permanentDeleteDatabase(id: string): Promise<void>;
-  addDatabaseProperty(
-    id: string,
-    databaseId: string,
-    name: string,
-    type: PropertyType,
-    order: number,
-    config: DatabaseProperty["config"],
-  ): Promise<DatabaseProperty>;
-  updateDatabaseProperty(
-    id: string,
-    updates: {
-      name?: string;
-      type?: PropertyType;
-      order?: number;
-      config?: DatabaseProperty["config"];
-    },
-  ): Promise<void>;
-  removeDatabaseProperty(id: string): Promise<void>;
-  addDatabaseRow(
-    id: string,
-    databaseId: string,
-    order: number,
-  ): Promise<DatabaseRow>;
-  reorderDatabaseRows(rowIds: string[]): Promise<void>;
-  removeDatabaseRow(id: string): Promise<void>;
-  upsertDatabaseCell(
-    id: string,
-    rowId: string,
-    propertyId: string,
-    value: string,
-  ): Promise<DatabaseCell>;
-
-  // App Settings (main-process-accessible)
-  getAppSetting(key: string): Promise<string | null>;
-  setAppSetting(key: string, value: string): Promise<void>;
-  getAllAppSettings(): Promise<Record<string, string>>;
-  removeAppSetting(key: string): Promise<void>;
-
-  // Templates
-  fetchAllTemplates(): Promise<Template[]>;
-  fetchTemplateById(id: string): Promise<Template | undefined>;
-  createTemplate(id: string, name: string): Promise<Template>;
-  updateTemplate(
-    id: string,
-    updates: { name?: string; content?: string },
-  ): Promise<Template>;
-  softDeleteTemplate(id: string): Promise<void>;
-  permanentDeleteTemplate(id: string): Promise<void>;
 
   // System Integration
   getAutoLaunch(): Promise<boolean>;
   setAutoLaunch(enabled: boolean): Promise<void>;
-  getStartMinimized(): Promise<boolean>;
-  setStartMinimized(enabled: boolean): Promise<void>;
-  getTrayEnabled(): Promise<boolean>;
-  setTrayEnabled(enabled: boolean): Promise<void>;
-  getGlobalShortcuts(): Promise<Record<string, string>>;
-  setGlobalShortcuts(shortcuts: Record<string, string>): Promise<void>;
-  reregisterGlobalShortcuts(): Promise<{ success: boolean }>;
-  updateTrayTimer(state: {
-    remaining: string;
-    isRunning: boolean;
-  }): Promise<void>;
-  listBrowsers(): Promise<BrowserInfo[]>;
-  listApplications(): Promise<InstalledApp[]>;
-  systemOpenUrl(url: string, browserId?: string | null): Promise<void>;
-  systemOpenApp(appPath: string): Promise<void>;
-
-  // Sidebar Links
-  fetchSidebarLinks(): Promise<SidebarLink[]>;
-  createSidebarLink(input: {
-    id: string;
-    kind: "url" | "app";
-    name: string;
-    target: string;
-    emoji?: string | null;
-  }): Promise<SidebarLink>;
-  updateSidebarLink(
-    id: string,
-    updates: SidebarLinkUpdate,
-  ): Promise<SidebarLink>;
-  deleteSidebarLink(id: string): Promise<void>;
-  reorderSidebarLinks(ids: string[]): Promise<void>;
-
-  // Reminders
-  getReminderSettings(): Promise<Record<string, string>>;
-  setReminderSettings(settings: Record<string, string>): Promise<void>;
-
-  // Files
-  selectFolder(): Promise<string | null>;
-  getFilesRootPath(): Promise<string | null>;
-  listDirectory(relativePath: string): Promise<FileEntry[]>;
-  getFileInfo(relativePath: string): Promise<FileInfo>;
-  readTextFile(relativePath: string): Promise<string>;
-  readFile(relativePath: string): Promise<ArrayBuffer>;
-  createDirectory(relativePath: string): Promise<void>;
-  createFile(relativePath: string): Promise<void>;
-  writeTextFile(relativePath: string, content: string): Promise<void>;
-  renameFile(oldPath: string, newPath: string): Promise<void>;
-  moveFile(sourcePath: string, destPath: string): Promise<void>;
-  deleteFile(relativePath: string): Promise<void>;
-  openFileInSystem(relativePath: string): Promise<void>;
-
-  // Copy (Notes/Dailies <-> Files)
-  copyNoteToFile(noteId: string, directoryPath: string): Promise<string>;
-  copyDailyToFile(dailyDate: string, directoryPath: string): Promise<string>;
-  convertFileToTiptap(
-    relativeFilePath: string,
-  ): Promise<{ title: string; content: string }>;
-
-  // Sync
-  syncConfigure(url: string, token: string): Promise<boolean>;
-  syncTrigger(): Promise<SyncResult>;
-  syncGetStatus(): Promise<SyncStatus>;
-  syncDisconnect(): Promise<void>;
-  syncFullDownload(): Promise<SyncResult>;
 }
