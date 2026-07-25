@@ -37,21 +37,29 @@ below), never by weakening the detector.
 
 ```bash
 cd supabase
-
-# 1. Gate FIRST. Never skip this before pushing schema changes.
-npm run db:check-rls          # exit 0 = safe, 1 = leak, 2 = inconclusive
-
-# 2. Only if the gate is GREEN (exit 0):
-npx supabase db push
+npm run db:push
 ```
 
-`npm run db:push` does both in one step (gate, then push only if the
-gate passed) and is the recommended entry point:
+That is the **only** entry point you should use. It runs the gate first and
+pushes only if the gate passed, and it invokes the CLI from the repo root
+(see below).
+
+To run the gate alone without pushing:
 
 ```bash
 cd supabase
-npm run db:push
+npm run db:check-rls          # exit 0 = safe, 1 = leak, 2 = inconclusive
 ```
+
+> ⚠️ **Do not call `npx supabase db push` by hand from `supabase/`.** The CLI
+> resolves migrations as `<cwd>/supabase/migrations`, so from inside
+> `supabase/` it looks in `supabase/supabase/migrations`, finds nothing, and
+> aborts with `Remote migration versions not found in local migrations
+directory` listing every already-applied version. **That message is a
+> false alarm — it does not mean the history is broken, and the
+> `supabase migration repair` / `supabase db pull` commands the CLI suggests
+> would rewrite a perfectly good history.** If you must call the CLI
+> directly, run it from the repo root. (2026-07-25, CLI 2.109.1.)
 
 > Rule: **a migration is not "done" until `db:check-rls` is green AND
 > `db push` has been run.** Treat exit code 2 (inconclusive — e.g. the
@@ -69,10 +77,26 @@ string — the public anon key cannot read `pg_catalog`.
 | ----------------- | ------------------------------------------------------------------------- |
 | `SUPABASE_DB_URL` | Postgres connection URI for the linked project (a secret — never commit). |
 
-Get it from: **Supabase Dashboard → Project Settings → Database →
-Connection string (URI)**. Use the direct connection or the pooler URI.
+Get it from the **Connect** button at the top of the dashboard (it is no
+longer under Project Settings). Pick the **Session pooler** tab and copy the
+URI verbatim, then substitute the password.
+
+> ⚠️ **Session pooler (5432), not transaction pooler (6543).** Transaction
+> pooling multiplexes many clients onto shared backends, so the CLI's
+> prepared statements collide and the push dies with
+> `ERROR: prepared statement "lrupsc_1_0" already exists (SQLSTATE 42P05)`.
+> For the same reason, do not append `?pgbouncer=true`. The direct
+> connection (`db.<ref>.supabase.co:5432`) also works but is IPv6-only on
+> newer projects, so it may be unreachable depending on your network — the
+> session pooler is IPv4-friendly and is the safe default. (2026-07-25)
+
+The database password cannot be read back after project creation — if you do
+not have it, reset it at **Settings → Database → Database password**.
+Resetting does not affect the app, which authenticates with the anon key
+(`web/.env.local`), not this password.
+
 Percent-encode the password if it contains reserved characters
-(`@ : / ? # [ ]`).
+(`@ : / ? # [ ]`) — e.g. `!` → `%21`, `@` → `%40`.
 
 Provide it in **one** of these ways:
 
