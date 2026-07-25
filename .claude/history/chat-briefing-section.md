@@ -1,5 +1,20 @@
 # HISTORY (chat-briefing-section)
 
+### 2026-07-26 - Issue #318: Mobile 幅で朝刊/夕刊タブが切替不能
+
+#### 概要
+
+狭幅（<768px）では AppShell が header スロットを wide ブランチでしか描画せず、Briefing のタブ帯（唯一の切替 UI）が消えて夕刊へ到達できなかったバグを修正（PR #357・merge 待ち）。両紙面ビューに optional な `tabSwitcher` スロットを設け、MainScreen が狭幅のときだけ shared の SegmentedControl を流し込む形にして、wide の SectionHeader 挙動は完全に据え置いた。
+
+#### 変更点
+
+- **BriefingView / EveningView (shared)**: optional `tabSwitcher?: ReactNode` を追加し masthead 直下に描画。loading スケルトン側にも同じスロットを出して、フェッチ待ちで片方のタブに閉じ込められないようにした。ガードは `!= null`（ホストが `cond ? <X/> : null` を渡しても空の罫線帯が残らない）
+- **MainScreen (web)**: 朝刊/夕刊のタブ定義を `briefingTabDefs` に一本化し、wide の HeaderTabs と narrow の SegmentedControl が同じ配列を読むようにした。狭幅判定は既存の `isWide`（`(min-width: 768px)`）で、wide では `undefined` を渡すため in-body 帯は出ない = tablist の二重存在なし
+- **BriefingScreen (web)**: `tabSwitcher` を両ビューへパススルー（データ取得ロジックは無変更）
+- **i18n**: 新規キーなし。既存の `briefing.tabs.morning` / `briefing.tabs.evening` / `briefing.tabsLabel`（en/ja 両方に実在）を再利用
+- **テスト**: shared/tests/briefingView.test.tsx に 8 件追加（朝刊・夕刊 × 通常/loading で帯が出る / 未指定・null で帯が出ない）。shared vitest 1087 / shared tsc -b / web build / web eslint 全 green
+- **監査**: role-qa 独立監査 PASS（BLOCKING 0）。指摘の null ガードは本 PR に取り込み済み。残課題として「帯が紙面と一緒にスクロールする（Materials は固定ヘッダー方式）」と「768px リテラルが AppShell と MainScreen に二重定義」を PR 本文に明記
+
 ### 2026-07-18 - Issue #263: F-6 夕刊専用ページ（Briefing 朝刊/夕刊タブ）
 
 #### 概要
