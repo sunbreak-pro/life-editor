@@ -6,7 +6,6 @@ import {
   addDaysKey,
   type FrequencyEditorValue,
   type RepeatScope,
-  type RoutineGroup,
   type RoutineNode,
   type ScheduleItem,
 } from "@life-editor/shared";
@@ -91,7 +90,6 @@ export interface UseScheduleMutationsArgs {
     >,
   ) => void;
   deleteRoutine: (id: string) => Promise<{ deletedScheduleItemIds: string[] }>;
-  setGroupsForRoutine: (routineId: string, groupIds: string[]) => void;
   detachRoutine: (
     id: string,
     fromDate?: string,
@@ -114,12 +112,21 @@ export interface UseScheduleMutationsArgs {
     startDate: string,
     endDate: string,
     routines: RoutineNode[],
-    groupForRoutine?: Map<string, RoutineGroup[]>,
   ) => Promise<boolean>;
-  // `group`-frequency lookup (#296): the range-ensure treats a group-type
-  // routine with no resolvable groups as "should never exist" — omitting
-  // this map would let its cleanup soft-delete every group-driven row.
-  groupForRoutine: Map<string, RoutineGroup[]>;
+  // Frequency-change propagation (#352 Step 4). Re-shapes the already
+  // materialised future of ONE routine after its frequency changed: days
+  // that stopped firing are soft-deleted, days that started firing are
+  // created. `template` = the routine's PRE-edit title/times, so rows the
+  // user edited individually keep their edit (tier-1 §Schedule rule 2).
+  reconcileRoutineScheduleItems: (
+    routine: RoutineNode,
+    dateRange?: { startDate: string; endDate: string },
+    template?: {
+      title: string;
+      startTime: string | null;
+      endTime: string | null;
+    },
+  ) => Promise<void>;
   // Task-chip drag-to-write (#297 A-2). Task chips are derived from the
   // TaskTree, not `rangeItems`, so the write lives in the host (which holds
   // taskNodes + updateNode); this layer only routes a task-chip id to it.
@@ -159,11 +166,10 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     convertEventToRoutine,
     updateRoutine,
     deleteRoutine,
-    setGroupsForRoutine,
     detachRoutine,
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
-    groupForRoutine,
+    reconcileRoutineScheduleItems,
     onMoveTaskChip,
     onResizeTaskChip,
     copySuffix,
@@ -409,18 +415,41 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     (patch: Partial<FrequencyEditorValue>) => {
       if (!selected) return;
       if (selected.routineId != null) {
-        const { groupIds, ...rest } = patch;
-        if (groupIds !== undefined)
-          setGroupsForRoutine(selected.routineId, groupIds);
-        if (Object.keys(rest).length > 0) {
-          updateRoutine(selected.routineId, rest);
-        }
+        if (Object.keys(patch).length === 0) return;
+        const routineId = selected.routineId;
+        updateRoutine(routineId, patch);
+        // #352 Step 4: the template update alone only steers FUTURE
+        // generation — occurrences already materialised keep the old
+        // rhythm (rows on days that no longer fire, gaps on days that
+        // now do). Reconcile re-shapes them across the visible range,
+        // skipping done / dismissed / hand-edited rows (tier-1
+        // §Schedule 競合解決ルール 1-3). The routine as it exists BEFORE
+        // this patch is the rule-2 template: title/times are untouched
+        // by a frequency edit, so a row deviating from them was edited
+        // individually and stays the user's.
+        const routine = routines.find((r) => r.id === routineId);
+        if (!routine) return;
+        void (async () => {
+          try {
+            await reconcileRoutineScheduleItems(
+              { ...routine, ...patch },
+              { startDate: rangeStart, endDate: rangeEnd },
+              {
+                title: routine.title,
+                startTime: routine.startTime,
+                endTime: routine.endTime,
+              },
+            );
+          } finally {
+            reload();
+          }
+        })();
         return;
       }
-      // Manual → turn a repeat on. group is not offered here (allowGroup=false),
-      // so only a concrete daily/weekdays/interval type reaches this branch.
+      // Manual → turn a repeat on. Only a concrete daily/weekdays/interval
+      // type can reach this branch (the editor offers nothing else).
       const type = patch.frequencyType;
-      if (!type || type === "group") return;
+      if (!type) return;
       const seed = selected;
       const [yy, mm, dd] = seed.date.split("-").map(Number);
       const seedWeekday = new Date(yy, mm - 1, dd).getDay();
@@ -479,34 +508,28 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           a >= b ? a : b,
         );
         if (windowStart <= rangeEnd) {
-          await ensureRoutineItemsForDateRange(
-            windowStart,
-            rangeEnd,
-            [optimisticRoutine],
-            groupForRoutine,
-          );
+          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+            optimisticRoutine,
+          ]);
           // Second idempotent pass: the always-on today generator can race
           // the first batch on today's row (23505 → whole-batch rollback
           // inside ensure). The re-run's pre-check sees the winner and fills
           // in the remaining days.
-          await ensureRoutineItemsForDateRange(
-            windowStart,
-            rangeEnd,
-            [optimisticRoutine],
-            groupForRoutine,
-          );
+          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+            optimisticRoutine,
+          ]);
         }
         reload();
       })();
     },
     [
       selected,
-      setGroupsForRoutine,
+      routines,
       updateRoutine,
+      reconcileRoutineScheduleItems,
       convertEventToRoutine,
       patchRange,
       ensureRoutineItemsForDateRange,
-      groupForRoutine,
       rangeStart,
       rangeEnd,
       today,
@@ -581,9 +604,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // Returns false when the fill did not fully land (#296) — the caller
       // must then ABORT its destructive follow-up: detaching / rewriting the
       // series after a failed fill would erase days the user did not select
-      // (they only exist on demand). groupForRoutine is threaded through so
-      // a group-frequency routine's rows read as legitimate — omitting the
-      // map made the ensure cleanup treat every one of them as stale.
+      // (they only exist on demand).
       const fillUpToAnchor = async (
         routine: RoutineNode,
         anchor: string,
@@ -592,12 +613,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         const end = addDaysKey(anchor, -1);
         const start = today;
         if (start <= end) {
-          return ensureRoutineItemsForDateRange(
-            start,
-            end,
-            [routine],
-            groupForRoutine,
-          );
+          return ensureRoutineItemsForDateRange(start, end, [routine]);
         }
         return true;
       };
@@ -731,7 +747,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       detachRoutine,
       deleteRoutine,
       ensureRoutineItemsForDateRange,
-      groupForRoutine,
       today,
       setRangeItems,
       setSelectedId,

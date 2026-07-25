@@ -163,10 +163,10 @@
 ### Boundary
 
 - やる:
-  - **Routine**: `frequencyType`（`daily` / `weekdays` / `interval`）+ `frequencyDays` / `frequencyInterval` / `frequencyStartDate` による反復定義、リマインダー、グループ化、タグ付与（`group` 頻度 = RoutineGroup は **2026-07-14 削除決定** — グループ管理 UI が存在せず割当対象が常に空で実質機能していないため、再設計 Step 4 でコード撤去・DB テーブルは DDL ルールに従い当面残置。**リマインダーは凍結を明記**: `reminderEnabled` / `reminderOffset` は型 + 作成 API のみで UI / 通知発火なし — 再開 = 通知基盤（Electron 包装 Phase 3）以降）
+  - **Routine**: `frequencyType`（`daily` / `weekdays` / `interval`）+ `frequencyDays` / `frequencyInterval` / `frequencyStartDate` による反復定義、リマインダー、タグ付与（`group` 頻度 = RoutineGroup は **2026-07-26 #352 でコード撤去済み**（2026-07-14 決定の実施） — グループ管理 UI が存在せず割当対象が常に空で実質機能していなかったため。DB テーブルと 0008 CHECK の `'group'` は DDL ルールに従い残置し、読み込み時は `normaliseFrequency` が「発火しない routine」へ正規化する。**リマインダーは凍結を明記**: `reminderEnabled` / `reminderOffset` は型 + 作成 API のみで UI / 通知発火なし — 再開 = 通知基盤（Electron 包装 Phase 3）以降）
   - **ScheduleItem**: 日次アイテム CRUD（`date` / `startTime` / `endTime` / `isAllDay` / `completed` / `content` / `memo` / `reminderEnabled`）、Routine 由来（`routineId`）と個別作成の両方
-  - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）→ **未配線（2026-07-14 実測訂正）**: `ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` 等はテスト以外から未呼び出しのデッドコード。現行の実挙動は表示中日付の `ensureRoutineItemsForDate` のみ（2026-07-19 #279 で creation-only 化 — 既存行の diff 更新は行わない）
-  - **Routine 変更の反映**: 頻度 / 時刻を変更したときに既存 ScheduleItem へ reconciliation → **未配線（同上）**: `reconcileRoutineScheduleItems` は再設計 Step 4 で配線予定（競合解決ルールは下記「競合解決ルール」）
+  - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）→ **やらない（2026-07-26 #352 で撤去）**: `ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines` は一度も配線されないデッドコードだったため削除した。現行の materialise は表示中日付の `ensureRoutineItemsForDate`（2026-07-19 #279 で creation-only 化 — 既存行の diff 更新は行わない）と可視範囲の `ensureRoutineItemsForDateRange` の 2 本
+  - **Routine 変更の反映**: **頻度**を変更したときに materialise 済みの未来 occurrence へ reconciliation → **配線済み（2026-07-26 #352）**: `reconcileRoutineScheduleItems` が繰り返し設定の編集で発火し、発火日から外れた未来行を soft-delete / 新たに発火する日を生成する。done / dismissed / 過去 / 手動編集済みの行は対象外（下記「競合解決ルール」1-3・vitest = `shared/tests/reconcileRoutine.test.tsx`）。**タイトル / 時刻**の系列伝播は別経路（範囲選択ダイアログ → `updateFutureScheduleItemsByRoutine`・#279）
   - **カスケード削除**: Routine 削除時に紐づく ScheduleItem も削除（配線済み。繰り返し解除 = `detachRoutine` は過去実績を保全 — #185 実装済み）
   - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与 → CalendarTags は DU-F で全プラットフォーム撤去済み（履歴）。分類の後継 = カレンダー台帳（calendars）のタグフィルタ配線（再設計 Step 6）+ life-tags
   - **3 サブタブ UI**: Calendar（月 / 週 / 日）/ DayFlow（1 日の時系列）/ Routine（定義一覧 + 達成率）→ 本行は Tauri 期の履歴（2026-07-14 注記）: DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Routine（Repeats）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）
@@ -181,7 +181,7 @@
 ### Acceptance Criteria
 
 - [ ] AC1: `frequencyType=weekdays` + `frequencyDays=[1,3,5]` のルーチンを作成すると、今後 1 週間の月水金に ScheduleItem が自動生成され Calendar / DayFlow に表示される（2026-07-14 訂正: 現行の実挙動は「該当日を Calendar で表示した時点で materialise」— 週先行 backfill は未配線。DayFlow は退役済み）
-- [ ] AC2: 既存 Routine の `startTime` を変更すると、未完了の関連 ScheduleItem の時刻が追従し、完了済みアイテムは影響を受けない（2026-07-14 注記: materialise 済み未来行への一括伝播は未配線 — 再設計 Step 4 の reconcile 配線で成立予定。追従の詳細は下記「競合解決ルール」）
+- [x] AC2: 既存 Routine の `startTime` を変更すると、未完了の関連 ScheduleItem の時刻が追従し、完了済みアイテムは影響を受けない（2026-07-26 成立 — 時刻 / タイトルは範囲選択ダイアログ経由の `updateFutureScheduleItemsByRoutine`（#279）、頻度は `reconcileRoutineScheduleItems`（#352）。どちらも done / dismissed / 手動編集済みを除外する。詳細は下記「競合解決ルール」）
 - [ ] AC3: Routine を削除（ソフトデリート）すると、その `routineId` を持つ未完了 ScheduleItem が同時に削除される（カスケード）
 - [ ] AC4: `toggle_schedule_complete` で ScheduleItem を完了すると `completed=true` + `completedAt` が保存され、`routineId` がある場合は `routine_logs` に日次完了が記録される
 - [ ] AC5: Calendar ビューの月 / 週 / 日表示が同じデータを一貫して表示し、どの画面で編集しても即時相互反映される（`useScheduleItemsContext` 共有）
@@ -193,10 +193,10 @@
 
 ### 競合解決ルール（Routine 自動生成 × 手動編集 — 2026-07-14 文書化）
 
-同一 Routine から materialise 済みの occurrence（Event 行）と、Routine 定義の変更・再生成との競合は次のルールで解決する（テストは再設計 Step 4 = reconcile 配線と同時に張る）:
+同一 Routine から materialise 済みの occurrence（Event 行）と、Routine 定義の変更・再生成との競合は次のルールで解決する（vitest = `shared/tests/reconcileRoutine.test.tsx`（頻度伝播 / #352）+ `shared/tests/ensureRangeCleanup.test.tsx`（生成器の掃除 / #296））:
 
 1. **実績は不可侵**: 完了（`done`）または dismiss 済みの occurrence は、再生成・reconcile・カスケード削除のいずれからも上書き / 削除されない（生活記録の保全）。dismiss 済み行は live 扱いで同日の再生成もブロックする（`uq_events_payload_routine_date` の意味論 — #185 計画書 Risks 参照）
-2. **手動編集は Routine 変更に勝つ**: occurrence 単位で個別編集（タイトル / 時刻 / メモ等）された行は、Routine の頻度 / 時刻変更の未来伝播（reconcile）が上書きしない。伝播対象は「未完了・未 dismiss・手動未編集」の materialise 済み未来行のみ（手動編集の判定は Routine テンプレート値との差分比較を基本とし、実装詳細は Step 4 で確定 — DDL ゼロ制約内）
+2. **手動編集は Routine 変更に勝つ**: occurrence 単位で個別編集（タイトル / 時刻 / メモ等）された行は、Routine の頻度 / 時刻変更の未来伝播（reconcile）が上書きしない。伝播対象は「未完了・未 dismiss・手動未編集」の materialise 済み未来行のみ。**手動編集の判定（2026-07-26 #352 で確定・DDL ゼロ）= 編集前の Routine テンプレート値（title / startTime / endTime）との一致比較**: 一致する行だけが「未編集」。時刻 null の Routine は生成デフォルト（09:00 / 09:30）を実効値として比較する（null をワイルドカード扱いすると手動時刻の行が保護を失う）。日付が `source_date` からずれた行（手動移動）も編集扱いで対象外（#296）
 3. **頻度変更で発火日から外れた未来行**: 未完了・手動未編集の行のみ掃除（soft-delete）する。完了 / dismiss 済みはルール 1 のとおり残す
 4. **繰り返し解除（`detachRoutine`）**: 今日以降の未完了 occurrence のみ soft-delete し、それ以外の生存 occurrence（過去分の完了 / 未完了、および未来の完了済み分）は残す。残す occurrence は `routine_item_id` を NULL 化して Routine から真に切り離す（#185 の 2026-07-12 S-1 — 「detach → ゴミ箱を空にする」が過去実績を巻き込む事故経路の封鎖。detach 後は過去分の routine variant 表示が外れるトレードオフは受容済み）
 5. **範囲選択ダイアログ（2026-07-19 #279 — #185 の「編集は常に系列全体・この回のみは Non-goal」決定を SUPERSEDE）**: 繰り返し由来 occurrence のタイトル / 時刻の編集、および削除は、画面中央の範囲選択ダイアログ（この予定のみ / この予定と今後の予定 / すべての予定）を経由する。編集 = この予定のみ → 当該行のみ patch（以後ルール 2 の手動編集扱い）／今後・すべて → Routine テンプレート更新 + `updateFutureScheduleItemsByRoutine`（ルール 1・2 準拠: done / dismiss / 手動編集済み行は伝播対象外。anchor = 当該 occurrence 日付、すべて = epoch）。削除 = この予定のみ → dismiss（Issue 017 の再生成防止意味論）／今後 → `detachRoutine(id, 当該日)` ／すべて → `softDeleteRoutine`（全 live occurrence をゴミ箱へ = ユーザーの明示選択・Trash から復元可）。日付をまたぐドラッグ移動と memo 編集はテンプレートに対応概念が無いため常に occurrence 単位（ダイアログなし）
@@ -213,7 +213,7 @@
 - ADR-0003 統合済み（3 Provider 分割でパフォーマンス改善）
 - CLAUDE.md §2 Platform 参照（Mobile では CalendarTagsProvider 省略 → 現行は CalendarTags 全撤去済・全面改訂 Phase 5）
 - Routine マスタ自体の MCP CRUD 未対応（Claude から頻度変更ができない）
-- ~~conflict: 同じ Routine から手動編集された ScheduleItem と自動再生成の競合解決ルールが未文書化~~ → **解消 (2026-07-14)**: 上記「競合解決ルール」に文書化（テストは再設計 Step 4）
+- ~~conflict: 同じ Routine から手動編集された ScheduleItem と自動再生成の競合解決ルールが未文書化~~ → **解消 (2026-07-14 文書化 / 2026-07-26 #352 でテスト化)**: 上記「競合解決ルール」+ `shared/tests/reconcileRoutine.test.tsx`
 
 ### Future Enhancements
 

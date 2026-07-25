@@ -11,7 +11,6 @@ import {
   frequencyLabel,
   type FrequencyLabelCopy,
   type RoutineEditorRoutine,
-  type RoutineEditorGroup,
 } from "@life-editor/shared";
 
 /*
@@ -22,21 +21,12 @@ import {
  * <RoutineEditorForm> edits the selection.
  *
  * DataService is reached ONLY through useRoutineContext (§3.1). i18n is
- * resolved here and injected into the pure form (§6.4). Group membership rides
- * the form's `groupIds` patch, which we split off to setGroupsForRoutine (the
- * routine row itself has no groupIds column — the assignment table owns it).
+ * resolved here and injected into the pure form (§6.4).
  */
 export function RoutinesTab() {
   const { t } = useTranslation();
-  const {
-    routines,
-    routineGroups,
-    createRoutine,
-    updateRoutine,
-    deleteRoutine,
-    setGroupsForRoutine,
-    getGroupIdsForRoutine,
-  } = useRoutineContext();
+  const { routines, createRoutine, updateRoutine, deleteRoutine } =
+    useRoutineContext();
   // Null-safe (tests / standalone). `open` surfaces the panel on selection.
   const rightSidebar = useRightSidebarOptional();
   const openSidebar = rightSidebar?.open;
@@ -56,7 +46,6 @@ export function RoutinesTab() {
     () => ({
       daily: t("scheduleScreen.frequencyDaily"),
       weekdaysFallback: t("scheduleScreen.frequencyWeekdays"),
-      group: t("scheduleScreen.frequencyGroup"),
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
     }),
@@ -73,20 +62,6 @@ export function RoutinesTab() {
     [routines, selectedId],
   );
 
-  const editorRoutine = useMemo<RoutineEditorRoutine | null>(() => {
-    if (!selectedRoutine) return null;
-    return {
-      ...selectedRoutine,
-      groupIds: getGroupIdsForRoutine(selectedRoutine.id),
-    };
-  }, [selectedRoutine, getGroupIdsForRoutine]);
-
-  const groups = useMemo<RoutineEditorGroup[]>(
-    () =>
-      routineGroups.map((g) => ({ id: g.id, name: g.name, color: g.color })),
-    [routineGroups],
-  );
-
   const formLabels = useMemo(
     () => ({
       title: t("scheduleScreen.title"),
@@ -96,11 +71,9 @@ export function RoutinesTab() {
       frequencyDaily: t("scheduleScreen.frequencyDaily"),
       frequencyWeekdays: t("scheduleScreen.frequencyWeekdays"),
       frequencyInterval: t("scheduleScreen.frequencyInterval"),
-      frequencyGroup: t("scheduleScreen.frequencyGroup"),
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
       startDate: t("scheduleScreen.startDate"),
-      groups: t("scheduleScreen.groupsLabel"),
       delete: t("scheduleScreen.deleteRoutine"),
     }),
     [t],
@@ -112,12 +85,8 @@ export function RoutinesTab() {
   };
 
   const handlePatch = (id: string, patch: Partial<RoutineEditorRoutine>) => {
-    // Group membership is not a routine column — it rides the assignment table
-    // (setGroupsForRoutine). Everything else is a plain routine field update.
-    const { groupIds, ...rest } = patch;
-    if (groupIds !== undefined) setGroupsForRoutine(id, groupIds);
-    if (Object.keys(rest).length > 0) {
-      updateRoutine(id, rest as Parameters<typeof updateRoutine>[1]);
+    if (Object.keys(patch).length > 0) {
+      updateRoutine(id, patch as Parameters<typeof updateRoutine>[1]);
     }
   };
 
@@ -175,10 +144,9 @@ export function RoutinesTab() {
           onChange={() => {}}
           label={t("scheduleScreen.detailPanelLabel")}
         >
-          {editorRoutine ? (
+          {selectedRoutine ? (
             <RoutineEditorForm
-              routine={editorRoutine}
-              groups={groups}
+              routine={selectedRoutine}
               onPatch={handlePatch}
               onDelete={handleDelete}
               weekdayLabels={weekdayLabels}

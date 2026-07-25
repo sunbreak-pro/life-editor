@@ -56,10 +56,6 @@ import {
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
-import type {
-  RoutineGroup,
-  RoutineGroupAssignment,
-} from "../types/routineGroup";
 import {
   ROUTINE_SELECT_COLUMNS,
   rowToRoutine,
@@ -74,20 +70,6 @@ import {
   type ItemsMetaRoutineRow,
   type RoutinesPayloadRow,
 } from "./routineMapper";
-import {
-  // DU-C-4: V2 dedicated-table API (0008 sort_order + soft-delete columns)
-  ROUTINE_GROUPS_COLUMNS,
-  rowToRoutineGroupV2,
-  routineGroupToRowV2,
-  routineGroupUpdatesToPatchV2,
-  type RoutineGroupRowV2,
-} from "./routineGroupMapper";
-import {
-  // DU-C-4: V2 (routine_item_id rename + no created_at)
-  ROUTINE_GROUP_ASSIGNMENTS_COLUMNS,
-  rowToRoutineGroupAssignmentV2,
-  type RoutineGroupAssignmentRowV2,
-} from "./routineGroupAssignmentMapper";
 import {
   SCHEDULE_ITEM_SELECT_COLUMNS,
   rowToScheduleItem,
@@ -649,11 +631,6 @@ class SupabaseNoteConnectionService {
  * lives in routineMapper.ts; this class is the I/O layer.
  *
  * NOT MODELLED HERE:
- *   - The `groupIds` join (routine_group_assignments) is the
- *     SupabaseRoutineGroupAssignmentsService's concern (DU-C-4). The
- *     RoutineNode returned by these methods is the "lone" shape — the
- *     RoutineProvider composes groupIds at the consumer level (Phase 2
- *     parity).
  *   - Routine-generated event materialisation lives in
  *     SupabaseScheduleItemsService.bulkCreateScheduleItems (DU-C-5);
  *     softDeleteRoutine here only cascades soft-deletes to the events
@@ -1269,263 +1246,6 @@ export class SupabaseRoutinesService {
 }
 
 /*
- * DU-C-4: SupabaseRoutineGroupsService over the 0008 dedicated
- * routine_groups table (NOT a payload — groups are not items, so no
- * items_meta row). VERSIONED with native is_deleted/deleted_at; the
- * Phase 2 RoutineGroup domain type doesn't surface those (groups were
- * physically deleted in 0006) so the SELECT path filters is_deleted=
- * false at the query site.
- *
- * `deleteRoutineGroup` is the user-facing "delete" — a SOFT delete on
- * the 0008 schema (the table now has is_deleted/deleted_at). A hard
- * purge is not exposed to the UI yet.
- */
-class SupabaseRoutineGroupsService {
-  private readonly client: SupabaseClient;
-
-  constructor(client: SupabaseClient) {
-    this.client = client;
-  }
-
-  /**
-   * Live routine groups. Filters is_deleted=false at the query site so
-   * the V2 mapper doesn't need a separate "trashed" view (frontend
-   * never surfaces trashed groups).
-   */
-  async fetchRoutineGroups(): Promise<RoutineGroup[]> {
-    // Trailing .order("id") = unique tiebreaker so .range() pages are
-    // deterministic (sort_order/created_at can tie).
-    const rows = await fetchAllPages<RoutineGroupRowV2>(
-      (from, to) =>
-        this.client
-          .from("routine_groups")
-          .select(ROUTINE_GROUPS_COLUMNS)
-          .eq("is_deleted", false)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: true })
-          .order("id")
-          .range(from, to),
-      "fetchRoutineGroups",
-    );
-    return rows.map(rowToRoutineGroupV2);
-  }
-
-  /**
-   * INSERT with full row. Optional frequency fields default to "daily,
-   * no specific days, always visible" (Tauri parity). version=1,
-   * is_deleted=false on first INSERT.
-   */
-  async createRoutineGroup(
-    id: string,
-    name: string,
-    color: string,
-    frequencyType?: string,
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
-  ): Promise<RoutineGroup> {
-    const now = new Date().toISOString();
-    const group: RoutineGroup = {
-      id,
-      name,
-      color,
-      isVisible: true,
-      order: 0,
-      frequencyType: (frequencyType ??
-        "daily") as RoutineGroup["frequencyType"],
-      frequencyDays: frequencyDays ?? [],
-      frequencyInterval: frequencyInterval ?? null,
-      frequencyStartDate: frequencyStartDate ?? null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const writeRow = routineGroupToRowV2(group);
-
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .insert(writeRow)
-      .select(ROUTINE_GROUPS_COLUMNS)
-      .single();
-    if (error) throw new Error(`createRoutineGroup: ${error.message}`);
-    return rowToRoutineGroupV2(data as unknown as RoutineGroupRowV2);
-  }
-
-  /**
-   * Mapper-driven UPDATE with DB-Q2 bump (updated_at always set). The
-   * patch covers name / color / visibility / order / all frequency_*
-   * fields. version bump is NOT issued here — LWW counter advances on
-   * full sync paths, not per-field UPDATE.
-   */
-  async updateRoutineGroup(
-    id: string,
-    updates: Partial<
-      Pick<
-        RoutineGroup,
-        | "name"
-        | "color"
-        | "isVisible"
-        | "order"
-        | "frequencyType"
-        | "frequencyDays"
-        | "frequencyInterval"
-        | "frequencyStartDate"
-      >
-    >,
-  ): Promise<RoutineGroup> {
-    const now = new Date().toISOString();
-    const patch = routineGroupUpdatesToPatchV2(updates, now);
-
-    const { error: updErr } = await this.client
-      .from("routine_groups")
-      .update(patch)
-      .eq("id", id);
-    if (updErr) throw new Error(`updateRoutineGroup: ${updErr.message}`);
-
-    const { data, error: readErr } = await this.client
-      .from("routine_groups")
-      .select(ROUTINE_GROUPS_COLUMNS)
-      .eq("id", id)
-      .single();
-    if (readErr) throw new Error(`updateRoutineGroup read: ${readErr.message}`);
-    return rowToRoutineGroupV2(data as unknown as RoutineGroupRowV2);
-  }
-
-  /**
-   * Soft-delete the group. The 0008 schema gives routine_groups
-   * is_deleted/deleted_at columns (unlike Phase 2). routine_group_
-   * assignments rows that reference this group are NOT soft-deleted
-   * here — the frontend filters them out at the consumer level via
-   * the `is_deleted=false` join. A purge path (hard delete + cascade
-   * on assignments via the 0008 FK) is intentionally not exposed.
-   */
-  async deleteRoutineGroup(id: string): Promise<void> {
-    const now = new Date().toISOString();
-    const { error } = await this.client
-      .from("routine_groups")
-      .update({ is_deleted: true, deleted_at: now, updated_at: now })
-      .eq("id", id);
-    if (error) throw new Error(`deleteRoutineGroup: ${error.message}`);
-  }
-}
-
-/*
- * DU-C-4: SupabaseRoutineGroupAssignmentsService over the 0008 schema
- * (RELATION table — routine_item_id FK targets items_meta(id), not the
- * legacy routines table; no created_at column).
- *
- * `setGroupsForRoutine` is the only mutator the frontend exposes — it
- * computes the diff (add / remove) against the live join set and
- * issues partial-UNIQUE-safe INSERT for new memberships + soft-delete
- * UPDATE for removed ones. The partial UNIQUE (routine_item_id,
- * group_id) WHERE is_deleted=false enforces "at most one live join"
- * (Issue 008 same-pattern).
- */
-class SupabaseRoutineGroupAssignmentsService {
-  private readonly client: SupabaseClient;
-
-  constructor(client: SupabaseClient) {
-    this.client = client;
-  }
-
-  /**
-   * All live (is_deleted=false) join rows for the current user. The
-   * RoutineProvider composes `groupIds` per routine by bucketing these
-   * client-side — keeps the read path simple and lets the join run
-   * once for the whole list view.
-   */
-  async fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]> {
-    const rows = await fetchAllPages<RoutineGroupAssignmentRowV2>(
-      (from, to) =>
-        this.client
-          .from("routine_group_assignments")
-          .select(ROUTINE_GROUP_ASSIGNMENTS_COLUMNS)
-          .eq("is_deleted", false)
-          .order("id")
-          .range(from, to),
-      "fetchAllRoutineGroupAssignments",
-    );
-    return rows.map(rowToRoutineGroupAssignmentV2);
-  }
-
-  /**
-   * Replace the set of groups for a routine. Computes the diff against
-   * the CURRENT live joins so:
-   *   - groups in the new set but not currently joined → INSERT new row
-   *   - groups currently joined but not in the new set → soft-delete
-   *   - groups in both → leave untouched (no-op)
-   *
-   * partial-UNIQUE re-create: if a previously soft-deleted (group_id,
-   * routine_item_id) pair is re-added, the old row stays trashed and a
-   * NEW row is INSERTed with a fresh id. This matches Issue 008's
-   * "soft-deleted row stays for the delta, new live row uses a fresh
-   * id" contract — the partial UNIQUE allows it because the index
-   * filter only sees is_deleted=false rows.
-   */
-  async setGroupsForRoutine(
-    routineId: string,
-    groupIds: string[],
-  ): Promise<void> {
-    const now = new Date().toISOString();
-
-    // 1. Fetch current LIVE joins for this routine.
-    const { data: currentRows, error: fetchErr } = await this.client
-      .from("routine_group_assignments")
-      .select("id, group_id")
-      .eq("routine_item_id", routineId)
-      .eq("is_deleted", false);
-    if (fetchErr)
-      throw new Error(`setGroupsForRoutine fetch: ${fetchErr.message}`);
-    const current =
-      (currentRows as unknown as { id: string; group_id: string }[] | null) ??
-      [];
-    const currentGroupToId = new Map(current.map((r) => [r.group_id, r.id]));
-    const newSet = new Set(groupIds);
-
-    // 2. Diff: rows to INSERT (in new, not in current).
-    const toInsert: { group_id: string }[] = [];
-    for (const gid of newSet) {
-      if (!currentGroupToId.has(gid)) toInsert.push({ group_id: gid });
-    }
-
-    // 3. Diff: row ids to soft-delete (in current, not in new).
-    const toSoftDelete: string[] = [];
-    for (const [gid, rowId] of currentGroupToId) {
-      if (!newSet.has(gid)) toSoftDelete.push(rowId);
-    }
-
-    // 4. INSERT new joins (one row per group). Fresh id each, partial-
-    //    UNIQUE protects the live set.
-    if (toInsert.length > 0) {
-      const insertRows = toInsert.map((r) => ({
-        id: generateId("rga"),
-        routine_item_id: routineId,
-        group_id: r.group_id,
-        updated_at: now,
-        is_deleted: false,
-        deleted_at: null,
-      }));
-      const { error: insErr } = await this.client
-        .from("routine_group_assignments")
-        .insert(insertRows);
-      if (insErr)
-        throw new Error(`setGroupsForRoutine insert: ${insErr.message}`);
-    }
-
-    // 5. Soft-delete removed joins. Each row gets is_deleted=true +
-    //    deleted_at + updated_at bump so the delta sync replicates the
-    //    unassign (Issue 008 contract).
-    if (toSoftDelete.length > 0) {
-      const { error: delErr } = await this.client
-        .from("routine_group_assignments")
-        .update({ is_deleted: true, deleted_at: now, updated_at: now })
-        .in("id", toSoftDelete);
-      if (delErr)
-        throw new Error(`setGroupsForRoutine soft-delete: ${delErr.message}`);
-    }
-  }
-}
-
-/*
  * DU-C-5: SupabaseScheduleItemsService over items_meta (role='event') +
  * events_payload. Pure mapping lives in scheduleItemMapper.ts.
  *
@@ -1675,23 +1395,6 @@ export class SupabaseScheduleItemsService {
       (q) => q.eq("routine_item_id", routineId).eq("is_dismissed", false),
       false,
     );
-  }
-
-  /**
-   * MAX(source_date) across routine-generated events. Used by the
-   * RoutineScheduleSync to decide whether to generate more days.
-   */
-  async fetchLastRoutineDate(): Promise<string | null> {
-    const { data, error } = await this.client
-      .from("events_payload")
-      .select("source_date")
-      .not("source_date", "is", null)
-      .not("routine_item_id", "is", null)
-      .order("source_date", { ascending: false })
-      .limit(1);
-    if (error) throw new Error(`fetchLastRoutineDate: ${error.message}`);
-    const rows = (data as unknown as { source_date: string }[]) ?? [];
-    return rows.length > 0 ? rows[0].source_date : null;
   }
 
   /**
@@ -2501,18 +2204,6 @@ const PHASE2_ROUTINES_METHODS = new Set<string>([
   "permanentDeleteRoutine",
 ]);
 
-const PHASE2_ROUTINE_GROUP_METHODS = new Set<string>([
-  "fetchRoutineGroups",
-  "createRoutineGroup",
-  "updateRoutineGroup",
-  "deleteRoutineGroup",
-]);
-
-const PHASE2_ROUTINE_GROUP_ASSIGNMENT_METHODS = new Set<string>([
-  "fetchAllRoutineGroupAssignments",
-  "setGroupsForRoutine",
-]);
-
 const PHASE2_SCHEDULE_ITEM_METHODS = new Set<string>([
   "fetchScheduleItemsByDate",
   "fetchScheduleItemsByDateAll",
@@ -2527,7 +2218,6 @@ const PHASE2_SCHEDULE_ITEM_METHODS = new Set<string>([
   "toggleScheduleItemComplete",
   "dismissScheduleItem",
   "undismissScheduleItem",
-  "fetchLastRoutineDate",
   "bulkCreateScheduleItems",
   "updateFutureScheduleItemsByRoutine",
   "fetchScheduleItemsByRoutineId",
@@ -2574,9 +2264,6 @@ export function createSupabaseDataService(): DataService {
   const noteLinkService = new SupabaseNoteLinkService(client);
   const noteConnectionService = new SupabaseNoteConnectionService(client);
   const routinesService = new SupabaseRoutinesService(client);
-  const routineGroupsService = new SupabaseRoutineGroupsService(client);
-  const routineGroupAssignmentsService =
-    new SupabaseRoutineGroupAssignmentsService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
   // W3-A: independent timer / audio tables (0018). Not items_meta entities.
@@ -2591,9 +2278,6 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_NOTE_LINK_METHODS.has(prop)) return noteLinkService;
     if (PHASE2_NOTE_CONNECTION_METHODS.has(prop)) return noteConnectionService;
     if (PHASE2_ROUTINES_METHODS.has(prop)) return routinesService;
-    if (PHASE2_ROUTINE_GROUP_METHODS.has(prop)) return routineGroupsService;
-    if (PHASE2_ROUTINE_GROUP_ASSIGNMENT_METHODS.has(prop))
-      return routineGroupAssignmentsService;
     if (PHASE2_SCHEDULE_ITEM_METHODS.has(prop)) return scheduleItemsService;
     if (PHASE2_CALENDAR_METHODS.has(prop)) return calendarsService;
     if (PHASE2_WIKI_TAGS_UNIFIED_METHODS.has(prop))

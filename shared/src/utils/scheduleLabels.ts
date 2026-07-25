@@ -22,7 +22,6 @@ export function buildWeekdayLabels(t: (key: string) => string): string[] {
 export interface FrequencyLabelCopy {
   daily: string;
   weekdaysFallback: string;
-  group: string;
   intervalEvery: string;
   intervalDays: string;
 }
@@ -50,9 +49,9 @@ export function frequencyLabel(
         .replace(/\s+/g, " ")
         .trim();
     }
-    case "group":
-      return copy.group;
     default:
+      // Unknown / retired frequency straight from the DB (#352 removed the
+      // "group" type from the union but not from the 0008 CHECK).
       return r.frequencyType;
   }
 }

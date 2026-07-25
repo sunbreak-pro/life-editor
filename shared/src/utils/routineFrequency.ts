@@ -1,19 +1,18 @@
 import type { FrequencyType } from "../types/routine";
 
 /**
- * 1:1 behaviour-preserving port of frontend/src/utils/routineFrequency.ts.
- * NOT modified — the only change vs. the Tauri original is the type
- * import path (`../types/routine` instead of `../types/routine` relative
- * to frontend). Every date is parsed as `new Date(d + "T00:00:00")` so
- * the comparison stays in the user's local calendar day (S4-0 D-1: no
- * UTC conversion — `date`/`timestamptz` columns would shift the JST
- * boundary; all schedule date math is local-consistent).
+ * Port of frontend/src/utils/routineFrequency.ts. Every date is parsed as
+ * `new Date(d + "T00:00:00")` so the comparison stays in the user's local
+ * calendar day (S4-0 D-1: no UTC conversion — `date`/`timestamptz`
+ * columns would shift the JST boundary; all schedule date math is
+ * local-consistent).
  *
- * The `default` branch deliberately returns `false` for "group"/unknown:
- * the caller (`shouldCreateRoutineItem`) must resolve "group" via the
- * routine's RoutineGroups and pass each group's own frequency in. A
- * fall-through to `true` here would match EVERY date and cause runaway
- * schedule_item creation in reconcile (Issue 017 family).
+ * The `default` branch deliberately returns `false` for an unknown
+ * frequency. It is NOT dead under the narrowed union: the value arrives
+ * from the DB, whose 0008 CHECK still allows the retired "group" type
+ * (#352 removed the code, not the schema — DDL ゼロ). A fall-through to
+ * `true` here would match EVERY date and cause runaway schedule_item
+ * creation (Issue 017 family).
  */
 export function shouldRoutineRunOnDate(
   frequencyType: FrequencyType,
@@ -39,10 +38,10 @@ export function shouldRoutineRunOnDate(
       return diffDays >= 0 && diffDays % frequencyInterval === 0;
     }
     default:
-      // "group" or unknown: caller must resolve via the routine's
-      // RoutineGroups and pass the group's frequency in. Falling through
-      // here would match every date and cause runaway schedule_item
-      // creation in reconcile.
+      // Unknown frequency (incl. rows still carrying the retired "group"
+      // type — the DB CHECK outlives the code). Never fire: falling
+      // through here would match every date and cause runaway
+      // schedule_item creation in reconcile.
       return false;
   }
 }

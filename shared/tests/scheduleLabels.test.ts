@@ -6,6 +6,7 @@ import {
   sortDayItems,
   type FrequencyLabelCopy,
 } from "../src/utils/scheduleLabels";
+import type { RoutineNode } from "../src/types/routine";
 
 /*
  * scheduleLabels (#280) — pure label/mapping helpers extracted from the web
@@ -16,7 +17,6 @@ import {
 const COPY: FrequencyLabelCopy = {
   daily: "Every day",
   weekdaysFallback: "Weekdays",
-  group: "By group",
   intervalEvery: "Every",
   intervalDays: "days",
 };
@@ -100,14 +100,20 @@ describe("frequencyLabel", () => {
     ).toBe("Every 1 days");
   });
 
-  it("group → the group copy", () => {
+  it("a retired/unknown type falls back to the raw value (#352)", () => {
+    // "group" was removed from the union but the 0008 CHECK still allows it,
+    // so a legacy row must render something rather than crash.
     expect(
       frequencyLabel(
-        { frequencyType: "group", frequencyDays: [], frequencyInterval: null },
+        {
+          frequencyType: "group" as unknown as RoutineNode["frequencyType"],
+          frequencyDays: [],
+          frequencyInterval: null,
+        },
         COPY,
         WEEKDAYS,
       ),
-    ).toBe("By group");
+    ).toBe("group");
   });
 });
 

@@ -5,8 +5,7 @@ import {
   diffRoutineScheduleItems,
   collectRoutineItemsForDates,
 } from "../src/utils/routineScheduleSync";
-import type { RoutineNode } from "../src/types/routine";
-import type { RoutineGroup } from "../src/types/routineGroup";
+import type { FrequencyType, RoutineNode } from "../src/types/routine";
 import type { ScheduleItem } from "../src/types/schedule";
 
 /*
@@ -28,23 +27,6 @@ function makeRoutine(over: Partial<RoutineNode>): RoutineNode {
     isVisible: true,
     isDeleted: false,
     deletedAt: null,
-    order: 0,
-    frequencyType: "daily",
-    frequencyDays: [],
-    frequencyInterval: null,
-    frequencyStartDate: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    ...over,
-  };
-}
-
-function makeGroup(over: Partial<RoutineGroup>): RoutineGroup {
-  return {
-    id: "rgroup-1",
-    name: "G",
-    color: "#000",
-    isVisible: true,
     order: 0,
     frequencyType: "daily",
     frequencyDays: [],
@@ -126,10 +108,18 @@ describe("shouldRoutineRunOnDate (frequency parity)", () => {
     );
   });
 
-  it("group/unknown frequency → false (runaway-creation guard)", () => {
-    expect(shouldRoutineRunOnDate("group", [], null, null, "2026-05-17")).toBe(
-      false,
-    );
+  it("unknown frequency → false (runaway-creation guard)", () => {
+    // The retired "group" type (#352) can still arrive from the DB — the
+    // 0008 CHECK outlives the removed code. It must never fire.
+    expect(
+      shouldRoutineRunOnDate(
+        "group" as unknown as FrequencyType,
+        [],
+        null,
+        null,
+        "2026-05-17",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -148,47 +138,21 @@ describe("shouldCreateRoutineItem (Issue 017 reject order)", () => {
     ).toBe(false);
   });
 
-  it("group with zero groups never fires", () => {
-    const r = makeRoutine({ frequencyType: "group" });
-    expect(shouldCreateRoutineItem(r, "2026-05-17", new Map())).toBe(false);
-  });
-
-  it("group fires when at least one visible group matches (OR)", () => {
-    const r = makeRoutine({ frequencyType: "group" });
-    const map = new Map<string, RoutineGroup[]>([
-      [
-        "routine-1",
-        [
-          makeGroup({
-            id: "rgroup-1",
-            frequencyType: "weekdays",
-            frequencyDays: [1],
-          }),
-          makeGroup({ id: "rgroup-2", frequencyType: "daily" }),
-        ],
-      ],
-    ]);
-    // 2026-05-17 is Sunday: group-1 (Mon) no, group-2 (daily) yes → OR true
-    expect(shouldCreateRoutineItem(r, "2026-05-17", map)).toBe(true);
-  });
-
-  it("group ignores invisible groups", () => {
-    const r = makeRoutine({ frequencyType: "group" });
-    const map = new Map<string, RoutineGroup[]>([
-      ["routine-1", [makeGroup({ isVisible: false, frequencyType: "daily" })]],
-    ]);
-    expect(shouldCreateRoutineItem(r, "2026-05-17", map)).toBe(false);
+  it("a retired group-typed row (DB legacy) never fires", () => {
+    const r = makeRoutine({
+      frequencyType: "group" as unknown as FrequencyType,
+    });
+    expect(shouldCreateRoutineItem(r, "2026-05-17")).toBe(false);
   });
 });
 
 describe("diffRoutineScheduleItems", () => {
   it("creates a row when none exists for a matching routine", () => {
-    const { toCreate, toUpdate } = diffRoutineScheduleItems(
+    const { toCreate } = diffRoutineScheduleItems(
       [],
       [makeRoutine({ title: "Workout", startTime: "07:00", endTime: "07:45" })],
       "2026-05-17",
     );
-    expect(toUpdate).toEqual([]);
     expect(toCreate).toHaveLength(1);
     expect(toCreate[0]).toMatchObject({
       date: "2026-05-17",
@@ -200,32 +164,31 @@ describe("diffRoutineScheduleItems", () => {
     expect(toCreate[0].id).toMatch(/^si-/);
   });
 
-  it("updates (not duplicates) when an item exists but drifted", () => {
+  it("creation-only: a drifted existing row is left alone (#279 rules 1-2)", () => {
+    // Pre-#279 this emitted a toUpdate that rewrote the row back to the
+    // template — reverting 「この予定のみ」 edits and done records. The
+    // bucket is gone; the row must simply not be re-created either.
     const existing = makeItem({ title: "Old", startTime: "08:00" });
-    const { toCreate, toUpdate } = diffRoutineScheduleItems(
+    const { toCreate } = diffRoutineScheduleItems(
       [existing],
       [makeRoutine({ title: "New", startTime: "09:00", endTime: "09:30" })],
       "2026-05-17",
     );
     expect(toCreate).toEqual([]);
-    expect(toUpdate).toEqual([
-      { id: "si-1", title: "New", startTime: "09:00", endTime: "09:30" },
-    ]);
   });
 
-  it("no-op when existing item already matches", () => {
+  it("no-op when an item already exists for the slot", () => {
     const existing = makeItem({
       title: "R",
       startTime: "09:00",
       endTime: "09:30",
     });
-    const { toCreate, toUpdate } = diffRoutineScheduleItems(
+    const { toCreate } = diffRoutineScheduleItems(
       [existing],
       [makeRoutine({})],
       "2026-05-17",
     );
     expect(toCreate).toEqual([]);
-    expect(toUpdate).toEqual([]);
   });
 
   it("does not create for a soft-deleted routine (Issue 017 (b)/(d))", () => {
@@ -244,7 +207,6 @@ describe("collectRoutineItemsForDates", () => {
       new Date("2026-05-17T00:00:00"),
       new Date("2026-05-19T00:00:00"),
       [makeRoutine({ frequencyType: "daily" })],
-      undefined,
       new Set(["routine-1:2026-05-18"]),
     );
     const dates = out.map((c) => c.date).sort();
