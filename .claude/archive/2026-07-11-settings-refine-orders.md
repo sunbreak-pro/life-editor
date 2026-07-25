@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: SUPERSEDED — orders .md 台帳運用は 2026-07-11 に retire（CLAUDE.md §7.0 / §7.4 — issue-dispatch スキル + GitHub Issues に吸収）。担当の一次情報は `gh issue list -R sunbreak-pro/life-editor --label section:<id>` + `--label shared-fix`。本書は 2026-07-11 時点のスナップショットとして archive 保管
 Created: 2026-07-11
 Branch: claude/settings-refine
 Owner-chat: settings-refine
