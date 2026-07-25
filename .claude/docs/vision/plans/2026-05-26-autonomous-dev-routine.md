@@ -22,7 +22,7 @@ Goal: 0 (meta — Routine 機構自体の構築)
 - **制約**:
   - コスト $0 厳守は変わらず（Cloud Routine 自体は Anthropic 課金枠内）。実行は Opus 系 xhigh + 軽処理 Sonnet 4.6
   - main 直 push 禁止 / 破壊的 git 禁止（既存ルール継承）
-  - §7.4 worktree 規約準拠（1 chat = 1 worktree = 1 branch）
+  - §7.4 worktree 規約準拠（1 chat = 1 worktree・ブランチは課題ごとに切替）
   - `.mcp.json` の token 平文化禁止（commit 前必須チェック）
   - 並行チャットの作業中ファイルへの干渉禁止（自レーン SSOT 化）
 - **Non-goals**:

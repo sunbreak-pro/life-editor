@@ -7,7 +7,9 @@ Parent: (なし)
 Previous: 2026-05-24-subagent-worktree-improvements.md (PR #22 MERGED — SessionStart hook 検査 E + agents-lib self-contained brief)
 ---
 
-# Plan: 並行チャット用 worktree 運用規約（"1 chat = 1 worktree = 1 branch"）
+# Plan: 並行チャット用 worktree 運用規約（"1 chat = 1 worktree、ブランチは課題ごとに切替"）
+
+> **2026-07-25 改訂（#327）**: 当初の呼称は "1 chat = 1 worktree = 1 branch" だったが、実運用は「1 worktree が複数 Issue を順に担当し、Issue ごとにブランチを切り替える」形に定着した。本書の以降の記述で「1 worktree = 1 branch」とあるのは**同時に checkout するブランチが 1 本**という意味で読むこと（worktree の生涯で 1 本という意味ではない）。SSOT = CLAUDE.md §7.4。
 
 > 目的: 並行 Claude チャット同士のブランチ切替干渉を構造的に防ぐ。`data-unification/items-meta-redesign` 上で別チャットが `chore/subagent-worktree-tuning` の作業を始め、メインの作業ツリーが意図せず切り替わった事故 (DU-F Step 14 中) の再発防止。
 
@@ -47,12 +49,12 @@ agents-lib / skill-lib は git 外管理（`~/dev/Claude/` 配下、PR #22 で�
 
 ## 採用アーキテクチャ
 
-**"1 chat = 1 worktree = 1 branch"**
+**"1 chat = 1 worktree、ブランチは課題ごとに切替"**（2026-07-25 #327 で改称。旧称 "1 chat = 1 worktree = 1 branch"）
 
-| 場所                                            | 担当                 | 触ってよいブランチ                           |
-| ----------------------------------------------- | -------------------- | -------------------------------------------- |
-| `/Users/newlife/dev/apps/life-editor`（メイン） | chat-main 専有       | **`main` のみ**                              |
-| `.claude/worktrees/<slug>/`（worktree 配下）    | feature 作業チャット | 任意 feature branch（1 worktree = 1 branch） |
+| 場所                                         | 担当                 | 触ってよいブランチ                                         |
+| -------------------------------------------- | -------------------- | ---------------------------------------------------------- |
+| リポジトリ直下（メイン）                     | chat-main 専有       | **`main` のみ**                                            |
+| `.claude/worktrees/<slug>/`（worktree 配下） | feature 作業チャット | 任意 feature branch（同時 checkout は 1 本・課題ごと切替） |
 
 メインで `git checkout <feature>` するのを**運用上禁止**する。feature 作業は必ず worktree から行う。
 

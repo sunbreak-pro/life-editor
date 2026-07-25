@@ -42,7 +42,7 @@
 
 - **deny list**: `.claude/settings.json` の `permissions.deny` に main/master 直 push / force / `+main` `:main` refspec / `git switch main` / `git checkout -B main*` / hard reset / branch -D 等を構造的に禁止（計 27 項目）
 - **`.mcp.json` 平文化チェック**: commit 前に `${...}` 参照形式が維持されているかを必須検査
-- **worktree 規約**: `chat-auto-<YYYYMMDD>-<HHMM>` 命名、§7.4 準拠（1 chat = 1 worktree = 1 branch）
+- **worktree 規約**: `chat-auto-<YYYYMMDD>-<HHMM>` 命名、§7.4 準拠（1 chat = 1 worktree・ブランチは課題ごとに切替）
 - **iteration cap**: 暴走防止の上限（5 iter / 90 分）。超過は失敗ではなく「次回継続」として扱う
 - **scope 宣言**: 個別 plan の Scope 外パスへの変更は scope drift として outbox に警告
 - **コスト**: Anthropic Max plan 枠内で実行され、追加 API 課金は発生しない（$0 維持）。iteration cap はコスト制限ではなく暴走防止が目的

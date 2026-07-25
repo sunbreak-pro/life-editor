@@ -85,7 +85,7 @@ Owner-chat: frontend
 - **tokens.css との乖離**: palette 変更時は tokens.css → \_COMMON-CONTEXT → 各 brief の順で同期（README に明記）。#135 の accent 変更で実際に発生した
 - **materials の肥大**: D2 は 4 画面 × 2 デバイス = 8 プロンプト。1 ファイル内で §4.1〜4.4 に分割可
 - **shell と各画面の二重定義**: D7（枠 + header タブの標準意匠）と D1〜D6（中身）が同じ要素を別々にデザインすると衝突する。タブ UI の形状・アクティブ表現は D7 が定義し、各画面 brief はそれを参照する
-- **1 worktree 複数セッションの混線**: 同一 worktree で複数 design セッションを回すと、ブランチ切替と `git add` の巻き込みで brief が他ブランチに混入する（2026-07-05 に実際に発生: analytics brief が settings ブランチに commit される等）。**1 chat = 1 worktree = 1 branch（CLAUDE.md §7.4）を推奨**
+- **1 worktree 複数セッションの混線**: 同一 worktree で複数 design セッションを回すと、ブランチ切替と `git add` の巻き込みで brief が他ブランチに混入する（2026-07-05 に実際に発生: analytics brief が settings ブランチに commit される等）。**1 worktree = 1 セッション（CLAUDE.md §7.4）を厳守**し、同じ worktree を複数チャットで同時に回さない（ブランチ自体は課題ごとに切り替えてよい — 混線の原因はブランチ本数ではなく同時実行）
 
 ---
 
