@@ -100,15 +100,20 @@ cd web && npm run dev           # ローカル起動（vite）
 - DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）
 - hooks 連動（検査内容の正本 = 各スクリプト。登録 = `.claude/settings.json`・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: Stop = `hooks/stop-check.sh`（frontend 変更で build 検証 → outbox 報告）/ SessionStart = `hooks/regen-index.sh`（INDEX 派生ビュー再生成）+ `hooks/session-start-check.sh`（informational only）/ PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）
 
-### 7.4 Multi-chat Worktree Policy（**"1 chat = 1 worktree = 1 branch"**）
+### 7.4 Multi-chat Worktree Policy（**"1 chat = 1 worktree、ブランチは課題ごとに切替"**）
 
-- メイン（`/Users/newlife/dev/apps/life-editor`）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は `.claude/worktrees/<slug>/` から
+- メイン（リポジトリ直下。マシンごとにパスは異なる）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は `.claude/worktrees/<slug>/` から
+- **1 worktree = 1 チャット。ブランチは課題ごとに切り替える**（2026-07-25 ユーザー確定 #327 — 旧「1 chat = 1 worktree = 1 branch」を SUPERSEDE）: 1 つの worktree が複数 Issue を順に担当するため、Issue ごとに `claude/<slug>-<issue>` 等でブランチを切り直す（実例 = shell-refine worktree 1 本から 9 ブランチ → PR #234/#236/#241/#243/#313/#314/#315/#316/#326）。**worktree に 1 ブランチを固定し続けない** — PR merge 後も同じブランチを使い回すと履歴が絡む
+- **`.claude/comm/.session-branch` は「今作業中のブランチ名」を都度更新する**: ブランチを切り替えるたびに書き換える。宣言と実態がズレると監査が規約違反と誤判定する（2026-07-25 実例 = shell-refine が `-307` で作業中に `.session-branch` が `claude/shell-refine` のままで、chat-main が「宣言と実態の不一致」と誤報告した）
 - **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
+- **ブランチ切替は 2 ステップ 1 セット**: `git checkout -b <new-branch> origin/main` → `echo <new-branch> > .claude/comm/.session-branch`（後者の省略禁止 — 上と同じ理由）
 - **Orca ADE 利用時の例外処理**: Orca の GUI worktree 作成は `.session-branch` / `.session-name` を書かないため hook が無音スキップする。Orca で作った worktree は Claude 起動前に `echo <branch> > .claude/comm/.session-branch`（必要なら `.session-name` も）を手動で書くか、Orca 内蔵ターミナルで上記 4 ステップを踏むこと。メインリポジトリは Orca から開いてもブランチ切替しない（`main` 専有を維持）
 - **playwright MCP（実ブラウザ検証）と進捗確認用 dev server は chat-main（メインリポジトリ）のみで起動する**（2026-07-11 ユーザー決定）: 複数 worktree で localhost を重複起動するとポートずれで「どの画面がどの変更か」の確認が壊れるため。各 worktree チャットは build / 型検証（+ vitest）まで — 実ブラウザでの表示確認は PR merge 後に chat-main 側で実測する
 - **課題分配は GitHub Issue 駆動・起票は chat-main に一元化する**（2026-07-11 ユーザー決定 — 同日運用の orders .md 台帳 fan-out と worktree 自己起票を SUPERSEDE）: chat-main が課題を worktree 関係なくラベル付きで Issue 起票し（手順 = `issue-dispatch` スキル）、各 worktree は自分宛 open Issue をタスクキューとして実行 → close まで担う（§9）。大型の仕様詳細は従来どおり plans/ 計画書として chat-main が一元作成する（commit / PR は main 直 push 禁止のため一時 worktree 経由 — push 後即削除）が、**作業分配・進捗追跡の台帳 .md（orders 等）は新規作成しない**（テンプレート = [`_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) §Worktree 分担は Issue 参照型）
 - **worktree は作業開始前に main との差分を取り込む**（2026-07-11 ユーザー決定）: セッション開始時・着手前に **(1)** `git pull --ff-only`（自ブランチの origin 追従・履歴が割れていたら停止）→ **(2)** `git fetch origin && git merge origin/main --no-edit`（main の差分取り込み）の 2 段階。feature ブランチでは (2) を `pull --ff-only` で代替できない（fast-forward 不成立で必ず失敗する）。コンフリクトは細心の注意で手動解消 — 判断に迷う衝突は自動解消せず停止して chat-main / ユーザーに報告。chat-main（main ブランチ）だけは `git pull --ff-only` のみで良い
+- **マージ済み判定に git の差分を使わない**（2026-07-25 実測）: squash merge されたブランチは `git diff origin/main <branch>` / `git log origin/main..<branch>` / `git cherry` のいずれでも「未マージ」に見える（内容は main にあるのにコミット・patch-id が一致しないため）。実例 = 完全マージ済みの `claude/schedule-refine` を `git cherry` が 38 patch 未マージと誤判定。**判定の正 = `gh pr list --json number,state,headRefName` の state**。差分で確認したい場合は `git merge-tree --write-tree origin/main <branch>` の結果ツリーを main と比較する（衝突マーカーが差分に混ざるので中身の確認まで必須 — 「追加のみ・削除ゼロ」はマーカー分の疑い）
 - 既知制約（npm install / .tsbuildinfo 非共有・二重 checkout 不可）・prune 手順 → [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
+- **Windows での worktree 削除**: `git worktree remove` はディレクトリ削除で `Permission denied` になることがある（node_modules がプロセスに掴まれている）。この場合 git 側の登録だけ外れてディレクトリが残るため、`.claude/worktrees/` に実体だけの残骸が溜まる。残骸は手動削除する（`git worktree list` に出ないものが対象）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
