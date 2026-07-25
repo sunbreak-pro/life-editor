@@ -270,7 +270,10 @@ export {
 // auto-bump syncVersion via S8 Realtime; onChanged is the immediate
 // same-domain refresh that skips the Realtime latency — CLAUDE.md §6.4
 // DI, no module singleton).
-export { shouldRoutineRunOnDate } from "./utils/routineFrequency";
+export {
+  shouldRoutineRunOnDate,
+  seedFrequencyPatch,
+} from "./utils/routineFrequency";
 export {
   diffRoutineScheduleItems,
   shouldCreateRoutineItem,

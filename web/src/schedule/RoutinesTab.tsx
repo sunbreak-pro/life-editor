@@ -4,11 +4,16 @@ import {
   useRoutineContext,
   useRightSidebarOptional,
   useTranslation,
+  useScheduleItemsRoutineSync,
   RightSidebarPortal,
   RoutineEditorForm,
   ScheduleSidebarTabs,
   buildWeekdayLabels,
   frequencyLabel,
+  seedFrequencyPatch,
+  todayDateKey,
+  addDaysKey,
+  type DataService,
   type FrequencyLabelCopy,
   type RoutineEditorRoutine,
 } from "@life-editor/shared";
@@ -20,13 +25,36 @@ import {
  * chrome. The routine list shows title + time + frequency summary; the pure
  * <RoutineEditorForm> edits the selection.
  *
- * DataService is reached ONLY through useRoutineContext (§3.1). i18n is
- * resolved here and injected into the pure form (§6.4).
+ * DataService reaches the domain through useRoutineContext (§3.1); the prop
+ * exists only to feed the shared generator hook, exactly as the Calendar host
+ * does (§6.4 — injected, never a module singleton).
+ * i18n is resolved here and injected into the pure form (§6.4).
  */
-export function RoutinesTab() {
+
+/** Frequency fields — a patch touching any of these needs a reconcile pass. */
+const FREQUENCY_KEYS = [
+  "frequencyType",
+  "frequencyDays",
+  "frequencyInterval",
+  "frequencyStartDate",
+] as const;
+
+/**
+ * Reconcile window for this tab (#352). Unlike the Calendar host there is no
+ * visible range here, so we take the widest window the calendar itself ever
+ * materialises in one go — a 6-week month grid — anchored on today. Days past
+ * it are reconciled by `ensureRoutineItemsForDateRange` when the user
+ * navigates the calendar onto them.
+ */
+const RECONCILE_WINDOW_DAYS = 41;
+
+export function RoutinesTab({ dataService }: { dataService: DataService }) {
   const { t } = useTranslation();
   const { routines, createRoutine, updateRoutine, deleteRoutine } =
     useRoutineContext();
+  const { reconcileRoutineScheduleItems } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Null-safe (tests / standalone). `open` surfaces the panel on selection.
   const rightSidebar = useRightSidebarOptional();
   const openSidebar = rightSidebar?.open;
@@ -85,9 +113,41 @@ export function RoutinesTab() {
   };
 
   const handlePatch = (id: string, patch: Partial<RoutineEditorRoutine>) => {
-    if (Object.keys(patch).length > 0) {
-      updateRoutine(id, patch as Parameters<typeof updateRoutine>[1]);
+    if (Object.keys(patch).length === 0) return;
+    const routine = routines.find((r) => r.id === id);
+    if (!routine) {
+      void updateRoutine(id, patch as Parameters<typeof updateRoutine>[1]);
+      return;
     }
+    // A bare frequency-TYPE switch carries none of the new type's own
+    // fields; left as-is it reads as "fires never" / "fires daily" and the
+    // reconcile below would act on that transient (#352).
+    const today = todayDateKey();
+    const seeded = seedFrequencyPatch(patch, routine, today);
+    const touchesFrequency = FREQUENCY_KEYS.some((k) => k in seeded);
+    void (async () => {
+      const landed = await updateRoutine(
+        id,
+        seeded as Parameters<typeof updateRoutine>[1],
+      );
+      // Title / time edits need no reconcile (this tab has no series-scope
+      // dialog — that propagation is the Calendar host's #279 path), and a
+      // failed template write must not leave the series reshaped to a
+      // frequency the routine never took.
+      if (!landed || !touchesFrequency) return;
+      await reconcileRoutineScheduleItems(
+        { ...routine, ...seeded },
+        {
+          startDate: today,
+          endDate: addDaysKey(today, RECONCILE_WINDOW_DAYS),
+        },
+        {
+          title: routine.title,
+          startTime: routine.startTime,
+          endTime: routine.endTime,
+        },
+      );
+    })();
   };
 
   const handleDelete = (id: string) => {

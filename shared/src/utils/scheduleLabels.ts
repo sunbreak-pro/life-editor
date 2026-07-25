@@ -50,8 +50,9 @@ export function frequencyLabel(
         .trim();
     }
     default:
-      // Unknown / retired frequency straight from the DB (#352 removed the
-      // "group" type from the union but not from the 0008 CHECK).
+      // Unreachable for a mapped RoutineNode — `normaliseFrequency` already
+      // folds the retired "group" value into a live type on the way out of
+      // the DB. Kept as a total-function guard for hand-built inputs.
       return r.frequencyType;
   }
 }

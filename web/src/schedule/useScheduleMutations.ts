@@ -4,6 +4,7 @@ import {
   isTaskChip,
   makeOptimisticScheduleItem,
   addDaysKey,
+  seedFrequencyPatch,
   type FrequencyEditorValue,
   type RepeatScope,
   type RoutineNode,
@@ -88,7 +89,9 @@ export interface UseScheduleMutationsArgs {
         | "frequencyStartDate"
       >
     >,
-  ) => void;
+    // Resolves false when the template write did NOT land, so the caller can
+    // abort work it sequenced behind it (#352 reconcile).
+  ) => Promise<boolean>;
   deleteRoutine: (id: string) => Promise<{ deletedScheduleItemIds: string[] }>;
   detachRoutine: (
     id: string,
@@ -417,7 +420,23 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       if (selected.routineId != null) {
         if (Object.keys(patch).length === 0) return;
         const routineId = selected.routineId;
-        updateRoutine(routineId, patch);
+        const routine = routines.find((r) => r.id === routineId);
+        if (!routine) {
+          // Routines not loaded (or the routine vanished): patch the
+          // template anyway, but skip reconcile — without the pre-edit
+          // routine there is no rule-2 template and no reliable "does the
+          // new frequency fire here" answer. Re-read so the editor's
+          // optimistic state returns to DB truth.
+          void updateRoutine(routineId, patch);
+          reload();
+          return;
+        }
+        // A bare type switch carries none of the new type's own fields, so
+        // it would read as "fires never" (weekdays with no day) or "fires
+        // daily" (interval with no interval). Seed them the way the
+        // manual→repeat conversion below does — reconcile acts on this
+        // patch immediately, so the transient is no longer harmless.
+        const seededPatch = seedFrequencyPatch(patch, routine, selected.date);
         // #352 Step 4: the template update alone only steers FUTURE
         // generation — occurrences already materialised keep the old
         // rhythm (rows on days that no longer fire, gaps on days that
@@ -427,12 +446,16 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         // this patch is the rule-2 template: title/times are untouched
         // by a frequency edit, so a row deviating from them was edited
         // individually and stays the user's.
-        const routine = routines.find((r) => r.id === routineId);
-        if (!routine) return;
         void (async () => {
           try {
+            // Sequenced, not fired in parallel: reshaping occurrences to a
+            // frequency the routine itself never took would leave template
+            // and series contradicting each other, and the always-on
+            // generators would then fight over every day.
+            const landed = await updateRoutine(routineId, seededPatch);
+            if (!landed) return;
             await reconcileRoutineScheduleItems(
-              { ...routine, ...patch },
+              { ...routine, ...seededPatch },
               { startDate: rangeStart, endDate: rangeEnd },
               {
                 title: routine.title,

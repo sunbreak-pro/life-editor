@@ -45,3 +45,62 @@ export function shouldRoutineRunOnDate(
       return false;
   }
 }
+
+/**
+ * Complete a bare frequency-TYPE switch into a self-consistent frequency.
+ *
+ * The segmented control emits `{ frequencyType }` alone, so a switch lands
+ * on the type-specific fields of the PREVIOUS type:
+ *   - → "weekdays" with no day set: `shouldRoutineRunOnDate` matches NO
+ *     date, so the routine reads as "fires never";
+ *   - → "interval" with a null interval / start date: both guards in
+ *     `shouldRoutineRunOnDate` degrade to `true`, so it reads as "fires
+ *     every day".
+ * Either reading is a transient the user never asked for, and since #352
+ * wired reconcile to this patch it is no longer harmless: one click would
+ * sweep (or mint) occurrences before the user picked a weekday or typed an
+ * interval. Seeding mirrors what the manual→repeat conversion already does
+ * with its seed event (`useScheduleMutations.handleChangeRepeat`).
+ *
+ * `anchorDate` is the day the edit is anchored on (the occurrence being
+ * edited, else today). Fields the caller set explicitly are never
+ * overwritten, and a patch without `frequencyType` passes through
+ * untouched — a weekday toggle that clears the last day still means "fires
+ * never", which is the user's own choice.
+ */
+export function seedFrequencyPatch<
+  T extends {
+    frequencyType?: FrequencyType;
+    frequencyDays?: number[];
+    frequencyInterval?: number | null;
+    frequencyStartDate?: string | null;
+  },
+>(
+  patch: T,
+  current: {
+    frequencyDays: number[];
+    frequencyInterval: number | null;
+    frequencyStartDate: string | null;
+  },
+  anchorDate: string,
+): T {
+  if (patch.frequencyType === undefined) return patch;
+  const seeded: T = { ...patch };
+
+  if (patch.frequencyType === "weekdays") {
+    const days = patch.frequencyDays ?? current.frequencyDays;
+    if (days.length === 0) {
+      const [y, m, d] = anchorDate.split("-").map(Number);
+      seeded.frequencyDays = [new Date(y, m - 1, d).getDay()];
+    }
+  }
+
+  if (patch.frequencyType === "interval") {
+    const interval = patch.frequencyInterval ?? current.frequencyInterval;
+    if (interval == null || interval <= 0) seeded.frequencyInterval = 1;
+    const start = patch.frequencyStartDate ?? current.frequencyStartDate;
+    if (start == null) seeded.frequencyStartDate = anchorDate;
+  }
+
+  return seeded;
+}

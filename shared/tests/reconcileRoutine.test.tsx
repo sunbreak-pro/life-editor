@@ -318,6 +318,29 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
     expect(bulkCreateScheduleItems).not.toHaveBeenCalled();
   });
 
+  it("never cleans outside the window it can refill", async () => {
+    // The read is whole-series (fetchScheduleItemsByRoutineId takes no date
+    // filter), so an unbounded delete would sweep occurrences far past the
+    // visible range while only that range got regenerated. Rows beyond the
+    // window are left to ensureRoutineItemsForDateRange when the user
+    // navigates onto them.
+    const routine = makeRoutine(); // fires on nothing
+    const rows = [
+      makeItem({ id: "del-in-window", date: T1 }),
+      makeItem({ id: "keep-far-future", date: addDays(T, 90) }),
+    ];
+    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
+    const gen = renderGenerator(ds);
+
+    await gen.reconcileRoutineScheduleItems(
+      routine,
+      { startDate: T, endDate: T3 },
+      TEMPLATE,
+    );
+
+    expect(deletedIds(bulkSoftDeleteScheduleItems)).toEqual(["del-in-window"]);
+  });
+
   it("cleans up without a dateRange (no range ⇒ no generation pass)", async () => {
     const routine = makeRoutine();
     const rows = [makeItem({ id: "del-stale", date: T1 })];

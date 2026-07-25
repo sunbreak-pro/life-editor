@@ -167,7 +167,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         >
       >,
       opts?: { skipUndo?: boolean },
-    ) => {
+    ): Promise<boolean> => {
       const prev = routinesRef.current.find((r) => r.id === id);
       setRoutines((p) =>
         p.map((r) =>
@@ -176,8 +176,18 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             : r,
         ),
       );
-      ds.updateRoutine(id, updates).catch((e) =>
-        logServiceError("Routines", "update", e),
+      // Resolves false instead of rejecting (the error is still logged), so
+      // the fire-and-forget callers stay unchanged while a caller that
+      // SEQUENCES work behind the template write — the #352 frequency
+      // reconcile — can abort. Rewriting occurrences to a shape the routine
+      // itself never took would leave template and series contradicting each
+      // other, with the two generators then fighting over every day.
+      const landed = ds.updateRoutine(id, updates).then(
+        () => true,
+        (e) => {
+          logServiceError("Routines", "update", e);
+          return false;
+        },
       );
 
       if (prev && !opts?.skipUndo) {
@@ -213,6 +223,8 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           },
         });
       }
+
+      return landed;
     },
     [ds, push],
   );

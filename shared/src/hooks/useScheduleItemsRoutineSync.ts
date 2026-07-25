@@ -252,12 +252,24 @@ export function useScheduleItemsRoutineSync(
    *   3. 発火日から外れた未来行 — soft-delete (Trash-recoverable), never
    *      the hard bulkDelete.
    *
+   * `dateRange` bounds BOTH halves of the pass. Cleaning outside the
+   * window the same call can refill would be asymmetric: the read is
+   * whole-series (`fetchScheduleItemsByRoutineId` has no date filter), so
+   * an unbounded delete would sweep occurrences far past the visible
+   * range while only the range got regenerated. Rows beyond it are picked
+   * up by `ensureRoutineItemsForDateRange` when the user navigates there.
+   * Omitting the range keeps the whole-series behaviour for a caller that
+   * genuinely means "everything".
+   *
    * Regeneration is delegated to `collectRoutineItemsForDates`, so a
    * deleted / archived / hidden routine cannot spawn rows here either.
-   * Dismissed days are absent from `existingDates` (see rule 1) and so
-   * are candidates for re-creation — the (routine_id, source_date)
-   * partial UNIQUE + the bulkCreate upsert's ignoreDuplicates absorb
-   * that write, exactly as they do for the always-on day generator.
+   * Dismissed days are absent from `existingSet` (see rule 1), so they
+   * reach the INSERT — the live pre-check inside `bulkCreateScheduleItems`
+   * drops them there (it matches on (routine_item_id, source_date) with
+   * is_deleted_cache=false, which a dismissed row still satisfies). That
+   * pre-check, NOT an upsert, is what keeps a dismissed day from coming
+   * back: the payload INSERT is plain, so a (routine, date) collision
+   * reaching it raises 23505 and rolls the whole batch back.
    */
   const reconcileRoutineScheduleItems = useCallback(
     async (
@@ -281,6 +293,12 @@ export function useScheduleItemsRoutineSync(
             // rule 1: the life record is untouchable.
             if (item.completed || item.isDismissed) return false;
             if (item.date < today) return false;
+            // Stay inside the window this pass can also refill.
+            if (
+              dateRange &&
+              (item.date < dateRange.startDate || item.date > dateRange.endDate)
+            )
+              return false;
             // rule 2: manual edits win over the series.
             if (item.sourceDate != null && item.sourceDate !== item.date)
               return false;

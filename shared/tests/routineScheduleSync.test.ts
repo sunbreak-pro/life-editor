@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { shouldRoutineRunOnDate } from "../src/utils/routineFrequency";
+import {
+  shouldRoutineRunOnDate,
+  seedFrequencyPatch,
+} from "../src/utils/routineFrequency";
 import {
   shouldCreateRoutineItem,
   diffRoutineScheduleItems,
@@ -120,6 +123,90 @@ describe("shouldRoutineRunOnDate (frequency parity)", () => {
         "2026-05-17",
       ),
     ).toBe(false);
+  });
+});
+
+describe("seedFrequencyPatch (#352 — bare type switches)", () => {
+  // 2026-05-17 is a Sunday (getDay() === 0).
+  const SUNDAY = "2026-05-17";
+  const current = {
+    frequencyDays: [] as number[],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+  };
+
+  it("gives a weekdays switch the anchor's own weekday (else it fires NEVER)", () => {
+    // The segmented control sends the type alone. Unseeded, weekdays with an
+    // empty day set matches no date at all — and since #352 the reconcile
+    // acts on that immediately, sweeping the series' future.
+    expect(
+      seedFrequencyPatch({ frequencyType: "weekdays" }, current, SUNDAY),
+    ).toEqual({ frequencyType: "weekdays", frequencyDays: [0] });
+  });
+
+  it("gives an interval switch a concrete interval + start (else it fires DAILY)", () => {
+    // Unseeded, both interval guards in shouldRoutineRunOnDate degrade to
+    // true, so one click would mint a row on every visible day.
+    expect(
+      seedFrequencyPatch({ frequencyType: "interval" }, current, SUNDAY),
+    ).toEqual({
+      frequencyType: "interval",
+      frequencyInterval: 1,
+      frequencyStartDate: SUNDAY,
+    });
+  });
+
+  it("never overwrites what the caller or the routine already set", () => {
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "weekdays", frequencyDays: [2] },
+        current,
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "weekdays", frequencyDays: [2] });
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "interval" },
+        {
+          frequencyDays: [],
+          frequencyInterval: 3,
+          frequencyStartDate: "2026-05-01",
+        },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "interval" });
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "weekdays" },
+        { ...current, frequencyDays: [1, 5] },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "weekdays" });
+  });
+
+  it("leaves a patch without a type switch alone (clearing every weekday is the user's choice)", () => {
+    const patch = { frequencyDays: [] };
+    expect(
+      seedFrequencyPatch(patch, { ...current, frequencyDays: [1] }, SUNDAY),
+    ).toBe(patch);
+  });
+
+  it("repairs a non-positive interval", () => {
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "interval" },
+        { ...current, frequencyInterval: 0, frequencyStartDate: SUNDAY },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "interval", frequencyInterval: 1 });
+  });
+
+  it("daily needs no seeding", () => {
+    expect(
+      seedFrequencyPatch({ frequencyType: "daily" }, current, SUNDAY),
+    ).toEqual({
+      frequencyType: "daily",
+    });
   });
 });
 
