@@ -1,4 +1,10 @@
 import type { RoutineNode, FrequencyType } from "../types/routine";
+import {
+  ITEMS_META_COLUMNS,
+  type ItemsMetaRow,
+  type ItemsMetaInsertRow,
+  type ItemsMetaUpdatePatch,
+} from "./taskMapper";
 
 /*
  * Pure RoutineNode <-> 2-row (items_meta + routines_payload) mappers
@@ -90,23 +96,13 @@ export function parseFrequencyDays(raw: string): number[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Row shape of `public.items_meta` for role='routine'. `role` is a CHECK
- * column with 5 allowed values; this mapper is the Routines-only view, so
- * `role` is narrowed to the `'routine'` literal. `user_id` is
- * server-derived (RLS default `auth.uid()`) and clients never write it
- * but is included for round-trip symmetry.
+ * items_meta shapes for role='routine' — aliases of the canonical
+ * generics in `taskMapper` (the 5 role mappers carried byte-identical
+ * copies).
  */
-export interface ItemsMetaRoutineRow {
-  id: string;
-  user_id: string;
-  role: "routine";
-  title: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
+export type ItemsMetaRoutineRow = ItemsMetaRow<"routine">;
+export type ItemsMetaRoutineInsertRow = ItemsMetaInsertRow<"routine">;
+export type ItemsMetaRoutineUpdatePatch = ItemsMetaUpdatePatch;
 
 /**
  * Row shape of `public.routines_payload`. The 0008 schema carries TWO
@@ -151,30 +147,12 @@ export interface RoutinesPayloadRow {
 }
 
 /**
- * Writable subset for INSERT. `user_id` is the only items_meta column
- * the client must supply (RLS default would fill it, but explicit is
- * safer for cross-device parity); `created_at` / `updated_at` are left
- * to the column DEFAULT `now()` on first INSERT.
- */
-export type ItemsMetaRoutineInsertRow = Omit<
-  ItemsMetaRoutineRow,
-  "created_at" | "updated_at"
->;
-
-/**
  * Writable subset for INSERT/UPDATE on routines_payload. No generated
  * columns exist on routines_payload (unlike tasks_payload's
  * `parent_item_role`), so this is just an alias for parity with
  * `TasksPayloadWriteRow`.
  */
 export type RoutinesPayloadWriteRow = RoutinesPayloadRow;
-
-/** UPDATE patch for items_meta. `id` / `user_id` / `role` / `created_at`
- * are never patched. `updated_at` is ALWAYS present (bump responsibility,
- * see `routineUpdatesToPatches`). */
-export type ItemsMetaRoutineUpdatePatch = Partial<
-  Omit<ItemsMetaRoutineRow, "id" | "user_id" | "role" | "created_at">
->;
 
 /** UPDATE patch for routines_payload. `item_id` / `user_id` are never
  * patched. */
@@ -186,10 +164,8 @@ export type RoutinesPayloadUpdatePatch = Partial<
 // 2. SELECT column lists (literal strings to keep query intent reviewable)
 // ---------------------------------------------------------------------------
 
-/** SELECT column list for `items_meta` rows of role='routine'. */
-export const ITEMS_META_ROUTINE_COLUMNS =
-  "id, user_id, role, title, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
+/** Role-scoped alias of `ITEMS_META_COLUMNS` for Routines call sites. */
+export const ITEMS_META_ROUTINE_COLUMNS = ITEMS_META_COLUMNS;
 
 /**
  * SELECT column list for `routines_payload`. Lists BOTH naming sets

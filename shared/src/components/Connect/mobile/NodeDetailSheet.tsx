@@ -15,7 +15,7 @@ import {
 import type { GraphNode, GraphNodeType } from "../graph/graph-types";
 import { isTagNodeId } from "../graph/graph-types";
 import type { BacklinkEntry } from "../BacklinkView";
-import type { LinkableItem } from "../SelectedNodeCard";
+import { resolveLinkTarget, type LinkableItem } from "../SelectedNodeCard";
 import type { ConnectGraphLabels } from "../labels";
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
@@ -105,9 +105,7 @@ export function NodeDetailSheet({
     if (!onCreateLink) return;
     const trimmed = target.trim();
     if (!trimmed) return;
-    const byId = linkableItems.find((i) => i.id === trimmed);
-    const byLabel = linkableItems.find((i) => i.label === trimmed);
-    const targetId = byId?.id ?? byLabel?.id ?? trimmed;
+    const targetId = resolveLinkTarget(trimmed, linkableItems);
     if (targetId === node.id) return; // self-loop guard (DB also rejects)
     if (outgoingLinkIds?.has(targetId)) return; // already linked — no dup row
     const create = onCreateLink;

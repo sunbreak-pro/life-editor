@@ -223,7 +223,13 @@ export function parseDateKey(key: string): { y: number; m: number; d: number } {
   return { y, m, d };
 }
 
-export function formatDateKey(y: number, m: number, d: number): string {
+// Renamed from `formatDateKey` (C6): the old name collided with the 1-arg
+// Date formatter in utils/dateKey.ts that the root barrel exports.
+export function formatDateKeyFromParts(
+  y: number,
+  m: number,
+  d: number,
+): string {
   const mm = String(m).padStart(2, "0");
   const dd = String(d).padStart(2, "0");
   return `${y}-${mm}-${dd}`;
@@ -239,7 +245,11 @@ export function dayOfWeek(key: string): number {
 export function addDaysKey(key: string, delta: number): string {
   const { y, m, d } = parseDateKey(key);
   const dt = new Date(y, m - 1, d + delta);
-  return formatDateKey(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+  return formatDateKeyFromParts(
+    dt.getFullYear(),
+    dt.getMonth() + 1,
+    dt.getDate(),
+  );
 }
 
 /**
@@ -267,7 +277,7 @@ export function weekDayKeys(weekStartKey: string, days = 7): string[] {
 /** Snap a date key to the first day of its month (YYYY-MM-01). */
 export function startOfMonthKey(key: string): string {
   const { y, m } = parseDateKey(key);
-  return formatDateKey(y, m, 1);
+  return formatDateKeyFromParts(y, m, 1);
 }
 
 /**
@@ -279,7 +289,7 @@ export function startOfMonthKey(key: string): string {
 export function addMonthsKey(key: string, delta: number): string {
   const { y, m } = parseDateKey(key);
   const dt = new Date(y, m - 1 + delta, 1);
-  return formatDateKey(dt.getFullYear(), dt.getMonth() + 1, 1);
+  return formatDateKeyFromParts(dt.getFullYear(), dt.getMonth() + 1, 1);
 }
 
 /**
@@ -300,7 +310,7 @@ export function monthGridKeys(
   const lastDay = new Date(y, m, 0).getDate();
   const gridStart = startOfWeekKey(first, weekStartsOn);
   // Days from gridStart to the last of the month, then round up to a full week.
-  const lastKey = formatDateKey(y, m, lastDay);
+  const lastKey = formatDateKeyFromParts(y, m, lastDay);
   let cursor = gridStart;
   const flat: string[] = [];
   // Emit at least until we pass the month's last day, then finish the week.

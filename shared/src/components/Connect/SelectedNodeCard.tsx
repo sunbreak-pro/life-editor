@@ -20,6 +20,21 @@ export interface LinkableItem {
   label: string;
 }
 
+/**
+ * Resolve a link-form input to an items_meta.id. Datalist matches may send
+ * the label as value — map it back to an id; else treat the raw value as a
+ * pasted items_meta.id (cross-role link). Shared by the desktop card and
+ * the mobile NodeDetailSheet (C7 dedup).
+ */
+export function resolveLinkTarget(
+  trimmed: string,
+  items: readonly LinkableItem[],
+): string {
+  const byId = items.find((i) => i.id === trimmed);
+  const byLabel = items.find((i) => i.label === trimmed);
+  return byId?.id ?? byLabel?.id ?? trimmed;
+}
+
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
   project: Folder,
   note: FileText,
@@ -109,11 +124,7 @@ export function SelectedNodeCard({
     if (!onCreateLink) return;
     const trimmed = target.trim();
     if (!trimmed) return;
-    // Datalist matches may send the label as value; resolve back to an id,
-    // else treat the raw value as a pasted items_meta.id (cross-role link).
-    const byId = linkableItems.find((i) => i.id === trimmed);
-    const byLabel = linkableItems.find((i) => i.label === trimmed);
-    const targetId = byId?.id ?? byLabel?.id ?? trimmed;
+    const targetId = resolveLinkTarget(trimmed, linkableItems);
     if (targetId === node.id) return; // self-loop guard (DB also rejects)
     if (outgoingLinkIds?.has(targetId)) return; // already linked — no dup row
     const create = onCreateLink;
