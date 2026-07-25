@@ -31,12 +31,20 @@ OUTBOX="${ROOT}/.claude/comm/outbox/${CHAT}"
 mkdir -p "${OUTBOX}"
 REPORT="${OUTBOX}/stop-report.md"
 
-# 変更ファイル取得（staged + unstaged）
-CHANGED=$(git -C "${ROOT}" diff --name-only HEAD 2>/dev/null | grep -E '^(shared|web)/' | head -10)
+# 変更ファイル取得（staged + unstaged + 未追跡 — 新規ファイルだけの
+# セッションでも検知できるよう ls-files --others を併記する）
+CHANGED=$({
+  git -C "${ROOT}" diff --name-only HEAD 2>/dev/null
+  git -C "${ROOT}" ls-files --others --exclude-standard 2>/dev/null
+} | grep -E '^(shared|web)/' | head -10)
 
 if [ -z "${CHANGED}" ]; then
   exit 0  # shared/web に変更なし → 何もしない
 fi
+
+# npm install がまだの worktree では build が必ず失敗し、Stop のたびに
+# エラーが stop-report.md へ積もるだけなので黙ってスキップする
+[ -d "${ROOT}/web/node_modules" ] || exit 0
 
 # バックグラウンドで build を走らせ、結果を outbox に追記
 (
