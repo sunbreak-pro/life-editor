@@ -18,8 +18,10 @@ export const isMac = /Mac|iPhone|iPad/.test(ua);
  * gate the Mobile 省略 Providers (roster = CLAUDE.md §2) only on the native
  * shells, the host needs a runtime check bundled into the shared web build.
  *
- * NOT WIRED YET (2026-07-25): this is exported but no host gates a Provider on
- * it — the Mobile 省略 Provider split is still design intent, not code.
+ * Wired (#320): `web/src/MainScreen.tsx` (ShortcutConfigHost) gates the
+ * ShortcutConfigProvider on this, and WorkScreen gates the ambient-mixer UI
+ * (AudioProvider itself stays mounted on native so the Pomodoro completion
+ * chime rings — mobile-scope.md #10/#11).
  *
  * Deliberately reads the `window.Capacitor` runtime global instead of
  * `import { Capacitor } from "@capacitor/core"`: shared/ MUST stay free of any
