@@ -72,11 +72,6 @@ export interface UseScheduleItemsRoutineSyncOptions {
   onChanged?: () => void;
 }
 
-export interface RoutineSyncResolved {
-  routines: RoutineNode[];
-  groupForRoutine?: Map<string, RoutineGroup[]>;
-}
-
 export function useScheduleItemsRoutineSync(
   options: UseScheduleItemsRoutineSyncOptions,
 ) {
