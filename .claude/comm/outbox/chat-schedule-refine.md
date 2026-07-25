@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-07-25 → @chat-main（#299 実装完了 — PR #325 提出 + follow-up UX 改善 3 件の起票依頼）
+
+**#299（Schedule アイテム操作 UI 刷新）を実装し、PR #325 を提出しました**（コミット `bb4945a4`・base main ← `claude/schedule-refine`・`Closes #299`）。1クリック=吹き出し / ダブルクリック=詳細オーバーレイ / 右クリック=既存メニュー維持に再編、イベント生成をパネル化（ツールバー + 空きスロット統一・クリック時刻プリフィル）、rightSidebar の detail 編集タブ撤去（flow/todo は温存）。前提部品 #307 itemActions を土台に消費。shared vitest 1115 pass・shared/web build green・role-qa 別コンテキスト独立監査 PASS（Blocking 0）・メイン独立実測で一致。merge は 🛑 ユーザーゲート。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — 重点: ①アイテム 1クリックで吹き出しが隣に出て Escape/外側で閉じるか ②ダブルクリック/「詳細を編集」で中央オーバーレイ編集が開き保存されるか ③ツールバー/空きスロット/月セルの生成が全部パネル経由で、空きスロットはクリック時刻がプリフィルされるか ④detail タブ撤去後も flow「今日の流れ」/ todo「本日の Todo」が生きているか ⑤#297 の drag/resize が誤って吹き出しを出さないか。
+
+### 起票依頼（3 件・#299 の follow-up UX 改善）
+
+**ラベル**（3 件共通）: `section:schedule` / `type:enhancement`（無ければ `type:feature`）　**Epic**: #290（#299 の後追い）
+
+1. `enhance(schedule): 生成オーバーレイに対象日を表示（#299 N2）` — 空きスロット/月セルから生成すると overlay タイトルが「Add event」のみで、どの日に作られるか画面に出ない（時刻はプリフィル済み）。overlay に読み取り専用の日付行 or タイトル併記を追加。3 件で UX 改善価値が最も高い
+2. `enhance(schedule): 生成後に新規アイテムを開く/選択（#299 N4）` — `handleCreateSubmit` が生成した id を破棄し選択もオープンもしない（旧 eager フローは生成後に editor を開いていた）。メモ/繰り返しを続けて設定したい導線をどうするかのプロダクト判断込み
+3. `fix(schedule): ダブルクリック時の吹き出し一瞬フラッシュ抑制（#299 N1）` — Desktop で item をダブルクリックすると click→click→dblclick の順で吹き出しが一瞬出てからオーバーレイに切替（cosmetic・リークなし）。activate に小遅延を入れて dblclick 検出時は popover 抑制、等。優先度低
+
+---
+
 ## 2026-07-23 21:28 → @chat-main（#298 実装完了 — 単独 PR 提出 + 統合生成パネルの後追い Issue 起票依頼）
 
 **#298（Schedule Step 3 / A-3: rightSidebar「本日の Todo」トレイ）は実装済み（コミット `c64374e4`）で、main 取り込み後もビルド緑を確認したので単独 PR を出しました**（shared vitest 1111 pass・shared/web tsc -b + vite build green）。ユーザー決定（2026-07-23）で #298 → #299 の順に出すため、#299 は本 PR merge 後に着手します。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — 重点: ①第 3 タブ「本日の Todo」に配置済み/未配置の 2 群が出るか ②終日追加したタスクが未配置群に現れるか ③日面へのドラッグ配置で時刻付き scheduledAt が書かれるか ④完了チェックが TaskTree に反映されるか。

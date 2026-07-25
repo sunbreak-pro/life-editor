@@ -89,6 +89,13 @@ export {
   type QuickCaptureSheetProps,
   type QuickCaptureLabels,
 } from "./QuickCaptureSheet";
+// #299: shared create-event fields (title + start/end + submit) backing both
+// the Desktop creation overlay and the Mobile QuickCaptureSheet.
+export {
+  EventCreateFields,
+  type EventCreateFieldsProps,
+  type EventCreateFieldsLabels,
+} from "./EventCreateFields";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {

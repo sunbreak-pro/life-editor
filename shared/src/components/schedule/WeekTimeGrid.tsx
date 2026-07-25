@@ -77,6 +77,16 @@ export interface WeekTimeGridProps {
   selectedId?: string | null;
   onSelectItem?: (id: string) => void;
   /**
+   * Single-click on an item block/chip → host opens a bubble popover anchored
+   * at the click's viewport coords (#299). Preferred over `onSelectItem` when
+   * both are supplied (the pointer-up "click" of a movable block also routes
+   * here — it fires only when the pointer did NOT drag, §297 guard). Falls back
+   * to `onSelectItem` when omitted.
+   */
+  onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
+  /** Double-click on an item block/chip → host opens the detail overlay (#299). */
+  onItemDoubleClick?: (id: string) => void;
+  /**
    * Right-click (contextmenu) on an item block → host opens a context menu at
    * the given viewport coordinates. When omitted, the browser's native menu is
    * left untouched. Desktop-only (#223).
@@ -231,6 +241,8 @@ export function WeekTimeGrid({
   items,
   selectedId,
   onSelectItem,
+  onItemActivate,
+  onItemDoubleClick,
   onItemContextMenu,
   onCreateAt,
   onMoveItem,
@@ -430,7 +442,7 @@ export function WeekTimeGrid({
         isAllDay: d.mode === "place" ? false : undefined,
       });
     };
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
       const d = dragRef.current;
       if (d) {
         if (d.moved && d.final) {
@@ -448,7 +460,12 @@ export function WeekTimeGrid({
             onResizeItem?.(d.id, minutesToTime(d.final.endMin));
           }
         } else {
-          onSelectItem?.(d.id);
+          // Non-drag pointer-up = a click on a movable block (#297 guard). Open
+          // the bubble anchored at the pointer, not the old rightSidebar select
+          // (#299). Task-chip ids are no-op'd by the host.
+          if (onItemActivate)
+            onItemActivate(d.id, { x: ev.clientX, y: ev.clientY });
+          else onSelectItem?.(d.id);
         }
       }
       dragRef.current = null;
@@ -472,7 +489,15 @@ export function WeekTimeGrid({
     onMoveItem,
     onResizeItem,
     onSelectItem,
+    onItemActivate,
   ]);
+
+  // 1-click activation (#299): prefer the coord-carrying onItemActivate so the
+  // host can anchor a bubble popover at the cursor; fall back to onSelectItem.
+  const activateItem = (id: string, clientX: number, clientY: number) => {
+    if (onItemActivate) onItemActivate(id, { x: clientX, y: clientY });
+    else onSelectItem?.(id);
+  };
 
   const handleSlotClick = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -573,7 +598,12 @@ export function WeekTimeGrid({
                       placeable ? (e) => beginDrag(e, it, "place") : undefined
                     }
                     onClick={
-                      placeable ? undefined : () => onSelectItem?.(it.id)
+                      placeable
+                        ? undefined
+                        : (e) => activateItem(it.id, e.clientX, e.clientY)
+                    }
+                    onDoubleClick={
+                      placeable ? undefined : () => onItemDoubleClick?.(it.id)
                     }
                     onContextMenu={
                       onItemContextMenu
@@ -690,12 +720,13 @@ export function WeekTimeGrid({
                     <button
                       key={it.id}
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
                         // When move drag is wired, pointer-up already handles
-                        // selection (and is suppressed after a real drag). Keep
+                        // activation (and is suppressed after a real drag). Keep
                         // the click handler for the read-only / non-movable case.
-                        if (!movable) onSelectItem?.(it.id);
+                        if (!movable) activateItem(it.id, e.clientX, e.clientY);
                       }}
+                      onDoubleClick={() => onItemDoubleClick?.(it.id)}
                       onPointerDown={
                         movable ? (e) => beginDrag(e, it, "move") : undefined
                       }

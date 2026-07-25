@@ -5,7 +5,6 @@ import {
   useRoutineContext,
   useSyncContext,
   useTaskTreeContext,
-  useRightSidebarOptional,
   useTranslation,
   useMediaQuery,
   WeekTimeGrid,
@@ -21,6 +20,9 @@ import {
   ScheduleItemContextMenu,
   RepeatScopeDialog,
   QuickCaptureSheet,
+  EventCreateFields,
+  ItemActionPopover,
+  ItemDetailOverlay,
   SegmentedControl,
   BottomSheet,
   Modal,
@@ -75,6 +77,8 @@ import { useScheduleMutations } from "./useScheduleMutations";
 
 const ICON_BTN =
   "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+// Default duration (minutes) prefilled when creating from an empty-slot click.
+const CREATE_DURATION_MIN = 60;
 export function CalendarTab({
   dataService,
   onOpenRoutines,
@@ -124,16 +128,11 @@ export function CalendarTab({
   // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
   const { nodes: taskNodes, updateNode, setTaskStatus } = useTaskTreeContext();
-  // Null-safe: the section can render without a RightSidebarProvider (tests /
-  // standalone). `open` re-opens the panel when a calendar item is picked.
-  const rightSidebar = useRightSidebarOptional();
-  const openSidebar = rightSidebar?.open;
 
   // Navigation + visible fetch window (#280 → useCalendarNav).
   const {
     today,
     anchorDate,
-    setAnchorDate,
     setView,
     desktopView,
     mobileView,
@@ -150,13 +149,27 @@ export function CalendarTab({
   } = useCalendarNav(isWide);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "詳細" / "本日の
-  // Todo" — the A-3 tray, #298).
-  const [sidebarTab, setSidebarTab] = useState<"flow" | "detail" | "todo">(
-    "flow",
-  );
+  // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "本日の Todo" —
+  // the A-3 tray, #298). The old "詳細" tab was removed in #299 (item detail
+  // now lives in a body-level overlay, not the rightSidebar).
+  const [sidebarTab, setSidebarTab] = useState<"flow" | "todo">("flow");
+  // #299 single-click bubble popover: anchor id + viewport coords (Desktop).
+  const [popover, setPopover] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  // #299 detail-edit overlay open flag (Desktop; Mobile keeps the BottomSheet).
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  // #299 event-creation panel: the target day + prefilled start/end. null =
+  // closed. Desktop shows it in an ItemDetailOverlay-style modal; Mobile in the
+  // QuickCaptureSheet. Replaces the old eager-create + Mobile `quickOpen`.
+  const [createPanel, setCreatePanel] = useState<{
+    date: string;
+    start: string;
+    end: string;
+  } | null>(null);
   const [calendarsOpen, setCalendarsOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
   const [nowMinutes, setNowMinutes] = useState(() => nowMinutesLocal());
   // Real "now" Date, ticked alongside nowMinutes. Drives deriveScheduleStatus
   // (#222) — nowMinutes alone (minutes-from-midnight) can't compare across days.
@@ -178,22 +191,68 @@ export function CalendarTab({
     return () => clearInterval(id);
   }, []);
 
-  // Unified item selection. On Desktop it also flips the shared rightSidebar to
-  // its "詳細" tab and opens the panel if collapsed (done here, at the event, not
-  // in an effect — react-hooks/set-state-in-effect). Mobile keeps the editor in
-  // its BottomSheet, so the tab/open side-effects are wide-only.
-  const handleSelectItem = useCallback(
-    (id: string) => {
-      // A-1: task chips are read-only display — clicking one must not open the
-      // ScheduleItem editor (the id isn't a ScheduleItem). No-op here.
+  // Selection = highlight only (#299). The grid ring follows selectedId; the
+  // duplicate handler re-selects the copy. Bubble / overlay opening is handled
+  // by the activate/open-detail handlers below.
+  const handleSelectItem = useCallback((id: string) => {
+    // A-1: task chips are read-only display — the id isn't a ScheduleItem.
+    if (isTaskChip(id)) return;
+    setSelectedId(id);
+  }, []);
+
+  // #299 single-click: open the bubble popover next to the item (Desktop). On
+  // Mobile a single tap opens the BottomSheet editor directly (selectedId →
+  // editorPane → sheet), matching the existing lean-drawer flow.
+  const handleItemActivate = useCallback(
+    (id: string, pos: { x: number; y: number }) => {
+      // A-1: task chips stay read-only — no bubble, no editor (#297 preserved).
       if (isTaskChip(id)) return;
       setSelectedId(id);
-      if (isWide) {
-        setSidebarTab("detail");
-        openSidebar?.();
-      }
+      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
     },
-    [isWide, openSidebar],
+    [isWide],
+  );
+
+  // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
+  // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
+  // drives it). Closes any open bubble.
+  const handleItemOpenDetail = useCallback(
+    (id: string) => {
+      if (isTaskChip(id)) return;
+      setSelectedId(id);
+      setPopover(null);
+      if (isWide) setOverlayOpen(true);
+    },
+    [isWide],
+  );
+
+  // #299 open the creation panel prefilled for a target day + time window.
+  const openCreatePanel = useCallback(
+    (date: string, start: string, end: string) => {
+      setPopover(null);
+      setCreatePanel({ date, start, end });
+    },
+    [],
+  );
+  // Toolbar "Add event" / Mobile FAB → default 09:00–10:00 on the anchor day.
+  const handleToolbarAdd = useCallback(
+    () => openCreatePanel(anchorDate, "09:00", "10:00"),
+    [openCreatePanel, anchorDate],
+  );
+  // Empty-slot click (week/day grid) → prefill from the clicked slot time.
+  const handleGridCreateAt = useCallback(
+    (dateISO: string, minutes: number) =>
+      openCreatePanel(
+        dateISO,
+        minutesToTime(minutes),
+        minutesToTime(minutes + CREATE_DURATION_MIN),
+      ),
+    [openCreatePanel],
+  );
+  // Month-cell day click (Desktop) → default 09:00–10:00 on that day.
+  const handleMonthCreate = useCallback(
+    (day: string) => openCreatePanel(day, "09:00", "10:00"),
+    [openCreatePanel],
   );
 
   // A-2 (#297): grid drag of a task chip → write scheduledAt/scheduledEndAt on
@@ -262,19 +321,13 @@ export function CalendarTab({
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
   // rangeItems optimistically; navigation, reload(), retry and Realtime
   // (syncVersion) refetch.
-  const {
-    rangeItems,
-    setRangeItems,
-    fetchedRange,
-    patchRange,
-    reload,
-    rangeError,
-  } = useVisibleRangeItems({
-    loadDateRange,
-    rangeStart,
-    rangeEnd,
-    refreshKey: syncVersion,
-  });
+  const { rangeItems, setRangeItems, patchRange, reload, rangeError } =
+    useVisibleRangeItems({
+      loadDateRange,
+      rangeStart,
+      rangeEnd,
+      refreshKey: syncVersion,
+    });
 
   // `group`-frequency lookup for the range materialiser (#296): built with
   // the same shared helper RoutineScheduleSync uses, so the ensure cleanup
@@ -297,17 +350,14 @@ export function CalendarTab({
   }, [selectedId, rangeItems, contextItems]);
 
   // Mutation layer (#280 → useScheduleMutations): every write path plus the
-  // #278 pending-draft guard and the #279 repeat/scope machinery.
+  // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
   const {
     scopeRequest,
     closeScopeRequest,
     handleScopeChoose,
     handleUpdate,
     handleToggle,
-    handleCreateAt,
-    handleAddEvent,
-    handleCreateOnDay,
-    handleQuickAdd,
+    handleCreate,
     handleMoveItem,
     handleResizeItem,
     handleDismiss,
@@ -320,14 +370,11 @@ export function CalendarTab({
     rangeItems,
     setRangeItems,
     patchRange,
-    fetchedRange,
     reload,
     contextItems,
     rangeStart,
     rangeEnd,
     today,
-    anchorDate,
-    setAnchorDate,
     selected,
     setSelectedId,
     onSelectItem: handleSelectItem,
@@ -347,9 +394,19 @@ export function CalendarTab({
     groupForRoutine,
     onMoveTaskChip: handleTaskChipMove,
     onResizeTaskChip: handleTaskChipResize,
-    newEventTitle: t("scheduleCalendar.newEvent"),
     copySuffix: t("scheduleScreen.copySuffix"),
   });
+
+  // #299 create-panel submit: the panel carries the target day; the fields hand
+  // over the trimmed title + times. Reuses the mutation layer's single create.
+  const handleCreateSubmit = useCallback(
+    (title: string, start: string, end: string) => {
+      if (!createPanel) return;
+      handleCreate(createPanel.date, title, start, end);
+      setCreatePanel(null);
+    },
+    [createPanel, handleCreate],
+  );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
   // layer; only the menu position state lives here) ──────────────────────────
@@ -790,12 +847,12 @@ export function CalendarTab({
     ) : null;
 
   // Shared rightSidebar (AppShell owns the frame). Desktop shows a 2-tab
-  // switcher ("今日の流れ" ↔ "詳細") inside ONE portal so contentCount stays 1;
-  // Mobile shows only the flow (its item editor lives in the BottomSheet below).
+  // switcher ("今日の流れ" ↔ "本日の Todo") inside ONE portal so contentCount
+  // stays 1 (#299 removed the old "詳細" tab — item detail now lives in a
+  // body-level overlay); Mobile shows only the flow.
   const sidebarTabs = useMemo(
     () => [
       { id: "flow", label: t("scheduleScreen.todayFlow") },
-      { id: "detail", label: t("scheduleScreen.tabDetail") },
       { id: "todo", label: t("scheduleScreen.tabTodo") },
     ],
     [t],
@@ -823,7 +880,8 @@ export function CalendarTab({
         items={todayAgenda}
         nowMinutes={nowMinutes}
         onToggleComplete={handleToggle}
-        onSelectItem={handleSelectItem}
+        onItemActivate={handleItemActivate}
+        onItemDoubleClick={handleItemOpenDetail}
         selectedId={selectedId}
         labels={agendaLabels}
       />
@@ -879,16 +937,6 @@ export function CalendarTab({
     </div>
   );
 
-  const detailBody = (
-    <div className="flex flex-col gap-3">
-      {editorPane ?? (
-        <p className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-6 text-center text-sm text-lumen-text-secondary">
-          {t("scheduleScreen.selectHint")}
-        </p>
-      )}
-    </div>
-  );
-
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
   // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
   const todoBody = (
@@ -919,14 +967,10 @@ export function CalendarTab({
         <ScheduleSidebarTabs
           tabs={sidebarTabs}
           value={sidebarTab}
-          onChange={(id) => setSidebarTab(id as "flow" | "detail" | "todo")}
+          onChange={(id) => setSidebarTab(id as "flow" | "todo")}
           label={t("scheduleScreen.detailPanelLabel")}
         >
-          {sidebarTab === "flow"
-            ? flowBody
-            : sidebarTab === "detail"
-              ? detailBody
-              : todoBody}
+          {sidebarTab === "flow" ? flowBody : todoBody}
         </ScheduleSidebarTabs>
       ) : (
         flowBody
@@ -992,6 +1036,85 @@ export function CalendarTab({
     />
   );
 
+  // #299 single-click bubble (Desktop): summary + quick actions + "詳細を編集".
+  // `selected` is the popover's item (activate sets selectedId + popover to the
+  // same id); guard against a transient mismatch. Portalled to body → does not
+  // touch the rightSidebar contentCount invariant.
+  const popoverEl =
+    isWide && popover && selected && selected.id === popover.id ? (
+      <ItemActionPopover
+        position={{ x: popover.x, y: popover.y }}
+        summary={
+          <div className="flex flex-col gap-0.5">
+            <p className="truncate font-semibold text-lumen-text">
+              {selected.title || t("scheduleCalendar.newEvent")}
+            </p>
+            <p className="text-lumen-text-secondary">
+              {selected.isAllDay
+                ? t("scheduleScreen.allDay")
+                : `${selected.startTime}–${selected.endTime}`}
+            </p>
+          </div>
+        }
+        actions={[
+          {
+            id: "duplicate",
+            label: t("scheduleScreen.duplicate"),
+            onSelect: () => handleDuplicate(popover.id),
+          },
+          {
+            id: "delete",
+            label: t("scheduleScreen.delete"),
+            danger: true,
+            onSelect: () => handleDelete(popover.id),
+          },
+        ]}
+        onEditDetail={() => handleItemOpenDetail(popover.id)}
+        editDetailLabel={t("scheduleScreen.editDetail")}
+        label={t("scheduleScreen.itemActionsLabel")}
+        onClose={() => setPopover(null)}
+      />
+    ) : null;
+
+  // #299 detail-edit overlay (Desktop): the former rightSidebar "詳細" tab body
+  // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
+  const detailOverlayEl = (
+    <ItemDetailOverlay
+      open={isWide && overlayOpen && !!editorPane}
+      title={t("scheduleScreen.detailTitle")}
+      onClose={() => setOverlayOpen(false)}
+    >
+      {editorPane}
+    </ItemDetailOverlay>
+  );
+
+  // #299 event-creation overlay (Desktop): the shared create fields in an
+  // ItemDetailOverlay-style modal. Keyed on the prefill so a new empty-slot
+  // click while open re-seeds the fields.
+  const createOverlayEl = (
+    <ItemDetailOverlay
+      open={isWide && !!createPanel}
+      title={t("scheduleScreen.addEvent")}
+      onClose={() => setCreatePanel(null)}
+    >
+      {createPanel && (
+        <EventCreateFields
+          key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
+          initialStart={createPanel.start}
+          initialEnd={createPanel.end}
+          onSubmit={handleCreateSubmit}
+          labels={{
+            title: t("scheduleScreen.title"),
+            placeholder: t("scheduleScreen.quickAddPlaceholder"),
+            add: t("scheduleScreen.addEvent"),
+            startTime: t("scheduleScreen.startTime"),
+            endTime: t("scheduleScreen.endTime"),
+          }}
+        />
+      )}
+    </ItemDetailOverlay>
+  );
+
   // ── Desktop ────────────────────────────────────────────────────────────────
   if (isWide) {
     return (
@@ -1008,7 +1131,7 @@ export function CalendarTab({
             viewOptions={desktopViewOptions}
             onChangeView={setView}
             onOpenSettings={() => setCalendarsOpen(true)}
-            onAddEvent={handleAddEvent}
+            onAddEvent={handleToolbarAdd}
             addEventLabel={t("scheduleScreen.addEvent")}
             labels={toolbarLabels}
           />
@@ -1025,8 +1148,9 @@ export function CalendarTab({
                 todayKey={today}
                 weekStartsOn={weekStartsOn}
                 weekdayLabels={weekdayLabels}
-                onSelectDay={handleCreateOnDay}
-                onSelectItem={handleSelectItem}
+                onSelectDay={handleMonthCreate}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 onItemContextMenu={handleItemContextMenu}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
@@ -1037,7 +1161,7 @@ export function CalendarTab({
               />
             </div>
           ) : (
-            // Item detail moved into the rightSidebar "詳細" tab, so the grid
+            // Item detail moved into a body-level overlay (#299), so the grid
             // takes the full width the editor <aside> used to share.
             <div className="min-h-0 flex-1">
               <WeekTimeGrid
@@ -1045,9 +1169,10 @@ export function CalendarTab({
                 days={desktopView === "day" ? 1 : 7}
                 items={gridItems}
                 selectedId={selectedId}
-                onSelectItem={handleSelectItem}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 onItemContextMenu={handleItemContextMenu}
-                onCreateAt={handleCreateAt}
+                onCreateAt={handleGridCreateAt}
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
                 taskInteractive
@@ -1065,6 +1190,9 @@ export function CalendarTab({
         </div>
         {calendarsModal}
         {contextMenuEl}
+        {popoverEl}
+        {detailOverlayEl}
+        {createOverlayEl}
         {scopeDialogEl}
       </>
     );
@@ -1131,7 +1259,8 @@ export function CalendarTab({
               )}
               nowMinutes={anchorDate === today ? nowMinutes : null}
               onToggleComplete={handleToggle}
-              onSelectItem={handleSelectItem}
+              onItemActivate={handleItemActivate}
+              onItemDoubleClick={handleItemOpenDetail}
               selectedId={selectedId}
               labels={agendaLabels}
               className="rounded-md border border-lumen-border bg-lumen-bg px-2"
@@ -1142,8 +1271,9 @@ export function CalendarTab({
               days={1}
               items={gridItems}
               selectedId={selectedId}
-              onSelectItem={handleSelectItem}
-              onCreateAt={handleCreateAt}
+              onItemActivate={handleItemActivate}
+              onItemDoubleClick={handleItemOpenDetail}
+              onCreateAt={handleGridCreateAt}
               onMoveItem={handleMoveItem}
               onResizeItem={handleResizeItem}
               taskInteractive
@@ -1165,7 +1295,8 @@ export function CalendarTab({
                 weekdayLabels={weekdayLabels}
                 compact
                 onSelectDay={(day) => setMobileSelectedDay(day)}
-                onSelectItem={(id) => handleSelectItem(id)}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 formatMoreCount={(n) =>
                   t("scheduleScreen.moreCount", { count: n })
                 }
@@ -1179,7 +1310,8 @@ export function CalendarTab({
                 )}
                 nowMinutes={mobileSelectedDay === today ? nowMinutes : null}
                 onToggleComplete={handleToggle}
-                onSelectItem={handleSelectItem}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
                 selectedId={selectedId}
                 labels={agendaLabels}
                 className="rounded-md border border-lumen-border bg-lumen-bg px-2"
@@ -1189,20 +1321,24 @@ export function CalendarTab({
         </div>
       </div>
 
-      {/* FAB → Quick capture (safe-area aware). */}
+      {/* FAB → creation panel (safe-area aware). */}
       <button
         type="button"
-        onClick={() => setQuickOpen(true)}
+        onClick={handleToolbarAdd}
         aria-label={t("scheduleScreen.addEvent")}
         className="fixed bottom-6 right-6 z-30 mb-[env(safe-area-inset-bottom)] flex size-14 items-center justify-center rounded-full bg-lumen-accent text-lumen-on-accent shadow-lumen-lg transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
       >
         <Plus aria-hidden className="size-6" />
       </button>
 
+      {/* Mobile creation panel (#299): the FAB opens with defaults, an
+          empty-slot tap opens with the tapped slot's time prefilled. */}
       <QuickCaptureSheet
-        open={quickOpen}
-        onClose={() => setQuickOpen(false)}
-        onAdd={handleQuickAdd}
+        open={!!createPanel}
+        onClose={() => setCreatePanel(null)}
+        onAdd={handleCreateSubmit}
+        initialStart={createPanel?.start}
+        initialEnd={createPanel?.end}
         labels={{
           title: t("scheduleScreen.quickAddTitle"),
           placeholder: t("scheduleScreen.quickAddPlaceholder"),
