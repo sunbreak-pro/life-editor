@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
-import { formatDateKey } from "../../utils/dateKey";
+import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
@@ -26,7 +26,11 @@ export function TodayDashboard({
   labels,
 }: TodayDashboardProps): React.JSX.Element {
   const stats = useMemo(() => {
-    const todayStr = formatDateKey(new Date());
+    // Calendar day, NOT the day-start-hour "today" that Daily / routine sync
+    // use (#356): every chart on this screen buckets sessions by wall calendar
+    // date, so shifting only this card would make it disagree with the trend
+    // right beside it. Same call as todayCalendarKey's other users.
+    const todayStr = todayCalendarKey();
 
     const todaySessions = sessions.filter(
       (s) => formatDateKey(new Date(s.startedAt)) === todayStr,

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { TimerSession } from "../../types/timer";
 import { aggregateDailyTimeline } from "../../utils/analyticsAggregation";
-import { formatDateKey } from "../../utils/dateKey";
+import { todayCalendarKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
 
 export interface DailyTimelineLabels {
@@ -32,9 +32,9 @@ export function DailyTimeline({
   sessions,
   labels,
 }: DailyTimelineProps): React.JSX.Element {
-  const [selectedDate, setSelectedDate] = useState(() =>
-    formatDateKey(new Date()),
-  );
+  // Calendar day (#356): this picker drives a 0–24h wall-clock axis, so the
+  // day-start-hour rollover (todayDateKey) would contradict the axis itself.
+  const [selectedDate, setSelectedDate] = useState(() => todayCalendarKey());
 
   const blocks = useMemo(
     () => aggregateDailyTimeline(sessions, selectedDate),
