@@ -37,10 +37,6 @@ desktop/release/
 # Capacitor-generated .gitignore files inside mobile/ios/ and mobile/android/.
 mobile/node_modules/
 
-# Mobile UI prototype env (Vite, isolated from frontend/)
-prototype/node_modules/
-prototype/dist/
-
 # Per-chat session identity & runtime state (FileChanged plan + per-chat MEMORY plan で共有)
 .claude/comm/.session-name
 .claude/comm/.session-branch
