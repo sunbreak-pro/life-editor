@@ -131,6 +131,9 @@ export interface BriefingViewProps {
    * SectionHeader tab band — the only way to reach 夕刊 — disappears; the host
    * re-issues it here instead. Left undefined on the wide layout, where the
    * SectionHeader keeps owning the tabs (unchanged).
+   *
+   * Pass `undefined` / `null` to omit it — NOT `cond && <node>`, whose `false`
+   * would clear the guard and leave an empty ruled band on the paper.
    */
   tabSwitcher?: ReactNode;
 }

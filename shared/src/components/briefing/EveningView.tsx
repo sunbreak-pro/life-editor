@@ -78,6 +78,9 @@ export interface EveningViewProps {
    * BriefingView's. AppShell renders its header slot on the wide branch only,
    * so below 768px the host re-issues the tab band here. Undefined on the wide
    * layout, where the SectionHeader keeps owning the tabs (unchanged).
+   *
+   * Pass `undefined` / `null` to omit it — NOT `cond && <node>`, whose `false`
+   * would clear the guard and leave an empty ruled band on the paper.
    */
   tabSwitcher?: ReactNode;
 }
