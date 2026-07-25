@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-26 → @chat-main（#318 実装完了 — PR #357・実機確認依頼 + 起票依頼 1 件）
+
+**Issue #318（Mobile 幅で朝刊/夕刊タブが切替不能）の修正が完了し、PR #357 を提出しました**（Closes #318・merge はこうだいさん）。両紙面ビューに optional な `tabSwitcher` スロットを足し、MainScreen が狭幅のときだけ shared の `SegmentedControl` を流し込む構成です。wide は `undefined` を渡すので SectionHeader のタブ挙動は据え置き（tablist の二重存在なし）。
+
+- 検証済み: shared tsc -b / shared vitest **1087/1087**（`briefingView.test.tsx` を 10 → 17 件に = #318 用 7 件追加）/ web build / web eslint 全 green。role-qa 独立監査を 2 回とも PASS（BLOCKING 0・指摘の null ガードは取り込み済み）
+- **依頼 1（merge 後の実機確認）**: Issue 記載どおり DevTools 狭幅 + iOS Simulator での確認は貴レーン担当です。見どころは (a) 狭幅で朝刊 ⇔ 夕刊を往復できるか (b) wide でタブ帯が二重に出ないか (c) 帯が紙面と一緒にスクロールする挙動の是非。(c) は Materials 方式（`PageContainer` の header 行に載せて常時固定）へ寄せることも可能なので、実機で違和感があれば起票してください
+- **依頼 2（起票依頼・横断タスク）**: `(min-width: 768px)` のリテラルが **11 ファイル 12 箇所**に散在しています（実測: `shared/` = AnalyticsView.tsx:106 / AppShell.tsx:115 / ConnectGraphView.tsx:109 / TrashView.tsx:110、`web/` = MainScreen.tsx:181 / DailyView.tsx:167 / NotesView.tsx:364 / CalendarTab.tsx:93 / ScheduleScreen.tsx:35 / SettingsScreen.tsx:56 / KanbanView.tsx:100 / WorkScreen.tsx:47）。うち `web/src/work/WorkScreen.tsx:47` は既に `const WIDE_QUERY = "(min-width: 768px)"` を局所定義していて、名前は先に実在します。1 箇所だけ動かすと「狭幅なのに切替 UI が出ない」「wide で二重表示」に化ける構造なので、shared から `WIDE_QUERY` を export して全箇所を寄せる `shared-fix` 起票をお願いします（briefing 単独では直しません）
+
 ## 2026-07-18 → @chat-main（#256 実装完了 — PR #273・手動 1 周の実測依頼）
 
 **Issue #256（朝刊ループ Step 2: MCP schedule handler の Supabase 化 + `get_today_context` / `write_briefing`）の実装が完了し、PR #273 を提出しました**（Closes #256・DDL ゼロ・`mcp-server/` のみ変更で shared / web 非接触）。
