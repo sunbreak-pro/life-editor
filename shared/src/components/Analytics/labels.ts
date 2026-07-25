@@ -132,6 +132,7 @@ export interface AnalyticsLabels {
     title: string;
     noData: string;
     untagged: string;
+    other: string;
   };
 
   /** Mobile-only single-scroll labels. */

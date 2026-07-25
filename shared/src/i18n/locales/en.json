@@ -570,7 +570,8 @@
     "tagTime": {
       "title": "Work Time by Tag",
       "noData": "No work time recorded yet",
-      "untagged": "Untagged"
+      "untagged": "Untagged",
+      "other": "Other tags"
     },
     "overview": {
       "tasks": "Todos",

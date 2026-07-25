@@ -262,6 +262,7 @@ function DesktopAnalytics({
                       title: labels.tagTime.title,
                       noData: labels.tagTime.noData,
                       untagged: labels.tagTime.untagged,
+                      other: labels.tagTime.other,
                       formatHours: labels.formatHours,
                     },
                   }}

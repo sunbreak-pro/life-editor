@@ -570,7 +570,8 @@
     "tagTime": {
       "title": "タグ別作業時間",
       "noData": "作業時間の記録がありません",
-      "untagged": "タグなし"
+      "untagged": "タグなし",
+      "other": "その他のタグ"
     },
     "overview": {
       "tasks": "Todo",

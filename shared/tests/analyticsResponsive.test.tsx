@@ -105,7 +105,12 @@ function makeLabels(): AnalyticsLabels {
     timeline: { title: "Timeline", noSessions: "No sessions" },
     taskTrend: { title: "Trend", completedCount: "Completed" },
     stagnation: { title: "Stagnation", tasks: "tasks" },
-    tagTime: { title: "By Tag", noData: "No data", untagged: "Untagged" },
+    tagTime: {
+      title: "By Tag",
+      noData: "No data",
+      untagged: "Untagged",
+      other: "Other tags",
+    },
     mobile: {
       weekTitle: "This Week",
       routineTitle: "Routine Rate",

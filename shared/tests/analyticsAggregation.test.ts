@@ -302,6 +302,7 @@ describe("aggregateWorkTimeByTag", () => {
     expect(result[0].tagId).toBe("tag-a");
     // Untagged always comes last so it never crowds out a real tag.
     expect(result[result.length - 1]).toMatchObject({
+      kind: "untagged",
       tagId: null,
       tagName: null,
       tagColor: null,
@@ -313,7 +314,12 @@ describe("aggregateWorkTimeByTag", () => {
     const result = aggregateWorkTimeByTag(
       [
         makeSession({ id: 1, taskId: "task-1", duration: 600 }),
-        makeSession({ id: 2, taskId: "task-1", duration: 600, sessionType: "BREAK" }),
+        makeSession({
+          id: 2,
+          taskId: "task-1",
+          duration: 600,
+          sessionType: "BREAK",
+        }),
       ],
       [
         makeUnifiedAssignment({ id: "asg-1", isDeleted: true }),
@@ -325,32 +331,53 @@ describe("aggregateWorkTimeByTag", () => {
     // Both assignments drop out, so the WORK session reads as untagged and
     // the BREAK session is filtered entirely.
     expect(result).toEqual([
-      { tagId: null, tagName: null, tagColor: null, totalMinutes: 10 },
+      {
+        kind: "untagged",
+        tagId: null,
+        tagName: null,
+        tagColor: null,
+        totalMinutes: 10,
+      },
     ]);
   });
 
-  it("keeps only the top-N tags, untagged excluded from the cap", () => {
+  it("folds tags past the top-N cap into 'other' instead of dropping them", () => {
     const tags = Array.from({ length: 12 }, (_, i) =>
       makeUnifiedTag({ id: `tag-${i}`, name: `Tag ${i}` }),
     );
+    // Tag i gets (i + 1) minutes, so tag-0 (1 min) and tag-1 (2 min) fall
+    // outside the top 10.
     const sessions = tags.map((t, i) =>
       makeSession({ id: i + 1, taskId: `task-${i}`, duration: (i + 1) * 60 }),
     );
     const assignments = tags.map((t, i) =>
-      makeUnifiedAssignment({ id: `asg-${i}`, itemId: `task-${i}`, tagId: t.id }),
+      makeUnifiedAssignment({
+        id: `asg-${i}`,
+        itemId: `task-${i}`,
+        tagId: t.id,
+      }),
     );
     // Plus one untagged session so the trailing bucket is present too.
     sessions.push(makeSession({ id: 99, taskId: "task-none", duration: 60 }));
 
     const result = aggregateWorkTimeByTag(sessions, assignments, tags);
 
-    expect(result).toHaveLength(11); // 10 tags + untagged
+    expect(result).toHaveLength(12); // 10 tags + other + untagged
     expect(result[0].tagId).toBe("tag-11"); // longest first
-    expect(result[result.length - 1].tagId).toBeNull();
+    expect(result.map((b) => b.kind).slice(-2)).toEqual(["other", "untagged"]);
+    expect(result[10].totalMinutes).toBeCloseTo(3); // tag-0 (1) + tag-1 (2)
+    expect(result[11].totalMinutes).toBeCloseTo(1);
+
+    // The invariant that matters: nothing is discarded, so the buckets still
+    // sum to the real logged work time (78 tagged + 1 untagged).
+    const total = result.reduce((sum, b) => sum + b.totalMinutes, 0);
+    expect(total).toBeCloseTo(79);
   });
 
   it("returns [] when there is no work time at all", () => {
-    expect(aggregateWorkTimeByTag([], [makeUnifiedAssignment()], [makeUnifiedTag()])).toEqual([]);
+    expect(
+      aggregateWorkTimeByTag([], [makeUnifiedAssignment()], [makeUnifiedTag()]),
+    ).toEqual([]);
   });
 });
 
@@ -359,9 +386,30 @@ describe("analytics aggregation over a cyclic task graph (KI-016 class)", () => 
     // A -> B -> A plus a self-reference: the shape that made the retired
     // findRootFolder spin forever and freeze the Analytics screen.
     return [
-      { id: "A", type: "task", title: "A", parentId: "B", order: 0, createdAt: "2025-01-01T00:00:00.000Z" },
-      { id: "B", type: "task", title: "B", parentId: "A", order: 1, createdAt: "2025-01-01T00:00:00.000Z" },
-      { id: "C", type: "task", title: "C", parentId: "C", order: 2, createdAt: "2025-01-01T00:00:00.000Z" },
+      {
+        id: "A",
+        type: "task",
+        title: "A",
+        parentId: "B",
+        order: 0,
+        createdAt: "2025-01-01T00:00:00.000Z",
+      },
+      {
+        id: "B",
+        type: "task",
+        title: "B",
+        parentId: "A",
+        order: 1,
+        createdAt: "2025-01-01T00:00:00.000Z",
+      },
+      {
+        id: "C",
+        type: "task",
+        title: "C",
+        parentId: "C",
+        order: 2,
+        createdAt: "2025-01-01T00:00:00.000Z",
+      },
     ];
   }
 

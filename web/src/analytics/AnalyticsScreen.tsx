@@ -311,6 +311,7 @@ export function AnalyticsScreen({
         title: t("analytics.tagTime.title"),
         noData: t("analytics.tagTime.noData"),
         untagged: t("analytics.tagTime.untagged"),
+        other: t("analytics.tagTime.other"),
       },
       schedule: {
         totalEvents: t("analytics.schedule.totalEvents"),

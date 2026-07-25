@@ -18,6 +18,8 @@ export interface TagWorkTimeChartLabels {
   noData: string;
   /** Slice label for work on tasks that carry no tag. */
   untagged: string;
+  /** Slice label for the tags folded together past the top-N cap. */
+  other: string;
   formatHours: (minutes: number) => string;
 }
 
@@ -44,15 +46,17 @@ const COLORS = [
   "var(--color-chart-cat-10)",
 ];
 
-// The untagged slice stays deliberately muted so tagged work reads first.
+// The two synthetic slices stay deliberately muted so named tags read first.
 const UNTAGGED_COLOR = "var(--color-lumen-text-tertiary)";
+const OTHER_COLOR = "var(--color-lumen-text-secondary)";
 
 /*
  * Work time split by life-tag (#334). Replaces the folder-based "Project work
  * time" chart: folders are gone since #225, so that chart could only ever
  * render empty. A tag's slice is its share of real work time — sessions on
- * multi-tag tasks are split evenly and untagged work keeps its own slice, so
- * the ring always adds up to the time actually logged.
+ * multi-tag tasks split their minutes evenly, tags past the top-N cap fold into
+ * "other" and untagged work keeps its own slice, so the ring always adds up to
+ * the time actually logged.
  */
 export function TagWorkTimeChart({
   sessions,
@@ -62,12 +66,31 @@ export function TagWorkTimeChart({
 }: TagWorkTimeChartProps): React.JSX.Element {
   const data = useMemo(
     () =>
-      aggregateWorkTimeByTag(sessions, assignments, tags).map((d) => ({
-        name: d.tagName ?? labels.untagged,
-        value: Math.round(d.totalMinutes),
-        color: d.tagId === null ? UNTAGGED_COLOR : d.tagColor,
-      })),
-    [sessions, assignments, tags, labels.untagged],
+      aggregateWorkTimeByTag(sessions, assignments, tags).map((d) => {
+        if (d.kind === "untagged") {
+          return {
+            name: labels.untagged,
+            value: d.totalMinutes,
+            color: UNTAGGED_COLOR,
+          };
+        }
+        if (d.kind === "other") {
+          return {
+            name: labels.other,
+            value: d.totalMinutes,
+            color: OTHER_COLOR,
+          };
+        }
+        // Raw (unrounded) minutes: recharts derives each share from these, and
+        // rounding per slice would drift the ring off the real total. The
+        // tooltip formats them for display.
+        return {
+          name: d.tagName ?? "",
+          value: d.totalMinutes,
+          color: d.tagColor,
+        };
+      }),
+    [sessions, assignments, tags, labels.untagged, labels.other],
   );
 
   if (data.length === 0) {

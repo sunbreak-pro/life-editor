@@ -2,11 +2,7 @@ import type { TimerSession } from "../types/timer";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
-import type {
-  WikiTag,
-  WikiTagAssignment,
-  WikiTagConnection,
-} from "../types/wikiTag";
+import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 // The live tag data (DataService.listAllWikiTagsUnified / listAllTagAssignments)
 // is the unified items_meta model — assignments hang off `itemId` with no
 // entityType discriminator. The legacy `wikiTag` shapes above stay for
@@ -70,11 +66,18 @@ export interface StagnationBucket {
 }
 
 export interface TagWorkTimeBucket {
-  /** Tag id, or null for the "untagged" bucket. */
+  /**
+   * "tag" = one life-tag. "other" = every tag past the top-N cap, folded
+   * together. "untagged" = work on a task with no tag (or with no task at
+   * all). The two synthetic buckets keep the total honest — the host supplies
+   * their labels, since the shared tree holds no strings.
+   */
+  kind: "tag" | "other" | "untagged";
+  /** Tag id; null for the synthetic buckets. */
   tagId: string | null;
-  /** Tag name, or null for the "untagged" bucket (the host supplies its label). */
+  /** Tag name; null for the synthetic buckets. */
   tagName: string | null;
-  /** Tag colour as authored in Materials; null when the tag has none / untagged. */
+  /** Tag colour as authored in Materials; null when unset / synthetic. */
   tagColor: string | null;
   totalMinutes: number;
 }
@@ -453,11 +456,11 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
  *
  * Rules:
  * - Only WORK sessions count (same filter as every other work-time chart).
- * - A session's minutes are split evenly across its task's tags, so the total
- *   across all buckets stays the real total work time (a pie whose slices sum
- *   to what actually happened).
+ * - A session's minutes are split evenly across its task's tags.
  * - Work on an untagged task — or with no task at all — lands in the trailing
- *   `tagId: null` bucket, so the chart never overstates a tag's share of the day.
+ *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
+ *   rather than dropped. Nothing is discarded, so the buckets always sum to the
+ *   real logged work time and no tag's share is overstated.
  * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
  *   are ignored rather than surfaced as a raw id; that work reads as untagged.
  *
@@ -501,22 +504,42 @@ export function aggregateWorkTimeByTag(
     }
   }
 
-  const buckets: TagWorkTimeBucket[] = Array.from(minutesByTag.entries())
+  const ranked: TagWorkTimeBucket[] = Array.from(minutesByTag.entries())
     .map(([tagId, totalMinutes]) => {
+      // Non-null by construction — only ids that passed the tagMap.has()
+      // filter above reach minutesByTag. The fallback is belt-and-braces.
       const tag = tagMap.get(tagId);
       return {
+        kind: "tag" as const,
         tagId,
         tagName: tag?.name ?? tagId,
         tagColor: tag?.color ?? null,
         totalMinutes,
       };
     })
-    .sort((a, b) => b.totalMinutes - a.totalMinutes)
-    .slice(0, limit);
+    .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+  const buckets = ranked.slice(0, limit);
+
+  // The tail is folded, never dropped: a discarded slice would silently
+  // inflate every remaining tag's percentage.
+  const otherMinutes = ranked
+    .slice(limit)
+    .reduce((sum, b) => sum + b.totalMinutes, 0);
+  if (otherMinutes > 0) {
+    buckets.push({
+      kind: "other",
+      tagId: null,
+      tagName: null,
+      tagColor: null,
+      totalMinutes: otherMinutes,
+    });
+  }
 
   // Always last so it never crowds a real tag out of the top-N.
   if (untaggedMinutes > 0) {
     buckets.push({
+      kind: "untagged",
       tagId: null,
       tagName: null,
       tagColor: null,
