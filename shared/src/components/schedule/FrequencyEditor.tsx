@@ -1,6 +1,11 @@
 import { cn } from "../cn";
 import { SegmentedControl } from "../SegmentedControl";
 import type { FrequencyType, RoutineNode } from "../../types/routine";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING_TIGHT as CHIP_FOCUS,
+} from "../styleTokens";
 
 /*
  * FrequencyEditor (#185 Step 2) — the repeat-settings editor shared between the
@@ -66,12 +71,6 @@ export interface FrequencyEditorProps {
   labels: FrequencyEditorLabels;
   className?: string;
 }
-
-const FIELD =
-  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-const FIELD_LABEL = "text-xs text-lumen-text-secondary";
-const CHIP_FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 /** Sentinel id for the "no repeat" segment (not a FrequencyType). */
 const NONE_ID = "none";

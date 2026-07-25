@@ -11,6 +11,7 @@ import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
 import { aggregateByFolder } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface ProjectWorkTimeChartLabels {
   title: string;
@@ -89,12 +90,7 @@ export function ProjectWorkTimeChart({
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) =>
                 labels.formatHours(value ?? 0)
               }

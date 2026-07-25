@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { KeyboardEvent } from "react";
 import { cn } from "./cn";
+import { stepSegmentFocus } from "./segmentedKeyNav";
 
 export interface SegmentedOption {
   id: string;
@@ -43,15 +44,8 @@ export function SegmentedControl({
     e: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-    e.preventDefault();
-    if (options.length === 0) return;
-    const dir = e.key === "ArrowRight" ? 1 : -1;
-    const next = (index + dir + options.length) % options.length;
-    const nextOption = options[next];
-    if (!nextOption) return;
-    refs.current[next]?.focus();
-    onChange(nextOption.id);
+    const next = stepSegmentFocus(e, index, options, refs);
+    if (next) onChange(next.id);
   };
 
   return (

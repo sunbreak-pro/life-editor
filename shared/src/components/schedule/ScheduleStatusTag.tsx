@@ -1,4 +1,5 @@
 import { cn } from "../cn";
+import { FOCUS_RING_TIGHT as FOCUS } from "../styleTokens";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
@@ -50,9 +51,6 @@ function statusColorClasses(status: ScheduleStatus): string {
       return "border-lumen-schedule-tag-notstarted-border bg-lumen-schedule-tag-notstarted-bg text-lumen-schedule-tag-notstarted-fg";
   }
 }
-
-const FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 export function ScheduleStatusTag({
   status,

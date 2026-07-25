@@ -9,6 +9,7 @@ import {
   type FrequencyEditorLabels,
 } from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
+import { FIELD, FIELD_LABEL } from "../styleTokens";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
@@ -101,10 +102,6 @@ export interface EventEditorPaneProps {
   onDetachRepeat?: () => void;
   className?: string;
 }
-
-const FIELD =
-  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-const FIELD_LABEL = "text-xs text-lumen-text-secondary";
 
 /** Inner fields, keyed by item.id from the pane so a selection change reseeds
  *  the commit-on-blur drafts cleanly. */

@@ -11,6 +11,7 @@ import {
 import type { ScheduleItem } from "../../types/schedule";
 import { aggregateEventCompletionByDay } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface EventCompletionTrendLabels {
   title: string;
@@ -41,27 +42,19 @@ export function EventCompletionTrend({
     <ChartCard title={labels.title}>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--color-lumen-border)"
-            />
+          <AreaChart
+            data={data}
+            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          >
+            <CartesianGrid {...CHART_GRID} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK}
               interval="preserveStartEnd"
             />
-            <YAxis
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
-              allowDecimals={false}
-            />
+            <YAxis tick={CHART_TICK} allowDecimals={false} />
             <Tooltip
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [
                 value ?? 0,
                 labels.completed,

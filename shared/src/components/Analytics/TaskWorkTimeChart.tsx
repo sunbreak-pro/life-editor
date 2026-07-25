@@ -11,6 +11,7 @@ import {
 import type { TimerSession } from "../../types/timer";
 import { aggregateByTask } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_GRID, CHART_TICK_11, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface TaskWorkTimeChartLabels {
   title: string;
@@ -53,14 +54,10 @@ export function TaskWorkTimeChart({
             layout="vertical"
             margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--color-lumen-border)"
-              horizontal={false}
-            />
+            <CartesianGrid {...CHART_GRID} horizontal={false} />
             <XAxis
               type="number"
-              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK_11}
               tickLine={false}
               axisLine={false}
               unit="h"
@@ -69,18 +66,13 @@ export function TaskWorkTimeChart({
               type="category"
               dataKey="name"
               width={120}
-              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK_11}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
               cursor={{ fill: "var(--color-lumen-hover)" }}
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(
                 value: number | undefined,
                 _name: string | undefined,

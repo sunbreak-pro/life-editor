@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FIELD } from "../styleTokens";
 
 /*
  * EventCreateFields (#299) — the shared title + start/end + submit form for
@@ -14,9 +15,6 @@ import { useState } from "react";
  * host keeps the panel open but changes the prefill (e.g. a different empty
  * slot), it should remount this with a `key` derived from the prefill.
  */
-
-const FIELD =
-  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 export interface EventCreateFieldsLabels {
   /** Already-translated aria-label for the title input. */

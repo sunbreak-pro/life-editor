@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { TaskStatus } from "../types/taskTree";
 import { cn } from "./cn";
+import { FOCUS_RING } from "./styleTokens";
 
 /*
  * Task detail panel (W7). The right-hand pane the Tasks MasterDetail shows
@@ -22,9 +23,6 @@ const STATUS_GLYPH: Record<TaskStatus, string> = {
   IN_PROGRESS: "◐",
   DONE: "●",
 };
-
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 /*
  * Title field. Mirrors NotesView's NoteTitleInput debounce-and-flush

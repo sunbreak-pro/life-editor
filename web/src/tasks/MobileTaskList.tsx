@@ -1,18 +1,14 @@
 import { useMemo, useState } from "react";
-import {
-  Circle,
-  CircleDashed,
-  CheckCircle2,
-  ListTodo,
-  Plus,
-  type LucideIcon,
-} from "lucide-react";
+import { ListTodo, Plus } from "lucide-react";
 import {
   BottomSheet,
   EmptyState,
   KanbanCard,
   QuickAddSheet,
   StatusFilterChips,
+  STATUS_ICON,
+  STATUS_ORDER,
+  statusLabel,
   cn,
   type KanbanColumnModel,
   type KanbanLabels,
@@ -38,18 +34,6 @@ import {
  * status-mutation / quick-add callbacks. This leaf is DataService-free (§3.1)
  * and takes all copy as props (§6.4).
  */
-
-const STATUS_ORDER: readonly TaskStatus[] = [
-  "NOT_STARTED",
-  "IN_PROGRESS",
-  "DONE",
-];
-
-const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
-  NOT_STARTED: Circle,
-  IN_PROGRESS: CircleDashed,
-  DONE: CheckCircle2,
-};
 
 export interface MobileTaskListLabels {
   /** Per-status chip / sheet labels (already-translated, §6.4). */
@@ -80,20 +64,6 @@ export interface MobileTaskListProps {
   onQuickAdd: (title: string) => void;
 }
 
-function statusLabelOf(
-  status: TaskStatus,
-  labels: MobileTaskListLabels,
-): string {
-  switch (status) {
-    case "NOT_STARTED":
-      return labels.statusNotStarted;
-    case "IN_PROGRESS":
-      return labels.statusInProgress;
-    case "DONE":
-      return labels.statusDone;
-  }
-}
-
 export function MobileTaskList({
   statusColumns,
   cardLabels,
@@ -118,7 +88,7 @@ export function MobileTaskList({
     const Icon = STATUS_ICON[status];
     return {
       id: status,
-      label: statusLabelOf(status, labels),
+      label: statusLabel(status, labels),
       count: columnByStatus.get(status)?.cards.length ?? 0,
       icon: <Icon size={13} aria-hidden />,
     };
@@ -222,7 +192,7 @@ export function MobileTaskList({
                 )}
               >
                 <Icon size={16} aria-hidden className="shrink-0" />
-                {statusLabelOf(status, labels)}
+                {statusLabel(status, labels)}
               </button>
             );
           })}

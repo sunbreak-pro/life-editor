@@ -12,6 +12,7 @@ import {
 import type { TaskNode } from "../../types/taskTree";
 import { aggregateTaskStagnation } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
+import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface TaskStagnationChartLabels {
   title: string;
@@ -41,29 +42,16 @@ export function TaskStagnationChart({
             layout="vertical"
             margin={{ top: 5, right: 20, left: 10, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--color-lumen-border)"
-              horizontal={false}
-            />
-            <XAxis
-              type="number"
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
-              allowDecimals={false}
-            />
+            <CartesianGrid {...CHART_GRID} horizontal={false} />
+            <XAxis type="number" tick={CHART_TICK} allowDecimals={false} />
             <YAxis
               dataKey="label"
               type="category"
-              tick={{ fontSize: 10, fill: "var(--color-lumen-text-secondary)" }}
+              tick={CHART_TICK}
               width={80}
             />
             <Tooltip
-              contentStyle={{
-                background: "var(--color-lumen-bg)",
-                border: "1px solid var(--color-lumen-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number | undefined) => [
                 `${value ?? 0} ${labels.tasks}`,
               ]}

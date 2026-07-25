@@ -16,6 +16,7 @@
  */
 
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
+import { STATUS_ORDER, statusLabel } from "../taskStatusVisuals";
 import type {
   KanbanCardModel,
   KanbanCardTag,
@@ -27,12 +28,6 @@ import type {
 export type TagsByTask = ReadonlyMap<string, KanbanCardTag[]>;
 
 /** Fixed status column order + their accent CSS vars (status-encoding hue). */
-const STATUS_ORDER: readonly TaskStatus[] = [
-  "NOT_STARTED",
-  "IN_PROGRESS",
-  "DONE",
-];
-
 const STATUS_BAND_VAR: Record<TaskStatus, string> = {
   NOT_STARTED: "var(--color-status-todo-band)",
   IN_PROGRESS: "var(--color-status-progress-band)",
@@ -41,17 +36,6 @@ const STATUS_BAND_VAR: Record<TaskStatus, string> = {
 
 /** Neutral accent for the "untagged" bucket column (tag view). */
 const UNTAGGED_ACCENT = "var(--color-border-strong)";
-
-function statusLabel(status: TaskStatus, labels: KanbanLabels): string {
-  switch (status) {
-    case "NOT_STARTED":
-      return labels.statusNotStarted;
-    case "IN_PROGRESS":
-      return labels.statusInProgress;
-    case "DONE":
-      return labels.statusDone;
-  }
-}
 
 function normalizeStatus(node: TaskNode): TaskStatus {
   return node.status ?? "NOT_STARTED";

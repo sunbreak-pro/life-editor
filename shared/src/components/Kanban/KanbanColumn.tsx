@@ -10,15 +10,10 @@
  * rounded dot.
  */
 
-import {
-  Circle,
-  CircleDashed,
-  CheckCircle2,
-  ClipboardCheck,
-  type LucideIcon,
-} from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { Fragment, type CSSProperties } from "react";
 import { cn } from "../cn";
+import { STATUS_ICON } from "../taskStatusVisuals";
 import type { TaskStatus } from "../../types/taskTree";
 import { KanbanCard } from "./KanbanCard";
 import { ColorPicker } from "../ColorPicker";
@@ -27,12 +22,6 @@ import type {
   KanbanColumnModel,
   KanbanLabels,
 } from "./types";
-
-const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
-  NOT_STARTED: Circle,
-  IN_PROGRESS: CircleDashed,
-  DONE: CheckCircle2,
-};
 
 export interface KanbanColumnProps {
   column: KanbanColumnModel;
