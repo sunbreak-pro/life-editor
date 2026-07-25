@@ -27,16 +27,17 @@ const LABELS = {
 };
 
 function session(startedAt: string): TimerSession {
+  const at = new Date(startedAt);
   return {
     id: 1,
     taskId: "task-1",
     sessionType: "WORK",
-    startedAt,
-    completedAt: startedAt,
+    startedAt: at,
+    completedAt: at,
     duration: 1800, // 30 minutes
     completed: true,
     label: null,
-  } as unknown as TimerSession;
+  };
 }
 
 describe("Analytics 'today' boundary (#356)", () => {

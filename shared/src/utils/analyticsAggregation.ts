@@ -7,7 +7,7 @@ import type {
   WikiTagAssignment,
   WikiTagConnection,
 } from "../types/wikiTag";
-import { formatDateKey as toDateStr } from "./dateKey";
+import { formatDateKey as toDateStr, todayCalendarKey } from "./dateKey";
 
 export interface DayBucket {
   date: string; // YYYY-MM-DD
@@ -500,8 +500,9 @@ export function computeWorkStreak(sessions: TimerSession[]): WorkStreak {
   let longestStreak = 0;
   let streak = 1;
 
-  // Check if today or yesterday is in the set to start current streak
-  const today = toDateStr(new Date());
+  // Check if today or yesterday is in the set to start current streak.
+  // Calendar day (#356) — `days` above is keyed the same way.
+  const today = todayCalendarKey();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = toDateStr(yesterday);

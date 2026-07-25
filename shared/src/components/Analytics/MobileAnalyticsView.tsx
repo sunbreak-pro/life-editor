@@ -61,8 +61,8 @@ export function MobileAnalyticsView(
   } = props;
 
   const model = useMemo(() => {
-    // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics keys
-    // every bucket on the wall calendar; the day-start-hour "today"
+    // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics buckets
+    // sessions by wall calendar date; the day-start-hour "today"
     // (todayDateKey) belongs to Daily / routine sync.
     const todayStr = todayCalendarKey();
 

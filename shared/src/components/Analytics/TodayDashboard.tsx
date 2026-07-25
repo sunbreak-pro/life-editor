@@ -27,9 +27,9 @@ export function TodayDashboard({
 }: TodayDashboardProps): React.JSX.Element {
   const stats = useMemo(() => {
     // Calendar day, NOT the day-start-hour "today" that Daily / routine sync
-    // use (#356): every chart on this screen buckets sessions by wall calendar
-    // date, so shifting only this card would make it disagree with the trend
-    // right beside it. Same call as todayCalendarKey's other users.
+    // use (#356): every session bucket on this screen is keyed on the wall
+    // calendar date, so shifting only this card would make it disagree with
+    // the trend right beside it.
     const todayStr = todayCalendarKey();
 
     const todaySessions = sessions.filter(
