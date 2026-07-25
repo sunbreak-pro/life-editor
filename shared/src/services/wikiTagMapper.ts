@@ -24,6 +24,7 @@ export interface WikiTagRow {
   user_id: string;
   name: string;
   color: string | null;
+  icon: string | null;
   is_deleted: boolean;
   deleted_at: string | null;
   created_at: string;
@@ -38,7 +39,7 @@ export type WikiTagUpdatePatch = Partial<
 >;
 
 export const WIKI_TAGS_COLUMNS =
-  "id, user_id, name, color, is_deleted, deleted_at, " +
+  "id, user_id, name, color, icon, is_deleted, deleted_at, " +
   "created_at, updated_at, version";
 
 export function rowToWikiTag(row: WikiTagRow): WikiTag {
@@ -46,6 +47,7 @@ export function rowToWikiTag(row: WikiTagRow): WikiTag {
     id: row.id,
     name: row.name,
     color: row.color,
+    icon: row.icon,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     version: row.version,
@@ -60,6 +62,7 @@ export function wikiTagToRow(tag: WikiTag, userId: string): WikiTagInsertRow {
     user_id: userId,
     name: tag.name,
     color: tag.color,
+    icon: tag.icon,
     is_deleted: tag.isDeleted ?? false,
     deleted_at: tag.deletedAt ?? null,
     version: tag.version ?? 1,
@@ -74,6 +77,7 @@ export function wikiTagUpdatesToPatch(
   if ("name" in updates && updates.name !== undefined)
     patch.name = updates.name;
   if ("color" in updates) patch.color = updates.color ?? null;
+  if ("icon" in updates) patch.icon = updates.icon ?? null;
   if ("isDeleted" in updates) patch.is_deleted = updates.isDeleted ?? false;
   if ("deletedAt" in updates) patch.deleted_at = updates.deletedAt ?? null;
   if ("version" in updates && updates.version !== undefined)

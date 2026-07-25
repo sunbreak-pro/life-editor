@@ -11,7 +11,6 @@ import {
   CheckSquare,
   CalendarDays,
   FileText,
-  Tag,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -77,7 +76,6 @@ const NotesView = lazy(() =>
 );
 import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
-import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
 import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
@@ -106,7 +104,7 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). The target IA
  * (IA.md 2026-07-05) collapses the old flat sections into 5 mainline + 2
- * utility, with the four document surfaces (Tasks / Notes / Daily / Tags)
+ * utility, with the document surfaces (Tasks / Notes / Daily)
  * folded under a single "Materials" section addressed by an in-section tab
  * (`materialsTab`). This host only wires the shell — the section bodies +
  * their Provider nesting are unchanged from the flat layout.
@@ -120,21 +118,15 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
  * The old REPL section is retired (§8) and never appears in the registry.
  */
 
-/** In-Materials tab — the four document surfaces addressed by one section. */
-type MaterialsTab = "tasks" | "notes" | "daily" | "tags";
+/** In-Materials tab — the document surfaces addressed by one section. */
+type MaterialsTab = "tasks" | "notes" | "daily";
 
-const MATERIALS_TABS: readonly MaterialsTab[] = [
-  "tasks",
-  "notes",
-  "daily",
-  "tags",
-];
+const MATERIALS_TABS: readonly MaterialsTab[] = ["tasks", "notes", "daily"];
 
 const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   tasks: CheckSquare,
   notes: FileText,
   daily: CalendarDays,
-  tags: Tag,
 };
 
 /*
@@ -204,12 +196,14 @@ export function MainScreen({ session }: { session: Session }) {
 
   // Map the shared nav:* shortcuts (tasks/daily/notes/schedule/tags) onto the
   // target IA: schedule is its own section; the document surfaces route to the
-  // Materials section + the matching tab.
+  // Materials section + the matching tab. The Tags tab was retired (#310), so a
+  // legacy nav:tags shortcut now no-ops rather than routing to a dead tab.
   const handleNavigate = useCallback((nav: NavSection) => {
     if (nav === "schedule") {
       setSection("schedule");
       return;
     }
+    if (nav === "tags") return;
     setSection("materials");
     setMaterialsTab(nav);
   }, []);
@@ -313,10 +307,10 @@ export function MainScreen({ session }: { session: Session }) {
     [toSections],
   );
 
-  // Materials in-section tab defs (Tasks / Notes / Daily / Tags). Each tab
-  // shows a count badge (Tasks = unfinished count; the rest = live item count)
-  // fed by the MaterialsCountsBridge. A zero count leaves the badge unset so
-  // empty surfaces don't render a noisy "0" pill.
+  // Materials in-section tab defs (Tasks / Notes / Daily). Each tab shows a
+  // count badge (Tasks = unfinished count; the rest = live item count) fed by
+  // the MaterialsCountsBridge. A zero count leaves the badge unset so empty
+  // surfaces don't render a noisy "0" pill.
   const materialsTabDefs = useMemo(
     () =>
       MATERIALS_TABS.map((id) => {
@@ -367,8 +361,7 @@ export function MainScreen({ session }: { session: Session }) {
   //     centered data column). Their internal horizontal scroll (kanban board /
   //     week grid) stays inside the 1120px column — no page-level scroll.
   //   - "wide": every document surface — PageContainer owns the vertical scroll
-  //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash /
-  //     Materials→Tags).
+  //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash).
   // Mobile is visually unchanged: below 768px the max-w clamp never engages, so
   // both variants render gutter-padded full width.
   const ownsFullBleed =
@@ -517,7 +510,7 @@ export function MainScreen({ session }: { session: Session }) {
     resize: t("detailPanel.resize"),
   };
 
-  // The four Materials document surfaces. Provider nesting is verbatim from
+  // The Materials document surfaces. Provider nesting is verbatim from
   // the old flat sections (§6.2) — only the addressing changed (section+tab).
   const materialsView = (
     <>
@@ -559,11 +552,6 @@ export function MainScreen({ session }: { session: Session }) {
               onConsumePendingSelect={consumeItemNav}
             />
           </DailiesUnifiedProvider>
-        </WikiTagsUnifiedProvider>
-      )}
-      {materialsTab === "tags" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <WikiTagsManagementView />
         </WikiTagsUnifiedProvider>
       )}
     </>

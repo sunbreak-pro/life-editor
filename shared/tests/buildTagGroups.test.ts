@@ -37,6 +37,7 @@ function tag(id: string, overrides: Partial<WikiTag> = {}): WikiTag {
     id,
     name: id,
     color: null,
+    icon: null,
     createdAt: NOW,
     updatedAt: NOW,
     version: 1,
@@ -217,5 +218,22 @@ describe("buildTagGroups", () => {
       untaggedLabel: UNTAGGED,
     });
     expect(byId(groups).get("work")?.tagColor).toBe("#6b7280");
+  });
+
+  it("carries the tag icon onto the group (null when unset / untagged)", () => {
+    const groups = buildTagGroups({
+      notes: [note("n1"), note("loose")],
+      tags: [
+        tag("work", { name: "Work", icon: "Star" }),
+        tag("home", { name: "Home" }),
+      ],
+      assignments: [assign("a1", "n1", "work"), assign("a2", "n1", "home")],
+      untaggedLabel: UNTAGGED,
+    });
+    const map = byId(groups);
+    expect(map.get("work")?.tagIcon).toBe("Star");
+    expect(map.get("home")?.tagIcon).toBeNull();
+    // Untagged bucket never carries an icon.
+    expect(map.get(null)?.tagIcon).toBeNull();
   });
 });

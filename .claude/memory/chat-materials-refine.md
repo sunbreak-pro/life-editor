@@ -2,6 +2,14 @@
 
 ## 進行中
 
+### ⏸️ materials-refine 担当5件バッチ（#310/#311/#312/#302/#303）実装完了・merge ゲート待ち（着手日: 2026-07-23）
+
+**対象**: `web/src/notes/NotesView.tsx` `shared/src/components/notes/buildTagGroups.ts` `shared/src/components/Kanban/KanbanBoard.tsx` `web/src/MainScreen.tsx` `shared/src/components/{TagEditModal.tsx,tagIcon.ts}` `supabase/migrations/0022_wiki_tags_icon.sql`
+
+- 前回: —
+- 現在: 全5件 実装＋検証（shared vitest 1081 緑・shared/web tsc+build 緑）＋ role-qa PASS（Blocking 0・a11y 1件修正済 / 使用数の trash 過大計上 edge case は outbox で chat-main へ起票依頼）。ローカル commit 済み（15e9ef45 #310p2 / 83f2f5bd merge origin/main / fbca99c5 #311+#312+#302 / b49595ac #303 / 018bb125 #312 a11y / e5583964 outbox）
+- 次: 🛑 ユーザーゲート = (1) `git push --force-with-lease`（ツール権限で拒否 → こうだいさん実行）(2) main への PR 作成（push 後 Claude が実行可）(3) migration 0022 の `supabase db push`（こうだいさん・今回実行を選択）(4) merge → 各 Issue close → 実ブラウザ確認は chat-main
+
 ### ⏸️ life-tags 統一（folder 廃止 → WikiTag 一本化）Materials 領分（着手日: 2026-07-11）
 
 **対象**: `shared/src/types/taskTree.ts` `shared/src/components/Kanban/**` Notes/Daily フォルダツリー UI `supabase/migrations/*.sql`（folder→tag 変換）
