@@ -1,5 +1,19 @@
 # HISTORY (chat-docs-workspace)
 
+### 2026-07-25 - Issue #319: Mobile 機能限定スコープの要件定義（PR #324）
+
+#### 概要
+
+CLAUDE.md §2「Mobile = Consumption + Quick capture」だけで未定義だった画面別のモバイル機能スコープを、実測 + ユーザー選択式セッションで確定し `.claude/docs/requirements/mobile-scope.md` として正本化した。
+
+#### 変更点
+
+- **実測**: 8セクション（briefing / schedule / materials / connect / work / analytics / settings / trash）のモバイル分岐を Explore 調査 → メインが grep / Read で全 claim を spot check（file:line を doc に明記）。SSOT 実態 = セクション単位の非表示は無く、削られるのは各セクション内の機能。Issue 本文の「tasks / database セクション」「MOBILE_SECTIONS 取捨」は実態と不一致を確認
+- **確定（選択式2ラウンド・全17行）**: Notes フル編集可(Phase2) / tasks 詳細編集(Phase2) / schedule Routines 閲覧のみ(Phase2) / briefing 朝夕切替+宣言入力(Phase1) / Undo・Redo+コマンド検索 モバイル導線(Phase2) / work Ambient mixer = Desktop専用。実装は Phase 1（簡潔・方向性統一）→ Phase 2（拡充）の段取り（2026-07-25 ユーザー確定）
+- **新設 doc**: `.claude/docs/requirements/mobile-scope.md`（分類定義 / フェーズ方針 / 確定スコープ表 / #321 子 Issue 分解の種 / 別枠メモ）。CLAUDE.md §2 から参照（数値の非複製原則: 画面別取捨は同文書が正）
+- **PR**: commit 0bde4eb3 → PR #324（docs/mobile-scope-319 → main・Fixes #319・merge = 人手ゲート）。リモート `claude/docs-workspace` が旧履歴と割れていた（中身は main へ merge 済み）ため main 差分1コミットの新ブランチで PR（force push 回避）
+- **別枠フォローアップ**: `rules/frontend.md` / CLAUDE.md §2 の「Mobile 省略 Provider」が実装実態（web ホストで省略ロジック未実装・該当 Provider の一部は非存在 / Audio・ShortcutConfig は無条件マウント）と乖離 → 実態に合わせる別 Issue 起票を chat-main へ依頼（outbox）
+
 ### 2026-07-17 - Issue #257: tier-1-core.md に Briefing requirements 節を追加（PR #267）
 
 #### 概要
@@ -57,17 +71,3 @@ shared-fix `[docs-workspace]` キューの Issue #257 を実行。`docs/requirem
 - **配線**: `MainScreen` schedule 分岐最外に `TaskTreeProvider`、`CalendarTab` は派生層（gridItems/monthItems/agenda）でのみ合流。`taskchip-` prefix で select/toggle/move/resize/contextMenu 全 no-op・`rangeItems` 非混入
 - **i18n**: `scheduleScreen.originTask`（en/ja。配線は Step 2/3 で消費する先行キー）
 - **検証**: shared vitest 891 pass / shared・web tsc -b green / web vite build green。role-qa 独立監査 PASS（Blocker 0。既知の限界 = Week/Day 全日レーンは variant 非依存描画のため終日タスクは青くならない — Step 2 送り・計画書に記録済み）。実ブラウザ検証は merge 後 chat-main
-
-### 2026-07-11 - Issue #218: day-start-hour pref を daily/routine の「今日」計算に配線（PR #242）
-
-#### 概要
-
-shared-fix `[docs-workspace]` キューの #218 を実装し PR #242 を open。settings 側の pref 参照方法が未共有だったため、読み手側から契約（localStorage キー `life-editor-day-start-hour` + pure reader）を定義した。既定 0 = 現行挙動不変。
-
-#### 変更点
-
-- **utils/dateKey**: `DAY_START_HOUR_STORAGE_KEY` / `parseDayStartHour` / `getDayStartHour` / `todayDateKey()`（HH:00 前 = 前日扱い）を追加
-- **読み手配線**: `useDailiesUnifiedAPI`（初期 selectedDate）+ `useScheduleItemsRoutineSync` の「今日」境界 3 箇所を `todayDateKey()` へ
-- **書き込み側フック**: `useDayStartHourPref`（`useStartupSectionPref` と同型）を新設・barrel export
-- **テスト**: `shared/tests/dayStartHour.test.ts`（parse / read / 境界 / 月跨ぎ / localStorage 連携）— shared vitest 863 pass / shared・web build green
-- **調整**: main 取り込み時の CLAUDE.md / _TEMPLATE.md コンフリクト解消（origin/main の Issue 駆動 dispatch 側を採用）。outbox に結果報告 + settings UI / analytics 追随の起票依頼を append

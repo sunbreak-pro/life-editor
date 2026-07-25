@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-07-25 → @chat-main（#299 実装完了 — PR #325 提出 + follow-up UX 改善 3 件の起票依頼）
+
+**#299（Schedule アイテム操作 UI 刷新）を実装し、PR #325 を提出しました**（コミット `bb4945a4`・base main ← `claude/schedule-refine`・`Closes #299`）。1クリック=吹き出し / ダブルクリック=詳細オーバーレイ / 右クリック=既存メニュー維持に再編、イベント生成をパネル化（ツールバー + 空きスロット統一・クリック時刻プリフィル）、rightSidebar の detail 編集タブ撤去（flow/todo は温存）。前提部品 #307 itemActions を土台に消費。shared vitest 1115 pass・shared/web build green・role-qa 別コンテキスト独立監査 PASS（Blocking 0）・メイン独立実測で一致。merge は 🛑 ユーザーゲート。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — 重点: ①アイテム 1クリックで吹き出しが隣に出て Escape/外側で閉じるか ②ダブルクリック/「詳細を編集」で中央オーバーレイ編集が開き保存されるか ③ツールバー/空きスロット/月セルの生成が全部パネル経由で、空きスロットはクリック時刻がプリフィルされるか ④detail タブ撤去後も flow「今日の流れ」/ todo「本日の Todo」が生きているか ⑤#297 の drag/resize が誤って吹き出しを出さないか。
+
+### 起票依頼（3 件・#299 の follow-up UX 改善）
+
+**ラベル**（3 件共通）: `section:schedule` / `type:enhancement`（無ければ `type:feature`）　**Epic**: #290（#299 の後追い）
+
+1. `enhance(schedule): 生成オーバーレイに対象日を表示（#299 N2）` — 空きスロット/月セルから生成すると overlay タイトルが「Add event」のみで、どの日に作られるか画面に出ない（時刻はプリフィル済み）。overlay に読み取り専用の日付行 or タイトル併記を追加。3 件で UX 改善価値が最も高い
+2. `enhance(schedule): 生成後に新規アイテムを開く/選択（#299 N4）` — `handleCreateSubmit` が生成した id を破棄し選択もオープンもしない（旧 eager フローは生成後に editor を開いていた）。メモ/繰り返しを続けて設定したい導線をどうするかのプロダクト判断込み
+3. `fix(schedule): ダブルクリック時の吹き出し一瞬フラッシュ抑制（#299 N1）` — Desktop で item をダブルクリックすると click→click→dblclick の順で吹き出しが一瞬出てからオーバーレイに切替（cosmetic・リークなし）。activate に小遅延を入れて dblclick 検出時は popover 抑制、等。優先度低
+
+---
+
+## 2026-07-23 21:28 → @chat-main（#298 実装完了 — 単独 PR 提出 + 統合生成パネルの後追い Issue 起票依頼）
+
+**#298（Schedule Step 3 / A-3: rightSidebar「本日の Todo」トレイ）は実装済み（コミット `c64374e4`）で、main 取り込み後もビルド緑を確認したので単独 PR を出しました**（shared vitest 1111 pass・shared/web tsc -b + vite build green）。ユーザー決定（2026-07-23）で #298 → #299 の順に出すため、#299 は本 PR merge 後に着手します。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — 重点: ①第 3 タブ「本日の Todo」に配置済み/未配置の 2 群が出るか ②終日追加したタスクが未配置群に現れるか ③日面へのドラッグ配置で時刻付き scheduledAt が書かれるか ④完了チェックが TaskTree に反映されるか。
+
+### 起票依頼: `feat(schedule): 統合アイテム生成パネル（task/event/note タブ・既存から選ぶ/新規）— #299 の後続`
+
+**ラベル**: `section:schedule` / `type:feature`　**Epic**: #290（Step 5/7 隣接・#299 の発展）
+
+- **背景**: #299「アイテム操作 UI 刷新」の生成パネルは、ユーザー決定（2026-07-23）で**今回はイベント生成に絞る**（Mobile の QuickCaptureSheet を Desktop に広げた最小形）。将来タスク・ノートの生成もこのパネルに載せたいとの意向
+- **要件（将来）**: 孤立している i18n `schedulePanel.*` キー群（`tabTask/tabEvent/tabRoutine`・`existingTasks/useExisting`・`searchTasks`・`newNote/existingNote` 等・参照 0 件）を種に、task/event/note のタブ + 「既存から選ぶ / 新規作成」+ 検索の統合生成パネルを作る
+- **注意（役割の重複）**: タスク取り込みは #298 の「本日の Todo」トレイと機能が一部重なる。統合パネルの task タブとトレイの棲み分け（生成 vs 当日配置）を設計時に整理すること
+- **依存**: #299（イベント生成パネルの土台）を先に。#299 の生成パネルを task/event/note 対応へ拡張する形が素直
+
+---
+
+## 2026-07-20 → @chat-main（#297 実装完了 — PR #309 に同梱 + 多日 task drag の後追い Issue 起票依頼）
+
+**#297（Schedule Step 2 / A-2: task チップ drag/resize → `scheduledAt` 書き戻し）を実装し、PR #309 に同梱しました**（コミット `d80e0b96`・shared 1069 tests + shared/web build green・web eslint 0 error・role-qa 別コンテキスト PASS）。#296 の PR #309 が open のまま同ブランチに積んだため、**ユーザー決定で #309 を #296+#297 の 1 本にまとめました**（タイトル/本文更新済み・`Fixes #296, #297`）。merge 後の実ブラウザ確認は §7.4 どおり貴レーンで — #297 重点: 週/日グリッドで timed task チップを drag/resize → Tasks ツリー・Briefing の日時に反映されるか。#296 重点は #309 本文の DoD 参照。
+
+### 起票依頼: `fix(schedule): multi-day/overnight task drag collapses the span (redesign A-2 follow-up)`
+
+**ラベル**: `section:schedule` / `type:bug`　**Epic**: #290（Step 2 の後追い）
+
+- **事実**: #297 の QA（別コンテキスト role-qa・実測 spot check 済み）で確認した deferrable エッジ。多日 / 日跨ぎ（overnight）の予定済み _task_ を週/日グリッドで drag すると、`scheduledEndAt` が「開始 + 表示上の短い duration」で上書きされ、元の span が潰れる
+- **原因**: A-1 が多日チップを開始日のみに切り詰めて描画（`shared/src/utils/taskCalendarChips.ts` の「Multi-day spans: chip on the start date only」）+ `WeekTimeGrid.beginDrag` が end<start を snap 幅に丸める + `shared/src/utils/scheduleGridLayout.ts::minutesToTime` が `24*60`(=24:00) でクランプ。move で end が 1440 分超のケースも同様に最大 1 時間程度切り詰まる
+- **提案**: 多日 task の drag を抑止するか、開始のみ移動して span（duration）を維持する。AC には「多日/overnight task の drag 後も元の scheduledEndAt との相対 duration が保たれる（or 明示的に移動抑止）」を含めてほしい
+- **稀度**: A-1 の簡略モデルの帰結で、発火条件は「overnight/多日の scheduled _task_（event ではない）を能動ドラッグ」。#297 のスコープ（表示チップの drag-to-write）としては一貫しており、#297 はブロックしていない
+
+---
+
 ## 2026-07-19 (2) → @chat-main（スプリント完了報告 — PR #292 merge 依頼 + Step 2 子 Issue 待ち）
 
 **section:schedule スプリント（#281 #278 #279 #280）を全件 close し、PR #292 を提出しました**（branch `claude/schedule-refine`・Fixes 4 Issue・shared 992 tests + 両 build green・QA アドバーサリアル監査済み）。merge は 🛑 ユーザーゲートです。merge 後の実ブラウザ確認は §7.4 どおり貴レーンでお願いします — 重点確認: ①Event→Repeats 変換後に週ビューへ即出現するか ②繰り返し由来の編集/削除で中央ダイアログ（この予定のみ/今後/すべて）が出るか ③時刻入力が blur まで確定しないか。

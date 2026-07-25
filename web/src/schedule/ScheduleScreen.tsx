@@ -24,10 +24,13 @@ export function ScheduleScreen({
   dataService,
   tab,
   onTabChange,
+  onOpenTasks,
 }: {
   dataService: DataService;
   tab: ScheduleTab;
   onTabChange: (tab: ScheduleTab) => void;
+  /** Jump to the Tasks section (A-3 tray title click → deep edit in the tree). */
+  onOpenTasks: () => void;
 }) {
   const isWide = useMediaQuery("(min-width: 768px)", true);
 
@@ -44,6 +47,7 @@ export function ScheduleScreen({
         <CalendarTab
           dataService={dataService}
           onOpenRoutines={() => onTabChange("routines")}
+          onOpenTasks={onOpenTasks}
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-4 pt-3 md:px-lumen-gutter-wide">
