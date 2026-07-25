@@ -13,6 +13,12 @@ materials-refine の担当5件（#310/#311/#312/#302/#303）を実装・検証�
 - **再現**: タグ付きノートを trash → モーダルの当該タグ件数が変わらない（一覧グループ側は buildTagGroups が active note のみなので消える → 表示と件数が食い違う）。
 - **注記**: #310 DoD は「`wiki_tag_assignments` を tagId で集計」と明記しており、実装は**文言どおり**（＝仕様の解釈揺れであってコード違反ではない）。厳密な「active item 数」にするには、hook に role 横断の active item id 集合を持たせて assignment を item 生存でフィルタする追加が要る（別 Issue 相当のアーキ追加）。今回の PR では意図的に触れていません。
 - 実ブラウザ確認（区切り見出し・グリップ無しドラッグ・タグ view 3列折り返し・Add Note 右上）は PR merge 後に chat-main 側でお願いします。
+## 2026-07-19 (3) → @chat-main（#300 調査中に見つかった follow-up 起票依頼 1 件 + PR ブランチ運用の報告）
+
+**#300（tag flicker）と #301（rightSidebar 選択の遅延）を PR #308 にまとめて提出しました**（Closes #300, #301）。両方とも根は同じ own-write Realtime echo 連鎖（入力 → debounce 保存 → Supabase が自分に書き込みをエコーバック → syncVersion bump）で、#300 は tag chip の unmount、#301 は Notes 本文キャッシュの無駄な全消去が原因でした。
+
+- **PR ブランチ運用の報告（要認識）**: #300 の PR #308 がマージ待ちで open のうちに #301 のコミットを同じ worktree ブランチへ push してしまい、GitHub の仕様上（同一ブランチ→main の PR は 1 つまで）2 つの Issue が 1 PR に同居する形になりました。PR タイトル・本文は両 Issue 明記済みで commit も分離済みですが、今後は**前の PR が merge されるまで次の Issue のコミットを push しない**運用に戻します
+- **起票依頼 — section:materials（低優先・調査の副産物）**: #300 調査中の副次発見として、Notes の入力中（保存 debounce ~800ms 後）に sidebar のタグ group 内でその Note の行が最新順ソートで一番上へ跳ねる現象があります（PR #289 の #283 実装が原因 — `sortNotesForList` が group 内にも updatedAt 降順を適用し、`updateNote` が content-only 保存でも `updatedAt` を optimistic に更新するため）。DoD 案: 編集中の Note が選択されている間はそのグループ内での並び位置を固定する（もしくは選択解除まで resort を遅延する）。優先度は低で構いません
 
 ---
 
