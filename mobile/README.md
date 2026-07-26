@@ -65,11 +65,13 @@ npx cap open android    # opens Android Studio → run on AVD / device
 
 ## Notes
 
-- The 5 **Mobile 省略 Provider** (CLAUDE.md §2 — Audio / ScreenLock /
-  FileExplorer / CalendarTags / ShortcutConfig) are gated via
-  `isNativeMobile()` (`shared/src/utils/platform.ts`). The host wiring in
-  `web/src/MainScreen.tsx` is a stream-E-coordinated follow-up (see plan).
+- Native-mobile gating (#320, roster SSOT = CLAUDE.md §2): `isNativeMobile()`
+  (`shared/src/utils/platform.ts`) skips the ShortcutConfigProvider in
+  `web/src/MainScreen.tsx` and the ambient-mixer UI in WorkScreen —
+  AudioProvider stays mounted so the Pomodoro completion chime rings
+  (mobile-scope.md #10/#11).
 - Android safe-area: a `fitsSystemWindows` fallback in `styles.xml` handles the
-  targetSdk-36 edge-to-edge enforcement; the richer `viewport-fit=cover` fix
-  belongs in `web/index.html` (stream E).
+  targetSdk-36 edge-to-edge enforcement; `web/index.html` additionally sets
+  `viewport-fit=cover` (#320) so `env(safe-area-inset-*)` resolves on notched
+  iOS.
 - Splash / launcher icons are the Capacitor-generated placeholders.

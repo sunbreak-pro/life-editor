@@ -19,7 +19,9 @@ import {
  * navigates to the Tasks section — see MainScreen). undo / redo (#304) route
  * through the ambient global UndoRedo context (⌘Z / ⌘⇧Z; the shared executor
  * already skips text fields / contentEditable and IME composition, so TipTap
- * keeps its own history). No provider mounted → left as no-op.
+ * keeps its own history). Both hooks are OPTIONAL: when a Provider is absent
+ * (e.g. the native shells skip ShortcutConfig — #320) the corresponding
+ * wiring is simply a no-op.
  */
 export function GlobalShortcuts({
   onNavigate,

@@ -1,5 +1,33 @@
 # HISTORY (chat-shell-refine)
 
+### 2026-07-26 - #320 Mobile 基盤配線（PR #358）
+
+#### 概要
+
+`isNativeMobile()` ガードを web ホストに配線し（ShortcutConfigProvider を native 省略・Ambient mixer UI を WorkScreen で native 省略）、`viewport-fit=cover` を追加した。role-qa 独立監査の Blocker 指摘を受け、AudioProvider は native でも維持（完了チャイム = mobile-scope.md #10/#11 のユーザー確定と DoD の矛盾をチャイム維持側に解消）— Issue DoD からの逸脱として #320 コメントに記録済み。
+
+#### 変更点
+
+- **ゲート配線（`web/src/MainScreen.tsx`）**: `ShortcutConfigHost` 新設（native = children 素通し / それ以外 = 従来どおり Provider ラップ）。消費側の null 安全は全箇所実測確認（GlobalShortcuts / SettingsScreen / WorkScreen / AudioChimeBridge / useGlobalShortcuts）
+- **チャイム維持（role-qa Blocker 反映）**: AudioProvider は全ホストでマウント維持・WorkScreen の mixer 描画条件に `!isNativeMobile()` を追加。#320 DoD の「Audio Provider 省略」は mobile-scope.md #10（work タイマー Full）/#11（Desktop 専用は mixer のみ）と矛盾するため採らず
+- **viewport（`web/index.html`）**: `viewport-fit=cover` 追加（notched iOS で `env(safe-area-inset-*)` が全て 0 に解決される問題の修正）
+- **テスト**: `shared/tests/platform.test.ts` 新設（isNativeMobile の契約 3 ケース）
+- **docs 追随**: CLAUDE.md §2 / rules/frontend.md / mobile-scope.md §6 / mobile/README.md / styles.xml コメント / `shared/src/index.ts` の「5 種」参照化 / stale な "always mounted" コメント掃除（数値の非複製原則 sweep）
+- **検証**: shared tsc -b + vitest 137 files / 1083 passed・web build exit 0・role-qa 独立監査（NEEDS REVISION → Blocker / Important 全反映）
+
+### 2026-07-20 - Layout / 操作系 4 Issue（PR #313/#314/#315/#316・全 merge 済み）
+
+#### 概要
+
+（バックフィル記録 — memory「直近の完了」から HISTORY へ移す際の要約。詳細は各 PR 参照）#305 / #307 / #306 / #304 子 PR 1 を 1 Issue = 1 PR で処理し、いずれも merge された。
+
+#### 変更点
+
+- **#305（PR #313）**: メインコンテンツ幅を全セクション max-w-lumen-wide に統一（PageContainer fluid を中央寄せ + 1120px 上限化・MainScreen width マッピング整理）
+- **#307（PR #314）**: アイテム操作パネル汎用化
+- **#306（PR #315）**: ヘッダー常設コマンドパレット検索フィールド
+- **#304 子 PR 1（PR #316）**: Undo/Redo 基盤 + taskTree（UndoRedoManager グローバル 1 本スタック + Provider + Buttons + Toast + ⌘Z 配線 + taskTree auto-connect + 単体 13 件）
+
 ### 2026-07-11 - chat-main 采配 2 件: #173 docs-lint（PR #241）/ #172 PostgREST pagination（PR #243）
 
 #### 概要

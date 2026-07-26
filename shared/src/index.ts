@@ -418,8 +418,8 @@ export {
   statusLabel,
   type StatusLabelSet,
 } from "./components/taskStatusVisuals";
-// Platform detection. isNativeMobile() (Phase 4) lets the host gate the Mobile
-// 省略 Provider 5 種 (CLAUDE.md §2) on the Capacitor shells — see platform.ts.
+// Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
+// Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";
 export {
   computeNoteDropIntent,
