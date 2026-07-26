@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   useTaskTreeAPI,
   type UseTaskTreeAPIOptions,
@@ -23,11 +23,13 @@ import { TaskTreeContext } from "./TaskTreeContextValue";
  * UndoRedo stack (mounted outside the switch) survives. A command it pushed
  * closes over THIS provider's setNodes/syncToDb; running its undo after unmount
  * would write a stale snapshot to the DB while the newly-mounted provider keeps
- * its own state — a UI/DB divergence. Until child PR 2 makes undo domain-aware
- * and re-syncs the live provider, we clear the stack on unmount: undo works
- * within a section, and navigating away resets history (no stale write). The
- * clear is currently global (only taskTree is wired); a domain-scoped clear +
- * cross-section re-sync lands with the domain expansion.
+ * its own state — a UI/DB divergence. So we clear the stack on unmount: undo
+ * works within the current view, and navigating away resets history (no stale
+ * write). Child-2 wired the remaining domains (schedule / daily / note) with
+ * this SAME global clear-on-unmount pattern — sibling providers unmounting
+ * together each call clear(), which is idempotent. A domain-scoped clear +
+ * cross-section re-sync stays future work if per-view history ever feels too
+ * limiting.
  */
 export function TaskTreeProvider({
   children,
@@ -39,12 +41,21 @@ export function TaskTreeProvider({
     undoRedo: options.undoRedo ?? undoRedo ?? undefined,
   });
 
+  // Unmount-clear via ref (#304 child-2 fix): the context VALUE identity
+  // changes on every stack mutation (the provider re-memoises on its version
+  // bump), so depending on it here would re-fire the effect after every push —
+  // the cleanup would clear() the history the moment a command is recorded
+  // (child-1 shipped that bug; undo never survived its own push). Track the
+  // live value in a ref and register the cleanup once, so clear() runs only on
+  // real unmount. Only guard the ambient auto-connect; an explicit injected
+  // undoRedo is the host's to manage.
+  const undoRedoRef = useRef(undoRedo);
+  undoRedoRef.current = undoRedo;
+  const hasExplicitUndoRedo = options.undoRedo != null;
   useEffect(() => {
-    // Only guard the ambient auto-connect; an explicit injected undoRedo is
-    // the host's to manage.
-    if (options.undoRedo || !undoRedo) return;
-    return () => undoRedo.clear();
-  }, [undoRedo, options.undoRedo]);
+    if (hasExplicitUndoRedo) return;
+    return () => undoRedoRef.current?.clear();
+  }, [hasExplicitUndoRedo]);
 
   return (
     <TaskTreeContext.Provider value={taskTree}>

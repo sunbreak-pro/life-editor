@@ -611,7 +611,20 @@
     "undone": "元に戻しました: {{label}}",
     "redone": "やり直しました: {{label}}",
     "labels": {
-      "taskTreeChange": "タスクの変更"
+      "taskTreeChange": "タスクの変更",
+      "createScheduleItem": "予定の作成",
+      "updateScheduleItem": "予定の変更",
+      "toggleScheduleItemComplete": "予定の完了切替",
+      "dismissScheduleItem": "予定の非表示",
+      "deleteScheduleItem": "予定の削除",
+      "createDaily": "デイリーの作成",
+      "deleteDaily": "デイリーの削除",
+      "togglePin": "ピン留めの切替",
+      "moveNote": "ノートの移動",
+      "createNote": "ノートの作成",
+      "createFolder": "フォルダの作成",
+      "updateNote": "ノートの変更",
+      "softDeleteNote": "ノートの削除"
     }
   },
   "common": {

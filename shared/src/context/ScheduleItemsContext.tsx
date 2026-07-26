@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   useScheduleItemsAPI,
   type UseScheduleItemsAPIOptions,
 } from "../hooks/useScheduleItemsAPI";
+import { useUndoRedoOptional } from "../hooks/useUndoRedoContext";
 import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
 
 /**
@@ -19,6 +20,12 @@ import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
  * CLAUDE.md §2), so no Optional variant is needed (it is not in the
  * Mobile 省略 Provider list — only CalendarTags from this trio is).
  *
+ * #304 child-2: auto-connects to the ambient global UndoRedo stack when a
+ * provider is mounted (useUndoRedoOptional), same pattern as
+ * TaskTreeProvider. An explicit `undoRedo` prop still wins; with no
+ * provider it stays the no-op history. The stack is cleared on unmount
+ * (child-1 safety valve — see TaskTreeContext.tsx for the rationale).
+ *
  * Scope (S4-4): schedule_items CRUD only. The Routine→schedule_items
  * generator is S4-5 and is NOT wired here.
  */
@@ -26,7 +33,24 @@ export function ScheduleItemsProvider({
   children,
   ...options
 }: { children: ReactNode } & UseScheduleItemsAPIOptions) {
-  const scheduleItemsState = useScheduleItemsAPI(options);
+  const undoRedo = useUndoRedoOptional();
+  const scheduleItemsState = useScheduleItemsAPI({
+    ...options,
+    undoRedo: options.undoRedo ?? undoRedo ?? undefined,
+  });
+
+  // Unmount-clear via ref — the context value identity changes on every stack
+  // mutation, so the cleanup must not depend on it (see TaskTreeContext.tsx
+  // for the full rationale). Explicit injected undoRedo is the host's to
+  // manage.
+  const undoRedoRef = useRef(undoRedo);
+  undoRedoRef.current = undoRedo;
+  const hasExplicitUndoRedo = options.undoRedo != null;
+  useEffect(() => {
+    if (hasExplicitUndoRedo) return;
+    return () => undoRedoRef.current?.clear();
+  }, [hasExplicitUndoRedo]);
+
   return (
     <ScheduleItemsContext.Provider value={scheduleItemsState}>
       {children}
