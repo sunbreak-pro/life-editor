@@ -8,7 +8,7 @@
 **計画書**: `.claude/docs/vision/plans/2026-07-14-schedule-redesign.md` §4.6
 
 - 前回: Step A（予定 / タスクタブ）= **PR #393 merge 済み**（main `0c02f10`）
-- 現在: Step B（ノートタブ）= **PR #395 OPEN**。ブランチ `claude/schedule-376-note`（main から切り直して cherry-pick 済み・verify 済み）。merge は 🛑 ユーザーゲート
+- 現在: Step B（ノートタブ）= **PR #395 OPEN**。ブランチ `claude/schedule-376-note`。**role-qa 監査で Blocker 1 件（ノートのリンクがアイテム本体より先に INSERT される順序バグ）を検出 → `2d178e2e` で修正・push 済み**。Should / Nit も同 commit で対応。merge は 🛑 ユーザーゲート
 - 次: #395 merge 後に #376 を close → Epic #290 Step 5（構成再編 = 単一 Calendar タブ + 繰り返しフィルタ / Mobile を List+FAB）
 
 ## 直近の完了
@@ -30,6 +30,9 @@
 - chat-main へ起票依頼済み（outbox 2026-07-26 の 3 通）: (1) `web/src/notes/NotesView.tsx:291` の lint error（main 由来）(2) Mobile 月表示で FAB が `mobileSelectedDay` ではなく `anchorDate` に作る (3) 生成直後の楽観行が同期リフェッチで消えると開いたばかりの詳細エディタが閉じる
 
 ## 引き継ぎメモ（この worktree で効く事実）
+
+- **`wiki_tag_connections` へのリンクは「FK 先の行が DB にできてから」しか書けない**（2026-07-26 の #376 QA で実測）。作成系フック（`createScheduleItem` / `addNode`）は**楽観的 id を同期で返して裏で書く**ので、直後にリンクを撃つとリンクの INSERT が先に飛んで FK / RLS に弾かれる（どちらの writer も `auth.getUser()` の 1 往復から始まるが、リンク側にはその前置きが無い）。**「ローカル state にある」は FK 先の存在証明にならない** — これは #371 が `shared/src/utils/pendingItemLinks.ts` の冒頭に明文化済みの罠で、`DailyView.flushPendingLinks` が正しい流儀。#376 は `opts.onSaved` / `options.onSaved` で同じ規律を作成経路に通した（undo / redo には渡さない = redo が sync を再実行するため二重付与になる）
+- **`shared/` に eslint config は無い**（lint は web だけの script）。`cd shared && npx eslint` は config not found で落ちるが、これは異常ではない
 
 - **自分の変更範囲外の型エラーの原因を「増分ビルド」と決めつけない**（2026-07-26 に一度誤診し、role-qa の監査で訂正）。`web/package.json` の build は**最初から `tsc -b --force`** で references 経由の shared をフルチェックしている（`cd web && npx tsc -b --force --dry` で確認可）。同セッションの他ブランチが緑だったのは増分のせいではなく、**分岐元の main がまだ壊れていなかった**だけ（`git merge-base origin/main <branch>` で実測できる）。#378 のような squash merge 事故は**壊れた版がどのブランチにも存在せずマージ後の main にだけ現れる**ので、手元の検証を厳しくしても捕まらない — 穴は「マージ後の main で誰もビルドしない」側にある
 - **この PC には project 側 skill-lib の実体が無い**（`.claude/skills/` の中身は Mac パスへのシンボリックリンクがテキストとして checkout されている）。ただし **`task-tracker` はユーザーグローバル（`~/.claude/skills/`）にあり Skill ツールから起動できる**（2026-07-26 実測 — 「全て手動」は誤り）。`session-loader` 等プロジェクト固有スキルだけが不在
