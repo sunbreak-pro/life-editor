@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   BriefingView,
+  EveningView,
   type BriefingData,
   type BriefingLabels,
+  type EveningLabels,
 } from "../src/components";
 
 /*
@@ -211,5 +213,99 @@ describe("BriefingView intention field (宣言 — Step 4)", () => {
     expect(onIntentionChange).toHaveBeenCalledWith("Ship the report\nRun");
     fireEvent.blur(field);
     expect(onIntentionBlur).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * #318 — below 768px the shell drops its header slot, so the SectionHeader
+ * 朝刊/夕刊 band disappears and 夕刊 becomes unreachable. Both paper views take
+ * an optional in-body `tabSwitcher` the narrow host fills; the wide host leaves
+ * it undefined so the header keeps owning the tabs.
+ */
+const EVENING_LABELS: EveningLabels = {
+  masthead: "EVENING",
+  moodTitle: "MOOD",
+  moodStars: [1, 2, 3, 4, 5].map((n) => `Mood ${n}/5`),
+  intentionTitle: "INTENTION",
+  reflectionTitle: "CLOSING",
+  savedCaption: "Saved",
+  todosTitle: "REMAINING",
+  noTodos: "No todos",
+  upcomingTitle: "UPCOMING",
+  noUpcoming: "Nothing upcoming",
+  tomorrowTag: "Tomorrow",
+  allDay: "All day",
+};
+
+function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
+  return render(
+    <EveningView
+      loading={false}
+      dateLine="2026-07-25"
+      mood={null}
+      onSelectMood={vi.fn()}
+      editorSlot={<div>editor</div>}
+      intention={null}
+      todos={[]}
+      schedule={[]}
+      labels={EVENING_LABELS}
+      {...props}
+    />,
+  );
+}
+
+/**
+ * Counts the in-body switcher band. Mirrors the wrapper markup in both views —
+ * the only `py-3` ruled divider on a paper otherwise built from `py-5`/`py-6`
+ * sections — so an empty band (slot guard letting `null` through) is caught.
+ */
+function bandCount(container: HTMLElement): number {
+  return container.querySelectorAll(
+    "div.border-b.border-lumen-border.px-2.py-3",
+  ).length;
+}
+
+describe("Briefing narrow-width tab switcher (#318)", () => {
+  const switcher = <button type="button">夕刊</button>;
+
+  it("renders the host switcher in the morning paper", () => {
+    const { container } = renderView({ tabSwitcher: switcher });
+    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
+    expect(bandCount(container)).toBe(1);
+  });
+
+  it("keeps the switcher reachable while the morning paper loads", () => {
+    renderView({ loading: true, tabSwitcher: switcher });
+    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
+  });
+
+  it("renders the host switcher in the evening paper", () => {
+    const { container } = renderEvening({ tabSwitcher: switcher });
+    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
+    expect(bandCount(container)).toBe(1);
+  });
+
+  it("keeps the switcher reachable while the evening paper loads", () => {
+    renderEvening({ loading: true, tabSwitcher: switcher });
+    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
+  });
+
+  it("renders no band in the morning paper on the wide layout", () => {
+    const { container } = renderView();
+    expect(screen.queryByRole("button", { name: "夕刊" })).toBeNull();
+    expect(bandCount(container)).toBe(0);
+  });
+
+  it("renders no band in the evening paper on the wide layout", () => {
+    const { container } = renderEvening();
+    expect(screen.queryByRole("button", { name: "夕刊" })).toBeNull();
+    expect(bandCount(container)).toBe(0);
+  });
+
+  // A host writing `cond ? <X/> : null` must not leave an empty ruled band
+  // behind — the slot guard rejects null, not just undefined.
+  it("renders no band when the host passes null", () => {
+    expect(bandCount(renderView({ tabSwitcher: null }).container)).toBe(0);
+    expect(bandCount(renderEvening({ tabSwitcher: null }).container)).toBe(0);
   });
 });

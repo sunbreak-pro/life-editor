@@ -55,8 +55,9 @@ export function SettingsScreen() {
     useStartupSectionPref();
   const isWide = useMediaQuery("(min-width: 768px)");
 
-  // Optional (Mobile 省略 Provider). On web the Provider is always mounted, so
-  // this is non-null here; guard anyway to satisfy the null-safe contract.
+  // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
+  // where ShortcutConfigHost skips the Provider (#320) — the Shortcuts card
+  // below renders only when the value is present.
   const shortcuts = useShortcutConfig();
 
   const px = fontSizeToPx(fontSize);

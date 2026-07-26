@@ -567,9 +567,11 @@
       "title": "Todo Age Distribution",
       "tasks": "todos"
     },
-    "projectTime": {
-      "title": "Work Time by Project",
-      "noData": "No project data available"
+    "tagTime": {
+      "title": "Work Time by Tag",
+      "noData": "No work time recorded yet",
+      "untagged": "Untagged",
+      "other": "Other tags"
     },
     "overview": {
       "tasks": "Todos",

@@ -11,6 +11,8 @@ import {
   type ScheduleItem,
   type NoteNode,
   type RoutineNode,
+  type WikiTagUnified,
+  type WikiTagAssignmentUnified,
   formatDateKey,
   todayCalendarKey,
 } from "@life-editor/shared";
@@ -22,8 +24,9 @@ import {
  * <AnalyticsView>. The shared tree never calls useTranslation / getDataService.
  *
  * Data surface (only what the 4 kept tabs need): timer sessions, task tree,
- * today's schedule items (Overview), routines, notes, tag/assignment counts
- * (unified API), and the pomodoro daily target from timer settings. The
+ * today's schedule items (Overview), routines, notes, tags + tag assignments
+ * (unified API — Overview counts and the Tasks tab's tag work-time ring, #334),
+ * and the pomodoro daily target from timer settings. The
  * Schedule tab's items are fetched separately, per selected date range (see the
  * scheduleRange effect + AnalyticsView.onScheduleRangeChange), so we no longer
  * load all history up front.
@@ -50,8 +53,8 @@ interface AnalyticsData {
   todayItems: ScheduleItem[];
   notes: NoteNode[];
   routines: RoutineNode[];
-  tagCount: number;
-  assignmentCount: number;
+  tags: WikiTagUnified[];
+  assignments: WikiTagAssignmentUnified[];
   targetPerDay: number;
 }
 
@@ -61,8 +64,8 @@ const EMPTY: AnalyticsData = {
   todayItems: [],
   notes: [],
   routines: [],
-  tagCount: 0,
-  assignmentCount: 0,
+  tags: [],
+  assignments: [],
   targetPerDay: 4,
 };
 
@@ -118,8 +121,8 @@ export function AnalyticsScreen({
             todayItems,
             routines,
             notes,
-            tagCount: tags.length,
-            assignmentCount: assignments.length,
+            tags,
+            assignments,
             targetPerDay: timerSettings.targetSessions ?? 4,
           });
           setInitialLoading(false);
@@ -184,11 +187,16 @@ export function AnalyticsScreen({
   const labels = useMemo<AnalyticsLabels>(
     () => ({
       title: t("analytics.title"),
-      formatHours: (minutes: number) =>
-        t("analytics.hours", {
-          hours: Math.floor(minutes / 60),
-          minutes: Math.round(minutes % 60),
-        }),
+      formatHours: (minutes: number) => {
+        // Round once, then split — rounding the remainder on its own renders
+        // 119.7 as "1h 60m". Charts pass raw minutes (the tag ring splits
+        // multi-tag sessions into fractions), so this is the only guard.
+        const total = Math.round(minutes);
+        return t("analytics.hours", {
+          hours: Math.floor(total / 60),
+          minutes: total % 60,
+        });
+      },
       tabsLabel: t("analytics.tabsLabel"),
       tabs: {
         overview: t("analytics.tabs.overview"),
@@ -305,9 +313,11 @@ export function AnalyticsScreen({
         title: t("analytics.stagnation.title"),
         tasks: t("analytics.stagnation.tasks"),
       },
-      projectTime: {
-        title: t("analytics.projectTime.title"),
-        noData: t("analytics.projectTime.noData"),
+      tagTime: {
+        title: t("analytics.tagTime.title"),
+        noData: t("analytics.tagTime.noData"),
+        untagged: t("analytics.tagTime.untagged"),
+        other: t("analytics.tagTime.other"),
       },
       schedule: {
         totalEvents: t("analytics.schedule.totalEvents"),
@@ -344,8 +354,8 @@ export function AnalyticsScreen({
       notes={data.notes}
       routines={data.routines}
       taskNameMap={taskNameMap}
-      tagCount={data.tagCount}
-      assignmentCount={data.assignmentCount}
+      tags={data.tags}
+      assignments={data.assignments}
       targetPerDay={data.targetPerDay}
       activeTab={tab}
       onTabChange={onTabChange}

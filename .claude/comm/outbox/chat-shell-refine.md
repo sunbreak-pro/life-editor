@@ -30,3 +30,9 @@
     1. **CLAUDE.md §7.4 の字面と実運用の乖離解消**（`1 chat = 1 worktree = 1 branch` vs 課題ごとブランチ切替）。ラベル `shared-fix` / 宛先 `[all]` 想定。全 worktree に波及するため chat-main 判断。
     2. **マージ済み 7 ブランチの削除**（上記 B-2。`-307` は当 worktree の切替後）。
   - **当チャットの現況**: ブランチ `claude/shell-refine-307` は origin/main を merge 済みで**ファイル内容の差分ゼロ**（今回の C 修正分が新規差分）。次タスク #304 child 2 に着手する場合は新ブランチ（`claude/shell-refine-304-domains` 想定）を切り、`.session-branch` も同時更新する。
+
+- 2026-07-26: **#320（Mobile 基盤配線）完了 → PR #358**（Closes #320・ブランチ = `claude/shell-refine-320`）。
+  - 実装: `ShortcutConfigProvider` を `isNativeMobile()` で native 省略（`MainScreen.tsx` の `ShortcutConfigHost`）+ `web/index.html` viewport に `viewport-fit=cover` + `shared/tests/platform.test.ts` 新設 + docs 追随（CLAUDE.md §2 / rules/frontend.md / mobile-scope.md §6 / mobile/README.md / styles.xml）。
+  - ⚠️ **DoD からの意図的逸脱（Issue #320 コメントに記録済み）**: `AudioProvider` は native でも維持し、Ambient mixer UI のみ WorkScreen で native 省略。理由 = mobile-scope.md #10（work タイマー Full）/#11（完了チャイムは鳴る・#319 ユーザー確定）と Provider ごと省略が矛盾（role-qa Blocker 指摘）。Provider ごと省略が正しければ 1 条件 + AudioHost 復元で戻せる。
+  - 検証: shared tsc + vitest 137 files / 1083 passed・web build exit 0・role-qa 独立監査（NEEDS REVISION → Blocker/Important 全反映）。実ブラウザ / iOS Simulator 実測は §7.4 どおり merge 後 chat-main・後続実機ゲート。
+  - **【chat-main への起票依頼】**: Mobile 省略 Provider roster の既存 stale 列挙 2 箇所の参照化（数値の非複製原則違反・#320 以前からのズレで、#320 後は「Audio は Provider 維持」の点でも二重に stale）— (1) `shared/design-system/PRINCIPLES.md:190`（Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig の 5 種列挙。ScreenLock 以下 3 種は Provider ごと撤去済み） (2) `.claude/docs/requirements/ios-additions.md:125`（「省略 4 種」列挙）。いずれも CLAUDE.md §2 参照への置換を想定。ラベル = `shared-fix` 宛先 `[all]` か docs 系で chat-main 判断。
