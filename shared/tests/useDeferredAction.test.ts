@@ -85,6 +85,22 @@ describe("useDeferredAction", () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it("does not reschedule an in-flight action when delayMs changes", () => {
+    // Documented limitation: the delay is read at defer time. Pinned so a
+    // future caller passing a live value is not surprised by it.
+    const fn = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ delay }: { delay: number }) => useDeferredAction(delay),
+      { initialProps: { delay: 200 } },
+    );
+
+    act(() => result.current.defer(fn));
+    rerender({ delay: 5000 });
+    act(() => void vi.advanceTimersByTime(200));
+
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a stable identity so consumers' useCallback deps do not churn", () => {
     const { result, rerender } = renderHook(() => useDeferredAction(200));
     const first = result.current;

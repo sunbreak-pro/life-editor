@@ -17,6 +17,10 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
  *
  * Deliberately NOT a debounce: there is no trailing re-fire and no per-key
  * bookkeeping. Callers that need "run at most every N ms" want something else.
+ *
+ * `delayMs` is read when `defer` is called, so changing it does NOT
+ * reschedule an action already in flight — pass a constant unless the caller
+ * is prepared for that.
  */
 export function useDeferredAction(delayMs: number): {
   defer: (fn: () => void) => void;

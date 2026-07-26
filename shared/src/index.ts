@@ -149,6 +149,8 @@ export {
 } from "./utils/resetPreferences";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
+// #355 — hold an action back so a follow-up gesture (a double-click) can
+// cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
