@@ -8,6 +8,7 @@ import {
   useTaskTreeHistory,
   createNoopUndoRedo,
   type UndoRedoLike,
+  type PersistSettled,
 } from "./useTaskTreeHistory";
 import { logServiceError } from "../utils/logError";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
@@ -144,14 +145,17 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   }, [ds]);
 
   const syncToDb = useCallback(
-    (updated: TaskNode[]) => {
+    (updated: TaskNode[], onSettled?: PersistSettled) => {
       setPersistError(null);
-      ds.syncTaskTree(updated).catch((e) => {
-        logServiceError("TaskTree", "sync", e);
-        setPersistError(
-          e instanceof Error ? e.message : "Failed to save tasks",
-        );
-      });
+      ds.syncTaskTree(updated)
+        .then(() => onSettled?.(true))
+        .catch((e) => {
+          logServiceError("TaskTree", "sync", e);
+          setPersistError(
+            e instanceof Error ? e.message : "Failed to save tasks",
+          );
+          onSettled?.(false);
+        });
     },
     [ds],
   );
@@ -166,18 +170,32 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     clearHistory,
   } = useTaskTreeHistory(setNodes, syncToDb, undoRedo);
 
+  // The guard drops the write when the tree has not loaded yet (persisting a
+  // half-known tree would delete the rows it doesn't know about). That drop is
+  // silent on screen, so anything chained to the write is told it did NOT land
+  // — otherwise a follow-up would write against a row that was never created.
   const guardedPersistWithHistory = useCallback(
-    (currentNodes: TaskNode[], updated: TaskNode[]) => {
-      if (!loadedRef.current) return;
-      rawPersistWithHistory(currentNodes, updated);
+    (
+      currentNodes: TaskNode[],
+      updated: TaskNode[],
+      onSettled?: PersistSettled,
+    ) => {
+      if (!loadedRef.current) {
+        onSettled?.(false);
+        return;
+      }
+      rawPersistWithHistory(currentNodes, updated, onSettled);
     },
     [rawPersistWithHistory],
   );
 
   const guardedPersistSilent = useCallback(
-    (updated: TaskNode[]) => {
-      if (!loadedRef.current) return;
-      rawPersistSilent(updated);
+    (updated: TaskNode[], onSettled?: PersistSettled) => {
+      if (!loadedRef.current) {
+        onSettled?.(false);
+        return;
+      }
+      rawPersistSilent(updated, onSettled);
     },
     [rawPersistSilent],
   );

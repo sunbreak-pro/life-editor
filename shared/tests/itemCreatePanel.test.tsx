@@ -50,7 +50,10 @@ const LABELS: ItemCreatePanelLabels = {
   notePickerEmpty: "No notes yet",
   notePickerNoMatch: "No matching notes",
   noteLinkHint: "Linked to the item you add below.",
-  attachedNote: "Note:",
+  // Deliberately NOT "Note": the chip heading must not collide with the tab of
+  // the same name, or a getByText here would silently match the wrong element
+  // and the real UI would read as two different things called the same word.
+  attachedNote: "Linked note",
   clearNote: "Remove the note",
 };
 
@@ -306,6 +309,37 @@ describe("ItemCreatePanel — task tab (#376)", () => {
   });
 });
 
+describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => {
+  it("disables both event buttons until the title has something in it", () => {
+    renderPanel();
+    expect(screen.getByText("Add")).toBeDisabled();
+    expect(screen.getByText("Add and edit")).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    expect(screen.getByText("Add")).toBeEnabled();
+    expect(screen.getByText("Add and edit")).toBeEnabled();
+  });
+
+  it("disables the place button until a task is picked", () => {
+    renderPanel();
+    openTaskTab("existing");
+    expect(screen.getByText("Place")).toBeDisabled();
+    fireEvent.click(screen.getByText("Draft the invoice"));
+    expect(screen.getByText("Place")).toBeEnabled();
+  });
+
+  it("stays disabled on the note tab, where the missing field is off screen", () => {
+    // The worst case for a silent no-op: the note tab hides both the title
+    // field and the task picker, so a lit-but-dead button would leave the user
+    // with no way to see why nothing happened.
+    renderPanel();
+    openTaskTab("existing");
+    fireEvent.click(screen.getByText("Note"));
+    expect(screen.getByText("Place")).toBeDisabled();
+  });
+});
+
 describe("ItemCreatePanel — note tab (#376 Step B)", () => {
   it("stages a new note and hands it to the event create", () => {
     const { onSubmitEvent } = renderPanel();
@@ -394,10 +428,10 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     // would be invisible at the moment the user commits to it.
     const { onSubmitEvent } = renderPanel();
     stageNewNote("Minutes", "Event");
-    expect(screen.getByText("Note:")).toBeInTheDocument();
+    expect(screen.getByText("Linked note")).toBeInTheDocument();
     expect(screen.getByText("Minutes")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Remove the note"));
-    expect(screen.queryByText("Note:")).toBeNull();
+    expect(screen.queryByText("Linked note")).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
@@ -408,6 +442,42 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
       "10:00",
       null,
     );
+  });
+
+  it("keeps a staged note when the note search narrows past it", () => {
+    // The opposite of the task picker's rule, on purpose: a staged note is
+    // carried to another tab and echoed back as a chip, so it stays visible
+    // after the query moves on. Dropping it would lose the attachment
+    // somewhere between picking it and submitting.
+    const { onSubmitEvent } = renderPanel();
+    fireEvent.click(screen.getByText("Note"));
+    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Weekly review"));
+    fireEvent.change(screen.getByLabelText("Search notes"), {
+      target: { value: "standup" },
+    });
+    fireEvent.click(screen.getByText("Event"));
+    expect(screen.getByText("Linked note")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", "09:00", "10:00", {
+      kind: "existing",
+      id: "note-2",
+    });
+  });
+
+  it("rides along when an EXISTING task is placed", () => {
+    const { onPlaceTask } = renderPanel();
+    openTaskTab("existing");
+    fireEvent.click(screen.getByText("Draft the invoice"));
+    stageNewNote("Prep", "Task");
+    fireEvent.click(screen.getByText("Place"));
+    expect(onPlaceTask).toHaveBeenCalledWith("task-1", "09:00", "10:00", {
+      kind: "new",
+      title: "Prep",
+    });
   });
 
   it("says the note pool is empty regardless of the query", () => {

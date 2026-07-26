@@ -33,9 +33,16 @@ export function createNoopUndoRedo(): UndoRedoLike {
   };
 }
 
+/**
+ * Reports whether a persist actually landed in the DB. Callers that must write
+ * something whose FK points at the rows being persisted (an item link — #376)
+ * cannot fire before this says `true`.
+ */
+export type PersistSettled = (ok: boolean) => void;
+
 export function useTaskTreeHistory(
   setNodes: Dispatch<SetStateAction<TaskNode[]>>,
-  syncToDb: (nodes: TaskNode[]) => void,
+  syncToDb: (nodes: TaskNode[], onSettled?: PersistSettled) => void,
   undoRedo: UndoRedoLike,
 ) {
   const {
@@ -48,9 +55,16 @@ export function useTaskTreeHistory(
   } = undoRedo;
 
   const persistWithHistory = useCallback(
-    (currentNodes: TaskNode[], updated: TaskNode[]) => {
+    (
+      currentNodes: TaskNode[],
+      updated: TaskNode[],
+      onSettled?: PersistSettled,
+    ) => {
       const before = currentNodes;
       const after = updated;
+      // Deliberately NOT forwarding onSettled into undo/redo: it belongs to
+      // this one write. A redo re-runs the sync, and re-firing a follow-up
+      // (e.g. attaching a note) would duplicate it.
       push("taskTree", {
         label: "taskTreeChange",
         undo: () => {
@@ -63,15 +77,15 @@ export function useTaskTreeHistory(
         },
       });
       setNodes(updated);
-      syncToDb(updated);
+      syncToDb(updated, onSettled);
     },
     [setNodes, syncToDb, push],
   );
 
   const persistSilent = useCallback(
-    (updated: TaskNode[]) => {
+    (updated: TaskNode[], onSettled?: PersistSettled) => {
       setNodes(updated);
-      syncToDb(updated);
+      syncToDb(updated, onSettled);
     },
     [setNodes, syncToDb],
   );

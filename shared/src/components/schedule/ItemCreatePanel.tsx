@@ -180,10 +180,12 @@ export interface ItemCreatePanelProps {
   labels: ItemCreatePanelLabels;
 }
 
-const PRIMARY_BTN =
-  "flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
-const SECONDARY_BTN =
-  "flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+// `disabled:` states matter more here than on a normal form: the note tab hides
+// the field the submit depends on, so a dead-but-lit button would give the user
+// nothing to look at when a click does nothing.
+const DISABLED_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg ${DISABLED_BTN}`;
+const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${DISABLED_BTN}`;
 const HINT = "py-3 text-center text-xs text-lumen-text-secondary";
 
 /**
@@ -231,14 +233,17 @@ function PickerList({
         <p className={HINT}>{noMatchLabel}</p>
       ) : (
         <ul
-          role="list"
+          role="listbox"
           className="max-h-44 overflow-y-auto rounded-lumen-md border border-lumen-border"
         >
           {matches.map((option) => (
-            <li key={option.id}>
+            // `presentation` on the <li> so the button is the listbox's
+            // effective child: single-select semantics, not a row of toggles.
+            <li key={option.id} role="presentation">
               <button
                 type="button"
-                aria-pressed={pickedId === option.id}
+                role="option"
+                aria-selected={pickedId === option.id}
                 onClick={() => onPick(option.id)}
                 className={cn(
                   "flex w-full items-center border-b border-lumen-border px-2.5 py-2 text-left text-sm transition-colors last:border-b-0",
@@ -259,9 +264,14 @@ function PickerList({
 }
 
 /**
- * Resolve a picker selection THROUGH the current query, so narrowing past the
- * picked row drops it from both the highlight and the submit — acting on
- * something the user can no longer see would be a silent surprise.
+ * Resolve the TASK selection THROUGH the current query, so narrowing past the
+ * picked row drops it from both the highlight and the submit — the picked task
+ * IS what the submit acts on, and acting on something the user can no longer
+ * see would be a silent surprise.
+ *
+ * The note picker deliberately does NOT go through this (see `pickedNote`): a
+ * staged note is carried across tabs and shown back as a chip, so it stays
+ * visible after the query moves on.
  */
 function resolvePicked(
   options: ItemCreateOption[],
@@ -312,7 +322,13 @@ export function ItemCreatePanel({
   };
 
   const pickedTask = resolvePicked(existingTasks, taskQuery, pickedTaskId);
-  const pickedNote = resolvePicked(existingNotes, noteQuery, pickedNoteId);
+  // By id alone, unlike the task above: the note is staged, then the user
+  // leaves for the event / task tab to actually submit. Dropping it because
+  // the search box it was picked in still holds a narrower query would throw
+  // the attachment away between picking it and using it.
+  const pickedNote = pickedNoteId
+    ? (existingNotes.find((o) => o.id === pickedNoteId) ?? null)
+    : null;
   const placing = target === "task" && taskSource === "existing";
 
   // What rides along with the create. A blank new-note title stages nothing —
@@ -352,6 +368,9 @@ export function ItemCreatePanel({
     }
     submitTitled(target === "event" ? onSubmitEvent : onCreateTask);
   };
+  // What the footer needs before it can act. Read on the note tab too, where
+  // neither the title field nor the task picker is on screen.
+  const canSubmit = placing ? !!pickedTask : !!title.trim();
 
   const source = type === "note" ? noteSource : taskSource;
   const setSource = type === "note" ? setNoteSource : setTaskSource;
@@ -498,6 +517,7 @@ export function ItemCreatePanel({
           <>
             <button
               type="button"
+              disabled={!canSubmit}
               onClick={() => submitTitled(onSubmitEvent)}
               className={PRIMARY_BTN}
             >
@@ -505,6 +525,7 @@ export function ItemCreatePanel({
             </button>
             <button
               type="button"
+              disabled={!canSubmit}
               onClick={() => submitTitled(onSubmitEventAndOpen)}
               className={SECONDARY_BTN}
             >
@@ -512,7 +533,12 @@ export function ItemCreatePanel({
             </button>
           </>
         ) : (
-          <button type="button" onClick={submitPrimary} className={PRIMARY_BTN}>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={submitPrimary}
+            className={PRIMARY_BTN}
+          >
             {placing ? labels.placeTask : labels.addTask}
           </button>
         )}

@@ -123,6 +123,19 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 - `ScheduleItem.noteId` は型にあるが **書き込み時に捨てられる**（`SupabaseDataService` が `void noteId` — events↔notes は列ではなくリンク）。この事実があるため item link 以外の選択肢は無い
 - ノート一覧は Schedule ブランチに `NotesUnifiedProvider` を足さず、**ホスト側フック `web/src/schedule/useCreatePanelNotes.ts` がパネルを開いている間だけ `listNotesUnified()` で引く**。Provider はノート本体・ゴミ箱・本文の hydration まで抱え、Realtime のたび走り直すため、タイトルだけ要る picker には重すぎる（DataService は注入のまま = §3.1 維持）
 
+#### リンクは「行ができてから」書く（#376 QA 監査で確定・2026-07-26）
+
+**`wiki_tag_connections.from_item_id` は `items_meta` への FK で、RLS の INSERT ポリシーもその行の存在を再チェックする。生成パネルの作成経路は楽観的 id を同期で返して裏で書き込むため、「ローカル state にある」は FK 先の存在証明にならない。**作成呼び出しの直後にリンクを撃つと、リンクの INSERT がアイテム自身の INSERT より先に飛ぶ（どちらの writer も `auth.getUser()` の 1 往復から始まるが、リンク側にはその前置きが無い）。既存ノートを選んだ場合は確定で失敗し、`console.error` に飲まれてユーザーには何も出ない。
+
+これは #371 が `shared/src/utils/pendingItemLinks.ts` に明文化した罠と同一で、`DailyView.flushPendingLinks` も「save が解決してから」しか撃たない。#376 は同じ規律を作成経路に通した:
+
+- `useScheduleItemsAPI.createScheduleItem` の `opts.onSaved(saved | null)` — 書き込み解決時に発火
+- `useTaskTreeCRUD.addNode` の `options.onSaved(node | null)` — `persistWithHistory / persistSilent → syncToDb` を経由。**undo / redo には渡さない**（redo が sync を再実行するため、渡すと同じノートを二重に紐づける）。`useTaskTreeAPI` の未ロードガードで write が捨てられた場合も `null` を返す（黙って消えた write に後続を続けさせない）
+- 既存タスクの「配置」だけは待たない — プールは DB 由来なので行は既にある
+- 失敗はトースト（`scheduleScreen.noteAttachFailed`）で必ず知らせる。リンクが張られるのはパネルを閉じた後で、画面上に手がかりが残らないため
+
+pin = `shared/tests/taskTreePersistSettled.test.tsx`
+
 ---
 
 ## 5. 決定録（2026-07-14 ユーザー回答）

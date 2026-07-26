@@ -28,6 +28,7 @@ import {
   Modal,
   useScheduleItemsRoutineSync,
   useDeferredAction,
+  useToast,
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
@@ -220,9 +221,21 @@ export function CalendarTab({
 
   // #376 note tab: the picker's pool + the "create the note, then link it"
   // write. Loaded only while the creation panel is open (see the hook).
-  const { notes: noteOptions, attachNote } = useCreatePanelNotes({
+  // The link lands after the panel has closed, so a failure has to be said out
+  // loud — there is nothing left on screen to show it.
+  const { showToast } = useToast();
+  const handleAttachError = useCallback(
+    () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
+    [showToast, t],
+  );
+  const {
+    notes: noteOptions,
+    notesError,
+    attachNote,
+  } = useCreatePanelNotes({
     dataService,
     active: !!createPanel,
+    onAttachError: handleAttachError,
   });
 
   // Selection = highlight only (#299). The grid ring follows selectedId; the
@@ -468,11 +481,14 @@ export function CalendarTab({
       note: ItemCreateNoteDraft | null,
     ) => {
       if (!createPanel) return;
-      const id = handleCreate(createPanel.date, title, start, end);
-      // #376: the note rides along with the create. handleCreate hands back the
-      // optimistic row's id, which is the same id the write lands under, so the
-      // link can be issued without waiting for the round trip.
-      attachNote(id, note);
+      // #376: the note rides along with the create, but only once the row is
+      // really there — `wiki_tag_connections` carries an FK to `items_meta`,
+      // and the id handleCreate returns is the optimistic one (see the
+      // ORDERING note in useCreatePanelNotes).
+      const id = handleCreate(createPanel.date, title, start, end, (saved) => {
+        if (saved) attachNote(saved.id, note);
+        else if (note) handleAttachError();
+      });
       setCreatePanel(null);
       // Desktop: select without opening anything — a quiet "here it is" that
       // does not interrupt blocking out the next slot. It shows as a ring on
@@ -484,7 +500,7 @@ export function CalendarTab({
       // the plain create into the other button.
       if (isWide) setSelectedId(id);
     },
-    [createPanel, handleCreate, attachNote, isWide],
+    [createPanel, handleCreate, attachNote, handleAttachError, isWide],
   );
 
   // #354 secondary action: create, then land in the detail editor.
@@ -496,15 +512,17 @@ export function CalendarTab({
       note: ItemCreateNoteDraft | null,
     ) => {
       if (!createPanel) return;
-      const id = handleCreate(createPanel.date, title, start, end);
-      attachNote(id, note);
+      const id = handleCreate(createPanel.date, title, start, end, (saved) => {
+        if (saved) attachNote(saved.id, note);
+        else if (note) handleAttachError();
+      });
       setCreatePanel(null);
       setSelectedId(id);
       // Desktop opens the body-level overlay; on Mobile the selection alone
       // brings up the BottomSheet editor (the same path a tap takes).
       if (isWide) setOverlayOpen(true);
     },
-    [createPanel, handleCreate, attachNote, isWide],
+    [createPanel, handleCreate, attachNote, handleAttachError, isWide],
   );
 
   // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
@@ -536,11 +554,19 @@ export function CalendarTab({
       // Root-level task (parentId null), matching every other "quick create"
       // entry — the panel carries no place-in-the-tree control, and the Tasks
       // section is where re-parenting belongs.
-      const created = addNode("task", null, title, placement);
-      attachNote(created.id, note);
+      addNode("task", null, title, {
+        ...placement,
+        // Same ordering rule as the event path: the node is optimistic until
+        // the tree sync lands, and the guard in useTaskTreeAPI can drop the
+        // write entirely (tree not loaded), which reports `null` here.
+        onSaved: (saved) => {
+          if (saved) attachNote(saved.id, note);
+          else if (note) handleAttachError();
+        },
+      });
       setCreatePanel(null);
     },
-    [scheduleTaskAt, addNode, attachNote],
+    [scheduleTaskAt, addNode, attachNote, handleAttachError],
   );
 
   const handlePlaceTaskSubmit = useCallback(
@@ -553,6 +579,9 @@ export function CalendarTab({
       const placement = scheduleTaskAt(start, end);
       if (!placement) return;
       updateNode(taskId, placement);
+      // No onSaved wait here, unlike the create paths: this task was picked
+      // out of a pool that came from the DB, so its `items_meta` row is
+      // already there and the link's FK is satisfied right now.
       attachNote(taskId, note);
       setCreatePanel(null);
     },
@@ -1274,13 +1303,17 @@ export function CalendarTab({
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
       searchNotes: t("scheduleScreen.searchNotes"),
-      notePickerEmpty: t("scheduleScreen.notePickerEmpty"),
+      // "No notes yet" is a claim about the user's data, so it must not stand
+      // in for a list we simply failed to read.
+      notePickerEmpty: notesError
+        ? t("scheduleScreen.notePickerError")
+        : t("scheduleScreen.notePickerEmpty"),
       notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
       noteLinkHint: t("scheduleScreen.noteLinkHint"),
       attachedNote: t("scheduleScreen.attachedNote"),
       clearNote: t("scheduleScreen.clearNote"),
     }),
-    [t],
+    [t, notesError],
   );
 
   // #299 item-creation overlay (Desktop): the shared creation panel in an

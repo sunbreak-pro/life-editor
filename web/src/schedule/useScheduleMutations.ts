@@ -51,6 +51,7 @@ export interface UseScheduleMutationsArgs {
       content?: string;
       noteId?: string;
       memo?: string;
+      onSaved?: (saved: ScheduleItem | null) => void;
     },
   ) => string;
   updateScheduleItem: (id: string, updates: Partial<ScheduleItem>) => void;
@@ -256,9 +257,19 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // visible range and returns the new id. No eager draft, no selection: the
   // panel closes and the row simply appears (the #278 pending-draft guard is
   // retired with the eager-create flow it protected).
+  //
+  // `onSaved` fires when the row actually reached the DB (null = it did not).
+  // The returned id names the optimistic row, so anything that writes with an
+  // FK to it — the #376 note link — has to wait for this instead.
   const handleCreate = useCallback(
-    (date: string, title: string, start: string, end: string): string => {
-      const id = createScheduleItem(date, title, start, end);
+    (
+      date: string,
+      title: string,
+      start: string,
+      end: string,
+      onSaved?: (saved: ScheduleItem | null) => void,
+    ): string => {
+      const id = createScheduleItem(date, title, start, end, { onSaved });
       setRangeItems((prev) => [
         ...prev,
         makeOptimisticScheduleItem(id, date, title, start, end),
