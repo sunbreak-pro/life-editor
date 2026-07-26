@@ -138,9 +138,11 @@ export class SupabaseWikiTagsUnifiedService {
    * flips `items_meta.is_deleted` — it deliberately does NOT cascade into
    * `wiki_tag_assignments` (a cascade could not tell apart "removed by the
    * trash" from "removed by the user" on restore), so assignment-only
-   * filtering leaves rows pointing at trashed items. Those inflated every
-   * consumer of this cache: the Tag edit modal's usage count (the reported
-   * symptom), Analytics tag aggregation, and the Connect graph's edges.
+   * filtering leaves rows pointing at trashed items. Those skewed the counting
+   * consumers of this cache: the Tag edit modal's usage count (the reported
+   * symptom) and Analytics tag aggregation. The Connect graph was already
+   * correct — `buildGraphModel` drops any edge whose endpoint is not a
+   * rendered node, and trashed items never become nodes.
    *
    * The `items_meta!inner(is_deleted)` embed + `.eq("items_meta.is_deleted",
    * false)` pushes the liveness join into PostgREST, so this stays ONE

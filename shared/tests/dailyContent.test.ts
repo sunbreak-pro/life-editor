@@ -3,6 +3,7 @@ import {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,
   dailyContentExcerpt,
+  dailyContentHasRenderedContent,
 } from "../src/components/materials/dailyContent";
 import { extractBriefing } from "../src/components/briefing/extractBriefing";
 
@@ -90,6 +91,54 @@ describe("dailyContentExcerpt", () => {
         JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("dailyContentHasRenderedContent (#371 follow-up)", () => {
+  // A resolved "[[ ]]" link is an inline ATOM: attrs only, no text node. The
+  // excerpt-based emptiness check therefore read a link-only body as empty and
+  // the day was never saved — losing the link and the row its graph edge waits
+  // on.
+  const LINK_ONLY = JSON.stringify({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "itemLink",
+            attrs: { targetId: "note-1", label: "設計メモ", role: "note" },
+          },
+          { type: "text", text: " " },
+        ],
+      },
+    ],
+  });
+
+  it("sees a body that is only a link, where the excerpt does not", () => {
+    expect(dailyContentExcerpt(LINK_ONLY)).toBeUndefined();
+    expect(dailyContentHasRenderedContent(LINK_ONLY)).toBe(true);
+  });
+
+  it("still reports an emptied-out body as empty", () => {
+    const blank = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph" }],
+    });
+    const whitespace = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "  " }] }],
+    });
+    expect(dailyContentHasRenderedContent(blank)).toBe(false);
+    expect(dailyContentHasRenderedContent(whitespace)).toBe(false);
+    expect(dailyContentHasRenderedContent(undefined)).toBe(false);
+    expect(dailyContentHasRenderedContent("")).toBe(false);
+  });
+
+  it("agrees with the excerpt on ordinary text bodies", () => {
+    expect(dailyContentHasRenderedContent(DOC)).toBe(true);
+    expect(dailyContentHasRenderedContent("legacy plain text")).toBe(true);
+    expect(dailyContentHasRenderedContent("   \n  ")).toBe(false);
   });
 });
 
