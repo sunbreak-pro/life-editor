@@ -201,10 +201,11 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
 
   // tagId → number of active items carrying that tag (role-agnostic). Built
   // from the same `allAssignments` cache — no extra fetch. `allAssignments` is
-  // already active-only (service filters is_deleted=false) and
+  // already live-only on BOTH sides (the service filters the assignment's own
+  // is_deleted AND joins items_meta to drop trashed items — #365) and
   // `wiki_tag_assignments` is UNIQUE(item_id, tag_id), so a plain count is the
-  // distinct item count. The `!isDeleted` guard is belt-and-suspenders against
-  // any optimistic local rows.
+  // distinct active-item count. The `!isDeleted` guard is belt-and-suspenders
+  // against any optimistic local rows.
   const countsByTag = useMemo(() => {
     const map = new Map<string, number>();
     for (const a of allAssignments) {

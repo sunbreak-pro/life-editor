@@ -128,18 +128,37 @@ export class SupabaseWikiTagsUnifiedService {
   }
 
   /**
-   * Bulk-load every active item↔tag assignment in one query. Mirrors
+   * Bulk-load every LIVE item↔tag assignment in one query. Mirrors
    * `listAllWikiTagGroupAssignments` (group memberships) so the hook can
    * bucket assignments by `itemId` on the client instead of issuing one
    * `listTagsForItem` query per visible row (N+1 elimination).
+   *
+   * "Live" is a two-sided condition (#365): the assignment itself must be
+   * active AND its item must not be trashed. Soft-deleting an item only
+   * flips `items_meta.is_deleted` — it deliberately does NOT cascade into
+   * `wiki_tag_assignments` (a cascade could not tell apart "removed by the
+   * trash" from "removed by the user" on restore), so assignment-only
+   * filtering leaves rows pointing at trashed items. Those inflated every
+   * consumer of this cache: the Tag edit modal's usage count (the reported
+   * symptom), Analytics tag aggregation, and the Connect graph's edges.
+   *
+   * The `items_meta!inner(is_deleted)` embed + `.eq("items_meta.is_deleted",
+   * false)` pushes the liveness join into PostgREST, so this stays ONE
+   * round trip (a second `items_meta` id sweep per refresh would re-run on
+   * every syncVersion bump — i.e. after every typing pause). The embedded
+   * column is join-only; `rowToWikiTagAssignment` ignores the extra key.
+   * Restoring an item revives its tags for free — nothing was mutated.
    */
   async listAllTagAssignments(): Promise<WikiTagAssignment[]> {
     const rows = await fetchAllPages<WikiTagAssignmentRow>(
       (from, to) =>
         this.client
           .from("wiki_tag_assignments")
-          .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
+          .select(
+            `${WIKI_TAG_ASSIGNMENTS_COLUMNS}, items_meta!inner(is_deleted)`,
+          )
           .eq("is_deleted", false)
+          .eq("items_meta.is_deleted", false)
           .order("id")
           .range(from, to),
       "listAllTagAssignments failed",
