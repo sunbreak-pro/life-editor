@@ -2,7 +2,13 @@
 
 ## 進行中
 
-（なし）
+### 🔧 #304 close の docs PR = PR #389（open = merge 待ち・着手日: 2026-07-26）
+
+**対象**: per-chat meta 3 ファイル + rules/frontend.md:51 の UndoRedo 移植済み追随（role-qa Important 3 反映）
+
+- 前回: —
+- 現在: PR #389 merge 待ち（merge = こうだいさん / chat-main。ブランチ = claude/shell-refine-304-ui）
+- 次: merge 後にブランチ削除（-304-domains / -320 / -304-ui — outbox 2026-07-26 (3) で依頼済み）
 
 ## 直近の完了
 

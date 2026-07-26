@@ -48,7 +48,7 @@ paths:
 | 共有型        | `shared/src/types/`               |
 | Schedule 共通 | `shared/src/components/schedule/` |
 
-（旧 frontend/ 内の配置表は削除済み。UndoRedo は web 未移植 — 参照は git tag `pre-tauri-removal`）
+（旧 frontend/ 内の配置表は削除済み。UndoRedo は #304 で web 移植済み — `web/src/UndoRedoHost.tsx` / `HeaderUndoRedo.tsx` + `shared/src/utils/undoRedo/`）
 
 ## デザイン規約（不変式）
 
