@@ -23,6 +23,8 @@ export interface EventCreateFieldsLabels {
   placeholder: string;
   /** Already-translated submit button label. */
   add: string;
+  /** Label of the secondary "create, then open the detail editor" action. */
+  addAndOpen: string;
   startTime: string;
   endTime: string;
 }
@@ -36,6 +38,17 @@ export interface EventCreateFieldsProps {
   initialTitle?: string;
   /** Fired with the trimmed (non-empty) title + current times. */
   onSubmit: (title: string, start: string, end: string) => void;
+  /**
+   * Same payload as `onSubmit`, but the host should follow the write by
+   * opening the new item's detail editor (#354).
+   *
+   * Two buttons rather than one policy: creating an event and filling in a
+   * memo / repeat rule are different intents. Blocking on the editor every
+   * time punishes the common case (blocking out several slots in a row),
+   * while never opening it strands the other one — the panel only carries
+   * title + times. Enter keeps the plain create, so the fast path stays fast.
+   */
+  onSubmitAndOpen: (title: string, start: string, end: string) => void;
   labels: EventCreateFieldsLabels;
 }
 
@@ -44,17 +57,19 @@ export function EventCreateFields({
   initialEnd = "10:00",
   initialTitle = "",
   onSubmit,
+  onSubmitAndOpen,
   labels,
 }: EventCreateFieldsProps) {
   const [title, setTitle] = useState(initialTitle);
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
 
-  const submit = () => {
+  const submitTo = (handler: (t: string, s: string, e: string) => void) => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSubmit(trimmed, start, end);
+    handler(trimmed, start, end);
   };
+  const submit = () => submitTo(onSubmit);
 
   return (
     <div className="flex flex-col gap-3">
@@ -90,13 +105,22 @@ export function EventCreateFields({
           />
         </label>
       </div>
-      <button
-        type="button"
-        onClick={submit}
-        className="rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
-      >
-        {labels.add}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          className="flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
+        >
+          {labels.add}
+        </button>
+        <button
+          type="button"
+          onClick={() => submitTo(onSubmitAndOpen)}
+          className="flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-[13px] font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          {labels.addAndOpen}
+        </button>
+      </div>
     </div>
   );
 }

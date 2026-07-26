@@ -12,23 +12,26 @@ const LABELS: QuickCaptureLabels = {
   title: "Quick add",
   placeholder: "Event title",
   add: "Add",
+  addAndOpen: "Add and edit",
   startTime: "Start",
   endTime: "End",
 };
 
 function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
   const onAdd = vi.fn();
+  const onAddAndOpen = vi.fn();
   const onClose = vi.fn();
   render(
     <QuickCaptureSheet
       open
       onClose={onClose}
       onAdd={onAdd}
+      onAddAndOpen={onAddAndOpen}
       labels={LABELS}
       {...props}
     />,
   );
-  return { onAdd, onClose };
+  return { onAdd, onAddAndOpen, onClose };
 }
 
 describe("QuickCaptureSheet", () => {
@@ -78,5 +81,18 @@ describe("QuickCaptureSheet", () => {
     fireEvent.change(input, { target: { value: "予定" } });
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
     expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("closes on the second button too, after routing to onAddAndOpen (#354)", () => {
+    // The sheet must get out of the way either way — on Mobile the detail
+    // editor is itself a BottomSheet, so leaving this one up would stack two.
+    const { onAdd, onAddAndOpen, onClose } = renderSheet();
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Review" },
+    });
+    fireEvent.click(screen.getByText("Add and edit"));
+    expect(onAddAndOpen).toHaveBeenCalledWith("Review", "09:00", "10:00");
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -394,6 +394,7 @@
     "prev": "前へ",
     "next": "次へ",
     "addEvent": "予定を追加",
+    "addEventAndOpen": "追加して詳細へ",
     "openSettings": "カレンダーを管理",
     "calendarsTitle": "カレンダー",
     "title": "タイトル",

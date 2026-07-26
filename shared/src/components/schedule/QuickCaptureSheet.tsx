@@ -23,6 +23,8 @@ export interface QuickCaptureSheetProps {
   open: boolean;
   onClose: () => void;
   onAdd: (title: string, start: string, end: string) => void;
+  /** Create, then open the new item's detail editor (#354). */
+  onAddAndOpen: (title: string, start: string, end: string) => void;
   /** Prefill for the start-time field (HH:MM). Default 09:00. */
   initialStart?: string;
   /** Prefill for the end-time field (HH:MM). Default 10:00. */
@@ -34,6 +36,7 @@ export function QuickCaptureSheet({
   open,
   onClose,
   onAdd,
+  onAddAndOpen,
   initialStart,
   initialEnd,
   labels,
@@ -45,6 +48,10 @@ export function QuickCaptureSheet({
         initialEnd={initialEnd}
         onSubmit={(title, start, end) => {
           onAdd(title, start, end);
+          onClose();
+        }}
+        onSubmitAndOpen={(title, start, end) => {
+          onAddAndOpen(title, start, end);
           onClose();
         }}
         labels={labels}

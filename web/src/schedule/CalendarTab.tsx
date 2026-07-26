@@ -399,13 +399,37 @@ export function CalendarTab({
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
+  //
+  // #354: the new row's id was previously dropped on the floor, so nothing on
+  // screen pointed at what had just been created and the memo / repeat fields
+  // (which live in the detail editor, not this panel) were unreachable without
+  // hunting for the item on the grid. The panel now offers both intents.
   const handleCreateSubmit = useCallback(
     (title: string, start: string, end: string) => {
       if (!createPanel) return;
-      handleCreate(createPanel.date, title, start, end);
+      const id = handleCreate(createPanel.date, title, start, end);
       setCreatePanel(null);
+      // Desktop: the selection ring is a quiet "here it is" that does not
+      // interrupt blocking out the next slot. Mobile deliberately selects
+      // NOTHING — there, selection IS the detail sheet (see `editorPane`), so
+      // selecting would silently turn the plain create into the other button.
+      if (isWide) setSelectedId(id);
     },
-    [createPanel, handleCreate],
+    [createPanel, handleCreate, isWide],
+  );
+
+  // #354 secondary action: create, then land in the detail editor.
+  const handleCreateSubmitAndOpen = useCallback(
+    (title: string, start: string, end: string) => {
+      if (!createPanel) return;
+      const id = handleCreate(createPanel.date, title, start, end);
+      setCreatePanel(null);
+      setSelectedId(id);
+      // Desktop opens the body-level overlay; on Mobile the selection alone
+      // brings up the BottomSheet editor (the same path a tap takes).
+      if (isWide) setOverlayOpen(true);
+    },
+    [createPanel, handleCreate, isWide],
   );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
@@ -1103,10 +1127,12 @@ export function CalendarTab({
           initialStart={createPanel.start}
           initialEnd={createPanel.end}
           onSubmit={handleCreateSubmit}
+          onSubmitAndOpen={handleCreateSubmitAndOpen}
           labels={{
             title: t("scheduleScreen.title"),
             placeholder: t("scheduleScreen.quickAddPlaceholder"),
             add: t("scheduleScreen.addEvent"),
+            addAndOpen: t("scheduleScreen.addEventAndOpen"),
             startTime: t("scheduleScreen.startTime"),
             endTime: t("scheduleScreen.endTime"),
           }}
@@ -1337,12 +1363,14 @@ export function CalendarTab({
         open={!!createPanel}
         onClose={() => setCreatePanel(null)}
         onAdd={handleCreateSubmit}
+        onAddAndOpen={handleCreateSubmitAndOpen}
         initialStart={createPanel?.start}
         initialEnd={createPanel?.end}
         labels={{
           title: t("scheduleScreen.quickAddTitle"),
           placeholder: t("scheduleScreen.quickAddPlaceholder"),
           add: t("scheduleScreen.addEvent"),
+          addAndOpen: t("scheduleScreen.addEventAndOpen"),
           startTime: t("scheduleScreen.startTime"),
           endTime: t("scheduleScreen.endTime"),
         }}

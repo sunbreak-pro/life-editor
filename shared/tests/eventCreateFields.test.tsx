@@ -17,6 +17,7 @@ const LABELS: EventCreateFieldsLabels = {
   title: "Title",
   placeholder: "Event title",
   add: "Add",
+  addAndOpen: "Add and edit",
   startTime: "Start",
   endTime: "End",
 };
@@ -25,8 +26,16 @@ function renderFields(
   props?: Partial<Parameters<typeof EventCreateFields>[0]>,
 ) {
   const onSubmit = vi.fn();
-  render(<EventCreateFields onSubmit={onSubmit} labels={LABELS} {...props} />);
-  return { onSubmit };
+  const onSubmitAndOpen = vi.fn();
+  render(
+    <EventCreateFields
+      onSubmit={onSubmit}
+      onSubmitAndOpen={onSubmitAndOpen}
+      labels={LABELS}
+      {...props}
+    />,
+  );
+  return { onSubmit, onSubmitAndOpen };
 }
 
 describe("EventCreateFields", () => {
@@ -61,6 +70,38 @@ describe("EventCreateFields", () => {
     const { onSubmit } = renderFields();
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("routes the second button to onSubmitAndOpen with the same payload (#354)", () => {
+    // Same write, different follow-up: the host opens the new item's detail
+    // editor. The panel itself carries no memo / repeat fields.
+    const { onSubmit, onSubmitAndOpen } = renderFields({
+      initialStart: "14:00",
+      initialEnd: "15:00",
+    });
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "  Review  " },
+    });
+    fireEvent.click(screen.getByText("Add and edit"));
+    expect(onSubmitAndOpen).toHaveBeenCalledWith("Review", "14:00", "15:00");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("keeps Enter on the plain create, so the fast path stays fast (#354)", () => {
+    const { onSubmit, onSubmitAndOpen } = renderFields();
+    const input = screen.getByPlaceholderText("Event title");
+    fireEvent.change(input, { target: { value: "Standup" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmitAndOpen).not.toHaveBeenCalled();
+  });
+
+  it("a blank title is a no-op on BOTH buttons", () => {
+    const { onSubmit, onSubmitAndOpen } = renderFields();
+    fireEvent.click(screen.getByText("Add and edit"));
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onSubmitAndOpen).not.toHaveBeenCalled();
   });
 
   it("submits on Enter but ignores Enter during IME composition", () => {

@@ -394,6 +394,7 @@
     "prev": "Previous",
     "next": "Next",
     "addEvent": "Add event",
+    "addEventAndOpen": "Add and edit",
     "openSettings": "Manage calendars",
     "calendarsTitle": "Calendars",
     "title": "Title",
