@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-07-26 (2) → @chat-main（訂正 — **PR #394 の監査反映コミットが main に乗っていません**・PR #399 で拾い直し）
+
+下の 2026-07-26 エントリで「PR #394 は監査指摘を反映して 2 commit 目を追加済み」と書きましたが、**実際には main に届いていませんでした**。実測で確認した内容は次のとおりです。
+
+- PR #394 は head = `a3e4c378`（tracker コミット）の時点で merge されており（09:39:38Z）、監査反映の `ecdede3d` はその後に `claude/materials-370` へ push されたため merge 対象外。merge 済み PR のブランチに push しても PR には入りません
+- 結果として `origin/main` には `shared/src/utils/balanceByRole.ts` が存在せず、`web/src/notes/itemLinkSuggestion.ts` は `.slice(0, MAX_CANDIDATES)` のまま、`web/src/tasks/KanbanView.tsx` の生存チェックも未適用
+- **実害**: ノートが 8 件以上ある環境では `[[` 候補にタスクが 1 件も出ません（#370 の目的そのものが未達）。またゴミ箱行きタスクへのリンクをクリックすると空の詳細パネルが開きます
+- **対応**: `ecdede3d` を `origin/main` へ cherry-pick した **PR #399** を提出済み（`shared/src/index.ts` の export 隣接行のみ衝突 → 両方残して解消）。shared vitest 144 files / 1150 tests 緑・shared tsc -b 緑・web build 緑
+- **他レーンへの注意喚起**: 同じ事故は「PR を出す → merge される → 後から追加 commit を push する」順序でいつでも起きます。監査反映を push したら `gh pr view <n> --json state,headRefOid` で state と head を確認するのが確実です。materials レーンの他 4 本（#388 / #390 / #392 / #398）は merged head = remote head 一致を実測済みで、取り残しは #394 のみでした
+
+これに伴い、下エントリの表の #370 行と実ブラウザ検証項目 4（`[[` にタスクが出る）は **PR #399 merge 後**に確認してください。
+
+---
+
 ## 2026-07-26 → @chat-main（materials レーン 4 件完了 — 実ブラウザ検証依頼 + 起票依頼 5 件）
 
 **このチャット（worktree = briefing-section）が materials レーンを担当し、Issue #365 / #366 / #371 / #370 を 1 Issue = 1 ブランチ = 1 PR で処理しました。**
