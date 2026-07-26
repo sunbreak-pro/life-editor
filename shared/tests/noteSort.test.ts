@@ -114,6 +114,86 @@ describe("sortNotesForList — pinned + stability", () => {
   });
 });
 
+describe("sortNotesForList — frozen sort key (#366)", () => {
+  // The reported bug: typing into `b` bumps its updatedAt on every debounced
+  // save, so newest-first drags the row the user is editing to the top.
+  const a = makeNote({ id: "a", updatedAt: "2026-03-01T00:00:00.000Z" });
+  const b = makeNote({ id: "b", updatedAt: "2026-02-01T00:00:00.000Z" });
+  const c = makeNote({ id: "c", updatedAt: "2026-01-01T00:00:00.000Z" });
+  const bJustSaved = makeNote({
+    id: "b",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+  });
+
+  it("holds the edited note in place when its updatedAt is bumped", () => {
+    const frozen = {
+      id: "b",
+      title: b.title,
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+    };
+    expect(
+      ids(sortNotesForList([a, bJustSaved, c], "updatedAt", "asc", frozen)),
+    ).toEqual(["a", "b", "c"]);
+  });
+
+  it("without the hold the bumped note jumps to the top", () => {
+    expect(
+      ids(sortNotesForList([a, bJustSaved, c], "updatedAt", "asc")),
+    ).toEqual(["b", "a", "c"]);
+  });
+
+  it("returns the LIVE note object, not the snapshot", () => {
+    const frozen = {
+      id: "b",
+      title: "old title",
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+    };
+    const renamed = makeNote({
+      id: "b",
+      title: "new title",
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
+    const held = sortNotesForList(
+      [a, renamed, c],
+      "updatedAt",
+      "asc",
+      frozen,
+    ).find((n) => n.id === "b");
+    expect(held?.title).toBe("new title");
+  });
+
+  it("still moves the held note when it gets pinned", () => {
+    const frozen = {
+      id: "b",
+      title: b.title,
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+    };
+    const pinnedB = makeNote({
+      id: "b",
+      isPinned: true,
+      updatedAt: b.updatedAt,
+    });
+    expect(
+      ids(sortNotesForList([a, pinnedB, c], "updatedAt", "asc", frozen)),
+    ).toEqual(["b", "a", "c"]);
+  });
+
+  it("ignores a hold whose id is absent from the list", () => {
+    const frozen = {
+      id: "gone",
+      title: "",
+      createdAt: c.createdAt,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    };
+    expect(
+      ids(sortNotesForList([a, bJustSaved, c], "updatedAt", "asc", frozen)),
+    ).toEqual(["b", "a", "c"]);
+  });
+});
+
 describe("compareNotes — sign matches the memo comparator", () => {
   const older = makeNote({
     id: "older",

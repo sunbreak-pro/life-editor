@@ -432,7 +432,11 @@ export {
   compareNotes,
   sortNotesForList,
   type NoteSortDirection as NoteListSortDirection,
+  type FrozenNoteSortKey,
 } from "./utils/noteSort";
+// Sidebar position hold for the note being edited (#366) — pairs with the
+// `frozen` argument of sortNotesForList.
+export { useFrozenNoteSortKey } from "./hooks/useFrozenNoteSortKey";
 // Daily sidebar list view (#283) — pure filter + date-sort helper, generic
 // over any date-keyed entry.
 export {
