@@ -454,6 +454,10 @@ export {
   takePendingItemLinks,
   type PendingItemLinks,
 } from "./utils/pendingItemLinks";
+// #376: hosts that write a row through the injected DataService (rather than
+// through a domain Provider) need the canonical id shape too — the Schedule
+// creation panel creates a Note without mounting the Notes Provider.
+export { generateId } from "./utils/generateId";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from

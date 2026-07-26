@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import {
   ItemCreatePanel,
   type ItemCreatePanelLabels,
-  type ItemCreateTaskOption,
+  type ItemCreateOption,
 } from "../src/components";
 
 /*
@@ -11,12 +11,14 @@ import {
  * overlay and the Mobile QuickCaptureSheet. Pure presentation: labels injected,
  * the four callbacks are the only mutations.
  *
- * These tests keep three contracts pinned:
+ * These tests keep four contracts pinned:
  *   - the #299/#353/#354 event contract inherited from EventCreateFields
  *     (prefill, trimming, blank-title no-op, Enter = plain create, read-only
  *     target day),
- *   - the #376 task contract (new task vs placing an existing one, and that
- *     both carry the panel's times),
+ *   - the task contract (new task vs placing an existing one, and that both
+ *     carry the panel's times),
+ *   - the note contract (staging only — the note tab creates nothing on its
+ *     own and never changes what the submit acts on),
  *   - the drafts survive a type-tab switch, which is the whole reason the
  *     title/time state lives on the panel rather than per tab.
  */
@@ -25,6 +27,7 @@ const LABELS: ItemCreatePanelLabels = {
   typeLabel: "Item type",
   typeEvent: "Event",
   typeTask: "Task",
+  typeNote: "Note",
   title: "Title",
   eventPlaceholder: "Event title",
   taskPlaceholder: "Task title",
@@ -33,20 +36,33 @@ const LABELS: ItemCreatePanelLabels = {
   endTime: "End",
   addEvent: "Add",
   addEventAndOpen: "Add and edit",
-  taskSourceLabel: "How to add",
-  taskSourceNew: "New",
-  taskSourceExisting: "From existing",
   addTask: "Add task",
   placeTask: "Place",
+  sourceLabel: "How to add",
+  sourceNew: "New",
+  sourceExisting: "From existing",
   searchTasks: "Search tasks",
-  pickerEmpty: "No unscheduled tasks",
-  pickerNoMatch: "No matching tasks",
+  taskPickerEmpty: "No unscheduled tasks",
+  taskPickerNoMatch: "No matching tasks",
+  noteTitleLabel: "Note title",
+  notePlaceholder: "Note title placeholder",
+  searchNotes: "Search notes",
+  notePickerEmpty: "No notes yet",
+  notePickerNoMatch: "No matching notes",
+  noteLinkHint: "Linked to the item you add below.",
+  attachedNote: "Note:",
+  clearNote: "Remove the note",
 };
 
-const TASKS: ItemCreateTaskOption[] = [
+const TASKS: ItemCreateOption[] = [
   { id: "task-1", title: "Draft the invoice" },
   { id: "task-2", title: "Review PR 376" },
   { id: "task-3", title: "Book the dentist" },
+];
+
+const NOTES: ItemCreateOption[] = [
+  { id: "note-1", title: "Standup minutes" },
+  { id: "note-2", title: "Weekly review" },
 ];
 
 function renderPanel(props?: Partial<Parameters<typeof ItemCreatePanel>[0]>) {
@@ -57,6 +73,7 @@ function renderPanel(props?: Partial<Parameters<typeof ItemCreatePanel>[0]>) {
   render(
     <ItemCreatePanel
       existingTasks={TASKS}
+      existingNotes={NOTES}
       onSubmitEvent={onSubmitEvent}
       onSubmitEventAndOpen={onSubmitEventAndOpen}
       onCreateTask={onCreateTask}
@@ -74,6 +91,15 @@ function openTaskTab(source?: "existing") {
   if (source === "existing") fireEvent.click(screen.getByText("From existing"));
 }
 
+/** Stage a brand-new note, then return to the tab that will do the creating. */
+function stageNewNote(title: string, backTo: "Event" | "Task") {
+  fireEvent.click(screen.getByText("Note"));
+  fireEvent.change(screen.getByLabelText("Note title"), {
+    target: { value: title },
+  });
+  fireEvent.click(screen.getByText(backTo));
+}
+
 describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
   it("opens on the event tab and submits the trimmed title with the default window", () => {
     const { onSubmitEvent } = renderPanel();
@@ -81,7 +107,12 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
       target: { value: "  Dentist  " },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", "09:00", "10:00");
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Dentist",
+      "09:00",
+      "10:00",
+      null,
+    );
   });
 
   it("seeds the time fields from initialStart / initialEnd (empty-slot prefill)", () => {
@@ -99,7 +130,12 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
       target: { value: "Meeting" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Meeting", "14:30", "15:30");
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Meeting",
+      "14:30",
+      "15:30",
+      null,
+    );
   });
 
   it("routes the second button to onSubmitEventAndOpen with the same payload (#354)", () => {
@@ -115,6 +151,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
       "Review",
       "14:00",
       "15:00",
+      null,
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
@@ -143,7 +180,12 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
     expect(onSubmitEvent).not.toHaveBeenCalled();
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(onSubmitEvent).toHaveBeenCalledWith("Standup", "09:00", "10:00");
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Standup",
+      "09:00",
+      "10:00",
+      null,
+    );
   });
 
   it("shows the target day read-only when the host supplies one (#353)", () => {
@@ -179,6 +221,7 @@ describe("ItemCreatePanel — task tab (#376)", () => {
       "Write the report",
       "11:00",
       "11:45",
+      null,
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
@@ -189,7 +232,12 @@ describe("ItemCreatePanel — task tab (#376)", () => {
     const input = screen.getByPlaceholderText("Task title");
     fireEvent.change(input, { target: { value: "Groceries" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(onCreateTask).toHaveBeenCalledWith("Groceries", "09:00", "10:00");
+    expect(onCreateTask).toHaveBeenCalledWith(
+      "Groceries",
+      "09:00",
+      "10:00",
+      null,
+    );
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
 
@@ -201,7 +249,7 @@ describe("ItemCreatePanel — task tab (#376)", () => {
     openTaskTab("existing");
     fireEvent.click(screen.getByText("Review PR 376"));
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTask).toHaveBeenCalledWith("task-2", "16:00", "17:00");
+    expect(onPlaceTask).toHaveBeenCalledWith("task-2", "16:00", "17:00", null);
   });
 
   it("does nothing until a task is picked", () => {
@@ -221,7 +269,7 @@ describe("ItemCreatePanel — task tab (#376)", () => {
     expect(screen.queryByText("Review PR 376")).toBeNull();
   });
 
-  it("drops a selection the query has filtered away (#376 — never place an unseen task)", () => {
+  it("drops a selection the query has filtered away (never place an unseen task)", () => {
     // Picking, then narrowing past the picked row, must not leave a live
     // selection behind: the submit would act on something off screen.
     const { onPlaceTask } = renderPanel();
@@ -258,6 +306,123 @@ describe("ItemCreatePanel — task tab (#376)", () => {
   });
 });
 
+describe("ItemCreatePanel — note tab (#376 Step B)", () => {
+  it("stages a new note and hands it to the event create", () => {
+    const { onSubmitEvent } = renderPanel();
+    stageNewNote("Minutes", "Event");
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", "09:00", "10:00", {
+      kind: "new",
+      title: "Minutes",
+    });
+  });
+
+  it("stages an existing note by id", () => {
+    const { onSubmitEvent } = renderPanel();
+    fireEvent.click(screen.getByText("Note"));
+    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Weekly review"));
+    fireEvent.click(screen.getByText("Event"));
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", "09:00", "10:00", {
+      kind: "existing",
+      id: "note-2",
+    });
+  });
+
+  it("rides along with the TASK create too", () => {
+    const { onCreateTask } = renderPanel();
+    openTaskTab();
+    stageNewNote("Prep", "Task");
+    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+      target: { value: "Write the deck" },
+    });
+    fireEvent.click(screen.getByText("Add task"));
+    expect(onCreateTask).toHaveBeenCalledWith(
+      "Write the deck",
+      "09:00",
+      "10:00",
+      { kind: "new", title: "Prep" },
+    );
+  });
+
+  it("keeps the submit on the last event/task tab while the note tab shows", () => {
+    // The note tab creates nothing, so the footer must not go dead — it keeps
+    // acting on whichever of event / task was last open.
+    const { onCreateTask } = renderPanel();
+    openTaskTab();
+    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+      target: { value: "Write the deck" },
+    });
+    fireEvent.click(screen.getByText("Note"));
+    expect(screen.getByText("Add task")).toBeInTheDocument();
+    expect(screen.queryByText("Add and edit")).toBeNull();
+    fireEvent.click(screen.getByText("Add task"));
+    expect(onCreateTask).toHaveBeenCalledWith(
+      "Write the deck",
+      "09:00",
+      "10:00",
+      null,
+    );
+  });
+
+  it("stages nothing when the note tab was opened but left blank", () => {
+    // Opening the tab and changing your mind must not create an "Untitled".
+    const { onSubmitEvent } = renderPanel();
+    fireEvent.click(screen.getByText("Note"));
+    fireEvent.click(screen.getByText("Event"));
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Kickoff",
+      "09:00",
+      "10:00",
+      null,
+    );
+  });
+
+  it("echoes the staged note on the event tab, and unstages it on demand", () => {
+    // The note tab is one click away, so without the echo the attachment
+    // would be invisible at the moment the user commits to it.
+    const { onSubmitEvent } = renderPanel();
+    stageNewNote("Minutes", "Event");
+    expect(screen.getByText("Note:")).toBeInTheDocument();
+    expect(screen.getByText("Minutes")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Remove the note"));
+    expect(screen.queryByText("Note:")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Kickoff",
+      "09:00",
+      "10:00",
+      null,
+    );
+  });
+
+  it("says the note pool is empty regardless of the query", () => {
+    renderPanel({ existingNotes: [] });
+    fireEvent.click(screen.getByText("Note"));
+    fireEvent.click(screen.getByText("From existing"));
+    expect(screen.getByText("No notes yet")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search notes"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("No notes yet")).toBeInTheDocument();
+    expect(screen.queryByText("No matching notes")).toBeNull();
+  });
+});
+
 describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
   it("keeps the typed title and the edited times when the type changes", () => {
     // Realising halfway through that this is a task, not an event, must not
@@ -277,6 +442,11 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
       (screen.getByPlaceholderText("Task title") as HTMLInputElement).value,
     ).toBe("Dentist");
     fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith("Dentist", "13:00", "13:30");
+    expect(onCreateTask).toHaveBeenCalledWith(
+      "Dentist",
+      "13:00",
+      "13:30",
+      null,
+    );
   });
 });

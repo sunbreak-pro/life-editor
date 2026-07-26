@@ -46,6 +46,7 @@ import {
   type TodayTodoRow,
   type ScheduleStatus,
   type ScheduleItem,
+  type ItemCreateNoteDraft,
   type WeekTimeGridItem,
   type MonthGridItem,
   type AgendaItem,
@@ -56,6 +57,7 @@ import {
   type DataService,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
+import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
@@ -215,6 +217,13 @@ export function CalendarTab({
   // gesture before it appears. Cancelled on unmount by the hook.
   const { defer: deferPopover, cancel: cancelPopover } =
     useDeferredAction(POPOVER_DELAY_MS);
+
+  // #376 note tab: the picker's pool + the "create the note, then link it"
+  // write. Loaded only while the creation panel is open (see the hook).
+  const { notes: noteOptions, attachNote } = useCreatePanelNotes({
+    dataService,
+    active: !!createPanel,
+  });
 
   // Selection = highlight only (#299). The grid ring follows selectedId; the
   // duplicate handler re-selects the copy. Bubble / overlay opening is handled
@@ -452,9 +461,18 @@ export function CalendarTab({
   // (which live in the detail editor, not this panel) were unreachable without
   // hunting for the item on the grid. The panel now offers both intents.
   const handleCreateSubmit = useCallback(
-    (title: string, start: string, end: string) => {
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
       if (!createPanel) return;
       const id = handleCreate(createPanel.date, title, start, end);
+      // #376: the note rides along with the create. handleCreate hands back the
+      // optimistic row's id, which is the same id the write lands under, so the
+      // link can be issued without waiting for the round trip.
+      attachNote(id, note);
       setCreatePanel(null);
       // Desktop: select without opening anything — a quiet "here it is" that
       // does not interrupt blocking out the next slot. It shows as a ring on
@@ -466,21 +484,27 @@ export function CalendarTab({
       // the plain create into the other button.
       if (isWide) setSelectedId(id);
     },
-    [createPanel, handleCreate, isWide],
+    [createPanel, handleCreate, attachNote, isWide],
   );
 
   // #354 secondary action: create, then land in the detail editor.
   const handleCreateSubmitAndOpen = useCallback(
-    (title: string, start: string, end: string) => {
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
       if (!createPanel) return;
       const id = handleCreate(createPanel.date, title, start, end);
+      attachNote(id, note);
       setCreatePanel(null);
       setSelectedId(id);
       // Desktop opens the body-level overlay; on Mobile the selection alone
       // brings up the BottomSheet editor (the same path a tap takes).
       if (isWide) setOverlayOpen(true);
     },
-    [createPanel, handleCreate, isWide],
+    [createPanel, handleCreate, attachNote, isWide],
   );
 
   // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
@@ -501,26 +525,38 @@ export function CalendarTab({
   );
 
   const handleCreateTaskSubmit = useCallback(
-    (title: string, start: string, end: string) => {
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
       const placement = scheduleTaskAt(start, end);
       if (!placement) return;
       // Root-level task (parentId null), matching every other "quick create"
       // entry — the panel carries no place-in-the-tree control, and the Tasks
       // section is where re-parenting belongs.
-      addNode("task", null, title, placement);
+      const created = addNode("task", null, title, placement);
+      attachNote(created.id, note);
       setCreatePanel(null);
     },
-    [scheduleTaskAt, addNode],
+    [scheduleTaskAt, addNode, attachNote],
   );
 
   const handlePlaceTaskSubmit = useCallback(
-    (taskId: string, start: string, end: string) => {
+    (
+      taskId: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
       const placement = scheduleTaskAt(start, end);
       if (!placement) return;
       updateNode(taskId, placement);
+      attachNote(taskId, note);
       setCreatePanel(null);
     },
-    [scheduleTaskAt, updateNode],
+    [scheduleTaskAt, updateNode, attachNote],
   );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
@@ -1216,6 +1252,7 @@ export function CalendarTab({
       typeLabel: t("scheduleScreen.itemTypeLabel"),
       typeEvent: t("scheduleScreen.typeEvent"),
       typeTask: t("scheduleScreen.typeTask"),
+      typeNote: t("scheduleScreen.typeNote"),
       title: t("scheduleScreen.title"),
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
       taskPlaceholder: t("scheduleScreen.taskPlaceholder"),
@@ -1224,16 +1261,24 @@ export function CalendarTab({
       endTime: t("scheduleScreen.endTime"),
       addEvent: t("scheduleScreen.addEvent"),
       addEventAndOpen: t("scheduleScreen.addEventAndOpen"),
-      taskSourceLabel: t("scheduleScreen.taskSourceLabel"),
-      taskSourceNew: t("scheduleScreen.taskSourceNew"),
-      taskSourceExisting: t("scheduleScreen.taskSourceExisting"),
+      sourceLabel: t("scheduleScreen.sourceLabel"),
+      sourceNew: t("scheduleScreen.sourceNew"),
+      sourceExisting: t("scheduleScreen.sourceExisting"),
       addTask: t("scheduleScreen.addTask"),
       placeTask: t("scheduleScreen.placeTask"),
       searchTasks: t("scheduleScreen.searchTasks"),
       // Same sentence as the tray's picker, and the same fact ("nothing left
       // to schedule") — one key rather than two that can disagree.
-      pickerEmpty: t("scheduleScreen.todoEmptyAddable"),
-      pickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
+      taskPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
+      taskPickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
+      noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
+      notePlaceholder: t("scheduleScreen.notePlaceholder"),
+      searchNotes: t("scheduleScreen.searchNotes"),
+      notePickerEmpty: t("scheduleScreen.notePickerEmpty"),
+      notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
+      noteLinkHint: t("scheduleScreen.noteLinkHint"),
+      attachedNote: t("scheduleScreen.attachedNote"),
+      clearNote: t("scheduleScreen.clearNote"),
     }),
     [t],
   );
@@ -1254,6 +1299,7 @@ export function CalendarTab({
           initialStart={createPanel.start}
           initialEnd={createPanel.end}
           existingTasks={todoAddable}
+          existingNotes={noteOptions}
           onSubmitEvent={handleCreateSubmit}
           onSubmitEventAndOpen={handleCreateSubmitAndOpen}
           onCreateTask={handleCreateTaskSubmit}
@@ -1491,6 +1537,7 @@ export function CalendarTab({
         initialStart={createPanel?.start}
         initialEnd={createPanel?.end}
         existingTasks={todoAddable}
+        existingNotes={noteOptions}
         onSubmitEvent={handleCreateSubmit}
         onSubmitEventAndOpen={handleCreateSubmitAndOpen}
         onCreateTask={handleCreateTaskSubmit}
