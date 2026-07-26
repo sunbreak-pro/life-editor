@@ -58,6 +58,9 @@ export function todayDateKey(
  * shift). The Schedule hosts key their grids on the wall calendar, where a
  * 2 AM edit belongs to the new date; `todayDateKey()` above is the
  * Daily / routine-sync "today" that rolls over at the configured hour.
+ * Analytics uses this one too (#356): its buckets — 30-day trends, the
+ * hour × weekday heatmap, the 0–24h timeline axis — are all calendar-keyed,
+ * so its "today" cards must be as well.
  * Single implementation (#280) — replaces the todayLocal / todayLocalKey
  * copies that lived in useScheduleItemsAPI and web scheduleLabels.
  */

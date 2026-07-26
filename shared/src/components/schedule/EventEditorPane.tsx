@@ -5,7 +5,6 @@ import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import {
   FrequencyEditor,
   type FrequencyEditorValue,
-  type FrequencyEditorGroup,
   type FrequencyEditorLabels,
 } from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
@@ -32,8 +31,7 @@ import { FIELD, FIELD_LABEL } from "../styleTokens";
  * and edits the whole series (host patches the source routine); "なし"
  * (onSelectNone → onDetachRepeat) turns the repeat off. For a manual item the
  * section starts at "なし" (value null) and choosing a frequency asks the host
- * to spin up a routine behind the scenes. group is not newly choosable here
- * (allowGroup=false — group routines stay editable in the Routines tab).
+ * to spin up a routine behind the scenes.
  */
 
 export interface EventEditorItem {
@@ -92,7 +90,6 @@ export interface EventEditorPaneProps {
    * frequency for a routine occurrence, or null for a manual item ("なし").
    */
   repeat?: FrequencyEditorValue | null;
-  repeatGroups?: FrequencyEditorGroup[];
   repeatWeekdayLabels?: string[];
   repeatLabels?: FrequencyEditorLabels;
   /** Frequency patch — host applies it to the source routine (or creates one
@@ -117,7 +114,6 @@ function EventEditorFields({
   onDelete,
   labels,
   repeat,
-  repeatGroups,
   repeatWeekdayLabels,
   repeatLabels,
   onChangeRepeat,
@@ -144,8 +140,6 @@ function EventEditorFields({
         value={repeat ?? null}
         onChange={onChangeRepeat}
         onSelectNone={onDetachRepeat}
-        allowGroup={false}
-        groups={repeatGroups}
         weekdayLabels={repeatWeekdayLabels}
         labels={repeatLabels}
       />

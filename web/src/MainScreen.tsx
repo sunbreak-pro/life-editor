@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import {
   CheckSquare,
@@ -28,6 +29,7 @@ import {
   CommandSearchField,
   useMediaQuery,
   isMac,
+  isNativeMobile,
   CommandPalette,
   ToastProvider,
   SyncProvider,
@@ -141,6 +143,27 @@ const MOBILE_HAMBURGER_SECTIONS: ReadonlySet<SectionId> = new Set([
   "work",
   "settings",
 ]);
+
+/*
+ * Mobile 省略 Provider gate (#320 — CLAUDE.md §2). The SAME web bundle ships
+ * to browser / Electron / Capacitor, so the omission is a runtime decision:
+ * on the native mobile shells (`isNativeMobile()` — window.Capacitor present)
+ * this host renders children WITHOUT the Provider. Consumers stay safe
+ * because the context exposes an OPTIONAL hook (useShortcutConfig → null
+ * outside a Provider, coding-principles §4): the shortcut executor goes
+ * inert and Settings hides the Shortcuts card. `isNativeMobile()` reads a
+ * runtime global that never changes within a page load, so evaluating it
+ * during render is stable (no reactivity needed).
+ *
+ * AudioProvider is deliberately NOT gated: the Pomodoro completion chime is
+ * part of the Mobile-Full work timer (mobile-scope.md #10/#11 — user-confirmed
+ * #319), so the Provider stays mounted everywhere and only the ambient-mixer
+ * UI is native-omitted, inside WorkScreen.
+ */
+function ShortcutConfigHost({ children }: { children: ReactNode }) {
+  if (isNativeMobile()) return <>{children}</>;
+  return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
+}
 
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
@@ -337,6 +360,17 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
+  // Briefing in-section tab defs (朝刊 / 夕刊). One list feeds BOTH controls —
+  // the wide SectionHeader band and the narrow in-body segmented control
+  // (#318) — so the two can never drift apart.
+  const briefingTabDefs = useMemo(
+    () => [
+      { id: "morning", label: t("briefing.tabs.morning") },
+      { id: "evening", label: t("briefing.tabs.evening") },
+    ],
+    [t],
+  );
+
   const shellLabels = useMemo(
     () => ({
       appName: "Life Editor",
@@ -455,10 +489,7 @@ export function MainScreen({ session }: { session: Session }) {
         tabs={
           <HeaderTabs
             divider={false}
-            tabs={[
-              { id: "morning", label: t("briefing.tabs.morning") },
-              { id: "evening", label: t("briefing.tabs.evening") },
-            ]}
+            tabs={briefingTabDefs}
             activeTab={briefingTab}
             onSelect={(id) => setBriefingTab(id as BriefingTab)}
             label={t("briefing.tabsLabel")}
@@ -492,6 +523,21 @@ export function MainScreen({ session }: { session: Session }) {
       />
     </div>
   );
+
+  // Briefing's narrow-width 朝刊/夕刊 switcher (#318). AppShell renders its
+  // header slot on the WIDE branch only, so below 768px the SectionHeader band
+  // — the sole route to 夕刊 — is gone. Briefing's body is a centered "paper"
+  // rather than a list, so unlike Materials the band is re-issued INSIDE the
+  // view (under the masthead) instead of in a PageContainer toolbar row.
+  const briefingMobileSwitcher = isWide ? undefined : (
+    <SegmentedControl
+      options={briefingTabDefs}
+      value={briefingTab}
+      onChange={(id) => setBriefingTab(id as BriefingTab)}
+      label={t("briefing.tabsLabel")}
+    />
+  );
+
   const sectionToolbar =
     !isWide && MOBILE_HAMBURGER_SECTIONS.has(section) ? (
       <div className="flex items-center">
@@ -575,6 +621,7 @@ export function MainScreen({ session }: { session: Session }) {
           dataService={ds}
           onNavigate={handleBriefingNavigate}
           tab={briefingTab}
+          tabSwitcher={briefingMobileSwitcher}
         />
       )}
       {/*
@@ -677,13 +724,14 @@ export function MainScreen({ session }: { session: Session }) {
          */}
         <UndoRedoHost>
           {/*
-           * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
-           * mounted here on the web host only. Per §6.2 Theme is outer (it lives
+           * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2):
+           * the host gate above (#320) mounts it on browser / Electron and skips
+           * it on the native Capacitor shells. Per §6.2 Theme is outer (it lives
            * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
            * the section switch, so the (currently settings-only) consumer reads a
            * stable Provider regardless of the active section.
            */}
-          <ShortcutConfigProvider>
+          <ShortcutConfigHost>
             {/*
              * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
              * ShortcutConfigProvider (MainScreen's own body can't read
@@ -691,12 +739,8 @@ export function MainScreen({ session }: { session: Session }) {
              * Reads the live (rebindable) config, so Settings rebinds apply at
              * once. nav:* + new-task route through the target-IA mapping
              * (handleNavigate / handleNewTask → Materials + tab + create dialog).
-             *
-             * undo / redo are DEFERRED (plan 2026-07-08 Step 4): the web build
-             * has no UndoRedo base (no provider / command stack), so wiring the
-             * shortcuts would mean building that whole subsystem — out of scope
-             * for this integration pass. Left unwired (no-op) by design, not by
-             * omission; revisit when a web UndoRedo provider lands.
+             * undo / redo route through the ambient global UndoRedo context
+             * inside GlobalShortcuts itself (#304 / PR #316).
              */}
             <GlobalShortcuts
               onNavigate={handleNavigate}
@@ -718,9 +762,12 @@ export function MainScreen({ session }: { session: Session }) {
               onSessionComplete={() => chimeRef.current?.()}
             >
               {/*
-               * AudioProvider (W3-C) — Mobile 省略 Provider (CLAUDE.md §2), mounted
-               * on the web host only, nested INSIDE TimerProvider (§6.2 … → Timer →
-               * Audio → …). The headless AudioChimeBridge sits inside it and pipes
+               * AudioProvider (W3-C) — mounted on EVERY host, native shells
+               * included (#320): the completion chime it powers is part of the
+               * Mobile-Full work timer (mobile-scope.md #10/#11), so only the
+               * ambient-mixer UI is native-omitted (WorkScreen), not the
+               * Provider. Nested INSIDE TimerProvider (§6.2 … → Timer → Audio
+               * → …). The headless AudioChimeBridge sits inside it and pipes
                * the live playCompletionChime up to chimeRef so the Timer's
                * onSessionComplete (declared on the outer Provider) can ring it.
                */}
@@ -797,7 +844,7 @@ export function MainScreen({ session }: { session: Session }) {
                 </RightSidebarProvider>
               </AudioProvider>
             </TimerProvider>
-          </ShortcutConfigProvider>
+          </ShortcutConfigHost>
         </UndoRedoHost>
       </SyncProvider>
     </ToastProvider>

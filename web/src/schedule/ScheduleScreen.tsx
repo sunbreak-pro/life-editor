@@ -51,7 +51,7 @@ export function ScheduleScreen({
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-4 pt-3 md:px-lumen-gutter-wide">
-          <RoutinesTab />
+          <RoutinesTab dataService={dataService} />
         </div>
       )}
     </div>

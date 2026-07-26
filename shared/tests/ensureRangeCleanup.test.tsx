@@ -3,7 +3,6 @@ import { renderHook } from "@testing-library/react";
 import { useScheduleItemsRoutineSync } from "../src/hooks/useScheduleItemsRoutineSync";
 import type { DataService } from "../src/services/DataService";
 import type { RoutineNode } from "../src/types/routine";
-import type { RoutineGroup } from "../src/types/routineGroup";
 import type { ScheduleItem } from "../src/types/schedule";
 import { todayDateKey } from "../src/utils/dateKey";
 
@@ -11,11 +10,11 @@ import { todayDateKey } from "../src/utils/dateKey";
  * ensureRoutineItemsForDateRange cleanup guards (#296). Pre-fix the
  * frequency-mismatch cleanup HARD-deleted (items_meta DELETE — no Trash)
  * any not-done, today-onward row whose date no longer matched the routine's
- * frequency. That destroyed two classes of legitimate rows:
- *   - hand-moved occurrences (the user cross-day-dragged one; its date
- *     necessarily mismatches the frequency for the new day);
- *   - EVERY row of a group-frequency routine whenever the caller omitted
- *     the groupForRoutine map (group + no map ⇒ "should never exist").
+ * frequency. That destroyed legitimate rows — notably hand-moved
+ * occurrences (the user cross-day-dragged one; its date necessarily
+ * mismatches the frequency for the new day). The second #296 class,
+ * group-frequency rows whose map the caller omitted, disappeared with the
+ * RoutineGroup removal (#352).
  * The fix: cleanup soft-deletes (Trash-recoverable), skips rows whose
  * date drifted from source_date, keys the existing-set on source_date so
  * the collector cannot re-mint a moved row's original slot, and reports
@@ -162,38 +161,6 @@ describe("ensureRoutineItemsForDateRange — cleanup guards (#296)", () => {
     // T3 is occupied by the moved row → no fresh occurrence minted there.
     expect(bulkCreateScheduleItems).not.toHaveBeenCalled();
     // And the moved row survives (date ≠ sourceDate ⇒ user edit).
-    expect(bulkSoftDeleteScheduleItems).not.toHaveBeenCalled();
-  });
-
-  it("keeps group-frequency rows when the group map resolves them", async () => {
-    const routine = makeRoutine({ id: "r2", frequencyType: "group" });
-    const group: RoutineGroup = {
-      id: "g1",
-      name: "Morning",
-      color: "#000000",
-      isVisible: true,
-      order: 0,
-      frequencyType: "daily",
-      frequencyDays: [],
-      frequencyInterval: null,
-      frequencyStartDate: null,
-      createdAt: "2026-07-01T00:00:00.000Z",
-      updatedAt: "2026-07-01T00:00:00.000Z",
-    };
-    const rows = [
-      makeItem({ id: "keep-group", routineId: "r2", date: T1, sourceDate: T1 }),
-    ];
-    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
-    const gen = renderGenerator(ds);
-
-    const ok = await gen.ensureRoutineItemsForDateRange(
-      T1,
-      T1,
-      [routine],
-      new Map([["r2", [group]]]),
-    );
-
-    expect(ok).toBe(true);
     expect(bulkSoftDeleteScheduleItems).not.toHaveBeenCalled();
   });
 

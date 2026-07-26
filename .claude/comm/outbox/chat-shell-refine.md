@@ -30,3 +30,14 @@
     1. **CLAUDE.md §7.4 の字面と実運用の乖離解消**（`1 chat = 1 worktree = 1 branch` vs 課題ごとブランチ切替）。ラベル `shared-fix` / 宛先 `[all]` 想定。全 worktree に波及するため chat-main 判断。
     2. **マージ済み 7 ブランチの削除**（上記 B-2。`-307` は当 worktree の切替後）。
   - **当チャットの現況**: ブランチ `claude/shell-refine-307` は origin/main を merge 済みで**ファイル内容の差分ゼロ**（今回の C 修正分が新規差分）。次タスク #304 child 2 に着手する場合は新ブランチ（`claude/shell-refine-304-domains` 想定）を切り、`.session-branch` も同時更新する。
+
+- 2026-07-26: **#320（Mobile 基盤配線）完了 → PR #358**（Closes #320・ブランチ = `claude/shell-refine-320`）。
+  - 実装: `ShortcutConfigProvider` を `isNativeMobile()` で native 省略（`MainScreen.tsx` の `ShortcutConfigHost`）+ `web/index.html` viewport に `viewport-fit=cover` + `shared/tests/platform.test.ts` 新設 + docs 追随（CLAUDE.md §2 / rules/frontend.md / mobile-scope.md §6 / mobile/README.md / styles.xml）。
+  - ⚠️ **DoD からの意図的逸脱（Issue #320 コメントに記録済み）**: `AudioProvider` は native でも維持し、Ambient mixer UI のみ WorkScreen で native 省略。理由 = mobile-scope.md #10（work タイマー Full）/#11（完了チャイムは鳴る・#319 ユーザー確定）と Provider ごと省略が矛盾（role-qa Blocker 指摘）。
+  - 検証: shared tsc + vitest 137 files / 1083 passed・web build exit 0・role-qa 独立監査反映済み。実ブラウザ / iOS Simulator 実測は §7.4 どおり merge 後 chat-main・後続実機ゲート。
+  - **【chat-main への起票依頼】**: Mobile 省略 Provider roster の既存 stale 列挙 2 箇所の参照化（数値の非複製原則違反・#320 以前からのズレ）— (1) `shared/design-system/PRINCIPLES.md:190`（5 種列挙・撤去済み 3 種含む） (2) `.claude/docs/requirements/ios-additions.md:125`（「省略 4 種」列挙）。CLAUDE.md §2 参照への置換を想定。ラベル = `shared-fix` 宛先 `[all]` か docs 系で chat-main 判断。
+- 2026-07-26 (2): **#304 子 PR 2（schedule / daily / note の undoRedo 配線）完了 → PR #380**（Part of #304・ブランチ = `claude/shell-refine-304-domains`）。キュー 2 件（#320 / #304 子 PR 2）はこれで完了。
+  - **⚠️ 重要: 子 PR 1（merge 済み PR #316）の実バグを発見・修正同梱**: unmount クリア effect が「push のたびに identity が変わる context 値」に deps 依存 → cleanup が積んだ直後に clear() → **main の taskTree undo は現在実質無効**。#380 merge までは直らない点に注意（回帰テストあり）。
+  - 実装: 3 Provider の ambient auto-connect + schedule undo/redo の日跨ぎ表示不整合修正（dateRef）+ i18n 新規 13 キー + テスト 6 件 + useGlobalShortcuts の stale コメント掃除 + app-integration plan Worklog 追記。web/ 変更ゼロ。Routine 見送り・Daily 暗黙作成 / moveNote snapshot の既知挙動は Issue #304 コメントに記録済み。
+  - 検証: shared tsc + vitest 137 files / 1086 passed・web build exit 0・role-qa = PASS with notes（Blocker 0・Important は本 PR 修正 or Issue コメント化）。
+  - **⚠️ merge 運用の注意（こうだいさん / chat-main へ）**: PR #358 と #380 は実装ファイルの重複ゼロだが、**per-chat meta 3 ファイル（`.claude/memory|history/chat-shell-refine.md`・本 outbox）は両 PR で変更しており後から merge する側が必ず衝突する**。#380 側の meta は #320 分も含む superset として書いてあるので、**解消は常に「#380 側を採る」で機械的に解ける**（順序推奨 = #358 → #380。#358 merge 後に当チャットへ一声もらえれば #380 側で origin/main を merge して衝突を自分で解消して push します）。

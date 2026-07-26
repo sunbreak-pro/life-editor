@@ -52,3 +52,32 @@ analytics の v2 §1 adoption（タブ帯を標準 SectionHeader へ lift）を 
 - Issue #208（v2 adoption・section:analytics）／ 検証: `cd shared && npm run build && npm run test`・`cd web && npm run build` pass。runtime は chat-main 依頼済み
 - 2026-07-11 第 3 便: §1 タブ帯 lift = PR #235（shared 846/846 test + web build pass）。§4 は §5 fluid 統一で moot。残り = chat-main runtime のみ
 - 2026-07-11 追補（PR #235 に同梱）: `AnalyticsScreen.tsx` の既存 lint エラー `react-hooks/set-state-in-effect`（範囲取得 effect 内の同期 `setScheduleLoading(true)`）を解消 — loading フラグ設定を `handleScheduleRangeChange` コールバックへ移設（挙動同一・再レンダリング 1 回減）。ユーザー直指示で着手（§9 の worktree 直指示ルート）。**→ chat-main / all 向け FYI**: `eslint-plugin-react-hooks@7` の `set-state-in-effect` は他セクションの effect（loading フラグを effect 冒頭で立てる同型パターン）にも残っている可能性あり。リポジトリ全体の lint sweep 候補として頭出しします（起票判断は chat-main）
+
+## 2026-07-26 — #334 / #356 実装完了（PR #359 / #378・merge 待ち）+ 起票依頼 1 件
+
+キュー 2 件を 1 Issue = 1 ブランチ = 1 PR で処理。いずれも role-qa 独立監査で PASS（Blocking 0）、指摘は全て PR に取り込み済み。
+
+**#334（PR #359 · `claude/analytics-refine-334`）— folder 集計をタグ集計へ置換**
+
+`findRootFolder` の無ガード climb を「ガードを足す」ではなく**関数ごと退役**し、`wiki_tag_assignments` 起点の `aggregateWorkTimeByTag` に置換（life-tags 計画書 §Step 4 が名指ししていた後継対応。同計画書 :111 に完了マーク済み）。祖先たどりが消えたのでハングの余地は構造的に消滅。`ProjectWorkTimeChart` → `TagWorkTimeChart`、i18n は `analytics.projectTime.*` → `analytics.tagTime.*`。
+
+他レーンに効きそうな知見 3 点:
+
+1. **legacy `types/wikiTag.ts`（entityType 持ち）と unified `types/wikiTagUnified.ts`（itemId ベース）の取り違えに注意**。実データ（`listAllWikiTagsUnified` / `listAllTagAssignments`）は unified 系。既存の `aggregateTagByEntityType` は legacy 型のまま**呼び出し元ゼロの dead**（テストだけ生存）で、Connect 側がタグ集計を作るときは unified で書き直す前提のほうが安全
+2. **円グラフで上位 N 打ち切りをするなら、溢れた分は「その他」に畳んで捨てないこと**。recharts の `percent` は表示中スライスの合計で割るため、捨てた分だけ残りの割合が水増しされる（QA 検出 → `other` バケツを追加して修正）。スライスごとの `Math.round` も合計をずらすので生値を渡す
+3. `AnalyticsView` の props が `tagCount` / `assignmentCount`（数値 2 つ）→ `tags` / `assignments`（配列）に変わりました。他レーンから AnalyticsView を mount している箇所があれば追随が要ります（現状は web host と shared テスト 1 本のみ）
+
+**#356（PR #378 · `claude/analytics-refine-356`）— 「今日」境界は暦日で確定（見送り判断）**
+
+day-start hour への追随は**見送り**。理由と実測は Issue #356 のコメントに記録済み（要点 = analytics のバケツは全部暦日キーで、片側だけ `todayDateKey()` にすると深夜のセッションが「今日」から外れる）。判断をコードに残すため、対象を `todayCalendarKey()`（#280 の既存ヘルパー・定義上同値＝挙動不変）へ統一し、決定を pin するテストを追加しました。Issue が挙げた 4 箇所に加え `OverviewTab` と `computeWorkStreak` も同種の today だったので同時に揃えています。
+
+**→ chat-main 宛（起票依頼・section:analytics / type:bug 相当）**
+
+- **完了 Todo の「今日」判定が UTC 日基準になっている**（本 PR 群以前からの既存ズレ・今回は意図的にスコープ外）: `TodayDashboard` / `MobileAnalyticsView` / `aggregateTaskCompletionTrend` は `completedAt.substring(0, 10)` で比較しているが、`completedAt` は `toISOString()` 由来の UTC 文字列（`useTaskTreeCRUD.ts` で生成）。JST では朝 8 時までに完了した Todo が前日にカウントされる。バケツのキー側はローカル暦日なので、引き当てキーだけ UTC という非対称。直すなら「ローカル暦日キーに揃える」で、完了トレンドの過去データの見え方が変わる点の確認が要ります
+
+**→ chat-main 宛（実ブラウザ確認・PR merge 後）**
+
+- #359: タグ別ドーナツの (a) タグ自前色が `--color-chart-cat-*` と近い場合のスライス見分け (b) 最大 12 スライス時の外周ラベルの重なり (c)「タグなし」「その他のタグ」スライスの見え方。**実データはタグ 4 件 / assignment 1 件**（life-tags 計画書 §A の実測値）なので、当面は「タグなし」がほぼ全周のはずです。タグを何件か付けてからのほうが評価しやすいです
+- #378: 挙動不変のため runtime 確認は不要（build / テストのみで足ります）
+
+**注記**: 両 PR とも GitHub の docs-lint チェックは赤くなります。原因は main 由来の別件（`2026-06-19-step1-desktop-daily-driver.md` の Status enum 違反 1 行）で、本 PR 群とは無関係です。`web` の eslint も `web/src/notes/NotesView.tsx:291` の `react-hooks/static-components` が main 時点から既存（materials / notes レーン領分）。

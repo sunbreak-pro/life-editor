@@ -421,11 +421,9 @@
     "frequencyDaily": "毎日",
     "frequencyWeekdays": "曜日",
     "frequencyInterval": "N日ごと",
-    "frequencyGroup": "グループ",
     "intervalEvery": "",
     "intervalDays": "日ごと",
     "startDate": "開始日",
-    "groupsLabel": "所属グループ",
     "deleteRoutine": "ルーチンを削除",
     "summaryTitle": "マイルーチン",
     "openRoutinesCta": "「繰り返し」タブを開く",
@@ -568,9 +566,11 @@
       "title": "Todo 経過日数分布",
       "tasks": "件"
     },
-    "projectTime": {
-      "title": "プロジェクト別作業時間",
-      "noData": "プロジェクトデータがありません"
+    "tagTime": {
+      "title": "タグ別作業時間",
+      "noData": "作業時間の記録がありません",
+      "untagged": "タグなし",
+      "other": "その他のタグ"
     },
     "overview": {
       "tasks": "Todo",
@@ -612,7 +612,20 @@
     "undone": "元に戻しました: {{label}}",
     "redone": "やり直しました: {{label}}",
     "labels": {
-      "taskTreeChange": "タスクの変更"
+      "taskTreeChange": "タスクの変更",
+      "createScheduleItem": "予定の作成",
+      "updateScheduleItem": "予定の変更",
+      "toggleScheduleItemComplete": "予定の完了切替",
+      "dismissScheduleItem": "予定の非表示",
+      "deleteScheduleItem": "予定の削除",
+      "createDaily": "デイリーの作成",
+      "deleteDaily": "デイリーの削除",
+      "togglePin": "ピン留めの切替",
+      "moveNote": "ノートの移動",
+      "createNote": "ノートの作成",
+      "createFolder": "フォルダの作成",
+      "updateNote": "ノートの変更",
+      "softDeleteNote": "ノートの削除"
     }
   },
   "common": {

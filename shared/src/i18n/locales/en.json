@@ -421,11 +421,9 @@
     "frequencyDaily": "Daily",
     "frequencyWeekdays": "Weekdays",
     "frequencyInterval": "Every N days",
-    "frequencyGroup": "Group",
     "intervalEvery": "Every",
     "intervalDays": "days",
     "startDate": "Start date",
-    "groupsLabel": "Groups",
     "deleteRoutine": "Delete routine",
     "summaryTitle": "My routines",
     "openRoutinesCta": "Open the Repeats tab",
@@ -568,9 +566,11 @@
       "title": "Todo Age Distribution",
       "tasks": "todos"
     },
-    "projectTime": {
-      "title": "Work Time by Project",
-      "noData": "No project data available"
+    "tagTime": {
+      "title": "Work Time by Tag",
+      "noData": "No work time recorded yet",
+      "untagged": "Untagged",
+      "other": "Other tags"
     },
     "overview": {
       "tasks": "Todos",
@@ -612,7 +612,20 @@
     "undone": "Undid: {{label}}",
     "redone": "Redid: {{label}}",
     "labels": {
-      "taskTreeChange": "task change"
+      "taskTreeChange": "task change",
+      "createScheduleItem": "event creation",
+      "updateScheduleItem": "event update",
+      "toggleScheduleItemComplete": "event completion toggle",
+      "dismissScheduleItem": "event dismissal",
+      "deleteScheduleItem": "event deletion",
+      "createDaily": "daily creation",
+      "deleteDaily": "daily deletion",
+      "togglePin": "pin toggle",
+      "moveNote": "note move",
+      "createNote": "note creation",
+      "createFolder": "folder creation",
+      "updateNote": "note update",
+      "softDeleteNote": "note deletion"
     }
   },
   "common": {

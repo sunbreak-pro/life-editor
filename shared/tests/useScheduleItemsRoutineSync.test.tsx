@@ -4,6 +4,7 @@ import { useScheduleItemsRoutineSync } from "../src/hooks/useScheduleItemsRoutin
 import type { DataService } from "../src/services/DataService";
 import type { RoutineNode } from "../src/types/routine";
 import type { ScheduleItem } from "../src/types/schedule";
+import { todayDateKey } from "../src/utils/dateKey";
 
 /*
  * M4 (perf) regression suite for useScheduleItemsRoutineSync.
@@ -12,9 +13,9 @@ import type { ScheduleItem } from "../src/types/schedule";
  * `onChanged: () => { if (date) void loadDate(date); }` — a FRESH closure on
  * every render. Before M4, `notifyChanged` had dep `[onChanged]`, so it (and
  * every returned generator, dep `[ds, notifyChanged]`) changed identity on
- * every render. The host effect `[date, routines, groupForRoutine, ensure]`
- * therefore re-fired on EVERY render, issuing one `fetchScheduleItemsByDate`
- * per render — the "excessive re-fetch/re-compute" this milestone removes.
+ * every render. The host effect `[date, routines, ensure]` therefore
+ * re-fired on EVERY render, issuing one `fetchScheduleItemsByDate` per
+ * render — the "excessive re-fetch/re-compute" this milestone removes.
  *
  * These tests pin the fix in machine-verifiable terms:
  *   (1) the returned generators + container keep a STABLE identity across
@@ -27,8 +28,15 @@ import type { ScheduleItem } from "../src/types/schedule";
 
 // Stable DataService stub — identity must not change across re-renders, else
 // the callbacks would legitimately change (that is not what we are testing).
-const updateScheduleItem = vi.fn(() => Promise.resolve({} as ScheduleItem));
-const ds = { updateScheduleItem } as unknown as DataService;
+// reconcile is the driver for the "latest onChanged" case: it reads the
+// routine's occurrences, then soft-deletes the ones the frequency dropped.
+const bulkSoftDeleteScheduleItems = vi.fn(() => Promise.resolve(1));
+const ds = {
+  updateScheduleItem: vi.fn(() => Promise.resolve({} as ScheduleItem)),
+  fetchScheduleItemsByRoutineId: vi.fn(() => Promise.resolve([makeItem()])),
+  bulkSoftDeleteScheduleItems,
+  bulkCreateScheduleItems: vi.fn(() => Promise.resolve()),
+} as unknown as DataService;
 
 function makeRoutine(overrides: Partial<RoutineNode> = {}): RoutineNode {
   return {
@@ -51,13 +59,22 @@ function makeRoutine(overrides: Partial<RoutineNode> = {}): RoutineNode {
   };
 }
 
+/** Tomorrow — reconcile only ever touches today-onward rows. */
+function tomorrowKey(): string {
+  const [y, m, d] = todayDateKey().split("-").map(Number);
+  const dt = new Date(y, m - 1, d + 1);
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+
 function makeItem(overrides: Partial<ScheduleItem> = {}): ScheduleItem {
   return {
     id: "si1",
-    date: "2026-07-02",
-    title: "Old title",
-    startTime: "09:00",
-    endTime: "09:30",
+    date: tomorrowKey(),
+    title: "Stretch",
+    startTime: "10:00",
+    endTime: "10:30",
     completed: false,
     completedAt: null,
     routineId: "r1",
@@ -77,7 +94,7 @@ describe("useScheduleItemsRoutineSync — M4 callback stability", () => {
 
     const firstContainer = result.current;
     const firstEnsure = result.current.ensureRoutineItemsForDate;
-    const firstSync = result.current.syncScheduleItemsWithRoutines;
+    const firstReconcile = result.current.reconcileRoutineScheduleItems;
 
     // Re-render several times, each with a brand-new onChanged closure.
     for (let i = 0; i < 3; i++) {
@@ -88,10 +105,10 @@ describe("useScheduleItemsRoutineSync — M4 callback stability", () => {
     // so every reference the host effect could depend on is unchanged.
     expect(result.current).toBe(firstContainer);
     expect(result.current.ensureRoutineItemsForDate).toBe(firstEnsure);
-    expect(result.current.syncScheduleItemsWithRoutines).toBe(firstSync);
+    expect(result.current.reconcileRoutineScheduleItems).toBe(firstReconcile);
   });
 
-  it("invokes the LATEST onChanged (ref captures newest closure, not a stale one)", () => {
+  it("invokes the LATEST onChanged (ref captures newest closure, not a stale one)", async () => {
     const onChangedA = vi.fn();
     const onChangedB = vi.fn();
 
@@ -104,15 +121,15 @@ describe("useScheduleItemsRoutineSync — M4 callback stability", () => {
     // Swap in a new onChanged; the effect updates the ref.
     rerender({ dataService: ds, onChanged: onChangedB });
 
-    // Drive a change → notifyChanged() fires synchronously.
-    act(() => {
-      const res = result.current.syncScheduleItemsWithRoutines(
-        [makeRoutine({ title: "New title" })],
-        [makeItem({ title: "Old title" })],
+    // Drive a change → the reconcile pass soft-deletes tomorrow's row (the
+    // routine fires on no weekday at all) and then calls notifyChanged().
+    await act(async () => {
+      await result.current.reconcileRoutineScheduleItems(
+        makeRoutine({ frequencyType: "weekdays", frequencyDays: [] }),
       );
-      expect(res.changed).toBe(true);
     });
 
+    expect(bulkSoftDeleteScheduleItems).toHaveBeenCalledWith(["si1"]);
     expect(onChangedB).toHaveBeenCalledTimes(1);
     expect(onChangedA).not.toHaveBeenCalled();
   });

@@ -189,3 +189,19 @@ Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScree
 **#354 以前からある構造で本 PR の回帰ではありません**が、#354 が「作ってすぐその場で書き足す」を推奨導線にしたため露出面が広がりました。修正案は「create 失敗を Toast で出す」か「失敗時に楽観行を明示的に巻き戻す」のどちらかです。ラベルは `section:schedule` + `type:bug` / `sev:minor` あたり。
 
 **merge 後の実ブラウザ確認のお願い**（web にはテストランナーが無く、`isWide` 分岐は自動テストで押さえられていないため）: 「追加」/「追加して詳細へ」× **Desktop week / Desktop month / Mobile list / Mobile month** の 4 面。特に **Mobile で「追加」を押したときに詳細シートが開かないこと**（Mobile は選択＝シート表示なので、ここを間違えると 2 ボタンが同じ動きになります）と、**Desktop month で「追加」を押しても選択マーカーが出ないのは仕様**（MonthGrid は `selectedId` を受け取らない部品のため）という点をご確認ください。
+---
+
+## 2026-07-26 → @chat-main
+
+#352（Epic #290 Step 4）を **PR #381** で提出しました。起票依頼が 1 件あります。
+
+**起票依頼（本 PR のスコープ外・main 由来の既存問題）**: `cd web && npm run lint` が `web/src/notes/NotesView.tsx:291` で 1 error になります（`react-hooks/static-components` — 「Cannot create components during render」。原因は同ファイル 268 行の `const Icon = resolveTagIcon(...) ?? Tag` をレンダー中に生成しコンポーネントとして使っている箇所）。**当該ファイルは origin/main と完全に同一**（`git diff origin/main...HEAD -- web/src/notes/NotesView.tsx` が空）で、#352 の変更範囲外です。ラベルは `section:materials`（Notes セクション）が妥当だと思いますが、判断は任せます。
+
+参考: 各セクションの標準ゲートは shared test / shared build / web build で、web lint は含まれていないため今まで表面化していなかった可能性があります。
+
+**#352 の補足 2 点**（Issue 本文との差分・PR 説明にも記載済み）:
+
+- Issue 本文の「reconcile 以外の未配線 4 関数」は reconcile を含めた数でした。実測では未配線は 4 本（reconcile 含む）で、reconcile 以外は 3 本（`ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines`）です。これに `fetchLastRoutineDate`（backfill が唯一の消費者）と `diffRoutineScheduleItems` の `toUpdate`（#279 で適用停止済み）を足して削除しました
+- role-qa 監査で Blocker を 1 件受けています（頻度タイプ切替の中間状態で未来 occurrence が一掃される経路 — reconcile 配線によって新たに生じたリスク）。同 PR 内で修正済みですが、**merge 後の実ブラウザ確認では「繰り返しを『曜日』に切り替えた直後に予定が消えないこと」を優先的に見ていただけると助かります**
+
+次は #353 → #354 → #355 の順に着手します。
