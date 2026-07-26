@@ -11,13 +11,14 @@
 - **#353 生成パネルに対象日を表示** ✅（2026-07-26 — **PR #382**・`Closes #353`。`EventCreateFields` に読み取り専用の日付行。整形はホスト（対象日とロケールを持つ側）が担当）
 - **#352 Epic #290 Step 4 = Routine 頻度編集の未来伝播 + dead code / RoutineGroup 削除** ✅（2026-07-26 — **PR #381**・`Closes #352`・-2337/+454 行。**確認の勘所 = 繰り返しを「曜日」に切り替えた直後に予定が消えないこと**）
 - ~~**main のビルド復旧（#378 regression）**（PR #385）~~ → **重複だった**（2026-07-26）。**#383（`eb893f94`, 11:29）が既にバイト単位で同一の修正を入れており、私の #385（11:49 作成）は差分ゼロで squash merge された**（`fe8f0362`）。着手前に `git fetch origin` していれば不要だった PR。**教訓 = main 由来の不具合を見つけたら、直す前にまず fetch して最新 main で再現を確認する**（CLAUDE.md §7.4 はブランチ作成のたびに効く）
-- #299 アイテム操作 UI 刷新 ✅（2026-07-25 — merge は 🛑 ユーザーゲート）
+- #299 アイテム操作 UI 刷新 ✅（2026-07-25 — **PR #325 merge 済み**・`2026-07-25T05:17:13Z`）
+- #298 Step 3 rightSidebar 本日の Todo tray ✅（2026-07-23 — PR #323 merge 済み・main `5f9abf48`）。**history 側にエントリが無いのはここだけ**なので、この行を消すと merge 済みの記録がこの worktree から消える（#296 / #297 は history の 2026-07-20 に残る）
 
 ## 予定
 
 - merge 順: **#385 は不要（空マージ済み）**。#381 / #382 は merge 済み（`a0e1a01c` / `5cba89df`）。残るは **#384 / #386 で、2026-07-26 に両方とも main 取り込み済み・CI green・MERGEABLE**（どちらから merge しても可）
 - **main 取り込み時の衝突と解消（2026-07-26・両ブランチとも実施済み）**: #386 は CalendarTab の import 1 箇所（#381 が消した `buildGroupForRoutineMap` を落とし `useDeferredAction` を残す）。#384 は #382 の `dateLabel` と #354 の `addAndOpen` が同じ labels / props に別々に足されただけなので**両方残す**（EventCreateFields / QuickCaptureSheet / CalendarTab / 対応テスト 2 本）。tracker 系 .md は両側の追記を残す
-- **PR 同士の残り衝突は outbox 1 ファイルだけ**: 双方が (2) の後ろに追記するため。**(3) のブロックを 355 側にも同文で持たせて**共通部分を一致させた（`07d0a898`）ので、先に merge された側の後で残るのは「(4)(5) を足すかどうか」の自明な差分のみ
+- **PR 同士の残り衝突は outbox 1 ファイルだけ**（コードは auto-merge する — `git merge-tree` で実測）。双方が (2) の後ろに追記するため。**(3) のブロックを 355 側にも同文で持たせて**共通部分を一致させた（`07d0a898`）が、**衝突自体は消えない — 2 本目は GitHub 上で CONFLICTING になり merge ボタンが使えない**（git は「A を挿入」と「A+B を挿入」を、前方一致でも自動解消しない）。`07d0a898` のコミットメッセージの "clean 3-way merge" は誤り。**解消は「(2)(3)(4)(5) を全部持つ 355 側を採る」だけ**で、(3) を落とす事故は防げている（同文化していなければ (3) と (4)(5) が別内容で衝突していた）
 - Epic #290 の残 Step（Step 5 構成再編 / Step 6 カレンダー台帳配線 / Step 7 エディタ拡充）は section:schedule の open Issue として残る想定。次の着手前に `gh issue list --label section:schedule --state open` + `--label shared-fix` を確認
 - chat-main へ起票依頼済み（outbox 2026-07-26 の 3 通）: (1) `web/src/notes/NotesView.tsx:291` の lint error（main 由来）(2) Mobile 月表示で FAB が `mobileSelectedDay` ではなく `anchorDate` に作る (3) 生成直後の楽観行が同期リフェッチで消えると開いたばかりの詳細エディタが閉じる
 
