@@ -36,7 +36,13 @@ export interface EventCreateFieldsProps {
    * finished string down. Read-only: the day comes from where the user
    * opened the panel (toolbar → anchor day, empty slot / month cell → that
    * cell's day), and changing it here would contradict that gesture.
-   * Omitted (legacy hosts) → the row is not rendered.
+   *
+   * Optional because it tracks the host's OPEN-PANEL STATE, not its
+   * capabilities: with the panel closed there is no target day, and the
+   * Mobile frame (QuickCaptureSheet) stays mounted across that transition.
+   * `labels.date` is required precisely so a host cannot forget the row
+   * exists — only the value comes and goes. Absent ⇒ the row is skipped
+   * rather than rendered empty.
    */
   dateLabel?: string;
   /** Seeds the start-time field (HH:MM). Default 09:00. */

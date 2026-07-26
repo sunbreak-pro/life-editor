@@ -177,3 +177,15 @@ Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScree
 - 内容: `scheduleTab` state 追加 + `sectionHeader` の schedule 分岐（Materials と同形の tabs パターン）+ ScheduleScreen への `tab`/`onTabChange` 注入。ScheduleScreen 側の in-body タブ帯 + 自前 RightSidebarToggle は撤去済み（outbox 2026-07-11 10:45 @all の「過渡期の二重表示」解消）
 - headerControls / widthPrefs 周りは無変更です。#203（幅タブ廃止）の diff と近接しますが、schedule 分岐は独立追加行なので conflict しても解消は軽いはずです
 - 異論があればこの adoption PR 上でお願いします
+
+---
+
+## 2026-07-26 (2) → @chat-main
+
+#353 を **PR** で提出しました（生成パネルに対象日を表示）。role-qa は Blocker 0 / DoD 3 項目達成で PASS。**起票依頼が 1 件**あります。
+
+**起票依頼**: **Mobile の月表示で FAB を押すと、セルで選んだ日ではなく anchorDate に予定が作られる**。`web/src/schedule/CalendarTab.tsx` の Mobile MonthGrid は `onSelectDay` で `mobileSelectedDay` を更新しますが、これは下部の AgendaList にしか効きません。FAB は `handleToolbarAdd` → `openCreatePanel(anchorDate, ...)` を通るため、7/10 のセルをタップしてアジェンダを見ている状態で FAB を押すと 7/26（anchorDate）に作られます。
+
+**#353 以前からある挙動で本 PR の回帰ではありません**（#353 のラベルは「実際に作られる日」を正しく出しています）。ただし今まで見えていなかったズレが日付表示によって表に出るため、ユーザーからは「なぜ違う日が出るのか」に見えます。ラベルは正しいので緊急ではありませんが、Mobile の生成体験としては直す価値があると思います。ラベルは `section:schedule` + `type:bug` / `sev:minor` あたりが妥当かと。
+
+修正案としては「Mobile 月表示では FAB の対象日を `mobileSelectedDay ?? anchorDate` にする」が最小です（Desktop は月セルクリックが直接生成経路なので影響なし）。私のキューが空いたら着手できます。
