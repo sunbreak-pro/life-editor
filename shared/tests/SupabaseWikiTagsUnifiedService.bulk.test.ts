@@ -146,6 +146,31 @@ describe("SupabaseWikiTagsUnifiedService — bulk loaders (N+1 elimination)", ()
       ).toBe(true);
     });
 
+    // #365: a trashed item keeps its assignment row (soft-delete does not
+    // cascade into wiki_tag_assignments), so the liveness filter has to be
+    // a join on the item. Asserting the query shape is the only lever the
+    // stub gives us — it records calls instead of modelling PostgREST.
+    it("joins items_meta and filters out assignments whose item is trashed", async () => {
+      const { client, calls, stage } = makeStub();
+      stage("wiki_tag_assignments", "select", { data: [], error: null });
+      const svc = new SupabaseWikiTagsUnifiedService(client);
+
+      await svc.listAllTagAssignments();
+
+      const select = calls.find(
+        (c) => c.table === "wiki_tag_assignments" && c.op === "select",
+      );
+      expect(select?.args[0]).toContain("items_meta!inner(is_deleted)");
+      expect(
+        calls.some(
+          (c) =>
+            c.op === "eq" &&
+            c.args[0] === "items_meta.is_deleted" &&
+            c.args[1] === false,
+        ),
+      ).toBe(true);
+    });
+
     it("returns [] when data is null", async () => {
       const { client, stage } = makeStub();
       stage("wiki_tag_assignments", "select", { data: null, error: null });
