@@ -2,11 +2,15 @@ import type { TimerSession } from "../types/timer";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
+import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
+// The live tag data (DataService.listAllWikiTagsUnified / listAllTagAssignments)
+// is the unified items_meta model — assignments hang off `itemId` with no
+// entityType discriminator. The legacy `wikiTag` shapes above stay for
+// aggregateTagByEntityType until its Connect-side caller migrates.
 import type {
-  WikiTag,
-  WikiTagAssignment,
-  WikiTagConnection,
-} from "../types/wikiTag";
+  WikiTag as WikiTagUnified,
+  WikiTagAssignment as WikiTagAssignmentUnified,
+} from "../types/wikiTagUnified";
 import { formatDateKey as toDateStr } from "./dateKey";
 
 export interface DayBucket {
@@ -61,12 +65,29 @@ export interface StagnationBucket {
   color: string;
 }
 
-export interface FolderBucket {
-  folderId: string;
-  folderName: string;
-  totalMinutes: number;
-  taskCount: number;
-}
+/**
+ * One slice of the tag work-time ring. A discriminated union so a "tag" slice
+ * is statically guaranteed to carry a name — the two synthetic buckets ("other"
+ * = tags past the top-N cap, folded together; "untagged" = work on a task with
+ * no tag, or with no task at all) carry none, because the host supplies their
+ * labels: the shared tree holds no strings.
+ */
+export type TagWorkTimeBucket =
+  | {
+      kind: "tag";
+      tagId: string;
+      tagName: string;
+      /** Tag colour as authored in Materials; null when the tag has none. */
+      tagColor: string | null;
+      totalMinutes: number;
+    }
+  | {
+      kind: "other" | "untagged";
+      tagId: null;
+      tagName: null;
+      tagColor: null;
+      totalMinutes: number;
+    };
 
 export interface WorkStreak {
   currentStreak: number;
@@ -432,60 +453,108 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
   return buckets;
 }
 
-/** Work time by top-level folder */
-export function aggregateByFolder(
+/**
+ * Work time by life-tag — the successor of the retired folder aggregation
+ * (#334 / life-tags §Step 4: the Tasks domain has no folder nodes since #225,
+ * so `aggregateByFolder` always returned [] while its unguarded parent climb
+ * could still hang on a cyclic `parentId`). Attribution runs off
+ * `wiki_tag_assignments` instead of the task tree, so no ancestor walk exists
+ * here at all.
+ *
+ * Rules:
+ * - Only WORK sessions count (same filter as every other work-time chart).
+ * - A session's minutes are split evenly across its task's tags.
+ * - Work on an untagged task — or with no task at all — lands in the trailing
+ *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
+ *   rather than dropped. Nothing is discarded, so the buckets always sum to the
+ *   real logged work time and no tag's share is overstated.
+ * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
+ *   are ignored rather than surfaced as a raw id; that work reads as untagged.
+ *
+ * Assignments are matched by `itemId` — item ids are unique across roles, so
+ * a note/daily/event assignment simply never matches a session's `taskId`.
+ */
+export function aggregateWorkTimeByTag(
   sessions: TimerSession[],
-  nodes: TaskNode[],
-): FolderBucket[] {
+  assignments: WikiTagAssignmentUnified[],
+  tags: WikiTagUnified[],
+  limit: number = 10,
+): TagWorkTimeBucket[] {
   const work = getWorkSessions(sessions);
-  const nodeMap = new Map<string, TaskNode>();
-  for (const n of nodes) nodeMap.set(n.id, n);
+  const tagMap = new Map(
+    tags.filter((t) => !t.isDeleted).map((t) => [t.id, t] as const),
+  );
 
-  // life-tags S3 (#225): the Tasks domain no longer has folder nodes, so
-  // there is no root folder to attribute a task's work time to —
-  // findRootFolder always returns null and aggregateByFolder returns [].
-  // The "Project work time" chart renders empty; tag-based aggregation is a
-  // separate lane (not redesigned here). Kept nodeMap-driven for a minimal
-  // diff.
-  function findRootFolder(taskId: string): TaskNode | null {
-    let current = nodeMap.get(taskId);
-    while (current?.parentId) {
-      current = nodeMap.get(current.parentId);
-    }
-    return null;
+  // itemId -> its tag ids (Set: the same tag can be assigned twice — e.g.
+  // inline text plus a manual chip — and double counting would skew the split).
+  const taskTags = new Map<string, Set<string>>();
+  for (const a of assignments) {
+    if (a.isDeleted || !tagMap.has(a.tagId)) continue;
+    const set = taskTags.get(a.itemId);
+    if (set) set.add(a.tagId);
+    else taskTags.set(a.itemId, new Set([a.tagId]));
   }
 
-  const map = new Map<string, FolderBucket>();
-  const taskFolders = new Map<string, Set<string>>(); // folderId -> taskIds
+  const minutesByTag = new Map<string, number>();
+  let untaggedMinutes = 0;
 
   for (const s of work) {
-    if (!s.taskId) continue;
-    const folder = findRootFolder(s.taskId);
-    if (!folder) continue;
-
-    let bucket = map.get(folder.id);
-    if (!bucket) {
-      bucket = {
-        folderId: folder.id,
-        folderName: folder.title || folder.id,
-        totalMinutes: 0,
-        taskCount: 0,
-      };
-      map.set(folder.id, bucket);
-      taskFolders.set(folder.id, new Set());
+    const minutes = (s.duration ?? 0) / 60;
+    const tagIds = s.taskId ? taskTags.get(s.taskId) : undefined;
+    if (!tagIds || tagIds.size === 0) {
+      untaggedMinutes += minutes;
+      continue;
     }
-    bucket.totalMinutes += (s.duration ?? 0) / 60;
-    taskFolders.get(folder.id)!.add(s.taskId);
+    const share = minutes / tagIds.size;
+    for (const tagId of tagIds) {
+      minutesByTag.set(tagId, (minutesByTag.get(tagId) ?? 0) + share);
+    }
   }
 
-  for (const [folderId, tasks] of taskFolders) {
-    const bucket = map.get(folderId);
-    if (bucket) bucket.taskCount = tasks.size;
+  const ranked: TagWorkTimeBucket[] = Array.from(minutesByTag.entries())
+    .map(([tagId, totalMinutes]) => {
+      // Non-null by construction — only ids that passed the tagMap.has()
+      // filter above reach minutesByTag. The fallback is belt-and-braces.
+      const tag = tagMap.get(tagId);
+      return {
+        kind: "tag" as const,
+        tagId,
+        tagName: tag?.name ?? tagId,
+        tagColor: tag?.color ?? null,
+        totalMinutes,
+      };
+    })
+    .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+  const buckets = ranked.slice(0, limit);
+
+  // The tail is folded, never dropped: a discarded slice would silently
+  // inflate every remaining tag's percentage.
+  const otherMinutes = ranked
+    .slice(limit)
+    .reduce((sum, b) => sum + b.totalMinutes, 0);
+  if (otherMinutes > 0) {
+    buckets.push({
+      kind: "other",
+      tagId: null,
+      tagName: null,
+      tagColor: null,
+      totalMinutes: otherMinutes,
+    });
   }
 
-  return Array.from(map.values()).sort(
-    (a, b) => b.totalMinutes - a.totalMinutes,
-  );
+  // Always last so it never crowds a real tag out of the top-N.
+  if (untaggedMinutes > 0) {
+    buckets.push({
+      kind: "untagged",
+      tagId: null,
+      tagName: null,
+      tagColor: null,
+      totalMinutes: untaggedMinutes,
+    });
+  }
+
+  return buckets;
 }
 
 /** Work streak: consecutive days with at least one work session */

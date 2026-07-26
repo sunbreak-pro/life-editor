@@ -4,6 +4,7 @@ import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
+import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { HeaderTabs, type HeaderTab } from "../HeaderTabs";
 import {
@@ -77,10 +78,14 @@ export interface AnalyticsViewProps {
   routines: RoutineNode[];
   /** Pre-built taskId → display name map (Work tab task chart). */
   taskNameMap: Map<string, string>;
-  /** Total active tag count (Overview). */
-  tagCount: number;
-  /** Total active tag-assignment count (Overview). */
-  assignmentCount: number;
+  /**
+   * Active life-tags. Feeds both the Overview tag count and the Tasks tab's
+   * tag work-time ring — the counts are derived here rather than passed
+   * separately so the two can never disagree (数値の非複製原則).
+   */
+  tags: WikiTag[];
+  /** Active tag assignments (Overview count + tag work-time attribution). */
+  assignments: WikiTagAssignment[];
   /** Pomodoro daily target (Work tab; host: fetchTimerSettings().targetSessions). */
   targetPerDay: number;
   /**
@@ -135,8 +140,8 @@ function DesktopAnalytics({
   notes,
   routines,
   taskNameMap,
-  tagCount,
-  assignmentCount,
+  tags,
+  assignments,
   targetPerDay,
   activeTab: controlledTab,
   onTabChange,
@@ -210,8 +215,8 @@ function DesktopAnalytics({
                   todayItems={todayItems}
                   notes={notes}
                   routines={routines}
-                  tagCount={tagCount}
-                  assignmentCount={assignmentCount}
+                  tagCount={tags.length}
+                  assignmentCount={assignments.length}
                   labels={{
                     tasks: labels.overview.tasks,
                     events: labels.overview.events,
@@ -248,12 +253,16 @@ function DesktopAnalytics({
                 <TasksTab
                   sessions={sessions}
                   nodes={nodes}
+                  assignments={assignments}
+                  tags={tags}
                   labels={{
                     taskTrend: labels.taskTrend,
                     stagnation: labels.stagnation,
-                    projectTime: {
-                      title: labels.projectTime.title,
-                      noData: labels.projectTime.noData,
+                    tagTime: {
+                      title: labels.tagTime.title,
+                      noData: labels.tagTime.noData,
+                      untagged: labels.tagTime.untagged,
+                      other: labels.tagTime.other,
                       formatHours: labels.formatHours,
                     },
                   }}
