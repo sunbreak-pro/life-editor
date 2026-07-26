@@ -177,3 +177,32 @@ Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScree
 - 内容: `scheduleTab` state 追加 + `sectionHeader` の schedule 分岐（Materials と同形の tabs パターン）+ ScheduleScreen への `tab`/`onTabChange` 注入。ScheduleScreen 側の in-body タブ帯 + 自前 RightSidebarToggle は撤去済み（outbox 2026-07-11 10:45 @all の「過渡期の二重表示」解消）
 - headerControls / widthPrefs 周りは無変更です。#203（幅タブ廃止）の diff と近接しますが、schedule 分岐は独立追加行なので conflict しても解消は軽いはずです
 - 異論があればこの adoption PR 上でお願いします
+
+---
+
+## 2026-07-26 (4) → @chat-main
+
+今スプリントのキュー（#352 / #353 / #354 / #355）を全て PR 提出しました。**merge 順のお願いが 1 件**あります。
+
+**⚠️ PR #385 を最初に merge してください。** キュー外ですが、作業中に **main の `shared` が型検査を通らない**ことを発見したため、ユーザー判断で復旧のみの独立 PR を出しています。
+
+- `shared/src/utils/analyticsAggregation.ts` が `../types/wikiTag` から `WikiTag` / `WikiTagAssignment` を二重宣言し、実際に使っている別名 `WikiTagUnified` / `WikiTagAssignmentUnified` が消えています（未使用の `WikiTagConnection` も混入）
+- 原因 = `d80e9fc6`（**PR #378 / Issue #356**）。同コミットの主題（Analytics の "today" を暦日に固定）と import 群は無関係なので、マージで別の変更を取り違えた事故だと見ています
+- **`tsc -b` が増分ビルドで、変更していないファイルを再チェックしないため今まで誰も踏みませんでした**。私が新規ファイルを 1 つ足したことで全体チェックが走り露出しました。再現は `find shared -name "*.tsbuildinfo" -not -path "*/node_modules/*" -delete && cd shared && npx tsc -b --force`
+- 修正は別名 import を戻す 3 行入れ替えのみ。#378 の他の変更（`todayCalendarKey`）には触れていません
+
+**この知見は共有する価値があると思います**: 各セクションの標準ゲートが `npm run build`（= 増分）である限り、同種の壊れは今後も見逃されます。CI か session-verifier 側で「重要な検証時は `--force`」を明文化するかどうか、chat-main で判断いただけると助かります。
+
+### PR 一覧（#385 の後は互いに独立）
+
+| PR | Issue | 内容 | 実ブラウザ確認の勘所 |
+| --- | --- | --- | --- |
+| #385 | — | main の shared ビルド復旧 | （ビルドのみ） |
+| #381 | #352 | Routine 頻度編集の未来伝播 + dead code / RoutineGroup 削除 | **繰り返しを「曜日」に切り替えた直後に予定が消えないこと** |
+| #382 | #353 | 生成パネルに対象日を表示 | 3 経路（ツールバー / 空きスロット / 月セル）とも対象日が出ること |
+| #384 | #354 | 「予定を追加」/「追加して詳細へ」の押し分け | **Mobile で「予定を追加」が詳細シートを開かないこと**（Desktop month でマーカーが出ないのは仕様） |
+| #386 | #355 | ダブルクリック時の吹き出しフラッシュ抑制 | 速い / ゆっくり両方のダブルクリック（350ms の妥当性判断） |
+
+#354 の方式（2 ボタンの押し分け）は**ユーザーがこのチャットで直接選択**したものです。3 案（押し分け / 選択のみ / 常に詳細を開く）を提示して決めていただきました。
+
+起票依頼は前 3 通のとおりです（NotesView の lint / Mobile FAB の対象日 / 楽観行消失でエディタが閉じる）。

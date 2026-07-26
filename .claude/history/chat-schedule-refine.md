@@ -1,5 +1,48 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-26 - #299 follow-up 3 本（#353 / #354 / #355）+ main ビルド復旧
+
+#### 概要
+
+#352 に続けて #299 の follow-up 3 本を 1 Issue = 1 ブランチ = 1 PR で提出。途中で **main の `shared` が型検査を通らない**ことを発見し、ユーザー判断で復旧のみの別 PR を先出しした。各 Issue とも role-qa 独立監査を通し、Blocker 0 / Should は同 PR 内で解消。
+
+#### #353 生成パネルに対象日を表示（PR #382）
+
+- `EventCreateFields` に読み取り専用の日付行（`dateLabel` prop）。Desktop オーバーレイと Mobile QuickCaptureSheet が同部品を使うので 1 箇所で両方に出る。整形はホスト（対象日 + ロケールの保有者）が `Intl.DateTimeFormat` で行い、年も含める（月をまたいで移動した先で開くため）
+- 生成の入口 3 経路（ツールバー / 空きスロット / 月セル）が全て `openCreatePanel` を通ることを実測で確認
+- i18n `scheduleScreen.date`（en/ja）。role-qa: 日付が `YYYY-MM-DD` をローカル解釈しているか（UTC 解釈だと TZ で 1 日ずれる）を実測確認 → PASS。Should 1 件（`dateLabel` の JSDoc が型的に存在し得ない「legacy host」に言及）を修正
+
+#### #354 生成後に新規アイテムを開く導線（PR #384）
+
+- **プロダクト判断はユーザーがチャットで直接選択**（3 案提示 → 押し分け方式）。生成パネルを「予定を追加」/「追加して詳細へ」の 2 ボタンに
+- **Mobile のプレーン作成はあえて何も選択しない**: Mobile は選択＝詳細シート表示（`editorPane` が `selected` から算出）なので、選択すると 2 ボタンが同じ動きになる。Desktop は選択リングのみ（ただし MonthGrid は `selectedId` を受け取らない部品なので月ビューはマーカー無し — role-qa 指摘で コメントを実態に合わせた）
+- Enter はプレーン作成のまま（速い経路を速いまま保つ）。i18n `scheduleScreen.addEventAndOpen`（en/ja）
+
+#### #355 ダブルクリック時の吹き出しフラッシュ抑制（PR #386）
+
+- 原因はブラウザのイベント順（click → click → dblclick）で、1 クリック目では判別不能。**吹き出しだけ 350ms 待たせ**、ダブルクリック側が取り消す。選択は即時のまま
+- 当初 200ms → role-qa 指摘（Windows のダブルクリック閾値 500ms に対し 200-500ms 帯でフラッシュが残る）で 350ms に。400ms 超は反応が鈍く感じ始めるため手前に置く
+- 取り消しは **effect 1 本に集約**（当初は詳細 / 右クリック / 生成パネルに個別実装 → role-qa がカレンダー管理モーダルと繰り返し範囲ダイアログの 2 経路漏れを指摘。開く場所が本ファイルと mutation 層に散っており個別方式では次に増えたとき必ず漏れる）
+- 仕組みは `shared/src/hooks/useDeferredAction.ts`。**web にテストランナーが無い**ためホスト内 ref ではなく shared のフックにしてテスト可能化（7 ケース）
+
+#### main のビルド復旧（PR #385・キュー外）
+
+- **`shared` がクリーンビルドで 6 エラー**。`analyticsAggregation.ts` が `../types/wikiTag` から `WikiTag` / `WikiTagAssignment` を二重宣言し、実使用中の別名 `WikiTagUnified` / `WikiTagAssignmentUnified` が消えていた。未使用の `WikiTagConnection` も混入
+- 原因 = `d80e9fc6`（PR #378 / #356）。主題（`todayCalendarKey` への置換）と無関係な import 群が書き換わっており、マージで別の変更を取り違えた事故
+- **`tsc -b` が増分ビルドで、触っていないファイルを再チェックしないため誰も踏まなかった**。新規ファイル 1 つの追加で全体チェックが走り露出
+- 修正は別名 import を戻す 3 行入れ替えのみ（#378 の他の変更には触れない）。ユーザー判断で復旧のみの独立 PR に
+
+#### 検証
+
+- shared クリーンビルド（`*.tsbuildinfo` 削除 → `tsc -b --force`）exit 0 / vitest **1110 pass**（140 files）/ web build exit 0 / `web` eslint は変更ファイル単体で 0 指摘
+- 既知の赤: `cd web && npm run lint` は `web/src/notes/NotesView.tsx:291` で 1 error（main 由来・変更範囲外・chat-main へ起票依頼済み）
+
+#### 申し送り（outbox → chat-main、起票依頼 3 件）
+
+- `NotesView.tsx` の lint error（main 由来）
+- Mobile 月表示で FAB が `mobileSelectedDay` ではなく `anchorDate` に作る（#353 以前からの挙動だが日付表示でズレが可視化される）
+- 生成直後の楽観行が同期リフェッチで消えると、開いたばかりの詳細エディタが閉じる（#354 が「作ってすぐ書き足す」を推奨導線にしたため露出面が拡大）
+
 ### 2026-07-25 - #299 アイテム操作 UI 刷新（生成パネル化 + 吹き出し + 詳細オーバーレイ）
 
 #### 概要
