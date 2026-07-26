@@ -94,9 +94,10 @@ export {
   ItemCreatePanel,
   type ItemCreatePanelProps,
   type ItemCreatePanelLabels,
-  type ItemCreateTaskOption,
+  type ItemCreateOption,
+  type ItemCreateNoteDraft,
   type ItemCreateType,
-  type ItemCreateTaskSource,
+  type ItemCreateSource,
 } from "./ItemCreatePanel";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.

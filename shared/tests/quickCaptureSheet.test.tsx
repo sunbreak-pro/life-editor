@@ -18,6 +18,7 @@ const LABELS: QuickCaptureLabels = {
   typeLabel: "Item type",
   typeEvent: "Event",
   typeTask: "Task",
+  typeNote: "Note",
   title: "Title",
   eventPlaceholder: "Event title",
   taskPlaceholder: "Task title",
@@ -26,14 +27,22 @@ const LABELS: QuickCaptureLabels = {
   endTime: "End",
   addEvent: "Add",
   addEventAndOpen: "Add and edit",
-  taskSourceLabel: "How to add",
-  taskSourceNew: "New",
-  taskSourceExisting: "From existing",
   addTask: "Add task",
   placeTask: "Place",
+  sourceLabel: "How to add",
+  sourceNew: "New",
+  sourceExisting: "From existing",
   searchTasks: "Search tasks",
-  pickerEmpty: "No unscheduled tasks",
-  pickerNoMatch: "No matching tasks",
+  taskPickerEmpty: "No unscheduled tasks",
+  taskPickerNoMatch: "No matching tasks",
+  noteTitleLabel: "Note title",
+  notePlaceholder: "Note title placeholder",
+  searchNotes: "Search notes",
+  notePickerEmpty: "No notes yet",
+  notePickerNoMatch: "No matching notes",
+  noteLinkHint: "Linked to the item you add below.",
+  attachedNote: "Note:",
+  clearNote: "Remove the note",
 };
 
 function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
@@ -48,6 +57,7 @@ function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
       onClose={onClose}
       sheetTitle="Add item"
       existingTasks={[{ id: "task-1", title: "Draft the invoice" }]}
+      existingNotes={[{ id: "note-1", title: "Standup minutes" }]}
       onSubmitEvent={onSubmitEvent}
       onSubmitEventAndOpen={onSubmitEventAndOpen}
       onCreateTask={onCreateTask}
@@ -79,7 +89,7 @@ describe("QuickCaptureSheet", () => {
       target: { value: "Dentist" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", "09:00", "10:00");
+    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", "09:00", "10:00", null);
   });
 
   it("forwards the time prefill and the edited times", () => {
@@ -91,7 +101,7 @@ describe("QuickCaptureSheet", () => {
       target: { value: "  Gym  " },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Gym", "19:00", "20:30");
+    expect(onSubmitEvent).toHaveBeenCalledWith("Gym", "19:00", "20:30", null);
   });
 
   it("reaches the task tab too — Mobile gets the same panel as Desktop (#376)", () => {
@@ -101,7 +111,7 @@ describe("QuickCaptureSheet", () => {
       target: { value: "Groceries" },
     });
     fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith("Groceries", "09:00", "10:00");
+    expect(onCreateTask).toHaveBeenCalledWith("Groceries", "09:00", "10:00", null);
   });
 
   it("leaves closing to the host, so the sheet never double-closes (#376)", () => {
