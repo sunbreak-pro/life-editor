@@ -6,7 +6,10 @@
         "${LIFE_EDITOR_MCP_ENTRY:-/Users/newlife/dev/apps/life-editor/mcp-server/dist/index.js}"
       ],
       "env": {
-        "DB_PATH": "${LIFE_EDITOR_DB_PATH:-/Users/newlife/Library/Application Support/life-editor/life-editor.db}",
+        "LIFE_EDITOR_SUPABASE_URL": "${LIFE_EDITOR_SUPABASE_URL}",
+        "LIFE_EDITOR_SUPABASE_ANON_KEY": "${LIFE_EDITOR_SUPABASE_ANON_KEY}",
+        "LIFE_EDITOR_SUPABASE_EMAIL": "${LIFE_EDITOR_SUPABASE_EMAIL}",
+        "LIFE_EDITOR_SUPABASE_PASSWORD": "${LIFE_EDITOR_SUPABASE_PASSWORD}",
         "FILES_ROOT_PATH": "${LIFE_EDITOR_FILES_ROOT:-/Users/newlife/life-editor/files}"
       },
       "type": "stdio"

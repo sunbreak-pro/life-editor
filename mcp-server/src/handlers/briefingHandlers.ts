@@ -9,7 +9,7 @@ import {
   upsertBriefingSection,
   hasBriefingSection,
 } from "../utils/briefingSection.js";
-import { extractTextFromTipTap } from "../utils/tiptapText.js";
+import { contentJsonToString, contentPlainText } from "../utils/content.js";
 
 /*
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
@@ -27,23 +27,6 @@ interface DailiesPayloadRow {
   item_id: string;
   date: string;
   content_json: unknown;
-}
-
-/** jsonb → TipTap JSON string (same policy as dailiesUnifiedMapper). */
-function contentJsonToString(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
-
-function contentPlainText(value: unknown): string {
-  const s = contentJsonToString(value);
-  if (s === "") return "";
-  try {
-    return extractTextFromTipTap(JSON.parse(s)).trim();
-  } catch {
-    return s;
-  }
 }
 
 /** Live daily payload rows for date ∈ [from, to], newest first. */

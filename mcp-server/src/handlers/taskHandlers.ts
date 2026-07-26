@@ -1,81 +1,204 @@
-import { getDb } from "../db.js";
+import { randomUUID } from "node:crypto";
+import { getSupabase } from "../supabase.js";
 import { markdownToTiptap } from "../utils/markdownToTiptap.js";
 import {
+  META_COLUMNS,
+  insertItem,
+  requireMeta,
+  softDeleteItem,
+  updatePayload,
+  type ItemsMetaRow,
+} from "../utils/items.js";
+import { localDayUtcRange } from "../utils/localDate.js";
+import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
+import {
   getTagsForEntity,
-  getTagMapByEntityType,
+  getTagMapByRole,
   type TagInfo,
 } from "./wikiTagHandlers.js";
 
-interface TaskRow {
-  id: string;
-  type: string;
-  title: string;
-  parent_id: string | null;
-  order: number;
+/*
+ * Task handlers — Supabase edition (#360).
+ *
+ * Replaces the legacy single-table SQLite `tasks` access (dropped by 0007)
+ * with the unified 2-row model (0008): one `items_meta` row (role='task') +
+ * one `tasks_payload` row per task. Write rituals (orphan recovery, the
+ * §10.2 updated_at bump, soft delete) live in ../utils/items.ts.
+ *
+ * Column-set deltas vs the legacy SQLite shape:
+ *   - `type` → `task_type`, `"order"` → `sort_order`, `parent_id` →
+ *     `parent_item_id` (now an items_meta ref).
+ *   - `status` is UPPERCASE in the DB (CHECK NOT_STARTED|IN_PROGRESS|DONE).
+ *     The MCP tool contract keeps the lowercase vocabulary it always had,
+ *     so this module translates in both directions — a caller can feed a
+ *     `get_task` result straight back into `update_task`.
+ *   - title / created_at / is_deleted live on items_meta, not the payload.
+ *
+ * life-tags S3 (#225) retired the folder node type. Legacy `task_type =
+ * 'folder'` rows are excluded in-app (same rule as
+ * SupabaseDataService.fetchTaskTree): filtering query-side with `.neq`
+ * would also drop NULL task_type rows and silently hide plain tasks. A
+ * task parented to an excluded folder still surfaces (orphan tolerance).
+ */
+
+interface TasksPayloadRow {
+  item_id: string;
+  parent_item_id: string | null;
+  task_type: "folder" | "task" | null;
   status: string | null;
-  is_deleted: number;
-  created_at: string;
-  completed_at: string | null;
-  scheduled_at: string | null;
-  scheduled_end_at: string | null;
-  is_all_day: number;
   content: string | null;
   time_memo: string | null;
+  scheduled_at: string | null;
+  scheduled_end_at: string | null;
+  is_all_day: boolean;
+  completed_at: string | null;
+  sort_order: number;
 }
 
-function formatTask(row: TaskRow) {
+const PAYLOAD_COLUMNS =
+  "item_id, parent_item_id, task_type, status, content, time_memo, " +
+  "scheduled_at, scheduled_end_at, is_all_day, completed_at, sort_order";
+
+const STATUS_TO_DB: Record<string, string> = {
+  not_started: "NOT_STARTED",
+  in_progress: "IN_PROGRESS",
+  done: "DONE",
+};
+
+/** Tool vocabulary (lowercase) → DB CHECK vocabulary (uppercase). */
+export function toDbStatus(status: string): string {
+  const mapped = STATUS_TO_DB[status.toLowerCase()];
+  if (!mapped) {
+    throw new Error(
+      `Invalid status "${status}" (expected not_started|in_progress|done)`,
+    );
+  }
+  return mapped;
+}
+
+/** DB vocabulary → tool vocabulary, so callers see one set of values. */
+export function toToolStatus(status: string | null): string | null {
+  return status === null ? null : status.toLowerCase();
+}
+
+/** True for the retired folder node type (S3 #225). NULL is a plain task. */
+function isLegacyFolder(row: TasksPayloadRow): boolean {
+  return row.task_type === "folder";
+}
+
+function formatTask(meta: ItemsMetaRow, payload: TasksPayloadRow) {
   return {
-    id: row.id,
-    type: row.type,
-    title: row.title,
-    parentId: row.parent_id,
-    order: row.order,
-    status: row.status,
-    createdAt: row.created_at,
-    completedAt: row.completed_at,
-    scheduledAt: row.scheduled_at,
-    scheduledEndAt: row.scheduled_end_at,
-    isAllDay: row.is_all_day === 1,
-    content: row.content,
-    timeMemo: row.time_memo,
+    id: meta.id,
+    type: payload.task_type ?? "task",
+    title: meta.title,
+    parentId: payload.parent_item_id,
+    order: payload.sort_order,
+    status: toToolStatus(payload.status),
+    createdAt: meta.created_at,
+    completedAt: payload.completed_at,
+    scheduledAt: payload.scheduled_at,
+    scheduledEndAt: payload.scheduled_end_at,
+    isAllDay: payload.is_all_day,
+    content: payload.content,
+    timeMemo: payload.time_memo,
   };
 }
 
-export function listTasks(args: {
+/**
+ * Normalise a tool-supplied bound for a `scheduled_at` (timestamptz)
+ * comparison. A bare "YYYY-MM-DD" is expanded to the local day's UTC
+ * instant so a date-only range covers whole days instead of stopping at
+ * midnight; a full ISO 8601 timestamp passes through untouched.
+ */
+export function rangeBound(value: string, edge: "start" | "end"): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const { startIso, endIso } = localDayUtcRange(value);
+  return edge === "start" ? startIso : endIso;
+}
+
+/**
+ * Live items_meta rows for the given task ids, keyed by id. Chunked: the
+ * ids ride in the query string, so an unbounded `.in()` risks URL limits.
+ * An id absent from the result is soft-deleted or never existed.
+ */
+async function fetchTaskMetas(
+  ids: string[],
+): Promise<Map<string, ItemsMetaRow>> {
+  const { client } = await getSupabase();
+  const rows = await fetchByIdChunks<ItemsMetaRow>(ids, async (chunk) => {
+    const { data, error } = await client
+      .from("items_meta")
+      .select(META_COLUMNS)
+      .eq("role", "task")
+      .eq("is_deleted", false)
+      .in("id", chunk);
+    if (error) throw new Error(`list task items_meta: ${error.message}`);
+    return (data ?? []) as unknown as ItemsMetaRow[];
+  });
+
+  const byId = new Map<string, ItemsMetaRow>();
+  for (const m of rows) byId.set(m.id, m);
+  return byId;
+}
+
+/** Fetch one live task (meta + payload) or throw a not-found error. */
+async function getTaskRows(id: string) {
+  const meta = await requireMeta(id, "task", "Task");
+  const { client } = await getSupabase();
+  const { data, error } = await client
+    .from("tasks_payload")
+    .select(PAYLOAD_COLUMNS)
+    .eq("item_id", id)
+    .maybeSingle();
+  if (error) throw new Error(`get tasks_payload: ${error.message}`);
+  if (!data) throw new Error(`Task not found: ${id}`);
+  return { meta, payload: data as unknown as TasksPayloadRow };
+}
+
+export async function listTasks(args: {
   status?: string;
   date_range?: { start: string; end: string };
   folder_id?: string;
 }) {
-  const db = getDb();
-  const conditions = ["is_deleted = 0", "type = 'task'"];
-  const params: Record<string, string> = {};
+  const { client } = await getSupabase();
 
-  if (args.status) {
-    conditions.push("status = @status");
-    params.status = args.status;
-  }
-  if (args.date_range) {
-    conditions.push("scheduled_at >= @start AND scheduled_at <= @end");
-    params.start = args.date_range.start;
-    params.end = args.date_range.end;
-  }
-  if (args.folder_id) {
-    conditions.push("parent_id = @folder_id");
-    params.folder_id = args.folder_id;
-  }
+  // A fresh builder per page: PostgREST builders are single-use, and the
+  // order must end in a unique column or page boundaries can drop rows.
+  const payloads = await fetchAllPages<TasksPayloadRow>((from, to) => {
+    let query = client
+      .from("tasks_payload")
+      .select(PAYLOAD_COLUMNS)
+      .eq("task_type", "task");
+    if (args.status) query = query.eq("status", toDbStatus(args.status));
+    if (args.date_range) {
+      query = query
+        .gte("scheduled_at", rangeBound(args.date_range.start, "start"))
+        .lt("scheduled_at", rangeBound(args.date_range.end, "end"));
+    }
+    if (args.folder_id) query = query.eq("parent_item_id", args.folder_id);
+    return query
+      .order("sort_order", { ascending: true })
+      .order("item_id", { ascending: true })
+      .range(from, to);
+  }, "list tasks_payload");
+  if (payloads.length === 0) return [];
 
-  const sql = `SELECT * FROM tasks WHERE ${conditions.join(" AND ")} ORDER BY "order" ASC`;
-  const rows = db.prepare(sql).all(params) as TaskRow[];
-  return rows.map(formatTask);
+  const metaById = await fetchTaskMetas(payloads.map((p) => p.item_id));
+
+  const out = [];
+  for (const p of payloads) {
+    const m = metaById.get(p.item_id);
+    if (m) out.push(formatTask(m, p));
+  }
+  return out;
 }
 
-export function getTask(args: { id: string }) {
-  const db = getDb();
-  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(args.id) as
-    | TaskRow
-    | undefined;
-  if (!row) throw new Error(`Task not found: ${args.id}`);
-  return { ...formatTask(row), tags: getTagsForEntity(args.id) };
+export async function getTask(args: { id: string }) {
+  const { meta, payload } = await getTaskRows(args.id);
+  return {
+    ...formatTask(meta, payload),
+    tags: await getTagsForEntity(args.id),
+  };
 }
 
 interface TreeNode {
@@ -93,26 +216,76 @@ interface TreeNode {
   children: TreeNode[];
 }
 
-export function getTaskTree(args: {
+export async function getTaskTree(args: {
   root_id?: string;
   include_done?: boolean;
   max_depth?: number;
 }) {
-  const db = getDb();
+  const { client } = await getSupabase();
   const includeDone = args.include_done !== false;
 
-  const rows = db
-    .prepare(`SELECT * FROM tasks WHERE is_deleted = 0 ORDER BY "order" ASC`)
-    .all() as TaskRow[];
+  const [metaRows, payloadRows, tagMap] = await Promise.all([
+    fetchAllPages<ItemsMetaRow>(
+      (from, to) =>
+        client
+          .from("items_meta")
+          .select(META_COLUMNS)
+          .eq("role", "task")
+          .eq("is_deleted", false)
+          .order("id", { ascending: true })
+          .range(from, to),
+      "tree items_meta",
+    ),
+    fetchAllPages<TasksPayloadRow>(
+      (from, to) =>
+        client
+          .from("tasks_payload")
+          .select(PAYLOAD_COLUMNS)
+          .order("sort_order", { ascending: true })
+          .order("item_id", { ascending: true })
+          .range(from, to),
+      "tree tasks_payload",
+    ),
+    getTagMapByRole("task"),
+  ]);
 
-  const tagMap = getTagMapByEntityType("task");
+  const metaById = new Map<string, ItemsMetaRow>();
+  for (const m of metaRows) metaById.set(m.id, m);
 
-  const childrenMap = new Map<string | null, TaskRow[]>();
+  // Live payloads in sort order, paired with their meta parent.
+  const rows: Array<{ meta: ItemsMetaRow; payload: TasksPayloadRow }> = [];
+  for (const p of payloadRows) {
+    if (isLegacyFolder(p)) continue;
+    const m = metaById.get(p.item_id);
+    if (m) rows.push({ meta: m, payload: p });
+  }
+
+  const childrenMap = new Map<string | null, typeof rows>();
   for (const row of rows) {
-    const key = row.parent_id;
+    const key = row.payload.parent_item_id;
     const list = childrenMap.get(key) ?? [];
     list.push(row);
     childrenMap.set(key, list);
+  }
+
+  function toNode(
+    row: { meta: ItemsMetaRow; payload: TasksPayloadRow },
+    children: TreeNode[],
+  ): TreeNode {
+    return {
+      id: row.meta.id,
+      type: row.payload.task_type ?? "task",
+      title: row.meta.title,
+      status: toToolStatus(row.payload.status),
+      order: row.payload.sort_order,
+      createdAt: row.meta.created_at,
+      completedAt: row.payload.completed_at,
+      scheduledAt: row.payload.scheduled_at,
+      scheduledEndAt: row.payload.scheduled_end_at,
+      isAllDay: row.payload.is_all_day,
+      tags: tagMap.get(row.meta.id) ?? [],
+      children,
+    };
   }
 
   function buildTree(parentId: string | null, depth: number): TreeNode[] {
@@ -120,93 +293,69 @@ export function getTaskTree(args: {
 
     const children = childrenMap.get(parentId) ?? [];
     const result: TreeNode[] = [];
-
     for (const row of children) {
-      if (!includeDone && row.status === "done" && row.type !== "folder") {
-        continue;
-      }
-
-      const node: TreeNode = {
-        id: row.id,
-        type: row.type,
-        title: row.title,
-        status: row.status,
-        order: row.order,
-        createdAt: row.created_at,
-        completedAt: row.completed_at,
-        scheduledAt: row.scheduled_at,
-        scheduledEndAt: row.scheduled_end_at,
-        isAllDay: row.is_all_day === 1,
-        tags: tagMap.get(row.id) ?? [],
-        children: buildTree(row.id, depth + 1),
-      };
-      result.push(node);
+      if (!includeDone && row.payload.status === "DONE") continue;
+      result.push(toNode(row, buildTree(row.meta.id, depth + 1)));
     }
-
     return result;
   }
 
   if (args.root_id) {
-    const rootRow = rows.find((r) => r.id === args.root_id);
+    const rootRow = rows.find((r) => r.meta.id === args.root_id);
     if (!rootRow) throw new Error(`Task not found: ${args.root_id}`);
-
-    const rootNode: TreeNode = {
-      id: rootRow.id,
-      type: rootRow.type,
-      title: rootRow.title,
-      status: rootRow.status,
-      order: rootRow.order,
-      createdAt: rootRow.created_at,
-      completedAt: rootRow.completed_at,
-      scheduledAt: rootRow.scheduled_at,
-      scheduledEndAt: rootRow.scheduled_end_at,
-      isAllDay: rootRow.is_all_day === 1,
-      tags: tagMap.get(rootRow.id) ?? [],
-      children: buildTree(rootRow.id, 1),
-    };
-    return rootNode;
+    return toNode(rootRow, buildTree(args.root_id, 1));
   }
 
   return buildTree(null, 0);
 }
 
-export function createTask(args: {
+export async function createTask(args: {
   title: string;
   parent_id?: string;
   scheduled_at?: string;
   scheduled_end_at?: string;
   is_all_day?: boolean;
 }) {
-  const db = getDb();
-  const id = `task-${Date.now()}`;
+  const { client } = await getSupabase();
+  const id = `task-${randomUUID()}`;
 
-  // Determine order (append at end)
-  const maxOrder = db
-    .prepare(
-      `SELECT COALESCE(MAX("order"), -1) as max_order FROM tasks WHERE parent_id ${args.parent_id ? "= @parent_id" : "IS NULL"} AND is_deleted = 0`,
-    )
-    .get(args.parent_id ? { parent_id: args.parent_id } : {}) as {
-    max_order: number;
-  };
+  // Append at the end of the destination level.
+  let siblingQuery = client
+    .from("tasks_payload")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  siblingQuery = args.parent_id
+    ? siblingQuery.eq("parent_item_id", args.parent_id)
+    : siblingQuery.is("parent_item_id", null);
+  const { data: siblings, error: sErr } = await siblingQuery;
+  if (sErr) throw new Error(`max sort_order: ${sErr.message}`);
+  const maxOrder = (siblings ?? [])[0]?.sort_order ?? -1;
 
-  db.prepare(
-    `INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, created_at, scheduled_at, scheduled_end_at, is_all_day, content)
-     VALUES (@id, 'task', @title, @parent_id, @order, 'not_started', 0, 0, datetime('now'), @scheduled_at, @scheduled_end_at, @is_all_day, NULL)`,
-  ).run({
+  await insertItem({
     id,
+    role: "task",
     title: args.title,
-    parent_id: args.parent_id ?? null,
-    order: maxOrder.max_order + 1,
-    scheduled_at: args.scheduled_at ?? null,
-    scheduled_end_at: args.scheduled_end_at ?? null,
-    is_all_day: args.is_all_day ? 1 : 0,
+    payloadTable: "tasks_payload",
+    payload: {
+      parent_item_id: args.parent_id ?? null,
+      task_type: "task",
+      status: "NOT_STARTED",
+      is_expanded: false,
+      content: null,
+      scheduled_at: args.scheduled_at ?? null,
+      scheduled_end_at: args.scheduled_end_at ?? null,
+      is_all_day: args.is_all_day ?? false,
+      reminder_enabled: false,
+      sort_order: maxOrder + 1,
+    },
   });
 
-  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as TaskRow;
-  return formatTask(row);
+  const { meta, payload } = await getTaskRows(id);
+  return formatTask(meta, payload);
 }
 
-export function updateTask(args: {
+export async function updateTask(args: {
   id: string;
   title?: string;
   status?: string;
@@ -215,64 +364,40 @@ export function updateTask(args: {
   content?: string;
   time_memo?: string | null;
 }) {
-  const db = getDb();
-  const existing = db
-    .prepare("SELECT * FROM tasks WHERE id = ?")
-    .get(args.id) as TaskRow | undefined;
-  if (!existing) throw new Error(`Task not found: ${args.id}`);
+  await getTaskRows(args.id); // not-found guard
 
-  const updates: string[] = [];
-  const params: Record<string, unknown> = { id: args.id };
+  const metaPatch: Record<string, unknown> = {};
+  if (args.title !== undefined) metaPatch.title = args.title;
 
-  if (args.title !== undefined) {
-    updates.push("title = @title");
-    params.title = args.title;
-  }
+  const payloadPatch: Record<string, unknown> = {};
   if (args.status !== undefined) {
-    updates.push("status = @status");
-    params.status = args.status;
-    if (args.status === "done") {
-      updates.push("completed_at = datetime('now')");
-    }
+    const dbStatus = toDbStatus(args.status);
+    payloadPatch.status = dbStatus;
+    payloadPatch.completed_at =
+      dbStatus === "DONE" ? new Date().toISOString() : null;
   }
-  if (args.scheduled_at !== undefined) {
-    updates.push("scheduled_at = @scheduled_at");
-    params.scheduled_at = args.scheduled_at;
-  }
-  if (args.scheduled_end_at !== undefined) {
-    updates.push("scheduled_end_at = @scheduled_end_at");
-    params.scheduled_end_at = args.scheduled_end_at;
-  }
-  if (args.content !== undefined) {
-    updates.push("content = @content");
-    params.content = JSON.stringify(markdownToTiptap(args.content));
-  }
-  if (args.time_memo !== undefined) {
-    updates.push("time_memo = @time_memo");
-    params.time_memo = args.time_memo;
-  }
+  if (args.scheduled_at !== undefined)
+    payloadPatch.scheduled_at = args.scheduled_at;
+  if (args.scheduled_end_at !== undefined)
+    payloadPatch.scheduled_end_at = args.scheduled_end_at;
+  if (args.content !== undefined)
+    payloadPatch.content = JSON.stringify(markdownToTiptap(args.content));
+  if (args.time_memo !== undefined) payloadPatch.time_memo = args.time_memo;
 
-  if (updates.length === 0) return formatTask(existing);
-
-  db.prepare(`UPDATE tasks SET ${updates.join(", ")} WHERE id = @id`).run(
-    params,
+  await updatePayload(
+    "tasks_payload",
+    args.id,
+    "task",
+    payloadPatch,
+    metaPatch,
   );
-  const row = db
-    .prepare("SELECT * FROM tasks WHERE id = ?")
-    .get(args.id) as TaskRow;
-  return formatTask(row);
+
+  const { meta, payload } = await getTaskRows(args.id);
+  return formatTask(meta, payload);
 }
 
-export function deleteTask(args: { id: string }) {
-  const db = getDb();
-  const existing = db
-    .prepare("SELECT * FROM tasks WHERE id = ?")
-    .get(args.id) as TaskRow | undefined;
-  if (!existing) throw new Error(`Task not found: ${args.id}`);
-
-  db.prepare(
-    "UPDATE tasks SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?",
-  ).run(args.id);
-
-  return { success: true, id: args.id };
+export async function deleteTask(args: { id: string }) {
+  await requireMeta(args.id, "task", "Task");
+  await softDeleteItem(args.id, "task");
+  return { success: true, id: args.id, softDeleted: true };
 }

@@ -1,4 +1,9 @@
-import { getDb } from "../db.js";
+import { randomUUID } from "node:crypto";
+import { getSupabase } from "../supabase.js";
+import { contentJsonToString } from "../utils/content.js";
+import { insertItem, requireMeta, updatePayload } from "../utils/items.js";
+import { assertDateKey, localToday } from "../utils/localDate.js";
+import { findDailyPayload, upsertDailyContent } from "./dailyHandlers.js";
 import {
   doc,
   heading,
@@ -15,6 +20,20 @@ import {
   type TipTapNode,
   type TipTapDoc,
 } from "../utils/tiptapJsonBuilder.js";
+
+/*
+ * Content handlers — Supabase edition (#360).
+ *
+ * generate_content / format_content write structured TipTap documents into
+ * note and daily bodies (`content_json`, jsonb). The legacy "schedule"
+ * target is retired: the unified schema gave events no content column
+ * (0008 — see the scheduleItemMapper header), so there is nowhere to put a
+ * document. `update_schedule_item`'s `memo` is the remaining text field.
+ */
+
+const SCHEDULE_TARGET_RETIRED =
+  'the "schedule" target is retired: events carry no content column in the ' +
+  "unified schema (0008). Use update_schedule_item's `memo` field for event text.";
 
 /* ===== ContentBlock schema ===== */
 
@@ -99,79 +118,64 @@ function buildDoc(structure: ContentBlock[]): TipTapDoc {
   return doc(...nodes);
 }
 
+type ContentTarget = "note" | "daily";
+
+/** Reject the retired "schedule" target with an actionable message. */
+function assertTarget(target: string, tool: string): ContentTarget {
+  if (target === "note" || target === "daily") return target;
+  if (target === "schedule")
+    throw new Error(`${tool}: ${SCHEDULE_TARGET_RETIRED}`);
+  throw new Error(`${tool}: unknown target "${target}" (expected note|daily)`);
+}
+
 /* ===== generate_content ===== */
 
 interface GenerateContentArgs {
-  target: "note" | "daily" | "schedule";
+  target: string;
   target_id?: string;
   target_date?: string;
   title?: string;
   structure: ContentBlock[];
 }
 
-export function generateContent(args: GenerateContentArgs) {
-  const db = getDb();
+export async function generateContent(args: GenerateContentArgs) {
+  const target = assertTarget(args.target, "generate_content");
   const tiptapDoc = buildDoc(args.structure);
-  const contentJson = JSON.stringify(tiptapDoc);
 
-  if (args.target === "note") {
+  if (target === "note") {
     if (args.target_id) {
-      // Update existing note
-      const existing = db
-        .prepare("SELECT id FROM notes WHERE id = ? AND is_deleted = 0")
-        .get(args.target_id) as { id: string } | undefined;
-      if (!existing) throw new Error(`Note not found: ${args.target_id}`);
-
-      const updates: string[] = [
-        "content = @content",
-        "updated_at = datetime('now')",
-      ];
-      const params: Record<string, unknown> = {
-        id: args.target_id,
-        content: contentJson,
-      };
-      if (args.title) {
-        updates.push("title = @title");
-        params.title = args.title;
-      }
-      db.prepare(`UPDATE notes SET ${updates.join(", ")} WHERE id = @id`).run(
-        params,
+      await requireMeta(args.target_id, "note", "Note");
+      await updatePayload(
+        "notes_payload",
+        args.target_id,
+        "note",
+        { content_json: tiptapDoc },
+        args.title ? { title: args.title } : {},
       );
-      return { id: args.target_id, target: "note", content: tiptapDoc };
-    } else {
-      // Create new note
-      const id = `note-${Date.now()}`;
-      db.prepare(
-        `INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
-         VALUES (@id, @title, @content, 0, 0, datetime('now'), datetime('now'))`,
-      ).run({ id, title: args.title ?? "Untitled", content: contentJson });
-      return { id, target: "note", content: tiptapDoc };
+      return { id: args.target_id, target, content: tiptapDoc };
     }
-  } else if (args.target === "schedule") {
-    // schedule item content
-    if (!args.target_id)
-      throw new Error("target_id required for schedule target");
-    const existing = db
-      .prepare("SELECT id FROM schedule_items WHERE id = ?")
-      .get(args.target_id) as { id: string } | undefined;
-    if (!existing)
-      throw new Error(`Schedule item not found: ${args.target_id}`);
 
-    db.prepare(
-      `UPDATE schedule_items SET content = @content, version = version + 1, updated_at = datetime('now') WHERE id = @id`,
-    ).run({ id: args.target_id, content: contentJson });
-    return { id: args.target_id, target: "schedule", content: tiptapDoc };
-  } else {
-    // daily
-    const date = args.target_date ?? new Date().toISOString().slice(0, 10);
-    const id = args.target_id ?? `daily-${date}`;
-    db.prepare(
-      `INSERT INTO dailies (id, date, content, created_at, updated_at)
-       VALUES (@id, @date, @content, datetime('now'), datetime('now'))
-       ON CONFLICT(date) DO UPDATE SET content = @content, updated_at = datetime('now')`,
-    ).run({ id, date, content: contentJson });
-    return { id, date, target: "daily", content: tiptapDoc };
+    const id = `note-${randomUUID()}`;
+    await insertItem({
+      id,
+      role: "note",
+      title: args.title ?? "Untitled",
+      payloadTable: "notes_payload",
+      payload: {
+        parent_item_id: null,
+        note_type: "note",
+        content_json: tiptapDoc,
+        sort_order: 0,
+        is_pinned: false,
+        is_edit_locked: false,
+      },
+    });
+    return { id, target, content: tiptapDoc };
   }
+
+  const date = assertDateKey(args.target_date ?? localToday());
+  const daily = await upsertDailyContent(date, tiptapDoc);
+  return { id: daily.id, date, target, content: tiptapDoc };
 }
 
 /* ===== format_content ===== */
@@ -199,55 +203,51 @@ interface FormatOperation {
 }
 
 interface FormatContentArgs {
-  target: "note" | "daily" | "schedule";
+  target: string;
   target_id?: string;
   target_date?: string;
   operations: FormatOperation[];
 }
 
-export function formatContent(args: FormatContentArgs) {
-  const db = getDb();
+export async function formatContent(args: FormatContentArgs) {
+  const target = assertTarget(args.target, "format_content");
+  const { client } = await getSupabase();
 
-  // Read existing content
-  let contentJson: string;
+  // Read the existing document.
+  let existingJson: unknown;
   let entityId: string;
+  let date: string | undefined;
 
-  if (args.target === "note") {
+  if (target === "note") {
     if (!args.target_id) throw new Error("target_id required for note");
-    const row = db
-      .prepare("SELECT id, content FROM notes WHERE id = ? AND is_deleted = 0")
-      .get(args.target_id) as { id: string; content: string } | undefined;
-    if (!row) throw new Error(`Note not found: ${args.target_id}`);
-    contentJson = row.content;
-    entityId = row.id;
-  } else if (args.target === "schedule") {
-    if (!args.target_id)
-      throw new Error("target_id required for schedule target");
-    const row = db
-      .prepare("SELECT id, content FROM schedule_items WHERE id = ?")
-      .get(args.target_id) as
-      | { id: string; content: string | null }
-      | undefined;
-    if (!row) throw new Error(`Schedule item not found: ${args.target_id}`);
-    contentJson = row.content ?? "";
-    entityId = row.id;
+    await requireMeta(args.target_id, "note", "Note");
+    const { data, error } = await client
+      .from("notes_payload")
+      .select("item_id, content_json")
+      .eq("item_id", args.target_id)
+      .maybeSingle();
+    if (error) throw new Error(`get notes_payload: ${error.message}`);
+    if (!data) throw new Error(`Note not found: ${args.target_id}`);
+    const row = data as { item_id: string; content_json: unknown };
+    existingJson = row.content_json;
+    entityId = row.item_id;
   } else {
-    const date = args.target_date ?? new Date().toISOString().slice(0, 10);
-    const row = db
-      .prepare(
-        "SELECT id, content FROM dailies WHERE date = ? AND is_deleted = 0",
-      )
-      .get(date) as { id: string; content: string } | undefined;
+    date = assertDateKey(args.target_date ?? localToday());
+    const row = await findDailyPayload(date);
     if (!row) throw new Error(`Daily not found for date: ${date}`);
-    contentJson = row.content;
-    entityId = row.id;
+    existingJson = row.content_json;
+    entityId = row.item_id;
   }
 
   let tiptapDoc: TipTapDoc;
+  const contentString = contentJsonToString(existingJson);
   try {
-    tiptapDoc = JSON.parse(contentJson) as TipTapDoc;
+    tiptapDoc = JSON.parse(contentString) as TipTapDoc;
   } catch {
-    tiptapDoc = doc(paragraph(contentJson));
+    tiptapDoc = doc(paragraph(contentString));
+  }
+  if (!tiptapDoc || !Array.isArray(tiptapDoc.content)) {
+    tiptapDoc = doc(paragraph(contentString));
   }
 
   for (const op of args.operations) {
@@ -297,21 +297,13 @@ export function formatContent(args: FormatContentArgs) {
     }
   }
 
-  const updatedJson = JSON.stringify(tiptapDoc);
-
-  if (args.target === "note") {
-    db.prepare(
-      "UPDATE notes SET content = @content, updated_at = datetime('now') WHERE id = @id",
-    ).run({ id: entityId, content: updatedJson });
-  } else if (args.target === "schedule") {
-    db.prepare(
-      "UPDATE schedule_items SET content = @content, version = version + 1, updated_at = datetime('now') WHERE id = @id",
-    ).run({ id: entityId, content: updatedJson });
+  if (target === "note") {
+    await updatePayload("notes_payload", entityId, "note", {
+      content_json: tiptapDoc,
+    });
   } else {
-    db.prepare(
-      "UPDATE dailies SET content = @content, updated_at = datetime('now') WHERE id = @id",
-    ).run({ id: entityId, content: updatedJson });
+    await upsertDailyContent(date as string, tiptapDoc);
   }
 
-  return { id: entityId, target: args.target, content: tiptapDoc };
+  return { id: entityId, target, content: tiptapDoc };
 }

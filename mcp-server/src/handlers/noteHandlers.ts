@@ -1,105 +1,181 @@
-import { getDb } from "../db.js";
+import { randomUUID } from "node:crypto";
+import { getSupabase } from "../supabase.js";
 import { markdownToTiptap } from "../utils/markdownToTiptap.js";
+import { contentJsonToString, contentPlainText } from "../utils/content.js";
+import {
+  META_COLUMNS,
+  insertItem,
+  requireMeta,
+  updatePayload,
+  type ItemsMetaRow,
+} from "../utils/items.js";
+import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
 
-interface NoteRow {
-  id: string;
-  title: string;
-  content: string;
-  is_pinned: number;
-  is_deleted: number;
+/*
+ * Note handlers — Supabase edition (#360).
+ *
+ * Legacy `notes` (dropped by 0007) → items_meta (role='note') +
+ * notes_payload. Deltas worth knowing:
+ *   - `title` lives on items_meta; the payload owns the body as
+ *     `content_json` (jsonb), not a TEXT column.
+ *   - `note_type` ('folder' | 'note') is a live discriminator here (unlike
+ *     the retired task folder type), so it is surfaced as `type` and NOT
+ *     filtered out — a caller listing notes can tell the two apart.
+ *   - substring search over the body runs in-app: `content_json` is jsonb,
+ *     which PostgREST cannot `ilike`, and matching the extracted plain text
+ *     beats the legacy behaviour of LIKE-ing raw TipTap JSON (which also
+ *     matched node-type names like "paragraph").
+ */
+
+export interface NotesPayloadRow {
+  item_id: string;
+  note_type: "folder" | "note" | null;
+  content_json: unknown;
+  is_pinned: boolean;
   color: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
-function formatNote(row: NoteRow) {
+/** A live note: its items_meta row paired with its payload row. */
+export interface NoteRecord {
+  meta: ItemsMetaRow;
+  payload: NotesPayloadRow;
+}
+
+const PAYLOAD_COLUMNS = "item_id, note_type, content_json, is_pinned, color";
+
+function formatNote(meta: ItemsMetaRow, payload: NotesPayloadRow) {
   return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    isPinned: row.is_pinned === 1,
-    color: row.color ?? undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: meta.id,
+    type: payload.note_type ?? "note",
+    title: meta.title,
+    content: contentJsonToString(payload.content_json),
+    isPinned: payload.is_pinned,
+    color: payload.color ?? undefined,
+    createdAt: meta.created_at,
+    updatedAt: meta.updated_at,
   };
 }
 
-export function listNotes(args: { query?: string }) {
-  const db = getDb();
-  if (args.query) {
-    const rows = db
-      .prepare(
-        `SELECT * FROM notes WHERE is_deleted = 0
-         AND (title LIKE @query OR content LIKE @query)
-         ORDER BY updated_at DESC`,
-      )
-      .all({ query: `%${args.query}%` }) as NoteRow[];
-    return rows.map(formatNote);
+/**
+ * Every live note, newest-updated first. Shared with search_all — both need
+ * the whole collection because body matching happens in-app (jsonb).
+ */
+export async function fetchLiveNotes(): Promise<NoteRecord[]> {
+  const { client } = await getSupabase();
+
+  const metaRows = await fetchAllPages<ItemsMetaRow>(
+    (from, to) =>
+      client
+        .from("items_meta")
+        .select(META_COLUMNS)
+        .eq("role", "note")
+        .eq("is_deleted", false)
+        .order("updated_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "list note items_meta",
+  );
+  if (metaRows.length === 0) return [];
+
+  const payloadRows = await fetchByIdChunks<NotesPayloadRow>(
+    metaRows.map((m) => m.id),
+    async (chunk) => {
+      const { data, error } = await client
+        .from("notes_payload")
+        .select(PAYLOAD_COLUMNS)
+        .in("item_id", chunk);
+      if (error) throw new Error(`list notes_payload: ${error.message}`);
+      return (data ?? []) as unknown as NotesPayloadRow[];
+    },
+  );
+  const payloadById = new Map<string, NotesPayloadRow>();
+  for (const p of payloadRows) payloadById.set(p.item_id, p);
+
+  const out: NoteRecord[] = [];
+  for (const meta of metaRows) {
+    const payload = payloadById.get(meta.id);
+    if (payload) out.push({ meta, payload }); // meta without payload = orphan
   }
-  const rows = db
-    .prepare(
-      "SELECT * FROM notes WHERE is_deleted = 0 ORDER BY updated_at DESC",
-    )
-    .all() as NoteRow[];
-  return rows.map(formatNote);
+  return out;
 }
 
-export function createNote(args: { title: string; content?: string }) {
-  const db = getDb();
-  const id = `note-${Date.now()}`;
-
-  let contentJson = "";
-  if (args.content) {
-    contentJson = JSON.stringify(markdownToTiptap(args.content));
-  }
-
-  db.prepare(
-    `INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
-     VALUES (@id, @title, @content, 0, 0, datetime('now'), datetime('now'))`,
-  ).run({ id, title: args.title, content: contentJson });
-
-  const row = db.prepare("SELECT * FROM notes WHERE id = ?").get(id) as NoteRow;
-  return formatNote(row);
+/** Fetch one live note (meta + payload) or throw a not-found error. */
+async function getNoteRows(id: string): Promise<NoteRecord> {
+  const meta = await requireMeta(id, "note", "Note");
+  const { client } = await getSupabase();
+  const { data, error } = await client
+    .from("notes_payload")
+    .select(PAYLOAD_COLUMNS)
+    .eq("item_id", id)
+    .maybeSingle();
+  if (error) throw new Error(`get notes_payload: ${error.message}`);
+  if (!data) throw new Error(`Note not found: ${id}`);
+  return { meta, payload: data as unknown as NotesPayloadRow };
 }
 
-export function updateNote(args: {
+export async function listNotes(args: { query?: string }) {
+  const notes = await fetchLiveNotes();
+  const needle = args.query?.toLowerCase();
+
+  const out = [];
+  for (const { meta, payload } of notes) {
+    if (needle) {
+      const haystack = `${meta.title}\n${contentPlainText(
+        payload.content_json,
+      )}`.toLowerCase();
+      if (!haystack.includes(needle)) continue;
+    }
+    out.push(formatNote(meta, payload));
+  }
+  return out;
+}
+
+export async function createNote(args: { title: string; content?: string }) {
+  const id = `note-${randomUUID()}`;
+
+  await insertItem({
+    id,
+    role: "note",
+    title: args.title,
+    payloadTable: "notes_payload",
+    payload: {
+      parent_item_id: null,
+      note_type: "note",
+      content_json: args.content ? markdownToTiptap(args.content) : null,
+      sort_order: 0,
+      is_pinned: false,
+      is_edit_locked: false,
+    },
+  });
+
+  const { meta, payload } = await getNoteRows(id);
+  return formatNote(meta, payload);
+}
+
+export async function updateNote(args: {
   id: string;
   title?: string;
   content?: string;
   color?: string;
 }) {
-  const db = getDb();
-  const existing = db
-    .prepare("SELECT * FROM notes WHERE id = ?")
-    .get(args.id) as NoteRow | undefined;
-  if (!existing) throw new Error(`Note not found: ${args.id}`);
+  await getNoteRows(args.id); // not-found guard
 
-  const updates: string[] = [];
-  const params: Record<string, unknown> = { id: args.id };
+  const metaPatch: Record<string, unknown> = {};
+  if (args.title !== undefined) metaPatch.title = args.title;
 
-  if (args.title !== undefined) {
-    updates.push("title = @title");
-    params.title = args.title;
-  }
-  if (args.content !== undefined) {
-    updates.push("content = @content");
-    params.content = JSON.stringify(markdownToTiptap(args.content));
-  }
+  const payloadPatch: Record<string, unknown> = {};
+  if (args.content !== undefined)
+    payloadPatch.content_json = markdownToTiptap(args.content);
+  if (args.color !== undefined) payloadPatch.color = args.color;
 
-  if (args.color !== undefined) {
-    updates.push("color = @color");
-    params.color = args.color;
-  }
-
-  if (updates.length === 0) return formatNote(existing);
-
-  updates.push("updated_at = datetime('now')");
-  db.prepare(`UPDATE notes SET ${updates.join(", ")} WHERE id = @id`).run(
-    params,
+  await updatePayload(
+    "notes_payload",
+    args.id,
+    "note",
+    payloadPatch,
+    metaPatch,
   );
 
-  const row = db
-    .prepare("SELECT * FROM notes WHERE id = ?")
-    .get(args.id) as NoteRow;
-  return formatNote(row);
+  const { meta, payload } = await getNoteRows(args.id);
+  return formatNote(meta, payload);
 }
