@@ -66,5 +66,4 @@
 
 ## 6. 別枠メモ（本スコープ表の対象外・別 Issue で処理）
 
-- 規約（`.claude/rules/frontend.md`）の「Mobile 省略 Provider（Audio / ScreenLock / FileExplorer / ShortcutConfig 等）」は、実測では web ホストで省略ロジック未実装（該当 Provider の一部はコードに存在せず、Audio/ShortcutConfig は無条件マウント）。Tauri 時代の名残。**規約を実装実態に合わせて直す作業は別 Issue**（本スコープ表の対象外）。
-- 上記に合わせ、CLAUDE.md §2 の「Mobile 省略 Provider（4 種）」行も実態確認のうえ別 Issue で追随する。
+- Mobile 省略ガードは #320 で配線済み: web ホストが `isNativeMobile()` で ShortcutConfig Provider を native 省略し、Audio は Provider 維持（本表 #10 の完了チャイム維持のため）で Ambient mixer UI のみ native 省略（#11）。規約 = `.claude/rules/frontend.md` §Provider 順序・大方針 = CLAUDE.md §2。

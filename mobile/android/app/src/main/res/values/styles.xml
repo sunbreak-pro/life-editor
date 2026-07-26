@@ -17,10 +17,10 @@
           Safe-area fallback (Phase 4). targetSdk 36 enforces edge-to-edge, so
           the WebView draws under the status/navigation bars. fitsSystemWindows
           pads the content view by the system-bar insets so UI is not clipped
-          under the notch / gesture bar. The richer fix (viewport-fit=cover +
-          CSS env(safe-area-inset-*) in web/index.html) is a stream-E-coordinated
-          follow-up — see the Phase 4 plan handoff. This native fallback keeps
-          the wrapper inside mobile/android/ and works without touching web/.
+          under the notch / gesture bar. web/index.html additionally sets
+          viewport-fit=cover (#320) so CSS env(safe-area-inset-*) resolves in
+          the WebView; this native fallback stays as defence in depth inside
+          mobile/android/ and works without touching web/.
         -->
         <item name="android:fitsSystemWindows">true</item>
     </style>

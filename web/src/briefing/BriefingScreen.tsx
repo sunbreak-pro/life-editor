@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   BriefingView,
   EveningView,
@@ -56,6 +57,12 @@ interface BriefingScreenProps {
   onNavigate: (nav: NavSection) => void;
   /** Active header tab (朝刊 / 夕刊, #263 F-6) — lifted to MainScreen. */
   tab: BriefingTab;
+  /**
+   * Narrow-layout tab band, passed straight through to the paper views (#318).
+   * MainScreen builds it (it owns `tab` + the i18n copy) and leaves it
+   * undefined on the wide layout, where the SectionHeader renders the tabs.
+   */
+  tabSwitcher?: ReactNode;
 }
 
 /** Lexical "YYYY-MM-DD" from a scheduledAt-ish string ("YYYY-MM-DD…"). */
@@ -84,6 +91,7 @@ export function BriefingScreen({
   dataService: ds,
   onNavigate,
   tab,
+  tabSwitcher,
 }: BriefingScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { syncVersion } = useSyncContext();
@@ -640,6 +648,7 @@ export function BriefingScreen({
         todos={remainingTodos}
         schedule={upcoming}
         labels={eveningLabels}
+        tabSwitcher={tabSwitcher}
       />
     );
   }
@@ -659,6 +668,7 @@ export function BriefingScreen({
       onToggleTask={handleToggleTask}
       onJumpToSchedule={() => onNavigate("schedule")}
       onJumpToTasks={() => onNavigate("tasks")}
+      tabSwitcher={tabSwitcher}
     />
   );
 }
