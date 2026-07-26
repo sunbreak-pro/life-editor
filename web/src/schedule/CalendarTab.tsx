@@ -494,6 +494,22 @@ export function CalendarTab({
     weekEnd,
   ]);
 
+  // #353: the creation panel is reachable from three gestures (toolbar /
+  // empty slot / month cell) and each carries its own target day, but only
+  // the times were visible — "which day am I adding to?" had no answer on
+  // screen. The year is included: the panel can be open on a day the user
+  // navigated months away to.
+  const createDateLabel = useMemo(() => {
+    if (!createPanel) return undefined;
+    const [y, m, d] = createPanel.date.split("-").map(Number);
+    return new Intl.DateTimeFormat(i18n.language, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    }).format(new Date(y, m - 1, d));
+  }, [createPanel, i18n.language]);
+
   const todayLabel = useMemo(() => {
     const [y, m, d] = today.split("-").map(Number);
     return new Intl.DateTimeFormat(i18n.language, {
@@ -1107,6 +1123,7 @@ export function CalendarTab({
       {createPanel && (
         <EventCreateFields
           key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
+          dateLabel={createDateLabel}
           initialStart={createPanel.start}
           initialEnd={createPanel.end}
           onSubmit={handleCreateSubmit}
@@ -1116,6 +1133,7 @@ export function CalendarTab({
             placeholder: t("scheduleScreen.quickAddPlaceholder"),
             add: t("scheduleScreen.addEvent"),
             addAndOpen: t("scheduleScreen.addEventAndOpen"),
+            date: t("scheduleScreen.date"),
             startTime: t("scheduleScreen.startTime"),
             endTime: t("scheduleScreen.endTime"),
           }}
@@ -1347,6 +1365,7 @@ export function CalendarTab({
         onClose={() => setCreatePanel(null)}
         onAdd={handleCreateSubmit}
         onAddAndOpen={handleCreateSubmitAndOpen}
+        dateLabel={createDateLabel}
         initialStart={createPanel?.start}
         initialEnd={createPanel?.end}
         labels={{
@@ -1354,6 +1373,7 @@ export function CalendarTab({
           placeholder: t("scheduleScreen.quickAddPlaceholder"),
           add: t("scheduleScreen.addEvent"),
           addAndOpen: t("scheduleScreen.addEventAndOpen"),
+          date: t("scheduleScreen.date"),
           startTime: t("scheduleScreen.startTime"),
           endTime: t("scheduleScreen.endTime"),
         }}

@@ -13,6 +13,7 @@ const LABELS: QuickCaptureLabels = {
   placeholder: "Event title",
   add: "Add",
   addAndOpen: "Add and edit",
+  date: "Date",
   startTime: "Start",
   endTime: "End",
 };
@@ -94,5 +95,12 @@ describe("QuickCaptureSheet", () => {
     expect(onAddAndOpen).toHaveBeenCalledWith("Review", "09:00", "10:00");
     expect(onAdd).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the target day through to the fields (#353)", () => {
+    // Mobile reaches creation from the FAB and from an empty-slot tap, which
+    // target different days — the sheet must show which one it is holding.
+    renderSheet({ dateLabel: "Mon, July 27, 2026" });
+    expect(screen.getByText("Mon, July 27, 2026")).toBeInTheDocument();
   });
 });

@@ -28,11 +28,28 @@ export interface EventCreateFieldsLabels {
    * editor" action.
    */
   addAndOpen: string;
+  /** Field label for the read-only target-day row. */
+  date: string;
   startTime: string;
   endTime: string;
 }
 
 export interface EventCreateFieldsProps {
+  /**
+   * The day the event will land on, already formatted for display (#353).
+   * The host owns the target date and the locale (§6.4), so it hands the
+   * finished string down. Read-only: the day comes from where the user
+   * opened the panel (toolbar → anchor day, empty slot / month cell → that
+   * cell's day), and changing it here would contradict that gesture.
+   *
+   * Optional because it tracks the host's OPEN-PANEL STATE, not its
+   * capabilities: with the panel closed there is no target day, and the
+   * Mobile frame (QuickCaptureSheet) stays mounted across that transition.
+   * `labels.date` is required precisely so a host cannot forget the row
+   * exists — only the value comes and goes. Absent ⇒ the row is skipped
+   * rather than rendered empty.
+   */
+  dateLabel?: string;
   /** Seeds the start-time field (HH:MM). Default 09:00. */
   initialStart?: string;
   /** Seeds the end-time field (HH:MM). Default 10:00. */
@@ -56,6 +73,7 @@ export interface EventCreateFieldsProps {
 }
 
 export function EventCreateFields({
+  dateLabel,
   initialStart = "09:00",
   initialEnd = "10:00",
   initialTitle = "",
@@ -86,6 +104,14 @@ export function EventCreateFields({
         aria-label={labels.title}
         className={FIELD}
       />
+      {dateLabel && (
+        <div className="flex flex-col gap-1 text-xs text-lumen-text-secondary">
+          {labels.date}
+          {/* Read-only, so a <p> rather than a disabled input: it is context
+              for the times below, not something the user can act on. */}
+          <p className="text-sm font-medium text-lumen-text">{dateLabel}</p>
+        </div>
+      )}
       <div className="flex gap-2">
         <label className="flex flex-1 flex-col gap-1 text-xs text-lumen-text-secondary">
           {labels.startTime}
