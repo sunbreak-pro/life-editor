@@ -6,14 +6,12 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { initDb, closeDb } from "./db.js";
 import { TOOLS, callTool } from "./tools.js";
 
-// Optional legacy SQLite path. Supabase-backed tools (schedule / briefing)
-// authenticate from env (see supabase.ts) and need no local DB; the
-// remaining SQLite tools error at call time when no path is given.
-const dbPath = process.argv[2] || process.env.DB_PATH;
-if (dbPath) initDb(dbPath);
+// Every tool is Supabase-backed since #360 — the server authenticates from
+// env (see supabase.ts) and keeps no local database. The legacy SQLite path
+// argument (argv[2] / DB_PATH) is accepted-and-ignored so an old .mcp.json
+// entry still starts the server instead of failing.
 
 const server = new Server(
   { name: "life-editor", version: "1.0.0" },
@@ -43,11 +41,9 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 
 process.on("SIGINT", () => {
-  closeDb();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
-  closeDb();
   process.exit(0);
 });

@@ -60,7 +60,7 @@ export const TOOLS: Tool[] = [
         },
         folder_id: {
           type: "string",
-          description: "Filter by parent folder ID",
+          description: "Filter by parent task ID",
         },
       },
     },
@@ -85,7 +85,7 @@ export const TOOLS: Tool[] = [
         title: { type: "string", description: "Task title" },
         parent_id: {
           type: "string",
-          description: "Parent folder ID (optional)",
+          description: "Parent task ID (optional)",
         },
         scheduled_at: {
           type: "string",
@@ -406,7 +406,8 @@ export const TOOLS: Tool[] = [
       properties: {
         query: {
           type: "string",
-          description: "Search keyword (matches title and content via LIKE)",
+          description:
+            "Search keyword (case-insensitive substring match on title and content)",
         },
         domains: {
           type: "array",
@@ -428,20 +429,19 @@ export const TOOLS: Tool[] = [
   {
     name: "generate_content",
     description:
-      "PREFERRED tool for creating rich content in notes, dailies, or schedule items. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_daily when you need formatted output.",
+      "PREFERRED tool for creating rich content in notes or dailies. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_daily when you need formatted output.",
     inputSchema: {
       type: "object" as const,
       properties: {
         target: {
           type: "string",
-          enum: ["note", "daily", "schedule"],
-          description:
-            "Target entity type (schedule: updates content column of a schedule item)",
+          enum: ["note", "daily"],
+          description: "Target entity type",
         },
         target_id: {
           type: "string",
           description:
-            "Existing note/daily/schedule-item ID to update (omit to create new note/daily)",
+            "Existing note ID to update (omit to create a new note). Dailies are addressed by target_date instead.",
         },
         target_date: {
           type: "string",
@@ -576,10 +576,11 @@ export const TOOLS: Tool[] = [
         entity_type: {
           type: "string",
           enum: ["task", "daily", "note"],
-          description: "Entity type",
+          description:
+            "Entity type (optional). The real type is read from the item; supplying it asserts the item is of that type.",
         },
       },
-      required: ["tag_name", "entity_id", "entity_type"],
+      required: ["tag_name", "entity_id"],
     },
   },
   {
@@ -601,19 +602,18 @@ export const TOOLS: Tool[] = [
   {
     name: "get_task_tree",
     description:
-      "Get tasks as a hierarchical tree structure. Returns folders and tasks with their children, tags, and metadata (excludes content — use get_task for full content).",
+      "Get tasks as a hierarchical tree structure. Returns tasks with their children, tags, and metadata (excludes content — use get_task for full content).",
     inputSchema: {
       type: "object" as const,
       properties: {
         root_id: {
           type: "string",
           description:
-            "Folder/task ID to use as root (returns subtree). Omit for full tree.",
+            "Task ID to use as root (returns subtree). Omit for full tree.",
         },
         include_done: {
           type: "boolean",
-          description:
-            "Include completed tasks (default: true). Folders are always included.",
+          description: "Include completed tasks (default: true).",
         },
         max_depth: {
           type: "number",
@@ -744,18 +744,18 @@ export const TOOLS: Tool[] = [
   {
     name: "format_content",
     description:
-      "Read and restructure existing note/daily/schedule-item content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
+      "Read and restructure existing note/daily content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
     inputSchema: {
       type: "object" as const,
       properties: {
         target: {
           type: "string",
-          enum: ["note", "daily", "schedule"],
+          enum: ["note", "daily"],
           description: "Target entity type",
         },
         target_id: {
           type: "string",
-          description: "Note or schedule item ID (required for notes/schedule)",
+          description: "Note ID (required when target is note)",
         },
         target_date: {
           type: "string",
@@ -820,34 +820,34 @@ export async function callTool(
 
   switch (name) {
     case "list_tasks":
-      result = listTasks(args as Parameters<typeof listTasks>[0]);
+      result = await listTasks(args as Parameters<typeof listTasks>[0]);
       break;
     case "get_task":
-      result = getTask(args as Parameters<typeof getTask>[0]);
+      result = await getTask(args as Parameters<typeof getTask>[0]);
       break;
     case "create_task":
-      result = createTask(args as Parameters<typeof createTask>[0]);
+      result = await createTask(args as Parameters<typeof createTask>[0]);
       break;
     case "update_task":
-      result = updateTask(args as Parameters<typeof updateTask>[0]);
+      result = await updateTask(args as Parameters<typeof updateTask>[0]);
       break;
     case "delete_task":
-      result = deleteTask(args as Parameters<typeof deleteTask>[0]);
+      result = await deleteTask(args as Parameters<typeof deleteTask>[0]);
       break;
     case "get_daily":
-      result = getDaily(args as Parameters<typeof getDaily>[0]);
+      result = await getDaily(args as Parameters<typeof getDaily>[0]);
       break;
     case "upsert_daily":
-      result = upsertDaily(args as Parameters<typeof upsertDaily>[0]);
+      result = await upsertDaily(args as Parameters<typeof upsertDaily>[0]);
       break;
     case "list_notes":
-      result = listNotes(args as Parameters<typeof listNotes>[0]);
+      result = await listNotes(args as Parameters<typeof listNotes>[0]);
       break;
     case "create_note":
-      result = createNote(args as Parameters<typeof createNote>[0]);
+      result = await createNote(args as Parameters<typeof createNote>[0]);
       break;
     case "update_note":
-      result = updateNote(args as Parameters<typeof updateNote>[0]);
+      result = await updateNote(args as Parameters<typeof updateNote>[0]);
       break;
     case "list_schedule":
       result = await listSchedule(args as Parameters<typeof listSchedule>[0]);
@@ -891,30 +891,30 @@ export async function callTool(
       result = await writeBriefing(args as Parameters<typeof writeBriefing>[0]);
       break;
     case "search_all":
-      result = searchAll(args as Parameters<typeof searchAll>[0]);
+      result = await searchAll(args as Parameters<typeof searchAll>[0]);
       break;
     case "generate_content":
-      result = generateContent(
+      result = await generateContent(
         args as unknown as Parameters<typeof generateContent>[0],
       );
       break;
     case "list_wiki_tags":
-      result = listWikiTags(args as Parameters<typeof listWikiTags>[0]);
+      result = await listWikiTags(args as Parameters<typeof listWikiTags>[0]);
       break;
     case "tag_entity":
-      result = tagEntity(args as Parameters<typeof tagEntity>[0]);
+      result = await tagEntity(args as Parameters<typeof tagEntity>[0]);
       break;
     case "search_by_tag":
-      result = searchByTag(args as Parameters<typeof searchByTag>[0]);
+      result = await searchByTag(args as Parameters<typeof searchByTag>[0]);
       break;
     case "get_task_tree":
-      result = getTaskTree(args as Parameters<typeof getTaskTree>[0]);
+      result = await getTaskTree(args as Parameters<typeof getTaskTree>[0]);
       break;
     case "get_entity_tags":
-      result = getEntityTags(args as Parameters<typeof getEntityTags>[0]);
+      result = await getEntityTags(args as Parameters<typeof getEntityTags>[0]);
       break;
     case "format_content":
-      result = formatContent(
+      result = await formatContent(
         args as unknown as Parameters<typeof formatContent>[0],
       );
       break;

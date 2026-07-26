@@ -60,7 +60,7 @@
 ### Known Issues / Tech Debt
 
 - **手書きの朝刊・夕刊は現状不成立**（Daily 本文が平文 textarea・パーサは TipTap `heading` ノード必須 — 2026-07-16 実測）。前提工事 = loop-friction-fixes F-1（Daily の TipTap 化）。F-1 と Step 2 がループ開通の 2 大前提（briefing-loop Risks）
-- MCP schedule handler が旧 SQLite のまま Supabase 未接続（Step 2 = MCP Supabase 化と同一起点）
+- ~~MCP schedule handler が旧 SQLite のまま Supabase 未接続~~ → **解消**（schedule / briefing = #256、残る全 handler = #360）
 - 表示ラベルは F-4 で改名予定（「タスク」→「Todo」・「約束」→「予定」— i18n catalog のみ・識別子は不変）
 
 ### Future Enhancements
@@ -187,7 +187,7 @@
 - [ ] AC5: Calendar ビューの月 / 週 / 日表示が同じデータを一貫して表示し、どの画面で編集しても即時相互反映される（`useScheduleItemsContext` 共有）
 - [ ] AC6: ScheduleItem を編集モードに入ると編集内容がリアルタイムでプレビュー表示され、キャンセル時は変更前の状態に戻る
 - [ ] ~~AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags は DU-F で全プラットフォーム撤去済みのため形骸化。分類の後継 = カレンダー台帳（calendars）のタグフィルタ（再設計 Step 6 で配線）
-- [ ] AC8: Claude Code が MCP `list_schedule` を呼ぶと、指定日 / 日付範囲の ScheduleItem（Routine 由来含む）が UI と同じ内容で返る（2026-07-14 注記: MCP schedule handler は旧 SQLite 単一表のまま Supabase 未接続 — 再設計 並走 α で対応）
+- [ ] AC8: Claude Code が MCP `list_schedule` を呼ぶと、指定日 / 日付範囲の ScheduleItem（Routine 由来含む）が UI と同じ内容で返る（handler の Supabase 化は #256 で完了 — 実データでの一致確認は未実施）
 - [ ] ~~AC9: Mobile（iOS）では CalendarTagsProvider は hydrate されず、タグ関連 UI が出現せず、他機能（Calendar 月表示 / Routine）は動作する~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags 全撤去により前提が消滅。Mobile の責務は再設計 Step 5 で List（今日）+ FAB に絞る
 - [ ] AC10: ドラッグで ScheduleItem の時間 / 日付を変更すると DB に永続化され、Tasks (`scheduledAt`) と双方向同期される（2026-07-14 注記: 前段のドラッグ永続化は実装済み。Tasks 双方向同期は**未達** — 再設計 Step 2 で実装予定）
 
@@ -217,7 +217,7 @@
 
 ### Future Enhancements
 
-- 短期: Routine の MCP ツール化（MCP schedule handler の Supabase 対応 = 再設計 並走 α に統合）
+- 短期: Routine の MCP ツール化（handler の Supabase 化は #256 / #360 で完了済 — 残るは Routine マスタ自体のツール追加）
 - 中期: Routine 未達成通知、Claude による「今日のスケジュール提案」（ADR-0005 Phase 2）
 - ~~Google Calendar 連携（ICS 購読 / OAuth 双方向）~~ → **見送り（2026-07-14 路線変更）**: 再開条件 = 朝刊（Briefing）ループの安定運用後にユーザーが改めて望んだ場合のみ（→ `tier-3-experimental.md` §Google Calendar 連携）
 
@@ -414,9 +414,9 @@
 ## Feature: MCP Server
 
 **Tier**: 1
-**Status**: ◎完成（32 ツール安定稼働）
-**Owner Provider/Module**: `mcp-server/` (独立 Node.js プロセス、`@modelcontextprotocol/sdk` + `better-sqlite3`)
-**MCP Coverage**: 全 32 ツール（一覧はコード `mcp-server/src/tools.ts` が正）
+**Status**: ◎完成（全ツール Supabase 稼働 — #360 で legacy SQLite 参照を解消）
+**Owner Provider/Module**: `mcp-server/` (独立 Node.js プロセス、`@modelcontextprotocol/sdk` + `@supabase/supabase-js`)
+**MCP Coverage**: 全ツール（一覧はコード `mcp-server/src/tools.ts` が正）
 **Supports Value Prop**: V1
 
 ### Purpose
@@ -426,39 +426,43 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Boundary
 
 - やる:
-  - 32 ツール安定稼働（Tasks 6 / Memos(Daily) 2 / Notes 3 / Schedule 7 / Wiki Tags 4 / Content 2 / Search 1 / File Management 7）
-  - 同一 SQLite を `better-sqlite3` で直接アクセス（WAL モードにより rusqlite と共存）
+  - Tasks / Daily / Notes / Schedule / Wiki Tags / Content / Search / File Management の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
+  - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
 - やらない:
   - 認知系 / 分析系ツール（`reflect_on_day` / `analyze_patterns` 等）— 別 Server `mcp-server-cognitive/` として ADR-0005 Phase 1 で分離実装
   - Database (Notion 風 DB) 系ツール — 現状未対応、Phase 1 で追加予定
   - 破壊的操作のうち Notes / Daily(Memo) の削除（UI 限定、§Notes / §Daily (Memo) Boundary 参照）
-  - 認証 / 外部 HTTP（local stdio 専用）
+  - 外部 HTTP（Supabase 以外。ツール呼び出しの受け口は local stdio 専用）
+  - Event 本文への構造化コンテンツ書き込み（`generate_content` / `format_content` の `schedule` ターゲットは #360 で退役 — 統合スキーマの `events_payload` に content 列が無いため。Event のテキストは `update_schedule_item` の `memo`）
+  - タグ付与元の区別（legacy の `source` 列は統合スキーマに無く、#360 で出力から削除）
 
 ### Acceptance Criteria
 
-- [ ] AC1: Life Editor 起動中に `claude` コマンドを実行すると、MCP Server `life-editor` が自動接続され、`/mcp` コマンドで 32 ツールが列挙される（起動導線だったアプリ内ターミナルは 2026-07-05 退役・常設起動導線は再設計中 → §Terminal）
+- [ ] AC1: Life Editor 起動中に `claude` コマンドを実行すると、MCP Server `life-editor` が自動接続され、`/mcp` コマンドで全ツールが列挙される（起動導線だったアプリ内ターミナルは 2026-07-05 退役・常設起動導線は再設計中 → §Terminal）
 - [ ] AC2: Claude に「今日の Todo 一覧を見せて」と指示すると MCP `list_tasks` が呼ばれ、UI で表示されている内容と同じ Todo が返る
 - [ ] AC3: Claude が `create_task` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
 - [ ] AC4: `search_all` で複数ドメイン（tasks / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
 - [ ] AC5: `tag_entity` で WikiTag を任意エンティティに付与し、`search_by_tag` / `get_entity_tags` で取得できる（UI 側のタグ一覧と一致）
 - [ ] AC6: ファイル系ツール（`list_files` / `read_file` / `write_file` / `rename_file` / `delete_file` / `create_directory` / `search_files`）が life-editor 管理下のディレクトリで動作し、不正パスは拒否される
-- [ ] AC7: MCP Server が異常終了しても Life Editor 本体（Tauri アプリ）は影響を受けず、ターミナル再起動で再接続できる
-- [ ] AC8: 32 ツールのいずれも、失敗時に JSON-RPC error を返し、Claude 側でエラー内容が分かる形で表示される
+- [ ] AC7: MCP Server が異常終了しても Life Editor 本体は影響を受けず、再起動で再接続できる
+- [ ] AC8: どのツールも、失敗時に JSON-RPC error を返し、Claude 側でエラー内容が分かる形で表示される
+- [ ] AC9: 全ツールが現行スキーマ（`items_meta` + `<role>_payload`）に対して動作する（#360 — DROP 済み legacy テーブルへのクエリが残っていない）
 
 ### Dependencies
 
-- DB: 同一 SQLite (life-editor.db) 直接アクセス（WAL モード）
+- DB: Supabase Postgres（統合スキーマ `items_meta` + `<role>_payload`。web クライアントと同一プロジェクト / 同一 RLS）
+- 資格情報: `LIFE_EDITOR_SUPABASE_URL` / `_ANON_KEY`（`VITE_*` でも可）/ `_EMAIL` / `_PASSWORD` を env 供給（平文コミット禁止 — CLAUDE.md §9 鉄則）
 - 通信: stdio JSON-RPC（Claude Code から呼び出し）
 - 他機能: Terminal（起動経路 — 2026-07-05 退役 → §Terminal。MCP Server 自体は存続・起動導線は再設計）/ 全 Tier 1 / Tier 2 機能（対象データ）
-- ライブラリ: `@modelcontextprotocol/sdk` / `better-sqlite3`
+- ライブラリ: `@modelcontextprotocol/sdk` / `@supabase/supabase-js`
 
 ### Known Issues / Tech Debt
 
 - Database (Notion 風 DB) 系ツール未対応 → Phase 1 で対応予定（ADR-0005 関連）
 - Cognitive ツール（analyze / reflect / suggest）は別 Server `mcp-server-cognitive/` で実装予定（ADR-0005）
-- better-sqlite3 と rusqlite の書き込み競合時の挙動が未検証（WAL でほぼ問題なしだが計測推奨）
+- notes / dailies の本文検索は in-app 照合（`content_json` が jsonb で PostgREST の `ilike` が使えない）。件数が増えたら全文検索インデックスの検討が要る
 
 ### Future Enhancements
 
