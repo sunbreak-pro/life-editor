@@ -5,7 +5,7 @@ import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import { formatDateKey } from "../../utils/dateKey";
+import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import {
   aggregateByDay,
   aggregateRoutineCompletion,
@@ -50,11 +50,21 @@ function isEmpty(p: MobileAnalyticsViewProps): boolean {
 export function MobileAnalyticsView(
   props: MobileAnalyticsViewProps,
 ): React.JSX.Element {
-  const { sessions, nodes, todayItems, scheduleItems, notes, routines, labels } =
-    props;
+  const {
+    sessions,
+    nodes,
+    todayItems,
+    scheduleItems,
+    notes,
+    routines,
+    labels,
+  } = props;
 
   const model = useMemo(() => {
-    const todayStr = formatDateKey(new Date());
+    // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics buckets
+    // sessions by wall calendar date; the day-start-hour "today"
+    // (todayDateKey) belongs to Daily / routine sync.
+    const todayStr = todayCalendarKey();
 
     // Today
     const todaySessions = sessions.filter(
@@ -71,6 +81,9 @@ export function MobileAnalyticsView(
       (n) =>
         n.type === "task" &&
         n.completedAt &&
+        // NOTE: completedAt is a UTC ISO prefix, not a calendar key (same
+        // drift as the desktop TodayDashboard, and as the week window below).
+        // Pre-existing, reported separately; out of #356's scope.
         n.completedAt.substring(0, 10) === todayStr,
     ).length;
 

@@ -14,6 +14,7 @@ import {
   type WikiTagUnified,
   type WikiTagAssignmentUnified,
   formatDateKey,
+  todayCalendarKey,
 } from "@life-editor/shared";
 
 /*
@@ -68,10 +69,6 @@ const EMPTY: AnalyticsData = {
   targetPerDay: 4,
 };
 
-function todayKey(): string {
-  return formatDateKey(new Date());
-}
-
 export function AnalyticsScreen({
   dataService: ds,
   tab,
@@ -90,7 +87,11 @@ export function AnalyticsScreen({
 
   useEffect(() => {
     let cancelled = false;
-    const today = todayKey();
+    // Wall calendar day (#356): the Overview's today stats come from schedule
+    // items, and the Schedule domain keys its grids on the calendar — a 2 AM
+    // edit belongs to the new date. The day-start-hour "today" (todayDateKey)
+    // is Daily / routine sync's boundary and stays out of Analytics.
+    const today = todayCalendarKey();
 
     void Promise.all([
       ds.fetchTimerSessions(),
