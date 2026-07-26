@@ -108,7 +108,7 @@ folder 概念の参照は **約 62 ファイル**（shared/src ≈35・web/src 9
 | mapper / hooks   | `services/taskMapper.ts`（`task_type`/`folder_type`）/ `notesUnifiedMapper.ts`（`note_type`）/ `hooks/useTaskTreeCRUD.ts`（Complete-folder 自動生成:133-159・`completeFolderWithChildren`/`uncompleteFolder`:294-341）/ `useTaskTreeMovement.ts` / `useNotesUnifiedAPI.ts`（`createFolder`:446-475）/ `utils/sortTaskNodes.ts` / `getDescendantTasks.ts` / `folderTag.ts` |
 | Schedule FK 連鎖 | `types/calendar.ts`（`folderId`）/ `services/calendarMapper.ts` / `hooks/useCalendarsAPI.ts` / `web/src/schedule/CalendarView.tsx`（`folderTasks`:41-52・FK 409 ガード:63）— **schedule-refine 領分**                                                                                                                                                                     |
 
-横断の後継対応（各セクション adoption・Step 4 後段）: `utils/analyticsAggregation.ts` `aggregateByFolder`/`aggregateNotesByFolder` → タグ集計（analytics）/ `Connect/graph/buildGraphModel.ts` の folder→"project" ノード → タグ起点（connect）/ i18n の folder 系キー（`newFolder`・`folderCompleteConfirm`・`defaultTaskFolder*` 等 en/ja 両 catalog）/ mcp-server の `folder_id` パラメータ（旧 SQLite 読みのため実害なし — MCP の Supabase 再接続時に整理）。
+横断の後継対応（各セクション adoption・Step 4 後段）: ~~`utils/analyticsAggregation.ts` `aggregateByFolder` → タグ集計（analytics）~~ **完了 = #334**（`aggregateWorkTimeByTag` へ置換・チャートは「タグ別作業時間」に改称）/ `Connect/graph/buildGraphModel.ts` の folder→"project" ノード → タグ起点（connect）/ i18n の folder 系キー（`newFolder`・`folderCompleteConfirm`・`defaultTaskFolder*` 等 en/ja 両 catalog）/ mcp-server の `folder_id` パラメータ（旧 SQLite 読みのため実害なし — MCP の Supabase 再接続時に整理）。
 
 ### F. 実装ステージング（compile 安全順）
 

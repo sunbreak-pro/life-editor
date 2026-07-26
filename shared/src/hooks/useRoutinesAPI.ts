@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { RoutineNode, FrequencyType } from "../types/routine";
-import type { RoutineGroup } from "../types/routineGroup";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
@@ -8,9 +7,7 @@ import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncContext } from "./useSyncContext";
 
 /**
- * Behaviour-preserving port of the Tauri routine trio
- * (frontend/src/hooks/useRoutines.ts + useRoutineGroups.ts +
- * useRoutineGroupAssignments.ts) consolidated into one shared API hook
+ * Port of the Tauri routine hooks consolidated into one shared API hook
  * — same shape as the other shared API hooks. Host dependencies are
  * injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton → `options.dataService`
@@ -19,19 +16,12 @@ import { useSyncContext } from "./useSyncContext";
  *
  * Must sit inside a Sync Provider (reads `useSyncContext`) — CLAUDE.md
  * §6.2 places Routine after Sync and as the first of the Schedule trio
- * (… → Routine → ScheduleItems → CalendarTags → …).
+ * (… → Routine → ScheduleItems → …).
  *
- * Scope (S4-3): routines + routine_groups + routine_group_assignments
- * CRUD only. The Routine→schedule_items generator lands in S4-5 and is
- * NOT wired here.
+ * Scope (S4-3): routines CRUD only. The Routine→schedule_items
+ * generator lives in `useScheduleItemsRoutineSync` (S4-5) and is NOT
+ * wired here. RoutineGroups were removed in #352 (§5 決定3).
  */
-
-function sameGroupSet(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  const setA = new Set(a);
-  for (const x of b) if (!setA.has(x)) return false;
-  return true;
-}
 
 export interface UseRoutinesAPIOptions {
   dataService: DataService;
@@ -45,10 +35,6 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
 
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
-  const [routineGroups, setRoutineGroups] = useState<RoutineGroup[]>([]);
-  const [assignmentsMap, setAssignmentsMap] = useState<Map<string, string[]>>(
-    new Map(),
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,37 +43,17 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     routinesRef.current = routines;
   }, [routines]);
 
-  // `assignmentsMap` empty during initial load: setGroupsForRoutine
-  // calls in that window would persist [] and wipe genuine memberships
-  // (frontend useRoutineGroupAssignments guard, ported verbatim).
-  const assignmentsLoadedRef = useRef(false);
-
   // Initial load + every syncVersion bump (mirrors notes/daily). The
-  // three reads run independently so a failure in one (e.g. trash) does
-  // not block the others. Trash list is loaded alongside the active set.
+  // two reads run independently so a failure in one (e.g. trash) does
+  // not block the other. Trash list is loaded alongside the active set.
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-    assignmentsLoadedRef.current = false;
     (async () => {
       try {
-        const [r, g, a] = await Promise.all([
-          ds.fetchAllRoutines(),
-          ds.fetchRoutineGroups(),
-          ds.fetchAllRoutineGroupAssignments(),
-        ]);
+        const r = await ds.fetchAllRoutines();
         if (cancelled) return;
         setRoutines(r);
-        setRoutineGroups(g);
-        const map = new Map<string, string[]>();
-        for (const row of a) {
-          if (row.isDeleted) continue;
-          const existing = map.get(row.routineId) ?? [];
-          existing.push(row.groupId);
-          map.set(row.routineId, existing);
-        }
-        setAssignmentsMap(map);
-        assignmentsLoadedRef.current = true;
       } catch (e) {
         logServiceError("Routines", "fetch", e);
         if (!cancelled) {
@@ -201,7 +167,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         >
       >,
       opts?: { skipUndo?: boolean },
-    ) => {
+    ): Promise<boolean> => {
       const prev = routinesRef.current.find((r) => r.id === id);
       setRoutines((p) =>
         p.map((r) =>
@@ -210,8 +176,18 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             : r,
         ),
       );
-      ds.updateRoutine(id, updates).catch((e) =>
-        logServiceError("Routines", "update", e),
+      // Resolves false instead of rejecting (the error is still logged), so
+      // the fire-and-forget callers stay unchanged while a caller that
+      // SEQUENCES work behind the template write — the #352 frequency
+      // reconcile — can abort. Rewriting occurrences to a shape the routine
+      // itself never took would leave template and series contradicting each
+      // other, with the two generators then fighting over every day.
+      const landed = ds.updateRoutine(id, updates).then(
+        () => true,
+        (e) => {
+          logServiceError("Routines", "update", e);
+          return false;
+        },
       );
 
       if (prev && !opts?.skipUndo) {
@@ -247,6 +223,8 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           },
         });
       }
+
+      return landed;
     },
     [ds, push],
   );
@@ -484,288 +462,10 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     [ds],
   );
 
-  // ── Routine Groups ────────────────────────────────────────────────
-
-  const createRoutineGroup = useCallback(
-    async (
-      name: string,
-      color: string,
-      frequencyType?: FrequencyType,
-      frequencyDays?: number[],
-      frequencyInterval?: number | null,
-      frequencyStartDate?: string | null,
-    ): Promise<RoutineGroup | null> => {
-      const id = generateId("rgroup");
-      const now = new Date().toISOString();
-      const optimistic: RoutineGroup = {
-        id,
-        name,
-        color,
-        isVisible: true,
-        order: routineGroups.length,
-        frequencyType: frequencyType ?? "daily",
-        frequencyDays: frequencyDays ?? [],
-        frequencyInterval: frequencyInterval ?? null,
-        frequencyStartDate: frequencyStartDate ?? null,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setRoutineGroups((prev) => [...prev, optimistic]);
-      try {
-        const group = await ds.createRoutineGroup(
-          id,
-          name,
-          color,
-          frequencyType,
-          frequencyDays,
-          frequencyInterval,
-          frequencyStartDate,
-        );
-        setRoutineGroups((prev) => prev.map((g) => (g.id === id ? group : g)));
-
-        push("routine", {
-          label: "createRoutineGroup",
-          undo: async () => {
-            setRoutineGroups((prev) => prev.filter((g) => g.id !== group.id));
-            try {
-              await ds.deleteRoutineGroup(group.id);
-            } catch (e) {
-              logServiceError("RoutineGroups", "undoCreate", e);
-            }
-          },
-          redo: async () => {
-            try {
-              const restored = await ds.createRoutineGroup(
-                id,
-                name,
-                color,
-                frequencyType,
-                frequencyDays,
-                frequencyInterval,
-                frequencyStartDate,
-              );
-              setRoutineGroups((prev) => [...prev, restored]);
-            } catch (e) {
-              logServiceError("RoutineGroups", "redoCreate", e);
-            }
-          },
-        });
-
-        return group;
-      } catch (e) {
-        logServiceError("RoutineGroups", "create", e);
-        setRoutineGroups((prev) => prev.filter((g) => g.id !== id));
-        return null;
-      }
-    },
-    [ds, routineGroups.length, push],
-  );
-
-  const updateRoutineGroup = useCallback(
-    async (
-      id: string,
-      updates: Partial<
-        Pick<
-          RoutineGroup,
-          | "name"
-          | "color"
-          | "isVisible"
-          | "order"
-          | "frequencyType"
-          | "frequencyDays"
-          | "frequencyInterval"
-          | "frequencyStartDate"
-        >
-      >,
-    ) => {
-      const prev = routineGroups.find((g) => g.id === id);
-      setRoutineGroups((p) =>
-        p.map((g) => (g.id === id ? { ...g, ...updates } : g)),
-      );
-      try {
-        await ds.updateRoutineGroup(id, updates);
-      } catch (e) {
-        logServiceError("RoutineGroups", "update", e);
-      }
-
-      if (prev) {
-        const prevValues: typeof updates = {};
-        for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
-          (prevValues as Record<string, unknown>)[key] = prev[key];
-        }
-        push("routine", {
-          label: "updateRoutineGroup",
-          undo: async () => {
-            setRoutineGroups((p) =>
-              p.map((g) => (g.id === id ? { ...g, ...prevValues } : g)),
-            );
-            try {
-              await ds.updateRoutineGroup(id, prevValues);
-            } catch (e) {
-              logServiceError("RoutineGroups", "undoUpdate", e);
-            }
-          },
-          redo: async () => {
-            setRoutineGroups((p) =>
-              p.map((g) => (g.id === id ? { ...g, ...updates } : g)),
-            );
-            try {
-              await ds.updateRoutineGroup(id, updates);
-            } catch (e) {
-              logServiceError("RoutineGroups", "redoUpdate", e);
-            }
-          },
-        });
-      }
-    },
-    [ds, routineGroups, push],
-  );
-
-  const deleteRoutineGroup = useCallback(
-    async (id: string) => {
-      const target = routineGroups.find((g) => g.id === id);
-      setRoutineGroups((prev) => prev.filter((g) => g.id !== id));
-      // Drop dangling memberships locally so a deleted group never lingers
-      // in the assignment map (DB cascade removes the rows server-side).
-      setAssignmentsMap((prev) => {
-        const next = new Map<string, string[]>();
-        for (const [routineId, groupIds] of prev) {
-          const kept = groupIds.filter((g) => g !== id);
-          if (kept.length > 0) next.set(routineId, kept);
-        }
-        return next;
-      });
-      try {
-        await ds.deleteRoutineGroup(id);
-      } catch (e) {
-        logServiceError("RoutineGroups", "delete", e);
-      }
-
-      if (target) {
-        push("routine", {
-          label: "deleteRoutineGroup",
-          undo: async () => {
-            try {
-              const restored = await ds.createRoutineGroup(
-                target.id,
-                target.name,
-                target.color,
-                target.frequencyType,
-                target.frequencyDays,
-                target.frequencyInterval,
-                target.frequencyStartDate,
-              );
-              setRoutineGroups((prev) => [...prev, restored]);
-            } catch (e) {
-              logServiceError("RoutineGroups", "undoDelete", e);
-            }
-          },
-          redo: async () => {
-            setRoutineGroups((prev) => prev.filter((g) => g.id !== id));
-            try {
-              await ds.deleteRoutineGroup(id);
-            } catch (e) {
-              logServiceError("RoutineGroups", "redoDelete", e);
-            }
-          },
-        });
-      }
-    },
-    [ds, routineGroups, push],
-  );
-
-  // ── Routine ↔ Group membership ────────────────────────────────────
-
-  const setGroupsForRoutine = useCallback(
-    (routineId: string, groupIds: string[]) => {
-      // Guard: assignmentsMap is empty during initial load — calls in
-      // this window would persist [] and wipe genuine memberships
-      // (ported from frontend useRoutineGroupAssignments).
-      if (!assignmentsLoadedRef.current) {
-        logServiceError(
-          "RoutineGroupAssignments",
-          "setGroups",
-          new Error(
-            `Blocked setGroupsForRoutine during initial load (routineId=${routineId})`,
-          ),
-        );
-        return;
-      }
-      const prevGroupIds = assignmentsMap.get(routineId) ?? [];
-      if (sameGroupSet(prevGroupIds, groupIds)) return;
-
-      setAssignmentsMap((prev) => {
-        const next = new Map(prev);
-        if (groupIds.length === 0) {
-          next.delete(routineId);
-        } else {
-          next.set(routineId, [...groupIds]);
-        }
-        return next;
-      });
-      ds.setGroupsForRoutine(routineId, groupIds).catch((e) =>
-        logServiceError("RoutineGroupAssignments", "setGroups", e),
-      );
-
-      push("routine", {
-        label: "setGroupsForRoutine",
-        undo: () => {
-          setAssignmentsMap((prev) => {
-            const next = new Map(prev);
-            if (prevGroupIds.length === 0) {
-              next.delete(routineId);
-            } else {
-              next.set(routineId, [...prevGroupIds]);
-            }
-            return next;
-          });
-          ds.setGroupsForRoutine(routineId, prevGroupIds).catch((e) =>
-            logServiceError("RoutineGroupAssignments", "undoSetGroups", e),
-          );
-        },
-        redo: () => {
-          setAssignmentsMap((prev) => {
-            const next = new Map(prev);
-            if (groupIds.length === 0) {
-              next.delete(routineId);
-            } else {
-              next.set(routineId, [...groupIds]);
-            }
-            return next;
-          });
-          ds.setGroupsForRoutine(routineId, groupIds).catch((e) =>
-            logServiceError("RoutineGroupAssignments", "redoSetGroups", e),
-          );
-        },
-      });
-    },
-    [ds, assignmentsMap, push],
-  );
-
-  const getGroupIdsForRoutine = useCallback(
-    (routineId: string): string[] => {
-      return assignmentsMap.get(routineId) ?? [];
-    },
-    [assignmentsMap],
-  );
-
-  const getRoutineIdsForGroup = useCallback(
-    (groupId: string): string[] => {
-      const result: string[] = [];
-      for (const [routineId, groupIds] of assignmentsMap) {
-        if (groupIds.includes(groupId)) result.push(routineId);
-      }
-      return result;
-    },
-    [assignmentsMap],
-  );
-
   return useMemo(
     () => ({
       routines,
       deletedRoutines,
-      routineGroups,
-      assignmentsMap,
       isLoading,
       error,
       createRoutine,
@@ -777,18 +477,10 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       loadDeletedRoutines,
       restoreRoutine,
       permanentDeleteRoutine,
-      createRoutineGroup,
-      updateRoutineGroup,
-      deleteRoutineGroup,
-      setGroupsForRoutine,
-      getGroupIdsForRoutine,
-      getRoutineIdsForGroup,
     }),
     [
       routines,
       deletedRoutines,
-      routineGroups,
-      assignmentsMap,
       isLoading,
       error,
       createRoutine,
@@ -800,12 +492,6 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       loadDeletedRoutines,
       restoreRoutine,
       permanentDeleteRoutine,
-      createRoutineGroup,
-      updateRoutineGroup,
-      deleteRoutineGroup,
-      setGroupsForRoutine,
-      getGroupIdsForRoutine,
-      getRoutineIdsForGroup,
     ],
   );
 }

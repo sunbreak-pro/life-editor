@@ -127,9 +127,12 @@ export interface AnalyticsLabels {
     tasks: string;
   };
 
-  projectTime: {
+  /** Tasks tab — work time split by life-tag (successor of the folder ring). */
+  tagTime: {
     title: string;
     noData: string;
+    untagged: string;
+    other: string;
   };
 
   /** Mobile-only single-scroll labels. */

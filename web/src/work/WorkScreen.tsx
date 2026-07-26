@@ -11,6 +11,7 @@ import {
   useTimerContext,
   useAudioContext,
   useMediaQuery,
+  isNativeMobile,
   useTranslation,
   SOUND_PRESETS,
   cn,
@@ -354,11 +355,14 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         onSelect={handleSelectTask}
       />
       {/*
-       * Ambient mixer (W3-C). Only rendered when the AudioProvider is mounted
-       * (web/desktop) — Mobile omits the Provider, so audio is null and the
-       * mixer is skipped (CLAUDE.md §2 + vision §4 null-guard).
+       * Ambient mixer (W3-C). Desktop/web-only per mobile-scope.md #11 (#320):
+       * on the native shells the UI is skipped here while the AudioProvider
+       * stays mounted, so the Pomodoro completion chime keeps ringing
+       * (mobile-scope.md #10 — the timer is Mobile-Full). The `audio` null
+       * guard stays as the coding-principles §4 contract for any host that
+       * does omit the Provider.
        */}
-      {audio && (
+      {audio && !isNativeMobile() && (
         <AudioMixer
           sounds={mixerSounds}
           settings={audio.settings}

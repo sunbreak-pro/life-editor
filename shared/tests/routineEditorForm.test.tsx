@@ -9,7 +9,8 @@ import {
 /*
  * RoutineEditorForm — the Routines-tab detail form. The frequency segmented
  * control swaps in type-specific controls (weekday chips / interval + start
- * date / group chips); toggling a weekday chip patches frequencyDays.
+ * date); toggling a weekday chip patches frequencyDays. The group type and
+ * its chips were removed in #352.
  */
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -22,11 +23,9 @@ const LABELS: RoutineEditorFormLabels = {
   frequencyDaily: "Daily",
   frequencyWeekdays: "Weekdays",
   frequencyInterval: "Every N days",
-  frequencyGroup: "Group",
   intervalEvery: "Every",
   intervalDays: "days",
   startDate: "Start date",
-  groups: "Groups",
   delete: "Delete routine",
 };
 
@@ -39,10 +38,7 @@ const base: RoutineEditorRoutine = {
   frequencyDays: [1, 3, 5],
   frequencyInterval: null,
   frequencyStartDate: null,
-  groupIds: [],
 };
-
-const GROUPS = [{ id: "g1", name: "Morning", color: "tomato" }];
 
 function renderForm(
   routine: RoutineEditorRoutine,
@@ -53,7 +49,6 @@ function renderForm(
   render(
     <RoutineEditorForm
       routine={routine}
-      groups={GROUPS}
       onPatch={onPatch}
       onDelete={onDelete}
       weekdayLabels={WEEKDAYS}
@@ -75,11 +70,6 @@ describe("RoutineEditorForm — frequency-type controls", () => {
     renderForm({ ...base, frequencyType: "interval", frequencyInterval: 3 });
     expect(screen.getByLabelText("Start date")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mon" })).toBeNull();
-  });
-
-  it("shows group chips for the group type", () => {
-    renderForm({ ...base, frequencyType: "group", groupIds: [] });
-    expect(screen.getByRole("button", { name: /Morning/ })).toBeInTheDocument();
   });
 });
 

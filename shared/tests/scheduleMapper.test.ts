@@ -6,8 +6,6 @@ import {
   parseFrequencyDays,
   type RoutineRow,
 } from "../src/services/routineMapper";
-import { routineGroupUpdatesToPatchV2 } from "../src/services/routineGroupMapper";
-import { routineGroupAssignmentUpdatesToPatchV2 } from "../src/services/routineGroupAssignmentMapper";
 import { scheduleItemUpdatesToPatch } from "../src/services/scheduleItemMapper";
 import { calendarUpdatesToPatch } from "../src/services/calendarMapper";
 import type { RoutineNode } from "../src/types/routine";
@@ -116,64 +114,6 @@ describe("routineUpdatesToPatch — whitelist / partial-clobber safety", () => {
   });
 });
 
-describe("routineGroupUpdatesToPatchV2 — whitelist", () => {
-  const NOW = "2026-05-17T00:00:00.000Z";
-  it("emits only touched keys (+ updated_at), JSON-stringifies frequencyDays", () => {
-    expect(routineGroupUpdatesToPatchV2({ name: "G" }, NOW)).toEqual({
-      updated_at: NOW,
-      name: "G",
-    });
-    expect(routineGroupUpdatesToPatchV2({ frequencyDays: [1] }, NOW)).toEqual({
-      updated_at: NOW,
-      frequency_days: "[1]",
-    });
-  });
-  it("drops non-whitelisted keys (version/id)", () => {
-    const sneaky = {
-      name: "G",
-      version: 5,
-      id: "rgroup-x",
-    } as unknown as Parameters<typeof routineGroupUpdatesToPatchV2>[0];
-    expect(routineGroupUpdatesToPatchV2(sneaky, NOW)).toEqual({
-      updated_at: NOW,
-      name: "G",
-    });
-  });
-});
-
-describe("routineGroupAssignmentUpdatesToPatchV2 — soft-delete only", () => {
-  const NOW = "2026-05-17T00:00:00.000Z";
-  it("emits only the soft-delete flip (+ updated_at)", () => {
-    expect(
-      routineGroupAssignmentUpdatesToPatchV2(
-        {
-          isDeleted: true,
-          deletedAt: "2026-05-17T00:00:00.000Z",
-        },
-        NOW,
-      ),
-    ).toEqual({
-      updated_at: NOW,
-      is_deleted: true,
-      deleted_at: "2026-05-17T00:00:00.000Z",
-    });
-  });
-  it("never lets the routine/group pair or id be patched", () => {
-    const sneaky = {
-      isDeleted: true,
-      routineId: "routine-evil",
-      groupId: "rgroup-evil",
-      id: "rga-evil",
-    } as unknown as Parameters<
-      typeof routineGroupAssignmentUpdatesToPatchV2
-    >[0];
-    const patch = routineGroupAssignmentUpdatesToPatchV2(sneaky, NOW);
-    expect(patch).toEqual({ updated_at: NOW, is_deleted: true });
-    expect("routine_id" in patch).toBe(false);
-    expect("group_id" in patch).toBe(false);
-    expect("id" in patch).toBe(false);
-  });
-});
 
 describe("scheduleItemUpdatesToPatch — date/title/time partial safety", () => {
   it("a date-only move emits ONLY date (title/time untouched)", () => {

@@ -28,7 +28,7 @@ paths:
   - Analytics: AnalyticsFilter（`components/Analytics/AnalyticsView.tsx` 内）
 - **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider）
 - **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TaskTreeContext.tsx` の unmount 時 UndoRedo stack clear）
-- **Mobile 省略 Provider は未実装**（設計意図のみ）: `mobile/` は `web/dist` を包む Capacitor 殻で独自の Provider 構成を持たず、`isNativeMobile()`（`utils/platform.ts`）は export されているだけでゲートに未接続。実装する際は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）
+- **Mobile 省略ガードは配線済み**（#320）: web ホスト（`web/src/MainScreen.tsx` の ShortcutConfigHost）が `isNativeMobile()`（`utils/platform.ts`）で native mobile 時に ShortcutConfig Provider を省略する（一覧は CLAUDE.md §2 が正）。Audio は Provider 維持（完了チャイム維持 = `docs/requirements/mobile-scope.md` #10/#11）で Ambient mixer UI のみ `WorkScreen.tsx` 側で native 省略。省略 Provider は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）— 消費側は null ガードで no-op にする
 
 ## Pattern A（Context/Provider 標準 — 3 ファイル）
 

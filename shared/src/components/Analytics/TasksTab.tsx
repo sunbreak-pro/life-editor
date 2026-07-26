@@ -1,5 +1,6 @@
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
+import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import {
   TaskCompletionTrend,
   type TaskCompletionTrendLabels,
@@ -9,25 +10,29 @@ import {
   type TaskStagnationChartLabels,
 } from "./TaskStagnationChart";
 import {
-  ProjectWorkTimeChart,
-  type ProjectWorkTimeChartLabels,
-} from "./ProjectWorkTimeChart";
+  TagWorkTimeChart,
+  type TagWorkTimeChartLabels,
+} from "./TagWorkTimeChart";
 
 export interface TasksTabLabels {
   taskTrend: TaskCompletionTrendLabels;
   stagnation: TaskStagnationChartLabels;
-  projectTime: ProjectWorkTimeChartLabels;
+  tagTime: TagWorkTimeChartLabels;
 }
 
 interface TasksTabProps {
   sessions: TimerSession[];
   nodes: TaskNode[];
+  assignments: WikiTagAssignment[];
+  tags: WikiTag[];
   labels: TasksTabLabels;
 }
 
 export function TasksTab({
   sessions,
   nodes,
+  assignments,
+  tags,
   labels,
 }: TasksTabProps): React.JSX.Element {
   return (
@@ -35,10 +40,11 @@ export function TasksTab({
       <TaskCompletionTrend nodes={nodes} days={30} labels={labels.taskTrend} />
       <div className="grid grid-cols-2 gap-3">
         <TaskStagnationChart nodes={nodes} labels={labels.stagnation} />
-        <ProjectWorkTimeChart
+        <TagWorkTimeChart
           sessions={sessions}
-          nodes={nodes}
-          labels={labels.projectTime}
+          assignments={assignments}
+          tags={tags}
+          labels={labels.tagTime}
         />
       </div>
     </div>

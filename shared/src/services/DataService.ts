@@ -5,24 +5,15 @@ import type {
   SessionType,
   PomodoroPreset,
 } from "../types/timer";
-import type {
-  SoundSettings,
-} from "../types/sound";
+import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
 import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
-import type {
-  RoutineGroup,
-  RoutineGroupAssignment,
-} from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
-import type {
-  WikiTag,
-  NoteConnection,
-} from "../types/wikiTag";
+import type { WikiTag, NoteConnection } from "../types/wikiTag";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -282,7 +273,6 @@ export interface DataService {
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem>;
   dismissScheduleItem(id: string): Promise<void>;
   undismissScheduleItem(id: string): Promise<void>;
-  fetchLastRoutineDate(): Promise<string | null>;
   bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -325,39 +315,6 @@ export interface DataService {
    */
   bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
-
-  // Routine Groups
-  fetchRoutineGroups(): Promise<RoutineGroup[]>;
-  createRoutineGroup(
-    id: string,
-    name: string,
-    color: string,
-    frequencyType?: string,
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
-  ): Promise<RoutineGroup>;
-  updateRoutineGroup(
-    id: string,
-    updates: Partial<
-      Pick<
-        RoutineGroup,
-        | "name"
-        | "color"
-        | "isVisible"
-        | "order"
-        | "frequencyType"
-        | "frequencyDays"
-        | "frequencyInterval"
-        | "frequencyStartDate"
-      >
-    >,
-  ): Promise<RoutineGroup>;
-  deleteRoutineGroup(id: string): Promise<void>;
-  // V69: Routine ↔ RoutineGroup membership. Replaces the legacy Tag-based
-  // assignment. Soft-deleted rows are filtered out by the repository.
-  fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]>;
-  setGroupsForRoutine(routineId: string, groupIds: string[]): Promise<void>;
 
   // Playlists
   fetchPlaylists(): Promise<Playlist[]>;

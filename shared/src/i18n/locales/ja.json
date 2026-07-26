@@ -421,11 +421,9 @@
     "frequencyDaily": "毎日",
     "frequencyWeekdays": "曜日",
     "frequencyInterval": "N日ごと",
-    "frequencyGroup": "グループ",
     "intervalEvery": "",
     "intervalDays": "日ごと",
     "startDate": "開始日",
-    "groupsLabel": "所属グループ",
     "deleteRoutine": "ルーチンを削除",
     "summaryTitle": "マイルーチン",
     "openRoutinesCta": "「繰り返し」タブを開く",
@@ -568,9 +566,11 @@
       "title": "Todo 経過日数分布",
       "tasks": "件"
     },
-    "projectTime": {
-      "title": "プロジェクト別作業時間",
-      "noData": "プロジェクトデータがありません"
+    "tagTime": {
+      "title": "タグ別作業時間",
+      "noData": "作業時間の記録がありません",
+      "untagged": "タグなし",
+      "other": "その他のタグ"
     },
     "overview": {
       "tasks": "Todo",

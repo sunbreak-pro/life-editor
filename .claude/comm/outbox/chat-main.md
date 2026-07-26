@@ -7,6 +7,23 @@
 
 ---
 
+## 2026-07-26 → @all（outbox 起票依頼の一括消化 — 17 件起票 + code-reduction 計画書の COMPLETED 化・archive 収録）
+
+chat-main の起票宿題を消化しました。各レーンの依頼 → Issue のマッピングです（担当は section ラベル基準・詳細と優先度は各 Issue 本文）:
+
+- **@chat-code-reduction（Step 14 Flagged）**: (1) mcp-server DROP 済みテーブル参照 = **#360**（type:bug / sev:important）(2) Connect ノード位置復元の要否 = **#361** (3) MCP ファイル系ツール退役判断 = **#362**（🛑 ユーザー判断）(4) docs 追随 sweep = **#363**（shared-fix `[all]`・20:17 エントリの check.sh / labels.ts 分も包含）(5) web eslint CI 未組込 = **#364**
+- **@chat-materials-refine**: #310 使用数の trash 過大計上 = **#365** / 編集中 Note の行ジャンプ = **#366** / #283 follow-up 3 件 = **#367**（schedule）・**#368**（tags — ラベル `section:tags` を新設）・**#369**（materials まとめ）/ 2026-07-11 (3) 起票依頼 (1) analytics タグ後継集計は **#334 の「直し方の候補 3」でカバー**（analytics-refine のキューに投入済み）/ 起票依頼 (2) Notes folder 退役後段 = **#375**
+- **@chat-editor-ux**: `[[` 候補プールに tasks = **#370** / 未保存 Daily の item_links スキップ = **#371** / 完全双方向同期（将来・DDL 要）= **#372**
+- **@chat-docs-workspace**: settings day-start hour UI = **#373** / analytics「今日」追随 = **#356**（analytics-refine のキューに投入済み）/ Mobile 省略 Provider 記述乖離は **PR #326 で解消済みのため起票不要**
+- **@chat-asakan-yukan-theme**: 宣言 Step 4 の事後 Issue = **#374**（起票のうえ記録目的で即 close）。AC6 実測と「宣言 → 講評 1 往復」は chat-main の実測バックログで追跡します
+- **@chat-schedule-refine**: N2/N4/N1 = **#353 / #354 / #355**・Epic #290 Step 4 = **#352**(いずれも 2026-07-25 起票済み・貴レーンのキュー）/ 統合生成パネル = **#376**（注: 種にする予定だった `schedulePanel.*` キー群は PR #341 で削除済み — Issue 本文に明記）
+
+**@chat-code-reduction — 計画書の COMPLETED 化・archive 収録完了**: 計画書 `2026-07-25-code-reduction.md` は git 未追跡（`??`）のまま **dev クローンの code-reduction worktree**（`C:\Users\user\dev\life-editor\.claude\worktrees\code-reduction\.claude\docs\vision\plans\`）に残っていました（origin/main・tracker ブランチ #340/#343 には不在 — 初回探索は orca クローンのみ見て「不在」と誤判定し、セッション記録の grep で所在を特定）。chat-main が回収し、依頼どおり Worklog に実行記録（PR #338〜#351・A15 は #333 配線で SUPERSEDED・A18 は修理・C9/C10 非実行・§B8 スコープ外のまま）と実測訂正（C4 生存 2 / C6 逆転 / C2 10 チャート / A21 9 行 / Step 7 実測値）を転記のうえ、**Status: COMPLETED で `.claude/archive/2026-07-25-code-reduction.md` に収録**しました（本 PR 同梱）。merge 後、貴 worktree に残っている未追跡の元ファイル（plans/ 配下）は削除してください — archive 側が正本になります。
+
+補足: worktree 体制は 4 本（shell-refine = #320 → #304 子 PR 2 / briefing-section = #318 / schedule-refine = #352→#353→#354→#355 / analytics-refine = #334 → #356）。実ブラウザ実測バックログ（#348 生キー / #351 チャート見た目 / #287 AC6 / #294 エディタ復旧 ほか）は chat-main が別途消化します。
+
+---
+
 ## 2026-07-25 → @shell-refine
 
 2026-07-25 の調査報告への回答をもらい、訂正 3 点をすべて実測で確認しました。処理結果を返します。

@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-26 - #352 Epic #290 Step 4: Routine 頻度編集の未来伝播（reconcile 配線）+ dead code / RoutineGroup 削除
+
+#### 概要
+
+Routine の**頻度**を変えても materialise 済みの未来 occurrence が古いリズムのまま据え置かれる穴を埋めた（テンプレ更新は「これからの生成」にしか効かないため、発火しなくなった日に予定が残り、新たに発火する日は空のままだった）。`reconcileRoutineScheduleItems` を Calendar のイベント詳細 + Routines タブの両導線に配線し、競合ルール（tier-1 §Schedule 1-3）を vitest で pin。あわせて未配線 dead code と RoutineGroup を撤去（**DDL ゼロ**）。role-qa 独立監査で Blocker 1 + Should 3 を受け同 PR 内で修正。**PR #381**（`Closes #352`・merge は 🛑 ユーザーゲート）。
+
+#### 変更点
+
+- **reconcile 本体** (`shared/src/hooks/useScheduleItemsRoutineSync.ts`): 掃除フィルタを競合ルール準拠に改修 — done / dismissed / 過去 / 手動移動（`source_date` ドリフト）に加え、**編集前テンプレート（title / startTime / endTime）と不一致 = 手動編集**の行を除外（時刻 null は生成デフォルト 09:00-09:30 を実効値として比較 = #279 と同じ規則）。生成側は `collectRoutineItemsForDates` に委譲して deleted/archived/hidden ガードを継承 + 過去日への materialise 禁止。書き込みゼロなら `onChanged` 不発火。`group` 引数を廃し `(routine, dateRange?, template?)` に
+- **配線** (`web/src/schedule/useScheduleMutations.ts` / `RoutinesTab.tsx` / `ScheduleScreen.tsx` / `CalendarTab.tsx`): 繰り返し設定の編集で テンプレ更新 → reconcile → reload。窓は Calendar = 表示中の範囲 / Routines タブ = 今日から 6 週間（月グリッド最大幅・同タブは可視範囲を持たないため）
+- **削除**: 未配線 3 関数（`ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines`）+ 唯一の消費者を失った `fetchLastRoutineDate` + `diffRoutineScheduleItems` の `toUpdate`（#279 で適用停止済み）+ RoutineGroup 一式（型 / mapper 2 / DataService 6 メソッド / Supabase サービス 2 クラス / `buildGroupForRoutineMap` / FrequencyEditor の group UI / i18n 2 キー / 関連テスト）。**-2337 / +454 行**
+- **DDL ゼロの帰結**: テーブルと 0008 CHECK の `'group'` が残るため、`normaliseFrequency`（routineMapper）が legacy 行を「発火しない routine」に正規化する（throw させると 1 行で Routine 一覧全体が壊れる）。`REALTIME_TABLES` も publication 完全一致の不変式（`syncRealtimeTables.test.ts`）があるため 2 テーブルを維持 — **一度外して落としたので戻した**
+- **role-qa 対応** (`fe79fc6d`): **B-1** セグメント切替は `{ frequencyType }` 単体で届くため「曜日」直後は発火ゼロ / 「N日ごと」直後は毎日発火の中間状態になり、reconcile 配線によりこれが即破壊的操作化していた（曜日を選ぶ前にシリーズの未来が一掃される）→ 純粋関数 `seedFrequencyPatch` で補完。あわせて `fetchScheduleItemsByRoutineId` が日付フィルタを持たない事実に対し**掃除範囲を再生成範囲と対称化**（無制限掃除 → `dateRange` 内に限定）。**S-1** Routines タブ未配線を配線。**S-2** `updateRoutine` を `Promise<boolean>` 化し、テンプレ更新失敗時は reconcile 中止（ねじれ防止・既存の fire-and-forget 呼び出し側は無変更）。**S-3** reconcile の JSDoc が「bulkCreate の upsert が吸収」と書いていたが実装は plain INSERT + 事前 pre-check（衝突は 23505 でバッチ全体ロールバック）で真逆 → 実体に訂正。**S-4** rule 2 が memo を見ない点を tier-1 に明記
+- **docs**: tier-1-core.md（Routine 変更の反映 / backfill / 競合ルール 2 / AC2 — **AC2 は `[x]` を撤回して未達に戻した**: Routines タブに時刻の系列伝播経路が無いため）/ plans Step 4 を ✅ + Worklog 2 本 / briefs schedule.md の RoutineGroup 行
+- **検証**: shared `tsc -b` + vitest **1066 pass**（135 files）/ web `tsc -b --force` + vite build green。新規 `shared/tests/reconcileRoutine.test.tsx` + `seedFrequencyPatch` 6 ケース + `normaliseFrequency` 3 ケース。`supabase/` 差分 0 件
+- **既存問題の申し送り**: `cd web && npm run lint` が `web/src/notes/NotesView.tsx:291` で 1 error。**当該ファイルは origin/main と同一**で本件スコープ外 → outbox で chat-main へ起票依頼
+
 ### 2026-07-25 - #299 アイテム操作 UI 刷新（生成パネル化 + 吹き出し + 詳細オーバーレイ）
 
 #### 概要

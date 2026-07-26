@@ -12,7 +12,7 @@ import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import { formatDateKey } from "../../utils/dateKey";
+import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import {
   computeSummary,
   getWorkSessions,
@@ -88,7 +88,8 @@ export function OverviewTab({
 
     // Work
     const summary = computeSummary(sessions);
-    const todayStr = formatDateKey(now);
+    // Calendar day (#356) — same boundary as TodayDashboard.
+    const todayStr = todayCalendarKey(now);
     const todayWork = getWorkSessions(sessions).filter(
       (s) => formatDateKey(new Date(s.startedAt)) === todayStr,
     );

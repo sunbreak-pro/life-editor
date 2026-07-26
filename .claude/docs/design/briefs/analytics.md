@@ -14,9 +14,9 @@ Branch: claude/design-analytics-v2
 ## 1. 画面要件ダイジェスト
 
 - **目的 / 主ユースケース**: タスク・作業時間（ポモドーロ）・スケジュールの記録を横断して振り返る**閲覧専用ダッシュボード**。Tier 3・凍結継続で、将来は Claude 駆動分析（`reflect_on_day` / `analyze_patterns`）の出力を表示する面として再利用する想定（`.claude/docs/requirements/tier-3-experimental.md:39-62`）
-- **表示するデータ**: mount 時に一括 fetch する 8 系統 — タイマーセッション / タスクツリー / 今日のスケジュール / ルーチン / ノート / タグ数 / タグ割当数 / ポモドーロ日次目標（`web/src/analytics/AnalyticsScreen.tsx:85-94`）。スケジュールタブのみ選択範囲ごとに別 fetch（同 `:131-155`）。N=1 個人データの規模感: タスク 100〜200 件・セッション 1 日 2〜8 件・ルーチン 10 件前後・予定 30 日で 60 件前後
+- **表示するデータ**: mount 時に一括 fetch する 8 系統 — タイマーセッション / タスクツリー / 今日のスケジュール / ルーチン / ノート / タグ / タグ割当（#334 で件数から実体配列へ — 概要の件数はここから導出し、タスクタブのタグ別作業時間も同じ配列を使う） / ポモドーロ日次目標（`web/src/analytics/AnalyticsScreen.tsx` の mount fetch）。スケジュールタブのみ選択範囲ごとに別 fetch（同ファイルの scheduleRange effect）。N=1 個人データの規模感: タスク 100〜200 件・セッション 1 日 2〜8 件・ルーチン 10 件前後・予定 30 日で 60 件前後
 - **主要操作**: 閲覧のみ。タブ切替（4 種）/ 期間切替（day / week / month、`shared/src/components/Analytics/PeriodSelector.tsx:15`）/ スケジュール集計範囲の変更。作成・編集・削除は一切ない純 Consumption 画面
-- **Desktop / Mobile の責務分割**: Desktop = 4 タブ全機能。Mobile = Consumption 専用の単一スクロール（今日のダッシュボード + 主要カード縦積み）。**落とすもの: タブ UI・ヒートマップ・デイリータイムライン・停滞チャート・時間帯分布・期間セレクタ・タスク別/プロジェクト別の長いチャート**（詳細 §4.2）
+- **Desktop / Mobile の責務分割**: Desktop = 4 タブ全機能。Mobile = Consumption 専用の単一スクロール（今日のダッシュボード + 主要カード縦積み）。**落とすもの: タブ UI・ヒートマップ・デイリータイムライン・停滞チャート・時間帯分布・期間セレクタ・タスク別/タグ別の長いチャート**（詳細 §4.2）
 
 ## 2. 現状 UI インベントリ
 
@@ -24,10 +24,10 @@ Branch: claude/design-analytics-v2
 - **shared 部品**: `shared/src/components/Analytics/`（ルート `AnalyticsView.tsx` + タブ 4 + チャート/カード部品 約 15）
   - ルート: 左にタイトル・右上にタブピル 4 種（overview / tasks / work / schedule、`AnalyticsView.tsx:27-34, 99-121`）。コンテンツは max-w-3xl（768px）中央寄せの 1 カラム縦積み
   - 概要タブ: stat カード 6 枚グリッド（2→3 列、`OverviewTab.tsx:140-183`）+ 今日のダッシュボード 3 ミニカード（`TodayDashboard.tsx:52-78`）+ 週間サマリー + ストリーク 2 カード（`StreakDisplay.tsx:38-61`）
-  - タスクタブ: 完了トレンド 30 日 + 停滞チャート + プロジェクト別作業時間（`TasksTab.tsx:34-42`）
+  - タスクタブ: 完了トレンド 30 日 + 停滞チャート + タグ別作業時間（`TasksTab.tsx`。#334 で folder 起点の「プロジェクト別」から life-tag 起点へ置換）
   - 作業タブ: stat カード 3 枚 + PeriodSelector + 作業時間棒グラフ + ヒートマップ（24h×7 曜日、`WorkTimeHeatmap.tsx:70-121`）+ ポモドーロ達成率 + 作業/休憩バランス + デイリータイムライン + タスク別作業時間（`TimeTab.tsx:79-150`）
   - スケジュールタブ: stat カード 5 枚 + イベント完了トレンド + 時間帯分布 + ルーチン達成率（`ScheduleTab.tsx:128-174`）
-- **特徴的 UI**: recharts のチャート群（棒 / ドーナツ / 横棒等 10 ファイル）。**カテゴリ 10 色 `--color-chart-cat-1..10` はテーマ固定**（`shared/src/styles/tokens.css:114-123`、使用例 `ProjectWorkTimeChart.tsx:29-40`）。ヒートマップは CSS grid 自作で緑 4 段の rgba 直書き（`WorkTimeHeatmap.tsx:36-44`）
+- **特徴的 UI**: recharts のチャート群（棒 / ドーナツ / 横棒等 10 ファイル）。**カテゴリ 10 色 `--color-chart-cat-1..10` はテーマ固定**（`shared/src/styles/tokens.css` の `--color-chart-cat-*` ブロック。使用例 = `TagWorkTimeChart.tsx` の `COLORS`、タグ自身の色が無い場合のフォールバック）。ヒートマップは CSS grid 自作で緑 4 段の rgba 直書き（`WorkTimeHeatmap.tsx:36-44`）
 - **状態の現状**:
   - empty: 作業タブ = noSessions テキスト 1 行（`TimeTab.tsx:69-77`）/ スケジュールタブ = noEvents テキスト 1 行（`ScheduleTab.tsx:110-118`）
   - loading: スケジュールタブの範囲別 fetch 中のみパルス矩形 3 枚（`ScheduleTab.tsx:95-108`）。**初回 mount fetch には loading 表現がなく、データ到着まで 0 値が並ぶ**
@@ -162,7 +162,7 @@ Branch: claude/design-analytics-v2
 
 - 「タスク完了トレンド」: 直近 30 日の日別完了数の棒グラフ（0〜7 件、週末が低い波形）
 - 「停滞タスク」: 最終更新からの経過期間バケット別の横棒。「1週間未満 41 / 1〜2週間 18 / 2〜4週間 9 / 1〜3ヶ月 6 / 3ヶ月以上 3」。緑→黄→赤系の 5 段グラデーションだが、**色だけに頼らずバケットラベルと件数を必ず併記**
-- 「プロジェクト別作業時間」: ドーナツチャート + 凡例リスト（カテゴリ 10 色を順に使用、凡例に色チップ + 名前 + 時間を併記）。サンプル: 「Life Editor 開発 48時間 / 簿記3級の勉強 22時間30分 / ブログ執筆 9時間 / 部屋の片付け 6時間 / 読書メモ 4時間30分」
+- 「タグ別作業時間」（#334 で folder 起点から life-tag 起点へ置換）: ドーナツチャート + 凡例リスト（スライス色は**タグ自身の色**、未設定のタグだけカテゴリ 10 色にフォールバック。凡例に色チップ + 名前 + 時間を併記）。複数タグのタスクは時間を均等割りし、上位 10 タグから溢れた分は「その他のタグ」、タグ無しの作業は末尾の「タグなし」スライスへ入れる（捨てない ＝ スライス合計が実測の作業時間と一致する）。サンプル: 「Life Editor 開発 48時間 / 簿記3級の勉強 22時間30分 / ブログ執筆 9時間 / 部屋の片付け 6時間 / 読書メモ 4時間30分」
 
 ### タブ 3「作業」
 

@@ -27,7 +27,6 @@ import {
   BottomSheet,
   Modal,
   useScheduleItemsRoutineSync,
-  buildGroupForRoutineMap,
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
@@ -105,12 +104,9 @@ export function CalendarTab({
   } = useScheduleItemsContext();
   const {
     routines,
-    routineGroups,
     convertEventToRoutine,
     updateRoutine,
     deleteRoutine,
-    setGroupsForRoutine,
-    getGroupIdsForRoutine,
     detachRoutine,
     updateFutureOccurrences,
   } = useRoutineContext();
@@ -121,9 +117,13 @@ export function CalendarTab({
   // Range materialiser (#279): after an Event→Repeats conversion, the new
   // routine's occurrences are generated for the visible range right away —
   // the always-on RoutineScheduleSync only covers today.
-  const { ensureRoutineItemsForDateRange } = useScheduleItemsRoutineSync({
-    dataService,
-  });
+  // reconcile (#352): a frequency edit re-shapes the already-materialised
+  // future of ONE routine (drop days that stopped firing, add days that
+  // started), honouring the tier-1 §Schedule conflict rules.
+  const { ensureRoutineItemsForDateRange, reconcileRoutineScheduleItems } =
+    useScheduleItemsRoutineSync({
+      dataService,
+    });
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
@@ -329,15 +329,6 @@ export function CalendarTab({
       refreshKey: syncVersion,
     });
 
-  // `group`-frequency lookup for the range materialiser (#296): built with
-  // the same shared helper RoutineScheduleSync uses, so the ensure cleanup
-  // never mistakes group-driven rows for stale ones.
-  const groupForRoutine = useMemo(
-    () =>
-      buildGroupForRoutineMap(routines, routineGroups, getGroupIdsForRoutine),
-    [routines, routineGroups, getGroupIdsForRoutine],
-  );
-
   // The selected ScheduleItem — resolved before the mutation layer, which
   // acts on the selection (repeat conversion / detach / scope dialog).
   const selected = useMemo(() => {
@@ -387,11 +378,10 @@ export function CalendarTab({
     convertEventToRoutine,
     updateRoutine,
     deleteRoutine,
-    setGroupsForRoutine,
     detachRoutine,
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
-    groupForRoutine,
+    reconcileRoutineScheduleItems,
     onMoveTaskChip: handleTaskChipMove,
     onResizeTaskChip: handleTaskChipResize,
     copySuffix: t("scheduleScreen.copySuffix"),
@@ -426,7 +416,6 @@ export function CalendarTab({
     () => ({
       daily: t("scheduleScreen.frequencyDaily"),
       weekdaysFallback: t("scheduleScreen.frequencyWeekdays"),
-      group: t("scheduleScreen.frequencyGroup"),
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
     }),
@@ -729,15 +718,8 @@ export function CalendarTab({
       frequencyDays: selectedRoutine.frequencyDays,
       frequencyInterval: selectedRoutine.frequencyInterval,
       frequencyStartDate: selectedRoutine.frequencyStartDate,
-      groupIds: getGroupIdsForRoutine(selectedRoutine.id),
     };
-  }, [selectedRoutine, getGroupIdsForRoutine]);
-
-  const repeatGroups = useMemo(
-    () =>
-      routineGroups.map((g) => ({ id: g.id, name: g.name, color: g.color })),
-    [routineGroups],
-  );
+  }, [selectedRoutine]);
 
   const repeatLabels = useMemo(
     () => ({
@@ -746,11 +728,9 @@ export function CalendarTab({
       frequencyDaily: t("scheduleScreen.frequencyDaily"),
       frequencyWeekdays: t("scheduleScreen.frequencyWeekdays"),
       frequencyInterval: t("scheduleScreen.frequencyInterval"),
-      frequencyGroup: t("scheduleScreen.frequencyGroup"),
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
       startDate: t("scheduleScreen.startDate"),
-      groups: t("scheduleScreen.groupsLabel"),
     }),
     [t],
   );
@@ -813,7 +793,6 @@ export function CalendarTab({
       onDelete={handleDelete}
       labels={editorLabels}
       repeat={repeatValue}
-      repeatGroups={repeatGroups}
       repeatWeekdayLabels={weekdayLabels}
       repeatLabels={repeatLabels}
       onChangeRepeat={handleChangeRepeat}

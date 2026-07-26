@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
-import { formatDateKey } from "../../utils/dateKey";
+import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
@@ -26,7 +26,11 @@ export function TodayDashboard({
   labels,
 }: TodayDashboardProps): React.JSX.Element {
   const stats = useMemo(() => {
-    const todayStr = formatDateKey(new Date());
+    // Calendar day, NOT the day-start-hour "today" that Daily / routine sync
+    // use (#356): every session bucket on this screen is keyed on the wall
+    // calendar date, so shifting only this card would make it disagree with
+    // the trend right beside it.
+    const todayStr = todayCalendarKey();
 
     const todaySessions = sessions.filter(
       (s) => formatDateKey(new Date(s.startedAt)) === todayStr,
@@ -44,6 +48,9 @@ export function TodayDashboard({
       (n) =>
         n.type === "task" &&
         n.completedAt &&
+        // NOTE: completedAt is a UTC ISO prefix, not a calendar key — in JST a
+        // task finished before 09:00 counts as yesterday. Pre-existing drift,
+        // reported separately; out of #356's scope.
         n.completedAt.substring(0, 10) === todayStr,
     ).length;
 
