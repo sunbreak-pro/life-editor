@@ -49,7 +49,7 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 
 - `TaskNode.scheduledAt / scheduledEndAt / isAllDay` は**型・Mapper・MCP に存在するが、UI（.tsx）での出現は 0 件**
 - tier-1 の **Tasks AC7**（scheduledAt → Calendar 表示・双方向）と **Schedule AC10**（ドラッグ変更 → Tasks へ双方向同期）は**未達**
-- 孤立 i18n `schedulePanel`（en/ja に `existingTasks / tabTask / tabEvent / tabRoutine / searchTasks` 等の孤立キー群 — 参照 0 件・個数はコードが正）が「Task/Event/Routine 一括作成パネル」構想の痕跡として残っている → 本日の Todo トレイ（§4-A-3）の種として再利用可
+- 孤立 i18n `schedulePanel`（`existingTasks / tabTask / tabEvent / tabRoutine / searchTasks` 等の孤立キー群 — 参照 0 件）が「Task/Event/Routine 一括作成パネル」構想の痕跡として残っている → 本日の Todo トレイ（§4-A-3）の種として再利用可（**2026-07-26 追記 = 歴史記録**: このキー群は PR #341 で削除済み。統合生成パネル #376 は `scheduleScreen.*` に新規キーを起こした — §4.6）
 - ※「AC7」は 2 つある（Tasks の AC7 = 双方向同期 / Schedule の AC7 = CalendarTags 色。後者は CalendarTags 全撤去で形骸化 → Step 0 で Retired 化済み）。混同注意
 
 ### 2-5. その他の形骸化・未接続（コードの事実）
@@ -97,6 +97,22 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 - **単一 Calendar タブ化**。Repeats はツールバーの「繰り返しのみ表示」フィルタ + overflow の管理シートへ畳む。ヘッダタブ撤去
 - #185 の「タブ廃止はしない」の**補遺（改訂）として Step 0 で文書化済み**（`2026-07-11-event-routine-unification.md` UX 仕様 4 補遺）
 - 案 C（「今日」/「カレンダー」の 2 タブ再編）は **A-1〜A-3 が育った後に再評価**（再開条件: 本日の Todo トレイ + タスク日面表示が 1 ヶ月回った時点）
+
+## 4.6 「本日の Todo」トレイ と 統合アイテム生成パネルの棲み分け（#376 で確定・2026-07-26）
+
+どちらもタスクを Schedule に載せる導線だが、**答えている問いが違う**。重複ではなく直列（トレイで今日やることを決め → グリッドで時間を与える／パネルで最初から時間ごと決める、の 2 本立て）。
+
+|              | rightSidebar「本日の Todo」トレイ（#298）                          | 統合アイテム生成パネル（#376）                                                             |
+| ------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| 問い         | 「今日やるのはどれか」（**宣言**）                                 | 「この日のこの時間に何を置くか」（**配置**）                                               |
+| 対象日       | **今日に固定**                                                     | パネルを開いたジェスチャの対象日（ツールバー = アンカー日／空きスロット・月セル = その日） |
+| 書き込む時刻 | なし（`isAllDay: true` = 時刻未定の候補・§5 決定8 の案 c staging） | あり（`scheduledAt` / `scheduledEndAt` の両方）                                            |
+| 作れるもの   | 既存タスクの候補化のみ（新規作成はしない）                         | 予定の新規作成／タスクの新規作成／既存タスクの配置                                         |
+| 置き場所     | 常設（rightSidebar のタブ）                                        | 一時的（ツールバー ＋／空きスロット／月セル／Mobile FAB で開くモーダル・シート）           |
+
+- **候補プールは同一**（`pickAddableTasks` = 未配置・未完了・葉）。トレイで「今日の候補に追加」したタスクは終日候補になるため、パネルの「既存から選ぶ」一覧からは外れる — そこへ時刻を与える経路は**グリッド上の終日チップのドラッグ**（A-3 の設計どおり）
+- 予定（Event）はトレイに現れない（トレイはタスク専用）。逆にパネルは予定とタスクの両方を作れる
+- Schedule には**タスクの詳細エディタが無い**（task チップは読み取り専用 — #297）ため、パネルのタスクタブには予定タブのような「追加して詳細へ」の相方を置かない
 
 ---
 
@@ -152,3 +168,4 @@ Branch: claude/schedule-redesign-step0（Step 0 のみ）
 - 2026-07-15: **Step 1 実装（chat-docs-workspace・ユーザー直接指示）**。純変換ヘルパー `shared/src/utils/taskCalendarChips.ts`（UTC ISO → ローカル date/HH:MM・終日 / 60 分デフォルト・deleted 除外・done は completed 保持・複数日は開始日のみ）+ 3 コンポーネントに `"task"` variant（blue トークン `chip-task-*` / 新設 `schedule-task-bg`・Repeat グリフ / 左バンドなし）+ `MainScreen` schedule 分岐最外に `TaskTreeProvider` + `CalendarTab` 派生層マージ（`taskchip-` prefix で select/toggle/move/resize/contextMenu 全 no-op・`rangeItems` 非混入）。i18n `scheduleScreen.originTask`（en/ja 追加済み・配線は Step 2/3 で消費予定の先行キー）。shared vitest 891 pass / shared・web tsc -b green / web vite build green。role-qa 監査 PASS（Blocker 0・終日全日レーンの色は既存パリティで Step 2 送り）。実ブラウザ検証は merge 後 chat-main
 - 2026-07-26: **Step 4 実装（worktree schedule-refine・#352）**。`reconcileRoutineScheduleItems` を `useScheduleMutations.handleChangeRepeat` の routine 分岐に配線（テンプレ更新 → 可視範囲 reconcile → reload）。reconcile 本体を競合ルール準拠に改修: done / dismissed / 過去 / 手動移動（`source_date` ドリフト）に加え、**編集前テンプレート（title / startTime / endTime）と不一致 = 手動編集**の行を掃除対象から除外（時刻 null は生成デフォルト 09:00-09:30 を実効値として比較 — #279 と同じ規則）。生成側は `collectRoutineItemsForDates` に委譲して deleted/archived/hidden ガードを継承し、過去日への materialise を禁止。書き込みゼロなら `onChanged` を発火しない。**削除**: 未配線 3 関数（`ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines`）+ 専用 `fetchLastRoutineDate` + `diffRoutineScheduleItems` の `toUpdate`（#279 で適用停止済み）+ RoutineGroup 一式（型 / mapper 2 本 / DataService 6 メソッド / Supabase サービス 2 クラス / `groupForRoutine` / FrequencyEditor の group UI / i18n `frequencyGroup`・`groupsLabel` / 関連テスト）。**DDL ゼロ**のためテーブルと 0008 CHECK の `'group'` は残置 — `normaliseFrequency` が legacy 行を「発火しない routine」に正規化（throw させると routine 一覧全体が壊れるため）、`REALTIME_TABLES` も publication と一致させるため 2 テーブルを維持（lockstep テストの不変式）。新規 vitest `shared/tests/reconcileRoutine.test.tsx`（競合ルール 1-3 / 再生成 / 掃除範囲 / 変更シグナル。ケース数はテストファイルが正）。shared・web tsc -b green / web vite build green。実ブラウザ検証は merge 後 chat-main
 - 2026-07-26: **Step 4 の role-qa 監査対応（同 PR 内）**。Blocker 1 件 + Should 3 件を反映。**(B-1)** 頻度タイプ切替は `{ frequencyType }` 単体で届くため、weekdays→曜日未選択（発火ゼロ）/ interval→未設定（毎日発火）という中間状態がそのまま reconcile に渡り、曜日を選ぶ前にシリーズの未来が一掃される経路があった（reconcile 配線で新たに生じたリスク）→ 純粋関数 `seedFrequencyPatch`（`utils/routineFrequency.ts`）で切替時に anchor 日の曜日 / interval=1 + 開始日を補完し、Calendar・Routines 両導線に適用。あわせて**掃除範囲を再生成範囲と対称化**（`fetchScheduleItemsByRoutineId` は日付フィルタを持たず全期間を返すため、`dateRange` 指定時は掃除も窓内に限定 — 窓外は表示時に `ensureRoutineItemsForDateRange` が拾う）。**(S-1)** Routines タブ（`RoutineEditorForm` の頻度編集）が未配線だったため配線（窓 = 今日から 6 週間 = 月グリッド最大幅）。**(S-2)** `updateRoutine` が fire-and-forget でテンプレ更新の失敗を握り潰し、失敗しても reconcile が走って「テンプレは旧頻度 / 実体は新頻度」のねじれを作り得たため、`Promise<boolean>` を返して landed=false なら reconcile を中止（既存の fire-and-forget 呼び出し側は無変更）。**(S-3)** reconcile の JSDoc が「bulkCreate の upsert / ignoreDuplicates が dismissed 日の再生成を吸収する」と書いていたが実装は plain INSERT + 事前 live pre-check（衝突時は 23505 でバッチ全体がロールバック）で真逆だったため実体に訂正。**(S-4)** rule 2 の判定に memo を含まない点を tier-1 に明記。shared vitest 1067 pass / shared・web tsc -b green / web vite build green / web lint green
+- 2026-07-26: **統合アイテム生成パネル Step A 実装（worktree schedule-refine・#376）**。#299 の `EventCreateFields`（予定専用）を `shared/src/components/schedule/ItemCreatePanel.tsx` に置換し、Desktop 生成オーバーレイと Mobile QuickCaptureSheet の両方が同一パネルを描くようにした。**予定タブ** = 従来どおり（#299 の prefill / #353 の対象日行 / #354 の 2 ボタン契約をテストごと継承）。**タスクタブ** = 「新規作成」（`addNode("task", null, title, { scheduledAt, scheduledEndAt, isAllDay:false })`）と「既存から選ぶ」（`pickAddableTasks` プール + 部分一致検索 → `updateNode` で同じ配置を書き込み）の 2 ソース。タイトル / 時刻の下書きは種類タブを跨いで共有（途中で「これは予定じゃなくタスクだ」と気づいても打ち直しにならない）。検索で選択行が絞り落ちたら選択も落とす（見えないタスクを配置しない）。タスクタブに「追加して詳細へ」の相方は置かない（Schedule にタスク詳細エディタが無い — #297）。`QuickCaptureSheet` はパネルの純粋な枠に縮小し、閉じるのはホスト責務に一本化（二重クローズの排除）。i18n は `scheduleScreen.*` に新規 13 キー（en/ja）+ 孤立化した `quickAddTitle` を削除、空プール文言は `todoEmptyAddable` を再利用。**#298 トレイとの棲み分けを §4.6 に明文化**（トレイ = 宣言 / パネル = 配置）。新規 vitest `shared/tests/itemCreatePanel.test.tsx` + `quickCaptureSheet.test.tsx` 改訂。shared vitest 1117 pass / shared・web tsc -b green / web vite build green。**DDL ゼロ**。ノートタブ（新規 / 既存検索 → 作成アイテムへ `createItemLink`）は Step B の子 PR に分割。実ブラウザ検証は merge 後 chat-main

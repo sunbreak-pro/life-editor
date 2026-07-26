@@ -4,97 +4,113 @@ import { QuickCaptureSheet, type QuickCaptureLabels } from "../src/components";
 
 /*
  * QuickCaptureSheet (#280, moved from web CalendarTab) — the Mobile FAB's
- * quick-capture form. Pure presentation: labels injected, onAdd is the only
- * mutation; a blank title never fires it.
+ * quick-capture frame. Since #376 it is a pass-through around the unified
+ * <ItemCreatePanel>, so these tests only pin what the FRAME owns: the sheet
+ * header, and that every panel prop reaches the panel unchanged (the panel's
+ * own behaviour is covered by itemCreatePanel.test.tsx).
+ *
+ * Closing is the host's job — its submit handlers clear the open-panel state,
+ * which flips `open` here. The sheet deliberately does not close itself on
+ * submit, so it can never double-close.
  */
 
 const LABELS: QuickCaptureLabels = {
-  title: "Quick add",
-  placeholder: "Event title",
-  add: "Add",
-  addAndOpen: "Add and edit",
+  typeLabel: "Item type",
+  typeEvent: "Event",
+  typeTask: "Task",
+  title: "Title",
+  eventPlaceholder: "Event title",
+  taskPlaceholder: "Task title",
   date: "Date",
   startTime: "Start",
   endTime: "End",
+  addEvent: "Add",
+  addEventAndOpen: "Add and edit",
+  taskSourceLabel: "How to add",
+  taskSourceNew: "New",
+  taskSourceExisting: "From existing",
+  addTask: "Add task",
+  placeTask: "Place",
+  searchTasks: "Search tasks",
+  pickerEmpty: "No unscheduled tasks",
+  pickerNoMatch: "No matching tasks",
 };
 
 function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
-  const onAdd = vi.fn();
-  const onAddAndOpen = vi.fn();
+  const onSubmitEvent = vi.fn();
+  const onSubmitEventAndOpen = vi.fn();
+  const onCreateTask = vi.fn();
+  const onPlaceTask = vi.fn();
   const onClose = vi.fn();
   render(
     <QuickCaptureSheet
       open
       onClose={onClose}
-      onAdd={onAdd}
-      onAddAndOpen={onAddAndOpen}
+      sheetTitle="Add item"
+      existingTasks={[{ id: "task-1", title: "Draft the invoice" }]}
+      onSubmitEvent={onSubmitEvent}
+      onSubmitEventAndOpen={onSubmitEventAndOpen}
+      onCreateTask={onCreateTask}
+      onPlaceTask={onPlaceTask}
       labels={LABELS}
       {...props}
     />,
   );
-  return { onAdd, onAddAndOpen, onClose };
+  return {
+    onSubmitEvent,
+    onSubmitEventAndOpen,
+    onCreateTask,
+    onPlaceTask,
+    onClose,
+  };
 }
 
 describe("QuickCaptureSheet", () => {
-  it("submits title + default times and closes", () => {
-    const { onAdd, onClose } = renderSheet();
+  it("titles the sheet with sheetTitle, not the title-input label (#376)", () => {
+    // The sheet now holds more than one kind of item, so its heading names the
+    // panel. Before #376 both came from the same key and read "Add event".
+    renderSheet();
+    expect(screen.getByText("Add item")).toBeInTheDocument();
+  });
+
+  it("forwards the submit handlers to the panel", () => {
+    const { onSubmitEvent } = renderSheet();
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Dentist" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onAdd).toHaveBeenCalledWith("Dentist", "09:00", "10:00");
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", "09:00", "10:00");
   });
 
-  it("uses the edited times and trims the title", () => {
-    const { onAdd } = renderSheet();
+  it("forwards the time prefill and the edited times", () => {
+    const { onSubmitEvent } = renderSheet({
+      initialStart: "19:00",
+      initialEnd: "20:30",
+    });
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "  Gym  " },
     });
-    fireEvent.change(screen.getByLabelText("Start"), {
-      target: { value: "19:00" },
-    });
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: "20:30" },
-    });
     fireEvent.click(screen.getByText("Add"));
-    expect(onAdd).toHaveBeenCalledWith("Gym", "19:00", "20:30");
+    expect(onSubmitEvent).toHaveBeenCalledWith("Gym", "19:00", "20:30");
   });
 
-  it("does nothing on a blank title", () => {
-    const { onAdd, onClose } = renderSheet();
-    fireEvent.click(screen.getByText("Add"));
-    expect(onAdd).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
+  it("reaches the task tab too — Mobile gets the same panel as Desktop (#376)", () => {
+    const { onCreateTask } = renderSheet();
+    fireEvent.click(screen.getByText("Task"));
+    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+      target: { value: "Groceries" },
+    });
+    fireEvent.click(screen.getByText("Add task"));
+    expect(onCreateTask).toHaveBeenCalledWith("Groceries", "09:00", "10:00");
   });
 
-  it("submits on Enter in the title field", () => {
-    const { onAdd } = renderSheet();
-    const input = screen.getByPlaceholderText("Event title");
-    fireEvent.change(input, { target: { value: "Standup" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(onAdd).toHaveBeenCalledWith("Standup", "09:00", "10:00");
-  });
-
-  it("ignores Enter during IME composition (§frontend gotcha)", () => {
-    const { onAdd } = renderSheet();
-    const input = screen.getByPlaceholderText("Event title");
-    fireEvent.change(input, { target: { value: "予定" } });
-    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
-    expect(onAdd).not.toHaveBeenCalled();
-  });
-
-  it("closes on the second button too, after routing to onAddAndOpen (#354)", () => {
-    // The sheet must get out of the way either way — on Mobile the detail
-    // editor is itself a BottomSheet, so leaving this one up would stack two.
-    const { onAdd, onAddAndOpen, onClose } = renderSheet();
+  it("leaves closing to the host, so the sheet never double-closes (#376)", () => {
+    const { onClose } = renderSheet();
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
-      target: { value: "Review" },
+      target: { value: "Standup" },
     });
-    fireEvent.click(screen.getByText("Add and edit"));
-    expect(onAddAndOpen).toHaveBeenCalledWith("Review", "09:00", "10:00");
-    expect(onAdd).not.toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("Add"));
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("passes the target day through to the fields (#353)", () => {

@@ -87,13 +87,17 @@ export {
   type QuickCaptureSheetProps,
   type QuickCaptureLabels,
 } from "./QuickCaptureSheet";
-// #299: shared create-event fields (title + start/end + submit) backing both
-// the Desktop creation overlay and the Mobile QuickCaptureSheet.
+// #376: unified creation panel (event / task tabs, "new" or "place an existing
+// task") backing both the Desktop creation overlay and the Mobile
+// QuickCaptureSheet. Supersedes the event-only EventCreateFields (#299).
 export {
-  EventCreateFields,
-  type EventCreateFieldsProps,
-  type EventCreateFieldsLabels,
-} from "./EventCreateFields";
+  ItemCreatePanel,
+  type ItemCreatePanelProps,
+  type ItemCreatePanelLabels,
+  type ItemCreateTaskOption,
+  type ItemCreateType,
+  type ItemCreateTaskSource,
+} from "./ItemCreatePanel";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {
