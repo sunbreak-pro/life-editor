@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-07-26 → @chat-main（materials レーン 4 件完了 — 実ブラウザ検証依頼 + 起票依頼 5 件）
+
+**このチャット（worktree = briefing-section）が materials レーンを担当し、Issue #365 / #366 / #371 / #370 を 1 Issue = 1 ブランチ = 1 PR で処理しました。**
+
+| Issue                                                   | PR   | 状態                     |
+| ------------------------------------------------------- | ---- | ------------------------ |
+| #365 タグ使用数がゴミ箱アイテムを過大計上               | #388 | merge 済み・Issue closed |
+| #366 編集中 Note が tag グループ内で最上位へ跳ねる      | #390 | merge 済み・Issue closed |
+| #371 新規 Daily の初回 `[[link]]` が Connect に載らない | #392 | merge 済み・Issue closed |
+| #370 `[[link]]` 候補に tasks を追加                     | #394 | **open**                 |
+| #371 追撃（リンクのみの新規 Daily が保存されない）      | #398 | **open**                 |
+
+全件 shared vitest / shared tsc -b / web build 緑・DDL 変更ゼロ。実装後に role-qa + security-reviewer の独立監査を通し、指摘は下記のとおり実測で裏取りしてから反映しています（security は Critical/High/Medium ゼロ）。
+
+- **PR #394 は監査指摘を反映して 2 commit 目を追加済み**: (a) 候補プールが role 連結順で `slice(0,8)` されていたため、ノートが 8 件以上あるとタスク候補が 1 件も出なかった → `balanceByRole`（shared・新規・テスト 6 件）で role ごとに 1 枠ずつ配る方式に変更。(b) trash 済み / 実体の無いタスクへのリンクをクリックすると空の詳細パネルが開いた → 生存チェックを追加（`tree.isLoading` で gate。タブ遷移直後は nodeMap が空なので、ガードだけ足すと全部弾く）
+- **PR #398 は merge 済み #392 の穴を塞ぐもの**: 解決済みリンクは atom ノードでテキストを持たないため、`dailyContentExcerpt` ベースの空判定が「リンクだけの本文」を空と誤判定し、保存自体がスキップされていました（＝リンクも辺も消える）。#392 だけ merge して #398 を落とすと Issue #371 の症状が一部残るので、セットで merge してください
+
+### 依頼 1（merge 後の実ブラウザ検証・貴レーン担当）
+
+worktree からは build / 型検証までなので（CLAUDE.md §7.4）、以下は chat-main でお願いします。
+
+1. **#365（最優先）**: タグ付きノートを 1 件ゴミ箱へ → Tag 編集モーダルの件数が減ること。**この PR は PostgREST の埋め込み join（`items_meta!inner(is_deleted)`）を導入していて、リポジトリ内に前例がありません**。型検査もスタブテストも構文の正しさを保証しないので、実物で 1 回叩くまでは未検証扱いです。もし構文が通らない場合、`useWikiTagsUnifiedAPI` の `refresh()` に catch が無いためタグ UI・Analytics・Connect が同時に無言で空になります（＝「タグが全部消えた」ように見えたら真っ先に #388 を疑ってください）
+2. **#366**: タグ付き Note を開いて入力 → 行が動かない / 別 Note を選ぶと先頭へ移動する
+3. **#371 + 追撃**: 新しい日の Daily に `[[note]]` **だけ**挿入 → 1 秒待ってリロード → リンクが残っていて Connect に辺がある
+4. **#370**: Notes で `[[` → タスクが候補に出る → 挿入 → クリックで Materials/Tasks が開き該当タスクの詳細が出る
+
+### 依頼 2（起票依頼 5 件）
+
+1. **[Analytics] ゴミ箱行きタスクの作業時間が「タグなし」へ移る**: `analyticsAggregation` は session を itemId で assignment に突き合わせるため、#365 で assignment が返らなくなった結果、trash 済みタスクの実績が除外ではなく untagged バケットへ加算されます。仕様として正しいかの判断が要ります（実測で確認済み・現状は意図的な挙動ではありません）
+2. **[materials] `listAllTagConnections` に #365 と同じ書き方はコピーできない**: `wiki_tag_connections` は `from_item_id` / `to_item_id` の 2 本が `items_meta` を参照するため、素の `items_meta!inner(...)` は PGRST201 で 400 になります。将来同じ手を使うときは FK 名指しが必要、という注意書きの話です
+3. **[all] 狭幅では `[[link]]` クリックが視覚的に何も起きない**: note / daily / task いずれも同じで、タブが切り替わるだけです（`MobileTaskList` も narrow の NotesView も選択状態を読んでいない）。mobile-scope.md 上は Phase 2 の範囲なので #370 の後退ではありませんが、リンクが壊れて見えるので Epic #321 の配下候補です
+4. **[materials] `[[` 候補プールのフェッチが同期のたびに走る**: `useItemLinkTargets` は `syncVersion` 依存なので、Notes / Daily を開いている間は入力が止まるたびに notes + dailies + tasks の全件フェッチが走ります（#370 で 1 本増えました）。初回 `[[` まで遅延させる余地あり
+5. **[all] web の eslint が既存エラーで赤**: `web/src/notes/NotesView.tsx:269`（`react-hooks/static-components` — `DesktopTagHeading` が render 中に `Icon` を生成）。`origin/main` 時点で存在する既存エラーで本レーン起因ではありませんが、赤いままだと lint がゲートとして機能しません。`shared-fix` 起票をお願いします
+
 ## 2026-07-26 → @chat-main（#318 実装完了 — PR #357・実機確認依頼 + 起票依頼 1 件）
 
 **Issue #318（Mobile 幅で朝刊/夕刊タブが切替不能）の修正が完了し、PR #357 を提出しました**（Closes #318・merge はこうだいさん）。両紙面ビューに optional な `tabSwitcher` スロットを足し、MainScreen が狭幅のときだけ shared の `SegmentedControl` を流し込む構成です。wide は `undefined` を渡すので SectionHeader のタブ挙動は据え置き（tablist の二重存在なし）。
