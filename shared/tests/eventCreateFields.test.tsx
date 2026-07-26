@@ -17,6 +17,7 @@ const LABELS: EventCreateFieldsLabels = {
   title: "Title",
   placeholder: "Event title",
   add: "Add",
+  date: "Date",
   startTime: "Start",
   endTime: "End",
 };
@@ -61,6 +62,26 @@ describe("EventCreateFields", () => {
     const { onSubmit } = renderFields();
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows the target day when the host supplies one (#353)", () => {
+    // The three create gestures (toolbar / empty slot / month cell) each
+    // target a different day, and before #353 only the times were on screen.
+    renderFields({ dateLabel: "Mon, July 27, 2026" });
+    expect(screen.getByText("Date")).toBeInTheDocument();
+    expect(screen.getByText("Mon, July 27, 2026")).toBeInTheDocument();
+  });
+
+  it("is read-only: the day is not an editable field", () => {
+    // The day comes from the gesture that opened the panel; offering an input
+    // here would contradict it.
+    renderFields({ dateLabel: "Mon, July 27, 2026" });
+    expect(screen.queryByLabelText("Date")).toBeNull();
+  });
+
+  it("omits the row entirely when no day is supplied", () => {
+    renderFields();
+    expect(screen.queryByText("Date")).toBeNull();
   });
 
   it("submits on Enter but ignores Enter during IME composition", () => {
