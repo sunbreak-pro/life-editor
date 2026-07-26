@@ -38,6 +38,7 @@ import {
   resolveTagIcon,
   buildTagGroups,
   sortNotesForList,
+  useFrozenNoteSortKey,
   cn,
   type NoteNode,
   type NoteSortMode,
@@ -515,6 +516,14 @@ export function NotesView({
     [t],
   );
 
+  // The note being edited holds the slot it had when it was selected (#366) —
+  // otherwise each debounced save bumps updatedAt and yanks the row to the top
+  // of its group mid-sentence under the default newest-first order.
+  const frozenSortKey = useFrozenNoteSortKey(
+    notes.selectedNote?.id ?? null,
+    notes.notes,
+  );
+
   // buildTagGroups re-sorts each group internally (pinned-first then title), so
   // the user's chosen sort is applied AFTER grouping — within each tag group,
   // preserving pinned-first. Group ORDER (by tag name) is left unchanged.
@@ -526,9 +535,10 @@ export function NotesView({
           group.notes,
           notes.sortMode,
           notes.sortDirection,
+          frozenSortKey,
         ),
       })),
-    [groups, notes.sortMode, notes.sortDirection],
+    [groups, notes.sortMode, notes.sortDirection, frozenSortKey],
   );
 
   // Direction label must describe the REAL rendered order. For the date modes
