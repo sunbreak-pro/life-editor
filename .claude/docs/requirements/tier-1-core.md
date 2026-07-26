@@ -426,7 +426,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Boundary
 
 - やる:
-  - Tasks / Daily / Notes / Schedule / Wiki Tags / Content / Search / File Management の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
+  - Tasks / Daily / Notes / Schedule / Wiki Tags / Content / Search の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
   - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
@@ -434,6 +434,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
   - 認知系 / 分析系ツール（`reflect_on_day` / `analyze_patterns` 等）— 別 Server `mcp-server-cognitive/` として ADR-0005 Phase 1 で分離実装
   - Database (Notion 風 DB) 系ツール — 現状未対応、Phase 1 で追加予定
   - 破壊的操作のうち Notes / Daily(Memo) の削除（UI 限定、§Notes / §Daily (Memo) Boundary 参照）
+  - **ファイル操作**（`list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files` は 2026-07-26 #362 で退役）: File Explorer の UI 退役と運命共同体という整理。Claude Code 自身がファイル操作手段を持つため MCP 側に二重に持たない
   - 外部 HTTP（Supabase 以外。ツール呼び出しの受け口は local stdio 専用）
   - Event 本文への構造化コンテンツ書き込み（`generate_content` / `format_content` の `schedule` ターゲットは #360 で退役 — 統合スキーマの `events_payload` に content 列が無いため。Event のテキストは `update_schedule_item` の `memo`）
   - タグ付与元の区別（legacy の `source` 列は統合スキーマに無く、#360 で出力から削除）
@@ -445,7 +446,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 - [ ] AC3: Claude が `create_task` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
 - [ ] AC4: `search_all` で複数ドメイン（tasks / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
 - [ ] AC5: `tag_entity` で WikiTag を任意エンティティに付与し、`search_by_tag` / `get_entity_tags` で取得できる（UI 側のタグ一覧と一致）
-- [ ] AC6: ファイル系ツール（`list_files` / `read_file` / `write_file` / `rename_file` / `delete_file` / `create_directory` / `search_files`）が life-editor 管理下のディレクトリで動作し、不正パスは拒否される
+- ~~AC6: ファイル系ツールが life-editor 管理下のディレクトリで動作し、不正パスは拒否される~~ → **撤回（2026-07-26 #362 でファイル系ツールを退役）**
 - [ ] AC7: MCP Server が異常終了しても Life Editor 本体は影響を受けず、再起動で再接続できる
 - [ ] AC8: どのツールも、失敗時に JSON-RPC error を返し、Claude 側でエラー内容が分かる形で表示される
 - [ ] AC9: 全ツールが現行スキーマ（`items_meta` + `<role>_payload`）に対して動作する（#360 — DROP 済み legacy テーブルへのクエリが残っていない）
