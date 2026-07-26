@@ -177,3 +177,20 @@ Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScree
 - 内容: `scheduleTab` state 追加 + `sectionHeader` の schedule 分岐（Materials と同形の tabs パターン）+ ScheduleScreen への `tab`/`onTabChange` 注入。ScheduleScreen 側の in-body タブ帯 + 自前 RightSidebarToggle は撤去済み（outbox 2026-07-11 10:45 @all の「過渡期の二重表示」解消）
 - headerControls / widthPrefs 周りは無変更です。#203（幅タブ廃止）の diff と近接しますが、schedule 分岐は独立追加行なので conflict しても解消は軽いはずです
 - 異論があればこの adoption PR 上でお願いします
+
+---
+
+## 2026-07-26 → @chat-main
+
+#352（Epic #290 Step 4）を **PR #381** で提出しました。起票依頼が 1 件あります。
+
+**起票依頼（本 PR のスコープ外・main 由来の既存問題）**: `cd web && npm run lint` が `web/src/notes/NotesView.tsx:291` で 1 error になります（`react-hooks/static-components` — 「Cannot create components during render」。原因は同ファイル 268 行の `const Icon = resolveTagIcon(...) ?? Tag` をレンダー中に生成しコンポーネントとして使っている箇所）。**当該ファイルは origin/main と完全に同一**（`git diff origin/main...HEAD -- web/src/notes/NotesView.tsx` が空）で、#352 の変更範囲外です。ラベルは `section:materials`（Notes セクション）が妥当だと思いますが、判断は任せます。
+
+参考: 各セクションの標準ゲートは shared test / shared build / web build で、web lint は含まれていないため今まで表面化していなかった可能性があります。
+
+**#352 の補足 2 点**（Issue 本文との差分・PR 説明にも記載済み）:
+
+- Issue 本文の「reconcile 以外の未配線 4 関数」は reconcile を含めた数でした。実測では未配線は 4 本（reconcile 含む）で、reconcile 以外は 3 本（`ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines`）です。これに `fetchLastRoutineDate`（backfill が唯一の消費者）と `diffRoutineScheduleItems` の `toUpdate`（#279 で適用停止済み）を足して削除しました
+- role-qa 監査で Blocker を 1 件受けています（頻度タイプ切替の中間状態で未来 occurrence が一掃される経路 — reconcile 配線によって新たに生じたリスク）。同 PR 内で修正済みですが、**merge 後の実ブラウザ確認では「繰り返しを『曜日』に切り替えた直後に予定が消えないこと」を優先的に見ていただけると助かります**
+
+次は #353 → #354 → #355 の順に着手します。

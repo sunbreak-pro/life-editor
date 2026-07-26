@@ -1,9 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
   useRoutineContext,
   useScheduleItemsContext,
   useScheduleItemsRoutineSync,
-  buildGroupForRoutineMap,
   type DataService,
 } from "@life-editor/shared";
 
@@ -57,8 +56,7 @@ export function RoutineScheduleSync({
 }: {
   dataService: DataService;
 }) {
-  const { routines, routineGroups, getGroupIdsForRoutine } =
-    useRoutineContext();
+  const { routines } = useRoutineContext();
   const { date, loadDate } = useScheduleItemsContext();
 
   const generator = useScheduleItemsRoutineSync({
@@ -68,23 +66,13 @@ export function RoutineScheduleSync({
     },
   });
 
-  // Resolve the `group` frequency: Map<routineId, RoutineGroup[]> built
-  // from the membership map + the loaded groups. shouldCreateRoutineItem
-  // ignores it unless a routine's frequencyType === "group". Shared helper
-  // (#296) so the Calendar host's range-ensure resolves the exact same map.
-  const groupForRoutine = useMemo(
-    () =>
-      buildGroupForRoutineMap(routines, routineGroups, getGroupIdsForRoutine),
-    [routines, routineGroups, getGroupIdsForRoutine],
-  );
-
   const ensure = generator.ensureRoutineItemsForDate;
 
   useEffect(() => {
     if (!date) return;
     if (routines.length === 0) return;
-    void ensure(date, routines, groupForRoutine);
-  }, [date, routines, groupForRoutine, ensure]);
+    void ensure(date, routines);
+  }, [date, routines, ensure]);
 
   return null;
 }

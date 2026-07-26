@@ -10,41 +10,30 @@ import {
 /*
  * FrequencyEditor (#185 Step 2) — the repeat-settings editor shared between the
  * Routines-tab form (RoutineEditorForm) and the Event editor's repeat section.
- * Edits one routine's frequency: type (daily | weekdays | interval | group)
- * plus the type-specific controls (weekday chips / interval + start-date /
- * group chips). Pure presentation (§3.1 / §6.4): every edit is an onChange
- * patch; labels arrive already translated. lumen-* tokens only (§5).
+ * Edits one routine's frequency: type (daily | weekdays | interval) plus the
+ * type-specific controls (weekday chips / interval + start-date). Pure
+ * presentation (§3.1 / §6.4): every edit is an onChange patch; labels arrive
+ * already translated. lumen-* tokens only (§5).
  *
- * Event-side differences ride two props: `onSelectNone` prepends a "no repeat"
- * choice (value null = none active), and `allowGroup: false` stops "group"
- * from being newly chosen there (#185 — group routines stay editable in the
- * Routines tab; an existing group value still renders so the control always
- * reflects reality).
+ * The Event-side difference rides one prop: `onSelectNone` prepends a "no
+ * repeat" choice (value null = none active).
+ *
+ * 2026-07-25 (#352): the "group" frequency type and its group-chip picker are
+ * gone — group management UI never shipped, so the type could be selected but
+ * never resolved to a firing day (§5 決定3).
  */
 
 /** The RoutineNode frequency subset this editor owns. */
 export type FrequencyEditorValue = Pick<
   RoutineNode,
-  | "frequencyType"
-  | "frequencyDays"
-  | "frequencyInterval"
-  | "frequencyStartDate"
-  | "groupIds"
+  "frequencyType" | "frequencyDays" | "frequencyInterval" | "frequencyStartDate"
 >;
-
-export interface FrequencyEditorGroup {
-  id: string;
-  name: string;
-  /** Data-driven group color (applied via inline style, not a token). */
-  color: string;
-}
 
 export interface FrequencyEditorLabels {
   frequency: string;
   frequencyDaily: string;
   frequencyWeekdays: string;
   frequencyInterval: string;
-  frequencyGroup: string;
   /** "No repeat" choice; required when the host passes onSelectNone. */
   frequencyNone?: string;
   /** "N 日ごと" leading word. */
@@ -52,7 +41,6 @@ export interface FrequencyEditorLabels {
   /** "日ごと" trailing word. */
   intervalDays: string;
   startDate: string;
-  groups: string;
 }
 
 export interface FrequencyEditorProps {
@@ -62,10 +50,6 @@ export interface FrequencyEditorProps {
   /** When provided, a "no repeat" choice is offered first; selecting it calls
    *  this instead of onChange. Pair with labels.frequencyNone. */
   onSelectNone?: () => void;
-  /** Offer "group" as a choosable type. Defaults to true (Routines tab). */
-  allowGroup?: boolean;
-  /** Needed only when the group type is reachable. */
-  groups?: FrequencyEditorGroup[];
   /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
   weekdayLabels: string[];
   labels: FrequencyEditorLabels;
@@ -79,8 +63,6 @@ export function FrequencyEditor({
   value,
   onChange,
   onSelectNone,
-  allowGroup = true,
-  groups = [],
   weekdayLabels,
   labels,
   className,
@@ -92,11 +74,6 @@ export function FrequencyEditor({
     { id: "daily", label: labels.frequencyDaily },
     { id: "weekdays", label: labels.frequencyWeekdays },
     { id: "interval", label: labels.frequencyInterval },
-    // Group stays listed while it IS the current value even when not newly
-    // choosable, so the control never shows a state it cannot represent.
-    ...(allowGroup || value?.frequencyType === "group"
-      ? [{ id: "group", label: labels.frequencyGroup }]
-      : []),
   ];
 
   const handleSelect = (id: string) => {
@@ -111,14 +88,6 @@ export function FrequencyEditor({
       ? value.frequencyDays.filter((x) => x !== d)
       : [...value.frequencyDays, d].sort((a, b) => a - b);
     onChange({ frequencyDays: next });
-  };
-
-  const toggleGroup = (gid: string) => {
-    const cur = value?.groupIds ?? [];
-    const next = cur.includes(gid)
-      ? cur.filter((x) => x !== gid)
-      : [...cur, gid];
-    onChange({ groupIds: next });
   };
 
   return (
@@ -190,40 +159,6 @@ export function FrequencyEditor({
               className={cn(FIELD, "tabular-nums")}
             />
           </label>
-        </div>
-      )}
-
-      {/* Group memberships */}
-      {value?.frequencyType === "group" && (
-        <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>{labels.groups}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {groups.map((g) => {
-              const active = (value.groupIds ?? []).includes(g.id);
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => toggleGroup(g.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                    CHIP_FOCUS,
-                    active
-                      ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-text"
-                      : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: g.color }}
-                  />
-                  {g.name}
-                </button>
-              );
-            })}
-          </div>
         </div>
       )}
     </div>

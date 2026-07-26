@@ -22,7 +22,6 @@ export function buildWeekdayLabels(t: (key: string) => string): string[] {
 export interface FrequencyLabelCopy {
   daily: string;
   weekdaysFallback: string;
-  group: string;
   intervalEvery: string;
   intervalDays: string;
 }
@@ -50,9 +49,10 @@ export function frequencyLabel(
         .replace(/\s+/g, " ")
         .trim();
     }
-    case "group":
-      return copy.group;
     default:
+      // Unreachable for a mapped RoutineNode — `normaliseFrequency` already
+      // folds the retired "group" value into a live type on the way out of
+      // the DB. Kept as a total-function guard for hand-built inputs.
       return r.frequencyType;
   }
 }

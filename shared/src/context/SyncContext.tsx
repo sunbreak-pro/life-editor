@@ -59,6 +59,10 @@ export const REALTIME_TABLES = [
   "routines_payload",
   "notes_payload",
   "dailies_payload",
+  // #352 removed the RoutineGroup CODE but not the tables (DDL ゼロ), and
+  // they are still in the `supabase_realtime` publication — this list must
+  // stay in lockstep with it (see syncRealtimeTables.test.ts). Nothing
+  // writes to them anymore, so the subscription is simply silent.
   "routine_groups",
   "routine_group_assignments",
   "wiki_tags",

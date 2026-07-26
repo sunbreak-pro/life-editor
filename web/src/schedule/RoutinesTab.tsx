@@ -4,14 +4,18 @@ import {
   useRoutineContext,
   useRightSidebarOptional,
   useTranslation,
+  useScheduleItemsRoutineSync,
   RightSidebarPortal,
   RoutineEditorForm,
   ScheduleSidebarTabs,
   buildWeekdayLabels,
   frequencyLabel,
+  seedFrequencyPatch,
+  todayDateKey,
+  addDaysKey,
+  type DataService,
   type FrequencyLabelCopy,
   type RoutineEditorRoutine,
-  type RoutineEditorGroup,
 } from "@life-editor/shared";
 
 /*
@@ -21,22 +25,36 @@ import {
  * chrome. The routine list shows title + time + frequency summary; the pure
  * <RoutineEditorForm> edits the selection.
  *
- * DataService is reached ONLY through useRoutineContext (§3.1). i18n is
- * resolved here and injected into the pure form (§6.4). Group membership rides
- * the form's `groupIds` patch, which we split off to setGroupsForRoutine (the
- * routine row itself has no groupIds column — the assignment table owns it).
+ * DataService reaches the domain through useRoutineContext (§3.1); the prop
+ * exists only to feed the shared generator hook, exactly as the Calendar host
+ * does (§6.4 — injected, never a module singleton).
+ * i18n is resolved here and injected into the pure form (§6.4).
  */
-export function RoutinesTab() {
+
+/** Frequency fields — a patch touching any of these needs a reconcile pass. */
+const FREQUENCY_KEYS = [
+  "frequencyType",
+  "frequencyDays",
+  "frequencyInterval",
+  "frequencyStartDate",
+] as const;
+
+/**
+ * Reconcile window for this tab (#352). Unlike the Calendar host there is no
+ * visible range here, so we take the widest window the calendar itself ever
+ * materialises in one go — a 6-week month grid — anchored on today. Days past
+ * it are reconciled by `ensureRoutineItemsForDateRange` when the user
+ * navigates the calendar onto them.
+ */
+const RECONCILE_WINDOW_DAYS = 41;
+
+export function RoutinesTab({ dataService }: { dataService: DataService }) {
   const { t } = useTranslation();
-  const {
-    routines,
-    routineGroups,
-    createRoutine,
-    updateRoutine,
-    deleteRoutine,
-    setGroupsForRoutine,
-    getGroupIdsForRoutine,
-  } = useRoutineContext();
+  const { routines, createRoutine, updateRoutine, deleteRoutine } =
+    useRoutineContext();
+  const { reconcileRoutineScheduleItems } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Null-safe (tests / standalone). `open` surfaces the panel on selection.
   const rightSidebar = useRightSidebarOptional();
   const openSidebar = rightSidebar?.open;
@@ -56,7 +74,6 @@ export function RoutinesTab() {
     () => ({
       daily: t("scheduleScreen.frequencyDaily"),
       weekdaysFallback: t("scheduleScreen.frequencyWeekdays"),
-      group: t("scheduleScreen.frequencyGroup"),
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
     }),
@@ -73,20 +90,6 @@ export function RoutinesTab() {
     [routines, selectedId],
   );
 
-  const editorRoutine = useMemo<RoutineEditorRoutine | null>(() => {
-    if (!selectedRoutine) return null;
-    return {
-      ...selectedRoutine,
-      groupIds: getGroupIdsForRoutine(selectedRoutine.id),
-    };
-  }, [selectedRoutine, getGroupIdsForRoutine]);
-
-  const groups = useMemo<RoutineEditorGroup[]>(
-    () =>
-      routineGroups.map((g) => ({ id: g.id, name: g.name, color: g.color })),
-    [routineGroups],
-  );
-
   const formLabels = useMemo(
     () => ({
       title: t("scheduleScreen.title"),
@@ -96,11 +99,9 @@ export function RoutinesTab() {
       frequencyDaily: t("scheduleScreen.frequencyDaily"),
       frequencyWeekdays: t("scheduleScreen.frequencyWeekdays"),
       frequencyInterval: t("scheduleScreen.frequencyInterval"),
-      frequencyGroup: t("scheduleScreen.frequencyGroup"),
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
       startDate: t("scheduleScreen.startDate"),
-      groups: t("scheduleScreen.groupsLabel"),
       delete: t("scheduleScreen.deleteRoutine"),
     }),
     [t],
@@ -112,13 +113,41 @@ export function RoutinesTab() {
   };
 
   const handlePatch = (id: string, patch: Partial<RoutineEditorRoutine>) => {
-    // Group membership is not a routine column — it rides the assignment table
-    // (setGroupsForRoutine). Everything else is a plain routine field update.
-    const { groupIds, ...rest } = patch;
-    if (groupIds !== undefined) setGroupsForRoutine(id, groupIds);
-    if (Object.keys(rest).length > 0) {
-      updateRoutine(id, rest as Parameters<typeof updateRoutine>[1]);
+    if (Object.keys(patch).length === 0) return;
+    const routine = routines.find((r) => r.id === id);
+    if (!routine) {
+      void updateRoutine(id, patch as Parameters<typeof updateRoutine>[1]);
+      return;
     }
+    // A bare frequency-TYPE switch carries none of the new type's own
+    // fields; left as-is it reads as "fires never" / "fires daily" and the
+    // reconcile below would act on that transient (#352).
+    const today = todayDateKey();
+    const seeded = seedFrequencyPatch(patch, routine, today);
+    const touchesFrequency = FREQUENCY_KEYS.some((k) => k in seeded);
+    void (async () => {
+      const landed = await updateRoutine(
+        id,
+        seeded as Parameters<typeof updateRoutine>[1],
+      );
+      // Title / time edits need no reconcile (this tab has no series-scope
+      // dialog — that propagation is the Calendar host's #279 path), and a
+      // failed template write must not leave the series reshaped to a
+      // frequency the routine never took.
+      if (!landed || !touchesFrequency) return;
+      await reconcileRoutineScheduleItems(
+        { ...routine, ...seeded },
+        {
+          startDate: today,
+          endDate: addDaysKey(today, RECONCILE_WINDOW_DAYS),
+        },
+        {
+          title: routine.title,
+          startTime: routine.startTime,
+          endTime: routine.endTime,
+        },
+      );
+    })();
   };
 
   const handleDelete = (id: string) => {
@@ -175,10 +204,9 @@ export function RoutinesTab() {
           onChange={() => {}}
           label={t("scheduleScreen.detailPanelLabel")}
         >
-          {editorRoutine ? (
+          {selectedRoutine ? (
             <RoutineEditorForm
-              routine={editorRoutine}
-              groups={groups}
+              routine={selectedRoutine}
               onPatch={handlePatch}
               onDelete={handleDelete}
               weekdayLabels={weekdayLabels}

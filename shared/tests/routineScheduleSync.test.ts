@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { shouldRoutineRunOnDate } from "../src/utils/routineFrequency";
+import {
+  shouldRoutineRunOnDate,
+  seedFrequencyPatch,
+} from "../src/utils/routineFrequency";
 import {
   shouldCreateRoutineItem,
   diffRoutineScheduleItems,
   collectRoutineItemsForDates,
 } from "../src/utils/routineScheduleSync";
-import type { RoutineNode } from "../src/types/routine";
-import type { RoutineGroup } from "../src/types/routineGroup";
+import type { FrequencyType, RoutineNode } from "../src/types/routine";
 import type { ScheduleItem } from "../src/types/schedule";
 
 /*
@@ -28,23 +30,6 @@ function makeRoutine(over: Partial<RoutineNode>): RoutineNode {
     isVisible: true,
     isDeleted: false,
     deletedAt: null,
-    order: 0,
-    frequencyType: "daily",
-    frequencyDays: [],
-    frequencyInterval: null,
-    frequencyStartDate: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    ...over,
-  };
-}
-
-function makeGroup(over: Partial<RoutineGroup>): RoutineGroup {
-  return {
-    id: "rgroup-1",
-    name: "G",
-    color: "#000",
-    isVisible: true,
     order: 0,
     frequencyType: "daily",
     frequencyDays: [],
@@ -126,10 +111,102 @@ describe("shouldRoutineRunOnDate (frequency parity)", () => {
     );
   });
 
-  it("group/unknown frequency → false (runaway-creation guard)", () => {
-    expect(shouldRoutineRunOnDate("group", [], null, null, "2026-05-17")).toBe(
-      false,
-    );
+  it("unknown frequency → false (runaway-creation guard)", () => {
+    // The retired "group" type (#352) can still arrive from the DB — the
+    // 0008 CHECK outlives the removed code. It must never fire.
+    expect(
+      shouldRoutineRunOnDate(
+        "group" as unknown as FrequencyType,
+        [],
+        null,
+        null,
+        "2026-05-17",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("seedFrequencyPatch (#352 — bare type switches)", () => {
+  // 2026-05-17 is a Sunday (getDay() === 0).
+  const SUNDAY = "2026-05-17";
+  const current = {
+    frequencyDays: [] as number[],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+  };
+
+  it("gives a weekdays switch the anchor's own weekday (else it fires NEVER)", () => {
+    // The segmented control sends the type alone. Unseeded, weekdays with an
+    // empty day set matches no date at all — and since #352 the reconcile
+    // acts on that immediately, sweeping the series' future.
+    expect(
+      seedFrequencyPatch({ frequencyType: "weekdays" }, current, SUNDAY),
+    ).toEqual({ frequencyType: "weekdays", frequencyDays: [0] });
+  });
+
+  it("gives an interval switch a concrete interval + start (else it fires DAILY)", () => {
+    // Unseeded, both interval guards in shouldRoutineRunOnDate degrade to
+    // true, so one click would mint a row on every visible day.
+    expect(
+      seedFrequencyPatch({ frequencyType: "interval" }, current, SUNDAY),
+    ).toEqual({
+      frequencyType: "interval",
+      frequencyInterval: 1,
+      frequencyStartDate: SUNDAY,
+    });
+  });
+
+  it("never overwrites what the caller or the routine already set", () => {
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "weekdays", frequencyDays: [2] },
+        current,
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "weekdays", frequencyDays: [2] });
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "interval" },
+        {
+          frequencyDays: [],
+          frequencyInterval: 3,
+          frequencyStartDate: "2026-05-01",
+        },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "interval" });
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "weekdays" },
+        { ...current, frequencyDays: [1, 5] },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "weekdays" });
+  });
+
+  it("leaves a patch without a type switch alone (clearing every weekday is the user's choice)", () => {
+    const patch = { frequencyDays: [] };
+    expect(
+      seedFrequencyPatch(patch, { ...current, frequencyDays: [1] }, SUNDAY),
+    ).toBe(patch);
+  });
+
+  it("repairs a non-positive interval", () => {
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "interval" },
+        { ...current, frequencyInterval: 0, frequencyStartDate: SUNDAY },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "interval", frequencyInterval: 1 });
+  });
+
+  it("daily needs no seeding", () => {
+    expect(
+      seedFrequencyPatch({ frequencyType: "daily" }, current, SUNDAY),
+    ).toEqual({
+      frequencyType: "daily",
+    });
   });
 });
 
@@ -148,47 +225,21 @@ describe("shouldCreateRoutineItem (Issue 017 reject order)", () => {
     ).toBe(false);
   });
 
-  it("group with zero groups never fires", () => {
-    const r = makeRoutine({ frequencyType: "group" });
-    expect(shouldCreateRoutineItem(r, "2026-05-17", new Map())).toBe(false);
-  });
-
-  it("group fires when at least one visible group matches (OR)", () => {
-    const r = makeRoutine({ frequencyType: "group" });
-    const map = new Map<string, RoutineGroup[]>([
-      [
-        "routine-1",
-        [
-          makeGroup({
-            id: "rgroup-1",
-            frequencyType: "weekdays",
-            frequencyDays: [1],
-          }),
-          makeGroup({ id: "rgroup-2", frequencyType: "daily" }),
-        ],
-      ],
-    ]);
-    // 2026-05-17 is Sunday: group-1 (Mon) no, group-2 (daily) yes → OR true
-    expect(shouldCreateRoutineItem(r, "2026-05-17", map)).toBe(true);
-  });
-
-  it("group ignores invisible groups", () => {
-    const r = makeRoutine({ frequencyType: "group" });
-    const map = new Map<string, RoutineGroup[]>([
-      ["routine-1", [makeGroup({ isVisible: false, frequencyType: "daily" })]],
-    ]);
-    expect(shouldCreateRoutineItem(r, "2026-05-17", map)).toBe(false);
+  it("a retired group-typed row (DB legacy) never fires", () => {
+    const r = makeRoutine({
+      frequencyType: "group" as unknown as FrequencyType,
+    });
+    expect(shouldCreateRoutineItem(r, "2026-05-17")).toBe(false);
   });
 });
 
 describe("diffRoutineScheduleItems", () => {
   it("creates a row when none exists for a matching routine", () => {
-    const { toCreate, toUpdate } = diffRoutineScheduleItems(
+    const { toCreate } = diffRoutineScheduleItems(
       [],
       [makeRoutine({ title: "Workout", startTime: "07:00", endTime: "07:45" })],
       "2026-05-17",
     );
-    expect(toUpdate).toEqual([]);
     expect(toCreate).toHaveLength(1);
     expect(toCreate[0]).toMatchObject({
       date: "2026-05-17",
@@ -200,32 +251,31 @@ describe("diffRoutineScheduleItems", () => {
     expect(toCreate[0].id).toMatch(/^si-/);
   });
 
-  it("updates (not duplicates) when an item exists but drifted", () => {
+  it("creation-only: a drifted existing row is left alone (#279 rules 1-2)", () => {
+    // Pre-#279 this emitted a toUpdate that rewrote the row back to the
+    // template — reverting 「この予定のみ」 edits and done records. The
+    // bucket is gone; the row must simply not be re-created either.
     const existing = makeItem({ title: "Old", startTime: "08:00" });
-    const { toCreate, toUpdate } = diffRoutineScheduleItems(
+    const { toCreate } = diffRoutineScheduleItems(
       [existing],
       [makeRoutine({ title: "New", startTime: "09:00", endTime: "09:30" })],
       "2026-05-17",
     );
     expect(toCreate).toEqual([]);
-    expect(toUpdate).toEqual([
-      { id: "si-1", title: "New", startTime: "09:00", endTime: "09:30" },
-    ]);
   });
 
-  it("no-op when existing item already matches", () => {
+  it("no-op when an item already exists for the slot", () => {
     const existing = makeItem({
       title: "R",
       startTime: "09:00",
       endTime: "09:30",
     });
-    const { toCreate, toUpdate } = diffRoutineScheduleItems(
+    const { toCreate } = diffRoutineScheduleItems(
       [existing],
       [makeRoutine({})],
       "2026-05-17",
     );
     expect(toCreate).toEqual([]);
-    expect(toUpdate).toEqual([]);
   });
 
   it("does not create for a soft-deleted routine (Issue 017 (b)/(d))", () => {
@@ -244,7 +294,6 @@ describe("collectRoutineItemsForDates", () => {
       new Date("2026-05-17T00:00:00"),
       new Date("2026-05-19T00:00:00"),
       [makeRoutine({ frequencyType: "daily" })],
-      undefined,
       new Set(["routine-1:2026-05-18"]),
     );
     const dates = out.map((c) => c.date).sort();

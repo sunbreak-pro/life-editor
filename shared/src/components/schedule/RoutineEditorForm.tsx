@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "../cn";
-import { FrequencyEditor, type FrequencyEditorGroup } from "./FrequencyEditor";
+import { FrequencyEditor } from "./FrequencyEditor";
 import type { RoutineNode } from "../../types/routine";
 import { FIELD, FIELD_LABEL } from "../styleTokens";
 
@@ -26,11 +26,7 @@ export type RoutineEditorRoutine = Pick<
   | "frequencyDays"
   | "frequencyInterval"
   | "frequencyStartDate"
-  | "groupIds"
 >;
-
-/** Group entry (id / name / data-driven color) — shape owned by FrequencyEditor. */
-export type RoutineEditorGroup = FrequencyEditorGroup;
 
 export interface RoutineEditorFormLabels {
   title: string;
@@ -40,19 +36,16 @@ export interface RoutineEditorFormLabels {
   frequencyDaily: string;
   frequencyWeekdays: string;
   frequencyInterval: string;
-  frequencyGroup: string;
   /** "N 日ごと" leading word. */
   intervalEvery: string;
   /** "日ごと" trailing word. */
   intervalDays: string;
   startDate: string;
-  groups: string;
   delete: string;
 }
 
 export interface RoutineEditorFormProps {
   routine: RoutineEditorRoutine;
-  groups: RoutineEditorGroup[];
   onPatch: (id: string, patch: Partial<RoutineEditorRoutine>) => void;
   onDelete: (id: string) => void;
   /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
@@ -98,7 +91,6 @@ function TitleInput({
 
 export function RoutineEditorForm({
   routine,
-  groups,
   onPatch,
   onDelete,
   weekdayLabels,
@@ -154,7 +146,6 @@ export function RoutineEditorForm({
       <FrequencyEditor
         value={routine}
         onChange={(patch) => onPatch(routine.id, patch)}
-        groups={groups}
         weekdayLabels={weekdayLabels}
         labels={labels}
       />
