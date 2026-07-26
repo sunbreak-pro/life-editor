@@ -84,11 +84,20 @@ export interface KanbanViewProps {
    */
   pendingNewTask?: boolean;
   onConsumeNewTask?: () => void;
+  /**
+   * A task to open, arrived from a "[[" link click in another tab (#370).
+   * Same idiom as pendingNewTask: consume it once, so returning to the Tasks
+   * tab later never re-opens the same task over the user's own selection.
+   */
+  pendingSelectTaskId?: string | null;
+  onConsumePendingSelect?: () => void;
 }
 
 export function KanbanView({
   pendingNewTask = false,
   onConsumeNewTask,
+  pendingSelectTaskId = null,
+  onConsumePendingSelect,
 }: KanbanViewProps = {}): React.JSX.Element {
   const tree = useTaskTreeContext();
   const wikiTags = useWikiTagsUnifiedContext();
@@ -125,6 +134,20 @@ export function KanbanView({
     },
     [tree, rightSidebar],
   );
+
+  // A "[[" link click in the Notes / Daily editor lands here with a task id
+  // (#370): select it and, on the wide board, open the detail panel — exactly
+  // what a card click does. Narrow has no detail surface for a plain selection
+  // (MobileTaskList drives its own sheet), so there it only selects.
+  useEffect(() => {
+    if (!pendingSelectTaskId) return;
+    tree.setSelectedTaskId(pendingSelectTaskId);
+    if (isWide) rightSidebar.open();
+    onConsumePendingSelect?.();
+    // tree.setSelectedTaskId / rightSidebar.open are stable for the view's
+    // lifetime; rerun only when a new pending id arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSelectTaskId]);
 
   // Add-task dialog (W-UX). The board had no create entry point; this small
   // centered overlay creates a task, then opens it straight into the detail

@@ -718,7 +718,8 @@
     "insertUnresolved": "Insert “{{query}}” as a link",
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
-    "roleDaily": "Daily"
+    "roleDaily": "Daily",
+    "roleTask": "Task"
   },
   "auth": {
     "productName": "Life Editor",

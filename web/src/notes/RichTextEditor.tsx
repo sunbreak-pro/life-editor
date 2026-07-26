@@ -236,6 +236,7 @@ export function RichTextEditor({
                   create: (query) => t("itemLink.createNote", { query }),
                   roleNote: t("itemLink.roleNote"),
                   roleDaily: t("itemLink.roleDaily"),
+                  roleTask: t("itemLink.roleTask"),
                 },
               }),
             ]
