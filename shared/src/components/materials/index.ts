@@ -28,6 +28,7 @@ export {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,
   dailyContentExcerpt,
+  dailyContentHasRenderedContent,
   type TipTapDoc,
 } from "./dailyContent";
 // Sidebar list controls (#283) — compact sort + optional-filter header row for

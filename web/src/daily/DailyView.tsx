@@ -23,6 +23,7 @@ import {
   cn,
   dailyContentToEditorContent,
   dailyContentExcerpt,
+  dailyContentHasRenderedContent,
   filterAndSortDailyEntries,
   jsonDocEquals,
   createPendingItemLinks,
@@ -292,12 +293,19 @@ export function DailyView({
     // case TipTap still emits without visible content: typing then deleting
     // everything on a day that has no stored entry would otherwise mint an
     // empty DailyNode (and bump the sync cursor).
-    if (selectedContent === "" && dailyContentExcerpt(json) === undefined) {
+    //
+    // "Visible content" is NOT "has text": a resolved `[[ ]]` link is an inline
+    // atom carrying attrs only, so an excerpt-based check read a brand-new day
+    // whose body is just a link as empty and skipped the save — losing both the
+    // link text and the items_meta row its graph edge waits on (#371 left this
+    // hole; the queued edge then never flushed).
+    if (selectedContent === "" && !dailyContentHasRenderedContent(json)) {
       return;
     }
     setLastEmitted({ date: selectedDate, json });
-    // Capture the date: this also runs from the editor's unmount flush, after
-    // a date switch may have moved selectedDate on.
+    // The date this callback closed over. The editor is remounted per date
+    // (`key={editorKey}`), so an unmount flush fires the PREVIOUS instance's
+    // callback — the one still holding the date it was rendered for.
     const date = selectedDate;
     void upsertDaily(date, json).then((saved) =>
       flushPendingLinks(date, saved),

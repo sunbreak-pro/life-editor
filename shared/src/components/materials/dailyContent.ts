@@ -100,3 +100,38 @@ export function dailyContentExcerpt(
     .find(Boolean);
   return line || undefined;
 }
+
+/** TipTap node types that carry no text of their own and no children. */
+const STRUCTURAL_TYPES = new Set(["doc", "paragraph", "text"]);
+
+function hasRenderedNode(node: TipTapNode): boolean {
+  if (typeof node.text === "string" && node.text.trim() !== "") return true;
+  // An atom (itemLink, image, horizontalRule…) has no text and no children,
+  // yet the user sees it. Anything outside the structural set counts. A node
+  // with no `type` at all is malformed — treat it as structural (invisible)
+  // rather than letting it force a save.
+  if (node.type !== undefined && !STRUCTURAL_TYPES.has(node.type)) return true;
+  if (!Array.isArray(node.content)) return false;
+  return node.content.some(hasRenderedNode);
+}
+
+/**
+ * Does this body show the user anything? Broader than
+ * `dailyContentExcerpt !== undefined`, which only sees TEXT.
+ *
+ * The gap this closes (#371 follow-up): a resolved `[[ ]]` link is an inline
+ * ATOM — its JSON carries attrs, never a text node — so a brand-new day whose
+ * body is just a link read as empty. The caller that skips saving empty bodies
+ * (so an abandoned day never mints a DailyNode) therefore skipped the save
+ * that both persists the link AND creates the items_meta row the link's graph
+ * edge FK-references. The link vanished on reload and its edge was never
+ * written.
+ */
+export function dailyContentHasRenderedContent(
+  content: string | undefined,
+): boolean {
+  if (!content) return false;
+  const doc = parseTipTapDoc(content);
+  if (doc) return doc.content.some(hasRenderedNode);
+  return content.trim() !== "";
+}
