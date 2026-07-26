@@ -1,5 +1,17 @@
 # HISTORY (chat-shell-refine)
 
+### 2026-07-26 - #304 Epic close: 全 DoD 実測確認 + Issue 完了処理
+
+#### 概要
+
+子 PR 1（PR #316）/ 子 PR 2（PR #380）が両方 merged 済みだったため、main の実コードで Epic #304 の DoD 全項目を実測確認し、Issue の完了処理（body チェックボックス消し込み・完了コメント・close (completed)）を実施した。実装の新規差分はゼロ（per-chat meta のみ・ブランチ = claude/shell-refine-304-ui）。
+
+#### 変更点
+
+- **実測確認**: ヘッダー `[search][Undo][Redo][rightSidebar]` 配置（`MainScreen.tsx` headerControls）/ `UndoRedoButtons` の履歴空 disabled / `edit:undo`・`edit:redo` の `activeInInput: false` + `resolveShortcut` の contentEditable・IME ガード（エディタ非干渉）/ `UndoRedoHost` の Toast + i18n en·ja 両 catalog / vitest undoRedo 3 ファイル 20 件緑
+- **Issue #304**: body チェックボックス全消し込み + 完了確認コメント + close（reason: completed）。見送り = Routine（RoutineScheduleSync との undo 連鎖未設計 — 必要になったら chat-main で別 Issue 起票を判断）
+- **outbox**: chat-main へ実ブラウザ実測依頼（ヘッダーボタン / ⌘Z 分離 / Toast / 4 ドメイン代表操作の往復・既知挙動 3 点は Issue コメント参照）を 2026-07-26 (3) で append
+
 ### 2026-07-26 - #304 子 PR 2: schedule / daily / note の undoRedo 配線 + 子 PR 1 バグ修正（PR #380）
 
 #### 概要
