@@ -612,7 +612,20 @@
     "undone": "Undid: {{label}}",
     "redone": "Redid: {{label}}",
     "labels": {
-      "taskTreeChange": "task change"
+      "taskTreeChange": "task change",
+      "createScheduleItem": "event creation",
+      "updateScheduleItem": "event update",
+      "toggleScheduleItemComplete": "event completion toggle",
+      "dismissScheduleItem": "event dismissal",
+      "deleteScheduleItem": "event deletion",
+      "createDaily": "daily creation",
+      "deleteDaily": "daily deletion",
+      "togglePin": "pin toggle",
+      "moveNote": "note move",
+      "createNote": "note creation",
+      "createFolder": "folder creation",
+      "updateNote": "note update",
+      "softDeleteNote": "note deletion"
     }
   },
   "common": {
