@@ -32,7 +32,7 @@ import {
  *     write path until DU-D consolidates the contract).
  *   - `rowsToRoutineNode` / `routineNodeToRows` / `routineUpdatesToPatches`.
  *   - `frequency_days` JSON <-> number[] coercion (shared with the legacy
- *     shim and with `routineGroupMapper`).
+ *     shim).
  *   - DB-Q2 enforcement: `metaPatch.updated_at = now` is ALWAYS emitted
  *     by `routineUpdatesToPatches`, regardless of which payload column
  *     the caller patched (same rule as `taskUpdatesToPatches`).
@@ -51,15 +51,13 @@ import {
  */
 
 // ---------------------------------------------------------------------------
-// 0. Shared frequency_type / frequency_days helpers (also used by
-//    routineGroupMapper via re-import).
+// 0. Shared frequency_type / frequency_days helpers.
 // ---------------------------------------------------------------------------
 
 const FREQUENCY_TYPES: ReadonlySet<string> = new Set([
   "daily",
   "weekdays",
   "interval",
-  "group",
 ]);
 
 /**
@@ -67,13 +65,41 @@ const FREQUENCY_TYPES: ReadonlySet<string> = new Set([
  * 0008 CHECK constraint enforces this at the DB layer; this is
  * defence-in-depth so a corrupt/legacy row surfaces a clear error
  * instead of a silent type lie.
+ *
+ * The retired "group" value is handled one level up by
+ * `normaliseFrequency` — it is legal in the DB (DDL ゼロ) but not in the
+ * domain union, so it must never reach here.
  */
 export function toFrequencyType(value: string): FrequencyType {
   if (FREQUENCY_TYPES.has(value)) return value as FrequencyType;
   throw new Error(
     `routines: invalid frequency_type "${value}" ` +
-      `(expected daily|weekdays|interval|group)`,
+      `(expected daily|weekdays|interval)`,
   );
+}
+
+/**
+ * Read the frequency pair (type + days) off a DB row.
+ *
+ * #352 §5 決定3 removed the "group" frequency, but the 0008 CHECK still
+ * allows the value, so a pre-removal row can still be read back. Such a
+ * row normalises to `weekdays` with an EMPTY day set = a routine that
+ * never fires — exactly what a group-typed routine did before removal
+ * (group management UI never shipped, so it had no resolvable group and
+ * `shouldCreateRoutineItem` always returned false). Throwing instead
+ * would brick the whole routine list on one legacy row.
+ */
+export function normaliseFrequency(
+  frequencyType: string,
+  frequencyDaysRaw: string,
+): { frequencyType: FrequencyType; frequencyDays: number[] } {
+  if (frequencyType === "group") {
+    return { frequencyType: "weekdays", frequencyDays: [] };
+  }
+  return {
+    frequencyType: toFrequencyType(frequencyType),
+    frequencyDays: parseFrequencyDays(frequencyDaysRaw),
+  };
 }
 
 /**
@@ -230,6 +256,11 @@ export function rowsToRoutineNode(
     );
   }
 
+  const frequency = normaliseFrequency(
+    payload.frequency_type,
+    payload.frequency_days,
+  );
+
   const node: RoutineNode = {
     id: meta.id,
     title: meta.title,
@@ -240,8 +271,8 @@ export function rowsToRoutineNode(
     isDeleted: meta.is_deleted,
     deletedAt: meta.deleted_at,
     order: payload.sort_order,
-    frequencyType: toFrequencyType(payload.frequency_type),
-    frequencyDays: parseFrequencyDays(payload.frequency_days),
+    frequencyType: frequency.frequencyType,
+    frequencyDays: frequency.frequencyDays,
     frequencyInterval: payload.frequency_interval,
     frequencyStartDate: payload.frequency_start_date,
     createdAt: meta.created_at,
@@ -252,10 +283,6 @@ export function rowsToRoutineNode(
   node.reminderEnabled = payload.reminder_enabled;
   if (payload.reminder_offset !== null)
     node.reminderOffset = payload.reminder_offset;
-
-  // groupIds is NOT a routines_payload column — populated via the
-  // routine_group_assignments join in the DataService layer. Intentionally
-  // not set here so round-trip diffs do not manufacture undefined-vs-absent.
 
   return node;
 }
@@ -460,6 +487,8 @@ export const ROUTINE_SELECT_COLUMNS =
 
 /** @deprecated Use `rowsToRoutineNode(meta, payload)` instead. */
 export function rowToRoutine(row: RoutineRow): RoutineNode {
+  const frequency = normaliseFrequency(row.frequency_type, row.frequency_days);
+
   const node: RoutineNode = {
     id: row.id,
     title: row.title,
@@ -470,8 +499,8 @@ export function rowToRoutine(row: RoutineRow): RoutineNode {
     isDeleted: row.is_deleted,
     deletedAt: row.deleted_at,
     order: row.order,
-    frequencyType: toFrequencyType(row.frequency_type),
-    frequencyDays: parseFrequencyDays(row.frequency_days),
+    frequencyType: frequency.frequencyType,
+    frequencyDays: frequency.frequencyDays,
     frequencyInterval: row.frequency_interval,
     frequencyStartDate: row.frequency_start_date,
     createdAt: row.created_at,

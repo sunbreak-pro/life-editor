@@ -19,8 +19,9 @@ import { DEFAULT_SHORTCUTS } from "../constants/defaultShortcuts";
  * Provider is mounted; in that case this hook is inert (no listener attached).
  *
  * Callbacks are injected per CLAUDE.md §6.4 (no getDataService / no
- * useTranslation inside shared hooks). Handlers without a web surface yet
- * (new-task / undo / redo) are optional; the host wires them in W3-B / W4.
+ * useTranslation inside shared hooks). Every handler is optional — an
+ * unmapped intent is a no-op (new-task landed in W3-B; undo / redo route
+ * through the app-level global UndoRedo stack, #304).
  */
 
 /** Host-injected actions, keyed by intent. All optional → unmapped = no-op. */
@@ -29,13 +30,13 @@ export interface GlobalShortcutHandlers {
   onTogglePalette?: () => void;
   /** global:settings — open the Settings section. */
   onOpenSettings?: () => void;
-  /** global:new-task — start a new task (no web surface yet; W3-B/W4). */
+  /** global:new-task — start a new task (W3-B: Materials + create dialog). */
   onNewTask?: () => void;
   /** nav:* — switch to the given section. The string is the web Section id. */
   onNavigate?: (section: NavSection) => void;
-  /** edit:undo — undo (no web surface yet; W3-B/W4). */
+  /** edit:undo — app-level undo via the global UndoRedo stack (#304). */
   onUndo?: () => void;
-  /** edit:redo — redo (no web surface yet; W3-B/W4). */
+  /** edit:redo — app-level redo via the global UndoRedo stack (#304). */
   onRedo?: () => void;
 }
 
@@ -184,7 +185,6 @@ export function useGlobalShortcuts(
           onOpenSettings();
           return;
         case "global:new-task":
-          // No web surface yet — wired in W3-B / W4.
           if (!onNewTask) return;
           e.preventDefault();
           onNewTask();
@@ -199,13 +199,11 @@ export function useGlobalShortcuts(
           onNavigate(NAV_TARGET[id]);
           return;
         case "edit:undo":
-          // No web surface yet — wired in W3-B / W4.
           if (!onUndo) return;
           e.preventDefault();
           onUndo();
           return;
         case "edit:redo":
-          // No web surface yet — wired in W3-B / W4.
           if (!onRedo) return;
           e.preventDefault();
           onRedo();

@@ -1,19 +1,18 @@
 import type { FrequencyType } from "../types/routine";
 
 /**
- * 1:1 behaviour-preserving port of frontend/src/utils/routineFrequency.ts.
- * NOT modified — the only change vs. the Tauri original is the type
- * import path (`../types/routine` instead of `../types/routine` relative
- * to frontend). Every date is parsed as `new Date(d + "T00:00:00")` so
- * the comparison stays in the user's local calendar day (S4-0 D-1: no
- * UTC conversion — `date`/`timestamptz` columns would shift the JST
- * boundary; all schedule date math is local-consistent).
+ * Port of frontend/src/utils/routineFrequency.ts. Every date is parsed as
+ * `new Date(d + "T00:00:00")` so the comparison stays in the user's local
+ * calendar day (S4-0 D-1: no UTC conversion — `date`/`timestamptz`
+ * columns would shift the JST boundary; all schedule date math is
+ * local-consistent).
  *
- * The `default` branch deliberately returns `false` for "group"/unknown:
- * the caller (`shouldCreateRoutineItem`) must resolve "group" via the
- * routine's RoutineGroups and pass each group's own frequency in. A
- * fall-through to `true` here would match EVERY date and cause runaway
- * schedule_item creation in reconcile (Issue 017 family).
+ * The `default` branch deliberately returns `false` for an unknown
+ * frequency. It is NOT dead under the narrowed union: the value arrives
+ * from the DB, whose 0008 CHECK still allows the retired "group" type
+ * (#352 removed the code, not the schema — DDL ゼロ). A fall-through to
+ * `true` here would match EVERY date and cause runaway schedule_item
+ * creation (Issue 017 family).
  */
 export function shouldRoutineRunOnDate(
   frequencyType: FrequencyType,
@@ -39,10 +38,69 @@ export function shouldRoutineRunOnDate(
       return diffDays >= 0 && diffDays % frequencyInterval === 0;
     }
     default:
-      // "group" or unknown: caller must resolve via the routine's
-      // RoutineGroups and pass the group's frequency in. Falling through
-      // here would match every date and cause runaway schedule_item
-      // creation in reconcile.
+      // Unknown frequency (incl. rows still carrying the retired "group"
+      // type — the DB CHECK outlives the code). Never fire: falling
+      // through here would match every date and cause runaway
+      // schedule_item creation in reconcile.
       return false;
   }
+}
+
+/**
+ * Complete a bare frequency-TYPE switch into a self-consistent frequency.
+ *
+ * The segmented control emits `{ frequencyType }` alone, so a switch lands
+ * on the type-specific fields of the PREVIOUS type:
+ *   - → "weekdays" with no day set: `shouldRoutineRunOnDate` matches NO
+ *     date, so the routine reads as "fires never";
+ *   - → "interval" with a null interval / start date: both guards in
+ *     `shouldRoutineRunOnDate` degrade to `true`, so it reads as "fires
+ *     every day".
+ * Either reading is a transient the user never asked for, and since #352
+ * wired reconcile to this patch it is no longer harmless: one click would
+ * sweep (or mint) occurrences before the user picked a weekday or typed an
+ * interval. Seeding mirrors what the manual→repeat conversion already does
+ * with its seed event (`useScheduleMutations.handleChangeRepeat`).
+ *
+ * `anchorDate` is the day the edit is anchored on (the occurrence being
+ * edited, else today). Fields the caller set explicitly are never
+ * overwritten, and a patch without `frequencyType` passes through
+ * untouched — a weekday toggle that clears the last day still means "fires
+ * never", which is the user's own choice.
+ */
+export function seedFrequencyPatch<
+  T extends {
+    frequencyType?: FrequencyType;
+    frequencyDays?: number[];
+    frequencyInterval?: number | null;
+    frequencyStartDate?: string | null;
+  },
+>(
+  patch: T,
+  current: {
+    frequencyDays: number[];
+    frequencyInterval: number | null;
+    frequencyStartDate: string | null;
+  },
+  anchorDate: string,
+): T {
+  if (patch.frequencyType === undefined) return patch;
+  const seeded: T = { ...patch };
+
+  if (patch.frequencyType === "weekdays") {
+    const days = patch.frequencyDays ?? current.frequencyDays;
+    if (days.length === 0) {
+      const [y, m, d] = anchorDate.split("-").map(Number);
+      seeded.frequencyDays = [new Date(y, m - 1, d).getDay()];
+    }
+  }
+
+  if (patch.frequencyType === "interval") {
+    const interval = patch.frequencyInterval ?? current.frequencyInterval;
+    if (interval == null || interval <= 0) seeded.frequencyInterval = 1;
+    const start = patch.frequencyStartDate ?? current.frequencyStartDate;
+    if (start == null) seeded.frequencyStartDate = anchorDate;
+  }
+
+  return seeded;
 }

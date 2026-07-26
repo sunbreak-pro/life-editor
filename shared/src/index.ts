@@ -44,10 +44,6 @@ export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
 
 // Schedule domain types (S4-2 DataService surface; contexts land S4-3+)
 export type { RoutineNode, FrequencyType } from "./types/routine";
-export type {
-  RoutineGroup,
-  RoutineGroupAssignment,
-} from "./types/routineGroup";
 export type { ScheduleItem } from "./types/schedule";
 export type { CalendarNode } from "./types/calendar";
 
@@ -244,8 +240,8 @@ export {
 export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).
-// First of the Schedule trio (§6.2). routines + routine_groups +
-// routine_group_assignments CRUD only; the generator lands in S4-5.
+// First of the Schedule trio (§6.2). routines CRUD only; the generator
+// lives in useScheduleItemsRoutineSync (S4-5).
 export { RoutineProvider } from "./context";
 export { RoutineContext, type RoutineContextValue } from "./context";
 export { useRoutineContext } from "./hooks/useRoutineContext";
@@ -277,13 +273,15 @@ export {
 // auto-bump syncVersion via S8 Realtime; onChanged is the immediate
 // same-domain refresh that skips the Realtime latency — CLAUDE.md §6.4
 // DI, no module singleton).
-export { shouldRoutineRunOnDate } from "./utils/routineFrequency";
+export {
+  shouldRoutineRunOnDate,
+  seedFrequencyPatch,
+} from "./utils/routineFrequency";
 export {
   diffRoutineScheduleItems,
   shouldCreateRoutineItem,
   collectRoutineItemsForDates,
   type RoutineSyncCreate,
-  type RoutineSyncUpdate,
 } from "./utils/routineScheduleSync";
 export {
   tasksToCalendarChips,
@@ -315,7 +313,6 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
-export { buildGroupForRoutineMap } from "./utils/groupForRoutine";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,

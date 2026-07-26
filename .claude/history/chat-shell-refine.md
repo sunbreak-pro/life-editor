@@ -1,5 +1,21 @@
 # HISTORY (chat-shell-refine)
 
+### 2026-07-26 - #304 子 PR 2: schedule / daily / note の undoRedo 配線 + 子 PR 1 バグ修正（PR #380）
+
+#### 概要
+
+Epic #304 の子 PR 2。3 ドメインの Provider を TaskTreeProvider と同じ ambient auto-connect で配線し、実装過程の新テストが子 PR 1（merge 済み PR #316）の実バグ — unmount クリア effect が push のたびに cleanup を再発火して履歴を積んだ瞬間に消す（main の taskTree undo が実質無効）— を検出したため、4 Provider 共通で ref ベースの修正を同梱した。Routine は RoutineScheduleSync との連鎖未設計のため見送り（Issue #304 コメントに記録）。
+
+#### 変更点
+
+- **配線（shared/src/context/ の 3 Provider）**: `useUndoRedoOptional()` → API hook へ `options.undoRedo ?? undoRedo ?? undefined`。各フックは Tauri 時代からラベル付きコマンドを push しており配線のみで有効化。web/ 変更ゼロ
+- **子 PR 1 バグ修正（TaskTreeContext + 新 3 Provider）**: unmount クリアの deps を context 値 → `hasExplicitUndoRedo`(boolean) に変更し、値は ref 経由で読む。回帰テストあり
+- **schedule 日跨ぎ修正（useScheduleItemsAPI）**: undo/redo クロージャの日付比較を dateRef（現在のアンカー日付）読みに変更 — 他日の行が表示リストに混入する不整合を解消（role-qa Important 反映）
+- **i18n**: undoRedo.labels に新規 13 キー（en/ja。既存 taskTreeChange と合わせ 14）
+- **テスト**: undoRedoDomainWiring.test.tsx 新設 6 件（3 ドメイン + taskTree 回帰 + explicit prop + StrictMode）
+- **コメント / docs**: useGlobalShortcuts の「未配線」記述を実態に更新・app-integration plan Worklog に #304 解消を追記
+- **検証**: shared tsc -b + vitest 137 files / 1086 passed・web build exit 0・role-qa = PASS with notes（Blocker 0）
+
 ### 2026-07-26 - #320 Mobile 基盤配線（PR #358）
 
 #### 概要
@@ -9,10 +25,10 @@
 #### 変更点
 
 - **ゲート配線（`web/src/MainScreen.tsx`）**: `ShortcutConfigHost` 新設（native = children 素通し / それ以外 = 従来どおり Provider ラップ）。消費側の null 安全は全箇所実測確認（GlobalShortcuts / SettingsScreen / WorkScreen / AudioChimeBridge / useGlobalShortcuts）
-- **チャイム維持（role-qa Blocker 反映）**: AudioProvider は全ホストでマウント維持・WorkScreen の mixer 描画条件に `!isNativeMobile()` を追加。#320 DoD の「Audio Provider 省略」は mobile-scope.md #10（work タイマー Full）/#11（Desktop 専用は mixer のみ）と矛盾するため採らず
+- **チャイム維持（role-qa Blocker 反映）**: AudioProvider は全ホストでマウント維持・WorkScreen の mixer 描画条件に `!isNativeMobile()` を追加
 - **viewport（`web/index.html`）**: `viewport-fit=cover` 追加（notched iOS で `env(safe-area-inset-*)` が全て 0 に解決される問題の修正）
 - **テスト**: `shared/tests/platform.test.ts` 新設（isNativeMobile の契約 3 ケース）
-- **docs 追随**: CLAUDE.md §2 / rules/frontend.md / mobile-scope.md §6 / mobile/README.md / styles.xml コメント / `shared/src/index.ts` の「5 種」参照化 / stale な "always mounted" コメント掃除（数値の非複製原則 sweep）
+- **docs 追随**: CLAUDE.md §2 / rules/frontend.md / mobile-scope.md §6 / mobile/README.md / styles.xml コメント / `shared/src/index.ts` の「5 種」参照化 / stale な "always mounted" コメント掃除
 - **検証**: shared tsc -b + vitest 137 files / 1083 passed・web build exit 0・role-qa 独立監査（NEEDS REVISION → Blocker / Important 全反映）
 
 ### 2026-07-20 - Layout / 操作系 4 Issue（PR #313/#314/#315/#316・全 merge 済み）

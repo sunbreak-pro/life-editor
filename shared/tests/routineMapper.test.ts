@@ -4,6 +4,7 @@ import {
   rowsToRoutineNode,
   routineNodeToRows,
   routineUpdatesToPatches,
+  normaliseFrequency,
   type ItemsMetaRoutineRow,
   type RoutinesPayloadRow,
 } from "../src/services/routineMapper";
@@ -115,10 +116,10 @@ describe("rowsToRoutineNode ∘ routineNodeToRows roundtrip — 5 shapes", () =>
     expect(roundtrip(node)).toEqual(node);
   });
 
-  it("group frequency, archived, hidden", () => {
+  it("time-less routine, archived, hidden", () => {
     const node: RoutineNode = {
       id: "routine-4",
-      title: "Old group routine",
+      title: "Dormant routine",
       startTime: null,
       endTime: null,
       isArchived: true,
@@ -126,7 +127,7 @@ describe("rowsToRoutineNode ∘ routineNodeToRows roundtrip — 5 shapes", () =>
       isDeleted: false,
       deletedAt: null,
       order: 3,
-      frequencyType: "group",
+      frequencyType: "weekdays",
       frequencyDays: [],
       frequencyInterval: null,
       frequencyStartDate: null,
@@ -155,6 +156,39 @@ describe("rowsToRoutineNode ∘ routineNodeToRows roundtrip — 5 shapes", () =>
       updatedAt: NOW,
     };
     expect(roundtrip(node)).toEqual({ ...node, reminderEnabled: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1b. Retired "group" frequency (#352) — legal in the DB, absent from the
+//     domain union. Must degrade, never throw.
+// ---------------------------------------------------------------------------
+
+describe("normaliseFrequency — retired group rows (#352)", () => {
+  it("maps a legacy group row onto a never-firing routine instead of throwing", () => {
+    // #352 removed the group frequency from the code but NOT from the 0008
+    // CHECK (DDL ゼロ), so such a row can still be read back. Throwing here
+    // would brick the entire routine list on one legacy row; the row must
+    // instead land as weekdays-with-no-days — exactly what a group routine
+    // did before removal (no group management UI ⇒ no resolvable group ⇒
+    // shouldCreateRoutineItem always false).
+    expect(normaliseFrequency("group", "[1,3,5]")).toEqual({
+      frequencyType: "weekdays",
+      frequencyDays: [],
+    });
+  });
+
+  it("still rejects a genuinely corrupt frequency_type", () => {
+    expect(() => normaliseFrequency("hourly", "[]")).toThrow(
+      /invalid frequency_type/,
+    );
+  });
+
+  it("passes live types through with their days", () => {
+    expect(normaliseFrequency("weekdays", "[1,5]")).toEqual({
+      frequencyType: "weekdays",
+      frequencyDays: [1, 5],
+    });
   });
 });
 

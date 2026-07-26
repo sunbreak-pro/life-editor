@@ -1,7 +1,9 @@
-// "group" (V69) defers daily/weekdays/interval to the routine's assigned
-// RoutineGroups. Multiple group memberships OR'd together — the routine
-// fires on any day satisfied by at least one of its groups.
-export type FrequencyType = "daily" | "weekdays" | "interval" | "group";
+// The retired "group" type (V69) is NOT part of the union anymore (#352
+// §5 決定3): group management UI never shipped, so a group-typed routine
+// could never resolve a firing day. The DB CHECK still accepts the value
+// (DDL ゼロ) — `toFrequencyType` maps such legacy rows onto a never-firing
+// routine rather than throwing.
+export type FrequencyType = "daily" | "weekdays" | "interval";
 
 export interface RoutineNode {
   id: string;
@@ -22,8 +24,4 @@ export interface RoutineNode {
   createdAt: string;
   updatedAt: string;
   version?: number;
-  // V69: Group memberships. Populated by joining routine_group_assignments.
-  // Only meaningful when frequencyType === "group", but kept on every node so
-  // the EditRoutine dialog can recover the list when toggling between types.
-  groupIds?: string[];
 }
