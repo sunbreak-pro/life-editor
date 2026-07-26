@@ -27,6 +27,7 @@ import {
   BottomSheet,
   Modal,
   useScheduleItemsRoutineSync,
+  useDeferredAction,
   minutesToTime,
   deriveScheduleStatus,
   tasksToCalendarChips,
@@ -78,6 +79,17 @@ const ICON_BTN =
   "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 // Default duration (minutes) prefilled when creating from an empty-slot click.
 const CREATE_DURATION_MIN = 60;
+/*
+ * How long the single-click bubble waits for a possible double-click (#355).
+ *
+ * Only the bubble waits — selection is applied immediately either way — so the
+ * cost of a longer window is small, while too short a one leaves the original
+ * bug in place: Windows counts anything under 500ms as a double-click, and at
+ * 200ms every slower-than-brisk double-click still flashed. 350ms covers the
+ * bulk of that range without the click feeling unanswered (the selection ring
+ * lands at once). Above ~400ms the wait starts to read as lag.
+ */
+const POPOVER_DELAY_MS = 350;
 export function CalendarTab({
   dataService,
   onOpenRoutines,
@@ -191,6 +203,11 @@ export function CalendarTab({
     return () => clearInterval(id);
   }, []);
 
+  // #355: the bubble popover is deferred so a double-click can claim the
+  // gesture before it appears. Cancelled on unmount by the hook.
+  const { defer: deferPopover, cancel: cancelPopover } =
+    useDeferredAction(POPOVER_DELAY_MS);
+
   // Selection = highlight only (#299). The grid ring follows selectedId; the
   // duplicate handler re-selects the copy. Bubble / overlay opening is handled
   // by the activate/open-detail handlers below.
@@ -203,19 +220,26 @@ export function CalendarTab({
   // #299 single-click: open the bubble popover next to the item (Desktop). On
   // Mobile a single tap opens the BottomSheet editor directly (selectedId →
   // editorPane → sheet), matching the existing lean-drawer flow.
+  //
+  // #355: the bubble is held back for a beat. A double-click fires `click` on
+  // its first press and only announces itself afterwards, so opening the
+  // bubble straight away made it flash open and shut on every double-click.
+  // Selection stays immediate — it is the part that should feel instant, and
+  // the detail surface wants it anyway.
   const handleItemActivate = useCallback(
     (id: string, pos: { x: number; y: number }) => {
       // A-1: task chips stay read-only — no bubble, no editor (#297 preserved).
       if (isTaskChip(id)) return;
       setSelectedId(id);
-      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
+      if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
     },
-    [isWide],
+    [isWide, deferPopover],
   );
 
   // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
   // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
-  // drives it). Closes any open bubble.
+  // drives it). Closes any open bubble; one still waiting to appear is dropped
+  // by the "another surface opened" effect below (#355).
   const handleItemOpenDetail = useCallback(
     (id: string) => {
       if (isTaskChip(id)) return;
@@ -386,6 +410,31 @@ export function CalendarTab({
     onResizeTaskChip: handleTaskChipResize,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
+
+  // #355: whenever ANY other surface opens, drop a bubble still waiting its
+  // turn — it would otherwise surface on top of that surface a moment later.
+  // One effect rather than a cancel sprinkled through each opener: the openers
+  // are spread across this file and the mutation layer, and the next one added
+  // would silently miss it. Cancelling twice is harmless (the hook no-ops when
+  // nothing is pending).
+  useEffect(() => {
+    if (
+      overlayOpen ||
+      createPanel ||
+      contextMenu ||
+      calendarsOpen ||
+      scopeRequest
+    ) {
+      cancelPopover();
+    }
+  }, [
+    overlayOpen,
+    createPanel,
+    contextMenu,
+    calendarsOpen,
+    scopeRequest,
+    cancelPopover,
+  ]);
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
