@@ -20,7 +20,7 @@ import {
   ScheduleItemContextMenu,
   RepeatScopeDialog,
   QuickCaptureSheet,
-  EventCreateFields,
+  ItemCreatePanel,
   ItemActionPopover,
   ItemDetailOverlay,
   SegmentedControl,
@@ -139,7 +139,15 @@ export function CalendarTab({
   // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
-  const { nodes: taskNodes, updateNode, setTaskStatus } = useTaskTreeContext();
+  // addNode (#376): the creation panel's task tab writes a NEW TaskNode that is
+  // already scheduled into the target slot — the same provider the tray and the
+  // chip drags write through, so there is no second source of task truth.
+  const {
+    nodes: taskNodes,
+    addNode,
+    updateNode,
+    setTaskStatus,
+  } = useTaskTreeContext();
 
   // Navigation + visible fetch window (#280 → useCalendarNav).
   const {
@@ -473,6 +481,46 @@ export function CalendarTab({
       if (isWide) setOverlayOpen(true);
     },
     [createPanel, handleCreate, isWide],
+  );
+
+  // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
+  // task as "today, time TBD" (all-day); this panel commits it to a concrete
+  // day + window, which is what makes it show up as a placed block rather than
+  // an all-day candidate. isAllDay:false for the same reason the chip drag sets
+  // it: a timed placement is by definition not all-day.
+  const scheduleTaskAt = useCallback(
+    (start: string, end: string) => {
+      if (!createPanel) return null;
+      return {
+        scheduledAt: localDateTimeToISO(createPanel.date, start),
+        scheduledEndAt: localDateTimeToISO(createPanel.date, end),
+        isAllDay: false,
+      };
+    },
+    [createPanel],
+  );
+
+  const handleCreateTaskSubmit = useCallback(
+    (title: string, start: string, end: string) => {
+      const placement = scheduleTaskAt(start, end);
+      if (!placement) return;
+      // Root-level task (parentId null), matching every other "quick create"
+      // entry — the panel carries no place-in-the-tree control, and the Tasks
+      // section is where re-parenting belongs.
+      addNode("task", null, title, placement);
+      setCreatePanel(null);
+    },
+    [scheduleTaskAt, addNode],
+  );
+
+  const handlePlaceTaskSubmit = useCallback(
+    (taskId: string, start: string, end: string) => {
+      const placement = scheduleTaskAt(start, end);
+      if (!placement) return;
+      updateNode(taskId, placement);
+      setCreatePanel(null);
+    },
+    [scheduleTaskAt, updateNode],
   );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
@@ -1160,32 +1208,57 @@ export function CalendarTab({
     </ItemDetailOverlay>
   );
 
-  // #299 event-creation overlay (Desktop): the shared create fields in an
+  // #376: one label bundle for BOTH creation frames (Desktop overlay + Mobile
+  // sheet) — they render the same panel, so keeping two literals here is how
+  // the two would eventually drift apart.
+  const createPanelLabels = useMemo(
+    () => ({
+      typeLabel: t("scheduleScreen.itemTypeLabel"),
+      typeEvent: t("scheduleScreen.typeEvent"),
+      typeTask: t("scheduleScreen.typeTask"),
+      title: t("scheduleScreen.title"),
+      eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
+      taskPlaceholder: t("scheduleScreen.taskPlaceholder"),
+      date: t("scheduleScreen.date"),
+      startTime: t("scheduleScreen.startTime"),
+      endTime: t("scheduleScreen.endTime"),
+      addEvent: t("scheduleScreen.addEvent"),
+      addEventAndOpen: t("scheduleScreen.addEventAndOpen"),
+      taskSourceLabel: t("scheduleScreen.taskSourceLabel"),
+      taskSourceNew: t("scheduleScreen.taskSourceNew"),
+      taskSourceExisting: t("scheduleScreen.taskSourceExisting"),
+      addTask: t("scheduleScreen.addTask"),
+      placeTask: t("scheduleScreen.placeTask"),
+      searchTasks: t("scheduleScreen.searchTasks"),
+      // Same sentence as the tray's picker, and the same fact ("nothing left
+      // to schedule") — one key rather than two that can disagree.
+      pickerEmpty: t("scheduleScreen.todoEmptyAddable"),
+      pickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
+    }),
+    [t],
+  );
+
+  // #299 item-creation overlay (Desktop): the shared creation panel in an
   // ItemDetailOverlay-style modal. Keyed on the prefill so a new empty-slot
   // click while open re-seeds the fields.
   const createOverlayEl = (
     <ItemDetailOverlay
       open={isWide && !!createPanel}
-      title={t("scheduleScreen.addEvent")}
+      title={t("scheduleScreen.addItem")}
       onClose={() => setCreatePanel(null)}
     >
       {createPanel && (
-        <EventCreateFields
+        <ItemCreatePanel
           key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
           dateLabel={createDateLabel}
           initialStart={createPanel.start}
           initialEnd={createPanel.end}
-          onSubmit={handleCreateSubmit}
-          onSubmitAndOpen={handleCreateSubmitAndOpen}
-          labels={{
-            title: t("scheduleScreen.title"),
-            placeholder: t("scheduleScreen.quickAddPlaceholder"),
-            add: t("scheduleScreen.addEvent"),
-            addAndOpen: t("scheduleScreen.addEventAndOpen"),
-            date: t("scheduleScreen.date"),
-            startTime: t("scheduleScreen.startTime"),
-            endTime: t("scheduleScreen.endTime"),
-          }}
+          existingTasks={todoAddable}
+          onSubmitEvent={handleCreateSubmit}
+          onSubmitEventAndOpen={handleCreateSubmitAndOpen}
+          onCreateTask={handleCreateTaskSubmit}
+          onPlaceTask={handlePlaceTaskSubmit}
+          labels={createPanelLabels}
         />
       )}
     </ItemDetailOverlay>
@@ -1407,25 +1480,22 @@ export function CalendarTab({
         <Plus aria-hidden className="size-6" />
       </button>
 
-      {/* Mobile creation panel (#299): the FAB opens with defaults, an
-          empty-slot tap opens with the tapped slot's time prefilled. */}
+      {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
+          empty-slot tap opens with the tapped slot's time prefilled. Same panel
+          as the Desktop overlay, so the task tab is reachable here too. */}
       <QuickCaptureSheet
         open={!!createPanel}
         onClose={() => setCreatePanel(null)}
-        onAdd={handleCreateSubmit}
-        onAddAndOpen={handleCreateSubmitAndOpen}
+        sheetTitle={t("scheduleScreen.addItem")}
         dateLabel={createDateLabel}
         initialStart={createPanel?.start}
         initialEnd={createPanel?.end}
-        labels={{
-          title: t("scheduleScreen.quickAddTitle"),
-          placeholder: t("scheduleScreen.quickAddPlaceholder"),
-          add: t("scheduleScreen.addEvent"),
-          addAndOpen: t("scheduleScreen.addEventAndOpen"),
-          date: t("scheduleScreen.date"),
-          startTime: t("scheduleScreen.startTime"),
-          endTime: t("scheduleScreen.endTime"),
-        }}
+        existingTasks={todoAddable}
+        onSubmitEvent={handleCreateSubmit}
+        onSubmitEventAndOpen={handleCreateSubmitAndOpen}
+        onCreateTask={handleCreateTaskSubmit}
+        onPlaceTask={handlePlaceTaskSubmit}
+        labels={createPanelLabels}
       />
 
       <BottomSheet

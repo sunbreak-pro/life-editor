@@ -1,65 +1,48 @@
 import { BottomSheet } from "../BottomSheet";
 import {
-  EventCreateFields,
-  type EventCreateFieldsLabels,
-} from "./EventCreateFields";
+  ItemCreatePanel,
+  type ItemCreatePanelProps,
+  type ItemCreatePanelLabels,
+} from "./ItemCreatePanel";
 
 /*
- * QuickCaptureSheet — the Mobile quick-capture form (title + start/end time)
- * inside a BottomSheet. Since #299 it is a thin frame around the shared
- * <EventCreateFields> (the same fields back the Desktop creation overlay).
- * Pure presentation (§3.1 / §6.4): copy injected already translated, the single
- * mutation is the onAdd callback; lumen-* tokens only (§5). Enter submits (IME
- * composition respected — §frontend gotcha); a blank title is a no-op.
+ * QuickCaptureSheet — the Mobile quick-capture form inside a BottomSheet. Since
+ * #299 it is a thin frame around the shared creation fields; since #376 those
+ * fields are the unified <ItemCreatePanel> (event / task tabs), so the Mobile
+ * FAB reaches everything the Desktop overlay does.
+ *
+ * The frame owns nothing but the sheet: every prop below is forwarded verbatim
+ * (pure presentation — §3.1 / §6.4, lumen-* tokens only — §5). Closing is the
+ * host's job: its submit handlers clear the open-panel state, which flips
+ * `open` here, so the sheet does not double-close.
  *
  * `initialStart` / `initialEnd` prefill the times (#299): the FAB opens with the
  * defaults, an empty-slot tap opens with the tapped slot's time. The BottomSheet
  * unmounts its children when closed, so the form re-seeds on every open.
  */
 
-export type QuickCaptureLabels = EventCreateFieldsLabels;
+export type QuickCaptureLabels = ItemCreatePanelLabels;
 
-export interface QuickCaptureSheetProps {
+export interface QuickCaptureSheetProps extends ItemCreatePanelProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (title: string, start: string, end: string) => void;
-  /** Create, then open the new item's detail editor (#354). */
-  onAddAndOpen: (title: string, start: string, end: string) => void;
-  /** Target day, already formatted by the host (#353). See EventCreateFields. */
-  dateLabel?: string;
-  /** Prefill for the start-time field (HH:MM). Default 09:00. */
-  initialStart?: string;
-  /** Prefill for the end-time field (HH:MM). Default 10:00. */
-  initialEnd?: string;
-  labels: QuickCaptureLabels;
+  /**
+   * Already-translated BottomSheet header. Separate from `labels.title` (the
+   * title input's aria-label) since #376: the sheet now holds more than one
+   * kind of item, so its heading names the panel, not the event.
+   */
+  sheetTitle: string;
 }
 
 export function QuickCaptureSheet({
   open,
   onClose,
-  onAdd,
-  onAddAndOpen,
-  dateLabel,
-  initialStart,
-  initialEnd,
-  labels,
+  sheetTitle,
+  ...panel
 }: QuickCaptureSheetProps) {
   return (
-    <BottomSheet open={open} onClose={onClose} title={labels.title}>
-      <EventCreateFields
-        dateLabel={dateLabel}
-        initialStart={initialStart}
-        initialEnd={initialEnd}
-        onSubmit={(title, start, end) => {
-          onAdd(title, start, end);
-          onClose();
-        }}
-        onSubmitAndOpen={(title, start, end) => {
-          onAddAndOpen(title, start, end);
-          onClose();
-        }}
-        labels={labels}
-      />
+    <BottomSheet open={open} onClose={onClose} title={sheetTitle}>
+      <ItemCreatePanel {...panel} />
     </BottomSheet>
   );
 }
