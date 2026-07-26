@@ -458,6 +458,8 @@ export {
 // through a domain Provider) need the canonical id shape too — the Schedule
 // creation panel creates a Note without mounting the Notes Provider.
 export { generateId } from "./utils/generateId";
+// Fair-share truncation for the role-concatenated "[[" candidate pool (#370).
+export { balanceByRole } from "./utils/balanceByRole";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from
