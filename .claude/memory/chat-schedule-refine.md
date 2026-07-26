@@ -15,8 +15,9 @@
 
 ## 予定
 
-- merge 順: **#385 は不要（空マージ済み）**。#381 は merge 済み（`a0e1a01c`）。残るは #382 / #384 / #386 で互いに独立
-- **#386（#355）は分岐元が古い**（`de7a3eb4` = #381 マージ前）。CalendarTab を触っており main 側の #380 / #381 と近接するので、**merge 前に `git fetch origin && git merge origin/main --no-edit` で取り込むこと**
+- merge 順: **#385 は不要（空マージ済み）**。#381 / #382 は merge 済み（`a0e1a01c` / `5cba89df`）。残るは **#384 / #386 で、2026-07-26 に両方とも main 取り込み済み・CI green・MERGEABLE**（どちらから merge しても可）
+- **main 取り込み時の衝突と解消（2026-07-26・両ブランチとも実施済み）**: #386 は CalendarTab の import 1 箇所（#381 が消した `buildGroupForRoutineMap` を落とし `useDeferredAction` を残す）。#384 は #382 の `dateLabel` と #354 の `addAndOpen` が同じ labels / props に別々に足されただけなので**両方残す**（EventCreateFields / QuickCaptureSheet / CalendarTab / 対応テスト 2 本）。tracker 系 .md は両側の追記を残す
+- **PR 同士の残り衝突は outbox 1 ファイルだけ**: 双方が (2) の後ろに追記するため。**(3) のブロックを 355 側にも同文で持たせて**共通部分を一致させた（`07d0a898`）ので、先に merge された側の後で残るのは「(4)(5) を足すかどうか」の自明な差分のみ
 - Epic #290 の残 Step（Step 5 構成再編 / Step 6 カレンダー台帳配線 / Step 7 エディタ拡充）は section:schedule の open Issue として残る想定。次の着手前に `gh issue list --label section:schedule --state open` + `--label shared-fix` を確認
 - chat-main へ起票依頼済み（outbox 2026-07-26 の 3 通）: (1) `web/src/notes/NotesView.tsx:291` の lint error（main 由来）(2) Mobile 月表示で FAB が `mobileSelectedDay` ではなく `anchorDate` に作る (3) 生成直後の楽観行が同期リフェッチで消えると開いたばかりの詳細エディタが閉じる
 
