@@ -1,5 +1,24 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-26 - #376 統合アイテム生成パネル（Step A merge / Step B レビュー待ち）
+
+#### 概要
+
+Schedule の生成パネルを予定専用フォームから 予定 / タスク / ノート の 3 タブに拡張した。ノートは時刻を持たないため 3 つ目の作成対象にはせず、作られる予定・タスクへ紐づく「添付」として実装（ユーザー決定 2026-07-26）。Step A = PR #393 merge 済み、Step B = PR #395 レビュー待ち。
+
+#### 変更点
+
+- **新部品 `ItemCreatePanel`**: `EventCreateFields`（#299）を置換し、Desktop 生成オーバーレイと Mobile QuickCaptureSheet の両方が同一パネルを描く。タイトルと時刻の下書きは種類タブを跨いで共有（途中で「予定じゃなくタスクだ」と気づいても打ち直しにならない）
+- **タスクタブ**: 「新規作成」= `addNode("task", null, title, { scheduledAt, scheduledEndAt, isAllDay:false })`、「既存から選ぶ」= `pickAddableTasks` プールを部分一致検索 → `updateNode` で同じ配置。Schedule にタスク詳細エディタが無い（#297）ため「追加して詳細へ」の相方は置かない
+- **ノートタブ（添付方式）**: 新規作成 or 既存選択を staged し、submit の 4 番目の引数 `ItemCreateNoteDraft | null` として渡す。ホストが新規なら `createNoteUnified` → `createItemLink(itemId, noteId)`（向き = アイテム → ノート・DailyView と同型）。パネルは直前の 予定 / タスクタブを `target` として保持するので、ノートタブを開いてもフッターの submit が死なない
+- **実測に基づく設計判断**: `ScheduleItem.noteId` は型にあるが `SupabaseDataService` が `void noteId` で捨てる（events↔notes は列ではなくリンク）。よって item link モデル一択
+- **ノート一覧の取得**: `web/src/schedule/useCreatePanelNotes.ts` がパネルを開いている間だけ `listNotesUnified()` で引く。`NotesUnifiedProvider` は本文 hydration とゴミ箱まで抱えて Realtime のたび走り直すため、タイトルだけの picker には常時コストが重い
+- **共通化**: task / note の picker を `PickerList` に集約。選択は現在の検索結果を通して解決するので、絞り込みで消えた行は選択も外れる（見えないものを操作しない）
+- **docs**: `plans/2026-07-14-schedule-redesign.md` §4.6 に #298 トレイとの棲み分け（宣言 vs 配置）とノートタブの設計判断を明文化。§2-4 の `schedulePanel.*` 記述に「#341 で削除済み」の歴史注記
+- **i18n**: `scheduleScreen.*` にタスク系 + ノート系キーを en/ja 追加、`taskSource*` → `source*` に改名、孤立した `quickAddTitle` を削除。`generateId` を shared のルート export に追加
+- **検証**: shared vitest 143 files / 1141 pass、shared・web の `tsc -b` と vite build 全て exit 0。web lint は既存 1 件（`NotesView.tsx:268`）のみ。DDL ゼロ
+- **運用上の事故と回収**: PR #393 が Step B の push 前に merge されたため、Step B を `origin/main` から切り直した `claude/schedule-376-note` に cherry-pick して PR #395 に分離。衝突は `shared/src/index.ts` の隣接追加 1 箇所（#371 の `pendingItemLinks` export）のみで、両方残して解消
+
 ### 2026-07-26 - #299 follow-up 3 本（#353 / #354 / #355）+ main ビルド復旧
 
 #### 概要
