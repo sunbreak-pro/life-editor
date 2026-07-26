@@ -27,6 +27,7 @@ import {
   BottomSheet,
   Modal,
   useScheduleItemsRoutineSync,
+  useDeferredAction,
   buildGroupForRoutineMap,
   minutesToTime,
   deriveScheduleStatus,
@@ -79,6 +80,15 @@ const ICON_BTN =
   "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 // Default duration (minutes) prefilled when creating from an empty-slot click.
 const CREATE_DURATION_MIN = 60;
+/*
+ * How long the single-click bubble waits for a possible double-click (#355).
+ * Short enough that a plain click still feels answered — selection is applied
+ * immediately either way, so this only delays the bubble — and long enough to
+ * swallow an ordinary double-click. A slower double-click than this still
+ * flashes, which is simply the pre-#355 behaviour; matching the OS threshold
+ * (500ms on Windows) would make every single click feel sticky.
+ */
+const POPOVER_DELAY_MS = 200;
 export function CalendarTab({
   dataService,
   onOpenRoutines,
@@ -191,6 +201,11 @@ export function CalendarTab({
     return () => clearInterval(id);
   }, []);
 
+  // #355: the bubble popover is deferred so a double-click can claim the
+  // gesture before it appears. Cancelled on unmount by the hook.
+  const { defer: deferPopover, cancel: cancelPopover } =
+    useDeferredAction(POPOVER_DELAY_MS);
+
   // Selection = highlight only (#299). The grid ring follows selectedId; the
   // duplicate handler re-selects the copy. Bubble / overlay opening is handled
   // by the activate/open-detail handlers below.
@@ -203,36 +218,47 @@ export function CalendarTab({
   // #299 single-click: open the bubble popover next to the item (Desktop). On
   // Mobile a single tap opens the BottomSheet editor directly (selectedId →
   // editorPane → sheet), matching the existing lean-drawer flow.
+  //
+  // #355: the bubble is held back for a beat. A double-click fires `click` on
+  // its first press and only announces itself afterwards, so opening the
+  // bubble straight away made it flash open and shut on every double-click.
+  // Selection stays immediate — it is the part that should feel instant, and
+  // the detail surface wants it anyway.
   const handleItemActivate = useCallback(
     (id: string, pos: { x: number; y: number }) => {
       // A-1: task chips stay read-only — no bubble, no editor (#297 preserved).
       if (isTaskChip(id)) return;
       setSelectedId(id);
-      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
+      if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
     },
-    [isWide],
+    [isWide, deferPopover],
   );
 
   // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
   // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
-  // drives it). Closes any open bubble.
+  // drives it). Closes any open bubble — and cancels one still waiting to
+  // appear (#355), otherwise it would pop up on top of the overlay.
   const handleItemOpenDetail = useCallback(
     (id: string) => {
       if (isTaskChip(id)) return;
+      cancelPopover();
       setSelectedId(id);
       setPopover(null);
       if (isWide) setOverlayOpen(true);
     },
-    [isWide],
+    [isWide, cancelPopover],
   );
 
   // #299 open the creation panel prefilled for a target day + time window.
   const openCreatePanel = useCallback(
     (date: string, start: string, end: string) => {
+      // Cancel a bubble still waiting its turn (#355) — an empty-slot click
+      // right after an item click would otherwise pop it over the panel.
+      cancelPopover();
       setPopover(null);
       setCreatePanel({ date, start, end });
     },
-    [],
+    [cancelPopover],
   );
   // Toolbar "Add event" / Mobile FAB → default 09:00–10:00 on the anchor day.
   const handleToolbarAdd = useCallback(
@@ -414,9 +440,13 @@ export function CalendarTab({
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
       if (isTaskChip(id)) return; // A-1: no rename/duplicate/delete on task chips
+      // Right-click never opens the bubble itself (the grid only activates on
+      // button 0), but one deferred from a preceding left-click would surface
+      // on top of this menu (#355).
+      cancelPopover();
       setContextMenu({ id, x: pos.x, y: pos.y });
     },
-    [],
+    [cancelPopover],
   );
 
   // ── Derived data ─────────────────────────────────────────────────────────
