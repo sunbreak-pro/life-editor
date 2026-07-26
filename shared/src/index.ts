@@ -447,6 +447,13 @@ export {
 } from "./utils/dailyListView";
 // jsonb-canonicalization-proof own-echo test (#300) — see file header.
 export { jsonDocEquals } from "./utils/jsonDocEquals";
+// `[[ ]]` edges parked until their source item's first save lands (#371).
+export {
+  createPendingItemLinks,
+  queuePendingItemLink,
+  takePendingItemLinks,
+  type PendingItemLinks,
+} from "./utils/pendingItemLinks";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from

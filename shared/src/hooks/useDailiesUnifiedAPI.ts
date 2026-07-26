@@ -100,8 +100,23 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     [ds],
   );
 
+  /**
+   * Optimistic write. The local state update is synchronous; the returned
+   * promise resolves with the PERSISTED node once the row actually exists
+   * (or null if the write failed — it is already logged).
+   *
+   * Callers may keep ignoring the promise (fire-and-forget is still the
+   * default shape). It exists for work that must not run before the row is
+   * in `items_meta`: a brand-new day's `[[ ]]` edge FK-references it, and the
+   * optimistic node above appears well before the write lands, so local
+   * presence is not proof of persistence (#371).
+   */
   const upsertDaily = useCallback(
-    (date: string, content: string, opts?: { skipUndo?: boolean }) => {
+    (
+      date: string,
+      content: string,
+      opts?: { skipUndo?: boolean },
+    ): Promise<DailyNode | null> => {
       const existing = dailiesRef.current.find((m) => m.date === date);
       const now = new Date().toISOString();
 
@@ -139,9 +154,10 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
         }
       }
 
-      ds.upsertDailyByDateUnified(date, content).catch((e) =>
-        logServiceError("Daily", "sync", e),
-      );
+      return ds.upsertDailyByDateUnified(date, content).catch((e) => {
+        logServiceError("Daily", "sync", e);
+        return null;
+      });
     },
     [ds, push, softDeleteDailyByDate],
   );

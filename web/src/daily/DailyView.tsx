@@ -25,6 +25,10 @@ import {
   dailyContentExcerpt,
   filterAndSortDailyEntries,
   jsonDocEquals,
+  createPendingItemLinks,
+  queuePendingItemLink,
+  takePendingItemLinks,
+  type DailyNode,
   type DailyEntriesPanelEntry,
   type DailyListDirection,
   type DateStripDay,
@@ -180,26 +184,48 @@ export function DailyView({
   }, [pendingSelectDate]);
 
   // Mirror a resolved "[[" link into the item_links graph as an edge from the
-  // current daily to the target. GUARDED on selectedDaily: a brand-new day has
-  // no items_meta row yet (upsertDaily creates it on the debounced save), and
-  // wiki_tag_connections.from_item_id is a NOT NULL FK to items_meta — creating
-  // the edge before the row exists would violate it. The visual link + click
-  // navigation still work; only the graph edge waits until the day is saved.
-  // Duplicate-guarded; never auto-deleted (item_links has no origin column).
+  // current daily to the target. `wiki_tag_connections.from_item_id` is a NOT
+  // NULL FK to items_meta, and a brand-new day has no row there until its first
+  // save lands — the previous guard therefore dropped that first edge for good
+  // (#371). Local presence is no help either: the optimistic DailyNode appears
+  // well before the write completes, so `selectedDaily` being set was never
+  // proof the FK target existed.
+  //
+  // So every insertion parks under its DATE (the row's id isn't knowable yet)
+  // and is written by the save that persists the text carrying the link —
+  // inserting a link dirties the editor, so a save always follows within the
+  // 800ms debounce. Duplicate-guarded; never auto-deleted (item_links has no
+  // origin column).
+  const pendingLinksRef = useRef(createPendingItemLinks());
+
   const handleResolvedLinkInserted = useCallback(
     (targetId: string) => {
-      if (!selectedDaily) return;
-      const fromId = selectedDaily.id;
-      if (!fromId || fromId === targetId) return;
-      const already = getLinksForItem(fromId).outgoing.some(
-        (l) => !l.isDeleted && l.toItemId === targetId,
-      );
-      if (already) return;
-      void createItemLink(fromId, targetId).catch((e) =>
-        console.error("[DailyView] item link upsert failed", e),
-      );
+      if (!targetId) return;
+      queuePendingItemLink(pendingLinksRef.current, selectedDate, targetId);
     },
-    [selectedDaily, getLinksForItem, createItemLink],
+    [selectedDate],
+  );
+
+  // Drain one date's parked edges once its row is known to exist. A failed
+  // save resolves to null — leave the queue alone so the next save retries.
+  const flushPendingLinks = useCallback(
+    (date: string, saved: DailyNode | null) => {
+      if (!saved) return;
+      for (const targetId of takePendingItemLinks(
+        pendingLinksRef.current,
+        date,
+      )) {
+        if (targetId === saved.id) continue;
+        const already = getLinksForItem(saved.id).outgoing.some(
+          (l) => !l.isDeleted && l.toItemId === targetId,
+        );
+        if (already) continue;
+        void createItemLink(saved.id, targetId).catch((e) =>
+          console.error("[DailyView] item link upsert failed", e),
+        );
+      }
+    },
+    [getLinksForItem, createItemLink],
   );
 
   // Header actions kebab (#284) — collapsed pin / delete menu.
@@ -270,7 +296,12 @@ export function DailyView({
       return;
     }
     setLastEmitted({ date: selectedDate, json });
-    upsertDaily(selectedDate, json);
+    // Capture the date: this also runs from the editor's unmount flush, after
+    // a date switch may have moved selectedDate on.
+    const date = selectedDate;
+    void upsertDaily(date, json).then((saved) =>
+      flushPendingLinks(date, saved),
+    );
   };
 
   // Saves are automatic (debounced + flushed on unmount); with batched echo
