@@ -168,6 +168,14 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         content?: string;
         noteId?: string;
         memo?: string;
+        /**
+         * Called once the write has settled: the saved row, or `null` when it
+         * failed (#376). The returned id is the OPTIMISTIC one — it names the
+         * row that is about to exist, not one that does. A caller writing
+         * something with an FK to `items_meta` (an item link) must wait for
+         * this, or its insert races ahead of the row it points at.
+         */
+        onSaved?: (saved: ScheduleItem | null) => void;
       },
     ): string => {
       const id = generateId("schedule");
@@ -216,8 +224,12 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
           if (isSameDate(saved, date)) {
             setItems((prev) => prev.map((i) => (i.id === id ? saved : i)));
           }
+          opts?.onSaved?.(saved);
         })
-        .catch((e) => logServiceError("ScheduleItems", "create", e));
+        .catch((e) => {
+          logServiceError("ScheduleItems", "create", e);
+          opts?.onSaved?.(null);
+        });
 
       push("scheduleItem", {
         label: "createScheduleItem",

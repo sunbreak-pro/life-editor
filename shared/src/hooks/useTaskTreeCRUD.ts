@@ -1,17 +1,30 @@
 import { useCallback } from "react";
 import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
+import type { PersistSettled } from "./useTaskTreeHistory";
 
 export interface AddNodeOptions {
   scheduledAt?: string;
   scheduledEndAt?: string;
   isAllDay?: boolean;
   skipUndo?: boolean;
+  /**
+   * Called once the write has settled: the new node when its row reached the
+   * DB, `null` when the sync failed or the guard dropped it (#376). `addNode`
+   * returns the optimistic node synchronously, and a caller that has to write
+   * something referencing that row (an item link — `wiki_tag_connections`
+   * carries an FK to `items_meta`) must wait for this instead.
+   */
+  onSaved?: (saved: TaskNode | null) => void;
 }
 
 export function useTaskTreeCRUD(
   nodes: TaskNode[],
-  persistWithHistory: (currentNodes: TaskNode[], updated: TaskNode[]) => void,
-  persistSilent: (updated: TaskNode[]) => void,
+  persistWithHistory: (
+    currentNodes: TaskNode[],
+    updated: TaskNode[],
+    onSettled?: PersistSettled,
+  ) => void,
+  persistSilent: (updated: TaskNode[], onSettled?: PersistSettled) => void,
   generateId: (type: NodeType) => string,
 ) {
   const addNode = useCallback(
@@ -49,10 +62,14 @@ export function useTaskTreeCRUD(
         scheduledEndAt: options?.scheduledEndAt,
         isAllDay: options?.isAllDay,
       };
+      const onSaved = options?.onSaved;
+      const onSettled = onSaved
+        ? (ok: boolean) => onSaved(ok ? newNode : null)
+        : undefined;
       if (options?.skipUndo) {
-        persistSilent([...updatedNodes, newNode]);
+        persistSilent([...updatedNodes, newNode], onSettled);
       } else {
-        persistWithHistory(nodes, [...updatedNodes, newNode]);
+        persistWithHistory(nodes, [...updatedNodes, newNode], onSettled);
       }
       return newNode;
     },

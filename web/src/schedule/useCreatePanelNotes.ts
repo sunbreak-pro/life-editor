@@ -29,12 +29,28 @@ import {
  * NOTE: `ScheduleItem.noteId` exists on the type but is DROPPED by the writer
  * (SupabaseDataService voids it — events↔notes are a link, not a column), so
  * the item-link model is the only way this attachment can persist.
+ *
+ * ORDERING (the trap #371 documented in `pendingItemLinks`):
+ * `wiki_tag_connections.from_item_id` is an FK to `items_meta`, and the RLS
+ * insert policy re-checks that row exists. The panel's create paths hand back
+ * an OPTIMISTIC id and persist in the background, so "the item is in local
+ * state" is not proof the row exists — issuing the link right after the create
+ * call sends it BEFORE the item's own insert (both writers start with an
+ * `auth.getUser()` round trip, and the link has no such prelude to lose to).
+ * Hence `attachNote` is documented as save-confirmed-only and the callers wire
+ * it to the create's `onSaved`.
  */
 
 export interface UseCreatePanelNotesOptions {
   dataService: DataService;
   /** Load only while the creation panel is open. */
   active: boolean;
+  /**
+   * Told when a staged note did not make it onto the item. The write happens
+   * after the panel has closed, so without this the user is left with an event
+   * that quietly has no note attached.
+   */
+  onAttachError: () => void;
 }
 
 /** Notes offered by the picker: live, non-folder, newest-touched first. */
@@ -48,12 +64,17 @@ function toOptions(notes: NoteNode[]): ItemCreateOption[] {
 export function useCreatePanelNotes({
   dataService,
   active,
+  onAttachError,
 }: UseCreatePanelNotesOptions) {
   const { syncVersion } = useSyncContext();
   const { createItemLink } = useWikiTagsUnifiedContext();
   // Kept across closes so re-opening the panel shows the last list at once;
   // the effect below refreshes it behind that.
   const [notes, setNotes] = useState<ItemCreateOption[]>([]);
+  // Separate from `notes.length === 0`: "you have no notes" and "we could not
+  // read your notes" look identical in an empty picker, and the first one is a
+  // lie that sends the user off to create a duplicate.
+  const [notesError, setNotesError] = useState(false);
 
   useEffect(() => {
     if (!active) return;
@@ -61,21 +82,28 @@ export function useCreatePanelNotes({
     void dataService
       .listNotesUnified()
       .then((rows) => {
-        if (!cancelled) setNotes(toOptions(rows));
+        if (cancelled) return;
+        setNotes(toOptions(rows));
+        setNotesError(false);
       })
-      // A failed fetch leaves the previous list (or an empty one, which the
-      // panel renders as "no notes yet"). Creation of the event / task must
-      // not be blocked by the picker being unavailable.
-      .catch((e) => console.error("[Schedule] note list fetch failed", e));
+      // A failed fetch leaves the previous list. Creation of the event / task
+      // must not be blocked by the picker being unavailable.
+      .catch((e) => {
+        console.error("[Schedule] note list fetch failed", e);
+        if (!cancelled) setNotesError(true);
+      });
     return () => {
       cancelled = true;
     };
   }, [dataService, active, syncVersion]);
 
   /**
-   * Create the staged note if it is new, then link it to `itemId`. Fire and
-   * forget from the caller's point of view: the item write already landed
-   * optimistically, and a failed attachment must not roll it back.
+   * Create the staged note if it is new, then link it to `itemId`.
+   *
+   * CALL ONLY ONCE `itemId`'s ROW EXISTS (the create's `onSaved`, not its
+   * return value) — see the ORDERING note at the top of this file. Fire and
+   * forget from there: a failed attachment must not roll the item back, so it
+   * reports through `onAttachError` instead of throwing.
    */
   const attachNote = useCallback(
     (itemId: string, draft: ItemCreateNoteDraft | null) => {
@@ -103,11 +131,12 @@ export function useCreatePanelNotes({
           if (noteId) await createItemLink(itemId, noteId);
         } catch (e) {
           console.error("[Schedule] attaching the note failed", e);
+          onAttachError();
         }
       })();
     },
-    [dataService, createItemLink],
+    [dataService, createItemLink, onAttachError],
   );
 
-  return { notes, attachNote };
+  return { notes, notesError, attachNote };
 }
