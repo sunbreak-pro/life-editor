@@ -112,3 +112,20 @@ MCP の 34 ツールのうち 18 個が、0007 で消えた `tasks` / `notes` / 
 - その際 `LIFE_EDITOR_SUPABASE_URL` / `_ANON_KEY` / `_EMAIL` / `_PASSWORD` をシェル環境に export する必要があります。`.mcp.json` は `${VAR}` 参照だけを持ちます（平文は置いていません）。**#256 の時点から資格情報が `.mcp.json` に配線されていなかった**ので、schedule / briefing も同じ前提で動いていたはずです
 
 **注記**: `tier-1-core.md` §MCP Server からツール数の直書きを撤去しました（数値の非複製原則）。併せて「MCP schedule handler は旧 SQLite のまま」という stale 注記 3 箇所を解消しています（#256 の時点で既に古い記述でした）。
+
+**⚠️ 追記（同日）: PR #397 は MERGED 表示だが main に届いていない → 再着地 PR #401**
+
+上の「merge 順序」の注意が現実になりました。#396（09:40:00）と #397（09:40:10）が 10 秒差で merge され、GitHub の base 自動張り替えが間に合わず、**#397 は既に main 取り込み済みの `claude/mcp-server-360` に対して merge** されました。行き先が袋小路なので main には 1 行も届いていません。
+
+```
+$ git show origin/main:mcp-server/src/tools.ts | grep -c '"list_files"|"read_file"|...'
+  14    # 7 ツール × (スキーマ + dispatch) が残存
+$ git ls-tree origin/main --name-only mcp-server/src/handlers/fileHandlers.ts
+  mcp-server/src/handlers/fileHandlers.ts   # 消えていない
+```
+
+- **#360 は正常着地**（base=main だったため）→ Issue #360 close 済み
+- **#362 は未着地** → `claude/mcp-server-362-relanded` に cherry-pick して **PR #401** を作成（差分は #397 と同一・コンフリクトなし・検証は tsc 緑 / vitest 39 件緑 / build 緑 / stdio 27 ツール）。Issue #362 は open 維持（#401 merge で close します）
+- #397 merge 後に push してしまい同じく main へ届いていなかった task-tracker の記録コミットも #401 に同梱しました
+
+**他レーンへの一般化**: `baseRefName` が main 以外の PR の MERGED は「その base ブランチに入った」しか意味しません。stacked PR を出すときは「base 側 merge → 張り替えを待つ → 後続 merge」の順が必要で、着地確認は PR state ではなく**内容の実測**（`git ls-tree origin/main` / `git show origin/main:<file> | grep`）で行ってください。既知の `push-after-merge-strands-commits`（merge 後 push は届かない）と同じ「MERGED 表示 ≠ main に存在」の家族です。
