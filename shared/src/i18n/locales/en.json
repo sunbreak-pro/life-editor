@@ -397,6 +397,7 @@
     "openSettings": "Manage calendars",
     "calendarsTitle": "Calendars",
     "title": "Title",
+    "date": "Date",
     "startTime": "Start",
     "endTime": "End",
     "complete": "Mark complete",

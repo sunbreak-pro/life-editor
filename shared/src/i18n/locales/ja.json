@@ -397,6 +397,7 @@
     "openSettings": "カレンダーを管理",
     "calendarsTitle": "カレンダー",
     "title": "タイトル",
+    "date": "日付",
     "startTime": "開始",
     "endTime": "終了",
     "complete": "完了にする",

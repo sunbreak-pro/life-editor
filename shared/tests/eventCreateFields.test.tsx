@@ -17,6 +17,7 @@ const LABELS: EventCreateFieldsLabels = {
   title: "Title",
   placeholder: "Event title",
   add: "Add",
+  date: "Date",
   startTime: "Start",
   endTime: "End",
 };
@@ -61,6 +62,33 @@ describe("EventCreateFields", () => {
     const { onSubmit } = renderFields();
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows the target day when the host supplies one (#353)", () => {
+    // The three create gestures (toolbar / empty slot / month cell) each
+    // target a different day, and before #353 only the times were on screen.
+    renderFields({ dateLabel: "Mon, July 27, 2026" });
+    expect(screen.getByText("Date")).toBeInTheDocument();
+    expect(screen.getByText("Mon, July 27, 2026")).toBeInTheDocument();
+  });
+
+  it("is read-only: the day is not an editable field", () => {
+    // The day comes from the gesture that opened the panel; offering an input
+    // here would contradict it. Asserting the element type (not just the
+    // absence of a label) so swapping in an unlabelled <input> also fails.
+    renderFields({ dateLabel: "Mon, July 27, 2026" });
+    expect(screen.getByText("Mon, July 27, 2026").tagName).toBe("P");
+    expect(screen.queryByLabelText("Date")).toBeNull();
+    // title + start + end, and nothing more.
+    expect(document.querySelectorAll("input")).toHaveLength(3);
+  });
+
+  it("skips the row while the host has no target day (panel closed / opening)", () => {
+    // dateLabel tracks the host's open-panel state, so it is briefly absent
+    // on a frame that stays mounted (the Mobile sheet). Render the row empty
+    // and the form would flash a stray label.
+    renderFields();
+    expect(screen.queryByText("Date")).toBeNull();
   });
 
   it("submits on Enter but ignores Enter during IME composition", () => {
