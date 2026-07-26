@@ -4,6 +4,7 @@ import { PluginKey } from "@tiptap/pm/state";
 import { ReactRenderer } from "@tiptap/react";
 import { FileText, CalendarDays, CheckSquare, Link2, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { balanceByRole } from "@life-editor/shared";
 import {
   ItemLinkMenu,
   type ItemLinkMenuHandle,
@@ -130,9 +131,13 @@ function buildItems(
   const onResolvedInserted = deps.getOnResolvedInserted();
   const createNote = deps.getCreateNote();
 
-  const filtered = (
-    q ? targets.filter((t) => t.label.toLowerCase().includes(q)) : targets
-  ).slice(0, MAX_CANDIDATES);
+  // balanceByRole, not slice: the pool is concatenated per role (notes →
+  // dailies → tasks), so a plain cut handed all 8 slots to notes and the task
+  // candidates added in #370 never reached the menu on a 8+ note vault.
+  const filtered = balanceByRole(
+    q ? targets.filter((t) => t.label.toLowerCase().includes(q)) : targets,
+    MAX_CANDIDATES,
+  );
 
   const items: ItemLinkMenuItem[] = filtered.map((target) => ({
     id: target.id,

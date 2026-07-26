@@ -138,16 +138,32 @@ export function KanbanView({
   // A "[[" link click in the Notes / Daily editor lands here with a task id
   // (#370): select it and, on the wide board, open the detail panel — exactly
   // what a card click does. Narrow has no detail surface for a plain selection
-  // (MobileTaskList drives its own sheet), so there it only selects.
+  // (MobileTaskList drives its own sheet), so there it only selects — the same
+  // as a note / daily link click on narrow today.
+  //
+  // The target may be gone: item_links are never auto-deleted, so a link to a
+  // task that was since trashed outlives it. The board drops deleted nodes from
+  // its columns, and a hard-deleted id isn't in nodeMap at all — opening the
+  // panel anyway would show an editor for a card the user cannot see, or an
+  // empty panel. Consume the intent either way so it can't re-fire.
+  //
+  // isLoading gates the whole thing: arriving from another tab mounts this view
+  // (and its TaskTreeProvider) fresh, so nodeMap is still empty on the first
+  // render — checking then would reject every live task. The effect reruns when
+  // the load lands.
   useEffect(() => {
-    if (!pendingSelectTaskId) return;
-    tree.setSelectedTaskId(pendingSelectTaskId);
-    if (isWide) rightSidebar.open();
+    if (!pendingSelectTaskId || tree.isLoading) return;
+    const target = tree.nodeMap.get(pendingSelectTaskId);
+    if (target && !target.isDeleted) {
+      tree.setSelectedTaskId(pendingSelectTaskId);
+      if (isWide) rightSidebar.open();
+    }
     onConsumePendingSelect?.();
-    // tree.setSelectedTaskId / rightSidebar.open are stable for the view's
-    // lifetime; rerun only when a new pending id arrives.
+    // tree.nodeMap is read at fire time only; setSelectedTaskId /
+    // rightSidebar.open are stable for the view's lifetime. Rerun when a new
+    // pending id arrives or the tree finishes loading.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingSelectTaskId]);
+  }, [pendingSelectTaskId, tree.isLoading]);
 
   // Add-task dialog (W-UX). The board had no create entry point; this small
   // centered overlay creates a task, then opens it straight into the detail
