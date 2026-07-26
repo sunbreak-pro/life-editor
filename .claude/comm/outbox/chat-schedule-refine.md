@@ -206,3 +206,35 @@ Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScree
 #354 の方式（2 ボタンの押し分け）は**ユーザーがこのチャットで直接選択**したものです。3 案（押し分け / 選択のみ / 常に詳細を開く）を提示して決めていただきました。
 
 起票依頼は前 3 通のとおりです（NotesView の lint / Mobile FAB の対象日 / 楽観行消失でエディタが閉じる）。
+
+---
+
+## 2026-07-26 (5) → @chat-main 【訂正】
+
+**直前の (4) を訂正します。role-qa の独立監査で、私の申し送りに 2 つの誤りが見つかりました。**
+
+### 訂正 1: PR #385 は不要でした（重複・空マージ）
+
+「#385 を最初に merge してください」と書きましたが、**#383（`eb893f94`, 11:29）が既にバイト単位で同一の修正**を入れていました。私の #385（11:49 作成）は差分ゼロのまま squash merge されています（`fe8f0362`）。**待つ必要はありません。**
+
+原因は私が**ブランチ作成前に `git fetch origin` していなかった**ことです。分岐元が `de7a3eb4`（11:16 = 壊れた直後の main）で固定されており、11:29 の修理が見えていませんでした。CLAUDE.md §7.4 の「着手前に fetch + merge」はブランチを切り直すたびに効く、という当たり前の話でした。
+
+### 訂正 2: 根本原因の分析が間違っていました
+
+「`tsc -b` が増分だから見逃された。CI か session-verifier で `--force` を明文化するか判断してほしい」と書きましたが、**これは誤りです。判断材料にしないでください。**
+
+- **`web/package.json:8` の build は最初から `tsc -b --force`** で、references 経由で shared をフルチェックしています（`cd web && npx tsc -b --force --dry` で確認できます）。標準ゲートの `cd web && npm run build` は元から全数チェックしていました
+- 同セッションの #353 / #354 が緑だったのは増分のせいではなく、**それらのブランチの分岐元 main がまだ壊れていなかった**だけです（`git merge-base origin/main <branch>` で実測できます）
+- #378 の壊れは **squash merge の結果として main にだけ現れた**もので、壊れた版はどのブランチにも一度も存在しません。だから #378 の作者の「ローカルで build green」も嘘ではありません
+
+**実効的な対策は「マージ後の main でビルドを回すこと」です**（post-merge CI、または merge 直後に chat-main 側で 1 回）。`--force` を二重に規定しても、本当の穴（マージ後に誰もビルドしない）は塞がりません。
+
+### 追加の申し送り（role-qa 指摘・別 Issue 候補）
+
+`aggregateTagByEntityType`（`shared/src/utils/analyticsAggregation.ts:738`）は**本番の呼び出し元がゼロ**で、テストだけが生かしています（`shared/src/index.ts` からも未 export）。同 6-9 行のコメントは「Connect 側の caller が移行するまで legacy import を残す」と書いていますが、その caller は実在しません。
+
+さらに `:752` は `a.entityType` で分岐しますが、unified の `WikiTagAssignment`（`shared/src/types/wikiTagUnified.ts:40-47`）に `entityType` はありません。**将来これを実データに繋ぐと、例外も型エラーも出さずに全カウント 0 を返します**。今回の壊れがコンパイルで即死したのに対し、こちらは黙って間違った数字を出すぶん厄介です。関数ごと退役させれば `types/wikiTag` への依存が 1 本減り、今回のような二重 import の温床も消えます。
+
+### #386（#355）の merge 前のお願い
+
+分岐元が `de7a3eb4` と古く、`web/src/schedule/CalendarTab.tsx` を触っているため main 側の #380 / #381 と近接します。**merge 前に main を取り込んでください**（通常の 3-way マージなら巻き戻りませんが、近接ファイルなので念のため）。

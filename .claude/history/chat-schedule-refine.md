@@ -25,12 +25,12 @@
 - 取り消しは **effect 1 本に集約**（当初は詳細 / 右クリック / 生成パネルに個別実装 → role-qa がカレンダー管理モーダルと繰り返し範囲ダイアログの 2 経路漏れを指摘。開く場所が本ファイルと mutation 層に散っており個別方式では次に増えたとき必ず漏れる）
 - 仕組みは `shared/src/hooks/useDeferredAction.ts`。**web にテストランナーが無い**ためホスト内 ref ではなく shared のフックにしてテスト可能化（7 ケース）
 
-#### main のビルド復旧（PR #385・キュー外）
+#### main のビルド復旧（PR #385・キュー外）→ **重複で空マージ。診断も誤っていた**
 
-- **`shared` がクリーンビルドで 6 エラー**。`analyticsAggregation.ts` が `../types/wikiTag` から `WikiTag` / `WikiTagAssignment` を二重宣言し、実使用中の別名 `WikiTagUnified` / `WikiTagAssignmentUnified` が消えていた。未使用の `WikiTagConnection` も混入
-- 原因 = `d80e9fc6`（PR #378 / #356）。主題（`todayCalendarKey` への置換）と無関係な import 群が書き換わっており、マージで別の変更を取り違えた事故
-- **`tsc -b` が増分ビルドで、触っていないファイルを再チェックしないため誰も踏まなかった**。新規ファイル 1 つの追加で全体チェックが走り露出
-- 修正は別名 import を戻す 3 行入れ替えのみ（#378 の他の変更には触れない）。ユーザー判断で復旧のみの独立 PR に
+- **事象**: `shared` がクリーンビルドで 6 エラー。`analyticsAggregation.ts` が `../types/wikiTag` から `WikiTag` / `WikiTagAssignment` を二重宣言し、実使用中の別名 `WikiTagUnified` / `WikiTagAssignmentUnified` が消えていた（未使用の `WikiTagConnection` も混入）。原因は `d80e9fc6`（PR #378 / #356）の squash merge で、主題（`todayCalendarKey` への置換）と無関係な import 群が書き換わった事故
+- **修正内容自体は正しかった**（別名 import を戻す 3 行入れ替え。#378 の他の変更には触れず）。role-qa も型・呼び出し側・実データ形状の一貫性を実測して PASS
+- **しかし PR #385 は不要だった**: **#383（`eb893f94`, 11:29）が既にバイト単位で同一の修正**を入れており、11:49 作成の私の PR は差分ゼロで squash merge された（`fe8f0362`）。着手前に `git fetch origin` していれば気付けた（CLAUDE.md §7.4 はブランチ作成のたびに効く）
+- **根本原因の診断も誤っていた**（role-qa の監査で判明・memory と outbox を訂正済み）: 「`tsc -b` が増分だから見逃された」と書いたが、**`web/package.json` の build は最初から `tsc -b --force`** で references 経由の shared をフルチェックしている。同セッションの #353 / #354 が緑だったのは増分のせいではなく、**分岐元 main がまだ壊れていなかった**だけ（`git merge-base` で実測可）。壊れた版はどのブランチにも存在せず**マージ後の main にだけ現れた**ので、手元の検証をいくら厳しくしても捕まらない。実効的な対策は「マージ後の main でビルドを回すゲート」であり、当初 chat-main に依頼しかけた「検証時は `--force` を明文化」は的外れだった
 
 #### 検証
 
