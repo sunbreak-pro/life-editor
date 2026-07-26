@@ -48,6 +48,7 @@ export interface ItemLinkSuggestionLabels {
   create: (query: string) => string;
   roleNote: string;
   roleDaily: string;
+  roleTask: string;
 }
 
 export interface ItemLinkSuggestionDeps {
@@ -76,6 +77,7 @@ function roleIcon(role: string): LucideIcon {
 function roleHint(role: string, labels: ItemLinkSuggestionLabels): string {
   if (role === "note") return labels.roleNote;
   if (role === "daily") return labels.roleDaily;
+  if (role === "task") return labels.roleTask;
   return role;
 }
 

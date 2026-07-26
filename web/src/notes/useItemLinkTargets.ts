@@ -15,8 +15,10 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  *
  * Roles: notes → "note" (folders excluded — they aren't openable note
  * surfaces), dailies → "daily" with the canonical `daily-<YYYY-MM-DD>`
- * items_meta id (the id the item_links graph references). Tasks are out of
- * scope for v1 (no cross-section task navigation exists yet).
+ * items_meta id (the id the item_links graph references), tasks → "task"
+ * (#370 — the v1 pool left them out because nothing could open a specific
+ * task from another tab; the Kanban now consumes a pending selection the
+ * same way Notes / Daily do).
  */
 export function useItemLinkTargets(
   dataService: DataService | undefined,
@@ -28,9 +30,10 @@ export function useItemLinkTargets(
     if (!dataService) return;
     let cancelled = false;
     void (async () => {
-      const [notes, dailies] = await Promise.all([
+      const [notes, dailies, tasks] = await Promise.all([
         dataService.listNotesUnified(),
         dataService.listDailiesUnified(),
+        dataService.fetchTaskTree(),
       ]);
       if (cancelled) return;
       const next: ItemLinkTarget[] = [];
@@ -45,6 +48,14 @@ export function useItemLinkTargets(
       for (const d of dailies) {
         if (d.isDeleted) continue;
         next.push({ id: d.id, label: d.date, role: "daily" });
+      }
+      for (const task of tasks) {
+        if (task.isDeleted) continue;
+        next.push({
+          id: task.id,
+          label: task.title || "(untitled)",
+          role: "task",
+        });
       }
       setTargets(next);
     })();

@@ -131,6 +131,16 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   daily: CalendarDays,
 };
 
+/**
+ * Where a "[[" link target opens (#285, tasks added in #370). A role absent
+ * here has no selectable surface yet, so its link click no-ops.
+ */
+const MATERIALS_TAB_FOR_ROLE: Record<string, MaterialsTab | undefined> = {
+  note: "notes",
+  daily: "daily",
+  task: "tasks",
+};
+
 /*
  * v2 keeps the NARROW layout untouched (non-goal: mobile unchanged): the
  * in-body hamburger row appears only where it did pre-v2. Schedule and
@@ -261,18 +271,18 @@ export function MainScreen({ session }: { session: Session }) {
   // or Daily editor routes here; MainScreen owns the section + Materials-tab
   // switch (the target view lives behind a different domain Provider), then
   // stashes a pending selection the destination view consumes on mount — the
-  // same idiom as pendingNewTask. v1 handles note / daily targets; other roles
-  // (tasks) have no cross-section item selection yet, so they no-op.
+  // same idiom as pendingNewTask. Tasks joined note / daily in #370; any other
+  // role has no selectable surface yet, so it no-ops.
   const [pendingItemNav, setPendingItemNav] = useState<{
     id: string;
     role: string;
   } | null>(null);
   const navigateToItem = useCallback((target: { id: string; role: string }) => {
-    if (target.role === "note" || target.role === "daily") {
-      setSection("materials");
-      setMaterialsTab(target.role === "note" ? "notes" : "daily");
-      setPendingItemNav(target);
-    }
+    const tab = MATERIALS_TAB_FOR_ROLE[target.role];
+    if (!tab) return;
+    setSection("materials");
+    setMaterialsTab(tab);
+    setPendingItemNav(target);
   }, []);
   const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
   const pendingNoteSelect =
@@ -281,6 +291,8 @@ export function MainScreen({ session }: { session: Session }) {
     pendingItemNav?.role === "daily"
       ? pendingItemNav.id.replace(/^daily-/, "")
       : null;
+  const pendingTaskSelect =
+    pendingItemNav?.role === "task" ? pendingItemNav.id : null;
 
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
@@ -566,6 +578,8 @@ export function MainScreen({ session }: { session: Session }) {
             <KanbanView
               pendingNewTask={pendingNewTask}
               onConsumeNewTask={consumeNewTask}
+              pendingSelectTaskId={pendingTaskSelect}
+              onConsumePendingSelect={consumeItemNav}
             />
           </TaskTreeProvider>
         </WikiTagsUnifiedProvider>

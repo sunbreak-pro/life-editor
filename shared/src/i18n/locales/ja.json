@@ -707,7 +707,8 @@
     "insertUnresolved": "「{{query}}」を未解決リンクとして挿入",
     "createNote": "「{{query}}」のノートを作成してリンク",
     "roleNote": "ノート",
-    "roleDaily": "デイリー"
+    "roleDaily": "デイリー",
+    "roleTask": "タスク"
   },
   "auth": {
     "productName": "Life Editor",
