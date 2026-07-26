@@ -8,10 +8,9 @@ import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 // entityType discriminator. The legacy `wikiTag` shapes above stay for
 // aggregateTagByEntityType until its Connect-side caller migrates.
 import type {
-  WikiTag,
-  WikiTagAssignment,
-  WikiTagConnection,
-} from "../types/wikiTag";
+  WikiTag as WikiTagUnified,
+  WikiTagAssignment as WikiTagAssignmentUnified,
+} from "../types/wikiTagUnified";
 import { formatDateKey as toDateStr, todayCalendarKey } from "./dateKey";
 
 export interface DayBucket {
