@@ -23,7 +23,10 @@ export interface EventCreateFieldsLabels {
   placeholder: string;
   /** Already-translated submit button label. */
   add: string;
-  /** Label of the secondary "create, then open the detail editor" action. */
+  /**
+   * Already-translated label of the secondary "create, then open the detail
+   * editor" action.
+   */
   addAndOpen: string;
   startTime: string;
   endTime: string;
@@ -116,7 +119,7 @@ export function EventCreateFields({
         <button
           type="button"
           onClick={() => submitTo(onSubmitAndOpen)}
-          className="flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-[13px] font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          className="flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           {labels.addAndOpen}
         </button>

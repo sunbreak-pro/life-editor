@@ -409,10 +409,14 @@ export function CalendarTab({
       if (!createPanel) return;
       const id = handleCreate(createPanel.date, title, start, end);
       setCreatePanel(null);
-      // Desktop: the selection ring is a quiet "here it is" that does not
-      // interrupt blocking out the next slot. Mobile deliberately selects
-      // NOTHING — there, selection IS the detail sheet (see `editorPane`), so
-      // selecting would silently turn the plain create into the other button.
+      // Desktop: select without opening anything — a quiet "here it is" that
+      // does not interrupt blocking out the next slot. It shows as a ring on
+      // the week/day grid (WeekTimeGrid) and a highlight in the sidebar
+      // agenda; MonthGrid takes no selectedId, so month-cell creation gets no
+      // marker (matching the pre-#354 behaviour there).
+      // Mobile deliberately selects NOTHING: there, selection IS the detail
+      // sheet (`editorPane` derives from it), so selecting would silently turn
+      // the plain create into the other button.
       if (isWide) setSelectedId(id);
     },
     [createPanel, handleCreate, isWide],
