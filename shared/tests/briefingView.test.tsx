@@ -249,7 +249,10 @@ describe("EveningView intention block (#391)", () => {
     expect(onIntentionBlur).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps an empty field reachable on the narrow layout, with its caption", () => {
+  // Only the presence of the caption row is a view concern — WHICH caption is
+  // host-computed (BriefingScreen), and web has no test runner, so the copy
+  // itself is out of reach here.
+  it("keeps an empty field reachable on the narrow layout and shows a caption", () => {
     renderEvening({ intentionEditable: true });
     expect(screen.getByPlaceholderText("Declare today…")).toBeTruthy();
     expect(screen.getByText("Unsaved")).toBeTruthy();
