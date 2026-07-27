@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   isTaskChip,
@@ -190,6 +190,18 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     item: ScheduleItem;
     patch?: Partial<ScheduleItem>;
   } | null>(null);
+
+  // #407: seed ids whose Event→Repeats conversion is still in flight. The
+  // manual branch of handleChangeRepeat decides on `selected.routineId ==
+  // null`, but the conversion and its optimistic routineId patch land
+  // asynchronously — a second frequency click inside that window would
+  // convert the SAME seed again, minting a second routine whose loser twin
+  // survives unreferenced and keeps generating occurrences (the #407
+  // zombie). Clicks for a converting seed are ignored; the editor snaps to
+  // the landed frequency via the final reload(). The service-layer
+  // conditional attach backstops the windows a ref cannot see (e.g. a range
+  // refetch clobbering the optimistic routineId after the guard cleared).
+  const convertingSeedsRef = useRef<Set<string>>(new Set());
 
   const findScheduleItem = useCallback(
     (id: string): ScheduleItem | undefined =>
@@ -443,10 +455,11 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           return;
         }
         // A bare type switch carries none of the new type's own fields, so
-        // it would read as "fires never" (weekdays with no day) or "fires
-        // daily" (interval with no interval). Seed them the way the
-        // manual→repeat conversion below does — reconcile acts on this
-        // patch immediately, so the transient is no longer harmless.
+        // it would read as "fires never" (weekdays with no day, and since
+        // #407 also interval with no interval — malformed configs fail
+        // closed). Seed them the way the manual→repeat conversion below
+        // does — reconcile acts on this patch immediately, so the
+        // transient is no longer harmless.
         const seededPatch = seedFrequencyPatch(patch, routine, selected.date);
         // #352 Step 4: the template update alone only steers FUTURE
         // generation — occurrences already materialised keep the old
@@ -485,6 +498,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       const type = patch.frequencyType;
       if (!type) return;
       const seed = selected;
+      // #407: one conversion per seed at a time — see convertingSeedsRef.
+      if (convertingSeedsRef.current.has(seed.id)) return;
+      convertingSeedsRef.current.add(seed.id);
       const [yy, mm, dd] = seed.date.split("-").map(Number);
       const seedWeekday = new Date(yy, mm - 1, dd).getDay();
       const frequencyDays = type === "weekdays" ? [seedWeekday] : [];
@@ -504,8 +520,10 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
             sourceDate: seed.date,
           });
         } catch {
-          // Conversion did not land — the seed is untouched server-side.
+          // Conversion did not land — the seed is untouched server-side
+          // (or already owned by a routine: the #407 conditional attach).
           // Re-read so the repeat editor's optimistic state snaps back.
+          convertingSeedsRef.current.delete(seed.id);
           reload();
           return;
         }
@@ -554,6 +572,12 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           ]);
         }
         reload();
+        // Release only after the routineId patch + reload are in: from here
+        // `selected.routineId` is set, so the next frequency click routes to
+        // the series-edit branch instead of a second conversion. (ensure
+        // returns false rather than throwing, so this line is reached on
+        // every success path; the catch above releases the failure path.)
+        convertingSeedsRef.current.delete(seed.id);
       })();
     },
     [

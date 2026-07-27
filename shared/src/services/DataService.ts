@@ -207,6 +207,12 @@ export interface DataService {
    * composite-FK race; if the attach fails the just-created routine is
    * rolled back and the seed is left untouched (the conversion simply did
    * not happen — nothing is lost).
+   *
+   * #407: the attach is CONDITIONAL on the seed still being unattached
+   * (routine_item_id IS NULL). A conversion that loses that race — the
+   * seed already belongs to another routine — rolls its routine back and
+   * REJECTS, so a double conversion can never strand a live, unreferenced
+   * twin routine (which would keep generating occurrences forever).
    */
   convertEventToRoutine(
     eventId: string,

@@ -869,17 +869,33 @@ export class SupabaseRoutinesService {
         .eq("id", eventId);
       if (mErr)
         throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
-      const { error: pErr } = await this.client
+      // #407 double-conversion guard: attach ONLY while the seed is still
+      // unattached. The host decides manual-vs-series on its (async,
+      // clobberable) optimistic routineId, so a second conversion for the
+      // same seed can reach here after the first one already landed — the
+      // old unconditional UPDATE then re-pointed the seed at the new
+      // routine and stranded the first one LIVE with no referencing seed:
+      // a zombie that kept generating occurrences. With the `.is()` filter
+      // the late conversion matches zero rows, rolls its routine back
+      // below and surfaces as a plain failed conversion.
+      const { data: attached, error: pErr } = await this.client
         .from("events_payload")
         .update({ routine_item_id: routineId, source_date: init.sourceDate })
-        .eq("item_id", eventId);
+        .eq("item_id", eventId)
+        .is("routine_item_id", null)
+        .select("item_id");
       if (pErr)
         throw new Error(`convertEventToRoutine attach: ${pErr.message}`);
+      if (!attached || attached.length === 0)
+        throw new Error(
+          `convertEventToRoutine attach: seed ${eventId} already belongs to a routine (#407 double-conversion guard)`,
+        );
       return routine;
     } catch (err) {
       // Roll the routine back so a half-converted state cannot survive.
-      // The seed's routine link is still null on every failure path (the
-      // attach either did not run or did not land), so this delete is never
+      // The seed never references THIS routine on any failure path (the
+      // attach did not run, did not land, or was skipped because the seed
+      // already belongs to ANOTHER routine — #407), so this delete is never
       // blocked by the 0011 composite FK. Best-effort: a rollback failure
       // must not mask the original error.
       try {

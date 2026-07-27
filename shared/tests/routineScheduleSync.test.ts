@@ -99,15 +99,27 @@ describe("shouldRoutineRunOnDate (frequency parity)", () => {
     ).toBe(false);
   });
 
-  it("interval with no/invalid interval or no start → degrades to true", () => {
+  it("interval with no/invalid interval or no start fails CLOSED (#407)", () => {
+    // Pre-#407 both guards degraded to true ("fires every day"), so a
+    // routine stranded with a bare interval type — e.g. the losing twin of
+    // a double Event→Repeats conversion — minted a schedule row every
+    // single day. Malformed config must never fire: same runaway-creation
+    // defence as the unknown-frequency default branch.
     expect(
       shouldRoutineRunOnDate("interval", [], null, "2026-05-17", "2026-05-19"),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       shouldRoutineRunOnDate("interval", [], 0, "2026-05-17", "2026-05-19"),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      shouldRoutineRunOnDate("interval", [], -2, "2026-05-17", "2026-05-19"),
+    ).toBe(false);
     expect(shouldRoutineRunOnDate("interval", [], 3, null, "2026-05-19")).toBe(
-      true,
+      false,
+    );
+    // The empty string an editor's cleared date input emits is "no start".
+    expect(shouldRoutineRunOnDate("interval", [], 3, "", "2026-05-19")).toBe(
+      false,
     );
   });
 
@@ -144,9 +156,10 @@ describe("seedFrequencyPatch (#352 — bare type switches)", () => {
     ).toEqual({ frequencyType: "weekdays", frequencyDays: [0] });
   });
 
-  it("gives an interval switch a concrete interval + start (else it fires DAILY)", () => {
-    // Unseeded, both interval guards in shouldRoutineRunOnDate degrade to
-    // true, so one click would mint a row on every visible day.
+  it("gives an interval switch a concrete interval + start (else it fires NEVER)", () => {
+    // Unseeded, the interval guards in shouldRoutineRunOnDate fail closed
+    // (#407), so one click would read as "fires never" and the reconcile
+    // wired to this patch (#352) would sweep the series' future.
     expect(
       seedFrequencyPatch({ frequencyType: "interval" }, current, SUNDAY),
     ).toEqual({
