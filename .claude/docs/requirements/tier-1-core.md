@@ -89,14 +89,14 @@
 
 ### Purpose
 
-タスク / サブタスクの階層を自由に組める TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。タスク親子 = サブタスクは存続）
+TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。**入れ子（親子）は 2026-07-27 #418 でユーザー判断により退役** — `parentId` はデータモデルとして残り MCP `create_task(parent_id)` 等からは書けるが、UI から親子を作る導線は無い）
 
 ### Boundary
 
 - やる:
-  - 階層型ツリー（`task` 単一種・無限ネストのサブタスク、`parentId` + `order` で順序管理。旧 `folder` 種は 2026-07-11 #225 で退役・整理は life-tags へ）
+  - フラットなタスクリスト（`task` 単一種、`parentId` + `order` で順序管理。旧 `folder` 種は 2026-07-11 #225 で退役・整理は life-tags へ。**入れ子は 2026-07-27 #418 で退役** — `parentId` 列と legacy な親子行は残るが、UI 側の階層移動 API（`moveNodeInto` / `moveNode` の親変更分岐）と DnD hook は撤去済み）
   - 3 段階ステータス（`NOT_STARTED` / `IN_PROGRESS` / `DONE`）+ DONE 時の紙吹雪演出 + `completedAt` 記録
-  - DnD（上部 25% / 下部 25% → 並び替え、中央 → 階層移動）+ 無限ループ検出と拒否通知
+  - DnD による並び替え（同一階層内のみ）+ 無限ループ検出と拒否通知。~~中央ドロップ → 階層移動~~ → **Retired (2026-07-27 #418)**
   - ~~`folderType='complete'` による DONE タスク自動集約フォルダ~~ → **Retired (2026-07-11 #225)**: status=DONE の沈み込み並べ替えが後継
   - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `workDurationMinutes` / `timeMemo` / `color` / `icon` / `content` を保持
   - ソフトデリート（`is_deleted` + `deleted_at`）+ ゴミ箱からの復元 / 完全削除
@@ -109,9 +109,9 @@
 
 ### Acceptance Criteria
 
-- [ ] AC1: 任意のタスク配下にサブタスクを作成でき、`parentId` と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換）
+- [ ] AC1: タスクを作成すると `parentId`（UI からは常に root = `null`）と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換。~~任意のタスク配下にサブタスクを作成できる~~ → UI 導線は 2026-07-27 #418 で退役 — MCP `create_task(parent_id)` は依然 parentId を書ける）
 - [ ] AC2: タスク行をクリックすると `NOT_STARTED → IN_PROGRESS → DONE` の順にステータス遷移し、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される
-- [ ] AC3: TaskNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される
+- [ ] ~~AC3: TaskNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される~~ → **Retired (2026-07-27 #418)**: 入れ子の退役に伴い「中央ドロップ = 階層移動」は達成対象外。並び替えは同一階層内のみで、非兄弟へのドロップは拒否される（循環ガード `isDescendantOf` は存続）
 - [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
 - [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
@@ -245,7 +245,7 @@
 ### Boundary
 
 - やる:
-  - `parentId` + `order` のツリー階層（ノートのネスト）— **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`NoteNodeType` は `"note"` 単一・`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）
+  - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`NoteNodeType` は `"note"` 単一・`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Tasks と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）

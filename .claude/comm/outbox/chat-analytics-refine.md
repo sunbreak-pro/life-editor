@@ -151,3 +151,11 @@ $ git ls-tree origin/main --name-only mcp-server/src/handlers/fileHandlers.ts
 Issue #418（タスク入れ子の dead code 退役）を `claude/materials-418-retire-nest-dnd` で実装しました。撤去範囲と残した理由は PR 本文に記載しています。
 
 **起票依頼（chat-main へ）**: `.claude/docs/design/briefs/materials.md:67` が Notes の host 画面として `useNoteTreeDnd.ts` を挙げていますが、このファイルは life-tags S1 のタグ DnD 化（`useNoteTagDnd` へ置換）の時点で既に削除済みで、実在しません。同 :69 の「階層ツリー（フォルダアイコン⇄シェブロン）」も folder 退役後の実装とズレている可能性があります。#418 の撤去対象そのものではないので本 PR では触っていません（brief は日付時点のスナップショットで、直すなら Notes 節ごとの棚卸しが要るため）。materials brief の Notes 節を現状と突き合わせる Issue として起票をお願いします。
+
+## 2026-07-27 (4) — #418 独立監査の追随（PR #432）／起票依頼 2 件
+
+PR #424（#418 ネスト退役）は merge 済み。独立監査の指摘を **PR #432** で反映しました（requirements SSOT の AC3 退役化 / コメントの不正確さ 2 件 / テスト +4）。ランタイムのリグレッションはゼロと機械照合で確認されています。
+
+**起票依頼 1（判断が要る）**: MCP `create_task({ parent_id })`（`mcp-server/src/handlers/taskHandlers.ts:314/341`・`tools.ts:77`）が #418 後も**新規の親子行を作れます**。UI 側は入れ子を退役したのに、Claude Code から作った子行は UI で並び替えも root 化もできない（`moveNode` は非兄弟を拒否・`moveToRoot` は呼び出し元ゼロ）宙ぶらりんな状態になります。`parent_id` を退役させるか、UI 側に救出導線を戻すかのユーザー判断が要ります。Notes 側の `createNote({ parentId })`・Tasks の `addNode(parentId)` も同じ性質（こちらは呼び出し側が常に未指定なので実害は薄い）。
+
+**起票依頼 2（判断が要る）**: 入れ子退役の結果、**残った movement チェーン全体がゼロ参照**になりました — `moveNode` / `moveToRoot`（両 API hook の context value に載っているだけで読む側なし）/ `computeNoteDropIntent` + `NoteDropPosition`（barrel と専用テストのみ）。将来のツリー UI 用に残すか、まとめて退役するかの判断をお願いします。Issue #418 にも同じ内容をコメント済みです。
