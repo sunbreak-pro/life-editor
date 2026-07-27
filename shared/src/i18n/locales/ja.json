@@ -291,13 +291,16 @@
       "colorLabel": "色",
       "deleteTag": "タグを削除",
       "editTitle": "タグを編集",
-      "editCta": "タグ編集",
       "addTag": "追加",
       "iconLabel": "アイコン",
       "clearIcon": "デフォルトのアイコン",
       "colorClearLabel": "デフォルトの色",
       "colorCustomLabel": "カスタム",
-      "usageCount": "{{count}} 件"
+      "usageCount": "{{count}} 件",
+      "itemsToggle": "付いているアイテムを表示",
+      "itemsEmpty": "このタグが付いたアイテムはありません",
+      "unassign": "このタグを外す",
+      "untitledItem": "(無題)"
     },
     "sidebar": {
       "sort": "並び替え",
@@ -693,7 +696,15 @@
     "commandPalette": "コマンドパレット",
     "signOut": "サインアウト",
     "more": "その他",
-    "moreTitle": "その他"
+    "moreTitle": "その他",
+    "tagEditor": "タグを編集"
+  },
+  "itemRole": {
+    "task": "タスク",
+    "event": "イベント",
+    "note": "ノート",
+    "daily": "デイリー",
+    "unknown": "その他"
   },
   "detailPanel": {
     "title": "詳細",

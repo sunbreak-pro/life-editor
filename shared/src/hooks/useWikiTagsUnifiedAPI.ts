@@ -266,6 +266,11 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   return useMemo(
     () => ({
       allTags,
+      // #409: the tag editor lists the items behind each tag, including ones
+      // whose item row it cannot resolve (a routine, a dismissed event) —
+      // those must still be removable, so it needs the raw rows, not just the
+      // per-item buckets or the counts.
+      allAssignments,
       allConnections,
       countsByTag,
       loading,
@@ -287,6 +292,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     }),
     [
       allTags,
+      allAssignments,
       allConnections,
       countsByTag,
       loading,

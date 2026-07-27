@@ -82,6 +82,7 @@ import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
 import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
 import { ConnectScreen } from "./connect/ConnectScreen";
+import { TagEditorHost } from "./tags/TagEditorHost";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { UndoRedoHost } from "./UndoRedoHost";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
@@ -200,6 +201,10 @@ export function MainScreen({ session }: { session: Session }) {
     defaultBriefingTab(),
   );
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
+  // the tag master is reachable from every section — the panel itself is
+  // mount-on-open (TagEditorHost) and fetches nothing while closed.
+  const [tagEditorOpen, setTagEditorOpen] = useState(false);
   // global:new-task intent, consumed once by the Kanban when it mounts (see
   // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
   // the Tasks tab later never re-opens the add dialog.
@@ -393,6 +398,7 @@ export function MainScreen({ session }: { session: Session }) {
       more: t("nav.more"),
       moreTitle: t("nav.moreTitle"),
       shortcutHint: isMac ? "⌘K" : "Ctrl K",
+      tagEditor: t("nav.tagEditor"),
     }),
     [t],
   );
@@ -811,6 +817,7 @@ export function MainScreen({ session }: { session: Session }) {
                     activeSection={section}
                     onNavigate={(id) => setSection(id as SectionId)}
                     onTogglePalette={() => setPaletteOpen((v) => !v)}
+                    onOpenTagEditor={() => setTagEditorOpen(true)}
                     userEmail={session.user.email ?? ""}
                     onSignOut={() => void signOut()}
                     labels={shellLabels}
@@ -854,6 +861,19 @@ export function MainScreen({ session }: { session: Session }) {
                     commands={commands}
                     placeholder={t("commandPalette.placeholder")}
                     noResultsLabel={t("commandPalette.noResults")}
+                  />
+
+                  {/*
+                   * Global tag editor (#409), mounted beside the palette at the
+                   * shell level so it opens over any section. It owns its own
+                   * tag hook instance rather than a WikiTagsUnifiedProvider —
+                   * that Provider is section-layer and absent on Briefing /
+                   * Work / Analytics / Settings / Trash (see TagEditorHost).
+                   */}
+                  <TagEditorHost
+                    open={tagEditorOpen}
+                    onClose={() => setTagEditorOpen(false)}
+                    dataService={ds}
                   />
                 </RightSidebarProvider>
               </AudioProvider>
