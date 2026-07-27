@@ -15,6 +15,9 @@ life-tags S3（#225）が Tasks 側だけ folder を撤去し、Notes 側を「�
 - **テスト**: 新規 6 本（mapper の legacy 判定と丸め 2 / service の folder 行除外 3 = list・孤児許容・Trash / Connect の「project ノードが無く tag ノードが後継」1）。更新 4 本（buildTagGroups は folder 除外 → parentId 非依存の確認へ、permanentDelete の subtree 2 本は親を folder から素のネストノートへ、cycle テストの型）
 - **検証**: shared 145 files / 1168 tests 緑・shared / web / mcp-server の build いずれも exit 0。`npm run lint --prefix web` は `NotesView.tsx:269` で error 1 件出るが **main 時点で既存**（stash して実測確認）で本変更とは無関係
 - **docs 追随**: tier-1-core の Notes 節を「過渡期注記」→「退役済み」に、`briefs/connect.md` のノード 4 種を 3 種へ、life-tags 計画の Worklog と横断後継対応行に #375 完了を記録。`briefs/materials.md` の folder 前提記述は materials レーンの持ち物なので outbox で申し送り
+- **QA 追随（PR #405 merge 後・独立監査 → PR #417）**: 機能バグ 0 件だったが締め残しを回収。write 型（`NotesPayloadWriteRow` / `UpdatePatch`）の `note_type` を `NoteNodeType | null` へ narrow / テストが無かった除外 2 経路（search・MCP）を追加 / `permanentDeleteNoteUnified` の doc に「legacy folder 行は pool 外 = 復元も purge も不可」を明記 / analytics 2 ファイルの常時 true な `type === "note"` を除去 / `briefs/connect.md` のモック仕様側 6 箇所を sweep（§2/§3 だけ直して本文が残っていた）
+- **コメントが実装より強い主張をしていた 2 件を訂正**: `flattenedNotes` の「moveNodeInto でネストできる」は誤り（`useNoteTreeMovement` のガードが NodeType 単一化で常に真 = 常に失敗する死んだガードになっていた）。visited Set も「016 class の hang 防止」ではなく防御的措置（null 根の walk は parentId サイクルに到達できない）。**同型の死んだガードが `useTaskTreeMovement.ts:21` に残り、そちらは `useTaskTreeDnd` が実際に呼んでいる** → tasks レーンへ起票依頼
+- **報告の訂正（失敗記録）**: 「web lint の error は main 時点で既存」は誤りだった。`git stash` は自分の古い base との比較でしかなく、実際は同日 merge の PR #402（#364）が解決済み。**main 由来の判定は `git show origin/main:<path>` で行う**。着手前の `git merge origin/main`（CLAUDE.md §7.4）を踏んでいれば防げた
 
 ### 2026-07-26 - mcp-server レーン: legacy テーブル参照の解消（#360）とファイル系ツール退役（#362）
 

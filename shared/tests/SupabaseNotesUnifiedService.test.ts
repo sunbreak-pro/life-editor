@@ -540,6 +540,28 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
       expect(out.map((n) => n.id)).toEqual(["note-T1"]);
     });
+
+    it("searchNotesUnified drops a folder row that matched on title", async () => {
+      // A title hit CAN land on a folder row: note_type lives on the payload,
+      // so the items_meta ilike query cannot exclude it.
+      const metas = [
+        makeMetaRow({ id: "note-T1", title: "plan hit" }),
+        makeMetaRow({ id: "notefolder-old", title: "plan folder" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: [], error: null }); // content hits
+      stub.stage("notes_payload", "select", {
+        data: [
+          makePayloadRow({ item_id: "note-T1" }),
+          makePayloadRow({ item_id: "notefolder-old", note_type: "folder" }),
+        ],
+        error: null,
+      });
+
+      const out = await service.searchNotesUnified("plan");
+
+      expect(out.map((n) => n.id)).toEqual(["note-T1"]);
+    });
   });
 
   // -------------------------------------------------------------------------

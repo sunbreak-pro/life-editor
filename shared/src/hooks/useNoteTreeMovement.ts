@@ -33,6 +33,13 @@ export function useNoteTreeMovement(
       if (!active || !target)
         return { success: false, reason: "node_not_found" };
 
+      // DEAD GUARD (#375 QA): this used to mean "the target is not a folder",
+      // but NoteNodeType is single-valued now, so the condition is always true
+      // and moveNodeInto always rejects. Harmless today — the hook exports it
+      // and nothing calls it (Notes DnD only assigns tags since S1) — but the
+      // API is effectively retired until someone decides whether note-under-
+      // note nesting should come back. Same shape survives in
+      // useTaskTreeMovement (:21), where useTaskTreeDnd DOES call it.
       if (target.type === "note")
         return { success: false, reason: "target_is_task" };
 
@@ -165,6 +172,8 @@ export function useNoteTreeMovement(
         const newParentId = over.parentId;
 
         if (newParentId !== null) {
+          // Same dead guard as moveNodeInto above (#375 QA): a non-null new
+          // parent is always rejected now that every note has type "note".
           const parent = notes.find((n) => n.id === newParentId);
           if (!parent || parent.type === "note")
             return { success: false, reason: "parent_is_task" };

@@ -105,8 +105,12 @@ describe("buildGraphModel", () => {
       connections: [],
     });
     // The retired folder/"project" node has no successor node type: the tag
-    // node IS the grouping, wired to its members by "tag" edges.
-    expect(out.nodes.every((n) => n.type !== ("project" as string))).toBe(true);
+    // node IS the grouping, wired to its members by "tag" edges. Asserting the
+    // whole type set (rather than "no project node") keeps this honest — a
+    // reintroduced grouping type would fail here.
+    expect(new Set(out.nodes.map((n) => n.type))).toEqual(
+      new Set(["note", "tag"]),
+    );
     expect(out.nodes.find((n) => n.id === tagNodeId("t1"))?.type).toBe("tag");
     expect(
       out.links.filter((l) => l.kind === "tag" && l.target === tagNodeId("t1"))

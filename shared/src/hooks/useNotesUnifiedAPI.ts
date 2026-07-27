@@ -382,14 +382,18 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   }, []);
 
   // Flatten tree for DnD (only visible nodes). #375: the recursion used to be
-  // gated on `type === "folder"`; with folders retired, any note that is
-  // expanded reveals its nested children (notes can still be nested under
-  // notes via moveNodeInto).
+  // gated on `type === "folder"`; with folders retired it descends into any
+  // expanded node. NOTE (#375 QA): nesting is not reachable from the UI today
+  // — `moveNodeInto` is exported but has no caller, and its own guard rejects
+  // every target since the folder type went away (useNoteTreeMovement). So in
+  // practice this walk only ever sees the legacy parent/child rows that
+  // predate the retirement.
   const flattenedNotes = useMemo(() => {
     const result: NoteNode[] = [];
-    // Cycle guard: a corrupted parentId cycle arriving from the server would
-    // otherwise recurse forever now that every expanded node descends (same
-    // hang class as known-issues 016 — softDeleteNote carries the same guard).
+    // Defensive, not load-bearing: a walk rooted at `null` cannot actually
+    // reach a parentId cycle (no cycle member has a null parent) and ids are
+    // a PK, so this only fires on genuinely corrupt data. Kept because it is
+    // one Set lookup per node.
     const seen = new Set<string>();
     const walk = (parentId: string | null) => {
       const children = notes

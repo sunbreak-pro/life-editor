@@ -46,8 +46,15 @@ export interface NoteRecord {
 
 const PAYLOAD_COLUMNS = "item_id, note_type, content_json, is_pinned, color";
 
-/** True for the retired folder note type (#375). NULL is a plain note. */
-function isLegacyFolder(payload: NotesPayloadRow): boolean {
+/**
+ * True for the retired folder note type (#375). NULL is a plain note — the
+ * whole filter hinges on that, which is why it is exported for the unit test
+ * (a `.neq('note_type','folder')` query-side filter would drop NULL rows and
+ * silently hide legacy notes).
+ */
+export function isLegacyFolder(
+  payload: Pick<NotesPayloadRow, "note_type">,
+): boolean {
   return payload.note_type === "folder";
 }
 
