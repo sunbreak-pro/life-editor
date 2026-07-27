@@ -217,6 +217,7 @@ export {
   type TagEditRow,
 } from "./TagEditModal";
 export { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
+export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
 export {
   SettingsDetailPanel,
   type SettingsDetailPanelProps,

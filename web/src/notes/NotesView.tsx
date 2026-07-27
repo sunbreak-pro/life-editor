@@ -16,7 +16,6 @@ import {
   Plus,
   Search,
   Trash2,
-  Tag,
   Tags,
   RotateCcw,
 } from "lucide-react";
@@ -35,7 +34,7 @@ import {
   BottomSheet,
   SidebarListControls,
   TagEditModal,
-  resolveTagIcon,
+  TagHeadingIcon,
   buildTagGroups,
   sortNotesForList,
   useFrozenNoteSortKey,
@@ -266,7 +265,6 @@ function DesktopTagHeading({
   // The former chevron+dot+flat-name folder look is gone; the name sits in a
   // rounded color band (same tint math as TagPill) and a rule fills the row.
   const color = group.tagColor;
-  const Icon = resolveTagIcon(group.tagIcon) ?? Tag;
   const bandStyle = color
     ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
     : undefined;
@@ -289,12 +287,7 @@ function DesktopTagHeading({
           FOCUS_RING,
         )}
       >
-        <Icon
-          size={15}
-          aria-hidden
-          className="shrink-0 text-lumen-text-secondary"
-          style={color ? { color } : undefined}
-        />
+        <TagHeadingIcon icon={group.tagIcon} color={color} />
         <span
           className={cn(
             "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
@@ -891,7 +884,6 @@ export function NotesView({
             const collapsed = collapsedGroups.has(key);
             // Divider-style heading (#311), mobile twin of DesktopTagHeading.
             const color = group.tagColor;
-            const HeadingIcon = resolveTagIcon(group.tagIcon) ?? Tag;
             const bandStyle = color
               ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
               : undefined;
@@ -911,12 +903,7 @@ export function NotesView({
                     FOCUS_RING,
                   )}
                 >
-                  <HeadingIcon
-                    size={15}
-                    aria-hidden
-                    className="shrink-0 text-lumen-text-secondary"
-                    style={color ? { color } : undefined}
-                  />
+                  <TagHeadingIcon icon={group.tagIcon} color={color} />
                   <span
                     className={cn(
                       "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
