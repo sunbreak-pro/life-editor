@@ -5,15 +5,21 @@
  * below", or "go inside the folder".
  *
  * This stays UI/dnd-free on purpose (no @dnd-kit / React imports) so the
- * shared package keeps the same UI-free boundary as the rest of S1/S2. The
- * web hosts (`web/src/notes/useNoteTreeDnd.ts`, `web/src/tasks/...`) feed it
- * a ratio derived from the @dnd-kit rect + pointer.
+ * shared package keeps the same UI-free boundary as the rest of S1/S2. A web
+ * host feeds it a ratio derived from the @dnd-kit rect + pointer.
  *
- * "below" on a folder means "become the folder's sibling, right after it"
- * (Desktop TaskTree parity — `useTaskTreeDnd.ts`). There is deliberately NO
- * expanded-folder special case: dropping on a folder's lower strip always
- * reads as "after this folder", which is what lets an item land below a
- * folder that itself sits at the tail of another folder.
+ * STATUS (#418): no host consumes this today. Both tree-DnD hooks that used
+ * it are gone — Notes DnD only assigns tags since S1 (`useNoteTagDnd`), and
+ * `web/src/tasks/useTaskTreeDnd.ts` was retired with the nesting chain. Kept
+ * as the drop-geometry primitive a future tree view would reorder with; the
+ * `isFolder: true` ("inside") half is only meaningful if nesting ever
+ * returns, which is currently a No.
+ *
+ * "below" on a folder means "become the folder's sibling, right after it".
+ * There is deliberately NO expanded-folder special case: dropping on a
+ * folder's lower strip always reads as "after this folder", which is what
+ * lets an item land below a folder that itself sits at the tail of another
+ * folder.
  *
  * Zone split: folder inside zone is the middle 60% (0.2–0.8); the top/bottom
  * 20% strips reorder above/below. Non-folders split 50/50 (no "inside").

@@ -383,11 +383,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
 
   // Flatten tree for DnD (only visible nodes). #375: the recursion used to be
   // gated on `type === "folder"`; with folders retired it descends into any
-  // expanded node. NOTE (#375 QA): nesting is not reachable from the UI today
-  // — `moveNodeInto` is exported but has no caller, and its own guard rejects
-  // every target since the folder type went away (useNoteTreeMovement). So in
-  // practice this walk only ever sees the legacy parent/child rows that
-  // predate the retirement.
+  // expanded node. NOTE (#418): nesting is retired outright — no API can
+  // create a parent/child pair any more, so this walk only ever sees the
+  // legacy rows that predate the retirement.
   const flattenedNotes = useMemo(() => {
     const result: NoteNode[] = [];
     // Defensive, not load-bearing: a walk rooted at `null` cannot actually
@@ -473,7 +471,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     [push, syncToDb],
   );
 
-  const { moveNode, moveNodeInto, moveToRoot } = useNoteTreeMovement(
+  const { moveNode, moveToRoot } = useNoteTreeMovement(
     notes,
     persistWithHistory,
   );
@@ -647,8 +645,8 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       const subtree: NoteNode[] = [];
       // `seen` guards against a corrupted parentId cycle (e.g. a bad sync
       // round-trip) causing unbounded recursion — same OOM class as the
-      // task-tree (known-issues 016). DnD (moveNodeInto) prevents cycles
-      // at write time, but data may still arrive cyclic from the server.
+      // task-tree (known-issues 016). No write path creates hierarchy since
+      // #418, but data may still arrive cyclic from the server.
       const seen = new Set<string>();
       const collect = (nodeId: string) => {
         if (seen.has(nodeId)) return;
@@ -896,7 +894,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       permanentDeleteNote,
       persistWithHistory,
       moveNode,
-      moveNodeInto,
       moveToRoot,
       setNotePassword,
       removeNotePassword,
@@ -930,7 +927,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       permanentDeleteNote,
       persistWithHistory,
       moveNode,
-      moveNodeInto,
       moveToRoot,
       setNotePassword,
       removeNotePassword,
