@@ -342,10 +342,18 @@ export class SupabaseNotesUnifiedService {
    * Hard-delete from items_meta. notes_payload is cleaned up automatically
    * by the 0008 `ON DELETE CASCADE` FK (`notes_payload.item_id ->
    * items_meta(id)`). The composite parent FK introduced by 0014 is
-   * `ON DELETE NO ACTION`, so a folder whose subtree still references it
+   * `ON DELETE NO ACTION`, so a node whose subtree still references it
    * must be purged descendants-first — mirrors `permanentDeleteTask`
    * (DB-Q3). The pool is built from live + trashed (a trashed root with
    * trashed children must purge in one call).
+   *
+   * KNOWN LIMIT (#375, same as the Tasks side): the pool inherits the legacy
+   * folder exclusion, so a legacy `note_type='folder'` row is invisible here
+   * — it can be neither restored nor purged from the UI, and a subtree that
+   * still hangs off one cannot be walked through it (the FK would reject the
+   * parent's delete with 23503). Accepted: migration 0020 converted the two
+   * production folders and left zero notes directly under them, and the
+   * rollback SSOT is `life_tags_migration_log`.
    *
    * sortByDepthDesc lives in utils/ keyed to TaskNode; rather than
    * generalising it (out of scope for this PR), the depth walk is

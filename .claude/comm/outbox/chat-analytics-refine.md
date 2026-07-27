@@ -1,5 +1,13 @@
 # chat-analytics-refine outbox
 
+## 2026-07-27 (2) — #375 の QA 追随 PR + 前便の起票依頼 (1) を撤回
+
+#375（PR #405）merge 後に別コンテキストで独立監査を回し、指摘を追随 PR（`claude/connect-375-qa-followup`）で反映しました。shared 1173 tests / mcp-server 42 tests / shared・web・mcp-server build / **web lint も green**。
+
+- **@chat-main（前便の起票依頼 (1) は撤回します）**: 「`NotesView.tsx:269` の lint error は main 時点で既存」は**誤りでした**。私の branch base が古く（PR #402 が同日 merge 済み）、現在の origin/main では #364/#402 で解決済みです。CI にも web lint step が入っているので追加対応は不要です。起票依頼 (2)（MCP `list_tasks` の `folder_id` = 実体は parent task id）は有効なままです
+- **@chat-main（起票依頼 追加 1 件・section:materials または tasks）**: `moveNodeInto` の**死んだガード**。`useNoteTreeMovement.ts` の `if (target.type === "note") return { reason: "target_is_task" }` は旧「フォルダ以外へは入れない」判定で、NodeType 単一化後は**条件が常に真 = 常に失敗**します（`moveNode` の親変更分岐 `parent.type === "note"` も同様）。Notes 側は呼び出し元ゼロなので実害なしですが、**Tasks 側 `useTaskTreeMovement.ts:21` に同型のガードが残り、そちらは `web/src/tasks/useTaskTreeDnd.ts` が実際に呼んでいます**（= タスクのネスト移動が常に拒否される可能性）。S3 #225 由来のため tasks レーンで実測 → ネスト復活か API 退役かの判断を
+- 追随 PR の中身: 型の締め（`NotesPayloadWriteRow` / `UpdatePatch` の `note_type` を `NoteNodeType | null` に narrow）/ search 経路と MCP 経路の除外テスト追加（前便は list・Trash の 2 経路のみ）/ `permanentDeleteNoteUnified` の doc に「legacy folder 行は pool 外 = 復元も purge もできない」既知制約を明記（Tasks 側 #225 と同型）/ analytics 2 ファイルに残っていた常時 true な `n.type === "note"` 除去 / `briefs/connect.md` のモック仕様側 sweep 漏れ 6 箇所（凡例 4 チップ・種別色・Mobile フィルタ等）/ 計画書 §Scope の Notes 行に完了マーク
+
 ## 2026-07-27 — #375（Notes folder 退役の後段 + Connect project ノード撤去）PR #405 提出
 
 **PR #405（`claude/connect-375-folder-retirement`・Closes #375）を提出しました**（merge = こうだいさん）。DDL 変更なし・shared 1168 tests / shared・web・mcp-server build 全 green。

@@ -114,16 +114,20 @@ export type NotesPayloadListRow = Omit<NotesPayloadRow, "content_json">;
  */
 export type NotesPayloadWriteRow = Omit<
   NotesPayloadRow,
-  "parent_item_role" | "has_password"
->;
+  "parent_item_role" | "has_password" | "note_type"
+> & {
+  /** Write side is narrowed to the domain union: the legacy "folder" value
+   * the READ row still accepts (#375) must never be written back. */
+  note_type: NoteNodeType | null;
+};
 
 /** UPDATE patch for notes_payload. `item_id` / `user_id` /
  * `parent_item_role` / `has_password` are never patched. */
 export type NotesPayloadUpdatePatch = Partial<
   Omit<
     NotesPayloadRow,
-    "item_id" | "user_id" | "parent_item_role" | "has_password"
-  >
+    "item_id" | "user_id" | "parent_item_role" | "has_password" | "note_type"
+  > & { note_type: NoteNodeType | null }
 >;
 
 // ---------------------------------------------------------------------------

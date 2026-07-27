@@ -120,7 +120,9 @@ export function MobileAnalyticsView(
     const tasks = nodes.filter((n) => n.type === "task");
     const completedTasks = tasks.filter((n) => n.status === "DONE").length;
     const todayEventsCompleted = todayItems.filter((i) => i.completed).length;
-    const activeNotes = notes.filter((n) => !n.isDeleted && n.type === "note");
+    // #375: the `type === "note"` half of this filter went away with the
+    // folder type (every NoteNode is a note now).
+    const activeNotes = notes.filter((n) => !n.isDeleted);
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoStr = formatDateKey(weekAgo);
