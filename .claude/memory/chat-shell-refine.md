@@ -22,4 +22,4 @@
 - #368 WikiTags 一覧のソート・フィルタ — #409 で前提が変わったため設計申し送りコメントを投下済み（2026-07-27）。**判断はユーザー / chat-main 采配**（推奨 = スコープを「名前の絞り込みのみ」に絞る or DEFERRED。`SidebarListControls` の再利用ありきで決めないこと）
 - shared-fix [all] 宛 open 2 件が残存（#363 docs 追随 sweep / #321 Mobile UI/UX Epic）— 次セッション開始時に自分の担当分を判断して着手
 - merge 後の実ブラウザ実測は §7.4 に従い chat-main（worktree 側は build / 型検証 / vitest まで）
-- ⚠️ `git stash@{0}` に「shell-refine stale snapshot before #409」を退避中（旧 claude/shell-refine-outbox-364 = PR #414 merged 済みブランチに残っていた staged 43 ファイル。main へ追いつく途中の残骸で固有の作業は無いと判定）。不要と確認できたら `git stash drop`
+- ✅ 着手前の残骸は処理済み（2026-07-27）: 旧 `claude/shell-refine-outbox-364`（PR #414 merged）に staged 43 ファイルが残っていた件。`git diff --stat stash@{0} 01fb2d37` が**空 = PR #414 merge 時点の main と全ファイル完全一致**と実測できたため固有の作業ゼロと確定し、ユーザーが `git stash drop` 実行（345b079e）。**staged の「43 ファイル変更」は差分ではなく HEAD が main より 6 コミット遅れていただけ**という見え方の罠。教訓 2 点 =（1）残骸の正体判定は `git status` の件数ではなく「ツリーが既存コミットと一致するか」で見る、（2）あの staged には `chat-analytics-refine` / `chat-briefing-section` の memory・history・outbox が含まれていた（他チャット担当 = §7.4 単一書込者原則違反）ので、`git add -A` していたら巻き込んでいた
