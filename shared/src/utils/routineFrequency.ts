@@ -29,8 +29,16 @@ export function shouldRoutineRunOnDate(
       return frequencyDays.includes(d.getDay());
     }
     case "interval": {
-      if (!frequencyInterval || frequencyInterval <= 0) return true;
-      if (!frequencyStartDate) return true;
+      // Malformed config fails CLOSED (#407): a null/non-positive interval
+      // or a missing start date means "fires never", NOT "fires every day".
+      // Pre-#407 both guards returned true, so a routine stranded with a
+      // bare interval type (e.g. the losing twin of a double conversion)
+      // regenerated a schedule row EVERY day. The editor paths always seed
+      // both fields (seedFrequencyPatch / handleChangeRepeat), so a healthy
+      // routine never lands here — same runaway-creation defence as the
+      // `default` branch below.
+      if (!frequencyInterval || frequencyInterval <= 0) return false;
+      if (!frequencyStartDate) return false;
       const start = new Date(frequencyStartDate + "T00:00:00");
       const target = new Date(date + "T00:00:00");
       const diffMs = target.getTime() - start.getTime();
@@ -53,12 +61,12 @@ export function shouldRoutineRunOnDate(
  * on the type-specific fields of the PREVIOUS type:
  *   - → "weekdays" with no day set: `shouldRoutineRunOnDate` matches NO
  *     date, so the routine reads as "fires never";
- *   - → "interval" with a null interval / start date: both guards in
- *     `shouldRoutineRunOnDate` degrade to `true`, so it reads as "fires
- *     every day".
+ *   - → "interval" with a null interval / start date: fails closed to
+ *     "fires never" too (#407 — pre-fix both guards degraded to `true`,
+ *     i.e. "fires every day").
  * Either reading is a transient the user never asked for, and since #352
  * wired reconcile to this patch it is no longer harmless: one click would
- * sweep (or mint) occurrences before the user picked a weekday or typed an
+ * sweep occurrences before the user picked a weekday or typed an
  * interval. Seeding mirrors what the manual→repeat conversion already does
  * with its seed event (`useScheduleMutations.handleChangeRepeat`).
  *

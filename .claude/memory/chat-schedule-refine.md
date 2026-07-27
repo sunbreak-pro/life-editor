@@ -6,16 +6,17 @@
 
 ## 直近の完了
 
+- **#407 繰り返し設定と Calendar 表示の不整合（Root Cause 特定 + 修正）** ✅（2026-07-27 — **PR #423** 作成済み・merge は 🛑 ユーザーゲート・Fable 5 指定タスク）。原因は 2 つ = (1) `shouldRoutineRunOnDate` の interval 分岐が malformed 設定（NULL interval / 開始日）を「**毎日発火**」に degrade し、壊れた live routine `routine-3c4a1f09`（「新規予定」・interval 型なのに interval/開始日 NULL）が毎日アイコン付きの同名アイテムを生成していた（アプリを開いた 7/16・7/19・7/26・7/27 に生成行を SELECT で実測）(2) `handleChangeRepeat` の手動→変換分岐が `selected.routineId == null` 判定と非同期反映のレースで**同じ種から routine を 2 本**作れ、attach が無条件 UPDATE の後勝ちなので負けた 1 本がゾンビ化（実データ = 「新規予定」live routine 2 本が 6 秒差で作成されていた）。修正 = fail-closed 化 + 条件付き attach（`.is("routine_item_id", null)`）+ in-flight ガード。**merge 後クリーンアップが残る**: ユーザーが Routines タブから「新規予定」routine 2 本（`3c4a1f09` / `b15eb258`）を削除（生成済み si- 行は cascade で掃除される）
 - **#367 Schedule サイドバーのソート・フィルタ検討** ✅（2026-07-27 — **見送りで決着・コード変更ゼロ**。根拠を Issue にコメントして NOT_PLANNED で close。機能 PR は無いが、この tracker を main へ届けるための docs のみ PR = **#403**（差分は `.claude/memory/` + `.claude/history/` の 2 ファイルだけ・merge は 🛑 ユーザーゲート））。判断の芯は 4 点 = (1) Routines の rightSidebar は編集フォームだけでリストが存在しない（一覧は main area・`RoutinesTab.tsx:168-194` / `:200-221`）(2) Calendar サイドバーの 2 リストは当日スコープで毎日リセットされ、本番実測で events は 1 日あたり最大 3 件・平均 1.5 件（累積して増える Notes / Daily とは性質が違う）(3) `AgendaList` の now-line は `findIndex(startTime >= nowMinutes)` で**昇順前提**なので direction toggle の desc は機能破壊（`AgendaList.tsx:98-104`）(4) 日スコープでない唯一の pool（`pickAddableTasks`）は `ItemCreatePanel` のタスクタブに既に検索欄がある。**再オープン条件も Issue に明記済み**（addable が常時 20 件超で tray がスクロールする / Routines 一覧が rightSidebar へ移設 or 20 件超）
 - **#376 統合アイテム生成パネル（Step A + Step B + QA follow-up）** ✅（2026-07-27 — **PR #393 / #395 / #400 全て merge 済み・Issue #376 close 済み**）。#400 で「ノートのリンクをアイテム本体の行ができてから撃つ」順序バグを解消（main `433974d1`）
-- **#376 統合アイテム生成パネル Step A** ✅（2026-07-26 — **PR #393** merge 済み `0c02f10`）。`EventCreateFields`（#299）→ `ItemCreatePanel` に置換し、Desktop オーバーレイと Mobile QuickCaptureSheet が同一パネルを描く。予定タブは従来どおり、タスクタブは「新規作成」（`addNode` で配置済みタスク）/「既存から選ぶ」（`pickAddableTasks` + 検索 → `updateNode`）。**#298 トレイとの棲み分けを plan §4.6 に明文化**（トレイ = 今日固定・時刻なしの「宣言」／パネル = 任意の日・時刻ありの「配置」。プールは同一なので重複ではなく直列）
 - #298 Step 3 rightSidebar 本日の Todo tray ✅（2026-07-23 — PR #323 merge 済み・main `5f9abf48`）。**history 側にエントリが無いのはここだけ**なので、この行を消すと merge 済みの記録がこの worktree から消える（#296 / #297 は history の 2026-07-20 に残る）
   （#352 / #353 / #354 / #355 / #385 / #299 は history の 2026-07-25〜26 に全文あり。ここからは間引いた）
 
 ## 予定
 
 - **自分宛の open Issue は実測 3 件**（2026-07-27・`gh issue list --label section:schedule --state open` + `--label shared-fix`）: `section:schedule` = **#290（Epic・Step 2〜7 の tracking）のみ**で子 Issue はゼロ。`shared-fix` = **#363（docs 追随 sweep）/ #321（Mobile UI/UX 追随 Epic）**。つまり次に着手できる粒度のタスクが無い状態なので、まず #290 の Step 5 を子 Issue に割ってもらう依頼が要る
-- **実ブラウザ検証を chat-main へ依頼する**（#376 の 3 タブ・既存タスクの配置・**既存ノートを選んだときにリンクが Connect / Notes 側に出るか** — ここが #400 で直した経路）。§7.4 の localhost 集約ポリシーによりこの worktree では実測できない
+- **実ブラウザ検証を chat-main へ依頼する**（#376 の 3 タブ・既存タスクの配置・**既存ノートを選んだときにリンクが Connect / Notes 側に出るか** — ここが #400 で直した経路。**#407 も追加** = 繰り返し「なし」でアイコンが消え、日をまたいでも「新規予定」が復活しないこと）。§7.4 の localhost 集約ポリシーによりこの worktree では実測できない
+- **#407 の merge 後クリーンアップをユーザーへ案内済み**（Issue コメント + PR #423 本文）: Routines タブから「新規予定」routine 2 本（`3c4a1f09` / `b15eb258`）を削除。コード修正だけで新規生成は止まるが、routine 本体と生成済み si- 行は UI からの削除が必要
 - Epic #290 の残 Step（Step 5 構成再編 / Step 6 カレンダー台帳配線 / Step 7 エディタ拡充）は未起票。Step 5 の子 Issue が無ければ chat-main へ起票依頼を outbox へ
 - chat-main へ起票依頼済み（outbox 2026-07-26 の 3 通）: (1) `web/src/notes/NotesView.tsx:291` の lint error（main 由来）(2) Mobile 月表示で FAB が `mobileSelectedDay` ではなく `anchorDate` に作る (3) 生成直後の楽観行が同期リフェッチで消えると開いたばかりの詳細エディタが閉じる
 

@@ -12,6 +12,12 @@ import type { RoutineNode } from "../src/types/routine";
  * source_date) → meta bump; on attach failure the routine is rolled back
  * and the seed is untouched.
  *
+ * The attach is CONDITIONAL since #407 (`.is("routine_item_id", null)` +
+ * read-back): a second conversion racing the same seed matches zero rows,
+ * rolls its own routine back and rethrows — the winning routine keeps the
+ * seed. Pre-#407 the unconditional UPDATE re-pointed the seed and stranded
+ * the first routine live with no referencing seed (a generator zombie).
+ *
  * createRoutine itself is stubbed (own coverage elsewhere); the mock client
  * records update/delete writes so the tests pin the sequencing contract.
  */
@@ -21,19 +27,47 @@ interface WriteRecord {
   mode: "update" | "delete";
   patch: Record<string, unknown> | null;
   filter: { col: string; val: unknown };
+  /** The `.is()` filter the #407 conditional attach adds (attach only). */
+  isFilter?: { col: string; val: unknown };
 }
 
-function makeClient(opts: { attachError?: string } = {}) {
+function makeClient(
+  opts: { attachError?: string; seedAlreadyAttached?: boolean } = {},
+) {
   const writes: WriteRecord[] = [];
   const client = {
     from: (table: string) => ({
       update: (patch: Record<string, unknown>) => ({
         eq: (col: string, val: unknown) => {
-          writes.push({ table, mode: "update", patch, filter: { col, val } });
-          if (table === "events_payload" && opts.attachError) {
-            return Promise.resolve({ error: { message: opts.attachError } });
-          }
-          return Promise.resolve({ error: null });
+          const rec: WriteRecord = {
+            table,
+            mode: "update",
+            patch,
+            filter: { col, val },
+          };
+          writes.push(rec);
+          // Two consumer shapes: the items_meta bump is awaited straight
+          // off `.eq()` (thenable), while the events_payload attach chains
+          // `.is().select()` (#407 conditional attach) and reads the
+          // affected rows back.
+          return {
+            is: (isCol: string, isVal: unknown) => {
+              rec.isFilter = { col: isCol, val: isVal };
+              return {
+                select: () =>
+                  Promise.resolve(
+                    opts.attachError
+                      ? { data: null, error: { message: opts.attachError } }
+                      : opts.seedAlreadyAttached
+                        ? { data: [], error: null }
+                        : { data: [{ item_id: val }], error: null },
+                  ),
+              };
+            },
+            then: (
+              resolve: (v: { error: { message: string } | null }) => unknown,
+            ) => resolve({ error: null }),
+          };
         },
       }),
       delete: () => ({
@@ -95,6 +129,8 @@ describe("convertEventToRoutine (#296)", () => {
       source_date: "2026-07-19",
     });
     expect(attach!.filter).toEqual({ col: "item_id", val: "event-1" });
+    // #407: the attach only lands while the seed is still unattached.
+    expect(attach!.isFilter).toEqual({ col: "routine_item_id", val: null });
 
     // The seed's items_meta.updated_at is bumped (DB-Q2 LWW cursor — the
     // payload row carries no own updated_at).
@@ -120,6 +156,25 @@ describe("convertEventToRoutine (#296)", () => {
 
     // Rollback hard-deletes the just-created ROUTINE row only — the seed
     // event is never targeted by any delete.
+    const dels = writes.filter((w) => w.mode === "delete");
+    expect(dels).toHaveLength(1);
+    expect(dels[0].table).toBe("items_meta");
+    expect(dels[0].filter).toEqual({ col: "id", val: "routine-1" });
+  });
+
+  it("rolls back and rethrows when the seed already belongs to a routine (#407 double-conversion guard)", async () => {
+    const { client, writes } = makeClient({ seedAlreadyAttached: true });
+    const svc = new SupabaseRoutinesService(client);
+    vi.spyOn(svc, "createRoutine").mockResolvedValue(ROUTINE);
+
+    await expect(
+      svc.convertEventToRoutine("event-1", "routine-1", INIT),
+    ).rejects.toThrow(/already belongs/);
+
+    // The losing conversion must not survive: pre-#407 its routine stayed
+    // LIVE with no referencing seed and kept generating occurrences. Only
+    // the loser routine is deleted; the seed (owned by the winning routine)
+    // is never targeted.
     const dels = writes.filter((w) => w.mode === "delete");
     expect(dels).toHaveLength(1);
     expect(dels[0].table).toBe("items_meta");
