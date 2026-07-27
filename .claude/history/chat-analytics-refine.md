@@ -1,5 +1,24 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-07-26 - mcp-server レーン: legacy テーブル参照の解消（#360）とファイル系ツール退役（#362）
+
+#### 概要
+
+MCP Server の 34 ツールのうち 18 個が、0007 で DROP 済みの legacy テーブルを SQLite 経由で参照したままだった（呼べば必ず失敗する状態）。これを統合スキーマへ移行し（#360 / PR #396）、続けて UI 退役後も残っていたファイル系 7 ツールを退役させた（#362 / PR #397）。
+
+#### 変更点
+
+- **#360 実測**: `.from()` を使っていたのは schedule / briefing のみ（#256 で移行済）。残る tasks / notes / dailies / content / search / wikiTag は全て `better-sqlite3` の生 SQL で、SQLite パスが渡らなければ `getDb()` が例外を投げる = 実質「呼べないツール」だった
+- **#360 移行**: 18 ツールを `items_meta` + `<role>_payload` へ。作法は scheduleHandlers に準拠（作成時の orphan recovery / 書き込みごとの `items_meta.updated_at` bump / ソフトデリート）。共通処理は `utils/items.ts`（meta+payload の書き込み作法）・`utils/pagination.ts`（`.range()` ページング + `.in()` チャンク）・`utils/content.ts`（jsonb ↔ TipTap 文字列）に集約
+- **#360 の自己レビューで拾った穴**: 全件取得 5 箇所がページング無しで、PostgREST の 1000 行無言打ち切りに素通し（shared の `postgrestFetchAll` が明示的に対策している既知の罠を MCP 側で踏み直すところだった）。他に空パッチでの無意味な LWW cursor 前進、検索のタイトル一致経路への退役 folder 行の混入、未使用 export 1 件
+- **#360 仕様変更**: `generate_content` / `format_content` の `schedule` ターゲット退役（`events_payload` に content 列が無い → 代替は `update_schedule_item` の `memo`）/ tag の `source`・`text_color` 廃止・`icon` 追加 / entity 種別は `items_meta.role` から読むので `tag_entity` の `entity_type` は任意（指定時は一致検証）/ task status はツール語彙（小文字）を維持し DB の CHECK 値（大文字）と双方向変換 / done 解除で `completed_at` を null に戻す
+- **#360 付随**: `better-sqlite3` + `src/db.ts` 削除（参照ゼロ化）。`@types/node` がその推移依存だったため明示追加。`.mcp.json` の `DB_PATH` を Supabase 資格情報の `${VAR}` 参照へ差し替え（そもそも資格情報が配線されておらず、#256 以降 schedule / briefing も env 頼みだった）
+- **#362**: fileHandlers.ts（274 行）+ tools.ts の 7 ツール定義・dispatch + `.mcp.json` の `FILES_ROOT_PATH` を削除。docs は tier-1 §MCP Boundary「やらない」への退役明記と AC6 撤回、tier-2 §File Explorer の MCP Coverage 更新
+- **PR の積み方**: #362 を main ベースで検証しようとしたら `better-sqlite3` のネイティブビルドが Windows の node-gyp で失敗し、型検証すら通らなかった。それを外すのが #396 のため、`rebase --onto` で #396 の上に積む stacked PR に変更（base = `claude/mcp-server-360`）
+- **docs 整合**: tier-1-core の MCP Server 節からツール数の直書きを撤去（数値の非複製原則）。stale だった「MCP schedule handler は旧 SQLite」注記 3 箇所を解消（#256 時点で既に古かった）
+- **検証**: mcp-server `tsc --noEmit` 緑 / vitest 39 件緑（新規 3 ファイル = status 変換・jsonb 変換・ページング）/ build 緑 / stdio スモークで tools/list が 27 ツール（ファイル系 0 件）/ shared 1110 件緑 / web build 緑。**実 Supabase でのツール呼び出しは未検証**（worktree に資格情報が無い）
+- **stacked PR が迷子になった（要注意の失敗）**: #396（base=main）と #397（base=`claude/mcp-server-360`）が 10 秒差で merge され、GitHub の base 自動張り替えが間に合わず **#397 は既に main 取り込み済みの中間ブランチへ merge**された。`gh pr view 397` は state=MERGED を返すのに main には 1 行も届いておらず、`git show origin/main:mcp-server/src/tools.ts | grep -c '"list_files"'` が 14 を返して発覚。`claude/mcp-server-362-relanded`（origin/main から cherry-pick・コンフリクトなし）で **PR #401** として再着地。Issue #362 は未着地のため close せず open 維持。教訓を memory `stacked-pr-base-retarget-race` に保存（既存の `push-after-merge-strands-commits` と同じ「MERGED 表示 ≠ main に存在」の家族）
+
 ### 2026-07-26 - 2 巡目の独立監査（QA follow-up コミット自体の監査）
 
 #### 概要

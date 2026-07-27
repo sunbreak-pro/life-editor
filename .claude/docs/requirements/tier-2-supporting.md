@@ -207,7 +207,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 **Tier**: 2
 **Status**: ✗RETIRED（移行 SSOT Phase 5-A 決定・機能ごと退役。以下の本文は履歴として保持 → CLAUDE.md §8）
 **Owner Provider/Module**: `FileExplorerProvider` / `frontend/src/components/Materials/Files/` / `src-tauri/src/commands/{files,attachment}_commands.rs`
-**MCP Coverage**: `list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files`
+**MCP Coverage**: —（旧 `list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files` は 2026-07-26 #362 で退役。UI 退役後も残っていた分の後始末 → `tier-1-core.md` §MCP Server Boundary）
 **Platform**: Desktop only（Mobile では FileExplorerProvider 省略 — CLAUDE.md §2）
 
 ### Purpose
