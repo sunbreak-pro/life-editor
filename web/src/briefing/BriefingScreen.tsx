@@ -5,6 +5,7 @@ import {
   EveningView,
   RightSidebarPortal,
   TodayTodoTray,
+  dateKeyOfInstant,
   extractBriefing,
   extractEveningSection,
   extractIntentionSection,
@@ -76,11 +77,15 @@ interface BriefingScreenProps {
   tabSwitcher?: ReactNode;
 }
 
-/** Lexical "YYYY-MM-DD" from a scheduledAt-ish string ("YYYY-MM-DD…"). */
-function dateKeyOf(value: string | undefined): string | null {
-  if (value === undefined || value.length < 10) return null;
-  return value.slice(0, 10);
-}
+/*
+ * LOCAL "YYYY-MM-DD" from a stored scheduledAt (#413 fix). This used to slice
+ * the first 10 chars, which reads the UTC day: in JST an all-day task staged
+ * at local midnight is stored as `…T15:00:00Z` on the PREVIOUS date, so the
+ * paper filed every such task under 持ち越し「2日目」 instead of 今日の Todo
+ * — including the ones the new rightSidebar tray adds. The tray itself keys
+ * on the LOCAL day (tasksToCalendarChips), and now so does the paper.
+ */
+const dateKeyOf = dateKeyOfInstant;
 
 /** Whole-day difference between two "YYYY-MM-DD" keys (b - a). */
 function daysBetween(a: string, b: string): number {
@@ -563,6 +568,12 @@ export function BriefingScreen({
           setTaskNodes((prev) =>
             prev.map((n) => (n.id === updated.id ? updated : n)),
           );
+        })
+        // The row also renders in the rightSidebar tray now (#413), so a
+        // failed write is worth a console line instead of an unhandled
+        // rejection: the checkbox just stays put and nothing says why.
+        .catch((err) => {
+          console.error("[BriefingScreen] task completion toggle failed", err);
         });
     },
     [ds, taskNodes],

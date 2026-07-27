@@ -14,7 +14,9 @@ Briefing は rightSidebar のコンテンツを持たず共有の placeholder �
 - **wide 限定**: 768px 未満では詳細パネルは `MobileDrawer` だが、開閉導線は wide の `SectionHeader` トグルか `MOBILE_HAMBURGER_SECTIONS` のハンバーガー行のみで Briefing はどちらも持たない（`MainScreen.tsx:151-155`）。narrow でマウントすると到達不能な UI になる。mobile-scope.md #1 は Consumption / Phase 1 現状維持なのでモバイル導線の追加は Phase 2（#321）に置いた
 - **i18n**: `briefing.todo.*` 8 キーを en/ja 両カタログへ。完了・「タスクで開く」は既存の `briefing.toggleComplete` / `briefing.jumpToTasks` を再利用し、同一 namespace 内の重複キーは作らなかった
 - **docs**: `tier-1-core.md` §Briefing の Boundary「やる」に本トレイを追記 + `2026-07-15-briefing-loop.md` Worklog に 1 行（Step 4 が予告していた「A-3 トレイとの合流」の実装記録）
-- **検証**: shared vitest 146 files 1175 tests / shared `tsc -b` / web build / `eslint BriefingScreen.tsx` すべて exit 0。実ブラウザ確認は §7.4 どおり merge 後 chat-main
+- **role-qa 独立監査で BLOCKING 1 件 → 同 PR で修正**: 紙面の日付判定 `dateKeyOf` が `scheduledAt.slice(0, 10)` = UTC 日付を読む一方、「今日に追加」は `localDateTimeToISO(key, "00:00")` = ローカル 0 時を書くため、**JST では終日タスクが常に前日扱い**になり「今日の Todo」から消えて「持ち越し（2日目）」に落ちていた（`carryover` は 5 件 slice なので古い持ち越しが多いと表示ごと消える）。自分でも node で再現（offset -540 / `2026-07-26T15:00:00.000Z` → slice が `2026-07-26`）。origin/main 由来の既存バグだが、#413 はその壊れた表示の真横に追加ボタンを新設するので同 PR で修正。`shared/src/utils/dateKey.ts` に `dateKeyOfInstant()`（ローカル日付変換）を追加して差し替え + 回帰テスト 4 件（`shared/tests/dateKeyOfInstant.test.ts`・timezone 非依存）。同型の UTC スライスが `analyticsAggregation.ts:234` に 1 箇所残っており outbox で申し送り
+- **監査の他の指摘**: MAJOR = Schedule のトレイが `todayCalendarKey()`（暦日）のままなので日付変更時刻 ≠ 0 の深夜帯で「今日」がずれる（横断判断 → chat-main へ起票依頼）/ MINOR = `briefing.todo.*` と `scheduleScreen.todo*` が値まで同一で文言がドリフトしうる（部品名 namespace への集約 → 起票依頼。CalendarTab を触るためスコープ外と判断）/ NIT = `handleToggleTask` に `.catch` が無い（トレイで露出が増えたので追加）。hooks 順序・fragment 化の副作用・`liveTasks` を渡した件・楽観更新の同型性・i18n 対称性は監査で「問題なし」を実測確認
+- **検証**: shared vitest 147 files 1179 tests / shared `tsc -b` / web build / `eslint BriefingScreen.tsx` すべて exit 0（修正後に再実行）。実ブラウザ確認は §7.4 どおり merge 後 chat-main
 
 ### 2026-07-27 - Issue #373: Settings「日付が変わる時刻」の設定 UI
 

@@ -67,3 +67,23 @@ export function todayDateKey(
 export function todayCalendarKey(now: Date = new Date()): string {
   return formatDateKey(now);
 }
+
+/**
+ * LOCAL date key of a stored instant (`scheduledAt` / `scheduledEndAt` etc.,
+ * ISO-8601 UTC). Returns null for missing / unparseable input.
+ *
+ * Use this instead of `value.slice(0, 10)`: the stored string is UTC, so
+ * slicing it reads the UTC calendar day. In JST that is the PREVIOUS day for
+ * anything before 09:00 local — an all-day task staged at local midnight
+ * (`localDateTimeToISO(key, "00:00")`, the "add to today" write) is stored as
+ * `…T15:00:00Z` on the day before and a sliced key says yesterday. Grids and
+ * chips key on the LOCAL day (`tasksToCalendarChips`), so a sliced consumer
+ * silently disagrees with them (#413).
+ */
+export function dateKeyOfInstant(
+  value: string | null | undefined,
+): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : formatDateKey(d);
+}

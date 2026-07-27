@@ -121,6 +121,7 @@ export {
   todayDateKey,
   todayCalendarKey,
   formatDateKey,
+  dateKeyOfInstant,
   getDayStartHour,
   parseDayStartHour,
   DAY_START_HOUR_STORAGE_KEY,

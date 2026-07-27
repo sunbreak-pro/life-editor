@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-07-27 (3) → @chat-main（#413 実装完了 — PR #422 merge 済み ＋ **QA 修正の追随 PR あり**・起票依頼 2 件）
+
+**Issue #413（Briefing の rightSidebar に残 Todo トレイ）の実装が完了し、PR #422 は merge 済みです**。Schedule の `TodayTodoTray`（#298）をそのまま流用し、新規部品はゼロ・書いたのはホスト配線と i18n だけです。
+
+**⚠️ 取り残しが再発しました（#394 / #404 と同型）。** role-qa 独立監査の BLOCKING 修正（下記）を push する直前に PR #422 が merge されていたため、修正分は main に入っていません。`origin/main` から `claude/briefing-413-qa-followup` を切って別 PR にしています。**#422 だけ見て完了扱いにしないでください。**
+
+- 検証: shared **147 files 1179 tests** / shared `tsc -b` / web build / `eslint BriefingScreen.tsx` すべて exit 0。DDL ゼロ・`lumen-*` のみ・DataService 境界不変
+- wide 限定でマウントしています（narrow は Briefing に詳細パネルの開閉導線が無く到達不能なため。mobile-scope.md #1 の Consumption 維持）
+- **依頼 1（merge 後の実機確認）**: wide で右パネルを開き (a) 配置済み / 未配置 / タスクから追加 の 3 群が出るか (b) ＋ を押したタスクが**紙面の「今日の Todo」欄にも出るか**（下記の同梱修正の検証点）(c) Schedule 側トレイの表示と一致するか
+
+**⚠️ 既存バグを 1 件見つけたので同 PR で直しました（origin/main 由来・#413 が作ったものではありません）**
+
+role-qa の独立監査で判明したもので、こちらでも実測再現しました。紙面の日付判定 `dateKeyOf` が `scheduledAt.slice(0, 10)` = **UTC 日付**を読んでいたのに対し、「今日に追加」の書き込みは `localDateTimeToISO(key, "00:00")` = **ローカル 0 時**を保存します。JST ではローカル 0 時が UTC で前日 15:00 になるため、**終日タスクは常に前日扱い**になり、紙面の「今日の Todo」から消えて「持ち越し（2日目）」に落ちていました（持ち越しは 5 件で `slice` されるので、古いものが多いと表示ごと消えます）。Schedule のトレイから追加したタスクでも同じ現象が起きていたはずです。
+
+- 修正 = `shared/src/utils/dateKey.ts` に `dateKeyOfInstant()`（ローカル日付に変換）を追加し、`BriefingScreen` の判定をこれに差し替え。回帰テスト 4 件を `shared/tests/dateKeyOfInstant.test.ts` に追加（timezone 非依存な書き方にしています）
+- 影響範囲は Briefing の `todayTasks` / `carryover` のバケット分けのみ。トレイ側・Schedule 側は元からローカル基準なので無変更です
+- 同型の UTC スライスが `shared/src/utils/analyticsAggregation.ts:234` にもう 1 箇所あります。analytics レーンの領分なので触っていませんが、同じ罠を踏んでいないか確認をお願いします
+
+**起票依頼 1（横断・`shared-fix` 相当）: 「Todo の今日」の定義が 2 つある**
+
+Briefing は `todayDateKey()`（日付変更時刻 #373 準拠）、Schedule のトレイは `todayCalendarKey()`（暦日 — `web/src/schedule/useCalendarNav.ts:23`）を使っています。既定の 0 時なら一致しますが、**日付変更時刻を 0 以外にすると深夜〜その時刻の窓だけ両者の「今日」がずれます**（Briefing で追加したタスクが Schedule のトレイに出ない）。Briefing 単独では決められない横断判断なので起票をお願いします。私見では「Todo の今日」はアプリ全体で `todayDateKey()` に寄せ、カレンダーのグリッド軸だけ暦日のままにするのが筋です。
+
+**起票依頼 2（`section:briefing` or `shared-fix`）: 共有トレイの文言が 2 セットある**
+
+`TodayTodoTray` は 1 つなのに、文言が `briefing.todo.*`（今回追加・7 キー）と `scheduleScreen.todo*`（既存）に分かれ、**値まで完全に同一**です。片方だけ直すとドリフトします。今回は「ホスト側の配線だけ」というスコープ指定に従って Schedule 側の catalog を触らずに済ませましたが、本来は `blockMenu.*` / `itemLink.*` と同じ**部品名の namespace**（例 `todayTodoTray.*`）に寄せて両ホストから引くのが筋です。CalendarTab.tsx を触るため schedule レーンとの調整が要ります。
+
+---
+
 ## 2026-07-27 (2) → @chat-main（#373 実装完了 — PR #415 merge 済み / #391 は #404 + #406 とも着地確認済み）
 
 **Issue #373（Settings の「日付が変わる時刻」）の実装が完了し、PR #415 は merge 済みです。** 読み手側は #218 / PR #242 で既に入っていたので、今回足したのは書き込み UI だけです。保存先も読み手ロジックも触っていません（既定 0 のままなら挙動は完全に不変）。
