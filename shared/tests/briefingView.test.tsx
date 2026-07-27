@@ -217,6 +217,46 @@ describe("BriefingView intention field (宣言 — Step 4)", () => {
 });
 
 /*
+ * #391 — the 宣言 block on the evening paper. Wide keeps the original reading
+ * (a morning artifact read back, hidden on a blank day); below 768px 夕刊 is a
+ * Quick capture surface (mobile-scope #3), so the block becomes the live input
+ * — otherwise a phone user who lands on 夕刊 cannot declare at all.
+ */
+describe("EveningView intention block (#391)", () => {
+  it("reads the declaration back with no save caption on the wide layout", () => {
+    renderEvening({ intentionText: "Ship the report" });
+    expect(screen.getByText("Ship the report")).toBeTruthy();
+    expect(screen.queryByPlaceholderText("Declare today…")).toBeNull();
+    // Nothing to save while read-only — the caption must not contradict it.
+    expect(screen.queryByText("Unsaved")).toBeNull();
+  });
+
+  it("hides the whole block on the wide layout when nothing is declared", () => {
+    renderEvening();
+    expect(screen.queryByText("INTENTION")).toBeNull();
+  });
+
+  it("reports edits + blur to the host on the narrow layout", () => {
+    const { onIntentionChange, onIntentionBlur } = renderEvening({
+      intentionEditable: true,
+      intentionText: "Ship the report",
+    });
+    const field = screen.getByPlaceholderText("Declare today…");
+    expect((field as HTMLTextAreaElement).value).toBe("Ship the report");
+    fireEvent.change(field, { target: { value: "Ship the report\nRun" } });
+    expect(onIntentionChange).toHaveBeenCalledWith("Ship the report\nRun");
+    fireEvent.blur(field);
+    expect(onIntentionBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an empty field reachable on the narrow layout, with its caption", () => {
+    renderEvening({ intentionEditable: true });
+    expect(screen.getByPlaceholderText("Declare today…")).toBeTruthy();
+    expect(screen.getByText("Unsaved")).toBeTruthy();
+  });
+});
+
+/*
  * #318 — below 768px the shell drops its header slot, so the SectionHeader
  * 朝刊/夕刊 band disappears and 夕刊 becomes unreachable. Both paper views take
  * an optional in-body `tabSwitcher` the narrow host fills; the wide host leaves
@@ -227,6 +267,8 @@ const EVENING_LABELS: EveningLabels = {
   moodTitle: "MOOD",
   moodStars: [1, 2, 3, 4, 5].map((n) => `Mood ${n}/5`),
   intentionTitle: "INTENTION",
+  intentionCaption: "Unsaved",
+  intentionPlaceholder: "Declare today…",
   reflectionTitle: "CLOSING",
   savedCaption: "Saved",
   todosTitle: "REMAINING",
@@ -238,20 +280,26 @@ const EVENING_LABELS: EveningLabels = {
 };
 
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
-  return render(
+  const onIntentionChange = vi.fn();
+  const onIntentionBlur = vi.fn();
+  const result = render(
     <EveningView
       loading={false}
       dateLine="2026-07-25"
       mood={null}
       onSelectMood={vi.fn()}
       editorSlot={<div>editor</div>}
-      intention={null}
+      intentionText=""
+      intentionEditable={false}
+      onIntentionChange={onIntentionChange}
+      onIntentionBlur={onIntentionBlur}
       todos={[]}
       schedule={[]}
       labels={EVENING_LABELS}
       {...props}
     />,
   );
+  return { ...result, onIntentionChange, onIntentionBlur };
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Star } from "lucide-react";
 import { SkeletonList } from "../SkeletonList";
+import { IntentionField } from "./IntentionField";
 
 /*
  * EveningView — the evening-paper (夕刊) closing surface (#263, F-6).
@@ -42,7 +43,20 @@ export interface EveningLabels {
   moodTitle: string;
   /** Aria labels for the five stars, index 0 =「気分 1/5」etc. */
   moodStars: string[];
+  /**
+   * Heading of the 宣言 block. The host swaps the copy with the mode:
+   * 「今朝の宣言」when it is the read-back of a morning artifact,
+   * 「今日の宣言」when the narrow layout makes it a live input (#391).
+   */
   intentionTitle: string;
+  /**
+   * Saved-state caption for the 宣言 block (host-computed). Rendered ONLY
+   * while the block is editable — a read-only block has no save to report,
+   * and a「保存済み」next to text you cannot type into is a lie.
+   */
+  intentionCaption: string;
+  /** Placeholder of the editable 宣言 field (narrow layout only). */
+  intentionPlaceholder: string;
   reflectionTitle: string;
   /** Saved-state caption next to the reflection title (host-computed). */
   savedCaption: string;
@@ -65,11 +79,25 @@ export interface EveningViewProps {
   /** The host-mounted TipTap editor bound to the evening section body. */
   editorSlot: ReactNode;
   /**
-   * Today's declaration (宣言 section, newline-separated) shown back while
-   * the day is closed — null hides the block. Display only (Step 4: the
-   * critique round-trip is written in the reflection / next morning).
+   * Today's declaration (宣言 section, newline-separated). Empty string = no
+   * declaration yet, which hides the whole block on the read-only (wide) path.
    */
-  intention: string | null;
+  intentionText: string;
+  /**
+   * Turns the 宣言 block from a read-back into a live input (#391).
+   *
+   * Wide keeps the original reading: the declaration is a MORNING artifact the
+   * evening paper shows back, and the SectionHeader tab band puts the editable
+   * 朝刊 one click away. Below 768px the evening paper is a Quick capture
+   * surface (mobile-scope #3) and the tab band is an in-body switcher, so the
+   * block becomes the input itself — otherwise a phone user who lands on 夕刊
+   * cannot declare at all (and gets no block whatsoever on a blank day).
+   */
+  intentionEditable: boolean;
+  /** Every keystroke while editable — the host owns draft + debounced save. */
+  onIntentionChange: (text: string) => void;
+  /** Blur while editable — the host flushes a pending debounced save. */
+  onIntentionBlur: () => void;
   todos: EveningTodoEntry[];
   schedule: EveningScheduleEntry[];
   labels: EveningLabels;
@@ -111,7 +139,10 @@ export function EveningView({
   mood,
   onSelectMood,
   editorSlot,
-  intention,
+  intentionText,
+  intentionEditable,
+  onIntentionChange,
+  onIntentionBlur,
   todos,
   schedule,
   labels,
@@ -178,20 +209,34 @@ export function EveningView({
         </div>
       </section>
 
-      {/* ── This morning's intention (宣言 — display only) ───────── */}
-      {intention !== null && (
+      {/* ── Today's intention (宣言) — input on narrow, read-back on wide ─ */}
+      {(intentionEditable || intentionText !== "") && (
         <section className="border-b border-lumen-border py-5">
-          <BlockHead title={labels.intentionTitle} />
-          <div className="rounded-lumen-md border-l-2 border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-4 py-3">
-            {intention.split("\n").map((line, i) => (
-              <p
-                key={i}
-                className="font-serif text-sm leading-relaxed text-lumen-text [&+&]:mt-1"
-              >
-                {line}
-              </p>
-            ))}
-          </div>
+          <BlockHead
+            title={labels.intentionTitle}
+            hint={intentionEditable ? labels.intentionCaption : undefined}
+          />
+          {intentionEditable ? (
+            // 朱 (the user's action voice) — same field as the morning paper.
+            <IntentionField
+              value={intentionText}
+              placeholder={labels.intentionPlaceholder}
+              onChange={onIntentionChange}
+              onBlur={onIntentionBlur}
+            />
+          ) : (
+            // 琥珀 (context / annotation) — a morning artifact read back.
+            <div className="rounded-lumen-md border-l-2 border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-4 py-3">
+              {intentionText.split("\n").map((line, i) => (
+                <p
+                  key={i}
+                  className="font-serif text-sm leading-relaxed text-lumen-text [&+&]:mt-1"
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
