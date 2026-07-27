@@ -1,5 +1,23 @@
 # HISTORY (chat-briefing-section)
 
+### 2026-07-27 - Issue #373: Settings「日付が変わる時刻」の設定 UI
+
+#### 概要
+
+day-start（日付が変わる時刻）の pref は #218 / PR #242 で**読み手側だけ**が入っていて、値を書き換える手段が無かった。その書き込み UI を Settings に追加し、既存フック `useDayStartHourPref` に配線（PR #415）。保存先・読み手ロジックは一切触っていないので、既定 0 のままなら挙動は完全に不変。
+
+#### 変更点
+
+- **SettingsDayStart.tsx (shared・新規)**: 0〜23 時の `<select>` を持つ pure カード。ホストから `value` / `onChange` / 翻訳済み文言のみ受ける（§6.4）。`components/index.ts` から export
+- **選択肢ラベルを翻訳キーにしなかった判断**: `00:00`〜`23:00` の 0 埋め 24 時間表記は Schedule のグリッド軸・ルーチン時刻と同じで en/ja 共通のため、24 個の翻訳キーを増やさずコンポーネント内で組み立てる。理由はコード内コメントに明記
+- **数値への変換**: `onChange` で `Number(e.target.value)`。`<select>` は文字列を返し pref はそのまま localStorage へ直列化されるため、文字列が漏れると `parseDayStartHour` の救済頼みの値が残る。この回帰をテストで固定
+- **SettingsScreen (web)**: `useDayStartHourPref()` を呼び、起動時カードと言語カードの間に配置。ヘッダーコメントのカード列挙は「順序はコードが正」に置き換え（数値の非複製原則）
+- **i18n**: `settings.dayStart.{heading,description,hourLabel,hint}` を en/ja に追加。hint は挙動を正直に書いた — 読み手は境界を呼ばれた時点で評価するので、変更は次に「今日」を計算するときから効き、開いたままの画面は塗り替わらない（起動セクション pref と同じ再読み込み semantics）
+- **テスト**: `shared/tests/settingsDayStart.test.tsx` 3 件（24 個の選択肢と 0 埋め / 現在値が選択されている / 変更が**数値で**ホストに届く）。shared build / 146 files 1175 tests / web build / web eslint すべて exit 0
+- **docs**: `mobile-scope.md` #14 の `SettingsScreen.tsx:219` → `:237`（カード挿入で動いた分を実測して更新）+ 新カードがモバイルでも表示される旨を追記
+- **取り残し対策が実際に効いた**: PR #415 は tracker 更新を push する前に merge されていた（提出から数分）。`push-after-merge-strands-commits` の教訓どおり **push 直前に `gh pr view --json state,headRefOid` を取り直した**ため事前に検知でき、tracker / outbox は `origin/main` から切った `claude/briefing-tracker-373` に載せ替えて別 PR にした（#394 → #399 / #404 → #406 のような事後 cherry-pick が不要になった初のケース）
+- **前タスクの決着**: #391 は PR #404 と監査反映の追随 PR #406 が両方 merge 済みで、取り残しは解消済み
+
 ### 2026-07-27 - Issue #391: モバイルの夕刊タブでも宣言(intention)を編集可に
 
 #### 概要
@@ -64,19 +82,3 @@ Briefing セクションに夕刊タブを追加（F-6・PR #274）。保存先�
 - **MainScreen (web)**: briefingTab state + 朝刊/夕刊 HeaderTabs（tabs-as-title・初期タブは時刻で自動選択）
 - **i18n**: briefing.tabs / briefing.evening.\* を en/ja 両カタログに追加
 - **テスト**: shared/tests/eveningSection.test.ts 新規 20 件（マージ保全・round-trip・初期タブ判定）。shared vitest 948 / shared tsc -b / web build 全 green
-
-### 2026-07-18 - Issue #256: 朝刊ループ Step 2 — MCP schedule handler Supabase 化 + get_today_context / write_briefing
-
-#### 概要
-
-MCP server の schedule handler 全 7 関数を旧 SQLite 単一表から Supabase `items_meta` + `events_payload` の 2 行分割モデルへ載せ替え、朝刊執筆用の `get_today_context` と `write_briefing` を新設。briefing-loop Step 2（分析の配管）のクリティカルパスを開通（手動 1 周の実測は chat-main 担当）。
-
-#### 変更点
-
-- **supabase.ts (新規)**: anon key + 本人 email/password（env 供給）で signInWithPassword する接続モジュール。RLS 維持・service_role 不使用
-- **scheduleHandlers**: 2 行分割モデルへ全面書き換え。§10.2 updated_at bump / §10.5 orphan recovery / delete はソフトデリート化。0008 で消えた content / note_id / template_id はツールスキーマからも除去し memo / date(移動) を追加
-- **briefingHandlers (新規)**: get_today_context（今日の約束・スケジュール済み/持ち越し/進行中タスク・直近 3 日 Daily・当日 Daily の朝刊有無）+ write_briefing（「朝刊」見出しセクションを DailyNode content へ upsert・Daily 不在時は daily-\<date\> ペア新規作成）
-- **briefingSection.ts / localDate.ts (新規・純関数)**: 朝刊セクションの upsert（既存セクション置換・夕刊等は保全）と JST 安全な日付ヘルパー
-- **index.ts / tools.ts**: callTool async 化（`return await` で rejection を捕捉）・SQLite DB path をオプション化（Supabase ツールのみなら不要）
-- **テスト**: mcp-server に vitest 導入・14 件新設（shared extractBriefing との往復検証 = DoD の紙面表示チェックを含む）。shared vitest 917 / shared tsc -b / web build / mcp-server tsc 全 green
-- **docs**: briefing-loop 計画書 Step 2 チェック + Worklog 追記・README に MCP の Supabase env var 説明を追加
