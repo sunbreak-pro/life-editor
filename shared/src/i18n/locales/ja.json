@@ -333,7 +333,6 @@
       "selectNodeHint": "キャンバスでノードを選択するとローカルグラフが有効になります",
       "links": "リンク",
       "tagsShort": "タグ",
-      "typeProject": "プロジェクト",
       "typeNote": "ノート",
       "typeDaily": "デイリー",
       "typeTag": "タグ",
@@ -646,7 +645,6 @@
       "togglePin": "ピン留めの切替",
       "moveNote": "ノートの移動",
       "createNote": "ノートの作成",
-      "createFolder": "フォルダの作成",
       "updateNote": "ノートの変更",
       "softDeleteNote": "ノートの削除"
     }

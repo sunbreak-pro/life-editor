@@ -333,7 +333,6 @@
       "selectNodeHint": "Select a node on the canvas to enable Local Graph",
       "links": "links",
       "tagsShort": "tags",
-      "typeProject": "Project",
       "typeNote": "Note",
       "typeDaily": "Daily",
       "typeTag": "Tag",
@@ -646,7 +645,6 @@
       "togglePin": "pin toggle",
       "moveNote": "note move",
       "createNote": "note creation",
-      "createFolder": "folder creation",
       "updateNote": "note update",
       "softDeleteNote": "note deletion"
     }

@@ -6,12 +6,12 @@ import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
  * (life-tags unification S1). Replaces the folder tree: notes are grouped
  * under a heading per life-tag, plus a trailing "untagged" bucket.
  *
- * Transitional invariants (folder concept is retired only at the data layer
- * in S3, so real data still carries folder nodes + folder-nested notes):
- *   - `type === "folder"` nodes are NOT grouped (they are never rendered).
- *   - notes are grouped regardless of `parentId` — a note that still lives
- *     under a folder (parentId != null) MUST stay visible, so grouping keys
- *     off tag assignments only, never the tree position.
+ * Invariants (#375 retired the folder note type; legacy folder ROWS are
+ * dropped upstream by the fetch filter, so nothing folder-shaped reaches
+ * this function any more):
+ *   - notes are grouped regardless of `parentId` — a note still nested under
+ *     another node MUST stay visible, so grouping keys off tag assignments
+ *     only, never the tree position.
  *   - tags are many-to-many: a note appears under EVERY active tag it has.
  *   - a note with no active-tag assignment lands in the untagged bucket.
  *
@@ -30,7 +30,7 @@ export interface NoteTagGroup {
   tagColor: string | null;
   /** Tag lucide icon name, or null (untagged / no icon → default icon). */
   tagIcon: string | null;
-  /** Active, non-folder notes under this heading (may repeat across groups). */
+  /** Active notes under this heading (may repeat across groups). */
   notes: NoteNode[];
 }
 
@@ -57,9 +57,9 @@ export function buildTagGroups({
   assignments,
   untaggedLabel,
 }: BuildTagGroupsInput): NoteTagGroup[] {
-  // Only real, active notes participate — folder nodes are never rendered,
-  // deleted notes never grouped. parentId is intentionally ignored.
-  const activeNotes = notes.filter((n) => !n.isDeleted && n.type !== "folder");
+  // Only active notes participate — deleted notes are never grouped.
+  // parentId is intentionally ignored.
+  const activeNotes = notes.filter((n) => !n.isDeleted);
 
   // Active tags only; a deleted tag never becomes a heading.
   const activeTags = tags.filter((t) => !t.isDeleted);

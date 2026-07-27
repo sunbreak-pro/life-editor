@@ -62,8 +62,10 @@ function DailyProbe() {
 }
 
 function NoteProbe() {
-  const { createFolder } = useNotesUnifiedContext();
-  return <button onClick={() => createFolder("F")}>mutate</button>;
+  // #375: createFolder is retired — createNote is the remaining Notes
+  // mutation that pushes onto the UndoRedo stack.
+  const { createNote } = useNotesUnifiedContext();
+  return <button onClick={() => createNote("N")}>mutate</button>;
 }
 
 function TaskProbe() {

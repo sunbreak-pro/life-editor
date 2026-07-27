@@ -18,9 +18,12 @@ import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
  * notes_payload. Deltas worth knowing:
  *   - `title` lives on items_meta; the payload owns the body as
  *     `content_json` (jsonb), not a TEXT column.
- *   - `note_type` ('folder' | 'note') is a live discriminator here (unlike
- *     the retired task folder type), so it is surfaced as `type` and NOT
- *     filtered out — a caller listing notes can tell the two apart.
+ *   - `note_type` no longer discriminates: #375 retired the folder note type
+ *     on the Notes side too, so legacy `note_type = 'folder'` rows are
+ *     excluded in-app (same rule as SupabaseNotesUnifiedService.
+ *     listNotesUnified) and every surfaced note reports `type: "note"`.
+ *     Filtering in-app rather than query-side is deliberate: a PostgREST
+ *     `.neq` would also drop NULL note_type rows and hide plain legacy notes.
  *   - substring search over the body runs in-app: `content_json` is jsonb,
  *     which PostgREST cannot `ilike`, and matching the extracted plain text
  *     beats the legacy behaviour of LIKE-ing raw TipTap JSON (which also
@@ -43,10 +46,17 @@ export interface NoteRecord {
 
 const PAYLOAD_COLUMNS = "item_id, note_type, content_json, is_pinned, color";
 
+/** True for the retired folder note type (#375). NULL is a plain note. */
+function isLegacyFolder(payload: NotesPayloadRow): boolean {
+  return payload.note_type === "folder";
+}
+
 function formatNote(meta: ItemsMetaRow, payload: NotesPayloadRow) {
   return {
     id: meta.id,
-    type: payload.note_type ?? "note",
+    // Single-valued since #375: a legacy 'folder' row never reaches here
+    // (fetchLiveNotes filters it out) and NULL means a plain note.
+    type: "note",
     title: meta.title,
     content: contentJsonToString(payload.content_json),
     isPinned: payload.is_pinned,
@@ -94,7 +104,9 @@ export async function fetchLiveNotes(): Promise<NoteRecord[]> {
   const out: NoteRecord[] = [];
   for (const meta of metaRows) {
     const payload = payloadById.get(meta.id);
-    if (payload) out.push({ meta, payload }); // meta without payload = orphan
+    if (!payload) continue; // meta without payload = orphan
+    if (isLegacyFolder(payload)) continue; // #375: retired folder row
+    out.push({ meta, payload });
   }
   return out;
 }

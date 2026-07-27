@@ -53,10 +53,10 @@ export interface UseCreatePanelNotesOptions {
   onAttachError: () => void;
 }
 
-/** Notes offered by the picker: live, non-folder, newest-touched first. */
+/** Notes offered by the picker: live notes, newest-touched first. */
 function toOptions(notes: NoteNode[]): ItemCreateOption[] {
   return notes
-    .filter((n) => n.type === "note" && !n.isDeleted)
+    .filter((n) => !n.isDeleted)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((n) => ({ id: n.id, title: n.title }));
 }

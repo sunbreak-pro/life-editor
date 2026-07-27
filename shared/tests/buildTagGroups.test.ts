@@ -7,11 +7,11 @@ import type { NoteNode } from "../src/types/note";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
 
 /*
- * buildTagGroups unit tests (life-tags unification S1). Pins the transitional
- * grouping rules: many-to-many tag membership, the untagged bucket, deleted
- * tag / assignment / note exclusion, folder-node exclusion, and — critically —
- * that a folder-nested note (parentId != null) is still grouped so it never
- * goes invisible while real data still carries folder nodes.
+ * buildTagGroups unit tests (life-tags unification S1, updated for the folder
+ * retirement #375). Pins the grouping rules: many-to-many tag membership, the
+ * untagged bucket, deleted tag / assignment / note exclusion, and — critically
+ * — that a nested note (parentId != null) is still grouped by its tag so it
+ * never goes invisible because of its tree position.
  */
 
 const NOW = "2026-01-01T00:00:00Z";
@@ -148,22 +148,25 @@ describe("buildTagGroups", () => {
     ).toEqual(["kept"]);
   });
 
-  it("excludes folder nodes but INCLUDES folder-nested notes (transitional)", () => {
+  it("groups a nested note by its tag, ignoring parentId (#375)", () => {
     const groups = buildTagGroups({
-      notes: [
-        note("f1", { type: "folder" }),
-        note("nested", { parentId: "f1" }),
-      ],
+      notes: [note("parent"), note("nested", { parentId: "parent" })],
       tags: [tag("work", { name: "Work" })],
-      assignments: [assign("a1", "f1", "work"), assign("a2", "nested", "work")],
+      assignments: [assign("a2", "nested", "work")],
       untaggedLabel: UNTAGGED,
     });
-    // Folder node never grouped; the note living under it is still visible.
+    // Tree position never decides visibility: the nested note shows up under
+    // its tag, and its untagged parent falls into the untagged bucket.
     expect(
       byId(groups)
         .get("work")
         ?.notes.map((n) => n.id),
     ).toEqual(["nested"]);
+    expect(
+      byId(groups)
+        .get(null)
+        ?.notes.map((n) => n.id),
+    ).toEqual(["parent"]);
   });
 
   it("orders tag groups by name (localeCompare)", () => {

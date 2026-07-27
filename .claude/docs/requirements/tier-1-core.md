@@ -244,7 +244,7 @@
 ### Boundary
 
 - やる:
-  - `type='folder' | 'note'` のツリー階層（`parentId` + `order`）— **過渡期注記 (2026-07-11 #225)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換済み・note folder データは folder→tag 変換で退役予定。`NoteNodeType` の folder 除去は Connect グラフ後継設計と併せて別レーン（Tasks 側の型は除去済み）
+  - `parentId` + `order` のツリー階層（ノートのネスト）— **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`NoteNodeType` は `"note"` 単一・`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）

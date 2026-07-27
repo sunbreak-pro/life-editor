@@ -57,7 +57,6 @@ export function resolvePalette(): GraphPalette {
     success,
     danger,
     node: {
-      project: text,
       note: accent,
       daily,
       tag: textSecondary,

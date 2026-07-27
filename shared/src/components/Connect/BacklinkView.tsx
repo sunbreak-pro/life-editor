@@ -1,5 +1,4 @@
 import {
-  Folder,
   FileText,
   Calendar,
   Hash,
@@ -28,7 +27,6 @@ export interface BacklinkViewLabels {
 }
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
-  project: Folder,
   note: FileText,
   daily: Calendar,
   tag: Hash,

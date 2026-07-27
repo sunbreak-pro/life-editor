@@ -15,7 +15,7 @@ import type { NoteNode } from "../src/types/note";
 function note(id: string, parentId: string | null): NoteNode {
   return {
     id,
-    type: "folder",
+    type: "note",
     title: id,
     content: "",
     parentId,

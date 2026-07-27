@@ -3,10 +3,9 @@ import { linkEndId } from "./graph-types";
 
 export type TypeToggles = Record<GraphNodeType, boolean>;
 
-export const ALL_TYPES: GraphNodeType[] = ["project", "note", "daily", "tag"];
+export const ALL_TYPES: GraphNodeType[] = ["note", "daily", "tag"];
 
 export const DEFAULT_TYPE_TOGGLES: TypeToggles = {
-  project: true,
   note: true,
   daily: true,
   tag: true,

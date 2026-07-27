@@ -6,6 +6,8 @@ import {
   noteUpdatesToPatches,
   contentJsonToString,
   contentStringToJson,
+  isLegacyNoteFolderRow,
+  toNoteNodeType,
   NOTES_PAYLOAD_COLUMNS,
   NOTES_PAYLOAD_LIST_COLUMNS,
   type ItemsMetaNoteRow,
@@ -242,6 +244,18 @@ describe("notesUnifiedMapper", () => {
   it("null note_type defaults to 'note' (legacy parity)", () => {
     const node = rowsToNoteNode(freshMeta(), freshPayload({ note_type: null }));
     expect(node.type).toBe("note");
+  });
+
+  it("toNoteNodeType coerces a legacy 'folder' value to 'note' (#375)", () => {
+    expect(toNoteNodeType("note")).toBe("note");
+    expect(toNoteNodeType(null)).toBe("note");
+    expect(toNoteNodeType("folder")).toBe("note");
+  });
+
+  it("isLegacyNoteFolderRow flags note_type='folder' only (NULL is a note)", () => {
+    expect(isLegacyNoteFolderRow({ note_type: "folder" })).toBe(true);
+    expect(isLegacyNoteFolderRow({ note_type: "note" })).toBe(false);
+    expect(isLegacyNoteFolderRow({ note_type: null })).toBe(false);
   });
 });
 

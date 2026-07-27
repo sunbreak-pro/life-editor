@@ -18,8 +18,8 @@ Branch: claude/design-brief-connect
 
 - **目的 / 主ユースケース**: ノート・デイリー・タグを 1 枚の力学グラフ（Canvas 2D + d3-force）に描き、アイテム間の「つながり」を眺める・辿る・編集する画面。WikiTags のタグ体系と item↔item リンク（有向グラフ）が土台（`.claude/docs/requirements/tier-2-supporting.md:172`、接続の定義は同 `:181`）。グラフは unified item-link 読み取り 4 本（notes / dailies / tags / assignments）+ connections から構築される（`web/src/connect/ConnectScreen.tsx:73-78`、`shared/src/components/Connect/graph/buildGraphModel.ts:36-51`）
 - **表示するデータ**（エンティティ・件数感・現実的なサンプル値）:
-  - ノード 4 種（`shared/src/components/Connect/graph/graph-types.ts:8`）: project（= フォルダ。例「Life Editor 開発」「引っ越し 2026」）/ note（例「Supabase 移行の設計メモ」「新居の初期費用見積もり」）/ daily（日付ラベル。例「2026-07-05」）/ tag（例「#開発」「#読書」）
-  - エッジ 4 種（`buildGraphModel.ts:46-50`）: hierarchy（フォルダ→ノート）/ manual（item↔item リンク = 本命の Obsidian 風接続）/ tag（アイテム→タグ）/ temporal（連続するデイリーの鎖）
+  - ノード種別の正本は `shared/src/components/Connect/graph/graph-types.ts` の `GraphNodeType`: note（例「Supabase 移行の設計メモ」「新居の初期費用見積もり」）/ daily（日付ラベル。例「2026-07-05」）/ tag（例「#開発」「#読書」）。**旧 project（= フォルダ由来）は #375 で退役** — まとまりを表すノードは life-tag（`wiki_tags` + `wiki_tag_assignments` 由来）が後継
+  - エッジ種別の正本は `buildGraphModel.ts` の Edge taxonomy: hierarchy（ノートのネスト）/ manual（item↔item リンク = 本命の Obsidian 風接続）/ tag（アイテム→タグ = まとまりの表現）/ temporal（連続するデイリーの鎖）
   - 件数感: N=1 個人ツール。ノート数十 + デイリー ~30 + タグ ~10 で **40〜80 ノード / 60〜120 エッジ**が現実レンジ
 - **主要操作**（作成 / 編集 / 削除 / 並替 / フィルタ等）:
   - ノード選択（クリック）/ 開く（ダブルクリックで note・daily に遷移。`ConnectGraphView.tsx:163-172`）/ Esc で選択解除・Cmd/Ctrl+F で検索・R で再加熱（`ConnectGraphView.tsx:176-204`）
@@ -41,7 +41,7 @@ Branch: claude/design-brief-connect
   - 右側: フロート設定パネル w-72（検索 / Node Types / Tags / Local Graph / Display / Forces の 6 セクション。`GraphControlPanel.tsx:100-103`）
   - 左下: 選択ノードカード w-80（種別アイコン・ラベル・生 ID・リンク/タグ数・深度切替・リンク追加・つながり一覧。`SelectedNodeCard.tsx:121`）
   - 右端: バックリンク常設サイドバー w-64（`BacklinkView.tsx:40`）
-  - ノード色はテーマの CSS 変数から解決: project = text-primary / note = accent / daily = 藍 `#5b6cdb`（routine dot トークン実値）/ tag = text-secondary。note.color / tag.color があれば優先（`graph/graph-theme.ts:59-79`）
+  - ノード色はテーマの CSS 変数から解決: note = accent / daily = 藍 `#5b6cdb`（routine dot トークン実値）/ tag = text-secondary。note.color / tag.color があれば優先（`graph/graph-theme.ts`）
 - **状態の現状**: empty（`labels.graphEmpty` センター表示。`ConnectGraphView.tsx:253-257`）/ フィルタ 0 件（noMatch + クリアボタン。`:237-251`）はある。**loading は未実装**（EMPTY_STATIC から開始するため初回フェッチ中に empty 文言が一瞬出る。`ConnectScreen.tsx:57-85`）。error はリンク編集失敗の danger トーストのみ
 - **現状の課題**（デザイン観点で改善したい点。これがプロンプトの「良くしたい方向」になる）:
   1. loading 状態が無く、データ到着前に「グラフが空です」が誤表示される
@@ -55,7 +55,7 @@ Branch: claude/design-brief-connect
 ## 3. デザイン方針（このセッションの提案）
 
 - **残す意匠 / 変える意匠**:
-  - 残す: フルスクリーン Canvas + 浮遊 HUD という基本構造 / ノード 4 種の色符号（project = text / note = accent / daily = 藍 / tag = text-secondary）/ 左上ステータスピル + 右上アイコン群という配置 / バックリンクの「← 誰からリンクされているか」リスト
+  - 残す: フルスクリーン Canvas + 浮遊 HUD という基本構造 / ノード種別の色符号（note = accent / daily = 藍 / tag = text-secondary）/ 左上ステータスピル + 右上アイコン群という配置 / バックリンクの「← 誰からリンクされているか」リスト
   - 変える: loading（skeleton またはグラフ枠 + スピナー）を新設 / **種別凡例チップ（色 + アイコン + ラベル）を常設**して色依存を解消 / HUD の elevation・角丸・余白を部品語彙（Card / shadow 3 段）に統一 / リンク追加はコマンドパレット風の候補リスト表示に
 - **使う既存部品**（Button / Card / Sheet / BottomSheet / Menu / Toast / Sidebar / Kanban / MasterDetail / CommandPalette 等）: Card（HUD パネル類）/ Toast（リンク編集失敗）/ BottomSheet（Mobile のノード詳細）/ CommandPalette の意匠（リンク先候補・Mobile 検索結果）/ Sidebar・下部タブはアプリシェル側
 - **新規に必要な部品候補**（部品層 `shared/src/components/` への追加候補として列挙するだけ。実装しない）:

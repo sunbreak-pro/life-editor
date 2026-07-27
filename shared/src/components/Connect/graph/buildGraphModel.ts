@@ -38,15 +38,19 @@ export interface GraphModelInput {
  * No DataService / React — callers (the host or a memo) own data fetching.
  *
  * Node taxonomy:
- *   note.type==='folder' -> "project"
- *   note.type==='note'   -> "note"
+ *   note                 -> "note"
  *   daily                -> "daily"
  *   tag                  -> "tag"  (id `tag:<id>`)
  *
+ * #375: the "project" node (built from `note.type === 'folder'`) is retired
+ * with the folder type itself. Its role — the node that groups items — is now
+ * the tag node: tags come from `wiki_tags` and their membership from
+ * `wiki_tag_assignments`, drawn as "tag" edges below.
+ *
  * Edge taxonomy:
- *   note.parentId        -> "hierarchy"  (project structure)
+ *   note.parentId        -> "hierarchy"  (note nested under a note)
  *   connection           -> "manual"     (item ↔ item link — the real graph)
- *   assignment           -> "tag"        (item -> tag node)
+ *   assignment           -> "tag"        (item -> tag node = the grouping)
  *   consecutive dailies  -> "temporal"
  */
 export function buildGraphModel({
@@ -64,7 +68,7 @@ export function buildGraphModel({
     nodes.push({
       id: note.id,
       label: note.title || "Untitled",
-      type: note.type === "folder" ? "project" : "note",
+      type: "note",
       color: note.color,
       entityId: note.id,
     });
@@ -116,7 +120,7 @@ export function buildGraphModel({
     links.push({ source, target, kind });
   };
 
-  // Folder/note hierarchy (project structure)
+  // Note nesting (a note parented to another note)
   for (const note of notes) {
     if (note.isDeleted || !note.parentId) continue;
     pushLink(note.parentId, note.id, "hierarchy", true);
