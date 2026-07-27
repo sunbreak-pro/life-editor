@@ -3,13 +3,18 @@ import type { ReactNode } from "react";
 import {
   BriefingView,
   EveningView,
+  RightSidebarPortal,
+  TodayTodoTray,
   extractBriefing,
   extractEveningSection,
   extractIntentionSection,
   isEmptyDocJson,
+  localDateTimeToISO,
   mergeEveningSection,
   mergeIntentionSection,
   normalizeIntentionText,
+  pickAddableTasks,
+  tasksToCalendarChips,
   todayDateKey,
   formatDateKey,
   useMediaQuery,
@@ -28,6 +33,7 @@ import {
   type ScheduleItem,
   type TaskNode,
   type TimerSession,
+  type TodayTodoRow,
   type WikiTagConnectionUnified,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
@@ -51,6 +57,10 @@ import { RichTextEditor } from "../notes/RichTextEditor";
  * Re-fetches on every Realtime `syncVersion` bump (same pattern as
  * MaterialsCountsBridge) so a briefing written by Claude via MCP appears
  * without a reload. Sits inside SyncProvider (MainScreen mounts it there).
+ *
+ * The rightSidebar detail panel is fed from here too (#413): the SHARED
+ * <TodayTodoTray> — Schedule's tray component (#298), not a copy — pushed
+ * through RightSidebarPortal. See the tray block below for the wiring.
  */
 
 interface BriefingScreenProps {
@@ -558,6 +568,70 @@ export function BriefingScreen({
     [ds, taskNodes],
   );
 
+  // ── Today's Todo tray (rightSidebar — #413) ──────────────────────────
+  // The SAME <TodayTodoTray> the Schedule rightSidebar mounts (#298), backed
+  // by the same pure selectors: today's task chips split into placed (has a
+  // time) and unplaced (all-day candidate), plus pickAddableTasks for the
+  // "add from tasks" picker. One implementation, two hosts — a second copy
+  // here would drift the moment one side is fixed.
+  //
+  // Host difference: Briefing mounts no TaskTreeProvider (MainScreen renders
+  // this screen bare and injects the DataService instead), so completion and
+  // "add to today" write through ds.updateTask rather than the provider's
+  // setTaskStatus / updateNode. Both end up on the same items_meta +
+  // tasks_payload columns (taskUpdatesToPatches), so the two trays agree.
+  //
+  // "Today" here is Briefing's own todayKey (todayDateKey — day-start-hour
+  // aware, #373), NOT Schedule's plain calendar key: the tray sits beside the
+  // paper's 今日の Todo list and has to agree with it. The two definitions
+  // differ only between midnight and the configured day-start hour.
+  const todayChips = useMemo(
+    () => tasksToCalendarChips(liveTasks, todayKey, todayKey),
+    [liveTasks, todayKey],
+  );
+  const todoPlaced = useMemo<TodayTodoRow[]>(
+    () =>
+      todayChips
+        .filter((c) => !c.isAllDay)
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          timeLabel: c.startTime,
+          completed: c.completed,
+        })),
+    [todayChips],
+  );
+  const todoUnplaced = useMemo<TodayTodoRow[]>(
+    () =>
+      todayChips
+        .filter((c) => c.isAllDay)
+        .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
+    [todayChips],
+  );
+  const todoAddable = useMemo(() => pickAddableTasks(liveTasks), [liveTasks]);
+
+  // "Add to today" (案 c staging — the same write Schedule's tray makes):
+  // scheduledAt = today's local midnight + all-day, so the task lands in the
+  // unplaced group; giving it a time (a Schedule drag) promotes it to placed.
+  const handleAddTodoCandidate = useCallback(
+    (taskId: string) => {
+      void ds
+        .updateTask(taskId, {
+          scheduledAt: localDateTimeToISO(todayKey, "00:00"),
+          isAllDay: true,
+        })
+        .then((updated) => {
+          setTaskNodes((prev) =>
+            prev.map((n) => (n.id === updated.id ? updated : n)),
+          );
+        })
+        .catch((err) => {
+          console.error("[BriefingScreen] add-to-today failed", err);
+        });
+    },
+    [ds, todayKey],
+  );
+
   // ── Labels (§6.4 — resolved here, injected as props) ─────────────────
   const labels = useMemo(
     () => ({
@@ -644,61 +718,112 @@ export function BriefingScreen({
     [t, eveningSaved, intentionSaved, intentionEditableOnEvening],
   );
 
+  const todoTrayLabels = useMemo(
+    () => ({
+      placedHeading: t("briefing.todo.placedHeading"),
+      unplacedHeading: t("briefing.todo.unplacedHeading"),
+      emptyPlaced: t("briefing.todo.emptyPlaced"),
+      emptyUnplaced: t("briefing.todo.emptyUnplaced"),
+      addHeading: t("briefing.todo.addHeading"),
+      addAction: t("briefing.todo.addAction"),
+      emptyAddable: t("briefing.todo.emptyAddable"),
+      // Same action, same words as the paper's own rows — no near-duplicate
+      // keys inside one namespace.
+      complete: t("briefing.toggleComplete"),
+      openInTasks: t("briefing.jumpToTasks"),
+    }),
+    [t],
+  );
+
+  // Wide only. Below 768px the detail panel is a MobileDrawer whose only
+  // openers are the wide SectionHeader toggle and the per-section hamburger
+  // row (MOBILE_HAMBURGER_SECTIONS in MainScreen) — Briefing has neither, so
+  // a tray mounted there would be unreachable UI. mobile-scope.md #1 keeps
+  // Briefing's mobile scope at Consumption / 現状維持; adding a mobile opener
+  // is a Phase 2 concern (#321), not this Issue's.
+  //
+  // Mounted on BOTH papers (朝刊 / 夕刊): the panel is section-level, and the
+  // tray is as useful when closing the day as when starting it.
+  const todoTrayPortal = isWide ? (
+    <RightSidebarPortal>
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-lumen-text">
+          {t("briefing.todo.title")}
+        </h3>
+        <TodayTodoTray
+          placed={todoPlaced}
+          unplaced={todoUnplaced}
+          addable={todoAddable}
+          onToggleComplete={handleToggleTask}
+          onOpenTask={() => onNavigate("tasks")}
+          onAddCandidate={handleAddTodoCandidate}
+          labels={todoTrayLabels}
+        />
+      </div>
+    </RightSidebarPortal>
+  ) : null;
+
   if (tab === "evening") {
     return (
-      <EveningView
-        loading={loading}
-        dateLine={dateLine}
-        mood={eveningMood}
-        onSelectMood={handleSelectMood}
-        editorSlot={
-          <RichTextEditor
-            key={`evening:${todayKey}:${eveningGen}`}
-            noteId={`evening-${todayKey}`}
-            initialContent={eveningStored.bodyDocJson ?? undefined}
-            onUpdate={handleEveningUpdate}
-            placeholder={t("briefing.evening.placeholder")}
-            className="min-h-[180px] px-4 py-3"
-          />
-        }
-        // Editable → the live draft (the field must echo every keystroke).
-        // Read-only → the STORED text, never the draft: the read-back is
-        // "what is saved as this morning's declaration", and a draft is both
-        // un-normalized (raw blank lines / indent the merge would strip) and
-        // possibly unsaved (persistIntention swallows failures) — with no
-        // caption on that branch, showing it would silently overstate.
-        intentionText={
-          intentionEditableOnEvening
-            ? intentionText
-            : (intentionStored.text ?? "")
-        }
-        intentionEditable={intentionEditableOnEvening}
-        onIntentionChange={handleIntentionChange}
-        onIntentionBlur={flushIntention}
-        todos={remainingTodos}
-        schedule={upcoming}
-        labels={eveningLabels}
-        tabSwitcher={tabSwitcher}
-      />
+      <>
+        {todoTrayPortal}
+        <EveningView
+          loading={loading}
+          dateLine={dateLine}
+          mood={eveningMood}
+          onSelectMood={handleSelectMood}
+          editorSlot={
+            <RichTextEditor
+              key={`evening:${todayKey}:${eveningGen}`}
+              noteId={`evening-${todayKey}`}
+              initialContent={eveningStored.bodyDocJson ?? undefined}
+              onUpdate={handleEveningUpdate}
+              placeholder={t("briefing.evening.placeholder")}
+              className="min-h-[180px] px-4 py-3"
+            />
+          }
+          // Editable → the live draft (the field must echo every keystroke).
+          // Read-only → the STORED text, never the draft: the read-back is
+          // "what is saved as this morning's declaration", and a draft is both
+          // un-normalized (raw blank lines / indent the merge would strip) and
+          // possibly unsaved (persistIntention swallows failures) — with no
+          // caption on that branch, showing it would silently overstate.
+          intentionText={
+            intentionEditableOnEvening
+              ? intentionText
+              : (intentionStored.text ?? "")
+          }
+          intentionEditable={intentionEditableOnEvening}
+          onIntentionChange={handleIntentionChange}
+          onIntentionBlur={flushIntention}
+          todos={remainingTodos}
+          schedule={upcoming}
+          labels={eveningLabels}
+          tabSwitcher={tabSwitcher}
+        />
+      </>
     );
   }
 
   return (
-    <BriefingView
-      loading={loading}
-      data={data}
-      labels={labels}
-      streakLabels={streakLabels}
-      trendLabels={trendLabels}
-      balanceLabels={balanceLabels}
-      intentionText={intentionText}
-      onIntentionChange={handleIntentionChange}
-      onIntentionBlur={flushIntention}
-      onToggleScheduleItem={handleToggleScheduleItem}
-      onToggleTask={handleToggleTask}
-      onJumpToSchedule={() => onNavigate("schedule")}
-      onJumpToTasks={() => onNavigate("tasks")}
-      tabSwitcher={tabSwitcher}
-    />
+    <>
+      {todoTrayPortal}
+      <BriefingView
+        loading={loading}
+        data={data}
+        labels={labels}
+        streakLabels={streakLabels}
+        trendLabels={trendLabels}
+        balanceLabels={balanceLabels}
+        intentionText={intentionText}
+        onIntentionChange={handleIntentionChange}
+        onIntentionBlur={flushIntention}
+        onToggleScheduleItem={handleToggleScheduleItem}
+        onToggleTask={handleToggleTask}
+        onJumpToSchedule={() => onNavigate("schedule")}
+        onJumpToTasks={() => onNavigate("tasks")}
+        tabSwitcher={tabSwitcher}
+      />
+    </>
   );
 }

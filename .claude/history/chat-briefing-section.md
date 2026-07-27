@@ -1,5 +1,21 @@
 # HISTORY (chat-briefing-section)
 
+### 2026-07-27 - Issue #413: Briefing rightSidebar に「今日の Todo」トレイ
+
+#### 概要
+
+Briefing は rightSidebar のコンテンツを持たず共有の placeholder が出るだけだったので、残っているタスクを出して今日の候補へ配置できるトレイを載せた（PR #422）。Schedule 側にある `TodayTodoTray`（#298 / Epic #290 Step 3）をそのまま流用し、新規部品はゼロ — 書いたのはホスト配線と i18n だけ。
+
+#### 変更点
+
+- **BriefingScreen (web)**: `RightSidebarPortal` + 共有 `TodayTodoTray` をマウント。selector も Schedule と同一（`tasksToCalendarChips` を `isAllDay` で分割 → 配置済み / 未配置、`pickAddableTasks` → 「タスクから追加」）。完了トグルは紙面の Todo 行と同じ `handleToggleTask` を再利用
+- **書き込み経路の差**: Briefing は `TaskTreeProvider` の外（MainScreen が DataService を注入して直マウント）なので `updateNode` / `setTaskStatus` を使えず `ds.updateTask` を通す。`taskUpdatesToPatches` 経由で `items_meta` + `tasks_payload` の同じ列に落ちるため両トレイの表示は一致する。「今日の候補に追加」= `scheduledAt` = 今日 0:00（ローカル）+ `isAllDay: true` は Schedule の `handleTodoAddCandidate` と同一
+- **「今日」の基準は Briefing 側に揃えた**: Schedule のトレイは `todayCalendarKey()`（暦日）、Briefing は `todayDateKey()`（#373 の日付変更時刻を反映）。トレイは紙面の「今日の Todo」の真横に出るので後者を採用した。日付変更時刻を 0 時以外にすると深夜〜設定時刻の間だけ Schedule と基準がずれるが、これは #373 が持ち込んだアプリ全体の二重定義。逆にすると「追加した Todo が真上の欄に出ない」ほうが実害が大きい
+- **wide 限定**: 768px 未満では詳細パネルは `MobileDrawer` だが、開閉導線は wide の `SectionHeader` トグルか `MOBILE_HAMBURGER_SECTIONS` のハンバーガー行のみで Briefing はどちらも持たない（`MainScreen.tsx:151-155`）。narrow でマウントすると到達不能な UI になる。mobile-scope.md #1 は Consumption / Phase 1 現状維持なのでモバイル導線の追加は Phase 2（#321）に置いた
+- **i18n**: `briefing.todo.*` 8 キーを en/ja 両カタログへ。完了・「タスクで開く」は既存の `briefing.toggleComplete` / `briefing.jumpToTasks` を再利用し、同一 namespace 内の重複キーは作らなかった
+- **docs**: `tier-1-core.md` §Briefing の Boundary「やる」に本トレイを追記 + `2026-07-15-briefing-loop.md` Worklog に 1 行（Step 4 が予告していた「A-3 トレイとの合流」の実装記録）
+- **検証**: shared vitest 146 files 1175 tests / shared `tsc -b` / web build / `eslint BriefingScreen.tsx` すべて exit 0。実ブラウザ確認は §7.4 どおり merge 後 chat-main
+
 ### 2026-07-27 - Issue #373: Settings「日付が変わる時刻」の設定 UI
 
 #### 概要
@@ -67,18 +83,3 @@ briefing-section worktree が materials レーンを担当し、バグ 3 件（#
 - **テスト**: shared/tests/briefingView.test.tsx に 7 件追加（10 → 17 件。朝刊・夕刊 × 通常/loading で帯が出る 4 / 未指定で出ない 2 / null で出ない 1）。shared vitest 1087 / shared tsc -b / web build / web eslint 全 green
 - **監査**: role-qa 独立監査を 2 回（実装後・commit 後）とも PASS（BLOCKING 0）。指摘の null ガードは本 PR に取り込み済み。残課題として「帯が紙面と一緒にスクロールする（Materials は固定ヘッダー方式）」「`(min-width: 768px)` リテラルが 11 ファイル 12 箇所に散在（`web/src/work/WorkScreen.tsx:47` に `WIDE_QUERY` の局所定義が既存）」を PR 本文に明記
 - **既知の穴（実測）**: スロットのガードは `!= null` のため `false` / `0` / `""` は素通しする（`cond && node` を渡すと空の罫線帯が残る）。現行ホストは三項で `undefined` を渡すため実害なし。JSDoc に注意書きを追記して回避
-
-### 2026-07-18 - Issue #263: F-6 夕刊専用ページ（Briefing 朝刊/夕刊タブ）
-
-#### 概要
-
-Briefing セクションに夕刊タブを追加（F-6・PR #274）。保存先は DailyNode content の「夕刊」見出しセクション（DDL ゼロ）で、書き込みは「全体読み出し → 夕刊範囲だけ差し替え → 書き戻し」のセクション単位マージにして Daily 側・朝刊セクションとの編集競合を構造的に回避。
-
-#### 変更点
-
-- **eveningSection.ts (shared・新規・純関数)**: 夕刊セクションの extract（気分行「気分: n/5」+ 本文分離）/ mergeEveningSection（セクションマージ書き込み・空なら除去・平文レガシーは F-1 規則で TipTap 化）/ defaultBriefingTab（17 時しきい値 + day-start-hour pref の深夜尾部）/ isEmptyDocJson
-- **EveningView.tsx (shared・新規)**: 夕刊の純表示（masthead・★ 五段階気分タップ・TipTap エディタスロット・残り Todo / 今後の予定の表示専用ブロック）。lumen-\* トークンのみ
-- **BriefingScreen (web)**: tab prop 受け取り。夕刊集約（未完了 Todo + 未消化持ち越し / 今日の残り + 明日の予定）・promise チェーン直列の read-merge-write 保存・DailyView 流のエディタ remount / echo 管理
-- **MainScreen (web)**: briefingTab state + 朝刊/夕刊 HeaderTabs（tabs-as-title・初期タブは時刻で自動選択）
-- **i18n**: briefing.tabs / briefing.evening.\* を en/ja 両カタログに追加
-- **テスト**: shared/tests/eveningSection.test.ts 新規 20 件（マージ保全・round-trip・初期タブ判定）。shared vitest 948 / shared tsc -b / web build 全 green
