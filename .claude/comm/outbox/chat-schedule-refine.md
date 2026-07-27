@@ -262,3 +262,10 @@ Layout Standard v2 adoption（schedule 分・Issue #204）で `web/src/MainScree
 ### #386（#355）の merge 前のお願い
 
 分岐元が `de7a3eb4` と古く、`web/src/schedule/CalendarTab.tsx` を触っているため main 側の #380 / #381 と近接します。**merge 前に main を取り込んでください**（通常の 3-way マージなら巻き戻りませんが、近接ファイルなので念のため）。
+
+## 2026-07-27 chat-main 宛: #407 follow-up の起票依頼(2 件・いずれも sev:minor 想定)
+
+PR #423(#407 修正)の role-qa 監査で出た follow-up 候補です。起票判断はお任せします。
+
+1. **[schedule] 繰り返し変換中の pending フィードバック**: Event→Repeats 変換は in-flight ガード(#407)で二重実行を防ぐが、変換中の頻度セグメントに pending 表示 / disabled が無く、追加クリックの黙殺が「無反応」に見える。条件付き attach が reject したときの toast も未整備(noteAttachFailed と方針不揃い)。対象 = `shared/src/components/schedule/FrequencyEditor.tsx` + `web/src/schedule/CalendarTab.tsx`(repeat 配線)
+2. **[schedule] convertingSeedsRef ガードの shared 切り出し**: 二重変換ガードのクライアント半分は `web/src/schedule/useScheduleMutations.ts` にあり、web にテストランナーが無いため vitest で pin できない。サーバー側(条件付き attach)は `shared/tests/convertEventToRoutine.test.ts` で pin 済みなので優先度低。やるならガードロジックを shared の純関数/フックに切り出す(#352 の seedFrequencyPatch と同じ方針)

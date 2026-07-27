@@ -14,7 +14,8 @@
 - **修正 2 `shared/src/services/SupabaseDataService.ts`**: `convertEventToRoutine` の attach を「種がまだ未 attach のときだけ」（`.is("routine_item_id", null)` + 影響行読み戻し）の条件付き UPDATE に変更。負けた変換は routine をロールバックして reject（`DataService.ts` の契約コメントも追随）
 - **修正 3 `web/src/schedule/useScheduleMutations.ts`**: `convertingSeedsRef`（in-flight ガード）で変換中の種への追加頻度クリックを無視
 - **回帰テスト**: `routineScheduleSync.test.ts` に fail-closed 5 分岐（NULL/0/-2 interval・NULL/空文字開始日 — 旧「degrade to true」テストを反転）、`convertEventToRoutine.test.ts` に条件付き attach の `.is()` フィルタ検証 + already-attached 時のロールバック/reject
-- **検証**: shared vitest 145 files / 1173 pass、shared build / web build / web lint 全て exit 0
+- **role-qa アドバーサリアルラウンド（Stop hook ゲート・別コンテキスト・2 コミット目 `a873e583`）**: B-2 採用 = `FrequencyEditor` の date input が空文字を emit し、fail-closed 化で「開始日クリア → reconcile が未来行を掃除」に化ける退行 → 空 emit 抑止 + `seedFrequencyPatch` の "" 補修 + テスト 2 本。S-1 = routine 不在 fallback（Calendar / Routines 両導線）に seeding を配線。S-2 = 変換 rollback の supabase-js 非 throw 失敗を `logServiceError` で可視化。S-3 = ガード解放を try/finally 一本化。S-5 = attach 0 行時の文言に missing-seed を含める。N-1 = plan doc Worklog 追随。**B-1「fail-closed は既存ゾンビを止められない」は DB 実測で反証**（`3c4a1f09` は #352 seeding 導入前の malformed。現行コードの敗者双子は条件付き attach がロールバックで殺す）。S-4 / S-6 は follow-up として outbox で起票依頼
+- **検証**: shared vitest 145 files / 1175 pass（+2）、shared build / web build / web lint 全て exit 0
 - **残**: merge 後にユーザーが Routines タブから「新規予定」routine 2 本（`3c4a1f09` / `b15eb258`）を削除（生成済み si- 行は cascade で掃除）。実ブラウザ検証は chat-main（§7.4）
 
 ### 2026-07-27 - #367 Schedule サイドバーのソート・フィルタ = 見送りで決着（実装ゼロ）
