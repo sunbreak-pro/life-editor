@@ -214,6 +214,19 @@ describe("seedFrequencyPatch (#352 — bare type switches)", () => {
     ).toEqual({ frequencyType: "interval", frequencyInterval: 1 });
   });
 
+  it("repairs an empty-string start date (#407 — cleared date input legacy)", () => {
+    // "" is what a cleared <input type=date> used to persist. Under the
+    // fail-closed guard it reads as "fires never", so a type switch that
+    // inherits it must re-seed from the anchor.
+    expect(
+      seedFrequencyPatch(
+        { frequencyType: "interval" },
+        { ...current, frequencyInterval: 3, frequencyStartDate: "" },
+        SUNDAY,
+      ),
+    ).toEqual({ frequencyType: "interval", frequencyStartDate: SUNDAY });
+  });
+
   it("daily needs no seeding", () => {
     expect(
       seedFrequencyPatch({ frequencyType: "daily" }, current, SUNDAY),

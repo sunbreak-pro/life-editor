@@ -448,9 +448,23 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           // Routines not loaded (or the routine vanished): patch the
           // template anyway, but skip reconcile — without the pre-edit
           // routine there is no rule-2 template and no reliable "does the
-          // new frequency fire here" answer. Re-read so the editor's
-          // optimistic state returns to DB truth.
-          void updateRoutine(routineId, patch);
+          // new frequency fire here" answer. Seed against an empty template
+          // (#407): pre-fix this path passed the bare patch through, so a
+          // bare type switch could persist a malformed frequency the
+          // fail-closed guard reads as "fires never". Re-read so the
+          // editor's optimistic state returns to DB truth.
+          void updateRoutine(
+            routineId,
+            seedFrequencyPatch(
+              patch,
+              {
+                frequencyDays: [],
+                frequencyInterval: null,
+                frequencyStartDate: null,
+              },
+              selected.date,
+            ),
+          );
           reload();
           return;
         }
@@ -507,77 +521,81 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       const frequencyInterval = type === "interval" ? 1 : null;
       const frequencyStartDate = type === "interval" ? seed.date : null;
       void (async () => {
-        let routineId: string;
+        // Single release point for the #407 guard: the whole conversion
+        // chain runs inside this try so no exit path — success, failed
+        // conversion, or a future throw slipped into the tail — can leave
+        // the seed locked for the rest of the session.
         try {
-          routineId = await convertEventToRoutine(seed.id, {
+          let routineId: string;
+          try {
+            routineId = await convertEventToRoutine(seed.id, {
+              title: seed.title,
+              startTime: seed.startTime,
+              endTime: seed.endTime,
+              frequencyType: type,
+              frequencyDays,
+              frequencyInterval,
+              frequencyStartDate,
+              sourceDate: seed.date,
+            });
+          } catch {
+            // Conversion did not land — the seed is untouched server-side
+            // (or already owned by a routine: the #407 conditional attach).
+            // Re-read so the repeat editor's optimistic state snaps back.
+            reload();
+            return;
+          }
+          patchRange(seed.id, { routineId, sourceDate: seed.date });
+          // #279: materialise the rest of the visible range right away —
+          // the always-on generator only covers today, and rangeItems only
+          // reloads on navigation. Passing ONLY the new routine keeps the
+          // range-ensure's frequency-mismatch cleanup away from other
+          // routines' occurrences. Clamp the window: never materialise
+          // BEFORE today or before the seed — a repeat conceptually starts
+          // at the converted occurrence, and fabricating not-done rows into
+          // past days would pollute the life record (tier-1 rule 1 spirit).
+          // The seed's own day needs no extra pass: the seed row IS that
+          // day's occurrence now (source_date claims the slot).
+          const now = new Date().toISOString();
+          const optimisticRoutine: RoutineNode = {
+            id: routineId,
             title: seed.title,
             startTime: seed.startTime,
             endTime: seed.endTime,
+            isArchived: false,
+            isVisible: true,
+            isDeleted: false,
+            deletedAt: null,
+            order: 0,
             frequencyType: type,
             frequencyDays,
             frequencyInterval,
             frequencyStartDate,
-            sourceDate: seed.date,
-          });
-        } catch {
-          // Conversion did not land — the seed is untouched server-side
-          // (or already owned by a routine: the #407 conditional attach).
-          // Re-read so the repeat editor's optimistic state snaps back.
-          convertingSeedsRef.current.delete(seed.id);
+            createdAt: now,
+            updatedAt: now,
+          };
+          const windowStart = [rangeStart, seed.date, today].reduce((a, b) =>
+            a >= b ? a : b,
+          );
+          if (windowStart <= rangeEnd) {
+            await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+              optimisticRoutine,
+            ]);
+            // Second idempotent pass: the always-on today generator can race
+            // the first batch on today's row (23505 → whole-batch rollback
+            // inside ensure). The re-run's pre-check sees the winner and fills
+            // in the remaining days.
+            await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+              optimisticRoutine,
+            ]);
+          }
           reload();
-          return;
+        } finally {
+          // Released only after the routineId patch + reload settle: from
+          // here `selected.routineId` is set, so the next frequency click
+          // routes to the series-edit branch instead of a second conversion.
+          convertingSeedsRef.current.delete(seed.id);
         }
-        patchRange(seed.id, { routineId, sourceDate: seed.date });
-        // #279: materialise the rest of the visible range right away —
-        // the always-on generator only covers today, and rangeItems only
-        // reloads on navigation. Passing ONLY the new routine keeps the
-        // range-ensure's frequency-mismatch cleanup away from other
-        // routines' occurrences. Clamp the window: never materialise
-        // BEFORE today or before the seed — a repeat conceptually starts
-        // at the converted occurrence, and fabricating not-done rows into
-        // past days would pollute the life record (tier-1 rule 1 spirit).
-        // The seed's own day needs no extra pass: the seed row IS that
-        // day's occurrence now (source_date claims the slot).
-        const now = new Date().toISOString();
-        const optimisticRoutine: RoutineNode = {
-          id: routineId,
-          title: seed.title,
-          startTime: seed.startTime,
-          endTime: seed.endTime,
-          isArchived: false,
-          isVisible: true,
-          isDeleted: false,
-          deletedAt: null,
-          order: 0,
-          frequencyType: type,
-          frequencyDays,
-          frequencyInterval,
-          frequencyStartDate,
-          createdAt: now,
-          updatedAt: now,
-        };
-        const windowStart = [rangeStart, seed.date, today].reduce((a, b) =>
-          a >= b ? a : b,
-        );
-        if (windowStart <= rangeEnd) {
-          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-            optimisticRoutine,
-          ]);
-          // Second idempotent pass: the always-on today generator can race
-          // the first batch on today's row (23505 → whole-batch rollback
-          // inside ensure). The re-run's pre-check sees the winner and fills
-          // in the remaining days.
-          await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-            optimisticRoutine,
-          ]);
-        }
-        reload();
-        // Release only after the routineId patch + reload are in: from here
-        // `selected.routineId` is set, so the next frequency click routes to
-        // the series-edit branch instead of a second conversion. (ensure
-        // returns false rather than throwing, so this line is reached on
-        // every success path; the catch above releases the failure path.)
-        convertingSeedsRef.current.delete(seed.id);
       })();
     },
     [
