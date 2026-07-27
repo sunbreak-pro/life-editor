@@ -30,6 +30,8 @@ export interface AppShellLabels {
   moreTitle: string;
   /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
   shortcutHint?: string;
+  /** "Edit tags" sidebar footer row (#409) — wide layout only. */
+  tagEditor?: string;
 }
 
 export interface AppShellProps {
@@ -51,6 +53,13 @@ export interface AppShellProps {
   activeSection: string;
   onNavigate: (id: string) => void;
   onTogglePalette: () => void;
+  /**
+   * Opens the global tag editor (#409). Forwarded to the wide sidebar's footer
+   * row above ⌘K; the narrow layout has no sidebar, so the entry is
+   * wide-layout-only (mobile does not manage the tag master — §2 Consumption +
+   * Quick capture).
+   */
+  onOpenTagEditor?: () => void;
   userEmail: string;
   onSignOut: () => void;
   labels: AppShellLabels;
@@ -108,6 +117,7 @@ export function AppShell({
   activeSection,
   onNavigate,
   onTogglePalette,
+  onOpenTagEditor,
   userEmail,
   onSignOut,
   labels,
@@ -144,6 +154,7 @@ export function AppShell({
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((v) => !v)}
           onTogglePalette={onTogglePalette}
+          onOpenTagEditor={onOpenTagEditor}
           userEmail={userEmail}
           onSignOut={onSignOut}
           labels={labels}

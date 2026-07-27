@@ -4,6 +4,7 @@ import {
   PanelLeftOpen,
   Command as CommandIcon,
   LogOut,
+  Tags as TagsIcon,
 } from "lucide-react";
 import { cn } from "./cn";
 import { NavItem } from "./NavItem";
@@ -26,6 +27,11 @@ export interface SidebarNavLabels {
   signOut: string;
   /** Keycap hint shown at the trailing edge of the ⌘K footer row (e.g. "⌘K"). */
   shortcutHint?: string;
+  /**
+   * "Edit tags" footer row (#409). Required for the row to render — with
+   * `onOpenTagEditor` it forms the tag-master entry directly above ⌘K.
+   */
+  tagEditor?: string;
 }
 
 export interface SidebarNavProps {
@@ -41,6 +47,13 @@ export interface SidebarNavProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onTogglePalette: () => void;
+  /**
+   * Opens the global tag editor (#409). Rendered as a footer row directly
+   * ABOVE the command palette row — tags are a classification axis that lives
+   * in the same column as the section list, not a per-screen action in the
+   * header. Omit (or omit `labels.tagEditor`) to leave the row out.
+   */
+  onOpenTagEditor?: () => void;
   userEmail: string;
   onSignOut: () => void;
   labels: SidebarNavLabels;
@@ -62,12 +75,16 @@ export function SidebarNav({
   collapsed,
   onToggleCollapsed,
   onTogglePalette,
+  onOpenTagEditor,
   userEmail,
   onSignOut,
   labels,
 }: SidebarNavProps) {
   const hasUtility = utilitySections != null && utilitySections.length > 0;
   const brandInitial = labels.appName.charAt(0);
+  // Both halves must be present: a row with no handler does nothing, a row
+  // with no label would render untranslated (§6.4 — copy is injected).
+  const tagEditorLabel = onOpenTagEditor ? labels.tagEditor : undefined;
 
   return (
     <aside
@@ -151,8 +168,32 @@ export function SidebarNav({
         )}
       </nav>
 
-      {/* Footer: command palette (+ ⌘K keycap) + user + sign out */}
+      {/* Footer: edit tags + command palette (+ ⌘K keycap) + user + sign out */}
       <div className="shrink-0 space-y-1 border-t border-lumen-border p-2">
+        {tagEditorLabel && (
+          <button
+            type="button"
+            onClick={onOpenTagEditor}
+            aria-label={tagEditorLabel}
+            title={collapsed ? tagEditorLabel : undefined}
+            className={cn(
+              "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm",
+              "text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
+              "hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2",
+              "focus-visible:ring-lumen-accent",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <span aria-hidden="true" className="shrink-0">
+              <TagsIcon size={18} />
+            </span>
+            {!collapsed && (
+              <span className="flex-1 truncate text-left">
+                {tagEditorLabel}
+              </span>
+            )}
+          </button>
+        )}
         <button
           type="button"
           onClick={onTogglePalette}

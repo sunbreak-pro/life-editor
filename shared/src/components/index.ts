@@ -212,16 +212,35 @@ export {
   type ShortcutEditModalProps,
   type ShortcutEditModalLabels,
 } from "./ShortcutEditModal";
-// Tag edit modal (#310) — add/rename/delete/icon/color a wiki_tag with usage
-// counts. Pure presentational: DataService callbacks + labels injected (§6.4).
-// `tagIcon` resolves lucide names for the picker (and #311 tag headings).
+// Tag edit modal (#310, globalized in #409) — add/rename/delete/icon/color a
+// wiki_tag with usage counts, plus an expandable per-tag item list with
+// unassign. Pure presentational: DataService callbacks + labels injected
+// (§6.4). `tagIcon` resolves lucide names for the picker (and #311 tag
+// headings).
 export {
   TagEditModal,
   type TagEditModalProps,
   type TagEditModalLabels,
   type TagEditRow,
+  type TagEditItem,
 } from "./TagEditModal";
 export { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
+// Item-kind display contract (#409) — the SSOT for how a cross-role item list
+// announces what each row is. Shared with #412's item-side tag picker so both
+// speak one visual language.
+export { ItemRoleBadge, type ItemRoleBadgeProps } from "./items/ItemRoleBadge";
+export {
+  ITEM_ROLE_ORDER,
+  ITEM_ROLE_ICON,
+  ITEM_ROLE_ICON_CLASS,
+  UNKNOWN_ITEM_ROLE_ICON,
+  UNKNOWN_ITEM_ROLE_ICON_CLASS,
+  resolveItemRole,
+  itemRoleLabel,
+  itemRoleSortKey,
+  type ItemRole,
+  type ItemRoleLabels,
+} from "./items/itemRole";
 export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
 export {
   SettingsDetailPanel,

@@ -347,6 +347,13 @@ export {
   useWikiTagsUnifiedAPI,
   type UseWikiTagsUnifiedAPIOptions,
 } from "./hooks/useWikiTagsUnifiedAPI";
+// #409: resolves a tag assignment's itemId → { role, title }. Assignments
+// carry neither, so any cross-role item list needs this lookup.
+export {
+  useTaggedItemIndex,
+  type TaggedItemInfo,
+  type UseTaggedItemIndexResult,
+} from "./hooks/useTaggedItemIndex";
 export type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,

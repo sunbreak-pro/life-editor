@@ -291,13 +291,16 @@
       "colorLabel": "Color",
       "deleteTag": "Delete tag",
       "editTitle": "Edit tags",
-      "editCta": "Edit tags",
       "addTag": "Add",
       "iconLabel": "Icon",
       "clearIcon": "Default icon",
       "colorClearLabel": "Default color",
       "colorCustomLabel": "Custom",
-      "usageCount": "{{count}} items"
+      "usageCount": "{{count}} items",
+      "itemsToggle": "Show tagged items",
+      "itemsEmpty": "Nothing carries this tag",
+      "unassign": "Remove this tag",
+      "untitledItem": "(untitled)"
     },
     "sidebar": {
       "sort": "Sort",
@@ -693,7 +696,15 @@
     "commandPalette": "Command palette",
     "signOut": "Sign out",
     "more": "More",
-    "moreTitle": "More"
+    "moreTitle": "More",
+    "tagEditor": "Edit tags"
+  },
+  "itemRole": {
+    "task": "Task",
+    "event": "Event",
+    "note": "Note",
+    "daily": "Daily",
+    "unknown": "Other"
   },
   "detailPanel": {
     "title": "Details",
