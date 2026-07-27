@@ -6,9 +6,9 @@
 
 **対象**: `shared/src/components/briefing/IntentionField.tsx`（新設）/ `BriefingView.tsx` / `EveningView.tsx`・`web/src/briefing/BriefingScreen.tsx`・`shared/src/i18n/locales/`・`.claude/docs/requirements/mobile-scope.md`
 
-- 前回: 再実測で Issue 本文より一段悪い実態を確認（夕刊の宣言は read-only 入力欄ではなく表示専用テキストで、宣言が無い日はブロックごと非描画）
-- 現在: PR #404 提出済み・**merge 待ち**（merge は🛑人手）。ゲートは shared 1166 tests / shared build / web build すべて exit 0
-- 次: merge 後に chat-main で狭幅の実ブラウザ検証（夕刊タブで宣言を入力 → 朝刊へ切替えて同じ文面 → 再読込で保存確認）。wide の夕刊 read-only は意図的に据え置き（理由は PR 本文と `EveningViewProps.intentionEditable` の doc comment）
+- 前回: 実装 PR #404 が merge 済み（本体は main 着地）。role-qa 独立監査で MAJOR 1（`tier-1-core.md` の「表示専用」記述がコードと矛盾）+ MINOR 1（wide の読み返しが保存値でなく生ドラフト）を受け反映
+- 現在: **その監査反映 `8b16b349` が #404 merge 後 push で取り残された**（#394 → #399 と同型。照合を push 前にやり直さなかったのが原因）。cherry-pick した追随 **PR #406 が merge 待ち**（merge は🛑人手）。ゲートは shared 1166 tests / shared build / web build / **web eslint**（PR #402 で CI ゲート化）すべて exit 0
+- 次: #406 merge 後に chat-main で狭幅の実ブラウザ検証（未宣言の日でも夕刊に入力欄が出る → 入力 → 朝刊へ切替えて同じ文面 → 再読込で保存確認 → wide の夕刊は読み返しのまま）。wide の read-only 据え置きは意図的（理由は PR 本文と `EveningViewProps.intentionEditable` の doc comment）
 
 ## 直近の完了
 

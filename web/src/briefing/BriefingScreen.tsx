@@ -661,7 +661,17 @@ export function BriefingScreen({
             className="min-h-[180px] px-4 py-3"
           />
         }
-        intentionText={intentionText}
+        // Editable → the live draft (the field must echo every keystroke).
+        // Read-only → the STORED text, never the draft: the read-back is
+        // "what is saved as this morning's declaration", and a draft is both
+        // un-normalized (raw blank lines / indent the merge would strip) and
+        // possibly unsaved (persistIntention swallows failures) — with no
+        // caption on that branch, showing it would silently overstate.
+        intentionText={
+          intentionEditableOnEvening
+            ? intentionText
+            : (intentionStored.text ?? "")
+        }
         intentionEditable={intentionEditableOnEvening}
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}
