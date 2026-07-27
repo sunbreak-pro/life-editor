@@ -32,6 +32,7 @@
   - **夕刊規約（Step 3・決定録 1 + 6）**: Daily 内「夕刊」見出しセクション（英 alias: Evening）・朝刊と同じ規約・DDL ゼロ。**1 行でも成立**（書くハードルを上げない）。気分（五段階）はテキスト規約「気分: n/5」で夕刊セクション内に保存。入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ（loop-friction-fixes F-6 — 保存先は Daily のまま・Daily 側から直接書いても同じ場所に落ちる）
   - **宣言規約（Step 4・DDL ゼロ）**: Daily 内「宣言」見出しセクション（英 alias: Intention / Intentions）。朝刊紙面の「今日の宣言」欄で編集（保存 = 行ごと段落のセクション差し替えマージ — 朝刊・夕刊セクションを壊さない）・夕刊タブは同セクションを再掲するが、wide は「今朝の宣言」として表示専用・narrow（<768px）は「今日の宣言」の編集欄（#391 — モバイルの取捨の正本は `docs/requirements/mobile-scope.md` #3）。講評は翌朝刊の朝刊セクションが担う（`get_today_context` は Daily 本文を素で読むため MCP 変更なし）
   - 約束行の名称タップ = 完了トグル（現行）。タスク行への同型追加 + 各行からの移動ボタンは loop-friction-fixes F-2
+  - **rightSidebar「今日の Todo」トレイ（#413）**: 詳細パネルに配置済み / 未配置の 2 群 + 「タスクから追加」ピッカーを出し、残っているタスクをその場で今日の候補へ配置する。部品は Schedule の `TodayTodoTray`（#298）を**流用**（複製しない）・追加の書き込みは Schedule と同じ「`scheduledAt` = 今日 0:00 + 終日」。「今日」は Briefing 側の `todayDateKey()`（日付変更時刻 #373 準拠）で、紙面の「今日の Todo」と同じ基準。wide 限定（narrow は Briefing に詳細パネルの開閉導線が無い — mobile-scope.md #1 の Consumption 維持）
 - やらない:
   - Claude API 直課金の生成経路（$0 制約 — briefing-loop Context。定時自動化 Step 5 もサブスク範囲内の経路で選定）
   - 朝刊・夕刊のための新テーブル / DDL（`dailies_payload` 内のセクション規約で表現）

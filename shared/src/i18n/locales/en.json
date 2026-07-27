@@ -783,6 +783,16 @@
       "morning": "Morning",
       "evening": "Evening"
     },
+    "todo": {
+      "title": "Today's Todo",
+      "placedHeading": "Scheduled",
+      "unplacedHeading": "Candidates",
+      "emptyPlaced": "Nothing scheduled with a time yet",
+      "emptyUnplaced": "No candidates for today",
+      "addHeading": "Add from tasks",
+      "addAction": "Add to today",
+      "emptyAddable": "No unscheduled tasks"
+    },
     "evening": {
       "masthead": "LIFE EDITOR EVENING",
       "moodTitle": "TODAY'S MOOD",
