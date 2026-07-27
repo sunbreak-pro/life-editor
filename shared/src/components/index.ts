@@ -189,6 +189,11 @@ export {
   type SettingsGeneralOption,
 } from "./SettingsGeneral";
 export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
+// Day-start hour card (#373) — the write side of the #218 rollover pref.
+export {
+  SettingsDayStart,
+  type SettingsDayStartProps,
+} from "./SettingsDayStart";
 export {
   SettingsSegment,
   type SettingsSegmentProps,
