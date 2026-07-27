@@ -7,12 +7,24 @@ import { isDescendantOf } from "../utils/getDescendantTasks";
  * Pure task-tree move logic (no @dnd-kit / host coupling).
  *
  * #418: task nesting is retired by user decision (2026-07-27). `moveNodeInto`
- * and `moveNode`'s re-parent branch are gone — both were unreachable dead code
- * whose folder-era guard (`type === "task"`) had turned always-true once #225
- * made NodeType single-valued, and their only caller (web's useTaskTreeDnd)
- * was never wired into a screen. What remains are the two operations that do
- * not create hierarchy: `moveNode` (reorder inside one sibling list) and
- * `moveToRoot` (lift a legacy child row back out to the root list).
+ * and `moveNode`'s re-parent branch are gone. What made them dead was that
+ * their only caller — web's `useTaskTreeDnd` — was never wired into a screen;
+ * the folder-era guard is a separate story and was NOT uniformly always-true:
+ *
+ *   - `moveNodeInto`: guard `target.type === "task"` sat on every path, so it
+ *     really did reject everything once #225 made NodeType single-valued.
+ *   - `moveNode`'s re-parent branch: the guard lived inside
+ *     `if (newParentId !== null)`, so dropping next to a ROOT node skipped it
+ *     and SUCCEEDED — it pulled a legacy child row out to a chosen slot in the
+ *     root list. That capability is intentionally dropped here; `moveToRoot`
+ *     is the successor but appends to the tail instead of taking a position.
+ *
+ * What remains: `moveNode` (reorder inside one sibling list) and `moveToRoot`.
+ * Neither creates hierarchy — but note that neither has a caller either, so
+ * this whole hook is currently unconsumed (see #418 for the open question of
+ * whether to retire the rest of the chain). `parentId` itself is NOT retired:
+ * `useTaskTreeCRUD.addNode(type, parentId, …)` and MCP `create_task(parent_id)`
+ * can still write a parent/child pair.
  */
 
 export function useTaskTreeMovement(
@@ -79,7 +91,9 @@ export function useTaskTreeMovement(
       // #418: reorder only, never re-parent. The sibling list is always the
       // active node's own; a drop target outside it falls out of the
       // findIndex check below as `node_not_found` instead of moving the node
-      // under a new parent.
+      // under a new parent. No rejection reason is surfaced anywhere today —
+      // if one ever gets wired to a Toast, split this case out (the node WAS
+      // found, it just is not a sibling) rather than showing "not found".
       const siblings = nodes
         .filter((n) => !n.isDeleted && n.parentId === active.parentId)
         .sort((a, b) => a.order - b.order);

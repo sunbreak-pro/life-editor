@@ -92,6 +92,23 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
     expect(persistWithHistory).not.toHaveBeenCalled();
   });
 
+  // The direction that USED to succeed before #418: the retired re-parent
+  // branch guarded only non-null new parents, so dragging a child row next to
+  // a ROOT node skipped the guard and lifted it out to a chosen slot. That is
+  // the path a re-parent regression would come back through, so it needs its
+  // own pin — the reverse direction above was already rejected pre-#418.
+  it("rejects lifting a child row out by dropping it next to a root node", () => {
+    const nodes = [task("P", 0), task("child", 0, "P"), task("Q", 1)];
+    const { api, persistWithHistory } = setupTasks(nodes);
+
+    expect(api.moveNode("child", "Q", "below")).toEqual({
+      success: false,
+      reason: "node_not_found",
+    });
+    expect(persistWithHistory).not.toHaveBeenCalled();
+    expect(nodes.find((n) => n.id === "child")!.parentId).toBe("P");
+  });
+
   it("still refuses to move a soft-deleted node", () => {
     const nodes = [task("A", 0, null, true), task("B", 1)];
     const { api, persistWithHistory } = setupTasks(nodes);
@@ -103,15 +120,24 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
     expect(persistWithHistory).not.toHaveBeenCalled();
   });
 
-  it("moveToRoot still lifts a legacy child row out to the root list", () => {
-    const nodes = [task("P", 0), task("child", 0, "P"), task("Q", 1)];
+  it("moveToRoot lifts a legacy child row out and re-packs its old siblings", () => {
+    const nodes = [
+      task("P", 0),
+      task("child", 0, "P"),
+      task("sibling", 1, "P"),
+      task("Q", 1),
+    ];
     const { api, persistWithHistory } = setupTasks(nodes);
 
     expect(api.moveToRoot("child")).toEqual({ success: true });
     const [, updated] = persistWithHistory.mock.calls[0];
     const moved = updated.find((n) => n.id === "child")!;
     expect(moved.parentId).toBeNull();
+    // Appends to the tail of the root list (P, Q) — no position control, which
+    // is the capability the retired re-parent branch used to provide.
     expect(moved.order).toBe(2);
+    // The child left behind closes the gap it opened.
+    expect(updated.find((n) => n.id === "sibling")!.order).toBe(0);
   });
 
   it("exposes no nesting API", () => {
@@ -139,6 +165,41 @@ describe("useNoteTreeMovement — reorder only (#418)", () => {
     const { api, persistWithHistory } = setupNotes(notes);
 
     expect(api.moveNode("Q", "child", "above")).toEqual({
+      success: false,
+      reason: "node_not_found",
+    });
+    expect(persistWithHistory).not.toHaveBeenCalled();
+  });
+
+  it("rejects lifting a child row out by dropping it next to a root note", () => {
+    const notes = [
+      note("P", 0, null),
+      note("child", 0, "P"),
+      note("Q", 1, null),
+    ];
+    const { api, persistWithHistory } = setupNotes(notes);
+
+    expect(api.moveNode("child", "Q", "below")).toEqual({
+      success: false,
+      reason: "node_not_found",
+    });
+    expect(persistWithHistory).not.toHaveBeenCalled();
+    expect(notes.find((n) => n.id === "child")!.parentId).toBe("P");
+  });
+
+  // Deliberate asymmetry with Tasks (pre-dates #418, kept on purpose): Notes
+  // has no isDeleted guard, so a soft-deleted note is simply filtered out of
+  // the sibling list and reports `node_not_found`, not `deleted_node`. Pinned
+  // so a future "let's make these two hooks symmetric" pass has to be explicit
+  // about changing Notes' return value.
+  it("reports node_not_found (not deleted_node) for a soft-deleted note", () => {
+    const deleted = { ...note("A", 0, null), isDeleted: true };
+    const { api, persistWithHistory } = setupNotes([
+      deleted,
+      note("B", 1, null),
+    ]);
+
+    expect(api.moveNode("A", "B", "below")).toEqual({
       success: false,
       reason: "node_not_found",
     });

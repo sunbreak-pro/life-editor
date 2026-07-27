@@ -383,9 +383,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
 
   // Flatten tree for DnD (only visible nodes). #375: the recursion used to be
   // gated on `type === "folder"`; with folders retired it descends into any
-  // expanded node. NOTE (#418): nesting is retired outright — no API can
-  // create a parent/child pair any more, so this walk only ever sees the
-  // legacy rows that predate the retirement.
+  // expanded node. NOTE (#418): the nesting UI is retired — the movement hook
+  // can no longer re-parent, so no drag can deepen the tree. Data-level
+  // hierarchy is still writable though (`createNote({ parentId })` below, and
+  // MCP `create_task(parent_id)` on the task side), so this walk sees legacy
+  // rows plus anything a non-UI caller creates.
   const flattenedNotes = useMemo(() => {
     const result: NoteNode[] = [];
     // Defensive, not load-bearing: a walk rooted at `null` cannot actually
@@ -645,8 +647,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       const subtree: NoteNode[] = [];
       // `seen` guards against a corrupted parentId cycle (e.g. a bad sync
       // round-trip) causing unbounded recursion — same OOM class as the
-      // task-tree (known-issues 016). No write path creates hierarchy since
-      // #418, but data may still arrive cyclic from the server.
+      // task-tree (known-issues 016). No DnD path creates hierarchy since
+      // #418, but `createNote({ parentId })` still can and data may arrive
+      // cyclic from the server.
       const seen = new Set<string>();
       const collect = (nodeId: string) => {
         if (seen.has(nodeId)) return;

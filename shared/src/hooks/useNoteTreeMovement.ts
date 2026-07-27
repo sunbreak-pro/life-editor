@@ -14,8 +14,14 @@ import { isDescendantOf } from "../utils/getDescendantTasks";
  * #418: kept symmetric with useTaskTreeMovement — note nesting is retired
  * along with task nesting, so `moveNodeInto` and `moveNode`'s re-parent
  * branch were removed. Notes DnD has only assigned tags since S1, so nothing
- * called either of them; their folder-era guard (`type === "note"`) had been
- * always-true since NoteNodeType went single-valued.
+ * called either of them. See the task twin's header for the one nuance: the
+ * re-parent branch's guard sat inside `if (newParentId !== null)`, so dropping
+ * next to a ROOT note used to succeed (positioned lift-out to the root list).
+ * `moveToRoot` is the successor and appends to the tail instead.
+ *
+ * `parentId` is not retired: `useNotesUnifiedAPI.createNote({ parentId })`
+ * still accepts one, and the surviving `moveNode` / `moveToRoot` have no
+ * callers today either.
  */
 
 // Re-exported for the cycle-safety regression test (KI-016 anchor). The
@@ -83,7 +89,12 @@ export function useNoteTreeMovement(
       // #418: reorder only, never re-parent. The sibling list is always the
       // active note's own; a drop target outside it falls out of the
       // findIndex check below as `node_not_found` instead of moving the note
-      // under a new parent.
+      // under a new parent. See the task twin for the "if this is ever shown
+      // to the user, split the reason out" note.
+      //
+      // Deliberate asymmetry with Tasks: no `isDeleted` guard here, so a
+      // soft-deleted note reports `node_not_found` (it is filtered out of the
+      // sibling list) rather than `deleted_node`. Pinned by test.
       const siblings = notes
         .filter((n) => !n.isDeleted && n.parentId === active.parentId)
         .sort((a, b) => a.order - b.order);
