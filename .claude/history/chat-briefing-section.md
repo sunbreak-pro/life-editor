@@ -15,7 +15,9 @@
 - **wide を変えなかった理由**: 夕刊の宣言は「今朝立てた宣言を読み返す」設計意図（Step 4 = 講評の往復は reflection と翌朝）で、wide は SectionHeader のタブ帯から朝刊がワンクリック = 導線が塞がっていない。塞がっているのは narrow だけなので直すのも narrow だけにした。分岐は mobile-scope #3 で確定済みの意図的なもの
 - **i18n**: `briefing.evening.intentionPlaceholder` を en/ja 両方に追加（朝刊の「今日は何をやり遂げますか」は夕方に読むと時制がずれるため）。見出しはモードで既存キーを差し替え（編集可 = `briefing.intentionTitle`「今日の宣言」/ 読み返し = `briefing.evening.intentionTitle`「今朝の宣言」）
 - **docs**: `.claude/docs/requirements/mobile-scope.md` の #2 行（PR #357 前のまま stale だった DoD 指定分）と #3 行を実態に更新し、§5 Phase 1 の該当 2 行も完了に落とした（片方だけ直すと新しい矛盾になるため）
-- **テスト**: `shared/tests/briefingView.test.tsx` に 4 件追加（17 → 21 件。wide の読み返し + キャプション非表示 / wide の空日は非表示 / narrow の編集・blur がホストに届く / narrow は空でも入力欄が出る）。shared vitest 145 files 1166 tests / shared `tsc -b` / web build すべて exit 0。実ブラウザ狭幅確認は merge 後に chat-main（§7.4）
+- **テスト**: `shared/tests/briefingView.test.tsx` に 4 件追加（17 → 21 件。wide の読み返し + キャプション非表示 / wide の空日は非表示 / narrow の編集・blur がホストに届く / narrow は空でも入力欄が出る）。shared vitest 145 files 1166 tests / shared `tsc -b` / web build / web eslint すべて exit 0。実ブラウザ狭幅確認は merge 後に chat-main（§7.4）
+- **role-qa 独立監査（BLOCKING 0）**: MAJOR 1 件 = 同じ事実が mobile-scope.md と `tier-1-core.md` の 2 層にあり、#391 の DoD が前者だけを指していたため後者の「夕刊は表示専用で再掲」が narrow で偽のまま残っていた（docs-consistency §1 の N 層転記漏れ）→ 幅条件付きに修正。MINOR 1 件 = prop 変更で wide の読み返しが保存値でなく生ドラフトを表示していた（未正規化の空行・字下げがそのまま段落化 / 保存失敗時は未保存文字列をキャプション無しで表示）→ 読み返し枝は保存値に戻した。指摘はいずれも Read / grep で自分で裏取りしてから採用（docs-consistency §5）
+- **取り残し事故（再発）**: 上記の監査反映 `8b16b349` を push した時点で PR #404 は既に merge 済み（head = `fe3265d5`）で、main に届かなかった。#394 → #399 と同型。原因は照合のタイミングで、PR 提出直後には state=OPEN / head 一致を確認していたが、監査に 11 分かかる間に merge されていた。`origin/main` から `claude/briefing-391-qa-followup` を切って cherry-pick（衝突なし）→ 全ゲート再実行 → 追随 **PR #406**。教訓は「照合は追加 push の直前にやり直す」で、`~/.claude` の memory `push-after-merge-strands-commits` にも追記済み
 
 ### 2026-07-26 - materials レーン: Issue #365 / #366 / #371 / #370
 
