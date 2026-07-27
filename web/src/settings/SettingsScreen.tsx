@@ -4,6 +4,7 @@ import {
   SettingsLanguage,
   SettingsShortcuts,
   SettingsGeneral,
+  SettingsDayStart,
   SettingsReset,
   SettingsDetailPanel,
   RightSidebarPortal,
@@ -13,6 +14,7 @@ import {
   useThemeContext,
   useShortcutConfig,
   useStartupSectionPref,
+  useDayStartHourPref,
   resetLocalPreferences,
   useMediaQuery,
   useTranslation,
@@ -24,13 +26,14 @@ import {
 
 /*
  * Settings screen (W1, web host — redesigned; §216 lightweight prefs). Single
- * column of Appearance / General / Language / Shortcuts / Reset cards (opaque,
- * immediate-apply, no save button). The section title lives in the shell's
+ * column of cards (opaque, immediate-apply, no save button) — the order below
+ * is the layout. The section title lives in the shell's
  * standard SectionHeader (Layout Standard v2, #209). Width + gutter + scroll
  * are owned by the PageContainer wrapper in MainScreen. This is the HOST side:
  * it owns the hooks (useThemeContext / useShortcutConfig / useStartupSectionPref
- * / useTranslation / media query) and injects values + setters + already-
- * translated copy into the shared PURE primitives (CLAUDE.md §6.4). The
+ * / useDayStartHourPref / useTranslation / media query) and injects values +
+ * setters + already-translated copy into the shared PURE primitives
+ * (CLAUDE.md §6.4). The
  * Shortcuts card is Desktop-only (ShortcutConfig is a Mobile 省略 Provider —
  * §2). The Reset card owns the destructive confirm + clear-and-reload (kept out
  * of the pure primitive). A live appearance preview + tips are pushed into the
@@ -53,6 +56,7 @@ export function SettingsScreen() {
   } = useThemeContext();
   const { pref: startupPref, setPref: setStartupPref } =
     useStartupSectionPref();
+  const { dayStartHour, setDayStartHour } = useDayStartHourPref();
   const isWide = useMediaQuery("(min-width: 768px)");
 
   // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
@@ -199,6 +203,19 @@ export function SettingsScreen() {
             heading: t("settings.startup.heading"),
             description: t("settings.startup.description"),
             sectionLabel: t("settings.startup.sectionLabel"),
+          }}
+        />
+      </div>
+
+      <div className={cardClass}>
+        <SettingsDayStart
+          value={dayStartHour}
+          onChange={setDayStartHour}
+          labels={{
+            heading: t("settings.dayStart.heading"),
+            description: t("settings.dayStart.description"),
+            hourLabel: t("settings.dayStart.hourLabel"),
+            hint: t("settings.dayStart.hint"),
           }}
         />
       </div>
