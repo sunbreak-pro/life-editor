@@ -111,7 +111,6 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       center: t("connect.graph.center"),
       collide: t("connect.graph.collide"),
       selectNodeHint: t("connect.graph.selectNodeHint"),
-      typeProject: t("connect.graph.typeProject"),
       typeNote: t("connect.graph.typeNote"),
       typeDaily: t("connect.graph.typeDaily"),
       typeTag: t("connect.graph.typeTag"),

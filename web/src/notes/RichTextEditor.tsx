@@ -41,7 +41,7 @@ import {
  * IME: TipTap/ProseMirror handles IME composition natively (no manual
  * keydown handlers here), so `isComposing` cannot be broken. Persistence
  * is debounced (800ms) and flushed on unmount / beforeunload so a
- * note/folder switch never loses the last keystrokes.
+ * note switch never loses the last keystrokes.
  */
 
 const BoldNoInputRules = Bold.extend({
@@ -157,7 +157,7 @@ export function RichTextEditor({
     }
   };
 
-  // Flush on unmount (note/folder switch).
+  // Flush on unmount (note switch).
   useEffect(() => {
     // flushPending only touches refs (stable for the component lifetime),
     // so an empty dep array is correct here.

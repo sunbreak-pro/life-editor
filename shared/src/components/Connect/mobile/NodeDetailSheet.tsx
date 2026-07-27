@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Folder,
   FileText,
   Calendar,
   Hash,
@@ -19,7 +18,6 @@ import { resolveLinkTarget, type LinkableItem } from "../SelectedNodeCard";
 import type { ConnectGraphLabels } from "../labels";
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
-  project: Folder,
   note: FileText,
   daily: Calendar,
   tag: Hash,

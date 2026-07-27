@@ -5,6 +5,7 @@ import {
   NOTES_PAYLOAD_LIST_COLUMNS,
   noteNodeToRows,
   noteUpdatesToPatches,
+  isLegacyNoteFolderRow,
   rowsToNoteNode,
   rowsToNoteNodeLite,
   type ItemsMetaNoteRow,
@@ -49,6 +50,14 @@ export class SupabaseNotesUnifiedService {
     // demand by getNoteUnified when a note is opened. Consumers must not
     // treat the empty list `content` as authoritative (see
     // useNotesUnifiedAPI's hydrate-on-select).
+    //
+    // #375: legacy folder rows (note_type='folder') are excluded here
+    // client-side (isLegacyNoteFolderRow). Filtering in-app rather than
+    // query-side (`.neq`) is deliberate — a PostgREST inequality would also
+    // drop NULL note_type rows (NULL comparison), silently hiding plain
+    // legacy notes. A note whose parentId points at an excluded folder still
+    // surfaces (orphan tolerance): its own note_type is 'note', so only the
+    // folder row itself is dropped.
     const metas = await fetchAllPages<ItemsMetaNoteRow>(
       (from, to) =>
         this.client
@@ -86,6 +95,7 @@ export class SupabaseNotesUnifiedService {
     for (const meta of metas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
+      if (isLegacyNoteFolderRow(payload)) continue; // #375: legacy folder row
       out.push(rowsToNoteNodeLite(meta, payload));
     }
     return out;
@@ -257,6 +267,10 @@ export class SupabaseNotesUnifiedService {
    * populate. Ordered by deleted_at DESC at the items_meta layer for
    * "most-recently trashed first" parity with the legacy `notes` query
    * (`ORDER BY deleted_at DESC`).
+   *
+   * #375: legacy folder rows are excluded here too — migration 0020 leaves
+   * the converted folders soft-deleted, so without the filter they would all
+   * pop up in Trash as restorable "notes".
    */
   async fetchDeletedNotesUnified(): Promise<NoteNode[]> {
     // Trailing .order("id") = unique tiebreaker for deterministic pages.
@@ -300,6 +314,7 @@ export class SupabaseNotesUnifiedService {
     for (const meta of metas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
+      if (isLegacyNoteFolderRow(payload)) continue; // #375: legacy folder row
       out.push(rowsToNoteNodeLite(meta, payload));
     }
     return out;
@@ -517,6 +532,9 @@ export class SupabaseNotesUnifiedService {
     for (const meta of allMetas) {
       const payload = payloadById.get(meta.id);
       if (!payload) continue;
+      // A title hit can land on a retired folder row (note_type lives on the
+      // payload, so the items_meta query cannot exclude it) — #375.
+      if (isLegacyNoteFolderRow(payload)) continue;
       out.push(rowsToNoteNode(meta, payload));
     }
     // Order by updated_at DESC (legacy parity).

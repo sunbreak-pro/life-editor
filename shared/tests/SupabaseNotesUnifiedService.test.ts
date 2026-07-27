@@ -365,33 +365,32 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       expect(deletes).toHaveLength(1);
     });
 
-    it("deletes a folder subtree descendants-first (composite FK NO ACTION)", async () => {
-      // Tree: folder-A -> [note-B, note-C], note-B is a leaf, note-C is a leaf.
-      const folderA = {
-        ...makeMetaRow({ id: "folder-A", title: "A" }),
+    it("deletes a nested subtree descendants-first (composite FK NO ACTION)", async () => {
+      // Tree: note-A -> [note-B, note-C], note-B is a leaf, note-C is a leaf.
+      const noteA = {
+        ...makeMetaRow({ id: "note-A", title: "A" }),
       };
-      const folderAPayload = makePayloadRow({
-        item_id: "folder-A",
-        note_type: "folder",
+      const noteAPayload = makePayloadRow({
+        item_id: "note-A",
         parent_item_id: null,
       });
       const noteB = makeMetaRow({ id: "note-B", title: "B" });
       const noteBPayload = makePayloadRow({
         item_id: "note-B",
-        parent_item_id: "folder-A",
+        parent_item_id: "note-A",
       });
       const noteC = makeMetaRow({ id: "note-C", title: "C" });
       const noteCPayload = makePayloadRow({
         item_id: "note-C",
-        parent_item_id: "folder-A",
+        parent_item_id: "note-A",
       });
 
       stub.stage("items_meta", "select", {
-        data: [folderA, noteB, noteC],
+        data: [noteA, noteB, noteC],
         error: null,
       });
       stub.stage("notes_payload", "select", {
-        data: [folderAPayload, noteBPayload, noteCPayload],
+        data: [noteAPayload, noteBPayload, noteCPayload],
         error: null,
       });
       // fetchDeletedNotesUnified (no trashed notes)
@@ -401,7 +400,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
 
-      await service.permanentDeleteNoteUnified("folder-A");
+      await service.permanentDeleteNoteUnified("note-A");
 
       // Collect the order of delete-eq("id", X) pairs.
       const deleteIds: string[] = [];
@@ -427,21 +426,18 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
       expect(deleteIds).toHaveLength(3);
       // Children before parent (any leaf order is fine, parent is last).
-      expect(deleteIds[deleteIds.length - 1]).toBe("folder-A");
+      expect(deleteIds[deleteIds.length - 1]).toBe("note-A");
       expect(deleteIds.slice(0, 2).sort()).toEqual(["note-B", "note-C"]);
     });
 
     it("includes trashed descendants in the pool (purge mixed live+trashed)", async () => {
-      // folder-A is live, its child note-X is already trashed. permanent
-      // delete on folder-A must still descend through note-X.
-      const folderA = makeMetaRow({ id: "folder-A" });
-      const folderAPayload = makePayloadRow({
-        item_id: "folder-A",
-        note_type: "folder",
-      });
-      stub.stage("items_meta", "select", { data: [folderA], error: null });
+      // note-A is live, its child note-X is already trashed. permanent
+      // delete on note-A must still descend through note-X.
+      const noteA = makeMetaRow({ id: "note-A" });
+      const noteAPayload = makePayloadRow({ item_id: "note-A" });
+      stub.stage("items_meta", "select", { data: [noteA], error: null });
       stub.stage("notes_payload", "select", {
-        data: [folderAPayload],
+        data: [noteAPayload],
         error: null,
       });
 
@@ -452,7 +448,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       });
       const noteXPayload = makePayloadRow({
         item_id: "note-X",
-        parent_item_id: "folder-A",
+        parent_item_id: "note-A",
       });
       stub.stage("items_meta", "select", { data: [noteX], error: null });
       stub.stage("notes_payload", "select", {
@@ -463,13 +459,86 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
 
-      await service.permanentDeleteNoteUnified("folder-A");
+      await service.permanentDeleteNoteUnified("note-A");
 
-      // 2 deletes — note-X (trashed child) then folder-A (live parent).
+      // 2 deletes — note-X (trashed child) then note-A (live parent).
       const dels = stub.calls.filter(
         (c) => c.table === "items_meta" && c.op === "delete",
       );
       expect(dels).toHaveLength(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Legacy folder rows (#375)
+  // -------------------------------------------------------------------------
+
+  describe("legacy folder row exclusion (#375)", () => {
+    it("listNotesUnified drops note_type='folder' rows, keeps 'note'/NULL", async () => {
+      const metas = [
+        makeMetaRow({ id: "note-plain" }),
+        makeMetaRow({ id: "note-legacy" }),
+        makeMetaRow({ id: "notefolder-old" }),
+      ];
+      const payloads = [
+        makePayloadRow({ item_id: "note-plain", note_type: "note" }),
+        makePayloadRow({ item_id: "note-legacy", note_type: null }),
+        makePayloadRow({ item_id: "notefolder-old", note_type: "folder" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: payloads, error: null });
+
+      const out = await service.listNotesUnified();
+
+      expect(out.map((n) => n.id)).toEqual(["note-plain", "note-legacy"]);
+      // A NULL note_type is a plain note, not a folder.
+      expect(out.every((n) => n.type === "note")).toBe(true);
+    });
+
+    it("keeps a note whose parent is an excluded folder (orphan tolerance)", async () => {
+      const metas = [
+        makeMetaRow({ id: "notefolder-old" }),
+        makeMetaRow({ id: "note-child" }),
+      ];
+      const payloads = [
+        makePayloadRow({ item_id: "notefolder-old", note_type: "folder" }),
+        makePayloadRow({
+          item_id: "note-child",
+          parent_item_id: "notefolder-old",
+        }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: payloads, error: null });
+
+      const out = await service.listNotesUnified();
+
+      expect(out.map((n) => n.id)).toEqual(["note-child"]);
+      expect(out[0].parentId).toBe("notefolder-old");
+    });
+
+    it("fetchDeletedNotesUnified drops soft-deleted folder rows (Trash)", async () => {
+      const metas = [
+        makeMetaRow({
+          id: "note-T1",
+          is_deleted: true,
+          deleted_at: "2026-05-24T09:00:00.000Z",
+        }),
+        makeMetaRow({
+          id: "notefolder-old",
+          is_deleted: true,
+          deleted_at: "2026-05-24T09:00:00.000Z",
+        }),
+      ];
+      const payloads = [
+        makePayloadRow({ item_id: "note-T1" }),
+        makePayloadRow({ item_id: "notefolder-old", note_type: "folder" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: payloads, error: null });
+
+      const out = await service.fetchDeletedNotesUnified();
+
+      expect(out.map((n) => n.id)).toEqual(["note-T1"]);
     });
   });
 

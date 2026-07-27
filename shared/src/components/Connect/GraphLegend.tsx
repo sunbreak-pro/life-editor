@@ -1,15 +1,9 @@
-import {
-  Folder,
-  FileText,
-  Calendar,
-  Hash,
-  type LucideIcon,
-} from "lucide-react";
+import { FileText, Calendar, Hash, type LucideIcon } from "lucide-react";
 import type { GraphNodeType } from "./graph/graph-types";
 import type { ConnectGraphLabels } from "./labels";
 
 /*
- * Node-type legend chips (project / note / daily / tag). Layout-agnostic: it
+ * Node-type legend chips (note / daily / tag). Layout-agnostic: it
  * only renders the chip row and takes a `className` so the caller positions it
  * (Desktop = absolute top-left over the canvas; Mobile = a horizontal-scroll
  * strip). Colors are pulled from the live theme CSS vars — the SAME vars the
@@ -17,7 +11,6 @@ import type { ConnectGraphLabels } from "./labels";
  * match. No hex literals (§6.4); the daily hue reuses --color-chip-routine-dot.
  */
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
-  project: Folder,
   note: FileText,
   daily: Calendar,
   tag: Hash,
@@ -25,13 +18,12 @@ const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
 
 // CSS-var references (not hex) — mirrors graph-theme.ts resolvePalette().node.
 const TYPE_DOT_VAR: Record<GraphNodeType, string> = {
-  project: "var(--color-text-primary)",
   note: "var(--color-accent)",
   daily: "var(--color-chip-routine-dot)",
   tag: "var(--color-text-secondary)",
 };
 
-const ORDER: readonly GraphNodeType[] = ["project", "note", "daily", "tag"];
+const ORDER: readonly GraphNodeType[] = ["note", "daily", "tag"];
 
 interface GraphLegendProps {
   labels: ConnectGraphLabels;
@@ -41,7 +33,6 @@ interface GraphLegendProps {
 
 export function GraphLegend({ labels, className = "" }: GraphLegendProps) {
   const typeLabel: Record<GraphNodeType, string> = {
-    project: labels.typeProject,
     note: labels.typeNote,
     daily: labels.typeDaily,
     tag: labels.typeTag,

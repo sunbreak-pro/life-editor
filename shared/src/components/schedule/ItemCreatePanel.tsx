@@ -134,7 +134,7 @@ export interface ItemCreatePanelProps {
    * a drag on the grid, not a create gesture.
    */
   existingTasks: ItemCreateOption[];
-  /** The pool the "existing note" source picks from (live notes, no folders). */
+  /** The pool the "existing note" source picks from (live notes). */
   existingNotes: ItemCreateOption[];
   /** Fired with the trimmed (non-empty) title, the times, and the staged note. */
   onSubmitEvent: (

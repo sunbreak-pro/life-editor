@@ -81,7 +81,13 @@ export interface NotesPayloadRow {
   parent_item_id: string | null;
   /** Generated stored column (after 0014) — SELECT-only. */
   parent_item_role: "note";
-  note_type: NoteNodeType | null;
+  /**
+   * Raw DB vocabulary — NOT the domain `NoteNodeType`. "folder" is a legacy
+   * value the column still accepts for rollback safety (#375 retired the
+   * folder note type in the app); it is never written any more and such rows
+   * are dropped at fetch time (`isLegacyNoteFolderRow`).
+   */
+  note_type: "folder" | "note" | null;
   content_json: unknown;
   sort_order: number;
   is_pinned: boolean;
@@ -159,17 +165,44 @@ export const NOTES_PAYLOAD_LIST_COLUMNS =
 //    these at the DB layer, but a corrupt/legacy row should fail loud).
 // ---------------------------------------------------------------------------
 
+// NOTE_TYPES still includes the legacy "folder" value: the DB column keeps
+// it (rollback), and a folder row must be *recognisable*
+// (isLegacyNoteFolderRow) even though it can no longer be materialised as a
+// distinct NoteNodeType. Mirrors taskMapper's NODE_TYPES after S3 (#225).
 const NOTE_TYPES: ReadonlySet<string> = new Set(["folder", "note"]);
 
-/** Narrow a DB `note_type` value to the `NoteNodeType` union. A NULL
- * note_type defaults to "note" (legacy parity — same as the
- * retired legacy Notes mapper's toNoteNodeType). */
+/**
+ * Narrow a DB `note_type` value to the `NoteNodeType` union.
+ *
+ * #375: NoteNodeType is now single-valued ("note"). The DB column still
+ * carries a legacy "folder" value for rows created before the retirement;
+ * those rows are excluded upstream by the fetch filter
+ * (`isLegacyNoteFolderRow` / SupabaseNotesUnifiedService), so this narrower
+ * normally only ever sees "note" | null. A stray "folder" that reaches here
+ * is coerced to "note" (defence-in-depth). A genuinely unknown value still
+ * throws.
+ */
 export function toNoteNodeType(value: string | null): NoteNodeType {
-  if (value === null) return "note";
-  if (NOTE_TYPES.has(value)) return value as NoteNodeType;
+  if (value === null) return "note"; // legacy / unset → note
+  if (NOTE_TYPES.has(value)) return "note"; // "note" | legacy "folder" → note
   throw new Error(
     `notes_payload: invalid note_type "${value}" (expected folder|note)`,
   );
+}
+
+/**
+ * True when a notes_payload row is a legacy folder (note_type = 'folder').
+ * #375 retired the folder note type, but the DB still holds such rows until
+ * (and after) migration 0020 — 0020 converts them into life-tags and leaves
+ * the rows soft-deleted rather than dropping them. The fetch paths use this
+ * to exclude them from the materialised NoteNode set so they never surface as
+ * phantom notes in the tree, the tag groups or Trash. A NULL note_type is NOT
+ * a folder (legacy / unset rows default to a plain note).
+ */
+export function isLegacyNoteFolderRow(
+  payload: Pick<NotesPayloadRow, "note_type">,
+): boolean {
+  return payload.note_type === "folder";
 }
 
 // ---------------------------------------------------------------------------

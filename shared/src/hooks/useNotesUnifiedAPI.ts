@@ -82,22 +82,23 @@ function loadSortMode(): NoteSortMode {
 
 /**
  * Build a fresh NoteNode for `createNoteUnified`. This mirrors the node
- * the retired Notes Bridge createNote / createNoteFolder
- * constructed (content always "", order 0, unpinned, not deleted), so the
- * Unified write path is byte-for-byte identical to the legacy path. The
- * caller is responsible for the optimistic `setNotes` + any follow-up
- * `updateNoteUnified(content)`.
+ * the retired Notes Bridge createNote constructed (content always "",
+ * order 0, unpinned, not deleted), so the Unified write path is
+ * byte-for-byte identical to the legacy path. The caller is responsible for
+ * the optimistic `setNotes` + any follow-up `updateNoteUnified(content)`.
+ *
+ * #375: the `type` parameter is gone — "note" is the only NoteNodeType left
+ * (folders became life-tags).
  */
 function buildNoteNode(
   id: string,
-  type: NoteNode["type"],
   title: string,
   parentId: string | null,
   now: string,
 ): NoteNode {
   return {
     id,
-    type,
+    type: "note",
     title,
     content: "",
     parentId,
@@ -176,10 +177,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   // re-syncs while its note id is unchanged (useEditor dep `[noteId]`), so
   // the body MUST be present in the `notes` array before selection flips —
   // otherwise the editor would open empty and a subsequent edit would
-  // overwrite the real body. Folders carry no editable body, so they skip
-  // the round-trip and select immediately. On a hydrate failure the
-  // selection is left unchanged (safer than opening an empty editor over a
-  // note that has content).
+  // overwrite the real body. On a hydrate failure the selection is left
+  // unchanged (safer than opening an empty editor over a note that has
+  // content). #375: the body-free folder shortcut is gone with the folder
+  // type — every selectable node is a note with a body now.
   const selectNote = useCallback(
     (id: string | null): void => {
       const token = ++selectTokenRef.current;
@@ -188,9 +189,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         clearNotesSelection(); // #282: persist deselection across remounts
         return;
       }
-      const node = notesRef.current.find((n) => n.id === id);
-      if (node?.type === "folder" || contentLoadedIdsRef.current.has(id)) {
-        if (node?.type === "folder") contentLoadedIdsRef.current.add(id);
+      if (contentLoadedIdsRef.current.has(id)) {
         setSelectedNoteId(id);
         setNotesSelection(id); // #282
         return;
@@ -325,8 +324,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       return;
     }
     const token = ++selectTokenRef.current;
-    if (node.type === "folder" || contentLoadedIdsRef.current.has(storedId)) {
-      if (node.type === "folder") contentLoadedIdsRef.current.add(storedId);
+    if (contentLoadedIdsRef.current.has(storedId)) {
       setSelectedNoteId(storedId);
       return;
     }
@@ -383,16 +381,25 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     });
   }, []);
 
-  // Flatten tree for DnD (only visible nodes)
+  // Flatten tree for DnD (only visible nodes). #375: the recursion used to be
+  // gated on `type === "folder"`; with folders retired, any note that is
+  // expanded reveals its nested children (notes can still be nested under
+  // notes via moveNodeInto).
   const flattenedNotes = useMemo(() => {
     const result: NoteNode[] = [];
+    // Cycle guard: a corrupted parentId cycle arriving from the server would
+    // otherwise recurse forever now that every expanded node descends (same
+    // hang class as known-issues 016 — softDeleteNote carries the same guard).
+    const seen = new Set<string>();
     const walk = (parentId: string | null) => {
       const children = notes
         .filter((n) => n.parentId === parentId)
         .sort((a, b) => a.order - b.order);
       for (const child of children) {
+        if (seen.has(child.id)) continue;
+        seen.add(child.id);
         result.push(child);
-        if (child.type === "folder" && expandedIds.has(child.id)) {
+        if (expandedIds.has(child.id)) {
           walk(child.id);
         }
       }
@@ -487,13 +494,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       const resolvedParentId = opts?.parentId ?? null;
       const resolvedContent = opts?.initialContent ?? "";
       const newNote: NoteNode = {
-        ...buildNoteNode(
-          id,
-          "note",
-          title || "Untitled",
-          resolvedParentId,
-          now,
-        ),
+        ...buildNoteNode(id, title || "Untitled", resolvedParentId, now),
         content: resolvedContent,
       };
       setNotes((prev) => [newNote, ...prev]);
@@ -509,7 +510,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         setNotesSelection(id); // #282: restore the just-created note after a tab switch
       }
       ds.createNoteUnified(
-        buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
+        buildNoteNode(id, newNote.title, resolvedParentId, now),
       )
         .then(() => {
           if (resolvedContent) {
@@ -537,7 +538,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
             setSelectedNoteId(id);
             setNotesSelection(id); // #282
             ds.createNoteUnified(
-              buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
+              buildNoteNode(id, newNote.title, resolvedParentId, now),
             )
               .then(() => {
                 if (resolvedContent) {
@@ -548,44 +549,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
           },
         });
       }
-
-      return id;
-    },
-    [ds, push],
-  );
-
-  const createFolder = useCallback(
-    (title?: string, parentId?: string | null) => {
-      const id = generateId("notefolder");
-      const now = new Date().toISOString();
-      const resolvedParentId = parentId ?? null;
-      const newFolder: NoteNode = buildNoteNode(
-        id,
-        "folder",
-        title || "New Folder",
-        resolvedParentId,
-        now,
-      );
-      setNotes((prev) => [newFolder, ...prev]);
-      ds.createNoteUnified(
-        buildNoteNode(id, "folder", newFolder.title, resolvedParentId, now),
-      ).catch((e) => logServiceError("Notes", "createFolder", e));
-
-      push("note", {
-        label: "createFolder",
-        undo: () => {
-          setNotes((p) => p.filter((n) => n.id !== id));
-          ds.permanentDeleteNoteUnified(id).catch((e) =>
-            logServiceError("Notes", "undoCreateFolder", e),
-          );
-        },
-        redo: () => {
-          setNotes((p) => [newFolder, ...p]);
-          ds.createNoteUnified(
-            buildNoteNode(id, "folder", newFolder.title, resolvedParentId, now),
-          ).catch((e) => logServiceError("Notes", "redoCreateFolder", e));
-        },
-      });
 
       return id;
     },
@@ -662,10 +625,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const softDeleteNote = useCallback(
     (id: string, opts?: { skipUndo?: boolean }) => {
       // `ds.softDeleteNoteUnified` only flips is_deleted on the single row.
-      // For a folder that would orphan every descendant note/folder, so we
-      // collect the whole subtree here and soft-delete it as a unit
-      // (deepest-first → DataService can stay single-row). For a leaf
-      // note `subtree` is just `[target]`, so leaf behaviour is unchanged.
+      // For a note that has nested children that would orphan every
+      // descendant, so we collect the whole subtree here and soft-delete it
+      // as a unit (deepest-first → DataService can stay single-row). For a
+      // leaf note `subtree` is just `[target]`, so leaf behaviour is
+      // unchanged.
       const all = notesRef.current;
       const target = all.find((n) => n.id === id);
       if (!target) return;
@@ -818,9 +782,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   }, [ds]);
 
   // PR1 known constraint: restore is single-node only. softDeleteNote
-  // cascades a folder's whole subtree into Trash, but restoring that
-  // folder here brings back only the folder row — descendants stay in
-  // Trash until restored individually (mirrors the legacy single-id
+  // cascades a note's whole subtree into Trash, but restoring that note
+  // here brings back only its own row — descendants stay in Trash until
+  // restored individually (mirrors the legacy single-id
   // restoreNote). Subtree restore is tracked as Backlog ⑧ in
   // .claude/docs/vision/plans/2026-05-17-notes-web-parity.md.
   const restoreNote = useCallback(
@@ -920,7 +884,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       toggleExpanded,
       getChildren,
       createNote,
-      createFolder,
       updateNote,
       softDeleteNote,
       togglePin,
@@ -955,7 +918,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       toggleExpanded,
       getChildren,
       createNote,
-      createFolder,
       updateNote,
       softDeleteNote,
       togglePin,

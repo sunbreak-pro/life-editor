@@ -11,9 +11,8 @@ export type { SectionId } from "../sections";
 // rebound to tags (S2). NodeType is now single-valued; the DB columns
 // (task_type / folder_type / original_parent_id) survive for rollback and
 // legacy-row detection (see taskMapper + SupabaseDataService fetch filter),
-// but they no longer surface as TaskNode fields. NoteNodeType still keeps its
-// folder variant — the Notes folder feature is an intentional interim
-// asymmetry.
+// but they no longer surface as TaskNode fields. The Notes side followed in
+// #375 (NoteNodeType is single-valued too), so the interim asymmetry is gone.
 export type NodeType = "task";
 export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
 

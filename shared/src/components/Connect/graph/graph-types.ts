@@ -5,14 +5,15 @@
  * — see ./buildGraphModel. The rendering layer below is data-shape agnostic.
  */
 
-export type GraphNodeType = "project" | "note" | "daily" | "tag";
+/**
+ * #375: the "project" node type is retired along with the Notes folder it was
+ * built from. Grouping is a life-tag now, so the "tag" node (built from
+ * wiki_tags + wiki_tag_assignments) IS the successor of the old project node.
+ */
+export type GraphNodeType = "note" | "daily" | "tag";
 
 export type GraphLinkKind =
-  | "hierarchy"
-  | "wikilink"
-  | "tag"
-  | "temporal"
-  | "manual";
+  "hierarchy" | "wikilink" | "tag" | "temporal" | "manual";
 
 export interface GraphNode {
   /** note.id / daily.id / `tag:<tagId>` */

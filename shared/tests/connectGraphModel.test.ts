@@ -79,22 +79,39 @@ function connection(
 }
 
 describe("buildGraphModel", () => {
-  it("maps folder notes to project and notes to note nodes", () => {
+  it("maps every note to a note node + a hierarchy edge for nesting", () => {
     const out = buildGraphModel({
       notes: [
-        note({ id: "note-1", type: "folder" }),
-        note({ id: "note-2", type: "note", parentId: "note-1" }),
+        note({ id: "note-1" }),
+        note({ id: "note-2", parentId: "note-1" }),
       ],
       tags: [],
       assignments: [],
       connections: [],
     });
-    expect(out.nodes.find((n) => n.id === "note-1")?.type).toBe("project");
+    expect(out.nodes.find((n) => n.id === "note-1")?.type).toBe("note");
     expect(out.nodes.find((n) => n.id === "note-2")?.type).toBe("note");
-    // hierarchy edge folder -> child
+    // hierarchy edge parent -> child
     expect(
       out.links.some((l) => l.kind === "hierarchy" && l.target === "note-2"),
     ).toBe(true);
+  });
+
+  it("has no project nodes — grouping comes from tag assignments (#375)", () => {
+    const out = buildGraphModel({
+      notes: [note({ id: "note-1" }), note({ id: "note-2" })],
+      tags: [tag("t1")],
+      assignments: [assignment("note-1", "t1"), assignment("note-2", "t1")],
+      connections: [],
+    });
+    // The retired folder/"project" node has no successor node type: the tag
+    // node IS the grouping, wired to its members by "tag" edges.
+    expect(out.nodes.every((n) => n.type !== ("project" as string))).toBe(true);
+    expect(out.nodes.find((n) => n.id === tagNodeId("t1"))?.type).toBe("tag");
+    expect(
+      out.links.filter((l) => l.kind === "tag" && l.target === tagNodeId("t1"))
+        .length,
+    ).toBe(2);
   });
 
   it("builds item-link (manual) edges from unified connections", () => {

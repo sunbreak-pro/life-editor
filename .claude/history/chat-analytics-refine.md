@@ -1,5 +1,21 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-07-27 - Notes folder 退役の後段と Connect の project ノード撤去（#375 / PR #405）
+
+#### 概要
+
+life-tags S3（#225）が Tasks 側だけ folder を撤去し、Notes 側を「意図的な過渡期非対称」として温存していた分の後始末。実データは migration 0020 で変換済みだったので、残っていたのはコードだけ。あわせて Connect グラフの `project` ノード（folder 由来）を退役させ、まとまりの表現を life-tag に一本化した。DDL 変更なし。
+
+#### 変更点
+
+- **型と生成導線**: `NoteNodeType = "note"` の単一値化（union 名は維持 — 再拡張が 1 行で済み、payload 行の列名としても使う）。`useNotesUnifiedAPI.createFolder` を本体・context 公開・undo ラベル i18n（en/ja lockstep）ごと撤去。プロダクション呼び出し側はゼロで、参照していたのは undoRedo の配線テスト 1 本だけだった
+- **legacy 行の除外を新設**: `isLegacyNoteFolderRow` を `listNotesUnified` / `fetchDeletedNotesUnified`（Trash）/ `searchNotesUnified` / MCP `fetchLiveNotes` の 4 経路に配置。Tasks 側 `isLegacyFolderRow` と同型で、クエリ側 `.neq` を避ける（NULL note_type 行まで落ちて素のノートが消えるため）。folder を親に持つノートは孤児許容でそのまま出る。0020 は変換後の folder 行をソフトデリートで残すので、この filter が無いと **Trash に復元可能な「幽霊フォルダ」が並ぶ**
+- **Connect の project 退役**: 選択肢 3 つ（種別ごと退役 / タグを project として描く / 割当ありのタグだけ project）をユーザーに提示し、**種別ごと退役**で確定。`GraphNodeType` から `project` を落とし、凡例・型フィルタ・`graph-theme` のノード色・アイコン表 4 箇所・`connect.graph.typeProject`（en/ja）を撤去。tag ノードは元から `wiki_tags` + `wiki_tag_assignments` で描かれていたので、後継はすでに存在していた形。Analytics #334（`projectTime` → `tagTime`）と同じ考え方
+- **ついでに塞いだ穴**: `flattenedNotes` の再帰は「folder のときだけ潜る」だったため、folder を外すと条件が「展開中なら潜る」に広がる。対象が広がる以上 parentId のサイクルでハングし得るので visited ガードを追加（known-issues 016 と同クラス。`softDeleteNote` は元から同じガードを持っていた）
+- **テスト**: 新規 6 本（mapper の legacy 判定と丸め 2 / service の folder 行除外 3 = list・孤児許容・Trash / Connect の「project ノードが無く tag ノードが後継」1）。更新 4 本（buildTagGroups は folder 除外 → parentId 非依存の確認へ、permanentDelete の subtree 2 本は親を folder から素のネストノートへ、cycle テストの型）
+- **検証**: shared 145 files / 1168 tests 緑・shared / web / mcp-server の build いずれも exit 0。`npm run lint --prefix web` は `NotesView.tsx:269` で error 1 件出るが **main 時点で既存**（stash して実測確認）で本変更とは無関係
+- **docs 追随**: tier-1-core の Notes 節を「過渡期注記」→「退役済み」に、`briefs/connect.md` のノード 4 種を 3 種へ、life-tags 計画の Worklog と横断後継対応行に #375 完了を記録。`briefs/materials.md` の folder 前提記述は materials レーンの持ち物なので outbox で申し送り
+
 ### 2026-07-26 - mcp-server レーン: legacy テーブル参照の解消（#360）とファイル系ツール退役（#362）
 
 #### 概要
@@ -61,31 +77,3 @@ MCP Server の 34 ツールのうち 18 個が、0007 で DROP 済みの legacy 
 - **テスト**: タグ集計の属性ルール 7 件 + 循環 `parentId` で node 系集計が有限時間に返る pin（KI-016 クラスの再侵入検知）
 - **docs 追随**: life-tags 計画書 :111 の analytics 後継対応に完了マーク、design brief（analytics）のチャート名・データ系統・脆い行番号参照を更新
 - **検証**: shared build + 1088 tests + web build + prettier 全緑。role-qa 独立監査 PASS（Blocking 0）。commit a608eb39 + 70254d8f → PR #359（merge 待ち）
-
-### 2026-07-11 - v2 §1 タブ帯 lift（標準 SectionHeader へ・PR #235）
-
-#### 概要
-
-analytics の Layout Standard v2 §1 adoption を完了。Overview/Tasks/Work/Schedule のタブ帯を shell の標準 SectionHeader へ lift し、過渡的だった二重ヘッダー（標準「分析」タイトル + in-body タブ帯）を解消した。schedule #205 の作法（refine レーンが自セクションの MainScreen 最小配線を行い layout-standard へ告知）に倣い、前便までの「layout-standard 待ち」から自レーン完結へ切替。
-
-#### 変更点
-
-- **MainScreen.tsx（最小配線・layout-standard へ outbox 告知）**: `analyticsTab` state + `sectionHeader` switch の analytics 分岐（materials/schedule と同じ tabs-as-title・`divider={false}`）+ analytics body で AnalyticsScreen へ `tab`/`onTabChange` 配線
-- **AnalyticsView.tsx**: controlled 時（host が `activeTab` 供給）に in-body `HeaderTabs` を撤去し期間セレクタのみ data 列右端に残置。uncontrolled（テスト等）は従来どおり = 後方互換。`TAB_ORDER` を `ANALYTICS_TAB_ORDER` として export（SSOT・shell と二重定義しない）
-- **AnalyticsScreen.tsx（web）**: lift 済み tab state を AnalyticsView へ素通し（props 必須化）
-- **§4 narrow 二重 chrome は moot**: §5 幅統一で analytics は `PageContainer "fluid"`（素通し）→ 二重ラップ無し
-- **テスト**: `analyticsResponsive.test.tsx` に controlled モードの新規テスト 1 件追加（in-body タブ無し・期間セレクタ有り・activeTab 追従）
-- **検証**: shared build + 846/846 test・web build 全通過。commit 425e8c5a → PR #235（Refs #208）。残り = chat-main runtime + merge
-
-### 2026-07-11 - v2 adoption 第 1 便（内部タイトル撤去・期間セレクタ trailing 移設）
-
-#### 概要
-
-#196（v2 共通部品）merge によるゲート解除を受け、analytics adoption の in-scope 分を実施。shell 標準 SectionHeader と二重になっていた AnalyticsView 内部 h2 タイトルを撤去した。
-
-#### 変更点
-
-- **AnalyticsView.tsx**: desktop 分岐の h2 タイトル行を削除し、DateRangePresetSelector を HeaderTabs の `trailing` スロット（右端固定・a11y 設計済み API）へ移設して 1 行化。mobile は非接触（labels.title は MobileAnalyticsView が継続使用）
-- **shell 協調の残タスクを outbox で提案**: タブ帯の SectionHeader 統合（materials 方式の state lift）/ narrow 時の PageContainer×内部 chrome 二重（gutter 二重・実効幅 672px）の一本化 — いずれも MainScreen（layout-standard 専有）が絡むため提案のみ
-- **runtime 検証は chat-main へ依頼**（playwright 起動 = chat-main のみの同日決定に従う）
-- 検証: shared tsc build / web build / 803 tests 全通過・role-qa レビュー

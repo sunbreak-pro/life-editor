@@ -7,7 +7,6 @@ import {
   EyeOff,
   Activity,
   FileText,
-  Folder,
   Calendar,
   X,
   type LucideIcon,
@@ -24,7 +23,6 @@ import { Toggle } from "./primitives/Toggle";
 import type { ConnectGraphLabels } from "./labels";
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
-  project: Folder,
   note: FileText,
   daily: Calendar,
   tag: Hash,
@@ -78,7 +76,6 @@ export function GraphControlPanel({
   compact = false,
 }: GraphControlPanelProps) {
   const typeLabel: Record<GraphNodeType, string> = {
-    project: labels.typeProject,
     note: labels.typeNote,
     daily: labels.typeDaily,
     tag: labels.typeTag,

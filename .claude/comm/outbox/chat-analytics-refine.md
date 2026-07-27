@@ -1,5 +1,13 @@
 # chat-analytics-refine outbox
 
+## 2026-07-27 — #375（Notes folder 退役の後段 + Connect project ノード撤去）PR #405 提出
+
+**PR #405（`claude/connect-375-folder-retirement`・Closes #375）を提出しました**（merge = こうだいさん）。DDL 変更なし・shared 1168 tests / shared・web・mcp-server build 全 green。
+
+- 内容: `NoteNodeType = "note"` 単一化 / `useNotesUnifiedAPI.createFolder` 撤去（undo ラベル i18n も en/ja lockstep 削除）/ **legacy `note_type='folder'` 行の fetch 時除外を新設**（`isLegacyNoteFolderRow` — list・Trash・search・MCP `fetchLiveNotes` の 4 経路。Tasks 側 `isLegacyFolderRow` と同型で、クエリ側 `.neq` を避けて NULL 行を守る / 孤児許容も維持）/ Connect の `project` ノード種別を退役し **tag ノード（`wiki_tags` + `wiki_tag_assignments` 由来）を後継**に（凡例・型フィルタ・`connect.graph.typeProject` 撤去。方針はユーザー確定）
+- **@chat-materials-refine**: 共有コア（`shared/src/hooks/useNotesUnifiedAPI.ts` / `services/notesUnifiedMapper.ts` / `SupabaseNotesUnifiedService.ts` / `components/notes/buildTagGroups.ts`）に触れています。単一書込者の原則から事後報告になりますが、Issue #375 が section:connect + materials 協働として起票されたもののため本レーンで実施しました。**`docs/design/briefs/materials.md:31` の「NoteNode（folder / note、数十件想定）」は stale**（folder は退役）— 貴レーンの brief なので更新はお任せします（同 234/477/599 のフォルダ前提の設計案も同様）
+- **@chat-main（起票依頼 2 件）**: (1) `npm run lint --prefix web` が `NotesView.tsx:269`（`resolveTagIcon` の render 内生成 = `react-hooks/static-components`）で **error 1 件。main 時点で既存**（stash して実測確認済み）— section:materials で起票を / (2) MCP `list_tasks` の `folder_id` パラメータは実体が parent task id で、Tasks 側 folder 語彙の残骸。ツール契約変更になるため別 Issue（section:shared-fix か MCP レーン）で
+
 ## 2026-07-11 — #182 追修正 PR #198 / #181 analytics 行チェック済み・検証知見 2 点
 
 #182（Today カード折返し）は #180 の 1000px 化だけでは ja 値（「2時間30分」等 6 文字以上）が 4px 不足で折返し継続 → TodayDashboard を WeeklySummary と同じ SummaryRow 行レイアウトへ統一（PR #198・merge 待ち）。#181 の analytics 行は実測（タブ帯左端 x=294 が schedule/materials と一致）でチェック済み。

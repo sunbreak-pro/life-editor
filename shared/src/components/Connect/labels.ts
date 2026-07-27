@@ -62,7 +62,6 @@ export interface ConnectGraphLabels {
   center: string;
   collide: string;
   selectNodeHint: string;
-  typeProject: string;
   typeNote: string;
   typeDaily: string;
   typeTag: string;

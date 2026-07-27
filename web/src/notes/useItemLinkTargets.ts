@@ -13,8 +13,8 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  * BriefingScreen) and re-fetches on every Sync `syncVersion` bump so a note
  * created elsewhere (or via MCP) becomes linkable without a reload.
  *
- * Roles: notes → "note" (folders excluded — they aren't openable note
- * surfaces), dailies → "daily" with the canonical `daily-<YYYY-MM-DD>`
+ * Roles: notes → "note" (#375: every live note is openable now that the
+ * folder type is gone), dailies → "daily" with the canonical `daily-<YYYY-MM-DD>`
  * items_meta id (the id the item_links graph references), tasks → "task"
  * (#370 — the v1 pool left them out because nothing could open a specific
  * task from another tab; the Kanban now consumes a pending selection the
@@ -38,7 +38,7 @@ export function useItemLinkTargets(
       if (cancelled) return;
       const next: ItemLinkTarget[] = [];
       for (const n of notes) {
-        if (n.isDeleted || n.type !== "note") continue;
+        if (n.isDeleted) continue;
         next.push({
           id: n.id,
           label: n.title || "(untitled)",

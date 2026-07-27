@@ -64,9 +64,9 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
  * the side list now GROUPS active notes under a heading per life-tag (name-
  * sorted, color dot) plus a trailing "untagged" bucket. Grouping keys off tag
- * assignments only (buildTagGroups, shared) — NOT the tree position — so real
- * data still carrying folder nodes / folder-nested notes stays fully visible
- * while the data-layer folder retirement waits for S3.
+ * assignments only (buildTagGroups, shared) — NOT the tree position — so a
+ * nested note stays fully visible. #375 retired the folder note type itself;
+ * legacy folder rows are dropped at fetch time and never reach this view.
  *
  *   - Desktop (isWide): the MAIN content is the selected note's editor — the
  *     shared <NoteDetailPanel variant="main"> in a centered surface. Nothing
@@ -769,7 +769,7 @@ export function NotesView({
           <span className="truncate">{t("materials.notes.links")}</span>
         </button>
         {linksOpen &&
-          (selected && selected.type !== "folder" ? (
+          (selected ? (
             <div className="pb-2">
               <LinkPanel
                 itemId={selected.id}
@@ -1046,9 +1046,9 @@ export function NotesView({
   //
   // The selected note's detail (meta row + tags + TipTap body) as the tab's
   // MAIN content — a centered surface (links live in the sidebar Links panel
-  // — F-3 #260). Nothing selected → the select-or-create empty state. Folders can no longer be selected (they are never
-  // rendered as rows), but the folder guards on the slots are kept as defence
-  // in depth while real data still carries folder nodes.
+  // — F-3 #260). Nothing selected → the select-or-create empty state. #375:
+  // the folder guards on the tags / editor slots are gone with the folder type
+  // — every selectable row is a note with a body.
 
   // Main-content toolbar (#302): "+ Add Note" now lives at the main-content
   // top-right — same accent pill + position sense as the Tasks board toolbar —
@@ -1080,15 +1080,9 @@ export function NotesView({
           unpinLabel={t("notesView.pin")}
           deleteLabel={t("materials.notes.deleteNote")}
           moreActionsLabel={t("notesView.moreActions")}
-          tagsSlot={
-            selected.type === "folder" ? undefined : (
-              <TagPicker itemId={selected.id} showLabel size="sm" />
-            )
-          }
+          tagsSlot={<TagPicker itemId={selected.id} showLabel size="sm" />}
           contentLabel={t("materials.notes.content")}
-          contentEditor={
-            selected.type === "folder" ? undefined : detailContentEditor
-          }
+          contentEditor={detailContentEditor}
         />
       ) : (
         <div className="flex min-h-[50vh] items-center justify-center">

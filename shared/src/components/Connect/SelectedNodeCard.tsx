@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Folder,
   FileText,
   Calendar,
   Hash,
@@ -36,7 +35,6 @@ export function resolveLinkTarget(
 }
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
-  project: Folder,
   note: FileText,
   daily: Calendar,
   tag: Hash,
