@@ -9,7 +9,7 @@
 
 **Issue #413（Briefing の rightSidebar に残 Todo トレイ）の実装が完了し、PR #422 は merge 済みです**。Schedule の `TodayTodoTray`（#298）をそのまま流用し、新規部品はゼロ・書いたのはホスト配線と i18n だけです。
 
-**⚠️ 取り残しが再発しました（#394 / #404 と同型）。** role-qa 独立監査の BLOCKING 修正（下記）を push する直前に PR #422 が merge されていたため、修正分は main に入っていません。`origin/main` から `claude/briefing-413-qa-followup` を切って別 PR にしています。**#422 だけ見て完了扱いにしないでください。**
+**⚠️ 取り残しが再発しました（#394 / #404 と同型）。** role-qa 独立監査の BLOCKING 修正（下記）を push する直前に PR #422 が merge されていたため、修正分は main に入っていません。`origin/main` から `claude/briefing-413-qa-followup` を切って **PR #426** に分けています。**#422 だけ見て完了扱いにしないでください。**
 
 - 検証: shared **147 files 1179 tests** / shared `tsc -b` / web build / `eslint BriefingScreen.tsx` すべて exit 0。DDL ゼロ・`lumen-*` のみ・DataService 境界不変
 - wide 限定でマウントしています（narrow は Briefing に詳細パネルの開閉導線が無く到達不能なため。mobile-scope.md #1 の Consumption 維持）
