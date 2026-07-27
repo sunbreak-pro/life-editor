@@ -8,9 +8,14 @@ import { isDescendantOf } from "../utils/getDescendantTasks";
  * frontend/src/hooks/useNoteTreeMovement.ts — no host coupling (operates
  * on the in-memory `notes` array + a `persistWithHistory` callback the
  * Note hook supplies). The @dnd-kit glue that maps pointer gestures onto
- * these three operations lives in the host UI (web), not here, so the
- * shared package stays UI/dnd-free (Option A: shared is UI-free like
- * S1/S2).
+ * these operations lives in the host UI (web), not here, so the shared
+ * package stays UI/dnd-free (Option A: shared is UI-free like S1/S2).
+ *
+ * #418: kept symmetric with useTaskTreeMovement — note nesting is retired
+ * along with task nesting, so `moveNodeInto` and `moveNode`'s re-parent
+ * branch were removed. Notes DnD has only assigned tags since S1, so nothing
+ * called either of them; their folder-era guard (`type === "note"`) had been
+ * always-true since NoteNodeType went single-valued.
  */
 
 // Re-exported for the cycle-safety regression test (KI-016 anchor). The
@@ -22,79 +27,6 @@ export function useNoteTreeMovement(
   notes: NoteNode[],
   persistWithHistory: (currentNotes: NoteNode[], updated: NoteNode[]) => void,
 ) {
-  const moveNodeInto = useCallback(
-    (
-      activeId: string,
-      targetFolderId: string,
-      insertIndex?: number,
-    ): MoveResult => {
-      const active = notes.find((n) => n.id === activeId);
-      const target = notes.find((n) => n.id === targetFolderId);
-      if (!active || !target)
-        return { success: false, reason: "node_not_found" };
-
-      // DEAD GUARD (#375 QA): this used to mean "the target is not a folder",
-      // but NoteNodeType is single-valued now, so the condition is always true
-      // and moveNodeInto always rejects. Harmless today — the hook exports it
-      // and nothing calls it (Notes DnD only assigns tags since S1) — but the
-      // API is effectively retired until someone decides whether note-under-
-      // note nesting should come back. Same shape survives in
-      // useTaskTreeMovement (:21), where useTaskTreeDnd DOES call it.
-      if (target.type === "note")
-        return { success: false, reason: "target_is_task" };
-
-      if (isDescendantOf(activeId, targetFolderId, notes))
-        return { success: false, reason: "circular_reference" };
-
-      if (active.parentId === targetFolderId)
-        return { success: false, reason: "already_in_target" };
-
-      const targetChildren = notes
-        .filter(
-          (n) =>
-            !n.isDeleted && n.parentId === targetFolderId && n.id !== activeId,
-        )
-        .sort((a, b) => a.order - b.order);
-
-      const idx =
-        insertIndex !== undefined
-          ? Math.min(insertIndex, targetChildren.length)
-          : targetChildren.length;
-      targetChildren.splice(idx, 0, active);
-      const childOrderMap = new Map(targetChildren.map((n, i) => [n.id, i]));
-
-      const oldSiblings = notes
-        .filter(
-          (n) =>
-            !n.isDeleted && n.parentId === active.parentId && n.id !== activeId,
-        )
-        .sort((a, b) => a.order - b.order);
-      const orderMap = new Map(oldSiblings.map((n, i) => [n.id, i]));
-
-      persistWithHistory(
-        notes,
-        notes.map((n) => {
-          if (n.id === activeId) {
-            return {
-              ...n,
-              parentId: targetFolderId,
-              order: childOrderMap.get(n.id) ?? 0,
-            };
-          }
-          if (childOrderMap.has(n.id)) {
-            return { ...n, order: childOrderMap.get(n.id)! };
-          }
-          if (orderMap.has(n.id)) {
-            return { ...n, order: orderMap.get(n.id)! };
-          }
-          return n;
-        }),
-      );
-      return { success: true };
-    },
-    [notes, persistWithHistory],
-  );
-
   const moveToRoot = useCallback(
     (activeId: string): MoveResult => {
       const active = notes.find((n) => n.id === activeId);
@@ -142,92 +74,41 @@ export function useNoteTreeMovement(
       const over = notes.find((n) => n.id === overId);
       if (!active || !over) return { success: false, reason: "node_not_found" };
 
+      // Defensive (KI-016): siblings can never be descendants of each other,
+      // so this only fires on corrupt parentId data. The visited-guarded
+      // helper keeps a cyclic tree from hanging the main thread.
       if (isDescendantOf(activeId, overId, notes))
         return { success: false, reason: "circular_reference" };
 
-      if (active.parentId === over.parentId) {
-        const siblings = notes
-          .filter((n) => !n.isDeleted && n.parentId === active.parentId)
-          .sort((a, b) => a.order - b.order);
-        const oldIndex = siblings.findIndex((n) => n.id === activeId);
-        const overIdx = siblings.findIndex((n) => n.id === overId);
-        if (oldIndex === -1 || overIdx === -1)
-          return { success: false, reason: "node_not_found" };
+      // #418: reorder only, never re-parent. The sibling list is always the
+      // active note's own; a drop target outside it falls out of the
+      // findIndex check below as `node_not_found` instead of moving the note
+      // under a new parent.
+      const siblings = notes
+        .filter((n) => !n.isDeleted && n.parentId === active.parentId)
+        .sort((a, b) => a.order - b.order);
+      const oldIndex = siblings.findIndex((n) => n.id === activeId);
+      const overIdx = siblings.findIndex((n) => n.id === overId);
+      if (oldIndex === -1 || overIdx === -1)
+        return { success: false, reason: "node_not_found" };
 
-        const reordered = [...siblings];
-        const [moved] = reordered.splice(oldIndex, 1);
-        const newOverIdx = reordered.findIndex((n) => n.id === overId);
-        const insertAt = position === "below" ? newOverIdx + 1 : newOverIdx;
-        reordered.splice(insertAt, 0, moved);
+      const reordered = [...siblings];
+      const [moved] = reordered.splice(oldIndex, 1);
+      const newOverIdx = reordered.findIndex((n) => n.id === overId);
+      const insertAt = position === "below" ? newOverIdx + 1 : newOverIdx;
+      reordered.splice(insertAt, 0, moved);
 
-        const orderMap = new Map(reordered.map((n, i) => [n.id, i]));
-        persistWithHistory(
-          notes,
-          notes.map((n) =>
-            orderMap.has(n.id) ? { ...n, order: orderMap.get(n.id)! } : n,
-          ),
-        );
-        return { success: true };
-      } else {
-        const newParentId = over.parentId;
-
-        if (newParentId !== null) {
-          // Same dead guard as moveNodeInto above (#375 QA): a non-null new
-          // parent is always rejected now that every note has type "note".
-          const parent = notes.find((n) => n.id === newParentId);
-          if (!parent || parent.type === "note")
-            return { success: false, reason: "parent_is_task" };
-        }
-
-        const newSiblings = notes
-          .filter(
-            (n) =>
-              !n.isDeleted && n.parentId === newParentId && n.id !== activeId,
-          )
-          .sort((a, b) => a.order - b.order);
-        const overIndex = newSiblings.findIndex((n) => n.id === overId);
-        const insertIndex =
-          overIndex === -1
-            ? newSiblings.length
-            : position === "below"
-              ? overIndex + 1
-              : overIndex;
-
-        newSiblings.splice(insertIndex, 0, active);
-
-        const orderMap = new Map(newSiblings.map((n, i) => [n.id, i]));
-
-        const oldSiblings = notes
-          .filter(
-            (n) =>
-              !n.isDeleted &&
-              n.parentId === active.parentId &&
-              n.id !== activeId,
-          )
-          .sort((a, b) => a.order - b.order);
-        oldSiblings.forEach((n, i) => orderMap.set(n.id, i));
-
-        persistWithHistory(
-          notes,
-          notes.map((n) => {
-            if (n.id === activeId) {
-              return {
-                ...n,
-                parentId: newParentId,
-                order: orderMap.get(n.id) ?? 0,
-              };
-            }
-            if (orderMap.has(n.id)) {
-              return { ...n, order: orderMap.get(n.id)! };
-            }
-            return n;
-          }),
-        );
-        return { success: true };
-      }
+      const orderMap = new Map(reordered.map((n, i) => [n.id, i]));
+      persistWithHistory(
+        notes,
+        notes.map((n) =>
+          orderMap.has(n.id) ? { ...n, order: orderMap.get(n.id)! } : n,
+        ),
+      );
+      return { success: true };
     },
     [notes, persistWithHistory],
   );
 
-  return { moveNode, moveNodeInto, moveToRoot };
+  return { moveNode, moveToRoot };
 }

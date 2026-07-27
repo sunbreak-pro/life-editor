@@ -281,7 +281,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     },
     [nodes, rawPermanentDelete, persistSelection],
   );
-  const { moveNode, moveNodeInto, moveToRoot } = useTaskTreeMovement(
+  const { moveNode, moveToRoot } = useTaskTreeMovement(
     nodes,
     guardedPersistWithHistory,
   );
@@ -319,7 +319,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       restoreNode,
       permanentDelete,
       moveNode,
-      moveNodeInto,
       moveToRoot,
     }),
     [
@@ -347,7 +346,6 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       restoreNode,
       permanentDelete,
       moveNode,
-      moveNodeInto,
       moveToRoot,
     ],
   );

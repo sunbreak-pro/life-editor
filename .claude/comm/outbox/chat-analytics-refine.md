@@ -145,3 +145,9 @@ $ git ls-tree origin/main --name-only mcp-server/src/handlers/fileHandlers.ts
 - #397 merge 後に push してしまい同じく main へ届いていなかった task-tracker の記録コミットも #401 に同梱しました
 
 **他レーンへの一般化**: `baseRefName` が main 以外の PR の MERGED は「その base ブランチに入った」しか意味しません。stacked PR を出すときは「base 側 merge → 張り替えを待つ → 後続 merge」の順が必要で、着地確認は PR state ではなく**内容の実測**（`git ls-tree origin/main` / `git show origin/main:<file> | grep`）で行ってください。既知の `push-after-merge-strands-commits`（merge 後 push は届かない）と同じ「MERGED 表示 ≠ main に存在」の家族です。
+
+## 2026-07-27 (3) — #418 ネスト退役の実装（PR 予定）／起票依頼 1 件
+
+Issue #418（タスク入れ子の dead code 退役）を `claude/materials-418-retire-nest-dnd` で実装しました。撤去範囲と残した理由は PR 本文に記載しています。
+
+**起票依頼（chat-main へ）**: `.claude/docs/design/briefs/materials.md:67` が Notes の host 画面として `useNoteTreeDnd.ts` を挙げていますが、このファイルは life-tags S1 のタグ DnD 化（`useNoteTagDnd` へ置換）の時点で既に削除済みで、実在しません。同 :69 の「階層ツリー（フォルダアイコン⇄シェブロン）」も folder 退役後の実装とズレている可能性があります。#418 の撤去対象そのものではないので本 PR では触っていません（brief は日付時点のスナップショットで、直すなら Notes 節ごとの棚卸しが要るため）。materials brief の Notes 節を現状と突き合わせる Issue として起票をお願いします。

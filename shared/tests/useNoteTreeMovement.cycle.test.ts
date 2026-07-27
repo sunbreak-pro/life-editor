@@ -6,8 +6,8 @@ import type { NoteNode } from "../src/types/note";
  * H1 regression net (KI-016 sibling). The local `isDescendantOf` in
  * useNoteTreeMovement previously had NO visited guard; a parent_id cycle
  * (A<->B) or self-reference (A->A) made the BFS push the same node forever
- * -> main-thread freeze / OOM on every drag through moveNode /
- * moveNodeInto. These inputs WOULD hang the pre-fix code; vitest's default
+ * -> main-thread freeze / OOM on every drag through moveNode. These inputs
+ * WOULD hang the pre-fix code; vitest's default
  * per-test timeout (5s) turns any reintroduced infinite loop into a hard
  * test failure rather than a hung suite.
  */

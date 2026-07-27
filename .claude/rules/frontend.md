@@ -67,4 +67,4 @@ paths:
 
 - **IME**: keydown 処理に `e.nativeEvent.isComposing` チェック必須（日本語入力破壊防止）
 - **リッチテキスト**: TipTap
-- **DnD**: `@dnd-kit`。`moveNode`（並び替え）と `moveNodeInto`（階層移動）は別操作
+- **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断）。`moveNode` は同一階層の並び替え専用で、親を変える API（旧 `moveNodeInto`）は Tasks / Notes とも存在しない
