@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-27 - #407 繰り返し表示の不整合 — malformed interval の毎日発火とゾンビ routine を根絶
+
+#### 概要
+
+「繰り返しを『なし』にしたのにアイコンが出続ける / Calendar の重複・欠落が不安定」（#407・Fable 5 指定）の Root Cause を DB 実測（Supabase MCP・SELECT のみ・DML/DDL ゼロ）とコード読解で特定し、fail-closed 化 + 二重変換ガードで修正。PR #423（merge は 🛑 ユーザーゲート）。再現手順と Root Cause 全文は Issue #407 のコメント（`#issuecomment-5089420957`）。
+
+#### 変更点
+
+- **Root Cause（実測）**: live routine「新規予定」が **2 本**（2026-07-16 に 6 秒差で作成）。うち `routine-3c4a1f09` は `interval` 型なのに `frequency_interval` / `frequency_start_date` が NULL で、`shouldRoutineRunOnDate` が malformed interval を `true`（= **毎日発火**）に degrade するため、アプリを開いた日（7/16・7/19・7/26・7/27）ごとに繰り返しアイコン付きの「新規予定」を生成していた。「なし」の detach が切れるのは表示中アイテムが指す 1 本だけなので、もう 1 本が翌日また産む — 症状 1・2 の両方がこれで説明される（DB の行自体は破損なし: 削除済み routine を指す live 行 0 件・partial UNIQUE 違反なし。描画判定 `CalendarTab.tsx` の `isRoutine` も無罪）
+- **二重変換レース**: `handleChangeRepeat` の手動→変換分岐は `selected.routineId == null` で判定するが、変換 + 楽観 patch の反映が非同期（range refetch による clobber もあり得る）ため、2 回目の頻度クリックが同じ種イベントを再変換できる。attach は無条件 UPDATE の後勝ちなので、負けた routine が誰からも参照されないまま live に残る（ゾンビ生成経路）
+- **修正 1 `shared/src/utils/routineFrequency.ts`**: interval の malformed 設定（NULL/0/負値 interval・開始日なし）は **fail closed（発火しない）**。`default` 分岐（Issue 017 の暴走生成ガード）と同じ思想。既存ゾンビも DML なしで発火が止まる
+- **修正 2 `shared/src/services/SupabaseDataService.ts`**: `convertEventToRoutine` の attach を「種がまだ未 attach のときだけ」（`.is("routine_item_id", null)` + 影響行読み戻し）の条件付き UPDATE に変更。負けた変換は routine をロールバックして reject（`DataService.ts` の契約コメントも追随）
+- **修正 3 `web/src/schedule/useScheduleMutations.ts`**: `convertingSeedsRef`（in-flight ガード）で変換中の種への追加頻度クリックを無視
+- **回帰テスト**: `routineScheduleSync.test.ts` に fail-closed 5 分岐（NULL/0/-2 interval・NULL/空文字開始日 — 旧「degrade to true」テストを反転）、`convertEventToRoutine.test.ts` に条件付き attach の `.is()` フィルタ検証 + already-attached 時のロールバック/reject
+- **検証**: shared vitest 145 files / 1173 pass、shared build / web build / web lint 全て exit 0
+- **残**: merge 後にユーザーが Routines タブから「新規予定」routine 2 本（`3c4a1f09` / `b15eb258`）を削除（生成済み si- 行は cascade で掃除）。実ブラウザ検証は chat-main（§7.4）
+
 ### 2026-07-27 - #367 Schedule サイドバーのソート・フィルタ = 見送りで決着（実装ゼロ）
 
 #### 概要
@@ -210,17 +227,3 @@ folder ノード廃止（life-tags 統一・epic #225）に伴う Schedule 側�
 - **#224 セルクリック**: 月セル・アイテムクリックの `setView("day")` 撤去 → 作成(デフォルト時刻)+ rightSidebar 詳細パネル表示に変更。Toolbar の明示 view 切替と mobile 分岐は温存
 - **QA Important 修正**: 複製時 memo の後追い UPDATE が create INSERT と競合し得る問題 → memo を `createScheduleItem`(DataService 層まで optional param)に畳み込み単一 INSERT 化。複製の undo も 1 回に
 - **検証**: shared vitest 845/845(+26 新規)・shared/web build pass・eslint CalendarTab 0 warn。runtime 実測は merge 後 chat-main(localhost 集約ポリシー)
-
-### 2026-07-11 - Layout Standard v2 adoption — schedule (#204)
-
-#### 概要
-
-v2 共通部品 merge 後の adoption として、Schedule の Calendar / Routines タブ帯を標準 SectionHeader（AppShell header slot）へ移行し、二重ヘッダー（標準タイトル行 + in-body タブ帯）と重複 rightSidebar トグルを解消した。担当 Issue 不在のため #204 を自分で起票してから着手（section:schedule 運用）。
-
-#### 変更点
-
-- **ScheduleScreen.tsx**: タブ state を props（`tab` / `onTabChange`）化し、in-body HeaderTabs + 自前 RightSidebarToggle を撤去。narrow は従来どおり常に Calendar（AppShell header slot は wide 専用 = v2 non-goal）
-- **MainScreen.tsx（最小 diff・layout-standard へ outbox 告知）**: `scheduleTab` state 追加 + `sectionHeader` に schedule 分岐（Materials と同形の tabs パターン・divider={false}）+ ScheduleScreen への props 注入
-- **i18n**: 撤去で未使用化した `scheduleScreen.openPanel` / `closePanel` を en/ja から削除（標準ヘッダーは `detailPanel.open/close` を使用）
-- **orders 台帳**: v2 adoption 節を #204 実装済みに更新（全幅表示・パネル開閉位置の runtime 確認は chat-main 実測待ち）
-- **検証**: shared tsc -b + vitest 803/803 pass・web tsc -b + vite build pass
