@@ -784,6 +784,7 @@
       "moodTitle": "今日の気分",
       "moodStar": "気分 {{value}}/5",
       "intentionTitle": "今朝の宣言",
+      "intentionPlaceholder": "今日の宣言。一行から書けます…",
       "reflectionTitle": "一日の締めくくり",
       "placeholder": "今日はどんな一日でしたか…",
       "todosTitle": "残りの Todo",

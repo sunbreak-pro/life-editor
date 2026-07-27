@@ -1,5 +1,22 @@
 # HISTORY (chat-briefing-section)
 
+### 2026-07-27 - Issue #391: モバイルの夕刊タブでも宣言(intention)を編集可に
+
+#### 概要
+
+狭幅（<768px）で夕刊タブに着地すると「今日の宣言」を書けない穴を塞いだ（PR #404・merge 待ち）。Issue 本文の file:line は 2026-07-23 時点で、その後 PR #357 が入っているため再実測したところ、実態は本文より一段悪く「read-only の入力欄」ではなく表示専用テキストで、宣言がまだ無い日はブロックごと描画されていなかった（= 入力口が存在しない）。narrow だけを編集可に切り替え、wide の読み返し専用は意図的に据え置いた。
+
+#### 変更点
+
+- **IntentionField.tsx (shared・新規)**: 朝刊 `BriefingView` に埋め込まれていた宣言入力欄（自動伸長 textarea・朱アクセント）を切り出して両紙面で共有。見た目・挙動は完全に同一のまま移設
+- **EveningView (shared)**: 宣言ブロックを二枝化。`intentionEditable=true`（narrow）は `IntentionField` + 保存状態キャプション、`false`（wide）は従来どおり琥珀の読み返し表示で宣言が無ければ非描画。props は `intention: string \| null` → `intentionText: string` に変更し、下書き込みの値を受けるようにした（朝刊で打った直後に夕刊へ切替えても同じ文面が見える）
+- **キャプションの整合（DoD）**: 保存状態キャプションは編集可能な枝でしか描画しない。出す/出さないの判断を View 側に置いたので、ホスト実装が変わっても「打てないテキストの横に保存済み」が出ない
+- **BriefingScreen (web)**: `useMediaQuery("(min-width: 768px)")` を自前で読み（MainScreen / AppShell と同じ単一ブレークポイント）夕刊の編集可否を決定。保存経路は無変更 — 下書き state + 800ms デバウンス + `mergeIntentionSection` の直列チェーンを朝刊と共有するので同時書き込み経路は増えていない
+- **wide を変えなかった理由**: 夕刊の宣言は「今朝立てた宣言を読み返す」設計意図（Step 4 = 講評の往復は reflection と翌朝）で、wide は SectionHeader のタブ帯から朝刊がワンクリック = 導線が塞がっていない。塞がっているのは narrow だけなので直すのも narrow だけにした。分岐は mobile-scope #3 で確定済みの意図的なもの
+- **i18n**: `briefing.evening.intentionPlaceholder` を en/ja 両方に追加（朝刊の「今日は何をやり遂げますか」は夕方に読むと時制がずれるため）。見出しはモードで既存キーを差し替え（編集可 = `briefing.intentionTitle`「今日の宣言」/ 読み返し = `briefing.evening.intentionTitle`「今朝の宣言」）
+- **docs**: `.claude/docs/requirements/mobile-scope.md` の #2 行（PR #357 前のまま stale だった DoD 指定分）と #3 行を実態に更新し、§5 Phase 1 の該当 2 行も完了に落とした（片方だけ直すと新しい矛盾になるため）
+- **テスト**: `shared/tests/briefingView.test.tsx` に 4 件追加（17 → 21 件。wide の読み返し + キャプション非表示 / wide の空日は非表示 / narrow の編集・blur がホストに届く / narrow は空でも入力欄が出る）。shared vitest 145 files 1166 tests / shared `tsc -b` / web build すべて exit 0。実ブラウザ狭幅確認は merge 後に chat-main（§7.4）
+
 ### 2026-07-26 - materials レーン: Issue #365 / #366 / #371 / #370
 
 #### 概要
@@ -61,18 +78,3 @@ MCP server の schedule handler 全 7 関数を旧 SQLite 単一表から Supaba
 - **index.ts / tools.ts**: callTool async 化（`return await` で rejection を捕捉）・SQLite DB path をオプション化（Supabase ツールのみなら不要）
 - **テスト**: mcp-server に vitest 導入・14 件新設（shared extractBriefing との往復検証 = DoD の紙面表示チェックを含む）。shared vitest 917 / shared tsc -b / web build / mcp-server tsc 全 green
 - **docs**: briefing-loop 計画書 Step 2 チェック + Worklog 追記・README に MCP の Supabase env var 説明を追加
-
-### 2026-07-16 - Issue #259: F-2 朝刊の行操作
-
-#### 概要
-
-朝刊（Briefing）の全行タイプ（約束・タスク・持ち越し）に、名称横の移動ボタンと名称タップ = 完了トグルを実装。role-pm / role-qa / security-reviewer の監査を通過（BLOCKING ゼロ）。
-
-#### 変更点
-
-- **BriefingView (shared)**: 名称 span を button 化（約束は既存丸トグルと併存・タスクと持ち越しは checkbox + 名称の単一 button）。全行に ArrowUpRight 移動ボタン追加（約束 → Schedule / タスク・持ち越し → Materials > Tasks）。BriefingCarryoverEntry に completed 追加
-- **BriefingScreen (web)**: handleToggleTask 新設（ds.updateTask の二値トグル・解除時 completedAt: undefined をキー明示で DB クリア）。持ち越しフィルタを「完了当日は取り消し線で残す」に変更。onNavigate prop 受け取り
-- **MainScreen (web)**: handleBriefingNavigate 追加（schedule ジャンプ時に calendar タブ強制・既存 handleNavigate は不変）
-- **i18n**: briefing.jumpToSchedule / jumpToTasks を en/ja 両カタログ末尾に追加（F-4 #261 の表示ラベル値には非接触）
-- **テスト**: shared/tests/briefingView.test.tsx 新規 9 件（クリック分離・入れ子ボタン非存在ガード）。shared vitest 911 件 / tsc -b / web build / eslint 全 green
-- **申し送り**: host 側 D1/D2 ロジックの直接テストは follow-up 候補（role-qa MINOR）

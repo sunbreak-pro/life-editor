@@ -12,6 +12,7 @@ import {
   normalizeIntentionText,
   todayDateKey,
   formatDateKey,
+  useMediaQuery,
   useSyncContext,
   useTranslation,
   type BriefingCarryoverEntry,
@@ -95,6 +96,14 @@ export function BriefingScreen({
 }: BriefingScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { syncVersion } = useSyncContext();
+  // 宣言 editability on the EVENING paper (#391). Wide is unchanged — there the
+  // declaration is a morning artifact read back, and the SectionHeader tab band
+  // puts the editable 朝刊 one click away. Below 768px 夕刊 is a Quick capture
+  // surface (mobile-scope #3), so the same block becomes the live input; the
+  // morning paper stays editable at every width. Own matchMedia read, like
+  // MainScreen's and AppShell's (same 768px query — §W5 app shell).
+  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const intentionEditableOnEvening = !isWide;
 
   const [loading, setLoading] = useState(true);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
@@ -612,7 +621,15 @@ export function BriefingScreen({
       moodStars: [1, 2, 3, 4, 5].map((n) =>
         t("briefing.evening.moodStar", { value: n }),
       ),
-      intentionTitle: t("briefing.evening.intentionTitle"),
+      // Editable → it is today's declaration you are writing, not this
+      // morning's read back, so the heading follows the mode (#391).
+      intentionTitle: intentionEditableOnEvening
+        ? t("briefing.intentionTitle")
+        : t("briefing.evening.intentionTitle"),
+      intentionCaption: intentionSaved
+        ? t("materials.daily.saved")
+        : t("materials.daily.unsaved"),
+      intentionPlaceholder: t("briefing.evening.intentionPlaceholder"),
       reflectionTitle: t("briefing.evening.reflectionTitle"),
       savedCaption: eveningSaved
         ? t("materials.daily.saved")
@@ -624,7 +641,7 @@ export function BriefingScreen({
       tomorrowTag: t("briefing.evening.tomorrowTag"),
       allDay: t("briefing.allDay"),
     }),
-    [t, eveningSaved],
+    [t, eveningSaved, intentionSaved, intentionEditableOnEvening],
   );
 
   if (tab === "evening") {
@@ -644,7 +661,10 @@ export function BriefingScreen({
             className="min-h-[180px] px-4 py-3"
           />
         }
-        intention={intentionStored.text}
+        intentionText={intentionText}
+        intentionEditable={intentionEditableOnEvening}
+        onIntentionChange={handleIntentionChange}
+        onIntentionBlur={flushIntention}
         todos={remainingTodos}
         schedule={upcoming}
         labels={eveningLabels}

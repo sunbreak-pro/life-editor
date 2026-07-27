@@ -2,19 +2,19 @@
 
 ## 進行中
 
-### ⏸️ Issue #370 — `[[link]]` autocomplete の候補プールに tasks を追加（着手日: 2026-07-26）
+### ⏸️ Issue #391 — モバイルの夕刊タブでも宣言(intention)を編集可に（着手日: 2026-07-27）
 
-**対象**: `web/src/notes/useItemLinkTargets.ts` / `itemLinkSuggestion.ts` / `RichTextEditor.tsx`・`web/src/tasks/KanbanView.tsx`・`web/src/MainScreen.tsx`・`shared/src/i18n/locales/`
+**対象**: `shared/src/components/briefing/IntentionField.tsx`（新設）/ `BriefingView.tsx` / `EveningView.tsx`・`web/src/briefing/BriefingScreen.tsx`・`shared/src/i18n/locales/`・`.claude/docs/requirements/mobile-scope.md`
 
-- 前回: 実装完了（KanbanView に `pendingSelectTaskId` 受け口 → 候補プールに `fetchTaskTree()` → role→tab 振り分けをマップ化 → role ラベル en/ja）
-- 現在: PR #394 提出済み・**merge 待ち**（merge は🛑人手）。ゲートは shared 1110 tests / shared build / web build すべて exit 0
-- 次: merge 後に chat-main で実ブラウザ検証（`[[` 候補にタスク → 挿入 → クリックで Materials/Tasks が開く）。Connect グラフの task ノード対応は別課題（`buildGraphModel` が端点未登録の辺を落とすため note→task は非表示）
+- 前回: 再実測で Issue 本文より一段悪い実態を確認（夕刊の宣言は read-only 入力欄ではなく表示専用テキストで、宣言が無い日はブロックごと非描画）
+- 現在: PR #404 提出済み・**merge 待ち**（merge は🛑人手）。ゲートは shared 1166 tests / shared build / web build すべて exit 0
+- 次: merge 後に chat-main で狭幅の実ブラウザ検証（夕刊タブで宣言を入力 → 朝刊へ切替えて同じ文面 → 再読込で保存確認）。wide の夕刊 read-only は意図的に据え置き（理由は PR 本文と `EveningViewProps.intentionEditable` の doc comment）
 
 ## 直近の完了
 
+- Issue #370 — `[[link]]` autocomplete の候補プールに tasks を追加 ✅（2026-07-26・PR #394 merge 済み。role-qa 指摘反映分 `ecdede3d` は merge 後 push で取り残され、chat-main が PR #399 で cherry-pick して着地。`shared/src/utils/balanceByRole.ts` の存在で main 到達を実測確認・Issue closed）
 - Issue #371 — 未保存の新規 Daily で挿入した `[[link]]` が Connect グラフに反映されない ✅（2026-07-26・PR #392 merge 済み・Issue closed・実ブラウザ検証は chat-main）
 - Issue #366 — 編集中の Note が sidebar タググループ内で最上位へ跳ねる（updatedAt resort）✅（2026-07-26・PR #390 merge 済み・Issue closed・実ブラウザ検証は chat-main）
-- Issue #365 — Tag 編集モーダルの使用数がゴミ箱アイテムを過大計上する ✅（2026-07-26・PR #388 merge 済み・Issue closed・実ブラウザ検証は chat-main）
 
 ## 予定
 

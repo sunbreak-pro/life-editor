@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { ArrowUpRight, Check, Circle, Sunrise } from "lucide-react";
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
@@ -17,6 +16,7 @@ import {
   type WorkBreakBalanceLabels,
 } from "../Analytics/WorkBreakBalance";
 import type { ExtractedBriefing } from "./extractBriefing";
+import { IntentionField } from "./IntentionField";
 
 /*
  * BriefingView — the morning-paper home surface (Briefing plan Step 1).
@@ -155,42 +155,6 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
         </span>
       )}
     </div>
-  );
-}
-
-/**
- * 宣言 input — an auto-growing bare textarea so the declaration reads as
- * ink on the paper, not a form control. Sits on the 朱 side of the accent
- * duo (the user's action voice; Claude's 講評 block is 琥珀).
- */
-function IntentionField({
-  value,
-  placeholder,
-  onChange,
-  onBlur,
-}: {
-  value: string;
-  placeholder: string;
-  onChange: (text: string) => void;
-  onBlur: () => void;
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el === null) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
-  return (
-    <textarea
-      ref={ref}
-      value={value}
-      rows={1}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onBlur}
-      className="w-full resize-none overflow-hidden rounded-lumen-md border-l-2 border-lumen-briefing-shu bg-lumen-briefing-shu-subtle px-4 py-3 font-serif text-base leading-relaxed text-lumen-text outline-none placeholder:font-sans placeholder:text-sm placeholder:text-lumen-text-secondary"
-    />
   );
 }
 
