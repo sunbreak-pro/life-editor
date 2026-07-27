@@ -1,5 +1,24 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-27 - #367 Schedule サイドバーのソート・フィルタ = 見送りで決着（実装ゼロ）
+
+#### 概要
+
+#283（Notes / Daily の rightSidebar ソート・フィルタ）の follow-up として起票された #367 を、**導入しない**判断で close した。共有部品 `SidebarListControls` は既にあるが、「部品があるから付ける」ではなく実際に使う場面があるかで判断せよ、というユーザー指示に沿ってコード実測 + 本番 DB 実測を根拠にした。コード変更ゼロのため PR なし。根拠は Issue コメントに全文を残し、再オープン条件も併記した（判断を残さず閉じない）。
+
+#### 判断の根拠（4 点）
+
+- **Issue の前提が実装とズレていた**: Routines タブの rightSidebar は `RoutineEditorForm`（選択中 1 件の編集フォーム）だけで、**リストが存在しない**（`web/src/schedule/RoutinesTab.tsx:200-221`）。ルーチン一覧は main area 側（同 `:168-194`・`order` 昇順）。`SidebarListControls` は自身のヘッダコメントで「sized for a ~240px sidebar」と宣言している部品なので、幅の広い main area の一覧に載せる対象ではない
+- **Calendar サイドバーの 2 リストは当日スコープ**: `AgendaList`（今日の流れ）と `TodayTodoTray`（本日の Todo）はどちらも毎日リセットされる。#283 が対象にした Notes / Daily は逆に**積み上がるアーカイブ**（Daily は毎日 1 件増える）で、「過去から探す」局面が実在する — 性質が違う。本番 DB 実測（`events_payload` × `items_meta`）で **events は 1 日あたり最大 3 件・平均 1.5 件**、routines live 3 / tasks live 5（比較: notes 9 / dailies 6）。最大 3 行のリストの上にソート選択 + フィルタ欄を積むと、操作 UI のほうがリスト本体より背が高くなる
+- **並び順の反転は「好み」ではなく機能破壊**: `AgendaList` の now-line は `findIndex(startTime >= nowMinutes)` で挿入位置を決めており**昇順ソート済みが前提**（`shared/src/components/schedule/AgendaList.tsx:98-104`）。direction toggle で desc に倒すと線が過去側に描かれる。「今日の流れ」は時系列であること自体が機能なので方向を選ばせる意味がない
+- **フィルタが効きそうな唯一のリストは既に別導線でカバー済み**: 日スコープでない pool は `pickAddableTasks`（未スケジュール・未完了の leaf task / `shared/src/utils/todayTodo.ts:25-38`）だけだが、**同じ pool を使う `ItemCreatePanel` のタスクタブには既に検索欄がある**（`shared/src/components/schedule/ItemCreatePanel.tsx:311, 436-442`）。live task 5 件の現状で 2 つ目の検索 UI を足す理由がない
+
+#### 変更点
+
+- **Issue #367**: 上記を根拠コメントとして投稿（`#issuecomment-5088740620`）→ `NOT_PLANNED` で close。再オープン条件も明記 =「タスクから追加」の候補が常時 20 件超で tray が縦スクロールするようになったら `TodayTodoTray` に **filter だけ**（sort 不要）を載せる / Routines の一覧が rightSidebar へ移設されたか 20 件を超えたら再検討
+- **コード変更なし**: `SidebarListControls` は #283 のまま存置（Notes / Daily が使用中）。ブランチ `claude/schedule-367-sidebar-controls` は `origin/main` から作成したが、実装差分はゼロで本 tracker 更新のみを載せた
+- **副産物の実測**: PR #400 が merge 済み・Issue #376 が close 済みであることを `gh pr list` / `gh issue view` で確認し、前セッションから持ち越していた「#400 OPEN」の進行中ブロックを完了へ確定した
+
 ### 2026-07-26 - #376 統合アイテム生成パネル（Step A merge / Step B レビュー待ち）
 
 #### 概要

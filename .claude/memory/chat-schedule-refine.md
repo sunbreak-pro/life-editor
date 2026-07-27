@@ -2,31 +2,21 @@
 
 ## 進行中
 
-### ⏸️ #376 統合アイテム生成パネル — Step B レビュー待ち（着手日: 2026-07-26）
-
-**対象**: `shared/src/components/schedule/ItemCreatePanel.tsx` / `web/src/schedule/{CalendarTab,useCreatePanelNotes}.tsx`
-**計画書**: `.claude/docs/vision/plans/2026-07-14-schedule-redesign.md` §4.6
-
-- 前回: Step A = **PR #393 merge 済み**（main `0c02f10`）／ Step B（ノートタブ）= **PR #395 merge 済み**（main `8c5c065f`・2026-07-26T09:39:49Z）
-- 現在: **QA follow-up = PR #400 OPEN**。ブランチ `claude/schedule-376-qa`（main `8a60d2e3` から切り直して cherry-pick・全ゲート再実測済み）。role-qa 監査で **Blocker 1 件（ノートのリンクがアイテム本体より先に INSERT される順序バグ）** を検出し、Should / Nit ごと修正。**#395 は修正 push の前に merge されたため、いま main に入っているノートタブは順序バグ入り** — #400 の merge まで既存ノートの紐づけは失敗する。merge は 🛑 ユーザーゲート
-- 次: #400 merge 後に #376 を close → Epic #290 Step 5（構成再編 = 単一 Calendar タブ + 繰り返しフィルタ / Mobile を List+FAB）
+（なし）
 
 ## 直近の完了
 
+- **#367 Schedule サイドバーのソート・フィルタ検討** ✅（2026-07-27 — **見送りで決着・コード変更ゼロ・PR なし**。根拠を Issue にコメントして NOT_PLANNED で close）。判断の芯は 4 点 = (1) Routines の rightSidebar は編集フォームだけでリストが存在しない（一覧は main area・`RoutinesTab.tsx:168-194` / `:200-221`）(2) Calendar サイドバーの 2 リストは当日スコープで毎日リセットされ、本番実測で events は 1 日あたり最大 3 件・平均 1.5 件（累積して増える Notes / Daily とは性質が違う）(3) `AgendaList` の now-line は `findIndex(startTime >= nowMinutes)` で**昇順前提**なので direction toggle の desc は機能破壊（`AgendaList.tsx:98-104`）(4) 日スコープでない唯一の pool（`pickAddableTasks`）は `ItemCreatePanel` のタスクタブに既に検索欄がある。**再オープン条件も Issue に明記済み**（addable が常時 20 件超で tray がスクロールする / Routines 一覧が rightSidebar へ移設 or 20 件超）
+- **#376 統合アイテム生成パネル（Step A + Step B + QA follow-up）** ✅（2026-07-27 — **PR #393 / #395 / #400 全て merge 済み・Issue #376 close 済み**）。#400 で「ノートのリンクをアイテム本体の行ができてから撃つ」順序バグを解消（main `433974d1`）
 - **#376 統合アイテム生成パネル Step A** ✅（2026-07-26 — **PR #393** merge 済み `0c02f10`）。`EventCreateFields`（#299）→ `ItemCreatePanel` に置換し、Desktop オーバーレイと Mobile QuickCaptureSheet が同一パネルを描く。予定タブは従来どおり、タスクタブは「新規作成」（`addNode` で配置済みタスク）/「既存から選ぶ」（`pickAddableTasks` + 検索 → `updateNode`）。**#298 トレイとの棲み分けを plan §4.6 に明文化**（トレイ = 今日固定・時刻なしの「宣言」／パネル = 任意の日・時刻ありの「配置」。プールは同一なので重複ではなく直列）
-- **#355 ダブルクリック時の吹き出しフラッシュ抑制** ✅（2026-07-26 — **PR #386**・`Closes #355`。吹き出しだけ 350ms 待たせ、他サーフェスが開いたら effect 1 本で pending 取消。仕組みは `shared/src/hooks/useDeferredAction.ts`（web にテストランナーが無いため shared 側に置いてテスト可能化））
-- **#354 生成後に新規アイテムを開く導線** ✅（2026-07-26 — **PR #384**・`Closes #354`。**方式はユーザーがチャットで直接選択**＝生成パネルに「予定を追加」/「追加して詳細へ」の 2 ボタン。Mobile のプレーン作成は**あえて選択しない**（Mobile は選択＝詳細シート表示のため、選択すると 2 ボタンが同じ動きになる））
-- **#353 生成パネルに対象日を表示** ✅（2026-07-26 — **PR #382**・`Closes #353`。`EventCreateFields` に読み取り専用の日付行。整形はホスト（対象日とロケールを持つ側）が担当）
-- **#352 Epic #290 Step 4 = Routine 頻度編集の未来伝播 + dead code / RoutineGroup 削除** ✅（2026-07-26 — **PR #381**・`Closes #352`・-2337/+454 行。**確認の勘所 = 繰り返しを「曜日」に切り替えた直後に予定が消えないこと**）
-- ~~**main のビルド復旧（#378 regression）**（PR #385）~~ → **重複だった**（2026-07-26）。**#383（`eb893f94`, 11:29）が既にバイト単位で同一の修正を入れており、私の #385（11:49 作成）は差分ゼロで squash merge された**（`fe8f0362`）。着手前に `git fetch origin` していれば不要だった PR。**教訓 = main 由来の不具合を見つけたら、直す前にまず fetch して最新 main で再現を確認する**（CLAUDE.md §7.4 はブランチ作成のたびに効く）
-- #299 アイテム操作 UI 刷新 ✅（2026-07-25 — **PR #325 merge 済み**・`2026-07-25T05:17:13Z`）
 - #298 Step 3 rightSidebar 本日の Todo tray ✅（2026-07-23 — PR #323 merge 済み・main `5f9abf48`）。**history 側にエントリが無いのはここだけ**なので、この行を消すと merge 済みの記録がこの worktree から消える（#296 / #297 は history の 2026-07-20 に残る）
+  （#352 / #353 / #354 / #355 / #385 / #299 は history の 2026-07-25〜26 に全文あり。ここからは間引いた）
 
 ## 予定
 
-- **#381 / #382 / #384 / #386 / #393 / #395 は全て merge 済み**（2026-07-26 実測 = `gh pr list --state all --json number,state`）。#385 は空マージ（重複）。残る open は **#400（QA follow-up）のみ**
-- **#400 merge 後にやること**: (1) #376 を close（DoD は Issue コメントに記録済み）(2) 実ブラウザ検証を chat-main へ依頼（生成パネルの 3 タブ・既存タスクの配置・**既存ノートを選んだときにリンクが Connect / Notes 側に出るか** — ここが #400 で直した経路）
-- Epic #290 の残 Step（Step 5 構成再編 / Step 6 カレンダー台帳配線 / Step 7 エディタ拡充）は未起票の想定。次の着手前に `gh issue list --label section:schedule --state open` + `--label shared-fix` を確認（Step 5 の子 Issue が無ければ chat-main へ起票依頼を outbox へ）
+- **自分宛の open Issue は実測 3 件**（2026-07-27・`gh issue list --label section:schedule --state open` + `--label shared-fix`）: `section:schedule` = **#290（Epic・Step 2〜7 の tracking）のみ**で子 Issue はゼロ。`shared-fix` = **#363（docs 追随 sweep）/ #321（Mobile UI/UX 追随 Epic）**。つまり次に着手できる粒度のタスクが無い状態なので、まず #290 の Step 5 を子 Issue に割ってもらう依頼が要る
+- **実ブラウザ検証を chat-main へ依頼する**（#376 の 3 タブ・既存タスクの配置・**既存ノートを選んだときにリンクが Connect / Notes 側に出るか** — ここが #400 で直した経路）。§7.4 の localhost 集約ポリシーによりこの worktree では実測できない
+- Epic #290 の残 Step（Step 5 構成再編 / Step 6 カレンダー台帳配線 / Step 7 エディタ拡充）は未起票。Step 5 の子 Issue が無ければ chat-main へ起票依頼を outbox へ
 - chat-main へ起票依頼済み（outbox 2026-07-26 の 3 通）: (1) `web/src/notes/NotesView.tsx:291` の lint error（main 由来）(2) Mobile 月表示で FAB が `mobileSelectedDay` ではなく `anchorDate` に作る (3) 生成直後の楽観行が同期リフェッチで消えると開いたばかりの詳細エディタが閉じる
 
 ## 引き継ぎメモ（この worktree で効く事実）
