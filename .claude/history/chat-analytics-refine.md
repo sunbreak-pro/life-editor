@@ -1,5 +1,21 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-07-27 - タスク入れ子（ネスト）dead code チェーンの退役（#418 / PR #424）
+
+#### 概要
+
+folder 退役（#225）で `NodeType` が `"task"` 単一になった結果、`moveNodeInto` のガード `target.type === "task"` が常に真になり、階層移動が構造的に必ず失敗する状態だった。ただし唯一の呼び出し元 `web/src/tasks/useTaskTreeDnd.ts` が repo 内ゼロ参照で、ユーザーが操作して失敗する場面は存在しなかった。ユーザー判断（入れ子は使わない）により、ガードを直すのではなくチェーンごと退役させた。
+
+#### 変更点
+
+- **撤去した範囲**: `useTaskTreeMovement` / `useNoteTreeMovement` の `moveNodeInto` と `moveNode` の親変更分岐、`web/src/tasks/useTaskTreeDnd.ts`（281 行・ゼロ参照）、`MoveRejectionReason` の `target_is_task` / `parent_is_task`、`useTaskTreeAPI` / `useNotesUnifiedAPI` の context value からの `moveNodeInto` 公開、実態とずれていたコメント群（`useNoteTreeMovement.ts:42` の「`useTaskTreeDnd` は実際に呼んでいる」ほか `useNotesUnifiedAPI` の stale 注記 2 箇所）
+- **新しい reason を増やさずに済ませた**: 親変更分岐を落とした `moveNode` は「active の兄弟リスト内での並び替え専用」になった。非兄弟へのドロップは既存の `findIndex === -1` チェックに落ちて `node_not_found` を返すため、拒否理由は差し引き 2 個減
+- **残置と理由**: `moveNode` の並び替え本体（指示どおり巻き込まない）/ `moveToRoot`（legacy な子行を root に引き上げる唯一の経路）/ `isDescendantOf`（巻き添えでゼロ参照になる候補だったが、実測では `moveNode` が継続使用。KI-016 の visited guard）/ `computeNoteDropIntent`（src 内消費者ゼロになるが barrel 公開 API + 専用テスト持ちの純関数。above/below は並び替え側の primitive のため判断保留としてコメント明記）
+- **Issue 記載との差分 2 点**: `target_is_task` / `parent_is_task` に対応する i18n キーは en / ja とも**元から存在しなかった**（道連れ対象なし）。「常に失敗する」を固定したテストも**存在しなかった**（`useNoteTreeMovement.cycle.test.ts` は `isDescendantOf` の循環安全性のみを見ており退役後も有効）
+- **テスト**: `shared/tests/treeMovementReorderOnly.test.ts` を新設（Tasks 5 / Notes 3）。並び替えの `order` 詰め直し、別の親へのドロップが再親付けされず `node_not_found` で拒否され `persistWithHistory` が呼ばれないこと、soft-delete 拒否、`moveToRoot`、hook の公開キーが `["moveNode","moveToRoot"]` だけであることを固定。move API はどこからも呼ばれていないため型チェックでは巻き戻しを検出できず、この網が唯一の防御
+- **docs 追随**: `.claude/rules/frontend.md` §Gotchas と `shared/design-system/PRINCIPLES.md` §7 の「`moveNode` と `moveNodeInto` は別操作」を退役後の記述へ差し替え。スコープ外で見つけた `docs/design/briefs/materials.md:67` の実在しない `useNoteTreeDnd.ts` 参照は触らず outbox で起票依頼
+- **検証**: `cd shared && npm run test`（147 files / 1184 tests）・`cd shared && npm run build`・`cd web && npm run build` すべて exit 0
+
 ### 2026-07-27 - Notes folder 退役の後段と Connect の project ノード撤去（#375 / PR #405）
 
 #### 概要
@@ -64,19 +80,3 @@ MCP Server の 34 ツールのうち 18 個が、0007 で DROP 済みの legacy 
 - **決定の pin**: `shared/tests/analyticsTodayBoundary.test.tsx` 新規（pref=4・時刻 02:00 で 01:00 のセッションが「今日」に入り、前日 23:30 は入らない）。`todayCalendarKey` の doc コメントにも Analytics を利用者として明記（ヘルパー側から決定を辿れる）
 - **スコープ外として切り出し**: 完了 Todo の「今日」は `completedAt.substring(0,10)` = UTC 日基準で、JST では朝 8 時までの完了が前日カウントになる既存ズレ（role-qa 検出）→ chat-main へ outbox で起票依頼
 - **検証**: shared build + 1082 tests + web build + prettier 全緑。role-qa 独立監査 PASS（Blocking 0・Should-fix 4 件は全て本 PR に取り込み）。commit 8feaff19 + 追随 1 本 → PR #378（merge 待ち）
-
-### 2026-07-26 - #334 folder 集計をタグ集計へ置換（ハング要因の構造的除去・PR #359）
-
-#### 概要
-
-`analyticsAggregation.ts::findRootFolder` の巡回ガード無し祖先たどり（循環 `parentId` で Analytics 画面がハング）を、ガード追加ではなく**関数ごと退役**して解消。#225 で folder ノードが消えて以来「常に空」だった Project work time チャートを、`wiki_tag_assignments` 起点のタグ別集計として実データ化した（life-tags 計画書 §Step 4 が名指ししていた後継対応）。
-
-#### 変更点
-
-- **`aggregateByFolder` → `aggregateWorkTimeByTag`**: assignment を `itemId` で引き当てるため祖先たどりが存在しない＝ハングの余地が構造的に消滅。unified 型（`types/wikiTagUnified.ts`）を使用（legacy `types/wikiTag.ts` の entityType 系は実データと別物・`aggregateTagByEntityType` は呼び出し元ゼロの dead）
-- **集計の不変式 = スライス合計 ＝ 実測の作業時間**: 複数タグのタスクは均等割り / 上位 10 タグから溢れた分は `other` バケツ / タグ無しは `untagged` バケツ。soft delete 済みタグ・assignment と未知タグ宛ては除外。**初版は top-N 打ち切りで捨てていて宣言と矛盾（role-qa S1 検出）→ `other` 追加 + スライスごとの `Math.round` 廃止で修正**
-- **`ProjectWorkTimeChart` → `TagWorkTimeChart`**: スライス色はタグ自身の色、未設定時のみ `--color-chart-cat-*` にフォールバック。`other` / `untagged` は控えめなトークン色
-- **API / i18n**: `AnalyticsView` props が `tagCount`/`assignmentCount`（数値）→ `tags`/`assignments`（配列。件数はここから導出 = 数値の非複製原則）。i18n は `analytics.projectTime.*` → `analytics.tagTime.*`（en/ja lockstep・`untagged` / `other` 追加）
-- **テスト**: タグ集計の属性ルール 7 件 + 循環 `parentId` で node 系集計が有限時間に返る pin（KI-016 クラスの再侵入検知）
-- **docs 追随**: life-tags 計画書 :111 の analytics 後継対応に完了マーク、design brief（analytics）のチャート名・データ系統・脆い行番号参照を更新
-- **検証**: shared build + 1088 tests + web build + prettier 全緑。role-qa 独立監査 PASS（Blocking 0）。commit a608eb39 + 70254d8f → PR #359（merge 待ち）
