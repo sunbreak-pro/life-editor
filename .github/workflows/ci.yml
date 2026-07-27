@@ -59,6 +59,11 @@ jobs:
       - name: web — install
         run: npm ci
         working-directory: web
+      # lint はここ（verify 内のステップ）に置く。独立ジョブにすると npm ci が
+      # もう一度走る分だけ遅くなるため（#364）
+      - name: web — lint (eslint)
+        run: npm run lint
+        working-directory: web
       - name: web — build (tsc -b --force && vite build)
         run: npm run build
         working-directory: web
