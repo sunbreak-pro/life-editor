@@ -3,7 +3,8 @@ import { cn } from "../cn";
 
 /*
  * RoutineSummaryCard (W8 target-IA) — the Calendar-tab right pane when no
- * event is selected: a "my routines" digest + a CTA to the Routines tab. Pure
+ * event is selected: a "my routines" digest + a CTA to the full repeat list
+ * (the rightSidebar "繰り返し" tab since #408 retired the Routines tab). Pure
  * presentation (§3.1 / §6.4): rows + copy injected already translated, the CTA
  * is a callback. lumen-* tokens only (§5).
  */
@@ -21,7 +22,7 @@ export interface RoutineSummaryCardLabels {
   title: string;
   /** Shown when there are no routines. */
   empty: string;
-  /** CTA to switch to the Routines tab. */
+  /** CTA to switch to the repeat list. */
   cta: string;
 }
 
@@ -54,7 +55,9 @@ export function RoutineSummaryCard({
       )}
     >
       <div className="flex flex-col gap-1.5">
-        <h3 className="text-sm font-semibold text-lumen-text">{labels.title}</h3>
+        <h3 className="text-sm font-semibold text-lumen-text">
+          {labels.title}
+        </h3>
         {summaryText && (
           <>
             <span className="text-xs text-lumen-text-secondary">

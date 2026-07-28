@@ -23,9 +23,8 @@ export interface ScheduleSidebarTabsProps {
  * ScheduleSidebarTabs — the frame the Schedule section pushes into the shared
  * rightSidebar detail panel via a SINGLE RightSidebarPortal. A thin switcher
  * over the shell-owned <SegmentedControl> plus a plain body, so the Calendar
- * tab can flip between "今日の流れ" and "詳細" inside one portal (contentCount
- * stays 1 — two portals would stack) and the Routines tab reuses the same
- * chrome with a single tab.
+ * can flip between "今日の流れ", "本日の Todo" and "繰り返し" inside one portal
+ * (contentCount stays 1 — two portals would stack).
  *
  * Pure presentation: labels injected already-translated (§6.4), lumen-* tokens
  * only (§5), no DataService (§3.1). The panel body (RightSidebarContents) owns

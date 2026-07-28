@@ -2,11 +2,11 @@ import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 
 /*
- * Shared label + mapping helpers for the target-IA Schedule hosts (CalendarTab
- * / RoutinesTab). Pure functions — no React, no DataService. i18n copy is
- * passed in already-resolved (§6.4) so the same string set drives the Calendar
- * summary rows and the Routines master list without duplicating the branch
- * logic in two files. Moved from web/src/schedule/scheduleLabels.ts (#280);
+ * Shared label + mapping helpers for the target-IA Schedule host (CalendarTab —
+ * RoutinesTab was retired in #408). Pure functions — no React, no DataService.
+ * i18n copy is passed in already-resolved (§6.4) so the same string set drives
+ * the Calendar summary rows and the rightSidebar repeat list without
+ * duplicating the branch logic. Moved from web/src/schedule/scheduleLabels.ts (#280);
  * the old todayLocalKey() was unified into dateKey.todayCalendarKey().
  */
 

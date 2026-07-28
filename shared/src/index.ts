@@ -278,6 +278,7 @@ export {
 export {
   shouldRoutineRunOnDate,
   seedFrequencyPatch,
+  nextRoutineOccurrence,
 } from "./utils/routineFrequency";
 export {
   diffRoutineScheduleItems,

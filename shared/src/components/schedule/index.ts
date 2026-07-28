@@ -36,22 +36,24 @@ export {
   type RoutineSummaryCardLabels,
   type RoutineSummaryRow,
 } from "./RoutineSummaryCard";
+// #408: the rightSidebar "繰り返し" tab — reach every routine (incl. ones with
+// no occurrence on screen) now that the Routines header tab is retired.
 export {
-  RoutineEditorForm,
-  type RoutineEditorFormProps,
-  type RoutineEditorFormLabels,
-  type RoutineEditorRoutine,
-} from "./RoutineEditorForm";
-// #185 Step 2: repeat-settings editor shared between RoutineEditorForm and the
-// Event editor's repeat section.
+  RepeatListPanel,
+  type RepeatListPanelProps,
+  type RepeatListPanelLabels,
+  type RepeatListRow,
+} from "./RepeatListPanel";
+// #185 Step 2: the repeat-settings editor inside the Event editor's repeat
+// section (it was shared with the Routines tab's form until #408 retired it).
 export {
   FrequencyEditor,
   type FrequencyEditorProps,
   type FrequencyEditorLabels,
   type FrequencyEditorValue,
 } from "./FrequencyEditor";
-// Target-IA rightSidebar frame: 2-tab (Calendar) / 1-tab (Routines) switcher
-// the Schedule tabs portal into the shared detail panel.
+// Target-IA rightSidebar frame: the tab switcher the Schedule section portals
+// into the shared detail panel (今日の流れ / 本日の Todo / 繰り返し).
 export {
   ScheduleSidebarTabs,
   type ScheduleSidebarTabsProps,
