@@ -92,6 +92,8 @@ export interface EventEditorPaneProps {
   repeat?: FrequencyEditorValue | null;
   repeatWeekdayLabels?: string[];
   repeatLabels?: FrequencyEditorLabels;
+  /** An Event→Repeats conversion is in flight — lock the section (#434). */
+  repeatPending?: boolean;
   /** Frequency patch — host applies it to the source routine (or creates one
    *  for a manual item). */
   onChangeRepeat?: (patch: Partial<FrequencyEditorValue>) => void;
@@ -116,6 +118,7 @@ function EventEditorFields({
   repeat,
   repeatWeekdayLabels,
   repeatLabels,
+  repeatPending,
   onChangeRepeat,
   onDetachRepeat,
 }: Omit<EventEditorPaneProps, "className">) {
@@ -142,6 +145,7 @@ function EventEditorFields({
         onSelectNone={onDetachRepeat}
         weekdayLabels={repeatWeekdayLabels}
         labels={repeatLabels}
+        pending={repeatPending}
       />
     </div>
   ) : null;

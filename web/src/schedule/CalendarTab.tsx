@@ -228,6 +228,20 @@ export function CalendarTab({
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
   );
+  // #434: an Event→Repeats conversion that did not fully land. Without this
+  // the editor just snaps back on the reload, which reads as the click having
+  // been ignored. "materialise" is a partial success — the repeat is on, so
+  // saying "couldn't turn on repeat" there would be a lie.
+  const handleRepeatConvertError = useCallback(
+    (reason: "attach" | "materialise") =>
+      showToast(
+        "danger",
+        reason === "attach"
+          ? t("scheduleScreen.repeatConvertFailed")
+          : t("scheduleScreen.repeatMaterialiseFailed"),
+      ),
+    [showToast, t],
+  );
   const {
     notes: noteOptions,
     notesError,
@@ -411,6 +425,7 @@ export function CalendarTab({
     handleDuplicate,
     handleChangeRepeat,
     handleDetachRepeat,
+    repeatConverting,
   } = useScheduleMutations({
     rangeItems,
     setRangeItems,
@@ -438,6 +453,7 @@ export function CalendarTab({
     reconcileRoutineScheduleItems,
     onMoveTaskChip: handleTaskChipMove,
     onResizeTaskChip: handleTaskChipResize,
+    onRepeatConvertFailed: handleRepeatConvertError,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
@@ -921,6 +937,7 @@ export function CalendarTab({
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
       startDate: t("scheduleScreen.startDate"),
+      converting: t("scheduleScreen.repeatConverting"),
     }),
     [t],
   );
@@ -987,6 +1004,7 @@ export function CalendarTab({
       repeatLabels={repeatLabels}
       onChangeRepeat={handleChangeRepeat}
       onDetachRepeat={handleDetachRepeat}
+      repeatPending={repeatConverting}
     />
   ) : null;
 

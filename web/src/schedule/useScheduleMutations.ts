@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   isTaskChip,
   makeOptimisticScheduleItem,
   addDaysKey,
   seedFrequencyPatch,
+  useInFlightGuard,
   type FrequencyEditorValue,
   type RepeatScope,
   type RoutineNode,
@@ -144,6 +145,17 @@ export interface UseScheduleMutationsArgs {
     endISO: string,
   ) => void;
   onResizeTaskChip: (chipId: string, endISO: string) => void;
+  // #434: an Event→Repeats conversion did not fully land. The editor snaps
+  // back on reload(), which on its own looks like the click did nothing, so
+  // the host says it out loud (toast). Same contract as the create panel's
+  // note-attach failure (#376). The two reasons need different words:
+  //   "attach"      — nothing landed; the event is still a plain event
+  //                   (most often the #407 conditional attach refusing a
+  //                   seed another conversion already owns).
+  //   "materialise" — the repeat IS on, but filling the rest of the visible
+  //                   range failed, so the calendar shows fewer occurrences
+  //                   than the rhythm implies until the next pass.
+  onRepeatConvertFailed: (reason: "attach" | "materialise") => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -176,6 +188,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     reconcileRoutineScheduleItems,
     onMoveTaskChip,
     onResizeTaskChip,
+    onRepeatConvertFailed,
     copySuffix,
   } = args;
 
@@ -199,9 +212,18 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // survives unreferenced and keeps generating occurrences (the #407
   // zombie). Clicks for a converting seed are ignored; the editor snaps to
   // the landed frequency via the final reload(). The service-layer
-  // conditional attach backstops the windows a ref cannot see (e.g. a range
-  // refetch clobbering the optimistic routineId after the guard cleared).
-  const convertingSeedsRef = useRef<Set<string>>(new Set());
+  // conditional attach backstops the windows this guard cannot see (e.g. a
+  // range refetch clobbering the optimistic routineId after it cleared).
+  // #434 moved the claim itself into shared/useInFlightGuard so vitest can
+  // pin it (web ships no test runner). `begin` claims synchronously and
+  // returns false when the seed is already converting; `inFlightIds` is the
+  // render-visible mirror that drives the editor's locked / "converting…"
+  // look and may lag by one render — never branch a write on it.
+  const {
+    begin: beginConversion,
+    end: endConversion,
+    inFlightIds: convertingSeedIds,
+  } = useInFlightGuard();
 
   const findScheduleItem = useCallback(
     (id: string): ScheduleItem | undefined =>
@@ -512,9 +534,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       const type = patch.frequencyType;
       if (!type) return;
       const seed = selected;
-      // #407: one conversion per seed at a time — see convertingSeedsRef.
-      if (convertingSeedsRef.current.has(seed.id)) return;
-      convertingSeedsRef.current.add(seed.id);
+      // #407: one conversion per seed at a time. Check-and-claim is a single
+      // call so the two cannot drift apart (#434).
+      if (!beginConversion(seed.id)) return;
       const [yy, mm, dd] = seed.date.split("-").map(Number);
       const seedWeekday = new Date(yy, mm - 1, dd).getDay();
       const frequencyDays = type === "weekdays" ? [seedWeekday] : [];
@@ -541,8 +563,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           } catch {
             // Conversion did not land — the seed is untouched server-side
             // (or already owned by a routine: the #407 conditional attach).
-            // Re-read so the repeat editor's optimistic state snaps back.
-            reload();
+            // Say so (#434): the snap-back the finally's reload() causes is
+            // indistinguishable from "the click did nothing".
+            onRepeatConvertFailed("attach");
             return;
           }
           patchRange(seed.id, { routineId, sourceDate: seed.date });
@@ -577,24 +600,36 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           const windowStart = [rangeStart, seed.date, today].reduce((a, b) =>
             a >= b ? a : b,
           );
-          if (windowStart <= rangeEnd) {
-            await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-              optimisticRoutine,
-            ]);
-            // Second idempotent pass: the always-on today generator can race
-            // the first batch on today's row (23505 → whole-batch rollback
-            // inside ensure). The re-run's pre-check sees the winner and fills
-            // in the remaining days.
-            await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-              optimisticRoutine,
-            ]);
+          try {
+            if (windowStart <= rangeEnd) {
+              await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+                optimisticRoutine,
+              ]);
+              // Second idempotent pass: the always-on today generator can
+              // race the first batch on today's row (23505 → whole-batch
+              // rollback inside ensure). The re-run's pre-check sees the
+              // winner and fills in the remaining days.
+              await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+                optimisticRoutine,
+              ]);
+            }
+          } catch {
+            // The repeat itself IS on (convert + attach landed above); only
+            // filling the visible range failed. Pre-#434 this threw out of
+            // the void-ed promise: an unhandled rejection that also skipped
+            // the reload, leaving the optimistic band on screen over data
+            // that never arrived.
+            onRepeatConvertFailed("materialise");
           }
-          reload();
         } finally {
+          // reload() lives here so every exit — landed, refused attach,
+          // half-materialised — re-reads exactly once and the editor stops
+          // showing optimistic state the server never confirmed.
+          reload();
           // Released only after the routineId patch + reload settle: from
           // here `selected.routineId` is set, so the next frequency click
           // routes to the series-edit branch instead of a second conversion.
-          convertingSeedsRef.current.delete(seed.id);
+          endConversion(seed.id);
         }
       })();
     },
@@ -610,6 +645,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       rangeEnd,
       today,
       reload,
+      onRepeatConvertFailed,
+      beginConversion,
+      endConversion,
     ],
   );
 
@@ -850,5 +888,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     // Repeat section (#185 Step 3 / #279)
     handleChangeRepeat,
     handleDetachRepeat,
+    // #434: the selected item's Event→Repeats conversion is still in flight,
+    // so the repeat editor should read as busy rather than swallow clicks.
+    repeatConverting:
+      selected != null && convertingSeedIds.includes(selected.id),
   };
 }

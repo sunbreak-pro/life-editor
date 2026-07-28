@@ -15,6 +15,19 @@ export interface SegmentedControlProps {
   onChange: (id: string) => void;
   /** Already-translated accessible name for the tablist (§6.4). */
   label?: string;
+  /**
+   * Locks every segment while the host is busy applying the last choice
+   * (#434). Pointer and keyboard both no-op, and the track reads as busy —
+   * a silently-dropped click is what "押しても無反応" looked like.
+   *
+   * Deliberately NOT the `disabled` attribute: this is a tablist with a
+   * roving tabindex, and every segment locks at once. A real `disabled`
+   * would strip the whole track of focusable elements, so the browser would
+   * dump keyboard focus on <body> mid-interaction and never bring it back.
+   * `aria-disabled` + inert handlers keeps the focused segment focused,
+   * which is also what the ARIA authoring practices ask for on tabs.
+   */
+  disabled?: boolean;
   className?: string;
 }
 
@@ -33,6 +46,7 @@ export function SegmentedControl({
   value,
   onChange,
   label,
+  disabled = false,
   className,
 }: SegmentedControlProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -44,6 +58,7 @@ export function SegmentedControl({
     e: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ) => {
+    if (disabled) return;
     const next = stepSegmentFocus(e, index, options, refs);
     if (next) onChange(next.id);
   };
@@ -52,6 +67,7 @@ export function SegmentedControl({
     <div
       role="tablist"
       aria-label={label}
+      aria-busy={disabled || undefined}
       className={cn(
         "flex gap-0.5 rounded-lumen-md bg-lumen-bg-secondary p-0.5",
         className,
@@ -68,13 +84,15 @@ export function SegmentedControl({
             type="button"
             role="tab"
             aria-selected={active}
+            aria-disabled={disabled || undefined}
             tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
-            onClick={() => onChange(option.id)}
+            onClick={disabled ? undefined : () => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
               "flex-1 rounded-lumen-sm px-3 py-1.5 text-center text-sm",
               "transition-colors focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              disabled && "cursor-not-allowed opacity-60",
               active
                 ? "bg-lumen-bg font-medium text-lumen-text shadow-lumen-sm"
                 : "text-lumen-text-secondary",
