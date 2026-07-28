@@ -52,6 +52,9 @@ mobile/node_modules/
 .claude/memory/INDEX.md
 .claude/history/INDEX.md
 
+# Dev digest output (dev-digest スキルが毎朝生成する派生ビュー — 正本は収集元)
+.claude/comm/digest/
+
 # Hook-generated outbox reports (per-session 動的データ; chat-*.md は task-tracker 経由
 # 人手管理なので追跡を維持。session-start-check.sh / stop-check.sh が吐く reports のみ無視)
 .claude/comm/outbox/*/session-start-warnings.md
