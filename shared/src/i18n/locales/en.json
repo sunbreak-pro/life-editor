@@ -795,6 +795,7 @@
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",
     "toggleComplete": "Toggle complete",
+    "edit": "Edit",
     "jumpToSchedule": "Open in Schedule",
     "jumpToTasks": "Open in Todos",
     "tabsLabel": "Morning / Evening",

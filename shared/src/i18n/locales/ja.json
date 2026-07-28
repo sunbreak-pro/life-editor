@@ -795,6 +795,7 @@
     "carryoverTitle": "持ち越し",
     "carryoverDays": "{{count}}日目",
     "toggleComplete": "完了を切り替える",
+    "edit": "編集",
     "jumpToSchedule": "スケジュールで開く",
     "jumpToTasks": "Todo で開く",
     "tabsLabel": "朝刊 / 夕刊",
