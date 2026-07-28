@@ -2,11 +2,10 @@ import type { TimerSession } from "../types/timer";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
-import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 // The live tag data (DataService.listAllWikiTagsUnified / listAllTagAssignments)
 // is the unified items_meta model — assignments hang off `itemId` with no
-// entityType discriminator. The legacy `wikiTag` shapes above stay for
-// aggregateTagByEntityType until its Connect-side caller migrates.
+// entityType discriminator, so every aggregation here reads the unified shapes.
+// The legacy `types/wikiTag` import is gone with aggregateTagByEntityType (#429).
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -721,57 +720,13 @@ export function aggregateRoutineCompletion(
     .sort((a, b) => b.rate - a.rate);
 }
 
-// ============================================================
-// Connect aggregation
-// ============================================================
-
-export interface TagEntityTypeBucket {
-  tagId: string;
-  tagName: string;
-  tagColor: string;
-  taskCount: number;
-  noteCount: number;
-  dailyCount: number;
-}
-
-/** Tag usage broken down by entity type */
-export function aggregateTagByEntityType(
-  tags: WikiTag[],
-  assignments: WikiTagAssignment[],
-  limit: number = 10,
-): TagEntityTypeBucket[] {
-  const tagMap = new Map(tags.map((t) => [t.id, t]));
-  const map = new Map<string, { task: number; note: number; daily: number }>();
-
-  for (const a of assignments) {
-    let entry = map.get(a.tagId);
-    if (!entry) {
-      entry = { task: 0, note: 0, daily: 0 };
-      map.set(a.tagId, entry);
-    }
-    if (a.entityType === "task") entry.task += 1;
-    else if (a.entityType === "note") entry.note += 1;
-    else if (a.entityType === "daily") entry.daily += 1;
-  }
-
-  return Array.from(map.entries())
-    .map(([tagId, counts]) => {
-      const tag = tagMap.get(tagId);
-      return {
-        tagId,
-        tagName: tag?.name ?? tagId,
-        tagColor: tag?.color ?? "#808080",
-        taskCount: counts.task,
-        noteCount: counts.note,
-        dailyCount: counts.daily,
-      };
-    })
-    .sort(
-      (a, b) =>
-        b.taskCount +
-        b.noteCount +
-        b.dailyCount -
-        (a.taskCount + a.noteCount + a.dailyCount),
-    )
-    .slice(0, limit);
-}
+/*
+ * The "Connect aggregation" section that lived here — `aggregateTagByEntityType`
+ * + `TagEntityTypeBucket` — was retired in #429. It had no production caller
+ * (never exported from `shared/src/index.ts`; only its own tests kept it alive)
+ * and it branched on `assignment.entityType`, a field the unified
+ * `WikiTagAssignment` does not have. Wiring it to live data would therefore have
+ * returned all-zero counts without a type error or an exception — a silent wrong
+ * number, not a crash. Connect builds its tag counts from the unified shapes
+ * (`buildGraphModel`); anything new here should start from those too.
+ */
