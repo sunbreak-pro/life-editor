@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
 import type { TaskNode } from "../src/types/taskTree";
-import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTag";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -10,34 +9,10 @@ import {
   aggregateByDay,
   aggregateByTask,
   computeSummary,
-  aggregateTagByEntityType,
   aggregateWorkTimeByTag,
   aggregateTaskCompletionTrend,
   aggregateTaskStagnation,
 } from "../src/utils/analyticsAggregation";
-
-function makeAssignment(
-  overrides: Partial<WikiTagAssignment> = {},
-): WikiTagAssignment {
-  return {
-    tagId: "tag-1",
-    entityId: "entity-1",
-    entityType: "task",
-    source: "manual",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
-
-const TAGS: WikiTag[] = [
-  {
-    id: "tag-1",
-    name: "Tag One",
-    color: "#808080",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z",
-  },
-];
 
 function makeSession(overrides: Partial<TimerSession> = {}): TimerSession {
   return {
@@ -166,42 +141,12 @@ describe("computeSummary", () => {
   });
 });
 
-describe("aggregateTagByEntityType (V64 entityType regression)", () => {
-  it("counts task / note / daily assignments into the correct buckets", () => {
-    const assignments: WikiTagAssignment[] = [
-      makeAssignment({ entityId: "t1", entityType: "task" }),
-      makeAssignment({ entityId: "t2", entityType: "task" }),
-      makeAssignment({ entityId: "n1", entityType: "note" }),
-      makeAssignment({ entityId: "d1", entityType: "daily" }),
-      makeAssignment({ entityId: "d2", entityType: "daily" }),
-      makeAssignment({ entityId: "d3", entityType: "daily" }),
-    ];
-
-    const result = aggregateTagByEntityType(TAGS, assignments);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      tagId: "tag-1",
-      taskCount: 2,
-      noteCount: 1,
-      // V64: dailies must come from entityType === "daily" (was the
-      // pre-V64 "memo" literal, which never matched post-rename data).
-      dailyCount: 3,
-    });
-  });
-
-  it("daily assignments are no longer silently dropped (pre-V64 bug fixed)", () => {
-    const assignments: WikiTagAssignment[] = [
-      makeAssignment({ entityId: "d1", entityType: "daily" }),
-    ];
-
-    const result = aggregateTagByEntityType(TAGS, assignments);
-
-    // Before the fix this was 0 because the aggregator compared against
-    // the stale "memo" literal while V64 writes "daily".
-    expect(result[0]?.dailyCount).toBe(1);
-  });
-});
+/*
+ * The `aggregateTagByEntityType` suite that sat here went with the function in
+ * #429. It pinned a V64 rename fix ("memo" → "daily") on the LEGACY assignment
+ * shape, which the live unified data no longer has — so the suite was the only
+ * thing keeping a function alive that would have returned zeros on real data.
+ */
 
 /*
  * #334: the folder-based "Project work time" ring is replaced by tag-based
