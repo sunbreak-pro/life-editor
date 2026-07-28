@@ -13,6 +13,11 @@
 - **#431（PR #441・docs のみ）**: materials brief の Notes 節（§1.2 / §2.2）が v2 執筆時のフォルダツリー実装を指したままだったので `NotesView.tsx` 実測で書き直し。実在しない `useNoteTreeDnd.ts` と不使用の `MasterDetail` を除去し、当時の「現状の課題」6 件のうち解消済み 5 件を ✅ 対応表として残した（消すだけだと「なぜ変わったか」が読めなくなるため）。db-conventions には §12 を新設 — `items_meta!inner(...)` は埋め込み先への FK が 2 本以上あるテーブル（`wiki_tag_connections`）にコピーすると PGRST201 / 400 になる
 - **#361（PR #443）**: 要否判断は**案 1（復元を実装）**。決め手は viewport 側だけが対称だったこと（`loadViewport` がカメラを復元するのにノードは再計算 = 前の配置があった辺りを映したまま中身が入れ替わる）で、退役するとこの噛み合わせの悪さが確定する。消費側は `useGraphSimulation` に既にあり（`positionCacheRef` からの座標復元 + `alpha(0.15)` のウォームスタート）、欠けていたのは ref の初期値だけ。`loadPositions()` は有限数の `{x, y}` 以外を捨てる（NaN 1 つで d3-force が次 tick に全体へ伝播させる）。根拠は Issue #361 のコメントに記録
 - **#363（PR #446・コメントのみ）**: 「Tasks MasterDetail」の stale コメント 6 箇所を rightSidebar 経由の実態に追随（`MasterDetail` は code-reduction #346 で削除済み）。Connect の `labels.ts` が挙げていた `ideas.*` は両カタログに存在しないので実態に修正。報告 4 群のうち **2 群（check.sh の loop.sh 前提コメント / requirements の削除済みパス）は実測の結果すでに解消済み**で、変更なしと PR 本文に明記
+- **role-qa 独立監査（2 本並列）→ Important 3 件を各 PR に反映**:
+  - **#410**: ボタンは横に広がったが**縦は 16px のまま**で WCAG 2.5.8（24×24）未満だった → `px-1.5 py-1` + 同量の負マージンで、行の高さと右端を動かさずに当たり判定だけ広げた。あわせて accessible name を「編集: スケジュールで開く」に変更 — 可視ラベル「編集」だけを名前にすると 6 個が同名になり、行き先が `title` にしか残らず touch で消える（可視ラベルを先頭に含めれば 2.5.3 は満たせる）。タイトルボタンに `min-w-0`（flex アイテムの min-width 既定が min-content のため、途中で切れない長いタイトルが行を溢れさせてボタンを視界外へ押し出す）
+  - **#361**: 復元が効くようになった副作用で、**キャッシュに無い新規ノードだけ d3 が原点 (0,0) = キャンバス左上に置く**（`alpha(0.15)` では寄り切れず、`forceCenter` は系全体の平行移動なので相対ズレは解消しない）。監査側の実測で雲の縁から +136〜185px 外 → 未キャッシュ分をキャンバス中央 ±40px に seed。テストは `JSON.stringify` が NaN/Infinity を null にするため **`Number.isFinite` を一度も通っていなかった**（guard を消しても緑）→ parse 時に overflow する `1e999` のケースを追加。`loadPositions` の戻り値を `Object.create(null)` にして `__proto__` キーによるプロトタイプ差し替えを封じた
+  - **実測で棄却した指摘 1 件**: 「#410 が main と競合する（Blocking）」→ `git merge-tree --write-tree` が exit 0 で、マージ後のテストに #427 / #410 両方の describe が並ぶことを確認。競合なし
+  - **見送り**: 位置キャッシュの単調増加（1 件約 71 バイト・5MB 到達は約 74,000 件で N=1 では実害なし・刈るには prop 追加が要る）/ `loadViewport` の無検証（`k` が 0 や NaN で描画とヒットテストが壊れる。既存挙動で #361 のスコープ外 → outbox に起票依頼）
 
 ### 2026-07-27 - Issue #413: Briefing rightSidebar に「今日の Todo」トレイ
 
