@@ -94,7 +94,9 @@ export interface UseScheduleMutationsArgs {
     // Resolves false when the template write did NOT land, so the caller can
     // abort work it sequenced behind it (#352 reconcile).
   ) => Promise<boolean>;
-  deleteRoutine: (id: string) => Promise<{ deletedScheduleItemIds: string[] }>;
+  deleteRoutine: (
+    id: string,
+  ) => Promise<{ deletedScheduleItemIds: string[]; landed: boolean }>;
   detachRoutine: (
     id: string,
     fromDate?: string,

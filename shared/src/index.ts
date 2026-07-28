@@ -278,11 +278,11 @@ export {
 export {
   shouldRoutineRunOnDate,
   seedFrequencyPatch,
-  nextRoutineOccurrence,
 } from "./utils/routineFrequency";
 export {
   diffRoutineScheduleItems,
   shouldCreateRoutineItem,
+  nextRoutineOccurrence,
   collectRoutineItemsForDates,
   type RoutineSyncCreate,
 } from "./utils/routineScheduleSync";

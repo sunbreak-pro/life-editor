@@ -44,6 +44,7 @@ import {
   itemVariant,
   nowMinutesLocal,
   sortDayItems,
+  todayCalendarKey,
   type FrequencyLabelCopy,
   type TaskCalendarChip,
   type TodayTodoRow,
@@ -965,58 +966,89 @@ export function CalendarTab({
   const routineTotal = routineTodayItems.length;
 
   // #408 repeat list. Unlike summaryRows this is NOT filtered: the whole point
-  // of the panel is reaching routines the calendar cannot show — archived /
-  // hidden ones, an interval starting next month, and the malformed ones that
+  // of the panel is listing routines the calendar cannot show — an interval
+  // starting next month, archived / hidden ones, and the malformed ones that
   // fire on no day at all (#407's zombies). Sorted by `order`, the same
   // ordering the retired Routines tab used.
+  //
+  // The scan is skipped unless the tab is showing: a routine that fires on no
+  // day walks the full year before answering, so an unopened panel would pay
+  // that on every routine write. `listDate` rides the minute ticker rather
+  // than `today` (frozen at mount) — a stale key here is not a stale grid, it
+  // is a wrong date printed in the row and a jump to the wrong day.
+  const listDate = useMemo(() => todayCalendarKey(now), [now]);
   const repeatRows = useMemo<RepeatListRow[]>(
     () =>
-      routines
-        .slice()
-        .sort((a, b) => a.order - b.order)
-        .map((r) => {
-          const next = nextRoutineOccurrence(r, today);
-          let nextLabel: string | null = null;
-          if (next) {
-            const [y, m, d] = next.split("-").map(Number);
-            nextLabel = fullDayFmt.format(new Date(y, m - 1, d));
-          }
-          return {
-            id: r.id,
-            title: r.title || t("scheduleScreen.untitled"),
-            timeLabel: r.startTime ?? "",
-            frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
-            nextLabel,
-          };
-        }),
-    [routines, today, t, freqCopy, weekdayLabels, fullDayFmt],
+      sidebarTab !== "repeats"
+        ? []
+        : routines
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((r) => {
+              const next = nextRoutineOccurrence(r, listDate);
+              return {
+                id: r.id,
+                title: r.title || t("scheduleScreen.untitled"),
+                timeLabel: r.startTime ?? "",
+                frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
+                nextLabel: next ? formatFullDay(next) : null,
+              };
+            }),
+    [sidebarTab, routines, listDate, t, freqCopy, weekdayLabels, formatFullDay],
   );
 
   const handleOpenRepeat = useCallback(
     (id: string) => {
       const routine = routines.find((r) => r.id === id);
       if (!routine) return;
-      const next = nextRoutineOccurrence(routine, today);
+      const next = nextRoutineOccurrence(routine, listDate);
       // The panel renders no-occurrence rows as static text, so this guard is
       // belt-and-braces against a routine edited out from under the list.
       if (!next) return;
       setAnchorDate(next);
       setMobileSelectedDay(next);
+      void (async () => {
+        // Navigating only FETCHES a range — nothing on the nav path
+        // materialises occurrences (the generator covers today, and reconcile
+        // covers whatever range was visible at the time). So a jump onto a
+        // future-dated repeat would land on an empty day with nothing to open,
+        // which is exactly the reachability hole this panel exists to close.
+        try {
+          await ensureRoutineItemsForDateRange(next, next, [routine]);
+        } catch {
+          // Logged at the API layer; the reload below still returns the view
+          // to whatever the server actually has.
+        }
+        reload();
+      })();
     },
-    [routines, today, setAnchorDate, setMobileSelectedDay],
+    [
+      routines,
+      listDate,
+      setAnchorDate,
+      setMobileSelectedDay,
+      ensureRoutineItemsForDateRange,
+      reload,
+    ],
   );
 
   const handleDeleteRepeat = useCallback(
     (id: string) => {
       void (async () => {
-        await deleteRoutine(id);
+        const { landed } = await deleteRoutine(id);
         // The calendar is on screen here (it never was behind the old Routines
         // tab), so without this the deleted routine's occurrences linger until
         // something else refetches the visible range.
         reload();
+        // deleteRoutine drops the row optimistically and swallows the service
+        // error. Silence would leave the list short one row while every
+        // occurrence stays on the grid, with no way to tell which is true.
+        if (!landed) {
+          showToast("danger", t("scheduleScreen.repeatDeleteFailed"));
+        }
       })();
     },
-    [deleteRoutine, reload],
+    [deleteRoutine, reload, showToast, t],
   );
 
   const statusLabels = useMemo<Record<ScheduleStatus, string>>(
@@ -1213,6 +1245,9 @@ export function CalendarTab({
         empty: t("scheduleScreen.summaryEmpty"),
         never: t("scheduleScreen.repeatNeverFires"),
         delete: t("scheduleScreen.deleteRoutine"),
+        confirmDelete: t("scheduleScreen.repeatDeleteConfirm"),
+        confirm: t("scheduleScreen.delete"),
+        cancel: t("scheduleScreen.scopeCancel"),
       }}
     />
   );
