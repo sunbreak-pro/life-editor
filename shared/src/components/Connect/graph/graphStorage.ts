@@ -18,6 +18,40 @@ function hasStorage(): boolean {
   return typeof localStorage !== "undefined";
 }
 
+/**
+ * Read the persisted node positions back (#361).
+ *
+ * The writer half below runs every 4s and on unmount; between 2026-07-25 (the
+ * reader was deleted as unreferenced) and this restore, nothing read the key,
+ * so every mount re-simulated from scratch WHILE `loadViewport` still restored
+ * the old pan/zoom — the camera pointed at where the previous layout used to
+ * be. Anything that is not a finite {x, y} pair is dropped rather than trusted:
+ * a hand-edited or half-written entry would otherwise put a node at NaN, which
+ * d3-force propagates through the whole simulation.
+ */
+export function loadPositions(): PositionMap {
+  if (!hasStorage()) return {};
+  try {
+    const raw = localStorage.getItem(POSITIONS_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return {};
+    const out: PositionMap = {};
+    for (const [id, value] of Object.entries(
+      parsed as Record<string, unknown>,
+    )) {
+      if (typeof value !== "object" || value === null) continue;
+      const { x, y } = value as { x?: unknown; y?: unknown };
+      if (typeof x !== "number" || !Number.isFinite(x)) continue;
+      if (typeof y !== "number" || !Number.isFinite(y)) continue;
+      out[id] = { x, y };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export function savePositions(positions: PositionMap): void {
   if (!hasStorage()) return;
   try {
