@@ -1,6 +1,30 @@
 # HISTORY (chat-shell-refine)
 
-### 2026-07-27 - #409 タグ編集パネルの新設（PR #425）
+### 2026-07-28 - open Issue fan-out 消化: #412 / #421 / #419（PR #438 / #444 / #447）+ #368 判断 close
+
+#### 概要
+
+`2026-07-28-open-issue-fanout.md` の shell-refine 枠 3 件を担当順（#412 → #421 → #419）に消化し、Issue ごとに `claude/shell-<issue>-<slug>` を origin/main から切って 3 PR に分けた。余力枠の #368 は「不要」と判断して根拠つきで close。実ブラウザ検証は §7.4 どおり merge 後の検証セッションへ送り、この worktree は build / vitest / lint まで。
+
+#### 変更点
+
+- **#412（PR #438）アイテム側のタグ付け外し Phase 1**: タグ付けができるのはノート詳細 1 箇所だけだったが、assignment API は最初から role を見ていない（`items_meta.id` を受けるだけ）ので、足りなかったのは置き場所だけだった。Kanban が rightSidebar に押し込む詳細パネルの読み取り専用チップ列を `TagPicker` に置換。タグ 0 件でも行を出す（そこが「+ Tag」の唯一の置き場所で、無いと最初の 1 個を付ける導線が消える）
+- **#412 種類チップの型を確定**: `TagPicker` に `itemRole` を追加し、#409 の `ItemRoleBadge` を**そのまま**描画する（tag 側 = タグ編集パネルのアイテム一覧 / item 側 = このピッカーが 1 つの契約から描かれるので意匠がずれようがない）。バッジは汎用の "Tags" キャプションを**置き換える** — 行の中身（色付きピル + 「+ Tag」）が既に「タグ」と言っており、行が言えていなかったのは「何に付いているか」の方だったため。`TaskDetailPanel` の `tagsLabel` は二重になるので渡さない。Notes 詳細も `itemRole="note"` に揃えた
+- **#412 盤面は read-only のまま（判断）**: tag view ではカラムそのものが assignment なので、カード上でタグを外すとそのカードが操作中にポインタの下から別カラムへ移動する（tag view をドラッグ不可にしているのと同じ理由）。status view だけ有効化すると「view を切り替えると編集できない」不整合が出るため、編集は詳細パネルに一本化
+- **#412 i18n**: `TagPicker` の文言は全部英語直書きだった（ラベル / placeholder / dialog 名 / "Create …" / ピルの削除ボタン）。`materials.tags.picker*` として en / ja 両 catalog へ移し、`TagPill` は `removeLabel` を任意で受け取る形にした
+- **#421（PR #444）shared eslint 導入 — 再実測**: Issue 記載の「3 errors」は 1 ファイルを `--stdin` に流した値で、#409 merge 済みの main に対し shared 全体を流すと **51 problems（48 errors / 3 warnings）· 27 ファイル**。最多は `react-hooks/refs` 20 / `set-state-in-effect` 14、ファイル別は `useFrozenNoteSortKey.ts` 8 / `UndoRedoContext.tsx` 4
+- **#421 切り分けの線 =「この worktree で検証できるか」**: 11 件（未使用 import 6 / `prefer-const` / 空の extends interface / `static-components` = #364 が web の `NotesView` でやったのと同じ形で `TagHeadingIcon` 経由へ / test ヘルパーの `react-hooks/globals` 2 = holder オブジェクトに effect から公開）を修正。37 件（`refs` / `set-state-in-effect` / `immutability`）は全部レンダリングのタイミングそのものの話で、触る先が UndoRedo / Timer / TaskTree / Schedule / Connect のグラフ計算という中核。build と vitest しか回せないこの worktree では直した結果画面が壊れても気づけないため別 PR へ回した
+- **#421 積み残しの持たせ方**: `shared/eslint.config.js` 末尾に rule ごとの**違反ファイルのパス列挙**を置いた。severity を "warn" に落とす方式は新規コードでも鳴らなくなるので不採用。この形ならリスト外の新規違反は CI で落ち、パスを 1 行消すことが「直した」の記録になる（config コメントに「リストに足すな、ファイルを直せ」と明記）
+- **#421 react-refresh は意図的に不採用**: `configs.vite` は「Fast Refresh 対象モジュールはコンポーネントだけを export すべき」という Vite アプリ自身への制約で、shared は tsc ビルドのライブラリ。`items/ItemRoleBadge` + `itemRole` のようにコンポーネントと契約を意図的に同居させたモジュールが多く、設計を欠陥として報告することになる
+- **#421 CI**: `verify` ジョブの `shared — install` 直後に `shared — lint (eslint)` を追加（独立ジョブは `npm ci` が二重に走る — #364 と同じ作法）。run 30352908111 のログで**当該ステップが実際に走って pass する**のを確認
+- **#419（PR #447）`list_tasks` の `folder_id` → `parent_id`**: 実体は最初から `tasks_payload.parent_item_id` で、folder というノード種別自体が #225 で退役済み。**このサーバーの呼び手は Claude Code だけで、接続のたびにスキーマを読んで名前から引数を選ぶ = スキーマがそのままドキュメント**なので、案 2（deprecated alias）は誤解の原因である文字列を残し、案 3（description のみ）は一番強く読まれる手掛かりを間違ったまま残す。案 1 を採用
+- **#419 新名の選択**: Issue 提案の `parent_task_id` ではなく **`parent_id`**。同じ `tools.ts` の `create_task` が同じ概念に既に `parent_id` を使っており、別名にすると直そうとした語彙のずれを 1 ファイル隣に作り直すことになる。`mcp-server/tests/listTasksContract.test.ts` を新設し、handler ではなく**スキーマ**（`parent_id` がある / `folder_id` が無い / description に "folder" が無い / `create_task` と同名）を固定
+- **#419 docs 追随**: `life-tags-unification.md:111` の横断後継対応リストにあった「mcp-server の `folder_id` パラメータ（MCP の Supabase 再接続時に整理）」を完了化。`tier-1-core.md` はツール名の列挙のみでパラメータ名を持たないため変更なし。**merge 後は MCP の再接続が要る**（稼働中セッションは古いスキーマのまま `folder_id` を送り続け、その引数は黙って無視される）
+- **#368 判断 close**: 不要と結論。(1) タグはサーバ / クライアント双方で名前昇順に固定済み（`SupabaseWikiTagsUnifiedService.ts:58` / `useWikiTagsUnifiedAPI.ts:75,88`）で、並べ替えの選択肢は「目当ての語がどこにあるか予測できる」利点を壊す方向にしか働かない (2) `SidebarListControls` は自身のコメントどおり ~240px サイドバー向けで、#409 が一覧を 560px モーダルへ移した時点で「既存部品を使い回せるから安い」という #283 の見立てが崩れた (3) タグ数は当 worktree から実測不可なので「1 画面に収まらなくなったら名前フィルタ単体を再考」を revisit トリガーとして明記
+- **検証**: shared vitest 149 files / 1207 passed・shared build・web build・web eslint（変更 4 ファイル）・shared lint（0 errors / 3 warnings）・mcp-server build + vitest 6 files / 45 passed すべて exit 0。DDL ゼロ。実ブラウザ検証は §7.4 どおり merge 後
+- **【chat-main への起票依頼】**（outbox に append）: (1) #421 の残 37 件解消 (2) #412 Phase 2 = Daily（先行可）と Event（#408 / #411 着地後）
+
+### 2026-07-27 - #409 タグ編集パネルの新設（PR #425 = merged）
 
 #### 概要
 
@@ -62,17 +86,3 @@ Epic #304 の子 PR 2。3 ドメインの Provider を TaskTreeProvider と同�
 - **テスト**: `shared/tests/platform.test.ts` 新設（isNativeMobile の契約 3 ケース）
 - **docs 追随**: CLAUDE.md §2 / rules/frontend.md / mobile-scope.md §6 / mobile/README.md / styles.xml コメント / `shared/src/index.ts` の「5 種」参照化 / stale な "always mounted" コメント掃除
 - **検証**: shared tsc -b + vitest 137 files / 1083 passed・web build exit 0・role-qa 独立監査（NEEDS REVISION → Blocker / Important 全反映）
-
-### 2026-07-20 - Layout / 操作系 4 Issue（PR #313/#314/#315/#316・全 merge 済み）
-
-#### 概要
-
-（バックフィル記録 — memory「直近の完了」から HISTORY へ移す際の要約。詳細は各 PR 参照）#305 / #307 / #306 / #304 子 PR 1 を 1 Issue = 1 PR で処理し、いずれも merge された。
-
-#### 変更点
-
-- **#305（PR #313）**: メインコンテンツ幅を全セクション max-w-lumen-wide に統一（PageContainer fluid を中央寄せ + 1120px 上限化・MainScreen width マッピング整理）
-- **#307（PR #314）**: アイテム操作パネル汎用化
-- **#306（PR #315）**: ヘッダー常設コマンドパレット検索フィールド
-- **#304 子 PR 1（PR #316）**: Undo/Redo 基盤 + taskTree（UndoRedoManager グローバル 1 本スタック + Provider + Buttons + Toast + ⌘Z 配線 + taskTree auto-connect + 単体 13 件）
-
