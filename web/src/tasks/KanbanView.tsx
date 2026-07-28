@@ -23,7 +23,6 @@ import {
   useTranslation,
   readKanbanViewMode,
   persistKanbanViewMode,
-  cn,
   type KanbanCardModel,
   type KanbanCardTag,
   type KanbanColumnModel,
@@ -36,6 +35,7 @@ import { useKanbanDnd } from "./useKanbanDnd";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
 import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
+import { TagPicker } from "../wikitag/TagPicker";
 
 /*
  * Web Tasks Kanban host (K1 + K-DnD + K2 + K3). Replaces the tree in the
@@ -59,7 +59,11 @@ import { RichTextEditor } from "../notes/RichTextEditor";
  *
  * K3: clicking a card opens the selected task in the right sidebar via
  * <RightSidebarPortal>, hosting the shared <TaskDetailPanel> + the web TipTap
- * editor.
+ * editor + (#412) the <TagPicker>, so tags are attached and detached from the
+ * detail the user is already reading. The board itself stays read-only about
+ * tags: in tag view a column IS an assignment, so editing tags on a card would
+ * move that card out from under the pointer mid-interaction (same reason the
+ * tag view is not draggable).
  *
  * Layout: the full-width DnD board is the Tasks view (the old list mode was
  * retired 2026-07-18 — Board only). Cards + @dnd-kit + card-click → the
@@ -400,29 +404,22 @@ export function KanbanView({
   // rightSidebar panel (Desktop) instead of a centered modal. narrow uses the
   // MobileTaskList's own BottomSheet, so the portal is wide-only.
   const selected = tree.selectedTask;
-  const selectedTags = selected ? (tagsByTask.get(selected.id) ?? []) : [];
 
-  // Tag chips for the detail panel's tag row (mock: bg pill + 6px color dot).
-  // Omitted (undefined) when the task carries no tags so the row disappears.
-  const tagsSlot =
-    selectedTags.length > 0
-      ? selectedTags.map((tag) => (
-          <span
-            key={tag.id}
-            className="inline-flex items-center gap-1.5 rounded-full border border-lumen-border bg-lumen-bg px-2 py-0.5 text-[0.6875rem] text-lumen-text-secondary"
-          >
-            <span
-              aria-hidden
-              className={cn(
-                "h-1.5 w-1.5 shrink-0 rounded-full",
-                tag.color ? "" : "bg-lumen-border-strong",
-              )}
-              style={tag.color ? { backgroundColor: tag.color } : undefined}
-            />
-            {tag.name}
-          </span>
-        ))
-      : undefined;
+  /*
+   * Tag row (#412 Phase 1). Was a read-only chip list built here from
+   * tagsByTask; it is now the same <TagPicker> the note detail uses, so a task
+   * can gain and lose tags from the surface the user is already reading. The
+   * picker owns its own row caption (the shared kind badge, itemRole="task"),
+   * which is why no `tagsLabel` is passed: TaskDetailPanel's generic "TAGS"
+   * caption plus the badge would say the same thing twice.
+   *
+   * Always rendered (not conditional on the task having tags): an empty row is
+   * the only place the "+ Tag" affordance can live, and without it a task with
+   * no tags would have no route to its first one.
+   */
+  const tagsSlot = selected ? (
+    <TagPicker itemId={selected.id} itemRole="task" showLabel size="sm" />
+  ) : undefined;
 
   // The selected task's detail (title / status / tags / editor). The board
   // pushes it into the rightSidebar on card-click. Null when nothing is selected.
@@ -437,7 +434,6 @@ export function KanbanView({
       statusLabel={t("taskDetail.status")}
       statusText={t(STATUS_TEXT_KEY[selected.status ?? "NOT_STARTED"])}
       contentLabel={t("taskDetail.content")}
-      tagsLabel={t("taskDetail.tags")}
       tagsSlot={tagsSlot}
       contentEditor={
         <RichTextEditor

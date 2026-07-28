@@ -300,7 +300,15 @@
       "itemsToggle": "Show tagged items",
       "itemsEmpty": "Nothing carries this tag",
       "unassign": "Remove this tag",
-      "untitledItem": "(untitled)"
+      "untitledItem": "(untitled)",
+      "pickerLabel": "Tags",
+      "pickerLabelShort": "Tag",
+      "pickerAdd": "Add tag",
+      "pickerDialog": "Tag picker",
+      "pickerSearch": "Search or create tag…",
+      "pickerNoCandidates": "No more tags to assign.",
+      "pickerCreate": "Create “{{name}}”",
+      "pickerRemove": "Remove tag {{name}}"
     },
     "sidebar": {
       "sort": "Sort",
