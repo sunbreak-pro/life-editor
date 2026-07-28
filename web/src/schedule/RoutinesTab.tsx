@@ -116,7 +116,21 @@ export function RoutinesTab({ dataService }: { dataService: DataService }) {
     if (Object.keys(patch).length === 0) return;
     const routine = routines.find((r) => r.id === id);
     if (!routine) {
-      void updateRoutine(id, patch as Parameters<typeof updateRoutine>[1]);
+      // Routine not in the live list: patch anyway, but seed against an
+      // empty template (#407) — pre-fix the bare patch could persist a
+      // malformed frequency the fail-closed guard reads as "fires never".
+      void updateRoutine(
+        id,
+        seedFrequencyPatch(
+          patch,
+          {
+            frequencyDays: [],
+            frequencyInterval: null,
+            frequencyStartDate: null,
+          },
+          todayDateKey(),
+        ) as Parameters<typeof updateRoutine>[1],
+      );
       return;
     }
     // A bare frequency-TYPE switch carries none of the new type's own

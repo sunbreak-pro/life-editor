@@ -154,7 +154,16 @@ export function FrequencyEditor({
             <input
               type="date"
               value={value.frequencyStartDate ?? ""}
-              onChange={(e) => onChange({ frequencyStartDate: e.target.value })}
+              onChange={(e) => {
+                // #407: a date input emits "" while cleared / mid-edit. That
+                // must never reach the host — an empty start date persists as
+                // a frequency the fail-closed guard reads as "fires never",
+                // and the reconcile wired to frequency edits (#352) would
+                // sweep the series' future on the spot. A start date can be
+                // replaced but not meaningfully unset, so drop the emission.
+                if (e.target.value)
+                  onChange({ frequencyStartDate: e.target.value });
+              }}
               aria-label={labels.startDate}
               className={cn(FIELD, "tabular-nums")}
             />

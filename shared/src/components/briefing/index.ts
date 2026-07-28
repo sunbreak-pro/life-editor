@@ -17,6 +17,7 @@ export {
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
 export {
   extractIntentionSection,
+  hasIntentionToReport,
   mergeIntentionSection,
   normalizeIntentionText,
   type ExtractedIntentionSection,

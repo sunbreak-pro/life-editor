@@ -32,11 +32,13 @@ export function shouldRoutineRunOnDate(
       // Malformed config fails CLOSED (#407): a null/non-positive interval
       // or a missing start date means "fires never", NOT "fires every day".
       // Pre-#407 both guards returned true, so a routine stranded with a
-      // bare interval type (e.g. the losing twin of a double conversion)
-      // regenerated a schedule row EVERY day. The editor paths always seed
-      // both fields (seedFrequencyPatch / handleChangeRepeat), so a healthy
-      // routine never lands here — same runaway-creation defence as the
-      // `default` branch below.
+      // bare interval type regenerated a schedule row EVERY day (the live
+      // #407 zombie was a conversion twin minted before #352 began seeding
+      // bare frequency switches; current-code losers are instead rolled
+      // back by the conditional attach). The editor paths seed both fields
+      // (seedFrequencyPatch / handleChangeRepeat — including the missing-
+      // routine fallbacks since #407), so a healthy routine never lands
+      // here — same runaway-creation defence as the `default` branch below.
       if (!frequencyInterval || frequencyInterval <= 0) return false;
       if (!frequencyStartDate) return false;
       const start = new Date(frequencyStartDate + "T00:00:00");
@@ -107,7 +109,10 @@ export function seedFrequencyPatch<
     const interval = patch.frequencyInterval ?? current.frequencyInterval;
     if (interval == null || interval <= 0) seeded.frequencyInterval = 1;
     const start = patch.frequencyStartDate ?? current.frequencyStartDate;
-    if (start == null) seeded.frequencyStartDate = anchorDate;
+    // "" counts as unset (#407): a routine that inherited an empty string
+    // from a cleared date input would otherwise keep it and read as
+    // "fires never" under the fail-closed guard above.
+    if (!start) seeded.frequencyStartDate = anchorDate;
   }
 
   return seeded;

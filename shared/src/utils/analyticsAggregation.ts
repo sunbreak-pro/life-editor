@@ -11,7 +11,11 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
 } from "../types/wikiTagUnified";
-import { formatDateKey as toDateStr, todayCalendarKey } from "./dateKey";
+import {
+  dateKeyOfInstant,
+  formatDateKey as toDateStr,
+  todayCalendarKey,
+} from "./dateKey";
 
 export interface DayBucket {
   date: string; // YYYY-MM-DD
@@ -395,7 +399,11 @@ export function aggregateTaskCompletionTrend(
 
   for (const n of nodes) {
     if (n.type !== "task" || !n.completedAt) continue;
-    const key = n.completedAt.substring(0, 10);
+    // `completedAt` is a UTC ISO string; the buckets above are LOCAL calendar
+    // keys (#356). Slicing it would read the UTC day, so in JST anything
+    // finished before 09:00 fell into the previous bucket (#420).
+    const key = dateKeyOfInstant(n.completedAt);
+    if (key === null) continue;
     const bucket = map.get(key);
     if (bucket) {
       bucket.completedCount += 1;
@@ -466,10 +474,25 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
  * - A session's minutes are split evenly across its task's tags.
  * - Work on an untagged task — or with no task at all — lands in the trailing
  *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
- *   rather than dropped. Nothing is discarded, so the buckets always sum to the
- *   real logged work time and no tag's share is overstated.
+ *   rather than dropped, so no tag's share is overstated.
+ * - Work on a task that is NOT in `liveTasks` (trashed, or hard-deleted) is
+ *   dropped entirely — see the trash rule below.
  * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
  *   are ignored rather than surfaced as a raw id; that work reads as untagged.
+ *
+ * Trash rule (#428, finishing what #365 started): a trashed task's assignments
+ * stop being returned by `listAllTagAssignments`, so before this its minutes did
+ * not vanish — they silently piled into "untagged", which reads as "work on a
+ * task I never tagged". Analytics excludes trashed items everywhere else
+ * (`fetchTaskTree` is live-only, so the completion trend and stagnation charts
+ * never saw them), and Connect already drops any edge whose endpoint is not a
+ * live node; this aligns the ring with both. Restoring an item brings its work
+ * back for free — nothing is mutated.
+ *
+ * Consequence: the buckets sum to the work logged on LIVE items, not to the
+ * grand total the Work tab reports (which still counts every session). The two
+ * differ by exactly the time spent on trashed tasks — the same kind of gap as
+ * the Tasks tab not listing trashed tasks.
  *
  * Assignments are matched by `itemId` — item ids are unique across roles, so
  * a note/daily/event assignment simply never matches a session's `taskId`.
@@ -478,11 +501,17 @@ export function aggregateWorkTimeByTag(
   sessions: TimerSession[],
   assignments: WikiTagAssignmentUnified[],
   tags: WikiTagUnified[],
+  liveTasks: TaskNode[],
   limit: number = 10,
 ): TagWorkTimeBucket[] {
   const work = getWorkSessions(sessions);
   const tagMap = new Map(
     tags.filter((t) => !t.isDeleted).map((t) => [t.id, t] as const),
+  );
+  // `fetchTaskTree` is already live-only; the isDeleted guard keeps callers
+  // that hand over a wider list (or a stale cache) from reviving trashed work.
+  const liveTaskIds = new Set(
+    liveTasks.filter((n) => !n.isDeleted).map((n) => n.id),
   );
 
   // itemId -> its tag ids (Set: the same tag can be assigned twice — e.g.
@@ -500,6 +529,10 @@ export function aggregateWorkTimeByTag(
 
   for (const s of work) {
     const minutes = (s.duration ?? 0) / 60;
+    // A session that names a task no longer in the live tree is work on a
+    // trashed (or purged) task — dropped, NOT folded into untagged (#428).
+    // `taskId === null` is different: that is genuine task-less work.
+    if (s.taskId !== null && !liveTaskIds.has(s.taskId)) continue;
     const tagIds = s.taskId ? taskTags.get(s.taskId) : undefined;
     if (!tagIds || tagIds.size === 0) {
       untaggedMinutes += minutes;

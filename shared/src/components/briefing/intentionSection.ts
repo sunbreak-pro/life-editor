@@ -82,6 +82,19 @@ export function normalizeIntentionText(
 }
 
 /**
+ * Is there a declaration whose save state is worth reporting? False while the
+ * stored section AND the in-flight draft are both empty: on such a day nothing
+ * has ever been saved, so a「保存済み」caption over an untouched empty field
+ * would claim a save that never happened (#427). Hosts omit the caption then.
+ */
+export function hasIntentionToReport(
+  storedText: string | null,
+  draftText: string | null | undefined,
+): boolean {
+  return storedText !== null || normalizeIntentionText(draftText) !== null;
+}
+
+/**
  * Extract the 宣言 section from a stored daily body (TipTap JSON or legacy
  * plain text — the latter never contains headings, so it yields "no section").
  */
