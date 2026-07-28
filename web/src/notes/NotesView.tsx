@@ -404,9 +404,10 @@ export function NotesView({
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
 
-  // "[[" link-target pool (notes + dailies, cross-domain) for the editor's
-  // wiki-link autocomplete. Absent when no DataService is injected.
-  const linkTargets = useItemLinkTargets(dataService);
+  // "[[" link-target pool (notes + dailies + tasks, cross-domain) for the
+  // editor's wiki-link autocomplete. A loader, not a list: nothing is fetched
+  // until the first "[[" opens the menu (#430).
+  const loadLinkTargets = useItemLinkTargets(dataService);
 
   // A link click from another tab lands here with a pending note id — select
   // it once (the async note load resolves selectedNote afterwards), then clear.
@@ -984,7 +985,7 @@ export function NotesView({
           editable={!selected.isEditLocked}
           onUpdate={(content) => notes.updateNote(selected.id, { content })}
           // "[[" wiki-link autocomplete + click navigation (Issue #285).
-          linkTargets={linkTargets}
+          loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}
           onResolvedLinkInserted={(targetId) =>
             handleResolvedLinkInserted(selected.id, targetId)
@@ -1118,7 +1119,7 @@ export function NotesView({
                   initialContent={notes.selectedNote?.content || undefined}
                   editable={false}
                   onUpdate={() => {}}
-                  // Read-only: no "[[" suggestion (linkTargets omitted), but
+                  // Read-only: no "[[" suggestion (loadLinkTargets omitted), but
                   // resolved links stay clickable for navigation.
                   onNavigateToItem={onNavigateToItem}
                 />

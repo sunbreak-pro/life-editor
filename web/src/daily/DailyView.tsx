@@ -38,8 +38,10 @@ import {
   formatDateKey,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
-import { useItemLinkTargets } from "../notes/useItemLinkTargets";
-import type { ItemLinkTarget } from "../notes/itemLinkSuggestion";
+import {
+  useItemLinkTargets,
+  type LoadItemLinkTargets,
+} from "../notes/useItemLinkTargets";
 
 /*
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
@@ -90,7 +92,7 @@ function EditorCard({
   initialContent,
   onUpdate,
   placeholder,
-  linkTargets,
+  loadLinkTargets,
   onNavigateToItem,
   onResolvedLinkInserted,
 }: {
@@ -103,7 +105,7 @@ function EditorCard({
   initialContent?: string;
   onUpdate: (content: string) => void;
   placeholder: string;
-  linkTargets?: ItemLinkTarget[];
+  loadLinkTargets?: LoadItemLinkTargets;
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   onResolvedLinkInserted?: (targetId: string) => void;
 }) {
@@ -131,7 +133,7 @@ function EditorCard({
         // "[[" wiki-link autocomplete + click navigation (Issue #285). No
         // create-note row here (Daily has no note-create path) — the daily
         // editor only links to EXISTING items.
-        linkTargets={linkTargets}
+        loadLinkTargets={loadLinkTargets}
         onNavigateToItem={onNavigateToItem}
         onResolvedLinkInserted={onResolvedLinkInserted}
         className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
@@ -171,8 +173,9 @@ export function DailyView({
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
 
-  // "[[" link-target pool (notes + dailies, cross-domain).
-  const linkTargets = useItemLinkTargets(dataService);
+  // "[[" link-target pool (notes + dailies + tasks, cross-domain). A loader,
+  // not a list: nothing is fetched until the first "[[" (#430).
+  const loadLinkTargets = useItemLinkTargets(dataService);
 
   // A link click from the Notes tab lands here with a pending date — open it
   // once, then clear.
@@ -532,7 +535,7 @@ export function DailyView({
             initialContent={editorContent}
             onUpdate={handleEditorUpdate}
             placeholder={t("materials.daily.placeholder")}
-            linkTargets={linkTargets}
+            loadLinkTargets={loadLinkTargets}
             onNavigateToItem={onNavigateToItem}
             onResolvedLinkInserted={handleResolvedLinkInserted}
           />
@@ -614,7 +617,7 @@ export function DailyView({
           initialContent={editorContent}
           onUpdate={handleEditorUpdate}
           placeholder={t("materials.daily.placeholder")}
-          linkTargets={linkTargets}
+          loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}
           onResolvedLinkInserted={handleResolvedLinkInserted}
         />
