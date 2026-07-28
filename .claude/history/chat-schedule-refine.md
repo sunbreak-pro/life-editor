@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-28 - #434 繰り返し変換の pending 表示・失敗 toast とガードの shared 切り出し（PR #450）
+
+#### 概要
+
+#423（#407）の role-qa 監査で残した follow-up 2 件を実装した。「見送り可」扱いだった 2 も実装している — 1 の実装でガードに描画用の state ミラーが増え、ref と state がずれると「ずっと変換中のまま」か「一度もロックされない」のどちらかに化けるため、テストで固定する価値が新たに出たため。
+
+#### 変更点
+
+- **黙って捨てられていた 2 つの経路**: #407 の in-flight ガードは変換中の 2 回目の頻度クリックを無言で捨て、条件付き attach が reject したときもエディタが reload で「なし」に戻るだけだった。どちらも操作した側からは「押しても無反応」と区別が付かない
+- **`FrequencyEditor` に `pending`**（`shared/src/components/schedule/FrequencyEditor.tsx`）: セグメント / 曜日チップ / interval 数値 / 開始日入力を一括 disabled、節に `aria-busy`、頻度ラベルの右に `role="status"` で理由を表示。`labels.converting` は optional なので Routines タブ（`RoutineEditorForm` 経由）は無変更で通る。`SegmentedControl` には対になる `disabled` を追加し、ポインタとキーボード（`stepSegmentFocus`）の両方を no-op に
+- **失敗 toast**: `useScheduleMutations` に `onRepeatConvertFailed` を注入し `convertEventToRoutine` の catch で発火 → `CalendarTab` が `showToast("danger", ...)` に配線（#376 `noteAttachFailed` と同契約）。i18n は `scheduleScreen.repeatConverting` / `repeatConvertFailed` を en・ja 両 catalog へ
+- **ガードを shared へ**（新設 `shared/src/hooks/useInFlightGuard.ts`）: 肝は **`begin(id)` が check と claim を 1 呼び出しに畳む**こと。「has で見てから add する」2 文に戻せないので、#407 を生んだ check-then-act の隙間を呼び手が再導入できない。**同期の ref が権威で state は描画専用のミラー** — 2 クリックは同じ tick に届きうるので、バッチされる state 書き込みでは 2 個目を素通しする。`inFlightIds` は 1 レンダー遅れうるため書き込み経路の分岐に使わない旨をコメントで明示した。`begin` が true を返したら `finally` で必ず `end` する責務は呼び手側（漏らすとそのセッション中ロックされたまま）
+- **テスト**: `frequencyEditor.test.tsx` に pending 4 本、新設 `inFlightGuard.test.ts` に 5 本（**同一 `act` 内の二重 claim を拒否** = 二重クリック相当 / id 独立 / 描画ミラー / 未 claim の `end` は no-op / claim が同期で見える）
+- **検証**: shared vitest **151 files / 1232 pass**（main 比 +23）、shared build / web build / web lint すべて exit 0
+- **スコープ外にした観察**（PR 本文に記載・未起票）: 同じ「黙って失敗する」型が系列パスにも残る（`useScheduleMutations.ts:511` の `if (!landed) return;`）。本 Issue の DoD は attach reject に限定されているので触っていない
+
 ### 2026-07-28 - #433 置き去りコミットの回収（PR #435）+ #408 の事前調査
 
 #### 概要
