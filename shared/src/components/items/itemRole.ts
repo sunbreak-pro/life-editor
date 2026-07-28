@@ -41,8 +41,9 @@ export function resolveItemRole(
 /**
  * Per-kind icon. Each one is the icon that kind ALREADY wears elsewhere in the
  * app, so a badge reads as the same thing the user clicked to get there:
- * task/note/daily match the Materials tab icons (MainScreen MATERIALS_ICON)
- * and the "[[" link suggestions; event matches the Schedule section icon
+ * note/daily match the Materials tab icons and task matches Schedule's Todo
+ * tab icon (MainScreen MATERIALS_ICON / SCHEDULE_ICON — task moved sections in
+ * #411) plus the "[[" link suggestions; event matches the Schedule section icon
  * (sections.ts). Unknown gets a question mark, never a kind's icon.
  */
 export const ITEM_ROLE_ICON: Record<ItemRole, LucideIcon> = {

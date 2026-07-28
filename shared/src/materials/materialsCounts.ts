@@ -15,7 +15,11 @@ import type { TaskNode } from "../types/taskTree";
 import type { NoteNode } from "../types/note";
 import type { DailyNode } from "../types/daily";
 
-/** Badge count per Materials tab (keys mirror the MaterialsTab union). */
+/**
+ * Badge count per document surface. Named for Materials because that is where
+ * all three tabs lived when this was written; `tasks` feeds Schedule's Todo tab
+ * since #411, so the keys are surfaces rather than one section's tab union.
+ */
 export interface MaterialsCounts {
   /** Incomplete tasks (a task that still needs doing = a meaningful number). */
   tasks: number;
