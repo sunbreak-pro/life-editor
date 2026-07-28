@@ -14,7 +14,6 @@ import { ClipboardCheck } from "lucide-react";
 import { Fragment, type CSSProperties } from "react";
 import { cn } from "../cn";
 import { STATUS_ICON } from "../taskStatusVisuals";
-import type { TaskStatus } from "../../types/taskTree";
 import { KanbanCard } from "./KanbanCard";
 import { ColorPicker } from "../ColorPicker";
 import type {

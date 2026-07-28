@@ -1,5 +1,3 @@
-import type { SessionType } from "../types/timer";
-
 /*
  * Shared Pomodoro timer reducer (W3-B). A v2 reimplementation of the FROZEN
  * `frontend/src/context/timerReducer.ts`, redesigned around the confirmed

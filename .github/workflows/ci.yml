@@ -47,6 +47,11 @@ jobs:
       - name: shared — install
         run: npm ci
         working-directory: shared
+      # web と同じ理由でここ（verify 内のステップ）に置く。独立ジョブにすると
+      # npm ci がもう一度走る分だけ遅くなる（#364 / #421）
+      - name: shared — lint (eslint)
+        run: npm run lint
+        working-directory: shared
       - name: shared — build (tsc -b)
         run: npm run build
         working-directory: shared

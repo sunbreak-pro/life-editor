@@ -18,7 +18,10 @@ export interface DetailPanelLabels {
   resize: string;
 }
 
-export interface AppShellSection extends SidebarNavSection {}
+/** The shell's section shape IS the nav's — aliased so callers can name it
+ *  after the shell rather than reaching for the nav's type (#421: an empty
+ *  extending interface is just its supertype). */
+export type AppShellSection = SidebarNavSection;
 
 export interface AppShellLabels {
   appName: string;
