@@ -83,8 +83,11 @@ describe("useInFlightGuard", () => {
     act(() => {
       result.current.begin("seed-1");
       // The ref-backed read is the one write paths must branch on; the
-      // rendered mirror has not been published at this point.
+      // rendered mirror has NOT been published at this point. Both halves
+      // are asserted, so a "simplification" that drops the ref and reads
+      // state instead fails here rather than silently reopening #407.
       expect(result.current.isInFlight("seed-1")).toBe(true);
+      expect(result.current.inFlightIds).toEqual([]);
     });
   });
 });

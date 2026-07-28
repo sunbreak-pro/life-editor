@@ -228,11 +228,18 @@ export function CalendarTab({
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
   );
-  // #434: an Event→Repeats conversion that did not land. Without this the
-  // editor just snaps back to "なし" on the reload, which reads as the click
-  // having been ignored.
+  // #434: an Event→Repeats conversion that did not fully land. Without this
+  // the editor just snaps back on the reload, which reads as the click having
+  // been ignored. "materialise" is a partial success — the repeat is on, so
+  // saying "couldn't turn on repeat" there would be a lie.
   const handleRepeatConvertError = useCallback(
-    () => showToast("danger", t("scheduleScreen.repeatConvertFailed")),
+    (reason: "attach" | "materialise") =>
+      showToast(
+        "danger",
+        reason === "attach"
+          ? t("scheduleScreen.repeatConvertFailed")
+          : t("scheduleScreen.repeatMaterialiseFailed"),
+      ),
     [showToast, t],
   );
   const {

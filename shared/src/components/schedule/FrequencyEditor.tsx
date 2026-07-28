@@ -138,12 +138,12 @@ export function FrequencyEditor({
                 type="button"
                 aria-pressed={active}
                 aria-label={weekdayLabels[d] ?? String(d)}
-                disabled={pending}
-                onClick={() => toggleDay(d)}
+                aria-disabled={pending || undefined}
+                onClick={pending ? undefined : () => toggleDay(d)}
                 className={cn(
                   "flex size-[34px] items-center justify-center rounded-full border text-xs font-medium transition-colors",
                   CHIP_FOCUS,
-                  "disabled:cursor-not-allowed disabled:opacity-60",
+                  pending && "cursor-not-allowed opacity-60",
                   active
                     ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
                     : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover",
@@ -165,17 +165,22 @@ export function FrequencyEditor({
               type="number"
               min={1}
               value={value.frequencyInterval ?? 1}
-              onChange={(e) =>
+              onChange={(e) => {
+                if (pending) return;
                 onChange({
                   frequencyInterval: Math.max(1, Number(e.target.value) || 1),
-                })
-              }
+                });
+              }}
               aria-label={labels.frequencyInterval}
-              disabled={pending}
+              // readOnly, not disabled: a disabled input drops keyboard focus
+              // to <body> the moment the lock engages (same reason as the
+              // segments above), and the lock is short-lived.
+              readOnly={pending}
+              aria-disabled={pending || undefined}
               className={cn(
                 FIELD,
                 "w-20 tabular-nums",
-                "disabled:cursor-not-allowed disabled:opacity-60",
+                pending && "cursor-not-allowed opacity-60",
               )}
             />
             <span>{labels.intervalDays}</span>
@@ -186,6 +191,7 @@ export function FrequencyEditor({
               type="date"
               value={value.frequencyStartDate ?? ""}
               onChange={(e) => {
+                if (pending) return;
                 // #407: a date input emits "" while cleared / mid-edit. That
                 // must never reach the host — an empty start date persists as
                 // a frequency the fail-closed guard reads as "fires never",
@@ -196,11 +202,12 @@ export function FrequencyEditor({
                   onChange({ frequencyStartDate: e.target.value });
               }}
               aria-label={labels.startDate}
-              disabled={pending}
+              readOnly={pending}
+              aria-disabled={pending || undefined}
               className={cn(
                 FIELD,
                 "tabular-nums",
-                "disabled:cursor-not-allowed disabled:opacity-60",
+                pending && "cursor-not-allowed opacity-60",
               )}
             />
           </label>

@@ -145,12 +145,17 @@ export interface UseScheduleMutationsArgs {
     endISO: string,
   ) => void;
   onResizeTaskChip: (chipId: string, endISO: string) => void;
-  // #434: an Event→Repeats conversion did not land — most often the #407
-  // conditional attach refusing a seed another conversion already owns. The
-  // editor snaps back on reload(), which on its own looks like the click did
-  // nothing, so the host says it out loud (toast). Same contract as the
-  // create panel's note-attach failure (#376).
-  onRepeatConvertFailed: () => void;
+  // #434: an Event→Repeats conversion did not fully land. The editor snaps
+  // back on reload(), which on its own looks like the click did nothing, so
+  // the host says it out loud (toast). Same contract as the create panel's
+  // note-attach failure (#376). The two reasons need different words:
+  //   "attach"      — nothing landed; the event is still a plain event
+  //                   (most often the #407 conditional attach refusing a
+  //                   seed another conversion already owns).
+  //   "materialise" — the repeat IS on, but filling the rest of the visible
+  //                   range failed, so the calendar shows fewer occurrences
+  //                   than the rhythm implies until the next pass.
+  onRepeatConvertFailed: (reason: "attach" | "materialise") => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -558,11 +563,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           } catch {
             // Conversion did not land — the seed is untouched server-side
             // (or already owned by a routine: the #407 conditional attach).
-            // Re-read so the repeat editor's optimistic state snaps back,
-            // and say so (#434): the snap-back alone is indistinguishable
-            // from "the click did nothing".
-            onRepeatConvertFailed();
-            reload();
+            // Say so (#434): the snap-back the finally's reload() causes is
+            // indistinguishable from "the click did nothing".
+            onRepeatConvertFailed("attach");
             return;
           }
           patchRange(seed.id, { routineId, sourceDate: seed.date });
@@ -597,20 +600,32 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           const windowStart = [rangeStart, seed.date, today].reduce((a, b) =>
             a >= b ? a : b,
           );
-          if (windowStart <= rangeEnd) {
-            await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-              optimisticRoutine,
-            ]);
-            // Second idempotent pass: the always-on today generator can race
-            // the first batch on today's row (23505 → whole-batch rollback
-            // inside ensure). The re-run's pre-check sees the winner and fills
-            // in the remaining days.
-            await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-              optimisticRoutine,
-            ]);
+          try {
+            if (windowStart <= rangeEnd) {
+              await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+                optimisticRoutine,
+              ]);
+              // Second idempotent pass: the always-on today generator can
+              // race the first batch on today's row (23505 → whole-batch
+              // rollback inside ensure). The re-run's pre-check sees the
+              // winner and fills in the remaining days.
+              await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
+                optimisticRoutine,
+              ]);
+            }
+          } catch {
+            // The repeat itself IS on (convert + attach landed above); only
+            // filling the visible range failed. Pre-#434 this threw out of
+            // the void-ed promise: an unhandled rejection that also skipped
+            // the reload, leaving the optimistic band on screen over data
+            // that never arrived.
+            onRepeatConvertFailed("materialise");
           }
-          reload();
         } finally {
+          // reload() lives here so every exit — landed, refused attach,
+          // half-materialised — re-reads exactly once and the editor stops
+          // showing optimistic state the server never confirmed.
+          reload();
           // Released only after the routineId patch + reload settle: from
           // here `selected.routineId` is set, so the next frequency click
           // routes to the series-edit branch instead of a second conversion.

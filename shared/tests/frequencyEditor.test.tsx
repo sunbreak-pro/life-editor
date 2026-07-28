@@ -136,16 +136,36 @@ describe("FrequencyEditor — pending (#434)", () => {
       { ...base, frequencyType: "interval", frequencyInterval: 3 },
       { pending: true, onSelectNone: vi.fn() },
     );
-    expect(screen.getByRole("tab", { name: "Daily" })).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "None" })).toBeDisabled();
-    expect(screen.getByLabelText("Every N days")).toBeDisabled();
-    expect(screen.getByLabelText("Start date")).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Daily" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "None" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByLabelText("Every N days")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Start date")).toHaveAttribute("readonly");
     expect(screen.getByRole("status")).toHaveTextContent("Turning on repeat…");
   });
 
-  it("disables the weekday chips while pending", () => {
+  it("keeps the locked controls focusable so focus is not lost", () => {
+    // A real `disabled` would strip the section of focusable elements and
+    // the browser would dump keyboard focus on <body> mid-interaction — the
+    // lock is transient, the focus loss would not be.
     renderEditor(base, { pending: true });
-    expect(screen.getByRole("button", { name: "Tue" })).toBeDisabled();
+    const daily = screen.getByRole("tab", { name: "Daily" });
+    expect(daily).not.toBeDisabled();
+    daily.focus();
+    expect(document.activeElement).toBe(daily);
+  });
+
+  it("marks the weekday chips disabled while pending", () => {
+    renderEditor(base, { pending: true });
+    expect(screen.getByRole("button", { name: "Tue" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("emits nothing when a pending control is clicked", () => {
@@ -158,9 +178,32 @@ describe("FrequencyEditor — pending (#434)", () => {
     expect(onSelectNone).not.toHaveBeenCalled();
   });
 
+  it("emits nothing when a pending interval input changes", () => {
+    // readOnly stops typing, but a date picker can still commit a value in
+    // some browsers — the handler guard is the one that must hold.
+    const { onChange } = renderEditor(
+      {
+        ...base,
+        frequencyType: "interval",
+        frequencyInterval: 3,
+        frequencyStartDate: "2026-05-17",
+      },
+      { pending: true },
+    );
+    fireEvent.change(screen.getByLabelText("Every N days"), {
+      target: { value: "9" },
+    });
+    fireEvent.change(screen.getByLabelText("Start date"), {
+      target: { value: "2026-05-20" },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("stays interactive when pending is not set", () => {
     const { onChange } = renderEditor(base);
-    expect(screen.getByRole("tab", { name: "Daily" })).not.toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Daily" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
     expect(screen.queryByRole("status")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Daily" }));
     expect(onChange).toHaveBeenCalledWith({ frequencyType: "daily" });
