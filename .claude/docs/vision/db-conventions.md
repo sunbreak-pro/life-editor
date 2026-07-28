@@ -92,3 +92,16 @@ PostgREST は全 SELECT をサーバ側 `max-rows`（Supabase 既定 1000）で*
 - **fetchByIdChunks / forEachIdChunk**: `.in(col, ids)` の id リストは 200 件ずつに分割（URL 長 + max-rows の両対策）。write の部分適用は Realtime では自己修復しない（caller の retry / 冪等パッチ前提）
 - **有界 read は適用不要**: 単一 item の join・1 routine のグループ所属など、入力で件数が構造的に抑えられる read はそのままでよい。ただし `.in().in()` の直積フィルタは「バッチで有界」に見えて既存行数でスケールするため対象（bulkCreate pre-check の実例）
 - ⚠️ **運用注意**: Supabase 側で `db.max_rows` を `POSTGREST_PAGE_SIZE`（=1000）未満に下げると short-page 停止条件が壊れ、全 paginated read が再び無音切り捨てに戻る（012 再来）。max-rows を変更する場合は先に POSTGREST_PAGE_SIZE を追随させること
+
+---
+
+## 12. PostgREST 埋め込み join の FK 名指し規約（#365 / #431）
+
+「関連テーブルの列を条件に使いたいだけ」の read は、埋め込み join でサーバ側に押し込むと 1 往復で済む。実例が `listAllTagAssignments`（`shared/src/services/SupabaseWikiTagsUnifiedService.ts:154-169`）で、`items_meta!inner(is_deleted)` + `.eq("items_meta.is_deleted", false)` によって「ゴミ箱に入った item に紐づく assignment」を DB 側で落としている（クライアント側で id を集めて 2 回目の sweep を撃つと、syncVersion が上がるたび = 打鍵が止まるたびに再実行されてしまう）。
+
+⚠️ **同じ書き方をコピーできない相手がある**。埋め込み先テーブルへの FK が **2 本以上ある**場合、素の `items_meta!inner(...)` は「どちらの FK を辿るか」が決まらず、PostgREST が **PGRST201（400）**を返す。
+
+- **踏む相手の実例**: `wiki_tag_connections` は `from_item_id` / `to_item_id` の 2 本が `items_meta` を参照する（DDL = `supabase/migrations/0008_data_unification_schema.sql:922-931`）。したがって `listAllTagConnections`（同ファイル `:235-247`）に `items_meta!inner(is_deleted)` をそのまま足すと 400 になる
+- **回避**: FK 制約名（または列名）で辿る側を名指しする — `items_meta!wiki_tag_connections_from_item_id_fkey(is_deleted)` のように書く。0008 の FK はインライン `references` で張られており制約名を明示していないため、Postgres 既定の `<table>_<column>_fkey` が名前になる（**書く前に実物を確認すること**）。**両端の liveness を見たいなら埋め込みも 2 つ必要**（別名で 2 回埋め込む）
+- **判断の目安**: 埋め込みを足す前に、対象テーブルから埋め込み先への FK が何本あるかを確認する。1 本なら素の `!inner` でよい。2 本以上なら必ず名指しする
+- 埋め込んだ列は join 専用で、行 → ドメイン型の mapper は余分なキーを無視してよい（`rowToWikiTagAssignment` がその形）

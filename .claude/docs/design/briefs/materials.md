@@ -27,10 +27,13 @@ Branch: claude/design-materials-v2
 
 ### 1.2 Notes
 
-- **目的 / 主ユースケース**: ツリー階層の長文ナレッジベース（Life Editor 版 Obsidian / Notion ページ）。TipTap リッチテキスト + 相互リンク + ピン留め + パスワード保護（`tier-1-core.md:159`）
-- **表示するデータ**: NoteNode（folder / note、数十件想定）。ピン（`tier-1-core.md:181`）、パスワード保護（`tier-1-core.md:182`）、タグ・リンク（`web/src/notes/NotesView.tsx:618-625`）、ゴミ箱（`NotesView.tsx:526-562`）
-- **主要操作**: 作成（ノート / フォルダ）、ツリー DnD（並び替え / フォルダへ格納 / ルートへ、`NotesView.tsx:352-361`）、選択 → 詳細編集、ピン / リネーム / 削除、パスワード verify（ぼかし + 解除ボタン、`NotesView.tsx:627-669`）、全文検索（要件 `tier-1-core.md:183`。現 Web 実装は未搭載 → デザインで先行）
-- **Desktop / Mobile の責務分割**: Desktop = MasterDetail 2 ペイン（一覧 1 : 詳細 1.4、`shared/src/components/MasterDetail.tsx:59-78`）で全機能。Mobile = 一覧 + ほぼ全画面ボトムシートでの**閲覧 + 最短ノート追加**（`MasterDetail.tsx:81-104` の 92svh シート）。落とすもの: DnD 並び替え / フォルダ作成・リネーム / パスワード設定（解除 = 閲覧のためだけ残す）/ タグ・リンク編集（表示のみ）/ ゴミ箱
+> 📌 **2026-07-28 棚卸し済み（#431）**: 本節の Notes 記述は v2 執筆（2026-07-05）当時のツリー実装を指していた。life-tags 統合 S1 でフォルダツリーが退役し、#375 で folder ノート型そのものが無くなったため、以下は**再実測後の現状**に置き換えてある。
+
+- **目的 / 主ユースケース**: 長文ナレッジベース（Life Editor 版 Obsidian / Notion ページ）。TipTap リッチテキスト + 相互リンク + ピン留め + パスワード保護（`tier-1-core.md:159`）。階層は持たず、**life-tag によるグルーピング**が一覧の骨格
+- **表示するデータ**: NoteNode（note のみ。folder ノート型は #375 で退役し、legacy のフォルダ行は fetch 時に落ちて view に届かない）。ピン（`tier-1-core.md:181`）、パスワード保護（`tier-1-core.md:182`）、タグ・リンク、ゴミ箱（折りたたみの「ゴミ箱（N）」行、`web/src/notes/NotesView.tsx:770-830`）
+- **主要操作**: ノート作成（メイン右上の「+ ノート」= #302 / Mobile は `QuickAddSheet`）、**タグ見出しへの DnD = そのタグを付与**（`useNoteTagDnd`。並び替え・フォルダへの格納は無い — 多対多のタグモデルでは `sort_order` に意味が無いため）、選択 → 詳細編集、ピン / 削除 / 復元、パスワード verify（ぼかし + 中央解除ボタン、`NotesView.tsx:1000-1011`）、**タイトル検索**（`NotesView.tsx:453-459`）
+- **注記（要件ドリフト）**: 要件の**全文検索**（`tier-1-core.md:183`、`db_notes_search`）は現 Web 実装では未搭載で、検索欄はタイトルの部分一致フィルタ。一覧が本文を持たない S1 の設計判断によるもの → デザインは全文検索前提で先行してよい
+- **Desktop / Mobile の責務分割**: Desktop = メインが選択ノートのエディタ（共有 `NoteDetailPanel variant="main"`）で、一覧は共有 rightSidebar へ `RightSidebarPortal` で押し出す（`MasterDetail` は使っていない）。Mobile = 同じタグ見出し + `ExcerptListItem` 行の一覧 + 92% 高さの読み sheet + 「+」`QuickAddSheet`。落とすもの: DnD でのタグ付与 / パスワード設定（解除 = 閲覧のためだけ残す）/ タグ・リンク編集（表示のみ）/ ゴミ箱
 
 ### 1.3 Daily
 
@@ -64,17 +67,22 @@ Branch: claude/design-materials-v2
 
 ### 2.2 Notes
 
-- **host 画面**: `web/src/notes/NotesView.tsx`（+ `RichTextEditor.tsx` / `NotePasswordDialog.tsx` / `useNoteTreeDnd.ts`）
-- **shared 部品**: `MasterDetail.tsx`（wide 2 ペイン / narrow BottomSheet、`MasterDetail.tsx:29-45`）、`BottomSheet.tsx`
-- **特徴的 UI**: 階層ツリー（インデントガイド `TreeNodeIndent`、フォルダアイコン⇄シェブロンの hover 入替 `NotesView.tsx:169-205`、hover で grip + 削除が出現 `NotesView.tsx:151-162`・`234-248`）。ピン / ロックのインラインアイコン（`NotesView.tsx:219-231`）。TipTap エディタ + タグピッカー + リンクパネル（`NotesView.tsx:618-625`）。パスワードノートは本文ぼかし + 中央解除ボタン（`NotesView.tsx:627-669`）
-- **状態の現状**: empty = 「No notes yet」テキスト（`NotesView.tsx:476-479`）/ loading = テキストのみ（`NotesView.tsx:432-434`）/ error = 赤枠 alert（`NotesView.tsx:458-474`）
-- **現状の課題**:
-  1. 作成 / リネームが `window.prompt`（`NotesView.tsx:388-404`）で UI として未成立
-  2. 検索 UI が無い（要件の全文検索 `db_notes_search` が UI に露出していない）
-  3. ゴミ箱が素の `<details>`（`NotesView.tsx:526-562`）
-  4. 一覧に本文抜粋・更新日などの手掛かりが無く、行が名前だけで痩せている
-  5. 文言が英語ハードコード（i18n 前）
-  6. 空状態・ローディングが素のテキスト
+> 📌 **2026-07-28 再実測（#431）**。v2 執筆時（2026-07-05）はフォルダツリー実装だったが、life-tags 統合 S1 でツリーが退役し、#375 で folder ノート型そのものが無くなった。旧記述が挙げていた `useNoteTreeDnd.ts` は `useNoteTagDnd.ts` への置換で削除済み・実在しない。当時の「現状の課題」6 件のうち 5 件はすでに解消している（下の ✅）。
+
+- **host 画面**: `web/src/notes/NotesView.tsx`（+ `RichTextEditor.tsx` / `NotePasswordDialog.tsx` / `useNoteTagDnd.ts` / `useItemLinkTargets.ts` / `ItemLinkMenu.tsx` / `SlashMenu.tsx`）
+- **shared 部品**: `NoteDetailPanel` / `EmptyState` / `SkeletonList` / `ExcerptListItem` / `QuickAddSheet` / `BottomSheet` / `SidebarListControls` / `TagHeadingIcon` / `buildTagGroups` / `RightSidebarPortal`（`MasterDetail` は不使用）
+- **特徴的 UI**: 階層ツリーではなく **life-tag ごとの見出し + 末尾の「未分類」バケット**でグルーピング（`buildTagGroups`。グルーピングはタグ割当だけを見るので、どのタグにも属さないノートも必ずどこかに出る）。見出しは折りたたみ可（畳んだ状態は localStorage に保存）。Desktop は一覧を共有 rightSidebar へ `RightSidebarPortal` で押し出し、メインは選択ノートのエディタ。Mobile は `ExcerptListItem` 行 + 92% 高さの読み sheet + 「+」`QuickAddSheet`。ピン / ロックのインラインアイコン（`NotesView.tsx:205-215`）。パスワードノートは本文ぼかし + 中央解除ボタン（`NotesView.tsx:1000-1011`）。ゴミ箱は折りたたみの「ゴミ箱（N）」行（`NotesView.tsx:770-830`）
+- **状態の現状**: empty = 共有 `EmptyState`（アイコン + CTA、`NotesView.tsx:669-677`）/ loading = 共有 `SkeletonList`（`NotesView.tsx:607-613`、Mobile sheet 側は `:1126`）/ error = `role="alert"` の赤枠（`NotesView.tsx:659-666`）
+- **解消済み（当時の課題 → 現状）**:
+  - ✅ 作成 / リネームの `window.prompt` — 消滅（作成はメイン右上の「+ ノート」/ Mobile は `QuickAddSheet`。repo 内に `window.prompt` は無い）
+  - ✅ 検索 UI が無い — 検索欄あり（ただしタイトルのみ。下の残課題 1 参照）
+  - ✅ ゴミ箱が素の `<details>` — 折りたたみボタン + 件数バッジの行に置換
+  - ✅ 行が名前だけで痩せている — Mobile は `ExcerptListItem`、並び替えは `SidebarListControls`（更新日時 / 作成日時 / タイトル）
+  - ✅ 空状態・ローディングが素のテキスト — `EmptyState` / `SkeletonList` に置換
+- **残っている課題**:
+  1. 要件の全文検索（`db_notes_search`）が未搭載で、検索はタイトルの部分一致どまり（一覧が本文を持たない S1 の設計判断）
+  2. パスワードダイアログの文言だけ英語ハードコードのまま（`NotesView.tsx:87-101` の `DIALOG_LABELS`。catalog 化は follow-up 扱い）
+  3. Desktop の一覧が共有 rightSidebar 常駐になったため、他セクションとサイドバーを取り合ったときの優先順位が未デザイン
 
 ### 2.3 Daily
 
