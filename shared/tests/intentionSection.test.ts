@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractIntentionSection,
   mergeIntentionSection,
+  hasIntentionToReport,
   normalizeIntentionText,
 } from "../src/components/briefing/intentionSection";
 import { extractBriefing } from "../src/components/briefing/extractBriefing";
@@ -223,5 +224,32 @@ describe("mergeIntentionSection", () => {
     expect(evening.mood).toBe(4);
     expect(textsOf(evening.bodyDocJson!)).toEqual(["振り返り"]);
     expect(extractIntentionSection(merged).text).toBe("宣言A\n宣言B");
+  });
+});
+
+/*
+ * #427 — the saved/unsaved caption is only meaningful once a declaration
+ * exists somewhere (stored section or in-flight draft). A day where both are
+ * empty has never been saved, so the host omits the caption.
+ */
+describe("hasIntentionToReport", () => {
+  it("is false when nothing is stored and nothing is drafted", () => {
+    expect(hasIntentionToReport(null, undefined)).toBe(false);
+  });
+
+  it("is false when the draft holds only whitespace / blank lines", () => {
+    expect(hasIntentionToReport(null, "")).toBe(false);
+    expect(hasIntentionToReport(null, "   \n\n  ")).toBe(false);
+  });
+
+  it("is true as soon as the draft has a real character", () => {
+    expect(hasIntentionToReport(null, "宣")).toBe(true);
+  });
+
+  it("is true whenever a declaration is stored, draft or not", () => {
+    expect(hasIntentionToReport("宣言A", undefined)).toBe(true);
+    // Clearing a stored declaration still reports — the pending delete is a
+    // save in flight, not a never-declared day.
+    expect(hasIntentionToReport("宣言A", "")).toBe(true);
   });
 });
