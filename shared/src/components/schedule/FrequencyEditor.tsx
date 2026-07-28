@@ -41,6 +41,8 @@ export interface FrequencyEditorLabels {
   /** "日ごと" trailing word. */
   intervalDays: string;
   startDate: string;
+  /** Shown beside the frequency label while `pending` (#434). */
+  converting?: string;
 }
 
 export interface FrequencyEditorProps {
@@ -53,6 +55,13 @@ export interface FrequencyEditorProps {
   /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
   weekdayLabels: string[];
   labels: FrequencyEditorLabels;
+  /**
+   * The host is still applying the last choice — an Event→Repeats conversion
+   * in flight (#407's in-flight guard). Every control locks and the section
+   * reads as busy, so the guard's "ignore this click" has a visible cause
+   * instead of looking like a dead button (#434). Pair with labels.converting.
+   */
+  pending?: boolean;
   className?: string;
 }
 
@@ -65,6 +74,7 @@ export function FrequencyEditor({
   onSelectNone,
   weekdayLabels,
   labels,
+  pending = false,
   className,
 }: FrequencyEditorProps) {
   const freqOptions = [
@@ -77,12 +87,13 @@ export function FrequencyEditor({
   ];
 
   const handleSelect = (id: string) => {
+    if (pending) return;
     if (id === NONE_ID) onSelectNone?.();
     else onChange({ frequencyType: id as FrequencyType });
   };
 
   const toggleDay = (d: number) => {
-    if (!value) return;
+    if (pending || !value) return;
     const has = value.frequencyDays.includes(d);
     const next = has
       ? value.frequencyDays.filter((x) => x !== d)
@@ -91,15 +102,28 @@ export function FrequencyEditor({
   };
 
   return (
-    <div className={cn("flex flex-col gap-3.5", className)}>
+    <div
+      className={cn("flex flex-col gap-3.5", className)}
+      aria-busy={pending || undefined}
+    >
       {/* Frequency type */}
       <div className="flex flex-col gap-1.5">
-        <span className={FIELD_LABEL}>{labels.frequency}</span>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className={FIELD_LABEL}>{labels.frequency}</span>
+          {pending && labels.converting && (
+            // role=status so the reason the controls locked is announced,
+            // not just rendered (the lock is the whole point of #434).
+            <span role="status" className="text-xs text-lumen-text-secondary">
+              {labels.converting}
+            </span>
+          )}
+        </div>
         <SegmentedControl
           options={freqOptions}
           value={value?.frequencyType ?? NONE_ID}
           onChange={handleSelect}
           label={labels.frequency}
+          disabled={pending}
         />
       </div>
 
@@ -114,10 +138,12 @@ export function FrequencyEditor({
                 type="button"
                 aria-pressed={active}
                 aria-label={weekdayLabels[d] ?? String(d)}
+                disabled={pending}
                 onClick={() => toggleDay(d)}
                 className={cn(
                   "flex size-[34px] items-center justify-center rounded-full border text-xs font-medium transition-colors",
                   CHIP_FOCUS,
+                  "disabled:cursor-not-allowed disabled:opacity-60",
                   active
                     ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
                     : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover",
@@ -145,7 +171,12 @@ export function FrequencyEditor({
                 })
               }
               aria-label={labels.frequencyInterval}
-              className={cn(FIELD, "w-20 tabular-nums")}
+              disabled={pending}
+              className={cn(
+                FIELD,
+                "w-20 tabular-nums",
+                "disabled:cursor-not-allowed disabled:opacity-60",
+              )}
             />
             <span>{labels.intervalDays}</span>
           </div>
@@ -165,7 +196,12 @@ export function FrequencyEditor({
                   onChange({ frequencyStartDate: e.target.value });
               }}
               aria-label={labels.startDate}
-              className={cn(FIELD, "tabular-nums")}
+              disabled={pending}
+              className={cn(
+                FIELD,
+                "tabular-nums",
+                "disabled:cursor-not-allowed disabled:opacity-60",
+              )}
             />
           </label>
         </div>

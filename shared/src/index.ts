@@ -149,6 +149,7 @@ export { useMediaQuery } from "./hooks/useMediaQuery";
 // #355 — hold an action back so a follow-up gesture (a double-click) can
 // cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";
+export { useInFlightGuard } from "./hooks/useInFlightGuard";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider

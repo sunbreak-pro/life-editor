@@ -464,6 +464,8 @@
     "intervalEvery": "",
     "intervalDays": "日ごと",
     "startDate": "開始日",
+    "repeatConverting": "繰り返しを設定中…",
+    "repeatConvertFailed": "繰り返しを設定できませんでした。この予定は変更されていません。もう一度お試しください。",
     "deleteRoutine": "ルーチンを削除",
     "summaryTitle": "マイルーチン",
     "openRoutinesCta": "「繰り返し」タブを開く",

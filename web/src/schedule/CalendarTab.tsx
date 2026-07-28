@@ -228,6 +228,13 @@ export function CalendarTab({
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
   );
+  // #434: an Event→Repeats conversion that did not land. Without this the
+  // editor just snaps back to "なし" on the reload, which reads as the click
+  // having been ignored.
+  const handleRepeatConvertError = useCallback(
+    () => showToast("danger", t("scheduleScreen.repeatConvertFailed")),
+    [showToast, t],
+  );
   const {
     notes: noteOptions,
     notesError,
@@ -411,6 +418,7 @@ export function CalendarTab({
     handleDuplicate,
     handleChangeRepeat,
     handleDetachRepeat,
+    repeatConverting,
   } = useScheduleMutations({
     rangeItems,
     setRangeItems,
@@ -438,6 +446,7 @@ export function CalendarTab({
     reconcileRoutineScheduleItems,
     onMoveTaskChip: handleTaskChipMove,
     onResizeTaskChip: handleTaskChipResize,
+    onRepeatConvertFailed: handleRepeatConvertError,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
@@ -921,6 +930,7 @@ export function CalendarTab({
       intervalEvery: t("scheduleScreen.intervalEvery"),
       intervalDays: t("scheduleScreen.intervalDays"),
       startDate: t("scheduleScreen.startDate"),
+      converting: t("scheduleScreen.repeatConverting"),
     }),
     [t],
   );
@@ -987,6 +997,7 @@ export function CalendarTab({
       repeatLabels={repeatLabels}
       onChangeRepeat={handleChangeRepeat}
       onDetachRepeat={handleDetachRepeat}
+      repeatPending={repeatConverting}
     />
   ) : null;
 

@@ -25,6 +25,7 @@ const LABELS: FrequencyEditorLabels = {
   intervalEvery: "Every",
   intervalDays: "days",
   startDate: "Start date",
+  converting: "Turning on repeat…",
 };
 
 const base: FrequencyEditorValue = {
@@ -123,5 +124,45 @@ describe("FrequencyEditor — patches", () => {
       target: { value: "2026-05-20" },
     });
     expect(onChange).toHaveBeenCalledWith({ frequencyStartDate: "2026-05-20" });
+  });
+});
+
+describe("FrequencyEditor — pending (#434)", () => {
+  // The #407 in-flight guard silently ignores a second frequency click while
+  // an Event→Repeats conversion is running. Silent is the bug: the user reads
+  // it as a dead button. `pending` gives that guard a visible cause.
+  it("locks every control and says why while pending", () => {
+    renderEditor(
+      { ...base, frequencyType: "interval", frequencyInterval: 3 },
+      { pending: true, onSelectNone: vi.fn() },
+    );
+    expect(screen.getByRole("tab", { name: "Daily" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "None" })).toBeDisabled();
+    expect(screen.getByLabelText("Every N days")).toBeDisabled();
+    expect(screen.getByLabelText("Start date")).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Turning on repeat…");
+  });
+
+  it("disables the weekday chips while pending", () => {
+    renderEditor(base, { pending: true });
+    expect(screen.getByRole("button", { name: "Tue" })).toBeDisabled();
+  });
+
+  it("emits nothing when a pending control is clicked", () => {
+    const onSelectNone = vi.fn();
+    const { onChange } = renderEditor(base, { pending: true, onSelectNone });
+    fireEvent.click(screen.getByRole("tab", { name: "Daily" }));
+    fireEvent.click(screen.getByRole("tab", { name: "None" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tue" }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onSelectNone).not.toHaveBeenCalled();
+  });
+
+  it("stays interactive when pending is not set", () => {
+    const { onChange } = renderEditor(base);
+    expect(screen.getByRole("tab", { name: "Daily" })).not.toBeDisabled();
+    expect(screen.queryByRole("status")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Daily" }));
+    expect(onChange).toHaveBeenCalledWith({ frequencyType: "daily" });
   });
 });

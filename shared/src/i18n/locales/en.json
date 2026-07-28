@@ -464,6 +464,8 @@
     "intervalEvery": "Every",
     "intervalDays": "days",
     "startDate": "Start date",
+    "repeatConverting": "Turning on repeat…",
+    "repeatConvertFailed": "Couldn't turn on repeat. This event is unchanged — try again.",
     "deleteRoutine": "Delete routine",
     "summaryTitle": "My routines",
     "openRoutinesCta": "Open the Repeats tab",
