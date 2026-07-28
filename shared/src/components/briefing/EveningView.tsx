@@ -52,9 +52,10 @@ export interface EveningLabels {
   /**
    * Saved-state caption for the 宣言 block (host-computed). Rendered ONLY
    * while the block is editable — a read-only block has no save to report,
-   * and a「保存済み」next to text you cannot type into is a lie.
+   * and a「保存済み」next to text you cannot type into is a lie. Also
+   * omitted while the day has no declaration at all (#427).
    */
-  intentionCaption: string;
+  intentionCaption?: string;
   /** Placeholder of the editable 宣言 field (narrow layout only). */
   intentionPlaceholder: string;
   reflectionTitle: string;

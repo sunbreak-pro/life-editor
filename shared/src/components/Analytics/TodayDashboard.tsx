@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
-import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
+import {
+  dateKeyOfInstant,
+  formatDateKey,
+  todayCalendarKey,
+} from "../../utils/dateKey";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
@@ -48,10 +52,10 @@ export function TodayDashboard({
       (n) =>
         n.type === "task" &&
         n.completedAt &&
-        // NOTE: completedAt is a UTC ISO prefix, not a calendar key — in JST a
-        // task finished before 09:00 counts as yesterday. Pre-existing drift,
-        // reported separately; out of #356's scope.
-        n.completedAt.substring(0, 10) === todayStr,
+        // completedAt is stored as a UTC ISO string, so read its LOCAL day
+        // (#420) — slicing it counted a task finished before 09:00 JST as
+        // yesterday, disagreeing with the calendar-keyed cards beside it.
+        dateKeyOfInstant(n.completedAt) === todayStr,
     ).length;
 
     return { workMinutes, completedToday, pomodoroCount };

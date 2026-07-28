@@ -404,3 +404,33 @@ describe("Row edit action (#410)", () => {
     );
   });
 });
+
+/*
+ * #427 — a day with no declaration at all has nothing to report a save state
+ * for. The host omits `intentionCaption` then; both papers must render the
+ * 宣言 heading without any caption beside it.
+ */
+describe("Intention caption omission (#427)", () => {
+  it("renders no caption when the host omits intentionCaption (morning)", () => {
+    const { container } = renderView({
+      labels: { ...LABELS, intentionCaption: undefined },
+    });
+    expect(screen.getByText("INTENTION")).toBeTruthy();
+    expect(screen.queryByText("Saved")).toBeNull();
+    expect(container.textContent).not.toContain("Unsaved");
+  });
+
+  it("renders no caption when the host omits intentionCaption (evening)", () => {
+    const { container } = renderEvening({
+      intentionEditable: true,
+      labels: { ...EVENING_LABELS, intentionCaption: undefined },
+    });
+    expect(screen.getByText("INTENTION")).toBeTruthy();
+    expect(container.textContent).not.toContain("Unsaved");
+  });
+
+  it("still renders the caption once the host supplies one", () => {
+    renderView({ labels: { ...LABELS, intentionCaption: "Saved" } });
+    expect(screen.getByText("Saved")).toBeTruthy();
+  });
+});

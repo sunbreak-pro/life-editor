@@ -88,8 +88,12 @@ export interface BriefingLabels {
   aiSource: string;
   noBriefing: string;
   intentionTitle: string;
-  /** Saved-state caption next to the intention title (host-computed). */
-  intentionCaption: string;
+  /**
+   * Saved-state caption next to the intention title (host-computed).
+   * Omitted while the day has no declaration at all — there is no save to
+   * report yet, and「保存済み」above an empty field is a lie (#427).
+   */
+  intentionCaption?: string;
   intentionPlaceholder: string;
   scheduleTitle: string;
   noSchedule: string;

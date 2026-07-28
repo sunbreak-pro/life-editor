@@ -300,7 +300,15 @@
       "itemsToggle": "付いているアイテムを表示",
       "itemsEmpty": "このタグが付いたアイテムはありません",
       "unassign": "このタグを外す",
-      "untitledItem": "(無題)"
+      "untitledItem": "(無題)",
+      "pickerLabel": "タグ",
+      "pickerLabelShort": "タグ",
+      "pickerAdd": "タグを追加",
+      "pickerDialog": "タグの選択",
+      "pickerSearch": "タグを検索・作成…",
+      "pickerNoCandidates": "追加できるタグはありません",
+      "pickerCreate": "「{{name}}」を作成",
+      "pickerRemove": "タグ {{name}} を外す"
     },
     "sidebar": {
       "sort": "並び替え",

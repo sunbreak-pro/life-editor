@@ -103,4 +103,25 @@ describe("FrequencyEditor — patches", () => {
     });
     expect(onChange).toHaveBeenCalledWith({ frequencyInterval: 1 });
   });
+
+  it("drops an empty start-date emission, passes a concrete one (#407)", () => {
+    // A date input emits "" while cleared / mid-edit. Persisting "" reads
+    // as "fires never" under the fail-closed interval guard, and the
+    // reconcile wired to frequency edits (#352) would sweep the series'
+    // future — so the empty transient must never reach the host.
+    const { onChange } = renderEditor({
+      ...base,
+      frequencyType: "interval",
+      frequencyInterval: 3,
+      frequencyStartDate: "2026-05-17",
+    });
+    fireEvent.change(screen.getByLabelText("Start date"), {
+      target: { value: "" },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Start date"), {
+      target: { value: "2026-05-20" },
+    });
+    expect(onChange).toHaveBeenCalledWith({ frequencyStartDate: "2026-05-20" });
+  });
 });

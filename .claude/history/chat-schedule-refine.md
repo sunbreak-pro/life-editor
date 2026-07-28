@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-28 - #433 置き去りコミットの回収（PR #435）+ #408 の事前調査
+
+#### 概要
+
+PR #423（#407）の merge **直後**に push した role-qa 修正 2 コミットが main に届いていなかった（#433）ので、`origin/main` から新ブランチを切って cherry-pick で回収し PR #435 を出した。あわせて、merge 待ちで次タスクに着手できない時間を使って #408（Routines タブ廃止）の事前調査を読み取りのみで実施した。
+
+#### 変更点
+
+- **回収の実測**: `git branch -r --contains a873e583` の結果が `origin/claude/schedule-407-repeat-desync` **のみ**で、置き去りが事実であることを確認してから着手。`origin/main`（`415cb185`）から `claude/schedule-433-recover` を切り、`a873e583`（コード）→ `52b6d081`（tracker）の順に cherry-pick。**両方ともコンフリクトなし**。差分は Issue #433 の実測（対象 7 ファイル・174 insertions / 75 deletions）とコード部分が一致し、per-chat tracker 3 ファイルが上乗せされた形
+- **着地前 main の実害**: #423 で頻度判定を fail closed（不正な設定は発火しない）にした一方、`FrequencyEditor` の date input が**クリア時に空文字を emit する**経路が main に残っていた。空文字は fail-closed 下で「発火しない」と読まれるため、**開始日をクリアすると reconcile が未来行を掃除する**退行が起きうる状態だった。DoD の `seedFrequencyPatch` が `if (!start)` になっていることを `routineFrequency.ts:115` で実測確認
+- **検証**: shared vitest **149 files / 1209 tests 全 pass**、shared build / web build / **web lint** すべて exit 0。web lint はこの worktree で長らく `NotesView.tsx:291` の main 由来 error で赤だったが、今回 origin/main `415cb185` では**再現しない**（引き継ぎメモを訂正済み。どの PR で消えたかは未追跡）
+- **#408 事前調査（実装ゼロ・読み取りのみ）**: Routines タブを廃止して Calendar の編集パネルへ一本化したときに**失われる操作 5 件**を特定（空 routine の新規作成 / 全 routine への到達性 / scope ダイアログを挟まないテンプレ直接編集 / テンプレ単位の直接削除 / `order` 順の俯瞰）。加えて reconcile 窓の挙動差（RoutinesTab は今日から 41 日固定 `RoutinesTab.tsx:49`、CalendarTab は可視範囲 `useScheduleMutations.ts:497`）と、道連れ退役候補（`RoutineEditorForm` + 型 3 種・`createRoutine` の UI 呼び出し・i18n 7 キー）を grep 実測で洗い出した。詳細は memory の「予定」節。**サブエージェント報告の file:line は `RoutinesTab.tsx:49` / `ScheduleScreen.tsx:21` / `CalendarTab.tsx:1117` 等を spot check して実在を確認済み**（`rules/docs-consistency.md` §5）
+- **#411 の下ごしらえ**: `setMaterialsTab` の呼び出し箇所を `web/src/MainScreen.tsx` で全数 grep（`:246` / `:269` / `:289` / `:318` + タブ定義 9 箇所）。取りこぼすとタスク導線が全部死ぬ箇所なので memory に位置を残した
+- **残**: PR #435 の merge（🛑 ユーザーゲート）。着地後に `claude/schedule-407-repeat-desync` を削除し、#434 → #408 → #411 へ進む
+
 ### 2026-07-27 - #407 繰り返し表示の不整合 — malformed interval の毎日発火とゾンビ routine を根絶
 
 #### 概要
@@ -14,7 +29,8 @@
 - **修正 2 `shared/src/services/SupabaseDataService.ts`**: `convertEventToRoutine` の attach を「種がまだ未 attach のときだけ」（`.is("routine_item_id", null)` + 影響行読み戻し）の条件付き UPDATE に変更。負けた変換は routine をロールバックして reject（`DataService.ts` の契約コメントも追随）
 - **修正 3 `web/src/schedule/useScheduleMutations.ts`**: `convertingSeedsRef`（in-flight ガード）で変換中の種への追加頻度クリックを無視
 - **回帰テスト**: `routineScheduleSync.test.ts` に fail-closed 5 分岐（NULL/0/-2 interval・NULL/空文字開始日 — 旧「degrade to true」テストを反転）、`convertEventToRoutine.test.ts` に条件付き attach の `.is()` フィルタ検証 + already-attached 時のロールバック/reject
-- **検証**: shared vitest 145 files / 1173 pass、shared build / web build / web lint 全て exit 0
+- **role-qa アドバーサリアルラウンド（Stop hook ゲート・別コンテキスト・2 コミット目 `a873e583`）**: B-2 採用 = `FrequencyEditor` の date input が空文字を emit し、fail-closed 化で「開始日クリア → reconcile が未来行を掃除」に化ける退行 → 空 emit 抑止 + `seedFrequencyPatch` の "" 補修 + テスト 2 本。S-1 = routine 不在 fallback（Calendar / Routines 両導線）に seeding を配線。S-2 = 変換 rollback の supabase-js 非 throw 失敗を `logServiceError` で可視化。S-3 = ガード解放を try/finally 一本化。S-5 = attach 0 行時の文言に missing-seed を含める。N-1 = plan doc Worklog 追随。**B-1「fail-closed は既存ゾンビを止められない」は DB 実測で反証**（`3c4a1f09` は #352 seeding 導入前の malformed。現行コードの敗者双子は条件付き attach がロールバックで殺す）。S-4 / S-6 は follow-up として outbox で起票依頼
+- **検証**: shared vitest 145 files / 1175 pass（+2）、shared build / web build / web lint 全て exit 0
 - **残**: merge 後にユーザーが Routines タブから「新規予定」routine 2 本（`3c4a1f09` / `b15eb258`）を削除（生成済み si- 行は cascade で掃除）。実ブラウザ検証は chat-main（§7.4）
 
 ### 2026-07-27 - #367 Schedule サイドバーのソート・フィルタ = 見送りで決着（実装ゼロ）

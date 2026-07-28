@@ -9,6 +9,7 @@ import {
   extractBriefing,
   extractEveningSection,
   extractIntentionSection,
+  hasIntentionToReport,
   isEmptyDocJson,
   localDateTimeToISO,
   mergeEveningSection,
@@ -490,6 +491,18 @@ export function BriefingScreen({
   const intentionSaved =
     intentionDraft === undefined ||
     normalizeIntentionText(intentionDraft) === intentionStored.text;
+  // Nothing stored AND nothing typed = the day has no declaration yet, so
+  // there is no save state to report. Reporting「保存済み」over an untouched
+  // empty field reads as "already done" (#427) — omit the caption entirely
+  // until the first character exists somewhere.
+  const intentionCaption = !hasIntentionToReport(
+    intentionStored.text,
+    intentionDraft,
+  )
+    ? undefined
+    : intentionSaved
+      ? t("materials.daily.saved")
+      : t("materials.daily.unsaved");
 
   //「残りの Todo」— today's unfinished + open carryover (display only).
   const remainingTodos = useMemo<EveningTodoEntry[]>(
@@ -652,9 +665,7 @@ export function BriefingScreen({
       aiSource: t("briefing.aiSource"),
       noBriefing: t("briefing.noBriefing"),
       intentionTitle: t("briefing.intentionTitle"),
-      intentionCaption: intentionSaved
-        ? t("materials.daily.saved")
-        : t("materials.daily.unsaved"),
+      intentionCaption,
       intentionPlaceholder: t("briefing.intentionPlaceholder"),
       scheduleTitle: t("briefing.scheduleTitle"),
       noSchedule: t("briefing.noSchedule"),
@@ -669,7 +680,7 @@ export function BriefingScreen({
       jumpToSchedule: t("briefing.jumpToSchedule"),
       jumpToTasks: t("briefing.jumpToTasks"),
     }),
-    [t, intentionSaved],
+    [t, intentionCaption],
   );
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
@@ -712,9 +723,7 @@ export function BriefingScreen({
       intentionTitle: intentionEditableOnEvening
         ? t("briefing.intentionTitle")
         : t("briefing.evening.intentionTitle"),
-      intentionCaption: intentionSaved
-        ? t("materials.daily.saved")
-        : t("materials.daily.unsaved"),
+      intentionCaption,
       intentionPlaceholder: t("briefing.evening.intentionPlaceholder"),
       reflectionTitle: t("briefing.evening.reflectionTitle"),
       savedCaption: eveningSaved
@@ -727,7 +736,7 @@ export function BriefingScreen({
       tomorrowTag: t("briefing.evening.tomorrowTag"),
       allDay: t("briefing.allDay"),
     }),
-    [t, eveningSaved, intentionSaved, intentionEditableOnEvening],
+    [t, eveningSaved, intentionCaption, intentionEditableOnEvening],
   );
 
   const todoTrayLabels = useMemo(
