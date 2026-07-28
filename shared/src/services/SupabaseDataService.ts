@@ -46,6 +46,7 @@ import {
   type TasksPayloadRow,
 } from "./taskMapper";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
+import { logServiceError } from "../utils/logError";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { generateId } from "../utils/generateId";
 import { todayDateKey } from "../utils/dateKey";
@@ -888,7 +889,7 @@ export class SupabaseRoutinesService {
         throw new Error(`convertEventToRoutine attach: ${pErr.message}`);
       if (!attached || attached.length === 0)
         throw new Error(
-          `convertEventToRoutine attach: seed ${eventId} already belongs to a routine (#407 double-conversion guard)`,
+          `convertEventToRoutine attach: seed ${eventId} is missing or already belongs to a routine (#407 double-conversion guard)`,
         );
       return routine;
     } catch (err) {
@@ -899,9 +900,27 @@ export class SupabaseRoutinesService {
       // blocked by the 0011 composite FK. Best-effort: a rollback failure
       // must not mask the original error.
       try {
-        await this.client.from("items_meta").delete().eq("id", routineId);
-      } catch {
+        const { error: rollbackErr } = await this.client
+          .from("items_meta")
+          .delete()
+          .eq("id", routineId);
+        // supabase-js reports failures via the result, not by throwing —
+        // the old unchecked call made a failed rollback silent, and what a
+        // failed rollback leaves behind is exactly the #407 zombie: a live
+        // routine no seed references. Log it so the strand is diagnosable.
+        if (rollbackErr)
+          logServiceError(
+            "Routines",
+            `convertEventToRoutine rollback (${routineId})`,
+            rollbackErr,
+          );
+      } catch (rollbackErr) {
         // swallow — rethrow the original err below
+        logServiceError(
+          "Routines",
+          `convertEventToRoutine rollback (${routineId})`,
+          rollbackErr,
+        );
       }
       throw err;
     }
