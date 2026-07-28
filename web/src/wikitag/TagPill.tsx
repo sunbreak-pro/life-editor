@@ -16,10 +16,18 @@ interface TagPillProps {
   name: string;
   color: string | null;
   onRemove?: () => void;
+  /** Already-translated aria-label for the remove button (#412). */
+  removeLabel?: string;
   size?: "sm" | "md";
 }
 
-export function TagPill({ name, color, onRemove, size = "sm" }: TagPillProps) {
+export function TagPill({
+  name,
+  color,
+  onRemove,
+  removeLabel,
+  size = "sm",
+}: TagPillProps) {
   const padding = size === "sm" ? "px-1.5 py-0.5" : "px-2 py-1";
   const fontSize = size === "sm" ? "text-xs" : "text-sm";
   const iconSize = size === "sm" ? 10 : 12;
@@ -50,7 +58,7 @@ export function TagPill({ name, color, onRemove, size = "sm" }: TagPillProps) {
         <button
           type="button"
           onClick={onRemove}
-          aria-label={`Remove tag ${name}`}
+          aria-label={removeLabel ?? `Remove tag ${name}`}
           className="text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent rounded"
         >
           <X size={iconSize} aria-hidden />

@@ -1050,7 +1050,16 @@ export function NotesView({
           unpinLabel={t("notesView.pin")}
           deleteLabel={t("materials.notes.deleteNote")}
           moreActionsLabel={t("notesView.moreActions")}
-          tagsSlot={<TagPicker itemId={selected.id} showLabel size="sm" />}
+          tagsSlot={
+            // itemRole (#412): the note detail adopts the same kind badge the
+            // task detail now uses, so the two tag rows stay one design.
+            <TagPicker
+              itemId={selected.id}
+              itemRole="note"
+              showLabel
+              size="sm"
+            />
+          }
           contentLabel={t("materials.notes.content")}
           contentEditor={detailContentEditor}
         />

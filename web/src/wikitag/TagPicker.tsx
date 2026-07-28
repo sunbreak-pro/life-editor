@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
+  ItemRoleBadge,
+  useTranslation,
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
 } from "@life-editor/shared";
@@ -25,20 +27,38 @@ import { TagPill } from "./TagPill";
  * UI: pill list + Plus button. The picker dropdown shows existing tags
  * filtered by query + "Create new" affordance when the query has no
  * exact match.
+ *
+ * Kind cue (#412): with `itemRole`, the row's leading element is the shared
+ * <ItemRoleBadge> — the SAME contract the tag editor's item list renders from
+ * (shared components/items/itemRole), so the tag-side and item-side views of
+ * the same assignment cannot drift into two visual languages. It REPLACES the
+ * generic "Tags" caption rather than sitting next to it: the row's own
+ * contents (colored pills + the "+ Tag" affordance) already say "tags"; what
+ * the row could not say was WHICH KIND of thing it is tagging, which is what
+ * matters once Phase 2 puts this same row on events / dailies / notes.
+ * Callers that pass no `itemRole` keep the generic caption unchanged.
  */
 interface TagPickerProps {
   itemId: string;
-  /** Show a small "Tags" label before pills (detail-panel only). */
+  /** Show a leading caption before the pills (detail-panel only). */
   showLabel?: boolean;
+  /**
+   * Raw `items_meta.role` of the item being tagged. When set (and showLabel),
+   * the caption becomes the shared kind badge. Unknown values are safe — they
+   * render the badge's neutral fallback.
+   */
+  itemRole?: string;
   size?: "sm" | "md";
 }
 
 export function TagPicker({
   itemId,
   showLabel = false,
+  itemRole,
   size = "sm",
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
+  const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +84,17 @@ export function TagPicker({
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [pickerOpen]);
+
+  const roleLabels = useMemo(
+    () => ({
+      task: t("itemRole.task"),
+      event: t("itemRole.event"),
+      note: t("itemRole.note"),
+      daily: t("itemRole.daily"),
+      unknown: t("itemRole.unknown"),
+    }),
+    [t],
+  );
 
   const tagsById = useMemo(() => {
     const map = new Map<string, WikiTagUnified>();
@@ -125,12 +156,15 @@ export function TagPicker({
       ref={containerRef}
       className="relative inline-flex flex-wrap items-center gap-1"
     >
-      {showLabel && (
-        <span className="inline-flex items-center gap-1 text-xs text-lumen-text-secondary">
-          <TagIcon size={12} aria-hidden />
-          Tags
-        </span>
-      )}
+      {showLabel &&
+        (itemRole ? (
+          <ItemRoleBadge role={itemRole} labels={roleLabels} />
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-lumen-text-secondary">
+            <TagIcon size={12} aria-hidden />
+            {t("materials.tags.pickerLabel")}
+          </span>
+        ))}
       {loading && <span className="text-xs text-lumen-text-secondary">…</span>}
       {!loading &&
         assignments.map((a) => {
@@ -142,6 +176,7 @@ export function TagPicker({
               name={tag.name}
               color={tag.color}
               size={size}
+              removeLabel={t("materials.tags.pickerRemove", { name: tag.name })}
               onRemove={() => void handleUnassign(a.id)}
             />
           );
@@ -149,18 +184,20 @@ export function TagPicker({
       <button
         type="button"
         onClick={() => setPickerOpen((v) => !v)}
-        aria-label="Add tag"
+        aria-label={t("materials.tags.pickerAdd")}
         aria-expanded={pickerOpen}
         className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-lumen-border px-1.5 py-0.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
       >
         <Plus size={12} aria-hidden />
-        {assignments.length === 0 && !loading && <span>Tag</span>}
+        {assignments.length === 0 && !loading && (
+          <span>{t("materials.tags.pickerLabelShort")}</span>
+        )}
       </button>
 
       {pickerOpen && (
         <div
           role="dialog"
-          aria-label="Tag picker"
+          aria-label={t("materials.tags.pickerDialog")}
           className="absolute z-20 left-0 top-full mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-lumen-border bg-lumen-bg p-2 shadow-lg"
         >
           <input
@@ -180,13 +217,13 @@ export function TagPicker({
                 setPickerOpen(false);
               }
             }}
-            placeholder="Search or create tag…"
+            placeholder={t("materials.tags.pickerSearch")}
             className="w-full rounded-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
           />
           <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto">
             {candidates.length === 0 && !query.trim() && (
               <li className="px-2 py-1 text-xs text-lumen-text-secondary">
-                No more tags to assign.
+                {t("materials.tags.pickerNoCandidates")}
               </li>
             )}
             {candidates.map((tag) => (
@@ -215,7 +252,9 @@ export function TagPicker({
                   className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
                   <Plus size={12} aria-hidden />
-                  <span>Create &ldquo;{query.trim()}&rdquo;</span>
+                  <span>
+                    {t("materials.tags.pickerCreate", { name: query.trim() })}
+                  </span>
                 </button>
               </li>
             )}
