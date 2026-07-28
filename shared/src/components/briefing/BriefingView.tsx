@@ -175,11 +175,20 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
  *
  * `ml-auto` pins it to the row's right edge, so the buttons line up in one
  * straight column whatever the titles measure; the old icon-only button sat
- * immediately after the title and drifted with it, row by row. The label is
- * visible (a 13px arrow alone was too small a target to read as an action)
- * and therefore IS the accessible name — the longer "where does this land"
- * wording rides `title` instead of `aria-label`, which would otherwise
- * override the visible text for screen readers (WCAG 2.5.3).
+ * immediately after the title and drifted with it, row by row.
+ *
+ * The label is visible because a 13px arrow alone was too small to read as an
+ * action — and too small to hit. Padding buys the 24×24 target (WCAG 2.5.8)
+ * while the matching negative margins keep the row height and the right edge
+ * exactly where the layout puts them, so the box grows into the row's own
+ * whitespace rather than pushing it around.
+ *
+ * The accessible name leads with that visible label and only then says where
+ * the jump lands (「編集: スケジュールで開く」). Naming it `編集` alone would
+ * leave six identically-named buttons on the paper, and dropping the label
+ * from the name to keep the longer wording would break WCAG 2.5.3 (Label in
+ * Name) — voice control users say what they see. `title` keeps the pointer
+ * tooltip; it is not a substitute, since touch never shows it.
  */
 function EditJumpButton({
   onClick,
@@ -194,8 +203,9 @@ function EditJumpButton({
     <button
       type="button"
       onClick={onClick}
+      aria-label={`${label}: ${hint}`}
       title={hint}
-      className="ml-auto flex flex-shrink-0 items-center gap-1 self-center whitespace-nowrap text-xs text-lumen-text-secondary transition-colors hover:text-lumen-accent"
+      className="-my-1 -mr-1.5 ml-auto flex flex-shrink-0 items-center gap-1 self-center whitespace-nowrap px-1.5 py-1 text-xs text-lumen-text-secondary transition-colors hover:text-lumen-accent"
     >
       <ArrowUpRight size={13} aria-hidden="true" />
       {label}
@@ -330,8 +340,8 @@ export function BriefingView({
                   onClick={() => onToggleScheduleItem(item.id)}
                   className={
                     item.completed
-                      ? "text-left text-sm text-lumen-text-secondary line-through transition-colors hover:text-lumen-accent"
-                      : "text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent"
+                      ? "min-w-0 text-left text-sm text-lumen-text-secondary line-through transition-colors hover:text-lumen-accent"
+                      : "min-w-0 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent"
                   }
                 >
                   {item.title}
@@ -370,7 +380,7 @@ export function BriefingView({
                   <button
                     type="button"
                     onClick={() => onToggleTask(task.id)}
-                    className="flex items-center gap-2.5 text-left"
+                    className="flex min-w-0 items-center gap-2.5 text-left"
                   >
                     <span
                       aria-hidden="true"
@@ -447,7 +457,7 @@ export function BriefingView({
                 <button
                   type="button"
                   onClick={() => onToggleTask(item.id)}
-                  className="flex items-center gap-2.5 text-left"
+                  className="flex min-w-0 items-center gap-2.5 text-left"
                 >
                   <span
                     aria-hidden="true"

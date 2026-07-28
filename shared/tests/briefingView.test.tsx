@@ -375,17 +375,29 @@ describe("Row edit action (#410)", () => {
     expect(screen.getAllByRole("button", { name: /Edit/ }).length).toBe(6);
   });
 
-  it("keeps the where-it-lands wording as the tooltip, not the a11y name", () => {
+  // WCAG 2.5.3: the accessible name must START with the visible label, or
+  // voice control ("click 編集") misses the button. It must also keep saying
+  // where the jump lands — six buttons all named「編集」would be
+  // indistinguishable in a screen reader's button list, and `title` alone
+  // does not carry on touch.
+  it("names each jump button with the visible label first, destination after", () => {
     renderView();
     const jump = screen.getAllByTitle("Open in Schedule")[0];
     expect(jump.textContent).toContain("Edit");
-    expect(jump.getAttribute("aria-label")).toBeNull();
+    expect(jump.getAttribute("aria-label")).toBe("Edit: Open in Schedule");
+    expect(screen.getAllByLabelText("Edit: Open in Tasks").length).toBe(4);
   });
 
-  it("pins every jump button to the right edge of its row", () => {
+  it("pins every jump button to the right edge with a padded hit target", () => {
     renderView();
-    for (const jump of screen.getAllByRole("button", { name: /Edit/ })) {
+    const jumps = screen.getAllByRole("button", { name: /^Edit: / });
+    expect(jumps.length).toBe(6);
+    for (const jump of jumps) {
       expect(jump.className).toContain("ml-auto");
+      // Padding buys the 24x24 target; the negative margins keep the row
+      // height and the right edge unchanged (WCAG 2.5.8).
+      expect(jump.className).toContain("py-1");
+      expect(jump.className).toContain("-my-1");
     }
   });
 
