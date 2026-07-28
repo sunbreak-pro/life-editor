@@ -12,7 +12,11 @@ import {
   subscribeThemeChange,
   type GraphPalette,
 } from "./graph/graph-theme";
-import { loadViewport } from "./graph/graphStorage";
+import {
+  loadPositions,
+  loadViewport,
+  type PositionMap,
+} from "./graph/graphStorage";
 import {
   useGraphSimulation,
   type ForceParams,
@@ -56,7 +60,12 @@ export function GraphCanvas({
   const simRef = useRef<Simulation<GraphNode, GraphLink> | null>(null);
   const quadtreeRef = useRef<Quadtree<GraphNode> | null>(null);
   const graphRef = useRef<GraphSnapshot>({ nodes: [], links: [] });
-  const positionCacheRef = useRef<Record<string, { x: number; y: number }>>({});
+  // Seeded from localStorage once per mount (#361) so the layout resumes where
+  // it was left instead of re-scattering under an already-restored viewport.
+  // useState's lazy initializer keeps the read off every later render — a bare
+  // useRef(loadPositions()) would parse the JSON on each one and throw it away.
+  const [storedPositions] = useState(loadPositions);
+  const positionCacheRef = useRef<PositionMap>(storedPositions);
   const drawRef = useRef<(() => void) | null>(null);
 
   const [size, setSize] = useState({ w: 0, h: 0 });
