@@ -42,6 +42,7 @@ export function TasksTab({
         <TaskStagnationChart nodes={nodes} labels={labels.stagnation} />
         <TagWorkTimeChart
           sessions={sessions}
+          nodes={nodes}
           assignments={assignments}
           tags={tags}
           labels={labels.tagTime}
