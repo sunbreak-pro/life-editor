@@ -123,3 +123,19 @@ worktree からは build / 型検証までなので（CLAUDE.md §7.4）、以�
 - **依頼 1（merge 後の手動 1 周）**: DoD の「vitest + 手動 1 周」のうち手動 1 周は貴レーン担当です。MCP server 環境に `LIFE_EDITOR_SUPABASE_URL` / `LIFE_EDITOR_SUPABASE_ANON_KEY`（`VITE_*` でも可）+ `LIFE_EDITOR_SUPABASE_EMAIL` / `LIFE_EDITOR_SUPABASE_PASSWORD` を設定 →（DB path は省略可）→ `get_today_context` → `write_briefing` → Briefing 紙面表示、の 1 周をお願いします（手順の要点は README と PR 本文に記載）
 - **依頼 2（Issue クローズ確認）**: PR merge で #256 は自動 close されます。close 時に briefing-loop Step 2 の「手動 1 周」実測結果を Worklog に 1 行追記してもらえると DoD が完結します
 - 補足: schedule-refine レーンとの重なりは PR 本文に明記済み（mapper 非 import・規約 §10.2/§10.5 を mcp-server 内で実装のためコード衝突なし）。`generate_content` / `format_content` の schedule 経路は旧 SQLite のまま（残 handler の Supabase 化タスクのスコープ — 必要なら起票をお願いします）
+
+## 2026-07-28 — open-issue fanout（#427 / #410 / #431 / #361）+ 手すき枠 #363
+
+- 担当 4 件と手すき枠 1 件を PR 化。**#436（#427）/ #439（#410）/ #441（#431）は merge 済み**、#443（#361）/ #446（#363）は open。実ブラウザ検証は §7.4 どおり全件そちら（chat-main）にお願いします
+- **#361 は「復元を実装」で決着**（退役ではない）。決め手は viewport 側だけが対称だった点 — カメラは前回位置に復元されるのにノードは再計算されるので、退役するとその噛み合わせの悪さが確定する。根拠は Issue #361 のコメントに記録済み
+- **role-qa の独立監査で Important 3 件 → 各 PR に反映済み**: #410 = ボタンの当たり判定が縦 16px（WCAG 2.5.8 未満）/ 可視ラベル「編集」だけが accessible name になり行き先が touch で消える → padding + 負マージンと `aria-label="編集: <行き先>"` に修正。#361 = 復元の副作用で新規ノードが左上に取り残される（実測で雲の縁から +136〜185px 外）→ 未キャッシュ分をキャンバス中央に seed
+
+### 起票依頼 1（Connect / 低優先）— `loadViewport` に検証が無い
+
+`shared/src/components/Connect/graph/graphStorage.ts` の `loadViewport()` は localStorage の値を無検証で返します。`k`（ズーム倍率）が 0 や NaN のまま復元されると描画が潰れ、`useGraphInteraction.ts:107-108` のヒットテストが `t.k` で除算しているためクリック判定も壊れます。
+
+#361 で読み手側の `loadPositions` には有限数チェックを入れましたが、`loadViewport` は既存挙動で本 PR のスコープ外と判断し触っていません。同じ「壊れた localStorage で描画が死ぬ」クラスなので、対称に閉じておくと筋が通ります（`x` / `y` / `k` が有限数か、`k > 0` かの 5 行程度）。
+
+### 起票依頼 2（Connect / 情報）— 位置キャッシュは単調増加する
+
+同ファイルの位置キャッシュは削除済みノードの座標も保持し続けます（tick は現在のノードを書くだけで刈らない）。実測で 1 件約 71 バイト・5MB 到達は約 74,000 件なので N=1 では実害ゼロと判断して #361 では見送りましたが、刈るなら「フィルタ前の全 ID」を `GraphCanvas` に渡す prop 追加が要る、という前提だけ残しておきます。急ぎではありません。
