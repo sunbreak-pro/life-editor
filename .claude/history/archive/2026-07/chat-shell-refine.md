@@ -2,6 +2,19 @@
 
 > ローリングアーカイブ。SSOT は `.claude/history/chat-shell-refine.md`（直近 5 件）。
 
+### 2026-07-20 - Layout / 操作系 4 Issue（PR #313/#314/#315/#316・全 merge 済み）
+
+#### 概要
+
+（バックフィル記録 — memory「直近の完了」から HISTORY へ移す際の要約。詳細は各 PR 参照）#305 / #307 / #306 / #304 子 PR 1 を 1 Issue = 1 PR で処理し、いずれも merge された。
+
+#### 変更点
+
+- **#305（PR #313）**: メインコンテンツ幅を全セクション max-w-lumen-wide に統一（PageContainer fluid を中央寄せ + 1120px 上限化・MainScreen width マッピング整理）
+- **#307（PR #314）**: アイテム操作パネル汎用化
+- **#306（PR #315）**: ヘッダー常設コマンドパレット検索フィールド
+- **#304 子 PR 1（PR #316）**: Undo/Redo 基盤 + taskTree（UndoRedoManager グローバル 1 本スタック + Provider + Buttons + Toast + ⌘Z 配線 + taskTree auto-connect + 単体 13 件）
+
 ### 2026-07-11 - chat-main 采配 2 件: #173 docs-lint（PR #241）/ #172 PostgREST pagination（PR #243）
 
 #### 概要
