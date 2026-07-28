@@ -34,6 +34,7 @@ const LABELS: BriefingLabels = {
   vizTitle: "VIZ",
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
+  edit: "Edit",
   jumpToSchedule: "Open in Schedule",
   jumpToTasks: "Open in Tasks",
 };
@@ -144,7 +145,7 @@ describe("BriefingView row actions", () => {
 
   it("jumps to Schedule from the schedule move button (no toggle)", () => {
     const { onJumpToSchedule, onToggleScheduleItem } = renderView();
-    const jumps = screen.getAllByRole("button", { name: "Open in Schedule" });
+    const jumps = screen.getAllByTitle("Open in Schedule");
     fireEvent.click(jumps[0]);
     expect(onJumpToSchedule).toHaveBeenCalledTimes(1);
     expect(onToggleScheduleItem).not.toHaveBeenCalled();
@@ -168,7 +169,7 @@ describe("BriefingView row actions", () => {
     const { onJumpToTasks, onToggleTask } = renderView();
     // Move buttons for tasks and carryover share the label; the first two are
     // the two task rows.
-    const jumps = screen.getAllByRole("button", { name: "Open in Tasks" });
+    const jumps = screen.getAllByTitle("Open in Tasks");
     fireEvent.click(jumps[0]);
     expect(onJumpToTasks).toHaveBeenCalledTimes(1);
     expect(onToggleTask).not.toHaveBeenCalled();
@@ -186,7 +187,7 @@ describe("BriefingView row actions", () => {
     fireEvent.click(screen.getByRole("button", { name: /Old todo/ }));
     expect(onToggleTask).toHaveBeenCalledWith("c1");
 
-    const jumps = screen.getAllByRole("button", { name: "Open in Tasks" });
+    const jumps = screen.getAllByTitle("Open in Tasks");
     // task rows (2) then carryover rows (2): the third jump button is c1.
     fireEvent.click(jumps[2]);
     expect(onJumpToTasks).toHaveBeenCalledTimes(1);
@@ -358,6 +359,61 @@ describe("Briefing narrow-width tab switcher (#318)", () => {
   it("renders no band when the host passes null", () => {
     expect(bandCount(renderView({ tabSwitcher: null }).container)).toBe(0);
     expect(bandCount(renderEvening({ tabSwitcher: null }).container)).toBe(0);
+  });
+});
+
+/*
+ * #410 — the jump action used to be a bare 13px ↗ sitting right after the
+ * title, so it was both hard to hit and never in the same place twice (the
+ * title length moved it). It now carries a visible「編集」label and is pinned
+ * to the row's right edge.
+ */
+describe("Row edit action (#410)", () => {
+  it("labels every jump button with the visible edit text", () => {
+    renderView();
+    // 2 schedule rows + 2 task rows + 2 carryover rows.
+    expect(screen.getAllByRole("button", { name: /Edit/ }).length).toBe(6);
+  });
+
+  // WCAG 2.5.3: the accessible name must START with the visible label, or
+  // voice control ("click 編集") misses the button. It must also keep saying
+  // where the jump lands — six buttons all named「編集」would be
+  // indistinguishable in a screen reader's button list, and `title` alone
+  // does not carry on touch.
+  it("names each jump button with the visible label first, destination after", () => {
+    renderView();
+    const jump = screen.getAllByTitle("Open in Schedule")[0];
+    expect(jump.textContent).toContain("Edit");
+    expect(jump.getAttribute("aria-label")).toBe("Edit: Open in Schedule");
+    expect(screen.getAllByLabelText("Edit: Open in Tasks").length).toBe(4);
+  });
+
+  it("pins every jump button to the right edge with a padded hit target", () => {
+    renderView();
+    const jumps = screen.getAllByRole("button", { name: /^Edit: / });
+    expect(jumps.length).toBe(6);
+    for (const jump of jumps) {
+      expect(jump.className).toContain("ml-auto");
+      // Padding buys the 24x24 target; the negative margins keep the row
+      // height and the right edge unchanged (WCAG 2.5.8).
+      expect(jump.className).toContain("py-1");
+      expect(jump.className).toContain("-my-1");
+    }
+  });
+
+  it("keeps the routine tag beside the title, ahead of the edit button", () => {
+    const { container } = renderView({
+      data: {
+        ...DATA,
+        schedule: [{ ...DATA.schedule[0], isRoutine: true }],
+      },
+    });
+    const row = container.querySelector("li")!;
+    const kids = Array.from(row.children).map((el) => el.textContent ?? "");
+    expect(kids.indexOf("Routine")).toBeGreaterThan(-1);
+    expect(kids.indexOf("Routine")).toBeLessThan(
+      kids.findIndex((s) => s.includes("Edit")),
+    );
   });
 });
 
