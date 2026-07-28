@@ -65,7 +65,6 @@ import {
 } from "@life-editor/shared";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
 import { TrashScreen } from "./trash/TrashScreen";
-import { KanbanView } from "./tasks/KanbanView";
 import { DailyView } from "./daily/DailyView";
 // NotesView pulls in the TipTap editor stack (core/react/starter-kit +
 // extensions, ~hundreds of kB). Lazy-load it so that bundle stays out of
@@ -77,7 +76,7 @@ const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
 import { BriefingScreen } from "./briefing/BriefingScreen";
-import { ScheduleScreen } from "./schedule/ScheduleScreen";
+import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
 import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
@@ -107,10 +106,11 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). The target IA
  * (IA.md 2026-07-05) collapses the old flat sections into 5 mainline + 2
- * utility, with the document surfaces (Tasks / Notes / Daily)
- * folded under a single "Materials" section addressed by an in-section tab
- * (`materialsTab`). This host only wires the shell — the section bodies +
- * their Provider nesting are unchanged from the flat layout.
+ * utility, with the document surfaces (Notes / Daily) folded under a single
+ * "Materials" section addressed by an in-section tab (`materialsTab`). Todos
+ * left that group in #411 and are now Schedule's second tab (`scheduleTab`),
+ * next to the calendar they get scheduled onto. This host only wires the
+ * shell — the section bodies + their Provider nesting are unchanged.
  */
 
 /*
@@ -122,24 +122,53 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
  */
 
 /** In-Materials tab — the document surfaces addressed by one section. */
-type MaterialsTab = "tasks" | "notes" | "daily";
+type MaterialsTab = "notes" | "daily";
 
-const MATERIALS_TABS: readonly MaterialsTab[] = ["tasks", "notes", "daily"];
+const MATERIALS_TABS: readonly MaterialsTab[] = ["notes", "daily"];
 
 const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
-  tasks: CheckSquare,
   notes: FileText,
   daily: CalendarDays,
 };
 
-/**
- * Where a "[[" link target opens (#285, tasks added in #370). A role absent
- * here has no selectable surface yet, so its link click no-ops.
+/*
+ * In-Schedule tabs (#411). Todos left Materials so that "the place you build
+ * today" holds both the calendar and the list that feeds it (Epic #290) — the
+ * Todo tray in the Calendar's rightSidebar pulls from the same tasks. The
+ * union itself lives with the screen that switches on it (ScheduleScreen).
  */
-const MATERIALS_TAB_FOR_ROLE: Record<string, MaterialsTab | undefined> = {
-  note: "notes",
-  daily: "daily",
-  task: "tasks",
+const SCHEDULE_TABS: readonly ScheduleTab[] = ["calendar", "todo"];
+
+/*
+ * The tab band reuses existing copy rather than minting synonyms: "Calendar"
+ * already names the grid, and "Todos" is the section label the surface carried
+ * in Materials. Note the rightSidebar's own "Today's Todo" tray is a different
+ * thing — today's slice, not the whole board.
+ */
+const SCHEDULE_TAB_LABEL_KEY: Record<ScheduleTab, string> = {
+  calendar: "scheduleScreen.calendar",
+  todo: "section.tasks",
+};
+
+const SCHEDULE_ICON: Record<ScheduleTab, LucideIcon> = {
+  calendar: CalendarDays,
+  todo: CheckSquare,
+};
+
+/**
+ * Where a "[[" link target opens (#285; tasks added in #370, and moved from
+ * Materials to Schedule in #411 — hence a section+tab pair rather than a bare
+ * Materials tab). A role absent here has no selectable surface yet, so its
+ * link click no-ops.
+ */
+type ItemNavTarget =
+  | { section: "materials"; tab: MaterialsTab }
+  | { section: "schedule"; tab: ScheduleTab };
+
+const ITEM_NAV_TARGET: Record<string, ItemNavTarget | undefined> = {
+  note: { section: "materials", tab: "notes" },
+  daily: { section: "materials", tab: "daily" },
+  task: { section: "schedule", tab: "todo" },
 };
 
 /*
@@ -185,7 +214,10 @@ export function MainScreen({ session }: { session: Session }) {
   const [section, setSection] = useState<SectionId>(() =>
     resolveInitialSection(),
   );
-  const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
+  const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("notes");
+  // Schedule's Calendar/Todo tab (#411), lifted here for the same reason as
+  // materialsTab: the standard SectionHeader renders the band.
+  const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   // Analytics's Overview/Tasks/Work/Schedule tab, lifted here (v2 adoption
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab.
@@ -230,12 +262,16 @@ export function MainScreen({ session }: { session: Session }) {
   const chimeRef = useRef<(() => void) | null>(null);
 
   // Map the shared nav:* shortcuts (tasks/daily/notes/schedule/tags) onto the
-  // target IA: schedule is its own section; the document surfaces route to the
-  // Materials section + the matching tab. The Tags tab was retired (#310), so a
-  // legacy nav:tags shortcut now no-ops rather than routing to a dead tab.
+  // target IA: schedule and tasks are two tabs of the Schedule section (#411);
+  // the document surfaces route to the Materials section + the matching tab.
+  // Both Schedule shortcuts set the tab explicitly — otherwise nav:schedule
+  // pressed right after nav:tasks would "go to Schedule" and still show Todos.
+  // The Tags tab was retired (#310), so a legacy nav:tags shortcut now no-ops
+  // rather than routing to a dead tab.
   const handleNavigate = useCallback((nav: NavSection) => {
-    if (nav === "schedule") {
+    if (nav === "schedule" || nav === "tasks") {
       setSection("schedule");
+      setScheduleTab(nav === "tasks" ? "todo" : "calendar");
       return;
     }
     if (nav === "tags") return;
@@ -245,34 +281,36 @@ export function MainScreen({ session }: { session: Session }) {
 
   // global:new-task executor. Task creation lives inside the Kanban (mounted
   // per-tab behind its own Provider), so the shell can't call the create API
-  // directly. Instead it navigates to Materials → Tasks and raises a "pending
-  // new task" flag; the Kanban consumes it on mount and opens its add dialog
+  // directly. Instead it navigates to Schedule → Todo (#411) and raises a
+  // "pending new task" flag; the Kanban consumes it on mount and opens its dialog
   // (which auto-focuses the title input and creates the task on submit via the
   // TaskTree provider). That is the app's own create-and-focus entry — no new
   // DataService API, no title-less junk rows.
   const handleNewTask = useCallback(() => {
-    setSection("materials");
-    setMaterialsTab("tasks");
+    setSection("schedule");
+    setScheduleTab("todo");
     setPendingNewTask(true);
   }, []);
   // Kanban calls this once it has acted on the pending-new-task flag.
   const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
 
   // "[[" wiki-link navigation (Issue #285). A resolved link click in the Notes
-  // or Daily editor routes here; MainScreen owns the section + Materials-tab
-  // switch (the target view lives behind a different domain Provider), then
-  // stashes a pending selection the destination view consumes on mount — the
-  // same idiom as pendingNewTask. Tasks joined note / daily in #370; any other
-  // role has no selectable surface yet, so it no-ops.
+  // or Daily editor routes here; MainScreen owns the section + tab switch (the
+  // target view lives behind a different domain Provider), then stashes a
+  // pending selection the destination view consumes on mount — the same idiom
+  // as pendingNewTask. Tasks joined note / daily in #370 and now land on
+  // Schedule → Todo (#411); any other role has no selectable surface yet, so
+  // it no-ops.
   const [pendingItemNav, setPendingItemNav] = useState<{
     id: string;
     role: string;
   } | null>(null);
   const navigateToItem = useCallback((target: { id: string; role: string }) => {
-    const tab = MATERIALS_TAB_FOR_ROLE[target.role];
-    if (!tab) return;
-    setSection("materials");
-    setMaterialsTab(tab);
+    const dest = ITEM_NAV_TARGET[target.role];
+    if (!dest) return;
+    setSection(dest.section);
+    if (dest.section === "materials") setMaterialsTab(dest.tab);
+    else setScheduleTab(dest.tab);
     setPendingItemNav(target);
   }, []);
   const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
@@ -304,7 +342,21 @@ export function MainScreen({ session }: { session: Session }) {
         setMaterialsTab(tab);
       },
     }));
-    return [...sectionCmds, ...materialsCmds];
+    // Schedule's two tabs get their own entries too (#411), the same shape
+    // Materials uses. The bare "Schedule" section command above keeps whatever
+    // tab was last open (sticky, like Materials), so these are the only way to
+    // ask for a specific one.
+    const scheduleCmds = SCHEDULE_TABS.map<Command>((tab) => ({
+      id: `schedule-${tab}`,
+      title: t(SCHEDULE_TAB_LABEL_KEY[tab]),
+      category: goTo,
+      icon: SCHEDULE_ICON[tab],
+      action: () => {
+        setSection("schedule");
+        setScheduleTab(tab);
+      },
+    }));
+    return [...sectionCmds, ...materialsCmds, ...scheduleCmds];
   }, [t]);
 
   // W5 app shell: section lists (icon node + translated label). i18n is
@@ -333,10 +385,9 @@ export function MainScreen({ session }: { session: Session }) {
     [toSections],
   );
 
-  // Materials in-section tab defs (Tasks / Notes / Daily). Each tab shows a
-  // count badge (Tasks = unfinished count; the rest = live item count) fed by
-  // the MaterialsCountsBridge. A zero count leaves the badge unset so empty
-  // surfaces don't render a noisy "0" pill.
+  // Materials in-section tab defs (Notes / Daily). Each tab shows a live item
+  // count badge fed by the MaterialsCountsBridge. A zero count leaves the badge
+  // unset so empty surfaces don't render a noisy "0" pill.
   const materialsTabDefs = useMemo(
     () =>
       MATERIALS_TABS.map((id) => {
@@ -347,6 +398,22 @@ export function MainScreen({ session }: { session: Session }) {
           badge: count > 0 ? count : undefined,
         };
       }),
+    [t, materialsCounts],
+  );
+
+  // Schedule in-section tab defs (Calendar / Todo — #411). Todo keeps the
+  // unfinished-task badge it wore in Materials; the same bridge still feeds it,
+  // so the count follows the surface rather than the section it used to sit in.
+  const scheduleTabDefs = useMemo(
+    () =>
+      SCHEDULE_TABS.map((id) => ({
+        id,
+        label: t(SCHEDULE_TAB_LABEL_KEY[id]),
+        badge:
+          id === "todo" && materialsCounts.tasks > 0
+            ? materialsCounts.tasks
+            : undefined,
+      })),
     [t, materialsCounts],
   );
 
@@ -394,19 +461,17 @@ export function MainScreen({ session }: { session: Session }) {
   // SCROLL OWNERSHIP, so PageContainer still gets two variants (both clamped to
   // max-w-lumen-wide, see PageContainer.tsx):
   //   - "fluid": canvas/board surfaces that own their full-bleed h-full layout
-  //     + self-scroll inside the clamped box (Connect graph, Schedule calendar,
-  //     Materials→Tasks Kanban, plus Analytics whose shared view draws its own
-  //     centered data column). Their internal horizontal scroll (kanban board /
-  //     week grid) stays inside the 1120px column — no page-level scroll.
+  //     + self-scroll inside the clamped box (Connect graph, both Schedule tabs
+  //     — calendar grid and the Kanban that moved here in #411 — plus Analytics
+  //     whose shared view draws its own centered data column). Their internal
+  //     horizontal scroll (kanban board / week grid) stays inside the 1120px
+  //     column — no page-level scroll.
   //   - "wide": every document surface — PageContainer owns the vertical scroll
   //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash).
   // Mobile is visually unchanged: below 768px the max-w clamp never engages, so
   // both variants render gutter-padded full width.
   const ownsFullBleed =
-    section === "connect" ||
-    section === "schedule" ||
-    section === "analytics" ||
-    (section === "materials" && materialsTab === "tasks");
+    section === "connect" || section === "schedule" || section === "analytics";
   const pageWidth: PageContainerWidth = ownsFullBleed ? "fluid" : "wide";
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
@@ -485,6 +550,19 @@ export function MainScreen({ session }: { session: Session }) {
         }
         controls={headerControls}
       />
+    ) : section === "schedule" ? (
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={scheduleTabDefs}
+            activeTab={scheduleTab}
+            onSelect={(id) => setScheduleTab(id as ScheduleTab)}
+            label={t("section.schedule")}
+          />
+        }
+        controls={headerControls}
+      />
     ) : (
       <SectionHeader
         title={t(`section.${section}`, { defaultValue: section })}
@@ -510,6 +588,20 @@ export function MainScreen({ session }: { session: Session }) {
         label={t("section.materials")}
       />
     </div>
+  );
+
+  // Schedule's narrow Calendar/Todo switcher (#411). No hamburger beside it,
+  // unlike Materials': the Calendar body draws its own (next to the period
+  // label), and the Todo body closes the drawer outright below 768px — the
+  // mobile Kanban is the stripped MobileTaskList with no detail panel — so a
+  // second hamburger here would either duplicate one or open an empty drawer.
+  const scheduleMobileSwitcher = (
+    <SegmentedControl
+      options={scheduleTabDefs}
+      value={scheduleTab}
+      onChange={(id) => setScheduleTab(id as ScheduleTab)}
+      label={t("section.schedule")}
+    />
   );
 
   // Briefing's narrow-width 朝刊/夕刊 switcher (#318). AppShell renders its
@@ -548,18 +640,6 @@ export function MainScreen({ session }: { session: Session }) {
   // the old flat sections (§6.2) — only the addressing changed (section+tab).
   const materialsView = (
     <>
-      {materialsTab === "tasks" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <TaskTreeProvider dataService={ds} persistSelection>
-            <KanbanView
-              pendingNewTask={pendingNewTask}
-              onConsumeNewTask={consumeNewTask}
-              pendingSelectTaskId={pendingTaskSelect}
-              onConsumePendingSelect={consumeItemNav}
-            />
-          </TaskTreeProvider>
-        </WikiTagsUnifiedProvider>
-      )}
       {materialsTab === "notes" && (
         <WikiTagsUnifiedProvider dataService={ds}>
           <NotesUnifiedProvider dataService={ds}>
@@ -632,14 +712,25 @@ export function MainScreen({ session }: { session: Session }) {
         // Calendar reads scheduled TaskNodes to render task=blue chips. Provider
         // order (§6.2) places TaskTree before Calendar, and TaskTree depends on
         // neither WikiTags nor Calendar, so it sits at the very outside.
-        <TaskTreeProvider dataService={ds}>
+        // #411 folded the Kanban in as the Todo tab. It needs the same two
+        // Providers it had in Materials (TaskTree + WikiTags) and both are
+        // already on this branch, so the tab reuses them rather than nesting a
+        // second pair — one task store for the calendar chips, the Todo tray
+        // and the board. `persistSelection` moved with the board: it is what
+        // re-opens the task the user was reading after a tab switch (#282).
+        <TaskTreeProvider dataService={ds} persistSelection>
           <WikiTagsUnifiedProvider dataService={ds}>
             <CalendarProvider dataService={ds}>
               <RoutineProvider dataService={ds}>
                 <ScheduleItemsProvider dataService={ds}>
                   <ScheduleScreen
                     dataService={ds}
-                    onOpenTasks={() => handleNavigate("tasks")}
+                    tab={scheduleTab}
+                    onOpenTasks={() => setScheduleTab("todo")}
+                    pendingNewTask={pendingNewTask}
+                    onConsumeNewTask={consumeNewTask}
+                    pendingSelectTaskId={pendingTaskSelect}
+                    onConsumePendingSelect={consumeItemNav}
                   />
                 </ScheduleItemsProvider>
               </RoutineProvider>
@@ -798,8 +889,10 @@ export function MainScreen({ session }: { session: Session }) {
                      * section chrome now lives in AppShell's header slot (the
                      * standard SectionHeader above), so the header slot here only
                      * carries the NARROW-layout rows: Materials' hamburger +
-                     * segmented tab row, and the Connect / Work / Settings
-                     * hamburger row (all unchanged from v1 — mobile non-goal).
+                     * segmented tab row, Schedule's Calendar/Todo segmented row
+                     * (#411 — the one narrow row v1 didn't have, since the tab
+                     * itself is new), and the Connect / Work / Settings
+                     * hamburger row.
                      */}
                     {section === "materials" ? (
                       <PageContainer
@@ -811,7 +904,11 @@ export function MainScreen({ session }: { session: Session }) {
                     ) : (
                       <PageContainer
                         width={pageWidth}
-                        header={sectionToolbar ?? undefined}
+                        header={
+                          !isWide && section === "schedule"
+                            ? scheduleMobileSwitcher
+                            : (sectionToolbar ?? undefined)
+                        }
                       >
                         {nonMaterialsBody}
                       </PageContainer>

@@ -9,6 +9,8 @@ Branch: claude/design-materials-v2
 
 # Design Brief: Materials セクション（header タブ: Tasks Kanban / Notes / Daily / Tags）
 
+> **2026-07-28 現在の実装との差分（履歴として本文は残す）**: 当時の 4 タブのうち **Tags は #310 で退役**、**Tasks Kanban は #411 で Schedule セクションの「Todo」タブへ移設**した。Materials は現在 Notes / Daily の 2 タブ。以下の Tasks / Tags に関する記述は当時の IA 決定の記録であり、Tasks タブの意匠そのもの（Kanban の中身）は移設先でもそのまま生きている。
+>
 > 目的: **この 1 ファイルだけで「ClaudeDesign に貼るプロンプト」とその根拠が完結する**こと。
 > **IA（2026-07-05 決定）**: Tasks / Notes / Daily / Tags は独立セクションではなく、サイドバー本流の **Materials 1 セクション**の中の **header タブ 4 つ**。§4 の各プロンプトはタブ切替を前提に、サイドバー Materials アクティブ + コンテンツ最上部の 4 タブ行を含めて指示する。§4 の各プロンプトは Desktop / Mobile のペア構造を維持する。
 >

@@ -45,6 +45,8 @@ Branch: claude/design-schedule-v2
 ## 3. デザイン方針（このセッションの提案）
 
 > **2026-07-28 #408 で retired**: 以下の「header タブ Calendar / Routines の 2 タブ」構成は当時の IA 決定であり、**Routines タブは廃止済み**。繰り返しの編集は Calendar のアイテム編集パネルに一本化し、一覧は rightSidebar の「繰り返し」タブ（`RepeatListPanel`）へ移った。本節以下の Routines タブ記述は履歴として残す。
+>
+> **2026-07-28 #411 で再構成**: header タブは再び 2 つになったが中身が違う — **Calendar / Todo**。Todo は Materials から移してきた Kanban（意匠は materials brief §Tasks が正）で、narrow では SegmentedControl として出る。
 
 - **セクション構成（当時の目標 IA・Routines タブは #408 で退役）**: Schedule はサイドバー本流セクション。画面上部に **header タブ「Calendar」/「Routines」** の 2 タブを持つ（2026-07-05 IA 決定）。現状の「週グリッド + Routine 管理 + 本日リスト + calendars CRUD の 1 スクロール縦積み」を、この 2 タブに整理する。
   - **Calendar タブ**（既定）: 週タイムグリッド + 選択イベント編集の右パネル。従来の「週グリッド + 右エディタペーン」をこのタブに収める
