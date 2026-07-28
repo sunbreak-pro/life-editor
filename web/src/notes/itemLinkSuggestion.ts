@@ -265,6 +265,17 @@ function itemLinkRender(
 
     return {
       onStart: (props) => {
+        // @tiptap/suggestion's `view.update` awaits items() BEFORE calling
+        // onStart, and the handler is async — so while the first "[[" is still
+        // fetching (#430 made items() async), a second update can run to
+        // completion and tear the session down. Resuming here would then mount
+        // a popup with no live suggestion behind it: nothing ever exits it
+        // again, so it stays pinned on screen, and `menuOpen` would be left
+        // true. Bail out when the plugin says the suggestion is no longer
+        // active. (A legitimate `moved && changed` restart keeps active=true.)
+        const state = itemLinkPluginKey.getState(props.editor.state) as
+          { active?: boolean } | undefined;
+        if (state?.active !== true) return;
         session.onOpen();
         renderer = new ReactRenderer(ItemLinkMenu, {
           props: { ...props, emptyLabel },
@@ -310,6 +321,11 @@ export function createItemLinkSuggestion(
   // items() again, and each of those keystrokes also bumps the sync version
   // (the query text is written into the doc) — without this flag the pool
   // would look stale on every keystroke and re-fetch under the user (#430).
+  //
+  // Known minor: a `moved && changed` transition (a second "[[" opened while
+  // one is already active) restarts the session but runs items() before the
+  // old session's onExit, so the new menu opens on the cached pool. Candidates
+  // may be one open old there; the next clean open refreshes.
   let menuOpen = false;
 
   return Extension.create({

@@ -51,9 +51,11 @@ export function useItemLinkTargets(
   // De-dupes concurrent opens (and a refresh racing an open) into one fetch.
   const inFlightRef = useRef<Promise<ItemLinkTarget[]> | null>(null);
   const dataServiceRef = useRef(dataService);
+  const syncVersionRef = useRef(syncVersion);
 
   useEffect(() => {
     dataServiceRef.current = dataService;
+    syncVersionRef.current = syncVersion;
   });
 
   // Mark only — no fetch. A note created elsewhere (or via MCP) becomes
@@ -69,6 +71,10 @@ export function useItemLinkTargets(
 
     const ds = dataServiceRef.current;
     if (!ds) return cached ?? [];
+
+    // Sync version at fetch time: a bump that lands WHILE this runs describes
+    // data the fetch may have missed, so it must not be cleared on success.
+    const fetchedAt = syncVersionRef.current;
 
     const pending = (async (): Promise<ItemLinkTarget[]> => {
       const [notes, dailies, tasks] = await Promise.all([
@@ -100,16 +106,29 @@ export function useItemLinkTargets(
       return next;
     })();
 
-    inFlightRef.current = pending;
+    // Store the SETTLED form, never the raw promise: a caller that piggybacks
+    // on an in-flight fetch (typing another character before the first "[["
+    // resolves) would otherwise inherit the rejection, and the throw would
+    // escape through items() into @tiptap/suggestion's update handler.
+    const settled = pending.then(
+      (next) => {
+        cacheRef.current = next;
+        // A sync that arrived mid-flight leaves the pool stale so the next
+        // open refetches — otherwise that write would be invisible until the
+        // following bump.
+        staleRef.current = syncVersionRef.current !== fetchedAt;
+        return next;
+      },
+      () => {
+        // A failed refresh keeps the pool stale so the next open retries; the
+        // menu falls back to whatever was already loaded (empty on first open).
+        return cacheRef.current ?? [];
+      },
+    );
+
+    inFlightRef.current = settled;
     try {
-      const next = await pending;
-      cacheRef.current = next;
-      staleRef.current = false;
-      return next;
-    } catch {
-      // A failed refresh keeps the pool stale so the next open retries; the
-      // menu falls back to whatever was already loaded (empty on first open).
-      return cacheRef.current ?? [];
+      return await settled;
     } finally {
       inFlightRef.current = null;
     }
