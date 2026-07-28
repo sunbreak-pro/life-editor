@@ -665,6 +665,7 @@ export function BriefingScreen({
       vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
+      edit: t("briefing.edit"),
       jumpToSchedule: t("briefing.jumpToSchedule"),
       jumpToTasks: t("briefing.jumpToTasks"),
     }),

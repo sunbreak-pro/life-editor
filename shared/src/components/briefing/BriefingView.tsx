@@ -100,6 +100,14 @@ export interface BriefingLabels {
   vizTitle: string;
   carryoverTitle: string;
   toggleComplete: string;
+  /**
+   * Visible label of every row's jump action —「編集」/ "Edit" (#410). It IS
+   * the button's accessible name now that the action is no longer icon-only;
+   * `jumpToSchedule` / `jumpToTasks` moved to the hover tooltip, where the
+   * longer wording still says WHERE the jump lands without contradicting the
+   * visible text (WCAG 2.5.3 Label in Name).
+   */
+  edit: string;
   jumpToSchedule: string;
   jumpToTasks: string;
 }
@@ -155,6 +163,39 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Row jump action —「編集」+ ↗ (#410).
+ *
+ * `ml-auto` pins it to the row's right edge, so the buttons line up in one
+ * straight column whatever the titles measure; the old icon-only button sat
+ * immediately after the title and drifted with it, row by row. The label is
+ * visible (a 13px arrow alone was too small a target to read as an action)
+ * and therefore IS the accessible name — the longer "where does this land"
+ * wording rides `title` instead of `aria-label`, which would otherwise
+ * override the visible text for screen readers (WCAG 2.5.3).
+ */
+function EditJumpButton({
+  onClick,
+  label,
+  hint,
+}: {
+  onClick: () => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint}
+      className="ml-auto flex flex-shrink-0 items-center gap-1 self-center whitespace-nowrap text-xs text-lumen-text-secondary transition-colors hover:text-lumen-accent"
+    >
+      <ArrowUpRight size={13} aria-hidden="true" />
+      {label}
+    </button>
   );
 }
 
@@ -291,19 +332,18 @@ export function BriefingView({
                 >
                   {item.title}
                 </button>
-                <button
-                  type="button"
-                  onClick={onJumpToSchedule}
-                  aria-label={labels.jumpToSchedule}
-                  className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
-                >
-                  <ArrowUpRight size={13} aria-hidden="true" />
-                </button>
                 {item.isRoutine && (
                   <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-[10px] text-lumen-briefing-kohaku">
                     {labels.routineTag}
                   </span>
                 )}
+                {/* Last in the row so `ml-auto` lands it on the right edge —
+                    the routine tag keeps its place beside the title. */}
+                <EditJumpButton
+                  onClick={onJumpToSchedule}
+                  label={labels.edit}
+                  hint={labels.jumpToSchedule}
+                />
               </li>
             ))}
           </ul>
@@ -348,14 +388,11 @@ export function BriefingView({
                       {task.title}
                     </span>
                   </button>
-                  <button
-                    type="button"
+                  <EditJumpButton
                     onClick={onJumpToTasks}
-                    aria-label={labels.jumpToTasks}
-                    className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
-                  >
-                    <ArrowUpRight size={13} aria-hidden="true" />
-                  </button>
+                    label={labels.edit}
+                    hint={labels.jumpToTasks}
+                  />
                 </div>
                 {task.purposes.length > 0 && (
                   <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
@@ -422,14 +459,11 @@ export function BriefingView({
                     {item.title}
                   </span>
                 </button>
-                <button
-                  type="button"
+                <EditJumpButton
                   onClick={onJumpToTasks}
-                  aria-label={labels.jumpToTasks}
-                  className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
-                >
-                  <ArrowUpRight size={13} aria-hidden="true" />
-                </button>
+                  label={labels.edit}
+                  hint={labels.jumpToTasks}
+                />
               </li>
             ))}
           </ul>
