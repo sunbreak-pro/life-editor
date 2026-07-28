@@ -1,6 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
-### 2026-07-28 - #408 Routines タブ退役 + rightSidebar 繰り返し一覧（PR #452 merge 済み / QA 回収 = PR #453）
+### 2026-07-28 - #411 Todo ボードを Materials から Schedule へ移設（PR #454 merge 済み・main `218d8dab`）
+
+#### 概要
+
+Materials を Notes / Daily の 2 タブに、Schedule を Calendar / Todo の 2 タブにした。「今日を組む場所」に組む材料（Todo）と組む先（カレンダー）を同居させる Epic #290 の構成再編で、rightSidebar の「本日の Todo」トレイは元から同じ task を読んでいたためデータ側は 1 本のまま。#408 が同じタブ構造を撤去した直後に足し直す順序（Issue の推奨）で進めた。
+
+#### 変更点
+
+- **導線の全数追随（実質の本体）**: 移設そのものは小さいが、Todo へ行く経路を 1 本でも取りこぼすと「タスクへ飛ぶ」が黙って死ぬ。4 本すべて追随 — nav ショートカット（`nav:tasks` / `nav:schedule` の**両方**がタブを明示 set。片方だけだと `nav:tasks` の直後に `nav:schedule` を押しても Todo に貼り付く）/ `[[link]]` の着地（`MATERIALS_TAB_FOR_ROLE` → `ITEM_NAV_TARGET` に変更し section+tab の組を返す。3 role が 1 セクションを共有しなくなったためタブ名だけでは行き先が決まらない）/ `global:new-task`（Schedule → Todo へ移動してから pending フラグ）/ コマンドパレット（Calendar / Todo の 2 エントリ追加。素の「Schedule」エントリは Materials 同様 sticky のまま）
+- **Provider は再利用**: Kanban が要る TaskTree + WikiTags は**どちらも Schedule 側に既に居る**（カレンダーの task チップ用）ので、2 組目を入れ子にせず再利用した。task の持ち主がチップ・トレイ・ボードで 1 つになる。`persistSelection`（#282）はボードと一緒にその mount へ移した
+- **narrow はハンバーガーを足していない**: Calendar / Todo の SegmentedControl だけを PageContainer header に出す。Calendar 本体は自前でハンバーガーを描いており、Todo 本体は 768px 未満で drawer を閉じる（モバイル Kanban は詳細パネルを持たない `MobileTaskList`）ため、置くと片方は重複・片方は空 drawer を開くボタンになる
+- **型の置き場所を #408 前から変更**: `ScheduleTab` は `ScheduleScreen.tsx` が export し `MainScreen` が import する（switch する側と型を同居させる）
+- **docs**: `mobile-scope.md` #4（narrow が Calendar 固定ではなくなった）と #6（materials / tasks → schedule / todo）。design brief は本文を履歴として残し materials.md 冒頭 + schedule.md の #408 注記に差分を追記。`taskSelector.emptyHint` の「Materials で Todo を作成」も両 catalog で修正。Epic #290 に 5-d として追記
+- **検証**: shared test 153 files / **1257 tests**・shared build・web build・web lint すべて exit 0。**新規テストは無し**（変更は web/ のホスト配線で web に test runner が無く、shared へ出す判定ロジックでもない）。実ブラウザ検証は merge 後 chat-main（特に narrow の 3 段スタックと Todo タブでの Kanban の高さ）
+- **PR を立てる前に自己レビューを済ませた**（#452 の再発防止）。push 直後に `gh pr list --json state,headRefOid` で local HEAD `cd36c25a` との一致を実測 — **が、その後の tracker 更新を push する前に #454 が merge され、`e395e5e0` が置き去りになった**（この worktree で 3 度目・通算 6 度目）。`origin/main` から `claude/schedule-411-tracker` を切って cherry-pick で回収（コンフリクトなし・docs のみなのでゲートは回していない）。**教訓の更新** = 予防策は「レビューを PR より前に」だけでは足りず、**tracker 更新まで含めて全部 commit してから PR を立てる**のが正しい形
+
+### 2026-07-28 - #408 Routines タブ退役 + rightSidebar 繰り返し一覧（PR #452 merge 済み / QA 回収 = PR #453 も merge 済み）
 
 #### 概要
 
