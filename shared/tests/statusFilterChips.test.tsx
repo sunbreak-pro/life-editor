@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import {
-  StatusFilterChips,
-  type StatusFilterChip,
-} from "../src/components";
+import { StatusFilterChips, type StatusFilterChip } from "../src/components";
 
 /*
  * Mobile Tasks status filter. Single-select group of aria-pressed pills:
@@ -16,9 +13,7 @@ const CHIPS: StatusFilterChip[] = [
   { id: "done", label: "Done", count: 7 },
 ];
 
-function renderChips(
-  props?: Partial<Parameters<typeof StatusFilterChips>[0]>,
-) {
+function renderChips(props?: Partial<Parameters<typeof StatusFilterChips>[0]>) {
   const onChange = vi.fn();
   render(
     <StatusFilterChips
@@ -42,12 +37,14 @@ describe("StatusFilterChips", () => {
 
   it("marks the selected chip with aria-pressed", () => {
     renderChips();
-    expect(
-      screen.getByRole("button", { name: /To do/ }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: /Done/ }),
-    ).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /To do/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /Done/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("selects an unselected chip by id", () => {
@@ -67,5 +64,28 @@ describe("StatusFilterChips", () => {
     expect(
       screen.getByRole("group", { name: "Filter tasks" }),
     ).toBeInTheDocument();
+  });
+
+  /*
+   * #369 reuses this component as the Notes tag filter inside a ~240px
+   * rightSidebar, which needs a smaller pill. The variant must change ONLY the
+   * metrics — the same selection contract has to hold, since the sidebar is now
+   * a second caller relying on it.
+   */
+  it("keeps the selection contract in the sm variant", () => {
+    const { onChange } = renderChips({ size: "sm" });
+    const active = screen.getByRole("button", { name: /To do/ });
+    expect(active).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(active);
+    expect(onChange).toHaveBeenCalledWith(null);
+    fireEvent.click(screen.getByRole("button", { name: /Done/ }));
+    expect(onChange).toHaveBeenCalledWith("done");
+  });
+
+  it("renders smaller padding/type in the sm variant", () => {
+    renderChips({ size: "sm" });
+    const chip = screen.getByRole("button", { name: /To do/ });
+    expect(chip.className).toContain("text-[12px]");
+    expect(chip.className).not.toContain("text-sm");
   });
 });

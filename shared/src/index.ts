@@ -454,6 +454,7 @@ export {
   type DailyListEntry,
   type DailyListViewOptions,
   type DailyListDirection,
+  type DailyListSortMode,
 } from "./utils/dailyListView";
 // jsonb-canonicalization-proof own-echo test (#300) — see file header.
 export { jsonDocEquals } from "./utils/jsonDocEquals";
