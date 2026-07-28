@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-28 - #408 Routines タブ退役 + rightSidebar 繰り返し一覧（PR #452 merge 済み / QA 回収 = PR #453）
+
+#### 概要
+
+Schedule のヘッダーから Routines タブを外し、繰り返しの編集を Calendar のアイテム編集パネルへ一本化した（Epic #290 Step 5-a）。編集パネル自体はユーザー指示どおり不変で、追加は rightSidebar の「繰り返し」タブ 1 つだけ。役割 QA が Blocking を 1 件返したが、その修正 push の前に PR #452 が merge されてしまい、置き去りコミットを PR #453 で回収している。
+
+#### 変更点
+
+- **設計判断（失われる操作 5 件の切り分け）**: 事前調査で挙げた 5 件のうち **(1) 空 routine の新規作成 / (3) テンプレの直接編集は意図的に退役**（(1) は CLAUDE.md §4「UI 上は Event + 繰り返し設定として提示し、Routine は実装詳細」、(3) は #279 の scope ダイアログが代替）。**埋めたのは (2) 到達性 / (4) テンプレ削除 / (5) order 俯瞰**。**(2)+(4) を落とすと実行日が 1 日も無い routine が永久に到達不能になる**（オカレンスが無いので Calendar から選べず、Routines タブも無い）— #407 のゾンビ 2 件が実在するので机上の穴ではない
+- **新規**: `shared/src/components/schedule/RepeatListPanel.tsx`（純粋表示・全 routine を `order` 順）/ `nextRoutineOccurrence`。**null が「この行は飛び先が無い」の判定そのもの**で、その行はボタンにせず span にする（#434 S-1 と同じ「押しても何も起きないコントロールは壊れて見える」原則）が削除ボタンは残す
+- **退役**: `RoutinesTab.tsx` / `RoutineEditorForm.tsx` + 型 3 種 + その test / i18n 4 キー（`scheduleScreen.routines`・`newRoutine`・`selectHint`・`tabDetail`）。`ScheduleTab` 型・`scheduleTab` state・タブ帯・`handleBriefingNavigate` も撤去し、Schedule のヘッダーは他セクションと同じ `SectionHeader title` 経路へ。**`useRoutinesAPI.createRoutine` は残した**（UI 呼び出しゼロでも DataService 層の API であって死んだ UI コードではない）
+- **role-qa アドバーサリアルラウンド = B 1 / S 4 / N 4。引用 4 件を自分で spot check して全て実在を確認**（`rules/docs-consistency.md` §5）。**B-1 は #408 の主目的そのものが未達だった**: カレンダーのナビゲーションは範囲を**取得するだけ**で occurrence を生成しないため、開始日が未来の繰り返しは一覧に「次回 9月1日」と出てクリックできるのに飛び先が空で、編集する対象が存在しない。`handleOpenRepeat` がジャンプ後に `ensureRoutineItemsForDateRange(next, next, [routine])` を打ってから `reload()` するよう修正
+- **S-1** = 行のゴミ箱 1 クリックで系列全体（完了済みの過去分含む）が消え、undo は routine 1 行しか戻さない → 行内に 2 段確認。**S-2** = `deleteRoutine` が失敗しても無言（一覧から行だけ消え occurrence は全部残る）→ 戻り値に `landed` を足して toast。**S-3** = `nextRoutineOccurrence` が頻度しか見ておらず archived な routine に飛び先が出ていた → `routineScheduleSync.ts` へ移して `shouldCreateRoutineItem` を呼ぶ（判定の二重定義を解消。逆向き import は循環になるのでこの向きしかない）。**S-4** = docs 退役 sweep（tier-1-core / 再設計プラン / design brief）
+- **置き去り再発（この worktree で 2 度目・通算 5 回目）**: PR #452 を出してから role-qa を起動したため、監査修正 `d6cff838` を push した時点で既に merge 済みだった。`origin/main`（`e503f328`）から `claude/schedule-408-qa-recover` を切って cherry-pick（コンフリクトなし）→ PR #453。**予防策は「PR を立てる前にレビューまで済ませる」の一点**
+- 検証 = shared vitest **153 files / 1257 pass**・shared build・web build・web lint すべて exit 0（PR #453 のブランチ = 動いた main の上で再実行）。Epic #290 の Step 5 は 5-a / 5-b / 5-c に内訳を分け、5-a のみ #408 に紐付け（チェックは付けず）
+
 ### 2026-07-28 - #434 繰り返し変換の pending 表示・失敗 toast とガードの shared 切り出し（PR #450）
 
 #### 概要

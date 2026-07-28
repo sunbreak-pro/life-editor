@@ -44,7 +44,9 @@ Branch: claude/design-schedule-v2
 
 ## 3. デザイン方針（このセッションの提案）
 
-- **セクション構成（目標 IA）**: Schedule はサイドバー本流セクション。画面上部に **header タブ「Calendar」/「Routines」** の 2 タブを持つ（2026-07-05 IA 決定）。現状の「週グリッド + Routine 管理 + 本日リスト + calendars CRUD の 1 スクロール縦積み」を、この 2 タブに整理する。
+> **2026-07-28 #408 で retired**: 以下の「header タブ Calendar / Routines の 2 タブ」構成は当時の IA 決定であり、**Routines タブは廃止済み**。繰り返しの編集は Calendar のアイテム編集パネルに一本化し、一覧は rightSidebar の「繰り返し」タブ（`RepeatListPanel`）へ移った。本節以下の Routines タブ記述は履歴として残す。
+
+- **セクション構成（当時の目標 IA・Routines タブは #408 で退役）**: Schedule はサイドバー本流セクション。画面上部に **header タブ「Calendar」/「Routines」** の 2 タブを持つ（2026-07-05 IA 決定）。現状の「週グリッド + Routine 管理 + 本日リスト + calendars CRUD の 1 スクロール縦積み」を、この 2 タブに整理する。
   - **Calendar タブ**（既定）: 週タイムグリッド + 選択イベント編集の右パネル。従来の「週グリッド + 右エディタペーン」をこのタブに収める
   - **Routines タブ**: ルーチンの一覧 + 編集フォーム。従来 Sheet ドロワーへ畳んでいたルーチン管理を、header タブの独立画面（MasterDetail の 2 枚組意匠）に昇格させる
   - **カレンダー台帳（現 CalendarView = フォルダ別カレンダーの CRUD）の置き場（提案）**: **第 3 タブには昇格させない**。フォルダ別カレンダーは利用頻度が低く常設タブにするほどでないため、Calendar タブのツールバー右端の歯車 / overflow メニューから開く**軽量モーダル**に畳む。header タブは Calendar / Routines の 2 つに保ち、ナビをすっきりさせる
@@ -146,7 +148,7 @@ Branch: claude/design-schedule-v2
 ### レイアウト構造
 
 - 左サイドバー（展開 240px）: 本流セクション「Schedule」（Clock アイコン）がアクティブ
-- **header タブ（画面上部の水平タブ）**: 「Calendar」/「Routines」の 2 タブ。既定は「Calendar」。タブは下線式（アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし。タブ列の下端に border の薄い区切り線を全幅で引く）でアクティブを示し、セクション見出しの直下に置く（この画面のフレームは Calendar タブ表示が基本。1 枚だけ Routines タブに切り替えた状態も描く）
+- **header タブ（画面上部の水平タブ）**（#408 で retired — Routines タブは廃止し Schedule のヘッダーは単一タイトルへ）: 「Calendar」/「Routines」の 2 タブ。既定は「Calendar」。タブは下線式（アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし。タブ列の下端に border の薄い区切り線を全幅で引く）でアクティブを示し、セクション見出しの直下に置く（この画面のフレームは Calendar タブ表示が基本。1 枚だけ Routines タブに切り替えた状態も描く）
 - ツールバー（header タブの下・1 行）: 左から「今日」ボタン / ◀ ▶ の週送りアイコンボタン / 週範囲ラベル「7/5 – 7/11」。右端に「+ 予定を追加」のプライマリボタン（accent 地 + on-accent 文字）、その左に歯車アイコンボタン（フォルダ別カレンダーの管理モーダルを開く導線。モーダル自体は今回描かない）
 - 主役（Calendar タブの中身） = **週タイムグリッド**（ツールバー直下、画面幅いっぱい）:
   - 左端に時間軸の列(幅 52px 程度)。「07:00」〜「23:00」あたりが見えていて、上下にスクロールできる気配を出す

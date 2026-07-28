@@ -3,6 +3,7 @@ import type { RoutineNode } from "../types/routine";
 import { shouldRoutineRunOnDate } from "./routineFrequency";
 import { generateId } from "./generateId";
 import { formatDateKey } from "./dateKey";
+import { addDaysKey } from "./scheduleGridLayout";
 
 /**
  * Port of frontend/src/utils/routineScheduleSync.ts. The
@@ -153,4 +154,36 @@ export function collectRoutineItemsForDates(
     cursor.setDate(cursor.getDate() + 1);
   }
   return result;
+}
+
+/** The widest window the repeat list scans for a next occurrence. */
+const NEXT_OCCURRENCE_HORIZON_DAYS = 366;
+
+/**
+ * The first date on or after `from` on which the GENERATOR would materialise
+ * this routine, or null when it would produce nothing within a year.
+ *
+ * It lives next to `shouldCreateRoutineItem` and calls it rather than
+ * `shouldRoutineRunOnDate` on purpose: "will an occurrence exist there?" has to
+ * answer the same way the generator does. Frequency alone would say yes for an
+ * archived or hidden routine that the generator will never materialise, and the
+ * repeat list (#408) would then offer a jump to a permanently empty day.
+ *
+ * null is what lets that list say "this fires on no day" instead — the #407
+ * zombie shape (a malformed interval reads as fires-never under the fail-closed
+ * guards) plus archived / hidden routines all land here.
+ *
+ * A year is the horizon because the only unbounded frequency is `interval`, and
+ * an interval longer than a year has no occurrence worth navigating to.
+ */
+export function nextRoutineOccurrence(
+  routine: RoutineNode,
+  from: string,
+  horizonDays: number = NEXT_OCCURRENCE_HORIZON_DAYS,
+): string | null {
+  for (let i = 0; i <= horizonDays; i++) {
+    const date = addDaysKey(from, i);
+    if (shouldCreateRoutineItem(routine, date)) return date;
+  }
+  return null;
 }

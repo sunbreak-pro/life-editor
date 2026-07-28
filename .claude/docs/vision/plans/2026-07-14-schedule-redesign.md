@@ -173,7 +173,7 @@ pin = `shared/tests/taskTreePersistSettled.test.tsx`
 
 ## 7. 参照パス（正典）
 
-- 画面: `web/src/schedule/{ScheduleScreen,CalendarTab,RoutinesTab,CalendarView,RoutineScheduleSync}.tsx`
+- 画面: `web/src/schedule/{ScheduleScreen,CalendarTab,CalendarView,RoutineScheduleSync}.tsx`（`RoutinesTab.tsx` は Step 5-a / #408 で退役。繰り返し一覧は rightSidebar の `RepeatListPanel`）
 - 部品: `shared/src/components/schedule/`（WeekTimeGrid / MonthGrid / AgendaList / EventEditorPane / FrequencyEditor / ScheduleSidebarTabs ほか）
 - 生成器: `shared/src/hooks/useScheduleItemsRoutineSync.ts` + `shared/src/utils/{routineScheduleSync,routineFrequency}.ts`
 - サービス: `shared/src/services/SupabaseDataService.ts`（softDeleteRoutine / detachRoutine）

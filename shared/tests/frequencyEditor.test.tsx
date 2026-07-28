@@ -7,10 +7,11 @@ import {
 } from "../src/components";
 
 /*
- * FrequencyEditor (#185 Step 2) — the repeat-settings editor shared between
- * RoutineEditorForm and the Event editor's repeat section. The Routines-tab
- * shape (no "none") is covered via routineEditorForm.test; here we pin the
- * Event-side knobs: the optional "none" choice and the patch-shaped onChange.
+ * FrequencyEditor (#185 Step 2) — the repeat-settings editor in the Event
+ * editor's repeat section (it was shared with the Routines-tab form until #408
+ * retired that tab and its test). Here we pin the Event-side knobs: the
+ * optional "none" choice and the patch-shaped onChange; the no-"none" shape is
+ * covered by the first case below.
  * The "group" type and its chip picker were removed in #352.
  */
 

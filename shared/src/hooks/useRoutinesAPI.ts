@@ -233,7 +233,11 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     async (
       id: string,
       opts?: { skipUndo?: boolean },
-    ): Promise<{ deletedScheduleItemIds: string[] }> => {
+      // `landed` (#408): the optimistic drop below happens either way, so a
+      // caller that also shows the routine's occurrences needs to know the
+      // write failed — otherwise the list loses the row while the calendar
+      // keeps every occurrence, and nothing says why.
+    ): Promise<{ deletedScheduleItemIds: string[]; landed: boolean }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       if (target) {
         const deleted: RoutineNode = {
@@ -245,11 +249,12 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       }
       setRoutines((prev) => prev.filter((r) => r.id !== id));
 
-      let result: { deletedScheduleItemIds: string[] } = {
+      let result: { deletedScheduleItemIds: string[]; landed: boolean } = {
         deletedScheduleItemIds: [],
+        landed: false,
       };
       try {
-        result = await ds.softDeleteRoutine(id);
+        result = { ...(await ds.softDeleteRoutine(id)), landed: true };
       } catch (e) {
         logServiceError("Routines", "softDelete", e);
       }

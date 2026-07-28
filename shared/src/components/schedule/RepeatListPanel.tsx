@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 
@@ -35,6 +36,12 @@ export interface RepeatListPanelLabels {
   never: string;
   /** Accessible name for the per-row delete button. */
   delete: string;
+  /** Question shown in place of the row once delete is armed. */
+  confirmDelete: string;
+  /** Confirm the delete. */
+  confirm: string;
+  /** Back out of the armed delete. */
+  cancel: string;
 }
 
 export interface RepeatListPanelProps {
@@ -53,6 +60,12 @@ export function RepeatListPanel({
   labels,
   className,
 }: RepeatListPanelProps) {
+  // Delete is armed per row before it fires. It removes the whole series —
+  // including finished past occurrences — and undo only restores the routine
+  // template, not the cascaded occurrences, so a single stray click on a small
+  // icon is too cheap a way to reach it.
+  const [armed, setArmed] = useState<string | null>(null);
+
   if (rows.length === 0) {
     return (
       <p
@@ -93,6 +106,35 @@ export function RepeatListPanel({
             </span>
           </>
         );
+        if (armed === r.id) {
+          return (
+            <li
+              key={r.id}
+              className="flex items-center gap-2 rounded-lumen-md border border-lumen-danger bg-lumen-bg px-3 py-2"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
+                {labels.confirmDelete.replace("{name}", r.title)}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setArmed(null);
+                  onDelete(r.id);
+                }}
+                className="shrink-0 rounded-lumen-md bg-lumen-danger px-2.5 py-1 text-xs font-medium text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              >
+                {labels.confirm}
+              </button>
+              <button
+                type="button"
+                onClick={() => setArmed(null)}
+                className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2.5 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              >
+                {labels.cancel}
+              </button>
+            </li>
+          );
+        }
         return (
           <li
             key={r.id}
@@ -116,7 +158,7 @@ export function RepeatListPanel({
             <button
               type="button"
               aria-label={`${labels.delete}: ${r.title}`}
-              onClick={() => onDelete(r.id)}
+              onClick={() => setArmed(r.id)}
               className="shrink-0 rounded-lumen-md p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
             >
               <Trash2 aria-hidden className="size-4" />

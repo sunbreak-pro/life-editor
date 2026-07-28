@@ -1,29 +1,46 @@
 import { describe, it, expect } from "vitest";
-import { nextRoutineOccurrence } from "../src/utils/routineFrequency";
+import { nextRoutineOccurrence } from "../src/utils/routineScheduleSync";
+import type { RoutineNode } from "../src/types/routine";
 
 /*
  * nextRoutineOccurrence (#408) — the repeat list's only source of truth for
  * "where does this routine next land?". The list uses null to decide whether a
- * row is navigable at all, so the never-fires cases matter as much as the hits.
+ * row is navigable at all, so the never-materialises cases matter as much as
+ * the hits. It answers through shouldCreateRoutineItem, NOT raw frequency, so
+ * archived / hidden routines must read as "no occurrence" too.
  */
 
-const daily = {
-  frequencyType: "daily" as const,
-  frequencyDays: [],
-  frequencyInterval: null,
-  frequencyStartDate: null,
-};
+function routine(over: Partial<RoutineNode> = {}): RoutineNode {
+  return {
+    id: "r-1",
+    title: "R",
+    startTime: null,
+    endTime: null,
+    isArchived: false,
+    isVisible: true,
+    isDeleted: false,
+    deletedAt: null,
+    order: 0,
+    frequencyType: "daily",
+    frequencyDays: [],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...over,
+  };
+}
 
 describe("nextRoutineOccurrence", () => {
   it("returns the from-date itself when the routine fires that day", () => {
-    expect(nextRoutineOccurrence(daily, "2026-07-28")).toBe("2026-07-28");
+    expect(nextRoutineOccurrence(routine(), "2026-07-28")).toBe("2026-07-28");
   });
 
   it("walks forward to the next matching weekday", () => {
     // 2026-07-28 is a Tuesday; the routine only fires on Friday (5).
     expect(
       nextRoutineOccurrence(
-        { ...daily, frequencyType: "weekdays", frequencyDays: [5] },
+        routine({ frequencyType: "weekdays", frequencyDays: [5] }),
         "2026-07-28",
       ),
     ).toBe("2026-07-31");
@@ -32,7 +49,7 @@ describe("nextRoutineOccurrence", () => {
   it("crosses a month boundary", () => {
     expect(
       nextRoutineOccurrence(
-        { ...daily, frequencyType: "weekdays", frequencyDays: [1] },
+        routine({ frequencyType: "weekdays", frequencyDays: [1] }),
         "2026-07-30",
       ),
     ).toBe("2026-08-03");
@@ -43,12 +60,11 @@ describe("nextRoutineOccurrence", () => {
     // anywhere near the visible range, so the list is the only route in.
     expect(
       nextRoutineOccurrence(
-        {
-          ...daily,
+        routine({
           frequencyType: "interval",
           frequencyInterval: 10,
           frequencyStartDate: "2026-09-01",
-        },
+        }),
         "2026-07-28",
       ),
     ).toBe("2026-09-01");
@@ -57,7 +73,7 @@ describe("nextRoutineOccurrence", () => {
   it("returns null for a weekday routine with no day set", () => {
     expect(
       nextRoutineOccurrence(
-        { ...daily, frequencyType: "weekdays", frequencyDays: [] },
+        routine({ frequencyType: "weekdays", frequencyDays: [] }),
         "2026-07-28",
       ),
     ).toBeNull();
@@ -68,32 +84,41 @@ describe("nextRoutineOccurrence", () => {
     // fires on no day — exactly the routine that has no occurrence to click.
     expect(
       nextRoutineOccurrence(
-        { ...daily, frequencyType: "interval", frequencyInterval: null },
+        routine({ frequencyType: "interval", frequencyInterval: null }),
         "2026-07-28",
       ),
+    ).toBeNull();
+  });
+
+  it("returns null for an archived or hidden routine that fires daily", () => {
+    // Frequency alone would say "today". The generator never materialises
+    // these, so a jump would land on a permanently empty day.
+    expect(
+      nextRoutineOccurrence(routine({ isArchived: true }), "2026-07-28"),
+    ).toBeNull();
+    expect(
+      nextRoutineOccurrence(routine({ isVisible: false }), "2026-07-28"),
+    ).toBeNull();
+    expect(
+      nextRoutineOccurrence(routine({ isDeleted: true }), "2026-07-28"),
     ).toBeNull();
   });
 
   it("returns null when the first occurrence is past the horizon", () => {
     expect(
       nextRoutineOccurrence(
-        {
-          ...daily,
+        routine({
           frequencyType: "interval",
           frequencyInterval: 1,
           frequencyStartDate: "2030-01-01",
-        },
+        }),
         "2026-07-28",
       ),
     ).toBeNull();
   });
 
   it("honours a caller-supplied horizon", () => {
-    const weekly = {
-      ...daily,
-      frequencyType: "weekdays" as const,
-      frequencyDays: [5],
-    };
+    const weekly = routine({ frequencyType: "weekdays", frequencyDays: [5] });
     expect(nextRoutineOccurrence(weekly, "2026-07-28", 2)).toBeNull();
     expect(nextRoutineOccurrence(weekly, "2026-07-28", 3)).toBe("2026-07-31");
   });

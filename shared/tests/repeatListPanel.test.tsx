@@ -18,6 +18,9 @@ const LABELS: RepeatListPanelLabels = {
   empty: "No routines yet",
   never: "Fires on no day",
   delete: "Delete routine",
+  confirmDelete: 'Delete "{name}" and all of its events?',
+  confirm: "Delete",
+  cancel: "Cancel",
 };
 
 const rows: RepeatListRow[] = [
@@ -92,6 +95,33 @@ describe("RepeatListPanel", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Delete routine: Broken repeat" }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(onDelete).toHaveBeenCalledWith("r-2");
+  });
+
+  it("arms delete behind a confirm rather than firing on one click", () => {
+    // Delete takes the whole series, finished past occurrences included, and
+    // undo only restores the template — too much to hang on a stray click on
+    // a small icon.
+    const { onDelete } = renderPanel();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete routine: Morning run" }),
+    );
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Delete "Morning run" and all of its events?'),
+    ).toBeInTheDocument();
+  });
+
+  it("backs out of an armed delete and restores the row", () => {
+    const { onDelete } = renderPanel();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete routine: Morning run" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /^Morning run/ }),
+    ).toBeInTheDocument();
   });
 });
