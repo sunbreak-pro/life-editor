@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { createElement, useState, type ReactNode } from "react";
+import { createElement, useEffect, useState, type ReactNode } from "react";
 import { useWikiTagsUnifiedAPI } from "../src/hooks/useWikiTagsUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import type { DataService } from "../src/services/DataService";
@@ -14,11 +14,17 @@ import type { DataService } from "../src/services/DataService";
  */
 
 // Bumpable Sync provider — the captured setter lets a test simulate a
-// Realtime-driven syncVersion bump without the real SyncProvider.
-let bumpSyncVersion: () => void = () => {};
+// Realtime-driven syncVersion bump without the real SyncProvider. It lives on
+// a holder object and is published from an EFFECT: shared lint (#421) rejects
+// both reassigning an outer binding (react-hooks/globals) and mutating an
+// outer value (react-hooks/immutability) during render. The test awaits the
+// initial load before bumping, so the effect has always run by then.
+const sync: { bump: () => void } = { bump: () => {} };
 function BumpableSyncProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
-  bumpSyncVersion = () => setVersion((v) => v + 1);
+  useEffect(() => {
+    sync.bump = () => setVersion((v) => v + 1);
+  }, []);
   return createElement(
     SyncContext.Provider,
     { value: { syncVersion: version, triggerSync: async () => {} } },
@@ -72,7 +78,7 @@ describe("useWikiTagsUnifiedAPI loading (#300)", () => {
     await waitFor(() => expect(hook.result.current.loading).toBe(false));
 
     deferNextRound();
-    act(() => bumpSyncVersion());
+    act(() => sync.bump());
     // The refetch has started (all three bulk queries in flight)…
     await waitFor(() => expect(pendingCount()).toBe(3));
     // …but the previously rendered tag data must stay up — no loading flip.

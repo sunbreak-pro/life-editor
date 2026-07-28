@@ -1,7 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import type { TaskNode } from "../types/taskTree";
-import type { DailyNode } from "../types/daily";
-import type { NoteNode } from "../types/note";
 import type {
   NoteLink,
   NoteLinkPayload,
@@ -47,7 +45,6 @@ import {
 } from "./taskMapper";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
-import { generateId } from "../utils/generateId";
 import { todayDateKey } from "../utils/dateKey";
 import {
   DEFAULT_ROUTINE_START_TIME,

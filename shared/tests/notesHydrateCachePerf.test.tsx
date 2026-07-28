@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { createElement, useState, type ReactNode } from "react";
+import { createElement, useEffect, useState, type ReactNode } from "react";
 import { useNotesUnifiedAPI } from "../src/hooks/useNotesUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import type { DataService } from "../src/services/DataService";
@@ -16,10 +16,17 @@ import type { NoteNode } from "../src/types/note";
  * dropped when it did.
  */
 
-let bumpSyncVersion: () => void = () => {};
+// The captured setter lives on a holder object, published from an EFFECT
+// rather than during render: shared lint (#421) rejects both reassigning an
+// outer binding (react-hooks/globals) and mutating an outer value
+// (react-hooks/immutability) mid-render. Every test awaits the initial load
+// before bumping, so the effect has always run by then.
+const sync: { bump: () => void } = { bump: () => {} };
 function BumpableSyncProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
-  bumpSyncVersion = () => setVersion((v) => v + 1);
+  useEffect(() => {
+    sync.bump = () => setVersion((v) => v + 1);
+  }, []);
   return createElement(
     SyncContext.Provider,
     { value: { syncVersion: version, triggerSync: async () => {} } },
@@ -44,7 +51,9 @@ function makeNote(id: string, updatedAt: string): NoteNode {
 
 describe("Notes hydrate cache survives a no-op sync bump (#301)", () => {
   it("does not re-fetch a note's body on reselect after a bump where its updatedAt is unchanged", async () => {
-    let listRows: NoteNode[] = [makeNote("note-1", "2026-07-19T00:00:00.000Z")];
+    const listRows: NoteNode[] = [
+      makeNote("note-1", "2026-07-19T00:00:00.000Z"),
+    ];
     const getNoteUnified = vi.fn(async (id: string) => ({
       ...listRows.find((n) => n.id === id)!,
       content: "real body",
@@ -71,7 +80,7 @@ describe("Notes hydrate cache survives a no-op sync bump (#301)", () => {
     // Deselect, then a sync bump fires (e.g. typing happened in a DIFFERENT
     // note elsewhere) — note-1's row is unchanged.
     act(() => hook.result.current.setSelectedNoteId(null));
-    act(() => bumpSyncVersion());
+    act(() => sync.bump());
     await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
 
     act(() => hook.result.current.setSelectedNoteId("note-1"));
@@ -114,7 +123,7 @@ describe("Notes hydrate cache survives a no-op sync bump (#301)", () => {
     bodies["note-1"] = "second body";
 
     act(() => hook.result.current.setSelectedNoteId(null));
-    act(() => bumpSyncVersion());
+    act(() => sync.bump());
     await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
 
     act(() => hook.result.current.setSelectedNoteId("note-1"));

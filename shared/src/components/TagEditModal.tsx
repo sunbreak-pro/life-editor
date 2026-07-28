@@ -13,6 +13,7 @@ import { Button } from "./Button";
 import { ColorPicker } from "./ColorPicker";
 import { cn } from "./cn";
 import { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
+import { TagHeadingIcon } from "./TagHeadingIcon";
 import { ItemRoleBadge } from "./items/ItemRoleBadge";
 import { type ItemRoleLabels } from "./items/itemRole";
 
@@ -440,9 +441,6 @@ function TagIconPicker({ current, color, onPick, labels }: TagIconPickerProps) {
     };
   }, [open]);
 
-  const Current = resolveTagIcon(current) ?? TagIcon;
-  const iconColor = color ?? undefined;
-
   const pick = useCallback(
     (name: string | null) => {
       onPick(name);
@@ -465,11 +463,10 @@ function TagIconPicker({ current, color, onPick, labels }: TagIconPickerProps) {
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
         )}
       >
-        <Current
-          size={15}
-          aria-hidden
-          style={iconColor ? { color: iconColor } : undefined}
-        />
+        {/* Resolved through TagHeadingIcon (not a capitalized local) so the
+            trigger draws the same glyph as a tag heading without declaring a
+            component during render — see that file's note (#364 / #421). */}
+        <TagHeadingIcon icon={current} color={color} />
       </button>
 
       {open && (

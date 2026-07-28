@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseNotesUnifiedService } from "../src/services/SupabaseNotesUnifiedService";
-import type { NoteNode } from "../src/types/note";
 import { hashPassword, verifyPassword } from "../src/utils/passwordHash";
 
 // Low iteration count for the fixtures — still inside the accepted
