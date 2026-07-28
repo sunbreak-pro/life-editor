@@ -158,7 +158,9 @@ async function getTaskRows(id: string) {
 export async function listTasks(args: {
   status?: string;
   date_range?: { start: string; end: string };
-  folder_id?: string;
+  /** Renamed from `folder_id` in #419 — it always filtered on the parent task,
+   *  never on a folder (the folder node type retired in #225). */
+  parent_id?: string;
 }) {
   const { client } = await getSupabase();
 
@@ -175,7 +177,7 @@ export async function listTasks(args: {
         .gte("scheduled_at", rangeBound(args.date_range.start, "start"))
         .lt("scheduled_at", rangeBound(args.date_range.end, "end"));
     }
-    if (args.folder_id) query = query.eq("parent_item_id", args.folder_id);
+    if (args.parent_id) query = query.eq("parent_item_id", args.parent_id);
     return query
       .order("sort_order", { ascending: true })
       .order("item_id", { ascending: true })

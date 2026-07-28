@@ -31,7 +31,7 @@ export const TOOLS: Tool[] = [
   {
     name: "list_tasks",
     description:
-      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or folder_id.",
+      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -49,7 +49,11 @@ export const TOOLS: Tool[] = [
           required: ["start", "end"],
           description: "Filter by scheduled date range",
         },
-        folder_id: {
+        // Same concept and same name as create_task's `parent_id` below. It
+        // was called `folder_id` until #419 — a leftover from the retired
+        // folder node type (#225) that never matched what it filters on
+        // (tasks_payload.parent_item_id).
+        parent_id: {
           type: "string",
           description: "Filter by parent task ID",
         },
