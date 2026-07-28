@@ -52,8 +52,8 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const [error, setError] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   // Pure selection state (W7). DataService-independent — mirrors Notes'
-  // `selectedNoteId` (useNotesUnifiedAPI). Drives the Tasks MasterDetail
-  // detail pane; the ref lets the delete wrappers below clear a selection
+  // `selectedNoteId` (useNotesUnifiedAPI). Drives the task detail the Kanban
+  // host shows in the rightSidebar; the ref lets the delete wrappers below clear a selection
   // that falls inside a deleted subtree without re-subscribing.
   const [selectedTaskId, setSelectedTaskIdState] = useState<string | null>(
     null,

@@ -4,8 +4,10 @@ import { cn } from "./cn";
 import { FOCUS_RING } from "./styleTokens";
 
 /*
- * Task detail panel (W7). The right-hand pane the Tasks MasterDetail shows
- * for the selected task. Pure presentation, DataService-free (§3.1): every
+ * Task detail panel (W7). The selected task's detail, which the Kanban host
+ * pushes into the shared rightSidebar via <RightSidebarPortal> (the W6
+ * MasterDetail two-pane part was retired in code-reduction #346).
+ * Pure presentation, DataService-free (§3.1): every
  * mutation is a callback the host injects (onTitleCommit / onToggleStatus),
  * the rich-text editor is injected as `contentEditor` (TipTap is a web
  * dependency and must not be pulled into shared), and all copy arrives as

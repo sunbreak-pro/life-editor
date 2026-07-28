@@ -9,8 +9,8 @@ import { NoteDetailPanel } from "../src/components";
  * toggle (label reflects the pin state) and delete, each firing the injected
  * callback. The tag / content sections render only when their slot is provided
  * (additive slots; the links slot moved to the rightSidebar Links panel —
- * F-3 #260). MasterDetail / rightSidebar plumbing is covered elsewhere and
- * deliberately not re-tested here.
+ * F-3 #260). The rightSidebar plumbing is covered elsewhere and deliberately
+ * not re-tested here.
  */
 
 const LABELS = {
