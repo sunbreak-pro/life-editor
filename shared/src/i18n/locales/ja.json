@@ -261,9 +261,8 @@
       "collapseGroup": "グループを折りたたむ",
       "expandGroup": "グループを展開",
       "assignTagHint": "タグにドロップして付与",
-      "sortUpdated": "更新日時",
-      "sortCreated": "作成日時",
-      "sortTitle": "タイトル"
+      "sortTitle": "タイトル",
+      "tagFilterLabel": "タグで絞り込む"
     },
     "daily": {
       "toToday": "今日へ",
@@ -316,7 +315,10 @@
       "newest": "新しい順",
       "oldest": "古い順",
       "ascending": "昇順",
-      "descending": "降順"
+      "descending": "降順",
+      "sortDate": "日付",
+      "sortUpdated": "更新日時",
+      "sortCreated": "作成日時"
     }
   },
   "connect": {

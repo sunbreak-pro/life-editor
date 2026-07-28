@@ -42,6 +42,38 @@ export interface BuildTagGroupsInput {
   untaggedLabel: string;
 }
 
+/**
+ * Sentinel key for the untagged bucket (a real tag id can never collide — ids
+ * are `generateId`-shaped). The literal is load-bearing: the Notes view
+ * persists collapsed-group keys under it, so changing the string would silently
+ * un-collapse the untagged bucket for anyone with saved state.
+ */
+export const UNTAGGED_GROUP_KEY = "__untagged__";
+
+/** Stable identity for a group — its tag id, or the untagged sentinel. */
+export function tagGroupKey(group: Pick<NoteTagGroup, "tagId">): string {
+  return group.tagId ?? UNTAGGED_GROUP_KEY;
+}
+
+/**
+ * Narrow a grouped list down to one tag (#369 tag filter). `filterKey` is a
+ * `tagGroupKey` value, or null for "no filter".
+ *
+ * A key that matches nothing falls back to the FULL list rather than an empty
+ * one. The chip that set the filter is rendered from these same groups, so a
+ * selection can go stale underneath the user (the search box empties the group,
+ * or the tag is deleted) — and once its chip is gone there is nothing left to
+ * click to undo it. Showing everything is the recoverable end of that.
+ */
+export function soloTagGroup(
+  groups: NoteTagGroup[],
+  filterKey: string | null,
+): NoteTagGroup[] {
+  if (filterKey === null) return groups;
+  const soloed = groups.filter((g) => tagGroupKey(g) === filterKey);
+  return soloed.length > 0 ? soloed : groups;
+}
+
 function sortNotes(notes: NoteNode[]): NoteNode[] {
   return [...notes].sort((a, b) => {
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;

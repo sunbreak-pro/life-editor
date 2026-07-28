@@ -6,17 +6,21 @@ import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
 
 /*
  * Sidebar list controls (#283). A compact sort + optional-filter header row the
- * Materials rightSidebar lists (Notes / Daily) mount above their item list.
+ * Materials lists (Notes / Daily) mount above their items — the rightSidebar on
+ * desktop, and since #369 the mobile Notes header too, which is why the row is
+ * width-fluid rather than fixed to the ~240px sidebar.
  * Pure presentation, DataService-free (§3.1): the mode picker + direction
  * toggle fire host-injected callbacks, the filter is a controlled input driven
  * only by onChange (NO keydown/Enter — IME safety, §Gotchas), and all copy is
  * already-translated props (§6.4 — no useTranslation here). lumen-* tokens only,
- * opaque surfaces (§5), sized for a ~240px sidebar.
+ * opaque surfaces (§5).
  *
  * The mode-picker dropdown owns its own open/close state (local UI state, like
  * NoteDetailPanel's title draft) — the host only owns the active mode + the
- * change callback. When `modes.length <= 1` the picker is hidden entirely (the
- * Daily list passes a single mode and only toggles direction).
+ * change callback. When `modes.length <= 1` the picker is hidden entirely and
+ * the direction toggle fills the row; both current callers pass 3 modes (#369
+ * gave the Daily list its "date" / updated / created set), so that branch is
+ * now only a guard.
  */
 
 export type SidebarSortDirection = "asc" | "desc";

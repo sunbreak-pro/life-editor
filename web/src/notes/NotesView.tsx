@@ -32,8 +32,11 @@ import {
   QuickAddSheet,
   BottomSheet,
   SidebarListControls,
+  StatusFilterChips,
   TagHeadingIcon,
   buildTagGroups,
+  tagGroupKey as groupKey,
+  soloTagGroup,
   sortNotesForList,
   useFrozenNoteSortKey,
   cn,
@@ -70,15 +73,28 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  *     selected → the shared <EmptyState>. The grouped side list (search + "+
  *     note", collapsible tag headings, draggable note rows, a "Trash (N)" row)
  *     is PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal.
- *   - Mobile (narrow): the same tag groups as collapsible headings +
- *     ExcerptListItem rows, a 92%-height read sheet, and a "+" QuickAddSheet.
+ *   - Mobile (narrow): a sort + search + tag-filter header (#369), then the
+ *     same tag groups as collapsible headings + ExcerptListItem rows, a
+ *     92%-height read sheet, and a "+" QuickAddSheet.
+ *
+ * Both halves render the SAME derived list (search → tag groups → sort → tag
+ * filter) off the same state, so the two breakpoints never disagree (#369).
  *
  * DnD: drag a note onto a tag heading = assign that tag (useNoteTagDnd). The
  * untagged bucket is NOT a drop target (dropping there would mean "remove all
  * tags" — destructive, so a no-op). No reorder / move-into: sort_order carries
- * no meaning across the many-to-many tag model. Data stays context-side
- * (useNotesUnifiedContext / useWikiTagsUnifiedContext); this view is
- * DataService-free (§3.1) and takes copy from useTranslation → props.
+ * no meaning across the many-to-many tag model.
+ *
+ * DnD ∩ tag filter (#369): the drop targets ARE the rendered headings, so
+ * soloing one tag leaves only that tag droppable — i.e. nothing left to assign
+ * (the dragged note already carries it), and soloing "untagged" leaves none at
+ * all. That is inherent to hiding rows, not a defect to route around: the
+ * filter is transient view state (never persisted), so tagging by drag means
+ * clearing it first. The chips sit directly above the list, one click away.
+ *
+ * Data stays context-side (useNotesUnifiedContext / useWikiTagsUnifiedContext);
+ * this view is DataService-free (§3.1) and takes copy from useTranslation →
+ * props.
  */
 
 // Password dialog copy. Kept as local constants (the Notes i18n追い付き is
@@ -100,11 +116,9 @@ const DIALOG_LABELS = {
 } as const;
 
 // Collapse state for tag-group headings. Persisted so a folded group stays
-// folded across reloads. The untagged bucket uses the sentinel key below.
+// folded across reloads. The group key (incl. the untagged sentinel) comes from
+// shared — the #369 tag filter keys off the same identity.
 const LS_TAG_GROUPS_COLLAPSED = "note-tag-groups-collapsed";
-const UNTAGGED_KEY = "__untagged__";
-
-const groupKey = (group: NoteTagGroup): string => group.tagId ?? UNTAGGED_KEY;
 
 function loadCollapsedGroups(): Set<string> {
   try {
@@ -479,10 +493,12 @@ export function NotesView({
   );
 
   // #283 sort controls (desktop sidebar). Mode ids map 1:1 to NoteSortMode.
+  // The date labels live in materials.sidebar (shared with the Daily picker
+  // since #369); "title" stays under materials.notes — a daily has no title.
   const sortModes = useMemo(
     () => [
-      { id: "updatedAt", label: t("materials.notes.sortUpdated") },
-      { id: "createdAt", label: t("materials.notes.sortCreated") },
+      { id: "updatedAt", label: t("materials.sidebar.sortUpdated") },
+      { id: "createdAt", label: t("materials.sidebar.sortCreated") },
       { id: "title", label: t("materials.notes.sortTitle") },
     ],
     [t],
@@ -524,6 +540,68 @@ export function NotesView({
     : notes.sortDirection === "asc"
       ? t("materials.sidebar.newest")
       : t("materials.sidebar.oldest");
+
+  /*
+   * #369 tag filter. The grouped list already shows every tag, but with a dozen
+   * tags you scroll past all of them to reach one — collapsing the rest by hand
+   * is the only narrowing that existed. This solos ONE group (click the active
+   * chip again for all), which is the whole filter semantics under a many-to-
+   * many tag model: "show notes carrying tag X" IS "show group X".
+   *
+   * Deliberately NOT persisted (matching the Daily filter query, #283): a
+   * filter that survives a reload hides notes with no visible cause.
+   */
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  const tagFilterChips = useMemo(
+    () =>
+      sortedGroups.map((group) => ({
+        id: groupKey(group),
+        label: group.tagName,
+        count: group.notes.length,
+        icon: (
+          <span
+            className={cn(
+              "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+              group.tagColor ? "" : "bg-lumen-border-strong",
+            )}
+            style={
+              group.tagColor ? { backgroundColor: group.tagColor } : undefined
+            }
+          />
+        ),
+      })),
+    [sortedGroups],
+  );
+
+  // soloTagGroup falls back to the full list when the selection goes stale —
+  // see its doc for why (a stale chip is unclickable, so it must not strand).
+  const visibleGroups = useMemo(
+    () => soloTagGroup(sortedGroups, tagFilter),
+    [sortedGroups, tagFilter],
+  );
+
+  // Only worth showing when there is more than one bucket to choose between.
+  const showTagFilter = tagFilterChips.length > 1;
+
+  /*
+   * Typing in the search box drops the tag filter. The two are alternative ways
+   * to narrow the same list, and leaving both on makes the filter come back by
+   * itself: a query that empties the soloed group removes its heading
+   * (buildTagGroups drops empty ones), soloTagGroup falls back to everything —
+   * and then clearing the query re-collapses the list to a tag the user never
+   * re-selected. Resetting here keeps that visible (the chip un-presses as you
+   * type) instead of leaving dead state behind. Cleared on the CHANGE, not in
+   * an effect watching the derived groups (web lint bans setState in effects).
+   */
+  const setSearchQuery = notes.setSearchQuery;
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      setTagFilter(null);
+    },
+    [setSearchQuery],
+  );
 
   const handleAssignTag = useCallback(
     (noteId: string, tagId: string) => {
@@ -614,6 +692,10 @@ export function NotesView({
   }
 
   const hasNotes = groups.length > 0;
+  // `hasNotes` is post-search, so a query that matches nothing empties it. The
+  // mobile header must survive that or the box that caused it becomes
+  // unreachable (desktop renders its search unconditionally, so it is safe).
+  const searchActive = notes.searchQuery.trim() !== "";
 
   // ---- Desktop side list ----------------------------------------------
   //
@@ -634,7 +716,7 @@ export function NotesView({
           />
           <input
             value={notes.searchQuery}
-            onChange={(e) => notes.setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={t("materials.notes.searchPlaceholder")}
             aria-label={t("materials.notes.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
@@ -656,6 +738,17 @@ export function NotesView({
         directionLabel={directionLabel}
         directionToggleLabel={t("materials.sidebar.toggleDirection")}
       />
+
+      {/* Tag filter (#369) — solo one tag group; the active chip clears it. */}
+      {showTagFilter && (
+        <StatusFilterChips
+          chips={tagFilterChips}
+          value={tagFilter}
+          onChange={setTagFilter}
+          label={t("materials.notes.tagFilterLabel")}
+          size="sm"
+        />
+      )}
 
       {notes.error && (
         <p
@@ -686,7 +779,7 @@ export function NotesView({
           onDragCancel={dnd.handleDragCancel}
         >
           <ul className="flex flex-col gap-1.5">
-            {sortedGroups.map((group) => {
+            {visibleGroups.map((group) => {
               const key = groupKey(group);
               const collapsed = collapsedGroups.has(key);
               return (
@@ -839,6 +932,61 @@ export function NotesView({
 
   const mobileBody = (
     <div className="flex h-full flex-col px-4 pt-2">
+      {/*
+       * #369 mobile list controls. Mobile has no rightSidebar, so the placement
+       * answer is "a fixed header above the scrolling group list": sort, search,
+       * then tag chips — all OUTSIDE the scroller so they stay reachable at any
+       * scroll position. The chip row only appears with more than one bucket.
+       *
+       * Mobile gets its own sort picker rather than inheriting the desktop
+       * choice: `sortMode` lives in localStorage, which a real phone build
+       * (Capacitor) does not share with the desktop app — without the picker the
+       * phone would be pinned to the default order forever. Before #369 the
+       * mobile list ignored the preference entirely (it read the raw `groups`),
+       * so its order does change: title A→Z becomes the chosen sort.
+       */}
+      {(hasNotes || searchActive) && (
+        <div className="flex flex-col gap-2 pb-2">
+          <SidebarListControls
+            modes={sortModes}
+            activeModeId={notes.sortMode}
+            onModeChange={(id) => notes.setSortMode(id as NoteSortMode)}
+            sortLabel={t("materials.sidebar.sort")}
+            direction={notes.sortDirection}
+            onToggleDirection={() =>
+              notes.setSortDirection(
+                notes.sortDirection === "asc" ? "desc" : "asc",
+              )
+            }
+            directionLabel={directionLabel}
+            directionToggleLabel={t("materials.sidebar.toggleDirection")}
+          />
+          <div className="flex h-9 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
+            <Search
+              size={14}
+              aria-hidden
+              className="shrink-0 text-lumen-text-tertiary"
+            />
+            <input
+              value={notes.searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder={t("materials.notes.searchPlaceholder")}
+              aria-label={t("materials.notes.searchPlaceholder")}
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
+            />
+          </div>
+          {showTagFilter && (
+            <StatusFilterChips
+              chips={tagFilterChips}
+              value={tagFilter}
+              onChange={setTagFilter}
+              label={t("materials.notes.tagFilterLabel")}
+              size="sm"
+            />
+          )}
+        </div>
+      )}
+
       {!hasNotes ? (
         <EmptyState
           icon={<FileText aria-hidden />}
@@ -850,7 +998,7 @@ export function NotesView({
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-4">
-          {groups.map((group) => {
+          {visibleGroups.map((group) => {
             const key = groupKey(group);
             const collapsed = collapsedGroups.has(key);
             // Divider-style heading (#311), mobile twin of DesktopTagHeading.

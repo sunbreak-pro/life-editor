@@ -1,5 +1,39 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-07-28 (2) - リスト系 follow-up 3 点の消し込み（#369）
+
+#### 概要
+
+#283 で意図的に見送った低優先 follow-up 3 点を、手すき枠として処理。2 点を実装、1 点を根拠付きで見送り。materials レーンの持ち物だが、fan-out 計画書が「余力があれば analytics-refine」と指名していた分。
+
+#### 変更点
+
+- **Daily のソート拡張（実装）**: `filterAndSortDailyEntries` に `mode`（`date` / `updatedAt` / `createdAt`）を追加。`DailyListEntry` は timestamp 2 本を**必須**にした（optional + フォールバックにすると、渡し忘れたときに黙って date 順へ落ちる — #428 の `liveTasks` と同じ理由）。timestamp が同値のときは `date` で tie-break して順序を確定させる。mode は `life-editor:daily-sort-mode` に永続化し既定 `date` = 従来の並びのまま。従来 `dailySortModes` は 1 件だったため `SidebarListControls` のモードピッカーが隠れていたが、3 件になったことで表示されるようになった
+- **Notes のタグ絞り込み（実装）**: 既存の `StatusFilterChips`（Mobile Tasks のステータス pill）に `size="sm"` を足して再利用。多対多タグでは「タグ X の絞り込み」＝「グループ X だけ表示」なので、単一選択 + 再クリックで解除という既存の contract がそのまま合う。ロジックは `soloTagGroup` として shared に切り出した（web には test runner が無いため、テスト可能な場所へ寄せる意図も兼ねる）。**選択が stale になったときの扱いが 2 段構え**: 描画は `soloTagGroup` が全件へフォールバックし（chips は絞り込み対象と同じ groups から描かれるので、検索でグループが空になる / タグが消えると解除用の chip ごと消えて詰む）、加えて**検索ボックスへの入力でタグ絞り込みを解除する**。後者は独立監査の指摘で追加 — フォールバックだけだと「検索でグループが空 → 一覧が開く → 検索を消すと誰も押していないのに再収縮」という無音の復活が起きる。当初は「groups を監視する effect で null に落とす」で書いたが **web の eslint が `react-hooks/set-state-in-effect` で弾く**ため、onChange 側（入力イベント）で解除する形に変更した。絞り込み手段は 2 つとも同じリストを狭めるものなので、片方を触ったらもう片方が外れるのは筋が通るし、chip の押下状態が外れて**目に見える**のが effect 版との違い。非永続（リロードで解除）にしたのは #283 の Daily filter query と同じ判断で、理由が見えないまま隠れ続けるのを避けるため
+- **Mobile リスト（Notes は実装 / Daily は見送り）**: 置き場所の設計は「スクロールするグループ一覧の**外側**に固定ヘッダ」で確定（Mobile は rightSidebar 非搭載）。**Notes mobile** に `SidebarListControls`（ソートモード + 方向）+ 検索ボックス + タグ chips を追加。当初はソートピッカーを省いて「デスクトップの永続設定を尊重する」としたが、独立監査の指摘で撤回 — **localStorage は実機（Capacitor）とデスクトップで別物**なので、ピッカーが無いと実機は既定順に固定されてしまう。**副次的に直った不整合**: mobile は素の `groups` を読んでいたため、それまで永続化されたソート設定が mobile 側だけ効いていなかった（`visibleGroups` に統一。結果として mobile の並びはタイトル A→Z から選択順に変わる = ユーザー可視の変更）。**Daily mobile は見送り** — `mobilePast` は編集欄の下に出る固定 2 行のティーザーで、閲覧用リストではない（Mobile の日付移動は DateStrip）。コントロールのほうが対象より背が高くなる。根拠はコードのコメントに残置
+- **絞り込み中は DnD のタグ付けが効かない件は「仕様」として明記**: ドロップ先は描画中の見出しそのものなので、1 タグに solo すると残る droppable はドラッグ元が既に持つタグだけ（untagged solo なら 0 個）。行を隠す以上は不可避で、絞り込みは非永続の一時的な表示状態だから「付け直すなら先に解除」で足りる。ファイル冒頭コメントに残置（従来は DnD を無条件の機能として書いていた）
+- **i18n**: `materials.sidebar` に `sortDate` / `sortUpdated` / `sortCreated` を新設し、Notes 側の `materials.notes.sortUpdated` / `sortCreated` は同名重複になるので削除して sidebar 参照へ寄せた（`sortTitle` は Daily に無い概念なので notes 据え置き）。タグ絞り込み用 `materials.notes.tagFilterLabel` を追加。en / ja lockstep（一度足した `tagFilterAll` は参照ゼロの死にキーだったので監査指摘で撤去）
+- **潰した穴 1 件**: mobile の `hasNotes` は検索後の値なので、ヒット 0 件でヘッダごと消えて**検索ボックスに触れなくなる**（＝入力を消せない）。`hasNotes || searchActive` に変更。デスクトップは検索欄を無条件描画なので元から安全
+- **テスト**: `dailyListView.test.ts` を mode 対応に全面改訂（fixture は date / createdAt / updatedAt の 3 軸をわざと食い違わせ、モード取り違えでは通らない形にした）。`soloTagGroup.test.ts` 新設（stale フォールバックと sentinel リテラルの固定）。`statusFilterChips.test.tsx` に sm variant の選択 contract を追加。**mutation check 実施** — `sortKeyOf` から timestamp 分岐を落とすと新規 4 件がちょうど落ちることを確認
+- **検証**: `cd shared && npm run test`（154 files / 1273 tests）・`shared` / `web` の build・`web` の lint すべて exit 0
+
+### 2026-07-28 - Analytics 4 件の連続処理（#420 / #428 / #429 / #430）
+
+#### 概要
+
+open-issue fan-out（`plans/2026-07-28-open-issue-fanout.md`）で本レーンに割り当てられた 4 件を順に処理。Issue ごとに `origin/main` からブランチを切り直し、PR #437 / #440 / #442 / #445 として merge。独立監査（role-qa）の指摘を追随 PR #449 で回収した。
+
+#### 変更点
+
+- **#420 完了日の UTC / ローカル暦日ズレ（PR #437）**: `completedAt` は `toISOString()` の UTC 文字列なのに、Analytics のバケットは全部ローカル暦日キー（#356）。消費側 5 箇所が `completedAt.substring(0, 10)` で UTC 日を読んでいたため、**JST では 09:00 前に完了したタスクが前日に計上されて「今日」から消えていた**。全 5 箇所（`TodayDashboard` / `WeeklySummary` / `MobileAnalyticsView` ×2 / `analyticsAggregation.aggregateTaskCompletionTrend`）を `dateKeyOfInstant()` + null ガードへ。**過去データの見え方が変わる**（再集計なので DB 変更なし）旨を PR 本文に明記。新規テスト `analyticsCompletedDayKey.test.tsx`
+- **#428 タグ別作業時間が trash 済みタスクを含む（PR #440）**: 仕様判断が先だったので、**案 1（trash 除外）を採用**して Issue コメントに根拠を残した。#365 の副作用ではなく **#365 のやり残し半分**（#365 自身の JSDoc がそう書いていた）で、`fetchTaskTree` と Connect の `buildGraphModel` がすでに除外側に揃っている。`aggregateWorkTimeByTag` に `liveTasks: TaskNode[]` を**必須引数**で追加（省略可にすると旧挙動が黙って戻るため）、`TagWorkTimeChart` / `TasksTab` に `nodes` prop を通した
+- **#429 `aggregateTagByEntityType` の退役（PR #442）**: 呼び出し元ゼロを grep 全数実測してから撤去。統合後の `WikiTagAssignment` に `entityType` が無く、**呼ぶと黙って全ゼロを返す**状態だった。関数・`TagEntityTypeBucket` 型・legacy 型 import・専用テスト suite をまとめて撤去し、退役理由をブロックコメントで残置
+- **#430 `[[` 候補フェッチの遅延化（PR #445）**: 従来は sync のたびに全候補（task / event / note の 3 role）を先読みしていた。`useItemLinkTargets` を React state 無しの ref 専用に書き換え、`loadTargets({ allowStale })` を `@tiptap/suggestion` の `items()`（Promise 可・プラグインが await する）から呼ぶ形に。**`[[` を打つまでフェッチが走らず、メニュー表示中は `allowStale` でキーストロークごとの再取得も起きない**。3 role + `balanceByRole` の配分はそのまま
+- **独立監査の追随（PR #449）**: (1) **#420 のテストが CI では絶対に落ちない**（`.github/workflows/ci.yml` は ubuntu = UTC でローカル日 == UTC 日）→ `shared/vitest.config.ts` に `test.env.TZ = "Asia/Tokyo"` を固定。効くことは一時 probe テストで実測（TZ:"UTC" で offset 0、Asia/Tokyo で −540）。(2) **`createdAt` の同型 2 箇所を取りこぼし**（`OverviewTab.tsx:88` / `MobileAnalyticsView.tsx:130` の「今週のノート」）→ 修正 + テスト追加 + 片方を revert して該当 1 件だけ落ちることを確認。(3) #428 の JSDoc が実態より狭い（除外されるのは purge 済み行だけでなく R2 孤児・legacy folder 行も）→ 文面修正。(4) `s.taskId !== null` と次行の truthy 参照の非対称 → `if (s.taskId && ...)` へ
+- **web 側の監査で潰した 2 件（PR #445 に同梱）**: `items()` が async になった副作用で、**`view.update` の中断中に別 update が exit 経路を完走すると、再開した `onStart` が誰も閉じないポップアップを出す**（ゾンビメニュー）→ プラグイン state の `active` を見てから開くガードを追加。もう 1 件は `inFlightRef` が生の fetch promise を持っていて相乗りした呼び出し側に reject が漏れる件 → settled 済みの形を保持するよう変更
+- **検証**: `cd shared && npm run test`（150 files / 1225 tests）・`shared` / `web` の build いずれも exit 0。実ブラウザ確認は chat-main 側の担当
+- **outbox 起票依頼 1 件**: legacy `WikiTagAssignment` / `WikiTagEntityType` が #429 で宣言のみになったため、DU-F の legacy タグ API 退役とまとめて掃除してほしい旨を append（PR #445 に同梱して main に着地済み）
+
 ### 2026-07-27 - タスク入れ子（ネスト）dead code チェーンの退役（#418 / PR #424）
 
 #### 概要

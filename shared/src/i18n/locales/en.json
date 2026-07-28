@@ -261,9 +261,8 @@
       "collapseGroup": "Collapse group",
       "expandGroup": "Expand group",
       "assignTagHint": "Drop onto a tag to assign it",
-      "sortUpdated": "Updated",
-      "sortCreated": "Created",
-      "sortTitle": "Title"
+      "sortTitle": "Title",
+      "tagFilterLabel": "Filter by tag"
     },
     "daily": {
       "toToday": "Today",
@@ -316,7 +315,10 @@
       "newest": "Newest first",
       "oldest": "Oldest first",
       "ascending": "Ascending",
-      "descending": "Descending"
+      "descending": "Descending",
+      "sortDate": "Date",
+      "sortUpdated": "Updated",
+      "sortCreated": "Created"
     }
   },
   "connect": {

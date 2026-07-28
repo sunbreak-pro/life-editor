@@ -32,6 +32,7 @@ import {
   type DailyNode,
   type DailyEntriesPanelEntry,
   type DailyListDirection,
+  type DailyListSortMode,
   type DateStripDay,
   type DataService,
   FOCUS_RING_TIGHT as FOCUS_RING,
@@ -368,16 +369,28 @@ export function DailyView({
   );
 
   // #283 desktop sidebar: persisted sort direction ("desc" = newest-first, the
-  // prior default) + a non-persisted filter query.
+  // prior default) + a non-persisted filter query. #369 adds the sort MODE —
+  // also persisted, defaulting to "date" so the pre-#369 order is unchanged.
   const [dailySortDirection, setDailySortDirection] =
     useLocalStorage<DailyListDirection>(
       "life-editor:daily-sort-direction",
       "desc",
     );
+  const [dailySortMode, setDailySortMode] = useLocalStorage<DailyListSortMode>(
+    "life-editor:daily-sort-mode",
+    "date",
+  );
   const [dailyFilterQuery, setDailyFilterQuery] = useState("");
 
+  // #369: three modes, so the picker (hidden at length <= 1) now renders.
+  // "date" = the entry's own day, the other two = its edit timestamps. All
+  // three are time axes, so one newest/oldest direction label covers them.
   const dailySortModes = useMemo(
-    () => [{ id: "date", label: t("materials.sidebar.sort") }],
+    () => [
+      { id: "date", label: t("materials.sidebar.sortDate") },
+      { id: "updatedAt", label: t("materials.sidebar.sortUpdated") },
+      { id: "createdAt", label: t("materials.sidebar.sortCreated") },
+    ],
     [t],
   );
 
@@ -399,9 +412,13 @@ export function DailyView({
         selected: d.date === selectedDate,
         // searchText drives the filter: day label + the entry's body excerpt.
         searchText: `${dayLabel} ${excerpt ?? ""}`,
+        // Sort keys for the timestamp modes (#369).
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
       };
     });
     return filterAndSortDailyEntries(enriched, {
+      mode: dailySortMode,
       direction: dailySortDirection,
       query: dailyFilterQuery,
     });
@@ -411,6 +428,7 @@ export function DailyView({
     dailies,
     selectedDate,
     weekdayShort,
+    dailySortMode,
     dailySortDirection,
     dailyFilterQuery,
   ]);
@@ -433,6 +451,10 @@ export function DailyView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekdayShort, getDailyForDate, dailies]);
 
+  // #369 decision — the mobile Daily list gets NO sort/filter controls. This is
+  // a fixed 2-row "recently written" teaser under the editor, not a browsable
+  // list: navigation on mobile is the DateStrip above. Controls would be taller
+  // than the thing they control. The desktop sidebar keeps the full set.
   const mobilePast = useMemo(
     () => sortedDailies.filter((d) => d.date !== selectedDate).slice(0, 2),
     [sortedDailies, selectedDate],
@@ -545,11 +567,12 @@ export function DailyView({
             rightSidebar (wide-only, so narrow never fills the MobileDrawer). */}
         <RightSidebarPortal>
           <div className="flex flex-col gap-2">
-            {/* Sort direction + filter (#283), above the past-entries panel. */}
+            {/* Sort mode + direction + filter (#283, modes added in #369),
+                above the past-entries panel. */}
             <SidebarListControls
               modes={dailySortModes}
-              activeModeId="date"
-              onModeChange={() => {}}
+              activeModeId={dailySortMode}
+              onModeChange={(id) => setDailySortMode(id as DailyListSortMode)}
               sortLabel={t("materials.sidebar.sort")}
               direction={dailySortDirection}
               onToggleDirection={() =>

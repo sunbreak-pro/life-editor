@@ -19,11 +19,19 @@ export interface StatusFilterChipsProps {
   onChange: (id: string | null) => void;
   /** Already-translated accessible name for the group (§6.4). */
   label?: string;
+  /**
+   * "md" (default) is the Mobile Tasks pill size. "sm" is the compact variant
+   * the ~240px rightSidebar needs (#369 Notes tag filter) — same shape, smaller
+   * type and padding so a dozen tag chips do not eat the sidebar.
+   */
+  size?: "sm" | "md";
   className?: string;
 }
 
 /*
- * Mobile Tasks round-pill status filter (brief). Selected = accent-subtle
+ * Round-pill single-select filter. Born as the Mobile Tasks status filter
+ * (brief); #369 reuses it for the Notes tag filter via `size="sm"`, since both
+ * are "solo one bucket, click again for all". Selected = accent-subtle
  * fill + accent text/border + semibold; unselected = base surface + border +
  * secondary text; the count sits in tertiary. Toggle semantics: pressing the
  * active chip again clears the filter. Pure presentation: labels injected
@@ -35,13 +43,15 @@ export function StatusFilterChips({
   value,
   onChange,
   label,
+  size = "md",
   className,
 }: StatusFilterChipsProps) {
+  const compact = size === "sm";
   return (
     <div
       role="group"
       aria-label={label}
-      className={cn("flex flex-wrap gap-2", className)}
+      className={cn("flex flex-wrap", compact ? "gap-1" : "gap-2", className)}
     >
       {chips.map((chip) => {
         const active = chip.id === value;
@@ -52,8 +62,11 @@ export function StatusFilterChips({
             aria-pressed={active}
             onClick={() => onChange(active ? null : chip.id)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lumen-full border px-3 py-1 text-sm",
-              "transition-colors focus-visible:outline-none",
+              "inline-flex items-center rounded-lumen-full border transition-colors",
+              compact
+                ? "max-w-full gap-1 px-2 py-0.5 text-[12px]"
+                : "gap-1.5 px-3 py-1 text-sm",
+              "focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
               active
                 ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
@@ -65,7 +78,9 @@ export function StatusFilterChips({
                 {chip.icon}
               </span>
             )}
-            <span>{chip.label}</span>
+            <span className={compact ? "min-w-0 truncate" : undefined}>
+              {chip.label}
+            </span>
             {chip.count != null && (
               <span
                 className={cn(

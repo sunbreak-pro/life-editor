@@ -3,6 +3,9 @@
 // this sub-barrel only exposes the pure grouping + its types (§6.4).
 export {
   buildTagGroups,
+  tagGroupKey,
+  soloTagGroup,
+  UNTAGGED_GROUP_KEY,
   type NoteTagGroup,
   type BuildTagGroupsInput,
 } from "./buildTagGroups";
