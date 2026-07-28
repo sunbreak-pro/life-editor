@@ -5,7 +5,11 @@ import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
+import {
+  dateKeyOfInstant,
+  formatDateKey,
+  todayCalendarKey,
+} from "../../utils/dateKey";
 import {
   aggregateByDay,
   aggregateRoutineCompletion,
@@ -81,10 +85,9 @@ export function MobileAnalyticsView(
       (n) =>
         n.type === "task" &&
         n.completedAt &&
-        // NOTE: completedAt is a UTC ISO prefix, not a calendar key (same
-        // drift as the desktop TodayDashboard, and as the week window below).
-        // Pre-existing, reported separately; out of #356's scope.
-        n.completedAt.substring(0, 10) === todayStr,
+        // LOCAL day of the stored UTC instant (#420) — the desktop
+        // TodayDashboard's twin, and the week window below does the same.
+        dateKeyOfInstant(n.completedAt) === todayStr,
     ).length;
 
     // Streak
@@ -110,7 +113,8 @@ export function MobileAnalyticsView(
     );
     const weekCompleted = nodes.filter((n) => {
       if (n.type !== "task" || !n.completedAt) return false;
-      const d = n.completedAt.substring(0, 10);
+      const d = dateKeyOfInstant(n.completedAt);
+      if (d === null) return false;
       return d >= weekStart && d <= weekEnd;
     }).length;
     const weekBars = aggregateByDay(sessions, 7);

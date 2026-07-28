@@ -11,7 +11,11 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
 } from "../types/wikiTagUnified";
-import { formatDateKey as toDateStr, todayCalendarKey } from "./dateKey";
+import {
+  dateKeyOfInstant,
+  formatDateKey as toDateStr,
+  todayCalendarKey,
+} from "./dateKey";
 
 export interface DayBucket {
   date: string; // YYYY-MM-DD
@@ -395,7 +399,11 @@ export function aggregateTaskCompletionTrend(
 
   for (const n of nodes) {
     if (n.type !== "task" || !n.completedAt) continue;
-    const key = n.completedAt.substring(0, 10);
+    // `completedAt` is a UTC ISO string; the buckets above are LOCAL calendar
+    // keys (#356). Slicing it would read the UTC day, so in JST anything
+    // finished before 09:00 fell into the previous bucket (#420).
+    const key = dateKeyOfInstant(n.completedAt);
+    if (key === null) continue;
     const bucket = map.get(key);
     if (bucket) {
       bucket.completedCount += 1;
