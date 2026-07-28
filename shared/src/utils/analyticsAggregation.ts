@@ -474,8 +474,12 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
  * - Work on an untagged task — or with no task at all — lands in the trailing
  *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
  *   rather than dropped, so no tag's share is overstated.
- * - Work on a task that is NOT in `liveTasks` (trashed, or hard-deleted) is
- *   dropped entirely — see the trash rule below.
+ * - Work on a task that is NOT in `liveTasks` is dropped entirely — see the
+ *   trash rule below. The condition is literally "absent from the live tree",
+ *   which is wider than "trashed": `fetchTaskTree` also drops purged rows, R2
+ *   orphans (meta with no payload) and legacy folder rows
+ *   (`SupabaseDataService.fetchTaskTree`). Sessions attached to any of those
+ *   disappear from this ring rather than reading as untagged.
  * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
  *   are ignored rather than surfaced as a raw id; that work reads as untagged.
  *
@@ -530,8 +534,10 @@ export function aggregateWorkTimeByTag(
     const minutes = (s.duration ?? 0) / 60;
     // A session that names a task no longer in the live tree is work on a
     // trashed (or purged) task — dropped, NOT folded into untagged (#428).
-    // `taskId === null` is different: that is genuine task-less work.
-    if (s.taskId !== null && !liveTaskIds.has(s.taskId)) continue;
+    // A missing task id is different: that is genuine task-less work. Tested
+    // for truthiness, matching the tag lookup on the next line — an empty
+    // `taskId` would otherwise count as "trashed" here and as "no task" there.
+    if (s.taskId && !liveTaskIds.has(s.taskId)) continue;
     const tagIds = s.taskId ? taskTags.get(s.taskId) : undefined;
     if (!tagIds || tagIds.size === 0) {
       untaggedMinutes += minutes;

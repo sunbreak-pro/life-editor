@@ -130,9 +130,11 @@ export function MobileAnalyticsView(
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoStr = formatDateKey(weekAgo);
-    const notesThisWeek = activeNotes.filter(
-      (n) => n.createdAt.substring(0, 10) >= weekAgoStr,
-    ).length;
+    const notesThisWeek = activeNotes.filter((n) => {
+      // LOCAL day of the stored UTC instant (#420) — the OverviewTab twin.
+      const d = dateKeyOfInstant(n.createdAt);
+      return d !== null && d >= weekAgoStr;
+    }).length;
 
     const rangeItems = scheduleItems.filter((i) => !i.isDeleted);
     const routineItems = rangeItems.filter((i) => i.routineId);

@@ -3,9 +3,11 @@ import { render, screen } from "@testing-library/react";
 import { TodayDashboard } from "../src/components/Analytics/TodayDashboard";
 import { WeeklySummary } from "../src/components/Analytics/WeeklySummary";
 import { MobileAnalyticsView } from "../src/components/Analytics/MobileAnalyticsView";
+import { OverviewTab } from "../src/components/Analytics/OverviewTab";
 import type { AnalyticsLabels } from "../src/components/Analytics/labels";
 import { aggregateTaskCompletionTrend } from "../src/utils/analyticsAggregation";
 import type { TaskNode } from "../src/types/taskTree";
+import type { NoteNode } from "../src/types/note";
 
 /*
  * #420 regression guard. `completedAt` is written as a UTC ISO string
@@ -179,6 +181,30 @@ function makeMobileLabels(): AnalyticsLabels {
   };
 }
 
+/*
+ * `createdAt` is the same story as `completedAt` (#420 QA follow-up): stored as
+ * a UTC ISO string, compared against a LOCAL `formatDateKey` week boundary in
+ * the "notes this week" stat. A note written at 01:00 local on the boundary day
+ * therefore fell just outside the window east of UTC.
+ */
+const WEEK_AGO_KEY = "2026-07-06"; // NOW − 7d, the inclusive boundary
+const NOTE_CREATED_AT = new Date(2026, 6, 6, 1, 0, 0); // boundary day, 01:00 local
+
+function earlyMorningNote(): NoteNode {
+  return {
+    id: "note-1",
+    type: "note",
+    title: "Written at 1 AM",
+    content: "",
+    parentId: null,
+    order: 0,
+    isPinned: false,
+    isDeleted: false,
+    createdAt: NOTE_CREATED_AT.toISOString(),
+    updatedAt: NOTE_CREATED_AT.toISOString(),
+  };
+}
+
 describe("Analytics completedAt day key (#420)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -255,5 +281,67 @@ describe("Analytics completedAt day key (#420)", () => {
     expect(container.textContent).toContain(
       `${labels.weekly.completedLabel} 1`,
     );
+  });
+});
+
+describe("Analytics createdAt day key (#420 QA follow-up)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("puts a note written at 01:00 on the boundary day inside the week", () => {
+    if (SLICE_READS_ANOTHER_DAY) {
+      // The old slice read the previous UTC day, which sorts BELOW the
+      // inclusive boundary — that is exactly how the note fell out.
+      expect(earlyMorningNote().createdAt.slice(0, 10) >= WEEK_AGO_KEY).toBe(
+        false,
+      );
+    }
+
+    const labels = makeMobileLabels();
+    const { container } = render(
+      <MobileAnalyticsView
+        sessions={[]}
+        nodes={[]}
+        todayItems={[]}
+        scheduleItems={[]}
+        notes={[earlyMorningNote()]}
+        routines={[]}
+        loading={false}
+        labels={labels}
+      />,
+    );
+
+    // Notes stat renders "+<count> <thisWeek>".
+    expect(container.textContent).toContain(`+1 ${labels.overview.thisWeek}`);
+  });
+
+  it("counts the same note in the desktop overview stat", () => {
+    const labels = makeMobileLabels();
+    const { container } = render(
+      <OverviewTab
+        sessions={[]}
+        nodes={[]}
+        todayItems={[]}
+        notes={[earlyMorningNote()]}
+        routines={[]}
+        tagCount={0}
+        assignmentCount={0}
+        labels={{
+          ...labels.overview,
+          formatHours: labels.formatHours,
+          todayCard: { ...labels.todayCard, formatHours: labels.formatHours },
+          weekly: { ...labels.weekly, formatHours: labels.formatHours },
+          streak: labels.streak,
+        }}
+      />,
+    );
+
+    expect(container.textContent).toContain(`+1 ${labels.overview.thisWeek}`);
   });
 });
