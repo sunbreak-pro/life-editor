@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
-import { formatDateKey } from "../../utils/dateKey";
+import { dateKeyOfInstant, formatDateKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
 
@@ -48,7 +48,10 @@ export function WeeklySummary({
     });
     const completedTasks = nodes.filter((n) => {
       if (n.type !== "task" || !n.completedAt) return false;
-      const d = n.completedAt.substring(0, 10);
+      // LOCAL day of the stored UTC instant (#420) — the week range above is
+      // built from local dates, so a sliced UTC key disagreed at the edges.
+      const d = dateKeyOfInstant(n.completedAt);
+      if (d === null) return false;
       return d >= range.start && d <= range.end;
     }).length;
 
