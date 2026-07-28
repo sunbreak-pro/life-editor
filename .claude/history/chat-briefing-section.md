@@ -1,5 +1,19 @@
 # HISTORY (chat-briefing-section)
 
+### 2026-07-28 - open-issue fanout 担当 4 件 + 手すき枠 #363
+
+#### 概要
+
+計画書 `2026-07-28-open-issue-fanout.md` の briefing-section 担当 #427 → #410 → #431 → #361 を順に片付け、担当消化後に手すき枠 #363 を先着で拾った。Issue ごとに `origin/main` から切り直した独立ブランチ 5 本 → PR #436 / #439 / #441 / #443 / #446（全て open）。検証は全件 `shared` の test + build と `web` の build まで、実ブラウザは merge 後 chat-main。
+
+#### 変更点
+
+- **#427（PR #436）**: `intentionSaved` が「ドラフト未入力 = 保存済み」と判定していたため、一度も宣言していない日に「保存済み」が出ていた。述語 `hasIntentionToReport(stored, draft)` を shared に置き（単体テストのため）、両方空なら `intentionCaption` ごと出さない。`BriefingLabels` / `EveningLabels` の同フィールドを optional 化（`BlockHead` の `hint` は元から optional なので view 側の分岐は不要）。保存済みの宣言を全消しした直後は「未保存」を出し続ける（保存が飛んでいる最中であって未宣言の日ではない）
+- **#410（PR #439）**: 13px の ↗ アイコン単独ボタンをタイトル直後に置いていたため、押しづらく行ごとに位置が揃わなかった。ローカル部品 `EditJumpButton` に集約し「アイコン＋編集」+ `ml-auto` で右端固定。予定行はルーティンタグの後ろへ移すことでタグをタイトル隣に残した。**夕刊側の同型は実測ゼロ**（`ArrowUpRight` の repo 全数 grep が `BriefingView.tsx` 1 件のみ）。可視ラベルが accessible name になるため `jumpToSchedule` / `jumpToTasks` は `aria-label` → `title` へ移動（WCAG 2.5.3 Label in Name。両キーの値は据え置きで Todo トレイ側に影響なし）
+- **#431（PR #441・docs のみ）**: materials brief の Notes 節（§1.2 / §2.2）が v2 執筆時のフォルダツリー実装を指したままだったので `NotesView.tsx` 実測で書き直し。実在しない `useNoteTreeDnd.ts` と不使用の `MasterDetail` を除去し、当時の「現状の課題」6 件のうち解消済み 5 件を ✅ 対応表として残した（消すだけだと「なぜ変わったか」が読めなくなるため）。db-conventions には §12 を新設 — `items_meta!inner(...)` は埋め込み先への FK が 2 本以上あるテーブル（`wiki_tag_connections`）にコピーすると PGRST201 / 400 になる
+- **#361（PR #443）**: 要否判断は**案 1（復元を実装）**。決め手は viewport 側だけが対称だったこと（`loadViewport` がカメラを復元するのにノードは再計算 = 前の配置があった辺りを映したまま中身が入れ替わる）で、退役するとこの噛み合わせの悪さが確定する。消費側は `useGraphSimulation` に既にあり（`positionCacheRef` からの座標復元 + `alpha(0.15)` のウォームスタート）、欠けていたのは ref の初期値だけ。`loadPositions()` は有限数の `{x, y}` 以外を捨てる（NaN 1 つで d3-force が次 tick に全体へ伝播させる）。根拠は Issue #361 のコメントに記録
+- **#363（PR #446・コメントのみ）**: 「Tasks MasterDetail」の stale コメント 6 箇所を rightSidebar 経由の実態に追随（`MasterDetail` は code-reduction #346 で削除済み）。Connect の `labels.ts` が挙げていた `ideas.*` は両カタログに存在しないので実態に修正。報告 4 群のうち **2 群（check.sh の loop.sh 前提コメント / requirements の削除済みパス）は実測の結果すでに解消済み**で、変更なしと PR 本文に明記
+
 ### 2026-07-27 - Issue #413: Briefing rightSidebar に「今日の Todo」トレイ
 
 #### 概要
