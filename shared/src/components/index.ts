@@ -74,8 +74,8 @@ export {
   type MenuItemProps,
   type MenuItemVariant,
 } from "./Menu";
-// Task detail panel (W7) — the right pane for the selected task in the
-// Tasks MasterDetail. Pure presentation: title/status/content with injected
+// Task detail panel (W7) — the selected task's detail, shown in the shared
+// rightSidebar by the Kanban host. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
 export { TaskDetailPanel, type TaskDetailPanelProps } from "./TaskDetailPanel";
 // Task add dialog (W-UX) — small centered overlay to create a task. Pure

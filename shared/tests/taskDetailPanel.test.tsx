@@ -20,8 +20,9 @@ import type { TaskNode } from "../src/types/taskTree";
  *   1. the selection basis on useTaskTreeAPI (selectedTaskId /
  *      setSelectedTaskId / selectedTask, + delete clearing the selection),
  *   2. TaskDetailPanel's minimal render (title / status / content slot).
- * MasterDetail's responsive behaviour is covered by masterDetail.test.tsx
- * (W6) and is deliberately NOT re-tested here.
+ * The responsive two-pane part this panel once sat in (MasterDetail, W6) was
+ * retired in code-reduction #346 along with its suite; the panel now reaches
+ * the screen through the host's rightSidebar, which is covered elsewhere.
  */
 
 // ---- selection basis (useTaskTreeAPI) ---------------------------------

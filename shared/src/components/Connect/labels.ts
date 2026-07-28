@@ -2,8 +2,9 @@
  * Connect copy contract. shared/src/components MUST NOT call useTranslation
  * (CLAUDE.md §6.4) — the host (web ConnectScreen) resolves every key with its
  * own `t` and passes this typed object down. Mirrors the TrashView labels
- * pattern. Every field maps to an existing `connect.*` / `ideas.*` /
- * `backlinks.*` leaf already present in the shared en/ja catalogs.
+ * pattern. Every field maps to an existing `connect.*` / `backlinks.*` leaf
+ * already present in the shared en/ja catalogs (the `ideas.*` namespace this
+ * comment used to name went away with the Ideas feature — no such key today).
  */
 export interface ConnectGraphLabels {
   /** connect.title — top bar heading */

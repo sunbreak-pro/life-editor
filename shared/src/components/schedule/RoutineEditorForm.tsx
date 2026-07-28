@@ -6,8 +6,8 @@ import type { RoutineNode } from "../../types/routine";
 import { FIELD, FIELD_LABEL } from "../styleTokens";
 
 /*
- * RoutineEditorForm (W8 target-IA) — the Routines-tab detail form (MasterDetail
- * right pane). Edits one routine: title / start-end / frequency via the shared
+ * RoutineEditorForm (W8 target-IA) — the Routines-tab detail form, shown in the
+ * shared rightSidebar「詳細」tab by the host. Edits one routine: title / start-end / frequency via the shared
  * <FrequencyEditor> (#185 Step 2 — the same part backs the Event editor's
  * repeat section). Pure presentation (§3.1 / §6.4): every edit is an onPatch
  * callback (no save button — the host persists immediately; a `footer` slot
