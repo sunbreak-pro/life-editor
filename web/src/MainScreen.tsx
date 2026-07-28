@@ -77,7 +77,7 @@ const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
 import { BriefingScreen } from "./briefing/BriefingScreen";
-import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
+import { ScheduleScreen } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
 import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
@@ -186,16 +186,13 @@ export function MainScreen({ session }: { session: Session }) {
     resolveInitialSection(),
   );
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("tasks");
-  // Schedule's Calendar / Routines tab, lifted here (v2 adoption #204) so the
-  // standard SectionHeader can render the band — same pattern as materialsTab.
-  const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   // Analytics's Overview/Tasks/Work/Schedule tab, lifted here (v2 adoption
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
-  // pattern as materialsTab / scheduleTab.
+  // pattern as materialsTab.
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
   // Briefing's 朝刊/夕刊 tab (#263 F-6), lifted here so the standard
   // SectionHeader renders the band — same tabs-as-title pattern as
-  // materialsTab / scheduleTab. Lazy init: the initial tab follows the clock
+  // materialsTab. Lazy init: the initial tab follows the clock
   // (evening from 17:00, honoring the day-start pref's post-midnight tail).
   const [briefingTab, setBriefingTab] = useState<BriefingTab>(() =>
     defaultBriefingTab(),
@@ -245,17 +242,6 @@ export function MainScreen({ session }: { session: Session }) {
     setSection("materials");
     setMaterialsTab(nav);
   }, []);
-
-  // Briefing rows deep-link into Schedule / Tasks. Force the Schedule calendar
-  // tab first so a "promise" jump doesn't land on the routines tab (where the
-  // schedule item isn't shown).
-  const handleBriefingNavigate = useCallback(
-    (nav: NavSection) => {
-      if (nav === "schedule") setScheduleTab("calendar");
-      handleNavigate(nav);
-    },
-    [handleNavigate],
-  );
 
   // global:new-task executor. Task creation lives inside the Kanban (mounted
   // per-tab behind its own Provider), so the shell can't call the create API
@@ -473,22 +459,6 @@ export function MainScreen({ session }: { session: Session }) {
         }
         controls={headerControls}
       />
-    ) : section === "schedule" ? (
-      <SectionHeader
-        tabs={
-          <HeaderTabs
-            divider={false}
-            tabs={[
-              { id: "calendar", label: t("scheduleScreen.calendar") },
-              { id: "routines", label: t("scheduleScreen.routines") },
-            ]}
-            activeTab={scheduleTab}
-            onSelect={(id) => setScheduleTab(id as ScheduleTab)}
-            label={t("section.schedule", { defaultValue: "Schedule" })}
-          />
-        }
-        controls={headerControls}
-      />
     ) : section === "analytics" ? (
       <SectionHeader
         tabs={
@@ -639,7 +609,7 @@ export function MainScreen({ session }: { session: Session }) {
       {section === "briefing" && (
         <BriefingScreen
           dataService={ds}
-          onNavigate={handleBriefingNavigate}
+          onNavigate={handleNavigate}
           tab={briefingTab}
           tabSwitcher={briefingMobileSwitcher}
         />
@@ -669,8 +639,6 @@ export function MainScreen({ session }: { session: Session }) {
                 <ScheduleItemsProvider dataService={ds}>
                   <ScheduleScreen
                     dataService={ds}
-                    tab={scheduleTab}
-                    onTabChange={setScheduleTab}
                     onOpenTasks={() => handleNavigate("tasks")}
                   />
                 </ScheduleItemsProvider>

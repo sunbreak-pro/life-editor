@@ -8,8 +8,9 @@ import {
 } from "../styleTokens";
 
 /*
- * FrequencyEditor (#185 Step 2) — the repeat-settings editor shared between the
- * Routines-tab form (RoutineEditorForm) and the Event editor's repeat section.
+ * FrequencyEditor (#185 Step 2) — the repeat-settings editor inside the Event
+ * editor's repeat section (it was shared with the Routines-tab form until #408
+ * retired that tab).
  * Edits one routine's frequency: type (daily | weekdays | interval) plus the
  * type-specific controls (weekday chips / interval + start-date). Pure
  * presentation (§3.1 / §6.4): every edit is an onChange patch; labels arrive

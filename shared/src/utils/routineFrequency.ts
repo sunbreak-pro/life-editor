@@ -1,4 +1,5 @@
 import type { FrequencyType } from "../types/routine";
+import { addDaysKey } from "./scheduleGridLayout";
 
 /**
  * Port of frontend/src/utils/routineFrequency.ts. Every date is parsed as
@@ -116,4 +117,49 @@ export function seedFrequencyPatch<
   }
 
   return seeded;
+}
+
+/** The widest window the repeat list scans for a next occurrence. */
+const NEXT_OCCURRENCE_HORIZON_DAYS = 366;
+
+/**
+ * The first date on or after `from` that this frequency fires, or null when it
+ * fires on no day within a year.
+ *
+ * The repeat list (#408) is the only route to a routine whose occurrences are
+ * NOT materialised in the visible calendar range — an interval starting in the
+ * future, or one that fires never (a malformed frequency reads that way under
+ * the fail-closed guards above, which is exactly the #407 zombie shape). null
+ * is what lets the list say "this never fires" instead of offering a jump that
+ * lands on an empty day.
+ *
+ * A year is the horizon because the only unbounded frequency is `interval`,
+ * and an interval longer than a year has no occurrence worth navigating to —
+ * scanning further would cost more than the answer is worth.
+ */
+export function nextRoutineOccurrence(
+  routine: {
+    frequencyType: FrequencyType;
+    frequencyDays: number[];
+    frequencyInterval: number | null;
+    frequencyStartDate: string | null;
+  },
+  from: string,
+  horizonDays: number = NEXT_OCCURRENCE_HORIZON_DAYS,
+): string | null {
+  for (let i = 0; i <= horizonDays; i++) {
+    const date = addDaysKey(from, i);
+    if (
+      shouldRoutineRunOnDate(
+        routine.frequencyType,
+        routine.frequencyDays,
+        routine.frequencyInterval,
+        routine.frequencyStartDate,
+        date,
+      )
+    ) {
+      return date;
+    }
+  }
+  return null;
 }

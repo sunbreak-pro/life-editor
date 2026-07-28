@@ -14,6 +14,7 @@ import {
   ScheduleToolbar,
   EventEditorPane,
   RoutineSummaryCard,
+  RepeatListPanel,
   RightSidebarPortal,
   RightSidebarToggle,
   ScheduleSidebarTabs,
@@ -39,6 +40,7 @@ import {
   pickAddableTasks,
   buildWeekdayLabels,
   frequencyLabel,
+  nextRoutineOccurrence,
   itemVariant,
   nowMinutesLocal,
   sortDayItems,
@@ -54,6 +56,7 @@ import {
   type EventEditorItem,
   type FrequencyEditorValue,
   type RoutineSummaryRow,
+  type RepeatListRow,
   type SegmentedOption,
   type DataService,
 } from "@life-editor/shared";
@@ -95,11 +98,9 @@ const CREATE_DURATION_MIN = 60;
 const POPOVER_DELAY_MS = 350;
 export function CalendarTab({
   dataService,
-  onOpenRoutines,
   onOpenTasks,
 }: {
   dataService: DataService;
-  onOpenRoutines: () => void;
   /** Jump to the Tasks section (Today's Todo tray title click — A-3 / #298). */
   onOpenTasks: () => void;
 }) {
@@ -156,6 +157,7 @@ export function CalendarTab({
   const {
     today,
     anchorDate,
+    setAnchorDate,
     setView,
     desktopView,
     mobileView,
@@ -175,7 +177,11 @@ export function CalendarTab({
   // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "本日の Todo" —
   // the A-3 tray, #298). The old "詳細" tab was removed in #299 (item detail
   // now lives in a body-level overlay, not the rightSidebar).
-  const [sidebarTab, setSidebarTab] = useState<"flow" | "todo">("flow");
+  // #408 added "repeats" — with the Routines header tab retired this is the
+  // only route to a routine whose occurrences are not in the visible range.
+  const [sidebarTab, setSidebarTab] = useState<"flow" | "todo" | "repeats">(
+    "flow",
+  );
   // #299 single-click bubble popover: anchor id + viewport coords (Desktop).
   const [popover, setPopover] = useState<{
     id: string;
@@ -958,6 +964,61 @@ export function CalendarTab({
   const routineDone = routineTodayItems.filter((i) => i.completed).length;
   const routineTotal = routineTodayItems.length;
 
+  // #408 repeat list. Unlike summaryRows this is NOT filtered: the whole point
+  // of the panel is reaching routines the calendar cannot show — archived /
+  // hidden ones, an interval starting next month, and the malformed ones that
+  // fire on no day at all (#407's zombies). Sorted by `order`, the same
+  // ordering the retired Routines tab used.
+  const repeatRows = useMemo<RepeatListRow[]>(
+    () =>
+      routines
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((r) => {
+          const next = nextRoutineOccurrence(r, today);
+          let nextLabel: string | null = null;
+          if (next) {
+            const [y, m, d] = next.split("-").map(Number);
+            nextLabel = fullDayFmt.format(new Date(y, m - 1, d));
+          }
+          return {
+            id: r.id,
+            title: r.title || t("scheduleScreen.untitled"),
+            timeLabel: r.startTime ?? "",
+            frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
+            nextLabel,
+          };
+        }),
+    [routines, today, t, freqCopy, weekdayLabels, fullDayFmt],
+  );
+
+  const handleOpenRepeat = useCallback(
+    (id: string) => {
+      const routine = routines.find((r) => r.id === id);
+      if (!routine) return;
+      const next = nextRoutineOccurrence(routine, today);
+      // The panel renders no-occurrence rows as static text, so this guard is
+      // belt-and-braces against a routine edited out from under the list.
+      if (!next) return;
+      setAnchorDate(next);
+      setMobileSelectedDay(next);
+    },
+    [routines, today, setAnchorDate, setMobileSelectedDay],
+  );
+
+  const handleDeleteRepeat = useCallback(
+    (id: string) => {
+      void (async () => {
+        await deleteRoutine(id);
+        // The calendar is on screen here (it never was behind the old Routines
+        // tab), so without this the deleted routine's occurrences linger until
+        // something else refetches the visible range.
+        reload();
+      })();
+    },
+    [deleteRoutine, reload],
+  );
+
   const statusLabels = useMemo<Record<ScheduleStatus, string>>(
     () => ({
       notStarted: t("scheduleScreen.statusNotStarted"),
@@ -1049,14 +1110,15 @@ export function CalendarTab({
       </div>
     ) : null;
 
-  // Shared rightSidebar (AppShell owns the frame). Desktop shows a 2-tab
-  // switcher ("今日の流れ" ↔ "本日の Todo") inside ONE portal so contentCount
-  // stays 1 (#299 removed the old "詳細" tab — item detail now lives in a
-  // body-level overlay); Mobile shows only the flow.
+  // Shared rightSidebar (AppShell owns the frame). Desktop shows a 3-tab
+  // switcher ("今日の流れ" / "本日の Todo" / "繰り返し") inside ONE portal so
+  // contentCount stays 1 (#299 removed the old "詳細" tab — item detail now
+  // lives in a body-level overlay); Mobile shows only the flow.
   const sidebarTabs = useMemo(
     () => [
       { id: "flow", label: t("scheduleScreen.todayFlow") },
       { id: "todo", label: t("scheduleScreen.tabTodo") },
+      { id: "repeats", label: t("scheduleScreen.tabRepeats") },
     ],
     [t],
   );
@@ -1134,10 +1196,25 @@ export function CalendarTab({
             empty: t("scheduleScreen.summaryEmpty"),
             cta: t("scheduleScreen.openRoutinesCta"),
           }}
-          onOpenRoutines={onOpenRoutines}
+          onOpenRoutines={() => setSidebarTab("repeats")}
         />
       )}
     </div>
+  );
+
+  // #408: the repeat list that replaces the retired Routines header tab.
+  // Desktop-only for the same reason as the Todo tray — it rides the switcher.
+  const repeatsBody = (
+    <RepeatListPanel
+      rows={repeatRows}
+      onOpen={handleOpenRepeat}
+      onDelete={handleDeleteRepeat}
+      labels={{
+        empty: t("scheduleScreen.summaryEmpty"),
+        never: t("scheduleScreen.repeatNeverFires"),
+        delete: t("scheduleScreen.deleteRoutine"),
+      }}
+    />
   );
 
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
@@ -1170,10 +1247,14 @@ export function CalendarTab({
         <ScheduleSidebarTabs
           tabs={sidebarTabs}
           value={sidebarTab}
-          onChange={(id) => setSidebarTab(id as "flow" | "todo")}
+          onChange={(id) => setSidebarTab(id as "flow" | "todo" | "repeats")}
           label={t("scheduleScreen.detailPanelLabel")}
         >
-          {sidebarTab === "flow" ? flowBody : todoBody}
+          {sidebarTab === "flow"
+            ? flowBody
+            : sidebarTab === "todo"
+              ? todoBody
+              : repeatsBody}
         </ScheduleSidebarTabs>
       ) : (
         flowBody
