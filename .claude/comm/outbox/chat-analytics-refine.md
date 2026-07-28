@@ -159,3 +159,14 @@ PR #424（#418 ネスト退役）は merge 済み。独立監査の指摘を **P
 **起票依頼 1（判断が要る）**: MCP `create_task({ parent_id })`（`mcp-server/src/handlers/taskHandlers.ts:314/341`・`tools.ts:77`）が #418 後も**新規の親子行を作れます**。UI 側は入れ子を退役したのに、Claude Code から作った子行は UI で並び替えも root 化もできない（`moveNode` は非兄弟を拒否・`moveToRoot` は呼び出し元ゼロ）宙ぶらりんな状態になります。`parent_id` を退役させるか、UI 側に救出導線を戻すかのユーザー判断が要ります。Notes 側の `createNote({ parentId })`・Tasks の `addNode(parentId)` も同じ性質（こちらは呼び出し側が常に未指定なので実害は薄い）。
 
 **起票依頼 2（判断が要る）**: 入れ子退役の結果、**残った movement チェーン全体がゼロ参照**になりました — `moveNode` / `moveToRoot`（両 API hook の context value に載っているだけで読む側なし）/ `computeNoteDropIntent` + `NoteDropPosition`（barrel と専用テストのみ）。将来のツリー UI 用に残すか、まとめて退役するかの判断をお願いします。Issue #418 にも同じ内容をコメント済みです。
+
+## 2026-07-28 — #420 / #428 / #429 / #430 を PR 化（#437 / #440 / #442 / #445）／起票依頼 1 件
+
+open-issue fan-out の analytics-refine 担当 4 件をすべて PR まで通しました。ブランチは Issue ごとに origin/main から切り直し、`.session-branch` も都度更新しています。
+
+- **#420 → PR #437**: 完了 Todo の引き当てキーをローカル暦日へ。着手時 grep で報告 5 箇所を再実測（増減なし）し、既存ヘルパー `dateKeyOfInstant()` に統一。過去データの見え方が変わる旨は PR 本文に明記
+- **#428 → PR #440**: 仕様は**案 1（ゴミ箱の実績は集計から除外）**で決着。根拠は Issue #428 のコメントに記載（Analytics の他の面は `fetchTaskTree` の `is_deleted=false` で既に除外済み／#365 のコメント自身が Analytics を直す意図と書いている／Connect が同じ判定を先に採用）。`aggregateWorkTimeByTag` に live タスク一覧を必須引数で追加
+- **#429 → PR #442**: `aggregateTagByEntityType` を退役。呼び出し元ゼロを repo 全体 grep で再実測（宣言 + 自テスト + `.claude/` の記録のみ）
+- **#430 → PR #445**: `[[` 候補プールを遅延ロード化。`@tiptap/suggestion` の実装を読んで「`items()` は `[[` マッチ開始時と query 変化時のみ呼ばれる」「Promise を返せる」を確認したうえで設計
+
+**起票依頼（chat-main へ）**: #429 で `aggregateTagByEntityType` を消した結果、legacy `shared/src/types/wikiTag.ts` 内の **`WikiTagAssignment`（`entityType` 持ち）と `WikiTagEntityType` が import する側ゼロ**になりました（宣言だけ残存）。ファイル自体は `DataService.ts` の `WikiTag` + `NoteConnection`、`SupabaseDataService.ts` の `NoteConnection` がまだ使うため退役しません。この 2 つの掃除は legacy tag API（`fetchWikiTags` / `setWikiTagsForEntity` — DataService のコメントいわく DU-F で消す前提の塊）と一緒に片付けるほうが安全なので、PR #442 のスコープからは外しました。「DU-F の legacy tag API 退役と同時に片付ける」低優先タスクとして起票をお願いします。
