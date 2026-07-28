@@ -14,8 +14,18 @@ import { defineConfig } from "vitest/config";
  * mapper tests rely on, so the switch is safe for all suites. tsx tests
  * are now included too.
  */
+/*
+ * TZ is pinned (#420 QA). Several suites exist precisely because a stored UTC
+ * instant and a LOCAL calendar key disagree east of UTC — dateKeyOfInstant
+ * (#413), analyticsCompletedDayKey (#420). Under CI's default UTC the two days
+ * coincide, so those tests pass against the very bug they guard: the assertion
+ * is only meaningful where local ≠ UTC. Asia/Tokyo is the app's single user's
+ * zone (N=1) and the zone the dev machines already run, so pinning it makes CI
+ * reproduce what a developer sees rather than a weaker version of it.
+ */
 export default defineConfig({
   test: {
+    env: { TZ: "Asia/Tokyo" },
     include: ["tests/**/*.test.{ts,tsx}"],
     environment: "jsdom",
     globals: true,
