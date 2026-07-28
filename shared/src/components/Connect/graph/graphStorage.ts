@@ -36,7 +36,10 @@ export function loadPositions(): PositionMap {
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return {};
-    const out: PositionMap = {};
+    // Prototype-less: a stored `__proto__` key would otherwise replace the
+    // map's prototype instead of becoming an entry, and every later lookup
+    // would inherit an {x, y} that no node actually owns.
+    const out: PositionMap = Object.create(null) as PositionMap;
     for (const [id, value] of Object.entries(
       parsed as Record<string, unknown>,
     )) {

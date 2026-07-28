@@ -19,6 +19,14 @@ import {
 } from "./graph-render";
 import { savePositions, type PositionMap } from "./graphStorage";
 
+/**
+ * Spread, in px, given to nodes seeded at the canvas center because the
+ * restored cache has never seen them (#361). Wide enough that the repulsion
+ * force has a direction to push coincident nodes apart along, narrow enough
+ * that they still read as "arrived in the middle".
+ */
+const NEW_NODE_JITTER = 40;
+
 export interface ForceParams {
   repel: number;
   linkDist: number;
@@ -133,12 +141,27 @@ export function useGraphSimulation({
 
     // Restore cached positions so the layout continues from where it was
     // instead of scattering on every rebuild.
+    //
+    // Nodes the cache does not know (created since the last visit) need a seed
+    // too. d3 would otherwise spiral them around ITS origin (0,0) — the top-
+    // left corner — while everyone else sits around the middle of the canvas,
+    // and the warm alpha below is far too cold to walk them over. Dropping
+    // them at the center puts new items inside the cloud their links will pull
+    // them through; an isolated one simply stays near the middle instead of
+    // stranded in a corner. The jitter only keeps several new nodes from
+    // landing on the exact same point, where the repulsion force has no
+    // direction to push them apart along.
     const cache = positionCacheRef.current;
     for (const n of graph.nodes) {
       const c = cache[n.id];
       if (c) {
         n.x = c.x;
         n.y = c.y;
+        n.vx = 0;
+        n.vy = 0;
+      } else if (size.w > 0 && size.h > 0) {
+        n.x = size.w / 2 + (Math.random() - 0.5) * NEW_NODE_JITTER;
+        n.y = size.h / 2 + (Math.random() - 0.5) * NEW_NODE_JITTER;
         n.vx = 0;
         n.vy = 0;
       }

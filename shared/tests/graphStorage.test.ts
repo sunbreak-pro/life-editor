@@ -51,6 +51,28 @@ describe("graphStorage positions", () => {
     expect(loadPositions()).toEqual({ good: { x: 1, y: 2 } });
   });
 
+  // The case above cannot reach `Number.isFinite`: JSON.stringify turns NaN
+  // and Infinity into null, so those entries die on the typeof check. A JSON
+  // literal that overflows on PARSE is the one input that arrives as a real
+  // non-finite number — without this, deleting the isFinite guard would still
+  // leave the suite green.
+  it("drops a coordinate whose JSON literal overflows to Infinity", () => {
+    localStorage.setItem(POSITIONS_KEY, '{"big":{"x":1e999,"y":0}}');
+    expect(loadPositions()).toEqual({});
+  });
+
+  // `out.__proto__ = {...}` on a plain object replaces the prototype instead
+  // of adding a key, which would make EVERY id lookup return that {x, y}.
+  it("does not let a stored __proto__ key poison later lookups", () => {
+    localStorage.setItem(
+      POSITIONS_KEY,
+      '{"__proto__":{"x":1,"y":2},"real":{"x":3,"y":4}}',
+    );
+    const loaded = loadPositions();
+    expect(loaded["never-stored"]).toBeUndefined();
+    expect(loaded["real"]).toEqual({ x: 3, y: 4 });
+  });
+
   it("keeps the viewport half working (it was always symmetric)", () => {
     saveViewport({ x: 5, y: 6, k: 1.5 });
     expect(loadViewport()).toEqual({ x: 5, y: 6, k: 1.5 });
