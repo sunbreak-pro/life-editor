@@ -241,12 +241,29 @@ function makeUnifiedAssignment(
   };
 }
 
+/**
+ * Live task tree stand-in (#428): the ring only counts sessions whose task is
+ * still in `fetchTaskTree`'s live result, so every fixture has to say which
+ * task ids exist. An id left out of this list means "trashed or purged".
+ */
+function liveTasks(...ids: string[]): TaskNode[] {
+  return ids.map((id, i) => ({
+    id,
+    type: "task",
+    title: id,
+    parentId: null,
+    order: i,
+    createdAt: "2025-01-01T00:00:00.000Z",
+  }));
+}
+
 describe("aggregateWorkTimeByTag", () => {
   it("attributes a task's work time to its tag", () => {
     const result = aggregateWorkTimeByTag(
       [makeSession({ taskId: "task-1", duration: 1500 })],
       [makeUnifiedAssignment()],
       [makeUnifiedTag()],
+      liveTasks("task-1"),
     );
 
     expect(result).toHaveLength(1);
@@ -266,6 +283,7 @@ describe("aggregateWorkTimeByTag", () => {
         makeUnifiedAssignment({ id: "asg-2", tagId: "tag-b" }),
       ],
       [makeUnifiedTag(), makeUnifiedTag({ id: "tag-b", name: "Tag B" })],
+      liveTasks("task-1"),
     );
 
     expect(result.map((b) => b.totalMinutes)).toEqual([15, 15]);
@@ -282,6 +300,7 @@ describe("aggregateWorkTimeByTag", () => {
         makeUnifiedAssignment({ id: "asg-3", tagId: "tag-b" }),
       ],
       [makeUnifiedTag(), makeUnifiedTag({ id: "tag-b", name: "Tag B" })],
+      liveTasks("task-1"),
     );
 
     expect(result.map((b) => b.totalMinutes)).toEqual([15, 15]);
@@ -296,6 +315,7 @@ describe("aggregateWorkTimeByTag", () => {
       ],
       [makeUnifiedAssignment()],
       [makeUnifiedTag()],
+      liveTasks("task-1", "task-2"),
     );
 
     expect(result).toHaveLength(2);
@@ -326,6 +346,7 @@ describe("aggregateWorkTimeByTag", () => {
         makeUnifiedAssignment({ id: "asg-2", tagId: "tag-gone" }),
       ],
       [makeUnifiedTag({ id: "tag-gone", isDeleted: true })],
+      liveTasks("task-1"),
     );
 
     // Both assignments drop out, so the WORK session reads as untagged and
@@ -360,7 +381,12 @@ describe("aggregateWorkTimeByTag", () => {
     // Plus one untagged session so the trailing bucket is present too.
     sessions.push(makeSession({ id: 99, taskId: "task-none", duration: 60 }));
 
-    const result = aggregateWorkTimeByTag(sessions, assignments, tags);
+    const result = aggregateWorkTimeByTag(
+      sessions,
+      assignments,
+      tags,
+      liveTasks(...tags.map((_, i) => `task-${i}`), "task-none"),
+    );
 
     expect(result).toHaveLength(12); // 10 tags + other + untagged
     expect(result[0].tagId).toBe("tag-11"); // longest first
@@ -376,8 +402,63 @@ describe("aggregateWorkTimeByTag", () => {
 
   it("returns [] when there is no work time at all", () => {
     expect(
-      aggregateWorkTimeByTag([], [makeUnifiedAssignment()], [makeUnifiedTag()]),
+      aggregateWorkTimeByTag(
+        [],
+        [makeUnifiedAssignment()],
+        [makeUnifiedTag()],
+        liveTasks("task-1"),
+      ),
     ).toEqual([]);
+  });
+
+  /*
+   * #428 decision pin: work on a TRASHED task is dropped, not folded into
+   * "untagged". #365 stopped returning a trashed item's assignments, which
+   * turned its minutes into phantom untagged work — the ring said "you spent
+   * 30 min on something you never tagged" about a task sitting in the bin.
+   * Analytics excludes trashed items everywhere else (fetchTaskTree is
+   * live-only), so the ring follows. Restoring the task brings the time back.
+   */
+  it("drops work on a trashed task instead of counting it as untagged", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, taskId: "task-1", duration: 1200 }), // live + tagged, 20 min
+        makeSession({ id: 2, taskId: "task-trashed", duration: 1800 }), // trashed, 30 min
+      ],
+      [makeUnifiedAssignment()],
+      [makeUnifiedTag()],
+      // "task-trashed" is absent: fetchTaskTree never returns trashed rows,
+      // and #365 already withheld its assignments.
+      liveTasks("task-1"),
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ kind: "tag", tagId: "tag-a" });
+    expect(result[0].totalMinutes).toBeCloseTo(20);
+  });
+
+  it("still counts task-less work as untagged when tasks are trashed", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, taskId: null, duration: 600 }), // no task, 10 min
+        makeSession({ id: 2, taskId: "task-trashed", duration: 600 }),
+      ],
+      [],
+      [makeUnifiedTag()],
+      liveTasks(),
+    );
+
+    // The null-task session is genuine task-less work and keeps its bucket;
+    // only the trashed one disappears.
+    expect(result).toEqual([
+      {
+        kind: "untagged",
+        tagId: null,
+        tagName: null,
+        tagColor: null,
+        totalMinutes: 10,
+      },
+    ]);
   });
 });
 
@@ -429,6 +510,7 @@ describe("analytics aggregation over a cyclic task graph (KI-016 class)", () => 
         sessions,
         [makeUnifiedAssignment({ itemId: "A" })],
         [makeUnifiedTag()],
+        nodes,
       ),
     ).toHaveLength(2);
   }, 5000);

@@ -8,6 +8,7 @@ import {
   Legend,
 } from "recharts";
 import type { TimerSession } from "../../types/timer";
+import type { TaskNode } from "../../types/taskTree";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { aggregateWorkTimeByTag } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
@@ -25,6 +26,8 @@ export interface TagWorkTimeChartLabels {
 
 interface TagWorkTimeChartProps {
   sessions: TimerSession[];
+  /** Live task tree (`fetchTaskTree` — trashed tasks are already absent). */
+  nodes: TaskNode[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   labels: TagWorkTimeChartLabels;
@@ -60,13 +63,14 @@ const OTHER_COLOR = "var(--color-lumen-text-secondary)";
  */
 export function TagWorkTimeChart({
   sessions,
+  nodes,
   assignments,
   tags,
   labels,
 }: TagWorkTimeChartProps): React.JSX.Element {
   const data = useMemo(
     () =>
-      aggregateWorkTimeByTag(sessions, assignments, tags).map((d) => {
+      aggregateWorkTimeByTag(sessions, assignments, tags, nodes).map((d) => {
         if (d.kind === "untagged") {
           return {
             name: labels.untagged,
@@ -90,7 +94,7 @@ export function TagWorkTimeChart({
           color: d.tagColor,
         };
       }),
-    [sessions, assignments, tags, labels.untagged, labels.other],
+    [sessions, nodes, assignments, tags, labels.untagged, labels.other],
   );
 
   if (data.length === 0) {
