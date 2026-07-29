@@ -7,16 +7,16 @@
 **対象**: `shared/src/services/`・`web/src/`（CalendarTab.tsx 除外）
 **計画書**: `.claude/docs/vision/plans/2026-07-28-refactor-dataservice-split.md`
 
-- 前回: Phase B Step 1 完了 — BriefingScreen（850 行）を `useBriefingData` + `useDailySections` + 画面（約 290 行）に分割（PR #462・3 ゲート緑 + lint 0 problems・session-verifier PASS）。Phase A 最終 PR #461 も merge 待ち中に提出済み
-- 現在: PR #461（Phase A 最終）と PR #462（Phase B Step 1）の merge 待ち（ユーザーゲート。両者はファイル非重複で独立 merge 可）
-- 次: merge 後に origin/main から `claude/refactor-07-notesview-hooks` を切り、NotesView（約 1313 行）の hooks 切り出し（Phase B Step 2）
+- 前回: Phase B Step 2 完了 — NotesView（1313 行）を `useNoteListState` + `useNoteLinking` + `NoteListRows` + 画面（約 890 行）に分割（PR #463・全ゲート緑・session-verifier PASS）。#461 / #462 は merge 済みで Phase A 完了
+- 現在: PR #463（Phase B Step 2）の merge 待ち（ユーザーゲート）
+- 次: merge 後に origin/main から `claude/refactor-08-mainscreen-hooks` を切り、MainScreen（約 951 行）の hooks 切り出し（Phase B Step 3・最終。CalendarTab は対象外）
 
 ## 直近の完了
 
+- Phase B Step 1（BriefingScreen hooks・PR #462 merged）✅（2026-07-29）
+- DataService 分割 Step 5（facade 最終化・PR #461 merged = Phase A 完了）✅（2026-07-29）
 - DataService 分割 Step 4（calendar 系・PR #460 merged）✅（2026-07-29）
-- DataService 分割 Step 3（event・schedule 系・PR #459 merged）✅（2026-07-29）
-- DataService 分割 Step 2（routine 系・PR #458 merged）✅（2026-07-29）
 
 ## 予定
 
-- web 画面 hooks 切り出し（Phase B 残り）: NotesView → MainScreen（CalendarTab は対象外 — schedule-refine レーン #290 と衝突回避）
+- web 画面 hooks 切り出し（Phase B 残り）: MainScreen（CalendarTab は対象外 — schedule-refine レーン #290 と衝突回避）
