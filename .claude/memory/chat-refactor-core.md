@@ -7,9 +7,9 @@
 **対象**: `shared/src/services/`・`web/src/`（CalendarTab.tsx 除外）
 **計画書**: `.claude/docs/vision/plans/2026-07-28-refactor-dataservice-split.md`
 
-- 前回: Step 3 完了 — event・schedule 系（`SupabaseScheduleItemsService` 19 メソッド）を `SupabaseScheduleItemsService.ts` へ切り出し（PR #459・3 ゲート緑 + lint 0 problems・session-verifier PASS）
-- 現在: PR #459 の merge 待ち（ユーザーゲート）
-- 次: merge 後に origin/main から `claude/refactor-04-calendars-service` を切り、calendar 系（`SupabaseCalendarsService`）を切り出す（PR #4）
+- 前回: Step 4 完了 — calendar 系（`SupabaseCalendarsService` 4 メソッド）を `SupabaseCalendarsService.ts` へ切り出し（PR #460・3 ゲート緑 + lint 0 problems・session-verifier PASS・facade 333 行に縮小）
+- 現在: PR #460 の merge 待ち（ユーザーゲート）
+- 次: merge 後に origin/main から `claude/refactor-05-stubs-facade-final` を切り、link・connection 系 stub 切り出し + facade 最終化 + pgrstQuoteValueLocal 統合（PR #5・facade 分割の最終回）
 
 ## 直近の完了
 

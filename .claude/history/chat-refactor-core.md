@@ -1,5 +1,17 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-07-29 - DataService 分割 Step 4（calendar 系切り出し・PR #460）
+
+#### 概要
+
+PR #459 merge 後、calendar ドメイン（`SupabaseCalendarsService` 4 メソッド + `PHASE2_CALENDAR_METHODS`）を `SupabaseCalendarsService.ts` へ verbatim 移動した（挙動変更ゼロ・web/src 無改変）。
+
+#### 変更点
+
+- **shared/services**: `SupabaseCalendarsService.ts` 新設。クラスは module-private で外部 importer ゼロのため再 export なし（前 3 回と異なる点）。calendar 専用だった facade の import（CalendarNode 型 / calendarMapper ブロック / fetchAllPages）を除去し、facade は 333 行に縮小
+- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 2 ファイル lint 0 problems・session-verifier PASS
+- **PR**: #460 open（`claude/refactor-04-calendars-service`・merge はユーザーゲート）
+
 ### 2026-07-29 - DataService 分割 Step 3（event・schedule 系切り出し・PR #459）
 
 #### 概要
