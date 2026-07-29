@@ -1,5 +1,17 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-07-29 - DataService 分割 Step 2（routine 系切り出し・PR #458）
+
+#### 概要
+
+PR #457 merge 後、routine ドメイン（`SupabaseRoutinesService` 10 メソッド + `PHASE2_ROUTINES_METHODS`）を `SupabaseRoutinesService.ts` へ verbatim 移動した（挙動変更ゼロ・web/src 無改変）。
+
+#### 変更点
+
+- **shared/services**: `SupabaseRoutinesService.ts` 新設。facade は import + `export { SupabaseRoutinesService }` 再 export に置き換え（テスト 2 ファイル無改変）。routine 専用だった facade の import（routineMapper ブロック / logServiceError / todayDateKey / RoutineNode）を除去
+- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 2 ファイル lint 0 problems・session-verifier PASS
+- **PR**: #458 open（`claude/refactor-02-routines-service`・merge はユーザーゲート）
+
 ### 2026-07-29 - DataService 分割 Step 1（tasks 系 + 共有ヘルパ切り出し・PR #457）
 
 #### 概要
