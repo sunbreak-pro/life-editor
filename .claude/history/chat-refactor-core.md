@@ -1,5 +1,18 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-07-29 - DataService 分割 Step 5（stub 切り出し + facade 最終化・PR #461）
+
+#### 概要
+
+PR #460 merge 後、Phase A の最終回として link・connection の stub 2 クラスを `SupabaseNoteLinksService.ts` へ verbatim 移動し、facade を計画どおりの最終形に到達させた（挙動変更ゼロ・web/src 無改変）。
+
+#### 変更点
+
+- **shared/services**: `SupabaseNoteLinksService.ts` 新設（stub 2 クラス + `_pendingDuRewrite` + PHASE2 Set 2 つ。module-private のため再 export なし）。facade は 202 行・ドメインロジックゼロ（service import + createSupabaseDataService + 互換 re-export のみ）
+- **pgrstQuoteValueLocal 統合**: `SupabaseNotesUnifiedService.ts` の重複コピーを `supabaseServiceHelpers.ts` の `pgrstQuoteValue` 参照に付け替え（同一実装・循環 import 回避の理由は Step 1 で消滅済み）。旧 facade ヘッダを指す stale コメント参照も追随
+- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 3 ファイル lint 0 problems・session-verifier PASS
+- **PR**: #461 open（`claude/refactor-05-stubs-facade-final`・merge はユーザーゲート。merge で Phase A 完了、残り = Phase B + 実ブラウザ確認）
+
 ### 2026-07-29 - DataService 分割 Step 4（calendar 系切り出し・PR #460）
 
 #### 概要

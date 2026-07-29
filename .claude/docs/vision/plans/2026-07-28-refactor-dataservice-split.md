@@ -133,3 +133,4 @@ Phase A 完了後の `SupabaseDataService.ts` に残るのは:
 ## Worklog
 
 - 2026-07-29: ベースライン確認（shared test 1273 pass / shared build / web build すべて exit 0）。PR #1 着手
+- 2026-07-29: Phase A 全 5 PR 提出完了 — #457（helpers + tasks）/ #458（routines）/ #459（schedule）/ #460（calendars）は merged、#461（note-link stubs + facade 最終化 + pgrstQuoteValueLocal 統合）は merge 待ち。facade は最終形（202 行・ドメインロジックゼロ・互換 re-export 全維持）に到達。残り = Phase B（web hooks 切り出し・Steps 7-9）と merge 後の実ブラウザ確認（Step 10）
