@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
 import {
   FileText,
   ChevronRight,
@@ -34,31 +28,23 @@ import {
   SidebarListControls,
   StatusFilterChips,
   TagHeadingIcon,
-  buildTagGroups,
   tagGroupKey as groupKey,
-  soloTagGroup,
-  sortNotesForList,
-  useFrozenNoteSortKey,
   cn,
-  type NoteNode,
   type NoteSortMode,
-  type NoteTagGroup,
   type DataService,
   FOCUS_RING,
 } from "@life-editor/shared";
-import {
-  useNoteTagDnd,
-  tagDroppableId,
-  noteDraggableId,
-} from "./useNoteTagDnd";
+import { useNoteTagDnd, noteDraggableId } from "./useNoteTagDnd";
 import { RichTextEditor } from "./RichTextEditor";
-import { useItemLinkTargets } from "./useItemLinkTargets";
 import {
   NotePasswordDialog,
   type NotePasswordMode,
 } from "./NotePasswordDialog";
 import { TagPicker, LinkPanel } from "../wikitag";
 import { TreeDragGhost } from "../components/TreeDragGhost";
+import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
+import { useNoteListState } from "./hooks/useNoteListState";
+import { useNoteLinking } from "./hooks/useNoteLinking";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -95,6 +81,12 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * Data stays context-side (useNotesUnifiedContext / useWikiTagsUnifiedContext);
  * this view is DataService-free (§3.1) and takes copy from useTranslation →
  * props.
+ *
+ * Hooks split (phase B, zero behavior change): the derived list pipeline +
+ * sort/filter/collapse state live in hooks/useNoteListState, the "[[" link
+ * plumbing + cross-tab selection handoff in hooks/useNoteLinking, and the
+ * desktop row/heading components in NoteListRows.tsx. This file is the host
+ * shell: dialog/sheet state, DnD wiring and the breakpoint JSX.
  */
 
 // Password dialog copy. Kept as local constants (the Notes i18n追い付き is
@@ -114,221 +106,6 @@ const DIALOG_LABELS = {
   required: "Password is required.",
   saveFailed: "Could not save. Please try again.",
 } as const;
-
-// Collapse state for tag-group headings. Persisted so a folded group stays
-// folded across reloads. The group key (incl. the untagged sentinel) comes from
-// shared — the #369 tag filter keys off the same identity.
-const LS_TAG_GROUPS_COLLAPSED = "note-tag-groups-collapsed";
-
-function loadCollapsedGroups(): Set<string> {
-  try {
-    const saved = localStorage.getItem(LS_TAG_GROUPS_COLLAPSED);
-    if (saved) return new Set(JSON.parse(saved) as string[]);
-  } catch {
-    // ignore malformed / unavailable storage
-  }
-  return new Set();
-}
-
-function saveCollapsedGroups(keys: Set<string>): void {
-  try {
-    localStorage.setItem(LS_TAG_GROUPS_COLLAPSED, JSON.stringify([...keys]));
-  } catch {
-    // ignore storage write failures (private mode / quota)
-  }
-}
-
-// ---- Desktop draggable note row -------------------------------------------
-
-function DesktopNoteRow({
-  node,
-  dragId,
-  selected,
-  onSelect,
-  onDelete,
-  deleteLabel,
-  dragHintLabel,
-}: {
-  node: NoteNode;
-  dragId: string;
-  selected: boolean;
-  onSelect: (id: string) => void;
-  onDelete: (id: string) => void;
-  deleteLabel: string;
-  dragHintLabel: string;
-}) {
-  // dragId is group-scoped: the same note renders under every tag heading it
-  // has, and @dnd-kit needs globally-unique draggable ids.
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: dragId,
-  });
-
-  return (
-    // Grip removed (#312): the whole row is the drag activator now — press-drag
-    // anywhere onto a tag heading assigns that tag. @dnd-kit's PointerSensor has
-    // a 5px activation distance (useNoteTagDnd), so a plain click still falls
-    // through to the inner select/delete buttons; only a >5px drag picks the row
-    // up. `attributes`+`listeners` (tabIndex + keydown) make the row keyboard-
-    // draggable, decoupled from the inner buttons' own Enter/click. We override
-    // role back to "listitem" (attributes default it to "button") so the row
-    // keeps the <ul> list semantics and the inner buttons aren't nested inside
-    // an interactive role.
-    <li
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      role="listitem"
-      aria-label={dragHintLabel}
-      className={cn(
-        "group relative flex cursor-grab items-center gap-2 rounded-lumen-md border px-2",
-        "h-[36px] text-[13px]",
-        isDragging && "opacity-40",
-        selected
-          ? "border-lumen-accent bg-lumen-accent-subtle"
-          : "border-transparent hover:bg-lumen-hover",
-        FOCUS_RING,
-      )}
-    >
-      <FileText
-        size={14}
-        aria-hidden
-        className={cn(
-          "shrink-0",
-          selected ? "text-lumen-accent" : "text-lumen-text-secondary",
-        )}
-      />
-
-      <button
-        type="button"
-        onClick={() => onSelect(node.id)}
-        className={cn(
-          "flex flex-1 items-center gap-1.5 truncate text-left",
-          FOCUS_RING,
-        )}
-      >
-        <span
-          className={cn(
-            "truncate",
-            node.isPinned ? "font-medium" : "",
-            selected ? "text-lumen-accent" : "text-lumen-text",
-          )}
-        >
-          {node.title || "(untitled)"}
-        </span>
-        {node.isPinned && (
-          <Pin
-            size={12}
-            aria-label="Pinned"
-            className="shrink-0 text-lumen-accent"
-          />
-        )}
-        {node.hasPassword && (
-          <Lock
-            size={12}
-            aria-label="Password protected"
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-        )}
-      </button>
-
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(node.id);
-        }}
-        aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
-        className={cn(
-          "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
-          "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
-          FOCUS_RING,
-        )}
-      >
-        <Trash2 size={14} aria-hidden />
-      </button>
-    </li>
-  );
-}
-
-// ---- Desktop droppable tag heading ----------------------------------------
-
-function DesktopTagHeading({
-  group,
-  collapsed,
-  onToggle,
-  collapseLabel,
-  expandLabel,
-}: {
-  group: NoteTagGroup;
-  collapsed: boolean;
-  onToggle: (key: string) => void;
-  collapseLabel: string;
-  expandLabel: string;
-}) {
-  const isUntagged = group.tagId === null;
-  // Untagged is a no-op drop target: disabled so it never becomes `over`.
-  const { setNodeRef, isOver } = useDroppable({
-    id: isUntagged ? "note-untagged-nodrop" : tagDroppableId(group.tagId!),
-    disabled: isUntagged,
-  });
-
-  // Divider-style heading (#311): [tag icon] [color-band name] [count] ——rule.
-  // The former chevron+dot+flat-name folder look is gone; the name sits in a
-  // rounded color band (same tint math as TagPill) and a rule fills the row.
-  const color = group.tagColor;
-  const bandStyle = color
-    ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
-    : undefined;
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "rounded-lumen-md",
-        isOver && "bg-lumen-accent-subtle ring-1 ring-inset ring-lumen-accent",
-      )}
-    >
-      <button
-        type="button"
-        onClick={() => onToggle(groupKey(group))}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? expandLabel : collapseLabel}
-        className={cn(
-          "flex w-full items-center gap-2 rounded-lumen-md px-1 py-1.5 text-left hover:bg-lumen-hover",
-          FOCUS_RING,
-        )}
-      >
-        <TagHeadingIcon icon={group.tagIcon} color={color} />
-        <span
-          className={cn(
-            "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
-            color ? "" : "border-lumen-border bg-lumen-bg-secondary",
-          )}
-          style={bandStyle}
-        >
-          {group.tagName}
-        </span>
-        <span className="shrink-0 text-[11px] font-medium tabular-nums text-lumen-text-tertiary">
-          {group.notes.length}
-        </span>
-        <span aria-hidden className="h-px min-w-4 flex-1 bg-lumen-border" />
-        {collapsed ? (
-          <ChevronRight
-            size={14}
-            aria-hidden
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-        ) : (
-          <ChevronDown
-            size={14}
-            aria-hidden
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-        )}
-      </button>
-    </div>
-  );
-}
 
 interface NotesViewProps {
   /**
@@ -355,13 +132,8 @@ export function NotesView({
   // #409 moved tag MUTATION (create / rename / delete / color / icon) out of
   // this view and into the shell-level tag editor, so only the read side and
   // the per-note assign/link calls are needed here now.
-  const {
-    allTags,
-    getTagsForItem,
-    assignTagToItem,
-    createItemLink,
-    getLinksForItem,
-  } = useWikiTagsUnifiedContext();
+  const { allTags, getTagsForItem, assignTagToItem } =
+    useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
@@ -385,223 +157,38 @@ export function NotesView({
   // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
   // here from the note body so reading/writing stays unobstructed.
   const [linksOpen, setLinksOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] =
-    useState<Set<string>>(loadCollapsedGroups);
   // Mobile-only: the note whose read sheet is open + the quick-add sheet.
   const [readNoteId, setReadNoteId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
-  const toggleGroup = useCallback((key: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      saveCollapsedGroups(next);
-      return next;
-    });
-  }, []);
+  // Derived side-list pipeline + sort/filter/collapse state (hooks split).
+  const {
+    collapsedGroups,
+    toggleGroup,
+    sortModes,
+    directionLabel,
+    tagFilter,
+    setTagFilter,
+    tagFilterChips,
+    visibleGroups,
+    showTagFilter,
+    handleSearchChange,
+    hasNotes,
+    searchActive,
+  } = useNoteListState();
 
-  // Linkable candidates pool for the LinkPanel: active notes only.
-  const linkableItems = useMemo(
-    () =>
-      notes.notes
-        .filter((n) => !n.isDeleted)
-        .map((n) => ({
-          id: n.id,
-          label: `[${n.type}] ${n.title || "(untitled)"}`,
-        })),
-    [notes.notes],
-  );
-  const resolveTitle = (id: string): string | undefined => {
-    const n = notes.notes.find((nn) => nn.id === id);
-    if (!n) return undefined;
-    return `[${n.type}] ${n.title || "(untitled)"}`;
-  };
-
-  // "[[" link-target pool (notes + dailies + tasks, cross-domain) for the
-  // editor's wiki-link autocomplete. A loader, not a list: nothing is fetched
-  // until the first "[[" opens the menu (#430).
-  const loadLinkTargets = useItemLinkTargets(dataService);
-
-  // A link click from another tab lands here with a pending note id — select
-  // it once (the async note load resolves selectedNote afterwards), then clear.
-  useEffect(() => {
-    if (!pendingSelectNoteId) return;
-    notes.setSelectedNoteId(pendingSelectNoteId);
-    onConsumePendingSelect?.();
-    // notes.setSelectedNoteId / onConsumePendingSelect are stable enough; rerun
-    // only when a new pending id arrives.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingSelectNoteId]);
-
-  // Mirror a resolved "[[" link into the item_links graph (Connect / backlinks)
-  // as an edge from the CURRENT note to the target. Duplicate-guarded against
-  // the bulk cache; NEVER deleted when the text link is removed — item_links has
-  // no origin column, so a delete-sync would also destroy links the user added
-  // by hand in the LinkPanel. Self-links are skipped (createItemLink rejects
-  // them anyway).
-  const handleResolvedLinkInserted = useCallback(
-    (fromId: string, targetId: string) => {
-      if (!fromId || fromId === targetId) return;
-      const already = getLinksForItem(fromId).outgoing.some(
-        (l) => !l.isDeleted && l.toItemId === targetId,
-      );
-      if (already) return;
-      void createItemLink(fromId, targetId).catch((e) =>
-        console.error("[NotesView] item link upsert failed", e),
-      );
-    },
-    [getLinksForItem, createItemLink],
-  );
-
-  // "[[" create-a-note-and-link. select:false keeps the editor on the note the
-  // user is writing in (createNote otherwise switches selection, remounting the
-  // editor mid-insert); skipUndo avoids polluting the undo stack for a link.
-  const handleCreateNoteForLink = useCallback(
-    async (label: string): Promise<{ id: string } | null> => {
-      const id = notes.createNote(label, { select: false, skipUndo: true });
-      return id ? { id } : null;
-    },
-    [notes],
-  );
-
-  // Search filter (title-only — the list is body-free under M1). Applied
-  // before grouping so a query narrows every tag heading at once.
-  const searchedNotes = useMemo(() => {
-    const q = notes.searchQuery.trim().toLowerCase();
-    if (!q) return notes.notes;
-    return notes.notes.filter((n) => (n.title || "").toLowerCase().includes(q));
-  }, [notes.notes, notes.searchQuery]);
-
-  // Flat assignment pool for the notes in view. getTagsForItem reads the
-  // Provider's bulk cache synchronously (no N+1); buildTagGroups drops
-  // deleted assignments / deleted-tag assignments itself.
-  const assignments = useMemo(
-    () => searchedNotes.flatMap((n) => getTagsForItem(n.id)),
-    [searchedNotes, getTagsForItem],
-  );
-
-  const groups = useMemo(
-    () =>
-      buildTagGroups({
-        notes: searchedNotes,
-        tags: allTags,
-        assignments,
-        untaggedLabel: t("materials.notes.untagged"),
-      }),
-    [searchedNotes, allTags, assignments, t],
-  );
-
-  // #283 sort controls (desktop sidebar). Mode ids map 1:1 to NoteSortMode.
-  // The date labels live in materials.sidebar (shared with the Daily picker
-  // since #369); "title" stays under materials.notes — a daily has no title.
-  const sortModes = useMemo(
-    () => [
-      { id: "updatedAt", label: t("materials.sidebar.sortUpdated") },
-      { id: "createdAt", label: t("materials.sidebar.sortCreated") },
-      { id: "title", label: t("materials.notes.sortTitle") },
-    ],
-    [t],
-  );
-
-  // The note being edited holds the slot it had when it was selected (#366) —
-  // otherwise each debounced save bumps updatedAt and yanks the row to the top
-  // of its group mid-sentence under the default newest-first order.
-  const frozenSortKey = useFrozenNoteSortKey(
-    notes.selectedNote?.id ?? null,
-    notes.notes,
-  );
-
-  // buildTagGroups re-sorts each group internally (pinned-first then title), so
-  // the user's chosen sort is applied AFTER grouping — within each tag group,
-  // preserving pinned-first. Group ORDER (by tag name) is left unchanged.
-  const sortedGroups = useMemo(
-    () =>
-      groups.map((group) => ({
-        ...group,
-        notes: sortNotesForList(
-          group.notes,
-          notes.sortMode,
-          notes.sortDirection,
-          frozenSortKey,
-        ),
-      })),
-    [groups, notes.sortMode, notes.sortDirection, frozenSortKey],
-  );
-
-  // Direction label must describe the REAL rendered order. For the date modes
-  // the comparator's "asc" reads as newest-first (compareNotes quirk), so date
-  // modes use newest/oldest; title uses ascending/descending.
-  const isTitleSort = notes.sortMode === "title";
-  const directionLabel = isTitleSort
-    ? notes.sortDirection === "asc"
-      ? t("materials.sidebar.ascending")
-      : t("materials.sidebar.descending")
-    : notes.sortDirection === "asc"
-      ? t("materials.sidebar.newest")
-      : t("materials.sidebar.oldest");
-
-  /*
-   * #369 tag filter. The grouped list already shows every tag, but with a dozen
-   * tags you scroll past all of them to reach one — collapsing the rest by hand
-   * is the only narrowing that existed. This solos ONE group (click the active
-   * chip again for all), which is the whole filter semantics under a many-to-
-   * many tag model: "show notes carrying tag X" IS "show group X".
-   *
-   * Deliberately NOT persisted (matching the Daily filter query, #283): a
-   * filter that survives a reload hides notes with no visible cause.
-   */
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-
-  const tagFilterChips = useMemo(
-    () =>
-      sortedGroups.map((group) => ({
-        id: groupKey(group),
-        label: group.tagName,
-        count: group.notes.length,
-        icon: (
-          <span
-            className={cn(
-              "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-              group.tagColor ? "" : "bg-lumen-border-strong",
-            )}
-            style={
-              group.tagColor ? { backgroundColor: group.tagColor } : undefined
-            }
-          />
-        ),
-      })),
-    [sortedGroups],
-  );
-
-  // soloTagGroup falls back to the full list when the selection goes stale —
-  // see its doc for why (a stale chip is unclickable, so it must not strand).
-  const visibleGroups = useMemo(
-    () => soloTagGroup(sortedGroups, tagFilter),
-    [sortedGroups, tagFilter],
-  );
-
-  // Only worth showing when there is more than one bucket to choose between.
-  const showTagFilter = tagFilterChips.length > 1;
-
-  /*
-   * Typing in the search box drops the tag filter. The two are alternative ways
-   * to narrow the same list, and leaving both on makes the filter come back by
-   * itself: a query that empties the soloed group removes its heading
-   * (buildTagGroups drops empty ones), soloTagGroup falls back to everything —
-   * and then clearing the query re-collapses the list to a tag the user never
-   * re-selected. Resetting here keeps that visible (the chip un-presses as you
-   * type) instead of leaving dead state behind. Cleared on the CHANGE, not in
-   * an effect watching the derived groups (web lint bans setState in effects).
-   */
-  const setSearchQuery = notes.setSearchQuery;
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchQuery(value);
-      setTagFilter(null);
-    },
-    [setSearchQuery],
-  );
+  // "[[" link plumbing + cross-tab pending-selection handoff (hooks split).
+  const {
+    linkableItems,
+    resolveTitle,
+    loadLinkTargets,
+    handleResolvedLinkInserted,
+    handleCreateNoteForLink,
+  } = useNoteLinking({
+    dataService,
+    pendingSelectNoteId,
+    onConsumePendingSelect,
+  });
 
   const handleAssignTag = useCallback(
     (noteId: string, tagId: string) => {
@@ -690,12 +277,6 @@ export function NotesView({
       </div>
     );
   }
-
-  const hasNotes = groups.length > 0;
-  // `hasNotes` is post-search, so a query that matches nothing empties it. The
-  // mobile header must survive that or the box that caused it becomes
-  // unreachable (desktop renders its search unconditionally, so it is safe).
-  const searchActive = notes.searchQuery.trim() !== "";
 
   // ---- Desktop side list ----------------------------------------------
   //
