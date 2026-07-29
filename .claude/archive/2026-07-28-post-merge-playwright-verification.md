@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 対象 PR が merge され次第 IN PROGRESS へ。全項目消化で COMPLETED → archive
+Status: COMPLETED # 2026-07-29 四巡目で V1〜V10 と playwright 対象外の項目を全消化。唯一の fail（V4 の `[[` クリック遷移）は Issue #475 へ引き継ぎ
 Created: 2026-07-28
 Branch: main # 検証のみ。コード変更なし
 Owner-chat: main # chat-main とは別の「検証専用セッション」が実行する
@@ -48,10 +48,10 @@ Parent: 2026-07-28-open-issue-fanout.md
 ### V4. #411 Todo タブの移設と導線の追随（schedule / materials）
 
 - 手順: 両セクションのタブ構成を確認 → ノート本文の `[[タスク名]]` リンクをクリック → nav ショートカット / コマンドパレットで「タスクへ」を実行
-- [ ] Materials のタブが Notes / Daily の 2 つになっている — スキップ（#411 open・PR 未作成。実測時点では Materials = Todo / ノート / デイリーの 3 タブ）
-- [ ] Schedule のタブが Calendar / Todo の 2 つで、Todo タブに従来の Kanban が出る — スキップ（同上）
-- [ ] `[[` リンク（task role）の着地先が Schedule の Todo になっている — スキップ（同上）
-- [ ] nav ショートカット・コマンドパレット経由のタスク導線も Schedule に着地する — スキップ（同上）
+- [x] Materials のタブが Notes / Daily の 2 つになっている — 2026-07-29 四巡目 pass（PR #454 merge 後に実測。資料 = ノート / デイリーの 2 タブで Todo は消えている）
+- [x] Schedule のタブが Calendar / Todo の 2 つで、Todo タブに従来の Kanban が出る — 2026-07-29 四巡目 pass（予定 = カレンダー / Todo の 2 タブ。Todo タブに ステータス別 / タグ別 トグル付きの従来 Kanban）
+- [ ] `[[` リンク（task role）の着地先が Schedule の Todo になっている — **2026-07-29 四巡目 FAIL → Issue #475 起票**。解決済みリンクをクリックしてもノード選択 / キャレット配置になるだけで遷移しない。**note ロールでも同じ**なので #411 の回帰ではなく `[[` クリック経路そのものの不具合（`itemLinkNode.ts` は #288 の 1 コミットのみで以降未変更）
+- [x] nav ショートカット・コマンドパレット経由のタスク導線も Schedule に着地する — 2026-07-29 四巡目 pass（コマンドパレットで「Todo」を実行 → 予定 → Todo タブに着地。キーボードショートカット単体は未実施 — パレットと同じ `setSection` + `setScheduleTab` 経路のため代表とした）
 
 ### V5. #412 タスクへのタグ付け外し（tags）
 
@@ -109,6 +109,7 @@ Parent: 2026-07-28-open-issue-fanout.md
 
 ## Worklog（検証実行のたびに追記）
 
+- 2026-07-29（検証セッション 3 回目・四巡目）: 残っていた V4 (#411) を PR #454 merge 後に claude-in-chrome で実測。4 項目中 3 つ pass、1 つ fail（`[[` リンクのクリック遷移 → Issue #475 起票）。fail は #411 の回帰ではなく `[[` クリック経路そのものの不具合で、note ロールでも同様に遷移しない（切り分け = コマンドパレット経由の遷移は正常に着地するため、セクション + タブの配線は健全）。検証データ（ノート「テスト2」本文に挿入した task / note リンク 2 本と、削除後も残った item_links の Outgoing 2 件）はすべて撤去して原状復帰済み。残留リンクが本文削除で消えないのは既知の #372（inline 由来辺の削除同期・DDL 要）で、本検証で新たに見つかった不具合ではない。**これで V1〜V10 と playwright 対象外の項目を全消化**（未消化ゼロ）。
 - 2026-07-28（検証セッション 2 回目・三巡目）: PR #450 (#434) / #452 (#408) merge 後に V3・V6 を claude-in-chrome で実測、全 pass・fail 0 件・起票なし。残るは V4 (#411) のみ（Issue open・PR 未作成）。検証用イベント「V6検証テスト」は削除して原状復帰済み。playwright MCP はこの Windows 機に無いため引き続き claude-in-chrome で代替。
 
 - 2026-07-28（検証セッション 1 回目・二巡目）: 一巡目の後に PR #439/#441〜#447 が merge されたため同セッション内で二巡目を実施。V2 (#410)・V7 (#430)・V10 (#361) を実ブラウザで pass、#429/#421/#419/#431/#363 を grep / test / CI ログで pass。fail 0 件・起票なし。残るは V3 (#408)・V4 (#411)・V6 (#434) のみ（PR 未作成）。二巡目の検証データ（V2 用予定・note 本文の `[[`・Connect ノード移動）も原状復帰済み。role-qa による #439 コンフリクト解消の独立レビュー = PASS（指摘 0 件）。
