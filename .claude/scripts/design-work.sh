@@ -22,7 +22,8 @@ fi
 # どの worktree から実行されてもメインリポジトリを起点にする
 GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir)"
 ROOT="$(dirname "$GIT_COMMON")"
-WT="$ROOT/.claude/worktrees/$SLUG"
+# worktree はリポジトリ外に置く（CLAUDE.md §7.4 — ignore 済みパスは Orca の一覧から消える）
+WT="$(dirname "$ROOT")/workspaces/$(basename "$ROOT")/$SLUG"
 BRANCH="claude/$SLUG"
 
 if [[ -e "$WT" ]]; then

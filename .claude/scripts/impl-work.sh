@@ -30,7 +30,8 @@ if ! grep -qE "^\|[[:space:]]*\`${SLUG}\`[[:space:]]*\|" "$PLAN"; then
 fi
 
 BRANCH="claude/$SLUG"
-WT="$ROOT/.claude/worktrees/$SLUG"
+# worktree はリポジトリ外に置く（CLAUDE.md §7.4 — ignore 済みパスは Orca の一覧から消える）
+WT="$(dirname "$ROOT")/workspaces/$(basename "$ROOT")/$SLUG"
 
 if [ -e "$WT" ]; then
   echo "ERROR: worktree already exists: $WT" >&2
