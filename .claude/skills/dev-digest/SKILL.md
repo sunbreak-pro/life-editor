@@ -14,7 +14,7 @@ chat-main（または検証専用セッション）で起動する読み取り�
    - `.claude/comm/decisions/chat-*.md` の未回答エントリ（ANSWERS.md に無い ID）
    - `.claude/memory/INDEX.md` の「進行中」から、手番が「ユーザー」「chat-main」の行
    - `.claude/comm/outbox/` の前回 digest 以降の新着（前回 digest ファイルの日付と mtime 比較）
-   - playwright 検証計画（`plans/2026-07-28-post-merge-playwright-verification.md`）の未消化 V 項目数
+   - 実ブラウザ検証計画の未消化 V 項目数（`plans/` にある検証計画があればそれ。2026-07-28 分は全消化して `archive/` 済み — 次の fan-out で新しい検証計画が `plans/` に置かれるまでこの行はスキップしてよい）
 2. 判断の選択肢化
    - ユーザー手番の判断を「1 行の問い + A/B + 推奨 1 行 + 放置時の挙動」へ圧縮
    - **今日の要判断は最大 5 件**（認知負荷キャップ）。溢れた分は「明日以降 N 件」とだけ表示

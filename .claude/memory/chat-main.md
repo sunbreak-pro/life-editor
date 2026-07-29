@@ -2,16 +2,17 @@
 
 ## 進行中
 
-### 🔧 レイアウト統一 fan-out + shared-fix ルート新設（着手日: 2026-07-10）
+### 🔧 worktree 総入れ替え + 次期 fan-out（着手日: 2026-07-29）
 
-**対象**: `.claude/docs/vision/plans/2026-07-10-layout-unification-fanout.md`（新規）・GitHub Issues（label `shared-fix`）・`.claude/CLAUDE.md §9`
-**計画書**: `.claude/docs/vision/plans/2026-07-10-layout-unification-fanout.md`
+**対象**: `.claude/worktrees/`・GitHub Issues・`.claude/archive/2026-07-28-post-merge-playwright-verification.md`
 
-- 前回: —
-- 現在: レイアウト実態監査（Explore）→ 計画書作成 + shared-fix ラベル/Issue 起票（smoke findings 2 件 = Analytics Today カード / Schedule セグメント間隔 → 各 refine worktree へ）
-- 次: 計画書 PR 作成（一時 worktree 経由 push）→ ユーザーが各 refine worktree チャットへ boot 行を投入
+- 前回: 2026-07-28 fan-out（Issue 21 件）を各レーンが消化し、全 PR merge 済み
+- 現在: 旧 worktree 5 本とブランチ（ローカル 74 / リモート 89）を全削除 → 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）を作成し Issue #465〜#474 を起票。V4 実ブラウザ検証も消化（fail 1 件 = #475 起票）
+- 次: ユーザーが 4 レーンへ boot プロンプトを投入。**refactor-core（#465 MainScreen hooks 切り出し）を最優先で着地させる**（他レーンが MainScreen を触る前に構造を確定させるため）
 
 ## 直近の完了
+
+- [chat-main] **worktree 総入れ替え + Issue fan-out + V4 実ブラウザ検証** ✅（2026-07-29）— 旧 worktree 5 本を撤去（PR state で全ブランチの merge 済みを実測してから削除。未 PR だった `claude/enhance-mobile-work-section-Cmphw` の demo HTML はユーザー判断で削除・退避済み）+ ローカル 74 / リモート 89 ブランチ削除 → 新レーン 4 本作成。Issue #465（MainScreen hooks = DataService 分割計画の最終ステップ）/ #466〜#469（Epic #290 Step 5-b・5-c・6・7）/ #470〜#473（Epic #321 Phase 2）/ #474（plans/ Status 棚卸し）を起票。あわせて V4 (#411) を claude-in-chrome で実測し 3 pass / 1 fail（`[[` リンクのクリック遷移 → **#475**）。検証計画は全項目消化で COMPLETED → archive
 
 - [chat-main] **残 Issue 消化体制の再編 + outbox 起票依頼の一括消化** ✅（2026-07-25〜26）— worktree 4 本体制へ再編（shell-refine #320→#304 子2 / briefing-section #318 / schedule-refine #352〜#355 / analytics-refine #334・#356。全て 09bae027 起点・.session-* 設定済み・新規 2 本は npm ci 済み）+ 残骸 worktree 5 本撤去 + Issue 22 件起票（#352〜#356・#360〜#376。#374 は事後記録で即 close）+ Epic #290 チェックリスト追随 + `section:tags` ラベル新設。code-reduction 計画書（2026-07-25-code-reduction.md）は dev クローン（C:\Users\user\dev\life-editor）の code-reduction worktree に git 未追跡で残存していたのを発見・回収 → 実行記録 + 実測訂正を Worklog 転記のうえ Status: COMPLETED で archive/ へ収録（PR #377 同梱）。**この PC は orca / dev の 2 クローン構成**（探索時は両方を見ること）。起票依頼→Issue の全マッピングは outbox 2026-07-26 エントリ参照
 - [chat-main] **Notes/Daily エディタ即クラッシュ修正（tiptap Suggestion PluginKey 衝突）** ✅（2026-07-19・Issue #293・**PR #294**・commit `11acaac0`）— "/" スラッシュメニューと "[[" 補完（#285）の両 Suggestion が `@tiptap/suggestion` の共有デフォルト PluginKey に二重登録 → マウント時 `RangeError` で Notes/Daily が真っ白。各々に固有 PluginKey 付与（2 files +14）。web build / eslint / role-qa 緑。merge 後の実ブラウザ確認は「予定」参照

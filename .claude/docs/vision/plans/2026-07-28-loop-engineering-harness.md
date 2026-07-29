@@ -27,7 +27,7 @@ Owner-chat: main
 | `automation/`（夜 22 時 Engineer + 朝 6 時 PM ルーチン設計）      | **未稼働**（routine-ids.md が PENDING のまま。Mac 時代の Cloud Routine 前提で停止） | Phase 1-2 で現行機能（scheduled tasks）向けに改訂して復活 |
 | `scripts/loop-engine/`（PR #106・check.sh + loop.sh）             | 実ループ本走が保留                                                                  | Phase 2 の検証ゲートとして再利用候補                      |
 | `comm/`（outbox 単一書込者プロトコル）                            | 稼働中                                                                              | Phase 0 の decisions/ は同じ設計原則で増設                |
-| `2026-07-28-post-merge-playwright-verification.md`                | Draft                                                                               | Phase 3 の実行主体にそのまま昇格                          |
+| `2026-07-28-post-merge-playwright-verification.md`                | COMPLETED（2026-07-29 全項目消化 → `archive/`）                                     | Phase 3 の実行主体の雛形。次の fan-out で同型を作り直す   |
 | briefing（朝刊/夕刊）+ headless claude プロトタイプ（2026-07-16） | 稼働中 / 検証済み                                                                   | digest の届け先（朝刊「開発」セクション）                 |
 
 ### 制約
@@ -217,7 +217,7 @@ chat-main（または検証専用セッション）で起動する読み取り�
    - `.claude/comm/decisions/chat-*.md` の未回答エントリ（ANSWERS.md に無い ID）
    - `.claude/memory/INDEX.md` の「進行中」から、手番が「ユーザー」「chat-main」の行
    - `.claude/comm/outbox/` の前回 digest 以降の新着（前回 digest ファイルの日付と mtime 比較）
-   - playwright 検証計画（`plans/2026-07-28-post-merge-playwright-verification.md`）の未消化 V 項目数
+   - playwright 検証計画（`archive/2026-07-28-post-merge-playwright-verification.md`）の未消化 V 項目数
 2. 判断の選択肢化
    - ユーザー手番の判断を「1 行の問い + A/B + 推奨 1 行 + 放置時の挙動」へ圧縮
    - **今日の要判断は最大 5 件**（認知負荷キャップ）。溢れた分は「明日以降 N 件」とだけ表示
@@ -261,7 +261,7 @@ chat-main（または検証専用セッション）で起動する読み取り�
 ## 7. Phase 2 / 3 の方向（設計のみ・着手条件つき）
 
 - **Phase 2**: `automation/routine-night.md` を現行環境向けに改訂（Cloud Routine 前提の除去・worktree/branch 規約の §7.4 追随・iteration cap の bash 計測維持）し、夜 1 plan の実装 → draft PR。**前提 = goals.md の全面改訂**（2026-05 の Goal 1〜3 は陳腐化。現行 Epic #290 / #321 ベースへ）
-- **Phase 3**: `2026-07-28-post-merge-playwright-verification.md` の検証セッションを定期実行化。fail は issue-dispatch で起票（既存設計どおり）
+- **Phase 3**: 実ブラウザ検証セッションを定期実行化（雛形 = `archive/2026-07-28-post-merge-playwright-verification.md`）。fail は issue-dispatch で起票（既存設計どおり）
 
 ---
 
@@ -297,6 +297,6 @@ chat-main（または検証専用セッション）で起動する読み取り�
 ## References
 
 - 現状実測: `.claude/memory/INDEX.md` / `.claude/automation/`（README・goals・routine-night・routine-ids）/ `.claude/comm/README.md`
-- 兄弟計画: `2026-07-28-open-issue-fanout.md` / `2026-07-28-post-merge-playwright-verification.md` / `2026-07-16-briefing-headless-claude-prototype.md`
+- 兄弟計画: `2026-07-28-open-issue-fanout.md` / `archive/2026-07-28-post-merge-playwright-verification.md`（COMPLETED） / `2026-07-16-briefing-headless-claude-prototype.md`
 - 公式: code.claude.com/docs — goal.md / scheduled-tasks.md / auto-mode-config.md / hooks-guide.md / best-practices.md / headless.md
 - 実践事例: ghuntley.com/loop（Ralph ループ原典）/ anthropics/claude-code plugins/ralph-wiggum（公式プラグイン README）/ gh issue #18646（cap 無視 494 回暴走）/ roborhythms.com（承認キュー実装報告）/ Medium: overnight 運用の失敗と対策（context 枯渇・フェーズ分割）
