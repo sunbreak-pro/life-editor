@@ -1,5 +1,17 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-07-29 - DataService 分割 Step 3（event・schedule 系切り出し・PR #459）
+
+#### 概要
+
+PR #458 merge 後、schedule ドメイン（`SupabaseScheduleItemsService` 19 メソッド + `PHASE2_SCHEDULE_ITEM_METHODS`）を `SupabaseScheduleItemsService.ts` へ verbatim 移動した（挙動変更ゼロ・web/src 無改変）。
+
+#### 変更点
+
+- **shared/services**: `SupabaseScheduleItemsService.ts` 新設（831 行）。facade は import + `export { SupabaseScheduleItemsService }` 再 export に置き換え（テスト無改変）。schedule 専用だった facade の import（scheduleItemMapper ブロック / ScheduleItem 型 / getAuthedUserId / DEFAULT_ROUTINE_\* / fetchByIdChunks / forEachIdChunk）を除去し、facade は 475 行に縮小
+- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 2 ファイル lint 0 problems・session-verifier PASS
+- **PR**: #459 open（`claude/refactor-03-schedule-items-service`・merge はユーザーゲート）
+
 ### 2026-07-29 - DataService 分割 Step 2（routine 系切り出し・PR #458）
 
 #### 概要
