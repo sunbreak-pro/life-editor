@@ -22,13 +22,13 @@ Owner-chat: main
 
 ### 既存資産（作り直さない — 接いで使う）
 
-| 資産 | 状態 | 本計画での扱い |
-| --- | --- | --- |
-| `automation/`（夜 22 時 Engineer + 朝 6 時 PM ルーチン設計） | **未稼働**（routine-ids.md が PENDING のまま。Mac 時代の Cloud Routine 前提で停止） | Phase 1-2 で現行機能（scheduled tasks）向けに改訂して復活 |
-| `scripts/loop-engine/`（PR #106・check.sh + loop.sh） | 実ループ本走が保留 | Phase 2 の検証ゲートとして再利用候補 |
-| `comm/`（outbox 単一書込者プロトコル） | 稼働中 | Phase 0 の decisions/ は同じ設計原則で増設 |
-| `2026-07-28-post-merge-playwright-verification.md` | Draft | Phase 3 の実行主体にそのまま昇格 |
-| briefing（朝刊/夕刊）+ headless claude プロトタイプ（2026-07-16） | 稼働中 / 検証済み | digest の届け先（朝刊「開発」セクション） |
+| 資産                                                              | 状態                                                                                | 本計画での扱い                                            |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `automation/`（夜 22 時 Engineer + 朝 6 時 PM ルーチン設計）      | **未稼働**（routine-ids.md が PENDING のまま。Mac 時代の Cloud Routine 前提で停止） | Phase 1-2 で現行機能（scheduled tasks）向けに改訂して復活 |
+| `scripts/loop-engine/`（PR #106・check.sh + loop.sh）             | 実ループ本走が保留                                                                  | Phase 2 の検証ゲートとして再利用候補                      |
+| `comm/`（outbox 単一書込者プロトコル）                            | 稼働中                                                                              | Phase 0 の decisions/ は同じ設計原則で増設                |
+| `2026-07-28-post-merge-playwright-verification.md`                | Draft                                                                               | Phase 3 の実行主体にそのまま昇格                          |
+| briefing（朝刊/夕刊）+ headless claude プロトタイプ（2026-07-16） | 稼働中 / 検証済み                                                                   | digest の届け先（朝刊「開発」セクション）                 |
 
 ### 制約
 
@@ -138,11 +138,11 @@ Phase 3  検証の自動化
 
 ## ファイルと書込権限（単一書込者原則 — comm/README.md と同じ）
 
-| ファイル | 書く人 | 読む人 |
-| --- | --- | --- |
-| `chat-<name>.md` | そのチャットのみ | 全員 |
-| `ANSWERS.md` | こうだいさん（または転記を任された chat-main / digest セッション）のみ | 全員 |
-| `POLICY.md` | こうだいさん承認の PR のみ | 全員 |
+| ファイル         | 書く人                                                                 | 読む人 |
+| ---------------- | ---------------------------------------------------------------------- | ------ |
+| `chat-<name>.md` | そのチャットのみ                                                       | 全員   |
+| `ANSWERS.md`     | こうだいさん（または転記を任された chat-main / digest セッション）のみ | 全員   |
+| `POLICY.md`      | こうだいさん承認の PR のみ                                             | 全員   |
 
 ## エントリ形式（依頼側）
 
@@ -270,21 +270,21 @@ chat-main（または検証専用セッション）で起動する読み取り�
 - [x] 1. [chat-main] 本計画書のレビュー（こうだいさん）→ Status: IN PROGRESS 化（2026-07-28 進行指示）
 - [x] 2. [chat-main] §5.1〜5.5 を配置する docs PR を作成（一時 worktree 経由・Phase 0 完成）— 本 PR
 - [ ] 3. [全チャット] 次回セッション開始時から decision-queue ルール適用（rules/ 配置で自動）
-- [ ] 4. [chat-main] dev-digest を手動起動して初回 digest を生成・形式をこうだいさんが確認
+- [ ] 4. [chat-main] dev-digest を手動起動して初回 digest を生成・形式をこうだいさんが確認（2026-07-28: 初回生成 + 同日 21:30 更新済み = `.claude/comm/digest/2026-07-28.md`。形式確認 = こうだいさん待ち）
 - [ ] 5. [chat-main] life-editor MCP（Supabase）疎通確認（既存の予定タスク）→ 朝刊ミラー有効化
 - [ ] 6. [判断] Phase 0 が 2 週間回ったら Phase 1 着手を decision キューで確認
 
 ## 9. Files
 
-| File | Operation | Notes |
-| --- | --- | --- |
-| `.claude/comm/decisions/README.md` | Add | §5.1 全文 |
-| `.claude/comm/decisions/POLICY.md` | Add | §5.2 全文 |
-| `.claude/comm/decisions/ANSWERS.md` | Add | 見出しのみの空ファイル |
-| `.claude/rules/decision-queue.md` | Add | §5.3 全文 |
-| `.claude/skills/dev-digest/SKILL.md` | Add | §5.4 全文 |
-| `.gitignore` | Edit | §5.5 の 1 行 |
-| `.claude/CLAUDE.md` | Edit（任意） | §7 に decisions/ への 1 行ポインタ（conflict 回避のため最小限） |
+| File                                 | Operation    | Notes                                                           |
+| ------------------------------------ | ------------ | --------------------------------------------------------------- |
+| `.claude/comm/decisions/README.md`   | Add          | §5.1 全文                                                       |
+| `.claude/comm/decisions/POLICY.md`   | Add          | §5.2 全文                                                       |
+| `.claude/comm/decisions/ANSWERS.md`  | Add          | 見出しのみの空ファイル                                          |
+| `.claude/rules/decision-queue.md`    | Add          | §5.3 全文                                                       |
+| `.claude/skills/dev-digest/SKILL.md` | Add          | §5.4 全文                                                       |
+| `.gitignore`                         | Edit         | §5.5 の 1 行                                                    |
+| `.claude/CLAUDE.md`                  | Edit（任意） | §7 に decisions/ への 1 行ポインタ（conflict 回避のため最小限） |
 
 ## 10. Verification
 

@@ -84,3 +84,6 @@ supabase/.env
 # MCP Server
 mcp-server/dist/
 mcp-server/node_modules/
+
+# graphify (generated code-graph output, machine-local)
+graphify-out/
