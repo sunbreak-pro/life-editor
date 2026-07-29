@@ -4,7 +4,9 @@
 .vscode/
 .DS_Store
 
-# Claude Code worktrees
+# Claude Code worktrees（legacy: 2026-07-29 以前の旧配置。現在の置き場所はリポジトリ外
+# = <repos-parent>/workspaces/<repo>/<slug> — CLAUDE.md §7.4。旧位置に誤って作った場合の
+# 残骸を追跡させないため保持している）
 .claude/worktrees/
 
 # Claude HTML report views (derived, not tracked — md plans remain SSOT)

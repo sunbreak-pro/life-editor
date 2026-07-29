@@ -42,7 +42,7 @@ echo "branch        : $BRANCH (base: origin/main)"
 echo "session-name  : $SLUG"
 echo
 echo "次を実行してください:"
-echo "  cd $WT && claude"
+echo "  cd \"$WT\" && claude"
 echo
 echo "起動後、最初のメッセージにこの 1 行を貼り付け:"
 echo "  計画書 $PLAN の作業オーダー $SLUG をゴールまで実行してください。"
