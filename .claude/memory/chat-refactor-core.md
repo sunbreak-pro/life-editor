@@ -7,9 +7,9 @@
 **対象**: `shared/src/services/`・`web/src/`（CalendarTab.tsx 除外）
 **計画書**: `.claude/docs/vision/plans/2026-07-28-refactor-dataservice-split.md`
 
-- 前回: Step 5 完了（Phase A 最終回） — link・connection stub を `SupabaseNoteLinksService.ts` へ切り出し + pgrstQuoteValueLocal を helpers 統合。facade は最終形 202 行・ドメインロジックゼロ（PR #461・3 ゲート緑 + lint 0 problems・session-verifier PASS）
-- 現在: PR #461 の merge 待ち（ユーザーゲート）。merge で Phase A 完了
-- 次: Phase B（web hooks 切り出し）に着手するかはユーザー判断待ち — 対象順 BriefingScreen → NotesView → MainScreen（CalendarTab は対象外）。merge 後の実ブラウザ確認は chat-main 側
+- 前回: Phase B Step 1 完了 — BriefingScreen（850 行）を `useBriefingData` + `useDailySections` + 画面（約 290 行）に分割（PR #462・3 ゲート緑 + lint 0 problems・session-verifier PASS）。Phase A 最終 PR #461 も merge 待ち中に提出済み
+- 現在: PR #461（Phase A 最終）と PR #462（Phase B Step 1）の merge 待ち（ユーザーゲート。両者はファイル非重複で独立 merge 可）
+- 次: merge 後に origin/main から `claude/refactor-07-notesview-hooks` を切り、NotesView（約 1313 行）の hooks 切り出し（Phase B Step 2）
 
 ## 直近の完了
 
@@ -19,4 +19,4 @@
 
 ## 予定
 
-- web 画面 hooks 切り出し（Phase B）: BriefingScreen → NotesView → MainScreen（CalendarTab は対象外 — schedule-refine レーン #290 と衝突回避）
+- web 画面 hooks 切り出し（Phase B 残り）: NotesView → MainScreen（CalendarTab は対象外 — schedule-refine レーン #290 と衝突回避）
