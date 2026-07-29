@@ -51,17 +51,19 @@ agents-lib / skill-lib は git 外管理（`~/dev/Claude/` 配下、PR #22 で�
 
 **"1 chat = 1 worktree、ブランチは課題ごとに切替"**（2026-07-25 #327 で改称。旧称 "1 chat = 1 worktree = 1 branch"）
 
-| 場所                                         | 担当                 | 触ってよいブランチ                                         |
-| -------------------------------------------- | -------------------- | ---------------------------------------------------------- |
-| リポジトリ直下（メイン）                     | chat-main 専有       | **`main` のみ**                                            |
-| `.claude/worktrees/<slug>/`（worktree 配下） | feature 作業チャット | 任意 feature branch（同時 checkout は 1 本・課題ごと切替） |
+| 場所                                                             | 担当                 | 触ってよいブランチ                                         |
+| ---------------------------------------------------------------- | -------------------- | ---------------------------------------------------------- |
+| リポジトリ直下（メイン）                                         | chat-main 専有       | **`main` のみ**                                            |
+| `<repos-parent>/workspaces/life-editor/<slug>/`（worktree 配下） | feature 作業チャット | 任意 feature branch（同時 checkout は 1 本・課題ごと切替） |
 
 メインで `git checkout <feature>` するのを**運用上禁止**する。feature 作業は必ず worktree から行う。
 
+**worktree の置き場所は 2026-07-29 にリポジトリ外へ変更した**（旧 `.claude/worktrees/<slug>/` を SUPERSEDE）。理由と実測は CLAUDE.md §7.4 が正本 — 要約すると Orca ADE 1.4.160 以降が `.gitignore` 済みパスの worktree を一覧から除外するようになったため。`.gitignore` の `.claude/worktrees/` 行は旧式作成の保険として残す。
+
 ### Claude Code 公式機能との対応
 
-- `claude --worktree <name>` 起動 → 公式が `.claude/worktrees/<name>/` を作成、`worktree-<name>` ブランチを自動生成
-- 既存 feature branch を触りたい場合: `git worktree add .claude/worktrees/<slug>/ <existing-branch>` 後、その path で `claude` を起動
+- `claude --worktree <name>` 起動 → 公式が `.claude/worktrees/<name>/` を作成、`worktree-<name>` ブランチを自動生成。**この置き場所は Orca から見えなくなるため本プロジェクトでは使わない**（上の注記参照）
+- 既存 feature branch を触りたい場合: `git worktree add <repos-parent>/workspaces/life-editor/<slug>/ <existing-branch>` 後、その path で `claude` を起動
 - セッション終了時の保持/削除プロンプトは公式 UI に従う
 
 ### `.session-branch` の導入

@@ -102,10 +102,11 @@ cd web && npm run dev           # ローカル起動（vite）
 
 ### 7.4 Multi-chat Worktree Policy（**"1 chat = 1 worktree、ブランチは課題ごとに切替"**）
 
-- メイン（リポジトリ直下。マシンごとにパスは異なる）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は `.claude/worktrees/<slug>/` から
+- メイン（リポジトリ直下。マシンごとにパスは異なる）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は worktree から
+- **worktree はリポジトリの外に置く**（2026-07-29 変更・旧 `.claude/worktrees/<slug>/` を SUPERSEDE）: 置き場所は**リポジトリと同階層の `<repos-parent>/workspaces/life-editor/<slug>/`**（この Windows 機では `C:\Users\user\orca\workspaces\life-editor\<slug>` = Orca の `workspaceDir` 設定と同じ場所）。理由 = Orca ADE 1.4.160 以降、**`.gitignore` で無視されたパスにある worktree を一覧から除外する**ようになり、リポジトリ内の `.claude/worktrees/` が Orca から一切見えなくなった。2026-07-29 に 3 パターンの実測で確定（リポジトリ外 = 表示 / リポジトリ内かつ非 ignore = 表示 / リポジトリ内かつ ignore = 非表示。Orca は worktree 列挙の直後に `git check-ignore` を実行している）。`.gitignore` の `.claude/worktrees/` 行は旧式作成の保険として残す。Orca 一覧への反映は最大 20 秒ほど遅れる
 - **1 worktree = 1 チャット。ブランチは課題ごとに切り替える**（2026-07-25 ユーザー確定 #327 — 旧「1 chat = 1 worktree = 1 branch」を SUPERSEDE）: 1 つの worktree が複数 Issue を順に担当するため、Issue ごとに `claude/<slug>-<issue>` 等でブランチを切り直す（実例 = shell-refine worktree 1 本から 9 ブランチ → PR #234/#236/#241/#243/#313/#314/#315/#316/#326）。**worktree に 1 ブランチを固定し続けない** — PR merge 後も同じブランチを使い回すと履歴が絡む
 - **`.claude/comm/.session-branch` は「今作業中のブランチ名」を都度更新する**: ブランチを切り替えるたびに書き換える。宣言と実態がズレると監査が規約違反と誤判定する（2026-07-25 実例 = shell-refine が `-307` で作業中に `.session-branch` が `claude/shell-refine` のままで、chat-main が「宣言と実態の不一致」と誤報告した）
-- **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
+- **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add <repos-parent>/workspaces/life-editor/<slug> -b <branch> origin/main` → `cd` → `echo <branch> > .claude/comm/.session-branch`（`.session-name` も書く）→ `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
 - **ブランチ切替は 2 ステップ 1 セット**: `git checkout -b <new-branch> origin/main` → `echo <new-branch> > .claude/comm/.session-branch`（後者の省略禁止 — 上と同じ理由）
 - **Orca ADE 利用時の例外処理**: Orca の GUI worktree 作成は `.session-branch` / `.session-name` を書かないため hook が無音スキップする。Orca で作った worktree は Claude 起動前に `echo <branch> > .claude/comm/.session-branch`（必要なら `.session-name` も）を手動で書くか、Orca 内蔵ターミナルで上記 4 ステップを踏むこと。メインリポジトリは Orca から開いてもブランチ切替しない（`main` 専有を維持）
 - **playwright MCP（実ブラウザ検証）と進捗確認用 dev server は chat-main（メインリポジトリ）のみで起動する**（2026-07-11 ユーザー決定）: 複数 worktree で localhost を重複起動するとポートずれで「どの画面がどの変更か」の確認が壊れるため。各 worktree チャットは build / 型検証（+ vitest）まで — 実ブラウザでの表示確認は PR merge 後に chat-main 側で実測する
@@ -113,7 +114,7 @@ cd web && npm run dev           # ローカル起動（vite）
 - **worktree は作業開始前に main との差分を取り込む**（2026-07-11 ユーザー決定）: セッション開始時・着手前に **(1)** `git pull --ff-only`（自ブランチの origin 追従・履歴が割れていたら停止）→ **(2)** `git fetch origin && git merge origin/main --no-edit`（main の差分取り込み）の 2 段階。feature ブランチでは (2) を `pull --ff-only` で代替できない（fast-forward 不成立で必ず失敗する）。コンフリクトは細心の注意で手動解消 — 判断に迷う衝突は自動解消せず停止して chat-main / ユーザーに報告。chat-main（main ブランチ）だけは `git pull --ff-only` のみで良い
 - **マージ済み判定に git の差分を使わない**（2026-07-25 実測）: squash merge されたブランチは `git diff origin/main <branch>` / `git log origin/main..<branch>` / `git cherry` のいずれでも「未マージ」に見える（内容は main にあるのにコミット・patch-id が一致しないため）。実例 = 完全マージ済みの `claude/schedule-refine` を `git cherry` が 38 patch 未マージと誤判定。**判定の正 = `gh pr list --json number,state,headRefName` の state**。差分で確認したい場合は `git merge-tree --write-tree origin/main <branch>` の結果ツリーを main と比較する（衝突マーカーが差分に混ざるので中身の確認まで必須 — 「追加のみ・削除ゼロ」はマーカー分の疑い）
 - 既知制約（npm install / .tsbuildinfo 非共有・二重 checkout 不可）・prune 手順 → [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
-- **Windows での worktree 削除**: `git worktree remove` はディレクトリ削除で `Permission denied` になることがある（node_modules がプロセスに掴まれている）。この場合 git 側の登録だけ外れてディレクトリが残るため、`.claude/worktrees/` に実体だけの残骸が溜まる。残骸は手動削除する（`git worktree list` に出ないものが対象）
+- **Windows での worktree 削除**: `git worktree remove` はディレクトリ削除で `Permission denied` になることがある（node_modules がプロセスに掴まれている）。この場合 git 側の登録だけ外れてディレクトリが残るため、worktree 置き場に実体だけの残骸が溜まる。残骸は手動削除する（`git worktree list` に出ないものが対象）。掴んでいるのが Orca のターミナルのときは `orca terminal list --json` で該当 handle を探し `orca terminal close --terminal <handle>` で解放してから削除する（2026-07-29 実測）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 

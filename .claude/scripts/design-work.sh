@@ -22,7 +22,8 @@ fi
 # どの worktree から実行されてもメインリポジトリを起点にする
 GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir)"
 ROOT="$(dirname "$GIT_COMMON")"
-WT="$ROOT/.claude/worktrees/$SLUG"
+# worktree はリポジトリ外に置く（CLAUDE.md §7.4 — ignore 済みパスは Orca の一覧から消える）
+WT="$(dirname "$ROOT")/workspaces/$(basename "$ROOT")/$SLUG"
 BRANCH="claude/$SLUG"
 
 if [[ -e "$WT" ]]; then
@@ -41,7 +42,7 @@ echo "branch        : $BRANCH (base: origin/main)"
 echo "session-name  : $SLUG"
 echo
 echo "次を実行してください:"
-echo "  cd $WT && claude"
+echo "  cd \"$WT\" && claude"
 echo
 echo "起動後、最初のメッセージにこの 1 行を貼り付け:"
 echo "  計画書 $PLAN の作業オーダー $SLUG をゴールまで実行してください。"

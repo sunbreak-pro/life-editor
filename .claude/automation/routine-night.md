@@ -53,10 +53,10 @@ Current Goal に紐づく未完 plan を 1 件選びます。
 ```
 chat-name = chat-auto-<YYYYMMDD>-<HHMM>   # 同日複数実行時の衝突回避
 branch    = auto/<slug-from-plan>          # 成功時。WIP は auto-wip/<slug>
-worktree  = .claude/worktrees/auto-<YYYYMMDD>-<HHMM>-<slug>/
+worktree  = <repos-parent>/workspaces/life-editor/auto-<YYYYMMDD>-<HHMM>-<slug>/   # リポジトリ外（CLAUDE.md §7.4）
 ```
 
-- `git worktree add .claude/worktrees/auto-<YYYYMMDD>-<HHMM>-<slug>/ -b auto/<slug>`
+- `git worktree add <repos-parent>/workspaces/life-editor/auto-<YYYYMMDD>-<HHMM>-<slug>/ -b auto/<slug>`
 - `<worktree>/.claude/comm/.session-name` ← `chat-auto-<YYYYMMDD>-<HHMM>`
 - `<worktree>/.claude/comm/.session-branch` ← `auto/<slug>`
 - 以降の作業は全て worktree 内の絶対パスで操作
