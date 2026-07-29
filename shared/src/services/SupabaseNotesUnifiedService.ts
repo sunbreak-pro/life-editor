@@ -15,6 +15,7 @@ import {
 import type { NoteNode } from "../types/note";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
+import { pgrstQuoteValue } from "./supabaseServiceHelpers";
 
 /*
  * SupabaseNotesUnifiedService (DU-D Step 2).
@@ -428,7 +429,7 @@ export class SupabaseNotesUnifiedService {
    * notes (parity with legacy hook which client-filtered).
    *
    * SECURITY: every interpolated value flows through `pgrstQuoteValue`
-   * (see SupabaseDataService.ts header) so reserved chars cannot break
+   * (see supabaseServiceHelpers.ts) so reserved chars cannot break
    * out of the PostgREST filter grammar. The `%` wildcards stay outside
    * the quotes so they still act as ILIKE wildcards while the user query
    * is treated literally.
@@ -448,8 +449,9 @@ export class SupabaseNotesUnifiedService {
     // `safe` is forward-compat — Supabase `.ilike()` already parameter-binds
     // `trimmed`, so the quoted variant is only needed if a future revision
     // switches to `.or("title.ilike.<v>,content.ilike.<v>")` (DU-G Step 5
-    // multi-column widening, see L665 JSDoc + QA-3 review note).
-    const safe = pgrstQuoteValueLocal(trimmed);
+    // multi-column widening, see the pgrstQuoteValue JSDoc in
+    // supabaseServiceHelpers.ts + QA-3 review note).
+    const safe = pgrstQuoteValue(trimmed);
     const titleHits = await fetchAllPages<ItemsMetaNoteRow>(
       (from, to) =>
         this.client
@@ -786,26 +788,6 @@ export class SupabaseNotesUnifiedService {
     const row = data as { version: number | null };
     return (row?.version ?? 0) + 1;
   }
-}
-
-/**
- * Local copy of pgrstQuoteValue (see SupabaseDataService.ts header for the
- * security rationale). Duplicated to avoid a circular import — this file
- * is the dispatch target, SupabaseDataService.ts imports it. Identical
- * contract: double-quote wrap + backslash-escape embedded `"` and `\`.
- *
- * Used in searchNotesUnified for parity with the legacy escape posture;
- * the current implementation uses `.ilike()` (parameter-binding underneath
- * Supabase's client) for both title and content so the safe-string is
- * defence-in-depth, not the primary guard. Kept reachable so future
- * `.or()`-based widening (e.g. multi-column search) inherits the escape.
- * Concretely: DU-G Step 5 (multi-column / boolean composition) will switch
- * to `.or("title.ilike.<safe>,content_json.ilike.<safe>")` where the quoted
- * form is mandatory because `.or()` parses the value as PostgREST grammar
- * — that is the activation point for this helper.
- */
-function pgrstQuoteValueLocal(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
