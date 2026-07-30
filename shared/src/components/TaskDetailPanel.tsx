@@ -6,7 +6,9 @@ import { FOCUS_RING } from "./styleTokens";
 /*
  * Task detail panel (W7). The selected task's detail, which the Kanban host
  * pushes into the shared rightSidebar via <RightSidebarPortal> (the W6
- * MasterDetail two-pane part was retired in code-reduction #346).
+ * MasterDetail two-pane part was retired in code-reduction #346) on Desktop,
+ * and into the MobileTaskList bottom sheet on Mobile (#470) — one panel, two
+ * surfaces, so a field added here reaches both.
  * Pure presentation, DataService-free (§3.1): every
  * mutation is a callback the host injects (onTitleCommit / onToggleStatus),
  * the rich-text editor is injected as `contentEditor` (TipTap is a web
@@ -103,6 +105,13 @@ export interface TaskDetailPanelProps {
   onTitleCommit: (id: string, title: string) => void;
   /** Cycle the task status (host injects the toggle). */
   onToggleStatus?: (id: string) => void;
+  /**
+   * Replaces the built-in cycle button with a host-supplied status control —
+   * the touch <TaskStatusChoices> row on Mobile (#470). The caption still comes
+   * from `statusLabel`, and the row stacks (caption above) so three choices get
+   * the full width. Omitting it keeps the Desktop cycle button unchanged.
+   */
+  statusControl?: ReactNode;
   /** Injected rich-text editor (host wires key={taskId} for remount). */
   contentEditor?: ReactNode;
   /** Already-translated aria-label for the title input (§6.4). */
@@ -129,6 +138,7 @@ export function TaskDetailPanel({
   status,
   onTitleCommit,
   onToggleStatus,
+  statusControl,
   contentEditor,
   titleLabel,
   statusLabel,
@@ -154,24 +164,31 @@ export function TaskDetailPanel({
         onCommit={onTitleCommit}
       />
 
-      <div className="flex items-center gap-2">
+      <div
+        className={cn(
+          "flex gap-2",
+          statusControl ? "flex-col items-stretch gap-1.5" : "items-center",
+        )}
+      >
         <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
           {statusLabel}
         </span>
-        <button
-          type="button"
-          onClick={() => onToggleStatus?.(taskId)}
-          aria-label={statusLabel}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          <span aria-hidden className="text-lumen-text-secondary">
-            {STATUS_GLYPH[resolvedStatus]}
-          </span>
-          <span>{statusText}</span>
-        </button>
+        {statusControl ?? (
+          <button
+            type="button"
+            onClick={() => onToggleStatus?.(taskId)}
+            aria-label={statusLabel}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover",
+              FOCUS_RING,
+            )}
+          >
+            <span aria-hidden className="text-lumen-text-secondary">
+              {STATUS_GLYPH[resolvedStatus]}
+            </span>
+            <span>{statusText}</span>
+          </button>
+        )}
       </div>
 
       {tagsSlot != null && (

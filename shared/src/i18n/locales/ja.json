@@ -236,7 +236,8 @@
   "materials": {
     "tasks": {
       "filterLabel": "ステータスで絞り込む",
-      "statusSheetTitle": "ステータスを変更",
+      "statusGroupLabel": "ステータスを変更",
+      "detailTitle": "Todo の詳細",
       "quickAddTitle": "Todo を追加",
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",

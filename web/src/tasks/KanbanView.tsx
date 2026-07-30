@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -15,6 +21,7 @@ import {
   SkeletonList,
   RightSidebarPortal,
   TaskDetailPanel,
+  TaskStatusChoices,
   TaskAddDialog,
   useMediaQuery,
   useRightSidebarContext,
@@ -29,9 +36,11 @@ import {
   type KanbanLabels,
   type KanbanViewMode,
   type TaskAddType,
+  type TaskNode,
   type TaskStatus,
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
+import { useTaskDetailTarget } from "./useTaskDetailTarget";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
 import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
@@ -60,7 +69,10 @@ import { TagPicker } from "../wikitag/TagPicker";
  * K3: clicking a card opens the selected task in the right sidebar via
  * <RightSidebarPortal>, hosting the shared <TaskDetailPanel> + the web TipTap
  * editor + (#412) the <TagPicker>, so tags are attached and detached from the
- * detail the user is already reading. The board itself stays read-only about
+ * detail the user is already reading. On narrow the same panel opens in the
+ * MobileTaskList bottom sheet (#470 — mobile-scope.md #6 Phase 2), with the
+ * three-choice touch status row swapped in for the cycle button. DnD and the
+ * column operations stay Desktop-only. The board itself stays read-only about
  * tags: in tag view a column IS an assignment, so editing tags on a card would
  * move that card out from under the pointer mid-interaction (same reason the
  * tag view is not draggable).
@@ -117,6 +129,22 @@ export function KanbanView({
   );
   const [moveError, setMoveError] = useState<string | null>(null);
 
+  /*
+   * Which task's detail is open, and how it got there (#470) — a narrow card
+   * tap, a "[[" link landing from another tab, a wide↔narrow crossing, or a
+   * task deleted underneath the sheet. Extracted so those transitions can be
+   * tested without mounting the board and its providers (see the hook).
+   */
+  const detail = useTaskDetailTarget({
+    isWide,
+    nodeMap: tree.nodeMap,
+    isLoading: tree.isLoading,
+    pendingSelectTaskId,
+    onSelect: tree.setSelectedTaskId,
+    onOpenWide: rightSidebar.open,
+    onConsumePendingSelect,
+  });
+
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
   // task's detail, opened on card-click. Crossing wide→narrow, the detail moves
   // into the narrow layout but rightSidebar.isOpen persists — leaving the mobile
@@ -129,7 +157,7 @@ export function KanbanView({
   }, [isWide]);
 
   // Desktop board card click → select + push the detail into the rightSidebar
-  // panel (auto-open). Narrow uses its own BottomSheet inside MobileTaskList, so
+  // panel (auto-open). Narrow uses the BottomSheet inside MobileTaskList, so
   // this handler is the wide-board path only.
   const handleSelectCard = useCallback(
     (id: string) => {
@@ -138,36 +166,6 @@ export function KanbanView({
     },
     [tree, rightSidebar],
   );
-
-  // A "[[" link click in the Notes / Daily editor lands here with a task id
-  // (#370): select it and, on the wide board, open the detail panel — exactly
-  // what a card click does. Narrow has no detail surface for a plain selection
-  // (MobileTaskList drives its own sheet), so there it only selects — the same
-  // as a note / daily link click on narrow today.
-  //
-  // The target may be gone: item_links are never auto-deleted, so a link to a
-  // task that was since trashed outlives it. The board drops deleted nodes from
-  // its columns, and a hard-deleted id isn't in nodeMap at all — opening the
-  // panel anyway would show an editor for a card the user cannot see, or an
-  // empty panel. Consume the intent either way so it can't re-fire.
-  //
-  // isLoading gates the whole thing: arriving from another tab mounts this view
-  // (and its TaskTreeProvider) fresh, so nodeMap is still empty on the first
-  // render — checking then would reject every live task. The effect reruns when
-  // the load lands.
-  useEffect(() => {
-    if (!pendingSelectTaskId || tree.isLoading) return;
-    const target = tree.nodeMap.get(pendingSelectTaskId);
-    if (target && !target.isDeleted) {
-      tree.setSelectedTaskId(pendingSelectTaskId);
-      if (isWide) rightSidebar.open();
-    }
-    onConsumePendingSelect?.();
-    // tree.nodeMap is read at fire time only; setSelectedTaskId /
-    // rightSidebar.open are stable for the view's lifetime. Rerun when a new
-    // pending id arrives or the tree finishes loading.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingSelectTaskId, tree.isLoading]);
 
   // Add-task dialog (W-UX). The board had no create entry point; this small
   // centered overlay creates a task, then opens it straight into the detail
@@ -401,11 +399,16 @@ export function KanbanView({
   );
 
   // K3 (target-IA) — the selected task's detail now lives in the shared
-  // rightSidebar panel (Desktop) instead of a centered modal. narrow uses the
-  // MobileTaskList's own BottomSheet, so the portal is wide-only.
+  // rightSidebar panel (Desktop) instead of a centered modal. narrow shows the
+  // same panel inside the MobileTaskList sheet (#470), so the portal is
+  // wide-only.
   const selected = tree.selectedTask;
 
   /*
+   * One panel, two surfaces. Everything except the status control is identical,
+   * so building it once keeps a field added to the task detail from reaching
+   * only one width.
+   *
    * Tag row (#412 Phase 1). Was a read-only chip list built here from
    * tagsByTask; it is now the same <TagPicker> the note detail uses, so a task
    * can gain and lose tags from the surface the user is already reading. The
@@ -417,34 +420,50 @@ export function KanbanView({
    * the only place the "+ Tag" affordance can live, and without it a task with
    * no tags would have no route to its first one.
    */
-  const tagsSlot = selected ? (
-    <TagPicker itemId={selected.id} itemRole="task" showLabel size="sm" />
-  ) : undefined;
-
-  // The selected task's detail (title / status / tags / editor). The board
-  // pushes it into the rightSidebar on card-click. Null when nothing is selected.
-  const taskDetail = selected ? (
+  const renderTaskDetail = (task: TaskNode, statusControl?: ReactNode) => (
     <TaskDetailPanel
-      taskId={selected.id}
-      title={selected.title}
-      status={selected.status}
+      taskId={task.id}
+      title={task.title}
+      status={task.status}
       onTitleCommit={(id, title) => tree.updateNode(id, { title })}
       onToggleStatus={tree.toggleTaskStatus}
+      statusControl={statusControl}
       titleLabel={t("taskDetail.titleLabel")}
       statusLabel={t("taskDetail.status")}
-      statusText={t(STATUS_TEXT_KEY[selected.status ?? "NOT_STARTED"])}
+      statusText={t(STATUS_TEXT_KEY[task.status ?? "NOT_STARTED"])}
       contentLabel={t("taskDetail.content")}
-      tagsSlot={tagsSlot}
+      tagsSlot={
+        <TagPicker itemId={task.id} itemRole="task" showLabel size="sm" />
+      }
       contentEditor={
         <RichTextEditor
-          key={selected.id}
-          noteId={selected.id}
-          initialContent={selected.content || undefined}
-          onUpdate={(content) => tree.updateNode(selected.id, { content })}
+          key={task.id}
+          noteId={task.id}
+          initialContent={task.content || undefined}
+          onUpdate={(content) => tree.updateNode(task.id, { content })}
         />
       }
     />
-  ) : null;
+  );
+
+  // Desktop: the selected task's detail, pushed into the rightSidebar on
+  // card-click. Null when nothing is selected.
+  const taskDetail = selected ? renderTaskDetail(selected) : null;
+
+  // Mobile: the same panel in the bottom sheet, with the touch status row
+  // instead of the Desktop cycle button (#470).
+  const sheetTask = detail.sheetTask;
+  const mobileTaskDetail = sheetTask
+    ? renderTaskDetail(
+        sheetTask,
+        <TaskStatusChoices
+          value={sheetTask.status ?? "NOT_STARTED"}
+          onChange={(status) => tree.setTaskStatus(sheetTask.id, status)}
+          labels={labels}
+          label={t("materials.tasks.statusGroupLabel")}
+        />,
+      )
+    : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -484,15 +503,18 @@ export function KanbanView({
               statusInProgress: t("taskDetail.statusInProgress"),
               statusDone: t("taskDetail.statusDone"),
               filterLabel: t("materials.tasks.filterLabel"),
-              statusSheetTitle: t("materials.tasks.statusSheetTitle"),
+              detailTitle: t("materials.tasks.detailTitle"),
               empty: t("materials.tasks.empty"),
               addCta: t("materials.tasks.addCta"),
               quickAddTitle: t("materials.tasks.quickAddTitle"),
               quickAddPlaceholder: t("materials.tasks.quickAddPlaceholder"),
               quickAddSubmit: t("materials.tasks.quickAddSubmit"),
             }}
-            onSetStatus={tree.setTaskStatus}
             onQuickAdd={(title) => tree.addNode("task", null, title)}
+            detailTaskId={sheetTask ? sheetTask.id : null}
+            onSelectTask={detail.openSheet}
+            onCloseDetail={detail.closeSheet}
+            detail={mobileTaskDetail}
           />
         </div>
       )}

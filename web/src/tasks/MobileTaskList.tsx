@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ListTodo, Plus } from "lucide-react";
 import {
   BottomSheet,
@@ -25,14 +25,20 @@ import {
  *     counts; re-tapping the active chip clears back to "all"),
  *   - a full-width vertical card list (reusing the shared KanbanCard with its
  *     tag chips so the visual matches the desktop card 1:1),
- *   - tapping a card opens a ~60% BottomSheet with the 3 status choices
- *     (picking one sets the status + closes),
+ *   - tapping a card opens the detail sheet (#470) — a tall BottomSheet hosting
+ *     the injected <TaskDetailPanel>: title, status, tags and rich-text body,
+ *     all editable. It replaced the status-only sheet this list shipped with
+ *     (mobile-scope.md #6 Phase 2). DnD and the kanban column operations stay
+ *     Desktop-only.
  *   - a "+" CTA opens a QuickAddSheet (title-only capture).
  *
  * Data stays host-side: KanbanView builds the three status columns (cards
  * already carry their tags via the pure builder) and injects them here + the
- * status-mutation / quick-add callbacks. This leaf is DataService-free (§3.1)
- * and takes all copy as props (§6.4).
+ * quick-add callback + the detail node itself. The detail identity lives in the
+ * host too (`detailTaskId`), because the panel it renders needs the task's own
+ * content and tag context — which is also how a "[[" link jump can open this
+ * sheet without reaching into the list's state. This leaf is DataService-free
+ * (§3.1) and takes all copy as props (§6.4).
  */
 
 export interface MobileTaskListLabels {
@@ -42,8 +48,9 @@ export interface MobileTaskListLabels {
   statusDone: string;
   /** Accessible name for the filter chip group. */
   filterLabel: string;
-  /** Title of the status-change BottomSheet. */
-  statusSheetTitle: string;
+  /** Title of the detail BottomSheet. Generic ("Todo details") rather than the
+   *  task's own title, which the panel's first field already shows. */
+  detailTitle: string;
   /** Empty-state message + accent CTA label. */
   empty: string;
   addCta: string;
@@ -60,19 +67,29 @@ export interface MobileTaskListProps {
   /** KanbanCard copy (shared with the desktop board). */
   cardLabels: KanbanLabels;
   labels: MobileTaskListLabels;
-  onSetStatus: (id: string, status: TaskStatus) => void;
   onQuickAdd: (title: string) => void;
+  /** Task whose detail sheet is open (host-owned — see the file header), or
+   *  null for closed. */
+  detailTaskId: string | null;
+  /** A card was tapped: the host selects that task and opens the sheet. */
+  onSelectTask: (id: string) => void;
+  onCloseDetail: () => void;
+  /** The open task's detail panel, built by the host (TaskDetailPanel + the web
+   *  TipTap editor + TagPicker). Rendered inside the sheet. */
+  detail?: ReactNode;
 }
 
 export function MobileTaskList({
   statusColumns,
   cardLabels,
   labels,
-  onSetStatus,
   onQuickAdd,
+  detailTaskId,
+  onSelectTask,
+  onCloseDetail,
+  detail,
 }: MobileTaskListProps): React.JSX.Element {
   const [filter, setFilter] = useState<TaskStatus | null>(null);
-  const [sheetTaskId, setSheetTaskId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   // Index the columns by status for O(1) lookups (counts + filtered cards).
@@ -102,17 +119,6 @@ export function MobileTaskList({
       (status) => columnByStatus.get(status)?.cards ?? [],
     );
   }, [filter, columnByStatus]);
-
-  // Resolve the current status of the card whose sheet is open (to highlight
-  // the active choice) — cards live inside their status column.
-  const sheetStatus: TaskStatus | null = useMemo(() => {
-    if (!sheetTaskId) return null;
-    for (const status of STATUS_ORDER) {
-      const col = columnByStatus.get(status);
-      if (col?.cards.some((c) => c.id === sheetTaskId)) return status;
-    }
-    return null;
-  }, [sheetTaskId, columnByStatus]);
 
   return (
     <div className="flex h-full flex-col px-4 pt-2">
@@ -157,45 +163,23 @@ export function MobileTaskList({
               card={card}
               labels={cardLabels}
               showTags
-              onSelect={setSheetTaskId}
+              onSelect={onSelectTask}
             />
           ))}
         </div>
       )}
 
-      {/* Status-change sheet (~60% height). Picking a status sets it + closes. */}
+      {/* Detail sheet (#470) — tall and scrollable, so the rich-text body has
+          room while the card list stays visible behind it. The panel inside is
+          host-built; this list only owns the shell. */}
       <BottomSheet
-        open={sheetTaskId !== null}
-        onClose={() => setSheetTaskId(null)}
-        title={labels.statusSheetTitle}
+        open={detailTaskId !== null}
+        onClose={onCloseDetail}
+        title={labels.detailTitle}
+        className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
       >
-        <div className="flex flex-col gap-2">
-          {STATUS_ORDER.map((status) => {
-            const Icon = STATUS_ICON[status];
-            const active = status === sheetStatus;
-            return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => {
-                  if (sheetTaskId) onSetStatus(sheetTaskId, status);
-                  setSheetTaskId(null);
-                }}
-                aria-pressed={active}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm",
-                  "transition-colors focus-visible:outline-none",
-                  "focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                  active
-                    ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
-                    : "border-lumen-border bg-lumen-bg text-lumen-text hover:bg-lumen-hover",
-                )}
-              >
-                <Icon size={16} aria-hidden className="shrink-0" />
-                {statusLabel(status, labels)}
-              </button>
-            );
-          })}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {detail}
         </div>
       </BottomSheet>
 
