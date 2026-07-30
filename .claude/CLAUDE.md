@@ -80,12 +80,16 @@
 > 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み（2026-07-11 #197）。
 
 ```bash
+cd shared && npm run lint       # eslint（CI ゲート — react-hooks 系は error）
 cd shared && npm run test       # vitest（本体ロジック / mapper）
 cd shared && npm run build      # 型検証 + dist 出力（tsc -b）
+cd web && npm run lint          # eslint（CI ゲート）
 cd web && npm run build         # web 型検証 + ビルド（tsc -b --force && vite build）
 cd web && npm run test          # vitest（renderer 側 — jsdom。#475 で追加）
 cd web && npm run dev           # ローカル起動（vite）
 ```
+
+PR 前に回すゲートは **lint を含む 6 本**（+ CI 側の docs-lint）。一覧の正本は `.github/workflows/ci.yml`。**`web` の lint は `web/` 配下しか見ない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で実際に CI だけが落ちた）。
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 
