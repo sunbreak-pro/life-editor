@@ -1,5 +1,20 @@
 # HISTORY (chat-mobile-refine)
 
+### 2026-07-30 - #470 mobile tasks の詳細編集（Epic #321 Phase 2）
+
+#### 概要
+
+狭幅のタスクカードのタップ先を「ステータス 3 択だけのシート」から「Desktop と同じ `TaskDetailPanel` を載せた詳細シート」に置き換え、タイトル / 本文（リッチテキスト）/ タグ / ステータスをモバイルで編集できるようにした（PR #494）。DnD・カンバンのカラム操作は Desktop 専用のまま。
+
+#### 変更点
+
+- **1 panel 2 面**: `TaskDetailPanel` に `statusControl` スロットを追加（加算的・省略時は Desktop の巡回ボタンのまま）。Mobile はそこに新設の共有部品 `TaskStatusChoices`（3 択タッチ行・1 タップで確定）を入れる。`MobileTaskList` は BottomSheet の殻だけを持ち、panel は host（`KanbanView`）が組む
+- **副産物**: narrow に初めてタスク詳細の面ができたため、`[[タスク]]` リンク着地で詳細シートが開くようになった（従来は Todo タブへ移るだけでカード選択が見えず、どこへ飛んだか分からなかった）
+- **状態機械をフック化**: 開いているタスクの identity を `web/src/tasks/useTaskDetailTarget.ts` に切り出し（board + 4 Provider + TipTap を立てずに遷移をテストできる）。identity は `tree.selectedTaskId` を使わない（選択は永続化 + mount 復元されるため起動直後にシートが開いてしまう）
+- **QA で見つけた実バグ**: `BottomSheet` のパネルが `stopPropagation` していたため、シート内では `document` に張った click-outside が発火せず、`TagPicker` のドロップダウンが閉じられなかった（React は portal のイベントを `document.body` で拾うので native ごと止まる）。背景タップ判定に置き換えて解消（旧実装で fail するテスト付き・**シート内にポップオーバーを置く全ケースに効く**）
+- **テスト +16**: `shared/tests/taskStatusChoices.test.tsx` / `shared/tests/bottomSheetDismiss.test.tsx` / `web/tests/useTaskDetailTarget.test.tsx`（状態機械 11 件）/ `web/tests/mobileTaskList.test.tsx`。ゲートは shared 1306・web 32・両ビルド・両 lint すべて exit 0
+- **docs**: `mobile-scope.md` #6 行と §5 Phase 2 を実態に追随、Epic #321 Phase 2 の該当行にチェック（→ #470 / PR #494）。判断キューに 2 件（ステータス操作の形 / 背の高いシートの閉じるボタン）、outbox に 1 件の起票依頼（タスク本文の `[[リンク]]` が両幅で未配線）
+
 ### 2026-07-30 - #475 `[[リンク]]` クリック遷移の修復 + web 側テスト基盤の新設
 
 #### 概要
