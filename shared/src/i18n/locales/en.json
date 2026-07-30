@@ -236,7 +236,8 @@
   "materials": {
     "tasks": {
       "filterLabel": "Filter by status",
-      "statusSheetTitle": "Change status",
+      "statusGroupLabel": "Change status",
+      "detailTitle": "Todo details",
       "quickAddTitle": "Add todo",
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",

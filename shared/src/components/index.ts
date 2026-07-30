@@ -78,6 +78,10 @@ export {
 // rightSidebar by the Kanban host. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
 export { TaskDetailPanel, type TaskDetailPanelProps } from "./TaskDetailPanel";
+export {
+  TaskStatusChoices,
+  type TaskStatusChoicesProps,
+} from "./TaskStatusChoices";
 // Task add dialog (W-UX) — small centered overlay to create a task. Pure
 // presentation: host injects copy, receives create intent via onSubmit
 // (§3.1 / §6.4).
