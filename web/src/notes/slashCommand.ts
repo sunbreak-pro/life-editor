@@ -106,8 +106,8 @@ function slashRender(emptyLabel: string): SlashRender {
     let renderer: ReactRenderer<SlashMenuHandle> | null = null;
     let popup: SuggestionPopup | null = null;
 
-    // Full teardown, safe to call more than once — subsequent onUpdate/onExit
-    // become no-ops (both guard on the nulled refs). Used by Escape and onExit.
+    // Full teardown, idempotent: a second call finds both refs nulled and does
+    // nothing. Called by Escape, by onExit, and by onStart before it opens.
     const destroy = () => {
       popup?.destroy();
       popup = null;
@@ -117,6 +117,11 @@ function slashRender(emptyLabel: string): SlashRender {
 
     return {
       onStart: (props) => {
+        // Symmetry with the "[[" menu: a second onStart must never orphan the
+        // previous popup on document.body. This menu's items() is synchronous
+        // today, so the race cannot happen yet — which is exactly why it would
+        // go unnoticed the day someone makes it async.
+        destroy();
         renderer = new ReactRenderer(SlashMenu, {
           props: { ...props, emptyLabel },
           editor: props.editor,
@@ -128,16 +133,23 @@ function slashRender(emptyLabel: string): SlashRender {
           renderer?.updateProps({ maxHeight }),
         );
         popup.el.appendChild(renderer.element);
-        popup.position(props.clientRect?.());
+        popup.position(props.clientRect);
       },
       onUpdate: (props) => {
         if (!renderer || !popup) return;
         renderer.updateProps({ ...props, emptyLabel });
-        popup.position(props.clientRect?.());
+        popup.position(props.clientRect);
       },
       onKeyDown: (props) => {
         if (props.event.key === "Escape") {
           destroy();
+          // Also close the suggestion itself — tearing down the view leaves the
+          // plugin active, so "/" would keep matching (and keep calling items())
+          // until the query breaks on its own.
+          const { view } = props;
+          view.dispatch(
+            view.state.tr.setMeta(slashCommandPluginKey, { exit: true }),
+          );
           return true;
         }
         return renderer?.ref?.onKeyDown(props.event) ?? false;

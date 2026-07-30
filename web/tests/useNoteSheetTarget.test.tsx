@@ -27,11 +27,18 @@ interface Props {
   isWide: boolean;
   notes: readonly Note[];
   onSelect: (id: string) => void;
+  isContentLoaded: (id: string) => boolean;
 }
 
 function setup(over: Partial<Props> = {}) {
   const onSelect = vi.fn();
-  const initial: Props = { isWide: false, notes: NOTES, onSelect, ...over };
+  const initial: Props = {
+    isWide: false,
+    notes: NOTES,
+    onSelect,
+    isContentLoaded: () => true,
+    ...over,
+  };
   const view = renderHook((props: Props) => useNoteSheetTarget(props), {
     initialProps: initial,
   });
@@ -135,5 +142,61 @@ describe("useNoteSheetTarget — following a '[[' link tapped inside the sheet",
     const { result } = setup({ isWide: true });
     act(() => result.current.followPending("note-b"));
     expect(result.current.sheetNote).toBeNull();
+  });
+
+  it("stays put when the link points at a note that is gone", () => {
+    // Links keep their targetId after the target is deleted. Following one
+    // would resolve to nothing and close the sheet, which reads as "my tap
+    // threw the note away".
+    const { result } = setup();
+    act(() => result.current.openSheet("note-a"));
+
+    act(() => result.current.followPending("note-deleted"));
+    expect(result.current.sheetNote?.id).toBe("note-a");
+  });
+});
+
+describe("useNoteSheetTarget — the body has to be here before the editor is", () => {
+  it("is not ready while the note's body is still being fetched", () => {
+    const { result } = setup({ isContentLoaded: () => false });
+    act(() => result.current.openSheet("note-a"));
+
+    expect(result.current.sheetNote?.id).toBe("note-a");
+    expect(result.current.sheetReady).toBe(false);
+  });
+
+  it("becomes ready once the body lands", () => {
+    const loaded = new Set<string>();
+    const { result, rerender, initial } = setup({
+      isContentLoaded: (id) => loaded.has(id),
+    });
+    act(() => result.current.openSheet("note-a"));
+    expect(result.current.sheetReady).toBe(false);
+
+    loaded.add("note-a"); // hydrateContent resolved
+    rerender({ ...initial, isContentLoaded: (id) => loaded.has(id) });
+    expect(result.current.sheetReady).toBe(true);
+  });
+
+  it("asks about the OPEN note, not whichever note is selected app-wide", () => {
+    // The selection outlives the sheet and a list reload; the body does not.
+    // Gating on "the selection matches" let the editor mount over an emptied
+    // body and save that emptiness on the first keystroke.
+    const asked: string[] = [];
+    const { result } = setup({
+      isContentLoaded: (id) => {
+        asked.push(id);
+        return id === "note-b";
+      },
+    });
+    act(() => result.current.openSheet("note-b"));
+
+    expect(result.current.sheetReady).toBe(true);
+    expect(asked).toContain("note-b");
+  });
+
+  it("is never ready with no sheet open", () => {
+    const { result } = setup();
+    expect(result.current.sheetReady).toBe(false);
   });
 });

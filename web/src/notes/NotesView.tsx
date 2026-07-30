@@ -163,6 +163,7 @@ export function NotesView({
     isWide,
     notes: notes.notes,
     onSelect: notes.setSelectedNoteId,
+    isContentLoaded: notes.isContentLoaded,
   });
   const [addOpen, setAddOpen] = useState(false);
 
@@ -656,11 +657,14 @@ export function NotesView({
   const sheetGated =
     !!sheetNote?.hasPassword && !unlocked.has(sheetNote?.id ?? "");
   // The LIST omits note bodies (content=""); the body arrives only after the
-  // async hydrate driven by openSheet. selectedNote.id matches the sheet's note
-  // exactly when that hydrate has completed, so gate the editor mount on it —
-  // RichTextEditor ignores initialContent changes once mounted under a stable key.
-  const sheetReady =
-    sheetNote != null && notes.selectedNote?.id === sheetNote.id;
+  // async hydrate driven by openSheet, and RichTextEditor ignores
+  // initialContent changes once mounted under a stable key — so the mount is
+  // gated on the body being HERE (isContentLoaded), not on the selection having
+  // moved. The selection outlives both the sheet and a list reload, so "the id
+  // matches" was true in a window where the body had been dropped and not yet
+  // re-fetched: the editor opened empty over a note that had text, and the
+  // first keystroke saved the empty version.
+  const sheetReady = sheet.sheetReady;
 
   // ---- Desktop rightSidebar detail ------------------------------------
 
@@ -856,9 +860,11 @@ export function NotesView({
                       <RichTextEditor
                         key={sheetNote.id}
                         noteId={sheetNote.id}
-                        initialContent={
-                          notes.selectedNote?.content || undefined
-                        }
+                        // The sheet's OWN note object, not selectedNote: they
+                        // are the same row in the same array, and reading the
+                        // sheet's removes any dependence on the selection
+                        // having caught up with it.
+                        initialContent={sheetNote.content || undefined}
                         editable={!sheetNote.isEditLocked}
                         onUpdate={(content) =>
                           notes.updateNote(sheetNote.id, { content })

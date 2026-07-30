@@ -143,8 +143,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   // list NoteNodes carry `content = ""`. The body is loaded on demand when
   // a note is opened. `contentLoadedIds` tracks which notes have had their
   // real body hydrated into the `notes` array (via getNoteUnified), so a
-  // re-select doesn't re-fetch. It is CLEARED on every list (re)load
-  // because a fresh light list has no bodies again — see the load effect.
+  // re-select doesn't re-fetch. A list (re)load keeps the entries whose
+  // `updatedAt` did not move and drops only the genuinely-touched ones
+  // (#301 — see the load effect; it used to clear the whole set).
   const contentLoadedIdsRef = useRef<Set<string>>(new Set());
   // "Latest select wins": if two selects race (fast clicks), only the most
   // recent one is allowed to commit its `setSelectedNoteId`, so a slow
@@ -204,6 +205,30 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       })();
     },
     [hydrateContent],
+  );
+
+  /*
+   * Is this note's real body in the `notes` array right now?
+   *
+   * A surface that MOUNTS an editor per open has to ask, because selection
+   * alone does not answer it: `selectedNoteId` survives closing that surface
+   * and survives list reloads, while the body it points at can be dropped by a
+   * reload (a write from another device moves `updatedAt`, so the merge above
+   * refuses to keep the cached body and re-hydrates asynchronously). Mounting
+   * an editor inside that window would open an EMPTY body over a note that has
+   * one — and the first keystroke would save the empty version (#471).
+   *
+   * The Desktop editor never hits this: it is keyed by note id and simply does
+   * not remount, so it keeps showing the body it opened with. The mobile sheet
+   * mounts a fresh editor every time it opens.
+   *
+   * Reading a ref during render is safe here because the completing hydrate
+   * calls setNotes right after adding the id, so every transition is followed
+   * by a re-render.
+   */
+  const isContentLoaded = useCallback(
+    (id: string): boolean => contentLoadedIdsRef.current.has(id),
+    [],
   );
 
   const setSortDirection = useCallback((dir: NoteSortDirection) => {
@@ -877,6 +902,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // editor mounts — the light list carries no body.
       setSelectedNoteId: selectNote,
       selectedNote,
+      isContentLoaded,
       searchQuery,
       setSearchQuery,
       sortMode,
@@ -911,6 +937,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       selectedNoteId,
       selectNote,
       selectedNote,
+      isContentLoaded,
       searchQuery,
       sortMode,
       setSortMode,

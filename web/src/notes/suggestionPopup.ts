@@ -61,6 +61,13 @@ const EDGE = 8;
  * scrolls) than to render a sliver.
  */
 const MIN_HEIGHT = 96;
+/**
+ * Ceiling for the cap — the menus' own design height (`max-h-72`). The cap is
+ * applied as an inline style, which BEATS that class, so without this a roomy
+ * Desktop window would hand the menu 600-700px and stretch a surface this
+ * change is not supposed to touch: the cap may only ever tighten.
+ */
+const DESIGN_MAX_HEIGHT = 288;
 
 /**
  * Where to put a suggestion menu of `menu` size for a caret at `caret`, given
@@ -83,7 +90,7 @@ export function placeSuggestionMenu({
     menu.height <= spaceBelow || spaceAbove <= spaceBelow ? "below" : "above";
 
   const space = side === "below" ? spaceBelow : spaceAbove;
-  const maxHeight = Math.max(MIN_HEIGHT, space);
+  const maxHeight = Math.max(MIN_HEIGHT, Math.min(space, DESIGN_MAX_HEIGHT));
   // Height the menu will actually occupy once capped. Used for the "above"
   // offset so a capped menu cannot be pushed off the top of the screen.
   const height = Math.min(menu.height, maxHeight);
@@ -132,12 +139,21 @@ export function readVisibleArea(): VisibleArea {
   };
 }
 
+/** ProseMirror's caret-rect getter — recomputed on every call. */
+export type CaretRectGetter = (() => DOMRect | null) | null | undefined;
+
 export interface SuggestionPopup {
   /** The absolutely-positioned container the menu renderer is appended to. */
   readonly el: HTMLDivElement;
-  /** Re-place the popup for the current caret rect (no-op without a rect). */
-  position: (rect: DOMRect | null | undefined) => void;
-  /** Remove the popup and stop listening for viewport changes. */
+  /**
+   * Re-place the popup. Pass the caret-rect GETTER (not a rect): the caret
+   * moves under us — the browser scrolls the focused field into view when the
+   * keyboard opens, and the note body is its own scroller — so a rect captured
+   * once goes stale and the menu drifts onto the text. Omit the argument to
+   * re-place with the getter already held.
+   */
+  position: (getRect?: CaretRectGetter) => void;
+  /** Remove the popup and stop listening for viewport / scroll changes. */
   destroy: () => void;
 }
 
@@ -147,10 +163,11 @@ export interface SuggestionPopup {
  * caller forwards it to the menu component, which is why placement is not
  * purely a style write.
  *
- * The viewport listeners are what make the keyboard case work: the caret does
- * not move when the keyboard opens (the layout viewport is unchanged), only the
- * visible area shrinks — so without them a menu opened before the keyboard
- * appeared would stay behind it.
+ * The listeners are what make the keyboard case work. Opening the keyboard
+ * shrinks the visible area AND usually moves the caret (the browser scrolls the
+ * focused field into view, often by scrolling a nested container), so the popup
+ * re-measures both: the visible area from `visualViewport`, and the caret from
+ * ProseMirror's getter — never from a rect captured when the menu opened.
  */
 export function createSuggestionPopup(
   onMaxHeight: (maxHeight: number) => void,
@@ -162,21 +179,27 @@ export function createSuggestionPopup(
   // itself is portalled here from the editor, so there is otherwise nothing to
   // tell this container apart from any other absolutely-positioned div.
   el.dataset.suggestionMenu = "true";
+  // Hidden until the first real placement: an absolutely-positioned element
+  // with no top/left sits wherever the body flow put it (the very bottom of the
+  // page), and a caret rect is not always available on the opening call.
+  el.style.visibility = "hidden";
   document.body.appendChild(el);
 
-  let lastRect: DOMRect | null = null;
+  let getCaretRect: CaretRectGetter = null;
   let lastMaxHeight: number | null = null;
 
-  const position = (rect: DOMRect | null | undefined) => {
-    if (rect) lastRect = rect;
-    if (!lastRect) return;
+  const position = (getRect?: CaretRectGetter) => {
+    if (getRect !== undefined) getCaretRect = getRect;
+    const rect = getCaretRect?.();
+    if (!rect) return;
     const placement = placeSuggestionMenu({
-      caret: lastRect,
+      caret: rect,
       menu: { width: el.offsetWidth, height: el.offsetHeight },
       visible: readVisibleArea(),
     });
     el.style.left = `${placement.left + window.scrollX}px`;
     el.style.top = `${placement.top + window.scrollY}px`;
+    el.style.visibility = "visible";
     // Only on a real change: this runs on every keystroke while the menu is
     // open, and the cap is a React prop — re-sending the same number would
     // re-render the menu for nothing.
@@ -186,9 +209,13 @@ export function createSuggestionPopup(
     }
   };
 
-  const onViewportChange = () => position(null);
-  window.visualViewport?.addEventListener("resize", onViewportChange);
-  window.visualViewport?.addEventListener("scroll", onViewportChange);
+  const reposition = () => position();
+  window.visualViewport?.addEventListener("resize", reposition);
+  window.visualViewport?.addEventListener("scroll", reposition);
+  // Capture phase, because scroll does not bubble: the caret usually moves
+  // inside a nested scroller (the note body inside the bottom sheet), and that
+  // scroll produces no window / visualViewport event at all.
+  window.addEventListener("scroll", reposition, true);
 
   /*
    * Re-place whenever the menu's own size changes. Two cases need it, and the
@@ -203,20 +230,22 @@ export function createSuggestionPopup(
    *     flipped above should slide back down against the caret.
    *
    * No feedback loop: this writes top/left, and the cap it may send is skipped
-   * when unchanged (above), so the size settles after one pass.
+   * when unchanged (above). A pass can change the menu's height (0 → capped),
+   * which schedules one more — the side it picks has no 2-cycle, so it settles.
    */
   const observer =
     typeof ResizeObserver === "undefined"
       ? null
-      : new ResizeObserver(() => position(null));
+      : new ResizeObserver(() => position());
   observer?.observe(el);
 
   return {
     el,
     position,
     destroy: () => {
-      window.visualViewport?.removeEventListener("resize", onViewportChange);
-      window.visualViewport?.removeEventListener("scroll", onViewportChange);
+      window.visualViewport?.removeEventListener("resize", reposition);
+      window.visualViewport?.removeEventListener("scroll", reposition);
+      window.removeEventListener("scroll", reposition, true);
       observer?.disconnect();
       el.remove();
     },
