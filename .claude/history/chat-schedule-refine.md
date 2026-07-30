@@ -18,6 +18,21 @@
 - **見送り 2 件**（理由付きで Issue #469 に記録・起票依頼を outbox へ）: scope 編集後の template 更新（`useScheduleMutations.ts:807` — await していない）と routine 未ロード時の `void updateRoutine`（同 492）。どちらも失敗の意味が「未来の生成が古い値になる」で、toast 1 行では復旧手順を伝えられない
 - **ゲート**: shared vitest **154 files / 1279 pass**（main 比 +22 tests・`eventEditorPane.test.tsx` に日付 / 終日 / ヒントの 6 ケース追加）・shared build・web build・web lint すべて exit 0。実ブラウザ検証は chat-main に残す
 
+### 2026-07-30 - #466 Step 5-b Calendar グリッドの繰り返しフィルタ（PR #480 merge 済み・main `9ff4a813`）
+
+#### 概要
+
+グリッドから繰り返し由来（routine 生成）のアイテムを畳むトグルを入れた。粒度は **案 A「繰り返し由来を隠す」を採用し、案 B「この繰り返しだけ表示」を却下**。絞り込みは**永続化しない**（起動時に骨組みの無いカレンダーが出ると、空いて見えるスロットに二重予約する事故になる）。
+
+#### 変更点
+
+- **フィルタは view 層だけに掛ける**: 新設 `shared/src/utils/scheduleGridFilter.ts` の `applyRepeatFilter` を `gridRangeItems` として 1 箇所で適用し、`rangeItems`（`useVisibleRangeItems` の楽観ストア）は素のまま残した。`selected` / mutation 層 / コンテキストメニューはすべて `rangeItems` を引くので、**隠しても編集が書く内容は変わらず、隠れたアイテムは flow タブから編集できる**。差し替え先は `gridItems` / `monthItems` / `anchorDayItems` / `monthDayItems` の 4 つ
+- **件数は同じ呼び出しから返す**: `applyRepeatFilter` が `{ visible, hiddenCount }` を返し、ツールバーのラベルはその `hiddenCount` を使う。**バッジとグリッドが別々に数えないので数字が食い違えない**。フィルタ OFF は同一参照を返す identity ケース（下流 memo が無駄に無効化しない）
+- **「隠している」を隠さない**: ON 中はツールバーのボタン自体が「繰り返し N 件を非表示」＋ accent 表示になり（`aria-pressed`）、Repeats タブにも同じ state を読む注記と解除ボタンを出す。**フラグが 1 つなので「片方だけ更新されない」が構造的に起きない**。ON にした瞬間、選択中が routine 由来なら選択と popover を落とす（描画されない行を editor / popover が指し続けるのを防ぐ）
+- **適用範囲を絞った**: rightSidebar の「今日の流れ」・Todo トレイ・完了集計はフィルタしない（集計の意味が変わるため）。Mobile はトグルを出さない（#467 で List + FAB に絞る側で扱う。derived は既にフィルタ後を読むので配線だけで足りる）
+- **テスト**: `scheduleGridFilter.test.ts`（identity / 件数の一致 / null・未定義 routineId の生存 / 非破壊）+ `scheduleToolbar.test.tsx`（prop 省略で非表示 / `aria-pressed` / ラベル切替）。web にテストランナーが無いので判定は shared の純関数に寄せた
+- **ゲート**: shared vitest **156 files / 1281 pass**（main 比 +2 files / +24 tests）・shared build・web build・web lint すべて exit 0。実ブラウザ検証は chat-main に残す
+
 ### 2026-07-28 - #411 Todo ボードを Materials から Schedule へ移設（PR #454 merge 済み・main `218d8dab`）
 
 #### 概要

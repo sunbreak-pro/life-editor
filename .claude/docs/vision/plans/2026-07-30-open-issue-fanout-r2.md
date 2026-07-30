@@ -245,7 +245,7 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 - CLAUDE.md §7.4（worktree / ブランチ運用）・§9（Issue dispatch / decision queue）
 - 前ラウンド: [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)
 - Epic: #290（Schedule redesign）/ #321（Mobile UI/UX 追随）
-- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](./2026-07-28-refactor-dataservice-split.md)（#465 の正本）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
+- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](../../../archive/2026-07-28-refactor-dataservice-split.md)（#465 の正本・COMPLETED → archive 済み）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
 - 関連 memory: `push-after-merge-strands-commits` / `stacked-pr-base-retarget-race`（PR 着地事故の実測知見）
 
 ---
