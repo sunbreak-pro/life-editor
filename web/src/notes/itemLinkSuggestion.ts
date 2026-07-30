@@ -10,6 +10,7 @@ import {
   type ItemLinkMenuHandle,
   type ItemLinkMenuItem,
 } from "./ItemLinkMenu";
+import { createSuggestionPopup, type SuggestionPopup } from "./suggestionPopup";
 
 /*
  * "[[" item-link suggestion extension (web Notes/Daily editor). Types "[[" to
@@ -245,19 +246,13 @@ function itemLinkRender(
 ): ItemLinkRender {
   return () => {
     let renderer: ReactRenderer<ItemLinkMenuHandle> | null = null;
-    let popup: HTMLDivElement | null = null;
-
-    const position = (rect: DOMRect | null | undefined) => {
-      if (!popup || !rect) return;
-      popup.style.left = `${rect.left + window.scrollX}px`;
-      popup.style.top = `${rect.bottom + window.scrollY + 6}px`;
-    };
+    let popup: SuggestionPopup | null = null;
 
     // Full teardown, safe to call more than once — subsequent onUpdate/onExit
     // become no-ops (both guard on the nulled refs). Used by Escape and onExit.
     const destroy = () => {
       session.onClose();
-      popup?.remove();
+      popup?.destroy();
       popup = null;
       renderer?.destroy();
       renderer = null;
@@ -281,17 +276,19 @@ function itemLinkRender(
           props: { ...props, emptyLabel },
           editor: props.editor,
         });
-        popup = document.createElement("div");
-        popup.style.position = "absolute";
-        popup.style.zIndex = "60";
-        popup.appendChild(renderer.element);
-        document.body.appendChild(popup);
-        position(props.clientRect?.());
+        // Placement lives in suggestionPopup: below the caret when it fits,
+        // flipped above when the soft keyboard leaves no room, capped to the
+        // visible area either way (#471).
+        popup = createSuggestionPopup((maxHeight) =>
+          renderer?.updateProps({ maxHeight }),
+        );
+        popup.el.appendChild(renderer.element);
+        popup.position(props.clientRect?.());
       },
       onUpdate: (props) => {
-        if (!renderer) return;
+        if (!renderer || !popup) return;
         renderer.updateProps({ ...props, emptyLabel });
-        position(props.clientRect?.());
+        popup.position(props.clientRect?.());
       },
       onKeyDown: (props) => {
         if (props.event.key === "Escape") {

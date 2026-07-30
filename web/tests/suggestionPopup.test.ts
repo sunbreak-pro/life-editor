@@ -1,0 +1,243 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  placeSuggestionMenu,
+  createSuggestionPopup,
+} from "../src/notes/suggestionPopup";
+
+/*
+ * Placement of the editor's suggestion menus ("[[" and "/") — #471.
+ *
+ * This is why the geometry is a pure function: the case that matters is a phone
+ * with the soft keyboard up, and jsdom has no layout to reproduce it with
+ * (rules/frontend.md §テスト環境の制約). Feeding the arithmetic the numbers a
+ * real device reports is the only honest way to check it.
+ *
+ * The visible areas below are iPhone-class: 390x844, collapsing to 508px tall
+ * while the keyboard is open, and ~300px tall in landscape with the keyboard.
+ */
+
+const DESKTOP = { top: 0, bottom: 900, left: 0, right: 1440 };
+const PHONE = { top: 0, bottom: 844, left: 0, right: 390 };
+const PHONE_KEYBOARD = { top: 0, bottom: 508, left: 0, right: 390 };
+const LANDSCAPE_KEYBOARD = { top: 0, bottom: 300, left: 0, right: 844 };
+
+/** A full "[[" menu: 8 candidates + 2 action rows at touch height. */
+const MENU = { width: 256, height: 280 };
+
+describe("placeSuggestionMenu", () => {
+  it("sits just under the caret when there is room", () => {
+    const placement = placeSuggestionMenu({
+      caret: { top: 200, bottom: 220, left: 300 },
+      menu: MENU,
+      visible: DESKTOP,
+    });
+    expect(placement.side).toBe("below");
+    expect(placement.top).toBe(226); // caret.bottom + the 6px gap
+    expect(placement.left).toBe(300); // caret.left, nothing to clamp against
+  });
+
+  it("flips above the caret when the keyboard leaves no room below", () => {
+    // A caret three quarters down a tall bottom sheet: 380px below it with the
+    // keyboard closed, 44px with it open.
+    const caret = { top: 430, bottom: 450, left: 40 };
+
+    expect(
+      placeSuggestionMenu({ caret, menu: MENU, visible: PHONE }).side,
+    ).toBe("below");
+
+    const open = placeSuggestionMenu({
+      caret,
+      menu: MENU,
+      visible: PHONE_KEYBOARD,
+    });
+    expect(open.side).toBe("above");
+    // Bottom edge lands one gap above the caret: 144 + 280 = 424 = 430 - 6.
+    expect(open.top).toBe(144);
+    expect(open.top).toBeGreaterThanOrEqual(PHONE_KEYBOARD.top);
+  });
+
+  it("caps the menu to the room below rather than flipping for a small shortfall", () => {
+    const placement = placeSuggestionMenu({
+      caret: { top: 200, bottom: 220, left: 40 },
+      menu: MENU,
+      visible: PHONE_KEYBOARD,
+    });
+    // 274px below vs 186px above: the menu (280px) fits neither, so it stays
+    // below — where there is more of it — and scrolls inside the cap.
+    expect(placement.side).toBe("below");
+    expect(placement.maxHeight).toBe(274);
+    expect(placement.top + placement.maxHeight).toBeLessThanOrEqual(
+      PHONE_KEYBOARD.bottom,
+    );
+  });
+
+  it("caps against a short visible area (landscape + keyboard)", () => {
+    const placement = placeSuggestionMenu({
+      caret: { top: 70, bottom: 90, left: 40 },
+      menu: MENU,
+      visible: LANDSCAPE_KEYBOARD,
+    });
+    expect(placement.side).toBe("below");
+    expect(placement.maxHeight).toBe(196); // 300 - 8 edge - (90 + 6 gap)
+    expect(placement.top).toBe(96);
+  });
+
+  it("keeps a floor on the cap, and stays inside the visible area anyway", () => {
+    // Caret pinned to the bottom of the visible area: 26px above it, nothing
+    // below. A 26px-tall menu would be useless, so it gets the 96px floor —
+    // which then has to be clamped back inside the screen.
+    const placement = placeSuggestionMenu({
+      caret: { top: 40, bottom: 500, left: 40 },
+      menu: MENU,
+      visible: PHONE_KEYBOARD,
+    });
+    expect(placement.maxHeight).toBe(96);
+    expect(placement.top).toBe(8);
+  });
+
+  it("pulls the menu back so its right edge fits the screen", () => {
+    const placement = placeSuggestionMenu({
+      caret: { top: 100, bottom: 120, left: 300 },
+      menu: MENU,
+      visible: PHONE,
+    });
+    expect(placement.left).toBe(126); // 390 - 8 edge - 256 wide
+    expect(placement.left + MENU.width).toBeLessThanOrEqual(PHONE.right);
+  });
+
+  it("never pushes the menu off the left edge, even when it is wider than the screen", () => {
+    const placement = placeSuggestionMenu({
+      caret: { top: 100, bottom: 120, left: 10 },
+      menu: { width: 500, height: 200 },
+      visible: PHONE,
+    });
+    expect(placement.left).toBe(8); // the left margin wins the tie
+  });
+
+  it("respects a visible area that is offset, not just shrunk", () => {
+    // Pinch-scrolled: visualViewport.offsetTop pushes the visible band down, so
+    // "the top of the screen" is no longer y=0.
+    const placement = placeSuggestionMenu({
+      caret: { top: 220, bottom: 240, left: 40 },
+      menu: MENU,
+      visible: { top: 200, bottom: 500, left: 0, right: 390 },
+    });
+    expect(placement.side).toBe("below");
+    expect(placement.maxHeight).toBe(246); // 500 - 8 - (240 + 6)
+    expect(placement.top).toBe(246);
+  });
+});
+
+/*
+ * The DOM half. jsdom reports every element as 0x0, so the menu is a
+ * zero-height box here — which is fine for what these check: that the popup
+ * writes the placement out, reports the cap to the caller, and re-places itself
+ * when the visible area changes. That last one IS the keyboard: opening it does
+ * not move the caret, it only shrinks the visible area, so without the listener
+ * a menu opened first would simply stay behind it.
+ */
+
+interface FakeViewport {
+  offsetTop: number;
+  offsetLeft: number;
+  width: number;
+  height: number;
+  addEventListener: (type: string, fn: () => void) => void;
+  removeEventListener: (type: string, fn: () => void) => void;
+  emit: (type: string) => void;
+}
+
+function fakeViewport(height: number): FakeViewport {
+  const listeners = new Map<string, Set<() => void>>();
+  return {
+    offsetTop: 0,
+    offsetLeft: 0,
+    width: 390,
+    height,
+    addEventListener: (type, fn) => {
+      const set = listeners.get(type) ?? new Set();
+      set.add(fn);
+      listeners.set(type, set);
+    },
+    removeEventListener: (type, fn) => listeners.get(type)?.delete(fn),
+    emit: (type) => listeners.get(type)?.forEach((fn) => fn()),
+  };
+}
+
+function installViewport(vp: FakeViewport) {
+  Object.defineProperty(window, "visualViewport", {
+    value: vp,
+    configurable: true,
+    writable: true,
+  });
+}
+
+function rect(top: number, bottom: number, left: number): DOMRect {
+  return { top, bottom, left, right: left, width: 0, height: 0 } as DOMRect;
+}
+
+afterEach(() => {
+  Object.defineProperty(window, "visualViewport", {
+    value: undefined,
+    configurable: true,
+    writable: true,
+  });
+});
+
+describe("createSuggestionPopup", () => {
+  it("mounts an absolutely-positioned container and writes the placement to it", () => {
+    const popup = createSuggestionPopup(() => {});
+    expect(popup.el.parentElement).toBe(document.body);
+    expect(popup.el.style.position).toBe("absolute");
+
+    popup.position(rect(100, 120, 40));
+    expect(popup.el.style.top).toBe("126px");
+    expect(popup.el.style.left).toBe("40px");
+    popup.destroy();
+  });
+
+  it("reports the cap once, not on every keystroke", () => {
+    installViewport(fakeViewport(844));
+    const onMaxHeight = vi.fn();
+    const popup = createSuggestionPopup(onMaxHeight);
+
+    popup.position(rect(100, 120, 40));
+    popup.position(rect(100, 120, 40));
+    expect(onMaxHeight).toHaveBeenCalledExactlyOnceWith(710); // 844 - 8 - 126
+    popup.destroy();
+  });
+
+  it("re-places the menu when the soft keyboard shrinks the visible area", () => {
+    const vp = fakeViewport(844);
+    installViewport(vp);
+    const onMaxHeight = vi.fn();
+    const popup = createSuggestionPopup(onMaxHeight);
+
+    // Caret low on the screen: room below it while the keyboard is closed.
+    popup.position(rect(600, 620, 40));
+    expect(popup.el.style.top).toBe("626px");
+
+    vp.height = 400;
+    vp.emit("resize");
+    // The caret is now BELOW the visible area, so the menu must have moved off
+    // its old spot and back inside the screen. (Exact numbers are not asserted:
+    // jsdom measures the menu as 0-height, so the clamp does the work here —
+    // the arithmetic itself is covered by placeSuggestionMenu above.)
+    expect(popup.el.style.top).not.toBe("626px");
+    expect(Number.parseFloat(popup.el.style.top)).toBeLessThanOrEqual(400 - 8);
+    popup.destroy();
+  });
+
+  it("stops listening once destroyed", () => {
+    const vp = fakeViewport(844);
+    installViewport(vp);
+    const popup = createSuggestionPopup(() => {});
+    popup.position(rect(600, 620, 40));
+    popup.destroy();
+
+    expect(popup.el.parentElement).toBeNull();
+    vp.height = 400;
+    expect(() => vp.emit("resize")).not.toThrow();
+    expect(popup.el.style.top).toBe("626px"); // unchanged by the late resize
+  });
+});

@@ -4,9 +4,9 @@ import { renderHook } from "@testing-library/react";
 /*
  * The pending-selection handoff (#475). A `[[link]]` click routes through
  * MainScreen and comes back as a note id to select — but SELECTING is not the
- * whole job: the mobile read sheet keys on its own `readNoteId` and gates the
- * body on `selectedNote.id` matching it, so a handoff that only moved the
- * selection left the sheet showing the previous note's title over a skeleton
+ * whole job: the mobile sheet keys on its own note id (useNoteSheetTarget) and
+ * gates the body on `selectedNote.id` matching it, so a handoff that only moved
+ * the selection left the sheet showing the previous note's title over a skeleton
  * that never resolved. `onPendingSelected` is the seam the host follows.
  */
 

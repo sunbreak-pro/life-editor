@@ -253,6 +253,7 @@
       "content": "内容",
       "links": "リンク",
       "deleteNote": "ノートを削除",
+      "detailTitle": "ノートの詳細",
       "quickAddTitle": "ノートを追加",
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",

@@ -253,6 +253,7 @@
       "content": "Content",
       "links": "Links",
       "deleteNote": "Delete note",
+      "detailTitle": "Note details",
       "quickAddTitle": "Add note",
       "quickAddPlaceholder": "Enter a title",
       "quickAddSubmit": "Add",

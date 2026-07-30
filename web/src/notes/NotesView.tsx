@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
 import {
   FileText,
@@ -45,6 +45,7 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
+import { useNoteSheetTarget } from "./hooks/useNoteSheetTarget";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -61,7 +62,8 @@ import { useNoteLinking } from "./hooks/useNoteLinking";
  *     is PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal.
  *   - Mobile (narrow): a sort + search + tag-filter header (#369), then the
  *     same tag groups as collapsible headings + ExcerptListItem rows, a
- *     92%-height read sheet, and a "+" QuickAddSheet.
+ *     92%-height detail sheet (the SAME <NoteDetailPanel> as the Desktop main,
+ *     fully editable since #471 — mobile-scope #7), and a "+" QuickAddSheet.
  *
  * Both halves render the SAME derived list (search → tag groups → sort → tag
  * filter) off the same state, so the two breakpoints never disagree (#369).
@@ -132,8 +134,7 @@ export function NotesView({
   // #409 moved tag MUTATION (create / rename / delete / color / icon) out of
   // this view and into the shell-level tag editor, so only the read side and
   // the per-note assign/link calls are needed here now.
-  const { allTags, getTagsForItem, assignTagToItem } =
-    useWikiTagsUnifiedContext();
+  const { getTagsForItem, assignTagToItem } = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
@@ -157,8 +158,12 @@ export function NotesView({
   // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
   // here from the note body so reading/writing stays unobstructed.
   const [linksOpen, setLinksOpen] = useState(false);
-  // Mobile-only: the note whose read sheet is open + the quick-add sheet.
-  const [readNoteId, setReadNoteId] = useState<string | null>(null);
+  // Mobile-only: the note whose detail sheet is open + the quick-add sheet.
+  const sheet = useNoteSheetTarget({
+    isWide,
+    notes: notes.notes,
+    onSelect: notes.setSelectedNoteId,
+  });
   const [addOpen, setAddOpen] = useState(false);
 
   // Derived side-list pipeline + sort/filter/collapse state (hooks split).
@@ -188,13 +193,12 @@ export function NotesView({
     dataService,
     pendingSelectNoteId,
     onConsumePendingSelect,
-    // The mobile read sheet keys on its OWN readNoteId, and readReady gates the
-    // body on selectedNote.id matching it — so a `[[link]]` tapped inside the
-    // sheet would move the selection while the sheet kept the old note's title
-    // and a skeleton body that never resolves (#475). Follow the sheet across,
-    // but only while it is open (desktop leaves readNoteId null).
-    onPendingSelected: (id) =>
-      setReadNoteId((current) => (current == null ? current : id)),
+    // The mobile sheet keys on its OWN note id, and its body is gated on
+    // selectedNote.id matching it — so a `[[link]]` tapped inside the sheet
+    // would move the selection while the sheet kept the old note's title and a
+    // skeleton body that never resolves (#475). Follow it across, but only
+    // while the sheet is open (Desktop leaves the id null).
+    onPendingSelected: sheet.followPending,
   });
 
   const handleAssignTag = useCallback(
@@ -212,51 +216,9 @@ export function NotesView({
 
   const selected = notes.selectedNote;
 
-  // Read-only tag pills for a note (Mobile read sheet). Desktop uses the
-  // editable TagPicker instead.
-  const tagsById = useMemo(() => {
-    const map = new Map<string, (typeof allTags)[number]>();
-    for (const tag of allTags) map.set(tag.id, tag);
-    return map;
-  }, [allTags]);
-
-  const renderReadonlyTags = (noteId: string) => {
-    const noteAssignments = getTagsForItem(noteId).filter((a) => !a.isDeleted);
-    if (noteAssignments.length === 0) return null;
-    return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        {noteAssignments.map((a) => {
-          const tag = tagsById.get(a.tagId);
-          if (!tag) return null;
-          return (
-            <span
-              key={a.id}
-              className="inline-flex items-center gap-1.5 rounded-full border border-lumen-border bg-lumen-bg px-2 py-0.5 text-[11.5px] text-lumen-text-secondary"
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "h-1.5 w-1.5 shrink-0 rounded-full",
-                  tag.color ? "" : "bg-lumen-border-strong",
-                )}
-                style={tag.color ? { backgroundColor: tag.color } : undefined}
-              />
-              {tag.name}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
-
   // Selecting from the side list fills the MAIN editor; the list stays open.
   const handleSelectDesktop = (id: string) => {
     notes.setSelectedNoteId(id);
-  };
-
-  const handleOpenRead = (id: string) => {
-    notes.setSelectedNoteId(id); // hydrates the body before the sheet reads it
-    setReadNoteId(id);
   };
 
   const handlePwSubmit = async (password: string) => {
@@ -662,7 +624,7 @@ export function NotesView({
                             />
                           ) : undefined
                         }
-                        onClick={() => handleOpenRead(node.id)}
+                        onClick={() => sheet.openSheet(node.id)}
                       />
                     </div>
                   ))}
@@ -688,18 +650,17 @@ export function NotesView({
     </div>
   );
 
-  // ---- Mobile read sheet ----------------------------------------------
+  // ---- Mobile detail sheet --------------------------------------------
 
-  const readNote = readNoteId
-    ? notes.notes.find((n) => n.id === readNoteId)
-    : null;
-  const readGated =
-    !!readNote?.hasPassword && !unlocked.has(readNote?.id ?? "");
+  const sheetNote = sheet.sheetNote ?? null;
+  const sheetGated =
+    !!sheetNote?.hasPassword && !unlocked.has(sheetNote?.id ?? "");
   // The LIST omits note bodies (content=""); the body arrives only after the
-  // async hydrate driven by handleOpenRead. selectedNote.id matches readNoteId
+  // async hydrate driven by openSheet. selectedNote.id matches the sheet's note
   // exactly when that hydrate has completed, so gate the editor mount on it —
   // RichTextEditor ignores initialContent changes once mounted under a stable key.
-  const readReady = readNoteId != null && notes.selectedNote?.id === readNoteId;
+  const sheetReady =
+    sheetNote != null && notes.selectedNote?.id === sheetNote.id;
 
   // ---- Desktop rightSidebar detail ------------------------------------
 
@@ -827,25 +788,34 @@ export function NotesView({
           content (wide-only, so narrow never fills the MobileDrawer). */}
       {isWide && <RightSidebarPortal>{sidebarList}</RightSidebarPortal>}
 
-      {/* Mobile read sheet — 92% height, read-only. */}
+      {/*
+       * Mobile detail sheet — 92% height, FULL edit (#471, mobile-scope #7).
+       * It hosts the same <NoteDetailPanel> the Desktop main content uses, so
+       * title / tags / pin / delete / body are one implementation on both
+       * surfaces: anything added to the note detail later reaches the phone for
+       * free. The sheet's own header carries a generic label rather than the
+       * note's title, which the panel's first field already shows (and can now
+       * edit) — same call as the Todo sheet in #470.
+       *
+       * The password gate stays all-or-nothing here: locked → the unlock CTA
+       * INSTEAD of the panel, so a gated note cannot be renamed or retagged
+       * from the phone either. (Desktop blurs only the body, which is a wider
+       * hole; not widening it on mobile.)
+       */}
       {!isWide && (
         <BottomSheet
-          open={readNote != null}
-          onClose={() => setReadNoteId(null)}
-          title={readNote?.title || t("notesView.detailTitle")}
+          open={sheetNote != null}
+          onClose={sheet.closeSheet}
+          title={t("materials.notes.detailTitle")}
           className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
         >
-          {readNote && (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-              <h2 className="text-lg font-semibold text-lumen-text">
-                {readNote.title || "(untitled)"}
-              </h2>
-              {renderReadonlyTags(readNote.id)}
-              {readGated ? (
+          {sheetNote && (
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              {sheetGated ? (
                 <button
                   type="button"
                   onClick={() =>
-                    setPwDialog({ mode: "verify", noteId: readNote.id })
+                    setPwDialog({ mode: "verify", noteId: sheetNote.id })
                   }
                   className={cn(
                     "flex flex-col items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary py-12 text-lumen-text",
@@ -857,19 +827,58 @@ export function NotesView({
                     {t("materials.notes.lockedHint")}
                   </span>
                 </button>
-              ) : readReady ? (
-                <RichTextEditor
-                  key={readNote.id}
-                  noteId={readNote.id}
-                  initialContent={notes.selectedNote?.content || undefined}
-                  editable={false}
-                  onUpdate={() => {}}
-                  // Read-only: no "[[" suggestion (loadLinkTargets omitted), but
-                  // resolved links stay clickable for navigation.
-                  onNavigateToItem={onNavigateToItem}
-                />
               ) : (
-                <SkeletonList rows={4} rowHeight={20} gap={8} />
+                <NoteDetailPanel
+                  noteId={sheetNote.id}
+                  title={sheetNote.title}
+                  isPinned={sheetNote.isPinned}
+                  onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+                  onTogglePin={notes.togglePin}
+                  // Deleting closes the sheet on its own: the note leaves the
+                  // active pool, so useNoteSheetTarget drops the id.
+                  onDelete={(id) => notes.softDeleteNote(id)}
+                  titleLabel={t("notesView.detailTitle")}
+                  pinLabel={t("notesView.unpin")}
+                  unpinLabel={t("notesView.pin")}
+                  deleteLabel={t("materials.notes.deleteNote")}
+                  moreActionsLabel={t("notesView.moreActions")}
+                  tagsSlot={
+                    <TagPicker
+                      itemId={sheetNote.id}
+                      itemRole="note"
+                      showLabel
+                      size="sm"
+                    />
+                  }
+                  contentLabel={t("materials.notes.content")}
+                  contentEditor={
+                    sheetReady ? (
+                      <RichTextEditor
+                        key={sheetNote.id}
+                        noteId={sheetNote.id}
+                        initialContent={
+                          notes.selectedNote?.content || undefined
+                        }
+                        editable={!sheetNote.isEditLocked}
+                        onUpdate={(content) =>
+                          notes.updateNote(sheetNote.id, { content })
+                        }
+                        // Same "[[" wiring as Desktop. loadLinkTargets is a
+                        // LOADER, so handing it over costs nothing until the
+                        // user actually types "[[" (#430 — typing prose must
+                        // not fetch the pool).
+                        loadLinkTargets={loadLinkTargets}
+                        onNavigateToItem={onNavigateToItem}
+                        onResolvedLinkInserted={(targetId) =>
+                          handleResolvedLinkInserted(sheetNote.id, targetId)
+                        }
+                        onCreateNoteForLink={handleCreateNoteForLink}
+                      />
+                    ) : (
+                      <SkeletonList rows={4} rowHeight={20} gap={8} />
+                    )
+                  }
+                />
               )}
             </div>
           )}
