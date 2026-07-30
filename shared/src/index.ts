@@ -316,6 +316,9 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+// #469 follow-up: the span an all-day row gets back when the switch goes OFF
+// (a row created as all-day may carry no start/end at all).
+export { timedSpanForAllDayOff, type MaybeTime } from "./utils/scheduleAllDay";
 // #466 Step 5-b: the Calendar grid's repeat filter (view-layer narrowing —
 // the host keeps its unfiltered store for selection / mutation).
 export {

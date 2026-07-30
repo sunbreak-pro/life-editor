@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-30 - #469 の role-qa 監査対応（merge 後の hardening follow-up）
+
+#### 概要
+
+Stop hook のレビューゲートで role-qa を回した結果、Blocking 2 件・Should-fix 3 件。**Blocking はどちらも #484（PR merge 済み）で自分が入れた退行**だったので、追い PR で直した。監査を回している最中に #484 が merge されたため「merge 前の差し戻し」にはできなかった。
+
+#### 変更点
+
+- **B-1 日付を commit-on-blur に戻した**: `<input type="date">` は「完全な値しか emit しない」が正しくても、**セグメントを 1 段動かすたびに emit する**。↑ を 5 回押せば DB 書き込み 5 回 + undo エントリ 5 個、年をキーボードで打てば 2 年 → 20 年 → 202 年を経由して書き込む。commit-on-change を選んだ理由（Esc で閉じると blur が飛ばず draft が失われる）は残るので、**unmount flush**（ref に最新の commit を持たせ、空 dep の cleanup で 1 回だけ実行）で埋めた
+- **B-2 日付変更時の anchor 追従を撤回した**: 追従は「行が今の週から消えるのを避ける」ためだったが、**anchor が変わると `[rangeStart, rangeEnd]` が変わり、再フェッチが `rangeItems` を配列ごと置換して着地前の楽観 patch を捨てる**。書き込みは fire-and-forget で数往復・読みは SELECT 1 発なので読みが先着し、行がどの範囲にも無い瞬間に `selected` が null → `editorItem` null → **詳細パネルが自分で閉じる**（Desktop の日表示 / Mobile では ±1 日の変更でも毎回）。追従をやめると patch 済みの行が `rangeItems` に残るのでパネルは開いたまま、行の移動は次の settled fetch が反映する。**「消えないように追従する」が消える原因そのものだった**
+- **S-1 終日 OFF 後に時刻入力が空のまま残る**: draft は props からの初期値のみで再同期が無く、key も `item.id` だけだったので、時刻を持たない終日行を OFF にすると DB / グリッドは 09:00-10:00・パネルは空欄という食い違いが出ていた → `EventEditorFields` の key に `isAllDay` を含めて再マウントさせる
+- **S-2 フォールバック span を shared の純関数へ**: 新設 `shared/src/utils/scheduleAllDay.ts` の `timedSpanForAllDayOff`。web にテストランナーが無いため無検証だった 3 ケースを vitest で pin — **`minutesToTime` の clamp で `"24:00"` を作る**（start 23:30 + end 空 → 23:59 に丸める）/ start だけある行で end が逆転しない / text 列に入り得る不正文字列は「時刻なし」として扱う（`minutesFromMidnight` は不正入力を 0 と読むため、放置すると start=壊れた値・end=01:00 のペアを書く）
+- **N-3 / N-4**: `rangeItems.find(...) ?? selected` の二重探索を `selected` 直参照に（`editorItem` は `selected` 由来なので探索が食い違うと別行の時刻を読む方向に間抜ける）。系列ヒントの文言に memo を追加（memo も occurrence 単位）
+- **docs 追随（QA の S-3）**: 計画書 Status 行 + Step 5 / Step 7 の記号、Worklog に 2026-07-30 の 3 行、Epic #290 の Step 7 行。**Step 2 / 3 の `⬜` は担当外なので outbox で chat-main へ申し送り**
+- **判断キュー**: 「日付変更でカレンダーを移動先へ飛ばすか」を D-20260730-sched-1 として記録（A = 飛ばさない（採用）/ B = 書き込みの着地を待って飛ばす。B は `useScheduleItemsAPI` の書き込みを await 可能にする改修が前提）
+- **ゲート**: shared vitest **158 files / 1305 pass**・shared build・web build・web lint すべて exit 0
+
 ### 2026-07-30 - #469 Step 7 編集パネルの日付ピッカー・終日トグル + 小粒回収
 
 #### 概要
