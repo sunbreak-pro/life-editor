@@ -128,6 +128,8 @@ export {
   type BottomTabBarProps,
   type BottomTabBarLabels,
   type BottomTabSection,
+  BottomTabActionRow,
+  type BottomTabActionRowProps,
 } from "./BottomTabBar";
 export {
   AppShell,

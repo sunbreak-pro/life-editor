@@ -63,6 +63,7 @@ import { TagEditorHost } from "./tags/TagEditorHost";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { UndoRedoHost } from "./UndoRedoHost";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
+import { MobileShellActions } from "./MobileShellActions";
 import {
   useShellNavigation,
   type MaterialsTab,
@@ -622,6 +623,15 @@ export function MainScreen({ session }: { session: Session }) {
                     labels={shellLabels}
                     detailPanelLabels={detailPanelLabels}
                     header={sectionHeader}
+                    /*
+                     * Narrow-only counterpart to `header` (#472). `header` is a
+                     * wide-branch slot, so undo/redo would otherwise be
+                     * unreachable on mobile; AppShell hands these to the bottom
+                     * bar's "More" sheet. A callback (not a node) because the
+                     * rows read UndoRedoContext, and MainScreen's own body sits
+                     * OUTSIDE the <UndoRedoHost> it mounts.
+                     */
+                    bottomBarActions={() => <MobileShellActions />}
                   >
                     {/*
                      * PageContainer (Layout Standard v1 #180 / v2) owns width +
