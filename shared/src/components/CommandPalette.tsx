@@ -16,10 +16,11 @@ import { useVisualViewport } from "../hooks/useVisualViewport";
  *
  *  - SIZING. The overlay was laid out in `vh`, which does not shrink when the
  *    soft keyboard slides up, so the results ran underneath the keyboard.
- *    `useVisualViewport` sizes the overlay to what is actually on screen; the
- *    `vh` classes stay as the fallback for platforms without the API (jsdom
- *    included). With no keyboard the two agree to the pixel, so Desktop is
- *    unchanged.
+ *    `useVisualViewport` sizes the overlay to what is actually on screen.
+ *    EVERY real browser takes that path, Desktop included — the `vh` classes
+ *    are the fallback for platforms without the API (jsdom). With nothing
+ *    covering the viewport the two agree to the pixel, which is why Desktop
+ *    looks the same on either.
  *  - DISMISSAL. Backdrop dismissal ran on `mousedown`, which iOS Safari only
  *    synthesizes for clickable elements — a bare backdrop div is not one, so
  *    tapping outside did nothing and, with no Escape key on a phone, the
@@ -166,13 +167,27 @@ export function CommandPalette({
     : undefined;
 
   return (
-    <div className="fixed inset-0 z-[999]" onPointerDown={onClose}>
+    <div
+      className="fixed inset-0 z-[999]"
+      onPointerDown={(e) => {
+        // Suppress the compatibility mouse events this touch would otherwise
+        // synthesize: the overlay unmounts during this handler, so the click
+        // that follows would re-hit-test and land on whatever is underneath.
+        e.preventDefault();
+        onClose();
+      }}
+    >
       {/* Backdrop — allowed overlay exception (§5) */}
       <div className="absolute inset-0 bg-black/30" />
 
-      {/* Frame: bounds the panel to the visible area (see the file header). */}
+      {/*
+       * Frame: bounds the panel to the visible area (see the file header).
+       * `items-start` is load-bearing — the default `stretch` would pull the
+       * panel down to the full frame height, and `max-h-full` cannot claw that
+       * back because it resolves against the same height.
+       */}
       <div
-        className="absolute inset-0 flex justify-center px-3 pb-3 pt-[12vh]"
+        className="absolute inset-0 flex items-start justify-center px-3 pb-3 pt-[12vh]"
         style={frameStyle}
       >
         {/* Panel */}
