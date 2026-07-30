@@ -447,8 +447,10 @@ export function KanbanView({
   );
 
   // Desktop: the selected task's detail, pushed into the rightSidebar on
-  // card-click. Null when nothing is selected.
-  const taskDetail = selected ? renderTaskDetail(selected) : null;
+  // card-click. Null when nothing is selected — and on narrow, where only the
+  // sheet below shows a detail (the portal is wide-only, so building this there
+  // would just construct a TagPicker and an editor element to throw away).
+  const taskDetail = isWide && selected ? renderTaskDetail(selected) : null;
 
   // Mobile: the same panel in the bottom sheet, with the touch status row
   // instead of the Desktop cycle button (#470).

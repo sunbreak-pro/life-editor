@@ -166,8 +166,14 @@ export function TaskDetailPanel({
 
       <div
         className={cn(
-          "flex gap-2",
-          statusControl ? "flex-col items-stretch gap-1.5" : "items-center",
+          "flex",
+          // Both branches name their own gap: cn is a plain joiner (no
+          // tailwind-merge), so a base "gap-2" would survive alongside
+          // "gap-1.5" and the CSS output order — not the class order — would
+          // pick the winner.
+          statusControl
+            ? "flex-col items-stretch gap-1.5"
+            : "items-center gap-2",
         )}
       >
         <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
