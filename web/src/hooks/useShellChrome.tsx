@@ -215,6 +215,8 @@ export function useShellChrome({
       moreTitle: t("nav.moreTitle"),
       shortcutHint: isMac ? "⌘K" : "Ctrl K",
       tagEditor: t("nav.tagEditor"),
+      // Narrow-only: names the action group in the bottom bar's More sheet (#472).
+      bottomBarActionsTitle: t("nav.quickActions"),
     }),
     [t],
   );

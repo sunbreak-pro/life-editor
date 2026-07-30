@@ -54,6 +54,11 @@ export function SidebarFilterField({
       className={cn(
         "flex items-center gap-2 rounded-lumen-md border border-lumen-border",
         md ? "h-9 bg-lumen-bg px-3" : "h-8 bg-lumen-surface-sunken px-2.5",
+        // Focus affordance on the modal preset only (#368 QA): every control
+        // beside it inside a dialog draws a ring, so an unringed field loses
+        // the keyboard user. The sidebar preset stays ringless to match the
+        // hand-rolled search boxes it sits next to.
+        md && "focus-within:ring-2 focus-within:ring-lumen-accent",
         className,
       )}
     >

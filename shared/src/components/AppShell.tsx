@@ -35,6 +35,11 @@ export interface AppShellLabels {
   shortcutHint?: string;
   /** "Edit tags" sidebar footer row (#409) — wide layout only. */
   tagEditor?: string;
+  /**
+   * Accessible label for the action group in the narrow "More" sheet (#472) —
+   * narrow layout only.
+   */
+  bottomBarActionsTitle?: string;
 }
 
 export interface AppShellProps {
@@ -90,6 +95,17 @@ export interface AppShellProps {
    * rows untouched (v2 non-goal: mobile layout unchanged).
    */
   header?: ReactNode;
+  /**
+   * NARROW LAYOUT ONLY — app-global actions listed at the top of the bottom
+   * bar's "More" sheet (#472). Because `header` is wide-only, controls that
+   * act on the current screen no matter which section is open (undo/redo, the
+   * command palette) have no other slot that every narrow section shares. The
+   * wide branch ignores this prop, which is what keeps Desktop unchanged.
+   *
+   * Built from <BottomTabActionRow>; see that prop's contract on BottomTabBar
+   * (return a component, not inline hook calls).
+   */
+  bottomBarActions?: (closeSheet: () => void) => ReactNode;
 }
 
 const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
@@ -129,6 +145,7 @@ export function AppShell({
   maxBottomTabs = 4,
   detailPanelLabels,
   header,
+  bottomBarActions,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(
@@ -191,7 +208,12 @@ export function AppShell({
         activeSection={activeSection}
         onNavigate={onNavigate}
         maxVisible={maxBottomTabs}
-        labels={{ more: labels.more, moreTitle: labels.moreTitle }}
+        labels={{
+          more: labels.more,
+          moreTitle: labels.moreTitle,
+          actionsTitle: labels.bottomBarActionsTitle,
+        }}
+        actions={bottomBarActions}
       />
       {detailPanelLabels && (
         <MobileDrawer
