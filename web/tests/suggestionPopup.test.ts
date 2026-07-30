@@ -114,6 +114,18 @@ describe("placeSuggestionMenu", () => {
     expect(placement.left).toBe(8); // the left margin wins the tie
   });
 
+  it("never loosens the menu's own design height", () => {
+    // Desktop has room for a 666px menu; the cap is applied as an inline style
+    // that beats the list's max-h-72, so an uncapped value would STRETCH a
+    // surface this change is not supposed to touch.
+    const placement = placeSuggestionMenu({
+      caret: { top: 200, bottom: 220, left: 300 },
+      menu: MENU,
+      visible: DESKTOP,
+    });
+    expect(placement.maxHeight).toBe(288);
+  });
+
   it("respects a visible area that is offset, not just shrunk", () => {
     // Pinch-scrolled: visualViewport.offsetTop pushes the visible band down, so
     // "the top of the screen" is no longer y=0.
@@ -213,14 +225,65 @@ afterEach(() => {
 });
 
 describe("createSuggestionPopup", () => {
-  it("mounts an absolutely-positioned container and writes the placement to it", () => {
+  it("stays invisible until it has a real place to be", () => {
+    // An absolutely-positioned element with no top/left renders wherever the
+    // body flow left it — the bottom of the page. The caret rect is not always
+    // available on the opening call, so the container must not be shown yet.
     const popup = createSuggestionPopup(() => {});
     expect(popup.el.parentElement).toBe(document.body);
     expect(popup.el.style.position).toBe("absolute");
+    expect(popup.el.style.visibility).toBe("hidden");
+    expect(popup.el.dataset.suggestionMenu).toBe("true");
 
-    popup.position(rect(100, 120, 40));
-    expect(popup.el.style.top).toBe("126px");
-    expect(popup.el.style.left).toBe("40px");
+    popup.position(() => null); // no caret yet
+    expect(popup.el.style.visibility).toBe("hidden");
+
+    popup.position(() => rect(100, 120, 40));
+    expect(popup.el.style.visibility).toBe("visible");
+    popup.destroy();
+  });
+
+  it("pulls the menu back inside the screen (the old code wrote the caret's own x)", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(256);
+    const popup = createSuggestionPopup(() => {});
+
+    popup.position(() => rect(100, 120, 900));
+    // jsdom's window is 1024 wide: 1024 - 8 edge - 256 menu = 760.
+    expect(popup.el.style.left).toBe("760px");
+    popup.destroy();
+  });
+
+  it("re-reads the caret instead of reusing the rect it opened with", () => {
+    // The browser scrolls the focused field into view when the keyboard opens,
+    // so the caret has usually MOVED by the time the visible area shrinks. A
+    // cached rect would place the menu against a caret that is no longer there.
+    const vp = fakeViewport(800);
+    installViewport(vp);
+    const popup = createSuggestionPopup(() => {});
+    let caret = rect(600, 620, 40);
+
+    popup.position(() => caret);
+    expect(popup.el.style.top).toBe("626px");
+
+    caret = rect(300, 320, 40); // sheet scrolled the caret up
+    vp.height = 440;
+    vp.emit("resize");
+    expect(popup.el.style.top).toBe("326px"); // against the NEW caret, not 600
+    popup.destroy();
+  });
+
+  it("follows the caret when a nested scroller moves it", () => {
+    // The note body is its own scroller inside the sheet. Scrolling it moves the
+    // caret and fires nothing on window or visualViewport — the event does not
+    // bubble — so the listener has to be a capture-phase one.
+    const popup = createSuggestionPopup(() => {});
+    let caret = rect(400, 420, 40);
+    popup.position(() => caret);
+    expect(popup.el.style.top).toBe("426px");
+
+    caret = rect(200, 220, 40);
+    document.body.dispatchEvent(new Event("scroll"));
+    expect(popup.el.style.top).toBe("226px");
     popup.destroy();
   });
 
@@ -229,9 +292,11 @@ describe("createSuggestionPopup", () => {
     const onMaxHeight = vi.fn();
     const popup = createSuggestionPopup(onMaxHeight);
 
-    popup.position(rect(100, 120, 40));
-    popup.position(rect(100, 120, 40));
-    expect(onMaxHeight).toHaveBeenCalledExactlyOnceWith(710); // 844 - 8 - 126
+    popup.position(() => rect(100, 120, 40));
+    popup.position(() => rect(100, 120, 40));
+    // 710px of room below, but the cap may only ever TIGHTEN the menu's own
+    // max-h-72 — this inline value overrides that class.
+    expect(onMaxHeight).toHaveBeenCalledExactlyOnceWith(288);
     popup.destroy();
   });
 
@@ -242,7 +307,7 @@ describe("createSuggestionPopup", () => {
     const popup = createSuggestionPopup(onMaxHeight);
 
     // Caret low on the screen: room below it while the keyboard is closed.
-    popup.position(rect(600, 620, 40));
+    popup.position(() => rect(600, 620, 40));
     expect(popup.el.style.top).toBe("626px");
 
     vp.height = 400;
@@ -269,7 +334,7 @@ describe("createSuggestionPopup", () => {
     );
 
     const popup = createSuggestionPopup(() => {});
-    popup.position(rect(430, 450, 40));
+    popup.position(() => rect(430, 450, 40));
     expect(popup.el.style.top).toBe("456px"); // 0-height box → "fits below"
 
     menuHeight = 280; // React commits the menu into the container
@@ -284,7 +349,7 @@ describe("createSuggestionPopup", () => {
     const vp = fakeViewport(844);
     installViewport(vp);
     const popup = createSuggestionPopup(() => {});
-    popup.position(rect(600, 620, 40));
+    popup.position(() => rect(600, 620, 40));
     popup.destroy();
 
     expect(popup.el.parentElement).toBeNull();
