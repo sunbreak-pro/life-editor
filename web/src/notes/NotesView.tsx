@@ -188,6 +188,13 @@ export function NotesView({
     dataService,
     pendingSelectNoteId,
     onConsumePendingSelect,
+    // The mobile read sheet keys on its OWN readNoteId, and readReady gates the
+    // body on selectedNote.id matching it — so a `[[link]]` tapped inside the
+    // sheet would move the selection while the sheet kept the old note's title
+    // and a skeleton body that never resolves (#475). Follow the sheet across,
+    // but only while it is open (desktop leaves readNoteId null).
+    onPendingSelected: (id) =>
+      setReadNoteId((current) => (current == null ? current : id)),
   });
 
   const handleAssignTag = useCallback(

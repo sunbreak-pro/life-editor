@@ -87,8 +87,6 @@ cd web && npm run test          # vitest（renderer 側 — jsdom。#475 で追�
 cd web && npm run dev           # ローカル起動（vite）
 ```
 
-`web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
-
 起動・配布コマンドの詳細は移行 SSOT を参照（Tauri 時代の `cargo tauri dev` 等は廃止）。
 
 ### 7.2 コミット規約

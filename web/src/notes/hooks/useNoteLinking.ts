@@ -17,10 +17,17 @@ export function useNoteLinking({
   dataService,
   pendingSelectNoteId,
   onConsumePendingSelect,
+  onPendingSelected,
 }: {
   dataService?: DataService;
   pendingSelectNoteId?: string | null;
   onConsumePendingSelect?: () => void;
+  /**
+   * The pending handoff moved the selection to this id. Selecting is not enough
+   * for surfaces the HOST keys on separately — the mobile read sheet tracks its
+   * own note id — so the host follows them here (#475).
+   */
+  onPendingSelected?: (id: string) => void;
 }) {
   const notes = useNotesUnifiedContext();
   const { createItemLink, getLinksForItem } = useWikiTagsUnifiedContext();
@@ -52,9 +59,10 @@ export function useNoteLinking({
   useEffect(() => {
     if (!pendingSelectNoteId) return;
     notes.setSelectedNoteId(pendingSelectNoteId);
+    onPendingSelected?.(pendingSelectNoteId);
     onConsumePendingSelect?.();
-    // notes.setSelectedNoteId / onConsumePendingSelect are stable enough; rerun
-    // only when a new pending id arrives.
+    // notes.setSelectedNoteId / onConsumePendingSelect / onPendingSelected are
+    // stable enough; rerun only when a new pending id arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSelectNoteId]);
 

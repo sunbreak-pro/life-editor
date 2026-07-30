@@ -63,6 +63,13 @@ paths:
 
 - 現行は `CalendarProvider` → `RoutineProvider` → `ScheduleItemsProvider`（外→内）。`CalendarTagsProvider` は DU-F Step 3-5 で撤去済み（tag/link は `WikiTagsUnified` が引き継ぎ）、後方互換ファサード `useScheduleContext()` も現存しない — 個別 hook を直接使用する。複数参照される部品は `shared/src/components/schedule/` へ（背景 → `docs/vision/coding-principles.md §3`）
 
+## テスト環境の制約（座標に依存する入力経路を作らない）
+
+`shared/tests/` と `web/tests/` はどちらも jsdom で、**レイアウトが無い**（要素の座標はすべて 0・`elementFromPoint` は null）。画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は**ここでは検証できない**。
+
+- UI の入力経路は座標に依存しない形で組む: DOM イベント + `closest("[data-…]")` で対象を引く（実例 = `web/src/notes/itemLinkNode.ts` の `handleDOMEvents.click`）
+- 座標依存のまま残すとテストが書けないので、壊れても誰も気付かない（#475 = `[[リンク]]` のクリック遷移が #288 から死んでいたのにテストゼロで放置された）
+
 ## Gotchas
 
 - **IME**: keydown 処理に `e.nativeEvent.isComposing` チェック必須（日本語入力破壊防止）
