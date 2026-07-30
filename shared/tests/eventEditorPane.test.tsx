@@ -22,6 +22,8 @@ const LABELS: EventEditorLabels = {
     done: "Done",
   },
   title: "Title",
+  date: "Date",
+  allDay: "All-day",
   startTime: "Start",
   endTime: "End",
   memo: "Memo",
@@ -34,6 +36,8 @@ const LABELS: EventEditorLabels = {
 const routineItem: EventEditorItem = {
   id: "r1",
   title: "Gym",
+  date: "2026-07-30",
+  isAllDay: false,
   startTime: "19:00",
   endTime: "20:30",
   completed: false,
@@ -116,5 +120,66 @@ describe("EventEditorPane — commit-on-blur", () => {
     const { onChangeStart } = renderPane(manualItem);
     fireEvent.blur(screen.getByLabelText("Start"));
     expect(onChangeStart).not.toHaveBeenCalled();
+  });
+});
+
+describe("EventEditorPane — date + all-day (#469)", () => {
+  it("commits the date on change (not on blur) and ignores a cleared value", () => {
+    const onChangeDate = vi.fn();
+    renderPane(manualItem, { onChangeDate });
+    const date = screen.getByLabelText("Date");
+    // Commit-on-change is deliberate here: the overlay can be dismissed with
+    // Esc, which fires no blur, and a pending date draft would be lost.
+    fireEvent.change(date, { target: { value: "2026-08-03" } });
+    expect(onChangeDate).toHaveBeenCalledWith("m1", "2026-08-03");
+    // A cleared input reports "" — never commit that as a day.
+    fireEvent.change(date, { target: { value: "" } });
+    expect(onChangeDate).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the date read-only and hides the switch when unwired", () => {
+    renderPane(manualItem);
+    expect(screen.getByLabelText("Date")).toHaveAttribute("readonly");
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("reports the all-day state and asks for the flip", () => {
+    const onToggleAllDay = vi.fn();
+    renderPane(manualItem, { onToggleAllDay });
+    const sw = screen.getByRole("switch", { name: "All-day" });
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(sw);
+    expect(onToggleAllDay).toHaveBeenCalledWith("m1", true);
+  });
+
+  it("hides the time inputs while all-day is on", () => {
+    const onToggleAllDay = vi.fn();
+    renderPane({ ...manualItem, isAllDay: true }, { onToggleAllDay });
+    // Hidden, not disabled: the switch keeps the focus, and locked inputs would
+    // leave the times looking authoritative on a row that ignores them.
+    expect(screen.queryByLabelText("Start")).toBeNull();
+    expect(screen.queryByLabelText("End")).toBeNull();
+    expect(screen.getByRole("switch", { name: "All-day" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("switch", { name: "All-day" }));
+    expect(onToggleAllDay).toHaveBeenCalledWith("m1", false);
+  });
+});
+
+describe("EventEditorPane — series hint (#469 小粒)", () => {
+  const hint = "Title and time edits ask about the series.";
+
+  it("shows the hint on a routine occurrence when the host supplies it", () => {
+    renderPane(routineItem, { labels: { ...LABELS, seriesHint: hint } });
+    expect(screen.getByText(hint)).toBeInTheDocument();
+  });
+
+  it("never shows it on a manual item, or when the label is omitted", () => {
+    renderPane(manualItem, { labels: { ...LABELS, seriesHint: hint } });
+    expect(screen.queryByText(hint)).toBeNull();
+    renderPane(routineItem);
+    expect(screen.queryByText(hint)).toBeNull();
   });
 });

@@ -269,3 +269,12 @@ PR #423(#407 修正)の role-qa 監査で出た follow-up 候補です。起票�
 
 1. **[schedule] 繰り返し変換中の pending フィードバック**: Event→Repeats 変換は in-flight ガード(#407)で二重実行を防ぐが、変換中の頻度セグメントに pending 表示 / disabled が無く、追加クリックの黙殺が「無反応」に見える。条件付き attach が reject したときの toast も未整備(noteAttachFailed と方針不揃い)。対象 = `shared/src/components/schedule/FrequencyEditor.tsx` + `web/src/schedule/CalendarTab.tsx`(repeat 配線)
 2. **[schedule] convertingSeedsRef ガードの shared 切り出し**: 二重変換ガードのクライアント半分は `web/src/schedule/useScheduleMutations.ts` にあり、web にテストランナーが無いため vitest で pin できない。サーバー側(条件付き attach)は `shared/tests/convertEventToRoutine.test.ts` で pin 済みなので優先度低。やるならガードロジックを shared の純関数/フックに切り出す(#352 の seedFrequencyPatch と同じ方針)
+
+## 2026-07-30 — 起票依頼 2 件（#469 で見送った小粒・chat-main へ）
+
+いずれも `web/src/schedule/useScheduleMutations.ts`。**共通の型** = 「routine template の更新が失敗しても無言で、以後の生成だけが古い値になる」。#434 / #469 で潰した「失敗が黙って消える」の残り 2 箇所だが、**toast 1 行では足りない**（ユーザーに伝えるべきは「今の表示は正しいが、来週以降が古い設定で生成される」で、復旧手順の設計が要る）ため #469 のスコープから外した。
+
+1. **scope 編集（this and future / all）後の template 更新が await されていない** — `useScheduleMutations.ts:807` の `updateRoutine(routineId, updates)`。直前の `updateFutureOccurrences` は成功しているので**既存の未来行は新しい値・template だけ古い値**という食い違いが残り、次の生成分から古い title/times に戻る。失敗しても catch も判定もない
+2. **routine 未ロード時の頻度変更が戻り値を捨てている** — 同 492 の `void updateRoutine(...)`（`routines.find` が空振りする異常系）。`seedFrequencyPatch` で fail-closed 対策はしてあるが、書き込み自体が落ちたら reload で元に戻るだけで何も言わない
+
+section:schedule ラベルでの起票をお願いします（担当はこの worktree で引き受けます）。
