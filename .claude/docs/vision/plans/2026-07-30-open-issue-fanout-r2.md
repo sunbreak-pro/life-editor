@@ -40,12 +40,12 @@ Owner-chat: main
 
 ## Worktree 分担
 
-| worktree（実パス）                            | 担当（1 行）                                  | 対応 Issue（着手順）                          | 触ってよいパス（目安）                                                                                                    |
-| --------------------------------------------- | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `orca/workspaces/life-editor/refactor-core`   | MainScreen 構造確定（他レーンの前提）         | **#465**（単独・最優先）                      | `web/src/MainScreen.tsx` `web/src/hooks/**` `web/src/shell/**`（`web/src/schedule/CalendarTab.tsx` は対象外）             |
-| `orca/workspaces/life-editor/mobile-refine`   | materials のバグ潰し → mobile フル編集        | **#475 → #470 → #471**                        | `web/src/notes/**` `web/src/tasks/**` `shared/src/components/materials/**` `shared/src/components/mobile/**`              |
-| `orca/workspaces/life-editor/schedule-refine` | Epic #290 の残 Step 全部（5-b → 6 → 5-c → 7） | **#466 → #468 → #467 → #469**                 | `web/src/schedule/**` `shared/src/components/schedule/**` `shared/src/utils/routine*`                                     |
-| `orca/workspaces/life-editor/tags-docs`       | 軽量 2 件 → #465 着地後に横断 mobile 導線     | **#368 → #474 →（#465 merge 後）#472 → #473** | `web/src/wikitag/**` `.claude/docs/**` `.claude/archive/**` `shared/src/components/AppShell.tsx` `web/src/MainScreen.tsx` |
+| worktree（実パス）                            | 担当（1 行）                                           | 対応 Issue（着手順）                                 | 触ってよいパス（目安）                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `orca/workspaces/life-editor/refactor-core`   | MainScreen 構造確定（他レーンの前提）                  | **#465**（単独・最優先）                             | `web/src/MainScreen.tsx` `web/src/hooks/**` `web/src/shell/**`（`web/src/schedule/CalendarTab.tsx` は対象外）             |
+| `orca/workspaces/life-editor/mobile-refine`   | materials のバグ潰し → mobile フル編集                 | **#475 → #470 → #471**                               | `web/src/notes/**` `web/src/tasks/**` `shared/src/components/materials/**` `shared/src/components/mobile/**`              |
+| `orca/workspaces/life-editor/schedule-refine` | Epic #290 の残 Step 全部（5-b → 6 → 5-c → 7）          | **#466 → #468 → #467 → #469**                        | `web/src/schedule/**` `shared/src/components/schedule/**` `shared/src/utils/routine*`                                     |
+| `orca/workspaces/life-editor/tags-docs`       | ツール掃除 + 軽量 2 件 → #465 着地後に横断 mobile 導線 | **#482 → #368 → #474 →（#465 merge 後）#472 → #473** | `web/src/wikitag/**` `.claude/docs/**` `.claude/archive/**` `shared/src/components/AppShell.tsx` `web/src/MainScreen.tsx` |
 
 - **#472 / #473 を tags-docs が引き取る**のは 2026-07-30 のユーザー決定。#368（名前の絞り込みのみに縮小 = ANSWERS `D-20260728-main-3`）と #474（docs 棚卸し）はどちらも軽く、**#465 の merge を待つ時間にちょうど収まる**という読み
 - **ブランチ運用は CLAUDE.md §7.4**: Issue ごとに `claude/<slug>-<issue>-<短slug>` を `origin/main` から切り直し、`.claude/comm/.session-branch` を都度更新。着手前に (1) `git pull --ff-only` → (2) `git fetch origin && git merge origin/main --no-edit`
@@ -75,6 +75,7 @@ Owner-chat: main
 
 ### tags-docs
 
+- **#482**: Stop hook（`stop-check.sh`）の廃止。Opus 5 が応答前に自分で検証するようになり後追い build が二重になったため（2026-07-30 ユーザー決定）。**`_TEMPLATE.md` を触るので #474 より先に着地させる**。グローバル `~/.claude/settings.json` 側の Stop hook は別物で対象外
 - **#368**: ANSWERS `D-20260728-main-3` で**「名前の絞り込みのみ」に縮小と確定済み**。ソート機能は入れない。共有部品 `SidebarListControls` を再利用
 - **#474**: 判定の正は `gh issue list --state all` / `gh pr list --state all` の **state**。**`git diff` でのマージ判定は禁止**（squash merge は未マージに見える — CLAUDE.md §7.4）。迷ったものは動かさず Issue にコメントして chat-main へ
 - **#472 / #473**: **#465 の merge を確認してから着手**（`gh pr list` の state で確認・`git diff` で判定しない）。導線の置き場所は実装者判断だが、根拠を Issue コメントに残す。Desktop の既存挙動は無変更が条件
@@ -181,26 +182,30 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 ### tags-docs
 
 ```text
-あなたは worktree tags-docs（chat-tags-docs）です。担当は 4 件で、着手順は #368 → #474 →（#465 の merge を確認してから）#472 → #473 です。
+あなたは worktree tags-docs（chat-tags-docs）です。担当は 5 件で、着手順は #482 → #368 → #474 →（#465 の merge を確認してから）#472 → #473 です。
 
-まず着手前の同期を済ませてください:
+まず着手前の同期とブランチ切替を済ませてください:
 1. git pull --ff-only
 2. git fetch origin && git merge origin/main --no-edit
-3. ブランチは既に claude/tags-368-name-filter が切られています。origin/main と同一コミットであることと .claude/comm/.session-branch の中身が一致していることを確認
+3. 先頭が #482 に変わったので、切られている claude/tags-368-name-filter は使わず新しく切ります:
+   git checkout -b claude/chore-remove-stop-hook origin/main
+   echo claude/chore-remove-stop-hook > .claude/comm/.session-branch
 （以降 Issue を移るたびに「git checkout -b claude/<slug>-<issue>-<短slug> origin/main」+ 「.session-branch 更新」の 2 ステップをセットで）
 
 担当 Issue（body が正本・DoD はそちらを読むこと）:
-1. #368 [tags] WikiTags 一覧のソート・フィルタ検討
-2. #474 [docs] plans/ の Status 棚卸しと archive 移動
-3. #472 [all] Undo/Redo のモバイル導線（#465 merge 後）
-4. #473 [all] コマンドパレットのモバイルタッチ導線（#465 merge 後）
+1. #482 [tags-docs] chore: Stop hook（stop-check.sh）を廃止する
+2. #368 [tags] WikiTags 一覧のソート・フィルタ検討
+3. #474 [docs] plans/ の Status 棚卸しと archive 移動
+4. #472 [all] Undo/Redo のモバイル導線（#465 merge 後）
+5. #473 [all] コマンドパレットのモバイルタッチ導線（#465 merge 後）
 
 方向:
+- #482: Stop hook（応答後に build を回して outbox に報告する仕組み）の廃止。Opus 5 が応答前に自分で検証するようになり二重になったための撤去です。settings.json を編集したら node -e "require('./.claude/settings.json')" で JSON が壊れていないことを確認すること。SessionStart / PreToolUse の hook 群は全部現役なので残す。history / archive / memory / outbox の過去ログにある stop-check の言及は当時の記録なので書き換えない。グローバル ~/.claude/settings.json 側にも別の Stop hook がありますが本 Issue の対象外です。_TEMPLATE.md を触るので #474 より必ず先に着地させること
 - #368: スコープはユーザー回答で「名前の絞り込みのみ」に縮小確定しています（.claude/comm/decisions/ANSWERS.md の D-20260728-main-3）。ソート機能は入れない。共有部品 SidebarListControls（shared/src/components/materials/・props 注入型）を再利用する
 - #474: 判定の正は gh issue list --state all / gh pr list --state all の state です。git diff / git log / git cherry でのマージ判定は禁止（squash merge は未マージに見える — CLAUDE.md §7.4）。文書同士の突き合わせでは stale を検出できないので、必ず git・コード・Issue state と突き合わせる。Status の値は enum のみ（Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)）。判定に迷ったものは動かさず Issue にコメントして chat-main へ回す。対象外は 3 本 = 2026-07-28-refactor-dataservice-split.md（#465 の担当が閉じる）/ 2026-05-04-cross-platform-migration.md（移行 SSOT・生きている）/ 2026-07-30-open-issue-fanout-r2.md（本ラウンドの計画書）。なお Issue body が対象外に挙げている 2026-07-28-post-merge-playwright-verification.md は 2026-07-29 に archive 済みで plans/ にもう無いので、探して見つからなくても異常ではない
 - #472 / #473: どちらも shared/src/components/AppShell.tsx と web/src/MainScreen.tsx を触る可能性が高いので、#465（refactor-core レーンの MainScreen hooks 切り出し）の merge を gh pr list の state で確認してから着手する。#465 がまだなら #368 / #474 を先に終わらせて待つ。導線の置き場所は実装者判断だが、決めた根拠を Issue コメントに残す。Desktop の既存挙動（ヘッダーボタン / Cmd+K）は無変更が条件。履歴はグローバル 1 本のまま（Epic #304 の設計を分岐させない）。mobile-scope.md の #16 / #17 行を実態に追随させ、Epic #321 Phase 2 の該当行にチェック
 
-共通ゲート: DDL ゼロ / lumen-* トークンのみ / DataService 境界維持 / i18n は en・ja 両 catalog / cd shared && npm run test・cd shared && npm run build・cd web && npm run build がすべて exit 0（#474 は docs only なので diff が .claude/** に限られることを確認）/ 実ブラウザ検証はしない（merge 後に chat-main が実施）
+共通ゲート: DDL ゼロ / lumen-* トークンのみ / DataService 境界維持 / i18n は en・ja 両 catalog / cd shared && npm run test・cd shared && npm run build・cd web && npm run build がすべて exit 0（#482 / #474 は .claude/** のみの変更なので diff がそこに限られることを確認）/ 実ブラウザ検証はしない（merge 後に chat-main が実施）
 
 進め方: 1 Issue = 1 ブランチ = 1 PR。task-tracker で開始を記録 → 実装 → session-verifier → PR 作成（本文に Fixes #<番号>）→ 次へ。A/B に割れる判断は .claude/comm/decisions/chat-tags-docs.md に書いて次へ進む。起票が必要な発見は .claude/comm/outbox/chat-tags-docs.md に append（自分で Issue を立てない）。
 ```
@@ -218,7 +223,7 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 
 ## Acceptance Criteria（ラウンド完了の条件）
 
-- [ ] 12 件（#465 / #475 / #470 / #471 / #466 / #468 / #467 / #469 / #368 / #474 / #472 / #473）がすべて close または「不要と判断 + 根拠コメント」で決着
+- [ ] 13 件（#465 / #475 / #470 / #471 / #466 / #468 / #467 / #469 / #482 / #368 / #474 / #472 / #473）がすべて close または「不要と判断 + 根拠コメント」で決着
 - [ ] Epic #290 の Step 5-b / 5-c / 6 / 7 にチェックが入り、全 Step 完了なら Epic 自体を close
 - [ ] Epic #321 Phase 2 の #6 / #7 / #16 / #17 行にチェックが入っている
 - [ ] `mobile-scope.md` の該当行が実態に追随している
@@ -254,3 +259,4 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 
 - 2026-07-30: 現状実測（open PR ゼロ / worktree 4 本すべて `a4fd6f89` / open Issue 15 件）→ 依存グラフ整理 → 4 レーン分担確定（#472 / #473 は tags-docs が引き取り = ユーザー決定）→ 貼り付けプロンプト 4 本を作成
 - 2026-07-30: commit 直前の `git fetch` で `origin/main` が `7093e11e` まで進んでいたことが判明（#476 = 前ラウンドの検証計画を COMPLETED 化して archive 移動・#477 = worktree の置き場所をリポジトリ外へ変更）。本書の検証計画リンク 2 箇所と #474 プロンプトの「対象外」記述を追随修正。worktree 実パスの表記は #477 の新方針と一致していたため変更なし
+- 2026-07-30: Stop hook 廃止（ユーザー持ち込み）を実測検証のうえ **#482** として起票し、tags-docs レーンの**先頭**に追加（`_TEMPLATE.md` を触るため #474 より先）。実測で分かった 2 点を Issue に明記 = 元プロンプト手順 5 の「outbox の stop-report.md 削除」は git・disk とも対象ゼロ / グローバル `~/.claude/settings.json` 側の Stop hook（adversarial-review-gate / sui-memory / Orca）は別物で対象外
