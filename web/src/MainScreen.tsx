@@ -626,13 +626,19 @@ export function MainScreen({ session }: { session: Session }) {
                     header={sectionHeader}
                     /*
                      * Narrow-only counterpart to `header` (#472). `header` is a
-                     * wide-branch slot, so undo/redo would otherwise be
-                     * unreachable on mobile; AppShell hands these to the bottom
-                     * bar's "More" sheet. A callback (not a node) because the
-                     * rows read UndoRedoContext, and MainScreen's own body sits
-                     * OUTSIDE the <UndoRedoHost> it mounts.
+                     * wide-branch slot, so undo/redo and the command palette
+                     * (#473) would otherwise be unreachable on mobile; AppShell
+                     * hands these to the bottom bar's "More" sheet. A callback
+                     * (not a node) because the rows read UndoRedoContext, and
+                     * MainScreen's own body sits OUTSIDE the <UndoRedoHost> it
+                     * mounts.
                      */
-                    bottomBarActions={() => <MobileShellActions />}
+                    bottomBarActions={(closeSheet) => (
+                      <MobileShellActions
+                        onOpenPalette={() => setPaletteOpen(true)}
+                        closeSheet={closeSheet}
+                      />
+                    )}
                   >
                     {/*
                      * PageContainer (Layout Standard v1 #180 / v2) owns width +
