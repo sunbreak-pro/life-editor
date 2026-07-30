@@ -1,5 +1,5 @@
 ---
-Status: ARCHIVED — PR1 COMPLETE（①②③④ 実装=02c9045 / role-qa 独立監査 PASS=2026-05-17）+ forward-port #1#2#3 適用済。PR2 以降は Backlog 参照
+Status: COMPLETED — PR1 完了（①②③④ 実装=02c9045 / role-qa 独立監査 PASS=2026-05-17）+ forward-port #1#2#3 適用済。PR2 以降は Backlog 参照（旧表記 `ARCHIVED` を #474 で enum 化）
 Archived: 2026-05-23 (by cleanup-and-consolidation Phase 1-1)
 Created: 2026-05-17
 Task: Phase 2 S3 Notes — 実ブラウザ評価で判明したバグ修正 + 旧来 UI/UX 段階的収束

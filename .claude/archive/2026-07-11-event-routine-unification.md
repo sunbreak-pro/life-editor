@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — #185 は PR #245 merge（2026-07-12）で close。宣言した成果物は main に存在し、後続決定は 2026-07-14-schedule-redesign.md が追跡。判定 = #474（2026-07-30 実測）
 Created: 2026-07-11
 Branch: claude/schedule-refine
 Owner-chat: schedule-refine
@@ -118,7 +118,7 @@ DDL なし（`supabase/migrations/` に触らない）。shell 部品（AppShell
 
 ## References
 
-- Issue: #185（要件の一次情報）/ 旧台帳: [`2026-07-11-schedule-refine-orders.md`](../../../archive/2026-07-11-schedule-refine-orders.md)（SUPERSEDED・archive 保管。担当の一次情報は `gh issue list --label section:schedule`）
+- Issue: #185（要件の一次情報）/ 旧台帳: [`2026-07-11-schedule-refine-orders.md`](./2026-07-11-schedule-refine-orders.md)（SUPERSEDED・archive 保管。担当の一次情報は `gh issue list --label section:schedule`）
 - 実装マップの根拠: `shared/src/types/{schedule,routine}.ts` / `supabase/migrations/{0008,0011,0016}*.sql` / `shared/src/hooks/useScheduleItemsRoutineSync.ts` / `shared/src/services/{scheduleItemMapper,routineMapper}.ts` / `SupabaseDataService.ts` / `mcp-server/src/handlers/scheduleHandlers.ts`
 - 規約: `docs/vision/db-conventions.md` §10 / CLAUDE.md §3.3・§4
 

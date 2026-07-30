@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 方向 = 2026-07-11 ユーザー確定。Step 2 詳細設計 = 2026-07-11 追記（実測込み）
+Status: COMPLETED — S1〜S3 は PR #226 / #237 / #239 / #244 / #405 で merge 済み（epic #225 close）。migration 0020 / 0021 は本番適用済みで verify 期待値（新規タグ 5 / re-root 1 / 残存 folder 0）と一致。判定 = #474（2026-07-30 実測）
 Created: 2026-07-11
 Branch: claude/materials-refine # 共有コア（types / Kanban / Notes・Daily UI / 変換 migration）= materials-refine が単一書込者。各セクション adoption は各レーン
 Owner-chat: materials-refine

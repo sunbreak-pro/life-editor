@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — 自律スコープ（Tray 常駐 / 自動起動 / 画面外クランプ）実装中。実機 golden path・.dmg は 👀/🛑 ゲート（Mac 必須）
+Status: IN PROGRESS — 自律スコープ（Tray 常駐 / 自動起動 / bounds クランプ / icon 同梱）は PR #93 / #95 で merge 済み。残るのは Mac 実機 golden path と .dmg の 👀/🛑 ゲート（Step 10・Mac 必須）＋ 任意の CI desktop build（Step 11）。判定 = #474（2026-07-30 実測）
 Created: 2026-06-19
 Owner-chat: app-dev-roadmap
 Task: STEP 1 — Electron Desktop を「日常使いできる常駐アプリ」ラインへ

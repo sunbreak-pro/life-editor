@@ -31,6 +31,7 @@ import {
   useDeferredAction,
   useToast,
   minutesToTime,
+  minutesFromMidnight,
   deriveScheduleStatus,
   tasksToCalendarChips,
   taskChipId,
@@ -42,6 +43,7 @@ import {
   frequencyLabel,
   nextRoutineOccurrence,
   itemVariant,
+  applyRepeatFilter,
   nowMinutesLocal,
   sortDayItems,
   todayCalendarKey,
@@ -183,6 +185,13 @@ export function CalendarTab({
   const [sidebarTab, setSidebarTab] = useState<"flow" | "todo" | "repeats">(
     "flow",
   );
+  // #466 Step 5-b: fold repeat-generated occurrences out of the GRID so the
+  // gaps left between one-off events are visible. Deliberately NOT persisted
+  // (see the decision in the Issue): a filter restored at startup shows a
+  // calendar missing its scaffolding, and the next event gets booked into a
+  // slot that only looks free. It resets with the section, and while it is on
+  // the toolbar button and the Repeats tab both say so.
+  const [repeatsHidden, setRepeatsHidden] = useState(false);
   // #299 single-click bubble popover: anchor id + viewport coords (Desktop).
   const [popover, setPopover] = useState<{
     id: string;
@@ -239,13 +248,18 @@ export function CalendarTab({
   // the editor just snaps back on the reload, which reads as the click having
   // been ignored. "materialise" is a partial success — the repeat is on, so
   // saying "couldn't turn on repeat" there would be a lie.
+  // "update" (#469 小粒) is a THIRD outcome: the repeat was already on and
+  // stays on — only the new rhythm failed to save — so neither of the other
+  // two sentences fits.
   const handleRepeatConvertError = useCallback(
-    (reason: "attach" | "materialise") =>
+    (reason: "attach" | "materialise" | "update") =>
       showToast(
         "danger",
         reason === "attach"
           ? t("scheduleScreen.repeatConvertFailed")
-          : t("scheduleScreen.repeatMaterialiseFailed"),
+          : reason === "materialise"
+            ? t("scheduleScreen.repeatMaterialiseFailed")
+            : t("scheduleScreen.repeatUpdateFailed"),
       ),
     [showToast, t],
   );
@@ -784,9 +798,20 @@ export function CalendarTab({
   );
   const todoAddable = useMemo(() => pickAddableTasks(taskNodes), [taskNodes]);
 
+  // #466: the grid's view of the range. The filter is applied HERE and nowhere
+  // upstream — `rangeItems` stays the whole truth for `selected`, the mutation
+  // layer and the context menu, so hiding a row never changes what an edit
+  // writes and a hidden item stays editable from the flow tab. `hiddenRepeats`
+  // rides along from the same call, so the toolbar's count cannot disagree
+  // with what the grid actually dropped.
+  const { visible: gridRangeItems, hiddenCount: hiddenRepeats } = useMemo(
+    () => applyRepeatFilter(rangeItems, repeatsHidden),
+    [rangeItems, repeatsHidden],
+  );
+
   const gridItems = useMemo<WeekTimeGridItem[]>(
     () => [
-      ...rangeItems.map((i) => ({
+      ...gridRangeItems.map((i) => ({
         id: i.id,
         date: i.date,
         title: i.title,
@@ -808,11 +833,11 @@ export function CalendarTab({
         variant: "task" as const,
       })),
     ],
-    [rangeItems, now, rangeTaskChips],
+    [gridRangeItems, now, rangeTaskChips],
   );
   const monthItems = useMemo<MonthGridItem[]>(
     () => [
-      ...rangeItems.map((i) => ({
+      ...gridRangeItems.map((i) => ({
         id: i.id,
         date: i.date,
         title: i.title,
@@ -829,7 +854,7 @@ export function CalendarTab({
         isAllDay: c.isAllDay,
       })),
     ],
-    [rangeItems, rangeTaskChips],
+    [gridRangeItems, rangeTaskChips],
   );
 
   // Merge schedule items + task chips into a single sorted agenda. Task rows
@@ -888,19 +913,23 @@ export function CalendarTab({
   const todayDone = todayItems.filter((i) => i.completed).length;
   const todayTotal = todayItems.length;
 
+  // Mobile day lists. Filtered too (they are the Mobile grid), though Mobile
+  // does not show the toggle yet — with the filter off this is the same array.
   const anchorDayItems = useMemo(
-    () => rangeItems.filter((i) => i.date === anchorDate),
-    [rangeItems, anchorDate],
+    () => gridRangeItems.filter((i) => i.date === anchorDate),
+    [gridRangeItems, anchorDate],
   );
   const monthDayItems = useMemo(
-    () => rangeItems.filter((i) => i.date === mobileSelectedDay),
-    [rangeItems, mobileSelectedDay],
+    () => gridRangeItems.filter((i) => i.date === mobileSelectedDay),
+    [gridRangeItems, mobileSelectedDay],
   );
 
   const editorItem: EventEditorItem | null = selected
     ? {
         id: selected.id,
         title: selected.title,
+        date: selected.date,
+        isAllDay: selected.isAllDay ?? false,
         startTime: selected.startTime,
         endTime: selected.endTime,
         completed: selected.completed,
@@ -1051,6 +1080,19 @@ export function CalendarTab({
     [deleteRoutine, reload, showToast, t],
   );
 
+  // #466: flipping the filter on takes the selected occurrence off the grid.
+  // The selection itself is what the popover and the editor read, so dropping
+  // it here keeps them from pointing at a row that is no longer drawn. Only
+  // repeat-generated selections are affected — a manual event stays selected.
+  const handleToggleRepeats = useCallback(() => {
+    const next = !repeatsHidden;
+    setRepeatsHidden(next);
+    if (next && selected?.routineId != null) {
+      setSelectedId(null);
+      setPopover(null);
+    }
+  }, [repeatsHidden, selected]);
+
   const statusLabels = useMemo<Record<ScheduleStatus, string>>(
     () => ({
       notStarted: t("scheduleScreen.statusNotStarted"),
@@ -1067,13 +1109,53 @@ export function CalendarTab({
     complete: t("scheduleScreen.complete"),
     statusLabels,
   };
+  // #469: the date picker. Before this the only way to move an occurrence to
+  // another day was to drag it across the grid — impossible for a day the grid
+  // is not showing. The view follows the move: leaving the calendar where it
+  // was would make the row simply disappear, with the editor the only evidence
+  // anything happened. No ensure pass is needed (an existing row is moving, not
+  // an occurrence being generated).
+  const handleChangeDate = useCallback(
+    (id: string, date: string) => {
+      handleUpdate(id, { date });
+      setAnchorDate(date);
+      setMobileSelectedDay(date);
+    },
+    [handleUpdate, setAnchorDate, setMobileSelectedDay],
+  );
+
+  // #469: the all-day switch. Turning it ON keeps the times (so switching back
+  // restores them); turning it OFF has to hand back a usable span, because a
+  // row created as all-day can carry none at all — a null start would leave the
+  // item unrenderable on the time grid. Falls back to the same 09:00 the create
+  // paths seed, and derives the end from the start so a row with only a start
+  // never ends up inverted.
+  const handleToggleAllDay = useCallback(
+    (id: string, next: boolean) => {
+      if (next) {
+        handleUpdate(id, { isAllDay: true });
+        return;
+      }
+      const item = rangeItems.find((i) => i.id === id) ?? selected;
+      const start = item?.startTime || "09:00";
+      const end =
+        item?.endTime ||
+        minutesToTime(minutesFromMidnight(start) + CREATE_DURATION_MIN);
+      handleUpdate(id, { isAllDay: false, startTime: start, endTime: end });
+    },
+    [handleUpdate, rangeItems, selected],
+  );
+
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
     statusLabels,
     title: t("scheduleScreen.title"),
+    date: t("scheduleScreen.date"),
+    allDay: t("scheduleScreen.allDay"),
     startTime: t("scheduleScreen.startTime"),
     endTime: t("scheduleScreen.endTime"),
     memo: t("scheduleScreen.memo"),
+    seriesHint: t("scheduleScreen.seriesEditHint"),
     originRoutine: t("scheduleScreen.originRoutine"),
     originEvent: t("scheduleScreen.originEvent"),
     skipThisDay: t("scheduleScreen.skipThisDay"),
@@ -1085,6 +1167,8 @@ export function CalendarTab({
       item={editorItem}
       originDetail={originDetail}
       onCommitTitle={(id, title) => handleUpdate(id, { title })}
+      onChangeDate={handleChangeDate}
+      onToggleAllDay={handleToggleAllDay}
       onChangeStart={(id, value) => handleUpdate(id, { startTime: value })}
       onChangeEnd={(id, value) => handleUpdate(id, { endTime: value })}
       onToggleComplete={handleToggle}
@@ -1236,20 +1320,42 @@ export function CalendarTab({
 
   // #408: the repeat list that replaces the retired Routines header tab.
   // Desktop-only for the same reason as the Todo tray — it rides the switcher.
+  //
+  // #466: while the grid filter is on, this list is the surface most likely to
+  // be read as the truth about what is scheduled ("the routine is right here,
+  // why is the calendar empty?"). Both the notice and the toolbar button read
+  // the SAME `repeatsHidden` state, so there is no second flag to fall out of
+  // step — and either one turns it back off.
   const repeatsBody = (
-    <RepeatListPanel
-      rows={repeatRows}
-      onOpen={handleOpenRepeat}
-      onDelete={handleDeleteRepeat}
-      labels={{
-        empty: t("scheduleScreen.summaryEmpty"),
-        never: t("scheduleScreen.repeatNeverFires"),
-        delete: t("scheduleScreen.deleteRoutine"),
-        confirmDelete: t("scheduleScreen.repeatDeleteConfirm"),
-        confirm: t("scheduleScreen.delete"),
-        cancel: t("scheduleScreen.scopeCancel"),
-      }}
-    />
+    <div className="flex flex-col gap-2">
+      {repeatsHidden && (
+        <div className="flex flex-col gap-1.5 rounded-md border border-lumen-accent bg-lumen-accent-subtle px-3 py-2">
+          <p className="text-xs text-lumen-text-secondary">
+            {t("scheduleScreen.repeatFilterNotice")}
+          </p>
+          <button
+            type="button"
+            onClick={handleToggleRepeats}
+            className="self-start rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            {t("scheduleScreen.repeatFilterShow")}
+          </button>
+        </div>
+      )}
+      <RepeatListPanel
+        rows={repeatRows}
+        onOpen={handleOpenRepeat}
+        onDelete={handleDeleteRepeat}
+        labels={{
+          empty: t("scheduleScreen.summaryEmpty"),
+          never: t("scheduleScreen.repeatNeverFires"),
+          delete: t("scheduleScreen.deleteRoutine"),
+          confirmDelete: t("scheduleScreen.repeatDeleteConfirm"),
+          confirm: t("scheduleScreen.delete"),
+          cancel: t("scheduleScreen.scopeCancel"),
+        }}
+      />
+    </div>
   );
 
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
@@ -1492,10 +1598,21 @@ export function CalendarTab({
             view={desktopView}
             viewOptions={desktopViewOptions}
             onChangeView={setView}
+            onToggleRepeats={handleToggleRepeats}
+            repeatsHidden={repeatsHidden}
             onOpenSettings={() => setCalendarsOpen(true)}
             onAddEvent={handleToolbarAdd}
             addEventLabel={t("scheduleScreen.addEvent")}
-            labels={toolbarLabels}
+            labels={{
+              ...toolbarLabels,
+              hideRepeats: t("scheduleScreen.repeatFilterHide"),
+              // The count comes from the same call that dropped the rows
+              // (applyRepeatFilter), so the button can never claim a different
+              // number than the grid is missing.
+              repeatsHidden: t("scheduleScreen.repeatFilterHidden", {
+                count: hiddenRepeats,
+              }),
+            }}
           />
           {rangeErrorBanner}
           {showLoading ? (

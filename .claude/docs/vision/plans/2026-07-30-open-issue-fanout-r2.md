@@ -9,7 +9,7 @@ Owner-chat: main
 
 > **意図的に緩い計画書**。方向性・担当 worktree・着手順（依存）だけを固定し、手順・DoD は各 Issue body を正本とする（転記しない — 数値の非複製原則）。
 > コード調査で前提が変わったら Issue コメント側を更新し、本書は方向レベルのまま保つ。
-> 前ラウンド = [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)（配った Issue は全消化・#474 で archive 化予定）
+> 前ラウンド = [`2026-07-28-open-issue-fanout.md`](../../../archive/2026-07-28-open-issue-fanout.md)（配った Issue は全消化・#474 で COMPLETED 化 + archive 移動済み）
 
 ---
 
@@ -243,9 +243,9 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 ## References
 
 - CLAUDE.md §7.4（worktree / ブランチ運用）・§9（Issue dispatch / decision queue）
-- 前ラウンド: [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)
+- 前ラウンド: [`2026-07-28-open-issue-fanout.md`](../../../archive/2026-07-28-open-issue-fanout.md)（COMPLETED・#474 で archive 移動）
 - Epic: #290（Schedule redesign）/ #321（Mobile UI/UX 追随）
-- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](./2026-07-28-refactor-dataservice-split.md)（#465 の正本）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
+- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](../../../archive/2026-07-28-refactor-dataservice-split.md)（#465 の正本・COMPLETED → archive 済み）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
 - 関連 memory: `push-after-merge-strands-commits` / `stacked-pr-base-retarget-race`（PR 着地事故の実測知見）
 
 ---

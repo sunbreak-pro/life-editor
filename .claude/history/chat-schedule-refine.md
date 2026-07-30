@@ -1,5 +1,38 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-30 - #469 Step 7 編集パネルの日付ピッカー・終日トグル + 小粒回収
+
+#### 概要
+
+`EventEditorPane` に日付ピッカーと終日トグルを足し、計画書 §4-E の小粒 2 件を実測してから処理した（1 件は既に解消済みで回収不要、1 件は実装）。加えて前レーンで未起票のまま残していた「系列の頻度変更が失敗しても無言」を拾った。
+
+#### 変更点
+
+- **日付ピッカーは commit-on-change**（他フィールドの commit-on-blur とあえて違える）: overlay は Esc で閉じられ blur が飛ばないので、draft 方式だと選んだ日付が黙って捨てられる。半端な値が撃ち抜く先も無い（date は系列へ伝播しないので #279 の「半分打った時刻が系列に乗る」害が構造的に起きない）。空文字は commit しない
+- **終日トグルは `role="switch"`**（先例 = `AudioMixer` / `Connect/primitives/Toggle`）。ON では時刻を**消さずに保持**（戻したときに元の時刻が復活する）。**OFF に戻すときは host が時刻を補う** — 終日で作られた行は start/end を持たない可能性があり、null のままでは時間グリッドに描けない。既定は create 経路と同じ 09:00 で、end は start から 60 分後を計算（start だけある行で逆転しない）
+- **時刻入力は終日 ON で「隠す」**（disabled にしない）: #434 で踏んだ「ロックすると focusable が消える」問題を、隠す側のトグルがフォーカスを保持することで回避。ロックした入力を残すと「無視される値が正しそうに見える」欠点もある
+- **`isAllDay` を伝播対象から外した**（`useScheduleMutations.ts` の `propagatable`）: routine template に `isAllDay` は無いので伝播先が存在しない。OFF 時に時刻を同梱するため、この 1 行が無いと時刻編集と誤認されて #279 の scope ダイアログが開く（適用範囲の無い変更に範囲を訊く）
+- **小粒 (1) 計画書の「Known Issue 009 = Mobile 月セルに dismissed が残存」は解消済み・回収不要**（実測）: `useVisibleRangeItems.ts:52` が fetch 時に `!isDeleted && !isDismissed` で落とし、`handleDismiss` が楽観的に行を除く。月セルは `monthItems ← rangeItems` なので入り込む経路が無い。**なお `docs/known-issues/INDEX.md` の 009 は別内容**（Mobile Provider バイパス）で、計画書側の番号が古い
+- **小粒 (2) 系列編集ヒントを実装**: routine occurrence に「タイトルと時刻は範囲を選ぶ / 日付と終日はこの日だけ」の 1 行。編集して scope ダイアログが出るまで挙動が分からない状態を解消
+- **追加回収: 系列の頻度変更が失敗しても無言だった**（前レーンで PR #450 本文に観察として書き、未起票だったもの）。`updateRoutine` の `!landed` で reconcile を飛ばした後、finally の reload が**古い頻度に戻す**ので「コントロールが壊れている」ように見えていた。#434 の `onRepeatConvertFailed` に reason `"update"` を足して toast（文言 = 「前の設定のままです」）
+- **見送り 2 件**（理由付きで Issue #469 に記録・起票依頼を outbox へ）: scope 編集後の template 更新（`useScheduleMutations.ts:807` — await していない）と routine 未ロード時の `void updateRoutine`（同 492）。どちらも失敗の意味が「未来の生成が古い値になる」で、toast 1 行では復旧手順を伝えられない
+- **ゲート**: shared vitest **154 files / 1279 pass**（main 比 +22 tests・`eventEditorPane.test.tsx` に日付 / 終日 / ヒントの 6 ケース追加）・shared build・web build・web lint すべて exit 0。実ブラウザ検証は chat-main に残す
+
+### 2026-07-30 - #466 Step 5-b Calendar グリッドの繰り返しフィルタ（PR #480 merge 済み・main `9ff4a813`）
+
+#### 概要
+
+グリッドから繰り返し由来（routine 生成）のアイテムを畳むトグルを入れた。粒度は **案 A「繰り返し由来を隠す」を採用し、案 B「この繰り返しだけ表示」を却下**。絞り込みは**永続化しない**（起動時に骨組みの無いカレンダーが出ると、空いて見えるスロットに二重予約する事故になる）。
+
+#### 変更点
+
+- **フィルタは view 層だけに掛ける**: 新設 `shared/src/utils/scheduleGridFilter.ts` の `applyRepeatFilter` を `gridRangeItems` として 1 箇所で適用し、`rangeItems`（`useVisibleRangeItems` の楽観ストア）は素のまま残した。`selected` / mutation 層 / コンテキストメニューはすべて `rangeItems` を引くので、**隠しても編集が書く内容は変わらず、隠れたアイテムは flow タブから編集できる**。差し替え先は `gridItems` / `monthItems` / `anchorDayItems` / `monthDayItems` の 4 つ
+- **件数は同じ呼び出しから返す**: `applyRepeatFilter` が `{ visible, hiddenCount }` を返し、ツールバーのラベルはその `hiddenCount` を使う。**バッジとグリッドが別々に数えないので数字が食い違えない**。フィルタ OFF は同一参照を返す identity ケース（下流 memo が無駄に無効化しない）
+- **「隠している」を隠さない**: ON 中はツールバーのボタン自体が「繰り返し N 件を非表示」＋ accent 表示になり（`aria-pressed`）、Repeats タブにも同じ state を読む注記と解除ボタンを出す。**フラグが 1 つなので「片方だけ更新されない」が構造的に起きない**。ON にした瞬間、選択中が routine 由来なら選択と popover を落とす（描画されない行を editor / popover が指し続けるのを防ぐ）
+- **適用範囲を絞った**: rightSidebar の「今日の流れ」・Todo トレイ・完了集計はフィルタしない（集計の意味が変わるため）。Mobile はトグルを出さない（#467 で List + FAB に絞る側で扱う。derived は既にフィルタ後を読むので配線だけで足りる）
+- **テスト**: `scheduleGridFilter.test.ts`（identity / 件数の一致 / null・未定義 routineId の生存 / 非破壊）+ `scheduleToolbar.test.tsx`（prop 省略で非表示 / `aria-pressed` / ラベル切替）。web にテストランナーが無いので判定は shared の純関数に寄せた
+- **ゲート**: shared vitest **156 files / 1281 pass**（main 比 +2 files / +24 tests）・shared build・web build・web lint すべて exit 0。実ブラウザ検証は chat-main に残す
+
 ### 2026-07-28 - #411 Todo ボードを Materials から Schedule へ移設（PR #454 merge 済み・main `218d8dab`）
 
 #### 概要

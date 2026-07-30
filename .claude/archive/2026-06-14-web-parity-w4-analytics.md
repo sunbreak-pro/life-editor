@@ -1,5 +1,5 @@
 ---
-Status: COMPLETED（Superseded — w4-analytics-connect に統合実装。#154 closeout・2026-07-05）
+Status: SUPERSEDED — w4-analytics-connect に統合実装（#154 closeout・2026-07-05）。旧表記 `COMPLETED（Superseded）` を #474 で enum 化
 Created: 2026-06-14
 Branch: claude/w4-analytics
 Owner-chat: w4-analytics
@@ -43,14 +43,14 @@ shared/src/index.ts                        # 自分の型/サービス export �
 
 ## Steps
 
-| #   | Step                                                     | Gate    | Acceptance                                   |
-| --- | -------------------------------------------------------- | ------- | -------------------------------------------- |
+| #   | Step                                                                       | Gate    | Acceptance                                   |
+| --- | -------------------------------------------------------------------------- | ------- | -------------------------------------------- |
 | 0   | （coord）スキャフォールド merge 待ち（recharts dep + section 配線 + stub） | 🛑 人手 | main に AnalyticsScreen stub + recharts 存在 |
-| 1   | 集計ロジックを `shared/src/services/analyticsAggregation.ts` に + vitest | 🤖 自律 | `cd shared && npm run test` 緑               |
-| 2   | recharts で複数タブ UI を `web/src/analytics/` に実装    | 🤖 自律 | `cd web && npm run build` exit 0 / eslint 0  |
-| 3   | i18n `analytics.*`（en/ja）+ index.ts export             | 🤖 自律 | build 緑・キー欠落なし                       |
-| 4   | 主要集計の描画 E2E 目視                                  | 👀 目視 | 集計タブが web で描画・切替                   |
-| 5   | PR 作成（draft）→ main merge                             | 🛑 人手 | PR レビュー & merge                          |
+| 1   | 集計ロジックを `shared/src/services/analyticsAggregation.ts` に + vitest   | 🤖 自律 | `cd shared && npm run test` 緑               |
+| 2   | recharts で複数タブ UI を `web/src/analytics/` に実装                      | 🤖 自律 | `cd web && npm run build` exit 0 / eslint 0  |
+| 3   | i18n `analytics.*`（en/ja）+ index.ts export                               | 🤖 自律 | build 緑・キー欠落なし                       |
+| 4   | 主要集計の描画 E2E 目視                                                    | 👀 目視 | 集計タブが web で描画・切替                  |
+| 5   | PR 作成（draft）→ main merge                                               | 🛑 人手 | PR レビュー & merge                          |
 
 ---
 

@@ -157,7 +157,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 1 日の運用（Day）と反復パターン（Routine）とカテゴリ分類（Calendar Tag）を独立した Provider で管理しつつ、Routine → ScheduleItems の自動同期 / backfill によって「ルーチン定義 1 回で日々の予定が自動展開される」状態を作る。Tasks / Notes / WikiTags とも紐付き、1 日の運用中枢として機能する。
 
-> 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `docs/vision/plans/2026-07-11-event-routine-unification.md`（本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
+> 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `archive/2026-07-11-event-routine-unification.md`（COMPLETED・#474 で archive 移動。本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
 >
 > 2026-07-14 再設計（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）: Schedule は「今日を見る場所」から**「今日を組む場所」（タイムブロッキング特化）**へ再定義し、閲覧責務は Briefing（朝刊）へ移譲する。あわせて実測訂正: 現行で配線済みの自動生成は表示中日付の `ensureRoutineItemsForDate`（materialise のみ — 当日 diff 更新は 2026-07-19 #279 で停止: done / 手動編集済み行を巻き戻すため creation-only 化。既存行への伝播は範囲選択ダイアログ経由の明示操作のみ）で、「1 週間先まで backfill」「Routine 変更の reconciliation」は未配線（デッドコード — 再設計 Step 4 で `reconcileRoutineScheduleItems` のみ配線し、他の未配線生成器は削除予定）。3 サブタブのうち DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Repeats（旧 Routine）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）。
 
@@ -224,7 +224,8 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Related Plans
 
-- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`（Schedule 再設計 — 本節 2026-07-14 現行化の出典）/ `docs/vision/plans/2026-07-11-event-routine-unification.md`（#185 — Event/Routine UI 統合）
+- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`（Schedule 再設計 — 本節 2026-07-14 現行化の出典。残 Step は #466〜#469）
+- COMPLETED: `archive/2026-07-11-event-routine-unification.md`（#185 — Event/Routine UI 統合。#474 で archive 移動）
 - 関連 ADR: `.claude/archive/adr/0003-schedule-provider-decomposition.md` / `.claude/archive/adr/0004-schedule-shared-components.md`
 
 ---

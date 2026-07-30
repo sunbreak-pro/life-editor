@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — 全 10 オーダーの PR が merge 済み（#160 / #163〜#168 / #170 / #174 / #175・2026-07-06〜07-08）。後続の refine ウェーブは 2026-07-10-layout-unification-fanout.md が承継。判定 = #474（2026-07-30 実測）
 Created: 2026-07-05
 Branch: claude/design-impl-fanout-plan
 Owner-chat: frontend

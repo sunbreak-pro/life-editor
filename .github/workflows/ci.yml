@@ -72,3 +72,9 @@ jobs:
       - name: web — build (tsc -b --force && vite build)
         run: npm run build
         working-directory: web
+      # web = renderer 側の vitest（#475 で追加）。vitest.config.ts は vite.config.ts
+      # を merge するので @life-editor/shared は ../shared/src から解決される
+      # （shared の dist 不要・web/node_modules だけで完結する）
+      - name: web — test (vitest)
+        run: npm run test
+        working-directory: web
