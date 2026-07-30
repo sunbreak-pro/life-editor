@@ -8,7 +8,11 @@
 **計画書**: `.claude/docs/vision/plans/2026-07-14-schedule-redesign.md` §6 Step 5-b / 6 / 5-c / 7
 
 - 前回: #411 の tracker 記録も PR #455（main `089728a9`）で着地済み。前ラウンドの担当 4 件は全て完了
-- 現在: **#469 Step 7 エディタの日付・終日 + 小粒 = PR #484**（branch `claude/schedule-469-editor-fields`・main 取り込み済み）。#466 は **PR #480 merge 済み**（main `9ff4a813`）
+- 現在: **#469 の role-qa 監査対応（hardening follow-up）= branch `claude/schedule-469-followup-editor-hardening`**。#466（PR #480・main `9ff4a813`）と #469（PR #484・main `7c4bd530`）はどちらも merge 済み・Issue も close 済み
+- **監査は PR merge に間に合わなかった**（3 度目の教訓の派生形）: #484 は Stop hook のレビューゲートで role-qa を回している最中に merge された。**Blocking 2 件はどちらも自分が入れた退行**（date の commit-on-change / anchor 追従）なので、merge 後の追い PR で直した。**push 直後の `gh pr view` だけでは足りず、レビューを PR より前に回す**しかない
+- **ローカルの共通ゲート 3 本（shared test / shared build / web build）は CI より狭い**（2026-07-30 実測 — PR #488 が CI で落ちて判明）。`.github/workflows/ci.yml` の実体は **7 ゲート** = docs-lint / **shared lint** / shared build / shared test / **web lint** / web build / **web test**。落ちたのは `shared` の eslint で、`react-hooks/refs` が **render 中の `ref.current = ...` を error にする**（捨てられる render が書き込みを残さないため）→ 更新を dep 無し `useEffect` に移して解決。**`web` の vitest はローカルに入っていなかった**（`npm install` 前で `vitest` 未解決 = exit 1・#475 で追加された後に install していない worktree では毎回踏む）。以後 PR 前に 7 本すべて回す
+- **`scripts/docs-lint.sh` はローカルで偽陽性を出す**（2026-07-30 実測・role-qa の Blocking 指摘を実測で棄却）: Git Bash の grep 3.0 + `LANG=en_US.UTF-8` では `^Status:[[:space:]]*(enum)([[:space:]].*)?$` が**日本語を含む Status 行にマッチしない**（`LC_ALL=C` を付けると OK・CI の ubuntu では素で OK）。`2026-06-19-step1-desktop-daily-driver.md` は origin/main と同一内容で **CI は SUCCESS**。ローカル検証は必ず `LC_ALL=C bash scripts/docs-lint.sh`
+- **`react-hooks/refs` はベースライン免除が 10 ファイル分ある**（`shared/eslint.config.js:82-96`・config 自身が「追記するな・直せ」と明記）。**パス完全一致の免除**なので分割・改名で失効して落ちる。`useScheduleItemsAPI.ts:66` は render 中書き込みのまま（同ファイル :73-76 は既に effect 版で不統一）→ 起票依頼を outbox 2026-07-30 (3) に投げた
 - 次: **#468 Step 6 台帳フィルタ**（#466 が着地したので着手可・同じフィルタ層 `gridRangeItems` に条件を足す形）→ **#467 Step 5-c Mobile List+FAB**（#466 が触った Mobile 日リストの derived を削るので #466 着地後が前提だった）。**着手順を #466 → #469 → #468 → #467 に入れ替えた**（#468 は Issue が #466 待ちを明示・#467 は同じ `CalendarTab` の同じ領域で真正コンフリクトになるため）
 - **ブランチを跨ぐと per-chat memory も分岐する**（2026-07-30 実測）: #466 の記録は PR #480 側にしかなく、#469 ブランチへ main を取り込んだ時に memory / history が両方コンフリクトした（コードと i18n は自動マージ成功）。**解消は「両方のエントリを残す」**（片方を捨てると merge 済みの記録が消える）。**さらに PostToolUse formatter が conflict マーカーを markdown として整形する**（`=======` → `\=======` / `>>>>>>>` → `> > > > > > >`）ので、Edit 前に必ず現在の中身を Read すること（known-issue 026 と同種）
 

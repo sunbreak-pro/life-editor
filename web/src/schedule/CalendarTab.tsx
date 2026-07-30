@@ -31,7 +31,7 @@ import {
   useDeferredAction,
   useToast,
   minutesToTime,
-  minutesFromMidnight,
+  timedSpanForAllDayOff,
   deriveScheduleStatus,
   tasksToCalendarChips,
   taskChipId,
@@ -1111,39 +1111,46 @@ export function CalendarTab({
   };
   // #469: the date picker. Before this the only way to move an occurrence to
   // another day was to drag it across the grid — impossible for a day the grid
-  // is not showing. The view follows the move: leaving the calendar where it
-  // was would make the row simply disappear, with the editor the only evidence
-  // anything happened. No ensure pass is needed (an existing row is moving, not
-  // an occurrence being generated).
+  // is not showing. No ensure pass is needed (an existing row is moving, not an
+  // occurrence being generated).
+  //
+  // #469 follow-up: it used to move the calendar to the target day as well, on
+  // the reasoning that a row vanishing from the current week needs following.
+  // That backfired — changing the anchor changes [rangeStart, rangeEnd], which
+  // refetches and REPLACES rangeItems, discarding the optimistic patch before
+  // the (fire-and-forget, several round trips) write lands. The read wins the
+  // race, the row is in neither range, `selected` goes null and the editor
+  // closes itself. Staying put keeps the patched row in rangeItems, so the
+  // editor stays open showing the new day, and the next settled fetch is what
+  // finally moves the row out of the visible range.
   const handleChangeDate = useCallback(
     (id: string, date: string) => {
       handleUpdate(id, { date });
-      setAnchorDate(date);
-      setMobileSelectedDay(date);
     },
-    [handleUpdate, setAnchorDate, setMobileSelectedDay],
+    [handleUpdate],
   );
 
   // #469: the all-day switch. Turning it ON keeps the times (so switching back
   // restores them); turning it OFF has to hand back a usable span, because a
   // row created as all-day can carry none at all — a null start would leave the
-  // item unrenderable on the time grid. Falls back to the same 09:00 the create
-  // paths seed, and derives the end from the start so a row with only a start
-  // never ends up inverted.
+  // item unrenderable on the time grid. The span itself is worked out by a
+  // shared pure helper (#469 follow-up — web has no test runner, and the
+  // end-of-day clamp / malformed-time cases are worth pinning).
   const handleToggleAllDay = useCallback(
     (id: string, next: boolean) => {
       if (next) {
         handleUpdate(id, { isAllDay: true });
         return;
       }
-      const item = rangeItems.find((i) => i.id === id) ?? selected;
-      const start = item?.startTime || "09:00";
-      const end =
-        item?.endTime ||
-        minutesToTime(minutesFromMidnight(start) + CREATE_DURATION_MIN);
-      handleUpdate(id, { isAllDay: false, startTime: start, endTime: end });
+      // `selected` IS the row the editor is bound to (editorItem is derived
+      // from it), so there is no second lookup to disagree with it.
+      const span = timedSpanForAllDayOff(
+        selected?.startTime,
+        selected?.endTime,
+      );
+      handleUpdate(id, { isAllDay: false, ...span });
     },
-    [handleUpdate, rangeItems, selected],
+    [handleUpdate, selected],
   );
 
   const editorLabels = {

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
@@ -129,7 +129,8 @@ export interface EventEditorPaneProps {
   className?: string;
 }
 
-/** Inner fields, keyed by item.id from the pane so a selection change reseeds
+/** Inner fields, keyed by item.id + isAllDay from the pane so a selection
+ *  change — or an all-day flip, which has the host rewrite start/end — reseeds
  *  the commit-on-blur drafts cleanly. */
 function EventEditorFields({
   item,
@@ -160,6 +161,14 @@ function EventEditorFields({
   // value exactly once.
   const [startDraft, setStartDraft] = useState(item.startTime);
   const [endDraft, setEndDraft] = useState(item.endTime);
+  // #469 follow-up: the date is a draft too. It shipped as commit-on-change on
+  // the theory that a date input only reports complete values — true, but it
+  // reports one per SEGMENT STEP: holding ↑ on the day field wrote a row (and
+  // an undo entry) per press, and typing a year passed through the years 2, 20
+  // and 202 on the way to 2026. What made blur unsafe for a date was Esc
+  // closing the overlay without one; the unmount flush below covers that
+  // instead.
+  const [dateDraft, setDateDraft] = useState(item.date);
 
   // The repeat section renders only when the host fully wires it (labels +
   // weekday labels + change handler). Existing hosts/tests that omit it keep
@@ -193,6 +202,25 @@ function EventEditorFields({
   const commitEnd = () => {
     if (endDraft && endDraft !== item.endTime) onChangeEnd(item.id, endDraft);
   };
+  // A cleared date input reports "" — never commit that as a day.
+  const commitDate = () => {
+    if (dateDraft && dateDraft !== item.date)
+      onChangeDate?.(item.id, dateDraft);
+  };
+  // Flush the date on unmount: the overlay/sheet can be dismissed with Esc or a
+  // backdrop click, and neither is guaranteed to blur the input first. The ref
+  // keeps the effect's cleanup from capturing a stale draft (an empty dep list
+  // is what makes it fire exactly once, on unmount). Refreshing it in an effect
+  // rather than during render keeps `react-hooks/refs` satisfied — a render that
+  // React throws away must not leave a write behind.
+  const commitDateRef = useRef(commitDate);
+  useEffect(() => {
+    // Braces are load-bearing: the concise form would return the assigned
+    // function, React would take it for a cleanup, and the flush would fire
+    // twice on unmount (two rows, two undo entries).
+    commitDateRef.current = commitDate;
+  });
+  useEffect(() => () => commitDateRef.current(), []);
   const blurOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
     // IME guard: do not treat a composition-confirming Enter as commit.
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
@@ -234,22 +262,19 @@ function EventEditorFields({
 
       {/* Date + all-day (#469). Before this the day could only be changed by
           dragging the item across the grid, which is impossible for a day the
-          grid is not showing. Unlike the drafts above, the date commits on
-          CHANGE: a date input only reports a complete value, nothing here can
-          reach a series (the routine template has no date), and a pending draft
-          would be lost outright when the overlay is dismissed with Esc. */}
+          grid is not showing. Commit-on-blur like the fields above, plus an
+          unmount flush (see commitDate) — a date input steps its value once per
+          segment press, so committing on change wrote a row per keypress. */}
       <div className="flex items-end gap-2">
         <label className="flex flex-1 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
             type="date"
-            value={item.date}
+            value={dateDraft}
             readOnly={!onChangeDate}
-            onChange={(e) => {
-              const next = e.target.value;
-              // A cleared input reports "" — never commit that as a day.
-              if (next && next !== item.date) onChangeDate?.(item.id, next);
-            }}
+            onChange={(e) => setDateDraft(e.target.value)}
+            onBlur={commitDate}
+            onKeyDown={blurOnEnter}
             aria-label={labels.date}
             className={cn(FIELD, "tabular-nums")}
           />
@@ -392,7 +417,14 @@ export function EventEditorPane({ className, ...rest }: EventEditorPaneProps) {
         className,
       )}
     >
-      <EventEditorFields key={rest.item.id} {...rest} />
+      {/* isAllDay in the key (#469 follow-up): turning all-day OFF has the host
+          write new start/end, and the time drafts are seeded from props only —
+          without the remount they stayed EMPTY for a row that had no times,
+          showing blank fields on an item the grid now draws at 09:00. */}
+      <EventEditorFields
+        key={`${rest.item.id}:${rest.item.isAllDay}`}
+        {...rest}
+      />
     </div>
   );
 }

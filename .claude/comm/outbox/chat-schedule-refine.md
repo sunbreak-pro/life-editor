@@ -278,3 +278,17 @@ PR #423(#407 修正)の role-qa 監査で出た follow-up 候補です。起票�
 2. **routine 未ロード時の頻度変更が戻り値を捨てている** — 同 492 の `void updateRoutine(...)`（`routines.find` が空振りする異常系）。`seedFrequencyPatch` で fail-closed 対策はしてあるが、書き込み自体が落ちたら reload で元に戻るだけで何も言わない
 
 section:schedule ラベルでの起票をお願いします（担当はこの worktree で引き受けます）。
+
+## 2026-07-30 (2) — 申し送り 1 件（docs の stale・chat-main へ）
+
+`.claude/docs/vision/plans/2026-07-14-schedule-redesign.md` §6 実装ロードマップの **Step 2 と Step 3 が `⬜` のまま**です。同ファイル冒頭の Status 行と Epic #290 のチェックリストはどちらも「実装済み / [x]」なので、ロードマップの記号だけが古い状態です。自分の担当 Step（5-b / 7）は今回の PR で更新しましたが、Step 2 / 3 は担当外で PR 番号などの経緯を持っていないため触っていません。#474 / #485 の docs 整合ラウンドの取りこぼしと思われます。
+
+## 2026-07-30 (3) — 起票依頼 1 件（`react-hooks/refs` のベースライン免除・chat-main へ）
+
+PR #488 が CI の `shared — lint` で落ちた原因は `react-hooks/refs`（**render 中の `ref.current = ...` は error**）でした。この rule は `shared/eslint.config.js:82-96` で **10 ファイルだけ `off` にするベースライン**が組まれていて、config 自身に「Do not append to these lists; fix the file instead」と書かれています。
+
+- 免除は **パス完全一致**なので、対象ファイルを分割・改名すると抽出先が免除を失い #488 と同じ形で CI が落ちる
+- 実例として `shared/src/hooks/useScheduleItemsAPI.ts:66` は `dateRef.current = date;` を render 中に書いているのに、**同ファイルの :73-76 は既に effect 版の idiom**で、1 ファイル内で不統一です
+- Schedule レーンは #468 で同じフィルタ層を触る予定なので、現実的に踏む余地があります
+
+「ベースライン 10 ファイルを effect 版へ寄せて免除を削る」を 1 Issue（1 ファイル 1 PR で刻める）でお願いします。担当はこの worktree で引き受けられます。ラベルは `shared-fix` が妥当だと思います（`shared/` 全体の config が対象で schedule 固有ではないため）。
