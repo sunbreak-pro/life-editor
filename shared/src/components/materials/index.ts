@@ -38,5 +38,11 @@ export {
   type SidebarListControlsProps,
   type SidebarSortMode,
   type SidebarSortDirection,
-  type SidebarFilterConfig,
 } from "./SidebarListControls";
+// The filter row on its own (#368) — for surfaces that narrow a list by name
+// without offering sort (the tag master list).
+export {
+  SidebarFilterField,
+  type SidebarFilterFieldProps,
+  type SidebarFilterConfig,
+} from "./SidebarFilterField";

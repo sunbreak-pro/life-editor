@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { ArrowDownUp, Check, ChevronDown, Search } from "lucide-react";
+import { ArrowDownUp, Check, ChevronDown } from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
 import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
+import {
+  SidebarFilterField,
+  type SidebarFilterConfig,
+} from "./SidebarFilterField";
 
 /*
  * Sidebar list controls (#283). A compact sort + optional-filter header row the
@@ -10,8 +14,9 @@ import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
  * desktop, and since #369 the mobile Notes header too, which is why the row is
  * width-fluid rather than fixed to the ~240px sidebar.
  * Pure presentation, DataService-free (§3.1): the mode picker + direction
- * toggle fire host-injected callbacks, the filter is a controlled input driven
- * only by onChange (NO keydown/Enter — IME safety, §Gotchas), and all copy is
+ * toggle fire host-injected callbacks, the filter row is the shared
+ * <SidebarFilterField> (split out in #368 so a filter-only surface — the tag
+ * master list — can mount it without inheriting sort controls), and all copy is
  * already-translated props (§6.4 — no useTranslation here). lumen-* tokens only,
  * opaque surfaces (§5).
  *
@@ -32,15 +37,7 @@ export interface SidebarSortMode {
   label: string;
 }
 
-export interface SidebarFilterConfig {
-  /** Controlled input value (host owns the query state). */
-  value: string;
-  /** Fires on every keystroke with the raw value (onChange-only, IME-safe). */
-  onChange: (value: string) => void;
-  /** Already-translated placeholder + aria-label (§6.4). */
-  placeholder: string;
-  ariaLabel: string;
-}
+export type { SidebarFilterConfig };
 
 export interface SidebarListControlsProps {
   /** Sort modes; when length <= 1 the mode picker is hidden. */
@@ -158,24 +155,9 @@ export function SidebarListControls({
         </button>
       </div>
 
-      {/* Filter row — controlled input, onChange-only (IME-safe, §Gotchas).
-          Matches the NotesView search-box visual language. */}
-      {filter && (
-        <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
-          <Search
-            size={13}
-            aria-hidden
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-          <input
-            value={filter.value}
-            onChange={(e) => filter.onChange(e.target.value)}
-            placeholder={filter.placeholder}
-            aria-label={filter.ariaLabel}
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
-          />
-        </div>
-      )}
+      {/* Filter row — the shared field, sidebar preset (#368). Matches the
+          NotesView search-box visual language. */}
+      {filter && <SidebarFilterField {...filter} />}
     </div>
   );
 }

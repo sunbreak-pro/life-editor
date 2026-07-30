@@ -286,6 +286,9 @@
     "tags": {
       "addPlaceholder": "タグ名を入力",
       "empty": "タグはまだありません",
+      "filterPlaceholder": "タグを絞り込む…",
+      "filterLabel": "タグ名で絞り込む",
+      "filterEmpty": "一致するタグはありません",
       "rename": "タグ名を変更",
       "colorLabel": "色",
       "deleteTag": "タグを削除",
