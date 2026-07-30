@@ -53,10 +53,14 @@ export function useTaskDetailTarget({
 }: UseTaskDetailTargetParams): TaskDetailTarget {
   const [sheetTaskId, setSheetTaskId] = useState<string | null>(null);
 
-  // Crossing narrow→wide, the detail moves to the rightSidebar; drop the sheet
-  // id so returning to narrow does not re-open it over the list. React's "adjust
-  // state while rendering" pattern rather than an effect, which would cascade a
-  // second render pass.
+  // Crossing narrow→wide, drop the sheet id so returning to narrow does not
+  // re-open it over the list. The detail does NOT follow into the rightSidebar:
+  // the task stays selected, but the panel only appears once the user opens the
+  // sidebar (revealing it from here would mean poking another component's state
+  // mid-render). A resize that crosses 768px mid-edit therefore hides the panel;
+  // nothing is lost — the title and body persist on their own debounce.
+  // React's "adjust state while rendering" pattern rather than an effect, which
+  // would cascade a second render pass.
   const [prevIsWide, setPrevIsWide] = useState(isWide);
   if (isWide !== prevIsWide) {
     setPrevIsWide(isWide);

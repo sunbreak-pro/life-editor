@@ -334,8 +334,9 @@ export function MainScreen({ session }: { session: Session }) {
   // Schedule's narrow Calendar/Todo switcher (#411). No hamburger beside it,
   // unlike Materials': the Calendar body draws its own (next to the period
   // label), and the Todo body closes the drawer outright below 768px — the
-  // mobile Kanban is the stripped MobileTaskList with no detail panel — so a
-  // second hamburger here would either duplicate one or open an empty drawer.
+  // mobile Kanban carries its task detail in its own bottom sheet (#470), not in
+  // the drawer — so a second hamburger here would either duplicate one or open
+  // an empty drawer.
   const scheduleMobileSwitcher = (
     <SegmentedControl
       options={scheduleTabDefs}
