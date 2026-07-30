@@ -215,6 +215,9 @@ function EventEditorFields({
   // React throws away must not leave a write behind.
   const commitDateRef = useRef(commitDate);
   useEffect(() => {
+    // Braces are load-bearing: the concise form would return the assigned
+    // function, React would take it for a cleanup, and the flush would fire
+    // twice on unmount (two rows, two undo entries).
     commitDateRef.current = commitDate;
   });
   useEffect(() => () => commitDateRef.current(), []);
