@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — 配った Issue と手すき枠 #363 が全 close。後続ラウンドは 2026-07-30-open-issue-fanout-r2.md。判定 = #474（2026-07-30 実測）
 Created: 2026-07-28
 Branch: main # docs のみ。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -15,7 +15,7 @@ Owner-chat: main
 ## Context
 
 - **動機**: open Issue 21 件（2026-07-28 時点）を 4 つの常設 worktree チャットへ一括分配して消化する。4 チャットの前ブランチはすべて merge 済み（PR #423 / #425 / #426 / #432）で全員着手可能
-- **制約**: 実ブラウザ検証は merge 後に main の検証専用セッションが playwright MCP で実施（→ [`2026-07-28-post-merge-playwright-verification.md`](../../../archive/2026-07-28-post-merge-playwright-verification.md)）。各 worktree は build / vitest まで
+- **制約**: 実ブラウザ検証は merge 後に main の検証専用セッションが playwright MCP で実施（→ [`2026-07-28-post-merge-playwright-verification.md`](./2026-07-28-post-merge-playwright-verification.md)）。各 worktree は build / vitest まで
 - **Non-goals**: #372（DDL 要・将来）の実装、Epic #290 / #321 の完了（チェックボックス追随のみ）
 
 ---
@@ -75,7 +75,7 @@ DDL ゼロ / `lumen-*` トークンのみ / DataService 境界維持 / i18n は 
 
 ## 検証
 
-- merge 後の実ブラウザ検証 = [`2026-07-28-post-merge-playwright-verification.md`](../../../archive/2026-07-28-post-merge-playwright-verification.md)（main の検証専用セッションが playwright MCP で実施。検証項目・貼り付けプロンプトは同書）
+- merge 後の実ブラウザ検証 = [`2026-07-28-post-merge-playwright-verification.md`](./2026-07-28-post-merge-playwright-verification.md)（main の検証専用セッションが playwright MCP で実施。検証項目・貼り付けプロンプトは同書）
 
 ---
 

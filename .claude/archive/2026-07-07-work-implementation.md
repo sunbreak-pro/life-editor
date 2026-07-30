@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — PR #166 merge 済み（2026-07-08）。宣言した部品・トークン・i18n・テストはコードに存在。判定 = #474（2026-07-30 実測）
 Created: 2026-07-07
 Branch: claude/work-impl
 Owner-chat: work-impl

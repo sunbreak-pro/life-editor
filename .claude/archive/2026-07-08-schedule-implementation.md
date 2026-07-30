@@ -3,7 +3,7 @@ Status: COMPLETED
 Created: 2026-07-08
 Branch: claude/schedule-impl
 Owner-chat: schedule-impl
-Parent: .claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md
+Parent: .claude/archive/2026-07-05-design-implementation-fanout.md
 ---
 
 # Plan: Schedule 画面 目標 IA 実装（ClaudeDesign import）
@@ -125,7 +125,7 @@ web/src/MainScreen.tsx                   # ★最小配線のみ（下記「逸�
 
 ## References
 
-- 親: `.claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md`（作業オーダー: schedule-impl）
+- 親: `.claude/archive/2026-07-05-design-implementation-fanout.md`（作業オーダー: schedule-impl）
 - デザイン: scratchpad `Schedule.dc.html`（DesignSync import・turn1 14 + turn2 4 フレーム）
 - brief: `.claude/docs/design/briefs/schedule.md` / IA: `.claude/docs/design/IA.md`
 - 型・context: `shared/src/types/{schedule,routine,calendar}.ts` / `useScheduleItemsAPI` / `useRoutinesAPI` / `useCalendarsAPI`

@@ -1,9 +1,9 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — 全 7 Step 完了（実装 PR #179 merge・#146 close・Step 4 の DEFERRED は #304 で解消）。判定 = #474（2026-07-30 実測）
 Created: 2026-07-08
 Branch: claude/app-integration
 Owner-chat: app-integration
-Parent: .claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md
+Parent: .claude/archive/2026-07-05-design-implementation-fanout.md
 ---
 
 # Plan: App Integration — 9 画面骨格の一体化（Section SSOT + legacy 撤去 + rightSidebar 整合）
@@ -107,7 +107,7 @@ docs/requirements/tier-1-core.md  # Terminal 記述の整理（IA.md:63 の申�
 ## References
 
 - vision: `.claude/docs/design/IA.md`（目標構成の SSOT。「実装の再編は別計画」= 本計画。:63 に doc 整理の申し送り）
-- Parent: `.claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md`
+- Parent: `.claude/archive/2026-07-05-design-implementation-fanout.md`
 - 規約: `.claude/rules/frontend.md` / `.claude/docs/design/briefs/_COMMON-CONTEXT.md`
 - related skills: `frontend-react-designer`, `add-component`, `test-writing`
 
