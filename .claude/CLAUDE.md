@@ -89,7 +89,7 @@ cd web && npm run test          # vitest（renderer 側 — jsdom。#475 で追�
 cd web && npm run dev           # ローカル起動（vite）
 ```
 
-PR 前に回すゲートは **lint を含む 6 本**（+ CI 側の docs-lint）。一覧の正本は `.github/workflows/ci.yml`。**`web` の lint は `web/` 配下しか見ない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で実際に CI だけが落ちた）。
+PR 前は上のブロックの **lint / build / test をすべて**回す（`dev` 以外）。ゲート一覧の正本は `.github/workflows/ci.yml`（docs-lint は CI 専用ジョブ）。**`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で実際に CI だけが落ちた）。`scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）。
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 
