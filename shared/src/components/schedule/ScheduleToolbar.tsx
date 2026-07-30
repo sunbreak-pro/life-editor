@@ -1,4 +1,10 @@
-import { ChevronLeft, ChevronRight, Plus, Settings } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Repeat,
+  Settings,
+} from "lucide-react";
 import { cn } from "../cn";
 import { SegmentedControl, type SegmentedOption } from "../SegmentedControl";
 
@@ -18,6 +24,14 @@ export interface ScheduleToolbarLabels {
   openSettings?: string;
   /** Accessible name for the view segmented control. */
   view?: string;
+  /** Repeat filter, filter OFF: the action ("Hide repeats"). */
+  hideRepeats?: string;
+  /**
+   * Repeat filter, filter ON: what is currently folded away, count included
+   * (e.g. "3 repeats hidden"). The label carries the number because an empty
+   * slot on a filtered grid would otherwise read as free time (#466).
+   */
+  repeatsHidden?: string;
 }
 
 export interface ScheduleToolbarProps {
@@ -30,6 +44,13 @@ export interface ScheduleToolbarProps {
   view: string;
   viewOptions: SegmentedOption[];
   onChangeView: (id: string) => void;
+  /**
+   * Repeat filter toggle (#466 Step 5-b). Hidden when omitted — Mobile leaves
+   * it out, where the single-day list has no scaffolding problem to solve.
+   */
+  onToggleRepeats?: () => void;
+  /** Whether repeat-generated items are currently folded out of the grid. */
+  repeatsHidden?: boolean;
   /** Settings gear (calendars modal). Hidden when omitted. */
   onOpenSettings?: () => void;
   /** Primary add-event action. Hidden when omitted. */
@@ -51,6 +72,8 @@ export function ScheduleToolbar({
   view,
   viewOptions,
   onChangeView,
+  onToggleRepeats,
+  repeatsHidden = false,
   onOpenSettings,
   onAddEvent,
   addEventLabel,
@@ -89,6 +112,26 @@ export function ScheduleToolbar({
       </span>
 
       <div className="flex-1" />
+
+      {onToggleRepeats && (
+        // A toggle, not a menu: with one filter there is nothing to choose
+        // between, and while it is on the button IS the "N hidden" notice —
+        // the state and the way back out sit in the same control.
+        <button
+          type="button"
+          onClick={onToggleRepeats}
+          aria-pressed={repeatsHidden}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lumen-md border px-2.5 py-[7px] text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            repeatsHidden
+              ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
+              : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+          )}
+        >
+          <Repeat aria-hidden className="size-3.5" />
+          {repeatsHidden ? labels.repeatsHidden : labels.hideRepeats}
+        </button>
+      )}
 
       <SegmentedControl
         options={viewOptions}

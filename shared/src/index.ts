@@ -316,6 +316,13 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+// #466 Step 5-b: the Calendar grid's repeat filter (view-layer narrowing —
+// the host keeps its unfiltered store for selection / mutation).
+export {
+  applyRepeatFilter,
+  type RepeatFilterable,
+  type RepeatFilterResult,
+} from "./utils/scheduleGridFilter";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,
