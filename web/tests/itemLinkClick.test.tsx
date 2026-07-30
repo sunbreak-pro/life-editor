@@ -58,16 +58,51 @@ function renderEditor(props: {
   return view;
 }
 
-/** Dispatch a real left click and report whether the handler claimed it. */
+/**
+ * Dispatch a real left click and report whether the handler claimed it. A click
+ * is preceded by its mousedown at the same point, because the handler measures
+ * the two against each other to tell a click from a drag (see `drag` below).
+ */
 function click(
   el: Element,
   init: MouseEventInit = {},
 ): { defaultPrevented: boolean } {
+  const at = { clientX: 40, clientY: 40, ...init };
+  el.dispatchEvent(
+    new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      ...at,
+    }),
+  );
   const event = new MouseEvent("click", {
     bubbles: true,
     cancelable: true,
     button: 0,
-    ...init,
+    ...at,
+  });
+  el.dispatchEvent(event);
+  return { defaultPrevented: event.defaultPrevented };
+}
+
+/** Press at one point and release at another — sweeping the label to copy it. */
+function drag(el: Element, dx: number): { defaultPrevented: boolean } {
+  el.dispatchEvent(
+    new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+    }),
+  );
+  const event = new MouseEvent("click", {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    clientX: 40 + dx,
+    clientY: 40,
   });
   el.dispatchEvent(event);
   return { defaultPrevented: event.defaultPrevented };
@@ -181,6 +216,34 @@ describe("itemLink click navigation", () => {
 
     expect(onNavigateToItem).not.toHaveBeenCalled();
     expect(defaultPrevented).toBe(false);
+  });
+
+  // Sweeping the label to copy it starts and ends inside the same span, so the
+  // browser still fires a click — ProseMirror allows 4px of slop before it
+  // treats a press as a drag, and this must match.
+  it("ignores a drag that ends inside the link", () => {
+    const onNavigateToItem = vi.fn();
+    const { container } = renderEditor({
+      content: NOTE_LINK,
+      onNavigateToItem,
+    });
+
+    const { defaultPrevented } = drag(link(container), 12);
+
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+    expect(defaultPrevented).toBe(false);
+  });
+
+  it("still navigates when the pointer only jitters", () => {
+    const onNavigateToItem = vi.fn();
+    const { container } = renderEditor({
+      content: NOTE_LINK,
+      onNavigateToItem,
+    });
+
+    drag(link(container), 3);
+
+    expect(onNavigateToItem).toHaveBeenCalledTimes(1);
   });
 
   // The editor's extensions are built once per mount, so a callback that is

@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 
 /*
  * itemLink — inline atom node for `[[…]]` wiki-style item links (web Notes/
@@ -24,20 +25,25 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
  * with { id, role }. An unresolved node is a no-op (so it can still be
  * selected / deleted).
  *
- * #475 — why a DOM `click` listener and NOT ProseMirror's `handleClickOn`:
- * `handleClickOn` only ever runs if ProseMirror's whole single-click pipeline
- * survives first — `eventBelongsToView`, no other plugin claiming `mousedown`
- * through handleDOMEvents, `posAtCoords()` returning non-null AND resolving
- * `inside` onto this atom's own position, and MouseDown.up() not bailing out
- * (shift held / pointer moved >4px / mouseup target no longer inside the
- * view). Those preconditions are layout- and browser-dependent and have
- * nothing to do with this node, yet every one of them silently degrades a link
- * click into "just select the atom" — the #475 symptom. A `handleDOMEvents`
- * event type that ProseMirror has no built-in handler for (click is one) gets
- * a bare listener that goes straight to the plugin props, so this path skips
- * all of the above. Measured on the real editor: no other plugin in the
- * RichTextEditor extension set registers a `click` DOM handler, so nothing
- * can preempt this one.
+ * #475 — why navigation is a DOM `click` listener and NOT ProseMirror's
+ * `handleClickOn`: `handleClickOn` only ever runs if ProseMirror's whole
+ * single-click pipeline survives first — `eventBelongsToView`, no other plugin
+ * claiming `mousedown` through handleDOMEvents, `posAtCoords()` returning
+ * non-null AND resolving `inside` onto this atom's own position, and
+ * MouseDown.up() not bailing out (shift held / pointer moved >4px / mouseup
+ * target no longer inside the view). Those preconditions are layout- and
+ * browser-dependent and have nothing to do with this node, yet every one of
+ * them silently degrades a link click into "just select the atom" — the #475
+ * symptom. A `handleDOMEvents` event type that ProseMirror has no built-in
+ * handler for (click is one) gets a bare listener that goes straight to the
+ * plugin props, so this path skips all of the above. Measured on the real
+ * editor: no other plugin in the RichTextEditor extension set registers a
+ * `click` DOM handler, so nothing can preempt this one.
+ *
+ * `handleClickOn` is still registered, but as a CLAIM ONLY (it never
+ * navigates): when that pipeline does run, its selectClickedLeaf fallback would
+ * leave the atom selected, and where the editor survives the navigation a
+ * following keystroke would replace the link.
  *
  * lumen-* only — the visual treatment lives in web/src/index.css.
  */
@@ -147,32 +153,63 @@ const ItemLink = Node.create<ItemLinkOptions>({
 
   addProseMirrorPlugins() {
     const getOnNavigate = this.options.getOnNavigate;
+    // Where the pointer went down, so a DRAG that starts and ends inside the
+    // link (sweeping the label to copy it) is not mistaken for a click. Per
+    // editor, not module-level. ProseMirror applies the same 4px slop to its
+    // own single-click path (MouseDown.updateAllowDefault), which is why a drag
+    // never reaches handleClickOn below either.
+    let downAt: { x: number; y: number } | null = null;
+    const navigable = (view: EditorView, event: MouseEvent) => {
+      // Left button only, no modifier — cmd/ctrl-click is ProseMirror's "select
+      // this node" gesture and shift-click extends a selection, so navigating
+      // on those would take the editor away mid-edit.
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return null;
+      }
+      if (
+        downAt &&
+        (Math.abs(downAt.x - event.clientX) > 4 ||
+          Math.abs(downAt.y - event.clientY) > 4)
+      ) {
+        return null;
+      }
+      const target = resolveItemLinkTarget(view.dom, event.target);
+      if (!target || !getOnNavigate?.()) return null;
+      return target;
+    };
     return [
       new Plugin({
         key: itemLinkClickKey,
         props: {
           handleDOMEvents: {
+            mousedown: (_view, event) => {
+              downAt = { x: event.clientX, y: event.clientY };
+              // Never claim mousedown — ProseMirror owns focus / selection
+              // start, and this only records where the gesture began.
+              return false;
+            },
             click: (view, event) => {
-              // Left button only, no modifier — cmd/ctrl-click is ProseMirror's
-              // "select this node" gesture and shift-click extends a selection,
-              // so navigating on those would take the editor away mid-edit.
-              if (
-                event.button !== 0 ||
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-              ) {
-                return false;
-              }
-              const target = resolveItemLinkTarget(view.dom, event.target);
+              const target = navigable(view, event);
               if (!target) return false;
-              const onNavigate = getOnNavigate?.();
-              if (!onNavigate) return false;
               event.preventDefault();
-              onNavigate(target);
+              getOnNavigate?.()?.(target);
               return true;
             },
+          },
+          // Claim ONLY — navigation lives in the click handler above. When
+          // ProseMirror's single-click path does run, its selectClickedLeaf
+          // fallback would leave the atom selected; on the surfaces where the
+          // editor survives the navigation (a self-link, or a role the host has
+          // no destination for) the next keystroke would then replace the link.
+          handleClickOn(view, _pos, node, _nodePos, event, direct) {
+            if (!direct || node.type.name !== "itemLink") return false;
+            return !!navigable(view, event);
           },
         },
       }),
