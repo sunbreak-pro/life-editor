@@ -167,9 +167,7 @@ export function TaskDetailPanel({
       <div
         className={cn(
           "flex gap-2",
-          statusControl
-            ? "flex-col items-stretch gap-1.5"
-            : "items-center gap-2",
+          statusControl ? "flex-col items-stretch gap-1.5" : "items-center",
         )}
       >
         <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">

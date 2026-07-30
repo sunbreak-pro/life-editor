@@ -40,6 +40,7 @@ import {
   type TaskStatus,
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
+import { useTaskDetailTarget } from "./useTaskDetailTarget";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
 import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
@@ -129,23 +130,20 @@ export function KanbanView({
   const [moveError, setMoveError] = useState<string | null>(null);
 
   /*
-   * Narrow detail sheet identity (#470). Own state, NOT tree.selectedTaskId:
-   * the selection is persisted and restored on mount (useTaskTreeAPI), so
-   * keying the sheet off it would boot the app with a detail sheet already
-   * covering the list. Tapping a card sets both — the sheet opens, and the
-   * selection stays in step for a later wide↔narrow crossing.
+   * Which task's detail is open, and how it got there (#470) — a narrow card
+   * tap, a "[[" link landing from another tab, a wide↔narrow crossing, or a
+   * task deleted underneath the sheet. Extracted so those transitions can be
+   * tested without mounting the board and its providers (see the hook).
    */
-  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
-
-  // Crossing narrow→wide, the detail moves to the rightSidebar; drop the sheet
-  // id so returning to narrow does not re-open it over the list. React's
-  // "adjust state while rendering" pattern (same as the addOpen tracker below)
-  // rather than an effect, which would cascade a second render pass.
-  const [prevIsWide, setPrevIsWide] = useState(isWide);
-  if (isWide !== prevIsWide) {
-    setPrevIsWide(isWide);
-    if (isWide) setDetailTaskId(null);
-  }
+  const detail = useTaskDetailTarget({
+    isWide,
+    nodeMap: tree.nodeMap,
+    isLoading: tree.isLoading,
+    pendingSelectTaskId,
+    onSelect: tree.setSelectedTaskId,
+    onOpenWide: rightSidebar.open,
+    onConsumePendingSelect,
+  });
 
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
   // task's detail, opened on card-click. Crossing wide→narrow, the detail moves
@@ -168,53 +166,6 @@ export function KanbanView({
     },
     [tree, rightSidebar],
   );
-
-  // Narrow card tap → the same selection, opening the detail sheet instead of
-  // the sidebar (#470).
-  const handleSelectMobileCard = useCallback(
-    (id: string) => {
-      tree.setSelectedTaskId(id);
-      setDetailTaskId(id);
-    },
-    [tree],
-  );
-
-  // A "[[" link click in the Notes / Daily editor lands here with a task id
-  // (#370): select it and open the detail — the rightSidebar on wide, the
-  // detail sheet on narrow (#470 gave narrow a detail surface; before that the
-  // jump could only select, leaving the tap apparently ignored).
-  //
-  // The target may be gone: item_links are never auto-deleted, so a link to a
-  // task that was since trashed outlives it. The board drops deleted nodes from
-  // its columns, and a hard-deleted id isn't in nodeMap at all — opening the
-  // panel anyway would show an editor for a card the user cannot see, or an
-  // empty panel. Consume the intent either way so it can't re-fire.
-  //
-  // isLoading gates the whole thing: arriving from another tab mounts this view
-  // (and its TaskTreeProvider) fresh, so nodeMap is still empty on the first
-  // render — checking then would reject every live task. The effect reruns when
-  // the load lands.
-  useEffect(() => {
-    if (!pendingSelectTaskId || tree.isLoading) return;
-    const target = tree.nodeMap.get(pendingSelectTaskId);
-    if (target && !target.isDeleted) {
-      tree.setSelectedTaskId(pendingSelectTaskId);
-      if (isWide) rightSidebar.open();
-      // Opening the narrow sheet is a local setState, which the cascading-render
-      // rule flags. It fires once per link arrival (a user navigation, not a
-      // render loop), and the wide branch above already schedules the very same
-      // extra render through the rightSidebar context — the rule just cannot see
-      // through the context boundary. The check needs a loaded nodeMap, so this
-      // cannot move into render.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      else setDetailTaskId(pendingSelectTaskId);
-    }
-    onConsumePendingSelect?.();
-    // tree.nodeMap is read at fire time only; setSelectedTaskId /
-    // rightSidebar.open are stable for the view's lifetime. Rerun when a new
-    // pending id arrives or the tree finishes loading.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingSelectTaskId, tree.isLoading]);
 
   // Add-task dialog (W-UX). The board had no create entry point; this small
   // centered overlay creates a task, then opens it straight into the detail
@@ -499,22 +450,15 @@ export function KanbanView({
   // card-click. Null when nothing is selected.
   const taskDetail = selected ? renderTaskDetail(selected) : null;
 
-  /*
-   * Mobile: the sheet's task, resolved through nodeMap instead of trusting the
-   * id. A task deleted elsewhere (sync, or the Trash view) leaves nodeMap or
-   * turns soft-deleted, and the sheet must then close rather than host an
-   * editor for a card the list no longer shows.
-   */
-  const detailNode = detailTaskId ? tree.nodeMap.get(detailTaskId) : undefined;
-  const detailTask = detailNode && !detailNode.isDeleted ? detailNode : null;
-
-  const mobileTaskDetail = detailTask
+  // Mobile: the same panel in the bottom sheet, with the touch status row
+  // instead of the Desktop cycle button (#470).
+  const sheetTask = detail.sheetTask;
+  const mobileTaskDetail = sheetTask
     ? renderTaskDetail(
-        detailTask,
-        // Touch status row instead of the Desktop cycle button (#470).
+        sheetTask,
         <TaskStatusChoices
-          value={detailTask.status ?? "NOT_STARTED"}
-          onChange={(status) => tree.setTaskStatus(detailTask.id, status)}
+          value={sheetTask.status ?? "NOT_STARTED"}
+          onChange={(status) => tree.setTaskStatus(sheetTask.id, status)}
           labels={labels}
           label={t("materials.tasks.statusGroupLabel")}
         />,
@@ -567,9 +511,9 @@ export function KanbanView({
               quickAddSubmit: t("materials.tasks.quickAddSubmit"),
             }}
             onQuickAdd={(title) => tree.addNode("task", null, title)}
-            detailTaskId={detailTask ? detailTask.id : null}
-            onSelectTask={handleSelectMobileCard}
-            onCloseDetail={() => setDetailTaskId(null)}
+            detailTaskId={sheetTask ? sheetTask.id : null}
+            onSelectTask={detail.openSheet}
+            onCloseDetail={detail.closeSheet}
             detail={mobileTaskDetail}
           />
         </div>

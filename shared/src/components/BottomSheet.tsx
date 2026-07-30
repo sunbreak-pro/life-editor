@@ -22,6 +22,13 @@ export interface BottomSheetProps {
  * allowed overlay exception. A grab-handle bar communicates draggability
  * visually (gesture wiring is the host's concern). Escape closes for a11y
  * / desktop testing.
+ *
+ * Backdrop dismissal checks that the press LANDED on the backdrop, instead of
+ * having the panel stopPropagation its way out (#470). React dispatches portal
+ * events from the portal container — document.body — so the panel's
+ * stopPropagation also killed the native event before it reached document, and
+ * every click-outside popover placed inside a sheet (the TagPicker in the mobile
+ * task detail is the first) lost its only way to close.
  */
 export function BottomSheet({
   open,
@@ -45,7 +52,13 @@ export function BottomSheet({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
-      onMouseDown={closeOnBackdrop ? onClose : undefined}
+      onMouseDown={
+        closeOnBackdrop
+          ? (e) => {
+              if (e.target === e.currentTarget) onClose();
+            }
+          : undefined
+      }
     >
       <div
         role="dialog"
@@ -56,7 +69,6 @@ export function BottomSheet({
           "bg-lumen-bg px-5 pb-6 pt-3 shadow-xl",
           className,
         )}
-        onMouseDown={(e) => e.stopPropagation()}
       >
         <div
           aria-hidden="true"
