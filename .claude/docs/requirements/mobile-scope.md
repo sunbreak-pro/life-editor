@@ -45,8 +45,8 @@
 | 13  | connect(グラフ)              | Full                                                      | Phase 1（現状維持）                | 専用モバイルシートでほぼ Full。ノード詳細 + リンク追加/削除可（`shared/src/components/Connect/mobile/NodeDetailSheet.tsx`）                                                                                                                                                                                                                                                  |
 | 14  | settings                     | Shortcuts のみ省略                                        | Phase 1（現状維持）                | Shortcuts カードのみ wide 専用（`SettingsScreen.tsx:237`）。他は表示（「日付が変わる時刻」#373 含む）                                                                                                                                                                                                                                                                        |
 | 15  | trash                        | Full                                                      | Phase 1（現状維持）                | モバイル到達可・復元機能する（`shared/src/components/TrashView.tsx`）                                                                                                                                                                                                                                                                                                        |
-| 16  | 横断: Undo/Redo              | **モバイル導線あり**（要 web 側配線）                     | Phase 2 で追加                     | ボタン(`HeaderUndoRedo`)は header=wide 専用で非表示。かつ web では undo/redo が未配線 no-op（`MainScreen.tsx:706-711`）                                                                                                                                                                                                                                                      |
-| 17  | 横断: コマンド検索(palette)  | **モバイル導線あり**                                      | Phase 2 で追加                     | タッチ導線ゼロ。開けるのは物理キーボード Cmd/Ctrl+K のみ（`MainScreen.tsx:712-717`）                                                                                                                                                                                                                                                                                         |
+| 16  | 横断: Undo/Redo              | **モバイル導線あり**（要 web 側配線）                     | 完了（#472）                       | bottom bar「その他」シートの Quick actions に Undo / Redo 行（`web/src/MobileShellActions.tsx`）。header=wide 専用の `HeaderUndoRedo` と同じ 1 本のスタックを読む                                                                                                                                                                                                            |
+| 17  | 横断: コマンド検索(palette)  | **モバイル導線あり**                                      | 完了（#473）                       | 同じ「その他」シートの Quick actions 先頭に「コマンドパレット」行（`web/src/MobileShellActions.tsx`）。パレット本体は `visualViewport` に合わせて縮み、ソフトキーボードに候補が隠れない（`shared/src/components/CommandPalette.tsx`）                                                                                                                                        |
 
 ## 5. フェーズ別の作業まとまり（#321 子 Issue 分解の種）
 
@@ -62,8 +62,8 @@
 - ~~tasks: モバイルで詳細パネル・リッチテキスト編集を可能に（DnD・カラムは Desktop 専用のまま）（#6）~~ → 完了（Issue #470）
 - ~~notes: モバイルでフル編集可に（`editable` 化 + [[ 補完のモバイル対応）（#7）~~ → 完了（Issue #471）
 - schedule: Routines をモバイルで閲覧のみ表示（#5）
-- 横断: Undo/Redo のモバイル導線（**前提: web 側の undo/redo 配線が先に必要** — 現状 no-op）（#16）
-- 横断: コマンド検索(palette) のモバイルタッチ導線（#17）
+- ~~横断: Undo/Redo のモバイル導線（**前提: web 側の undo/redo 配線が先に必要** — 現状 no-op）（#16）~~ → 完了（Issue #472。web 側の配線は #304 で済んでおり no-op ではない）
+- ~~横断: コマンド検索(palette) のモバイルタッチ導線（#17）~~ → 完了（Issue #473）
 
 ## 6. 別枠メモ（本スコープ表の対象外・別 Issue で処理）
 
