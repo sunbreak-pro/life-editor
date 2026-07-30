@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED
 Created: 2026-07-28
 Branch: claude/refactor-01-tasks-service # PR ごとに claude/refactor-<連番>-<短slug> を origin/main から切り直す
 Owner-chat: refactor-core
@@ -95,7 +95,7 @@ Phase A 完了後の `SupabaseDataService.ts` に残るのは:
 | 6   | link・connection 系 stub 切り出し + facade 最終化（PR #5） | 🤖 自律 | 下記 AC 全通過 + facade 最終形 |
 | 7   | BriefingScreen hooks 切り出し（PR #6〜）                   | 🤖 自律 | 下記 AC 全通過                 |
 | 8   | NotesView hooks 切り出し                                   | 🤖 自律 | 下記 AC 全通過                 |
-| 9   | MainScreen hooks 切り出し                                  | 🤖 自律 | 下記 AC 全通過                 |
+| 9   | MainScreen hooks 切り出し ✅（Issue #465・2026-07-30）     | 🤖 自律 | 下記 AC 全通過                 |
 | 10  | merge 後の実ブラウザ確認                                   | 👀 目視 | chat-main が dev server で実測 |
 
 各実装ステップの PR merge（🛑 人手）は表から省略（全 PR 共通）。ステップ 3 以降は前 PR の merge を待たず、直前 PR の HEAD を base に積んでもよいが、**push 前に必ず origin/main へ rebase し、stacked のまま PR を出さない**（`stacked-pr-base-retarget-race` の実測知見 — base が main 以外の PR は着地事故のもと）。
@@ -134,3 +134,4 @@ Phase A 完了後の `SupabaseDataService.ts` に残るのは:
 
 - 2026-07-29: ベースライン確認（shared test 1273 pass / shared build / web build すべて exit 0）。PR #1 着手
 - 2026-07-29: Phase A 全 5 PR 提出完了 — #457（helpers + tasks）/ #458（routines）/ #459（schedule）/ #460（calendars）は merged、#461（note-link stubs + facade 最終化 + pgrstQuoteValueLocal 統合）は merge 待ち。facade は最終形（202 行・ドメインロジックゼロ・互換 re-export 全維持）に到達。残り = Phase B（web hooks 切り出し・Steps 7-9）と merge 後の実ブラウザ確認（Step 10）
+- 2026-07-30: Phase B Step 9 完了（Issue #465）— MainScreen（951 行）を `web/src/hooks/useShellNavigation.ts`（section/タブ state + pending intent）+ `web/src/hooks/useShellChrome.tsx`（palette commands / nav lists / tab defs / labels / counts）+ 画面本体（約 690 行）に分割。挙動変更ゼロ・shared diff ゼロ。実装ステップ全完了 → Status COMPLETED・archive へ移動。Step 10（実ブラウザ確認）は merge 後に chat-main が実施
