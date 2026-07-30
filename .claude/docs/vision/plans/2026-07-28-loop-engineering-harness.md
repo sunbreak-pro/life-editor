@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: IN PROGRESS — Phase 0 は配置完了（PR #451 merge）。Step 5（life-editor MCP 疎通 → 朝刊ミラー）と Phase 1〜3 が未消化。判定 = #474（2026-07-30 実測）
 Created: 2026-07-28
 Branch: main # 本書は設計書。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -297,6 +297,6 @@ chat-main（または検証専用セッション）で起動する読み取り�
 ## References
 
 - 現状実測: `.claude/memory/INDEX.md` / `.claude/automation/`（README・goals・routine-night・routine-ids）/ `.claude/comm/README.md`
-- 兄弟計画: `2026-07-28-open-issue-fanout.md` / `archive/2026-07-28-post-merge-playwright-verification.md`（COMPLETED） / `2026-07-16-briefing-headless-claude-prototype.md`
+- 兄弟計画: `archive/2026-07-28-open-issue-fanout.md`（COMPLETED・#474 で archive 移動） / `archive/2026-07-28-post-merge-playwright-verification.md`（COMPLETED） / `2026-07-16-briefing-headless-claude-prototype.md`
 - 公式: code.claude.com/docs — goal.md / scheduled-tasks.md / auto-mode-config.md / hooks-guide.md / best-practices.md / headless.md
 - 実践事例: ghuntley.com/loop（Ralph ループ原典）/ anthropics/claude-code plugins/ralph-wiggum（公式プラグイン README）/ gh issue #18646（cap 無視 494 回暴走）/ roborhythms.com（承認キュー実装報告）/ Medium: overnight 運用の失敗と対策（context 枯渇・フェーズ分割）

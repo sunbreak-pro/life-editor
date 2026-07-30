@@ -169,7 +169,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 
 ### Purpose
 
-Notes / Dailies / Schedule Items など RichTextEditor を持つエンティティを横断して単一のタグ体系で束ねる「wiki-style」タグシステム。インラインタグ（`#tag` 記法）による自動認識と、タグの有向接続 / グルーピングで知識の構造化を支援する。~~Tasks は RichTextEditor を持たないため対象外（タグ付けは CalendarTags が担当）~~ → **2026-07-11 life-tags 統一（#225）**: WikiTag 基盤は全セクション共通の整理概念 **life-tags** の実体に昇格し Tasks も対象（Kanban tag ビュー・folder→tag 変換・calendars の tag バインド）。CalendarTags は DU-F で撤去済み。方向の正本 = `docs/vision/plans/2026-07-11-life-tags-unification.md`。
+Notes / Dailies / Schedule Items など RichTextEditor を持つエンティティを横断して単一のタグ体系で束ねる「wiki-style」タグシステム。インラインタグ（`#tag` 記法）による自動認識と、タグの有向接続 / グルーピングで知識の構造化を支援する。~~Tasks は RichTextEditor を持たないため対象外（タグ付けは CalendarTags が担当）~~ → **2026-07-11 life-tags 統一（#225）**: WikiTag 基盤は全セクション共通の整理概念 **life-tags** の実体に昇格し Tasks も対象（Kanban tag ビュー・folder→tag 変換・calendars の tag バインド）。CalendarTags は DU-F で撤去済み。方向の正本 = `archive/2026-07-11-life-tags-unification.md`（COMPLETED・#474 で archive 移動）。
 
 ### Boundary
 

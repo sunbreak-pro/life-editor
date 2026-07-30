@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — 全 Phase 実装完了（2026-07-08）。残 = Phase 8 の PR merge（🛑 人手）。merge 後に COMPLETED 化して archive へ移動する
+Status: COMPLETED — 全 Phase 実装完了（2026-07-08）。Phase 8 の close-out PR #178 は merge 済み・#173（docs-lint）も close 済みで、宣言どおり archive 在住。判定 = #474（2026-07-30 実測 — 本行の COMPLETED 化が漏れていた）
 Created: 2026-07-07
 Branch: claude/docs-issue-cleanup
 Owner-chat: docs-issue-cleanup

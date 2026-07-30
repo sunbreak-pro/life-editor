@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — #180〜#183 が全 close。v1 成果（PageContainer / 幅・gutter トークン）はコードに定着し、後続仕様は 2026-07-11-layout-standard-v2.md が承継。判定 = #474（2026-07-30 実測）
 Created: 2026-07-10
 Branch: claude/layout-unification-plan
 Owner-chat: main
@@ -59,7 +59,7 @@ adoption（#181・各 refine worktree）: 自セクション配下のみ（Issue
 
 ---
 
-## shared-fix ルート（常設 — protocol の正本 = [`comm/README.md`](../../../comm/README.md)）
+## shared-fix ルート（常設 — protocol の正本 = [`comm/README.md`](../comm/README.md)）
 
 - **登録**: `gh issue create -R sunbreak-pro/life-editor --label shared-fix`（+ `type:*`）。タイトル prefix で宛先指定: `[<worktree-slug>]`（特定 worktree 宛）/ `[all]`（全 worktree）
 - **発見**: 各 worktree チャットはセッション開始時と作業の区切りに `gh issue list -R sunbreak-pro/life-editor --label shared-fix --state open` で自分宛を確認する

@@ -2,17 +2,21 @@
 
 ## 進行中
 
-### ⏸️ #411 の tracker 記録の回収（着手日: 2026-07-28）
+### 🔧 Epic #290 の残 4 件（#466 → #469 → #468 → #467）（着手日: 2026-07-30）
 
-**対象**: `.claude/memory/chat-schedule-refine.md` / `.claude/history/chat-schedule-refine.md`
-**Issue**: なし（#411 の後始末）
+**対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/utils/` / `shared/src/i18n/locales/`
+**計画書**: `.claude/docs/vision/plans/2026-07-14-schedule-redesign.md` §6 Step 5-b / 6 / 5-c / 7
 
-- 前回: #411 本体を実装 → **PR #454 merge 済み**（main `218d8dab`）
-- 現在: **PR #454 は tracker コミット `e395e5e0` を push する前に merge された**（**この worktree で 3 度目・通算 6 度目**）→ `origin/main` から切った `claude/schedule-411-tracker` へ cherry-pick で回収（コンフリクトなし）。**docs だけなのでゲートは回していない**（コード変更ゼロ）
-- 次: merge は 🛑 ユーザーゲート。**担当 4 件（#433 / #434 / #408 / #411）は全て着地済み**なので、着地後は自分宛 open Issue を拾い直す
+- 前回: #411 の tracker 記録も PR #455（main `089728a9`）で着地済み。前ラウンドの担当 4 件は全て完了
+- 現在: **#469 の role-qa 監査対応（hardening follow-up）= branch `claude/schedule-469-followup-editor-hardening`**。#466（PR #480・main `9ff4a813`）と #469（PR #484・main `7c4bd530`）はどちらも merge 済み・Issue も close 済み
+- **監査は PR merge に間に合わなかった**（3 度目の教訓の派生形）: #484 は Stop hook のレビューゲートで role-qa を回している最中に merge された。**Blocking 2 件はどちらも自分が入れた退行**（date の commit-on-change / anchor 追従）なので、merge 後の追い PR で直した。**push 直後の `gh pr view` だけでは足りず、レビューを PR より前に回す**しかない
+- **ローカルの共通ゲート 3 本（shared test / shared build / web build）は CI より狭い**（2026-07-30 実測 — PR #488 が CI で落ちて判明）。`.github/workflows/ci.yml` の実体は **7 ゲート** = docs-lint / **shared lint** / shared build / shared test / **web lint** / web build / **web test**。落ちたのは `shared` の eslint で、`react-hooks/refs` が **render 中の `ref.current = ...` を error にする**（捨てられる render が書き込みを残さないため）→ 更新を dep 無し `useEffect` に移して解決。**`web` の vitest はローカルに入っていなかった**（`npm install` 前で `vitest` 未解決 = exit 1・#475 で追加された後に install していない worktree では毎回踏む）。以後 PR 前に 7 本すべて回す
+- 次: **#468 Step 6 台帳フィルタ**（#466 が着地したので着手可・同じフィルタ層 `gridRangeItems` に条件を足す形）→ **#467 Step 5-c Mobile List+FAB**（#466 が触った Mobile 日リストの derived を削るので #466 着地後が前提だった）。**着手順を #466 → #469 → #468 → #467 に入れ替えた**（#468 は Issue が #466 待ちを明示・#467 は同じ `CalendarTab` の同じ領域で真正コンフリクトになるため）
+- **ブランチを跨ぐと per-chat memory も分岐する**（2026-07-30 実測）: #466 の記録は PR #480 側にしかなく、#469 ブランチへ main を取り込んだ時に memory / history が両方コンフリクトした（コードと i18n は自動マージ成功）。**解消は「両方のエントリを残す」**（片方を捨てると merge 済みの記録が消える）。**さらに PostToolUse formatter が conflict マーカーを markdown として整形する**（`=======` → `\=======` / `>>>>>>>` → `> > > > > > >`）ので、Edit 前に必ず現在の中身を Read すること（known-issue 026 と同種）
 
 ## 直近の完了
 
+- **#466 Step 5-b Calendar グリッドの繰り返しフィルタ** ✅（2026-07-30 — **PR #480 merge 済み**・main `9ff4a813`。実ブラウザ検証は chat-main に残）。粒度は **案 A「繰り返し由来を隠すトグル」を採用**（却下 = 案 B「この繰り返しだけ表示」— #408 の一覧が頻度 + 次回日付で同じ問いにほぼ答えているため見返りが薄い）・**永続化しない**（起動時に骨組みの無いカレンダーが出ると、空いて見えるスロットに二重予約する事故になる）。**フィルタは view 層 1 箇所（`gridRangeItems`）だけ**で `rangeItems` は素のまま = 隠しても編集が書く内容は変わらず、隠れた行は flow タブから編集できる。**`applyRepeatFilter` が `{ visible, hiddenCount }` を返す**のでツールバーの「N 件を非表示」がグリッドと食い違えない。ON 中は選択が routine 由来なら選択と popover を落とす
 - **#411 Todo ボードを Materials から Schedule へ移設** ✅（2026-07-28 — **PR #454 merge 済み**・main `218d8dab`）。Materials = Notes/Daily、Schedule = Calendar/Todo。**実質の本体は導線 4 本の全数追随**（nav ショートカット / `[[link]]` 着地 / `global:new-task` / コマンドパレット）で、1 本落とすと「タスクへ飛ぶ」が黙って死ぬ。Kanban が要る TaskTree + WikiTags は Schedule 側に既に居た（カレンダーの task チップ用）ので 2 組目を入れ子にせず再利用した。narrow はハンバーガーを足さず SegmentedControl だけ（Calendar は自前で描き、Todo は 768px 未満で drawer を閉じるため）。4 ゲート exit 0（153 files / 1257 pass）。実ブラウザ検証は chat-main に残
 - **#408 Routines ヘッダータブ退役 + rightSidebar 繰り返し一覧** ✅（2026-07-28 — **PR #452 + QA 回収の #453 ともに merge 済み**・main `43905c6d`。実ブラウザ検証は chat-main に残）。**失われる操作 5 件のうち (1) 空 routine の新規作成 / (3) テンプレ直接編集は意図的に退役**（(1) は CLAUDE.md §4「UI 上は Event + 繰り返し設定」方針、(3) は #279 scope ダイアログが代替）、**埋めたのは (2) 到達性 / (4) テンプレ削除 / (5) order 俯瞰**。**(2)+(4) を落とすと実行日ゼロの routine が永久に到達不能**（オカレンスが無いので Calendar から選べず、Routines タブも無い）— #407 のゾンビ 2 件が実在するので机上の穴ではない。`nextRoutineOccurrence` の **null が「この行は飛び先が無い」の判定そのもの**で、その行はボタンにせず span にする（#434 S-1 と同じ「押しても何も起きないコントロールは壊れて見える」原則）が削除ボタンは残す。`useRoutinesAPI.createRoutine` は UI 呼び出しゼロでも残した（DataService 層の API であって死んだ UI コードではない）。QA ラウンドの反映は PR #453（進行中）
 - **#434 pending 表示 + 失敗 toast**（**PR #450 merge 済み**・main `e43275d9`。merge 後に `git grep origin/main` で `repeatMaterialiseFailed` と `aria-disabled` の着地を実測）— 詳細は下の行と history 2026-07-28 に全文

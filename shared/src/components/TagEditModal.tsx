@@ -16,6 +16,7 @@ import { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
 import { TagHeadingIcon } from "./TagHeadingIcon";
 import { ItemRoleBadge } from "./items/ItemRoleBadge";
 import { type ItemRoleLabels } from "./items/itemRole";
+import { SidebarFilterField } from "./materials/SidebarFilterField";
 
 /*
  * Tag edit modal (#310 part 2, globalized in #409). A props-injected (§6.4)
@@ -27,6 +28,11 @@ import { type ItemRoleLabels } from "./items/itemRole";
  * sidebar, so this panel is now app-global: its item list spans every role,
  * and each row announces its kind through the shared <ItemRoleBadge> (the same
  * contract #412's item-side picker renders from — components/items/itemRole).
+ *
+ * #368 put a name filter above the list — this is the app's only view of the
+ * tag master, so it grows with every tag ever made and scrolling was the only
+ * way through it. Filter only, no sort: the host receives `allTags` already
+ * name-ordered from the service query (D-20260728-main-3).
  *
  * DataService is unknown here — every mutation is a callback, every string a
  * label, colors reuse the shared ColorPicker, and the icon picker resolves
@@ -67,6 +73,12 @@ export interface TagEditModalLabels {
   addPlaceholder: string;
   addButton: string;
   empty: string;
+  /** #368 name filter: placeholder for the filter input. */
+  filterPlaceholder: string;
+  /** #368 name filter: aria-label for the filter input. */
+  filterLabel: string;
+  /** #368 name filter: copy shown when the query matches no tag. */
+  filterEmpty: string;
   /** aria-label for the per-row name input. */
   renameLabel: string;
   /** aria-label for the per-row delete button. */
@@ -125,11 +137,16 @@ export function TagEditModal({
   // Which tag rows have their item list open (#409). Collapsed on every open
   // so the panel always starts as a scannable tag list, never a wall of items.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  // The name-filter query (#368). Local UI state: the host owns WHICH tags
+  // exist, this owns which of them are currently on screen.
+  const [query, setQuery] = useState("");
 
-  // Reset the add-field whenever the modal (re)opens.
+  // Reset the add-field and the filter whenever the modal (re)opens, so the
+  // panel never comes back mid-search showing a fraction of the tags.
   useEffect(() => {
     if (open) {
       setDraft("");
+      setQuery("");
       setExpanded(new Set());
     }
   }, [open]);
@@ -148,7 +165,20 @@ export function TagEditModal({
     if (!name) return;
     onCreate(name);
     setDraft("");
+    // Clear the filter too (#368 QA): a tag created while a non-matching query
+    // is active would land outside the visible list, so the panel would look
+    // exactly as it did before — and pressing Add again hits the unique-name
+    // constraint, which the host's fire-and-forget create swallows silently.
+    setQuery("");
   }, [draft, onCreate]);
+
+  // Case-insensitive substring on the name — the same contract the item-side
+  // TagPicker uses for its candidate list, so "filtering tags" means one thing
+  // across the app.
+  const needle = query.trim().toLowerCase();
+  const visibleTags = needle
+    ? tags.filter((tag) => tag.name.toLowerCase().includes(needle))
+    : tags;
 
   return (
     <Modal
@@ -190,15 +220,33 @@ export function TagEditModal({
           </Button>
         </div>
 
+        {/* Filter row (#368). Hidden while there is nothing to narrow — an
+            empty panel should show its "no tags yet" copy, not a search box. */}
+        {tags.length > 0 && (
+          <div className="flex-shrink-0 border-b border-lumen-border px-5 py-2.5">
+            <SidebarFilterField
+              value={query}
+              onChange={setQuery}
+              placeholder={labels.filterPlaceholder}
+              ariaLabel={labels.filterLabel}
+              size="md"
+            />
+          </div>
+        )}
+
         {/* Tag list. */}
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
           {tags.length === 0 ? (
             <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
               {labels.empty}
             </p>
+          ) : visibleTags.length === 0 ? (
+            <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
+              {labels.filterEmpty}
+            </p>
           ) : (
             <ul className="flex flex-col gap-1">
-              {tags.map((tag) => (
+              {visibleTags.map((tag) => (
                 <TagEditRowItem
                   key={tag.id}
                   tag={tag}

@@ -9,7 +9,7 @@ Owner-chat: main
 
 > **意図的に緩い計画書**。方向性・担当 worktree・着手順（依存）だけを固定し、手順・DoD は各 Issue body を正本とする（転記しない — 数値の非複製原則）。
 > コード調査で前提が変わったら Issue コメント側を更新し、本書は方向レベルのまま保つ。
-> 前ラウンド = [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)（配った Issue は全消化・#474 で archive 化予定）
+> 前ラウンド = [`2026-07-28-open-issue-fanout.md`](../../../archive/2026-07-28-open-issue-fanout.md)（配った Issue は全消化・#474 で COMPLETED 化 + archive 移動済み）
 
 ---
 
@@ -248,9 +248,9 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 ## References
 
 - CLAUDE.md §7.4（worktree / ブランチ運用）・§9（Issue dispatch / decision queue）
-- 前ラウンド: [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)
+- 前ラウンド: [`2026-07-28-open-issue-fanout.md`](../../../archive/2026-07-28-open-issue-fanout.md)（COMPLETED・#474 で archive 移動）
 - Epic: #290（Schedule redesign）/ #321（Mobile UI/UX 追随）
-- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](./2026-07-28-refactor-dataservice-split.md)（#465 の正本）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
+- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](../../../archive/2026-07-28-refactor-dataservice-split.md)（#465 の正本・COMPLETED → archive 済み）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
 - 関連 memory: `push-after-merge-strands-commits` / `stacked-pr-base-retarget-race`（PR 着地事故の実測知見）
 
 ---
@@ -260,3 +260,4 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 - 2026-07-30: 現状実測（open PR ゼロ / worktree 4 本すべて `a4fd6f89` / open Issue 15 件）→ 依存グラフ整理 → 4 レーン分担確定（#472 / #473 は tags-docs が引き取り = ユーザー決定）→ 貼り付けプロンプト 4 本を作成
 - 2026-07-30: commit 直前の `git fetch` で `origin/main` が `7093e11e` まで進んでいたことが判明（#476 = 前ラウンドの検証計画を COMPLETED 化して archive 移動・#477 = worktree の置き場所をリポジトリ外へ変更）。本書の検証計画リンク 2 箇所と #474 プロンプトの「対象外」記述を追随修正。worktree 実パスの表記は #477 の新方針と一致していたため変更なし
 - 2026-07-30: Stop hook 廃止（ユーザー持ち込み）を実測検証のうえ **#482** として起票し、tags-docs レーンの**先頭**に追加（`_TEMPLATE.md` を触るため #474 より先）。実測で分かった 2 点を Issue に明記 = 元プロンプト手順 5 の「outbox の stop-report.md 削除」は git・disk とも対象ゼロ / グローバル `~/.claude/settings.json` 側の Stop hook（adversarial-review-gate / sui-memory / Orca）は別物で対象外
+- 2026-07-30: 上の #482 追記が **#478 の merge 後に同じブランチへ後追い push されて取り残されていた**ため（PR #492・memory `push-after-merge-strands-commits` と同じ踏み方）、`origin/main` を取り込んで add/add 衝突を解消。採用ルール = 前ラウンド計画書 / DataService 分割計画書のリンクと Status は **main 側（#474 の実測）**、tags-docs レーンの #482 記述は **ブランチ側**

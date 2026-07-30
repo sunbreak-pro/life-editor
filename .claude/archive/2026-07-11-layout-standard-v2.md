@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — 共通部品 PR #196 / #210 merge・各セクションの adoption Issue（#181〜#183）が全 close。§5 の幅基準はのちに #305 で 1120px clamp へ改訂。判定 = #474（2026-07-30 実測）
 Created: 2026-07-11
 Branch: claude/layout-standard
 Owner-chat: layout-standard # 共通部品実装の Worklog 記入者。計画作成 = docs-workspace
