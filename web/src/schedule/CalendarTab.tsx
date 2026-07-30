@@ -31,6 +31,7 @@ import {
   useDeferredAction,
   useToast,
   minutesToTime,
+  minutesFromMidnight,
   deriveScheduleStatus,
   tasksToCalendarChips,
   taskChipId,
@@ -239,13 +240,18 @@ export function CalendarTab({
   // the editor just snaps back on the reload, which reads as the click having
   // been ignored. "materialise" is a partial success — the repeat is on, so
   // saying "couldn't turn on repeat" there would be a lie.
+  // "update" (#469 小粒) is a THIRD outcome: the repeat was already on and
+  // stays on — only the new rhythm failed to save — so neither of the other
+  // two sentences fits.
   const handleRepeatConvertError = useCallback(
-    (reason: "attach" | "materialise") =>
+    (reason: "attach" | "materialise" | "update") =>
       showToast(
         "danger",
         reason === "attach"
           ? t("scheduleScreen.repeatConvertFailed")
-          : t("scheduleScreen.repeatMaterialiseFailed"),
+          : reason === "materialise"
+            ? t("scheduleScreen.repeatMaterialiseFailed")
+            : t("scheduleScreen.repeatUpdateFailed"),
       ),
     [showToast, t],
   );
@@ -901,6 +907,8 @@ export function CalendarTab({
     ? {
         id: selected.id,
         title: selected.title,
+        date: selected.date,
+        isAllDay: selected.isAllDay ?? false,
         startTime: selected.startTime,
         endTime: selected.endTime,
         completed: selected.completed,
@@ -1067,13 +1075,53 @@ export function CalendarTab({
     complete: t("scheduleScreen.complete"),
     statusLabels,
   };
+  // #469: the date picker. Before this the only way to move an occurrence to
+  // another day was to drag it across the grid — impossible for a day the grid
+  // is not showing. The view follows the move: leaving the calendar where it
+  // was would make the row simply disappear, with the editor the only evidence
+  // anything happened. No ensure pass is needed (an existing row is moving, not
+  // an occurrence being generated).
+  const handleChangeDate = useCallback(
+    (id: string, date: string) => {
+      handleUpdate(id, { date });
+      setAnchorDate(date);
+      setMobileSelectedDay(date);
+    },
+    [handleUpdate, setAnchorDate, setMobileSelectedDay],
+  );
+
+  // #469: the all-day switch. Turning it ON keeps the times (so switching back
+  // restores them); turning it OFF has to hand back a usable span, because a
+  // row created as all-day can carry none at all — a null start would leave the
+  // item unrenderable on the time grid. Falls back to the same 09:00 the create
+  // paths seed, and derives the end from the start so a row with only a start
+  // never ends up inverted.
+  const handleToggleAllDay = useCallback(
+    (id: string, next: boolean) => {
+      if (next) {
+        handleUpdate(id, { isAllDay: true });
+        return;
+      }
+      const item = rangeItems.find((i) => i.id === id) ?? selected;
+      const start = item?.startTime || "09:00";
+      const end =
+        item?.endTime ||
+        minutesToTime(minutesFromMidnight(start) + CREATE_DURATION_MIN);
+      handleUpdate(id, { isAllDay: false, startTime: start, endTime: end });
+    },
+    [handleUpdate, rangeItems, selected],
+  );
+
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
     statusLabels,
     title: t("scheduleScreen.title"),
+    date: t("scheduleScreen.date"),
+    allDay: t("scheduleScreen.allDay"),
     startTime: t("scheduleScreen.startTime"),
     endTime: t("scheduleScreen.endTime"),
     memo: t("scheduleScreen.memo"),
+    seriesHint: t("scheduleScreen.seriesEditHint"),
     originRoutine: t("scheduleScreen.originRoutine"),
     originEvent: t("scheduleScreen.originEvent"),
     skipThisDay: t("scheduleScreen.skipThisDay"),
@@ -1085,6 +1133,8 @@ export function CalendarTab({
       item={editorItem}
       originDetail={originDetail}
       onCommitTitle={(id, title) => handleUpdate(id, { title })}
+      onChangeDate={handleChangeDate}
+      onToggleAllDay={handleToggleAllDay}
       onChangeStart={(id, value) => handleUpdate(id, { startTime: value })}
       onChangeEnd={(id, value) => handleUpdate(id, { endTime: value })}
       onToggleComplete={handleToggle}

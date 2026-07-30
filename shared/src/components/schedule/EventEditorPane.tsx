@@ -8,7 +8,7 @@ import {
   type FrequencyEditorLabels,
 } from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
-import { FIELD, FIELD_LABEL } from "../styleTokens";
+import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
@@ -37,8 +37,12 @@ import { FIELD, FIELD_LABEL } from "../styleTokens";
 export interface EventEditorItem {
   id: string;
   title: string;
+  /** Calendar day this occurrence sits on (YYYY-MM-DD) — #469. */
+  date: string;
   startTime: string; // HH:MM
   endTime: string; // HH:MM
+  /** All-day occupies the day rather than a time span (#469). */
+  isAllDay: boolean;
   completed: boolean;
   /** Derived status (#222) — shown as a tag on the completion toggle. */
   status: ScheduleStatus;
@@ -51,10 +55,21 @@ export interface EventEditorLabels {
   /** Already-translated status-tag labels (#222). */
   statusLabels: Record<ScheduleStatus, string>;
   title: string;
+  /** Caption for the date picker (#469). */
+  date: string;
+  /** Caption for the all-day switch (#469). */
+  allDay: string;
   startTime: string;
   endTime: string;
   memo: string;
   memoPlaceholder?: string;
+  /**
+   * Shown on a routine occurrence: says that title / time edits ask which part
+   * of the series to apply to, while the day and the all-day switch only ever
+   * touch this one occurrence (#469 小粒 — the 「系列全体に適用」 hint). Omit to
+   * render no hint.
+   */
+  seriesHint?: string;
   /** Origin chip copy for a routine-generated item. */
   originRoutine: string;
   /** Origin chip copy for a manual (single) event. */
@@ -70,6 +85,18 @@ export interface EventEditorPaneProps {
   /** Extra origin detail appended to the routine chip (e.g. "月・水・金"). */
   originDetail?: string;
   onCommitTitle: (id: string, title: string) => void;
+  /**
+   * Move the occurrence to another day (#469). Omit to render the date as
+   * read-only. Unlike the times this never propagates to a series — the routine
+   * template has no concrete date — so the host applies it to this row alone.
+   */
+  onChangeDate?: (id: string, date: string) => void;
+  /**
+   * Flip all-day (#469). Omit to hide the switch. Turning it OFF has to hand
+   * the row usable times back, so the host (not this pane) decides the
+   * fallback: an all-day row may carry no start/end at all.
+   */
+  onToggleAllDay?: (id: string, next: boolean) => void;
   onChangeStart: (id: string, value: string) => void;
   onChangeEnd: (id: string, value: string) => void;
   onToggleComplete: (id: string) => void;
@@ -108,6 +135,8 @@ function EventEditorFields({
   item,
   originDetail,
   onCommitTitle,
+  onChangeDate,
+  onToggleAllDay,
   onChangeStart,
   onChangeEnd,
   onToggleComplete,
@@ -203,39 +232,93 @@ function EventEditorFields({
         />
       </label>
 
-      {/* Start / End */}
-      <div className="flex gap-2">
+      {/* Date + all-day (#469). Before this the day could only be changed by
+          dragging the item across the grid, which is impossible for a day the
+          grid is not showing. Unlike the drafts above, the date commits on
+          CHANGE: a date input only reports a complete value, nothing here can
+          reach a series (the routine template has no date), and a pending draft
+          would be lost outright when the overlay is dismissed with Esc. */}
+      <div className="flex items-end gap-2">
         <label className="flex flex-1 flex-col gap-1.5">
-          <span className={FIELD_LABEL}>{labels.startTime}</span>
+          <span className={FIELD_LABEL}>{labels.date}</span>
           <input
-            type="time"
-            value={startDraft}
-            onChange={(e) => setStartDraft(e.target.value)}
-            onBlur={commitStart}
-            onKeyDown={blurOnEnter}
-            aria-label={labels.startTime}
+            type="date"
+            value={item.date}
+            readOnly={!onChangeDate}
+            onChange={(e) => {
+              const next = e.target.value;
+              // A cleared input reports "" — never commit that as a day.
+              if (next && next !== item.date) onChangeDate?.(item.id, next);
+            }}
+            aria-label={labels.date}
             className={cn(FIELD, "tabular-nums")}
           />
         </label>
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className={FIELD_LABEL}>{labels.endTime}</span>
-          <input
-            type="time"
-            value={endDraft}
-            onChange={(e) => setEndDraft(e.target.value)}
-            onBlur={commitEnd}
-            onKeyDown={blurOnEnter}
-            aria-label={labels.endTime}
-            className={cn(FIELD, "tabular-nums")}
-          />
-        </label>
+        {onToggleAllDay && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={item.isAllDay}
+            onClick={() => onToggleAllDay(item.id, !item.isAllDay)}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-[13px] font-medium transition-colors",
+              FOCUS_RING_TIGHT,
+              item.isAllDay
+                ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
+                : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+            )}
+          >
+            {labels.allDay}
+          </button>
+        )}
       </div>
+
+      {/* Start / End — an all-day occurrence has no time span to edit. Hidden
+          rather than disabled: the switch that hides them keeps the focus, and
+          a locked pair of inputs would leave the times looking authoritative
+          while the row ignores them. */}
+      {!item.isAllDay && (
+        <div className="flex gap-2">
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className={FIELD_LABEL}>{labels.startTime}</span>
+            <input
+              type="time"
+              value={startDraft}
+              onChange={(e) => setStartDraft(e.target.value)}
+              onBlur={commitStart}
+              onKeyDown={blurOnEnter}
+              aria-label={labels.startTime}
+              className={cn(FIELD, "tabular-nums")}
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className={FIELD_LABEL}>{labels.endTime}</span>
+            <input
+              type="time"
+              value={endDraft}
+              onChange={(e) => setEndDraft(e.target.value)}
+              onBlur={commitEnd}
+              onKeyDown={blurOnEnter}
+              aria-label={labels.endTime}
+              className={cn(FIELD, "tabular-nums")}
+            />
+          </label>
+        </div>
+      )}
 
       {/* Origin chip + provenance action (Issue 017). The repeat section
           (#185) replaces the read-only routine chip when the host wires it;
           otherwise the legacy chip renders. */}
       {item.isRoutine ? (
         <>
+          {/* #469 小粒: the fields above behave differently on a series, and
+              until now the only way to find out was to edit one and watch a
+              scope dialog appear. Say it before the edit instead. */}
+          {labels.seriesHint && (
+            <p className="text-xs leading-relaxed text-lumen-text-secondary">
+              {labels.seriesHint}
+            </p>
+          )}
           {showRepeat ? (
             repeatSection
           ) : (

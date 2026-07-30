@@ -2,14 +2,15 @@
 
 ## 進行中
 
-### ⏸️ #411 の tracker 記録の回収（着手日: 2026-07-28）
+### 🔧 Epic #290 の残 4 件（#466 / #468 / #467 / #469）（着手日: 2026-07-30）
 
-**対象**: `.claude/memory/chat-schedule-refine.md` / `.claude/history/chat-schedule-refine.md`
-**Issue**: なし（#411 の後始末）
+**対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/utils/` / `shared/src/i18n/locales/`
+**計画書**: `.claude/docs/vision/plans/2026-07-14-schedule-redesign.md` §6 Step 5-b / 6 / 5-c / 7
 
-- 前回: #411 本体を実装 → **PR #454 merge 済み**（main `218d8dab`）
-- 現在: **PR #454 は tracker コミット `e395e5e0` を push する前に merge された**（**この worktree で 3 度目・通算 6 度目**）→ `origin/main` から切った `claude/schedule-411-tracker` へ cherry-pick で回収（コンフリクトなし）。**docs だけなのでゲートは回していない**（コード変更ゼロ）
-- 次: merge は 🛑 ユーザーゲート。**担当 4 件（#433 / #434 / #408 / #411）は全て着地済み**なので、着地後は自分宛 open Issue を拾い直す
+- 前回: #411 の tracker 記録も PR #455（main `089728a9`）で着地済み。前ラウンドの担当 4 件は全て完了
+- 現在: **#466 Step 5-b 繰り返しフィルタ = PR #480（OPEN・merge 待ち）** / **#469 Step 7 エディタ日付・終日 + 小粒 = branch `claude/schedule-469-editor-fields`**。どちらも 4 ゲート exit 0
+- 次: **#468 と #467 は #466 の着地待ち**（#468 は Issue が明示・#467 は同じ `CalendarTab` の Mobile 日リスト derived を削るため #466 と真正コンフリクトになる）。着手順を #469 → #468 → #467 に入れ替えた
+- **ブランチを跨ぐと per-chat memory も分岐する**: #466 の記録は PR #480 側にしかないので、main 取り込み時に memory / history がコンフリクトする。**解消は「両方のエントリを残す」**（片方を捨てると merge 済みの記録が消える）
 
 ## 直近の完了
 

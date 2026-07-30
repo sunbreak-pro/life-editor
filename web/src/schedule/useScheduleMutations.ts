@@ -157,7 +157,12 @@ export interface UseScheduleMutationsArgs {
   //   "materialise" — the repeat IS on, but filling the rest of the visible
   //                   range failed, so the calendar shows fewer occurrences
   //                   than the rhythm implies until the next pass.
-  onRepeatConvertFailed: (reason: "attach" | "materialise") => void;
+  //   "update"      — an EXISTING series' frequency edit did not land. #434
+  //                   wired the conversion paths only, so this one used to
+  //                   return in silence and the reload snapped the editor back
+  //                   to the old rhythm — indistinguishable from a click that
+  //                   never registered (#469 小粒).
+  onRepeatConvertFailed: (reason: "attach" | "materialise" | "update") => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -246,11 +251,18 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // series-propagatable patch (title / times, never date or memo — the
   // routine template has neither a concrete date nor a memo) parks the patch
   // in the scope dialog (#279); everything else applies to the single row.
+  //
+  // #469: an all-day flip is occurrence-level for the same reason a date move
+  // is — the routine template has no isAllDay to propagate one to. It carries
+  // times along when it turns OFF (the host restores usable ones), and without
+  // this guard that pairing would be mistaken for a time edit and open the
+  // scope dialog for a change no scope applies to.
   const handleUpdate = useCallback(
     (id: string, patch: Partial<ScheduleItem>) => {
       const item = findScheduleItem(id);
       const propagatable =
         patch.date === undefined &&
+        patch.isAllDay === undefined &&
         (patch.title !== undefined ||
           patch.startTime !== undefined ||
           patch.endTime !== undefined);
@@ -515,7 +527,16 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
             // and series contradicting each other, and the always-on
             // generators would then fight over every day.
             const landed = await updateRoutine(routineId, seededPatch);
-            if (!landed) return;
+            if (!landed) {
+              // #469 小粒: reconcile is skipped on purpose (reshaping to a
+              // rhythm the template never took would leave the two
+              // contradicting each other), but the finally-reload then restores
+              // the OLD frequency in the editor. Without a word, that reads as
+              // the frequency control being broken rather than the write having
+              // failed.
+              onRepeatConvertFailed("update");
+              return;
+            }
             await reconcileRoutineScheduleItems(
               { ...routine, ...seededPatch },
               { startDate: rangeStart, endDate: rangeEnd },
