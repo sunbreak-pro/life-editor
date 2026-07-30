@@ -18,9 +18,27 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
  * renderText emits `[[label]]` so plain-text extraction (briefing) and
  * clipboard keep something readable.
  *
- * Click navigation is a ProseMirror plugin (handleClickOn): a click on a
- * RESOLVED node calls the host `getOnNavigate()` callback with { id, role };
- * an unresolved node is a no-op (so it can still be selected / deleted).
+ * Click navigation is a ProseMirror plugin listening on the plain DOM `click`
+ * event (`handleDOMEvents.click`): it finds the clicked link with
+ * `closest("[data-item-link]")` and calls the host `getOnNavigate()` callback
+ * with { id, role }. An unresolved node is a no-op (so it can still be
+ * selected / deleted).
+ *
+ * #475 — why a DOM `click` listener and NOT ProseMirror's `handleClickOn`:
+ * `handleClickOn` only ever runs if ProseMirror's whole single-click pipeline
+ * survives first — `eventBelongsToView`, no other plugin claiming `mousedown`
+ * through handleDOMEvents, `posAtCoords()` returning non-null AND resolving
+ * `inside` onto this atom's own position, and MouseDown.up() not bailing out
+ * (shift held / pointer moved >4px / mouseup target no longer inside the
+ * view). Those preconditions are layout- and browser-dependent and have
+ * nothing to do with this node, yet every one of them silently degrades a link
+ * click into "just select the atom" — the #475 symptom. A `handleDOMEvents`
+ * event type that ProseMirror has no built-in handler for (click is one) gets
+ * a bare listener that goes straight to the plugin props, so this path skips
+ * all of the above. Measured on the real editor: no other plugin in the
+ * RichTextEditor extension set registers a `click` DOM handler, so nothing
+ * can preempt this one.
+ *
  * lumen-* only — the visual treatment lives in web/src/index.css.
  */
 
@@ -31,18 +49,46 @@ export interface ItemLinkNavTarget {
 
 export type ItemLinkNavigate = (target: ItemLinkNavTarget) => void;
 
+/** Alias for the DOM Node type, which TipTap's `Node` import shadows here. */
+type DomNode = globalThis.Node;
+
 export interface ItemLinkOptions {
   /**
-   * Host navigate callback, invoked on a click of a RESOLVED link. Passed
-   * directly (not through a ref): the only caller wires a referentially stable
-   * `useCallback` here, so the node — built once per editor mount — never goes
-   * stale. (The `[[` suggestion's frequently-changing inputs DO use the ref
-   * getter pattern; navigation does not need it.)
+   * Getter for the host navigate callback, read at CLICK time — never captured
+   * at mount. Same shape as itemLinkSuggestion's host wiring
+   * (getOnResolvedInserted / getCreateNote) and for the same reason: the node
+   * is built once per editor mount, so a directly captured prop would freeze
+   * whatever value the host happened to pass on that first render.
    */
-  onNavigate?: ItemLinkNavigate;
+  getOnNavigate?: () => ItemLinkNavigate | undefined;
 }
 
 const itemLinkClickKey = new PluginKey("itemLinkClick");
+
+/**
+ * The navigation target of a clicked `[[…]]` link, or null when the click was
+ * not on a navigable link. Reads the rendered `data-*` attributes (written by
+ * renderHTML straight from the node attrs, so they mirror the model) instead of
+ * mapping coordinates back to a document position — that mapping is the part
+ * that breaks (see the #475 note above).
+ *
+ * Returns null for: a click outside any link, a link that does not belong to
+ * this editor, and an UNRESOLVED link (no targetId / role) — the last one keeps
+ * unresolved atoms inert so they stay selectable and deletable while editing.
+ */
+export function resolveItemLinkTarget(
+  root: DomNode | null,
+  eventTarget: EventTarget | null,
+): ItemLinkNavTarget | null {
+  const from = eventTarget as Element | null;
+  if (!from || typeof from.closest !== "function") return null;
+  const link = from.closest("[data-item-link]");
+  if (!link || !root?.contains(link)) return null;
+  const id = link.getAttribute("data-target-id");
+  const role = link.getAttribute("data-role");
+  if (!id || !role) return null;
+  return { id, role };
+}
 
 const ItemLink = Node.create<ItemLinkOptions>({
   name: "itemLink",
@@ -53,7 +99,7 @@ const ItemLink = Node.create<ItemLinkOptions>({
 
   addOptions() {
     return {
-      onNavigate: undefined,
+      getOnNavigate: undefined,
     };
   },
 
@@ -100,22 +146,33 @@ const ItemLink = Node.create<ItemLinkOptions>({
   },
 
   addProseMirrorPlugins() {
-    const onNavigate = this.options.onNavigate;
+    const getOnNavigate = this.options.getOnNavigate;
     return [
       new Plugin({
         key: itemLinkClickKey,
         props: {
-          handleClickOn(_view, _pos, node, _nodePos, _event, direct) {
-            if (!direct) return false;
-            if (node.type.name !== "itemLink") return false;
-            const targetId = node.attrs.targetId as string | null;
-            const role = node.attrs.role as string | null;
-            // Unresolved links (no target) are inert — let the click fall
-            // through so the atom can still be selected / deleted while editing.
-            if (!targetId || !role) return false;
-            if (!onNavigate) return false;
-            onNavigate({ id: targetId, role });
-            return true;
+          handleDOMEvents: {
+            click: (view, event) => {
+              // Left button only, no modifier — cmd/ctrl-click is ProseMirror's
+              // "select this node" gesture and shift-click extends a selection,
+              // so navigating on those would take the editor away mid-edit.
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              ) {
+                return false;
+              }
+              const target = resolveItemLinkTarget(view.dom, event.target);
+              if (!target) return false;
+              const onNavigate = getOnNavigate?.();
+              if (!onNavigate) return false;
+              event.preventDefault();
+              onNavigate(target);
+              return true;
+            },
           },
         },
       }),

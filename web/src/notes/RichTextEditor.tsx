@@ -128,6 +128,7 @@ export function RichTextEditor({
   );
   const onResolvedInsertedRef = useRef(onResolvedLinkInserted);
   const onCreateNoteRef = useRef(onCreateNoteForLink);
+  const onNavigateRef = useRef(onNavigateToItem);
   const linkEnabled = loadLinkTargets !== undefined;
 
   useEffect(() => {
@@ -135,6 +136,7 @@ export function RichTextEditor({
     loadLinkTargetsRef.current = loadLinkTargets;
     onResolvedInsertedRef.current = onResolvedLinkInserted;
     onCreateNoteRef.current = onCreateNoteForLink;
+    onNavigateRef.current = onNavigateToItem;
   });
 
   // Stable getters over the refs above. Wrapping them in useCallback (rather
@@ -150,6 +152,7 @@ export function RichTextEditor({
     [],
   );
   const getCreateNote = useCallback(() => onCreateNoteRef.current, []);
+  const getOnNavigate = useCallback(() => onNavigateRef.current, []);
 
   const flushPending = () => {
     if (debounceRef.current) {
@@ -222,9 +225,15 @@ export function RichTextEditor({
           : []),
         // itemLink atom — ALWAYS registered so stored `[[…]]` JSON round-trips
         // on every surface (schema must know the node even where the "[["
-        // suggestion is off). Click navigation reads the host callback via ref.
+        // suggestion is off). Click navigation reads the host callback through
+        // the ref getter, like the other link wiring below (#475 — a directly
+        // captured prop froze at whatever the host passed on the mount render).
+        // react-hooks/refs cannot see that TipTap only stores the getter and
+        // calls it from a click handler; the identical getters below escape the
+        // rule only because they sit behind a conditional spread.
+        // eslint-disable-next-line react-hooks/refs
         createItemLinkNode({
-          onNavigate: onNavigateToItem,
+          getOnNavigate,
         }),
         // "[[" wiki-link autocomplete — gated on the loadLinkTargets prop. The
         // loader + callbacks are read through refs so they never go stale.
