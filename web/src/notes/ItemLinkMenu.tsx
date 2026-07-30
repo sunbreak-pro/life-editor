@@ -45,10 +45,18 @@ interface ItemLinkMenuProps {
   command: (item: ItemLinkMenuItem) => void;
   /** Copy shown when the query matches nothing. */
   emptyLabel: string;
+  /**
+   * Cap for the list's own scroller, in px — the space the placer found on the
+   * chosen side of the caret (#471). Omitted → the default max height.
+   */
+  maxHeight?: number;
 }
 
 export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
-  function ItemLinkMenu({ items, command, emptyLabel }, ref): ReactElement {
+  function ItemLinkMenu(
+    { items, command, emptyLabel, maxHeight },
+    ref,
+  ): ReactElement {
     const [selected, setSelected] = useState(0);
 
     // Reset the highlight whenever the filtered set changes (typing narrows it).
@@ -85,6 +93,9 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
     return (
       <div
         role="listbox"
+        // The inline cap (when the placer supplies one) beats the class — style
+        // attribute over stylesheet — so the two never have to agree.
+        style={{ maxHeight }}
         className="max-h-72 min-w-[16rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md"
       >
         {items.map((item, index) => {
@@ -105,6 +116,9 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
               }}
               className={[
                 "flex w-full items-center gap-2.5 rounded-lumen-sm px-2.5 py-1.5 text-left text-[13px]",
+                // Touch sizing below the app's single 768px breakpoint: a 36px
+                // row is a mouse target, not a thumb target (44px floor).
+                "max-md:min-h-11 max-md:px-3 max-md:text-[14px]",
                 isActive
                   ? "bg-lumen-accent-subtle text-lumen-text"
                   : "text-lumen-text-secondary hover:bg-lumen-hover",

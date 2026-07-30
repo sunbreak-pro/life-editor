@@ -15,6 +15,7 @@ import {
   type SlashMenuHandle,
   type SlashMenuItem,
 } from "./SlashMenu";
+import { createSuggestionPopup, type SuggestionPopup } from "./suggestionPopup";
 
 /*
  * Slash-command extension (web Notes/Daily editor). Types "/" to open a block
@@ -103,18 +104,12 @@ type SlashRender = SuggestionOptions<SlashMenuItem>["render"];
 function slashRender(emptyLabel: string): SlashRender {
   return () => {
     let renderer: ReactRenderer<SlashMenuHandle> | null = null;
-    let popup: HTMLDivElement | null = null;
-
-    const position = (rect: DOMRect | null | undefined) => {
-      if (!popup || !rect) return;
-      popup.style.left = `${rect.left + window.scrollX}px`;
-      popup.style.top = `${rect.bottom + window.scrollY + 6}px`;
-    };
+    let popup: SuggestionPopup | null = null;
 
     // Full teardown, safe to call more than once — subsequent onUpdate/onExit
     // become no-ops (both guard on the nulled refs). Used by Escape and onExit.
     const destroy = () => {
-      popup?.remove();
+      popup?.destroy();
       popup = null;
       renderer?.destroy();
       renderer = null;
@@ -126,17 +121,19 @@ function slashRender(emptyLabel: string): SlashRender {
           props: { ...props, emptyLabel },
           editor: props.editor,
         });
-        popup = document.createElement("div");
-        popup.style.position = "absolute";
-        popup.style.zIndex = "60";
-        popup.appendChild(renderer.element);
-        document.body.appendChild(popup);
-        position(props.clientRect?.());
+        // Same keyboard-aware placement as the "[[" menu (#471): this picker is
+        // reachable on mobile too (Daily has been fully editable there), so it
+        // had the identical "opens under the soft keyboard" problem.
+        popup = createSuggestionPopup((maxHeight) =>
+          renderer?.updateProps({ maxHeight }),
+        );
+        popup.el.appendChild(renderer.element);
+        popup.position(props.clientRect?.());
       },
       onUpdate: (props) => {
-        if (!renderer) return;
+        if (!renderer || !popup) return;
         renderer.updateProps({ ...props, emptyLabel });
-        position(props.clientRect?.());
+        popup.position(props.clientRect?.());
       },
       onKeyDown: (props) => {
         if (props.event.key === "Escape") {

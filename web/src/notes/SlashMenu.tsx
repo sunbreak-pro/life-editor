@@ -42,10 +42,15 @@ interface SlashMenuProps {
   command: (item: SlashMenuItem) => void;
   /** Copy shown when the query matches nothing. */
   emptyLabel: string;
+  /** Cap for the list's own scroller, in px (see suggestionPopup — #471). */
+  maxHeight?: number;
 }
 
 export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
-  function SlashMenu({ items, command, emptyLabel }, ref): ReactElement {
+  function SlashMenu(
+    { items, command, emptyLabel, maxHeight },
+    ref,
+  ): ReactElement {
     const [selected, setSelected] = useState(0);
 
     // Reset the highlight whenever the filtered set changes (typing narrows it).
@@ -82,6 +87,9 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
     return (
       <div
         role="listbox"
+        // Inline cap beats the class when the placer supplies one (see
+        // ItemLinkMenu — the two pickers stay one system).
+        style={{ maxHeight }}
         className="max-h-72 min-w-[15rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md"
       >
         {items.map((item, index) => {
@@ -101,6 +109,8 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
               }}
               className={[
                 "flex w-full items-center gap-2.5 rounded-lumen-sm px-2.5 py-1.5 text-left text-[13px]",
+                // Touch sizing below 768px — same 44px floor as ItemLinkMenu.
+                "max-md:min-h-11 max-md:px-3 max-md:text-[14px]",
                 isActive
                   ? "bg-lumen-accent-subtle text-lumen-text"
                   : "text-lumen-text-secondary hover:bg-lumen-hover",
