@@ -8,8 +8,8 @@
 **計画書**: `.claude/docs/vision/plans/2026-07-28-refactor-dataservice-split.md`
 
 - 前回: Phase B Step 2 完了 — NotesView hooks 切り出し（PR #463 merged）。Phase A 全 5 PR + Phase B Step 1/2 すべて merge 済み
-- 現在: Issue #465 = MainScreen（951 行）の hooks 切り出し（Phase B Step 9・計画最終ステップ）。branch `claude/refactor-08-mainscreen-hooks` で実装中
-- 次: 3 ゲート（shared test / shared build / web build）→ session-verifier → 計画書 COMPLETED + archive 移動 → PR（Fixes #465）
+- 現在: Issue #465 実装完了 — PR #479（`claude/refactor-08-mainscreen-hooks`・Fixes #465）の merge 待ち（ユーザーゲート）。全ゲート緑・session-verifier PASS・計画書は COMPLETED で archive 済み
+- 次: merge されたら outbox に「#465 merge 済み」を 1 行 append（#472/#473 の解禁条件）。実ブラウザ確認（計画 Step 10）は chat-main 担当
 
 ## 直近の完了
 
