@@ -210,9 +210,13 @@ function EventEditorFields({
   // Flush the date on unmount: the overlay/sheet can be dismissed with Esc or a
   // backdrop click, and neither is guaranteed to blur the input first. The ref
   // keeps the effect's cleanup from capturing a stale draft (an empty dep list
-  // is what makes it fire exactly once, on unmount).
+  // is what makes it fire exactly once, on unmount). Refreshing it in an effect
+  // rather than during render keeps `react-hooks/refs` satisfied — a render that
+  // React throws away must not leave a write behind.
   const commitDateRef = useRef(commitDate);
-  commitDateRef.current = commitDate;
+  useEffect(() => {
+    commitDateRef.current = commitDate;
+  });
   useEffect(() => () => commitDateRef.current(), []);
   const blurOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
     // IME guard: do not treat a composition-confirming Enter as commit.
