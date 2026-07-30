@@ -120,15 +120,22 @@ describe("TagEditModal name filter (#368)", () => {
     expect(screen.getByText("No tags yet")).toBeInTheDocument();
   });
 
-  it("keeps the add row working while the list is filtered", () => {
+  it("keeps the add row working while the list is filtered, and releases the query", () => {
     const onCreate = vi.fn();
     render(<TagEditModal {...props({ onCreate })} />);
     fireEvent.change(filterInput(), { target: { value: "zzz" } });
+    expect(screen.getByText("No tags match")).toBeInTheDocument();
 
     const add = screen.getByLabelText("Add");
     fireEvent.change(add, { target: { value: "errand" } });
     fireEvent.keyDown(add, { key: "Enter" });
     expect(onCreate).toHaveBeenCalledExactlyOnceWith("errand");
+
+    // The query is dropped on create: leaving it on would hide the tag the host
+    // is about to add, so the panel would look exactly as it did before — and a
+    // second Add attempt would hit the unique-name constraint silently.
+    expect((filterInput() as HTMLInputElement).value).toBe("");
+    expect(visibleNames()).toEqual(["Home", "homework", "work"]);
   });
 
   it("clears the query when the panel is reopened", () => {

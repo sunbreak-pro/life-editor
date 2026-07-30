@@ -37,8 +37,6 @@ export interface SidebarSortMode {
   label: string;
 }
 
-export type { SidebarFilterConfig };
-
 export interface SidebarListControlsProps {
   /** Sort modes; when length <= 1 the mode picker is hidden. */
   modes: SidebarSortMode[];

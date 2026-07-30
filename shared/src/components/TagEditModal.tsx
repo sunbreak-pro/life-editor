@@ -165,6 +165,11 @@ export function TagEditModal({
     if (!name) return;
     onCreate(name);
     setDraft("");
+    // Clear the filter too (#368 QA): a tag created while a non-matching query
+    // is active would land outside the visible list, so the panel would look
+    // exactly as it did before — and pressing Add again hits the unique-name
+    // constraint, which the host's fire-and-forget create swallows silently.
+    setQuery("");
   }, [draft, onCreate]);
 
   // Case-insensitive substring on the name — the same contract the item-side
