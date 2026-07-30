@@ -449,7 +449,7 @@
     "originRoutine": "ルーチンから生成",
     "originEvent": "予定",
     "skipThisDay": "この日はスキップ",
-    "seriesEditHint": "タイトルと時刻を変えると「この予定のみ / これ以降 / すべて」を選ぶ画面が出ます。日付と終日はこの日の予定だけに適用されます。",
+    "seriesEditHint": "タイトルと時刻を変えると「この予定のみ / これ以降 / すべて」を選ぶ画面が出ます。日付・終日・メモはこの日の予定だけに適用されます。",
     "skippedTitle": "スキップ済み（{{count}}件）",
     "restoreSkipped": "戻す",
     "delete": "削除",

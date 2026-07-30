@@ -449,7 +449,7 @@
     "originRoutine": "Generated from routine",
     "originEvent": "Event",
     "skipThisDay": "Skip this day",
-    "seriesEditHint": "Changing the title or times asks whether to apply it to this occurrence, this and later ones, or all. The date and the all-day switch only ever affect this one.",
+    "seriesEditHint": "Changing the title or times asks whether to apply it to this occurrence, this and later ones, or all. The date, the all-day switch and the memo only ever affect this one.",
     "skippedTitle": "Skipped ({{count}})",
     "restoreSkipped": "Restore",
     "delete": "Delete",
