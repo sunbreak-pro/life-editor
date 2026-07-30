@@ -1,5 +1,22 @@
 # HISTORY (chat-mobile-refine)
 
+### 2026-07-31 - #471 mobile notes のフル編集（Epic #321 Phase 2）
+
+#### 概要
+
+狭幅のノートを閲覧専用からフル編集へ引き上げた（PR #496 merged）。詳細シートに Desktop main と同じ `NoteDetailPanel` を差し込み、`[[` 補完をタッチ + ソフトキーボード前提の配置に作り替えた。独立レビュー 2 本の指摘（本文消失 1 件を含む）は追撃ブランチで反映。
+
+#### 変更点
+
+- **1 panel 2 面**: シートの中身を `NoteDetailPanel`（`variant="sidebar"`）に差し替え、タイトル / タグ / ピン / 削除 / 本文が両幅で 1 実装に。シートのヘッダーは汎用ラベル（新規 i18n `materials.notes.detailTitle`）
+- **サジェストメニューの配置を切り出し**（`web/src/notes/suggestionPopup.ts`）: `visualViewport` 基準で下→上へ反転・左右クランプ・選んだ側の空きで高さ頭打ち（ただし `max-h-72` 相当の 288px を**緩める方向には効かせない** — インライン style がクラスに勝つため Desktop が伸びる）。`/` メニューも同じ配置に載せた。行は 768px 未満で 44px 床（`max-md:`）
+- **状態機械をフック化**: `useNoteSheetTarget`（識別 + 本文 hydrate 済み判定 + 消えたリンクの無視）。ホストの 4 Provider と TipTap 抜きで遷移をテストできる
+- **QA が掘った本文消失**: シートは開くたびにエディタを mount するのに、その条件が「選択 id の一致」だった。選択はシート閉鎖もリスト再読込も跨いで残るが本文は残らない（#301 は `updatedAt` が動いた行だけキャッシュを捨てて非同期で再取得）ので、その隙間に開くと空の本文で mount → 初回入力が空を保存する。判定を `isContentLoaded`（notes API に追加）へ変更し、シートは `selectedNote` でなく自分の note の本文を読む
+- **同 QA の残り**: 高さ上限の天井なし（Desktop で 288→666px に伸びていた）/ キャレット矩形のキャッシュ（キーボードでスクロールすると置き去り → getter 化 + capture フェーズの scroll 監視）/ 非同期 `items()` の追い越しで popup 二重生成・孤児化 / Escape がプラグインを閉じず以後毎打鍵で全件フェッチ（#430 のコスト・Desktop 既存）/ 配置前の popup が可視 / 消えたリンクでシートが閉じる
+- **実測で棄却した指摘 2 件**: notes 一覧は検索フィルタ後ではない（改名でシートは閉じない）/ `@tiptap/suggestion` は plugin view の `destroy()` で `onExit` を呼ぶ（シートを閉じても popup は残らない）
+- **テスト +40**（web 32 → 72）: 配置の純関数（実機の数値で反転・クランプ・天井）、popup の DOM glue（visualViewport スタブ・ResizeObserver スタブ・破棄時のリスナ解除）、シート状態機械、`[[` の遅延フェッチ（実エディタで items() 呼び出しを観測）
+- **運用の教訓（再発）**: #470 と同じく、PR merge 直後に積んだ commit が main に届かなかった。**merge 済み PR に後追い push しない** — 新しい main から切り直して cherry-pick する
+
 ### 2026-07-30 - #470 mobile tasks の詳細編集（Epic #321 Phase 2）
 
 #### 概要
