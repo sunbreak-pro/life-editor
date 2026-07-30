@@ -98,10 +98,9 @@ import { useShellChrome } from "./hooks/useShellChrome";
 
 /*
  * Section identity, order, icons, and the desktop/mobile nav views all come
- * from the shared section registry (SSOT — shared/src/sections.ts). This host
- * derives its nav from SECTIONS / MAIN_SECTIONS / UTILITY_SECTIONS /
- * MOBILE_SECTIONS instead of hand-maintaining parallel literal lists.
- * The old REPL section is retired (§8) and never appears in the registry.
+ * from the shared section registry (SSOT — shared/src/sections.ts), derived
+ * inside useShellChrome rather than hand-maintained here. The old REPL
+ * section is retired (§8) and never appears in the registry.
  */
 
 /*

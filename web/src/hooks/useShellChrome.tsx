@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import {
   CheckSquare,
   CalendarDays,
@@ -22,7 +21,7 @@ import {
   type Command,
 } from "@life-editor/shared";
 import type { ScheduleTab } from "../schedule/ScheduleScreen";
-import { MATERIALS_TABS, type MaterialsTab } from "./useShellNavigation";
+import type { MaterialsTab } from "./useShellNavigation";
 
 /*
  * Chrome half of the app-shell host (extracted from MainScreen.tsx — hooks
@@ -34,6 +33,8 @@ import { MATERIALS_TABS, type MaterialsTab } from "./useShellNavigation";
  * MaterialsCountsBridge. Setters come in from useShellNavigation so a
  * command / tab click routes through the same state the shell switches on.
  */
+
+const MATERIALS_TABS: readonly MaterialsTab[] = ["notes", "daily"];
 
 const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   notes: FileText,
@@ -69,9 +70,13 @@ export function useShellChrome({
   setMaterialsTab,
   setScheduleTab,
 }: {
-  setSection: Dispatch<SetStateAction<SectionId>>;
-  setMaterialsTab: Dispatch<SetStateAction<MaterialsTab>>;
-  setScheduleTab: Dispatch<SetStateAction<ScheduleTab>>;
+  // Deliberately narrower than the useState setters the shell passes in:
+  // the commands memo lists these in its deps and stays cached only while
+  // their identity is stable, so the contract asks for a plain callback —
+  // hand it a per-render closure and every render rebuilds the palette list.
+  setSection: (id: SectionId) => void;
+  setMaterialsTab: (tab: MaterialsTab) => void;
+  setScheduleTab: (tab: ScheduleTab) => void;
 }) {
   const { t } = useTranslation();
 
@@ -215,7 +220,6 @@ export function useShellChrome({
   );
 
   return {
-    materialsCounts,
     setMaterialsCounts,
     commands,
     navSections,

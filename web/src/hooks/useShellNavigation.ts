@@ -22,8 +22,6 @@ import type { ScheduleTab } from "../schedule/ScheduleScreen";
 /** In-Materials tab — the document surfaces addressed by one section. */
 export type MaterialsTab = "notes" | "daily";
 
-export const MATERIALS_TABS: readonly MaterialsTab[] = ["notes", "daily"];
-
 /**
  * Where a "[[" link target opens (#285; tasks added in #370, and moved from
  * Materials to Schedule in #411 — hence a section+tab pair rather than a bare
