@@ -1,5 +1,5 @@
 ---
-Status: COMPLETED（Superseded — w4-analytics-connect に統合実装。#154 closeout・2026-07-05）
+Status: SUPERSEDED — w4-analytics-connect に統合実装（#154 closeout・2026-07-05）。旧表記 `COMPLETED（Superseded）` を #474 で enum 化
 Created: 2026-06-14
 Branch: claude/w4-connect
 Owner-chat: w4-connect
@@ -44,14 +44,14 @@ shared/src/index.ts                        # 自分の型/サービス export �
 
 ## Steps
 
-| #   | Step                                                       | Gate    | Acceptance                                    |
-| --- | ---------------------------------------------------------- | ------- | --------------------------------------------- |
+| #   | Step                                                                            | Gate    | Acceptance                                    |
+| --- | ------------------------------------------------------------------------------- | ------- | --------------------------------------------- |
 | 0   | （coord）スキャフォールド merge 待ち（@xyflow/react dep + section 配線 + stub） | 🛑 人手 | main に ConnectScreen stub + @xyflow 存在     |
-| 1   | graph 構築ロジックを `shared/src/services/connectGraph.ts` に + vitest | 🤖 自律 | `cd shared && npm run test` 緑                |
-| 2   | `@xyflow/react` で node graph + backlink を `web/src/connect/` に | 🤖 自律 | `cd web && npm run build` exit 0 / eslint 0   |
-| 3   | i18n `connect.*`（en/ja）+ index.ts export                 | 🤖 自律 | build 緑・キー欠落なし                        |
-| 4   | グラフ表示・ノード遷移 E2E 目視                            | 👀 目視 | ノートグラフ描画・クリック遷移・backlink 表示 |
-| 5   | PR 作成（draft）→ main merge                               | 🛑 人手 | PR レビュー & merge                           |
+| 1   | graph 構築ロジックを `shared/src/services/connectGraph.ts` に + vitest          | 🤖 自律 | `cd shared && npm run test` 緑                |
+| 2   | `@xyflow/react` で node graph + backlink を `web/src/connect/` に               | 🤖 自律 | `cd web && npm run build` exit 0 / eslint 0   |
+| 3   | i18n `connect.*`（en/ja）+ index.ts export                                      | 🤖 自律 | build 緑・キー欠落なし                        |
+| 4   | グラフ表示・ノード遷移 E2E 目視                                                 | 👀 目視 | ノートグラフ描画・クリック遷移・backlink 表示 |
+| 5   | PR 作成（draft）→ main merge                                                    | 🛑 人手 | PR レビュー & merge                           |
 
 ---
 

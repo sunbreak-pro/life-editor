@@ -3,7 +3,7 @@ Status: COMPLETED — PR #170 merged（2026-07-08）。enum 正規化 + archive 
 Created: 2026-07-08
 Branch: claude/materials-impl
 Owner-chat: materials-impl
-Parent: .claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md
+Parent: .claude/archive/2026-07-05-design-implementation-fanout.md
 ---
 
 # Plan: Materials — target IA implementation (ClaudeDesign import)
@@ -121,7 +121,7 @@ web/src/wikitag/**
 
 ## References
 
-- Work order: `.claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md`
+- Work order: `.claude/archive/2026-07-05-design-implementation-fanout.md`
 - Brief: `.claude/docs/design/briefs/materials.md` / IA: `.claude/docs/design/IA.md`
 - デザイン原本: `<scratchpad>/design-imports/Materials_*.dc.html`（8 ファイル）
 - 規約: `.claude/rules/frontend.md`（Pattern A / lumen トークン / IME）

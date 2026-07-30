@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: IN PROGRESS — Step 0〜4 と 5-a / 5-d は実装済み。Step 5-b / 5-c / 6 / 7 が open（#466 / #467 / #468 / #469・Epic #290 も open）。判定 = #474（2026-07-30 実測）
 Created: 2026-07-14
 Owner-chat: chat-main 采配（Step 0 = schedule-redesign-step0 worktree で実施済み。Step 1 以降は Issue dispatch で分配）
 Branch: claude/schedule-redesign-step0（Step 0 のみ）
@@ -178,7 +178,7 @@ pin = `shared/tests/taskTreePersistSettled.test.tsx`
 - 生成器: `shared/src/hooks/useScheduleItemsRoutineSync.ts` + `shared/src/utils/{routineScheduleSync,routineFrequency}.ts`
 - サービス: `shared/src/services/SupabaseDataService.ts`（softDeleteRoutine / detachRoutine）
 - 要件: `.claude/docs/requirements/tier-1-core.md`（Tasks AC7 / Schedule AC 群 / **競合解決ルール**）
-- 決定: `.claude/CLAUDE.md` §4（#185 不変式）・`.claude/docs/vision/plans/2026-07-11-event-routine-unification.md`・`.claude/docs/design/IA.md`・`.claude/docs/design/briefs/schedule.md`
+- 決定: `.claude/CLAUDE.md` §4（#185 不変式）・`.claude/archive/2026-07-11-event-routine-unification.md`（COMPLETED・#474 で archive 移動）・`.claude/docs/design/IA.md`・`.claude/docs/design/briefs/schedule.md`
 - 注意: `.claude/skills/schedule-management/` は**開発運用スキルであり本機能と無関係**（混同注意）
 
 ---

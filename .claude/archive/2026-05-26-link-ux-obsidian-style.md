@@ -1,5 +1,5 @@
 ---
-Status: Draft — スケルトン起票（旧表記 SKELETON）・2026-05-26 起票（DU-F 実機確認時に発生したユーザー要件）。実装未着手。DU-G (Notes/Daily Unified write path 切替) と独立に進められる。**ClaudeDesign fan-out で前提 UI（リンク/タグの表示・遷移）が変わるため、着手前に fan-out 後の設計で再評価すること。**
+Status: SUPERSEDED — 3 軸すべて別方式で着地済み（cross-role の候補プール = `web/src/notes/useItemLinkTargets.ts`（#370 / #375 close）／未保存 Daily の辺 park = `shared/src/utils/pendingItemLinks.ts`（#371 close・perf は #430）／stub role の代わりに `web/src/notes/ItemLinkMenu.tsx` の kind `"create"`）。本計画の設計（role='stub' + 実体化 modal）は採らなかったため Draft のままでは実態と矛盾する。残る遷移欠陥は #475 で追跡。判定 = #474（2026-07-30 実測）
 Created: 2026-05-26
 Branch: TBD（`enhance/link-ux-obsidian-style` 等を予定）
 Owner-chat: TBD

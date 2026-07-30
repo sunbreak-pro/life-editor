@@ -3,7 +3,7 @@ Status: COMPLETED — PR #167 merged（2026-07-08）。enum 正規化 + archive 
 Created: 2026-07-08
 Branch: claude/connect-impl
 Owner-chat: connect-impl
-Parent: .claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md
+Parent: .claude/archive/2026-07-05-design-implementation-fanout.md
 ---
 
 # Plan: Connect — target IA implementation (ClaudeDesign import)
@@ -123,7 +123,7 @@ web/src/connect/**
 
 ## References
 
-- fan-out 計画書: `.claude/docs/vision/plans/2026-07-05-design-implementation-fanout.md`
+- fan-out 計画書: `.claude/archive/2026-07-05-design-implementation-fanout.md`
 - design brief: `.claude/docs/design/briefs/connect.md` / IA: `.claude/docs/design/IA.md`
 - デザイン実体: scratchpad `ConnectFrame2.dc.html` / `ConnectMobile.dc.html`
 - 実装規約: `.claude/rules/frontend.md`
