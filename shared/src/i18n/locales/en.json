@@ -286,6 +286,9 @@
     "tags": {
       "addPlaceholder": "Enter a tag name",
       "empty": "No tags yet",
+      "filterPlaceholder": "Filter tags…",
+      "filterLabel": "Filter tags by name",
+      "filterEmpty": "No tags match",
       "rename": "Rename tag",
       "colorLabel": "Color",
       "deleteTag": "Delete tag",
