@@ -176,12 +176,40 @@ function rect(top: number, bottom: number, left: number): DOMRect {
   return { top, bottom, left, right: left, width: 0, height: 0 } as DOMRect;
 }
 
+/**
+ * Collect the ResizeObserver callbacks the popup registers, and let a test fire
+ * them. jsdom has no ResizeObserver at all, so this is also the guard's only
+ * exercise (createSuggestionPopup must survive its absence — the tests above run
+ * without this stub installed).
+ */
+function stubResizeObserver() {
+  const callbacks: Array<() => void> = [];
+  let disconnects = 0;
+  class FakeResizeObserver {
+    constructor(cb: () => void) {
+      callbacks.push(cb);
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {
+      disconnects += 1;
+    }
+  }
+  vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+  return {
+    fire: () => callbacks.forEach((cb) => cb()),
+    disconnects: () => disconnects,
+  };
+}
+
 afterEach(() => {
   Object.defineProperty(window, "visualViewport", {
     value: undefined,
     configurable: true,
     writable: true,
   });
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("createSuggestionPopup", () => {
@@ -226,6 +254,30 @@ describe("createSuggestionPopup", () => {
     expect(popup.el.style.top).not.toBe("626px");
     expect(Number.parseFloat(popup.el.style.top)).toBeLessThanOrEqual(400 - 8);
     popup.destroy();
+  });
+
+  it("re-places itself once the menu has actually rendered", () => {
+    // The first pass measures an EMPTY container: ReactRenderer schedules the
+    // menu's render, so on the opening frame there is nothing in the box yet.
+    // Everything looks like it fits — which is precisely when the keyboard case
+    // would silently break, so the size observer has to correct it.
+    installViewport(fakeViewport(508));
+    const resize = stubResizeObserver();
+    let menuHeight = 0;
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      () => menuHeight,
+    );
+
+    const popup = createSuggestionPopup(() => {});
+    popup.position(rect(430, 450, 40));
+    expect(popup.el.style.top).toBe("456px"); // 0-height box → "fits below"
+
+    menuHeight = 280; // React commits the menu into the container
+    resize.fire();
+    expect(popup.el.style.top).toBe("144px"); // 280px does NOT fit → flips above
+
+    popup.destroy();
+    expect(resize.disconnects()).toBe(1);
   });
 
   it("stops listening once destroyed", () => {

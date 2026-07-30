@@ -190,12 +190,34 @@ export function createSuggestionPopup(
   window.visualViewport?.addEventListener("resize", onViewportChange);
   window.visualViewport?.addEventListener("scroll", onViewportChange);
 
+  /*
+   * Re-place whenever the menu's own size changes. Two cases need it, and the
+   * first is the one that matters:
+   *
+   *   - The FIRST placement runs before React has committed the menu into this
+   *     container (ReactRenderer schedules that render; it is not synchronous),
+   *     so the box measures 0x0 and every side looks like it fits. Without this
+   *     observer the opening frame would never flip above the caret — i.e. the
+   *     keyboard case would be broken on the only frame the user sees.
+   *   - Typing narrows the candidate list, so the menu shrinks; a menu that was
+   *     flipped above should slide back down against the caret.
+   *
+   * No feedback loop: this writes top/left, and the cap it may send is skipped
+   * when unchanged (above), so the size settles after one pass.
+   */
+  const observer =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => position(null));
+  observer?.observe(el);
+
   return {
     el,
     position,
     destroy: () => {
       window.visualViewport?.removeEventListener("resize", onViewportChange);
       window.visualViewport?.removeEventListener("scroll", onViewportChange);
+      observer?.disconnect();
       el.remove();
     },
   };
