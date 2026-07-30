@@ -151,13 +151,26 @@ describe("CommandPalette — keyboard-safe sizing (#473)", () => {
     expect(frame.style.height).toBe("");
     expect(frame.className).toContain("pt-[12vh]");
   });
+
+  it("keeps the panel content-height, not stretched to the frame", () => {
+    renderPalette();
+    // The frame is a flex row, so its default `stretch` would pull the panel
+    // to full height — and `max-h-full` cannot claw that back, since it
+    // resolves against the very height it was stretched to. jsdom has no
+    // layout to measure, so the alignment itself is what gets pinned.
+    expect(boxes().frame.className).toContain("items-start");
+  });
 });
 
 describe("CommandPalette — dismissal", () => {
   it("closes on a pointer press outside the panel", () => {
     const { onClose } = renderPalette();
-    fireEvent.pointerDown(boxes().frame);
+    const notCancelled = fireEvent.pointerDown(boxes().frame);
     expect(onClose).toHaveBeenCalledTimes(1);
+    // Cancelled, so the touch synthesizes no click — the overlay is gone by
+    // then, and an un-suppressed click would re-hit-test onto the section
+    // underneath and fire whatever sits at that spot.
+    expect(notCancelled).toBe(false);
   });
 
   it("stays open on a pointer press inside the panel", () => {
