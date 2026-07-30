@@ -31,11 +31,19 @@ export interface UseNoteSheetTargetParams<T> {
   notes: readonly T[];
   /** Select a note in the shared context, which hydrates its body. */
   onSelect: (id: string) => void;
+  /** Is this note's real body in the list yet? Gates the editor mount. */
+  isContentLoaded: (id: string) => boolean;
 }
 
 export interface NoteSheetTarget<T> {
   /** The note the sheet should render, or null when it should be closed. */
   sheetNote: T | null;
+  /**
+   * Is the open note's body actually here? False → show a skeleton, NEVER an
+   * editor: the list carries no bodies, and an editor mounted over an empty one
+   * would save that emptiness on the first keystroke.
+   */
+  sheetReady: boolean;
   openSheet: (id: string) => void;
   closeSheet: () => void;
   /** The pending-link handoff moved the selection — follow it if open. */
@@ -46,6 +54,7 @@ export function useNoteSheetTarget<T extends { id: string }>({
   isWide,
   notes,
   onSelect,
+  isContentLoaded,
 }: UseNoteSheetTargetParams<T>): NoteSheetTarget<T> {
   const [sheetNoteId, setSheetNoteId] = useState<string | null>(null);
   const [prevIsWide, setPrevIsWide] = useState(isWide);
@@ -66,12 +75,20 @@ export function useNoteSheetTarget<T extends { id: string }>({
 
   return {
     sheetNote: found,
+    sheetReady: found !== null && isContentLoaded(found.id),
     openSheet: (id: string) => {
       onSelect(id);
       setSheetNoteId(id);
     },
     closeSheet: () => setSheetNoteId(null),
     followPending: (id: string) =>
-      setSheetNoteId((current) => (current === null ? current : id)),
+      setSheetNoteId((current) => {
+        if (current === null) return current;
+        // A link can point at a note that is no longer in the pool (deleted
+        // since it was written — the link node keeps its targetId). Following
+        // it would resolve to nothing and close the sheet, which reads as "the
+        // tap dismissed my note"; staying put is the honest answer.
+        return notes.some((note) => note.id === id) ? id : current;
+      }),
   };
 }

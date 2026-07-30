@@ -24,8 +24,8 @@ export function useNoteLinking({
   onConsumePendingSelect?: () => void;
   /**
    * The pending handoff moved the selection to this id. Selecting is not enough
-   * for surfaces the HOST keys on separately — the mobile read sheet tracks its
-   * own note id — so the host follows them here (#475).
+   * for surfaces the HOST keys on separately — the mobile detail sheet tracks
+   * its own note id — so the host follows them here (#475).
    */
   onPendingSelected?: (id: string) => void;
 }) {

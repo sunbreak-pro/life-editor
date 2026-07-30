@@ -248,8 +248,9 @@ function itemLinkRender(
     let renderer: ReactRenderer<ItemLinkMenuHandle> | null = null;
     let popup: SuggestionPopup | null = null;
 
-    // Full teardown, safe to call more than once — subsequent onUpdate/onExit
-    // become no-ops (both guard on the nulled refs). Used by Escape and onExit.
+    // Full teardown, idempotent: a second call finds both refs nulled and only
+    // re-runs session.onClose(), which is already a no-op when nothing is open.
+    // Called by Escape, by onExit, and by onStart before it opens a new menu.
     const destroy = () => {
       session.onClose();
       popup?.destroy();
@@ -271,6 +272,12 @@ function itemLinkRender(
         const state = itemLinkPluginKey.getState(props.editor.state) as
           { active?: boolean } | undefined;
         if (state?.active !== true) return;
+        // The active check above is not enough on its own: two overtaking
+        // updates can BOTH be active and land two onStarts with no onExit
+        // between them. Whichever popup arrived first would be overwritten and
+        // orphaned on document.body — listeners, observer and a mounted React
+        // tree included, with nothing left holding a reference to close it.
+        destroy();
         session.onOpen();
         renderer = new ReactRenderer(ItemLinkMenu, {
           props: { ...props, emptyLabel },
@@ -283,16 +290,25 @@ function itemLinkRender(
           renderer?.updateProps({ maxHeight }),
         );
         popup.el.appendChild(renderer.element);
-        popup.position(props.clientRect?.());
+        popup.position(props.clientRect);
       },
       onUpdate: (props) => {
         if (!renderer || !popup) return;
         renderer.updateProps({ ...props, emptyLabel });
-        popup.position(props.clientRect?.());
+        popup.position(props.clientRect);
       },
       onKeyDown: (props) => {
         if (props.event.key === "Escape") {
           destroy();
+          // Tearing down the view is not enough: the plugin stays ACTIVE, so
+          // every following keystroke still runs items() — with the session
+          // closed, so `allowStale` is false and each one re-fetches the whole
+          // pool, which is exactly what #430 removed. Close the suggestion the
+          // way the library closes it.
+          const { view } = props;
+          view.dispatch(
+            view.state.tr.setMeta(itemLinkPluginKey, { exit: true }),
+          );
           return true;
         }
         return renderer?.ref?.onKeyDown(props.event) ?? false;
