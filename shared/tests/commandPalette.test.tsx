@@ -208,4 +208,105 @@ describe("CommandPalette — Desktop keyboard path (unchanged by #473)", () => {
     expect(screen.getByRole("button", { name: "Daily" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Notes" })).toBeNull();
   });
+
+  /*
+   * #503 — cross-item search. The host matches its own (asynchronously
+   * fetched) pool and hands the winners in; the palette must show them
+   * alongside the commands without re-filtering them, and must keep the
+   * keyboard cursor running over the combined list.
+   */
+  describe("external results (#503)", () => {
+    const ITEM_HIT: Command[] = [
+      {
+        id: "item-note-n1",
+        title: "テスト２",
+        category: "ノート",
+        icon: Dot,
+        action: vi.fn(),
+      },
+    ];
+
+    it("shows host-matched rows the palette's own filter would drop", () => {
+      renderPalette({ externalResults: ITEM_HIT });
+      fireEvent.change(boxes().input, { target: { value: "テスト" } });
+      // No command matches "テスト" — before #503 this was the "結果が見つかりません"
+      // screen with the note sitting right there.
+      expect(screen.queryByText("No results found")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "テスト２" }),
+      ).toBeInTheDocument();
+    });
+
+    it("files them under their own group heading", () => {
+      renderPalette({ externalResults: ITEM_HIT });
+      fireEvent.change(boxes().input, { target: { value: "テスト" } });
+      expect(screen.getByText("ノート")).toBeInTheDocument();
+    });
+
+    it("hides host rows while the field is empty", () => {
+      // Item hits only mean anything against a query. This is also what stops
+      // a re-opened palette from flashing the previous session's hits in the
+      // render before the host's reset lands.
+      renderPalette({ externalResults: ITEM_HIT });
+      expect(screen.getAllByRole("button").map((r) => r.textContent)).toEqual([
+        "Notes",
+        "Daily",
+      ]);
+    });
+
+    it("keeps commands first and runs the cursor over both", () => {
+      renderPalette({ externalResults: ITEM_HIT });
+      const { input } = boxes();
+      // "go" matches both commands through their "Go to" category
+      // and leaves the host row in place.
+      fireEvent.change(input, { target: { value: "go" } });
+      expect(screen.getAllByRole("button").map((r) => r.textContent)).toEqual([
+        "Notes",
+        "Daily",
+        "テスト２",
+      ]);
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      expect(screen.getAllByRole("button")[2].className).toContain(
+        "bg-lumen-hover",
+      );
+    });
+
+    it("activates an item hit with Enter", async () => {
+      const action = vi.fn();
+      const { onClose } = renderPalette({
+        externalResults: [{ ...ITEM_HIT[0], action }],
+      });
+      const { input } = boxes();
+      fireEvent.change(input, { target: { value: "go" } });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(onClose).toHaveBeenCalledTimes(1);
+      // The action is deferred one frame so the panel closes before it fires.
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+      expect(action).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the query to the host, including the reset on open", () => {
+      const onQueryChange = vi.fn();
+      renderPalette({ onQueryChange });
+      // The open-reset fires first: a stale query would otherwise leave the
+      // previous session's hits showing under an empty field.
+      expect(onQueryChange).toHaveBeenCalledWith("");
+      fireEvent.change(boxes().input, { target: { value: "テス" } });
+      expect(onQueryChange).toHaveBeenLastCalledWith("テス");
+    });
+  });
+
+  it("announces itself as a modal dialog (#503)", () => {
+    renderPalette();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    // Named from the placeholder rather than a second string — the name and
+    // the field say the same thing.
+    expect(dialog).toHaveAttribute("aria-label", "Type a command...");
+  });
 });

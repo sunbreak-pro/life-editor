@@ -45,7 +45,23 @@ export interface CommandPaletteProps {
   placeholder: string;
   /** Already-translated "no results" message. */
   noResultsLabel: string;
+  /**
+   * Rows the HOST has already matched against the query (#503 cross-item
+   * search). Appended after the commands and NOT re-filtered here: the pool
+   * they come from is fetched asynchronously and matched by the host, so the
+   * palette's own substring test would only be able to disagree with it.
+   */
+  externalResults?: Command[];
+  /**
+   * The query, on every change and on open (with ""). The host needs it to run
+   * the async search; the palette keeps owning the state because the input,
+   * the reset-on-open and the keyboard cursor all read it synchronously.
+   */
+  onQueryChange?: (query: string) => void;
 }
+
+/** Shared empty list, so the "no host rows" case allocates nothing. */
+const EMPTY_ROWS: Command[] = [];
 
 export function CommandPalette({
   isOpen,
@@ -53,6 +69,8 @@ export function CommandPalette({
   commands,
   placeholder,
   noResultsLabel,
+  externalResults,
+  onQueryChange,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -60,19 +78,36 @@ export function CommandPalette({
   const listRef = useRef<HTMLDivElement>(null);
   const viewport = useVisualViewport(isOpen);
 
-  const filtered = commands.filter((cmd) => {
+  const matchedCommands = commands.filter((cmd) => {
     const q = query.toLowerCase();
     return (
       cmd.title.toLowerCase().includes(q) ||
       cmd.category.toLowerCase().includes(q)
     );
   });
+  // Commands first, item hits after. The order is the one the palette is used
+  // for: "go somewhere" is typed blind from muscle memory and must stay under
+  // the cursor, while a title search is read before it is chosen.
+  // Host rows are query-driven by definition, so an empty field shows none of
+  // them. That is also what keeps a re-opened palette from flashing the last
+  // session's hits: the host clears them when the query resets, and this
+  // covers the render before that lands.
+  const externalRows =
+    query.trim() === "" ? EMPTY_ROWS : (externalResults ?? EMPTY_ROWS);
+  const filtered = [...matchedCommands, ...externalRows];
 
-  // Reset state when opening
+  // Reset state when opening. The host is told too — its search must clear
+  // with the field, or the previous session's hits reappear under an empty
+  // query the moment the palette re-opens.
+  const notifyQuery = useRef(onQueryChange);
+  useEffect(() => {
+    notifyQuery.current = onQueryChange;
+  });
   useEffect(() => {
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
+      notifyQuery.current?.("");
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
@@ -168,6 +203,13 @@ export function CommandPalette({
 
   return (
     <div
+      // The panel is the only thing on screen while this is up (the backdrop
+      // eats every pointer event), so it is announced as a modal dialog. The
+      // name reuses the placeholder rather than minting a second string —
+      // "search / run a command" is exactly what the dialog is.
+      role="dialog"
+      aria-modal="true"
+      aria-label={placeholder}
       className="fixed inset-0 z-[999]"
       onPointerDown={(e) => {
         // Suppress the compatibility mouse events this touch would otherwise
@@ -207,6 +249,7 @@ export function CommandPalette({
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelectedIndex(0);
+                onQueryChange?.(e.target.value);
               }}
               className="flex-1 border-none bg-transparent text-sm text-lumen-text outline-none"
             />
@@ -227,8 +270,11 @@ export function CommandPalette({
                 {noResultsLabel}
               </div>
             )}
-            {groups.map((group) => (
-              <div key={group.category}>
+            {/* Keyed by position, not by name: the list now mixes commands
+                with item hits, and two runs can legitimately carry the same
+                category label without being the same group. */}
+            {groups.map((group, groupIndex) => (
+              <div key={`${groupIndex}-${group.category}`}>
                 <div className="px-4 py-1 text-xs font-medium uppercase tracking-wider text-lumen-text-secondary">
                   {group.category}
                 </div>

@@ -163,6 +163,14 @@ export {
 // cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";
 export { useInFlightGuard } from "./hooks/useInFlightGuard";
+// #430 → #503 — fetch a candidate pool only when something actually asks for
+// it, and re-read it only after a sync says it went stale. Backs the "[["
+// autocomplete and the palette's cross-item search.
+export {
+  useLazyStalePool,
+  type LazyPoolOptions,
+  type LoadLazyPool,
+} from "./hooks/useLazyStalePool";
 // #508 — Escape / Tab trap / focus restore for aria-modal surfaces. Backs
 // Modal and BottomSheet; exported so web-side dialogs can stop hand-rolling it.
 export { useDialogA11y, type DialogA11yOptions } from "./hooks/useDialogA11y";
@@ -332,6 +340,13 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+// #504: the order a series-wide edit must be written in (template before
+// occurrences), so a lost template write cannot hide behind a correct screen.
+export {
+  runSeriesEdit,
+  type SeriesEditOutcome,
+  type SeriesEditSteps,
+} from "./utils/seriesEditSequence";
 // #469 follow-up: the span an all-day row gets back when the switch goes OFF
 // (a row created as all-day may carry no start/end at all).
 export { timedSpanForAllDayOff, type MaybeTime } from "./utils/scheduleAllDay";
@@ -352,6 +367,14 @@ export {
   type CalendarMemberAssignment,
   type SelectableCalendar,
 } from "./utils/scheduleGridFilter";
+// #503 — cross-item title matching for the command palette (pure; the host
+// owns the fetching and the DataService boundary).
+export {
+  searchItemPool,
+  type SearchableItem,
+  type SearchableItemRole,
+  type ItemSearchOptions,
+} from "./utils/itemSearch";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,

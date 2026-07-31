@@ -107,13 +107,45 @@ const CREATE_DURATION_MIN = 60;
  * lands at once). Above ~400ms the wait starts to read as lag.
  */
 const POPOVER_DELAY_MS = 350;
+
+/*
+ * What each repeat-write failure says (#434 → #469 → #504). A table rather
+ * than a nested ternary: the reasons only ever grow, and each new one has to
+ * be given words deliberately — a chain quietly files the newcomer under
+ * whatever sits in the final `else`, which is how a "nothing was saved" case
+ * ends up telling the user their change went through.
+ */
+const REPEAT_FAILURE_COPY_KEY: Record<
+  "attach" | "materialise" | "update" | "series" | "series-partial",
+  string
+> = {
+  attach: "scheduleScreen.repeatConvertFailed",
+  materialise: "scheduleScreen.repeatMaterialiseFailed",
+  update: "scheduleScreen.repeatUpdateFailed",
+  series: "scheduleScreen.repeatSeriesUpdateFailed",
+  // Deliberately NOT the same words as `series`: that one promises nothing
+  // changed, and this one cannot — the rhythm from here on is already the new
+  // one.
+  "series-partial": "scheduleScreen.repeatSeriesPartialFailed",
+};
 export function CalendarTab({
   dataService,
   onOpenTasks,
+  pendingSelectEvent,
+  onConsumePendingEvent,
 }: {
   dataService: DataService;
   /** Jump to the Tasks section (Today's Todo tray title click — A-3 / #298). */
   onOpenTasks: () => void;
+  /**
+   * "Open this event" intent from the command palette (#503) — the same
+   * pending-select idiom Notes / Daily / Kanban consume, plus the date: the
+   * grid shows one window at a time, so an id alone would select a row that is
+   * not on screen.
+   */
+  pendingSelectEvent?: { id: string; date: string } | null;
+  /** Called once the intent has been acted on, so re-entry does not re-select. */
+  onConsumePendingEvent?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
@@ -193,6 +225,40 @@ export function CalendarTab({
   } = useCalendarNav(isWide);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  /*
+   * Palette "open this event" intent (#503). Two moves, in this order: put the
+   * event's day in the window, then select it. The row itself may not be in
+   * `rangeItems` for another moment — the anchor change triggers the fetch and
+   * nothing pre-loads outside the window — but selection is by id, so it
+   * simply starts showing once the range lands. Selecting FIRST and moving
+   * after would be the same two writes; doing it this way keeps the reason
+   * legible.
+   *
+   * Consumed immediately (like pendingNewTask), so coming back to the Calendar
+   * later does not re-select an event the user has moved on from. On Mobile the
+   * month agenda reads `mobileSelectedDay` rather than the anchor, so that gets
+   * the day too — otherwise the grid jumps and the list underneath does not.
+   */
+  useEffect(() => {
+    if (!pendingSelectEvent) return;
+    setAnchorDate(pendingSelectEvent.date);
+    setMobileSelectedDay(pendingSelectEvent.date);
+    // A local setState, which the cascading-render rule flags. It fires once
+    // per arrival — a user navigating from the palette, not a render loop —
+    // and the intent exists only as a PROP, so there is no event handler
+    // inside this component to move it into. Same shape and same reasoning as
+    // the task handoff (useTaskDetailTarget.ts:112).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedId(pendingSelectEvent.id);
+    onConsumePendingEvent?.();
+  }, [
+    pendingSelectEvent,
+    setAnchorDate,
+    setMobileSelectedDay,
+    onConsumePendingEvent,
+  ]);
+
   // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "本日の Todo" —
   // the A-3 tray, #298). The old "詳細" tab was removed in #299 (item detail
   // now lives in a body-level overlay, not the rightSidebar).
@@ -275,15 +341,9 @@ export function CalendarTab({
   // stays on — only the new rhythm failed to save — so neither of the other
   // two sentences fits.
   const handleRepeatConvertError = useCallback(
-    (reason: "attach" | "materialise" | "update") =>
-      showToast(
-        "danger",
-        reason === "attach"
-          ? t("scheduleScreen.repeatConvertFailed")
-          : reason === "materialise"
-            ? t("scheduleScreen.repeatMaterialiseFailed")
-            : t("scheduleScreen.repeatUpdateFailed"),
-      ),
+    (
+      reason: "attach" | "materialise" | "update" | "series" | "series-partial",
+    ) => showToast("danger", t(REPEAT_FAILURE_COPY_KEY[reason])),
     [showToast, t],
   );
   const {
