@@ -715,7 +715,7 @@
     "overview": "Overview"
   },
   "commandPalette": {
-    "placeholder": "Type a command...",
+    "placeholder": "Search or type a command...",
     "trigger": "Search or run a command",
     "noResults": "No results found",
     "goTo": "Go to"
