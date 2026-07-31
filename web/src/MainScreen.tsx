@@ -76,8 +76,9 @@ import { useShellChrome } from "./hooks/useShellChrome";
  * One DataService is created once and injected into every domain
  * Provider (the shared hooks never reach a module singleton —
  * CLAUDE.md §6.4). Provider order follows CLAUDE.md §6.2 (outer→inner):
- * Sync → TaskTree → … → Daily. Every domain reads `useSyncContext` to
- * know when to refetch.
+ * Sync → TaskTree → … → Daily. Every domain reads `useSyncDomains` to know
+ * when the data IT owns changed — since #499 a note edit does not refetch
+ * the task tree, the tag graph, or the timer settings.
  *
  * S8: SyncProvider is now Supabase Realtime backed (one channel, all
  * tables). It is mounted ONCE at the top of MainScreen — wrapping the
@@ -85,7 +86,7 @@ import { useShellChrome } from "./hooks/useShellChrome";
  * per-section mount would tear down and reconnect the Realtime channel on
  * every section change (chatter + leak risk). Each section keeps its own
  * inner Provider nesting/order (§6.2); only SyncProvider moved up one
- * level, so every `useSyncContext` reader still sits inside it.
+ * level, so every sync reader still sits inside it.
  *
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). The target IA

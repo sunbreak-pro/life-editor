@@ -3,6 +3,7 @@ import { renderHook, act } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { useDailiesUnifiedAPI } from "../src/hooks/useDailiesUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
+import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
 import type { DailyNode } from "../src/types/daily";
 
@@ -17,7 +18,13 @@ import type { DailyNode } from "../src/types/daily";
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(
     SyncContext.Provider,
-    { value: { syncVersion: 0, triggerSync: async () => {} } },
+    {
+      value: {
+        syncVersion: 0,
+        domainVersions: uniformDomainVersions(0),
+        triggerSync: async () => {},
+      },
+    },
     children,
   );
 }

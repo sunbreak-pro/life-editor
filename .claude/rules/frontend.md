@@ -17,6 +17,14 @@ paths:
 
 - Context Value 型は PascalCase ファイル名: `AudioContextValue.ts`。他は一般的 TS/React 慣習（コンポーネント PascalCase / フック `use`+camelCase / 定数 SCREAMING_SNAKE_CASE）
 
+## Sync の再取得はドメイン単位（#499）
+
+Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/context/syncDomains.ts` の tasks / notes / dailies / schedule / tags / calendars / timer / audio）に振り分けられる。データを読む effect は `useSyncDomains("notes", …)` で**自分が読むドメインを全部宣言**し、その戻り値を deps に入れる。
+
+- **申告漏れは無言の stale になる**（更新が来ず、ユーザーに直す手段がない）。1 つの effect が複数ドメインを読むなら全部並べる。過剰宣言は余計な fetch 1 回で済むので、迷ったら足す側に倒す
+- 新しいテーブルを `REALTIME_TABLES` に足したら `syncDomains.ts` の対応表にも足す（`syncDomains.test.ts` の lockstep が落ちる）
+- 読み取りメソッドの中で書き込まない。`fetchTimerSettings` が「無ければ作る」upsert を毎回投げていたため、ノート編集が `timer_settings` に POST していた（#499 の実測）
+
 ## Provider 順序（依存制約）
 
 一本鎖ではなく **2 階建て**: 常時マウントの**グローバル層**と、section switch の内側で入れ替わる**セクション層**。実際のネストはコードが正（`web/src/main.tsx` + `web/src/MainScreen.tsx`）。

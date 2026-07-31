@@ -12,7 +12,7 @@ import {
 } from "./useTaskTreeHistory";
 import { logServiceError } from "../utils/logError";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 import {
   getTaskSelection,
   setTaskSelection,
@@ -77,7 +77,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     [persistSelection],
   );
   const loadedRef = useRef(false);
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("tasks");
 
   // Load from DataService on mount (including soft-deleted tasks)
   useEffect(() => {

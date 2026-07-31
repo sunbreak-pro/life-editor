@@ -3,7 +3,7 @@ import type { CalendarNode } from "../types/calendar";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 
 /**
  * Behaviour-preserving port of the Tauri calendars hook
@@ -31,7 +31,7 @@ export interface UseCalendarsAPIOptions {
 
 export function useCalendarsAPI(options: UseCalendarsAPIOptions) {
   const ds = options.dataService;
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("calendars");
 
   const [calendars, setCalendars] = useState<CalendarNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);

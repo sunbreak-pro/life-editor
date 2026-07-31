@@ -2,21 +2,14 @@
 
 ## 進行中
 
-### ⏸️ #473 コマンドパレットのモバイルタッチ導線（着手日: 2026-07-31）
-
-**対象**: `shared/src/components/CommandPalette.tsx`, `shared/src/hooks/useVisualViewport.ts`, `web/src/MobileShellActions.tsx`
-**ブランチ**: `claude/mobile-refine-473`
-
-- 前回: `section:materials` の open Issue がゼロになったため、`shared-fix` `[all]` の #473 を引き受けた（ブロッカーだった #465 は 2026-07-30 に closed 済み）
-- 現在: 実装 + テスト 13 件 + docs 追随まで完了し **PR #498 open**。ローカル 6 ゲート（shared lint/build/test・web lint/build/test）+ docs-lint すべて green、CI は `typecheck + test + build` が pending
-- 次: CI green を確認（赤なら直して push）。merge は chat-main。merge 後に Epic #321 Phase 2 の #17 行へチェックを入れる
+（なし。担当キューが空 — `section:materials` は open ゼロ、`shared-fix` の残りは追跡用 Epic #321 のみ）
 
 ## 直近の完了
 
+- #499 再取得をドメイン単位に分割 ✅（2026-07-31・PR #501 merged。**残: リクエスト数の実測は実ブラウザが要るため chat-main 側**）
+- #473 コマンドパレットのモバイルタッチ導線 ✅（2026-07-31・PR #498 + レビュー回収 #500 いずれも merged。Epic #321 Phase 2 / mobile-scope #17 も更新済み）
 - #471 の QA 追撃（独立レビュー 2 本の指摘）✅（2026-07-31・PR #497 merged）
-- #471 mobile notes のフル編集 ✅（2026-07-30・PR #496 merged）
-- #470 mobile tasks の詳細編集 ✅（2026-07-30・PR #494 + 小粒回収 #495 いずれも merged）
 
 ## 予定
 
-- （なし。`section:materials` は open ゼロ・`shared-fix` の残りは Epic #321 のみ）
+- 次の担当 Issue が起票されるまで待ち（起票は chat-main 一元。`section:<id>` + `shared-fix` を都度確認）

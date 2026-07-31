@@ -6,7 +6,7 @@ import type {
   WikiTagConnection,
 } from "../types/wikiTagUnified";
 import { generateId } from "../utils/generateId";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 
 /*
  * useWikiTagsUnifiedAPI (DU-C+ Step 4).
@@ -28,7 +28,7 @@ export interface UseWikiTagsUnifiedAPIOptions {
 
 export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const ds = options.dataService;
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("tags");
 
   const [allTags, setAllTags] = useState<WikiTag[]>([]);
   // Bulk caches that replace the per-row N+1 fetches in TagPicker /

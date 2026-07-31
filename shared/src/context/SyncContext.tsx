@@ -1,20 +1,34 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { SyncContext, type WebSyncContextValue } from "./SyncContextValue";
+import {
+  SYNC_DOMAINS,
+  domainsForChange,
+  uniformDomainVersions,
+  type SyncDomain,
+} from "./syncDomains";
+import { createSyncBumpQueue } from "./syncBumpQueue";
 import { getSupabaseClient } from "../services/supabaseClient";
 
 /**
  * Web Sync Provider — Supabase Realtime backed (S8, replaces the S1 no-op).
  *
  * Subscribes to `postgres_changes` on every owned table via ONE channel.
- * Each change debounces a `syncVersion` bump (300 ms); the seven domain
- * `*API` hooks all keep `syncVersion` in their load-effect deps, so a
- * single bump triggers a full refetch across every mounted domain. The
- * delta-pull engine of the Tauri era is intentionally NOT revived — a
- * coarse full-refetch is sufficient for the N=1 always-online web build.
+ * Each change debounces a counter bump (300 ms) that the domain `*API` hooks
+ * keep in their load-effect deps. The delta-pull engine of the Tauri era is
+ * intentionally NOT revived — refetching a whole domain is sufficient for the
+ * N=1 always-online web build.
+ *
+ * #499 made the bump PER DOMAIN. It used to be one counter for the whole app,
+ * so any change refetched every mounted domain; because Realtime echoes a
+ * tab's own writes back to it, the five PATCHes behind one note edit turned
+ * into four full sweeps of every table (~86 REST requests measured), one of
+ * which WROTE to `timer_settings` (fetching the settings materialises the
+ * row). A change now routes through `domainsForChange` and moves only the
+ * counters it affects.
  *
  * The debounce collapses bursts (e.g. a multi-row DnD reorder firing many
- * UPDATEs) into a single refetch.
+ * UPDATEs) into a single refetch, remembering which domains the burst spanned.
  *
  * RLS: Realtime delivers only rows the JWT may read — the same owner-only
  * policies (0008) that guard PostgREST also gate Realtime. We call
@@ -82,26 +96,38 @@ export const REALTIME_TABLES = [
 
 const DEBOUNCE_MS = 300;
 
+const ZERO_DOMAIN_VERSIONS: Readonly<Record<SyncDomain, number>> =
+  Object.freeze(uniformDomainVersions(0));
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const [syncVersion, setSyncVersion] = useState(0);
-  // setSyncVersion identity is stable, but we read it through a ref so the
+  const [domainVersions, setDomainVersions] =
+    useState<Readonly<Record<SyncDomain, number>>>(ZERO_DOMAIN_VERSIONS);
+  // The setters' identities are stable, but we reach them through a ref so the
   // mount effect can stay deps-free (the channel must be built exactly once
   // per mount; including a changing dep would reconnect on every bump).
-  const bumpRef = useRef(() => setSyncVersion((v) => v + 1));
+  const bumpRef = useRef((domains: readonly SyncDomain[]) => {
+    setSyncVersion((v) => v + 1);
+    if (domains.length === 0) return;
+    setDomainVersions((prev) => {
+      const next = { ...prev };
+      for (const d of domains) next[d] = next[d] + 1;
+      return next;
+    });
+  });
 
   useEffect(() => {
     const supabase = getSupabaseClient();
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let channel: RealtimeChannel | null = null;
     let cancelled = false;
-
-    const scheduleBump = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        debounceTimer = null;
-        bumpRef.current();
-      }, DEBOUNCE_MS);
-    };
+    // Debounced accumulator (syncBumpQueue.ts — extracted so it is testable
+    // without a live Realtime channel).
+    const queue = createSyncBumpQueue(
+      (domains) => bumpRef.current(domains),
+      DEBOUNCE_MS,
+    );
+    const scheduleBump = (domains: readonly SyncDomain[]) =>
+      queue.push(domains);
 
     const start = async () => {
       // Attach the current access token so the Realtime socket authorises
@@ -131,7 +157,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         ch.on(
           "postgres_changes",
           { event: "*", schema: "public", table },
-          scheduleBump,
+          (payload) =>
+            scheduleBump(domainsForChange(table, payload.new, payload.old)),
         );
       }
       ch.subscribe();
@@ -142,10 +169,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-        debounceTimer = null;
-      }
+      queue.cancel();
       if (channel) {
         void supabase.removeChannel(channel);
         channel = null;
@@ -154,14 +178,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // triggerSync is unused by Realtime (subscription is passive) but kept on
-  // the interface for compatibility; it forces a manual refetch bump through
-  // the same single bump path the Realtime listener uses.
-  const value: WebSyncContextValue = {
-    syncVersion,
-    triggerSync: async () => {
-      bumpRef.current();
-    },
-  };
+  // the interface for compatibility; a manual sync has no changed table to
+  // route on, so it moves every domain — the pre-#499 behaviour.
+  const value: WebSyncContextValue = useMemo(
+    () => ({
+      syncVersion,
+      domainVersions,
+      triggerSync: async () => {
+        bumpRef.current(SYNC_DOMAINS);
+      },
+    }),
+    [syncVersion, domainVersions],
+  );
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }

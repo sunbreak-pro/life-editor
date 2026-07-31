@@ -5,7 +5,7 @@ import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { todayCalendarKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 
 /**
  * Behaviour-preserving port of the Tauri schedule_items hooks
@@ -53,7 +53,7 @@ export interface UseScheduleItemsAPIOptions {
 export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
   const ds = options.dataService;
   const { push } = options.undoRedo ?? createNoopUndoRedo();
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("schedule");
 
   const date = options.date ?? todayCalendarKey();
 

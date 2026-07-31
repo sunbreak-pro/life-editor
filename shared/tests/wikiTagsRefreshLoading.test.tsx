@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { createElement, useEffect, useState, type ReactNode } from "react";
 import { useWikiTagsUnifiedAPI } from "../src/hooks/useWikiTagsUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
+import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
 
 /*
@@ -27,7 +28,13 @@ function BumpableSyncProvider({ children }: { children: ReactNode }) {
   }, []);
   return createElement(
     SyncContext.Provider,
-    { value: { syncVersion: version, triggerSync: async () => {} } },
+    {
+      value: {
+        syncVersion: version,
+        domainVersions: uniformDomainVersions(version),
+        triggerSync: async () => {},
+      },
+    },
     children,
   );
 }

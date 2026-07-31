@@ -4,6 +4,7 @@ import { StrictMode, type ReactNode } from "react";
 import { UndoRedoProvider } from "../src/context/UndoRedoContext";
 import { useUndoRedoContext } from "../src/hooks/useUndoRedoContext";
 import { SyncContext } from "../src/context/SyncContextValue";
+import { uniformDomainVersions } from "../src/context/syncDomains";
 import { ScheduleItemsProvider } from "../src/context/ScheduleItemsContext";
 import { DailiesUnifiedProvider } from "../src/context/DailiesUnifiedContext";
 import { NotesUnifiedProvider } from "../src/context/NotesUnifiedContext";
@@ -31,7 +32,11 @@ import type { UndoRedoLike } from "../src/hooks/useTaskTreeHistory";
 function SyncStub({ children }: { children: ReactNode }) {
   return (
     <SyncContext.Provider
-      value={{ syncVersion: 0, triggerSync: async () => {} }}
+      value={{
+        syncVersion: 0,
+        domainVersions: uniformDomainVersions(0),
+        triggerSync: async () => {},
+      }}
     >
       {children}
     </SyncContext.Provider>

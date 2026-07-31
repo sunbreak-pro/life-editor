@@ -19,7 +19,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
     createItemLink: vi.fn(),
     getLinksForItem: () => ({ incoming: [], outgoing: [] }),
   }),
-  useSyncContext: () => ({ syncVersion: 0 }),
+  useSyncDomains: () => 0,
 }));
 
 const { useNoteLinking } = await import("../src/notes/hooks/useNoteLinking");
