@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Step 0〜4 と 5-a / 5-b / 5-d / 7 は実装済み（5-b = #466 / PR #480・7 = #469 / PR #484 + hardening follow-up）。**残りは Step 5-c（#467）と Step 6（#468）のみ**。判定 = #474（2026-07-30 実測）+ 2026-07-30 の worklog
+Status: IN PROGRESS — Step 0〜4 と 5-a / 5-b / 5-d / 6 / 7 は実装済み（5-b = #466 / PR #480・6 = #468 / PR #506・7 = #469 / PR #484 + hardening follow-up）。**残りは Step 5-c（#467）のみ**。判定 = #474（2026-07-30 実測）+ 2026-07-30 の worklog + 2026-08-01 の #506 merge
 Created: 2026-07-14
 Owner-chat: chat-main 采配（Step 0 = schedule-redesign-step0 worktree で実施済み。Step 1 以降は Issue dispatch で分配）
 Branch: claude/schedule-redesign-step0（Step 0 のみ）
@@ -159,11 +159,11 @@ pin = `shared/tests/taskTreePersistSettled.test.tsx`
 
 1. ✅ **Step 0: 文書の現行化（= 本計画書を追加した PR で実施・2026-07-14）** — 形骸 AC（旧 CalendarTags 前提の Schedule AC7/AC9）の Retired 化、前回 handoff の訂正（§2-1）を tier-1/ブリーフへ反映、競合解決ルールの文書化（tier-1 §Schedule）、**#185 補遺（Repeats タブ → 案 B）の決定記録**、RoutineGroup 削除・リマインダー凍結・GCal 見送り + 再開条件の明記
 2. ✅ **Step 1: タスクの読み取り表示（A-1）— 実装済み（2026-07-15・chat-docs-workspace）** — `shared/src/components/schedule/{WeekTimeGrid,MonthGrid,AgendaList}` に task variant 追加、`CalendarTab` で scheduledAt タスクを取得して合流。**AC**: scheduledAt を設定したタスクが Week/Day/Month/今日の流れに blue チップで表示される。既知の限界: Week/Day の全日レーンは既存仕様どおり variant 非依存の描画（終日タスクは青くならない — Step 2 で variant 色を通すか要件側で明文化）
-3. ⬜ **Step 2: 双方向書き込み（A-2）** — ドラッグ/リサイズ → `updateTaskNode(scheduledAt/scheduledEndAt)`。**AC**: Schedule AC10 が通る（どちらで編集しても双方に反映）
-4. ⬜ **Step 3: 「本日の Todo」トレイ（A-3・決定6）** — ScheduleSidebarTabs に第 3 タブ。配置済み/未配置の 2 群、「候補に追加」= scheduledAt 今日 + 終日（案 c）、完了チェック = TaskTree API、Tasks へのジャンプリンク、トレイ → 日面配置。**AC**: 終日で追加したタスクが未配置群に現れ、日面への配置で時刻付き scheduledAt が書き込まれ、完了チェックが TaskTree に反映される
+3. ✅ **Step 2: 双方向書き込み（A-2）— 実装済み（2026-07-19・#297 / PR #309）** — ドラッグ/リサイズ → `updateTaskNode(scheduledAt/scheduledEndAt)`。**AC**: Schedule AC10 が通る（どちらで編集しても双方に反映）
+4. ✅ **Step 3: 「本日の Todo」トレイ（A-3・決定6）— 実装済み（2026-07-23・#298 / PR #323）** — ScheduleSidebarTabs に第 3 タブ。配置済み/未配置の 2 群、「候補に追加」= scheduledAt 今日 + 終日（案 c）、完了チェック = TaskTree API、Tasks へのジャンプリンク、トレイ → 日面配置。**AC**: 終日で追加したタスクが未配置群に現れ、日面への配置で時刻付き scheduledAt が書き込まれ、完了チェックが TaskTree に反映される
 5. ✅ **Step 4: 伝播の配線 + 掃除（B・決定5）— 実装済み（2026-07-26・chat-schedule-refine / #352）** — `reconcileRoutineScheduleItems` を繰り返し設定の編集（`handleChangeRepeat` の routine 分岐）に配線し、競合ルール（tier-1 §Schedule 1-3）を vitest で pin。未配線だった 3 関数（`ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines`・起票時の「4 関数」は reconcile 込みの数で、実測では reconcile 以外は 3 本）+ `fetchLastRoutineDate` + `diffRoutineScheduleItems` の `toUpdate` バケット + RoutineGroup コード一式を削除（**DB テーブル・0008 CHECK は残置 = DDL なし**）。**AC**: Routine の頻度変更が materialise 済み未来 occurrence に伝播し、手動編集分は上書きされない（時刻 / タイトルの伝播は #279 の範囲選択ダイアログ経由 = 既存経路）
 6. 🚧 **Step 5: 構成再編（決定1・4）— 5-a / 5-b / 5-d 実装済み・残り 5-c（Mobile を List+FAB に絞る = #467）** — 案 B（単一 Calendar タブ + 繰り返しフィルタ + 管理シート）、Mobile を List（今日）+ FAB に絞る（Month/Timeline 撤去）。i18n en/ja 同時更新。**AC**: ヘッダタブが消え、繰り返し一覧はフィルタ/シートから到達できる。Mobile は単画面 + FAB のみ
-7. ⬜ **Step 6: カレンダー台帳の配線（決定2）** — グリッドにタグフィルタ（ツールバーのカレンダーチップ）、CalendarView の i18n 化・ソフトデリート整合。**AC**: カレンダー選択で Week/Month の表示が絞り込まれる
+7. ✅ **Step 6: カレンダー台帳の配線（決定2）— 実装済み（2026-08-01・chat-schedule-refine / #468・PR #506）** — グリッドにタグフィルタ（ツールバーのカレンダーチップ）、CalendarView の i18n 化・ソフトデリート整合。カレンダー = life-tag 1 本への保存済みビューとして扱い、所属判定を「そのタグを持っているか」に還元（`shared/src/utils/scheduleGridFilter.ts`）。繰り返しは系列（`routineId`）でタグ付け・タスクチップにもレンズが効く・絞り込みは永続化しない（#466 と同じ理由）。予定にタグを付ける導線（`EventEditorPane` の `tagSlot`）も同梱。**AC**: カレンダー選択で Week/Month の表示が絞り込まれる
 8. ✅ **Step 7: エディタ拡充 + 小粒（C・E）— 実装済み（2026-07-30・chat-schedule-refine / #469・PR #484 + hardening follow-up）** — 日付ピッカー（commit-on-blur + unmount flush）・終日トグル（`role="switch"`・OFF 時は shared の `timedSpanForAllDayOff` が span を補う）・系列編集ヒント。**小粒の「Issue 009（Mobile 月セルの dismissed 残存）」は既に解消済みで回収不要**（`useVisibleRangeItems` が fetch 時に落とす。なお `docs/known-issues/INDEX.md` の 009 は別内容で、本計画書側の番号が古い）。**AC**: 編集パネルだけで日付を変更でき、終日切替後の表示と保存が一致する
 9. ⬜ **並走 α: MCP Supabase 化（D）** — Issue 起票から。朝刊ロードマップ Step 2（get_today_context / write_briefing）の起点
 

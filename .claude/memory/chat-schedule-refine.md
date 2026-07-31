@@ -2,16 +2,19 @@
 
 ## 進行中
 
-### 🔧 #505 `react-hooks/refs` のベースライン免除を解消（shared-fix `[schedule-refine]`・着手日: 2026-07-31）
+### ⏸️ chat-main レビュー 3 本（#506 / #514 / #515）の対応（着手日: 2026-08-01）
 
-**対象**: `shared/eslint.config.js` / `shared/src/context/` 5 本 / `shared/src/components/ShortcutEditModal.tsx` / `shared/src/hooks/useScheduleItemsAPI.ts` / `shared/src/hooks/useFrozenNoteSortKey.ts`
+**対象**: `web/src/schedule/CalendarTab.tsx` / `web/src/schedule/useScheduleMutations.ts` / `shared/src/utils/seriesEditSequence.ts` / `shared/src/i18n/locales/`
 
-- 前回: #504（PR #514）まで完了
-- 現在: **10 ファイル中 9 ファイル解消**。残り 1 = `useGraphInteraction.ts`（別 PR に切る）
-- 次: #468 merge → #467 Step 5-c
-- **違反は 3 つの形しかなかった**: (1) callback / 値を render 中に ref へ写す（7 箇所 — dep 無し `useEffect` へ移すだけ。読み手は全部 commit 後に走るので値は変わらない）/ (2) lazy ref 初期化（`useState(() => new X())` へ。React から「1 回だけ」と見える形）/ (3) **render 中スナップショットが意図的**（`useFrozenNoteSortKey` — effect にすると保持されない 1 レンダーが通って #366 が再発する）→ **state を render 中に調整する React 公式の逃げ道**へ移して意味を保った
-- **残り 1 件は形が違う**: `useGraphInteraction.ts` は `simRef.current` を**依存配列の中で読んでいる**。render 時の ref は前回 commit の値なので、そもそも「シミュレーションが差し替わったら貼り直す」という意図を果たせていない。正しい直し方はリスナー側が event 時に `simRef.current` を読む形（依存自体が不要になる）だが、Connect グラフのキャンバスでテストが無いため lint 掃除に混ぜない
-- **免除はパス完全一致**なので、分割・改名で失効して CI だけが落ちる（#488 の形）
+- 前回: #508（PR #516）まで完了。open PR は #506 / #513 / #514 / #515 / #516 の 5 本（+ chat-main の #510）
+- 現在: **3 本とも対応済み・push 済み**（#506 → `4e21f83b` / #514 → `01f31113` / #515 は Issue #505 へのコメントのみ）。7 ゲート全緑
+- 次: **#506 merge 待ち**。merge されたら #467 Step 5-c（section:schedule の非 Epic はこれで最後）
+- **#506 の Important は「片側だけ直した」典型**: `setCalendarFilterId(null)` が 4 経路中 `handleCreateSubmit` にしか無く、タスク作成 / 既存タスク配置 / 作成して開く の 3 経路が素通りしていた。**タスクチップも同じ `applyCalendarLens` を通る**ので症状は完全に同じ。4 経路が通る `finishCreatePanel()` に合流させて、次に増える経路が同じ抜け方をできない形にした。**cancel 側（`onClose`）は合流させない** — グリッドに何も増えていないのにユーザーのレンズを外すのは別の壊れ方
+- **#514 は「無言の場所が 1 段ずれただけ」だった**: 順序を直した結果、今度は `propagate`（occurrences への反映）が唯一 verdict の無いステップとして残り、call site の素の `catch` が飲んでいた。#504 の題目そのものなので別 Issue に切らずこの PR で拾った。`propagate` を `Promise<boolean>` に揃え `"propagate-failed"` を追加。**`updateFutureOccurrences` は throw で失敗を返す**ので、その場で `false` に変換して外側 `catch` に落とさない（外側は「テンプレが通ったか」を区別できない）。文言は `series` と分けた = `series` は「予定は変更されていません」と言い切る文で、テンプレ保存済みの状態で出すと嘘になる
+- **`handleScopeChoose` の依存配列に `onRepeatConvertFailed` が抜けていた**（#504 のコミットでこのコールバックから使い始めたのに未宣言）。web lint の warning 1 件がこれで、同じコミットで解消 → **web lint は warning 0**
+- **rollback ではなく順序で解いた**: 旧実装は occurrence を書いてから template を await せずに撃つ順序で、template が落ちると**画面は完全に正しいのに template だけ古い**という、リロードでも検知できない食い違いが残った。**template を先に書いて落ちたら中断**すれば、失敗時点で occurrence に触れていないので「何も保存されていません」が嘘にならない
+- **`fillUpToAnchor` は引き続き最初**（アンカーより前の日 = ユーザーが選ばなかった日は pre-edit の値を保つ必要がある）
+- **文言分岐はネスト三項からテーブルへ**。reason は増える一方で、チェーンだと新しい reason が黙って最後の `else` に落ちる（「何も保存されていない」が「変更できました」に化ける）
 
 ### 🔧 Epic #290 の残 4 件（#466 → #469 → #468 → #467）（着手日: 2026-07-30）
 
