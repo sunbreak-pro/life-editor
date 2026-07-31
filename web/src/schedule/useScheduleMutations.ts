@@ -167,8 +167,14 @@ export interface UseScheduleMutationsArgs {
   //                   Reported BEFORE any occurrence is touched (#504), so the
   //                   promise it makes is "nothing changed", not "half of it
   //                   did".
+  //   "series-partial" — the same edit, but the template landed and the
+  //                   occurrences did not. This one CANNOT say "nothing
+  //                   changed": the rhythm from here on is new while the days
+  //                   already on the calendar keep the old values, and the
+  //                   reload shows exactly that — so the words have to point at
+  //                   the existing days rather than at the edit as a whole.
   onRepeatConvertFailed: (
-    reason: "attach" | "materialise" | "update" | "series",
+    reason: "attach" | "materialise" | "update" | "series" | "series-partial",
   ) => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
@@ -833,17 +839,40 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
                   ? () => fillUpToAnchor(routine, req.item.date)
                   : undefined,
               writeTemplate: () => updateRoutine(routineId, updates),
-              propagate: () =>
-                updateFutureOccurrences(routineId, updates, fromDate, template),
+              // updateFutureOccurrences reports failure by THROWING (it
+              // re-raises after logServiceError). Converting that to `false`
+              // here is the whole point: left as a throw it landed in the outer
+              // catch, which cannot tell "the template already landed" from
+              // "nothing ran", and so said nothing at all.
+              propagate: async () => {
+                try {
+                  await updateFutureOccurrences(
+                    routineId,
+                    updates,
+                    fromDate,
+                    template,
+                  );
+                  return true;
+                } catch {
+                  return false;
+                }
+              },
             });
             // A partial fill stays silent, as it was: it is reported by the
             // generator's own path and nothing was changed. A lost template
             // write is the new case — and because nothing downstream ran, the
             // toast can honestly say the edit did not happen.
             if (outcome === "template-failed") onRepeatConvertFailed("series");
+            // Template in, occurrences out. The reload below shows the truth
+            // (old values on the days already there), but on its own that reads
+            // as "the edit did nothing" — while the NEXT generated day would
+            // quietly disagree. Naming it is the difference.
+            else if (outcome === "propagate-failed")
+              onRepeatConvertFailed("series-partial");
           } catch {
-            // Propagation did not land — the range reload below restores the
-            // DB truth either way.
+            // `prepare` (fillUpToAnchor) is the only step that still reaches
+            // here by throwing, and it runs before anything is written — the
+            // range reload below restores the DB truth.
           } finally {
             reload();
           }
@@ -924,6 +953,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       setRangeItems,
       setSelectedId,
       reload,
+      onRepeatConvertFailed,
     ],
   );
 

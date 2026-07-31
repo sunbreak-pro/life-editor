@@ -474,6 +474,7 @@
     "repeatMaterialiseFailed": "Repeat is on, but the later occurrences couldn't be added yet. Reopen the calendar to retry.",
     "repeatUpdateFailed": "Couldn't change how often this repeats. It's still on the previous setting — try again.",
     "repeatSeriesUpdateFailed": "Couldn't save this change to the repeat. Nothing was changed — try again.",
+    "repeatSeriesPartialFailed": "Saved the repeat, but the days already on the calendar still show the old version. Edit them again to update them.",
     "deleteRoutine": "Delete routine",
     "summaryTitle": "My routines",
     "openRoutinesCta": "Open the Repeats tab",

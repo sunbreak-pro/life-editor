@@ -20,14 +20,17 @@ describe("runSeriesEdit", () => {
         order.push("template");
         return true;
       },
-      propagate: async () => void order.push("propagate"),
+      propagate: async () => {
+        order.push("propagate");
+        return true;
+      },
     });
     expect(outcome).toBe("ok");
     expect(order).toEqual(["prepare", "template", "propagate"]);
   });
 
   it("touches no occurrence when the template write does not land", async () => {
-    const propagate = vi.fn(async () => {});
+    const propagate = vi.fn(async () => true);
     const outcome = await runSeriesEdit({
       writeTemplate: async () => false,
       propagate,
@@ -40,7 +43,7 @@ describe("runSeriesEdit", () => {
 
   it("stops before the template when prepare reports a partial fill", async () => {
     const writeTemplate = vi.fn(async () => true);
-    const propagate = vi.fn(async () => {});
+    const propagate = vi.fn(async () => true);
     const outcome = await runSeriesEdit({
       prepare: async () => false,
       writeTemplate,
@@ -60,10 +63,25 @@ describe("runSeriesEdit", () => {
         order.push("template");
         return true;
       },
-      propagate: async () => void order.push("propagate"),
+      propagate: async () => {
+        order.push("propagate");
+        return true;
+      },
     });
     expect(outcome).toBe("ok");
     expect(order).toEqual(["template", "propagate"]);
+  });
+
+  it("tells a lost propagation apart from a clean run", async () => {
+    // Review of #514: this used to be the one step whose failure had no
+    // verdict, so the call site's bare `catch` swallowed it. The state it
+    // leaves — new template, old occurrences — is visible on reload but reads
+    // as "the edit did nothing", which is the opposite of what happened.
+    const outcome = await runSeriesEdit({
+      writeTemplate: async () => true,
+      propagate: async () => false,
+    });
+    expect(outcome).toBe("propagate-failed");
   });
 
   it("lets a thrown step propagate to the caller", async () => {

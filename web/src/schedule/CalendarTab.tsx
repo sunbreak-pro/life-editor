@@ -108,13 +108,17 @@ const POPOVER_DELAY_MS = 350;
  * ends up telling the user their change went through.
  */
 const REPEAT_FAILURE_COPY_KEY: Record<
-  "attach" | "materialise" | "update" | "series",
+  "attach" | "materialise" | "update" | "series" | "series-partial",
   string
 > = {
   attach: "scheduleScreen.repeatConvertFailed",
   materialise: "scheduleScreen.repeatMaterialiseFailed",
   update: "scheduleScreen.repeatUpdateFailed",
   series: "scheduleScreen.repeatSeriesUpdateFailed",
+  // Deliberately NOT the same words as `series`: that one promises nothing
+  // changed, and this one cannot — the rhythm from here on is already the new
+  // one.
+  "series-partial": "scheduleScreen.repeatSeriesPartialFailed",
 };
 export function CalendarTab({
   dataService,
@@ -269,8 +273,9 @@ export function CalendarTab({
   // stays on — only the new rhythm failed to save — so neither of the other
   // two sentences fits.
   const handleRepeatConvertError = useCallback(
-    (reason: "attach" | "materialise" | "update" | "series") =>
-      showToast("danger", t(REPEAT_FAILURE_COPY_KEY[reason])),
+    (
+      reason: "attach" | "materialise" | "update" | "series" | "series-partial",
+    ) => showToast("danger", t(REPEAT_FAILURE_COPY_KEY[reason])),
     [showToast, t],
   );
   const {

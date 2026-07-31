@@ -30,7 +30,15 @@ export type SeriesEditOutcome =
   /** `prepare` reported it did not fully land — nothing after it ran. */
   | "prepare-failed"
   /** The template write did not land — NO occurrence was touched. */
-  | "template-failed";
+  | "template-failed"
+  /**
+   * The template landed but the occurrences did not. The half-written state is
+   * at least VISIBLE (the future rows on screen keep the old values while new
+   * ones will generate with the new), unlike the ordering this file exists to
+   * prevent — but visible is not the same as explained, so it gets its own
+   * verdict rather than sharing "ok" or "template-failed".
+   */
+  | "propagate-failed";
 
 export interface SeriesEditSteps {
   /**
@@ -41,8 +49,13 @@ export interface SeriesEditSteps {
   prepare?: () => Promise<boolean>;
   /** Write the template. Resolve `false` when it did not land. */
   writeTemplate: () => Promise<boolean>;
-  /** Push the same change onto the already-materialised occurrences. */
-  propagate: () => Promise<void>;
+  /**
+   * Push the same change onto the already-materialised occurrences. Resolve
+   * `false` when it did not land — same convention as the two steps above, so
+   * a caller whose propagation throws has to decide what a throw means instead
+   * of dropping it into a bare `catch`.
+   */
+  propagate: () => Promise<boolean>;
 }
 
 export async function runSeriesEdit(
@@ -54,6 +67,7 @@ export async function runSeriesEdit(
   }
   const landed = await steps.writeTemplate();
   if (!landed) return "template-failed";
-  await steps.propagate();
+  const propagated = await steps.propagate();
+  if (!propagated) return "propagate-failed";
   return "ok";
 }
