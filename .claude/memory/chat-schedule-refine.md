@@ -2,6 +2,17 @@
 
 ## 進行中
 
+### 🔧 #503 コマンドパレットのアイテム横断検索（shared-fix `[all]`・着手日: 2026-07-31）
+
+**対象**: `shared/src/components/CommandPalette.tsx` / `shared/src/utils/itemSearch.ts` / `shared/src/hooks/useLazyStalePool.ts` / `web/src/hooks/` / `web/src/schedule/`
+
+- 前回: —（#468 の PR #506 が merge 待ち・#467 は同じ `CalendarTab` の同じ領域を触るので着手できない空き時間に拾った）
+- 現在: 実装完了・**7 ゲート全緑**（shared 167 files 1378 pass / web 9 files 81 pass）。PR 作成へ
+- 次: #468 merge → #467 Step 5-c
+- **`[all]` 宛ては着手宣言コメントが必須**（memory `all-label-issue-collision` = #473 で 40 分の二重実装）。#503 にコメント済み
+- **この PR も `CalendarTab` を触る**（予定を開く導線 = props 2 本 + effect 1 個）。#468 / #467 と merge 順で片方はコンフリクト解消が要る
+- **`react-hooks/set-state-in-effect` は web で error**（`web/eslint.config.js` は recommended をそのまま使い、免除リストを持たない）。props で届く intent は effect でしか受けられないので、**先例 `web/src/tasks/useTaskDetailTarget.ts:112` と同じく理由付きで 1 行 disable する**のが既存の流儀。`notes.setSelectedNoteId` のような**メンバー呼び出しは検知されない**ので、同じ処理でも書き方で通ったり落ちたりする
+
 ### 🔧 Epic #290 の残 4 件（#466 → #469 → #468 → #467）（着手日: 2026-07-30）
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/utils/` / `shared/src/i18n/locales/`

@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-31 - #503 コマンドパレットにアイテム横断検索を追加（shared-fix `[all]`）
+
+#### 概要
+
+ヘッダーが「検索・コマンド実行」と名乗っているのに、パレットは移動コマンドしか引けなかった（既存ノート「テスト２」があるのに「テスト」で 0 件）。ノート / タスク / 予定 / デイリーのタイトル検索を足し、選択でそのアイテムが開くところまで配線した。#468 の PR が merge 待ちで #467 に着手できない空き時間に拾った。
+
+#### 変更点
+
+- **土台は `[[` 補完の候補プールにあった**: `useItemLinkTargets` の遅延 + stale + in-flight のキャッシュ（#430）がそのまま要る契約だったので、`shared/src/hooks/useLazyStalePool.ts` に切り出して両方から使う。切り出した規則は 5 つとも過去のバグの修正そのもの（遅延 / `allowStale` で指の下を動かさない / 同時 1 フェッチ / **settled 形をキャッシュ**（生 promise だと相乗りした呼び手が reject を継承する）/ **飛行中に来たバンプは success で消さない**（消すと次のバンプまで書き込みが見えない））
+- **マッチングは `shared/src/utils/itemSearch.ts` の純関数**（`searchItemPool`）。前方一致 → 部分一致の 2 段だけで、あいまい検索は**入れない**: 1 ロール 5 行の枠を「なぜ出たか分からない行」に使うと、出るべき行が黙って消える。**空クエリは 0 件**（パレットは空欄で開くので、そこにプール全部を出すと移動コマンドが一番使う瞬間に埋まる）。**上限はロール単位**（全体上限だとノート 200 件がタスク 1 件を押し出す）
+- **パレットは受け取った行を再フィルタしない**（`externalResults`）。プールは非同期で取ってホストが照合済みなので、パレット側の部分一致が**ホストと食い違う**しかない。ただし**クエリが空なら表示しない** — 再オープン直後の 1 レンダーで前セッションのヒットがちらつくのを、effect を増やさず render 側で塞げる
+- **予定だけ「日付」を intent に載せる**（`navigateToItem({ id, role, date })`）。カレンダーは可視範囲しか取らず**ナビゲーションが範囲外を生成しない**（この worktree の最重要実測）ので、id だけ渡すと「たまたま開いていた週」を選択して何も起きない。日付は検索行が既に持っているので、カレンダー側に引き直させない
+- **`react-hooks/set-state-in-effect` は web で error**。props で届く intent を受ける先は effect しか無く、先例（`useTaskDetailTarget.ts:112`）と同じく理由付き 1 行 disable。**`setAnchorDate` / `setMobileSelectedDay` は検知されない**（フック由来のメンバー的呼び出し）ので、必要なのは local な `setSelectedId` の 1 行だけだった
+- **`onQueryChange` はパレットの open-reset でも撃つ**。撃たないと前セッションのヒットが空欄の下に残る
+- **overlay に `role="dialog"` / `aria-modal="true"`**。名前は placeholder を流用（「検索、またはコマンドを入力...」= ダイアログそのものの説明なので 2 本目の文字列を作らない）。placeholder 自体も「コマンドを入力...」から検索を含む文言へ en / ja 両方更新した
+- **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1378 pass**）・web lint / build / test（**9 files / 81 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+
 ### 2026-07-31 - #468 Step 6 カレンダー台帳をグリッドのタグフィルタとして配線
 
 #### 概要
