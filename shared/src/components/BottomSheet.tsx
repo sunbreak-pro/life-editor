@@ -1,6 +1,6 @@
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
+import { useDialogA11y } from "../hooks/useDialogA11y";
 import { cn } from "./cn";
 
 export interface BottomSheetProps {
@@ -20,8 +20,15 @@ export interface BottomSheetProps {
  *
  * §5: sheet PANEL is opaque (bg-lumen-bg); backdrop bg-black/40 is the
  * allowed overlay exception. A grab-handle bar communicates draggability
- * visually (gesture wiring is the host's concern). Escape closes for a11y
- * / desktop testing.
+ * visually (gesture wiring is the host's concern).
+ *
+ * Keyboard/focus behaviour comes from useDialogA11y, the same hook Modal uses:
+ * Escape closes, Tab cycles inside the panel, focus lands inside on open and
+ * goes back to the opener on close. The sheet claimed aria-modal from the start
+ * but had none of that — every sheet so far happened to hold an input that
+ * focused itself, so the gap only surfaced with #470's detail sheet, the first
+ * one made of plain rows (#508). Body scroll is deliberately NOT locked: a
+ * sheet sits over a list the user is still scrolling behind it.
  *
  * Backdrop dismissal checks that the press LANDED on the backdrop, instead of
  * having the panel stopPropagation its way out (#470). React dispatches portal
@@ -38,14 +45,7 @@ export function BottomSheet({
   className,
   closeOnBackdrop = true,
 }: BottomSheetProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const panelRef = useDialogA11y<HTMLDivElement>({ open, onClose });
 
   if (!open || typeof document === "undefined") return null;
 
@@ -61,8 +61,10 @@ export function BottomSheet({
       }
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-label={title}
         className={cn(
           "w-full max-w-lg rounded-t-2xl border-t border-lumen-border",

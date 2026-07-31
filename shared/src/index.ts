@@ -163,6 +163,9 @@ export {
 // cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";
 export { useInFlightGuard } from "./hooks/useInFlightGuard";
+// #508 — Escape / Tab trap / focus restore for aria-modal surfaces. Backs
+// Modal and BottomSheet; exported so web-side dialogs can stop hand-rolling it.
+export { useDialogA11y, type DialogA11yOptions } from "./hooks/useDialogA11y";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
