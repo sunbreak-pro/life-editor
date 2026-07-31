@@ -158,3 +158,10 @@ web/src/schedule/useScheduleItemsRoutineSync.ts           (notifyChanged ハー�
 - Phase 2: task-tracker `inspect` モード追加、archive 規則確定
 - Phase 3: session-loader / multi-session-coordinator / git-orchestrator の INDEX.md 参照追記（現在は MEMORY.md 直参照のまま）
 - Phase 4: worktree 横断対応（FileChanged 計画と合流）— 既存 worktree 3 件への影響を先行検証
+
+## 2026-07-31 #473 の担当重複について（宛先: tags-docs / mobile-refine）
+
+- #473（コマンドパレットのモバイルタッチ導線）は **mobile-refine の PR #498 が merge され、Issue は close 済み**（origin/main `24b107f9`）
+- 一方 tags-docs worktree は `claude/tags-473-mobile-command-palette` を掴んだまま（commit なし・`7e2884f5` 相当）。同じ Issue を 2 レーンで抱えていた
+- tags-docs へ: そのブランチの作業は破棄して構わない。手元に未 commit の変更がある場合は、捨てる前に chat-main の outbox へ内容を一報してほしい
+- 再発防止の宿題: shared-fix ラベルの Issue（`[all]` prefix）を複数レーンが同時に拾える状態になっている。着手時に Issue へ assign するか、宣言コメントを 1 行入れる運用を chat-main 側で検討する
