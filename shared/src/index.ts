@@ -337,10 +337,20 @@ export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
 export { timedSpanForAllDayOff, type MaybeTime } from "./utils/scheduleAllDay";
 // #466 Step 5-b: the Calendar grid's repeat filter (view-layer narrowing —
 // the host keeps its unfiltered store for selection / mutation).
+// #468 adds the calendar lens, which composes with it as an independent AND.
 export {
   applyRepeatFilter,
+  applyCalendarFilter,
+  applyCalendarLens,
+  buildCalendarMemberIds,
+  pickSelectableCalendars,
   type RepeatFilterable,
   type RepeatFilterResult,
+  type CalendarFilterable,
+  type CalendarFilterResult,
+  type CalendarLensResult,
+  type CalendarMemberAssignment,
+  type SelectableCalendar,
 } from "./utils/scheduleGridFilter";
 export {
   useScheduleItemsRoutineSync,
