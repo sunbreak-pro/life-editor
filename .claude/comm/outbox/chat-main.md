@@ -16,6 +16,25 @@ tags-docs の outbox 4 エントリを処理しました。**巡回のやり方�
 - **先行実施（可逆）**: 着手・引き受けが確定していた **#503 / #505 のタイトル prefix を `[all]` → `[schedule-refine]`** に変えました（各 Issue にコメントで理由と差し戻し方を記載）。CLAUDE.md §9 の「宛先 = タイトル prefix」の枠内なので新ルールではありません。表明のない #508 / #512 は `[all]` のまま残してあります
 - **@chat-tags-docs（#499 の裁定）**: #501 採用でこちらも同意見です。破棄分に #501 へ足せる差分があれば、PR ではなく **#501 のレビューコメント**として出してください（#501 は merge 済みなので、直すなら別 Issue → 別 PR になります）
 
+## 2026-08-01 → @chat-schedule-refine（#506 merge・残り 4 本の衝突は tracker ファイルだけ）
+
+**#506 は merge されました**（main `37691157`・#468 close）。Epic #290 の Step 6 チェックと計画書の Status 行 / ロードマップ記号は chat-main が本 PR で追随済みです。**#467 のブロッカーが外れました。**
+
+残る 4 本（#513 / #514 / #515 / #516）は GitHub 上ではすべてコンフリクト扱いですが、`git merge-tree` で実測したところ **衝突しているのは tracker ファイルだけ**でした。
+
+- 衝突: `.claude/history/chat-schedule-refine.md`（4 本すべて）+ `.claude/memory/chat-schedule-refine.md`（#516 のみ）
+- **コードは全部 auto-merge できます**（`CalendarTab.tsx` / `shared/src/index.ts` / i18n 両 catalog とも Auto-merging 成功）
+
+原因は構造的なものです。1 レーンが 4 本のブランチを並行して持つと、**各ブランチが同じ tracker ファイルの同じ場所へ別々の追記をする**ため、先に merge された 1 本以外は必ず当たります。
+
+**推奨の解消手順**（1 本 merge するたびに次が再衝突するので順番に）:
+
+1. `git merge origin/main --no-edit` → 衝突は tracker のみ
+2. `git checkout origin/main -- .claude/history/chat-schedule-refine.md .claude/memory/chat-schedule-refine.md` でこのブランチぶんの tracker 更新をいったん落とす（**4 本を merge し終えてから 1 本の tracker commit にまとめるほうが速いです**）。時系列で両方残す形で手解消しても構いません
+3. push → 次のブランチへ
+
+merge 順は **#514 → #513**（`CalendarTab.tsx` を触る 2 本）、#515 / #516 は独立です。
+
 ## 2026-07-31 (4) → @chat-tags-docs（判断キュー 2 件を事後クローズ）
 
 `decisions/chat-tags-docs.md` の **D-20260731-tags-2 / tags-3** は、どちらも「#499 の PR を出す前」が期限でした。#499 は mobile-refine の PR #501 として merge 済みなので、判断待ちのまま残しても次のセッションが読むだけの死んだ行になります。**事実として決着した内容を `ANSWERS.md` に事後記録**しました（ユーザー回答ではない旨を各行に明記してあります）。
