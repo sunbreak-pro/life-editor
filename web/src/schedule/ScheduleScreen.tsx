@@ -29,6 +29,8 @@ export function ScheduleScreen({
   onConsumeNewTask,
   pendingSelectTaskId,
   onConsumePendingSelect,
+  pendingSelectEvent,
+  onConsumePendingEvent,
 }: {
   dataService: DataService;
   tab: ScheduleTab;
@@ -40,6 +42,9 @@ export function ScheduleScreen({
   /** A task to open, arrived from a "[[" link click (#370). */
   pendingSelectTaskId?: string | null;
   onConsumePendingSelect?: () => void;
+  /** An event to open, arrived from a palette search hit (#503). */
+  pendingSelectEvent?: { id: string; date: string } | null;
+  onConsumePendingEvent?: () => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -47,7 +52,12 @@ export function ScheduleScreen({
           RoutineScheduleSync.tsx). Renders nothing. */}
       <RoutineScheduleSync dataService={dataService} />
       {tab === "calendar" ? (
-        <CalendarTab dataService={dataService} onOpenTasks={onOpenTasks} />
+        <CalendarTab
+          dataService={dataService}
+          onOpenTasks={onOpenTasks}
+          pendingSelectEvent={pendingSelectEvent}
+          onConsumePendingEvent={onConsumePendingEvent}
+        />
       ) : (
         // Bare flex box, no padding: PageContainer is on "fluid" for this
         // section and the board already owns its own gutter + h-full layout

@@ -163,6 +163,14 @@ export {
 // cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";
 export { useInFlightGuard } from "./hooks/useInFlightGuard";
+// #430 → #503 — fetch a candidate pool only when something actually asks for
+// it, and re-read it only after a sync says it went stale. Backs the "[["
+// autocomplete and the palette's cross-item search.
+export {
+  useLazyStalePool,
+  type LazyPoolOptions,
+  type LoadLazyPool,
+} from "./hooks/useLazyStalePool";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
@@ -339,6 +347,14 @@ export {
   type RepeatFilterable,
   type RepeatFilterResult,
 } from "./utils/scheduleGridFilter";
+// #503 — cross-item title matching for the command palette (pure; the host
+// owns the fetching and the DataService boundary).
+export {
+  searchItemPool,
+  type SearchableItem,
+  type SearchableItemRole,
+  type ItemSearchOptions,
+} from "./utils/itemSearch";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,
