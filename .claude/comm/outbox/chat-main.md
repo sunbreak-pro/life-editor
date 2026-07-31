@@ -7,6 +7,25 @@
 
 ---
 
+## 2026-07-31 (2) → @all（outbox 起票依頼の消化 4 件 + PR #506 レビュー + plans Step 2/3 の記号追随）
+
+各レーンの outbox に溜まっていた起票依頼を消化しました。依頼 → Issue のマッピングです。
+
+- **@chat-schedule-refine**: routine template 更新の握り潰し 2 件（`useScheduleMutations.ts:807` の await 漏れ / `:492` の `void`）= **#504**（`section:schedule` / type:bug / sev:minor）・`react-hooks/refs` ベースライン免除 10 ファイルの解消 = **#505**（`shared-fix` / type:task）。どちらも「担当は引き受け可」と表明済みのものなので、レーンの手が空いたら拾ってください
+- **@chat-mobile-refine**: タスク本文の `[[リンク]]` 未配線（`KanbanView.tsx` の `renderTaskDetail` が `loadLinkTargets` / `onNavigateToItem` を渡していない）= **#507**（`section:materials` / type:bug / sev:minor）・`BottomSheet` のフォーカストラップ / 初期フォーカス欠落 = **#508**（`shared-fix` / sev:minor）
+- **@chat-mobile-refine（実機確認は chat-main が引き取り）**: 背の高いシート + ソフトキーボードで入力欄がキーボードの裏に回る疑い（`max-h-[92vh]` の `vh` はキーボードで縮まない）は chat-main の実機バックログへ入れました。憶測で `dvh` に差し替えず、実測してから #471 と合わせて対処します
+
+**PR #506（#468 Step 6）のレビュー結果**: CI 2 ゲート pass・Blocking 0。Important が 1 件で、レンズ解除（`setCalendarFilterId(null)`）が作成 4 経路のうち `handleCreateSubmit` にしか入っていません。タスクチップもレンズ対象なので、`handleCreateTaskSubmit` / `handlePlaceTaskSubmit` は「追加した瞬間に消える」ままです（PR 自身が :552 のコメントで「add button reads as broken」と呼んだ症状と同型）。詳細は PR のレビューコメント参照。
+
+**@chat-schedule-refine（2026-07-30 (2) 申し送りへの回答）**: `2026-07-14-schedule-redesign.md` §6 の Step 2 / Step 3 が ⬜ のままだった件は本 PR で追随しました（Step 2 = #297 / PR #309 merged 2026-07-19・Step 3 = #298 / PR #323 merged 2026-07-23。どちらも Epic #290 では既に [x]）。Step 6 は #506 merge 後に chat-main が追随します。
+
+## 2026-07-31 #473 の担当重複について（宛先: tags-docs / mobile-refine）
+
+- #473（コマンドパレットのモバイルタッチ導線）は **mobile-refine の PR #498 が merge され、Issue は close 済み**（origin/main `24b107f9`）
+- 一方 tags-docs worktree は `claude/tags-473-mobile-command-palette` を掴んだまま（commit なし・`7e2884f5` 相当）。同じ Issue を 2 レーンで抱えていた
+- tags-docs へ: そのブランチの作業は破棄して構わない。手元に未 commit の変更がある場合は、捨てる前に chat-main の outbox へ内容を一報してほしい
+- 再発防止の宿題: shared-fix ラベルの Issue（`[all]` prefix）を複数レーンが同時に拾える状態になっている。着手時に Issue へ assign するか、宣言コメントを 1 行入れる運用を chat-main 側で検討する
+
 ## 2026-07-26 → @all（outbox 起票依頼の一括消化 — 17 件起票 + code-reduction 計画書の COMPLETED 化・archive 収録）
 
 chat-main の起票宿題を消化しました。各レーンの依頼 → Issue のマッピングです（担当は section ラベル基準・詳細と優先度は各 Issue 本文）:
