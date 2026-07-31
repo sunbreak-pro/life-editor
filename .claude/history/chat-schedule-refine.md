@@ -18,6 +18,23 @@ Epic #290 Step 5-c と Epic #321 Phase 2（mobile-scope.md #5）を 1 本で実�
 - **docs 追随**: `mobile-scope.md` #4 / #5 / §5 Phase 2、`2026-07-14-schedule-redesign.md` の Step 5-c ✅ + **Step 6 も ✅**（#468 / PR #506 が 7/31 merge 済みなのに ⬜ のままだった）+ Status 行 + Worklog
 - **検証**: 7 ゲート全緑（shared lint 0 errors / build / test 166 files 1386 pass、web lint warning 0 / build / test 9 files 79 pass、docs-lint OK）。DDL ゼロ。`CalendarTab` 自体のレンダーテストは無し（shared から 40 以上の部品を取るためモックハーネスの新設が要る）。実ブラウザ / 実機確認は §7.4 どおり chat-main に残る
 
+- 2026-08-01: [途中] chat-main レビュー 3 本の対応 — #506 は 4 経路中 1 経路にしか無かったレンズ解除を `finishCreatePanel()` に合流（`4e21f83b`）／ #514 は `propagate` 失敗が無言だった件をこの PR で拾い `propagate-failed` + `series-partial` を追加（`01f31113`）／ #515 は Issue #505 に残り 1 ファイル（`useGraphInteraction`）を記録。7 ゲート全緑・push 済み。**#467 は #506 の merge 待ちで着手不可のまま**
+
+### 2026-07-31 - #504 routine template の更新失敗が無言（scope 編集の await 漏れ / 未ロード時の void）
+
+#### 概要
+
+繰り返しの雛形（template）の更新が落ちても何も言わない 2 箇所を塞いだ。#434 / #469 で潰した「失敗が黙って消える」の残り。**rollback ではなく書き込み順序で解いた**。
+
+#### 変更点
+
+- **食い違いを直すのではなく、作らせない**: 旧実装は occurrence を書いてから template を await せずに撃つ順序だった。この順序で template が落ちると、**画面は完全に正しい**（未来行はすべて新しい値）のに template だけ古い状態になる。ユーザーは数日後に「新しく生成された日が勝手に元へ戻る」形でしか気付けず、**リロードでも検知できない**（行は本当に正しい）。**template を先に書いて落ちたら中断**に変えると、失敗時点で occurrence に一切触れていないので「何も保存されていません」というトーストが嘘にならず、巻き戻す対象も発生しない
+- **順序と中断規則を `shared/src/utils/seriesEditSequence.ts`（`runSeriesEdit`）に切り出した**。prepare → template → propagate の 3 段で各ステップは注入。**修正の本体は順序そのもの**なので、call site のコメントに留めず vitest で固定した（5 件 — 順序 / template 失敗で propagate を呼ばない / prepare 失敗で template すら呼ばない / prepare 省略時 / throw は握り潰さない）
+- **`fillUpToAnchor` は引き続き最初**。ここで実体化される「アンカーより前の日」は**ユーザーが選ばなかった日**で、pre-edit の値を保つ必要がある。部分失敗で中断するのも従来どおり（実体化済みでない日は書き換えで消える）
+- **routine 未ロード時の頻度変更の `void updateRoutine(...)`** を await + `landed` 判定に。文言は既存の `"update"` を流用（この経路もユーザーから見れば「間隔の変更が落ちた」）
+- **`onRepeatConvertFailed` の文言分岐をネスト三項からテーブル（`REPEAT_FAILURE_COPY_KEY`）へ**。reason は増える一方で、チェーンだと**新しい reason が黙って最後の `else` に落ちる** — 「何も保存されていない」が「変更できました」に化ける事故がまさにその形。新 reason `"series"` + `scheduleScreen.repeatSeriesUpdateFailed`（en / ja）
+- **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1368 pass**）・web lint / build / test（**8 files / 75 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+
 ### 2026-07-31 - #468 Step 6 カレンダー台帳をグリッドのタグフィルタとして配線
 
 #### 概要

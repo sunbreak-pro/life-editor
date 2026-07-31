@@ -38,7 +38,13 @@ export function NotesUnifiedProvider({
   // for the full rationale). Explicit injected undoRedo is the host's to
   // manage.
   const undoRedoRef = useRef(undoRedo);
-  undoRedoRef.current = undoRedo;
+  // Mirrored in an effect, not during render (#505): a render React
+  // discards must not leave its write behind. The ref is only read from the
+  // unmount cleanup, which runs after the last commit, so it holds exactly
+  // the same value either way.
+  useEffect(() => {
+    undoRedoRef.current = undoRedo;
+  });
   const hasExplicitUndoRedo = options.undoRedo != null;
   useEffect(() => {
     if (hasExplicitUndoRedo) return;
