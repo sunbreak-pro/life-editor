@@ -1,5 +1,7 @@
 # HISTORY (chat-schedule-refine)
 
+- 2026-08-01: [途中] chat-main レビュー 3 本の対応 — #506 は 4 経路中 1 経路にしか無かったレンズ解除を `finishCreatePanel()` に合流（`4e21f83b`）／ #514 は `propagate` 失敗が無言だった件をこの PR で拾い `propagate-failed` + `series-partial` を追加（`01f31113`）／ #515 は Issue #505 に残り 1 ファイル（`useGraphInteraction`）を記録。7 ゲート全緑・push 済み。**#467 は #506 の merge 待ちで着手不可のまま**
+
 ### 2026-07-31 - #504 routine template の更新失敗が無言（scope 編集の await 漏れ / 未ロード時の void）
 
 #### 概要
