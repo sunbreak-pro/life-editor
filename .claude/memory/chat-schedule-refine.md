@@ -2,6 +2,17 @@
 
 ## 進行中
 
+### 🔧 #504 routine template の更新失敗が無言（着手日: 2026-07-31）
+
+**対象**: `web/src/schedule/useScheduleMutations.ts` / `web/src/schedule/CalendarTab.tsx` / `shared/src/utils/seriesEditSequence.ts`
+
+- 前回: #503（PR #513）まで実装完了。#468 = PR #506 も merge 待ち
+- 現在: 実装完了・**7 ゲート全緑**（shared 167 files 1368 pass / web 8 files 75 pass）。PR 作成へ
+- 次: #468 merge → #467 Step 5-c（section:schedule の非 Epic はこれで最後）
+- **rollback ではなく順序で解いた**: 旧実装は occurrence を書いてから template を await せずに撃つ順序で、template が落ちると**画面は完全に正しいのに template だけ古い**という、リロードでも検知できない食い違いが残った。**template を先に書いて落ちたら中断**すれば、失敗時点で occurrence に触れていないので「何も保存されていません」が嘘にならない
+- **`fillUpToAnchor` は引き続き最初**（アンカーより前の日 = ユーザーが選ばなかった日は pre-edit の値を保つ必要がある）
+- **文言分岐はネスト三項からテーブルへ**。reason は増える一方で、チェーンだと新しい reason が黙って最後の `else` に落ちる（「何も保存されていない」が「変更できました」に化ける）
+
 ### 🔧 Epic #290 の残 4 件（#466 → #469 → #468 → #467）（着手日: 2026-07-30）
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/utils/` / `shared/src/i18n/locales/`
