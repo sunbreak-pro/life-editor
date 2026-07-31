@@ -473,6 +473,7 @@
     "repeatConvertFailed": "Couldn't turn on repeat. This event is unchanged — try again.",
     "repeatMaterialiseFailed": "Repeat is on, but the later occurrences couldn't be added yet. Reopen the calendar to retry.",
     "repeatUpdateFailed": "Couldn't change how often this repeats. It's still on the previous setting — try again.",
+    "repeatSeriesUpdateFailed": "Couldn't save this change to the repeat. Nothing was changed — try again.",
     "deleteRoutine": "Delete routine",
     "summaryTitle": "My routines",
     "openRoutinesCta": "Open the Repeats tab",

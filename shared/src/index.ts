@@ -329,6 +329,13 @@ export {
   type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
+// #504: the order a series-wide edit must be written in (template before
+// occurrences), so a lost template write cannot hide behind a correct screen.
+export {
+  runSeriesEdit,
+  type SeriesEditOutcome,
+  type SeriesEditSteps,
+} from "./utils/seriesEditSequence";
 // #469 follow-up: the span an all-day row gets back when the switch goes OFF
 // (a row created as all-day may carry no start/end at all).
 export { timedSpanForAllDayOff, type MaybeTime } from "./utils/scheduleAllDay";

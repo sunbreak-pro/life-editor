@@ -99,6 +99,23 @@ const CREATE_DURATION_MIN = 60;
  * lands at once). Above ~400ms the wait starts to read as lag.
  */
 const POPOVER_DELAY_MS = 350;
+
+/*
+ * What each repeat-write failure says (#434 → #469 → #504). A table rather
+ * than a nested ternary: the reasons only ever grow, and each new one has to
+ * be given words deliberately — a chain quietly files the newcomer under
+ * whatever sits in the final `else`, which is how a "nothing was saved" case
+ * ends up telling the user their change went through.
+ */
+const REPEAT_FAILURE_COPY_KEY: Record<
+  "attach" | "materialise" | "update" | "series",
+  string
+> = {
+  attach: "scheduleScreen.repeatConvertFailed",
+  materialise: "scheduleScreen.repeatMaterialiseFailed",
+  update: "scheduleScreen.repeatUpdateFailed",
+  series: "scheduleScreen.repeatSeriesUpdateFailed",
+};
 export function CalendarTab({
   dataService,
   onOpenTasks,
@@ -252,15 +269,8 @@ export function CalendarTab({
   // stays on — only the new rhythm failed to save — so neither of the other
   // two sentences fits.
   const handleRepeatConvertError = useCallback(
-    (reason: "attach" | "materialise" | "update") =>
-      showToast(
-        "danger",
-        reason === "attach"
-          ? t("scheduleScreen.repeatConvertFailed")
-          : reason === "materialise"
-            ? t("scheduleScreen.repeatMaterialiseFailed")
-            : t("scheduleScreen.repeatUpdateFailed"),
-      ),
+    (reason: "attach" | "materialise" | "update" | "series") =>
+      showToast("danger", t(REPEAT_FAILURE_COPY_KEY[reason])),
     [showToast, t],
   );
   const {

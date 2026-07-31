@@ -5,6 +5,7 @@ import {
   makeOptimisticScheduleItem,
   addDaysKey,
   seedFrequencyPatch,
+  runSeriesEdit,
   useInFlightGuard,
   type FrequencyEditorValue,
   type RepeatScope,
@@ -162,7 +163,13 @@ export interface UseScheduleMutationsArgs {
   //                   return in silence and the reload snapped the editor back
   //                   to the old rhythm — indistinguishable from a click that
   //                   never registered (#469 小粒).
-  onRepeatConvertFailed: (reason: "attach" | "materialise" | "update") => void;
+  //   "series"      — a series-wide edit (this-and-future / all) did not land.
+  //                   Reported BEFORE any occurrence is touched (#504), so the
+  //                   promise it makes is "nothing changed", not "half of it
+  //                   did".
+  onRepeatConvertFailed: (
+    reason: "attach" | "materialise" | "update" | "series",
+  ) => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -489,19 +496,31 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           // bare type switch could persist a malformed frequency the
           // fail-closed guard reads as "fires never". Re-read so the
           // editor's optimistic state returns to DB truth.
-          void updateRoutine(
-            routineId,
-            seedFrequencyPatch(
-              patch,
-              {
-                frequencyDays: [],
-                frequencyInterval: null,
-                frequencyStartDate: null,
-              },
-              selected.date,
-            ),
-          );
-          reload();
+          // #504: awaited, not fired and forgotten. The write can fail here
+          // exactly as it can on the loaded path, and the finally-reload then
+          // puts the OLD frequency back in the editor — which reads as the
+          // control being broken rather than the save having failed. Same
+          // words as that path: from the user's side this IS the frequency
+          // edit not landing.
+          void (async () => {
+            try {
+              const landed = await updateRoutine(
+                routineId,
+                seedFrequencyPatch(
+                  patch,
+                  {
+                    frequencyDays: [],
+                    frequencyInterval: null,
+                    frequencyStartDate: null,
+                  },
+                  selected.date,
+                ),
+              );
+              if (!landed) onRepeatConvertFailed("update");
+            } finally {
+              reload();
+            }
+          })();
           return;
         }
         // A bare type switch carries none of the new type's own fields, so
@@ -789,22 +808,39 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         applyOccurrencePatch(req.item.id, patch);
         void (async () => {
           try {
-            if (scope === "future") {
-              const ok = await fillUpToAnchor(routine, req.item.date);
-              // Fill failed: propagating anyway would let the pre-anchor
-              // days later materialise with the POST-edit template (they
-              // were supposed to keep the pre-edit values). Abort — the
-              // finally-reload snaps the optimistic patch back to DB truth.
-              if (!ok) return;
-            }
-            await updateFutureOccurrences(
-              routineId,
-              updates,
-              fromDate,
-              template,
-            );
-            // Template update so future generation follows the new values.
-            updateRoutine(routineId, updates);
+            /*
+             * #504: template BEFORE occurrences, and a lost template write
+             * aborts. The old order did the reverse and did not even await the
+             * template — so when that write lost, the screen was entirely
+             * right (every future row carried the new values) while the
+             * template kept the old ones, and the divergence only surfaced
+             * days later as newly generated occurrences quietly reverting. A
+             * reload could not reveal it either: the rows really were correct.
+             *
+             * `fillUpToAnchor` stays ahead of both — the pre-anchor days it
+             * materialises are the ones the user did NOT select, and they are
+             * supposed to keep the pre-edit values. A partial fill aborts for
+             * the same reason as before: rewriting the series afterwards would
+             * erase days that only exist once materialised.
+             *
+             * `template` is the pre-edit title/times captured above, so
+             * writing the routine first does not change what
+             * updateFutureOccurrences treats as "edited by hand".
+             */
+            const outcome = await runSeriesEdit({
+              prepare:
+                scope === "future"
+                  ? () => fillUpToAnchor(routine, req.item.date)
+                  : undefined,
+              writeTemplate: () => updateRoutine(routineId, updates),
+              propagate: () =>
+                updateFutureOccurrences(routineId, updates, fromDate, template),
+            });
+            // A partial fill stays silent, as it was: it is reported by the
+            // generator's own path and nothing was changed. A lost template
+            // write is the new case — and because nothing downstream ran, the
+            // toast can honestly say the edit did not happen.
+            if (outcome === "template-failed") onRepeatConvertFailed("series");
           } catch {
             // Propagation did not land — the range reload below restores the
             // DB truth either way.
