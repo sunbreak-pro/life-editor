@@ -71,7 +71,12 @@ export function TimerProvider({
   const [tickNow, setTickNow] = useState(() => Date.now());
 
   const onSessionCompleteRef = useRef(onSessionComplete);
-  onSessionCompleteRef.current = onSessionComplete;
+  // Mirrored in an effect, not during render (#505). It is only read from
+  // the tick effect below, which runs after the commit, so the value it
+  // sees is unchanged.
+  useEffect(() => {
+    onSessionCompleteRef.current = onSessionComplete;
+  });
 
   // --- load settings + presets (refetch on sync bump) ---
   useEffect(() => {

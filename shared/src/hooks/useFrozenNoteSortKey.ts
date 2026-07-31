@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import type { NoteNode } from "../types/note";
 import type { FrozenNoteSortKey } from "../utils/noteSort";
 
@@ -23,23 +23,32 @@ import type { FrozenNoteSortKey } from "../utils/noteSort";
  * Snapshot timing: taken during render, not in an effect, so the very first
  * render after a selection change is already held. An effect would let one
  * unheld render through — the exact frame the jump happens in.
+ *
+ * Held in STATE, adjusted during render (#505). The snapshot used to live in
+ * refs written while rendering, which is the thing a render React throws away
+ * must not do. "Adjust state when a prop changes" is React's own escape hatch
+ * for exactly this shape: the set is guarded so it happens only on a real
+ * change, and React re-runs the component before committing — so the value
+ * returned below is still the one this very render sees. The refs version and
+ * this one produce the same output for every input; only the mechanism moved.
  */
 export function useFrozenNoteSortKey(
   selectedId: string | null | undefined,
   notes: readonly NoteNode[],
 ): FrozenNoteSortKey | null {
-  const frozenRef = useRef<FrozenNoteSortKey | null>(null);
-  const heldIdRef = useRef<string | null>(null);
+  const [held, setHeld] = useState<{
+    id: string | null;
+    key: FrozenNoteSortKey | null;
+  }>({ id: null, key: null });
 
   const id = selectedId ?? null;
 
   // Re-snapshot when the selection changes, and keep retrying while the note
   // is missing from `notes` (a freshly created note reaches the list a tick
   // after it is selected — capturing null there would leave it unheld).
-  if (heldIdRef.current !== id || (id !== null && frozenRef.current === null)) {
+  if (held.id !== id || (id !== null && held.key === null)) {
     const note = id === null ? undefined : notes.find((n) => n.id === id);
-    heldIdRef.current = id;
-    frozenRef.current = note
+    const key = note
       ? {
           id: note.id,
           title: note.title,
@@ -47,7 +56,12 @@ export function useFrozenNoteSortKey(
           updatedAt: note.updatedAt,
         }
       : null;
+    // Guarded: while the note is still missing this branch runs every render,
+    // and re-setting the identical "not found yet" snapshot would never
+    // settle. Only a new selection, or the note finally arriving, is a write.
+    if (held.id !== id || key !== null) setHeld({ id, key });
+    return key;
   }
 
-  return frozenRef.current;
+  return held.key;
 }
