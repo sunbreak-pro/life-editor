@@ -323,10 +323,8 @@ export {
 } from "./utils/scheduleLabels";
 export {
   normalizeDesktopView,
-  normalizeMobileView,
   visibleCalendarRange,
   type DesktopCalendarView,
-  type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
 // #469 follow-up: the span an all-day row gets back when the switch goes OFF

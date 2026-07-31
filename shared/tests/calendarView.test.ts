@@ -1,19 +1,24 @@
 import { describe, it, expect } from "vitest";
 import {
   normalizeDesktopView,
-  normalizeMobileView,
   visibleCalendarRange,
 } from "../src/utils/calendarView";
 import { monthGridKeys, startOfWeekKey, addDaysKey } from "../src";
 
 /*
- * calendarView (#280) — the Schedule host's single `view` string normalised
- * per layout + the visible fetch window. Behaviour must match the inline
- * logic it replaced in CalendarTab 1:1.
+ * calendarView (#280) — the Schedule host's `view` string normalised onto the
+ * Desktop option set + the visible fetch window. Behaviour must match the
+ * inline logic it replaced in CalendarTab 1:1.
+ *
+ * #467 retired the Mobile option set (normalizeMobileView and the list/time/
+ * month ids it produced): narrow draws a single day list, and the host pins
+ * `effView` to "list" itself. The retired ids still have to MAP rather than
+ * throw — `view` is long-lived state and a session that was on Mobile "time"
+ * when the switcher disappeared still holds that string.
  */
 
 describe("normalizeDesktopView", () => {
-  it("maps the Mobile-only ids onto the Desktop set", () => {
+  it("maps the retired Mobile ids onto the Desktop set", () => {
     expect(normalizeDesktopView("list")).toBe("day");
     expect(normalizeDesktopView("time")).toBe("week");
   });
@@ -23,20 +28,6 @@ describe("normalizeDesktopView", () => {
     expect(normalizeDesktopView("week")).toBe("week");
     expect(normalizeDesktopView("month")).toBe("month");
     expect(normalizeDesktopView("bogus")).toBe("week");
-  });
-});
-
-describe("normalizeMobileView", () => {
-  it("maps the Desktop-only ids onto the Mobile set", () => {
-    expect(normalizeMobileView("day")).toBe("list");
-    expect(normalizeMobileView("week")).toBe("time");
-  });
-
-  it("passes Mobile ids through and falls back to list", () => {
-    expect(normalizeMobileView("list")).toBe("list");
-    expect(normalizeMobileView("time")).toBe("time");
-    expect(normalizeMobileView("month")).toBe("month");
-    expect(normalizeMobileView("bogus")).toBe("list");
   });
 });
 
@@ -65,9 +56,12 @@ describe("visibleCalendarRange", () => {
     ).toEqual([weekStart, weekEnd]);
   });
 
-  it("Mobile 'time' view stays a single day (not a week)", () => {
+  it("a narrow layout never widens to a week, whatever view it carries", () => {
+    // The `isWide &&` on the week branch is what makes this true. #467 pins
+    // narrow to "list", but `view` still holds the Desktop choice, so a
+    // regression here would fetch seven days to draw one day's list.
     expect(
-      visibleCalendarRange({ ...base, effView: "time", isWide: false }),
+      visibleCalendarRange({ ...base, effView: "week", isWide: false }),
     ).toEqual([anchorDate, anchorDate]);
   });
 

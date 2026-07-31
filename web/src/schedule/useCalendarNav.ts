@@ -4,8 +4,6 @@ import {
   addMonthsKey,
   monthGridKeys,
   normalizeDesktopView,
-  normalizeMobileView,
-  startOfMonthKey,
   startOfWeekKey,
   todayCalendarKey,
   useWeekStartPref,
@@ -14,8 +12,8 @@ import {
 
 /*
  * Calendar navigation state (#280, extracted from CalendarTab): the anchor
- * date, the single cross-layout `view` string (normalised per layout by the
- * shared calendarView helpers), the derived week/month keys and the visible
+ * date, the `view` string (Desktop's day/week/month choice, normalised by the
+ * shared calendarView helper), the derived week/month keys and the visible
  * fetch window, plus prev/next/today stepping. No data access — the range
  * consumer (useVisibleRangeItems) and the mutation layer live separately.
  */
@@ -23,12 +21,15 @@ export function useCalendarNav(isWide: boolean) {
   const today = useMemo(() => todayCalendarKey(), []);
   const [anchorDate, setAnchorDate] = useState(today);
   const [view, setView] = useState("week");
-  // Mobile month-agenda day (kept in the shown month on month navigation).
-  const [mobileSelectedDay, setMobileSelectedDay] = useState(today);
 
   const desktopView = normalizeDesktopView(view);
-  const mobileView = normalizeMobileView(view);
-  const effView = isWide ? desktopView : mobileView;
+  // #467: Mobile is a single day list — the switcher and its Month / Timeline
+  // options are gone, so narrow has no view of its own to normalise. Pinning
+  // it HERE rather than at the render branch is what keeps `step` and the fetch
+  // window honest: `view` still holds whatever Desktop last chose, so a
+  // window narrowed while on "month" would otherwise page by months and fetch
+  // a whole grid to draw one day's list.
+  const effView = isWide ? desktopView : "list";
 
   // Week-start pref (#217): read once per mount (same reload semantics as the
   // other lightweight prefs — a Settings change applies on section re-entry).
@@ -66,17 +67,10 @@ export function useCalendarNav(isWide: boolean) {
             ? addDaysKey(anchorDate, dir * 7)
             : addDaysKey(anchorDate, dir);
       setAnchorDate(next);
-      // Month nav: keep the Mobile month-agenda day inside the shown month —
-      // a stale day from the previous month sits outside the fetched range and
-      // renders an always-empty agenda until the user taps a cell.
-      if (effView === "month") setMobileSelectedDay(startOfMonthKey(next));
     },
     [effView, isWide, anchorDate],
   );
-  const goToday = useCallback(() => {
-    setAnchorDate(today);
-    setMobileSelectedDay(today);
-  }, [today]);
+  const goToday = useCallback(() => setAnchorDate(today), [today]);
 
   return {
     today,
@@ -85,7 +79,6 @@ export function useCalendarNav(isWide: boolean) {
     view,
     setView,
     desktopView,
-    mobileView,
     effView,
     weekStartsOn,
     weekStart,
@@ -93,8 +86,6 @@ export function useCalendarNav(isWide: boolean) {
     monthRows,
     rangeStart,
     rangeEnd,
-    mobileSelectedDay,
-    setMobileSelectedDay,
     step,
     goToday,
   };

@@ -54,6 +54,13 @@ function renderPanel(override?: Partial<RepeatListRow[]>) {
   return { onOpen, onDelete };
 }
 
+/** #467 Mobile shape: same rows, no delete callback. */
+function renderReadOnly() {
+  const onOpen = vi.fn();
+  render(<RepeatListPanel rows={rows} onOpen={onOpen} labels={LABELS} />);
+  return { onOpen };
+}
+
 describe("RepeatListPanel", () => {
   it("shows the empty copy when there is nothing to list", () => {
     renderPanel([]);
@@ -123,5 +130,33 @@ describe("RepeatListPanel", () => {
     expect(
       screen.getByRole("button", { name: /^Morning run/ }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("RepeatListPanel — read-only (#467 Mobile)", () => {
+  it("offers no delete affordance at all when onDelete is omitted", () => {
+    // Not "disabled": a control that is present and refuses reads as broken.
+    renderReadOnly();
+    expect(
+      screen.queryByRole("button", { name: /^Delete routine/ }),
+    ).toBeNull();
+  });
+
+  it("still lists every routine, including one with no occurrence", () => {
+    // The whole point of the panel on Mobile: the calendar can only draw
+    // materialised occurrences, so this list is the only place a routine
+    // firing next month — or on no day at all — is visible.
+    renderReadOnly();
+    expect(screen.getByText("Morning run")).toBeInTheDocument();
+    expect(screen.getByText("Broken repeat")).toBeInTheDocument();
+    expect(
+      screen.getByText("Every N days · Fires on no day"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps navigation, which is viewing rather than editing", () => {
+    const { onOpen } = renderReadOnly();
+    fireEvent.click(screen.getByRole("button", { name: /^Morning run/ }));
+    expect(onOpen).toHaveBeenCalledWith("r-1");
   });
 });

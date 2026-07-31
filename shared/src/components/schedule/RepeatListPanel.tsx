@@ -10,6 +10,11 @@ import { cn } from "../cn";
  * malformed one that fires on no day at all — the #407 zombie shape). This list
  * is that route: jump to the next occurrence, or delete a routine that has none.
  *
+ * #467 mounts the same panel on Mobile, where the scope is viewing only. That
+ * is expressed by leaving `onDelete` off rather than by a `readOnly` flag — one
+ * source of truth for "is deleting offered here", with no second boolean to
+ * fall out of step with the callback.
+ *
  * Pure presentation (§3.1 / §6.4): rows arrive already formatted and translated,
  * every action is a callback. lumen-* tokens only (§5).
  */
@@ -48,7 +53,15 @@ export interface RepeatListPanelProps {
   rows: RepeatListRow[];
   /** Navigate the calendar to this routine's next occurrence. */
   onOpen: (id: string) => void;
-  onDelete: (id: string) => void;
+  /**
+   * Delete the whole series. **Omit to render the list read-only** — #467 puts
+   * this panel on Mobile, where the scope is viewing only (mobile-scope.md #5)
+   * and deleting a series is the least recoverable thing on this screen
+   * (`calendars` aside, undo restores the template but not the occurrences it
+   * cascaded). Without it no row shows the delete affordance at all, which is
+   * the honest shape: a control that is present but refuses reads as broken.
+   */
+  onDelete?: (id: string) => void;
   labels: RepeatListPanelLabels;
   className?: string;
 }
@@ -106,7 +119,12 @@ export function RepeatListPanel({
             </span>
           </>
         );
-        if (armed === r.id) {
+        // Read-only (no onDelete): a row that can neither be opened nor deleted
+        // is plain text. It still has to be listed — this panel is the only
+        // place a routine with no occurrence exists at all (#407's zombies),
+        // and hiding it on Mobile would make "why is nothing on my calendar?"
+        // unanswerable there.
+        if (onDelete && armed === r.id) {
           return (
             <li
               key={r.id}
@@ -155,14 +173,16 @@ export function RepeatListPanel({
                 {body}
               </button>
             )}
-            <button
-              type="button"
-              aria-label={`${labels.delete}: ${r.title}`}
-              onClick={() => setArmed(r.id)}
-              className="shrink-0 rounded-lumen-md p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-            >
-              <Trash2 aria-hidden className="size-4" />
-            </button>
+            {onDelete && (
+              <button
+                type="button"
+                aria-label={`${labels.delete}: ${r.title}`}
+                onClick={() => setArmed(r.id)}
+                className="shrink-0 rounded-lumen-md p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              >
+                <Trash2 aria-hidden className="size-4" />
+              </button>
+            )}
           </li>
         );
       })}
