@@ -5,6 +5,8 @@ import {
   useRoutineContext,
   useSyncDomains,
   useTaskTreeContext,
+  useCalendarContext,
+  useWikiTagsUnifiedContext,
   useTranslation,
   useMediaQuery,
   WeekTimeGrid,
@@ -25,6 +27,7 @@ import {
   ItemActionPopover,
   ItemDetailOverlay,
   SegmentedControl,
+  StatusFilterChips,
   BottomSheet,
   Modal,
   useScheduleItemsRoutineSync,
@@ -44,6 +47,9 @@ import {
   nextRoutineOccurrence,
   itemVariant,
   applyRepeatFilter,
+  applyCalendarLens,
+  buildCalendarMemberIds,
+  pickSelectableCalendars,
   nowMinutesLocal,
   sortDayItems,
   todayCalendarKey,
@@ -61,9 +67,11 @@ import {
   type RoutineSummaryRow,
   type RepeatListRow,
   type SegmentedOption,
+  type StatusFilterChip,
   type DataService,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
+import { TagPicker } from "../wikitag/TagPicker";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
@@ -155,6 +163,14 @@ export function CalendarTab({
     updateNode,
     setTaskStatus,
   } = useTaskTreeContext();
+  // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
+  // view over ONE life tag, so the grid needs both halves — the ledger (which
+  // calendars exist, and which tag each points at) and the assignments (which
+  // items carry that tag). Both are already bulk-loaded on this branch
+  // (MainScreen mounts CalendarProvider + WikiTagsUnifiedProvider around the
+  // Schedule tree), so this adds no fetch.
+  const { calendars } = useCalendarContext();
+  const { allTags, allAssignments } = useWikiTagsUnifiedContext();
 
   // Navigation + visible fetch window (#280 → useCalendarNav).
   const {
@@ -192,6 +208,13 @@ export function CalendarTab({
   // slot that only looks free. It resets with the section, and while it is on
   // the toolbar button and the Repeats tab both say so.
   const [repeatsHidden, setRepeatsHidden] = useState(false);
+  // #468: which calendar the grid is looking through, or null for all of them.
+  // Not persisted, for the same reason as the repeat filter above: a lens
+  // restored at startup shows a calendar that is missing most of the day, and
+  // the next event gets booked into a slot that only looks free. Independent
+  // of `repeatsHidden` — the two compose as an AND and neither resets the
+  // other.
+  const [calendarFilterId, setCalendarFilterId] = useState<string | null>(null);
   // #299 single-click bubble popover: anchor id + viewport coords (Desktop).
   const [popover, setPopover] = useState<{
     id: string;
@@ -503,6 +526,27 @@ export function CalendarTab({
     cancelPopover,
   ]);
 
+  // #468: every panel path that actually PUTS something on the grid closes
+  // through here, and clearing the lens is the point. A brand-new row carries
+  // no tag, so while a calendar lens is on it is filtered out the instant it
+  // exists — no block on the grid, no toast, and any selection made below
+  // points at something nobody can see. The add button reads as broken.
+  // Showing the thing that was just created is what the click asked for;
+  // auto-filing it into the active calendar would be a write the user never
+  // asked for.
+  //
+  // Placing an EXISTING task gets the same treatment: it only survives the lens
+  // if it already carries that calendar's tag, so otherwise it disappears from
+  // the very slot it was just dropped into.
+  //
+  // Cancelling the panel deliberately does NOT come through here (those call
+  // sites keep the bare setCreatePanel(null)): nothing new is on the grid to
+  // reveal, so the lens the user set stays where they put it.
+  const finishCreatePanel = useCallback(() => {
+    setCreatePanel(null);
+    setCalendarFilterId(null);
+  }, []);
+
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
   //
@@ -526,7 +570,7 @@ export function CalendarTab({
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
-      setCreatePanel(null);
+      finishCreatePanel();
       // Desktop: select without opening anything — a quiet "here it is" that
       // does not interrupt blocking out the next slot. It shows as a ring on
       // the week/day grid (WeekTimeGrid) and a highlight in the sidebar
@@ -537,7 +581,14 @@ export function CalendarTab({
       // the plain create into the other button.
       if (isWide) setSelectedId(id);
     },
-    [createPanel, handleCreate, attachNote, handleAttachError, isWide],
+    [
+      createPanel,
+      handleCreate,
+      attachNote,
+      handleAttachError,
+      isWide,
+      finishCreatePanel,
+    ],
   );
 
   // #354 secondary action: create, then land in the detail editor.
@@ -553,13 +604,23 @@ export function CalendarTab({
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
-      setCreatePanel(null);
+      // Clears the lens too: the overlay hides the grid at first, but closing
+      // it would otherwise drop the user back on a grid that does not draw the
+      // row their selection still points at.
+      finishCreatePanel();
       setSelectedId(id);
       // Desktop opens the body-level overlay; on Mobile the selection alone
       // brings up the BottomSheet editor (the same path a tap takes).
       if (isWide) setOverlayOpen(true);
     },
-    [createPanel, handleCreate, attachNote, handleAttachError, isWide],
+    [
+      createPanel,
+      handleCreate,
+      attachNote,
+      handleAttachError,
+      isWide,
+      finishCreatePanel,
+    ],
   );
 
   // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
@@ -601,9 +662,9 @@ export function CalendarTab({
           else if (note) handleAttachError();
         },
       });
-      setCreatePanel(null);
+      finishCreatePanel();
     },
-    [scheduleTaskAt, addNode, attachNote, handleAttachError],
+    [scheduleTaskAt, addNode, attachNote, handleAttachError, finishCreatePanel],
   );
 
   const handlePlaceTaskSubmit = useCallback(
@@ -620,9 +681,9 @@ export function CalendarTab({
       // out of a pool that came from the DB, so its `items_meta` row is
       // already there and the link's FK is satisfied right now.
       attachNote(taskId, note);
-      setCreatePanel(null);
+      finishCreatePanel();
     },
-    [scheduleTaskAt, updateNode, attachNote],
+    [scheduleTaskAt, updateNode, attachNote, finishCreatePanel],
   );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
@@ -756,11 +817,13 @@ export function CalendarTab({
     view: t("scheduleScreen.viewLabel"),
   };
 
-  // Scheduled-task chips (schedule redesign A-1). `rangeTaskChips` backs the
-  // grid + month (visible range); `todayTaskChips` backs the "今日の流れ" flow,
-  // which always shows today regardless of the grid's visible range. Task chips
-  // are merged only at this derived (map) layer — never into `rangeItems`
-  // (the optimistic ScheduleItem mutation store).
+  // Scheduled-task chips (schedule redesign A-1). `rangeTaskChips` is the
+  // unfiltered visible range — the grid + month draw `gridTaskChips`, its
+  // post-lens narrowing (#468). `todayTaskChips` backs the "今日の流れ" flow,
+  // which always shows today regardless of the grid's visible range AND stays
+  // outside the lens: the sidebar is where a hidden row is still reachable.
+  // Task chips are merged only at this derived (map) layer — never into
+  // `rangeItems` (the optimistic ScheduleItem mutation store).
   const scheduledTasks = useMemo(
     () => taskNodes.filter((n) => n.scheduledAt != null),
     [taskNodes],
@@ -804,9 +867,78 @@ export function CalendarTab({
   // writes and a hidden item stays editable from the flow tab. `hiddenRepeats`
   // rides along from the same call, so the toolbar's count cannot disagree
   // with what the grid actually dropped.
-  const { visible: gridRangeItems, hiddenCount: hiddenRepeats } = useMemo(
+  const { visible: repeatFilteredItems, hiddenCount: hiddenRepeats } = useMemo(
     () => applyRepeatFilter(rangeItems, repeatsHidden),
     [rangeItems, repeatsHidden],
+  );
+
+  // #468: the calendar lens, applied AFTER the repeat filter. Serial order
+  // matters for the counts, not the contents — running it second means a row
+  // the repeat filter already took away is not counted a second time here, so
+  // "N hidden" on the chip row never overshoots the rows actually missing.
+  //
+  // Only calendars whose tag still exists can be chosen — see
+  // pickSelectableCalendars for why a dangling one is never offered. The ledger
+  // modal shows those as invalid with delete as the only action (CalendarView).
+  const activeTagIds = useMemo(
+    () => new Set(allTags.map((tag) => tag.id)),
+    [allTags],
+  );
+  const selectableCalendars = useMemo(
+    () => pickSelectableCalendars(calendars, activeTagIds),
+    [calendars, activeTagIds],
+  );
+  // Resolving the selection through the SELECTABLE list is what makes a tag
+  // deleted mid-session degrade to "no filter" instead of an empty grid with
+  // no lit chip to turn off.
+  const activeCalendar = useMemo(
+    () => selectableCalendars.find((c) => c.id === calendarFilterId) ?? null,
+    [selectableCalendars, calendarFilterId],
+  );
+  // THE single application point of the lens, and the only place `isWide` gates
+  // it. The chip row that turns the lens off renders in the Desktop branch
+  // only, so a window narrowed below 768px while a calendar is picked would
+  // otherwise leave the grid filtered with nothing on screen able to clear it.
+  // Gating the membership set (rather than each consumer) means every layer
+  // below — grid rows, task chips, chip counts — un-narrows together.
+  const calendarMemberIds = useMemo(
+    () =>
+      isWide && activeCalendar
+        ? buildCalendarMemberIds(allAssignments, activeCalendar.tagId)
+        : null,
+    [isWide, activeCalendar, allAssignments],
+  );
+  // Both grid layers go through the lens together. Narrowing only the schedule
+  // rows would hide the other calendars' events while every task chip stayed
+  // put — tasks carry the same life-tags (KanbanView) and a chip's id IS the
+  // task's items_meta.id, so the same membership set applies unchanged.
+  // `hiddenByCalendar` is the total across both, so the "N hidden" line counts
+  // the task chips it actually took away.
+  const {
+    events: gridRangeItems,
+    taskChips: gridTaskChips,
+    hiddenCount: hiddenByCalendar,
+  } = useMemo(
+    () =>
+      applyCalendarLens(repeatFilteredItems, rangeTaskChips, calendarMemberIds),
+    [repeatFilteredItems, rangeTaskChips, calendarMemberIds],
+  );
+
+  // Chip row data. The count comes out of the SAME call the grid uses, over the
+  // same post-repeat lists, so the number on a chip is exactly what clicking it
+  // leaves on screen — including the task chips.
+  const calendarChips = useMemo<StatusFilterChip[]>(
+    () =>
+      selectableCalendars.map((c) => ({
+        id: c.id,
+        label: c.title,
+        count: applyCalendarLens(
+          repeatFilteredItems,
+          rangeTaskChips,
+          buildCalendarMemberIds(allAssignments, c.tagId),
+        ).visibleCount,
+      })),
+    [selectableCalendars, repeatFilteredItems, rangeTaskChips, allAssignments],
   );
 
   const gridItems = useMemo<WeekTimeGridItem[]>(
@@ -822,7 +954,7 @@ export function CalendarTab({
         status: deriveScheduleStatus(i, now),
         variant: itemVariant(i),
       })),
-      ...rangeTaskChips.map((c) => ({
+      ...gridTaskChips.map((c) => ({
         id: taskChipId(c.id),
         date: c.date,
         title: c.title,
@@ -833,7 +965,7 @@ export function CalendarTab({
         variant: "task" as const,
       })),
     ],
-    [gridRangeItems, now, rangeTaskChips],
+    [gridRangeItems, now, gridTaskChips],
   );
   const monthItems = useMemo<MonthGridItem[]>(
     () => [
@@ -845,7 +977,7 @@ export function CalendarTab({
         completed: i.completed,
         isAllDay: i.isAllDay,
       })),
-      ...rangeTaskChips.map((c) => ({
+      ...gridTaskChips.map((c) => ({
         id: taskChipId(c.id),
         date: c.date,
         title: c.title,
@@ -854,7 +986,7 @@ export function CalendarTab({
         isAllDay: c.isAllDay,
       })),
     ],
-    [gridRangeItems, rangeTaskChips],
+    [gridRangeItems, gridTaskChips],
   );
 
   // Merge schedule items + task chips into a single sorted agenda. Task rows
@@ -1093,6 +1225,31 @@ export function CalendarTab({
     }
   }, [repeatsHidden, selected]);
 
+  // #468: same guard for the calendar lens. Picking a calendar the selected
+  // row is not in takes it off the grid, and the popover + the editor both
+  // read the selection — leaving it would point them at a row that is no
+  // longer drawn. Clearing the lens (id === null) never hides anything, so it
+  // keeps the selection.
+  const handleSelectCalendar = useCallback(
+    (id: string | null) => {
+      setCalendarFilterId(id);
+      if (id == null || !selected) return;
+      const cal = selectableCalendars.find((c) => c.id === id);
+      if (!cal) return;
+      const members = buildCalendarMemberIds(allAssignments, cal.tagId);
+      // Same membership test as the grid, routine inheritance included — a
+      // selected occurrence stays selected when its SERIES carries the tag.
+      const stillVisible =
+        members.has(selected.id) ||
+        (selected.routineId != null && members.has(selected.routineId));
+      if (!stillVisible) {
+        setSelectedId(null);
+        setPopover(null);
+      }
+    },
+    [selected, selectableCalendars, allAssignments],
+  );
+
   const statusLabels = useMemo<Record<ScheduleStatus, string>>(
     () => ({
       notStarted: t("scheduleScreen.statusNotStarted"),
@@ -1189,6 +1346,21 @@ export function CalendarTab({
       onChangeRepeat={handleChangeRepeat}
       onDetachRepeat={handleDetachRepeat}
       repeatPending={repeatConverting}
+      tagSlot={
+        // #468: tagging is what files a row into a calendar, so without this
+        // the lens above would have nothing to find. A routine occurrence is
+        // tagged through its SERIES (the routine id): the occurrence rows are
+        // regenerated, so a tag on one of them would go missing the moment the
+        // generator re-materialises the range — and the user thinks of the
+        // series as the thing anyway (#185 presents Routine as "an Event with
+        // a repeat"). The role follows the id we actually write against, so it
+        // matches `items_meta.role` of that row rather than what the UI calls
+        // it.
+        <TagPicker
+          itemId={selected?.routineId ?? editorItem.id}
+          itemRole={selected?.routineId != null ? "routine" : "event"}
+        />
+      }
     />
   ) : null;
 
@@ -1621,6 +1793,45 @@ export function CalendarTab({
               }),
             }}
           />
+          {/* #468 calendar lens. One row of single-select chips directly under
+              the toolbar — Desktop only, and rendered at all only when there
+              is a calendar to offer, so the empty case costs no vertical
+              space. While the tags are still loading (or their fetch failed)
+              `activeTagIds` is empty, so nothing is offered and the row simply
+              is not there — the safe direction: it appears once the data
+              lands, and it never offers a chip that would empty the grid.
+              The "N 件を非表示" line uses the lens's OWN count
+              (hiddenByCalendar, both grid layers), not a running total: rows
+              the repeat filter already folded away are reported by the toolbar
+              button instead, and adding the two would claim more missing rows
+              than there are. */}
+          {calendarChips.length > 0 && (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <StatusFilterChips
+                chips={calendarChips}
+                value={activeCalendar?.id ?? null}
+                onChange={handleSelectCalendar}
+                label={t("scheduleScreen.calendarFilterLabel")}
+                size="sm"
+              />
+              {activeCalendar && (
+                <>
+                  <span className="text-xs text-lumen-text-secondary">
+                    {t("scheduleScreen.calendarFilterHidden", {
+                      count: hiddenByCalendar,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCalendar(null)}
+                    className="rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+                  >
+                    {t("scheduleScreen.calendarFilterShow")}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {rangeErrorBanner}
           {showLoading ? (
             loadingCard
