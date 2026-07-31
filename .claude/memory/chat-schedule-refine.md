@@ -2,6 +2,17 @@
 
 ## 進行中
 
+### 🔧 #505 `react-hooks/refs` のベースライン免除を解消（shared-fix `[schedule-refine]`・着手日: 2026-07-31）
+
+**対象**: `shared/eslint.config.js` / `shared/src/context/` 5 本 / `shared/src/components/ShortcutEditModal.tsx` / `shared/src/hooks/useScheduleItemsAPI.ts` / `shared/src/hooks/useFrozenNoteSortKey.ts`
+
+- 前回: #504（PR #514）まで完了
+- 現在: **10 ファイル中 9 ファイル解消**。残り 1 = `useGraphInteraction.ts`（別 PR に切る）
+- 次: #468 merge → #467 Step 5-c
+- **違反は 3 つの形しかなかった**: (1) callback / 値を render 中に ref へ写す（7 箇所 — dep 無し `useEffect` へ移すだけ。読み手は全部 commit 後に走るので値は変わらない）/ (2) lazy ref 初期化（`useState(() => new X())` へ。React から「1 回だけ」と見える形）/ (3) **render 中スナップショットが意図的**（`useFrozenNoteSortKey` — effect にすると保持されない 1 レンダーが通って #366 が再発する）→ **state を render 中に調整する React 公式の逃げ道**へ移して意味を保った
+- **残り 1 件は形が違う**: `useGraphInteraction.ts` は `simRef.current` を**依存配列の中で読んでいる**。render 時の ref は前回 commit の値なので、そもそも「シミュレーションが差し替わったら貼り直す」という意図を果たせていない。正しい直し方はリスナー側が event 時に `simRef.current` を読む形（依存自体が不要になる）だが、Connect グラフのキャンバスでテストが無いため lint 掃除に混ぜない
+- **免除はパス完全一致**なので、分割・改名で失効して CI だけが落ちる（#488 の形）
+
 ### 🔧 Epic #290 の残 4 件（#466 → #469 → #468 → #467）（着手日: 2026-07-30）
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/utils/` / `shared/src/i18n/locales/`

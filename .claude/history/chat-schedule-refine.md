@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-07-31 - #505 `react-hooks/refs` のベースライン免除を 10 → 1 に減らす
+
+#### 概要
+
+`shared/eslint.config.js` が 10 ファイルだけ `react-hooks/refs` を off にしていたのを 9 ファイル分解消した。免除は**パス完全一致**なので、対象を分割・改名した瞬間に失効して CI だけが落ちる（PR #488 で実際に踏んだ形）。
+
+#### 変更点
+
+- **違反は 3 つの形しかなかった**。免除リストの長さに対して中身は単純だった
+  - **(1) 値 / callback を render 中に ref へ写す**（7 箇所: 4 つの `*UnifiedContext` / `TaskTreeContext` の `undoRedoRef`、`TimerContext` の `onSessionCompleteRef`、`ShortcutEditModal` の `capturingRef`、`UndoRedoContext` の `appliedRef`、`useScheduleItemsAPI` の `dateRef`）→ **dep 無し `useEffect`** へ移した。**読み手はすべて commit 後**（unmount cleanup / tick effect / Esc ハンドラ / 解決済み promise / undo-redo クロージャ）なので、見える値は変わらない。`useScheduleItemsAPI` は**同じファイルの `itemsRef` が既に effect 版**で不統一だったのが揃った
+  - **(2) lazy ref 初期化**（`UndoRedoContext` の `managerRef`）→ `useState(() => new UndoRedoManager())`。「1 回だけ生成して以後不変」を React から見える形で書いたもので、ref 版と違い render 中の読み書きが無い
+  - **(3) render 中スナップショットが意図的**（`useFrozenNoteSortKey`）→ **state を render 中に調整する React 公式の逃げ道**へ。effect に移すと「保持されていない 1 レンダー」が通り、それが**まさにノートが飛ぶフレーム**（#366）。set はガード付き（選択が変わったか、探していたノートが届いたときだけ）で、**ガードを外すと「まだ見つからない」を毎レンダー書き直して収束しない**。専用テスト 4 件はそのまま通過
+- **残り 1 件は形が違うので別 PR にした**: `useGraphInteraction.ts` は `simRef.current` を**依存配列の中で読んでいる**。render 時点の ref は前回 commit の値なので、「シミュレーションが差し替わったらリスナーを貼り直す」という意図をそもそも果たしていない（差し替えの**次の**レンダーでしか効かず、そのレンダーが来る保証も無い）。正しい直し方はリスナーが event 時に `simRef.current` を読む形で、そうすると依存自体が不要になる — ただし Connect グラフのキャンバスにテストが無く、lint 掃除に混ぜる変更ではない。config のコメントに理由を残した
+- **ゲート**: 7 本すべて exit 0 — shared lint（**0 errors**）/ build / test（**166 files / 1363 pass**）・web lint / build / test（**8 files / 75 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+
 ### 2026-07-30 - #469 の role-qa 監査対応（merge 後の hardening follow-up）
 
 #### 概要
