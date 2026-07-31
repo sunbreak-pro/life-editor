@@ -2,16 +2,19 @@
 
 ## 進行中
 
-### 🔧 #503 コマンドパレットのアイテム横断検索（shared-fix `[all]`・着手日: 2026-07-31）
+### ⏸️ chat-main レビュー 3 本（#506 / #514 / #515）の対応（着手日: 2026-08-01）
 
-**対象**: `shared/src/components/CommandPalette.tsx` / `shared/src/utils/itemSearch.ts` / `shared/src/hooks/useLazyStalePool.ts` / `web/src/hooks/` / `web/src/schedule/`
+**対象**: `web/src/schedule/CalendarTab.tsx` / `web/src/schedule/useScheduleMutations.ts` / `shared/src/utils/seriesEditSequence.ts` / `shared/src/i18n/locales/`
 
-- 前回: —（#468 の PR #506 が merge 待ち・#467 は同じ `CalendarTab` の同じ領域を触るので着手できない空き時間に拾った）
-- 現在: 実装完了・**7 ゲート全緑**（shared 167 files 1378 pass / web 9 files 81 pass）。PR 作成へ
-- 次: #468 merge → #467 Step 5-c
-- **`[all]` 宛ては着手宣言コメントが必須**（memory `all-label-issue-collision` = #473 で 40 分の二重実装）。#503 にコメント済み
-- **この PR も `CalendarTab` を触る**（予定を開く導線 = props 2 本 + effect 1 個）。#468 / #467 と merge 順で片方はコンフリクト解消が要る
-- **`react-hooks/set-state-in-effect` は web で error**（`web/eslint.config.js` は recommended をそのまま使い、免除リストを持たない）。props で届く intent は effect でしか受けられないので、**先例 `web/src/tasks/useTaskDetailTarget.ts:112` と同じく理由付きで 1 行 disable する**のが既存の流儀。`notes.setSelectedNoteId` のような**メンバー呼び出しは検知されない**ので、同じ処理でも書き方で通ったり落ちたりする
+- 前回: #508（PR #516）まで完了。open PR は #506 / #513 / #514 / #515 / #516 の 5 本（+ chat-main の #510）
+- 現在: **3 本とも対応済み・push 済み**（#506 → `4e21f83b` / #514 → `01f31113` / #515 は Issue #505 へのコメントのみ）。7 ゲート全緑
+- 次: **#506 merge 待ち**。merge されたら #467 Step 5-c（section:schedule の非 Epic はこれで最後）
+- **#506 の Important は「片側だけ直した」典型**: `setCalendarFilterId(null)` が 4 経路中 `handleCreateSubmit` にしか無く、タスク作成 / 既存タスク配置 / 作成して開く の 3 経路が素通りしていた。**タスクチップも同じ `applyCalendarLens` を通る**ので症状は完全に同じ。4 経路が通る `finishCreatePanel()` に合流させて、次に増える経路が同じ抜け方をできない形にした。**cancel 側（`onClose`）は合流させない** — グリッドに何も増えていないのにユーザーのレンズを外すのは別の壊れ方
+- **#514 は「無言の場所が 1 段ずれただけ」だった**: 順序を直した結果、今度は `propagate`（occurrences への反映）が唯一 verdict の無いステップとして残り、call site の素の `catch` が飲んでいた。#504 の題目そのものなので別 Issue に切らずこの PR で拾った。`propagate` を `Promise<boolean>` に揃え `"propagate-failed"` を追加。**`updateFutureOccurrences` は throw で失敗を返す**ので、その場で `false` に変換して外側 `catch` に落とさない（外側は「テンプレが通ったか」を区別できない）。文言は `series` と分けた = `series` は「予定は変更されていません」と言い切る文で、テンプレ保存済みの状態で出すと嘘になる
+- **`handleScopeChoose` の依存配列に `onRepeatConvertFailed` が抜けていた**（#504 のコミットでこのコールバックから使い始めたのに未宣言）。web lint の warning 1 件がこれで、同じコミットで解消 → **web lint は warning 0**
+- **rollback ではなく順序で解いた**: 旧実装は occurrence を書いてから template を await せずに撃つ順序で、template が落ちると**画面は完全に正しいのに template だけ古い**という、リロードでも検知できない食い違いが残った。**template を先に書いて落ちたら中断**すれば、失敗時点で occurrence に触れていないので「何も保存されていません」が嘘にならない
+- **`fillUpToAnchor` は引き続き最初**（アンカーより前の日 = ユーザーが選ばなかった日は pre-edit の値を保つ必要がある）
+- **文言分岐はネスト三項からテーブルへ**。reason は増える一方で、チェーンだと新しい reason が黙って最後の `else` に落ちる（「何も保存されていない」が「変更できました」に化ける）
 
 ### 🔧 Epic #290 の残 4 件（#466 → #469 → #468 → #467）（着手日: 2026-07-30）
 

@@ -1,21 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
-### 2026-07-31 - #503 コマンドパレットにアイテム横断検索を追加（shared-fix `[all]`）
+- 2026-08-01: [途中] chat-main レビュー 3 本の対応 — #506 は 4 経路中 1 経路にしか無かったレンズ解除を `finishCreatePanel()` に合流（`4e21f83b`）／ #514 は `propagate` 失敗が無言だった件をこの PR で拾い `propagate-failed` + `series-partial` を追加（`01f31113`）／ #515 は Issue #505 に残り 1 ファイル（`useGraphInteraction`）を記録。7 ゲート全緑・push 済み。**#467 は #506 の merge 待ちで着手不可のまま**
+
+### 2026-07-31 - #504 routine template の更新失敗が無言（scope 編集の await 漏れ / 未ロード時の void）
 
 #### 概要
 
-ヘッダーが「検索・コマンド実行」と名乗っているのに、パレットは移動コマンドしか引けなかった（既存ノート「テスト２」があるのに「テスト」で 0 件）。ノート / タスク / 予定 / デイリーのタイトル検索を足し、選択でそのアイテムが開くところまで配線した。#468 の PR が merge 待ちで #467 に着手できない空き時間に拾った。
+繰り返しの雛形（template）の更新が落ちても何も言わない 2 箇所を塞いだ。#434 / #469 で潰した「失敗が黙って消える」の残り。**rollback ではなく書き込み順序で解いた**。
 
 #### 変更点
 
-- **土台は `[[` 補完の候補プールにあった**: `useItemLinkTargets` の遅延 + stale + in-flight のキャッシュ（#430）がそのまま要る契約だったので、`shared/src/hooks/useLazyStalePool.ts` に切り出して両方から使う。切り出した規則は 5 つとも過去のバグの修正そのもの（遅延 / `allowStale` で指の下を動かさない / 同時 1 フェッチ / **settled 形をキャッシュ**（生 promise だと相乗りした呼び手が reject を継承する）/ **飛行中に来たバンプは success で消さない**（消すと次のバンプまで書き込みが見えない））
-- **マッチングは `shared/src/utils/itemSearch.ts` の純関数**（`searchItemPool`）。前方一致 → 部分一致の 2 段だけで、あいまい検索は**入れない**: 1 ロール 5 行の枠を「なぜ出たか分からない行」に使うと、出るべき行が黙って消える。**空クエリは 0 件**（パレットは空欄で開くので、そこにプール全部を出すと移動コマンドが一番使う瞬間に埋まる）。**上限はロール単位**（全体上限だとノート 200 件がタスク 1 件を押し出す）
-- **パレットは受け取った行を再フィルタしない**（`externalResults`）。プールは非同期で取ってホストが照合済みなので、パレット側の部分一致が**ホストと食い違う**しかない。ただし**クエリが空なら表示しない** — 再オープン直後の 1 レンダーで前セッションのヒットがちらつくのを、effect を増やさず render 側で塞げる
-- **予定だけ「日付」を intent に載せる**（`navigateToItem({ id, role, date })`）。カレンダーは可視範囲しか取らず**ナビゲーションが範囲外を生成しない**（この worktree の最重要実測）ので、id だけ渡すと「たまたま開いていた週」を選択して何も起きない。日付は検索行が既に持っているので、カレンダー側に引き直させない
-- **`react-hooks/set-state-in-effect` は web で error**。props で届く intent を受ける先は effect しか無く、先例（`useTaskDetailTarget.ts:112`）と同じく理由付き 1 行 disable。**`setAnchorDate` / `setMobileSelectedDay` は検知されない**（フック由来のメンバー的呼び出し）ので、必要なのは local な `setSelectedId` の 1 行だけだった
-- **`onQueryChange` はパレットの open-reset でも撃つ**。撃たないと前セッションのヒットが空欄の下に残る
-- **overlay に `role="dialog"` / `aria-modal="true"`**。名前は placeholder を流用（「検索、またはコマンドを入力...」= ダイアログそのものの説明なので 2 本目の文字列を作らない）。placeholder 自体も「コマンドを入力...」から検索を含む文言へ en / ja 両方更新した
-- **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1378 pass**）・web lint / build / test（**9 files / 81 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+- **食い違いを直すのではなく、作らせない**: 旧実装は occurrence を書いてから template を await せずに撃つ順序だった。この順序で template が落ちると、**画面は完全に正しい**（未来行はすべて新しい値）のに template だけ古い状態になる。ユーザーは数日後に「新しく生成された日が勝手に元へ戻る」形でしか気付けず、**リロードでも検知できない**（行は本当に正しい）。**template を先に書いて落ちたら中断**に変えると、失敗時点で occurrence に一切触れていないので「何も保存されていません」というトーストが嘘にならず、巻き戻す対象も発生しない
+- **順序と中断規則を `shared/src/utils/seriesEditSequence.ts`（`runSeriesEdit`）に切り出した**。prepare → template → propagate の 3 段で各ステップは注入。**修正の本体は順序そのもの**なので、call site のコメントに留めず vitest で固定した（5 件 — 順序 / template 失敗で propagate を呼ばない / prepare 失敗で template すら呼ばない / prepare 省略時 / throw は握り潰さない）
+- **`fillUpToAnchor` は引き続き最初**。ここで実体化される「アンカーより前の日」は**ユーザーが選ばなかった日**で、pre-edit の値を保つ必要がある。部分失敗で中断するのも従来どおり（実体化済みでない日は書き換えで消える）
+- **routine 未ロード時の頻度変更の `void updateRoutine(...)`** を await + `landed` 判定に。文言は既存の `"update"` を流用（この経路もユーザーから見れば「間隔の変更が落ちた」）
+- **`onRepeatConvertFailed` の文言分岐をネスト三項からテーブル（`REPEAT_FAILURE_COPY_KEY`）へ**。reason は増える一方で、チェーンだと**新しい reason が黙って最後の `else` に落ちる** — 「何も保存されていない」が「変更できました」に化ける事故がまさにその形。新 reason `"series"` + `scheduleScreen.repeatSeriesUpdateFailed`（en / ja）
+- **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1368 pass**）・web lint / build / test（**8 files / 75 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
 
 ### 2026-07-31 - #468 Step 6 カレンダー台帳をグリッドのタグフィルタとして配線
 
