@@ -526,6 +526,27 @@ export function CalendarTab({
     cancelPopover,
   ]);
 
+  // #468: every panel path that actually PUTS something on the grid closes
+  // through here, and clearing the lens is the point. A brand-new row carries
+  // no tag, so while a calendar lens is on it is filtered out the instant it
+  // exists — no block on the grid, no toast, and any selection made below
+  // points at something nobody can see. The add button reads as broken.
+  // Showing the thing that was just created is what the click asked for;
+  // auto-filing it into the active calendar would be a write the user never
+  // asked for.
+  //
+  // Placing an EXISTING task gets the same treatment: it only survives the lens
+  // if it already carries that calendar's tag, so otherwise it disappears from
+  // the very slot it was just dropped into.
+  //
+  // Cancelling the panel deliberately does NOT come through here (those call
+  // sites keep the bare setCreatePanel(null)): nothing new is on the grid to
+  // reveal, so the lens the user set stays where they put it.
+  const finishCreatePanel = useCallback(() => {
+    setCreatePanel(null);
+    setCalendarFilterId(null);
+  }, []);
+
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
   //
@@ -549,14 +570,7 @@ export function CalendarTab({
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
-      setCreatePanel(null);
-      // #468: a new row carries no tag, so while a calendar lens is on it is
-      // filtered out the instant it exists — no block on the grid, no toast,
-      // and the selection below points at something nobody can see. The add
-      // button reads as broken. Clearing the lens shows the thing that was
-      // just created, which is what the click asked for; auto-filing it into
-      // the active calendar would be a write the user never asked for.
-      setCalendarFilterId(null);
+      finishCreatePanel();
       // Desktop: select without opening anything — a quiet "here it is" that
       // does not interrupt blocking out the next slot. It shows as a ring on
       // the week/day grid (WeekTimeGrid) and a highlight in the sidebar
@@ -567,7 +581,14 @@ export function CalendarTab({
       // the plain create into the other button.
       if (isWide) setSelectedId(id);
     },
-    [createPanel, handleCreate, attachNote, handleAttachError, isWide],
+    [
+      createPanel,
+      handleCreate,
+      attachNote,
+      handleAttachError,
+      isWide,
+      finishCreatePanel,
+    ],
   );
 
   // #354 secondary action: create, then land in the detail editor.
@@ -583,13 +604,23 @@ export function CalendarTab({
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
-      setCreatePanel(null);
+      // Clears the lens too: the overlay hides the grid at first, but closing
+      // it would otherwise drop the user back on a grid that does not draw the
+      // row their selection still points at.
+      finishCreatePanel();
       setSelectedId(id);
       // Desktop opens the body-level overlay; on Mobile the selection alone
       // brings up the BottomSheet editor (the same path a tap takes).
       if (isWide) setOverlayOpen(true);
     },
-    [createPanel, handleCreate, attachNote, handleAttachError, isWide],
+    [
+      createPanel,
+      handleCreate,
+      attachNote,
+      handleAttachError,
+      isWide,
+      finishCreatePanel,
+    ],
   );
 
   // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
@@ -631,9 +662,9 @@ export function CalendarTab({
           else if (note) handleAttachError();
         },
       });
-      setCreatePanel(null);
+      finishCreatePanel();
     },
-    [scheduleTaskAt, addNode, attachNote, handleAttachError],
+    [scheduleTaskAt, addNode, attachNote, handleAttachError, finishCreatePanel],
   );
 
   const handlePlaceTaskSubmit = useCallback(
@@ -650,9 +681,9 @@ export function CalendarTab({
       // out of a pool that came from the DB, so its `items_meta` row is
       // already there and the link's FK is satisfied right now.
       attachNote(taskId, note);
-      setCreatePanel(null);
+      finishCreatePanel();
     },
-    [scheduleTaskAt, updateNode, attachNote],
+    [scheduleTaskAt, updateNode, attachNote, finishCreatePanel],
   );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
