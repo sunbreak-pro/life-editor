@@ -12,6 +12,7 @@ import { createElement } from "react";
 import { TaskDetailPanel } from "../src/components";
 import { useTaskTreeAPI } from "../src/hooks/useTaskTreeAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
+import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
 import type { TaskNode } from "../src/types/taskTree";
 
@@ -50,7 +51,13 @@ function makeDataService(initial: TaskNode[]): DataService {
 function syncWrapper({ children }: { children: ReactNode }) {
   return createElement(
     SyncContext.Provider,
-    { value: { syncVersion: 0, triggerSync: async () => {} } },
+    {
+      value: {
+        syncVersion: 0,
+        domainVersions: uniformDomainVersions(0),
+        triggerSync: async () => {},
+      },
+    },
     children,
   );
 }

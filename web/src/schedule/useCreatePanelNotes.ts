@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   generateId,
-  useSyncContext,
+  useSyncDomains,
   useWikiTagsUnifiedContext,
   type DataService,
   type ItemCreateNoteDraft,
@@ -66,7 +66,7 @@ export function useCreatePanelNotes({
   active,
   onAttachError,
 }: UseCreatePanelNotesOptions) {
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("notes");
   const { createItemLink } = useWikiTagsUnifiedContext();
   // Kept across closes so re-opening the panel shows the last list at once;
   // the effect below refreshes it behind that.

@@ -108,18 +108,39 @@ const ROW: TimerSettingsRow = {
   updated_at: "2026-06-10T11:00:00.000Z",
 };
 
-describe("SupabaseTimerService.fetchTimerSettings (QA #1 singleton-race fix)", () => {
-  it("upserts id=1 with ignoreDuplicates, then SELECTs the row", async () => {
+describe("SupabaseTimerService.fetchTimerSettings", () => {
+  /*
+   * #499 flipped the order: read first, write only when the row is missing.
+   * The unconditional upsert made a READ write on every call, so every
+   * Realtime echo — including the one from editing a note — POSTed to
+   * timer_settings. The row exists after the first call for the rest of the
+   * account's life, so the steady state must be select-only.
+   */
+  it("returns the existing row without writing anything", async () => {
     const { client, calls, stage } = makeStub();
-    // upsert resolves with no error; the subsequent select(...).eq.single
-    // returns the row.
+    stage("timer_settings", "maybeSingle", { data: ROW, error: null });
+
+    const svc = new SupabaseTimerService(client);
+    const result = await svc.fetchTimerSettings();
+
+    expect(calls.some((c) => c.op === "upsert")).toBe(false);
+    expect(result.workDuration).toBe(25);
+    expect(result.sessionsBeforeLongBreak).toBe(4);
+  });
+
+  it("materialises the singleton on the miss path only", async () => {
+    const { client, calls, stage } = makeStub();
+    // First access for this account: nothing there yet.
+    stage("timer_settings", "maybeSingle", { data: null, error: null });
     stage("timer_settings", "upsert", { data: null, error: null });
     stage("timer_settings", "single", { data: ROW, error: null });
 
     const svc = new SupabaseTimerService(client);
     const result = await svc.fetchTimerSettings();
 
-    // upsert was called with { id: 1 } and the dedupe options.
+    // QA-W3A申し送り #1 (the singleton race) still has to hold on this path:
+    // two concurrent first-accesses must not trip the (user_id, id) PK, so the
+    // write stays an ignoreDuplicates upsert rather than an INSERT.
     const upsert = calls.find((c) => c.op === "upsert");
     expect(upsert).toBeDefined();
     expect(upsert!.args[0]).toEqual({ id: 1 });
@@ -127,18 +148,24 @@ describe("SupabaseTimerService.fetchTimerSettings (QA #1 singleton-race fix)", (
       onConflict: "user_id,id",
       ignoreDuplicates: true,
     });
-
-    // No maybeSingle anywhere (old racy path is gone).
-    expect(calls.some((c) => c.op === "maybeSingle")).toBe(false);
-    // A single SELECT terminal read happened.
-    expect(calls.some((c) => c.op === "single")).toBe(true);
-
     expect(result.workDuration).toBe(25);
-    expect(result.sessionsBeforeLongBreak).toBe(4);
+  });
+
+  it("throws a descriptive error when the initial read fails", async () => {
+    const { client, stage } = makeStub();
+    stage("timer_settings", "maybeSingle", {
+      data: null,
+      error: { message: "denied" },
+    });
+    const svc = new SupabaseTimerService(client);
+    await expect(svc.fetchTimerSettings()).rejects.toThrow(
+      /fetchTimerSettings failed: denied/,
+    );
   });
 
   it("throws a descriptive error when the upsert fails", async () => {
     const { client, stage } = makeStub();
+    stage("timer_settings", "maybeSingle", { data: null, error: null });
     stage("timer_settings", "upsert", {
       data: null,
       error: { message: "boom" },
@@ -151,6 +178,7 @@ describe("SupabaseTimerService.fetchTimerSettings (QA #1 singleton-race fix)", (
 
   it("throws when the post-upsert SELECT fails", async () => {
     const { client, stage } = makeStub();
+    stage("timer_settings", "maybeSingle", { data: null, error: null });
     stage("timer_settings", "upsert", { data: null, error: null });
     stage("timer_settings", "single", {
       data: null,

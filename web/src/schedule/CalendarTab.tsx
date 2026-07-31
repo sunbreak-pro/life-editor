@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
-  useSyncContext,
+  useSyncDomains,
   useTaskTreeContext,
   useTranslation,
   useMediaQuery,
@@ -132,7 +132,7 @@ export function CalendarTab({
   // Realtime change cursor: rows written outside the visible-range store
   // (the always-on generator, undo, another device) refetch the range when
   // this bumps (#296 — pre-fix they stayed invisible until navigation).
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("schedule", "calendars");
   // Range materialiser (#279): after an Event→Repeats conversion, the new
   // routine's occurrences are generated for the visible range right away —
   // the always-on RoutineScheduleSync only covers today.

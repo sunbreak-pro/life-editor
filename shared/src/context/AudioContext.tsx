@@ -8,7 +8,7 @@ import {
 } from "react";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
-import { useSyncContext } from "../hooks/useSyncContext";
+import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
   SOUND_PRESETS,
   COMPLETION_SOUND_OBJECT,
@@ -63,7 +63,7 @@ function buildDefaultSettings(): Record<string, AudioPresetState> {
 }
 
 export function AudioProvider({ children, dataService: ds }: AudioProviderProps) {
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("audio");
 
   const [settings, setSettings] = useState<Record<string, AudioPresetState>>(
     buildDefaultSettings,

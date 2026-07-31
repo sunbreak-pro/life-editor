@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { createElement } from "react";
 import { useNotesUnifiedAPI } from "../src/hooks/useNotesUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
+import { uniformDomainVersions } from "../src/context/syncDomains";
 import { resetMaterialsSelection } from "../src/state/materialsSelectionStore";
 import type { DataService } from "../src/services/DataService";
 
@@ -20,7 +21,13 @@ const LS_SORT_MODE = "life-editor:note-sort-mode";
 function syncWrapper({ children }: { children: ReactNode }) {
   return createElement(
     SyncContext.Provider,
-    { value: { syncVersion: 0, triggerSync: async () => {} } },
+    {
+      value: {
+        syncVersion: 0,
+        domainVersions: uniformDomainVersions(0),
+        triggerSync: async () => {},
+      },
+    },
     children,
   );
 }

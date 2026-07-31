@@ -6,7 +6,7 @@ import {
   localDateTimeToISO,
   pickAddableTasks,
   tasksToCalendarChips,
-  useSyncContext,
+  useSyncDomains,
   useTranslation,
   type BriefingCarryoverEntry,
   type BriefingData,
@@ -70,7 +70,14 @@ function nextDateKey(key: string): string {
 
 export function useBriefingData(ds: DataService, todayKey: string) {
   const { t, i18n } = useTranslation();
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains(
+    "schedule",
+    "tasks",
+    "timer",
+    "dailies",
+    "notes",
+    "tags",
+  );
 
   const [loading, setLoading] = useState(true);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);

@@ -4,7 +4,7 @@ import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 
 /**
  * Port of the Tauri routine hooks consolidated into one shared API hook
@@ -31,7 +31,7 @@ export interface UseRoutinesAPIOptions {
 export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   const ds = options.dataService;
   const { push } = options.undoRedo ?? createNoopUndoRedo();
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("schedule");
 
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
