@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useSyncContext, type DataService } from "@life-editor/shared";
+import { useSyncDomains, type DataService } from "@life-editor/shared";
 import type { ItemLinkTarget } from "./itemLinkSuggestion";
 
 /*
@@ -45,7 +45,7 @@ export type LoadItemLinkTargets = (
 export function useItemLinkTargets(
   dataService: DataService | undefined,
 ): LoadItemLinkTargets {
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("notes", "dailies", "tasks");
   const cacheRef = useRef<ItemLinkTarget[] | null>(null);
   const staleRef = useRef(true);
   // De-dupes concurrent opens (and a refresh racing an open) into one fetch.

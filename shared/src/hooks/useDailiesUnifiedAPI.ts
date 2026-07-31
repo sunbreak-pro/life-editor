@@ -4,7 +4,7 @@ import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 import {
   getDailySelection,
   setDailySelection,
@@ -40,7 +40,7 @@ export interface UseDailiesUnifiedAPIOptions {
 export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   const ds = options.dataService;
   const { push } = options.undoRedo ?? createNoopUndoRedo();
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("dailies");
 
   const [dailies, setDailies] = useState<DailyNode[]>([]);
   const [deletedDailies, setDeletedDailies] = useState<DailyNode[]>([]);

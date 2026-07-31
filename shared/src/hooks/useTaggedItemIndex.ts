@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DataService } from "../services/DataService";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 
 /*
  * useTaggedItemIndex (#409).
@@ -46,7 +46,7 @@ export function useTaggedItemIndex(
   /** Skip fetching entirely while false (the panel is closed). */
   enabled = true,
 ): UseTaggedItemIndexResult {
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("tasks", "notes", "dailies", "schedule");
   const [index, setIndex] =
     useState<ReadonlyMap<string, TaggedItemInfo>>(EMPTY_INDEX);
   const [loading, setLoading] = useState(true);

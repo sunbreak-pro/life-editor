@@ -58,6 +58,14 @@ export {
 } from "./context";
 export { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 export { useSyncContext } from "./hooks/useSyncContext";
+// #499 — refetch keyed to the domains a consumer reads, so one domain's write
+// no longer re-pulls (or, for the timer, re-WRITES) every other domain.
+export { useSyncDomains } from "./hooks/useSyncDomains";
+export {
+  SYNC_DOMAINS,
+  domainsForChange,
+  type SyncDomain,
+} from "./context/syncDomains";
 
 // Toast domain (follow-up #6) — host-mounted Provider + imperative hook over
 // the shared <Toast>/<ToastViewport> primitives. Hosts mount ToastProvider

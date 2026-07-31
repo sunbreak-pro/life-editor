@@ -5,7 +5,7 @@ import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { sortNotesForList } from "../utils/noteSort";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
-import { useSyncContext } from "./useSyncContext";
+import { useSyncDomains } from "./useSyncDomains";
 import { useNoteTreeMovement } from "./useNoteTreeMovement";
 import {
   getNotesSelection,
@@ -118,7 +118,7 @@ export interface UseNotesUnifiedAPIOptions {
 export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const ds = options.dataService;
   const { push } = options.undoRedo ?? createNoopUndoRedo();
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("notes");
 
   const [notes, setNotes] = useState<NoteNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);

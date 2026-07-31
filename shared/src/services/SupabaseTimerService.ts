@@ -41,13 +41,29 @@ export class SupabaseTimerService {
   // -------------------------------------------------------------------------
 
   async fetchTimerSettings(): Promise<TimerSettings> {
+    // Read first (#499). This used to upsert unconditionally and then select,
+    // which meant a READ wrote a row on every single call — and since every
+    // Realtime echo re-ran it, editing a note produced a POST to
+    // `timer_settings`. The row exists after the first call for the rest of
+    // the account's life, so the write belongs on the miss path only.
+    const existing = await this.client
+      .from("timer_settings")
+      .select(TIMER_SETTINGS_COLUMNS)
+      .eq("id", 1)
+      .maybeSingle();
+    if (existing.error)
+      throw new Error(`fetchTimerSettings failed: ${existing.error.message}`);
+    if (existing.data)
+      return rowToTimerSettings(existing.data as unknown as TimerSettingsRow);
+
     // QA-W3A申し送り #1: the old maybeSingle()→insert sequence had a race —
     // two concurrent first-accesses (e.g. TimerProvider mount + a Settings
     // open in another tab) could both miss the row and both INSERT, the
     // second tripping the (user_id, id) PK. Materialise idempotently with a
     // single upsert (ignoreDuplicates: a concurrent insert is a no-op, never
     // an error), then SELECT the now-guaranteed row. The upsert sends only
-    // `id` so existing column values are preserved on the duplicate path.
+    // `id` so existing column values are preserved on the duplicate path —
+    // which is what makes it safe to re-run after a lost race.
     const { error: upErr } = await this.client
       .from("timer_settings")
       .upsert({ id: 1 }, { onConflict: "user_id,id", ignoreDuplicates: true });

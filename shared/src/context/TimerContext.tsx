@@ -10,7 +10,7 @@ import {
 import type { DataService } from "../services/DataService";
 import type { PomodoroPreset } from "../types/timer";
 import { logServiceError } from "../utils/logError";
-import { useSyncContext } from "../hooks/useSyncContext";
+import { useSyncDomains } from "../hooks/useSyncDomains";
 import { TimerContext, type TimerContextValue } from "./TimerContextValue";
 import {
   timerReducer,
@@ -55,7 +55,7 @@ export function TimerProvider({
   dataService: ds,
   onSessionComplete,
 }: TimerProviderProps) {
-  const { syncVersion } = useSyncContext();
+  const syncVersion = useSyncDomains("timer");
   const [state, dispatch] = useReducer(timerReducer, undefined, () =>
     createInitialState(),
   );
