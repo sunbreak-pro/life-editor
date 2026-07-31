@@ -96,7 +96,11 @@ export function ShortcutEditModal({
   const snapshotRef = useRef<ShortcutConfig>({});
   const touchedRef = useRef<Set<ShortcutId>>(new Set());
   const capturingRef = useRef<ShortcutId | null>(null);
-  capturingRef.current = capturingId;
+  // Mirrored in an effect, not during render (#505). Its only reader is
+  // Modal's Esc / backdrop handler, which fires long after the commit.
+  useEffect(() => {
+    capturingRef.current = capturingId;
+  });
 
   // On open: snapshot config, clear session tracking, start the initial capture.
   useEffect(() => {
