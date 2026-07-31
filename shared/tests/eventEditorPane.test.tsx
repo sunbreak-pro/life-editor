@@ -261,3 +261,28 @@ describe("EventEditorPane — series hint (#469 小粒)", () => {
     expect(screen.queryByText(hint)).toBeNull();
   });
 });
+
+describe("EventEditorPane — tag slot (#468)", () => {
+  const slot = <p>TAG SLOT</p>;
+
+  it("renders the host's tag row on a manual event", () => {
+    renderPane(manualItem, { tagSlot: slot });
+    expect(screen.getByText("TAG SLOT")).toBeInTheDocument();
+  });
+
+  it("renders it on a routine occurrence too", () => {
+    // The routine branch draws a different origin block, and the slot sits
+    // right after it — a tag row that appeared only on one-off events would
+    // leave repeats unfileable, which is the case the lens most needs.
+    renderPane(routineItem, { tagSlot: slot });
+    expect(screen.getByText("TAG SLOT")).toBeInTheDocument();
+  });
+
+  it("renders nothing extra when the host supplies no slot", () => {
+    // The pane is pure presentation: the tag layer talks to a context, so a
+    // host without one (or a surface that should not offer tagging) simply
+    // omits the prop.
+    renderPane(manualItem);
+    expect(screen.queryByText("TAG SLOT")).toBeNull();
+  });
+});

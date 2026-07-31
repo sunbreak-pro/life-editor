@@ -17,6 +17,25 @@
 - **overlay に `role="dialog"` / `aria-modal="true"`**。名前は placeholder を流用（「検索、またはコマンドを入力...」= ダイアログそのものの説明なので 2 本目の文字列を作らない）。placeholder 自体も「コマンドを入力...」から検索を含む文言へ en / ja 両方更新した
 - **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1378 pass**）・web lint / build / test（**9 files / 81 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
 
+### 2026-07-31 - #468 Step 6 カレンダー台帳をグリッドのタグフィルタとして配線
+
+#### 概要
+
+`calendars` 台帳を Calendar グリッドの絞り込みレンズとして配線した。実装に入って最初に判明したのが「**予定にタグを付ける導線がアプリ内に存在しない**」ことで、フィルタだけ入れるとレンズを選んだ瞬間に予定が全部消えてタスクチップだけが残る。そのため編集パネルへのタグ導線を同じ PR に同梱した。
+
+#### 変更点
+
+- **カレンダー = life-tag 1 本への保存済みビュー**: 所属判定は「その `wiki_tag` を持っているか」。`buildCalendarMemberIds` が (assignments, tagId) から membership Set を 1 回作り、行の判定は Set 参照 1 回に落ちる
+- **繰り返しは系列でタグ付けする**: オカレンス行は materialise のたびに作り直されるので、行に付けたタグは消える。`applyCalendarLens` は「自分の id **または** `routineId`」でマッチさせ、`tagSlot` も `selected.routineId ?? item.id` を対象にする（role も書き込む id 側に合わせて `routine` / `event` を出し分け）
+- **予定へのタグ導線を同梱**（判断キュー D-20260731-sched-2 / 採用 A）: `EventEditorPane` に `tagSlot` prop を 1 本足して `CalendarTab` から既存 `TagPicker` を注入。Schedule のコンテキストメニューの「タグを追加」は stub のままだった
+- **タスクチップにもレンズを効かせる**（D-20260731-sched-3 / 採用 A）: タスクは Kanban で同じ life-tag を持てるのでチップだけ残す説明は成立しない。`applyCalendarLens` が events と taskChips を一緒に narrowing し、合算した `hiddenCount` を返すので「N 件を非表示」が画面と食い違わない
+- **2 つのフィルタは独立 AND・件数は各自の分だけ**: 繰り返し → カレンダーの直列適用。順序が効くのは件数だけで、チェーンして数えると繰り返しが既に畳んだ行を二重計上し、実際の欠落より大きい数字になる。**数字が過大なのは数字が無いより悪い**
+- **永続化しない**: 起動時に前回のレンズが残ると骨組みの大半が欠けたカレンダーが「その日の全体」として出て、空いて見えるスロットへ二重予約する（#466 と同じ理由）
+- **宙ぶらりんの台帳をレンズに出さない**: `calendars.tag_id` の `ON DELETE CASCADE` は tag が **soft-delete** では発火せず、台帳は永遠に 0 件マッチの状態で残る。ただし「まだ読み込み中」「取得失敗」も lookup ミスとしては同型で、`useCalendarsAPI` は小さい fetch 1 発・`useWikiTagsUnifiedAPI` は tags + 全ページの assignments + connections を待つので**台帳がほぼ必ず先着する**。`tagsLoading` で判定をゲートしないと、到着直前のデータに対して「削除済み」と宣告して物理削除だけを提示する画面になる
+- **レンズを解除する導線が消える窓を塞いだ**: チップ行は Desktop 分岐にしか描かれないので、`isWide` を **membership set の生成側**でゲートして全レイヤーが同時に解除されるようにした。新規作成時（新しい行はタグを持たないので生まれた瞬間に消える）と、選択行がレンズ外に出たときはレンズ / 選択を落とす
+- **`CalendarView`（台帳モーダル）の i18n 化**: 英語直書き + 途中に日本語が 1 段落混ざった状態だったのを `scheduleScreen.*` で en / ja 両 catalog に寄せた。フィルタの管理画面になった以上、dev スクラッチ画面のままにはできない
+- **ゲート**: CI の 7 本すべて exit 0 — shared lint / build / test（**166 files / 1385 pass**）・web lint / build / test（**9 files / 79 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+
 ### 2026-07-30 - #469 の role-qa 監査対応（merge 後の hardening follow-up）
 
 #### 概要

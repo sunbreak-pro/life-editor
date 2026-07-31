@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
@@ -126,6 +132,16 @@ export interface EventEditorPaneProps {
   onChangeRepeat?: (patch: Partial<FrequencyEditorValue>) => void;
   /** "なし" selected — host turns the repeat off (detach the series). */
   onDetachRepeat?: () => void;
+  /**
+   * Tag affordance for this row (#468). Injected rather than built here: the
+   * tag layer talks to WikiTagsUnifiedContext, and this pane is pure
+   * presentation (§3.1 / §6.4). Omit to render no tag row.
+   *
+   * It is what makes the calendar lens usable — a calendar is a saved view
+   * over one life tag, so without a way to put the tag ON an event there is
+   * nothing for the lens to find.
+   */
+  tagSlot?: ReactNode;
   className?: string;
 }
 
@@ -151,6 +167,7 @@ function EventEditorFields({
   repeatPending,
   onChangeRepeat,
   onDetachRepeat,
+  tagSlot,
 }: Omit<EventEditorPaneProps, "className">) {
   const [titleDraft, setTitleDraft] = useState(item.title);
   const [memoDraft, setMemoDraft] = useState(item.memo);
@@ -377,6 +394,11 @@ function EventEditorFields({
           {repeatSection}
         </>
       )}
+
+      {/* Tags (#468). Sits right under the origin block because that is where
+          "what kind of thing is this" is already being answered — the calendar
+          a row belongs to is the same kind of fact. */}
+      {tagSlot}
 
       {/* Memo */}
       <label className="flex flex-col gap-1.5">
