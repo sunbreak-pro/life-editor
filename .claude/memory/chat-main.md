@@ -7,16 +7,16 @@
 **対象**: GitHub Issues（Epic #290 / #321）・`.claude/comm/outbox/`
 
 - 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
-- 現在: **判断キューの回答 8 件をユーザーが返し、全件を消化した**（2026-08-01）。`ANSWERS.md` へ転記（main `3dd7b511`）→ **#520 は 🛑 ゲート解除**（D-20260801-sched-1 = A・レンズを外す側）／ mobile-2 / mobile-3 は B 採用で実装が要るため **#525 / #526** を起票 ／ docs 反映 4 件は **PR #527**（`chore/docs-decisions-20260801`・docs-lint OK）。巡回 2〜4 巡目は open PR 0・Epic #290 / #321 とも追随不要・outbox は worktree 実体まで見て未処理ゼロを確認済み
-- 次: **(1)** PR #527 の CI 確認 → merge は 🛑 ユーザー。**(2)** open Issue 11 件を各レーンへ流す（#507 / #509 = mobile-refine、#511 / #519 = tags-docs、#517 = refactor-core、#520 / #524 = schedule-refine、#525 / #526 = mobile-refine、#512 = chat-main 実機、#372 = 将来 DDL）。各レーンのチャットが未起動なので、ユーザーの boot プロンプト投入待ち
+- 現在: **巡回は停止条件を満たして完了**（2026-08-01・open PR 0 / #467 / #468 とも CLOSED / **PR #527 merged** `637a64e6`）。判断キューは**空**（回答 8 件を `ANSWERS.md` へ転記済み）。**次の動きはレーン起動待ち** — worktree 4 本ともチャットが未起動でコミットが進んでいない
+- 次: open Issue 12 件を各レーンへ流す（**#507 / #509 / #525 / #526** = mobile-refine、**#511 / #519** = tags-docs、**#517** = refactor-core、**#520 / #524** = schedule-refine、**#512 / #528** = chat-main、**#372** = 将来 DDL）。chat-main 自身の手番は #512（実機目視・別チャットの検証終了後）と #528（archive のリンク切れ + docs-lint 拡張）
 
 ## 直近の完了
 
-- [chat-main] **open PR 巡回（停止条件 = #467 / #468 close + open PR 0）** ✅（2026-08-01）— 巡回開始時の open PR 2 本（#522 tracker 復元 / #523 d3 sim を発火時読み取りへ）を `/code-review low` で確認中に両方 merge され、**open PR 0・#467 / #468 とも CLOSED で停止条件達成**。Epic #290（Step 2〜7 全 [x]）/ Epic #321（Phase 2 全消化）/ mobile-scope.md / plans Status は各レーンの PR 内で追随済みで chat-main の追加修正は不要だった。outbox 全 18 ファイルの未処理エントリもゼロ。**レビューで 1 件検出（未起票 → 「予定」参照）**
+- [chat-main] **判断キュー 8 件の消化 + docs 反映（PR #527 merged）** ✅（2026-08-01）— ユーザー回答を `ANSWERS.md` へ転記し、行き先ごとに実行。#520 は 🛑 ゲート解除コメント（A = 移動時にレンズを外す）／ B 採用の mobile-2 / mobile-3 は実装が要るので **#525 / #526** 起票／ docs 反映 4 件は **PR #527**（`[all]` prefix の廃止・tracker を実装ブランチに載せない・enum は plans/ 由来だけ・ClaudeDesign 計画書の COMPLETED 化と「追跡正本」宣言の付け替え）。自己レビューで **archive 移動により自分が壊した相対リンク 2 本**を検出し同 PR 内で修正、同種の**既存壊れ 6 本**は **#528** へ（docs-lint がリンク解決を見ていない穴も込み）
+
+- [chat-main] **open PR 巡回（停止条件 = #467 / #468 close + open PR 0）** ✅（2026-08-01）— 巡回開始時の open PR 2 本（#522 tracker 復元 / #523 d3 sim を発火時読み取りへ）を `/code-review low` で確認中に両方 merge され、**停止条件達成**。Epic #290（Step 2〜7 全 [x]）/ Epic #321（Phase 2 全消化）/ mobile-scope.md / plans Status は各レーンの PR 内で追随済みで chat-main の追加修正は不要だった。outbox は **worktree 5 本の実体まで直接 diff** して未処理ゼロを確認（main 側のコピーだけ見ると未 push 分を取りこぼす）。#523 のレビュー検出は **#524** として起票
 
 - [chat-main] **worktree 総入れ替え + Issue fan-out + V4 実ブラウザ検証** ✅（2026-07-29）— 旧 worktree 5 本を撤去（PR state で全ブランチの merge 済みを実測してから削除。未 PR だった `claude/enhance-mobile-work-section-Cmphw` の demo HTML はユーザー判断で削除・退避済み）+ ローカル 74 / リモート 89 ブランチ削除 → 新レーン 4 本作成。Issue #465（MainScreen hooks = DataService 分割計画の最終ステップ）/ #466〜#469（Epic #290 Step 5-b・5-c・6・7）/ #470〜#473（Epic #321 Phase 2）/ #474（plans/ Status 棚卸し）を起票。あわせて V4 (#411) を claude-in-chrome で実測し 3 pass / 1 fail（`[[` リンクのクリック遷移 → **#475**）。検証計画は全項目消化で COMPLETED → archive
-
-- [chat-main] **残 Issue 消化体制の再編 + outbox 起票依頼の一括消化** ✅（2026-07-25〜26）— worktree 4 本体制へ再編（shell-refine #320→#304 子2 / briefing-section #318 / schedule-refine #352〜#355 / analytics-refine #334・#356。全て 09bae027 起点・.session-* 設定済み・新規 2 本は npm ci 済み）+ 残骸 worktree 5 本撤去 + Issue 22 件起票（#352〜#356・#360〜#376。#374 は事後記録で即 close）+ Epic #290 チェックリスト追随 + `section:tags` ラベル新設。code-reduction 計画書（2026-07-25-code-reduction.md）は dev クローン（C:\Users\user\dev\life-editor）の code-reduction worktree に git 未追跡で残存していたのを発見・回収 → 実行記録 + 実測訂正を Worklog 転記のうえ Status: COMPLETED で archive/ へ収録（PR #377 同梱）。**この PC は orca / dev の 2 クローン構成**（探索時は両方を見ること）。起票依頼→Issue の全マッピングは outbox 2026-07-26 エントリ参照
 
 ## 予定
 
