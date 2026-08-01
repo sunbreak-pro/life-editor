@@ -8,7 +8,7 @@
 
 - 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
 - 現在: 2026-08-01 の巡回 2 巡目も **open PR 0 のまま**（main `9c6debf7`）。**Epic #290 は Step 2〜7 全て [x]**・**Epic #321 は Phase 2 全消化**（残は Phase 1 の #391 のみ）。outbox は **worktree 5 本の実体を直接 diff して未処理ゼロを確認**（main 側のコピーだけ見ると tags-docs の未 push 4 エントリを取りこぼすが、内容は #511 / #512 / 判断キューで処理済み。schedule-refine 分は #520 として起票済み）。#523 のレビュー検出は **#524** として起票
-- 次: **(1)** open Issue 9 件を各レーンへ流す（#507 / #509 / #511 = materials、#519 = connect、#520 / #524 = schedule、#512 / #517 = shared-fix、#372 = 将来 DDL）。**(2)** 判断キューの未回答 6 件をユーザーへ（うち **D-20260801-sched-1 = #520 の実装ブロッカー**）
+- 次: **(1)** open Issue 9 件を各レーンへ流す（#507 / #509 / #511 = materials、#519 = connect、#520 / #524 = schedule、#512 / #517 = shared-fix、#372 = 将来 DDL）。**(2)** 判断キューの未回答をユーザーへ（`ANSWERS.md` 未転記は 11 件・うち sched-1 / sched-2 / sched-3 の 3 件は #469 / #468 の実装で事後決着済みなので**生きているのは 8 件**。**D-20260801-sched-1 = #520 の実装ブロッカー**が最優先。mobile-1 / 2 / 3 は #470 / #471 merge 済みで事後クローズできる見込み — 内容照合は未実施）
 
 ## 直近の完了
 
