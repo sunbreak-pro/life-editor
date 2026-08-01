@@ -48,7 +48,6 @@ export function useGraphInteraction({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || size.w === 0) return;
-    const sim = simRef.current;
 
     function findNodeAt(clientX: number, clientY: number): GraphNode | null {
       const rect = canvas!.getBoundingClientRect();
@@ -119,7 +118,7 @@ export function useGraphInteraction({
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
       if (draggedRef.current) {
-        sim?.alphaTarget(0);
+        simRef.current?.alphaTarget(0);
         draggedRef.current.fx = null;
         draggedRef.current.fy = null;
         draggedRef.current = null;
@@ -139,7 +138,7 @@ export function useGraphInteraction({
       draggedRef.current = node;
       node.fx = node.x;
       node.fy = node.y;
-      sim?.alphaTarget(0.3).restart();
+      simRef.current?.alphaTarget(0.3).restart();
       try {
         canvas!.setPointerCapture(e.pointerId);
       } catch {
@@ -160,7 +159,7 @@ export function useGraphInteraction({
         hoveredRef.current = node;
         onHover(node?.id ?? null);
         canvas!.style.cursor = node ? "pointer" : "grab";
-        if ((sim?.alpha() ?? 0) < 0.01) drawRef.current?.();
+        if ((simRef.current?.alpha() ?? 0) < 0.01) drawRef.current?.();
       }
     }
 
@@ -193,8 +192,13 @@ export function useGraphInteraction({
       window.removeEventListener("pointerup", onWindowPointerUp);
       window.removeEventListener("pointercancel", onWindowPointerUp);
     };
+    // The listeners read `simRef.current` when they fire, so the simulation
+    // being swapped needs no re-attach — which is why it is not a dep. The old
+    // `simRef.current` dep could not do that job anyway: a ref read during
+    // render holds whatever the previous commit left, so it only changed on the
+    // render AFTER a swap, if one came at all.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size.w, size.h, simRef.current]);
+  }, [size.w, size.h]);
 
   // Pan the view so the selected node lands at canvas center (zoom preserved).
   // Instant transform — no d3-transition dependency (lean port).
