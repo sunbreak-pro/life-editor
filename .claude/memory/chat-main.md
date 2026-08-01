@@ -4,22 +4,25 @@
 
 ### 🔧 worktree 総入れ替え + 次期 fan-out（着手日: 2026-07-29）
 
-**対象**: `.claude/worktrees/`・GitHub Issues・`.claude/archive/2026-07-28-post-merge-playwright-verification.md`
+**対象**: GitHub Issues（Epic #290 / #321）・`.claude/comm/outbox/`
 
-- 前回: 2026-07-28 fan-out（Issue 21 件）を各レーンが消化し、全 PR merge 済み
-- 現在: 旧 worktree 5 本とブランチ（ローカル 74 / リモート 89）を全削除 → 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）を作成し Issue #465〜#474 を起票。V4 実ブラウザ検証も消化（fail 1 件 = #475 起票）
-- 次: ユーザーが 4 レーンへ boot プロンプトを投入。**refactor-core（#465 MainScreen hooks 切り出し）を最優先で着地させる**（他レーンが MainScreen を触る前に構造を確定させるため）
+- 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
+- 現在: 2026-08-01 の巡回で **open PR 0 到達**（#516 / #518 / #521 / #522 / #523 が merge・main `8e624422`）。**Epic #290 は Step 2〜7 全て [x]**・**Epic #321 は Phase 2 全消化**（残は Phase 1 の #391 のみ）。outbox の未処理エントリもゼロ（schedule-refine 2026-08-01 分の起票依頼は #520 として起票済み・「記録のみ」項目も本人が tracker で処理）
+- 次: **(1) merge 済み #523 に残る欠陥の起票**（下記「予定」参照）。**(2)** open Issue 8 件を各レーンへ流す（#507 / #509 / #511 = materials、#519 = connect、#520 = schedule、#512 / #517 = shared-fix、#372 = 将来 DDL）
 
 ## 直近の完了
+
+- [chat-main] **open PR 巡回（停止条件 = #467 / #468 close + open PR 0）** ✅（2026-08-01）— 巡回開始時の open PR 2 本（#522 tracker 復元 / #523 d3 sim を発火時読み取りへ）を `/code-review low` で確認中に両方 merge され、**open PR 0・#467 / #468 とも CLOSED で停止条件達成**。Epic #290（Step 2〜7 全 [x]）/ Epic #321（Phase 2 全消化）/ mobile-scope.md / plans Status は各レーンの PR 内で追随済みで chat-main の追加修正は不要だった。outbox 全 18 ファイルの未処理エントリもゼロ。**レビューで 1 件検出（未起票 → 「予定」参照）**
 
 - [chat-main] **worktree 総入れ替え + Issue fan-out + V4 実ブラウザ検証** ✅（2026-07-29）— 旧 worktree 5 本を撤去（PR state で全ブランチの merge 済みを実測してから削除。未 PR だった `claude/enhance-mobile-work-section-Cmphw` の demo HTML はユーザー判断で削除・退避済み）+ ローカル 74 / リモート 89 ブランチ削除 → 新レーン 4 本作成。Issue #465（MainScreen hooks = DataService 分割計画の最終ステップ）/ #466〜#469（Epic #290 Step 5-b・5-c・6・7）/ #470〜#473（Epic #321 Phase 2）/ #474（plans/ Status 棚卸し）を起票。あわせて V4 (#411) を claude-in-chrome で実測し 3 pass / 1 fail（`[[` リンクのクリック遷移 → **#475**）。検証計画は全項目消化で COMPLETED → archive
 
 - [chat-main] **残 Issue 消化体制の再編 + outbox 起票依頼の一括消化** ✅（2026-07-25〜26）— worktree 4 本体制へ再編（shell-refine #320→#304 子2 / briefing-section #318 / schedule-refine #352〜#355 / analytics-refine #334・#356。全て 09bae027 起点・.session-* 設定済み・新規 2 本は npm ci 済み）+ 残骸 worktree 5 本撤去 + Issue 22 件起票（#352〜#356・#360〜#376。#374 は事後記録で即 close）+ Epic #290 チェックリスト追随 + `section:tags` ラベル新設。code-reduction 計画書（2026-07-25-code-reduction.md）は dev クローン（C:\Users\user\dev\life-editor）の code-reduction worktree に git 未追跡で残存していたのを発見・回収 → 実行記録 + 実測訂正を Worklog 転記のうえ Status: COMPLETED で archive/ へ収録（PR #377 同梱）。**この PC は orca / dev の 2 クローン構成**（探索時は両方を見ること）。起票依頼→Issue の全マッピングは outbox 2026-07-26 エントリ参照
-- [chat-main] **Notes/Daily エディタ即クラッシュ修正（tiptap Suggestion PluginKey 衝突）** ✅（2026-07-19・Issue #293・**PR #294**・commit `11acaac0`）— "/" スラッシュメニューと "[[" 補完（#285）の両 Suggestion が `@tiptap/suggestion` の共有デフォルト PluginKey に二重登録 → マウント時 `RangeError` で Notes/Daily が真っ白。各々に固有 PluginKey 付与（2 files +14）。web build / eslint / role-qa 緑。merge 後の実ブラウザ確認は「予定」参照
-- [chat-main] **Loop Engineering 自動検証ループ Step 3（loop.sh）** ✅（2026-06-27 実装・**PR #106 merged 2026-06-27**。2026-07-08 cross-lane 同期で完了化）— loop.sh = run-once を PASS/上限まで反復（4 停止条件 + 課金同意ゲート）・パス相対化・count_todo 修正。スタブ harness 5/5。follow-up は「予定」参照
-- [chat-main] **W8 対話グリッド救出** ✅（2026-06-27・**PR #105 merged**・merge commit `9b633068`）— 放棄ブランチにのみ存在した W8-2/W8-3 対話編集（クリック作成/ドラッグ移動/リサイズ）を shared プリミティブ + web ホストへ移植。`pxToMinutes` ゼロ高さ修正 + 対話テスト4本（jsdom PointerEvent 非実装の罠を回避）。検証緑
 
 ## 予定
+
+### 📝 起票待ち（2026-08-01 巡回のレビュー検出・未起票）
+
+- **Connect グラフ: 選択中ノードを再クリックしても選択解除できない**（`shared/src/components/Connect/graph/useGraphInteraction.ts:197` — PR #523 merge 済み `8e624422`）。effect の deps が `[size.w, size.h]` だけになり、**リスナーを貼り直す機会がサイズ変更時しかない**。`GraphCanvas.tsx:178` の `onSelect: (id) => onSelectedIdChange(id === selectedId ? null : id)` は毎レンダー作り直される inline クロージャなので、effect が掴んだ古い `selectedId`（初回サイズ確定時 = 通常 `null`）と比較し続ける → トグル判定が常に false。`onActivate` / `onZoom` も同じく凍結する。**#523 が原因というより、`simRef.current` の dep が偶然果たしていた貼り直しが消えて確定的になった**（従来はグラフ再構築のたびに更新されて「たまに効く」状態）。直しは #523 と同じ発想で、コールバックも ref 経由で発火時に読む形。`section:connect` / `type:bug` / `sev:minor` 相当。**未実測**（jsdom にレイアウトが無く canvas 経路はテスト不能・実ブラウザ確認は chat-main）
 
 ### 👀 ユーザー実機目視待ち（merge 済み機能・未確認のもの）
 
