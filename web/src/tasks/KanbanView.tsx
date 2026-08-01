@@ -30,6 +30,7 @@ import {
   useTranslation,
   readKanbanViewMode,
   persistKanbanViewMode,
+  type DataService,
   type KanbanCardModel,
   type KanbanCardTag,
   type KanbanColumnModel,
@@ -41,6 +42,7 @@ import {
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
+import { useTaskLinking } from "./hooks/useTaskLinking";
 import { KanbanColumnDroppable } from "./KanbanColumnDroppable";
 import { MobileTaskList } from "./MobileTaskList";
 import { RichTextEditor } from "../notes/RichTextEditor";
@@ -107,6 +109,15 @@ export interface KanbanViewProps {
    */
   pendingSelectTaskId?: string | null;
   onConsumePendingSelect?: () => void;
+  /**
+   * Injected for the "[[" link-target pool (#507). The pool spans notes +
+   * dailies + tasks, and the Todo tab mounts none of those Providers but its
+   * own, so the lists come off the DataService (§3.1) exactly as they do for
+   * Notes / Daily. Link features are off when it is absent.
+   */
+  dataService?: DataService;
+  /** Navigate to a link target (MainScreen owns section + tab switching). */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
 }
 
 export function KanbanView({
@@ -114,6 +125,8 @@ export function KanbanView({
   onConsumeNewTask,
   pendingSelectTaskId = null,
   onConsumePendingSelect,
+  dataService,
+  onNavigateToItem,
 }: KanbanViewProps = {}): React.JSX.Element {
   const tree = useTaskTreeContext();
   const wikiTags = useWikiTagsUnifiedContext();
@@ -124,6 +137,11 @@ export function KanbanView({
   // AppShell uses (its own read — useMediaQuery is a pure display hook).
   const isWide = useMediaQuery("(min-width: 768px)", true);
   const rightSidebar = useRightSidebarContext();
+  // "[[" wiring for the task body (#507). Both surfaces below render through
+  // renderTaskDetail, so wide and the mobile sheet get it from one place.
+  const { loadLinkTargets, handleResolvedLinkInserted } = useTaskLinking({
+    dataService,
+  });
   const [viewMode, setViewMode] = useState<KanbanViewMode>(() =>
     readKanbanViewMode("tag"),
   );
@@ -441,6 +459,15 @@ export function KanbanView({
           noteId={task.id}
           initialContent={task.content || undefined}
           onUpdate={(content) => tree.updateNode(task.id, { content })}
+          // "[[" autocomplete + click navigation (#507). Same three props the
+          // Notes and Daily editors take; this editor simply never got them,
+          // so the menu never opened and a resolved link was inert. No
+          // create-note row — like Daily, a task body links to EXISTING items.
+          loadLinkTargets={loadLinkTargets}
+          onNavigateToItem={onNavigateToItem}
+          onResolvedLinkInserted={(targetId) =>
+            handleResolvedLinkInserted(task.id, targetId)
+          }
         />
       }
     />
