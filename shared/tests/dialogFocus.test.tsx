@@ -31,9 +31,12 @@ function FocusItsInput({ label }: { label: string }) {
 }
 
 describe("dialog focus (BottomSheet + Modal)", () => {
+  // Still "first", not the close button that now precedes it in the DOM (#525):
+  // opening a sheet onto "Close, button" would announce the exit before the
+  // content. That is what DIALOG_AUTOFOCUS_SKIP buys.
   it("moves focus to the first control inside the sheet on open", async () => {
     render(
-      <BottomSheet open onClose={() => {}} title="Sheet">
+      <BottomSheet open onClose={() => {}} title="Sheet" closeLabel="Close">
         <button type="button">first</button>
         <button type="button">second</button>
       </BottomSheet>,
@@ -43,9 +46,11 @@ describe("dialog focus (BottomSheet + Modal)", () => {
     expect(document.activeElement).toBe(screen.getByText("first"));
   });
 
+  // The close button does not count as focusable content here either — a sheet
+  // of plain text still falls back to the panel.
   it("falls back to the panel when the sheet holds nothing focusable", async () => {
     render(
-      <BottomSheet open onClose={() => {}} title="Sheet">
+      <BottomSheet open onClose={() => {}} title="Sheet" closeLabel="Close">
         <p>read-only detail</p>
       </BottomSheet>,
     );
@@ -56,7 +61,7 @@ describe("dialog focus (BottomSheet + Modal)", () => {
 
   it("leaves focus alone when a child claimed it", async () => {
     render(
-      <BottomSheet open onClose={() => {}} title="Sheet">
+      <BottomSheet open onClose={() => {}} title="Sheet" closeLabel="Close">
         <button type="button">first</button>
         <FocusItsInput label="draft" />
       </BottomSheet>,
@@ -68,26 +73,28 @@ describe("dialog focus (BottomSheet + Modal)", () => {
 
   it("cycles Tab and Shift+Tab inside the sheet", async () => {
     render(
-      <BottomSheet open onClose={() => {}} title="Sheet">
+      <BottomSheet open onClose={() => {}} title="Sheet" closeLabel="Close">
         <button type="button">first</button>
         <button type="button">last</button>
       </BottomSheet>,
     );
-    const first = screen.getByText("first");
+    const close = screen.getByRole("button", { name: "Close" });
     const last = screen.getByText("last");
     await afterFrame();
 
+    // The close button (#525) sits first in the panel, so it is where the cycle
+    // wraps — it is skipped for the INITIAL focus only, not for Tab.
     last.focus();
     fireEvent.keyDown(last, { key: "Tab" });
-    expect(document.activeElement).toBe(first);
+    expect(document.activeElement).toBe(close);
 
-    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(last);
   });
 
   it("pulls focus back in when it is loose on the page", async () => {
     render(
-      <BottomSheet open onClose={() => {}} title="Sheet">
+      <BottomSheet open onClose={() => {}} title="Sheet" closeLabel="Close">
         <button type="button">first</button>
         <button type="button">last</button>
       </BottomSheet>,
@@ -98,7 +105,9 @@ describe("dialog focus (BottomSheet + Modal)", () => {
     // there into the page behind the sheet.
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(document.body, { key: "Tab" });
-    expect(document.activeElement).toBe(screen.getByText("first"));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Close" }),
+    );
   });
 
   it("returns focus to the opener when the sheet closes", async () => {
@@ -109,7 +118,12 @@ describe("dialog focus (BottomSheet + Modal)", () => {
           <button type="button" onClick={() => setOpen(true)}>
             open
           </button>
-          <BottomSheet open={open} onClose={() => setOpen(false)} title="Sheet">
+          <BottomSheet
+            open={open}
+            onClose={() => setOpen(false)}
+            title="Sheet"
+            closeLabel="Close"
+          >
             <button type="button">inside</button>
           </BottomSheet>
         </>
@@ -130,7 +144,7 @@ describe("dialog focus (BottomSheet + Modal)", () => {
   it("closes the sheet on Escape but not mid-IME-composition", () => {
     const onClose = vi.fn();
     render(
-      <BottomSheet open onClose={onClose} title="Sheet">
+      <BottomSheet open onClose={onClose} title="Sheet" closeLabel="Close">
         <input aria-label="title" />
       </BottomSheet>,
     );
@@ -148,7 +162,12 @@ describe("dialog focus (BottomSheet + Modal)", () => {
     function Stack({ modalOpen }: { modalOpen: boolean }) {
       return (
         <>
-          <BottomSheet open onClose={onCloseSheet} title="Sheet">
+          <BottomSheet
+            open
+            onClose={onCloseSheet}
+            title="Sheet"
+            closeLabel="Close"
+          >
             <button type="button">sheet button</button>
           </BottomSheet>
           <Modal open={modalOpen} onClose={onCloseModal} title="Modal">

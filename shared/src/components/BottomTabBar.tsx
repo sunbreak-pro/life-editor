@@ -25,6 +25,8 @@ export interface BottomTabBarLabels {
   more: string;
   /** Accessible title for the "More" sheet. */
   moreTitle: string;
+  /** Name for the "More" sheet's close button (#525). */
+  moreClose: string;
   /** Accessible label for the action group inside the sheet (#472). */
   actionsTitle?: string;
 }
@@ -179,6 +181,7 @@ export function BottomTabBar({
           open={moreOpen}
           onClose={() => setMoreOpen(false)}
           title={labels.moreTitle}
+          closeLabel={labels.moreClose}
         >
           {/* App-global actions (#472) — above the sections, since they act on
               the current screen rather than navigating away from it. */}

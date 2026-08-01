@@ -45,6 +45,7 @@ const LABELS = {
   statusDone: "Done",
   filterLabel: "Filter by status",
   detailTitle: "Todo details",
+  close: "Close",
   empty: "No todos yet",
   addCta: "Add todo",
   quickAddTitle: "Add todo",

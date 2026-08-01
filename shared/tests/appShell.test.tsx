@@ -27,6 +27,7 @@ const LABELS = {
   signOut: "Sign out",
   more: "More",
   moreTitle: "More",
+  moreClose: "Close",
 };
 
 function mockMatchMedia(matches: boolean) {

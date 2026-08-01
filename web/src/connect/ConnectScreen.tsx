@@ -142,6 +142,7 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       mobileLinksTab: t("connect.mobile.linksTab"),
       mobileBacklinksTab: t("connect.mobile.backlinksTab"),
       mobileSettingsTitle: t("connect.mobile.settingsTitle"),
+      mobileSettingsClose: t("common.close"),
     }),
     [t],
   );

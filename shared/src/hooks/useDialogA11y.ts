@@ -36,6 +36,23 @@ function focusablesIn(panel: HTMLElement): HTMLElement[] {
   return hasLayout() ? all.filter((el) => el.offsetParent !== null) : all;
 }
 
+/*
+ * Chrome that belongs in the Tab cycle but must not be what a dialog opens ON.
+ * BottomSheet's close button (#525) sits first in the panel, so without this the
+ * first thing every sheet announced would be "Close, button" instead of the
+ * content the user opened it for. Opt out of the INITIAL focus only — the
+ * control stays reachable by keyboard, which is the point of adding it.
+ */
+export const DIALOG_AUTOFOCUS_SKIP = { "data-dialog-autofocus": "skip" };
+
+function initialFocusIn(panel: HTMLElement): HTMLElement | null {
+  return (
+    focusablesIn(panel).find(
+      (el) => el.getAttribute("data-dialog-autofocus") !== "skip",
+    ) ?? null
+  );
+}
+
 export interface DialogA11yOptions {
   open: boolean;
   onClose: () => void;
@@ -45,8 +62,9 @@ export interface DialogA11yOptions {
 
 /**
  * Keyboard and focus behaviour shared by every `aria-modal` surface: Escape
- * closes (IME-guarded), Tab cycles inside the panel, the first control is
- * focused on open, and focus returns to whatever opened it on close.
+ * closes (IME-guarded), Tab cycles inside the panel, the first control that has
+ * not opted out (see `DIALOG_AUTOFOCUS_SKIP`) is focused on open, and focus
+ * returns to whatever opened it on close.
  *
  * Attach the returned ref to the dialog PANEL (not the backdrop). Give that
  * panel `tabIndex={-1}` so it can hold focus itself when it has no focusable
@@ -128,7 +146,7 @@ export function useDialogA11y<T extends HTMLElement>({
       // consumer's own effect — QuickAddSheet focuses its input). Leave it:
       // overriding it is the "double focus" the sheets were reported for.
       if (panel.contains(document.activeElement)) return;
-      (focusablesIn(panel)[0] ?? panel).focus();
+      (initialFocusIn(panel) ?? panel).focus();
     });
     return () => {
       cancelAnimationFrame(raf);

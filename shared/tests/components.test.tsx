@@ -153,7 +153,7 @@ describe("BottomSheet", () => {
   it("renders a dialog when open and closes on backdrop click", () => {
     const onClose = vi.fn();
     render(
-      <BottomSheet open onClose={onClose} title="Sheet">
+      <BottomSheet open onClose={onClose} title="Sheet" closeLabel="Close">
         sheet body
       </BottomSheet>,
     );

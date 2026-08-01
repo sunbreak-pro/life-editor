@@ -2061,6 +2061,7 @@ export function CalendarTab({
         open={!!createPanel}
         onClose={() => setCreatePanel(null)}
         sheetTitle={t("scheduleScreen.addItem")}
+        closeLabel={t("common.close")}
         dateLabel={createDateLabel}
         initialStart={createPanel?.start}
         initialEnd={createPanel?.end}
@@ -2077,6 +2078,7 @@ export function CalendarTab({
         open={!!editorPane}
         onClose={() => setSelectedId(null)}
         title={t("scheduleScreen.detailTitle")}
+        closeLabel={t("common.close")}
       >
         {editorPane}
       </BottomSheet>

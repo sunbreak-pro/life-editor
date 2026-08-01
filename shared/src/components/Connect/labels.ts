@@ -97,4 +97,6 @@ export interface ConnectGraphLabels {
   mobileBacklinksTab: string;
   /** connect.mobile.settingsTitle — title of the mobile settings bottom sheet */
   mobileSettingsTitle: string;
+  /** common.close — close button on the mobile settings bottom sheet (#525) */
+  mobileSettingsClose: string;
 }

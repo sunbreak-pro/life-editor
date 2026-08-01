@@ -6,6 +6,8 @@ interface GraphSettingsSheetProps {
   onClose: () => void;
   /** already-translated sheet title (§6.4) */
   title: string;
+  /** already-translated name for the sheet's close button (§6.4, #525) */
+  closeLabel: string;
   /**
    * The graph-settings body — the SAME <GraphControlPanel> node the Desktop
    * rightSidebar renders, passed in by ConnectGraphView so search / type / tag
@@ -25,10 +27,16 @@ export function GraphSettingsSheet({
   open,
   onClose,
   title,
+  closeLabel,
   children,
 }: GraphSettingsSheetProps) {
   return (
-    <BottomSheet open={open} onClose={onClose} title={title}>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      closeLabel={closeLabel}
+    >
       <div className="max-h-[68vh] overflow-y-auto">{children}</div>
     </BottomSheet>
   );

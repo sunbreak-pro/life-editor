@@ -9,6 +9,8 @@ export interface QuickAddSheetProps {
   onClose: () => void;
   /** Already-translated sheet title (§6.4). */
   title: string;
+  /** Already-translated name for the sheet's close button (§6.4, #525). */
+  closeLabel: string;
   /** Already-translated input placeholder (§6.4). */
   placeholder: string;
   /** Already-translated submit button label (§6.4). */
@@ -29,6 +31,7 @@ export function QuickAddSheet({
   open,
   onClose,
   title,
+  closeLabel,
   placeholder,
   submitLabel,
   onSubmit,
@@ -67,6 +70,7 @@ export function QuickAddSheet({
       open={open}
       onClose={onClose}
       title={title}
+      closeLabel={closeLabel}
       className={className}
     >
       <div className="flex items-center gap-2">

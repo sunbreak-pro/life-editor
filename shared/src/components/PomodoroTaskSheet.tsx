@@ -13,6 +13,8 @@ import { cn } from "./cn";
 
 export interface PomodoroTaskSheetLabels {
   title: string;
+  /** Name for the sheet's close button (#525). */
+  close: string;
   /** Row that clears the current attribution. */
   clearSelection: string;
   /** Shown when there are no candidate tasks. */
@@ -42,7 +44,12 @@ export function PomodoroTaskSheet({
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={labels.title}>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={labels.title}
+      closeLabel={labels.close}
+    >
       {tasks.length === 0 ? (
         <p className="py-6 text-center text-sm text-lumen-text-tertiary">
           {labels.emptyHint}
@@ -73,7 +80,10 @@ export function PomodoroTaskSheet({
                       : "text-lumen-text",
                   )}
                 >
-                  <span className="flex w-4 shrink-0 justify-center" aria-hidden="true">
+                  <span
+                    className="flex w-4 shrink-0 justify-center"
+                    aria-hidden="true"
+                  >
                     {active ? <Check size={16} /> : null}
                   </span>
                   <span className="truncate">{t.title}</span>

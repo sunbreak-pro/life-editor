@@ -400,6 +400,7 @@ export function ConnectGraphView({
           open={mobileSettingsOpen}
           onClose={() => setMobileSettingsOpen(false)}
           title={labels.mobileSettingsTitle}
+          closeLabel={labels.mobileSettingsClose}
         >
           {settingsContent}
         </GraphSettingsSheet>

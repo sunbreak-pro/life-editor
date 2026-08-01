@@ -811,6 +811,7 @@ export function NotesView({
           open={sheetNote != null}
           onClose={sheet.closeSheet}
           title={t("materials.notes.detailTitle")}
+          closeLabel={t("common.close")}
           className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
         >
           {sheetNote && (
@@ -897,6 +898,7 @@ export function NotesView({
           open={addOpen}
           onClose={() => setAddOpen(false)}
           title={t("materials.notes.quickAddTitle")}
+          closeLabel={t("common.close")}
           placeholder={t("materials.notes.quickAddPlaceholder")}
           submitLabel={t("materials.notes.quickAddSubmit")}
           onSubmit={(title) => notes.createNote(title)}

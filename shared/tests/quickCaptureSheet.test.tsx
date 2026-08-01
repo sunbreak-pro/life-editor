@@ -56,6 +56,7 @@ function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
       open
       onClose={onClose}
       sheetTitle="Add item"
+      closeLabel="Close"
       existingTasks={[{ id: "task-1", title: "Draft the invoice" }]}
       existingNotes={[{ id: "note-1", title: "Standup minutes" }]}
       onSubmitEvent={onSubmitEvent}
@@ -89,7 +90,12 @@ describe("QuickCaptureSheet", () => {
       target: { value: "Dentist" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", "09:00", "10:00", null);
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Dentist",
+      "09:00",
+      "10:00",
+      null,
+    );
   });
 
   it("forwards the time prefill and the edited times", () => {
@@ -111,7 +117,12 @@ describe("QuickCaptureSheet", () => {
       target: { value: "Groceries" },
     });
     fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith("Groceries", "09:00", "10:00", null);
+    expect(onCreateTask).toHaveBeenCalledWith(
+      "Groceries",
+      "09:00",
+      "10:00",
+      null,
+    );
   });
 
   it("leaves closing to the host, so the sheet never double-closes (#376)", () => {

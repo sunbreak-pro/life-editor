@@ -36,7 +36,7 @@ describe("BottomSheet dismissal", () => {
   it("lets a press inside the panel reach a document listener", () => {
     const seen = watchDocumentMouseDown();
     render(
-      <BottomSheet open onClose={() => {}} title="Sheet">
+      <BottomSheet open onClose={() => {}} title="Sheet" closeLabel="Close">
         <button type="button">inside</button>
       </BottomSheet>,
     );
@@ -48,7 +48,7 @@ describe("BottomSheet dismissal", () => {
   it("stays open when the press lands inside the panel", () => {
     const onClose = vi.fn();
     render(
-      <BottomSheet open onClose={onClose} title="Sheet">
+      <BottomSheet open onClose={onClose} title="Sheet" closeLabel="Close">
         <button type="button">inside</button>
       </BottomSheet>,
     );
@@ -61,7 +61,7 @@ describe("BottomSheet dismissal", () => {
   it("closes when the backdrop itself is pressed", () => {
     const onClose = vi.fn();
     render(
-      <BottomSheet open onClose={onClose} title="Sheet">
+      <BottomSheet open onClose={onClose} title="Sheet" closeLabel="Close">
         <button type="button">inside</button>
       </BottomSheet>,
     );
@@ -73,12 +73,54 @@ describe("BottomSheet dismissal", () => {
   it("ignores a backdrop press when closeOnBackdrop is off", () => {
     const onClose = vi.fn();
     render(
-      <BottomSheet open onClose={onClose} title="Sheet" closeOnBackdrop={false}>
+      <BottomSheet
+        open
+        onClose={onClose}
+        title="Sheet"
+        closeLabel="Close"
+        closeOnBackdrop={false}
+      >
         <button type="button">inside</button>
       </BottomSheet>,
     );
 
     fireEvent.mouseDown(backdropOf(screen.getByRole("dialog")));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  /*
+   * #525 — the explicit exit. The two dismissals above are the only ones the
+   * sheet had, and on a phone neither is reachable: a 92vh detail sheet leaves
+   * 8vh of backdrop, and Escape wants a physical keyboard. So the button is
+   * unconditional, and it closes even where the backdrop deliberately does not.
+   */
+  it("closes when the close button is pressed", () => {
+    const onClose = vi.fn();
+    render(
+      <BottomSheet
+        open
+        onClose={onClose}
+        title="Sheet"
+        closeLabel="Close"
+        closeOnBackdrop={false}
+      >
+        <button type="button">inside</button>
+      </BottomSheet>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives a titleless sheet the same exit", () => {
+    const onClose = vi.fn();
+    render(
+      <BottomSheet open onClose={onClose} closeLabel="Close">
+        <p>read-only detail</p>
+      </BottomSheet>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

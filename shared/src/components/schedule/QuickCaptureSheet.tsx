@@ -32,16 +32,24 @@ export interface QuickCaptureSheetProps extends ItemCreatePanelProps {
    * kind of item, so its heading names the panel, not the event.
    */
   sheetTitle: string;
+  /** Already-translated name for the sheet's close button (§6.4, #525). */
+  closeLabel: string;
 }
 
 export function QuickCaptureSheet({
   open,
   onClose,
   sheetTitle,
+  closeLabel,
   ...panel
 }: QuickCaptureSheetProps) {
   return (
-    <BottomSheet open={open} onClose={onClose} title={sheetTitle}>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={sheetTitle}
+      closeLabel={closeLabel}
+    >
       <ItemCreatePanel {...panel} />
     </BottomSheet>
   );

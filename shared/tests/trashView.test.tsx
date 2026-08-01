@@ -25,6 +25,7 @@ const LABELS: TrashViewLabels = {
   confirmMessage: 'Permanently delete "{name}"? This cannot be undone.',
   cascadeWarning: "Related sub-items and tag assignments are deleted together.",
   cancel: "Cancel",
+  close: "Close",
 };
 
 const GROUPS: TrashGroup[] = [
@@ -136,7 +137,11 @@ describe("TrashView — target IA", () => {
     );
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveClass("rounded-t-2xl");
-    const buttons = within(dialog).getAllByRole("button");
+    // The sheet's own close button (#525) is chrome, not one of the stacked
+    // actions — this case is about the order of the two decision buttons.
+    const buttons = within(dialog)
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-label") !== LABELS.close);
     expect(buttons[0]).toHaveTextContent("Delete permanently");
     expect(buttons[buttons.length - 1]).toHaveTextContent("Cancel");
 
