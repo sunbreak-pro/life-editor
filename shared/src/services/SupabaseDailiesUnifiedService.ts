@@ -13,6 +13,7 @@ import {
 import type { DailyNode } from "../types/daily";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
+import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -71,6 +72,32 @@ export class SupabaseDailiesUnifiedService {
       out.push(rowsToDailyNode(meta, payload));
     }
     return out;
+  }
+
+  /**
+   * Count live dailies without pulling a single row (#511). Same shape and
+   * rationale as SupabaseTasksService.countUnfinishedTasks — see that
+   * method for why `head: true` and the `!inner` join are used.
+   *
+   * No legacy-folder clause here: Daily is flat (1 row per date), so
+   * dailies_payload has no note_type/task_type column to exclude. The
+   * payload join alone matches listDailiesUnified's `if (!payload)
+   * continue`.
+   */
+  async countLiveDailies(): Promise<number> {
+    const { count, error } = await this.client
+      .from("items_meta")
+      .select(
+        `id, ${livePayloadInnerJoin(
+          "dailies_payload",
+          "dailies_payload_item_id_fkey",
+        )}`,
+        { count: "exact", head: true },
+      )
+      .eq("role", "daily")
+      .eq("is_deleted", false);
+    if (error) throw new Error(`countLiveDailies failed: ${error.message}`);
+    return count ?? 0;
   }
 
   async getDailyByDateUnified(date: string): Promise<DailyNode | null> {
@@ -616,6 +643,7 @@ export class SupabaseDailiesUnifiedService {
 
 export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "listDailiesUnified",
+  "countLiveDailies",
   "getDailyByDateUnified",
   "upsertDailyByDateUnified",
   "createDailyUnified",

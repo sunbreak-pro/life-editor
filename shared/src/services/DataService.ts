@@ -52,6 +52,12 @@ export interface BulkSoftDeleteResult {
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
+  /**
+   * Live, unfinished task count for the badge (#511) — a number, not a
+   * list, so the read carries no row bodies. Meaning of the number:
+   * materials/materialsCounts.ts.
+   */
+  countUnfinishedTasks(): Promise<number>;
   fetchDeletedTasks(): Promise<TaskNode[]>;
   createTask(node: TaskNode): Promise<TaskNode>;
   updateTask(id: string, updates: Partial<TaskNode>): Promise<TaskNode>;
@@ -391,6 +397,8 @@ export interface DataService {
   // search / password gate / edit lock) so the legacy bridge can finally
   // drop its `_pendingDuRewrite` stubs.
   listNotesUnified(): Promise<NoteNode[]>;
+  /** Live note count for the badge (#511) — see countUnfinishedTasks. */
+  countLiveNotes(): Promise<number>;
   getNoteUnified(id: string): Promise<NoteNode | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
   updateNoteUnified(id: string, updates: Partial<NoteNode>): Promise<NoteNode>;
@@ -415,6 +423,8 @@ export interface DataService {
   // Dailies Unified (DU-D — items_meta + dailies_payload 2-row pattern).
   // upsertDailyByDateUnified is the primary write path (date is UNIQUE).
   listDailiesUnified(): Promise<DailyNode[]>;
+  /** Live daily count for the badge (#511) — see countUnfinishedTasks. */
+  countLiveDailies(): Promise<number>;
   getDailyByDateUnified(date: string): Promise<DailyNode | null>;
   upsertDailyByDateUnified(date: string, content: string): Promise<DailyNode>;
   createDailyUnified(node: DailyNode): Promise<DailyNode>;

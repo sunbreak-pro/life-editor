@@ -28,12 +28,11 @@ export {
   type SectionId,
 } from "./sections";
 
-// Materials tab count badges (target IA) — pure derivation from fetched data.
+// Materials tab count badges (target IA). The numbers come from the
+// DataService count reads (#511); this module holds their meaning + types.
 export {
-  computeMaterialsCounts,
   EMPTY_MATERIALS_COUNTS,
   type MaterialsCounts,
-  type MaterialsCountsInput,
 } from "./materials/materialsCounts";
 
 // Types
