@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-01 - #467 Step 5-c Mobile を List+FAB に絞る + 繰り返し一覧の Mobile 導線
+
+#### 概要
+
+Epic #290 Step 5-c と Epic #321 Phase 2（mobile-scope.md #5）を 1 本で実装した。どちらも `CalendarTab` の同じ領域（mobile 分岐と sidebar portal）を書き換えるため分離できない。narrow は「アンカー日のリスト + FAB」の単画面になり、#408 以来到達不能だった繰り返し一覧が narrow のドロワーから閲覧できるようになった。
+
+#### 変更点
+
+- **撤去の理由は「画面が小さいから」ではない**: mobile の SegmentedControl（リスト / 時間 / 月）を撤去。時間グリッドと月グリッドはどちらも **Desktop の面をそのまま縮めた面**で、前者は 1 日分をスクロールの奥に押し込んで全ブロックを指で狙えないドラッグ対象にし、後者は「中身」ではなく「件数」を出すセルを並べる。narrow が答えたい「次は何か」にはリストが直接答える。**失うのは遠い日へのジャンプ**（前後 1 日ステップのみ）で、それが要る実ケース＝「次回発生が数週間先の繰り返し」は下の繰り返しタブが埋める
+- **`effView` の固定は render 分岐ではなく `useCalendarNav` 側**（`effView = isWide ? desktopView : "list"`）。`view` state はレイアウトを跨いで残るので、"month" のままウィンドウを狭めると **`step` が月送りのまま・フェッチ窓も月グリッド全体**になる。描画・ナビ・フェッチ窓が同じ 1 つの事実を見る形にした。`visibleCalendarRange` が narrow で週に広がらないことをテストで固定
+- **`normalizeMobileView` / `MobileCalendarView` は shared ごと退役**。ただし**退役 id（"time" / "list"）は `normalizeDesktopView` が吸収し続ける** — `view` は長命な state で、切替が消えた時点で "time" を持っていたセッションが有りうる。ここもテストにした。i18n は `viewList` / `viewTime` を削除
+- **繰り返し一覧の Mobile 導線** = rightSidebar のドロワーを narrow でも 2 タブ（今日の流れ / 繰り返し）にした。「本日の Todo」は入れない（Todo ボードは Schedule セクション側の SegmentedControl が担当済みで、2 本目の入口は重複）。resize で `"todo"` が残っても**描画時に flow へ畳む**（state は保持 = 広げたら元のタブに戻る）
+- **閲覧のみは `readOnly` フラグではなく `onDelete` を渡さないことで表現**。フラグを足すと「削除を出すか」の真実が 2 つになり、いずれコールバックと食い違う。disabled にもしない（押せるのに断るコントロールは壊れて見える — #434 S-1 と同じ原則）
+- **移動は編集ではない**ので行タップの「次回発生日へジャンプ」は mobile でも残す。ただし narrow ではドロワーがカレンダーに被るので**ジャンプ時に閉じる**。`useRightSidebarOptional`（null 安全）を使用 — セクション本体は Provider 無しで描かれても壊れてはいけない（`RightSidebarPortal` と同じ理由）
+- **Desktop は無変更**: 3 タブのまま・`onDelete` は wide で従来どおり・drawer close は `!isWide` ガードの内側（Desktop のパネルはグリッドの横に並ぶので、閉じるとユーザーが自分で開いたものを畳むことになる）
+- **docs 追随**: `mobile-scope.md` #4 / #5 / §5 Phase 2、`2026-07-14-schedule-redesign.md` の Step 5-c ✅ + **Step 6 も ✅**（#468 / PR #506 が 7/31 merge 済みなのに ⬜ のままだった）+ Status 行 + Worklog
+- **検証**: 7 ゲート全緑（shared lint 0 errors / build / test 166 files 1386 pass、web lint warning 0 / build / test 9 files 79 pass、docs-lint OK）。DDL ゼロ。`CalendarTab` 自体のレンダーテストは無し（shared から 40 以上の部品を取るためモックハーネスの新設が要る）。実ブラウザ / 実機確認は §7.4 どおり chat-main に残る
 ### 2026-08-01 - #508 BottomSheet にフォーカストラップと初期フォーカス（shared-fix `[all]`）
 
 #### 概要

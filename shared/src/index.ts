@@ -334,10 +334,8 @@ export {
 } from "./utils/scheduleLabels";
 export {
   normalizeDesktopView,
-  normalizeMobileView,
   visibleCalendarRange,
   type DesktopCalendarView,
-  type MobileCalendarView,
 } from "./utils/calendarView";
 export { makeOptimisticScheduleItem } from "./utils/scheduleDraft";
 // #504: the order a series-wide edit must be written in (template before

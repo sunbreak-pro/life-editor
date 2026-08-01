@@ -9,6 +9,7 @@ import {
   useWikiTagsUnifiedContext,
   useTranslation,
   useMediaQuery,
+  useRightSidebarOptional,
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
@@ -26,7 +27,6 @@ import {
   ItemCreatePanel,
   ItemActionPopover,
   ItemDetailOverlay,
-  SegmentedControl,
   StatusFilterChips,
   BottomSheet,
   Modal,
@@ -211,15 +211,12 @@ export function CalendarTab({
     setAnchorDate,
     setView,
     desktopView,
-    mobileView,
     effView,
     weekStartsOn,
     weekStart,
     weekEnd,
     rangeStart,
     rangeEnd,
-    mobileSelectedDay,
-    setMobileSelectedDay,
     step,
     goToday,
   } = useCalendarNav(isWide);
@@ -236,14 +233,14 @@ export function CalendarTab({
    * legible.
    *
    * Consumed immediately (like pendingNewTask), so coming back to the Calendar
-   * later does not re-select an event the user has moved on from. On Mobile the
-   * month agenda reads `mobileSelectedDay` rather than the anchor, so that gets
-   * the day too — otherwise the grid jumps and the list underneath does not.
+   * later does not re-select an event the user has moved on from. #467 retired
+   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
+   * the anchor is now the only day either layout draws from — moving it is the
+   * whole job.
    */
   useEffect(() => {
     if (!pendingSelectEvent) return;
     setAnchorDate(pendingSelectEvent.date);
-    setMobileSelectedDay(pendingSelectEvent.date);
     // A local setState, which the cascading-render rule flags. It fires once
     // per arrival — a user navigating from the palette, not a render loop —
     // and the intent exists only as a PROP, so there is no event handler
@@ -252,21 +249,24 @@ export function CalendarTab({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedId(pendingSelectEvent.id);
     onConsumePendingEvent?.();
-  }, [
-    pendingSelectEvent,
-    setAnchorDate,
-    setMobileSelectedDay,
-    onConsumePendingEvent,
-  ]);
+  }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent]);
 
-  // Which rightSidebar tab is showing on Desktop ("今日の流れ" / "本日の Todo" —
-  // the A-3 tray, #298). The old "詳細" tab was removed in #299 (item detail
-  // now lives in a body-level overlay, not the rightSidebar).
+  // Which rightSidebar tab is showing ("今日の流れ" / "本日の Todo" — the A-3
+  // tray, #298). The old "詳細" tab was removed in #299 (item detail now lives
+  // in a body-level overlay, not the rightSidebar).
   // #408 added "repeats" — with the Routines header tab retired this is the
   // only route to a routine whose occurrences are not in the visible range.
+  // #467 gave Mobile the same drawer minus "todo" (the Todo board is its own
+  // section tab there), so the value is normalised per layout at render.
   const [sidebarTab, setSidebarTab] = useState<"flow" | "todo" | "repeats">(
     "flow",
   );
+  // #467: jumping to a repeat's next occurrence has to put the calendar on
+  // screen, and on Mobile the list that was tapped is a drawer sitting over it.
+  // The OPTIONAL hook, for the same reason RightSidebarPortal uses it: a
+  // section body has to survive being rendered without the shell's Provider
+  // (standalone renders / tests). Outside it there is no drawer to close.
+  const closeSidebar = useRightSidebarOptional()?.close;
   // #466 Step 5-b: fold repeat-generated occurrences out of the GRID so the
   // gaps left between one-off events are visible. Deliberately NOT persisted
   // (see the decision in the Issue): a filter restored at startup shows a
@@ -863,11 +863,6 @@ export function CalendarTab({
     { id: "week", label: t("scheduleScreen.viewWeek") },
     { id: "month", label: t("scheduleScreen.viewMonth") },
   ];
-  const mobileViewOptions: SegmentedOption[] = [
-    { id: "list", label: t("scheduleScreen.viewList") },
-    { id: "time", label: t("scheduleScreen.viewTime") },
-    { id: "month", label: t("scheduleScreen.viewMonth") },
-  ];
 
   const toolbarLabels = {
     today: t("scheduleScreen.today"),
@@ -1105,15 +1100,12 @@ export function CalendarTab({
   const todayDone = todayItems.filter((i) => i.completed).length;
   const todayTotal = todayItems.length;
 
-  // Mobile day lists. Filtered too (they are the Mobile grid), though Mobile
-  // does not show the toggle yet — with the filter off this is the same array.
+  // The Mobile day list — #467 made it the only thing narrow draws, so this is
+  // the Mobile grid. Filtered like the Desktop grid is, though Mobile shows
+  // neither toggle; with both filters off it is the same array.
   const anchorDayItems = useMemo(
     () => gridRangeItems.filter((i) => i.date === anchorDate),
     [gridRangeItems, anchorDate],
-  );
-  const monthDayItems = useMemo(
-    () => gridRangeItems.filter((i) => i.date === mobileSelectedDay),
-    [gridRangeItems, mobileSelectedDay],
   );
 
   const editorItem: EventEditorItem | null = selected
@@ -1227,7 +1219,11 @@ export function CalendarTab({
       // belt-and-braces against a routine edited out from under the list.
       if (!next) return;
       setAnchorDate(next);
-      setMobileSelectedDay(next);
+      // #467: on Mobile this list lives in the drawer that covers the calendar,
+      // so a jump with the drawer left open lands on a day the user cannot see.
+      // Desktop's panel sits beside the grid, and `close` there would collapse
+      // a panel the user deliberately opened — hence the layout guard.
+      if (!isWide) closeSidebar?.();
       void (async () => {
         // Navigating only FETCHES a range — nothing on the nav path
         // materialises occurrences (the generator covers today, and reconcile
@@ -1247,7 +1243,8 @@ export function CalendarTab({
       routines,
       listDate,
       setAnchorDate,
-      setMobileSelectedDay,
+      isWide,
+      closeSidebar,
       ensureRoutineItemsForDateRange,
       reload,
     ],
@@ -1465,29 +1462,42 @@ export function CalendarTab({
       </div>
     ) : null;
 
-  // Shared rightSidebar (AppShell owns the frame). Desktop shows a 3-tab
-  // switcher ("今日の流れ" / "本日の Todo" / "繰り返し") inside ONE portal so
-  // contentCount stays 1 (#299 removed the old "詳細" tab — item detail now
-  // lives in a body-level overlay); Mobile shows only the flow.
+  // Shared rightSidebar (AppShell owns the frame — a push-in panel on Desktop,
+  // a drawer on Mobile). One portal either way so contentCount stays 1 (#299
+  // removed the old "詳細" tab — item detail now lives in a body-level overlay).
+  //
+  // #467: Mobile gets the same switcher minus "本日の Todo". The Todo board is
+  // its own SegmentedControl tab in the Schedule section there, so a second
+  // route to it inside the drawer would be a duplicate; "繰り返し" is the one
+  // that had no Mobile route at all (mobile-scope.md #5 — the list was
+  // unreachable from narrow since #408 retired the Routines header tab).
   const sidebarTabs = useMemo(
-    () => [
-      { id: "flow", label: t("scheduleScreen.todayFlow") },
-      { id: "todo", label: t("scheduleScreen.tabTodo") },
-      { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-    ],
-    [t],
+    () =>
+      isWide
+        ? [
+            { id: "flow", label: t("scheduleScreen.todayFlow") },
+            { id: "todo", label: t("scheduleScreen.tabTodo") },
+            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
+          ]
+        : [
+            { id: "flow", label: t("scheduleScreen.todayFlow") },
+            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
+          ],
+    [isWide, t],
   );
+  // A resize can leave "todo" selected with no tab to match it, which would
+  // draw the tray under a switcher that shows nothing as active. Fold it back
+  // to the flow rather than resetting the state — widening again returns the
+  // user to the tab they actually chose.
+  const activeSidebarTab =
+    !isWide && sidebarTab === "todo" ? "flow" : sidebarTab;
 
   const flowBody = (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        {/* Wide mode already labels the tab "今日の流れ"; the heading would be a
-            duplicate, so it is Mobile-only (no tabs there). */}
-        {!isWide && (
-          <h3 className="text-sm font-semibold text-lumen-text">
-            {t("scheduleScreen.todayFlow")}
-          </h3>
-        )}
+        {/* No heading on either layout: the switcher above already reads
+            "今日の流れ". It used to be Mobile-only, back when narrow had no
+            tabs at all (#467 gave it the same switcher). */}
         <p className="text-xs text-lumen-text-secondary">
           {todayLabel} ·{" "}
           {t("scheduleScreen.doneSummary", {
@@ -1558,7 +1568,13 @@ export function CalendarTab({
   );
 
   // #408: the repeat list that replaces the retired Routines header tab.
-  // Desktop-only for the same reason as the Todo tray — it rides the switcher.
+  //
+  // #467 put it on Mobile too, viewing only (mobile-scope.md #5): tapping a row
+  // still jumps the calendar to that routine's next occurrence — that is the
+  // reachability this panel exists for, and navigating is not editing — but
+  // `onDelete` is left off, so no row offers to take a whole series away on a
+  // touch target the size of a fingertip. `repeatsHidden` is Desktop-only
+  // state (narrow has no toggle), so the notice below never shows there.
   //
   // #466: while the grid filter is on, this list is the surface most likely to
   // be read as the truth about what is scheduled ("the routine is right here,
@@ -1584,7 +1600,7 @@ export function CalendarTab({
       <RepeatListPanel
         rows={repeatRows}
         onOpen={handleOpenRepeat}
-        onDelete={handleDeleteRepeat}
+        onDelete={isWide ? handleDeleteRepeat : undefined}
         labels={{
           empty: t("scheduleScreen.summaryEmpty"),
           never: t("scheduleScreen.repeatNeverFires"),
@@ -1623,22 +1639,18 @@ export function CalendarTab({
 
   const sidebarPortal = (
     <RightSidebarPortal>
-      {isWide ? (
-        <ScheduleSidebarTabs
-          tabs={sidebarTabs}
-          value={sidebarTab}
-          onChange={(id) => setSidebarTab(id as "flow" | "todo" | "repeats")}
-          label={t("scheduleScreen.detailPanelLabel")}
-        >
-          {sidebarTab === "flow"
-            ? flowBody
-            : sidebarTab === "todo"
-              ? todoBody
-              : repeatsBody}
-        </ScheduleSidebarTabs>
-      ) : (
-        flowBody
-      )}
+      <ScheduleSidebarTabs
+        tabs={sidebarTabs}
+        value={activeSidebarTab}
+        onChange={(id) => setSidebarTab(id as "flow" | "todo" | "repeats")}
+        label={t("scheduleScreen.detailPanelLabel")}
+      >
+        {activeSidebarTab === "flow"
+          ? flowBody
+          : activeSidebarTab === "todo"
+            ? todoBody
+            : repeatsBody}
+      </ScheduleSidebarTabs>
     </RightSidebarPortal>
   );
 
@@ -1956,6 +1968,19 @@ export function CalendarTab({
   }
 
   // ── Mobile ───────────────────────────────────────────────────────────────
+  //
+  // #467 Step 5-c: one screen — the anchored day as a list, plus the FAB. The
+  // Timeline and Month options went with the switcher. Both were Desktop
+  // surfaces shrunk to fit: a 24-hour time grid on a phone puts the whole day
+  // behind a scroll and turns every block into a drag target too small to hit,
+  // and a month grid leaves cells that show a count instead of what is in them.
+  // The list answers the question narrow is actually for ("what is next?")
+  // without either, and the day steppers below reach every other day.
+  //
+  // What was lost with them is the picker for a far-off day — prev/next only
+  // walks one day at a time now. That is the accepted trade of "単画面 + FAB"
+  // (Epic #290 Step 5-c); the repeats tab in the drawer covers the case that
+  // actually needed a jump (a routine whose next occurrence is weeks out).
   return (
     <>
       {sidebarPortal}
@@ -1995,20 +2020,13 @@ export function CalendarTab({
             {t("scheduleScreen.today")}
           </button>
         </div>
-        <SegmentedControl
-          className="shrink-0"
-          options={mobileViewOptions}
-          value={mobileView}
-          onChange={setView}
-          label={t("scheduleScreen.viewLabel")}
-        />
         {rangeErrorBanner}
         <div className="min-h-0 flex-1 overflow-y-auto pb-24">
           {showLoading ? (
             loadingCard
           ) : showError ? (
             errorCard
-          ) : mobileView === "list" ? (
+          ) : (
             <AgendaList
               items={toAgenda(
                 anchorDayItems,
@@ -2022,58 +2040,6 @@ export function CalendarTab({
               labels={agendaLabels}
               className="rounded-md border border-lumen-border bg-lumen-bg px-2"
             />
-          ) : mobileView === "time" ? (
-            <WeekTimeGrid
-              weekStart={anchorDate}
-              days={1}
-              items={gridItems}
-              selectedId={selectedId}
-              onItemActivate={handleItemActivate}
-              onItemDoubleClick={handleItemOpenDetail}
-              onCreateAt={handleGridCreateAt}
-              onMoveItem={handleMoveItem}
-              onResizeItem={handleResizeItem}
-              taskInteractive
-              weekdayLabels={weekdayLabels}
-              allDayLabel={t("scheduleScreen.allDay")}
-              statusLabels={statusLabels}
-              createSlotLabel={t("scheduleCalendar.createSlot")}
-              todayKey={today}
-              nowMinutes={nowMinutes}
-              formatDayDate={formatDayDate}
-            />
-          ) : (
-            <div className="flex flex-col gap-3">
-              <MonthGrid
-                monthKey={anchorDate}
-                items={monthItems}
-                todayKey={today}
-                weekStartsOn={weekStartsOn}
-                weekdayLabels={weekdayLabels}
-                compact
-                onSelectDay={(day) => setMobileSelectedDay(day)}
-                onItemActivate={handleItemActivate}
-                onItemDoubleClick={handleItemOpenDetail}
-                formatMoreCount={(n) =>
-                  t("scheduleScreen.moreCount", { count: n })
-                }
-                formatDayLabel={formatFullDay}
-                ariaLabel={t("scheduleScreen.calendar")}
-              />
-              <AgendaList
-                items={toAgenda(
-                  monthDayItems,
-                  rangeTaskChips.filter((c) => c.date === mobileSelectedDay),
-                )}
-                nowMinutes={mobileSelectedDay === today ? nowMinutes : null}
-                onToggleComplete={handleToggle}
-                onItemActivate={handleItemActivate}
-                onItemDoubleClick={handleItemOpenDetail}
-                selectedId={selectedId}
-                labels={agendaLabels}
-                className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-              />
-            </div>
           )}
         </div>
       </div>

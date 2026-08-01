@@ -2,14 +2,17 @@
  * Calendar view-mode domain logic (#280, extracted from CalendarTab). Pure
  * string/date-key computation — no React, no Intl, no DataService.
  *
- * The Schedule host keeps ONE `view` state string across both layouts;
- * each layout normalises it to its own option set (Desktop day/week/month ↔
- * Mobile list/time/month) so a window resize keeps a sensible view without a
- * second piece of state.
+ * The Schedule host keeps ONE `view` state string, and only Desktop offers a
+ * choice: day / week / month. It is normalised here so a value left over from
+ * an older session (or a future option) still resolves to something drawable.
+ *
+ * #467 retired the Mobile option set (list / time / month) with its switcher —
+ * narrow is a single day list now, so there is no second view string to
+ * normalise. `normalizeMobileView` / `MobileCalendarView` went with it; the
+ * caller pins the effective view to "list" instead.
  */
 
 export type DesktopCalendarView = "day" | "week" | "month";
-export type MobileCalendarView = "list" | "time" | "month";
 
 /** Map the shared view string onto the Desktop option set. */
 export function normalizeDesktopView(view: string): DesktopCalendarView {
@@ -22,21 +25,10 @@ export function normalizeDesktopView(view: string): DesktopCalendarView {
         : "week";
 }
 
-/** Map the shared view string onto the Mobile option set. */
-export function normalizeMobileView(view: string): MobileCalendarView {
-  return view === "day"
-    ? "list"
-    : view === "week"
-      ? "time"
-      : view === "list" || view === "time" || view === "month"
-        ? view
-        : "list";
-}
-
 /**
  * Visible fetch window (inclusive [start, end] date keys) for the effective
  * view. Month spans the whole grid incl. spillover cells; Desktop week spans
- * the anchor's week; every other view (day / Mobile list / Mobile time) is a
+ * the anchor's week; everything else (Desktop day, the Mobile list) is a
  * single day.
  */
 export function visibleCalendarRange(args: {
