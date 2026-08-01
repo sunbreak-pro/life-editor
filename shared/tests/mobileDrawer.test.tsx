@@ -1,13 +1,24 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { MobileDrawer, RightSidebarToggle } from "../src/components";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { MobileDrawer, Modal, RightSidebarToggle } from "../src/components";
 import { RightSidebarProvider } from "../src/context";
 
 /*
  * App Shell Turn 2 — Mobile left drawer. Same detail content as the Desktop
  * panel, portalled to <body>; opens via the hamburger toggle and closes on
- * Escape / scrim click. Modal semantics (role=dialog + aria-modal).
+ * Escape / scrim click. Modal semantics (role=dialog + aria-modal), with the
+ * keyboard/focus behaviour shared through useDialogA11y (#517) — the trap
+ * itself is covered in dialogFocus.test.tsx, these cases pin the WIRING.
  */
+
+/** Runs the pending rAF callback — that is when initial focus is applied. */
+async function afterFrame() {
+  await act(async () => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+  });
+}
 
 const LABELS = {
   title: "Details",
@@ -64,5 +75,58 @@ describe("MobileDrawer", () => {
     const dialog = screen.getByRole("dialog", { name: "Details" });
     fireEvent.mouseDown(dialog);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("moves focus into the drawer on open and returns it on close", async () => {
+    renderDrawer();
+    const toggle = screen.getByRole("button", { name: "Open details" });
+
+    toggle.focus();
+    fireEvent.click(toggle);
+    await afterFrame();
+    const dialog = screen.getByRole("dialog", { name: "Details" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("hands Escape to a dialog stacked on top, one layer per press", () => {
+    const onCloseModal = vi.fn();
+    function Stack({ modalOpen }: { modalOpen: boolean }) {
+      return (
+        <RightSidebarProvider>
+          <RightSidebarToggle
+            variant="hamburger"
+            openLabel="Open details"
+            closeLabel="Hide details"
+          />
+          <MobileDrawer
+            title={LABELS.title}
+            closeLabel={LABELS.close}
+            emptyLabel={LABELS.empty}
+          />
+          <Modal open={modalOpen} onClose={onCloseModal} title="On top">
+            <button type="button">modal button</button>
+          </Modal>
+        </RightSidebarProvider>
+      );
+    }
+    const { rerender } = render(<Stack modalOpen={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open details" }));
+    rerender(<Stack modalOpen />);
+
+    // The modal opened after the drawer, so it owns the Escape…
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onCloseModal).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog", { name: "Details" })).toBeInTheDocument();
+
+    // …and once it is gone the drawer takes the next one.
+    rerender(<Stack modalOpen={false} />);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: "Details" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useDialogA11y } from "../hooks/useDialogA11y";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
 import { RightSidebarContents } from "./RightSidebarContents";
 
@@ -9,6 +9,13 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * close, backdrop-click to close) but slides in from the LEFT and holds the
  * SAME detail content as the Desktop panel. This is the "詳細" drawer opened by
  * the hamburger toggle — role-separate from the nav "More" bottom sheet.
+ *
+ * Keyboard/focus behaviour comes from useDialogA11y, the same hook Modal and
+ * BottomSheet use (#508): Escape closes, Tab cycles inside the panel, focus
+ * lands inside on open and goes back to the opener on close. Joining the hook's
+ * layer stack also fixes stacking: a dialog opened on top of the drawer now
+ * takes the Escape instead of the drawer's own document listener racing it
+ * (#517). Scroll is not locked, matching BottomSheet.
  *
  * §5: the drawer panel is opaque (bg-subsidebar); the black/30 scrim is the
  * allowed overlay exception (brief specifies .3 for this drawer). Safe-area
@@ -31,23 +38,20 @@ export function MobileDrawer({
 }: MobileDrawerProps) {
   const { isOpen, close, contentCount, setPortalTarget } =
     useRightSidebarContext();
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [isOpen, close]);
+  const panelRef = useDialogA11y<HTMLDivElement>({
+    open: isOpen,
+    onClose: close,
+  });
 
   if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex bg-black/30" onMouseDown={close}>
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-label={title}
         onMouseDown={(e) => e.stopPropagation()}
         className="flex h-full w-80 flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
