@@ -33,6 +33,8 @@ grep -rn '<旧名>' ~/dev/Claude/agents-lib/projects/life-editor/
 
 - `COMPLETED` / `SUPERSEDED` になったファイルは `archive/` へ移動する（plans/ に残置しない）
 - 禁止例: In-progress / EXECUTED / READY FOR PR / SKELETON / FROZEN / SHIPPED / CLOSED
+- **enum を当てるのは plans/ 由来の文書だけ**（2026-08-01 ユーザー確定 D-20260801-main-2）: `archive/` には計画書以外（要件定義書・棚卸しメモ）も同居しており、そちらの `**Status**: SPECIFICATION（凍結）` / `ARCHIVED` は**文書種別を表す語**なので enum 化しない。Status 行が無い非計画書に足す必要もない。enum は「計画がどこまで進んだか」の語彙で、要件定義書に `COMPLETED` を当てても意味が通らない
+- **全数チェックには `grep -n "^Status:"` では足りない**（#474 実測・2 本を見落とした）: `**Status**:` 形式と blockquote 前置（`> Status:`）を拾うため、各ファイル先頭 14 行に `^>?\s*Status:` と `^>?\s*-?\s*\*\*Status[^*]*\*\*:` の両方を当てる
 
 ## 4. 完了イベント時の docs 追随（DoD）
 

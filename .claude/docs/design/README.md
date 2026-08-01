@@ -18,4 +18,6 @@ ClaudeDesign (claude.ai/design) に貼るプロンプトの**正本**と、そ�
 - トークンの SSOT は `shared/src/styles/tokens.css`、ナビ構成の SSOT は `IA.md`。`_COMMON-CONTEXT.md` は両者に追随し、変更時は版数を上げる（正本 → \_COMMON-CONTEXT → 各 brief の順で同期・片方だけ変えない）
 - **全 brief は現行実装ではなく `IA.md` の目標構成に向けてデザインする**
 
-計画書: [`../vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`](../vision/plans/2026-07-04-claudedesign-screen-design-fanout.md)
+計画書（COMPLETED・2026-08-01 に archive へ移動）: [`../../archive/2026-07-04-claudedesign-screen-design-fanout.md`](../../archive/2026-07-04-claudedesign-screen-design-fanout.md)
+
+デザイン追跡の実務は Epic #321 + [`../requirements/mobile-scope.md`](../requirements/mobile-scope.md) + Issue 群が引き継いでいる。

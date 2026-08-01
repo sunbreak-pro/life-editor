@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — **Web/Mobile UI の追跡正本**（旧 W-parity ロードマップ #121/#127 完了・archive 済でここへ一本化。#154・2026-07-05）
+Status: COMPLETED — brief 9 本 + 実装 PR（#160 / #164〜#168 / #170 / #174 / #175）が全 merge・Step 8 以降は別計画が承継（#474 実測）。**「Web/Mobile UI デザインの追跡正本」の役割は本書を離れ、Epic #321 + [`docs/requirements/mobile-scope.md`](../docs/requirements/mobile-scope.md) + Issue 群へ移った**（2026-08-01 ユーザー確定 D-20260730-tags-1 = A）
 Created: 2026-07-04
 Branch: claude/design-ia
 Owner-chat: frontend
@@ -12,7 +12,7 @@ Owner-chat: frontend
 ## Context
 
 - **動機**: Web 版（desktop / mobile 両レイアウト）の全主要画面のデザイン案を ClaudeDesign（claude.ai/design）で作成する。そのために「ClaudeDesign へ渡すプロンプト + 前提条件」を各セッションが統一形式で整備する。プロンプトの品質・統一性がデザインの統一性を決めるため、共通前提（`_COMMON-CONTEXT.md`）とテンプレ（`_TEMPLATE.md`）を先に固定し、各画面の brief を並列セッションに fan-out する
-- **IA ファースト（2026-07-05 決定）**: 個別画面の前に**ナビ構成（サイドバーのセクション + 各画面の header タブ）を先に固定**する。正本 = [`../../design/IA.md`](../../design/IA.md)。決定 3 点: ①サイドバー 6 セクション集約（Materials に Tasks / Notes / Daily / Tags の header タブ）②Trash はサイドバー最下部のユーティリティ枠 ③Mobile 固定 4 タブ = Schedule / Materials / Work / Analytics + More。全 brief は現行実装ではなく**この目標 IA** に向けてデザインする
+- **IA ファースト（2026-07-05 決定）**: 個別画面の前に**ナビ構成（サイドバーのセクション + 各画面の header タブ）を先に固定**する。正本 = [`docs/design/IA.md`](../docs/design/IA.md)。決定 3 点: ①サイドバー 6 セクション集約（Materials に Tasks / Notes / Daily / Tags の header タブ）②Trash はサイドバー最下部のユーティリティ枠 ③Mobile 固定 4 タブ = Schedule / Materials / Work / Analytics + More。全 brief は現行実装ではなく**この目標 IA** に向けてデザインする
 - **制約**: コスト $0 / **ClaudeDesign はリポジトリを読めない → プロンプトは自己完結必須** / トークン名前空間は **`lumen-*`**・accent は Lumen blue `#1d4ed8`（PR #135・2026-07-05 merge。"Cobalt Ink" は系譜名。`tokens.css` が SSOT）/ Lumen 由来 4 部品（Toast・Sheet・Sidebar・Menu）は `shared/` 移植済み
 - **事実確認（2026-07-04 偵察）**: web 実画面は 10 フラットセクション。正準 `SectionId` の `materials` は web では Tasks + Daily + Notes + Tags に分解されている（目標 IA で再統合）。desktop⇔mobile は `useMediaQuery("(min-width: 768px)")` による構造分岐（`shared/src/components/AppShell.tsx:65`）。セクション外にログイン画面（`web/src/AuthScreen.tsx`）とシェル横断 UI（CommandPalette / OfflineBanner / Toast）が存在する
 - **Non-goals**: コード実装・トークン変更（brief 作成はドキュメントのみ）/ **terminal（機能ごと廃止をユーザー決定済み・2026-07-05 再確認。brief を作らない。CLAUDE.md §2/§5/§8・tier-1 の Terminal 記述の除去は別途 docs 整理）** / 生成デザインの `shared/` 移植と IA 実装リファクタ（生成結果を見てから別計画）/ Tier 3 凍結機能の新画面（Paper Boards / NotebookLM 等）
