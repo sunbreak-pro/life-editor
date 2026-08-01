@@ -36,6 +36,21 @@ Epic #290 Step 5-c と Epic #321 Phase 2（mobile-scope.md #5）を 1 本で実�
 
 - 2026-08-01: [途中] chat-main レビュー 3 本の対応 — #506 は 4 経路中 1 経路にしか無かったレンズ解除を `finishCreatePanel()` に合流（`4e21f83b`）／ #514 は `propagate` 失敗が無言だった件をこの PR で拾い `propagate-failed` + `series-partial` を追加（`01f31113`）／ #515 は Issue #505 に残り 1 ファイル（`useGraphInteraction`）を記録。7 ゲート全緑・push 済み。**#467 は #506 の merge 待ちで着手不可のまま**
 
+### 2026-07-31 - #505 `react-hooks/refs` のベースライン免除を 10 → 1 に減らす
+
+#### 概要
+
+`shared/eslint.config.js` が 10 ファイルだけ `react-hooks/refs` を off にしていたのを 9 ファイル分解消した。免除は**パス完全一致**なので、対象を分割・改名した瞬間に失効して CI だけが落ちる（PR #488 で実際に踏んだ形）。
+
+#### 変更点
+
+- **違反は 3 つの形しかなかった**。免除リストの長さに対して中身は単純だった
+  - **(1) 値 / callback を render 中に ref へ写す**（7 箇所: 4 つの `*UnifiedContext` / `TaskTreeContext` の `undoRedoRef`、`TimerContext` の `onSessionCompleteRef`、`ShortcutEditModal` の `capturingRef`、`UndoRedoContext` の `appliedRef`、`useScheduleItemsAPI` の `dateRef`）→ **dep 無し `useEffect`** へ移した。**読み手はすべて commit 後**（unmount cleanup / tick effect / Esc ハンドラ / 解決済み promise / undo-redo クロージャ）なので、見える値は変わらない。`useScheduleItemsAPI` は**同じファイルの `itemsRef` が既に effect 版**で不統一だったのが揃った
+  - **(2) lazy ref 初期化**（`UndoRedoContext` の `managerRef`）→ `useState(() => new UndoRedoManager())`。「1 回だけ生成して以後不変」を React から見える形で書いたもので、ref 版と違い render 中の読み書きが無い
+  - **(3) render 中スナップショットが意図的**（`useFrozenNoteSortKey`）→ **state を render 中に調整する React 公式の逃げ道**へ。effect に移すと「保持されていない 1 レンダー」が通り、それが**まさにノートが飛ぶフレーム**（#366）。set はガード付き（選択が変わったか、探していたノートが届いたときだけ）で、**ガードを外すと「まだ見つからない」を毎レンダー書き直して収束しない**。専用テスト 4 件はそのまま通過
+- **残り 1 件は形が違うので別 PR にした**: `useGraphInteraction.ts` は `simRef.current` を**依存配列の中で読んでいる**。render 時点の ref は前回 commit の値なので、「シミュレーションが差し替わったらリスナーを貼り直す」という意図をそもそも果たしていない（差し替えの**次の**レンダーでしか効かず、そのレンダーが来る保証も無い）。正しい直し方はリスナーが event 時に `simRef.current` を読む形で、そうすると依存自体が不要になる — ただし Connect グラフのキャンバスにテストが無く、lint 掃除に混ぜる変更ではない。config のコメントに理由を残した
+- **ゲート**: 7 本すべて exit 0 — shared lint（**0 errors**）/ build / test（**166 files / 1363 pass**）・web lint / build / test（**8 files / 75 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+
 ### 2026-07-31 - #504 routine template の更新失敗が無言（scope 編集の await 漏れ / 未ロード時の void）
 
 #### 概要
@@ -50,6 +65,23 @@ Epic #290 Step 5-c と Epic #321 Phase 2（mobile-scope.md #5）を 1 本で実�
 - **routine 未ロード時の頻度変更の `void updateRoutine(...)`** を await + `landed` 判定に。文言は既存の `"update"` を流用（この経路もユーザーから見れば「間隔の変更が落ちた」）
 - **`onRepeatConvertFailed` の文言分岐をネスト三項からテーブル（`REPEAT_FAILURE_COPY_KEY`）へ**。reason は増える一方で、チェーンだと**新しい reason が黙って最後の `else` に落ちる** — 「何も保存されていない」が「変更できました」に化ける事故がまさにその形。新 reason `"series"` + `scheduleScreen.repeatSeriesUpdateFailed`（en / ja）
 - **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1368 pass**）・web lint / build / test（**8 files / 75 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
+
+### 2026-07-31 - #503 コマンドパレットにアイテム横断検索を追加（shared-fix `[all]`）
+
+#### 概要
+
+ヘッダーが「検索・コマンド実行」と名乗っているのに、パレットは移動コマンドしか引けなかった（既存ノート「テスト２」があるのに「テスト」で 0 件）。ノート / タスク / 予定 / デイリーのタイトル検索を足し、選択でそのアイテムが開くところまで配線した。#468 の PR が merge 待ちで #467 に着手できない空き時間に拾った。
+
+#### 変更点
+
+- **土台は `[[` 補完の候補プールにあった**: `useItemLinkTargets` の遅延 + stale + in-flight のキャッシュ（#430）がそのまま要る契約だったので、`shared/src/hooks/useLazyStalePool.ts` に切り出して両方から使う。切り出した規則は 5 つとも過去のバグの修正そのもの（遅延 / `allowStale` で指の下を動かさない / 同時 1 フェッチ / **settled 形をキャッシュ**（生 promise だと相乗りした呼び手が reject を継承する）/ **飛行中に来たバンプは success で消さない**（消すと次のバンプまで書き込みが見えない））
+- **マッチングは `shared/src/utils/itemSearch.ts` の純関数**（`searchItemPool`）。前方一致 → 部分一致の 2 段だけで、あいまい検索は**入れない**: 1 ロール 5 行の枠を「なぜ出たか分からない行」に使うと、出るべき行が黙って消える。**空クエリは 0 件**（パレットは空欄で開くので、そこにプール全部を出すと移動コマンドが一番使う瞬間に埋まる）。**上限はロール単位**（全体上限だとノート 200 件がタスク 1 件を押し出す）
+- **パレットは受け取った行を再フィルタしない**（`externalResults`）。プールは非同期で取ってホストが照合済みなので、パレット側の部分一致が**ホストと食い違う**しかない。ただし**クエリが空なら表示しない** — 再オープン直後の 1 レンダーで前セッションのヒットがちらつくのを、effect を増やさず render 側で塞げる
+- **予定だけ「日付」を intent に載せる**（`navigateToItem({ id, role, date })`）。カレンダーは可視範囲しか取らず**ナビゲーションが範囲外を生成しない**（この worktree の最重要実測）ので、id だけ渡すと「たまたま開いていた週」を選択して何も起きない。日付は検索行が既に持っているので、カレンダー側に引き直させない
+- **`react-hooks/set-state-in-effect` は web で error**。props で届く intent を受ける先は effect しか無く、先例（`useTaskDetailTarget.ts:112`）と同じく理由付き 1 行 disable。**`setAnchorDate` / `setMobileSelectedDay` は検知されない**（フック由来のメンバー的呼び出し）ので、必要なのは local な `setSelectedId` の 1 行だけだった
+- **`onQueryChange` はパレットの open-reset でも撃つ**。撃たないと前セッションのヒットが空欄の下に残る
+- **overlay に `role="dialog"` / `aria-modal="true"`**。名前は placeholder を流用（「検索、またはコマンドを入力...」= ダイアログそのものの説明なので 2 本目の文字列を作らない）。placeholder 自体も「コマンドを入力...」から検索を含む文言へ en / ja 両方更新した
+- **ゲート**: 7 本すべて exit 0 — shared lint / build / test（**167 files / 1378 pass**）・web lint / build / test（**9 files / 81 pass**）・`LC_ALL=C bash scripts/docs-lint.sh`
 
 ### 2026-07-31 - #468 Step 6 カレンダー台帳をグリッドのタグフィルタとして配線
 
