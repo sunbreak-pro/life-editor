@@ -2,13 +2,25 @@
 
 ## 進行中
 
+### 🔁 #520（PR #533）/ #524（PR #536）の merge 待ち（着手日: 2026-08-01）
+
+**対象**: `web/src/schedule/CalendarTab.tsx` / `shared/src/components/Connect/graph/useGraphInteraction.ts` + `shared/tests/`
+
+- 現在: 2 本とも実装完了・7 ゲート全緑・PR open。**tracker は実装 PR に載せない**（D-20260801-main-1）ので、この記録は docs 側の別 PR
+- **#520 は「レンズだけ直すと半分残る」型**: パレットの候補は `fetchEvents()` = live な schedule_items 全部で**繰り返しオカレンスを含む**ので、`repeatsHidden` だけが掛かっていても症状は同じ。到着時点で「どちらが隠すか」は判定できない（渡るのは id + date だけ・行の取得はアンカー移動が引き金）ため両方を無条件で外す
+- **合流点は用途ごとに 2 本**: `revealOnGrid()`（移動して見せる）と `finishCreatePanel()`（作って見せる・レンズのみ）。作成直後の行は繰り返し由来ではないので混ぜない
+- **`react-hooks/set-state-in-effect` は effect 内の最初の 1 件しか報告しない**（実測）。setState を足すと報告位置が動き、既存の disable ディレクティブが「未使用」warning に化ける。ディレクティブは最初に来る行へ
+- **#524 は #523 の退行ではない**: 旧 deps の `simRef.current` がグラフ再構築のたびにリスナーを貼り直してクロージャを偶然更新していた（「たまに効く」）。#523 がその dep を落として確定的になった
+- **jsdom で canvas 経路は「一部」テストできる**: 座標が全部 0 なのは壊れた座標系ではなく**使える座標系**（ノードを原点に置く）。このフックは 2D コンテキストを触らないので「クリックが最新のコールバックに届くか」は pin できる。当たり判定の数式と実ブラウザ挙動だけが chat-main 側
+- **🔎 未修正の別バグ**: ノードのダブルクリックは `onActivate` を一度も呼んでいない（`d3-zoom` の `dblclick.zoom` が `stopImmediatePropagation()`・後から登録した listener は届かない）。起票依頼を outbox 2026-08-01 へ、判断は D-20260801-sched-2 へ
+
 ### 🔧 担当キューの消化（着手日: 2026-08-01）
 
 **対象**: `web/src/schedule/CalendarTab.tsx` / `web/src/schedule/useScheduleMutations.ts` / `shared/src/utils/seriesEditSequence.ts` / `shared/src/i18n/locales/`
 
 - 前回: #503 / #504 / #505 / #508 / #467 は PR #513 / #514 / #515 / #516 / #518 が全て merge 済み（#505 の Issue だけ残り 1 ファイル `useGraphInteraction` のため意図的に open）
-- 現在: **tracker の回収 = branch `claude/schedule-tracker-recovery`**（`origin/main` から）。**PR #518 は私の push より前に merge されていた**ので、#518 ブランチへ後追いで載せた tracker 差分が main に届いておらず、`origin/main` から切り直して載せ替えている
-- 次: **#520 = パレット移動 × カレンダーレンズの組み合わせ欠陥**（`section:schedule` の非 Epic はこれだけ）。**着手前に判断キュー `D-20260801-sched-1`（A / B）の回答が要る** — Issue #520 の DoD 1 番目が「どちらかを選んだうえで実装する」なので、無回答では着手しない
+- 現在: tracker の回収（`claude/schedule-tracker-recovery` → PR #522）まで完了。**PR #518 は私の push より前に merge されていた**ので、#518 ブランチへ後追いで載せた tracker 差分が main に届いておらず、`origin/main` から切り直して載せ替えた
+- 次: **#520 は D-20260801-sched-1 の回答（A）を得て実装済み**（PR #533）。**#524 も実装済み**（PR #536）。`section:schedule` の open は Epic #290 だけになった
 - **#503 と #467 は `CalendarTab` で真正コンフリクトした**（2026-08-01 実測）: #503 のパレット着地 effect が `setMobileSelectedDay` を呼ぶのに対し、#467 は Mobile の月アジェンダごとその state を退役させた。**片方が消した API をもう片方が使う形**なので union では直らず、アンカー移動 1 本に畳んだ（Mobile のリストはアンカー日を読むので追随する）
 - **squash merge は tracker のエントリを落とすことがある**（2026-08-01 実測）: #503（PR #513）/ #505（PR #515）は**コードは main にあるのに history のエントリだけ消えていた**。旧ブランチの commit（`9185969a` / `fb960baa`）から該当ブロックを取り出して復元した。**merge 後は「コードが着いたか」と「記録が着いたか」を別々に確かめる**（`git show origin/main:<path>` で実在確認）
 - **#506 の Important は「片側だけ直した」典型**: `setCalendarFilterId(null)` が 4 経路中 `handleCreateSubmit` にしか無く、タスク作成 / 既存タスク配置 / 作成して開く の 3 経路が素通りしていた。**タスクチップも同じ `applyCalendarLens` を通る**ので症状は完全に同じ。4 経路が通る `finishCreatePanel()` に合流させて、次に増える経路が同じ抜け方をできない形にした。**cancel 側（`onClose`）は合流させない** — グリッドに何も増えていないのにユーザーのレンズを外すのは別の壊れ方
