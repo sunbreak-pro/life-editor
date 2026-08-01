@@ -8,3 +8,11 @@
 - D-20260728-main-3: A（#368 は「名前の絞り込みのみ」に縮小して続行。2026-07-28 チャットで回答・chat-main が転記）
 - D-20260731-tags-2: A 相当で決着済み（ユーザー回答ではなく**事後記録**。#499 は mobile-refine の PR #501 として merge され、テーブル単位 bump までで着地。全件 GET の完全排除は別 Issue = #511 へ。2026-07-31 chat-main 記録）
 - D-20260731-tags-3: B で決着済み（同じく**事後記録**。MaterialsCountsBridge の件数クエリ化は #499 に含めず follow-up の **#511** に切った。2026-07-31 chat-main 記録）
+- D-20260801-sched-1: A（移動時にレンズを外す。生成 4 経路の `finishCreatePanel()` と同じ扱いにする → **#520 の 🛑 ゲート解除・実装可**。2026-08-01 チャットで回答・chat-main が転記）
+- D-20260731-main-2: A（chat-main が起票時点で宛先 slug を 1 つに決める。`[all]` は Epic と全レーン共通の告知だけに使う。同上）
+- D-20260801-main-1: A（tracker の更新を作業ブランチに載せない — 実装 PR では触らず merge 後に 1 commit でまとめる。同上）
+- D-20260801-main-2: A（enum は plans/ 由来の文書だけに適用する。archive の非計画書 2 本と Status 行の無い 3 本はそのまま。同上）
+- D-20260730-tags-1: A（ClaudeDesign fan-out 計画書を COMPLETED 化して archive へ移し、CLAUDE.md §6 の「追跡正本」宣言を Epic #321 + mobile-scope.md へ付け替える。同上）
+- D-20260730-mobile-1: A（3 択のタッチ行を維持。**ユーザーの明示回答ではなく「放置時 A」での確定** — 2026-08-01 の回答は mobile-2 / mobile-3 のみを指名。chat-main 記録）
+- D-20260730-mobile-2: **B**（`BottomSheet` に明示的な「閉じる」ボタンを追加する。2026-08-01 チャットで回答・chat-main が転記）
+- D-20260730-mobile-3: **B**（Desktop と同じ「本文だけロック」に揃える = モバイルのパスワード付きノートも、解錠なしでタイトル / タグ / ピン / 削除を触れるようにする。同上）
