@@ -63,7 +63,12 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
   // (display-only, but wrong until the next refetch). Same render-time-ref
   // idiom as UndoRedoContext's appliedRef.
   const dateRef = useRef(date);
-  dateRef.current = date;
+  // Mirrored in an effect (#505), matching itemsRef just below — the two
+  // used to disagree in this very file. Its readers are undo/redo closures,
+  // which run long after the commit.
+  useEffect(() => {
+    dateRef.current = date;
+  });
 
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [deletedItems, setDeletedItems] = useState<ScheduleItem[]>([]);

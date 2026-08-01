@@ -69,6 +69,7 @@ import {
   type MaterialsTab,
 } from "./hooks/useShellNavigation";
 import { useShellChrome } from "./hooks/useShellChrome";
+import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
 
 /*
  * Phase 2 S1+S2 host shell — target-IA wiring (App Shell).
@@ -165,6 +166,7 @@ export function MainScreen({ session }: { session: Session }) {
     pendingNoteSelect,
     pendingDailySelect,
     pendingTaskSelect,
+    pendingEventSelect,
   } = useShellNavigation();
   // Chrome half (hooks split — useShellChrome): the palette commands, the
   // registry-derived nav section lists, the per-section tab-band defs, the
@@ -183,6 +185,16 @@ export function MainScreen({ session }: { session: Session }) {
     shellLabels,
   } = useShellChrome({ setSection, setMaterialsTab, setScheduleTab });
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Cross-item search half of the palette (#503) — makes the header field's
+  // "search or run a command" promise true. It reads nothing until a non-empty
+  // query is typed, so opening the palette to jump sections still costs zero
+  // queries (#430's lazy rule).
+  const { results: paletteItemResults, handleQueryChange: onPaletteQuery } =
+    usePaletteItemSearch({
+      dataService: ds,
+      isOpen: paletteOpen,
+      onOpenItem: navigateToItem,
+    });
   // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
   // the tag master is reachable from every section — the panel itself is
   // mount-on-open (TagEditorHost) and fetches nothing while closed.
@@ -474,6 +486,8 @@ export function MainScreen({ session }: { session: Session }) {
                     onConsumeNewTask={consumeNewTask}
                     pendingSelectTaskId={pendingTaskSelect}
                     onConsumePendingSelect={consumeItemNav}
+                    pendingSelectEvent={pendingEventSelect}
+                    onConsumePendingEvent={consumeItemNav}
                   />
                 </ScheduleItemsProvider>
               </RoutineProvider>
@@ -684,6 +698,8 @@ export function MainScreen({ session }: { session: Session }) {
                     commands={commands}
                     placeholder={t("commandPalette.placeholder")}
                     noResultsLabel={t("commandPalette.noResults")}
+                    externalResults={paletteItemResults}
+                    onQueryChange={onPaletteQuery}
                   />
 
                   {/*

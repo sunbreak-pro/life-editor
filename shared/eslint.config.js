@@ -80,18 +80,26 @@ export default defineConfig([
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
   {
-    files: [
-      "src/components/Connect/graph/useGraphInteraction.ts",
-      "src/components/ShortcutEditModal.tsx",
-      "src/context/DailiesUnifiedContext.tsx",
-      "src/context/NotesUnifiedContext.tsx",
-      "src/context/ScheduleItemsContext.tsx",
-      "src/context/TaskTreeContext.tsx",
-      "src/context/TimerContext.tsx",
-      "src/context/UndoRedoContext.tsx",
-      "src/hooks/useFrozenNoteSortKey.ts",
-      "src/hooks/useScheduleItemsAPI.ts",
-    ],
+    /*
+     * react-hooks/refs — 10 files down to 1 (#505). The nine that went were
+     * all the same two shapes: a callback/value mirrored into a ref while
+     * rendering (moved to a dep-less effect — every reader runs after the
+     * commit, so the value they see is unchanged), and one lazy ref init
+     * (now a useState initializer, which React can see runs exactly once).
+     * useFrozenNoteSortKey kept its render-time snapshot semantics — losing
+     * them re-opens #366 — by moving to state adjusted during render.
+     *
+     * The one left is NOT the same shape: useGraphInteraction reads
+     * `simRef.current` inside a DEPENDENCY ARRAY, to re-attach its canvas
+     * listeners when the d3 simulation is replaced. A ref read during render
+     * cannot do that job — it holds whatever the previous commit left, so the
+     * dep only changes on the render AFTER the swap, if one happens at all.
+     * Fixing it means the listeners reading `simRef.current` at event time
+     * instead of capturing it (which also makes the dep unnecessary), and that
+     * is a change to the Connect graph canvas with no test around it. Left for
+     * its own PR rather than folded into a lint sweep.
+     */
+    files: ["src/components/Connect/graph/useGraphInteraction.ts"],
     rules: { "react-hooks/refs": "off" },
   },
   {

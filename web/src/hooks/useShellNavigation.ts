@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   resolveInitialSection,
   persistLastSection,
@@ -36,6 +36,10 @@ const ITEM_NAV_TARGET: Record<string, ItemNavTarget | undefined> = {
   note: { section: "materials", tab: "notes" },
   daily: { section: "materials", tab: "daily" },
   task: { section: "schedule", tab: "todo" },
+  // Events joined in #503 (palette search). They are NOT offered by the "[["
+  // autocomplete — that pool is built separately (useItemLinkTargets) — so
+  // this route is reached from the palette only, for now.
+  event: { section: "schedule", tab: "calendar" },
 };
 
 export function useShellNavigation() {
@@ -115,15 +119,19 @@ export function useShellNavigation() {
   const [pendingItemNav, setPendingItemNav] = useState<{
     id: string;
     role: string;
+    date?: string;
   } | null>(null);
-  const navigateToItem = useCallback((target: { id: string; role: string }) => {
-    const dest = ITEM_NAV_TARGET[target.role];
-    if (!dest) return;
-    setSection(dest.section);
-    if (dest.section === "materials") setMaterialsTab(dest.tab);
-    else setScheduleTab(dest.tab);
-    setPendingItemNav(target);
-  }, []);
+  const navigateToItem = useCallback(
+    (target: { id: string; role: string; date?: string }) => {
+      const dest = ITEM_NAV_TARGET[target.role];
+      if (!dest) return;
+      setSection(dest.section);
+      if (dest.section === "materials") setMaterialsTab(dest.tab);
+      else setScheduleTab(dest.tab);
+      setPendingItemNav(target);
+    },
+    [],
+  );
   const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
   const pendingNoteSelect =
     pendingItemNav?.role === "note" ? pendingItemNav.id : null;
@@ -133,6 +141,24 @@ export function useShellNavigation() {
       : null;
   const pendingTaskSelect =
     pendingItemNav?.role === "task" ? pendingItemNav.id : null;
+  /*
+   * An event carries its DATE alongside its id (#503), unlike the other three.
+   * The Calendar shows one window at a time and its navigation does not fetch
+   * outside it, so selecting the id alone would highlight a row on whatever
+   * week happens to be open — i.e. nothing. The searcher already knows the
+   * date (it is on the row the user clicked), so it travels with the intent
+   * rather than costing the Calendar a lookup on mount.
+   */
+  // Memoised because it is an OBJECT, unlike its three string siblings: the
+  // consumer keys an effect on it, and a fresh identity every render would
+  // re-fire that effect for as long as the intent is up.
+  const pendingEventSelect = useMemo(
+    () =>
+      pendingItemNav?.role === "event" && pendingItemNav.date
+        ? { id: pendingItemNav.id, date: pendingItemNav.date }
+        : null,
+    [pendingItemNav],
+  );
 
   return {
     section,
@@ -154,5 +180,6 @@ export function useShellNavigation() {
     pendingNoteSelect,
     pendingDailySelect,
     pendingTaskSelect,
+    pendingEventSelect,
   };
 }

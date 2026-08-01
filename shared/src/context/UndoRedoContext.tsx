@@ -32,11 +32,11 @@ export function UndoRedoProvider({
   children,
   onCommandApplied,
 }: UndoRedoProviderProps) {
-  const managerRef = useRef<UndoRedoManager | null>(null);
-  if (managerRef.current === null) {
-    managerRef.current = new UndoRedoManager();
-  }
-  const manager = managerRef.current;
+  // One manager per Provider, created once. A lazy REF (create-if-null during
+  // render) is the same idea, but it both writes and reads a ref while
+  // rendering (#505); a state initializer is the version React can see is
+  // safe — it runs exactly once and the value never changes afterwards.
+  const [manager] = useState(() => new UndoRedoManager());
 
   const [version, setVersion] = useState(0);
 
@@ -47,7 +47,11 @@ export function UndoRedoProvider({
 
   // Latest callback without re-memoising the value on every render.
   const appliedRef = useRef(onCommandApplied);
-  appliedRef.current = onCommandApplied;
+  // Mirrored in an effect, not during render (#505). Every reader is inside
+  // an already-resolved promise callback, so it runs after the commit.
+  useEffect(() => {
+    appliedRef.current = onCommandApplied;
+  });
 
   const value = useMemo<UndoRedoContextValue>(
     () => ({

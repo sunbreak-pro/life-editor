@@ -488,6 +488,8 @@
     "repeatConvertFailed": "繰り返しを設定できませんでした。この予定は変更されていません。もう一度お試しください。",
     "repeatMaterialiseFailed": "繰り返しは設定できましたが、先の予定をまだ追加できていません。カレンダーを開き直すと再試行します。",
     "repeatUpdateFailed": "繰り返しの間隔を変更できませんでした。前の設定のままです。もう一度お試しください。",
+    "repeatSeriesUpdateFailed": "この繰り返しの変更を保存できませんでした。予定は変更されていません。もう一度お試しください。",
+    "repeatSeriesPartialFailed": "繰り返しの設定は保存しましたが、カレンダーに並んでいる日はまだ古いままです。もう一度編集すると反映されます。",
     "deleteRoutine": "ルーチンを削除",
     "summaryTitle": "マイルーチン",
     "openRoutinesCta": "「繰り返し」タブを開く",
@@ -711,7 +713,7 @@
     "overview": "概要"
   },
   "commandPalette": {
-    "placeholder": "コマンドを入力...",
+    "placeholder": "検索、またはコマンドを入力...",
     "trigger": "検索・コマンド実行",
     "noResults": "結果が見つかりません",
     "goTo": "移動"
