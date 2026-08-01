@@ -2,6 +2,17 @@
 
 形式は [`README.md`](./README.md) 参照。回答は `ANSWERS.md` へ。
 
+## D-20260801-main-2: `archive/` の Status 表記に plans/ の enum を適用するか
+
+- 背景: #474 で `.claude/archive/*.md` 83 本を全数実測した結果（chat-tags-docs 申し送り）、DoD の検証条件 `grep -n "^Status:"` には掛からない不整合が 2 種残っている。**enum は元々 plans/ 用**（CLAUDE.md §9）で、archive には計画書以外（要件定義書・棚卸しメモ）も同居しているため、機械的に当てると文書種別の情報が落ちる
+  - `**Status**:` 形式で enum 外が 2 本 — `01_要件定義書_プロトタイプ環境.md:3` = `SPECIFICATION（凍結）` / `code-inventory-2026-04-25.md:3` = `ARCHIVED`（どちらも blockquote 内）
+  - Status 行が無いのが 4 本 — `2026-05-11-apply-release-docs.md` / `db-conventions-tauri-era.md` / `desktop-followup-2026-04.md` / `SUMMARY.md`（最後は索引なので無くて妥当）
+- A: **enum は plans/ 由来の文書だけに適用する**と明記し、archive の非計画書 2 本はそのまま残す（Status 行の無い 3 本にも足さない）。推奨 — enum は「計画がどこまで進んだか」の語彙で、要件定義書に `COMPLETED` を当てても意味が通らない
+- B: archive 全体に適用し、2 本を enum 化 + 3 本に Status を追加する（grep 一発で全 archive の状態が読めるようになるが、文書種別の情報は落ちる）
+- 放置時: A 相当（現状維持）。ただし「enum は plans/ だけ」がどこにも書かれていないので、次に棚卸しする人が同じ判断を繰り返す
+- 期限感: いつでも（#474 は merge 済みで、これは残件の扱い）
+- 申し送り（判断とは独立・docs-lint 改善候補）: 全数チェックには `^Status:` だけでは足りず、`^>?\s*Status:` と `^>?\s*-?\s*\*\*Status[^*]*\*\*:` の両方を各ファイル先頭 14 行に当てる必要がある（#474 では grep 単独で 2 本を見落とし、node スクリプトで拾い直した）
+
 ## D-20260801-main-1: 1 レーンが多ブランチを並行させたときの tracker ファイル衝突をどうするか
 
 - 背景: 2026-08-01、schedule-refine が 5 本のブランチを並行で持った状態で #506 が merge された瞬間、**残り 4 本すべてが `.claude/history/chat-schedule-refine.md` で衝突**した（#516 は `memory/` も）。`git merge-tree` で実測したところ**コードは全部 auto-merge 可能**で、衝突は tracker ファイルだけ。1 本 merge するたびに次が再衝突するので、4 本ぶんの手作業が要る
