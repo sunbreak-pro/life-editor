@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
 import {
   FileText,
@@ -20,6 +21,7 @@ import {
   useRightSidebarContext,
   RightSidebarPortal,
   NoteDetailPanel,
+  LockedBodyGate,
   EmptyState,
   SkeletonList,
   ExcerptListItem,
@@ -666,19 +668,37 @@ export function NotesView({
   // first keystroke saved the empty version.
   const sheetReady = sheet.sheetReady;
 
+  // ---- Password gate (both surfaces) ----------------------------------
+  //
+  // #526: the lock covers the BODY ONLY — title / tags / pin / delete stay
+  // usable without the password. Desktop always worked this way; the mobile
+  // sheet (#471) swapped the whole panel for the unlock CTA, so the same locked
+  // note behaved differently depending on the window width. Both surfaces now
+  // wrap their editor in the same <LockedBodyGate>, which is what keeps them
+  // from drifting apart again.
+  const gatedContentEditor = (
+    noteId: string,
+    gated: boolean,
+    editor: ReactNode,
+  ): ReactNode => (
+    <LockedBodyGate
+      locked={gated}
+      hint={t("materials.notes.lockedHint")}
+      onUnlock={() => setPwDialog({ mode: "verify", noteId })}
+    >
+      {editor}
+    </LockedBodyGate>
+  );
+
   // ---- Desktop rightSidebar detail ------------------------------------
 
   const detailGated =
     !!selected?.hasPassword && !unlocked.has(selected?.id ?? "");
 
-  const detailContentEditor = selected ? (
-    <div className="relative">
-      <div
-        className={
-          detailGated ? "pointer-events-none select-none blur-md" : undefined
-        }
-        aria-hidden={detailGated}
-      >
+  const detailContentEditor = selected
+    ? gatedContentEditor(
+        selected.id,
+        detailGated,
         <RichTextEditor
           key={selected.id}
           noteId={selected.id}
@@ -696,23 +716,9 @@ export function NotesView({
           // body reads as a single clean surface, matching the Daily editor
           // card (2026-07-18: align Notes main formatting to Daily).
           className="pt-1"
-        />
-      </div>
-      {detailGated && (
-        <button
-          type="button"
-          onClick={() => setPwDialog({ mode: "verify", noteId: selected.id })}
-          className={cn(
-            "absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary text-lumen-text",
-            FOCUS_RING,
-          )}
-        >
-          <Lock size={20} aria-hidden />
-          <span className="text-sm">{t("materials.notes.lockedHint")}</span>
-        </button>
-      )}
-    </div>
-  ) : undefined;
+        />,
+      )
+    : undefined;
 
   // ---- Desktop main editor --------------------------------------------
   //
@@ -801,10 +807,12 @@ export function NotesView({
        * note's title, which the panel's first field already shows (and can now
        * edit) — same call as the Todo sheet in #470.
        *
-       * The password gate stays all-or-nothing here: locked → the unlock CTA
-       * INSTEAD of the panel, so a gated note cannot be renamed or retagged
-       * from the phone either. (Desktop blurs only the body, which is a wider
-       * hole; not widening it on mobile.)
+       * The password gate is body-only, exactly as on Desktop (#526 — the
+       * shared builder above). #471 shipped it all-or-nothing here: a locked
+       * note showed the unlock CTA INSTEAD of the panel, so the phone could not
+       * even rename or retag it. That made the same note behave differently
+       * depending on the window width, which is the one thing this sheet exists
+       * to avoid.
        */}
       {!isWide && (
         <BottomSheet
@@ -815,77 +823,61 @@ export function NotesView({
         >
           {sheetNote && (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              {sheetGated ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPwDialog({ mode: "verify", noteId: sheetNote.id })
-                  }
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary py-12 text-lumen-text",
-                    FOCUS_RING,
-                  )}
-                >
-                  <Lock size={20} aria-hidden />
-                  <span className="text-sm">
-                    {t("materials.notes.lockedHint")}
-                  </span>
-                </button>
-              ) : (
-                <NoteDetailPanel
-                  noteId={sheetNote.id}
-                  title={sheetNote.title}
-                  isPinned={sheetNote.isPinned}
-                  onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-                  onTogglePin={notes.togglePin}
-                  // Deleting closes the sheet on its own: the note leaves the
-                  // active pool, so useNoteSheetTarget drops the id.
-                  onDelete={(id) => notes.softDeleteNote(id)}
-                  titleLabel={t("notesView.detailTitle")}
-                  pinLabel={t("notesView.unpin")}
-                  unpinLabel={t("notesView.pin")}
-                  deleteLabel={t("materials.notes.deleteNote")}
-                  moreActionsLabel={t("notesView.moreActions")}
-                  tagsSlot={
-                    <TagPicker
-                      itemId={sheetNote.id}
-                      itemRole="note"
-                      showLabel
-                      size="sm"
+              <NoteDetailPanel
+                noteId={sheetNote.id}
+                title={sheetNote.title}
+                isPinned={sheetNote.isPinned}
+                onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+                onTogglePin={notes.togglePin}
+                // Deleting closes the sheet on its own: the note leaves the
+                // active pool, so useNoteSheetTarget drops the id.
+                onDelete={(id) => notes.softDeleteNote(id)}
+                titleLabel={t("notesView.detailTitle")}
+                pinLabel={t("notesView.unpin")}
+                unpinLabel={t("notesView.pin")}
+                deleteLabel={t("materials.notes.deleteNote")}
+                moreActionsLabel={t("notesView.moreActions")}
+                tagsSlot={
+                  <TagPicker
+                    itemId={sheetNote.id}
+                    itemRole="note"
+                    showLabel
+                    size="sm"
+                  />
+                }
+                contentLabel={t("materials.notes.content")}
+                contentEditor={gatedContentEditor(
+                  sheetNote.id,
+                  sheetGated,
+                  sheetReady ? (
+                    <RichTextEditor
+                      key={sheetNote.id}
+                      noteId={sheetNote.id}
+                      // The sheet's OWN note object, not selectedNote: they
+                      // are the same row in the same array, and reading the
+                      // sheet's removes any dependence on the selection
+                      // having caught up with it.
+                      initialContent={sheetNote.content || undefined}
+                      editable={!sheetNote.isEditLocked}
+                      onUpdate={(content) =>
+                        notes.updateNote(sheetNote.id, { content })
+                      }
+                      // Same "[[" wiring as Desktop. loadLinkTargets is a
+                      // LOADER, so handing it over costs nothing until the
+                      // user actually types "[[" (#430 — typing prose must
+                      // not fetch the pool).
+                      loadLinkTargets={loadLinkTargets}
+                      onNavigateToItem={onNavigateToItem}
+                      onResolvedLinkInserted={(targetId) =>
+                        handleResolvedLinkInserted(sheetNote.id, targetId)
+                      }
+                      onCreateNoteForLink={handleCreateNoteForLink}
                     />
-                  }
-                  contentLabel={t("materials.notes.content")}
-                  contentEditor={
-                    sheetReady ? (
-                      <RichTextEditor
-                        key={sheetNote.id}
-                        noteId={sheetNote.id}
-                        // The sheet's OWN note object, not selectedNote: they
-                        // are the same row in the same array, and reading the
-                        // sheet's removes any dependence on the selection
-                        // having caught up with it.
-                        initialContent={sheetNote.content || undefined}
-                        editable={!sheetNote.isEditLocked}
-                        onUpdate={(content) =>
-                          notes.updateNote(sheetNote.id, { content })
-                        }
-                        // Same "[[" wiring as Desktop. loadLinkTargets is a
-                        // LOADER, so handing it over costs nothing until the
-                        // user actually types "[[" (#430 — typing prose must
-                        // not fetch the pool).
-                        loadLinkTargets={loadLinkTargets}
-                        onNavigateToItem={onNavigateToItem}
-                        onResolvedLinkInserted={(targetId) =>
-                          handleResolvedLinkInserted(sheetNote.id, targetId)
-                        }
-                        onCreateNoteForLink={handleCreateNoteForLink}
-                      />
-                    ) : (
-                      <SkeletonList rows={4} rowHeight={20} gap={8} />
-                    )
-                  }
-                />
-              )}
+                  ) : (
+                    <SkeletonList rows={4} rowHeight={20} gap={8} />
+                  ),
+                )}
+              />
             </div>
           )}
         </BottomSheet>

@@ -19,6 +19,8 @@ export {
 export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
+// The body-only password lock both note surfaces share (#526).
+export { LockedBodyGate, type LockedBodyGateProps } from "./LockedBodyGate";
 export {
   DailyEntriesPanel,
   type DailyEntriesPanelProps,
