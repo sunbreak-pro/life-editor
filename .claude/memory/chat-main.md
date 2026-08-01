@@ -7,8 +7,8 @@
 **対象**: GitHub Issues（Epic #290 / #321）・`.claude/comm/outbox/`
 
 - 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
-- 現在: 2026-08-01 の巡回で **open PR 0 到達**（#516 / #518 / #521 / #522 / #523 が merge・main `8e624422`）。**Epic #290 は Step 2〜7 全て [x]**・**Epic #321 は Phase 2 全消化**（残は Phase 1 の #391 のみ）。outbox の未処理エントリもゼロ（schedule-refine 2026-08-01 分の起票依頼は #520 として起票済み・「記録のみ」項目も本人が tracker で処理）
-- 次: **(1) merge 済み #523 に残る欠陥の起票**（下記「予定」参照）。**(2)** open Issue 8 件を各レーンへ流す（#507 / #509 / #511 = materials、#519 = connect、#520 = schedule、#512 / #517 = shared-fix、#372 = 将来 DDL）
+- 現在: 2026-08-01 の巡回 2 巡目も **open PR 0 のまま**（main `9c6debf7`）。**Epic #290 は Step 2〜7 全て [x]**・**Epic #321 は Phase 2 全消化**（残は Phase 1 の #391 のみ）。outbox は **worktree 5 本の実体を直接 diff して未処理ゼロを確認**（main 側のコピーだけ見ると tags-docs の未 push 4 エントリを取りこぼすが、内容は #511 / #512 / 判断キューで処理済み。schedule-refine 分は #520 として起票済み）。#523 のレビュー検出は **#524** として起票
+- 次: **(1)** open Issue 9 件を各レーンへ流す（#507 / #509 / #511 = materials、#519 = connect、#520 / #524 = schedule、#512 / #517 = shared-fix、#372 = 将来 DDL）。**(2)** 判断キューの未回答 6 件をユーザーへ（うち **D-20260801-sched-1 = #520 の実装ブロッカー**）
 
 ## 直近の完了
 
@@ -20,9 +20,9 @@
 
 ## 予定
 
-### 📝 起票待ち（2026-08-01 巡回のレビュー検出・未起票）
+### 📝 #524（2026-08-01 巡回のレビュー検出 → 起票済み・実ブラウザ確認が DoD 先頭）
 
-- **Connect グラフ: 選択中ノードを再クリックしても選択解除できない**（`shared/src/components/Connect/graph/useGraphInteraction.ts:197` — PR #523 merge 済み `8e624422`）。effect の deps が `[size.w, size.h]` だけになり、**リスナーを貼り直す機会がサイズ変更時しかない**。`GraphCanvas.tsx:178` の `onSelect: (id) => onSelectedIdChange(id === selectedId ? null : id)` は毎レンダー作り直される inline クロージャなので、effect が掴んだ古い `selectedId`（初回サイズ確定時 = 通常 `null`）と比較し続ける → トグル判定が常に false。`onActivate` / `onZoom` も同じく凍結する。**#523 が原因というより、`simRef.current` の dep が偶然果たしていた貼り直しが消えて確定的になった**（従来はグラフ再構築のたびに更新されて「たまに効く」状態）。直しは #523 と同じ発想で、コールバックも ref 経由で発火時に読む形。`section:connect` / `type:bug` / `sev:minor` 相当。**未実測**（jsdom にレイアウトが無く canvas 経路はテスト不能・実ブラウザ確認は chat-main）
+- **#524 Connect グラフ: 選択中ノードを再クリックしても選択解除できない**（`shared/src/components/Connect/graph/useGraphInteraction.ts:197` — PR #523 merge 済み `8e624422`）。effect の deps が `[size.w, size.h]` だけになり、**リスナーを貼り直す機会がサイズ変更時しかない**。`GraphCanvas.tsx:178` の `onSelect: (id) => onSelectedIdChange(id === selectedId ? null : id)` は毎レンダー作り直される inline クロージャなので、effect が掴んだ古い `selectedId`（初回サイズ確定時 = 通常 `null`）と比較し続ける → トグル判定が常に false。`onActivate` / `onZoom` も同じく凍結する。**#523 が原因というより、`simRef.current` の dep が偶然果たしていた貼り直しが消えて確定的になった**（従来はグラフ再構築のたびに更新されて「たまに効く」状態）。直しは #523 と同じ発想で、コールバックも ref 経由で発火時に読む形。`section:connect` / `type:bug` / `sev:minor` 相当。**未実測**（jsdom にレイアウトが無く canvas 経路はテスト不能・実ブラウザ確認は chat-main）
 
 ### 👀 ユーザー実機目視待ち（merge 済み機能・未確認のもの）
 
