@@ -37,6 +37,9 @@ win:
     - target: nsis
       arch:
         - x64
+  # electron-builder converts the 1024px png into a multi-size .ico at build
+  # time, keeping resources/icon.png the single icon source (same as linux).
+  icon: ../resources/icon.png
   # Unsigned: SmartScreen "More info -> Run anyway" until a cert is purchased.
 
 nsis:

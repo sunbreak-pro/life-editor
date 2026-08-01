@@ -1,9 +1,11 @@
 name: CI — live stack (web + shared)
 
-# 生きている本流（shared → web）の型検査・テスト・ビルドを自動検証する。
+# 生きている本流（shared → web → desktop）の型検査・テスト・ビルドを自動検証する。
 # 旧 Tauri スタック（frontend/ + src-tauri/ + 旧 build.yml）は 2026-07-11 に削除済み
-# （#197・復元 = git tag pre-tauri-removal）。Phase 3 の desktop / Phase 4 の mobile は
-# 未着手のため当面ここには含めない。
+# （#197・復元 = git tag pre-tauri-removal）。Phase 4 の mobile は未着手のため当面
+# ここには含めない。desktop は typecheck + electron-vite build まで（#529 —
+# electron-builder のフルパッケージングは NSIS が Linux ランナーで動かず、
+# OS 別ランナーは CI 分数コストに見合わないため回さない）。
 #
 # 検証済みの手順をそのまま写したもの（2026-06-20 ローカル実測: shared 491 tests 緑 /
 # web vite build 緑）。手元で再現するには ai-context.md §6 のコマンドを参照。
@@ -42,6 +44,7 @@ jobs:
           cache-dependency-path: |
             shared/package-lock.json
             web/package-lock.json
+            desktop/package-lock.json
 
       # shared = React コード本体: 型検査(tsc -b) + vitest
       - name: shared — install
@@ -78,3 +81,17 @@ jobs:
       - name: web — test (vitest)
         run: npm run test
         working-directory: web
+
+      # desktop = Electron 殻（#529 で追加）: 型検査 + electron-vite build。
+      # renderer root は ../web なので上の web — install が前提（web/node_modules
+      # から renderer 依存を解決する）。electron-builder パッケージングは回さない
+      # （理由はファイル冒頭コメント）
+      - name: desktop — install
+        run: npm ci
+        working-directory: desktop
+      - name: desktop — typecheck
+        run: npm run typecheck
+        working-directory: desktop
+      - name: desktop — build (electron-vite build)
+        run: npm run build
+        working-directory: desktop
