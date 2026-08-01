@@ -233,10 +233,10 @@ export function CalendarTab({
    * legible.
    *
    * Consumed immediately (like pendingNewTask), so coming back to the Calendar
-   * later does not re-select an event the user has moved on from. Moving the
-   * anchor is the whole move on BOTH layouts: #467 replaced the Mobile month
-   * agenda (which tracked a selected day of its own) with a list of the anchor
-   * day, so there is no longer a second date to keep in step.
+   * later does not re-select an event the user has moved on from. #467 retired
+   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
+   * the anchor is now the only day either layout draws from — moving it is the
+   * whole job.
    */
   useEffect(() => {
     if (!pendingSelectEvent) return;
