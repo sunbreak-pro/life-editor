@@ -223,34 +223,6 @@ export function CalendarTab({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  /*
-   * Palette "open this event" intent (#503). Two moves, in this order: put the
-   * event's day in the window, then select it. The row itself may not be in
-   * `rangeItems` for another moment — the anchor change triggers the fetch and
-   * nothing pre-loads outside the window — but selection is by id, so it
-   * simply starts showing once the range lands. Selecting FIRST and moving
-   * after would be the same two writes; doing it this way keeps the reason
-   * legible.
-   *
-   * Consumed immediately (like pendingNewTask), so coming back to the Calendar
-   * later does not re-select an event the user has moved on from. #467 retired
-   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
-   * the anchor is now the only day either layout draws from — moving it is the
-   * whole job.
-   */
-  useEffect(() => {
-    if (!pendingSelectEvent) return;
-    setAnchorDate(pendingSelectEvent.date);
-    // A local setState, which the cascading-render rule flags. It fires once
-    // per arrival — a user navigating from the palette, not a render loop —
-    // and the intent exists only as a PROP, so there is no event handler
-    // inside this component to move it into. Same shape and same reasoning as
-    // the task handoff (useTaskDetailTarget.ts:112).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedId(pendingSelectEvent.id);
-    onConsumePendingEvent?.();
-  }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent]);
-
   // Which rightSidebar tab is showing ("今日の流れ" / "本日の Todo" — the A-3
   // tray, #298). The old "詳細" tab was removed in #299 (item detail now lives
   // in a body-level overlay, not the rightSidebar).
@@ -308,6 +280,67 @@ export function CalendarTab({
     x: number;
     y: number;
   } | null>(null);
+
+  /*
+   * #520: the grid's two filters, dropped together whenever the user is being
+   * TAKEN to a specific row.
+   *
+   * Both of them hide by row, and either one alone reproduces the whole bug:
+   * #466 folds away everything a repeat generated, #468 keeps only what
+   * carries one calendar's tag. Land on a row that either filter excludes and
+   * the day changes with nothing on it — the same "the button did nothing"
+   * shape as #434 S-1.
+   *
+   * Cleared unconditionally rather than only when the arriving row would in
+   * fact be hidden, because at that moment there is nothing to test: the
+   * palette hands over an id + a date, and the row is still being fetched (the
+   * anchor move is what starts the fetch). `fetchEvents` feeds that palette
+   * every live schedule item, repeat-generated occurrences included, so both
+   * filters are live suspects every time.
+   *
+   * This is the navigation counterpart of finishCreatePanel(), which reveals a
+   * row that was just CREATED and so touches only the lens — a brand-new event
+   * is never repeat-generated, and the repeat filter cannot be what is hiding
+   * it. Two junctions, one per intent: the next route that reveals a row joins
+   * one of them instead of re-opening the hole #506 closed for creation.
+   */
+  const revealOnGrid = useCallback(() => {
+    setRepeatsHidden(false);
+    setCalendarFilterId(null);
+  }, []);
+
+  /*
+   * Palette "open this event" intent (#503). Three moves, in this order: clear
+   * whatever is filtering the grid (#520), put the event's day in the window,
+   * then select it. The row itself may not be in `rangeItems` for another
+   * moment — the anchor change triggers the fetch and nothing pre-loads
+   * outside the window — but selection is by id, so it simply starts showing
+   * once the range lands.
+   *
+   * Consumed immediately (like pendingNewTask), so coming back to the Calendar
+   * later does not re-select an event the user has moved on from. #467 retired
+   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
+   * the anchor is now the only day either layout draws from — moving it is the
+   * whole job.
+   */
+  useEffect(() => {
+    if (!pendingSelectEvent) return;
+    // Local setStates, which the cascading-render rule flags — the reveal
+    // included, since it sees through the callback. ONE directive because the
+    // rule reports only the first such call in an effect; put it above
+    // whichever line comes first, or the directive itself goes unused (a
+    // warning) and the real report moves.
+    //
+    // They fire once per arrival — a user navigating from the palette, not a
+    // render loop — and the intent exists only as a PROP, so there is no event
+    // handler inside this component to move them into. Same shape and same
+    // reasoning as the task handoff (useTaskDetailTarget.ts:112).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    revealOnGrid();
+    setAnchorDate(pendingSelectEvent.date);
+    setSelectedId(pendingSelectEvent.id);
+    onConsumePendingEvent?.();
+  }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent, revealOnGrid]);
 
   // 1-minute now ticker (drives the now-line + agenda divider). Cleared on
   // unmount so it never leaks across section changes.
@@ -1218,6 +1251,14 @@ export function CalendarTab({
       // The panel renders no-occurrence rows as static text, so this guard is
       // belt-and-braces against a routine edited out from under the list.
       if (!next) return;
+      // #520: the same reveal the palette needs, and here the first filter is
+      // not even a suspect — it is a certainty. The destination is by
+      // definition repeat-generated, so with #466 on it is folded away the
+      // moment it is fetched, and the lens hides it too unless the SERIES
+      // carries that calendar's tag. Jumping to a day where the thing jumped
+      // to is filtered out is exactly the unreachability this panel exists to
+      // fix (#408).
+      revealOnGrid();
       setAnchorDate(next);
       // #467: on Mobile this list lives in the drawer that covers the calendar,
       // so a jump with the drawer left open lands on a day the user cannot see.
@@ -1247,6 +1288,7 @@ export function CalendarTab({
       closeSidebar,
       ensureRoutineItemsForDateRange,
       reload,
+      revealOnGrid,
     ],
   );
 
