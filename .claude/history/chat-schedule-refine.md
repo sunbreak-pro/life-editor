@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-01 - #508 BottomSheet にフォーカストラップと初期フォーカス（shared-fix `[all]`）
+
+#### 概要
+
+`aria-modal="true"` を名乗りながらトラップも初期フォーカスも無かった `BottomSheet` に、Modal が既に持っていた機構を共有フック `useDialogA11y` として切り出して配線した。ついでにダイアログのレイヤ順序が listener 登録順（＝スタック順の逆）で決まっていた欠陥を、module レベルのレイヤスタックに置き換えた。
+
+#### 変更点
+
+- **新規 `shared/src/hooks/useDialogA11y.ts`**: Esc（IME ガード付き）/ Tab 循環 / 初期フォーカス / 呼び出し元へのフォーカス復帰 / 任意の body scroll ロック。パネル側 ref を返す
+- **レイヤはスタックで決める**: 全ダイアログが document で待つため、**最初に登録した＝一番古い外側**が先に走って stopPropagation していた（シートの上に開いた Modal の Esc がシートに渡る）。`layers` 配列の末尾＝最前面だけが Esc と Tab に反応する
+- **`BottomSheet.tsx`**: 自前の Esc effect を撤去してフックへ。パネルに `ref` + `tabIndex={-1}`（中に focusable が無いシートは自分自身がフォーカスを受ける）。**body scroll はロックしない**（背後のリストをスクロールしたまま使う導線のため。Modal だけ `lockScroll: true`）
+- **`Modal.tsx`**: 2 つの effect（Esc + trap / scroll lock + focus）をフック呼び出し 1 行に置換。パネルに `tabIndex={-1}` 追加。capture 段の stopPropagation は「最前面だけ」条件付きで維持
+- **初期フォーカスは子が取っていたら触らない**: `panel.contains(document.activeElement)` で降りる。`QuickAddSheet` が effect で input を focus しており、上書きが Issue の言う「二重フォーカス」の正体
+- **可視判定の layout 分岐**: `offsetParent !== null` は jsdom で全要素 null になり trap が丸ごと空振りする（#475 の「テストから見えない経路」）。`document.body.getClientRects()` で layout の有無を見て、ある時だけ適用。`disabled` / `aria-hidden` は両環境で除外
+- **新規 `shared/tests/dialogFocus.test.tsx` 8 件**: 初期フォーカス / focusable ゼロ時のパネル fallback / 子のフォーカス尊重 / Tab・Shift+Tab 循環 / 外に逃げたフォーカスの引き戻し / 復帰 / IME 中の Esc 無視 / **Modal をシートの上に重ねた時に Esc が最前面だけに届く**
+- 検証: 7 ゲート全緑（shared lint 0 errors / build / **167 files 1371 pass**、web lint / build / **8 files 75 pass**、`LC_ALL=C docs-lint` OK）
+
 - 2026-08-01: [途中] chat-main レビュー 3 本の対応 — #506 は 4 経路中 1 経路にしか無かったレンズ解除を `finishCreatePanel()` に合流（`4e21f83b`）／ #514 は `propagate` 失敗が無言だった件をこの PR で拾い `propagate-failed` + `series-partial` を追加（`01f31113`）／ #515 は Issue #505 に残り 1 ファイル（`useGraphInteraction`）を記録。7 ゲート全緑・push 済み。**#467 は #506 の merge 待ちで着手不可のまま**
 
 ### 2026-07-31 - #504 routine template の更新失敗が無言（scope 編集の await 漏れ / 未ロード時の void）
