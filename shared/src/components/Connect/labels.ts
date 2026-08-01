@@ -51,6 +51,16 @@ export interface ConnectGraphLabels {
   search: string;
   nodeTypes: string;
   tags: string;
+  /**
+   * connect.graph.tagFilterPlaceholder — narrows the TAG PILL list by name
+   * (#519). Must stay visibly distinct from `search`, which searches graph
+   * nodes: the two inputs sit one section apart in the same panel.
+   */
+  tagFilterPlaceholder: string;
+  /** connect.graph.tagFilterLabel — aria-label for the tag pill filter */
+  tagFilterLabel: string;
+  /** connect.graph.tagFilterEmpty — shown when no tag name matches the query */
+  tagFilterEmpty: string;
   localGraph: string;
   display: string;
   forces: string;
