@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — **Web/Mobile UI の追跡正本**（旧 W-parity ロードマップ #121/#127 完了・archive 済でここへ一本化。#154・2026-07-05）
+Status: COMPLETED — brief 9 本 + 実装 PR（#160 / #164〜#168 / #170 / #174 / #175）が全 merge・Step 8 以降は別計画が承継（#474 実測）。**「Web/Mobile UI デザインの追跡正本」の役割は本書を離れ、Epic #321 + [`docs/requirements/mobile-scope.md`](../../requirements/mobile-scope.md) + Issue 群へ移った**（2026-08-01 ユーザー確定 D-20260730-tags-1 = A）
 Created: 2026-07-04
 Branch: claude/design-ia
 Owner-chat: frontend
