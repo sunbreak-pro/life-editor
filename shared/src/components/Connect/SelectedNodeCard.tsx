@@ -145,11 +145,11 @@ export function SelectedNodeCard({
               type="button"
               onClick={() => onActivate?.(node.id)}
               disabled={!onActivate || node.type === "tag"}
-              className="text-[13px] font-medium truncate text-lumen-text text-left hover:underline disabled:hover:no-underline disabled:cursor-default"
+              className="text-sm font-medium truncate text-lumen-text text-left hover:underline disabled:hover:no-underline disabled:cursor-default"
             >
               {node.label}
             </button>
-            <div className="text-[10px] font-mono truncate text-lumen-text-secondary">
+            <div className="text-xs font-mono truncate text-lumen-text-secondary">
               {node.id}
             </div>
           </div>
@@ -164,7 +164,7 @@ export function SelectedNodeCard({
         </button>
       </div>
 
-      <div className="flex items-center gap-3 text-[11px] text-lumen-text-secondary">
+      <div className="flex items-center gap-3 text-xs text-lumen-text-secondary">
         <span className="flex items-center gap-1">
           <Link2 size={11} /> {linkCount} {labels.links}
         </span>
@@ -186,7 +186,7 @@ export function SelectedNodeCard({
         )}
       </div>
 
-      <div className="flex items-center gap-2 text-[10px] pt-1 border-t border-lumen-border">
+      <div className="flex items-center gap-2 text-xs pt-1 border-t border-lumen-border">
         <Crosshair size={10} className="text-lumen-accent" />
         <span className="text-lumen-text-secondary">{labels.localGraph}:</span>
         {[0, 1, 2].map((d) => (
@@ -222,7 +222,7 @@ export function SelectedNodeCard({
             list={linkableItems.length > 0 ? datalistId : undefined}
             placeholder={labels.linkTargetPlaceholder}
             aria-label={labels.linkTargetPlaceholder}
-            className="min-w-0 flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-[11px] text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+            className="min-w-0 flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
           />
           {linkableItems.length > 0 && (
             <datalist id={datalistId}>
@@ -237,7 +237,7 @@ export function SelectedNodeCard({
             type="button"
             onClick={submitLink}
             aria-label={labels.addLink}
-            className="inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+            className="inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
           >
             <Plus size={11} aria-hidden />
           </button>
@@ -246,7 +246,7 @@ export function SelectedNodeCard({
 
       {neighbors.length > 0 && (
         <div className="space-y-1">
-          <div className="text-[10px] uppercase tracking-wider text-lumen-text-secondary">
+          <div className="text-xs uppercase tracking-wider text-lumen-text-secondary">
             {labels.connections}
           </div>
           <div className="max-h-32 overflow-y-auto space-y-0.5 pr-1">
@@ -278,7 +278,7 @@ export function SelectedNodeCard({
                       size={11}
                       className="text-lumen-text-secondary shrink-0"
                     />
-                    <span className="text-[11px] truncate text-lumen-text">
+                    <span className="text-xs truncate text-lumen-text">
                       {n.label}
                     </span>
                   </button>

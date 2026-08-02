@@ -23,7 +23,7 @@ export function Toggle({ label, value, onChange, icon: Icon }: ToggleProps) {
     >
       <span
         className={
-          "flex items-center gap-2 text-[12px] " +
+          "flex items-center gap-2 text-xs " +
           (value ? "text-lumen-text" : "text-lumen-text-secondary")
         }
       >

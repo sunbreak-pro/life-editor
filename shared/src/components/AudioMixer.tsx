@@ -46,7 +46,7 @@ export function AudioMixer({
 }: AudioMixerProps) {
   return (
     <Card padding="none" className="flex flex-col px-5 pb-3 pt-4">
-      <h3 className="pb-1.5 text-[13px] font-semibold text-lumen-text-secondary">
+      <h3 className="pb-1.5 text-sm font-semibold text-lumen-text-secondary">
         {labels.heading}
       </h3>
       <ul>
@@ -96,7 +96,7 @@ export function AudioMixer({
               />
               <span
                 className={cn(
-                  "w-8 shrink-0 text-right font-mono text-[13px] tabular-nums text-lumen-text-tertiary",
+                  "w-8 shrink-0 text-right font-mono text-sm tabular-nums text-lumen-text-tertiary",
                   !state.enabled && "opacity-45",
                 )}
               >

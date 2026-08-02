@@ -121,7 +121,7 @@ export function DailyEntriesPanel({
 
       {/* Entry list. */}
       <div className="flex flex-col gap-1.5">
-        <div className="px-0.5 text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+        <div className="px-0.5 text-xs uppercase tracking-wide text-lumen-text-tertiary">
           {entriesHeading}
         </div>
         {entries.map((entry) => (

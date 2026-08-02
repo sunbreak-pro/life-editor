@@ -19,3 +19,17 @@ export const FIELD =
 
 /** Caption label above a FIELD input. */
 export const FIELD_LABEL = "text-xs text-lumen-text-secondary";
+
+/**
+ * Minimum hit area for a small control (2026-08-02).
+ *
+ * styles/tokens.css already floors icon-ONLY buttons via `:has()`, so reach for
+ * this only where that selector cannot: a control that pairs a glyph with a
+ * label, or one that is not a <button>/<a>. Applying it on top of the CSS floor
+ * is harmless — same custom property, same result.
+ *
+ * The floor is rem, so it tracks the Settings font-size step (see the token's
+ * note in tokens.css).
+ */
+export const TAP_TARGET =
+  "inline-flex items-center justify-center min-h-lumen-tap-min min-w-lumen-tap-min";

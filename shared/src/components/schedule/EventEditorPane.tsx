@@ -302,7 +302,7 @@ function EventEditorFields({
             aria-checked={item.isAllDay}
             onClick={() => onToggleAllDay(item.id, !item.isAllDay)}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-[13px] font-medium transition-colors",
+              "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-sm font-medium transition-colors",
               FOCUS_RING_TIGHT,
               item.isAllDay
                 ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
@@ -366,7 +366,7 @@ function EventEditorFields({
             <button
               type="button"
               onClick={() => onDismiss(item.id)}
-              className="rounded-lumen-md border border-lumen-border-strong py-2 text-center text-[13px] font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              className="rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
             >
               {labels.skipThisDay}
             </button>
@@ -407,7 +407,7 @@ function EventEditorFields({
         <button
           type="button"
           onClick={() => onDelete(item.id)}
-          className="flex items-center gap-1.5 self-start rounded-sm text-[13px] font-medium text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          className="flex items-center gap-1.5 self-start rounded-sm text-sm font-medium text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           <Trash2 aria-hidden className="size-3.5" />
           {labels.delete}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
   ItemRoleBadge,
+  TAP_TARGET,
   useTranslation,
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
@@ -161,7 +162,7 @@ export function TagPicker({
           <ItemRoleBadge role={itemRole} labels={roleLabels} />
         ) : (
           <span className="inline-flex items-center gap-1 text-xs text-lumen-text-secondary">
-            <TagIcon size={12} aria-hidden />
+            <TagIcon size={14} aria-hidden />
             {t("materials.tags.pickerLabel")}
           </span>
         ))}
@@ -186,9 +187,9 @@ export function TagPicker({
         onClick={() => setPickerOpen((v) => !v)}
         aria-label={t("materials.tags.pickerAdd")}
         aria-expanded={pickerOpen}
-        className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-lumen-border px-1.5 py-0.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+        className={`${TAP_TARGET} gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
       >
-        <Plus size={12} aria-hidden />
+        <Plus size={14} aria-hidden />
         {assignments.length === 0 && !loading && (
           <span>{t("materials.tags.pickerLabelShort")}</span>
         )}
@@ -231,12 +232,12 @@ export function TagPicker({
                 <button
                   type="button"
                   onClick={() => void handleAssign(tag.id)}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
                   {tag.color && (
                     <span
                       aria-hidden
-                      className="inline-block h-2 w-2 rounded-full"
+                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: tag.color }}
                     />
                   )}
@@ -249,9 +250,9 @@ export function TagPicker({
                 <button
                   type="button"
                   onClick={() => void handleCreateAndAssign()}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
-                  <Plus size={12} aria-hidden />
+                  <Plus size={14} aria-hidden />
                   <span>
                     {t("materials.tags.pickerCreate", { name: query.trim() })}
                   </span>

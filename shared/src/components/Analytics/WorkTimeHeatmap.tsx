@@ -94,7 +94,7 @@ export function WorkTimeHeatmap({
           {Array.from({ length: 24 }, (_, h) => (
             <div
               key={`h-${h}`}
-              className="text-center text-[9px] leading-4 text-lumen-text-tertiary"
+              className="text-center text-xs leading-4 text-lumen-text-tertiary"
             >
               {h}
             </div>
@@ -103,7 +103,7 @@ export function WorkTimeHeatmap({
           {/* Day rows */}
           {DAY_KEYS.map((dayKey, dayIndex) => (
             <Fragment key={`row-${dayKey}`}>
-              <div className="flex items-center pr-1 text-[10px] text-lumen-text-tertiary">
+              <div className="flex items-center pr-1 text-xs text-lumen-text-tertiary">
                 {labels.days[dayKey]}
               </div>
               {Array.from({ length: 24 }, (_, hour) => {
@@ -131,13 +131,13 @@ export function WorkTimeHeatmap({
 
         {/* Intensity legend (少ない → 多い) */}
         <div className="mt-3 flex items-center justify-end gap-1.5">
-          <span className="text-[10px] text-lumen-text-tertiary">
+          <span className="text-xs text-lumen-text-tertiary">
             {labels.less}
           </span>
           {HEAT_STEPS.map((step) => (
             <span key={step} className={`h-3 w-3 rounded-sm ${step}`} />
           ))}
-          <span className="text-[10px] text-lumen-text-tertiary">
+          <span className="text-xs text-lumen-text-tertiary">
             {labels.more}
           </span>
         </div>

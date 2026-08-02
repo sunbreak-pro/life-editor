@@ -64,7 +64,7 @@ export interface PomodoroSettingsProps {
 
 const BLOCK =
   "flex flex-col gap-3 rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary p-3";
-const BLOCK_HEADING = "text-[13px] font-semibold text-lumen-text-secondary";
+const BLOCK_HEADING = "text-sm font-semibold text-lumen-text-secondary";
 
 export function PomodoroSettings(props: PomodoroSettingsProps) {
   const { labels, presets } = props;
@@ -150,7 +150,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
       <div className={BLOCK}>
         <h3 className={BLOCK_HEADING}>{labels.presets}</h3>
         {presets.length === 0 ? (
-          <div className="rounded-lumen-md border border-dashed border-lumen-border-strong p-4 text-center text-[13px] text-lumen-text-tertiary">
+          <div className="rounded-lumen-md border border-dashed border-lumen-border-strong p-4 text-center text-sm text-lumen-text-tertiary">
             {labels.presetsEmpty}
           </div>
         ) : (
@@ -172,7 +172,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
                 <button
                   type="button"
                   onClick={() => props.onApplyPreset(p)}
-                  className="shrink-0 text-[13px] font-semibold text-lumen-accent hover:opacity-80"
+                  className="shrink-0 text-sm font-semibold text-lumen-accent hover:opacity-80"
                 >
                   {labels.apply}
                 </button>
@@ -198,7 +198,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
             type="button"
             onClick={submitPreset}
             disabled={presetName.trim().length === 0}
-            className="shrink-0 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-[13px] font-semibold text-lumen-text hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-semibold text-lumen-text hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {labels.saveAsPreset}
           </button>

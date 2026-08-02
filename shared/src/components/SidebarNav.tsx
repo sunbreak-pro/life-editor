@@ -111,7 +111,7 @@ export function SidebarNav({
         <div className="flex min-w-0 items-center gap-2 pl-1">
           <span
             aria-hidden="true"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-lumen-md bg-lumen-accent text-[12px] font-bold text-lumen-on-accent"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-lumen-md bg-lumen-accent text-xs font-bold text-lumen-on-accent"
           >
             {brandInitial}
           </span>
@@ -226,7 +226,7 @@ export function SidebarNav({
               {labels.shortcutHint && (
                 <kbd
                   aria-hidden="true"
-                  className="rounded border border-lumen-border bg-lumen-bg px-1.5 py-px text-[11px] text-lumen-text-tertiary"
+                  className="rounded border border-lumen-border bg-lumen-bg px-1.5 py-px text-xs text-lumen-text-tertiary"
                 >
                   {labels.shortcutHint}
                 </kbd>

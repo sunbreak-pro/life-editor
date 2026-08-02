@@ -85,7 +85,7 @@ export function NavItem({
         (hasSublabel ? (
           <span className="min-w-0 flex-1 text-left">
             <span className="block truncate">{label}</span>
-            <span className="block truncate text-[11px] font-normal leading-tight text-lumen-text-tertiary">
+            <span className="block truncate text-xs font-normal leading-tight text-lumen-text-tertiary">
               {sublabel}
             </span>
           </span>

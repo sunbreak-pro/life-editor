@@ -115,7 +115,7 @@ export function NodeDetailSheet({
   };
 
   const tabClass = (active: boolean) =>
-    "flex items-center gap-1.5 -mb-px border-b-2 pb-2 pt-1 text-[13px] focus-visible:outline-none " +
+    "flex items-center gap-1.5 -mb-px border-b-2 pb-2 pt-1 text-sm focus-visible:outline-none " +
     (active
       ? "border-lumen-accent font-medium text-lumen-text"
       : "border-transparent text-lumen-text-secondary");
@@ -136,11 +136,11 @@ export function NodeDetailSheet({
             type="button"
             onClick={() => onActivate?.(node.id)}
             disabled={!onActivate || node.type === "tag"}
-            className="truncate text-left text-[14px] font-medium text-lumen-text hover:underline disabled:cursor-default disabled:hover:no-underline"
+            className="truncate text-left text-sm font-medium text-lumen-text hover:underline disabled:cursor-default disabled:hover:no-underline"
           >
             {node.label}
           </button>
-          <span className="truncate font-mono text-[10px] text-lumen-text-tertiary">
+          <span className="truncate font-mono text-xs text-lumen-text-tertiary">
             {node.id}
           </span>
         </div>
@@ -154,7 +154,7 @@ export function NodeDetailSheet({
         </button>
       </div>
 
-      <div className="flex items-center gap-2 text-[11px]">
+      <div className="flex items-center gap-2 text-xs">
         <Crosshair size={11} className="shrink-0 text-lumen-accent" />
         <span className="text-lumen-text-secondary">{labels.localGraph}:</span>
         <span className="flex gap-1">
@@ -165,7 +165,7 @@ export function NodeDetailSheet({
               onClick={() => onLocalDepthChange(d)}
               aria-pressed={localDepth === d}
               className={
-                "rounded px-2.5 py-0.5 font-mono text-[10px] border transition-colors " +
+                "rounded px-2.5 py-0.5 font-mono text-xs border transition-colors " +
                 (localDepth === d
                   ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
                   : "border-lumen-border text-lumen-text-secondary")
@@ -191,7 +191,7 @@ export function NodeDetailSheet({
         >
           <Link2 size={12} />
           {labels.mobileLinksTab}
-          <span className="inline-flex h-4 items-center rounded-lumen-sm bg-lumen-surface-sunken px-1.5 font-mono text-[10px] font-semibold text-lumen-text-secondary tabular-nums">
+          <span className="inline-flex h-4 items-center rounded-lumen-sm bg-lumen-surface-sunken px-1.5 font-mono text-xs font-semibold text-lumen-text-secondary tabular-nums">
             {linkCount}
           </span>
         </button>
@@ -204,7 +204,7 @@ export function NodeDetailSheet({
         >
           <ArrowLeft size={12} />
           {labels.mobileBacklinksTab}
-          <span className="inline-flex h-4 items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 font-mono text-[10px] font-semibold text-lumen-accent tabular-nums">
+          <span className="inline-flex h-4 items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 font-mono text-xs font-semibold text-lumen-accent tabular-nums">
             {backlinks.length}
           </span>
         </button>
@@ -239,7 +239,7 @@ export function NodeDetailSheet({
                         size={13}
                         className="shrink-0 text-lumen-text-secondary"
                       />
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-lumen-text">
+                      <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
                         {n.label}
                       </span>
                     </button>
@@ -278,7 +278,7 @@ export function NodeDetailSheet({
                     list={linkableItems.length > 0 ? datalistId : undefined}
                     placeholder={labels.linkTargetPlaceholder}
                     aria-label={labels.linkTargetPlaceholder}
-                    className="min-w-0 flex-1 bg-transparent text-[12px] text-lumen-text outline-none placeholder:text-lumen-text-tertiary"
+                    className="min-w-0 flex-1 bg-transparent text-xs text-lumen-text outline-none placeholder:text-lumen-text-tertiary"
                   />
                   {linkableItems.length > 0 && (
                     <datalist id={datalistId}>
@@ -302,7 +302,7 @@ export function NodeDetailSheet({
             )}
           </div>
         ) : backlinks.length === 0 ? (
-          <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-[12px] text-lumen-text-secondary">
+          <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-xs text-lumen-text-secondary">
             {labels.backlinksEmpty}
           </div>
         ) : (
@@ -320,7 +320,7 @@ export function NodeDetailSheet({
                     size={13}
                     className="shrink-0 text-lumen-text-secondary"
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-lumen-text">
+                  <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
                     {entry.label}
                   </span>
                   <ArrowLeft

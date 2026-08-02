@@ -37,7 +37,7 @@ export function ConnectSidebarPanel({
   backlinksContent,
 }: ConnectSidebarPanelProps) {
   const tabClass = (active: boolean) =>
-    "flex items-center gap-1.5 -mb-px border-b-2 pb-2 text-[13px] focus-visible:outline-none " +
+    "flex items-center gap-1.5 -mb-px border-b-2 pb-2 text-sm focus-visible:outline-none " +
     (active
       ? "border-lumen-accent font-medium text-lumen-text"
       : "border-transparent text-lumen-text-secondary hover:text-lumen-text");
@@ -68,7 +68,7 @@ export function ConnectSidebarPanel({
         >
           <ArrowLeft size={13} />
           {labels.backlinksTab}
-          <span className="inline-flex h-4 items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 font-mono text-[10px] font-semibold text-lumen-accent tabular-nums">
+          <span className="inline-flex h-4 items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 font-mono text-xs font-semibold text-lumen-accent tabular-nums">
             {backlinkCount}
           </span>
         </button>

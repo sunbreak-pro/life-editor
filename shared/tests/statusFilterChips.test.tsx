@@ -85,7 +85,11 @@ describe("StatusFilterChips", () => {
   it("renders smaller padding/type in the sm variant", () => {
     renderChips({ size: "sm" });
     const chip = screen.getByRole("button", { name: /To do/ });
-    expect(chip.className).toContain("text-[12px]");
+    // The sm variant used to name a literal text-[12px]; it now names the
+    // scale's smallest step, which follows the Settings font-size instead of
+    // staying frozen at 12px. The assertion it protects is unchanged — the sm
+    // chip must be a step BELOW the default chip, not equal to it.
+    expect(chip.className).toContain("text-xs");
     expect(chip.className).not.toContain("text-sm");
   });
 });

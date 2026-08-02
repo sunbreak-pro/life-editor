@@ -272,7 +272,7 @@ export function MobileAnalyticsView(
                   className="flex flex-1 flex-col items-center justify-end gap-1"
                 >
                   {isMax && b.totalMinutes > 0 && (
-                    <span className="text-[9px] tabular-nums text-lumen-text-secondary">
+                    <span className="text-xs tabular-nums text-lumen-text-secondary">
                       {(b.totalMinutes / 60).toFixed(1)}h
                     </span>
                   )}
@@ -285,7 +285,7 @@ export function MobileAnalyticsView(
                       )}px`,
                     }}
                   />
-                  <span className="text-[10px] text-lumen-text-tertiary">
+                  <span className="text-xs text-lumen-text-tertiary">
                     {labels.heatmap.days[dowKey]}
                   </span>
                 </div>

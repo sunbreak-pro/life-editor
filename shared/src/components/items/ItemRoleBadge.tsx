@@ -49,7 +49,7 @@ export function ItemRoleBadge({
       title={label}
       className={cn(
         "inline-flex shrink-0 items-center gap-1 rounded-full border border-lumen-border",
-        "bg-lumen-bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-lumen-text-secondary",
+        "bg-lumen-bg-secondary px-1.5 py-0.5 text-xs font-medium text-lumen-text-secondary",
         className,
       )}
     >

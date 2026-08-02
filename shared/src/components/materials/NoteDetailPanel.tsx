@@ -244,7 +244,7 @@ export function NoteDetailPanel({
           )}
         >
           {!isMain && (
-            <span className="text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+            <span className="text-xs uppercase tracking-wide text-lumen-text-tertiary">
               {contentLabel}
             </span>
           )}

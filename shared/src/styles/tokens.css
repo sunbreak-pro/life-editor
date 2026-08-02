@@ -391,6 +391,25 @@
      consumed as px-lumen-gutter / md:px-lumen-gutter-wide. */
   --spacing-lumen-gutter: 16px;
   --spacing-lumen-gutter-wide: 24px;
+  /* Minimum legible / tappable sizing (2026-08-02 user request). Unlike the
+     px-based radius + spacing scales above, these are REM on purpose: the
+     Settings font-size step drives documentElement's font-size, so a rem floor
+     scales with it while a px floor would not. That mismatch was the bug — the
+     text next to an icon grew with the setting and the icon stayed frozen at
+     its px `size` attribute.
+       icon-min = the floor every lucide glyph is lifted to (below).
+       tap-min  = the floor for an icon-only control's hit area; consumed both
+                  by the :has() rule below and by TAP_TARGET in
+                  components/styleTokens.ts for controls that are not
+                  icon-only (a glyph plus a label, a custom element). */
+  --spacing-lumen-icon-min: 0.9rem;
+  --spacing-lumen-tap-min: 1.75rem;
+  /* Smallest step of the type scale. Tailwind's stock text-xs is 0.75rem;
+     lifting it here raises every existing `text-xs` call site at once, which
+     is why the ~200 of them stayed untouched in that change. Line height is
+     left alone — Tailwind keeps it in a separate --text-xs--line-height whose
+     default is a ratio, so it follows this value on its own. */
+  --text-xs: 0.8125rem;
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
@@ -405,6 +424,41 @@
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
+}
+
+/*
+ * Minimum icon + hit-area floors (2026-08-02 user request: "the tag [×] and
+ * the add-tag button are too small to hit").
+ *
+ * Both rules live in @layer components, NOT unlayered, so Tailwind's own
+ * utilities still win — a call site that says `flex` or `min-h-0` keeps its
+ * meaning, and these only fill in where nothing was specified.
+ *
+ * `svg.lucide` — lucide-react joins a literal "lucide" class onto every icon
+ * (mergeClasses("lucide", className) in its factory), so this reaches all of
+ * them without touching a single `size=` prop. min-* rather than width/height
+ * so icons ALREADY larger than the floor are left exactly as they were: this
+ * lifts the small ones and is a no-op everywhere else. The SVG scales rather
+ * than clips because lucide ships a viewBox.
+ *
+ * The `:has()` rule targets icon-ONLY controls, which are the ones whose hit
+ * area collapses to the glyph. A control with a visible label is already wide
+ * enough, and forcing a square minimum on it would distort the label row.
+ */
+@layer components {
+  svg.lucide {
+    min-width: var(--spacing-lumen-icon-min);
+    min-height: var(--spacing-lumen-icon-min);
+  }
+
+  button:has(> svg.lucide:only-child),
+  a:has(> svg.lucide:only-child) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--spacing-lumen-tap-min);
+    min-height: var(--spacing-lumen-tap-min);
+  }
 }
 
 /* Font-size scaling utilities (10-step theme system, CLAUDE.md §3.3).

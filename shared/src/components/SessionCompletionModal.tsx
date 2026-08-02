@@ -53,7 +53,7 @@ export function SessionCompletionModal({
           <Timer size={22} aria-hidden="true" />
         </span>
         <div className="flex flex-col items-center gap-1.5">
-          <h2 id={titleId} className="text-[17px] font-bold text-lumen-text">
+          <h2 id={titleId} className="text-base font-bold text-lumen-text">
             {labels.title}
           </h2>
           <p className="text-pretty text-center text-sm text-lumen-text-secondary">
@@ -67,7 +67,7 @@ export function SessionCompletionModal({
             onClick={onStartBreak}
             className={cn(
               "flex h-11 items-center justify-center gap-2 rounded-lumen-md",
-              "bg-lumen-accent text-[15px] font-semibold text-lumen-on-accent hover:opacity-90",
+              "bg-lumen-accent text-sm font-semibold text-lumen-on-accent hover:opacity-90",
             )}
           >
             <Play size={16} aria-hidden="true" />
@@ -76,7 +76,7 @@ export function SessionCompletionModal({
           <button
             type="button"
             onClick={onOneMore}
-            className="flex h-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong bg-lumen-bg text-[15px] font-semibold text-lumen-text hover:bg-lumen-hover"
+            className="flex h-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong bg-lumen-bg text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
           >
             {labels.oneMore}
           </button>

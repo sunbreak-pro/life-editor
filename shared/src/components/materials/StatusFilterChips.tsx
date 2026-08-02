@@ -64,7 +64,7 @@ export function StatusFilterChips({
             className={cn(
               "inline-flex items-center rounded-lumen-full border transition-colors",
               compact
-                ? "max-w-full gap-1 px-2 py-0.5 text-[12px]"
+                ? "max-w-full gap-1 px-2 py-0.5 text-xs"
                 : "gap-1.5 px-3 py-1 text-sm",
               "focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
