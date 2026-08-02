@@ -39,7 +39,6 @@ import {
   taskChipId,
   isTaskChip,
   unwrapTaskChipId,
-  localDateTimeToISO,
   pickAddableTasks,
   buildWeekdayLabels,
   frequencyLabel,
@@ -76,6 +75,14 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
+import {
+  timedPlacement,
+  taskChipMoveWrite,
+  taskChipResizeWrite,
+  taskChipAllDayWrite,
+  todoAddCandidateWrite,
+  placeTaskWrite,
+} from "./taskChipUndoWiring";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -456,54 +463,55 @@ export function CalendarTab({
     [openCreatePanel],
   );
 
-  // A-2 (#297): grid drag of a task chip → write scheduledAt/scheduledEndAt on
-  // the underlying TaskNode. The grid hands both new times on the same day
-  // (it moves the block preserving duration), so both fields are rewritten.
-  // isAllDay:false — a timed grid placement is by definition not all-day
-  // (an all-day chip sits in the all-day lane and is not drag-moved here).
-  // updateNode is optimistic, so the chip re-derives at the new position
-  // without a manual patch. Schedule AC10 (bidirectional) closes here.
+  /*
+   * A-2 (#297) / #562 / #569: the task-chip writes.
+   *
+   * What each gesture writes — the patch AND whether it lands on the undo stack
+   * — lives in taskChipUndoWiring.ts, not here. Inside this component those
+   * decisions cannot be tested: the calendar needs the whole Provider stack to
+   * render and the grid needs real layout, which jsdom does not have, so
+   * deleting a label or swapping place ↔ move went unnoticed by all seven gates
+   * (#569 QA). As plain functions they are pinned in
+   * web/tests/taskChipUndoWiring.test.ts.
+   *
+   * These handlers keep what is actually the host's: unwrapping the synthetic
+   * chip id, finding the task, and calling updateNode (which is optimistic — the
+   * chip re-derives at its new position with no manual patch, closing Schedule
+   * AC10).
+   */
   const handleTaskChipMove = useCallback(
     (chipId: string, dateISO: string, startISO: string, endISO: string) => {
       const taskId = unwrapTaskChipId(chipId);
-      updateNode(taskId, {
-        scheduledAt: localDateTimeToISO(dateISO, startISO),
-        scheduledEndAt: localDateTimeToISO(dateISO, endISO),
-        isAllDay: false,
-      });
-    },
-    [updateNode],
-  );
-
-  // A-2 (#297): resize gives only the new end time — keep the task's current
-  // day (from its scheduledAt) and rewrite scheduledEndAt on it.
-  const handleTaskChipResize = useCallback(
-    (chipId: string, endISO: string) => {
-      const taskId = unwrapTaskChipId(chipId);
-      const task = taskNodes.find((n) => n.id === taskId);
-      if (!task?.scheduledAt) return;
-      const start = new Date(task.scheduledAt);
-      if (Number.isNaN(start.getTime())) return;
-      const dateKey = `${start.getFullYear()}-${String(
-        start.getMonth() + 1,
-      ).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
-      updateNode(taskId, {
-        scheduledEndAt: localDateTimeToISO(dateKey, endISO),
-      });
+      const { patch, options } = taskChipMoveWrite(
+        taskNodes.find((n) => n.id === taskId),
+        dateISO,
+        startISO,
+        endISO,
+      );
+      updateNode(taskId, patch, options);
     },
     [taskNodes, updateNode],
   );
 
-  // #562: a timed task chip dropped back onto the all-day lane returns to the
-  // all-day candidate shape — the same staging write "Add to today" makes
-  // (date at 00:00 + isAllDay:true; scheduledEndAt is left alone, the next
-  // "place" rewrites both ends anyway).
+  const handleTaskChipResize = useCallback(
+    (chipId: string, endISO: string) => {
+      const taskId = unwrapTaskChipId(chipId);
+      // null = the task has no usable start, so there is no day to anchor the
+      // new end to (see taskChipResizeWrite).
+      const write = taskChipResizeWrite(
+        taskNodes.find((n) => n.id === taskId),
+        endISO,
+      );
+      if (!write) return;
+      updateNode(taskId, write.patch, write.options);
+    },
+    [taskNodes, updateNode],
+  );
+
   const handleTaskChipDropAllDay = useCallback(
     (chipId: string, dateISO: string) => {
-      updateNode(unwrapTaskChipId(chipId), {
-        scheduledAt: localDateTimeToISO(dateISO, "00:00"),
-        isAllDay: true,
-      });
+      const { patch, options } = taskChipAllDayWrite(dateISO);
+      updateNode(unwrapTaskChipId(chipId), patch, options);
     },
     [updateNode],
   );
@@ -519,16 +527,15 @@ export function CalendarTab({
     [taskNodes, setTaskStatus],
   );
 
-  // "Add to today" (案 c staging): give the task scheduledAt = today midnight +
-  // all-day (time undefined). It then surfaces in the tray's unplaced group and
-  // as an all-day chip on the grid; dragging it into the time body (place)
-  // promotes it to placed. DDL zero — reuses the existing scheduledAt columns.
+  // "Add to today" (案 c staging — the write itself is in
+  // taskChipUndoWiring.ts). #569 made it undoable: it is a single button press
+  // with no gesture to reverse it, and the tray's "add from tasks" list drops
+  // the task the moment it is added, so a mis-tap left the user hunting for the
+  // row in the unplaced group to put it back by hand.
   const handleTodoAddCandidate = useCallback(
     (taskId: string) => {
-      updateNode(taskId, {
-        scheduledAt: localDateTimeToISO(today, "00:00"),
-        isAllDay: true,
-      });
+      const { patch, options } = todoAddCandidateWrite(today);
+      updateNode(taskId, patch, options);
     },
     [today, updateNode],
   );
@@ -735,16 +742,11 @@ export function CalendarTab({
   // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
   // task as "today, time TBD" (all-day); this panel commits it to a concrete
   // day + window, which is what makes it show up as a placed block rather than
-  // an all-day candidate. isAllDay:false for the same reason the chip drag sets
-  // it: a timed placement is by definition not all-day.
+  // an all-day candidate (the shape itself: taskChipUndoWiring.timedPlacement).
   const scheduleTaskAt = useCallback(
     (start: string, end: string) => {
       if (!createPanel) return null;
-      return {
-        scheduledAt: localDateTimeToISO(createPanel.date, start),
-        scheduledEndAt: localDateTimeToISO(createPanel.date, end),
-        isAllDay: false,
-      };
+      return timedPlacement(createPanel.date, start, end);
     },
     [createPanel],
   );
@@ -783,16 +785,25 @@ export function CalendarTab({
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      const placement = scheduleTaskAt(start, end);
-      if (!placement) return;
-      updateNode(taskId, placement);
+      if (!createPanel) return;
+      // Undoable only when no note rides along (#569): a note attaches a
+      // separate link row this panel has no un-write for, and an undo that
+      // moved the task back while leaving the note on it would be a half
+      // reversal the toast claims was whole. See placeTaskWrite.
+      const { patch, options } = placeTaskWrite(
+        createPanel.date,
+        start,
+        end,
+        note != null,
+      );
+      updateNode(taskId, patch, options);
       // No onSaved wait here, unlike the create paths: this task was picked
       // out of a pool that came from the DB, so its `items_meta` row is
       // already there and the link's FK is satisfied right now.
       attachNote(taskId, note);
       finishCreatePanel();
     },
-    [scheduleTaskAt, updateNode, attachNote, finishCreatePanel],
+    [createPanel, updateNode, attachNote, finishCreatePanel],
   );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation

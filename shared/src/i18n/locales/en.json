@@ -689,6 +689,11 @@
     "redone": "Redid: {{label}}",
     "labels": {
       "taskTreeChange": "task change",
+      "taskChipPlace": "task placement",
+      "taskChipMove": "task move",
+      "taskChipResize": "task duration change",
+      "taskChipAllDay": "task moved to all-day",
+      "taskAddToToday": "adding a task to today",
       "createScheduleItem": "event creation",
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",

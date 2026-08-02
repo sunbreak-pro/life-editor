@@ -215,6 +215,7 @@ export {
 export {
   createNoopUndoRedo,
   type UndoRedoLike,
+  type TaskHistoryLabel,
 } from "./hooks/useTaskTreeHistory";
 // UndoRedo (Issue #304) — global single-stack manager + context + hooks.
 export {
@@ -232,7 +233,10 @@ export {
   UndoRedoContext,
   type UndoRedoContextValue,
 } from "./context";
-export type { AddNodeOptions } from "./hooks/useTaskTreeCRUD";
+export type {
+  AddNodeOptions,
+  UpdateNodeOptions,
+} from "./hooks/useTaskTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // DU-G G4: the legacy Daily Provider / context hook / API hook were

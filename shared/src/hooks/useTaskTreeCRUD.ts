@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
-import type { PersistSettled } from "./useTaskTreeHistory";
+import type { PersistSettled, TaskHistoryLabel } from "./useTaskTreeHistory";
 
 export interface AddNodeOptions {
   scheduledAt?: string;
@@ -17,12 +17,31 @@ export interface AddNodeOptions {
   onSaved?: (saved: TaskNode | null) => void;
 }
 
+export interface UpdateNodeOptions {
+  /**
+   * #569: make THIS write undoable, under the given label.
+   *
+   * Opt-in rather than always-on, and that is the whole design. `updateNode` is
+   * also how the Tasks board saves a title / body as the user types
+   * (KanbanView.tsx:447 / :463) — pushing a command per keystroke would bury
+   * every other action in the app under a stack of half-typed words, which is
+   * exactly why this path was silent to begin with. The Schedule gestures are
+   * the opposite shape: one deliberate drag or button press that MOVES
+   * something, where "that was wrong, put it back" is the obvious next thought.
+   *
+   * Callers pass this only for such a gesture; everything else keeps the old
+   * silent persist.
+   */
+  undoLabel?: TaskHistoryLabel;
+}
+
 export function useTaskTreeCRUD(
   nodes: TaskNode[],
   persistWithHistory: (
     currentNodes: TaskNode[],
     updated: TaskNode[],
     onSettled?: PersistSettled,
+    label?: TaskHistoryLabel,
   ) => void,
   persistSilent: (updated: TaskNode[], onSettled?: PersistSettled) => void,
   generateId: (type: NodeType) => string,
@@ -77,10 +96,39 @@ export function useTaskTreeCRUD(
   );
 
   const updateNode = useCallback(
-    (id: string, updates: Partial<TaskNode>) => {
-      persistSilent(nodes.map((n) => (n.id === id ? { ...n, ...updates } : n)));
+    (id: string, updates: Partial<TaskNode>, options?: UpdateNodeOptions) => {
+      const updated = nodes.map((n) =>
+        n.id === id ? { ...n, ...updates } : n,
+      );
+      const target = nodes.find((n) => n.id === id);
+      // A write that changes nothing stays silent even when the caller asked
+      // for undo. A drag released back on the slot it started from still
+      // commits (WeekTimeGrid only checks that the pointer MOVED), and an entry
+      // whose undo restores identical values would answer Ctrl+Z with a "元に
+      // 戻しました" toast and no visible change — while quietly consuming the
+      // press that was meant for the user's previous, real action.
+      //
+      // `!==` assumes PRIMITIVE fields, which is all the undoable callers touch
+      // (scheduledAt / scheduledEndAt / isAllDay — strings and a boolean). Give
+      // an undoLabel to a write carrying an object or array value and it counts
+      // as changed every time, since a fresh literal never equals the stored
+      // one; the failure mode is a redundant undo entry, not a lost write, so
+      // this stays a note rather than a deep compare nothing needs yet.
+      const changed =
+        target != null &&
+        (Object.keys(updates) as Array<keyof TaskNode>).some(
+          (key) => target[key] !== updates[key],
+        );
+      if (options?.undoLabel && changed) {
+        // No onSettled: nothing is chained to these writes, and forwarding one
+        // would re-fire it on every redo (the #376 rule persistWithHistory
+        // already keeps for its own callers).
+        persistWithHistory(nodes, updated, undefined, options.undoLabel);
+        return;
+      }
+      persistSilent(updated);
     },
-    [nodes, persistSilent],
+    [nodes, persistWithHistory, persistSilent],
   );
 
   const toggleExpanded = useCallback(
