@@ -139,9 +139,10 @@ export function KanbanView({
   const rightSidebar = useRightSidebarContext();
   // "[[" wiring for the task body (#507). Both surfaces below render through
   // renderTaskDetail, so wide and the mobile sheet get it from one place.
-  const { loadLinkTargets, handleResolvedLinkInserted } = useTaskLinking({
-    dataService,
-  });
+  const { loadLinkTargets, handleResolvedLinkInserted, handleBodySaved } =
+    useTaskLinking({
+      dataService,
+    });
   const [viewMode, setViewMode] = useState<KanbanViewMode>(() =>
     readKanbanViewMode("tag"),
   );
@@ -458,7 +459,11 @@ export function KanbanView({
           key={task.id}
           noteId={task.id}
           initialContent={task.content || undefined}
-          onUpdate={(content) => tree.updateNode(task.id, { content })}
+          onUpdate={(content) => {
+            tree.updateNode(task.id, { content });
+            // #372: drop inline-origin edges whose "[[ ]]" left the text.
+            handleBodySaved(task.id, content);
+          }}
           // "[[" autocomplete + click navigation (#507). Same three props the
           // Notes and Daily editors take; this editor simply never got them,
           // so the menu never opened and a resolved link was inert. No

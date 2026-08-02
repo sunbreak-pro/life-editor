@@ -20,6 +20,7 @@ import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagConnectionOrigin,
 } from "../types/wikiTagUnified";
 
 /*
@@ -250,6 +251,7 @@ export class SupabaseWikiTagsUnifiedService {
     linkId: string,
     fromItemId: string,
     toItemId: string,
+    origin: WikiTagConnectionOrigin = "manual",
   ): Promise<WikiTagConnection> {
     if (fromItemId === toItemId) {
       throw new Error(
@@ -262,6 +264,7 @@ export class SupabaseWikiTagsUnifiedService {
         id: linkId,
         from_item_id: fromItemId,
         to_item_id: toItemId,
+        origin,
         is_deleted: false,
         deleted_at: null,
       })

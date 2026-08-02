@@ -47,6 +47,14 @@ export interface WikiTagAssignment {
 }
 
 /**
+ * Who created a link edge (#372). "inline" = mirrored from a "[[ ]]" link in
+ * a document body — eligible for delete-sync when the text link goes away.
+ * "manual" = added by hand (LinkPanel / Connect) — never auto-deleted. Rows
+ * predating the origin column default to "manual" (safe side: keep them).
+ */
+export type WikiTagConnectionOrigin = "manual" | "inline";
+
+/**
  * Item↔item link (wiki_tag_connections). RELATION + soft-delete, no
  * version. Directional `from → to`; self-loop is rejected at DB layer
  * (CHECK from_item_id <> to_item_id).
@@ -60,6 +68,7 @@ export interface WikiTagConnection {
   id: string;
   fromItemId: string;
   toItemId: string;
+  origin: WikiTagConnectionOrigin;
   updatedAt: string;
   isDeleted: boolean;
   deletedAt: string | null;

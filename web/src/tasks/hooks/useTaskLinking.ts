@@ -22,7 +22,8 @@ import { useItemLinkTargets } from "../../notes/useItemLinkTargets";
  */
 
 export function useTaskLinking({ dataService }: { dataService?: DataService }) {
-  const { createItemLink, getLinksForItem } = useWikiTagsUnifiedContext();
+  const { createItemLink, getLinksForItem, syncInlineLinks } =
+    useWikiTagsUnifiedContext();
 
   // A LOADER, not a list — nothing is fetched until the first "[[" opens the
   // menu (#430: typing prose must not hit the network).
@@ -33,9 +34,9 @@ export function useTaskLinking({ dataService }: { dataService?: DataService }) {
    * current task to the target, so a link written in a task shows up in Connect
    * and in the target's backlinks — same contract Notes and Daily already have.
    *
-   * Duplicate-guarded against the cache, and NEVER deleted when the text link
-   * goes away: item_links has no origin column, so a delete-sync would also
-   * destroy edges the user made by hand in the LinkPanel.
+   * Duplicate-guarded against the cache. Marked origin "inline" so the
+   * save-time delete-sync (#372, handleBodySaved below) may remove it when the
+   * text link goes away — manual LinkPanel edges stay untouched.
    */
   const handleResolvedLinkInserted = useCallback(
     (fromId: string, targetId: string) => {
@@ -44,12 +45,23 @@ export function useTaskLinking({ dataService }: { dataService?: DataService }) {
         (l) => !l.isDeleted && l.toItemId === targetId,
       );
       if (already) return;
-      void createItemLink(fromId, targetId).catch((e) =>
+      void createItemLink(fromId, targetId, "inline").catch((e) =>
         console.error("[KanbanView] item link upsert failed", e),
       );
     },
     [getLinksForItem, createItemLink],
   );
 
-  return { loadLinkTargets, handleResolvedLinkInserted };
+  // #372: after a body save, soft-delete the inline-origin edges whose "[[ ]]"
+  // link is no longer in the saved text.
+  const handleBodySaved = useCallback(
+    (fromId: string, content: string) => {
+      void syncInlineLinks(fromId, content).catch((e) =>
+        console.error("[KanbanView] inline link delete-sync failed", e),
+      );
+    },
+    [syncInlineLinks],
+  );
+
+  return { loadLinkTargets, handleResolvedLinkInserted, handleBodySaved };
 }

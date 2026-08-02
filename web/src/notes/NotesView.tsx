@@ -191,6 +191,7 @@ export function NotesView({
     resolveTitle,
     loadLinkTargets,
     handleResolvedLinkInserted,
+    handleBodySaved,
     handleCreateNoteForLink,
   } = useNoteLinking({
     dataService,
@@ -712,7 +713,11 @@ export function NotesView({
           noteId={selected.id}
           initialContent={selected.content || undefined}
           editable={!selected.isEditLocked}
-          onUpdate={(content) => notes.updateNote(selected.id, { content })}
+          onUpdate={(content) => {
+            notes.updateNote(selected.id, { content });
+            // #372: drop inline-origin edges whose "[[ ]]" left the text.
+            handleBodySaved(selected.id, content);
+          }}
           // "[[" wiki-link autocomplete + click navigation (Issue #285).
           loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}
@@ -868,9 +873,11 @@ export function NotesView({
                       // having caught up with it.
                       initialContent={sheetNote.content || undefined}
                       editable={!sheetNote.isEditLocked}
-                      onUpdate={(content) =>
-                        notes.updateNote(sheetNote.id, { content })
-                      }
+                      onUpdate={(content) => {
+                        notes.updateNote(sheetNote.id, { content });
+                        // #372: same delete-sync as the Desktop editor.
+                        handleBodySaved(sheetNote.id, content);
+                      }}
                       // Same "[[" wiring as Desktop. loadLinkTargets is a
                       // LOADER, so handing it over costs nothing until the
                       // user actually types "[[" (#430 — typing prose must

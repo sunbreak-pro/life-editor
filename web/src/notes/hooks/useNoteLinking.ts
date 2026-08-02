@@ -30,7 +30,8 @@ export function useNoteLinking({
   onPendingSelected?: (id: string) => void;
 }) {
   const notes = useNotesUnifiedContext();
-  const { createItemLink, getLinksForItem } = useWikiTagsUnifiedContext();
+  const { createItemLink, getLinksForItem, syncInlineLinks } =
+    useWikiTagsUnifiedContext();
 
   // Linkable candidates pool for the LinkPanel: active notes only.
   const linkableItems = useMemo(
@@ -67,11 +68,12 @@ export function useNoteLinking({
   }, [pendingSelectNoteId]);
 
   // Mirror a resolved "[[" link into the item_links graph (Connect / backlinks)
-  // as an edge from the CURRENT note to the target. Duplicate-guarded against
-  // the bulk cache; NEVER deleted when the text link is removed — item_links has
-  // no origin column, so a delete-sync would also destroy links the user added
-  // by hand in the LinkPanel. Self-links are skipped (createItemLink rejects
-  // them anyway).
+  // as an edge from the CURRENT note to the target, marked origin "inline" so
+  // the save-time delete-sync (#372, handleBodySaved below) may remove it when
+  // the text link goes away — manual LinkPanel edges stay untouched.
+  // Duplicate-guarded against the bulk cache; a pre-existing manual edge for
+  // the same pair therefore keeps its manual origin (and its immunity).
+  // Self-links are skipped (createItemLink rejects them anyway).
   const handleResolvedLinkInserted = useCallback(
     (fromId: string, targetId: string) => {
       if (!fromId || fromId === targetId) return;
@@ -79,11 +81,23 @@ export function useNoteLinking({
         (l) => !l.isDeleted && l.toItemId === targetId,
       );
       if (already) return;
-      void createItemLink(fromId, targetId).catch((e) =>
+      void createItemLink(fromId, targetId, "inline").catch((e) =>
         console.error("[NotesView] item link upsert failed", e),
       );
     },
     [getLinksForItem, createItemLink],
+  );
+
+  // #372: after a body save, soft-delete the inline-origin edges whose "[[ ]]"
+  // link is no longer in the saved text. Fire-and-forget beside the save —
+  // a failed sync only leaves a stale edge the next save retries.
+  const handleBodySaved = useCallback(
+    (fromId: string, content: string) => {
+      void syncInlineLinks(fromId, content).catch((e) =>
+        console.error("[NotesView] inline link delete-sync failed", e),
+      );
+    },
+    [syncInlineLinks],
   );
 
   // "[[" create-a-note-and-link. select:false keeps the editor on the note the
@@ -102,6 +116,7 @@ export function useNoteLinking({
     resolveTitle,
     loadLinkTargets,
     handleResolvedLinkInserted,
+    handleBodySaved,
     handleCreateNoteForLink,
   };
 }

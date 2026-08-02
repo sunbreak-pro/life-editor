@@ -18,6 +18,7 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
+  WikiTagConnectionOrigin,
 } from "../types/wikiTagUnified";
 import type {
   NoteLink,
@@ -387,6 +388,8 @@ export interface DataService {
     linkId: string,
     fromItemId: string,
     toItemId: string,
+    /** Defaults to "manual". "inline" marks the edge for delete-sync (#372). */
+    origin?: WikiTagConnectionOrigin,
   ): Promise<WikiTagConnectionUnified>;
   deleteItemLink(linkId: string): Promise<void>;
 

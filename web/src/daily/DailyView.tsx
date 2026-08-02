@@ -29,6 +29,7 @@ import {
   createPendingItemLinks,
   queuePendingItemLink,
   takePendingItemLinks,
+  extractItemLinkTargets,
   type DailyNode,
   type DailyEntriesPanelEntry,
   type DailyListDirection,
@@ -170,7 +171,8 @@ export function DailyView({
     togglePin,
     getDailyForDate,
   } = useDailiesUnifiedContext();
-  const { createItemLink, getLinksForItem } = useWikiTagsUnifiedContext();
+  const { createItemLink, getLinksForItem, syncInlineLinks } =
+    useWikiTagsUnifiedContext();
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery("(min-width: 768px)", true);
 
@@ -199,8 +201,9 @@ export function DailyView({
   // So every insertion parks under its DATE (the row's id isn't knowable yet)
   // and is written by the save that persists the text carrying the link —
   // inserting a link dirties the editor, so a save always follows within the
-  // 800ms debounce. Duplicate-guarded; never auto-deleted (item_links has no
-  // origin column).
+  // 800ms debounce. Duplicate-guarded; written with origin "inline" so the
+  // save-time delete-sync (#372) may remove it once its "[[ ]]" leaves the
+  // text — manual LinkPanel edges stay untouched.
   const pendingLinksRef = useRef(createPendingItemLinks());
 
   const handleResolvedLinkInserted = useCallback(
@@ -213,19 +216,24 @@ export function DailyView({
 
   // Drain one date's parked edges once its row is known to exist. A failed
   // save resolves to null — leave the queue alone so the next save retries.
+  // `bodyJson` is the body that save persisted: a queued target the user
+  // already removed again (insert → delete within one debounce window) is
+  // dropped instead of minting an edge its text no longer carries (#372).
   const flushPendingLinks = useCallback(
-    (date: string, saved: DailyNode | null) => {
+    (date: string, saved: DailyNode | null, bodyJson: string) => {
       if (!saved) return;
+      const present = extractItemLinkTargets(bodyJson);
       for (const targetId of takePendingItemLinks(
         pendingLinksRef.current,
         date,
       )) {
         if (targetId === saved.id) continue;
+        if (present !== null && !present.includes(targetId)) continue;
         const already = getLinksForItem(saved.id).outgoing.some(
           (l) => !l.isDeleted && l.toItemId === targetId,
         );
         if (already) continue;
-        void createItemLink(saved.id, targetId).catch((e) =>
+        void createItemLink(saved.id, targetId, "inline").catch((e) =>
           console.error("[DailyView] item link upsert failed", e),
         );
       }
@@ -311,9 +319,16 @@ export function DailyView({
     // (`key={editorKey}`), so an unmount flush fires the PREVIOUS instance's
     // callback — the one still holding the date it was rendered for.
     const date = selectedDate;
-    void upsertDaily(date, json).then((saved) =>
-      flushPendingLinks(date, saved),
-    );
+    void upsertDaily(date, json).then((saved) => {
+      flushPendingLinks(date, saved, json);
+      // #372: drop inline-origin edges whose "[[ ]]" left the text. Edges the
+      // flush just created are not candidates — their targets are in `json`.
+      if (saved) {
+        void syncInlineLinks(saved.id, json).catch((e) =>
+          console.error("[DailyView] inline link delete-sync failed", e),
+        );
+      }
+    });
   };
 
   // Saves are automatic (debounced + flushed on unmount); with batched echo
