@@ -6,20 +6,23 @@ export type PageContainerWidth = "reading" | "data" | "wide" | "fluid" | "full";
 
 export interface PageContainerProps {
   /**
-   * Content width contract:
-   *   - "reading": document-style centered column (max-w-lumen-reading, 768px)
-   *     — the default for text surfaces.
-   *   - "data": wide dashboard column (max-w-lumen-data, 1000px) — analytics.
-   *   - "wide": the Notes / Daily editor column (max-w-lumen-wide, 1120px) — a
-   *     mid-point between reading and full-bleed for text surfaces that want
-   *     more room than a reading column but not the full page width.
+   * Content width contract. The px behind each variant lives ONLY in
+   * styles/tokens.css (--container-lumen-*); naming it here too would just be
+   * a second copy to forget when the columns are retuned.
+   *   - "reading": document-style centered column (max-w-lumen-reading) — the
+   *     default for text surfaces, and the narrowest of the three.
+   *   - "data": wide dashboard column (max-w-lumen-data) — analytics.
+   *   - "wide": the Notes / Daily editor column (max-w-lumen-wide) — the
+   *     widest variant, a mid-point between reading and full-bleed for text
+   *     surfaces that want more room than a reading column but not the full
+   *     page width.
    *   - "fluid": the child owns its full-bleed h-full layout + self-scroll
    *     (canvas / board / calendar surfaces). Still centered + clamped to
    *     max-w-lumen-wide (Issue #305 — width is unified across sections; only
    *     the SCROLL OWNERSHIP differs from "wide"). No vertical-scroll wrapper:
    *     the child fills the clamped box and manages its own overflow, so its
    *     internal horizontal scroll (kanban board / week grid) stays inside the
-   *     1120px column and never spills to the page.
+   *     clamped column and never spills to the page.
    *   - "full": full-width column that KEEPS the gutter + self-scroll wrapper
    *     (Layout Standard v2 §5 — the standard wide document surface; unlike
    *     fluid, the child stays a normal scrolled document).

@@ -2,7 +2,7 @@
  * Shared label/value row for the Overview summary cards (Today / Weekly).
  * A full-width row never wraps its value regardless of locale — ja duration
  * strings like 「12時間34分」 need ~90px+, which the previous 3-col mini grid
- * could not guarantee inside a 1000px dashboard column (#182).
+ * could not guarantee inside the data-width dashboard column (#182).
  */
 export function SummaryRow({
   label,

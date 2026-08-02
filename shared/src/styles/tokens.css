@@ -379,14 +379,25 @@
   --spacing-lumen-5: 20px;
   --spacing-lumen-6: 24px;
   /* Content width scale (Layout Standard v1, Issue #180) → max-w-lumen-reading /
-     max-w-lumen-data / max-w-lumen-wide. reading = document-style centered column
-     (768px — the shell standard width docs call out); data = wide dashboard column
-     (1000px, analytics); wide = the Notes / Daily editor column (1120px — a mid-
-     point between reading and full-bleed, 2026-07-19 user request). Owned by
-     PageContainer; sections must not hardcode page widths. */
-  --container-lumen-reading: 768px;
-  --container-lumen-data: 1000px;
-  --container-lumen-wide: 1120px;
+     max-w-lumen-data / max-w-lumen-wide. reading = document-style centered
+     column; data = wide dashboard column (analytics); wide = the Notes / Daily
+     editor column, a mid-point between reading and full-bleed (2026-07-19 user
+     request). Owned by PageContainer; sections must not hardcode page widths,
+     and no other file should restate these px — the three lines below are the
+     only place they appear.
+
+     Widened by 50px each on 2026-08-02 (user request: the side margins read as
+     too generous). All three moved together so the relationship between the
+     variants is unchanged — only the column set as a whole is wider, which is
+     what "narrow the side space" means once the gutter is already at its
+     minimum on a wide screen.
+
+     Not to be confused with the 768px MEDIA QUERY that appears throughout
+     web/src: that is the app's narrow/wide breakpoint, a different concept
+     that happens to share a number with the original reading column. */
+  --container-lumen-reading: 818px;
+  --container-lumen-data: 1050px;
+  --container-lumen-wide: 1170px;
   /* Layout Standard v1 page gutter — horizontal padding 16px narrow / 24px ≥md,
      consumed as px-lumen-gutter / md:px-lumen-gutter-wide. */
   --spacing-lumen-gutter: 16px;

@@ -52,7 +52,8 @@ export interface SectionDef {
  * persisted per-section choice: "fluid" for canvas surfaces that own their
  * full-bleed scroll, "full" for gutter-padded documents, and "reading" kept
  * only for the Materials text editors (Notes / Daily) whose line length still
- * wants the ~768px column (see web/src/MainScreen.tsx).
+ * wants the narrowest column (see web/src/MainScreen.tsx; the px itself lives
+ * in styles/tokens.css).
  *
  * The `rightSidebar` gate is likewise retired (v2 §3): every section shows
  * the detail-panel toggle. Sections without portal content (Analytics /
