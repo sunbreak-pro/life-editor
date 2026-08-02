@@ -161,7 +161,9 @@ export function EveningView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
-      {/* ── Masthead ─────────────────────────────────────────────── */}
+      {/* ── Masthead — the title deliberately keeps the newspaper serif
+          (#269) regardless of the Settings font; body copy follows the
+          global preference (#556) ─────────────────────────────────── */}
       <header className="border-b-4 border-double border-lumen-border-strong pb-4 pt-6 text-center">
         <h2 className="font-serif text-2xl font-semibold tracking-[0.3em] text-lumen-text">
           {labels.masthead}
@@ -231,7 +233,7 @@ export function EveningView({
               {intentionText.split("\n").map((line, i) => (
                 <p
                   key={i}
-                  className="font-serif text-sm leading-relaxed text-lumen-text [&+&]:mt-1"
+                  className="text-sm leading-relaxed text-lumen-text [&+&]:mt-1"
                 >
                   {line}
                 </p>
