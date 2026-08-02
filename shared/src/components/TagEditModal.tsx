@@ -521,7 +521,16 @@ function TagIconPicker({ current, color, onPick, labels }: TagIconPickerProps) {
         <div
           role="group"
           aria-label={labels.iconLabel}
-          className="absolute left-0 top-9 z-10 rounded-lg border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md"
+          /* Floats over the Modal panel, which is itself bg-lumen-bg — painting
+             the popover with the same token left it with zero surface contrast,
+             so the rows behind read straight through it (#552). It was never
+             literally translucent; bg-secondary is the opaque step that makes
+             the lift visible in BOTH themes (#f5ebda / #18243c), with the
+             strong border + lg shadow + z-50 popover stacking Menu.tsx uses. */
+          className={cn(
+            "absolute left-0 top-9 z-50 rounded-lumen-md p-2",
+            "border border-lumen-border-strong bg-lumen-bg-secondary shadow-lumen-lg",
+          )}
         >
           <div className="grid grid-cols-6 gap-1">
             {TAG_ICON_CHOICES.map((choiceName) => {
@@ -536,7 +545,7 @@ function TagIconPicker({ current, color, onPick, labels }: TagIconPickerProps) {
                   title={choiceName}
                   onClick={() => pick(choiceName)}
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-md text-lumen-text-secondary",
+                    "flex h-7 w-7 items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
                     "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                     active && "bg-lumen-accent-subtle text-lumen-accent",
@@ -551,7 +560,7 @@ function TagIconPicker({ current, color, onPick, labels }: TagIconPickerProps) {
             type="button"
             onClick={() => pick(null)}
             className={cn(
-              "mt-1.5 flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[0.75rem] font-medium text-lumen-text-secondary",
+              "mt-1.5 flex w-full items-center gap-1.5 rounded-lumen-sm px-2 py-1 text-[0.75rem] font-medium text-lumen-text-secondary",
               "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
