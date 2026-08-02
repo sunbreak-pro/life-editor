@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Search,
   Filter,
@@ -11,6 +12,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { SidebarFilterField } from "../materials/SidebarFilterField";
 import type { WikiTag } from "../../types/wikiTagUnified";
 import type { GraphNodeType } from "./graph/graph-types";
 import { tagNodeId } from "./graph/graph-types";
@@ -80,6 +82,20 @@ export function GraphControlPanel({
     daily: labels.typeDaily,
     tag: labels.typeTag,
   };
+
+  // Tag name filter (#519 — the same narrowing the tag master list got in
+  // #368). Local UI state on purpose: it changes which pills are on screen,
+  // never which tags are ACTIVE. `filter.activeTags` is the graph's own
+  // selection and stays untouched, so narrowing the list cannot silently
+  // change what the canvas shows — a tag filtered out of view keeps filtering
+  // the graph, and clearing the query brings its pill straight back.
+  const [tagQuery, setTagQuery] = useState("");
+  // Same needle rule as TagEditModal / TagPicker: trimmed, case-insensitive
+  // substring, so "filtering tags" means one thing across the app.
+  const needle = tagQuery.trim().toLowerCase();
+  const visibleTags = needle
+    ? tags.filter((tag) => tag.name.toLowerCase().includes(needle))
+    : tags;
 
   // Pure content — the floating frame / outside-click / close affordance are
   // gone (the shell rightSidebar owns open/close now). This renders straight
@@ -165,6 +181,20 @@ export function GraphControlPanel({
             : tags.length
         }
       >
+        {/* Hidden while there is nothing to narrow (#368 parity) — an empty
+            section should read as "no tags", not as a search that found none.
+            The copy is deliberately NOT `labels.search`: that field above
+            searches graph NODES, and two identically-labelled inputs one
+            section apart is exactly the confusion #519 was filed about. */}
+        {tags.length > 0 && (
+          <SidebarFilterField
+            value={tagQuery}
+            onChange={setTagQuery}
+            placeholder={labels.tagFilterPlaceholder}
+            ariaLabel={labels.tagFilterLabel}
+            size="sm"
+          />
+        )}
         {filter.activeTags.size > 0 && (
           <button
             type="button"
@@ -174,8 +204,13 @@ export function GraphControlPanel({
             {labels.clearFilters}
           </button>
         )}
+        {tags.length > 0 && visibleTags.length === 0 && (
+          <div className="text-[10px] text-lumen-text-tertiary">
+            {labels.tagFilterEmpty}
+          </div>
+        )}
         <div className="flex flex-wrap gap-1">
-          {tags.map((tag) => {
+          {visibleTags.map((tag) => {
             const id = tagNodeId(tag.id);
             const active = filter.activeTags.has(id);
             return (
