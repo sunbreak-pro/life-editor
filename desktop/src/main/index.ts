@@ -12,7 +12,12 @@ import {
 } from "electron";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import Store from "electron-store";
-import { autoUpdater } from "electron-updater";
+// electron-updater is CJS whose exports the Node ESM loader cannot see as
+// named exports (crashes at import time in the packaged app) — go through the
+// default export instead.
+import electronUpdater from "electron-updater";
+
+const { autoUpdater } = electronUpdater;
 
 // ---------------------------------------------------------------------------
 // Persistent config (electron-store). Minimal use only: window bounds + theme +
