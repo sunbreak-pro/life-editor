@@ -2,25 +2,13 @@
 
 ## 進行中
 
-### 🔁 #520（PR #533）/ #524（PR #536）の merge 待ち（着手日: 2026-08-01）
-
-**対象**: `web/src/schedule/CalendarTab.tsx` / `shared/src/components/Connect/graph/useGraphInteraction.ts` + `shared/tests/`
-
-- 現在: 2 本とも実装完了・7 ゲート全緑・PR open。**tracker は実装 PR に載せない**（D-20260801-main-1）ので、この記録は docs 側の別 PR
-- **#520 は「レンズだけ直すと半分残る」型**: パレットの候補は `fetchEvents()` = live な schedule_items 全部で**繰り返しオカレンスを含む**ので、`repeatsHidden` だけが掛かっていても症状は同じ。到着時点で「どちらが隠すか」は判定できない（渡るのは id + date だけ・行の取得はアンカー移動が引き金）ため両方を無条件で外す
-- **合流点は用途ごとに 2 本**: `revealOnGrid()`（移動して見せる）と `finishCreatePanel()`（作って見せる・レンズのみ）。作成直後の行は繰り返し由来ではないので混ぜない
-- **`react-hooks/set-state-in-effect` は effect 内の最初の 1 件しか報告しない**（実測）。setState を足すと報告位置が動き、既存の disable ディレクティブが「未使用」warning に化ける。ディレクティブは最初に来る行へ
-- **#524 は #523 の退行ではない**: 旧 deps の `simRef.current` がグラフ再構築のたびにリスナーを貼り直してクロージャを偶然更新していた（「たまに効く」）。#523 がその dep を落として確定的になった
-- **jsdom で canvas 経路は「一部」テストできる**: 座標が全部 0 なのは壊れた座標系ではなく**使える座標系**（ノードを原点に置く）。このフックは 2D コンテキストを触らないので「クリックが最新のコールバックに届くか」は pin できる。当たり判定の数式と実ブラウザ挙動だけが chat-main 側
-- **🔎 未修正の別バグ**: ノードのダブルクリックは `onActivate` を一度も呼んでいない（`d3-zoom` の `dblclick.zoom` が `stopImmediatePropagation()`・後から登録した listener は届かない）。起票依頼を outbox 2026-08-01 へ、判断は D-20260801-sched-2 へ
-
 ### 🔧 担当キューの消化（着手日: 2026-08-01）
 
-**対象**: `web/src/schedule/CalendarTab.tsx` / `web/src/schedule/useScheduleMutations.ts` / `shared/src/utils/seriesEditSequence.ts` / `shared/src/i18n/locales/`
+**対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
-- 前回: #503 / #504 / #505 / #508 / #467 は PR #513 / #514 / #515 / #516 / #518 が全て merge 済み（#505 の Issue だけ残り 1 ファイル `useGraphInteraction` のため意図的に open）
-- 現在: tracker の回収（`claude/schedule-tracker-recovery` → PR #522）まで完了。**PR #518 は私の push より前に merge されていた**ので、#518 ブランチへ後追いで載せた tracker 差分が main に届いておらず、`origin/main` から切り直して載せ替えた
-- 次: **#520 は D-20260801-sched-1 の回答（A）を得て実装済み**（PR #533）。**#524 も実装済み**（PR #536）。`section:schedule` の open は Epic #290 だけになった
+- 前回: #520（PR #533）/ #524（PR #536）に続けて、#555 / #551 / #553 / #562 の 4 本（PR #561 / #566 / #567 / #570）を連続実装。**全て merge 済み**（`gh pr view` の state で実測・2026-08-02）
+- 現在: merge 後の tracker / outbox まとめ commit（`claude/schedule-tracker-0802`・D-20260801-main-1 / D-20260802-sched-1 の B 既定どおり）
+- 次: **#568（sev:important・Undo/Redo が今日以外の予定に効かず、undo してもグリッド描画が戻らない）**。以降のキューは #569（タスクチップ操作の Undo・#568 の後続）→ #564 / #563（sev:minor バグ）→ #565（Todo タグ別ビュー 3 列固定）
 - **#503 と #467 は `CalendarTab` で真正コンフリクトした**（2026-08-01 実測）: #503 のパレット着地 effect が `setMobileSelectedDay` を呼ぶのに対し、#467 は Mobile の月アジェンダごとその state を退役させた。**片方が消した API をもう片方が使う形**なので union では直らず、アンカー移動 1 本に畳んだ（Mobile のリストはアンカー日を読むので追随する）
 - **squash merge は tracker のエントリを落とすことがある**（2026-08-01 実測）: #503（PR #513）/ #505（PR #515）は**コードは main にあるのに history のエントリだけ消えていた**。旧ブランチの commit（`9185969a` / `fb960baa`）から該当ブロックを取り出して復元した。**merge 後は「コードが着いたか」と「記録が着いたか」を別々に確かめる**（`git show origin/main:<path>` で実在確認）
 - **#506 の Important は「片側だけ直した」典型**: `setCalendarFilterId(null)` が 4 経路中 `handleCreateSubmit` にしか無く、タスク作成 / 既存タスク配置 / 作成して開く の 3 経路が素通りしていた。**タスクチップも同じ `applyCalendarLens` を通る**ので症状は完全に同じ。4 経路が通る `finishCreatePanel()` に合流させて、次に増える経路が同じ抜け方をできない形にした。**cancel 側（`onClose`）は合流させない** — グリッドに何も増えていないのにユーザーのレンズを外すのは別の壊れ方
@@ -51,6 +39,11 @@
 
 ## 直近の完了
 
+- **#562 終日チップの drop 復元 + グリッド移動のクランプ** ✅（2026-08-02 — **PR #570 merge 済み**）。終日→時間グリッドへのドラッグが y 座標を時刻に丸めて 01:30 / 00:00 を捏造していたのを `onDropAllDay` で終日レーンの drop として commit する形に。move は可視時間窓でクランプ。既存の壊れた行（end<=start の退化 span）は終日候補チップとして救済表示し drag / トレイ / Tasks 側から再配置可能に — 詳細は history 2026-08-02
+- **#553 TimeRangeField（時間帯編集の共有部品）** ✅（2026-08-02 — **PR #567 merge 済み**）。start<end 不変式を部品が所有・EventEditorPane は `onChangeTimes` で 1 操作 = 1 書き込み（routine のスコープダイアログが 2 回出ない）— 詳細は history 2026-08-02
+- **#551 左/右クリックのアイテム操作パネル統一** ✅（2026-08-02 — **PR #566 merge 済み**・net −244 行）。ItemActionPopover に一本化・`ScheduleItemContextMenu` / 汎用 `ItemContextMenu` を撤去・詳細編集 tagSlot に TagColorControls — 詳細は history 2026-08-02
+- **#555 Todo トレイの削除 + タグ付け外し** ✅（2026-08-02 — **PR #561 merge 済み**）。TodayTodoTray に optional 削除（softDelete → Trash 復元可）+ renderRowExtra スロット。Briefing ホストは props 未指定で描画不変 — 詳細は history 2026-08-02
+- **#520 パレット移動時にレンズ + 繰り返しフィルタを外す / #524 グラフのコールバック凍結** ✅（2026-08-02 merge 確認 — **PR #533 / #536 とも merge・Issue close 済み**。実装の詳細は history 2026-08-01 (2)）
 - **#508 BottomSheet にフォーカストラップと初期フォーカス（shared-fix `[all]`）** ✅（2026-08-01 — **PR #516**・branch `claude/schedule-508-sheet-focus-trap`）。**`[all]` は着手宣言コメントを先に付けてから着手**（#473 で 40 分の二重実装をやった型）。Modal が既に同じ機構を持っていたので **`shared/src/hooks/useDialogA11y.ts` に切り出して両方から使う**（複製しない）。**最大の発見はレイヤ順序が listener 登録順で決まっていたこと** = 全ダイアログが document で待つので**最初に登録した＝一番古い外側**が先に走って stopPropagation する → シートの上に開いた Modal の Esc がシートに渡っていた。**module レベルの layers スタックで「最前面だけが反応する」に変更**。BottomSheet は body scroll を**ロックしない**（背後のリストをスクロールしたまま使う想定・Modal だけ `lockScroll: true`）。**初期フォーカスは子が既に取っていたら触らない**（QuickAddSheet が effect で input を focus する = 二重フォーカスの正体）。**可視判定の `offsetParent !== null` は jsdom で全滅する**ので layout がある時だけ適用（無いと trap がテストから見えない = #475 の形）。7 ゲート全緑（shared 167 files / 1371 pass・web 8 files / 75 pass）
 - **#505 `react-hooks/refs` のベースライン免除を 10 → 1 に** ✅（2026-07-31 — **PR #515 merge 済み**。Issue は残り 1 ファイルのため open 継続）。違反は 3 形しかなく、7 箇所は dep 無し `useEffect` へ、1 箇所は `useState(() => …)` の lazy init へ、`useFrozenNoteSortKey` だけは**render 中スナップショットが意図的**（effect にすると保持されない 1 レンダーが通り #366 が再発する）なので state を render 中に調整する形へ移した — 詳細は history 2026-07-31 に全文
 - **#504 routine template の更新失敗が無言** ✅（2026-07-31 — **PR #514 merge 済み**）。**rollback ではなく書き込み順序で解いた** = template を先に書いて落ちたら中断すれば、失敗時点で occurrence に触れていないので「何も保存されていません」が嘘にならない。順序と中断規則は `shared/src/utils/seriesEditSequence.ts` に切り出して vitest で pin。文言分岐はネスト三項ではなくテーブル（新しい reason が黙って最後の `else` に落ちない）— 詳細は history 2026-07-31 に全文
@@ -69,7 +62,7 @@
 
 ## 予定
 
-- **今回の担当 4 件（#433 → #434 → #408 → #411）は全て実装完了**（2026-07-28・chat-main の fan-out 計画書 `docs/vision/plans/2026-07-28-open-issue-fanout.md` の schedule-refine 節）。**#433 / #434 / #408 は merge 済み、#411 は PR #454 が merge 待ち**。次の担当は `gh issue list --label section:schedule --state open` と `--label shared-fix` で拾い直す
+- **現在の section:schedule キュー（2026-08-02 実測・優先順）**: ① #568 bug sev:important（Undo/Redo が今日以外の予定に効かない — 原因 2 段まで Issue 本文に調査済み）② #569 feat（タスクチップ操作の Undo — #568 の後続と Issue 本文が明記）③ #564 bug sev:minor（終日チップが左/右クリック無反応）④ #563 bug sev:minor（週ビュー終日レーンの列線ずれ）⑤ #565 feat（Todo タグ別ビュー 3 列固定）。Epic #290 は tracking のみ。shared-fix に自分宛（`[schedule-refine]`）は無し
 - **#411 で「タブを 1 つ減らしてから 1 つ足す」順序は正解だった**: #408 が `ScheduleTab` 型・`scheduleTab` state・タブ帯を撤去した直後に #411 が同じ構造を `"calendar" | "todo"` で足し直したので、中間状態が常に 1 セクション 1 構造で済んだ。**ただし `ScheduleTab` の置き場所は #408 前と変えた** = `ScheduleScreen.tsx` が export し `MainScreen` が import する（switch する側と型を同居させる）
 - **【この worktree で最重要の実測】カレンダーのナビゲーションは occurrence を生成しない**（2026-07-28 #408 の QA で判明・B-1）。範囲移動は `useVisibleRangeItems` の `loadDateRange` で**取得するだけ**。生成経路は 3 本のみ = `RoutineScheduleSync`（`ScheduleItemsContext` の `date` = 既定今日）/ 変換時 / reconcile（後 2 者はどちらも**その時の可視範囲**だけ）。**`useScheduleItemsRoutineSync.ts:260` と旧 requirements の「窓の外は表示時に `ensureRoutineItemsForDateRange` が拾う」は嘘**（その配線は存在しない）。よって「未来日へ飛ぶ」導線を作るときは必ず自前で ensure を打つ — #408 の一覧はこれを踏んで `handleOpenRepeat` で明示的に打っている
 - **`deleteRoutine` は失敗しても throw しない**（楽観削除 → `logServiceError` で握り潰し → 正常 resolve）。#408 で戻り値に `landed: boolean` を追加（`updateRoutine` の `landed` と同じ idiom・既存の `deletedScheduleItemIds` は温存）。**`softDeleteRoutine` の undo は非対称** = `restoreRoutine` は routine の `items_meta` 1 行しか戻さず cascade された occurrence は trash に残るので、一覧の削除は 2 段確認にした
