@@ -4,7 +4,7 @@
 > **対象ブランチ**: 未定（小規模なら `data-unification/items-meta-redesign` 上、影響が広いなら専用 branch）
 > **正式置き場**: 確定後 `.claude/docs/vision/plans/2026-05-23-memory-history-per-chat-split.md`（このファイル）
 > **関連計画**: [`2026-05-23-filechanged-comm-watch.md`](./2026-05-23-filechanged-comm-watch.md)（comm への FileChanged 監視レイヤー追加。本計画と worktree 正本パス問題を共有）
-> **前提ドキュメント**: [`.claude/comm/README.md`](../../comm/README.md) / [`.claude/CLAUDE.md` §0,§9](../../CLAUDE.md)
+> **前提ドキュメント**: [`.claude/comm/README.md`](../comm/README.md) / [`.claude/CLAUDE.md` §0,§9](../CLAUDE.md)
 
 > **計画からの逸脱（2026-07-08 close 時点で固定）**:
 >

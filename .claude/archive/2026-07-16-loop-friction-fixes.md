@@ -8,7 +8,7 @@ Owner-chat: docs-workspace
 
 # Plan: Loop Friction Fixes — ループを回すための摩擦除去（2026-07-16 ユーザー要件）
 
-> **親計画** = [`2026-07-15-briefing-loop.md`](./2026-07-15-briefing-loop.md)。位置づけ = 判定基準「改善: 朝 5 分・夜 5 分の妨げから直す」の適用第 1 弾 ＋ ループ成立の**前提工事**（F-1）。
+> **親計画** = [`2026-07-15-briefing-loop.md`](../docs/vision/plans/2026-07-15-briefing-loop.md)。位置づけ = 判定基準「改善: 朝 5 分・夜 5 分の妨げから直す」の適用第 1 弾 ＋ ループ成立の**前提工事**（F-1）。
 > 本書は仕様と決定の正本。起票は chat-main（issue-dispatch）・実装は各担当 worktree・進捗追跡は各 Issue が持つ。
 
 ---
@@ -136,8 +136,8 @@ Owner-chat: docs-workspace
 
 ## References
 
-- 親: [`2026-07-15-briefing-loop.md`](./2026-07-15-briefing-loop.md)（ループ定義・判定基準）
-- 関連: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（要件 2 の「日付接続」の本体 = Step 2〜3）/ layout-standard v2（F-3 の rightSidebar 構造）
+- 親: [`2026-07-15-briefing-loop.md`](../docs/vision/plans/2026-07-15-briefing-loop.md)（ループ定義・判定基準）
+- 関連: [`2026-07-14-schedule-redesign.md`](../docs/vision/plans/2026-07-14-schedule-redesign.md)（要件 2 の「日付接続」の本体 = Step 2〜3）/ layout-standard v2（F-3 の rightSidebar 構造）
 - 要件文書: `docs/requirements/tier-3-experimental.md`（決定 6 の記録先）
 
 ## Worklog

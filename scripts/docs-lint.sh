@@ -3,7 +3,7 @@
 # docs-lint — .claude ドキュメント整合の機械検査（#173 / docs-consistency-cleanup Phase 7）
 #
 # 検査項目:
-#   (a) 相対リンク実在   : .claude/CLAUDE.md + .claude/docs/**/*.md の [..](target) が実在するか
+#   (a) 相対リンク実在   : .claude/**/*.md の [..](target) が実在するか（#528 で docs/ 限定から拡大）
 #   (b) 旧トークン名残存 : notion-* / ink-*（known-issues/ は凍結アーカイブのため除外、
 #                          「旧称」「仮称」「retired」「旧トークン」の歴史注記行も除外）
 #   (c) plans/ Status enum: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED /
@@ -26,18 +26,23 @@ report() {
   FAIL=1
 }
 
-DOCS_FILES=$(find .claude/docs -name '*.md' | sort)
 PLANS_DIR=".claude/docs/vision/plans"
 
 # ---------------------------------------------------------------------------
 # (a) 相対リンク実在チェック
-#     対象: .claude/CLAUDE.md + .claude/docs/**/*.md
+#     対象: .claude/**/*.md 全部（#528 で docs/ 限定から拡大 — archive/ 移動時の
+#           リンク切れを検出するため）
 #     除外: http(s) / mailto / file: の絶対 URL、ページ内アンカー（#...）、
 #           git 非追跡の派生ビュー（memory/INDEX.md / history/INDEX.md —
 #           hooks/regen-index.sh が再生成するため CI の checkout には
-#           存在しない。CLAUDE.md §9 参照）
+#           存在しない。CLAUDE.md §9 参照。リンク元としても同様に除外）、
+#           旧式 worktree 置き場（.claude/worktrees/ — 別 checkout の実体）
 # ---------------------------------------------------------------------------
-for f in .claude/CLAUDE.md ${DOCS_FILES}; do
+ALL_MD_FILES=$(find .claude -path '.claude/worktrees' -prune -o -name '*.md' -print | sort)
+for f in ${ALL_MD_FILES}; do
+  case "$f" in
+    *memory/INDEX.md | *history/INDEX.md) continue ;; # derived views
+  esac
   dir=$(dirname "$f")
   while IFS= read -r target; do
     [ -z "$target" ] && continue
@@ -52,7 +57,13 @@ for f in .claude/CLAUDE.md ${DOCS_FILES}; do
     if [ ! -e "$dir/$path" ]; then
       report "docs-lint(a) broken link: $f -> $target"
     fi
-  done < <(grep -oE '\]\([^)]+\)' "$f" 2>/dev/null | sed -E 's/^\]\(//; s/\)$//')
+  done < <(
+    # コードフェンス（```...```）とインラインコード（`...`）はリンクとして扱わない
+    # （sed / grep のコマンド例に ](...) 形が現れて誤検知するため — #528）
+    awk '/^[[:space:]]*```/{fence=!fence; next} !fence' "$f" 2>/dev/null |
+      sed 's/`[^`]*`//g' |
+      grep -oE '\]\([^)]+\)' | sed -E 's/^\]\(//; s/\)$//'
+  )
 done
 
 # ---------------------------------------------------------------------------

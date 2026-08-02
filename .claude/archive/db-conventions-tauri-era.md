@@ -10,7 +10,7 @@
 > - `sync_engine.rs` の VERSIONED_TABLES / RELATION_TABLES_WITH_UPDATED_AT / inline ハンドリング
 > - バージョンカラム + Last-Write-Wins 同期ロジック
 >
-> 並立期間中（Phase 1-4）は現行 frontend/ + src-tauri/ + cloud/ コードに対して **このファイルの規約はそのまま有効**。一方で新規の shared/ + supabase/ コードには Postgres + RLS 規約（Phase 5 で本ファイルに統合 or 別ファイル化）を適用する。現行 SSOT: [`.claude/2026-05-04-cross-platform-migration.md`](../../2026-05-04-cross-platform-migration.md)
+> 並立期間中（Phase 1-4）は現行 frontend/ + src-tauri/ + cloud/ コードに対して **このファイルの規約はそのまま有効**。一方で新規の shared/ + supabase/ コードには Postgres + RLS 規約（Phase 5 で本ファイルに統合 or 別ファイル化）を適用する。現行 SSOT: [`.claude/2026-05-04-cross-platform-migration.md`](../2026-05-04-cross-platform-migration.md)
 
 ---
 
