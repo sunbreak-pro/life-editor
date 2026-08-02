@@ -488,6 +488,7 @@ export function MainScreen({ session }: { session: Session }) {
                     onConsumePendingSelect={consumeItemNav}
                     pendingSelectEvent={pendingEventSelect}
                     onConsumePendingEvent={consumeItemNav}
+                    onNavigateToItem={navigateToItem}
                   />
                 </ScheduleItemsProvider>
               </RoutineProvider>

@@ -31,6 +31,7 @@ export function ScheduleScreen({
   onConsumePendingSelect,
   pendingSelectEvent,
   onConsumePendingEvent,
+  onNavigateToItem,
 }: {
   dataService: DataService;
   tab: ScheduleTab;
@@ -45,6 +46,12 @@ export function ScheduleScreen({
   /** An event to open, arrived from a palette search hit (#503). */
   pendingSelectEvent?: { id: string; date: string } | null;
   onConsumePendingEvent?: () => void;
+  /**
+   * Navigate to a "[[" link target from the task body (#507) — the board needs
+   * it for the same reason Notes and Daily do: only MainScreen knows how to
+   * switch section + tab.
+   */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -69,6 +76,8 @@ export function ScheduleScreen({
             onConsumeNewTask={onConsumeNewTask}
             pendingSelectTaskId={pendingSelectTaskId}
             onConsumePendingSelect={onConsumePendingSelect}
+            dataService={dataService}
+            onNavigateToItem={onNavigateToItem}
           />
         </div>
       )}
