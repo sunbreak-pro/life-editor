@@ -288,6 +288,9 @@ export { useScheduleItemsContext } from "./hooks/useScheduleItemsContext";
 export {
   useScheduleItemsAPI,
   type UseScheduleItemsAPIOptions,
+  // #568: the host's on-screen row store, registered so undo/redo can write
+  // its rollback where the grid actually reads from.
+  type ScheduleItemsViewMirror,
 } from "./hooks/useScheduleItemsAPI";
 
 // Routine→schedule_items generator (S4-5). Verbatim-ported pure

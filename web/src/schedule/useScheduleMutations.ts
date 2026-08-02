@@ -256,10 +256,20 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     [rangeItems, contextItems],
   );
 
+  // #568 order invariant: provider FIRST, local patch second. The provider's
+  // undo command snapshots the row's pre-edit values through the registered
+  // view mirror (its own list only covers today), and the mirror makes NO
+  // promise about when its `find` catches up with a patch — today's
+  // implementation reads a ref updated in an effect, so a same-tick patch is
+  // invisible to it, but a mirror answering from live state would hand the
+  // provider the post-edit values as the "previous" ones and Ctrl+Z would
+  // re-apply the edit instead of reversing it. Calling the provider first is
+  // what makes the snapshot correct for EITHER kind of mirror, so every write
+  // pair below keeps this order rather than relying on the current lag.
   const applyOccurrencePatch = useCallback(
     (id: string, patch: Partial<ScheduleItem>) => {
-      patchRange(id, patch);
       updateScheduleItem(id, patch);
+      patchRange(id, patch);
     },
     [patchRange, updateScheduleItem],
   );
@@ -297,6 +307,11 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // A-1: task chips don't own a ScheduleItem completion. Completion for
       // scheduled tasks is wired in Step 3 (TaskTree completion API). No-op.
       if (isTaskChip(id)) return;
+      // Provider first (#568 order invariant — see applyOccurrencePatch): its
+      // undo command snapshots the completion pair through the view mirror,
+      // and the snapshot must not depend on how promptly this store's `find`
+      // reflects the flip below.
+      toggleComplete(id);
       // Mirror the provider's toggle field set (completed + completedAt) on the
       // local range copy so the grid/agenda stay consistent without a refetch.
       setRangeItems((prev) =>
@@ -310,7 +325,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
             : i,
         ),
       );
-      toggleComplete(id);
     },
     [setRangeItems, toggleComplete],
   );

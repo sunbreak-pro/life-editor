@@ -160,6 +160,7 @@ export function CalendarTab({
     dismiss,
     undismiss,
     deleteScheduleItem,
+    registerViewMirror,
   } = useScheduleItemsContext();
   const {
     routines,
@@ -535,13 +536,30 @@ export function CalendarTab({
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
   // rangeItems optimistically; navigation, reload(), retry and Realtime
   // (syncVersion) refetch.
-  const { rangeItems, setRangeItems, patchRange, reload, rangeError } =
-    useVisibleRangeItems({
-      loadDateRange,
-      rangeStart,
-      rangeEnd,
-      refreshKey: syncVersion,
-    });
+  const {
+    rangeItems,
+    setRangeItems,
+    patchRange,
+    viewMirror,
+    reload,
+    rangeError,
+  } = useVisibleRangeItems({
+    loadDateRange,
+    rangeStart,
+    rangeEnd,
+    refreshKey: syncVersion,
+  });
+
+  // #568: hand the provider a handle on this store. Undo/redo commands are
+  // pushed inside the provider, which is anchored on today alone — so before
+  // this, an edit on any other day pushed nothing at all, and the commands
+  // that did get pushed rolled back a list the grid never reads (the "元に
+  // 戻しました" toast with the event still sitting where it was). Both stable
+  // identities, so this registers once per mount.
+  useEffect(
+    () => registerViewMirror(viewMirror),
+    [registerViewMirror, viewMirror],
+  );
 
   // The selected ScheduleItem — resolved before the mutation layer, which
   // acts on the selection (repeat conversion / detach / scope dialog).
