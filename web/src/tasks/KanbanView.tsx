@@ -506,6 +506,7 @@ export function KanbanView({
               statusDone: t("taskDetail.statusDone"),
               filterLabel: t("materials.tasks.filterLabel"),
               detailTitle: t("materials.tasks.detailTitle"),
+              close: t("common.close"),
               empty: t("materials.tasks.empty"),
               addCta: t("materials.tasks.addCta"),
               quickAddTitle: t("materials.tasks.quickAddTitle"),

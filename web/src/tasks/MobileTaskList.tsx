@@ -51,6 +51,8 @@ export interface MobileTaskListLabels {
   /** Title of the detail BottomSheet. Generic ("Todo details") rather than the
    *  task's own title, which the panel's first field already shows. */
   detailTitle: string;
+  /** Name for the close button both sheets carry (#525). */
+  close: string;
   /** Empty-state message + accent CTA label. */
   empty: string;
   addCta: string;
@@ -176,6 +178,7 @@ export function MobileTaskList({
         open={detailTaskId !== null}
         onClose={onCloseDetail}
         title={labels.detailTitle}
+        closeLabel={labels.close}
         className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -187,6 +190,7 @@ export function MobileTaskList({
         open={addOpen}
         onClose={() => setAddOpen(false)}
         title={labels.quickAddTitle}
+        closeLabel={labels.close}
         placeholder={labels.quickAddPlaceholder}
         submitLabel={labels.quickAddSubmit}
         onSubmit={onQuickAdd}

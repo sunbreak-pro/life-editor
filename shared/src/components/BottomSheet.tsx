@@ -1,13 +1,22 @@
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
-import { useDialogA11y } from "../hooks/useDialogA11y";
+import { X } from "lucide-react";
+import { useDialogA11y, DIALOG_AUTOFOCUS_SKIP } from "../hooks/useDialogA11y";
 import { cn } from "./cn";
+import { FOCUS_RING_TIGHT } from "./styleTokens";
 
 export interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
   /** Already-translated accessible title (props-injected i18n, §6.4). */
   title?: string;
+  /**
+   * Already-translated name for the close button (§6.4). Required, not
+   * optional: the button itself is unconditional (#525), so an optional label
+   * would leave "a sheet whose only exit no screen reader can announce" as the
+   * one broken sheet the types still allow.
+   */
+  closeLabel: string;
   children: ReactNode;
   className?: string;
   closeOnBackdrop?: boolean;
@@ -21,6 +30,13 @@ export interface BottomSheetProps {
  * §5: sheet PANEL is opaque (bg-lumen-bg); backdrop bg-black/40 is the
  * allowed overlay exception. A grab-handle bar communicates draggability
  * visually (gesture wiring is the host's concern).
+ *
+ * Every sheet carries a close button (#525). The tall detail sheets (#470 /
+ * #471 run 70–92vh) had only two exits, and on a phone neither one works: the
+ * backdrop is down to 8vh of target at full height, and Escape needs a physical
+ * keyboard. The handle above LOOKS like the third exit but is aria-hidden
+ * decoration with no drag wired to it. Hence a real button, unconditional
+ * rather than opt-in — a sheet with no way out should not be constructible.
  *
  * Keyboard/focus behaviour comes from useDialogA11y, the same hook Modal uses:
  * Escape closes, Tab cycles inside the panel, focus lands inside on open and
@@ -41,6 +57,7 @@ export function BottomSheet({
   open,
   onClose,
   title,
+  closeLabel,
   children,
   className,
   closeOnBackdrop = true,
@@ -76,11 +93,40 @@ export function BottomSheet({
           aria-hidden="true"
           className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-lumen-border"
         />
-        {title ? (
-          <h2 className="mb-3 text-base font-semibold text-lumen-text">
-            {title}
-          </h2>
-        ) : null}
+        {/*
+         * Header row: title (when given) and the always-present close button.
+         * The row renders even without a title so no sheet can exist without a
+         * visible exit — the whole point of #525.
+         *
+         * The button carries a 44px touch target (mobile-scope floor) but pulls
+         * it back into the panel's own padding with negative margins, so the
+         * row keeps the ~24px height every sheet had before and no header
+         * shifts. `truncate` on the heading is what keeps a long title from
+         * running under the button.
+         */}
+        <div className="mb-3 flex min-h-6 items-center justify-between gap-2">
+          {title ? (
+            <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-lumen-text">
+              {title}
+            </h2>
+          ) : (
+            <span className="flex-1" />
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={closeLabel}
+            {...DIALOG_AUTOFOCUS_SKIP}
+            className={cn(
+              "-my-2.5 -mr-2 grid size-11 shrink-0 place-items-center rounded-full",
+              "text-lumen-text-secondary transition-colors",
+              "hover:bg-lumen-hover hover:text-lumen-text",
+              FOCUS_RING_TIGHT,
+            )}
+          >
+            <X size={18} aria-hidden />
+          </button>
+        </div>
         {children}
       </div>
     </div>,

@@ -31,6 +31,8 @@ export interface AppShellLabels {
   signOut: string;
   more: string;
   moreTitle: string;
+  /** Name for the narrow "More" sheet's close button (#525). */
+  moreClose: string;
   /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
   shortcutHint?: string;
   /** "Edit tags" sidebar footer row (#409) — wide layout only. */
@@ -211,6 +213,7 @@ export function AppShell({
         labels={{
           more: labels.more,
           moreTitle: labels.moreTitle,
+          moreClose: labels.moreClose,
           actionsTitle: labels.bottomBarActionsTitle,
         }}
         actions={bottomBarActions}

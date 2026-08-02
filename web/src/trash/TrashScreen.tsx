@@ -251,6 +251,7 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
         confirmMessage: t("trash.permanentDeleteConfirm", { name: "{name}" }),
         cascadeWarning: t("trash.cascadeWarning"),
         cancel: t("common.cancel"),
+        close: t("common.close"),
       }}
     />
   );

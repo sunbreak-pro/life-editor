@@ -15,6 +15,7 @@ function renderSheet(props?: Partial<Parameters<typeof QuickAddSheet>[0]>) {
       open
       onClose={onClose}
       title="Quick add"
+      closeLabel="Close"
       placeholder="What's on your mind?"
       submitLabel="Add"
       onSubmit={onSubmit}

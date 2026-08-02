@@ -213,6 +213,7 @@ export function useShellChrome({
       signOut: t("nav.signOut"),
       more: t("nav.more"),
       moreTitle: t("nav.moreTitle"),
+      moreClose: t("common.close"),
       shortcutHint: isMac ? "⌘K" : "Ctrl K",
       tagEditor: t("nav.tagEditor"),
       // Narrow-only: names the action group in the bottom bar's More sheet (#472).

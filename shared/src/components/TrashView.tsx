@@ -71,6 +71,8 @@ export interface TrashViewLabels {
   cascadeWarning: string;
   /** Confirm-dialog cancel button. */
   cancel: string;
+  /** Name for the confirm sheet's close button on narrow (#525). */
+  close: string;
 }
 
 export interface TrashViewProps {
@@ -309,6 +311,7 @@ export function TrashView({
           open={pending !== null}
           onClose={closeConfirm}
           title={labels.deletePermanently}
+          closeLabel={labels.close}
         >
           {confirmContent}
         </BottomSheet>

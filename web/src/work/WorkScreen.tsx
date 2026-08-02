@@ -328,6 +328,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           selectedId={timer.activeTask?.id ?? null}
           labels={{
             title: t("work.taskSelector.select"),
+            close: t("common.close"),
             clearSelection: t("work.taskSelector.clearSelection"),
             emptyHint: t("work.taskSelector.emptyHint"),
           }}
