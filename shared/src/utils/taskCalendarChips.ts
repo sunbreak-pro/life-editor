@@ -139,6 +139,26 @@ export function tasksToCalendarChips(
       end = new Date(start.getTime() + DEFAULT_DURATION_MIN * 60_000);
     }
 
+    // Rescue (#562): a degenerate span (end instant <= start instant, e.g. the
+    // 00:00/00:00 rows an unclamped lane drop used to write) has no drawable
+    // block — the grid renders inverted HH:MM as a full-day band that task
+    // chips offer no way to open. Surface it as an all-day candidate instead:
+    // that chip can be re-placed by drag, and the tray/tasks side can edit it.
+    // A legitimate overnight span (end on the NEXT day) has end > start and is
+    // untouched.
+    if (end.getTime() <= start.getTime()) {
+      chips.push({
+        id: task.id,
+        date,
+        title: task.title,
+        startTime: "00:00",
+        endTime: "00:00",
+        isAllDay: true,
+        completed,
+      });
+      continue;
+    }
+
     chips.push({
       id: task.id,
       date,

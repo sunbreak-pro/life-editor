@@ -102,6 +102,54 @@ describe("tasksToCalendarChips", () => {
     expect(chips[0].isAllDay).toBe(false);
   });
 
+  /*
+   * Rescue (#562): the unclamped lane drop used to write scheduledAt ===
+   * scheduledEndAt (00:00/00:00) — an inverted span the grid drew as an
+   * uneditable full-day band. Degenerate spans surface as all-day candidates.
+   */
+  it("rescues a degenerate span (end === start) as an all-day chip", () => {
+    const key = localKey(new Date(ISO));
+    const task = makeTask({ scheduledAt: ISO, scheduledEndAt: ISO });
+
+    const chips = tasksToCalendarChips([task], key, key);
+
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toMatchObject({
+      isAllDay: true,
+      startTime: "00:00",
+      endTime: "00:00",
+    });
+  });
+
+  it("rescues an inverted span (end before start) as an all-day chip", () => {
+    const key = localKey(new Date(ISO));
+    const task = makeTask({
+      scheduledAt: ISO,
+      scheduledEndAt: "2026-07-09T05:00:00.000Z", // 30min BEFORE scheduledAt
+    });
+
+    const chips = tasksToCalendarChips([task], key, key);
+
+    expect(chips).toHaveLength(1);
+    expect(chips[0].isAllDay).toBe(true);
+  });
+
+  it("keeps a legitimate overnight span (end next day) timed", () => {
+    const start = new Date(ISO);
+    const end = new Date(start.getTime() + 20 * 60 * 60_000); // +20h → next day
+    const key = localKey(start);
+    const task = makeTask({
+      scheduledAt: ISO,
+      scheduledEndAt: end.toISOString(),
+    });
+
+    const chips = tasksToCalendarChips([task], key, key);
+
+    expect(chips).toHaveLength(1);
+    expect(chips[0].isAllDay).toBe(false);
+    expect(chips[0].startTime).toBe(localTime(start));
+  });
+
   it("keeps done tasks and passes completed = true through", () => {
     const key = localKey(new Date(ISO));
     const task = makeTask({ scheduledAt: ISO, status: "DONE" });

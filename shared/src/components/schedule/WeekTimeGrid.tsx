@@ -10,6 +10,7 @@ import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import {
+  clamp,
   dayOfWeek,
   layoutDayItems,
   weekDayKeys,
@@ -114,6 +115,15 @@ export interface WeekTimeGridProps {
    * time changes. When omitted, no resize handle is rendered.
    */
   onResizeItem?: (id: string, endISO: string) => void;
+  /**
+   * A timed block dragged UP out of the time body and released over the
+   * all-day lane / header turns back into an all-day item (#562 — the reverse
+   * of "place"). The host writes isAllDay:true (dateISO may differ from the
+   * original: a horizontal drag still remaps the day). When omitted, the drop
+   * keeps the pre-#562 semantics: the time is clamped inside the visible
+   * window instead of ever writing an inverted 00:00/00:00 span.
+   */
+  onDropAllDay?: (id: string, dateISO: string) => void;
   /**
    * When true, `variant: "task"` blocks are draggable/resizable like events
    * (schedule redesign A-2 / #297 — drag-to-write `scheduledAt`). Default
@@ -221,8 +231,15 @@ interface DragState {
   origStartMin: number;
   durationMin: number;
   moved: boolean;
-  /** Latest snapped result, persisted on pointer-up. */
-  final: { dateISO: string; startMin: number; endMin: number } | null;
+  /** Latest snapped result, persisted on pointer-up. `allDay` = the pointer
+   *  sits over the all-day lane/header (#562): "move" commits via
+   *  onDropAllDay, "place" commits nothing (the chip never left the lane). */
+  final: {
+    dateISO: string;
+    startMin: number;
+    endMin: number;
+    allDay: boolean;
+  } | null;
 }
 
 /** Optimistic preview applied to one item during a live drag. */
@@ -247,6 +264,7 @@ export function WeekTimeGrid({
   onCreateAt,
   onMoveItem,
   onResizeItem,
+  onDropAllDay,
   taskInteractive = false,
   snapMinutesStep = DEFAULT_SNAP_MINUTES,
   defaultCreateDuration = 60,
@@ -397,6 +415,36 @@ export function WeekTimeGrid({
       let dayIdx = d.origDayIdx;
       let startMin = d.origStartMin;
       let endMin: number;
+      // All-day zone (#562): the pointer left the time body upward, i.e. it is
+      // over the all-day lane (or the header just above it). A "move" becomes
+      // a drop-to-all-day when the host opted in; a "place" reverts — the chip
+      // is still all-day, so releasing here must write nothing. Without this
+      // branch the lane's y used to be clamped into a time, which is how the
+      // 00:00 inverted full-day bands were minted.
+      const bodyEl = scrollBodyRef.current;
+      const overAllDayLane =
+        (d.mode === "place" || (d.mode === "move" && !!onDropAllDay)) &&
+        !!bodyEl &&
+        ev.clientY < bodyEl.getBoundingClientRect().top;
+      if (overAllDayLane) {
+        if (d.mode === "move" && d.colWidth > 0 && dayKeys.length > 1) {
+          const offset = Math.round(dx / d.colWidth);
+          dayIdx = Math.min(
+            dayKeys.length - 1,
+            Math.max(0, d.origDayIdx + offset),
+          );
+        }
+        const dateISO = dayKeys[dayIdx] ?? dayKeys[d.origDayIdx];
+        d.final = { dateISO, startMin: 0, endMin: 0, allDay: true };
+        setDragPreview({
+          id: d.id,
+          date: dateISO,
+          startTime: "00:00",
+          endTime: "00:00",
+          isAllDay: true,
+        });
+        return;
+      }
       if (d.mode === "place") {
         // Absolute drop: map the pointer's Y over the scroll body to a start
         // time (same mapping as empty-slot create). The day stays the chip's
@@ -414,7 +462,15 @@ export function WeekTimeGrid({
         );
         endMin = startMin + d.durationMin;
       } else if (d.mode === "move") {
-        startMin = snapMinutes(d.origStartMin + deltaMin, snapMinutesStep);
+        // Clamp inside the visible window (#562): an unclamped overshoot past
+        // either edge used to snap to a negative / >24:00 start, and
+        // minutesToTime then flattened both ends onto the same minute — the
+        // inverted span the grid draws as an uneditable full-day band.
+        startMin = clamp(
+          snapMinutes(d.origStartMin + deltaMin, snapMinutesStep),
+          startHour * 60,
+          Math.max(startHour * 60, endHour * 60 - d.durationMin),
+        );
         endMin = startMin + d.durationMin;
         if (d.colWidth > 0 && dayKeys.length > 1) {
           const offset = Math.round(dx / d.colWidth);
@@ -433,7 +489,7 @@ export function WeekTimeGrid({
         );
       }
       const dateISO = dayKeys[dayIdx] ?? dayKeys[d.origDayIdx];
-      d.final = { dateISO, startMin, endMin };
+      d.final = { dateISO, startMin, endMin, allDay: false };
       setDragPreview({
         id: d.id,
         date: dateISO,
@@ -446,7 +502,12 @@ export function WeekTimeGrid({
       const d = dragRef.current;
       if (d) {
         if (d.moved && d.final) {
-          if (d.mode === "move" || d.mode === "place") {
+          if (d.final.allDay) {
+            // #562: released over the all-day lane. "move" hands the item to
+            // the host to flip back to all-day; "place" writes nothing — the
+            // chip never stopped being all-day.
+            if (d.mode === "move") onDropAllDay?.(d.id, d.final.dateISO);
+          } else if (d.mode === "move" || d.mode === "place") {
             // "place" writes through the same host callback as move — the host
             // routes a task chip to updateNode(scheduledAt/…, isAllDay:false),
             // turning the all-day candidate into a timed block (A-3 / #298).
@@ -488,6 +549,7 @@ export function WeekTimeGrid({
     snapMinutesStep,
     onMoveItem,
     onResizeItem,
+    onDropAllDay,
     onSelectItem,
     onItemActivate,
   ]);
