@@ -689,6 +689,11 @@
     "redone": "やり直しました: {{label}}",
     "labels": {
       "taskTreeChange": "タスクの変更",
+      "taskChipPlace": "タスクの配置",
+      "taskChipMove": "タスクの移動",
+      "taskChipResize": "タスクの時間変更",
+      "taskChipAllDay": "タスクを終日へ移動",
+      "taskAddToToday": "タスクを今日に追加",
       "createScheduleItem": "予定の作成",
       "updateScheduleItem": "予定の変更",
       "toggleScheduleItemComplete": "予定の完了切替",

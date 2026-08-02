@@ -9,6 +9,7 @@ import {
   createNoopUndoRedo,
   type UndoRedoLike,
   type PersistSettled,
+  type TaskHistoryLabel,
 } from "./useTaskTreeHistory";
 import { logServiceError } from "../utils/logError";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
@@ -179,12 +180,13 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       currentNodes: TaskNode[],
       updated: TaskNode[],
       onSettled?: PersistSettled,
+      label?: TaskHistoryLabel,
     ) => {
       if (!loadedRef.current) {
         onSettled?.(false);
         return;
       }
-      rawPersistWithHistory(currentNodes, updated, onSettled);
+      rawPersistWithHistory(currentNodes, updated, onSettled, label);
     },
     [rawPersistWithHistory],
   );
