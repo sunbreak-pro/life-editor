@@ -13,12 +13,14 @@ import { renderHook } from "@testing-library/react";
  */
 
 const createItemLink = vi.fn(() => Promise.resolve());
+const syncInlineLinks = vi.fn(() => Promise.resolve());
 let outgoing: { toItemId: string; isDeleted?: boolean }[] = [];
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useWikiTagsUnifiedContext: () => ({
     createItemLink,
+    syncInlineLinks,
     getLinksForItem: () => ({ incoming: [], outgoing }),
   }),
   useSyncDomains: () => 0,
@@ -33,13 +35,18 @@ function link(from: string, to: string) {
 
 beforeEach(() => {
   createItemLink.mockClear();
+  syncInlineLinks.mockClear();
   outgoing = [];
 });
 
 describe("useTaskLinking edge mirroring", () => {
-  it("writes an edge from the task to the link target", () => {
+  it("writes an inline-origin edge from the task to the link target", () => {
     link("task-1", "note-9");
-    expect(createItemLink).toHaveBeenCalledExactlyOnceWith("task-1", "note-9");
+    expect(createItemLink).toHaveBeenCalledExactlyOnceWith(
+      "task-1",
+      "note-9",
+      "inline",
+    );
   });
 
   it("skips an edge that already exists", () => {
@@ -53,11 +60,26 @@ describe("useTaskLinking edge mirroring", () => {
   it("writes again when the existing edge is deleted", () => {
     outgoing = [{ toItemId: "note-9", isDeleted: true }];
     link("task-1", "note-9");
-    expect(createItemLink).toHaveBeenCalledExactlyOnceWith("task-1", "note-9");
+    expect(createItemLink).toHaveBeenCalledExactlyOnceWith(
+      "task-1",
+      "note-9",
+      "inline",
+    );
   });
 
   it("skips a self-link", () => {
     link("task-1", "task-1");
     expect(createItemLink).not.toHaveBeenCalled();
+  });
+
+  // #372 — the delete-sync half: a body save hands the saved content to
+  // syncInlineLinks, which owns the "which inline edges went stale" logic.
+  it("hands a saved body to syncInlineLinks", () => {
+    const { result } = renderHook(() => useTaskLinking({}));
+    result.current.handleBodySaved("task-1", '{"type":"doc","content":[]}');
+    expect(syncInlineLinks).toHaveBeenCalledExactlyOnceWith(
+      "task-1",
+      '{"type":"doc","content":[]}',
+    );
   });
 });

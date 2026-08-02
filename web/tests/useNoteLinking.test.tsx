@@ -17,6 +17,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   useNotesUnifiedContext: () => ({ notes: [], setSelectedNoteId }),
   useWikiTagsUnifiedContext: () => ({
     createItemLink: vi.fn(),
+    syncInlineLinks: vi.fn(() => Promise.resolve()),
     getLinksForItem: () => ({ incoming: [], outgoing: [] }),
   }),
   useSyncDomains: () => 0,

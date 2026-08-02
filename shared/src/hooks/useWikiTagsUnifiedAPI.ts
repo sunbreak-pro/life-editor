@@ -4,8 +4,13 @@ import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagConnectionOrigin,
 } from "../types/wikiTagUnified";
 import { generateId } from "../utils/generateId";
+import {
+  extractItemLinkTargets,
+  findStaleInlineLinks,
+} from "../utils/inlineLinkSync";
 import { useSyncDomains } from "./useSyncDomains";
 
 /*
@@ -165,12 +170,18 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     async (
       fromItemId: string,
       toItemId: string,
+      origin: WikiTagConnectionOrigin = "manual",
     ): Promise<WikiTagConnection> => {
       if (fromItemId === toItemId) {
         throw new Error("createItemLink: self-loop rejected");
       }
       const linkId = generateId("link");
-      const created = await ds.createItemLink(linkId, fromItemId, toItemId);
+      const created = await ds.createItemLink(
+        linkId,
+        fromItemId,
+        toItemId,
+        origin,
+      );
       setAllConnections((prev) => [...prev, created]);
       return created;
     },
@@ -183,6 +194,26 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       setAllConnections((prev) => prev.filter((l) => l.id !== linkId));
     },
     [ds],
+  );
+
+  // #372 delete-sync: after a body save, soft-delete the inline-origin edges
+  // whose "[[ ]]" link is no longer in the text. Manual edges (LinkPanel /
+  // Connect) are never candidates. No-op when the body is not a TipTap doc —
+  // legacy plain text cannot carry link atoms, and an unparseable body must
+  // not read as "all links removed".
+  const syncInlineLinks = useCallback(
+    async (fromItemId: string, content: string): Promise<void> => {
+      const targets = extractItemLinkTargets(content);
+      if (targets === null) return;
+      const stale = findStaleInlineLinks(allConnections, fromItemId, targets);
+      await Promise.all(
+        stale.map(async (l) => {
+          await ds.deleteItemLink(l.id);
+          setAllConnections((prev) => prev.filter((c) => c.id !== l.id));
+        }),
+      );
+    },
+    [ds, allConnections],
   );
 
   // -- bulk-derived buckets (N+1 elimination) ------------------------------
@@ -287,6 +318,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listLinksToItem,
       createItemLink,
       deleteItemLink,
+      syncInlineLinks,
       getTagsForItem,
       getLinksForItem,
     }),
@@ -309,6 +341,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listLinksToItem,
       createItemLink,
       deleteItemLink,
+      syncInlineLinks,
       getTagsForItem,
       getLinksForItem,
     ],

@@ -72,6 +72,7 @@ function connection(
     id: `lnk-${fromItemId}-${toItemId}`,
     fromItemId,
     toItemId,
+    origin: "manual",
     updatedAt: "2026-01-01",
     isDeleted,
     deletedAt: null,

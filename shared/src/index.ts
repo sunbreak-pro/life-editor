@@ -416,6 +416,7 @@ export type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
+  WikiTagConnectionOrigin,
 } from "./types/wikiTagUnified";
 
 // Timer domain (W3-B) — Pomodoro Provider + context hook + pure reducer
@@ -521,6 +522,13 @@ export {
   takePendingItemLinks,
   type PendingItemLinks,
 } from "./utils/pendingItemLinks";
+// #372: inline "[[ ]]" link delete-sync helpers (pure — hosts pass a saved
+// body to syncInlineLinks; these are exported for hosts/tests that need the
+// primitives directly).
+export {
+  extractItemLinkTargets,
+  findStaleInlineLinks,
+} from "./utils/inlineLinkSync";
 // #376: hosts that write a row through the injected DataService (rather than
 // through a domain Provider) need the canonical id shape too — the Schedule
 // creation panel creates a Note without mounting the Notes Provider.

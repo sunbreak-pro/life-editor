@@ -28,6 +28,7 @@ function fresh(
     user_id: USER,
     from_item_id: "task-abc",
     to_item_id: "note-xyz",
+    origin: "manual",
     updated_at: "2026-05-24T11:00:00.000Z",
     is_deleted: false,
     deleted_at: null,
@@ -53,6 +54,7 @@ describe("wikiTagConnectionMapper", () => {
           id: "link-self",
           fromItemId: "task-same",
           toItemId: "task-same",
+          origin: "manual",
           updatedAt: NOW,
           isDeleted: false,
           deletedAt: null,
@@ -68,6 +70,24 @@ describe("wikiTagConnectionMapper", () => {
     const ins = wikiTagConnectionToRow(dom, USER);
     expect(ins.from_item_id).toBe("event-1");
     expect(ins.to_item_id).toBe("daily-2");
+  });
+
+  it("roundtrips origin (#372) — inline survives row -> domain -> insert-row", () => {
+    const row = fresh({ origin: "inline" });
+    const dom = rowToWikiTagConnection(row);
+    expect(dom.origin).toBe("inline");
+    expect(wikiTagConnectionToRow(dom, USER).origin).toBe("inline");
+  });
+
+  it("normalizes anything but 'inline' to 'manual' (#372 safe side)", () => {
+    expect(rowToWikiTagConnection(fresh({ origin: "manual" })).origin).toBe(
+      "manual",
+    );
+    // A value the enum never issued (bad backfill, future column reuse) must
+    // land on the never-auto-delete side.
+    expect(rowToWikiTagConnection(fresh({ origin: "weird" })).origin).toBe(
+      "manual",
+    );
   });
 
   it("updates patch ALWAYS emits updated_at", () => {

@@ -20,6 +20,7 @@ export interface WikiTagConnectionRow {
   user_id: string;
   from_item_id: string;
   to_item_id: string;
+  origin: string;
   updated_at: string;
   is_deleted: boolean;
   deleted_at: string | null;
@@ -35,7 +36,7 @@ export type WikiTagConnectionUpdatePatch = Partial<
 >;
 
 export const WIKI_TAG_CONNECTIONS_COLUMNS =
-  "id, user_id, from_item_id, to_item_id, updated_at, is_deleted, deleted_at";
+  "id, user_id, from_item_id, to_item_id, origin, updated_at, is_deleted, deleted_at";
 
 export function rowToWikiTagConnection(
   row: WikiTagConnectionRow,
@@ -44,6 +45,9 @@ export function rowToWikiTagConnection(
     id: row.id,
     fromItemId: row.from_item_id,
     toItemId: row.to_item_id,
+    // Anything that is not exactly "inline" is treated as manual — the safe
+    // side for delete-sync (#372): manual edges are never auto-deleted.
+    origin: row.origin === "inline" ? "inline" : "manual",
     updatedAt: row.updated_at,
     isDeleted: row.is_deleted,
     deletedAt: row.deleted_at,
@@ -64,6 +68,7 @@ export function wikiTagConnectionToRow(
     user_id: userId,
     from_item_id: connection.fromItemId,
     to_item_id: connection.toItemId,
+    origin: connection.origin ?? "manual",
     is_deleted: connection.isDeleted ?? false,
     deleted_at: connection.deletedAt ?? null,
   };
