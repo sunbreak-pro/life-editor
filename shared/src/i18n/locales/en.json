@@ -402,11 +402,7 @@
     "createSlot": "Create event at this time"
   },
   "itemActions": {
-    "changeColor": "Change color",
-    "addTag": "Add tag",
-    "pin": "Pin",
-    "move": "Move",
-    "soon": "Soon"
+    "tagColor": "\"{{name}}\" color"
   },
   "scheduleScreen": {
     "calendar": "Calendar",

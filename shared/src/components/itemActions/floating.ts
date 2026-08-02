@@ -1,9 +1,10 @@
 import { useEffect, type RefObject } from "react";
 
 /*
- * Shared floating-panel behaviour for the cursor-anchored item panels
- * (ItemContextMenu / ItemActionPopover). Both portal to <body>, sit at a
- * viewport-clamped cursor position, and dismiss on Escape / outside mousedown.
+ * Shared floating-panel behaviour for a cursor-anchored item panel
+ * (ItemActionPopover — the unified panel since #551). It portals to <body>,
+ * sits at a viewport-clamped cursor position, and dismisses on Escape /
+ * outside mousedown.
  */
 
 /**

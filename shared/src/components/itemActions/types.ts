@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 /*
  * Item action primitives (Issue #307) — the shared vocabulary for the item
- * operation panels (ItemContextMenu / ItemActionPopover / ItemDetailOverlay).
+ * operation panels (ItemActionPopover / ItemDetailOverlay; the separate
+ * ItemContextMenu was folded into the popover by #551).
  *
  * An action is DECLARATIVE: a host describes what a row does and how it looks,
  * and the panels render + wire it. Pure data — no DataService, no i18n; `label`
@@ -11,9 +12,9 @@ import type { ReactNode } from "react";
 
 /**
  * Inline-input behaviour for an action (e.g. in-place rename). When present on
- * an action, selecting it swaps the row for a text input seeded with `value`;
- * Enter commits via `onCommit` (trimmed, non-empty), Escape cancels. Takes
- * precedence over `onSelect`. Only ItemContextMenu renders the inline swap.
+ * an action, selecting it swaps the action list for a text input seeded with
+ * `value`; Enter commits via `onCommit` (trimmed, non-empty), Escape cancels.
+ * Takes precedence over `onSelect`. ItemActionPopover renders the inline swap.
  */
 export interface ItemActionInlineInput {
   /** Seeds the input when it opens (e.g. the current title). */
@@ -48,7 +49,7 @@ export interface ItemAction {
   danger?: boolean;
   /**
    * In-place inline input (e.g. rename). Takes precedence over `onSelect`.
-   * Only ItemContextMenu honours it; other panels treat the action as a
+   * ItemActionPopover honours it (#551); other panels treat the action as a
    * plain select.
    */
   inlineInput?: ItemActionInlineInput;

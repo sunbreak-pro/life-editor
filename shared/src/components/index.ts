@@ -22,12 +22,11 @@ export {
 export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
-// Item operation panels (Issue #307) — the generic ContextMenu / Popover /
-// DetailOverlay set + declarative ItemAction vocabulary. Any section reuses
-// them for right-click / single-click / double-click item operations.
+// Item operation panels (Issue #307) — the generic Popover / DetailOverlay
+// set + declarative ItemAction vocabulary. Any section reuses them for item
+// operations; #551 unified left/right click on the popover and retired the
+// separate ContextMenu.
 export {
-  ItemContextMenu,
-  type ItemContextMenuProps,
   ItemActionPopover,
   type ItemActionPopoverProps,
   ItemDetailOverlay,

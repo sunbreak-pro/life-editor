@@ -21,7 +21,6 @@ import {
   RightSidebarPortal,
   RightSidebarToggle,
   ScheduleSidebarTabs,
-  ScheduleItemContextMenu,
   RepeatScopeDialog,
   QuickCaptureSheet,
   ItemCreatePanel,
@@ -72,6 +71,7 @@ import {
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
 import { TagPicker } from "../wikitag/TagPicker";
+import { TagColorControls } from "../wikitag/TagColorControls";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
@@ -275,12 +275,6 @@ export function CalendarTab({
   // Real "now" Date, ticked alongside nowMinutes. Drives deriveScheduleStatus
   // (#222) — nowMinutes alone (minutes-from-midnight) can't compare across days.
   const [now, setNow] = useState(() => new Date());
-  // Right-click context menu on a calendar item (Desktop only, #223).
-  const [contextMenu, setContextMenu] = useState<{
-    id: string;
-    x: number;
-    y: number;
-  } | null>(null);
 
   /*
    * #520: the grid's two filters, dropped together whenever the user is being
@@ -602,23 +596,10 @@ export function CalendarTab({
   // would silently miss it. Cancelling twice is harmless (the hook no-ops when
   // nothing is pending).
   useEffect(() => {
-    if (
-      overlayOpen ||
-      createPanel ||
-      contextMenu ||
-      calendarsOpen ||
-      scopeRequest
-    ) {
+    if (overlayOpen || createPanel || calendarsOpen || scopeRequest) {
       cancelPopover();
     }
-  }, [
-    overlayOpen,
-    createPanel,
-    contextMenu,
-    calendarsOpen,
-    scopeRequest,
-    cancelPopover,
-  ]);
+  }, [overlayOpen, createPanel, calendarsOpen, scopeRequest, cancelPopover]);
 
   // #468: every panel path that actually PUTS something on the grid closes
   // through here, and clearing the lens is the point. A brand-new row carries
@@ -783,12 +764,20 @@ export function CalendarTab({
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
   // layer; only the menu position state lives here) ──────────────────────────
 
+  // #551: right-click opens the SAME bubble as a left-click — one panel for
+  // both gestures (the separate ScheduleItemContextMenu is retired). No #355
+  // deferral here: a contextmenu gesture is never the first half of a
+  // double-click, so the bubble can appear at once; cancelling a deferred
+  // left-click bubble keeps it from resurfacing elsewhere a beat later. On
+  // narrow the selection alone opens the BottomSheet editor, same as a tap.
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
       if (isTaskChip(id)) return; // A-1: no rename/duplicate/delete on task chips
-      setContextMenu({ id, x: pos.x, y: pos.y });
+      cancelPopover();
+      setSelectedId(id);
+      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
     },
-    [],
+    [isWide, cancelPopover],
   );
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -1456,10 +1445,18 @@ export function CalendarTab({
         // a repeat"). The role follows the id we actually write against, so it
         // matches `items_meta.role` of that row rather than what the UI calls
         // it.
-        <TagPicker
-          itemId={selected?.routineId ?? editorItem.id}
-          itemRole={selected?.routineId != null ? "routine" : "event"}
-        />
+        //
+        // #551: the color controls write the TAG's color (setTagColor) — an
+        // item shows color only through its tags, so "change this item's
+        // color" and "change this tag's color" are the same act, and the hue
+        // updates everywhere that tag paints (pills, Kanban, lens chips).
+        <div className="flex flex-col gap-1.5">
+          <TagPicker
+            itemId={selected?.routineId ?? editorItem.id}
+            itemRole={selected?.routineId != null ? "routine" : "event"}
+          />
+          <TagColorControls itemId={selected?.routineId ?? editorItem.id} />
+        </div>
       }
     />
   ) : null;
@@ -1713,33 +1710,6 @@ export function CalendarTab({
     </Modal>
   );
 
-  const contextMenuTarget = contextMenu
-    ? (rangeItems.find((i) => i.id === contextMenu.id) ??
-      contextItems.find((i) => i.id === contextMenu.id) ??
-      null)
-    : null;
-  const contextMenuEl =
-    contextMenu && contextMenuTarget ? (
-      <ScheduleItemContextMenu
-        position={{ x: contextMenu.x, y: contextMenu.y }}
-        currentTitle={contextMenuTarget.title}
-        labels={{
-          rename: t("scheduleScreen.rename"),
-          duplicate: t("scheduleScreen.duplicate"),
-          delete: t("scheduleScreen.delete"),
-          changeColor: t("itemActions.changeColor"),
-          addTag: t("itemActions.addTag"),
-          pin: t("itemActions.pin"),
-          move: t("itemActions.move"),
-          soon: t("itemActions.soon"),
-        }}
-        onRename={(title) => handleRename(contextMenu.id, title)}
-        onDuplicate={() => handleDuplicate(contextMenu.id)}
-        onDelete={() => handleDelete(contextMenu.id)}
-        onClose={() => setContextMenu(null)}
-      />
-    ) : null;
-
   // #279: this/future/all chooser — centered on every layout per the issue.
   const scopeDialogEl = (
     <RepeatScopeDialog
@@ -1767,6 +1737,10 @@ export function CalendarTab({
   const popoverEl =
     isWide && popover && selected && selected.id === popover.id ? (
       <ItemActionPopover
+        // Remount per item: without a mousedown in between (e.g. the keyboard
+        // contextmenu key) the id can swap while the bubble stays mounted,
+        // and a rename draft from the previous item would survive the swap.
+        key={popover.id}
         position={{ x: popover.x, y: popover.y }}
         summary={
           <div className="flex flex-col gap-0.5">
@@ -1781,6 +1755,17 @@ export function CalendarTab({
           </div>
         }
         actions={[
+          // #551: rename rides the unified bubble as an inline input — the
+          // retired right-click menu was the only place it lived before.
+          {
+            id: "rename",
+            label: t("scheduleScreen.rename"),
+            inlineInput: {
+              value: selected.title,
+              ariaLabel: t("scheduleScreen.rename"),
+              onCommit: (title) => handleRename(popover.id, title),
+            },
+          },
           {
             id: "duplicate",
             label: t("scheduleScreen.duplicate"),
@@ -2006,7 +1991,6 @@ export function CalendarTab({
           )}
         </div>
         {calendarsModal}
-        {contextMenuEl}
         {popoverEl}
         {detailOverlayEl}
         {createOverlayEl}
