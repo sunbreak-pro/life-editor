@@ -526,6 +526,7 @@
     "todoAddAction": "Add to today",
     "todoEmptyAddable": "No unscheduled tasks",
     "todoOpenInTasks": "Open in Tasks",
+    "todoDelete": "Delete todo",
     "rename": "Rename",
     "duplicate": "Duplicate",
     "copySuffix": " (copy)",

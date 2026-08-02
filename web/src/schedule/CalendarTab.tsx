@@ -194,6 +194,7 @@ export function CalendarTab({
     addNode,
     updateNode,
     setTaskStatus,
+    softDelete: softDeleteTask,
   } = useTaskTreeContext();
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
   // view over ONE life tag, so the grid needs both halves — the ledger (which
@@ -1657,6 +1658,8 @@ export function CalendarTab({
 
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
   // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
+  // #555: rows also soft-delete (softDeleteTask → Trash) and carry the same
+  // <TagPicker> the task detail uses, so tags attach without leaving the tray.
   const todoBody = (
     <TodayTodoTray
       placed={todoPlaced}
@@ -1665,6 +1668,8 @@ export function CalendarTab({
       onToggleComplete={handleTodoToggleComplete}
       onAddCandidate={handleTodoAddCandidate}
       onOpenTask={() => onOpenTasks()}
+      onDelete={softDeleteTask}
+      renderRowExtra={(row) => <TagPicker itemId={row.id} />}
       labels={{
         placedHeading: t("scheduleScreen.todoPlacedHeading"),
         unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
@@ -1675,6 +1680,7 @@ export function CalendarTab({
         emptyAddable: t("scheduleScreen.todoEmptyAddable"),
         complete: t("scheduleScreen.complete"),
         openInTasks: t("scheduleScreen.todoOpenInTasks"),
+        delete: t("scheduleScreen.todoDelete"),
       }}
     />
   );
