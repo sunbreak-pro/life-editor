@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-02 (2) - /loop 自律運転で #568 / #563 / #565 / #569 を連続実装（全 merge）
+
+#### 概要
+
+/loop の自律モードで、section:schedule キューの 4 件を role-engineer 実装 → role-qa 独立監査（全件 Blocking 0）→ QA Should 反映 → 7 ゲート緑 → PR の同一チェーンで連続処理した。PR #576 / #577 / #579 / #581 として提出し、いずれも同日中に merge された。QA の変異実測が 2 回「テストが実装の壊れを検知できない」穴を見つけ、どちらも PR 前に塞いだ。
+
+#### 変更点
+
+- **#568（PR #576・sev:important）Undo/Redo が今日以外の予定に効かない**: today 固定 provider に `ScheduleItemsViewMirror` を registerViewMirror で 1 個登録（実体 = `web/src/schedule/useVisibleRangeItems.ts` の identity 安定 mirror・upsert は fetchedRange 窓外を拒否）。update / toggleComplete / dismiss / delete の prev 解決を items → mirror の 2 段にし、undo/redo の書き戻しも mirror 経由で rangeItems へ即時反映（Realtime 待ち解消)。書き込み順「provider 先」を契約としてコメント化（QA S3: 本番 mirror は effect 更新 ref なので順序は偶然不問 — 同期 mirror で必須になる不変式として明記）。テスト = shared +5 / 新規 web/tests/visibleRangeMirror.test.ts 10 本
+- **#563（PR #577）週ビュー列線ずれ**: ヘッダー・終日レーン・時間グリッドを同一スクロール箱（ヘッダー + レーン sticky）に入れて同じ列割りを共有。scrollbar-gutter 案は不採用（オーバーレイスクロールバーで余白が死ぬ）。追従 = 終日 drop 境界をレーン自身の bottom に・place の Y→分変換を時間グリッド rect 基準に。**QA の変異実測で追従 2 点が無テストと判明**（jsdom rect 全 0 で境界を区別できず、旧参照に戻しても全 pass）→ rect スタブ `stubGridGeometry` の座標テスト 2 本で pin（変異で新テストだけが落ちることを確認）
+- **#565（PR #579）Todo タグ別 3 列化**: タグ別だけ `repeat(3, minmax(220px,1fr))` の grid + 下限割れは横スクロール。220px = タグ列ヘッダー ColorPicker の swatch 必要幅（QA が 1280px + ナビ + 右サイドバーの通常フローで クリップ到達を算術実測 → 下限を追加）。`KanbanColumn` に `fluidWidth` モード・レイアウト決定権はボード側に一本化。ステータス別はクラス集合レベルで不変
+- **#569（PR #581）タスクチップ操作の Undo**: `updateNode(id, updates, { undoLabel })` の opt-in 方式（全 updateNode を push にするとタイトル打鍵でスタックが埋まる）。no-op 書き込みは push しない。5 経路（place / move / resize / #562 の終日 drop / トレイ今日に追加）に札付け・パネル経由 place は note 添付時のみ undo 除外。**QA 実測で CalendarTab の配線がどのゲートからも不可視と判明** → 決定ロジックを純関数 `taskChipUndoWiring.ts` に切り出し web/tests 11 本で pin。i18n `undoRedo.labels` 5 キー（en / ja）
+- **既存欠陥 2 件を QA が実測で発見（コード未変更・起票依頼を outbox へ）**: ① series 編集の undo がアンカー 1 日だけ戻る（#568 で到達範囲が全日に拡大）② TaskTree undo の全ツリースナップショットが後続の silent 書き込みを巻き戻す（`setTaskStatus` でも再現 = pre-existing。タイトル入力中の Ctrl+Z で踏める）
+- 検証: 各 PR とも 7 ゲート緑 + role-qa 独立監査 Blocking 0。実ブラウザ確認は chat-main 側（各 PR 本文にチェックリストを記載 — 特に #577 の「スクロール状態での place drag 時刻一致」と #581 の undo 5 操作）
+
 ### 2026-08-02 - #555 / #551 / #553 / #562 の 4 連続実装ラウンド（merge 後のまとめ記録）
 
 #### 概要

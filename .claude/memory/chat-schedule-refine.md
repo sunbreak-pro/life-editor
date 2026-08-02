@@ -6,9 +6,9 @@
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
-- 前回: #520（PR #533）/ #524（PR #536）に続けて、#555 / #551 / #553 / #562 の 4 本（PR #561 / #566 / #567 / #570）を連続実装。**全て merge 済み**（`gh pr view` の state で実測・2026-08-02）
-- 現在: merge 後の tracker / outbox まとめ commit（`claude/schedule-tracker-0802`・D-20260801-main-1 / D-20260802-sched-1 の B 既定どおり）
-- 次: **#568（sev:important・Undo/Redo が今日以外の予定に効かず、undo してもグリッド描画が戻らない）**。以降のキューは #569（タスクチップ操作の Undo・#568 の後続）→ #564 / #563（sev:minor バグ）→ #565（Todo タグ別ビュー 3 列固定）
+- 前回: 午前の 4 本（#555 / #551 / #553 / #562）に続き、午後〜夜の /loop 自律運転で **#568（PR #576）→ #563（PR #577）→ #565（PR #579）→ #569（PR #581）を連続実装し全て merge 済み**（`gh pr view` の state で実測・2026-08-02。各 PR とも role-engineer 実装 → role-qa 独立監査 Blocking 0 → QA Should 反映 → 7 ゲート緑の同一チェーン）
+- 現在: merge 後の tracker / outbox まとめ commit 2 回目（`claude/schedule-tracker-0802b`）。QA が実測した既存欠陥 2 件（series 編集の部分 undo / TaskTree undo の全ツリースナップショットが後続 silent 書き込みを巻き戻す）の起票依頼を outbox に追記
+- 次: **#564（sev:minor・終日チップが左/右クリックとも無反応 — #551 の統一パネルへ載せる）**。これで section:schedule の非 Epic open は最後の 1 件
 - **#503 と #467 は `CalendarTab` で真正コンフリクトした**（2026-08-01 実測）: #503 のパレット着地 effect が `setMobileSelectedDay` を呼ぶのに対し、#467 は Mobile の月アジェンダごとその state を退役させた。**片方が消した API をもう片方が使う形**なので union では直らず、アンカー移動 1 本に畳んだ（Mobile のリストはアンカー日を読むので追随する）
 - **squash merge は tracker のエントリを落とすことがある**（2026-08-01 実測）: #503（PR #513）/ #505（PR #515）は**コードは main にあるのに history のエントリだけ消えていた**。旧ブランチの commit（`9185969a` / `fb960baa`）から該当ブロックを取り出して復元した。**merge 後は「コードが着いたか」と「記録が着いたか」を別々に確かめる**（`git show origin/main:<path>` で実在確認）
 - **#506 の Important は「片側だけ直した」典型**: `setCalendarFilterId(null)` が 4 経路中 `handleCreateSubmit` にしか無く、タスク作成 / 既存タスク配置 / 作成して開く の 3 経路が素通りしていた。**タスクチップも同じ `applyCalendarLens` を通る**ので症状は完全に同じ。4 経路が通る `finishCreatePanel()` に合流させて、次に増える経路が同じ抜け方をできない形にした。**cancel 側（`onClose`）は合流させない** — グリッドに何も増えていないのにユーザーのレンズを外すのは別の壊れ方
@@ -39,6 +39,10 @@
 
 ## 直近の完了
 
+- **#569 タスクチップ操作の Undo（place / move・resize / 今日に追加）** ✅（2026-08-02 — **PR #581 merge 済み**）。`updateNode(id, updates, { undoLabel })` の **opt-in 方式**（全 updateNode を一律 push にしない — Tasks ボードのタイトル入力が打鍵ごとにスタックを埋めるため）。**値が変わらない書き込みは push しない**（元の枠に戻すドラッグが直前の undo を食い潰す）。チップ操作 → updateNode 引数の決定は純関数 `web/src/schedule/taskChipUndoWiring.ts` に切り出してテストで pin（QA 実測: 切り出し前はラベル削除も place/move 反転も全ゲート素通りだった）— 詳細は history 2026-08-02 (2)
+- **#565 Todo タグ別ビューの 3 列化** ✅（2026-08-02 — **PR #579 merge 済み**）。`repeat(3, minmax(220px,1fr))` + 下限割れは横スクロール（220px = タグ列ヘッダーの ColorPicker swatch 幅。QA が到達条件 1280px + ナビ + 右サイドバーを算術で実測）— 詳細は history 2026-08-02 (2)
+- **#563 週ビューの列線ずれ** ✅（2026-08-02 — **PR #577 merge 済み**）。原因はスクロールバー幅で時間グリッドだけ列割りの分母が狭くなること。3 バンドを同一スクロール箱 + sticky にして同じ幅を割る構造解。**#562 の DnD 境界 2 点の追従が今回差分の本丸**で、QA の変異実測（旧参照に戻しても 15/15 素通り）を受けて rect スタブの座標テストで pin — 詳細は history 2026-08-02 (2)
+- **#568 Undo/Redo が今日以外の予定に効かない（sev:important）** ✅（2026-08-02 — **PR #576 merge 済み**）。today 固定 provider に `ScheduleItemsViewMirror`（find / upsert / patch / remove）の窓を 1 個登録し、prev 解決を items → mirror の 2 段に。undo/redo の書き戻しも mirror 経由で rangeItems へ即時反映。**書き込み順は「provider 先・ローカル patch 後」を契約化**（同期 mirror でも prev が壊れない唯一の順序。本番 mirror は effect 更新の ref なので偶然どちらでも動く — 因果ではなく不変式としてコメント）— 詳細は history 2026-08-02 (2)
 - **#562 終日チップの drop 復元 + グリッド移動のクランプ** ✅（2026-08-02 — **PR #570 merge 済み**）。終日→時間グリッドへのドラッグが y 座標を時刻に丸めて 01:30 / 00:00 を捏造していたのを `onDropAllDay` で終日レーンの drop として commit する形に。move は可視時間窓でクランプ。既存の壊れた行（end<=start の退化 span）は終日候補チップとして救済表示し drag / トレイ / Tasks 側から再配置可能に — 詳細は history 2026-08-02
 - **#553 TimeRangeField（時間帯編集の共有部品）** ✅（2026-08-02 — **PR #567 merge 済み**）。start<end 不変式を部品が所有・EventEditorPane は `onChangeTimes` で 1 操作 = 1 書き込み（routine のスコープダイアログが 2 回出ない）— 詳細は history 2026-08-02
 - **#551 左/右クリックのアイテム操作パネル統一** ✅（2026-08-02 — **PR #566 merge 済み**・net −244 行）。ItemActionPopover に一本化・`ScheduleItemContextMenu` / 汎用 `ItemContextMenu` を撤去・詳細編集 tagSlot に TagColorControls — 詳細は history 2026-08-02
@@ -62,7 +66,8 @@
 
 ## 予定
 
-- **現在の section:schedule キュー（2026-08-02 実測・優先順）**: ① #568 bug sev:important（Undo/Redo が今日以外の予定に効かない — 原因 2 段まで Issue 本文に調査済み）② #569 feat（タスクチップ操作の Undo — #568 の後続と Issue 本文が明記）③ #564 bug sev:minor（終日チップが左/右クリック無反応）④ #563 bug sev:minor（週ビュー終日レーンの列線ずれ）⑤ #565 feat（Todo タグ別ビュー 3 列固定）。Epic #290 は tracking のみ。shared-fix に自分宛（`[schedule-refine]`）は無し
+- **現在の section:schedule キュー（2026-08-02 夜 実測）**: 残りは **#564 bug sev:minor（終日チップが左/右クリック無反応 — #551 の統一パネルに載せる・WeekTimeGrid の該当コメントはハンドラ配線の欠落か要調査）だけ**。#568 / #569 / #563 / #565 は merge 済み。Epic #290 は tracking のみ。shared-fix に自分宛（`[schedule-refine]`）は無し
+- **chat-main への起票依頼 2 件が outbox 2026-08-02 (3) に積んである**（どちらも QA の実測付き既存欠陥）: ① series 編集（this-and-future / all）の undo がアンカー 1 日だけ戻る ② TaskTree undo の全ツリースナップショットが後続の silent 書き込みを巻き戻す（タイトル入力中 Ctrl+Z で踏める）
 - **#411 で「タブを 1 つ減らしてから 1 つ足す」順序は正解だった**: #408 が `ScheduleTab` 型・`scheduleTab` state・タブ帯を撤去した直後に #411 が同じ構造を `"calendar" | "todo"` で足し直したので、中間状態が常に 1 セクション 1 構造で済んだ。**ただし `ScheduleTab` の置き場所は #408 前と変えた** = `ScheduleScreen.tsx` が export し `MainScreen` が import する（switch する側と型を同居させる）
 - **【この worktree で最重要の実測】カレンダーのナビゲーションは occurrence を生成しない**（2026-07-28 #408 の QA で判明・B-1）。範囲移動は `useVisibleRangeItems` の `loadDateRange` で**取得するだけ**。生成経路は 3 本のみ = `RoutineScheduleSync`（`ScheduleItemsContext` の `date` = 既定今日）/ 変換時 / reconcile（後 2 者はどちらも**その時の可視範囲**だけ）。**`useScheduleItemsRoutineSync.ts:260` と旧 requirements の「窓の外は表示時に `ensureRoutineItemsForDateRange` が拾う」は嘘**（その配線は存在しない）。よって「未来日へ飛ぶ」導線を作るときは必ず自前で ensure を打つ — #408 の一覧はこれを踏んで `handleOpenRepeat` で明示的に打っている
 - **`deleteRoutine` は失敗しても throw しない**（楽観削除 → `logServiceError` で握り潰し → 正常 resolve）。#408 で戻り値に `landed: boolean` を追加（`updateRoutine` の `landed` と同じ idiom・既存の `deletedScheduleItemIds` は温存）。**`softDeleteRoutine` の undo は非対称** = `restoreRoutine` は routine の `items_meta` 1 行しか戻さず cascade された occurrence は trash に残るので、一覧の削除は 2 段確認にした

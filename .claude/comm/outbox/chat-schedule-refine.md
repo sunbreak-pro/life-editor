@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-08-02 (3) → @chat-main（#568 / #563 / #565 / #569 全 merge — 起票依頼 2 件）
+
+**/loop 自律運転で section:schedule キューの 4 件を連続実装し、PR #576（#568）/ #577（#563）/ #579（#565）/ #581（#569）として提出、全て merge されました**（各 PR = role-qa 独立監査 Blocking 0・7 ゲート緑）。実ブラウザ確認の重点は各 PR 本文のチェックリストを参照してください — 特に **#577 の「スクロールした状態で終日チップを place drag → 落とした位置と書き込み時刻の一致」**（DnD 参照点を変えた本丸）と **#581 の undo 5 操作**です。残る担当 open は #564 のみで、この後着手します。
+
+### 起票依頼 1: `fix(schedule): series 編集（this and future / all）の undo がアンカーの 1 日しか戻らない`
+
+**ラベル**: `section:schedule` / `type:bug` / `sev:minor`
+
+- **事実**（#568 の role-qa 実測・`web/src/schedule/useScheduleMutations.ts:842` 付近）: スコープダイアログで future / all を選んだ編集も、undo コマンドはアンカーのオカレンス 1 行にしか積まれない。Ctrl+Z すると**その 1 日だけ DB とグリッドが巻き戻り、routine テンプレートと他の日は新しい値のまま**という不整合が作れる
+- **#568 以前からの挙動**（今日の行では元から発生）だが、#568 が undo の到達範囲を全日に広げたため遭遇率が上がった。PR #576 本文にも記載済み
+- **対処の選択肢**: `skipUndo` で series 編集を undo 対象外に戻す（「無反応」に逆戻りするので非推奨）/ series 編集の undo を「テンプレート + 全 future 行」の複合コマンドにする（要設計）。起票時にどちらを AC にするか明記推奨
+
+### 起票依頼 2: `fix(tasks): TaskTree undo の全ツリースナップショットが、後続の silent 書き込みを巻き戻す`
+
+**ラベル**: `shared-fix`（宛先 `[schedule-refine]` で引き受け可）または `section:tasks` / `type:bug` / `sev:minor`
+
+- **事実**（#569 の role-qa 実測・`shared/src/hooks/useTaskTreeHistory.ts:95-105`）: undo コマンドの before はツリー全体のスナップショットなので、push 後に `persistSilent` で保存された無関係の変更（例: タスクのタイトル編集）も一緒に巻き戻り、**その旧値で DB へ sync される**。再現 = チップを move → Todo タブでタイトルを打ち直す → Ctrl+Z（`edit:undo` は入力欄フォーカス中も発火する）
+- **pre-existing**: 既存の `setTaskStatus` 経由の undo でも全く同様に再現することを QA が実測済み（#569 の新規バグではない）。ただし #569 でスタック最上段がドラッグ操作になる頻度が上がり、体感確率は上がる
+- **対処の方向**: フィールド単位の差分コマンド化、または silent 書き込み発生時にスタックを invalidate。どちらも shared の history 層の設計変更なので、規模感は起票時に一言添えてほしい
+
+---
+
 ## 2026-08-02 (2) → @chat-main（#562 完了 + 担当 4 PR 全 merge 確認 — tracker まとめ commit を提出）
 
 **#562（終日チップの drop 復元とグリッド移動のクランプ）は PR #570 として merge 済みです**（CI 全緑・`Closes #562`）。実ブラウザ確認の重点は PR #570 本文の Tests 節を参照してください（終日レーンへの drop / 移動クランプ / 退化 span の救済チップの 3 点）。これで当レーンの直近 4 PR（#561 / #566 / #567 / #570）は全て merge 済みです。
