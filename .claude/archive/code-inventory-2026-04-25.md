@@ -4,7 +4,7 @@
 >
 > 削除対象の最新リストは [`../docs/vision/plans/2026-05-23-cleanup-and-consolidation-deletion-targets.md`](../docs/vision/plans/2026-05-23-cleanup-and-consolidation-deletion-targets.md) を参照（本ファイルは archive 移動済のためパスを修正）。
 >
-> 2026-04-25 作成。Frontend / Rust Backend / Cloud の **アクティブ / 凍結 / 重複 / 削除候補** を棚卸し。リファクタリング計画 → [`.claude/2026-04-25-refactoring-plan.md`](../2026-04-25-refactoring-plan.md)
+> 2026-04-25 作成。Frontend / Rust Backend / Cloud の **アクティブ / 凍結 / 重複 / 削除候補** を棚卸し。リファクタリング計画 → `.claude/2026-04-25-refactoring-plan.md`（削除済み — b4ebbe70 の archive 統合で除去。リンク先なし）
 
 ---
 

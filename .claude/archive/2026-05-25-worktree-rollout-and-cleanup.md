@@ -343,7 +343,7 @@ R2-4 Acceptance: 全ファイル grep ヒット 2 以上達成。
 
 **対処**: `cd /Users/newlife/dev/apps/life-editor` でメインに復帰、`git status` で差分が main 側に存在することを確認。
 
-**Known Issue 化**: → [`028-bash-cwd-drift-across-worktrees.md`](../../known-issues/028-bash-cwd-drift-across-worktrees.md) 作成済 (本 commit)。
+**Known Issue 化**: → [`028-bash-cwd-drift-across-worktrees.md`](../docs/known-issues/028-bash-cwd-drift-across-worktrees.md) 作成済 (本 commit)。
 
 ### 2026-05-26 prototype+mobile-ui worktree 削除済を発見
 
