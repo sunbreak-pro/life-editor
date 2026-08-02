@@ -32,6 +32,11 @@ import {
  * unit-tested separately). It is the 2-layer-model "complex screen" primitive:
  * the host renders it on WIDE and a plain agenda on NARROW.
  *
+ * Layout invariant (#563): the three column bands — header, all-day lane, time
+ * grid — live inside ONE scroll box and share ONE `gridTemplateColumns`, so the
+ * vertical scrollbar subtracts its width from all of them at once and their
+ * column rules line up. The header/lane band stays visible via `sticky top-0`.
+ *
  * Interaction (W8 salvage): when the host injects the optional callbacks, the
  * grid becomes editable WITHOUT breaking its purity contract:
  *   - clicking an empty slot calls `onCreateAt(dateISO, snappedMinutes)`;
@@ -163,9 +168,12 @@ export interface WeekTimeGridProps {
   /** Host-supplied formatter for the now-line gutter label. Default `HH:MM`. */
   formatNowLabel?: (minutes: number) => string;
   /**
-   * When true the scrollable time body follows the parent's height
-   * (`flex-1 min-h-0`) instead of the default `max-h-[60vh]`, so the grid can
-   * fill a full-height Calendar tab. Default false (legacy behavior).
+   * When true the scroll box follows the parent's height (`flex-1 min-h-0`)
+   * instead of the default `max-h-[60vh]`, so the grid can fill a full-height
+   * Calendar tab. Default false (legacy behavior). Note that since #563 the
+   * header and all-day lane sit INSIDE that scroll box, so `max-h-[60vh]`
+   * caps the grid as a whole (bands + time body) rather than the time body
+   * alone — the default view is ~2 band-heights shorter than it used to be.
    */
   fillHeight?: boolean;
   /** Host-supplied hour-axis formatter. Default zero-padded `HH:00`. */
@@ -307,6 +315,12 @@ export function WeekTimeGrid({
   // scrollIntoView would also nudge horizontal scroll, so we set scrollTop
   // directly on the body ref (once, on mount).
   const scrollBodyRef = useRef<HTMLDivElement | null>(null);
+  // The all-day lane's own bottom edge is the "dropped on the lane" boundary
+  // (#563 put the lane inside the scroll box, so the scroll container's top is
+  // no longer that edge), and the time grid element is the 00:00 origin for the
+  // absolute pointer→minutes mapping of a "place" drag.
+  const allDayLaneRef = useRef<HTMLDivElement | null>(null);
+  const timeGridRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = scrollBodyRef.current;
     if (!el) return;
@@ -317,6 +331,10 @@ export function WeekTimeGrid({
     );
     const px = minutesToPx(clampedTarget, hourHeight, hourRange);
     // Center-ish: pull the target up by one hour so context above stays visible.
+    // The sticky header/all-day band sits at the top of the same scroll content
+    // (#563), and its height cancels out here: the target lands exactly one
+    // hour below the band, which is where it landed when the band was a sibling
+    // outside the scroll box.
     el.scrollTop = Math.max(0, px - hourHeight);
     // Mount-only (initial focus); later nowMinutes ticks must not yank scroll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -370,8 +388,12 @@ export function WeekTimeGrid({
     if ((mode === "move" || mode === "place") && !onMoveItem) return;
     if (mode === "resize" && !onResizeItem) return;
     e.stopPropagation();
-    // The event button's offsetParent is its day column; its width maps a
-    // horizontal drag to a whole-day offset. Resize ignores width.
+    // For a timed block ("move"/"resize") the offsetParent is its day column,
+    // and that column's width maps a horizontal drag to a whole-day offset.
+    // For "place" the drag starts on an all-day chip, whose offsetParent is the
+    // sticky header/lane wrapper (#563) rather than a single day cell — that is
+    // harmless because "place" never reads colWidth (its day stays fixed), and
+    // "resize" ignores width too.
     const col = (e.currentTarget as HTMLElement)
       .offsetParent as HTMLElement | null;
     // "place": an all-day chip has no time origin — seed a default block anchored
@@ -421,11 +443,11 @@ export function WeekTimeGrid({
       // is still all-day, so releasing here must write nothing. Without this
       // branch the lane's y used to be clamped into a time, which is how the
       // 00:00 inverted full-day bands were minted.
-      const bodyEl = scrollBodyRef.current;
+      const laneEl = allDayLaneRef.current;
       const overAllDayLane =
         (d.mode === "place" || (d.mode === "move" && !!onDropAllDay)) &&
-        !!bodyEl &&
-        ev.clientY < bodyEl.getBoundingClientRect().top;
+        !!laneEl &&
+        ev.clientY < laneEl.getBoundingClientRect().bottom;
       if (overAllDayLane) {
         if (d.mode === "move" && d.colWidth > 0 && dayKeys.length > 1) {
           const offset = Math.round(dx / d.colWidth);
@@ -449,11 +471,12 @@ export function WeekTimeGrid({
         // Absolute drop: map the pointer's Y over the scroll body to a start
         // time (same mapping as empty-slot create). The day stays the chip's
         // own — no horizontal remap — and the block is kept fully in-window.
-        const el = scrollBodyRef.current;
+        const el = timeGridRef.current;
         let mins = d.origStartMin;
         if (el) {
-          const rect = el.getBoundingClientRect();
-          const yInBody = ev.clientY - rect.top + el.scrollTop;
+          // The time grid scrolls WITH the content, so its rect top already is
+          // the 00:00 line — no scrollTop term (#563).
+          const yInBody = ev.clientY - el.getBoundingClientRect().top;
           mins = pxToMinutes(yInBody, hourHeight, hourRange);
         }
         startMin = Math.min(
@@ -590,121 +613,150 @@ export function WeekTimeGrid({
         className,
       )}
     >
-      {/* Day-of-week header */}
-      <div
-        className="grid border-b border-lumen-border bg-lumen-bg"
-        style={columnsTemplate}
-      >
-        <div aria-hidden className="border-r border-lumen-border" />
-        {dayKeys.map((key) => {
-          const isToday = !!todayKey && key === todayKey;
-          return (
-            <div
-              key={key}
-              className={cn(
-                "border-r border-lumen-border px-1 py-1.5 text-center last:border-r-0",
-                isToday && "bg-lumen-hover",
-              )}
-            >
-              <div
-                className={cn(
-                  "text-[11px] font-medium uppercase tracking-wide",
-                  isToday ? "text-lumen-accent" : "text-lumen-text-secondary",
-                )}
-              >
-                {weekdayLabels[dayOfWeek(key)] ?? ""}
-              </div>
-              <div
-                className={cn(
-                  "text-xs",
-                  isToday
-                    ? "font-semibold text-lumen-accent"
-                    : "text-lumen-text",
-                )}
-              >
-                {formatDayDate(key)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* All-day lane */}
-      <div
-        className="grid border-b border-lumen-border bg-lumen-bg"
-        style={columnsTemplate}
-      >
-        <div className="flex items-center justify-end border-r border-lumen-border px-1 py-1 text-[10px] text-lumen-text-secondary">
-          {allDayLabel}
-        </div>
-        {dayKeys.map((key) => {
-          const allDay = (byDay.get(key) ?? []).filter((i) => i.isAllDay);
-          return (
-            <div
-              key={key}
-              className="min-h-[1.75rem] space-y-1 border-r border-lumen-border p-1 last:border-r-0"
-            >
-              {allDay.map((it) => {
-                const selected = it.id === selectedId;
-                // A-3 (#298): an all-day task chip can be dragged down into the
-                // time body to gain a start time (only task chips, only when the
-                // host opts in via taskInteractive + onMoveItem). Events/routines
-                // in the all-day lane stay click/contextMenu only.
-                const placeable =
-                  it.variant === "task" && taskInteractive && !!onMoveItem;
-                return (
-                  <button
-                    key={it.id}
-                    type="button"
-                    onPointerDown={
-                      placeable ? (e) => beginDrag(e, it, "place") : undefined
-                    }
-                    onClick={
-                      placeable
-                        ? undefined
-                        : (e) => activateItem(it.id, e.clientX, e.clientY)
-                    }
-                    onDoubleClick={
-                      placeable ? undefined : () => onItemDoubleClick?.(it.id)
-                    }
-                    onContextMenu={
-                      onItemContextMenu
-                        ? (e) => {
-                            e.preventDefault();
-                            onItemContextMenu(it.id, {
-                              x: e.clientX,
-                              y: e.clientY,
-                            });
-                          }
-                        : undefined
-                    }
-                    title={it.title}
-                    className={cn(
-                      "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                      selected && "ring-2 ring-lumen-accent",
-                      placeable && "cursor-grab",
-                      it.completed && "text-lumen-text-secondary line-through",
-                    )}
-                    style={placeable ? { touchAction: "none" } : undefined}
-                  >
-                    {it.title || " "}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Scrollable time body */}
+      {/*
+       * One scroll box for all three bands (#563). The header, the all-day lane
+       * and the time grid each apply the SAME `columnsTemplate` inside the SAME
+       * scroll container, so `repeat(days, minmax(0,1fr))` divides one width:
+       * when the vertical scrollbar takes its slice it narrows all three at
+       * once and the column rules stay flush. While the bands lived outside the
+       * scroll box only the time grid lost the scrollbar's width, and the 1fr
+       * columns drifted a fraction of it further left on every column.
+       * The header/all-day band keeps its old "always visible" behaviour via
+       * `sticky top-0` (z above the blocks and the now-line, opaque face — §5).
+       */}
       <div
         ref={scrollBodyRef}
+        data-week-grid="scroll"
         className={cn(
           "overflow-y-auto",
           fillHeight ? "min-h-0 flex-1" : "max-h-[60vh]",
         )}
       >
-        <div className="grid" style={columnsTemplate}>
+        <div className="sticky top-0 z-40 bg-lumen-bg">
+          {/* Day-of-week header */}
+          <div
+            data-week-grid="header"
+            className="grid border-b border-lumen-border bg-lumen-bg"
+            style={columnsTemplate}
+          >
+            <div aria-hidden className="border-r border-lumen-border" />
+            {dayKeys.map((key) => {
+              const isToday = !!todayKey && key === todayKey;
+              return (
+                <div
+                  key={key}
+                  className={cn(
+                    "border-r border-lumen-border px-1 py-1.5 text-center last:border-r-0",
+                    isToday && "bg-lumen-hover",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "text-[11px] font-medium uppercase tracking-wide",
+                      isToday
+                        ? "text-lumen-accent"
+                        : "text-lumen-text-secondary",
+                    )}
+                  >
+                    {weekdayLabels[dayOfWeek(key)] ?? ""}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-xs",
+                      isToday
+                        ? "font-semibold text-lumen-accent"
+                        : "text-lumen-text",
+                    )}
+                  >
+                    {formatDayDate(key)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* All-day lane */}
+          <div
+            ref={allDayLaneRef}
+            data-week-grid="allday"
+            className="grid border-b border-lumen-border bg-lumen-bg"
+            style={columnsTemplate}
+          >
+            <div className="flex items-center justify-end border-r border-lumen-border px-1 py-1 text-[10px] text-lumen-text-secondary">
+              {allDayLabel}
+            </div>
+            {dayKeys.map((key) => {
+              const allDay = (byDay.get(key) ?? []).filter((i) => i.isAllDay);
+              return (
+                <div
+                  key={key}
+                  className="min-h-[1.75rem] space-y-1 border-r border-lumen-border p-1 last:border-r-0"
+                >
+                  {allDay.map((it) => {
+                    const selected = it.id === selectedId;
+                    // A-3 (#298): an all-day task chip can be dragged down into
+                    // the time body to gain a start time (only task chips, only
+                    // when the host opts in via taskInteractive + onMoveItem).
+                    // Events/routines in the lane stay click/contextMenu only.
+                    const placeable =
+                      it.variant === "task" && taskInteractive && !!onMoveItem;
+                    return (
+                      <button
+                        key={it.id}
+                        type="button"
+                        onPointerDown={
+                          placeable
+                            ? (e) => beginDrag(e, it, "place")
+                            : undefined
+                        }
+                        onClick={
+                          placeable
+                            ? undefined
+                            : (e) => activateItem(it.id, e.clientX, e.clientY)
+                        }
+                        onDoubleClick={
+                          placeable
+                            ? undefined
+                            : () => onItemDoubleClick?.(it.id)
+                        }
+                        onContextMenu={
+                          onItemContextMenu
+                            ? (e) => {
+                                e.preventDefault();
+                                onItemContextMenu(it.id, {
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                });
+                              }
+                            : undefined
+                        }
+                        title={it.title}
+                        className={cn(
+                          "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                          selected && "ring-2 ring-lumen-accent",
+                          placeable && "cursor-grab",
+                          it.completed &&
+                            "text-lumen-text-secondary line-through",
+                        )}
+                        style={placeable ? { touchAction: "none" } : undefined}
+                      >
+                        {it.title || " "}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Time body — same columnsTemplate, same scroll box (#563) */}
+        <div
+          ref={timeGridRef}
+          data-week-grid="time"
+          className="grid"
+          style={columnsTemplate}
+        >
           {/* Hour axis */}
           <div className="relative border-r border-lumen-border">
             {hours.map((h) => (

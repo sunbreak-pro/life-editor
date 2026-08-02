@@ -93,6 +93,69 @@ describe("WeekTimeGrid", () => {
 });
 
 /*
+ * #563 — column alignment. jsdom has no layout (every rect is 0 and there is no
+ * scrollbar), so the misalignment itself cannot be reproduced here. What CAN be
+ * pinned is the structure that makes it impossible: the header, the all-day lane
+ * and the time grid must divide ONE width inside ONE scroll box. When only the
+ * time grid sat inside the scroll box it alone lost the scrollbar's width, and
+ * each `1fr` column drifted a fraction of it further left than the lane above.
+ */
+describe("WeekTimeGrid — column alignment (#563)", () => {
+  const BANDS = ["header", "allday", "time"] as const;
+
+  function bands(container: HTMLElement) {
+    return BANDS.map((band) => {
+      const el = container.querySelector<HTMLElement>(
+        `[data-week-grid="${band}"]`,
+      );
+      expect(el, `missing band: ${band}`).not.toBeNull();
+      return el as HTMLElement;
+    });
+  }
+
+  it("puts all three bands in the same scroll box", () => {
+    const { container } = render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={items}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+      />,
+    );
+    const scroll = container.querySelector<HTMLElement>(
+      '[data-week-grid="scroll"]',
+    );
+    expect(scroll).not.toBeNull();
+    // Exactly one scrolling box: a second one would give its subtree a private
+    // scrollbar and reintroduce the mismatch.
+    expect(container.querySelectorAll(".overflow-y-auto")).toHaveLength(1);
+    for (const band of bands(container)) {
+      expect(band.closest(".overflow-y-auto")).toBe(scroll);
+    }
+  });
+
+  it("gives all three bands the same column template", () => {
+    const { container } = render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        days={5}
+        items={items}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+      />,
+    );
+    const templates = bands(container).map(
+      (band) => band.style.gridTemplateColumns,
+    );
+    expect(templates[0]).not.toBe("");
+    expect(new Set(templates).size).toBe(1);
+    // The template follows `days`, so a 5-day view splits five columns in all
+    // three bands rather than only in the one that happens to be visible.
+    expect(templates[0]).toContain("repeat(5,");
+  });
+});
+
+/*
  * Interactive editing (W8 salvage). The grid stays presentational: the host
  * injects onCreateAt / onMoveItem / onResizeItem and the grid reports snapped
  * results back. Geometry under jsdom: getBoundingClientRect() is all-zero, so a
@@ -323,5 +386,120 @@ describe("WeekTimeGrid — interactions", () => {
     });
     expect(onMoveItem).not.toHaveBeenCalled();
     expect(onSelectItem).toHaveBeenCalledWith("a");
+  });
+
+  /*
+   * #563 — the two drag reference points that moved when the header/all-day
+   * band went inside the scroll box. The all-zero jsdom rects cannot tell the
+   * scroll box's top apart from the lane's bottom (both 0), so these two hand
+   * the drag the geometry of a REAL week view instead: the scroll box starts at
+   * the viewport top, the sticky band occupies 0–80, and the time grid has
+   * scrolled 200px up under it (80 - 200 = -120). Reading the wrong element
+   * then lands on a different answer, which is what these assert.
+   */
+  const SCROLL_TOP = 200;
+  const BAND_BOTTOM = 80; // = all-day lane's bottom edge
+  const TIME_TOP = BAND_BOTTOM - SCROLL_TOP; // grid origin, scrolled out of view
+
+  function stubGridGeometry(container: HTMLElement) {
+    const rectAt = (top: number, height: number) => () =>
+      ({
+        top,
+        bottom: top + height,
+        left: 0,
+        right: 0,
+        width: 0,
+        height,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    const band = (name: string) => {
+      const el = container.querySelector<HTMLElement>(
+        `[data-week-grid="${name}"]`,
+      );
+      expect(el, `missing band: ${name}`).not.toBeNull();
+      return el as HTMLElement;
+    };
+    const scroll = band("scroll");
+    scroll.getBoundingClientRect = rectAt(0, 600);
+    Object.defineProperty(scroll, "scrollTop", {
+      configurable: true,
+      get: () => SCROLL_TOP,
+      set: () => {},
+    });
+    band("header").getBoundingClientRect = rectAt(0, 50);
+    band("allday").getBoundingClientRect = rectAt(50, BAND_BOTTOM - 50);
+    band("time").getBoundingClientRect = rectAt(TIME_TOP, 24 * 48);
+  }
+
+  it("treats the all-day lane's own bottom edge as the drop-to-all-day boundary", () => {
+    const onMoveItem = vi.fn();
+    const onDropAllDay = vi.fn();
+    const { container } = render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={oneItem}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={onMoveItem}
+        onDropAllDay={onDropAllDay}
+      />,
+    );
+    stubGridGeometry(container);
+    // Drag the block up from inside the time body to y=40, i.e. onto the band
+    // (0–80) but BELOW the scroll box's top (0) — the old reference point would
+    // read this as a plain time move.
+    firePointerDown(screen.getByText("Standup"), 10, 300);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: 40 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onDropAllDay).toHaveBeenCalledWith("a", "2026-06-14");
+    expect(onMoveItem).not.toHaveBeenCalled();
+  });
+
+  it("maps a place drop through the time grid's own origin, not the scroll box", () => {
+    const onMoveItem = vi.fn();
+    const chip: WeekTimeGridItem[] = [
+      {
+        id: "tc",
+        date: "2026-06-14",
+        title: "Candidate",
+        startTime: "00:00",
+        endTime: "00:00",
+        isAllDay: true,
+        variant: "task",
+      },
+    ];
+    const { container } = render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={chip}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={onMoveItem}
+        taskInteractive
+      />,
+    );
+    stubGridGeometry(container);
+    // Release at y=100: 100 - (-120) = 220px into the grid → 275min → snap30 →
+    // 270 = 04:30 (+ the 60min default duration). Going through the scroll box
+    // instead (100 - 0 + scrollTop 200 = 300px) would land on 06:30.
+    firePointerDown(screen.getByText("Candidate"), 10, 60);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: 100 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onMoveItem).toHaveBeenCalledWith(
+      "tc",
+      "2026-06-14",
+      "04:30",
+      "05:30",
+    );
   });
 });
