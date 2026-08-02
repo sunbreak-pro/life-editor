@@ -124,6 +124,13 @@ export function useGraphInteraction({
 
     const sel = select(canvas);
     sel.call(zoomBehavior);
+    // `call(zoomBehavior)` registers d3's own dblclick handler on this canvas,
+    // and that handler fires stopImmediatePropagation() — which kills
+    // `onCanvasDblClick` below, registered later on the same element. Drop the
+    // default double-click zoom so the gesture can mean "open" instead
+    // (#543 / D-20260801-sched-2 = A). Zooming stays on pinch / wheel / the
+    // ± buttons.
+    sel.on("dblclick.zoom", null);
     zoomRef.current = zoomBehavior;
     // Sync d3-zoom internal state with the restored viewport
     zoomBehavior.transform(
