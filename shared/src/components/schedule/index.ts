@@ -68,13 +68,6 @@ export {
   type TodayTodoRow,
   type TodayTodoAddableRow,
 } from "./TodayTodoTray";
-// #223: right-click context menu (rename / duplicate / delete) for a calendar
-// item block/chip.
-export {
-  ScheduleItemContextMenu,
-  type ScheduleItemContextMenuProps,
-  type ScheduleItemContextMenuLabels,
-} from "./ScheduleItemContextMenu";
 // #279: this / future / all scope chooser for editing or deleting a
 // routine-derived occurrence.
 export {

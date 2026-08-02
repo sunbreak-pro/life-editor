@@ -4,7 +4,6 @@ export {
   ITEM_ACTION_ROW_CLASS,
   type ItemActionRowProps,
 } from "./ItemActionRow";
-export { ItemContextMenu, type ItemContextMenuProps } from "./ItemContextMenu";
 export {
   ItemActionPopover,
   type ItemActionPopoverProps,
