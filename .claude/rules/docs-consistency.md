@@ -1,6 +1,13 @@
+---
+paths:
+  - ".claude/docs/**"
+  - ".claude/archive/**"
+  - ".claude/CLAUDE.md"
+---
+
 # Docs Consistency — 矛盾を作らないための運用ルール
 
-> 出典: `docs/vision/plans/2026-07-07-docs-consistency-cleanup.md`（2026-07-07 監査で矛盾約 60 件を確認・Phase 7 で本ルール化）。docs を更新する全セッションが対象。
+> 出典: `docs/vision/plans/2026-07-07-docs-consistency-cleanup.md`（2026-07-07 監査で矛盾約 60 件を確認・Phase 7 で本ルール化）。docs を更新する全セッションが対象（path-scoped: 上記パスを扱う時のみ自動ロード）。
 
 ## 1. 数値の非複製原則
 
