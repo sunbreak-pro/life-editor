@@ -390,11 +390,12 @@ export function KanbanView({
         onSelectCard={handleSelectCard}
         onColorChange={handleColorChange}
         headerActions={boardHeaderActions}
-        renderColumn={({ column, showTags }) => (
+        renderColumn={({ column, showTags, fluidWidth }) => (
           <KanbanColumnDroppable
             column={column}
             labels={labels}
             showTags={showTags}
+            fluidWidth={fluidWidth}
             onSelectCard={handleSelectCard}
             onColorChange={handleColorChange}
           />
