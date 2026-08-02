@@ -5,6 +5,51 @@
 
 ---
 
+## 2026-08-02 (2) → @chat-main（#562 完了 + 担当 4 PR 全 merge 確認 — tracker まとめ commit を提出）
+
+**#562（終日チップの drop 復元とグリッド移動のクランプ）は PR #570 として merge 済みです**（CI 全緑・`Closes #562`）。実ブラウザ確認の重点は PR #570 本文の Tests 節を参照してください（終日レーンへの drop / 移動クランプ / 退化 span の救済チップの 3 点）。これで当レーンの直近 4 PR（#561 / #566 / #567 / #570）は全て merge 済みです。
+
+本エントリを含む tracker / outbox のまとめ commit を D-20260801-main-1 / D-20260802-sched-1（B 既定）どおり merge 後の 1 commit として PR 化しました。次は section:schedule キューの **#568（sev:important・Undo/Redo が今日以外の予定に効かない）** に着手します。
+
+---
+
+## 2026-08-02 → @chat-main（#553 実装完了 — PR #567 提出。担当 3 Issue 全て PR 化）
+
+**#553（時間帯設定のオリジナル編集 UI）を実装し、PR #567 を提出しました**（ブランチ `claude/schedule-553-time-range-picker`・`Closes #553`）。新規 `shared/src/components/TimeRangeField.tsx`（手入力 + 15 分刻みリスト + 終了側の所要時間注記 + ↑↓ ステップ・start<end 不変式を部品が所有・全経路 jsdom テスト可能）で EventEditorPane / ItemCreatePanel の time 入力を置換。EventEditorPane は `onChangeTimes`（1 操作 = 1 書き込み — routine のスコープダイアログが 2 回出ない）へ props 変更。全ゲート緑・role-qa は Blocking 1 件（開始 23:59 手入力で start=end）→ 拒否ガード + 回帰テストで修正済み。**軽微な残課題**（listbox の aria-controls/activedescendant 未実装・時刻空の非 all-day 行の見かけ値）は PR 本文に記載 — 起票するかは貴レーンの判断に委ねます。
+
+これで本日の担当 3 Issue（#555 = PR #561 / #551 = PR #566 / #553 = PR #567）は全て PR 化済み・merge 待ちです。**注意**: #551 と #553 はどちらも `CalendarTab.tsx` を触るため（別領域・自動マージ想定）、merge 順は #561 → #566 → #567 が安全です。3 本とも outbox / tracker は D-20260801-main-1 / D-20260802-sched-1（新規・B 既定で進行中）に従い未同梱 — merge 後にまとめて 1 commit にします。
+
+---
+
+## 2026-08-02 → @chat-main（#551 実装完了 — PR #566 提出 + 起票依頼 1 件）
+
+**#551（左/右クリックのアイテム操作パネル統一）を実装し、PR #566 を提出しました**（ブランチ `claude/schedule-551-unified-item-panel`・`Closes #551`・net −244 行）。両クリックとも ItemActionPopover に統一（rename インライン入力を旧メニューから移植・右クリックは遅延なし）、`ScheduleItemContextMenu` と汎用 `ItemContextMenu` を本体・export・テストごと撤去、詳細編集の tagSlot に `TagColorControls`（付与タグごとの ColorPicker → `setTagColor`）を追加。全ゲート緑・role-qa Blocking ゼロ（Non-blocking 6 件中 4 件は反映済み）。merge 後の実ブラウザ確認 4 点は PR 本文参照。
+
+### 起票依頼: `chore(shared): ItemActionRow の stub 分岐 + TagColorControls 空状態の後始末（#551 follow-up）`
+
+**ラベル**: `shared-fix`（宛先 `[schedule-refine]`）または `section:schedule` / `type:task`
+
+- **背景 1**: #551 で stub 行の最後の消費者が消え、`ItemActionRow` の `stub` 分岐と `stubBadge` prop が**消費者ゼロ・テストゼロのデッドコード**として残存（`shared/src/components/itemActions/ItemActionRow.tsx`）。掃除するか、将来の予告 UI 用として明示的に残すかの判断込み
+- **背景 2**: `web/src/wikitag/TagColorControls.tsx` はタグ 0 件で null を返すため、「色を変えたい」ユーザーにはタグ付けが先に要ることが画面から読めない。空状態の一言案内を足す価値あり
+- **出典**: role-qa 監査（2026-08-02・#551 diff）の Non-blocking 指摘
+
+---
+
+## 2026-08-02 → @chat-main（#555 実装完了 — PR #561 提出 + 起票依頼 1 件）
+
+**#555（Todo アイテム削除 + Todo 画面から Tag 付け外し）を実装し、PR #561 を提出しました**（ブランチ `claude/schedule-555-todo-delete-tag`・`Closes #555`）。TodayTodoTray に optional の削除ボタン（TaskTree `softDelete` → Trash 復元可）と renderRowExtra スロットを追加し、CalendarTab が既存 TagPicker を注入。Briefing ホストは props 未指定のため描画不変。shared 1441 / web 93 テスト・全 lint / build 緑・role-qa 独立監査 Blocking ゼロ。tracker は D-20260801-main-1 どおり未接触。merge 後の実ブラウザ確認は PR 本文の 3 点（削除→Trash 復元 / rightSidebar 内の TagPicker ドロップダウンのはみ出し / Briefing 不変）をお願いします。
+
+### 起票依頼: `enhance(schedule): Todo トレイの削除に子持ちタスクのガードを追加（#555 follow-up）`
+
+**ラベル**: `section:schedule` / `type:enhancement`（無ければ `type:feature`）
+
+- **背景**: #555（PR #561）の削除は確認なしの `softDelete`。トレイ行は leaf 絞りをしていない（`todayTaskChips` 由来）ため、**子を持つ親タスクも 1 クリックでサブツリーごと無音で消える**（cascade = `shared/src/hooks/useTaskTreeDeletion.ts:14`）
+- **復元の弱さ**: Undo は単一グローバルスタックで、Schedule を離れると `TaskTreeContext` の unmount が clear する。Trash 復元は 1 行ずつ（`web/src/trash/TrashScreen.tsx:265`）なので子は個別復元になる
+- **提案**: 子ありの行だけ確認ダイアログ or 「N 件のサブタスクごと削除しました」トースト。leaf 行は現状維持（確認なし）で摩擦を増やさない
+- **出典**: role-qa 監査（2026-08-02・#555 diff）の Non-blocking 指摘
+
+---
+
 ## 2026-08-01 → @chat-main（open PR 5 本のコンフリクト解消完了 + 起票依頼 1 件）
 
 **open PR 5 本（#513 / #514 / #515 / #516 / #518）を全て MERGEABLE にしました**。衝突していたのは #513 / #514 / #515 / #516 の 4 本で、**中身は per-chat tracker（`memory/` + `history/` の chat-schedule-refine.md）だけ**・コードと i18n は全て自動マージ。解消は §7.4 の先例どおり「両方のエントリを残す」union。#516 の memory「現在:」行だけは単一スロットで両立しないので、merge で確定した事実（#506 merge 済み・#508 = PR #516）に寄せました。4 本とも 7 ゲート全緑・CI も緑です。

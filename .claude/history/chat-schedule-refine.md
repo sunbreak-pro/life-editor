@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-02 - #555 / #551 / #553 / #562 の 4 連続実装ラウンド（merge 後のまとめ記録）
+
+#### 概要
+
+同一 worktree からブランチを切り替えつつ 4 Issue を連続実装し、PR #561 / #566 / #567 / #570 として提出、全て merge された。tracker / outbox は D-20260801-main-1 / D-20260802-sched-1（B 既定）に従い実装 PR に載せず、本 commit でまとめて記録している（各 PR の詳細な要約は PR 本文と outbox 2026-08-02 エントリ群が正）。
+
+#### 変更点
+
+- **#555（PR #561）Todo トレイの削除 + タグ操作**: TodayTodoTray に optional の削除ボタン（TaskTree `softDelete` → Trash 復元可）と renderRowExtra スロットを追加し、CalendarTab が既存 TagPicker を注入。Briefing ホストは props 未指定のため描画不変。follow-up 候補（子持ちタスクの無確認 cascade 削除ガード）は outbox で起票依頼済み
+- **#551（PR #566）アイテム操作パネル統一**: 左/右クリックとも ItemActionPopover に統一（rename インライン入力を旧メニューから移植・右クリックは遅延なし）。`ScheduleItemContextMenu` と汎用 `ItemContextMenu` を本体・export・テストごと撤去（net −244 行）。詳細編集の tagSlot に `TagColorControls`（付与タグごとの ColorPicker → `setTagColor`）を追加。follow-up 候補（`ItemActionRow` の stub 分岐デッドコード / TagColorControls 空状態）は outbox で起票依頼済み
+- **#553（PR #567）TimeRangeField**: 新規 `shared/src/components/TimeRangeField.tsx`（手入力 + 15 分刻みリスト + 終了側の所要時間注記 + ↑↓ ステップ・start<end 不変式を部品が所有・全経路 jsdom テスト可能）で EventEditorPane / ItemCreatePanel の time 入力を置換。EventEditorPane は `onChangeTimes` へ props 変更（1 操作 = 1 書き込み — routine のスコープダイアログが 2 回出ない）。role-qa の Blocking 1 件（開始 23:59 手入力で start=end）は拒否ガード + 回帰テストで修正
+- **#562（PR #570）終日チップの drop 復元 + クランプ**: 時間グリッド上へのドラッグで終日レーンの y 座標が時刻へ丸められ 01:30 / 00:00 が捏造書き込みされていたのを、新設 `onDropAllDay` prop で「終日レーンへの drop = 終日のまま commit」に修正。move ドラッグは可視時間窓でクランプ（負値 / >24:00 が `minutesToTime` で 00:00/00:00 の反転 span に潰れる経路を遮断）。既存の壊れた行は `tasksToCalendarChips` が退化 span（end<=start）を終日候補チップとして救済表示（正当な overnight span は timed のまま）
+- **merge 順の依頼が実際に効いた**: #551 と #553 はどちらも `CalendarTab.tsx` を触るため、outbox で #561 → #566 → #567 の順を依頼し、その順で merge された
+- **#520（PR #533）/ #524（PR #536）の merge・Issue close も確認**（`gh pr view` / `gh issue view` の state 実測）。D-20260801-sched-1（A 回答）の消化はこれで完了
+- 検証: 各 PR とも 7 ゲート全緑（CI SUCCESS を merge 時に確認）。実ブラウザ確認は §7.4 どおり chat-main 側（重点は各 PR 本文の Tests 節）
+
 ### 2026-08-01 (2) - #520 移動時にグリッドのフィルタを外す / #524 グラフのコールバックを発火時に読む
 
 #### 概要
