@@ -16,6 +16,12 @@ export interface SidebarNavSection {
   label: string;
   /** Already-sized icon node. */
   icon: ReactNode;
+  /**
+   * Optional live status line under the label (#550 — the Work row's running
+   * timer, injected as a <NavTimerStatus /> by the host). Wide sidebar only;
+   * the narrow BottomTabBar ignores it.
+   */
+  sublabel?: ReactNode;
 }
 
 export interface SidebarNavLabels {
@@ -138,6 +144,7 @@ export function SidebarNav({
             key={s.id}
             icon={s.icon}
             label={s.label}
+            sublabel={s.sublabel}
             active={activeSection === s.id}
             collapsed={collapsed}
             onClick={() => onNavigate(s.id)}
@@ -158,6 +165,7 @@ export function SidebarNav({
                 key={s.id}
                 icon={s.icon}
                 label={s.label}
+                sublabel={s.sublabel}
                 active={activeSection === s.id}
                 collapsed={collapsed}
                 tone="muted"

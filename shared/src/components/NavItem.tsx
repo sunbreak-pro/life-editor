@@ -13,6 +13,13 @@ export interface NavItemProps {
   icon: ReactNode;
   /** Already-translated label (props-injected i18n, §6.4). */
   label: string;
+  /**
+   * Optional live status line under the label (#550 — the Work row's running
+   * timer). Muted + truncated, hidden while collapsed. The row keeps its
+   * resting 36px height when the node renders nothing, so a sublabel that
+   * resolves to null leaves the nav visually unchanged.
+   */
+  sublabel?: ReactNode;
   active?: boolean;
   /** Icon-only mode (collapsed sidebar). Label is kept as a11y name + tooltip. */
   collapsed?: boolean;
@@ -32,12 +39,14 @@ export interface NavItemProps {
 export function NavItem({
   icon,
   label,
+  sublabel,
   active = false,
   collapsed = false,
   tone = "default",
   onClick,
   className,
 }: NavItemProps) {
+  const hasSublabel = sublabel != null && !collapsed;
   return (
     <button
       type="button"
@@ -46,7 +55,10 @@ export function NavItem({
       aria-current={active ? "page" : undefined}
       title={collapsed ? label : undefined}
       className={cn(
-        "relative flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm",
+        "relative flex w-full items-center gap-2.5 rounded-md px-2.5 text-sm",
+        // min-h + py instead of the fixed h-9 so an empty sublabel keeps the
+        // resting 36px row while a live one grows the row by its own line.
+        hasSublabel ? "min-h-9 py-1.5" : "h-9",
         "transition-colors focus-visible:outline-none focus-visible:ring-2",
         "focus-visible:ring-lumen-accent",
         collapsed && "justify-center px-0",
@@ -69,7 +81,17 @@ export function NavItem({
       <span aria-hidden="true" className="shrink-0">
         {icon}
       </span>
-      {!collapsed && <span className="truncate">{label}</span>}
+      {!collapsed &&
+        (hasSublabel ? (
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate">{label}</span>
+            <span className="block truncate text-[11px] font-normal leading-tight text-lumen-text-tertiary">
+              {sublabel}
+            </span>
+          </span>
+        ) : (
+          <span className="truncate">{label}</span>
+        ))}
     </button>
   );
 }
