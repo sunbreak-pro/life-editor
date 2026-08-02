@@ -4,6 +4,7 @@ import { cn } from "../cn";
 import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
+import { TimeRangeField } from "../TimeRangeField";
 
 /*
  * ItemCreatePanel (#376) — the unified "add something to this day" panel behind
@@ -177,6 +178,8 @@ export interface ItemCreatePanelProps {
     end: string,
     note: ItemCreateNoteDraft | null,
   ) => void;
+  /** Formats the duration suffix on the end-time options (#553). */
+  formatDuration?: (minutes: number) => string;
   labels: ItemCreatePanelLabels;
 }
 
@@ -296,6 +299,7 @@ export function ItemCreatePanel({
   onSubmitEventAndOpen,
   onCreateTask,
   onPlaceTask,
+  formatDuration,
   labels,
 }: ItemCreatePanelProps) {
   const [type, setType] = useState<ItemCreateType>("event");
@@ -488,28 +492,18 @@ export function ItemCreatePanel({
           <p className="text-sm font-medium text-lumen-text">{dateLabel}</p>
         </div>
       )}
-      <div className="flex gap-2">
-        <label className={cn("flex flex-1 flex-col gap-1", FIELD_LABEL)}>
-          {labels.startTime}
-          <input
-            type="time"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            aria-label={labels.startTime}
-            className={`${FIELD} tabular-nums`}
-          />
-        </label>
-        <label className={cn("flex flex-1 flex-col gap-1", FIELD_LABEL)}>
-          {labels.endTime}
-          <input
-            type="time"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            aria-label={labels.endTime}
-            className={`${FIELD} tabular-nums`}
-          />
-        </label>
-      </div>
+      {/* #553: the shared TimeRangeField replaces the native time pair —
+          typed entry + snapped lists, and the range invariant lives there. */}
+      <TimeRangeField
+        start={start}
+        end={end}
+        onChange={(next) => {
+          setStart(next.start);
+          setEnd(next.end);
+        }}
+        labels={{ start: labels.startTime, end: labels.endTime }}
+        formatDuration={formatDuration}
+      />
       {/* The footer always acts on `target`, so it survives a trip to the note
           tab unchanged. */}
       <div className="flex gap-2">

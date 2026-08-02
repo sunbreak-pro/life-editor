@@ -501,12 +501,13 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Dentist" },
     });
-    fireEvent.change(screen.getByLabelText("Start"), {
-      target: { value: "13:00" },
-    });
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: "13:30" },
-    });
+    // #553: the TimeRangeField commits on blur/Enter, not per keystroke.
+    const start = screen.getByLabelText("Start");
+    fireEvent.change(start, { target: { value: "13:00" } });
+    fireEvent.blur(start);
+    const end = screen.getByLabelText("End");
+    fireEvent.change(end, { target: { value: "13:30" } });
+    fireEvent.blur(end);
     openTaskTab();
     expect(
       (screen.getByPlaceholderText("Task title") as HTMLInputElement).value,

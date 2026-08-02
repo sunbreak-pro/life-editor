@@ -53,6 +53,16 @@ export {
 // clear). Promoted from the Kanban's KanbanColorControl so folder / tag / any
 // future surface reuse one component. Pure presentation (§6.4).
 export { ColorPicker, type ColorPickerProps } from "./ColorPicker";
+// Time-range editor (#553) — the app-original start–end combo pair (typed
+// entry + snapped option lists + duration annotations). Owns the range
+// invariant; reusable by any screen that edits a time range.
+export {
+  TimeRangeField,
+  parseTimeInput,
+  type TimeRangeFieldProps,
+  type TimeRangeFieldLabels,
+  type TimeRangeValue,
+} from "./TimeRangeField";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 // Lumen shipping primitives (ClaudeDesign port). Pure presentation: lumen-*
 // tokens only (§3.1), opaque container surfaces (§3.5), props-injected copy

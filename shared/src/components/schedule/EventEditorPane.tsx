@@ -7,6 +7,7 @@ import {
 } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { TimeRangeField } from "../TimeRangeField";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import {
   FrequencyEditor,
@@ -20,8 +21,10 @@ import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
  * Desktop right pane and the Mobile detail sheet. Pure presentation (§3.1 /
  * §6.4): copy injected already translated, every mutation is a callback.
- * Title + memo + start/end time are commit-on-blur local drafts (Enter blurs;
- * IME composition is respected). lumen-* tokens only (§5).
+ * Title + memo are commit-on-blur local drafts (Enter blurs; IME composition
+ * is respected). The start/end pair is the shared <TimeRangeField> (#553),
+ * which keeps #279's rule — complete values, one commit per gesture — while
+ * owning the start<end invariant. lumen-* tokens only (§5).
  *
  * Issue 017 (routine ghost-revival): a routine-generated item is never
  * hard/soft-deleted as a single row — deleting it lets the generator revive
@@ -103,8 +106,19 @@ export interface EventEditorPaneProps {
    * fallback: an all-day row may carry no start/end at all.
    */
   onToggleAllDay?: (id: string, next: boolean) => void;
-  onChangeStart: (id: string, value: string) => void;
-  onChangeEnd: (id: string, value: string) => void;
+  /**
+   * Commit a complete start–end pair (#553). ONE write per gesture: the
+   * TimeRangeField owns the range invariant and may move both ends at once
+   * (dragging the start carries the end along), and two separate writes would
+   * ask a routine occurrence's scope dialog twice. #279's rule still holds —
+   * values arrive complete (blur / Enter / list pick), never per keystroke.
+   */
+  onChangeTimes: (
+    id: string,
+    patch: { startTime: string; endTime: string },
+  ) => void;
+  /** Formats the duration suffix on the end options (#553). */
+  formatDuration?: (minutes: number) => string;
   onToggleComplete: (id: string) => void;
   onChangeMemo: (id: string, memo: string) => void;
   /** Skip this occurrence (routine-generated items only). */
@@ -154,8 +168,8 @@ function EventEditorFields({
   onCommitTitle,
   onChangeDate,
   onToggleAllDay,
-  onChangeStart,
-  onChangeEnd,
+  onChangeTimes,
+  formatDuration,
   onToggleComplete,
   onChangeMemo,
   onDismiss,
@@ -171,13 +185,6 @@ function EventEditorFields({
 }: Omit<EventEditorPaneProps, "className">) {
   const [titleDraft, setTitleDraft] = useState(item.title);
   const [memoDraft, setMemoDraft] = useState(item.memo);
-  // #279: start/end are commit-on-blur drafts too. A write-through onChange
-  // fired per keystroke segment, which routed a HALF-TYPED time into the
-  // host's scope dialog for routine occurrences (focus stolen mid-edit,
-  // intermediate value committed to the series). Blur commits one complete
-  // value exactly once.
-  const [startDraft, setStartDraft] = useState(item.startTime);
-  const [endDraft, setEndDraft] = useState(item.endTime);
   // #469 follow-up: the date is a draft too. It shipped as commit-on-change on
   // the theory that a date input only reports complete values — true, but it
   // reports one per SEGMENT STEP: holding ↑ on the day field wrote a row (and
@@ -210,14 +217,6 @@ function EventEditorFields({
   };
   const commitMemo = () => {
     if (memoDraft !== item.memo) onChangeMemo(item.id, memoDraft);
-  };
-  // Empty guard: a time input reports "" while cleared — never commit that.
-  const commitStart = () => {
-    if (startDraft && startDraft !== item.startTime)
-      onChangeStart(item.id, startDraft);
-  };
-  const commitEnd = () => {
-    if (endDraft && endDraft !== item.endTime) onChangeEnd(item.id, endDraft);
   };
   // A cleared date input reports "" — never commit that as a day.
   const commitDate = () => {
@@ -318,34 +317,21 @@ function EventEditorFields({
       {/* Start / End — an all-day occurrence has no time span to edit. Hidden
           rather than disabled: the switch that hides them keeps the focus, and
           a locked pair of inputs would leave the times looking authoritative
-          while the row ignores them. */}
+          while the row ignores them. The pair is the shared TimeRangeField
+          (#553): typed entry + snapped lists, one combined commit. */}
       {!item.isAllDay && (
-        <div className="flex gap-2">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className={FIELD_LABEL}>{labels.startTime}</span>
-            <input
-              type="time"
-              value={startDraft}
-              onChange={(e) => setStartDraft(e.target.value)}
-              onBlur={commitStart}
-              onKeyDown={blurOnEnter}
-              aria-label={labels.startTime}
-              className={cn(FIELD, "tabular-nums")}
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className={FIELD_LABEL}>{labels.endTime}</span>
-            <input
-              type="time"
-              value={endDraft}
-              onChange={(e) => setEndDraft(e.target.value)}
-              onBlur={commitEnd}
-              onKeyDown={blurOnEnter}
-              aria-label={labels.endTime}
-              className={cn(FIELD, "tabular-nums")}
-            />
-          </label>
-        </div>
+        <TimeRangeField
+          start={item.startTime}
+          end={item.endTime}
+          onChange={(next) =>
+            onChangeTimes(item.id, {
+              startTime: next.start,
+              endTime: next.end,
+            })
+          }
+          labels={{ start: labels.startTime, end: labels.endTime }}
+          formatDuration={formatDuration}
+        />
       )}
 
       {/* Origin chip + provenance action (Issue 017). The repeat section
@@ -439,10 +425,12 @@ export function EventEditorPane({ className, ...rest }: EventEditorPaneProps) {
         className,
       )}
     >
-      {/* isAllDay in the key (#469 follow-up): turning all-day OFF has the host
-          write new start/end, and the time drafts are seeded from props only —
-          without the remount they stayed EMPTY for a row that had no times,
-          showing blank fields on an item the grid now draws at 09:00. */}
+      {/* isAllDay in the key (#469 follow-up): the title/memo/date drafts are
+          seeded from props only, so a selection change or an all-day flip
+          reseeds them via the remount. (#553 moved the times off drafts — the
+          TimeRangeField reads props directly — but the flip still rewrites
+          start/end on the host side, and the remount keeps every draft
+          honest.) */}
       <EventEditorFields
         key={`${rest.item.id}:${rest.item.isAllDay}`}
         {...rest}
