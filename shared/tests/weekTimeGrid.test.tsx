@@ -200,6 +200,106 @@ describe("WeekTimeGrid — interactions", () => {
     expect(onResizeItem).toHaveBeenCalledWith("a", "10:30");
   });
 
+  /*
+   * #562 — drop on the all-day lane. jsdom rects are all-zero, so the scroll
+   * body's top is 0 and "above the time body" is any negative clientY. The
+   * zone test is the same one the browser runs (pointer above the body top),
+   * just with the jsdom geometry.
+   */
+  it("reports an all-day drop (not a move) when released over the lane", () => {
+    const onMoveItem = vi.fn();
+    const onDropAllDay = vi.fn();
+    render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={oneItem}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={onMoveItem}
+        onDropAllDay={onDropAllDay}
+      />,
+    );
+    firePointerDown(screen.getByText("Standup"), 10, 10);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: -40 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onDropAllDay).toHaveBeenCalledWith("a", "2026-06-14");
+    expect(onMoveItem).not.toHaveBeenCalled();
+  });
+
+  it("clamps an overshooting move inside the window when onDropAllDay is absent", () => {
+    const onMoveItem = vi.fn();
+    render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={oneItem}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={onMoveItem}
+      />,
+    );
+    // Drag 09:00–09:30 far above the top edge: pre-#562 the snap went negative
+    // and minutesToTime flattened both ends to 00:00 (the inverted band).
+    firePointerDown(screen.getByText("Standup"), 10, 10);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: -500 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onMoveItem).toHaveBeenCalledWith(
+      "a",
+      "2026-06-14",
+      "00:00",
+      "00:30",
+    );
+  });
+
+  it("writes nothing when a place drag returns to the all-day lane", () => {
+    const onMoveItem = vi.fn();
+    const onDropAllDay = vi.fn();
+    const chip: WeekTimeGridItem[] = [
+      {
+        id: "tc",
+        date: "2026-06-14",
+        title: "Candidate",
+        startTime: "00:00",
+        endTime: "00:00",
+        isAllDay: true,
+        variant: "task",
+      },
+    ];
+    render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={chip}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={onMoveItem}
+        onDropAllDay={onDropAllDay}
+        taskInteractive
+      />,
+    );
+    firePointerDown(screen.getByText("Candidate"), 10, 10);
+    act(() => {
+      // Down into the time body first (a real "place" gesture in progress)…
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: 100 }),
+      );
+      // …then back up over the lane and release: the chip never stopped
+      // being all-day, so neither callback fires.
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: -20 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onMoveItem).not.toHaveBeenCalled();
+    expect(onDropAllDay).not.toHaveBeenCalled();
+  });
+
   it("treats a sub-threshold pointer drag as a selection, not a move", () => {
     const onMoveItem = vi.fn();
     const onSelectItem = vi.fn();

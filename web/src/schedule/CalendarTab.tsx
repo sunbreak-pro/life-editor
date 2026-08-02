@@ -493,6 +493,20 @@ export function CalendarTab({
     [taskNodes, updateNode],
   );
 
+  // #562: a timed task chip dropped back onto the all-day lane returns to the
+  // all-day candidate shape — the same staging write "Add to today" makes
+  // (date at 00:00 + isAllDay:true; scheduledEndAt is left alone, the next
+  // "place" rewrites both ends anyway).
+  const handleTaskChipDropAllDay = useCallback(
+    (chipId: string, dateISO: string) => {
+      updateNode(unwrapTaskChipId(chipId), {
+        scheduledAt: localDateTimeToISO(dateISO, "00:00"),
+        isAllDay: true,
+      });
+    },
+    [updateNode],
+  );
+
   // A-3 (#298) Today's Todo tray. Completion routes to the TaskTree status API
   // (the tray owns no completion state of its own); a plain binary toggle, not
   // the 3-state cycle (NOT_STARTED ↔ DONE).
@@ -551,6 +565,7 @@ export function CalendarTab({
     handleCreate,
     handleMoveItem,
     handleResizeItem,
+    handleDropAllDay,
     handleDismiss,
     handleDelete,
     handleRename,
@@ -585,6 +600,7 @@ export function CalendarTab({
     reconcileRoutineScheduleItems,
     onMoveTaskChip: handleTaskChipMove,
     onResizeTaskChip: handleTaskChipResize,
+    onDropTaskChipAllDay: handleTaskChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
@@ -1994,6 +2010,7 @@ export function CalendarTab({
                 onCreateAt={handleGridCreateAt}
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
+                onDropAllDay={handleDropAllDay}
                 taskInteractive
                 weekdayLabels={weekdayLabels}
                 allDayLabel={t("scheduleScreen.allDay")}

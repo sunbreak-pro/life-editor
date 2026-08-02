@@ -148,6 +148,9 @@ export interface UseScheduleMutationsArgs {
     endISO: string,
   ) => void;
   onResizeTaskChip: (chipId: string, endISO: string) => void;
+  // #562: a timed task chip dropped back onto the all-day lane — the host
+  // rewrites the TaskNode to an all-day candidate (isAllDay:true) on dateISO.
+  onDropTaskChipAllDay: (chipId: string, dateISO: string) => void;
   // #434: an Event→Repeats conversion did not fully land. The editor snaps
   // back on reload(), which on its own looks like the click did nothing, so
   // the host says it out loud (toast). Same contract as the create panel's
@@ -208,6 +211,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     reconcileRoutineScheduleItems,
     onMoveTaskChip,
     onResizeTaskChip,
+    onDropTaskChipAllDay,
     onRepeatConvertFailed,
     copySuffix,
   } = args;
@@ -368,6 +372,22 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       });
     },
     [findScheduleItem, applyOccurrencePatch, onMoveTaskChip],
+  );
+
+  // #562: drop on the all-day lane → back to all-day. A task chip routes to
+  // the host's TaskNode write; a ScheduleItem flips isAllDay on the single
+  // occurrence — same reasoning as #469: the routine template has no isAllDay
+  // to propagate one to, so no scope dialog even for a routine occurrence.
+  // The times are left as they are so an all-day OFF flip later restores them.
+  const handleDropAllDay = useCallback(
+    (id: string, dateISO: string) => {
+      if (isTaskChip(id)) {
+        onDropTaskChipAllDay(id, dateISO);
+        return;
+      }
+      applyOccurrencePatch(id, { date: dateISO, isAllDay: true });
+    },
+    [applyOccurrencePatch, onDropTaskChipAllDay],
   );
 
   const handleResizeItem = useCallback(
@@ -970,6 +990,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     handleCreate,
     handleMoveItem,
     handleResizeItem,
+    handleDropAllDay,
     handleDismiss,
     handleDelete,
     handleRename,
