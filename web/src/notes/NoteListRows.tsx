@@ -58,7 +58,9 @@ export function DesktopNoteRow({
     // draggable, decoupled from the inner buttons' own Enter/click. We override
     // role back to "listitem" (attributes default it to "button") so the row
     // keeps the <ul> list semantics and the inner buttons aren't nested inside
-    // an interactive role.
+    // an interactive role. No cursor-grab on the row (#554): the inner buttons
+    // cover most of it with their own cursor, so a row-level grab cursor
+    // flickers grab/default as the pointer crosses them.
     <li
       ref={setNodeRef}
       {...attributes}
@@ -66,7 +68,7 @@ export function DesktopNoteRow({
       role="listitem"
       aria-label={dragHintLabel}
       className={cn(
-        "group relative flex cursor-grab items-center gap-2 rounded-lumen-md border px-2",
+        "group relative flex items-center gap-2 rounded-lumen-md border px-2",
         "h-[36px] text-[13px]",
         isDragging && "opacity-40",
         selected
