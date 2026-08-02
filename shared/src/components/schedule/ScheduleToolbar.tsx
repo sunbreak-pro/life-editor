@@ -85,7 +85,7 @@ export function ScheduleToolbar({
       <button
         type="button"
         onClick={onToday}
-        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-[13px] font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
         {labels.today}
       </button>
@@ -107,7 +107,7 @@ export function ScheduleToolbar({
           <ChevronRight aria-hidden className="size-3.5" />
         </button>
       </div>
-      <span className="text-[15px] font-semibold text-lumen-text">
+      <span className="text-sm font-semibold text-lumen-text">
         {periodLabel}
       </span>
 
@@ -122,7 +122,7 @@ export function ScheduleToolbar({
           onClick={onToggleRepeats}
           aria-pressed={repeatsHidden}
           className={cn(
-            "flex items-center gap-1.5 rounded-lumen-md border px-2.5 py-[7px] text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            "flex items-center gap-1.5 rounded-lumen-md border px-2.5 py-[7px] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             repeatsHidden
               ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
               : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
@@ -154,7 +154,7 @@ export function ScheduleToolbar({
         <button
           type="button"
           onClick={onAddEvent}
-          className="flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-[7px] text-[13px] font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
+          className="flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-[7px] text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
         >
           <Plus aria-hidden className="size-4" />
           {addEventLabel}

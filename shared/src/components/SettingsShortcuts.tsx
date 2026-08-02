@@ -123,7 +123,7 @@ export function SettingsShortcuts({
                   {row.label}
                 </span>
                 {row.isModified && (
-                  <span className="inline-flex h-5 items-center rounded-lumen-md bg-lumen-chip-mint-bg px-2 text-[11px] font-medium text-lumen-chip-mint-fg">
+                  <span className="inline-flex h-5 items-center rounded-lumen-md bg-lumen-chip-mint-bg px-2 text-xs font-medium text-lumen-chip-mint-fg">
                     {labels.modified}
                   </span>
                 )}

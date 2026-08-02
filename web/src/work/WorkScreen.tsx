@@ -270,7 +270,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   // Mobile task slot: the chip (selected) or a "choose a task" button that
   // opens the BottomSheet picker.
   const mobileTaskSlot = timer.activeTask ? (
-    <span className="inline-flex max-w-full items-center gap-2 rounded-lumen-md bg-lumen-chip-task-bg py-2 pl-3.5 pr-2.5 text-[13px] font-medium text-lumen-chip-task-fg">
+    <span className="inline-flex max-w-full items-center gap-2 rounded-lumen-md bg-lumen-chip-task-bg py-2 pl-3.5 pr-2.5 text-sm font-medium text-lumen-chip-task-fg">
       <span className="truncate">{timer.activeTask.title}</span>
       <button
         type="button"
@@ -285,7 +285,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     <button
       type="button"
       onClick={() => setSheetOpen(true)}
-      className="inline-flex items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-[13px] font-medium text-lumen-text-secondary hover:bg-lumen-hover"
+      className="inline-flex items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-medium text-lumen-text-secondary hover:bg-lumen-hover"
     >
       {t("work.taskSelector.select")}
       <ChevronDown size={15} aria-hidden="true" />

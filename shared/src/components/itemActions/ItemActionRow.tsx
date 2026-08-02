@@ -49,7 +49,7 @@ export function ItemActionRow({
       )}
       <span className="flex-1 truncate">{action.label}</span>
       {action.stub && stubBadge && (
-        <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumen-text-tertiary">
+        <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-lumen-text-tertiary">
           {stubBadge}
         </span>
       )}

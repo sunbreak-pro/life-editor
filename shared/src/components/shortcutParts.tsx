@@ -22,7 +22,7 @@ export function groupByCategory(
 /** Small category caption above each group. */
 export function CategoryLabel({ children }: { children: string }) {
   return (
-    <div className="px-0.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-lumen-text-secondary">
+    <div className="px-0.5 py-1 text-xs font-semibold uppercase tracking-wide text-lumen-text-secondary">
       {children}
     </div>
   );

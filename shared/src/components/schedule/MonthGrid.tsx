@@ -149,7 +149,7 @@ export function MonthGrid({
           <div
             key={i}
             role="columnheader"
-            className="py-1 text-center text-[11px] font-medium text-lumen-text-secondary"
+            className="py-1 text-center text-xs font-medium text-lumen-text-secondary"
           >
             {label}
           </div>
@@ -190,7 +190,7 @@ export function MonthGrid({
               >
                 <span
                   className={cn(
-                    "flex h-5 min-w-5 items-center justify-center self-start rounded-full px-1 text-[11px] font-semibold tabular-nums",
+                    "flex h-5 min-w-5 items-center justify-center self-start rounded-full px-1 text-xs font-semibold tabular-nums",
                     compact && "self-center",
                     isToday
                       ? "bg-lumen-accent text-lumen-on-accent"
@@ -247,7 +247,7 @@ export function MonthGrid({
                         }
                         title={it.title}
                         className={cn(
-                          "pointer-events-auto block truncate rounded px-1 py-0.5 text-left text-[10px] font-medium",
+                          "pointer-events-auto block truncate rounded px-1 py-0.5 text-left text-xs font-medium",
                           CELL_FOCUS,
                           chipFaceClasses(it.variant ?? "event"),
                           it.completed && "line-through opacity-55",
@@ -257,7 +257,7 @@ export function MonthGrid({
                       </button>
                     ))}
                     {overflow > 0 && (
-                      <span className="px-1 text-[10px] text-lumen-text-tertiary">
+                      <span className="px-1 text-xs text-lumen-text-tertiary">
                         {formatMoreCount(overflow)}
                       </span>
                     )}

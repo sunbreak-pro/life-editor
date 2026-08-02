@@ -61,7 +61,7 @@ export function DateStrip({
           >
             <span
               className={cn(
-                "text-[10px] leading-none",
+                "text-xs leading-none",
                 selected ? "text-lumen-on-accent" : "text-lumen-text-tertiary",
               )}
             >

@@ -157,7 +157,7 @@ export function PomodoroTimer({
         <span
           className={cn(
             "text-lumen-text-tertiary",
-            isFull ? "text-sm" : "text-[13px]",
+            isFull ? "text-sm" : "text-sm",
           )}
         >
           / {totalFormatted}
@@ -171,7 +171,7 @@ export function PomodoroTimer({
       <button
         type="button"
         onClick={() => onAdjust(-5)}
-        className="inline-flex h-8 items-center gap-1 rounded-full border border-lumen-border-strong bg-lumen-bg px-3.5 text-[13px] font-semibold text-lumen-text hover:bg-lumen-hover"
+        className="inline-flex h-8 items-center gap-1 rounded-full border border-lumen-border-strong bg-lumen-bg px-3.5 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
       >
         <Minus size={14} aria-hidden="true" />
         {labels.subtractFive}
@@ -179,7 +179,7 @@ export function PomodoroTimer({
       <button
         type="button"
         onClick={() => onAdjust(5)}
-        className="inline-flex h-8 items-center gap-1 rounded-full border border-lumen-border-strong bg-lumen-bg px-3.5 text-[13px] font-semibold text-lumen-text hover:bg-lumen-hover"
+        className="inline-flex h-8 items-center gap-1 rounded-full border border-lumen-border-strong bg-lumen-bg px-3.5 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
       >
         <Plus size={14} aria-hidden="true" />
         {labels.addFive}
@@ -236,7 +236,7 @@ export function PomodoroTimer({
           type="button"
           onClick={onMain}
           className={cn(
-            "inline-flex h-11 items-center gap-2 rounded-full px-7 text-[15px] font-semibold",
+            "inline-flex h-11 items-center gap-2 rounded-full px-7 text-sm font-semibold",
             PHASE_BUTTON[phase],
           )}
         >

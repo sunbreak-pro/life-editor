@@ -55,14 +55,14 @@ export function PomodoroTaskSelector({
   return (
     <Card padding="none" className="flex flex-col gap-2 px-5 py-4">
       <div className="flex items-center gap-4">
-        <span className="shrink-0 text-[13px] font-semibold text-lumen-text-secondary">
+        <span className="shrink-0 text-sm font-semibold text-lumen-text-secondary">
           {labels.heading}
         </span>
 
         {loading ? (
           <div className="h-[38px] w-full max-w-[360px] animate-pulse rounded-lumen-md bg-lumen-surface-sunken" />
         ) : selected ? (
-          <span className="inline-flex items-center gap-2 rounded-lumen-md bg-lumen-chip-task-bg py-1.5 pl-3 pr-2 text-[13px] font-medium text-lumen-chip-task-fg">
+          <span className="inline-flex items-center gap-2 rounded-lumen-md bg-lumen-chip-task-bg py-1.5 pl-3 pr-2 text-sm font-medium text-lumen-chip-task-fg">
             <span className="truncate">{selected.title}</span>
             <button
               type="button"

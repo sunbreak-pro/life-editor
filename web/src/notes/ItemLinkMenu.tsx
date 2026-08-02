@@ -84,7 +84,7 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
 
     if (items.length === 0) {
       return (
-        <div className="min-w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-[13px] text-lumen-text-tertiary shadow-lumen-md">
+        <div className="min-w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text-tertiary shadow-lumen-md">
           {emptyLabel}
         </div>
       );
@@ -115,10 +115,10 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
                 command(item);
               }}
               className={[
-                "flex w-full items-center gap-2.5 rounded-lumen-sm px-2.5 py-1.5 text-left text-[13px]",
+                "flex w-full items-center gap-2.5 rounded-lumen-sm px-2.5 py-1.5 text-left text-sm",
                 // Touch sizing below the app's single 768px breakpoint: a 36px
                 // row is a mouse target, not a thumb target (44px floor).
-                "max-md:min-h-11 max-md:px-3 max-md:text-[14px]",
+                "max-md:min-h-11 max-md:px-3 max-md:text-sm",
                 isActive
                   ? "bg-lumen-accent-subtle text-lumen-text"
                   : "text-lumen-text-secondary hover:bg-lumen-hover",
@@ -136,7 +136,7 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
               </span>
               <span className="min-w-0 flex-1 truncate">{item.title}</span>
               {item.hint && (
-                <span className="shrink-0 text-[11px] text-lumen-text-tertiary">
+                <span className="shrink-0 text-xs text-lumen-text-tertiary">
                   {item.hint}
                 </span>
               )}

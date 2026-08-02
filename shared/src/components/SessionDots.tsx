@@ -56,7 +56,7 @@ export function SessionDots({
       )}
     >
       {dots}
-      <span className="text-[13px] text-lumen-text-secondary">{label}</span>
+      <span className="text-sm text-lumen-text-secondary">{label}</span>
     </div>
   );
 }

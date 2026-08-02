@@ -69,7 +69,7 @@ export function DesktopNoteRow({
       aria-label={dragHintLabel}
       className={cn(
         "group relative flex items-center gap-2 rounded-lumen-md border px-2",
-        "h-[36px] text-[13px]",
+        "h-[36px] text-sm",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
@@ -189,14 +189,14 @@ export function DesktopTagHeading({
         <TagHeadingIcon icon={group.tagIcon} color={color} />
         <span
           className={cn(
-            "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-[13px] font-semibold text-lumen-text",
+            "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-sm font-semibold text-lumen-text",
             color ? "" : "border-lumen-border bg-lumen-bg-secondary",
           )}
           style={bandStyle}
         >
           {group.tagName}
         </span>
-        <span className="shrink-0 text-[11px] font-medium tabular-nums text-lumen-text-tertiary">
+        <span className="shrink-0 text-xs font-medium tabular-nums text-lumen-text-tertiary">
           {group.notes.length}
         </span>
         <span aria-hidden className="h-px min-w-4 flex-1 bg-lumen-border" />

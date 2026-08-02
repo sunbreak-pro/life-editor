@@ -162,7 +162,7 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
         {title}
       </h3>
       {hint !== undefined && (
-        <span className="text-[10px] tracking-wider text-lumen-briefing-kohaku">
+        <span className="text-xs tracking-wider text-lumen-briefing-kohaku">
           {hint}
         </span>
       )}
@@ -265,7 +265,7 @@ export function BriefingView({
 
       {/* ── Focus line ───────────────────────────────────────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
-        <p className="mb-2 text-[10px] font-bold tracking-[0.3em] text-lumen-briefing-shu">
+        <p className="mb-2 text-xs font-bold tracking-[0.3em] text-lumen-briefing-shu">
           {labels.focusLabel}
         </p>
         {briefing?.focus !== null && briefing?.focus !== undefined ? (
@@ -349,7 +349,7 @@ export function BriefingView({
                   {item.title}
                 </button>
                 {item.isRoutine && (
-                  <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-[10px] text-lumen-briefing-kohaku">
+                  <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-xs text-lumen-briefing-kohaku">
                     {labels.routineTag}
                   </span>
                 )}

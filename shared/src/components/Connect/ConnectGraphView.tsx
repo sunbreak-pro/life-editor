@@ -315,10 +315,10 @@ export function ConnectGraphView({
       <div className="flex h-full w-full flex-col">
         <div className="flex shrink-0 items-center gap-2 px-lumen-gutter pt-1">
           <Network size={16} className="shrink-0 text-lumen-accent" />
-          <span className="text-[16px] font-semibold text-lumen-text">
+          <span className="text-base font-semibold text-lumen-text">
             {labels.title}
           </span>
-          <span className="rounded-lumen-sm bg-lumen-surface-sunken px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-lumen-text-secondary">
+          <span className="rounded-lumen-sm bg-lumen-surface-sunken px-1.5 py-0.5 font-mono text-xs tabular-nums text-lumen-text-secondary">
             {filters.filtered.nodes.length}n · {filters.filtered.links.length}e
           </span>
           <button
@@ -436,7 +436,7 @@ export function ConnectGraphView({
 
         {showCanvasChrome && (
           <div
-            className="absolute bottom-3 right-3 flex items-center rounded-lumen-full bg-lumen-bg border border-lumen-border px-3 py-1 font-mono text-[10px] text-lumen-text-tertiary shadow-lumen-sm"
+            className="absolute bottom-3 right-3 flex items-center rounded-lumen-full bg-lumen-bg border border-lumen-border px-3 py-1 font-mono text-xs text-lumen-text-tertiary shadow-lumen-sm"
             aria-label={labels.zoom}
           >
             {Math.round(zoomK * 100)}%

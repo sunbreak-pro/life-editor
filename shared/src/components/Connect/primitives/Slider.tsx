@@ -20,7 +20,7 @@ export function Slider({
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-[11px]">
+      <div className="flex items-center justify-between text-xs">
         <span className="text-lumen-text-secondary">{label}</span>
         <span className="font-mono text-lumen-text">
           {step < 1 ? value.toFixed(2) : Math.round(value)}

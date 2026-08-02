@@ -36,12 +36,12 @@ export function ConnectGraphActions({
 }: ConnectGraphActionsProps) {
   const countText = `${nodeCount}/${totalCount}n · ${edgeCount}e`;
   const actionBtn =
-    "flex flex-1 items-center justify-center gap-1.5 rounded-lumen-sm border border-lumen-border bg-lumen-bg px-2 py-1.5 text-[12px] text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+    "flex flex-1 items-center justify-center gap-1.5 rounded-lumen-sm border border-lumen-border bg-lumen-bg px-2 py-1.5 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
   return (
     <div className="flex flex-col gap-2 border-b border-lumen-border pb-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] tabular-nums text-lumen-text-secondary">
+        <span className="font-mono text-xs tabular-nums text-lumen-text-secondary">
           {countText}
         </span>
         {activeFilterCount > 0 && (
@@ -50,7 +50,7 @@ export function ConnectGraphActions({
             onClick={onClearFilters}
             title={labels.clearFilters}
             aria-label={labels.clearFilters}
-            className="flex shrink-0 items-center gap-1 rounded-lumen-full border border-lumen-accent bg-lumen-accent-subtle px-2 py-0.5 text-[11px] text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            className="flex shrink-0 items-center gap-1 rounded-lumen-full border border-lumen-accent bg-lumen-accent-subtle px-2 py-0.5 text-xs text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
           >
             <Filter size={11} />
             {activeFilterCount}

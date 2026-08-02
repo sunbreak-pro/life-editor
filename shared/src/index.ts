@@ -481,7 +481,11 @@ export {
 } from "./utils/getDescendantTasks";
 // Shared UI class-string tokens + task-status visuals (C5 dedup) — the web
 // host imports these through the barrel.
-export { FOCUS_RING, FOCUS_RING_TIGHT } from "./components/styleTokens";
+export {
+  FOCUS_RING,
+  FOCUS_RING_TIGHT,
+  TAP_TARGET,
+} from "./components/styleTokens";
 export {
   STATUS_ORDER,
   STATUS_ICON,

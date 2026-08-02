@@ -56,7 +56,7 @@ export function BacklinkView({
 }: BacklinkViewProps) {
   if (!node) {
     return (
-      <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-[11px] text-lumen-text-secondary">
+      <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-xs text-lumen-text-secondary">
         {labels.selectHint}
       </div>
     );
@@ -72,17 +72,17 @@ export function BacklinkView({
           <NodeIcon size={14} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[12px] font-medium text-lumen-text">
+          <span className="truncate text-xs font-medium text-lumen-text">
             {node.label}
           </span>
-          <span className="truncate font-mono text-[10px] text-lumen-text-tertiary">
+          <span className="truncate font-mono text-xs text-lumen-text-tertiary">
             {node.id}
           </span>
         </span>
       </div>
 
       <div>
-        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-lumen-text-tertiary">
+        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-lumen-text-tertiary">
           <ArrowLeft size={11} />
           <span>{labels.incomingLinks}</span>
           <span className="ml-auto font-mono font-normal">
@@ -90,7 +90,7 @@ export function BacklinkView({
           </span>
         </div>
         {entries.length === 0 ? (
-          <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-[11px] text-lumen-text-secondary">
+          <div className="rounded-lumen-sm bg-lumen-surface-sunken px-3 py-2.5 text-xs text-lumen-text-secondary">
             {labels.empty}
           </div>
         ) : (
@@ -108,7 +108,7 @@ export function BacklinkView({
                     size={12}
                     className="shrink-0 text-lumen-text-secondary"
                   />
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-lumen-text">
+                  <span className="min-w-0 flex-1 truncate text-xs text-lumen-text">
                     {entry.label}
                   </span>
                   <ArrowLeft

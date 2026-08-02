@@ -113,7 +113,7 @@ function TaskRow({
       >
         <span
           aria-hidden
-          className="shrink-0 text-[11px] leading-none"
+          className="shrink-0 text-xs leading-none"
           style={{ color: STATUS_BAND[card.status] }}
           title={statusText}
         >
@@ -181,7 +181,7 @@ export function TaskListPanel({
               onClick={() => onViewModeChange(mode)}
               className={cn(
                 "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[6px] px-2 py-1",
-                "text-[12px] font-semibold transition-colors",
+                "text-xs font-semibold transition-colors",
                 FOCUS_RING,
                 selected
                   ? "bg-lumen-bg text-lumen-text shadow-lumen-sm"
@@ -249,7 +249,7 @@ export function TaskListPanel({
                 </span>
                 <span
                   aria-label={labels.countAriaLabel(count)}
-                  className="shrink-0 rounded-full bg-lumen-bg-secondary px-1.5 text-[11px] font-medium text-lumen-text-tertiary"
+                  className="shrink-0 rounded-full bg-lumen-bg-secondary px-1.5 text-xs font-medium text-lumen-text-tertiary"
                 >
                   {count}
                 </span>
@@ -257,7 +257,7 @@ export function TaskListPanel({
 
               {!isCollapsed &&
                 (count === 0 ? (
-                  <p className="px-2 py-1 text-[12px] text-lumen-text-tertiary">
+                  <p className="px-2 py-1 text-xs text-lumen-text-tertiary">
                     {labels.emptyGroup}
                   </p>
                 ) : (

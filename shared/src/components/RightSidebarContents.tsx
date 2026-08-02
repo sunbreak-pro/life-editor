@@ -45,7 +45,7 @@ export function RightSidebarContents({
     <>
       {/* 48px header — same height as the SidebarNav header. */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-lumen-border pl-4 pr-3">
-        <span className="text-[13px] font-semibold text-lumen-text">
+        <span className="text-sm font-semibold text-lumen-text">
           {title}
         </span>
         <button

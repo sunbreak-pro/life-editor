@@ -70,7 +70,7 @@ export function DailyTimeline({
             {DISPLAY_HOURS.map((h) => (
               <span
                 key={h}
-                className="text-[9px] text-lumen-text-tertiary"
+                className="text-xs text-lumen-text-tertiary"
                 style={{
                   position: "absolute",
                   left: `${(h / 24) * 100}%`,
@@ -126,7 +126,7 @@ export function DailyTimeline({
                   className="h-2.5 w-2.5 rounded-sm"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-[10px] text-lumen-text-secondary">
+                <span className="text-xs text-lumen-text-secondary">
                   {sessionLabel(type)}
                 </span>
               </div>

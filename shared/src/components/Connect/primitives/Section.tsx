@@ -27,11 +27,11 @@ export function Section({
       >
         <span className="flex items-center gap-2">
           {Icon && <Icon size={12} className="text-lumen-accent" />}
-          <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-lumen-text-secondary">
+          <span className="text-xs uppercase tracking-[0.18em] font-medium text-lumen-text-secondary">
             {title}
           </span>
           {count != null && (
-            <span className="font-mono text-[9px] px-1 rounded bg-lumen-hover text-lumen-text-secondary">
+            <span className="font-mono text-xs px-1 rounded bg-lumen-hover text-lumen-text-secondary">
               {count}
             </span>
           )}

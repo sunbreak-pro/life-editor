@@ -253,7 +253,7 @@ export function ShortcutEditModal({
                               {held.map((sym, i) => (
                                 <span
                                   key={`${sym}-${i}`}
-                                  className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lumen-sm border border-lumen-border-strong bg-lumen-bg px-1.5 text-[13px] tabular-nums text-lumen-text shadow-lumen-sm"
+                                  className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lumen-sm border border-lumen-border-strong bg-lumen-bg px-1.5 text-sm tabular-nums text-lumen-text shadow-lumen-sm"
                                 >
                                   {sym}
                                 </span>
@@ -262,7 +262,7 @@ export function ShortcutEditModal({
                                 <span className="h-0.5 w-[9px] rounded-full bg-lumen-accent" />
                               </span>
                             </span>
-                            <span className="text-[11px] text-lumen-text-secondary">
+                            <span className="text-xs text-lumen-text-secondary">
                               {labels.waiting}
                             </span>
                           </button>
@@ -277,7 +277,7 @@ export function ShortcutEditModal({
                       ) : (
                         <>
                           {row.isModified && (
-                            <span className="inline-flex h-5 items-center rounded-lumen-md bg-lumen-chip-mint-bg px-2 text-[11px] font-medium text-lumen-chip-mint-fg">
+                            <span className="inline-flex h-5 items-center rounded-lumen-md bg-lumen-chip-mint-bg px-2 text-xs font-medium text-lumen-chip-mint-fg">
                               {labels.modified}
                             </span>
                           )}

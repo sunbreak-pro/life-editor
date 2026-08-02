@@ -482,7 +482,7 @@ export function DailyView({
       onClick={() => setSelectedDate(todayIso)}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
-        "text-[13px] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+        "text-sm font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
         FOCUS_RING,
       )}
     >
@@ -648,7 +648,7 @@ export function DailyView({
       <div className="flex min-h-0 flex-1 flex-col">
         <EditorCard
           dateLabel={shortDateLabel(selectedDate)}
-          dateClassName="text-[19px] font-bold leading-tight tracking-tight text-lumen-text"
+          dateClassName="text-lg font-bold leading-tight tracking-tight text-lumen-text"
           savedLabel={savedLabel}
           editorKey={editorKey}
           date={selectedDate}
@@ -663,7 +663,7 @@ export function DailyView({
 
       {mobilePast.length > 0 && (
         <div className="flex flex-col gap-1.5 pb-4 pt-3">
-          <div className="px-0.5 text-[11px] uppercase tracking-wide text-lumen-text-tertiary">
+          <div className="px-0.5 text-xs uppercase tracking-wide text-lumen-text-tertiary">
             {t("materials.daily.pastEntries")}
           </div>
           {mobilePast.map((d) => (

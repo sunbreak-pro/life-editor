@@ -45,7 +45,7 @@ export function GraphLegend({ labels, className = "" }: GraphLegendProps) {
         return (
           <span
             key={type}
-            className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-lumen-full bg-lumen-bg border border-lumen-border shadow-lumen-sm text-[11px] text-lumen-text-secondary"
+            className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-lumen-full bg-lumen-bg border border-lumen-border shadow-lumen-sm text-xs text-lumen-text-secondary"
           >
             <span
               className="w-2 h-2 rounded-lumen-full shrink-0"

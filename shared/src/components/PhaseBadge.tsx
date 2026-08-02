@@ -39,7 +39,7 @@ export function PhaseBadge({
     <div className="flex items-center gap-2">
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold",
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold",
           PHASE_CHIP[phase],
         )}
       >
@@ -47,7 +47,7 @@ export function PhaseBadge({
         {label}
       </span>
       {paused ? (
-        <span className="inline-flex items-center rounded-full bg-lumen-surface-sunken px-3 py-1 text-[13px] font-semibold text-lumen-text-secondary">
+        <span className="inline-flex items-center rounded-full bg-lumen-surface-sunken px-3 py-1 text-sm font-semibold text-lumen-text-secondary">
           {pausedLabel}
         </span>
       ) : null}

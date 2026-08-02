@@ -37,7 +37,7 @@ export function GraphStates({
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5">
         <style>{SPIN_CSS}</style>
         <div className="le-graph-spinner h-7 w-7 rounded-lumen-full border-[3px] border-lumen-surface-sunken border-t-lumen-accent" />
-        <div className="text-[13px] text-lumen-text-secondary">
+        <div className="text-sm text-lumen-text-secondary">
           {labels.graphLoading}
         </div>
       </div>
@@ -50,10 +50,10 @@ export function GraphStates({
         <div className="flex h-14 w-14 items-center justify-center rounded-lumen-full bg-lumen-surface-sunken text-lumen-text-tertiary">
           <Network size={24} />
         </div>
-        <div className="text-[15px] font-medium text-lumen-text">
+        <div className="text-sm font-medium text-lumen-text">
           {labels.emptyTitle}
         </div>
-        <div className="text-[13px] text-lumen-text-secondary">
+        <div className="text-sm text-lumen-text-secondary">
           {labels.emptyHint}
         </div>
       </div>
@@ -70,12 +70,12 @@ export function GraphStates({
       <div className="flex h-14 w-14 items-center justify-center rounded-lumen-full bg-lumen-surface-sunken text-lumen-text-tertiary">
         <Filter size={22} />
       </div>
-      <div className="text-[15px] font-medium text-lumen-text">{message}</div>
+      <div className="text-sm font-medium text-lumen-text">{message}</div>
       {onClear && (
         <button
           type="button"
           onClick={onClear}
-          className="mt-0.5 rounded-lumen-md bg-lumen-accent px-4 py-2 text-[13px] font-medium text-lumen-on-accent hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          className="mt-0.5 rounded-lumen-md bg-lumen-accent px-4 py-2 text-sm font-medium text-lumen-on-accent hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           {labels.clearFilters}
         </button>

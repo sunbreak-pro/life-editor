@@ -114,7 +114,7 @@ export function GraphControlPanel({
             value={filter.search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={labels.search}
-            className="w-full pl-7 pr-7 py-1.5 rounded-md text-[12px] bg-lumen-bg border border-lumen-border text-lumen-text outline-none focus:border-lumen-accent"
+            className="w-full pl-7 pr-7 py-1.5 rounded-md text-xs bg-lumen-bg border border-lumen-border text-lumen-text outline-none focus:border-lumen-accent"
           />
           {filter.search && (
             <button
@@ -156,14 +156,14 @@ export function GraphControlPanel({
                   />
                   <span
                     className={
-                      "text-[11px] " +
+                      "text-xs " +
                       (active ? "text-lumen-text" : "text-lumen-text-secondary")
                     }
                   >
                     {typeLabel[key]}
                   </span>
                 </span>
-                <span className="font-mono text-[10px] text-lumen-text-secondary">
+                <span className="font-mono text-xs text-lumen-text-secondary">
                   {typeCounts[key] || 0}/{totalTypeCounts[key] || 0}
                 </span>
               </button>
@@ -199,13 +199,13 @@ export function GraphControlPanel({
           <button
             type="button"
             onClick={onClearTags}
-            className="text-[10px] underline text-lumen-accent"
+            className="text-xs underline text-lumen-accent"
           >
             {labels.clearFilters}
           </button>
         )}
         {tags.length > 0 && visibleTags.length === 0 && (
-          <div className="text-[10px] text-lumen-text-tertiary">
+          <div className="text-xs text-lumen-text-tertiary">
             {labels.tagFilterEmpty}
           </div>
         )}
@@ -220,7 +220,7 @@ export function GraphControlPanel({
                 onClick={() => onToggleTag(id)}
                 aria-pressed={active}
                 className={
-                  "px-1.5 py-0.5 rounded text-[10px] font-mono border transition-colors " +
+                  "px-1.5 py-0.5 rounded text-xs font-mono border transition-colors " +
                   (active
                     ? "border-lumen-accent text-lumen-accent bg-lumen-hover"
                     : "border-lumen-border text-lumen-text-secondary hover:bg-lumen-hover")
@@ -237,7 +237,7 @@ export function GraphControlPanel({
         <Section title={labels.localGraph} icon={Crosshair}>
           {selectedLabel ? (
             <>
-              <div className="text-[10px] text-lumen-text-secondary">
+              <div className="text-xs text-lumen-text-secondary">
                 {selectedLabel}
               </div>
               <Slider
@@ -250,7 +250,7 @@ export function GraphControlPanel({
               />
             </>
           ) : (
-            <div className="text-[10px] px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
+            <div className="text-xs px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
               {labels.selectNodeHint}
             </div>
           )}
@@ -307,7 +307,7 @@ export function GraphControlPanel({
       </Section>
 
       {!compact && (
-        <div className="border-t border-lumen-border pt-2.5 text-[11px] text-lumen-text-tertiary">
+        <div className="border-t border-lumen-border pt-2.5 text-xs text-lumen-text-tertiary">
           {labels.hintKeys}
         </div>
       )}

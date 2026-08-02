@@ -652,7 +652,7 @@ export function WeekTimeGrid({
                 >
                   <div
                     className={cn(
-                      "text-[11px] font-medium uppercase tracking-wide",
+                      "text-xs font-medium uppercase tracking-wide",
                       isToday
                         ? "text-lumen-accent"
                         : "text-lumen-text-secondary",
@@ -682,7 +682,7 @@ export function WeekTimeGrid({
             className="grid border-b border-lumen-border bg-lumen-bg"
             style={columnsTemplate}
           >
-            <div className="flex items-center justify-end border-r border-lumen-border px-1 py-1 text-[10px] text-lumen-text-secondary">
+            <div className="flex items-center justify-end border-r border-lumen-border px-1 py-1 text-xs text-lumen-text-secondary">
               {allDayLabel}
             </div>
             {dayKeys.map((key) => {
@@ -732,7 +732,7 @@ export function WeekTimeGrid({
                         }
                         title={it.title}
                         className={cn(
-                          "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                          "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-xs text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                           selected && "ring-2 ring-lumen-accent",
                           placeable && "cursor-grab",
                           it.completed &&
@@ -761,7 +761,7 @@ export function WeekTimeGrid({
           <div className="relative border-r border-lumen-border">
             {hours.map((h) => (
               <div key={h} style={{ height: hourHeight }} className="relative">
-                <span className="absolute -top-1.5 right-1 text-[10px] tabular-nums text-lumen-text-secondary">
+                <span className="absolute -top-1.5 right-1 text-xs tabular-nums text-lumen-text-secondary">
                   {formatHour(h)}
                 </span>
               </div>
@@ -770,7 +770,7 @@ export function WeekTimeGrid({
             {nowVisible && (
               <span
                 aria-hidden
-                className="absolute right-1 z-20 -translate-y-1/2 rounded-sm bg-lumen-bg px-0.5 text-[10px] font-bold tabular-nums text-lumen-accent"
+                className="absolute right-1 z-20 -translate-y-1/2 rounded-sm bg-lumen-bg px-0.5 text-xs font-bold tabular-nums text-lumen-accent"
                 style={{ top: nowPx }}
               >
                 {formatNowLabel(nowMinutes as number)}
@@ -857,7 +857,7 @@ export function WeekTimeGrid({
                       }
                       title={`${it.startTime}–${it.endTime} ${it.title}`}
                       className={cn(
-                        "absolute overflow-hidden rounded px-1 py-0.5 text-left text-[11px] leading-tight hover:z-10 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                        "absolute overflow-hidden rounded px-1 py-0.5 text-left text-xs leading-tight hover:z-10 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                         variantBlockClasses(variant),
                         variant === "routine" && "pl-1.5",
                         movable && "z-10 cursor-move",
@@ -892,7 +892,7 @@ export function WeekTimeGrid({
                         </span>
                       </span>
                       <span className="flex items-center gap-1 overflow-hidden">
-                        <span className="truncate text-[10px] opacity-80">
+                        <span className="truncate text-xs opacity-80">
                           {it.startTime}
                         </span>
                         {/* Derived-status tag (#222). Compact xs; the block's

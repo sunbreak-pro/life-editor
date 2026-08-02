@@ -130,11 +130,11 @@ export function AgendaList({
           )}
         >
           {it.isAllDay ? (
-            <span className="rounded border border-lumen-border-strong bg-lumen-bg px-1.5 py-0.5 text-[10px] font-semibold text-lumen-text-tertiary">
+            <span className="rounded border border-lumen-border-strong bg-lumen-bg px-1.5 py-0.5 text-xs font-semibold text-lumen-text-tertiary">
               {labels.allDay}
             </span>
           ) : (
-            <span className="w-11 shrink-0 text-[11px] tabular-nums text-lumen-text-secondary">
+            <span className="w-11 shrink-0 text-xs tabular-nums text-lumen-text-secondary">
               {it.startTime}
             </span>
           )}
@@ -188,7 +188,7 @@ export function AgendaList({
   const nowDivider = (
     <li aria-hidden className="flex items-center gap-2 py-1.5">
       {labels.nowLabel && (
-        <span className="text-[10px] font-bold tabular-nums text-lumen-accent">
+        <span className="text-xs font-bold tabular-nums text-lumen-accent">
           {labels.nowLabel}
         </span>
       )}

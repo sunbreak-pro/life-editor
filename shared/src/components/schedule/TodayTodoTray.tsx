@@ -130,7 +130,7 @@ function TaskRow({
             {row.title}
           </span>
           {row.timeLabel && (
-            <span className="shrink-0 text-[11px] tabular-nums text-lumen-text-secondary">
+            <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
               {row.timeLabel}
             </span>
           )}

@@ -63,8 +63,8 @@ export function ScheduleStatusTag({
 }: ScheduleStatusTagProps) {
   const sizeClass =
     size === "xs"
-      ? "px-1 py-px text-[9px] leading-tight"
-      : "px-1.5 py-0.5 text-[11px]";
+      ? "px-1 py-px text-xs leading-tight"
+      : "px-1.5 py-0.5 text-xs";
   const base = cn(
     "inline-flex shrink-0 items-center rounded-md border font-medium whitespace-nowrap",
     sizeClass,

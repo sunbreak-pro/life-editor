@@ -45,7 +45,7 @@ export function SettingsDetailPanel({
   return (
     <div className="flex flex-col gap-[18px] p-4">
       <section className="flex flex-col gap-2.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-lumen-text-tertiary">
+        <span className="text-xs font-semibold uppercase tracking-wide text-lumen-text-tertiary">
           {labels.previewHeading}
         </span>
 
@@ -54,7 +54,7 @@ export function SettingsDetailPanel({
             <span className="h-2 w-2 rounded-full bg-lumen-danger" />
             <span className="h-2 w-2 rounded-full bg-lumen-warning" />
             <span className="h-2 w-2 rounded-full bg-lumen-success" />
-            <span className="ml-1.5 text-[11px] text-lumen-text-tertiary">
+            <span className="ml-1.5 text-xs text-lumen-text-tertiary">
               {labels.windowTitle}
             </span>
           </div>
@@ -101,7 +101,7 @@ export function SettingsDetailPanel({
       <div className="h-px bg-lumen-border" />
 
       <section className="flex flex-col gap-3.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-lumen-text-tertiary">
+        <span className="text-xs font-semibold uppercase tracking-wide text-lumen-text-tertiary">
           {labels.tipsHeading}
         </span>
         {tips.map((tip, i) => {

@@ -103,7 +103,7 @@ export function RoutineSummaryCard({
       <button
         type="button"
         onClick={onOpenRoutines}
-        className="flex items-center gap-1 self-start rounded-sm text-[13px] font-medium text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        className="flex items-center gap-1 self-start rounded-sm text-sm font-medium text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
         {labels.cta}
         <ArrowRight aria-hidden className="size-3.5" />

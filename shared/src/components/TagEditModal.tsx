@@ -356,7 +356,7 @@ function TagEditRowItem({
             aria-label={`${labels.itemsToggleLabel}: ${tag.name}`}
             className={cn(
               "flex shrink-0 items-center gap-0.5 rounded-full bg-lumen-bg-secondary py-0.5 pl-2 pr-1",
-              "text-[11px] font-medium tabular-nums text-lumen-text-secondary",
+              "text-xs font-medium tabular-nums text-lumen-text-secondary",
               "transition-colors hover:bg-lumen-border hover:text-lumen-text",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
@@ -369,7 +369,7 @@ function TagEditRowItem({
             )}
           </button>
         ) : (
-          <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-[11px] font-medium tabular-nums text-lumen-text-secondary">
+          <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary">
             {countText}
           </span>
         )}
