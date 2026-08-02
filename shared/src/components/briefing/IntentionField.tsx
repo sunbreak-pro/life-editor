@@ -42,7 +42,7 @@ export function IntentionField({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
-      className="w-full resize-none overflow-hidden rounded-lumen-md border-l-2 border-lumen-briefing-shu bg-lumen-briefing-shu-subtle px-4 py-3 font-serif text-base leading-relaxed text-lumen-text outline-none placeholder:font-sans placeholder:text-sm placeholder:text-lumen-text-secondary"
+      className="w-full resize-none overflow-hidden rounded-lumen-md border-l-2 border-lumen-briefing-shu bg-lumen-briefing-shu-subtle px-4 py-3 text-base leading-relaxed text-lumen-text outline-none placeholder:text-sm placeholder:text-lumen-text-secondary"
     />
   );
 }

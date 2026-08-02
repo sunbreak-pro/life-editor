@@ -244,7 +244,9 @@ export function BriefingView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
-      {/* ── Masthead ─────────────────────────────────────────────── */}
+      {/* ── Masthead — the title and the focus line below deliberately keep
+          the newspaper serif (#269) regardless of the Settings font; body
+          copy follows the global preference (#556) ────────────────── */}
       <header className="border-b-4 border-double border-lumen-border-strong pb-4 pt-6 text-center">
         <h2 className="font-serif text-2xl font-semibold tracking-[0.3em] text-lumen-text">
           {labels.masthead}

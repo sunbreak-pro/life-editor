@@ -118,10 +118,13 @@ describe("ThemeProvider §216", () => {
   it("applies font-family to documentElement (system clears the inline style)", () => {
     installMatchMedia(false);
     const { result } = renderHook(() => useThemeContext(), { wrapper });
+    // serif/mono are var() references into tokens.css (#556) — jsdom stores
+    // them verbatim; the literal stacks are asserted nowhere on purpose
+    // (tokens.css is their single source of truth).
     act(() => result.current.setFontFamily("mono"));
-    expect(document.documentElement.style.fontFamily).toContain("ui-monospace");
+    expect(document.documentElement.style.fontFamily).toBe("var(--font-mono)");
     act(() => result.current.setFontFamily("serif"));
-    expect(document.documentElement.style.fontFamily).toContain("Georgia");
+    expect(document.documentElement.style.fontFamily).toBe("var(--font-serif)");
     act(() => result.current.setFontFamily("system"));
     expect(document.documentElement.style.fontFamily).toBe("");
   });
