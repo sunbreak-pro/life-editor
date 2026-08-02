@@ -37,6 +37,46 @@ import { useSyncDomains } from "./useSyncDomains";
 const isSameDate = (item: ScheduleItem, date: string): boolean =>
   item.date === date;
 
+/**
+ * The host's own copy of the rows currently on screen (#568).
+ *
+ * This hook is anchored on ONE day (see `date` below), so `items` only ever
+ * holds that day's rows — but the calendar grid renders a whole week/month
+ * out of its own visible-range store. Two things broke because of that gap:
+ * a mutation on any other day found no `prev` here and pushed NO undo command
+ * at all, and the commands that did get pushed wrote their rollback into
+ * `items`, which the grid does not read (so "元に戻しました" appeared while the
+ * event stayed put until a Realtime refetch).
+ *
+ * The host registers this mirror once (`registerViewMirror`) and the undo /
+ * redo closures then read and write BOTH lists. Forward writes stay where they
+ * are — the host's mutation layer already patches its own store on the way in
+ * (and owns extras like selection), so mirroring them here would just do the
+ * same work twice.
+ *
+ * All four methods must be no-op-safe for ids the mirror does not hold: an
+ * undo may run long after the view navigated away from that row.
+ *
+ * ORDER CONTRACT: the host calls the mutation here FIRST and patches its own
+ * store after. The undo command snapshots the row through `find`, and this
+ * interface deliberately says NOTHING about when a patch becomes visible to
+ * `find` — a mirror backed by an effect-updated ref lags a commit behind, one
+ * answering from live state does not. Calling in this order is what makes the
+ * snapshot the pre-edit row under either implementation; a host that patches
+ * first is correct only by accident of its own timing, and the accident ends
+ * the day the mirror is reimplemented.
+ */
+export interface ScheduleItemsViewMirror {
+  /** Row lookup for ids outside the anchored day. */
+  find: (id: string) => ScheduleItem | undefined;
+  /** Insert (or replace) a row — undo of a delete / dismiss / redo of create. */
+  upsert: (item: ScheduleItem) => void;
+  /** Patch fields of a row the mirror already holds; no-op otherwise. */
+  patch: (id: string, patch: Partial<ScheduleItem>) => void;
+  /** Drop a row — undo of a create / redo of a delete / dismiss. */
+  remove: (id: string) => void;
+}
+
 export interface UseScheduleItemsAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
@@ -79,6 +119,51 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  // #568: the host's on-screen store (the calendar's visible range). Held in a
+  // ref, not state, because its only readers are the undo/redo closures, which
+  // run long after the commit — and because re-rendering every consumer when a
+  // host attaches its store would buy nothing.
+  const viewMirrorRef = useRef<ScheduleItemsViewMirror | null>(null);
+  /**
+   * Attach the host's on-screen store; returns the detach function (call it
+   * from the effect's cleanup). Only one mirror at a time — the calendar host
+   * is the single surface that keeps a range copy.
+   */
+  const registerViewMirror = useCallback((mirror: ScheduleItemsViewMirror) => {
+    viewMirrorRef.current = mirror;
+    return () => {
+      // Guarded: a later host may have replaced it already (StrictMode
+      // double-effects re-register before the first cleanup runs).
+      if (viewMirrorRef.current === mirror) viewMirrorRef.current = null;
+    };
+  }, []);
+
+  // The row as it is RIGHT NOW, from either list. This is what an undo command
+  // captures as its "prev" — before #568 it only looked at the anchored day, so
+  // every edit outside today pushed nothing and Ctrl+Z sat disabled.
+  const findItem = useCallback(
+    (id: string): ScheduleItem | undefined =>
+      itemsRef.current.find((i) => i.id === id) ??
+      viewMirrorRef.current?.find(id),
+    [],
+  );
+
+  // Put a row back on screen: replace it wholesale when we still hold the
+  // pre-mutation snapshot, otherwise patch whatever the mirror has.
+  const mirrorRestore = useCallback(
+    (
+      id: string,
+      snapshot: ScheduleItem | undefined,
+      patch: Partial<ScheduleItem>,
+    ) => {
+      const mirror = viewMirrorRef.current;
+      if (!mirror) return;
+      if (snapshot) mirror.upsert({ ...snapshot, ...patch });
+      else mirror.patch(id, patch);
+    },
+    [],
+  );
 
   // Initial load + every syncVersion bump (mirrors routines/notes). The
   // active-date read and the trash read run independently so a failure
@@ -240,6 +325,9 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         label: "createScheduleItem",
         undo: () => {
           setItems((prev) => prev.filter((i) => i.id !== id));
+          // #568: the grid reads the host's range store, so without this the
+          // row stayed on the calendar after the undo removed it from the DB.
+          viewMirrorRef.current?.remove(id);
           ds.softDeleteScheduleItem(id).catch((e) =>
             logServiceError("ScheduleItems", "undoCreate", e),
           );
@@ -250,6 +338,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
               ? [...prev, optimistic]
               : prev,
           );
+          viewMirrorRef.current?.upsert(optimistic);
           ds.restoreScheduleItem(id).catch((e) =>
             logServiceError("ScheduleItems", "redoCreate", e),
           );
@@ -282,7 +371,9 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
       >,
       opts?: { skipUndo?: boolean },
     ) => {
-      const prev = itemsRef.current.find((i) => i.id === id);
+      // #568: reads the host's range store too — an edit on any day other than
+      // the anchored one used to find nothing here and push no undo command.
+      const prev = findItem(id);
       setItems((p) =>
         p.map((i) =>
           i.id === id
@@ -309,6 +400,9 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
                   : i,
               ),
             );
+            // #568: same patch into the grid's own copy, so the move/resize
+            // visibly snaps back instead of waiting for a Realtime refetch.
+            viewMirrorRef.current?.patch(id, prevValues);
             ds.updateScheduleItem(id, prevValues).catch((e) =>
               logServiceError("ScheduleItems", "undoUpdate", e),
             );
@@ -321,6 +415,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
                   : i,
               ),
             );
+            viewMirrorRef.current?.patch(id, updates);
             ds.updateScheduleItem(id, updates).catch((e) =>
               logServiceError("ScheduleItems", "redoUpdate", e),
             );
@@ -328,14 +423,15 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         });
       }
     },
-    [ds, push],
+    [ds, push, findItem],
   );
 
   // ── Complete toggle ─────────────────────────────────────────────────
 
   const toggleComplete = useCallback(
     (id: string) => {
-      const prev = itemsRef.current.find((i) => i.id === id);
+      // #568: range store included — see updateScheduleItem.
+      const prev = findItem(id);
       setItems((p) =>
         p.map((i) =>
           i.id === id
@@ -359,15 +455,32 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
           label: "toggleScheduleItemComplete",
           undo: () => {
             setItems((p) => p.map((i) => (i.id === id ? prev : i)));
+            // #568: restore the exact pre-toggle pair in the grid's copy —
+            // patching only `completed` would leave a checkmark timestamp on a
+            // row that is no longer done.
+            viewMirrorRef.current?.patch(id, {
+              completed: prev.completed,
+              completedAt: prev.completedAt,
+            });
             ds.toggleScheduleItemComplete(id).catch((e) =>
               logServiceError("ScheduleItems", "undoToggleComplete", e),
             );
           },
           redo: () => {
+            viewMirrorRef.current?.patch(id, {
+              completed: !prev.completed,
+              completedAt: !prev.completed ? new Date().toISOString() : null,
+            });
             ds.toggleScheduleItemComplete(id)
-              .then((saved) =>
-                setItems((p) => p.map((i) => (i.id === id ? saved : i))),
-              )
+              .then((saved) => {
+                setItems((p) => p.map((i) => (i.id === id ? saved : i)));
+                // The server row is the truth for completedAt; the optimistic
+                // patch above only covers the gap until it lands.
+                viewMirrorRef.current?.patch(id, {
+                  completed: saved.completed,
+                  completedAt: saved.completedAt,
+                });
+              })
               .catch((e) =>
                 logServiceError("ScheduleItems", "redoToggleComplete", e),
               );
@@ -375,13 +488,17 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         });
       }
     },
-    [ds, push],
+    [ds, push, findItem],
   );
 
   // ── Dismiss / undismiss ─────────────────────────────────────────────
 
   const dismiss = useCallback(
     (id: string) => {
+      // #568: the snapshot the undo needs to put the row back on the grid —
+      // the host drops dismissed rows from its range store entirely, so a
+      // field patch would have nothing to patch.
+      const prev = findItem(id);
       setItems((p) =>
         p.map((i) =>
           i.id === id
@@ -406,6 +523,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
                 : i,
             ),
           );
+          mirrorRestore(id, prev, { isDismissed: false });
           ds.undismissScheduleItem(id).catch((e) =>
             logServiceError("ScheduleItems", "undoDismiss", e),
           );
@@ -422,13 +540,14 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
                 : i,
             ),
           );
+          viewMirrorRef.current?.remove(id);
           ds.dismissScheduleItem(id).catch((e) =>
             logServiceError("ScheduleItems", "redoDismiss", e),
           );
         },
       });
     },
-    [ds, push],
+    [ds, push, findItem, mirrorRestore],
   );
 
   const undismiss = useCallback(
@@ -451,7 +570,9 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
 
   const deleteScheduleItem = useCallback(
     (id: string, opts?: { skipUndo?: boolean }) => {
-      const target = itemsRef.current.find((i) => i.id === id);
+      // #568: range store included — a delete on any other day used to push
+      // nothing at all (and Trash never learned about the row either).
+      const target = findItem(id);
       if (target) {
         const deleted: ScheduleItem = {
           ...target,
@@ -472,6 +593,15 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
             setItems((prev) =>
               isSameDate(target, dateRef.current) ? [...prev, target] : prev,
             );
+            // #568: back onto the grid as well, with the delete flags cleared
+            // (the snapshot was taken before the soft delete, so they are
+            // already false — spelled out so a future snapshot source cannot
+            // reinstate a row that renders as trashed).
+            viewMirrorRef.current?.upsert({
+              ...target,
+              isDeleted: false,
+              deletedAt: null,
+            });
             setDeletedItems((prev) => prev.filter((i) => i.id !== id));
             ds.restoreScheduleItem(id).catch((e) =>
               logServiceError("ScheduleItems", "undoDelete", e),
@@ -479,6 +609,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
           },
           redo: () => {
             setItems((prev) => prev.filter((i) => i.id !== id));
+            viewMirrorRef.current?.remove(id);
             setDeletedItems((prev) => {
               const redoDeleted: ScheduleItem = {
                 ...target,
@@ -494,7 +625,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         });
       }
     },
-    [ds, push, date],
+    [ds, push, findItem],
   );
 
   const loadDeletedScheduleItems = useCallback(async () => {
@@ -560,6 +691,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
       deletedItems,
       isLoading,
       error,
+      registerViewMirror,
       loadDate,
       loadDateRange,
       createScheduleItem,
@@ -579,6 +711,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
       deletedItems,
       isLoading,
       error,
+      registerViewMirror,
       loadDate,
       loadDateRange,
       createScheduleItem,
