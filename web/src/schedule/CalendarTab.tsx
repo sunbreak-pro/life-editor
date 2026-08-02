@@ -83,6 +83,7 @@ import {
   todoAddCandidateWrite,
   placeTaskWrite,
 } from "./taskChipUndoWiring";
+import { answersChipClick, taskChipPanelModel } from "./taskChipPanel";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -396,7 +397,11 @@ export function CalendarTab({
   // duplicate handler re-selects the copy. Bubble / overlay opening is handled
   // by the activate/open-detail handlers below.
   const handleSelectItem = useCallback((id: string) => {
-    // A-1: task chips are read-only display — the id isn't a ScheduleItem.
+    // A chip id is not a ScheduleItem id, and this path exists to point the
+    // schedule-item surfaces (editor pane / mutation layer) at a row. Task
+    // chips DO answer a click since #564 — through handleItemActivate, which
+    // opens their own panel — so this guard is about the id's shape, not about
+    // chips being read-only.
     if (isTaskChip(id)) return;
     setSelectedId(id);
   }, []);
@@ -410,10 +415,18 @@ export function CalendarTab({
   // bubble straight away made it flash open and shut on every double-click.
   // Selection stays immediate — it is the part that should feel instant, and
   // the detail surface wants it anyway.
+  //
+  // #564: task chips come through here too. They used to be dropped on the
+  // spot (the A-1 "read-only display" rule), which by now was only true of the
+  // click — #297/#298/#569 had made the same chip draggable, so the all-day
+  // lane ended up with chips that answered a drag but not a click. They open
+  // the same bubble with the task action set (see taskChipPanel.ts).
+  //
+  // On NARROW they keep the old no-op, selection included — see
+  // answersChipClick for why.
   const handleItemActivate = useCallback(
     (id: string, pos: { x: number; y: number }) => {
-      // A-1: task chips stay read-only — no bubble, no editor (#297 preserved).
-      if (isTaskChip(id)) return;
+      if (!answersChipClick(id, isWide)) return;
       setSelectedId(id);
       if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
     },
@@ -424,14 +437,21 @@ export function CalendarTab({
   // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
   // drives it). Closes any open bubble; one still waiting to appear is dropped
   // by the "another surface opened" effect below (#355).
+  //
+  // #564: a task chip's detail is not this overlay — EventEditorPane edits a
+  // schedule_item, and a task has none. Its hand-off is the Tasks section, the
+  // same destination the Todo tray's title click uses.
   const handleItemOpenDetail = useCallback(
     (id: string) => {
-      if (isTaskChip(id)) return;
-      setSelectedId(id);
       setPopover(null);
+      if (isTaskChip(id)) {
+        onOpenTasks();
+        return;
+      }
+      setSelectedId(id);
       if (isWide) setOverlayOpen(true);
     },
-    [isWide],
+    [isWide, onOpenTasks],
   );
 
   // #299 open the creation panel prefilled for a target day + time window.
@@ -817,7 +837,8 @@ export function CalendarTab({
   // narrow the selection alone opens the BottomSheet editor, same as a tap.
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
-      if (isTaskChip(id)) return; // A-1: no rename/duplicate/delete on task chips
+      // Same narrow guard as handleItemActivate.
+      if (!answersChipClick(id, isWide)) return;
       cancelPopover();
       setSelectedId(id);
       if (isWide) setPopover({ id, x: pos.x, y: pos.y });
@@ -1791,12 +1812,80 @@ export function CalendarTab({
     />
   );
 
+  /*
+   * #564: the chip behind an open bubble, when the bubble belongs to a TASK
+   * chip rather than a schedule item.
+   *
+   * Resolved against the unfiltered `rangeTaskChips` for the same reason
+   * `selected` reads `rangeItems`: the calendar lens narrows what the grid
+   * DRAWS, and a panel already on screen has to keep acting on its item even if
+   * the row behind it stops being drawn (a rename can move it out of the lens).
+   *
+   * `todayTaskChips` is the second half of the same pair `selected` uses
+   * (rangeItems ?? contextItems): the "今日の流れ" agenda always lists TODAY, so
+   * with the grid parked on another week its task rows are in no range chip at
+   * all — and looking only at the range would leave that surface with exactly
+   * the silently-dead click this Issue is about.
+   */
+  const popoverTaskChip =
+    popover && isTaskChip(popover.id)
+      ? (rangeTaskChips.find((c) => c.id === unwrapTaskChipId(popover.id)) ??
+        todayTaskChips.find((c) => c.id === unwrapTaskChipId(popover.id)) ??
+        null)
+      : null;
+  // The task action set. Deliberately not the event one: a task has no
+  // duplicate write and its detail lives in another section (taskChipPanel.ts).
+  const taskChipPanel = popoverTaskChip
+    ? taskChipPanelModel(
+        popoverTaskChip,
+        {
+          // NOT scheduleScreen.untitled — that one reads "無題の繰り返し",
+          // written for the repeat list. A task is neither.
+          untitled: t("common.untitled"),
+          allDay: t("scheduleScreen.allDay"),
+          rename: t("scheduleScreen.rename"),
+          delete: t("scheduleScreen.todoDelete"),
+        },
+        {
+          onRename: (title) =>
+            updateNode(
+              popoverTaskChip.id,
+              { title },
+              // The catch-all tree label: a rename is not a move, so none of
+              // the position-shaped taskChip* words fit (useTaskTreeHistory).
+              { undoLabel: "taskTreeChange" },
+            ),
+          onDelete: () => softDeleteTask(popoverTaskChip.id),
+        },
+      )
+    : null;
+
   // #299 single-click bubble (Desktop): summary + quick actions + "詳細を編集".
   // `selected` is the popover's item (activate sets selectedId + popover to the
   // same id); guard against a transient mismatch. Portalled to body → does not
   // touch the rightSidebar contentCount invariant.
   const popoverEl =
-    isWide && popover && selected && selected.id === popover.id ? (
+    !isWide || !popover ? null : taskChipPanel ? (
+      <ItemActionPopover
+        key={popover.id}
+        position={{ x: popover.x, y: popover.y }}
+        summary={
+          <div className="flex flex-col gap-0.5">
+            <p className="truncate font-semibold text-lumen-text">
+              {taskChipPanel.title}
+            </p>
+            <p className="text-lumen-text-secondary">
+              {taskChipPanel.timeLabel}
+            </p>
+          </div>
+        }
+        actions={taskChipPanel.actions}
+        onEditDetail={() => handleItemOpenDetail(popover.id)}
+        editDetailLabel={t("scheduleScreen.todoOpenInTasks")}
+        label={t("scheduleScreen.itemActionsLabel")}
+        onClose={() => setPopover(null)}
+      />
+    ) : selected && selected.id === popover.id ? (
       <ItemActionPopover
         // Remount per item: without a mousedown in between (e.g. the keyboard
         // contextmenu key) the id can swap while the bubble stays mounted,

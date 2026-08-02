@@ -433,6 +433,125 @@ describe("WeekTimeGrid — interactions", () => {
     band("time").getBoundingClientRect = rectAt(TIME_TOP, 24 * 48);
   }
 
+  /*
+   * #564 — every all-day chip reports its click gestures.
+   *
+   * The Issue reported the lane as having no affordance at all, so the grid's
+   * half of that is pinned per gesture and per chip kind. The two kinds take
+   * DIFFERENT routes to the same callback: an events/routines chip has a plain
+   * onClick, while a task chip's click is the pointer-up of a place drag that
+   * never moved (#297 guard), so a regression in either one is invisible from
+   * the other.
+   */
+  const allDayChips: WeekTimeGridItem[] = [
+    {
+      id: "ev",
+      date: "2026-06-14",
+      title: "Vacation",
+      startTime: "00:00",
+      endTime: "23:59",
+      isAllDay: true,
+      variant: "event",
+    },
+    {
+      id: "tc",
+      date: "2026-06-14",
+      title: "Candidate",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "task",
+    },
+  ];
+
+  function renderAllDayLane() {
+    const handlers = {
+      onItemActivate: vi.fn(),
+      onItemContextMenu: vi.fn(),
+      onItemDoubleClick: vi.fn(),
+    };
+    render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={allDayChips}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={vi.fn()}
+        taskInteractive
+        {...handlers}
+      />,
+    );
+    return handlers;
+  }
+
+  it("activates an all-day event chip on a plain click", () => {
+    const { onItemActivate } = renderAllDayLane();
+    fireEvent.click(screen.getByText("Vacation"), { clientX: 7, clientY: 9 });
+    expect(onItemActivate).toHaveBeenCalledWith("ev", { x: 7, y: 9 });
+  });
+
+  it("activates an all-day task chip when its place drag never moves", () => {
+    const { onItemActivate } = renderAllDayLane();
+    // The chip is draggable, so it has no onClick — the gesture is a press and
+    // release below the drag threshold.
+    firePointerDown(screen.getByText("Candidate"), 10, 10);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointerup", { clientX: 10, clientY: 10 }),
+      );
+    });
+    expect(onItemActivate).toHaveBeenCalledWith("tc", { x: 10, y: 10 });
+  });
+
+  it("reports a right-click on either kind of all-day chip", () => {
+    const { onItemContextMenu } = renderAllDayLane();
+    fireEvent.contextMenu(screen.getByText("Vacation"), {
+      clientX: 1,
+      clientY: 2,
+    });
+    fireEvent.contextMenu(screen.getByText("Candidate"), {
+      clientX: 3,
+      clientY: 4,
+    });
+    expect(onItemContextMenu).toHaveBeenNthCalledWith(1, "ev", { x: 1, y: 2 });
+    expect(onItemContextMenu).toHaveBeenNthCalledWith(2, "tc", { x: 3, y: 4 });
+  });
+
+  it("reports a double-click on either kind of all-day chip", () => {
+    const { onItemDoubleClick } = renderAllDayLane();
+    fireEvent.doubleClick(screen.getByText("Vacation"));
+    // Pre-#564 the draggable chip had no dblclick handler at all, which left
+    // the detail hand-off unreachable from the lane.
+    fireEvent.doubleClick(screen.getByText("Candidate"));
+    expect(onItemDoubleClick).toHaveBeenNthCalledWith(1, "ev");
+    expect(onItemDoubleClick).toHaveBeenNthCalledWith(2, "tc");
+  });
+
+  it("still swallows the activation when a place drag actually moves", () => {
+    const onMoveItem = vi.fn();
+    const onItemActivate = vi.fn();
+    render(
+      <WeekTimeGrid
+        weekStart="2026-06-14"
+        items={allDayChips}
+        weekdayLabels={WEEKDAYS}
+        allDayLabel="All-day"
+        onMoveItem={onMoveItem}
+        onItemActivate={onItemActivate}
+        taskInteractive
+      />,
+    );
+    firePointerDown(screen.getByText("Candidate"), 10, 10);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: 100 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onMoveItem).toHaveBeenCalled();
+    expect(onItemActivate).not.toHaveBeenCalled();
+  });
+
   it("treats the all-day lane's own bottom edge as the drop-to-all-day boundary", () => {
     const onMoveItem = vi.fn();
     const onDropAllDay = vi.fn();

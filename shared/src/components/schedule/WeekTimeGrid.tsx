@@ -546,7 +546,9 @@ export function WeekTimeGrid({
         } else {
           // Non-drag pointer-up = a click on a movable block (#297 guard). Open
           // the bubble anchored at the pointer, not the old rightSidebar select
-          // (#299). Task-chip ids are no-op'd by the host.
+          // (#299). This is the ONLY click route a draggable item has — an
+          // all-day task chip included — since a drag handler leaves no onClick
+          // to fall back on (#564).
           if (onItemActivate)
             onItemActivate(d.id, { x: ev.clientX, y: ev.clientY });
           else onSelectItem?.(d.id);
@@ -697,7 +699,7 @@ export function WeekTimeGrid({
                     // A-3 (#298): an all-day task chip can be dragged down into
                     // the time body to gain a start time (only task chips, only
                     // when the host opts in via taskInteractive + onMoveItem).
-                    // Events/routines in the lane stay click/contextMenu only.
+                    // Events/routines in the lane have no drag at all.
                     const placeable =
                       it.variant === "task" && taskInteractive && !!onMoveItem;
                     return (
@@ -709,16 +711,20 @@ export function WeekTimeGrid({
                             ? (e) => beginDrag(e, it, "place")
                             : undefined
                         }
+                        // A placeable chip activates from the drag's pointer-up
+                        // instead (the #297 no-movement guard), so wiring
+                        // onClick here as well would fire twice.
                         onClick={
                           placeable
                             ? undefined
                             : (e) => activateItem(it.id, e.clientX, e.clientY)
                         }
-                        onDoubleClick={
-                          placeable
-                            ? undefined
-                            : () => onItemDoubleClick?.(it.id)
-                        }
+                        // Double-click stays wired for EVERY chip (#564). It
+                        // used to be dropped for placeable ones alongside
+                        // onClick, but a drag never produces a dblclick, so all
+                        // that suppressed was the keyboard-free route to the
+                        // detail surface — the all-day task chip's only one.
+                        onDoubleClick={() => onItemDoubleClick?.(it.id)}
                         onContextMenu={
                           onItemContextMenu
                             ? (e) => {
