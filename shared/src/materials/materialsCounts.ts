@@ -1,19 +1,28 @@
 /*
- * Materials tab count badges (plan 2026-07-08 Step 4). Pure derivation of the
- * four Materials surfaces' badge numbers from already-fetched domain data.
+ * Materials tab count badges (plan 2026-07-08 Step 4).
  *
  * The Materials providers (TaskTree / Notes / Dailies / WikiTags) are mounted
  * per-tab inside the section body, so the shell can't read their counts from
- * context. Instead a headless host bridge fetches the four lists via the
- * injected DataService (hosts may call it — CLAUDE.md §6.4) and feeds them
- * here; the shell then renders the returned counts as HeaderTabs badges.
+ * context. A headless host bridge (web/src/MaterialsCountsBridge.tsx) asks the
+ * injected DataService for the three numbers and feeds them to the shell,
+ * which renders them as HeaderTabs badges.
  *
- * Pure + DataService-free (§3.1): takes plain arrays, returns plain numbers,
- * so it is unit-testable without React or a backend.
+ * #511: the numbers used to be derived here, in app memory, from the same
+ * full list fetches the surfaces use — the badge paid for every column of
+ * every row just to call `.length`. The counting moved into the DataService
+ * (countUnfinishedTasks / countLiveNotes / countLiveDailies), which asks
+ * PostgREST for a header-only COUNT. This file keeps the badge's MEANING —
+ * the definition each query has to reproduce — plus the shared types; the
+ * queries carry it clause by clause and cite this file.
+ *
+ *   - tasks: live tasks that still need doing. Excludes soft-deleted rows,
+ *     DONE rows, retired 'folder' rows (#225), and payload-less orphans.
+ *     A task with no status yet counts as unfinished.
+ *   - notes: live notes. Excludes soft-deleted rows, retired 'folder' rows
+ *     (#375), and payload-less orphans.
+ *   - daily: live dailies. Excludes soft-deleted rows and payload-less
+ *     orphans (Daily is flat — no folder rows exist).
  */
-import type { TaskNode } from "../types/taskTree";
-import type { NoteNode } from "../types/note";
-import type { DailyNode } from "../types/daily";
 
 /**
  * Badge count per document surface. Named for Materials because that is where
@@ -27,36 +36,9 @@ export interface MaterialsCounts {
   daily: number;
 }
 
-export interface MaterialsCountsInput {
-  nodes: readonly TaskNode[];
-  notes: readonly NoteNode[];
-  dailies: readonly DailyNode[];
-}
-
 /** All-zero counts — the initial / error fallback (no badges shown). */
 export const EMPTY_MATERIALS_COUNTS: MaterialsCounts = {
   tasks: 0,
   notes: 0,
   daily: 0,
 };
-
-/**
- * Derive the Materials tab badge counts.
- *
- *   - tasks: task nodes (nested ones included) that are not done and not
- *     soft-deleted (the "still to do" count — DONE tasks don't count).
- *   - notes / daily: live (non-soft-deleted) item counts.
- */
-export function computeMaterialsCounts({
-  nodes,
-  notes,
-  dailies,
-}: MaterialsCountsInput): MaterialsCounts {
-  return {
-    tasks: nodes.filter(
-      (n) => n.type === "task" && !n.isDeleted && n.status !== "DONE",
-    ).length,
-    notes: notes.filter((n) => !n.isDeleted).length,
-    daily: dailies.filter((d) => !d.isDeleted).length,
-  };
-}

@@ -18,6 +18,32 @@ export function pgrstQuoteValue(value: string): string {
 }
 
 /**
+ * PostgREST embed clause for the `items_meta -> <role>_payload` 1:1 join
+ * used by the badge COUNT reads (#511). Returns e.g.
+ * `notes_payload!notes_payload_item_id_fkey!inner(item_id)`.
+ *
+ * Two things this expresses, both load-bearing:
+ *
+ *   - `!inner` makes it an INNER JOIN, so an items_meta row whose payload
+ *     row is missing (an R2 orphan — see SupabaseTasksService's header)
+ *     is NOT counted. The list reads skip those rows too (`if (!payload)
+ *     continue`), so the badge keeps matching what the surface shows.
+ *
+ *   - `!<fkConstraint>` disambiguates the join. tasks_payload and
+ *     notes_payload each reference items_meta TWICE (`item_id` and the
+ *     composite parent FK from 0009 / 0014); without the hint PostgREST
+ *     rejects the embed as ambiguous. dailies_payload has a single FK and
+ *     needs no hint, but names it anyway so all three call sites read the
+ *     same and a future parent FK there cannot silently break the count.
+ */
+export function livePayloadInnerJoin(
+  payloadTable: string,
+  fkConstraint: string,
+): string {
+  return `${payloadTable}!${fkConstraint}!inner(item_id)`;
+}
+
+/**
  * Resolve the authenticated user id. Shared by SupabaseTasksService,
  * SupabaseRoutinesService, and SupabaseScheduleItemsService — every
  * write path that needs the caller's uid passes its client here rather

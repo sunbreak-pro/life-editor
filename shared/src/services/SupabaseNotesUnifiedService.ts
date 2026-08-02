@@ -15,7 +15,10 @@ import {
 import type { NoteNode } from "../types/note";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
-import { pgrstQuoteValue } from "./supabaseServiceHelpers";
+import {
+  livePayloadInnerJoin,
+  pgrstQuoteValue,
+} from "./supabaseServiceHelpers";
 
 /*
  * SupabaseNotesUnifiedService (DU-D Step 2).
@@ -100,6 +103,35 @@ export class SupabaseNotesUnifiedService {
       out.push(rowsToNoteNodeLite(meta, payload));
     }
     return out;
+  }
+
+  /**
+   * Count live notes without pulling a single row (#511). Same shape and
+   * rationale as SupabaseTasksService.countUnfinishedTasks — see that
+   * method for why `head: true` and the `!inner` join are used.
+   *
+   * Notes-specific clause: `note_type IS NULL OR <> 'folder'` mirrors
+   * listNotesUnified's isLegacyNoteFolderRow skip (#375). The NULL leg is
+   * mandatory — a bare `neq` would drop plain legacy notes whose
+   * note_type was never set, undercounting the badge.
+   */
+  async countLiveNotes(): Promise<number> {
+    const { count, error } = await this.client
+      .from("items_meta")
+      .select(
+        `id, ${livePayloadInnerJoin(
+          "notes_payload",
+          "notes_payload_item_id_fkey",
+        )}`,
+        { count: "exact", head: true },
+      )
+      .eq("role", "note")
+      .eq("is_deleted", false)
+      .or("note_type.is.null,note_type.neq.folder", {
+        referencedTable: "notes_payload",
+      });
+    if (error) throw new Error(`countLiveNotes failed: ${error.message}`);
+    return count ?? 0;
   }
 
   async getNoteUnified(id: string): Promise<NoteNode | null> {
@@ -792,6 +824,7 @@ export class SupabaseNotesUnifiedService {
 
 export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "listNotesUnified",
+  "countLiveNotes",
   "getNoteUnified",
   "createNoteUnified",
   "updateNoteUnified",

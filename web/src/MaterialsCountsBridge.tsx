@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   useSyncDomains,
-  computeMaterialsCounts,
   type DataService,
   type MaterialsCounts,
-  type TaskNode,
-  type NoteNode,
-  type DailyNode,
 } from "@life-editor/shared";
 
 /*
@@ -16,17 +12,22 @@ import {
  * numbers for ALL surfaces at once, but each surface's Provider is mounted
  * per-tab inside the section body — so the shell can't read the counts from
  * context (they only exist while that tab is active). This tiny child sits
- * inside SyncProvider, fetches the lists directly via the injected DataService
- * (hosts may — CLAUDE.md §6.4), derives the counts with the pure shared
- * helper, and reports them up to MainScreen. Renders nothing (like
- * GlobalShortcuts / AudioChimeBridge).
+ * inside SyncProvider, asks the injected DataService for the three counts
+ * (hosts may — CLAUDE.md §6.4), and reports them up to MainScreen. Renders
+ * nothing (like GlobalShortcuts / AudioChimeBridge).
  *
  * #499 — one effect per domain, not one effect for all three. This bridge is
  * mounted app-wide, so a single combined effect made it the last thing turning
  * every note keystroke into a task + note + daily re-pull: exactly the
- * cross-role traffic the domain split removes everywhere else. Each list now
- * refetches only when its own domain moves, and the last-known lists live in
- * refs so the counts stay whole across a partial refresh.
+ * cross-role traffic the domain split removes everywhere else. Each count now
+ * refetches only when its own domain moves, and the last-known numbers live in
+ * refs so the badges stay whole across a partial refresh.
+ *
+ * #511 — count reads, not list reads. Each domain used to pull its whole
+ * collection (every column of every row) so the bridge could call `.length`
+ * on it; now the DataService returns just the number and the row bodies never
+ * cross the wire. The counting rules moved with it — see
+ * shared/src/materials/materialsCounts.ts for what each number means.
  */
 export function MaterialsCountsBridge({
   dataService: ds,
@@ -39,35 +40,27 @@ export function MaterialsCountsBridge({
   const notesVersion = useSyncDomains("notes");
   const dailiesVersion = useSyncDomains("dailies");
 
-  const nodesRef = useRef<readonly TaskNode[]>([]);
-  const notesRef = useRef<readonly NoteNode[]>([]);
-  const dailiesRef = useRef<readonly DailyNode[]>([]);
-  // Which lists have arrived at least once. Publishing before all three have
+  const countsRef = useRef<MaterialsCounts>({ tasks: 0, notes: 0, daily: 0 });
+  // Which counts have arrived at least once. Publishing before all three have
   // landed would flash a real badge next to two zeros that only mean "not
   // fetched yet" — worse than showing no badges for another moment.
-  const arrivedRef = useRef({ tasks: false, notes: false, dailies: false });
+  const arrivedRef = useRef({ tasks: false, notes: false, daily: false });
 
   const report = useCallback(() => {
     const arrived = arrivedRef.current;
-    if (!arrived.tasks || !arrived.notes || !arrived.dailies) return;
-    onCounts(
-      computeMaterialsCounts({
-        nodes: nodesRef.current,
-        notes: notesRef.current,
-        dailies: dailiesRef.current,
-      }),
-    );
+    if (!arrived.tasks || !arrived.notes || !arrived.daily) return;
+    onCounts({ ...countsRef.current });
   }, [onCounts]);
 
   useEffect(() => {
     let cancelled = false;
-    // A failed refetch keeps the last known list (transient network / Realtime
+    // A failed refetch keeps the last known count (transient network / Realtime
     // blip) rather than flashing that badge back to zero.
     void ds
-      .fetchTaskTree()
-      .then((nodes) => {
+      .countUnfinishedTasks()
+      .then((count) => {
         if (cancelled) return;
-        nodesRef.current = nodes;
+        countsRef.current.tasks = count;
         arrivedRef.current.tasks = true;
         report();
       })
@@ -80,10 +73,10 @@ export function MaterialsCountsBridge({
   useEffect(() => {
     let cancelled = false;
     void ds
-      .listNotesUnified()
-      .then((notes) => {
+      .countLiveNotes()
+      .then((count) => {
         if (cancelled) return;
-        notesRef.current = notes;
+        countsRef.current.notes = count;
         arrivedRef.current.notes = true;
         report();
       })
@@ -96,11 +89,11 @@ export function MaterialsCountsBridge({
   useEffect(() => {
     let cancelled = false;
     void ds
-      .listDailiesUnified()
-      .then((dailies) => {
+      .countLiveDailies()
+      .then((count) => {
         if (cancelled) return;
-        dailiesRef.current = dailies;
-        arrivedRef.current.dailies = true;
+        countsRef.current.daily = count;
+        arrivedRef.current.daily = true;
         report();
       })
       .catch(() => undefined);

@@ -17,7 +17,10 @@ import {
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
-import { getAuthedUserId } from "./supabaseServiceHelpers";
+import {
+  getAuthedUserId,
+  livePayloadInnerJoin,
+} from "./supabaseServiceHelpers";
 
 /*
  * Tasks domain (DU-B-3). Full 9-method rewrite over the items_meta
@@ -137,6 +140,56 @@ export class SupabaseTasksService {
       out.push(rowsToTaskNode(m, p));
     }
     return out;
+  }
+
+  /**
+   * Count live, unfinished tasks without pulling a single row (#511).
+   *
+   * The Materials/Todo badge only ever needed a number, but it used to
+   * ride on fetchTaskTree() — two paginated SELECTs carrying every column
+   * of every task, re-run on each tasks-domain bump. `count: 'exact'` +
+   * `head: true` asks PostgREST for the Content-Range header alone, so
+   * the response has no body.
+   *
+   * The predicate reproduces the old in-app derivation clause for clause
+   * (badge meaning: materials/materialsCounts.ts):
+   *
+   *   - role='task' + is_deleted=false — live tasks (what fetchTaskTree
+   *     filters on, and what the old `!n.isDeleted` re-checked).
+   *   - INNER JOIN on tasks_payload — drops R2 orphans, matching
+   *     fetchTaskTree's `if (!p) continue`.
+   *   - task_type IS NULL OR <> 'folder' — S3 legacy folder rows
+   *     (isLegacyFolderRow). The NULL leg is required: a bare `neq` in
+   *     PostgREST also drops NULL rows, which would silently hide every
+   *     plain legacy task — the exact trap fetchTaskTree's comment warns
+   *     about for the query-side filter.
+   *   - status IS NULL OR <> 'DONE' — "still to do". Same NULL trap:
+   *     toStatus(null) is undefined, and `undefined !== "DONE"` counted.
+   *
+   * The old `n.type === "task"` clause has no counterpart on purpose: it
+   * could never be false, because toNodeType coerces legacy 'folder' to
+   * "task" and the folder rows are already excluded above.
+   */
+  async countUnfinishedTasks(): Promise<number> {
+    const { count, error } = await this.client
+      .from("items_meta")
+      .select(
+        `id, ${livePayloadInnerJoin(
+          "tasks_payload",
+          "tasks_payload_item_id_fkey",
+        )}`,
+        { count: "exact", head: true },
+      )
+      .eq("role", "task")
+      .eq("is_deleted", false)
+      .or("task_type.is.null,task_type.neq.folder", {
+        referencedTable: "tasks_payload",
+      })
+      .or("status.is.null,status.neq.DONE", {
+        referencedTable: "tasks_payload",
+      });
+    if (error) throw new Error(`countUnfinishedTasks failed: ${error.message}`);
+    return count ?? 0;
   }
 
   /**
@@ -394,6 +447,7 @@ export class SupabaseTasksService {
 
 export const PHASE2_TASKS_METHODS = new Set<string>([
   "fetchTaskTree",
+  "countUnfinishedTasks",
   "fetchDeletedTasks",
   "createTask",
   "updateTask",
