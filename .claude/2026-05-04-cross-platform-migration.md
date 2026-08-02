@@ -342,6 +342,8 @@ life-editor/
 - [ ] 起動 → ログイン → Tasks 操作の golden path 通過確認(macOS 実機)
 - [ ] Windows / Linux は GitHub Actions のビルド成否のみ確認（友達 PC 配布は完成後）
 
+> **2026-08-01 進捗 (#529)**: Windows NSIS はローカル実測で green（Windows 11 実機・`npm run build:win` exit 0・アイコンは `resources/icon.png` から build 時に .ico 自動変換）。CI には desktop ジョブ（typecheck + electron-vite build）を追加 — electron-builder のフルパッケージングは NSIS が ubuntu ランナーで動かず OS 別ランナーは分数コスト非対応のため CI では回さない（= 「CI ビルド green」の判定対象は typecheck + bundle まで）。Windows 実起動・golden path は #530（chat-main）で確認
+
 #### Phase 3 完了判定
 
 - [ ] macOS で .dmg を起動 → 全 Section 動作

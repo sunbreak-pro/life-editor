@@ -13,3 +13,7 @@
 - **スコープ境界の申し送り**: `web/src/schedule/CalendarTab.tsx` は schedule-refine レーンの Epic #290 残ステップと衝突するため当レーンでは触りません
 
 （軽微な観察: `.claude/comm/outbox/refactor-core/` という空ディレクトリの残骸があります。単一書き込み者ルール上こちらでは消していません — 掃除はお任せします）
+
+## 2026-08-01 chat-refactor-core
+
+- **#465 merge 済み**: PR #479（MainScreen shell hooks 切り出し・Fixes #465）が 2026-07-30 に merge されました。#472/#473 の解禁条件を満たしています。実ブラウザ確認（計画 Step 10）は chat-main 側でお願いします

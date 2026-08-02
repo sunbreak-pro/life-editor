@@ -39,7 +39,23 @@ npm run dev          # electron-vite dev (launches Electron + dev server)
 npm run build        # electron-vite build (bundles main/preload/renderer)
 npm run dist         # build + electron-builder (creates installers in release/)
 npm run build:mac    # macOS arm64 + x64 .dmg (unsigned)
+npm run build:win    # Windows x64 NSIS installer (unsigned)
 ```
+
+## Windows build
+
+```bash
+cd desktop
+npm install
+npm run build:win    # -> release/Life Editor Setup <version>.exe
+```
+
+- The app icon is generated from `resources/icon.png` at build time
+  (electron-builder converts it to a multi-size `.ico`; no `.ico` is committed).
+- **SmartScreen**: the installer is unsigned ($0 policy), so Windows shows
+  "Windows protected your PC" on first run. Click "More info" -> "Run anyway".
+  This stays until a code-signing cert is purchased (post-completion call,
+  see migration SSOT §8).
 
 ## Constraints (Risk 1 — keep the shell thin)
 
