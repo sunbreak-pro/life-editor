@@ -27,6 +27,19 @@ export interface KanbanColumnProps {
   labels: KanbanLabels;
   /** Show tag chips on cards (status view). */
   showTags?: boolean;
+  /**
+   * Fill the parent track instead of the fixed 316px strip width (#565). The
+   * tag view lays its columns out on a 3-track grid whose available width is
+   * whatever the section gives it, so the column must shrink with the track.
+   * The status view keeps the fixed-width scroll strip.
+   *
+   * `min-w-0` is belt-and-braces here: a grid item's automatic minimum size
+   * (`min-width: auto`) is already neutralised by this element's own
+   * `overflow-hidden`, so today it changes nothing. It is kept so that removing
+   * `overflow-hidden` later cannot silently let a long tag name push the track
+   * wider than its share.
+   */
+  fluidWidth?: boolean;
   onSelectCard: (id: string) => void;
   /** Set this column's color (tag columns). The host maps the column id back
    *  to a tag and persists. null = clear. */
@@ -47,6 +60,7 @@ export function KanbanColumn({
   column,
   labels,
   showTags = false,
+  fluidWidth = false,
   onSelectCard,
   onColorChange,
   dnd,
@@ -67,7 +81,8 @@ export function KanbanColumn({
       aria-label={column.title}
       style={sectionStyle}
       className={cn(
-        "flex max-h-[560px] w-[316px] shrink-0 flex-col overflow-hidden",
+        "flex max-h-[560px] flex-col overflow-hidden",
+        fluidWidth ? "w-full min-w-0" : "w-[316px] shrink-0",
         "rounded-2xl border bg-lumen-bg shadow-lumen-md transition-[box-shadow,border-color]",
         // Highlight the drop target while a card hovers over it. Ring +
         // accent border only (bg stays opaque — §6.4).
@@ -111,7 +126,10 @@ export function KanbanColumn({
             <span
               aria-label={labels.countAriaLabel(column.cards.length)}
               className={cn(
-                "min-w-6 rounded-full px-2 py-0.5 text-center text-xs font-bold",
+                // shrink-0: on a narrow tag-view track the title takes the
+                // slack (it truncates); the count must keep its pill width or
+                // the number spills out of it.
+                "min-w-6 shrink-0 rounded-full px-2 py-0.5 text-center text-xs font-bold",
                 "bg-lumen-bg text-lumen-accent",
               )}
             >

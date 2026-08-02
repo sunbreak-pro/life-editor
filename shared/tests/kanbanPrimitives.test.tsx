@@ -120,4 +120,20 @@ describe("KanbanColumn (Materials Step 2)", () => {
     // countAriaLabel("2 tasks") is the accessible name of the count badge.
     expect(screen.getByLabelText("2 tasks")).toHaveTextContent("2");
   });
+
+  it("keeps the fixed 316px strip width when fluidWidth is not passed (#565)", () => {
+    // The default matters on its own: every caller except the tag-view board
+    // omits the flag, so a flipped default would silently reflow the status
+    // strip and the DnD droppable columns.
+    render(
+      <KanbanColumn
+        column={makeColumn()}
+        labels={LABELS}
+        onSelectCard={() => {}}
+      />,
+    );
+    const column = screen.getByRole("listitem");
+    expect(column).toHaveClass("w-[316px]", "shrink-0");
+    expect(column.className).not.toContain("w-full");
+  });
 });

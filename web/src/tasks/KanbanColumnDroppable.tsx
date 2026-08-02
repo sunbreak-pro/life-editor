@@ -21,12 +21,15 @@ export function KanbanColumnDroppable({
   column,
   labels,
   showTags,
+  fluidWidth,
   onSelectCard,
   onColorChange,
 }: {
   column: KanbanColumnModel;
   labels: KanbanLabels;
   showTags: boolean;
+  /** Layout flag decided by the board (grid track vs fixed strip) — #565. */
+  fluidWidth?: boolean;
   onSelectCard: (id: string) => void;
   onColorChange?: (columnId: string, color: string | null) => void;
 }): React.JSX.Element {
@@ -39,6 +42,7 @@ export function KanbanColumnDroppable({
         column={column}
         labels={labels}
         showTags={showTags}
+        fluidWidth={fluidWidth}
         onSelectCard={onSelectCard}
         onColorChange={onColorChange}
         dnd={{ setNodeRef, isOver }}

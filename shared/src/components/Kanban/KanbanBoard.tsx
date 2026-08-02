@@ -44,13 +44,16 @@ export interface KanbanBoardProps {
   /**
    * Optional column renderer override. The host uses this to wrap each column
    * in its own @dnd-kit droppable host component (so the shared package never
-   * imports @dnd-kit). `showTags` is threaded through so the host can forward
-   * it to the shared KanbanColumn. When omitted, the board renders the plain
-   * (non-DnD) KanbanColumn itself — used by read-only views (e.g. the tag view).
+   * imports @dnd-kit). `showTags` and `fluidWidth` are threaded through so the
+   * host can forward them to the shared KanbanColumn — the board stays the one
+   * place that decides the layout of each view. When omitted, the board renders
+   * the plain (non-DnD) KanbanColumn itself — used by read-only views (e.g. the
+   * tag view).
    */
   renderColumn?: (args: {
     column: KanbanColumnModel;
     showTags: boolean;
+    fluidWidth: boolean;
   }) => React.ReactNode;
   /**
    * Optional slot rendered after the board strip — the host places its
@@ -149,14 +152,24 @@ export function KanbanBoard({
           the scroll; the inner row is `w-fit mx-auto` so the columns center
           when they fit and stay flush-left, no clipping, when they overflow and
           scroll — `justify-center` alone would clip the left edge on overflow).
-          Tag view (#303) — wrap at most 3 columns: max-w = 3×316px + 2×gap(16)
-          = 980px caps a row at three, and flex-wrap drops it to 2 / 1 as the
-          clamped board narrows. The board scrolls vertically here, not
-          horizontally. */}
+          Tag view (#303, reworked in #565) — a fixed 3-track grid that fills
+          the section: repeat(3, minmax(220px, 1fr)) shares whatever width the
+          host gives the board between three columns, and a 4th tag wraps onto
+          the next row. The old approach (fixed 316px columns capped by
+          max-w-[980px] + flex-wrap) only fit 3 where the section was at least
+          980px wide, and fell back to 2 with a wide gutter on the narrower
+          Schedule → Todo host. Column width no longer depends on the tag names
+          (the header truncates), so the board width is stable.
+          The 220px floor is the narrowest a column can be without clipping its
+          own header: the ColorPicker's 6-swatch preset grid is 192px (6×24px +
+          5×6px gap + 2×8px panel padding) and the header adds px-3.5 (2×14px).
+          Below that the grid stops shrinking and the wrapper scrolls sideways
+          (overflow-auto) instead of cutting the panel off — reachable at a
+          1280px window with the nav expanded and the right sidebar open. */}
       <div
         className={cn(
           "flex-1 px-1 pb-4",
-          isTagView ? "overflow-y-auto" : "overflow-x-auto",
+          isTagView ? "overflow-auto" : "overflow-x-auto",
         )}
       >
         <div
@@ -165,14 +178,14 @@ export function KanbanBoard({
           className={cn(
             "mx-auto gap-4",
             isTagView
-              ? "flex max-w-[980px] flex-wrap items-start"
+              ? "grid w-full items-start [grid-template-columns:repeat(3,minmax(220px,1fr))]"
               : "flex h-full w-fit max-w-full",
           )}
         >
           {columns.map((column) =>
             renderColumn ? (
               <Fragment key={column.id}>
-                {renderColumn({ column, showTags })}
+                {renderColumn({ column, showTags, fluidWidth: isTagView })}
               </Fragment>
             ) : (
               <KanbanColumn
@@ -180,6 +193,7 @@ export function KanbanBoard({
                 column={column}
                 labels={labels}
                 showTags={showTags}
+                fluidWidth={isTagView}
                 onSelectCard={onSelectCard}
                 onColorChange={onColorChange}
               />
