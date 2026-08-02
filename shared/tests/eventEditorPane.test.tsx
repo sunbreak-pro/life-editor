@@ -59,8 +59,7 @@ function renderPane(
 ) {
   const fns = {
     onCommitTitle: vi.fn(),
-    onChangeStart: vi.fn(),
-    onChangeEnd: vi.fn(),
+    onChangeTimes: vi.fn(),
     onToggleComplete: vi.fn(),
     onChangeMemo: vi.fn(),
     onDismiss: vi.fn(),
@@ -102,24 +101,31 @@ describe("EventEditorPane — commit-on-blur", () => {
     expect(onCommitTitle).not.toHaveBeenCalled();
   });
 
-  it("commits start/end times on blur, not per keystroke (#279 scope dialog spam)", () => {
-    const { onChangeStart, onChangeEnd } = renderPane(manualItem);
+  it("commits a complete time pair on blur, not per keystroke (#279 / #553)", () => {
+    const { onChangeTimes } = renderPane(manualItem);
     const start = screen.getByLabelText("Start");
     fireEvent.change(start, { target: { value: "20:00" } });
-    expect(onChangeStart).not.toHaveBeenCalled();
+    expect(onChangeTimes).not.toHaveBeenCalled();
     fireEvent.blur(start);
-    expect(onChangeStart).toHaveBeenCalledWith("m1", "20:00");
+    // ONE write carrying both ends — a routine's scope dialog must fire once.
+    expect(onChangeTimes).toHaveBeenCalledWith("m1", {
+      startTime: "20:00",
+      endTime: "20:30",
+    });
 
     const end = screen.getByLabelText("End");
     fireEvent.change(end, { target: { value: "21:00" } });
     fireEvent.blur(end);
-    expect(onChangeEnd).toHaveBeenCalledWith("m1", "21:00");
+    expect(onChangeTimes).toHaveBeenCalledWith("m1", {
+      startTime: "19:00",
+      endTime: "21:00",
+    });
   });
 
   it("does not commit an unchanged time on blur", () => {
-    const { onChangeStart } = renderPane(manualItem);
+    const { onChangeTimes } = renderPane(manualItem);
     fireEvent.blur(screen.getByLabelText("Start"));
-    expect(onChangeStart).not.toHaveBeenCalled();
+    expect(onChangeTimes).not.toHaveBeenCalled();
   });
 });
 
@@ -160,8 +166,7 @@ describe("EventEditorPane — date + all-day (#469)", () => {
         item={manualItem}
         labels={LABELS}
         onCommitTitle={vi.fn()}
-        onChangeStart={vi.fn()}
-        onChangeEnd={vi.fn()}
+        onChangeTimes={vi.fn()}
         onToggleComplete={vi.fn()}
         onChangeMemo={vi.fn()}
         onChangeDate={onChangeDate}
@@ -177,17 +182,16 @@ describe("EventEditorPane — date + all-day (#469)", () => {
     expect(onChangeDate).toHaveBeenCalledWith("m1", "2026-08-03");
   });
 
-  it("reseeds the time drafts when all-day flips (host rewrites the times)", () => {
-    // An all-day row can carry no times at all. The drafts are seeded from
-    // props, so without the remount they would stay empty while the grid draws
-    // the row at the host's fallback span.
+  it("shows the host-rewritten times when all-day flips (#553 reads props)", () => {
+    // An all-day row can carry no times at all; turning it off has the host
+    // write a usable span, and the TimeRangeField renders whatever the props
+    // say (no local time drafts since #553).
     const { rerender } = render(
       <EventEditorPane
         item={{ ...manualItem, isAllDay: true, startTime: "", endTime: "" }}
         labels={LABELS}
         onCommitTitle={vi.fn()}
-        onChangeStart={vi.fn()}
-        onChangeEnd={vi.fn()}
+        onChangeTimes={vi.fn()}
         onToggleComplete={vi.fn()}
         onChangeMemo={vi.fn()}
         onToggleAllDay={vi.fn()}
@@ -204,8 +208,7 @@ describe("EventEditorPane — date + all-day (#469)", () => {
         }}
         labels={LABELS}
         onCommitTitle={vi.fn()}
-        onChangeStart={vi.fn()}
-        onChangeEnd={vi.fn()}
+        onChangeTimes={vi.fn()}
         onToggleComplete={vi.fn()}
         onChangeMemo={vi.fn()}
         onToggleAllDay={vi.fn()}

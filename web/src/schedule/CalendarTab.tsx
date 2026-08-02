@@ -1339,6 +1339,20 @@ export function CalendarTab({
     [selected, selectableCalendars, allAssignments],
   );
 
+  // #553: duration suffix on the TimeRangeField's end options ("10:30
+  // (1時間30分)"). Hour/minute composition happens here so the words stay in
+  // the catalogs — the shared field never builds copy.
+  const formatDuration = useCallback(
+    (minutes: number) => {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      if (h === 0) return t("scheduleScreen.durationMin", { m });
+      if (m === 0) return t("scheduleScreen.durationHour", { h });
+      return t("scheduleScreen.durationHourMin", { h, m });
+    },
+    [t],
+  );
+
   const statusLabels = useMemo<Record<ScheduleStatus, string>>(
     () => ({
       notStarted: t("scheduleScreen.statusNotStarted"),
@@ -1422,8 +1436,10 @@ export function CalendarTab({
       onCommitTitle={(id, title) => handleUpdate(id, { title })}
       onChangeDate={handleChangeDate}
       onToggleAllDay={handleToggleAllDay}
-      onChangeStart={(id, value) => handleUpdate(id, { startTime: value })}
-      onChangeEnd={(id, value) => handleUpdate(id, { endTime: value })}
+      // #553: one patch per gesture — the TimeRangeField may move both ends
+      // at once, and two writes would ask a routine's scope dialog twice.
+      onChangeTimes={(id, patch) => handleUpdate(id, patch)}
+      formatDuration={formatDuration}
       onToggleComplete={handleToggle}
       onChangeMemo={(id, memo) => handleUpdate(id, { memo })}
       onDismiss={handleDismiss}
@@ -1861,6 +1877,7 @@ export function CalendarTab({
           onSubmitEventAndOpen={handleCreateSubmitAndOpen}
           onCreateTask={handleCreateTaskSubmit}
           onPlaceTask={handlePlaceTaskSubmit}
+          formatDuration={formatDuration}
           labels={createPanelLabels}
         />
       )}
@@ -2103,6 +2120,7 @@ export function CalendarTab({
         onSubmitEventAndOpen={handleCreateSubmitAndOpen}
         onCreateTask={handleCreateTaskSubmit}
         onPlaceTask={handlePlaceTaskSubmit}
+        formatDuration={formatDuration}
         labels={createPanelLabels}
       />
 
