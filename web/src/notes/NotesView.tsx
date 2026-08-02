@@ -548,7 +548,15 @@ export function NotesView({
           }}
         />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-4">
+        /*
+         * #509: the scroller's own bottom padding IS the FAB clearance — the
+         * button floats over this box (48px tall at a 20px offset = 68px of
+         * occluded strip), so anything less lets the last row's right end sit
+         * under it and a "open this note" tap creates a new one instead.
+         * pb-24 (96px) is the same clearance the Schedule mobile list uses
+         * under its own FAB (#467); keep new FABs on that number.
+         */
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-24">
           {visibleGroups.map((group) => {
             const key = groupKey(group);
             const collapsed = collapsedGroups.has(key);
