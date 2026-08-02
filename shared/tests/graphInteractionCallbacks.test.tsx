@@ -42,10 +42,12 @@ function buildQuadtree(): Quadtree<GraphNode> {
 /** GraphCanvas in miniature: local selection + the same inline toggle closure. */
 function ToggleHarness({
   onSelected,
+  onActivate,
   onZoom,
   onApi,
 }: {
   onSelected: (id: string | null) => void;
+  onActivate?: (id: string) => void;
   onZoom?: (k: number) => void;
   onApi?: (api: { resetView: () => void }) => void;
 }) {
@@ -73,6 +75,7 @@ function ToggleHarness({
       setSelectedId(next);
       onSelected(next);
     },
+    onActivate,
     onZoom,
   });
   onApi?.({ resetView });
@@ -86,6 +89,19 @@ function clickCanvas(canvas: HTMLElement) {
       new MouseEvent("click", {
         clientX: 0,
         clientY: 0,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+}
+
+function dblClickCanvas(canvas: HTMLElement, x = 0, y = 0) {
+  act(() => {
+    canvas.dispatchEvent(
+      new MouseEvent("dblclick", {
+        clientX: x,
+        clientY: y,
         bubbles: true,
         cancelable: true,
       }),
@@ -140,5 +156,36 @@ describe("useGraphInteraction callbacks", () => {
 
     expect(second).toHaveBeenCalled();
     expect(first).not.toHaveBeenCalled();
+  });
+
+  it("routes a double-click on a node to onActivate (#543)", () => {
+    // `call(zoomBehavior)` puts d3's own dblclick handler on the canvas first,
+    // and it ends in stopImmediatePropagation() — so the hook's own dblclick
+    // listener, registered later on the same element, never ran and this count
+    // was 0. The hook now drops `dblclick.zoom`, trading d3's default zoom-in
+    // for the "open" gesture (D-20260801-sched-2 = A).
+    const onActivate = vi.fn();
+    const { getByTestId } = render(
+      <ToggleHarness onSelected={() => {}} onActivate={onActivate} />,
+    );
+    const canvas = getByTestId("graph-canvas");
+
+    dblClickCanvas(canvas);
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onActivate).toHaveBeenCalledWith("n1");
+  });
+
+  it("leaves onActivate alone when the double-click misses every node", () => {
+    // Far outside the quadtree search radius, so "open" stays a node gesture
+    // and double-clicking the background does nothing.
+    const onActivate = vi.fn();
+    const { getByTestId } = render(
+      <ToggleHarness onSelected={() => {}} onActivate={onActivate} />,
+    );
+
+    dblClickCanvas(getByTestId("graph-canvas"), 500, 500);
+
+    expect(onActivate).not.toHaveBeenCalled();
   });
 });
