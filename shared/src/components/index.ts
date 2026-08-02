@@ -94,6 +94,9 @@ export {
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
 export { NavItem, type NavItemProps, type NavItemTone } from "./NavItem";
+// Live Work-row timer line (#550) — a TimerContext bridge the host injects as
+// the Work section's `sublabel` (renders nothing while the timer is idle).
+export { NavTimerStatus } from "./NavTimerStatus";
 export {
   SidebarNav,
   type SidebarNavProps,

@@ -135,3 +135,34 @@ describe("SidebarNav tag editor entry (#409)", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+/*
+ * #550 — the optional per-section sublabel line (the Work row's live timer).
+ * The line renders under the label inside the same nav row, truncated so a
+ * long task title cannot widen the sidebar, and disappears entirely in the
+ * collapsed (icon-only) rail.
+ */
+describe("SidebarNav section sublabel (#550)", () => {
+  const WITH_SUBLABEL: SidebarNavSection[] = [
+    ...SECTIONS,
+    { id: "work", label: "Work", icon: <Dot />, sublabel: "24:31 · My task" },
+  ];
+
+  it("renders the sublabel line inside the section's row", () => {
+    renderSidebar({ sections: WITH_SUBLABEL });
+    const status = screen.getByText("24:31 · My task");
+    const row = screen.getByRole("button", { name: "Work" });
+    expect(row).toContainElement(status);
+  });
+
+  it("leaves sections without a sublabel unchanged", () => {
+    renderSidebar({ sections: WITH_SUBLABEL });
+    const schedule = screen.getByRole("button", { name: "Schedule" });
+    expect(schedule.textContent).toBe("•Schedule");
+  });
+
+  it("hides the sublabel in the collapsed icon-only rail", () => {
+    renderSidebar({ sections: WITH_SUBLABEL, collapsed: true });
+    expect(screen.queryByText("24:31 · My task")).not.toBeInTheDocument();
+  });
+});
