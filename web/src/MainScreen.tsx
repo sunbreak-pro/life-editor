@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentProps,
   type ReactNode,
 } from "react";
 import {
@@ -38,6 +39,7 @@ import {
   useTranslation,
   type BriefingTab,
   type AnalyticsTab,
+  type DataService,
   type SectionId,
   type Session,
 } from "@life-editor/shared";
@@ -185,16 +187,6 @@ export function MainScreen({ session }: { session: Session }) {
     shellLabels,
   } = useShellChrome({ setSection, setMaterialsTab, setScheduleTab });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // Cross-item search half of the palette (#503) — makes the header field's
-  // "search or run a command" promise true. It reads nothing until a non-empty
-  // query is typed, so opening the palette to jump sections still costs zero
-  // queries (#430's lazy rule).
-  const { results: paletteItemResults, handleQueryChange: onPaletteQuery } =
-    usePaletteItemSearch({
-      dataService: ds,
-      isOpen: paletteOpen,
-      onOpenItem: navigateToItem,
-    });
   // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
   // the tag master is reachable from every section — the panel itself is
   // mount-on-open (TagEditorHost) and fetches nothing while closed.
@@ -693,14 +685,14 @@ export function MainScreen({ session }: { session: Session }) {
                    * section switch (so Cmd+K works from any section). Copy is
                    * injected as props — the primitive never calls useTranslation.
                    */}
-                  <CommandPalette
+                  <PaletteWithItemSearch
                     isOpen={paletteOpen}
                     onClose={() => setPaletteOpen(false)}
                     commands={commands}
                     placeholder={t("commandPalette.placeholder")}
                     noResultsLabel={t("commandPalette.noResults")}
-                    externalResults={paletteItemResults}
-                    onQueryChange={onPaletteQuery}
+                    dataService={ds}
+                    onOpenItem={navigateToItem}
                   />
 
                   {/*
@@ -722,5 +714,40 @@ export function MainScreen({ session }: { session: Session }) {
         </UndoRedoHost>
       </SyncProvider>
     </ToastProvider>
+  );
+}
+
+/*
+ * CommandPalette and its cross-item search (#503) mounted as one child. The
+ * search hook (usePaletteItemSearch → useSyncDomains) reads SyncContext, and
+ * MainScreen's own body runs OUTSIDE the SyncProvider MainScreen renders —
+ * calling the hook there crashed every post-login mount (#548). Fusing hook
+ * and palette into a child mounted inside the Provider makes the constraint
+ * structural instead of remembered.
+ */
+function PaletteWithItemSearch({
+  dataService,
+  onOpenItem,
+  ...palette
+}: Omit<
+  ComponentProps<typeof CommandPalette>,
+  "externalResults" | "onQueryChange"
+> & {
+  dataService: DataService | undefined;
+  onOpenItem: (target: { id: string; role: string; date?: string }) => void;
+}) {
+  // Lazy stays lazy (#430): nothing is fetched until a non-empty query is
+  // typed, so opening the palette to jump sections still costs zero queries.
+  const { results, handleQueryChange } = usePaletteItemSearch({
+    dataService,
+    isOpen: palette.isOpen,
+    onOpenItem,
+  });
+  return (
+    <CommandPalette
+      {...palette}
+      externalResults={results}
+      onQueryChange={handleQueryChange}
+    />
   );
 }
