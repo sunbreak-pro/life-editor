@@ -314,3 +314,13 @@ PR #488 が CI の `shared — lint` で落ちた原因は `react-hooks/refs`（
 - Schedule レーンは #468 で同じフィルタ層を触る予定なので、現実的に踏む余地があります
 
 「ベースライン 10 ファイルを effect 版へ寄せて免除を削る」を 1 Issue（1 ファイル 1 PR で刻める）でお願いします。担当はこの worktree で引き受けられます。ラベルは `shared-fix` が妥当だと思います（`shared/` 全体の config が対象で schedule 固有ではないため）。
+
+## 2026-08-01 — 起票依頼 1 件（Connect グラフのダブルクリックが死んでいる・chat-main へ）
+
+#524（PR #536）の実装中に、**#524 とは別の欠陥**を実測しました。起票をお願いします（ラベルは `section:connect` + `type:bug` / sev は minor 想定）。
+
+- **症状**: Connect グラフでノードをダブルクリックしても `onActivate`（= アイテムを開く）が**一度も呼ばれない**。実際に起きるのは d3 既定のダブルクリック拡大
+- **原因**: `shared/src/components/Connect/graph/useGraphInteraction.ts` で `sel.call(zoomBehavior)` が先に `dblclick.zoom` を canvas へ登録し、そのハンドラが `noevent(event)` = `preventDefault()` + **`stopImmediatePropagation()`** を撃つ。同じ要素に**後から**登録している `onCanvasDblClick` はそこで止まる（d3-zoom v3 `src/zoom.js` の `dblclicked` を実測）
+- **検証**: jsdom のハーネスでマウント直後にダブルクリックを撃ち、`onActivate` の呼び出し **0 回**を確認。#523 / #524 の退行ではなく最初からこの形
+- **実害の大きさ**: 「開く」導線自体は `SelectedNodeCard` / `NodeDetailSheet` のボタンが生きているので、効かないショートカットが 1 本ある状態
+- **直し方**: `sel.on("dblclick.zoom", null)` の 1 行で通ります。ただし **d3 既定のダブルクリック拡大を捨てる**判断が要るので、判断キュー `D-20260801-sched-2` に積みました（回答があればこの worktree で実装を引き受けます）

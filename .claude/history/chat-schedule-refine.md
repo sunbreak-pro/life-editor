@@ -1,5 +1,23 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-01 (2) - #520 移動時にグリッドのフィルタを外す / #524 グラフのコールバックを発火時に読む
+
+#### 概要
+
+独立した 2 件を別ブランチで実装し PR #533（#520）/ PR #536（#524）を提出した。tracker は D-20260801-main-1 に従い実装 PR に載せず、この docs PR に分けている。
+
+#### 変更点
+
+- **#520（PR #533・`web/src/schedule/CalendarTab.tsx`）**: パレットから予定を開くとき、日付と選択は書けているのにフィルタが行を落として「日付だけ飛んで何も無い」状態になっていた。Issue の 🛑 ゲートで確定した **A（移動時にレンズを外す）** を実装
+- **レンズだけでなく #466 の繰り返しフィルタも外した**（Issue 本文からの拡張）。パレットの候補は `fetchEvents()` = live な schedule_items 全部で**繰り返し由来のオカレンスを含む**（`SupabaseScheduleItemsService.ts:166`）ため、レンズだけ直すと繰り返し予定で #520 がそのまま再現する。到着時点では**どちらが隠すか判定できない**（渡ってくるのは id + date だけで、行の取得はアンカー移動が引き金）ので両方を無条件で外す
+- **合流点は 2 本に保つ**: `revealOnGrid()` =「移動して見せる」、`finishCreatePanel()` =「作って見せる」（#506 で作った既存の合流点・レンズのみ）。作成直後の行は繰り返し由来ではないので `repeatsHidden` は容疑者にならない。繰り返し一覧の「次回発生日へジャンプ」も `revealOnGrid()` へ合流（飛び先は定義上オカレンスなので #466 が ON なら**必ず**空の日に着地していた）
+- **`react-hooks/set-state-in-effect` は effect 内の最初の 1 件しか報告しない**（実測）。`revealOnGrid()` を呼び足したら報告位置がそこへ移り、`setSelectedId` 側の既存 disable が「未使用ディレクティブ」warning に化けた。ディレクティブは**最初に来る行**に置く
+- **#524（PR #536・`shared/src/components/Connect/graph/useGraphInteraction.ts`）**: リスナー登録 effect の deps が `size` だけなので、`GraphCanvas` が inline で作る `onSelect`（`selectedId` を閉じ込めてトグル判定する）が attach 時点で凍結し、`id === selectedId` が常に false だった。`onHover` / `onSelect` / `onActivate` / `onZoom` を latest-ref に載せ、**dep 無し effect** で更新（render 中の ref 書き込みは `react-hooks/refs` が error）。deps を増やす方向は不採用（ドラッグ中に window の pointer リスナーごと貼り直すため）
+- **#523 が壊したのではなく確定させた**: 旧 deps の `simRef.current` がグラフ再構築のたびに貼り直してクロージャを偶然更新していた（「たまに効く」）
+- **新規 `shared/tests/graphInteractionCallbacks.test.tsx` 2 件**: Issue は「canvas 経路は jsdom で検証不能」としていたが、不可能なのは**当たり判定の座標計算**の方で、`getBoundingClientRect()` が全部 0 なのは**使える座標系**（ノードを原点に置けば原点クリックが当たる）。このフックは 2D コンテキストを触らないので配線だけを pin できる。修正前のフックで両方 fail することを `git stash` で実測
+- **🔎 別バグを検出（未修正・起票依頼を outbox へ）**: **ノードのダブルクリックは `onActivate` を一度も呼んでいない**。`d3-zoom` の `dblclick.zoom` が `noevent()` = `stopImmediatePropagation()` を撃ち、同じ要素に**後から**登録した `onCanvasDblClick` が届かない。jsdom で呼び出し 0 回を実測。#523 / #524 の退行ではなく最初からで、開く導線自体は `SelectedNodeCard` / `NodeDetailSheet` のボタンが生きている。直すなら `sel.on("dblclick.zoom", null)` の 1 行だが d3 既定の拡大を捨てる判断が要るので D-20260801-sched-2 へ
+- **検証**: 両ブランチとも 7 ゲート全緑（#524 側は shared test **170 files 1417 pass**）。実ブラウザ確認は §7.4 どおり chat-main に残る
+
 ### 2026-08-01 - #467 Step 5-c Mobile を List+FAB に絞る + 繰り返し一覧の Mobile 導線
 
 #### 概要
@@ -17,6 +35,7 @@ Epic #290 Step 5-c と Epic #321 Phase 2（mobile-scope.md #5）を 1 本で実�
 - **Desktop は無変更**: 3 タブのまま・`onDelete` は wide で従来どおり・drawer close は `!isWide` ガードの内側（Desktop のパネルはグリッドの横に並ぶので、閉じるとユーザーが自分で開いたものを畳むことになる）
 - **docs 追随**: `mobile-scope.md` #4 / #5 / §5 Phase 2、`2026-07-14-schedule-redesign.md` の Step 5-c ✅ + **Step 6 も ✅**（#468 / PR #506 が 7/31 merge 済みなのに ⬜ のままだった）+ Status 行 + Worklog
 - **検証**: 7 ゲート全緑（shared lint 0 errors / build / test 166 files 1386 pass、web lint warning 0 / build / test 9 files 79 pass、docs-lint OK）。DDL ゼロ。`CalendarTab` 自体のレンダーテストは無し（shared から 40 以上の部品を取るためモックハーネスの新設が要る）。実ブラウザ / 実機確認は §7.4 どおり chat-main に残る
+
 ### 2026-08-01 - #508 BottomSheet にフォーカストラップと初期フォーカス（shared-fix `[all]`）
 
 #### 概要
