@@ -202,15 +202,16 @@ export function MainScreen({ session }: { session: Session }) {
   // Timer fires it through the ref on each phase completion.
   const chimeRef = useRef<(() => void) | null>(null);
 
-  // Content width (Issue #305 — every section/tab is unified to a centered
-  // ~1120px column, max-w-lumen-wide). The only thing that varies now is the
+  // Content width (Issue #305 — every section/tab is unified to one centered
+  // column, max-w-lumen-wide; the px lives in tokens.css and is deliberately
+  // not restated here). The only thing that varies now is the
   // SCROLL OWNERSHIP, so PageContainer still gets two variants (both clamped to
   // max-w-lumen-wide, see PageContainer.tsx):
   //   - "fluid": canvas/board surfaces that own their full-bleed h-full layout
   //     + self-scroll inside the clamped box (Connect graph, both Schedule tabs
   //     — calendar grid and the Kanban that moved here in #411 — plus Analytics
   //     whose shared view draws its own centered data column). Their internal
-  //     horizontal scroll (kanban board / week grid) stays inside the 1120px
+  //     horizontal scroll (kanban board / week grid) stays inside the clamped
   //     column — no page-level scroll.
   //   - "wide": every document surface — PageContainer owns the vertical scroll
   //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash).
