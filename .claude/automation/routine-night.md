@@ -1,5 +1,6 @@
 # Routine Night Prompt (Engineer Role)
 
+> ⚠️ **未稼働（Phase 2 改訂待ち）**: 本文は Mac 時代の Cloud Routine 前提のまま凍結。現行 Phase 1 の稼働分は `routine-digest.md` / `routine-night-safe.md`。改訂の前提と方向 = 親計画 `../docs/vision/plans/2026-07-28-loop-engineering-harness.md` §7（goals.md 全面改訂 + ループカタログ定着が先）。
 > 夜 22:00 JST 発火。本ファイルの本文（`## Prompt` 以下）を Cloud Routine の prompt として登録する。
 > 改訂時は `/schedule update <trig_id>` でクラウド側も同期する。
 

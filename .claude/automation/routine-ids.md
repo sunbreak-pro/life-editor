@@ -1,73 +1,61 @@
-# Cloud Routine ID Registry
+# Routine Registry（定期実行の登録台帳）
 
-> Anthropic Cloud Routine の `trig_<id>` 台帳。`/schedule` で登録 / 更新する際に参照。
-> 登録後、必ず本ファイルに追記すること（後から update できなくなるため）。
+> 何が・どの基盤で・いつ動くかの台帳。登録 / 変更 / 削除をしたら必ず本ファイルを更新すること。
+> 旧 Cloud Routine（`trig_` 台帳）は 2026-08-04 の Phase 1 改訂で退役（親計画 Non-goals）。旧内容は git 履歴を参照。
 
 ---
 
 ## Registered Routines
 
-| Name    | trig_id          | Schedule              | Prompt source                            | Status   | Registered  |
-| ------- | ---------------- | --------------------- | ---------------------------------------- | -------- | ----------- |
-| night   | `trig_PENDING`   | `0 22 * * *` JST      | `.claude/automation/routine-night.md`    | PENDING  | —           |
-| morning | `trig_PENDING`   | `0 6 * * *` JST       | `.claude/automation/routine-morning.md`  | DEFERRED | —           |
+| Routine    | 基盤                      | Schedule       | Task 名（予定）        | Status                           | Registered |
+| ---------- | ------------------------- | -------------- | ---------------------- | -------------------------------- | ---------- |
+| digest     | Windows Task Scheduler 案 | 毎日 06:03 JST | `LifeEditor-Digest`    | **PENDING**（D-20260804-main-1） | —          |
+| night-safe | Windows Task Scheduler 案 | 毎日 22:33 JST | `LifeEditor-NightSafe` | **PENDING**（D-20260804-main-1） | —          |
 
----
+- 発火時刻を 00 分 / 30 分から外しているのは意図的（ジャストの時刻は負荷が集中しやすい・数分の前後はこの用途で問題にならない）
+- Status 遷移: PENDING（裁定待ち）→ ACTIVE（登録済み）→ PAUSED / RETIRED
 
-## 登録手順
+## 登録手順（Task Scheduler 案が裁定されたら・ユーザー実行）
 
-### Night Routine
+**登録前に必ず 1 回、コンソールで手動実行して動作確認する**（`run-routine.ps1` は未実測）:
 
-```
-/schedule create
-  name: life-editor-night-engineer
-  cron: 0 22 * * * (Asia/Tokyo)
-  prompt: @.claude/automation/routine-night.md (本文の ## Prompt 以下を貼る)
-  model: opus xhigh
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine digest
 ```
 
-返ってきた `trig_<id>` を上表に追記し、Status を ACTIVE に。
+問題なければ登録（管理者不要・現在ユーザーで実行）:
 
-### Morning Routine（後追い）
-
-夜 Routine が 1 週間以上安定稼働を確認したあとに登録:
-
-```
-/schedule create
-  name: life-editor-morning-pm
-  cron: 0 6 * * * (Asia/Tokyo)
-  prompt: @.claude/automation/routine-morning.md (本文の ## Prompt 以下を貼る)
-  model: opus xhigh
+```powershell
+schtasks /Create /TN "LifeEditor-Digest" /SC DAILY /ST 06:03 /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine digest"
+schtasks /Create /TN "LifeEditor-NightSafe" /SC DAILY /ST 22:33 /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine night-safe"
 ```
 
-### Update 手順
-
-プロンプト改訂後:
-
-```
-/schedule update <trig_id> --prompt @.claude/automation/routine-night.md
-```
-
----
+登録したら上表の Status を ACTIVE に更新し、Registered に日付を記入する。
 
 ## 一時停止 / 削除
 
-- 一時停止: `/schedule pause <trig_id>`
-- 完全削除: `/schedule delete <trig_id>`（削除後は再登録必要、id は変わる）
+```powershell
+schtasks /Change /TN "LifeEditor-Digest" /DISABLE   # 一時停止
+schtasks /Change /TN "LifeEditor-Digest" /ENABLE    # 再開
+schtasks /Delete /TN "LifeEditor-Digest" /F         # 削除
+```
 
----
+## セッション内 CronCreate を使う場合の注意
 
-## 既存 Routine 参考（干渉防止）
+Claude Code セッション内の scheduled tasks（CronCreate）は**そのセッション限定**（閉じたら消える）で、繰り返しジョブは **7 日で自動期限切れ**（2026-08-04 実測）。常駐セッション運用をしない限り定期実行の基盤にはならない。臨時で使った場合もここに 1 行記録する（期限切れの追跡のため）。
 
-| Name                              | trig_id                          | Schedule         | 用途                       |
-| --------------------------------- | -------------------------------- | ---------------- | -------------------------- |
-| weekly-history-learning           | `trig_01K2emDH9VwKsFif4MTELcKK`  | 毎朝 07:03 JST   | 歴史学習配信               |
-| commute-mobile-dev                | `trig_01SPebtYwCLHKMLEZoH5vkiH`  | 17:55 JST 平日   | 帰宅時 mobile 開発 routine |
+## 既存の定期実行（干渉防止の参考）
 
-→ Night 22:00 / Morning 06:00 は既存と時間重複なし
+| Name                    | 基盤              | Schedule       | 用途                       |
+| ----------------------- | ----------------- | -------------- | -------------------------- |
+| weekly-history-learning | Cloud（Mac 時代） | 毎朝 07:03 JST | 歴史学習配信               |
+| commute-mobile-dev      | Cloud（Mac 時代） | 17:55 JST 平日 | 帰宅時 mobile 開発 routine |
+
+→ 06:03 / 22:33 は既存と時間重複なし
 
 ---
 
 ## 履歴
 
-- 2026-05-26: 台帳初期化（chat-main / Night = PENDING / Morning = DEFERRED）
+- 2026-05-26: 台帳初期化（Cloud Routine 前提・Night = PENDING / Morning = DEFERRED のまま未稼働）
+- 2026-08-04: Phase 1 改訂で全面書き換え（Cloud Routine 台帳を退役・Task Scheduler 案 + headless launcher へ。発火は D-20260804-main-1 裁定待ち）
