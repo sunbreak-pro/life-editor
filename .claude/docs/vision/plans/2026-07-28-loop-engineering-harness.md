@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Phase 0 は配置完了（PR #451 merge）。Step 5（life-editor MCP 疎通 → 朝刊ミラー）と Phase 1〜3 が未消化。判定 = #474（2026-07-30 実測）
+Status: IN PROGRESS — Phase 0 配置完了（PR #451 merge）・Phase 1 着手（2026-08-04 ユーザー裁定・インフラ配置済み）。発火有効化（D-20260804-main-1）・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 2〜3 が未消化
 Created: 2026-07-28
 Branch: main # 本書は設計書。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -272,7 +272,10 @@ chat-main（または検証専用セッション）で起動する読み取り�
 - [ ] 3. [全チャット] 次回セッション開始時から decision-queue ルール適用（rules/ 配置で自動）
 - [ ] 4. [chat-main] dev-digest を手動起動して初回 digest を生成・形式をこうだいさんが確認（2026-07-28: 初回生成 + 同日 21:30 更新済み = `.claude/comm/digest/2026-07-28.md`。形式確認 = こうだいさん待ち）
 - [ ] 5. [chat-main] life-editor MCP（Supabase）疎通確認（既存の予定タスク）→ 朝刊ミラー有効化
-- [ ] 6. [判断] Phase 0 が 2 週間回ったら Phase 1 着手を decision キューで確認
+- [x] 6. [判断] Phase 0 が 2 週間回ったら Phase 1 着手を decision キューで確認（2026-08-04 前倒し確定: キュー稼働 1 週間で回答 13 件の実績を確認の上、ユーザー指示を着手裁定として採用）
+- [x] 7. [chat-main] Phase 1 インフラ配置（routine-digest / routine-night-safe / run-routine.ps1 / 台帳改訂 / permissions.ask 二層）— 2026-08-04 PR
+- [ ] 8. [ユーザー] 実行基盤の裁定（D-20260804-main-1）→ 初回手動実行で動作確認 → Task Scheduler 登録で発火有効化（手順 = `automation/routine-ids.md`）
+- [ ] 9. [判断] ループカタログ（`2026-08-04-loop-catalog.md`）の定着後、Phase 2 着手可否を decision キューで確認（2026-08-04 裁定: カタログを Phase 2 の前提として先行実施）
 
 ## 9. Files
 
@@ -300,3 +303,9 @@ chat-main（または検証専用セッション）で起動する読み取り�
 - 兄弟計画: `archive/2026-07-28-open-issue-fanout.md`（COMPLETED・#474 で archive 移動） / `archive/2026-07-28-post-merge-playwright-verification.md`（COMPLETED） / `2026-07-16-briefing-headless-claude-prototype.md`
 - 公式: code.claude.com/docs — goal.md / scheduled-tasks.md / auto-mode-config.md / hooks-guide.md / best-practices.md / headless.md
 - 実践事例: ghuntley.com/loop（Ralph ループ原典）/ anthropics/claude-code plugins/ralph-wiggum（公式プラグイン README）/ gh issue #18646（cap 無視 494 回暴走）/ roborhythms.com（承認キュー実装報告）/ Medium: overnight 運用の失敗と対策（context 枯渇・フェーズ分割）
+
+---
+
+## Worklog
+
+- 2026-08-04: [chat-main] 3 計画書（本書 + `2026-08-04-loop-catalog.md` + `2026-08-04-context-cost-reduction-harness.md`）の整合性評価 → ユーザー裁定 3 件: ① 実施順序 = 親 Phase 1 → ループカタログ → コスト計画 → 親 Phase 2（カタログ側の「Phase 2 前提」裁定を優先）② Phase 0→1 昇格を前倒し確定（キュー稼働 1 週間・回答 13 件の実績）③ 実行基盤は実測調査の上 decision キューで提案。**実測補正 1 件**: セッション内 scheduled tasks（CronCreate）は**セッション限定 + 繰り返し 7 日期限**で、§3-7 の「定期実行は scheduled tasks」は常駐セッションが前提になる。Phase 1 は **Task Scheduler + `claude -p`（headless — `2026-07-16-briefing-headless-claude-prototype.md` で E2E 検証済みの型）** を推奨案として D-20260804-main-1 に起票し、インフラ（routine 2 本 + launcher + 台帳 + permissions.ask 二層）を配置。発火は裁定まで無効

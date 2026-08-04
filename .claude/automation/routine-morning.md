@@ -1,5 +1,6 @@
 # Routine Morning Prompt (PM Role)
 
+> ⚠️ **未稼働（Phase 2 改訂待ち）**: 本文は Mac 時代の Cloud Routine 前提のまま凍結。朝 06 時台の枠は Phase 1 では `routine-digest.md`（采配ダイジェスト）が使う。改訂の前提と方向 = 親計画 `../docs/vision/plans/2026-07-28-loop-engineering-harness.md` §7。
 > 朝 06:00 JST 発火。本ファイルの本文（`## Prompt` 以下）を Cloud Routine の prompt として登録する。
 > **MVP では後追い登録**: 夜 Routine が 1 週間程度安定運用に乗ったあとに登録する。
 
