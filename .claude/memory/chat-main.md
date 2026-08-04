@@ -2,6 +2,15 @@
 
 ## 進行中
 
+### ⏸️ Loop Engineering 親計画 Phase 1（夜間安全レーン + 毎朝 digest 自動化）（着手日: 2026-08-04）
+
+**対象**: `.claude/automation/`・`.claude/settings.json`・`.claude/docs/vision/plans/`
+**計画書**: `.claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md`
+
+- 前回: 3 計画書の整合性評価 → ユーザー裁定 3 件（①順序 = 親 Phase 1 → カタログ → コスト → 親 Phase 2 ②Phase 0→1 昇格を前倒し確定 ③実行基盤は調査して提案）→ **Phase 1 インフラ配置 PR #594**（plans 2 本配置 / automation 改訂 = routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
+- 現在: **PR #594 merge 待ち（ユーザー）+ 実行基盤の裁定待ち（D-20260804-main-1）**。自動発火は無効のまま
+- 次: merge 後にユーザーが `run-routine.ps1` を手動実行して動作確認 → 裁定に応じて Task Scheduler 登録（手順 = `automation/routine-ids.md`）。Phase 2 はループカタログ定着後（decision キューで判定）
+
 ### 🔧 worktree 総入れ替え + 次期 fan-out（着手日: 2026-07-29）
 
 **対象**: GitHub Issues（Epic #290 / #321）・`.claude/comm/outbox/`
@@ -19,6 +28,12 @@
 - [chat-main] **worktree 総入れ替え + Issue fan-out + V4 実ブラウザ検証** ✅（2026-07-29）— 旧 worktree 5 本を撤去（PR state で全ブランチの merge 済みを実測してから削除。未 PR だった `claude/enhance-mobile-work-section-Cmphw` の demo HTML はユーザー判断で削除・退避済み）+ ローカル 74 / リモート 89 ブランチ削除 → 新レーン 4 本作成。Issue #465（MainScreen hooks = DataService 分割計画の最終ステップ）/ #466〜#469（Epic #290 Step 5-b・5-c・6・7）/ #470〜#473（Epic #321 Phase 2）/ #474（plans/ Status 棚卸し）を起票。あわせて V4 (#411) を claude-in-chrome で実測し 3 pass / 1 fail（`[[` リンクのクリック遷移 → **#475**）。検証計画は全項目消化で COMPLETED → archive
 
 ## 予定
+
+### 📋 Loop Engineering 続き（セッション 2 / 3 — 貼り付け用プロンプトは history 2026-08-04 エントリ参照）
+
+- セッション 2: **ループカタログ実装**（`2026-08-04-loop-catalog.md` §4 — ローカル実態調査 → 子計画書 → レビュー → 初期 4 本配置）。前提 = PR #594 merge 済み
+- セッション 3: **コンテキストコスト削減ハーネス**（`2026-08-04-context-cost-reduction-harness.md` — Phase 1 計測 + Phase 2 枠づくりまで。Phase 3 移送は移行完了後）
+- 親計画 Phase 2（実装レーン自走）はカタログ試験運用 1〜2 週間後に decision キューで着手判定。前提 = `goals.md` 全面改訂
 
 ### 📝 #524（2026-08-01 巡回のレビュー検出 → 起票済み・実ブラウザ確認が DoD 先頭）
 
