@@ -100,7 +100,7 @@ Child: .claude/docs/vision/plans/2026-08-04-loop-catalog-implementation.md
 
 各ループ定義に必須の見出しは **目標 / 完了条件（機械検証可能）/ 予算 / 停止条件 / 使ってよい道具** の 5 つ。**手順は書かない。**
 
-`loop-postmortem` が知見を足す一方、肥大を戻す `loop-prune` は姉妹計画側で定義する（同じ `loop-*` 名前空間に加わる）。**この対が揃うまでカタログは片肺**である点に留意する。
+`loop-postmortem` が知見を足す一方、肥大を戻す `loop-prune` は姉妹計画側で定義する（同じ `loop-*` 名前空間に加わる）。**2026-08-06 に配置され、対が揃った**（`.claude/skills/loop-prune/SKILL.md`）。
 
 ---
 
