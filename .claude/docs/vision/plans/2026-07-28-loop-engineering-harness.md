@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Phase 0 配置完了（PR #451 merge）・Phase 1 着手（2026-08-04 ユーザー裁定・インフラ配置済み）。発火有効化（D-20260804-main-1）・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 2〜3 が未消化
+Status: IN PROGRESS — Phase 0 配置完了（PR #451 merge）・Phase 1 着手（2026-08-04 ユーザー裁定・インフラ配置済み）・Phase 2 の文書整備（goals.md 改訂 + routine-night.md 薄殻化）を 2026-08-06 に実施。発火有効化（D-20260804-main-1）・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3 が未消化
 Created: 2026-07-28
 Branch: main # 本書は設計書。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -59,8 +59,8 @@ Phase 1  夜間の安全レーン自走
   │  昇格条件: 2 週間安定・誤動作ゼロ・digest の報告で内容が追える
   ▼
 Phase 2  実装レーンの自走
-  │  routine-night.md 改訂版で plan 1 件/夜 → worktree 実装 → draft PR 止まり
-  │  昇格条件: goals.md を現行 Epic ベースに改訂済みであること
+  │  routine-night.md 改訂版で Issue 1 件/夜 → worktree 実装 → commit 止まり（PR は作らない）
+  │  昇格条件: goals.md が「今夜どれを選ぶか」の選定基準へ改訂済みであること
   ▼
 Phase 3  検証の自動化
      merge 後 playwright 検証（既存 Draft 計画）を定期実行化 → 実機目視バックログの構造的解消
@@ -260,7 +260,10 @@ chat-main（または検証専用セッション）で起動する読み取り�
 
 ## 7. Phase 2 / 3 の方向（設計のみ・着手条件つき）
 
-- **Phase 2**: `automation/routine-night.md` を現行環境向けに改訂（Cloud Routine 前提の除去・worktree/branch 規約の §7.4 追随・iteration cap の bash 計測維持）し、夜 1 plan の実装 → draft PR。**前提 = goals.md の全面改訂**（2026-05 の Goal 1〜3 は陳腐化。現行 Epic #290 / #321 ベースへ）
+- **Phase 2**（文書整備は 2026-08-06 実施済み・発火は未有効）: `automation/routine-night.md` を **`/loop-implement` を呼ぶ薄い殻**へ書き換え、夜 1 Issue の実装 → **commit 止まり**。殻が持つのは無人固有の事情だけ（Scope 宣言 / Issue の選び方 / セッション予算 / 停止条件 / 報告先 / 質問経路）で、実装の進め方はカタログ側が正本
+  - **「draft PR 止まり」は誤り**（2026-08-06 実測で訂正）: `Bash(git push*)` と `Bash(gh pr create*)` は `permissions.ask` に入っており、無人では答える人がいないので必ず失敗する。したがって到達点は **commit まで**で、push と PR 作成は翌朝の人の手番に残す。ここを解放するかどうかは別計画 [`2026-08-06-autonomous-operation-endpoint.md`](./2026-08-06-autonomous-operation-endpoint.md) §3 第 1 段の管轄
+  - **前提だった goals.md の全面改訂は、役割の変更として実施**（2026-08-06）: 「Goal の羅列 + ACTIVE / PENDING / BLOCKED の状態機械」から「**今夜どれを選ぶかの判断基準**」へ。open Issue の一覧は GitHub が正本で、goals.md は一覧を持たない（数値の非複製原則）。あわせて、夜のレーンが拾う範囲を「**宛先レーンはあるが滞留している Issue**」と確定した（2026-08-06 ユーザー裁定）
+  - 状態機械を畳んだ副作用として、`routine-morning.md`（旧・朝の PM ルーチン）の「goals.md の Goal 状態を更新する」前提が失われた。同ファイルは未稼働のままなので実害は無いが、追随が要る（→ §8 Step 10）
 - **Phase 3**: 実ブラウザ検証セッションを定期実行化（雛形 = `archive/2026-07-28-post-merge-playwright-verification.md`）。fail は issue-dispatch で起票（既存設計どおり）
 
 ---
@@ -275,7 +278,8 @@ chat-main（または検証専用セッション）で起動する読み取り�
 - [x] 6. [判断] Phase 0 が 2 週間回ったら Phase 1 着手を decision キューで確認（2026-08-04 前倒し確定: キュー稼働 1 週間で回答 13 件の実績を確認の上、ユーザー指示を着手裁定として採用）
 - [x] 7. [chat-main] Phase 1 インフラ配置（routine-digest / routine-night-safe / run-routine.ps1 / 台帳改訂 / permissions.ask 二層）— 2026-08-04 PR
 - [ ] 8. [ユーザー] 実行基盤の裁定（D-20260804-main-1）→ 初回手動実行で動作確認 → Task Scheduler 登録で発火有効化（手順 = `automation/routine-ids.md`）
-- [ ] 9. [判断] ループカタログ（`2026-08-04-loop-catalog.md`）の定着後、Phase 2 着手可否を decision キューで確認（2026-08-04 裁定: カタログを Phase 2 の前提として先行実施）
+- [x] 9. [判断] ループカタログ（`2026-08-04-loop-catalog.md`）の定着後、Phase 2 着手可否を decision キューで確認（2026-08-04 裁定: カタログを Phase 2 の前提として先行実施）→ **ゲートは前倒しで飛ばした**（2026-08-06 ユーザー指示。カタログ merge の当日で試験運用は 0 件・decision キューも経ていない。Step 6 と同型の前倒し）
+- [ ] 10. [chat-main] goals.md の役割変更に伴う追随（本 PR の Scope 外・3 か所）: `automation/README.md` の状態列 2 行 / `routine-morning.md`（Goal 状態機械の前提が消えた。退役か再定義かの判断込み）/ `run-routine.ps1` の `ValidateSet` に `night` を追加（これが無いと夜の実装レーンは手動でも起動できない）
 
 ## 9. Files
 
@@ -288,6 +292,14 @@ chat-main（または検証専用セッション）で起動する読み取り�
 | `.claude/skills/dev-digest/SKILL.md` | Add          | §5.4 全文                                                       |
 | `.gitignore`                         | Edit         | §5.5 の 1 行                                                    |
 | `.claude/CLAUDE.md`                  | Edit（任意） | §7 に decisions/ への 1 行ポインタ（conflict 回避のため最小限） |
+
+Phase 2（2026-08-06）:
+
+| File                                  | Operation | Notes                                                                           |
+| ------------------------------------- | --------- | ------------------------------------------------------------------------------- |
+| `.claude/automation/goals.md`         | Rewrite   | Goal 一覧 + 状態機械 → 選定基準へ役割変更（一覧は持たない）                     |
+| `.claude/automation/routine-night.md` | Rewrite   | `/loop-implement` を呼ぶ薄い殻へ。無人固有の事情だけを保持・commit 止まり       |
+| 本書                                  | Edit      | §2 / §7 / §8 / §9 / Worklog の追随（「draft PR 止まり」→「commit 止まり」訂正） |
 
 ## 10. Verification
 
@@ -308,4 +320,5 @@ chat-main（または検証専用セッション）で起動する読み取り�
 
 ## Worklog
 
+- 2026-08-06: [chat-night-lane] **Step 9 のゲートを飛ばして Phase 2 の文書整備を実施**（ユーザー指示による前倒し）。飛ばした事実を先に記録する — ループカタログは同日 merge されたばかり（PR #595）で**試験運用は 0 件**、decision キューでの着手裁定も経ていない。Step 6（2026-08-04）と同型の前倒しで、判断材料が実績ではなくユーザーの意思決定である点は同じ。**発火は有効化していない**（D-20260804-main-1 が未回答のため）。実施内容 3 点: ① `goals.md` を**役割ごと差し替え**（Goal 一覧 + 状態機械 → 「今夜どれを選ぶか」の選定基準。open Issue の一覧は GitHub が正本なので持たない）② `routine-night.md` を **`/loop-implement` を呼ぶ薄い殻**へ書き換え（無人固有の事情だけを保持。手順・検証ゲート・ティア判定・worktree 手順は各正本へ委譲）③ 本書 §2 / §7 の「draft PR 止まり」を **commit 止まり**へ訂正（`permissions.ask` の実測と食い違っていた）。**設計判断 1 件**: 夜のレーンが拾う範囲は「宛先レーンはあるが**滞留している** Issue」で確定（ユーザー裁定）— open Issue は全件がレーン宛 prefix を持つため、無条件では 1 件も拾えない構造だった。滞留の判定は Issue 番号を含むブランチ / open PR の不在 + 宛先レーンの 3 日無活動 + 着手宣言の不在を実測する。**残 = §8 Step 10**（`automation/README.md` / `routine-morning.md` / `run-routine.ps1` の追随。本 PR の Scope 外）
 - 2026-08-04: [chat-main] 3 計画書（本書 + `2026-08-04-loop-catalog.md` + `2026-08-04-context-cost-reduction-harness.md`）の整合性評価 → ユーザー裁定 3 件: ① 実施順序 = 親 Phase 1 → ループカタログ → コスト計画 → 親 Phase 2（カタログ側の「Phase 2 前提」裁定を優先）② Phase 0→1 昇格を前倒し確定（キュー稼働 1 週間・回答 13 件の実績）③ 実行基盤は実測調査の上 decision キューで提案。**実測補正 1 件**: セッション内 scheduled tasks（CronCreate）は**セッション限定 + 繰り返し 7 日期限**で、§3-7 の「定期実行は scheduled tasks」は常駐セッションが前提になる。Phase 1 は **Task Scheduler + `claude -p`（headless — `2026-07-16-briefing-headless-claude-prototype.md` で E2E 検証済みの型）** を推奨案として D-20260804-main-1 に起票し、インフラ（routine 2 本 + launcher + 台帳 + permissions.ask 二層）を配置。発火は裁定まで無効

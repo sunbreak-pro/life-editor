@@ -1,233 +1,89 @@
-# Routine Night Prompt (Engineer Role)
+# Routine: Night Implement Lane（夜の実装レーン）
 
-> ⚠️ **未稼働（Phase 2 改訂待ち）**: 本文は Mac 時代の Cloud Routine 前提のまま凍結。現行 Phase 1 の稼働分は `routine-digest.md` / `routine-night-safe.md`。改訂の前提と方向 = 親計画 `../docs/vision/plans/2026-07-28-loop-engineering-harness.md` §7（goals.md 全面改訂 + ループカタログ定着が先）。
-> 夜 22:00 JST 発火。本ファイルの本文（`## Prompt` 以下）を Cloud Routine の prompt として登録する。
-> 改訂時は `/schedule update <trig_id>` でクラウド側も同期する。
+> **発火は未有効**（2026-08-06 時点）。有効化には 2 つ要る — ① 実行基盤の裁定（D-20260804-main-1）② `run-routine.ps1` の `ValidateSet` に `night` を足す（現行は `digest` / `night-safe` のみ）。それまでは手動起動もできない。
+> **実装の進め方はここに書かない。正本は `/loop-implement`**（[`../skills/loop-implement/SKILL.md`](../skills/loop-implement/SKILL.md)）。本ファイルが持つのは**無人実行に固有の事情だけ**。
+> 姉妹レーン = [`routine-night-safe.md`](./routine-night-safe.md)（読み取り中心の監査。あちらは実装しない）。
 
 ---
 
 ## Prompt
 
-あなたは life-editor プロジェクトの自律 Engineer です。深夜帯に 1 件の plan を完遂し、朝までに draft PR を残してください。
+あなたは life-editor の夜の実装レーン（`chat-night`）です。headless 実行でユーザーは見ていません。**Issue 1 件を実装し、commit まで持っていきます。PR は作りません。**
 
-### Step 0: コンテキスト読み込み
+進め方は `/loop-implement` に従ってください（`.claude/skills/loop-implement/SKILL.md` を読み、その目標・完了条件・停止条件・道具をそのまま使う）。以下は**無人だから変わる部分だけ**です。
 
-以下を順に読み、現在の状況を把握してください。
+### Scope 宣言（着手前に読む）
 
-1. `.claude/CLAUDE.md` — 規約 SSOT
-2. `.claude/automation/goals.md` — **Current Goal** を確認
-3. `.claude/memory/INDEX.md` — 進行中タスク集約
-4. `.claude/docs/vision/plans/` — 利用可能な plan 一覧
-5. `.claude/comm/outbox/chat-main/` — 最新のユーザーレビュー結果
-6. `git log -10 --oneline` と `gh pr list --state open` — 最新の repo / PR 状況
+書き換えてよいのは:
 
-### Step 1: Plan Picker
+- 選んだ Issue が指すプロダクトコードと、それに付随する i18n / テスト
+- `.claude/comm/outbox/chat-night/`（報告先。無ければ作る）
+- `.claude/comm/decisions/chat-night.md`（判断キューへの起票。単一書込者 = 自分）
 
-**Idle モード判定（最優先）**: `goals.md` の `Active Goal` セクションが `Current: (idle)` の場合、全 Goal 終端状態。実装は一切走らせず、Step 4 を「plan 起票候補の探索」に置き換えて plan 1 件起票だけで終了する（詳細は `goals.md` の `Terminal State Handling`）。
+触らないのは:
 
-Current Goal に紐づく未完 plan を 1 件選びます。
+- **tracker（`.claude/memory/` / `.claude/history/`）** — 実装ブランチに載せない（D-20260801-main-1。並行ブランチが必ず衝突する）
+- 他チャットの outbox / decisions / memory と `decisions/ANSWERS.md`（単一書込者原則）
+- `.claude/automation/` / `.claude/skills/` / `.claude/settings.json`（自分の動かし方を自分で書き換えない）
+- **Issue と Epic への書き込み**（起票・コメント・close すべて。起票は chat-main 一元なので、必要なら報告に依頼として書く）
 
-優先順位:
+**Scope の外に手を入れないと進まなくなったら、広げずに中断して報告に書く。** このレーンで最も多い事故が scope drift で、制約を書かずに放置した実例ではエージェントがランタイムを独断で上げて main へ直コミットしている。
 
-1. Status: In-Progress な plan（Owner-chat 問わず継続）
-2. Owner-chat: chat-auto-\* な plan（過去夜 Routine の続き）
-3. Goal フィールドが Current Goal と一致する plan で日付の古いもの
-4. 該当なしの場合: テンプレ `.claude/docs/vision/plans/_TEMPLATE.md` を使って自分で plan を起票する。起票だけで本セッションは終了し、outbox に「plan 起票のみ完了」と報告
+### 対象 Issue の選び方
 
-**並行チャット干渉防止（active 検出 — 必須）**:
+[`goals.md`](./goals.md) の選定基準で 1 件だけ選ぶ。必須条件 4 つで足切りし、残ったものを同ファイルの順序で並べて先頭を取る。
 
-候補 plan が決まったら commit/着手前に以下を順に検査。1 つでもヒットしたら別 plan を選び直す（再 pick）。3 回連続で別 plan に弾かれたら起票だけ行い終了。
+- **候補ゼロなら実装に入らない。** 「候補ゼロ + そう判断した理由」を報告に書いて終了する。**基準は緩めない**
+- 選んだら、実装に入る前に報告ファイルへ**着手宣言**（日時 + Issue 番号）を 1 行書く。宛先レーンが翌朝これを見て二重実装を避けられるようにするため（`[all]` 系で実際に 40 分ぶんの二重実装が起きている — #473）
+- **1 晩 = 1 件。** 早く終わっても 2 件目に入らない。無人セッションの判断品質は継ぎ足すほど落ちる
 
-1. **`.session-name` mtime 検査**: 候補 plan が想定する worktree path に既に `.claude/comm/.session-name` が存在し、mtime が **過去 24h 以内**ならアクティブ作業中 → 弾く
-   ```bash
-   find <worktree>/.claude/comm/.session-name -mtime -1 2>/dev/null
-   ```
-2. **draft PR 検査**: 候補 plan に対応する branch に直近 24h 更新の draft PR があるか
-   ```bash
-   gh pr list --search "is:draft author:eires updated:>=$(date -v-1d +%Y-%m-%d)" --json headRefName
-   ```
-   候補 plan の想定 branch 名と一致したら弾く
-3. **Owner-chat 検査**: plan frontmatter の Owner-chat が `chat-auto-*` 以外（= 何らかのユーザー / 別チャット）で、かつ最終更新が過去 12h 以内なら弾く（人間 chat の作業中 plan を盗まない。`chat-main` だけでなく `chat-du-*` 等の開発 chat も排他対象）
+### 予算
 
-### Step 2: Worktree 作成
+- **セッション全体で 90 分**。開始直後に `START_TS=$(date +%s)` を取り、工程の切れ目ごとに `ELAPSED=$(( $(date +%s) - START_TS ))` を計算する。**tool call の間で時刻は自動追跡されないので、必ず bash で測る** — 上限を宣言しただけでは効かない（公式プラグインですら cap 宣言がサイレントに無視され 494 回走った実例がある）
+- 90 分に当たったら、実装の途中でも切り上げて commit と報告へ進む。**上限超過は失敗ではない**
+- 実装ループ内の反復上限は `/loop-implement` の予算が正本。ここには重ねて書かない
+- 長いコマンド出力は会話に流さず `> <logfile> 2>&1` でファイルへ逃がし、要点だけ読む（`.claude/automation/logs/` は git 非追跡）。context が枯渇すると規約が要約で劣化し、途中からルール無視が始まる
 
-```
-chat-name = chat-auto-<YYYYMMDD>-<HHMM>   # 同日複数実行時の衝突回避
-branch    = auto/<slug-from-plan>          # 成功時。WIP は auto-wip/<slug>
-worktree  = <repos-parent>/workspaces/life-editor/auto-<YYYYMMDD>-<HHMM>-<slug>/   # リポジトリ外（CLAUDE.md §7.4）
-```
+### 停止条件 — commit まで。PR は作らない
 
-- `git worktree add <repos-parent>/workspaces/life-editor/auto-<YYYYMMDD>-<HHMM>-<slug>/ -b auto/<slug>`
-- `<worktree>/.claude/comm/.session-name` ← `chat-auto-<YYYYMMDD>-<HHMM>`
-- `<worktree>/.claude/comm/.session-branch` ← `auto/<slug>`
-- 以降の作業は全て worktree 内の絶対パスで操作
+- **`git push` と `gh pr create` は実行しない。** どちらも `.claude/settings.json` の `permissions.ask` に入っていて、無人では答える人がいないので必ず失敗する。push と PR 作成は**翌朝の人の手番**に残す
+- `/loop-implement` の停止条件（反復上限 / DDL が要る / Scope の外 / 要件が二義的 / 環境起因の失敗）に当たったら、そこで止めて報告へ回す。押し切らない
+- **検証が緑にならないまま終わるときも、その時点の状態を commit する**（次の夜と翌朝の人が続きから拾えるように）。ただし完走したものと一目で見分けがつくよう、次の 2 点で分ける:
+  - ブランチ名 — 完走 `night/<issue>-<slug>` / 未完 `night-wip/<issue>-<slug>`
+  - commit message — 未完は `chore(wip): <subject> — <止まった理由> (M min)`
 
-### Step 3: Iteration Loop（最大 5 回 / 累計 90 分）
+  目的は、**朝に「これは push していいのか」を中身を読まずに判別できる**ことです。
 
-**時間計測（必須）**: Step 3 突入直後に `START_TS=$(date +%s)` を取得し、各 iteration 冒頭で `ELAPSED=$(( $(date +%s) - START_TS ))` を計算。Claude エージェントは tool call 間で時刻を自動追跡できないため、**明示的に bash で計測する**。
+### 質問の出し方
 
-```
-START_TS = $(date +%s)
-iteration = 0
+無人セッションでは `AskUserQuestion` が使えない。判断が要ることに当たったら `.claude/comm/decisions/chat-night.md` に A/B で書き（形式 = `decisions/README.md`）、その Issue は保留して終了する。**独断でどちらかに倒さない。** 書く前に `decisions/POLICY.md` を見て、該当する恒久裁定があればそれに従う。
 
-while iteration < 5:
-  ELAPSED = $(date +%s) - START_TS
-  if ELAPSED >= 5400:  # 90 min
-    break  # cap 到達
+### 報告
 
-  iteration += 1
-
-  # Engineer フェーズ
-  Agent(role-engineer): 「plan の Steps を実行。Acceptance Criteria 全項目を green にする」
-
-  # 自動検証
-  Skill(session-verifier): type check / lint / test / 構造 review
-
-  # 独立監査
-  Agent(role-qa): plan の Acceptance Criteria 各項目について green/red を判定
-
-  if 全項目 green:
-    break
-  else:
-    qa の指摘を engineer フェーズに注入して continue
-```
-
-**cap 到達時の挙動（WIP PR の構造的差別化 — 必須）**:
-
-「失敗」とは扱わない。次回継続として扱い、以下の構造で成功 PR と明確に分離する。
-
-- **branch 名 prefix**: `auto-wip/<slug>`（成功時の `auto/<slug>` と分離して merge 事故防止）
-- **commit message**: `chore(wip): <subject> — iteration cap reached (N/5, M min)`
-- **PR 作成コマンド**:
-
-```bash
-gh pr create --draft --label "wip,auto-incomplete" \
-  --title "WIP: <subject> (iter N/5, M min)" \
-  --body "$(cat <<'EOF'
-> ⚠️ **NOT READY** — iteration cap reached, Acceptance Criteria NOT green
->
-> Do NOT merge. Resume on next night run.
-
-## 状況
-- Plan: <path>
-- Iterations: N / 5
-- Elapsed: M min / 90 min
-- Last QA verdict: ...
-
-## 残課題（次回再開ポイント）
-- ...
-
-## 適用済の修正
-- ...
-EOF
-)"
-```
-
-- `outbox/chat-auto-<YYYYMMDD>-<HHMM>/night-report.md` に未完了理由と次回再開ポイントを残す
-- plan の `## Worklog` に iteration 履歴を追記
-
-### Step 3.5: BLOCKED 検知時の例外フロー（Goal 遷移）
-
-Plan 実装中に「ユーザー手動介入必須」と判明した場合（例: Apple Developer 登録必要 / シークレット投入必要）:
-
-1. iteration loop を即座に中断
-2. `.claude/automation/goals.md` を編集:
-   - Current Goal の Status を `BLOCKED` に変更
-   - `Last-Updated` を今日の日付に
-   - `History` に「<日時> ACTIVE→BLOCKED — 理由: ...」を追記
-   - 次の `PENDING` Goal を `ACTIVE` に昇格（朝 Routine を待たない例外措置）
-   - **次の PENDING Goal が存在しない場合**（全 Goal 終端）: Active Goal セクションを `Current: (idle)` に書き換え、`Terminal State Handling` セクション (goals.md 末尾) に従って以降の挙動を切り替える（plan 起票のみ続行 / 実装ループ進入禁止）
-3. **goals.md の単独 commit（別 worktree 経由）**:
-   - Routine が動いている worktree (branch=`auto/<slug>`) は実装の差分を抱えているため、ここに goals.md を混ぜず、**別 worktree を切って goals.md のみを commit する**
-   - 具体手順:
-     ```bash
-     # メイン worktree (/Users/newlife/dev/apps/life-editor) の checkout は deny list でブロックされる前提を継承。
-     # main から派生した別 worktree を一時的に切って goals.md だけを commit。
-     SLUG=$(date -u +%Y%m%d-%H%M)
-     git worktree add ../life-editor-goal-transition-${SLUG}/ -b chore/goal-transition-${SLUG} main
-     cp .claude/automation/goals.md ../life-editor-goal-transition-${SLUG}/.claude/automation/goals.md
-     cd ../life-editor-goal-transition-${SLUG}/
-     git add .claude/automation/goals.md
-     git commit -m "chore: goal transition ($(date +%F))"
-     git push -u origin chore/goal-transition-${SLUG}
-     gh pr create --draft --title "chore: goal transition" --body "..."
-     cd -  # 元の auto/<slug> worktree に戻る
-     git worktree remove ../life-editor-goal-transition-${SLUG} --force
-     ```
-   - **実装 plan の commit と混ぜない**（人間が状態遷移だけを即座にレビュー / merge できるようにする）
-4. `outbox/chat-auto-<YYYYMMDD>-<HHMM>/blockers.md` に詳細レポート（人手必須項目の具体的内容）
-5. 本セッションは終了。次回夜 Routine は新 ACTIVE Goal で再開（idle 化していたら plan 起票モードで起動）
-
-理由: 朝 Routine が MVP では DEFERRED のため、Goal 遷移が長期間止まる事故を防ぐ。
-
-### Step 4: 安全則チェック（commit 直前必須）
-
-以下を順に検査。1 つでも引っかかったら commit 中止し outbox に報告:
-
-- [ ] `.mcp.json` の token が `${...}` 参照形式を維持（実トークン平文化なし）
-- [ ] git diff の範囲が plan の `## Scope` 宣言内
-- [ ] 変更行数が plan の Acceptance Criteria の diff 上限以内
-- [ ] `cd frontend && npm run build` exit 0
-- [ ] deny list に該当する git 操作を試みていない
-
-### Step 5: Draft PR 作成
-
-- `git add` は **必ずファイル名指定**（`git add -A` / `git add .` 禁止）
-- commit message は `<type>: <subject>` 規約
-- `git push -u origin auto/<slug>` （deny list で main / force は構造的に禁止）
-- 成功 PR: `gh pr create --draft --title "..." --body "..."`
-- WIP PR は Step 3 の cap 到達フォーマットに従う（`--label "wip,auto-incomplete"` 必須）
-- PR body には: plan へのリンク / iteration 数 / qa 最終判定 / 残課題 / 変更行数（`gh pr view <#> --json additions,deletions`）
-
-### Step 6: Outbox 報告
-
-`.claude/comm/outbox/chat-auto-<YYYYMMDD>-<HHMM>/night-report.md` に以下を追記:
+`.claude/comm/outbox/chat-night/night-report.md` に append する。**会話には流さない**（翌朝の digest がここを収集源にする）。
 
 ```markdown
-## YYYY-MM-DD HH:MM Night Run Summary
+## YYYY-MM-DD HH:MM Night Implement Run
 
-- Goal: <current goal>
-- Plan: <plan path>
-- Result: Success | WIP (cap reached) | Blocked (reason)
-- Iterations: N / 5
+- Result: Done | WIP | 候補ゼロ | Blocked（理由）
+- Issue: #N（選んだ理由 1 行。候補ゼロなら「なぜゼロか」）
 - Elapsed: M min / 90 min
-- PR: <draft PR URL>
-- Next: <次回再開ポイント or null>
+- Branch / Commit: night/<...> @ <短縮ハッシュ>
+- 検証: session-verifier の Verdict
+- 翌朝の手番: push → PR 作成 / それ以外なら何が要るか
+- 残課題: 次に拾う人が続きから始められる粒度で
 ```
 
-Blocked 案件があれば `blockers.md` も追記。
+**候補ゼロでも Blocked でも必ず 1 行書く**（沈黙しない）。chat-main への依頼（起票・判断・実機確認）があれば、報告の末尾に列挙する。
 
-### Step 7: 終了
-
-- worktree 内の `.claude/comm/.session-name` はクリアせず残す（朝 Routine が prune 判定に使用）
-- worktree 自体も残置（朝 Routine が merged PR の branch に対応するものを `git worktree remove`）
-- **メイン worktree (`/Users/newlife/dev/apps/life-editor`) の `.session-name` には絶対に書き込まない**（Routine は worktree 内で動くため、メインの session-name はユーザーの chat-main のもの）
-- 本セッションを exit
-
----
-
-## 禁止事項（絶対遵守）
-
-- `main` / `master` への直接 push
-- `--force` / `--force-with-lease` push
-- `git reset --hard` / `git branch -D`
-- `git checkout main` / `git checkout master`（メイン worktree 干渉防止）
-- `.mcp.json` の `${...}` プレースホルダを実値に展開して commit
-- ユーザー手動承認待ちと判明した plan の続行（即 BLOCKED 化）
-- 並行チャットの作業中 plan / worktree への侵入
-
----
-
-## モデル指定
-
-- 既定: Opus 系 xhigh
-- Web 検索 / 軽量探索 / 単純テキスト整形: Sonnet 4.6 へ委譲（subagent）
-- **コスト**: Anthropic Max plan 枠内で実行され、追加 API 課金は発生しない（$0 維持）。iteration cap (5 / 90 分) は暴走防止が目的であってコスト制限ではない
+`/loop-implement` は実測した周回数・所要時間を計画書の Worklog へ直接書く運用だが、**このレーンだけは報告に書いて終わり**にする（`.claude/docs/vision/plans/` は Scope 外 — 実装ブランチに docs の更新を載せると並行ブランチが衝突する）。転記は翌朝 chat-main が行う。
 
 ---
 
 ## 参照
 
-- 計画書: `.claude/docs/vision/plans/2026-05-26-autonomous-dev-routine.md`
-- Goal SSOT: `.claude/automation/goals.md`
-- CLAUDE.md §7.3 / §7.4
+- 選定基準: [`goals.md`](./goals.md)
+- 進め方の正本: [`../skills/loop-implement/SKILL.md`](../skills/loop-implement/SKILL.md)
+- 設計: [`../docs/vision/plans/2026-07-28-loop-engineering-harness.md`](../docs/vision/plans/2026-07-28-loop-engineering-harness.md) §7（Phase 2）・§3（ガードレール）
+- 登録台帳: [`routine-ids.md`](./routine-ids.md)
+- 判断キュー: `../comm/decisions/README.md`・`../rules/decision-queue.md`

@@ -1,117 +1,89 @@
-# Routine Goal Roadmap (SSOT)
+# 夜の実装レーンの選定基準（今夜の 1 件をどう選ぶか）
 
-> 夜 Routine は本ファイルを読み取り専用で参照、朝 Routine が状態を更新する。
-> ユーザーは手動編集してよい（Goal の追加 / 優先順位入れ替え / 完了条件の調整）。
-> 状態遷移時は必ず `Last-Updated` と `History` を更新する。
-
----
-
-## Active Goal
-
-**Current**: `Goal 1`
-**Last-Updated**: 2026-05-26
-**Updated-By**: chat-main (initial)
+> **2026-08-06 の全面改訂で役割が変わった**。旧版は Goal 1〜3 の一覧と ACTIVE / PENDING / BLOCKED の状態機械だったが、中身が Tauri / D1 時代の前提のままで陳腐化していたため退役した（旧本文は git 履歴を参照）。
+> **このファイルは課題の一覧を持たない。** open Issue の正本は GitHub（`gh issue list -R sunbreak-pro/life-editor --state open`）で、ここが持つのは「その中から今夜の 1 件をどう選ぶか」という基準だけ。同じ一覧を 2 か所に置くと必ず片方が古くなる（CLAUDE.md §0 数値の非複製原則）。
+> 読み手 = 夜の実装レーン（[`routine-night.md`](./routine-night.md)）。人が「今日どれをやるか」を決めるときに使ってもよい。
 
 ---
 
-## Goal 1 — Mobile アプリ本番環境移行の準備
+## 向かっている先
 
-- **Status**: ACTIVE
-- **完了条件**（全て満たした時点で DONE）:
-  - Capacitor iOS / Android の本番 build 経路が CLI から再現可能に整備済
-  - 署名・配布フローの **手順** が `docs/` に文書化済（実証明書投入は不要、手順記述のみ）
-  - GitHub Actions workflow ファイル（`.github/workflows/mobile-*.yml`）が作成済 + `act` または `gh workflow view` で **構文 valid** が確認済 + secrets 投入なしで実行可能な dry-run（lint / build-only）が pass
-  - **実装本体（リリース）は対象外、準備のみ**
-  - 「secrets を実際に投入するステップ」は workflow 内に存在しても可（ジョブが skipped になればよい）
-- **BLOCKED 遷移条件**: 以下のいずれかに到達したら BLOCKED → Goal 2 に自動遷移
-  - Apple Developer Program 登録が必要
-  - 証明書・プロビジョニングプロファイル発行が必要
-  - キーチェーンへのシークレット投入が必要
-  - Google Play Console アカウント作成が必要
-  - その他「ユーザーの手」が物理的に必要な項目
-- **参照**: `.claude/2026-05-04-cross-platform-migration.md` Phase 5 関連
-- **History**:
-  - 2026-05-26 ACTIVE 起票（初期）
+- 追跡の正本は **Epic #290**（Schedule redesign）と **Epic #321**（Mobile UI/UX 追随）— CLAUDE.md §6
+- ただし 2026-08-06 時点で**両 Epic の残りは実機目視・実ブラウザ検証**であり、これは chat-main の手番（CLAUDE.md §7.4）。**夜のレーンが実際に拾えるのは、Epic からこぼれた単発の Issue のほう**（`section:<id>` / `shared-fix` ラベル）
+- 土台の方向は移行 SSOT（Electron + Capacitor + Web + Supabase）に従う。ここと衝突する実装は選ばない
+- 完成までコストは $0（サブスク枠内）
 
-## Goal 2 — コード健全性監査 + リファクタリング計画書群作成
-
-- **Status**: PENDING
-- **完了条件**:
-  - 重複コード調査レポート → `.claude/docs/vision/plans/` に計画書化
-  - 脆弱性（型安全性 / 入力検証 / 認可 / Sync 整合性）調査レポート → 計画書化
-  - 拡張性課題（DataService 抽象 / Provider 順序 / 結合度）調査レポート → 計画書化
-  - **個別リファクタの実装は対象外、計画書化までで止める**
-- **BLOCKED 遷移条件**: 監査の過程で**破壊的変更（既存機能を壊す可能性のあるリファクタ）が必須**と判明したらユーザー承認待ちで BLOCKED → Goal 3 へ自動遷移。例: DataService の interface 変更で既存 Provider 全書き直しが必要 / Sync スキーマの後方非互換変更が必要、等
-- **完了後の遷移**: ユーザー承認を経て Goal 3 へ
-- **History**:
-  - 2026-05-26 PENDING 起票
-  - 2026-05-31 BLOCKED 遷移条件追記（破壊的変更必須を検知したら自動 BLOCKED → Goal 3）
-
-## Goal 3 — Desktop / Mobile UI 課題発見 + 改善実装
-
-- **Status**: PENDING
-- **完了条件**:
-  - Desktop / Mobile 各プラットフォームの UI 課題 issue/plan 化
-  - 段階的 UI 改善 PR の積み上げ（1 plan = 1 PR 単位）
-  - `frontend-react-designer` スキル準拠（`lumen-*` トークン / Pattern A / WAI-ARIA）
-- **BLOCKED 遷移条件**: 設計判断が割れた箇所はユーザー承認待ちで一時 BLOCKED → 次 Goal が存在しないため `Terminal State Handling` に従って idle 化
-- **完了後の遷移**: Goal 3 が最後の Goal。DONE / BLOCKED 時は `Terminal State Handling` に従う
-- **History**:
-  - 2026-05-26 PENDING 起票
-  - 2026-05-31 終端処理を Terminal State Handling 章へ委譲
+Epic は「どっちへ向かっているか」を確かめるために見る。**拾うのは単発 Issue**、と割り切ってよい。
 
 ---
 
-## Goal 遷移ログ（朝 Routine が追記）
+## 必須条件 — 4 つとも満たすものだけが候補
 
-| 日時 | 旧 Goal | 新 Goal | 理由             |
-| ---- | ------- | ------- | ---------------- |
-| —    | —       | Goal 1  | 初期セットアップ |
+ここは「候補に入れてよいか」の足切りで、順序づけは次章。1 つでも欠けたら候補から外す。**満たすものが無いなら基準を緩めず、候補ゼロとして終わる。**
+
+### 1. 一晩で commit まで届く粒度か
+
+目安は「Issue を読んだ時点で、触るファイルの見当がつく」こと。読んでみないと分からないものは、その調査時間も一晩に含まれるので届かない。
+
+- Issue 本文に DoD（何ができたら終わりか）が書かれている
+- 実装方針が二義的でない（A でも B でも成立する、が残っていない）
+- 触る範囲がだいたい 1 セクション分に収まる
+
+### 2. 無人で完結するか
+
+途中で人の手が要ると分かった時点で、その夜は丸ごと無駄になる。先に弾く。
+
+- **DDL / migration が要らない** — 適用はユーザーの手番（`supabase db push`・POLICY P-007）。コードを戻しても適用済みのテーブル定義は戻らない
+- シークレット投入・外部サービスの登録が要らない
+- **DoD に実機目視・実ブラウザ検証が入っていない** — playwright と dev server は chat-main 専有（CLAUDE.md §7.4）
+
+### 3. 誰の手番でもないか（＝滞留しているか）
+
+open Issue はすべてレーン宛（タイトル prefix `[<lane>]`）だが、**宛先レーンがあることと、そのレーンが今動いていることは別**。夜のレーンは「宛先はあるが止まっているもの」を拾う滞留の解消役で、動いているレーンの仕事は取らない（2026-08-06 ユーザー確定）。
+
+滞留の判定は次の 3 つを実測する。1 つでも「動いている」側に倒れたら別の Issue へ移る。
+
+- **その Issue 番号を含むブランチ / open PR が無い** — ブランチ名に Issue 番号を入れる運用（`claude/schedule-564` の形）なので、`git branch -a` の名前と `gh pr list --state open --json number,title,headRefName` で機械的に見える。ここが一番効く
+- **宛先レーンの worktree が直近 3 日動いていない** — そのレーンのブランチの最終コミット日時（`git log -1 --format=%cs <branch>`）と `<worktree>/.claude/comm/.session-name` の mtime の両方を見る。commit を残さず調査だけしているレーンを、前者だけでは見落とす
+- **他レーンの着手宣言が outbox に無い** — `.claude/comm/outbox/*/`
+
+3 日という値は初期の目安で、実測で調整する（記録先 = `2026-08-04-loop-catalog-implementation.md` の Worklog）。
+
+### 4. 未回答の判断に乗っていないか
+
+`.claude/comm/decisions/ANSWERS.md` に答えの無い `D-*` に依存する Issue は取らない。無人では聞き返せないので、独断で倒すか止まるかの二択になる。
 
 ---
 
-## 運用メモ
+## 候補が複数あるときの順序
 
-- Goal は 1 つしか ACTIVE にしない（夜 Routine が混乱するため）
-- BLOCKED は「人手介入待ち」を意味する。自動では戻らない（ユーザーが ACTIVE / DONE を手動更新）
-- 新規 Goal 追加時は完了条件と BLOCKED 遷移条件を明示すること
-- 各 Goal 完了時は `.claude/history/chat-main.md` にサマリを 1 行記録
+1. **小さくて確実に終わるものが先**。夜のレーンの価値は「大きく進むこと」ではなく「朝に確実に 1 件片付いていること」。大物は人がいる時間に回す
+2. 同じくらいなら **`type:bug` → `type:task` → `type:feature`**。壊れているものを先に戻す
+3. それでも並んだら **Issue 番号の古い方**。滞留を減らす向きに倒す
 
 ---
 
-## Terminal State Handling（全 Goal 終端時の挙動）
+## はじめから候補にしないもの
 
-最後の Goal が DONE / BLOCKED に到達し、次の PENDING Goal が存在しない場合の Routine 挙動。
+- **DoD に実機目視・実ブラウザ検証が入るもの** — chat-main の手番（必須条件 2 の再掲だが、見落としが多いので独立に確認する）
+- **神ファイルの分割のような大規模リファクタ** — 一晩で終わらないうえ、触る面が広くて他レーンを巻き込む
+- **タイトルが `[all]` のもの** — 複数レーンが同時に着手しうる。実際に #473 で 40 分ぶんの二重実装が起きている
+- **判断が割れている実装** — `decisions/chat-night.md` に A/B で書いて次へ（`rules/decision-queue.md`）
 
-### 状態遷移
+---
 
-- 夜 Routine が「次 PENDING Goal なし」を検知したら `Active Goal` セクションを以下に書き換える:
-  ```markdown
-  **Current**: `(idle)`
-  **Last-Updated**: <YYYY-MM-DD>
-  **Updated-By**: chat-auto-<...> (terminal-state)
-  ```
+## 候補がゼロのとき
 
-### Idle モードでの夜 Routine 挙動
+**基準を緩めて無理に 1 件選ばない。** 「候補ゼロ + そう判断した理由」を報告に書いて、その夜は終わる。
 
-`Current: (idle)` を検出した夜 Routine は以下の制限付き動作に切り替わる:
+空振りが続くなら、それは供給側（Issue の粒度・滞留の判定値）を直す合図であって、夜のレーンが判断を甘くする理由にはならない。
 
-- **実装ループ進入禁止**: iteration loop (Step 3) には入らない
-- **plan 起票のみ続行**: 最後の Goal にゆるく紐付く（あるいは独立な）改善 plan を 1 件、`.claude/docs/vision/plans/` に起票するだけで終了
-- **commit/push しない**: plan ファイルは worktree 内に残して draft PR 化しない（ユーザーが朝レビューしてから本登録 → 新 Goal 化）
-- **outbox 報告必須**: `night-report.md` に `Result: Idle (terminal state, plan draft only)` を記録
+---
 
-### Idle 復帰条件
+## このファイルを直すとき
 
-ユーザーが goals.md を手動編集して以下のいずれかを実行:
+- Epic が閉じた / 向かう先が変わった
+- 滞留の判定値（3 日）を実測で動かした
+- 「これは夜に回すべきでなかった」という失敗が出た（→「はじめから候補にしないもの」へ 1 行足す）
 
-1. 新 Goal を追加し `Active Goal` セクションを `Current: Goal N` に書き換える
-2. 既存 BLOCKED Goal を `Status: ACTIVE` に戻し `Active Goal` セクションを更新
-3. 既存 DONE Goal を再 Open（稀ケース。`Status: ACTIVE` + 完了条件改訂）
-
-復帰後は通常運用に戻る（次夜 Routine から実装ループ再開）。
-
-### Idle 化を避けたい場合
-
-- ユーザーは Goal 3 完了が見えてきた段階で Goal 4 / 5 を手動追加することを推奨
-- 朝 Routine（後追い登録予定）が「次 Goal なし」を検出した時点で outbox 警告を出す
+**Issue が増えた / 減っただけでは直さない。** 一覧を持っていないので追随が要らない。
