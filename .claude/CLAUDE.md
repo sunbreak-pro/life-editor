@@ -92,6 +92,8 @@ PR 前は上のブロックの **lint / build / test をすべて**回す（`dev
 
 `<type>: <subject>` — type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`（詳細・破壊的操作の境界は `git-workflow` スキル）
 
+- **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。同スキルは「全プロジェクト共通」と書いているが、本プロジェクトは POLICY **P-001「merge と main への取り込みは常にユーザー」を優先**する。`Bash(gh pr merge*)` は `permissions.ask` に入れて機械側でも担保済み — Claude は条件が揃っても自分で merge しない
+
 ### 7.3 Plan Gate Convention
 
 新規・大改訂の計画書は [`docs/vision/plans/_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) ベースで以下を必須とする:

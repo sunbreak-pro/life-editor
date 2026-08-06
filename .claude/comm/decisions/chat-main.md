@@ -2,16 +2,6 @@
 
 形式は [`README.md`](./README.md) 参照。回答は `ANSWERS.md` へ。
 
-## D-20260804-main-2: `gh pr merge` を機械で止めるか（P-001 が文章だけになっている）
-
-- 背景: ループカタログの実測（`2026-08-04-loop-catalog-implementation.md` §1-C）で、**`gh pr merge` が `permissions` の deny にも ask にも無い**ことが判明。POLICY **P-001「merge と main への取り込みは常にこうだいさん」は文章だけで、機械では止まっていない**。さらに `git-workflow` §0.1.1（2026-07-29 ユーザー指定・全プロジェクト共通）は「role-qa 通過済み + conflict 無しなら確認不要で自動マージ」と書いており、**P-001 と正面から衝突**している。親計画の設計思想は「禁止は文章で書かず機械で不可能にする」
-- A: **`permissions.ask` に `Bash(gh pr merge*)` を足す**（推奨 — 押す前に必ず確認が入るだけで、こうだいさんが承認すればそのまま通る。`git push*` / `gh pr create*` と同じ二層の並び。P-001 が機械で担保され、無人実行時は確認できず失敗 → 報告に degrade する）
-- B: `permissions.deny` に入れて完全に禁止する（Claude からは絶対にマージできなくなる。こうだいさんが GitHub 上で押す運用に固定される）
-- C: 現状維持 + `git-workflow` §0.1.1 を life-editor では適用外と明記する（機械強制は増えないが、文章の衝突だけは解消する）
-- 放置時: 現状維持（C の後半もやらない）。**P-001 と `git-workflow` §0.1.1 の衝突が残り、どちらに従うかがその場の判断になる**
-- 期限感: 親計画 Phase 2（実装レーンの自走）着手まで。無人実行が始まる前に決着している必要がある
-- 補足: `.claude/settings.json` はループカタログの Scope 外のため、本エントリでは変更していない（裁定後に別 PR）
-
 ## D-20260804-main-1: Phase 1 定期実行（朝 digest / 夜間安全レーン）の実行基盤をどれにするか
 
 - 背景: 親計画 Phase 1（`2026-07-28-loop-engineering-harness.md` §6）のインフラは配置済み（PR = `docs/loop-harness-phase1`）だが、発火の足場が未裁定。実測で、セッション内 scheduled tasks（CronCreate）は**セッション限定 + 繰り返し 7 日期限**と判明し、常駐セッションなしでは毎朝発火に使えない
