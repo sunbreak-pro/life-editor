@@ -1,0 +1,90 @@
+name: Deploy — web to Cloudflare Pages
+
+# 公開 Web URL（https://life-editor.pages.dev）への配布（#600）。
+#
+# ci.yml とは意図的にファイルを分けている: あちらは「壊れていないか」の検証、
+# こちらは「外に出す」配布で、落ちたときに見るべき場所が違う。ci.yml 側は
+# PR でも走るが、こちらは main に入ったものだけを配る。
+#
+# Cloudflare の Git 連携（Cloudflare 側でビルドさせる方式）は使わない:
+# この repo は monorepo で、web のビルドが shared/ をソースから引く
+# （web/vite.config.ts の alias）ため、2 パッケージぶんの npm ci が要る。
+# Cloudflare のビルド設定は「ルートディレクトリ 1 つ + コマンド 1 本」が前提で
+# そこが素直に書けない。CI で実績のある手順をそのまま使い回し、成果物
+# （web/dist）だけを wrangler で投げる。
+#
+# 必要な Secrets（4 件・GitHub → Settings → Secrets and variables → Actions）:
+#   CLOUDFLARE_API_TOKEN   … 権限は Account / Cloudflare Pages / Edit のみ
+#   CLOUDFLARE_ACCOUNT_ID
+#   VITE_SUPABASE_URL      … Vite はビルド時に import.meta.env を文字列へ焼き込む
+#   VITE_SUPABASE_ANON_KEY … ので、実行時ではなくビルド時に要る
+# anon key がバンドルに載るのは仕様（公開前提の公開鍵で、実際の防御は RLS）。
+# service_role key は絶対にここへ置かない（RLS を素通りする合鍵）。
+
+on:
+  push:
+    branches: [main]
+  # Secrets を入れ直したときなどに手で叩き直せる逃げ道
+  workflow_dispatch:
+
+# 同時デプロイを禁止（後勝ちの取り違えを防ぐ）。ci.yml と違い進行中は
+# キャンセルしない — 配布の途中で止めると中途半端な状態が残りうるため
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: build + deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            shared/package-lock.json
+            web/package-lock.json
+
+      # shared = コード本体。web が ../shared/src をソース参照するため、
+      # dist は不要だが node_modules は要る（型解決と依存の実体）
+      - name: shared — install
+        run: npm ci
+        working-directory: shared
+      - name: shared — build (tsc -b)
+        run: npm run build
+        working-directory: shared
+
+      - name: web — install
+        run: npm ci
+        working-directory: web
+      - name: web — build (tsc -b --force && vite build)
+        run: npm run build
+        working-directory: web
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # 配る中身が空でないことを配布前に確認する（env 未設定などでビルドが
+      # 中途半端に通った場合、無言で壊れたページが公開されるのを防ぐ）
+      - name: verify build output
+        run: |
+          set -euo pipefail
+          test -f web/dist/index.html
+          test -f web/dist/manifest.webmanifest
+          test -f web/dist/icon-192.png
+          test -f web/dist/icon-512.png
+          test -f web/dist/apple-touch-icon.png
+          if grep -q '<title>web</title>' web/dist/index.html; then
+            echo "::error::index.html still has the placeholder <title>web</title>"
+            exit 1
+          fi
+
+      - name: deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/dist --project-name=life-editor --branch=main
