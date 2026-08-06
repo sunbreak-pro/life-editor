@@ -19,10 +19,10 @@ Parent: ../../../2026-05-04-cross-platform-migration.md
 - **すでに満たされている前提**（＝この計画が軽い理由）:
   - モバイル UI の切替は `shared/src/hooks/useMediaQuery.ts` の**画面幅**判定。`isNativeMobile()`（Capacitor 検知）とは独立しているので、**スマホのブラウザで開くだけでモバイル表示になる**（`shared/src/components/AppShell.tsx`）
   - `web/index.html` は `viewport-fit=cover` 済み（#320）。ノッチ端末の safe-area がそのまま効く
-  - 配布表に「Web URL = Cloudflare Pages / $0」が既定として記載済み（移行 SSOT §8）
+  - 配布表に「Web URL = Cloudflare（$0）」が既定として記載済み（移行 SSOT §8）
   - バックエンドは Supabase 直結。サーバーを立てる必要がない（配るのは静的ファイルだけ）
-- **制約**: 完成まで $0 厳守（移行 SSOT §「完成まで $0」）。Cloudflare Pages 無料枠・Supabase 無料枠のみ使用。独自ドメインは取らず `*.pages.dev` を使う
-- **ユーザー確定事項**（2026-08-07）: ホスティング = Cloudflare Pages / PWA = アイコン＋全画面まで（Service Worker なし）/ デプロイ = main merge で自動 / Capacitor ネイティブ殻 = 現状維持で併存
+- **制約**: 完成まで $0 厳守（移行 SSOT §「完成まで $0」）。Cloudflare Workers 無料枠・Supabase 無料枠のみ使用。独自ドメインは取らず `*.workers.dev` を使う（**静的アセットへのリクエストは無料・無制限**なので、日次 10 万リクエストの Workers 無料枠にも当たらない）
+- **ユーザー確定事項**（2026-08-07）: ホスティング = **Cloudflare Workers (Static Assets)**（当初 Pages で着手したが、Cloudflare が Pages を Workers へ吸収する方向でダッシュボードからも下げており、実際にトークン権限が見つからなかったため同日切替）/ PWA = アイコン＋全画面まで（Service Worker なし）/ デプロイ = main merge で自動 / Capacitor ネイティブ殻 = 現状維持で併存
 - **Non-goals**:
   - Service Worker・オフライン閲覧・オフライン編集（移行 SSOT §9 の Non-goals を維持。PWA は「ホーム画面アイコン + 全画面表示」だけに限定する）
   - 独自ドメイン / 他人への配布 / マルチテナント（N=1 のまま）
@@ -36,7 +36,7 @@ Parent: ../../../2026-05-04-cross-platform-migration.md
 ```
 web/index.html
 web/public/**
-web/src/main.tsx                       # manifest 読み込みが必要な場合のみ
+web/wrangler.jsonc                     # 新規（Workers Static Assets の配信設定）
 .github/workflows/deploy-web.yml       # 新規
 .claude/2026-05-04-cross-platform-migration.md    # §9 Non-goals の PWA 行を更新
 .claude/CLAUDE.md                                  # §2 Platform に Web URL 導線を 1 行
@@ -53,10 +53,10 @@ web/src/main.tsx                       # manifest 読み込みが必要な場合
 | --- | ---------------------------------------------- | ------- | ----------------------------------------------------------------- | -------------------------- |
 | 1   | PWA メタ整備（manifest / アイコン / title）    | 🤖 自律 | `cd web && npm run build` exit 0・`web/dist/` に 4 資産が存在     | ✅ 済                      |
 | 2   | RLS 監査（公開前の必須ゲート）                 | 🤖 自律 | `get_advisors(security)` の RLS 系 ERROR / WARN が 0 件           | ✅ 済（0 件）              |
-| 3   | Cloudflare アカウント + Pages プロジェクト作成 | 🛑 人手 | `life-editor.pages.dev` が予約済み（空ページで 200）              | ⬜ 待ち                    |
+| 3   | Cloudflare アカウント + サブドメイン + トークン | 🛑 人手 | workers.dev サブドメインが確定・トークン発行済み                 | ⬜ 待ち                    |
 | 4   | GitHub Secrets 登録（4 件）                    | 🛑 人手 | Actions の run で `***` としてマスク表示される                    | ⬜ 待ち                    |
 | 5   | deploy workflow 追加                           | 🤖 自律 | `deploy-web.yml` が PR で構文エラーなし（Actions の lint が通る） | ✅ 済                      |
-| 6   | main へ merge → 自動デプロイ                   | 🛑 人手 | `curl -sI https://life-editor.pages.dev` が `200`                 | ⬜ 待ち（Step 3-4 が前提） |
+| 6   | main へ merge → 自動デプロイ                   | 🛑 人手 | `curl -sI https://life-editor.<sub>.workers.dev` が `200`        | ⬜ 待ち（Step 3-4 が前提） |
 | 7   | Supabase Auth の URL 設定 + サインアップ封鎖   | 🛑 人手 | 新規サインアップが 422 で拒否される・ログインが公開 URL で通る    | ⬜ 待ち                    |
 | 8   | スマホ実機で golden path + ホーム画面追加      | 👀 目視 | 下記「実機チェックリスト」を 1 周                                 | ⬜ 待ち                    |
 | 9   | docs 追随（SSOT / CLAUDE.md / 本書 Status）    | 🤖 自律 | `bash scripts/docs-lint.sh` exit 0                                | ✅ 済（配布表の URL は後） |
@@ -95,16 +95,16 @@ web/src/main.tsx                       # manifest 読み込みが必要な場合
 
 **実測結果（2026-08-07）✅ 通過**: RLS 系の指摘 **0 件**。唯一の指摘は `auth_leaked_password_protection`（WARN・RLS とは無関係で、「流出済みパスワードの使い回しを弾く機能が OFF」という内容）。**公開 URL 化でログイン画面が外から見えるようになるため、この 1 件は Step 7 に組み込んで有効化する**（ダッシュボードのトグル 1 つ・$0）。
 
-### Step 3 — Cloudflare アカウント + Pages プロジェクト（🛑）
+### Step 3 — Cloudflare アカウント + サブドメイン + トークン（🛑）
 
 こうだいさんの手作業。所要 5〜10 分。
 
 1. https://dash.cloudflare.com/sign-up でアカウント作成（クレカ登録不要・$0）
-2. Workers & Pages → Create → Pages → **「Direct Upload」**を選ぶ（**Git 連携は選ばない** — 理由は Step 5 に記載）
-3. プロジェクト名 = `life-editor` → 空のまま作成（この名前がそのまま `life-editor.pages.dev` になる。`deploy-web.yml` の `--project-name` と**一字一句そろえる**）
-   - 作成後、プロジェクトの Settings で **production branch が `main` になっていること**を確認する。workflow は `--branch=main` で投げるので、ここがズレると本番ではなくプレビュー扱いになり、`life-editor.pages.dev` に反映されない
-4. **Account ID を控える**（ダッシュボード右サイドバー、または URL の `dash.cloudflare.com/<account-id>/` 部分）
-5. My Profile → API Tokens → Create Token → テンプレート「**Edit Cloudflare Workers**」ではなく **Custom token** で、権限 `Account / Cloudflare Pages / Edit` の 1 つだけを付けて発行 → **トークン文字列を控える**（再表示されない）
+2. Workers & Pages を開き、**workers.dev のサブドメインを決める**（アカウントごとに 1 回だけ。以後 URL は `life-editor.<決めたサブドメイン>.workers.dev` になる）
+   - **Worker 自体の事前作成は不要**。初回の `wrangler deploy` が `web/wrangler.jsonc` の `name`（= `life-editor`）で作る
+3. **Account ID を控える**（ダッシュボード右サイドバー、または URL の `dash.cloudflare.com/<account-id>/` 部分）
+4. My Profile → API Tokens → Create Token → テンプレート「**Edit Cloudflare Workers**」を選んで発行 → **トークン文字列を控える**（再表示されない）
+   - Pages 時代に要った Custom token（`Account / Cloudflare Pages / Edit`）はもう探さなくてよい。**この切替の実利のひとつがここ**
 
 ### Step 4 — GitHub Secrets 登録（🛑）
 
@@ -112,8 +112,8 @@ web/src/main.tsx                       # manifest 読み込みが必要な場合
 
 | Secret 名                | 中身                                | 出どころ                    |
 | ------------------------ | ----------------------------------- | --------------------------- |
-| `CLOUDFLARE_API_TOKEN`   | Step 3-5 のトークン                 | Cloudflare                  |
-| `CLOUDFLARE_ACCOUNT_ID`  | Step 3-4 の Account ID              | Cloudflare                  |
+| `CLOUDFLARE_API_TOKEN`   | Step 3-4 のトークン                 | Cloudflare                  |
+| `CLOUDFLARE_ACCOUNT_ID`  | Step 3-3 の Account ID              | Cloudflare                  |
 | `VITE_SUPABASE_URL`      | `https://<project-ref>.supabase.co` | ローカルの `web/.env.local` |
 | `VITE_SUPABASE_ANON_KEY` | anon（publishable）key              | 同上                        |
 
@@ -131,21 +131,21 @@ on:
   workflow_dispatch: # 手で叩き直せる逃げ道を残す
 ```
 
-- 手順は `ci.yml` の verify job の shared → web ビルドをそのまま流用し、末尾に `cloudflare/wrangler-action` で `pages deploy web/dist --project-name=life-editor` を足す
+- 手順は `ci.yml` の verify job の shared → web ビルドをそのまま流用し、末尾に `cloudflare/wrangler-action` で `deploy`（`workingDirectory: web`）を足す。配信設定の実体は **`web/wrangler.jsonc`**（`name` / `compatibility_date` / `assets.directory` / `assets.not_found_handling`）
 - ビルド step の `env:` に `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` を渡す（**Vite は `import.meta.env` をビルド時に文字列へ焼き込む**ので、実行時ではなくビルド時に必要 — `shared/src/services/supabaseClient.ts:17`）
 - **Cloudflare の Git 連携を使わない理由**: この repo は monorepo で、`web` のビルドが `shared/` をソースから引く（`web/vite.config.ts` の alias）。Cloudflare 側のビルド設定は「ルートディレクトリ 1 つ + コマンド 1 本」が基本で、2 パッケージの install を通すのが素直に書けない。**すでに CI で通っている手順をそのまま使い回せる** GitHub Actions 側でビルドし、成果物だけ投げる方が確実
-- **`_redirects` は置かない**: このアプリは React Router を使わず section state で切り替える（CLAUDE.md §3.2）ので、URL は常に `/`。SPA fallback が要る局面が無い。将来ルーティングを入れたらそのとき足す
+- **`not_found_handling: "single-page-application"` を入れる**: このアプリは React Router を使わず section state で切り替える（CLAUDE.md §3.2）ので通常運用で `/` 以外は踏まない。それでも入れるのは PWA の standalone 対策で、**アドレスバーが無い状態で 404 の白画面に落ちるとユーザーが自力で戻れない**ため
 
 ### Step 6 — main merge → 自動デプロイ（🛑）
 
-P-001 のとおり merge はこうだいさんが押す。押した瞬間に Actions が走り、2〜3 分で `https://life-editor.pages.dev` が生える。
+P-001 のとおり merge はこうだいさんが押す。押した瞬間に Actions が走り、2〜3 分で `https://life-editor.<サブドメイン>.workers.dev` が生える。
 
 ### Step 7 — Supabase Auth の設定（🛑）
 
 Supabase ダッシュボードでの手作業。**ここを飛ばすとログインできない or 他人が入れる**。
 
 1. **Authentication → URL Configuration**
-   - `Site URL` = `https://life-editor.pages.dev`
+   - `Site URL` = `https://life-editor.<サブドメイン>.workers.dev`
    - `Redirect URLs` に同 URL を追加（`http://localhost:5173` も残す — ローカル開発が死ぬので消さない）
 2. **Authentication → Providers → Email → 「Allow new users to sign up」を OFF**
    - 公開 URL になると、URL を知った誰でもアカウントを作れてしまう。RLS があるので**既存データは読まれない**が、無料枠を他人に食われるし、そもそも N=1 のアプリに他人のアカウントは要らない（CLAUDE.md §1）
@@ -158,7 +158,7 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
 
 こうだいさんが iPhone で 1 周する。
 
-- [ ] Safari で `https://life-editor.pages.dev` を開き、**ログインできる**
+- [ ] Safari で `https://life-editor.<サブドメイン>.workers.dev` を開き、**ログインできる**
 - [ ] 下タブバーが出て、モバイルレイアウトになっている（デスクトップのサイドバーが出ていたら幅判定の不具合 → 報告）
 - [ ] ノッチ / ホームバーに UI が潜り込んでいない（safe-area）
 - [ ] Briefing / Tasks / Schedule / Notes / Daily を一巡して、データが Electron 版と一致する
@@ -175,7 +175,7 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
 - [ ] `web/dist/manifest.webmanifest` / `icon-192.png` / `icon-512.png` / `apple-touch-icon.png` の 4 ファイルが存在
 - [ ] `web/dist/index.html` に `<title>web</title>` が**残っていない**（`grep -c '<title>web</title>' web/dist/index.html` が 0）
 - [ ] `get_advisors({ type: "security" })` の RLS 系 ERROR / WARN が 0 件（Step 2）
-- [ ] `curl -sI https://life-editor.pages.dev | head -1` が `HTTP/2 200`（Step 6 後）
+- [ ] `curl -sI https://life-editor.<サブドメイン>.workers.dev | head -1` が `HTTP/2 200`（Step 6 後）
 - [ ] `bash scripts/docs-lint.sh` exit 0（`LC_ALL=C` 付きでローカル実行）
 - [ ] PR diff が ±400 行以内（アイコン PNG のバイナリを除く）
 - [ ] 完了時: 本書 Status を COMPLETED にして `archive/` へ移動・per-chat memory 更新
@@ -196,7 +196,7 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
 | **iOS の PWA でログインが飛ぶ**     | iOS の ITP は、7 日間アクセスの無いサイトの localStorage を消すことがある。`persistSession: true`（`supabaseClient.ts:34`）が localStorage 依存なので、放置後にログイン画面へ戻される可能性がある | 実害はログインし直しのみ。**毎日使う想定なので実質発生しない**。頻発したら別 Issue（Supabase の refresh token を Cookie に寄せる等） |
 | **パスワードリセットが機能しない**  | `detectSessionInUrl: false`（`supabaseClient.ts:36`）のため、メールのリセットリンクに乗ったトークンをアプリが拾わない                                                                             | **今回のスコープ外**（現状も同じで、退行ではない）。パスワードを忘れたら Supabase ダッシュボードから直接変更できる。必要なら別 Issue |
 | **Supabase 無料枠の一時停止**       | 無料プロジェクトは 7 日間まったくアクセスが無いと一時停止される                                                                                                                                   | 日常的に使う前提なので実質起きない。起きたらダッシュボードから再開（データは消えない）                                               |
-| **Cloudflare Pages のビルド分数**   | Actions 側でビルドするので Cloudflare のビルド枠は消費しない。GitHub Actions は public repo なら無料                                                                                              | 監視不要                                                                                                                             |
+| **Cloudflare の無料枠**             | Actions 側でビルドするので Cloudflare のビルド枠は消費しない。Workers 無料プランは日次 10 万リクエストだが、**静的アセットへのリクエストは無料・無制限**（Worker のコードを持たない構成のため全リクエストがこれに当たる）                        | 監視不要                                                                                                                             |
 | **anon key の露出を「漏洩」と誤認** | バンドルに入るのは仕様。CLAUDE.md §9 の「API キーをフロントエンドに直書きしない」と衝突して見える                                                                                                 | 禁止対象は**秘密鍵**（service_role 等）。anon key は公開前提の公開鍵で、直書きではなく env 経由。本書に明記しておく                  |
 
 - 類似事例は `.claude/docs/known-issues/INDEX.md` を grep 済み（公開ホスティング関連の既存知見はなし）
@@ -233,3 +233,9 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
   - **`sharp-cli` ではなく `sharp` を scratchpad に入れて Node スクリプトで焼いた** — 正方形化・不透明背景・ロゴ占有率の 3 つを同時に指定する必要があり、CLI のオプションでは組み立てにくかったため。`web/package.json` は無変更（生成物の PNG だけコミット）
   - **`deploy-web.yml` に `verify build output` ステップを足した**（計画には無かった）。Secrets 未設定などでビルドが中途半端に通ったとき、**無言で壊れたページが公開される**のが公開 URL の一番怖い失敗なので、配る直前に成果物 5 点の実在と `<title>` の置換を機械チェックする
   - **`auth_leaked_password_protection`（Step 2 の唯一の指摘）を Step 7 に組み込んだ** — RLS 無関係だが、ログイン画面が外から見えるようになる以上、同じタイミングで有効化するのが自然
+- 2026-08-07: **配信先を Cloudflare Pages → Cloudflare Workers (Static Assets) へ切替**（PR #601 の追加コミット・ユーザー確定）
+  - 発端は「トークン権限 `Account / Cloudflare Pages / Edit` が画面に見当たらない」というユーザー報告。調べると権限自体は公式リファレンスに現存しており、直接の原因は Custom token 画面でスコープを Account に切り替えないと候補に出ないことだった
+  - ただし**より根本的な事情**が判明: Cloudflare は Pages を Workers へ吸収する方向で、ダッシュボードから Pages を下げている。2026-03 時点で Workers は静的サイト / SPA / 独自ドメインで機能同等、新機能は Workers 側にしか来ない
+  - 切替の実利が 3 つある: ①トークンはテンプレート「Edit Cloudflare Workers」で済み、詰まっていた権限探しが消える ②**静的アセットへのリクエストは無料・無制限**で $0 厳守に合致（Pages 同様） ③将来の再移行が要らない
+  - 差分は `web/wrangler.jsonc` 新規 + `deploy-web.yml` の deploy ステップのみ。ビルド手順・PWA 資産・RLS ゲートは無変更
+  - **`not_found_handling: "single-page-application"` を入れた**: 当初「React Router 不使用だから SPA fallback は不要」と判断していたが、PWA の standalone はアドレスバーが無く、404 の白画面に落ちるとユーザーが自力で戻れない。Pages 版で `_redirects` を置かなかった判断はここで覆した
