@@ -7,9 +7,18 @@
 **対象**: `.claude/automation/`・`.claude/settings.json`・`.claude/docs/vision/plans/`
 **計画書**: `.claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md`
 
-- 前回: 3 計画書の整合性評価 → ユーザー裁定 3 件（①順序 = 親 Phase 1 → カタログ → コスト → 親 Phase 2 ②Phase 0→1 昇格を前倒し確定 ③実行基盤は調査して提案）→ **Phase 1 インフラ配置 PR #594**（plans 2 本配置 / automation 改訂 = routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
-- 現在: **PR #594 merge 待ち（ユーザー）+ 実行基盤の裁定待ち（D-20260804-main-1）**。自動発火は無効のまま
-- 次: merge 後にユーザーが `run-routine.ps1` を手動実行して動作確認 → 裁定に応じて Task Scheduler 登録（手順 = `automation/routine-ids.md`）。Phase 2 はループカタログ定着後（decision キューで判定）
+- 前回: 3 計画書の整合性評価 → ユーザー裁定 3 件（①順序 = 親 Phase 1 → カタログ → コスト → 親 Phase 2 ②Phase 0→1 昇格を前倒し確定 ③実行基盤は調査して提案）→ **Phase 1 インフラ配置 PR #594 merged**（`3ef1f752`。plans 2 本配置 / automation 改訂 = routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
+- 現在: **実行基盤の裁定待ち（D-20260804-main-1）**。自動発火は無効のまま
+- 次: ユーザーが `run-routine.ps1` を手動実行して動作確認 → 裁定に応じて Task Scheduler 登録（手順 = `automation/routine-ids.md`）。Phase 2 はループカタログ定着後（decision キューで判定）
+
+### ⏸️ ループカタログ試験運用 + 自律運転の到達点（着手日: 2026-08-06）
+
+**対象**: `.claude/skills/loop-*/`・`.claude/docs/vision/plans/`
+**計画書**: `.claude/docs/vision/plans/2026-08-04-loop-catalog-implementation.md`
+
+- 前回: 初期 4 本（triage / implement / verify / postmortem）を配置し **PR #595 merged**（`18da6b5f`）。子計画 Step 1〜5 完了
+- 現在: **Step 8 = 「自律運転の到達点」を別計画書に起こす**（P-001 改訂提案 + ゲート 3 段階解放 + merge 後 main 検証 → 自動 revert）。並行して Step 6 の試験運用（反復上限の実測）は使うたびに Worklog へ追記
+- 次: 到達点の計画書をユーザーレビュー → 第 1 段（`claude/*` への push + draft PR 作成の解放）の可否を裁定。あわせてセッション 3（コスト削減ハーネス）向けプロンプトを生成
 
 ### 🔧 worktree 総入れ替え + 次期 fan-out（着手日: 2026-07-29）
 
@@ -21,19 +30,19 @@
 
 ## 直近の完了
 
+- [chat-main] **ループカタログ初期 4 本の配置（PR #595 merged `18da6b5f`）** ✅（2026-08-06）— 親計画 §4 に沿ってローカル実測 → 子計画書 → レビュー → `/loop-triage` でフォーマット確定 → 残り 3 本。実測で親計画の前提が 2 か所崩れているのを検出（リポジトリ内 12 スキル中 **8 本が Mac パスを指す死んだポインタ**・`gh pr merge` が deny / ask のどちらにも無く P-001 が機械未強制 + `git-workflow` §0.1.1 と矛盾）→ 設計変更 2 点（triage は起票しない / implement は commit まで）。**D-20260804-main-2** 起票
+
 - [chat-main] **判断キュー 8 件の消化 + docs 反映（PR #527 merged）** ✅（2026-08-01）— ユーザー回答を `ANSWERS.md` へ転記し、行き先ごとに実行。#520 は 🛑 ゲート解除コメント（A = 移動時にレンズを外す）／ B 採用の mobile-2 / mobile-3 は実装が要るので **#525 / #526** 起票／ docs 反映 4 件は **PR #527**（`[all]` prefix の廃止・tracker を実装ブランチに載せない・enum は plans/ 由来だけ・ClaudeDesign 計画書の COMPLETED 化と「追跡正本」宣言の付け替え）。自己レビューで **archive 移動により自分が壊した相対リンク 2 本**を検出し同 PR 内で修正、同種の**既存壊れ 6 本**は **#528** へ（docs-lint がリンク解決を見ていない穴も込み）
 
 - [chat-main] **open PR 巡回（停止条件 = #467 / #468 close + open PR 0）** ✅（2026-08-01）— 巡回開始時の open PR 2 本（#522 tracker 復元 / #523 d3 sim を発火時読み取りへ）を `/code-review low` で確認中に両方 merge され、**停止条件達成**。Epic #290（Step 2〜7 全 [x]）/ Epic #321（Phase 2 全消化）/ mobile-scope.md / plans Status は各レーンの PR 内で追随済みで chat-main の追加修正は不要だった。outbox は **worktree 5 本の実体まで直接 diff** して未処理ゼロを確認（main 側のコピーだけ見ると未 push 分を取りこぼす）。#523 のレビュー検出は **#524** として起票
 
-- [chat-main] **worktree 総入れ替え + Issue fan-out + V4 実ブラウザ検証** ✅（2026-07-29）— 旧 worktree 5 本を撤去（PR state で全ブランチの merge 済みを実測してから削除。未 PR だった `claude/enhance-mobile-work-section-Cmphw` の demo HTML はユーザー判断で削除・退避済み）+ ローカル 74 / リモート 89 ブランチ削除 → 新レーン 4 本作成。Issue #465（MainScreen hooks = DataService 分割計画の最終ステップ）/ #466〜#469（Epic #290 Step 5-b・5-c・6・7）/ #470〜#473（Epic #321 Phase 2）/ #474（plans/ Status 棚卸し）を起票。あわせて V4 (#411) を claude-in-chrome で実測し 3 pass / 1 fail（`[[` リンクのクリック遷移 → **#475**）。検証計画は全項目消化で COMPLETED → archive
-
 ## 予定
 
-### 📋 Loop Engineering 続き（セッション 2 / 3 — 貼り付け用プロンプトは history 2026-08-04 エントリ参照）
+### 📋 Loop Engineering 続き（セッション 3 — 貼り付け用プロンプトは history の各セッションエントリ参照）
 
-- セッション 2: **ループカタログ実装**（`2026-08-04-loop-catalog.md` §4 — ローカル実態調査 → 子計画書 → レビュー → 初期 4 本配置）。前提 = PR #594 merge 済み
+- ~~セッション 2: ループカタログ実装~~ **完了**（PR #595 merged `18da6b5f`・2026-08-06）
 - セッション 3: **コンテキストコスト削減ハーネス**（`2026-08-04-context-cost-reduction-harness.md` — Phase 1 計測 + Phase 2 枠づくりまで。Phase 3 移送は移行完了後）
-- 親計画 Phase 2（実装レーン自走）はカタログ試験運用 1〜2 週間後に decision キューで着手判定。前提 = `goals.md` 全面改訂
+- 親計画 Phase 2（実装レーン自走）はカタログ試験運用 1〜2 週間後に decision キューで着手判定。前提 = `goals.md` 全面改訂。**到達点の設計は Step 8 の別計画書が先**（進行中セクション参照）
 
 ### 📝 #524（2026-08-01 巡回のレビュー検出 → 起票済み・実ブラウザ確認が DoD 先頭）
 

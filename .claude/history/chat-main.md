@@ -1,5 +1,40 @@
 # HISTORY (chat-main)
 
+### 2026-08-06 - ループカタログ初期 4 本の配置（Loop Engineering セッション 2・PR #595 merged）
+
+#### 概要
+
+親計画 `2026-08-04-loop-catalog.md` §4 の手順どおり、この Windows 機のローカル実態を実測してから子計画書を起こし、`/loop-triage` でフォーマットを確定させたうえで残り 3 本を同一形式で配置した。実測の結果、親計画が置いていた前提が 2 か所で崩れていたため、設計を 2 点変更している。
+
+#### 変更点
+
+- **子計画書**: `2026-08-04-loop-catalog-implementation.md`（§1 ローカル実測 / §2 責務境界 / §3 フォーマット + 規約 / §4 初期 4 本 + 設計変更 2 点 / Scope / Steps 8 本 / 機械検証可能な AC 8 項目）。親計画に `Child:` を追加し Status を `IN PROGRESS` 化
+- **前提の崩れ ①（死んだスキル）**: リポジトリ内スキル 12 本のうち **8 本が Mac パスを指すシンボリックリンク切れ**（`add-component` / `add-feature` / `add-ipc-channel` / `db-migration` / `frontend-react-designer` / **`issue-dispatch`** / `session-loader` / `test-writing`）。生きているのは `dev-digest` / `docs-workflow` / `schedule-management` / `worktree-policy` の 4 本のみ
+- **前提の崩れ ②（merge の穴）**: `gh pr merge` が repo `permissions` の deny にも ask にも無く、**POLICY P-001「merge は常にユーザー」が機械では未強制**。さらに `git-workflow` §0.1.1 の自動マージ指定と衝突している。→ **D-20260804-main-2** として判断キューへ起票（A = `permissions.ask` へ追加 / B = deny / C = 現状維持 + §0.1.1 を life-editor 非適用と明記）
+- **設計変更 2 点**: ① `/loop-triage` は**起票しない**（`issue-dispatch` が死んでおり、起票は chat-main 一元）。判定と着手順の提示までで、起票が要るものは outbox へ依頼を append ② `/loop-implement` は **draft PR を作らない**（`git push*` / `gh pr create*` が `permissions.ask` のため無人実行では必ず止まる）。完了条件は commit + PR 本文の下書きをファイル出力まで
+- **配置した 4 本**: `loop-triage`（12 件 / 20 分）・`loop-implement`（5 周 / 90 分）・`loop-verify`（3 周 / 30 分・`session-verifier` の内部 2 リトライの**外側の輪**）・`loop-postmortem`（5 件 / 20 分・1 件につき 1 行）。全本 `disable-model-invocation: true` + 必須 5 見出し + 6 つ目の `## 環境の事実`（ユーザー承認）。時間上限は宣言だけでは無視された実例（494 反復の暴走）があるため `START_TS=$(date +%s)` の実測を明記
+- **見出し語彙は `automation/routine-*.md` に合わせた**。親 Phase 2 で `routine-night.md` を `/loop-implement` の薄い殻に書き換えられるようにするため
+- **検証**: AC 8 項目すべて機械確認（4 本存在 / 5 見出し 5-5 / `disable-model-invocation` 4-4 / 反復・時間上限 4-4 / 死んだスキルを呼び先に指名していない / 親→子の参照あり / `LC_ALL=C bash scripts/docs-lint.sh` = OK）。CI = docs-lint pass 7s + typecheck/test/build pass 3m7s。**PR #595 merged `18da6b5f`**
+
+#### 次セッション用プロンプト（セッション 3: コンテキストコスト削減ハーネス）
+
+```
+コンテキストコスト削減ハーネスの実装セッション（Loop Engineering セッション 3/3）。
+前提: PR #595 が merge 済み（18da6b5f・ループカタログ初期 4 本が main にある）。
+正本 = .claude/docs/vision/plans/2026-08-04-context-cost-reduction-harness.md（着手時に Status を IN PROGRESS 化）。
+範囲は Phase 1（計測）+ Phase 2（枠づくり）まで。Phase 3（移送）は Electron 移行完了後なので着手しない。
+Phase 1 で必ず実測すること:
+- 常時ロード分（CLAUDE.md + ~/.claude/CLAUDE.md + rules/ 群）の実トークン数
+- 条件ロード分（skills / path-scoped rules / docs）が実際に何回・どれだけ載っているか
+- 実測前に削る判断をしない（どこが重いかは推測では当たらない）
+Phase 2 の枠づくりでは、ループカタログと同じ規律に従う:
+- 削るのではなく「読む条件」を足す（path-scoped / 明示起動へ寄せる）
+- 削った細則の分だけ「なぜ」を厚くする
+- 数値・列挙の正本を 1 か所に寄せる（数値の非複製原則）
+制約: Scope は計画書に宣言したパスのみ。CLAUDE.md を削るときは、その行を消したら Claude が間違うかで判断し、根拠を Worklog に残す。
+既知の関連: 姉妹計画の loop-prune（増えた文書を畳むループ）は本計画の管轄。カタログは 4 本を上限にしてある。
+```
+
 ### 2026-08-04 - Loop Engineering: 3 計画書の整合性評価 + Phase 1 インフラ配置（PR #594）
 
 #### 概要
@@ -73,29 +108,4 @@
 - **計画書の回収と COMPLETED 化**: `2026-07-25-code-reduction.md` は origin/main・tracker ブランチ（#340/#343 merged）とも不在 → 一次結論は「Mac 側ローカル想定・差し戻し」だったが、ユーザー指摘（Windows でしか触っていない）を受けて再探索。セッション記録（`~/.claude/projects/`）の grep で **dev クローン**（`C:\Users\user\dev\life-editor\.claude\worktrees\code-reduction`・git 未追跡 `??`）に実体を特定し回収。実行記録（PR #338〜#351・A15 SUPERSEDED・A18 修理・C9/C10 非実行）+ 実測訂正（C4/C6/C2/A21/Step 7）を Worklog に転記し、Status: COMPLETED で `archive/` へ収録（PR #377 同梱）。**教訓: この PC は orca / dev の 2 クローン構成 — ファイル不在の結論を出す前に両クローンとセッション記録を探索すること**
 - **ブランチ棚卸し**: ローカル 17 本中 16 本の PR MERGED を機械確認（`git branch -D` は deny ルールのため削除コマンドをユーザーへ提示・memory のクリーンアップ節を更新）。`claude/briefing-evening-patch-fix` のみ PR 無しで保留（中身確認まで削除しない）
 
-### 2026-07-19 - Notes/Daily エディタ即クラッシュ修正（tiptap Suggestion PluginKey 衝突・PR #294）
-
-#### 概要
-
-Notes のアイテムクリックで詳細パネルが真っ白になる regression（#288 merge の [[ autocomplete 導入で顕在化）を Windows 機の chat-main で診断・修正。"/" スラッシュメニューと "[[" オートコンプリートが @tiptap/suggestion の共有デフォルト PluginKey に衝突し、両方を登録する Notes/Daily エディタが ProseMirror の RangeError でマウント時にクラッシュしていた。
-
-#### 変更点
-
-- **Root Cause**: `web/src/notes/slashCommand.ts` / `itemLinkSuggestion.ts` の両 `Suggestion({...})` が `pluginKey` 未指定 → 共有デフォルト `SuggestionPluginKey` に二重登録 → `RangeError: Adding different instances of a keyed plugin (suggestion$)`。実行時にのみ発生し型/build 検証は通過するため merge 前検出不可（運用どおり merge 後の chat-main 実ブラウザ確認で発覚）
-- **Fix**: 各 Suggestion に module-level の固有 `PluginKey`（`"slashCommand"` / `"itemLinkSuggestion"`）を付与（2 files, +14 行・commit `11acaac0`）。一時 worktree `tmp-suggestion-key` 経由で push・push 後即削除（main 直 push 禁止準拠）
-- **起票/追跡**: Issue #293（type:bug / sev:blocking / section:materials・DoD 付き）→ PR #294 が `Fixes #293`。issue-dispatch スキルは Windows 機に未配備のため gh 直接起票
-- **検証**: web build（tsc -b --force + vite）0 / eslint 対象 2 ファイル 0 / role-qa 独立レビュー PASS（BLOCKING/IMPORTANT 0 — prosemirror-state の `Configuration` 実装を実測し、module-level PluginKey の複数エディタ共有はキー衝突判定が単一 EditorState 内のみのため安全と確証。MINOR 1 件 = const 配置の見た目のみ・見送り）。merge 後の実ブラウザ確認（Issue #293 DoD）は「予定」に登録
-
-### 2026-06-27 - Loop Engineering Step 3 + 並行レーン memory 棚卸し（#105 merged / connect-link-ui 検出）
-
-#### 概要
-
-Loop Engineering の自動検証ループ（`scripts/loop-engine/`）を Step 3 まで完成させ PR #106 を作成。続けて全 per-chat memory を git/gh 実態と照合し、マージ済みなのに「PR 待ち / 未コミット」と古いままだった 4 レーンの memory をユーザー認可のもと実態へ同期した。
-
-#### 変更点
-
-- **loop-engine Step 3**: `loop.sh` 新規（run-once を PASS/上限まで反復・4停止条件・課金同意ゲート・空 TODO は子 Claude 起動せず $0）。check.sh/run-once.sh のハードコード絶対パスを script 相対化（worktree 移動・マージ後も動く）。`count_todo` をコメント無視へ修正（TODO 冒頭の例を実タスクと誤認するバグ）。スタブ harness で 4 停止条件＋無課金経路を 5/5 実証（トークン/npm 不使用）。`feat/loop-engine` worktree で commit `c72e61d7` → push → **PR #106 open**。CLAUDE.md §7.4 に Orca ADE worktree 例外 1 行を stash から復元同梱。
-- **並行レーン棚卸し**: gh で全 PR 状態を確認（#79/#88/#51/#105/#102/#97/#96/#78/#48/#40/#46/#38/#36 = MERGED、#106 のみ OPEN）。**#105（W8 救出）も merged 済**と判明し chat-main の「open」表記を訂正。stale だった chat-phase3-electron（#79）/ chat-phase4-capacitor（#88）/ chat-work-mobile-unify（#51）/ chat-prototype-mobile（#40/#46/#48）の 4 memory を「完了」へ同期（各ファイル冒頭に棚卸しマーカー付記）。単一書込者原則の例外＝ユーザー明示認可の cross-lane reconciliation。
-- **検出した宙吊り（申し送り）**: `connect-link-ui` worktree が **台帳外の生きたレーン**（別セッションで Connect リンク作成/削除 UI を実装中・独自 commit `8711acfe`・未コミット 3 ファイル・`.session-name`/memory 無し・PR 未作成）。`stash@{1}` に DU-F Step 6-14 の未コミット作業が宙吊り。本コミットでは触らず記録のみ。
-
-> 古いエントリは [`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
+> 古いエントリは [`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
