@@ -7,17 +7,17 @@
 
 ## ファイル構成
 
-| ファイル                | 用途                                                               | 状態                                    |
-| ----------------------- | ------------------------------------------------------------------ | --------------------------------------- |
-| `README.md`             | このファイル。全体構造の入口                                       | 現行                                    |
-| `routine-digest.md`     | 朝 06:03 JST — 采配ダイジェスト生成（dev-digest スキルの薄い外枠） | **Phase 1・発火は裁定待ち**             |
-| `routine-night-safe.md` | 夜 22:33 JST — 読み取り中心の安全レーン（docs / Issue / PR 監査）  | **Phase 1・発火は裁定待ち**             |
-| `run-routine.ps1`       | headless 起動スクリプト（Task Scheduler / 手動の共通入口）         | 未実測 — 初回は手動実行で調整           |
-| `routine-ids.md`        | 定期実行の登録台帳（何が・どこで・いつ動くか）                     | 現行                                    |
-| `routine-night.md`      | 夜の実装レーン（Engineer）プロンプト                               | **未稼働 — Phase 2 改訂待ち**           |
-| `routine-morning.md`    | 朝の PM プロンプト                                                 | **未稼働 — Phase 2 改訂待ち**           |
-| `goals.md`              | Goal Roadmap（2026-05 起票）                                       | **陳腐化 — Phase 2 前提の全面改訂待ち** |
-| `dev-schedule.md`       | 週次開発スケジュール（schedule-management スキルが管理）           | 現行（本ハーネスとは独立）              |
+| ファイル                | 用途                                                               | 状態                          |
+| ----------------------- | ------------------------------------------------------------------ | ----------------------------- |
+| `README.md`             | このファイル。全体構造の入口                                       | 現行                          |
+| `routine-digest.md`     | 朝 06:03 JST — 采配ダイジェスト生成（dev-digest スキルの薄い外枠） | **Phase 1・発火は裁定待ち**   |
+| `routine-night-safe.md` | 夜 22:33 JST — 読み取り中心の安全レーン（docs / Issue / PR 監査）  | **Phase 1・発火は裁定待ち**   |
+| `run-routine.ps1`       | headless 起動スクリプト（Task Scheduler / 手動の共通入口）         | 未実測 — 初回は手動実行で調整 |
+| `routine-ids.md`        | 定期実行の登録台帳（何が・どこで・いつ動くか）                     | 現行                          |
+| `routine-night.md`      | 夜 — 実装レーン（`/loop-implement` の薄い殻・commit 止まり）       | **Phase 2・発火は裁定待ち**   |
+| `goals.md`              | 夜のレーンの選定基準（今夜の 1 件をどう選ぶか。一覧は持たない）    | 現行                          |
+| `routine-morning.md`    | 退役（後継 = `routine-digest.md`）                                 | **退役 — 2026-08-06**         |
+| `dev-schedule.md`       | 週次開発スケジュール（schedule-management スキルが管理）           | 現行（本ハーネスとは独立）    |
 
 ---
 
@@ -35,7 +35,9 @@
   → 修正が要るものは起票依頼として列挙 → 翌朝 chat-main が裁く
 ```
 
-実装の自走（夜 1 plan → draft PR = `routine-night.md` 改訂版）は **Phase 2**。前提 = ループカタログ（`2026-08-04-loop-catalog.md`）の定着 + `goals.md` の全面改訂。着手可否は decision キューで裁定する。
+実装の自走（夜 1 Issue → **commit 止まり** = `routine-night.md`）は **Phase 2**。文書整備は 2026-08-06 に完了（ループカタログ定着の待ちはユーザー指示で前倒し・試験運用 0 件のまま着手）。**発火はまだ有効化していない** — 実行基盤の裁定（D-20260804-main-1）待ち。
+
+「draft PR 止まり」ではなく **commit 止まり**なのは、`Bash(git push*)` と `Bash(gh pr create*)` が `permissions.ask` にあり、無人では答える人がいなくて必ず失敗するため。push と PR 作成は翌朝の人の手番に残す（解放の可否 = `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段）。
 
 ### 実行基盤（D-20260804-main-1 裁定待ち）
 
