@@ -86,11 +86,20 @@ jobs:
           fi
 
       # web/wrangler.jsonc を読ませるため workingDirectory を web に置く。
-      # assets.directory = ./dist/ がそこからの相対で web/dist を指す
+      # assets.directory = ./dist/ がそこからの相対で web/dist を指す。
+      #
+      # action は v4・wrangler も 4 系に固定する（#600 実測）: v3 の既定は
+      # wrangler 3.90.0 で、そこには「コードを持たない静的アセットだけの
+      # Worker」の概念が無く、`main` が無い wrangler.jsonc を
+      #   ✘ Missing entry-point: ... or the `main` config field
+      # で蹴る（run 31119518544）。この構成は wrangler 4 系で正式に通る。
+      # wranglerVersion は action の既定に任せず明示する — 既定が動くのは
+      # 「今の既定がたまたま 4 系」だからで、暗黙に頼ると同じ形で再発する。
       - name: deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
           workingDirectory: web
           command: deploy

@@ -53,10 +53,10 @@ web/wrangler.jsonc                     # 新規（Workers Static Assets の配�
 | --- | ---------------------------------------------- | ------- | ----------------------------------------------------------------- | -------------------------- |
 | 1   | PWA メタ整備（manifest / アイコン / title）    | 🤖 自律 | `cd web && npm run build` exit 0・`web/dist/` に 4 資産が存在     | ✅ 済                      |
 | 2   | RLS 監査（公開前の必須ゲート）                 | 🤖 自律 | `get_advisors(security)` の RLS 系 ERROR / WARN が 0 件           | ✅ 済（0 件）              |
-| 3   | Cloudflare アカウント + サブドメイン + トークン | 🛑 人手 | workers.dev サブドメインが確定・トークン発行済み                 | ⬜ 待ち                    |
-| 4   | GitHub Secrets 登録（4 件）                    | 🛑 人手 | Actions の run で `***` としてマスク表示される                    | ⬜ 待ち                    |
+| 3   | Cloudflare アカウント + サブドメイン + トークン | 🛑 人手 | workers.dev サブドメインが確定・トークン発行済み                 | ✅ 済                      |
+| 4   | GitHub Secrets 登録（4 件）                    | 🛑 人手 | Actions の run で `***` としてマスク表示される                    | ✅ 済                      |
 | 5   | deploy workflow 追加                           | 🤖 自律 | `deploy-web.yml` が PR で構文エラーなし（Actions の lint が通る） | ✅ 済                      |
-| 6   | main へ merge → 自動デプロイ                   | 🛑 人手 | `curl -sI https://life-editor.<sub>.workers.dev` が `200`        | ⬜ 待ち（Step 3-4 が前提） |
+| 6   | main へ merge → 自動デプロイ                   | 🛑 人手 | `curl -sI https://life-editor.<sub>.workers.dev` が `200`        | 🔁 再試行中（wrangler v4） |
 | 7   | Supabase Auth の URL 設定 + サインアップ封鎖   | 🛑 人手 | 新規サインアップが 422 で拒否される・ログインが公開 URL で通る    | ⬜ 待ち                    |
 | 8   | スマホ実機で golden path + ホーム画面追加      | 👀 目視 | 下記「実機チェックリスト」を 1 周                                 | ⬜ 待ち                    |
 | 9   | docs 追随（SSOT / CLAUDE.md / 本書 Status）    | 🤖 自律 | `bash scripts/docs-lint.sh` exit 0                                | ✅ 済（配布表の URL は後） |
@@ -239,3 +239,9 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
   - 切替の実利が 3 つある: ①トークンはテンプレート「Edit Cloudflare Workers」で済み、詰まっていた権限探しが消える ②**静的アセットへのリクエストは無料・無制限**で $0 厳守に合致（Pages 同様） ③将来の再移行が要らない
   - 差分は `web/wrangler.jsonc` 新規 + `deploy-web.yml` の deploy ステップのみ。ビルド手順・PWA 資産・RLS ゲートは無変更
   - **`not_found_handling: "single-page-application"` を入れた**: 当初「React Router 不使用だから SPA fallback は不要」と判断していたが、PWA の standalone はアドレスバーが無く、404 の白画面に落ちるとユーザーが自力で戻れない。Pages 版で `_redirects` を置かなかった判断はここで覆した
+- 2026-08-07: **#601 merge 直後に push した Workers 切替が main に届かず**、回収 PR #602 で載せ直した（`git checkout -b <new> origin/main` → `cherry-pick`・コンフリクトなし）。原因は「PR 提出後にユーザーとの対話で方針が変わり、調査に十数分かかる間に merge された」形で、**既存の対策「アドバーサリアルレビューを PR 前に回す」では防げない類型**（外部サービスの仕様変更に起因する転換は前倒しできない）。追加ルール = **PR 提出後に方針が変わったら同じブランチに push せず main から新ブランチを切る**
+- 2026-08-07: **#602 merge 後の初回デプロイが失敗**（run 31119518544）。`✘ Missing entry-point: ... or the \`main\` config field`
+  - 原因は **`cloudflare/wrangler-action@v3` の既定が wrangler 3.90.0** だったこと。3.90 には「コードを持たない静的アセットだけの Worker」の概念が無く、`main` の無い `wrangler.jsonc` を蹴る。**設定ファイル側は正しく、道具が古かった**
+  - 対処 = action を `@v4` に上げ、**`wranglerVersion: "4"` を明示**する。action の既定に任せない — 今の既定がたまたま 4 系なだけで、暗黙に頼ると同じ形で再発する
+  - **ローカルで `npx wrangler@4 deploy --dry-run` を回して実証してから PR を出した**。CI で 1 回ずつ試すと 1 往復 4 分かかるうえ、失敗が main に残る
+
