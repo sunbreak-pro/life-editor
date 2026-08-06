@@ -2,14 +2,14 @@
 
 ## 進行中
 
-### ⏸️ Loop Engineering 親計画 Phase 1（夜間安全レーン + 毎朝 digest 自動化）（着手日: 2026-08-04）
+### 🔧 Loop Engineering 親計画 Phase 1 + 2（夜間レーン 2 本 + 毎朝 digest）（着手日: 2026-08-04）
 
 **対象**: `.claude/automation/`・`.claude/settings.json`・`.claude/docs/vision/plans/`
 **計画書**: `.claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md`
 
-- 前回: 3 計画書の整合性評価 → ユーザー裁定 3 件（①順序 = 親 Phase 1 → カタログ → コスト → 親 Phase 2 ②Phase 0→1 昇格を前倒し確定 ③実行基盤は調査して提案）→ **Phase 1 インフラ配置 PR #594 merged**（`3ef1f752`。plans 2 本配置 / automation 改訂 = routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
-- 現在: **実行基盤の裁定待ち（D-20260804-main-1）**。自動発火は無効のまま
-- 次: ユーザーが `run-routine.ps1` を手動実行して動作確認 → 裁定に応じて Task Scheduler 登録（手順 = `automation/routine-ids.md`）。Phase 2 はループカタログ定着後（decision キューで判定）
+- 前回: **Phase 1 インフラ配置 PR #594 merged**（`3ef1f752`。routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
+- 現在: **Phase 2 の文書整備 = PR #597（未 merge・`520ca4a6` + `dd15ee27`）**。Step 9 ゲート（カタログ定着後に裁定）は**ユーザー指示で前倒し・試験運用 0 件のまま着手**し、その事実を Worklog 先頭に記録。① `goals.md` を役割ごと差し替え（Goal 一覧 + 状態機械 → 「今夜どれを選ぶか」の選定基準。一覧は GitHub が正本なので持たない）② `routine-night.md` を `/loop-implement` の薄い殻へ（無人固有の事情のみ・**commit 止まり**）③ 追随 3 か所（`run-routine.ps1` の ValidateSet に `night` / README 状態列 / `routine-morning.md` 退役）。**§7 の「draft PR 止まり」は permissions 実測と食い違っていたので commit 止まりへ訂正**
+- 次: **#597 の merge（ユーザー）** → 発火の裁定 D-20260804-main-1 → 手動 1 回で動作確認 → `schtasks` 登録（手順 = `automation/routine-ids.md`）。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
 
 ### ⏸️ ループカタログ試験運用 + 自律運転の到達点（着手日: 2026-08-06）
 
@@ -17,8 +17,8 @@
 **計画書**: `.claude/docs/vision/plans/2026-08-04-loop-catalog-implementation.md`
 
 - 前回: 初期 4 本（triage / implement / verify / postmortem）を配置し **PR #595 merged**（`18da6b5f`）。子計画 Step 1〜5 完了
-- 現在: **Step 8 = 「自律運転の到達点」を別計画書に起こす**（P-001 改訂提案 + ゲート 3 段階解放 + merge 後 main 検証 → 自動 revert）。並行して Step 6 の試験運用（反復上限の実測）は使うたびに Worklog へ追記
-- 次: 到達点の計画書をユーザーレビュー → 第 1 段（`claude/*` への push + draft PR 作成の解放）の可否を裁定。あわせてセッション 3（コスト削減ハーネス）向けプロンプトを生成
+- 現在: **Step 8 完了** = 到達点の計画書 `2026-08-06-autonomous-operation-endpoint.md` を配置（**PR #596 merged** `1e33b4c2`）。P-001 は**案 B = 据え置きで確定**（D-20260806-main-1・第 2 段の自動 merge は開けない）→ `permissions.ask` に `Bash(gh pr merge*)` 追加 + CLAUDE.md §7.2 に `git-workflow` §0.1.1 非適用を明記。**試験運用（Step 6）は依然 0 件** — 親 Phase 2 はこれを待たずに前倒しした
+- 次: 2026-08-06 23:33 JST のクラウド夜間レビュー（`trig_018fECsiaVRLNSCFcoVMDF4q` → Notion「Life Editor Night Review」）を回収し、残る未検証 = `gh auth status` を確定 → 第 1 段（`claude/*` への push + draft PR 作成）の設計を書き直す
 
 ### 🔧 worktree 総入れ替え + 次期 fan-out（着手日: 2026-07-29）
 
@@ -41,8 +41,9 @@
 ### 📋 Loop Engineering 続き（セッション 3 — 貼り付け用プロンプトは history の各セッションエントリ参照）
 
 - ~~セッション 2: ループカタログ実装~~ **完了**（PR #595 merged `18da6b5f`・2026-08-06）
-- セッション 3: **コンテキストコスト削減ハーネス**（`2026-08-04-context-cost-reduction-harness.md` — Phase 1 計測 + Phase 2 枠づくりまで。Phase 3 移送は移行完了後）
-- 親計画 Phase 2（実装レーン自走）はカタログ試験運用 1〜2 週間後に decision キューで着手判定。前提 = `goals.md` 全面改訂。**到達点の設計は Step 8 の別計画書が先**（進行中セクション参照）
+- ~~親計画 Phase 2 はカタログ試験運用後に判定~~ **前倒しで実施済み**（PR #597・2026-08-06。試験運用 0 件のままユーザー指示で着手）
+- セッション 3: **コンテキストコスト削減ハーネス**（`2026-08-04-context-cost-reduction-harness.md`）。**貼り付け用プロンプトは history の 2026-08-06「Loop Engineering Phase 2」エントリが最新**（同日の旧プロンプトは差し替え済み）。到達点 = **Phase 1 計測 + Phase 2 枠づくり + Phase 4 `/loop-prune`**。Phase 3 移送は移行完了まで開けないので、Status は COMPLETED にせず「残は Phase 3 だけ」と分かる形にする。**申し送り = グローバル側（`~/.claude/CLAUDE.md` + `claude-dotfiles/claude/rules/` 11 本 28.8KB・うち 8 本が毎回無条件ロード）が計画書 §4 の調査表に入っていない**。プロジェクト側は CLAUDE.md 18.5KB + rules 3 本 12.6KB
+- 自律運転の到達点・第 1 段の設計（`2026-08-06-autonomous-operation-endpoint.md` Step 4）— プロンプトは history の同日エントリ
 
 ### 📝 #524（2026-08-01 巡回のレビュー検出 → 起票済み・実ブラウザ確認が DoD 先頭）
 

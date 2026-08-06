@@ -1,5 +1,107 @@
 # HISTORY (chat-main)
 
+### 2026-08-06 - Loop Engineering Phase 2 の文書整備（夜の実装レーンを薄い殻へ・PR #597）
+
+#### 概要
+
+親計画 §8 Step 9 のゲート（ループカタログ定着後に decision キューで Phase 2 着手可否を裁定）を**ユーザー指示で前倒しし、試験運用 0 件のまま** Phase 2 の文書整備を実施した。`goals.md` は役割ごと差し替え、`routine-night.md` は `/loop-implement` を呼ぶ薄い殻に書き換えている。**発火は有効化していない**（実行基盤の裁定 D-20260804-main-1 が未回答）。
+
+#### 変更点
+
+- **飛ばしたゲートを先に記録**: カタログは同日 merge（#595）で試験運用ゼロ、キューでの裁定も無し。Step 6（2026-08-04）と同型の前倒しである旨を親計画の Worklog 先頭に明記した上で着手
+- **`goals.md` の役割変更**: 旧版は Goal 1〜3 + `ACTIVE` / `PENDING` / `BLOCKED` の状態機械で、中身が Tauri / D1 時代のまま陳腐化。**一覧を持たせず「今夜どれを選ぶか」の判断基準だけ**にした（open Issue の正本は GitHub — 数値の非複製原則）。必須条件 4 つ（一晩で commit まで届く / 無人で完結する / 誰の手番でもない / 未回答の decision に乗っていない）→ 順序（小さく確実な順 → bug > task > feature → 番号の古い順）→ 候補ゼロなら基準を緩めず終わる
+- **設計判断（ユーザー裁定）**: open Issue は**全件がレーン宛の prefix 付き**で、無条件では夜のレーンが 1 件も拾えない構造だった。拾う範囲を「**宛先レーンはあるが滞留している Issue**」と確定。滞留の判定 = ① Issue 番号を含むブランチ / open PR の不在 ② 宛先レーンの 3 日無活動（ブランチ最終コミット + `.session-name` の mtime の**両方**。commit を残さず調査だけのレーンを前者だけでは見落とす）③ 着手宣言の不在。3 日は初期値
+- **`routine-night.md` を薄い殻へ**: 無人固有の 6 点のみ（Scope 宣言 / Issue の選び方 / セッション予算 90 分の bash 明示計測 / 停止条件 / 報告先 / 質問経路）。検証ゲート・ティア判定・worktree 手順・機械が止める禁止は各正本へ委譲し重ねて書かない。`/loop-implement` との差分 1 点（周回数の記録先を計画書 Worklog ではなく報告に）を明記
+- **訂正**: 親計画 §2 / §7 の「draft PR 止まり」→ **commit 止まり**。`Bash(git push*)` / `Bash(gh pr create*)` が `permissions.ask` にあり無人では必ず失敗するため。解放の可否は `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段の管轄
+- **追随 3 か所も同一 PR に同梱**（起草時は Scope 外としたが同日ユーザー指示で取り込み）: `run-routine.ps1` の `ValidateSet` に `night` 追加（**無いと手動でも起動できなかった**）/ `README.md` の状態列と Phase 2 記述 / **`routine-morning.md` を退役**（中心の仕事が「goals.md の状態機械を朝に更新」で、その機械ごと畳んだため前提が消えた。朝の枠は `routine-digest.md`）。旧 Step の行き先表を残し、**後継のいない worktree prune は人手のまま**と明示
+- **検証**: `LC_ALL=C bash scripts/docs-lint.sh` OK / `run-routine.ps1` は PowerShell パーサで構文 OK / shared lint 0 errors・test 1502 passed・build 通過 / web lint 指摘なし・build 通過・test 124 passed。**プロダクトコードの変更ゼロ**。fresh worktree には `node_modules` が無く初回は全滅したので `npm ci` 後に再実行している
+
+#### 次セッション用プロンプト（セッション 3: コンテキストコスト削減ハーネス — 同日の旧プロンプトを差し替え）
+
+```
+コンテキストコスト削減ハーネスの実装セッション（Loop Engineering セッション 3/3）。
+
+正本 = .claude/docs/vision/plans/2026-08-04-context-cost-reduction-harness.md（Status: Draft・未着手）
+親計画 = .claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md
+姉妹計画 = .claude/docs/vision/plans/2026-08-04-loop-catalog.md（ループ定義の構造。コストは扱わない）
+
+## 最初に確認すること（「完了」の範囲を先に確定する）
+
+**1 セッションで全 Step は終わらない。** Step 5（Phase 3 移送）は計画自身が
+「移行（Electron + Supabase）完了後に実施」と定めていて、移行は未完了。
+Risks にも「移行中に移送すると移送先自体が動く」と書いてある。
+
+したがって今回の到達点は **Phase 1（計測）+ Phase 2（枠づくり）+ Phase 4（/loop-prune）** で、
+Phase 3 は移行完了まで開けない。Acceptance Criteria の
+「移送前後の再測定で固定費が減少している」は今回は満たせない ——
+**満たせない項目があることを最初に認めた上で、残りを全部埋める**こと。
+Status は COMPLETED にせず IN PROGRESS のまま、残が Phase 3 だけと分かる形で書く。
+
+（移行ゲートを前倒しで開けるかはユーザー判断。開けたいなら decision キューに A/B で起票し、
+　回答を待たずに Phase 1/2/4 を進める）
+
+## 本題 1: Phase 1 — 計測（Step 1〜2）
+
+**何も削らない。内訳を数字で出すことだけが目的。** 二段構え（概算 → 上位項目だけ精密）は
+2026-08-04 裁定で確定済み。全項目の精密計測はしない。
+
+調査対象は計画書 §4 の表が正本。ただし **表に載っていない支配項が 1 つある**（下の申し送り参照）。
+
+結果は本書の Worklog ではなく**独立した計測結果ファイル**に残す
+（再測定して差分を見るため）。再現可能な測定手順を同じファイルに書くこと ——
+「どう測ったか」が無いと次回の数字と比較できない。
+
+## 本題 2: Phase 2 — 枠づくり（Step 4）
+
+CLAUDE.md を **航法（Navigation）/ 目的（Why）の 2 層**へ再編する枠を用意し、
+移送先（skill / docs）を先に作る。**全面書き換えではなく既存記述の振り分け。**
+
+- 移送先が無い記述は、移送先を作るまで消さない（消失ゼロ）
+- 実体の無い禁止は、hooks / permissions に実体を作ってから文章を削る
+- この段階では枠と移送先の確保まで。実際の移送は Phase 3
+
+## 本題 3: Phase 4 — /loop-prune（Step 6）
+
+`.claude/skills/loop-prune/SKILL.md` を作る。**これが最終成果物**
+（計画書 §1: 成果物として残すのは 1 段目の計測と 4 段目の維持機構）。
+
+- 形式はループカタログの既存 4 本に揃える（必須 5 見出し = 目標 / 完了条件（機械検証可能）/
+  予算 / 停止条件 / 使ってよい道具。手順は書かない。disable-model-invocation: true）
+- 対になる /loop-postmortem（知見を足す側）が既にあるので、**肥大を戻す側**として設計する。
+  カタログ自身も棚卸しの対象に含める
+- 予算の実測値は 2026-08-04-loop-catalog-implementation.md の Worklog を参照
+
+## 判断が要る 2 点（キューに書いて進む・待たない）
+
+1. **Phase 3 の移行ゲートを前倒しで開けるか** — 開けるなら移送も今回やる
+2. **グローバル資産（~/.claude/CLAUDE.md と claude-dotfiles/claude/rules/）を Scope に入れるか**
+   — 計画書の Scope は .claude/** と .mcp.json だけで、グローバル側が入っていない。
+   だが実測するとここが無視できない大きさ（申し送り参照）。**別リポジトリなので PR も別**になる
+
+## 制約
+
+- Phase 1 の間は **読み取りと計測結果ファイルの追加のみ**。既存ファイルは変更しない
+- 削減量を KPI にしない（削りすぎは探索コストを増やして逆効果）。基準は「移送先があるものは移す」だけ
+- 調査を目的化しない。上位項目が見えたら次へ進む
+- worktree から作業する。メイン直下は main 専有。ブランチを切ったら .claude/comm/.session-branch を書き換える
+- 計画書 frontmatter の Branch を着手時のブランチ名に更新する（現在は配置 PR のまま）
+- tracker を実装ブランチに載せない（D-20260801-main-1）。merge は常にこうだいさん（P-001）
+- PR 前に CLAUDE.md §7.1 の lint / build / test（docs だけでも docs-lint は LC_ALL=C 付き）
+
+## 申し送り（2026-08-06 実測・そのまま使ってよい）
+
+- **プロジェクトの常時ロード分は約 31KB**: .claude/CLAUDE.md 18.5KB +
+  rules/ 3 本 12.6KB（うち frontend.md 7.5KB と docs-consistency.md 4.3KB は path-scoped）
+- **グローバル側がほぼ同規模で、計画書 §4 の調査表に入っていない**:
+  claude-dotfiles/claude/rules/ は 11 本 28.8KB で、うち 8 本が毎セッション無条件でロードされる
+  （bash-tool-stability 3.2KB / tone 7.3KB / heavy-workflows 1.8KB 等）。
+  **これが最大の盲点**の可能性がある。§4 の表に 1 行足すところから始めること
+- **MCP の仮説は環境側で部分解消されている**: 現行 Claude Code には deferred tools
+  （ツール定義を必要時に取り寄せる遅延ロード）があり、MCP ツールは名前だけ提示されて
+  スキーマは ToolSearch 時にロードされる。「毎セッション全量積まれる」前提で測らないこと
+- .claude/skills/ は 8 本。.claude/scripts/ は実在する（docs-lint はリポジトリ直下の scripts/）
+```
+
 ### 2026-08-06 - ループカタログ初期 4 本の配置（Loop Engineering セッション 2・PR #595 merged）
 
 #### 概要
