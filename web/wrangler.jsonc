@@ -1,0 +1,29 @@
+{
+  // Cloudflare Workers (Static Assets) — 公開 Web URL の配信設定（#600）。
+  //
+  // Cloudflare Pages ではなく Workers を使う: Cloudflare は Pages を Workers に
+  // 吸収する方向で、ダッシュボードからも Pages を下げている。2026-03 時点で
+  // Workers は静的サイト / SPA / 独自ドメインで Pages と機能同等になり、
+  // 新機能は Workers 側にしか来ない（2026-08-07 ユーザー確定）。
+  //
+  // 配信は Worker のコードを 1 行も持たない「静的アセットのみ」構成。
+  // Workers 無料プランでは静的アセットへのリクエストは無料・無制限なので、
+  // 「完成まで $0 厳守」（移行 SSOT）に収まる。
+  //
+  // デプロイは .github/workflows/deploy-web.yml から `wrangler deploy` で。
+  // ローカルに wrangler を入れる必要はない（wrangler-action が用意する）。
+  "name": "life-editor",
+  "compatibility_date": "2026-08-07",
+
+  "assets": {
+    // このファイルからの相対 = web/dist（Vite の出力先）
+    "directory": "./dist/",
+
+    // このアプリは React Router を持たず section state で切り替えるため
+    // （CLAUDE.md §3.2）、通常運用で / 以外の URL は踏まない。それでも
+    // single-page-application にしておくのは PWA の standalone 対策:
+    // アドレスバーが無い状態で 404 の白画面に落ちると、ユーザーが自力で
+    // 戻れなくなる。存在しないパスも index.html を返して復帰させる。
+    "not_found_handling": "single-page-application"
+  }
+}
