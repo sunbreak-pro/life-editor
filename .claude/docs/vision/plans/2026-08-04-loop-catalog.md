@@ -1,9 +1,10 @@
 ---
-Status: Draft
+Status: IN PROGRESS # 2026-08-04 実装セッション着手（§4 Step 1 完了・Step 2 レビュー待ち）
 Created: 2026-08-04
-Branch: docs/loop-harness-phase1 # 配置 PR のブランチ。実装セッションは着手時に更新する
+Branch: docs/loop-catalog # 実装セッションのブランチ（配置 PR は docs/loop-harness-phase1）
 Owner-chat: main
 Parent: .claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md
+Child: .claude/docs/vision/plans/2026-08-04-loop-catalog-implementation.md
 ---
 
 # Plan: ループカタログ — 「縛る」から「考えさせる」への転換
@@ -115,6 +116,8 @@ Parent: .claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md
 3. 調査結果をもとに、**より密な子計画書**を `docs/vision/plans/` に起こす
 4. その子計画書のレビューを経て実装に入る
 
+> **子計画書 = [`2026-08-04-loop-catalog-implementation.md`](./2026-08-04-loop-catalog-implementation.md)**（2026-08-04 作成）。実測で本書の前提が 2 か所崩れていた（リポジトリ内スキル 8 本が Windows で解決不能 / `gh pr merge` が機械未強制）ため、§3 の初期セットは子計画書 §4 の設計変更 2 点が優先する。
+
 ループは既存パイプラインを**呼び出す薄い外枠**とし、処理をループ側に寄せない（二重管理の回避）。ただし実測の結果それが成立しない場合は、子計画書で理由を添えて修正してよい。
 
 ---
@@ -182,4 +185,5 @@ Parent: .claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md
 
 ## Worklog
 
+- 2026-08-04: [chat-main] 実装セッション着手 → Status を IN PROGRESS 化。§4 Step 1（ローカル実測）完了・子計画書 `2026-08-04-loop-catalog-implementation.md` を作成しレビュー待ち。実測で本書の前提が 2 か所崩れていた: ① `.claude/skills/` 12 本中 8 本（`issue-dispatch` 含む）が Mac パスを指す死んだポインタで Windows では解決不能 ② `gh pr merge` が deny / ask のどちらにも無く POLICY P-001 が機械未強制、かつ `git-workflow` §0.1.1 の自動マージ指定と衝突
 - 2026-08-04: plans/ へ配置（chat-main・配置 PR = `docs/loop-harness-phase1`）。配置前の整合性評価で実施順序をユーザーに確認し、**親 Phase 1 → 本計画 → コスト計画 → 親 Phase 2（本計画の試験運用後）** で確定。本計画の実装セッションは親 Phase 1 の次に起動する
