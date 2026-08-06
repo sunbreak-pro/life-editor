@@ -3,6 +3,10 @@
 # 使い方（手動 / Task Scheduler 共通）:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\automation\run-routine.ps1 -Routine digest
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\automation\run-routine.ps1 -Routine night-safe
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\automation\run-routine.ps1 -Routine night
+#
+# -Routine <key> は .claude/automation/routine-<key>.md を読ませる。night = 夜の実装レーン
+# （Phase 2・commit 止まり）。Task Scheduler への登録は D-20260804-main-1 の裁定後。
 #
 # ⚠️ 未実測（2026-08-04 配置時点）: Task Scheduler 登録の前に必ずコンソールで手動実行し、
 #    ログ（.claude/automation/logs/）を見て権限まわりを調整すること。登録手順 = routine-ids.md。
@@ -13,7 +17,7 @@
 
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("digest", "night-safe")]
+  [ValidateSet("digest", "night-safe", "night")]
   [string]$Routine
 )
 
