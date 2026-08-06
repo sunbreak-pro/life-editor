@@ -1,6 +1,6 @@
 # HISTORY (chat-main)
 
-### 2026-08-06 - Loop Engineering Phase 2 の文書整備（夜の実装レーンを薄い殻へ・PR #597）
+### 2026-08-06 - Loop Engineering Phase 2 の文書整備（夜の実装レーンを薄い殻へ・PR #597 merged `5161a9a1`）
 
 #### 概要
 
