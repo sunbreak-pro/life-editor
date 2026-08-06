@@ -1,20 +1,23 @@
-name: Deploy — web to Cloudflare Pages
+name: Deploy — web to Cloudflare Workers
 
-# 公開 Web URL（https://life-editor.pages.dev）への配布（#600）。
+# 公開 Web URL への配布（#600）。
 #
 # ci.yml とは意図的にファイルを分けている: あちらは「壊れていないか」の検証、
 # こちらは「外に出す」配布で、落ちたときに見るべき場所が違う。ci.yml 側は
 # PR でも走るが、こちらは main に入ったものだけを配る。
 #
-# Cloudflare の Git 連携（Cloudflare 側でビルドさせる方式）は使わない:
-# この repo は monorepo で、web のビルドが shared/ をソースから引く
-# （web/vite.config.ts の alias）ため、2 パッケージぶんの npm ci が要る。
-# Cloudflare のビルド設定は「ルートディレクトリ 1 つ + コマンド 1 本」が前提で
-# そこが素直に書けない。CI で実績のある手順をそのまま使い回し、成果物
-# （web/dist）だけを wrangler で投げる。
+# 配信先は Cloudflare Pages ではなく Workers (Static Assets)。Cloudflare が
+# Pages を Workers へ吸収する方向で、新機能は Workers 側にしか来ないため
+# （2026-08-07 ユーザー確定）。設定の実体は web/wrangler.jsonc。
+#
+# Cloudflare 側でビルドさせる方式（Git 連携）は使わない: この repo は monorepo
+# で、web のビルドが shared/ をソースから引く（web/vite.config.ts の alias）ため
+# 2 パッケージぶんの npm ci が要る。Cloudflare のビルド設定は「ルートディレクトリ
+# 1 つ + コマンド 1 本」が前提でそこが素直に書けない。CI で実績のある手順を
+# そのまま使い回し、成果物（web/dist）だけを wrangler で投げる。
 #
 # 必要な Secrets（4 件・GitHub → Settings → Secrets and variables → Actions）:
-#   CLOUDFLARE_API_TOKEN   … 権限は Account / Cloudflare Pages / Edit のみ
+#   CLOUDFLARE_API_TOKEN   … テンプレート「Edit Cloudflare Workers」で発行したもの
 #   CLOUDFLARE_ACCOUNT_ID
 #   VITE_SUPABASE_URL      … Vite はビルド時に import.meta.env を文字列へ焼き込む
 #   VITE_SUPABASE_ANON_KEY … ので、実行時ではなくビルド時に要る
@@ -82,9 +85,12 @@ jobs:
             exit 1
           fi
 
-      - name: deploy to Cloudflare Pages
+      # web/wrangler.jsonc を読ませるため workingDirectory を web に置く。
+      # assets.directory = ./dist/ がそこからの相対で web/dist を指す
+      - name: deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy web/dist --project-name=life-editor --branch=main
+          workingDirectory: web
+          command: deploy

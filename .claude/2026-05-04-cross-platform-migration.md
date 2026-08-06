@@ -56,7 +56,7 @@ Related:
 [shared React 19 + TS + Tailwind バンドル]
    ├─ Electron で包む → macOS / Windows / Linux .app/.exe/AppImage  — Desktop 主
    ├─ Capacitor で包む → iOS / Android                              — Mobile 従
-   └─ Vite ビルド → Cloudflare Pages 等で Web URL 公開              — おまけ
+   └─ Vite ビルド → Cloudflare Workers で Web URL 公開              — スマホ主導線(#600)
 
 [Supabase: Postgres + Auth + Realtime + Storage]
 [terminal-division (Electron, 別リポジトリ) — stdio MCP 経由で接続]
@@ -202,7 +202,7 @@ life-editor/
 | **iOS 自分用**   | Xcode 直接 Run      | **無料 Apple ID + 7 日署名**（$0）            | —                                                        |
 | **iOS 友達配布** | TestFlight / Ad Hoc | **やらない**                                  | **加入の判断はここ**。$99/年で TestFlight or Ad Hoc 配布 |
 | Android 友達配布 | 未署名 .apk 手渡し  | **未署名**（"提供元不明アプリ許可"、$0）      | —                                                        |
-| Web URL          | Cloudflare Pages    | $0                                            | —                                                        |
+| Web URL          | Cloudflare Workers  | $0（#600・静的アセットは無料無制限）          | —                                                        |
 
 #### Phase 1-5 中の iOS 運用ポリシー
 
