@@ -153,6 +153,15 @@ Phase 4  維持機構
 .claude/docs/vision/plans/<this-file>.md
 ```
 
+**グローバル資産は 2026-08-06 に Scope へ追加**（D-20260806-main-2 = A）。実体は別リポジトリなので **PR も別**になる:
+
+```
+<claude-dotfiles>/claude/CLAUDE.md
+<claude-dotfiles>/claude/rules/**
+<claude-dotfiles>/claude/skills/**
+<claude-dotfiles>/claude/output-styles/**
+```
+
 Phase 1 の間は **読み取りと計測結果ファイルの追加のみ**。既存ファイルは変更しない。
 
 プロダクトコード（`shared/` `web/` `desktop/` `mobile/` `mcp-server/` `supabase/`）には触れない。
@@ -175,10 +184,10 @@ Phase 1 の間は **読み取りと計測結果ファイルの追加のみ**。�
 ## Acceptance Criteria (機械検証可能)
 
 - [x] 計測結果ファイルが存在し、再測定手順が書かれている（`docs/reports/2026-08-06-context-fixed-cost-baseline.md` §6）
-- [ ] 移送によって削除した記述が、移送先ファイルに存在する（消失ゼロ）— **Phase 3 の条件。現時点で削除した記述は 0 件**
+- [ ] 移送によって削除した記述が、移送先ファイルに存在する（消失ゼロ）— **グローバル側は満たした**（docs 構造テンプレ → `project-setter` スキルへ全文移送）。**life-editor 側は Phase 3 待ちで削除 0 件**
 - [ ] CLAUDE.md が航法 / 目的の 2 層構造になっている — **枠のみ完了**。振り分け表（`docs/vision/claude-md-layering.md` §2）と CLAUDE.md §0 のポインタは置いたが、**本文の再編は Phase 3**
 - [x] `.claude/skills/loop-prune/SKILL.md` が存在し、必須 5 見出しを満たす
-- [ ] 移送前後の再測定で固定費が減少している — **本セッションでは満たせない**。移送（Phase 3）が移行完了待ちのため、比較対象の「後」が存在しない
+- [ ] 移送前後の再測定で固定費が減少している — **グローバル側のみ達成**（-1,182 tok = `claude-dotfiles#13`・merge 前の見込み値）。**life-editor 側は満たせない** — 移送（Phase 3）が移行完了待ちのため、比較対象の「後」が存在しない
 - [x] 既存の lint / build / test / docs-lint ゲートがすべて緑（docs のみの変更のため docs-lint + prettier）
 - [x] 完了時に本 plan と per-chat memory の Status を更新した（**COMPLETED にはしない** — 残が Phase 3 のみ）
 
@@ -189,6 +198,11 @@ Phase 1 の間は **読み取りと計測結果ファイルの追加のみ**。�
 - **計測は二段構え** — まず概算で上位項目だけを特定し、そこだけ精密に測る。全項目の精密計測はしない（調査自体のコストを抑えるため）
 - **削減の数値目標は置かない** — 基準は「移送先があるものは移す」のみ。固定費の上限値を運用ルールにしない（削りすぎの防止）
 - **大型 SSOT の分割可否は Phase 1 の結果を見てから決める** — 移行中の分割は事故りやすいため、先に方針を固定しない
+
+## 確定事項（2026-08-06 裁定）
+
+- **グローバル資産（`~/.claude/` = `claude-dotfiles`）を Scope に入れる**（D-20260806-main-2 = A）。固定費の約 66% がそこにあり、プロジェクト側だけでは効く上限が 3 分の 1 だったため。**PR は別リポジトリ側**で立てる。ただし**削るのは「保険」の 1 層に絞る** — 口調の三重化は意図的な設計で、正本（output style）と詳細版（`rules/tone.md`）には手を付けない
+- **Phase 3 の移行ゲートは維持する**（D-20260806-main-3 = A）。life-editor 側の移送は移行完了後。**グローバル側はこのゲートに縛られない** — ゲートの根拠は「移送先自体が動く」ことであり、移行で動くのは life-editor の CLAUDE.md §2〜§5 と移行 SSOT であって `~/.claude/` ではないため
 
 ---
 
@@ -214,4 +228,5 @@ Phase 1 の間は **読み取りと計測結果ファイルの追加のみ**。�
 ## Worklog
 
 - 2026-08-06: [chat-main] **Phase 1 / 2 / 4 を実施**（Phase 3 は移行完了待ちのため未着手 — Status は `IN PROGRESS` のまま）。成果物 = 計測スクリプト `.claude/scripts/context-cost-measure.mjs` / 計測結果 `docs/reports/2026-08-06-context-fixed-cost-baseline.md` / 振り分け表 `docs/vision/claude-md-layering.md` / `.claude/skills/loop-prune/SKILL.md`。**実測で前提が 3 か所崩れた**: ① 支配項は CLAUDE.md ではなく**グローバル資産**で、固定費 19,277 tok の約 66%（12,711 tok）が `~/.claude/`（別リポジトリ）にある。§4 の調査表に行を追加した ② **口調定義が 3 か所で重複**し、単一項目としては最大の 4,472 tok（全体の 23%）。output style / `rules/tone.md` / `~/.claude/CLAUDE.md` 口調章が「正本 / 詳細版 / 保険」を自己申告しており、事故ではなく意図的な冗長化 ③ **SessionStart hook の出力は 0 バイト**だったが、理由が異常 — `session-start-check.sh` が Windows で `stat -f` の BSD / GNU 差により exit 1 しており、`.session-name` / dirty worktree の検査が 1 つも走っていない（実体は `~/dev/Claude/hooks-lib/` = Scope 外・修正の当たりは 1 行）。**Phase 2 の照合結果**: 新規に作らないといけない移送先は **0 件**（全部実在）。作る必要があるのは「実体の無い禁止」7 件の機械実体だけで、これは移送と同一 PR で 1 つずつ入れる。**判断 2 件をキューへ**: グローバル資産を Scope に入れるか（D-20260806-main-2）/ Phase 3 の移行ゲートを前倒しで開けるか（D-20260806-main-3）。**カタログが 5 本目に到達**した件は姉妹計画側の Risks を更新（4 本上限は「`loop-prune` が来るまで」の条件付きだったため、本ループの追加でその条件が満たされた）
+- 2026-08-06: [chat-main] **判断 2 件に回答（どちらも A）→ グローバル側の第 1 回移送を実施**。D-20260806-main-2 = A でグローバル資産を Scope へ追加し、`claude-dotfiles#13` で **-1,182 tok**（`~/.claude/CLAUDE.md` 1,991 → 678・`project-setter` の一覧行 +131）。撤去したのは**口調の「保険」1 層のみ**で、正本の output style と詳細版 `rules/tone.md` は無傷。docs 構造テンプレは `project-setter` スキルへ全文移送した — **同スキルは 2 か所（`~/.claude/CLAUDE.md` と `code-teacher`）から参照されていたのに実在しない死んだポインタだった**ので、あわせて解消。D-20260806-main-3 = A で life-editor 側の移行ゲートは維持（**グローバル側はゲートの根拠「移送先が動く」に当たらないため対象外**と整理）。計測スクリプトに `CLAUDE_GLOBAL_DIR` を追加し、merge 前の変更を先に測れるようにした
 - 2026-08-04: plans/ へ配置（chat-main・配置 PR = `docs/loop-harness-phase1`）。実施順序はループカタログの後で確定（ユーザー裁定）。計測時の注意を 1 点申し送り: 現行 Claude Code には deferred tools（ツール定義を必要時に取り寄せる遅延ロード）があり、「MCP ツール定義が毎セッション全量積まれる」仮説は環境により部分解消されている可能性がある — Phase 1 で前提ごと実測すること

@@ -22,7 +22,9 @@ import path from 'node:path'
 import os from 'node:os'
 
 const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd()
-const GLOBAL_DIR = path.join(os.homedir(), '.claude')
+// CLAUDE_GLOBAL_DIR は、まだ merge していない claude-dotfiles の worktree を指して
+// 「移送したらいくつになるか」を先に測るための逃がし口。既定は実際にロードされる ~/.claude。
+const GLOBAL_DIR = process.env.CLAUDE_GLOBAL_DIR || path.join(os.homedir(), '.claude')
 
 // トークン概算。ASCII と非 ASCII（主に日本語）で係数を変える。
 // 係数は概算で、誤差は ±30% 程度を見込む。用途は「順位付け」と「再測定時の差分」であって
