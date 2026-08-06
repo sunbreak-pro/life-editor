@@ -12,7 +12,46 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>web</title>
+    <!--
+      PWA metadata (#600). Scope is deliberately narrow: a home-screen icon and
+      standalone (chrome-less) display for the public Web URL. NO service
+      worker / offline cache — that stays a Non-goal (migration SSOT §9), so
+      there is no stale-bundle class of bug to reason about here.
+
+      Both the manifest and the Apple-specific tags are needed: iOS Safari
+      still honours `apple-mobile-web-app-*` + `apple-touch-icon` rather than
+      reading them off the manifest.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Life Editor" />
+    <!--
+      `black-translucent` lets the app paint under the status bar, which is what
+      the safe-area padding above already accounts for.
+    -->
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <!--
+      Status-bar tint per theme. Values are the resolved `--color-bg-primary`
+      of each theme (朝刊 / 夕刊 — shared/src/styles/tokens.css). Hardcoded
+      because <meta> cannot read CSS custom properties; these two literals and
+      the manifest's colors are the only sanctioned exceptions to the
+      "no hardcoded colors" rule (CLAUDE.md §6).
+    -->
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#fbf4e8"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#101a2c"
+    />
+    <title>Life Editor</title>
   </head>
   <body>
     <div id="root"></div>

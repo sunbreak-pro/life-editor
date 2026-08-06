@@ -23,6 +23,7 @@
 - Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。MCP は Desktop 専用（Terminal は 2026-07-05 に機能ごと退役決定 → §8。MCP Server 自体は存続）
 - **画面別 Mobile スコープの正本 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（#319 でユーザー確定）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
 - **Mobile 省略ガードは配線済み**（#320）: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。実装状況とネストの正本はコード（`web/src/MainScreen.tsx`）・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
+- **スマホからの主導線 = 公開 Web URL**（#600・2026-08-07 ユーザー確定）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
 - Cloud Sync = 作者本人のみ（友達ビルドは feature flag で無効）。配布・署名 → 移行 SSOT
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
