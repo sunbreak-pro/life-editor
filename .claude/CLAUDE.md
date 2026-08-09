@@ -11,7 +11,7 @@
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
 - **数値の非複製原則**: 個数・列挙は単一の正本（コード or SSOT）だけに書き、他文書は参照にする。「一覧はコードが正」と書くなら数字を併記しない。改名・退役時の波及手順は [`rules/docs-consistency.md`](./rules/docs-consistency.md)
 - **再編中（航法 / 目的の 2 層）**: 各節をどちらの層に置き、層外の記述をどこへ移すかは [`docs/vision/claude-md-layering.md`](./docs/vision/claude-md-layering.md) が正本（固定費の実測 = [`docs/reports/2026-08-06-context-fixed-cost-baseline.md`](./docs/reports/2026-08-06-context-fixed-cost-baseline.md)）。**移送は移行完了後**のため、それまで本ファイルの構成は現状維持
-- **関連**: 進捗 / 履歴 = [`memory/INDEX.md`](./memory/INDEX.md) / [`history/INDEX.md`](./history/INDEX.md)（git 非追跡の派生ビュー。SSOT は per-chat `chat-*.md` — §9）・設計 = `docs/vision/`・要件 = `docs/requirements/`・障害知見 = [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md)・完了プラン = `archive/`
+- **関連**: 記録の入口 = [`INDEX.md`](./INDEX.md)（`records.mjs` 生成・git 追跡）・進捗 / 履歴 = per-chat `chat-*.md`（§9。集約 `memory/INDEX.md` / `history/INDEX.md` は git 非追跡の派生ビュー）・設計 = `docs/vision/`・要件 = `docs/requirements/`・障害知見 = [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md)・完了プラン = `archive/`
 
 ## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
 
@@ -131,5 +131,5 @@ Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止�
 - **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 INDEX は git 非追跡の派生ビュー（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
 - **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
-- **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。ADR は作らない（理由 → `docs/vision/coding-principles.md` 冒頭）
+- **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（回答済みキューを昇格・旧「ADR は作らない」は D-20260809-main-1 で SUPERSEDE。どこに書くかの判定 = `rules/records.md`）
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
