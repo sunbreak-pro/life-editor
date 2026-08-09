@@ -37,6 +37,7 @@
 
 | ID  | Title                                                                                                                                                         | Category            | Resolved   |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------- |
+| 030 | [PostToolUse formatter が frontmatter の長い配列を折り返し、行単位パーサが読めなくなる](./030-posttooluse-formatter-wraps-frontmatter-arrays.md)              | Tooling             | 2026-08-09 |
 | 029 | [並行チャットが W8 Schedule 週グリッドを二重実装 → merge で dead import が main を破壊](./029-parallel-chats-double-implemented-w8-dead-import-broke-main.md) | Structural/Tooling  | 2026-06-20 |
 | 001 | [Cloud Sync 立ち上げ schema/FK 3 連戦（予約語 / FK 順序 / schema drift）](./001-cloud-sync-bootstrap-schema-fk.md)                                            | Bug/Schema          | 2026-04-18 |
 | 004 | [sync_last_synced_at が空で毎回 1970 から fullpush](./004-sync-last-synced-at-not-persisted.md)                                                               | Bug                 | 2026-04-20 |
@@ -68,10 +69,10 @@
 - **Schema**: 001, 005, 011, 013, 021, 024
 - **Sync**: 008, 010, 011, 012, 013
 - **Structural**: 001, 006, 009, 013, 016, 017, 018, 019, 025, 029
-- **Tooling**: 007, 022, 023, 024, 026, 028, 029
+- **Tooling**: 007, 022, 023, 024, 026, 028, 029, 030
 - **Security**: 022, 027
 - **Styling**: 015
-- **環境系（Claude Code 作業環境・GitHub Issue 化対象外 → #155）**: 026, 028
+- **環境系（Claude Code 作業環境・GitHub Issue 化対象外 → #155）**: 026, 028, 030（030 は formatter 挙動が原因だが、対処は life-editor 側の `records.mjs` で完結したため Fixed）
 - **移行で解消（Tauri→Web で消滅見込み）**: 006
 
 ## Status 集計（個別ファイル frontmatter と一致）
@@ -79,8 +80,8 @@
 - Active: 2 件 (026 / 027 — 027 の追跡は GitHub #118 が正・本文は参照用)
 - Workaround: 1 件 (028)
 - Monitoring: 1 件 (006)
-- Fixed: 22 件 (012 を含む — server 側暫定対応で Fixed 確定・恒久対応は #172)
-- 合計: 26 件
+- Fixed: 23 件 (012 を含む — server 側暫定対応で Fixed 確定・恒久対応は #172)
+- 合計: 27 件
 
 ## 統合履歴
 

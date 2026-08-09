@@ -11,7 +11,7 @@ chat-main（または検証専用セッション）で起動する読み取り�
 
 1. 収集（並列で）
    - `gh pr list --state open --json number,title,isDraft,mergeable,updatedAt`
-   - `.claude/comm/decisions/chat-*.md` の未回答エントリ（ANSWERS.md に無い ID）
+   - `.claude/decisions/INDEX.md` の **§Open**（未回答の判断が ID / 問い / 担当 chat の表で揃っている。`records.mjs` が ANSWERS.md との突合まで済ませた生成物なので、キューを直接 grep しない）。表が空でないのに古く見えるときだけ `node .claude/scripts/records.mjs index` で再生成してから読む。個々の A/B と放置時の挙動は、そこから `comm/decisions/chat-<lane>.md` の該当エントリを開いて取る
    - `.claude/memory/INDEX.md` の「進行中」から、手番が「ユーザー」「chat-main」の行
    - `.claude/comm/outbox/` の前回 digest 以降の新着（前回 digest ファイルの日付と mtime 比較）
    - 実ブラウザ検証計画の未消化 V 項目数（`plans/` にある検証計画があればそれ。2026-07-28 分は全消化して `archive/` 済み — 次の fan-out で新しい検証計画が `plans/` に置かれるまでこの行はスキップしてよい）
