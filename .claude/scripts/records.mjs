@@ -50,7 +50,13 @@ function parseFrontmatter(text, file) {
     return null;
   }
   const fm = {};
-  for (const line of m[1].split('\n')) {
+  // prettier は 80 桁を超える配列を複数行へ折り返す（`refs:\n  [\n    "a",\n  ]`）。
+  // frontmatter は行単位で読むので、折り返された配列を先に 1 行へ畳んでおく。
+  // これをしないと配列が文字列として読まれ「refs は配列にする」で落ちる（2026-08-09 実測）。
+  const body = m[1].replace(/^([a-zA-Z-]+):[ \t]*\r?\n?[ \t]*(\[[^\]]*\])/gm, (_, key, arr) =>
+    `${key}: ${arr.replace(/\s*\r?\n\s*/g, ' ')}`,
+  );
+  for (const line of body.split('\n')) {
     const kv = line.match(/^([a-zA-Z-]+):\s*(.*)$/);
     if (!kv) continue;
     let value = kv[2].replace(/\s+#.*$/, '').trim(); // 行末コメントを除去
