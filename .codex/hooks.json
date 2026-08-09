@@ -1,0 +1,35 @@
+{
+  "_comment": "Codex hooks. Scripts are NOT duplicated here — each command dispatches to the single copy under .claude/hooks/, which itself falls back to $HOME/dev/Claude/hooks-lib or the in-repo .claude/scripts/hooks-lib vendor. Paths resolve from the git root because hook commands run with the session cwd, so a bare relative path breaks when Codex starts in a sub-directory.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-mcp-check.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-index-guard.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/regen-index.sh\" || true"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/session-start-check.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
