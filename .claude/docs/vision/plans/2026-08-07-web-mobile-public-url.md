@@ -58,7 +58,7 @@ web/wrangler.jsonc                     # 新規（Workers Static Assets の配�
 | 5   | deploy workflow 追加                            | 🤖 自律 | `deploy-web.yml` が PR で構文エラーなし（Actions の lint が通る） | ✅ 済                      |
 | 6   | main へ merge → 自動デプロイ                    | 🛑 人手 | `curl -sI https://life-editor.<sub>.workers.dev` が `200`         | ✅ 済（URL 確定）          |
 | 7   | Supabase Auth の URL 設定 + サインアップ封鎖    | 🛑 人手 | `/auth/v1/settings` が `disable_signup: true` を返す              | ✅ 済（実測）              |
-| 8   | スマホ実機で golden path + ホーム画面追加       | 👀 目視 | 下記「実機チェックリスト」を 1 周                                 | ⬜ 待ち                    |
+| 8   | スマホ実機で golden path + ホーム画面追加       | 👀 目視 | 下記「実機チェックリスト」を 1 周                                 | 🔁 一部通過（#607 / #608） |
 | 9   | docs 追随（SSOT / CLAUDE.md / 本書 Status）     | 🤖 自律 | `bash scripts/docs-lint.sh` exit 0                                | ✅ 済（配布表の URL 込み） |
 
 ### Gate 凡例
@@ -167,15 +167,29 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
 
 ### Step 8 — スマホ実機チェックリスト（👀）
 
-こうだいさんが iPhone で 1 周する。
+こうだいさんがスマホで 1 周する。
 
-- [ ] Safari で `https://life-editor.sunbreak-pro.workers.dev` を開き、**ログインできる**
-- [ ] 下タブバーが出て、モバイルレイアウトになっている（デスクトップのサイドバーが出ていたら幅判定の不具合 → 報告）
-- [ ] ノッチ / ホームバーに UI が潜り込んでいない（safe-area）
-- [ ] Briefing / Tasks / Schedule / Notes / Daily を一巡して、データが Electron 版と一致する
+- [x] ブラウザで `https://life-editor.sunbreak-pro.workers.dev` を開き、**ログインできる**
+- [x] 下タブバーが出て、モバイルレイアウトになっている（デスクトップのサイドバーが出ていたら幅判定の不具合 → 報告）
+- [x] ノッチ / ホームバーに UI が潜り込んでいない（safe-area）
+- [ ] Briefing / Tasks / Schedule / Notes / Daily を一巡して、データが Electron 版と一致する → **Notes で入力に入れず未完（#607）**
 - [ ] 共有ボタン → 「ホーム画面に追加」→ **アイコンと名前が Life Editor になっている**
 - [ ] ホーム画面から起動して**アドレスバーが消えている**（standalone が効いている）
-- [ ] 一度アプリを閉じて開き直しても**ログインが保持されている**
+- [x] 一度アプリを閉じて開き直しても**ログインが保持されている**
+
+**実測結果（2026-08-09・Chrome / ブラウザタブ）**: **公開・ログイン・レイアウト・セッション保持は通過**。一方で narrow レイアウトの実機バグを 2 件検出したため、チェックリストは未完で残す。**バグはどちらも公開 URL 化で生えたものではなく、同じ web バンドルを載せる Capacitor 殻にも存在していたはず** — 実機で触る導線ができて初めて見つかった、という位置づけ。
+
+| 観察                                                        | 判定                     | 追跡                                                                                                        |
+| ----------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| Note に書き込もうとすると入力パネルが一瞬出てすぐ閉じる     | **バグ**                 | [#607](https://github.com/sunbreak-pro/life-editor/issues/607)                                              |
+| Note 作成時にボトムタブバーがせり上がってレイアウトが崩れる | **バグ**                 | [#608](https://github.com/sunbreak-pro/life-editor/issues/608)                                              |
+| Briefing にハンバーガーが無い                               | **仕様**（意図的な保留） | [#609](https://github.com/sunbreak-pro/life-editor/issues/609)（コメントにしか無かった判断を起票）          |
+| 画面上下に Chrome 自身の UI が出て邪魔                      | **仕様**                 | 「ホーム画面に追加」で standalone 起動すれば消える（この計画で `display: standalone` を入れた目的そのもの） |
+| ログインし直しでデータが保持されている                      | ✅ 通過                  | —                                                                                                           |
+
+**2 件のバグは同じ根を共有している可能性がある**（キーボードが出るとレイアウトが動く）。Android の Chrome はソフトキーボードでレイアウトビューポート自体を縮めるため、通常フローで底に置いた `BottomTabBar`（`shared/src/components/BottomTabBar.tsx:138`）が持ち上がる。この再レイアウトがエディタの再マウントを誘発していれば #607 も説明が付く。**片方だけ直すと取りこぼす**ので、着手時は両方を並べて見る。
+
+**Step 8 の残り**（ホーム画面追加 → standalone 起動）は #607 / #608 と独立なので、先に確認して構わない。
 
 ---
 
@@ -262,3 +276,7 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
   - **`Leaked password protection` は無料プランでは設定不可**と判明し、見送りを裁定（Step 7-3）。計画時に「トグル 1 つ・$0」と書いたのは調査漏れで、公式ドキュメントは Pro Plan 以上と明記している。**`auth_leaked_password_protection` の WARN は恒久的に残る**ため、以後 `get_advisors(security)` は 0 件にならない前提で読む
   - 公開後の検証は**本番に書き込まずに済ませた**: サインアップ封鎖の確認は「テスト登録して 422 を見る」ではなく、公開バンドルから anon key を取り出して `GET /auth/v1/settings` を読み、`disable_signup: true` を確認する形にした（読み取りのみ）
   - 配信直後の一瞬だけ `manifest.webmanifest` と `favicon.svg` が 404（`error code: 1042`）を返した。再取得で `CF-Cache-Status: MISS → HIT` の 200。**デプロイ直後の検証は 1 回の 404 で判断せず、必ず引き直す**
+- 2026-08-09: **Step 8（実機）を 1 周し、通過 4 / バグ 2 / 仕様 2**。公開・ログイン・モバイルレイアウト・safe-area・セッション保持は問題なし。バグは [#607](https://github.com/sunbreak-pro/life-editor/issues/607)（Note の入力パネルが一瞬で閉じる）と [#608](https://github.com/sunbreak-pro/life-editor/issues/608)（キーボードでボトムタブがせり上がる）
+  - **2 件とも公開 URL 化で生えたものではない**。同じ web バンドルが Capacitor 殻にも載っている以上、前から存在していたはず。**「実機で毎日触れる導線ができた」こと自体が検出力**になった、というのがこの計画の副次的な収穫
+  - 「Briefing にハンバーガーが無い」は**バグではなく意図的な保留**だった（`BriefingScreen.tsx:209-214` に理由が明記され、`mobile-scope.md` #1 の Consumption スコープと整合）。ただし**判断がコードのコメントにしか無く追跡されていなかった**ので [#609](https://github.com/sunbreak-pro/life-editor/issues/609) に起票した。実機で「無い」と報告が上がった時点で、それは記録場所が足りていない証拠と見なす
+  - 「画面上下に Chrome の UI が出る」は仕様。**「ホーム画面に追加」で standalone 起動すれば消える**ので、この計画で `display: standalone` を入れた目的そのものが答えになる。ブラウザタブのまま使う限りは消えない
