@@ -30,11 +30,11 @@
 
 ## 直近の完了
 
+- [chat-main] **main の未追跡資産を 2 PR に整理（PR #610 / #611 merged）** ✅（2026-08-09）— 未追跡 13 ファイルを計画書（#610 = fanout r3）と Codex 対応（#611）に分割。Codex 側は全文コピーだった初版を**参照方式**へ再設計（`hooks.json` が `.claude/hooks/*.sh` を git ルート相対で呼ぶ・skills は入口だけ）。宙に浮いていた `chore/docs-sync-20260731` は**中身が既に main にあり PR が巻き戻しになる**ため削除。**docs-lint に検査 (e) が増えている** — plans/ を触る PR は `node .claude/scripts/records.mjs index` を同一 PR に含める（#610 で 1 度落ちた）
+
 - [chat-main] **ループカタログ初期 4 本の配置（PR #595 merged `18da6b5f`）** ✅（2026-08-06）— 親計画 §4 に沿ってローカル実測 → 子計画書 → レビュー → `/loop-triage` でフォーマット確定 → 残り 3 本。実測で親計画の前提が 2 か所崩れているのを検出（リポジトリ内 12 スキル中 **8 本が Mac パスを指す死んだポインタ**・`gh pr merge` が deny / ask のどちらにも無く P-001 が機械未強制 + `git-workflow` §0.1.1 と矛盾）→ 設計変更 2 点（triage は起票しない / implement は commit まで）。**D-20260804-main-2** 起票
 
 - [chat-main] **判断キュー 8 件の消化 + docs 反映（PR #527 merged）** ✅（2026-08-01）— ユーザー回答を `ANSWERS.md` へ転記し、行き先ごとに実行。#520 は 🛑 ゲート解除コメント（A = 移動時にレンズを外す）／ B 採用の mobile-2 / mobile-3 は実装が要るので **#525 / #526** 起票／ docs 反映 4 件は **PR #527**（`[all]` prefix の廃止・tracker を実装ブランチに載せない・enum は plans/ 由来だけ・ClaudeDesign 計画書の COMPLETED 化と「追跡正本」宣言の付け替え）。自己レビューで **archive 移動により自分が壊した相対リンク 2 本**を検出し同 PR 内で修正、同種の**既存壊れ 6 本**は **#528** へ（docs-lint がリンク解決を見ていない穴も込み）
-
-- [chat-main] **open PR 巡回（停止条件 = #467 / #468 close + open PR 0）** ✅（2026-08-01）— 巡回開始時の open PR 2 本（#522 tracker 復元 / #523 d3 sim を発火時読み取りへ）を `/code-review low` で確認中に両方 merge され、**停止条件達成**。Epic #290（Step 2〜7 全 [x]）/ Epic #321（Phase 2 全消化）/ mobile-scope.md / plans Status は各レーンの PR 内で追随済みで chat-main の追加修正は不要だった。outbox は **worktree 5 本の実体まで直接 diff** して未処理ゼロを確認（main 側のコピーだけ見ると未 push 分を取りこぼす）。#523 のレビュー検出は **#524** として起票
 
 ## 予定
 
