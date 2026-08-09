@@ -16,6 +16,7 @@
 | [2026-07-16-briefing-headless-claude-prototype.md](./docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md) | REFERENCE |
 | [2026-07-28-loop-engineering-harness.md](./docs/vision/plans/2026-07-28-loop-engineering-harness.md) | IN PROGRESS — Phase 0 配置完了（PR |
 | [2026-07-30-open-issue-fanout-r2.md](./docs/vision/plans/2026-07-30-open-issue-fanout-r2.md) | IN PROGRESS |
+| [2026-08-03-open-issue-fanout-r3.md](./docs/vision/plans/2026-08-03-open-issue-fanout-r3.md) | IN PROGRESS |
 | [2026-08-04-context-cost-reduction-harness.md](./docs/vision/plans/2026-08-04-context-cost-reduction-harness.md) | IN PROGRESS |
 | [2026-08-04-loop-catalog-implementation.md](./docs/vision/plans/2026-08-04-loop-catalog-implementation.md) | IN PROGRESS |
 | [2026-08-04-loop-catalog.md](./docs/vision/plans/2026-08-04-loop-catalog.md) | IN PROGRESS |
