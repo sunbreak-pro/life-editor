@@ -194,15 +194,15 @@ life-editor/
 
 「完成まで $0 厳守」原則により、**Phase 5 完了までは ✗ の手段を取らない**:
 
-| OS               | 配布形態            | Phase 1-5 中                                  | 完成後の判断                                             |
-| ---------------- | ------------------- | --------------------------------------------- | -------------------------------------------------------- |
-| macOS            | .dmg 手渡し         | **未署名**（右クリック→開く で警告解除、$0）  | 加入したくなれば $99/年で警告解消                        |
-| Windows          | NSIS .exe 手渡し    | **未署名**（SmartScreen "詳細情報→実行"、$0） | 加入したくなれば $80-500/年で署名証明書                  |
-| Linux            | AppImage            | 不要                                          | —                                                        |
-| **iOS 自分用**   | Xcode 直接 Run      | **無料 Apple ID + 7 日署名**（$0）            | —                                                        |
-| **iOS 友達配布** | TestFlight / Ad Hoc | **やらない**                                  | **加入の判断はここ**。$99/年で TestFlight or Ad Hoc 配布 |
-| Android 友達配布 | 未署名 .apk 手渡し  | **未署名**（"提供元不明アプリ許可"、$0）      | —                                                        |
-| Web URL          | Cloudflare Workers  | $0（#600・静的アセットは無料無制限）          | —                                                        |
+| OS               | 配布形態            | Phase 1-5 中                                  | 完成後の判断                                                                |
+| ---------------- | ------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| macOS            | .dmg 手渡し         | **未署名**（右クリック→開く で警告解除、$0）  | 加入したくなれば $99/年で警告解消                                           |
+| Windows          | NSIS .exe 手渡し    | **未署名**（SmartScreen "詳細情報→実行"、$0） | 加入したくなれば $80-500/年で署名証明書                                     |
+| Linux            | AppImage            | 不要                                          | —                                                                           |
+| **iOS 自分用**   | Xcode 直接 Run      | **無料 Apple ID + 7 日署名**（$0）            | —                                                                           |
+| **iOS 友達配布** | TestFlight / Ad Hoc | **やらない**                                  | **加入の判断はここ**。$99/年で TestFlight or Ad Hoc 配布                    |
+| Android 友達配布 | 未署名 .apk 手渡し  | **未署名**（"提供元不明アプリ許可"、$0）      | —                                                                           |
+| Web URL          | Cloudflare Workers  | $0（#600・静的アセットは無料無制限）          | **公開済み = `https://life-editor.sunbreak-pro.workers.dev`**（2026-08-09） |
 
 #### Phase 1-5 中の iOS 運用ポリシー
 
@@ -397,7 +397,7 @@ life-editor/
 - [ ] `mcp-server/` を Postgres 接続版に書き換え(better-sqlite3 → @supabase/supabase-js)
 - [ ] terminal-division の Main process から life-editor MCP を起動するブリッジ追加
 - [ ] **electron-updater + GitHub Releases** 設定（auto-update 動作確認、$0）
-- [ ] **Web URL 公開**: Cloudflare Pages デプロイ（$0）
+- [x] **Web URL 公開**: Cloudflare Workers (Static Assets) デプロイ（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`・$0。Pages ではなく Workers なのは Cloudflare が Pages を Workers へ吸収する方向のため）
 
 #### 5-C: 旧スタック削除 + ドキュメント整理
 
@@ -415,7 +415,7 @@ life-editor/
 
 - [ ] terminal-division から Life Editor MCP 経由で Tasks 操作可能（⚠️ Terminal 退役 2026-07-05 — 導線再設計後に再定義）
 - [ ] electron-updater で auto-update が GitHub Releases から流れる
-- [ ] Web URL が公開されている
+- [x] Web URL が公開されている（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`）
 - [x] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない（2026-07-11 #197 — 3 ツリーとも削除済み。旧 build.yml / .ignore / loop-engine check.sh の残存参照も同時整理）
 - [ ] CLAUDE.md / vision / requirements が新スタック前提
 - [ ] cargo / Rust / portable-pty への依存ゼロ
