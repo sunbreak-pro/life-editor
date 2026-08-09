@@ -1,5 +1,20 @@
 # HISTORY (chat-main)
 
+### 2026-08-09 - main の未追跡資産を 2 PR に整理（Codex 対応を複製から参照へ・PR #610 / #611 merged）
+
+#### 概要
+
+main の作業ディレクトリに未追跡のまま残っていた 13 ファイルと、宙に浮いていた `chore/docs-sync-20260731` を整理した。未コミット分は計画書 1 本（#610）と Codex 対応（#611）に分割し、Codex 側は全文コピーだった初版を「参照」方式へ組み直した。両方 merge 済み・ブランチと一時 worktree は撤去済み。
+
+#### 変更点
+
+- **`chore/docs-sync-20260731` は PR を出さず削除**: 4 commit・docs 5 ファイルの中身が**すべて既に main にあり**、PR を出すと `2026-07-14-schedule-redesign.md` と `memory/chat-main.md` を古い版へ巻き戻す差分になった（main は Step 5-c 完了まで進んでいたのにブランチは Step 6 止まり）。three-dot diff だけ見ると 97 insertions の正当な差分に見えるので、**two-dot で「ブランチ側にしかない行」を数えて 0 と 12 行の巻き戻しであることを確認**してから判断した
+- **PR #610（計画書）**: `2026-08-03-open-issue-fanout-r3.md` 313 行を追加。docs-lint が**新しい検査 (e)** で落ちた — pull で入った記録グラフ層（`.claude/INDEX.md` + `records.mjs`）により、plans/ を触った PR は `node .claude/scripts/records.mjs index` を同一 PR に含める必要がある。ローカル検証を Codex 側ブランチで回していたため見落とした（**plans/ を触る PR では lint を必ずそのブランチで回す**）
+- **PR #611（Codex 対応）**: 初版は `CLAUDE.md` / skills / hooks の全文コピーで、**発見時点で既に原本 5 コミット分ズレていた**（`.claude/hooks/*.sh` は hooks-lib 分離済み・`docs-workflow/SKILL.md` も更新済み）。加えて「Claude」→「Codex」の一括置換が固有名詞まで巻き込み、`.Codex/rules/` 等の実在しないパス・ブランチ名 `Codex/<slug>`・「**Codex** API 直課金」・「**Codex** 本体の SSE バグ」が生まれていた（`${CLAUDE_PROJECT_DIR}` は置換漏れで残存）
+- **参照方式への再設計**: 実体は `.claude/` 側 1 つだけを保ち、Codex 側は入口のみ。`hooks.json` は `.claude/hooks/*.sh` を **git ルート相対**で呼ぶ（初版は `C:\Users\user\...` の絶対パス直書きで他マシン・worktree では動かなかった）。副次的に**バグが 1 つ消えた** — `.claude/hooks/*.sh` は `$(dirname $0)/..` から vendor 実装を探すため、`.codex/hooks/` に置いたコピーからだと `.codex/scripts/hooks-lib/` を見にいって外していた
+- **仕様の裏取り**（公式ドキュメント）: スキルは **`.agents/skills/`** から探される（`.codex/skills/` ではない・`$CWD` から repo root まで遡る）／ hooks は `<repo>/.codex/hooks.json` が読まれ、コマンドは**セッションの cwd** で走るため絶対パスか git ルート相対が推奨（公式例が `$(git rev-parse --show-toplevel)`）
+- **スキルを 4 本に絞った根拠**: `.claude/skills/` 17 個のうち 8 個はシンボリックリンクで、**Windows では実体化せずリンク先パスが書かれただけのテキストになっている**（`file` で確認）。残る実体 9 本のうち `loop-*` 5 本は Claude Code のスラッシュコマンド前提。差し引き 4 本
+
 ### 2026-08-06 - Loop Engineering Phase 2 の文書整備（夜の実装レーンを薄い殻へ・PR #597 merged `5161a9a1`）
 
 #### 概要
@@ -237,32 +252,4 @@ Notion の「Life Editor Night Review」ハブ（3b4b6365-53cc-8158-93d5-e3514ff
 - **同種の既存壊れを発見 → #528**: `archive/` の 5 ファイル・6 本が同じ理由で壊れている（リンク先はすべて実在・階層だけが誤り）。根本原因は `scripts/docs-lint.sh` がリンク解決を検査していないことなので、検出の追加も DoD に入れた
 - **巡回 2〜5 周目の所見**: outbox は **worktree の実体まで直接 diff** しないと未 push 分を取りこぼす（tags-docs に 4 エントリ・内容は処理済み）。PR #479 は squash merge のため `git merge-base` では未マージに見えるが、mergeCommit `ac32c7b9` が main の祖先であることを実測して着地を確認（§7.4 の「差分で判定しない」の実例）
 
-### 2026-08-01 - open PR 巡回の完走（open PR 0 到達・Epic #290 / #321 の DoD 実測確認・#523 のレビュー検出 1 件）
-
-#### 概要
-
-「open PR を巡回して merge 可能なものを報告 → outbox の未処理を処理 → merge を検知したら Epic のチェックボックスと docs Status を追随」の巡回を、停止条件（#467 / #468 close + open PR 0）まで走らせた。巡回開始時の open PR 2 本はレビュー中にユーザーが merge したため、レビュー結果は merge 後の指摘として記録に残す形になった。
-
-#### 変更点
-
-- **停止条件の達成**: #467（Step 5-c Mobile List+FAB）・#468（Step 6 台帳タグレンズ）とも CLOSED、open PR は 0（巡回中に #521 / #522 / #523 が merge され main は `8e624422`）
-- **PR レビュー 2 本**: #522（tracker 復元・docs 専用）は本文の 3 claim を `git show origin/main:` で実測照合し全一致 — 指摘なし。#523（`useGraphInteraction` の d3 sim を発火時読み取りへ）は変更自体は正しいが、**deps から `simRef.current` を落としたことでリスナーの貼り直し機会がサイズ変更時のみになる**副作用を検出（下記）
-- **検出（未起票・memory「予定」に記録）**: `GraphCanvas.tsx:178` の `onSelect` は `selectedId` を掴む inline クロージャで、effect が凍結すると**選択中ノードの再クリックによる選択解除が常に効かなくなる**。従来は `simRef.current` の dep がグラフ再構築のたびに偶然貼り直していたため「たまに効く」状態だった（#523 が壊したのではなく確定化させた）。直しは #523 と同じ発想でコールバックも ref 経由の発火時読み取りにする
-- **Epic / docs の追随は不要と実測**: Epic #290 は Step 2〜7 が全て [x]（PR 番号・merge commit つき）、Epic #321 は Phase 2 の 5 項目すべて [x] で残は Phase 1 の #391 のみ。mobile-scope.md・plans の Status 行も各レーンが自 PR 内で追随済みだった
-- **outbox 巡回**: 全 18 ファイルを走査し、最新の未処理候補（chat-schedule-refine 2026-08-01 の起票依頼 = #520 起票済み / 「記録のみ」項目 = 本人が tracker で処理済み）まで含めて**未処理ゼロ**を確認
-- **残タスク**: open Issue 8 件（#507 / #509 / #511 = materials、#519 = connect、#520 = schedule、#512 / #517 = shared-fix、#372 = 将来 DDL）+ Epic #321 Phase 1 の #391
-
-### 2026-07-26 - chat-main 宿題消化（outbox 起票依頼 17 件 → #360〜#376・code-reduction 計画書の回収と COMPLETED 化）
-
-#### 概要
-
-前日の worktree 再編（4 本体制 + Issue #352〜#356 起票）に続き、各レーン outbox に溜まっていた起票依頼を一括消化した。起票前に docs-consistency の実測必須則に従い主要 claim を spot check（savePositions の読み手不在 / softDeleteNoteUnified の assignment 非波及 / check.sh・labels.ts の stale コメント / CI に eslint ジョブ不在 / useDayStartHourPref・NoteNodeType/createFolder の現存）。
-
-#### 変更点
-
-- **起票 17 件**: code-reduction Step 14 = #360〜#364 / materials 系 = #365〜#369（`section:tags` ラベル新設・#368）/ editor-ux 系 = #370〜#372 / settings = #373 / briefing 事後記録 = #374(即 close）/ connect+materials folder 退役後段 = #375 / schedule 統合生成パネル = #376
-- **カバー済み判定**: analytics タグ後継集計（materials 2026-07-11 依頼）= #334 の候補 3 / analytics「今日」追随 = #356 / Mobile 省略 Provider 記述乖離 = PR #326 で解消済み（起票不要）
-- **計画書の回収と COMPLETED 化**: `2026-07-25-code-reduction.md` は origin/main・tracker ブランチ（#340/#343 merged）とも不在 → 一次結論は「Mac 側ローカル想定・差し戻し」だったが、ユーザー指摘（Windows でしか触っていない）を受けて再探索。セッション記録（`~/.claude/projects/`）の grep で **dev クローン**（`C:\Users\user\dev\life-editor\.claude\worktrees\code-reduction`・git 未追跡 `??`）に実体を特定し回収。実行記録（PR #338〜#351・A15 SUPERSEDED・A18 修理・C9/C10 非実行）+ 実測訂正（C4/C6/C2/A21/Step 7）を Worklog に転記し、Status: COMPLETED で `archive/` へ収録（PR #377 同梱）。**教訓: この PC は orca / dev の 2 クローン構成 — ファイル不在の結論を出す前に両クローンとセッション記録を探索すること**
-- **ブランチ棚卸し**: ローカル 17 本中 16 本の PR MERGED を機械確認（`git branch -D` は deny ルールのため削除コマンドをユーザーへ提示・memory のクリーンアップ節を更新）。`claude/briefing-evening-patch-fix` のみ PR 無しで保留（中身確認まで削除しない）
-
-> 古いエントリは [`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
+> 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
