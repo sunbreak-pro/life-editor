@@ -105,6 +105,20 @@ for f in "${PLANS_DIR}"/*.md; do
   fi
 done
 
+# ---------------------------------------------------------------------------
+# (e) 記録グラフ層の検証（正本 = .claude/scripts/records.mjs）
+#     decisions/ frontmatter スキーマ・supersede 双方向・ANSWERS 突合・
+#     索引（.claude/INDEX.md / .claude/decisions/INDEX.md）の鮮度。
+#     stale なら `node .claude/scripts/records.mjs index` で再生成して同一コミットへ。
+# ---------------------------------------------------------------------------
+if command -v node >/dev/null 2>&1; then
+  RECORDS_OUT=$(node .claude/scripts/records.mjs check 2>&1) || while IFS= read -r line; do
+    report "docs-lint(e) ${line}"
+  done <<<"${RECORDS_OUT}"
+else
+  echo "docs-lint: warn — node が無いため (e) records check をスキップ" >&2
+fi
+
 if [ "${FAIL}" -ne 0 ]; then
   echo "docs-lint: FAILED（上記の違反を修正してください。規約 = .claude/rules/docs-consistency.md）"
   exit 1

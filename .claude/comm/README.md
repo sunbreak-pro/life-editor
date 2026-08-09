@@ -18,10 +18,15 @@
 ├── outbox/
 │   ├── chat-<name>.md         # 各チャットの発信箱（書くのは本人のみ、読むのは全員）
 │   └── ...
+├── decisions/                 # 判断の非同期キュー（2026-07-28〜。README.md / POLICY.md / ANSWERS.md / chat-<name>.md）
 └── archive/
     └── YYYY-MM/               # 古くなった発言をここに退避
         └── chat-<name>.md
 ```
+
+## Decision queue ルート（outbox と分離した判断専用レーン）
+
+ユーザー判断が要る点は outbox でなく `decisions/chat-<self>.md` に書く（単一書込者は outbox と同じ・形式 = [`decisions/README.md`](./decisions/README.md)・行動規定 = `rules/decision-queue.md`）。**キューは未決の一時置き場**で、回答が付いたら `.claude/decisions/D-<id>.md`（確定台帳・恒久）へ昇格してからキューから消す — 回答済み判断の Why・却下案を探すときは [`.claude/decisions/INDEX.md`](../decisions/INDEX.md) を見る。
 
 ## 中核ルール: 単一書き込み者
 

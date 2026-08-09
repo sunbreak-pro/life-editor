@@ -17,7 +17,7 @@ description: life-editor のドキュメント体系と課題管理運用の正�
 
 Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` / `SUPERSEDED` / `DEFERRED` / `REFERENCE` / `ACTIVE (adopted policy)`（enum の適用範囲・全数チェック方法 → `rules/docs-consistency.md`）。
 
-移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。ADR は作らない（理由 → `docs/vision/coding-principles.md` 冒頭）。
+移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。設計判断の Why・却下案は **`.claude/decisions/` の決定台帳**に残す（旧「ADR は作らない」方針は D-20260809-main-1 で SUPERSEDE — 陳腐化は上書きでなく supersede 連鎖で表現する。書き込み先の判定 = `rules/records.md`）。
 
 ## Known Issue / 課題管理（2026-07-04〜）
 
@@ -55,6 +55,8 @@ Issue はプロダクト課題（life-editor のコードを直せば直るも�
 
 `.claude/comm/`（自分の Outbox にのみ append → `comm/README.md`）。
 
-## 判断の非同期キュー（2026-07-28〜）
+## 判断の非同期キュー（2026-07-28〜）+ 確定台帳（2026-08-09〜）
 
 ユーザー判断は `.claude/comm/decisions/` に書き溜めて次の作業へ進む（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
+
+回答が付いたら **`.claude/decisions/D-<id>.md`（確定台帳）へ昇格してからキューを消す**（手順 = `.claude/decisions/README.md`・索引 = 同 `INDEX.md`（`records.mjs` 生成・手編集禁止）。D-20260809-main-1）。過去の判断の Why・却下案を探すときは grep でなく `.claude/decisions/INDEX.md` の Active 表・Topic 逆引きから辿る。

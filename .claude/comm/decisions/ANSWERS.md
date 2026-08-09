@@ -19,4 +19,5 @@
 - D-20260806-main-1: **B**（P-001 は文言どおり据え置き。merge は常にこうだいさん。**条件つき自動 merge は開けない**ので、到達点は「第 1 段 = `claude/*` への push + draft PR 作成の解放」と「第 3 段 = merge 後 main 検証 → 赤なら自動 revert」の 2 段までとする。2026-08-06 チャットで回答・chat-main が転記）
 - D-20260804-main-2: **A + C**（D-20260806-main-1 = B の定義に含まれるため同時決着。`permissions.ask` に `Bash(gh pr merge*)` を追加して P-001 を機械で担保し、あわせて `git-workflow` §0.1.1 の自動マージは life-editor 非適用と CLAUDE.md に明記する。同上）
 - D-20260806-main-2: **A**（グローバル資産を Scope に入れ、`claude-dotfiles` 側の別 PR で進める。削るのは「保険」の 1 層に絞る。2026-08-06 チャットで回答・chat-main が転記）
+- D-20260809-main-1: **A**（決定台帳 `decisions/` を新設し「ADR は作らない」方針を SUPERSEDE する。2026-08-09 remote セッションの AskUserQuestion で回答・同セッションが転記）
 - D-20260806-main-3: **A**（Phase 3 の移行ゲートは維持する。life-editor 側の移送は移行完了後。**グローバル側は本裁定に縛られない** — ゲートの根拠は「移送先自体が動く」ことで、移行で動くのは life-editor の CLAUDE.md §2〜§5 と移行 SSOT であって `~/.claude/` ではない。同上）
