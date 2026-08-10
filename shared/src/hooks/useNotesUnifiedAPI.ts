@@ -147,10 +147,70 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   // `updatedAt` did not move and drops only the genuinely-touched ones
   // (#301 — see the load effect; it used to clear the whole set).
   const contentLoadedIdsRef = useRef<Set<string>>(new Set());
+  /*
+   * Ids whose body in `notes` is OURS — written by this client and not yet
+   * reconciled with the row the server hands back (#607).
+   *
+   * The load effect below keeps a cached body only while `prev.updatedAt ===
+   * row.updatedAt`, which is the right test for someone ELSE's write. It can
+   * never hold for our own: we stamp an optimistic CLIENT clock and the reload
+   * carries the SERVER's, so the merge would drop precisely the note the user
+   * is typing in — and typing is what triggers the reload (the own-write
+   * Realtime echo bumps syncVersion ~1.1s later, #300). Dropping it flips
+   * `isContentLoaded` to false, and the mobile sheet answers that by swapping
+   * its editor for a skeleton: the field loses focus and the phone's keyboard
+   * closes mid-sentence.
+   *
+   * The mark is cleared when the note stops being the open one. While it IS
+   * open our buffer is the newest copy anywhere, which is already how Desktop
+   * behaves (its editor is keyed by note id and never re-reads); once the user
+   * moves on, the next reload is free to notice a foreign write and re-hydrate.
+   */
+  const locallyWrittenIdsRef = useRef<Set<string>>(new Set());
+  /*
+   * Writes we have sent but not yet seen come back, per id (#607). The mark
+   * above is retired by the reload that used it, which is what keeps a foreign
+   * write from being ignored for the rest of the session. That retirement is
+   * only safe once the server has acknowledged the write it was covering:
+   * while another one is still in flight its echo has not arrived yet, so the
+   * mark has to survive this reload too.
+   */
+  const unackedWritesRef = useRef<Map<string, number>>(new Map());
   // "Latest select wins": if two selects race (fast clicks), only the most
   // recent one is allowed to commit its `setSelectedNoteId`, so a slow
   // earlier fetch can't clobber a newer selection.
   const selectTokenRef = useRef(0);
+
+  /** Remember that OUR write is what moved this row's `updatedAt` (#607). */
+  const markLocalWrite = useCallback((id: string) => {
+    if (contentLoadedIdsRef.current.has(id)) {
+      locallyWrittenIdsRef.current.add(id);
+    }
+  }, []);
+
+  /** Run a write while counting it as unacknowledged (#607 — see the ref). */
+  const trackWrite = useCallback(
+    (id: string, write: Promise<unknown>): Promise<unknown> => {
+      const map = unackedWritesRef.current;
+      map.set(id, (map.get(id) ?? 0) + 1);
+      return write.finally(() => {
+        const left = (map.get(id) ?? 1) - 1;
+        if (left > 0) map.set(id, left);
+        else map.delete(id);
+      });
+    },
+    [],
+  );
+
+  // #607: the mark only outranks the server for the note that is OPEN. Once
+  // the user moves on, drop it so a later reload can notice a foreign write
+  // and re-hydrate normally (#301).
+  useEffect(() => {
+    const stillOpen =
+      selectedNoteId !== null &&
+      locallyWrittenIdsRef.current.has(selectedNoteId);
+    locallyWrittenIdsRef.current = new Set(stillOpen ? [selectedNoteId] : []);
+  }, [selectedNoteId]);
 
   // Hydrate a note's real body into the `notes` array. No-op if already
   // hydrated. Returns true when the note's body is present afterwards.
@@ -276,7 +336,17 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
             if (
               prev &&
               contentLoadedIdsRef.current.has(row.id) &&
-              prev.updatedAt === row.updatedAt
+              // #607: `updatedAt` moving means "someone wrote to this note",
+              // which is only a reason to drop our copy when that someone was
+              // not us. Our own stamp is a client clock and can never match
+              // the server's, so the OPEN note would otherwise be the one row
+              // guaranteed to fail this test on every keystroke's echo. Scoped
+              // to the open note on purpose: for any other note a drop just
+              // costs a lazy re-fetch, while pinning it would hide a foreign
+              // write behind a body nobody is looking at.
+              (prev.updatedAt === row.updatedAt ||
+                (row.id === selectedNoteIdRef.current &&
+                  locallyWrittenIdsRef.current.has(row.id)))
             ) {
               stillHydrated.add(row.id);
               return { ...row, content: prev.content };
@@ -284,6 +354,19 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
             return row;
           });
           contentLoadedIdsRef.current = stillHydrated;
+          // A kept row above adopted the SERVER's `updatedAt`, so plain
+          // equality answers for it from here on and the mark has done its
+          // job. Retiring it is what lets the NEXT foreign write drop the body
+          // and re-hydrate (#301) instead of our copy outranking the server
+          // for the rest of the session. A write still in flight keeps its
+          // mark: its echo has not arrived yet, so it still needs the cover.
+          const seenIds = new Set(loaded.map((row) => row.id));
+          locallyWrittenIdsRef.current = new Set(
+            [...locallyWrittenIdsRef.current].filter(
+              (id) =>
+                !seenIds.has(id) || (unackedWritesRef.current.get(id) ?? 0) > 0,
+            ),
+          );
           setNotes(merged);
           listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
           // Keep the currently-open note's body correct after a
@@ -531,6 +614,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // re-fetch (which could race the still-in-flight content write and
       // clobber the local body with an empty server row).
       contentLoadedIdsRef.current.add(id);
+      // #607: `now` above is a client clock and the INSERT will come back with
+      // the server's, so a brand-new note is in exactly the same position as an
+      // edited one — the first reload would drop the body out from under the
+      // editor the user just started typing in.
+      markLocalWrite(id);
       // #285 background create (select:false) must not switch the editor —
       // and must not retarget the #282 restore either, so the store write
       // stays inside the same guard.
@@ -538,15 +626,19 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         setSelectedNoteId(id);
         setNotesSelection(id); // #282: restore the just-created note after a tab switch
       }
-      ds.createNoteUnified(
-        buildNoteNode(id, newNote.title, resolvedParentId, now),
-      )
-        .then(() => {
-          if (resolvedContent) {
-            return ds.updateNoteUnified(id, { content: resolvedContent });
-          }
-        })
-        .catch((e) => logServiceError("Notes", "create", e));
+      void trackWrite(
+        id,
+        ds
+          .createNoteUnified(
+            buildNoteNode(id, newNote.title, resolvedParentId, now),
+          )
+          .then(() => {
+            if (resolvedContent) {
+              return ds.updateNoteUnified(id, { content: resolvedContent });
+            }
+          })
+          .catch((e) => logServiceError("Notes", "create", e)),
+      );
 
       if (!opts?.skipUndo) {
         push("note", {
@@ -564,6 +656,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
           redo: () => {
             setNotes((p) => [newNote, ...p]);
             contentLoadedIdsRef.current.add(id);
+            markLocalWrite(id); // #607
             setSelectedNoteId(id);
             setNotesSelection(id); // #282
             ds.createNoteUnified(
@@ -581,7 +674,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
 
       return id;
     },
-    [ds, push],
+    [ds, push, markLocalWrite, trackWrite],
   );
 
   const updateNote = useCallback(
@@ -611,24 +704,32 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
             label: "updateNote",
             undo: () => {
               const now = new Date().toISOString();
+              markLocalWrite(id); // #607 — same client-clock stamp as below
               setNotes((p) =>
                 p.map((n) =>
                   n.id === id ? { ...n, ...prevValues, updatedAt: now } : n,
                 ),
               );
-              ds.updateNoteUnified(id, prevValues).catch((e) =>
-                logServiceError("Notes", "undoUpdate", e),
+              void trackWrite(
+                id,
+                ds
+                  .updateNoteUnified(id, prevValues)
+                  .catch((e) => logServiceError("Notes", "undoUpdate", e)),
               );
             },
             redo: () => {
               const now = new Date().toISOString();
+              markLocalWrite(id); // #607
               setNotes((p) =>
                 p.map((n) =>
                   n.id === id ? { ...n, ...updates, updatedAt: now } : n,
                 ),
               );
-              ds.updateNoteUnified(id, updates).catch((e) =>
-                logServiceError("Notes", "redoUpdate", e),
+              void trackWrite(
+                id,
+                ds
+                  .updateNoteUnified(id, updates)
+                  .catch((e) => logServiceError("Notes", "redoUpdate", e)),
               );
             },
           });
@@ -639,16 +740,23 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // M1: an edited body is authoritative locally — keep it marked loaded
       // so a later reselect/reload doesn't drop back to the light "".
       if ("content" in updates) contentLoadedIdsRef.current.add(id);
+      // #607: the `now` stamped below is a client clock, so the reload this
+      // write's own echo triggers must not read the moved `updatedAt` as
+      // "someone else touched it" and drop the body under the open editor.
+      markLocalWrite(id);
       setNotes((prev) =>
         prev.map((n) =>
           n.id === id ? { ...n, ...updates, updatedAt: now } : n,
         ),
       );
-      ds.updateNoteUnified(id, updates).catch((e) =>
-        logServiceError("Notes", "update", e),
+      void trackWrite(
+        id,
+        ds
+          .updateNoteUnified(id, updates)
+          .catch((e) => logServiceError("Notes", "update", e)),
       );
     },
-    [ds, push],
+    [ds, push, markLocalWrite, trackWrite],
   );
 
   const softDeleteNote = useCallback(
