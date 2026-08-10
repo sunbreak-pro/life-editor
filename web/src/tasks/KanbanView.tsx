@@ -29,8 +29,14 @@ import {
   useTaskTreeContext,
   useWikiTagsUnifiedContext,
   useTranslation,
+  useInFlightGuard,
   readKanbanViewMode,
   persistKanbanViewMode,
+  todayCalendarKey,
+  todoToEventBlock,
+  taskToEventPlacement,
+  ItemConversionError,
+  logServiceError,
   type DataService,
   type KanbanCardModel,
   type KanbanCardTag,
@@ -157,6 +163,90 @@ export function KanbanView({
     onOpenWide: rightSidebar.open,
     onConsumePendingSelect,
   });
+
+  /*
+   * #625: "予定に変換" — the board's half of the Event <-> Todo pair.
+   *
+   * The write re-roles the row (id kept), so the task simply leaves this board
+   * and appears on the calendar. `refetch` is what makes that visible here:
+   * the conversion goes through the DataService, not through this provider's
+   * own persist path, so nothing else tells the tree its row is gone.
+   *
+   * A todo WITH CHILDREN is refused (D-20260810-sched-4) — 0009's composite FK
+   * (parent_item_id, parent_item_role='task') would reject the role change
+   * anyway, and a sentence beats an FK error. The guard is per-id and claimed
+   * synchronously (#434): confirm + async write is exactly the window a second
+   * click lands in.
+   *
+   * A failure lands in the board's own alert banner (`moveError`) rather than a
+   * toast: it is the failure surface this screen already has, it auto-dismisses
+   * on the same 4s timer, and it keeps the board renderable without the shell's
+   * Toast Provider — which is how every test here mounts it. On narrow the
+   * sheet is closed first, because the banner sits UNDER it and a message the
+   * user cannot see is the same as no message at all.
+   *
+   * Declared after `detail` on purpose: the narrow branch needs closeSheet, and
+   * a dependency array naming a `const` declared further down throws at render.
+   */
+  const { begin: beginConvert, end: endConvert } = useInFlightGuard();
+  const handleConvertToEvent = useCallback(
+    (task: TaskNode) => {
+      if (!dataService) return;
+      const blocked = todoToEventBlock(tree.nodes, task.id);
+      if (blocked) {
+        window.alert(
+          t("itemConvert.childrenBlocked", {
+            title: blocked.title,
+            count: blocked.childCount,
+          }),
+        );
+        return;
+      }
+      if (
+        !window.confirm(
+          // A child Todo loses its parent link (events have no hierarchy), and
+          // the dialog is the only place that can say so before it happens.
+          t(
+            task.parentId != null
+              ? "itemConvert.toEventConfirmChild"
+              : "itemConvert.toEventConfirm",
+            { title: task.title || t("common.untitled") },
+          ),
+        )
+      )
+        return;
+      if (!beginConvert(task.id)) return;
+      void dataService
+        .convertTaskToEvent(
+          task.id,
+          taskToEventPlacement(task, todayCalendarKey()),
+        )
+        .then(() => {
+          // The detail panel is showing a row that is no longer a task; the
+          // refetch drops it from the tree and the selection resolves to null.
+          tree.setSelectedTaskId(null);
+          void tree.refetch();
+        })
+        .catch((err) => {
+          logServiceError(
+            "ItemConversion",
+            `convertTaskToEvent (${task.id})`,
+            err,
+          );
+          // The DB sees children the live tree cannot (trashed ones still hold
+          // the 0009 FK), so that refusal gets its own sentence — "conversion
+          // failed" would send the user looking for a network problem.
+          detail.closeSheet();
+          setMoveError(
+            err instanceof ItemConversionError && err.reason === "children"
+              ? t("itemConvert.childrenBlockedServer")
+              : t("itemConvert.failed"),
+          );
+        })
+        .finally(() => endConvert(task.id));
+    },
+    [dataService, tree, detail, t, beginConvert, endConvert],
+  );
 
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
   // task's detail, opened on card-click. Crossing wide→narrow, the detail moves
@@ -435,42 +525,56 @@ export function KanbanView({
    * no tags would have no route to its first one.
    */
   const renderTaskDetail = (task: TaskNode, statusControl?: ReactNode) => (
-    <TaskDetailPanel
-      taskId={task.id}
-      title={task.title}
-      status={task.status}
-      onTitleCommit={(id, title) => tree.updateNode(id, { title })}
-      onToggleStatus={tree.toggleTaskStatus}
-      statusControl={statusControl}
-      titleLabel={t("taskDetail.titleLabel")}
-      statusLabel={t("taskDetail.status")}
-      statusText={t(STATUS_TEXT_KEY[task.status ?? "NOT_STARTED"])}
-      contentLabel={t("taskDetail.content")}
-      tagsSlot={
-        <TagPicker itemId={task.id} itemRole="task" showLabel size="sm" />
-      }
-      contentEditor={
-        <RichTextEditor
-          key={task.id}
-          noteId={task.id}
-          initialContent={task.content || undefined}
-          onUpdate={(content) => {
-            tree.updateNode(task.id, { content });
-            // #372: drop inline-origin edges whose "[[ ]]" left the text.
-            handleBodySaved(task.id, content);
-          }}
-          // "[[" autocomplete + click navigation (#507). Same three props the
-          // Notes and Daily editors take; this editor simply never got them,
-          // so the menu never opened and a resolved link was inert. No
-          // create-note row — like Daily, a task body links to EXISTING items.
-          loadLinkTargets={loadLinkTargets}
-          onNavigateToItem={onNavigateToItem}
-          onResolvedLinkInserted={(targetId) =>
-            handleResolvedLinkInserted(task.id, targetId)
-          }
-        />
-      }
-    />
+    // #625: the convert action sits BELOW the panel rather than inside it, so
+    // TaskDetailPanel (shared, and rendered by Schedule too) keeps its current
+    // shape. Same wrapper the Schedule task overlay uses for its own button.
+    <div className="flex flex-col gap-3">
+      <TaskDetailPanel
+        taskId={task.id}
+        title={task.title}
+        status={task.status}
+        onTitleCommit={(id, title) => tree.updateNode(id, { title })}
+        onToggleStatus={tree.toggleTaskStatus}
+        statusControl={statusControl}
+        titleLabel={t("taskDetail.titleLabel")}
+        statusLabel={t("taskDetail.status")}
+        statusText={t(STATUS_TEXT_KEY[task.status ?? "NOT_STARTED"])}
+        contentLabel={t("taskDetail.content")}
+        tagsSlot={
+          <TagPicker itemId={task.id} itemRole="task" showLabel size="sm" />
+        }
+        contentEditor={
+          <RichTextEditor
+            key={task.id}
+            noteId={task.id}
+            initialContent={task.content || undefined}
+            onUpdate={(content) => {
+              tree.updateNode(task.id, { content });
+              // #372: drop inline-origin edges whose "[[ ]]" left the text.
+              handleBodySaved(task.id, content);
+            }}
+            // "[[" autocomplete + click navigation (#507). Same three props the
+            // Notes and Daily editors take; this editor simply never got them,
+            // so the menu never opened and a resolved link was inert. No
+            // create-note row — like Daily, a task body links to EXISTING items.
+            loadLinkTargets={loadLinkTargets}
+            onNavigateToItem={onNavigateToItem}
+            onResolvedLinkInserted={(targetId) =>
+              handleResolvedLinkInserted(task.id, targetId)
+            }
+          />
+        }
+      />
+      {dataService && (
+        <button
+          type="button"
+          onClick={() => handleConvertToEvent(task)}
+          className="self-start rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          {t("itemConvert.toEvent")}
+        </button>
+      )}
+    </div>
   );
 
   // Desktop: the selected task's detail, pushed into the rightSidebar on

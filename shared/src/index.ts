@@ -1,5 +1,11 @@
 export type { DataService } from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
+// #625: hosts branch their failure message on `reason` (a refusal the DB
+// enforces reads differently from a dropped request), and log the raw error
+// next to the sentence they show — a toast that says "failed" and nothing in
+// the console leaves a support question with no answer.
+export { ItemConversionError } from "./services/SupabaseItemConversionService";
+export { logServiceError } from "./utils/logError";
 export {
   getDataService,
   setDataServiceForTest,
@@ -328,6 +334,17 @@ export {
   TASK_CHIP_PREFIX,
   type TaskCalendarChip,
 } from "./utils/taskCalendarChips";
+// #625: Event <-> Todo conversion — the host-side decisions (what blocks a
+// conversion, where a converted Todo lands). The write itself is a
+// DataService method (convertEventToTask / convertTaskToEvent).
+export {
+  eventToTodoBlock,
+  todoToEventBlock,
+  taskToEventPlacement,
+  type EventToTodoBlock,
+  type TodoToEventBlock,
+  type EventPlacement,
+} from "./utils/itemConversion";
 // A-3 (#298): "add from tasks" selector for the Today's Todo tray.
 export { pickAddableTasks, type AddableTask } from "./utils/todayTodo";
 // Schedule host domain helpers (#280, extracted from web CalendarTab /

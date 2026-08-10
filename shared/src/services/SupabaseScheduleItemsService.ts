@@ -279,10 +279,18 @@ export class SupabaseScheduleItemsService {
       now,
     );
 
+    // #625: the role filter keeps this write off an item that is no longer an
+    // event. Ids survive an Event→Todo conversion, so a stale holder of one —
+    // an undo entry pushed before the conversion, a panel left open — would
+    // otherwise stamp an event's title over the Todo's items_meta row. The
+    // filter always matches for a genuine event, so no existing path changes;
+    // the read-back below already refused the converted row (rowsToScheduleItem
+    // throws on a non-event role), it just did so AFTER writing.
     const { error: metaErr } = await this.client
       .from("items_meta")
       .update(metaPatch)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (metaErr)
       throw new Error(`updateScheduleItem items_meta: ${metaErr.message}`);
 

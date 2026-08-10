@@ -33,7 +33,13 @@ import {
   Modal,
   useScheduleItemsRoutineSync,
   useDeferredAction,
+  useInFlightGuard,
   useToast,
+  eventToTodoBlock,
+  todoToEventBlock,
+  taskToEventPlacement,
+  ItemConversionError,
+  logServiceError,
   minutesToTime,
   timedSpanForAllDayOff,
   deriveScheduleStatus,
@@ -203,6 +209,10 @@ export function CalendarTab({
   // addNode (#376): the creation panel's task tab writes a NEW TaskNode that is
   // already scheduled into the target slot — the same provider the tray and the
   // chip drags write through, so there is no second source of task truth.
+  // refetch (#625): the Event <-> Todo conversion writes through the
+  // DataService, not through this provider's own persist path, so the tree
+  // in memory would keep showing the pre-conversion shape until Realtime got
+  // around to it. The conversion asks for the truth directly.
   const {
     nodes: taskNodes,
     addNode,
@@ -210,6 +220,7 @@ export function CalendarTab({
     setTaskStatus,
     toggleTaskStatus,
     softDelete: softDeleteTask,
+    refetch: refetchTasks,
   } = useTaskTreeContext();
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
   // view over ONE life tag, so the grid needs both halves — the ledger (which
@@ -1785,6 +1796,144 @@ export function CalendarTab({
     [taskNodes, softDeleteTask, t],
   );
 
+  /*
+   * #625: Event <-> Todo conversion.
+   *
+   * The write keeps the item's id, so both surfaces stay pointed at the same
+   * row and its tags/links survive — but the row changes ROLE, which means the
+   * list it was in stops holding it and another list starts. Neither store
+   * finds that out on its own here: the schedule range reloads and the task
+   * tree refetches, and the item is simply gone from one surface and present
+   * on the other. No navigation (per the Issue) — jumping the user to the
+   * other section after a one-line action reads as losing their place.
+   *
+   * The guard is per-id and claimed synchronously (#434): the confirm dialog
+   * plus an async write is exactly the window in which a second click lands,
+   * and a second conversion of the same id would hit a row whose role has
+   * already moved — recoverable, but it would report a failure for something
+   * that actually worked.
+   */
+  const { begin: beginConvert, end: endConvert } = useInFlightGuard();
+
+  const handleConvertToTodo = useCallback(
+    (id: string) => {
+      const item =
+        rangeItems.find((i) => i.id === id) ??
+        contextItems.find((i) => i.id === id);
+      if (!item) return;
+      // D-20260810-sched-5, and the user asked for it in exactly this shape:
+      // the action stays enabled and ANSWERS with the reason. A greyed-out row
+      // teaches nothing.
+      if (eventToTodoBlock(item)) {
+        window.alert(t("itemConvert.routineBlocked"));
+        return;
+      }
+      if (
+        !window.confirm(
+          t("itemConvert.toTodoConfirm", {
+            title: item.title || t("scheduleCalendar.newEvent"),
+          }),
+        )
+      )
+        return;
+      if (!beginConvert(id)) return;
+      setPopover(null);
+      // order 0 = the top of the root group, the slot addNode aims a new task
+      // at. It does NOT shift the existing siblings down the way addNode does:
+      // that would be a second, unrelated write over every root row, and a tie
+      // in sort_order only costs an arbitrary order between two rows.
+      void dataService
+        .convertEventToTask(id, { order: 0 })
+        .then(() => {
+          reload();
+          void refetchTasks();
+        })
+        .then(() => showToast("success", t("itemConvert.toTodoDone")))
+        .catch((err) => {
+          logServiceError("ItemConversion", `convertEventToTask (${id})`, err);
+          showToast("danger", t("itemConvert.failed"));
+        })
+        .finally(() => endConvert(id));
+    },
+    [
+      rangeItems,
+      contextItems,
+      dataService,
+      reload,
+      refetchTasks,
+      showToast,
+      beginConvert,
+      endConvert,
+      t,
+    ],
+  );
+
+  const handleConvertToEvent = useCallback(
+    (id: string) => {
+      const task = taskNodes.find((n) => n.id === id);
+      if (!task) return;
+      // D-20260810-sched-4. The service repeats this check against the DB
+      // (soft-deleted children are invisible here but still hold the FK); this
+      // one exists so the common case gets a sentence instead of a red toast.
+      const blocked = todoToEventBlock(taskNodes, id);
+      if (blocked) {
+        window.alert(
+          t("itemConvert.childrenBlocked", {
+            title: blocked.title,
+            count: blocked.childCount,
+          }),
+        );
+        return;
+      }
+      if (
+        !window.confirm(
+          // A child Todo loses its parent link (events have no hierarchy), and
+          // the dialog is the only place that can say so before it happens.
+          t(
+            task.parentId != null
+              ? "itemConvert.toEventConfirmChild"
+              : "itemConvert.toEventConfirm",
+            { title: task.title || t("common.untitled") },
+          ),
+        )
+      )
+        return;
+      if (!beginConvert(id)) return;
+      setPopover(null);
+      setTaskDetailId(null);
+      void dataService
+        .convertTaskToEvent(id, taskToEventPlacement(task, listDate))
+        .then(() => {
+          reload();
+          void refetchTasks();
+        })
+        .catch((err) => {
+          logServiceError("ItemConversion", `convertTaskToEvent (${id})`, err);
+          // The DB sees children the live tree cannot (trashed ones still hold
+          // the 0009 FK), so that refusal gets its own sentence — "conversion
+          // failed" would send the user looking for a network problem.
+          showToast(
+            "danger",
+            err instanceof ItemConversionError && err.reason === "children"
+              ? t("itemConvert.childrenBlockedServer")
+              : t("itemConvert.failed"),
+          );
+        })
+        .finally(() => endConvert(id));
+    },
+    [
+      taskNodes,
+      dataService,
+      listDate,
+      reload,
+      refetchTasks,
+      showToast,
+      beginConvert,
+      endConvert,
+      t,
+    ],
+  );
+
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
   // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
   // #555: rows also soft-delete (softDeleteTask → Trash) and carry the same
@@ -1895,6 +2044,7 @@ export function CalendarTab({
           allDay: t("scheduleScreen.allDay"),
           rename: t("scheduleScreen.rename"),
           delete: t("scheduleScreen.todoDelete"),
+          convertToEvent: t("itemConvert.toEvent"),
         },
         {
           onRename: (title) =>
@@ -1906,6 +2056,7 @@ export function CalendarTab({
               { undoLabel: "taskTreeChange" },
             ),
           onDelete: () => handleTodoDelete(popoverTaskChip.id),
+          onConvertToEvent: () => handleConvertToEvent(popoverTaskChip.id),
         },
       )
     : null;
@@ -1972,6 +2123,14 @@ export function CalendarTab({
             id: "duplicate",
             label: t("scheduleScreen.duplicate"),
             onSelect: () => handleDuplicate(popover.id),
+          },
+          // #625: stays enabled for a routine occurrence too — selecting it
+          // then explains why a Todo cannot hold a repeat (D-20260810-sched-5,
+          // user-specified shape).
+          {
+            id: "convertToTodo",
+            label: t("itemConvert.toTodo"),
+            onSelect: () => handleConvertToTodo(popover.id),
           },
           {
             id: "delete",
@@ -2046,6 +2205,18 @@ export function CalendarTab({
               />
             }
           />
+          {/* #625: the same convert the chip bubble offers. The panel is the
+              surface a user reaches for when the todo turns out to be an
+              appointment, so the action has to be here too — and this one
+              closes the overlay itself, since the row it is showing changes
+              role out from under it. */}
+          <button
+            type="button"
+            onClick={() => handleConvertToEvent(taskDetailTask.id)}
+            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            {t("itemConvert.toEvent")}
+          </button>
           <button
             type="button"
             onClick={() => {

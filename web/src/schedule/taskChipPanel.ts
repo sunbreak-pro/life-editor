@@ -45,12 +45,20 @@ export interface TaskChipPanelCopy {
   allDay: string;
   rename: string;
   delete: string;
+  /** #625 "予定に変換" — the chip's own row is the shortest route to it. */
+  convertToEvent: string;
 }
 
 /** The host writes, kept out of this module (see taskChipUndoWiring). */
 export interface TaskChipPanelHandlers {
   onRename: (title: string) => void;
   onDelete: () => void;
+  /**
+   * #625: re-role this task into a schedule item. Placed above delete and NOT
+   * marked danger — it moves the item, it does not remove it — and the host
+   * owns the confirm + the child/route guards (itemConversion.ts).
+   */
+  onConvertToEvent: () => void;
 }
 
 export interface TaskChipPanelModel {
@@ -84,6 +92,11 @@ export function taskChipPanelModel(
           ariaLabel: copy.rename,
           onCommit: handlers.onRename,
         },
+      },
+      {
+        id: "convertToEvent",
+        label: copy.convertToEvent,
+        onSelect: handlers.onConvertToEvent,
       },
       {
         id: "delete",

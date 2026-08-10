@@ -107,6 +107,33 @@ describe("syncDomains — items_meta is routed by role", () => {
     expect(domainsForChange("items_meta", { role: 42 })).toEqual(ITEM_DOMAINS);
   });
 
+  /*
+   * #625 Event <-> Todo conversion: the row keeps its id and changes ROLE, so
+   * TWO section lists have to refetch — the one that loses the item and the one
+   * that gains it. This pins where that comes from.
+   *
+   * The items_meta UPDATE alone is NOT enough, and that is the trap: this
+   * function routes items_meta by the role on the CHANGED row, which after a
+   * conversion is only ever the destination. The source domain refetches
+   * because the conversion also writes both payload tables, and those are
+   * routed by TABLE, not by role. Anyone rewriting the conversion to touch
+   * items_meta alone would leave the source list holding a row that no longer
+   * exists, with no way for the user to clear it.
+   */
+  it("moves BOTH domains for an Event->Todo conversion (#625)", () => {
+    const moved = new Set([
+      ...domainsForChange("events_payload"),
+      ...domainsForChange("items_meta", { role: "task" }),
+      ...domainsForChange("tasks_payload"),
+    ]);
+    expect([...moved].sort()).toEqual(["schedule", "tasks"]);
+    // The role-routed half on its own is one-lunged, in both directions.
+    expect(domainsForChange("items_meta", { role: "task" })).toEqual(["tasks"]);
+    expect(domainsForChange("items_meta", { role: "event" })).toEqual([
+      "schedule",
+    ]);
+  });
+
   it("never routes an item change to the timer or audio domains", () => {
     for (const role of ["task", "note", "daily", "event", "routine"]) {
       const domains = domainsForChange("items_meta", { role });

@@ -37,6 +37,10 @@ import {
   PHASE2_CALENDAR_METHODS,
 } from "./SupabaseCalendarsService";
 import {
+  SupabaseItemConversionService,
+  PHASE2_ITEM_CONVERSION_METHODS,
+} from "./SupabaseItemConversionService";
+import {
   SupabaseNoteLinkService,
   SupabaseNoteConnectionService,
   PHASE2_NOTE_LINK_METHODS,
@@ -71,6 +75,12 @@ export { SupabaseRoutinesService } from "./SupabaseRoutinesService";
 // (tests) keep one stable surface.
 export { SupabaseScheduleItemsService } from "./SupabaseScheduleItemsService";
 
+// #625 Event <-> Todo conversion — same one-surface rule as the two above.
+export {
+  SupabaseItemConversionService,
+  ItemConversionError,
+} from "./SupabaseItemConversionService";
+
 /**
  * Create a Phase 2 Supabase-backed DataService.
  *
@@ -104,6 +114,11 @@ export function createSupabaseDataService(): DataService {
   const routinesService = new SupabaseRoutinesService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
+  // #625: Event <-> Todo. Its own class rather than a method on either domain
+  // service, because it writes BOTH payload tables plus items_meta — hanging
+  // it off Tasks or Schedule would make one of them the silent owner of the
+  // other's rows.
+  const itemConversionService = new SupabaseItemConversionService(client);
   // W3-A: independent timer / audio tables (0018). Not items_meta entities.
   const timerService = new SupabaseTimerService(client);
   const audioService = new SupabaseAudioService(client);
@@ -118,6 +133,7 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_ROUTINES_METHODS.has(prop)) return routinesService;
     if (PHASE2_SCHEDULE_ITEM_METHODS.has(prop)) return scheduleItemsService;
     if (PHASE2_CALENDAR_METHODS.has(prop)) return calendarsService;
+    if (PHASE2_ITEM_CONVERSION_METHODS.has(prop)) return itemConversionService;
     if (PHASE2_WIKI_TAGS_UNIFIED_METHODS.has(prop))
       return wikiTagsUnifiedService;
     if (PHASE2_NOTES_UNIFIED_METHODS.has(prop)) return notesUnifiedService;
