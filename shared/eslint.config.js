@@ -64,12 +64,9 @@ export default defineConfig([
    */
   {
     files: [
-      "src/context/TimerContext.tsx",
       "src/hooks/useCalendarsAPI.ts",
       "src/hooks/useRoutinesAPI.ts",
       "src/hooks/useScheduleItemsAPI.ts",
-      "src/hooks/useTaggedItemIndex.ts",
-      "src/hooks/useTaskTreeAPI.ts",
     ],
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
