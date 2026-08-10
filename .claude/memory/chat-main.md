@@ -26,15 +26,15 @@
 
 - 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
 - 現在: **巡回は停止条件を満たして完了**（2026-08-01・open PR 0 / #467 / #468 とも CLOSED / **PR #527 merged** `637a64e6`）。判断キューは**空**（回答 8 件を `ANSWERS.md` へ転記済み）。**次の動きはレーン起動待ち** — worktree 4 本ともチャットが未起動でコミットが進んでいない
-- 次: open Issue 12 件を各レーンへ流す（**#507 / #509 / #525 / #526** = mobile-refine、**#511 / #519** = tags-docs、**#517** = refactor-core、**#520 / #524** = schedule-refine、**#512 / #528** = chat-main、**#372** = 将来 DDL）。chat-main 自身の手番は #512（実機目視・別チャットの検証終了後）と #528（archive のリンク切れ + docs-lint 拡張）
+- 次: open Issue 12 件を各レーンへ流す（**#507 / #509 / #525 / #526** = mobile-refine、**#511 / #519** = tags-docs、**#517** = refactor-core、**#520 / #524** = schedule-refine、**#512 / #528** = chat-main、**#372** = 将来 DDL）。chat-main 自身の手番は **#528**（archive のリンク切れ + docs-lint 拡張）。**#512 は Android 実測で「潜っていない」を確認しコメント済み・close はしない**（指摘は iPhone の `safe-area-inset-top` 前提で Android は上端 inset ≈ 0 のため反証にならない → iPhone で踏むか、iPhone を使わない運用が確定したら NOT_PLANNED close）
 
 ## 直近の完了
+
+- [chat-main] **スマホ ソフトキーボード起因バグ 2 件（#607 / #608 = PR #621 open）** ✅（2026-08-10）— #607 の原因は「自分の書き込みが自分の hydrate を無効化する」（クライアント時計の `updatedAt` が #301 のマージ判定を必ず外し、編集中のノートだけ本文キャッシュが落ちて mobile シートがエディタを skeleton に差し替える）。マージ判定に「開いている行 かつ 自分が書いた行」を OR で追加し、マークは**リロード 1 回で使い捨て**（QA が見つけた他デバイス書き込みの無言上書きを塞ぐ・in-flight 中は保留）。#608 は `useSoftKeyboard` 新設で narrow の `BottomTabBar` を非描画。判定は「同じ幅で観測した最大可視高との差」なので**レイアウトごと縮む UA / visual だけ縮む UA の両方で成立**（実測待ちを解消）。Scope 例外 = **D-20260810-main-4**（`useNotesUnifiedAPI.ts` は #587 の分割対象だったが原因確定で例外入り・#587 に申し送り済み）。**計画書は Step 5（merge）待ちで IN PROGRESS のまま**・**deploy 後の目視が残**（本文タップで閉じないか / タブバーの出戻り / safe-area 下端 / iOS 未検証）
 
 - [chat-main] **確認待ちの摩擦を除去（#618 = PR #619 open / dotfiles PR #15 open）** ✅（2026-08-10）— `permissions.ask` を `Bash(gh pr merge*)` だけに縮小（deny 27 件は無変更）。無人レーンの push 抑止は **runner 側 settings** へ分離し `automation/` 2 本に明記。あわせて tracker 新運用を **D-20260810-main-1** として台帳化（END の tracker は **session-verifier 緑の直後**に実行し merge を待たない・専用ブランチ `chore/tracker-<chat>-YYYYMMDD`）→ CLAUDE.md §7.4 + `worktree-policy` を行単位修正、dotfiles 側は task-tracker / lead-pipeline / role-engineer（Verdict をゲート別 PASS/FAIL 表へ）に追随。**DoD 4 つ目（確認プロンプトなしの実測）だけ merge + セッション再起動後に持ち越し**
 
 - [chat-main] **ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 は open）** ✅（2026-08-10）— P-008（実装中スコープ凍結）を POLICY に追加・`_TEMPLATE.md` に「検討した代替案」節 + 完了時の乖離レビュー 3 行を必須化・重複 8 系統を各正本へのポインタに統一・Mac 専用 symlink 10 本を known-issues/031 化（計画書: archive/2026-08-10-harness-loop-consolidation.md）。dotfiles 側（tone 一本化 / lead-pipeline ミニスコープ / QA ラベル統一）は `~/.claude` にローカル実効済みで merge のみ残
-
-- [chat-main] **main の未追跡資産を 2 PR に整理（PR #610 / #611 merged）** ✅（2026-08-09）— 未追跡 13 ファイルを計画書（#610 = fanout r3）と Codex 対応（#611）に分割。Codex 側は全文コピーだった初版を**参照方式**へ再設計（`hooks.json` が `.claude/hooks/*.sh` を git ルート相対で呼ぶ・skills は入口だけ）。宙に浮いていた `chore/docs-sync-20260731` は**中身が既に main にあり PR が巻き戻しになる**ため削除。**docs-lint に検査 (e) が増えている** — plans/ を触る PR は `node .claude/scripts/records.mjs index` を同一 PR に含める（#610 で 1 度落ちた）
 
 ## 予定
 
