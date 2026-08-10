@@ -80,6 +80,36 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const loadedRef = useRef(false);
   const syncVersion = useSyncDomains("tasks");
 
+  // One-shot RESTORE (#282): re-select the task the user had open before the
+  // provider unmounted (Materials tab/section switch). The id lives in the
+  // module-level materialsSelectionStore, which outlives this React tree.
+  // Called from the load path's async continuation below (#586 — setState
+  // there is an async callback, not the effect body), so it only ever sees a
+  // SUCCESSFULLY loaded set: a failed fetch never reaches it, which is what
+  // keeps a transient error from consuming the one-shot (restoredRef) or
+  // erasing the remembered selection — the next successful reload retries.
+  // Never fights a user action already made (bail if something is selected).
+  // A stored id that is missing or soft-deleted in the loaded set clears the
+  // store entry.
+  const restoredRef = useRef(false);
+  const restoreSelection = useCallback(
+    (loaded: TaskNode[]) => {
+      if (!persistSelection) return; // non-Materials mount (Schedule) — no restore
+      if (restoredRef.current) return;
+      restoredRef.current = true;
+      const storedId = getTaskSelection();
+      if (storedId === null) return;
+      if (selectedTaskIdRef.current !== null) return; // user already selected
+      const node = loaded.find((n) => n.id === storedId);
+      if (!node || node.isDeleted) {
+        clearTaskSelection(); // stale/soft-deleted id — drop it
+        return;
+      }
+      setSelectedTaskIdState(storedId); // store already holds it, no write-through
+    },
+    [persistSelection],
+  );
+
   // Load from DataService on mount (including soft-deleted tasks)
   useEffect(() => {
     let cancelled = false;
@@ -90,8 +120,10 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
           ds.fetchDeletedTasks(),
         ]);
         if (!cancelled) {
-          setNodes([...active, ...deleted]);
+          const all = [...active, ...deleted];
+          setNodes(all);
           loadedRef.current = true;
+          restoreSelection(all);
         }
       } catch (e) {
         if (!cancelled) {
@@ -104,34 +136,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     return () => {
       cancelled = true;
     };
-  }, [ds, syncVersion]);
-
-  // One-shot RESTORE (#282): re-select the task the user had open before the
-  // provider unmounted (Materials tab/section switch). The id lives in the
-  // module-level materialsSelectionStore, which outlives this React tree. Runs
-  // at most once per mount (restoredRef) and never fights a user action already
-  // made (bail if something is already selected). A stored id that is missing
-  // or soft-deleted in the loaded set clears the store entry.
-  const restoredRef = useRef(false);
-  useEffect(() => {
-    if (!persistSelection) return; // non-Materials mount (Schedule) — no restore
-    if (restoredRef.current) return;
-    if (isLoading) return; // wait until nodes have loaded
-    // A failed fetch must NOT consume the one-shot nor clear the store — a
-    // transient error would otherwise permanently erase the remembered
-    // selection. `nodes` in the deps retries after a successful reload.
-    if (!loadedRef.current) return;
-    restoredRef.current = true;
-    const storedId = getTaskSelection();
-    if (storedId === null) return;
-    if (selectedTaskIdRef.current !== null) return; // user already selected
-    const node = nodes.find((n) => n.id === storedId);
-    if (!node || node.isDeleted) {
-      clearTaskSelection(); // stale/soft-deleted id — drop it
-      return;
-    }
-    setSelectedTaskIdState(storedId); // store already holds it, no write-through
-  }, [persistSelection, isLoading, nodes]);
+  }, [ds, syncVersion, restoreSelection]);
 
   const refetch = useCallback(async () => {
     try {

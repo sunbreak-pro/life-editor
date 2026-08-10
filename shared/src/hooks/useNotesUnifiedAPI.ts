@@ -2,11 +2,25 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { NoteNode, NoteSortMode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
-import { generateId } from "../utils/generateId";
-import { sortNotesForList } from "../utils/noteSort";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import { useNoteTreeMovement } from "./useNoteTreeMovement";
+import { useNoteHydrationLedger } from "./useNoteHydrationLedger";
+import { useNotesUnifiedCRUD } from "./useNotesUnifiedCRUD";
+import { useNotesUnifiedTrash } from "./useNotesUnifiedTrash";
+import { useNotesUnifiedLock } from "./useNotesUnifiedLock";
+import {
+  type NoteSortDirection,
+  loadExpandedIds,
+  saveExpandedIds,
+  loadSortDirection,
+  saveSortDirection,
+  loadSortMode,
+  saveSortMode,
+  buildChildrenByParent,
+  flattenVisibleNotes,
+  filterAndSortNotes,
+} from "./notesUnifiedHelpers";
 import {
   getNotesSelection,
   setNotesSelection,
@@ -24,91 +38,22 @@ import {
  * - `getDataService()` singleton  → `options.dataService`
  * - host UndoRedo Context         → `options.undoRedo` (no-op default;
  *   real UndoRedo lands in S6, same as tasks/daily)
- * - `useLocalStorage` / `STORAGE_KEYS` / `SortDropdown` host modules →
- *   inlined localStorage helpers + a local `SortDirection` type.
+ *
+ * #587 split — this file is the orchestrator (state, selection, the load /
+ * restore effects, and composition), shaped after useTaskTreeAPI. The
+ * responsibilities live next door:
+ * - notesUnifiedHelpers.ts    pure helpers (localStorage, node factory,
+ *                             tree derivations, subtree collect)
+ * - useNoteHydrationLedger.ts the #301/#607 hydrated-body + own-write ledger
+ * - useNotesUnifiedCRUD.ts    create / update / soft-delete / pin
+ * - useNotesUnifiedTrash.ts   Trash load / restore / purge
+ * - useNotesUnifiedLock.ts    password gate + edit lock
  *
  * Must sit inside a Sync Provider (reads `useSyncContext`) — CLAUDE.md
  * §6.2 places Note after Sync (and, by convention, after Daily).
  */
 
-export type NoteSortDirection = "asc" | "desc";
-
-const LS_EXPANDED = "note-tree-expanded";
-const LS_SORT_DIRECTION = "note-sort-direction";
-// #283: sort MODE persistence. Namespaced (`life-editor:` prefix) — the newer
-// convention. The sibling LS_SORT_DIRECTION stays un-namespaced on purpose:
-// renaming it would silently discard the user's already-saved direction.
-const LS_SORT_MODE = "life-editor:note-sort-mode";
-
-function loadExpandedIds(): Set<string> {
-  try {
-    const saved = localStorage.getItem(LS_EXPANDED);
-    if (saved) return new Set(JSON.parse(saved) as string[]);
-  } catch {
-    // ignore malformed / unavailable storage
-  }
-  return new Set();
-}
-
-function saveExpandedIds(ids: Set<string>): void {
-  try {
-    localStorage.setItem(LS_EXPANDED, JSON.stringify([...ids]));
-  } catch {
-    // ignore storage write failures (private mode / quota)
-  }
-}
-
-function loadSortDirection(): NoteSortDirection {
-  try {
-    const saved = localStorage.getItem(LS_SORT_DIRECTION);
-    if (saved === "asc" || saved === "desc") return saved;
-  } catch {
-    // ignore
-  }
-  return "asc";
-}
-
-function loadSortMode(): NoteSortMode {
-  try {
-    const saved = localStorage.getItem(LS_SORT_MODE);
-    if (saved === "updatedAt" || saved === "createdAt" || saved === "title") {
-      return saved;
-    }
-  } catch {
-    // ignore
-  }
-  return "updatedAt";
-}
-
-/**
- * Build a fresh NoteNode for `createNoteUnified`. This mirrors the node
- * the retired Notes Bridge createNote constructed (content always "",
- * order 0, unpinned, not deleted), so the Unified write path is
- * byte-for-byte identical to the legacy path. The caller is responsible for
- * the optimistic `setNotes` + any follow-up `updateNoteUnified(content)`.
- *
- * #375: the `type` parameter is gone — "note" is the only NoteNodeType left
- * (folders became life-tags).
- */
-function buildNoteNode(
-  id: string,
-  title: string,
-  parentId: string | null,
-  now: string,
-): NoteNode {
-  return {
-    id,
-    type: "note",
-    title,
-    content: "",
-    parentId,
-    order: 0,
-    isPinned: false,
-    isDeleted: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
+export type { NoteSortDirection };
 
 export interface UseNotesUnifiedAPIOptions {
   dataService: DataService;
@@ -139,99 +84,28 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     selectedNoteIdRef.current = selectedNoteId;
   }, [selectedNoteId]);
 
-  // M1 (perf): the note LIST is fetched WITHOUT the body (content_json) —
-  // list NoteNodes carry `content = ""`. The body is loaded on demand when
-  // a note is opened. `contentLoadedIds` tracks which notes have had their
-  // real body hydrated into the `notes` array (via getNoteUnified), so a
-  // re-select doesn't re-fetch. A list (re)load keeps the entries whose
-  // `updatedAt` did not move and drops only the genuinely-touched ones
-  // (#301 — see the load effect; it used to clear the whole set).
-  const contentLoadedIdsRef = useRef<Set<string>>(new Set());
-  /*
-   * Ids whose body in `notes` is OURS — written by this client and not yet
-   * reconciled with the row the server hands back (#607).
-   *
-   * The load effect below keeps a cached body only while `prev.updatedAt ===
-   * row.updatedAt`, which is the right test for someone ELSE's write. It can
-   * never hold for our own: we stamp an optimistic CLIENT clock and the reload
-   * carries the SERVER's, so the merge would drop precisely the note the user
-   * is typing in — and typing is what triggers the reload (the own-write
-   * Realtime echo bumps syncVersion ~1.1s later, #300). Dropping it flips
-   * `isContentLoaded` to false, and the mobile sheet answers that by swapping
-   * its editor for a skeleton: the field loses focus and the phone's keyboard
-   * closes mid-sentence.
-   *
-   * The mark is cleared when the note stops being the open one. While it IS
-   * open our buffer is the newest copy anywhere, which is already how Desktop
-   * behaves (its editor is keyed by note id and never re-reads); once the user
-   * moves on, the next reload is free to notice a foreign write and re-hydrate.
-   */
-  const locallyWrittenIdsRef = useRef<Set<string>>(new Set());
-  /*
-   * Writes we have sent but not yet seen come back, per id (#607). The mark
-   * above is retired by the reload that used it, which is what keeps a foreign
-   * write from being ignored for the rest of the session. That retirement is
-   * only safe once the server has acknowledged the write it was covering:
-   * while another one is still in flight its echo has not arrived yet, so the
-   * mark has to survive this reload too.
-   */
-  const unackedWritesRef = useRef<Map<string, number>>(new Map());
+  // The hydrated-body / own-write ledger (#301 + #607) — owns which bodies
+  // are real in `notes` and which `updatedAt` moves were ours.
+  const {
+    markLocalWrite,
+    trackWrite,
+    markHydrated,
+    hydrateContent,
+    isContentLoaded,
+    mergeLoadedList,
+    hydratedIdsRef,
+  } = useNoteHydrationLedger({
+    ds,
+    setNotes,
+    selectedNoteId,
+    selectedNoteIdRef,
+    notesRef,
+  });
+
   // "Latest select wins": if two selects race (fast clicks), only the most
   // recent one is allowed to commit its `setSelectedNoteId`, so a slow
   // earlier fetch can't clobber a newer selection.
   const selectTokenRef = useRef(0);
-
-  /** Remember that OUR write is what moved this row's `updatedAt` (#607). */
-  const markLocalWrite = useCallback((id: string) => {
-    if (contentLoadedIdsRef.current.has(id)) {
-      locallyWrittenIdsRef.current.add(id);
-    }
-  }, []);
-
-  /** Run a write while counting it as unacknowledged (#607 — see the ref). */
-  const trackWrite = useCallback(
-    (id: string, write: Promise<unknown>): Promise<unknown> => {
-      const map = unackedWritesRef.current;
-      map.set(id, (map.get(id) ?? 0) + 1);
-      return write.finally(() => {
-        const left = (map.get(id) ?? 1) - 1;
-        if (left > 0) map.set(id, left);
-        else map.delete(id);
-      });
-    },
-    [],
-  );
-
-  // #607: the mark only outranks the server for the note that is OPEN. Once
-  // the user moves on, drop it so a later reload can notice a foreign write
-  // and re-hydrate normally (#301).
-  useEffect(() => {
-    const stillOpen =
-      selectedNoteId !== null &&
-      locallyWrittenIdsRef.current.has(selectedNoteId);
-    locallyWrittenIdsRef.current = new Set(stillOpen ? [selectedNoteId] : []);
-  }, [selectedNoteId]);
-
-  // Hydrate a note's real body into the `notes` array. No-op if already
-  // hydrated. Returns true when the note's body is present afterwards.
-  const hydrateContent = useCallback(
-    async (id: string): Promise<boolean> => {
-      if (contentLoadedIdsRef.current.has(id)) return true;
-      try {
-        const full = await ds.getNoteUnified(id);
-        if (!full) return false;
-        contentLoadedIdsRef.current.add(id);
-        setNotes((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, content: full.content } : n)),
-        );
-        return true;
-      } catch (e) {
-        logServiceError("Notes", "hydrateContent", e);
-        return false;
-      }
-    },
-    [ds],
-  );
 
   // Select a note, loading its body FIRST (M1). The web editor initialises
   // its content once at mount from `selectedNote.content` and never
@@ -250,7 +124,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         clearNotesSelection(); // #282: persist deselection across remounts
         return;
       }
-      if (contentLoadedIdsRef.current.has(id)) {
+      if (isContentLoaded(id)) {
         setSelectedNoteId(id);
         setNotesSelection(id); // #282
         return;
@@ -264,49 +138,17 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         }
       })();
     },
-    [hydrateContent],
-  );
-
-  /*
-   * Is this note's real body in the `notes` array right now?
-   *
-   * A surface that MOUNTS an editor per open has to ask, because selection
-   * alone does not answer it: `selectedNoteId` survives closing that surface
-   * and survives list reloads, while the body it points at can be dropped by a
-   * reload (a write from another device moves `updatedAt`, so the merge above
-   * refuses to keep the cached body and re-hydrates asynchronously). Mounting
-   * an editor inside that window would open an EMPTY body over a note that has
-   * one — and the first keystroke would save the empty version (#471).
-   *
-   * The Desktop editor never hits this: it is keyed by note id and simply does
-   * not remount, so it keeps showing the body it opened with. The mobile sheet
-   * mounts a fresh editor every time it opens.
-   *
-   * Reading a ref during render is safe here because the completing hydrate
-   * calls setNotes right after adding the id, so every transition is followed
-   * by a re-render.
-   */
-  const isContentLoaded = useCallback(
-    (id: string): boolean => contentLoadedIdsRef.current.has(id),
-    [],
+    [hydrateContent, isContentLoaded],
   );
 
   const setSortDirection = useCallback((dir: NoteSortDirection) => {
     setSortDirectionState(dir);
-    try {
-      localStorage.setItem(LS_SORT_DIRECTION, dir);
-    } catch {
-      // ignore storage write failures
-    }
+    saveSortDirection(dir);
   }, []);
 
   const setSortMode = useCallback((mode: NoteSortMode) => {
     setSortModeState(mode);
-    try {
-      localStorage.setItem(LS_SORT_MODE, mode);
-    } catch {
-      // ignore storage write failures
-    }
+    saveSortMode(mode);
   }, []);
 
   // #282: flips only when a list fetch actually succeeded — the load effect's
@@ -319,54 +161,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       try {
         const loaded = await ds.listNotesUnified();
         if (!cancelled) {
-          // #301 perf: `loaded` rows are body-free (M1) but metadata-fresh.
-          // Blanket-clearing the hydrated-body cache here forced a network
-          // re-fetch for EVERY previously-viewed note on EVERY syncVersion
-          // bump — and typing anywhere bumps syncVersion ~1.1s later (own-
-          // write Realtime echo, see #300), so re-selecting an already-open
-          // note almost never hit the cache. A row's `updatedAt` only moves
-          // when something actually wrote to that note, so keep the cached
-          // body for any hydrated id whose `updatedAt` is unchanged, and
-          // only drop the ones that were genuinely touched (by this client,
-          // another tab, or MCP) since our last hydrate.
-          const prevById = new Map(notesRef.current.map((n) => [n.id, n]));
-          const stillHydrated = new Set<string>();
-          const merged = loaded.map((row) => {
-            const prev = prevById.get(row.id);
-            if (
-              prev &&
-              contentLoadedIdsRef.current.has(row.id) &&
-              // #607: `updatedAt` moving means "someone wrote to this note",
-              // which is only a reason to drop our copy when that someone was
-              // not us. Our own stamp is a client clock and can never match
-              // the server's, so the OPEN note would otherwise be the one row
-              // guaranteed to fail this test on every keystroke's echo. Scoped
-              // to the open note on purpose: for any other note a drop just
-              // costs a lazy re-fetch, while pinning it would hide a foreign
-              // write behind a body nobody is looking at.
-              (prev.updatedAt === row.updatedAt ||
-                (row.id === selectedNoteIdRef.current &&
-                  locallyWrittenIdsRef.current.has(row.id)))
-            ) {
-              stillHydrated.add(row.id);
-              return { ...row, content: prev.content };
-            }
-            return row;
-          });
-          contentLoadedIdsRef.current = stillHydrated;
-          // A kept row above adopted the SERVER's `updatedAt`, so plain
-          // equality answers for it from here on and the mark has done its
-          // job. Retiring it is what lets the NEXT foreign write drop the body
-          // and re-hydrate (#301) instead of our copy outranking the server
-          // for the rest of the session. A write still in flight keeps its
-          // mark: its echo has not arrived yet, so it still needs the cover.
-          const seenIds = new Set(loaded.map((row) => row.id));
-          locallyWrittenIdsRef.current = new Set(
-            [...locallyWrittenIdsRef.current].filter(
-              (id) =>
-                !seenIds.has(id) || (unackedWritesRef.current.get(id) ?? 0) > 0,
-            ),
-          );
+          // #301/#607: the merge and both ledger updates live in
+          // useNoteHydrationLedger.mergeLoadedList — see the rationale there.
+          const { merged, stillHydrated } = mergeLoadedList(loaded);
           setNotes(merged);
           listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
           // Keep the currently-open note's body correct after a
@@ -401,7 +198,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     return () => {
       cancelled = true;
     };
-  }, [ds, syncVersion, hydrateContent]);
+  }, [ds, syncVersion, hydrateContent, mergeLoadedList]);
 
   // One-shot RESTORE (#282): re-open the note the user had selected before the
   // provider unmounted (Materials tab/section switch). The id lives in the
@@ -432,7 +229,8 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       return;
     }
     const token = ++selectTokenRef.current;
-    if (contentLoadedIdsRef.current.has(storedId)) {
+    // Ref-read guard on purpose — see hydratedIdsRef's contract on the ledger.
+    if (hydratedIdsRef.current.has(storedId)) {
       setSelectedNoteId(storedId);
       return;
     }
@@ -445,29 +243,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         clearNotesSelection(); // hydrate failed — drop the id, don't retry
       }
     })();
-  }, [isLoading, notes, hydrateContent]);
+  }, [isLoading, notes, hydrateContent, hydratedIdsRef]);
 
-  // Tree helpers. `childrenByParent` is built once per `notes` change (O(n)
-  // group + sort) so `getChildren` is an O(1) Map lookup instead of an
-  // O(n) filter+sort per call. NotesView's flatten previously called
-  // getChildren twice per node (children + grandchildren probe) → O(n²);
-  // the Map collapses that to O(n). Behaviour is identical: same null-vs
-  // -string parent key (root uses the `null` key), same order sort, and
-  // it includes is_deleted rows just like the old filter did (the
-  // NotesView walk applies its own `!isDeleted` filter, and
-  // `flattenedNotes` also sees the full set).
-  const childrenByParent = useMemo(() => {
-    const map = new Map<string | null, NoteNode[]>();
-    for (const n of notes) {
-      const list = map.get(n.parentId);
-      if (list) list.push(n);
-      else map.set(n.parentId, [n]);
-    }
-    for (const list of map.values()) {
-      list.sort((a, b) => a.order - b.order);
-    }
-    return map;
-  }, [notes]);
+  // Tree derivations — pure functions of their inputs (notesUnifiedHelpers),
+  // memoized here.
+  const childrenByParent = useMemo(() => buildChildrenByParent(notes), [notes]);
 
   const getChildren = useCallback(
     (parentId: string | null): NoteNode[] => {
@@ -489,60 +269,15 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     });
   }, []);
 
-  // Flatten tree for DnD (only visible nodes). #375: the recursion used to be
-  // gated on `type === "folder"`; with folders retired it descends into any
-  // expanded node. NOTE (#418): the nesting UI is retired — the movement hook
-  // can no longer re-parent, so no drag can deepen the tree. Data-level
-  // hierarchy is still writable though (`createNote({ parentId })` below, and
-  // MCP `create_task(parent_id)` on the task side), so this walk sees legacy
-  // rows plus anything a non-UI caller creates.
-  const flattenedNotes = useMemo(() => {
-    const result: NoteNode[] = [];
-    // Defensive, not load-bearing: a walk rooted at `null` cannot actually
-    // reach a parentId cycle (no cycle member has a null parent) and ids are
-    // a PK, so this only fires on genuinely corrupt data. Kept because it is
-    // one Set lookup per node.
-    const seen = new Set<string>();
-    const walk = (parentId: string | null) => {
-      const children = notes
-        .filter((n) => n.parentId === parentId)
-        .sort((a, b) => a.order - b.order);
-      for (const child of children) {
-        if (seen.has(child.id)) continue;
-        seen.add(child.id);
-        result.push(child);
-        if (expandedIds.has(child.id)) {
-          walk(child.id);
-        }
-      }
-    };
-    walk(null);
-    return result;
-  }, [notes, expandedIds]);
+  const flattenedNotes = useMemo(
+    () => flattenVisibleNotes(notes, expandedIds),
+    [notes, expandedIds],
+  );
 
-  const sortedFilteredNotes = useMemo(() => {
-    let result = notes;
-
-    // Search filter (client-side).
-    // M1 caveat: since the list is body-free, `n.content` is only populated
-    // for notes whose body has been hydrated (opened at least once). Title
-    // always matches; body matching is best-effort on hydrated notes. Full
-    // body search is the server-side ds.searchNotesUnified path — wire that
-    // in if/when the search UI is built (currently no live consumer uses
-    // this client filter).
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (n) =>
-          n.title.toLowerCase().includes(q) ||
-          n.content.toLowerCase().includes(q),
-      );
-    }
-
-    // Sort: pinned first, then by sort mode within each group. Single sort
-    // implementation shared with the host list (#283) — see noteSort.ts.
-    return sortNotesForList(result, sortMode, sortDirection);
-  }, [notes, searchQuery, sortMode, sortDirection]);
+  const sortedFilteredNotes = useMemo(
+    () => filterAndSortNotes(notes, searchQuery, sortMode, sortDirection),
+    [notes, searchQuery, sortMode, sortDirection],
+  );
 
   // Persist tree to DB. Unified has no bulk sync — apply moves
   // sequentially (verbatim port of the retired Bridge `syncNoteTree`).
@@ -586,413 +321,34 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     persistWithHistory,
   );
 
-  const createNote = useCallback(
-    (
-      title?: string,
-      opts?: {
-        skipUndo?: boolean;
-        parentId?: string | null;
-        initialContent?: string;
-        /**
-         * Whether to select the new note (default true). The "[[" link-create
-         * flow passes false so creating a note to link to does NOT switch the
-         * editor away from the note the user is currently writing in.
-         */
-        select?: boolean;
-      },
-    ) => {
-      const id = generateId("note");
-      const now = new Date().toISOString();
-      const resolvedParentId = opts?.parentId ?? null;
-      const resolvedContent = opts?.initialContent ?? "";
-      const newNote: NoteNode = {
-        ...buildNoteNode(id, title || "Untitled", resolvedParentId, now),
-        content: resolvedContent,
-      };
-      setNotes((prev) => [newNote, ...prev]);
-      // M1: the body is known locally; mark loaded so a re-select does NOT
-      // re-fetch (which could race the still-in-flight content write and
-      // clobber the local body with an empty server row).
-      contentLoadedIdsRef.current.add(id);
-      // #607: `now` above is a client clock and the INSERT will come back with
-      // the server's, so a brand-new note is in exactly the same position as an
-      // edited one — the first reload would drop the body out from under the
-      // editor the user just started typing in.
-      markLocalWrite(id);
-      // #285 background create (select:false) must not switch the editor —
-      // and must not retarget the #282 restore either, so the store write
-      // stays inside the same guard.
-      if (opts?.select !== false) {
-        setSelectedNoteId(id);
-        setNotesSelection(id); // #282: restore the just-created note after a tab switch
-      }
-      void trackWrite(
-        id,
-        ds
-          .createNoteUnified(
-            buildNoteNode(id, newNote.title, resolvedParentId, now),
-          )
-          .then(() => {
-            if (resolvedContent) {
-              return ds.updateNoteUnified(id, { content: resolvedContent });
-            }
-          })
-          .catch((e) => logServiceError("Notes", "create", e)),
-      );
+  const { createNote, updateNote, softDeleteNote, togglePin } =
+    useNotesUnifiedCRUD({
+      ds,
+      push,
+      notesRef,
+      selectedNoteIdRef,
+      setNotes,
+      setDeletedNotes,
+      setSelectedNoteId,
+      markHydrated,
+      markLocalWrite,
+      trackWrite,
+    });
 
-      if (!opts?.skipUndo) {
-        push("note", {
-          label: "createNote",
-          undo: () => {
-            setNotes((p) => p.filter((n) => n.id !== id));
-            if (selectedNoteIdRef.current === id) {
-              setSelectedNoteId(null);
-              clearNotesSelection(); // #282: don't restore a removed note
-            }
-            ds.permanentDeleteNoteUnified(id).catch((e) =>
-              logServiceError("Notes", "undoCreate", e),
-            );
-          },
-          redo: () => {
-            setNotes((p) => [newNote, ...p]);
-            contentLoadedIdsRef.current.add(id);
-            markLocalWrite(id); // #607
-            setSelectedNoteId(id);
-            setNotesSelection(id); // #282
-            ds.createNoteUnified(
-              buildNoteNode(id, newNote.title, resolvedParentId, now),
-            )
-              .then(() => {
-                if (resolvedContent) {
-                  return ds.updateNoteUnified(id, { content: resolvedContent });
-                }
-              })
-              .catch((e) => logServiceError("Notes", "redoCreate", e));
-          },
-        });
-      }
+  const { loadDeletedNotes, restoreNote, permanentDeleteNote } =
+    useNotesUnifiedTrash({
+      ds,
+      deletedNotes,
+      setDeletedNotes,
+      setNotes,
+    });
 
-      return id;
-    },
-    [ds, push, markLocalWrite, trackWrite],
-  );
-
-  const updateNote = useCallback(
-    (
-      id: string,
-      updates: Partial<
-        Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
-      >,
-    ) => {
-      // Don't push undo for content-only updates (TipTap handles its own
-      // undo internally).
-      const isContentOnly =
-        Object.keys(updates).length === 1 && "content" in updates;
-
-      if (!isContentOnly) {
-        const prev = notesRef.current.find((n) => n.id === id);
-        if (prev) {
-          const prevValues: Partial<
-            Pick<NoteNode, "title" | "isPinned" | "color" | "icon">
-          > = {};
-          if ("title" in updates) prevValues.title = prev.title;
-          if ("isPinned" in updates) prevValues.isPinned = prev.isPinned;
-          if ("color" in updates) prevValues.color = prev.color;
-          if ("icon" in updates) prevValues.icon = prev.icon;
-
-          push("note", {
-            label: "updateNote",
-            undo: () => {
-              const now = new Date().toISOString();
-              markLocalWrite(id); // #607 — same client-clock stamp as below
-              setNotes((p) =>
-                p.map((n) =>
-                  n.id === id ? { ...n, ...prevValues, updatedAt: now } : n,
-                ),
-              );
-              void trackWrite(
-                id,
-                ds
-                  .updateNoteUnified(id, prevValues)
-                  .catch((e) => logServiceError("Notes", "undoUpdate", e)),
-              );
-            },
-            redo: () => {
-              const now = new Date().toISOString();
-              markLocalWrite(id); // #607
-              setNotes((p) =>
-                p.map((n) =>
-                  n.id === id ? { ...n, ...updates, updatedAt: now } : n,
-                ),
-              );
-              void trackWrite(
-                id,
-                ds
-                  .updateNoteUnified(id, updates)
-                  .catch((e) => logServiceError("Notes", "redoUpdate", e)),
-              );
-            },
-          });
-        }
-      }
-
-      const now = new Date().toISOString();
-      // M1: an edited body is authoritative locally — keep it marked loaded
-      // so a later reselect/reload doesn't drop back to the light "".
-      if ("content" in updates) contentLoadedIdsRef.current.add(id);
-      // #607: the `now` stamped below is a client clock, so the reload this
-      // write's own echo triggers must not read the moved `updatedAt` as
-      // "someone else touched it" and drop the body under the open editor.
-      markLocalWrite(id);
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, ...updates, updatedAt: now } : n,
-        ),
-      );
-      void trackWrite(
-        id,
-        ds
-          .updateNoteUnified(id, updates)
-          .catch((e) => logServiceError("Notes", "update", e)),
-      );
-    },
-    [ds, push, markLocalWrite, trackWrite],
-  );
-
-  const softDeleteNote = useCallback(
-    (id: string, opts?: { skipUndo?: boolean }) => {
-      // `ds.softDeleteNoteUnified` only flips is_deleted on the single row.
-      // For a note that has nested children that would orphan every
-      // descendant, so we collect the whole subtree here and soft-delete it
-      // as a unit (deepest-first → DataService can stay single-row). For a
-      // leaf note `subtree` is just `[target]`, so leaf behaviour is
-      // unchanged.
-      const all = notesRef.current;
-      const target = all.find((n) => n.id === id);
-      if (!target) return;
-
-      const childrenOf = new Map<string | null, NoteNode[]>();
-      for (const n of all) {
-        const list = childrenOf.get(n.parentId);
-        if (list) list.push(n);
-        else childrenOf.set(n.parentId, [n]);
-      }
-      const subtree: NoteNode[] = [];
-      // `seen` guards against a corrupted parentId cycle (e.g. a bad sync
-      // round-trip) causing unbounded recursion — same OOM class as the
-      // task-tree (known-issues 016). No DnD path creates hierarchy since
-      // #418, but `createNote({ parentId })` still can and data may arrive
-      // cyclic from the server.
-      const seen = new Set<string>();
-      const collect = (nodeId: string) => {
-        if (seen.has(nodeId)) return;
-        seen.add(nodeId);
-        const self = all.find((n) => n.id === nodeId);
-        if (!self) return;
-        for (const child of childrenOf.get(nodeId) ?? []) collect(child.id);
-        subtree.push(self); // post-order: descendants before ancestor
-      };
-      collect(id);
-      const subtreeIds = new Set(subtree.map((n) => n.id));
-
-      setNotes((prev) => prev.filter((n) => !subtreeIds.has(n.id)));
-      if (
-        selectedNoteIdRef.current !== null &&
-        subtreeIds.has(selectedNoteIdRef.current)
-      ) {
-        setSelectedNoteId(null);
-        clearNotesSelection(); // #282: don't restore a soft-deleted note
-      }
-      // Surface the removed nodes in Trash immediately (the deepest-first
-      // order keeps ancestors above descendants once prepended). restore /
-      // permanentDelete already keep deletedNotes locally consistent.
-      setDeletedNotes((prev) => {
-        const known = new Set(prev.map((n) => n.id));
-        const added = subtree
-          .filter((n) => !known.has(n.id))
-          .map((n) => ({ ...n, isDeleted: true }));
-        return [...added, ...prev];
-      });
-      for (const n of subtree) {
-        ds.softDeleteNoteUnified(n.id).catch((e) =>
-          logServiceError("Notes", "delete", e),
-        );
-      }
-
-      if (!opts?.skipUndo) {
-        push("note", {
-          label: "softDeleteNote",
-          undo: () => {
-            setNotes((p) => [...subtree, ...p]);
-            setDeletedNotes((p) => p.filter((n) => !subtreeIds.has(n.id)));
-            for (const n of subtree) {
-              ds.restoreNoteUnified(n.id).catch((e) =>
-                logServiceError("Notes", "undoDelete", e),
-              );
-            }
-          },
-          redo: () => {
-            setNotes((p) => p.filter((n) => !subtreeIds.has(n.id)));
-            setDeletedNotes((p) => {
-              const known = new Set(p.map((n) => n.id));
-              const added = subtree
-                .filter((n) => !known.has(n.id))
-                .map((n) => ({ ...n, isDeleted: true }));
-              return [...added, ...p];
-            });
-            for (const n of subtree) {
-              ds.softDeleteNoteUnified(n.id).catch((e) =>
-                logServiceError("Notes", "redoDelete", e),
-              );
-            }
-          },
-        });
-      }
-    },
-    [ds, push],
-  );
-
-  const togglePin = useCallback(
-    (id: string) => {
-      const note = notesRef.current.find((n) => n.id === id);
-      if (!note) return;
-      const newPinned = !note.isPinned;
-      const prevPinned = note.isPinned;
-
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === id
-            ? { ...n, isPinned: newPinned, updatedAt: new Date().toISOString() }
-            : n,
-        ),
-      );
-
-      ds.updateNoteUnified(id, { isPinned: newPinned }).catch((e) =>
-        logServiceError("Notes", "pin", e),
-      );
-
-      push("note", {
-        label: "togglePin",
-        undo: () => {
-          setNotes((p) =>
-            p.map((n) =>
-              n.id === id
-                ? {
-                    ...n,
-                    isPinned: prevPinned,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : n,
-            ),
-          );
-          ds.updateNoteUnified(id, { isPinned: prevPinned }).catch((e) =>
-            logServiceError("Notes", "undoPin", e),
-          );
-        },
-        redo: () => {
-          setNotes((p) =>
-            p.map((n) =>
-              n.id === id
-                ? {
-                    ...n,
-                    isPinned: newPinned,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : n,
-            ),
-          );
-          ds.updateNoteUnified(id, { isPinned: newPinned }).catch((e) =>
-            logServiceError("Notes", "redoPin", e),
-          );
-        },
-      });
-    },
-    [ds, push],
-  );
-
-  const loadDeletedNotes = useCallback(async () => {
-    try {
-      const deleted = await ds.fetchDeletedNotesUnified();
-      setDeletedNotes(deleted);
-    } catch (e) {
-      logServiceError("Notes", "fetchDeleted", e);
-    }
-  }, [ds]);
-
-  // PR1 known constraint: restore is single-node only. softDeleteNote
-  // cascades a note's whole subtree into Trash, but restoring that note
-  // here brings back only its own row — descendants stay in Trash until
-  // restored individually (mirrors the legacy single-id
-  // restoreNote). Subtree restore is tracked as Backlog ⑧ in
-  // .claude/docs/vision/plans/2026-05-17-notes-web-parity.md.
-  const restoreNote = useCallback(
-    (id: string) => {
-      const note = deletedNotes.find((n) => n.id === id);
-      if (note) {
-        setDeletedNotes((prev) => prev.filter((n) => n.id !== id));
-        setNotes((prev) => [
-          { ...note, isDeleted: false, deletedAt: undefined },
-          ...prev,
-        ]);
-      }
-      ds.restoreNoteUnified(id).catch((e) =>
-        logServiceError("Notes", "restore", e),
-      );
-    },
-    [ds, deletedNotes],
-  );
-
-  const permanentDeleteNote = useCallback(
-    (id: string) => {
-      setDeletedNotes((prev) => prev.filter((n) => n.id !== id));
-      ds.permanentDeleteNoteUnified(id).catch((e) =>
-        logServiceError("Notes", "permanentDelete", e),
-      );
-    },
-    [ds],
-  );
-
-  const setNotePassword = useCallback(
-    async (id: string, password: string) => {
-      const updated = await ds.setNotePasswordUnified(id, password);
-      setNotes((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, hasPassword: true } : n)),
-      );
-      return updated;
-    },
-    [ds],
-  );
-
-  const removeNotePassword = useCallback(
-    async (id: string, currentPassword: string) => {
-      const updated = await ds.removeNotePasswordUnified(id, currentPassword);
-      setNotes((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, hasPassword: false } : n)),
-      );
-      return updated;
-    },
-    [ds],
-  );
-
-  const verifyNotePassword = useCallback(
-    (id: string, password: string): Promise<boolean> => {
-      return ds.verifyNotePasswordUnified(id, password);
-    },
-    [ds],
-  );
-
-  const toggleEditLock = useCallback(
-    async (id: string) => {
-      const updated = await ds.toggleNoteEditLockUnified(id);
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, isEditLocked: updated.isEditLocked } : n,
-        ),
-      );
-      return updated;
-    },
-    [ds],
-  );
+  const {
+    setNotePassword,
+    removeNotePassword,
+    verifyNotePassword,
+    toggleEditLock,
+  } = useNotesUnifiedLock({ ds, setNotes });
 
   const selectedNote = useMemo(() => {
     return notes.find((n) => n.id === selectedNoteId) ?? null;

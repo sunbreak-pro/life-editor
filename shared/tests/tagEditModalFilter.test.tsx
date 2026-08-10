@@ -150,4 +150,31 @@ describe("TagEditModal name filter (#368)", () => {
     expect(visibleNames()).toEqual(["Home", "homework", "work"]);
     expect((filterInput() as HTMLInputElement).value).toBe("");
   });
+
+  // #586 pin: the add-field draft follows the same reset-on-reopen contract
+  // as the filter query.
+  it("clears the add draft when the panel is reopened", () => {
+    const { rerender } = render(<TagEditModal {...props()} />);
+    const add = () => screen.getByLabelText("Add") as HTMLInputElement;
+    fireEvent.change(add(), { target: { value: "half-typed" } });
+
+    rerender(<TagEditModal {...props({ open: false })} />);
+    rerender(<TagEditModal {...props()} />);
+
+    expect(add().value).toBe("");
+  });
+
+  // #586 pin: a rename that lands from outside (another surface / sync)
+  // re-seeds the row's local editable name.
+  it("adopts a tag name that changes from outside", () => {
+    const { rerender } = render(<TagEditModal {...props()} />);
+    expect(visibleNames()).toEqual(["Home", "homework", "work"]);
+
+    const renamed = ROWS.map((r) =>
+      r.id === "tag-3" ? { ...r, name: "chores" } : r,
+    );
+    rerender(<TagEditModal {...props({ tags: renamed })} />);
+
+    expect(visibleNames()).toEqual(["Home", "homework", "chores"]);
+  });
 });

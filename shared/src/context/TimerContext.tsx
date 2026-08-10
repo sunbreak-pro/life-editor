@@ -190,11 +190,12 @@ export function TimerProvider({
     prevPhaseKeyRef.current = phaseKey;
     advancedRef.current = false;
     if (autoStartBreaks && !state.isRunning) {
-      // Auto-start the freshly-entered phase.
-      const now = Date.now();
+      // Auto-start the freshly-entered phase. No tickNow re-anchor needed
+      // (#586): elapsedSeconds clamps (stale tickNow − startedAt) to ≥ 0 and
+      // the fresh phase has accumulatedMs 0, so the display shows the full
+      // target either way until the 1 s pulse takes over.
       startSession(state.phase, state.activeTask?.id ?? null);
-      dispatch({ type: "START", now });
-      setTickNow(now);
+      dispatch({ type: "START", now: Date.now() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseKey]);

@@ -49,15 +49,14 @@ export function useTaggedItemIndex(
   const syncVersion = useSyncDomains("tasks", "notes", "dailies", "schedule");
   const [index, setIndex] =
     useState<ReadonlyMap<string, TaggedItemInfo>>(EMPTY_INDEX);
-  const [loading, setLoading] = useState(true);
+  // True once the first fetch lands. `loading` is DERIVED from it below
+  // (#586): no service → nothing to wait for, so loading is false without an
+  // effect ever writing state; disabled with a service keeps loading true,
+  // which is correct — the panel is closed and nothing has been fetched.
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
-    // No service to read from: settle rather than spin forever. Staying
-    // disabled keeps `loading` true, which is correct — the panel is closed.
-    if (!dataService) {
-      setLoading(false);
-      return;
-    }
+    if (!dataService) return;
     if (!enabled) return;
     let cancelled = false;
     void (async () => {
@@ -88,12 +87,13 @@ export function useTaggedItemIndex(
         next.set(daily.id, { role: "daily", title: daily.date });
       }
       setIndex(next);
-      setLoading(false);
+      setSettled(true);
     })();
     return () => {
       cancelled = true;
     };
   }, [dataService, enabled, syncVersion]);
 
+  const loading = dataService ? !settled : false;
   return useMemo(() => ({ index, loading }), [index, loading]);
 }
