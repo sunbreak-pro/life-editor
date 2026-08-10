@@ -165,4 +165,57 @@ describe("ShortcutEditModal", () => {
     expect(onResetOne).not.toHaveBeenCalled();
     expect(onCancel).toHaveBeenCalled();
   });
+
+  // #586 pins: the open TRANSITION (not just an already-open mount) must
+  // start the initial capture, and session state (a conflict warning) must
+  // not leak into the next open.
+  it("starts the initial capture when the modal transitions to open", () => {
+    const props = {
+      rows: ROWS,
+      config: {},
+      initialCaptureId: "nav:schedule" as const,
+      onRebind: vi.fn(),
+      onResetOne: vi.fn(),
+      onResetAll: vi.fn(),
+      onDone: vi.fn(),
+      onCancel: vi.fn(),
+      getConflictLabel: vi.fn().mockReturnValue(null),
+      labels: LABELS,
+    };
+    const { rerender } = render(<ShortcutEditModal open={false} {...props} />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    rerender(<ShortcutEditModal open {...props} />);
+    expect(
+      screen.getByRole("button", { name: LABELS.waiting }),
+    ).toBeInTheDocument();
+  });
+
+  it("clears a conflict warning from the previous session on reopen", () => {
+    const props = {
+      rows: ROWS,
+      config: {},
+      initialCaptureId: "nav:schedule" as const,
+      onRebind: vi.fn(),
+      onResetOne: vi.fn(),
+      onResetAll: vi.fn(),
+      onDone: vi.fn(),
+      onCancel: vi.fn(),
+      getConflictLabel: vi.fn().mockReturnValue("タスクへ移動"),
+      labels: LABELS,
+    };
+    const { rerender } = render(<ShortcutEditModal open {...props} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: LABELS.waiting }), {
+      code: "KeyK",
+      key: "k",
+      metaKey: true,
+    });
+    expect(
+      screen.getByText("「タスクへ移動」に割り当て済みです"),
+    ).toBeInTheDocument();
+    rerender(<ShortcutEditModal open={false} {...props} />);
+    rerender(<ShortcutEditModal open {...props} />);
+    expect(
+      screen.queryByText("「タスクへ移動」に割り当て済みです"),
+    ).not.toBeInTheDocument();
+  });
 });

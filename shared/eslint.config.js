@@ -64,12 +64,8 @@ export default defineConfig([
    */
   {
     files: [
-      "src/components/ColorPicker.tsx",
       "src/components/CommandPalette.tsx",
-      "src/components/ShortcutEditModal.tsx",
       "src/components/TagEditModal.tsx",
-      "src/components/TaskAddDialog.tsx",
-      "src/components/materials/QuickAddSheet.tsx",
       "src/context/TimerContext.tsx",
       "src/hooks/useCalendarsAPI.ts",
       "src/hooks/useRoutinesAPI.ts",

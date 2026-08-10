@@ -102,14 +102,26 @@ export function ShortcutEditModal({
     capturingRef.current = capturingId;
   });
 
-  // On open: snapshot config, clear session tracking, start the initial capture.
+  // On open: clear session state and start the initial capture — adjusted
+  // during render (guarded on the open transition), not in an effect (#586).
+  // prevOpen starts false so a mount that is ALREADY open runs the same reset
+  // the old on-mount effect did.
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setCapturingId(initialCaptureId ?? null);
+      setHeld([]);
+      setConflict(null);
+    }
+  }
+
+  // On open: snapshot config + clear session tracking (refs may not be
+  // written during render, so this half stays an effect).
   useEffect(() => {
     if (!open) return;
     snapshotRef.current = { ...config };
     touchedRef.current = new Set();
-    setCapturingId(initialCaptureId ?? null);
-    setHeld([]);
-    setConflict(null);
     // Intentionally snapshot only on the open transition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
