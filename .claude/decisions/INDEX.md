@@ -18,6 +18,7 @@
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
+| D-20260810-refactor-1 | ルーチンの Undo/Redo を繋ぐか、コードを消すか | refactor-core |
 | D-20260810-sched-1 | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | schedule-refine |
 | D-20260810-sched-2 | #625 変換で id を維持するか、新規作成するか | schedule-refine |
 | D-20260810-sched-3 | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | schedule-refine |
