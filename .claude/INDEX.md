@@ -23,11 +23,12 @@
 | [2026-08-06-autonomous-operation-endpoint.md](./docs/vision/plans/2026-08-06-autonomous-operation-endpoint.md) | IN PROGRESS |
 | [2026-08-07-web-mobile-public-url.md](./docs/vision/plans/2026-08-07-web-mobile-public-url.md) | IN PROGRESS |
 | [2026-08-09-record-graph-layer.md](./docs/vision/plans/2026-08-09-record-graph-layer.md) | IN PROGRESS |
+| [2026-08-10-mobile-keyboard-input-fixes.md](./docs/vision/plans/2026-08-10-mobile-keyboard-input-fixes.md) | IN PROGRESS |
 
 ## 判断の現在地
 
 - 未回答（キュー）: 9 件 → [`decisions/INDEX.md`](./decisions/INDEX.md) §Open
-- 確定台帳: 27 件（うち Active 26）→ [`decisions/INDEX.md`](./decisions/INDEX.md)
+- 確定台帳: 28 件（うち Active 27）→ [`decisions/INDEX.md`](./decisions/INDEX.md)
 
 ## 型別の正本（この情報はどこにあるか）
 
