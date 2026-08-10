@@ -202,7 +202,8 @@
     "sessionsPerSet": "Sessions per set",
     "presets": "Presets",
     "deletePreset": "Delete preset",
-    "autoStartBreaks": "Auto-start breaks"
+    "autoStartBreaks": "Auto-start breaks",
+    "emptyValue": "Enter a number for {{field}}"
   },
   "timer": {
     "work": "WORK"
@@ -709,6 +710,7 @@
     }
   },
   "common": {
+    "ok": "OK",
     "cancel": "Cancel",
     "close": "Close",
     "undo": "Undo",

@@ -202,7 +202,8 @@
     "sessionsPerSet": "1セットあたりのセッション数",
     "presets": "プリセット",
     "deletePreset": "プリセット削除",
-    "autoStartBreaks": "休憩を自動開始"
+    "autoStartBreaks": "休憩を自動開始",
+    "emptyValue": "{{field}}に数値を入力してください"
   },
   "timer": {
     "work": "ワーク"
@@ -709,6 +710,7 @@
     }
   },
   "common": {
+    "ok": "OK",
     "cancel": "キャンセル",
     "close": "閉じる",
     "undo": "元に戻す",

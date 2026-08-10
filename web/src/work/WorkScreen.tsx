@@ -249,7 +249,9 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           saveAsPreset: t("work.settings.saveAsPreset"),
           apply: t("work.settings.apply"),
           deletePreset: t("pomodoro.deletePreset"),
+          emptyValueConfirm: t("common.ok"),
         }}
+        formatEmptyValueMessage={(field) => t("pomodoro.emptyValue", { field })}
         onWorkDurationChange={timer.setWorkDurationMinutes}
         onBreakDurationChange={timer.setBreakDurationMinutes}
         onLongBreakDurationChange={timer.setLongBreakDurationMinutes}
