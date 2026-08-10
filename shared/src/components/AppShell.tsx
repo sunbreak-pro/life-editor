@@ -207,11 +207,10 @@ export function AppShell({
     );
   }
 
+  // Pull-to-refresh suppression lives on html/body (web/src/index.css, #631)
+  // — overscroll-behavior on this non-scrolling div never fired.
   return (
-    <div
-      className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
-      style={{ overscrollBehavior: "none" }}
-    >
+    <div className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       {!keyboardOpen && (
         <BottomTabBar
