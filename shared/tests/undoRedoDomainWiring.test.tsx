@@ -9,6 +9,8 @@ import { ScheduleItemsProvider } from "../src/context/ScheduleItemsContext";
 import { DailiesUnifiedProvider } from "../src/context/DailiesUnifiedContext";
 import { NotesUnifiedProvider } from "../src/context/NotesUnifiedContext";
 import { TaskTreeProvider } from "../src/context/TaskTreeContext";
+import { RoutineProvider } from "../src/context/RoutineContext";
+import { useRoutineContext } from "../src/hooks/useRoutineContext";
 import { useScheduleItemsContext } from "../src/hooks/useScheduleItemsContext";
 import { useDailiesUnifiedContext } from "../src/hooks/useDailiesUnifiedContext";
 import { useNotesUnifiedContext } from "../src/hooks/useNotesUnifiedContext";
@@ -81,6 +83,11 @@ function TaskProbe() {
   return <button onClick={() => addNode("task", null, "T")}>mutate</button>;
 }
 
+function RoutineProbe() {
+  const { createRoutine } = useRoutineContext();
+  return <button onClick={() => createRoutine("R")}>mutate</button>;
+}
+
 const scheduleDS = {
   fetchScheduleItemsByDateAll: async () => [],
   fetchDeletedScheduleItems: async () => [],
@@ -106,6 +113,14 @@ const taskDS = {
   fetchTaskTree: async () => [],
   fetchDeletedTasks: async () => [],
   syncTaskTree: async () => {},
+} as unknown as DataService;
+
+const routineDS = {
+  fetchAllRoutines: async () => [],
+  fetchDeletedRoutines: async () => [],
+  createRoutine: async () => {},
+  softDeleteRoutine: async () => ({ deletedScheduleItemIds: [] }),
+  restoreRoutine: async () => {},
 } as unknown as DataService;
 
 /* ── #568 fixtures: a row on a day the provider is NOT anchored on ─────── */
@@ -335,6 +350,18 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
       <TaskTreeProvider dataService={taskDS}>
         <TaskProbe />
       </TaskTreeProvider>,
+    );
+  });
+
+  // D-20260810-refactor-1: routines were the one domain whose API hook pushed
+  // commands with nowhere to push them — the Provider never read the ambient
+  // stack, so every routine command was a no-op. Ctrl+Z on a routine did
+  // nothing at all, which is the behaviour this fixes.
+  it("routines: push lands on the global stack; unmount clears it", async () => {
+    await expectPushAndClearOnUnmount(
+      <RoutineProvider dataService={routineDS}>
+        <RoutineProbe />
+      </RoutineProvider>,
     );
   });
 
