@@ -11,11 +11,9 @@
 | [2026-05-24-multi-chat-worktree-policy.md](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md) | ACTIVE (adopted policy) — 規約として採用・運用中（SSOT は CLAUDE.md §7.4。本計画書は詳細・背景の参照元） |
 | [2026-05-26-autonomous-dev-routine.md](./docs/vision/plans/2026-05-26-autonomous-dev-routine.md) | BLOCKED — Night Routine 登録が trig_PENDING のまま（registration pending）。機構は実装済みだが夜 Routine の Anthropic Cloud 登録が未実施のため発火しない |
 | [2026-06-19-step1-desktop-daily-driver.md](./docs/vision/plans/2026-06-19-step1-desktop-daily-driver.md) | IN PROGRESS — 自律スコープ（Tray 常駐 / 自動起動 / bounds クランプ / icon 同梱）は PR |
-| [2026-07-14-schedule-redesign.md](./docs/vision/plans/2026-07-14-schedule-redesign.md) | IN PROGRESS — Step 0〜7 は全て実装済み（5-b = |
 | [2026-07-15-briefing-loop.md](./docs/vision/plans/2026-07-15-briefing-loop.md) | ACTIVE (adopted policy) |
 | [2026-07-16-briefing-headless-claude-prototype.md](./docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md) | REFERENCE |
 | [2026-07-28-loop-engineering-harness.md](./docs/vision/plans/2026-07-28-loop-engineering-harness.md) | IN PROGRESS — Phase 0 配置完了（PR |
-| [2026-07-30-open-issue-fanout-r2.md](./docs/vision/plans/2026-07-30-open-issue-fanout-r2.md) | IN PROGRESS |
 | [2026-08-03-open-issue-fanout-r3.md](./docs/vision/plans/2026-08-03-open-issue-fanout-r3.md) | IN PROGRESS |
 | [2026-08-04-context-cost-reduction-harness.md](./docs/vision/plans/2026-08-04-context-cost-reduction-harness.md) | IN PROGRESS |
 | [2026-08-04-loop-catalog-implementation.md](./docs/vision/plans/2026-08-04-loop-catalog-implementation.md) | IN PROGRESS |

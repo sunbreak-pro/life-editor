@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — 13 件（#465 / #475 / #470 / #471 / #466 / #468 / #467 / #469 / #482 / #368 / #474 / #472 / #473）全件 close。未達は「merge 後の実ブラウザ検証」のみで r3 ラウンドへ引き継ぎ（AC に理由を記載）。判定 = #591（2026-08-10 gh state 実測）
 Created: 2026-07-30
 Branch: main # docs のみ。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -9,14 +9,14 @@ Owner-chat: main
 
 > **意図的に緩い計画書**。方向性・担当 worktree・着手順（依存）だけを固定し、手順・DoD は各 Issue body を正本とする（転記しない — 数値の非複製原則）。
 > コード調査で前提が変わったら Issue コメント側を更新し、本書は方向レベルのまま保つ。
-> 前ラウンド = [`2026-07-28-open-issue-fanout.md`](../../../archive/2026-07-28-open-issue-fanout.md)（配った Issue は全消化・#474 で COMPLETED 化 + archive 移動済み）
+> 前ラウンド = [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)（配った Issue は全消化・#474 で COMPLETED 化 + archive 移動済み）
 
 ---
 
 ## Context
 
 - **動機**: 2026-07-30 時点で **open PR ゼロ・worktree 4 本すべて `origin/main`（`a4fd6f89`）と同一コミットで待機中**。open Issue 15 件のうち実行可能な 12 件を 4 レーンへ一括分配して消化する
-- **制約**: 実ブラウザ検証は merge 後に chat-main の検証セッションが playwright MCP で実施する。各 worktree は build / 型検証 / vitest まで（CLAUDE.md §7.4）。**前ラウンド用の検証計画は 2026-07-29 に全項目消化して COMPLETED・archive 済み**（[`archive/2026-07-28-post-merge-playwright-verification.md`](../../../archive/2026-07-28-post-merge-playwright-verification.md) — 唯一の fail = V4 の `[[` クリック遷移が本ラウンドの #475）。**本ラウンド用の検証計画は chat-main が別途新規作成する**（同書を再オープンしない）
+- **制約**: 実ブラウザ検証は merge 後に chat-main の検証セッションが playwright MCP で実施する。各 worktree は build / 型検証 / vitest まで（CLAUDE.md §7.4）。**前ラウンド用の検証計画は 2026-07-29 に全項目消化して COMPLETED・archive 済み**（[`archive/2026-07-28-post-merge-playwright-verification.md`](./2026-07-28-post-merge-playwright-verification.md) — 唯一の fail = V4 の `[[` クリック遷移が本ラウンドの #475）。**本ラウンド用の検証計画は chat-main が別途新規作成する**（同書を再オープンしない）
 - **Non-goals**: #372（DDL 要・DEFERRED のまま）の実装 / Epic #290・#321 の完了宣言（チェックボックス追随のみ）/ リファクタリング新計画の起案（本ラウンドの merge 完了後に chat-main が実測ベースで作成する — 下の「後続」参照）
 
 ---
@@ -216,19 +216,19 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 
 - 4 レーンの PR 進捗の追跡と、**#465 merge 後に #472 / #473 の解禁を tags-docs へ通知**
 - 各レーンの outbox / decisions を拾って Issue 起票・回答転記（起票は chat-main 一元化 — CLAUDE.md §9）
-- **merge 後の実ブラウザ検証**: 本ラウンド用の検証計画を新規作成して実施する（前ラウンド分の [`archive/2026-07-28-post-merge-playwright-verification.md`](../../../archive/2026-07-28-post-merge-playwright-verification.md) は COMPLETED なので再オープンしない。検証セッションの約束事 = 場所は main・`gh pr list --state merged` で merge 済みの項目だけ検証・ブランチ差分での判定禁止 — は同書の「前提」節を踏襲する）
+- **merge 後の実ブラウザ検証**: 本ラウンド用の検証計画を新規作成して実施する（前ラウンド分の [`archive/2026-07-28-post-merge-playwright-verification.md`](./2026-07-28-post-merge-playwright-verification.md) は COMPLETED なので再オープンしない。検証セッションの約束事 = 場所は main・`gh pr list --state merged` で merge 済みの項目だけ検証・ブランチ差分での判定禁止 — は同書の「前提」節を踏襲する）
 - PR merge そのものはこうだいさんの手番（🛑）
 
 ---
 
 ## Acceptance Criteria（ラウンド完了の条件）
 
-- [ ] 13 件（#465 / #475 / #470 / #471 / #466 / #468 / #467 / #469 / #482 / #368 / #474 / #472 / #473）がすべて close または「不要と判断 + 根拠コメント」で決着
-- [ ] Epic #290 の Step 5-b / 5-c / 6 / 7 にチェックが入り、全 Step 完了なら Epic 自体を close
-- [ ] Epic #321 Phase 2 の #6 / #7 / #16 / #17 行にチェックが入っている
-- [ ] `mobile-scope.md` の該当行が実態に追随している
-- [ ] merge 後の実ブラウザ検証が chat-main で完了している
-- [ ] 本計画書を COMPLETED にして `.claude/archive/` へ移動
+- [x] 13 件（#465 / #475 / #470 / #471 / #466 / #468 / #467 / #469 / #482 / #368 / #474 / #472 / #473）がすべて close または「不要と判断 + 根拠コメント」で決着 — 全件 CLOSED（2026-08-10 gh state 実測 #591）
+- [x] Epic #290 の Step 5-b / 5-c / 6 / 7 にチェックが入り、全 Step 完了なら Epic 自体を close — Step チェックは全行 [x]（2026-08-10 実測）。Epic 自体の close は chat-main / ユーザー手番のため未実施（#290 は OPEN・outbox で依頼済み）
+- [x] Epic #321 Phase 2 の #6 / #7 / #16 / #17 行にチェックが入っている（2026-08-10 実測）
+- [x] `mobile-scope.md` の該当行が実態に追随している — #6 / #7 / #16 / #17 行とも「完了（Issue #470 / #471 / #472 / #473）」で追随済み（2026-08-10 実測）
+- [ ] merge 後の実ブラウザ検証が chat-main で完了している — **未達**: r2 専用の検証計画は作成されないまま r3 ラウンドが始まり、同じ責務が r3 計画書 §chat-main の担当に引き継がれている。なお #470 / #471 系は 2026-08-09 の実機 1 周（`2026-08-07-web-mobile-public-url.md` Step 8）で部分的に実測され #607 / #608 を検出済み
+- [x] 本計画書を COMPLETED にして `.claude/archive/` へ移動（#591 / 本 PR で実施）
 
 ---
 
@@ -248,9 +248,9 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 ## References
 
 - CLAUDE.md §7.4（worktree / ブランチ運用）・§9（Issue dispatch / decision queue）
-- 前ラウンド: [`2026-07-28-open-issue-fanout.md`](../../../archive/2026-07-28-open-issue-fanout.md)（COMPLETED・#474 で archive 移動）
+- 前ラウンド: [`2026-07-28-open-issue-fanout.md`](./2026-07-28-open-issue-fanout.md)（COMPLETED・#474 で archive 移動）
 - Epic: #290（Schedule redesign）/ #321（Mobile UI/UX 追随）
-- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](../../../archive/2026-07-28-refactor-dataservice-split.md)（#465 の正本・COMPLETED → archive 済み）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
+- 関連計画書: [`2026-07-28-refactor-dataservice-split.md`](./2026-07-28-refactor-dataservice-split.md)（#465 の正本・COMPLETED → archive 済み）/ [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（#466〜#469 の正本）
 - 関連 memory: `push-after-merge-strands-commits` / `stacked-pr-base-retarget-race`（PR 着地事故の実測知見）
 
 ---
@@ -261,3 +261,4 @@ DDL ゼロ / `lumen-*` トークンのみ（色ハードコード禁止）/ Data
 - 2026-07-30: commit 直前の `git fetch` で `origin/main` が `7093e11e` まで進んでいたことが判明（#476 = 前ラウンドの検証計画を COMPLETED 化して archive 移動・#477 = worktree の置き場所をリポジトリ外へ変更）。本書の検証計画リンク 2 箇所と #474 プロンプトの「対象外」記述を追随修正。worktree 実パスの表記は #477 の新方針と一致していたため変更なし
 - 2026-07-30: Stop hook 廃止（ユーザー持ち込み）を実測検証のうえ **#482** として起票し、tags-docs レーンの**先頭**に追加（`_TEMPLATE.md` を触るため #474 より先）。実測で分かった 2 点を Issue に明記 = 元プロンプト手順 5 の「outbox の stop-report.md 削除」は git・disk とも対象ゼロ / グローバル `~/.claude/settings.json` 側の Stop hook（adversarial-review-gate / sui-memory / Orca）は別物で対象外
 - 2026-07-30: 上の #482 追記が **#478 の merge 後に同じブランチへ後追い push されて取り残されていた**ため（PR #492・memory `push-after-merge-strands-commits` と同じ踏み方）、`origin/main` を取り込んで add/add 衝突を解消。採用ルール = 前ラウンド計画書 / DataService 分割計画書のリンクと Status は **main 側（#474 の実測）**、tags-docs レーンの #482 記述は **ブランチ側**
+- 2026-08-10: **#591（tags-docs）で COMPLETED 化 + archive 移動**。13 件全 close / Epic #290 全 Step チェック / Epic #321 の #6 / #7 / #16 / #17 チェック / mobile-scope 追随を gh state・文書実測で確認。未達は「merge 後の実ブラウザ検証」のみで r3 に引き継ぎ（AC に理由を記載）。Epic #290 の close は outbox 経由で chat-main へ依頼
