@@ -19,6 +19,14 @@
     },
 
     /* Linting */
+    /* `strict` is stated explicitly, not inherited (#668 C1). It is a no-op
+       TODAY — this package is on TypeScript 6.0, where the default flipped to
+       true — which is exactly why it has to be written down: TS 5.x defaults it
+       to false, so any move of this package onto a 5.x compiler would silently
+       drop the whole strict family (strictNullChecks, noImplicitAny, ...) and
+       every resulting error would look like it had never existed. Do not delete
+       this line as "redundant with the default". */
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,

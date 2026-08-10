@@ -23,6 +23,24 @@ import { defineConfig } from "vitest/config";
  * zone (N=1) and the zone the dev machines already run, so pinning it makes CI
  * reproduce what a developer sees rather than a weaker version of it.
  */
+/*
+ * Coverage (#668 C1) is MEASUREMENT ONLY — deliberately no `thresholds` block.
+ * A threshold picked before anyone has seen the number either sits below
+ * reality (and gates nothing) or above it (and turns every unrelated PR red).
+ * The baseline is recorded in the PR that introduced this; raising it into a
+ * gate is a separate, deliberate decision.
+ *
+ * `include` names src/ explicitly instead of leaving it to the default, which
+ * only counts files some test happened to import. That default answers "of the
+ * code we test, how much did we reach" — the flattering question. Naming src/
+ * makes never-imported modules count as 0%, which is the question this audit
+ * was opened to ask.
+ *
+ * @vitest/coverage-v8 is pinned to an EXACT version, not a range: it declares
+ * `peerDependencies: { vitest: "<same exact version>" }`, so a caret here would
+ * resolve to a newer patch than the vitest this lockfile pins and fail install.
+ * Bump it in lockstep with vitest.
+ */
 export default defineConfig({
   test: {
     env: { TZ: "Asia/Tokyo" },
@@ -30,5 +48,11 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.d.ts"],
+    },
   },
 });
