@@ -37,6 +37,13 @@
 
 ## 予定
 
+### 🆕 スマホ実機で見つかった 3 本（2026-08-10 追加起票・**次セッションの先頭**）
+
+- **#631（ボトムタブバーの下までスクロールできる + pull-to-refresh 誤爆）を最初に片付ける**。原因は単位の不一致 = `web/src/index.css:32` の `body { min-height: 100vh }` と `AppShell.tsx:212` の `h-[100svh]`。モバイル Chrome では `100vh` が URL バー非表示時基準なので body だけ URL バー分高くなり、ドキュメントスクロールが生まれる。`overscroll-behavior: none` も `AppShell.tsx:213` の内側 div にしか無く、viewport のスクローラ（html / body）に無いので pull-to-refresh を止められていない。**触るのは 2 ファイルだけ**で、後続 2 本の実測前提になる
+- **#632（FAB の位置が画面ごとに揃わない）は #631 の後**。`fixed` はレイアウトビューポート基準なので、ドキュメントスクロールが残っていると「直ったか」を判定できない。実測差分 = Schedule `fixed bottom-6 right-6`（`CalendarTab.tsx:2236`）vs Notes `absolute bottom-5 right-5`（`NotesView.tsx:655`・クリアランスはスクローラ padding = #509）。基準もオフセットも別なので共通部品へ寄せる
+- **#633（Schedule 編集シートの上端がブラウザ UI に隠れる）**: `CalendarTab.tsx:2262` の `<BottomSheet>` だけ max-height も内部スクロールも渡していない（`NotesView.tsx:836` / `MobileTaskList.tsx:182` は `max-h-[92vh] min-h-[70vh] overflow-hidden` を渡している）。下端揃えのシートなので中身が高いと上端がビューポート外へ出る。**#628 と同一ファイルを触る**ので片方ずつ
+- 3 本とも 👀 実機（iPhone Chrome）目視が DoD に入る。`shared/src/components/BottomSheet.tsx` の共通挙動を変える場合だけ、着手前に Issue へコメント宣言する
+
 ### 🆕 ユーザー要望から起票した 5 本（2026-08-10・#624 は実装済み）
 
 - **#628 → #627** の順に進める。**#628（Schedule 詳細に保存ボタン）で流儀を決め、それを雛形に Epic #627 が横展開する**という段構え。#627 の子 Issue は #628 が close してから chat-main が 1 面 1 本で起票する

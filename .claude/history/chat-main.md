@@ -19,6 +19,7 @@
 - **実機確認で 4 点すべて OK**（2026-08-10・**iPhone の Chrome**）: ① Note の本文タップで入力パネルが閉じない ② キーボードでタブバーが消え、閉じると戻る ③ タブバー非表示中もホームインジケータ帯に本文が乗らない（QA の NIT 1 件目）④ 「その他」シートがキーボードで消えるのは許容（NIT 2 件目）。#607 / #608 とも CLOSED。**計画書 Step 5 の未達はこれで解消**したので、archive 時点の乖離レビューから「未達」の記述を落とした
 - **「iOS 未検証」が解消**: iOS のブラウザは全て WebKit（WKWebView）なので、Chrome で見ても `visualViewport` の挙動は Safari と同じ経路を通る。`useSoftKeyboard` の「同じ幅で観測した最大可視高との差」判定が iOS でも成立することを実機で確認できた（Safari の UI そのものは未確認）
 - **副産物 = #512 が測れる状態になった**: 「コマンドパレットの上余白が safe-area を踏む」は iPhone のノッチ前提の指摘で、Android 実測（上端 inset ≈ 0）では反証にならず宙に浮いていた。**ユーザーが iPhone を実機として使えると分かった**ので 👀 節へ回す
+- **追加起票 3 本**（同日・実機確認の最中にユーザーが見つけたスマホ固有の崩れ。いずれもコード実測で原因の当たりまで書いた）: **#631** ドキュメント自体がスクロールしてボトムタブバーの下まで行ける + pull-to-refresh 誤爆（`body { min-height: 100vh }` と `h-[100svh]` の単位不一致 / `overscroll-behavior` が内側 div にしか無い）/ **#632** 追加用 FAB の位置が画面ごとに揃わない（Schedule = `fixed bottom-6 right-6` vs Notes = `absolute bottom-5 right-5` で基準もオフセットも別）/ **#633** Schedule 編集シートの上端がブラウザ UI に隠れ内部スクロールが無い（同じ `BottomSheet` を使う他 2 面だけが `max-h-[92vh] min-h-[70vh] overflow-hidden` を渡している）。**3 本は #631 → #632 / #633 の順**（`fixed` の見かけがドキュメントスクロールに引きずられるため、#631 を直さないと後続を実測できない）
 
 #### 次セッションへの引き継ぎプロンプト（貼り付け用）
 
@@ -29,10 +30,22 @@ life-editor の chat-main セッションを開始する。
 `gh issue list -R sunbreak-pro/life-editor --state open` で自分宛の open Issue を確認すること。
 未 merge の PR #630（tracker）が残っていたら、merge はユーザーの手番なので状態だけ確認して先へ進む。
 
-今回の目標 = 2026-08-10 に起票したユーザー要望 7 件のうち、最大の塊である「保存ボタン統一」の段階 1
-（#628）を仕上げる。#624 は実装 + iPhone 実機確認まで完了して CLOSED 済み。
+今回の目標 = スマホ実機で見つかった崩れ 3 本（#631 / #632 / #633）を片付け、その後で「保存ボタン統一」の
+段階 1（#628）へ進む。#624 は実装 + iPhone 実機確認まで完了して CLOSED 済み。
 
-1. #628（Schedule 詳細編集パネルに保存ボタン）から着手する。これが Epic #627 の雛形になり、
+0. **#631 から着手する**（触るのは `web/src/index.css` と `shared/src/components/AppShell.tsx` の 2 ファイル）。
+   ボトムタブバーの下までスクロールでき、上に引っ張ると Chrome が再読み込みする件。原因は Issue 本文に
+   実測付きで書いた = `body { min-height: 100vh }`（index.css:32）と `h-[100svh]`（AppShell.tsx:212）の
+   単位不一致で、モバイル Chrome では body だけ URL バー分高くなる。`overscroll-behavior: none` も
+   AppShell 内側の div にしかなく、viewport のスクローラ（html / body）に無いので効いていない。
+   **これが #632 / #633 の実測前提**（`fixed` の見かけがドキュメントスクロールに引きずられる）。
+
+   続けて #632（FAB の位置が画面ごとに揃わない → 共通部品へ寄せる。#509 の「最終行に重なる」を再発させない）
+   → #633（Schedule 編集シートに max-height + 内部スクロールを与える）。#633 は #628 と同じ
+   `web/src/schedule/CalendarTab.tsx` を触るので、片方ずつ順に進めること。
+   3 本とも DoD に 👀 実機（iPhone Chrome）目視が入るので、実装が終わったらユーザーに見てもらう。
+
+1. #628（Schedule 詳細編集パネルに保存ボタン）へ進む。これが Epic #627 の雛形になり、
    ここで決めた流儀が Work / Tasks / Settings へ波及する。着手前に Issue 本文の「先に決めること」を
    ユーザーへ確認すること:
      (a) 保存ボタンでのみ確定し、blur は draft 保持のみ（未保存で閉じるときは確認ダイアログ）
