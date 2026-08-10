@@ -15,6 +15,7 @@ import { ListTodo, Plus } from "lucide-react";
 import {
   KanbanBoard,
   KanbanCard,
+  STATUS_TEXT_KEY,
   buildStatusColumns,
   buildTagColumns,
   EmptyState,
@@ -38,7 +39,6 @@ import {
   type KanbanViewMode,
   type TaskAddType,
   type TaskNode,
-  type TaskStatus,
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
@@ -87,12 +87,6 @@ import { TagPicker } from "../wikitag/TagPicker";
  * @dnd-kit lives only in web/ (useKanbanDnd + KanbanColumnDroppable +
  * KanbanCardDraggable); the shared Kanban package never imports it.
  */
-
-const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
-  NOT_STARTED: "taskDetail.statusNotStarted",
-  IN_PROGRESS: "taskDetail.statusInProgress",
-  DONE: "taskDetail.statusDone",
-};
 
 export interface KanbanViewProps {
   /**

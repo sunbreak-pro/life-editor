@@ -27,6 +27,7 @@ import {
   ItemActionPopover,
   ItemDetailOverlay,
   TaskDetailPanel,
+  STATUS_TEXT_KEY,
   StatusFilterChips,
   BottomSheet,
   Modal,
@@ -54,7 +55,6 @@ import {
   todayCalendarKey,
   type FrequencyLabelCopy,
   type TaskCalendarChip,
-  type TaskStatus,
   type TodayTodoRow,
   type ScheduleStatus,
   type ScheduleItem,
@@ -138,15 +138,6 @@ const REPEAT_FAILURE_COPY_KEY: Record<
   // changed, and this one cannot — the rhythm from here on is already the new
   // one.
   "series-partial": "scheduleScreen.repeatSeriesPartialFailed",
-};
-
-// #626: status caption keys for the task-chip detail panel — the same map
-// KanbanView uses, so the two surfaces of TaskDetailPanel word a status
-// identically.
-const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
-  NOT_STARTED: "taskDetail.statusNotStarted",
-  IN_PROGRESS: "taskDetail.statusInProgress",
-  DONE: "taskDetail.statusDone",
 };
 
 export function CalendarTab({
@@ -678,10 +669,23 @@ export function CalendarTab({
   // would silently miss it. Cancelling twice is harmless (the hook no-ops when
   // nothing is pending).
   useEffect(() => {
-    if (overlayOpen || createPanel || calendarsOpen || scopeRequest) {
+    if (
+      overlayOpen ||
+      createPanel ||
+      calendarsOpen ||
+      scopeRequest ||
+      taskDetailId != null
+    ) {
       cancelPopover();
     }
-  }, [overlayOpen, createPanel, calendarsOpen, scopeRequest, cancelPopover]);
+  }, [
+    overlayOpen,
+    createPanel,
+    calendarsOpen,
+    scopeRequest,
+    taskDetailId,
+    cancelPopover,
+  ]);
 
   // #468: every panel path that actually PUTS something on the grid closes
   // through here, and clearing the lens is the point. A brand-new row carries
