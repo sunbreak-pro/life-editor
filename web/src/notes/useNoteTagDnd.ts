@@ -105,3 +105,6 @@ export function useNoteTagDnd({ notes, onAssign }: UseNoteTagDndParams) {
     handleDragCancel,
   };
 }
+
+/** The wiring the host hands to the side list (sensors + drag handlers). */
+export type NoteTagDnd = ReturnType<typeof useNoteTagDnd>;
