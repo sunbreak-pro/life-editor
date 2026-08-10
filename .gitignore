@@ -89,3 +89,8 @@ mcp-server/node_modules/
 
 # graphify (generated code-graph output, machine-local)
 graphify-out/
+
+# vitest coverage reports (`npm run test:coverage` — #668 C1). Regenerated on
+# demand; the baseline percentages live in the PR body / plan, not in the tree
+shared/coverage/
+web/coverage/

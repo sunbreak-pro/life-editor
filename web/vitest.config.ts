@@ -30,6 +30,22 @@ export default mergeConfig(
       environment: "jsdom",
       globals: true,
       setupFiles: ["./tests/setup.ts"],
+      /*
+       * Measurement only — no `thresholds` on purpose. See the same block in
+       * shared/vitest.config.ts for the reasoning, for why `include` names
+       * src/ rather than using the default, and for why @vitest/coverage-v8 is
+       * pinned to an exact version (#668 C1).
+       *
+       * src/ here means WEB's src only. shared/ is reached through a source
+       * alias, so leaving `include` at its default would fold shared's files
+       * into this number and double-count them against shared's own run.
+       */
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "json-summary"],
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: ["src/**/*.d.ts"],
+      },
     },
     /*
      * recharts is a dependency of BOTH packages, and shared/ is reached
