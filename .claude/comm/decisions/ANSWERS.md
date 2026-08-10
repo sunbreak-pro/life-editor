@@ -29,3 +29,4 @@
 - D-20260810-sched-3: **A**（落ちるフィールドは破棄 + 確認ダイアログで明示。同上）
 - D-20260810-sched-4: **A**（ステータス破棄・子持ち Todo の変換禁止。同上）
 - D-20260810-sched-5: **A**（routine 由来は変換不可。提示方法をユーザー指定 = 変換操作時にダイアログ「Todoに繰り返しの機能はないため、変換は不可能です」を表示。同上）
+- D-20260810-refactor-1: **A**（ルーチンの Undo/Redo を繋ぐ。`RoutineContext` に `useUndoRedoOptional()` を配線し、`undoRedo.labels` へ createRoutine / updateRoutine / deleteRoutine を en・ja 両方追加する。#672 の「挙動変更ゼロ」に対する明示的な例外。2026-08-11 チャットで回答・chat-refactor-core が転記）
