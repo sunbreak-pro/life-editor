@@ -149,3 +149,29 @@ describe("calendarUpdatesToPatch — partial payload", () => {
     expect(patch).toEqual({});
   });
 });
+
+// ---------------------------------------------------------------------------
+// Whitelist — smuggled immutable keys
+//
+// Ported from the retired `scheduleMapper.test.ts` (#670 C3 PR 1). That file
+// died with the single-row Routine / ScheduleItem shims, but calendars are
+// still a single-table domain, so this case belongs here.
+// ---------------------------------------------------------------------------
+
+describe("calendarUpdatesToPatch — smuggled immutable keys", () => {
+  it("emits only title/order, never tag_id/id/version", () => {
+    const sneaky = {
+      title: "C",
+      // tag_id is immutable through the update path (rebind = recreate,
+      // life-tags S2 #231) — a sneaky tagId must never leak into the patch.
+      tagId: "tag-evil",
+      id: "calendar-evil",
+      version: 7,
+    } as unknown as Parameters<typeof calendarUpdatesToPatch>[0];
+    const patch = calendarUpdatesToPatch(sneaky);
+    expect(patch).toEqual({ title: "C" });
+    expect("tag_id" in patch).toBe(false);
+    expect("id" in patch).toBe(false);
+    expect("version" in patch).toBe(false);
+  });
+});

@@ -1,10 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import type { ScheduleItem } from "../types/schedule";
 import {
-  SCHEDULE_ITEM_SELECT_COLUMNS,
-  rowToScheduleItem,
-  scheduleItemUpdatesToPatch,
-  type ScheduleItemRow,
   // DU-C-5: 2-row API (items_meta + events_payload)
   ITEMS_META_EVENT_COLUMNS,
   EVENTS_PAYLOAD_COLUMNS,
@@ -51,11 +47,6 @@ import {
 // exercised against a query-builder mock.
 export class SupabaseScheduleItemsService {
   private readonly client: SupabaseClient;
-  // Keep legacy mapper imports statically referenced.
-  private static readonly _unused_select = SCHEDULE_ITEM_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToScheduleItem;
-  private static readonly _unused_patch = scheduleItemUpdatesToPatch;
-  declare private _unused_row: ScheduleItemRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;

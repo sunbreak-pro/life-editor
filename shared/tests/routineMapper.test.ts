@@ -5,6 +5,7 @@ import {
   routineNodeToRows,
   routineUpdatesToPatches,
   normaliseFrequency,
+  parseFrequencyDays,
   type ItemsMetaRoutineRow,
   type RoutinesPayloadRow,
 } from "../src/services/routineMapper";
@@ -526,5 +527,88 @@ describe("defensive validation", () => {
     expect(() => rowsToRoutineNode(meta, payload)).toThrow(
       /role expected "routine"/,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. Whitelist / partial-clobber safety (Issue 020)
+//
+// Ported from the retired `scheduleMapper.test.ts` when the single-row
+// shims were deleted (#670 C3 PR 1). The invariant belongs to whichever
+// mapper is live: a partial update must never clobber an untouched column.
+// ---------------------------------------------------------------------------
+
+describe("routineUpdatesToPatches — whitelist / partial-clobber safety", () => {
+  it("emits only the touched key beside the mandatory updated_at bump", () => {
+    const { metaPatch, payloadPatch } = routineUpdatesToPatches(
+      { title: "renamed" },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(metaPatch).toEqual({ title: "renamed", updated_at: NOW });
+    expect(payloadPatch).toEqual({});
+  });
+
+  it("drops smuggled non-whitelisted keys (id / createdAt)", () => {
+    const sneaky = {
+      title: "t",
+      id: "routine-evil",
+      createdAt: "1999-01-01",
+    } as unknown as Parameters<typeof routineUpdatesToPatches>[0];
+    const { metaPatch, payloadPatch } = routineUpdatesToPatches(
+      sneaky,
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(metaPatch).toEqual({ title: "t", updated_at: NOW });
+    expect("id" in metaPatch).toBe(false);
+    expect("created_at" in metaPatch).toBe(false);
+    expect(payloadPatch).toEqual({});
+  });
+
+  it("accepts `version` on purpose — unlike the retired single-row shim", () => {
+    // The 2-row API whitelists version so the service can carry the
+    // optimistic-concurrency value through; the old shim dropped it. Pinned
+    // here so a future 'tighten the whitelist' pass has to be deliberate.
+    const { metaPatch } = routineUpdatesToPatches(
+      { version: 7 },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(metaPatch.version).toBe(7);
+  });
+
+  it("ignores undefined values", () => {
+    const { metaPatch, payloadPatch } = routineUpdatesToPatches(
+      { title: undefined, isArchived: undefined },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(metaPatch).toEqual({ updated_at: NOW });
+    expect(payloadPatch).toEqual({});
+  });
+
+  it("maps nullable keys with explicit null (start/end time)", () => {
+    expect(
+      routineUpdatesToPatches({ startTime: null }, TEST_USER_ID, NOW)
+        .payloadPatch,
+    ).toEqual({ start_time: null });
+    expect(
+      routineUpdatesToPatches({ endTime: "21:00" }, TEST_USER_ID, NOW)
+        .payloadPatch,
+    ).toEqual({ end_time: "21:00" });
+  });
+});
+
+describe("parseFrequencyDays — corrupt input degrades instead of throwing", () => {
+  it("returns [] for anything that is not a JSON number array", () => {
+    expect(parseFrequencyDays("not json")).toEqual([]);
+    expect(parseFrequencyDays('"a string"')).toEqual([]);
+    expect(parseFrequencyDays("{}")).toEqual([]);
+    expect(parseFrequencyDays("[]")).toEqual([]);
+  });
+
+  it("keeps the numeric members of a mixed array", () => {
+    expect(parseFrequencyDays('[1,"x",2]')).toEqual([1, 2]);
   });
 });
