@@ -26,6 +26,7 @@ import {
   ItemCreatePanel,
   ItemActionPopover,
   ItemDetailOverlay,
+  TaskDetailPanel,
   StatusFilterChips,
   BottomSheet,
   Modal,
@@ -53,6 +54,7 @@ import {
   todayCalendarKey,
   type FrequencyLabelCopy,
   type TaskCalendarChip,
+  type TaskStatus,
   type TodayTodoRow,
   type ScheduleStatus,
   type ScheduleItem,
@@ -136,6 +138,16 @@ const REPEAT_FAILURE_COPY_KEY: Record<
   // one.
   "series-partial": "scheduleScreen.repeatSeriesPartialFailed",
 };
+
+// #626: status caption keys for the task-chip detail panel — the same map
+// KanbanView uses, so the two surfaces of TaskDetailPanel word a status
+// identically.
+const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
+  NOT_STARTED: "taskDetail.statusNotStarted",
+  IN_PROGRESS: "taskDetail.statusInProgress",
+  DONE: "taskDetail.statusDone",
+};
+
 export function CalendarTab({
   dataService,
   onOpenTasks,
@@ -203,6 +215,7 @@ export function CalendarTab({
     addNode,
     updateNode,
     setTaskStatus,
+    toggleTaskStatus,
     softDelete: softDeleteTask,
   } = useTaskTreeContext();
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
@@ -271,6 +284,10 @@ export function CalendarTab({
   } | null>(null);
   // #299 detail-edit overlay open flag (Desktop; Mobile keeps the BottomSheet).
   const [overlayOpen, setOverlayOpen] = useState(false);
+  // #626: task-chip detail overlay — the UNWRAPPED TaskNode id behind an open
+  // task detail, or null. Separate from selectedId/overlayOpen because those
+  // resolve schedule_items and a chip has none.
+  const [taskDetailId, setTaskDetailId] = useState<string | null>(null);
   // #299 event-creation panel: the target day + prefilled start/end. null =
   // closed. Desktop shows it in an ItemDetailOverlay-style modal; Mobile in the
   // QuickCaptureSheet. Replaces the old eager-create + Mobile `quickOpen`.
@@ -439,13 +456,16 @@ export function CalendarTab({
   // by the "another surface opened" effect below (#355).
   //
   // #564: a task chip's detail is not this overlay — EventEditorPane edits a
-  // schedule_item, and a task has none. Its hand-off is the Tasks section, the
-  // same destination the Todo tray's title click uses.
+  // schedule_item, and a task has none. #626 gives the chip its own in-place
+  // surface on Desktop (TaskDetailPanel in an ItemDetailOverlay), so tags are
+  // editable without leaving Schedule; narrow keeps the #564 Tasks hand-off
+  // (its stand-in surface, the task BottomSheet, is still a follow-up).
   const handleItemOpenDetail = useCallback(
     (id: string) => {
       setPopover(null);
       if (isTaskChip(id)) {
-        onOpenTasks();
+        if (isWide) setTaskDetailId(unwrapTaskChipId(id));
+        else onOpenTasks();
         return;
       }
       setSelectedId(id);
@@ -1881,7 +1901,9 @@ export function CalendarTab({
         }
         actions={taskChipPanel.actions}
         onEditDetail={() => handleItemOpenDetail(popover.id)}
-        editDetailLabel={t("scheduleScreen.todoOpenInTasks")}
+        // #626: the primary hand-off now opens the in-Schedule task detail
+        // (tags editable in place); "open in Tasks" moved inside that panel.
+        editDetailLabel={t("scheduleScreen.editDetail")}
         label={t("scheduleScreen.itemActionsLabel")}
         onClose={() => setPopover(null)}
       />
@@ -1944,6 +1966,68 @@ export function CalendarTab({
       onClose={() => setOverlayOpen(false)}
     >
       {editorPane}
+    </ItemDetailOverlay>
+  );
+
+  /*
+   * #626: task-chip detail overlay (Desktop) — the same TaskDetailPanel +
+   * TagPicker pair Kanban renders, so a todo's tags are editable without
+   * leaving Schedule. Deliberately NOT EventEditorPane: that pane edits a
+   * schedule_item and a task has none (#564), so the task counterpart is the
+   * panel the Tasks section already trusts. Resolved against the live tree —
+   * a task deleted elsewhere while open simply closes the overlay.
+   *
+   * The #564 hand-off survives as the button under the panel: in-place editing
+   * covers tags/title/status, and anything deeper still lives in Tasks.
+   */
+  const taskDetailTask =
+    taskDetailId != null
+      ? (taskNodes.find((n) => n.id === taskDetailId) ?? null)
+      : null;
+  const taskDetailOverlayEl = (
+    <ItemDetailOverlay
+      open={isWide && !!taskDetailTask}
+      title={t("materials.tasks.detailTitle")}
+      onClose={() => setTaskDetailId(null)}
+    >
+      {taskDetailTask && (
+        <div className="flex flex-col gap-3">
+          <TaskDetailPanel
+            taskId={taskDetailTask.id}
+            title={taskDetailTask.title}
+            status={taskDetailTask.status}
+            onTitleCommit={(id, title) =>
+              updateNode(id, { title }, { undoLabel: "taskTreeChange" })
+            }
+            onToggleStatus={toggleTaskStatus}
+            titleLabel={t("taskDetail.titleLabel")}
+            statusLabel={t("taskDetail.status")}
+            statusText={t(
+              STATUS_TEXT_KEY[taskDetailTask.status ?? "NOT_STARTED"],
+            )}
+            // Same omission as Kanban: TagPicker's own kind badge captions the
+            // row, so TaskDetailPanel's generic tagsLabel would repeat it.
+            tagsSlot={
+              <TagPicker
+                itemId={taskDetailTask.id}
+                itemRole="task"
+                showLabel
+                size="sm"
+              />
+            }
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setTaskDetailId(null);
+              onOpenTasks();
+            }}
+            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            {t("scheduleScreen.todoOpenInTasks")}
+          </button>
+        </div>
+      )}
     </ItemDetailOverlay>
   );
 
@@ -2145,6 +2229,7 @@ export function CalendarTab({
         {calendarsModal}
         {popoverEl}
         {detailOverlayEl}
+        {taskDetailOverlayEl}
         {createOverlayEl}
         {scopeDialogEl}
       </>
