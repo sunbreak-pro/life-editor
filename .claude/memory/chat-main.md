@@ -24,32 +24,25 @@
 
 **対象**: GitHub Issues（Epic #290 / #321）・`.claude/comm/outbox/`
 
-- 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
-- 現在: **巡回は停止条件を満たして完了**（2026-08-01・open PR 0 / #467 / #468 とも CLOSED / **PR #527 merged** `637a64e6`）。判断キューは**空**（回答 8 件を `ANSWERS.md` へ転記済み）。**次の動きはレーン起動待ち** — worktree 4 本ともチャットが未起動でコミットが進んでいない
-- 次: open Issue 12 件を各レーンへ流す（**#507 / #509 / #525 / #526** = mobile-refine、**#511 / #519** = tags-docs、**#517** = refactor-core、**#520 / #524** = schedule-refine、**#512 / #528** = chat-main、**#372** = 将来 DDL）。chat-main 自身の手番は **#528**（archive のリンク切れ + docs-lint 拡張）。**#512 は iPhone で確認できる状態になった**（2026-08-10 = ユーザーが iPhone Chrome で #607 / #608 / #624 を実機確認。従来「Android では上端 inset ≈ 0 なので反証にならない」で止まっていた）→ 下の 👀 節へ回し、踏まないなら NOT_PLANNED close
+- 前回: 2026-08-01 の旧 fan-out 巡回完了（open PR 0・判断キュー空）
+- 現在: **2026-08-10 /goal バッチ完了** — open Issue 20 件を 8 レーンへ `/goal` プロンプトで分配（briefing-refine worktree 新設）し、同日中に 17 PR が merge。main 取り込み後の一括検証 = 静的ゲート全緑 + 実ブラウザ 9 PASS / FAIL 0（詳細 = history 2026-08-10）。**DDL 0023 適用済み**（#372 の残タスクだった push をユーザーが実行・タグ機能復旧を実測）
+- 次: 判断キューの回答確認（**#628 / #625** = schedule-refine が積んだ分）→ #628 close 後に **#627 の子 Issue を 1 面 1 本で起票**。open PR の巡回（#649 ほか）と briefing レーン（#585 / #623 / #609）の PR 回収。#632 は mobile-refine が着手可能（FAB 実測を Issue コメント済み）
 
 ## 直近の完了
 
+- [chat-main] **/goal バッチのオーケストレーション + merge 後の一括検証** ✅（2026-08-10）— 8 レーンへ 20 Issue を分配し 17 PR が同日 merge。静的ゲート全緑（shared 1554 / web 167）+ playwright 実ブラウザ 9 PASS / FAIL 0。DDL 0023 push（ユーザー実行）でタグ機能復旧 → #626 実測 PASS。#680 起票 + #632 に FAB 実測コメント。パスワードノートの set/remove UI 不在は #588 の欠落ではなく従前からのギャップと git で裏取り。残 = #632 / #628・#625（判断キュー）/ briefing 3 本 / #586 残（PR #649 open）/ iPhone 目視 3 点（詳細 = history 2026-08-10）
 - [chat-main] **ユーザー要望 7 件の起票 + 最優先 1 本の実装（#623〜#628 起票 / #624 = PR #629 open）** ✅（2026-08-10）— 要望を重複チェックのうえ 6 本に起票（要件 2「Task→Todo」は既存 **#592** に該当したので新規は立てず、Work 画面の名前空間は既に Todo 統一済みという実測をコメント追記）。**#623** 朝刊の + 追加導線 / **#624** ポモドーロ数値入力バグ / **#625** Event⇄Todo 変換 / **#626** Todo のタグ付け外し（Event は #468 済み・Todo チップは #564 で Tasks へ受け渡す設計だった）/ **#627** Epic 保存ボタン統一（Note・Daily 除く）/ **#628** その段階 1 = Schedule 詳細。実装は唯一の `type:bug` の **#624** を選択 — 原因は `NumberField` が空文字を `Number("") === 0` として commit し、`clampMinutes` が 1 に丸めて書き戻していたこと（**RED チェックで `expected '150' to be '50'` を再現**）。「空欄」を独立した状態にして commit を止め、空欄のまま離れる / プリセット保存すると「`<項目名>`に数値を入力してください」を出す。**セクション遷移そのものは止めていない**（router が無く `setSection` の呼び出し口が app shell 全体に散るため — 実際には nav クリックが先に blur を起こすので警告は出る）。**PR #629 merged + iPhone Chrome で実機確認 OK → #624 CLOSED**
 - [chat-main] **スマホ ソフトキーボード起因バグ 2 件（#607 / #608 = PR #621 merged）** ✅（2026-08-10）— #607 の原因は「自分の書き込みが自分の hydrate を無効化する」（クライアント時計の `updatedAt` が #301 のマージ判定を必ず外し、編集中のノートだけ本文キャッシュが落ちて mobile シートがエディタを skeleton に差し替える）。マージ判定に「開いている行 かつ 自分が書いた行」を OR で追加し、マークは**リロード 1 回で使い捨て**（QA が見つけた他デバイス書き込みの無言上書きを塞ぐ・in-flight 中は保留）。#608 は `useSoftKeyboard` 新設で narrow の `BottomTabBar` を非描画。判定は「同じ幅で観測した最大可視高との差」なので**レイアウトごと縮む UA / visual だけ縮む UA の両方で成立**（実測待ちを解消）。Scope 例外 = **D-20260810-main-4**（`useNotesUnifiedAPI.ts` は #587 の分割対象だったが原因確定で例外入り・#587 に申し送り済み）。**PR #621 / #622 とも merged（2026-08-10 10:05 UTC）→ 計画書は乖離レビュー 3 行を記入して archive 済み**（`archive/2026-08-10-mobile-keyboard-input-fixes.md`）。**deploy 後の目視 4 点は iPhone Chrome で全て OK → #607 / #608 とも CLOSED**（本文タップで閉じない / タブバーの出戻り / ホームインジケータ帯に本文が乗らない / 「その他」シートが消えるのは許容）。**iOS 未検証は解消**（iOS のブラウザは全て WebKit なので描画エンジンは Safari と同経路。Safari の UI そのものは未確認）
 
-- [chat-main] **確認待ちの摩擦を除去（#618 = PR #619 open / dotfiles PR #15 open）** ✅（2026-08-10）— `permissions.ask` を `Bash(gh pr merge*)` だけに縮小（deny 27 件は無変更）。無人レーンの push 抑止は **runner 側 settings** へ分離し `automation/` 2 本に明記。あわせて tracker 新運用を **D-20260810-main-1** として台帳化（END の tracker は **session-verifier 緑の直後**に実行し merge を待たない・専用ブランチ `chore/tracker-<chat>-YYYYMMDD`）→ CLAUDE.md §7.4 + `worktree-policy` を行単位修正、dotfiles 側は task-tracker / lead-pipeline / role-engineer（Verdict をゲート別 PASS/FAIL 表へ）に追随。**DoD 4 つ目（確認プロンプトなしの実測）だけ merge + セッション再起動後に持ち越し**
-
 ## 予定
 
-### 🆕 スマホ実機で見つかった 3 本（2026-08-10 追加起票・**次セッションの先頭**）
+### 🆕 2026-08-10 /goal バッチの残件（分配済み — chat-main は巡回と判断回収）
 
-- **#631（ボトムタブバーの下までスクロールできる + pull-to-refresh 誤爆）を最初に片付ける**。原因は単位の不一致 = `web/src/index.css:32` の `body { min-height: 100vh }` と `AppShell.tsx:212` の `h-[100svh]`。モバイル Chrome では `100vh` が URL バー非表示時基準なので body だけ URL バー分高くなり、ドキュメントスクロールが生まれる。`overscroll-behavior: none` も `AppShell.tsx:213` の内側 div にしか無く、viewport のスクローラ（html / body）に無いので pull-to-refresh を止められていない。**触るのは 2 ファイルだけ**で、後続 2 本の実測前提になる
-- **#632（FAB の位置が画面ごとに揃わない）は #631 の後**。`fixed` はレイアウトビューポート基準なので、ドキュメントスクロールが残っていると「直ったか」を判定できない。実測差分 = Schedule `fixed bottom-6 right-6`（`CalendarTab.tsx:2236`）vs Notes `absolute bottom-5 right-5`（`NotesView.tsx:655`・クリアランスはスクローラ padding = #509）。基準もオフセットも別なので共通部品へ寄せる
-- **#633（Schedule 編集シートの上端がブラウザ UI に隠れる）**: `CalendarTab.tsx:2262` の `<BottomSheet>` だけ max-height も内部スクロールも渡していない（`NotesView.tsx:836` / `MobileTaskList.tsx:182` は `max-h-[92vh] min-h-[70vh] overflow-hidden` を渡している）。下端揃えのシートなので中身が高いと上端がビューポート外へ出る。**#628 と同一ファイルを触る**ので片方ずつ
-- 3 本とも 👀 実機（iPhone Chrome）目視が DoD に入る。`shared/src/components/BottomSheet.tsx` の共通挙動を変える場合だけ、着手前に Issue へコメント宣言する
-
-### 🆕 ユーザー要望から起票した 5 本（2026-08-10・#624 は実装済み）
-
-- **#628 → #627** の順に進める。**#628（Schedule 詳細に保存ボタン）で流儀を決め、それを雛形に Epic #627 が横展開する**という段構え。#627 の子 Issue は #628 が close してから chat-main が 1 面 1 本で起票する
-- **#625（Event⇄Todo 変換）と #628 はどちらも着手前にユーザー判断が要る**。#625 = 変換時に id を維持するか / 落ちるフィールドの扱い / routine occurrence の可否、#628 = 保存ボタンでのみ確定するか blur 保存を残すか。**Issue 本文に列挙済みなので、着手するレーンは判断キューへ積んでから実装に入る**（P-005）
-- **#623**（朝刊の + 追加導線）は `section:briefing`、**#626**（Todo のタグ付け外し）は `section:schedule`。どちらも既存部品の流用が前提（#623 = `ItemCreatePanel`、#626 = `TagPicker` / `TaskDetailPanel`）で、新しい生成 UI やタグ操作経路を作らないことを Issue に明記した
-- **#592**（Task→Todo 表記統一）は既存 open。残存は `shared/src/i18n/locales/{ja,en}.json` の schedule 系キーのみで、Work 画面と `.ts`/`.tsx` のハードコードは 2026-08-10 に実測して**追加分なし**を確認済み
+- ~~#631 / #633~~ **merged + 実ブラウザ実測 PASS**（2026-08-10。iPhone 目視のみ 👀 節に残す）。~~#592 / #593 / #626 / #573 / #572 / #590 / #591 / #589 / #587 / #588~~ も同日 merge・検証済み
+- **#632（FAB 統一）は mobile-refine 担当で着手可能** — #631 着地済み・実測差分（Notes `NotesMobileList.tsx:254` absolute vs Schedule fixed）を Issue コメント済み
+- **#628 → #627** の順は不変。**#628 / #625 は schedule-refine が判断キューへ積んだ状態** — 回答が付いたら実装再開、#628 close 後に #627 の子 Issue を chat-main が 1 面 1 本で起票
+- **briefing-refine（新設レーン）**: #585 / #623 / #609 を消化中。PR が出たら回収
+- **#586 の残り**: PR #649（TimerContext + 2 hooks）が open。**#680**（i18n 取りこぼし 3 点・2026-08-10 起票）は materials レーン宛
 
 ### 📋 Loop Engineering 続き（セッション 3 — 貼り付け用プロンプトは history の各セッションエントリ参照）
 
@@ -73,6 +66,8 @@
 
 > **2026-08-10 に判明: ユーザーは iPhone（Chrome）を実機として使える**。以下の「iOS 実機で」系はこれで測れる。iOS のブラウザは全て WebKit なので、Chrome で見れば描画エンジンとしては Safari と同じ経路
 
+- **#631 の実機分**（PR #635 merged・エミュレーションでは白黒つかない 2 点）: iPhone Chrome で URL バーの出入りを挟んでも本文がボトムタブバーの下へ潜らないこと / 引っ張って更新（pull-to-refresh）が誤爆しないこと
+- **#633 の実機分**（PR #637 merged）: Schedule の編集シートの上端がブラウザ UI に隠れず、シート内部がスクロールすること（エミュレーション実測は PASS 済み — max-height 776px / top 68）
 - **#512 コマンドパレットの上余白**（`sev:minor` / open）: iPhone でコマンドパレットを開き、**キーボード表示中に上端が safe-area（ノッチ / ステータスバー）へ潜らないか**。Android 実測は上端 inset ≈ 0 で反証にならず宙に浮いていた。踏まないなら NOT_PLANNED close してよい
 - **背の高いシート + ソフトキーボード**（#470 / PR #494 merged・mobile-refine から引き取り 2026-07-31）: iOS / Android 実機で、タスク詳細シート（`web/src/tasks/MobileTaskList.tsx` の `max-h-[92vh] / min-h-[70vh]`）のタイトル欄・本文を編集したときにカーソルがキーボードの裏に回らないか。`vh` はレイアウトビューポート基準でキーボード表示に追随しない。**iOS では `dvh` も縮まないので、憶測で差し替えず実測してから**（#471 の mobile notes フル編集も同型・直すなら両方まとめて）
 - **code-reduction 実測**（PR #341〜#351 merged・2026-07-25）: #348 = 主要画面に生 i18n キーが出ないこと（実ブラウザ）/ #351 = Analytics チャート・Kanban・Mobile タスクリスト・セグメントコントロールの見た目
