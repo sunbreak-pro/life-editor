@@ -49,10 +49,17 @@ export function TaskAddDialog({
   const [title, setTitle] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Reset to a clean form each time the dialog opens, then focus the title.
+  // Reset to a clean form on the open transition — adjusted during render so
+  // an abandoned draft never paints (#586).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setTitle("");
+  }
+
+  // Focus the title once the dialog has mounted its content.
   useEffect(() => {
     if (!open) return;
-    setTitle("");
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(raf);
   }, [open]);

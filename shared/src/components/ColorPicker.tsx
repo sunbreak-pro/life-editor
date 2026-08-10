@@ -91,10 +91,14 @@ export function ColorPicker({
   // wins race (the tag-color path is a network UPDATE per tick otherwise).
   const [customValue, setCustomValue] = useState(customSeed);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Re-seed when the committed color changes from outside (or on (re)open).
-  useEffect(() => {
+  // Re-seed when the committed color changes from outside (or on (re)open) —
+  // adjusted during render (the React "information from previous renders"
+  // pattern) so the stale value never paints (#586).
+  const [prevSeed, setPrevSeed] = useState(customSeed);
+  if (prevSeed !== customSeed) {
+    setPrevSeed(customSeed);
     setCustomValue(customSeed);
-  }, [customSeed]);
+  }
   // Flush any pending commit timer on unmount.
   useEffect(
     () => () => {
