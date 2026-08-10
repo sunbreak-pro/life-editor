@@ -2,6 +2,21 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-09 - main の未追跡資産を 2 PR に整理（Codex 対応を複製から参照へ・PR #610 / #611 merged）
+
+#### 概要
+
+main の作業ディレクトリに未追跡のまま残っていた 13 ファイルと、宙に浮いていた `chore/docs-sync-20260731` を整理した。未コミット分は計画書 1 本（#610）と Codex 対応（#611）に分割し、Codex 側は全文コピーだった初版を「参照」方式へ組み直した。両方 merge 済み・ブランチと一時 worktree は撤去済み。
+
+#### 変更点
+
+- **`chore/docs-sync-20260731` は PR を出さず削除**: 4 commit・docs 5 ファイルの中身が**すべて既に main にあり**、PR を出すと `2026-07-14-schedule-redesign.md` と `memory/chat-main.md` を古い版へ巻き戻す差分になった（main は Step 5-c 完了まで進んでいたのにブランチは Step 6 止まり）。three-dot diff だけ見ると 97 insertions の正当な差分に見えるので、**two-dot で「ブランチ側にしかない行」を数えて 0 と 12 行の巻き戻しであることを確認**してから判断した
+- **PR #610（計画書）**: `2026-08-03-open-issue-fanout-r3.md` 313 行を追加。docs-lint が**新しい検査 (e)** で落ちた — pull で入った記録グラフ層（`.claude/INDEX.md` + `records.mjs`）により、plans/ を触った PR は `node .claude/scripts/records.mjs index` を同一 PR に含める必要がある。ローカル検証を Codex 側ブランチで回していたため見落とした（**plans/ を触る PR では lint を必ずそのブランチで回す**）
+- **PR #611（Codex 対応）**: 初版は `CLAUDE.md` / skills / hooks の全文コピーで、**発見時点で既に原本 5 コミット分ズレていた**（`.claude/hooks/*.sh` は hooks-lib 分離済み・`docs-workflow/SKILL.md` も更新済み）。加えて「Claude」→「Codex」の一括置換が固有名詞まで巻き込み、`.Codex/rules/` 等の実在しないパス・ブランチ名 `Codex/<slug>`・「**Codex** API 直課金」・「**Codex** 本体の SSE バグ」が生まれていた（`${CLAUDE_PROJECT_DIR}` は置換漏れで残存）
+- **参照方式への再設計**: 実体は `.claude/` 側 1 つだけを保ち、Codex 側は入口のみ。`hooks.json` は `.claude/hooks/*.sh` を **git ルート相対**で呼ぶ（初版は `C:\Users\user\...` の絶対パス直書きで他マシン・worktree では動かなかった）。副次的に**バグが 1 つ消えた** — `.claude/hooks/*.sh` は `$(dirname $0)/..` から vendor 実装を探すため、`.codex/hooks/` に置いたコピーからだと `.codex/scripts/hooks-lib/` を見にいって外していた
+- **仕様の裏取り**（公式ドキュメント）: スキルは **`.agents/skills/`** から探される（`.codex/skills/` ではない・`$CWD` から repo root まで遡る）／ hooks は `<repo>/.codex/hooks.json` が読まれ、コマンドは**セッションの cwd** で走るため絶対パスか git ルート相対が推奨（公式例が `$(git rev-parse --show-toplevel)`）
+- **スキルを 4 本に絞った根拠**: `.claude/skills/` 17 個のうち 8 個はシンボリックリンクで、**Windows では実体化せずリンク先パスが書かれただけのテキストになっている**（`file` で確認）。残る実体 9 本のうち `loop-*` 5 本は Claude Code のスラッシュコマンド前提。差し引き 4 本
+
 ### 2026-08-06 - Loop Engineering Phase 2 の文書整備（夜の実装レーンを薄い殻へ・PR #597 merged `5161a9a1`）
 
 #### 概要

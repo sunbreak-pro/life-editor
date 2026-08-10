@@ -6,6 +6,8 @@ import {
   addDaysKey,
   seedFrequencyPatch,
   runSeriesEdit,
+  seriesPropagatableFields,
+  touchesSeries,
   useInFlightGuard,
   type FrequencyEditorValue,
   type RepeatScope,
@@ -274,27 +276,35 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     [patchRange, updateScheduleItem],
   );
 
-  // Field edits route through here. A routine-derived occurrence with a
-  // series-propagatable patch (title / times, never date or memo — the
-  // routine template has neither a concrete date nor a memo) parks the patch
-  // in the scope dialog (#279); everything else applies to the single row.
-  //
-  // #469: an all-day flip is occurrence-level for the same reason a date move
-  // is — the routine template has no isAllDay to propagate one to. It carries
-  // times along when it turns OFF (the host restores usable ones), and without
-  // this guard that pairing would be mistaken for a time edit and open the
-  // scope dialog for a change no scope applies to.
+  /*
+   * Field edits route through here. A routine-derived occurrence whose patch
+   * touches anything the template also holds (title / times) parks the WHOLE
+   * patch in the scope dialog (#279); everything else applies to the single
+   * row. Which fields count — and why an all-day flip disqualifies the times
+   * it drags along (#469) — lives in `seriesPropagatableFields`.
+   *
+   * #628: the patch may now be a batched save carrying both halves at once
+   * (retitle + move the day in one press). It goes into the dialog WHOLE, not
+   * split into "apply the day now, ask about the title after":
+   *
+   *   - a cancelled dialog would otherwise leave half the save committed, with
+   *     the undo history split across two entries, and
+   *   - the day is what the "this and later" scope anchors on, so the anchor
+   *     has to be the day the user is moving the row TO.
+   *
+   * Hence the snapshot below carries the patched date. Everything else on it
+   * is read as-is (`id`, `routineId`), and the occurrence write in
+   * handleScopeChoose applies the full patch in every scope.
+   */
   const handleUpdate = useCallback(
     (id: string, patch: Partial<ScheduleItem>) => {
       const item = findScheduleItem(id);
-      const propagatable =
-        patch.date === undefined &&
-        patch.isAllDay === undefined &&
-        (patch.title !== undefined ||
-          patch.startTime !== undefined ||
-          patch.endTime !== undefined);
-      if (item?.routineId && propagatable) {
-        setScopeRequest({ mode: "edit", item, patch });
+      if (item?.routineId && touchesSeries(patch)) {
+        setScopeRequest({
+          mode: "edit",
+          item: { ...item, date: patch.date ?? item.date },
+          patch,
+        });
         return;
       }
       applyOccurrencePatch(id, patch);
@@ -828,14 +838,10 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           applyOccurrencePatch(req.item.id, patch);
           return;
         }
-        const updates: {
-          title?: string;
-          startTime?: string;
-          endTime?: string;
-        } = {};
-        if (patch.title !== undefined) updates.title = patch.title;
-        if (patch.startTime !== undefined) updates.startTime = patch.startTime;
-        if (patch.endTime !== undefined) updates.endTime = patch.endTime;
+        // Same rule that decided to ask in the first place (see handleUpdate),
+        // so the template can never receive a field the question did not cover
+        // — e.g. the fallback span an all-day flip drags along.
+        const updates = seriesPropagatableFields(patch);
         // The PRE-edit template identifies never-individually-edited rows —
         // manual edits win over the series edit (tier-1 §Schedule rule 2).
         const template = {

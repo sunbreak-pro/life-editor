@@ -29,6 +29,8 @@ export {
   type EventEditorPaneProps,
   type EventEditorItem,
   type EventEditorLabels,
+  // #628: the one patch the save button hands the host.
+  type EventEditorPatch,
 } from "./EventEditorPane";
 export {
   RoutineSummaryCard,

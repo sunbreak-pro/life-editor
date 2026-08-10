@@ -15,16 +15,49 @@ import {
   type FrequencyEditorLabels,
 } from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
-import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
+import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING,
+  FOCUS_RING_TIGHT,
+} from "../styleTokens";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
- * Desktop right pane and the Mobile detail sheet. Pure presentation (§3.1 /
+ * Desktop detail overlay and the Mobile detail sheet. Pure presentation (§3.1 /
  * §6.4): copy injected already translated, every mutation is a callback.
- * Title + memo are commit-on-blur local drafts (Enter blurs; IME composition
- * is respected). The start/end pair is the shared <TimeRangeField> (#553),
- * which keeps #279's rule — complete values, one commit per gesture — while
- * owning the start<end invariant. lumen-* tokens only (§5).
+ * lumen-* tokens only (§5).
+ *
+ * SAVE BUTTON (#628, Epic #627 段階 1 — ユーザー裁定 D-20260810-sched-1 = A).
+ * Every field on this pane is a DRAFT and nothing reaches the host until the
+ * save button is pressed. Blur writes nothing. That replaces the commit-on-blur
+ * model this pane shipped with, where:
+ *
+ *   - "not committed yet" was invisible, and
+ *   - Esc / a backdrop click threw some edits away and kept others (the date
+ *     had an unmount flush, the rest did not), with no way to tell which.
+ *
+ * The date's unmount flush is RETIRED with that model rather than kept: it
+ * existed only to rescue a blur-committed field from a dismissal that fires no
+ * blur, and under "the button is the only commit" it would be a second, silent
+ * write path — exactly the double-write the issue set out to remove. Losing an
+ * unsaved draft on close is now the host's problem instead: it reads `dirty`
+ * through `onDirtyChange` and confirms before it closes.
+ *
+ * ONE write per save (#553 / #279). The button hands the host a single patch of
+ * everything that changed, so a routine occurrence's this/future/all scope
+ * dialog is asked once no matter how many fields moved. The start/end pair is
+ * still the shared <TimeRangeField>, which owns the start<end invariant; it now
+ * writes into the draft instead of straight through to the host.
+ *
+ * NOT drafted, and deliberately so: the completion toggle, Dismiss / Delete,
+ * and the repeat section. The first three are discrete acts rather than field
+ * edits (nothing about them is "half typed"), and the repeat section edits the
+ * SERIES — a different row, written through the host's conversion guard (#407 /
+ * #434) with its own in-flight lock. Folding a series conversion into this
+ * button would put an async, failure-prone write behind a control that promises
+ * "saved", so it stays where it is.
  *
  * Issue 017 (routine ghost-revival): a routine-generated item is never
  * hard/soft-deleted as a single row — deleting it lets the generator revive
@@ -59,6 +92,21 @@ export interface EventEditorItem {
   isRoutine: boolean;
 }
 
+/**
+ * What one press of the save button changes (#628). Only the fields that
+ * actually moved are present, and start/end always travel together — the pair
+ * is one value (#553), and a host that received half of it would have to guess
+ * the other half.
+ */
+export interface EventEditorPatch {
+  title?: string;
+  date?: string;
+  isAllDay?: boolean;
+  startTime?: string;
+  endTime?: string;
+  memo?: string;
+}
+
 export interface EventEditorLabels {
   complete: string;
   /** Already-translated status-tag labels (#222). */
@@ -72,6 +120,12 @@ export interface EventEditorLabels {
   endTime: string;
   memo: string;
   memoPlaceholder?: string;
+  /** Primary action — "保存" (#628). */
+  save: string;
+  /** Shown beside the button while nothing is pending — "保存済み" (#628). */
+  saved: string;
+  /** Shown beside the button while a draft is pending — "未保存" (#628). */
+  unsaved: string;
   /**
    * Shown on a routine occurrence: says that title / time edits ask which part
    * of the series to apply to, while the day and the all-day switch only ever
@@ -93,34 +147,38 @@ export interface EventEditorPaneProps {
   item: EventEditorItem;
   /** Extra origin detail appended to the routine chip (e.g. "月・水・金"). */
   originDetail?: string;
-  onCommitTitle: (id: string, title: string) => void;
   /**
-   * Move the occurrence to another day (#469). Omit to render the date as
-   * read-only. Unlike the times this never propagates to a series — the routine
-   * template has no concrete date — so the host applies it to this row alone.
+   * Commit the pending draft (#628). Fires only from the save button (or Enter
+   * in a single-line field), only when something changed, and exactly ONCE per
+   * press carrying every changed field — a routine occurrence's scope dialog
+   * (#279) must not be asked twice for one gesture (#553).
    */
-  onChangeDate?: (id: string, date: string) => void;
+  onSave: (id: string, patch: EventEditorPatch) => void;
   /**
-   * Flip all-day (#469). Omit to hide the switch. Turning it OFF has to hand
-   * the row usable times back, so the host (not this pane) decides the
-   * fallback: an all-day row may carry no start/end at all.
+   * Report whether an unsaved draft is pending. The host owns the close
+   * affordances (Esc, backdrop, close button, sheet dismissal) and is the only
+   * place that can ask "discard?" before one of them throws the draft away.
+   * Fires with `false` on unmount so a host holding this in a ref cannot be
+   * left believing a torn-down editor is still dirty.
    */
-  onToggleAllDay?: (id: string, next: boolean) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   /**
-   * Commit a complete start–end pair (#553). ONE write per gesture: the
-   * TimeRangeField owns the range invariant and may move both ends at once
-   * (dragging the start carries the end along), and two separate writes would
-   * ask a routine occurrence's scope dialog twice. #279's rule still holds —
-   * values arrive complete (blur / Enter / list pick), never per keystroke.
+   * Allow moving the occurrence to another day (#469). False/omitted renders
+   * the date read-only. Unlike the times this never propagates to a series —
+   * the routine template has no concrete date — so the host applies it to this
+   * row alone.
    */
-  onChangeTimes: (
-    id: string,
-    patch: { startTime: string; endTime: string },
-  ) => void;
+  canEditDate?: boolean;
+  /**
+   * Show the all-day switch (#469). Turning it OFF has to hand the row usable
+   * times back (an all-day row may carry none at all); the draft fills them in
+   * from the shared `timedSpanForAllDayOff` helper, so the saved patch always
+   * carries a renderable span.
+   */
+  canEditAllDay?: boolean;
   /** Formats the duration suffix on the end options (#553). */
   formatDuration?: (minutes: number) => string;
   onToggleComplete: (id: string) => void;
-  onChangeMemo: (id: string, memo: string) => void;
   /** Skip this occurrence (routine-generated items only). */
   onDismiss?: (id: string) => void;
   /**
@@ -159,19 +217,89 @@ export interface EventEditorPaneProps {
   className?: string;
 }
 
-/** Inner fields, keyed by item.id + isAllDay from the pane so a selection
- *  change — or an all-day flip, which has the host rewrite start/end — reseeds
- *  the commit-on-blur drafts cleanly. */
+/** Every field the save button commits, held locally until it is pressed. */
+interface EventEditorDraft {
+  title: string;
+  date: string;
+  isAllDay: boolean;
+  startTime: string;
+  endTime: string;
+  memo: string;
+}
+
+/**
+ * The fields the user has actually touched. Everything absent here keeps
+ * following the item.
+ *
+ * A draft seeded once and then left alone would turn every EXTERNAL change into
+ * a fake pending edit: Realtime (or the same account on a phone) rewrites the
+ * row, the pane goes on showing the values from when it opened, the button
+ * lights up claiming they are unsaved — and pressing it pushes the stale values
+ * back over the remote ones. Overlaying only what was typed keeps untouched
+ * fields live, so a remote change lands in front of the user instead of being
+ * quietly reverted by them.
+ */
+type EventEditorEdits = Partial<EventEditorDraft>;
+
+function draftFromItem(item: EventEditorItem): EventEditorDraft {
+  return {
+    title: item.title,
+    date: item.date,
+    isAllDay: item.isAllDay,
+    startTime: item.startTime,
+    endTime: item.endTime,
+    memo: item.memo,
+  };
+}
+
+/**
+ * What the save button would write — and, by being empty, whether there is
+ * anything to write at all. Dirty state and the payload come from this ONE
+ * function on purpose: derive them separately and the button eventually lights
+ * up for a change it then declines to send (#434 S-1 — no control that is
+ * pressable and does nothing).
+ */
+function buildPatch(
+  item: EventEditorItem,
+  draft: EventEditorDraft,
+): EventEditorPatch {
+  const patch: EventEditorPatch = {};
+  if (draft.title !== item.title) patch.title = draft.title;
+  // A cleared date input reports "" — never save that as a day. Mid-typing it
+  // is a normal state (the field empties itself while a segment is rewritten),
+  // so the pane also puts the stored day back on blur rather than leaving the
+  // screen and the state disagreeing.
+  if (draft.date && draft.date !== item.date) patch.date = draft.date;
+  if (draft.isAllDay !== item.isAllDay) patch.isAllDay = draft.isAllDay;
+  // One complete pair (#553): the TimeRangeField may move both ends at once,
+  // so either side moving sends both.
+  if (draft.startTime !== item.startTime || draft.endTime !== item.endTime) {
+    patch.startTime = draft.startTime;
+    patch.endTime = draft.endTime;
+  }
+  if (draft.memo !== item.memo) patch.memo = draft.memo;
+  return patch;
+}
+
+const SAVE_BTN = cn(
+  "rounded-lumen-md bg-lumen-accent px-4 py-2 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
+  FOCUS_RING,
+  "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+);
+
+/** Inner fields, keyed by item.id from the pane so a selection change drops
+ *  the pending edits cleanly. (The all-day flip used to be part of that key;
+ *  since #628 it is a draft field of its own, and remounting on it would throw
+ *  the rest of the pending edits away.) */
 function EventEditorFields({
   item,
   originDetail,
-  onCommitTitle,
-  onChangeDate,
-  onToggleAllDay,
-  onChangeTimes,
+  onSave,
+  onDirtyChange,
+  canEditDate,
+  canEditAllDay,
   formatDuration,
   onToggleComplete,
-  onChangeMemo,
   onDismiss,
   onDelete,
   labels,
@@ -183,16 +311,28 @@ function EventEditorFields({
   onDetachRepeat,
   tagSlot,
 }: Omit<EventEditorPaneProps, "className">) {
-  const [titleDraft, setTitleDraft] = useState(item.title);
-  const [memoDraft, setMemoDraft] = useState(item.memo);
-  // #469 follow-up: the date is a draft too. It shipped as commit-on-change on
-  // the theory that a date input only reports complete values — true, but it
-  // reports one per SEGMENT STEP: holding ↑ on the day field wrote a row (and
-  // an undo entry) per press, and typing a year passed through the years 2, 20
-  // and 202 on the way to 2026. What made blur unsafe for a date was Esc
-  // closing the overlay without one; the unmount flush below covers that
-  // instead.
-  const [dateDraft, setDateDraft] = useState(item.date);
+  const [edits, setEdits] = useState<EventEditorEdits>({});
+  // Live item underneath, the user's own edits on top (see EventEditorEdits).
+  const draft: EventEditorDraft = { ...draftFromItem(item), ...edits };
+  const patch = buildPatch(item, draft);
+  const dirty = Object.keys(patch).length > 0;
+
+  // Tell the host about the pending draft so its close affordances can confirm
+  // first. The ref keeps the unmount report from pinning a stale callback (and
+  // from forcing every host to memoise the prop); refreshing it in an effect
+  // rather than during render is what `react-hooks/refs` asks for — a render
+  // React throws away must not leave a write behind.
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  });
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+  // Unmount clears the flag: the draft dies with the component, so a host that
+  // parked `dirty` in a ref must not go on guarding a pane that no longer
+  // exists (the next open would confirm before it had anything to discard).
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
   // The repeat section renders only when the host fully wires it (labels +
   // weekday labels + change handler). Existing hosts/tests that omit it keep
@@ -212,43 +352,62 @@ function EventEditorFields({
     </div>
   ) : null;
 
-  const commitTitle = () => {
-    if (titleDraft !== item.title) onCommitTitle(item.id, titleDraft);
+  const save = () => {
+    if (!dirty) return;
+    onSave(item.id, patch);
   };
-  const commitMemo = () => {
-    if (memoDraft !== item.memo) onChangeMemo(item.id, memoDraft);
-  };
-  // A cleared date input reports "" — never commit that as a day.
-  const commitDate = () => {
-    if (dateDraft && dateDraft !== item.date)
-      onChangeDate?.(item.id, dateDraft);
-  };
-  // Flush the date on unmount: the overlay/sheet can be dismissed with Esc or a
-  // backdrop click, and neither is guaranteed to blur the input first. The ref
-  // keeps the effect's cleanup from capturing a stale draft (an empty dep list
-  // is what makes it fire exactly once, on unmount). Refreshing it in an effect
-  // rather than during render keeps `react-hooks/refs` satisfied — a render that
-  // React throws away must not leave a write behind.
-  const commitDateRef = useRef(commitDate);
-  useEffect(() => {
-    // Braces are load-bearing: the concise form would return the assigned
-    // function, React would take it for a cleanup, and the flush would fire
-    // twice on unmount (two rows, two undo entries).
-    commitDateRef.current = commitDate;
-  });
-  useEffect(() => () => commitDateRef.current(), []);
-  const blurOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    // IME guard: do not treat a composition-confirming Enter as commit.
+
+  // Enter in a single-line field saves rather than blurs. Blur no longer
+  // commits anything (#628), so the old "Enter blurs to commit" would have left
+  // the key doing nothing visible at all.
+  const saveOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    // IME guard: do not treat a composition-confirming Enter as a save.
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      e.currentTarget.blur();
+      save();
     }
+  };
+
+  const edit = (patch: EventEditorEdits) =>
+    setEdits((prev) => ({ ...prev, ...patch }));
+
+  const toggleAllDay = () => {
+    if (!draft.isAllDay) {
+      edit({ isAllDay: true });
+      return;
+    }
+    // Turning it OFF has to hand back a usable span: a row created as all-day
+    // can carry no times at all, and a blank start leaves it unrenderable on
+    // the time grid. Same shared helper the host used to call.
+    const span = timedSpanForAllDayOff(draft.startTime, draft.endTime);
+    edit({
+      isAllDay: false,
+      startTime: span.startTime,
+      endTime: span.endTime,
+    });
+  };
+
+  // A cleared date input reports "" — the save ignores it (there is no such
+  // day), so leaving the field blank would show one thing and mean another,
+  // with the button insisting everything is saved. Dropping the edit puts the
+  // stored day back on screen, which is what the pane is actually holding.
+  const restoreClearedDate = () => {
+    if (draft.date) return;
+    setEdits((prev) => {
+      const next = { ...prev };
+      // Dropping the key (rather than writing item.date into it) is what puts
+      // the field back under the item, so a later remote change still reaches
+      // it.
+      delete next.date;
+      return next;
+    });
   };
 
   return (
     <div className="flex flex-col gap-3.5">
       {/* Completion — the status tag (#222) doubles as the toggle. Clicking
-          flips completed; the derived status paints the tag. */}
+          flips completed; the derived status paints the tag. Not part of the
+          draft: it is an act, not a field (#628). */}
       <button
         type="button"
         aria-pressed={item.completed}
@@ -267,10 +426,9 @@ function EventEditorFields({
       <label className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.title}</span>
         <input
-          value={titleDraft}
-          onChange={(e) => setTitleDraft(e.target.value)}
-          onBlur={commitTitle}
-          onKeyDown={blurOnEnter}
+          value={draft.title}
+          onChange={(e) => edit({ title: e.target.value })}
+          onKeyDown={saveOnEnter}
           aria-label={labels.title}
           className={FIELD}
         />
@@ -278,33 +436,33 @@ function EventEditorFields({
 
       {/* Date + all-day (#469). Before this the day could only be changed by
           dragging the item across the grid, which is impossible for a day the
-          grid is not showing. Commit-on-blur like the fields above, plus an
-          unmount flush (see commitDate) — a date input steps its value once per
-          segment press, so committing on change wrote a row per keypress. */}
+          grid is not showing. A date input steps its value once per segment
+          press, which is why it was never committed on change; since #628 no
+          field is, and both live in the draft until the save button. */}
       <div className="flex items-end gap-2">
         <label className="flex flex-1 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
             type="date"
-            value={dateDraft}
-            readOnly={!onChangeDate}
-            onChange={(e) => setDateDraft(e.target.value)}
-            onBlur={commitDate}
-            onKeyDown={blurOnEnter}
+            value={draft.date}
+            readOnly={!canEditDate}
+            onChange={(e) => edit({ date: e.target.value })}
+            onBlur={restoreClearedDate}
+            onKeyDown={saveOnEnter}
             aria-label={labels.date}
             className={cn(FIELD, "tabular-nums")}
           />
         </label>
-        {onToggleAllDay && (
+        {canEditAllDay && (
           <button
             type="button"
             role="switch"
-            aria-checked={item.isAllDay}
-            onClick={() => onToggleAllDay(item.id, !item.isAllDay)}
+            aria-checked={draft.isAllDay}
+            onClick={toggleAllDay}
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-sm font-medium transition-colors",
               FOCUS_RING_TIGHT,
-              item.isAllDay
+              draft.isAllDay
                 ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
                 : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
             )}
@@ -318,16 +476,14 @@ function EventEditorFields({
           rather than disabled: the switch that hides them keeps the focus, and
           a locked pair of inputs would leave the times looking authoritative
           while the row ignores them. The pair is the shared TimeRangeField
-          (#553): typed entry + snapped lists, one combined commit. */}
-      {!item.isAllDay && (
+          (#553): typed entry + snapped lists, one combined value — now written
+          into the draft instead of straight to the host. */}
+      {!draft.isAllDay && (
         <TimeRangeField
-          start={item.startTime}
-          end={item.endTime}
+          start={draft.startTime}
+          end={draft.endTime}
           onChange={(next) =>
-            onChangeTimes(item.id, {
-              startTime: next.start,
-              endTime: next.end,
-            })
+            edit({ startTime: next.start, endTime: next.end })
           }
           labels={{ start: labels.startTime, end: labels.endTime }}
           formatDuration={formatDuration}
@@ -390,9 +546,8 @@ function EventEditorFields({
       <label className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.memo}</span>
         <textarea
-          value={memoDraft}
-          onChange={(e) => setMemoDraft(e.target.value)}
-          onBlur={commitMemo}
+          value={draft.memo}
+          onChange={(e) => edit({ memo: e.target.value })}
           placeholder={labels.memoPlaceholder}
           aria-label={labels.memo}
           className={cn(FIELD, "min-h-[72px] resize-y")}
@@ -413,6 +568,31 @@ function EventEditorFields({
           {labels.delete}
         </button>
       )}
+
+      {/* Save footer (#628) — the only commit. Disabled while there is nothing
+          to write (#434 S-1: a control that is pressable and does nothing is
+          worse than one that is visibly off), with the state spelled out beside
+          it so "why can I not press this" has an answer on screen rather than
+          only in the button's opacity. */}
+      <div className="flex items-center justify-end gap-3 border-t border-lumen-border pt-3">
+        <span
+          aria-live="polite"
+          className={cn(
+            "text-xs",
+            dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
+          )}
+        >
+          {dirty ? labels.unsaved : labels.saved}
+        </span>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty}
+          className={SAVE_BTN}
+        >
+          {labels.save}
+        </button>
+      </div>
     </div>
   );
 }
@@ -425,16 +605,11 @@ export function EventEditorPane({ className, ...rest }: EventEditorPaneProps) {
         className,
       )}
     >
-      {/* isAllDay in the key (#469 follow-up): the title/memo/date drafts are
-          seeded from props only, so a selection change or an all-day flip
-          reseeds them via the remount. (#553 moved the times off drafts — the
-          TimeRangeField reads props directly — but the flip still rewrites
-          start/end on the host side, and the remount keeps every draft
-          honest.) */}
-      <EventEditorFields
-        key={`${rest.item.id}:${rest.item.isAllDay}`}
-        {...rest}
-      />
+      {/* Keyed on the id alone: pending edits belong to the row they were typed
+          against, so switching rows has to drop them via a remount. (#628
+          dropped isAllDay from the key — the flip is a draft field now, and
+          remounting on it would discard whatever else was pending.) */}
+      <EventEditorFields key={rest.item.id} {...rest} />
     </div>
   );
 }

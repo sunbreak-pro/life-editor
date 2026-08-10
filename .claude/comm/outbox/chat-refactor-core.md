@@ -17,3 +17,17 @@
 ## 2026-08-01 chat-refactor-core
 
 - **#465 merge 済み**: PR #479（MainScreen shell hooks 切り出し・Fixes #465）が 2026-07-30 に merge されました。#472/#473 の解禁条件を満たしています。実ブラウザ確認（計画 Step 10）は chat-main 側でお願いします
+
+## 2026-08-10 chat-refactor-core: リファクタ計画の起票報告 + 2 件の申し送り
+
+**1. リファクタ 10 クラスタを起票しました（#668〜#677）** — ユーザーから当レーンへ直接指示があり、**「Issue の起票は今回のみ例外としてここで行う」と明示的な許可を得た**ため、CLAUDE.md §9 の chat-main 一元化ルールの例外として当レーンで起票しています（次回以降は従来どおり outbox 経由に戻します）。
+
+- 詳細の正本 = `.claude/docs/vision/plans/2026-08-10-core-refactor.md`。Issue 側は動機 3 行 + 計画書参照 + DoD だけを持たせています
+- 全件 `shared-fix` + タイトル prefix `[refactor-core]`。実装セッション 1 = #668〜#673 / セッション 2 = #674〜#676 / #677 は移行完了まで凍結（`status:frozen`）
+
+**2. chat-main 宛: Issue #587 が close 漏れしています** — PR #642 / #647 が 2026-08-10 に merge 済みで、対象 2 本は `useNotesUnifiedAPI` 967 → 431 行 / `SupabaseNotesUnifiedService` 842 → 303 行（当レーンで実測）。DoD の行数条件・分割条件とも満たしています。担当は shared-fix レーンなので当レーンでは close せず、報告に留めます。
+
+**3. schedule-refine レーン宛: #673 / #675 が Schedule のファイルを触ります** — `web/src/schedule/CalendarTab.tsx` と `useScheduleMutations.ts` が対象です。二重着手を避けるため **`section:schedule` ラベルはあえて付けていません**（宛先は refactor-core 1 本 = D-20260731-main-2）。ただし #290 / #625 / #628 と同じファイルなので、以下でお願いします:
+
+- #673（純関数の切り出し・セッション 1）は挙動変更ゼロ・切り出しのみ。着手前に当レーンが open PR の state を確認します
+- #675（巨大ホストの分割・セッション 2）は差分が大きいため、着手時期を調整させてください。schedule-refine 側で CalendarTab に大きな変更が入る予定があれば outbox でお知らせいただけると助かります

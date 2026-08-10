@@ -18,11 +18,7 @@
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
-| D-20260810-sched-1 | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | schedule-refine |
-| D-20260810-sched-2 | #625 変換で id を維持するか、新規作成するか | schedule-refine |
-| D-20260810-sched-3 | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | schedule-refine |
-| D-20260810-sched-4 | #625 Todo → Event のステータスと親子関係の扱い | schedule-refine |
-| D-20260810-sched-5 | #625 routine 由来アイテムの変換可否 | schedule-refine |
+| D-20260810-refactor-1 | ルーチンの Undo/Redo を繋ぐか、コードを消すか | refactor-core |
 
 ## Active（現在有効な裁定 — superseded-by なし）
 
@@ -55,6 +51,11 @@
 | [D-20260810-main-1](./D-20260810-main-1.md) | END の task-tracker をいつ実行するか（verifier 直後 / 実装 PR の merge 後） | A | 2026-08-10 | harness, task-tracker, workflow, autonomy |
 | [D-20260810-main-2](./D-20260810-main-2.md) | プロジェクト固有スキル / エージェントの実体をどこに置くか | A | 2026-08-10 | harness, skills, agents, portability, windows |
 | [D-20260810-main-4](./D-20260810-main-4.md) | #607 の修正を「触らない」宣言済みの `useNotesUnifiedAPI.ts` に入れるか | A | 2026-08-10 | notes, sync, mobile, scope, shared-fix |
+| [D-20260810-sched-1](./D-20260810-sched-1.md) | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | A | 2026-08-10 | schedule, editor-pane, save-model |
+| [D-20260810-sched-2](./D-20260810-sched-2.md) | #625 変換で id を維持するか、新規作成するか | A | 2026-08-10 | schedule, role-conversion, data-model |
+| [D-20260810-sched-3](./D-20260810-sched-3.md) | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | A | 2026-08-10 | schedule, role-conversion, data-loss |
+| [D-20260810-sched-4](./D-20260810-sched-4.md) | #625 Todo → Event のステータスと親子関係の扱い | A | 2026-08-10 | schedule, role-conversion, task-tree |
+| [D-20260810-sched-5](./D-20260810-sched-5.md) | #625 routine 由来アイテムの変換可否 | A | 2026-08-10 | schedule, role-conversion, routine |
 
 ## Superseded / Withdrawn
 
@@ -74,13 +75,15 @@
 - calendar-lens: D-20260801-sched-1
 - context-cost: D-20260806-main-2 / D-20260806-main-3
 - cross-platform: D-20260607-main-1
-- data-model: D-20260711-main-1
+- data-loss: D-20260810-sched-3
+- data-model: D-20260711-main-1 / D-20260810-sched-2
 - database: D-20260704-main-1
 - dead-code: D-20260728-main-2
 - decision-ledger: D-20260809-main-1
 - design-tracking: D-20260730-tags-1
 - distribution: D-20260807-main-1
 - docs: D-20260730-tags-1 / D-20260801-main-2 / D-20260809-main-1
+- editor-pane: D-20260810-sched-1
 - file-explorer: D-20260704-main-1
 - global-assets: D-20260806-main-2 / D-20260806-main-3
 - graph-layer: D-20260809-main-1
@@ -105,9 +108,11 @@
 - refactor: D-20260728-main-2
 - requirements: D-20260723-main-1
 - retire: D-20260705-main-1 / D-20260708-main-1
-- routine: D-20260711-main-1
+- role-conversion: D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
+- routine: D-20260711-main-1 / D-20260810-sched-5
 - routing: D-20260731-main-1 / D-20260731-main-2
-- schedule: D-20260711-main-1 / D-20260731-main-1 / D-20260801-sched-1
+- save-model: D-20260810-sched-1
+- schedule: D-20260711-main-1 / D-20260731-main-1 / D-20260801-sched-1 / D-20260810-sched-1 / D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
 - scope: D-20260806-main-2 / D-20260810-main-4
 - scope-cut: D-20260704-main-1 / D-20260705-main-1 / D-20260728-main-3
 - shared-fix: D-20260731-main-2 / D-20260810-main-4
@@ -117,6 +122,7 @@
 - status-enum: D-20260801-main-2
 - sync: D-20260731-tags-2 / D-20260731-tags-3 / D-20260810-main-4
 - task-tracker: D-20260810-main-1
+- task-tree: D-20260810-sched-4
 - tasks: D-20260728-main-3
 - terminal: D-20260705-main-1
 - touch: D-20260730-mobile-1
