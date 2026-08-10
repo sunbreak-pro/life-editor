@@ -2,6 +2,8 @@
 
 > 自分の判断待ちのみ append（新しいものを上に）。回答は `ANSWERS.md` を参照。
 
+（回答済み 3 件は 2026-08-09 に `.claude/decisions/` 台帳へ昇格済み — D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3。台帳化とキューからの除去は chat-main が代行した）
+
 ### D-20260810-mobile-2: 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか
 
 - 背景: #589 の実測。目標列が Consumption の 2 行が、実際はモバイルからも書き込める。**#1 briefing** = 予定 / Todo / 持ち越しの完了トグル（`shared/src/components/briefing/BriefingView.tsx:330,384,461`）と夕刊の気分★（`EveningView.tsx:195`）。**#4 schedule** = 行タップで開く編集シート（`web/src/schedule/CalendarTab.tsx:2262` ← `:1498`）・FAB の新規作成・完了トグル。いずれも #168 / #249 / #266 / #274 由来で、スコープ表を書いた 2026-07-23 時点から同じ配線（**退行ではない**）
