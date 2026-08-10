@@ -17,6 +17,11 @@
 | D-20260810-main-3 | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | main |
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
+| D-20260810-sched-1 | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | schedule-refine |
+| D-20260810-sched-2 | #625 変換で id を維持するか、新規作成するか | schedule-refine |
+| D-20260810-sched-3 | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | schedule-refine |
+| D-20260810-sched-4 | #625 Todo → Event のステータスと親子関係の扱い | schedule-refine |
+| D-20260810-sched-5 | #625 routine 由来アイテムの変換可否 | schedule-refine |
 
 ## Active（現在有効な裁定 — superseded-by なし）
 
