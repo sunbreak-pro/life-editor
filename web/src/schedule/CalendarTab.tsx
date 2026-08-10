@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -67,6 +67,7 @@ import {
   type SegmentedOption,
   type StatusFilterChip,
   type DataService,
+  MobileFab,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
 import { TagPicker } from "../wikitag/TagPicker";
@@ -2168,75 +2169,78 @@ export function CalendarTab({
   return (
     <>
       {sidebarPortal}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
-        <div className="flex shrink-0 items-center gap-2">
-          <RightSidebarToggle
-            variant="hamburger"
-            openLabel={t("scheduleScreen.openMenu")}
-            closeLabel={t("scheduleScreen.closeMenu")}
-          />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
-            {periodLabel}
-          </span>
-          <div className="flex gap-1">
+      {/*
+       * #632: the FAB anchors to THIS wrapper, not the viewport. It has to be
+       * padding-free and span the section box — see MobileFab's host contract.
+       * The inner div keeps the gutter so the list still lines up.
+       */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
+          <div className="flex shrink-0 items-center gap-2">
+            <RightSidebarToggle
+              variant="hamburger"
+              openLabel={t("scheduleScreen.openMenu")}
+              closeLabel={t("scheduleScreen.closeMenu")}
+            />
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
+              {periodLabel}
+            </span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                aria-label={t("scheduleScreen.prev")}
+                onClick={() => step(-1)}
+                className={ICON_BTN}
+              >
+                <ChevronLeft aria-hidden className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={t("scheduleScreen.next")}
+                onClick={() => step(1)}
+                className={ICON_BTN}
+              >
+                <ChevronRight aria-hidden className="size-4" />
+              </button>
+            </div>
             <button
               type="button"
-              aria-label={t("scheduleScreen.prev")}
-              onClick={() => step(-1)}
-              className={ICON_BTN}
+              onClick={goToday}
+              className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
             >
-              <ChevronLeft aria-hidden className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={t("scheduleScreen.next")}
-              onClick={() => step(1)}
-              className={ICON_BTN}
-            >
-              <ChevronRight aria-hidden className="size-4" />
+              {t("scheduleScreen.today")}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={goToday}
-            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {t("scheduleScreen.today")}
-          </button>
+          {rangeErrorBanner}
+          <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+            {showLoading ? (
+              loadingCard
+            ) : showError ? (
+              errorCard
+            ) : (
+              <AgendaList
+                items={toAgenda(
+                  anchorDayItems,
+                  rangeTaskChips.filter((c) => c.date === anchorDate),
+                )}
+                nowMinutes={anchorDate === today ? nowMinutes : null}
+                onToggleComplete={handleToggle}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
+                selectedId={selectedId}
+                labels={agendaLabels}
+                className="rounded-md border border-lumen-border bg-lumen-bg px-2"
+              />
+            )}
+          </div>
         </div>
-        {rangeErrorBanner}
-        <div className="min-h-0 flex-1 overflow-y-auto pb-24">
-          {showLoading ? (
-            loadingCard
-          ) : showError ? (
-            errorCard
-          ) : (
-            <AgendaList
-              items={toAgenda(
-                anchorDayItems,
-                rangeTaskChips.filter((c) => c.date === anchorDate),
-              )}
-              nowMinutes={anchorDate === today ? nowMinutes : null}
-              onToggleComplete={handleToggle}
-              onItemActivate={handleItemActivate}
-              onItemDoubleClick={handleItemOpenDetail}
-              selectedId={selectedId}
-              labels={agendaLabels}
-              className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-            />
-          )}
-        </div>
-      </div>
 
-      {/* FAB → creation panel (safe-area aware). */}
-      <button
-        type="button"
-        onClick={handleToolbarAdd}
-        aria-label={t("scheduleScreen.addEvent")}
-        className="fixed bottom-6 right-6 z-30 mb-[env(safe-area-inset-bottom)] flex size-14 items-center justify-center rounded-full bg-lumen-accent text-lumen-on-accent shadow-lumen-lg transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
-      >
-        <Plus aria-hidden className="size-6" />
-      </button>
+        {/* FAB → creation panel. */}
+        <MobileFab
+          onClick={handleToolbarAdd}
+          label={t("scheduleScreen.addEvent")}
+        />
+      </div>
 
       {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
           empty-slot tap opens with the tapped slot's time prefilled. Same panel
