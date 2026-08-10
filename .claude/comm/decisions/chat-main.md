@@ -20,4 +20,13 @@
 - 放置時: 自動発火なし（現状維持）。digest / 夜間安全レーンは手動起動（`run-routine.ps1` または dev-digest スキル）でのみ動く
 - 期限感: いつでも（Phase 1 の効果量はここで決まるが、手動運用でも回る）
 
+## D-20260810-main-3: STALE な旧アーキ由来スキル 5 本を書き直すか retire するか
+
+- 背景: vendor 化（D-20260810-main-2）で repo に取り込んだ 8 本のうち **5 本が現行アーキ未追随**と判明した。`db-migration` は SQLite `PRAGMA user_version` + `electron/database/` 前提（実体は Supabase Postgres + `supabase/migrations/`）、`add-ipc-channel` は実在しない Electron / Tauri IPC 層の手順（同じ層の `-ipc-validator` は D-20260708-main-1 で retire 済み）、`add-component` / `add-feature` / `test-writing` は削除済みの `frontend/` ツリーと存在しないテストヘルパ（`renderWithProviders` / `mockDataService` は repo 内 0 件）を指す。repo 外にあったため PR レビューを一度も通っていない。**symlink 時代は「読めない = 無害な空振り」だったが、実ファイル化で「読めて、間違っている」に変わる**ため、当座は冒頭 STALE バナーで発火を止めてある
+- A: **5 本とも現行アーキで書き直す**（推奨 — `add-component` / `test-writing` は `shared/src/components/` と `shared/tests/` の実物に倣うだけなので比較的軽い。`db-migration` は `db-conventions.md` §10 と CLAUDE.md §7.3 の内容と重複するので、スキルは薄い導線に絞る形もあり）
+- B: **5 本とも retire（削除）する**（`lead-pipeline` + `rules/frontend.md` + `db-conventions.md` + CLAUDE.md §7.1 で実質カバーできており、スキルが増えるほど description の固定費も増える。失うのは「手順の型」だけ）
+- C: 分割 — `add-ipc-channel` は retire（層自体が無い）、残り 4 本は書き直す
+- 放置時: STALE バナーのまま残置（発火はしないので実害は無いが、死んだ手順が repo に居座り続ける）
+- 期限感: 急がない。ただし新規スキルを足す前に決めたい（同じ型を増やさないため）
+
 （回答済み 3 件 + 取り下げ 1 件は 2026-08-09 に `.claude/decisions/` 台帳へ昇格済み — D-20260801-main-1 / D-20260801-main-2 / D-20260731-main-2 / D-20260731-main-1）

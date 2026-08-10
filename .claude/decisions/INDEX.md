@@ -14,6 +14,7 @@
 | D-20260802-settings-1 | briefing の見出し serif を Settings のフォント設定にどこまで追従させるか（#556） | settings-refine |
 | D-20260804-main-1 | Phase 1 定期実行（朝 digest / 夜間安全レーン）の実行基盤をどれにするか | main |
 | D-20260809-main-2 | `archive/` の索引をどう再建するか | main |
+| D-20260810-main-3 | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | main |
 
 ## Active（現在有効な裁定 — superseded-by なし）
 
@@ -44,6 +45,7 @@
 | [D-20260807-main-1](./D-20260807-main-1.md) | スマホからの主導線をネイティブ殻にするか公開 Web URL にするか（#600） | 公開 Web URL を主導線にする | 2026-08-07 | mobile, distribution, web-url |
 | [D-20260809-main-1](./D-20260809-main-1.md) | 決定台帳（decisions/）を新設し「ADR は作らない」方針を SUPERSEDE するか | A | 2026-08-09 | docs, decision-ledger, adr, graph-layer |
 | [D-20260810-main-1](./D-20260810-main-1.md) | END の task-tracker をいつ実行するか（verifier 直後 / 実装 PR の merge 後） | A | 2026-08-10 | harness, task-tracker, workflow, autonomy |
+| [D-20260810-main-2](./D-20260810-main-2.md) | プロジェクト固有スキル / エージェントの実体をどこに置くか | A | 2026-08-10 | harness, skills, agents, portability, windows |
 
 ## Superseded / Withdrawn
 
@@ -54,7 +56,7 @@
 ## Topic 逆引き
 
 - adr: D-20260809-main-1
-- agents: D-20260708-main-1
+- agents: D-20260708-main-1 / D-20260810-main-2
 - architecture: D-20260607-main-1
 - archive: D-20260801-main-2
 - autonomy: D-20260806-main-1 / D-20260810-main-1
@@ -73,7 +75,7 @@
 - file-explorer: D-20260704-main-1
 - global-assets: D-20260806-main-2 / D-20260806-main-3
 - graph-layer: D-20260809-main-1
-- harness: D-20260804-main-2 / D-20260810-main-1
+- harness: D-20260804-main-2 / D-20260810-main-1 / D-20260810-main-2
 - issue-dispatch: D-20260731-main-1 / D-20260731-main-2
 - lock: D-20260730-mobile-3
 - loop: D-20260806-main-1
@@ -90,6 +92,7 @@
 - permissions: D-20260804-main-2
 - plans-lifecycle: D-20260730-tags-1
 - policy: D-20260804-main-2 / D-20260806-main-1
+- portability: D-20260810-main-2
 - refactor: D-20260728-main-2
 - requirements: D-20260723-main-1
 - retire: D-20260705-main-1 / D-20260708-main-1
@@ -100,6 +103,7 @@
 - scope-cut: D-20260704-main-1 / D-20260705-main-1 / D-20260728-main-3
 - shared-fix: D-20260731-main-2
 - shared-ui: D-20260607-main-1
+- skills: D-20260810-main-2
 - ssot: D-20260723-main-1
 - status-enum: D-20260801-main-2
 - sync: D-20260731-tags-2 / D-20260731-tags-3
@@ -110,6 +114,7 @@
 - tracker: D-20260801-main-1
 - ux: D-20260711-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260801-sched-1
 - web-url: D-20260807-main-1
+- windows: D-20260810-main-2
 - workflow: D-20260810-main-1
 - worktree: D-20260731-main-1 / D-20260731-main-2 / D-20260801-main-1
 
@@ -119,3 +124,4 @@
 - archive/SUMMARY.md §integrated-design-roadmap Lessons「ADR は時点判断で陳腐化するため vision/ に一元化」 → D-20260809-main-1
 - CLAUDE.md §7.4「merge 後に 1 commit でまとめ」 → D-20260810-main-1
 - skills/worktree-policy/SKILL.md §tracker の更新は実装ブランチに載せない（実行タイミングの記述） → D-20260810-main-1
+- claude-dotfiles rules/skill-management.md「スキル実体は全て skill-lib で一元管理・リンクのみ配置」（life-editor スコープに限る） → D-20260810-main-2

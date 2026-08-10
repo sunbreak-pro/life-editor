@@ -39,7 +39,7 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ## Worktree 分担（fan-out 計画のみ・単一 worktree の計画では本節を削除）
 
-作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main に一元化。手順とラベル routing の正本 = `docs-workflow` スキル。`issue-dispatch` スキルは Mac のみ実体 = known-issues/031）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
+作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main に一元化。手順とラベル routing の正本 = `docs-workflow` スキル。起票手順そのものは `issue-dispatch` スキル）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
 
 | worktree | 担当（1 行）        | 対応 Issue | 触ってよいパス |
 | -------- | ------------------- | ---------- | -------------- |
