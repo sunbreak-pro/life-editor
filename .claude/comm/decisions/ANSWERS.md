@@ -24,3 +24,8 @@
 - D-20260810-main-1: **A**（END の task-tracker は `session-verifier` が緑になった直後に実行し、実装 PR の merge を待たない。tracker を実装ブランチに載せない D-20260801-main-1 は維持 — 専用ブランチ `chore/tracker-<chat>-YYYYMMDD` で即 commit → PR。2026-08-10 チャットで回答・chat-main が転記）
 - D-20260810-main-2: **A**（プロジェクト固有スキル / エージェント 10 本を repo 内へ vendor 化し、`skill-lib` / `agents-lib` 側の `projects/life-editor/` は削除して repo を唯一の正本にする。共有ライブラリ側の削除は PR merge 後かつ全 worktree が origin/main を取り込んだ後。2026-08-10 チャットの AskUserQuestion で回答・chat-main が転記）
 - D-20260810-main-4: **A**（#607 の修正を `useNotesUnifiedAPI.ts` へ入れる。計画書 Scope の「触らない」から例外として外し、#587 の分割時に取り込む旨を同 Issue へ申し送る。2026-08-10 チャットの AskUserQuestion で回答・chat-main が転記）
+- D-20260810-sched-1: **A**（保存ボタンでのみ確定・blur は draft 保持。2026-08-10 チャットで回答・chat-schedule-refine が転記を受任）
+- D-20260810-sched-2: **A**（変換は id 維持。同上）
+- D-20260810-sched-3: **A**（落ちるフィールドは破棄 + 確認ダイアログで明示。同上）
+- D-20260810-sched-4: **A**（ステータス破棄・子持ち Todo の変換禁止。同上）
+- D-20260810-sched-5: **A**（routine 由来は変換不可。提示方法をユーザー指定 = 変換操作時にダイアログ「Todoに繰り返しの機能はないため、変換は不可能です」を表示。同上）
