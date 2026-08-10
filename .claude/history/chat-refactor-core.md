@@ -1,5 +1,21 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-10 - コア構造リファクタの調査 + 計画書 + Issue 10 件起票（PR #678 open）
+
+#### 概要
+
+実装コード 68,227 行 / 445 ファイルを 8 領域に分けて並列調査し、64 findings を 10 クラスタへ統合。上位 3 クラスタは実際にコードを読ませて懐疑的に再検証し、**計画の前提の誤りを 3 件訂正**した。実装は 2 セッションに分割（S1 = #668〜#673 / S2 = #674〜#676 / #677 は移行完了まで凍結）。数値主張は `rules/docs-consistency.md` §5 に従いメインが全数 spot check 済み（誤差はテスト本数の ±1 のみ）。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-10-core-refactor.md`（詳細の正本。Issue 側は動機 + 参照 + DoD のみ）
+- **Issue 起票**: #668〜#677 — ユーザーの明示許可による例外（起票は本来 chat-main 一元。次回以降は outbox 経由に戻す）。全件 `shared-fix` + `[refactor-core]` prefix で宛先を 1 レーンに固定
+- **前提の訂正 1**: TS 6.0 の `strict` 既定は `true`。版統一は 6.0 への引き上げ一択（5.x へ下げると web が無言で non-strict に落ちる）
+- **前提の訂正 2**: DataService の interface 124 と配線 119 の差分 5 件は配線漏れではなく死に宣言（4 ツリー全部で呼び出し 0 件を実測）。消して完全一致ガードにできる
+- **前提の訂正 3**: `react-hooks/set-state-in-effect` は `useCallback` を跨ぐと検出しない。effect を共通 hook へ移すだけでは lint が緑になるだけ（lint ロンダリング）。唯一の解は導出 loading
+- **判断キュー**: `D-20260810-refactor-1`（ルーチンの Undo/Redo が未接続で約 60 行が空撃ち — 繋ぐ + i18n 追加 / 消す / 現状維持の 3 択）
+- **申し送り（outbox）**: #587 の close 漏れ（PR #642/#647 merged・967→431 行 / 842→303 行を実測）/ Schedule 系 #673・#675 は `section:schedule` を意図的に付けず schedule-refine へ周知
+
 ### 2026-08-10 - Issue #586 eslint baseline 解消（テスト先行・PR #638/#644/#649/#653 open）
 
 #### 概要
@@ -49,15 +65,3 @@ Phase B（web 画面 hooks 切り出し）の最終弾。MainScreen（951 行）
 - **web/hooks**: `useShellNavigation.ts` 新設（section switch + Materials/Schedule/Analytics/Briefing タブ state + persistLastSection + nav ショートカット/new-task/「[[」item-nav の pending intent）/ `useShellChrome.tsx` 新設（コマンドパレット項目・registry 派生 nav リスト・タブ帯 defs・shell ラベル・Materials カウントバッジ）。コードは配管以外 verbatim 移動、`MaterialsTab` 型と関連定数も hooks 側へ移設
 - **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 3 ファイル lint 0 件・session-verifier PASS
 - **計画書**: `2026-07-28-refactor-dataservice-split.md` を Status COMPLETED にして `archive/` へ移動
-
-### 2026-07-29 - Phase B Step 2（NotesView hooks 切り出し・PR #463）
-
-#### 概要
-
-Phase B（web 画面 hooks 切り出し）の第 2 弾。NotesView（1313 行）をリスト導出側 `useNoteListState`・リンク側 `useNoteLinking`・デスクトップ行部品 `NoteListRows` + 表示専念の画面（約 890 行）に分割した（挙動変更ゼロ・shared/src 無改変）。
-
-#### 変更点
-
-- **web/notes**: `hooks/useNoteListState.tsx` 新設（タグ見出し折りたたみの永続化 + 検索 → タグ束ね → 並べ替え → タグ絞り込みの導出パイプライン + ソート/フィルタ UI の派生値）/ `hooks/useNoteLinking.ts` 新設（LinkPanel 候補・「[[」リンク先ローダと editor コールバック・タブ跨ぎ選択の引き継ぎ）/ `NoteListRows.tsx` 新設（draggable 行 + droppable タグ見出し。DnD の sensors/handlers は view 側の useNoteTagDnd のまま）。コードは配管以外 verbatim 移動
-- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 4 ファイル lint 0 problems・session-verifier PASS
-- **PR**: #463 open（`claude/refactor-07-notesview-hooks`・merge はユーザーゲート。残り = Phase B Step 3 = MainScreen）
