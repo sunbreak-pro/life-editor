@@ -72,7 +72,7 @@
 ### Related Plans
 
 - ACTIVE: `docs/vision/plans/2026-07-15-briefing-loop.md`(テーマ正本)
-- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`
+- COMPLETED: `archive/2026-07-14-schedule-redesign.md`（2026-08-10 #591 で archive 移動）
 - COMPLETED: `archive/2026-07-16-loop-friction-fixes.md`（2026-07-19 archive 移動）
 - REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
 
@@ -147,7 +147,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 ## Feature: Schedule (Routine + ScheduleItems + CalendarTags)
 
 **Tier**: 1
-**Status**: ○基本完成 → **再設計中（2026-07-14 — 「今日を組む場所」化。正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）**
+**Status**: ○基本完成 → 再設計中（2026-07-14 —「今日を組む場所」化）→ **再設計完了（2026-08-10 #591 実測。正本 = `archive/2026-07-14-schedule-redesign.md` — 全 Step + 並走 α 完了で archive 移動済み）**
 **Owner Provider/Module**: `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider` / `frontend/src/components/Tasks/Schedule/` / `src-tauri/src/commands/{routine,schedule_item,calendar,calendar_tag,routine_tag,routine_group}_commands.rs`
 **MCP Coverage**: `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `toggle_schedule_complete`
 **Supports Value Prop**: V1 / V2
@@ -224,7 +224,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Related Plans
 
-- IN PROGRESS: `docs/vision/plans/2026-07-14-schedule-redesign.md`（Schedule 再設計 — 本節 2026-07-14 現行化の出典。残 Step は #466〜#469）
+- COMPLETED: `archive/2026-07-14-schedule-redesign.md`（Schedule 再設計 — 本節 2026-07-14 現行化の出典。#466〜#469 も close 済み・2026-08-10 #591 で archive 移動）
 - COMPLETED: `archive/2026-07-11-event-routine-unification.md`（#185 — Event/Routine UI 統合。#474 で archive 移動）
 - 関連 ADR: `.claude/archive/adr/0003-schedule-provider-decomposition.md` / `.claude/archive/adr/0004-schedule-shared-components.md`
 
