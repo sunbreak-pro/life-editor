@@ -46,6 +46,7 @@
 | [D-20260809-main-1](./D-20260809-main-1.md) | 決定台帳（decisions/）を新設し「ADR は作らない」方針を SUPERSEDE するか | A | 2026-08-09 | docs, decision-ledger, adr, graph-layer |
 | [D-20260810-main-1](./D-20260810-main-1.md) | END の task-tracker をいつ実行するか（verifier 直後 / 実装 PR の merge 後） | A | 2026-08-10 | harness, task-tracker, workflow, autonomy |
 | [D-20260810-main-2](./D-20260810-main-2.md) | プロジェクト固有スキル / エージェントの実体をどこに置くか | A | 2026-08-10 | harness, skills, agents, portability, windows |
+| [D-20260810-main-4](./D-20260810-main-4.md) | #607 の修正を「触らない」宣言済みの `useNotesUnifiedAPI.ts` に入れるか | A | 2026-08-10 | notes, sync, mobile, scope, shared-fix |
 
 ## Superseded / Withdrawn
 
@@ -85,8 +86,8 @@
 - merge-gate: D-20260804-main-2 / D-20260806-main-1
 - migration: D-20260704-main-1 / D-20260708-main-1
 - migration-gate: D-20260806-main-3
-- mobile: D-20260723-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260807-main-1
-- notes: D-20260730-mobile-3
+- mobile: D-20260723-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260807-main-1 / D-20260810-main-4
+- notes: D-20260730-mobile-3 / D-20260810-main-4
 - palette: D-20260801-sched-1
 - performance: D-20260731-tags-2 / D-20260731-tags-3
 - permissions: D-20260804-main-2
@@ -99,14 +100,14 @@
 - routine: D-20260711-main-1
 - routing: D-20260731-main-1 / D-20260731-main-2
 - schedule: D-20260711-main-1 / D-20260731-main-1 / D-20260801-sched-1
-- scope: D-20260806-main-2
+- scope: D-20260806-main-2 / D-20260810-main-4
 - scope-cut: D-20260704-main-1 / D-20260705-main-1 / D-20260728-main-3
-- shared-fix: D-20260731-main-2
+- shared-fix: D-20260731-main-2 / D-20260810-main-4
 - shared-ui: D-20260607-main-1
 - skills: D-20260810-main-2
 - ssot: D-20260723-main-1
 - status-enum: D-20260801-main-2
-- sync: D-20260731-tags-2 / D-20260731-tags-3
+- sync: D-20260731-tags-2 / D-20260731-tags-3 / D-20260810-main-4
 - task-tracker: D-20260810-main-1
 - tasks: D-20260728-main-3
 - terminal: D-20260705-main-1

@@ -49,11 +49,15 @@ shared/src/hooks/useSoftKeyboard.ts         # 新設する場合
 web/src/notes/NotesView.tsx                 # H3 が原因だった場合のみ
 web/src/notes/hooks/useNoteSheetTarget.ts   # H2 が原因だった場合のみ
 shared/src/components/CommandPalette.tsx    # #512 が実機で見えた場合のみ
+shared/src/hooks/useNotesUnifiedAPI.ts      # #607 の原因確定を受けた例外 — 下記
+shared/src/index.ts                         # 新設フックの barrel export のみ
 shared/tests/** web/tests/**
 .claude/docs/vision/plans/2026-08-10-mobile-keyboard-input-fixes.md
 ```
 
-**触らない**: `web/src/schedule/**` `shared/src/components/schedule/**`（schedule-refine 専有）。`shared/src/hooks/useNotesUnifiedAPI.ts` / `shared/src/services/SupabaseNotesUnifiedService.ts`（#587 = shared-fix レーンが分割予定）。
+**触らない**: `web/src/schedule/**` `shared/src/components/schedule/**`（schedule-refine 専有）。`shared/src/services/SupabaseNotesUnifiedService.ts`（#587 = shared-fix レーンが分割予定）。
+
+**Scope 例外（2026-08-10 ユーザー確定 = [`D-20260810-main-4`](../../../decisions/D-20260810-main-4.md)）**: `shared/src/hooks/useNotesUnifiedAPI.ts` は当初「触らない」側に置いていた（#587 が分割予定）が、Step 0 で #607 の原因がこのファイルと確定したため例外として Scope 入りさせた。裁定時の実測 = #587 未着手（open PR ゼロ・shared-fix worktree は #372 作業中）・差分は約 15 行の追加。#587 側には分割時に取り込む旨を申し送る。
 
 スコープ外の変更が要ると分かったら **P-008** に従い、実装せずキュー（`comm/decisions/chat-main.md`）へ積んで現計画を続行する。
 
@@ -164,6 +168,41 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 Chrome 108+ の既定は `resizes-visual`（レイアウトビューポートは縮まず visual だけ縮む）で、それが効いているなら `100svh` は動かず、通常フローのタブバーもせり上がらないはず。**実機でせり上がっている以上、既定どおりに振る舞っていないか、別の経路で高さが縮んでいる**。ここが決まらないと「何をトリガーに隠すか」が決まらない（`visualViewport.height` はレイアウトごと縮む挙動では変化しないため、キーボード検出そのものが成立しない）。
 
 そこで Step 1 に計測を 1 つ足す: **キーボードを出す前と出した後で `window.innerHeight` と `window.visualViewport.height` の両方**を読む。両方縮む＝レイアウトごと縮む挙動なので、`interactive-widget=resizes-visual` を meta に明示して土俵を揃えてから隠す判定を書く。visual だけ縮むなら `useVisualViewport` の差分でそのまま判定できる。
+
+### 2026-08-10 — Step 2 / Step 3 実装完了（Step 1 の実測を待たずに着地できた）
+
+**Step 3（#607）= 「自分の書き込みは自分の hydrate を無効化しない」**。`useNotesUnifiedAPI` に `locallyWrittenIdsRef` を足し、`prev.updatedAt === row.updatedAt` に「**または自分が書いた行**」を OR で並べた（`shared/src/hooks/useNotesUnifiedAPI.ts:322`）。マークを付けるのは `updateNote` / `createNote` と undo/redo の 4 経路（どれもクライアント時計の `updatedAt` を楽観的に載せる側）。**マークは「開いているノートの間だけ」有効**で、選択が外れた時点で捨てる（`:189`）— 開いている間は自分のバッファが最新という Desktop 既存の挙動（エディタが note id で keyed で読み直さない）に揃えた形で、閉じた後は #301 どおり他デバイスの書き込みが勝つ。
+
+新規作成直後も同じ穴だった（INSERT が返す `updated_at` はサーバ時計）ので `createNote` にも同じマークを付けた。**Step 1 の質問 2（新規作成直後に挙動が違うか）は「同じ穴・同時に塞がった」が答え**になる見込み。
+
+**Step 2（#608）= `useSoftKeyboard` 新設 + narrow の `BottomTabBar` を非描画**（`shared/src/hooks/useSoftKeyboard.ts` / `AppShell.tsx:160,216`）。Step 1 で決めるはずだった「レイアウトごと縮むのか visual だけか」に**判定を依存させない形にした**: 「`documentElement.clientHeight` との差」と「同じ幅で見た中で一番高かった高さとの差」の**大きい方**をキーボードの高さとみなす。前者が visual だけ縮む挙動、後者がレイアウトごと縮む挙動を拾うので、どちらでも成立する（閾値 150px 未満はアドレスバーとみなして無視）。
+
+そのため **`web/index.html` の `interactive-widget=resizes-visual` は入れていない**。Scope 外のパスであり、上の判定では不要なため（P-008）。Step 1 の実測で「レイアウトごと縮む」と出たなら、タブバー以外（`h-[100svh]` のシェル自体がスクロールする筋）も動くので、その時に別途判断する。
+
+**テスト**: `shared/tests/notesOpenNoteOwnEditHydrate.test.tsx`（Step 0 の再現テストを修正後の機構に合わせて書き直し + 「閉じた後の他者書き込みは従来どおり落ちる」境界も追加）/ `shared/tests/appShellSoftKeyboard.test.tsx`（`visualViewport` をモックし、隠す判断が下ることだけを固定。見た目は Step 1 / 4 の目視）。#607 のテストは**修正を戻すと落ちることを実測で確認済み**。落ちるのは「再取得が 2 回走る」行で、モックでは再 hydrate が同一 tick で解決して `isContentLoaded` の窓が閉じてしまうため（この事情はテスト本文にコメントで固定した）。
+
+**Step 1 は依然として必要**（塞がったのが症状そのものかの確認 + #512 の潜り）。ただし**ブロッカーではなくなった**ので、質問は当初の 5 点 + `innerHeight` / `visualViewport.height` の実測のまま据え置く。
+
+### 2026-08-10 — Step 1 実機報告（deploy 前の現状確認）+ QA 指摘の反映
+
+**実機（Android Chrome・こうだいさん）の回答**:
+
+- Q1 / Q2: 既存ノートも新規作成直後も**挙動は同じ**（どちらも入力パネルが閉じる）。「まだ改善していない」との報告だが、これは**本修正が未 commit / 未 deploy で公開 URL は main のビルドを配っているため**で、想定どおり。修正後の判定は deploy 後に再度依頼する
+- Q3: 質問の意味が伝わらなかったため保留。**deploy 後に「板ごと消えるか / 本文だけ灰色の棒になるか」で聞き直す**（後者なら本計画の原因で確定、前者なら H1 / H3 が別に生きている）
+- Q4: **#512 は潜っていない・支障なし** → Step 4 は「実測結果を Issue にコメントして close」の分岐で決着
+- Q5: **タブバーはキーボードの上に半分ほど見える** → #608 の報告どおり。Step 2 の「キーボード中は出さない」がそのまま効く形
+- `innerHeight` / `visualViewport.height` の数値は未取得（スマホでの DevTools 接続が要るため）。ただし下記のとおり判定式が両方の挙動を跨ぐ形になったので、**この数値は blocking ではなくなった**
+
+**QA（role-qa・別コンテキスト）で BLOCKING 1 / IMPORTANT 4 が出たので反映した**:
+
+- **BLOCKING = マークの寿命**。「選択が外れるまで有効」にしていたが、モバイルのシートは `closeSheet` しても shared の選択が残る（`useNoteSheetTarget.ts:83`）。つまり実質セッション中ずっとマークが生き、その間に他デバイス / MCP が同じノートに書くと、こちらの古い本文が保持されたまま再 hydrate もスキップされ、次の保存で**相手の編集を無言で上書きする**筋があった。→ **マークは「それを使ったリロード 1 回」で使い捨てる**形に変更（保持した行はサーバの `updatedAt` を取り込むので、次からは素の等値判定で足りる）。書き込みが in-flight の間は使い捨てを保留する（`unackedWritesRef`）。回帰テストを 1 本追加（**修正を戻すと落ちることを実測済み**）
+- **IMPORTANT = マージ判定を「開いている行」に限定**（開いていないノートまでピン留めしていた。とくに `createNote({select:false})` は空本文をピン留めしうる）
+- **IMPORTANT = `useSoftKeyboard` の baseline から `documentElement.clientHeight` を外した**。モバイルの ICB は大ビューポート（アドレスバー非表示時）を返す一方 `visualViewport.height` は小ビューポートなので、キーボードが無くても常時 60〜110px の差が出て、閾値 150px の余裕を食っていた（上下 2 段バーの UA では**キーボード無しでタブバーが恒久的に消える**危険側の失敗）。**同じ幅で観測した最大高との差**だけで判定する
+- **IMPORTANT = ピンチズームの誤検出**に `vv.scale > 1` のガードを追加
+- **IMPORTANT = 計測を render 中から `resize` ハンドラ内へ移動**（baseline は履歴依存なので、render 中に更新すると React の呼び出しタイミングで答えが変わる）
+- NIT 2 件は 👀 の確認項目として残す: **タブバー非表示時に safe-area の下端余白も一緒に消える**（ホームインジケータ帯に本文が乗らないか）/ **「その他」シートを開いたままキーボードが上がるとシートごと消える**
+
+**AC「PR diff ±200 行以内」を超過**: 実装 約 200 行 + テスト 約 380 行 + 記録類。**免除ではなく明示**として PR 本文に内訳を書く（超過分の大半はテストと記録で、修正カテゴリの目安が意図した「実装の膨張」ではない）。
 
 ---
 
