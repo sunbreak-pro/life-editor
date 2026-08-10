@@ -1,5 +1,23 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-10 - /goal 一括消化: #633 / #592 / #593 / #626 / #573 / #572 の 6 連続実装（PR 提出・merge 待ち）
+
+#### 概要
+
+/goal 指定の担当 8 Issue を消化した。判断が要る #628 / #625 は P-005 どおり D-20260810-sched-1〜5 として判断キューへ積んで実装に入らず、残る 6 件を Issue ごとに origin/main からブランチを切って連続実装し、PR #637 / #639 / #645 / #648 / #652 / #654 として提出した（記録時点で全て CI 緑・OPEN・merge はユーザー = P-001）。
+
+#### 変更点
+
+- **#633（PR #637）mobile 編集シートの高さ上限**: CalendarTab の BottomSheet に Notes / Tasks 詳細シートと同じ「max-h + 内部スクロール」の殻。単位は vh ではなく **svh**（100vh は URL バー非表示基準なので、バー表示中に vh 上限でも溢れる — #631 の罠）。shared/BottomSheet と EventEditorPane は無改修。Notes / Tasks 側の vh 残存は outbox で起票依頼
+- **#592（PR #639）表示文字列の Todo 統一**: ja / en 両 catalog の値のみ 16 キー ×2 を置換（キー名・型名・変数名は不変）。`itemRole.task` は TagPicker / TagEditorHost 経由で schedule 外にも出るため影響範囲を Issue にコメント。`en:172` の `{{task}}` は差し込み変数名（内部識別子）で見送り
+- **#593（PR #645）Todo チップの CheckSquare グリフ**: 週 timed / 週終日レーン / 月チップ / アジェンダ行の 4 箇所に、ナビの Todos アイコンと同じ CheckSquare を追加。バンド案は routine と「バンド vs バンド」・枠線案は event と「枠線 vs 枠線」でどちらも色相頼みに戻るため却下（Issue にコメント）。完了状態と独立の静的マーク（フリップさせるとアジェンダの完了トグルと役割衝突）。新トークンなし。テストは「task に svg あり / event に svg なし」を両方向 pin
+- **#626（PR #648）Schedule から Todo のタグ編集**: 案 (a) 採用 — Kanban の renderTaskDetail と同じ TaskDetailPanel + TagPicker を Schedule の ItemDetailOverlay で。吹き出しの主ボタンは「詳細を編集」になり「Todo で開く」はパネル下部へ移設。(b) ItemActionPopover 拡張は「slot なし / 外側 mousedown 閉じと TagPicker ドロップダウンの相性（#470 系再発）/ #572 と自家衝突」で却下。narrow は #564 の切り分け維持（mobile task シートは follow-up — outbox で起票依頼）
+- **#573（PR #652）子持ち Todo の削除ガード**: 子ありの行だけ window.confirm（サブツリー件数入り）。事後トーストではなく**事前確認**を選択 — undo は section unmount で消え Trash は 1 行ずつなので、事後では防げない。leaf は 1 クリックのまま。判定は純関数 `web/src/schedule/todoTrayDeleteGuard.ts`（collectDescendantIds ベース）+ web/tests 4 本。同じ write を撃つ #564 吹き出しの削除も同ハンドラでガード（P-006 で PR に明記）
+- **#572（PR #654）stub 分岐の退役 + TagColorControls 空状態**: `ItemAction.stub` / `stubBadge` を P-002（grep 全数実測: `stub: true` 0 件・host からの `stubBadge` 受け渡し 0 件・テスト 0）で types / Row / Popover / DetailOverlay から撤去し、Row に退役注記 1 行。TagColorControls はタグ 0 件時に null ではなく「色はタグに付きます。先にタグを追加してください」（`itemActions.tagColorEmpty`・en/ja）を表示
+- **判断キュー**: D-20260810-sched-1（#628 保存ボタンの確定モデル）/ sched-2〜5（#625 の id 維持・Event→Todo の落ちるフィールド・Todo→Event のステータスと親子・routine 由来の可否）を `comm/decisions/chat-schedule-refine.md` へ
+- **branch 運用**: 全ブランチを origin/main から独立に切り、`.session-branch` を都度更新。#637 / #648 / #652 は同じ `CalendarTab.tsx` を触るが編集領域を離してあり任意順で auto-merge 想定（outbox に記載・conflict 時は差し戻し依頼）
+- 検証: 各 PR とも shared / web の lint・test・build 全 6 ゲート exit 0 を PR 前に実測し、CI（typecheck + test + build / docs-lint）の green も `gh pr checks --watch` で実測。実ブラウザ確認は merge 後 chat-main（重点は各 PR 本文に記載）
+
 ### 2026-08-02 (2) - /loop 自律運転で #568 / #563 / #565 / #569 を連続実装（全 merge）
 
 #### 概要

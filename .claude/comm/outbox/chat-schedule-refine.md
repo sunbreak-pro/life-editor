@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-08-10 → @chat-main（/goal 一括消化: 担当 6 Issue を PR 化・2 Issue は判断キュー待ち — 起票依頼 2 件）
+
+担当 8 Issue のうち 6 件を実装し、全て CI 緑の non-draft PR として提出しました（merge は P-001 どおりお任せします）:
+
+- **#633** → PR **#637**（mobile 編集シートに `max-h-[92svh]` + 内部スクロール。実機確認の重点 = iPhone Chrome で上端が隠れない / pull-to-refresh しない）
+- **#592** → PR **#639**（表示文字列の「タスク」/"Task" → Todo 統一。`itemRole.task` は TagPicker / TagEditorHost 経由で schedule 外にも出ます — Issue コメントに範囲記載）
+- **#593** → PR **#645**（Todo チップに CheckSquare グリフ。週 timed / 終日レーン / 月 / アジェンダの 4 箇所。見た目の最終判断はユーザー目視で）
+- **#626** → PR **#648**（Desktop の Todo チップ詳細 = TaskDetailPanel + TagPicker を Schedule 内オーバーレイで。案 (a) 採用 — 理由は Issue コメント）
+- **#573** → PR **#652**（子持ち Todo のトレイ / 吹き出し削除に事前確認。leaf は 1 クリックのまま）
+- **#572** → PR **#654**（stub 分岐の P-002 退役 + TagColorControls の空状態文言）
+
+**#628 / #625 は P-005 により実装未着手** — 判断キュー D-20260810-sched-1（#628 保存ボタンの確定モデル）と D-20260810-sched-2〜5（#625 変換の 3+1 判断点）を積みました。回答が来次第着手します。
+
+**merge 順の注意**: #637 / #648 / #652 の 3 本は同じ `CalendarTab.tsx` を触りますが、全て origin/main から独立に切り、編集領域が互いに離れているため任意順で auto-merge できる想定です。万一 conflict になったら当レーンへ差し戻してください。
+
+### 起票依頼 1: `fix(mobile): Notes / Tasks の詳細シートの max-h を vh から svh へ（#633 の水平展開）`
+
+**ラベル**: `shared-fix` または `section:materials` + `section:tasks`（routing は貴レーン判断で）
+
+- **事実**（#633 実測の横展開）: `web/src/notes/NotesView.tsx:836` と `web/src/tasks/MobileTaskList.tsx:182` の詳細シートは `max-h-[92vh]` のまま。`100vh` は URL バー非表示時基準なので、バー表示中はシート上端がビューポートを越えうる（#633 と同じ罠の軽症版）。`svh` への 1 語置換 ×2 + 各レーンの実機確認
+- **出典**: PR #637 本文の Note for chat-main
+
+### 起票依頼 2: `feat(schedule): mobile の Todo チップにも詳細シート（タグ編集含む）を与える（#564 / #626 follow-up）`
+
+**ラベル**: `section:schedule` / `type:feature`
+
+- **事実**: narrow では Todo チップのタップが今も無応答（#564 が「mobile の task シートは follow-up」と明示的に切り分け、#626 も Desktop のみ対応）。Tasks 側の BottomSheet + TaskDetailPanel パターン（#470）をそのまま流用できる素地は #626 で整備済み
+- 既に起票済みであれば本依頼は破棄してください
+
+---
+
 ## 2026-08-02 (3) → @chat-main（#568 / #563 / #565 / #569 全 merge — 起票依頼 2 件）
 
 **/loop 自律運転で section:schedule キューの 4 件を連続実装し、PR #576（#568）/ #577（#563）/ #579（#565）/ #581（#569）として提出、全て merge されました**（各 PR = role-qa 独立監査 Blocking 0・7 ゲート緑）。実ブラウザ確認の重点は各 PR 本文のチェックリストを参照してください — 特に **#577 の「スクロールした状態で終日チップを place drag → 落とした位置と書き込み時刻の一致」**（DnD 参照点を変えた本丸）と **#581 の undo 5 操作**です。残る担当 open は #564 のみで、この後着手します。
