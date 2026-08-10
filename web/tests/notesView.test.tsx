@@ -235,15 +235,22 @@ describe("NotesView — desktop (wide)", () => {
   it("keeps deleted notes behind the trash disclosure", () => {
     render(<NotesView />);
 
-    expect(screen.queryByLabelText("Restore Old note")).toBeNull();
+    // The row actions read `key|interpolation` here because this suite's `t` is
+    // a key echo. Whether the words come out Japanese is notesI18n's job (#680);
+    // this one only cares that the trash rows are gated behind the disclosure
+    // and wired to the right note.
+    const restore = "materials.notes.restoreNote|Old note";
+    const purge = "materials.notes.permanentDeleteNote|Old note";
+
+    expect(screen.queryByLabelText(restore)).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: /materials\.notes\.trash/ }),
     );
 
-    fireEvent.click(screen.getByLabelText("Restore Old note"));
+    fireEvent.click(screen.getByLabelText(restore));
     expect(state.restoreNote).toHaveBeenCalledExactlyOnceWith("note-z");
 
-    fireEvent.click(screen.getByLabelText("Permanently delete Old note"));
+    fireEvent.click(screen.getByLabelText(purge));
     expect(state.permanentDeleteNote).toHaveBeenCalledExactlyOnceWith("note-z");
   });
 

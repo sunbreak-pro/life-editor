@@ -244,7 +244,8 @@
       "quickAddSubmit": "Add",
       "empty": "No todos yet",
       "addCta": "Add todo",
-      "taskCount": "{{count}} todos"
+      "taskCount_one": "{{count}} todo",
+      "taskCount_other": "{{count}} todos"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
@@ -254,6 +255,10 @@
       "content": "Content",
       "links": "Links",
       "deleteNote": "Delete note",
+      "bodyPlaceholder": "Write your note…",
+      "untitled": "(untitled)",
+      "restoreNote": "Restore {{title}}",
+      "permanentDeleteNote": "Permanently delete {{title}}",
       "detailTitle": "Note details",
       "quickAddTitle": "Add note",
       "quickAddPlaceholder": "Enter a title",
