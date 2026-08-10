@@ -25,6 +25,17 @@ export const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
   DONE: CheckCircle2,
 };
 
+/**
+ * i18n caption key per status — one definition so every surface hosting
+ * TaskDetailPanel (Kanban board, schedule task-chip detail) words a status
+ * identically.
+ */
+export const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
+  NOT_STARTED: "taskDetail.statusNotStarted",
+  IN_PROGRESS: "taskDetail.statusInProgress",
+  DONE: "taskDetail.statusDone",
+};
+
 /** Structural subset of each surface's already-translated label object. */
 export interface StatusLabelSet {
   statusNotStarted: string;

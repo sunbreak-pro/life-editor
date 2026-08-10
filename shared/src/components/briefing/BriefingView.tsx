@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight, Check, Circle, Plus, Sunrise } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  Circle,
+  Plus,
+  Sunrise,
+  Trash2,
+} from "lucide-react";
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
@@ -36,7 +43,7 @@ import { IntentionField } from "./IntentionField";
  * existing analytics.* i18n keys, so no copy is duplicated.
  */
 
-/** One row of「今日の予定」— today's schedule, host-shaped. */
+/** One row of「今日のスケジュール」— today's schedule, host-shaped. */
 export interface BriefingScheduleEntry {
   id: string;
   title: string;
@@ -114,6 +121,17 @@ export interface BriefingLabels {
    * visible text (WCAG 2.5.3 Label in Name).
    */
   edit: string;
+  /**
+   * Visible label of the row's delete action —「削除」/ "Delete" (#585). Same
+   * shape as `edit` for the same reasons: it sits next to a button that reads
+   * as text, so an icon-only sibling would be both unreadable at 13px and
+   * below the 24×24 target the neighbour already clears.
+   */
+  delete: string;
+  /** Tooltip + accessible-name tail for a schedule row's delete. */
+  deleteScheduleHint: string;
+  /** Tooltip + accessible-name tail for a task row's delete. */
+  deleteTaskHint: string;
   jumpToSchedule: string;
   jumpToTasks: string;
 }
@@ -135,6 +153,14 @@ export interface BriefingViewProps {
   onToggleScheduleItem: (id: string) => void;
   /** Completes / un-completes a task or carryover row (host → DataService). */
   onToggleTask: (id: string) => void;
+  /**
+   * Deletes a schedule row (#585). The host decides what "delete" means for
+   * the item — a manual event soft-deletes straight away, a routine-derived
+   * one first asks which occurrences via Schedule's own RepeatScopeDialog.
+   */
+  onDeleteScheduleItem: (id: string) => void;
+  /** Deletes a task row (#585) — host → DataService soft delete. */
+  onDeleteTask: (id: string) => void;
   /**
    * Opens the host's creation panel for THIS paper's day (#623). The view
    * holds no creation UI of its own — the host mounts Schedule's shared
@@ -224,17 +250,35 @@ function BlockHeadAddButton({
 }
 
 /**
+ * Right-edge action cluster of a row (#585 — was `EditJumpButton`'s own
+ * `ml-auto` before a second action joined it).
+ *
+ * `ml-auto` pins the cluster to the row's right edge, so the buttons line up
+ * in one straight column whatever the titles measure; the old icon-only jump
+ * button sat immediately after the title and drifted with it, row by row.
+ *
+ * The negative margins live here rather than on each button: they cancel the
+ * padding the buttons need for their 24×24 targets (WCAG 2.5.8) so the boxes
+ * grow into the row's own whitespace instead of pushing the row height and
+ * the right edge around. Moving them from the button to the cluster keeps the
+ * jump button rendering exactly where it did with one action in the row.
+ */
+function RowActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="-my-1 -mr-1.5 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center">
+      {children}
+    </div>
+  );
+}
+
+const ROW_ACTION_BASE =
+  "flex items-center gap-1 whitespace-nowrap px-1.5 py-1 text-xs transition-colors";
+
+/**
  * Row jump action —「編集」+ ↗ (#410).
  *
- * `ml-auto` pins it to the row's right edge, so the buttons line up in one
- * straight column whatever the titles measure; the old icon-only button sat
- * immediately after the title and drifted with it, row by row.
- *
  * The label is visible because a 13px arrow alone was too small to read as an
- * action — and too small to hit. Padding buys the 24×24 target (WCAG 2.5.8)
- * while the matching negative margins keep the row height and the right edge
- * exactly where the layout puts them, so the box grows into the row's own
- * whitespace rather than pushing it around.
+ * action — and too small to hit.
  *
  * The accessible name leads with that visible label and only then says where
  * the jump lands (「編集: スケジュールで開く」). Naming it `編集` alone would
@@ -258,9 +302,40 @@ function EditJumpButton({
       onClick={onClick}
       aria-label={`${label}: ${hint}`}
       title={hint}
-      className="-my-1 -mr-1.5 ml-auto flex flex-shrink-0 items-center gap-1 self-center whitespace-nowrap px-1.5 py-1 text-xs text-lumen-text-secondary transition-colors hover:text-lumen-accent"
+      className={`${ROW_ACTION_BASE} text-lumen-text-secondary hover:text-lumen-accent`}
     >
       <ArrowUpRight size={13} aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Row delete action —「削除」+ 🗑 (#585). Deliberately the same shape, size and
+ * naming rule as its `EditJumpButton` neighbour: two adjacent actions where
+ * only one carries text would read as a label with an ornament, and the
+ * destructive one is the last place to shrink the hit target. Only the hover
+ * colour differs (danger, not accent) — the resting state stays quiet so the
+ * paper does not turn into a row of red buttons.
+ */
+function DeleteRowButton({
+  onClick,
+  label,
+  hint,
+}: {
+  onClick: () => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${label}: ${hint}`}
+      title={hint}
+      className={`${ROW_ACTION_BASE} text-lumen-text-secondary hover:text-lumen-danger`}
+    >
+      <Trash2 size={13} aria-hidden="true" />
       {label}
     </button>
   );
@@ -278,6 +353,8 @@ export function BriefingView({
   onIntentionBlur,
   onToggleScheduleItem,
   onToggleTask,
+  onDeleteScheduleItem,
+  onDeleteTask,
   onAddScheduleItem,
   onJumpToSchedule,
   onJumpToTasks,
@@ -417,11 +494,18 @@ export function BriefingView({
                 )}
                 {/* Last in the row so `ml-auto` lands it on the right edge —
                     the routine tag keeps its place beside the title. */}
-                <EditJumpButton
-                  onClick={onJumpToSchedule}
-                  label={labels.edit}
-                  hint={labels.jumpToSchedule}
-                />
+                <RowActions>
+                  <EditJumpButton
+                    onClick={onJumpToSchedule}
+                    label={labels.edit}
+                    hint={labels.jumpToSchedule}
+                  />
+                  <DeleteRowButton
+                    onClick={() => onDeleteScheduleItem(item.id)}
+                    label={labels.delete}
+                    hint={labels.deleteScheduleHint}
+                  />
+                </RowActions>
               </li>
             ))}
           </ul>
@@ -466,11 +550,18 @@ export function BriefingView({
                       {task.title}
                     </span>
                   </button>
-                  <EditJumpButton
-                    onClick={onJumpToTasks}
-                    label={labels.edit}
-                    hint={labels.jumpToTasks}
-                  />
+                  <RowActions>
+                    <EditJumpButton
+                      onClick={onJumpToTasks}
+                      label={labels.edit}
+                      hint={labels.jumpToTasks}
+                    />
+                    <DeleteRowButton
+                      onClick={() => onDeleteTask(task.id)}
+                      label={labels.delete}
+                      hint={labels.deleteTaskHint}
+                    />
+                  </RowActions>
                 </div>
                 {task.purposes.length > 0 && (
                   <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
@@ -537,11 +628,17 @@ export function BriefingView({
                     {item.title}
                   </span>
                 </button>
-                <EditJumpButton
-                  onClick={onJumpToTasks}
-                  label={labels.edit}
-                  hint={labels.jumpToTasks}
-                />
+                {/* Carryover keeps the jump alone: #585 scopes the delete to
+                    今日のスケジュール and 今日の Todo, and a carryover row is
+                    a past day's task showing through — deleting it here would
+                    act on a day the paper is not editing. */}
+                <RowActions>
+                  <EditJumpButton
+                    onClick={onJumpToTasks}
+                    label={labels.edit}
+                    hint={labels.jumpToTasks}
+                  />
+                </RowActions>
               </li>
             ))}
           </ul>

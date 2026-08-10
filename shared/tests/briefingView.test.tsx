@@ -36,6 +36,9 @@ const LABELS: BriefingLabels = {
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
   edit: "Edit",
+  delete: "Delete",
+  deleteScheduleHint: "Delete this event",
+  deleteTaskHint: "Delete this todo",
   jumpToSchedule: "Open in Schedule",
   jumpToTasks: "Open in Tasks",
 };
@@ -96,6 +99,8 @@ const DATA: BriefingData = {
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleScheduleItem = vi.fn();
   const onToggleTask = vi.fn();
+  const onDeleteScheduleItem = vi.fn();
+  const onDeleteTask = vi.fn();
   const onAddScheduleItem = vi.fn();
   const onJumpToSchedule = vi.fn();
   const onJumpToTasks = vi.fn();
@@ -114,6 +119,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       onIntentionBlur={onIntentionBlur}
       onToggleScheduleItem={onToggleScheduleItem}
       onToggleTask={onToggleTask}
+      onDeleteScheduleItem={onDeleteScheduleItem}
+      onDeleteTask={onDeleteTask}
       onAddScheduleItem={onAddScheduleItem}
       onJumpToSchedule={onJumpToSchedule}
       onJumpToTasks={onJumpToTasks}
@@ -124,6 +131,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     ...result,
     onToggleScheduleItem,
     onToggleTask,
+    onDeleteScheduleItem,
+    onDeleteTask,
     onAddScheduleItem,
     onJumpToSchedule,
     onJumpToTasks,
@@ -224,6 +233,39 @@ describe("BriefingView row actions", () => {
       screen.getByRole("button", { name: "Add to today's schedule" }),
     );
     expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes a schedule row without toggling or navigating (#585)", () => {
+    const { onDeleteScheduleItem, onToggleScheduleItem, onJumpToSchedule } =
+      renderView();
+    const deletes = screen.getAllByTitle("Delete this event");
+    expect(deletes).toHaveLength(2);
+    fireEvent.click(deletes[0]);
+    expect(onDeleteScheduleItem).toHaveBeenCalledWith("s1");
+    expect(onToggleScheduleItem).not.toHaveBeenCalled();
+    expect(onJumpToSchedule).not.toHaveBeenCalled();
+  });
+
+  it("deletes a task row without toggling or navigating (#585)", () => {
+    const { onDeleteTask, onToggleTask, onJumpToTasks } = renderView();
+    const deletes = screen.getAllByTitle("Delete this todo");
+    // Task rows only — carryover keeps the jump alone.
+    expect(deletes).toHaveLength(2);
+    fireEvent.click(deletes[1]);
+    expect(onDeleteTask).toHaveBeenCalledWith("t2");
+    expect(onToggleTask).not.toHaveBeenCalled();
+    expect(onJumpToTasks).not.toHaveBeenCalled();
+  });
+
+  it("names every delete button by its visible label first (WCAG 2.5.3)", () => {
+    renderView();
+    // The visible text is「削除」/ "Delete"; the accessible name leads with it
+    // and only then says which row it acts on.
+    const byName = screen.getAllByRole("button", {
+      name: "Delete: Delete this event",
+    });
+    expect(byName).toHaveLength(2);
+    expect(byName[0].textContent).toContain("Delete");
   });
 
   it("never nests a button inside another button", () => {
@@ -417,16 +459,31 @@ describe("Row edit action (#410)", () => {
     expect(screen.getAllByLabelText("Edit: Open in Tasks").length).toBe(4);
   });
 
-  it("pins every jump button to the right edge with a padded hit target", () => {
+  it("pins every row's action cluster to the right edge with padded hit targets", () => {
     renderView();
-    const jumps = screen.getAllByRole("button", { name: /^Edit: / });
-    expect(jumps.length).toBe(6);
-    for (const jump of jumps) {
-      expect(jump.className).toContain("ml-auto");
-      // Padding buys the 24x24 target; the negative margins keep the row
-      // height and the right edge unchanged (WCAG 2.5.8).
-      expect(jump.className).toContain("py-1");
-      expect(jump.className).toContain("-my-1");
+    const actions = screen.getAllByRole("button", { name: /^Edit: / });
+    expect(actions.length).toBe(6);
+    for (const action of actions) {
+      // #585: the cluster owns the right-edge pin and the negative margins
+      // now that two actions share it — the button keeps the padding that
+      // buys its 24x24 target (WCAG 2.5.8), and the row height and right
+      // edge stay exactly where they were with one action.
+      expect(action.className).toContain("py-1");
+      const cluster = action.parentElement!;
+      expect(cluster.className).toContain("ml-auto");
+      expect(cluster.className).toContain("-my-1");
+      expect(cluster.className).toContain("-mr-1.5");
+    }
+  });
+
+  it("gives the delete button the same hit target as its jump neighbour", () => {
+    renderView();
+    const deletes = screen.getAllByRole("button", { name: /^Delete: / });
+    expect(deletes.length).toBe(4);
+    for (const del of deletes) {
+      expect(del.className).toContain("py-1");
+      expect(del.className).toContain("px-1.5");
+      expect(del.className).toContain("text-xs");
     }
   });
 

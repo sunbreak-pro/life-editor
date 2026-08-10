@@ -38,8 +38,8 @@ export default mergeConfig(
      * and the copy found there loads shared's own React. Under vitest that
      * module tree is externalised, where vite's react dedupe no longer
      * applies, so any suite rendering an Analytics widget dies on "Cannot
-     * read properties of null (reading 'useContext')": two Reacts, one with a
-     * null dispatcher. Deduping recharts pins it to web's copy, which finds
+     * read properties of null (reading 'useContext')" — two Reacts, one with
+     * a null dispatcher. Deduping recharts pins it to web's copy, which finds
      * web's React and puts every renderer back on one instance.
      *
      * Test-only: the browser build bundles everything through vite, where the

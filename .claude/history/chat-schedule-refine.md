@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-10 (2) - merge 後始末: #657 docs-lint 修正・conflict 解消・全体レビュー → PR #659
+
+#### 概要
+
+/goal バッチの merge 前後の後始末。tracker PR #657 の docs-lint 失敗（索引 stale）と conflict を解消し、実装 6 PR のマルチエージェント全体レビューを実施した。#648 にのみ確定指摘 2 件（バグ 1・重複 1）が出て修正を push したが merge と入れ違いで main に届かず、origin/main から切り直して PR #659 として再提出した。
+
+#### 変更点
+
+- **#657 docs-lint 失敗**: 判断キュー 5 件を積んだのに `.claude/INDEX.md` / `.claude/decisions/INDEX.md` の再生成を同一コミットに含め忘れた（rules/records.md §4）。`records.mjs index` 再実行で解消
+- **#657 conflict**: 他レーンの tracker merge で main 側の索引も進んでいた。派生ファイルなので origin/main を merge → `records.mjs index` で機械解消（§4 の規約どおり中身は読まない）。merge commit は tracker-guard の仕様どおり `[tracker-ok]` で他チャット分の同梱を明示
+- **全体レビュー（ultracode workflow）**: 6 PR × 独立レビュー担当 + 指摘ごとの反証チェックの二段構え。#637 / #639 / #645 / #652 / #654 はクリーン、#648 に確定 2 件
+- **PR #659（#626 follow-up）**: ① バグ = #355 の防護 effect（他サーフェスが開いたら保留中バブルを破棄）が新設 `taskDetailId` を知らず、タスクチップのダブルクリックで 350ms 遅延バブルが詳細モーダル（z-50）の上（z-[60]）に浮く — 変更前は onOpenTasks() のセクション遷移 unmount が偶然キャンセルしていた。effect の条件 + deps に `taskDetailId` を追加。② 重複 = `STATUS_TEXT_KEY` が KanbanView のローカル定義の逐語コピー — `shared/src/components/taskStatusVisuals.ts`（byte-identical な status マップの既存 dedup 置き場）へ 1 定義化し両面が import
+- **取り残しコミットの再発**: memory `push-after-merge-strands-commits` の型どおり、#648 への修正 push が merge スナップショットに入らなかった。`git grep origin/main` で不着を実測 → origin/main から `claude/schedule-626-review-fix` を切り cherry-pick（conflict なし）→ 6 ゲート再実測 exit 0 → PR #659（CI green は head SHA 照合まで実測）
+- 検証: 全ゲート緑（shared 187 files / 1561 pass・web 20 files / 167 pass — merge 後 main 基準）
+
 ### 2026-08-10 - /goal 一括消化: #633 / #592 / #593 / #626 / #573 / #572 の 6 連続実装（PR 提出・merge 待ち）
 
 #### 概要

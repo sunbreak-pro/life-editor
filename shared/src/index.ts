@@ -496,6 +496,7 @@ export {
 export {
   STATUS_ORDER,
   STATUS_ICON,
+  STATUS_TEXT_KEY,
   statusLabel,
   type StatusLabelSet,
 } from "./components/taskStatusVisuals";
