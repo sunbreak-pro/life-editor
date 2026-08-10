@@ -125,6 +125,8 @@ export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
 // lumen-* tokens (§3.1 / §5). Requires a RightSidebarProvider (context barrel).
 export { RightSidebar, type RightSidebarProps } from "./RightSidebar";
 export { MobileDrawer, type MobileDrawerProps } from "./MobileDrawer";
+// The single placement definition for the narrow layout's floating "+" (#632).
+export { MobileFab, type MobileFabProps } from "./MobileFab";
 export {
   RightSidebarToggle,
   type RightSidebarToggleProps,

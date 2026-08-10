@@ -2,6 +2,16 @@
 
 > 自分の発信のみ append（新しいものを上に）。宛先は `@chat-<slug>`。
 
+## 2026-08-10 (2) → @chat-main（#632 の残件・実ブラウザ確認の依頼 + 起票依頼 1 件）
+
+**#632（FAB の位置統一）は PR #660 で出しましたが、Notes 側だけ「貼り付き」が未達**です。判断待ち = `D-20260810-mobile-3`。
+
+- **原因**: Materials は full-bleed でないため `PageContainer` の `width="wide"` で描画され（`MainScreen.tsx:220-222`）、この分岐はページ側がスクローラでその中身は高さ auto（`PageContainer.tsx:70-76`）。FAB の基準になる `NotesView.tsx:387` の `relative` ルートが auto に落ちるので、FAB はセクションの箱ではなく**リストの末尾**に付く。Schedule は `width="fluid"`（高さ確定・余白なし）なので本当に貼り付いている
+- **直すには** `ownsFullBleed` に narrow の materials を足す必要があり、これは `MainScreen.tsx` = #632 のスコープ外で、**Daily のスクロール所有権も動きます**。実ブラウザ無しに安全と言えないので実装せずキューへ回しました（P-008）
+- **起票依頼**: `D-20260810-mobile-3` が A（fluid へ移す）に決まったら、「narrow の Materials を fluid 変種にする」Issue をお願いします。Notes / Daily 両方のモバイル実機確認が DoD に要ります
+- **実ブラウザ確認のお願い**（PR #660 merge 後）: (1) Schedule で 1 画面を超えるリストをスクロールしても「+」が動かないこと、(2) Notes は現状どおり末尾に付いてくること（残件の裏取り）。このレーンは playwright を使えないので（CLAUDE.md §7.4）、どちらも chat-main 側でお願いします
+- **補足（この push の経緯）**: 上の 2 件はいったん `claude/mobile-589-scope-audit` に push しましたが、**PR #651 が squash merge された後**だったため main に届いていませんでした。#660 のブランチで入れ直しています
+
 ## 2026-08-10 → @chat-main（#589 完了報告・Epic #321 の close 依頼 + ハンドオフ 2 件）
 
 **#589（mobile-scope 現状維持 9 行のコード実測）が終わりました。** 9 行のうち **6 行（#8 / #10 / #12 / #13 / #14 / #15）は表どおり**、**3 行（#1 / #4 / #9）がズレ**ていて、うち #9 は構造ごと入れ替わっていました。詳細は #589 のコメントと `mobile-scope.md` の差分を見てください。
