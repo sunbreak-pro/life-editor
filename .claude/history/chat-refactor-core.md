@@ -1,5 +1,19 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-11 - ルーチン Undo/Redo の配線（PR #686）+ 実装セッション 1 着手（C1 PR 1 = PR #687）
+
+#### 概要
+
+裁定 D-20260810-refactor-1（= A）を実装し、5 ドメインで唯一 UndoRedo に未接続だった `RoutineProvider` を繋いだ。続けてコアリファクタの実装セッション 1 を C1 から開始し、CI が一度も見ていなかった `mcp-server`（src 19 ファイル / vitest 6 本）をゲートに載せた。どちらも両テストを**負のテストで実証**してから出している（配線を外す / TZ pin を外すと落ちることを確認）。merge はユーザーゲート（P-001）で、両 PR とも書いた時点で open。
+
+#### 変更点
+
+- **PR #686（feat）**: `RoutineContext` を `ScheduleItemsProvider` と同形に（ambient stack + 明示 prop 優先 + ref 経由の unmount clear）。`undoRedo.labels` に createRoutine / updateRoutine / deleteRoutine を en・ja へ追加 — 無いと「Undid: createRoutine」の生キー toast が出る。`web/` 変更ゼロ（RoutineProvider は既に UndoRedoHost の内側）
+- **PR #686 のテスト**: 既存 domain-wiring スイートに routine ケース追加 / i18n は `t()` ではなく `getResource` で読む（`fallbackLng: en` が ja の欠落を埋めてしまい、検出したい穴がちょうど隠れるため）
+- **PR #687（ci）**: `ci.yml` に mcp-server の install / build / test を追加（lint は eslint 設定が無いため足さない）。`mcp-server/vitest.config.ts` で TZ を Asia/Tokyo に pin し、`tests/localDate.test.ts` が pin 自体と局所日付の契約を固定
+- **計画の前提を 1 件訂正**: C1 は mcp-server の型エラー backlog を見込んでいたが、初回 `npm ci && npm run build` は **エラー 0**。既存 45 テストも TZ=UTC で緑 = 現行スイートは TZ 依存経路を踏んでいない。pin が効くのは新テストからで、外すと UTC で 2 件落ちることを実測
+- **意図した新結合**: `tests/briefingSection.test.ts` が `../../shared/src` を直 import しているため、shared を壊すと mcp-server も CI で落ちるようになった（C10 が統合するまで shared/mcp のドリフトを見張る唯一の場所）
+
 ### 2026-08-10 - コア構造リファクタの調査 + 計画書 + Issue 10 件起票（PR #678 open）
 
 #### 概要
