@@ -1,5 +1,17 @@
 # HISTORY ARCHIVE (chat-refactor-core) — 2026-07
 
+### 2026-07-29 - Phase B Step 2（NotesView hooks 切り出し・PR #463）
+
+#### 概要
+
+Phase B（web 画面 hooks 切り出し）の第 2 弾。NotesView（1313 行）をリスト導出側 `useNoteListState`・リンク側 `useNoteLinking`・デスクトップ行部品 `NoteListRows` + 表示専念の画面（約 890 行）に分割した（挙動変更ゼロ・shared/src 無改変）。
+
+#### 変更点
+
+- **web/notes**: `hooks/useNoteListState.tsx` 新設（タグ見出し折りたたみの永続化 + 検索 → タグ束ね → 並べ替え → タグ絞り込みの導出パイプライン + ソート/フィルタ UI の派生値）/ `hooks/useNoteLinking.ts` 新設（LinkPanel 候補・「[[」リンク先ローダと editor コールバック・タブ跨ぎ選択の引き継ぎ）/ `NoteListRows.tsx` 新設（draggable 行 + droppable タグ見出し。DnD の sensors/handlers は view 側の useNoteTagDnd のまま）。コードは配管以外 verbatim 移動
+- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 4 ファイル lint 0 problems・session-verifier PASS
+- **PR**: #463 open（`claude/refactor-07-notesview-hooks`・merge はユーザーゲート。残り = Phase B Step 3 = MainScreen）
+
 ### 2026-07-29 - Phase B Step 1（BriefingScreen hooks 切り出し・PR #462）
 
 #### 概要

@@ -357,13 +357,30 @@ export function MainScreen({ session }: { session: Session }) {
   // — the sole route to 夕刊 — is gone. Briefing's body is a centered "paper"
   // rather than a list, so unlike Materials the band is re-issued INSIDE the
   // view (under the masthead) instead of in a PageContainer toolbar row.
+  //
+  // #609: the hamburger rides at its left edge, the same shape Materials uses.
+  // Below 768px the detail panel is a MobileDrawer, and Briefing had no opener
+  // of any kind for it — the wide SectionHeader toggle is gone at this width
+  // and the standalone hamburger row (MOBILE_HAMBURGER_SECTIONS) belongs to
+  // sections whose body is a list. So the「今日の Todo」tray was simply
+  // unreachable on a phone. It goes HERE rather than in a row of its own
+  // because the paper already re-issues this band: a second row above the
+  // masthead would push the paper down for one button.
   const briefingMobileSwitcher = isWide ? undefined : (
-    <SegmentedControl
-      options={briefingTabDefs}
-      value={briefingTab}
-      onChange={(id) => setBriefingTab(id as BriefingTab)}
-      label={t("briefing.tabsLabel")}
-    />
+    <div className="flex items-center gap-2">
+      <RightSidebarToggle
+        variant="hamburger"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+      />
+      <SegmentedControl
+        className="flex-1"
+        options={briefingTabDefs}
+        value={briefingTab}
+        onChange={(id) => setBriefingTab(id as BriefingTab)}
+        label={t("briefing.tabsLabel")}
+      />
+    </div>
   );
 
   const sectionToolbar =

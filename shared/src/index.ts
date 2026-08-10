@@ -357,6 +357,14 @@ export {
 // #469 follow-up: the span an all-day row gets back when the switch goes OFF
 // (a row created as all-day may carry no start/end at all).
 export { timedSpanForAllDayOff, type MaybeTime } from "./utils/scheduleAllDay";
+// #279 / #628: which fields of one edit a repeat can carry — the rule that
+// decides whether a save raises the scope dialog at all.
+export {
+  seriesPropagatableFields,
+  touchesSeries,
+  type SeriesEditablePatch,
+  type SeriesUpdates,
+} from "./utils/eventEditorSave";
 // #466 Step 5-b: the Calendar grid's repeat filter (view-layer narrowing —
 // the host keeps its unfiltered store for selection / mutation).
 // #468 adds the calendar lens, which composes with it as an independent AND.

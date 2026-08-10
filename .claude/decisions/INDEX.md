@@ -17,6 +17,8 @@
 | D-20260810-main-3 | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | main |
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
+| D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
+| D-20260810-refactor-1 | ルーチンの Undo/Redo を繋ぐか、コードを消すか | refactor-core |
 
 ## Active（現在有効な裁定 — superseded-by なし）
 

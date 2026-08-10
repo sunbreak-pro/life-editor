@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -35,7 +35,6 @@ import {
   useDeferredAction,
   useToast,
   minutesToTime,
-  timedSpanForAllDayOff,
   deriveScheduleStatus,
   tasksToCalendarChips,
   taskChipId,
@@ -69,6 +68,7 @@ import {
   type SegmentedOption,
   type StatusFilterChip,
   type DataService,
+  MobileFab,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
 import { TagPicker } from "../wikitag/TagPicker";
@@ -78,6 +78,7 @@ import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
 import { todoDeleteCascade } from "./todoTrayDeleteGuard";
+import { decideUnsavedClose } from "./unsavedCloseGuard";
 import {
   timedPlacement,
   taskChipMoveWrite,
@@ -1460,49 +1461,30 @@ export function CalendarTab({
     complete: t("scheduleScreen.complete"),
     statusLabels,
   };
-  // #469: the date picker. Before this the only way to move an occurrence to
-  // another day was to drag it across the grid — impossible for a day the grid
-  // is not showing. No ensure pass is needed (an existing row is moving, not an
-  // occurrence being generated).
-  //
-  // #469 follow-up: it used to move the calendar to the target day as well, on
-  // the reasoning that a row vanishing from the current week needs following.
-  // That backfired — changing the anchor changes [rangeStart, rangeEnd], which
-  // refetches and REPLACES rangeItems, discarding the optimistic patch before
-  // the (fire-and-forget, several round trips) write lands. The read wins the
-  // race, the row is in neither range, `selected` goes null and the editor
-  // closes itself. Staying put keeps the patched row in rangeItems, so the
-  // editor stays open showing the new day, and the next settled fetch is what
-  // finally moves the row out of the visible range.
-  const handleChangeDate = useCallback(
-    (id: string, date: string) => {
-      handleUpdate(id, { date });
-    },
-    [handleUpdate],
-  );
-
-  // #469: the all-day switch. Turning it ON keeps the times (so switching back
-  // restores them); turning it OFF has to hand back a usable span, because a
-  // row created as all-day can carry none at all — a null start would leave the
-  // item unrenderable on the time grid. The span itself is worked out by a
-  // shared pure helper (#469 follow-up — web has no test runner, and the
-  // end-of-day clamp / malformed-time cases are worth pinning).
-  const handleToggleAllDay = useCallback(
-    (id: string, next: boolean) => {
-      if (next) {
-        handleUpdate(id, { isAllDay: true });
-        return;
-      }
-      // `selected` IS the row the editor is bound to (editorItem is derived
-      // from it), so there is no second lookup to disagree with it.
-      const span = timedSpanForAllDayOff(
-        selected?.startTime,
-        selected?.endTime,
-      );
-      handleUpdate(id, { isAllDay: false, ...span });
-    },
-    [handleUpdate, selected],
-  );
+  /*
+   * #628: an unsaved draft must not disappear silently. The pane owns the
+   * draft, so it reports the dirty flag here and the close affordances —
+   * Escape, backdrop, the sheet's close button — ask before they throw it away.
+   * A ref rather than state: nothing on screen depends on it, and re-rendering
+   * the whole calendar on every keystroke in the memo field would be a steep
+   * price for a flag only event handlers read. The pane clears it on unmount,
+   * so a closed editor can never leave a stale "dirty" behind.
+   *
+   * The decision itself sits in `decideUnsavedClose` (pinned in web/tests, same
+   * arrangement as taskChipUndoWiring): CalendarTab needs the whole Provider
+   * chain to render, so nothing reachable only from inside it can be tested.
+   */
+  const editorDirtyRef = useRef(false);
+  const confirmDiscardDraft = useCallback(() => {
+    const { close, clearDirty } = decideUnsavedClose({
+      dirty: editorDirtyRef.current,
+      // Same plain-confirm flavour as the #573 todo cascade guard — a browser
+      // confirm is the one dialog that cannot be missed on either platform.
+      askDiscard: () => window.confirm(t("scheduleScreen.unsavedCloseConfirm")),
+    });
+    if (clearDirty) editorDirtyRef.current = false;
+    return close;
+  }, [t]);
 
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
@@ -1513,6 +1495,9 @@ export function CalendarTab({
     startTime: t("scheduleScreen.startTime"),
     endTime: t("scheduleScreen.endTime"),
     memo: t("scheduleScreen.memo"),
+    save: t("scheduleScreen.save"),
+    saved: t("scheduleScreen.saved"),
+    unsaved: t("scheduleScreen.unsaved"),
     seriesHint: t("scheduleScreen.seriesEditHint"),
     originRoutine: t("scheduleScreen.originRoutine"),
     originEvent: t("scheduleScreen.originEvent"),
@@ -1524,15 +1509,21 @@ export function CalendarTab({
     <EventEditorPane
       item={editorItem}
       originDetail={originDetail}
-      onCommitTitle={(id, title) => handleUpdate(id, { title })}
-      onChangeDate={handleChangeDate}
-      onToggleAllDay={handleToggleAllDay}
-      // #553: one patch per gesture — the TimeRangeField may move both ends
-      // at once, and two writes would ask a routine's scope dialog twice.
-      onChangeTimes={(id, patch) => handleUpdate(id, patch)}
+      // #628: one commit per press, carrying everything that changed. It goes
+      // to handleUpdate whole — that is what keeps a routine occurrence's
+      // scope dialog (#279) to one appearance and makes cancelling it discard
+      // the entire save rather than half of it. Nothing is written on blur any
+      // more, so the day move and the all-day flip are plain capabilities
+      // rather than callbacks: the pane holds them in its draft until the
+      // button.
+      onSave={handleUpdate}
+      onDirtyChange={(dirty) => {
+        editorDirtyRef.current = dirty;
+      }}
+      canEditDate
+      canEditAllDay
       formatDuration={formatDuration}
       onToggleComplete={handleToggle}
-      onChangeMemo={(id, memo) => handleUpdate(id, { memo })}
       onDismiss={handleDismiss}
       onDelete={handleDelete}
       labels={editorLabels}
@@ -1988,11 +1979,15 @@ export function CalendarTab({
 
   // #299 detail-edit overlay (Desktop): the former rightSidebar "詳細" tab body
   // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
+  // #628: Escape and the backdrop both land on this one onClose, so guarding it
+  // covers every Desktop exit at once.
   const detailOverlayEl = (
     <ItemDetailOverlay
       open={isWide && overlayOpen && !!editorPane}
       title={t("scheduleScreen.detailTitle")}
-      onClose={() => setOverlayOpen(false)}
+      onClose={() => {
+        if (confirmDiscardDraft()) setOverlayOpen(false);
+      }}
     >
       {editorPane}
     </ItemDetailOverlay>
@@ -2282,75 +2277,78 @@ export function CalendarTab({
   return (
     <>
       {sidebarPortal}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
-        <div className="flex shrink-0 items-center gap-2">
-          <RightSidebarToggle
-            variant="hamburger"
-            openLabel={t("scheduleScreen.openMenu")}
-            closeLabel={t("scheduleScreen.closeMenu")}
-          />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
-            {periodLabel}
-          </span>
-          <div className="flex gap-1">
+      {/*
+       * #632: the FAB anchors to THIS wrapper, not the viewport. It has to be
+       * padding-free and span the section box — see MobileFab's host contract.
+       * The inner div keeps the gutter so the list still lines up.
+       */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
+          <div className="flex shrink-0 items-center gap-2">
+            <RightSidebarToggle
+              variant="hamburger"
+              openLabel={t("scheduleScreen.openMenu")}
+              closeLabel={t("scheduleScreen.closeMenu")}
+            />
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
+              {periodLabel}
+            </span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                aria-label={t("scheduleScreen.prev")}
+                onClick={() => step(-1)}
+                className={ICON_BTN}
+              >
+                <ChevronLeft aria-hidden className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={t("scheduleScreen.next")}
+                onClick={() => step(1)}
+                className={ICON_BTN}
+              >
+                <ChevronRight aria-hidden className="size-4" />
+              </button>
+            </div>
             <button
               type="button"
-              aria-label={t("scheduleScreen.prev")}
-              onClick={() => step(-1)}
-              className={ICON_BTN}
+              onClick={goToday}
+              className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
             >
-              <ChevronLeft aria-hidden className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={t("scheduleScreen.next")}
-              onClick={() => step(1)}
-              className={ICON_BTN}
-            >
-              <ChevronRight aria-hidden className="size-4" />
+              {t("scheduleScreen.today")}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={goToday}
-            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {t("scheduleScreen.today")}
-          </button>
+          {rangeErrorBanner}
+          <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+            {showLoading ? (
+              loadingCard
+            ) : showError ? (
+              errorCard
+            ) : (
+              <AgendaList
+                items={toAgenda(
+                  anchorDayItems,
+                  rangeTaskChips.filter((c) => c.date === anchorDate),
+                )}
+                nowMinutes={anchorDate === today ? nowMinutes : null}
+                onToggleComplete={handleToggle}
+                onItemActivate={handleItemActivate}
+                onItemDoubleClick={handleItemOpenDetail}
+                selectedId={selectedId}
+                labels={agendaLabels}
+                className="rounded-md border border-lumen-border bg-lumen-bg px-2"
+              />
+            )}
+          </div>
         </div>
-        {rangeErrorBanner}
-        <div className="min-h-0 flex-1 overflow-y-auto pb-24">
-          {showLoading ? (
-            loadingCard
-          ) : showError ? (
-            errorCard
-          ) : (
-            <AgendaList
-              items={toAgenda(
-                anchorDayItems,
-                rangeTaskChips.filter((c) => c.date === anchorDate),
-              )}
-              nowMinutes={anchorDate === today ? nowMinutes : null}
-              onToggleComplete={handleToggle}
-              onItemActivate={handleItemActivate}
-              onItemDoubleClick={handleItemOpenDetail}
-              selectedId={selectedId}
-              labels={agendaLabels}
-              className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-            />
-          )}
-        </div>
-      </div>
 
-      {/* FAB → creation panel (safe-area aware). */}
-      <button
-        type="button"
-        onClick={handleToolbarAdd}
-        aria-label={t("scheduleScreen.addEvent")}
-        className="fixed bottom-6 right-6 z-30 mb-[env(safe-area-inset-bottom)] flex size-14 items-center justify-center rounded-full bg-lumen-accent text-lumen-on-accent shadow-lumen-lg transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
-      >
-        <Plus aria-hidden className="size-6" />
-      </button>
+        {/* FAB → creation panel. */}
+        <MobileFab
+          onClick={handleToolbarAdd}
+          label={t("scheduleScreen.addEvent")}
+        />
+      </div>
 
       {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
           empty-slot tap opens with the tapped slot's time prefilled. Same panel
@@ -2380,7 +2378,11 @@ export function CalendarTab({
           still overflow while the bar is showing (#631's trap). */}
       <BottomSheet
         open={!!editorPane}
-        onClose={() => setSelectedId(null)}
+        // #628: the sheet's close button, its backdrop and Escape all funnel
+        // here, so one guard covers every Mobile exit too.
+        onClose={() => {
+          if (confirmDiscardDraft()) setSelectedId(null);
+        }}
         title={t("scheduleScreen.detailTitle")}
         closeLabel={t("common.close")}
         className="flex max-h-[92svh] flex-col overflow-hidden"

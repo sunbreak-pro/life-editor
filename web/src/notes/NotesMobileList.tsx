@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Lock,
   Pin,
-  Plus,
   Search,
 } from "lucide-react";
 import {
@@ -16,6 +15,7 @@ import {
   TagHeadingIcon,
   tagGroupKey as groupKey,
   cn,
+  MobileFab,
   type NoteTagGroup,
   FOCUS_RING,
 } from "@life-editor/shared";
@@ -154,11 +154,11 @@ export function NotesMobileList({
       ) : (
         /*
          * #509: the scroller's own bottom padding IS the FAB clearance — the
-         * button floats over this box (48px tall at a 20px offset = 68px of
-         * occluded strip), so anything less lets the last row's right end sit
-         * under it and a "open this note" tap creates a new one instead.
-         * pb-24 (96px) is the same clearance the Schedule mobile list uses
-         * under its own FAB (#467); keep new FABs on that number.
+         * button floats over this box (56px tall at a 24px offset = 80px of
+         * occluded strip, per the shared MobileFab), so anything less lets the
+         * last row's right end sit under it and a "open this note" tap creates
+         * a new one instead. pb-24 (96px) is the same clearance the Schedule
+         * mobile list uses under the same FAB; keep new hosts on that number.
          */
         <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-24">
           {visibleGroups.map((group) => {
@@ -245,19 +245,17 @@ export function NotesMobileList({
         </div>
       )}
 
-      {/* Floating "+" quick-add. */}
-      <button
-        type="button"
-        onClick={onQuickAdd}
-        aria-label={labels.quickAdd}
-        className={cn(
-          "absolute bottom-5 right-5 grid h-12 w-12 place-items-center rounded-full",
-          "bg-lumen-accent text-lumen-on-accent shadow-lumen-md transition-opacity hover:opacity-90",
-          FOCUS_RING,
-        )}
-      >
-        <Plus size={22} aria-hidden />
-      </button>
+      {/*
+       * Floating "+" quick-add. Size and offsets come from the shared MobileFab
+       * (#632), but NOT the anchoring: Materials renders through PageContainer
+       * `width="wide"`, so the `relative` ancestor this lands in is
+       * content-height and sits inside the page gutter. The button therefore
+       * still parks at the end of the list (40px in, vs Schedule's 24px)
+       * instead of holding the corner of the section box. Fixing that is a
+       * scroll-ownership change in MainScreen — see MobileFab's HOST CONTRACT
+       * and D-20260810-mobile-3.
+       */}
+      <MobileFab onClick={onQuickAdd} label={labels.quickAdd} />
     </div>
   );
 }
