@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
-- #588 NotesView 925 行の分割 + materials 3 画面のテスト整備 ✅（2026-08-10 — **PR #646 open**（Closes #588・CI 緑・merge = こうだいさん）。テスト 36 本を先に敷いてから 5 ファイルへ分割し、同じテストが前後で緑なのを挙動不変の根拠にした。ホスト 925 → 469 行。`shared/` 差分ゼロ・`t()` キー集合が完全一致。実ブラウザ確認は merge 後に chat-main）
+- #680 Notes の i18n 取りこぼし 3 点（ゴミ箱行 aria-label / 本文 placeholder / en の単複）✅（2026-08-11 — **PR #693 open**（Closes #680・merge = こうだいさん）。catalog に 4 キー追加 + `taskCount` を i18next 複数形へ。ja を実際に描画して読み戻す `web/tests/notesI18n.test.tsx` を新設（既存 notesView.test.tsx は `t` をキーのエコーに差し替えるため、この種のバグに構造的に無反応だった）。en/ja lockstep 検査を shared/tests/i18n.test.ts に追加）
+- #588 NotesView 925 行の分割 + materials 3 画面のテスト整備 ✅（2026-08-10 — PR #646 **merge 済み**（2026-08-11 確認・main 7ad31a5e）。テスト 36 本を先に敷いてから 5 ファイルへ分割し、同じテストが前後で緑なのを挙動不変の根拠にした。ホスト 925 → 469 行。実ブラウザ確認は chat-main）
 - materials 担当5件（#310/#311/#312/#302/#303）✅（2026-07-23 — 全 Issue close 済み・merge 済み）
-- #282 選択アイテムのタブ/セクション跨ぎ保持 + #283 rightSidebar ソート・フィルタ ✅（2026-07-19 — PR #289）
 
 ## 予定
 

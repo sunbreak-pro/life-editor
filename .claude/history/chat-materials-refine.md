@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-11 - #680 Notes の i18n 取りこぼし 3 点を catalog へ（PR #693）
+
+#### 概要
+
+ゴミ箱行の aria-label・本文エディタの placeholder・en の件数表記という、ja 設定でも英語のまま出ていた 3 点を i18n catalog に載せた。表示のみで機能影響はなかったが、アイコンだけのボタンでは aria-label が読み上げの全部なので、スクリーンリーダー利用者には英語しか届いていなかった。PR #693 提出（Closes #680・merge = こうだいさん）。
+
+#### 変更点
+
+- **catalog**: `materials.notes` に `bodyPlaceholder` / `untitled` / `restoreNote` / `permanentDeleteNote` を en/ja 両方へ追加。`materials.tasks.taskCount` は i18next の複数形（en = `_one` + `_other`、ja = `_other` のみ）に置換。呼び出し側 `KanbanView.tsx:252` は `t(key, { count })` のままで無改修（三項演算子を足していない）
+- **ラベルの形**: ゴミ箱行の 2 ラベルは文字列でなく `(title) => string` のビルダーで渡す。ja は題名が文頭・en は文末に来るので、題名の置き場所は翻訳側の裁量にした
+- **placeholder の持ち主**: `NoteBodyEditor` の中で `t()` を読む形にした（prop にすると Desktop 本文とモバイルシートの 2 箇所で渡し忘れが起きる — このファイルが存在する理由そのもの）。`RichTextEditor` の既定値も翻訳経由に変え、唯一まだ placeholder を渡していない Kanban 本文（#680 のスコープ外）も英語を出さなくなった
+- **テスト**: `web/tests/notesI18n.test.tsx` を新設し、本物の i18next シングルトンを ja に切り替えて描画結果を読み戻す。既存 `notesView.test.tsx` は `t` をキーのエコーに差し替えるため、ハードコード英語も翻訳済み文字列も同じように通る = この種のバグに構造的に無反応で、3 点が描画対象なのに生き残った理由
+- **lockstep 検査**: `shared/tests/i18n.test.ts` に en/ja のキー集合照合を追加。比較は**複数形サフィックスを剥いだ base key** で行う（en = one + other、ja = other なので、素のキー集合一致を要求すると i18next が決して読まない `taskCount_one` を ja に置く羽目になる）。`_other` は両側に必須。追加時点で既存キーの欠落はゼロ
+- **検証**: shared lint / build / test（192 files・1623 tests）・web lint / build / test（25 files・190 tests）・`LC_ALL=C bash scripts/docs-lint.sh` すべて exit 0
+
 ### 2026-08-10 - #588 NotesView 925 行の分割 + materials 3 画面のテスト整備（PR #646）
 
 #### 概要
@@ -60,17 +75,3 @@ Materials の Notes/Daily/Tasks で選択中アイテムがセクション・タ
 - **#283 ソート・フィルタ**: `SidebarListControls` 新設（props 注入・lumen トークン・IME 安全な onChange のみ filter）。Notes = 3 モード × 方向をタググループ内に適用・sortMode を `life-editor:note-sort-mode` に新規永続化・ソート実装を `utils/noteSort.ts` に一本化。Daily = 日付方向（`life-editor:daily-sort-direction`）+ テキスト絞り込み（`utils/dailyListView.ts`）。Tasks は N/A（リスト退役済み #286）・他セクション水平展開は outbox で起票依頼
 - **プロセス**: ultracode 采配 = 偵察 3 並列 → role-pm 分解 → engineer 3 本（A/B1 並列 → B2）→ role-qa + 敵対的レビュー並列監査。監査指摘 4 件（createNote ストア書き込み漏れ / fetch 失敗時の誤クリア / Schedule mount への復元リーク / Daily today 固定）を全修正 + 回帰テスト 5 件
 - **検証**: shared tsc -b / vitest 122 files・998 tests（新規 47）/ web build / eslint 全 green。実ブラウザ確認 = merge 後 chat-main（PR 本文にチェックリスト）
-
-### 2026-07-18 - #258 F-1 Daily エディタ TipTap 化（PR #270）
-
-#### 概要
-
-loop-friction-fixes §F-1（ループ前提工事・最優先）を実装し PR #270（Closes #258）を提出。Daily 本文の平文 textarea を Notes の TipTap RichTextEditor（見出し 1〜3）に載せ替え、手書きの朝刊・夕刊見出しが extractBriefing に拾われるようにした。
-
-#### 変更点
-
-- **shared 純関数ヘルパー新設**: `components/materials/dailyContent.ts` — `plainTextToTipTapDoc`（改行 = paragraph）/ `dailyContentToEditorContent`（平文は読み込み時のみ変換・doc でない JSON も平文扱いでデータ非破壊）/ `dailyContentExcerpt`（平文・TipTap 両対応の抜粋）+ vitest 12 件（extractBriefing 往復テスト含む）
-- **DailyView**: EditorCard の textarea → RichTextEditor（web/notes 再利用・`className` prop 新設で card 内フィル表示）。JSON 保存はユーザー編集時のみの遅延方式・remount は日付切替/外部変更時のみ（保存エコーは lastEmitted state で判別 — カーソル/IME 保持）。タイトルは日付固定のまま。過去エントリ抜粋を両形式対応に
-- **CSS**: `.daily-editor` バリアント（カード内フィル + クリック全域フォーカス）
-- **検証**: shared vitest 929/929・shared tsc -b・web build green・web eslint clean（react-hooks/refs 9 件を state 化で解消）。role-qa 独立監査 PASS（Blocking 0）— 指摘反映: CRLF split / 空 doc mint ガード / lastEmitted に日付付与（切替直後の誤 unsaved 解消）/ CSS 詳細度固定。夕刊パースは F-6 領分とスコープ明確化（extractBriefing は朝刊専用のまま）。実ブラウザ確認 = merge 後 chat-main
-- **状況同期**: PR #244（#225 life-tags S3）・PR #264（#260/#261）の merge 済みを確認し memory へ反映。life-tags 残 = ユーザー db push のみ
