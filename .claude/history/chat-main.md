@@ -1,5 +1,21 @@
 # HISTORY (chat-main)
 
+### 2026-08-10 - ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 open）
+
+#### 概要
+
+「計画 → 実装 → 検証 → 改善」のループを長期運用できるよう、ハーネスの穴 5 件と重複 8 系統を life-editor（19 ファイル）+ claude-dotfiles（26 ファイル）の 2 レーンで一括改修した。P-008（実装中スコープ凍結）を POLICY に追加し、計画テンプレートへ「検討した代替案」節と完了時の乖離レビュー 3 行を義務化。life-editor 側は PR #616 が merge 済み、dotfiles 側は PR #14 が open（中身は symlink 経由で `~/.claude` に実効済み・merge はユーザー手番）。（計画書: archive/2026-08-10-harness-loop-consolidation.md）
+
+#### 変更点
+
+- **P-008 実装中スコープ凍結**（ユーザー承認 2026-08-10・POLICY.md）: 実装中に計画外の追加・変更・削除が浮上したら実装せずキュー or Issue 依頼へ積み、現計画を続行。Scope / AC の変更・逸脱の自己免除はユーザー回答まで禁止。`_TEMPLATE.md`・`rules/decision-queue.md`・dotfiles の lead-pipeline（中ティアのミニスコープ宣言）へ配線
+- **計画テンプレの強化**: 「検討した代替案（案 / 採否 / 却下理由 / 復活条件・最低 2 案）」節を必須化（ask-user の選択肢と回答も転記）。完了時の乖離レビュー 3 行（スコープ逸脱 / AC 免除 / 途中判断の行き先）を Worklog 必須に（実行者 = task-tracker END フロー）
+- **重複のポインタ化（Lane L）**: comm/README の「タスク分配の正本」宣言を撤回し docs-workflow へ／ decisions 昇格手順・分担表・loop-\* の環境事実・frontend.md の jsdom 段落を各正本への ID 参照へ／ records.md に「インライン注記には D-ID を添える」を追加
+- **Mac 専用 symlink 10 本 = known-issues/031**: skills 8 + agents 2 は Mac 絶対パスで Windows では解決不能。削除・stub 化は Mac を壊すため禁止。実体化は Mac セッションの手番（skill-lib / agents-lib に git remote があれば Windows clone でも可 — remote の有無は Mac で確認）
+- **dotfiles 側（Lane G・PR #14）**: tone 3 ファイルの正本を tone-persona へ一本化（呼び名はサブエージェント向け複写 1 行だけ tone.md に残す — QA Blocking の回収）／ role-qa の判定ラベルを Blocking / Important / Suggestion に統一／ git-workflow §0.1.1 に「プロジェクト側 POLICY override が優先」を明記／ `MANDATORY FIRST ACTION` 行を rule + hook の 2 系統へ集約（G19）
+- **QA / 検証**: role-qa 監査 NEEDS REVISION（Blocking 1 / Important 6）→ 同日全件回収。docs-lint（LC_ALL=C）+ `records.mjs check` 緑。乖離レビュー = G19 の Scope 逸脱 4 ファイルを Scope 追記で正規化 / AC 免除なし / role-engineer Verdict 形式は次 PR へ
+- **残件**: dotfiles PR #14 merge（ユーザー）/ role-engineer Verdict 形式（次 PR）/ Phase D = Scope 照合 hook（#173 系）/ symlink 実体化（Mac — known-issues 031）
+
 ### 2026-08-09 - main の未追跡資産を 2 PR に整理（Codex 対応を複製から参照へ・PR #610 / #611 merged）
 
 #### 概要
@@ -235,21 +251,5 @@ Notion の「Life Editor Night Review」ハブ（3b4b6365-53cc-8158-93d5-e3514ff
 制約: Scope = .claude/skills/loop-*/ と plans/ のみ。全ループ明示起動（disable-model-invocation）+ 反復上限宣言 + 必須 5 見出し（目標 / 完了条件 / 予算 / 停止条件 / 使ってよい道具）。既存パイプラインを呼ぶ薄い外枠にし、手順を書かない。
 セッション終了時に、コスト削減ハーネス（2026-08-04-context-cost-reduction-harness.md・セッション 3）向けのプロンプトを生成すること。
 ```
-
-### 2026-08-01 (2) - 判断キュー 8 件の消化と docs 反映（PR #527 merged・#524〜#528 起票）
-
-#### 概要
-
-巡回を 5 周した末にユーザーが判断キューへ回答を返し、溜まっていた 8 件をすべて消化した。回答は行き先が 3 通り（Issue のゲート解除 / 実装 Issue の起票 / docs への反映）に分かれるため、それぞれ実行して停止条件（#467 / #468 close + open PR 0）まで戻した。
-
-#### 変更点
-
-- **回答の転記**: `.claude/comm/decisions/ANSWERS.md` に 8 件（main `3dd7b511`）。うち D-20260730-mobile-1 は明示指名が無く「放置時 A」での確定なので、ユーザー回答ではない旨を行に明記
-- **ゲート解除 1 件**: D-20260801-sched-1 = A（移動時にレンズを外す）を #520 にコメント。DoD 1 番目の 🛑 が外れ schedule-refine が着手可に
-- **起票 2 件（B 採用 = 実装が要るもの）**: **#525** `BottomSheet` に明示的な閉じるボタン（mobile-2）／ **#526** パスワード付きノートのモバイルシートを Desktop と同じ「本文だけロック」に揃える（mobile-3）。どちらも `[mobile-refine]` 宛て
-- **docs 反映 4 件 = PR #527**（merged `637a64e6`・CI 2 ゲート pass）: CLAUDE.md §9 から `[all]` prefix を廃し「起票時点で slug を 1 つに決める」へ（main-2）／ §7.4 に「tracker は実装ブランチに載せない」（main-1）／ `rules/docs-consistency.md` §3 に「enum は plans/ 由来だけ」+ 全数チェックの正しい grep（main-2）／ ClaudeDesign fan-out 計画書を COMPLETED 化して `archive/` へ `git mv` し、CLAUDE.md §6 の「追跡正本」宣言を **Epic #321 + mobile-scope.md + Issue 群**へ付け替え（tags-1）
-- **自分で作った不具合を自己レビューで検出**: archive へ移した計画書の相対リンク 2 本が階層ぶんずれてリポジトリ外を指していた（`../../` のまま）。同 PR 内で修正（`e6f0b7cc`）
-- **同種の既存壊れを発見 → #528**: `archive/` の 5 ファイル・6 本が同じ理由で壊れている（リンク先はすべて実在・階層だけが誤り）。根本原因は `scripts/docs-lint.sh` がリンク解決を検査していないことなので、検出の追加も DoD に入れた
-- **巡回 2〜5 周目の所見**: outbox は **worktree の実体まで直接 diff** しないと未 push 分を取りこぼす（tags-docs に 4 エントリ・内容は処理済み）。PR #479 は squash merge のため `git merge-base` では未マージに見えるが、mergeCommit `ac32c7b9` が main の祖先であることを実測して着地を確認（§7.4 の「差分で判定しない」の実例）
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
