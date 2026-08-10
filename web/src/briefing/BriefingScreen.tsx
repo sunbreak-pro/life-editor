@@ -349,16 +349,22 @@ export function BriefingScreen({
     [t],
   );
 
-  // Wide only. Below 768px the detail panel is a MobileDrawer whose only
-  // openers are the wide SectionHeader toggle and the per-section hamburger
-  // row (MOBILE_HAMBURGER_SECTIONS in MainScreen) — Briefing has neither, so
-  // a tray mounted there would be unreachable UI. mobile-scope.md #1 keeps
-  // Briefing's mobile scope at Consumption / 現状維持; adding a mobile opener
-  // is a Phase 2 concern (#321), not this Issue's.
+  // Every width (#609). This used to be wide-only, and for a real reason:
+  // below 768px the detail panel is a MobileDrawer, and Briefing had no opener
+  // for it at all — the wide SectionHeader toggle is gone at that width and
+  // the standalone hamburger row (MOBILE_HAMBURGER_SECTIONS) belongs to
+  // sections whose body is a list — so a tray mounted here was unreachable UI.
+  // MainScreen now puts the hamburger at the left edge of Briefing's narrow
+  // 朝刊/夕刊 band, which is the opener that was missing; `docs/requirements/
+  // mobile-scope.md` #1 moved with it.
+  //
+  // No `isWide` guard of its own: <RightSidebarPortal> renders nothing while
+  // the panel is closed and only registers that content exists, so mounting it
+  // at every width costs a subscription, not a surface.
   //
   // Mounted on BOTH papers (朝刊 / 夕刊): the panel is section-level, and the
   // tray is as useful when closing the day as when starting it.
-  const todoTrayPortal = isWide ? (
+  const todoTrayPortal = (
     <RightSidebarPortal>
       <div className="flex flex-col gap-3">
         {/* #623: the panel's own「+」. Same target as the paper's — the two
@@ -393,7 +399,7 @@ export function BriefingScreen({
         />
       </div>
     </RightSidebarPortal>
-  ) : null;
+  );
 
   // Keyed on the day so a paper that crosses midnight (or the day-start hour)
   // re-seeds the fields rather than keeping a draft aimed at yesterday.
