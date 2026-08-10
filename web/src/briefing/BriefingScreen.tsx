@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   BriefingView,
   EveningView,
+  RepeatScopeDialog,
   RightSidebarPortal,
   TodayTodoTray,
   hasIntentionToReport,
@@ -72,6 +73,11 @@ export function BriefingScreen({
     upcoming,
     handleToggleScheduleItem,
     handleToggleTask,
+    handleDeleteScheduleItem,
+    handleDeleteTask,
+    deleteScopeItem,
+    handleDeleteScopeChoose,
+    closeDeleteScope,
     todoPlaced,
     todoUnplaced,
     todoAddable,
@@ -127,6 +133,9 @@ export function BriefingScreen({
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
       edit: t("briefing.edit"),
+      delete: t("briefing.delete"),
+      deleteScheduleHint: t("briefing.deleteScheduleHint"),
+      deleteTaskHint: t("briefing.deleteTaskHint"),
       jumpToSchedule: t("briefing.jumpToSchedule"),
       jumpToTasks: t("briefing.jumpToTasks"),
     }),
@@ -234,6 +243,26 @@ export function BriefingScreen({
     </RightSidebarPortal>
   ) : null;
 
+  // #585: deleting a routine-derived row asks which occurrences first — the
+  // SAME <RepeatScopeDialog> Schedule uses (#279), with the same copy. The
+  // component is imported read-only; the delete semantics behind each choice
+  // live in useBriefingData.
+  const deleteScopeDialog = (
+    <RepeatScopeDialog
+      open={deleteScopeItem !== null}
+      mode="delete"
+      labels={{
+        title: t("scheduleScreen.deleteScopeTitle"),
+        thisOnly: t("scheduleScreen.scopeThisOnly"),
+        thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
+        all: t("scheduleScreen.scopeAll"),
+        cancel: t("scheduleScreen.scopeCancel"),
+      }}
+      onChoose={handleDeleteScopeChoose}
+      onClose={closeDeleteScope}
+    />
+  );
+
   if (tab === "evening") {
     return (
       <>
@@ -291,10 +320,13 @@ export function BriefingScreen({
         onIntentionBlur={flushIntention}
         onToggleScheduleItem={handleToggleScheduleItem}
         onToggleTask={handleToggleTask}
+        onDeleteScheduleItem={handleDeleteScheduleItem}
+        onDeleteTask={handleDeleteTask}
         onJumpToSchedule={() => onNavigate("schedule")}
         onJumpToTasks={() => onNavigate("tasks")}
         tabSwitcher={tabSwitcher}
       />
+      {deleteScopeDialog}
     </>
   );
 }
