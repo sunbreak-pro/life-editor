@@ -1,5 +1,21 @@
 # HISTORY (chat-main)
 
+### 2026-08-10 - /goal バッチのオーケストレーションと merge 後の一括検証（実ブラウザ 9 PASS / FAIL 0）
+
+#### 概要
+
+open Issue 20 件を Issue タイトルのレーン接頭辞どおり 8 レーンへ `/goal` プロンプトで分配し（briefing-refine worktree 新設込み）、同日中に merge された 17 PR を main へ取り込んで一括検証した。静的ゲート（shared 1554 / web 167 tests）全緑・playwright 実ブラウザ検証 9 PASS / FAIL 0。検証で発覚した DDL 未適用（0023）をユーザーが push してタグ機能を復旧し、最後の BLOCKED だった #626 も実測 PASS で締めた。
+
+#### 変更点
+
+- **オーケストレーション**: 8 レーン（schedule-refine / shared-fix / mobile-refine / briefing-refine / materials-refine / refactor-core / work-refine / tags-docs）へ `/goal` を配布。達成条件は「担当 Issue が closed / CI 緑 PR で merge 待ち / 判断キュー待ちのいずれか」。レーン間依存は #631 → #632 の 1 本だけと明示。briefing-refine worktree を新設（絶対パス・`.session-branch` / `.session-name` 同時作成）
+- **取り込みと静的ゲート**: main `8a701323` → `3a64470e`（86 files・+5,772/−2,238。Notes 神ファイル分割 #587 / #588 を含む）。web は vitest 不在で空振り → `npm install` で解消（この Windows 機の `web/node_modules` が古かった）
+- **実ブラウザ検証（playwright-ui-verifier）**: PASS 9 = #590 Work レイアウト / #593 Todo チップグリフ / #592 Todo 文言統一 / #572 タグ色空状態 a11y / #587+#588 Notes 回帰（エラー 0）/ materials 3 画面 / #586 モーダル・グラフ回帰 / #631 ドキュメント不動（モバイル幅実測）/ #633 シート max-height + 内部スクロール。ログインは資格情報がこの PC に無くユーザーの手動サインインで解除（Playwright 永続プロファイルにセッション保持）
+- **DDL 適用（ユーザー実行）**: `0023_wiki_tag_connections_origin` 未適用が発覚 — `wiki_tag_connections` への GET が 400（`column origin does not exist`）になり `useWikiTagsUnifiedAPI` の `Promise.all` ごと reject してタグ機能がアプリ全体で無効化されていた。supabase CLI 不在のため `npx supabase link + db push` で適用 → #626（チップ詳細のタグ付け外し）を実測 PASS・テストデータ片付け完了（`verify-20260810-tag` 削除含む）
+- **裏取り**: パスワードノートの set / remove UI 不在は分割前 `8a701323` の NotesView でも `mode: "verify"` しか配線されていなかった = #588 の欠落ではなく従前からのギャップ
+- **起票 / 追記**: **#680**（i18n 取りこぼし 3 点 — trash 行 aria-label / エディタ placeholder / en 単複）を新規起票、**#632** へ FAB の実測コメント追記（#631 着地により着手可能化）
+- **残**: #632（mobile-refine）/ #628・#625（判断キュー待ち）/ #623・#609・#585（briefing-refine）/ #586 残り（PR #649 open）/ iPhone 目視 3 点（#631 pull-to-refresh・#633 シート上端・#512 パレット safe-area）
+
 ### 2026-08-10 - ユーザー要望 7 件の起票と、最優先 1 本（#624 ポモドーロ数値入力）の実装
 
 #### 概要
@@ -118,20 +134,5 @@ tracker は実装ブランチに載せない（D-20260801-main-1）。merge は�
 - **dotfiles 側（Lane G・PR #14）**: tone 3 ファイルの正本を tone-persona へ一本化（呼び名はサブエージェント向け複写 1 行だけ tone.md に残す — QA Blocking の回収）／ role-qa の判定ラベルを Blocking / Important / Suggestion に統一／ git-workflow §0.1.1 に「プロジェクト側 POLICY override が優先」を明記／ `MANDATORY FIRST ACTION` 行を rule + hook の 2 系統へ集約（G19）
 - **QA / 検証**: role-qa 監査 NEEDS REVISION（Blocking 1 / Important 6）→ 同日全件回収。docs-lint（LC_ALL=C）+ `records.mjs check` 緑。乖離レビュー = G19 の Scope 逸脱 4 ファイルを Scope 追記で正規化 / AC 免除なし / role-engineer Verdict 形式は次 PR へ
 - **残件**: dotfiles PR #14 merge（ユーザー）/ role-engineer Verdict 形式（次 PR）/ Phase D = Scope 照合 hook（#173 系）/ symlink 実体化（Mac — known-issues 031）
-
-### 2026-08-09 - main の未追跡資産を 2 PR に整理（Codex 対応を複製から参照へ・PR #610 / #611 merged）
-
-#### 概要
-
-main の作業ディレクトリに未追跡のまま残っていた 13 ファイルと、宙に浮いていた `chore/docs-sync-20260731` を整理した。未コミット分は計画書 1 本（#610）と Codex 対応（#611）に分割し、Codex 側は全文コピーだった初版を「参照」方式へ組み直した。両方 merge 済み・ブランチと一時 worktree は撤去済み。
-
-#### 変更点
-
-- **`chore/docs-sync-20260731` は PR を出さず削除**: 4 commit・docs 5 ファイルの中身が**すべて既に main にあり**、PR を出すと `2026-07-14-schedule-redesign.md` と `memory/chat-main.md` を古い版へ巻き戻す差分になった（main は Step 5-c 完了まで進んでいたのにブランチは Step 6 止まり）。three-dot diff だけ見ると 97 insertions の正当な差分に見えるので、**two-dot で「ブランチ側にしかない行」を数えて 0 と 12 行の巻き戻しであることを確認**してから判断した
-- **PR #610（計画書）**: `2026-08-03-open-issue-fanout-r3.md` 313 行を追加。docs-lint が**新しい検査 (e)** で落ちた — pull で入った記録グラフ層（`.claude/INDEX.md` + `records.mjs`）により、plans/ を触った PR は `node .claude/scripts/records.mjs index` を同一 PR に含める必要がある。ローカル検証を Codex 側ブランチで回していたため見落とした（**plans/ を触る PR では lint を必ずそのブランチで回す**）
-- **PR #611（Codex 対応）**: 初版は `CLAUDE.md` / skills / hooks の全文コピーで、**発見時点で既に原本 5 コミット分ズレていた**（`.claude/hooks/*.sh` は hooks-lib 分離済み・`docs-workflow/SKILL.md` も更新済み）。加えて「Claude」→「Codex」の一括置換が固有名詞まで巻き込み、`.Codex/rules/` 等の実在しないパス・ブランチ名 `Codex/<slug>`・「**Codex** API 直課金」・「**Codex** 本体の SSE バグ」が生まれていた（`${CLAUDE_PROJECT_DIR}` は置換漏れで残存）
-- **参照方式への再設計**: 実体は `.claude/` 側 1 つだけを保ち、Codex 側は入口のみ。`hooks.json` は `.claude/hooks/*.sh` を **git ルート相対**で呼ぶ（初版は `C:\Users\user\...` の絶対パス直書きで他マシン・worktree では動かなかった）。副次的に**バグが 1 つ消えた** — `.claude/hooks/*.sh` は `$(dirname $0)/..` から vendor 実装を探すため、`.codex/hooks/` に置いたコピーからだと `.codex/scripts/hooks-lib/` を見にいって外していた
-- **仕様の裏取り**（公式ドキュメント）: スキルは **`.agents/skills/`** から探される（`.codex/skills/` ではない・`$CWD` から repo root まで遡る）／ hooks は `<repo>/.codex/hooks.json` が読まれ、コマンドは**セッションの cwd** で走るため絶対パスか git ルート相対が推奨（公式例が `$(git rev-parse --show-toplevel)`）
-- **スキルを 4 本に絞った根拠**: `.claude/skills/` 17 個のうち 8 個はシンボリックリンクで、**Windows では実体化せずリンク先パスが書かれただけのテキストになっている**（`file` で確認）。残る実体 9 本のうち `loop-*` 5 本は Claude Code のスラッシュコマンド前提。差し引き 4 本
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
