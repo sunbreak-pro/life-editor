@@ -23,7 +23,6 @@
 | [2026-08-06-autonomous-operation-endpoint.md](./docs/vision/plans/2026-08-06-autonomous-operation-endpoint.md) | IN PROGRESS |
 | [2026-08-07-web-mobile-public-url.md](./docs/vision/plans/2026-08-07-web-mobile-public-url.md) | IN PROGRESS |
 | [2026-08-09-record-graph-layer.md](./docs/vision/plans/2026-08-09-record-graph-layer.md) | IN PROGRESS |
-| [2026-08-10-harness-loop-consolidation.md](./docs/vision/plans/2026-08-10-harness-loop-consolidation.md) | IN PROGRESS |
 
 ## 判断の現在地
 
