@@ -1,5 +1,34 @@
 # HISTORY archive 2026-07 (chat-materials-refine)
 
+### 2026-07-16 - #260 F-3 Note Links rightSidebar パネル化 + #261 F-4 表示ラベル改名（PR #264）
+
+#### 概要
+
+loop-friction-fixes §F-3 / §F-4 を実装し PR #264（Closes #260 / #261）を提出。Note 本文最下部の Links を rightSidebar の開閉パネルへ移設し、表示ラベルをタスク→Todo・約束→予定へ i18n catalog のみで改名した。
+
+#### 変更点
+
+- **F-3（#260）**: `NoteDetailPanel` から `linksSlot`/`linksLabel` を削除（呼び出し元は NotesView のみ）・rightSidebar のノート一覧の下に Trash と同型の「区切り線 + 開閉」Links セクションを新設（LinkPanel を選択ノートで表示・未選択時は mainEmpty ヒント・mobile は Links 非表示のまま）・noteDetailPanel.test 追随
+- **F-4（#261）**: en/ja catalog の値のみ一括改名（キー・`{{task}}`/`{{tasks}}` プレースホルダー変数・コード識別子・DB・SectionId は不変）。JSON パース → 値 walk のスクリプト変換 + 和欧間スペース調整（TodoID→Todo ID / Todo ・→Todo・）。en は Task(s)→Todo(s)・PROMISES→PLANS。i18n.test の期待値と Briefing コード内コメントも追随
+- **docs sweep（同一 PR）**: schedule-redesign（約束→予定 + F-4 注記）・briefing-loop 読む行・tier-1-core AC2・settings brief プレビュー文。outbox / per-chat history / F-4 仕様文中の引用は歴史的記述として維持
+- **検証**: shared vitest 112 files / 902 tests green・shared tsc -b green・web build green（既存 chunk-size warning のみ）・catalog JSON parse 検証・shared/web ソースの タスク/約束 残存 0（prototype/ は対象外）
+- 2026-07-11: [途中] life-tags 統一 Materials 領分 — PR #244 の CI 失敗を修正（main #243 ページ分割 fetchAllPages の .order/.range にテストモック追随・origin/main merge・457237c8 push・vitest 879/879 + build green・role-qa PASS）。残 = PR merge + 実データ変換（ユーザーゲート）
+
+### 2026-07-11 - life-tags 統一 S3 実装（NodeType folder 除去・legacy 行 fetch 除外・i18n/docs sweep）
+
+#### 概要
+
+S1 (PR #237) / S2 (PR #239・schedule-refine) の merge を受けて S3 を実装。Tasks ドメインから folder ノード型を型レベルで撤去し、legacy folder 行の fetch 時除外を新設、folder 系 orphan i18n キーと docs を sweep した。Notes 側の folder 型は Connect グラフ後継設計と併せて別レーンへ意図的に温存（過渡期非対称）。
+
+#### 変更点
+
+- **型・mapper・サービス**: `NodeType = "task"` 単一化・`folderType`/`originalParentId`/`FOLDER_PAD_TOP` 除去・taskMapper は DB 列 read 維持のまま両列を null 書込・**`isLegacyFolderRow` による fetchTaskTree/fetchDeletedTasks の client-side 除外**（NULL task_type 生存・孤児許容・幽霊 folder が Trash に出ない）
+- **デッドコード削除**: `folderTag.ts` ファイル削除・`getDescendantTasks()` 関数削除（`collectDescendantIds`/`isDescendantOf` は不変）
+- **folder 分岐撤去**: sortTaskNodes / useTaskTreeAPI / useTaskTreeCRUD / TaskDetailPanel(isFolder prop) / KanbanView / useTaskTreeDnd（inside ドロップは tier-1 AC3 準拠で全タスク許可・cycle guard 維持）・analytics `aggregateByFolder` は `[]` 返却の最小改変（tag 後継 = analytics レーン）
+- **テスト**: 6 ファイル書換 + 新規 2 本（applyStatusChange DONE 沈み reorder / legacy folder filter）— 855 tests green（baseline 852）
+- **i18n**: folder 系 orphan キー削除（en/ja lockstep・キー parity 機械確認）。FileExplorer / Notes folder 系は温存
+- **docs sweep**: tier-1-core（Tasks Purpose/Boundary/AC1/AC4/AC5/AC10・Notes AC1 に retired 注記）・tier-2（WikiTags → life-tags 昇格・Tasks tagging 解禁）・plan Worklog 追記
+- **検証・監査**: shared build + 855 tests / web build / web lint 全 green。role-qa PASS（Blocking 0）・sync-auditor Blocking 0（Nit 1 = original_parent_id の null 上書きは rollback SSOT が log テーブルのため実害なし）
 ### 2026-07-11 - life-tags 統一 S1 実装（Kanban 2 ビュー化・Notes タグ見出し UI・変換 migration 0020）
 
 #### 概要

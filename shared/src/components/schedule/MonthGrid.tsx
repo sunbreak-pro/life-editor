@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { CheckSquare } from "lucide-react";
 import { cn } from "../cn";
 import {
   monthGridKeys,
@@ -247,13 +248,30 @@ export function MonthGrid({
                         }
                         title={it.title}
                         className={cn(
-                          "pointer-events-auto block truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                          "pointer-events-auto rounded px-1 py-0.5 text-left text-xs font-medium",
+                          // #593: task chips carry the CheckSquare todo mark,
+                          // matching the week grid, so the cue does not vanish
+                          // when the same item is viewed by month.
+                          it.variant === "task"
+                            ? "flex items-center gap-1"
+                            : "block truncate",
                           CELL_FOCUS,
                           chipFaceClasses(it.variant ?? "event"),
                           it.completed && "line-through opacity-55",
                         )}
                       >
-                        {it.title || " "}
+                        {it.variant === "task" ? (
+                          <>
+                            <CheckSquare
+                              aria-hidden
+                              className="size-3 shrink-0"
+                              strokeWidth={2.5}
+                            />
+                            <span className="truncate">{it.title || " "}</span>
+                          </>
+                        ) : (
+                          it.title || " "
+                        )}
                       </button>
                     ))}
                     {overflow > 0 && (

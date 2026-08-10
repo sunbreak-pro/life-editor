@@ -120,3 +120,6 @@ export function useNoteLinking({
     handleCreateNoteForLink,
   };
 }
+
+/** The "[[" wiring the host hands to each surface's body editor. */
+export type NoteLinking = ReturnType<typeof useNoteLinking>;

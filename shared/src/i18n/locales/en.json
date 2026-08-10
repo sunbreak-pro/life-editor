@@ -403,7 +403,8 @@
     "createSlot": "Create event at this time"
   },
   "itemActions": {
-    "tagColor": "\"{{name}}\" color"
+    "tagColor": "\"{{name}}\" color",
+    "tagColorEmpty": "Colors belong to tags — add a tag first."
   },
   "scheduleScreen": {
     "calendar": "Calendar",
@@ -527,6 +528,7 @@
     "durationHour": "{{h}} hr",
     "durationHourMin": "{{h}} hr {{m}} min",
     "todoDelete": "Delete todo",
+    "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "rename": "Rename",
     "duplicate": "Duplicate",
     "copySuffix": " (copy)",

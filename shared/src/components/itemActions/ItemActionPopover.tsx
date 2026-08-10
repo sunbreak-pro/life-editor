@@ -58,8 +58,6 @@ export interface ItemActionPopoverProps {
   onClose: () => void;
   /** Already-translated a11y label for the popover. */
   label?: string;
-  /** Already-translated badge shown on stub rows (e.g. "soon"). */
-  stubBadge?: string;
   /** Popover width in px (default 248). */
   width?: number;
 }
@@ -72,7 +70,6 @@ export function ItemActionPopover({
   editDetailLabel,
   onClose,
   label,
-  stubBadge,
   width = DEFAULT_WIDTH,
 }: ItemActionPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -166,7 +163,6 @@ export function ItemActionPopover({
                 <ItemActionRow
                   key={action.id}
                   action={action}
-                  stubBadge={stubBadge}
                   onActivate={activate}
                 />
               ))}

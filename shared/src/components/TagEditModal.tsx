@@ -142,14 +142,19 @@ export function TagEditModal({
   const [query, setQuery] = useState("");
 
   // Reset the add-field and the filter whenever the modal (re)opens, so the
-  // panel never comes back mid-search showing a fraction of the tags.
-  useEffect(() => {
+  // panel never comes back mid-search showing a fraction of the tags —
+  // adjusted during render (guarded on the open transition), not in an
+  // effect (#586). prevOpen starts false so a mount that is ALREADY open
+  // runs the same reset the old effect did.
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setDraft("");
       setQuery("");
       setExpanded(new Set());
     }
-  }, [open]);
+  }
 
   const toggleExpanded = useCallback((tagId: string) => {
     setExpanded((prev) => {
@@ -295,10 +300,15 @@ function TagEditRowItem({
   labels,
 }: TagEditRowItemProps) {
   // Local editable name; commit on blur / Enter, revert to prop on Escape.
+  // Re-seeded when the name changes from outside — adjusted during render
+  // (the React "information from previous renders" pattern), not in an
+  // effect (#586).
   const [name, setName] = useState(tag.name);
-  useEffect(() => {
+  const [prevTagName, setPrevTagName] = useState(tag.name);
+  if (prevTagName !== tag.name) {
+    setPrevTagName(tag.name);
     setName(tag.name);
-  }, [tag.name]);
+  }
 
   const commitName = useCallback(() => {
     const next = name.trim();

@@ -403,7 +403,8 @@
     "createSlot": "この時刻に予定を作成"
   },
   "itemActions": {
-    "tagColor": "「{{name}}」の色"
+    "tagColor": "「{{name}}」の色",
+    "tagColorEmpty": "色はタグに付きます。先にタグを追加してください"
   },
   "scheduleScreen": {
     "calendar": "カレンダー",
@@ -527,6 +528,7 @@
     "durationHour": "{{h}}時間",
     "durationHourMin": "{{h}}時間{{m}}分",
     "todoDelete": "Todo を削除",
+    "todoDeleteCascadeConfirm": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
     "rename": "名称の変更",
     "duplicate": "複製",
     "copySuffix": "（コピー）",

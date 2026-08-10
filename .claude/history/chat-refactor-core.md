@@ -1,5 +1,19 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-10 - Issue #586 eslint baseline 解消（テスト先行・PR #638/#644/#649/#653 open）
+
+#### 概要
+
+`shared/eslint.config.js` の per-file baseline から schedule 系 3 本を除く 10 ファイルを解消する PR を 4 本作成した。全ファイルで先にテストを書いて現行挙動を固定してから effect 内 setState / props 変異を修正し、baseline 行を削除。shared lint/test/build + web lint/build/test すべて緑。merge はユーザーゲート（P-001）で、merge のたびに残 PR の eslint.config.js 衝突をこのレーンが解消する。
+
+#### 変更点
+
+- **PR #638**: ColorPicker / TaskAddDialog / QuickAddSheet / ShortcutEditModal — open 遷移リセットの effect を render 調整パターンへ（新規テスト 2 本 + 既存 2 本拡張・27 テストで固定）
+- **PR #644**: CommandPalette / TagEditModal — 同パターン + カーソル clamp を render 時境界へ（既存 exhaustive-deps warning も 1 件解消）
+- **PR #649**: TimerContext（冗長な tickNow 再アンカー削除）/ useTaggedItemIndex（loading を導出値化）/ useTaskTreeAPI（#282 復元を load の async 継続へ移設）。TimerProvider に初のテストスイート追加
+- **PR #653**: useGraphSimulation — clone の責務を hook 内部へ移設し immutability override ブロックごと削除。GraphCanvas の二重 clone も撤去。snapshot 非変異の契約テスト付き
+- **運用**: Issue #586 に進捗コメント（merge 順は任意・衝突はこのレーンが解消 / schedule 系 3 本は scope 外で残置）
+
 ### 2026-08-02 - desktop Windows ビルド整備（Issue #529・PR #534 merged）
 
 #### 概要
@@ -47,15 +61,3 @@ Phase B（web 画面 hooks 切り出し）の第 2 弾。NotesView（1313 行）
 - **web/notes**: `hooks/useNoteListState.tsx` 新設（タグ見出し折りたたみの永続化 + 検索 → タグ束ね → 並べ替え → タグ絞り込みの導出パイプライン + ソート/フィルタ UI の派生値）/ `hooks/useNoteLinking.ts` 新設（LinkPanel 候補・「[[」リンク先ローダと editor コールバック・タブ跨ぎ選択の引き継ぎ）/ `NoteListRows.tsx` 新設（draggable 行 + droppable タグ見出し。DnD の sensors/handlers は view 側の useNoteTagDnd のまま）。コードは配管以外 verbatim 移動
 - **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 4 ファイル lint 0 problems・session-verifier PASS
 - **PR**: #463 open（`claude/refactor-07-notesview-hooks`・merge はユーザーゲート。残り = Phase B Step 3 = MainScreen）
-
-### 2026-07-29 - Phase B Step 1（BriefingScreen hooks 切り出し・PR #462）
-
-#### 概要
-
-Phase B（web 画面 hooks 切り出し）の第 1 弾。BriefingScreen（850 行）をデータ側 `useBriefingData` と編集側 `useDailySections` の 2 hook + 表示専念の画面（約 290 行）に分割した（挙動変更ゼロ・shared/src 無改変）。
-
-#### 変更点
-
-- **web/briefing**: `hooks/useBriefingData.ts` 新設（7 ソース fetch + syncVersion 再取得・集計・夕刊表示リスト・tray 派生・DataService 書き込みハンドラ）/ `hooks/useDailySections.ts` 新設（夕刊エディタ + mood・宣言 draft/echo 照合・debounce flush・セクションマージ保存。夕刊と宣言が共有すべき直列保存チェーンを hook 内部に閉じ込め構造的に保証）。コードは配管以外 verbatim 移動（dep 配列への setDailyContent 追加のみ = stable setter で挙動不変）
-- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 3 ファイル lint 0 problems・session-verifier PASS
-- **PR**: #462 open（`claude/refactor-06-briefing-hooks`・merge はユーザーゲート。#461 とファイル非重複で独立）

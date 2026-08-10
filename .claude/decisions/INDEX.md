@@ -15,6 +15,8 @@
 | D-20260804-main-1 | Phase 1 定期実行（朝 digest / 夜間安全レーン）の実行基盤をどれにするか | main |
 | D-20260809-main-2 | `archive/` の索引をどう再建するか | main |
 | D-20260810-main-3 | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | main |
+| D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
+| D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 
 ## Active（現在有効な裁定 — superseded-by なし）
 

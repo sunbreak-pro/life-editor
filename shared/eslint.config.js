@@ -64,16 +64,10 @@ export default defineConfig([
    */
   {
     files: [
-      "src/components/CommandPalette.tsx",
-      "src/components/TagEditModal.tsx",
       "src/hooks/useCalendarsAPI.ts",
       "src/hooks/useRoutinesAPI.ts",
       "src/hooks/useScheduleItemsAPI.ts",
     ],
     rules: { "react-hooks/set-state-in-effect": "off" },
-  },
-  {
-    files: ["src/components/Connect/graph/useGraphSimulation.ts"],
-    rules: { "react-hooks/immutability": "off" },
   },
 ]);
