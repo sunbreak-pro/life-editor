@@ -1,5 +1,18 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-11 - #628 保存ボタン + #625 Event ↔ Todo 変換（重ティアフルチェーン・PR #681 / #684）
+
+#### 概要
+
+D-20260810-sched-1〜5 の全 A 回答（sched-5 はダイアログ提示をユーザー指定）を受けて、残 2 Issue を重ティアのフルチェーン（role-engineer → 独立監査 → 指摘全修正 → 6 ゲート → PR）で実装した。#628 = PR #681（merge 済み）、#625 = PR #684（提出・CI 走行中）。回答は ANSWERS.md へ転記し、台帳昇格 = PR #665。実装中に D-sched-3 の前提誤り（tasks_payload は時刻列を持つ）が見つかり、緩和案を D-20260811-sched-1 として新規キューへ積んだ。
+
+#### 変更点
+
+- **#628（PR #681）保存ボタンでのみ確定**: EventEditorPane を draft 化し保存フッターを追加。draft は「触ったフィールドだけ」を live item に重ねる方式 — 未タッチのフィールドはリモート更新に追従し続け、他デバイスの変更が「自分の未保存」に化けない（QA S-4）。系列/当日混在の保存は #279 scope ダイアログへ丸ごと預け「選択で全適用 / キャンセルで全破棄・undo 1 件」（QA S-1）、起点は移動後の日付（QA S-2）。`touchesSeries` が「聞くか」と「書くか」の両方を決めるので終日フリップの補完時刻が routine テンプレートを上書きしない（QA S-3・#469 ガード維持）。日付の unmount flush は退役（blur 保存の裏口）。頻度・完了・削除・スキップは意図的に draft 外（in-flight ガード付き非同期系列変換のため）。未保存クローズ判定は `web/src/schedule/unsavedCloseGuard.ts` に pin
+- **#625（PR #684）id 維持の role 変換**: `SupabaseItemConversionService` が「新 payload UPSERT → `items_meta.role` UPDATE → 旧 payload DELETE」の順で変換。**QA と sync-auditor が独立に「旧 DELETE 先行は最悪の順序」と同結論** — payload の item_id FK は単独列で role を含まず（0008 実測）、DELETE 先行の中間状態は §10 R2 が禁じる「payload の無い meta」= 到達不能孤児。INSERT 先行なら失敗残骸は「不可視の余剰 payload 行」に格下げされ補償も 1 手になる。updated_at は reRole 内で都度採取（LWW 単調・監査 Critical）。payload 書き込みは upsert（負けレースの残骸で後の変換が PK 衝突する経路を閉塞・監査 High）。完了状態は Event→Todo で引き継ぐ（`done → DONE` — QA Blocking: ダイアログが約束していない破棄だった）。入口は #551 統一アクションパネル（P-006・EventEditorPane は #681 が全面改訂中のため不触）。配置済み Todo → Event はスロット引き継ぎ・未配置のみ当日終日。routine 由来は指定文言ダイアログ、子持ちは拒否（Trash 内の子も対象と文言明記）、子である Todo は親リンク解除をダイアログに明記
+- **記録**: 回答転記 + 台帳 5 件昇格 + キュー削除 + 索引再生成 = PR #665。§10.5 に逆向き孤児検出クエリ追記（PR #684 に同梱）。D-20260811-sched-1（日付引き継ぎ緩和案・放置時 A）を新規キューへ
+- 検証: 両 Issue とも 6 ゲート exit 0 を複数回実測（#625 最終 = shared 192 files / 1617 pass・web 24 files / 185 pass）。実ブラウザ検証は merge 後 chat-main（重点は各 PR 本文）
+
 ### 2026-08-10 (2) - merge 後始末: #657 docs-lint 修正・conflict 解消・全体レビュー → PR #659
 
 #### 概要
