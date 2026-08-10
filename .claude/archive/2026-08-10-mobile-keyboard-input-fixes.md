@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: COMPLETED # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
 Created: 2026-08-10
 Branch: claude/main-607-608-mobile-keyboard
 Owner-chat: main
@@ -7,7 +7,7 @@ Owner-chat: main
 
 # Plan: スマホ Web のソフトキーボード起因バグ 2 件（#607 / #608）
 
-> 公開 Web URL をスマホの主導線に据えた（[`D-20260807-main-1`](../../../decisions/D-20260807-main-1.md)）直後の実機確認で出た 2 件。どちらも「ソフトキーボードが開くとレイアウトが動く」という同じ根を共有している疑いが濃いため、1 本の計画として扱う。
+> 公開 Web URL をスマホの主導線に据えた（[`D-20260807-main-1`](../decisions/D-20260807-main-1.md)）直後の実機確認で出た 2 件。どちらも「ソフトキーボードが開くとレイアウトが動く」という同じ根を共有している疑いが濃いため、1 本の計画として扱う。
 
 ---
 
@@ -57,7 +57,7 @@ shared/tests/** web/tests/**
 
 **触らない**: `web/src/schedule/**` `shared/src/components/schedule/**`（schedule-refine 専有）。`shared/src/services/SupabaseNotesUnifiedService.ts`（#587 = shared-fix レーンが分割予定）。
 
-**Scope 例外（2026-08-10 ユーザー確定 = [`D-20260810-main-4`](../../../decisions/D-20260810-main-4.md)）**: `shared/src/hooks/useNotesUnifiedAPI.ts` は当初「触らない」側に置いていた（#587 が分割予定）が、Step 0 で #607 の原因がこのファイルと確定したため例外として Scope 入りさせた。裁定時の実測 = #587 未着手（open PR ゼロ・shared-fix worktree は #372 作業中）・差分は約 15 行の追加。#587 側には分割時に取り込む旨を申し送る。
+**Scope 例外（2026-08-10 ユーザー確定 = [`D-20260810-main-4`](../decisions/D-20260810-main-4.md)）**: `shared/src/hooks/useNotesUnifiedAPI.ts` は当初「触らない」側に置いていた（#587 が分割予定）が、Step 0 で #607 の原因がこのファイルと確定したため例外として Scope 入りさせた。裁定時の実測 = #587 未着手（open PR ゼロ・shared-fix worktree は #372 作業中）・差分は約 15 行の追加。#587 側には分割時に取り込む旨を申し送る。
 
 スコープ外の変更が要ると分かったら **P-008** に従い、実装せずキュー（`comm/decisions/chat-main.md`）へ積んで現計画を続行する。
 
@@ -78,7 +78,7 @@ shared/tests/** web/tests/**
 
 どれも実測前の見立て。**Step 0 の目的は消し込みであって、当てにいくことではない**。
 
-- **H1 — backdrop 誤爆**: `BottomSheet` の閉じ判定は `onMouseDown` + `e.target === e.currentTarget`（`shared/src/components/BottomSheet.tsx:82-88`）。キーボードが開いてレイアウトが動くと、タッチから合成される mousedown が backdrop 側に落ちて閉じる筋。**先例あり** = [known-issues 019](../../known-issues/019-createportal-clickoutside-misfire.md)（portal 配下の click-outside 誤発火で「開いた瞬間閉じる」）。#473 は同じ理由でコマンドパレットの背景判定を `pointerdown` へ移している。
+- **H1 — backdrop 誤爆**: `BottomSheet` の閉じ判定は `onMouseDown` + `e.target === e.currentTarget`（`shared/src/components/BottomSheet.tsx:82-88`）。キーボードが開いてレイアウトが動くと、タッチから合成される mousedown が backdrop 側に落ちて閉じる筋。**先例あり** = [known-issues 019](../docs/known-issues/019-createportal-clickoutside-misfire.md)（portal 配下の click-outside 誤発火で「開いた瞬間閉じる」）。#473 は同じ理由でコマンドパレットの背景判定を `pointerdown` へ移している。
 - **H2 — id 差し替えレース**: `useNoteSheetTarget` は「開いている id が notes プールで解決できなくなったら閉じる」（`web/src/notes/hooks/useNoteSheetTarget.ts:74`）。新規作成の楽観行がサーバー行へ差し替わって id が変われば、その瞬間に閉じる。
 - **H3 — `vh` 依存**: 詳細シートは `max-h-[92vh] min-h-[70vh]`（`web/src/notes/NotesView.tsx:836`）。`vh` はレイアウトビューポート基準なので、Android では縮み、iOS では縮まずキーボードの裏に潜る。#473 が `useVisualViewport` を作った理由と同型。
 
@@ -124,7 +124,7 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 
 ## Risks / Known Issues 参照
 
-- [known-issues 019](../../known-issues/019-createportal-clickoutside-misfire.md) — portal 配下の click-outside 誤発火。H1 と同型で、**1 箇所直しても別の portal 化箇所で再燃する構造的な罠**と明記されている。直すなら `BottomSheet` / `MobileDrawer` の**両方**を見る
+- [known-issues 019](../docs/known-issues/019-createportal-clickoutside-misfire.md) — portal 配下の click-outside 誤発火。H1 と同型で、**1 箇所直しても別の portal 化箇所で再燃する構造的な罠**と明記されている。直すなら `BottomSheet` / `MobileDrawer` の**両方**を見る
 - **jsdom に `visualViewport` が無い**（`useVisualViewport` 自身が「platforms without the API」で null を返す設計）。テストではモックを置く必要があり、モックが実ブラウザと食い違えば緑のまま壊れる。**テストは「隠す判断が下る」ことまでを固定し、実際の見た目は Step 1 / 4 の目視に委ねる**
 - **iOS 未検証で着地するリスク**: 手元の実機が Android のみなら、iOS 側は「レイアウトビューポートが縮まない」前提のコード読みで担保するしかない。その場合は**その旨を PR 本文に明記**し、iOS 実機確認を別 Issue として残す
 - **タブバーを隠す副作用**: 入力中にセクション移動ができなくなる。Undo / コマンドパレットは「その他」シート経由なので同時に到達不能になる（#472 / #473）。入力中にそれらが要るかは Step 1 の目視で確認する
@@ -136,9 +136,9 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 - Issue: [#607](https://github.com/sunbreak-pro/life-editor/issues/607) / [#608](https://github.com/sunbreak-pro/life-editor/issues/608) / [#512](https://github.com/sunbreak-pro/life-editor/issues/512)（条件付き）
 - Epic: [#321](https://github.com/sunbreak-pro/life-editor/issues/321)（Mobile UI/UX 追随）
 - 決定: `D-20260807-main-1`（スマホの主導線 = 公開 Web URL）
-- 要件: [`docs/requirements/mobile-scope.md`](../../requirements/mobile-scope.md)（#7 Notes フル編集 / #8 materials Full）
-- 規約: CLAUDE.md §7.1（jsdom にレイアウトが無い）・§7.4（実ブラウザ検証は chat-main）・[`rules/frontend.md`](../../../rules/frontend.md)（IME / Provider 順序）
-- 前ラウンド: [`2026-08-03-open-issue-fanout-r3.md`](./2026-08-03-open-issue-fanout-r3.md)（#585〜#593 は本計画の後に再開）
+- 要件: [`docs/requirements/mobile-scope.md`](../docs/requirements/mobile-scope.md)（#7 Notes フル編集 / #8 materials Full）
+- 規約: CLAUDE.md §7.1（jsdom にレイアウトが無い）・§7.4（実ブラウザ検証は chat-main）・[`rules/frontend.md`](../rules/frontend.md)（IME / Provider 順序）
+- 前ラウンド: [`2026-08-03-open-issue-fanout-r3.md`](../docs/vision/plans/2026-08-03-open-issue-fanout-r3.md)（#585〜#593 は本計画の後に再開）
 
 ---
 
@@ -211,3 +211,9 @@ Chrome 108+ の既定は `resizes-visual`（レイアウトビューポートは
 1. スコープ逸脱の有無
 2. AC 免除の有無
 3. 途中で出た判断とその行き先（`D-…` / Issue #NNN / 「行き先なし」）
+
+### 乖離レビュー（2026-08-10・PR #621 merged 後に記入）
+
+1. **スコープ逸脱**: **あり 1 件**。`shared/src/hooks/useNotesUnifiedAPI.ts` は #587（分割予定）のため「触らない」と宣言していたが、Step 0 で #607 の原因がまさにこのファイルの限定無効化マージだと確定したため、ユーザー裁定で例外入り（**D-20260810-main-4**・実測 = #587 未着手 / open PR ゼロ）。#587 に分割時の申し送りをコメント済み。`web/index.html` の `interactive-widget` は Scope 外だったので**触らず**、代わりに検出器を両ビューポート挙動で成立する形にした
+2. **AC 免除**: **免除ゼロ、超過の明示が 1 件**。「PR diff ±200 行以内」を超過（実装 約 200 行 + テスト 約 380 行 + 記録類）。免除ではなく PR 本文に内訳を記載した。**Step 5 の 👀 実機目視 4 点は同日中に消化済み**（2026-08-10・**iPhone の Chrome**）— 本文タップでシートが閉じない / タブバーの出戻り / タブバー非表示時もホームインジケータ帯に本文が乗らない / 「その他」シートがキーボードで消えるのは許容。#607 / #608 とも CLOSED。**「iOS 未検証」も解消**（iOS のブラウザは全て WebKit なので描画エンジンは Safari と同経路。Safari の UI そのものは未確認）
+3. **途中で出た判断の行き先**: Scope 例外 → **D-20260810-main-4**（台帳化済み）/ QA の BLOCKING 1・IMPORTANT 4 → **本 PR 内で全件反映**（上の Worklog に記載）/ QA の NIT 2 件 → **👀 の確認項目**として memory へ / #512（コマンドパレット上余白）→ **close せず open のまま**（Android 実測は iPhone 前提の指摘の反証にならないためコメントのみ）。**行き先なしの指摘はゼロ**

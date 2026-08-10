@@ -1,6 +1,63 @@
 # HISTORY (chat-main)
 
-### 2026-08-10 - スマホ ソフトキーボード起因バグ 2 件（#607 / #608・PR #621 open）
+### 2026-08-10 - ユーザー要望 7 件の起票と、最優先 1 本（#624 ポモドーロ数値入力）の実装
+
+#### 概要
+
+ユーザーから届いた要望 7 件を重複チェックのうえ GitHub Issue 6 本（#623〜#628）に落とし、そのうち唯一の `type:bug` である #624 を実装した（**PR #629 merged → iPhone Chrome で実機確認 OK → #624 CLOSED**）。要件の 1 つは既存 Issue に該当したので新規は立てず、実測結果をコメントで足した。あわせて #607 / #608 の計画書を乖離レビュー付きで archive し、**同じ実機確認で残っていた目視 4 点も全て消化**した（#607 / #608 とも CLOSED）。
+
+#### 変更点
+
+- **起票 6 本**: **#623** 朝刊の本文 / rightSidebar に `+` を置き Schedule アイテムを追加（`section:briefing`）/ **#624** ポモドーロ数値入力の空欄バグ（`type:bug` `sev:important` `section:work`）/ **#625** Event⇄Todo の相互変換（`section:schedule`）/ **#626** Todo の詳細からもタグを付け外し（`section:schedule`）/ **#627** Epic「編集の確定を保存ボタンに統一（Note・Daily 除く）」（`shared-fix` `[all]` — `[all]` は Epic に限り可）/ **#628** その段階 1 = Schedule 詳細編集パネル（`section:schedule`）
+- **要件「Task→Todo 改称」は起票せず #592 にコメント**: Work 画面の i18n 名前空間（`work.*` / `pomodoro.*` / `taskDetail.*` / `kanban.*`）は既に全て Todo 表記で、`.ts` / `.tsx` の「タスク」ハードコードもテスト 2 本の中だけだった。残存は #592 が既に列挙している schedule 系キーのみなので、スコープを広げず実測結果だけ足した
+- **#625 / #628 は Issue 本文に「先に決めること」を明記**: #625 = 変換で id を維持するか（維持ならタグ / リンクが無傷だが、payload 生成列 `parent_item_role` の都合で「旧 payload 削除 → `items_meta.role` UPDATE → 新 payload INSERT」の順序が要る）・落ちるフィールド・routine occurrence の可否。#628 = 保存ボタンでのみ確定するか blur 保存を残すか。どちらも着手レーンが判断キューへ積んでから実装に入る（P-005）
+- **#624 の原因**（`shared/src/components/PomodoroSettings.tsx:211-239`）: `NumberField` が毎キーストロークで `Number(e.target.value)` を commit していたため、欄を空にすると `Number("") === 0` が飛び、`TimerContext.tsx:276` の `clampMinutes` が最小値 1 に丸めて書き戻していた。制御コンポーネントなので次のキーが来る前に `1` が再描画され、その上に `50` が乗って **`150`** になる
+- **修正 = 「空欄」を独立した状態に**: 空にした欄は `""` を表示して**何も commit しない**（保存済みの値は数値が入るまで無傷）。それ以外は従来どおり host の値が正なので clamp は今も見える。空欄のまま blur / プリセット保存すると「`<項目名>`に数値を入力してください」ダイアログ。**ダイアログを閉じると空欄はすべて保存済みの値へ戻す** — 空欄のまま残すと次の blur でまたダイアログが出て、ユーザーが nav に到達できない罠になるため
+- **セクション遷移そのものは止めていない**（意図的）: router が無く `setSection` の呼び出し口が app shell 全体に散るため、ガードを通すと `shared-fix` 級になり他レーンと衝突する。実際には nav をクリックする動作が先にフィールドを blur させるので警告は出る。PR 本文に明記した
+- **RED チェック済み**: 修正を外すと新規 4 テストが落ち、1 本は `expected '150' to be '50'` とユーザー報告そのままの値を出す。clamp を再現するホストをテスト側に置いたのが要点で、これが無いと「150」は現れない
+- **#607 / #608 の計画書を archive**（PR #621 / #622 とも merged 2026-08-10 10:05 UTC）: 乖離レビュー 3 行を記入 — スコープ逸脱 1 件（`useNotesUnifiedAPI.ts` = D-20260810-main-4）/ AC 免除ゼロだが diff 行数超過を明示 / 判断の行き先は全て埋まり「行き先なし」ゼロ
+- **実機確認で 4 点すべて OK**（2026-08-10・**iPhone の Chrome**）: ① Note の本文タップで入力パネルが閉じない ② キーボードでタブバーが消え、閉じると戻る ③ タブバー非表示中もホームインジケータ帯に本文が乗らない（QA の NIT 1 件目）④ 「その他」シートがキーボードで消えるのは許容（NIT 2 件目）。#607 / #608 とも CLOSED。**計画書 Step 5 の未達はこれで解消**したので、archive 時点の乖離レビューから「未達」の記述を落とした
+- **「iOS 未検証」が解消**: iOS のブラウザは全て WebKit（WKWebView）なので、Chrome で見ても `visualViewport` の挙動は Safari と同じ経路を通る。`useSoftKeyboard` の「同じ幅で観測した最大可視高との差」判定が iOS でも成立することを実機で確認できた（Safari の UI そのものは未確認）
+- **副産物 = #512 が測れる状態になった**: 「コマンドパレットの上余白が safe-area を踏む」は iPhone のノッチ前提の指摘で、Android 実測（上端 inset ≈ 0）では反証にならず宙に浮いていた。**ユーザーが iPhone を実機として使えると分かった**ので 👀 節へ回す
+
+#### 次セッションへの引き継ぎプロンプト（貼り付け用）
+
+```text
+life-editor の chat-main セッションを開始する。
+
+まず `.claude/memory/chat-main.md` と `.claude/comm/decisions/ANSWERS.md` を読み、
+`gh issue list -R sunbreak-pro/life-editor --state open` で自分宛の open Issue を確認すること。
+未 merge の PR #630（tracker）が残っていたら、merge はユーザーの手番なので状態だけ確認して先へ進む。
+
+今回の目標 = 2026-08-10 に起票したユーザー要望 7 件のうち、最大の塊である「保存ボタン統一」の段階 1
+（#628）を仕上げる。#624 は実装 + iPhone 実機確認まで完了して CLOSED 済み。
+
+1. #628（Schedule 詳細編集パネルに保存ボタン）から着手する。これが Epic #627 の雛形になり、
+   ここで決めた流儀が Work / Tasks / Settings へ波及する。着手前に Issue 本文の「先に決めること」を
+   ユーザーへ確認すること:
+     (a) 保存ボタンでのみ確定し、blur は draft 保持のみ（未保存で閉じるときは確認ダイアログ）
+     (b) blur 保存は据え置き、ボタンは「今すぐ確定 + 保存済み表示」
+   P-005 により UX が分岐する判断はキュー必須。回答が来るまで実装に入らない。
+
+2. 流儀が決まったら実装する。`EventEditorPane` は Desktop のオーバーレイと Mobile の BottomSheet の
+   両方を backing しているので、片方だけ見て終わらせない。routine アイテムの scope ダイアログ（#279）が
+   1 回しか出ないこと（1 ジェスチャ 1 コミット = #553）と、日付の unmount flush と二重書き込みしないことを守る。
+
+3. #628 が close したら Epic #627 の対象面の棚卸しを grep で実測して本文を更新し、子 Issue を
+   1 面 1 本で起票する（`[all]` は Epic 専用。子は宛先 slug を 1 つに決める）。
+
+余力があれば #626（Todo の詳細からタグ付け外し）→ #623（朝刊の + 追加導線）の順。どちらも既存部品の
+流用が前提で、新しい生成 UI やタグ操作経路を作らない。#625（Event⇄Todo 変換）は items_meta +
+<role>_payload の 2 行分割モデルに触るので最後に回し、判断 3 件が未回答のうちは着手しない。
+
+小粒だが 1 つ: #512（コマンドパレットの上余白）は iPhone で測れる状態になった。キーボード表示中に
+パレットを開いて上端が safe-area へ潜らないかユーザーに見てもらい、踏まないなら NOT_PLANNED で close する。
+
+工程は lead-pipeline に従う（中ティア = 実装 → session-verifier → task-tracker）。
+tracker は実装ブランチに載せない（D-20260801-main-1）。merge は常にユーザー（P-001）。
+```
+
+### 2026-08-10 - スマホ ソフトキーボード起因バグ 2 件（#607 / #608・PR #621 merged）
 
 #### 概要
 
@@ -63,197 +120,5 @@ main の作業ディレクトリに未追跡のまま残っていた 13 ファ�
 - **参照方式への再設計**: 実体は `.claude/` 側 1 つだけを保ち、Codex 側は入口のみ。`hooks.json` は `.claude/hooks/*.sh` を **git ルート相対**で呼ぶ（初版は `C:\Users\user\...` の絶対パス直書きで他マシン・worktree では動かなかった）。副次的に**バグが 1 つ消えた** — `.claude/hooks/*.sh` は `$(dirname $0)/..` から vendor 実装を探すため、`.codex/hooks/` に置いたコピーからだと `.codex/scripts/hooks-lib/` を見にいって外していた
 - **仕様の裏取り**（公式ドキュメント）: スキルは **`.agents/skills/`** から探される（`.codex/skills/` ではない・`$CWD` から repo root まで遡る）／ hooks は `<repo>/.codex/hooks.json` が読まれ、コマンドは**セッションの cwd** で走るため絶対パスか git ルート相対が推奨（公式例が `$(git rev-parse --show-toplevel)`）
 - **スキルを 4 本に絞った根拠**: `.claude/skills/` 17 個のうち 8 個はシンボリックリンクで、**Windows では実体化せずリンク先パスが書かれただけのテキストになっている**（`file` で確認）。残る実体 9 本のうち `loop-*` 5 本は Claude Code のスラッシュコマンド前提。差し引き 4 本
-
-### 2026-08-06 - Loop Engineering Phase 2 の文書整備（夜の実装レーンを薄い殻へ・PR #597 merged `5161a9a1`）
-
-#### 概要
-
-親計画 §8 Step 9 のゲート（ループカタログ定着後に decision キューで Phase 2 着手可否を裁定）を**ユーザー指示で前倒しし、試験運用 0 件のまま** Phase 2 の文書整備を実施した。`goals.md` は役割ごと差し替え、`routine-night.md` は `/loop-implement` を呼ぶ薄い殻に書き換えている。**発火は有効化していない**（実行基盤の裁定 D-20260804-main-1 が未回答）。
-
-#### 変更点
-
-- **飛ばしたゲートを先に記録**: カタログは同日 merge（#595）で試験運用ゼロ、キューでの裁定も無し。Step 6（2026-08-04）と同型の前倒しである旨を親計画の Worklog 先頭に明記した上で着手
-- **`goals.md` の役割変更**: 旧版は Goal 1〜3 + `ACTIVE` / `PENDING` / `BLOCKED` の状態機械で、中身が Tauri / D1 時代のまま陳腐化。**一覧を持たせず「今夜どれを選ぶか」の判断基準だけ**にした（open Issue の正本は GitHub — 数値の非複製原則）。必須条件 4 つ（一晩で commit まで届く / 無人で完結する / 誰の手番でもない / 未回答の decision に乗っていない）→ 順序（小さく確実な順 → bug > task > feature → 番号の古い順）→ 候補ゼロなら基準を緩めず終わる
-- **設計判断（ユーザー裁定）**: open Issue は**全件がレーン宛の prefix 付き**で、無条件では夜のレーンが 1 件も拾えない構造だった。拾う範囲を「**宛先レーンはあるが滞留している Issue**」と確定。滞留の判定 = ① Issue 番号を含むブランチ / open PR の不在 ② 宛先レーンの 3 日無活動（ブランチ最終コミット + `.session-name` の mtime の**両方**。commit を残さず調査だけのレーンを前者だけでは見落とす）③ 着手宣言の不在。3 日は初期値
-- **`routine-night.md` を薄い殻へ**: 無人固有の 6 点のみ（Scope 宣言 / Issue の選び方 / セッション予算 90 分の bash 明示計測 / 停止条件 / 報告先 / 質問経路）。検証ゲート・ティア判定・worktree 手順・機械が止める禁止は各正本へ委譲し重ねて書かない。`/loop-implement` との差分 1 点（周回数の記録先を計画書 Worklog ではなく報告に）を明記
-- **訂正**: 親計画 §2 / §7 の「draft PR 止まり」→ **commit 止まり**。`Bash(git push*)` / `Bash(gh pr create*)` が `permissions.ask` にあり無人では必ず失敗するため。解放の可否は `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段の管轄
-- **追随 3 か所も同一 PR に同梱**（起草時は Scope 外としたが同日ユーザー指示で取り込み）: `run-routine.ps1` の `ValidateSet` に `night` 追加（**無いと手動でも起動できなかった**）/ `README.md` の状態列と Phase 2 記述 / **`routine-morning.md` を退役**（中心の仕事が「goals.md の状態機械を朝に更新」で、その機械ごと畳んだため前提が消えた。朝の枠は `routine-digest.md`）。旧 Step の行き先表を残し、**後継のいない worktree prune は人手のまま**と明示
-- **検証**: `LC_ALL=C bash scripts/docs-lint.sh` OK / `run-routine.ps1` は PowerShell パーサで構文 OK / shared lint 0 errors・test 1502 passed・build 通過 / web lint 指摘なし・build 通過・test 124 passed。**プロダクトコードの変更ゼロ**。fresh worktree には `node_modules` が無く初回は全滅したので `npm ci` 後に再実行している
-
-#### 次セッション用プロンプト（セッション 3: コンテキストコスト削減ハーネス — 同日の旧プロンプトを差し替え）
-
-```
-コンテキストコスト削減ハーネスの実装セッション（Loop Engineering セッション 3/3）。
-
-正本 = .claude/docs/vision/plans/2026-08-04-context-cost-reduction-harness.md（Status: Draft・未着手）
-親計画 = .claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md
-姉妹計画 = .claude/docs/vision/plans/2026-08-04-loop-catalog.md（ループ定義の構造。コストは扱わない）
-
-## 最初に確認すること（「完了」の範囲を先に確定する）
-
-**1 セッションで全 Step は終わらない。** Step 5（Phase 3 移送）は計画自身が
-「移行（Electron + Supabase）完了後に実施」と定めていて、移行は未完了。
-Risks にも「移行中に移送すると移送先自体が動く」と書いてある。
-
-したがって今回の到達点は **Phase 1（計測）+ Phase 2（枠づくり）+ Phase 4（/loop-prune）** で、
-Phase 3 は移行完了まで開けない。Acceptance Criteria の
-「移送前後の再測定で固定費が減少している」は今回は満たせない ——
-**満たせない項目があることを最初に認めた上で、残りを全部埋める**こと。
-Status は COMPLETED にせず IN PROGRESS のまま、残が Phase 3 だけと分かる形で書く。
-
-（移行ゲートを前倒しで開けるかはユーザー判断。開けたいなら decision キューに A/B で起票し、
-　回答を待たずに Phase 1/2/4 を進める）
-
-## 本題 1: Phase 1 — 計測（Step 1〜2）
-
-**何も削らない。内訳を数字で出すことだけが目的。** 二段構え（概算 → 上位項目だけ精密）は
-2026-08-04 裁定で確定済み。全項目の精密計測はしない。
-
-調査対象は計画書 §4 の表が正本。ただし **表に載っていない支配項が 1 つある**（下の申し送り参照）。
-
-結果は本書の Worklog ではなく**独立した計測結果ファイル**に残す
-（再測定して差分を見るため）。再現可能な測定手順を同じファイルに書くこと ——
-「どう測ったか」が無いと次回の数字と比較できない。
-
-## 本題 2: Phase 2 — 枠づくり（Step 4）
-
-CLAUDE.md を **航法（Navigation）/ 目的（Why）の 2 層**へ再編する枠を用意し、
-移送先（skill / docs）を先に作る。**全面書き換えではなく既存記述の振り分け。**
-
-- 移送先が無い記述は、移送先を作るまで消さない（消失ゼロ）
-- 実体の無い禁止は、hooks / permissions に実体を作ってから文章を削る
-- この段階では枠と移送先の確保まで。実際の移送は Phase 3
-
-## 本題 3: Phase 4 — /loop-prune（Step 6）
-
-`.claude/skills/loop-prune/SKILL.md` を作る。**これが最終成果物**
-（計画書 §1: 成果物として残すのは 1 段目の計測と 4 段目の維持機構）。
-
-- 形式はループカタログの既存 4 本に揃える（必須 5 見出し = 目標 / 完了条件（機械検証可能）/
-  予算 / 停止条件 / 使ってよい道具。手順は書かない。disable-model-invocation: true）
-- 対になる /loop-postmortem（知見を足す側）が既にあるので、**肥大を戻す側**として設計する。
-  カタログ自身も棚卸しの対象に含める
-- 予算の実測値は 2026-08-04-loop-catalog-implementation.md の Worklog を参照
-
-## 判断が要る 2 点（キューに書いて進む・待たない）
-
-1. **Phase 3 の移行ゲートを前倒しで開けるか** — 開けるなら移送も今回やる
-2. **グローバル資産（~/.claude/CLAUDE.md と claude-dotfiles/claude/rules/）を Scope に入れるか**
-   — 計画書の Scope は .claude/** と .mcp.json だけで、グローバル側が入っていない。
-   だが実測するとここが無視できない大きさ（申し送り参照）。**別リポジトリなので PR も別**になる
-
-## 制約
-
-- Phase 1 の間は **読み取りと計測結果ファイルの追加のみ**。既存ファイルは変更しない
-- 削減量を KPI にしない（削りすぎは探索コストを増やして逆効果）。基準は「移送先があるものは移す」だけ
-- 調査を目的化しない。上位項目が見えたら次へ進む
-- worktree から作業する。メイン直下は main 専有。ブランチを切ったら .claude/comm/.session-branch を書き換える
-- 計画書 frontmatter の Branch を着手時のブランチ名に更新する（現在は配置 PR のまま）
-- tracker を実装ブランチに載せない（D-20260801-main-1）。merge は常にこうだいさん（P-001）
-- PR 前に CLAUDE.md §7.1 の lint / build / test（docs だけでも docs-lint は LC_ALL=C 付き）
-
-## 申し送り（2026-08-06 実測・そのまま使ってよい）
-
-- **プロジェクトの常時ロード分は約 31KB**: .claude/CLAUDE.md 18.5KB +
-  rules/ 3 本 12.6KB（うち frontend.md 7.5KB と docs-consistency.md 4.3KB は path-scoped）
-- **グローバル側がほぼ同規模で、計画書 §4 の調査表に入っていない**:
-  claude-dotfiles/claude/rules/ は 11 本 28.8KB で、うち 8 本が毎セッション無条件でロードされる
-  （bash-tool-stability 3.2KB / tone 7.3KB / heavy-workflows 1.8KB 等）。
-  **これが最大の盲点**の可能性がある。§4 の表に 1 行足すところから始めること
-- **MCP の仮説は環境側で部分解消されている**: 現行 Claude Code には deferred tools
-  （ツール定義を必要時に取り寄せる遅延ロード）があり、MCP ツールは名前だけ提示されて
-  スキーマは ToolSearch 時にロードされる。「毎セッション全量積まれる」前提で測らないこと
-- .claude/skills/ は 8 本。.claude/scripts/ は実在する（docs-lint はリポジトリ直下の scripts/）
-```
-
-### 2026-08-06 - ループカタログ初期 4 本の配置（Loop Engineering セッション 2・PR #595 merged）
-
-#### 概要
-
-親計画 `2026-08-04-loop-catalog.md` §4 の手順どおり、この Windows 機のローカル実態を実測してから子計画書を起こし、`/loop-triage` でフォーマットを確定させたうえで残り 3 本を同一形式で配置した。実測の結果、親計画が置いていた前提が 2 か所で崩れていたため、設計を 2 点変更している。
-
-#### 変更点
-
-- **子計画書**: `2026-08-04-loop-catalog-implementation.md`（§1 ローカル実測 / §2 責務境界 / §3 フォーマット + 規約 / §4 初期 4 本 + 設計変更 2 点 / Scope / Steps 8 本 / 機械検証可能な AC 8 項目）。親計画に `Child:` を追加し Status を `IN PROGRESS` 化
-- **前提の崩れ ①（死んだスキル）**: リポジトリ内スキル 12 本のうち **8 本が Mac パスを指すシンボリックリンク切れ**（`add-component` / `add-feature` / `add-ipc-channel` / `db-migration` / `frontend-react-designer` / **`issue-dispatch`** / `session-loader` / `test-writing`）。生きているのは `dev-digest` / `docs-workflow` / `schedule-management` / `worktree-policy` の 4 本のみ
-- **前提の崩れ ②（merge の穴）**: `gh pr merge` が repo `permissions` の deny にも ask にも無く、**POLICY P-001「merge は常にユーザー」が機械では未強制**。さらに `git-workflow` §0.1.1 の自動マージ指定と衝突している。→ **D-20260804-main-2** として判断キューへ起票（A = `permissions.ask` へ追加 / B = deny / C = 現状維持 + §0.1.1 を life-editor 非適用と明記）
-- **設計変更 2 点**: ① `/loop-triage` は**起票しない**（`issue-dispatch` が死んでおり、起票は chat-main 一元）。判定と着手順の提示までで、起票が要るものは outbox へ依頼を append ② `/loop-implement` は **draft PR を作らない**（`git push*` / `gh pr create*` が `permissions.ask` のため無人実行では必ず止まる）。完了条件は commit + PR 本文の下書きをファイル出力まで
-- **配置した 4 本**: `loop-triage`（12 件 / 20 分）・`loop-implement`（5 周 / 90 分）・`loop-verify`（3 周 / 30 分・`session-verifier` の内部 2 リトライの**外側の輪**）・`loop-postmortem`（5 件 / 20 分・1 件につき 1 行）。全本 `disable-model-invocation: true` + 必須 5 見出し + 6 つ目の `## 環境の事実`（ユーザー承認）。時間上限は宣言だけでは無視された実例（494 反復の暴走）があるため `START_TS=$(date +%s)` の実測を明記
-- **見出し語彙は `automation/routine-*.md` に合わせた**。親 Phase 2 で `routine-night.md` を `/loop-implement` の薄い殻に書き換えられるようにするため
-- **検証**: AC 8 項目すべて機械確認（4 本存在 / 5 見出し 5-5 / `disable-model-invocation` 4-4 / 反復・時間上限 4-4 / 死んだスキルを呼び先に指名していない / 親→子の参照あり / `LC_ALL=C bash scripts/docs-lint.sh` = OK）。CI = docs-lint pass 7s + typecheck/test/build pass 3m7s。**PR #595 merged `18da6b5f`**
-
-#### 次セッション用プロンプト（セッション 3: コンテキストコスト削減ハーネス）
-
-```
-コンテキストコスト削減ハーネスの実装セッション（Loop Engineering セッション 3/3）。
-前提: PR #595 が merge 済み（18da6b5f・ループカタログ初期 4 本が main にある）。
-正本 = .claude/docs/vision/plans/2026-08-04-context-cost-reduction-harness.md（着手時に Status を IN PROGRESS 化）。
-範囲は Phase 1（計測）+ Phase 2（枠づくり）まで。Phase 3（移送）は Electron 移行完了後なので着手しない。
-Phase 1 で必ず実測すること:
-- 常時ロード分（CLAUDE.md + ~/.claude/CLAUDE.md + rules/ 群）の実トークン数
-- 条件ロード分（skills / path-scoped rules / docs）が実際に何回・どれだけ載っているか
-- 実測前に削る判断をしない（どこが重いかは推測では当たらない）
-Phase 2 の枠づくりでは、ループカタログと同じ規律に従う:
-- 削るのではなく「読む条件」を足す（path-scoped / 明示起動へ寄せる）
-- 削った細則の分だけ「なぜ」を厚くする
-- 数値・列挙の正本を 1 か所に寄せる（数値の非複製原則）
-制約: Scope は計画書に宣言したパスのみ。CLAUDE.md を削るときは、その行を消したら Claude が間違うかで判断し、根拠を Worklog に残す。
-既知の関連: 姉妹計画の loop-prune（増えた文書を畳むループ）は本計画の管轄。カタログは 4 本を上限にしてある。
-```
-
-#### 次セッション用プロンプト（自律運転の到達点・第 1 段の設計 — セッション 3 より先にこちら）
-
-```
-自律運転の到達点・第 1 段の設計セッション。
-
-前提: PR #596 が merge 済みであること（未 merge なら停止して報告）。
-正本 = .claude/docs/vision/plans/2026-08-06-autonomous-operation-endpoint.md（Status は既に IN PROGRESS）。
-姉妹 = .claude/docs/vision/plans/2026-08-04-loop-catalog-implementation.md（ループ 4 本の定義）。
-
-## 最初にやること: 夜間レビュー試験運用の回収
-
-2026-08-06 23:33 JST に 1 回だけ走らせたクラウド routine（trig_018fECsiaVRLNSCFcoVMDF4q）の結果が
-Notion の「Life Editor Night Review」ハブ（3b4b6365-53cc-8158-93d5-e3514ff6d9d3）にある。
-同じハブの下に「Cloud Probe 2026-08-06」（環境実測）も置いてある。
-
-1. Night Review 2026-08-06 を読み、§1-A-2 の残る未検証 = `gh auth status` の結果を確定させて計画書に追記する
-2. 監査の検出内容（docs 整合 / Issue 台帳 / PR conflict / 検証準備）を裁く。起票が必要なものは chat-main が起票する
-3. 実際の所要時間を Worklog に記録する（反復上限・時間上限の実測値として使う）
-
-## 本題: 第 1 段の設計を書き直す
-
-実測で前提が変わっている。クラウド環境には life-editor のチェックアウトも .claude/settings.json も無い（§1-A-2）。
-したがって第 1 段は「ローカルの permissions を緩める」話ではなく、
-ガードレールが効かない環境に GitHub の書き込み認証を置くかどうかの話になっている。
-
-`gh auth status` の結果で分岐する:
-
-- 認証が無かった場合: 「書く手段が無いから書けない」が構造的な安全担保になっている。
-  第 1 段を進めるならこの担保を意図的に外すことになるので、外す前提条件を設計する
-  （どの操作まで許すか / 認証をどう供給するか / トークンをどこに置くか）。
-  トークンをプロンプトに平文で書くのは禁止（CLAUDE.md §9 の鉄則・2026-05-17 の流出未遂）
-- 認証が有った場合: 柵の無い環境に既に書き込み能力がある状態。
-  第 1 段の解放以前に現状が危ないので、まずそれを塞ぐ設計を先に書く
-
-どちらでも共通で決めること:
-
-- クラウドの routine 定義が git 管理外という穴（Risks に記載）をどうするか。
-  正本を .claude/automation/ に置いて、trigger 側は clone して読むだけにする案が有力
-- 夜間レビューを常設化するか（今は 1 回きり）。常設化するなら発火頻度と利用枠の消費を見てから
-
-## 制約
-
-- Scope は計画書の Scope 節で宣言し直す。POLICY.md には触れない（P-001 は据え置き確定）
-- merge は常にこうだいさん（P-001・D-20260806-main-1 = B で再確認済み）。
-  gh pr merge は permissions.ask に入れてあるので、押す前に必ず止まる
-- 不可逆操作（DDL 適用・シークレット投入・force 系 git・履歴改変）は判断キューに書かず同期で確認（P-007）
-- tracker（memory/ + history/）の更新を実装ブランチに載せない（D-20260801-main-1）
-- クラウド実行はサブスクの利用枠を食う（別請求は無い）。試験は 1 回ずつ、繰り返し登録は結果を見てから
-
-## セッション終了時
-
-コスト削減ハーネス（2026-08-04-context-cost-reduction-harness.md・Loop Engineering セッション 3）向けの
-プロンプトを生成すること。貼り付け用の下書きは本エントリの上のブロックにある。
-```
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

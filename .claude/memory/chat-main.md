@@ -26,17 +26,23 @@
 
 - 前回: 新レーン 4 本（refactor-core / schedule-refine / mobile-refine / tags-docs）へ Issue #465〜#474 を fan-out し、各レーンが消化
 - 現在: **巡回は停止条件を満たして完了**（2026-08-01・open PR 0 / #467 / #468 とも CLOSED / **PR #527 merged** `637a64e6`）。判断キューは**空**（回答 8 件を `ANSWERS.md` へ転記済み）。**次の動きはレーン起動待ち** — worktree 4 本ともチャットが未起動でコミットが進んでいない
-- 次: open Issue 12 件を各レーンへ流す（**#507 / #509 / #525 / #526** = mobile-refine、**#511 / #519** = tags-docs、**#517** = refactor-core、**#520 / #524** = schedule-refine、**#512 / #528** = chat-main、**#372** = 将来 DDL）。chat-main 自身の手番は **#528**（archive のリンク切れ + docs-lint 拡張）。**#512 は Android 実測で「潜っていない」を確認しコメント済み・close はしない**（指摘は iPhone の `safe-area-inset-top` 前提で Android は上端 inset ≈ 0 のため反証にならない → iPhone で踏むか、iPhone を使わない運用が確定したら NOT_PLANNED close）
+- 次: open Issue 12 件を各レーンへ流す（**#507 / #509 / #525 / #526** = mobile-refine、**#511 / #519** = tags-docs、**#517** = refactor-core、**#520 / #524** = schedule-refine、**#512 / #528** = chat-main、**#372** = 将来 DDL）。chat-main 自身の手番は **#528**（archive のリンク切れ + docs-lint 拡張）。**#512 は iPhone で確認できる状態になった**（2026-08-10 = ユーザーが iPhone Chrome で #607 / #608 / #624 を実機確認。従来「Android では上端 inset ≈ 0 なので反証にならない」で止まっていた）→ 下の 👀 節へ回し、踏まないなら NOT_PLANNED close
 
 ## 直近の完了
 
-- [chat-main] **スマホ ソフトキーボード起因バグ 2 件（#607 / #608 = PR #621 open）** ✅（2026-08-10）— #607 の原因は「自分の書き込みが自分の hydrate を無効化する」（クライアント時計の `updatedAt` が #301 のマージ判定を必ず外し、編集中のノートだけ本文キャッシュが落ちて mobile シートがエディタを skeleton に差し替える）。マージ判定に「開いている行 かつ 自分が書いた行」を OR で追加し、マークは**リロード 1 回で使い捨て**（QA が見つけた他デバイス書き込みの無言上書きを塞ぐ・in-flight 中は保留）。#608 は `useSoftKeyboard` 新設で narrow の `BottomTabBar` を非描画。判定は「同じ幅で観測した最大可視高との差」なので**レイアウトごと縮む UA / visual だけ縮む UA の両方で成立**（実測待ちを解消）。Scope 例外 = **D-20260810-main-4**（`useNotesUnifiedAPI.ts` は #587 の分割対象だったが原因確定で例外入り・#587 に申し送り済み）。**計画書は Step 5（merge）待ちで IN PROGRESS のまま**・**deploy 後の目視が残**（本文タップで閉じないか / タブバーの出戻り / safe-area 下端 / iOS 未検証）
+- [chat-main] **ユーザー要望 7 件の起票 + 最優先 1 本の実装（#623〜#628 起票 / #624 = PR #629 open）** ✅（2026-08-10）— 要望を重複チェックのうえ 6 本に起票（要件 2「Task→Todo」は既存 **#592** に該当したので新規は立てず、Work 画面の名前空間は既に Todo 統一済みという実測をコメント追記）。**#623** 朝刊の + 追加導線 / **#624** ポモドーロ数値入力バグ / **#625** Event⇄Todo 変換 / **#626** Todo のタグ付け外し（Event は #468 済み・Todo チップは #564 で Tasks へ受け渡す設計だった）/ **#627** Epic 保存ボタン統一（Note・Daily 除く）/ **#628** その段階 1 = Schedule 詳細。実装は唯一の `type:bug` の **#624** を選択 — 原因は `NumberField` が空文字を `Number("") === 0` として commit し、`clampMinutes` が 1 に丸めて書き戻していたこと（**RED チェックで `expected '150' to be '50'` を再現**）。「空欄」を独立した状態にして commit を止め、空欄のまま離れる / プリセット保存すると「`<項目名>`に数値を入力してください」を出す。**セクション遷移そのものは止めていない**（router が無く `setSection` の呼び出し口が app shell 全体に散るため — 実際には nav クリックが先に blur を起こすので警告は出る）。**PR #629 merged + iPhone Chrome で実機確認 OK → #624 CLOSED**
+- [chat-main] **スマホ ソフトキーボード起因バグ 2 件（#607 / #608 = PR #621 merged）** ✅（2026-08-10）— #607 の原因は「自分の書き込みが自分の hydrate を無効化する」（クライアント時計の `updatedAt` が #301 のマージ判定を必ず外し、編集中のノートだけ本文キャッシュが落ちて mobile シートがエディタを skeleton に差し替える）。マージ判定に「開いている行 かつ 自分が書いた行」を OR で追加し、マークは**リロード 1 回で使い捨て**（QA が見つけた他デバイス書き込みの無言上書きを塞ぐ・in-flight 中は保留）。#608 は `useSoftKeyboard` 新設で narrow の `BottomTabBar` を非描画。判定は「同じ幅で観測した最大可視高との差」なので**レイアウトごと縮む UA / visual だけ縮む UA の両方で成立**（実測待ちを解消）。Scope 例外 = **D-20260810-main-4**（`useNotesUnifiedAPI.ts` は #587 の分割対象だったが原因確定で例外入り・#587 に申し送り済み）。**PR #621 / #622 とも merged（2026-08-10 10:05 UTC）→ 計画書は乖離レビュー 3 行を記入して archive 済み**（`archive/2026-08-10-mobile-keyboard-input-fixes.md`）。**deploy 後の目視 4 点は iPhone Chrome で全て OK → #607 / #608 とも CLOSED**（本文タップで閉じない / タブバーの出戻り / ホームインジケータ帯に本文が乗らない / 「その他」シートが消えるのは許容）。**iOS 未検証は解消**（iOS のブラウザは全て WebKit なので描画エンジンは Safari と同経路。Safari の UI そのものは未確認）
 
 - [chat-main] **確認待ちの摩擦を除去（#618 = PR #619 open / dotfiles PR #15 open）** ✅（2026-08-10）— `permissions.ask` を `Bash(gh pr merge*)` だけに縮小（deny 27 件は無変更）。無人レーンの push 抑止は **runner 側 settings** へ分離し `automation/` 2 本に明記。あわせて tracker 新運用を **D-20260810-main-1** として台帳化（END の tracker は **session-verifier 緑の直後**に実行し merge を待たない・専用ブランチ `chore/tracker-<chat>-YYYYMMDD`）→ CLAUDE.md §7.4 + `worktree-policy` を行単位修正、dotfiles 側は task-tracker / lead-pipeline / role-engineer（Verdict をゲート別 PASS/FAIL 表へ）に追随。**DoD 4 つ目（確認プロンプトなしの実測）だけ merge + セッション再起動後に持ち越し**
 
-- [chat-main] **ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 は open）** ✅（2026-08-10）— P-008（実装中スコープ凍結）を POLICY に追加・`_TEMPLATE.md` に「検討した代替案」節 + 完了時の乖離レビュー 3 行を必須化・重複 8 系統を各正本へのポインタに統一・Mac 専用 symlink 10 本を known-issues/031 化（計画書: archive/2026-08-10-harness-loop-consolidation.md）。dotfiles 側（tone 一本化 / lead-pipeline ミニスコープ / QA ラベル統一）は `~/.claude` にローカル実効済みで merge のみ残
-
 ## 予定
+
+### 🆕 ユーザー要望から起票した 5 本（2026-08-10・#624 は実装済み）
+
+- **#628 → #627** の順に進める。**#628（Schedule 詳細に保存ボタン）で流儀を決め、それを雛形に Epic #627 が横展開する**という段構え。#627 の子 Issue は #628 が close してから chat-main が 1 面 1 本で起票する
+- **#625（Event⇄Todo 変換）と #628 はどちらも着手前にユーザー判断が要る**。#625 = 変換時に id を維持するか / 落ちるフィールドの扱い / routine occurrence の可否、#628 = 保存ボタンでのみ確定するか blur 保存を残すか。**Issue 本文に列挙済みなので、着手するレーンは判断キューへ積んでから実装に入る**（P-005）
+- **#623**（朝刊の + 追加導線）は `section:briefing`、**#626**（Todo のタグ付け外し）は `section:schedule`。どちらも既存部品の流用が前提（#623 = `ItemCreatePanel`、#626 = `TagPicker` / `TaskDetailPanel`）で、新しい生成 UI やタグ操作経路を作らないことを Issue に明記した
+- **#592**（Task→Todo 表記統一）は既存 open。残存は `shared/src/i18n/locales/{ja,en}.json` の schedule 系キーのみで、Work 画面と `.ts`/`.tsx` のハードコードは 2026-08-10 に実測して**追加分なし**を確認済み
 
 ### 📋 Loop Engineering 続き（セッション 3 — 貼り付け用プロンプトは history の各セッションエントリ参照）
 
@@ -58,6 +64,9 @@
 
 ### 👀 ユーザー実機目視待ち（merge 済み機能・未確認のもの）
 
+> **2026-08-10 に判明: ユーザーは iPhone（Chrome）を実機として使える**。以下の「iOS 実機で」系はこれで測れる。iOS のブラウザは全て WebKit なので、Chrome で見れば描画エンジンとしては Safari と同じ経路
+
+- **#512 コマンドパレットの上余白**（`sev:minor` / open）: iPhone でコマンドパレットを開き、**キーボード表示中に上端が safe-area（ノッチ / ステータスバー）へ潜らないか**。Android 実測は上端 inset ≈ 0 で反証にならず宙に浮いていた。踏まないなら NOT_PLANNED close してよい
 - **背の高いシート + ソフトキーボード**（#470 / PR #494 merged・mobile-refine から引き取り 2026-07-31）: iOS / Android 実機で、タスク詳細シート（`web/src/tasks/MobileTaskList.tsx` の `max-h-[92vh] / min-h-[70vh]`）のタイトル欄・本文を編集したときにカーソルがキーボードの裏に回らないか。`vh` はレイアウトビューポート基準でキーボード表示に追随しない。**iOS では `dvh` も縮まないので、憶測で差し替えず実測してから**（#471 の mobile notes フル編集も同型・直すなら両方まとめて）
 - **code-reduction 実測**（PR #341〜#351 merged・2026-07-25）: #348 = 主要画面に生 i18n キーが出ないこと（実ブラウザ）/ #351 = Analytics チャート・Kanban・Mobile タスクリスト・セグメントコントロールの見た目
 - **宣言 AC6**（PR #287 merged・記録 Issue #374）: 朝刊で宣言入力 → Daily「宣言」セクション保存 → 夕刊「今朝の宣言」表示・朝夕セクション非破壊。あわせて write_briefing プロンプトに「昨日の宣言・夕刊への講評」を含める 1 往復の運用実測
