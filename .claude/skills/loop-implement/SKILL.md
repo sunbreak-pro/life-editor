@@ -45,7 +45,7 @@ disable-model-invocation: true
 - **メインリポジトリ直下は `main` 専有**。feature 作業は worktree から。ブランチを切り替えたら `.claude/comm/.session-branch` を必ず書き換える
 - **tracker（`memory/` + `history/`）を実装ブランチに載せない**（D-20260801-main-1）。並行ブランチが必ず衝突する。記録は merge 後に 1 commit でまとめ、PR 本文側に要約を書く
 - 検証コマンドは `shared` / `web` / `desktop` で別々に回す必要がある（`web` の lint は `web/` 配下しか歩かない）。一覧の正本は CLAUDE.md §7.1
-- **一部のスキル / エージェントは Mac のみ実体**（`add-feature` / `test-writing` / `db-migration` 等 → `docs/known-issues/031-mac-only-symlinked-skills-agents.md`）。テストの書き方は既存テストに倣う
+- **スキル / エージェントは全マシンで同じものが見える**（2026-08-10 に repo 内 vendor 化・`docs/known-issues/031-mac-only-symlinked-skills-agents.md`）。repo 外を指す symlink を新規追加しないこと
 
 ---
 

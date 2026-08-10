@@ -21,15 +21,12 @@ paths:
 トークン改名・機能退役・パス変更などの「横断イベント」が起きたら、同一 PR で以下を **grep で全数 sweep** する:
 
 ```bash
-# 1. repo 内 docs / skills / agents（symlink 込み）
+# docs / skills / agents は全て repo 内が正本（2026-08-10 vendor 化 — known-issues 031）。
+# repo 外を grep する必要はもう無い。1 回で全数が当たる。
 grep -rn '<旧名>' .claude/
-
-# 2. repo 外の symlink 実体（PR diff に現れない死角 — 別コミットで追随）
-grep -rn '<旧名>' ~/dev/Claude/skill-lib/projects/life-editor/
-grep -rn '<旧名>' ~/dev/Claude/agents-lib/projects/life-editor/
 ```
 
-- **実例**: ink→lumen 改名（#135）は `rules/frontend.md` だけ直して SSOT・tier-2・skill-lib へ波及せず、notion→ink→lumen の **3 世代が併存**した
+- **実例**: ink→lumen 改名（#135）は `rules/frontend.md` だけ直して SSOT・tier-2・skill-lib へ波及せず、notion→ink→lumen の **3 世代が併存**した（当時スキル実体は repo 外にあり PR diff に出なかった。vendor 化でこの死角自体が消えている）
 - 歴史的記述として残す場合は「旧称」「当時の仮称」「retired」等の注記を同じ行に付ける（docs-lint #173 の除外条件）
 
 ## 3. plans/ Status の enum
