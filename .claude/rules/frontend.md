@@ -73,10 +73,9 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 
 ## テスト環境の制約（座標に依存する入力経路を作らない）
 
-`shared/tests/` と `web/tests/` はどちらも jsdom で、**レイアウトが無い**（要素の座標はすべて 0・`elementFromPoint` は null）。画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は**ここでは検証できない**。
+jsdom にレイアウトが無い（座標がすべて 0）という環境の事実の正本は **CLAUDE.md §7.1**。`shared/tests/` も同じで、`elementFromPoint` は null・画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は検証できない。
 
-- UI の入力経路は座標に依存しない形で組む: DOM イベント + `closest("[data-…]")` で対象を引く（実例 = `web/src/notes/itemLinkNode.ts` の `handleDOMEvents.click`）
-- 座標依存のまま残すとテストが書けないので、壊れても誰も気付かない（#475 = `[[リンク]]` のクリック遷移が #288 から死んでいたのにテストゼロで放置された）
+- 規約: UI の入力経路は座標に依存しない形で組む — DOM イベント + `closest("[data-…]")` で対象を引く（実例 = `web/src/notes/itemLinkNode.ts` の `handleDOMEvents.click`）
 
 ## Gotchas
 

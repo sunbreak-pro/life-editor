@@ -23,16 +23,30 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ---
 
+## 検討した代替案（必須）
+
+採らなかった案を計画時点で残す。実装中に代替案が魅力的に見えたときは、路線変更の議論ではなく「復活条件を満たしたか」の判定に落とす（満たさないなら P-008 に従いキューへ）。
+
+| 案               | 採否 | 却下理由              | 復活条件                 |
+| ---------------- | ---- | --------------------- | ------------------------ |
+| <採った案>       | ✓    | —                     | —                        |
+| <採らなかった案> | ✗    | <なぜ採らないか 1 行> | <どうなったら採り直すか> |
+
+- `ask-user` で提示した選択肢とユーザーの回答も、揮発させずここへ転記する
+- 最低 2 案（採用案 + 却下案 1 つ以上）。却下案が思いつかない場合はその旨を 1 行書く
+
+---
+
 ## Worktree 分担（fan-out 計画のみ・単一 worktree の計画では本節を削除）
 
-作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main の `issue-dispatch` スキル・宛先 = `section:<id>` / `shared-fix` ラベル — CLAUDE.md §7.4 / §9）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
+作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main に一元化。手順とラベル routing の正本 = `docs-workflow` スキル。`issue-dispatch` スキルは Mac のみ実体 = known-issues/031）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
 
 | worktree | 担当（1 行）        | 対応 Issue | 触ってよいパス |
 | -------- | ------------------- | ---------- | -------------- |
 | `<slug>` | <担当範囲を 1 行で> | #NNN       | `<パス>`       |
 
 - 完了条件（DoD）は各 Issue の body に機械検証可能な形で書く（表には Issue 番号だけを置き、内容を転記しない — 数値の非複製原則）
-- 常設 worktree へはラベル付き起票だけでタスクが届く（boot 不要）。新規・休眠チャットを起こす場合のみ 1 行 boot: 「`gh issue list -R sunbreak-pro/life-editor --label section:<id> --state open` と `--label shared-fix --state open` で自分宛 open Issue を確認し、順に実装して close まで担うこと」
+- 常設 worktree へはラベル付き起票だけでタスクが届く（boot 不要）。新規・休眠チャットを起こす場合のみ 1 行 boot: 「`docs-workflow` スキル §worktree 担当ルーティング の手順で自分宛 open Issue を確認し、順に実装して close まで担うこと」（宛先ラベルと確認コマンドの正本 = 同スキル）
 - 各 worktree は着手前に `git pull --ff-only` → `git fetch origin && git merge origin/main --no-edit` の 2 段階で main との差分を取り込む（コンフリクトは手動解消・迷ったら停止して報告 — CLAUDE.md §7.4）
 - 自分宛 open Issue が 0 件なら「担当なし」と報告して停止する
 
@@ -50,7 +64,7 @@ cloud/db/migrations/000N_*.sql
 .claude/docs/vision/plans/<this-file>.md
 ```
 
-スコープ外の変更が必要になった場合は、計画書を更新してから手を付ける（更新せず広げない）。
+スコープ外の変更が必要になった場合は **P-008**（実装中スコープ凍結）に従う: 実装せずキュー（`comm/decisions/chat-<self>.md`）or Issue 起票依頼へ積み、現計画を続行する。Scope の書き換えはユーザー回答があってから行う（自分で広げない）。
 
 ---
 
@@ -87,6 +101,8 @@ PR/タスク完了の必要条件。すべて自動で yes/no が判定できる
 - [ ] (該当する場合) `supabase db diff` で local↔remote 差分 0
 - [ ] 完了・退役・supersede 時: 対応 plan・per-chat memory の Status を更新した（DoD。PR merge / Issue close と docs Status の非連動を防ぐ）
 
+AC を満たせない見込みになったら、自己免除せず **P-008** に従いキューへ積む（「許容範囲と判断」で続行しない）。
+
 ---
 
 ## DB Migration Notes
@@ -121,7 +137,14 @@ DDL を含む場合のみ記入。空なら削除可。
 
 ---
 
-## Worklog (任意)
+## Worklog
 
-実装中に判明した設計判断や、計画から逸脱した部分を時系列で記録。
-完了後に Known Issue 化すべき知見はここから docs/known-issues/ へ移送。
+実装中に判明した設計判断や、計画から逸脱した部分を時系列で記録（時系列部分は任意）。
+
+完了時（archive する時）の**乖離レビュー 3 行は必須**（実行者 = `task-tracker` の END フロー）:
+
+1. スコープ逸脱の有無（あれば何をどこまで）
+2. AC 免除の有無（あれば何を、誰の承認で）
+3. 途中で出た判断とその行き先（`D-…` / Issue #NNN / 「行き先なし」）
+
+完了後に Known Issue 化すべき知見はここから docs/known-issues/ へ移送。規約級の乖離は `decisions/` へ昇格する。

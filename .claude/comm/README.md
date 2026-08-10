@@ -1,6 +1,6 @@
 # Comm Protocol — 複数 Claude チャット間のファイル経由通信
 
-複数の Claude チャットセッションが、ファイルを介して非同期にやり取りするための最小プロトコル。Phase 1（Outbox のみ）の試作版。
+複数の Claude チャットセッションが、ファイルを介して非同期にやり取りするための最小プロトコル。Outbox（チャット間の書き置き）から始まり、現在は decisions（判断キュー）・digest（朝の采配ダイジェスト）・Issue dispatch ルートまで拡張して運用中。
 
 ## このプロトコルの目的
 
@@ -26,7 +26,7 @@
 
 ## Decision queue ルート（outbox と分離した判断専用レーン）
 
-ユーザー判断が要る点は outbox でなく `decisions/chat-<self>.md` に書く（単一書込者は outbox と同じ・形式 = [`decisions/README.md`](./decisions/README.md)・行動規定 = `rules/decision-queue.md`）。**キューは未決の一時置き場**で、回答が付いたら `.claude/decisions/D-<id>.md`（確定台帳・恒久）へ昇格してからキューから消す — 回答済み判断の Why・却下案を探すときは [`.claude/decisions/INDEX.md`](../decisions/INDEX.md) を見る。
+ユーザー判断が要る点は outbox でなく `decisions/chat-<self>.md` に書く（単一書込者は outbox と同じ）。**運用の正本 = [`decisions/README.md`](./decisions/README.md)**（形式・昇格手順・恒久裁定 POLICY）／行動規定 = `rules/decision-queue.md`。
 
 ## 中核ルール: 単一書き込み者
 
@@ -81,12 +81,9 @@ Outbox は append-only のため、チャット名を変えると過去エント
 
 ### `.session-branch` ファイル (worktree ブランチ宣言・必須)
 
-`.session-name`（チャット名）とは別に、**worktree で作業するブランチ名**を宣言する必須ファイルが `.claude/comm/.session-branch` です。
+`.session-name`（チャット名）とは別に、**worktree で作業するブランチ名**を 1 行で宣言する必須ファイルが `.claude/comm/.session-branch` です。hook（Stop / SessionStart 系）がこの値を読んで「今どのブランチで作業しているか」を判定するため、**抜けていると hook が無音でスキップされる**。
 
-- worktree 新規作成時に `echo <branch> > .claude/comm/.session-branch` で作業ブランチ名を 1 行で書く（`git worktree add` → `cd` → この宣言 → `claude` の 4 ステップで 1 セット）。
-- hook（Stop / SessionStart 系）がこの値を読んで「今どのブランチで作業しているか」を検証・判定に使う。
-- **これが抜けていると hook が無音でスキップされる**（自己判定不能で検証が働かない）。Orca ADE で GUI 作成した worktree はこのファイルを書かないため、Claude 起動前に手動で書くこと。
-- 詳細な運用規約は CLAUDE.md §7.4（Multi-chat Worktree Policy）を参照。
+- 書き方・書き換えるタイミング・Orca ADE 例外を含む運用規約の正本 = **`worktree-policy` スキル**
 
 `.session-branch` も `.session-name` と同じく `.gitignore` 対象（セッション固有・一時状態）。各 worktree で個別に宣言する。
 
@@ -204,21 +201,12 @@ mv .claude/comm/outbox/chat-engineer.md .claude/comm/archive/2026-05/
 # 新しい outbox ファイルを作り直す
 ```
 
-## Issue dispatch ルート（タスク分配の正本・2026-07-11〜。旧称 Shared-fix ルート 2026-07-10）
+## Issue dispatch ルート（旧称 Shared-fix ルート 2026-07-10。2026-07-11 に全タスクの分配キューへ拡張）
 
-Outbox が「チャット間の書き置き」なのに対し、**プロダクト課題・作業タスクの正本は GitHub Issues**。git のブランチ状態に依存しないため、どの worktree のどのブランチからでも同じ最新一覧が見える（git 追跡ファイルの台帳だと feature ブランチからは古い版しか見えない問題を回避）。2026-07-11 に「横断タスク専用（shared-fix）」から**全タスクの分配キュー**へ拡張した。
+**タスク分配の運用の正本は `docs-workflow` スキル**（ラベル routing・起票の chat-main 一元化・自分宛 open Issue の確認手順）。本ファイルは Outbox との使い分けだけを持つ。
 
-- **起票 = chat-main のみ**（`issue-dispatch` スキル・2026-07-11 ユーザー決定）。worktree チャットは起票しない — 課題を見つけたら自分の outbox に起票依頼を append し、chat-main が重複チェックの上で起票する（実装自体はユーザー直接指示なら即着手してよい）
-- **宛先はラベルで表現**: `section:<id>` = 担当 worktree 直行 ／ `shared-fix` = 横断タスク（タイトル prefix `[<worktree-slug>]` / `[all]` で宛先指定）／ 担当 worktree が無い課題（例: trash）= chat-main 采配
-- **発見**: 各 worktree チャットは**セッション開始時と作業の区切り**に次の 2 本を確認し、自分宛（自分の section / 自分の slug / `[all]`）を拾う:
-
-  ```bash
-  gh issue list -R sunbreak-pro/life-editor --label section:<id> --state open
-  gh issue list -R sunbreak-pro/life-editor --label shared-fix --state open
-  ```
-
-- **完了**: 実装 → PR → merge 後に Issue close。複数 worktree 分担型（shared-fix `[all]`）は担当分を終えたら Issue にコメント + チェックリスト更新、全消化で close
-- **使い分け**: 特定チャットへの連絡・引き継ぎ・作業宣言・起票依頼 = Outbox ／ 実装タスクそのもの = Issue（CLAUDE.md §9 の「追跡の正 = GitHub Issues」と同根）
+- **実装タスクそのもの = GitHub Issue**。git のブランチ状態に依存しないため、どの worktree のどのブランチからでも同じ最新一覧が見える（git 追跡ファイルの台帳だと feature ブランチからは古い版しか見えない問題を回避）
+- **特定チャットへの連絡・引き継ぎ・作業宣言・起票依頼 = Outbox**。worktree チャットは自分で起票せず、起票依頼を自分の outbox に append する（実装自体はユーザー直接指示なら即着手してよい）
 
 ## アンチパターン
 

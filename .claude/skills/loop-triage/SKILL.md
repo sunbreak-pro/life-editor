@@ -40,7 +40,7 @@ disable-model-invocation: true
 ## 環境の事実（推論では埋まらないので明記する）
 
 - 自分のレーン名は `.claude/comm/.session-name`。宛先ラベルは `section:<id>`（`shared/src/sections.ts` の SectionId と一致）と `shared-fix`（宛先はタイトル prefix `[<slug>]`）の 2 系統
-- **`issue-dispatch` スキルはこの機械では解決できない**（Mac パスを指す死んだポインタ）。起票が要るものは outbox へ依頼を append する
+- **`issue-dispatch` スキルは Mac のみ実体**（→ `docs/known-issues/031-mac-only-symlinked-skills-agents.md`）。起票が要るものは outbox へ依頼を append する
 - **Issue への書き込み（起票・コメント・close）は機械では止まっていない**。chat-main 一元の規約は文章だけなので、ここは自分で守る
 
 ---
