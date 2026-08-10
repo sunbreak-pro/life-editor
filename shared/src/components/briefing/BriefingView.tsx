@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight, Check, Circle, Sunrise, Trash2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  Circle,
+  Plus,
+  Sunrise,
+  Trash2,
+} from "lucide-react";
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
@@ -96,6 +103,8 @@ export interface BriefingLabels {
   intentionCaption?: string;
   intentionPlaceholder: string;
   scheduleTitle: string;
+  /** Accessible name + tooltip of the schedule section's「+」 (#623). */
+  addScheduleItem: string;
   noSchedule: string;
   routineTag: string;
   allDay: string;
@@ -152,6 +161,12 @@ export interface BriefingViewProps {
   onDeleteScheduleItem: (id: string) => void;
   /** Deletes a task row (#585) — host → DataService soft delete. */
   onDeleteTask: (id: string) => void;
+  /**
+   * Opens the host's creation panel for THIS paper's day (#623). The view
+   * holds no creation UI of its own — the host mounts Schedule's shared
+   * <ItemCreatePanel> and owns the write.
+   */
+  onAddScheduleItem: () => void;
   /** Jumps to the Schedule section (host → nav). */
   onJumpToSchedule: () => void;
   /** Jumps to the Tasks section (host → nav). */
@@ -169,8 +184,23 @@ export interface BriefingViewProps {
   tabSwitcher?: ReactNode;
 }
 
-/** Section heading row — 段標 (朱 bar) + small-caps kicker over a hairline. */
-function BlockHead({ title, hint }: { title: string; hint?: string }) {
+/**
+ * Section heading row — 段標 (朱 bar) + small-caps kicker over a hairline.
+ *
+ * `action` is an optional control pinned to the heading's right edge (#623 —
+ * the schedule section's「+」). It shares that edge with `hint`, which is
+ * annotation rather than a control, so the two never collide: no section
+ * carries both.
+ */
+function BlockHead({
+  title,
+  hint,
+  action,
+}: {
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="mb-3 flex items-baseline justify-between">
       <h3 className="flex items-center gap-2.5 text-xs font-bold tracking-[0.25em] text-lumen-text-secondary">
@@ -185,7 +215,37 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
           {hint}
         </span>
       )}
+      {action}
     </div>
+  );
+}
+
+/**
+ * 「+」on a section heading (#623) — opens the host's creation panel.
+ *
+ * Icon-only, unlike the row actions, because a heading has no column of
+ * sibling buttons to be mistaken for a label of: the accessible name carries
+ * the whole meaning and `title` shows it on hover. The padding puts the box at
+ * 26×26 with the icon at 14px, and `-my-1 -mr-1.5` spends that growth on the
+ * heading's own whitespace so the rule below it does not move.
+ */
+function BlockHeadAddButton({
+  onClick,
+  label,
+}: {
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="-my-1 -mr-1.5 flex flex-shrink-0 items-center self-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+    >
+      <Plus size={14} aria-hidden="true" />
+    </button>
   );
 }
 
@@ -295,6 +355,7 @@ export function BriefingView({
   onToggleTask,
   onDeleteScheduleItem,
   onDeleteTask,
+  onAddScheduleItem,
   onJumpToSchedule,
   onJumpToTasks,
   tabSwitcher,
@@ -383,7 +444,15 @@ export function BriefingView({
 
       {/* ── Today's schedule ─────────────────────────────────────── */}
       <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.scheduleTitle} />
+        <BlockHead
+          title={labels.scheduleTitle}
+          action={
+            <BlockHeadAddButton
+              onClick={onAddScheduleItem}
+              label={labels.addScheduleItem}
+            />
+          }
+        />
         {data.schedule.length === 0 ? (
           <p className="text-sm text-lumen-text-secondary">
             {labels.noSchedule}

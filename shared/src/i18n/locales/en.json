@@ -833,6 +833,7 @@
     "intentionTitle": "TODAY'S INTENTION",
     "intentionPlaceholder": "What will you get done today? One line is enough…",
     "scheduleTitle": "TODAY'S SCHEDULE",
+    "addScheduleItem": "Add to today's schedule",
     "noSchedule": "Nothing scheduled today",
     "routineTag": "Routine",
     "allDay": "All day",
