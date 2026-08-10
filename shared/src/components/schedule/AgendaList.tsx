@@ -1,5 +1,5 @@
 import { Fragment, useMemo } from "react";
-import { Repeat } from "lucide-react";
+import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { minutesFromMidnight } from "../../utils/scheduleGridLayout";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
@@ -159,6 +159,16 @@ export function AgendaList({
             <Repeat
               aria-hidden
               className="size-3 shrink-0 text-lumen-chip-routine-fg"
+              strokeWidth={2.5}
+            />
+          )}
+          {/* Task provenance (#593): CheckSquare in the same slot as the
+              routine's Repeat, so the row's variant cue is a shape, not just
+              the dot's hue. */}
+          {variant === "task" && (
+            <CheckSquare
+              aria-hidden
+              className="size-3 shrink-0 text-lumen-chip-task-fg"
               strokeWidth={2.5}
             />
           )}

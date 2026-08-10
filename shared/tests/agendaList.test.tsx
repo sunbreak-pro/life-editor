@@ -131,12 +131,15 @@ describe("AgendaList", () => {
     expect(screen.getByText("Nothing today")).toBeInTheDocument();
   });
 
-  it("renders a task row with the task dot and no Repeat glyph", () => {
+  it("renders a task row with the task dot and the CheckSquare glyph (#593)", () => {
     renderList();
     const row = screen.getByText("Write report").closest("li");
     expect(row).not.toBeNull();
     expect(row?.querySelector(".bg-lumen-chip-task-dot")).not.toBeNull();
-    // No routine Repeat glyph on a task row.
-    expect(row?.querySelector("svg")).toBeNull();
+    // #593: the row's variant cue is a shape (CheckSquare), not the dot's hue.
+    expect(row?.querySelector("svg")).not.toBeNull();
+    // Event rows keep dot-only (no glyph — #593 touches task only).
+    const eventRow = screen.getByText("Project review").closest("li");
+    expect(eventRow?.querySelector("svg")).toBeNull();
   });
 });
