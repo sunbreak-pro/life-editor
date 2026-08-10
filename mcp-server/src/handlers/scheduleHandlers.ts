@@ -5,13 +5,23 @@ import {
   localDayUtcRange,
   assertDateKey,
 } from "../utils/localDate.js";
+import {
+  META_COLUMNS,
+  bumpMeta,
+  insertItem,
+  softDeleteItem,
+  updatePayload,
+  type ItemsMetaRow,
+} from "../utils/items.js";
 
 /*
  * Schedule handlers — Supabase edition (briefing-loop Step 2 / Issue #256).
  *
  * Replaces the legacy single-table SQLite `schedule_items` access with the
  * unified 2-row model (0008): one `items_meta` row (role='event') + one
- * `events_payload` row per event. Conventions honoured (db-conventions §10):
+ * `events_payload` row per event. The conventions this file has to honour
+ * (db-conventions §10) are the ones `utils/items.ts` already implements, so
+ * the writes below go through those helpers rather than repeating them:
  *   - every write bumps `items_meta.updated_at` (the Cloud Sync LWW cursor;
  *     events_payload has no updated_at of its own) — §10.2
  *   - create = meta INSERT → payload INSERT with orphan recovery (meta
@@ -24,15 +34,6 @@ import {
  * shared/src/services/scheduleItemMapper.ts header): events have no
  * content / note_id / template_id / reminder_enabled / reminder_offset.
  */
-
-interface ItemsMetaRow {
-  id: string;
-  title: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 interface EventsPayloadRow {
   item_id: string;
@@ -47,8 +48,6 @@ interface EventsPayloadRow {
   routine_item_id: string | null;
 }
 
-const META_COLUMNS =
-  "id, title, is_deleted, deleted_at, created_at, updated_at";
 const PAYLOAD_COLUMNS =
   "item_id, start_at, start_time, end_time, is_all_day, done, " +
   "completed_at, is_dismissed, memo, routine_item_id";
@@ -224,26 +223,14 @@ export async function createScheduleItem(args: {
   is_all_day?: boolean;
   memo?: string;
 }) {
-  const { client, userId } = await getSupabase();
   const id = `si-${randomUUID()}`;
 
-  const { error: mErr } = await client.from("items_meta").insert({
+  await insertItem({
     id,
-    user_id: userId,
     role: "event",
     title: args.title,
-    is_deleted: false,
-    deleted_at: null,
-    version: 1,
-  });
-  if (mErr) throw new Error(`create items_meta: ${mErr.message}`);
-
-  // §10.5 orphan recovery: hard-delete the meta row when the payload
-  // INSERT fails, so no meta-only orphan survives.
-  try {
-    const { error: pErr } = await client.from("events_payload").insert({
-      item_id: id,
-      user_id: userId,
+    payloadTable: "events_payload",
+    payload: {
       start_at: args.date,
       start_time: args.is_all_day ? null : args.start_time,
       end_time: args.is_all_day ? null : args.end_time,
@@ -255,12 +242,8 @@ export async function createScheduleItem(args: {
       memo: args.memo ?? null,
       routine_item_id: null,
       source_date: null,
-    });
-    if (pErr) throw new Error(`create events_payload: ${pErr.message}`);
-  } catch (err) {
-    await client.from("items_meta").delete().eq("id", id);
-    throw err;
-  }
+    },
+  });
 
   const { meta, payload } = await getEvent(id);
   return formatItem(meta, payload);
@@ -275,13 +258,9 @@ export async function updateScheduleItem(args: {
   memo?: string;
   is_all_day?: boolean;
 }) {
-  const { client } = await getSupabase();
   await getEvent(args.id); // not-found guard
 
-  // §10.2: updated_at bump is unconditional, even for payload-only edits.
-  const metaPatch: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
+  const metaPatch: Record<string, unknown> = {};
   if (args.title !== undefined) metaPatch.title = args.title;
 
   const payloadPatch: Record<string, unknown> = {};
@@ -291,19 +270,20 @@ export async function updateScheduleItem(args: {
   if (args.memo !== undefined) payloadPatch.memo = args.memo;
   if (args.is_all_day !== undefined) payloadPatch.is_all_day = args.is_all_day;
 
-  const { error: mErr } = await client
-    .from("items_meta")
-    .update(metaPatch)
-    .eq("id", args.id)
-    .eq("role", "event");
-  if (mErr) throw new Error(`update items_meta: ${mErr.message}`);
-
+  // §10.2: the updated_at bump is unconditional, even for a call that names
+  // no field at all. `updatePayload` would treat "nothing to change" as a
+  // no-op, so the field-less case goes straight to `bumpMeta` and keeps the
+  // LWW cursor moving exactly as this tool always has.
   if (Object.keys(payloadPatch).length > 0) {
-    const { error: pErr } = await client
-      .from("events_payload")
-      .update(payloadPatch)
-      .eq("item_id", args.id);
-    if (pErr) throw new Error(`update events_payload: ${pErr.message}`);
+    await updatePayload(
+      "events_payload",
+      args.id,
+      "event",
+      payloadPatch,
+      metaPatch,
+    );
+  } else {
+    await bumpMeta(args.id, "event", metaPatch);
   }
 
   const { meta, payload } = await getEvent(args.id);
@@ -311,21 +291,10 @@ export async function updateScheduleItem(args: {
 }
 
 async function setDismissed(id: string, dismissed: boolean) {
-  const { client } = await getSupabase();
   await getEvent(id);
-
-  const { error: pErr } = await client
-    .from("events_payload")
-    .update({ is_dismissed: dismissed })
-    .eq("item_id", id);
-  if (pErr) throw new Error(`dismiss events_payload: ${pErr.message}`);
-
-  const { error: mErr } = await client
-    .from("items_meta")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("role", "event");
-  if (mErr) throw new Error(`dismiss items_meta: ${mErr.message}`);
+  await updatePayload("events_payload", id, "event", {
+    is_dismissed: dismissed,
+  });
 
   const { meta, payload } = await getEvent(id);
   return formatItem(meta, payload);
@@ -340,37 +309,19 @@ export async function undismissScheduleItem(args: { id: string }) {
 }
 
 export async function deleteScheduleItem(args: { id: string }) {
-  const { client } = await getSupabase();
   await getEvent(args.id);
-
-  const now = new Date().toISOString();
-  const { error } = await client
-    .from("items_meta")
-    .update({ is_deleted: true, deleted_at: now, updated_at: now })
-    .eq("id", args.id)
-    .eq("role", "event");
-  if (error) throw new Error(`delete items_meta: ${error.message}`);
+  await softDeleteItem(args.id, "event");
   return { success: true, id: args.id, softDeleted: true };
 }
 
 export async function toggleScheduleComplete(args: { id: string }) {
-  const { client } = await getSupabase();
   const { payload } = await getEvent(args.id);
 
   const done = !payload.done;
-  const now = new Date().toISOString();
-  const { error: pErr } = await client
-    .from("events_payload")
-    .update({ done, completed_at: done ? now : null })
-    .eq("item_id", args.id);
-  if (pErr) throw new Error(`toggle events_payload: ${pErr.message}`);
-
-  const { error: mErr } = await client
-    .from("items_meta")
-    .update({ updated_at: now })
-    .eq("id", args.id)
-    .eq("role", "event");
-  if (mErr) throw new Error(`toggle items_meta: ${mErr.message}`);
+  await updatePayload("events_payload", args.id, "event", {
+    done,
+    completed_at: done ? new Date().toISOString() : null,
+  });
 
   const { meta, payload: fresh } = await getEvent(args.id);
   return formatItem(meta, fresh);

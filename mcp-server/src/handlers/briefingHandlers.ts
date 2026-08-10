@@ -10,6 +10,7 @@ import {
   hasBriefingSection,
 } from "../utils/briefingSection.js";
 import { contentJsonToString, contentPlainText } from "../utils/content.js";
+import { insertItem, updatePayload } from "../utils/items.js";
 
 /*
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
@@ -210,8 +211,7 @@ export async function writeBriefing(args: {
 }) {
   const date = assertDateKey(args.date ?? localToday());
   const paragraphs = args.paragraphs ?? [];
-  const { client, userId } = await getSupabase();
-  const now = new Date().toISOString();
+  const { client } = await getSupabase();
 
   const { data: existing, error: exErr } = await client
     .from("dailies_payload")
@@ -227,20 +227,16 @@ export async function writeBriefing(args: {
       args.focus,
       paragraphs,
     );
-    const { error: pErr } = await client
-      .from("dailies_payload")
-      .update({ content_json: JSON.parse(next) })
-      .eq("item_id", row.item_id);
-    if (pErr) throw new Error(`dailies_payload update: ${pErr.message}`);
-
-    // §10.2 LWW bump. A soft-deleted daily is restored — a briefing
-    // written into a trashed (invisible) daily would silently vanish.
-    const { error: mErr } = await client
-      .from("items_meta")
-      .update({ updated_at: now, is_deleted: false, deleted_at: null })
-      .eq("id", row.item_id)
-      .eq("role", "daily");
-    if (mErr) throw new Error(`items_meta bump: ${mErr.message}`);
+    // The meta patch rides along with the §10.2 LWW bump: a soft-deleted
+    // daily is restored, because a briefing written into a trashed
+    // (invisible) daily would silently vanish.
+    await updatePayload(
+      "dailies_payload",
+      row.item_id,
+      "daily",
+      { content_json: JSON.parse(next) },
+      { is_deleted: false, deleted_at: null },
+    );
 
     return { date, dailyId: row.item_id, created: false, focus: args.focus };
   }
@@ -249,33 +245,20 @@ export async function writeBriefing(args: {
   // (§10.5 orphan recovery on the payload INSERT).
   const id = `daily-${date}`;
   const content = upsertBriefingSection(null, args.focus, paragraphs);
-  const { error: mErr } = await client.from("items_meta").insert({
+  await insertItem({
     id,
-    user_id: userId,
     role: "daily",
     // items_meta.title is NOT NULL; the date IS the daily's identity
     // (same rule as dailiesUnifiedMapper).
     title: date,
-    is_deleted: false,
-    deleted_at: null,
-    version: 1,
-  });
-  if (mErr) throw new Error(`items_meta insert: ${mErr.message}`);
-
-  try {
-    const { error: pErr } = await client.from("dailies_payload").insert({
-      item_id: id,
-      user_id: userId,
+    payloadTable: "dailies_payload",
+    payload: {
       date,
       content_json: JSON.parse(content),
       is_pinned: false,
       is_edit_locked: false,
-    });
-    if (pErr) throw new Error(`dailies_payload insert: ${pErr.message}`);
-  } catch (err) {
-    await client.from("items_meta").delete().eq("id", id);
-    throw err;
-  }
+    },
+  });
 
   return { date, dailyId: id, created: true, focus: args.focus };
 }
