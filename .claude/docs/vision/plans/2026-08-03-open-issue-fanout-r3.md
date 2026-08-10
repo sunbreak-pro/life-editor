@@ -8,7 +8,7 @@ Owner-chat: main
 # Plan: Open Issue 一斉消化 fan-out ラウンド 3（2026-08-03）
 
 > **意図的に緩い計画書**。方向性・担当レーン・触ってよいパスだけを固定し、手順と DoD は各 Issue body を正本とする（転記しない — 数値の非複製原則）。
-> 前ラウンド = [`2026-07-30-open-issue-fanout-r2.md`](./2026-07-30-open-issue-fanout-r2.md)（13 件全消化・COMPLETED 化と archive 移動は本ラウンドの #591 で実施）
+> 前ラウンド = [`2026-07-30-open-issue-fanout-r2.md`](../../../archive/2026-07-30-open-issue-fanout-r2.md)（13 件全消化・COMPLETED 化と archive 移動は本ラウンドの #591 で実施済み）
 
 ---
 
@@ -283,7 +283,7 @@ UI/UX の細かい改善 ／ リファクタ・技術的負債 ／ Mobile 追随
 
 - [ ] 9 件（#585 / #586 / #587 / #588 / #589 / #590 / #591 / #592 / #593）がすべて close または「不要と判断 + 根拠コメント」で決着
 - [ ] Epic #321 の残り 1 行にチェックが入り、Epic 自体が close できる状態になっている
-- [ ] `2026-07-30-open-issue-fanout-r2.md` が COMPLETED で archive にある
+- [x] `2026-07-30-open-issue-fanout-r2.md` が COMPLETED で archive にある（#591 / 2026-08-10 実施）
 - [ ] merge 後の実ブラウザ検証が chat-main で完了している
 - [ ] 本計画書を COMPLETED にして `.claude/archive/` へ移動
 
@@ -301,7 +301,7 @@ UI/UX の細かい改善 ／ リファクタ・技術的負債 ／ Mobile 追随
 ## References
 
 - CLAUDE.md §7.4（worktree / ブランチ運用）・§9（Issue dispatch / decision queue）
-- 前ラウンド: [`2026-07-30-open-issue-fanout-r2.md`](./2026-07-30-open-issue-fanout-r2.md)
+- 前ラウンド: [`2026-07-30-open-issue-fanout-r2.md`](../../../archive/2026-07-30-open-issue-fanout-r2.md)（COMPLETED・#591 で archive 移動）
 - Epic: #290（Schedule redesign・schedule-refine）/ #321（Mobile UI/UX 追随）
 - 関連 memory: `push-after-merge-strands-commits` / `stacked-pr-base-retarget-race` / `all-label-issue-collision`
 

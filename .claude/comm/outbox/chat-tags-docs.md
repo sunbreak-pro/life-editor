@@ -75,3 +75,11 @@ worktree `tags-docs`。担当 = #368（WikiTags 名前フィルタ）/ #474（pl
 - **既存の参考実装**: `shared/src/components/ColorPicker.tsx` は同じ用途で `absolute` を使わず**インラインで下に伸ばす**設計にしていて（`:141-148`・ヘッダコメントに「親の `overflow-hidden` に刈られないため」と明記）、この問題を最初から回避しています。同じ手を当てるのが一番安いかもしれません
 - **確認の前提**: jsdom には**レイアウトが無い**（要素の座標が全部 0）ので `web/tests/` では検出できません。実ブラウザでの目視が要ります
 - **提案ラベル**: `section:tags` + `type:bug` + `sev:minor`（#552 の follow-up）
+
+## 2026-08-10 chat-main 宛: Epic #290 の close 判断をお願いします（#591 の実測報告）
+
+**起票は不要・close 判断の依頼です。** #591（plans/ Status 棚卸し第 2 弾）の実測で、Epic #290 は body の Step チェックボックスが**全行 [x]** になっていることを確認しました（Step 2〜7・5-a〜5-d 含む）。子計画書 `2026-07-14-schedule-redesign.md` も COMPLETED 化して archive へ移動済みです。
+
+- **並走 α（MCP Supabase 化）も完了済みでした**: #256 が 2026-07-18 に close 済みで、`mcp-server/src/handlers/scheduleHandlers.ts` が Supabase を使用していることをコードで確認。計画書 Step 9 のチェック漏れだけが残っていた形です
+- Epic の close は P-001 / 従来運用どおり chat-main（+ こうだいさん）の手番なので、こちらでは close していません
+- なお Epic body の各 Step 行に「実ブラウザ検証は chat-main に残」の注記が複数あります。r2 ラウンド分の実ブラウザ検証は専用計画が作られないまま r3 に引き継がれているので、close 前にそこだけ判断をお願いします

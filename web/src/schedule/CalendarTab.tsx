@@ -2259,13 +2259,21 @@ export function CalendarTab({
         labels={createPanelLabels}
       />
 
+      {/* #633: cap + inner scroller, like the Notes/Tasks detail sheets — without
+          them a tall editor pushes the sheet's top edge past the viewport and
+          the only thing left to scroll is the document (= pull-to-refresh).
+          svh, not vh: 100vh is the URL-bar-hidden viewport, so a vh cap can
+          still overflow while the bar is showing (#631's trap). */}
       <BottomSheet
         open={!!editorPane}
         onClose={() => setSelectedId(null)}
         title={t("scheduleScreen.detailTitle")}
         closeLabel={t("common.close")}
+        className="flex max-h-[92svh] flex-col overflow-hidden"
       >
-        {editorPane}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {editorPane}
+        </div>
       </BottomSheet>
 
       {scopeDialogEl}

@@ -71,4 +71,27 @@ describe("QuickAddSheet", () => {
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  // #586 pin: a draft abandoned by closing the sheet (cancel path) must not
+  // leak into the next open.
+  it("clears the draft when the sheet closes", () => {
+    const props = {
+      onClose: vi.fn(),
+      title: "Quick add",
+      closeLabel: "Close",
+      placeholder: "What's on your mind?",
+      submitLabel: "Add",
+      onSubmit: vi.fn(),
+    };
+    const { rerender } = render(<QuickAddSheet open {...props} />);
+    fireEvent.change(screen.getByPlaceholderText("What's on your mind?"), {
+      target: { value: "abandoned draft" },
+    });
+    rerender(<QuickAddSheet open={false} {...props} />);
+    rerender(<QuickAddSheet open {...props} />);
+    expect(
+      (screen.getByPlaceholderText("What's on your mind?") as HTMLInputElement)
+        .value,
+    ).toBe("");
+  });
 });
