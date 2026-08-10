@@ -57,7 +57,7 @@
 - agents: D-20260708-main-1 / D-20260810-main-1
 - architecture: D-20260607-main-1
 - archive: D-20260801-main-2
-- autonomy: D-20260806-main-1
+- autonomy: D-20260806-main-1 / D-20260810-main-1
 - bottom-sheet: D-20260730-mobile-2
 - branch: D-20260801-main-1
 - calendar-lens: D-20260801-sched-1
@@ -105,6 +105,7 @@
 - ssot: D-20260723-main-1
 - status-enum: D-20260801-main-2
 - sync: D-20260731-tags-2 / D-20260731-tags-3
+- task-tracker: D-20260810-main-1
 - tasks: D-20260728-main-3
 - terminal: D-20260705-main-1
 - touch: D-20260730-mobile-1
