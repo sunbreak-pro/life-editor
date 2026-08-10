@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Input } from "./Input";
+import { Modal } from "./Modal";
 import { cn } from "./cn";
 
 /*
@@ -12,7 +13,20 @@ import { cn } from "./cn";
  *   1. Timer settings — 2-col grid of 5 numeric fields + an autoStart switch.
  *   2. Presets — apply/delete rows (or an empty box) + a save form.
  * Durations are edited in MINUTES. The host supplies values + mutators; this
- * component owns only the transient preset-name input.
+ * component owns only the transient preset-name input and which numeric fields
+ * the user has blanked out.
+ *
+ * #624 — the blank state is why those fields are not plain controlled inputs.
+ * They used to render String(value) and commit Number(e.target.value) on every
+ * keystroke; clearing one sent Number("") === 0, the host's clampMinutes floored
+ * that to the minimum, and the field re-rendered with "1" before the next
+ * keystroke landed. Deleting the last digit was impossible, and retyping 50 on
+ * top of the resurrected 1 produced 150. Blanking is now a state of its own
+ * (`cleared`): the input shows "", NOTHING is committed, and the stored value
+ * stays untouched until a real number arrives. Leaving a field blank raises the
+ * "enter a number" dialog, and dismissing it restores every blank field to its
+ * stored value — the alternative (keeping them blank) traps the user, since the
+ * blur that fires when they reach for the nav would re-open the dialog forever.
  */
 
 export interface PomodoroPresetOption {
@@ -40,6 +54,8 @@ export interface PomodoroSettingsLabels {
   saveAsPreset: string;
   apply: string;
   deletePreset: string;
+  /** Dismiss button of the blank-field dialog (#624). */
+  emptyValueConfirm: string;
 }
 
 export interface PomodoroSettingsProps {
@@ -60,6 +76,14 @@ export interface PomodoroSettingsProps {
   onApplyPreset: (preset: PomodoroPresetOption) => void;
   onCreatePreset: (name: string) => void;
   onDeletePreset: (id: number) => void;
+  /**
+   * Formats the blank-field dialog copy for the field the user left empty
+   * (#624) — e.g. `(field) => t("pomodoro.emptyValue", { field })`. A function
+   * rather than a finished string because the field name is only known when the
+   * dialog opens, and interpolating it here would mean re-implementing i18n
+   * inside a pure primitive (§6.4). Mirrors EventEditorPane's formatDuration.
+   */
+  formatEmptyValueMessage: (fieldLabel: string) => string;
 }
 
 const BLOCK =
@@ -69,8 +93,46 @@ const BLOCK_HEADING = "text-sm font-semibold text-lumen-text-secondary";
 export function PomodoroSettings(props: PomodoroSettingsProps) {
   const { labels, presets } = props;
   const [presetName, setPresetName] = useState("");
+  // Blanked-out numeric fields, keyed by a stable field id → that field's
+  // label. The label rides along because it is what the dialog has to name, and
+  // reading it back out of props at dialog time would mean a second lookup
+  // table. Empty object = every field holds a number.
+  const [cleared, setCleared] = useState<Record<string, string>>({});
+  // Label of the field the dialog is complaining about (null = closed).
+  const [blankField, setBlankField] = useState<string | null>(null);
+
+  const markCleared = useCallback(
+    (key: string, label: string, isCleared: boolean) => {
+      setCleared((prev) => {
+        if (isCleared === (prev[key] !== undefined)) return prev;
+        if (!isCleared) {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        }
+        return { ...prev, [key]: label };
+      });
+    },
+    [],
+  );
+
+  // Dismissing the dialog re-fills every blank field from its stored value.
+  // See the header comment: leaving them blank would re-trigger the dialog on
+  // the next blur and the user could never reach the nav.
+  const closeBlankDialog = () => {
+    setCleared({});
+    setBlankField(null);
+  };
 
   const submitPreset = () => {
+    // A preset saves the CURRENT settings, so a blank field would silently
+    // store the pre-edit number under a name the user thinks describes what
+    // they just typed.
+    const firstBlank = Object.values(cleared)[0];
+    if (firstBlank !== undefined) {
+      setBlankField(firstBlank);
+      return;
+    }
     const name = presetName.trim();
     if (!name) return;
     props.onCreatePreset(name);
@@ -83,39 +145,59 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
         <h3 className={BLOCK_HEADING}>{labels.settingsHeading}</h3>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
+            fieldKey="workDuration"
             label={labels.workDuration}
             value={props.workDurationMinutes}
+            cleared={cleared.workDuration !== undefined}
             min={1}
             max={240}
             onChange={props.onWorkDurationChange}
+            onClearedChange={markCleared}
+            onBlankBlur={setBlankField}
           />
           <NumberField
+            fieldKey="breakDuration"
             label={labels.breakDuration}
             value={props.breakDurationMinutes}
+            cleared={cleared.breakDuration !== undefined}
             min={1}
             max={60}
             onChange={props.onBreakDurationChange}
+            onClearedChange={markCleared}
+            onBlankBlur={setBlankField}
           />
           <NumberField
+            fieldKey="longBreakDuration"
             label={labels.longBreakDuration}
             value={props.longBreakDurationMinutes}
+            cleared={cleared.longBreakDuration !== undefined}
             min={1}
             max={60}
             onChange={props.onLongBreakDurationChange}
+            onClearedChange={markCleared}
+            onBlankBlur={setBlankField}
           />
           <NumberField
+            fieldKey="sessionsPerSet"
             label={labels.sessionsPerSet}
             value={props.sessionsBeforeLongBreak}
+            cleared={cleared.sessionsPerSet !== undefined}
             min={1}
             max={20}
             onChange={props.onSessionsBeforeLongBreakChange}
+            onClearedChange={markCleared}
+            onBlankBlur={setBlankField}
           />
           <NumberField
+            fieldKey="targetSessions"
             label={labels.targetSessions}
             value={props.targetSessions}
+            cleared={cleared.targetSessions !== undefined}
             min={1}
             max={20}
             onChange={props.onTargetSessionsChange}
+            onClearedChange={markCleared}
+            onBlankBlur={setBlankField}
           />
         </div>
         <div className="flex items-center justify-between gap-2 pt-0.5">
@@ -204,22 +286,55 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
           </button>
         </div>
       </div>
+
+      {/* Blank-field dialog (#624). The message IS the heading — an alert with
+          one sentence and an OK gains nothing from a separate title, and Modal
+          uses `title` for its accessible name. */}
+      <Modal
+        open={blankField !== null}
+        onClose={closeBlankDialog}
+        title={props.formatEmptyValueMessage(blankField ?? "")}
+      >
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={closeBlankDialog}
+            className="rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
+          >
+            {labels.emptyValueConfirm}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
 
+/*
+ * One numeric setting. Still controlled by the host's value — `cleared` is the
+ * single escape hatch that lets the box show "" while the stored number stays
+ * put (#624). Keeping the value authoritative is what makes clamping visible:
+ * type 500 into a max-240 field and the host's clamp still paints 240 back.
+ */
 function NumberField({
+  fieldKey,
   label,
   value,
+  cleared,
   min,
   max,
   onChange,
+  onClearedChange,
+  onBlankBlur,
 }: {
+  fieldKey: string;
   label: string;
   value: number;
+  cleared: boolean;
   min: number;
   max: number;
   onChange: (v: number) => void;
+  onClearedChange: (key: string, label: string, isCleared: boolean) => void;
+  onBlankBlur: (label: string) => void;
 }) {
   return (
     <label className="flex flex-col gap-1">
@@ -228,10 +343,23 @@ function NumberField({
         type="number"
         min={min}
         max={max}
-        value={value}
+        value={cleared ? "" : String(value)}
+        invalid={cleared}
         onChange={(e) => {
-          const n = Number(e.target.value);
+          const raw = e.target.value;
+          // "" is what an emptied box reports — and also what a type="number"
+          // input reports mid-way through an unparseable entry ("-", "1e").
+          // Either way there is no number to store yet, so store nothing.
+          if (raw.trim() === "") {
+            onClearedChange(fieldKey, label, true);
+            return;
+          }
+          onClearedChange(fieldKey, label, false);
+          const n = Number(raw);
           if (Number.isFinite(n)) onChange(n);
+        }}
+        onBlur={() => {
+          if (cleared) onBlankBlur(label);
         }}
       />
     </label>
