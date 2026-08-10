@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { Plus } from "lucide-react";
 import {
   BriefingView,
   EveningView,
+  ItemCreatePanel,
+  ItemDetailOverlay,
   RightSidebarPortal,
   TodayTodoTray,
   hasIntentionToReport,
@@ -11,6 +14,7 @@ import {
   useTranslation,
   type BriefingTab,
   type DataService,
+  type ItemCreateNoteDraft,
   type NavSection,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
@@ -50,7 +54,7 @@ export function BriefingScreen({
   tab,
   tabSwitcher,
 }: BriefingScreenProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // 宣言 editability on the EVENING paper (#391). Wide is unchanged — there the
   // declaration is a morning artifact read back, and the SectionHeader tab band
   // puts the editable 朝刊 one click away. Below 768px 夕刊 is a Quick capture
@@ -72,6 +76,10 @@ export function BriefingScreen({
     upcoming,
     handleToggleScheduleItem,
     handleToggleTask,
+    noteOptions,
+    handleCreateEvent,
+    handleCreateTask,
+    handlePlaceTask,
     todoPlaced,
     todoUnplaced,
     todoAddable,
@@ -118,6 +126,7 @@ export function BriefingScreen({
       intentionCaption,
       intentionPlaceholder: t("briefing.intentionPlaceholder"),
       scheduleTitle: t("briefing.scheduleTitle"),
+      addScheduleItem: t("briefing.addScheduleItem"),
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
@@ -189,6 +198,131 @@ export function BriefingScreen({
     [t, eveningSaved, intentionCaption, intentionEditableOnEvening],
   );
 
+  // ── Creation panel (#623) ────────────────────────────────────────────
+  // Schedule's shared <ItemCreatePanel>, reached from the paper's「+」and the
+  // rightSidebar's. No briefing-specific creation form: the same act would
+  // otherwise exist in two implementations that drift apart.
+  //
+  // No date picker — the target day is the day the paper is showing. That is
+  // the whole gesture ("add this to today"), and offering a different day here
+  // would contradict the「+」the user pressed.
+  const [createOpen, setCreateOpen] = useState(false);
+  const openCreatePanel = useCallback(() => setCreateOpen(true), []);
+  const closeCreatePanel = useCallback(() => setCreateOpen(false), []);
+
+  const createDateLabel = useMemo(() => {
+    const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
+    return new Date(`${todayKey}T00:00:00`).toLocaleDateString(locale, {
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+  }, [todayKey, i18n.language]);
+
+  const formatDuration = useCallback(
+    (minutes: number) => {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      if (h === 0) return t("scheduleScreen.durationMin", { m });
+      if (m === 0) return t("scheduleScreen.durationHour", { h });
+      return t("scheduleScreen.durationHourMin", { h, m });
+    },
+    [t],
+  );
+
+  // The panel's copy comes from the EXISTING scheduleScreen.* keys, not a
+  // briefing.* copy of them: it is literally Schedule's panel, and a second
+  // catalogue of the same sentences is a divergence waiting to happen.
+  const createPanelLabels = useMemo(
+    () => ({
+      typeLabel: t("scheduleScreen.itemTypeLabel"),
+      typeEvent: t("scheduleScreen.typeEvent"),
+      typeTask: t("scheduleScreen.typeTask"),
+      typeNote: t("scheduleScreen.typeNote"),
+      title: t("scheduleScreen.title"),
+      eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
+      taskPlaceholder: t("scheduleScreen.taskPlaceholder"),
+      date: t("scheduleScreen.date"),
+      startTime: t("scheduleScreen.startTime"),
+      endTime: t("scheduleScreen.endTime"),
+      addEvent: t("scheduleScreen.addEvent"),
+      addEventAndOpen: t("scheduleScreen.addEventAndOpen"),
+      sourceLabel: t("scheduleScreen.sourceLabel"),
+      sourceNew: t("scheduleScreen.sourceNew"),
+      sourceExisting: t("scheduleScreen.sourceExisting"),
+      addTask: t("scheduleScreen.addTask"),
+      placeTask: t("scheduleScreen.placeTask"),
+      searchTasks: t("scheduleScreen.searchTasks"),
+      taskPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
+      taskPickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
+      noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
+      notePlaceholder: t("scheduleScreen.notePlaceholder"),
+      searchNotes: t("scheduleScreen.searchNotes"),
+      notePickerEmpty: t("scheduleScreen.notePickerEmpty"),
+      notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
+      noteLinkHint: t("scheduleScreen.noteLinkHint"),
+      attachedNote: t("scheduleScreen.attachedNote"),
+      clearNote: t("scheduleScreen.clearNote"),
+    }),
+    [t],
+  );
+
+  const submitEvent = useCallback(
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      handleCreateEvent(title, start, end, note);
+      closeCreatePanel();
+    },
+    [handleCreateEvent, closeCreatePanel],
+  );
+
+  // The panel's second event button means "create, then open its editor".
+  // The paper has no event editor of its own, so the honest reading here is
+  // to create and then go to Schedule, where that editor lives.
+  const submitEventAndOpen = useCallback(
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      handleCreateEvent(title, start, end, note);
+      closeCreatePanel();
+      onNavigate("schedule");
+    },
+    [handleCreateEvent, closeCreatePanel, onNavigate],
+  );
+
+  const submitTask = useCallback(
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      handleCreateTask(title, start, end, note);
+      closeCreatePanel();
+    },
+    [handleCreateTask, closeCreatePanel],
+  );
+
+  const submitPlaceTask = useCallback(
+    (
+      taskId: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      handlePlaceTask(taskId, start, end, note);
+      closeCreatePanel();
+    },
+    [handlePlaceTask, closeCreatePanel],
+  );
+
   const todoTrayLabels = useMemo(
     () => ({
       placedHeading: t("briefing.todo.placedHeading"),
@@ -218,9 +352,27 @@ export function BriefingScreen({
   const todoTrayPortal = isWide ? (
     <RightSidebarPortal>
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-lumen-text">
-          {t("briefing.todo.title")}
-        </h3>
+        {/* #623: the panel's own「+」. Same target as the paper's — the two
+            are one action reached from two places, so they open the same
+            creation panel on the same day. 朝刊 only: the tray is mounted on
+            both papers, but 夕刊 is explicitly outside this Issue's scope, and
+            a「+」there would read as "add to tomorrow". */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-lumen-text">
+            {t("briefing.todo.title")}
+          </h3>
+          {tab === "morning" && (
+            <button
+              type="button"
+              onClick={openCreatePanel}
+              aria-label={t("briefing.addScheduleItem")}
+              title={t("briefing.addScheduleItem")}
+              className="-my-1 -mr-1.5 flex flex-shrink-0 items-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            >
+              <Plus size={14} aria-hidden="true" />
+            </button>
+          )}
+        </div>
         <TodayTodoTray
           placed={todoPlaced}
           unplaced={todoUnplaced}
@@ -233,6 +385,29 @@ export function BriefingScreen({
       </div>
     </RightSidebarPortal>
   ) : null;
+
+  // Keyed on the day so a paper that crosses midnight (or the day-start hour)
+  // re-seeds the fields rather than keeping a draft aimed at yesterday.
+  const createPanelOverlay = (
+    <ItemDetailOverlay
+      open={createOpen}
+      title={t("scheduleScreen.addItem")}
+      onClose={closeCreatePanel}
+    >
+      <ItemCreatePanel
+        key={todayKey}
+        dateLabel={createDateLabel}
+        existingTasks={todoAddable}
+        existingNotes={noteOptions}
+        onSubmitEvent={submitEvent}
+        onSubmitEventAndOpen={submitEventAndOpen}
+        onCreateTask={submitTask}
+        onPlaceTask={submitPlaceTask}
+        formatDuration={formatDuration}
+        labels={createPanelLabels}
+      />
+    </ItemDetailOverlay>
+  );
 
   if (tab === "evening") {
     return (
@@ -291,10 +466,12 @@ export function BriefingScreen({
         onIntentionBlur={flushIntention}
         onToggleScheduleItem={handleToggleScheduleItem}
         onToggleTask={handleToggleTask}
+        onAddScheduleItem={openCreatePanel}
         onJumpToSchedule={() => onNavigate("schedule")}
         onJumpToTasks={() => onNavigate("tasks")}
         tabSwitcher={tabSwitcher}
       />
+      {createPanelOverlay}
     </>
   );
 }

@@ -833,6 +833,7 @@
     "intentionTitle": "今日の宣言",
     "intentionPlaceholder": "今日は何をやり遂げますか。一行から宣言できます…",
     "scheduleTitle": "今日の予定",
+    "addScheduleItem": "今日の予定を追加",
     "noSchedule": "今日の予定はありません",
     "routineTag": "ルーチン",
     "allDay": "終日",

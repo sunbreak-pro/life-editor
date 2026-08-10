@@ -26,6 +26,7 @@ const LABELS: BriefingLabels = {
   intentionCaption: "Saved",
   intentionPlaceholder: "Declare today…",
   scheduleTitle: "PROMISES",
+  addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
@@ -95,6 +96,7 @@ const DATA: BriefingData = {
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleScheduleItem = vi.fn();
   const onToggleTask = vi.fn();
+  const onAddScheduleItem = vi.fn();
   const onJumpToSchedule = vi.fn();
   const onJumpToTasks = vi.fn();
   const onIntentionChange = vi.fn();
@@ -112,6 +114,7 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       onIntentionBlur={onIntentionBlur}
       onToggleScheduleItem={onToggleScheduleItem}
       onToggleTask={onToggleTask}
+      onAddScheduleItem={onAddScheduleItem}
       onJumpToSchedule={onJumpToSchedule}
       onJumpToTasks={onJumpToTasks}
       {...props}
@@ -121,6 +124,7 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     ...result,
     onToggleScheduleItem,
     onToggleTask,
+    onAddScheduleItem,
     onJumpToSchedule,
     onJumpToTasks,
     onIntentionChange,
@@ -195,6 +199,31 @@ describe("BriefingView row actions", () => {
     expect(screen.getByText("Finished carryover").className).toContain(
       "line-through",
     );
+  });
+
+  it("opens the host's creation panel from the schedule heading + (#623)", () => {
+    const { onAddScheduleItem, onJumpToSchedule, onToggleScheduleItem } =
+      renderView();
+    const add = screen.getByRole("button", {
+      name: "Add to today's schedule",
+    });
+    fireEvent.click(add);
+    expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
+    expect(onJumpToSchedule).not.toHaveBeenCalled();
+    expect(onToggleScheduleItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps the + reachable when the day has nothing scheduled (#623)", () => {
+    const { onAddScheduleItem } = renderView({
+      data: { ...DATA, schedule: [] },
+    });
+    // The empty state is exactly when the button matters most — it must not
+    // ride along with the row list.
+    expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add to today's schedule" }),
+    );
+    expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
   });
 
   it("never nests a button inside another button", () => {

@@ -3,6 +3,7 @@ import {
   dateKeyOfInstant,
   extractBriefing,
   formatDateKey,
+  generateId,
   localDateTimeToISO,
   pickAddableTasks,
   tasksToCalendarChips,
@@ -15,6 +16,8 @@ import {
   type DataService,
   type EveningScheduleEntry,
   type EveningTodoEntry,
+  type ItemCreateNoteDraft,
+  type ItemCreateOption,
   type NoteNode,
   type ScheduleItem,
   type TaskNode,
@@ -337,6 +340,178 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [ds, taskNodes],
   );
 
+  // ── Creating into today (#623) ───────────────────────────────────────
+  /*
+   * The paper's「+」opens Schedule's shared <ItemCreatePanel>, so the same
+   * three creates it offers there have to work here: a new event, a new task,
+   * and placing an existing task — each landing on the day the paper is
+   * showing. The writes go through `ds` because Briefing mounts none of the
+   * Schedule / TaskTree providers (§3.1 — the boundary, not the providers, is
+   * what the rule is about), and the results are folded straight into the
+   * fetched state so the paper updates without waiting for the Realtime bump.
+   *
+   * `useSyncDomains("schedule", "tasks", …)` at the top of this hook is what
+   * makes the OTHER direction work — a row created here shows up in Schedule
+   * as soon as Realtime reports it, and vice versa.
+   */
+
+  /** The pool the panel's "existing note" picker offers (live, newest first). */
+  const noteOptions = useMemo<ItemCreateOption[]>(
+    () =>
+      notes
+        .filter((n) => n.isDeleted !== true)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .map((n) => ({ id: n.id, title: n.title })),
+    [notes],
+  );
+
+  /*
+   * Attach the note the panel staged to the item just created.
+   *
+   * CALL ONLY ONCE THE ITEM'S ROW EXISTS — `wiki_tag_connections.from_item_id`
+   * is an FK to `items_meta` and the RLS insert policy re-checks it, so the
+   * link has to follow the awaited create rather than race it (#371, and the
+   * ORDERING note in Schedule's useCreatePanelNotes). Fire and forget: a lost
+   * attachment must not roll the event back.
+   */
+  const attachNote = useCallback(
+    (itemId: string, draft: ItemCreateNoteDraft | null) => {
+      if (draft === null) return;
+      void (async () => {
+        try {
+          let noteId = draft.kind === "existing" ? draft.id : null;
+          if (draft.kind === "new") {
+            const now = new Date().toISOString();
+            const id = generateId("note");
+            await ds.createNoteUnified({
+              id,
+              type: "note",
+              title: draft.title,
+              content: "",
+              parentId: null,
+              order: 0,
+              isPinned: false,
+              isDeleted: false,
+              createdAt: now,
+              updatedAt: now,
+            });
+            noteId = id;
+          }
+          // Direction is item → note, matching DailyView and Schedule's own
+          // attachment: the thing with the date owns the link, and the note
+          // sees it as a backlink. The created row is folded into the link
+          // state so a task's「その目的」chip appears with it.
+          if (noteId !== null) {
+            const link = await ds.createItemLink(
+              generateId("link"),
+              itemId,
+              noteId,
+            );
+            setConnections((prev) => [...prev, link]);
+          }
+        } catch (err) {
+          console.error("[BriefingScreen] attaching the note failed", err);
+        }
+      })();
+    },
+    [ds],
+  );
+
+  const handleCreateEvent = useCallback(
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      void ds
+        .createScheduleItem(
+          generateId("event"),
+          todayKey,
+          title,
+          start,
+          end,
+          undefined,
+          undefined,
+          undefined,
+          false,
+        )
+        .then((saved) => {
+          setScheduleItems((prev) => [...prev, saved]);
+          attachNote(saved.id, note);
+        })
+        .catch((err) => {
+          console.error("[BriefingScreen] event create failed", err);
+        });
+    },
+    [ds, todayKey, attachNote],
+  );
+
+  const handleCreateTask = useCallback(
+    (
+      title: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      const now = new Date().toISOString();
+      // Root-level (parentId null), like every other quick-create entry: the
+      // panel carries no place-in-the-tree control and re-parenting belongs to
+      // the Tasks section.
+      void ds
+        .createTask({
+          id: generateId("task"),
+          type: "task",
+          title,
+          status: "NOT_STARTED",
+          parentId: null,
+          order: 0,
+          scheduledAt: localDateTimeToISO(todayKey, start),
+          scheduledEndAt: localDateTimeToISO(todayKey, end),
+          isAllDay: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .then((saved) => {
+          setTaskNodes((prev) => [...prev, saved]);
+          attachNote(saved.id, note);
+        })
+        .catch((err) => {
+          console.error("[BriefingScreen] task create failed", err);
+        });
+    },
+    [ds, todayKey, attachNote],
+  );
+
+  const handlePlaceTask = useCallback(
+    (
+      taskId: string,
+      start: string,
+      end: string,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      // `isAllDay: false` rides along because a task given a concrete window
+      // is by definition not an all-day candidate — leaving the flag alone is
+      // what kept placed chips rendering in the all-day lane (timedPlacement).
+      void ds
+        .updateTask(taskId, {
+          scheduledAt: localDateTimeToISO(todayKey, start),
+          scheduledEndAt: localDateTimeToISO(todayKey, end),
+          isAllDay: false,
+        })
+        .then((updated) => {
+          setTaskNodes((prev) =>
+            prev.map((n) => (n.id === updated.id ? updated : n)),
+          );
+          attachNote(updated.id, note);
+        })
+        .catch((err) => {
+          console.error("[BriefingScreen] task placement failed", err);
+        });
+    },
+    [ds, todayKey, attachNote],
+  );
+
   // ── Today's Todo tray (rightSidebar — #413) ──────────────────────────
   // The SAME <TodayTodoTray> the Schedule rightSidebar mounts (#298), backed
   // by the same pure selectors: today's task chips split into placed (has a
@@ -411,6 +586,10 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     upcoming,
     handleToggleScheduleItem,
     handleToggleTask,
+    noteOptions,
+    handleCreateEvent,
+    handleCreateTask,
+    handlePlaceTask,
     todoPlaced,
     todoUnplaced,
     todoAddable,
