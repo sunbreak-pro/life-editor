@@ -77,6 +77,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
+import { todoDeleteCascade } from "./todoTrayDeleteGuard";
 import {
   timedPlacement,
   taskChipMoveWrite,
@@ -1755,6 +1756,30 @@ export function CalendarTab({
     </div>
   );
 
+  // #573 (#555 follow-up): softDelete cascades through the subtree and both
+  // recovery routes are weak (undo clears on section unmount; Trash restores
+  // one row at a time), so a row with children confirms first. Leaves keep
+  // the one-click delete. window.confirm follows the SettingsScreen reset
+  // precedent; guards the tray AND the task-chip bubble (same write).
+  const handleTodoDelete = useCallback(
+    (id: string) => {
+      const cascade = todoDeleteCascade(taskNodes, id);
+      if (
+        cascade &&
+        !window.confirm(
+          t("scheduleScreen.todoDeleteCascadeConfirm", {
+            name: cascade.title,
+            count: cascade.childCount,
+          }),
+        )
+      ) {
+        return;
+      }
+      softDeleteTask(id);
+    },
+    [taskNodes, softDeleteTask, t],
+  );
+
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
   // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
   // #555: rows also soft-delete (softDeleteTask → Trash) and carry the same
@@ -1767,7 +1792,7 @@ export function CalendarTab({
       onToggleComplete={handleTodoToggleComplete}
       onAddCandidate={handleTodoAddCandidate}
       onOpenTask={() => onOpenTasks()}
-      onDelete={softDeleteTask}
+      onDelete={handleTodoDelete}
       renderRowExtra={(row) => <TagPicker itemId={row.id} />}
       labels={{
         placedHeading: t("scheduleScreen.todoPlacedHeading"),
@@ -1875,7 +1900,7 @@ export function CalendarTab({
               // the position-shaped taskChip* words fit (useTaskTreeHistory).
               { undoLabel: "taskTreeChange" },
             ),
-          onDelete: () => softDeleteTask(popoverTaskChip.id),
+          onDelete: () => handleTodoDelete(popoverTaskChip.id),
         },
       )
     : null;
