@@ -1,5 +1,22 @@
 # HISTORY (chat-main)
 
+### 2026-08-10 - 確認待ちの摩擦を除去（#618 permissions + tracker 新運用の規約化・PR #619 / dotfiles PR #15 open）
+
+#### 概要
+
+対話セッションが「許可を出してください」「merge したら声をかけてください」で止まる 2 つの摩擦を外した。前者は `permissions.ask` の非破壊ゲート撤去（#618）、後者は END の task-tracker を session-verifier 直後に実行する新運用の台帳化（D-20260810-main-1）。life-editor は PR #619、グローバル資産は dotfiles PR #15 に分けた（どちらも open）。
+
+#### 変更点
+
+- **`permissions.ask` を 1 件へ縮小**（#618）: `Bash(git push*)` / `Bash(gh pr create*)` を除去し `Bash(gh pr merge*)` のみ残した（P-001 の機械担保）。**`deny` は 27 件のまま無変更**（diff の deny 行の増減ゼロを機械確認）。プロンプトが増えた原因は PR #594（夜間レーンの柵）と PR #596（P-001 の担保）の 2 つで、それ以前はグローバル `Bash(*)` allow で素通りしていた
+- **無人レーンの担保を runner 側へ分離**: 夜のレーンが commit 止まりである根拠が「repo の `permissions.ask` が止めてくれる」だったため、外した時点で**プロンプトの禁止文しか残らない**状態になる。`automation/routine-night.md` §停止条件 と `automation/README.md`（動作モデル + 安全則の 2 箇所）を「**runner 側 settings で担保する**（`claude -p --settings <無人用>` / `--disallowedTools`）」に書き換えた。対話セッションの柵と無人レーンの柵を同じ settings.json で兼用しない
+- **D-20260810-main-1 を台帳化**: END の tracker は **session-verifier が緑になった直後**に実行し、ユーザー確認も実装 PR の merge も待たない。**`D-20260801-main-1`（tracker を実装ブランチに載せない）は維持**で、置き換えたのは実行タイミングだけ。`supersedes` は D-ID ではなく「CLAUDE.md §7.4 の該当行」「worktree-policy SKILL.md の該当節」という**文書位置の文字列**で宣言している（`records.mjs check` は D-ID 形式のみ双方向検証するため、旧決定を Active から落とさずに済む）
+- **反映は 2 文書を行単位で**: CLAUDE.md §7.4 の「merge 後に 1 commit でまとめ」と `skills/worktree-policy/SKILL.md` の同文。§7.4 は「正本は worktree-policy スキル」と宣言しているので、CLAUDE.md だけ直すと SSOT と矛盾する
+- **dotfiles PR #15**: `skills/task-tracker/SKILL.md`（作業終了フロー冒頭に実行タイミング）・`skills/lead-pipeline/SKILL.md`（中ティア連鎖の 3）・`agents/role-engineer.md`（引き継ぎの「セルフ検証結果」を session-verifier と同じ 5 ゲート表 + 総合 PASS/FAIL へ）。role-engineer は **G7/G14 の対の残件** — PR #14 で lead-pipeline Step 4 と role-qa Step 2 が「role-engineer の Verdict を検分」に変わったのに、出す側が `session-verifier 出力: <要約>` のままで受け手が検分できなかった
+- **PR #14 との衝突回避**: dotfiles の 2 スキルは PR #14 も触っているため、編集行が重ならない位置（#14 = 中ティア Step 0 追加 / END フロー Step 5、こちら = Step 3 の行末 / END フロー冒頭）を選んだ。どちらを先に merge しても自動マージできる想定
+- **DoD の 4 つ目は持ち越し**: 「確認プロンプトなしで push / PR 作成が通る」の実測は、**このセッションが読んでいる settings が main 側の旧 `ask`**（worktree の settings.json はロードされない）なので確定できない。merge + セッション再起動後に 1 回測る
+- **本セッションが新運用の初適用**: verifier 緑（Types〜Coverage は ⏭️ / Project Rules ✅ = records check + docs-lint）の直後に、merge を待たず本 tracker を実行した
+
 ### 2026-08-10 - ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 open）
 
 #### 概要
@@ -221,35 +238,6 @@ Notion の「Life Editor Night Review」ハブ（3b4b6365-53cc-8158-93d5-e3514ff
 
 コスト削減ハーネス（2026-08-04-context-cost-reduction-harness.md・Loop Engineering セッション 3）向けの
 プロンプトを生成すること。貼り付け用の下書きは本エントリの上のブロックにある。
-```
-
-### 2026-08-04 - Loop Engineering: 3 計画書の整合性評価 + Phase 1 インフラ配置（PR #594）
-
-#### 概要
-
-ユーザー持ち込みの 2 計画書（loop-catalog / context-cost-reduction-harness）と親計画（2026-07-28-loop-engineering-harness）の整合性を評価し、指示の実施順序がカタログ側の「Phase 2 前提」裁定と矛盾している点を含む 3 点をユーザーに確認。裁定（①順序 = 親 Phase 1 → カタログ → コスト → 親 Phase 2 ②Phase 0→1 昇格の前倒し確定 ③実行基盤は調査して提案）に基づき、親計画 Phase 1 のインフラを PR #594 として配置した。自動発火は D-20260804-main-1 の裁定まで無効。
-
-#### 変更点
-
-- **整合性評価**: 順序矛盾（カタログ = Phase 2 の前提条件）/ 1 セッションで消化できない時間ゲート 3 箇所 / 実行基盤の未指定 / plans 未配置・Branch 未記入 / MCP ツール定義仮説への deferred tools の影響、を検出して報告
-- **plans/ 配置**: `2026-08-04-loop-catalog.md` + `2026-08-04-context-cost-reduction-harness.md`（Branch 記入 + Worklog に裁定記録を追記して原文どおり配置）
-- **automation/ 改訂（Cloud Routine 退役）**: `routine-digest.md`（朝 06:03・dev-digest スキルの薄い外枠）+ `routine-night-safe.md`（夜 22:33・読み取り中心の監査 4 本 = docs 整合 / Issue 台帳 / PR conflict / 検証準備・書き込みは outbox 報告のみ）+ `run-routine.ps1`（headless launcher・未実測）を新設。README / routine-ids を全面書き換え、旧 night / morning プロンプトは Phase 2 改訂待ちバナー付きで凍結
-- **権限の二層化**: `settings.json` の `permissions.ask` に `git push*` / `gh pr create*` を追加（merge 後は全チャットで push / PR 作成が常に確認必須になる — PR 本文に注意書き）
-- **実測補正**: セッション内 scheduled tasks（CronCreate）はセッション限定 + 繰り返し 7 日期限。親計画 §3-7 の前提を Worklog で補正し、推奨基盤 = Task Scheduler + `claude -p`（2026-07-16 朝刊プロトタイプの型）を **D-20260804-main-1** として起票
-- **親計画更新**: Status 行 / Steps 6〜9 / Worklog 追記。docs-lint = OK
-
-#### 次セッション用プロンプト（セッション 2: ループカタログ）
-
-```
-ループカタログ計画の実装セッション（Loop Engineering セッション 2/3）。
-前提: PR #594 が merge 済みであること（未 merge なら停止して報告）。
-正本 = .claude/docs/vision/plans/2026-08-04-loop-catalog.md（着手時に Status を IN PROGRESS 化）。
-進め方は計画書 §4 のとおり:
-1. ローカル実態の調査（~/.claude/skills/ の役割系・パイプライン系の中身と実運用 / リポジトリ内スキルとの責務の重なり / hooks・permissions が機械強制している範囲)
-2. 調査結果から子計画書を docs/vision/plans/ に作成 → 私がレビュー
-3. レビュー後にループ定義フォーマットを 1 本目（/loop-triage 推奨）で確定 → 残り（/loop-implement /loop-verify /loop-postmortem）を配置
-制約: Scope = .claude/skills/loop-*/ と plans/ のみ。全ループ明示起動（disable-model-invocation）+ 反復上限宣言 + 必須 5 見出し（目標 / 完了条件 / 予算 / 停止条件 / 使ってよい道具）。既存パイプラインを呼ぶ薄い外枠にし、手順を書かない。
-セッション終了時に、コスト削減ハーネス（2026-08-04-context-cost-reduction-harness.md・セッション 3）向けのプロンプトを生成すること。
 ```
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

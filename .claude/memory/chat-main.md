@@ -9,7 +9,7 @@
 
 - 前回: **Phase 1 インフラ配置 PR #594 merged**（`3ef1f752`。routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
 - 現在: **Phase 2 の文書整備 = PR #597 merged**（`5161a9a1`）。Step 9 ゲート（カタログ定着後に裁定）は**ユーザー指示で前倒し・試験運用 0 件のまま着手**し、その事実を Worklog 先頭に記録。① `goals.md` を役割ごと差し替え（Goal 一覧 + 状態機械 → 「今夜どれを選ぶか」の選定基準。一覧は GitHub が正本なので持たない）② `routine-night.md` を `/loop-implement` の薄い殻へ（無人固有の事情のみ・**commit 止まり**）③ 追随 3 か所（`run-routine.ps1` の ValidateSet に `night` / README 状態列 / `routine-morning.md` 退役）。**§7 の「draft PR 止まり」は permissions 実測と食い違っていたので commit 止まりへ訂正**
-- 次: **発火の裁定 D-20260804-main-1** → `run-routine.ps1 -Routine night` を手動 1 回で動作確認 → `schtasks` 登録（手順 = `automation/routine-ids.md`）。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
+- 次: **発火の裁定 D-20260804-main-1** → `run-routine.ps1 -Routine night` を手動 1 回で動作確認 → `schtasks` 登録（手順 = `automation/routine-ids.md`）。**有効化の前提が 1 つ増えた**（PR #619・#618）= repo の `permissions.ask` から `git push*` / `gh pr create*` を外したので、**無人レーンの push 抑止は runner 側 settings で渡す**（`claude -p --settings <無人用>` / `--disallowedTools`）。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
 
 ### ⏸️ ループカタログ試験運用 + 自律運転の到達点（着手日: 2026-08-06）
 
@@ -30,11 +30,11 @@
 
 ## 直近の完了
 
+- [chat-main] **確認待ちの摩擦を除去（#618 = PR #619 open / dotfiles PR #15 open）** ✅（2026-08-10）— `permissions.ask` を `Bash(gh pr merge*)` だけに縮小（deny 27 件は無変更）。無人レーンの push 抑止は **runner 側 settings** へ分離し `automation/` 2 本に明記。あわせて tracker 新運用を **D-20260810-main-1** として台帳化（END の tracker は **session-verifier 緑の直後**に実行し merge を待たない・専用ブランチ `chore/tracker-<chat>-YYYYMMDD`）→ CLAUDE.md §7.4 + `worktree-policy` を行単位修正、dotfiles 側は task-tracker / lead-pipeline / role-engineer（Verdict をゲート別 PASS/FAIL 表へ）に追随。**DoD 4 つ目（確認プロンプトなしの実測）だけ merge + セッション再起動後に持ち越し**
+
 - [chat-main] **ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 は open）** ✅（2026-08-10）— P-008（実装中スコープ凍結）を POLICY に追加・`_TEMPLATE.md` に「検討した代替案」節 + 完了時の乖離レビュー 3 行を必須化・重複 8 系統を各正本へのポインタに統一・Mac 専用 symlink 10 本を known-issues/031 化（計画書: archive/2026-08-10-harness-loop-consolidation.md）。dotfiles 側（tone 一本化 / lead-pipeline ミニスコープ / QA ラベル統一）は `~/.claude` にローカル実効済みで merge のみ残
 
 - [chat-main] **main の未追跡資産を 2 PR に整理（PR #610 / #611 merged）** ✅（2026-08-09）— 未追跡 13 ファイルを計画書（#610 = fanout r3）と Codex 対応（#611）に分割。Codex 側は全文コピーだった初版を**参照方式**へ再設計（`hooks.json` が `.claude/hooks/*.sh` を git ルート相対で呼ぶ・skills は入口だけ）。宙に浮いていた `chore/docs-sync-20260731` は**中身が既に main にあり PR が巻き戻しになる**ため削除。**docs-lint に検査 (e) が増えている** — plans/ を触る PR は `node .claude/scripts/records.mjs index` を同一 PR に含める（#610 で 1 度落ちた）
-
-- [chat-main] **ループカタログ初期 4 本の配置（PR #595 merged `18da6b5f`）** ✅（2026-08-06）— 親計画 §4 に沿ってローカル実測 → 子計画書 → レビュー → `/loop-triage` でフォーマット確定 → 残り 3 本。実測で親計画の前提が 2 か所崩れているのを検出（リポジトリ内 12 スキル中 **8 本が Mac パスを指す死んだポインタ**・`gh pr merge` が deny / ask のどちらにも無く P-001 が機械未強制 + `git-workflow` §0.1.1 と矛盾）→ 設計変更 2 点（triage は起票しない / implement は commit まで）。**D-20260804-main-2** 起票
 
 ## 予定
 
