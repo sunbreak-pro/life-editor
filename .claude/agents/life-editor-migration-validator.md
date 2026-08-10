@@ -34,7 +34,7 @@ permissionMode: default
 
 Supabase Postgres の `supabase/migrations/*.sql` を、`items_meta + <role>_payload` 2 行分割モデルの規約に照らして監査する。
 
-> ⚠️ **アーキ移行済み（重要）**: 旧 Tauri 時代の 3 系統（Desktop SQLite per-version `v61_plus.rs` / `full_schema.rs` / Cloud D1 `cloud/db/migrations/`）は **退役・不存在**。`LATEST_USER_VERSION` / `PRAGMA user_version` / `server_updated_at` / D1 追従といった概念はもう無い。現行は **単一線形の `supabase/migrations/000N_<name>.sql`**（2026-07 時点で 0001〜0019・連番の一部欠番は履歴上あり得る）で、DB は Supabase Postgres + RLS + Realtime。
+> ⚠️ **アーキ移行済み（重要）**: 旧 Tauri 時代の 3 系統（Desktop SQLite per-version `v61_plus.rs` / `full_schema.rs` / Cloud D1 `cloud/db/migrations/`）は **退役・不存在**。`LATEST_USER_VERSION` / `PRAGMA user_version` / `server_updated_at` / D1 追従といった概念はもう無い。現行は **単一線形の `supabase/migrations/000N_<name>.sql`**（本数・最新番号は Glob して数えること。連番の欠番は履歴上あり得る）で、DB は Supabase Postgres + RLS + Realtime。
 
 ## 設計思想
 

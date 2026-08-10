@@ -21,12 +21,17 @@ paths:
 トークン改名・機能退役・パス変更などの「横断イベント」が起きたら、同一 PR で以下を **grep で全数 sweep** する:
 
 ```bash
-# docs / skills / agents は全て repo 内が正本（2026-08-10 vendor 化 — known-issues 031）。
-# repo 外を grep する必要はもう無い。1 回で全数が当たる。
+# 1. プロジェクト固有の docs / skills / agents（2026-08-10 vendor 化で全て repo 内 — known-issues 031）
 grep -rn '<旧名>' .claude/
+
+# 2. グローバル資産（claude-dotfiles repo・別リポジトリなので PR diff に出ない死角）
+#    ~/.claude/{skills,agents,rules} は claude-dotfiles への symlink。life-editor 固有語
+#    （lumen-* / SectionId / life-editor）が実際に混ざっているため、ここも必ず当てる
+grep -rn '<旧名>' <claude-dotfiles>/claude/
 ```
 
-- **実例**: ink→lumen 改名（#135）は `rules/frontend.md` だけ直して SSOT・tier-2・skill-lib へ波及せず、notion→ink→lumen の **3 世代が併存**した（当時スキル実体は repo 外にあり PR diff に出なかった。vendor 化でこの死角自体が消えている）
+- **実例**: ink→lumen 改名（#135）は `rules/frontend.md` だけ直して SSOT・tier-2・skill-lib へ波及せず、notion→ink→lumen の **3 世代が併存**した（当時スキル実体は repo 外にあり PR diff に出なかった）
+- **死角は減ったが消えていない**: 2026-08-10 の vendor 化でプロジェクト固有分は repo 内に入ったものの、グローバル資産（claude-dotfiles）には今も `lumen-*` や SectionId 一覧が直書きされている。「1 回の grep で全数」と思い込まないこと
 - 歴史的記述として残す場合は「旧称」「当時の仮称」「retired」等の注記を同じ行に付ける（docs-lint #173 の除外条件）
 
 ## 3. plans/ Status の enum

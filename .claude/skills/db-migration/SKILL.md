@@ -1,7 +1,15 @@
 ---
 name: db-migration
-description: SQLite マイグレーション追加手順。Use when adding tables, columns, or modifying database schema. Triggers include database change, schema update, new table, add column.
+description: "⚠️ STALE — 起動しないこと。SQLite + Electron 時代の手順で、現行の Supabase Postgres には当てはまらない。DB 変更の正本は .claude/docs/vision/db-conventions.md と supabase/migrations/、手順は CLAUDE.md §7.3。"
 ---
+
+> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+>
+> 本文は SQLite（`PRAGMA user_version`）+ `electron/database/` 前提のまま。**`electron/` ディレクトリは実在しない**。現行の DB は Supabase Postgres で、実体は `supabase/migrations/*.sql`。
+>
+> 参照すべき正本: 規約 = [`docs/vision/db-conventions.md`](../../docs/vision/db-conventions.md) / DDL の流し方 = CLAUDE.md §7.3（ローカルファイル先行 → ユーザーが `supabase db push`・`apply_migration` MCP 単独使用禁止）/ 既存 DDL の監査 = `life-editor-migration-validator` エージェント。
+>
+> 以下は書き直しか retire かの判断待ちで残している履歴。
 
 「db-migrationを起動します」と表示する。
 

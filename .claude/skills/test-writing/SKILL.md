@@ -1,7 +1,15 @@
 ---
 name: test-writing
-description: life-editor のテスト作成ガイド。Use when writing unit tests, component tests, or hook tests. Triggers include test writing, test creation, adding tests, test patterns.
+description: "⚠️ STALE — 起動しないこと。frontend/ 前提でヘルパも実在しない。テストの書き方は shared/tests/ と web/tests/ の既存テストに倣い、コマンドは CLAUDE.md §7.1 を見る。"
 ---
+
+> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+>
+> 本文が指す `frontend/src/` も `shared/src/test/renderWithProviders` / `mockDataService` も**実在しない**（repo 全体で 0 件）。`cd frontend && npm run test` も存在しないコマンド。
+>
+> 参照すべき正本: 実テストは `shared/tests/*.test.ts(x)` と `web/tests/`（既存に倣う）/ コマンドは CLAUDE.md §7.1（`cd shared && npm run test` / `cd web && npm run test`）/ **`web/tests/` は jsdom にレイアウトが無く要素の座標が全て 0** になる制約も §7.1 に記載。
+>
+> 以下は書き直しか retire かの判断待ちで残している履歴。
 
 「test-writingを起動します」と表示する。
 

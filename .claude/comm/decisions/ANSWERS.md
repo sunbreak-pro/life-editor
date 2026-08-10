@@ -21,4 +21,5 @@
 - D-20260806-main-2: **A**（グローバル資産を Scope に入れ、`claude-dotfiles` 側の別 PR で進める。削るのは「保険」の 1 層に絞る。2026-08-06 チャットで回答・chat-main が転記）
 - D-20260809-main-1: **A**（決定台帳 `decisions/` を新設し「ADR は作らない」方針を SUPERSEDE する。2026-08-09 remote セッションの AskUserQuestion で回答・同セッションが転記）
 - D-20260806-main-3: **A**（Phase 3 の移行ゲートは維持する。life-editor 側の移送は移行完了後。**グローバル側は本裁定に縛られない** — ゲートの根拠は「移送先自体が動く」ことで、移行で動くのは life-editor の CLAUDE.md §2〜§5 と移行 SSOT であって `~/.claude/` ではない。同上）
-- D-20260810-main-1: **A**（プロジェクト固有スキル / エージェント 10 本を repo 内へ vendor 化し、`skill-lib` / `agents-lib` 側の `projects/life-editor/` は削除して repo を唯一の正本にする。共有ライブラリ側の削除は PR merge 後。2026-08-10 チャットの AskUserQuestion で回答・chat-main が転記）
+- D-20260810-main-1: **A**（END の task-tracker は `session-verifier` が緑になった直後に実行し、実装 PR の merge を待たない。tracker を実装ブランチに載せない D-20260801-main-1 は維持 — 専用ブランチ `chore/tracker-<chat>-YYYYMMDD` で即 commit → PR。2026-08-10 チャットで回答・chat-main が転記）
+- D-20260810-main-2: **A**（プロジェクト固有スキル / エージェント 10 本を repo 内へ vendor 化し、`skill-lib` / `agents-lib` 側の `projects/life-editor/` は削除して repo を唯一の正本にする。共有ライブラリ側の削除は PR merge 後かつ全 worktree が origin/main を取り込んだ後。2026-08-10 チャットの AskUserQuestion で回答・chat-main が転記）

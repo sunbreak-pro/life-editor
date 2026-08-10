@@ -1,7 +1,15 @@
 ---
 name: add-ipc-channel
-description: IPC チャンネル追加の手順ガイド。Use when adding new IPC communication between renderer and main process. Triggers include new IPC channel, new API endpoint, main process communication.
+description: "⚠️ STALE — 起動しないこと。教えている Electron / Tauri IPC 層が実在しない。データアクセスの正本は CLAUDE.md §3.1 の DataService 境界（shared/src/services/）。"
 ---
+
+> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+>
+> 本文が指す `electron/preload.ts` / `electron/ipc/` / `frontend/src/services/ElectronDataService.ts` は**いずれも実在しない**。同じ層を監査していた `life-editor-ipc-validator` エージェントは 2026-07-08 に retire 済み（D-20260708-main-1）。
+>
+> 参照すべき正本: CLAUDE.md §3.1 — フロントは `getDataService()` 経由でのみデータへ触る。**コンポーネントからの直接バックエンド呼び出しは禁止**。実装は `shared/src/services/`。
+>
+> 以下は書き直しか retire かの判断待ちで残している履歴。
 
 「add-ipc-channelを起動します」と表示する。
 

@@ -1,7 +1,15 @@
 ---
 name: add-feature
-description: E2E 機能追加ワークフロー。Use when adding a new feature that spans multiple layers (DB, IPC, frontend). Triggers include new feature, feature implementation, full-stack feature.
+description: "⚠️ STALE — 起動しないこと。DB=SQLite / IPC / frontend の 3 層前提が現行と合わない。実装タスクの起点は lead-pipeline スキル。"
 ---
+
+> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+>
+> 本文は「SQLite → IPC → `frontend/`」の 3 層を前提にしているが、現行は Supabase Postgres + DataService 境界 + `shared/` / `web/` 構成で、`electron/` も `frontend/` も実在しない。Phase 5 の「README.md に開発ジャーナルを追加」も廃止済みの運用（記録は per-chat `memory/` + `history/` = CLAUDE.md §9）。
+>
+> 参照すべき正本: 実装タスクの起点 = `lead-pipeline` スキル / データ層 = CLAUDE.md §3.1 + `docs/vision/db-conventions.md` / UI = `rules/frontend.md`。
+>
+> 以下は書き直しか retire かの判断待ちで残している履歴。
 
 「add-featureを起動します」と表示する。
 

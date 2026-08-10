@@ -29,7 +29,7 @@ Windows 上では symlink がテキストファイルとしてチェックアウ
 
 ## Fix
 
-**恒久対処（2026-08-10・Mac セッションで実施）**: 選択肢 1「repo 内 vendor 化」を採用し、**10 本すべてを実ファイルとしてリポジトリに取り込んだ**（mode `120000` → `100644`）。以後 life-editor repo が唯一の正本で、`skill-lib` / `agents-lib` の `projects/life-editor/` は削除する（ユーザー確定 2026-08-10 = D-20260810-main-1）。
+**恒久対処（2026-08-10・Mac セッションで実施）**: 選択肢 1「repo 内 vendor 化」を採用し、**10 本すべてを実ファイルとしてリポジトリに取り込んだ**（mode `120000` → `100644`）。以後 life-editor repo が唯一の正本で、`skill-lib` / `agents-lib` の `projects/life-editor/` は削除する（ユーザー確定 2026-08-10 = D-20260810-main-2。削除の前提条件は同 D-file 参照）。
 
 選択肢 2（可搬ポインタ化）は不成立。参照先の共有ライブラリ自体が git 管理外で、相対パスにしても Windows には実体が届かないため。また hooks の fallback chain（`$HOME/dev/Claude/hooks-lib` → 無ければ `.claude/scripts/hooks-lib/`）もスキルには使えない — **Claude Code はスキルをディレクトリ一覧で発見する**ので、間に振り分けスクリプトを挟む余地が無い。実体を repo 内に置く以外の手が無い。
 
@@ -40,7 +40,7 @@ Windows 上では symlink がテキストファイルとしてチェックアウ
 ## References
 
 - 関連ファイル: `.claude/skills/`（8 本）・`.claude/agents/`（2 本）— 現在はいずれも実ファイル
-- 関連 plan: `.claude/docs/vision/plans/2026-08-10-harness-loop-consolidation.md`（L7 / L8 / L11）
+- 関連 plan: `.claude/archive/2026-08-10-harness-loop-consolidation.md`（L7 / L8 / L11・完了により archive 済）
 - 分析: `.claude/docs/reports/2026-08-09-harness-loop-redesign.md` §3.1 D8
 - 類例: `025`（worktree ごとに参照実体がずれる）
 

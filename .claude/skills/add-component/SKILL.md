@@ -1,7 +1,15 @@
 ---
 name: add-component
-description: コンポーネント・Context・Provider 作成パターン。Use when creating new React components, contexts, or providers. Triggers include new component, new context, new provider, new section, new view.
+description: "⚠️ STALE — 起動しないこと。削除済みの frontend/ ツリー前提。新規 UI の正本は shared/src/components/ と .claude/rules/frontend.md、デザイン判断は frontend-react-designer スキル。"
 ---
+
+> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+>
+> 本文の配置先 `frontend/src/...` は **2026-07-11 に削除済み**（#197・復元は git tag `pre-tauri-removal`）。セクション追加も `App.tsx::activeSection` 前提のままで、現行は `shared/src/sections.ts` の registry + `web/src/MainScreen.tsx` の section state。
+>
+> 参照すべき正本: 新規 UI の置き場所 = CLAUDE.md §6（`shared/src/components/` に集約）/ 規約 = [`rules/frontend.md`](../../rules/frontend.md)（Provider 順序・Pattern A・`lumen-*` トークン・IME gotcha）/ デザイン判断 = `frontend-react-designer` スキル。
+>
+> 以下は書き直しか retire かの判断待ちで残している履歴。
 
 「add-componentを起動します」と表示する。
 

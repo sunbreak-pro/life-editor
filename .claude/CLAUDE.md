@@ -65,7 +65,7 @@
 - **commit 前は `session-verifier`、作業の区切りで `task-tracker`** を必ず通す
 - **worktree / ブランチ運用 = `worktree-policy` スキル**（§7.4 は要約のみ）／ **Issue 起票・docs 運用 = `docs-workflow` スキル**（§9 は要約のみ）
 - **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire = D-20260708-main-1）
-- **スキル / エージェントの実体は repo 内に置く**（2026-08-10 ユーザー確定 D-20260810-main-1 → [known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）: `.claude/skills/` と `.claude/agents/` に **repo 外を指す symlink を作らない**。全マシンで同じものが見える状態を不変式とする（旧 `skill-lib` / `agents-lib` 参照は Windows で解決できず空振りしていた）
+- **スキル / エージェントの実体は repo 内に置く**（2026-08-10 ユーザー確定 D-20260810-main-2 → [known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）: `.claude/skills/` と `.claude/agents/` に **repo 外を指す symlink を作らない**。全マシンで同じものが見える状態を不変式とする（旧 `skill-lib` / `agents-lib` 参照は Windows で解決できず空振りしていた）
 - **ツール実行ハング（応答停止）**: 原因は Claude Code 本体の SSE バグでローカルはシロ（詳細 = `~/.claude/rules/bash-tool-stability.md`）。**運用既定 = 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**
 - **open bug の確認** = `gh issue list -R sunbreak-pro/life-editor --label type:bug`（過去知見は `--state closed --search` と `docs/known-issues/` grep）
 
