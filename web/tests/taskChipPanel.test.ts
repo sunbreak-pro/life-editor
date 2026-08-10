@@ -22,6 +22,7 @@ const COPY = {
   allDay: "All-day",
   rename: "Rename",
   delete: "Delete",
+  convertToEvent: "Convert to event",
 };
 
 const CANDIDATE: TaskCalendarChip = {
@@ -45,20 +46,40 @@ const PLACED: TaskCalendarChip = {
 function build(chip: TaskCalendarChip) {
   const onRename = vi.fn();
   const onDelete = vi.fn();
+  const onConvertToEvent = vi.fn();
   return {
-    model: taskChipPanelModel(chip, COPY, { onRename, onDelete }),
+    model: taskChipPanelModel(chip, COPY, {
+      onRename,
+      onDelete,
+      onConvertToEvent,
+    }),
     onRename,
     onDelete,
+    onConvertToEvent,
   };
 }
 
 describe("taskChipPanelModel (#564)", () => {
-  it("offers rename and delete, with delete marked dangerous", () => {
+  it("offers rename, convert and delete, with only delete marked dangerous", () => {
     const { model } = build(CANDIDATE);
-    expect(model.actions.map((a) => a.id)).toEqual(["rename", "delete"]);
+    expect(model.actions.map((a) => a.id)).toEqual([
+      "rename",
+      "convertToEvent",
+      "delete",
+    ]);
     expect(model.actions[0].label).toBe("Rename");
-    expect(model.actions[1].label).toBe("Delete");
-    expect(model.actions[1].danger).toBe(true);
+    expect(model.actions[1].label).toBe("Convert to event");
+    // #625: converting MOVES the item, it does not remove it — danger styling
+    // would read as "this destroys something".
+    expect(model.actions[1].danger).toBeUndefined();
+    expect(model.actions[2].label).toBe("Delete");
+    expect(model.actions[2].danger).toBe(true);
+  });
+
+  it("converts through the host's re-role write (#625)", () => {
+    const { model, onConvertToEvent } = build(CANDIDATE);
+    model.actions[1].onSelect?.();
+    expect(onConvertToEvent).toHaveBeenCalledTimes(1);
   });
 
   it("renames through an inline input seeded with the current title", () => {
@@ -71,7 +92,7 @@ describe("taskChipPanelModel (#564)", () => {
 
   it("deletes through the host's soft-delete", () => {
     const { model, onDelete } = build(CANDIDATE);
-    model.actions[1].onSelect?.();
+    model.actions[2].onSelect?.();
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 

@@ -57,6 +57,15 @@ where m.role = 'task' and p.item_id is null;
 
 `fetchX` 系の SELECT は payload が無い meta 行を silent skip して UI に出さない（防御的）。
 
+**逆向きの残骸（#625 Event↔Todo 変換）**: role 付け替えは「新 payload UPSERT → `items_meta.role` UPDATE → 旧 payload DELETE」の順で走る（`SupabaseItemConversionService`）。孤児 meta を絶対に作らない代わりに、最後の DELETE が落ちると **role と一致しない payload 行**が残る。読み取りは role で絞ってから join するので UI からは完全に不可視・無害（meta の hard delete で CASCADE 消滅する）が、放置量は把握しておきたいので検出クエリを持つ:
+
+```sql
+-- #625: role と一致しない payload 行（変換の中断残骸）
+select p.item_id, m.role from tasks_payload  p join items_meta m on m.id = p.item_id where m.role <> 'task';
+select p.item_id, m.role from events_payload p join items_meta m on m.id = p.item_id where m.role <> 'event';
+-- expected: 0 rows
+```
+
 ### 10.6 DU-B 確定 3 件サマリ
 
 | ID    | 確定事項                                                                                                                                       |
