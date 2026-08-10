@@ -267,6 +267,10 @@ export function NotesView({
         links: t("materials.notes.links"),
         linksEmpty: t("materials.notes.mainEmpty"),
         trash: t("materials.notes.trash"),
+        untitled: t("materials.notes.untitled"),
+        restoreNote: (title) => t("materials.notes.restoreNote", { title }),
+        permanentDeleteNote: (title) =>
+          t("materials.notes.permanentDeleteNote", { title }),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}

@@ -56,6 +56,16 @@ export interface NotesSidebarListLabels {
   /** Shown in the Links panel when no note is selected. */
   linksEmpty: string;
   trash: string;
+  /** Stands in for an empty title, on screen and in the two labels below. */
+  untitled: string;
+  /*
+   * The trash row actions carry the note's title, so they arrive as builders
+   * rather than strings — the title's position inside the sentence is the
+   * translator's call (#680: these were hardcoded English until the catalog
+   * took them over).
+   */
+  restoreNote: (title: string) => string;
+  permanentDeleteNote: (title: string) => string;
 }
 
 export interface NotesSidebarListProps {
@@ -304,40 +314,43 @@ export function NotesSidebarList({
         </button>
         {trashOpen && deletedNotes.length > 0 && (
           <ul className="max-h-40 space-y-1 overflow-y-auto pb-2">
-            {deletedNotes.map((n) => (
-              <li
-                key={n.id}
-                className="flex items-center justify-between gap-2 px-1 text-sm"
-              >
-                <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
-                  {n.title || "(untitled)"}
-                </span>
-                <span className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onRestoreNote(n.id)}
-                    aria-label={`Restore ${n.title || "untitled"}`}
-                    className={cn(
-                      "text-lumen-accent hover:opacity-80",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <RotateCcw size={14} aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onPermanentDeleteNote(n.id)}
-                    aria-label={`Permanently delete ${n.title || "untitled"}`}
-                    className={cn(
-                      "text-lumen-danger hover:opacity-80",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <Trash2 size={14} aria-hidden />
-                  </button>
-                </span>
-              </li>
-            ))}
+            {deletedNotes.map((n) => {
+              const title = n.title || labels.untitled;
+              return (
+                <li
+                  key={n.id}
+                  className="flex items-center justify-between gap-2 px-1 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
+                    {title}
+                  </span>
+                  <span className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onRestoreNote(n.id)}
+                      aria-label={labels.restoreNote(title)}
+                      className={cn(
+                        "text-lumen-accent hover:opacity-80",
+                        FOCUS_RING,
+                      )}
+                    >
+                      <RotateCcw size={14} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onPermanentDeleteNote(n.id)}
+                      aria-label={labels.permanentDeleteNote(title)}
+                      className={cn(
+                        "text-lumen-danger hover:opacity-80",
+                        FOCUS_RING,
+                      )}
+                    >
+                      <Trash2 size={14} aria-hidden />
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
