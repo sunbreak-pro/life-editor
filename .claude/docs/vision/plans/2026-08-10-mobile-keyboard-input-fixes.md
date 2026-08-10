@@ -1,5 +1,5 @@
 ---
-Status: Draft # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: IN PROGRESS # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
 Created: 2026-08-10
 Branch: claude/main-607-608-mobile-keyboard
 Owner-chat: main
@@ -139,6 +139,33 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 ---
 
 ## Worklog
+
+### 2026-08-10 — Step 0 完了: #607 の原因を再現テストで確定
+
+**H2 本体（id 差し替えレース）は棄却**。`shared/src/hooks/useNotesUnifiedAPI.ts:521` の `createNote` は `generateId("note")` でクライアント側が id を採番し、そのまま書き込む。サーバーが id を振り直さないので「楽観行がサーバー行に差し替わって id が変わる」経路は存在しない。
+
+**確定した原因は H2 の亜種 — 自分の書き込みが自分の hydrate を無効化する**。連鎖はこうなっている:
+
+1. 本文を打つ → `RichTextEditor` が 800ms debounce（`web/src/notes/RichTextEditor.tsx:277`）→ `updateNote`
+2. `updateNote` はローカル行に**クライアント時計の `updatedAt`** を楽観的に載せる（`useNotesUnifiedAPI.ts` の `const now = new Date().toISOString()`）
+3. 約 1.1 秒後、own-write の Realtime エコーで `syncVersion` が bump（#300 — このファイルのコメント自身が「typing anywhere bumps syncVersion ~1.1s later」と書いている）
+4. リスト再取得 → #301 の限定無効化マージが `prev.updatedAt === row.updatedAt` の行だけ hydrate を維持する（`useNotesUnifiedAPI.ts:274-286`）。**クライアント時計の刻印がサーバーの `updated_at` と一致することはない**ので、いま編集中のノートだけが必ず脱落する
+5. `contentLoadedIdsRef` から落ちる → `isContentLoaded(id)` が false → narrow のシートの `sheetReady` が false（`web/src/notes/hooks/useNoteSheetTarget.ts:78`）→ `RichTextEditor` が unmount され `SkeletonList` に差し替わる（`web/src/notes/NotesView.tsx:864-895`）→ **フォーカスが外れてソフトキーボードが閉じる**
+6. `:295` の `hydrateContent(openId)` が再取得を投げ直すので、往復が終われば戻る。**Desktop はエディタが note id で keyed され remount しないのでこの窓を踏まない**（`:221-223` のコメントが明記）— スマホだけで起きるという症状と一致する
+
+**再現テスト = `shared/tests/notesOpenNoteOwnEditHydrate.test.tsx`（現在 RED）**。最初は緑になったが、それはモックの再 hydrate が即座に解決して「落ちている窓」を跨いでいたため。実機ではここがネットワーク往復なので、再 hydrate を手動で保留する形に直したところ `isContentLoaded` が false を返すことを観測できた。**このテストは Step 3 の修正と同じコミットに載せる**（赤いまま単独で commit すると CI を壊すため）。
+
+**H1 / H3 は未判定のまま残す**。上の経路だけで症状が説明できるので、Step 1 の実機で「打鍵の前に消えるか / 後に消えるか」を確認して切り分ける。**打鍵の前に消えるなら H1 か H3 が別に生きている**。
+
+### 2026-08-10 — Step 1 への申し送り（#608 の計測項目が 1 つ増えた）
+
+`AppShell.tsx:203` の narrow ルートは `h-[100svh]` で、`web/index.html:11-13` の viewport meta は `width=device-width, initial-scale=1.0, viewport-fit=cover` — **`interactive-widget` の指定が無い**。
+
+Chrome 108+ の既定は `resizes-visual`（レイアウトビューポートは縮まず visual だけ縮む）で、それが効いているなら `100svh` は動かず、通常フローのタブバーもせり上がらないはず。**実機でせり上がっている以上、既定どおりに振る舞っていないか、別の経路で高さが縮んでいる**。ここが決まらないと「何をトリガーに隠すか」が決まらない（`visualViewport.height` はレイアウトごと縮む挙動では変化しないため、キーボード検出そのものが成立しない）。
+
+そこで Step 1 に計測を 1 つ足す: **キーボードを出す前と出した後で `window.innerHeight` と `window.visualViewport.height` の両方**を読む。両方縮む＝レイアウトごと縮む挙動なので、`interactive-widget=resizes-visual` を meta に明示して土俵を揃えてから隠す判定を書く。visual だけ縮むなら `useVisualViewport` の差分でそのまま判定できる。
+
+---
 
 完了時（archive する時）の乖離レビュー 3 行は必須（実行者 = `task-tracker` の END フロー）:
 
