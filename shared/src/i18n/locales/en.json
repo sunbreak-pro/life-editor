@@ -406,6 +406,18 @@
     "tagColor": "\"{{name}}\" color",
     "tagColorEmpty": "Colors belong to tags — add a tag first."
   },
+  "itemConvert": {
+    "toTodo": "Convert to Todo",
+    "toEvent": "Convert to event",
+    "toTodoConfirm": "Convert \"{{title}}\" to a Todo? Its date, time and repeat settings will be lost.",
+    "toTodoDone": "Converted to a Todo",
+    "toEventConfirm": "Convert \"{{title}}\" to an event? Its status will be lost.",
+    "toEventConfirmChild": "Convert \"{{title}}\" to an event? Its status will be lost, and it will no longer belong to its parent Todo.",
+    "routineBlocked": "A Todo has no repeat, so this cannot be converted.",
+    "childrenBlocked": "\"{{title}}\" has {{count}} subtask(s), so it cannot become an event. Move or delete them first.",
+    "childrenBlockedServer": "This Todo still has subtasks, so it cannot become an event. Subtasks in Trash count too — move them, or delete them permanently, first.",
+    "failed": "Conversion failed"
+  },
   "scheduleScreen": {
     "calendar": "Calendar",
     "viewDay": "Day",
@@ -706,6 +718,9 @@
       "toggleScheduleItemComplete": "event completion toggle",
       "dismissScheduleItem": "event dismissal",
       "deleteScheduleItem": "event deletion",
+      "createRoutine": "repeat creation",
+      "updateRoutine": "repeat update",
+      "deleteRoutine": "repeat deletion",
       "createDaily": "daily creation",
       "deleteDaily": "daily deletion",
       "togglePin": "pin toggle",

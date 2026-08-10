@@ -406,6 +406,18 @@
     "tagColor": "「{{name}}」の色",
     "tagColorEmpty": "色はタグに付きます。先にタグを追加してください"
   },
+  "itemConvert": {
+    "toTodo": "Todo に変換",
+    "toEvent": "予定に変換",
+    "toTodoConfirm": "「{{title}}」を Todo に変換します。日付・時刻・繰り返し設定は失われます。よろしいですか？",
+    "toTodoDone": "Todo に変換しました",
+    "toEventConfirm": "「{{title}}」を予定に変換します。ステータスは失われます。よろしいですか？",
+    "toEventConfirmChild": "「{{title}}」を予定に変換します。ステータスは失われ、親 Todo との関係も解除されます。よろしいですか？",
+    "routineBlocked": "Todoに繰り返しの機能はないため、変換は不可能です",
+    "childrenBlocked": "「{{title}}」には子タスクが {{count}} 件あるため、予定に変換できません。先に子タスクを移動するか削除してください。",
+    "childrenBlockedServer": "子タスクがあるため、予定に変換できません。ゴミ箱にある子 Todo も対象になります。先に移動するか、完全に削除してください。",
+    "failed": "変換に失敗しました"
+  },
   "scheduleScreen": {
     "calendar": "カレンダー",
     "viewDay": "日",
@@ -706,6 +718,9 @@
       "toggleScheduleItemComplete": "予定の完了切替",
       "dismissScheduleItem": "予定の非表示",
       "deleteScheduleItem": "予定の削除",
+      "createRoutine": "繰り返しの作成",
+      "updateRoutine": "繰り返しの変更",
+      "deleteRoutine": "繰り返しの削除",
       "createDaily": "デイリーの作成",
       "deleteDaily": "デイリーの削除",
       "togglePin": "ピン留めの切替",

@@ -186,7 +186,9 @@ mcp-server/**            （C1 / C2）
 
 **追い風**（実測）: 導出パターンの実装モデルがリポ内にある / schedule の消費側は既に「データが空の時だけスケルトン」なので loading 意味論の変更がほぼ不可視 / **routines の isLoading・error は消費者ゼロ** / 型が `ReturnType` 経由なので返り値変更は必ずコンパイルで捕まる。
 
-**キューへ積む（実装しない）**: RoutineProvider だけ UndoRedo に未接続で undo コード約 60 行が空撃ちになっている。選択肢は 2 択ではなく **3 択**（A: 接続 + i18n ラベル 3 件追加 / B: push ブロックを削除 / C: 現状維持）。接続しただけだと `undoRedo.labels` に routine 系が無いため「Undid: createRoutine」という生キーの toast が出る。
+**ルーチンの Undo/Redo は繋ぐ（裁定済み = [D-20260810-refactor-1](../../../decisions/D-20260810-refactor-1.md) の A・2026-08-11）**: `RoutineProvider` だけ UndoRedo に未接続で undo コード約 60 行が空撃ちになっている。`RoutineContext` に `useUndoRedoOptional()` を配線し、**同じ PR で `undoRedo.labels` に `createRoutine` / `updateRoutine` / `deleteRoutine` を en・ja 両方へ追加する**（ラベルが無いと「Undid: createRoutine」という生キーの toast が出る）。
+
+これは本クラスタ唯一の**挙動追加**（他は挙動変更ゼロ）。PR は分ける（PR-E とする）。ルーチンの undo は生成済み Event との整合に触れるため、**merge 後の playwright を必須**にする — ルーチンの作成・更新・削除をそれぞれ Ctrl+Z で戻し、生成済み Event が孤児にならないことを確認する。整合が保てないと判明したら B（削除）へ倒し、新しい D を作って supersede 連鎖で表現する。
 
 **merge 後**: chat-main で playwright（Schedule 初回描画 / 日付切替 / Realtime bump 後にスケルトンが出っぱなしにならない / Calendar 管理ビューが refetch で真っ白にならない）。
 

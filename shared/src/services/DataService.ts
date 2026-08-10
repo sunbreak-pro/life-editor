@@ -329,6 +329,54 @@ export interface DataService {
   bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
 
+  // Event <-> Todo conversion (#625)
+  /**
+   * Turn an event into a Todo, KEEPING its id (D-20260810-sched-2 = 案 A):
+   * tags and item links reference `items_meta.id` with no role of their own,
+   * so re-roling the same row carries the whole graph across, where a
+   * delete+create would drop every one of them.
+   *
+   * Three writes in a fixed order — new payload UPSERT, `items_meta.role`
+   * UPDATE (+ DB-Q2 bump), old payload DELETE. There is no transaction, so the
+   * order is chosen by what the surviving middle state looks like: an item
+   * briefly holding two payload rows is invisible (every read filters by role
+   * and joins its own payload), while the reverse order can leave a payload-
+   * less meta — the R2 orphan db-conventions §10 forbids, which owns the id
+   * and shows the user nothing.
+   *
+   * Date / time span / all-day / reminder are dropped (D-20260810-sched-3 —
+   * the host confirms that first); the memo survives as the task body and a
+   * done event becomes a DONE Todo. A routine-derived event is REJECTED
+   * (D-20260810-sched-5): a Todo cannot carry a repeat. `order` is the host's,
+   * so the new row lands like a freshly added task.
+   */
+  convertEventToTask(
+    eventId: string,
+    init: { order: number },
+  ): Promise<TaskNode>;
+  /**
+   * Turn a Todo into an event, keeping its id — the mirror of
+   * convertEventToTask, same ordering and same compensation.
+   *
+   * The status is dropped (D-20260810-sched-4 — the host confirms first),
+   * except that a DONE Todo arrives completed rather than open; the task body
+   * survives as the event memo, and a child Todo loses its parent link (events
+   * have no hierarchy). A Todo WITH CHILDREN is REJECTED (same ruling): 0009's
+   * composite FK would reject the role UPDATE anyway, and the service checks
+   * first so the caller gets a reason instead of an FK error mid-sequence —
+   * soft-deleted children count, since they hold the FK just the same. The
+   * placement is the host's (`taskToEventPlacement`).
+   */
+  convertTaskToEvent(
+    taskId: string,
+    init: {
+      date: string;
+      startTime: string;
+      endTime: string;
+      isAllDay: boolean;
+    },
+  ): Promise<ScheduleItem>;
+
   // Playlists
   fetchPlaylists(): Promise<Playlist[]>;
   createPlaylist(id: string, name: string): Promise<Playlist>;

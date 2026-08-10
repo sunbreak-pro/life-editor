@@ -18,7 +18,6 @@
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
-| D-20260810-refactor-1 | ルーチンの Undo/Redo を繋ぐか、コードを消すか | refactor-core |
 | D-20260811-sched-1 | #625 Event → Todo で日付・時間帯を Todo のチップスロットへ引き継ぐか（D-20260810-sched-3 の緩和提案） | schedule-refine |
 
 ## Active（現在有効な裁定 — superseded-by なし）
@@ -52,6 +51,7 @@
 | [D-20260810-main-1](./D-20260810-main-1.md) | END の task-tracker をいつ実行するか（verifier 直後 / 実装 PR の merge 後） | A | 2026-08-10 | harness, task-tracker, workflow, autonomy |
 | [D-20260810-main-2](./D-20260810-main-2.md) | プロジェクト固有スキル / エージェントの実体をどこに置くか | A | 2026-08-10 | harness, skills, agents, portability, windows |
 | [D-20260810-main-4](./D-20260810-main-4.md) | #607 の修正を「触らない」宣言済みの `useNotesUnifiedAPI.ts` に入れるか | A | 2026-08-10 | notes, sync, mobile, scope, shared-fix |
+| [D-20260810-refactor-1](./D-20260810-refactor-1.md) | ルーチンの Undo/Redo を繋ぐか、コードを消すか | A | 2026-08-11 | undo-redo, routine, hooks, i18n, refactor |
 | [D-20260810-sched-1](./D-20260810-sched-1.md) | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | A | 2026-08-10 | schedule, editor-pane, save-model |
 | [D-20260810-sched-2](./D-20260810-sched-2.md) | #625 変換で id を維持するか、新規作成するか | A | 2026-08-10 | schedule, role-conversion, data-model |
 | [D-20260810-sched-3](./D-20260810-sched-3.md) | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | A | 2026-08-10 | schedule, role-conversion, data-loss |
@@ -89,6 +89,8 @@
 - global-assets: D-20260806-main-2 / D-20260806-main-3
 - graph-layer: D-20260809-main-1
 - harness: D-20260804-main-2 / D-20260810-main-1 / D-20260810-main-2
+- hooks: D-20260810-refactor-1
+- i18n: D-20260810-refactor-1
 - issue-dispatch: D-20260731-main-1 / D-20260731-main-2
 - lock: D-20260730-mobile-3
 - loop: D-20260806-main-1
@@ -106,11 +108,11 @@
 - plans-lifecycle: D-20260730-tags-1
 - policy: D-20260804-main-2 / D-20260806-main-1
 - portability: D-20260810-main-2
-- refactor: D-20260728-main-2
+- refactor: D-20260728-main-2 / D-20260810-refactor-1
 - requirements: D-20260723-main-1
 - retire: D-20260705-main-1 / D-20260708-main-1
 - role-conversion: D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
-- routine: D-20260711-main-1 / D-20260810-sched-5
+- routine: D-20260711-main-1 / D-20260810-refactor-1 / D-20260810-sched-5
 - routing: D-20260731-main-1 / D-20260731-main-2
 - save-model: D-20260810-sched-1
 - schedule: D-20260711-main-1 / D-20260731-main-1 / D-20260801-sched-1 / D-20260810-sched-1 / D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
@@ -128,6 +130,7 @@
 - terminal: D-20260705-main-1
 - touch: D-20260730-mobile-1
 - tracker: D-20260801-main-1
+- undo-redo: D-20260810-refactor-1
 - ux: D-20260711-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260801-sched-1
 - web-url: D-20260807-main-1
 - windows: D-20260810-main-2
