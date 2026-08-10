@@ -60,6 +60,14 @@ jobs:
       - name: shared — build (tsc -b)
         run: npm run build
         working-directory: shared
+      # tests/ は tsconfig.json の include の外（あの project は dist/ を emit する
+      # ので suites を同梱できない）。そのため専用 config で型検査する（#668 C1）。
+      # 導入時点で 12 suites / 15 errors が落ちたので、tsconfig.test.json 側に
+      # eslint baseline と同じ「縮んでいく除外リスト」を持たせた上でブロッキング
+      # にしている。除外の外にある約 180 suites は今日から検査される
+      - name: shared — typecheck tests (tsc -p tsconfig.test.json)
+        run: npm run typecheck:tests
+        working-directory: shared
       - name: shared — test (vitest)
         run: npm run test
         working-directory: shared
@@ -76,6 +84,12 @@ jobs:
         working-directory: web
       - name: web — build (tsc -b --force && vite build)
         run: npm run build
+        working-directory: web
+      # shared と同じ穴を塞ぐ（#668 C1）。型解決が ../shared/dist 経由なので、
+      # 直前の web — build（tsc -b --force が shared も建て直す）より後に置く。
+      # 落ちたのは 24 suites 中 1 本だけで、それが tsconfig.test.json の除外リスト
+      - name: web — typecheck tests (tsc -p tsconfig.test.json)
+        run: npm run typecheck:tests
         working-directory: web
       # web = renderer 側の vitest（#475 で追加）。vitest.config.ts は vite.config.ts
       # を merge するので @life-editor/shared は ../shared/src から解決される
