@@ -59,7 +59,7 @@ Owner-chat: docs-workspace
 | 動詞   | 状況                                                                                                                 | 正本                                        |
 | ------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | 読む   | **出荷済み**（#249 — BriefingView + extractBriefing、ホーム面・デフォルト起動セクション）                            | コード（`shared/src/components/briefing/`） |
-| 組む   | **進行中**（schedule-redesign Step 1 済み・Step 2〜7 残）                                                            | `2026-07-14-schedule-redesign.md`           |
+| 組む   | **完了**（schedule-redesign 全 Step 済み — COMPLETED・`archive/` 移動 2026-08-10 #591）                              | `2026-07-14-schedule-redesign.md`           |
 | 没入   | 既存（Work セクション）                                                                                              | tier-1 / tier-2                             |
 | 閉じる | **未着手**（本書決定 1 で規約は確定）                                                                                | 本書 Step 3                                 |
 | 分析   | **未着手**（MCP schedule handler は旧 SQLite のまま Supabase 未接続・`get_today_context` / `write_briefing` 未実装） | 本書 Step 2                                 |
@@ -110,7 +110,7 @@ Owner-chat: docs-workspace
 
 ## References
 
-- 子計画書: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（「組む」の正本。§1 中心思想は本書と同一のループ）/ [`2026-07-16-loop-friction-fixes.md`](../../../archive/2026-07-16-loop-friction-fixes.md)（摩擦除去 F-1〜F-5。F-1 = Daily TipTap 化はループ手動経路の前提工事）
+- 子計画書: [`2026-07-14-schedule-redesign.md`](../../../archive/2026-07-14-schedule-redesign.md)（「組む」の正本・COMPLETED → archive 済み #591。§1 中心思想は本書と同一のループ）/ [`2026-07-16-loop-friction-fixes.md`](../../../archive/2026-07-16-loop-friction-fixes.md)（摩擦除去 F-1〜F-5。F-1 = Daily TipTap 化はループ手動経路の前提工事）
 - コードの正: `shared/src/sections.ts`（briefing セクション定義・デフォルト起動）/ `shared/src/components/briefing/`（紙面ビューとセクション規約 — 一覧はコードが正）/ `web/src/briefing/BriefingScreen.tsx`
 - 要件: `docs/requirements/tier-1-core.md` §Briefing（2026-07-17 #257 で追加。CLAUDE.md §8 は本書をポインタとして参照）
 - デザイン: `docs/design/briefs/` に briefing.md は未作成（紙面の意匠は当面 BriefingView の実装コメントが正）

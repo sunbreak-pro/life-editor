@@ -31,15 +31,21 @@ import { X, ChevronDown } from "lucide-react";
  * allowance TrashScreen uses (§6.4).
  *
  * Layout (isWide = min-width 768px):
- *  - Desktop → three cards (timer / task / ambient) stacked; the shell's
- *    PageContainer (width="reading", #180 — adopted here per #181) owns the
- *    centered measure + page gutter, so this view keeps only its own card
- *    rhythm. The settings +
- *    presets editor is pushed into the shell rightSidebar via
- *    RightSidebarPortal (dimmed while the timer runs).
- *  - Mobile  → a single fullscreen timer face; the task chip opens a BottomSheet
- *    picker; the settings editor lives only in the shell's left drawer (also the
- *    portal). The ambient mixer is Desktop-only.
+ *  - Desktop → three cards (timer / task / ambient) stacked. ALL the section
+ *    chrome belongs to the shell (Layout Standard v2 adoption, #590): the
+ *    standard <SectionHeader> in AppShell's header slot carries the title
+ *    (section.work) + divider + rightSidebar toggle, and MainScreen's
+ *    PageContainer (width="wide" — one column for every section since
+ *    #305/#210) owns the measure, gutter and scroll. So this view renders NO
+ *    in-body title row and keeps only its own card rhythm — gap-6, the stack
+ *    rhythm Settings / Trash already use. The settings + presets editor is
+ *    pushed into the shell rightSidebar via RightSidebarPortal (dimmed while
+ *    the timer runs), which under v2 §4 opens BELOW the header's divider.
+ *  - Mobile  → the header slot is wide-only, so below 768px there is no title
+ *    row at all (v2 non-goal: mobile unchanged): a single fullscreen timer
+ *    face; the task chip opens a BottomSheet picker; the settings editor is
+ *    reached through the shell's left drawer (the same portal), opened from
+ *    MainScreen's hamburger row. The ambient mixer is Desktop-only.
  *
  * A WORK-session completion (completedSessions increments) opens the
  * SessionCompletionModal.
@@ -342,7 +348,11 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    // gap-6 = the card-stack rhythm of the sections that adopted v2 before this
+    // one (Settings / Trash). The vertical space above the first card is the
+    // PageContainer's alone — this stack adds no top padding of its own, so the
+    // new header row cannot double up with it.
+    <div className="flex flex-col gap-6">
       {timerFace("card")}
       <PomodoroTaskSelector
         tasks={tasks}

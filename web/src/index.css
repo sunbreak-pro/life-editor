@@ -25,11 +25,26 @@ html {
   font-family: var(--font-sans);
 }
 
+/*
+ * The app is a fixed shell, never a scrolling document (#631). Two rules keep
+ * the document scroller inert on mobile:
+ * - body min-height uses svh to match AppShell's narrow root (h-[100svh]).
+ *   With vh, mobile Chrome sizes body to the large viewport (URL bar hidden),
+ *   making body taller than the shell — that gap becomes a document scroll
+ *   that slides past the bottom tab bar.
+ * - overscroll-behavior must sit on the viewport scroller (html/body) to
+ *   suppress pull-to-refresh; on inner divs it has no effect.
+ */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  min-height: 100vh;
+  min-height: 100svh;
 }
 
 /*

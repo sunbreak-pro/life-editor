@@ -137,7 +137,7 @@ Owner-chat: docs-workspace
 ## References
 
 - 親: [`2026-07-15-briefing-loop.md`](../docs/vision/plans/2026-07-15-briefing-loop.md)（ループ定義・判定基準）
-- 関連: [`2026-07-14-schedule-redesign.md`](../docs/vision/plans/2026-07-14-schedule-redesign.md)（要件 2 の「日付接続」の本体 = Step 2〜3）/ layout-standard v2（F-3 の rightSidebar 構造）
+- 関連: [`2026-07-14-schedule-redesign.md`](./2026-07-14-schedule-redesign.md)（要件 2 の「日付接続」の本体 = Step 2〜3）/ layout-standard v2（F-3 の rightSidebar 構造）
 - 要件文書: `docs/requirements/tier-3-experimental.md`（決定 6 の記録先）
 
 ## Worklog
