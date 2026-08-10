@@ -64,8 +64,6 @@ export default defineConfig([
    */
   {
     files: [
-      "src/components/CommandPalette.tsx",
-      "src/components/TagEditModal.tsx",
       "src/context/TimerContext.tsx",
       "src/hooks/useCalendarsAPI.ts",
       "src/hooks/useRoutinesAPI.ts",
