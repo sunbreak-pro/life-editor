@@ -8,6 +8,8 @@ import {
   tasksToCalendarChips,
   useSyncDomains,
   useTranslation,
+  useUndoRedoOptional,
+  type RepeatScope,
   type BriefingCarryoverEntry,
   type BriefingData,
   type BriefingScheduleEntry,
@@ -89,6 +91,18 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   const [connections, setConnections] = useState<WikiTagConnectionUnified[]>(
     [],
   );
+  // #585: the routine-derived row waiting on a this/future/all answer. Holds
+  // the whole ScheduleItem (not just the id) because the answer is applied
+  // after the row has already left `scheduleItems`.
+  const [deleteScopeItem, setDeleteScopeItem] = useState<ScheduleItem | null>(
+    null,
+  );
+
+  // Global undo stack (#304). Optional so the hook still runs in tests and
+  // outside UndoRedoProvider; when it IS there, a delete from the paper is
+  // reversible exactly like the same delete made in Schedule or Tasks.
+  const undoRedo = useUndoRedoOptional();
+  const push = undoRedo?.push;
 
   const tomorrowKey = nextDateKey(todayKey);
 
@@ -337,6 +351,158 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [ds, taskNodes],
   );
 
+  // ── Row deletes (#585) ───────────────────────────────────────────────
+  // The paper writes through `ds` rather than the Schedule / TaskTree
+  // providers (MainScreen mounts this screen bare), so the optimistic list
+  // update and the undo command are spelled out here instead of coming free
+  // from useScheduleItemsAPI / useTaskTreeHistory. The DataService calls
+  // themselves are the EXISTING delete paths — same soft delete, same Trash,
+  // same restore — so a row deleted from the paper behaves like one deleted
+  // from its own section.
+  const handleDeleteScheduleItem = useCallback(
+    (id: string) => {
+      const target = scheduleItems.find((s) => s.id === id);
+      if (target === undefined) return;
+      // A routine occurrence must not be plain-deleted: the generator would
+      // simply put it back (known-issue 017). Ask which occurrences first —
+      // Schedule's own dialog, mounted by BriefingScreen.
+      if (target.routineId !== null) {
+        setDeleteScopeItem(target);
+        return;
+      }
+      setScheduleItems((prev) => prev.filter((s) => s.id !== id));
+      ds.softDeleteScheduleItem(id).catch((err) => {
+        console.error("[BriefingScreen] schedule delete failed", err);
+      });
+      push?.("scheduleItem", {
+        label: "deleteScheduleItem",
+        undo: () => {
+          setScheduleItems((prev) =>
+            prev.some((s) => s.id === id) ? prev : [...prev, target],
+          );
+          void ds.restoreScheduleItem(id).catch((err) => {
+            console.error("[BriefingScreen] schedule delete undo failed", err);
+          });
+        },
+        redo: () => {
+          setScheduleItems((prev) => prev.filter((s) => s.id !== id));
+          void ds.softDeleteScheduleItem(id).catch((err) => {
+            console.error("[BriefingScreen] schedule delete redo failed", err);
+          });
+        },
+      });
+    },
+    [ds, scheduleItems, push],
+  );
+
+  /*
+   * Apply the this/future/all answer. Semantics are Schedule's contract
+   * (useScheduleMutations #279), reproduced against the DataService:
+   *   this   — Dismiss the single day (a delete would be regenerated)
+   *   future — detach the series from this occurrence's date
+   *   all    — soft-delete the routine with its cascade (Trash-restorable)
+   *
+   * Schedule additionally materialises the days between today and a FUTURE
+   * anchor before detaching. The paper has no such case: its anchor is always
+   * the day it is showing, so that fill is a no-op by construction.
+   *
+   * No undo command: the routine paths are exactly the ones Schedule leaves
+   * off the stack too (a cascade is not reversible by re-inserting one row) —
+   * Trash is the recovery path for「すべて」.
+   */
+  const handleDeleteScopeChoose = useCallback(
+    (scope: RepeatScope) => {
+      const target = deleteScopeItem;
+      setDeleteScopeItem(null);
+      const routineId = target?.routineId;
+      if (target === null || routineId === undefined || routineId === null) {
+        return;
+      }
+      if (scope === "this") {
+        setScheduleItems((prev) => prev.filter((s) => s.id !== target.id));
+        void ds.dismissScheduleItem(target.id).catch((err) => {
+          console.error("[BriefingScreen] routine dismiss failed", err);
+        });
+        return;
+      }
+      const applyRemoval = (deletedIds: string[]) => {
+        const removed = new Set(deletedIds);
+        setScheduleItems((prev) => prev.filter((s) => !removed.has(s.id)));
+      };
+      if (scope === "future") {
+        void ds
+          .detachRoutine(routineId, target.date)
+          .then(({ deletedScheduleItemIds }) => {
+            applyRemoval(deletedScheduleItemIds);
+            // Survivors keep their row but lose the routine origin, mirroring
+            // the server NULLing routine_item_id (so the badge goes away).
+            setScheduleItems((prev) =>
+              prev.map((s) =>
+                s.routineId === routineId
+                  ? { ...s, routineId: null, sourceDate: null }
+                  : s,
+              ),
+            );
+          })
+          .catch((err) => {
+            console.error("[BriefingScreen] routine detach failed", err);
+          });
+        return;
+      }
+      void ds
+        .softDeleteRoutine(routineId)
+        .then(({ deletedScheduleItemIds }) => {
+          applyRemoval(deletedScheduleItemIds);
+        })
+        .catch((err) => {
+          console.error("[BriefingScreen] routine delete failed", err);
+        });
+    },
+    [ds, deleteScopeItem],
+  );
+
+  const closeDeleteScope = useCallback(() => setDeleteScopeItem(null), []);
+
+  const handleDeleteTask = useCallback(
+    (id: string) => {
+      const target = taskNodes.find((n) => n.id === id);
+      if (target === undefined) return;
+      const markDeleted = (deleted: boolean) => {
+        setTaskNodes((prev) =>
+          prev.map((n) =>
+            n.id === id
+              ? {
+                  ...n,
+                  isDeleted: deleted,
+                  deletedAt: deleted ? new Date().toISOString() : undefined,
+                }
+              : n,
+          ),
+        );
+      };
+      markDeleted(true);
+      ds.softDeleteTask(id).catch((err) => {
+        console.error("[BriefingScreen] task delete failed", err);
+      });
+      push?.("taskTree", {
+        label: "deleteTask",
+        undo: () => {
+          markDeleted(false);
+          void ds.restoreTask(id).catch((err) => {
+            console.error("[BriefingScreen] task delete undo failed", err);
+          });
+        },
+        redo: () => {
+          markDeleted(true);
+          void ds.softDeleteTask(id).catch((err) => {
+            console.error("[BriefingScreen] task delete redo failed", err);
+          });
+        },
+      });
+    },
+    [ds, taskNodes, push],
+  );
+
   // ── Today's Todo tray (rightSidebar — #413) ──────────────────────────
   // The SAME <TodayTodoTray> the Schedule rightSidebar mounts (#298), backed
   // by the same pure selectors: today's task chips split into placed (has a
@@ -411,6 +577,11 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     upcoming,
     handleToggleScheduleItem,
     handleToggleTask,
+    handleDeleteScheduleItem,
+    handleDeleteTask,
+    deleteScopeItem,
+    handleDeleteScopeChoose,
+    closeDeleteScope,
     todoPlaced,
     todoUnplaced,
     todoAddable,
