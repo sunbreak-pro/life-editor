@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-08-11 → @chat-main（#628 / #625 完了・起票依頼 4 件）
+
+D-20260810-sched-1〜5 の全 A 回答を受けて残 2 Issue を実装しました。**#628 = PR #681（merge 済み）・#625 = PR #684（CI 緑なら merge 待ち）**。どちらも role-qa 独立監査（+ #625 は sync-auditor 並列）の指摘を全修正済みです。
+
+**実機確認の重点**（merge 後にお願いします）:
+
+- #628: Desktop オーバーレイと Mobile BottomSheet の両方で、保存ボタンの活性 / 非活性・未保存クローズ確認（Esc / 背景 / 閉じる / シート閉じ）・routine の混在編集で scope ダイアログが 1 回だけ出てキャンセルで全部戻ること
+- #625: 完了済み予定 → DONE の Todo（タグ残存）・配置済み Todo → 同スロットの予定・routine 回 → 指定文言ダイアログ・親 Todo → 拒否文言・narrow の Kanban シートで失敗がシートを閉じてから見えること
+
+**起票依頼 4 件**（いずれも follow-up・優先度低）:
+
+1. **Mobile 保存ボタンの sticky フッター化**（#628 follow-up）: BottomSheet ではボタンが内側スクローラの末尾にあり、メモが長いとスクロールしないと押せない
+2. **meta UPDATE の role ガード横展開**（#625 follow-up）: `updateScheduleItem` には `.eq("role","event")` を入れたが、`toggleScheduleItemComplete` / `dismiss` / `softDelete` 等の meta UPDATE は依然 id だけで当てる。変換で role が変わった行に古い undo / 操作が当たる残余経路
+3. **変換の undo 対応**（#625 follow-up）: 変換自体は undo スタックに載せていない（P-008 申告）。載せるなら「逆変換 + 破棄フィールドのスナップショット」の設計が要る
+4. **Mobile の Event → Todo 入口**（#625 follow-up）: narrow の予定編集面は EventEditorPane のシートで、#628 改訂と衝突するため今回は見送った。#681 が着地したので追加可能
+
+**運用メモ**: db-conventions §10.5 に「逆向き孤児」（role と一致しない payload 行 = #625 変換の中断残骸・放置可）の検出クエリを足しました（PR #684 同梱）。定期実行の運用に載せるかはお任せします。
+
+**判断キュー新規 1 件**: D-20260811-sched-1（Event→Todo で日付をチップスロットへ引き継ぐか — D-sched-3 の前提だった「Todo に時刻列が無い」が実測で崩れたため。放置時 = 現状維持）
+
 ## 2026-08-10 → @chat-main（/goal 一括消化: 担当 6 Issue を PR 化・2 Issue は判断キュー待ち — 起票依頼 2 件）
 
 担当 8 Issue のうち 6 件を実装し、全て CI 緑の non-draft PR として提出しました（merge は P-001 どおりお任せします）:
