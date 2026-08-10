@@ -42,12 +42,12 @@ disable-model-invocation: true
 - `.claude/docs/reports/2026-08-06-context-fixed-cost-baseline.md` — ベースライン。再測定はここに追記する
 - `docs-workflow` スキル — 移送先（Issue / `docs/known-issues/` / `rules/` / skill）の境界の正本
 - `task-tracker` スキル — per-chat の記録
-- `scripts/docs-lint.sh`（`LC_ALL=C` 付き）
+- `scripts/docs-lint.sh` — 実行条件（`LC_ALL=C` を付ける理由を含む）の正本は CLAUDE.md §7.1
 
 ## 環境の事実（推論では埋まらないので明記する）
 
 - **`ondemand` を削っても固定費は 1 tok も減らない**。スキル本体は起動時にしか読まれない。最大の塊（`ondemand` 合計は `always + listing` の 4 倍以上）だが、ここを削るのは棚卸しではなく別の話
-- **死んだスキルのポインタ 8 本は 0 tok**（解決できないのでロードされない）。消しても固定費は減らない。「削減」に数えない
+- **死んだスキルのポインタ 8 本は 0 tok**（解決できないのでロードされない）。消しても固定費は減らない。「削減」に数えない。実体は Mac の skill-lib（known-issues 031）— 削除・stub 化は Mac を壊すため棚卸しでも消さない
 - **`rules/` の always / scoped は frontmatter の `paths:` の有無で機械的に決まる**。`paths:` を足せば常時ロードから外れる — 削らずに費用を下げる手段がこれ
 - **MCP サーバーを切っても固定費はほとんど減らない**。deferred tools（ツール定義を必要時に取り寄せる遅延ロード）により、名前だけが載ってスキーマは `ToolSearch` 時にロードされる
 - **固定費の約 66% は `~/.claude/`（別リポジトリ `claude-dotfiles`）にある**。プロジェクト側だけを削っても、効く上限は 3 分の 1

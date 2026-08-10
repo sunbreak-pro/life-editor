@@ -37,12 +37,9 @@ disable-model-invocation: true
 
 ## 環境の事実（推論では埋まらないので明記する）
 
-- ゲートは `shared` / `web` / `desktop` で**別々に回す**。`web` の lint は `web/` 配下しか歩かないので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（PR #488 で CI だけが落ちた実例）
-- **TypeScript の版が `web` だけ違う**（web = 6.x / shared・desktop = 5.6）。`cd web && npm run build` は shared を web 側の tsc で検査するので、片方だけ緑でも安心しない
-- `scripts/docs-lint.sh` はローカルで回すとき `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
+- **コマンド一覧・ゲートの正本・実行上の注意（`shared` / `web` / `desktop` を別々に回す・lint の歩く範囲・TypeScript の版差・`LC_ALL=C`）は CLAUDE.md §7.1**。ここに転記しない
 - **`web/tests/` の jsdom にレイアウトが無い**（要素の座標がすべて 0）。画面座標に依存する経路はここでは検証できない — 落ちていなくても「通った」と読まない
 - 実ブラウザ検証（playwright MCP）と dev server は **chat-main のみ**。worktree 側は build / 型検証まで
-- ゲート一覧の正本は `.github/workflows/ci.yml`（`docs-lint` は CI 専用ジョブ）
 
 ---
 

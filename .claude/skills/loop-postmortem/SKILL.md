@@ -39,7 +39,7 @@ disable-model-invocation: true
 
 - **足す先の判定は「life-editor のコードを直せば直るか？」**。Yes なら Issue、No（Claude Code の環境 / hook / ツール挙動）なら `docs/known-issues/` + `rules/`。Issue はプロダクト課題専用
 - **起票は chat-main 一元**。worktree チャットは自分で起票せず outbox に依頼を append する
-- **`issue-dispatch` スキルはこの機械では解決できない**（Mac パスを指す死んだポインタ）
+- **`issue-dispatch` スキルは Mac のみ実体**（→ `docs/known-issues/031-mac-only-symlinked-skills-agents.md`）
 - 数値・個数・列挙は正本 1 か所だけに書く。他の文書には参照を書く（改名・退役時に必ず漏れるため — `rules/docs-consistency.md`）
 - 歴史的記述として残す行には「旧称」「retired」等の注記を同じ行に付ける（docs-lint の除外条件）
 

@@ -41,11 +41,11 @@ disable-model-invocation: true
 
 ## 環境の事実（推論では埋まらないので明記する）
 
-- **`git push*` と `gh pr create*` は `permissions.ask`** に入っている。無人実行では答える人がいないので必ず失敗する。だから本ループの完了条件は commit までで、PR 作成は人間の手番に残してある
+- **`git push*` と `gh pr create*` は確認待ちになる**（実体 = `.claude/settings.json` の `permissions.ask`）。無人実行では答える人がいないので必ず失敗する。だから本ループの完了条件は commit までで、PR 作成は人間の手番に残してある
 - **メインリポジトリ直下は `main` 専有**。feature 作業は worktree から。ブランチを切り替えたら `.claude/comm/.session-branch` を必ず書き換える
 - **tracker（`memory/` + `history/`）を実装ブランチに載せない**（D-20260801-main-1）。並行ブランチが必ず衝突する。記録は merge 後に 1 commit でまとめ、PR 本文側に要約を書く
 - 検証コマンドは `shared` / `web` / `desktop` で別々に回す必要がある（`web` の lint は `web/` 配下しか歩かない）。一覧の正本は CLAUDE.md §7.1
-- **`add-feature` / `test-writing` / `db-migration` スキルはこの機械では解決できない**（Mac パスを指す死んだポインタ）。テストの書き方は既存テストに倣う
+- **一部のスキル / エージェントは Mac のみ実体**（`add-feature` / `test-writing` / `db-migration` 等 → `docs/known-issues/031-mac-only-symlinked-skills-agents.md`）。テストの書き方は既存テストに倣う
 
 ---
 

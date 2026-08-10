@@ -33,7 +33,7 @@
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
 - **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 
-## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → `db-migration` スキル）
+## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → `db-migration` スキル = Mac のみ実体・[known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）
 
 - 約 20 テーブル（`items_meta` + `<role>_payload` モデル・移行済みドメインのみ。ドメイン一覧はコード / db-conventions が正）
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
@@ -64,7 +64,7 @@
 - **役割分担 = `role-pm` → `role-engineer` → `role-qa`**: メインが Agent ツールで順に起動する（サブエージェントからの再帰起動は禁止）
 - **commit 前は `session-verifier`、作業の区切りで `task-tracker`** を必ず通す
 - **worktree / ブランチ運用 = `worktree-policy` スキル**（§7.4 は要約のみ）／ **Issue 起票・docs 運用 = `docs-workflow` スキル**（§9 は要約のみ）
-- **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire = D-20260708-main-1）
+- **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（**Mac のみ実体** — Windows では解決不能 = [known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)。`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire = D-20260708-main-1）
 - **ツール実行ハング（応答停止）**: 原因は Claude Code 本体の SSE バグでローカルはシロ（詳細 = `~/.claude/rules/bash-tool-stability.md`）。**運用既定 = 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**
 - **open bug の確認** = `gh issue list -R sunbreak-pro/life-editor --label type:bug`（過去知見は `--state closed --search` と `docs/known-issues/` grep）
 

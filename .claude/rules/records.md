@@ -9,19 +9,19 @@ paths:
 
 ## 1. 記録型ごとの正本（一枚表）
 
-| 記録型 | 正本（SSOT） | 書き手 | 派生ビュー（手書き禁止） |
-| --- | --- | --- | --- |
-| 判断（未決） | `comm/decisions/chat-<n>.md` | 当該チャットのみ | `decisions/INDEX.md` §Open |
-| 判断（確定・Why） | `decisions/D-*.md`（1 決定 1 ファイル） | 起票チャット・昇格時 1 回 | `decisions/INDEX.md` |
-| 恒久裁定 1 行 | `comm/decisions/POLICY.md` | ユーザー承認 PR のみ | — |
-| 進行中 / 履歴 | `memory/` + `history/` の `chat-<n>.md` | 当該チャットのみ | 派生 INDEX（hook 生成・git 非追跡） |
-| 計画 | `docs/vision/plans/*.md` | Owner-chat | `.claude/INDEX.md` §進行中の計画 |
-| 障害知見 | GitHub Issue（プロダクト）/ `docs/known-issues/`（環境系） | chat-main | known-issues/INDEX.md |
-| 恒久の事実・規約 | CLAUDE.md / `rules/` | PR | — |
-| 連絡 | `comm/outbox/chat-<n>.md` | 当該チャットのみ | digest |
+| 記録型            | 正本（SSOT）                                               | 書き手                    | 派生ビュー（手書き禁止）            |
+| ----------------- | ---------------------------------------------------------- | ------------------------- | ----------------------------------- |
+| 判断（未決）      | `comm/decisions/chat-<n>.md`                               | 当該チャットのみ          | `decisions/INDEX.md` §Open          |
+| 判断（確定・Why） | `decisions/D-*.md`（1 決定 1 ファイル）                    | 起票チャット・昇格時 1 回 | `decisions/INDEX.md`                |
+| 恒久裁定 1 行     | `comm/decisions/POLICY.md`                                 | ユーザー承認 PR のみ      | —                                   |
+| 進行中 / 履歴     | `memory/` + `history/` の `chat-<n>.md`                    | 当該チャットのみ          | 派生 INDEX（hook 生成・git 非追跡） |
+| 計画              | `docs/vision/plans/*.md`                                   | Owner-chat                | `.claude/INDEX.md` §進行中の計画    |
+| 障害知見          | GitHub Issue（プロダクト）/ `docs/known-issues/`（環境系） | chat-main                 | known-issues/INDEX.md               |
+| 恒久の事実・規約  | CLAUDE.md / `rules/`                                       | PR                        | —                                   |
+| 連絡              | `comm/outbox/chat-<n>.md`                                  | 当該チャットのみ          | digest                              |
 
 - **派生ビューにしか存在しない情報を作らない**。索引・INDEX・digest への手書きは禁止（正本を書いて再生成する）
-- **同じ事実の 2 箇所目以降は本文転記でなく ID 参照**（`D-…` / `#NNN` / plan ファイル名 / `P-NNN`）にする — 数値の非複製原則（`docs-consistency.md` §1）の一般化
+- **同じ事実の 2 箇所目以降は本文転記でなく ID 参照**（`D-…` / `#NNN` / plan ファイル名 / `P-NNN`）にする — 数値の非複製原則（`docs-consistency.md` §1）の一般化。CLAUDE.md 等へ決定のインライン注記を新規に書くときも `D-…` の ID を必ず添える
 
 ## 2. どこに書くか — 1 分判定
 

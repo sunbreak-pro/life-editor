@@ -17,10 +17,11 @@
 
 > ここに残す未解決項目は **環境系（Claude Code 作業環境・Issue 化対象外）** のみ。プロダクト課題の追跡は GitHub Issues が正。
 
-| ID  | Title                                                                                                                           | Category | Since      | Status     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- | ---------- |
-| 028 | [Bash の `cd` が worktree を跨いで持続し、以降の相対パス操作が別 worktree に着地する](./028-bash-cwd-drift-across-worktrees.md) | Tooling  | 2026-05-26 | Workaround |
-| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)           | Tooling  | 2026-05-24 | Active     |
+| ID  | Title                                                                                                                                 | Category | Since      | Status     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- | ---------- |
+| 031 | [skill-lib / agents-lib への symlink 10 本が Windows で解決できず、参照先が常に不在になる](./031-mac-only-symlinked-skills-agents.md) | Tooling  | 2026-08-09 | Workaround |
+| 028 | [Bash の `cd` が worktree を跨いで持続し、以降の相対パス操作が別 worktree に着地する](./028-bash-cwd-drift-across-worktrees.md)       | Tooling  | 2026-05-26 | Workaround |
+| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)                 | Tooling  | 2026-05-24 | Active     |
 
 > - **027**（Notes/Daily plaintext password）は追跡を GitHub Issue [#118](https://github.com/sunbreak-pro/life-editor/issues/118) へ移行済み。本ディレクトリの 027 本文は参照用（file Status は Active (Backlog) のまま。集計では Active に計上）。
 > - **Issue 追跡は 027→#118 のみ**。026 / 028 は環境系のため本ディレクトリが正（起票済みだった #117 / #119 は整理のため close 済み）。
@@ -69,19 +70,19 @@
 - **Schema**: 001, 005, 011, 013, 021, 024
 - **Sync**: 008, 010, 011, 012, 013
 - **Structural**: 001, 006, 009, 013, 016, 017, 018, 019, 025, 029
-- **Tooling**: 007, 022, 023, 024, 026, 028, 029, 030
+- **Tooling**: 007, 022, 023, 024, 026, 028, 029, 030, 031
 - **Security**: 022, 027
 - **Styling**: 015
-- **環境系（Claude Code 作業環境・GitHub Issue 化対象外 → #155）**: 026, 028, 030（030 は formatter 挙動が原因だが、対処は life-editor 側の `records.mjs` で完結したため Fixed）
+- **環境系（Claude Code 作業環境・GitHub Issue 化対象外 → #155）**: 026, 028, 030, 031（030 は formatter 挙動が原因だが、対処は life-editor 側の `records.mjs` で完結したため Fixed）
 - **移行で解消（Tauri→Web で消滅見込み）**: 006
 
 ## Status 集計（個別ファイル frontmatter と一致）
 
 - Active: 2 件 (026 / 027 — 027 の追跡は GitHub #118 が正・本文は参照用)
-- Workaround: 1 件 (028)
+- Workaround: 2 件 (028 / 031)
 - Monitoring: 1 件 (006)
 - Fixed: 23 件 (012 を含む — server 側暫定対応で Fixed 確定・恒久対応は #172)
-- 合計: 27 件
+- 合計: 28 件
 
 ## 統合履歴
 

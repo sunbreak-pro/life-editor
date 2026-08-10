@@ -35,7 +35,7 @@ Issue はプロダクト課題（life-editor のコードを直せば直るも�
 
 セクション単位の Issue には `section:<id>` ラベルを付与（`<id>` は `shared/src/sections.ts` の SectionId と一致。trash は担当 worktree がないため chat-main 采配）。各セクション worktree は `gh issue list -R sunbreak-pro/life-editor --label section:<id>` で自分の担当タスクを判断する。
 
-セクションに紐づかない横断タスク（app-integration / layout-standard / docs-workspace 等のレーン）は **`shared-fix`** ラベルに集約（宛先 = タイトル prefix `[<worktree-slug>]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（運用詳細 → `comm/README.md` §Issue dispatch ルート）。
+セクションに紐づかない横断タスク（app-integration / layout-standard / docs-workspace 等のレーン）は **`shared-fix`** ラベルに集約（宛先 = タイトル prefix `[<worktree-slug>]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（Outbox との使い分け → `comm/README.md` §Issue dispatch ルート）。
 
 ラベル一覧の正本は GitHub（`gh label list`）。
 
@@ -59,4 +59,4 @@ Issue はプロダクト課題（life-editor のコードを直せば直るも�
 
 ユーザー判断は `.claude/comm/decisions/` に書き溜めて次の作業へ進む（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
 
-回答が付いたら **`.claude/decisions/D-<id>.md`（確定台帳）へ昇格してからキューを消す**（手順 = `.claude/decisions/README.md`・索引 = 同 `INDEX.md`（`records.mjs` 生成・手編集禁止）。D-20260809-main-1）。過去の判断の Why・却下案を探すときは grep でなく `.claude/decisions/INDEX.md` の Active 表・Topic 逆引きから辿る。
+回答が付いたらキューを消す前に確定台帳へ昇格する（D-20260809-main-1）。**手順・書式・INDEX の扱いの正本 = [`.claude/decisions/README.md`](../../decisions/README.md)**。過去の判断の Why・却下案を探すときは grep でなく `.claude/decisions/INDEX.md` の Active 表・Topic 逆引きから辿る。
