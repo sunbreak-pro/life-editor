@@ -103,21 +103,35 @@ export function CommandPalette({
   useEffect(() => {
     notifyQuery.current = onQueryChange;
   });
-  useEffect(() => {
+  // State half of the open-reset — adjusted during render (guarded on the
+  // open transition), not in an effect (#586). prevOpen starts false so a
+  // mount that is ALREADY open runs the same reset the old effect did.
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
+    }
+  }
+
+  // Side-effect half of the open-reset: notify the host and focus the field.
+  useEffect(() => {
+    if (isOpen) {
       notifyQuery.current?.("");
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
 
-  // Keep selectedIndex in bounds
-  useEffect(() => {
-    if (selectedIndex >= filtered.length) {
-      setSelectedIndex(Math.max(0, filtered.length - 1));
-    }
-  }, [filtered.length, selectedIndex]);
+  // Keep selectedIndex in bounds — clamped during render, so a shrinking
+  // result list never paints an out-of-range cursor (#586).
+  const boundedIndex = Math.max(
+    0,
+    Math.min(selectedIndex, filtered.length - 1),
+  );
+  if (boundedIndex !== selectedIndex) {
+    setSelectedIndex(boundedIndex);
+  }
 
   // Scroll selected item into view
   useEffect(() => {
