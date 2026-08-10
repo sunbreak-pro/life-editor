@@ -8,8 +8,8 @@ import { ItemActionRow } from "./ItemActionRow";
  * ItemDetailOverlay (Issue #307) — the generic double-click detail-edit surface
  * for an item. A centered modal frame (reuses <Modal>: portal, opaque panel,
  * backdrop, Escape-to-close, focus trap, body-scroll lock) with a host-provided
- * edit body and an optional footer of secondary `actions` (duplicate / delete /
- * stubs). The domain-specific edit form is passed as `children` — #299 fills it.
+ * edit body and an optional footer of secondary `actions` (duplicate /
+ * delete). The domain-specific edit form is passed as `children` — #299 fills it.
  *
  * Not wired into any live surface by #307 — created ready for #299 to adopt.
  *
@@ -36,8 +36,6 @@ export interface ItemDetailOverlayProps {
   children: ReactNode;
   /** Optional footer actions (secondary operations under the form). */
   actions?: ItemAction[];
-  /** Already-translated badge shown on stub footer actions (e.g. "soon"). */
-  stubBadge?: string;
   /** Extra classes for the Modal panel. */
   className?: string;
 }
@@ -48,7 +46,6 @@ export function ItemDetailOverlay({
   onClose,
   children,
   actions,
-  stubBadge,
   className,
 }: ItemDetailOverlayProps) {
   return (
@@ -66,7 +63,6 @@ export function ItemDetailOverlay({
               <ItemActionRow
                 key={action.id}
                 action={action}
-                stubBadge={stubBadge}
                 onActivate={(a) => a.onSelect?.()}
               />
             ))}

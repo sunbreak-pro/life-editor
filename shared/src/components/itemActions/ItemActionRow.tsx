@@ -4,8 +4,9 @@ import type { ItemAction } from "./types";
 /*
  * ItemActionRow (Issue #307) — the single presentational row shared by every
  * item operation panel. Renders one ItemAction: leading icon, label, danger /
- * disabled / stub styling, and an optional trailing "soon" badge for stubs.
- * The panel owns click semantics (inline-input swap etc.) via `onActivate`.
+ * disabled styling. The panel owns click semantics (inline-input swap etc.)
+ * via `onActivate`. (The `stub` placeholder branch and its "soon" badge left
+ * with #551's last consumer — retired by #572.)
  *
  * Pure presentation: lumen-* tokens only, copy pre-translated (§3.1/§6.4).
  */
@@ -15,18 +16,12 @@ export const ITEM_ACTION_ROW_CLASS =
 
 export interface ItemActionRowProps {
   action: ItemAction;
-  /** Already-translated badge shown on stub rows (e.g. "soon"). */
-  stubBadge?: string;
   /** Called with the action when an enabled row is clicked. */
   onActivate: (action: ItemAction) => void;
 }
 
-export function ItemActionRow({
-  action,
-  stubBadge,
-  onActivate,
-}: ItemActionRowProps) {
-  const isDisabled = !!(action.disabled || action.stub);
+export function ItemActionRow({ action, onActivate }: ItemActionRowProps) {
+  const isDisabled = !!action.disabled;
   return (
     <button
       type="button"
@@ -48,11 +43,6 @@ export function ItemActionRow({
         <span className="shrink-0 [&_svg]:size-3.5">{action.icon}</span>
       )}
       <span className="flex-1 truncate">{action.label}</span>
-      {action.stub && stubBadge && (
-        <span className="shrink-0 rounded-full bg-lumen-bg-secondary px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-lumen-text-tertiary">
-          {stubBadge}
-        </span>
-      )}
     </button>
   );
 }
