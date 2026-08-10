@@ -28,7 +28,7 @@
 ## 判断の現在地
 
 - 未回答（キュー）: 8 件 → [`decisions/INDEX.md`](./decisions/INDEX.md) §Open
-- 確定台帳: 25 件（うち Active 24）→ [`decisions/INDEX.md`](./decisions/INDEX.md)
+- 確定台帳: 26 件（うち Active 25）→ [`decisions/INDEX.md`](./decisions/INDEX.md)
 
 ## 型別の正本（この情報はどこにあるか）
 

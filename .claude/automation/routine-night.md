@@ -46,7 +46,7 @@
 
 ### 停止条件 — commit まで。PR は作らない
 
-- **`git push` と `gh pr create` は実行しない。** どちらも `.claude/settings.json` の `permissions.ask` に入っていて、無人では答える人がいないので必ず失敗する。push と PR 作成は**翌朝の人の手番**に残す
+- **`git push` と `gh pr create` は実行しない。** push と PR 作成は**翌朝の人の手番**に残す。**無人実行時の push 抑止は runner 側 settings で担保する** — 2026-08-10 に対話セッション側の柵（`.claude/settings.json` の `permissions.ask`）から両者を外したため（ユーザー裁定 = #618）、このレーンを有効化するときは起動コマンドに無人専用の permissions を渡す（`claude -p --settings <無人用 settings>` or `--disallowedTools`）。プロンプトの禁止文だけに頼らない
 - `/loop-implement` の停止条件（反復上限 / DDL が要る / Scope の外 / 要件が二義的 / 環境起因の失敗）に当たったら、そこで止めて報告へ回す。押し切らない
 - **検証が緑にならないまま終わるときも、その時点の状態を commit する**（次の夜と翌朝の人が続きから拾えるように）。ただし完走したものと一目で見分けがつくよう、次の 2 点で分ける:
   - ブランチ名 — 完走 `night/<issue>-<slug>` / 未完 `night-wip/<issue>-<slug>`

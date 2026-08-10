@@ -37,7 +37,7 @@
 
 実装の自走（夜 1 Issue → **commit 止まり** = `routine-night.md`）は **Phase 2**。文書整備は 2026-08-06 に完了（ループカタログ定着の待ちはユーザー指示で前倒し・試験運用 0 件のまま着手）。**発火はまだ有効化していない** — 実行基盤の裁定（D-20260804-main-1）待ち。
 
-「draft PR 止まり」ではなく **commit 止まり**なのは、`Bash(git push*)` と `Bash(gh pr create*)` が `permissions.ask` にあり、無人では答える人がいなくて必ず失敗するため。push と PR 作成は翌朝の人の手番に残す（解放の可否 = `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段）。
+「draft PR 止まり」ではなく **commit 止まり**なのは、push と PR 作成を翌朝の人の手番に残すため（解放の可否 = `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段）。**この抑止は runner 側 settings で担保する** — 2026-08-10 に対話セッション側の `permissions.ask` から `Bash(git push*)` / `Bash(gh pr create*)` を外した（ユーザー裁定 = #618）ので、レーン有効化時は無人専用の permissions を起動コマンドで渡す（`claude -p --settings <無人用 settings>` or `--disallowedTools`）。
 
 ### 実行基盤（D-20260804-main-1 裁定待ち）
 
@@ -47,7 +47,7 @@
 
 ## 安全則
 
-- **権限の二層**（親計画 §6）: 書き込みは acceptEdits で通し、**push / PR 作成は `permissions.ask` で常に確認必須**（headless では確認できず失敗 → 報告へ degrade）。main 保護の deny list は据え置き
+- **権限の二層**（親計画 §6）: 書き込みは acceptEdits で通し、**push / PR 作成は無人レーンでのみ抑止**する（担保は runner 側 settings — 2026-08-10 以降、repo の `permissions.ask` に残るのは `Bash(gh pr merge*)` だけ。#618）。main 保護の deny list は据え置き
 - **時間 / 反復上限は bash で明示計測**（cap 設定だけでは信用しない — 親計画 §3 の暴走実例）。超過は失敗ではなく「スキップして報告」
 - **ログ・長出力は会話に流さずファイルへ**（`.claude/automation/logs/` — git 非追跡）
 - **質問経路は decision キュー / digest の要判断欄のみ**（headless では AskUserQuestion 不可）
