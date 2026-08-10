@@ -1,5 +1,21 @@
 # HISTORY (chat-main)
 
+### 2026-08-10 - スマホ ソフトキーボード起因バグ 2 件（#607 / #608・PR #621 open）
+
+#### 概要
+
+公開 Web URL をスマホの主導線に据えた直後（D-20260807-main-1）に出た `sev:important` 2 件を 1 本の計画で片付けた。#607（Note に書き込めない）は「自分の書き込みが自分の hydrate を無効化する」、#608（タブバーがせり上がる）はキーボード表示中の非描画で対処。どちらも実装 + 回帰テストまで着地し、実機での見た目確認は deploy 後に残る。
+
+#### 変更点
+
+- **#607 の原因確定と修正**（`shared/src/hooks/useNotesUnifiedAPI.ts`）: `updateNote` はローカル行に**クライアント時計**の `updatedAt` を載せるが、own-write のエコーで走るリロードが返すのは**サーバ時計**。#301 の限定無効化マージ（`prev.updatedAt === row.updatedAt` の行だけ本文キャッシュを維持）は、**いま編集中のノートだけが必ず外れる**構造だった → `isContentLoaded` false → mobile シートがエディタを skeleton に差し替え → フォーカスが外れてキーボードが閉じる。Desktop はエディタが note id で keyed され remount しないため無傷。マージ判定に「**開いている行 かつ 自分が書いた行**」を OR で追加
+- **マークの寿命を「リロード 1 回」に**（QA の BLOCKING 指摘）: 初版は「選択が外れるまで」だったが、mobile シートの `closeSheet` は shared の選択を落とさないため実質セッション中ずっと生き、その間に他デバイス / MCP が同じノートに書くと**こちらの古い本文で無言上書き**する筋があった。保持した行はサーバの `updatedAt` を取り込むので使い捨てで足り、in-flight の書き込みがある間だけ保留する（`unackedWritesRef`）
+- **#608 = `shared/src/hooks/useSoftKeyboard.ts` 新設 + `AppShell.tsx`**: narrow でキーボード表示中は `BottomTabBar` を描画しない。判定は「**同じ幅で観測した最大可視高との差**」で、レイアウトごと縮む UA でも visual だけ縮む UA でも成立する（実機での `innerHeight` / `visualViewport.height` 実測待ちを解消）。`documentElement.clientHeight` との差を使う案は QA 指摘で棄却 — モバイルの ICB は大ビューポートを返すため常時 60〜110px 浮き、上下 2 段バーの UA では**キーボード無しでナビが恒久的に消える**危険側の失敗になる。ピンチズームは `vv.scale > 1` で除外
+- **回帰テスト 2 本**（`shared/tests/notesOpenNoteOwnEditHydrate.test.tsx` 3 ケース / `appShellSoftKeyboard.test.tsx` 3 ケース）。#607 側 2 件は**修正を戻すと落ちることを実測で確認**。jsdom にレイアウトが無いので固定するのは「判断が下ること」まで（CLAUDE.md §7.1）
+- **Scope 例外 = D-20260810-main-4**: `useNotesUnifiedAPI.ts` は #587（分割予定）のため「触らない」宣言だったが、原因確定を受けてユーザー裁定で例外入り（実測 = #587 未着手・open PR ゼロ）。#587 に分割時の申し送りをコメント済み
+- **#512 は close せず**: Android 実機で「潜っていない」を実測しコメントしたが、指摘は iPhone の `safe-area-inset-top` 前提で Android は上端 inset ≈ 0 のため反証にならない
+- **AC「PR diff ±200 行以内」超過を明示**（免除ではなく PR 本文に内訳記載）: 実装 約 200 行 + テスト 約 380 行 + 記録類
+
 ### 2026-08-10 - 確認待ちの摩擦を除去（#618 permissions + tracker 新運用の規約化・PR #619 / dotfiles PR #15 open）
 
 #### 概要
