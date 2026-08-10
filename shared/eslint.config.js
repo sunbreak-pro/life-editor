@@ -75,8 +75,4 @@ export default defineConfig([
     ],
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
-  {
-    files: ["src/components/Connect/graph/useGraphSimulation.ts"],
-    rules: { "react-hooks/immutability": "off" },
-  },
 ]);
