@@ -96,16 +96,6 @@ export function GraphCanvas({
     [snapshot],
   );
 
-  // Working graph: clone so d3 can mutate. Cached-position restore happens
-  // inside the simulation effect (refs must not be read during render).
-  const workingGraph = useMemo<GraphSnapshot>(
-    () => ({
-      nodes: snapshot.nodes.map((n) => ({ ...n })),
-      links: snapshot.links.map((l) => ({ ...l })),
-    }),
-    [snapshot],
-  );
-
   const renderStateRef = useRef<
     Omit<RenderState, "nodes" | "links" | "transform" | "size">
   >({
@@ -137,8 +127,10 @@ export function GraphCanvas({
     nodeSizeScale,
   ]);
 
+  // The snapshot is passed as-is: useGraphSimulation clones it internally
+  // before d3 mutates anything (#586), so no working copy is needed here.
   const { reheat } = useGraphSimulation({
-    graph: workingGraph,
+    graph: snapshot,
     size,
     forces,
     canvasRef,

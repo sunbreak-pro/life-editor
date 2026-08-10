@@ -1,5 +1,17 @@
 # HISTORY ARCHIVE (chat-refactor-core) — 2026-07
 
+### 2026-07-29 - Phase B Step 1（BriefingScreen hooks 切り出し・PR #462）
+
+#### 概要
+
+Phase B（web 画面 hooks 切り出し）の第 1 弾。BriefingScreen（850 行）をデータ側 `useBriefingData` と編集側 `useDailySections` の 2 hook + 表示専念の画面（約 290 行）に分割した（挙動変更ゼロ・shared/src 無改変）。
+
+#### 変更点
+
+- **web/briefing**: `hooks/useBriefingData.ts` 新設（7 ソース fetch + syncVersion 再取得・集計・夕刊表示リスト・tray 派生・DataService 書き込みハンドラ）/ `hooks/useDailySections.ts` 新設（夕刊エディタ + mood・宣言 draft/echo 照合・debounce flush・セクションマージ保存。夕刊と宣言が共有すべき直列保存チェーンを hook 内部に閉じ込め構造的に保証）。コードは配管以外 verbatim 移動（dep 配列への setDailyContent 追加のみ = stable setter で挙動不変）
+- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 3 ファイル lint 0 problems・session-verifier PASS
+- **PR**: #462 open（`claude/refactor-06-briefing-hooks`・merge はユーザーゲート。#461 とファイル非重複で独立）
+
 ### 2026-07-29 - DataService 分割 Step 5（stub 切り出し + facade 最終化・PR #461）
 
 #### 概要

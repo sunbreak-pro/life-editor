@@ -301,6 +301,49 @@ describe("CommandPalette — Desktop keyboard path (unchanged by #473)", () => {
     });
   });
 
+  // #586 pins: the open TRANSITION resets the palette session — the typed
+  // query, the cursor position, and the host's search must all clear — and a
+  // shrinking result list can never leave the cursor out of bounds.
+  it("resets the field, selection and host query when reopened", () => {
+    const onQueryChange = vi.fn();
+    const props = {
+      onClose: vi.fn(),
+      commands: COMMANDS,
+      placeholder: "Type a command...",
+      noResultsLabel: "No results found",
+      onQueryChange,
+    };
+    const { rerender } = render(<CommandPalette isOpen {...props} />);
+    const { input } = boxes();
+    fireEvent.change(input, { target: { value: "dai" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    rerender(<CommandPalette isOpen={false} {...props} />);
+    rerender(<CommandPalette isOpen {...props} />);
+
+    expect((boxes().input as HTMLInputElement).value).toBe("");
+    expect(onQueryChange).toHaveBeenLastCalledWith("");
+    // Full list back, cursor back on the first row.
+    const rows = screen.getAllByRole("button");
+    expect(rows.map((r) => r.textContent)).toEqual(["Notes", "Daily"]);
+    expect(rows[0].className).toContain("bg-lumen-hover");
+  });
+
+  it("keeps the selection in bounds when the list shrinks", () => {
+    renderPalette();
+    const { input } = boxes();
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(screen.getAllByRole("button")[1].className).toContain(
+      "bg-lumen-hover",
+    );
+    // Narrow to one row: the old index (1) no longer exists, so the cursor
+    // clamps to the last remaining row instead of pointing past the list.
+    fireEvent.change(input, { target: { value: "dai" } });
+    const rows = screen.getAllByRole("button");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].className).toContain("bg-lumen-hover");
+  });
+
   it("announces itself as a modal dialog (#503)", () => {
     renderPalette();
     const dialog = screen.getByRole("dialog");

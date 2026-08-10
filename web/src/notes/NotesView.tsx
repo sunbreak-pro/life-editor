@@ -1,18 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
-import {
-  FileText,
-  ChevronRight,
-  ChevronDown,
-  Link2,
-  Lock,
-  Pin,
-  Plus,
-  Search,
-  Trash2,
-  RotateCcw,
-} from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import {
   useNotesUnifiedContext,
   useWikiTagsUnifiedContext,
@@ -20,34 +7,24 @@ import {
   useMediaQuery,
   useRightSidebarContext,
   RightSidebarPortal,
-  NoteDetailPanel,
-  LockedBodyGate,
   EmptyState,
   SkeletonList,
-  ExcerptListItem,
   QuickAddSheet,
   BottomSheet,
-  SidebarListControls,
-  StatusFilterChips,
-  TagHeadingIcon,
-  tagGroupKey as groupKey,
-  cn,
   type NoteSortMode,
   type DataService,
-  FOCUS_RING,
 } from "@life-editor/shared";
-import { useNoteTagDnd, noteDraggableId } from "./useNoteTagDnd";
-import { RichTextEditor } from "./RichTextEditor";
-import {
-  NotePasswordDialog,
-  type NotePasswordMode,
-} from "./NotePasswordDialog";
-import { TagPicker, LinkPanel } from "../wikitag";
-import { TreeDragGhost } from "../components/TreeDragGhost";
-import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
+import { useNoteTagDnd } from "./useNoteTagDnd";
+import { NoteBodyEditor } from "./NoteBodyEditor";
+import { NotePasswordDialog } from "./NotePasswordDialog";
+import { LinkPanel } from "../wikitag";
+import { NotesSidebarList } from "./NotesSidebarList";
+import { NotesMobileList } from "./NotesMobileList";
+import { NoteDetailSurface } from "./NoteDetailSurface";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNoteSheetTarget } from "./hooks/useNoteSheetTarget";
+import { useNotePassword } from "./hooks/useNotePassword";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -59,38 +36,34 @@ import { useNoteSheetTarget } from "./hooks/useNoteSheetTarget";
  *
  *   - Desktop (isWide): the MAIN content is the selected note's editor — the
  *     shared <NoteDetailPanel variant="main"> in a centered surface. Nothing
- *     selected → the shared <EmptyState>. The grouped side list (search + "+
- *     note", collapsible tag headings, draggable note rows, a "Trash (N)" row)
- *     is PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal.
+ *     selected → the shared <EmptyState>. The grouped side list (search + sort,
+ *     collapsible tag headings, draggable note rows, a "Trash (N)" row) is
+ *     PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal.
  *   - Mobile (narrow): a sort + search + tag-filter header (#369), then the
  *     same tag groups as collapsible headings + ExcerptListItem rows, a
- *     92%-height detail sheet (the SAME <NoteDetailPanel> as the Desktop main,
- *     fully editable since #471 — mobile-scope #7), and a "+" QuickAddSheet.
+ *     92%-height detail sheet (the SAME note detail as the Desktop main, fully
+ *     editable since #471 — mobile-scope #7), and a "+" QuickAddSheet.
  *
  * Both halves render the SAME derived list (search → tag groups → sort → tag
  * filter) off the same state, so the two breakpoints never disagree (#369).
- *
- * DnD: drag a note onto a tag heading = assign that tag (useNoteTagDnd). The
- * untagged bucket is NOT a drop target (dropping there would mean "remove all
- * tags" — destructive, so a no-op). No reorder / move-into: sort_order carries
- * no meaning across the many-to-many tag model.
- *
- * DnD ∩ tag filter (#369): the drop targets ARE the rendered headings, so
- * soloing one tag leaves only that tag droppable — i.e. nothing left to assign
- * (the dragged note already carries it), and soloing "untagged" leaves none at
- * all. That is inherent to hiding rows, not a defect to route around: the
- * filter is transient view state (never persisted), so tagging by drag means
- * clearing it first. The chips sit directly above the list, one click away.
  *
  * Data stays context-side (useNotesUnifiedContext / useWikiTagsUnifiedContext);
  * this view is DataService-free (§3.1) and takes copy from useTranslation →
  * props.
  *
- * Hooks split (phase B, zero behavior change): the derived list pipeline +
- * sort/filter/collapse state live in hooks/useNoteListState, the "[[" link
- * plumbing + cross-tab selection handoff in hooks/useNoteLinking, and the
- * desktop row/heading components in NoteListRows.tsx. This file is the host
- * shell: dialog/sheet state, DnD wiring and the breakpoint JSX.
+ * Split (#588, zero behavior change). This file is the HOST: it owns the state
+ * both surfaces read, the i18n → props hand-off, and the breakpoint switch.
+ * The pieces:
+ *   - hooks/useNoteListState — the derived list pipeline + sort/filter/collapse
+ *   - hooks/useNoteLinking   — "[[" plumbing + cross-tab selection handoff
+ *   - hooks/useNoteSheetTarget — which note the mobile sheet is showing
+ *   - hooks/useNotePassword  — the password dialog + unlocked set
+ *   - NotesSidebarList / NotesMobileList — the two list surfaces
+ *   - NoteDetailSurface      — the detail panel both surfaces host
+ *   - NoteListRows           — the Desktop draggable row + droppable heading
+ * The derived list and the sheet target stay HERE because both surfaces read
+ * them; computing them inside a surface would give each breakpoint its own
+ * copy of the same state.
  */
 
 // Password dialog copy. Kept as local constants (the Notes i18n追い付き is
@@ -151,14 +124,19 @@ export function NotesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWide]);
 
-  const [pwDialog, setPwDialog] = useState<{
-    mode: NotePasswordMode;
-    noteId: string;
-  } | null>(null);
-  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
+  // Password gate — one object both surfaces ask, so the same locked note
+  // behaves identically at either width (#526).
+  const password = useNotePassword({
+    setNotePassword: notes.setNotePassword,
+    removeNotePassword: notes.removeNotePassword,
+    verifyNotePassword: notes.verifyNotePassword,
+  });
+
   const [trashOpen, setTrashOpen] = useState(false);
   // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
-  // here from the note body so reading/writing stays unobstructed.
+  // here from the note body so reading/writing stays unobstructed. Both
+  // disclosures are host state: the side list unmounts on narrow, so keeping
+  // them there would forget the user's choice across a resize.
   const [linksOpen, setLinksOpen] = useState(false);
   // Mobile-only: the note whose detail sheet is open + the quick-add sheet.
   const sheet = useNoteSheetTarget({
@@ -186,14 +164,9 @@ export function NotesView({
   } = useNoteListState();
 
   // "[[" link plumbing + cross-tab pending-selection handoff (hooks split).
-  const {
-    linkableItems,
-    resolveTitle,
-    loadLinkTargets,
-    handleResolvedLinkInserted,
-    handleBodySaved,
-    handleCreateNoteForLink,
-  } = useNoteLinking({
+  // Kept as one bundle: NoteBodyEditor takes the whole thing, so the two
+  // surfaces cannot end up with different halves of it wired (#475).
+  const linking = useNoteLinking({
     dataService,
     pendingSelectNoteId,
     onConsumePendingSelect,
@@ -225,24 +198,6 @@ export function NotesView({
     notes.setSelectedNoteId(id);
   };
 
-  const handlePwSubmit = async (password: string) => {
-    if (!pwDialog) return;
-    const { mode, noteId } = pwDialog;
-    if (mode === "set") {
-      await notes.setNotePassword(noteId, password);
-    } else if (mode === "remove") {
-      await notes.removeNotePassword(noteId, password);
-    } else {
-      const ok = await notes.verifyNotePassword(noteId, password);
-      if (!ok) throw new Error("wrong-password");
-      setUnlocked((prev) => {
-        const next = new Set(prev);
-        next.add(noteId);
-        return next;
-      });
-    }
-  };
-
   if (notes.isLoading) {
     return (
       <div className="px-4 pt-4">
@@ -251,422 +206,108 @@ export function NotesView({
     );
   }
 
+  // ---- i18n → props (§6.4) --------------------------------------------
+  //
+  // The list controls are the same controls at both widths, so the two label
+  // sets are built off the same keys.
+
+  const listLabels = {
+    searchPlaceholder: t("materials.notes.searchPlaceholder"),
+    sort: t("materials.sidebar.sort"),
+    toggleDirection: t("materials.sidebar.toggleDirection"),
+    tagFilter: t("materials.notes.tagFilterLabel"),
+    empty: t("materials.notes.empty"),
+    addCta: t("materials.notes.addCta"),
+    collapseGroup: t("materials.notes.collapseGroup"),
+    expandGroup: t("materials.notes.expandGroup"),
+  };
+
+  const detailLabels = {
+    title: t("notesView.detailTitle"),
+    pin: t("notesView.unpin"),
+    unpin: t("notesView.pin"),
+    delete: t("materials.notes.deleteNote"),
+    moreActions: t("notesView.moreActions"),
+    content: t("materials.notes.content"),
+    lockedHint: t("materials.notes.lockedHint"),
+  };
+
+  // The controls both surfaces share (host-owned state, injected twice).
+  const listControls = {
+    searchQuery: notes.searchQuery,
+    onSearchChange: handleSearchChange,
+    sortModes,
+    sortMode: notes.sortMode,
+    onSortModeChange: (id: string) => notes.setSortMode(id as NoteSortMode),
+    sortDirection: notes.sortDirection,
+    onToggleDirection: () =>
+      notes.setSortDirection(notes.sortDirection === "asc" ? "desc" : "asc"),
+    directionLabel,
+    showTagFilter,
+    tagFilterChips,
+    tagFilter,
+    onTagFilterChange: setTagFilter,
+    hasNotes,
+    visibleGroups,
+    collapsedGroups,
+    onToggleGroup: toggleGroup,
+  };
+
   // ---- Desktop side list ----------------------------------------------
   //
-  // The tag-grouped note list, pushed into the shared rightSidebar (wide-
-  // only). The panel well supplies padding + scroll, so this is frameless
-  // natural-flow content: search + create, the groups, then the Trash section.
+  // The tag-grouped note list, pushed into the shared rightSidebar (wide-only).
 
   const sidebarList = (
-    <div className="flex flex-col gap-2">
-      {/* Search only. Create moved to the main-content top-right (#302); folder-
-          create is gone — organization is tags now. */}
-      <div className="flex flex-col gap-2">
-        <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
-          <Search
-            size={13}
-            aria-hidden
-            className="shrink-0 text-lumen-text-tertiary"
+    <NotesSidebarList
+      {...listControls}
+      labels={{
+        ...listLabels,
+        deleteNote: t("materials.notes.deleteNote"),
+        assignTagHint: t("materials.notes.assignTagHint"),
+        links: t("materials.notes.links"),
+        linksEmpty: t("materials.notes.mainEmpty"),
+        trash: t("materials.notes.trash"),
+      }}
+      error={notes.error}
+      selectedNoteId={selected?.id ?? null}
+      onSelectNote={handleSelectDesktop}
+      onDeleteNote={notes.softDeleteNote}
+      onCreateNote={() => notes.createNote()}
+      dnd={dnd}
+      linksOpen={linksOpen}
+      onToggleLinks={() => setLinksOpen((v) => !v)}
+      linksPanel={
+        selected ? (
+          <LinkPanel
+            itemId={selected.id}
+            resolveTitle={linking.resolveTitle}
+            linkableItems={linking.linkableItems}
           />
-          <input
-            value={notes.searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder={t("materials.notes.searchPlaceholder")}
-            aria-label={t("materials.notes.searchPlaceholder")}
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Sort controls (#283) — mode picker + direction toggle above the list.
-          No filter row: title search already exists via the search box above. */}
-      <SidebarListControls
-        modes={sortModes}
-        activeModeId={notes.sortMode}
-        onModeChange={(id) => notes.setSortMode(id as NoteSortMode)}
-        sortLabel={t("materials.sidebar.sort")}
-        direction={notes.sortDirection}
-        onToggleDirection={() =>
-          notes.setSortDirection(notes.sortDirection === "asc" ? "desc" : "asc")
-        }
-        directionLabel={directionLabel}
-        directionToggleLabel={t("materials.sidebar.toggleDirection")}
-      />
-
-      {/* Tag filter (#369) — solo one tag group; the active chip clears it. */}
-      {showTagFilter && (
-        <StatusFilterChips
-          chips={tagFilterChips}
-          value={tagFilter}
-          onChange={setTagFilter}
-          label={t("materials.notes.tagFilterLabel")}
-          size="sm"
-        />
-      )}
-
-      {notes.error && (
-        <p
-          role="alert"
-          className="rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
-        >
-          {notes.error}
-        </p>
-      )}
-
-      {/* Tag groups. */}
-      {!hasNotes ? (
-        <EmptyState
-          icon={<FileText aria-hidden />}
-          message={t("materials.notes.empty")}
-          cta={{
-            label: t("materials.notes.addCta"),
-            onClick: () => notes.createNote(),
-          }}
-        />
-      ) : (
-        <DndContext
-          sensors={dnd.sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={dnd.handleDragStart}
-          onDragOver={dnd.handleDragOver}
-          onDragEnd={dnd.handleDragEnd}
-          onDragCancel={dnd.handleDragCancel}
-        >
-          <ul className="flex flex-col gap-1.5">
-            {visibleGroups.map((group) => {
-              const key = groupKey(group);
-              const collapsed = collapsedGroups.has(key);
-              return (
-                <li key={key} className="flex flex-col gap-px">
-                  <DesktopTagHeading
-                    group={group}
-                    collapsed={collapsed}
-                    onToggle={toggleGroup}
-                    collapseLabel={t("materials.notes.collapseGroup")}
-                    expandLabel={t("materials.notes.expandGroup")}
-                  />
-                  {!collapsed && (
-                    <ul className="flex flex-col gap-0.5">
-                      {group.notes.map((node) => (
-                        <DesktopNoteRow
-                          key={`${key}-${node.id}`}
-                          node={node}
-                          dragId={noteDraggableId(key, node.id)}
-                          selected={selected?.id === node.id}
-                          onSelect={handleSelectDesktop}
-                          onDelete={notes.softDeleteNote}
-                          deleteLabel={t("materials.notes.deleteNote")}
-                          dragHintLabel={t("materials.notes.assignTagHint")}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <DragOverlay>
-            {dnd.activeNote ? (
-              <TreeDragGhost title={dnd.activeNote.title} />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
-
-      {/* Links panel — the selected note's item↔item links, moved out of the
-          note body (F-3 #260). Same divider + disclosure structure as the
-          Trash section below (layout-standard v2 "panel under the divider"). */}
-      <div className="border-t border-lumen-border pt-1">
-        <button
-          type="button"
-          onClick={() => setLinksOpen((v) => !v)}
-          aria-expanded={linksOpen}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          {linksOpen ? (
-            <ChevronDown size={13} aria-hidden className="shrink-0" />
-          ) : (
-            <ChevronRight size={13} aria-hidden className="shrink-0" />
-          )}
-          <Link2 size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">{t("materials.notes.links")}</span>
-        </button>
-        {linksOpen &&
-          (selected ? (
-            <div className="pb-2">
-              <LinkPanel
-                itemId={selected.id}
-                resolveTitle={resolveTitle}
-                linkableItems={linkableItems}
-              />
-            </div>
-          ) : (
-            <p className="px-1 pb-2 text-xs text-lumen-text-tertiary">
-              {t("materials.notes.mainEmpty")}
-            </p>
-          ))}
-      </div>
-
-      {/* Trash section. */}
-      <div className="border-t border-lumen-border pt-1">
-        <button
-          type="button"
-          onClick={() => setTrashOpen((v) => !v)}
-          aria-expanded={trashOpen}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          {trashOpen ? (
-            <ChevronDown size={13} aria-hidden className="shrink-0" />
-          ) : (
-            <ChevronRight size={13} aria-hidden className="shrink-0" />
-          )}
-          <Trash2 size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">
-            {t("materials.notes.trash")}（{notes.deletedNotes.length}）
-          </span>
-        </button>
-        {trashOpen && notes.deletedNotes.length > 0 && (
-          <ul className="max-h-40 space-y-1 overflow-y-auto pb-2">
-            {notes.deletedNotes.map((n) => (
-              <li
-                key={n.id}
-                className="flex items-center justify-between gap-2 px-1 text-sm"
-              >
-                <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
-                  {n.title || "(untitled)"}
-                </span>
-                <span className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => notes.restoreNote(n.id)}
-                    aria-label={`Restore ${n.title || "untitled"}`}
-                    className={cn(
-                      "text-lumen-accent hover:opacity-80",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <RotateCcw size={14} aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => notes.permanentDeleteNote(n.id)}
-                    aria-label={`Permanently delete ${n.title || "untitled"}`}
-                    className={cn(
-                      "text-lumen-danger hover:opacity-80",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <Trash2 size={14} aria-hidden />
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/*
-       * The Notes-local tag edit entry (#310) was removed in #409: the tag
-       * master now lives in the app shell's left sidebar (above ⌘K), reachable
-       * from every section including this one. Two doors to the same panel is
-       * one too many, and the panel's scope outgrew this sidebar anyway — it
-       * lists items of every kind (tasks / events / notes / dailies), so
-       * presenting it as a Notes feature misdescribed it.
-       */}
-    </div>
+        ) : null
+      }
+      trashOpen={trashOpen}
+      onToggleTrash={() => setTrashOpen((v) => !v)}
+      deletedNotes={notes.deletedNotes}
+      onRestoreNote={notes.restoreNote}
+      onPermanentDeleteNote={notes.permanentDeleteNote}
+    />
   );
 
   // ---- Mobile body ----------------------------------------------------
 
   const mobileBody = (
-    <div className="flex h-full flex-col px-4 pt-2">
-      {/*
-       * #369 mobile list controls. Mobile has no rightSidebar, so the placement
-       * answer is "a fixed header above the scrolling group list": sort, search,
-       * then tag chips — all OUTSIDE the scroller so they stay reachable at any
-       * scroll position. The chip row only appears with more than one bucket.
-       *
-       * Mobile gets its own sort picker rather than inheriting the desktop
-       * choice: `sortMode` lives in localStorage, which a real phone build
-       * (Capacitor) does not share with the desktop app — without the picker the
-       * phone would be pinned to the default order forever. Before #369 the
-       * mobile list ignored the preference entirely (it read the raw `groups`),
-       * so its order does change: title A→Z becomes the chosen sort.
-       */}
-      {(hasNotes || searchActive) && (
-        <div className="flex flex-col gap-2 pb-2">
-          <SidebarListControls
-            modes={sortModes}
-            activeModeId={notes.sortMode}
-            onModeChange={(id) => notes.setSortMode(id as NoteSortMode)}
-            sortLabel={t("materials.sidebar.sort")}
-            direction={notes.sortDirection}
-            onToggleDirection={() =>
-              notes.setSortDirection(
-                notes.sortDirection === "asc" ? "desc" : "asc",
-              )
-            }
-            directionLabel={directionLabel}
-            directionToggleLabel={t("materials.sidebar.toggleDirection")}
-          />
-          <div className="flex h-9 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
-            <Search
-              size={14}
-              aria-hidden
-              className="shrink-0 text-lumen-text-tertiary"
-            />
-            <input
-              value={notes.searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder={t("materials.notes.searchPlaceholder")}
-              aria-label={t("materials.notes.searchPlaceholder")}
-              className="min-w-0 flex-1 bg-transparent text-sm text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
-            />
-          </div>
-          {showTagFilter && (
-            <StatusFilterChips
-              chips={tagFilterChips}
-              value={tagFilter}
-              onChange={setTagFilter}
-              label={t("materials.notes.tagFilterLabel")}
-              size="sm"
-            />
-          )}
-        </div>
-      )}
-
-      {!hasNotes ? (
-        <EmptyState
-          icon={<FileText aria-hidden />}
-          message={t("materials.notes.empty")}
-          cta={{
-            label: t("materials.notes.addCta"),
-            onClick: () => setAddOpen(true),
-          }}
-        />
-      ) : (
-        /*
-         * #509: the scroller's own bottom padding IS the FAB clearance — the
-         * button floats over this box (48px tall at a 20px offset = 68px of
-         * occluded strip), so anything less lets the last row's right end sit
-         * under it and a "open this note" tap creates a new one instead.
-         * pb-24 (96px) is the same clearance the Schedule mobile list uses
-         * under its own FAB (#467); keep new FABs on that number.
-         */
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-24">
-          {visibleGroups.map((group) => {
-            const key = groupKey(group);
-            const collapsed = collapsedGroups.has(key);
-            // Divider-style heading (#311), mobile twin of DesktopTagHeading.
-            const color = group.tagColor;
-            const bandStyle = color
-              ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
-              : undefined;
-            return (
-              <div key={key} className="flex flex-col gap-1">
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(key)}
-                  aria-expanded={!collapsed}
-                  aria-label={
-                    collapsed
-                      ? t("materials.notes.expandGroup")
-                      : t("materials.notes.collapseGroup")
-                  }
-                  className={cn(
-                    "flex w-full items-center gap-2 px-1 py-1.5 text-left",
-                    FOCUS_RING,
-                  )}
-                >
-                  <TagHeadingIcon icon={group.tagIcon} color={color} />
-                  <span
-                    className={cn(
-                      "min-w-0 shrink truncate rounded-full border px-2.5 py-0.5 text-sm font-semibold text-lumen-text",
-                      color ? "" : "border-lumen-border bg-lumen-bg-secondary",
-                    )}
-                    style={bandStyle}
-                  >
-                    {group.tagName}
-                  </span>
-                  <span className="shrink-0 text-xs font-medium tabular-nums text-lumen-text-tertiary">
-                    {group.notes.length}
-                  </span>
-                  <span
-                    aria-hidden
-                    className="h-px min-w-4 flex-1 bg-lumen-border"
-                  />
-                  {collapsed ? (
-                    <ChevronRight
-                      size={14}
-                      aria-hidden
-                      className="shrink-0 text-lumen-text-tertiary"
-                    />
-                  ) : (
-                    <ChevronDown
-                      size={14}
-                      aria-hidden
-                      className="shrink-0 text-lumen-text-tertiary"
-                    />
-                  )}
-                </button>
-                {!collapsed &&
-                  group.notes.map((node) => (
-                    <div key={`${key}-${node.id}`}>
-                      <ExcerptListItem
-                        title={node.title || "(untitled)"}
-                        leading={<FileText size={14} aria-hidden />}
-                        meta={
-                          node.hasPassword ? (
-                            <Lock
-                              size={13}
-                              aria-label="Password protected"
-                              className="text-lumen-text-tertiary"
-                            />
-                          ) : node.isPinned ? (
-                            <Pin
-                              size={13}
-                              aria-label="Pinned"
-                              className="text-lumen-accent"
-                            />
-                          ) : undefined
-                        }
-                        onClick={() => sheet.openSheet(node.id)}
-                      />
-                    </div>
-                  ))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Floating "+" quick-add. */}
-      <button
-        type="button"
-        onClick={() => setAddOpen(true)}
-        aria-label={t("materials.notes.quickAddTitle")}
-        className={cn(
-          "absolute bottom-5 right-5 grid h-12 w-12 place-items-center rounded-full",
-          "bg-lumen-accent text-lumen-on-accent shadow-lumen-md transition-opacity hover:opacity-90",
-          FOCUS_RING,
-        )}
-      >
-        <Plus size={22} aria-hidden />
-      </button>
-    </div>
+    <NotesMobileList
+      {...listControls}
+      labels={{ ...listLabels, quickAdd: t("materials.notes.quickAddTitle") }}
+      searchActive={searchActive}
+      onOpenNote={sheet.openSheet}
+      onQuickAdd={() => setAddOpen(true)}
+    />
   );
 
   // ---- Mobile detail sheet --------------------------------------------
 
   const sheetNote = sheet.sheetNote ?? null;
-  const sheetGated =
-    !!sheetNote?.hasPassword && !unlocked.has(sheetNote?.id ?? "");
   // The LIST omits note bodies (content=""); the body arrives only after the
   // async hydrate driven by openSheet, and RichTextEditor ignores
   // initialContent changes once mounted under a stable key — so the mount is
@@ -677,62 +318,6 @@ export function NotesView({
   // first keystroke saved the empty version.
   const sheetReady = sheet.sheetReady;
 
-  // ---- Password gate (both surfaces) ----------------------------------
-  //
-  // #526: the lock covers the BODY ONLY — title / tags / pin / delete stay
-  // usable without the password. Desktop always worked this way; the mobile
-  // sheet (#471) swapped the whole panel for the unlock CTA, so the same locked
-  // note behaved differently depending on the window width. Both surfaces now
-  // wrap their editor in the same <LockedBodyGate>, which is what keeps them
-  // from drifting apart again.
-  const gatedContentEditor = (
-    noteId: string,
-    gated: boolean,
-    editor: ReactNode,
-  ): ReactNode => (
-    <LockedBodyGate
-      locked={gated}
-      hint={t("materials.notes.lockedHint")}
-      onUnlock={() => setPwDialog({ mode: "verify", noteId })}
-    >
-      {editor}
-    </LockedBodyGate>
-  );
-
-  // ---- Desktop rightSidebar detail ------------------------------------
-
-  const detailGated =
-    !!selected?.hasPassword && !unlocked.has(selected?.id ?? "");
-
-  const detailContentEditor = selected
-    ? gatedContentEditor(
-        selected.id,
-        detailGated,
-        <RichTextEditor
-          key={selected.id}
-          noteId={selected.id}
-          initialContent={selected.content || undefined}
-          editable={!selected.isEditLocked}
-          onUpdate={(content) => {
-            notes.updateNote(selected.id, { content });
-            // #372: drop inline-origin edges whose "[[ ]]" left the text.
-            handleBodySaved(selected.id, content);
-          }}
-          // "[[" wiki-link autocomplete + click navigation (Issue #285).
-          loadLinkTargets={loadLinkTargets}
-          onNavigateToItem={onNavigateToItem}
-          onResolvedLinkInserted={(targetId) =>
-            handleResolvedLinkInserted(selected.id, targetId)
-          }
-          onCreateNoteForLink={handleCreateNoteForLink}
-          // Borderless — sit flush inside the NoteDetailPanel card so the note
-          // body reads as a single clean surface, matching the Daily editor
-          // card (2026-07-18: align Notes main formatting to Daily).
-          className="pt-1"
-        />,
-      )
-    : undefined;
-
   // ---- Desktop main editor --------------------------------------------
   //
   // The selected note's detail (meta row + tags + TipTap body) as the tab's
@@ -740,11 +325,10 @@ export function NotesView({
   // — F-3 #260). Nothing selected → the select-or-create empty state. #375:
   // the folder guards on the tags / editor slots are gone with the folder type
   // — every selectable row is a note with a body.
-
-  // Main-content toolbar (#302): "+ Add Note" now lives at the main-content
-  // top-right — same accent pill + position sense as the Tasks board toolbar —
-  // and the sidebar create entry was removed. Always present so a new note can
-  // be made with nothing selected.
+  //
+  // Main-content toolbar (#302): "+ Add Note" lives at the main-content
+  // top-right — same accent pill + position sense as the Tasks board toolbar.
+  // Always present so a new note can be made with nothing selected.
   const desktopMain = (
     <>
       <div className="flex items-center justify-end px-1 pb-3">
@@ -758,31 +342,27 @@ export function NotesView({
         </button>
       </div>
       {selected ? (
-        <NoteDetailPanel
+        <NoteDetailSurface
           variant="main"
-          noteId={selected.id}
-          title={selected.title}
-          isPinned={selected.isPinned}
+          note={selected}
+          labels={detailLabels}
+          locked={password.isGated(selected)}
+          onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           onTogglePin={notes.togglePin}
           onDelete={(id) => notes.softDeleteNote(id)}
-          titleLabel={t("notesView.detailTitle")}
-          pinLabel={t("notesView.unpin")}
-          unpinLabel={t("notesView.pin")}
-          deleteLabel={t("materials.notes.deleteNote")}
-          moreActionsLabel={t("notesView.moreActions")}
-          tagsSlot={
-            // itemRole (#412): the note detail adopts the same kind badge the
-            // task detail now uses, so the two tag rows stay one design.
-            <TagPicker
-              itemId={selected.id}
-              itemRole="note"
-              showLabel
-              size="sm"
+          contentEditor={
+            <NoteBodyEditor
+              note={selected}
+              linking={linking}
+              onNavigateToItem={onNavigateToItem}
+              onSave={(id, content) => notes.updateNote(id, { content })}
+              // Borderless — sit flush inside the detail card so the note body
+              // reads as a single clean surface, matching the Daily editor card
+              // (2026-07-18: align Notes main formatting to Daily).
+              className="pt-1"
             />
           }
-          contentLabel={t("materials.notes.content")}
-          contentEditor={detailContentEditor}
         />
       ) : (
         <div className="flex min-h-[50vh] items-center justify-center">
@@ -813,19 +393,12 @@ export function NotesView({
 
       {/*
        * Mobile detail sheet — 92% height, FULL edit (#471, mobile-scope #7).
-       * It hosts the same <NoteDetailPanel> the Desktop main content uses, so
+       * It hosts the same <NoteDetailSurface> the Desktop main content uses, so
        * title / tags / pin / delete / body are one implementation on both
        * surfaces: anything added to the note detail later reaches the phone for
        * free. The sheet's own header carries a generic label rather than the
        * note's title, which the panel's first field already shows (and can now
        * edit) — same call as the Todo sheet in #470.
-       *
-       * The password gate is body-only, exactly as on Desktop (#526 — the
-       * shared builder above). #471 shipped it all-or-nothing here: a locked
-       * note showed the unlock CTA INSTEAD of the panel, so the phone could not
-       * even rename or retag it. That made the same note behave differently
-       * depending on the window width, which is the one thing this sheet exists
-       * to avoid.
        */}
       {!isWide && (
         <BottomSheet
@@ -837,62 +410,33 @@ export function NotesView({
         >
           {sheetNote && (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <NoteDetailPanel
-                noteId={sheetNote.id}
-                title={sheetNote.title}
-                isPinned={sheetNote.isPinned}
+              <NoteDetailSurface
+                note={sheetNote}
+                labels={detailLabels}
+                locked={password.isGated(sheetNote)}
+                onUnlock={password.requestUnlock}
                 onTitleCommit={(id, title) => notes.updateNote(id, { title })}
                 onTogglePin={notes.togglePin}
                 // Deleting closes the sheet on its own: the note leaves the
                 // active pool, so useNoteSheetTarget drops the id.
                 onDelete={(id) => notes.softDeleteNote(id)}
-                titleLabel={t("notesView.detailTitle")}
-                pinLabel={t("notesView.unpin")}
-                unpinLabel={t("notesView.pin")}
-                deleteLabel={t("materials.notes.deleteNote")}
-                moreActionsLabel={t("notesView.moreActions")}
-                tagsSlot={
-                  <TagPicker
-                    itemId={sheetNote.id}
-                    itemRole="note"
-                    showLabel
-                    size="sm"
-                  />
-                }
-                contentLabel={t("materials.notes.content")}
-                contentEditor={gatedContentEditor(
-                  sheetNote.id,
-                  sheetGated,
+                contentEditor={
                   sheetReady ? (
-                    <RichTextEditor
-                      key={sheetNote.id}
-                      noteId={sheetNote.id}
-                      // The sheet's OWN note object, not selectedNote: they
-                      // are the same row in the same array, and reading the
-                      // sheet's removes any dependence on the selection
-                      // having caught up with it.
-                      initialContent={sheetNote.content || undefined}
-                      editable={!sheetNote.isEditLocked}
-                      onUpdate={(content) => {
-                        notes.updateNote(sheetNote.id, { content });
-                        // #372: same delete-sync as the Desktop editor.
-                        handleBodySaved(sheetNote.id, content);
-                      }}
-                      // Same "[[" wiring as Desktop. loadLinkTargets is a
-                      // LOADER, so handing it over costs nothing until the
-                      // user actually types "[[" (#430 — typing prose must
-                      // not fetch the pool).
-                      loadLinkTargets={loadLinkTargets}
+                    // The sheet's OWN note object, not selectedNote: they are
+                    // the same row in the same array, and reading the sheet's
+                    // removes any dependence on the selection having caught up.
+                    <NoteBodyEditor
+                      note={sheetNote}
+                      linking={linking}
                       onNavigateToItem={onNavigateToItem}
-                      onResolvedLinkInserted={(targetId) =>
-                        handleResolvedLinkInserted(sheetNote.id, targetId)
+                      onSave={(id, content) =>
+                        notes.updateNote(id, { content })
                       }
-                      onCreateNoteForLink={handleCreateNoteForLink}
                     />
                   ) : (
                     <SkeletonList rows={4} rowHeight={20} gap={8} />
-                  ),
-                )}
+                  )
+                }
               />
             </div>
           )}
@@ -912,12 +456,12 @@ export function NotesView({
         />
       )}
 
-      {pwDialog && (
+      {password.dialog && (
         <NotePasswordDialog
-          mode={pwDialog.mode}
+          mode={password.dialog.mode}
           labels={DIALOG_LABELS}
-          onSubmit={handlePwSubmit}
-          onClose={() => setPwDialog(null)}
+          onSubmit={password.submit}
+          onClose={password.closeDialog}
         />
       )}
     </div>

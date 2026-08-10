@@ -2,7 +2,13 @@
 
 ## 進行中
 
-（なし）
+### ⏸️ Issue #586 eslint baseline 解消（着手日: 2026-08-10）
+
+**対象**: `shared/eslint.config.js` / `shared/src/{components,hooks,context}` / `shared/tests/`
+
+- 前回: 対象 10 ファイル分の PR 4 本を作成（#638 / #644 / #649 / #653・テスト先行・全ゲート緑）
+- 現在: ユーザー merge 待ち（P-001）。#638/#644/#649 は CI 緑・#653 は CI 実行中
+- 次: merge のたびに残り PR へ origin/main を取り込み eslint.config.js の衝突を解消 → 全 merge 後に #586 close（baseline 残 = schedule 系 3 本のみ・Issue コメント済）
 
 ## 直近の完了
 
@@ -12,4 +18,4 @@
 
 ## 予定
 
-- （なし — 新規担当 Issue 待ち。実機起動確認 #530 は chat-main 担当）
+- （なし — #586 の merge 追従のみ）

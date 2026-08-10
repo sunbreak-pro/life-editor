@@ -38,13 +38,6 @@ export interface ItemAction {
   onSelect?: () => void;
   /** Greys the row out and blocks selection. */
   disabled?: boolean;
-  /**
-   * Marks the action as a not-yet-implemented placeholder: rendered disabled
-   * with a trailing "soon" badge (badge copy injected via the panel's
-   * `stubBadge` prop). Lets a surface advertise a standard action before its
-   * behaviour exists (Issue #307 standard action candidates).
-   */
-  stub?: boolean;
   /** Danger styling (e.g. delete). */
   danger?: boolean;
   /**

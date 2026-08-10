@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Repeat } from "lucide-react";
+import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
@@ -67,9 +67,10 @@ export interface WeekTimeGridItem {
   status?: ScheduleStatus;
   /**
    * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
-   * Repeat glyph, "event" (default) = 紫 face + border, "task" = blue face
-   * (scheduled TaskNode, schedule redesign A-1 — no band/glyph, read-only in
-   * this step). Distinguishes provenance without relying on color alone.
+   * Repeat glyph, "event" (default) = 紫 face + border, "task" = blue face +
+   * CheckSquare glyph (scheduled TaskNode — the same mark the nav uses for
+   * the Todos section, #593). Distinguishes provenance without relying on
+   * color alone.
    */
   variant?: "routine" | "event" | "task";
 }
@@ -204,8 +205,9 @@ function defaultFormatNowLabel(minutes: number): string {
 /**
  * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
  * inner left band is rendered separately); event (default) = 紫 face + border;
- * task = blue face (scheduled TaskNode — no band/glyph). Color-coded AND
- * badge/border-differentiated so it never relies on hue alone.
+ * task = blue face (a CheckSquare glyph is rendered separately, #593). Every
+ * variant carries a non-hue cue — band / border / glyph — so provenance never
+ * relies on hue alone.
  */
 function variantBlockClasses(variant: "routine" | "event" | "task"): string {
   switch (variant) {
@@ -738,7 +740,12 @@ export function WeekTimeGrid({
                         }
                         title={it.title}
                         className={cn(
-                          "block w-full truncate rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-xs text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                          "w-full rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-xs text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                          // #593: the todo mark rides the lane chip too, so an
+                          // all-day todo keeps its cue outside the time body.
+                          it.variant === "task"
+                            ? "flex items-center gap-1"
+                            : "block truncate",
                           selected && "ring-2 ring-lumen-accent",
                           placeable && "cursor-grab",
                           it.completed &&
@@ -746,7 +753,18 @@ export function WeekTimeGrid({
                         )}
                         style={placeable ? { touchAction: "none" } : undefined}
                       >
-                        {it.title || " "}
+                        {it.variant === "task" ? (
+                          <>
+                            <CheckSquare
+                              aria-hidden
+                              className="size-3 shrink-0"
+                              strokeWidth={2.5}
+                            />
+                            <span className="truncate">{it.title || " "}</span>
+                          </>
+                        ) : (
+                          it.title || " "
+                        )}
                       </button>
                     );
                   })}
@@ -888,6 +906,17 @@ export function WeekTimeGrid({
                       <span className="flex items-center gap-1 font-medium">
                         {variant === "routine" && (
                           <Repeat
+                            aria-hidden
+                            className="size-3 shrink-0"
+                            strokeWidth={2.5}
+                          />
+                        )}
+                        {/* Task provenance (#593): CheckSquare — the nav's
+                            Todos mark — as the task counterpart of the
+                            routine's Repeat. Static (not a completion state:
+                            done already reads via line-through). */}
+                        {variant === "task" && (
+                          <CheckSquare
                             aria-hidden
                             className="size-3 shrink-0"
                             strokeWidth={2.5}

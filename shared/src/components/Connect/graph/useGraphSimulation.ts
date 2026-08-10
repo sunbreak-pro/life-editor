@@ -42,7 +42,7 @@ export const DEFAULT_FORCES: ForceParams = {
 };
 
 interface Args {
-  /** filtered snapshot; nodes may carry restored x/y from the cache */
+  /** filtered snapshot — immutable; the hook clones it before d3 mutates */
   graph: GraphSnapshot;
   size: { w: number; h: number };
   forces: ForceParams;
@@ -75,9 +75,12 @@ export function useGraphSimulation({
   onAlpha,
   onFps,
 }: Args): { reheat: () => void } {
-  useEffect(() => {
-    graphRef.current = graph;
-  }, [graph, graphRef]);
+  // The hook's WORKING SET: private clones of the latest snapshot. d3-force
+  // works by MUTATING node objects (x/y/vx/vy), so everything the simulation
+  // touches is cloned here first (#586 — the props stay immutable, as
+  // react-hooks/immutability demands). graphRef mirrors this set so the
+  // renderer and the interaction layer read the LIVE positions.
+  const workingRef = useRef<GraphSnapshot>({ nodes: [], links: [] });
 
   // Recenter cached + live positions when the viewport size changes so the
   // cloud doesn't drift off-center when a panel opens/closes.
@@ -88,7 +91,7 @@ export function useGraphSimulation({
     if (prev && (prev.w !== size.w || prev.h !== size.h)) {
       const dx = (size.w - prev.w) / 2;
       const dy = (size.h - prev.h) / 2;
-      for (const n of graphRef.current.nodes) {
+      for (const n of workingRef.current.nodes) {
         if (n.x != null) n.x += dx;
         if (n.y != null) n.y += dy;
         if (n.fx != null) n.fx += dx;
@@ -100,9 +103,16 @@ export function useGraphSimulation({
       }
     }
     prevSizeRef.current = { w: size.w, h: size.h };
-  }, [size.w, size.h, graphRef, positionCacheRef]);
+  }, [size.w, size.h, positionCacheRef]);
 
   useEffect(() => {
+    // Clone before anything else so the published working set always tracks
+    // the latest snapshot, even when the canvas is not ready yet.
+    const simNodes = graph.nodes.map((n) => ({ ...n }));
+    const simLinks = graph.links.map((l) => ({ ...l }));
+    workingRef.current = { nodes: simNodes, links: simLinks };
+    graphRef.current = workingRef.current;
+
     const canvas = canvasRef.current;
     if (!canvas || size.w === 0) return;
     const ctx = canvas.getContext("2d");
@@ -152,7 +162,7 @@ export function useGraphSimulation({
     // landing on the exact same point, where the repulsion force has no
     // direction to push them apart along.
     const cache = positionCacheRef.current;
-    for (const n of graph.nodes) {
+    for (const n of simNodes) {
       const c = cache[n.id];
       if (c) {
         n.x = c.x;
@@ -167,12 +177,12 @@ export function useGraphSimulation({
       }
     }
 
-    const hasCachedPositions = graph.nodes.some((n) => n.x != null);
+    const hasCachedPositions = simNodes.some((n) => n.x != null);
 
-    const sim = forceSimulation<GraphNode, GraphLink>(graph.nodes)
+    const sim = forceSimulation<GraphNode, GraphLink>(simNodes)
       .force(
         "link",
-        forceLink<GraphNode, GraphLink>(graph.links)
+        forceLink<GraphNode, GraphLink>(simLinks)
           .id((d) => d.id)
           .distance((l) =>
             l.kind === "tag" ? forces.linkDist * 0.7 : forces.linkDist,
@@ -202,7 +212,7 @@ export function useGraphSimulation({
       .alphaDecay(0.03)
       .velocityDecay(0.45)
       .on("tick", () => {
-        for (const n of graph.nodes) {
+        for (const n of simNodes) {
           if (n.x != null && n.y != null) {
             cache[n.id] = { x: n.x, y: n.y };
           }
@@ -211,7 +221,7 @@ export function useGraphSimulation({
           quadtreeRef.current = quadtree<GraphNode>()
             .x((d) => d.x as number)
             .y((d) => d.y as number)
-            .addAll(graph.nodes);
+            .addAll(simNodes);
         }
         if (onAlpha) onAlpha(sim.alpha());
         draw();
@@ -220,7 +230,7 @@ export function useGraphSimulation({
     quadtreeRef.current = quadtree<GraphNode>()
       .x((d) => d.x as number)
       .y((d) => d.y as number)
-      .addAll(graph.nodes);
+      .addAll(simNodes);
     simRef.current = sim;
 
     // Initial paint before the first tick fires

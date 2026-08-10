@@ -110,6 +110,33 @@ describe("TagEditModal item list (#409)", () => {
     expect(screen.getByText("Ship the panel")).toBeInTheDocument();
   });
 
+  // #586 pin: expansion is session state — the panel always reopens as a
+  // scannable tag list, never a wall of items.
+  it("collapses expanded item lists when the panel is reopened", () => {
+    const base = {
+      onClose: vi.fn(),
+      tags: [tagRow()],
+      onCreate: vi.fn(),
+      onRename: vi.fn(),
+      onDelete: vi.fn(),
+      onSetColor: vi.fn(),
+      onSetIcon: vi.fn(),
+      onUnassign: vi.fn(),
+      formatCount: (count: number) => `${count} items`,
+      labels: LABELS,
+    };
+    const { rerender } = render(<TagEditModal open {...base} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show tagged items: work" }),
+    );
+    expect(screen.getByText("Ship the panel")).toBeInTheDocument();
+
+    rerender(<TagEditModal open={false} {...base} />);
+    rerender(<TagEditModal open {...base} />);
+
+    expect(screen.queryByText("Ship the panel")).not.toBeInTheDocument();
+  });
+
   it("labels each item with its kind so the four roles are distinguishable", () => {
     renderModal([tagRow()]);
     fireEvent.click(

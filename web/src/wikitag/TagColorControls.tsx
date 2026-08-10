@@ -29,7 +29,18 @@ export function TagColorControls({ itemId }: { itemId: string }) {
     return map;
   }, [wiki.allTags]);
 
-  if (wiki.loading || assignments.length === 0) return null;
+  if (wiki.loading) return null;
+
+  // #572: an empty return left "change this item's color" undiscoverable —
+  // the color lives on the TAG (see header note), so the route is to attach a
+  // tag first. Say so instead of rendering nothing.
+  if (assignments.length === 0) {
+    return (
+      <p className="text-xs text-lumen-text-secondary">
+        {t("itemActions.tagColorEmpty")}
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">

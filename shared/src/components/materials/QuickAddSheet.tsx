@@ -41,14 +41,18 @@ export function QuickAddSheet({
   const inputRef = useRef<HTMLInputElement>(null);
   const canSubmit = value.trim() !== "";
 
+  // Clear the draft on the close transition — adjusted during render, not in
+  // an effect (#586).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (!open) setValue("");
+  }
+
   // Autofocus on open (BottomSheet has mounted its portal by the time this
-  // effect runs), and clear the draft whenever the sheet closes.
+  // effect runs).
   useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-    } else {
-      setValue("");
-    }
+    if (open) inputRef.current?.focus();
   }, [open]);
 
   const submit = () => {

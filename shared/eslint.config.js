@@ -64,12 +64,6 @@ export default defineConfig([
    */
   {
     files: [
-      "src/components/ColorPicker.tsx",
-      "src/components/CommandPalette.tsx",
-      "src/components/ShortcutEditModal.tsx",
-      "src/components/TagEditModal.tsx",
-      "src/components/TaskAddDialog.tsx",
-      "src/components/materials/QuickAddSheet.tsx",
       "src/context/TimerContext.tsx",
       "src/hooks/useCalendarsAPI.ts",
       "src/hooks/useRoutinesAPI.ts",
@@ -78,9 +72,5 @@ export default defineConfig([
       "src/hooks/useTaskTreeAPI.ts",
     ],
     rules: { "react-hooks/set-state-in-effect": "off" },
-  },
-  {
-    files: ["src/components/Connect/graph/useGraphSimulation.ts"],
-    rules: { "react-hooks/immutability": "off" },
   },
 ]);

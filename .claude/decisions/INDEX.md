@@ -15,6 +15,8 @@
 | D-20260804-main-1 | Phase 1 定期実行（朝 digest / 夜間安全レーン）の実行基盤をどれにするか | main |
 | D-20260809-main-2 | `archive/` の索引をどう再建するか | main |
 | D-20260810-main-3 | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | main |
+| D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
+| D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-sched-1 | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | schedule-refine |
 | D-20260810-sched-2 | #625 変換で id を維持するか、新規作成するか | schedule-refine |
 | D-20260810-sched-3 | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | schedule-refine |
