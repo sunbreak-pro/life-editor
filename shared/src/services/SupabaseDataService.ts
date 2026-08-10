@@ -181,13 +181,17 @@ export {
   TASKS_PAYLOAD_COLUMNS,
 } from "./taskMapper";
 export type {
-  ItemsMetaRow,
   TasksPayloadRow,
-  ItemsMetaInsertRow,
   TasksPayloadWriteRow,
-  ItemsMetaUpdatePatch,
   TasksPayloadUpdatePatch,
 } from "./taskMapper";
+// The items_meta shape is role-independent and lives in its own module
+// since #670 C3 PR 2 (it used to sit inside taskMapper).
+export type {
+  ItemsMetaRow,
+  ItemsMetaInsertRow,
+  ItemsMetaUpdatePatch,
+} from "./itemsMeta";
 
 // Schedule domain (S4-2) — mapper re-exports for round-trip / host use.
 export {

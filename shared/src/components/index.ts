@@ -198,7 +198,6 @@ export {
   SettingsShortcuts,
   type SettingsShortcutsProps,
   type SettingsShortcutsLabels,
-  type ShortcutRow,
 } from "./SettingsShortcuts";
 // Settings §216 (lightweight prefs) — General (startup section), Reset (clear
 // local prefs), and the reusable labeled 3-way Segment. Pure presentation,

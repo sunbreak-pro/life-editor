@@ -4,7 +4,7 @@ import {
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
-} from "./taskMapper";
+} from "./itemsMeta";
 
 /*
  * Pure ScheduleItem <-> 2-row (items_meta + events_payload) mappers
@@ -62,7 +62,7 @@ import {
 
 /**
  * items_meta shapes for role='event' — aliases of the canonical generics
- * in `taskMapper` (the 5 role mappers carried byte-identical copies).
+ * in `itemsMeta` (the 5 role mappers carried byte-identical copies).
  */
 export type ItemsMetaEventRow = ItemsMetaRow<"event">;
 export type ItemsMetaEventInsertRow = ItemsMetaInsertRow<"event">;

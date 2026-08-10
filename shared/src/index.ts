@@ -191,6 +191,7 @@ export type {
   ShortcutCategory,
   ShortcutDefinition,
   ShortcutConfig,
+  ShortcutRow,
   KeyBinding,
 } from "./types/shortcut";
 export { DEFAULT_SHORTCUTS } from "./constants/defaultShortcuts";

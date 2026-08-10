@@ -4,7 +4,8 @@ import {
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
-} from "./taskMapper";
+} from "./itemsMeta";
+import { contentJsonToString, contentStringToJson } from "./contentJson";
 
 /*
  * Pure NoteNode <-> 2-row (items_meta + notes_payload) mappers (DU-D Step 1).
@@ -57,7 +58,7 @@ import {
 
 /**
  * items_meta shapes for role='note' — aliases of the canonical generics
- * in `taskMapper` (the 5 role mappers carried byte-identical copies).
+ * in `itemsMeta` (the 5 role mappers carried byte-identical copies).
  */
 export type ItemsMetaNoteRow = ItemsMetaRow<"note">;
 export type ItemsMetaNoteInsertRow = ItemsMetaInsertRow<"note">;
@@ -210,39 +211,9 @@ export function isLegacyNoteFolderRow(
 }
 
 // ---------------------------------------------------------------------------
-// 4. Content (jsonb) <-> TipTap string conversion
+// 4. Content (jsonb) <-> TipTap string conversion — see `contentJson.ts`
+//    (one implementation, shared with dailiesUnifiedMapper since #670 C3 PR 2)
 // ---------------------------------------------------------------------------
-
-/**
- * Materialize NoteNode.content (string) from notes_payload.content_json
- * (jsonb). NULL content_json -> empty string. Already-string jsonb values
- * (e.g. a primitive string stored at the top level) come back as-is to
- * preserve legacy data shapes; otherwise JSON.stringify the object.
- */
-export function contentJsonToString(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
-
-/**
- * Project NoteNode.content (string) into notes_payload.content_json
- * (jsonb). Empty string -> null (so a fresh note doesn't store the JSON
- * literal `""`). Otherwise attempt JSON.parse; if parse fails, store the
- * raw string as a jsonb string literal (legacy safety — TipTap is the
- * normal producer, but ad-hoc free-text MUST not throw on write).
- */
-export function contentStringToJson(value: string): unknown {
-  if (value === "") return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    // Fall back to a jsonb string literal so the column always accepts the
-    // value. Round-trip via JSON.stringify+JSON.parse re-materialises the
-    // same string on read.
-    return value;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // 5. SELECT: 2 rows -> NoteNode
