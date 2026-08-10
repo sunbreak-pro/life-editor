@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 2026-08-10 起案・同日実装
+Status: COMPLETED # 2026-08-10 起案・同日実装・PR #616 merged
 Created: 2026-08-10
 Branch: claude/harness-loop-consolidation
 Owner-chat: main
@@ -7,7 +7,7 @@ Owner-chat: main
 
 # ハーネス統合とループ再設計（Phase A + B + C）
 
-> 分析の正本 = [`docs/reports/2026-08-09-harness-loop-redesign.md`](../../reports/2026-08-09-harness-loop-redesign.md)。本計画はその Phase A（ループの穴埋め）+ B（実害修正）+ C（重複のポインタ化)の実装仕様。Phase D（Scope 照合 hook = #173 系）は別 PR。
+> 分析の正本 = [`docs/reports/2026-08-09-harness-loop-redesign.md`](../docs/reports/2026-08-09-harness-loop-redesign.md)。本計画はその Phase A（ループの穴埋め）+ B（実害修正）+ C（重複のポインタ化)の実装仕様。Phase D（Scope 照合 hook = #173 系）は別 PR。
 
 ## Context
 
@@ -126,7 +126,7 @@ Owner-chat: main
 
 ## References
 
-- [`docs/reports/2026-08-09-harness-loop-redesign.md`](../../reports/2026-08-09-harness-loop-redesign.md)（分析の正本・重複の根拠 file:line はこちら）
+- [`docs/reports/2026-08-09-harness-loop-redesign.md`](../docs/reports/2026-08-09-harness-loop-redesign.md)（分析の正本・重複の根拠 file:line はこちら）
 - D-20260806-main-3（CLAUDE.md 移送ゲート）/ D-20260801-main-1（tracker 分離 → hook 化の先行事例）/ D-20260806-main-1（P-001 維持）
 
 ## Worklog
@@ -134,3 +134,4 @@ Owner-chat: main
 - 2026-08-10: 起案。ユーザー裁定 = 推奨案全採用・重複は 1〜2 ファイルに集積・dotfiles もこのチャットが担当（`chore/harness-cleanup`）
 - 2026-08-10: Lane L（L1〜L14）+ Lane G（G1〜G21）実装 → role-qa 監査 NEEDS REVISION（Blocking 1 / Important 6）→ 同日回収（tone.md へ呼び名の複写 1 行 / security-reviewer のフェンス修復 / ipc-validator 参照除去 / dispatch ポインタの循環解消 / `_TEMPLATE.md` の issue-dispatch stale 参照修正 / Scope 追記）。QA Suggestion のうち loop-prune 注記・records.md の D-ID 注記則・code-plan-editor frontmatter も同時適用
 - 2026-08-10 乖離レビュー: (1) スコープ逸脱 = G19 が Scope 列挙外の 4 SKILL.md（ask-user / debug-strategy / life-editor-mcp / session-verifier）に及んだ → Scope へ追記して正規化 (2) AC 免除 = なし (3) 途中で出た判断と行き先 = role-engineer.md の引き継ぎを「ゲート別 PASS/FAIL の Verdict」形式に揃える件は Scope 外のため次 PR へ（G7/G14 の対の残件）
+- 2026-08-10: **PR #616 merged**（`7edf2f90`）→ COMPLETED 化して archive へ。dotfiles 側 Lane G は PR sunbreak-pro/claude-dotfiles#14 が **open のまま**（merge = ユーザー手番 P-001。中身は symlink 経由で `~/.claude` に実効済み）。symlink 10 本の実体化は Mac セッションの手番（known-issues/031）— skill-lib / agents-lib に git remote があれば Windows へ clone してこちらで実体化する道もある（remote の有無は Mac で確認・2026-08-10 会話）

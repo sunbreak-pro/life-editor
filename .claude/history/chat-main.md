@@ -1,5 +1,38 @@
 # HISTORY (chat-main)
 
+### 2026-08-10 - 確認待ちの摩擦を除去（#618 permissions + tracker 新運用の規約化・PR #619 / dotfiles PR #15 open）
+
+#### 概要
+
+対話セッションが「許可を出してください」「merge したら声をかけてください」で止まる 2 つの摩擦を外した。前者は `permissions.ask` の非破壊ゲート撤去（#618）、後者は END の task-tracker を session-verifier 直後に実行する新運用の台帳化（D-20260810-main-1）。life-editor は PR #619、グローバル資産は dotfiles PR #15 に分けた（どちらも open）。
+
+#### 変更点
+
+- **`permissions.ask` を 1 件へ縮小**（#618）: `Bash(git push*)` / `Bash(gh pr create*)` を除去し `Bash(gh pr merge*)` のみ残した（P-001 の機械担保）。**`deny` は 27 件のまま無変更**（diff の deny 行の増減ゼロを機械確認）。プロンプトが増えた原因は PR #594（夜間レーンの柵）と PR #596（P-001 の担保）の 2 つで、それ以前はグローバル `Bash(*)` allow で素通りしていた
+- **無人レーンの担保を runner 側へ分離**: 夜のレーンが commit 止まりである根拠が「repo の `permissions.ask` が止めてくれる」だったため、外した時点で**プロンプトの禁止文しか残らない**状態になる。`automation/routine-night.md` §停止条件 と `automation/README.md`（動作モデル + 安全則の 2 箇所）を「**runner 側 settings で担保する**（`claude -p --settings <無人用>` / `--disallowedTools`）」に書き換えた。対話セッションの柵と無人レーンの柵を同じ settings.json で兼用しない
+- **D-20260810-main-1 を台帳化**: END の tracker は **session-verifier が緑になった直後**に実行し、ユーザー確認も実装 PR の merge も待たない。**`D-20260801-main-1`（tracker を実装ブランチに載せない）は維持**で、置き換えたのは実行タイミングだけ。`supersedes` は D-ID ではなく「CLAUDE.md §7.4 の該当行」「worktree-policy SKILL.md の該当節」という**文書位置の文字列**で宣言している（`records.mjs check` は D-ID 形式のみ双方向検証するため、旧決定を Active から落とさずに済む）
+- **反映は 2 文書を行単位で**: CLAUDE.md §7.4 の「merge 後に 1 commit でまとめ」と `skills/worktree-policy/SKILL.md` の同文。§7.4 は「正本は worktree-policy スキル」と宣言しているので、CLAUDE.md だけ直すと SSOT と矛盾する
+- **dotfiles PR #15**: `skills/task-tracker/SKILL.md`（作業終了フロー冒頭に実行タイミング）・`skills/lead-pipeline/SKILL.md`（中ティア連鎖の 3）・`agents/role-engineer.md`（引き継ぎの「セルフ検証結果」を session-verifier と同じ 5 ゲート表 + 総合 PASS/FAIL へ）。role-engineer は **G7/G14 の対の残件** — PR #14 で lead-pipeline Step 4 と role-qa Step 2 が「role-engineer の Verdict を検分」に変わったのに、出す側が `session-verifier 出力: <要約>` のままで受け手が検分できなかった
+- **PR #14 との衝突回避**: dotfiles の 2 スキルは PR #14 も触っているため、編集行が重ならない位置（#14 = 中ティア Step 0 追加 / END フロー Step 5、こちら = Step 3 の行末 / END フロー冒頭）を選んだ。どちらを先に merge しても自動マージできる想定
+- **DoD の 4 つ目は持ち越し**: 「確認プロンプトなしで push / PR 作成が通る」の実測は、**このセッションが読んでいる settings が main 側の旧 `ask`**（worktree の settings.json はロードされない）なので確定できない。merge + セッション再起動後に 1 回測る
+- **本セッションが新運用の初適用**: verifier 緑（Types〜Coverage は ⏭️ / Project Rules ✅ = records check + docs-lint）の直後に、merge を待たず本 tracker を実行した
+
+### 2026-08-10 - ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 open）
+
+#### 概要
+
+「計画 → 実装 → 検証 → 改善」のループを長期運用できるよう、ハーネスの穴 5 件と重複 8 系統を life-editor（19 ファイル）+ claude-dotfiles（26 ファイル）の 2 レーンで一括改修した。P-008（実装中スコープ凍結）を POLICY に追加し、計画テンプレートへ「検討した代替案」節と完了時の乖離レビュー 3 行を義務化。life-editor 側は PR #616 が merge 済み、dotfiles 側は PR #14 が open（中身は symlink 経由で `~/.claude` に実効済み・merge はユーザー手番）。（計画書: archive/2026-08-10-harness-loop-consolidation.md）
+
+#### 変更点
+
+- **P-008 実装中スコープ凍結**（ユーザー承認 2026-08-10・POLICY.md）: 実装中に計画外の追加・変更・削除が浮上したら実装せずキュー or Issue 依頼へ積み、現計画を続行。Scope / AC の変更・逸脱の自己免除はユーザー回答まで禁止。`_TEMPLATE.md`・`rules/decision-queue.md`・dotfiles の lead-pipeline（中ティアのミニスコープ宣言）へ配線
+- **計画テンプレの強化**: 「検討した代替案（案 / 採否 / 却下理由 / 復活条件・最低 2 案）」節を必須化（ask-user の選択肢と回答も転記）。完了時の乖離レビュー 3 行（スコープ逸脱 / AC 免除 / 途中判断の行き先）を Worklog 必須に（実行者 = task-tracker END フロー）
+- **重複のポインタ化（Lane L）**: comm/README の「タスク分配の正本」宣言を撤回し docs-workflow へ／ decisions 昇格手順・分担表・loop-\* の環境事実・frontend.md の jsdom 段落を各正本への ID 参照へ／ records.md に「インライン注記には D-ID を添える」を追加
+- **Mac 専用 symlink 10 本 = known-issues/031**: skills 8 + agents 2 は Mac 絶対パスで Windows では解決不能。削除・stub 化は Mac を壊すため禁止。実体化は Mac セッションの手番（skill-lib / agents-lib に git remote があれば Windows clone でも可 — remote の有無は Mac で確認）
+- **dotfiles 側（Lane G・PR #14）**: tone 3 ファイルの正本を tone-persona へ一本化（呼び名はサブエージェント向け複写 1 行だけ tone.md に残す — QA Blocking の回収）／ role-qa の判定ラベルを Blocking / Important / Suggestion に統一／ git-workflow §0.1.1 に「プロジェクト側 POLICY override が優先」を明記／ `MANDATORY FIRST ACTION` 行を rule + hook の 2 系統へ集約（G19）
+- **QA / 検証**: role-qa 監査 NEEDS REVISION（Blocking 1 / Important 6）→ 同日全件回収。docs-lint（LC_ALL=C）+ `records.mjs check` 緑。乖離レビュー = G19 の Scope 逸脱 4 ファイルを Scope 追記で正規化 / AC 免除なし / role-engineer Verdict 形式は次 PR へ
+- **残件**: dotfiles PR #14 merge（ユーザー）/ role-engineer Verdict 形式（次 PR）/ Phase D = Scope 照合 hook（#173 系）/ symlink 実体化（Mac — known-issues 031）
+
 ### 2026-08-09 - main の未追跡資産を 2 PR に整理（Codex 対応を複製から参照へ・PR #610 / #611 merged）
 
 #### 概要
@@ -206,50 +239,5 @@ Notion の「Life Editor Night Review」ハブ（3b4b6365-53cc-8158-93d5-e3514ff
 コスト削減ハーネス（2026-08-04-context-cost-reduction-harness.md・Loop Engineering セッション 3）向けの
 プロンプトを生成すること。貼り付け用の下書きは本エントリの上のブロックにある。
 ```
-
-### 2026-08-04 - Loop Engineering: 3 計画書の整合性評価 + Phase 1 インフラ配置（PR #594）
-
-#### 概要
-
-ユーザー持ち込みの 2 計画書（loop-catalog / context-cost-reduction-harness）と親計画（2026-07-28-loop-engineering-harness）の整合性を評価し、指示の実施順序がカタログ側の「Phase 2 前提」裁定と矛盾している点を含む 3 点をユーザーに確認。裁定（①順序 = 親 Phase 1 → カタログ → コスト → 親 Phase 2 ②Phase 0→1 昇格の前倒し確定 ③実行基盤は調査して提案）に基づき、親計画 Phase 1 のインフラを PR #594 として配置した。自動発火は D-20260804-main-1 の裁定まで無効。
-
-#### 変更点
-
-- **整合性評価**: 順序矛盾（カタログ = Phase 2 の前提条件）/ 1 セッションで消化できない時間ゲート 3 箇所 / 実行基盤の未指定 / plans 未配置・Branch 未記入 / MCP ツール定義仮説への deferred tools の影響、を検出して報告
-- **plans/ 配置**: `2026-08-04-loop-catalog.md` + `2026-08-04-context-cost-reduction-harness.md`（Branch 記入 + Worklog に裁定記録を追記して原文どおり配置）
-- **automation/ 改訂（Cloud Routine 退役）**: `routine-digest.md`（朝 06:03・dev-digest スキルの薄い外枠）+ `routine-night-safe.md`（夜 22:33・読み取り中心の監査 4 本 = docs 整合 / Issue 台帳 / PR conflict / 検証準備・書き込みは outbox 報告のみ）+ `run-routine.ps1`（headless launcher・未実測）を新設。README / routine-ids を全面書き換え、旧 night / morning プロンプトは Phase 2 改訂待ちバナー付きで凍結
-- **権限の二層化**: `settings.json` の `permissions.ask` に `git push*` / `gh pr create*` を追加（merge 後は全チャットで push / PR 作成が常に確認必須になる — PR 本文に注意書き）
-- **実測補正**: セッション内 scheduled tasks（CronCreate）はセッション限定 + 繰り返し 7 日期限。親計画 §3-7 の前提を Worklog で補正し、推奨基盤 = Task Scheduler + `claude -p`（2026-07-16 朝刊プロトタイプの型）を **D-20260804-main-1** として起票
-- **親計画更新**: Status 行 / Steps 6〜9 / Worklog 追記。docs-lint = OK
-
-#### 次セッション用プロンプト（セッション 2: ループカタログ）
-
-```
-ループカタログ計画の実装セッション（Loop Engineering セッション 2/3）。
-前提: PR #594 が merge 済みであること（未 merge なら停止して報告）。
-正本 = .claude/docs/vision/plans/2026-08-04-loop-catalog.md（着手時に Status を IN PROGRESS 化）。
-進め方は計画書 §4 のとおり:
-1. ローカル実態の調査（~/.claude/skills/ の役割系・パイプライン系の中身と実運用 / リポジトリ内スキルとの責務の重なり / hooks・permissions が機械強制している範囲)
-2. 調査結果から子計画書を docs/vision/plans/ に作成 → 私がレビュー
-3. レビュー後にループ定義フォーマットを 1 本目（/loop-triage 推奨）で確定 → 残り（/loop-implement /loop-verify /loop-postmortem）を配置
-制約: Scope = .claude/skills/loop-*/ と plans/ のみ。全ループ明示起動（disable-model-invocation）+ 反復上限宣言 + 必須 5 見出し（目標 / 完了条件 / 予算 / 停止条件 / 使ってよい道具）。既存パイプラインを呼ぶ薄い外枠にし、手順を書かない。
-セッション終了時に、コスト削減ハーネス（2026-08-04-context-cost-reduction-harness.md・セッション 3）向けのプロンプトを生成すること。
-```
-
-### 2026-08-01 (2) - 判断キュー 8 件の消化と docs 反映（PR #527 merged・#524〜#528 起票）
-
-#### 概要
-
-巡回を 5 周した末にユーザーが判断キューへ回答を返し、溜まっていた 8 件をすべて消化した。回答は行き先が 3 通り（Issue のゲート解除 / 実装 Issue の起票 / docs への反映）に分かれるため、それぞれ実行して停止条件（#467 / #468 close + open PR 0）まで戻した。
-
-#### 変更点
-
-- **回答の転記**: `.claude/comm/decisions/ANSWERS.md` に 8 件（main `3dd7b511`）。うち D-20260730-mobile-1 は明示指名が無く「放置時 A」での確定なので、ユーザー回答ではない旨を行に明記
-- **ゲート解除 1 件**: D-20260801-sched-1 = A（移動時にレンズを外す）を #520 にコメント。DoD 1 番目の 🛑 が外れ schedule-refine が着手可に
-- **起票 2 件（B 採用 = 実装が要るもの）**: **#525** `BottomSheet` に明示的な閉じるボタン（mobile-2）／ **#526** パスワード付きノートのモバイルシートを Desktop と同じ「本文だけロック」に揃える（mobile-3）。どちらも `[mobile-refine]` 宛て
-- **docs 反映 4 件 = PR #527**（merged `637a64e6`・CI 2 ゲート pass）: CLAUDE.md §9 から `[all]` prefix を廃し「起票時点で slug を 1 つに決める」へ（main-2）／ §7.4 に「tracker は実装ブランチに載せない」（main-1）／ `rules/docs-consistency.md` §3 に「enum は plans/ 由来だけ」+ 全数チェックの正しい grep（main-2）／ ClaudeDesign fan-out 計画書を COMPLETED 化して `archive/` へ `git mv` し、CLAUDE.md §6 の「追跡正本」宣言を **Epic #321 + mobile-scope.md + Issue 群**へ付け替え（tags-1）
-- **自分で作った不具合を自己レビューで検出**: archive へ移した計画書の相対リンク 2 本が階層ぶんずれてリポジトリ外を指していた（`../../` のまま）。同 PR 内で修正（`e6f0b7cc`）
-- **同種の既存壊れを発見 → #528**: `archive/` の 5 ファイル・6 本が同じ理由で壊れている（リンク先はすべて実在・階層だけが誤り）。根本原因は `scripts/docs-lint.sh` がリンク解決を検査していないことなので、検出の追加も DoD に入れた
-- **巡回 2〜5 周目の所見**: outbox は **worktree の実体まで直接 diff** しないと未 push 分を取りこぼす（tags-docs に 4 エントリ・内容は処理済み）。PR #479 は squash merge のため `git merge-base` では未マージに見えるが、mergeCommit `ac32c7b9` が main の祖先であることを実測して着地を確認（§7.4 の「差分で判定しない」の実例）
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
