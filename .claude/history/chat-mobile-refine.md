@@ -1,5 +1,25 @@
 # HISTORY (chat-mobile-refine)
 
+### 2026-08-10 - #632 モバイル FAB の配置定義を 1 本化
+
+#### 概要
+
+Schedule と Notes で別々に書かれていた浮き「+」ボタンの配置を、共有部品 `shared/src/components/MobileFab.tsx` に一本化した（PR #660）。**Schedule 側の実害は解消、Notes 側の「セクションの箱に貼り付く」は未達**で判断キューへ（`D-20260810-mobile-3`）。
+
+#### 変更点
+
+- **本当の欠陥はオフセットではなく「何を基準に置くか」だった**: Schedule は `fixed bottom-6 right-6`。モバイル Chrome の `fixed` は**レイアウトビューポート**（URL バーが隠れた時の高さ）基準なのに、シェルの高さは `100svh`（URL バーが出ている時の高さ）。つまりスクロールで URL バーが縮むたびに「+」の見かけの位置がズレていた。`absolute` + シェル内の `relative` 親に変え、基準をアプリの箱に固定した
+- **セーフエリアの余白は落とした**: `BottomTabBar` が既にその帯を持っているので二重取りだった
+- **クリアランスは 24 + 56 = 80px**。ホスト側スクローラの `pb-24`（96px）で足りる（#509 の「最後の行の右端が「+」の下に潜って誤タップになる」回帰を作らないための数値）
+- **Notes は契約の後半を満たせていない**: Materials は `PageContainer` の `width="wide"` で描画され、その中身は高さ auto。`relative` 親が伸びないので「+」はセクションの箱ではなく**リストの末尾**に付く。直すには `MainScreen.tsx` の `ownsFullBleed` を触る必要があり #632 のスコープ外・Daily のスクロール所有権も動くため、**実装せずキューへ回した（P-008）**。`MobileFab` の HOST CONTRACT・呼び出し箇所のコメント・テストのヘッダに「未達」と明記してある
+
+#### 手順・知見
+
+- **「offsets が一致している」と書いたコメントが嘘だった**のをアドバーサリアルレビューが拾った。共有部品に寄せると「揃った」と書きたくなるが、**揃うのは寸法だけで基準（containing block）は呼び出し側の責任**。契約として明文化しないと次の利用者が同じ勘違いをする
+- **jsdom にはレイアウトが無い**ので「箱に貼り付いているか」はテストで固定できない。`shared/tests/mobileFab.test.tsx` は class 文字列（`absolute` である・`fixed` でない）までしか押さえられず、その旨をヘッダに書いた
+- **`docs:` の後追い push が main に届かなかった**: `D-20260810-mobile-3` と outbox を `claude/mobile-589-scope-audit` に push したが、**PR #651 が squash merge された後**だったため main に入らず。コード側のコメントが存在しない決定 ID を指す状態になっていた（`push-after-merge-strands-commits` の実例 2 度目）。#660 のブランチで入れ直した
+- **マージ衝突は #588（PR #646）の分割**が原因。`NotesView` のモバイル本体が `NotesMobileList.tsx` へ移っていたので、`NotesView` は main を丸ごと採り、自分の変更だけを移設した。`git checkout origin/main -- <path>` は「相手の版を全面採用」が正しい時に一番安全
+
 ### 2026-08-10 - #589 mobile-scope「現状維持」9 行のコード実測と追随
 
 #### 概要
