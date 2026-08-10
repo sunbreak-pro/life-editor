@@ -113,7 +113,7 @@ PR 前は上のブロックの **lint / build / test をすべて**回す（`dev
 - **メイン（リポジトリ直下）は chat-main 専有・`main` のみ。`git checkout <feature>` 禁止** — feature 作業は worktree から
 - **worktree はリポジトリの外**（`<repos-parent>/workspaces/life-editor/<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
 - **`.claude/comm/.session-branch` はブランチを切り替えるたびに書き換える** — 抜けると hook が無音スキップし、監査が「宣言と実態の不一致」と誤判定する
-- **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。merge 後に 1 commit でまとめ、PR 本文側に要約を書く
+- **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（2026-08-10 D-20260810-main-1）
 - **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は squash merge を「未マージ」と誤判定する
 - **playwright MCP（実ブラウザ検証）と dev server は chat-main のみ**で起動する（ポート重複で確認が壊れるため）。worktree 側は build / 型検証まで
 

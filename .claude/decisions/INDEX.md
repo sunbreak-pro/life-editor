@@ -43,6 +43,7 @@
 | [D-20260806-main-3](./D-20260806-main-3.md) | CLAUDE.md 移送（layering Phase 3）の「移行完了後」ゲートを維持するか | A | 2026-08-06 | context-cost, migration-gate, global-assets |
 | [D-20260807-main-1](./D-20260807-main-1.md) | スマホからの主導線をネイティブ殻にするか公開 Web URL にするか（#600） | 公開 Web URL を主導線にする | 2026-08-07 | mobile, distribution, web-url |
 | [D-20260809-main-1](./D-20260809-main-1.md) | 決定台帳（decisions/）を新設し「ADR は作らない」方針を SUPERSEDE するか | A | 2026-08-09 | docs, decision-ledger, adr, graph-layer |
+| [D-20260810-main-1](./D-20260810-main-1.md) | END の task-tracker をいつ実行するか（verifier 直後 / 実装 PR の merge 後） | A | 2026-08-10 | harness, task-tracker, workflow, autonomy |
 
 ## Superseded / Withdrawn
 
@@ -56,7 +57,7 @@
 - agents: D-20260708-main-1
 - architecture: D-20260607-main-1
 - archive: D-20260801-main-2
-- autonomy: D-20260806-main-1
+- autonomy: D-20260806-main-1 / D-20260810-main-1
 - bottom-sheet: D-20260730-mobile-2
 - branch: D-20260801-main-1
 - calendar-lens: D-20260801-sched-1
@@ -72,7 +73,7 @@
 - file-explorer: D-20260704-main-1
 - global-assets: D-20260806-main-2 / D-20260806-main-3
 - graph-layer: D-20260809-main-1
-- harness: D-20260804-main-2
+- harness: D-20260804-main-2 / D-20260810-main-1
 - issue-dispatch: D-20260731-main-1 / D-20260731-main-2
 - lock: D-20260730-mobile-3
 - loop: D-20260806-main-1
@@ -102,15 +103,19 @@
 - ssot: D-20260723-main-1
 - status-enum: D-20260801-main-2
 - sync: D-20260731-tags-2 / D-20260731-tags-3
+- task-tracker: D-20260810-main-1
 - tasks: D-20260728-main-3
 - terminal: D-20260705-main-1
 - touch: D-20260730-mobile-1
 - tracker: D-20260801-main-1
 - ux: D-20260711-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260801-sched-1
 - web-url: D-20260807-main-1
+- workflow: D-20260810-main-1
 - worktree: D-20260731-main-1 / D-20260731-main-2 / D-20260801-main-1
 
 ## Supersede 連鎖
 
 - CLAUDE.md §9「ADR は作らない」 → D-20260809-main-1
 - archive/SUMMARY.md §integrated-design-roadmap Lessons「ADR は時点判断で陳腐化するため vision/ に一元化」 → D-20260809-main-1
+- CLAUDE.md §7.4「merge 後に 1 commit でまとめ」 → D-20260810-main-1
+- skills/worktree-policy/SKILL.md §tracker の更新は実装ブランチに載せない（実行タイミングの記述） → D-20260810-main-1

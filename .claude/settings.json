@@ -36,7 +36,7 @@
     ]
   },
   "permissions": {
-    "ask": ["Bash(git push*)", "Bash(gh pr create*)", "Bash(gh pr merge*)"],
+    "ask": ["Bash(gh pr merge*)"],
     "deny": [
       "Bash(git push origin main*)",
       "Bash(git push origin master*)",
