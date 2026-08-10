@@ -158,6 +158,9 @@ export {
   useVisualViewport,
   type VisualViewportRect,
 } from "./hooks/useVisualViewport";
+// #608 — is the soft keyboard on screen? The narrow shell stands its bottom
+// bar down while it is.
+export { useSoftKeyboard } from "./hooks/useSoftKeyboard";
 // #355 — hold an action back so a follow-up gesture (a double-click) can
 // cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";

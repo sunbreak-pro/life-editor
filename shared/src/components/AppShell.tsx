@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useSoftKeyboard } from "../hooks/useSoftKeyboard";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { SidebarNav, type SidebarNavSection } from "./SidebarNav";
 import { BottomTabBar } from "./BottomTabBar";
@@ -150,6 +151,13 @@ export function AppShell({
   bottomBarActions,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
+  // #608: on a phone the bottom bar is the first thing the soft keyboard
+  // fights with — it either rides up on top of the keyboard or sits behind it,
+  // depending on what the UA does to the viewport. Neither is usable, and the
+  // bar is navigation the user is not reaching for mid-sentence anyway, so it
+  // stands down while typing. Only measured on the narrow layout (the wide one
+  // has no bottom bar and Desktop has no soft keyboard to watch).
+  const keyboardOpen = useSoftKeyboard(!isWide);
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(
     SIDEBAR_COLLAPSED_KEY,
     false,
@@ -205,19 +213,21 @@ export function AppShell({
       style={{ overscrollBehavior: "none" }}
     >
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
-      <BottomTabBar
-        sections={bottomSections}
-        activeSection={activeSection}
-        onNavigate={onNavigate}
-        maxVisible={maxBottomTabs}
-        labels={{
-          more: labels.more,
-          moreTitle: labels.moreTitle,
-          moreClose: labels.moreClose,
-          actionsTitle: labels.bottomBarActionsTitle,
-        }}
-        actions={bottomBarActions}
-      />
+      {!keyboardOpen && (
+        <BottomTabBar
+          sections={bottomSections}
+          activeSection={activeSection}
+          onNavigate={onNavigate}
+          maxVisible={maxBottomTabs}
+          labels={{
+            more: labels.more,
+            moreTitle: labels.moreTitle,
+            moreClose: labels.moreClose,
+            actionsTitle: labels.bottomBarActionsTitle,
+          }}
+          actions={bottomBarActions}
+        />
+      )}
       {detailPanelLabels && (
         <MobileDrawer
           title={detailPanelLabels.title}
