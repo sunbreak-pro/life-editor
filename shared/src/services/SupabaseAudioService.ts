@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type {
+  AudioDataService,
+} from "./DataService";
 import type { SoundSettings } from "../types/sound";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import {
@@ -28,7 +31,7 @@ import { fetchAllPages } from "./postgrestFetchAll";
  * sound_presets / sound_tags / display_meta / workscreen methods are NOT
  * implemented here and stay throw-stubs (not routed by the Proxy).
  */
-export class SupabaseAudioService {
+export class SupabaseAudioService implements AudioDataService {
   constructor(private readonly client: SupabaseClient) {}
 
   // -------------------------------------------------------------------------
@@ -243,7 +246,7 @@ export class SupabaseAudioService {
   }
 }
 
-export const PHASE2_AUDIO_METHODS: ReadonlySet<string> = new Set([
+export const PHASE2_AUDIO_METHOD_NAMES = [
   "fetchSoundSettings",
   "updateSoundSetting",
   "getSoundAssetUrl",
@@ -256,4 +259,8 @@ export const PHASE2_AUDIO_METHODS: ReadonlySet<string> = new Set([
   "addPlaylistItem",
   "removePlaylistItem",
   "reorderPlaylistItems",
-]);
+] as const;
+
+export type AudioMethodName = (typeof PHASE2_AUDIO_METHOD_NAMES)[number];
+
+export const PHASE2_AUDIO_METHODS: ReadonlySet<string> = new Set(PHASE2_AUDIO_METHOD_NAMES);

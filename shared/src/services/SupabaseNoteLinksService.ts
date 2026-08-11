@@ -1,5 +1,9 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import type {
+  NoteConnectionsDataService,
+  NoteLinksDataService,
+} from "./DataService";
+import type {
   NoteLink,
   NoteLinkPayload,
   BacklinkHit,
@@ -36,7 +40,7 @@ function _pendingDuRewrite(method: string, domain: string): never {
   );
 }
 
-export class SupabaseNoteLinkService {
+export class SupabaseNoteLinkService implements NoteLinksDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -83,7 +87,7 @@ export class SupabaseNoteLinkService {
   }
 }
 
-export class SupabaseNoteConnectionService {
+export class SupabaseNoteConnectionService implements NoteConnectionsDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -116,7 +120,7 @@ export class SupabaseNoteConnectionService {
   }
 }
 
-export const PHASE2_NOTE_LINK_METHODS = new Set<string>([
+export const PHASE2_NOTE_LINK_METHOD_NAMES = [
   "fetchAllNoteLinks",
   "fetchForwardLinksForNote",
   "fetchBacklinksForNote",
@@ -124,11 +128,19 @@ export const PHASE2_NOTE_LINK_METHODS = new Set<string>([
   "upsertNoteLinksForDaily",
   "deleteNoteLinksForNote",
   "fetchUnlinkedMentions",
-]);
+] as const;
 
-export const PHASE2_NOTE_CONNECTION_METHODS = new Set<string>([
+export type NoteLinkMethodName = (typeof PHASE2_NOTE_LINK_METHOD_NAMES)[number];
+
+export const PHASE2_NOTE_LINK_METHODS: ReadonlySet<string> = new Set(PHASE2_NOTE_LINK_METHOD_NAMES);
+
+export const PHASE2_NOTE_CONNECTION_METHOD_NAMES = [
   "fetchNoteConnections",
   "createNoteConnection",
   "deleteNoteConnection",
   "deleteNoteConnectionByPair",
-]);
+] as const;
+
+export type NoteConnectionMethodName = (typeof PHASE2_NOTE_CONNECTION_METHOD_NAMES)[number];
+
+export const PHASE2_NOTE_CONNECTION_METHODS: ReadonlySet<string> = new Set(PHASE2_NOTE_CONNECTION_METHOD_NAMES);

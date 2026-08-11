@@ -19,6 +19,8 @@
 | D-20260811-refactor-2 | `window.confirm` を自前ダイアログに置き換えるか（計画書 §C3 PR 4 の 1 項目） | refactor-core |
 | D-20260811-sched-1 | #625 Event → Todo で日付・時間帯を Todo のチップスロットへ引き継ぐか（D-20260810-sched-3 の緩和提案） | schedule-refine |
 | D-20260811-sched-2 | #692 Mobile 月ビューの入口をどの形にするか（#467 が消した切替の部分復活） | schedule-refine |
+| D-20260812-shared-fix-1 | #702 Step 2 の着手順をどれにするか | shared-fix |
+| D-20260812-shared-fix-2 | `toggle_schedule_complete` / `dismiss_*` を `set_*(値)` へ破壊的に改名してよいか | shared-fix |
 | D-20260812-web-1 | Briefing が抱える recharts も初期チャンクから外すか | web-public |
 
 ## Active（現在有効な裁定 — superseded-by なし）

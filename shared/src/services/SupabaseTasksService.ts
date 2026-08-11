@@ -1,4 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
+import type {
+  TasksDataService,
+} from "./DataService";
 import type { TaskNode } from "../types/taskTree";
 // DU-B-3: full SupabaseTasksService rewrite over items_meta +
 // tasks_payload. Pure mapping lives in taskMapper.ts; this file is the
@@ -59,7 +62,7 @@ import {
  * migrateTasksToBackend is a deliberate no-op on web (Supabase-native;
  * nothing to migrate). Kept to satisfy the DataService interface.
  */
-export class SupabaseTasksService {
+export class SupabaseTasksService implements TasksDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -445,7 +448,7 @@ export class SupabaseTasksService {
   }
 }
 
-export const PHASE2_TASKS_METHODS = new Set<string>([
+export const PHASE2_TASKS_METHOD_NAMES = [
   "fetchTaskTree",
   "countUnfinishedTasks",
   "fetchDeletedTasks",
@@ -456,4 +459,8 @@ export const PHASE2_TASKS_METHODS = new Set<string>([
   "restoreTask",
   "permanentDeleteTask",
   "migrateTasksToBackend",
-]);
+] as const;
+
+export type TasksMethodName = (typeof PHASE2_TASKS_METHOD_NAMES)[number];
+
+export const PHASE2_TASKS_METHODS: ReadonlySet<string> = new Set(PHASE2_TASKS_METHOD_NAMES);

@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type {
+  NotesUnifiedDataService,
+} from "./DataService";
 import { noteNodeToRows, noteUpdatesToPatches } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
 import { SupabaseNotesUnifiedReads } from "./SupabaseNotesUnifiedReads";
@@ -30,7 +33,7 @@ import { orderNotePurge } from "./notesUnifiedPurgeOrder";
  * - SupabaseNotesUnifiedLock    password gate + edit lock (+ version bump)
  * - notesUnifiedPurgeOrder      pure leaf-first purge ordering
  */
-export class SupabaseNotesUnifiedService {
+export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
   private readonly reads: SupabaseNotesUnifiedReads;
   private readonly search: SupabaseNotesUnifiedSearch;
   private readonly lock: SupabaseNotesUnifiedLock;
@@ -283,7 +286,7 @@ export class SupabaseNotesUnifiedService {
   }
 }
 
-export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
+export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "listNotesUnified",
   "countLiveNotes",
   "getNoteUnified",
@@ -300,4 +303,8 @@ export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "removeNotePasswordUnified",
   "verifyNotePasswordUnified",
   "toggleNoteEditLockUnified",
-]);
+] as const;
+
+export type NotesUnifiedMethodName = (typeof PHASE2_NOTES_UNIFIED_METHOD_NAMES)[number];
+
+export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set(PHASE2_NOTES_UNIFIED_METHOD_NAMES);

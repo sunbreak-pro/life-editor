@@ -1,4 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
+import type {
+  ScheduleItemsDataService,
+} from "./DataService";
 import type { ScheduleItem } from "../types/schedule";
 import {
   // DU-C-5: 2-row API (items_meta + events_payload)
@@ -45,7 +48,7 @@ import {
 // Exported for unit tests (mirrors SupabaseRoutinesService / detachRoutine):
 // updateFutureScheduleItemsByRoutine's conflict-rule filtering (#279) is
 // exercised against a query-builder mock.
-export class SupabaseScheduleItemsService {
+export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -807,7 +810,7 @@ export class SupabaseScheduleItemsService {
   }
 }
 
-export const PHASE2_SCHEDULE_ITEM_METHODS = new Set<string>([
+export const PHASE2_SCHEDULE_ITEM_METHOD_NAMES = [
   "fetchScheduleItemsByDate",
   "fetchScheduleItemsByDateAll",
   "fetchScheduleItemsByDateRange",
@@ -827,4 +830,8 @@ export const PHASE2_SCHEDULE_ITEM_METHODS = new Set<string>([
   "bulkDeleteScheduleItems",
   "bulkSoftDeleteScheduleItems",
   "fetchEvents",
-]);
+] as const;
+
+export type ScheduleItemMethodName = (typeof PHASE2_SCHEDULE_ITEM_METHOD_NAMES)[number];
+
+export const PHASE2_SCHEDULE_ITEM_METHODS: ReadonlySet<string> = new Set(PHASE2_SCHEDULE_ITEM_METHOD_NAMES);
