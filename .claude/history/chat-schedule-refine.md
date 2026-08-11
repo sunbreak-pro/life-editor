@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-11 (2) - #691 / #692 の Step 1（narrow の実ブラウザ実測 + 月ビュー入口の A/B 案）
+
+#### 概要
+
+/goal 指定により #691 → #692 の Step 1 だけを実施した（実装コードは書かない指定）。#691 は narrow Schedule を実ブラウザで実測して不足点を Issue にコメント、#692 は月ビューの入口案 2 件を判断キュー D-20260811-sched-2 として積んだ。両 Issue ともユーザー回答待ちで Step 2 に入っていない。`web/` `shared/` の変更はゼロ。
+
+#### 変更点
+
+- **narrow の実測手段**: `resize_window` が OS 側で効かず `innerWidth` が 2560 のままだったため、**同一オリジンの 390px iframe** を置いて中の `matchMedia("(min-width: 768px)")` を false にする方法で Mobile 分岐を描かせた。dev server は chat-main の 5173 を**読むだけ**（§7.4 の制約は起動の話なので抵触しない）。今日は予定 0 件だったのでユーザー承認を得て検証用の予定 3 件 + Todo 1 件を作成 → 計測後に全削除（月ビューで残存 0 を確認・ソフトデリートなのでゴミ箱には残る）
+- **#691 の実測結果**（Issue コメント `#issuecomment-5249406615` に全文）: ① 時間軸が無く**行高は所要時間に依らず一律 43px**（`AgendaList.tsx:128` に所要時間の項が無い）② 終了時刻が `AgendaItem.endTime` として渡っているのに描画されない（`:24` vs `:137-139`）③ 60 分の空きでも隙間 0px ④ **進行中の予定が現在線の上（過去側）に出る** — 分割が開始時刻だけを見る（`:100-102`）⑤ 予定 0 件の日は今日でも現在線が出ない（線が timed の map の内側 `:217-227` にしかない）⑥ 今日以外で線が出ないのは仕様どおり（`CalendarTab.tsx:2505`）⑦ **#593 の Todo アクセントは narrow で無傷**（ドット rgb(91,140,255) vs 予定 rgb(167,139,250) + CheckSquare・幅による分岐が構造的に無い）⑧ ただし Todo 行は status を積んでいないため完了不可（`CalendarTab.tsx:1188-1196` → `AgendaList.tsx:176`）かつタップが no-op（`:471` の `if (isWide)`）
+- **Issue の前提は実測でも支持できる**: 「現状が既にかなり近い」は正しく、構造（AgendaList + BottomSheet + FAB）を保ったまま所要時間の表現と現在線の分割を直せば足りる。作り直しは不要
+- **#692 = D-20260811-sched-2**（A = ヘッダ日付タップで月シート / B = narrow に 日・月 の 2 択トグルを戻す・放置時 = 現状維持）。**#467 が消した switcher をどうするかを各案に明記**した
+- **`effView` の 4 消費点をトレース**: 直す必要があるのは **`useCalendarNav.ts:32` の 1 行だけ**。`step()` の month 分岐（`:64`）も `visibleCalendarRange` の month 分岐（`shared/src/utils/calendarView.ts:44`）も `periodLabel`（`CalendarTab.tsx:918`）も `isWide` で囲われていないので自動追従する。残る配線は narrow の描画分岐に MonthGrid を出す 1 点
+- **`MonthGrid` は narrow 対応済みだった**: `compact` prop（day badge + dot row）が実装済み・テスト済み（`MonthGrid.tsx:62-63` / `shared/tests/monthGrid.test.tsx:73-110`）なのに `CalendarTab` から渡されていない。セルは `min-h-14` = 56px。**#692 は作り替えではなく配線**
+
 ### 2026-08-11 - #628 保存ボタン + #625 Event ↔ Todo 変換（重ティアフルチェーン・PR #681 / #684）
 
 #### 概要
