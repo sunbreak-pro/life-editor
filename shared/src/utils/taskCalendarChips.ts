@@ -1,4 +1,5 @@
 import type { TaskNode } from "../types/taskTree";
+import { dateFromKey } from "./scheduleGridLayout";
 
 /*
  * taskCalendarChips (schedule redesign A-1) — pure conversion from scheduled
@@ -68,9 +69,7 @@ export function unwrapTaskChipId(id: string): string {
  * next day's 00:00 — the correct absolute instant for an end-of-day block.
  */
 export function localDateTimeToISO(dateKey: string, timeHHMM: string): string {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  const [hh, mm] = timeHHMM.split(":").map(Number);
-  return new Date(y, m - 1, d, hh, mm).toISOString();
+  return dateFromKey(dateKey, timeHHMM).toISOString();
 }
 
 /** Timed tasks with no explicit end get a 1-hour block. */

@@ -18,6 +18,7 @@
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
+| D-20260811-refactor-1 | Analytics の「今週」が 2 つの意味で併存しているが、揃えるか？ | refactor-core |
 | D-20260811-sched-1 | #625 Event → Todo で日付・時間帯を Todo のチップスロットへ引き継ぐか（D-20260810-sched-3 の緩和提案） | schedule-refine |
 
 ## Active（現在有効な裁定 — superseded-by なし）
