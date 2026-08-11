@@ -13,7 +13,6 @@ import {
   type RepeatScope,
   type RoutineNode,
   type ScheduleItem,
-  dayOfWeek,
 } from "@life-editor/shared";
 
 /*
@@ -630,10 +629,26 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // #407: one conversion per seed at a time. Check-and-claim is a single
       // call so the two cannot drift apart (#434).
       if (!beginConversion(seed.id)) return;
-      const seedWeekday = dayOfWeek(seed.date);
-      const frequencyDays = type === "weekdays" ? [seedWeekday] : [];
-      const frequencyInterval = type === "interval" ? 1 : null;
-      const frequencyStartDate = type === "interval" ? seed.date : null;
+      // #712: the patch may now carry the type-specific fields too — the
+      // editor drafts the whole repeat and hands it over in ONE press, so a
+      // weekday the user picked before saving arrives here rather than in a
+      // follow-up click. Ignoring them would drop that choice on the floor and
+      // create the series on the seed's own weekday instead. Absent fields
+      // still fall back to the seed day / every-1-day defaults, which is
+      // exactly what seedFrequencyPatch fills in (same call the series branch
+      // above makes, so both routes seed identically).
+      const seeded = seedFrequencyPatch(
+        { ...patch, frequencyType: type },
+        {
+          frequencyDays: [],
+          frequencyInterval: null,
+          frequencyStartDate: null,
+        },
+        seed.date,
+      );
+      const frequencyDays = seeded.frequencyDays ?? [];
+      const frequencyInterval = seeded.frequencyInterval ?? null;
+      const frequencyStartDate = seeded.frequencyStartDate ?? null;
       void (async () => {
         // Single release point for the #407 guard: the whole conversion
         // chain runs inside this try so no exit path — success, failed
