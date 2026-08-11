@@ -4,7 +4,7 @@ import {
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
-} from "./taskMapper";
+} from "./itemsMeta";
 
 /*
  * Pure ScheduleItem <-> 2-row (items_meta + events_payload) mappers
@@ -37,6 +37,11 @@ import {
  *   - The events_payload `is_deleted_cache` mirror is INSERT-trigger
  *     initialised from items_meta.is_deleted; also strip from WRITE.
  *
+ * The single-row shims that bridged DU-C-5 (`ScheduleItemRow` /
+ * `rowToScheduleItem` / `scheduleItemToRow` / `scheduleItemUpdatesToPatch`)
+ * were deleted in #670 C3 PR 1 — the service has called the 2-row API
+ * since DU-C-5 landed, so there is nothing left to migrate onto.
+ *
  * What this module owns:
  *   - The 2-row shape (`ItemsMetaEventRow` / `EventsPayloadRow`).
  *   - SELECT column lists for items_meta (role='event') + events_payload.
@@ -62,7 +67,7 @@ import {
 
 /**
  * items_meta shapes for role='event' — aliases of the canonical generics
- * in `taskMapper` (the 5 role mappers carried byte-identical copies).
+ * in `itemsMeta` (the 5 role mappers carried byte-identical copies).
  */
 export type ItemsMetaEventRow = ItemsMetaRow<"event">;
 export type ItemsMetaEventInsertRow = ItemsMetaInsertRow<"event">;
@@ -376,160 +381,4 @@ export function scheduleItemUpdatesToPatches(
   // 0008 events_payload schema has no corresponding columns.
 
   return { metaPatch, payloadPatch };
-}
-
-// ---------------------------------------------------------------------------
-// 6. Back-compat shims (LEGACY — DU-C-5 will remove after the service is
-//    rewritten to call the 2-row API directly).
-// ---------------------------------------------------------------------------
-
-/**
- * @deprecated Legacy single-row ScheduleItem shape (Phase 2
- * `public.schedule_items`). DU-C-5 will remove this once
- * `SupabaseScheduleItemsService` calls the 2-row API directly.
- */
-export interface ScheduleItemRow {
-  id: string;
-  user_id: string;
-  date: string;
-  title: string;
-  start_time: string;
-  end_time: string;
-  completed: boolean;
-  completed_at: string | null;
-  routine_id: string | null;
-  template_id: string | null;
-  memo: string | null;
-  is_dismissed: boolean;
-  note_id: string | null;
-  is_all_day: boolean;
-  content: string | null;
-  reminder_enabled: boolean;
-  reminder_offset: number | null;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
-
-/** @deprecated See `ScheduleItemRow`. */
-export type ScheduleItemWriteRow = Omit<ScheduleItemRow, "user_id">;
-
-/** @deprecated SELECT column list of the legacy single-row shape. */
-export const SCHEDULE_ITEM_SELECT_COLUMNS =
-  "id, user_id, date, title, start_time, end_time, completed, " +
-  "completed_at, routine_id, template_id, memo, is_dismissed, note_id, " +
-  "is_all_day, content, reminder_enabled, reminder_offset, is_deleted, " +
-  "deleted_at, created_at, updated_at, version";
-
-/** @deprecated Use `rowsToScheduleItem(meta, payload)` instead. */
-export function rowToScheduleItem(row: ScheduleItemRow): ScheduleItem {
-  const item: ScheduleItem = {
-    id: row.id,
-    date: row.date,
-    title: row.title,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    completed: row.completed,
-    completedAt: row.completed_at,
-    routineId: row.routine_id,
-    templateId: row.template_id,
-    memo: row.memo,
-    noteId: row.note_id,
-    content: row.content,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-
-  item.isDeleted = row.is_deleted;
-  item.isDismissed = row.is_dismissed;
-  item.isAllDay = row.is_all_day;
-  item.reminderEnabled = row.reminder_enabled;
-  if (row.deleted_at !== null) item.deletedAt = row.deleted_at;
-  if (row.reminder_offset !== null) item.reminderOffset = row.reminder_offset;
-
-  return item;
-}
-
-/** @deprecated Use `scheduleItemToRows(item, userId)` instead. */
-export function scheduleItemToRow(item: ScheduleItem): ScheduleItemWriteRow {
-  return {
-    id: item.id,
-    date: item.date,
-    title: item.title,
-    start_time: item.startTime,
-    end_time: item.endTime,
-    completed: item.completed,
-    completed_at: item.completedAt,
-    routine_id: item.routineId,
-    template_id: item.templateId,
-    memo: item.memo,
-    is_dismissed: item.isDismissed ?? false,
-    note_id: item.noteId,
-    is_all_day: item.isAllDay ?? false,
-    content: item.content,
-    reminder_enabled: item.reminderEnabled ?? false,
-    reminder_offset: item.reminderOffset ?? null,
-    is_deleted: item.isDeleted ?? false,
-    deleted_at: item.deletedAt ?? null,
-    created_at: item.createdAt,
-    updated_at: item.updatedAt,
-    version: 1,
-  };
-}
-
-/** @deprecated Use `scheduleItemUpdatesToPatches(updates, userId, now)` instead. */
-export function scheduleItemUpdatesToPatch(
-  updates: Partial<
-    Pick<
-      ScheduleItem,
-      | "title"
-      | "startTime"
-      | "endTime"
-      | "completed"
-      | "completedAt"
-      | "memo"
-      | "content"
-      | "date"
-      | "isAllDay"
-      | "isDismissed"
-      | "isDeleted"
-      | "deletedAt"
-      | "noteId"
-      | "templateId"
-      | "reminderEnabled"
-      | "reminderOffset"
-    >
-  >,
-): Partial<ScheduleItemWriteRow> {
-  const patch: Partial<ScheduleItemWriteRow> = {};
-  if ("title" in updates && updates.title !== undefined)
-    patch.title = updates.title;
-  if ("startTime" in updates && updates.startTime !== undefined)
-    patch.start_time = updates.startTime;
-  if ("endTime" in updates && updates.endTime !== undefined)
-    patch.end_time = updates.endTime;
-  if ("completed" in updates && updates.completed !== undefined)
-    patch.completed = updates.completed;
-  if ("completedAt" in updates)
-    patch.completed_at = updates.completedAt ?? null;
-  if ("memo" in updates) patch.memo = updates.memo ?? null;
-  if ("content" in updates) patch.content = updates.content ?? null;
-  if ("date" in updates && updates.date !== undefined)
-    patch.date = updates.date;
-  if ("isAllDay" in updates && updates.isAllDay !== undefined)
-    patch.is_all_day = updates.isAllDay;
-  if ("isDismissed" in updates && updates.isDismissed !== undefined)
-    patch.is_dismissed = updates.isDismissed;
-  if ("isDeleted" in updates && updates.isDeleted !== undefined)
-    patch.is_deleted = updates.isDeleted;
-  if ("deletedAt" in updates) patch.deleted_at = updates.deletedAt ?? null;
-  if ("noteId" in updates) patch.note_id = updates.noteId ?? null;
-  if ("templateId" in updates) patch.template_id = updates.templateId ?? null;
-  if ("reminderEnabled" in updates && updates.reminderEnabled !== undefined)
-    patch.reminder_enabled = updates.reminderEnabled;
-  if ("reminderOffset" in updates)
-    patch.reminder_offset = updates.reminderOffset ?? null;
-  return patch;
 }

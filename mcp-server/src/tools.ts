@@ -27,8 +27,52 @@ import {
   searchByTag,
   getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
-export const TOOLS: Tool[] = [
-  {
+import { validateToolArgs, type ObjectSchema } from "./utils/toolSchema.js";
+
+/*
+ * The tool registry (#669 / core-refactor C2).
+ *
+ * One entry per tool, holding everything that tool needs: its name, the
+ * schema Claude Code reads at connect time, and the handler that runs it.
+ * Adding a tool used to mean editing three places nothing tied together — an
+ * import, the TOOLS array and a `switch` case — and forgetting the third
+ * shipped a tool that advertised itself and then answered "Unknown tool".
+ *
+ * `TOOLS` (the ListTools response) and the dispatch table are both derived
+ * from this one array, so they cannot drift apart.
+ */
+
+type ToolArgs = Record<string, unknown>;
+
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: ObjectSchema;
+  run: (args: ToolArgs) => Promise<unknown>;
+}
+
+/**
+ * Bind a handler to its schema. The type parameter keeps each handler's own
+ * argument type on the entry, and confines the JSON→typed cast that
+ * `callTool` used to repeat once per tool to this single line — sound now
+ * because `callTool` validates the arguments against `inputSchema` first.
+ */
+function defineTool<A>(def: {
+  name: string;
+  description: string;
+  inputSchema: ObjectSchema;
+  handler: (args: A) => Promise<unknown>;
+}): ToolDefinition {
+  return {
+    name: def.name,
+    description: def.description,
+    inputSchema: def.inputSchema,
+    run: (args) => def.handler(args as unknown as A),
+  };
+}
+
+const TOOL_DEFINITIONS: ToolDefinition[] = [
+  defineTool({
     name: "list_tasks",
     description:
       "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id.",
@@ -59,8 +103,9 @@ export const TOOLS: Tool[] = [
         },
       },
     },
-  },
-  {
+    handler: listTasks,
+  }),
+  defineTool({
     name: "get_task",
     description: "Get a single task by ID.",
     inputSchema: {
@@ -70,8 +115,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: getTask,
+  }),
+  defineTool({
     name: "create_task",
     description: "Create a new task.",
     inputSchema: {
@@ -94,8 +140,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["title"],
     },
-  },
-  {
+    handler: createTask,
+  }),
+  defineTool({
     name: "update_task",
     description:
       "Update an existing task. Only provide fields you want to change.",
@@ -125,8 +172,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: updateTask,
+  }),
+  defineTool({
     name: "delete_task",
     description: "Soft-delete a task (moves to trash).",
     inputSchema: {
@@ -136,8 +184,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: deleteTask,
+  }),
+  defineTool({
     name: "get_daily",
     description: "Get the daily entry for a specific date.",
     inputSchema: {
@@ -150,8 +199,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["date"],
     },
-  },
-  {
+    handler: getDaily,
+  }),
+  defineTool({
     name: "upsert_daily",
     description:
       "Create or update a daily entry. Content is plain text and will be converted to TipTap JSON.",
@@ -170,8 +220,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["date", "content"],
     },
-  },
-  {
+    handler: upsertDaily,
+  }),
+  defineTool({
     name: "list_notes",
     description: "List all notes, optionally filtered by a search query.",
     inputSchema: {
@@ -183,8 +234,9 @@ export const TOOLS: Tool[] = [
         },
       },
     },
-  },
-  {
+    handler: listNotes,
+  }),
+  defineTool({
     name: "create_note",
     description: "Create a new note.",
     inputSchema: {
@@ -199,8 +251,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["title"],
     },
-  },
-  {
+    handler: createNote,
+  }),
+  defineTool({
     name: "update_note",
     description:
       "Update an existing note. Only provide fields you want to change.",
@@ -221,8 +274,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: updateNote,
+  }),
+  defineTool({
     name: "list_schedule",
     description:
       "List schedule items and scheduled tasks for a specific date or date range.",
@@ -244,8 +298,9 @@ export const TOOLS: Tool[] = [
         },
       },
     },
-  },
-  {
+    handler: listSchedule,
+  }),
+  defineTool({
     name: "create_schedule_item",
     description:
       "Create a new schedule item (event) on the calendar. For routine-based items, use tasks instead.",
@@ -276,8 +331,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["date", "title", "start_time", "end_time"],
     },
-  },
-  {
+    handler: createScheduleItem,
+  }),
+  defineTool({
     name: "update_schedule_item",
     description:
       "Update an existing schedule item. Only provide fields you want to change.",
@@ -303,8 +359,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: updateScheduleItem,
+  }),
+  defineTool({
     name: "delete_schedule_item",
     description:
       "Soft-delete a schedule item (moves it to trash; restorable from the Trash view).",
@@ -315,8 +372,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: deleteScheduleItem,
+  }),
+  defineTool({
     name: "toggle_schedule_complete",
     description: "Toggle the completion status of a schedule item.",
     inputSchema: {
@@ -326,8 +384,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: toggleScheduleComplete,
+  }),
+  defineTool({
     name: "dismiss_schedule_item",
     description:
       "Hide a schedule item from list/calendar views without deleting it. Used to skip routine occurrences for a given day.",
@@ -338,8 +397,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: dismissScheduleItem,
+  }),
+  defineTool({
     name: "undismiss_schedule_item",
     description:
       "Restore a previously dismissed schedule item so it appears in views again.",
@@ -350,8 +410,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["id"],
     },
-  },
-  {
+    handler: undismissScheduleItem,
+  }),
+  defineTool({
     name: "get_today_context",
     description:
       "Get everything needed to write the morning briefing (朝刊) in one call: today's events, tasks scheduled onto today, open tasks (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
@@ -365,8 +426,9 @@ export const TOOLS: Tool[] = [
         },
       },
     },
-  },
-  {
+    handler: getTodayContext,
+  }),
+  defineTool({
     name: "write_briefing",
     description:
       "Write the morning briefing (朝刊) into the daily note for a date. Upserts a '朝刊' heading section at the top of the DailyNode content: paragraph 1 = the focus line (今日のフォーカス), following paragraphs = the AI comment body. An existing 朝刊 section is replaced; all other daily content (e.g. the 夕刊 section) is preserved. Creates the daily if it does not exist yet.",
@@ -391,8 +453,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["focus"],
     },
-  },
-  {
+    handler: writeBriefing,
+  }),
+  defineTool({
     name: "search_all",
     description:
       "Search across tasks, dailies, and notes. Use this to find information across all domains.",
@@ -420,8 +483,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["query"],
     },
-  },
-  {
+    handler: searchAll,
+  }),
+  defineTool({
     name: "generate_content",
     description:
       "PREFERRED tool for creating rich content in notes or dailies. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_daily when you need formatted output.",
@@ -544,8 +608,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["target", "structure"],
     },
-  },
-  {
+    handler: generateContent,
+  }),
+  defineTool({
     name: "list_wiki_tags",
     description:
       "List all wiki tags. Tags are cross-domain labels that connect tasks, dailies, and notes.",
@@ -558,8 +623,9 @@ export const TOOLS: Tool[] = [
         },
       },
     },
-  },
-  {
+    handler: listWikiTags,
+  }),
+  defineTool({
     name: "tag_entity",
     description:
       "Assign a wiki tag to a task, daily, or note. Creates the tag if it doesn't exist.",
@@ -577,8 +643,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["tag_name", "entity_id"],
     },
-  },
-  {
+    handler: tagEntity,
+  }),
+  defineTool({
     name: "search_by_tag",
     description: "Search for tasks, dailies, and notes by wiki tag name.",
     inputSchema: {
@@ -593,8 +660,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["tag_name"],
     },
-  },
-  {
+    handler: searchByTag,
+  }),
+  defineTool({
     name: "get_task_tree",
     description:
       "Get tasks as a hierarchical tree structure. Returns tasks with their children, tags, and metadata (excludes content — use get_task for full content).",
@@ -617,8 +685,9 @@ export const TOOLS: Tool[] = [
         },
       },
     },
-  },
-  {
+    handler: getTaskTree,
+  }),
+  defineTool({
     name: "get_entity_tags",
     description:
       "Get all wiki tags assigned to a specific entity (task, daily, or note).",
@@ -632,8 +701,9 @@ export const TOOLS: Tool[] = [
       },
       required: ["entity_id"],
     },
-  },
-  {
+    handler: getEntityTags,
+  }),
+  defineTool({
     name: "format_content",
     description:
       "Read and restructure existing note/daily content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
@@ -699,120 +769,30 @@ export const TOOLS: Tool[] = [
       },
       required: ["target", "operations"],
     },
-  },
+    handler: formatContent,
+  }),
 ];
 
-type ToolArgs = Record<string, unknown>;
+/** The ListTools response — same names, descriptions and schemas as ever. */
+export const TOOLS: Tool[] = TOOL_DEFINITIONS.map((def) => ({
+  name: def.name,
+  description: def.description,
+  inputSchema: def.inputSchema,
+}));
+
+const BY_NAME = new Map(TOOL_DEFINITIONS.map((def) => [def.name, def]));
 
 export async function callTool(
   name: string,
   args: ToolArgs,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  let result: unknown;
+  const def = BY_NAME.get(name);
+  if (!def) throw new Error(`Unknown tool: ${name}`);
 
-  switch (name) {
-    case "list_tasks":
-      result = await listTasks(args as Parameters<typeof listTasks>[0]);
-      break;
-    case "get_task":
-      result = await getTask(args as Parameters<typeof getTask>[0]);
-      break;
-    case "create_task":
-      result = await createTask(args as Parameters<typeof createTask>[0]);
-      break;
-    case "update_task":
-      result = await updateTask(args as Parameters<typeof updateTask>[0]);
-      break;
-    case "delete_task":
-      result = await deleteTask(args as Parameters<typeof deleteTask>[0]);
-      break;
-    case "get_daily":
-      result = await getDaily(args as Parameters<typeof getDaily>[0]);
-      break;
-    case "upsert_daily":
-      result = await upsertDaily(args as Parameters<typeof upsertDaily>[0]);
-      break;
-    case "list_notes":
-      result = await listNotes(args as Parameters<typeof listNotes>[0]);
-      break;
-    case "create_note":
-      result = await createNote(args as Parameters<typeof createNote>[0]);
-      break;
-    case "update_note":
-      result = await updateNote(args as Parameters<typeof updateNote>[0]);
-      break;
-    case "list_schedule":
-      result = await listSchedule(args as Parameters<typeof listSchedule>[0]);
-      break;
-    case "create_schedule_item":
-      result = await createScheduleItem(
-        args as Parameters<typeof createScheduleItem>[0],
-      );
-      break;
-    case "update_schedule_item":
-      result = await updateScheduleItem(
-        args as Parameters<typeof updateScheduleItem>[0],
-      );
-      break;
-    case "delete_schedule_item":
-      result = await deleteScheduleItem(
-        args as Parameters<typeof deleteScheduleItem>[0],
-      );
-      break;
-    case "toggle_schedule_complete":
-      result = await toggleScheduleComplete(
-        args as Parameters<typeof toggleScheduleComplete>[0],
-      );
-      break;
-    case "dismiss_schedule_item":
-      result = await dismissScheduleItem(
-        args as Parameters<typeof dismissScheduleItem>[0],
-      );
-      break;
-    case "undismiss_schedule_item":
-      result = await undismissScheduleItem(
-        args as Parameters<typeof undismissScheduleItem>[0],
-      );
-      break;
-    case "get_today_context":
-      result = await getTodayContext(
-        args as Parameters<typeof getTodayContext>[0],
-      );
-      break;
-    case "write_briefing":
-      result = await writeBriefing(args as Parameters<typeof writeBriefing>[0]);
-      break;
-    case "search_all":
-      result = await searchAll(args as Parameters<typeof searchAll>[0]);
-      break;
-    case "generate_content":
-      result = await generateContent(
-        args as unknown as Parameters<typeof generateContent>[0],
-      );
-      break;
-    case "list_wiki_tags":
-      result = await listWikiTags(args as Parameters<typeof listWikiTags>[0]);
-      break;
-    case "tag_entity":
-      result = await tagEntity(args as Parameters<typeof tagEntity>[0]);
-      break;
-    case "search_by_tag":
-      result = await searchByTag(args as Parameters<typeof searchByTag>[0]);
-      break;
-    case "get_task_tree":
-      result = await getTaskTree(args as Parameters<typeof getTaskTree>[0]);
-      break;
-    case "get_entity_tags":
-      result = await getEntityTags(args as Parameters<typeof getEntityTags>[0]);
-      break;
-    case "format_content":
-      result = await formatContent(
-        args as unknown as Parameters<typeof formatContent>[0],
-      );
-      break;
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
+  // Validate before dispatch: an argument the schema does not allow must not
+  // reach a handler, where it would become a Supabase error or a bad write.
+  validateToolArgs(name, def.inputSchema, args);
+  const result = await def.run(args);
 
   return {
     content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

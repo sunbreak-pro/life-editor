@@ -16,6 +16,59 @@ import {
   todayCalendarKey,
 } from "./dateKey";
 
+/*
+ * "This week" means two different things in Analytics, and both are live:
+ *
+ *   - `createdWithinLastDays(…, 7)` — a ROLLING 7-day window ending now.
+ *     Used by the "notes this week" cards (OverviewTab + MobileAnalyticsView).
+ *   - `calendarWeekRange()` — the Mon–Sun CALENDAR week containing now.
+ *     Used by MobileAnalyticsView's work-minutes and completed-task cards.
+ *
+ * So the mobile Analytics screen shows both meanings side by side. Naming
+ * them was the point of #670 C3 PR 3 — the two windows were open-coded, so
+ * nothing on screen said which card meant which. Unifying them would change
+ * displayed numbers, which is a product call, not a refactor: see the
+ * decision queue entry in `.claude/comm/decisions/chat-refactor-core.md`.
+ */
+
+/**
+ * Items created within the last `days` days, as a ROLLING window ending at
+ * `now`. Comparison is on LOCAL calendar keys (#420): the stored
+ * `createdAt` is a UTC instant, so slicing its ISO string would read the UTC
+ * day and drop anything written before 09:00 JST on the boundary day.
+ */
+export function createdWithinLastDays<T extends { createdAt: string }>(
+  items: readonly T[],
+  days: number,
+  now: Date = new Date(),
+): T[] {
+  const start = new Date(now);
+  start.setDate(start.getDate() - days);
+  const startKey = toDateStr(start);
+  return items.filter((item) => {
+    const key = dateKeyOfInstant(item.createdAt);
+    return key !== null && key >= startKey;
+  });
+}
+
+/**
+ * The Mon–Sun CALENDAR week containing `now`, as inclusive local date keys.
+ * Sunday belongs to the week that just ended (`getDay() === 0` steps back 6
+ * days), matching the week bars the mobile screen renders beside it.
+ */
+export function calendarWeekRange(now: Date = new Date()): {
+  startKey: string;
+  endKey: string;
+} {
+  const dow = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { startKey: toDateStr(monday), endKey: toDateStr(sunday) };
+}
+
 export interface DayBucket {
   date: string; // YYYY-MM-DD
   totalMinutes: number;

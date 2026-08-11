@@ -7,6 +7,7 @@ import {
 } from "react";
 import { cn } from "./cn";
 import { FIELD, FIELD_LABEL } from "./styleTokens";
+import { minutesToTime } from "../utils/scheduleGridLayout";
 
 /*
  * TimeRangeField (#553) — the app-original start–end editor that replaces the
@@ -94,11 +95,10 @@ export function parseTimeInput(raw: string): number | null {
   return h * 60 + m;
 }
 
-function fmt(min: number): string {
-  const h = String(Math.floor(min / 60)).padStart(2, "0");
-  const m = String(min % 60).padStart(2, "0");
-  return `${h}:${m}`;
-}
+// Same HH:MM formatter as the schedule grid's. Its 0–24:00 clamp is a no-op
+// here: every caller feeds a value already bounded by `step()` /
+// `parseTimeInput` / the `m < 24 * 60` option loop.
+const fmt = minutesToTime;
 
 function TimeCombo({
   value,

@@ -4,7 +4,8 @@ import {
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
-} from "./taskMapper";
+} from "./itemsMeta";
+import { contentJsonToString, contentStringToJson } from "./contentJson";
 
 /*
  * Pure DailyNode <-> 2-row (items_meta + dailies_payload) mappers (DU-D Step 1).
@@ -41,7 +42,7 @@ import {
 
 /**
  * items_meta shapes for role='daily' — aliases of the canonical generics
- * in `taskMapper` (the 5 role mappers carried byte-identical copies).
+ * in `itemsMeta` (the 5 role mappers carried byte-identical copies).
  */
 export type ItemsMetaDailyRow = ItemsMetaRow<"daily">;
 export type ItemsMetaDailyInsertRow = ItemsMetaInsertRow<"daily">;
@@ -107,23 +108,9 @@ export function assertDailyDate(value: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// 4. content_json <-> string (shared shape with notesUnifiedMapper)
+// 4. content_json <-> string — see `contentJson.ts` (one implementation,
+//    shared with notesUnifiedMapper since #670 C3 PR 2)
 // ---------------------------------------------------------------------------
-
-export function contentJsonToString(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
-
-export function contentStringToJson(value: string): unknown {
-  if (value === "") return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // 5. SELECT: 2 rows -> DailyNode

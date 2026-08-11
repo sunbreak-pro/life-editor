@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   ShortcutEditModal,
-  type ShortcutRow,
   type ShortcutEditModalLabels,
 } from "../src/components";
+import type { ShortcutRow } from "../src/types/shortcut";
 
 /*
  * Shortcut rebind modal. Capture starts on the row that opened it, a

@@ -4,6 +4,14 @@
     "module": "Node16",
     "moduleResolution": "Node16",
     "lib": ["ES2022"],
+    /* Required from TypeScript 6.0 on (#668 C1). Up to 5.9 this package got
+       @types/node through automatic discovery and never had to name it; under
+       6.0 that discovery does not happen — `--traceResolution` emits not one
+       type-reference-directive line — so `process` and `node:crypto` resolve
+       to nothing and 15 errors appear across src/. shared, web and desktop
+       already state `types` explicitly; this was the only package relying on
+       the implicit behaviour. */
+    "types": ["node"],
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,

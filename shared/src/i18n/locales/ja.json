@@ -244,7 +244,7 @@
       "quickAddSubmit": "追加",
       "empty": "Todo がありません",
       "addCta": "Todo を追加",
-      "taskCount": "Todo {{count}} 件"
+      "taskCount_other": "Todo {{count}} 件"
     },
     "notes": {
       "searchPlaceholder": "ノートを検索…",
@@ -254,6 +254,10 @@
       "content": "内容",
       "links": "リンク",
       "deleteNote": "ノートを削除",
+      "bodyPlaceholder": "ノートを書く…",
+      "untitled": "(無題)",
+      "restoreNote": "{{title}} を復元",
+      "permanentDeleteNote": "{{title}} を完全に削除",
       "detailTitle": "ノートの詳細",
       "quickAddTitle": "ノートを追加",
       "quickAddPlaceholder": "タイトルを入力",

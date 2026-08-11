@@ -17,6 +17,7 @@ import {
   type DataService,
   type ItemCreateNoteDraft,
   type NavSection,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
@@ -62,7 +63,7 @@ export function BriefingScreen({
   // surface (mobile-scope #3), so the same block becomes the live input; the
   // morning paper stays editable at every width. Own matchMedia read, like
   // MainScreen's and AppShell's (same 768px query — §W5 app shell).
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
   const intentionEditableOnEvening = !isWide;
 
   const todayKey = todayDateKey();

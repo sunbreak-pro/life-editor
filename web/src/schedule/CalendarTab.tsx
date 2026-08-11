@@ -75,6 +75,8 @@ import {
   type StatusFilterChip,
   type DataService,
   MobileFab,
+  WIDE_QUERY,
+  dateFromKey,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
 import { TagPicker } from "../wikitag/TagPicker";
@@ -167,7 +169,7 @@ export function CalendarTab({
   onConsumePendingEvent?: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
   const {
     items: contextItems,
     isLoading,
@@ -906,15 +908,13 @@ export function CalendarTab({
   );
   const formatDayDate = useCallback(
     (key: string) => {
-      const [y, m, d] = key.split("-").map(Number);
-      return mdFmt.format(new Date(y, m - 1, d));
+      return mdFmt.format(dateFromKey(key));
     },
     [mdFmt],
   );
 
   const periodLabel = useMemo(() => {
-    const [y, m, d] = anchorDate.split("-").map(Number);
-    const dObj = new Date(y, m - 1, d);
+    const dObj = dateFromKey(anchorDate);
     if (effView === "month") {
       return new Intl.DateTimeFormat(i18n.language, {
         year: "numeric",
@@ -947,22 +947,20 @@ export function CalendarTab({
   // navigated months away to.
   const createDateLabel = useMemo(() => {
     if (!createPanel) return undefined;
-    const [y, m, d] = createPanel.date.split("-").map(Number);
     return new Intl.DateTimeFormat(i18n.language, {
       year: "numeric",
       month: "long",
       day: "numeric",
       weekday: "short",
-    }).format(new Date(y, m - 1, d));
+    }).format(dateFromKey(createPanel.date));
   }, [createPanel, i18n.language]);
 
   const todayLabel = useMemo(() => {
-    const [y, m, d] = today.split("-").map(Number);
     return new Intl.DateTimeFormat(i18n.language, {
       month: "long",
       day: "numeric",
       weekday: "short",
-    }).format(new Date(y, m - 1, d));
+    }).format(dateFromKey(today));
   }, [today, i18n.language]);
 
   // Month-cell accessible names (MonthGrid falls back to the raw ISO key —
@@ -978,8 +976,7 @@ export function CalendarTab({
   );
   const formatFullDay = useCallback(
     (key: string) => {
-      const [y, m, d] = key.split("-").map(Number);
-      return fullDayFmt.format(new Date(y, m - 1, d));
+      return fullDayFmt.format(dateFromKey(key));
     },
     [fullDayFmt],
   );

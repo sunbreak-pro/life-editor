@@ -45,6 +45,7 @@ import {
   type KanbanViewMode,
   type TaskAddType,
   type TaskNode,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
@@ -135,7 +136,7 @@ export function KanbanView({
   // Desktop (wide) = the full DnD board + rightSidebar detail; Mobile (narrow)
   // = the stripped-down MobileTaskList (brief). Same 768px breakpoint the
   // AppShell uses (its own read — useMediaQuery is a pure display hook).
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
   const rightSidebar = useRightSidebarContext();
   // "[[" wiring for the task body (#507). Both surfaces below render through
   // renderTaskDetail, so wide and the mobile sheet get it from one place.

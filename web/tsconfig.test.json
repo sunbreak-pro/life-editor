@@ -1,0 +1,38 @@
+{
+  /*
+   * Type-checks the SUITES (#668 C1) — see shared/tsconfig.test.json for the
+   * full reasoning; the same hole exists here, at 24 files.
+   *
+   * Extends tsconfig.app.json (not tsconfig.json, which is a reference-only
+   * stub) so the suites are checked under exactly the options the app is built
+   * with. Only two things change: `types` gains node and vitest's globals, and
+   * the build info gets its own path so it never collides with the app build's.
+   *
+   * `@life-editor/shared` still resolves through tsconfig.app.json's `paths`,
+   * i.e. to ../shared/dist/index.d.ts, while vitest RUNS the suites against
+   * ../shared/src. That skew is pre-existing and deliberate (it is how the app
+   * itself is built), but it means a stale shared/dist makes this command lie
+   * in both directions locally. Run `cd ../shared && npm run build` first; CI
+   * gets this for free because the shared build step precedes every web step.
+   */
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["vite/client", "node", "vitest/globals"]
+  },
+  "references": [{ "path": "../shared" }],
+  "include": ["src", "tests"],
+
+  /*
+   * BASELINE (#668 C1) — see the longer note in shared/tsconfig.test.json.
+   * Exactly one of web's 24 suites failed the first type check: a `vi.fn()`
+   * handed to a prop typed `(options: { allowStale: boolean }) => ...`, which
+   * vitest types as the untyped `Mock<Procedure | Constructable>`. Fixing it
+   * means giving the mock its signature, which is a change to the suite and
+   * belongs in its own PR.
+   *
+   * DO NOT APPEND TO THIS LIST. Deleting the line is how the fix gets recorded.
+   */
+  "exclude": ["tests/itemLinkMenu.test.tsx"]
+}

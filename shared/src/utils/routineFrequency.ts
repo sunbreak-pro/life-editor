@@ -1,4 +1,5 @@
 import type { FrequencyType } from "../types/routine";
+import { dayOfWeek } from "./scheduleGridLayout";
 
 /**
  * Port of frontend/src/utils/routineFrequency.ts. Every date is parsed as
@@ -100,8 +101,7 @@ export function seedFrequencyPatch<
   if (patch.frequencyType === "weekdays") {
     const days = patch.frequencyDays ?? current.frequencyDays;
     if (days.length === 0) {
-      const [y, m, d] = anchorDate.split("-").map(Number);
-      seeded.frequencyDays = [new Date(y, m - 1, d).getDay()];
+      seeded.frequencyDays = [dayOfWeek(anchorDate)];
     }
   }
 

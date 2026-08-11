@@ -4,7 +4,7 @@ import {
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
-} from "./taskMapper";
+} from "./itemsMeta";
 
 /*
  * Pure RoutineNode <-> 2-row (items_meta + routines_payload) mappers
@@ -17,11 +17,12 @@ import {
  * Historical context: Phase 2 stored Routines in a single `public.routines`
  * table (0006). DU-A (0008) introduced items_meta as the authority row
  * for every item (5 roles) and split per-role columns into
- * `*_payload` tables. The legacy mappers (`RoutineRow` /
- * `rowToRoutine` / `routineToRow` / `routineUpdatesToPatch`) are kept as
- * THIN BACK-COMPAT SHIMS so DU-C-3 (SupabaseRoutinesService rewrite) can
- * land independently of DU-C-2 (this file) — they will be removed once
- * the service no longer references them.
+ * `*_payload` tables. The single-row mappers (`RoutineRow` /
+ * `rowToRoutine` / `routineToRow` / `routineUpdatesToPatch`) were kept as
+ * back-compat shims so DU-C-3 (SupabaseRoutinesService rewrite) could land
+ * independently of DU-C-2 (this file); the service has called the 2-row API
+ * ever since, and the shims were deleted in #670 C3 PR 1. The 2-row API
+ * below is the only mapper surface — there is nothing to migrate onto.
  *
  * What this module owns (DU-C-2):
  *   - The 2-row shape (`ItemsMetaRoutineRow` / `RoutinesPayloadRow`).
@@ -31,8 +32,7 @@ import {
  *     template_* — are present in DB but stay optional/unused on the
  *     write path until DU-D consolidates the contract).
  *   - `rowsToRoutineNode` / `routineNodeToRows` / `routineUpdatesToPatches`.
- *   - `frequency_days` JSON <-> number[] coercion (shared with the legacy
- *     shim).
+ *   - `frequency_days` JSON <-> number[] coercion.
  *   - DB-Q2 enforcement: `metaPatch.updated_at = now` is ALWAYS emitted
  *     by `routineUpdatesToPatches`, regardless of which payload column
  *     the caller patched (same rule as `taskUpdatesToPatches`).
@@ -123,7 +123,7 @@ export function parseFrequencyDays(raw: string): number[] {
 
 /**
  * items_meta shapes for role='routine' — aliases of the canonical
- * generics in `taskMapper` (the 5 role mappers carried byte-identical
+ * generics in `itemsMeta` (the 5 role mappers carried byte-identical
  * copies).
  */
 export type ItemsMetaRoutineRow = ItemsMetaRow<"routine">;
@@ -440,150 +440,4 @@ export function routineUpdatesToPatches(
     payloadPatch.reminder_offset = updates.reminderOffset ?? null;
 
   return { metaPatch, payloadPatch };
-}
-
-// ---------------------------------------------------------------------------
-// 6. Back-compat shims (LEGACY — DU-C-3 will remove after the service is
-//    rewritten to call the 2-row API directly).
-// ---------------------------------------------------------------------------
-
-/**
- * @deprecated Legacy single-row Routine shape (Phase 2 `public.routines`).
- * DU-C-3 will remove this once `SupabaseRoutinesService` calls
- * `rowsToRoutineNode` / `routineNodeToRows` / `routineUpdatesToPatches`
- * directly. New callers must use the 2-row API.
- */
-export interface RoutineRow {
-  id: string;
-  user_id: string;
-  title: string;
-  is_archived: boolean;
-  order: number;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  version: number;
-  frequency_type: string;
-  frequency_days: string;
-  frequency_interval: number | null;
-  frequency_start_date: string | null;
-  is_visible: boolean;
-  start_time: string | null;
-  end_time: string | null;
-  reminder_enabled: boolean;
-  reminder_offset: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-/** @deprecated See `RoutineRow`. */
-export type RoutineWriteRow = Omit<RoutineRow, "user_id">;
-
-/** @deprecated SELECT column list of the legacy single-row shape. */
-export const ROUTINE_SELECT_COLUMNS =
-  'id, user_id, title, is_archived, "order", is_deleted, deleted_at, ' +
-  "version, frequency_type, frequency_days, frequency_interval, " +
-  "frequency_start_date, is_visible, start_time, end_time, " +
-  "reminder_enabled, reminder_offset, created_at, updated_at";
-
-/** @deprecated Use `rowsToRoutineNode(meta, payload)` instead. */
-export function rowToRoutine(row: RoutineRow): RoutineNode {
-  const frequency = normaliseFrequency(row.frequency_type, row.frequency_days);
-
-  const node: RoutineNode = {
-    id: row.id,
-    title: row.title,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    isArchived: row.is_archived,
-    isVisible: row.is_visible,
-    isDeleted: row.is_deleted,
-    deletedAt: row.deleted_at,
-    order: row.order,
-    frequencyType: frequency.frequencyType,
-    frequencyDays: frequency.frequencyDays,
-    frequencyInterval: row.frequency_interval,
-    frequencyStartDate: row.frequency_start_date,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-
-  node.reminderEnabled = row.reminder_enabled;
-  if (row.reminder_offset !== null) node.reminderOffset = row.reminder_offset;
-
-  return node;
-}
-
-/** @deprecated Use `routineNodeToRows(node, userId)` instead. */
-export function routineToRow(node: RoutineNode): RoutineWriteRow {
-  return {
-    id: node.id,
-    title: node.title,
-    is_archived: node.isArchived,
-    order: node.order,
-    is_deleted: node.isDeleted,
-    deleted_at: node.deletedAt,
-    version: 1,
-    frequency_type: node.frequencyType,
-    frequency_days: JSON.stringify(node.frequencyDays),
-    frequency_interval: node.frequencyInterval,
-    frequency_start_date: node.frequencyStartDate,
-    is_visible: node.isVisible,
-    start_time: node.startTime,
-    end_time: node.endTime,
-    reminder_enabled: node.reminderEnabled ?? false,
-    reminder_offset: node.reminderOffset ?? null,
-    created_at: node.createdAt,
-    updated_at: node.updatedAt,
-  };
-}
-
-/** @deprecated Use `routineUpdatesToPatches(updates, userId, now)` instead. */
-export function routineUpdatesToPatch(
-  updates: Partial<
-    Pick<
-      RoutineNode,
-      | "title"
-      | "startTime"
-      | "endTime"
-      | "isArchived"
-      | "isVisible"
-      | "isDeleted"
-      | "deletedAt"
-      | "order"
-      | "frequencyType"
-      | "frequencyDays"
-      | "frequencyInterval"
-      | "frequencyStartDate"
-      | "reminderEnabled"
-      | "reminderOffset"
-    >
-  >,
-): Partial<RoutineWriteRow> {
-  const patch: Partial<RoutineWriteRow> = {};
-  if ("title" in updates && updates.title !== undefined)
-    patch.title = updates.title;
-  if ("startTime" in updates) patch.start_time = updates.startTime ?? null;
-  if ("endTime" in updates) patch.end_time = updates.endTime ?? null;
-  if ("isArchived" in updates && updates.isArchived !== undefined)
-    patch.is_archived = updates.isArchived;
-  if ("isVisible" in updates && updates.isVisible !== undefined)
-    patch.is_visible = updates.isVisible;
-  if ("isDeleted" in updates && updates.isDeleted !== undefined)
-    patch.is_deleted = updates.isDeleted;
-  if ("deletedAt" in updates) patch.deleted_at = updates.deletedAt ?? null;
-  if ("order" in updates && updates.order !== undefined)
-    patch.order = updates.order;
-  if ("frequencyType" in updates && updates.frequencyType !== undefined)
-    patch.frequency_type = updates.frequencyType;
-  if ("frequencyDays" in updates && updates.frequencyDays !== undefined)
-    patch.frequency_days = JSON.stringify(updates.frequencyDays);
-  if ("frequencyInterval" in updates)
-    patch.frequency_interval = updates.frequencyInterval ?? null;
-  if ("frequencyStartDate" in updates)
-    patch.frequency_start_date = updates.frequencyStartDate ?? null;
-  if ("reminderEnabled" in updates && updates.reminderEnabled !== undefined)
-    patch.reminder_enabled = updates.reminderEnabled;
-  if ("reminderOffset" in updates)
-    patch.reminder_offset = updates.reminderOffset ?? null;
-  return patch;
 }

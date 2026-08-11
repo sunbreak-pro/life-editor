@@ -1,4 +1,10 @@
 import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
+import {
+  ITEMS_META_COLUMNS,
+  type ItemsMetaRow,
+  type ItemsMetaInsertRow,
+  type ItemsMetaUpdatePatch,
+} from "./itemsMeta";
 
 /*
  * Pure TaskNode <-> 2-row (items_meta + tasks_payload) mappers (DU-B-2).
@@ -10,14 +16,19 @@ import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
  * blocks cross-role parenting at the DB layer.
  *
  * What this module owns:
- *   - The 2-row shape (`ItemsMetaRow` / `TasksPayloadRow`) for SELECTs.
- *   - The 2-row WRITE shape (no `parent_item_role` — it is a generated
- *     stored column the client cannot supply).
+ *   - The `tasks_payload` shape for SELECTs (`TasksPayloadRow`) and its
+ *     WRITE shape (no `parent_item_role` — it is a generated stored
+ *     column the client cannot supply).
  *   - SELECT column lists for items_meta (role=task) + tasks_payload.
  *   - `rowsToTaskNode` / `taskNodeToRows` (INSERT) / `taskUpdatesToPatches`
  *     (UPDATE). All pure: zero `new Date()`, zero Supabase, zero I/O.
  *
  * What this module does NOT own:
+ *   - The `items_meta` row / insert / patch shapes and their SELECT column
+ *     list. They are role-independent and live in `itemsMeta.ts` — keeping
+ *     them here made the other 4 role mappers import a shared type from the
+ *     Tasks module, which reads as a dependency that does not exist
+ *     (#670 C3 PR 2).
  *   - The orphan-cleanup `try/catch` after a failed payload INSERT
  *     (R2 → DU-B-3 SupabaseTasksService.createTask).
  *   - The descendants-first hard-delete order for permanentDelete (Tauri
@@ -35,26 +46,6 @@ import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
 // ---------------------------------------------------------------------------
 // 1. Row shapes (matches 0008 + 0009 schema verbatim)
 // ---------------------------------------------------------------------------
-
-/**
- * Row shape of `public.items_meta`. `role` is a CHECK column with 5
- * allowed values; each role mapper narrows `R` to its own literal
- * (default `'task'` — this file is the canonical home of the shape; the
- * other 4 mappers alias it instead of keeping byte-identical copies).
- * `user_id` is server-derived (RLS default `auth.uid()`) and clients
- * never write it.
- */
-export interface ItemsMetaRow<R extends string = "task"> {
-  id: string;
-  user_id: string;
-  role: R;
-  title: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
 
 /**
  * Row shape of `public.tasks_payload`. `parent_item_role` is a generated
@@ -91,17 +82,6 @@ export interface TasksPayloadRow {
 }
 
 /**
- * Writable subset for INSERT. `user_id` is the only items_meta column
- * the client must supply (RLS default would fill it, but explicit is
- * safer for cross-device parity); `created_at` / `updated_at` are left
- * to the column DEFAULT `now()` on first INSERT.
- */
-export type ItemsMetaInsertRow<R extends string = "task"> = Omit<
-  ItemsMetaRow<R>,
-  "created_at" | "updated_at"
->;
-
-/**
  * Writable subset for INSERT/UPDATE on tasks_payload. `parent_item_role`
  * is a generated stored column and PG rejects any client-supplied value
  * for it — keep it OFF the write type by construction (type-level guard,
@@ -109,14 +89,6 @@ export type ItemsMetaInsertRow<R extends string = "task"> = Omit<
  * the field.
  */
 export type TasksPayloadWriteRow = Omit<TasksPayloadRow, "parent_item_role">;
-
-/** UPDATE patch for items_meta. `id` / `user_id` / `role` / `created_at`
- * are never patched, so this shape is role-independent (all 5 role
- * mappers alias it). `updated_at` is ALWAYS present (bump responsibility,
- * see `taskUpdatesToPatches`). */
-export type ItemsMetaUpdatePatch = Partial<
-  Omit<ItemsMetaRow, "id" | "user_id" | "role" | "created_at">
->;
 
 /** UPDATE patch for tasks_payload. `item_id` / `user_id` /
  * `parent_item_role` are never patched. */
@@ -127,17 +99,6 @@ export type TasksPayloadUpdatePatch = Partial<
 // ---------------------------------------------------------------------------
 // 2. SELECT column lists (literal strings to keep query intent reviewable)
 // ---------------------------------------------------------------------------
-
-/**
- * SELECT column list for `items_meta` rows (identical for all 5 roles —
- * the role filter is the caller's responsibility, e.g.
- * `.eq('role', 'task')`). The per-role constants below and in the other
- * mappers are thin aliases so query call sites keep their role-scoped
- * names.
- */
-export const ITEMS_META_COLUMNS =
-  "id, user_id, role, title, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
 
 /** Role-scoped alias of `ITEMS_META_COLUMNS` for Tasks call sites. */
 export const ITEMS_META_TASK_COLUMNS = ITEMS_META_COLUMNS;

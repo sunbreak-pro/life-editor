@@ -181,32 +181,26 @@ export {
   TASKS_PAYLOAD_COLUMNS,
 } from "./taskMapper";
 export type {
-  ItemsMetaRow,
   TasksPayloadRow,
-  ItemsMetaInsertRow,
   TasksPayloadWriteRow,
-  ItemsMetaUpdatePatch,
   TasksPayloadUpdatePatch,
 } from "./taskMapper";
+// The items_meta shape is role-independent and lives in its own module
+// since #670 C3 PR 2 (it used to sit inside taskMapper).
+export type {
+  ItemsMetaRow,
+  ItemsMetaInsertRow,
+  ItemsMetaUpdatePatch,
+} from "./itemsMeta";
 
 // Schedule domain (S4-2) — mapper re-exports for round-trip / host use.
-export {
-  rowToRoutine,
-  routineToRow,
-  routineUpdatesToPatch,
-  toFrequencyType,
-  parseFrequencyDays,
-} from "./routineMapper";
-export type { RoutineRow, RoutineWriteRow } from "./routineMapper";
-export {
-  rowToScheduleItem,
-  scheduleItemToRow,
-  scheduleItemUpdatesToPatch,
-} from "./scheduleItemMapper";
-export type {
-  ScheduleItemRow,
-  ScheduleItemWriteRow,
-} from "./scheduleItemMapper";
+// Routine / ScheduleItem are 2-row domains: their single-row shims
+// (rowToRoutine / routineToRow / routineUpdatesToPatch / RoutineRow /
+// RoutineWriteRow and the ScheduleItem equivalents) were deleted in #670
+// C3 PR 1 — the 2-row API is exported from the taskMapper block above and
+// from the mapper modules directly. Only the frequency helpers, which the
+// 2-row mapper still uses, remain here.
+export { toFrequencyType, parseFrequencyDays } from "./routineMapper";
 export {
   rowToCalendar,
   calendarToRow,

@@ -73,6 +73,7 @@ interface RichTextEditorProps {
   initialContent?: string;
   onUpdate: (content: string) => void;
   editable?: boolean;
+  /** Empty-doc hint. Omitted → the translated note-body wording. */
   placeholder?: string;
   /** Container chrome override (the Daily card supplies its own fill/scroll). */
   className?: string;
@@ -107,7 +108,7 @@ export function RichTextEditor({
   initialContent,
   onUpdate,
   editable = true,
-  placeholder = "Write your note…",
+  placeholder,
   className = "rounded-md border border-lumen-border bg-lumen-bg p-3",
   slashMenu = true,
   loadLinkTargets,
@@ -203,7 +204,12 @@ export function RichTextEditor({
           protocols: ["http", "https", "mailto"],
           defaultProtocol: "https",
         }),
-        Placeholder.configure({ placeholder }),
+        // The fallback is translated, not a hardcoded English string: a call
+        // site that passes nothing (the Kanban task body) used to print
+        // "Write your note…" on a Japanese screen (#680).
+        Placeholder.configure({
+          placeholder: placeholder ?? t("materials.notes.bodyPlaceholder"),
+        }),
         // Checkbox lists — the built-in input rule turns a leading "[] " (or
         // "[x] ") into a task item; nested items allow indented sub-tasks.
         TaskList,

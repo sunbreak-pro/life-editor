@@ -1,6 +1,7 @@
-name: CI — live stack (web + shared)
+name: CI — live stack (shared + web + desktop + mcp-server)
 
-# 生きている本流（shared → web → desktop）の型検査・テスト・ビルドを自動検証する。
+# 生きている本流（shared → web → desktop → mcp-server）の型検査・テスト・ビルドを
+# 自動検証する。
 # 旧 Tauri スタック（frontend/ + src-tauri/ + 旧 build.yml）は 2026-07-11 に削除済み
 # （#197・復元 = git tag pre-tauri-removal）。Phase 4 の mobile は未着手のため当面
 # ここには含めない。desktop は typecheck + electron-vite build まで（#529 —
@@ -45,6 +46,7 @@ jobs:
             shared/package-lock.json
             web/package-lock.json
             desktop/package-lock.json
+            mcp-server/package-lock.json
 
       # shared = React コード本体: 型検査(tsc -b) + vitest
       - name: shared — install
@@ -57,6 +59,14 @@ jobs:
         working-directory: shared
       - name: shared — build (tsc -b)
         run: npm run build
+        working-directory: shared
+      # tests/ は tsconfig.json の include の外（あの project は dist/ を emit する
+      # ので suites を同梱できない）。そのため専用 config で型検査する（#668 C1）。
+      # 導入時点で 12 suites / 15 errors が落ちたので、tsconfig.test.json 側に
+      # eslint baseline と同じ「縮んでいく除外リスト」を持たせた上でブロッキング
+      # にしている。除外の外にある約 180 suites は今日から検査される
+      - name: shared — typecheck tests (tsc -p tsconfig.test.json)
+        run: npm run typecheck:tests
         working-directory: shared
       - name: shared — test (vitest)
         run: npm run test
@@ -74,6 +84,12 @@ jobs:
         working-directory: web
       - name: web — build (tsc -b --force && vite build)
         run: npm run build
+        working-directory: web
+      # shared と同じ穴を塞ぐ（#668 C1）。型解決が ../shared/dist 経由なので、
+      # 直前の web — build（tsc -b --force が shared も建て直す）より後に置く。
+      # 落ちたのは 24 suites 中 1 本だけで、それが tsconfig.test.json の除外リスト
+      - name: web — typecheck tests (tsc -p tsconfig.test.json)
+        run: npm run typecheck:tests
         working-directory: web
       # web = renderer 側の vitest（#475 で追加）。vitest.config.ts は vite.config.ts
       # を merge するので @life-editor/shared は ../shared/src から解決される
@@ -95,3 +111,23 @@ jobs:
       - name: desktop — build (electron-vite build)
         run: npm run build
         working-directory: desktop
+
+      # mcp-server = 独立 Node プロセス（#668 C1）。ここに来るまで src は一度も
+      # 型検査されず、vitest も CI で一度も走っていなかった。lint は足さない
+      # （このパッケージに eslint 設定が無く、導入は別作業）。
+      # tests/briefingSection.test.ts が ../../shared/src を直 import している
+      # ため、この 3 ステップは shared を壊すと連鎖して落ちる — 意図した結合で、
+      # 朝刊の parseDoc 受理条件が shared と mcp で割れている（C10）ことを CI に
+      # 見張らせる唯一の場所になる。shared — install が上で済んでいるのが前提。
+      - name: mcp-server — install
+        run: npm ci
+        working-directory: mcp-server
+      - name: mcp-server — build (tsc)
+        run: npm run build
+        working-directory: mcp-server
+      # vitest.config.ts が TZ を Asia/Tokyo に pin する。ランナーは UTC なので、
+      # pin が無いと localDate の局所日付テストが別の意味で緑になる（実測: pin を
+      # 外すと UTC で 2 件落ちる）
+      - name: mcp-server — test (vitest)
+        run: npm run test
+        working-directory: mcp-server

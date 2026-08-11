@@ -13,7 +13,9 @@ import {
 import {
   aggregateByDay,
   aggregateRoutineCompletion,
+  calendarWeekRange,
   computeWorkStreak,
+  createdWithinLastDays,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
 import { EmptyState } from "./EmptyState";
@@ -95,14 +97,7 @@ export function MobileAnalyticsView(
 
     // This week (Mon–Sun)
     const now = new Date();
-    const dow = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow));
-    monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const weekStart = formatDateKey(monday);
-    const weekEnd = formatDateKey(sunday);
+    const { startKey: weekStart, endKey: weekEnd } = calendarWeekRange(now);
     const weekWork = getWorkSessions(sessions).filter((s) => {
       const d = formatDateKey(new Date(s.startedAt));
       return d >= weekStart && d <= weekEnd;
@@ -127,14 +122,9 @@ export function MobileAnalyticsView(
     // #375: the `type === "note"` half of this filter went away with the
     // folder type (every NoteNode is a note now).
     const activeNotes = notes.filter((n) => !n.isDeleted);
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekAgoStr = formatDateKey(weekAgo);
-    const notesThisWeek = activeNotes.filter((n) => {
-      // LOCAL day of the stored UTC instant (#420) — the OverviewTab twin.
-      const d = dateKeyOfInstant(n.createdAt);
-      return d !== null && d >= weekAgoStr;
-    }).length;
+    // Rolling 7 days — deliberately a DIFFERENT window from weekStart/weekEnd
+    // above (see the header of `utils/analyticsAggregation.ts`).
+    const notesThisWeek = createdWithinLastDays(activeNotes, 7, now).length;
 
     const rangeItems = scheduleItems.filter((i) => !i.isDeleted);
     const routineItems = rangeItems.filter((i) => i.routineId);

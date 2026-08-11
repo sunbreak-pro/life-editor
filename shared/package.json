@@ -15,9 +15,12 @@
     "build": "tsc -b",
     "_comment_typecheck": "composite project: `typecheck` runs `tsc -b` which ALSO emits dist (build side effect). It is intentionally an alias of `build`, not a pure --noEmit check, because project references require emitted .d.ts. Do not 'fix' it to `tsc --noEmit`.",
     "typecheck": "tsc -b",
+    "_comment_typecheck_tests": "tests/ are outside tsconfig.json's include (that project emits dist/ and must not ship the suites), so they are checked by their own config — see tsconfig.test.json. Blocking in CI, with a shrinking per-file baseline.",
+    "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -42,15 +45,17 @@
     "@types/d3-quadtree": "^3.0.6",
     "@types/d3-selection": "^3.0.11",
     "@types/d3-zoom": "^3.0.8",
+    "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "4.1.6",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.6.0",
     "jsdom": "^25.0.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "typescript": "~5.6.0",
+    "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vitest": "^4.0.18"
   }

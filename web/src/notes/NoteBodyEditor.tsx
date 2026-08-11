@@ -1,4 +1,4 @@
-import type { NoteNode } from "@life-editor/shared";
+import { useTranslation, type NoteNode } from "@life-editor/shared";
 import { RichTextEditor } from "./RichTextEditor";
 import type { NoteLinking } from "./hooks/useNoteLinking";
 
@@ -13,6 +13,11 @@ import type { NoteLinking } from "./hooks/useNoteLinking";
  * initialContent changes once mounted, so the note id IS the remount signal.
  * The caller decides WHETHER to mount it at all — the mobile sheet holds a
  * skeleton until the body has actually arrived.
+ *
+ * The body placeholder is read here rather than taken as a prop for the same
+ * reason: a prop would have to be passed at both mount sites, and one of them
+ * would eventually be forgotten (#680 — the placeholder was nobody's job, so
+ * the editor's English default showed on a Japanese screen).
  */
 
 export interface NoteBodyEditorProps {
@@ -31,12 +36,14 @@ export function NoteBodyEditor({
   onSave,
   className,
 }: NoteBodyEditorProps) {
+  const { t } = useTranslation();
   return (
     <RichTextEditor
       key={note.id}
       noteId={note.id}
       initialContent={note.content || undefined}
       editable={!note.isEditLocked}
+      placeholder={t("materials.notes.bodyPlaceholder")}
       onUpdate={(content) => {
         onSave(note.id, content);
         // #372: drop inline-origin edges whose "[[ ]]" left the text.
