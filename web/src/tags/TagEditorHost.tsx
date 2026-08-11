@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   TagEditModal,
   itemRoleSortKey,
@@ -141,10 +141,32 @@ function TagEditorPanel({
     [unassignTagFromItem],
   );
 
+  /*
+   * Unsaved-close guard (#715, same shape as #628's EventEditorPane). Since the
+   * panel only commits on its per-row save button, every close affordance —
+   * Esc, the backdrop, whatever opened it — can now throw a typed rename away.
+   * The panel reports whether anything is pending; asking about it belongs
+   * here, because this is what owns `onClose`. A ref (not state) keeps the
+   * report from re-rendering the panel on every keystroke.
+   */
+  const dirtyRef = useRef(false);
+  const close = useCallback(() => {
+    if (
+      dirtyRef.current &&
+      !window.confirm(t("materials.tags.unsavedCloseConfirm"))
+    )
+      return;
+    dirtyRef.current = false;
+    onClose();
+  }, [onClose, t]);
+
   return (
     <TagEditModal
       open
-      onClose={onClose}
+      onClose={close}
+      onDirtyChange={(dirty) => {
+        dirtyRef.current = dirty;
+      }}
       tags={tagRows}
       onCreate={(name) => void createTag(name)}
       onRename={(id, name) => void renameTag(id, name)}
@@ -162,6 +184,7 @@ function TagEditorPanel({
         filterLabel: t("materials.tags.filterLabel"),
         filterEmpty: t("materials.tags.filterEmpty"),
         renameLabel: t("materials.tags.rename"),
+        saveLabel: t("materials.tags.save"),
         deleteLabel: t("materials.tags.deleteTag"),
         iconLabel: t("materials.tags.iconLabel"),
         clearIconLabel: t("materials.tags.clearIcon"),
