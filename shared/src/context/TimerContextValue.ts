@@ -14,6 +14,27 @@ import type { ActiveTask, TimerPhase } from "./timerReducer";
  * needs. Durations are surfaced in MINUTES (matching the 0018 columns and the
  * domain TimerSettings) — the UI edits minutes.
  */
+/**
+ * The numeric settings one press of the Work panel's save button changes
+ * (#714). Only the fields that moved are present — an untouched setting is
+ * never rewritten with the value it already had. Minutes / counts, as edited.
+ */
+export interface TimerSettingsPatch {
+  workDuration?: number;
+  breakDuration?: number;
+  longBreakDuration?: number;
+  sessionsBeforeLongBreak?: number;
+  targetSessions?: number;
+}
+
+/** The durations a new preset stores (the panel supplies them — #714). */
+export interface TimerPresetValues {
+  workDuration: number;
+  breakDuration: number;
+  longBreakDuration: number;
+  sessionsBeforeLongBreak: number;
+}
+
 export interface TimerContextValue {
   // --- live, derived display state ---
   phase: TimerPhase;
@@ -57,15 +78,23 @@ export interface TimerContextValue {
   adjustRemainingMinutes: (delta: number) => void;
 
   // --- settings mutators (persist via DataService) ---
-  setWorkDurationMinutes: (min: number) => void;
-  setBreakDurationMinutes: (min: number) => void;
-  setLongBreakDurationMinutes: (min: number) => void;
-  setSessionsBeforeLongBreak: (count: number) => void;
+  /**
+   * Commit the Work panel's numeric draft (#714). ONE dispatch + ONE write per
+   * call, however many fields moved — the five per-field setters this replaced
+   * meant five rows and five sync bumps for one gesture. Values are clamped
+   * here, so a saved 500 comes back as the field's maximum.
+   */
+  saveSettings: (patch: TimerSettingsPatch) => void;
+  /** An act, not a drafted field — commits on click (#714). */
   setAutoStartBreaks: (enabled: boolean) => void;
-  setTargetSessions: (count: number) => void;
 
   // --- preset CRUD ---
-  createPresetFromCurrent: (name: string) => Promise<void>;
+  /**
+   * Store `values` under `name`. The values come from the panel because an
+   * unsaved draft and the stored settings can differ since #714 — reading the
+   * stored ones here would name a preset after numbers nobody is looking at.
+   */
+  createPreset: (name: string, values: TimerPresetValues) => Promise<void>;
   applyPreset: (preset: PomodoroPreset) => void;
   deletePreset: (id: number) => Promise<void>;
 }

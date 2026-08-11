@@ -311,6 +311,9 @@ export {
   type PomodoroSettingsProps,
   type PomodoroSettingsLabels,
   type PomodoroPresetOption,
+  // #714: the patch the save button hands the host + what a preset captures.
+  type PomodoroSettingsPatch,
+  type PomodoroPresetValues,
 } from "./PomodoroSettings";
 export {
   SessionCompletionModal,

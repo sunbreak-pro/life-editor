@@ -53,6 +53,22 @@ import {
  * state optimistically; we do NOT feed the write's return value back into the
  * fetch path. The syncVersion-keyed refetch is the only re-pull trigger, and a
  * self-originated Realtime bump just re-reads the same values we already hold.
+ *
+ * VOLUME IS TWO-STAGE (#714, Epic #627 — the D-20260810-sched-1 save-button
+ * model). The slider used to write a sound_settings row per drag, so every
+ * value it passed through on the way to the wanted one was stored. It cannot
+ * simply move to "commit on the button" either: a mixer that goes silent about
+ * a drag until the user saves cannot be mixed by ear. So the two halves split:
+ *
+ *   - `volumeDrafts` holds the moved sliders. It is laid OVER `persisted` to
+ *     make the exposed `settings`, which is what the elements play — so the
+ *     drag is audible the moment it happens.
+ *   - `saveVolumes()` is the only thing that calls updateSoundSetting for a
+ *     volume. One write per row that actually moved.
+ *
+ * Keeping the drafts in their own map (rather than mutating `persisted`) is
+ * also what lets the syncVersion refetch land: a remote change reaches every
+ * row the user is NOT holding, and the held ones stay where the user put them.
  */
 export interface AudioProviderProps {
   children: ReactNode;
@@ -70,13 +86,43 @@ function buildDefaultSettings(): Record<string, AudioPresetState> {
   return out;
 }
 
-export function AudioProvider({ children, dataService: ds }: AudioProviderProps) {
+export function AudioProvider({
+  children,
+  dataService: ds,
+}: AudioProviderProps) {
   const syncVersion = useSyncDomains("audio");
 
-  const [settings, setSettings] = useState<Record<string, AudioPresetState>>(
-    buildDefaultSettings,
-  );
+  // What the sound_settings rows say (fetch + our own writes).
+  const [persisted, setPersisted] =
+    useState<Record<string, AudioPresetState>>(buildDefaultSettings);
+  // Slider positions moved but not yet written, keyed by preset id (#714).
+  const [volumeDrafts, setVolumeDrafts] = useState<Record<string, number>>({});
   const [urls, setUrls] = useState<Record<string, string>>({});
+
+  // The live mix: persisted rows with the pending sliders laid over them. This
+  // is what plays and what the mixer renders, so a drag is audible at once.
+  const settings = useMemo(() => {
+    const ids = Object.keys(volumeDrafts);
+    if (ids.length === 0) return persisted;
+    const merged: Record<string, AudioPresetState> = { ...persisted };
+    for (const id of ids) {
+      const cur = merged[id] ?? {
+        volume: DEFAULT_SOUND_VOLUME,
+        enabled: DEFAULT_SOUND_ENABLED,
+      };
+      merged[id] = { ...cur, volume: volumeDrafts[id] };
+    }
+    return merged;
+  }, [persisted, volumeDrafts]);
+
+  const volumeDirty = useMemo(
+    () =>
+      Object.keys(volumeDrafts).some(
+        (id) =>
+          volumeDrafts[id] !== (persisted[id]?.volume ?? DEFAULT_SOUND_VOLUME),
+      ),
+    [persisted, volumeDrafts],
+  );
 
   // Looping element per preset id; one-shot chime element kept separately.
   const elementsRef = useRef<Record<string, HTMLAudioElement>>({});
@@ -123,7 +169,7 @@ export function AudioProvider({ children, dataService: ds }: AudioProviderProps)
       .fetchSoundSettings()
       .then((rows) => {
         if (cancelled) return;
-        setSettings(
+        setPersisted(
           mergeSoundSettings(
             rows.map((r) => ({
               soundType: r.soundType,
@@ -208,9 +254,9 @@ export function AudioProvider({ children, dataService: ds }: AudioProviderProps)
     // would just leave a suspended context around for Mobile-absent hosts).
     const Ctor =
       typeof window !== "undefined"
-        ? window.AudioContext ??
+        ? (window.AudioContext ??
           (window as unknown as { webkitAudioContext?: typeof AudioContext })
-            .webkitAudioContext
+            .webkitAudioContext)
         : undefined;
     if (!Ctor) return;
     let ctx = audioCtxRef.current;
@@ -233,37 +279,53 @@ export function AudioProvider({ children, dataService: ds }: AudioProviderProps)
     [ds],
   );
 
+  // Audible now, written by saveVolumes (#714). resumeAudio here as well as on
+  // the toggle: reaching for a slider is a user gesture too, and on a row that
+  // is already ON it may be the FIRST one — the autoplay policy would still be
+  // holding the context suspended.
   const setVolume = useCallback(
     (id: string, volume: number) => {
       const v = clampSoundVolume(volume);
       resumeAudio();
-      setSettings((prev) => {
-        const cur = prev[id] ?? {
-          volume: DEFAULT_SOUND_VOLUME,
-          enabled: DEFAULT_SOUND_ENABLED,
-        };
-        const next = { ...prev, [id]: { ...cur, volume: v } };
-        persist(id, v, cur.enabled);
-        return next;
-      });
+      setVolumeDrafts((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
     },
-    [persist, resumeAudio],
+    [resumeAudio],
   );
+
+  const saveVolumes = useCallback(() => {
+    const ids = Object.keys(volumeDrafts);
+    if (ids.length === 0) return;
+    // Read from the render's own state rather than a setState updater: an
+    // updater must stay pure, and persist() is a write.
+    const next = { ...persisted };
+    for (const id of ids) {
+      const cur = next[id] ?? {
+        volume: DEFAULT_SOUND_VOLUME,
+        enabled: DEFAULT_SOUND_ENABLED,
+      };
+      const v = volumeDrafts[id];
+      // A slider dragged back to where it started is not a write.
+      if (cur.volume === v) continue;
+      next[id] = { ...cur, volume: v };
+      persist(id, v, cur.enabled);
+    }
+    setPersisted(next);
+    setVolumeDrafts({});
+  }, [persist, persisted, volumeDrafts]);
 
   const toggleEnabled = useCallback(
     (id: string, enabled: boolean) => {
       resumeAudio();
-      setSettings((prev) => {
-        const cur = prev[id] ?? {
-          volume: DEFAULT_SOUND_VOLUME,
-          enabled: DEFAULT_SOUND_ENABLED,
-        };
-        const next = { ...prev, [id]: { ...cur, enabled } };
-        persist(id, cur.volume, enabled);
-        return next;
-      });
+      const cur = persisted[id] ?? {
+        volume: DEFAULT_SOUND_VOLUME,
+        enabled: DEFAULT_SOUND_ENABLED,
+      };
+      setPersisted({ ...persisted, [id]: { ...cur, enabled } });
+      // cur.volume, not the pending slider: the switch writes its own field
+      // and leaves an unsaved volume unsaved.
+      persist(id, cur.volume, enabled);
     },
-    [persist, resumeAudio],
+    [persist, persisted, resumeAudio],
   );
 
   const playCompletionChime = useCallback(() => {
@@ -282,11 +344,22 @@ export function AudioProvider({ children, dataService: ds }: AudioProviderProps)
       settings,
       urls,
       setVolume,
+      volumeDirty,
+      saveVolumes,
       toggleEnabled,
       playCompletionChime,
       resumeAudio,
     }),
-    [settings, urls, setVolume, toggleEnabled, playCompletionChime, resumeAudio],
+    [
+      settings,
+      urls,
+      setVolume,
+      volumeDirty,
+      saveVolumes,
+      toggleEnabled,
+      playCompletionChime,
+      resumeAudio,
+    ],
   );
 
   return (
