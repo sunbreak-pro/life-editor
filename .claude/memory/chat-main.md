@@ -9,7 +9,7 @@
 
 - 前回: **Phase 1 インフラ配置 PR #594 merged**（`3ef1f752`。routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
 - 現在: **Phase 2 の文書整備 = PR #597 merged**（`5161a9a1`）。Step 9 ゲート（カタログ定着後に裁定）は**ユーザー指示で前倒し・試験運用 0 件のまま着手**し、その事実を Worklog 先頭に記録。① `goals.md` を役割ごと差し替え（Goal 一覧 + 状態機械 → 「今夜どれを選ぶか」の選定基準。一覧は GitHub が正本なので持たない）② `routine-night.md` を `/loop-implement` の薄い殻へ（無人固有の事情のみ・**commit 止まり**）③ 追随 3 か所（`run-routine.ps1` の ValidateSet に `night` / README 状態列 / `routine-morning.md` 退役）。**§7 の「draft PR 止まり」は permissions 実測と食い違っていたので commit 止まりへ訂正**
-- 次: **発火の裁定 D-20260804-main-1** → `run-routine.ps1 -Routine night` を手動 1 回で動作確認 → `schtasks` 登録（手順 = `automation/routine-ids.md`）。**有効化の前提が 1 つ増えた**（PR #619・#618）= repo の `permissions.ask` から `git push*` / `gh pr create*` を外したので、**無人レーンの push 抑止は runner 側 settings で渡す**（`claude -p --settings <無人用>` / `--disallowedTools`）。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
+- 次: **発火の裁定は 2026-08-11 に決着（D-20260804-main-1 = A = Windows タスクスケジューラ + `claude -p`・06:03 / 22:33）** → `run-routine.ps1 -Routine night` を手動 1 回で動作確認 → `schtasks` 登録（手順 = `automation/routine-ids.md`）。**有効化の前提が 1 つ増えた**（PR #619・#618）= repo の `permissions.ask` から `git push*` / `gh pr create*` を外したので、**無人レーンの push 抑止は runner 側 settings で渡す**（`claude -p --settings <無人用>` / `--disallowedTools`）。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
 
 ### ⏸️ ループカタログ試験運用 + 自律運転の到達点（着手日: 2026-08-06）
 
@@ -26,10 +26,12 @@
 
 - 前回: 2026-08-01 の旧 fan-out 巡回完了（open PR 0・判断キュー空）
 - 現在: **2026-08-10 /goal バッチ完了** — open Issue 20 件を 8 レーンへ `/goal` プロンプトで分配（briefing-refine worktree 新設）し、同日中に 17 PR が merge。main 取り込み後の一括検証 = 静的ゲート全緑 + 実ブラウザ 9 PASS / FAIL 0（詳細 = history 2026-08-10）。**DDL 0023 適用済み**（#372 の残タスクだった push をユーザーが実行・タグ機能復旧を実測）
-- 次: 判断キューの回答確認（**#628 / #625** = schedule-refine が積んだ分）→ #628 close 後に **#627 の子 Issue を 1 面 1 本で起票**。open PR の巡回（#649 ほか）と briefing レーン（#585 / #623 / #609）の PR 回収。#632 は mobile-refine が着手可能（FAB 実測を Issue コメント済み）
+- 現在（2026-08-11）: **backlog 一斉棚卸し完了** — #587 / #290 / #512 / #530 / #321 にコメント、#627 本文を実測表（5 → 19 面）へ差し替え、実ブラウザ 5 PASS / 3 BLOCKED / FAIL 0（詳細 = history 2026-08-11）。#707 / #708 を schedule レーンへ起票
+- 次: **判断キュー 2 件の回答待ち** = `D-20260811-main-1`（#627 の対象範囲 → 回答後に子 Issue を 1 面 1 本で起票）/ `D-20260811-main-2`（#321 のスコープ確定 → 回答後に close 可否）。あわせて **#290 は実ブラウザ検証だけで close 可**（コード 9/9 DONE）。open PR の巡回（#649 ほか）と briefing レーン（#585 / #623 / #609）の PR 回収。#632 は mobile-refine が着手可能
 
 ## 直近の完了
 
+- [chat-main] **backlog 一斉棚卸し（並列調査 4 + 実ブラウザ 1）** ✅（2026-08-11）— **PASS 5 / BLOCKED 3 / FAIL 0・回帰なし**。#681 は blur が下書き保持・保存ボタンで確定を実測（繰り返しだけ即時 commit は PR 記載どおり）、#684 は変換前後で id 完全一致・routine 由来は文言一致で拒否、#686 は更新 / 削除の undo とも翻訳トースト。BLOCKED 3 は**導線が UI に存在しない**もの（子 Todo の変換拒否 = 入れ子が #418 で退役 / `createRoutine` の undo = 呼び出し 0 件）。#587 は DoD 4 のみ未達（`notesUnifiedHelpers.ts` のテスト参照 0 件）で open 維持、#290 はコード 9/9 DONE、#530 は typecheck / build とも exit 0 だが `desktop/.env` 不在（`web/.env.local` は効かない）。判断キュー 3 件を台帳へ昇格（D-20260809-main-2 / D-20260804-main-1 / D-20260810-main-3 = すべて A）。**停止条件 2 件で保留** = #627 の子 Issue 起票（5 → 19 面）と #321 の close（本文外の open 5 件）
 - [chat-main] **/goal バッチのオーケストレーション + merge 後の一括検証** ✅（2026-08-10）— 8 レーンへ 20 Issue を分配し 17 PR が同日 merge。静的ゲート全緑（shared 1554 / web 167）+ playwright 実ブラウザ 9 PASS / FAIL 0。DDL 0023 push（ユーザー実行）でタグ機能復旧 → #626 実測 PASS。#680 起票 + #632 に FAB 実測コメント。パスワードノートの set/remove UI 不在は #588 の欠落ではなく従前からのギャップと git で裏取り。残 = #632 / #628・#625（判断キュー）/ briefing 3 本 / #586 残（PR #649 open）/ iPhone 目視 3 点（詳細 = history 2026-08-10）
 - [chat-main] **ユーザー要望 7 件の起票 + 最優先 1 本の実装（#623〜#628 起票 / #624 = PR #629 open）** ✅（2026-08-10）— 要望を重複チェックのうえ 6 本に起票（要件 2「Task→Todo」は既存 **#592** に該当したので新規は立てず、Work 画面の名前空間は既に Todo 統一済みという実測をコメント追記）。**#623** 朝刊の + 追加導線 / **#624** ポモドーロ数値入力バグ / **#625** Event⇄Todo 変換 / **#626** Todo のタグ付け外し（Event は #468 済み・Todo チップは #564 で Tasks へ受け渡す設計だった）/ **#627** Epic 保存ボタン統一（Note・Daily 除く）/ **#628** その段階 1 = Schedule 詳細。実装は唯一の `type:bug` の **#624** を選択 — 原因は `NumberField` が空文字を `Number("") === 0` として commit し、`clampMinutes` が 1 に丸めて書き戻していたこと（**RED チェックで `expected '150' to be '50'` を再現**）。「空欄」を独立した状態にして commit を止め、空欄のまま離れる / プリセット保存すると「`<項目名>`に数値を入力してください」を出す。**セクション遷移そのものは止めていない**（router が無く `setSection` の呼び出し口が app shell 全体に散るため — 実際には nav クリックが先に blur を起こすので警告は出る）。**PR #629 merged + iPhone Chrome で実機確認 OK → #624 CLOSED**
 - [chat-main] **スマホ ソフトキーボード起因バグ 2 件（#607 / #608 = PR #621 merged）** ✅（2026-08-10）— #607 の原因は「自分の書き込みが自分の hydrate を無効化する」（クライアント時計の `updatedAt` が #301 のマージ判定を必ず外し、編集中のノートだけ本文キャッシュが落ちて mobile シートがエディタを skeleton に差し替える）。マージ判定に「開いている行 かつ 自分が書いた行」を OR で追加し、マークは**リロード 1 回で使い捨て**（QA が見つけた他デバイス書き込みの無言上書きを塞ぐ・in-flight 中は保留）。#608 は `useSoftKeyboard` 新設で narrow の `BottomTabBar` を非描画。判定は「同じ幅で観測した最大可視高との差」なので**レイアウトごと縮む UA / visual だけ縮む UA の両方で成立**（実測待ちを解消）。Scope 例外 = **D-20260810-main-4**（`useNotesUnifiedAPI.ts` は #587 の分割対象だったが原因確定で例外入り・#587 に申し送り済み）。**PR #621 / #622 とも merged（2026-08-10 10:05 UTC）→ 計画書は乖離レビュー 3 行を記入して archive 済み**（`archive/2026-08-10-mobile-keyboard-input-fixes.md`）。**deploy 後の目視 4 点は iPhone Chrome で全て OK → #607 / #608 とも CLOSED**（本文タップで閉じない / タブバーの出戻り / ホームインジケータ帯に本文が乗らない / 「その他」シートが消えるのは許容）。**iOS 未検証は解消**（iOS のブラウザは全て WebKit なので描画エンジンは Safari と同経路。Safari の UI そのものは未確認）
@@ -40,7 +42,8 @@
 
 - ~~#631 / #633~~ **merged + 実ブラウザ実測 PASS**（2026-08-10。iPhone 目視のみ 👀 節に残す）。~~#592 / #593 / #626 / #573 / #572 / #590 / #591 / #589 / #587 / #588~~ も同日 merge・検証済み
 - **#632（FAB 統一）は mobile-refine 担当で着手可能** — #631 着地済み・実測差分（Notes `NotesMobileList.tsx:254` absolute vs Schedule fixed）を Issue コメント済み
-- **#628 → #627** の順は不変。**#628 / #625 は schedule-refine が判断キューへ積んだ状態** — 回答が付いたら実装再開、#628 close 後に #627 の子 Issue を chat-main が 1 面 1 本で起票
+- ~~**#628 → #627** の順~~ **#628（= PR #681）は着地済み**。**#627 の子 Issue 起票は `D-20260811-main-1` の裁定待ちで保留**（実測で 5 → 19 面に増え、Settings / Briefing / 作成フォームを含めるかがユーザー判断の域）。棚卸し表は #627 本文が正
+- **#707 / #708（2026-08-11 起票・`section:schedule`）**: 変換ダイアログの in-app 化 / 繰り返し削除の Undo で種イベントが戻らない件。#708 は方式 A/B/C の裁定が着手の前提
 - **briefing-refine（新設レーン）**: #585 / #623 / #609 を消化中。PR が出たら回収
 - **#586 の残り**: PR #649（TimerContext + 2 hooks）が open。**#680**（i18n 取りこぼし 3 点・2026-08-10 起票）は materials レーン宛
 
