@@ -15,8 +15,6 @@
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
-| D-20260811-main-1 | Epic #627（保存ボタン統一）の対象範囲をどこで切るか | main |
-| D-20260811-main-2 | Epic #321 のスコープを確定し直すか、現スコープで閉じるか | main |
 | D-20260811-refactor-1 | Analytics の「今週」が 2 つの意味で併存しているが、揃えるか？ | refactor-core |
 | D-20260811-refactor-2 | `window.confirm` を自前ダイアログに置き換えるか（計画書 §C3 PR 4 の 1 項目） | refactor-core |
 | D-20260811-sched-1 | #625 Event → Todo で日付・時間帯を Todo のチップスロットへ引き継ぐか（D-20260810-sched-3 の緩和提案） | schedule-refine |
@@ -62,6 +60,8 @@
 | [D-20260810-sched-3](./D-20260810-sched-3.md) | #625 Event → Todo で落ちるフィールド（時刻・終日・繰り返し）の扱い | A | 2026-08-10 | schedule, role-conversion, data-loss |
 | [D-20260810-sched-4](./D-20260810-sched-4.md) | #625 Todo → Event のステータスと親子関係の扱い | A | 2026-08-10 | schedule, role-conversion, task-tree |
 | [D-20260810-sched-5](./D-20260810-sched-5.md) | #625 routine 由来アイテムの変換可否 | A | 2026-08-10 | schedule, role-conversion, routine |
+| [D-20260811-main-1](./D-20260811-main-1.md) | Epic #627（保存ボタン統一）の対象範囲をどこで切るか | A | 2026-08-11 | save-button, scope, settings, briefing, epic-627 |
+| [D-20260811-main-2](./D-20260811-main-2.md) | Epic #321 のスコープを確定し直すか、現スコープで閉じるか | A | 2026-08-11 | mobile, epic, scope, epic-321 |
 
 ## Superseded / Withdrawn
 
@@ -79,6 +79,7 @@
 - autonomy: D-20260806-main-1 / D-20260810-main-1
 - bottom-sheet: D-20260730-mobile-2
 - branch: D-20260801-main-1
+- briefing: D-20260811-main-1
 - calendar-lens: D-20260801-sched-1
 - context-cost: D-20260806-main-2 / D-20260806-main-3
 - cross-platform: D-20260607-main-1
@@ -92,6 +93,9 @@
 - distribution: D-20260807-main-1
 - docs: D-20260730-tags-1 / D-20260801-main-2 / D-20260809-main-1 / D-20260809-main-2
 - editor-pane: D-20260810-sched-1
+- epic: D-20260811-main-2
+- epic-321: D-20260811-main-2
+- epic-627: D-20260811-main-1
 - file-explorer: D-20260704-main-1
 - global-assets: D-20260806-main-2 / D-20260806-main-3
 - graph-layer: D-20260809-main-1
@@ -109,7 +113,7 @@
 - merge-gate: D-20260804-main-2 / D-20260806-main-1
 - migration: D-20260704-main-1 / D-20260708-main-1
 - migration-gate: D-20260806-main-3
-- mobile: D-20260723-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260807-main-1 / D-20260810-main-4
+- mobile: D-20260723-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260807-main-1 / D-20260810-main-4 / D-20260811-main-2
 - notes: D-20260730-mobile-3 / D-20260810-main-4
 - palette: D-20260801-sched-1
 - performance: D-20260731-tags-2 / D-20260731-tags-3
@@ -124,11 +128,13 @@
 - role-conversion: D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
 - routine: D-20260711-main-1 / D-20260810-refactor-1 / D-20260810-sched-5
 - routing: D-20260731-main-1 / D-20260731-main-2
+- save-button: D-20260811-main-1
 - save-model: D-20260810-sched-1
 - schedule: D-20260711-main-1 / D-20260731-main-1 / D-20260801-sched-1 / D-20260810-sched-1 / D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
 - scheduling: D-20260804-main-1
-- scope: D-20260806-main-2 / D-20260810-main-4
+- scope: D-20260806-main-2 / D-20260810-main-4 / D-20260811-main-1 / D-20260811-main-2
 - scope-cut: D-20260704-main-1 / D-20260705-main-1 / D-20260728-main-3
+- settings: D-20260811-main-1
 - shared-fix: D-20260731-main-2 / D-20260810-main-4
 - shared-ui: D-20260607-main-1
 - skills: D-20260810-main-2 / D-20260810-main-3
