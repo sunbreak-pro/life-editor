@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  TimerDataService,
+} from "./DataService";
+import type {
   TimerSettings,
   TimerSession,
   PomodoroPreset,
@@ -33,7 +36,7 @@ import { fetchAllPages } from "./postgrestFetchAll";
  * always gets a row back. timer_sessions are start-time based (started_at +
  * ended_at; duration denormalised on close).
  */
-export class SupabaseTimerService {
+export class SupabaseTimerService implements TimerDataService {
   constructor(private readonly client: SupabaseClient) {}
 
   // -------------------------------------------------------------------------
@@ -260,7 +263,7 @@ export class SupabaseTimerService {
   }
 }
 
-export const PHASE2_TIMER_METHODS: ReadonlySet<string> = new Set([
+export const PHASE2_TIMER_METHOD_NAMES = [
   "fetchTimerSettings",
   "updateTimerSettings",
   "startTimerSession",
@@ -272,4 +275,8 @@ export const PHASE2_TIMER_METHODS: ReadonlySet<string> = new Set([
   "createPomodoroPreset",
   "updatePomodoroPreset",
   "deletePomodoroPreset",
-]);
+] as const;
+
+export type TimerMethodName = (typeof PHASE2_TIMER_METHOD_NAMES)[number];
+
+export const PHASE2_TIMER_METHODS: ReadonlySet<string> = new Set(PHASE2_TIMER_METHOD_NAMES);

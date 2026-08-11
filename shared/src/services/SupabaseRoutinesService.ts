@@ -1,4 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
+import type {
+  RoutinesDataService,
+} from "./DataService";
 import type { RoutineNode } from "../types/routine";
 import {
   // DU-C-3: 2-row API (items_meta + routines_payload)
@@ -34,7 +37,7 @@ import { todayDateKey } from "../utils/dateKey";
 // Exported for unit testing (detachRoutine / softDeleteRoutine cascade
 // semantics — #185). The Proxy in createSupabaseDataService remains the
 // production entry point; tests construct this class with a mock client.
-export class SupabaseRoutinesService {
+export class SupabaseRoutinesService implements RoutinesDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -667,7 +670,7 @@ export class SupabaseRoutinesService {
   }
 }
 
-export const PHASE2_ROUTINES_METHODS = new Set<string>([
+export const PHASE2_ROUTINES_METHOD_NAMES = [
   "fetchAllRoutines",
   "fetchDeletedRoutines",
   "createRoutine",
@@ -678,4 +681,8 @@ export const PHASE2_ROUTINES_METHODS = new Set<string>([
   "detachRoutine",
   "restoreRoutine",
   "permanentDeleteRoutine",
-]);
+] as const;
+
+export type RoutinesMethodName = (typeof PHASE2_ROUTINES_METHOD_NAMES)[number];
+
+export const PHASE2_ROUTINES_METHODS: ReadonlySet<string> = new Set(PHASE2_ROUTINES_METHOD_NAMES);
