@@ -42,6 +42,7 @@ import {
   type DataService,
   type SectionId,
   type Session,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
 import { TrashScreen } from "./trash/TrashScreen";
@@ -193,7 +194,7 @@ export function MainScreen({ session }: { session: Session }) {
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
   // Independent of AppShell's own wide/narrow switch (same query, own read).
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
 
   // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
   // (§6.2 … → Timer → Audio → …), so the Timer's onSessionComplete can't read

@@ -19,6 +19,7 @@ import {
   type TaskOption,
   type TimerPhase,
   type AudioMixerSound,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 import { X, ChevronDown } from "lucide-react";
 
@@ -51,7 +52,6 @@ import { X, ChevronDown } from "lucide-react";
  * SessionCompletionModal.
  */
 
-const WIDE_QUERY = "(min-width: 768px)";
 
 /** Filled session dots: completedSessions within the current set. During a
  *  LONG_BREAK the set just wrapped, so show all dots filled (mod === 0). */

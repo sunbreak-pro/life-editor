@@ -12,13 +12,10 @@ import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import {
-  dateKeyOfInstant,
-  formatDateKey,
-  todayCalendarKey,
-} from "../../utils/dateKey";
+import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import {
   computeSummary,
+  createdWithinLastDays,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
@@ -85,16 +82,9 @@ export function OverviewTab({
     // folder type (every NoteNode is a note now).
     const activeNotes = notes.filter((n) => !n.isDeleted);
     const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekAgoStr = formatDateKey(weekAgo);
-    const notesThisWeek = activeNotes.filter((n) => {
-      // LOCAL day of the stored UTC instant (#420): `weekAgoStr` is a local
-      // calendar key, so slicing the ISO string compared a UTC day against it
-      // and a note written before 09:00 JST on the boundary day fell out.
-      const d = dateKeyOfInstant(n.createdAt);
-      return d !== null && d >= weekAgoStr;
-    });
+    // Rolling 7 days, NOT the Mon–Sun week — see the header of
+    // `utils/analyticsAggregation.ts` for why both meanings are live.
+    const notesThisWeek = createdWithinLastDays(activeNotes, 7, now);
 
     // Work
     const summary = computeSummary(sessions);

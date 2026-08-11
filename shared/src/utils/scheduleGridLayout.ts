@@ -16,6 +16,8 @@
  * Unit-tested in shared/tests/scheduleGridLayout.test.ts.
  */
 
+import { clamp } from "./clamp";
+
 /** Minimal shape the layout needs — a structural subset of ScheduleItem. */
 export interface GridLayoutItem {
   id: string;
@@ -53,9 +55,11 @@ export function minutesFromMidnight(hhmm: string): number {
   return hours * 60 + mins;
 }
 
-export function clamp(value: number, lo: number, hi: number): number {
-  return Math.min(Math.max(value, lo), hi);
-}
+// `clamp` moved to `utils/clamp.ts` (#670 C3 PR 3) — it is plain arithmetic,
+// not grid math. Imported (this module uses it 4 times) AND re-exported, so
+// the existing schedule call sites and tests keep importing it from here.
+// A bare `export { clamp } from "./clamp"` would NOT create a local binding.
+export { clamp };
 
 // ── px ↔ minute conversion + slot snapping (W8 interactive grid) ──────────
 //
@@ -221,6 +225,23 @@ export function layoutDayItems(
 export function parseDateKey(key: string): { y: number; m: number; d: number } {
   const [y, m, d] = key.split("-").map(Number);
   return { y, m, d };
+}
+
+/**
+ * LOCAL `Date` for a `YYYY-MM-DD` key, optionally at a `HH:MM` wall time.
+ *
+ * Always build day-keyed dates through this — never `new Date(key)`, which
+ * parses the key as UTC midnight and lands on the previous day in negative
+ * timezones. Ten call sites across `shared/` and `web/` hand-wrote
+ * `const [y, m, d] = key.split("-").map(Number); new Date(y, m - 1, d)`
+ * (#670 C3 PR 3); the `m - 1` is the part that is easy to get wrong, so it
+ * is spelled once here.
+ */
+export function dateFromKey(key: string, timeHHMM?: string): Date {
+  const { y, m, d } = parseDateKey(key);
+  if (timeHHMM === undefined) return new Date(y, m - 1, d);
+  const [hh, mm] = timeHHMM.split(":").map(Number);
+  return new Date(y, m - 1, d, hh, mm);
 }
 
 // Renamed from `formatDateKey` (C6): the old name collided with the 1-arg

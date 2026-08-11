@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { TimerSession } from "../../types/timer";
+import { WIDE_QUERY } from "../../constants/breakpoints";
 import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
@@ -108,7 +109,7 @@ export interface AnalyticsViewProps {
 }
 
 export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
-  const isWide = useMediaQuery("(min-width: 768px)");
+  const isWide = useMediaQuery(WIDE_QUERY);
 
   return (
     <AnalyticsFilterProvider onDateRangeChange={props.onScheduleRangeChange}>

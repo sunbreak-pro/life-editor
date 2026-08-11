@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { cn } from "./cn";
+import { clamp } from "../utils/clamp";
 
 export interface SteppedSliderProps {
   /** Current discrete value (min..max inclusive). */
@@ -20,8 +21,7 @@ export interface SteppedSliderProps {
   size?: "md" | "lg";
 }
 
-const clamp = (n: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, n));
+
 
 /*
  * Discrete tick slider (theme system + any 1..N choice). Pure / props-injected

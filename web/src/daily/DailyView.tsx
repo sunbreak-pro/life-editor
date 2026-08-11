@@ -38,6 +38,8 @@ import {
   type DataService,
   FOCUS_RING_TIGHT as FOCUS_RING,
   formatDateKey,
+  WIDE_QUERY,
+  dateFromKey,
 } from "@life-editor/shared";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import {
@@ -77,10 +79,10 @@ function isoDay(offsetDays: number): string {
   return formatDateKey(d);
 }
 
-function parseIso(date: string): Date {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
-}
+// `date` is a validated DailyNode.date (`YYYY-MM-DD`), so the old
+// `y ?? 1970` / `(m ?? 1) - 1` fallbacks guarded a shape the mapper already
+// rejects (#670 C3 PR 3).
+const parseIso = dateFromKey;
 
 // ---- Editor card (shared between Desktop / Mobile, size via props) --------
 
@@ -174,7 +176,7 @@ export function DailyView({
   const { createItemLink, getLinksForItem, syncInlineLinks } =
     useWikiTagsUnifiedContext();
   const { t, i18n } = useTranslation();
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
 
   // "[[" link-target pool (notes + dailies + tasks, cross-domain). A loader,
   // not a list: nothing is fetched until the first "[[" (#430).
