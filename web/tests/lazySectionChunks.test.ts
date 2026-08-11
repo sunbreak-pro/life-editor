@@ -29,34 +29,60 @@ const mainScreen = readFileSync(
 ).replace(/\r\n/g, "\n");
 
 const LAZY_SECTIONS = [
-  { name: "AnalyticsScreen", path: "./analytics/AnalyticsScreen" },
-  { name: "ConnectScreen", path: "./connect/ConnectScreen" },
+  {
+    name: "AnalyticsScreen",
+    path: "./analytics/AnalyticsScreen",
+    section: "analytics",
+  },
+  {
+    name: "ConnectScreen",
+    path: "./connect/ConnectScreen",
+    section: "connect",
+  },
 ] as const;
 
+/** Escape a module specifier for use inside a RegExp. */
+const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 describe("MainScreen keeps the heavy section bodies code-split", () => {
-  for (const { name, path } of LAZY_SECTIONS) {
+  for (const { name, path, section } of LAZY_SECTIONS) {
     it(`loads ${name} through lazy(() => import(...))`, () => {
       // Whitespace-tolerant: prettier may re-wrap the arrow body.
       const lazyImport = new RegExp(
-        `lazy\\(\\(\\)\\s*=>\\s*\\n?\\s*import\\("${path.replace(/\./g, "\\.")}"\\)`,
+        `lazy\\(\\(\\)\\s*=>\\s*\\n?\\s*import\\("${escape(path)}"\\)`,
       );
       expect(lazyImport.test(mainScreen)).toBe(true);
     });
 
-    it(`never imports ${name} statically`, () => {
-      // A static import of the module — with or without other named bindings.
+    it(`never imports ${name} statically, in any import form`, () => {
+      // Anything ending in `from "<path>"` is a static import — named,
+      // default (`import ConnectScreen from …`), namespace (`import * as …`)
+      // or side-effect-only. Matching on the `from` clause instead of the
+      // binding shape is what makes this airtight; an earlier version only
+      // looked for `{ … }` and would have waved a default import through.
       const staticImport = new RegExp(
-        `import\\s*\\{[^}]*\\}\\s*from\\s*"${path.replace(/\./g, "\\.")}"`,
+        `import\\s[^;]*from\\s*"${escape(path)}"|import\\s*"${escape(path)}"`,
       );
       expect(staticImport.test(mainScreen)).toBe(false);
     });
+
+    it(`renders ${name} behind a Suspense boundary`, () => {
+      // Anchored at the section guard rather than counting <Suspense> tags:
+      // a global count passes as soon as any two unrelated boundaries exist
+      // elsewhere in the file, which is exactly the regression this is for.
+      // The guard and the boundary must be adjacent — only JSX punctuation
+      // and whitespace between them.
+      const guarded = new RegExp(
+        `section === "${section}" &&[\\s(\\n]*<Suspense`,
+      );
+      expect(guarded.test(mainScreen)).toBe(true);
+    });
   }
 
-  it("wraps every lazy section in a Suspense boundary", () => {
-    // Without a boundary the lazy import throws to the nearest ancestor
-    // Suspense — or, if there is none, blanks the shell.
-    const suspenseCount = mainScreen.match(/<Suspense/g)?.length ?? 0;
-    // Notes (pre-existing) + Analytics + Connect.
-    expect(suspenseCount).toBeGreaterThanOrEqual(3);
+  it("keeps the pre-existing Notes boundary", () => {
+    // NotesView was already lazy (#475 era). Nothing here should have taken
+    // its boundary away while adding the other two.
+    expect(/<NotesView/.test(mainScreen)).toBe(true);
+    expect(/<Suspense[\s\S]{0,200}?<NotesView/.test(mainScreen)).toBe(true);
   });
 });

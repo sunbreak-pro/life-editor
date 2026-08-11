@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "_comment_sideEffects": "Everything in shared/src only DECLARES things at import time (no bare `import \"...\"`, no CSS, no global registration) — the one exception is src/i18n/index.ts, which runs i18next.init() at module scope, so it is listed and stays exempt. Saying this lets the bundler drop the parts of the root barrel an entry never uses; without it the whole graph rode along and Connect's d3 stack sat in the initial chunk even though only the lazy Connect chunk referenced it (#676). Add an import-time effect anywhere else and you must list that file here too.",
+  "_comment_sideEffects": "Everything in shared/src only DECLARES things at import time (no bare `import \"...\"`, no CSS, no global registration) — the one exception is i18n/index.ts, which runs i18next.init() at module scope, so it is listed and stays exempt. Both the src and the dist path are listed: web/desktop alias onto ../shared/src today, but `main`/`exports` above point at ./dist, and a consumer resolving THROUGH the package would miss a src-only entry and get its i18n init tree-shaken away. Saying all this lets the bundler drop the parts of the root barrel an entry never uses; without it the whole graph rode along and Connect's d3 stack sat in the initial chunk even though only the lazy Connect chunk referenced it (#676). Add an import-time effect anywhere else and you must list that file here too — shared/tests/analyticsTabsLightweight.test.ts pins this field so it cannot be dropped silently.",
   "sideEffects": [
-    "./src/i18n/index.ts"
+    "./src/i18n/index.ts",
+    "./dist/i18n/index.js"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

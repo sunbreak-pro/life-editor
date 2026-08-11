@@ -18,6 +18,7 @@ import { ANALYTICS_TAB_ORDER } from "../src/components/Analytics/tabs";
 const here = dirname(fileURLToPath(import.meta.url));
 const tabsModule = resolve(here, "../src/components/Analytics/tabs.ts");
 const subBarrel = resolve(here, "../src/components/Analytics/index.ts");
+const packageJson = resolve(here, "../package.json");
 
 describe("Analytics tab vocabulary stays chart-free", () => {
   it("has no imports at all in tabs.ts", () => {
@@ -41,6 +42,30 @@ describe("Analytics tab vocabulary stays chart-free", () => {
       "tasks",
       "work",
       "schedule",
+    ]);
+  });
+});
+
+/*
+ * The `sideEffects` declaration is what actually lets the bundler drop the
+ * unused half of the root barrel — one line worth ~100 kB of initial chunk
+ * (Connect's d3 stack had nothing eager referencing it and still shipped).
+ * Drop it in a merge or a dependency bump and NOTHING else notices: types,
+ * lint and every suite stay green while the bundle quietly doubles back.
+ */
+describe("shared declares its import-time effects", () => {
+  it("exempts only the i18n module, in both src and dist form", () => {
+    const pkg = JSON.parse(readFileSync(packageJson, "utf8")) as {
+      sideEffects?: unknown;
+    };
+    // An array, not `false`: i18n/index.ts DOES run i18next.init() at import
+    // time, and `false` would license the bundler to throw that away.
+    expect(pkg.sideEffects).toEqual([
+      "./src/i18n/index.ts",
+      // `main`/`exports` point at ./dist, so a consumer resolving through the
+      // package (rather than the src alias web/desktop use today) needs the
+      // built path listed too.
+      "./dist/i18n/index.js",
     ]);
   });
 });
