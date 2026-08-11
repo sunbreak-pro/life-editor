@@ -298,6 +298,8 @@
       "filterLabel": "Filter tags by name",
       "filterEmpty": "No tags match",
       "rename": "Rename tag",
+      "save": "Save",
+      "unsavedCloseConfirm": "You have unsaved tag changes. Discard them and close?",
       "colorLabel": "Color",
       "deleteTag": "Delete tag",
       "editTitle": "Edit tags",
