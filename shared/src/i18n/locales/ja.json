@@ -297,6 +297,8 @@
       "filterLabel": "タグ名で絞り込む",
       "filterEmpty": "一致するタグはありません",
       "rename": "タグ名を変更",
+      "save": "保存",
+      "unsavedCloseConfirm": "保存していないタグの変更があります。破棄して閉じますか？",
       "colorLabel": "色",
       "deleteTag": "タグを削除",
       "editTitle": "タグを編集",
@@ -737,6 +739,7 @@
   "common": {
     "ok": "OK",
     "cancel": "キャンセル",
+    "discard": "破棄",
     "close": "閉じる",
     "undo": "元に戻す",
     "redo": "やり直す",

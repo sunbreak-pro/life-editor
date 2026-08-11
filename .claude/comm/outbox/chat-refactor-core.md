@@ -31,3 +31,20 @@
 
 - #673（純関数の切り出し・セッション 1）は挙動変更ゼロ・切り出しのみ。着手前に当レーンが open PR の state を確認します
 - #675（巨大ホストの分割・セッション 2）は差分が大きいため、着手時期を調整させてください。schedule-refine 側で CalendarTab に大きな変更が入る予定があれば outbox でお知らせいただけると助かります
+
+## 2026-08-12 chat-main 宛: #671 C4 S8（i18n の型拡張）の実測結果と follow-up 起票依頼
+
+#671 の S8（i18next `CustomTypeOptions` でキーを型に載せる）を実際に配線して計測しました。**計画書が挙げていた 3 段の障害は 3 つとも越えられます**が、越えた先の後始末が独立した作業量なので、S7（ランタイムガード）までで PR を締め、S8 は follow-up の起票をお願いしたいです。
+
+**実測（probe は revert 済み・コードには残していません）**
+
+- `shared/src/i18n/resources.ts` に `declare module "i18next"` を置き、`shared/src/i18n/index.ts` から side-effect import する形にすると、**web 側の `useTranslation()` の `t` までちゃんと型が届きました**。「i18next が二重に入っている（shared / web の node_modules 両方に 25.10.10）」は障害になりませんでした
+- 存在しないキー `t("definitely.not.a.real.key")` を web の画面に入れると `cd web && npm run build` が落ちます。**狙いどおり機能します**
+- 同時に、動的キーの呼び出しが **12 箇所**エラーになります（probe の仕込み 1 件を除いた実数）:
+  - `web/src/AuthScreen.tsx:76` / `web/src/hooks/useShellChrome.tsx:115,185` / `web/src/MainScreen.tsx:306,349` / `web/src/schedule/CalendarTab.tsx:406,890,2186` / `web/src/settings/SettingsScreen.tsx:103,114` / `web/src/tasks/KanbanView.tsx:542` / `web/src/work/WorkScreen.tsx:91`
+
+**なぜ今回入れなかったか**
+
+12 箇所を直すには、キーを保持している定数側（section registry の `labelKey`、ショートカット定義の `descriptionKey` など）を `TranslationKey` のリテラル union に型付けし直す必要があります。これは `shared/src/sections.ts` など**他レーンも触るファイル**に波及するため、P-008（実装中スコープ凍結）に従い今回は広げませんでした。
+
+**起票のお願い**: `shared-fix` + `[refactor-core]` prefix で「i18n キーを型に載せる（#671 S8 の続き）」。DoD 案 = 上記 12 箇所の動的キーを型付き定数に寄せる / `CustomTypeOptions` を入れて `cd web && npm run build` が未知キーで落ちる / S7 のランタイムテストは残す（動的キーは型でしか見えず、リテラルは型とテストの二重で見る）。

@@ -31,6 +31,8 @@ import {
   StatusFilterChips,
   BottomSheet,
   Modal,
+  ConfirmDialog,
+  useConfirmDialog,
   useScheduleItemsRoutineSync,
   useDeferredAction,
   useInFlightGuard,
@@ -389,6 +391,23 @@ export function CalendarTab({
   // The link lands after the panel has closed, so a failure has to be said out
   // loud — there is nothing left on screen to show it.
   const { showToast } = useToast();
+  /*
+   * #707: every "are you sure?" on this screen — the two conversions, their
+   * two refusals, the cascade delete and the unsaved-draft discard — goes
+   * through ONE in-app dialog. They used to be `window.alert` /
+   * `window.confirm`, which draw outside the theme (so the same screen asked
+   * in two visibly different ways: this one through the OS, the repeat-delete
+   * guard in-app) and freeze the page hard enough to stall Playwright.
+   *
+   * The answer arrives in a promise now, so each call site continues in a
+   * `.then` instead of straight-line code. Everything the guards decide is
+   * unchanged — only the way the question is put.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
   const handleAttachError = useCallback(
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
@@ -1483,16 +1502,31 @@ export function CalendarTab({
    * chain to render, so nothing reachable only from inside it can be tested.
    */
   const editorDirtyRef = useRef(false);
-  const confirmDiscardDraft = useCallback(() => {
-    const { close, clearDirty } = decideUnsavedClose({
-      dirty: editorDirtyRef.current,
-      // Same plain-confirm flavour as the #573 todo cascade guard — a browser
-      // confirm is the one dialog that cannot be missed on either platform.
-      askDiscard: () => window.confirm(t("scheduleScreen.unsavedCloseConfirm")),
-    });
-    if (clearDirty) editorDirtyRef.current = false;
-    return close;
-  }, [t]);
+  /*
+   * #707: the answer is awaited now, so the surfaces cannot branch on a return
+   * value any more — they hand in what closing MEANS for them and this runs it
+   * once the user has agreed. Same guard, same two facts it protects
+   * (`decideUnsavedClose`); only the question moved in-app.
+   */
+  const requestEditorClose = useCallback(
+    async (close: () => void) => {
+      const decision = await decideUnsavedClose({
+        dirty: editorDirtyRef.current,
+        askDiscard: () =>
+          askConfirm({
+            message: t("scheduleScreen.unsavedCloseConfirm"),
+            confirmLabel: t("common.discard"),
+            cancelLabel: t("common.cancel"),
+            // Throwing away typed-in work is the destructive answer here, even
+            // though nothing is deleted from the database.
+            danger: true,
+          }),
+      });
+      if (decision.clearDirty) editorDirtyRef.current = false;
+      if (decision.close) close();
+    },
+    [askConfirm, t],
+  );
 
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
@@ -1762,25 +1796,28 @@ export function CalendarTab({
   // #573 (#555 follow-up): softDelete cascades through the subtree and both
   // recovery routes are weak (undo clears on section unmount; Trash restores
   // one row at a time), so a row with children confirms first. Leaves keep
-  // the one-click delete. window.confirm follows the SettingsScreen reset
-  // precedent; guards the tray AND the task-chip bubble (same write).
+  // the one-click delete. Guards the tray AND the task-chip bubble (same
+  // write); #707 moved the question in-app.
   const handleTodoDelete = useCallback(
     (id: string) => {
       const cascade = todoDeleteCascade(taskNodes, id);
-      if (
-        cascade &&
-        !window.confirm(
-          t("scheduleScreen.todoDeleteCascadeConfirm", {
-            name: cascade.title,
-            count: cascade.childCount,
-          }),
-        )
-      ) {
+      if (!cascade) {
+        softDeleteTask(id);
         return;
       }
-      softDeleteTask(id);
+      void askConfirm({
+        message: t("scheduleScreen.todoDeleteCascadeConfirm", {
+          name: cascade.title,
+          count: cascade.childCount,
+        }),
+        confirmLabel: t("scheduleScreen.delete"),
+        cancelLabel: t("common.cancel"),
+        danger: true,
+      }).then((ok) => {
+        if (ok) softDeleteTask(id);
+      });
     },
-    [taskNodes, softDeleteTask, t],
+    [taskNodes, softDeleteTask, askConfirm, t],
   );
 
   /*
@@ -1812,35 +1849,49 @@ export function CalendarTab({
       // the action stays enabled and ANSWERS with the reason. A greyed-out row
       // teaches nothing.
       if (eventToTodoBlock(item)) {
-        window.alert(t("itemConvert.routineBlocked"));
+        // Acknowledge-only: there is nothing to decide, so the dialog carries
+        // one button. The wording is the user's own (D-20260810-sched-5).
+        void askConfirm({
+          message: t("itemConvert.routineBlocked"),
+          confirmLabel: t("common.ok"),
+        });
         return;
       }
-      if (
-        !window.confirm(
-          t("itemConvert.toTodoConfirm", {
-            title: item.title || t("scheduleCalendar.newEvent"),
-          }),
-        )
-      )
-        return;
-      if (!beginConvert(id)) return;
-      setPopover(null);
-      // order 0 = the top of the root group, the slot addNode aims a new task
-      // at. It does NOT shift the existing siblings down the way addNode does:
-      // that would be a second, unrelated write over every root row, and a tie
-      // in sort_order only costs an arbitrary order between two rows.
-      void dataService
-        .convertEventToTask(id, { order: 0 })
-        .then(() => {
-          reload();
-          void refetchTasks();
-        })
-        .then(() => showToast("success", t("itemConvert.toTodoDone")))
-        .catch((err) => {
-          logServiceError("ItemConversion", `convertEventToTask (${id})`, err);
-          showToast("danger", t("itemConvert.failed"));
-        })
-        .finally(() => endConvert(id));
+      void askConfirm({
+        message: t("itemConvert.toTodoConfirm", {
+          title: item.title || t("scheduleCalendar.newEvent"),
+        }),
+        confirmLabel: t("itemConvert.toTodo"),
+        cancelLabel: t("common.cancel"),
+      }).then((ok) => {
+        if (!ok) return;
+        // Still claimed synchronously on the way out of the dialog (#434): the
+        // answer arrives in an event handler, so nothing runs between this and
+        // the write that could let a second click through.
+        if (!beginConvert(id)) return;
+        setPopover(null);
+        // order 0 = the top of the root group, the slot addNode aims a new
+        // task at. It does NOT shift the existing siblings down the way
+        // addNode does: that would be a second, unrelated write over every
+        // root row, and a tie in sort_order only costs an arbitrary order
+        // between two rows.
+        void dataService
+          .convertEventToTask(id, { order: 0 })
+          .then(() => {
+            reload();
+            void refetchTasks();
+          })
+          .then(() => showToast("success", t("itemConvert.toTodoDone")))
+          .catch((err) => {
+            logServiceError(
+              "ItemConversion",
+              `convertEventToTask (${id})`,
+              err,
+            );
+            showToast("danger", t("itemConvert.failed"));
+          })
+          .finally(() => endConvert(id));
+      });
     },
     [
       rangeItems,
@@ -1849,6 +1900,7 @@ export function CalendarTab({
       reload,
       refetchTasks,
       showToast,
+      askConfirm,
       beginConvert,
       endConvert,
       t,
@@ -1864,49 +1916,56 @@ export function CalendarTab({
       // one exists so the common case gets a sentence instead of a red toast.
       const blocked = todoToEventBlock(taskNodes, id);
       if (blocked) {
-        window.alert(
-          t("itemConvert.childrenBlocked", {
+        void askConfirm({
+          message: t("itemConvert.childrenBlocked", {
             title: blocked.title,
             count: blocked.childCount,
           }),
-        );
+          confirmLabel: t("common.ok"),
+        });
         return;
       }
-      if (
-        !window.confirm(
-          // A child Todo loses its parent link (events have no hierarchy), and
-          // the dialog is the only place that can say so before it happens.
-          t(
-            task.parentId != null
-              ? "itemConvert.toEventConfirmChild"
-              : "itemConvert.toEventConfirm",
-            { title: task.title || t("common.untitled") },
-          ),
-        )
-      )
-        return;
-      if (!beginConvert(id)) return;
-      setPopover(null);
-      setTaskDetailId(null);
-      void dataService
-        .convertTaskToEvent(id, taskToEventPlacement(task, listDate))
-        .then(() => {
-          reload();
-          void refetchTasks();
-        })
-        .catch((err) => {
-          logServiceError("ItemConversion", `convertTaskToEvent (${id})`, err);
-          // The DB sees children the live tree cannot (trashed ones still hold
-          // the 0009 FK), so that refusal gets its own sentence — "conversion
-          // failed" would send the user looking for a network problem.
-          showToast(
-            "danger",
-            err instanceof ItemConversionError && err.reason === "children"
-              ? t("itemConvert.childrenBlockedServer")
-              : t("itemConvert.failed"),
-          );
-        })
-        .finally(() => endConvert(id));
+      void askConfirm({
+        // A child Todo loses its parent link (events have no hierarchy), and
+        // the dialog is the only place that can say so before it happens.
+        message: t(
+          task.parentId != null
+            ? "itemConvert.toEventConfirmChild"
+            : "itemConvert.toEventConfirm",
+          { title: task.title || t("common.untitled") },
+        ),
+        confirmLabel: t("itemConvert.toEvent"),
+        cancelLabel: t("common.cancel"),
+      }).then((ok) => {
+        if (!ok) return;
+        if (!beginConvert(id)) return;
+        setPopover(null);
+        setTaskDetailId(null);
+        void dataService
+          .convertTaskToEvent(id, taskToEventPlacement(task, listDate))
+          .then(() => {
+            reload();
+            void refetchTasks();
+          })
+          .catch((err) => {
+            logServiceError(
+              "ItemConversion",
+              `convertTaskToEvent (${id})`,
+              err,
+            );
+            // The DB sees children the live tree cannot (trashed ones still
+            // hold the 0009 FK), so that refusal gets its own sentence —
+            // "conversion failed" would send the user looking for a network
+            // problem.
+            showToast(
+              "danger",
+              err instanceof ItemConversionError && err.reason === "children"
+                ? t("itemConvert.childrenBlockedServer")
+                : t("itemConvert.failed"),
+            );
+          })
+          .finally(() => endConvert(id));
+      });
     },
     [
       taskNodes,
@@ -1915,6 +1974,7 @@ export function CalendarTab({
       reload,
       refetchTasks,
       showToast,
+      askConfirm,
       beginConvert,
       endConvert,
       t,
@@ -2142,7 +2202,7 @@ export function CalendarTab({
       open={isWide && overlayOpen && !!editorPane}
       title={t("scheduleScreen.detailTitle")}
       onClose={() => {
-        if (confirmDiscardDraft()) setOverlayOpen(false);
+        void requestEditorClose(() => setOverlayOpen(false));
       }}
     >
       {editorPane}
@@ -2549,7 +2609,7 @@ export function CalendarTab({
         // #628: the sheet's close button, its backdrop and Escape all funnel
         // here, so one guard covers every Mobile exit too.
         onClose={() => {
-          if (confirmDiscardDraft()) setSelectedId(null);
+          void requestEditorClose(() => setSelectedId(null));
         }}
         title={t("scheduleScreen.detailTitle")}
         closeLabel={t("common.close")}
@@ -2561,6 +2621,22 @@ export function CalendarTab({
       </BottomSheet>
 
       {scopeDialogEl}
+
+      {/* #707: mounted last so it portals ABOVE the editor overlay / sheet it
+          is usually asked from — the discard question has to sit on top of the
+          thing it is about. It holds no place in the tree while nothing is
+          being asked. */}
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
+        />
+      )}
     </>
   );
 }

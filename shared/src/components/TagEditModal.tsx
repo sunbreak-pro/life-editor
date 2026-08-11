@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -33,6 +33,30 @@ import { SidebarFilterField } from "./materials/SidebarFilterField";
  * tag master, so it grows with every tag ever made and scrolling was the only
  * way through it. Filter only, no sort: the host receives `allTags` already
  * name-ordered from the service query (D-20260728-main-3).
+ *
+ * SAVE BUTTON (#715, Epic #627 — ユーザー裁定 D-20260810-sched-1 = A). Editing
+ * an EXISTING tag — its name, its icon, its color — is a draft, and nothing
+ * reaches the host until that row's save button is pressed. Blur writes
+ * nothing. Before this the name committed on blur while the two pickers wrote
+ * on the click, so one panel confirmed edits two different ways and merely
+ * tabbing out of the field renamed a tag — a rename that does not stop at this
+ * screen, since a wiki tag is referenced from every item carrying it.
+ *
+ * The pending edits live HERE, not in the row, for one reason: the #368 filter
+ * unmounts the rows it hides. Row-local drafts would be thrown away by typing
+ * in the search box, silently, which is the exact loss the save button exists
+ * to make impossible. Holding them by tag id also means the panel-wide dirty
+ * flag (`onDirtyChange`) counts rows the filter is currently hiding.
+ *
+ * Each row's draft is an OVERLAY on the live tag (the #628 rule): only the
+ * fields actually typed against are held, so a rename landing from Realtime or
+ * MCP still reaches an untouched row instead of being reverted by a stale
+ * draft the user never edited.
+ *
+ * NOT drafted, and deliberately so: Add, Delete and per-item unassign. Those
+ * are acts rather than field edits — nothing about them is "half typed" — and
+ * the add row is a creation form, which D-20260811-main-1 puts outside this
+ * Epic.
  *
  * DataService is unknown here — every mutation is a callback, every string a
  * label, colors reuse the shared ColorPicker, and the icon picker resolves
@@ -81,6 +105,11 @@ export interface TagEditModalLabels {
   filterEmpty: string;
   /** aria-label for the per-row name input. */
   renameLabel: string;
+  /**
+   * #715 save button: the only thing that commits a row's pending name / icon /
+   * color. Shown on that row alone, and only while something is pending.
+   */
+  saveLabel: string;
   /** aria-label for the per-row delete button. */
   deleteLabel: string;
   /** Trigger + group label for the icon picker. */
@@ -106,19 +135,73 @@ export interface TagEditModalProps {
   onClose: () => void;
   tags: readonly TagEditRow[];
   onCreate: (name: string) => void;
+  /**
+   * Rename a tag (#715: fires from that row's save button, never from a blur).
+   * The name arrives trimmed and different from the stored one — a blank or
+   * unchanged draft is not a rename, so the propagation the host does around
+   * `renameTag` is reached exactly when it was before.
+   */
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  /** Set a tag's color (#715: from the row's save button, not the swatch click). */
   onSetColor: (id: string, color: string | null) => void;
+  /** Set a tag's icon (#715: from the row's save button, not the icon click). */
   onSetIcon: (id: string, icon: string | null) => void;
   /**
    * Remove one item↔tag assignment (#409). Required whenever any row supplies
    * `items`; rows without `items` never expand, so it is never called.
    */
   onUnassign?: (assignmentId: string) => void;
+  /**
+   * Report whether ANY row is holding unsaved edits (#715, mirroring #628's
+   * `onDirtyChange`). The host owns the close affordances — Esc, the backdrop,
+   * whatever opened the panel — so it is the only place that can ask "discard?"
+   * before one of them throws the drafts away. Fires with `false` on unmount so
+   * a host parking this in a ref cannot go on guarding a panel that is gone.
+   */
+  onDirtyChange?: (dirty: boolean) => void;
   /** Already-interpolated usage count text, e.g. "3 items". */
   formatCount: (count: number) => string;
   labels: TagEditModalLabels;
 }
+
+/**
+ * What the user has typed / picked against one row but not yet saved. Absent
+ * fields keep following the live tag (see the overlay note at the top).
+ */
+interface TagRowEdits {
+  name?: string;
+  color?: string | null;
+  icon?: string | null;
+}
+
+/**
+ * What one press of a row's save button would write — and, by being empty,
+ * whether the row has anything to write at all. Dirty state and the payload
+ * come from this ONE function on purpose: derive them separately and the button
+ * eventually appears for a change it then declines to send.
+ */
+type TagRowPatch = TagRowEdits;
+
+function tagRowPatch(tag: TagEditRow, edits: TagRowEdits = {}): TagRowPatch {
+  const patch: TagRowPatch = {};
+  if (edits.name !== undefined) {
+    const next = edits.name.trim();
+    // A blank field is not a name. Mid-typing it is a normal state, so the row
+    // also puts the stored name back on blur rather than leaving the screen and
+    // the state disagreeing.
+    if (next && next !== tag.name) patch.name = next;
+  }
+  if (edits.color !== undefined && edits.color !== tag.color)
+    patch.color = edits.color;
+  if (edits.icon !== undefined && edits.icon !== tag.icon)
+    patch.icon = edits.icon;
+  return patch;
+}
+
+/** Stable identity for "this row has nothing pending" — a fresh {} per render
+ *  would defeat the row's memo-free equality checks for no benefit. */
+const NO_EDITS: TagRowEdits = {};
 
 export function TagEditModal({
   open,
@@ -130,6 +213,7 @@ export function TagEditModal({
   onSetColor,
   onSetIcon,
   onUnassign,
+  onDirtyChange,
   formatCount,
   labels,
 }: TagEditModalProps): React.JSX.Element {
@@ -140,6 +224,9 @@ export function TagEditModal({
   // The name-filter query (#368). Local UI state: the host owns WHICH tags
   // exist, this owns which of them are currently on screen.
   const [query, setQuery] = useState("");
+  // Unsaved per-row edits, keyed by tag id (#715). Held here rather than in the
+  // rows so the #368 filter cannot unmount them away.
+  const [edits, setEdits] = useState<Readonly<Record<string, TagRowEdits>>>({});
 
   // Reset the add-field and the filter whenever the modal (re)opens, so the
   // panel never comes back mid-search showing a fraction of the tags —
@@ -154,6 +241,11 @@ export function TagEditModal({
       setQuery("");
       setExpanded(new Set());
     }
+    // Either direction drops the pending edits (#715). Dismissing the panel
+    // discards them — that is the promise the save button makes — and clearing
+    // on the way OUT (not only on the way back in) is what stops a closed panel
+    // from going on reporting itself as dirty to the host.
+    setEdits({});
   }
 
   const toggleExpanded = useCallback((tagId: string) => {
@@ -164,6 +256,73 @@ export function TagEditModal({
       return next;
     });
   }, []);
+
+  const editRow = useCallback((tagId: string, patch: TagRowEdits) => {
+    setEdits((prev) => ({ ...prev, [tagId]: { ...prev[tagId], ...patch } }));
+  }, []);
+
+  /**
+   * Forget one pending field. Dropping the KEY (rather than writing the stored
+   * value into it) is what puts the field back under the live tag, so a later
+   * remote change still reaches it.
+   */
+  const dropRowEdit = useCallback((tagId: string, field: keyof TagRowEdits) => {
+    setEdits((prev) => {
+      const row = prev[tagId];
+      if (!row || row[field] === undefined) return prev;
+      const next = { ...row };
+      delete next[field];
+      return { ...prev, [tagId]: next };
+    });
+  }, []);
+
+  // What each row's save button would write. Computed over ALL tags, not the
+  // visible ones: a row hidden by the filter still holds its draft, and the
+  // panel-wide dirty flag has to count it.
+  const patchByTag = useMemo(() => {
+    const map = new Map<string, TagRowPatch>();
+    for (const tag of tags) {
+      const patch = tagRowPatch(tag, edits[tag.id]);
+      if (Object.keys(patch).length > 0) map.set(tag.id, patch);
+    }
+    return map;
+  }, [tags, edits]);
+  const dirty = patchByTag.size > 0;
+
+  // Tell the host about the pending drafts so its close affordances can confirm
+  // first. The ref keeps the unmount report from pinning a stale callback (and
+  // from forcing every host to memoise the prop); refreshing it in an effect
+  // rather than during render is what `react-hooks/refs` asks for — a render
+  // React throws away must not leave a write behind.
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  });
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
+
+  /*
+   * The only commit (#715). One press writes every field of that row that
+   * moved, in the order the panel has always used — rename first, so whatever
+   * the host propagates around a wiki-tag rename runs exactly where it used to.
+   *
+   * The edits are deliberately NOT cleared here: they are an overlay on the
+   * live tag, so they stop being a pending change the moment the host's write
+   * comes back through props. Clearing them now would snap the row back to the
+   * old name for the length of the round trip.
+   */
+  const saveRow = useCallback(
+    (tagId: string) => {
+      const patch = patchByTag.get(tagId);
+      if (!patch) return;
+      if (patch.name !== undefined) onRename(tagId, patch.name);
+      if (patch.icon !== undefined) onSetIcon(tagId, patch.icon);
+      if (patch.color !== undefined) onSetColor(tagId, patch.color);
+    },
+    [patchByTag, onRename, onSetIcon, onSetColor],
+  );
 
   const submitDraft = useCallback(() => {
     const name = draft.trim();
@@ -255,12 +414,14 @@ export function TagEditModal({
                 <TagEditRowItem
                   key={tag.id}
                   tag={tag}
+                  edits={edits[tag.id] ?? NO_EDITS}
+                  dirty={patchByTag.has(tag.id)}
                   expanded={expanded.has(tag.id)}
                   onToggleExpanded={toggleExpanded}
-                  onRename={onRename}
+                  onEdit={editRow}
+                  onDropEdit={dropRowEdit}
+                  onSave={saveRow}
                   onDelete={onDelete}
-                  onSetColor={onSetColor}
-                  onSetIcon={onSetIcon}
                   onUnassign={onUnassign}
                   formatCount={formatCount}
                   labels={labels}
@@ -276,12 +437,16 @@ export function TagEditModal({
 
 interface TagEditRowItemProps {
   tag: TagEditRow;
+  /** This row's unsaved edits, overlaid on `tag` for display (#715). */
+  edits: TagRowEdits;
+  /** Whether those edits amount to something the save button would write. */
+  dirty: boolean;
   expanded: boolean;
   onToggleExpanded: (tagId: string) => void;
-  onRename: (id: string, name: string) => void;
+  onEdit: (tagId: string, patch: TagRowEdits) => void;
+  onDropEdit: (tagId: string, field: keyof TagRowEdits) => void;
+  onSave: (tagId: string) => void;
   onDelete: (id: string) => void;
-  onSetColor: (id: string, color: string | null) => void;
-  onSetIcon: (id: string, icon: string | null) => void;
   onUnassign?: (assignmentId: string) => void;
   formatCount: (count: number) => string;
   labels: TagEditModalLabels;
@@ -289,35 +454,34 @@ interface TagEditRowItemProps {
 
 function TagEditRowItem({
   tag,
+  edits,
+  dirty,
   expanded,
   onToggleExpanded,
-  onRename,
+  onEdit,
+  onDropEdit,
+  onSave,
   onDelete,
-  onSetColor,
-  onSetIcon,
   onUnassign,
   formatCount,
   labels,
 }: TagEditRowItemProps) {
-  // Local editable name; commit on blur / Enter, revert to prop on Escape.
-  // Re-seeded when the name changes from outside — adjusted during render
-  // (the React "information from previous renders" pattern), not in an
-  // effect (#586).
-  const [name, setName] = useState(tag.name);
-  const [prevTagName, setPrevTagName] = useState(tag.name);
-  if (prevTagName !== tag.name) {
-    setPrevTagName(tag.name);
-    setName(tag.name);
-  }
+  // Live tag underneath, the user's own edits on top. An untouched field has no
+  // local state at all, so an outside rename (#586: another surface, sync, MCP)
+  // simply shows up.
+  const name = edits.name ?? tag.name;
+  const color = edits.color !== undefined ? edits.color : tag.color;
+  const icon = edits.icon !== undefined ? edits.icon : tag.icon;
 
-  const commitName = useCallback(() => {
-    const next = name.trim();
-    if (!next || next === tag.name) {
-      setName(tag.name);
-      return;
-    }
-    onRename(tag.id, next);
-  }, [name, tag.id, tag.name, onRename]);
+  const save = useCallback(() => onSave(tag.id), [onSave, tag.id]);
+
+  // A blank field is not a name (`tagRowPatch` refuses to save one), so leaving
+  // it empty would show one thing and mean another. Dropping the edit puts the
+  // stored name back on screen, which is what the row is actually holding.
+  const restoreClearedName = useCallback(() => {
+    if (edits.name !== undefined && !edits.name.trim())
+      onDropEdit(tag.id, "name");
+  }, [edits.name, onDropEdit, tag.id]);
 
   // The membership list is opt-in per row: a row without `items` keeps the
   // pre-#409 static count pill (nothing to disclose).
@@ -328,24 +492,28 @@ function TagEditRowItem({
     <li className="rounded-lumen-md">
       <div className="flex items-center gap-2 rounded-lumen-md px-1 py-1.5 hover:bg-lumen-hover">
         <TagIconPicker
-          current={tag.icon}
-          color={tag.color}
-          onPick={(icon) => onSetIcon(tag.id, icon)}
+          current={icon}
+          color={color}
+          onPick={(next) => onEdit(tag.id, { icon: next })}
           labels={labels}
         />
 
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={commitName}
+          onChange={(e) => onEdit(tag.id, { name: e.target.value })}
+          onBlur={restoreClearedName}
           onKeyDown={(e) => {
+            // Never commit mid-IME-composition (§frontend gotcha): the Enter
+            // that confirms a Japanese conversion must not save the row.
             if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+            // Enter saves rather than blurs. Blur no longer commits anything
+            // (#715), so "Enter blurs to commit" would have left the key doing
+            // nothing visible at all. Escape is not handled here: the dialog
+            // layer takes it in the capture phase to close the panel
+            // (useDialogA11y), which discards the drafts either way.
             if (e.key === "Enter") {
               e.preventDefault();
-              (e.target as HTMLInputElement).blur();
-            } else if (e.key === "Escape") {
-              setName(tag.name);
-              (e.target as HTMLInputElement).blur();
+              save();
             }
           }}
           aria-label={labels.renameLabel}
@@ -353,8 +521,29 @@ function TagEditRowItem({
             "min-w-0 flex-1 rounded-lumen-sm border border-transparent bg-transparent px-1.5 py-1 text-sm text-lumen-text",
             "hover:border-lumen-border focus-visible:border-lumen-border",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            // An unsaved row says so on the field itself, not only through the
+            // button appearing next to it.
+            dirty && "border-lumen-accent",
           )}
         />
+
+        {/* The one commit (#715). Present only while this row has something to
+            write: a list of twenty tags would otherwise carry twenty dead save
+            buttons, and a control that is pressable and does nothing is worse
+            than one that is not there (#434 S-1). Its appearance IS the
+            "unsaved" state — nothing else in the row changes on its own. */}
+        {dirty && (
+          <Button
+            variant="primary"
+            size="sm"
+            leadingIcon={<Check size={13} aria-hidden />}
+            onClick={save}
+            aria-label={`${labels.saveLabel}: ${tag.name}`}
+            className="shrink-0"
+          >
+            {labels.saveLabel}
+          </Button>
+        )}
 
         {/* The count pill doubles as the item-list disclosure (#409): the number
             the user is already reading is the thing they want to look inside. */}
@@ -385,11 +574,11 @@ function TagEditRowItem({
         )}
 
         <ColorPicker
-          current={tag.color ?? undefined}
+          current={color ?? undefined}
           label={labels.colorLabel}
           clearLabel={labels.colorClearLabel}
           customLabel={labels.colorCustomLabel}
-          onPick={(color) => onSetColor(tag.id, color)}
+          onPick={(next) => onEdit(tag.id, { color: next })}
         />
 
         <button

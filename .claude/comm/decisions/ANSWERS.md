@@ -33,3 +33,5 @@
 - D-20260809-main-2: **A**（`records.mjs` に archive スキャンを足して `archive/INDEX.md` を生成する。SUMMARY.md は 2026-05-23 以前の圧縮要約として残置。2026-08-11 チャットの AskUserQuestion で回答・chat-main が転記）
 - D-20260804-main-1: **A**（Windows タスクスケジューラ + `claude -p`（headless）で 06:03 / 22:33 に発火させる。無人レーンの柵は runner 側 settings で担保。同上）
 - D-20260810-main-3: **A**（STALE スキル 5 本を現行アーキで書き直す。`add-ipc-channel` は「IPC 層は無い・正本は DataService 境界」への短い導線に絞る方向。書き直しは PR レビューを通す。同上）
+- D-20260811-main-1: **A**（Epic #627 は「DataService に書く既存要素の編集」だけを対象にする。Settings 4 パネル（localStorage 直書き）・Briefing 2 面（長文自動保存系）・作成専用フォーム 4 種は対象外。子 Issue は Schedule / Tasks / Work / Tags の 4 本。2026-08-11 チャットの AskUserQuestion で回答・chat-main が 2026-08-12 に転記）
+- D-20260811-main-2: **A**（Epic #321 は現スコープで閉じ、#691 / #692 と mobile 裁定 3 件は新 Epic「Mobile UI/UX 追随 v2」に束ねる。#321 の close 自体は狭幅の実機目視（ユーザー手番）が済んでから。同上）
