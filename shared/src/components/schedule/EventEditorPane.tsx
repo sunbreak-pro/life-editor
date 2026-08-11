@@ -16,6 +16,7 @@ import {
 } from "./FrequencyEditor";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
+import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import {
   FIELD,
   FIELD_LABEL,
@@ -51,13 +52,18 @@ import {
  * still the shared <TimeRangeField>, which owns the start<end invariant; it now
  * writes into the draft instead of straight through to the host.
  *
- * NOT drafted, and deliberately so: the completion toggle, Dismiss / Delete,
- * and the repeat section. The first three are discrete acts rather than field
- * edits (nothing about them is "half typed"), and the repeat section edits the
- * SERIES — a different row, written through the host's conversion guard (#407 /
- * #434) with its own in-flight lock. Folding a series conversion into this
- * button would put an async, failure-prone write behind a control that promises
- * "saved", so it stays where it is.
+ * NOT drafted, and deliberately so: the completion toggle, Dismiss and Delete.
+ * They are discrete acts rather than field edits — nothing about them is "half
+ * typed" — and each already answers for itself.
+ *
+ * The repeat section IS drafted since #712. It was the one control left
+ * committing outside the button, which meant the same panel confirmed in two
+ * different ways and "I never pressed save" could still have changed the
+ * series. It edits a different row (the routine) through the host's conversion
+ * guard (#407 / #434), so the button hands it over FIRST and then sends the
+ * field patch — the order the pane had before, where a frequency write always
+ * preceded the save press. The field patch is what raises the this/future/all
+ * scope dialog (#279), so it stays last and is still asked exactly once.
  *
  * Issue 017 (routine ghost-revival): a routine-generated item is never
  * hard/soft-deleted as a single row — deleting it lets the generator revive
@@ -199,10 +205,15 @@ export interface EventEditorPaneProps {
   repeatLabels?: FrequencyEditorLabels;
   /** An Event→Repeats conversion is in flight — lock the section (#434). */
   repeatPending?: boolean;
-  /** Frequency patch — host applies it to the source routine (or creates one
-   *  for a manual item). */
+  /**
+   * Frequency patch — host applies it to the source routine (or creates one
+   * for a manual item). Called by the SAVE BUTTON only (#712), carrying every
+   * repeat field the user changed in one patch; while the pane is open the
+   * edits live in its draft.
+   */
   onChangeRepeat?: (patch: Partial<FrequencyEditorValue>) => void;
-  /** "なし" selected — host turns the repeat off (detach the series). */
+  /** "なし" selected — host turns the repeat off (detach the series). Also
+   *  deferred to the save button (#712). */
   onDetachRepeat?: () => void;
   /**
    * Tag affordance for this row (#468). Injected rather than built here: the
@@ -281,6 +292,52 @@ function buildPatch(
   return patch;
 }
 
+/**
+ * The pending repeat edit (#712). Three states, not a value plus a flag,
+ * because "no repeat" is itself something the user can choose:
+ *
+ *   undefined — untouched: the section keeps following the live series, so a
+ *               change made elsewhere still lands in front of the user (same
+ *               reason the field draft overlays rather than snapshots)
+ *   null      — "なし" picked: saving detaches the series
+ *   patch     — the repeat fields the user changed, overlaid on the live one
+ */
+type RepeatEdits = Partial<FrequencyEditorValue> | null | undefined;
+
+/**
+ * What the section starts from on a manual item that has no series yet. Only
+ * the type is ever shown from it — picking one immediately seeds the
+ * type-specific fields (see `editRepeat`).
+ */
+const BLANK_REPEAT: FrequencyEditorValue = {
+  frequencyType: "daily",
+  frequencyDays: [],
+  frequencyInterval: null,
+  frequencyStartDate: null,
+};
+
+/**
+ * Is the drafted repeat the same one the item already has? This is what keeps
+ * the save button honest about the repeat: picking "なし" on an item that has
+ * no repeat, or re-picking the type it already had, must not light it up.
+ *
+ * `frequencyDays` compares in order — the editor keeps it sorted, so two equal
+ * sets never disagree here.
+ */
+function sameRepeat(
+  a: FrequencyEditorValue | null,
+  b: FrequencyEditorValue | null,
+): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.frequencyType === b.frequencyType &&
+    (a.frequencyInterval ?? null) === (b.frequencyInterval ?? null) &&
+    (a.frequencyStartDate ?? null) === (b.frequencyStartDate ?? null) &&
+    a.frequencyDays.length === b.frequencyDays.length &&
+    a.frequencyDays.every((d, i) => d === b.frequencyDays[i])
+  );
+}
+
 const SAVE_BTN = cn(
   "rounded-lumen-md bg-lumen-accent px-4 py-2 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
   FOCUS_RING,
@@ -315,7 +372,20 @@ function EventEditorFields({
   // Live item underneath, the user's own edits on top (see EventEditorEdits).
   const draft: EventEditorDraft = { ...draftFromItem(item), ...edits };
   const patch = buildPatch(item, draft);
-  const dirty = Object.keys(patch).length > 0;
+  const fieldsDirty = Object.keys(patch).length > 0;
+
+  // The repeat draft (#712), overlaid on the live series the same way.
+  const [repeatEdits, setRepeatEdits] = useState<RepeatEdits>(undefined);
+  const liveRepeat = repeat ?? null;
+  const repeatDraft: FrequencyEditorValue | null =
+    repeatEdits === undefined
+      ? liveRepeat
+      : repeatEdits === null
+        ? null
+        : { ...(liveRepeat ?? BLANK_REPEAT), ...repeatEdits };
+  const repeatDirty =
+    repeatEdits !== undefined && !sameRepeat(repeatDraft, liveRepeat);
+  const dirty = fieldsDirty || repeatDirty;
 
   // Tell the host about the pending draft so its close affordances can confirm
   // first. The ref keeps the unmount report from pinning a stale callback (and
@@ -339,12 +409,33 @@ function EventEditorFields({
   // the legacy read-only origin chip.
   const showRepeat =
     !!onChangeRepeat && !!repeatLabels && !!repeatWeekdayLabels;
+
+  /*
+   * Seed the type-specific fields at the moment the TYPE changes, and only
+   * then (#712). The segmented control emits `{ frequencyType }` alone, so
+   * "weekdays" with no day and "interval" with no interval both read as "fires
+   * never" — the same hole `seedFrequencyPatch` was written for on the host
+   * side, now filled one step earlier so the section SHOWS what saving would
+   * write. Re-seeding on every derive instead would make the last weekday
+   * impossible to clear, and clearing it is the user's own choice to make.
+   */
+  const editRepeat = (patch: Partial<FrequencyEditorValue>) =>
+    setRepeatEdits((prev) => {
+      const base = prev ?? {};
+      const seeded = seedFrequencyPatch(
+        patch,
+        { ...(liveRepeat ?? BLANK_REPEAT), ...base },
+        item.date,
+      );
+      return { ...base, ...seeded };
+    });
+
   const repeatSection = showRepeat ? (
     <div className="flex flex-col gap-2 border-t border-lumen-border pt-3">
       <FrequencyEditor
-        value={repeat ?? null}
-        onChange={onChangeRepeat}
-        onSelectNone={onDetachRepeat}
+        value={repeatDraft}
+        onChange={editRepeat}
+        onSelectNone={onDetachRepeat ? () => setRepeatEdits(null) : undefined}
         weekdayLabels={repeatWeekdayLabels}
         labels={repeatLabels}
         pending={repeatPending}
@@ -354,7 +445,18 @@ function EventEditorFields({
 
   const save = () => {
     if (!dirty) return;
-    onSave(item.id, patch);
+    // The repeat goes first: it edits the SERIES — a different row, through the
+    // host's own in-flight guard (#407 / #434) — and sending it ahead keeps the
+    // order this pane had before #712, when a frequency click wrote on the
+    // spot and the save press always came after it.
+    if (repeatDirty) {
+      if (repeatEdits === null) onDetachRepeat?.();
+      else if (repeatEdits) onChangeRepeat?.(repeatEdits);
+    }
+    // Last, and skipped when only the repeat moved: an empty patch would still
+    // raise the this/future/all scope dialog (#279) on a routine occurrence,
+    // asking about an edit that does not exist.
+    if (fieldsDirty) onSave(item.id, patch);
   };
 
   // Enter in a single-line field saves rather than blurs. Blur no longer
