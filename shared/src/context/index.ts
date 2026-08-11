@@ -116,8 +116,11 @@ export { TimerProvider, type TimerProviderProps } from "./TimerContext";
 export { TimerContext, type TimerContextValue } from "./TimerContextValue";
 export type { TimerPhase, ActiveTask } from "./timerReducer";
 
-// Audio (W3-C): Pattern A + OPTIONAL hook. Mobile 省略 Provider (CLAUDE.md §2)
-// — mounted on web/desktop only; consumers use useAudioContext (null-safe).
+// Audio (W3-C): Pattern A + OPTIONAL hook. NOT a §2 Mobile 省略 Provider —
+// it is mounted on native mobile too (the completion chime belongs to the
+// work timer, Full on mobile per mobile-scope.md #10/#11); only the Ambient
+// mixer UI is omitted, in WorkScreen. Consumers still use useAudioContext
+// (null-safe) because the Provider is absent in partial chains and tests.
 // Per §6.2 it nests INSIDE Timer (… → Timer → Audio → …).
 export { AudioProvider, type AudioProviderProps } from "./AudioContext";
 export {

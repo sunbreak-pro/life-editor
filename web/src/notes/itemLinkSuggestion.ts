@@ -240,7 +240,10 @@ async function buildItems(
 
 type ItemLinkRender = SuggestionOptions<ItemLinkMenuItem>["render"];
 
-function itemLinkRender(
+// Exported for `web/tests/suggestionImeGuard.test.ts`: the Escape branch is
+// one line and easy to delete by accident, and it cannot be reached through
+// `createItemLinkSuggestion` without standing up a whole ProseMirror editor.
+export function itemLinkRender(
   emptyLabel: string,
   session: { onOpen: () => void; onClose: () => void },
 ): ItemLinkRender {
@@ -298,7 +301,11 @@ function itemLinkRender(
         popup.position(props.clientRect);
       },
       onKeyDown: (props) => {
-        if (props.event.key === "Escape") {
+        // IME guard (rules/frontend.md §Gotchas): while a Japanese conversion
+        // is open, Escape means "cancel the conversion", not "close the
+        // suggestion". Without this, one Escape tore the popup down AND
+        // swallowed the candidate the user was still choosing.
+        if (props.event.key === "Escape" && !props.event.isComposing) {
           destroy();
           // Tearing down the view is not enough: the plugin stays ACTIVE, so
           // every following keystroke still runs items() — with the session

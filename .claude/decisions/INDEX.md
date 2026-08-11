@@ -19,6 +19,7 @@
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
 | D-20260811-refactor-1 | Analytics の「今週」が 2 つの意味で併存しているが、揃えるか？ | refactor-core |
+| D-20260811-refactor-2 | `window.confirm` を自前ダイアログに置き換えるか（計画書 §C3 PR 4 の 1 項目） | refactor-core |
 | D-20260811-sched-1 | #625 Event → Todo で日付・時間帯を Todo のチップスロットへ引き継ぐか（D-20260810-sched-3 の緩和提案） | schedule-refine |
 | D-20260811-sched-2 | #692 Mobile 月ビューの入口をどの形にするか（#467 が消した切替の部分復活） | schedule-refine |
 
