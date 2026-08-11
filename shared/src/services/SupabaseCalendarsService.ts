@@ -1,4 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
+import type {
+  CalendarsDataService,
+} from "./DataService";
 import type { CalendarNode } from "../types/calendar";
 import {
   CALENDAR_SELECT_COLUMNS,
@@ -25,7 +28,7 @@ import { fetchAllPages } from "./postgrestFetchAll";
  * for QA. (life-tags S2 / 0021: the bind column is now tag_id ->
  * wiki_tags(id), was folder_id -> items_meta(id).)
  */
-export class SupabaseCalendarsService {
+export class SupabaseCalendarsService implements CalendarsDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -142,9 +145,13 @@ export class SupabaseCalendarsService {
   }
 }
 
-export const PHASE2_CALENDAR_METHODS = new Set<string>([
+export const PHASE2_CALENDAR_METHOD_NAMES = [
   "fetchCalendars",
   "createCalendar",
   "updateCalendar",
   "deleteCalendar",
-]);
+] as const;
+
+export type CalendarMethodName = (typeof PHASE2_CALENDAR_METHOD_NAMES)[number];
+
+export const PHASE2_CALENDAR_METHODS: ReadonlySet<string> = new Set(PHASE2_CALENDAR_METHOD_NAMES);

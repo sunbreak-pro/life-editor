@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { WikiTagsUnifiedDataService } from "./DataService";
 import {
   WIKI_TAGS_COLUMNS,
   rowToWikiTag,
@@ -33,14 +34,15 @@ import type {
  * Naming policy: every method here has the `*Unified` suffix or a verb
  * that the legacy Tauri polymorphic API never used (assignTagToItem /
  * createItemLink). The legacy `fetchWikiTags` / `setWikiTagsForEntity`
- * style stays UNTOUCHED in DataService.ts — they currently throw "not
- * implemented in phase 2" and will be deleted wholesale in DU-F when the
- * remaining frontend callers migrate. Coexistence is intentional.
+ * declarations that used to sit beside these in DataService.ts are gone
+ * (#671 C4 S1): they were never routed, so they could only ever throw
+ * "not implemented in phase 2", and no caller in any of the four trees
+ * ever reached them. This service is the whole tag/link surface now.
  *
  * Tag↔group + group_assignments live in DU-F UI; mappers exist (DU-C+
  * Step 3) but no service method is needed yet.
  */
-export class SupabaseWikiTagsUnifiedService {
+export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataService {
   constructor(private readonly client: SupabaseClient) {}
 
   // -------------------------------------------------------------------------
@@ -284,7 +286,7 @@ export class SupabaseWikiTagsUnifiedService {
   }
 }
 
-export const PHASE2_WIKI_TAGS_UNIFIED_METHODS: ReadonlySet<string> = new Set([
+export const PHASE2_WIKI_TAGS_UNIFIED_METHOD_NAMES = [
   "listAllWikiTagsUnified",
   "createWikiTagUnified",
   "updateWikiTagUnified",
@@ -298,4 +300,11 @@ export const PHASE2_WIKI_TAGS_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "listAllTagConnections",
   "createItemLink",
   "deleteItemLink",
-]);
+] as const;
+
+export type WikiTagsUnifiedMethodName =
+  (typeof PHASE2_WIKI_TAGS_UNIFIED_METHOD_NAMES)[number];
+
+export const PHASE2_WIKI_TAGS_UNIFIED_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_WIKI_TAGS_UNIFIED_METHOD_NAMES,
+);

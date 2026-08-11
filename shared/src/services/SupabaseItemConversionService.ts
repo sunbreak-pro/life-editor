@@ -1,4 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
+import type {
+  ItemConversionDataService,
+} from "./DataService";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import {
@@ -88,7 +91,7 @@ export class ItemConversionError extends Error {
   }
 }
 
-export class SupabaseItemConversionService {
+export class SupabaseItemConversionService implements ItemConversionDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -436,7 +439,11 @@ export class SupabaseItemConversionService {
   }
 }
 
-export const PHASE2_ITEM_CONVERSION_METHODS = new Set<string>([
+export const PHASE2_ITEM_CONVERSION_METHOD_NAMES = [
   "convertEventToTask",
   "convertTaskToEvent",
-]);
+] as const;
+
+export type ItemConversionMethodName = (typeof PHASE2_ITEM_CONVERSION_METHOD_NAMES)[number];
+
+export const PHASE2_ITEM_CONVERSION_METHODS: ReadonlySet<string> = new Set(PHASE2_ITEM_CONVERSION_METHOD_NAMES);

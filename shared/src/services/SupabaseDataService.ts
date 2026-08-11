@@ -52,15 +52,19 @@ import {
  * The `tasks` domain is fully implemented (full-column round-trip against
  * the 0003_tasks_full_schema.sql shape: hierarchy / soft-delete /
  * scheduling / versioning). Pure mapping lives in `taskMapper.ts`; this
- * file is the I/O layer only. Several other domains are now ported as
- * well (daily / notes / wiki-tags / routines / schedule / calendars /
- * timer / audio); only methods on the remaining un-ported domains throw
- * at call time ("not implemented in phase 2"). Later S-steps port the rest.
+ * file is the I/O layer only. Every other domain is ported too (daily /
+ * notes / wiki-tags / routines / schedule / calendars / timer / audio /
+ * item conversion / note links), so as of #671 C4 the "not implemented in
+ * phase 2" thrower below is unreachable for any DataService member — it
+ * only answers properties nothing declares.
  *
- * The full `DataService` interface has ~200 members; enumerating throwing
- * stubs by hand for all of them is noise. The implemented tasks methods
- * live on a real class and a Proxy fills the rest with a throwing
- * fallback, asserted to `DataService` so consumers keep static typing.
+ * Each domain is a real class with an `implements` clause against its
+ * slice of DataService, and a Proxy routes each property to the class that
+ * owns it. The `as unknown as DataService` cast at the end is what makes
+ * that cheap — and what nothing can check. `dataServiceRouting.ts` +
+ * `shared/tests/dataServiceRouting.test.ts` are the guard that closes the
+ * hole: interface, routing tuples and class methods now fail the build (or
+ * the test) the moment they disagree.
  */
 
 // Moved to supabaseServiceHelpers.ts; re-exported so existing importers

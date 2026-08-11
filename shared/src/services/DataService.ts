@@ -13,7 +13,7 @@ import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
-import type { WikiTag, NoteConnection } from "../types/wikiTag";
+import type { NoteConnection } from "../types/wikiTag";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -50,8 +50,29 @@ export interface BulkSoftDeleteResult {
   notes: number;
 }
 
-export interface DataService {
-  // Tasks
+/*
+ * DataService is split into one interface per routing domain (#671 C4 S5).
+ *
+ * The split is not cosmetic: each domain interface is the contract of
+ * exactly ONE Supabase service class (SupabaseTasksService,
+ * SupabaseTimerService, ...), so those classes can carry a real
+ * `implements` clause instead of being typed only by the
+ * `as unknown as DataService` cast in SupabaseDataService's Proxy.
+ * `dataServiceRouting.ts` then pins each domain interface against the
+ * matching `PHASE2_*_METHOD_NAMES` tuple, which makes the routing table a
+ * compile-time-checked mirror of this file rather than 120 hand-written
+ * strings nothing verifies.
+ *
+ * When adding a method: put it on the domain interface, add its name to
+ * that domain's `PHASE2_*_METHOD_NAMES` tuple, and implement it on the
+ * owning class. Missing any of the three is now a build error.
+ */
+
+// ---------------------------------------------------------------------------
+// Tasks — SupabaseTasksService
+// ---------------------------------------------------------------------------
+
+export interface TasksDataService {
   fetchTaskTree(): Promise<TaskNode[]>;
   /**
    * Live, unfinished task count for the badge (#511) — a number, not a
@@ -67,7 +88,13 @@ export interface DataService {
   restoreTask(id: string): Promise<void>;
   permanentDeleteTask(id: string): Promise<void>;
   migrateTasksToBackend(nodes: TaskNode[]): Promise<void>;
+}
 
+// ---------------------------------------------------------------------------
+// Timer + Pomodoro presets — SupabaseTimerService
+// ---------------------------------------------------------------------------
+
+export interface TimerDataService {
   // Timer
   fetchTimerSettings(): Promise<TimerSettings>;
   updateTimerSettings(
@@ -111,7 +138,13 @@ export interface DataService {
     updates: Partial<Omit<PomodoroPreset, "id" | "createdAt">>,
   ): Promise<PomodoroPreset>;
   deletePomodoroPreset(id: number): Promise<void>;
+}
 
+// ---------------------------------------------------------------------------
+// Sound settings + playlists — SupabaseAudioService
+// ---------------------------------------------------------------------------
+
+export interface AudioDataService {
   // Sound
   fetchSoundSettings(): Promise<SoundSettings[]>;
   updateSoundSetting(
@@ -126,12 +159,32 @@ export interface DataService {
    */
   getSoundAssetUrl(objectName: string): Promise<string>;
 
-  // Daily / Notes legacy method signatures were removed in DU-G G4.
-  // The Daily + Notes write paths now go through the *Unified blocks below
-  // (items_meta + dailies_payload / notes_payload 2-row pattern); the
-  // legacy Bridge that mapped legacy → Unified names has been retired.
+  // Playlists
+  fetchPlaylists(): Promise<Playlist[]>;
+  createPlaylist(id: string, name: string): Promise<Playlist>;
+  updatePlaylist(
+    id: string,
+    updates: Partial<
+      Pick<Playlist, "name" | "sortOrder" | "repeatMode" | "isShuffle">
+    >,
+  ): Promise<Playlist>;
+  deletePlaylist(id: string): Promise<void>;
+  fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]>;
+  fetchAllPlaylistItems(): Promise<PlaylistItem[]>;
+  addPlaylistItem(
+    id: string,
+    playlistId: string,
+    soundId: string,
+  ): Promise<PlaylistItem>;
+  removePlaylistItem(itemId: string): Promise<void>;
+  reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void>;
+}
 
-  // Calendars
+// ---------------------------------------------------------------------------
+// Calendars — SupabaseCalendarsService
+// ---------------------------------------------------------------------------
+
+export interface CalendarsDataService {
   fetchCalendars(): Promise<CalendarNode[]>;
   createCalendar(
     id: string,
@@ -143,11 +196,16 @@ export interface DataService {
     updates: Partial<Pick<CalendarNode, "title" | "tagId" | "order">>,
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
+}
 
-  // Calendar Tags domain removed in DU-F Step 3-5 (DB DROPped in DU-C+
-  // 0012; replaced by WikiTags Unified for the 5-role tag/link graph).
+// Calendar Tags domain removed in DU-F Step 3-5 (DB DROPped in DU-C+
+// 0012; replaced by WikiTags Unified for the 5-role tag/link graph).
 
-  // Routines
+// ---------------------------------------------------------------------------
+// Routines — SupabaseRoutinesService
+// ---------------------------------------------------------------------------
+
+export interface RoutinesDataService {
   fetchAllRoutines(): Promise<RoutineNode[]>;
   createRoutine(
     id: string,
@@ -240,8 +298,13 @@ export interface DataService {
   ): Promise<RoutineNode>;
   restoreRoutine(id: string): Promise<void>;
   permanentDeleteRoutine(id: string): Promise<void>;
+}
 
-  // Schedule Items
+// ---------------------------------------------------------------------------
+// Schedule items — SupabaseScheduleItemsService
+// ---------------------------------------------------------------------------
+
+export interface ScheduleItemsDataService {
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]>;
   fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]>;
   fetchScheduleItemsByDateRange(
@@ -328,8 +391,13 @@ export interface DataService {
    */
   bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
+}
 
-  // Event <-> Todo conversion (#625)
+// ---------------------------------------------------------------------------
+// Event <-> Todo conversion (#625) — SupabaseItemConversionService
+// ---------------------------------------------------------------------------
+
+export interface ItemConversionDataService {
   /**
    * Turn an event into a Todo, KEEPING its id (D-20260810-sched-2 = 案 A):
    * tags and item links reference `items_meta.id` with no role of their own,
@@ -376,38 +444,19 @@ export interface DataService {
       isAllDay: boolean;
     },
   ): Promise<ScheduleItem>;
+}
 
-  // Playlists
-  fetchPlaylists(): Promise<Playlist[]>;
-  createPlaylist(id: string, name: string): Promise<Playlist>;
-  updatePlaylist(
-    id: string,
-    updates: Partial<
-      Pick<Playlist, "name" | "sortOrder" | "repeatMode" | "isShuffle">
-    >,
-  ): Promise<Playlist>;
-  deletePlaylist(id: string): Promise<void>;
-  fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]>;
-  fetchAllPlaylistItems(): Promise<PlaylistItem[]>;
-  addPlaylistItem(
-    id: string,
-    playlistId: string,
-    soundId: string,
-  ): Promise<PlaylistItem>;
-  removePlaylistItem(itemId: string): Promise<void>;
-  reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void>;
+// ---------------------------------------------------------------------------
+// Wiki Tags Unified (DU-C+ — items_meta-based tag/link, 5 roles)
+// — SupabaseWikiTagsUnifiedService
+//
+// The legacy polymorphic Wiki Tags API (fetchWikiTags /
+// setWikiTagsForEntity) was declared here but never routed and never
+// called from any of the four trees; #671 C4 S1 deleted the two dead
+// declarations rather than wiring throwing stubs for them.
+// ---------------------------------------------------------------------------
 
-  // Wiki Tags
-  fetchWikiTags(): Promise<WikiTag[]>;
-  setWikiTagsForEntity(
-    entityId: string,
-    entityType: string,
-    tagIds: string[],
-  ): Promise<void>;
-
-  // Wiki Tags Unified (DU-C+ — items_meta-based tag/link, 5 roles)
-  // Coexists with the legacy polymorphic API above (currently throws
-  // "not implemented in phase 2"); DU-F deletes the legacy block.
+export interface WikiTagsUnifiedDataService {
   listAllWikiTagsUnified(): Promise<WikiTagUnified[]>;
   createWikiTagUnified(
     id: string,
@@ -440,13 +489,19 @@ export interface DataService {
     origin?: WikiTagConnectionOrigin,
   ): Promise<WikiTagConnectionUnified>;
   deleteItemLink(linkId: string): Promise<void>;
+}
 
-  // Notes Unified (DU-D — items_meta + notes_payload 2-row pattern).
-  // Coexists with the legacy single-table Notes block above; DU-F retires
-  // the legacy block once frontend↔shared integration lands. DU-G PR1 adds
-  // the remaining UX-critical methods (trash / restore / hard-delete /
-  // search / password gate / edit lock) so the legacy bridge can finally
-  // drop its `_pendingDuRewrite` stubs.
+// ---------------------------------------------------------------------------
+// Notes Unified (DU-D — items_meta + notes_payload 2-row pattern)
+// — SupabaseNotesUnifiedService
+//
+// DU-G PR1 added the remaining UX-critical methods (trash / restore /
+// hard-delete / search / password gate / edit lock) so the legacy bridge
+// could finally drop its `_pendingDuRewrite` stubs; the legacy
+// single-table Notes block itself was retired in DU-G G4.
+// ---------------------------------------------------------------------------
+
+export interface NotesUnifiedDataService {
   listNotesUnified(): Promise<NoteNode[]>;
   /** Live note count for the badge (#511) — see countUnfinishedTasks. */
   countLiveNotes(): Promise<number>;
@@ -470,9 +525,17 @@ export interface DataService {
   ): Promise<NoteNode>;
   verifyNotePasswordUnified(id: string, password: string): Promise<boolean>;
   toggleNoteEditLockUnified(id: string): Promise<NoteNode>;
+}
 
-  // Dailies Unified (DU-D — items_meta + dailies_payload 2-row pattern).
-  // upsertDailyByDateUnified is the primary write path (date is UNIQUE).
+// ---------------------------------------------------------------------------
+// Dailies Unified (DU-D — items_meta + dailies_payload 2-row pattern)
+// — SupabaseDailiesUnifiedService
+//
+// upsertDailyByDateUnified is the primary write path (date is UNIQUE).
+// The legacy Daily method signatures were removed in DU-G G4.
+// ---------------------------------------------------------------------------
+
+export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
   /** Live daily count for the badge (#511) — see countUnfinishedTasks. */
   countLiveDailies(): Promise<number>;
@@ -495,8 +558,13 @@ export interface DataService {
   ): Promise<DailyNode>;
   verifyDailyPasswordUnified(id: string, password: string): Promise<boolean>;
   toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
+}
 
-  // Note Connections
+// ---------------------------------------------------------------------------
+// Note Connections — SupabaseNoteConnectionService
+// ---------------------------------------------------------------------------
+
+export interface NoteConnectionsDataService {
   fetchNoteConnections(): Promise<NoteConnection[]>;
   createNoteConnection(
     sourceNoteId: string,
@@ -507,8 +575,13 @@ export interface DataService {
     sourceNoteId: string,
     targetNoteId: string,
   ): Promise<void>;
+}
 
-  // Note Links (Obsidian-style [[...]] syntax)
+// ---------------------------------------------------------------------------
+// Note Links (Obsidian-style [[...]] syntax) — SupabaseNoteLinkService
+// ---------------------------------------------------------------------------
+
+export interface NoteLinksDataService {
   fetchAllNoteLinks(): Promise<NoteLink[]>;
   fetchForwardLinksForNote(sourceNoteId: string): Promise<NoteLink[]>;
   fetchBacklinksForNote(targetNoteId: string): Promise<BacklinkHit[]>;
@@ -522,11 +595,26 @@ export interface DataService {
   ): Promise<void>;
   deleteNoteLinksForNote(sourceNoteId: string): Promise<void>;
   fetchUnlinkedMentions(sourceNoteId: string): Promise<UnlinkedMention[]>;
-
-  // Shell
-  openExternal(url: string): Promise<void>;
-
-  // System Integration
-  getAutoLaunch(): Promise<boolean>;
-  setAutoLaunch(enabled: boolean): Promise<void>;
 }
+
+/**
+ * The whole data surface the frontend may reach (CLAUDE.md §3.1).
+ *
+ * Purely the union of the domain interfaces above — it declares no member
+ * of its own, so "a method exists on DataService" and "a method belongs to
+ * exactly one routed domain" are the same statement.
+ */
+export interface DataService
+  extends
+    TasksDataService,
+    TimerDataService,
+    AudioDataService,
+    CalendarsDataService,
+    RoutinesDataService,
+    ScheduleItemsDataService,
+    ItemConversionDataService,
+    WikiTagsUnifiedDataService,
+    NotesUnifiedDataService,
+    DailiesUnifiedDataService,
+    NoteConnectionsDataService,
+    NoteLinksDataService {}

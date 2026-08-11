@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type {
+  DailiesUnifiedDataService,
+} from "./DataService";
 import {
   ITEMS_META_DAILY_COLUMNS,
   DAILIES_PAYLOAD_COLUMNS,
@@ -24,7 +27,7 @@ import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
  * is a function of date, but the DB UNIQUE constraint is on `date` alone
  * (N=1 / no-multitenancy Non-goal).
  */
-export class SupabaseDailiesUnifiedService {
+export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService {
   constructor(private readonly client: SupabaseClient) {}
 
   // -------------------------------------------------------------------------
@@ -641,7 +644,7 @@ export class SupabaseDailiesUnifiedService {
   }
 }
 
-export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
+export const PHASE2_DAILIES_UNIFIED_METHOD_NAMES = [
   "listDailiesUnified",
   "countLiveDailies",
   "getDailyByDateUnified",
@@ -657,4 +660,8 @@ export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "removeDailyPasswordUnified",
   "verifyDailyPasswordUnified",
   "toggleDailyEditLockUnified",
-]);
+] as const;
+
+export type DailiesUnifiedMethodName = (typeof PHASE2_DAILIES_UNIFIED_METHOD_NAMES)[number];
+
+export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set(PHASE2_DAILIES_UNIFIED_METHOD_NAMES);
