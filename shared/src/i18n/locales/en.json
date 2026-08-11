@@ -738,6 +738,7 @@
   "common": {
     "ok": "OK",
     "cancel": "Cancel",
+    "discard": "Discard",
     "close": "Close",
     "undo": "Undo",
     "redo": "Redo",
