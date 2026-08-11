@@ -6,9 +6,9 @@ import {
   TASKS_PAYLOAD_COLUMNS,
   rowsToTaskNode,
   taskNodeToRows,
-  type ItemsMetaRow,
   type TasksPayloadRow,
 } from "./taskMapper";
+import type { ItemsMetaRow } from "./itemsMeta";
 import {
   ITEMS_META_EVENT_COLUMNS,
   EVENTS_PAYLOAD_COLUMNS,

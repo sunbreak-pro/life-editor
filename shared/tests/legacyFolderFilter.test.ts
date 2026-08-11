@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ItemsMetaRow, TasksPayloadRow } from "../src/services/taskMapper";
+import type { TasksPayloadRow } from "../src/services/taskMapper";
+import type { ItemsMetaRow } from "../src/services/itemsMeta";
 
 /*
  * life-tags S3 (#225) — legacy folder-row filtering. SupabaseTasksService's

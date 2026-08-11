@@ -4,8 +4,6 @@ import {
   rowsToNoteNodeLite,
   noteNodeToRows,
   noteUpdatesToPatches,
-  contentJsonToString,
-  contentStringToJson,
   isLegacyNoteFolderRow,
   toNoteNodeType,
   NOTES_PAYLOAD_COLUMNS,
@@ -14,6 +12,10 @@ import {
   type NotesPayloadRow,
   type NotesPayloadListRow,
 } from "../src/services/notesUnifiedMapper";
+import {
+  contentJsonToString,
+  contentStringToJson,
+} from "../src/services/contentJson";
 import type { NoteNode } from "../src/types/note";
 
 /*

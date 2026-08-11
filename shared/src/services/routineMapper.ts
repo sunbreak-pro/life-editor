@@ -4,7 +4,7 @@ import {
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
-} from "./taskMapper";
+} from "./itemsMeta";
 
 /*
  * Pure RoutineNode <-> 2-row (items_meta + routines_payload) mappers
@@ -123,7 +123,7 @@ export function parseFrequencyDays(raw: string): number[] {
 
 /**
  * items_meta shapes for role='routine' — aliases of the canonical
- * generics in `taskMapper` (the 5 role mappers carried byte-identical
+ * generics in `itemsMeta` (the 5 role mappers carried byte-identical
  * copies).
  */
 export type ItemsMetaRoutineRow = ItemsMetaRow<"routine">;

@@ -1,6 +1,6 @@
 import { cn } from "./cn";
 import type { ShortcutCategory } from "../types/shortcut";
-import type { ShortcutRow } from "./SettingsShortcuts";
+import type { ShortcutRow } from "../types/shortcut";
 
 /** Fixed display order for the category groups. */
 export const CATEGORY_ORDER: ShortcutCategory[] = [
