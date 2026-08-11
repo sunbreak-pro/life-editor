@@ -96,6 +96,42 @@
 
 **期限感**: いつでも。
 
+## D-20260811-sched-2: #692 Mobile 月ビューの入口をどの形にするか（#467 が消した切替の部分復活）
+
+**背景**: #692 Step 1。Mobile には月の俯瞰が無い（narrow は `effView` が `"list"` 固定 = `web/src/schedule/useCalendarNav.ts:32`）。#467（Epic #290 Step 5-c）が切替 UI ごと退役させたので、月ビューを足すには**入口を何かしらの形で戻す**ことになる。どの形で戻すかがユーザー判断。
+
+**実測で分かった前提（2026-08-11・本ブランチ）**:
+
+- `MonthGrid` には既に **`compact` prop（"Mobile density: day badge + dot row instead of chips"）が実装済み**で、テストもある（`shared/src/components/schedule/MonthGrid.tsx:62-63` / `shared/tests/monthGrid.test.tsx:73-110`）。**ただし `CalendarTab.tsx` はどこからも渡していない** — 作られたまま配線されていない Mobile モード。セルは `min-h-14`（56px・`MonthGrid.tsx:172`）でタップ標的として足りる。**よって #692 は MonthGrid の作り替えではなく配線で足りる**
+- **`effView` を narrow で `"month"` にできれば、移動単位と取得範囲は自動で追従する**（下記トレース）。「3 箇所を揃って直す」必要は無い
+
+**`effView` の 4 消費点トレース（Issue 本文の懸念の答え）**:
+
+| #   | 場所                                                                                           | 現状                                                                                                    | narrow で `"month"` にした時                                               |
+| --- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 1   | `useCalendarNav.ts:32` ピン留め                                                                | `isWide ? desktopView : "list"`                                                                         | **ここだけが唯一直す必要のある行**                                         |
+| 2   | `useCalendarNav.ts:61-68` `step()`                                                             | `effView === "month"` を **`isWide` で囲っていない**（:64）                                             | 自動で月送りになる（追加改修 **不要**）                                    |
+| 3   | `useCalendarNav.ts:48-59` → `visibleCalendarRange`（`shared/src/utils/calendarView.ts:44-47`） | `effView === "month"` を **`isWide` で囲っていない**（`:44`。`isWide` を見るのは week 分岐 `:49` だけ） | 自動で月グリッド全体（`monthRows[0][0]`〜末尾）を取得（追加改修 **不要**） |
+| 4   | `CalendarTab.tsx:918-922` `periodLabel`                                                        | 同じく `isWide` 非依存                                                                                  | 自動で「2026年8月」表記になる（追加改修 **不要**）                         |
+
+補足: `monthRows` は `effView` と無関係に常時計算されている（`useCalendarNav.ts:42-45`）ので、narrow でも即使える。**残る配線は「narrow の描画分岐に MonthGrid を出す」1 点**（現状の narrow 分岐は `AgendaList` 決め打ち = `CalendarTab.tsx:2500`。wide 側の month 分岐は `desktopView` を読んでいて `effView` ではない = `:2375`）。
+
+**A（推奨）: ヘッダの日付ラベルのタップで月シートを開く**。narrow ヘッダの `periodLabel`（`CalendarTab.tsx:2464-2466`。現在ただの `<span>`）をボタン化し、`BottomSheet` に `MonthGrid compact` を載せる。セルタップでその日へ移動してシートを閉じ、#691 の Dayflow に戻る。
+
+- #467 が消した切替はどうなるか: **復活させない**。「単画面 + FAB」の原則（Epic #290 Step 5-c）は保ったまま、俯瞰だけをシートで足す。ビューという概念は Mobile に戻らない
+- コスト: シートの開閉 state 1 個 + `MonthGrid` 注入。`useCalendarNav.ts:32` を触らずに済む**可能性がある**（シートに `monthKey` を渡すだけなら `effView` は `"list"` のまま。ただしその場合 **取得範囲は 1 日のままなのでシート内のセルが空になる** → シート表示中だけ月レンジを取る仕組みが要る = :32 と同等の分岐が結局要る）
+- 壊れるもの: `periodLabel` がボタンになるので、narrow ヘッダの高さ・タップ標的が変わる。既存の narrow ヘッダのスナップショット的なテストがあれば要更新
+
+**B: narrow に表示切替コントロールを戻す（#467 の部分的な巻き戻し）**。日 / 月の 2 択に絞ったトグルを narrow ヘッダに置き、`useCalendarNav.ts:32` を `isWide ? desktopView : mobileView` に変える（`mobileView` は narrow 専用 state で `"list" | "month"`）。
+
+- #467 が消した切替はどうなるか: **2 択に縮めて戻る**。#467 が退役させたのは day / week / month / timeline の 4 択切替で、そのうち「narrow で指では扱えない」と判断された week / timeline は戻さない
+- コスト: narrow 専用 state 1 個 + トグル 1 個。`view`（Desktop の選択）は別 state のままにするので、wide に戻したとき Desktop の選択が壊れない
+- 壊れるもの: 「Mobile は単画面」という #467 の説明が成り立たなくなり、`useCalendarNav.ts:26-31` の長いコメントと `CalendarTab.tsx:2436-2447` の narrow の意図説明が実態と食い違う（両方書き換えが要る）。`mobile-scope.md` #4 の記述も要更新
+
+**放置時**: **現状維持（Mobile に月ビューを足さない）**。#692 は保留のまま Step 2 に入らず、次の作業単位へ進む。
+
+**期限感**: いつでも（#691 → #692 → #675 の順を守るため、#691 の回答より後で構わない）。
+
 ---
 
 （回答済みは `.claude/decisions/` 台帳へ昇格済み — D-20260801-sched-1（2026-08-09・chat-main 代行）/ D-20260810-sched-1〜5（2026-08-10・チャット回答を受けて当チャットが昇格））
