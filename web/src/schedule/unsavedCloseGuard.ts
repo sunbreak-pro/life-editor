@@ -19,8 +19,14 @@
 export interface UnsavedCloseRequest {
   /** Does the editor hold a draft that has not been saved? */
   dirty: boolean;
-  /** Ask the user whether to discard it. `true` = discard and close. */
-  askDiscard: () => boolean;
+  /**
+   * Ask the user whether to discard it. `true` = discard and close.
+   *
+   * Awaited (#707): the question is an in-app dialog now rather than
+   * `window.confirm`, and an in-app dialog answers a tick later. The
+   * nothing-pending path still settles without ever calling this.
+   */
+  askDiscard: () => boolean | Promise<boolean>;
 }
 
 export interface UnsavedCloseDecision {
@@ -33,12 +39,12 @@ export interface UnsavedCloseDecision {
   clearDirty: boolean;
 }
 
-export function decideUnsavedClose({
+export async function decideUnsavedClose({
   dirty,
   askDiscard,
-}: UnsavedCloseRequest): UnsavedCloseDecision {
+}: UnsavedCloseRequest): Promise<UnsavedCloseDecision> {
   // Nothing pending: close straight through, without a dialog nobody needs.
   if (!dirty) return { close: true, clearDirty: false };
-  if (!askDiscard()) return { close: false, clearDirty: false };
+  if (!(await askDiscard())) return { close: false, clearDirty: false };
   return { close: true, clearDirty: true };
 }

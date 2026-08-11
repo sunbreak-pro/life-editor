@@ -737,6 +737,7 @@
   "common": {
     "ok": "OK",
     "cancel": "キャンセル",
+    "discard": "破棄",
     "close": "閉じる",
     "undo": "元に戻す",
     "redo": "やり直す",
