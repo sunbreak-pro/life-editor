@@ -24,8 +24,16 @@ import {
 } from "./AudioContextValue";
 
 /*
- * Shared AudioProvider (W3-C). Pattern A (CLAUDE.md §6.3) + OPTIONAL variant
- * (Audio is a §2 Mobile 省略 Provider — mounted on web/desktop only). The host
+ * Shared AudioProvider (W3-C). Pattern A (CLAUDE.md §6.3) + OPTIONAL variant.
+ *
+ * NOT a §2 Mobile 省略 Provider — this Provider IS mounted on native mobile.
+ * The completion chime is part of the work timer, which mobile-scope.md #10/#11
+ * lists as Full on mobile, so tearing the Provider down would take the chime
+ * with it. What native mobile omits is the Ambient mixer UI only, and that is
+ * done in `web/src/work/WorkScreen.tsx`, not here (#670 C3 PR 4 — the old
+ * comment said "mounted on web/desktop only", which is simply not what the
+ * code does). The OPTIONAL hook variant stays because the Provider is still
+ * absent in tests and in hosts that mount a partial chain. The host
  * injects the DataService (§6.4 — the Provider, being a host-side context, MAY
  * use the injected ds). Per §6.2 it nests INSIDE TimerProvider (… → Timer →
  * Audio → …); it reads useSyncContext so a cross-tab volume/enable edit

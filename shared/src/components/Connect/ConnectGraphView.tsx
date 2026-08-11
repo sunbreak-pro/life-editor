@@ -229,6 +229,12 @@ export function ConnectGraphView({
       );
     }
     function onKeyDown(e: KeyboardEvent) {
+      // IME guard (rules/frontend.md §Gotchas). This is a window-level
+      // listener, so a Japanese conversion open in ANY field on the screen
+      // routes its Escape here first: the conversion was cancelled AND the
+      // graph selection cleared, from one keypress the user meant for the
+      // input (#670 C3 PR 4).
+      if (e.isComposing) return;
       if (e.key === "Escape") {
         handleSelectedIdChange(null);
         return;
