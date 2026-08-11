@@ -35,6 +35,7 @@ const LABELS = {
   filterLabel: "Filter tags by name",
   filterEmpty: "No tags match",
   renameLabel: "Rename tag",
+  saveLabel: "Save",
   deleteLabel: "Delete tag",
   iconLabel: "Icon",
   clearIconLabel: "Default icon",
