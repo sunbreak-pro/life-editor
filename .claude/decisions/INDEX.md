@@ -12,12 +12,11 @@
 | D-20260801-sched-2 | Connect グラフのダブルクリックを「開く」に返すか、d3 の拡大のまま残すか | schedule-refine |
 | D-20260802-sched-1 | outbox エントリを実装 PR に同梱するか、tracker と同様に merge 後へ回すか | schedule-refine |
 | D-20260802-settings-1 | briefing の見出し serif を Settings のフォント設定にどこまで追従させるか（#556） | settings-refine |
-| D-20260804-main-1 | Phase 1 定期実行（朝 digest / 夜間安全レーン）の実行基盤をどれにするか | main |
-| D-20260809-main-2 | `archive/` の索引をどう再建するか | main |
-| D-20260810-main-3 | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | main |
 | D-20260810-mobile-1 | narrow から書き換えられる「タグの色」を残すか塞ぐか | mobile-refine |
 | D-20260810-mobile-2 | 「Consumption = 編集不可」の語を実態に寄せるか、実装を絞るか | mobile-refine |
 | D-20260810-mobile-3 | Notes の FAB を本当に画面へ貼り付けるために、Materials のスクロール所有権を動かすか | mobile-refine |
+| D-20260811-main-1 | Epic #627（保存ボタン統一）の対象範囲をどこで切るか | main |
+| D-20260811-main-2 | Epic #321 のスコープを確定し直すか、現スコープで閉じるか | main |
 | D-20260811-sched-1 | #625 Event → Todo で日付・時間帯を Todo のチップスロットへ引き継ぐか（D-20260810-sched-3 の緩和提案） | schedule-refine |
 
 ## Active（現在有効な裁定 — superseded-by なし）
@@ -42,14 +41,17 @@
 | [D-20260801-main-1](./D-20260801-main-1.md) | 1 レーンが多ブランチを並行させたときの tracker ファイル衝突をどうするか | A | 2026-08-01 | tracker, merge-conflict, worktree, branch |
 | [D-20260801-main-2](./D-20260801-main-2.md) | `archive/` の Status 表記に plans/ の enum を適用するか | A | 2026-08-01 | docs, status-enum, archive |
 | [D-20260801-sched-1](./D-20260801-sched-1.md) | パレットから予定へ移動したとき、掛かっているカレンダーレンズをどうするか（#520） | A | 2026-08-01 | schedule, calendar-lens, palette, ux |
+| [D-20260804-main-1](./D-20260804-main-1.md) | Phase 1 定期実行（朝 digest / 夜間安全レーン）の実行基盤をどれにするか | A | 2026-08-11 | automation, scheduling, loop-harness, digest |
 | [D-20260804-main-2](./D-20260804-main-2.md) | P-001 を機械側でどう担保するか（`git-workflow` スキルの自動マージ規定との衝突解消） | A+C | 2026-08-06 | merge-gate, policy, permissions, harness |
 | [D-20260806-main-1](./D-20260806-main-1.md) | 自律運転の到達点で P-001（merge は常にユーザー）をどこまで緩めるか | B | 2026-08-06 | autonomy, merge-gate, policy, loop |
 | [D-20260806-main-2](./D-20260806-main-2.md) | コンテキスト固定費の削減 Scope にグローバル資産（`~/.claude/`）を含めるか | A | 2026-08-06 | context-cost, global-assets, scope |
 | [D-20260806-main-3](./D-20260806-main-3.md) | CLAUDE.md 移送（layering Phase 3）の「移行完了後」ゲートを維持するか | A | 2026-08-06 | context-cost, migration-gate, global-assets |
 | [D-20260807-main-1](./D-20260807-main-1.md) | スマホからの主導線をネイティブ殻にするか公開 Web URL にするか（#600） | 公開 Web URL を主導線にする | 2026-08-07 | mobile, distribution, web-url |
 | [D-20260809-main-1](./D-20260809-main-1.md) | 決定台帳（decisions/）を新設し「ADR は作らない」方針を SUPERSEDE するか | A | 2026-08-09 | docs, decision-ledger, adr, graph-layer |
+| [D-20260809-main-2](./D-20260809-main-2.md) | `archive/` の索引をどう再建するか | A | 2026-08-11 | docs, archive, index, records-graph |
 | [D-20260810-main-1](./D-20260810-main-1.md) | END の task-tracker をいつ実行するか（verifier 直後 / 実装 PR の merge 後） | A | 2026-08-10 | harness, task-tracker, workflow, autonomy |
 | [D-20260810-main-2](./D-20260810-main-2.md) | プロジェクト固有スキル / エージェントの実体をどこに置くか | A | 2026-08-10 | harness, skills, agents, portability, windows |
+| [D-20260810-main-3](./D-20260810-main-3.md) | STALE な旧アーキ由来スキル 5 本を書き直すか retire するか | A | 2026-08-11 | skills, vendoring, stale-docs |
 | [D-20260810-main-4](./D-20260810-main-4.md) | #607 の修正を「触らない」宣言済みの `useNotesUnifiedAPI.ts` に入れるか | A | 2026-08-10 | notes, sync, mobile, scope, shared-fix |
 | [D-20260810-refactor-1](./D-20260810-refactor-1.md) | ルーチンの Undo/Redo を繋ぐか、コードを消すか | A | 2026-08-11 | undo-redo, routine, hooks, i18n, refactor |
 | [D-20260810-sched-1](./D-20260810-sched-1.md) | #628 保存ボタンの確定モデル — ボタンのみで確定するか、blur 保存を残すか | A | 2026-08-10 | schedule, editor-pane, save-model |
@@ -69,7 +71,8 @@
 - adr: D-20260809-main-1
 - agents: D-20260708-main-1 / D-20260810-main-2
 - architecture: D-20260607-main-1
-- archive: D-20260801-main-2
+- archive: D-20260801-main-2 / D-20260809-main-2
+- automation: D-20260804-main-1
 - autonomy: D-20260806-main-1 / D-20260810-main-1
 - bottom-sheet: D-20260730-mobile-2
 - branch: D-20260801-main-1
@@ -82,8 +85,9 @@
 - dead-code: D-20260728-main-2
 - decision-ledger: D-20260809-main-1
 - design-tracking: D-20260730-tags-1
+- digest: D-20260804-main-1
 - distribution: D-20260807-main-1
-- docs: D-20260730-tags-1 / D-20260801-main-2 / D-20260809-main-1
+- docs: D-20260730-tags-1 / D-20260801-main-2 / D-20260809-main-1 / D-20260809-main-2
 - editor-pane: D-20260810-sched-1
 - file-explorer: D-20260704-main-1
 - global-assets: D-20260806-main-2 / D-20260806-main-3
@@ -91,9 +95,11 @@
 - harness: D-20260804-main-2 / D-20260810-main-1 / D-20260810-main-2
 - hooks: D-20260810-refactor-1
 - i18n: D-20260810-refactor-1
+- index: D-20260809-main-2
 - issue-dispatch: D-20260731-main-1 / D-20260731-main-2
 - lock: D-20260730-mobile-3
 - loop: D-20260806-main-1
+- loop-harness: D-20260804-main-1
 - materials: D-20260731-tags-2 / D-20260731-tags-3
 - mcp: D-20260705-main-1
 - merge-conflict: D-20260801-main-1
@@ -108,6 +114,7 @@
 - plans-lifecycle: D-20260730-tags-1
 - policy: D-20260804-main-2 / D-20260806-main-1
 - portability: D-20260810-main-2
+- records-graph: D-20260809-main-2
 - refactor: D-20260728-main-2 / D-20260810-refactor-1
 - requirements: D-20260723-main-1
 - retire: D-20260705-main-1 / D-20260708-main-1
@@ -116,12 +123,14 @@
 - routing: D-20260731-main-1 / D-20260731-main-2
 - save-model: D-20260810-sched-1
 - schedule: D-20260711-main-1 / D-20260731-main-1 / D-20260801-sched-1 / D-20260810-sched-1 / D-20260810-sched-2 / D-20260810-sched-3 / D-20260810-sched-4 / D-20260810-sched-5
+- scheduling: D-20260804-main-1
 - scope: D-20260806-main-2 / D-20260810-main-4
 - scope-cut: D-20260704-main-1 / D-20260705-main-1 / D-20260728-main-3
 - shared-fix: D-20260731-main-2 / D-20260810-main-4
 - shared-ui: D-20260607-main-1
-- skills: D-20260810-main-2
+- skills: D-20260810-main-2 / D-20260810-main-3
 - ssot: D-20260723-main-1
+- stale-docs: D-20260810-main-3
 - status-enum: D-20260801-main-2
 - sync: D-20260731-tags-2 / D-20260731-tags-3 / D-20260810-main-4
 - task-tracker: D-20260810-main-1
@@ -132,6 +141,7 @@
 - tracker: D-20260801-main-1
 - undo-redo: D-20260810-refactor-1
 - ux: D-20260711-main-1 / D-20260730-mobile-1 / D-20260730-mobile-2 / D-20260730-mobile-3 / D-20260801-sched-1
+- vendoring: D-20260810-main-3
 - web-url: D-20260807-main-1
 - windows: D-20260810-main-2
 - workflow: D-20260810-main-1

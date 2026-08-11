@@ -30,3 +30,6 @@
 - D-20260810-sched-4: **A**（ステータス破棄・子持ち Todo の変換禁止。同上）
 - D-20260810-sched-5: **A**（routine 由来は変換不可。提示方法をユーザー指定 = 変換操作時にダイアログ「Todoに繰り返しの機能はないため、変換は不可能です」を表示。同上）
 - D-20260810-refactor-1: **A**（ルーチンの Undo/Redo を繋ぐ。`RoutineContext` に `useUndoRedoOptional()` を配線し、`undoRedo.labels` へ createRoutine / updateRoutine / deleteRoutine を en・ja 両方追加する。#672 の「挙動変更ゼロ」に対する明示的な例外。2026-08-11 チャットで回答・chat-refactor-core が転記）
+- D-20260809-main-2: **A**（`records.mjs` に archive スキャンを足して `archive/INDEX.md` を生成する。SUMMARY.md は 2026-05-23 以前の圧縮要約として残置。2026-08-11 チャットの AskUserQuestion で回答・chat-main が転記）
+- D-20260804-main-1: **A**（Windows タスクスケジューラ + `claude -p`（headless）で 06:03 / 22:33 に発火させる。無人レーンの柵は runner 側 settings で担保。同上）
+- D-20260810-main-3: **A**（STALE スキル 5 本を現行アーキで書き直す。`add-ipc-channel` は「IPC 層は無い・正本は DataService 境界」への短い導線に絞る方向。書き直しは PR レビューを通す。同上）
