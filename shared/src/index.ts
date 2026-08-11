@@ -195,6 +195,11 @@ export type {
   KeyBinding,
 } from "./types/shortcut";
 export { DEFAULT_SHORTCUTS } from "./constants/defaultShortcuts";
+
+// The single layout breakpoint (wide <-> narrow). Consumed by
+// `useMediaQuery` in both shared components and the web hosts — the literal
+// used to be spelled out at 12 call sites (#670 C3 PR 3).
+export { WIDE_QUERY, WIDE_BREAKPOINT_PX } from "./constants/breakpoints";
 export {
   FONT_SIZE_PX,
   DEFAULT_FONT_SIZE_PX,

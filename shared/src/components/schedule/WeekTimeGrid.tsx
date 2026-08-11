@@ -12,6 +12,7 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import {
   clamp,
   dayOfWeek,
+  parseDateKey,
   layoutDayItems,
   weekDayKeys,
   minutesFromMidnight,
@@ -192,15 +193,13 @@ function defaultFormatHour(hour: number): string {
 }
 
 function defaultFormatDayDate(dateKey: string): string {
-  const [, m, d] = dateKey.split("-").map(Number);
+  const { m, d } = parseDateKey(dateKey);
   return `${m}/${d}`;
 }
 
-function defaultFormatNowLabel(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
+// `minutesToTime` is the same HH:MM formatter, plus a 0–24:00 clamp that is
+// a no-op here (nowMinutes is minutes-from-midnight).
+const defaultFormatNowLabel = minutesToTime;
 
 /**
  * Face classes for a timed block by provenance (W8). Routine = 藍 face (an

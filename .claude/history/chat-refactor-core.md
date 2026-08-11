@@ -1,5 +1,45 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-11 - C3（#670）死蔵の削除と共有物の寄せ直し — 4 PR 完了（#698 / #699 / #703 / #705）
+
+#### 概要
+
+C2（#669）に着手しようとして、**別チャットが PR #694 で先に着地済み**（Issue も CLOSED）だったのを実装前に検知し、重複ゼロで C3 へ切り替えた。C3 は 4 本とも main から独立に切り、stacked にしていない。#698 / #699 は merge 済み、#703 / #705 は open。計画書の記述と実コードが食い違う箇所を 2 件見つけ、どちらも実装せず判断キューへ回した。
+
+#### 変更点
+
+- **PR 1（#698・merged）**: 単一行 Mapper シム 12 シンボル（routine / scheduleItem）と孤児型ファイル 6 本を削除。production は純減 −462 / +19。**シムを生かしていたのは `_unused_*` ダミーフィールド 8 本だけ**で、サービスは DU-C-3 / DU-C-5 で 2 行 API に移行済みだった
+- **PR 1 でテストは減らしていない**: `shared/tests/scheduleMapper.test.ts`（199 行）は消したシムのテストだが、そこに書かれた Issue 020「部分更新が触っていない列を巻き込まない」は 2 行 API にも効く。写経ではなく**2 行 API の意味論に合わせて書き直して** routine / scheduleItem / calendar の 3 ファイルへ移設した（2 行 API は `updated_at` を常に出すので assertion が変わる / 旧シムが落としていた `version` は 2 行 API では意図的に whitelist なのでその旨を 1 ケース追加）
+- **PR 2（#699・merged）**: 置き場所の是正 4 件。`ItemsMetaRow` ほか role 非依存の 4 シンボルを `taskMapper` → 新 `services/itemsMeta.ts`（他 4 mapper が「共有の型」を「Tasks のモジュール」から借りていた）/ `contentJsonToString` 系の同一実装 2 本を `services/contentJson.ts` へ 1 本化（mcp-server の 3 本目は #677 の管轄なので触らない）/ `ShortcutRow` を表示コンポーネントから `types/shortcut.ts` へ / 死んだ Phase 2 `TimerState` を削除
+- **PR 2 で #668 のゲートが効いた**: `ShortcutRow` 移設時に古い import が 1 箇所残ったが、**vitest は 1623 件すべて緑**（型は実行時に消える）。赤にしたのは `typecheck:tests` だけ。C1 PR 3（#690）が無ければ push して CI で初めて分かっていた
+- **PR 3（#703・open）**: 手写しの差し替え。`(min-width: 768px)` 12 箇所 → `constants/breakpoints.ts` / `[y,m,d] = key.split("-").map(Number)` + `new Date(y, m-1, d)` の 12 箇所 → 新 `dateFromKey(key, timeHHMM?)` と既存 `dayOfWeek` / `parseDateKey` / `minutesToTime` の複写 2 本 / `clamp` の複写 1 本（`utils/clamp.ts` へ切り出し）
+- **PR 3 で踏んだ罠**: `export { clamp } from "./clamp"` は**再 export であってモジュール内の束縛を作らない**。同ファイル内の 4 箇所が未定義になり、型検査 4 error + shared 126 tests / web 5 tests が落ちた。`import` + `export` の 2 行に分けて解決
+- **PR 4（#705・open）**: IME ガード 3 箇所（Notes の `[[` 候補 / スラッシュメニュー / Connect の window keydown）。どれも**変換中の Escape が「変換取り消し」と「閉じる」の両方を起こしていた**。`web/tests/suggestionImeGuard.test.ts` で固定し、**ガードを外すと落ちることを実測**（`itemLinkRender` / `slashRender` を export したのは、`createItemLinkSuggestion` 経由だと実エディタ無しに Escape 分岐へ到達できないため）。あわせて Audio を「Mobile 省略 Provider」と書いていた誤コメント 2 箇所を訂正（実際は mobile でもマウントされ、省略されるのは Ambient mixer UI だけ）
+
+#### 判断キューへ回した 2 件（どちらも放置時 = 現状維持）
+
+- **D-20260811-refactor-1**: Analytics の「今週」が**同じ画面で 2 つの意味**（月〜日のカレンダー週 / 直近 7 日ローリング）。計画書は「4 箇所の重複」と見ていたが実際は定義違いで、1 本化すると表示数字が変わる。1:1 だったローリング側だけ `createdWithinLastDays()` に統一し、カレンダー週にも `calendarWeekRange()` と名前を付けて 2 定義が並んで見える状態にした
+- **D-20260811-refactor-2**: `window.confirm` の置き換え。計画書は「規約ドリフト是正」としているが、コード側 3 箇所（#628 / #216 / #573）に**理由付きで選んだ**と明記されていた（「どのプラットフォームでも見落とされない唯一のダイアログ」）。黙って剥がすと過去の判断を無言で覆すので P-008 に従い実装せず。#670 の DoD には含まれないので C3 の完了はブロックしない
+
+### 2026-08-11 - C1（#668）検証ゲートの穴を塞ぐ — 残り 3 PR 完了（#689 / #690 / #695）
+
+#### 概要
+
+C1 の PR 2〜4 を出し切り、クラスタ #668 を完了させた（PR 1 = #687 は前セッション）。**#689 / #690 は CI 緑で merge 済み**、PR 4 = #695 は open。4 本とも main から独立に切り、stacked にしていない。「計測してから決める」を PR 3 で実際に守り、閾値・除外リストはどちらも実測値から決めた。
+
+#### 変更点
+
+- **PR 2（#689・merged）**: `web/tsconfig.app.json` + `tsconfig.node.json` に `"strict": true` を明示。TS 6.0 では既定が true なので**今日は no-op** — 他 3 パッケージは自分で宣言しており、web だけが既定に依存していた。5.x 側へ統一すると strict 一族が無言で消える経路を先に塞ぐのが目的で、**PR 4 より先に merge** する必要があった（実際 17:46 に先着）
+- **PR 2 の coverage**: `@vitest/coverage-v8` + `test:coverage` を shared / web に追加、**thresholds は入れない**。`coverage.include` を `src/**` と明示（既定は「テストが import したファイルだけ」を数えるので、一度も import されないファイルが分母から消える）。実測 = shared 66.77% statements（354 ファイル中 32 本が 0%）/ web 36.56%（69 ファイル中 28 本が 0%）。CI には載せていない（閾値が無い＝落ちないので、毎回 1 分払って誰も読まない）
+- **PR 3（#690・merged）**: `shared/tsconfig.test.json` + `web/tsconfig.test.json` を新設し、CI にブロッキングで挿した。**先に計測 → shared 15 errors / 12 suites・web 1 error / 1 suite**（約 50 で停止する取り決めの範囲内）。0 でなかったので eslint baseline と同形の per-file `exclude` を持たせ、除外外の約 180 本は今日から検査される
+- **PR 3 が暴いた中身**: 全部が設定ではなく**テストが隠していたドリフト** — 型が獲得したフィールドを欠く fixture（`TrashViewLabels.close` / `WikiTag.icon`）/ 型が落としたプロパティを指す patch（`SeriesEditablePatch.memo`）/ `TaskStatus` でなくなった `"todo"` / `void | Promise<void>` に `number` を返す mock / 既に起きないエラーを守る `@ts-expect-error` 5 件。直すと assertion が変わるので別 PR
+- **PR 3 の落とし穴 3 つ**: composite project は emit を止められない（`composite`/`declaration` を打ち消す）/ `rootDir: "src"` のままだと tests 全件が「rootDir 外」で即死（`"."` へ）/ `@types/node` が shared に**そもそも無かった**（tests が `node:crypto` / `node:fs` を import している）
+- **PR 4（#695・open）**: TypeScript を shared `~5.6.0` / desktop `~5.6.0` / mcp-server `~5.9.3` → 全部 `~6.0.2`（web は既定で一致）。4 パッケージとも 6.0.3 に解決することを node_modules と lockfile の両方で実測
+- **PR 4 で唯一壊れた場所**: mcp-server が **15 errors**（全部 `TS2591: Cannot find name 'process' / 'node:crypto'`）。`@types/node` はずっと入っていた。**TS 6.0 はここで 5.9 がやっていた `@types` 自動探索をしない** — `--traceResolution` に type reference の行が 1 本も出ない。`"types": ["node"]` を足して解決（コンパイラの error text が勧める形で、shared / web / desktop が既にやっている形）。**ソース変更ゼロ**。mcp-server は #687 で CI に載ったばかりなので、この暗黙依存は先週まで誰にも見えなかった
+- **PR 4 は rebase して交差検証**: #690 の tests 型検査ゲートは TS **5.6** で計測したベースライン。6.0 でも成立するかが本当の問いなので、#689 / #690 が着地した後に rebase して再測 — shared / web とも exit 0、除外リストへの追加ゼロ
+- **負のテスト（実施 → revert）**: 型エラーを含む新規 suite を `shared/tests/` に置くと新ゲートが名指しで落ちる（`TS2322` / exit 2）ことを確認。ベースラインは 12 本を隔離するだけで、他に穴を開けていない
+- **`mobile/` は `~5.6.0` のまま**: 計画書の Scope 宣言が触るなと言っている。今回以降 5.x が残る唯一のパッケージで、CI にも載っていない旨を #695 の本文に明記した
+
 ### 2026-08-11 - ルーチン Undo/Redo の配線（PR #686）+ 実装セッション 1 着手（C1 PR 1 = PR #687）
 
 #### 概要

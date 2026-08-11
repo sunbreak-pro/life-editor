@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, RotateCcw, Trash2 } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 import { Button } from "./Button";
+import { WIDE_QUERY } from "../constants/breakpoints";
 import { IconButton } from "./IconButton";
 import { Modal } from "./Modal";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -109,7 +110,7 @@ export function TrashView({
   onPermanentDelete,
   labels,
   busy = null,
-  wideQuery = "(min-width: 768px)",
+  wideQuery = WIDE_QUERY,
 }: TrashViewProps) {
   const wide = useMediaQuery(wideQuery, true);
   const [pending, setPending] = useState<PendingDelete | null>(null);

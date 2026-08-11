@@ -13,6 +13,7 @@ import {
   type RepeatScope,
   type RoutineNode,
   type ScheduleItem,
+  dayOfWeek,
 } from "@life-editor/shared";
 
 /*
@@ -629,8 +630,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // #407: one conversion per seed at a time. Check-and-claim is a single
       // call so the two cannot drift apart (#434).
       if (!beginConversion(seed.id)) return;
-      const [yy, mm, dd] = seed.date.split("-").map(Number);
-      const seedWeekday = new Date(yy, mm - 1, dd).getDay();
+      const seedWeekday = dayOfWeek(seed.date);
       const frequencyDays = type === "weekdays" ? [seedWeekday] : [];
       const frequencyInterval = type === "interval" ? 1 : null;
       const frequencyStartDate = type === "interval" ? seed.date : null;
