@@ -56,9 +56,13 @@ describe("DataService routing table", () => {
 
   it("resolves every routed name to a method on its owner class", () => {
     for (const { domain, names, service } of PHASE2_ROUTING_DOMAINS) {
-      const proto = service.prototype as Record<string, unknown>;
+      // Reflect.get rather than an index cast: `service` is a union of 12
+      // class constructors, and `prototype as Record<string, unknown>` is
+      // the kind of overlap tsc rejects once the suites are type-checked
+      // (tsconfig.test.json). It is also literally what the Proxy does.
+      const proto: object = service.prototype;
       const unresolved = names.filter(
-        (name) => typeof proto[name] !== "function",
+        (name) => typeof Reflect.get(proto, name) !== "function",
       );
       expect(
         unresolved,
