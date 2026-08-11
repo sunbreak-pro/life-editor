@@ -1,10 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import type { RoutineNode } from "../types/routine";
 import {
-  ROUTINE_SELECT_COLUMNS,
-  rowToRoutine,
-  routineUpdatesToPatch,
-  type RoutineRow,
   // DU-C-3: 2-row API (items_meta + routines_payload)
   ITEMS_META_ROUTINE_COLUMNS,
   ROUTINES_PAYLOAD_COLUMNS,
@@ -40,12 +36,6 @@ import { todayDateKey } from "../utils/dateKey";
 // production entry point; tests construct this class with a mock client.
 export class SupabaseRoutinesService {
   private readonly client: SupabaseClient;
-  // Keep legacy mapper imports statically referenced (verbatimModuleSyntax)
-  // until DU-C cleanup deletes them.
-  private static readonly _unused_select = ROUTINE_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToRoutine;
-  private static readonly _unused_patch = routineUpdatesToPatch;
-  declare private _unused_row: RoutineRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;

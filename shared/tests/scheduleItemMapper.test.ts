@@ -457,3 +457,82 @@ describe("defensive validation", () => {
     expect(() => rowsToScheduleItem(meta, payload)).toThrow(/row mismatch/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 7. Whitelist / partial-clobber safety (Issue 020)
+//
+// Ported from the retired `scheduleMapper.test.ts` when the single-row
+// shims were deleted (#670 C3 PR 1). A date-only move must not null the
+// title, and a partial update must never clobber an untouched column.
+// ---------------------------------------------------------------------------
+
+describe("scheduleItemUpdatesToPatches — date/title/time partial safety", () => {
+  it("a date-only move emits ONLY start_at (title/time untouched)", () => {
+    const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
+      { date: "2026-06-01" },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch).toEqual({ start_at: "2026-06-01" });
+    expect(metaPatch).toEqual({ updated_at: NOW });
+    expect("title" in metaPatch).toBe(false);
+  });
+
+  it("a title-only rename emits ONLY title (date/time untouched)", () => {
+    const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
+      { title: "Renamed" },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(metaPatch).toEqual({ title: "Renamed", updated_at: NOW });
+    expect(payloadPatch).toEqual({});
+  });
+
+  it("a time edit emits ONLY the times", () => {
+    const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
+      { startTime: "10:00", endTime: "11:00" },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch).toEqual({ start_time: "10:00", end_time: "11:00" });
+    expect(metaPatch).toEqual({ updated_at: NOW });
+  });
+
+  it("drops smuggled routineId / id / version (generator-owned keys)", () => {
+    const sneaky = {
+      completed: true,
+      routineId: "routine-evil",
+      id: "si-evil",
+      version: 99,
+    } as unknown as Parameters<typeof scheduleItemUpdatesToPatches>[0];
+    const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
+      sneaky,
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch).toEqual({ done: true });
+    expect("routine_item_id" in payloadPatch).toBe(false);
+    expect(metaPatch).toEqual({ updated_at: NOW });
+    expect("id" in metaPatch).toBe(false);
+    expect("version" in metaPatch).toBe(false);
+  });
+
+  it("ignores undefined for required-string fields", () => {
+    const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
+      { title: undefined, startTime: undefined, date: undefined },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch).toEqual({});
+    expect(metaPatch).toEqual({ updated_at: NOW });
+  });
+
+  it("maps a nullable optional with explicit null (memo)", () => {
+    const { payloadPatch } = scheduleItemUpdatesToPatches(
+      { memo: null },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch).toEqual({ memo: null });
+  });
+});
