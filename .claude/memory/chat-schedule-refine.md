@@ -6,9 +6,13 @@
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
-- 前回: /goal 一括消化 6 件は全 merge。D-20260810-sched-1〜5 にこうだいさんが全 A で回答（sched-5 はダイアログ提示をユーザー指定）→ 台帳昇格 = PR #665（merge 済み）
-- 現在: **#628 と #625 の実装完了（2026-08-11）**: どちらも重ティアのフルチェーン（role-engineer → role-qa 独立監査 → 指摘全修正）で実装。**#628 = PR #681（merge 済み）**・**#625 = PR #684（CI 走行中・merge 待ち）**。#625 は sync-auditor も並列で掛け、両監査が独立に「3 手の順序反転（INSERT 先行）」に到達 → 反映済み
-- 次: PR #684 の merge 確認 → D-20260811-sched-1（Event→Todo の日付引き継ぎ = D-sched-3 の緩和提案）の回答待ち。担当 open Issue はゼロ
+- 前回: **#628 = PR #681 / #625 = PR #684 とも merge 済み**（#684 は 2026-08-10 17:14Z）。どちらも重ティアのフルチェーン（role-engineer → role-qa 独立監査 → 指摘全修正）
+- 現在: **#691 / #692 の Step 1 を完了（2026-08-11・実装コードは未着手）**。#691 = narrow Schedule を実ブラウザで実測して Issue にコメント（`#issuecomment-5249406615`）／ #692 = 入口 A/B 案を **D-20260811-sched-2** として判断キューへ。**両 Issue ともユーザー回答待ちで Step 2 に入らない**
+- 次: ANSWERS.md に #691 の対処範囲（特に「Todo 行が完了もできず詳細も開けない」を本 Issue に含めるか）と D-20260811-sched-2 / D-20260811-sched-1 の回答が付いたら Step 2 へ。順序は **#691 → #692 → #675** を維持
+- **narrow の実測は「390px の同一オリジン iframe」で取れる**（2026-08-11 実測）: `resize_window` は OS 側で効かず `innerWidth` が 2560 のままだったが、iframe の中では `matchMedia("(min-width: 768px)")` が false になり Mobile 分岐が描かれる。§7.4 の「dev server は chat-main のみ」は**起動の話**なので、既に立っている 5173 を読むだけなら worktree からでも実測できる
+- **#691 の実測サマリ**: 行高は所要時間に依らず一律 43px（180 分も 60 分も同じ）／ 終了時刻は `AgendaItem.endTime` として渡っているのに描画されない（`AgendaList.tsx:24` vs `:137-139`）／ 空き 60 分でも隙間 0px ／ **進行中の予定が現在線の上（過去側）に出る**（分割が開始時刻だけを見る = `AgendaList.tsx:100-102`）／ 予定 0 件の日は今日でも現在線が出ない（線が timed の map の内側にしかない）／ **#593 の Todo アクセントは narrow で無傷**（ドット rgb(91,140,255) + CheckSquare・幅分岐が構造的に無い）／ ただし Todo 行は status 無しで完了不可（`CalendarTab.tsx:1188-1196`）かつタップ no-op（`:471` が `if (isWide)`）
+- **#692 は MonthGrid の作り替えではなく配線で足りる**（2026-08-11 実測）: `MonthGrid` は narrow 用 `compact` モードを実装済み（`MonthGrid.tsx:62-63` + `shared/tests/monthGrid.test.tsx:73-110`）だが `CalendarTab` から一度も渡されていない。セルは `min-h-14` = 56px でタップ標的として足りる
+- **`effView` を直す箇所は `useCalendarNav.ts:32` の 1 行だけ**（2026-08-11 トレース）: `step()` の month 分岐（`:64`）も `visibleCalendarRange` の month 分岐（`shared/src/utils/calendarView.ts:44`）も `periodLabel`（`CalendarTab.tsx:918`）も **`isWide` で囲われていない**ので、narrow で `effView` が `"month"` になれば移動単位・取得範囲・ラベルが自動で追従する。残る配線は「narrow の描画分岐に MonthGrid を出す」1 点（wide の month 分岐は `effView` ではなく `desktopView` を読む = `:2375`）
 - **#503 と #467 は `CalendarTab` で真正コンフリクトした**（2026-08-01 実測）: #503 のパレット着地 effect が `setMobileSelectedDay` を呼ぶのに対し、#467 は Mobile の月アジェンダごとその state を退役させた。**片方が消した API をもう片方が使う形**なので union では直らず、アンカー移動 1 本に畳んだ（Mobile のリストはアンカー日を読むので追随する）
 - **squash merge は tracker のエントリを落とすことがある**（2026-08-01 実測）: #503（PR #513）/ #505（PR #515）は**コードは main にあるのに history のエントリだけ消えていた**。旧ブランチの commit（`9185969a` / `fb960baa`）から該当ブロックを取り出して復元した。**merge 後は「コードが着いたか」と「記録が着いたか」を別々に確かめる**（`git show origin/main:<path>` で実在確認）
 - **#506 の Important は「片側だけ直した」典型**: `setCalendarFilterId(null)` が 4 経路中 `handleCreateSubmit` にしか無く、タスク作成 / 既存タスク配置 / 作成して開く の 3 経路が素通りしていた。**タスクチップも同じ `applyCalendarLens` を通る**ので症状は完全に同じ。4 経路が通る `finishCreatePanel()` に合流させて、次に増える経路が同じ抜け方をできない形にした。**cancel 側（`onClose`）は合流させない** — グリッドに何も増えていないのにユーザーのレンズを外すのは別の壊れ方
@@ -69,7 +73,8 @@
 
 ## 予定
 
-- **現在の section:schedule キュー（2026-08-10 実測）**: open 担当は **#628 / #625 の 2 件のみで、どちらも P-005 の判断待ち**（D-20260810-sched-1〜5）。#633 / #592 / #593 / #626 / #573 / #572 は PR 提出済み・merge 待ち。Epic #290 / #627 は tracking
+- **現在の section:schedule キュー（2026-08-11 実測）**: open 担当は **#691 / #692 の 2 件で、どちらも Step 1 完了・ユーザー回答待ち**。Epic #290 は tracking。#628 / #625 は merge 済み・close 済み
+- **`CalendarTab.tsx` の書き手は 3 件が順番待ち**: #691 → #692 → #675（C8 = 巨大ホスト分割・refactor-core の session 2）。#675 を先に走らせない
 - **outbox 2026-08-10 に起票依頼 2 件**: ① Notes / Tasks 詳細シートの `vh` → `svh` 展開（#633 の水平展開）② mobile の Todo チップ詳細シート（#564 / #626 follow-up）
 - **chat-main への起票依頼 2 件が outbox 2026-08-02 (3) に積んである**（どちらも QA の実測付き既存欠陥）: ① series 編集（this-and-future / all）の undo がアンカー 1 日だけ戻る ② TaskTree undo の全ツリースナップショットが後続の silent 書き込みを巻き戻す（タイトル入力中 Ctrl+Z で踏める）
 - **#411 で「タブを 1 つ減らしてから 1 つ足す」順序は正解だった**: #408 が `ScheduleTab` 型・`scheduleTab` state・タブ帯を撤去した直後に #411 が同じ構造を `"calendar" | "todo"` で足し直したので、中間状態が常に 1 セクション 1 構造で済んだ。**ただし `ScheduleTab` の置き場所は #408 前と変えた** = `ScheduleScreen.tsx` が export し `MainScreen` が import する（switch する側と型を同居させる）

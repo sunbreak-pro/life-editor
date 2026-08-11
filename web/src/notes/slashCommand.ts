@@ -101,7 +101,9 @@ function buildSlashItems(labels: SlashMenuLabels): SlashMenuItem[] {
 
 type SlashRender = SuggestionOptions<SlashMenuItem>["render"];
 
-function slashRender(emptyLabel: string): SlashRender {
+// Exported for `web/tests/suggestionImeGuard.test.ts` — same reason as
+// itemLinkRender: the Escape branch is unreachable without a real editor.
+export function slashRender(emptyLabel: string): SlashRender {
   return () => {
     let renderer: ReactRenderer<SlashMenuHandle> | null = null;
     let popup: SuggestionPopup | null = null;
@@ -141,7 +143,9 @@ function slashRender(emptyLabel: string): SlashRender {
         popup.position(props.clientRect);
       },
       onKeyDown: (props) => {
-        if (props.event.key === "Escape") {
+        // IME guard (rules/frontend.md §Gotchas) — Escape during a Japanese
+        // conversion cancels the conversion, not the slash menu.
+        if (props.event.key === "Escape" && !props.event.isComposing) {
           destroy();
           // Also close the suggestion itself — tearing down the view leaves the
           // plugin active, so "/" would keep matching (and keep calling items())
