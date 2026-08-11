@@ -26,6 +26,24 @@ export type ShortcutId =
 
 export type ShortcutCategory = "global" | "navigation" | "edit";
 
+/**
+ * One settings row's view-model — already-resolved label + accelerator (the
+ * host owns `t()`). Lived inside `components/SettingsShortcuts.tsx` until
+ * #670 C3 PR 2: three modules and the web Settings screen built these rows,
+ * so a display component was not the right home for the shape.
+ */
+export interface ShortcutRow {
+  id: ShortcutId;
+  /** Category for grouping (global / navigation / edit). */
+  category: ShortcutCategory;
+  /** Translated action name. */
+  label: string;
+  /** Human-readable accelerator (e.g. "⌘ + K"). */
+  displayString: string;
+  /** True when an override differs from the default. */
+  isModified: boolean;
+}
+
 export interface KeyBinding {
   key?: string;
   code?: string;

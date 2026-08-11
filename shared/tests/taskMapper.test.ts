@@ -6,10 +6,10 @@ import {
   taskUpdatesToPatches,
   toNodeType,
   isLegacyFolderRow,
-  type ItemsMetaRow,
   type TasksPayloadRow,
   type TasksPayloadWriteRow,
 } from "../src/services/taskMapper";
+import type { ItemsMetaRow } from "../src/services/itemsMeta";
 
 /*
  * taskMapper vitest suite (DU-B-4 — 2026-05-23). Complements

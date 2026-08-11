@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Network, Maximize2, SlidersHorizontal } from "lucide-react";
 import type { NoteNode } from "../../types/note";
+import { WIDE_QUERY } from "../../constants/breakpoints";
 import type { DailyNode } from "../../types/daily";
 import type {
   WikiTag,
@@ -106,7 +107,7 @@ export function ConnectGraphView({
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   // Match the shell's wide↔narrow switch (MainScreen useMediaQuery). Fallback
   // true (wide) so jsdom tests keep the Desktop tree.
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
   const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
     null,
   );

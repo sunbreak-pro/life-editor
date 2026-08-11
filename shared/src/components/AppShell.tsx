@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { WIDE_QUERY } from "../constants/breakpoints";
 import { useSoftKeyboard } from "../hooks/useSoftKeyboard";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { SidebarNav, type SidebarNavSection } from "./SidebarNav";
@@ -144,7 +145,7 @@ export function AppShell({
   onSignOut,
   labels,
   children,
-  wideQuery = "(min-width: 768px)",
+  wideQuery = WIDE_QUERY,
   maxBottomTabs = 4,
   detailPanelLabels,
   header,

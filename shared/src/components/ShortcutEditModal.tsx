@@ -5,7 +5,7 @@ import { Button } from "./Button";
 import { cn } from "./cn";
 import { CategoryLabel, groupByCategory } from "./shortcutParts";
 import { eventToBinding } from "../utils/shortcutBinding";
-import type { ShortcutRow } from "./SettingsShortcuts";
+import type { ShortcutRow } from "../types/shortcut";
 import type {
   KeyBinding,
   ShortcutCategory,

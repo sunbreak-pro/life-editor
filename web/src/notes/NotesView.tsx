@@ -13,6 +13,7 @@ import {
   BottomSheet,
   type NoteSortMode,
   type DataService,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { NoteBodyEditor } from "./NoteBodyEditor";
@@ -111,7 +112,7 @@ export function NotesView({
   // the per-note assign/link calls are needed here now.
   const { getTagsForItem, assignTagToItem } = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
-  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const isWide = useMediaQuery(WIDE_QUERY, true);
   const rightSidebar = useRightSidebarContext();
 
   // On wide entry, open the shared rightSidebar so the note list (now the

@@ -22,6 +22,7 @@ import {
   type ShortcutCategory,
   type KeyBinding,
   type ShortcutId,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 
 /*
@@ -57,7 +58,7 @@ export function SettingsScreen() {
   const { pref: startupPref, setPref: setStartupPref } =
     useStartupSectionPref();
   const { dayStartHour, setDayStartHour } = useDayStartHourPref();
-  const isWide = useMediaQuery("(min-width: 768px)");
+  const isWide = useMediaQuery(WIDE_QUERY);
 
   // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
   // where ShortcutConfigHost skips the Provider (#320) — the Shortcuts card

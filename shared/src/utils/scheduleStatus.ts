@@ -19,6 +19,8 @@
  * values, so the comparison never crosses a UTC boundary.
  */
 
+import { dateFromKey } from "./scheduleGridLayout";
+
 export type ScheduleStatus = "notStarted" | "inProgress" | "done";
 
 /** Minimal shape needed to derive a status — a subset of ScheduleItem. */
@@ -33,8 +35,7 @@ export interface DerivableScheduleItem {
 
 /** Local midnight timestamp (ms) for a YYYY-MM-DD key. */
 function localDayStart(dateKey: string): number {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return new Date(y, m - 1, d).getTime();
+  return dateFromKey(dateKey).getTime();
 }
 
 export function deriveScheduleStatus(
@@ -56,8 +57,6 @@ export function deriveScheduleStatus(
 
   // Timed: compare the start datetime against now. Start exactly == now counts
   // as started (>= → inProgress).
-  const [y, m, d] = item.date.split("-").map(Number);
-  const [hh, mm] = item.startTime.split(":").map(Number);
-  const start = new Date(y, m - 1, d, hh, mm).getTime();
+  const start = dateFromKey(item.date, item.startTime).getTime();
   return now.getTime() >= start ? "inProgress" : "notStarted";
 }

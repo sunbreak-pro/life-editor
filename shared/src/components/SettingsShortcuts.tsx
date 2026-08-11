@@ -9,20 +9,8 @@ import type {
   ShortcutCategory,
   ShortcutConfig,
   ShortcutId,
+  ShortcutRow,
 } from "../types/shortcut";
-
-/** One row's view-model — already-resolved label + accelerator (host owns t()). */
-export interface ShortcutRow {
-  id: ShortcutId;
-  /** Category for grouping (global / navigation / edit). */
-  category: ShortcutCategory;
-  /** Translated action name. */
-  label: string;
-  /** Human-readable accelerator (e.g. "⌘ + K"). */
-  displayString: string;
-  /** True when an override differs from the default. */
-  isModified: boolean;
-}
 
 export interface SettingsShortcutsLabels {
   heading: string;

@@ -11,9 +11,9 @@ import {
   taskNodeToRows,
   taskUpdatesToPatches,
   isLegacyFolderRow,
-  type ItemsMetaRow,
   type TasksPayloadRow,
 } from "./taskMapper";
+import type { ItemsMetaRow } from "./itemsMeta";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
