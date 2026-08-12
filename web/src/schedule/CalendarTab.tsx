@@ -1472,6 +1472,14 @@ export function CalendarTab({
     [t],
   );
 
+  // #691: the Mobile Dayflow calls out stretches with nothing in them. The
+  // words stay in the catalogs; AgendaList only receives the finished string.
+  const formatGapLabel = useCallback(
+    (minutes: number) =>
+      t("scheduleScreen.freeGap", { duration: formatDuration(minutes) }),
+    [t, formatDuration],
+  );
+
   const statusLabels = useMemo<Record<ScheduleStatus, string>>(
     () => ({
       notStarted: t("scheduleScreen.statusNotStarted"),
@@ -2572,6 +2580,11 @@ export function CalendarTab({
                 onItemActivate={handleItemActivate}
                 onItemDoubleClick={handleItemOpenDetail}
                 selectedId={selectedId}
+                /* #691: Mobile stands in for the week grid here, so the row
+                   has to say how long it runs and where the day is free.
+                   Desktop's sidebar column stays one line tall (no props). */
+                dayflow
+                formatGapLabel={formatGapLabel}
                 labels={agendaLabels}
                 className="rounded-md border border-lumen-border bg-lumen-bg px-2"
               />
