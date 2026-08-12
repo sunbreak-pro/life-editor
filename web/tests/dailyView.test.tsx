@@ -22,15 +22,40 @@ import { DailyView } from "../src/daily/DailyView";
  * missing) and absence through queryBy* being null.
  */
 
-const state = vi.hoisted(() => ({
-  isWide: true,
-  dailies: [] as unknown[],
-  selectedDate: "",
-  setSelectedDate: vi.fn(),
-  upsertDaily: vi.fn(),
-  deleteDaily: vi.fn(),
-  togglePin: vi.fn(),
-}));
+const state = vi.hoisted(() => {
+  const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
+  return {
+    isWide: true,
+    dailies: [] as unknown[],
+    selectedDate: "",
+    setSelectedDate: vi.fn(),
+    upsertDaily: vi.fn(),
+    deleteDaily: vi.fn(),
+    togglePin: vi.fn(),
+    createItemLink: vi.fn(() => Promise.resolve()),
+    syncInlineLinks: vi.fn(() => Promise.resolve()),
+    outgoing: [] as { toItemId: string; isDeleted?: boolean }[],
+    /* The bodies the stubbed editor saves. WITH carries a resolved itemLink
+     * atom for LINK_TARGET; WITHOUT is the same day after the user deleted it
+     * again — which is the pair the #372 fold turns on. */
+    linkTarget: "task-9",
+    bodyWithLink: doc([
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "see " },
+          {
+            type: "itemLink",
+            attrs: { targetId: "task-9", label: "Roof", role: "task" },
+          },
+        ],
+      },
+    ]),
+    bodyWithoutLink: doc([
+      { type: "paragraph", content: [{ type: "text", text: "see" }] },
+    ]),
+  };
+});
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@life-editor/shared")>();
@@ -58,9 +83,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
         (state.dailies as DailyNode[]).find((d) => d.date === date) ?? null,
     }),
     useWikiTagsUnifiedContext: () => ({
-      createItemLink: vi.fn(),
-      getLinksForItem: () => ({ outgoing: [], incoming: [] }),
-      syncInlineLinks: vi.fn(),
+      createItemLink: state.createItemLink,
+      getLinksForItem: () => ({ outgoing: state.outgoing, incoming: [] }),
+      syncInlineLinks: state.syncInlineLinks,
     }),
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>
@@ -68,9 +93,43 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
+/*
+ * The editor is stubbed down to the three moments the Daily host is wired to:
+ * the "[[" picker committing a row, and a save carrying the link / no longer
+ * carrying it. jsdom has no layout, so the real picker cannot be driven here
+ * (CLAUDE.md §7.1) — buttons stand in for it, and what gets pinned is the
+ * host-side wiring behind them, which is the half Daily owns.
+ */
 vi.mock("../src/notes/RichTextEditor", () => ({
-  RichTextEditor: ({ noteId }: { noteId: string }) => (
-    <div data-testid="editor">{noteId}</div>
+  RichTextEditor: ({
+    noteId,
+    onUpdate,
+    onResolvedLinkInserted,
+    loadLinkTargets,
+  }: {
+    noteId: string;
+    onUpdate?: (content: string) => void;
+    onResolvedLinkInserted?: (targetId: string) => void;
+    loadLinkTargets?: unknown;
+  }) => (
+    <div
+      data-testid="editor"
+      data-link-pool={loadLinkTargets === undefined ? "off" : "on"}
+    >
+      {noteId}
+      <button
+        data-testid="pick-link"
+        onClick={() => onResolvedLinkInserted?.(state.linkTarget)}
+      />
+      <button
+        data-testid="save-with-link"
+        onClick={() => onUpdate?.(state.bodyWithLink)}
+      />
+      <button
+        data-testid="save-without-link"
+        onClick={() => onUpdate?.(state.bodyWithoutLink)}
+      />
+    </div>
   ),
 }));
 
@@ -111,6 +170,12 @@ beforeEach(() => {
   state.upsertDaily.mockClear();
   state.deleteDaily.mockClear();
   state.togglePin.mockClear();
+  state.createItemLink.mockClear();
+  state.syncInlineLinks.mockClear();
+  state.outgoing = [];
+  // The save that persists the body is also the save that proves the day's
+  // items_meta row exists — the parked edges wait on its resolved node.
+  state.upsertDaily.mockResolvedValue(daily(YESTERDAY));
 });
 
 describe("DailyView — the open day", () => {
@@ -131,6 +196,76 @@ describe("DailyView — the open day", () => {
   it("reads as saved before anything is typed", () => {
     render(<DailyView />);
     screen.getByText("materials.daily.saved");
+  });
+});
+
+/*
+ * #776 — Daily's end of the shared "[[" wiring. Its shape is the one that
+ * differs: a day has no items_meta row until its first save lands, so an
+ * insertion is PARKED under the date and written by the save that persists the
+ * text carrying it (#371). Parking is all that is Daily-specific; the write it
+ * ends in is the shared one, whose guards are pinned in useInlineItemLinks.test.
+ */
+describe("DailyView — inline links", () => {
+  it("offers the picker a candidate pool", () => {
+    render(<DailyView />);
+    expect(screen.getByTestId("editor").dataset.linkPool).toBe("on");
+  });
+
+  it("writes the parked edge once the save proves the day exists", async () => {
+    render(<DailyView />);
+
+    fireEvent.click(screen.getByTestId("pick-link"));
+    // Nothing yet: the FK target does not exist until the save lands, and
+    // writing here is exactly what dropped that first edge for good (#371).
+    expect(state.createItemLink).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("save-with-link"));
+
+    await vi.waitFor(() =>
+      expect(state.createItemLink).toHaveBeenCalledExactlyOnceWith(
+        `daily-${YESTERDAY}`,
+        state.linkTarget,
+        "inline",
+      ),
+    );
+  });
+
+  it("drops a parked edge the user removed again before the save", async () => {
+    render(<DailyView />);
+
+    fireEvent.click(screen.getByTestId("pick-link"));
+    fireEvent.click(screen.getByTestId("save-without-link"));
+
+    await vi.waitFor(() => expect(state.syncInlineLinks).toHaveBeenCalled());
+    expect(state.createItemLink).not.toHaveBeenCalled();
+  });
+
+  it("leaves an edge the day already has alone", async () => {
+    state.outgoing = [{ toItemId: "task-9" }];
+    render(<DailyView />);
+
+    fireEvent.click(screen.getByTestId("pick-link"));
+    fireEvent.click(screen.getByTestId("save-with-link"));
+
+    await vi.waitFor(() => expect(state.syncInlineLinks).toHaveBeenCalled());
+    expect(state.createItemLink).not.toHaveBeenCalled();
+  });
+
+  // #372 — the fold. Deleting a "[[ ]]" from the body and saving is how an
+  // inline edge is meant to go away; without this the graph keeps a link the
+  // text no longer shows, and the user has no way to reach it.
+  it("folds the edges the saved body no longer carries", async () => {
+    render(<DailyView />);
+
+    fireEvent.click(screen.getByTestId("save-without-link"));
+
+    await vi.waitFor(() =>
+      expect(state.syncInlineLinks).toHaveBeenCalledExactlyOnceWith(
+        `daily-${YESTERDAY}`,
+        state.bodyWithoutLink,
+      ),
+    );
   });
 });
 
