@@ -7,8 +7,8 @@
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
 - 前回: **#628 = PR #681 / #625 = PR #684 とも merge 済み**（#684 は 2026-08-10 17:14Z）。どちらも重ティアのフルチェーン（role-engineer → role-qa 独立監査 → 指摘全修正）
-- 現在: **#691 / #692 の Step 1 を完了（2026-08-11・実装コードは未着手）**。#691 = narrow Schedule を実ブラウザで実測して Issue にコメント（`#issuecomment-5249406615`）／ #692 = 入口 A/B 案を **D-20260811-sched-2** として判断キューへ。**両 Issue ともユーザー回答待ちで Step 2 に入らない**
-- 次: ANSWERS.md に #691 の対処範囲（特に「Todo 行が完了もできず詳細も開けない」を本 Issue に含めるか）と D-20260811-sched-2 / D-20260811-sched-1 の回答が付いたら Step 2 へ。順序は **#691 → #692 → #675** を維持
+- 現在: **/goal 一括 4 件（#789 → #774 → #708 → #790）を消化（2026-08-13）**。PR **#798（#789）/ #804（#774）/ #813（#790）が open**、**#708 は方式が A/B/C に割れるため実装せず D-20260812-sched-2 として判断キューへ**（P-008）。3 PR とも 6 ゲート exit 0
+- 次: ① **#798 → #813 の merge 順序**（同じ `kanbanView.test.tsx` を触るのでどちらが先でも後続に旧キーが残る。#798 を先に merge → #813 を rebase が素直・3 行程度）② D-20260812-sched-2 の回答が付いたら #708 を実装 ③ 積み残しの #691 / #692（D-20260811-sched-2 / -1 待ち）。`CalendarTab.tsx` の順番待ちは **#691 → #692 → #675** を維持
 - **narrow の実測は「390px の同一オリジン iframe」で取れる**（2026-08-11 実測）: `resize_window` は OS 側で効かず `innerWidth` が 2560 のままだったが、iframe の中では `matchMedia("(min-width: 768px)")` が false になり Mobile 分岐が描かれる。§7.4 の「dev server は chat-main のみ」は**起動の話**なので、既に立っている 5173 を読むだけなら worktree からでも実測できる
 - **#691 の実測サマリ**: 行高は所要時間に依らず一律 43px（180 分も 60 分も同じ）／ 終了時刻は `AgendaItem.endTime` として渡っているのに描画されない（`AgendaList.tsx:24` vs `:137-139`）／ 空き 60 分でも隙間 0px ／ **進行中の予定が現在線の上（過去側）に出る**（分割が開始時刻だけを見る = `AgendaList.tsx:100-102`）／ 予定 0 件の日は今日でも現在線が出ない（線が timed の map の内側にしかない）／ **#593 の Todo アクセントは narrow で無傷**（ドット rgb(91,140,255) + CheckSquare・幅分岐が構造的に無い）／ ただし Todo 行は status 無しで完了不可（`CalendarTab.tsx:1188-1196`）かつタップ no-op（`:471` が `if (isWide)`）
 - **#692 は MonthGrid の作り替えではなく配線で足りる**（2026-08-11 実測）: `MonthGrid` は narrow 用 `compact` モードを実装済み（`MonthGrid.tsx:62-63` + `shared/tests/monthGrid.test.tsx:73-110`）だが `CalendarTab` から一度も渡されていない。セルは `min-h-14` = 56px でタップ標的として足りる
@@ -43,6 +43,9 @@
 
 ## 直近の完了
 
+- **#789 Kanban 詳細から削除しても rightSidebar の殻が残る** 🟡（2026-08-13 — **PR #798 open**）。削除と「予定に変換」はどちらも**行そのものが盤面から消える出口**なので、後始末を `closeDetailShell`（選択解除 + wide のみ `rightSidebar.close()`）に集約した。**ヘルパーに寄せたのは 2 経路が割れることがこのバグの形だから** — 削除だけ直すと今度は変換と食い違う。narrow は無変更（detail = BottomSheet で、殻は `isWide` の effect の担当）。テストの tree モックに `refetch` が無く、**変換の成功分岐が例外で失敗バナーへ流れていた**ので併せて追加 — 詳細は history 2026-08-13
+- **#774 別の日を見ていても「今日の予定はありません」** 🟡（2026-08-13 — **PR #804 open**）。判定を `web/src/schedule/agendaEmptyLabel.ts` に切り出し（CalendarTab は Provider 一式が要って描画テスト不可 = `taskChipPanel` / `unsavedCloseGuard` と同じ理由）。**Dayflow タブは `emptyToday` のまま**（あちらは本当に今日のリスト）。`TranslationKey` は en catalog の型から導出されるので **union の手書き追加は不要**（Issue 本文の指示は現状と食い違う）— 詳細は history 2026-08-13
+- **#790 Todo 削除ガードと翻訳キーが schedule/ に置かれたまま** 🟡（2026-08-13 — **PR #813 open**）。`todoTrayDeleteGuard.ts` を `web/src/shared/` へ、3 キーを `taskDetail.*` へ移動。**確認ボタンの `scheduleScreen.delete` も `taskDetail.delete` を新設して差し替えた**（Issue が名指ししたのは 3 キーだが、DoD「Tasks 側の削除文言がセクション非依存のキーになる」に確認ボタンも含まれると読んだ。過剰なら戻すのは 3 行）。**#798 と同じ `kanbanView.test.tsx` を触るので merge 順序に注意** — 詳細は history 2026-08-13
 - **#628 詳細編集パネルの保存ボタン** ✅（2026-08-11 — **PR #681 merge 済み**）。D-20260810-sched-1 = A（ボタンのみで確定・blur は draft・未保存クローズ確認）。draft は「触ったフィールドだけ」を item に重ねる方式（リモート更新が未保存扱いに化けない）。系列/当日混在の保存は scope ダイアログへ**丸ごと**預ける（キャンセルで全破棄・undo 1 件）— 詳細は history 2026-08-11
 - **#625 Event ↔ Todo 相互変換** ✅（2026-08-11 — **PR #684 提出・CI 走行中**）。id 維持・変換順序は「新 payload UPSERT → role UPDATE → 旧 payload DELETE」（QA と sync-auditor が独立に同結論。旧 DELETE 先行案の根拠だった FK 制約は実在しなかった）— 詳細は history 2026-08-11
 - **/goal 一括消化 6 件（#633 / #592 / #593 / #626 / #573 / #572）** ✅（2026-08-10 — **PR #637 / #639 / #645 / #648 / #652 / #654 全 merge・Issue close 済み**）。#648 の後追いレビュー修正 = PR #659 も merge 済み — 詳細は history 2026-08-10 / 2026-08-10 (2)
@@ -73,7 +76,8 @@
 
 ## 予定
 
-- **現在の section:schedule キュー（2026-08-11 実測）**: open 担当は **#691 / #692 の 2 件で、どちらも Step 1 完了・ユーザー回答待ち**。Epic #290 は tracking。#628 / #625 は merge 済み・close 済み
+- **現在の section:schedule キュー（2026-08-13 実測）**: **#789 / #774 / #790 は PR 提出済み（#798 / #804 / #813・merge 待ち = P-001）**。**#708 は D-20260812-sched-2 の回答待ち**。**#691 / #692 は D-20260811-sched-2 / -1 の回答待ちで Step 1 完了のまま**。Epic #290 は tracking
+- **判断キューに 1 件積んである（D-20260812-sched-2）**: #708 = 繰り返し削除の Undo をどこまで戻すか（A 全復元 = 推奨 / B 種イベントのみ / C 現状 + 予告文言）。放置時は #708 保留
 - **`CalendarTab.tsx` の書き手は 3 件が順番待ち**: #691 → #692 → #675（C8 = 巨大ホスト分割・refactor-core の session 2）。#675 を先に走らせない
 - **outbox 2026-08-10 に起票依頼 2 件**: ① Notes / Tasks 詳細シートの `vh` → `svh` 展開（#633 の水平展開）② mobile の Todo チップ詳細シート（#564 / #626 follow-up）
 - **chat-main への起票依頼 2 件が outbox 2026-08-02 (3) に積んである**（どちらも QA の実測付き既存欠陥）: ① series 編集（this-and-future / all）の undo がアンカー 1 日だけ戻る ② TaskTree undo の全ツリースナップショットが後続の silent 書き込みを巻き戻す（タイトル入力中 Ctrl+Z で踏める）
