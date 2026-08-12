@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Card } from "./Card";
+import { FOCUS_RING } from "./styleTokens";
 import { cn } from "./cn";
 
 /*
@@ -9,6 +10,18 @@ import { cn } from "./cn";
  * labels + state and the mutators. Each row is a 36px icon toggle + a name +
  * a 0–100 volume slider + a mono readout. OFF rows dim the name/slider/readout
  * (opacity-45) and disable the slider.
+ *
+ * SAVE BUTTON (#714, Epic #627 — the D-20260810-sched-1 model). Volume is the
+ * one control here that is split in TWO: dragging a slider must be audible
+ * immediately (a mixer whose sound waits for a button is not a mixer), so
+ * `onVolumeChange` still fires per drag and the host still moves the live gain
+ * — what waits for `onSave` is the PERSISTED value. `dirty` is the host's
+ * report that some slider has moved since the last write; the footer states it
+ * in words next to the button.
+ *
+ * The on/off toggle is NOT drafted: it is an act, not a half-typed field, and
+ * a switch that stayed on screen without taking effect would be a lie about
+ * what is currently playing.
  *
  * a11y: the toggle is a <button role="switch" aria-checked> with an
  * aria-label; the slider is a native range input with an aria-label. Both are
@@ -27,6 +40,12 @@ export interface AudioMixerLabels {
   toggle: string;
   /** aria-label template part for the per-row slider (e.g. "Volume"). */
   volume: string;
+  /** Primary action — "保存" (#714). */
+  save: string;
+  /** Shown beside the button while nothing is pending — "保存済み" (#714). */
+  saved: string;
+  /** Shown beside the button while a volume is pending — "未保存" (#714). */
+  unsaved: string;
 }
 
 export interface AudioMixerProps {
@@ -34,7 +53,15 @@ export interface AudioMixerProps {
   settings: Record<string, { volume: number; enabled: boolean }>;
   labels: AudioMixerLabels;
   onToggle: (id: string, enabled: boolean) => void;
+  /**
+   * A slider moved. Audible at once (#714) — the host applies it to the live
+   * gain; only the write waits for `onSave`.
+   */
   onVolumeChange: (id: string, volume: number) => void;
+  /** Some slider has moved since the last write (#714). */
+  dirty: boolean;
+  /** Persist every pending slider position (#714). */
+  onSave: () => void;
 }
 
 export function AudioMixer({
@@ -43,6 +70,8 @@ export function AudioMixer({
   labels,
   onToggle,
   onVolumeChange,
+  dirty,
+  onSave,
 }: AudioMixerProps) {
   return (
     <Card padding="none" className="flex flex-col px-5 pb-3 pt-4">
@@ -106,6 +135,34 @@ export function AudioMixer({
           );
         })}
       </ul>
+
+      {/* Save footer (#714) — the only write. The sliders above are already
+          audible, so what this button changes is whether the mix survives a
+          reload. Disabled while nothing is pending, with the state named
+          beside it rather than left to the button's opacity. */}
+      <div className="mt-1.5 flex items-center justify-end gap-3 border-t border-lumen-border pt-3">
+        <span
+          aria-live="polite"
+          className={cn(
+            "text-xs",
+            dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
+          )}
+        >
+          {dirty ? labels.unsaved : labels.saved}
+        </span>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!dirty}
+          className={cn(
+            "shrink-0 rounded-lumen-md bg-lumen-accent px-3.5 py-2 text-sm font-semibold text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
+            FOCUS_RING,
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+          )}
+        >
+          {labels.save}
+        </button>
+      </div>
     </Card>
   );
 }

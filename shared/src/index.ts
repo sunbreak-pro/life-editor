@@ -467,6 +467,9 @@ export { TimerProvider, type TimerProviderProps } from "./context";
 export {
   TimerContext,
   type TimerContextValue,
+  // #714: the save button's patch + the durations a preset carries.
+  type TimerSettingsPatch,
+  type TimerPresetValues,
   type TimerPhase,
   type ActiveTask,
 } from "./context";

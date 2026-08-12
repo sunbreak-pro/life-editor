@@ -179,7 +179,10 @@
       "presetNamePlaceholder": "プリセット名",
       "saveAsPreset": "保存",
       "apply": "適用",
-      "presetsEmpty": "プリセットはまだありません"
+      "presetsEmpty": "プリセットはまだありません",
+      "save": "保存",
+      "saved": "保存済み",
+      "unsaved": "未保存"
     }
   },
   "audioMixer": {

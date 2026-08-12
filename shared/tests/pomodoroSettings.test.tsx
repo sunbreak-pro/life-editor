@@ -4,14 +4,21 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import {
   PomodoroSettings,
   type PomodoroSettingsProps,
+  type PomodoroSettingsPatch,
   type PomodoroPresetOption,
 } from "../src/components/PomodoroSettings";
 
 /*
  * Work settings + preset editor (rightSidebar / drawer body). Pure primitive —
  * props-injected copy (§6.4). Covers the autoStart switch, the presets empty
- * state, apply/delete wiring and the save form, plus the #624 blank-field
- * behaviour (see the second describe block).
+ * state, apply/delete wiring and the preset form, plus the #624 blank-field
+ * behaviour and the #714 save button (see the second and third describe
+ * blocks).
+ *
+ * The two buttons are told apart by label on purpose: the real catalog gives
+ * both "保存", so every query here names "Save settings" or "Save preset"
+ * rather than relying on a unique accessible name that production does not
+ * have.
  */
 
 const PRESET: PomodoroPresetOption = {
@@ -34,17 +41,22 @@ const LABELS: PomodoroSettingsProps["labels"] = {
   presets: "Presets",
   presetsEmpty: "No presets yet",
   presetNamePlaceholder: "Preset name",
-  saveAsPreset: "Save",
+  saveAsPreset: "Save preset",
   apply: "Apply",
   deletePreset: "Delete preset",
   emptyValueConfirm: "OK",
+  save: "Save settings",
+  saved: "Saved",
+  unsaved: "Unsaved",
 };
 
 const formatEmptyValueMessage = (field: string) =>
   `Enter a number for ${field}`;
 
-function renderSettings(overrides?: Partial<PomodoroSettingsProps>) {
-  const props: PomodoroSettingsProps = {
+function baseProps(
+  overrides?: Partial<PomodoroSettingsProps>,
+): PomodoroSettingsProps {
+  return {
     workDurationMinutes: 25,
     breakDurationMinutes: 5,
     longBreakDurationMinutes: 15,
@@ -53,21 +65,25 @@ function renderSettings(overrides?: Partial<PomodoroSettingsProps>) {
     targetSessions: 4,
     presets: [],
     labels: LABELS,
-    onWorkDurationChange: vi.fn(),
-    onBreakDurationChange: vi.fn(),
-    onLongBreakDurationChange: vi.fn(),
-    onSessionsBeforeLongBreakChange: vi.fn(),
+    onSaveSettings: vi.fn(),
     onAutoStartBreaksChange: vi.fn(),
-    onTargetSessionsChange: vi.fn(),
     onApplyPreset: vi.fn(),
     onCreatePreset: vi.fn(),
     onDeletePreset: vi.fn(),
     formatEmptyValueMessage,
     ...overrides,
   };
-  render(<PomodoroSettings {...props} />);
-  return props;
 }
+
+function renderSettings(overrides?: Partial<PomodoroSettingsProps>) {
+  const props = baseProps(overrides);
+  const view = render(<PomodoroSettings {...props} />);
+  return { props, view };
+}
+
+const saveButton = () => screen.getByRole("button", { name: "Save settings" });
+const field = (label: string) =>
+  screen.getByLabelText(label) as HTMLInputElement;
 
 describe("PomodoroSettings", () => {
   it("renders the autoStart switch reflecting its checked state", () => {
@@ -76,8 +92,8 @@ describe("PomodoroSettings", () => {
     expect(sw).toHaveAttribute("aria-checked", "true");
   });
 
-  it("toggles autoStart on click", () => {
-    const props = renderSettings({ autoStartBreaks: false });
+  it("toggles autoStart on click (an act, not a drafted field)", () => {
+    const { props } = renderSettings({ autoStartBreaks: false });
     fireEvent.click(screen.getByRole("switch", { name: "Auto-start breaks" }));
     expect(props.onAutoStartBreaksChange).toHaveBeenCalledWith(true);
   });
@@ -88,7 +104,7 @@ describe("PomodoroSettings", () => {
   });
 
   it("renders a preset row (with mono notation) and wires apply/delete", () => {
-    const props = renderSettings({ presets: [PRESET] });
+    const { props } = renderSettings({ presets: [PRESET] });
     expect(screen.getByText("Deep focus")).toBeInTheDocument();
     expect(screen.getByText("50·10·30·×2")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -97,50 +113,160 @@ describe("PomodoroSettings", () => {
     expect(props.onDeletePreset).toHaveBeenCalledWith(7);
   });
 
-  it("submits a new preset name via the Save button", () => {
-    const props = renderSettings();
+  it("submits a new preset with the numbers on screen", () => {
+    const { props } = renderSettings();
     fireEvent.change(screen.getByPlaceholderText("Preset name"), {
       target: { value: "Morning" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(props.onCreatePreset).toHaveBeenCalledWith("Morning");
+    fireEvent.click(screen.getByRole("button", { name: "Save preset" }));
+    expect(props.onCreatePreset).toHaveBeenCalledWith("Morning", {
+      workDuration: 25,
+      breakDuration: 5,
+      longBreakDuration: 15,
+      sessionsBeforeLongBreak: 4,
+    });
+  });
+});
+
+/*
+ * #714 — the five numeric fields are a draft; the button is the only commit.
+ */
+describe("PomodoroSettings — save button (#714)", () => {
+  it("writes nothing while the user types", () => {
+    const { props } = renderSettings();
+
+    fireEvent.change(field("Work"), { target: { value: "50" } });
+    fireEvent.blur(field("Work"));
+    fireEvent.change(field("Target"), { target: { value: "6" } });
+
+    // Blur is NOT a commit (D-20260810-sched-1 = A) and neither is a keystroke.
+    expect(props.onSaveSettings).not.toHaveBeenCalled();
+    expect(field("Work").value).toBe("50");
+  });
+
+  it("loses the draft when the panel closes without a save", () => {
+    const { props, view } = renderSettings();
+
+    fireEvent.change(field("Work"), { target: { value: "50" } });
+    view.unmount();
+
+    // No unmount flush: an unsaved draft dies with the panel rather than
+    // sneaking in through a second, invisible write path.
+    expect(props.onSaveSettings).not.toHaveBeenCalled();
+  });
+
+  it("commits all five fields in ONE call when saved", () => {
+    const { props } = renderSettings();
+
+    fireEvent.change(field("Work"), { target: { value: "50" } });
+    fireEvent.change(field("Break"), { target: { value: "10" } });
+    fireEvent.change(field("Long break"), { target: { value: "30" } });
+    fireEvent.change(field("Per set"), { target: { value: "2" } });
+    fireEvent.change(field("Target"), { target: { value: "6" } });
+    fireEvent.click(saveButton());
+
+    // One call, one patch — five separate writes would ask the host (and the
+    // sync bus) five times for one gesture.
+    expect(props.onSaveSettings).toHaveBeenCalledExactlyOnceWith({
+      workDuration: 50,
+      breakDuration: 10,
+      longBreakDuration: 30,
+      sessionsBeforeLongBreak: 2,
+      targetSessions: 6,
+    } satisfies PomodoroSettingsPatch);
+  });
+
+  it("carries only the fields that moved", () => {
+    const { props } = renderSettings();
+
+    fireEvent.change(field("Break"), { target: { value: "7" } });
+    fireEvent.click(saveButton());
+
+    expect(props.onSaveSettings).toHaveBeenCalledExactlyOnceWith({
+      breakDuration: 7,
+    });
+  });
+
+  it("names the pending state and disables the button while nothing is pending", () => {
+    renderSettings();
+
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+
+    fireEvent.change(field("Work"), { target: { value: "50" } });
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
+
+    // Typing the stored value back is not a pending change.
+    fireEvent.change(field("Work"), { target: { value: "25" } });
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("refuses to save while a field is blank and names it", () => {
+    const { props } = renderSettings();
+
+    fireEvent.change(field("Break"), { target: { value: "7" } });
+    fireEvent.change(field("Work"), { target: { value: "" } });
+    fireEvent.click(saveButton());
+
+    expect(props.onSaveSettings).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter a number for Work")).toBeInTheDocument();
+  });
+
+  it("drops the draft when a preset is applied", () => {
+    const { props } = renderSettings({ presets: [PRESET] });
+
+    fireEvent.change(field("Work"), { target: { value: "50" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(props.onApplyPreset).toHaveBeenCalledWith(PRESET);
+    // Apply commits all four durations on the host; a surviving overlay would
+    // keep painting the number the preset just replaced.
+    expect(field("Work").value).toBe("25");
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+  });
+
+  it("saves a preset from the draft, not from the stored settings", () => {
+    const { props } = renderSettings();
+
+    fireEvent.change(field("Work"), { target: { value: "50" } });
+    fireEvent.change(screen.getByPlaceholderText("Preset name"), {
+      target: { value: "Deep" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save preset" }));
+
+    expect(props.onCreatePreset).toHaveBeenCalledWith("Deep", {
+      workDuration: 50,
+      breakDuration: 5,
+      longBreakDuration: 15,
+      sessionsBeforeLongBreak: 4,
+    });
   });
 });
 
 /*
  * #624 — a cleared numeric field must stay cleared.
  *
- * The bug needed BOTH halves to show: the field committed Number("") === 0 the
- * moment it was emptied, and the host clamped that into range. So the host here
- * clamps exactly like TimerContext's clampMinutes (TimerContext.tsx:276) —
- * without it the "150" never appears and the test proves nothing.
+ * The original bug needed both halves to show: the field committed
+ * Number("") === 0 the moment it was emptied, and the host clamped that back
+ * into range. Since #714 the host is no longer in that loop (a keystroke lands
+ * in the draft), so the clamp now shows up one step later — on save. This host
+ * clamps exactly like TimerContext's saveSettings does.
  */
-function ClampingHost({ onCommit }: { onCommit: (v: number) => void }) {
+function ClampingHost() {
   const [work, setWork] = useState(25);
-  const props: PomodoroSettingsProps = {
-    workDurationMinutes: work,
-    breakDurationMinutes: 5,
-    longBreakDurationMinutes: 15,
-    sessionsBeforeLongBreak: 4,
-    autoStartBreaks: false,
-    targetSessions: 4,
-    presets: [],
-    labels: LABELS,
-    onWorkDurationChange: (v) => {
-      onCommit(v);
-      setWork(Math.min(240, Math.max(1, v)));
-    },
-    onBreakDurationChange: () => {},
-    onLongBreakDurationChange: () => {},
-    onSessionsBeforeLongBreakChange: () => {},
-    onAutoStartBreaksChange: () => {},
-    onTargetSessionsChange: () => {},
-    onApplyPreset: () => {},
-    onCreatePreset: () => {},
-    onDeletePreset: () => {},
-    formatEmptyValueMessage,
-  };
-  return <PomodoroSettings {...props} />;
+  return (
+    <PomodoroSettings
+      {...baseProps({
+        workDurationMinutes: work,
+        onSaveSettings: (patch) => {
+          if (patch.workDuration !== undefined)
+            setWork(Math.min(240, Math.max(1, patch.workDuration)));
+        },
+      })}
+    />
+  );
 }
 
 /*
@@ -154,20 +280,19 @@ function typeChar(input: HTMLInputElement, char: string) {
 }
 
 describe("PomodoroSettings — blank numeric fields (#624)", () => {
-  it("keeps a cleared field empty and commits nothing", () => {
-    const props = renderSettings();
-    const work = screen.getByLabelText("Work") as HTMLInputElement;
+  it("keeps a cleared field empty and records nothing", () => {
+    const { props } = renderSettings();
+    const work = field("Work");
 
     fireEvent.change(work, { target: { value: "" } });
 
     expect(work.value).toBe("");
-    expect(props.onWorkDurationChange).not.toHaveBeenCalled();
+    expect(props.onSaveSettings).not.toHaveBeenCalled();
   });
 
   it("accepts a fresh number after a clear without the old digit coming back", () => {
-    const onCommit = vi.fn();
-    render(<ClampingHost onCommit={onCommit} />);
-    const work = screen.getByLabelText("Work") as HTMLInputElement;
+    render(<ClampingHost />);
+    const work = field("Work");
 
     fireEvent.change(work, { target: { value: "" } });
     typeChar(work, "5");
@@ -176,12 +301,23 @@ describe("PomodoroSettings — blank numeric fields (#624)", () => {
     // Before the fix this read "150": the clear committed 0, the clamp floored
     // it to 1, and the two keystrokes landed on top of that survivor.
     expect(work.value).toBe("50");
-    expect(onCommit).toHaveBeenLastCalledWith(50);
   });
 
-  it("names the blank field in a dialog on blur and restores its stored value on dismiss", () => {
+  it("shows the host's clamp once the save drops the draft", () => {
+    render(<ClampingHost />);
+    const work = field("Work");
+
+    fireEvent.change(work, { target: { value: "500" } });
+    // Still 500 on screen: nothing has been through the domain's limits yet.
+    expect(work.value).toBe("500");
+
+    fireEvent.click(saveButton());
+    expect(work.value).toBe("240");
+  });
+
+  it("names the blank field in a dialog on blur and refills it on dismiss", () => {
     renderSettings();
-    const work = screen.getByLabelText("Work") as HTMLInputElement;
+    const work = field("Work");
 
     fireEvent.change(work, { target: { value: "" } });
     fireEvent.blur(work);
@@ -191,20 +327,20 @@ describe("PomodoroSettings — blank numeric fields (#624)", () => {
     expect(
       screen.queryByText("Enter a number for Work"),
     ).not.toBeInTheDocument();
-    // Restored, not left blank — a still-blank field would re-open the dialog on
-    // the next blur and the user could never reach the nav.
+    // Refilled, not left blank — a still-blank field would re-open the dialog
+    // on the next blur and the user could never reach the nav.
     expect(work.value).toBe("25");
   });
 
   it("refuses to save a preset while a field is blank", () => {
-    const props = renderSettings();
-    const work = screen.getByLabelText("Work") as HTMLInputElement;
+    const { props } = renderSettings();
+    const work = field("Work");
 
     fireEvent.change(work, { target: { value: "" } });
     fireEvent.change(screen.getByPlaceholderText("Preset name"), {
       target: { value: "Morning" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save preset" }));
 
     expect(props.onCreatePreset).not.toHaveBeenCalled();
     expect(screen.getByText("Enter a number for Work")).toBeInTheDocument();

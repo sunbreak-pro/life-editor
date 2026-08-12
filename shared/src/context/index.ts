@@ -113,7 +113,14 @@ export {
 // NOT a §2 省略 Provider). Reads useSyncContext, so it sits inside Sync; per
 // §6.2 it nests just inside the Schedule trio (… → Timer → Audio → …).
 export { TimerProvider, type TimerProviderProps } from "./TimerContext";
-export { TimerContext, type TimerContextValue } from "./TimerContextValue";
+export {
+  TimerContext,
+  type TimerContextValue,
+  // #714: the patch the Work panel's save button hands the Provider, and the
+  // durations "save as preset" carries with the name.
+  type TimerSettingsPatch,
+  type TimerPresetValues,
+} from "./TimerContextValue";
 export type { TimerPhase, ActiveTask } from "./timerReducer";
 
 // Audio (W3-C): Pattern A + OPTIONAL hook. NOT a §2 Mobile 省略 Provider —

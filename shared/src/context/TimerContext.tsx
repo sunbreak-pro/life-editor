@@ -11,7 +11,12 @@ import type { DataService } from "../services/DataService";
 import type { PomodoroPreset } from "../types/timer";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
-import { TimerContext, type TimerContextValue } from "./TimerContextValue";
+import {
+  TimerContext,
+  type TimerContextValue,
+  type TimerPresetValues,
+  type TimerSettingsPatch,
+} from "./TimerContextValue";
 import {
   timerReducer,
   createInitialState,
@@ -19,6 +24,7 @@ import {
   remainingSeconds as computeRemaining,
   elapsedSeconds as computeElapsed,
   type ActiveTask,
+  type TimerConfig,
   type TimerPhase,
 } from "./timerReducer";
 
@@ -272,38 +278,52 @@ export function TimerProvider({
     [ds],
   );
 
-  const setWorkDurationMinutes = useCallback(
-    (min: number) => {
-      const v = clampMinutes(min, 1, 240);
-      dispatch({ type: "SET_CONFIG", config: { workDuration: v } });
-      persistSettings({ workDuration: v });
-    },
-    [persistSettings],
-  );
-
-  const setBreakDurationMinutes = useCallback(
-    (min: number) => {
-      const v = clampMinutes(min, 1, 60);
-      dispatch({ type: "SET_CONFIG", config: { breakDuration: v } });
-      persistSettings({ breakDuration: v });
-    },
-    [persistSettings],
-  );
-
-  const setLongBreakDurationMinutes = useCallback(
-    (min: number) => {
-      const v = clampMinutes(min, 1, 60);
-      dispatch({ type: "SET_CONFIG", config: { longBreakDuration: v } });
-      persistSettings({ longBreakDuration: v });
-    },
-    [persistSettings],
-  );
-
-  const setSessionsBeforeLongBreak = useCallback(
-    (count: number) => {
-      const v = clampMinutes(count, 1, 20);
-      dispatch({ type: "SET_CONFIG", config: { sessionsBeforeLongBreak: v } });
-      persistSettings({ sessionsBeforeLongBreak: v });
+  /*
+   * The Work panel's save button (#714). It used to be five per-field setters
+   * that each dispatched and each wrote, so editing the whole block produced
+   * five rows, five undo-able states and five sync bumps; the panel now holds
+   * a draft and hands the whole thing over at once, which this turns into ONE
+   * dispatch and ONE updateTimerSettings call.
+   *
+   * Clamping still lives here rather than in the panel: the limits belong to
+   * the domain, and applying them on the way in is what makes a typed 500 come
+   * back as 240 when the panel drops its draft and follows this state again.
+   */
+  const saveSettings = useCallback(
+    (patch: TimerSettingsPatch) => {
+      const config: Partial<TimerConfig> = {};
+      const write: Parameters<DataService["updateTimerSettings"]>[0] = {};
+      if (patch.workDuration !== undefined) {
+        const v = clampMinutes(patch.workDuration, 1, 240);
+        config.workDuration = v;
+        write.workDuration = v;
+      }
+      if (patch.breakDuration !== undefined) {
+        const v = clampMinutes(patch.breakDuration, 1, 60);
+        config.breakDuration = v;
+        write.breakDuration = v;
+      }
+      if (patch.longBreakDuration !== undefined) {
+        const v = clampMinutes(patch.longBreakDuration, 1, 60);
+        config.longBreakDuration = v;
+        write.longBreakDuration = v;
+      }
+      if (patch.sessionsBeforeLongBreak !== undefined) {
+        const v = clampMinutes(patch.sessionsBeforeLongBreak, 1, 20);
+        config.sessionsBeforeLongBreak = v;
+        write.sessionsBeforeLongBreak = v;
+      }
+      if (patch.targetSessions !== undefined) {
+        const v = clampMinutes(patch.targetSessions, 1, 20);
+        // Not reducer config — targetSessions is a UI-level goal, held in its
+        // own state (see the declaration above).
+        setTargetSessionsState(v);
+        write.targetSessions = v;
+      }
+      if (Object.keys(config).length > 0) {
+        dispatch({ type: "SET_CONFIG", config });
+      }
+      if (Object.keys(write).length > 0) persistSettings(write);
     },
     [persistSettings],
   );
@@ -316,34 +336,28 @@ export function TimerProvider({
     [persistSettings],
   );
 
-  const setTargetSessions = useCallback(
-    (count: number) => {
-      const v = clampMinutes(count, 1, 20);
-      setTargetSessionsState(v);
-      persistSettings({ targetSessions: v });
-    },
-    [persistSettings],
-  );
-
   // --- preset CRUD ---
-  const createPresetFromCurrent = useCallback(
-    async (name: string) => {
+  // The durations arrive from the panel rather than being read off
+  // state.config: since #714 the panel can be holding an unsaved draft, and a
+  // preset named after the numbers on screen must store those numbers.
+  const createPreset = useCallback(
+    async (name: string, values: TimerPresetValues) => {
       const trimmed = name.trim();
       if (!trimmed) return;
       try {
         const created = await ds.createPomodoroPreset({
           name: trimmed,
-          workDuration: state.config.workDuration,
-          breakDuration: state.config.breakDuration,
-          longBreakDuration: state.config.longBreakDuration,
-          sessionsBeforeLongBreak: state.config.sessionsBeforeLongBreak,
+          workDuration: values.workDuration,
+          breakDuration: values.breakDuration,
+          longBreakDuration: values.longBreakDuration,
+          sessionsBeforeLongBreak: values.sessionsBeforeLongBreak,
         });
         setPresets((prev) => [...prev, created]);
       } catch (e) {
         logServiceError("Timer", "createPomodoroPreset", e);
       }
     },
-    [ds, state.config],
+    [ds],
   );
 
   const applyPreset = useCallback(
@@ -402,13 +416,9 @@ export function TimerProvider({
       setPhase,
       setActiveTask,
       adjustRemainingMinutes,
-      setWorkDurationMinutes,
-      setBreakDurationMinutes,
-      setLongBreakDurationMinutes,
-      setSessionsBeforeLongBreak,
+      saveSettings,
       setAutoStartBreaks,
-      setTargetSessions,
-      createPresetFromCurrent,
+      createPreset,
       applyPreset,
       deletePreset,
     }),
@@ -434,13 +444,9 @@ export function TimerProvider({
       setPhase,
       setActiveTask,
       adjustRemainingMinutes,
-      setWorkDurationMinutes,
-      setBreakDurationMinutes,
-      setLongBreakDurationMinutes,
-      setSessionsBeforeLongBreak,
+      saveSettings,
       setAutoStartBreaks,
-      setTargetSessions,
-      createPresetFromCurrent,
+      createPreset,
       applyPreset,
       deletePreset,
     ],
