@@ -88,7 +88,10 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
-import { todoDeleteCascade } from "./todoTrayDeleteGuard";
+import {
+  confirmTodoDetailDelete,
+  todoDeleteCascade,
+} from "./todoTrayDeleteGuard";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import {
   timedPlacement,
@@ -1910,6 +1913,44 @@ export function CalendarTab({
   );
 
   /*
+   * #775: the todo DETAIL panel's delete — the Mobile sheet's, above all. Until
+   * now a todo created on a phone could not be removed from one: the sheet
+   * offered close / status / tags / save / convert and nothing else, while the
+   * event beside it in the same day list had a delete all along.
+   *
+   * A separate handler from handleTodoDelete because the QUESTION differs, not
+   * the write. The tray's trash icon is a one-tap row control and stays
+   * frictionless for a leaf (#573); this one always asks, because a phone has
+   * no hover to reveal what a control does, no keyboard undo, and the sheet is
+   * where a mis-tap is most likely to be a fat finger rather than a decision.
+   * A parent row still gets the cascade sentence — the count is what the user
+   * cannot see from here.
+   *
+   * The panel is closed FIRST, without the unsaved-draft guard: a pending title
+   * on a row that is being deleted is not something to rescue, and asking twice
+   * for one act reads as a bug. Undo is the same one the tray's delete raises
+   * (softDelete → persistWithHistory), so the header's undo still takes it back
+   * while the section stays mounted; Trash is the route that survives longer.
+   */
+  const handleTodoDetailDelete = useCallback(
+    (id: string) => {
+      void confirmTodoDetailDelete(taskNodes, id, askConfirm, {
+        confirm: (name) => t("scheduleScreen.todoDeleteConfirm", { name }),
+        cascadeConfirm: (name, count) =>
+          t("scheduleScreen.todoDeleteCascadeConfirm", { name, count }),
+        untitled: t("common.untitled"),
+        confirmLabel: t("scheduleScreen.delete"),
+        cancelLabel: t("common.cancel"),
+      }).then((ok) => {
+        if (!ok) return;
+        setTaskDetailId(null);
+        softDeleteTask(id);
+      });
+    },
+    [taskNodes, softDeleteTask, askConfirm, t],
+  );
+
+  /*
    * #625: Event <-> Todo conversion.
    *
    * The write keeps the item's id, so both surfaces stay pointed at the same
@@ -2345,12 +2386,17 @@ export function CalendarTab({
           updateNode(id, patch, { undoLabel: "taskTreeChange" });
         }}
         onToggleStatus={toggleTaskStatus}
+        // #775: the panel's own delete, so the sheet that is Mobile's only way
+        // into a todo is not a one-way door. It fires raw — the confirm, the
+        // cascade count and the close all belong to the handler above.
+        onDelete={handleTodoDetailDelete}
         titleLabel={t("taskDetail.titleLabel")}
         statusLabel={t("taskDetail.status")}
         statusText={t(STATUS_TEXT_KEY[taskDetailTask.status ?? "NOT_STARTED"])}
         saveLabel={t("taskDetail.save")}
         savedLabel={t("taskDetail.saved")}
         unsavedLabel={t("taskDetail.unsaved")}
+        deleteLabel={t("scheduleScreen.todoDelete")}
         // #736: the panel reports its pending title here; the three exits
         // below read the flag before they tear the panel down. A ref rather
         // than state — nothing on screen depends on it, and re-rendering
