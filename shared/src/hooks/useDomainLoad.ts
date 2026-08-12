@@ -13,8 +13,8 @@ import { logServiceError } from "../utils/logError";
  * failure — nothing in those hooks ever set `error` back to null.
  *
  * LOADING IS DERIVED, NOT WRITTEN (the point of the exercise). The old copies
- * opened their effect with `setIsLoading(true)`, a synchronous state write
- * during an effect: an extra render pass before the fetch even starts, and the
+ * opened their effect by synchronously setting their loading flag to true, a
+ * state write during an effect: an extra render pass before the fetch starts, and the
  * only reason `react-hooks/set-state-in-effect` was switched off for three
  * files in shared/eslint.config.js. Moving that same line into a shared hook
  * would have silenced the rule (it does not track state across hook
