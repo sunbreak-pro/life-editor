@@ -8,6 +8,8 @@ import {
   SettingsReset,
   SettingsDetailPanel,
   RightSidebarPortal,
+  ConfirmDialog,
+  useConfirmDialog,
   DEFAULT_SHORTCUTS,
   MAIN_SECTIONS,
   fontSizeToPx,
@@ -122,15 +124,32 @@ export function SettingsScreen() {
     edit: t("settings.shortcuts.categories.edit"),
   };
 
-  // Reset preferences — the host owns the destructive confirm + clear-and-
-  // reload (the pure SettingsReset primitive only raises onReset). window.confirm
-  // is the app's existing lightweight confirm affordance for a one-shot
-  // destructive action; resetLocalPreferences() then clears the app's
-  // localStorage namespace and reloads.
+  /*
+   * Reset preferences — the host owns the destructive confirm + clear-and-
+   * reload (the pure SettingsReset primitive only raises onReset).
+   * `resetLocalPreferences()` clears the app's localStorage namespace and
+   * reloads, so this is the one press on this screen that cannot be taken back:
+   * `danger`, and the safe answer is the one focus lands on.
+   *
+   * #781: asked through the in-app <ConfirmDialog> (#707) like every other
+   * question in the app. The browser's own confirm answered inline; this one
+   * answers a tick later, so the reset runs in a `.then` — and until it does,
+   * nothing has been cleared.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
   const handleReset = () => {
-    if (window.confirm(t("settings.reset.confirm"))) {
-      resetLocalPreferences();
-    }
+    void askConfirm({
+      message: t("settings.reset.confirm"),
+      confirmLabel: t("settings.reset.confirmButton"),
+      cancelLabel: t("common.cancel"),
+      danger: true,
+    }).then((ok) => {
+      if (ok) resetLocalPreferences();
+    });
   };
 
   const detailTasks = [
@@ -292,6 +311,18 @@ export function SettingsScreen() {
           }}
         />
       </RightSidebarPortal>
+
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
+        />
+      )}
     </div>
   );
 }

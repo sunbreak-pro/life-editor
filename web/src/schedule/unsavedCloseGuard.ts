@@ -22,8 +22,8 @@ export interface UnsavedCloseRequest {
   /**
    * Ask the user whether to discard it. `true` = discard and close.
    *
-   * Awaited (#707): the question is an in-app dialog now rather than
-   * `window.confirm`, and an in-app dialog answers a tick later. The
+   * Awaited (#707): the question is an in-app dialog now rather than the
+   * browser's own confirm, and an in-app dialog answers a tick later. The
    * nothing-pending path still settles without ever calling this.
    */
   askDiscard: () => boolean | Promise<boolean>;

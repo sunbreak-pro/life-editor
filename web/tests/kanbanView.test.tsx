@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { DataService, TaskNode } from "@life-editor/shared";
 import {
@@ -422,24 +428,42 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
    * the new title so it rode along into the event; now it has to be asked
    * about, or the user watches their typing disappear.
    */
+  /*
+   * #781: the conversion's own two dialogs are in-app as well now — the
+   * question, and the refusal a parent row gets. Both used to be the browser's
+   * (jsdom has neither, so they were a spy), and both answer a tick later,
+   * which is the part worth pinning: a `.then` that ran on the OPEN rather than
+   * on the answer would convert the row the moment the dialog appeared.
+   */
   describe("convert to event", () => {
     const dataService = {
       convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
     } as unknown as DataService;
-    // jsdom has no native confirm; the convert's OWN guard still calls one.
-    const confirmSpy = vi.spyOn(window, "confirm");
+    const CONVERT_ASK = "itemConvert.toEventConfirm|Buy milk";
+    const CHILD = task({
+      id: "task-a1",
+      title: "Buy oat milk",
+      parentId: "task-a",
+    });
 
     beforeEach(() => {
       state.isWide = true;
       state.selectedId = "task-a";
       vi.mocked(dataService.convertTaskToEvent).mockClear();
-      confirmSpy.mockReturnValue(true);
     });
-    afterEach(() => confirmSpy.mockReset());
 
     const convert = () =>
       fireEvent.click(
         screen.getByRole("button", { name: "itemConvert.toEvent" }),
+      );
+    // The board's convert button and the dialog's affirmative share a label, so
+    // the answer is pressed INSIDE the dialog.
+    const answerConvert = (label: "itemConvert.toEvent" | "common.cancel") =>
+      fireEvent.click(
+        within(screen.getByRole("dialog", { name: CONVERT_ASK })).getByRole(
+          "button",
+          { name: label },
+        ),
       );
 
     it("asks about the draft before the conversion's own question", async () => {
@@ -450,7 +474,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
       convert();
 
       await screen.findByText(ASK);
-      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(screen.queryByText(CONVERT_ASK)).toBeNull();
 
       fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
       await waitFor(() => expect(screen.queryByText(ASK)).toBeNull());
@@ -471,20 +495,74 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
       await screen.findByText(ASK);
 
       fireEvent.click(screen.getByRole("button", { name: "common.discard" }));
+      // The second question replaces the first: one dialog, asked twice.
+      await screen.findByText(CONVERT_ASK);
+      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+
+      answerConvert("itemConvert.toEvent");
       await waitFor(() =>
         expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
       );
-      expect(confirmSpy).toHaveBeenCalled();
     });
 
-    it("converts without a question when nothing is pending", async () => {
+    it("asks before converting, and writes nothing until it is answered", async () => {
       render(<KanbanView dataService={dataService} />);
       convert();
 
-      await waitFor(() =>
-        expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
-      );
+      await screen.findByText(CONVERT_ASK);
       expect(screen.queryByText(ASK)).toBeNull();
+      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+    });
+
+    it("converts nothing when the question is refused", async () => {
+      render(<KanbanView dataService={dataService} />);
+      convert();
+      await screen.findByText(CONVERT_ASK);
+
+      answerConvert("common.cancel");
+      await waitFor(() => expect(screen.queryByText(CONVERT_ASK)).toBeNull());
+      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+      // Refused means nothing moved: the row is still a task, still selected.
+      expect(state.setSelectedTaskId).not.toHaveBeenCalledWith(null);
+    });
+
+    it("converts once the question is agreed to", async () => {
+      render(<KanbanView dataService={dataService} />);
+      convert();
+      await screen.findByText(CONVERT_ASK);
+
+      answerConvert("itemConvert.toEvent");
+      await waitFor(() =>
+        expect(dataService.convertTaskToEvent).toHaveBeenCalledWith(
+          "task-a",
+          expect.objectContaining({ isAllDay: expect.any(Boolean) }),
+        ),
+      );
+    });
+
+    it("names a child-blocked row instead, with nothing to decide", async () => {
+      state.nodes = [MILK, CHILD, PLAN];
+      render(<KanbanView dataService={dataService} />);
+      convert();
+
+      const refusal = await screen.findByRole("dialog", {
+        name: "itemConvert.childrenBlocked|Buy milk,1",
+      });
+      // A refusal that reports WHY has no second answer to offer.
+      expect(
+        within(refusal).queryByRole("button", { name: "common.cancel" }),
+      ).toBeNull();
+
+      fireEvent.click(
+        within(refusal).getByRole("button", { name: "common.ok" }),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByText("itemConvert.childrenBlocked|Buy milk,1"),
+        ).toBeNull(),
+      );
+      // Acknowledged, not agreed to: the FK guard still stands.
+      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
     });
   });
 });

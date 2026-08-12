@@ -75,9 +75,10 @@ import { WIDE_QUERY } from "../constants/breakpoints";
  * the user never edited.
  *
  * Switching tags with something pending asks first (#740 DoD), through the
- * in-app <ConfirmDialog> the rest of the app uses since #729 — never
- * `window.confirm`, which lands outside the theme and freezes the page hard
- * enough to stall Playwright. Refusing keeps both the draft and the selection.
+ * in-app <ConfirmDialog> the rest of the app uses since #729 — never the
+ * browser's own confirm, which lands outside the theme and freezes the page
+ * hard enough to stall Playwright. Refusing keeps both the draft and the
+ * selection.
  *
  * NOT drafted, and deliberately so: Add, Delete and per-item unassign. Those
  * are acts rather than field edits — nothing about them is "half typed" — and
