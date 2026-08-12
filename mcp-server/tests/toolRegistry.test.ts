@@ -201,6 +201,9 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["set_schedule_complete", { id: "si-1", completed: true }],
   ["set_schedule_dismissed", { id: "si-1", dismissed: false }],
   ["get_today_context", {}],
+  ["get_week_context", {}],
+  ["get_week_context", { start_date: "2026-08-10" }],
+  ["get_note_context", { id: "note-1" }],
   ["write_briefing", { focus: "one thing", paragraphs: ["a", "b"] }],
   ["search_all", { query: "q", domains: ["tasks", "notes"], limit: 5 }],
   [

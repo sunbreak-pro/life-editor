@@ -23,7 +23,12 @@ import {
   setScheduleComplete,
   setScheduleDismissed,
 } from "./handlers/scheduleHandlers.js";
-import { getTodayContext, writeBriefing } from "./handlers/briefingHandlers.js";
+import {
+  getTodayContext,
+  getWeekContext,
+  writeBriefing,
+} from "./handlers/briefingHandlers.js";
+import { getNoteContext } from "./handlers/noteContextHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
 import { generateContent, formatContent } from "./handlers/contentHandlers.js";
 import {
@@ -546,6 +551,35 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
     handler: getTodayContext,
+  }),
+  defineTool({
+    name: "get_week_context",
+    description:
+      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the tasks scheduled onto it and its daily note text, plus the open tasks carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Monday to Sunday. Task and note BODIES are not included — read one with get_task / get_note when you decide you need it.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        start_date: {
+          type: "string",
+          description:
+            "First day of the 7-day window, YYYY-MM-DD (default: the Monday of the current local week)",
+        },
+      },
+    },
+    handler: getWeekContext,
+  }),
+  defineTool({
+    name: "get_note_context",
+    description:
+      "Get everything needed to reorganise a note in one call: the note itself (content + contentText), its tags, and its WikiLink neighbours in both directions — links (this note points at them) and backlinks (they point at this note). Neighbours are id/role/title only; their bodies and tags are not included — follow up with get_note / get_task by id for the ones you want to read.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Note ID" },
+      },
+      required: ["id"],
+    },
+    handler: getNoteContext,
   }),
   defineTool({
     name: "write_briefing",
