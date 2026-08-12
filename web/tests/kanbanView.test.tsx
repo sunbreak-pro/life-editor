@@ -34,6 +34,7 @@ const state = vi.hoisted(() => ({
   toggleTaskStatus: vi.fn(),
   updateNode: vi.fn(),
   addNode: vi.fn(),
+  softDelete: vi.fn(),
   syncInlineLinks: vi.fn().mockResolvedValue(undefined),
   open: vi.fn(),
   close: vi.fn(),
@@ -63,6 +64,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       toggleTaskStatus: state.toggleTaskStatus,
       updateNode: state.updateNode,
       addNode: state.addNode,
+      softDelete: state.softDelete,
     }),
     useWikiTagsUnifiedContext: () => ({
       allTags: state.tags,
@@ -589,6 +591,142 @@ describe("KanbanView — the shell teardown guard (#753)", () => {
     tearDown();
     await waitFor(() => expect(answers).toEqual([true]));
     expect(screen.queryByText(ASK)).toBeNull();
+  });
+});
+
+/*
+ * #786 — the board's missing exit. A todo could be created here and never
+ * removed: the Schedule tray, the day-view chip and #775's detail panel all had
+ * a delete, while the Tasks board had none on EITHER width — #775 stopped at the
+ * Schedule side, and the narrow sheet here is fed by the same renderTaskDetail
+ * as the Desktop sidebar, so both gained it in one go (and would lose it in one
+ * go, which is what these pin).
+ *
+ * The write is `softDelete` — a Trash round trip, not an erasure — and it only
+ * ever runs after the in-app dialog is answered. `window.confirm` is barred
+ * (#707): it lands outside the theme and freezes the page hard enough to stall
+ * Playwright.
+ */
+describe("KanbanView — deleting a todo from the detail (#786)", () => {
+  const CHILD = task({
+    id: "task-a1",
+    title: "Buy oat milk",
+    parentId: "task-a",
+  });
+  const del = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoDelete" }),
+    );
+  const answer = (label: "scheduleScreen.delete" | "common.cancel") =>
+    fireEvent.click(screen.getByRole("button", { name: label }));
+
+  it("asks before deleting, and names the row", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    // A question, not a farewell: nothing is written until it is answered.
+    expect(state.softDelete).not.toHaveBeenCalled();
+  });
+
+  it("deletes nothing when the question is refused", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    answer("common.cancel");
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("scheduleScreen.todoDeleteConfirm|Buy milk"),
+      ).toBeNull(),
+    );
+    expect(state.softDelete).not.toHaveBeenCalled();
+    // Still on screen, still editable.
+    expect(
+      (screen.getByLabelText("taskDetail.titleLabel") as HTMLInputElement)
+        .value,
+    ).toBe("Buy milk");
+  });
+
+  it("soft-deletes and drops the selection once agreed", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    answer("scheduleScreen.delete");
+
+    // softDelete (→ Trash + the undo entry), never a permanent delete.
+    await waitFor(() =>
+      expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
+    );
+    // What takes the panel down: the fixture selection is prop-driven here, so
+    // the clearing call is the observable half of "the detail closes".
+    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+  });
+
+  it("names how many children go with a parent row", async () => {
+    state.nodes = [MILK, CHILD, PLAN];
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    del();
+    // The count is the one thing the user cannot see from the detail — and it
+    // comes from the SAME guard the Schedule side asks through, so the two
+    // screens can never disagree about how many rows are going.
+    await screen.findByText(
+      "scheduleScreen.todoDeleteCascadeConfirm|Buy milk,1",
+    );
+    answer("scheduleScreen.delete");
+    await waitFor(() =>
+      expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
+    );
+  });
+
+  it("falls back to a placeholder for a row saved with no title", async () => {
+    state.nodes = [task({ id: "task-c", title: "" })];
+    state.selectedId = "task-c";
+    render(<KanbanView />);
+
+    del();
+    // "Delete ""?" would be a dialog about nothing.
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|common.untitled");
+  });
+
+  it("deletes from the mobile sheet, and closes it", async () => {
+    state.isWide = false;
+    render(<KanbanView />);
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    screen.getByRole("dialog", { name: "materials.tasks.detailTitle" });
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    answer("scheduleScreen.delete");
+
+    await waitFor(() =>
+      expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
+    );
+    // On a phone the sheet is the ONLY way to reach a todo, so leaving it open
+    // over a row that no longer exists is the whole bug in miniature.
+    expect(
+      screen.queryByRole("dialog", { name: "materials.tasks.detailTitle" }),
+    ).toBeNull();
+  });
+
+  it("does not ask twice when a draft is pending", async () => {
+    // The unsaved-close guard is deliberately bypassed (#775's reasoning): a
+    // typed title on a row being deleted is not something to rescue, and two
+    // dialogs for one act reads as a bug.
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+    fireEvent.click(screen.getByText("type in the body"));
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    expect(screen.queryByText("common.unsavedCloseConfirm")).toBeNull();
   });
 });
 
