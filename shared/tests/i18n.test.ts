@@ -1,36 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { i18n, LANGUAGE_STORAGE_KEY } from "../src/i18n";
-import en from "../src/i18n/locales/en.json";
-import ja from "../src/i18n/locales/ja.json";
 
 /*
  * W0-4: the shared i18next singleton must boot with both catalogs and
  * resolve en<->ja. This guards the cross-platform i18n base the web /
  * desktop / mobile hosts all consume.
+ *
+ * Scope: what the *runtime* does — initialization, `fallbackLng`, and plural
+ * resolution through `t()` (plus the undo-label pin below, which is about a
+ * silent `defaultValue` fallback rather than the catalogs' shape).
+ * The catalogs' key sets (en / ja parity and the
+ * `_other` requirement) are NOT checked here; `i18nKeys.test.ts` owns those,
+ * since it already reads the JSON files to scan call sites (#778 — both
+ * invariants used to be asserted in both files, each with its own plural
+ * regex, so a change to one could leave the looser copy quietly green).
  */
-
-/** Every leaf path in a catalog, dotted: `materials.notes.trash`. */
-function leafKeys(node: unknown, prefix = ""): string[] {
-  if (node === null || typeof node !== "object" || Array.isArray(node)) {
-    return [prefix];
-  }
-  return Object.entries(node as Record<string, unknown>).flatMap(([k, v]) =>
-    leafKeys(v, prefix ? `${prefix}.${k}` : k),
-  );
-}
-
-/*
- * i18next's JSON v4 plural suffixes. A key is stored once PER PLURAL CATEGORY
- * OF ITS OWN LANGUAGE, and en (one / other) and ja (other only) do not have the
- * same categories — so the two catalogs are compared on the base key, with the
- * `_other` form (the one every language has, and en's fallback) required on
- * both sides separately.
- */
-const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
-const baseKey = (key: string) => key.replace(PLURAL_SUFFIX, "");
-
-const EN_KEYS = leafKeys(en);
-const JA_KEYS = leafKeys(ja);
 
 describe("shared i18n", () => {
   it("is initialized with en + ja resources", () => {
@@ -74,33 +58,6 @@ describe("shared i18n", () => {
     expect(i18n.t("section.tasks")).toBe("Todo");
     // restore default so test ordering stays neutral
     await i18n.changeLanguage("en");
-  });
-});
-
-/*
- * en / ja lockstep (CLAUDE.md §9): a one-sided addition is invisible at
- * runtime — `fallbackLng: en` quietly serves English where the ja entry is
- * missing, and an orphaned ja entry is simply never read. Both directions are
- * checked so neither catalog can drift ahead of the other.
- */
-describe("shared i18n — catalog parity", () => {
-  it("has no key that only one catalog carries", () => {
-    const enBases = new Set(EN_KEYS.map(baseKey));
-    const jaBases = new Set(JA_KEYS.map(baseKey));
-
-    expect([...enBases].filter((k) => !jaBases.has(k))).toEqual([]);
-    expect([...jaBases].filter((k) => !enBases.has(k))).toEqual([]);
-  });
-
-  it("gives every plural key an `_other` form in both catalogs", () => {
-    const plurals = [...EN_KEYS, ...JA_KEYS]
-      .filter((k) => PLURAL_SUFFIX.test(k))
-      .map(baseKey);
-
-    for (const base of new Set(plurals)) {
-      expect(EN_KEYS, `en/${base}`).toContain(`${base}_other`);
-      expect(JA_KEYS, `ja/${base}`).toContain(`${base}_other`);
-    }
   });
 });
 
