@@ -1514,7 +1514,7 @@ export function CalendarTab({
         dirty: editorDirtyRef.current,
         askDiscard: () =>
           askConfirm({
-            message: t("scheduleScreen.unsavedCloseConfirm"),
+            message: t("common.unsavedCloseConfirm"),
             confirmLabel: t("common.discard"),
             cancelLabel: t("common.cancel"),
             // Throwing away typed-in work is the destructive answer here, even
@@ -1524,6 +1524,40 @@ export function CalendarTab({
       });
       if (decision.clearDirty) editorDirtyRef.current = false;
       if (decision.close) close();
+    },
+    [askConfirm, t],
+  );
+
+  /*
+   * #736: the task-chip detail (TaskDetailPanel, below) commits on its own save
+   * button too, so the same silent discard was possible on this screen — the
+   * event editor beside it asked, and the todo panel did not.
+   *
+   * Guarded here rather than inside the panel because the three ways out of it
+   * all belong to this file: the overlay's own onClose (Escape, the backdrop,
+   * the close button), the convert-to-event button, and the "open in Tasks"
+   * hand-off. Each tears the panel down, and the draft dies with it.
+   *
+   * The flag is NOT cleared on an agreed discard (unlike the event editor
+   * above): the panel is its only owner and re-reports `false` the moment it
+   * unmounts, so clearing here could only ever be wrong — the convert path asks
+   * its OWN question afterwards, and a refusal there leaves the draft on screen
+   * with the flag already wiped.
+   */
+  const taskDetailDirtyRef = useRef(false);
+  const requestTaskDetailClose = useCallback(
+    async (proceed: () => void) => {
+      const decision = await decideUnsavedClose({
+        dirty: taskDetailDirtyRef.current,
+        askDiscard: () =>
+          askConfirm({
+            message: t("common.unsavedCloseConfirm"),
+            confirmLabel: t("common.discard"),
+            cancelLabel: t("common.cancel"),
+            danger: true,
+          }),
+      });
+      if (decision.close) proceed();
     },
     [askConfirm, t],
   );
@@ -2228,7 +2262,11 @@ export function CalendarTab({
     <ItemDetailOverlay
       open={isWide && !!taskDetailTask}
       title={t("materials.tasks.detailTitle")}
-      onClose={() => setTaskDetailId(null)}
+      // #736: Escape, the backdrop and the close button all land here, so one
+      // guard covers every plain exit from the todo panel.
+      onClose={() => {
+        void requestTaskDetailClose(() => setTaskDetailId(null));
+      }}
     >
       {taskDetailTask && (
         <div className="flex flex-col gap-3">
@@ -2253,6 +2291,13 @@ export function CalendarTab({
             saveLabel={t("taskDetail.save")}
             savedLabel={t("taskDetail.saved")}
             unsavedLabel={t("taskDetail.unsaved")}
+            // #736: the panel reports its pending title here; the three exits
+            // below read the flag before they tear the panel down. A ref rather
+            // than state — nothing on screen depends on it, and re-rendering
+            // the whole calendar on every keystroke would be a steep price.
+            onDirtyChange={(dirty) => {
+              taskDetailDirtyRef.current = dirty;
+            }}
             // Same omission as Kanban: TagPicker's own kind badge captions the
             // row, so TaskDetailPanel's generic tagsLabel would repeat it.
             tagsSlot={
@@ -2268,19 +2313,29 @@ export function CalendarTab({
               surface a user reaches for when the todo turns out to be an
               appointment, so the action has to be here too — and this one
               closes the overlay itself, since the row it is showing changes
-              role out from under it. */}
+              role out from under it. #736: which is why a pending title has to
+              be asked about FIRST — the conversion unmounts the panel, and the
+              draft would go with it without a word. */}
           <button
             type="button"
-            onClick={() => handleConvertToEvent(taskDetailTask.id)}
+            onClick={() => {
+              void requestTaskDetailClose(() =>
+                handleConvertToEvent(taskDetailTask.id),
+              );
+            }}
             className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
           >
             {t("itemConvert.toEvent")}
           </button>
+          {/* #736: the hand-off leaves the section entirely, so it is a close
+              like any other as far as a pending title is concerned. */}
           <button
             type="button"
             onClick={() => {
-              setTaskDetailId(null);
-              onOpenTasks();
+              void requestTaskDetailClose(() => {
+                setTaskDetailId(null);
+                onOpenTasks();
+              });
             }}
             className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
           >

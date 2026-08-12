@@ -35,7 +35,9 @@ import { FOCUS_RING } from "./styleTokens";
  * is a single write rather than two racing ones.
  *
  * Closing without the button discards, and that is the point — nothing is
- * written behind the user's back any more.
+ * written behind the user's back any more. It is not thrown away in silence
+ * either (#736): the panel reports its pending state through `onDirtyChange`,
+ * and both hosts ask before any exit that tears the panel down.
  *
  * Minimal scope (W7): title edit, status toggle, content edit. Heavier task
  * fields (priority / schedule / reminders / tags) are out of scope. The status
@@ -80,7 +82,8 @@ export interface TaskDetailPanelProps {
   /**
    * Report whether anything is pending, for hosts whose close affordances need
    * to ask before discarding (same contract as EventEditorPane's #628 flag).
-   * Fires with `false` on unmount.
+   * Fires with `false` on unmount — which is what lets a host leave its own
+   * flag alone on an agreed discard and still not go stale (#736).
    */
   onDirtyChange?: (dirty: boolean) => void;
   /** Cycle the task status (host injects the toggle). */
