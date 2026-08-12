@@ -601,3 +601,7 @@ export {
   Trans,
   LANGUAGE_STORAGE_KEY,
 } from "./i18n";
+// The catalog as a type (#726). `TranslationKey` is what a constant holding a
+// key gets annotated with, so a key that reaches t() through a variable is
+// checked where it is written down.
+export type { TranslationKey } from "./i18n/resources";

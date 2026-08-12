@@ -6,6 +6,7 @@ import {
   useTranslation,
   type AuthCardLabels,
   type AuthMode,
+  type TranslationKey,
 } from "@life-editor/shared";
 
 /*
@@ -20,7 +21,7 @@ import {
  */
 
 /** Map raw Supabase auth messages to human-facing catalog keys. */
-function errorKeyFor(raw: string): string {
+function errorKeyFor(raw: string): TranslationKey {
   if (/invalid login credentials/i.test(raw)) {
     return "auth.errors.invalidCredentials";
   }

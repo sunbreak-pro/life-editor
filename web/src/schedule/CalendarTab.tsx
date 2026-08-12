@@ -79,6 +79,7 @@ import {
   MobileFab,
   WIDE_QUERY,
   dateFromKey,
+  type TranslationKey,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
 import { TagPicker } from "../wikitag/TagPicker";
@@ -139,7 +140,7 @@ const POPOVER_DELAY_MS = 350;
  */
 const REPEAT_FAILURE_COPY_KEY: Record<
   "attach" | "materialise" | "update" | "series" | "series-partial",
-  string
+  TranslationKey
 > = {
   attach: "scheduleScreen.repeatConvertFailed",
   materialise: "scheduleScreen.repeatMaterialiseFailed",
