@@ -888,13 +888,22 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     const dataService = {
       convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
     } as unknown as DataService;
-    // jsdom has no native confirm; the convert's own guard still calls one.
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     state.selectedId = "task-a";
     render(<KanbanView dataService={dataService} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "itemConvert.toEvent" }),
+    );
+
+    // The convert's own question is in-app since #781, so the write is a tick
+    // behind the press — and the board's convert button shares the affirmative
+    // label, hence the answer is pressed inside the dialog.
+    const ask = await screen.findByRole("dialog", {
+      name: "itemConvert.toEventConfirm|Buy milk",
+    });
+    expect(state.close).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(ask).getByRole("button", { name: "itemConvert.toEvent" }),
     );
 
     await waitFor(() =>
@@ -903,7 +912,6 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     // The row left this board for the calendar — the panel that was framing it
     // has nothing left to show, and neither has the shell around it.
     await waitFor(() => expect(state.close).toHaveBeenCalled());
-    confirmSpy.mockRestore();
   });
 });
 

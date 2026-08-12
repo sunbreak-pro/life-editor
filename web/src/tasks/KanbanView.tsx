@@ -379,8 +379,8 @@ export function KanbanView({
           .then(() => {
             // The detail panel is showing a row that is no longer a task; the
             // refetch drops it from the tree and the selection resolves to
-            // null.
-            tree.setSelectedTaskId(null);
+            // null, and the shell that framed it goes with them (#789).
+            closeDetailShell();
             void tree.refetch();
           })
           .catch((err) => {
@@ -403,7 +403,16 @@ export function KanbanView({
           .finally(() => endConvert(task.id));
       });
     },
-    [dataService, tree, detail, t, askConfirm, beginConvert, endConvert],
+    [
+      dataService,
+      tree,
+      detail,
+      t,
+      askConfirm,
+      beginConvert,
+      endConvert,
+      closeDetailShell,
+    ],
   );
 
   /*
