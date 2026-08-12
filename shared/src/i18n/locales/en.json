@@ -99,7 +99,8 @@
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
       "button": "Reset preferences",
-      "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected."
+      "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected.",
+      "confirmButton": "Reset and reload"
     }
   },
   "timerSettings": {

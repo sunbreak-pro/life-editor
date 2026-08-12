@@ -3,8 +3,9 @@ import { Button } from "./Button";
 import { Modal } from "./Modal";
 
 /*
- * ConfirmDialog (#707) — the in-app replacement for `window.confirm` /
- * `window.alert`.
+ * ConfirmDialog (#707) — the in-app replacement for the browser's own
+ * `confirm` / `alert`. Since #781 nothing in shared/ or web/ calls those any
+ * more: every question and every refusal on screen is this component.
  *
  * A native dialog is drawn by the browser, so it lands outside the theme, the
  * fonts and the lumen-* tokens: on the same screen the repeat-delete guard
@@ -107,7 +108,7 @@ export interface ConfirmDialogController {
 /**
  * Drives one <ConfirmDialog> for a host that has several questions to ask.
  *
- * `window.confirm` returned its answer inline, so callers were written as
+ * The browser's confirm returned its answer inline, so callers were written as
  * straight-line code; this returns a promise instead, and every call site that
  * used to branch on the return value now continues in a `.then`. The write
  * must still be claimed synchronously once the answer arrives (#434) — the

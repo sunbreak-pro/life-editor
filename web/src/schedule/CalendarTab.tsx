@@ -412,8 +412,8 @@ export function CalendarTab({
   /*
    * #707: every "are you sure?" on this screen — the two conversions, their
    * two refusals, the cascade delete and the unsaved-draft discard — goes
-   * through ONE in-app dialog. They used to be `window.alert` /
-   * `window.confirm`, which draw outside the theme (so the same screen asked
+   * through ONE in-app dialog. They used to be the browser's own alert /
+   * confirm, which draw outside the theme (so the same screen asked
    * in two visibly different ways: this one through the OS, the repeat-delete
    * guard in-app) and freeze the page hard enough to stall Playwright.
    *
