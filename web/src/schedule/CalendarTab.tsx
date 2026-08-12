@@ -102,6 +102,7 @@ import {
   placeTaskWrite,
 } from "./taskChipUndoWiring";
 import { itemTapRoute, taskChipPanelModel } from "./taskChipPanel";
+import { agendaEmptyKey } from "./agendaEmptyLabel";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -1547,6 +1548,15 @@ export function CalendarTab({
     statusLabels,
   };
   /*
+   * #774: the same labels for the Mobile day list, whose empty state has to
+   * name the day it is actually showing. The list above is the Dayflow tab —
+   * always today — so it keeps `emptyToday` as it stands.
+   */
+  const anchorAgendaLabels = {
+    ...agendaLabels,
+    empty: t(agendaEmptyKey(anchorDate, today)),
+  };
+  /*
    * #628: an unsaved draft must not disappear silently. The pane owns the
    * draft, so it reports the dirty flag here and the close affordances —
    * Escape, backdrop, the sheet's close button — ask before they throw it away.
@@ -2788,7 +2798,7 @@ export function CalendarTab({
                    Desktop's sidebar column stays one line tall (no props). */
                 dayflow
                 formatGapLabel={formatGapLabel}
-                labels={agendaLabels}
+                labels={anchorAgendaLabels}
                 className="rounded-md border border-lumen-border bg-lumen-bg px-2"
               />
             )}

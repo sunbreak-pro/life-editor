@@ -528,6 +528,7 @@
     "done": "Done",
     "doneSummary": "{{done}} of {{total}} done",
     "emptyToday": "Nothing scheduled for today",
+    "emptyDay": "Nothing scheduled for this day",
     "frequency": "Repeat",
     "viewLabel": "View",
     "frequencyNone": "None",
