@@ -87,6 +87,9 @@ describe("TaskDetailPanel statusControl slot (#470)", () => {
     titleLabel: "Task title",
     statusLabel: "Status",
     statusText: "Not started",
+    saveLabel: "Save",
+    savedLabel: "Saved",
+    unsavedLabel: "Unsaved",
   };
 
   it("replaces the cycle button with the injected control", () => {
@@ -96,7 +99,7 @@ describe("TaskDetailPanel statusControl slot (#470)", () => {
         taskId="task-a"
         title="Write the plan"
         status="NOT_STARTED"
-        onTitleCommit={() => {}}
+        onSave={() => {}}
         onToggleStatus={onToggleStatus}
         statusControl={<button type="button">status slot</button>}
         {...PANEL_LABELS}
@@ -117,7 +120,7 @@ describe("TaskDetailPanel statusControl slot (#470)", () => {
         taskId="task-a"
         title="Write the plan"
         status="NOT_STARTED"
-        onTitleCommit={() => {}}
+        onSave={() => {}}
         onToggleStatus={() => {}}
         {...PANEL_LABELS}
       />,

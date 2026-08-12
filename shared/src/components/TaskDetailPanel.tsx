@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import type { TaskStatus } from "../types/taskTree";
 import { cn } from "./cn";
 import { FOCUS_RING } from "./styleTokens";
@@ -8,16 +14,33 @@ import { FOCUS_RING } from "./styleTokens";
  * pushes into the shared rightSidebar via <RightSidebarPortal> (the W6
  * MasterDetail two-pane part was retired in code-reduction #346) on Desktop,
  * and into the MobileTaskList bottom sheet on Mobile (#470) — one panel, two
- * surfaces, so a field added here reaches both.
+ * surfaces, so a field added here reaches both. Schedule renders the same panel
+ * for a task chip (#626), which is why the save model below has to be the
+ * panel's own rather than either host's.
  * Pure presentation, DataService-free (§3.1): every
- * mutation is a callback the host injects (onTitleCommit / onToggleStatus),
+ * mutation is a callback the host injects (onSave / onToggleStatus),
  * the rich-text editor is injected as `contentEditor` (TipTap is a web
  * dependency and must not be pulled into shared), and all copy arrives as
  * already-translated props (§6.4 — no useTranslation here). lumen-* tokens
  * only; the panel container is opaque (§5).
  *
+ * SAVE BUTTON (#713, Epic #627 段階 1 — ユーザー裁定 D-20260810-sched-1 = A).
+ * The title used to persist on a 300ms debounce with a blur and unmount flush,
+ * and the injected body editor on an 800ms one. Both wrote while the user was
+ * still typing, and Schedule's own detail pane had already moved to a button
+ * (#628) — so the same panel confirmed one way and the pane beside it another.
+ * Now the title is a draft, the host reports the body's pending state through
+ * `contentDirty`, and ONE press commits both: the panel sends its title patch
+ * and the host folds in whatever the editor is holding, so a title + body edit
+ * is a single write rather than two racing ones.
+ *
+ * Closing without the button discards, and that is the point — nothing is
+ * written behind the user's back any more.
+ *
  * Minimal scope (W7): title edit, status toggle, content edit. Heavier task
- * fields (priority / schedule / reminders / tags) are out of scope.
+ * fields (priority / schedule / reminders / tags) are out of scope. The status
+ * toggle is NOT drafted (#713 対象外): it is a discrete act, not a field that
+ * can be half-typed.
  */
 
 // Status cue glyph — symbols, not copy, so they stay in the component
@@ -28,81 +51,38 @@ const STATUS_GLYPH: Record<TaskStatus, string> = {
   DONE: "●",
 };
 
-/*
- * Title field. Mirrors NotesView's NoteTitleInput debounce-and-flush
- * exactly: a local draft, a 300ms debounced persist, an immediate flush on
- * blur, and a final flush on unmount. The parent remounts this via
- * `key={taskId}` so a task switch re-seeds the draft cleanly. The key
- * intentionally excludes the title text: keying on it would remount
- * mid-typing (the debounced persist mutates the task's title) and steal
- * focus — single-user app, no external-rename re-seed needed.
- */
-function TaskTitleInput({
-  taskId,
-  initialTitle,
-  label,
-  onCommit,
-}: {
-  taskId: string;
-  initialTitle: string;
-  label: string;
-  onCommit: (id: string, title: string) => void;
-}) {
-  const [draft, setDraft] = useState(initialTitle);
-  const timerRef = useRef<number | null>(null);
-  const pendingRef = useRef<string | null>(null);
-  const onCommitRef = useRef(onCommit);
-  useEffect(() => {
-    onCommitRef.current = onCommit;
-  });
-
-  const flush = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (pendingRef.current !== null) {
-      onCommitRef.current(taskId, pendingRef.current);
-      pendingRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    // flush only touches refs (stable for this component lifetime), so an
-    // empty dep array is correct — same as NoteTitleInput / RichTextEditor.
-    return () => flush();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <input
-      value={draft}
-      onChange={(e) => {
-        const value = e.target.value;
-        setDraft(value);
-        pendingRef.current = value;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(flush, 300);
-      }}
-      onBlur={flush}
-      aria-label={label}
-      className={cn(
-        "w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text",
-        FOCUS_RING,
-      )}
-    />
-  );
+/** What one press of the save button changes (#713). */
+export interface TaskDetailPatch {
+  title?: string;
 }
 
 export interface TaskDetailPanelProps {
-  /** Selected node id — also keys the internal title field for remount. */
+  /** Selected node id — also keys the draft, so a task switch re-seeds it. */
   taskId: string;
-  /** Current title (seed for the debounced draft). */
+  /** Current title (the draft sits on top of it). */
   title: string;
   /** Current status. */
   status?: TaskStatus;
-  /** Persist a title edit (host injects DataService write — §3.1). */
-  onTitleCommit: (id: string, title: string) => void;
+  /**
+   * Commit the pending draft (#713). Fires only from the save button (or Enter
+   * in the title), carrying the title when it changed. The host writes it
+   * together with whatever the injected content editor is holding — one press,
+   * one update.
+   */
+  onSave: (id: string, patch: TaskDetailPatch) => void;
+  /**
+   * The injected content editor holds unsaved changes. The body draft lives in
+   * the host (the editor is a web dependency), so the panel cannot see it —
+   * without this the button would sit disabled while the body was pending, and
+   * the only edit the user could not save would be the long one.
+   */
+  contentDirty?: boolean;
+  /**
+   * Report whether anything is pending, for hosts whose close affordances need
+   * to ask before discarding (same contract as EventEditorPane's #628 flag).
+   * Fires with `false` on unmount.
+   */
+  onDirtyChange?: (dirty: boolean) => void;
   /** Cycle the task status (host injects the toggle). */
   onToggleStatus?: (id: string) => void;
   /**
@@ -122,6 +102,12 @@ export interface TaskDetailPanelProps {
   statusText?: string;
   /** Already-translated caption above the content editor. */
   contentLabel?: string;
+  /** Primary action — "保存" (#713). */
+  saveLabel: string;
+  /** Shown beside the button while nothing is pending — "保存済み". */
+  savedLabel: string;
+  /** Shown beside the button while a draft is pending — "未保存". */
+  unsavedLabel: string;
   /** Already-translated caption preceding the tag row (§6.4). Paired with
    *  `tagsSlot`; when either is absent the tag row is omitted. */
   tagsLabel?: string;
@@ -132,11 +118,21 @@ export interface TaskDetailPanelProps {
   className?: string;
 }
 
-export function TaskDetailPanel({
+const SAVE_BTN = cn(
+  "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
+  FOCUS_RING,
+  "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+);
+
+/** Inner fields, keyed by taskId from the panel so a task switch drops the
+ *  pending edits cleanly (same arrangement as EventEditorPane). */
+function TaskDetailFields({
   taskId,
   title,
   status,
-  onTitleCommit,
+  onSave,
+  contentDirty = false,
+  onDirtyChange,
   onToggleStatus,
   statusControl,
   contentEditor,
@@ -144,24 +140,59 @@ export function TaskDetailPanel({
   statusLabel,
   statusText,
   contentLabel,
+  saveLabel,
+  savedLabel,
+  unsavedLabel,
   tagsLabel,
   tagsSlot,
-  className,
-}: TaskDetailPanelProps) {
+}: Omit<TaskDetailPanelProps, "className">) {
+  // `undefined` = untouched, so the field keeps following the live task and a
+  // rename made elsewhere still lands in front of the user instead of being
+  // quietly pushed back by a stale draft (EventEditorEdits, same reasoning).
+  const [titleEdit, setTitleEdit] = useState<string | undefined>(undefined);
+  const draftTitle = titleEdit ?? title;
+  const titleDirty = titleEdit !== undefined && titleEdit !== title;
+  const dirty = titleDirty || contentDirty;
   const resolvedStatus = status ?? "NOT_STARTED";
+
+  // Same ref dance as EventEditorPane: the unmount report must not pin a stale
+  // callback, and refreshing it in an effect (not during render) is what
+  // react-hooks/refs asks for.
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  });
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
+
+  const save = () => {
+    if (!dirty) return;
+    // The host is told even when only the BODY moved: it is the one holding
+    // that draft, and the press is the only signal it gets.
+    onSave(taskId, titleDirty ? { title: draftTitle } : {});
+  };
+
+  const saveOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    // IME guard: the Enter that confirms a Japanese conversion is not a save.
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      save();
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        "space-y-3 rounded-md border border-lumen-border bg-lumen-bg-secondary p-3",
-        className,
-      )}
-    >
-      <TaskTitleInput
-        key={taskId}
-        taskId={taskId}
-        initialTitle={title}
-        label={titleLabel}
-        onCommit={onTitleCommit}
+    <>
+      <input
+        value={draftTitle}
+        onChange={(e) => setTitleEdit(e.target.value)}
+        onKeyDown={saveOnEnter}
+        aria-label={titleLabel}
+        className={cn(
+          "w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text",
+          FOCUS_RING,
+        )}
       />
 
       <div
@@ -220,6 +251,45 @@ export function TaskDetailPanel({
           {contentEditor}
         </div>
       )}
+
+      {/* Save footer (#713) — the only commit. Disabled while there is nothing
+          to write (#434 S-1), with the state spelled out beside it so "why can
+          I not press this" has an answer on screen. */}
+      <div className="flex items-center justify-end gap-3 border-t border-lumen-border pt-3">
+        <span
+          aria-live="polite"
+          className={cn(
+            "text-xs",
+            dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
+          )}
+        >
+          {dirty ? unsavedLabel : savedLabel}
+        </span>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty}
+          className={SAVE_BTN}
+        >
+          {saveLabel}
+        </button>
+      </div>
+    </>
+  );
+}
+
+export function TaskDetailPanel({ className, ...rest }: TaskDetailPanelProps) {
+  return (
+    <div
+      className={cn(
+        "space-y-3 rounded-md border border-lumen-border bg-lumen-bg-secondary p-3",
+        className,
+      )}
+    >
+      {/* Keyed on the id: pending edits belong to the task they were typed
+          against, so switching tasks drops them via a remount. The fragment
+          adds no element, so the container's space-y still spaces the fields. */}
+      <TaskDetailFields key={rest.taskId} {...rest} />
     </div>
   );
 }

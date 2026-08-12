@@ -30,6 +30,7 @@ const state = vi.hoisted(() => ({
   toggleTaskStatus: vi.fn(),
   updateNode: vi.fn(),
   addNode: vi.fn(),
+  syncInlineLinks: vi.fn().mockResolvedValue(undefined),
   open: vi.fn(),
   close: vi.fn(),
 }));
@@ -63,6 +64,11 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       allTags: state.tags,
       getTagsForItem: (id: string) => state.assignments[id] ?? [],
       setTagColor: vi.fn().mockResolvedValue(undefined),
+      // The "[[" plumbing useTaskLinking reads. A body save runs the #372
+      // delete-sync, so this half of the context is reachable from here now.
+      createItemLink: vi.fn().mockResolvedValue(undefined),
+      getLinksForItem: () => ({ outgoing: [], incoming: [] }),
+      syncInlineLinks: state.syncInlineLinks,
     }),
     useRightSidebarContext: () => ({ open: state.open, close: state.close }),
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
@@ -71,9 +77,33 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
+/*
+ * The editor stub exposes its #713 draft channel as a button, so the host
+ * wiring (draft parked here, written only by the panel's save press) is
+ * assertable without a ProseMirror instance. `onUpdate` is deliberately typed
+ * too: if this view ever went back to auto-saving the body, the stub would
+ * still render and the tests below would be the ones to notice.
+ */
 vi.mock("../src/notes/RichTextEditor", () => ({
-  RichTextEditor: ({ noteId }: { noteId: string }) => (
-    <div data-testid="editor">{noteId}</div>
+  RichTextEditor: ({
+    noteId,
+    onUpdate,
+    onDraftChange,
+  }: {
+    noteId: string;
+    onUpdate?: (content: string) => void;
+    onDraftChange?: (content: string) => void;
+  }) => (
+    <>
+      <div data-testid="editor">{noteId}</div>
+      <button
+        type="button"
+        onClick={() => (onDraftChange ?? onUpdate)?.(`body of ${noteId}`)}
+      >
+        type in the body
+      </button>
+      {onUpdate ? <span data-testid="editor-autosaves" /> : null}
+    </>
   ),
 }));
 
@@ -184,6 +214,115 @@ describe("KanbanView — the task detail", () => {
   it("renders no panel while nothing is selected", () => {
     render(<KanbanView />);
     expect(screen.queryByLabelText("taskDetail.titleLabel")).toBeNull();
+  });
+});
+
+/*
+ * #713 — the title and the body are drafts now, and the save button is the only
+ * commit (D-20260810-sched-1). The board is the half of that which the panel
+ * cannot do on its own: it holds the body draft, because the editor is a web
+ * dependency the shared panel only receives as a slot.
+ */
+describe("KanbanView — the task detail save button (#713)", () => {
+  // No jest-dom in web/ (see the header), so `disabled` is read off the node.
+  const save = () =>
+    screen.getByRole("button", {
+      name: "taskDetail.save",
+    }) as HTMLButtonElement;
+
+  it("gives the body editor the draft channel, not auto-save", () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+    expect(screen.queryByTestId("editor-autosaves")).toBeNull();
+  });
+
+  it("writes nothing while the title and the body are being edited", () => {
+    state.selectedId = "task-a";
+    const { unmount } = render(<KanbanView />);
+
+    fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+      target: { value: "Buy oat milk" },
+    });
+    fireEvent.click(screen.getByText("type in the body"));
+    unmount();
+    expect(state.updateNode).not.toHaveBeenCalled();
+  });
+
+  it("commits the title and the body in ONE write on the press", () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+      target: { value: "Buy oat milk" },
+    });
+    fireEvent.click(screen.getByText("type in the body"));
+    fireEvent.click(save());
+
+    // Two writes through the same row would race, and the loser would revert
+    // the winner.
+    expect(state.updateNode).toHaveBeenCalledExactlyOnceWith("task-a", {
+      title: "Buy oat milk",
+      content: "body of task-a",
+    });
+    // #372's delete-sync used to ride the editor's own 800ms flush; the press
+    // is where the body lands now, so it has to ride that instead.
+    expect(state.syncInlineLinks).toHaveBeenCalledExactlyOnceWith(
+      "task-a",
+      "body of task-a",
+    );
+  });
+
+  it("lets a body-only edit reach the same write", () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    // The title never moved, so the panel alone would have kept the button off
+    // — `contentDirty` is what tells it the long edit is pending.
+    fireEvent.click(screen.getByText("type in the body"));
+    expect(save().disabled).toBe(false);
+
+    fireEvent.click(save());
+    expect(state.updateNode).toHaveBeenCalledExactlyOnceWith("task-a", {
+      content: "body of task-a",
+    });
+  });
+
+  it("goes quiet again once the draft has been written", () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    fireEvent.click(screen.getByText("type in the body"));
+    fireEvent.click(save());
+    expect(save().disabled).toBe(true);
+  });
+
+  it("discards the body draft when the detail closes, not just on unmount", () => {
+    // The panel remounts per task and drops its own title draft, but the body
+    // draft is parked on the board — so reopening the SAME task must not find
+    // it still pending and offer to write what the user walked away from.
+    state.selectedId = "task-a";
+    const { rerender } = render(<KanbanView />);
+    fireEvent.click(screen.getByText("type in the body"));
+
+    state.selectedId = null;
+    rerender(<KanbanView />);
+    state.selectedId = "task-a";
+    rerender(<KanbanView />);
+
+    expect(save().disabled).toBe(true);
+    expect(state.updateNode).not.toHaveBeenCalled();
+  });
+
+  it("offers the same button in the mobile sheet", () => {
+    state.isWide = false;
+    render(<KanbanView />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    fireEvent.click(screen.getByText("type in the body"));
+    fireEvent.click(save());
+    expect(state.updateNode).toHaveBeenCalledExactlyOnceWith("task-a", {
+      content: "body of task-a",
+    });
   });
 });
 

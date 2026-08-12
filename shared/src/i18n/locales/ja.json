@@ -215,7 +215,10 @@
     "statusInProgress": "進行中",
     "statusDone": "完了",
     "content": "メモ",
-    "tags": "タグ"
+    "tags": "タグ",
+    "save": "保存",
+    "saved": "保存済み",
+    "unsaved": "未保存"
   },
   "kanban": {
     "viewStatus": "ステータス別",

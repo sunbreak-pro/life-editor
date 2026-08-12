@@ -22,6 +22,7 @@ import {
   SkeletonList,
   RightSidebarPortal,
   TaskDetailPanel,
+  type TaskDetailPatch,
   TaskStatusChoices,
   TaskAddDialog,
   useMediaQuery,
@@ -95,6 +96,46 @@ import { TagPicker } from "../wikitag/TagPicker";
  * KanbanCardDraggable); the shared Kanban package never imports it.
  */
 
+/*
+ * The task body's draft (#713).
+ *
+ * The panel is shared and the editor is a web dependency it can only take as a
+ * slot, so the two halves of one save press start apart: the panel knows the
+ * title, this knows the body. It hands both to the press.
+ *
+ * A component of its own, mounted with `key={task.id}` inside the detail, so
+ * the draft lives exactly as long as the surface showing it. That is the whole
+ * discard story: closing without saving unmounts this, and reopening the same
+ * task cannot find yesterday's typing still pending. Keeping it in the board's
+ * state instead would need every close path to remember to clear it — and the
+ * board would re-render all its columns on every keystroke, for a value only
+ * this subtree reads.
+ */
+function TaskBodyDraft({
+  onSave,
+  children,
+}: {
+  onSave: (id: string, patch: TaskDetailPatch, content?: string) => void;
+  children: (draft: {
+    dirty: boolean;
+    onDraftChange: (content: string) => void;
+    onSave: (id: string, patch: TaskDetailPatch) => void;
+  }) => ReactNode;
+}) {
+  // `null` = the body has not moved. Any reported change counts as pending:
+  // the editor reports the document, not a diff, so "typed it back exactly"
+  // is not a distinction it can make cheaply.
+  const [content, setContent] = useState<string | null>(null);
+  return children({
+    dirty: content !== null,
+    onDraftChange: setContent,
+    onSave: (id, patch) => {
+      onSave(id, patch, content ?? undefined);
+      setContent(null);
+    },
+  });
+}
+
 export interface KanbanViewProps {
   /**
    * Shell "new task" intent (global:new-task). When it flips true the board
@@ -148,6 +189,27 @@ export function KanbanView({
     readKanbanViewMode("tag"),
   );
   const [moveError, setMoveError] = useState<string | null>(null);
+
+  /*
+   * One press of the panel's save button (#713): the title patch the panel
+   * sends, plus whatever the body editor had been holding (undefined when the
+   * body never moved). ONE update carrying both halves — two writes would race
+   * each other through the same row, and the loser would revert the winner.
+   */
+  const saveTaskDetail = useCallback(
+    (id: string, patch: TaskDetailPatch, content?: string) => {
+      tree.updateNode(id, {
+        ...patch,
+        ...(content !== undefined ? { content } : {}),
+      });
+      if (content === undefined) return;
+      // #372: drop inline-origin edges whose "[[ ]]" left the text. It used to
+      // ride the editor's own 800ms flush; the press is where the body lands
+      // now, so it rides that instead.
+      handleBodySaved(id, content);
+    },
+    [tree, handleBodySaved],
+  );
 
   /*
    * Which task's detail is open, and how it got there (#470) — a narrow card
@@ -530,42 +592,52 @@ export function KanbanView({
     // TaskDetailPanel (shared, and rendered by Schedule too) keeps its current
     // shape. Same wrapper the Schedule task overlay uses for its own button.
     <div className="flex flex-col gap-3">
-      <TaskDetailPanel
-        taskId={task.id}
-        title={task.title}
-        status={task.status}
-        onTitleCommit={(id, title) => tree.updateNode(id, { title })}
-        onToggleStatus={tree.toggleTaskStatus}
-        statusControl={statusControl}
-        titleLabel={t("taskDetail.titleLabel")}
-        statusLabel={t("taskDetail.status")}
-        statusText={t(STATUS_TEXT_KEY[task.status ?? "NOT_STARTED"])}
-        contentLabel={t("taskDetail.content")}
-        tagsSlot={
-          <TagPicker itemId={task.id} itemRole="task" showLabel size="sm" />
-        }
-        contentEditor={
-          <RichTextEditor
-            key={task.id}
-            noteId={task.id}
-            initialContent={task.content || undefined}
-            onUpdate={(content) => {
-              tree.updateNode(task.id, { content });
-              // #372: drop inline-origin edges whose "[[ ]]" left the text.
-              handleBodySaved(task.id, content);
-            }}
-            // "[[" autocomplete + click navigation (#507). Same three props the
-            // Notes and Daily editors take; this editor simply never got them,
-            // so the menu never opened and a resolved link was inert. No
-            // create-note row — like Daily, a task body links to EXISTING items.
-            loadLinkTargets={loadLinkTargets}
-            onNavigateToItem={onNavigateToItem}
-            onResolvedLinkInserted={(targetId) =>
-              handleResolvedLinkInserted(task.id, targetId)
+      {/* Keyed on the task: the body draft below belongs to the task it was
+          typed against, and to this opening of it. */}
+      <TaskBodyDraft key={task.id} onSave={saveTaskDetail}>
+        {(draft) => (
+          <TaskDetailPanel
+            taskId={task.id}
+            title={task.title}
+            status={task.status}
+            onSave={draft.onSave}
+            contentDirty={draft.dirty}
+            onToggleStatus={tree.toggleTaskStatus}
+            statusControl={statusControl}
+            titleLabel={t("taskDetail.titleLabel")}
+            statusLabel={t("taskDetail.status")}
+            statusText={t(STATUS_TEXT_KEY[task.status ?? "NOT_STARTED"])}
+            contentLabel={t("taskDetail.content")}
+            saveLabel={t("taskDetail.save")}
+            savedLabel={t("taskDetail.saved")}
+            unsavedLabel={t("taskDetail.unsaved")}
+            tagsSlot={
+              <TagPicker itemId={task.id} itemRole="task" showLabel size="sm" />
+            }
+            contentEditor={
+              <RichTextEditor
+                noteId={task.id}
+                initialContent={task.content || undefined}
+                // #713: draft, not auto-save. `onDraftChange` (instead of
+                // `onUpdate`) switches this ONE editor off its 800ms debounce
+                // and its unmount flush — Notes and Daily keep both. The
+                // content is parked in TaskBodyDraft and written by the press.
+                onDraftChange={draft.onDraftChange}
+                // "[[" autocomplete + click navigation (#507). Same three props
+                // the Notes and Daily editors take; this editor simply never
+                // got them, so the menu never opened and a resolved link was
+                // inert. No create-note row — like Daily, a task body links to
+                // EXISTING items.
+                loadLinkTargets={loadLinkTargets}
+                onNavigateToItem={onNavigateToItem}
+                onResolvedLinkInserted={(targetId) =>
+                  handleResolvedLinkInserted(task.id, targetId)
+                }
+              />
             }
           />
-        }
-      />
+        )}
+      </TaskBodyDraft>
       {dataService && (
         <button
           type="button"

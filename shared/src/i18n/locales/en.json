@@ -215,7 +215,10 @@
     "statusInProgress": "In progress",
     "statusDone": "Done",
     "content": "Notes",
-    "tags": "Tags"
+    "tags": "Tags",
+    "save": "Save",
+    "saved": "Saved",
+    "unsaved": "Unsaved"
   },
   "kanban": {
     "viewStatus": "By status",

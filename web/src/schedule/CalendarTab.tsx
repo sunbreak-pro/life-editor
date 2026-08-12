@@ -2236,15 +2236,23 @@ export function CalendarTab({
             taskId={taskDetailTask.id}
             title={taskDetailTask.title}
             status={taskDetailTask.status}
-            onTitleCommit={(id, title) =>
-              updateNode(id, { title }, { undoLabel: "taskTreeChange" })
-            }
+            // #713: the same save button Tasks now has. No content editor on
+            // this surface (the body stays in Tasks), so the press only ever
+            // carries the title — but the panel's contract allows an empty
+            // patch, and writing one would raise a no-op undo entry.
+            onSave={(id, patch) => {
+              if (patch.title === undefined) return;
+              updateNode(id, patch, { undoLabel: "taskTreeChange" });
+            }}
             onToggleStatus={toggleTaskStatus}
             titleLabel={t("taskDetail.titleLabel")}
             statusLabel={t("taskDetail.status")}
             statusText={t(
               STATUS_TEXT_KEY[taskDetailTask.status ?? "NOT_STARTED"],
             )}
+            saveLabel={t("taskDetail.save")}
+            savedLabel={t("taskDetail.saved")}
+            unsavedLabel={t("taskDetail.unsaved")}
             // Same omission as Kanban: TagPicker's own kind badge captions the
             // row, so TaskDetailPanel's generic tagsLabel would repeat it.
             tagsSlot={
