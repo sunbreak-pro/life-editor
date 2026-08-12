@@ -9,44 +9,20 @@ import {
   type TagEditItem,
   type TagEditRow,
 } from "../src/components";
+import { TAG_LABELS, TAG_ROLE_LABELS, selectTagRow } from "./tagEditLabels";
 
 /*
- * #409 — the tag editor's per-tag item list. The panel is now app-global, so a
- * tag row discloses the items carrying it and each row states its KIND
- * (task / event / note / daily) and can be detached. Covers the disclosure, the
- * kind badges, unassign wiring, and the unknown-role fallback (an assignment
- * whose item cannot be resolved must still be listed and removable).
+ * #409 — the tag editor's per-tag item list. The panel is app-global, so the
+ * tag being edited discloses the items carrying it and each row states its KIND
+ * (task / event / note / daily) and can be detached.
+ *
+ * #740 moved that list out from under a count-pill disclosure and into the
+ * editor column: the right side is already about one tag, so its memberships
+ * are simply part of the pane instead of something to unfold. What the tests
+ * pin is unchanged otherwise — the kind badges, unassign wiring, and the
+ * unknown-role fallback (an assignment whose item cannot be resolved must still
+ * be listed and removable).
  */
-
-const ROLES = {
-  task: "Task",
-  event: "Event",
-  note: "Note",
-  daily: "Daily",
-  unknown: "Other",
-};
-
-const LABELS = {
-  title: "Edit tags",
-  addPlaceholder: "Enter a tag name",
-  addButton: "Add",
-  empty: "No tags yet",
-  filterPlaceholder: "Filter tags…",
-  filterLabel: "Filter tags by name",
-  filterEmpty: "No tags match",
-  renameLabel: "Rename tag",
-  saveLabel: "Save",
-  deleteLabel: "Delete tag",
-  iconLabel: "Icon",
-  clearIconLabel: "Default icon",
-  colorLabel: "Color",
-  colorClearLabel: "Default color",
-  colorCustomLabel: "Custom",
-  itemsToggleLabel: "Show tagged items",
-  itemsEmpty: "Nothing carries this tag",
-  unassignLabel: "Remove this tag",
-  roles: ROLES,
-};
 
 const ITEMS: TagEditItem[] = [
   {
@@ -65,29 +41,31 @@ const ITEMS: TagEditItem[] = [
   },
 ];
 
-function renderModal(
-  rows: TagEditRow[],
-  overrides?: Partial<Parameters<typeof TagEditModal>[0]>,
-) {
+type ModalProps = React.ComponentProps<typeof TagEditModal>;
+
+function baseProps(over: Partial<ModalProps> = {}): ModalProps {
+  return {
+    open: true,
+    onClose: vi.fn(),
+    tags: [],
+    onCreate: vi.fn(),
+    onRename: vi.fn(),
+    onDelete: vi.fn(),
+    onSetColor: vi.fn(),
+    onSetIcon: vi.fn(),
+    onUnassign: vi.fn(),
+    formatCount: (count: number) => `${count} items`,
+    labels: TAG_LABELS,
+    ...over,
+  };
+}
+
+function renderModal(rows: TagEditRow[], over: Partial<ModalProps> = {}) {
   const onUnassign = vi.fn();
   const onDelete = vi.fn();
-  render(
-    <TagEditModal
-      open
-      onClose={vi.fn()}
-      tags={rows}
-      onCreate={vi.fn()}
-      onRename={vi.fn()}
-      onDelete={onDelete}
-      onSetColor={vi.fn()}
-      onSetIcon={vi.fn()}
-      onUnassign={onUnassign}
-      formatCount={(count) => `${count} items`}
-      labels={LABELS}
-      {...overrides}
-    />,
-  );
-  return { onUnassign, onDelete };
+  const props = baseProps({ tags: rows, onUnassign, onDelete, ...over });
+  const result = render(<TagEditModal {...props} />);
+  return { ...result, props, onUnassign, onDelete };
 }
 
 const tagRow = (over?: Partial<TagEditRow>): TagEditRow => ({
@@ -100,64 +78,47 @@ const tagRow = (over?: Partial<TagEditRow>): TagEditRow => ({
   ...over,
 });
 
-describe("TagEditModal item list (#409)", () => {
-  it("keeps the item list collapsed until the count pill is pressed", () => {
+const click = (name: string) =>
+  fireEvent.click(screen.getByRole("button", { name }));
+
+describe("TagEditModal item list (#409, in the editor column since #740)", () => {
+  it("lists the items only once their tag is being edited", () => {
     renderModal([tagRow()]);
+    // The list column carries the count and nothing else, so the panel opens
+    // as a scannable tag list rather than a wall of items.
     expect(screen.queryByText("Ship the panel")).not.toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: work" }),
-    );
+    selectTagRow("work");
     expect(screen.getByText("Ship the panel")).toBeInTheDocument();
   });
 
-  // #586 pin: expansion is session state — the panel always reopens as a
-  // scannable tag list, never a wall of items.
-  it("collapses expanded item lists when the panel is reopened", () => {
-    const base = {
-      onClose: vi.fn(),
-      tags: [tagRow()],
-      onCreate: vi.fn(),
-      onRename: vi.fn(),
-      onDelete: vi.fn(),
-      onSetColor: vi.fn(),
-      onSetIcon: vi.fn(),
-      onUnassign: vi.fn(),
-      formatCount: (count: number) => `${count} items`,
-      labels: LABELS,
-    };
-    const { rerender } = render(<TagEditModal open {...base} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: work" }),
-    );
+  // #586 pin, restated for the selection: the panel always reopens on the list.
+  it("drops the selection when the panel is reopened", () => {
+    const { rerender, props } = renderModal([tagRow()]);
+    selectTagRow("work");
     expect(screen.getByText("Ship the panel")).toBeInTheDocument();
 
-    rerender(<TagEditModal open={false} {...base} />);
-    rerender(<TagEditModal open {...base} />);
+    rerender(<TagEditModal {...props} open={false} />);
+    rerender(<TagEditModal {...props} open />);
 
     expect(screen.queryByText("Ship the panel")).not.toBeInTheDocument();
+    expect(screen.getByText(TAG_LABELS.detailEmpty)).toBeInTheDocument();
   });
 
   it("labels each item with its kind so the four roles are distinguishable", () => {
     renderModal([tagRow()]);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: work" }),
-    );
+    selectTagRow("work");
 
     for (const role of ITEM_ROLE_ORDER) {
-      expect(screen.getByText(ROLES[role])).toBeInTheDocument();
+      expect(screen.getByText(TAG_ROLE_LABELS[role])).toBeInTheDocument();
     }
   });
 
   it("reports the assignment id when an item's tag is removed", () => {
     const { onUnassign } = renderModal([tagRow()]);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: work" }),
-    );
+    selectTagRow("work");
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove this tag: Standup" }),
-    );
+    click("Remove this tag: Standup");
     expect(onUnassign).toHaveBeenCalledExactlyOnceWith("a-2");
   });
 
@@ -169,34 +130,31 @@ describe("TagEditModal item list (#409)", () => {
       title: "(untitled)",
     };
     const { onUnassign } = renderModal([tagRow({ count: 1, items: [orphan] })]);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: work" }),
-    );
+    selectTagRow("work");
 
     expect(screen.getByText("Other")).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove this tag: (untitled)" }),
-    );
+    click("Remove this tag: (untitled)");
     expect(onUnassign).toHaveBeenCalledExactlyOnceWith("a-9");
   });
 
   it("shows the empty copy for a tag that carries nothing", () => {
     renderModal([tagRow({ count: 0, items: [] })]);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: work" }),
-    );
+    selectTagRow("work");
     expect(screen.getByText("Nothing carries this tag")).toBeInTheDocument();
   });
 
-  it("leaves the count as static text (no disclosure) when items are absent", () => {
+  it("omits the membership section entirely when items are absent", () => {
     renderModal([tagRow({ items: undefined })]);
-    expect(
-      screen.queryByRole("button", { name: "Show tagged items: work" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("4 items")).toBeInTheDocument();
+    // The count still reads from the list row — a host that supplies no
+    // `items` gets the pre-#409 count-only shape.
+    expect(screen.getByRole("button", { name: "work: 4 items" })).toBeTruthy();
+
+    selectTagRow("work");
+    expect(screen.queryByText(TAG_LABELS.itemsHeading)).toBeNull();
+    expect(screen.queryByText("Nothing carries this tag")).toBeNull();
   });
 
-  it("expands rows independently", () => {
+  it("shows one tag's items at a time", () => {
     renderModal([
       tagRow(),
       tagRow({
@@ -214,11 +172,17 @@ describe("TagEditModal item list (#409)", () => {
       }),
     ]);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show tagged items: home" }),
-    );
+    selectTagRow("home");
     expect(screen.getByText("Groceries")).toBeInTheDocument();
     expect(screen.queryByText("Ship the panel")).not.toBeInTheDocument();
+  });
+
+  it("deletes the tag being edited from the editor footer", () => {
+    const { onDelete } = renderModal([tagRow()]);
+    selectTagRow("work");
+
+    click("Delete tag");
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith("tag-1");
   });
 });
 
@@ -236,9 +200,9 @@ describe("item-kind display contract (#409, shared with #412)", () => {
   });
 
   it("falls back to the unknown label outside the set", () => {
-    expect(itemRoleLabel("task", ROLES)).toBe("Task");
-    expect(itemRoleLabel("routine", ROLES)).toBe("Other");
-    expect(itemRoleLabel(null, ROLES)).toBe("Other");
+    expect(itemRoleLabel("task", TAG_ROLE_LABELS)).toBe("Task");
+    expect(itemRoleLabel("routine", TAG_ROLE_LABELS)).toBe("Other");
+    expect(itemRoleLabel(null, TAG_ROLE_LABELS)).toBe("Other");
   });
 
   it("sorts designed kinds in order and unknowns last", () => {
