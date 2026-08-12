@@ -255,6 +255,30 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       ],
     },
   ],
+  // #700's three, added here by #781: they reached TOOLS without a row of
+  // their own, and the miss went unseen because the run that would have caught
+  // it never got past an unrelated failure in the web suite.
+  [
+    "seed_verification_state",
+    {
+      date: "2026-08-11",
+      preset: "busy_day",
+      items: [
+        { kind: "task", title: "open one", status: "not_started" },
+        {
+          kind: "event",
+          title: "overlap",
+          start_time: "09:00",
+          end_time: "10:00",
+          memo: "x",
+        },
+        { kind: "note", title: "a note", content: "body" },
+      ],
+      label: "#781",
+    },
+  ],
+  ["read_verification_state", { run_id: "run-1" }],
+  ["cleanup_verification_state", { run_id: "run-1", dry_run: true }],
 ];
 
 describe("valid arguments pass", () => {
