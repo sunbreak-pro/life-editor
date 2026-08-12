@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react";
 import { BottomSheet } from "../BottomSheet";
 import { Button } from "../Button";
 import { Input } from "../Input";
+import { isImeComposing } from "../../utils/imeGuard";
 
 export interface QuickAddSheetProps {
   open: boolean;
@@ -64,7 +65,7 @@ export function QuickAddSheet({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    if (e.key !== "Enter" || isImeComposing(e)) return;
     e.preventDefault();
     submit();
   };

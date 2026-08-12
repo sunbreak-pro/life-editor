@@ -8,6 +8,7 @@ import {
 import { cn } from "./cn";
 import { FIELD, FIELD_LABEL } from "./styleTokens";
 import { minutesToTime } from "../utils/scheduleGridLayout";
+import { isImeComposing } from "../utils/imeGuard";
 
 /*
  * TimeRangeField (#553) — the app-original start–end editor that replaces the
@@ -140,7 +141,7 @@ function TimeCombo({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.nativeEvent.isComposing) return; // IME guard (§frontend gotcha)
+    if (isImeComposing(e)) return; // IME guard (§frontend gotcha)
     if (e.key === "Enter") {
       e.preventDefault();
       commitDraft();

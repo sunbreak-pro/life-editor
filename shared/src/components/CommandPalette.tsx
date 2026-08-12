@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Search } from "lucide-react";
 import type { ComponentType, CSSProperties } from "react";
 import { useVisualViewport } from "../hooks/useVisualViewport";
+import { isImeComposing } from "../utils/imeGuard";
 
 /*
  * Cross-platform command palette (W2). Ported from
@@ -159,7 +160,7 @@ export function CommandPalette({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       // IME guard (CLAUDE.md §6.6): ignore navigation keys while composing.
-      if (e.nativeEvent.isComposing) return;
+      if (isImeComposing(e)) return;
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();

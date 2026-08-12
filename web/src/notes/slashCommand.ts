@@ -16,6 +16,7 @@ import {
   type SlashMenuItem,
 } from "./SlashMenu";
 import { createSuggestionPopup, type SuggestionPopup } from "./suggestionPopup";
+import { isImeComposing } from "@life-editor/shared";
 
 /*
  * Slash-command extension (web Notes/Daily editor). Types "/" to open a block
@@ -145,7 +146,7 @@ export function slashRender(emptyLabel: string): SlashRender {
       onKeyDown: (props) => {
         // IME guard (rules/frontend.md §Gotchas) — Escape during a Japanese
         // conversion cancels the conversion, not the slash menu.
-        if (props.event.key === "Escape" && !props.event.isComposing) {
+        if (props.event.key === "Escape" && !isImeComposing(props.event)) {
           destroy();
           // Also close the suggestion itself — tearing down the view leaves the
           // plugin active, so "/" would keep matching (and keep calling items())

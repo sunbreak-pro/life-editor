@@ -584,6 +584,10 @@ export {
 export { generateId } from "./utils/generateId";
 // Fair-share truncation for the role-concatenated "[[" candidate pool (#370).
 export { balanceByRole } from "./utils/balanceByRole";
+// The one IME guard every keydown handler asks (#737) — web has its own
+// handlers (the editor suggestion menus, the calendar's inline title) and must
+// reach the same answer as shared's.
+export { isImeComposing } from "./utils/imeGuard";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from

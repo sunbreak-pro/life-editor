@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "./cn";
 import { Modal } from "./Modal";
+import { isImeComposing } from "../utils/imeGuard";
 
 /** The dialog only creates tasks now (folders retired — life-tags S1). */
 export type TaskAddType = "task";
@@ -94,7 +95,7 @@ export function TaskAddDialog({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               // Never submit mid-IME-composition (§frontend gotcha).
-              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 submit();

@@ -1,4 +1,5 @@
 import { useEffect, type RefObject } from "react";
+import { isImeComposing } from "../../utils/imeGuard";
 
 /*
  * Shared floating-panel behaviour for a cursor-anchored item panel
@@ -18,7 +19,7 @@ export function useFloatingDismiss(
 ): void {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.isComposing) onClose();
+      if (e.key === "Escape" && !isImeComposing(e)) onClose();
     };
     const handleOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();

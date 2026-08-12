@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
+  isImeComposing,
   ItemRoleBadge,
   TAP_TARGET,
   useTranslation,
@@ -207,7 +208,7 @@ export function TagPicker({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              if (e.key === "Enter" && !isImeComposing(e)) {
                 e.preventDefault();
                 if (exactMatch && !assignedTagIds.has(exactMatch.id)) {
                   void handleAssign(exactMatch.id);
