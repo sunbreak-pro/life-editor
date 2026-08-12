@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { contentJsonToString, contentPlainText } from "../src/utils/content.js";
+import {
+  contentJsonToString,
+  contentPlainText,
+  contentPreview,
+  PREVIEW_LENGTH,
+} from "../src/utils/content.js";
 
 /*
  * jsonb ↔ TipTap-string normalisation (#360). The unified schema keeps note
@@ -44,6 +49,33 @@ describe("contentPlainText", () => {
 
   it("falls back to the raw value when it is not TipTap JSON", () => {
     expect(contentPlainText("plain text")).toBe("plain text");
+  });
+});
+
+describe("contentPreview", () => {
+  it("previews a jsonb body", () => {
+    expect(contentPreview(DOC)).toBe("買い物メモ");
+  });
+
+  it("previews a TipTap JSON string body (tasks store one)", () => {
+    expect(contentPreview(JSON.stringify(DOC))).toBe("買い物メモ");
+  });
+
+  it("caps at PREVIEW_LENGTH characters", () => {
+    const long = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "x".repeat(500) }],
+        },
+      ],
+    };
+    expect(contentPreview(long)).toHaveLength(PREVIEW_LENGTH);
+  });
+
+  it("returns empty for an absent body", () => {
+    expect(contentPreview(null)).toBe("");
   });
 });
 

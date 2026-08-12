@@ -1,6 +1,9 @@
 import { getSupabase } from "../supabase.js";
-import { contentPlainText } from "../utils/content.js";
-import { getContentPreview } from "../utils/tiptapText.js";
+import {
+  contentPlainText,
+  contentPreview,
+  PREVIEW_LENGTH,
+} from "../utils/content.js";
 import { META_COLUMNS, type ItemsMetaRow } from "../utils/items.js";
 import { fetchByIdChunks } from "../utils/pagination.js";
 import { fetchLiveNotes } from "./noteHandlers.js";
@@ -110,7 +113,7 @@ async function searchTasks(pattern: string, limit: number) {
       title: meta.title,
       status: payload.status === null ? null : payload.status.toLowerCase(),
       scheduledAt: payload.scheduled_at,
-      contentPreview: getContentPreview(payload.content ?? ""),
+      contentPreview: contentPreview(payload.content),
       createdAt: meta.created_at,
     });
   }
@@ -153,7 +156,7 @@ export async function searchAll(args: {
       .slice(0, limit)
       .map((d) => ({
         date: d.date,
-        contentPreview: d.text.slice(0, 100),
+        contentPreview: d.text.slice(0, PREVIEW_LENGTH),
       }));
     result.dailies = dailies;
     totalHits += dailies.length;
@@ -176,7 +179,7 @@ export async function searchAll(args: {
       .map((n) => ({
         id: n.id,
         title: n.title,
-        contentPreview: n.text.slice(0, 100),
+        contentPreview: n.text.slice(0, PREVIEW_LENGTH),
         updatedAt: n.updatedAt,
       }));
     result.notes = notes;

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link2, Plus, X } from "lucide-react";
-import { useWikiTagsUnifiedContext } from "@life-editor/shared";
+import { isImeComposing, useWikiTagsUnifiedContext } from "@life-editor/shared";
 
 /*
  * LinkPanel — outgoing + incoming item↔item links for a single item
@@ -114,7 +114,7 @@ export function LinkPanel({
           value={target}
           onChange={(e) => setTarget(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            if (e.key === "Enter" && !isImeComposing(e)) {
               e.preventDefault();
               void handleAdd();
             }
@@ -194,9 +194,7 @@ export function LinkPanel({
               Backlinks ({incoming.length})
             </h4>
             {incoming.length === 0 ? (
-              <p className="text-xs text-lumen-text-secondary">
-                No backlinks.
-              </p>
+              <p className="text-xs text-lumen-text-secondary">No backlinks.</p>
             ) : (
               <ul className="space-y-0.5">
                 {incoming.map((link) => (

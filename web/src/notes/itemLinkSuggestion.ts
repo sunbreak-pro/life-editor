@@ -4,7 +4,7 @@ import { PluginKey } from "@tiptap/pm/state";
 import { ReactRenderer } from "@tiptap/react";
 import { FileText, CalendarDays, CheckSquare, Link2, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { balanceByRole } from "@life-editor/shared";
+import { balanceByRole, isImeComposing } from "@life-editor/shared";
 import {
   ItemLinkMenu,
   type ItemLinkMenuHandle,
@@ -305,7 +305,7 @@ export function itemLinkRender(
         // is open, Escape means "cancel the conversion", not "close the
         // suggestion". Without this, one Escape tore the popup down AND
         // swallowed the candidate the user was still choosing.
-        if (props.event.key === "Escape" && !props.event.isComposing) {
+        if (props.event.key === "Escape" && !isImeComposing(props.event)) {
           destroy();
           // Tearing down the view is not enough: the plugin stays ACTIVE, so
           // every following keystroke still runs items() — with the session

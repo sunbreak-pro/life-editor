@@ -28,6 +28,24 @@ export function contentPlainText(value: unknown): string {
   }
 }
 
+/** Characters of body text a list result carries per item. */
+export const PREVIEW_LENGTH = 100;
+
+/**
+ * jsonb value or TipTap JSON string → a short plain-text preview (#702 ①).
+ *
+ * The one preview used by every list-shaped tool. `search_all` grew its own
+ * copy of this line three times over while `list_tasks` / `list_notes`
+ * returned whole documents instead — the reason a single note read used to
+ * cost a whole collection of TipTap JSON.
+ */
+export function contentPreview(
+  value: unknown,
+  maxLength = PREVIEW_LENGTH,
+): string {
+  return contentPlainText(value).slice(0, maxLength);
+}
+
 /*
  * There is deliberately no string→jsonb helper here: every write path
  * already holds a TipTap document object (markdownToTiptap / the

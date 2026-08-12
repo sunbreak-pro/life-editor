@@ -1,3 +1,4 @@
+import type { TranslationKey } from "../i18n/resources";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 
@@ -15,7 +16,9 @@ const WEEKDAY_KEYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 /** Build the 0-(Sun)-indexed weekday label array from the existing
  *  scheduleCalendar.weekday* catalog (reused so we don't add 7 new keys). */
-export function buildWeekdayLabels(t: (key: string) => string): string[] {
+export function buildWeekdayLabels(
+  t: (key: TranslationKey) => string,
+): string[] {
   return WEEKDAY_KEYS.map((d) => t(`scheduleCalendar.weekday${d}`));
 }
 

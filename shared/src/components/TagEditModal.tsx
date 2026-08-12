@@ -17,6 +17,7 @@ import { TagHeadingIcon } from "./TagHeadingIcon";
 import { ItemRoleBadge } from "./items/ItemRoleBadge";
 import { type ItemRoleLabels } from "./items/itemRole";
 import { SidebarFilterField } from "./materials/SidebarFilterField";
+import { isImeComposing } from "../utils/imeGuard";
 
 /*
  * Tag edit modal (#310 part 2, globalized in #409). A props-injected (§6.4)
@@ -359,7 +360,7 @@ export function TagEditModal({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               // Never commit mid-IME-composition (§frontend gotcha).
-              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 submitDraft();
@@ -505,7 +506,7 @@ function TagEditRowItem({
           onKeyDown={(e) => {
             // Never commit mid-IME-composition (§frontend gotcha): the Enter
             // that confirms a Japanese conversion must not save the row.
-            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+            if (isImeComposing(e)) return;
             // Enter saves rather than blurs. Blur no longer commits anything
             // (#715), so "Enter blurs to commit" would have left the key doing
             // nothing visible at all. Escape is not handled here: the dialog

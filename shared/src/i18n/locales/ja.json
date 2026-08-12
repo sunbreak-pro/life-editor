@@ -493,7 +493,6 @@
     "save": "保存",
     "saved": "保存済み",
     "unsaved": "未保存",
-    "unsavedCloseConfirm": "保存していない変更があります。破棄して閉じますか？",
     "originRoutine": "ルーチンから生成",
     "originEvent": "予定",
     "skipThisDay": "この日はスキップ",
@@ -557,6 +556,7 @@
     "durationMin": "{{m}}分",
     "durationHour": "{{h}}時間",
     "durationHourMin": "{{h}}時間{{m}}分",
+    "freeGap": "空き {{duration}}",
     "todoDelete": "Todo を削除",
     "todoDeleteCascadeConfirm": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
     "rename": "名称の変更",
@@ -752,7 +752,8 @@
     "undo": "元に戻す",
     "redo": "やり直す",
     "untitled": "無題",
-    "loading": "読み込み中…"
+    "loading": "読み込み中…",
+    "unsavedCloseConfirm": "保存していない変更があります。破棄して閉じますか？"
   },
   "tabs": {
     "tasks": "Todo",

@@ -4,54 +4,57 @@ import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /*
- * Code-split guard for the two heaviest section bodies (#676 (a)).
+ * Code-split guard for the three heaviest section bodies (#676 (a)).
  *
- * Analytics carries recharts and Connect carries the d3 force/zoom stack. Both
- * are reachable only behind their own `section === …` guard, so MainScreen
- * loads them with lazy() + <Suspense>; that is what keeps ~160 kB out of the
- * initial chunk. A plain `import { ConnectScreen } from "./connect/…"` added
- * back later would silently undo it — the app still works, the build still
- * passes, and only the dist listing (which nobody reads on a green PR) would
- * show the regression. This test reads the source instead.
+ * Notes carries the TipTap editor stack, Analytics carries recharts and
+ * Connect carries the d3 force/zoom stack. Each is reachable only through its
+ * own row of the section descriptor table, so `lazySections.ts` loads it with
+ * lazy() and the table renders it behind a <Suspense> boundary; that is what
+ * keeps those bundles out of the initial chunk. A plain `import {
+ * ConnectScreen } from "./connect/…"` added back later would silently undo it
+ * — the app still works, the build still passes, and only the dist listing
+ * (which nobody reads on a green PR) would show the regression. This test
+ * reads the source instead.
  *
  * Source text rather than behaviour, deliberately: what is being protected is
- * a BUILD property (which module lands in which chunk). Rendering MainScreen
- * in jsdom would prove nothing about chunking, and MainScreen needs a Supabase
- * session to render at all.
+ * a BUILD property (which module lands in which chunk). Rendering the table in
+ * jsdom would prove nothing about chunking.
+ *
+ * The bodies moved out of MainScreen in #676 (b): the lazy() declarations into
+ * lazySections.ts and the JSX into sectionDescriptors.tsx. The guard followed
+ * them, and the boundary check is anchored on the component name rather than
+ * on the old `section === "…" &&` guard the descriptor table replaced.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 // CRLF-normalised: this repo is edited on both macOS and Windows, and the
 // assertions below span line breaks.
-const mainScreen = readFileSync(
-  resolve(here, "../src/MainScreen.tsx"),
-  "utf8",
-).replace(/\r\n/g, "\n");
+const read = (rel: string): string =>
+  readFileSync(resolve(here, rel), "utf8").replace(/\r\n/g, "\n");
+
+const lazySections = read("../src/lazySections.ts");
+const descriptors = read("../src/sectionDescriptors.tsx");
+// A static import anywhere on the path from the shell to the screen re-merges
+// the chunk, so BOTH files are checked for one.
+const sources = `${lazySections}\n${descriptors}`;
 
 const LAZY_SECTIONS = [
-  {
-    name: "AnalyticsScreen",
-    path: "./analytics/AnalyticsScreen",
-    section: "analytics",
-  },
-  {
-    name: "ConnectScreen",
-    path: "./connect/ConnectScreen",
-    section: "connect",
-  },
+  { name: "NotesView", path: "./notes/NotesView" },
+  { name: "AnalyticsScreen", path: "./analytics/AnalyticsScreen" },
+  { name: "ConnectScreen", path: "./connect/ConnectScreen" },
 ] as const;
 
 /** Escape a module specifier for use inside a RegExp. */
 const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-describe("MainScreen keeps the heavy section bodies code-split", () => {
-  for (const { name, path, section } of LAZY_SECTIONS) {
+describe("the section descriptor table keeps the heavy bodies code-split", () => {
+  for (const { name, path } of LAZY_SECTIONS) {
     it(`loads ${name} through lazy(() => import(...))`, () => {
       // Whitespace-tolerant: prettier may re-wrap the arrow body.
       const lazyImport = new RegExp(
         `lazy\\(\\(\\)\\s*=>\\s*\\n?\\s*import\\("${escape(path)}"\\)`,
       );
-      expect(lazyImport.test(mainScreen)).toBe(true);
+      expect(lazyImport.test(lazySections)).toBe(true);
     });
 
     it(`never imports ${name} statically, in any import form`, () => {
@@ -63,26 +66,16 @@ describe("MainScreen keeps the heavy section bodies code-split", () => {
       const staticImport = new RegExp(
         `import\\s[^;]*from\\s*"${escape(path)}"|import\\s*"${escape(path)}"`,
       );
-      expect(staticImport.test(mainScreen)).toBe(false);
+      expect(staticImport.test(sources)).toBe(false);
     });
 
     it(`renders ${name} behind a Suspense boundary`, () => {
-      // Anchored at the section guard rather than counting <Suspense> tags:
-      // a global count passes as soon as any two unrelated boundaries exist
+      // Anchored on the component rather than counting <Suspense> tags: a
+      // global count passes as soon as any two unrelated boundaries exist
       // elsewhere in the file, which is exactly the regression this is for.
-      // The guard and the boundary must be adjacent — only JSX punctuation
-      // and whitespace between them.
-      const guarded = new RegExp(
-        `section === "${section}" &&[\\s(\\n]*<Suspense`,
-      );
-      expect(guarded.test(mainScreen)).toBe(true);
+      // Only JSX punctuation, props and whitespace may sit between them.
+      const guarded = new RegExp(`<Suspense[\\s\\S]{0,200}?<${name}`);
+      expect(guarded.test(descriptors)).toBe(true);
     });
   }
-
-  it("keeps the pre-existing Notes boundary", () => {
-    // NotesView was already lazy (#475 era). Nothing here should have taken
-    // its boundary away while adding the other two.
-    expect(/<NotesView/.test(mainScreen)).toBe(true);
-    expect(/<Suspense[\s\S]{0,200}?<NotesView/.test(mainScreen)).toBe(true);
-  });
 });

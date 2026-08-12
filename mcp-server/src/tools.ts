@@ -8,15 +8,19 @@ import {
   deleteTask,
 } from "./handlers/taskHandlers.js";
 import { getDaily, upsertDaily } from "./handlers/dailyHandlers.js";
-import { listNotes, createNote, updateNote } from "./handlers/noteHandlers.js";
+import {
+  listNotes,
+  getNote,
+  createNote,
+  updateNote,
+} from "./handlers/noteHandlers.js";
 import {
   listSchedule,
   createScheduleItem,
   updateScheduleItem,
   deleteScheduleItem,
-  toggleScheduleComplete,
-  dismissScheduleItem,
-  undismissScheduleItem,
+  setScheduleComplete,
+  setScheduleDismissed,
 } from "./handlers/scheduleHandlers.js";
 import { getTodayContext, writeBriefing } from "./handlers/briefingHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
@@ -75,7 +79,9 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "list_tasks",
     description:
-      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id.",
+      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id. " +
+      "Returns { tasks, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
+      "Use get_task for one task's full content, or include_content:true to get every body in the page.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -101,13 +107,25 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "Filter by parent task ID",
         },
+        include_content: {
+          type: "boolean",
+          description:
+            "Return each task's full body alongside the preview (default: false). Costly — prefer get_task.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Max tasks to return (default: 50). The result reports total and hasMore, so nothing is dropped silently.",
+        },
       },
     },
     handler: listTasks,
   }),
   defineTool({
     name: "get_task",
-    description: "Get a single task by ID.",
+    description:
+      "Get a single task by ID, with its full body. `content` is TipTap JSON (what the editor stores); " +
+      "`contentText` is the same body as plain text — edit that one and write it back via update_task, which takes Markdown.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -119,7 +137,8 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "create_task",
-    description: "Create a new task.",
+    description:
+      "Create a new task, body and status included — no follow-up update_task needed.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -137,6 +156,16 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: "Scheduled end (ISO 8601)",
         },
         is_all_day: { type: "boolean", description: "All-day event" },
+        status: {
+          type: "string",
+          enum: ["not_started", "in_progress", "done"],
+          description: "Initial status (default: not_started)",
+        },
+        content: {
+          type: "string",
+          description:
+            "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead.",
+        },
       },
       required: ["title"],
     },
@@ -168,6 +197,14 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description:
             "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead.",
+        },
+        // The handler has always written this column; it was simply missing
+        // from the schema, so the only caller that reads this schema could
+        // not know the field existed (#702 ③).
+        time_memo: {
+          type: "string",
+          description:
+            "Free-text note about timing (e.g. '朝イチ', '30分'). Pass null to clear it.",
         },
       },
       required: ["id"],
@@ -224,7 +261,10 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "list_notes",
-    description: "List all notes, optionally filtered by a search query.",
+    description:
+      "List notes, optionally filtered by a search query. " +
+      "Returns { notes, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
+      "Use get_note for one note's full content, or include_content:true to get every body in the page.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -232,9 +272,33 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "Search query (matches title and content)",
         },
+        include_content: {
+          type: "boolean",
+          description:
+            "Return each note's full body alongside the preview (default: false). Costly — prefer get_note.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Max notes to return (default: 50). The result reports total and hasMore, so nothing is dropped silently.",
+        },
       },
     },
     handler: listNotes,
+  }),
+  defineTool({
+    name: "get_note",
+    description:
+      "Get a single note by ID, with its full body. `content` is TipTap JSON (what the editor stores); " +
+      "`contentText` is the same body as plain text — edit that one and write it back via update_note, which takes Markdown.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Note ID" },
+      },
+      required: ["id"],
+    },
+    handler: getNote,
   }),
   defineTool({
     name: "create_note",
@@ -303,7 +367,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "create_schedule_item",
     description:
-      "Create a new schedule item (event) on the calendar. For routine-based items, use tasks instead.",
+      "Create a new schedule item (event) on the calendar. start_time and end_time are required unless is_all_day is true (an all-day event stores no times). For routine-based items, use tasks instead.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -314,11 +378,13 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         title: { type: "string", description: "Event title" },
         start_time: {
           type: "string",
-          description: "Start time in HH:MM format",
+          description:
+            "Start time in HH:MM format. Required unless is_all_day is true, which stores no times.",
         },
         end_time: {
           type: "string",
-          description: "End time in HH:MM format",
+          description:
+            "End time in HH:MM format. Required unless is_all_day is true, which stores no times.",
         },
         is_all_day: {
           type: "boolean",
@@ -329,14 +395,18 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: "Plain-text memo attached to the event",
         },
       },
-      required: ["date", "title", "start_time", "end_time"],
+      // start_time / end_time are conditionally required (see the handler):
+      // this schema subset cannot express "unless is_all_day", and listing
+      // them here would force a caller to invent two values the all-day path
+      // throws away.
+      required: ["date", "title"],
     },
     handler: createScheduleItem,
   }),
   defineTool({
     name: "update_schedule_item",
     description:
-      "Update an existing schedule item. Only provide fields you want to change.",
+      "Update an existing schedule item. Only provide fields you want to change. Setting is_all_day true clears the times; setting it false requires times (supplied here or already stored).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -355,7 +425,11 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: "New end time (HH:MM)",
         },
         memo: { type: "string", description: "Memo/notes about the item" },
-        is_all_day: { type: "boolean", description: "All-day event flag" },
+        is_all_day: {
+          type: "boolean",
+          description:
+            "All-day event flag. true clears start_time/end_time; false needs both (from this call or already stored).",
+        },
       },
       required: ["id"],
     },
@@ -375,42 +449,38 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     handler: deleteScheduleItem,
   }),
   defineTool({
-    name: "toggle_schedule_complete",
-    description: "Toggle the completion status of a schedule item.",
+    name: "set_schedule_complete",
+    description:
+      "Set whether a schedule item is complete. Replaces toggle_schedule_complete: pass the state you want, so the outcome does not depend on the current value and calling twice does not undo it.",
     inputSchema: {
       type: "object" as const,
       properties: {
         id: { type: "string", description: "Schedule item ID" },
+        completed: {
+          type: "boolean",
+          description: "true to mark it done, false to reopen it",
+        },
       },
-      required: ["id"],
+      required: ["id", "completed"],
     },
-    handler: toggleScheduleComplete,
+    handler: setScheduleComplete,
   }),
   defineTool({
-    name: "dismiss_schedule_item",
+    name: "set_schedule_dismissed",
     description:
-      "Hide a schedule item from list/calendar views without deleting it. Used to skip routine occurrences for a given day.",
+      "Hide a schedule item from list/calendar views without deleting it, or bring it back. Used to skip routine occurrences for a given day. Replaces dismiss_schedule_item / undismiss_schedule_item.",
     inputSchema: {
       type: "object" as const,
       properties: {
         id: { type: "string", description: "Schedule item ID" },
+        dismissed: {
+          type: "boolean",
+          description: "true to hide it, false to show it again",
+        },
       },
-      required: ["id"],
+      required: ["id", "dismissed"],
     },
-    handler: dismissScheduleItem,
-  }),
-  defineTool({
-    name: "undismiss_schedule_item",
-    description:
-      "Restore a previously dismissed schedule item so it appears in views again.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        id: { type: "string", description: "Schedule item ID" },
-      },
-      required: ["id"],
-    },
-    handler: undismissScheduleItem,
+    handler: setScheduleDismissed,
   }),
   defineTool({
     name: "get_today_context",

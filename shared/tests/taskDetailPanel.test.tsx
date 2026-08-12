@@ -296,6 +296,11 @@ describe("TaskDetailPanel — save button (#713)", () => {
     // Mid-conversion: this Enter belongs to the IME, not to the panel.
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
     expect(onSave).not.toHaveBeenCalled();
+    // #737: WebKit — the project's main target — reports the Enter that
+    // CONFIRMS the conversion with `isComposing: false` and keyCode 229, so the
+    // flag alone let exactly the worst keypress through.
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 229 });
+    expect(onSave).not.toHaveBeenCalled();
 
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSave).toHaveBeenCalledExactlyOnceWith("task-a", {

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { AgendaList, type AgendaItem } from "../src/components";
+import {
+  AgendaList,
+  agendaRowHeightPx,
+  type AgendaItem,
+} from "../src/components";
 
 /*
  * AgendaList — pure day agenda. All-day rows first, then timed rows in the
@@ -141,5 +145,106 @@ describe("AgendaList", () => {
     // Event rows keep dot-only (no glyph — #593 touches task only).
     const eventRow = screen.getByText("Project review").closest("li");
     expect(eventRow?.querySelector("svg")).toBeNull();
+  });
+});
+
+/*
+ * Dayflow (#691) — Mobile's stand-in for the week grid. jsdom has no layout,
+ * so nothing here reads a measured box: durations are asserted through the
+ * inline minHeight the component writes, gaps and end times through text.
+ */
+const DAYFLOW_ITEMS: AgendaItem[] = [
+  // 13:30–16:30 (180 min) — in progress at 14:32.
+  { id: "long", title: "Workshop", startTime: "13:30", endTime: "16:30" },
+  // 60-minute hole, then a 60-minute row.
+  { id: "short", title: "Standup", startTime: "17:30", endTime: "18:30" },
+  // Back-to-back with the row above → no gap marker.
+  { id: "next", title: "Dinner", startTime: "18:30", endTime: "19:00" },
+];
+
+const formatGapLabel = (m: number) => `Free ${m}m`;
+
+function renderDayflow(props?: Partial<Parameters<typeof AgendaList>[0]>) {
+  render(
+    <AgendaList
+      items={DAYFLOW_ITEMS}
+      dayflow
+      formatGapLabel={formatGapLabel}
+      labels={LABELS}
+      {...props}
+    />,
+  );
+}
+
+describe("AgendaList — dayflow (#691)", () => {
+  it("puts an in-progress row BELOW the now-line", () => {
+    // 14:32, inside 13:30–16:30. Splitting on the start time filed it under
+    // "past" while its own status said 着手中.
+    renderDayflow({ nowMinutes: 14 * 60 + 32 });
+    const now = screen.getByText("Now");
+    const running = screen.getByText("Workshop");
+    expect(
+      now.compareDocumentPosition(running) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("still files a finished row above the now-line", () => {
+    renderDayflow({ nowMinutes: 17 * 60 }); // 17:00 — Workshop ended at 16:30
+    const past = screen.getByText("Workshop");
+    const now = screen.getByText("Now");
+    expect(
+      past.compareDocumentPosition(now) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("draws the now-line on a day with nothing on it", () => {
+    render(<AgendaList items={[]} nowMinutes={9 * 60} labels={LABELS} />);
+    expect(screen.getByText("Now")).toBeInTheDocument();
+    expect(screen.getByText("Nothing today")).toBeInTheDocument();
+  });
+
+  it("shows the end time under the start time", () => {
+    renderDayflow();
+    const row = screen.getByText("Workshop").closest("li");
+    expect(row?.textContent).toContain("13:30");
+    expect(row?.textContent).toContain("16:30");
+  });
+
+  it("leaves the end time off without dayflow (Desktop sidebar column)", () => {
+    render(<AgendaList items={DAYFLOW_ITEMS} labels={LABELS} />);
+    const row = screen.getByText("Workshop").closest("li");
+    expect(row?.textContent).toContain("13:30");
+    expect(row?.textContent).not.toContain("16:30");
+  });
+
+  it("gives a longer row more height, up to the cap", () => {
+    renderDayflow();
+    const long = screen
+      .getByText("Workshop")
+      .closest("li")
+      ?.querySelector("button");
+    const short = screen
+      .getByText("Dinner")
+      .closest("li")
+      ?.querySelector("button");
+    expect(long?.style.minHeight).toBe(`${agendaRowHeightPx(180)}px`);
+    expect(short?.style.minHeight).toBe(`${agendaRowHeightPx(30)}px`);
+    expect(agendaRowHeightPx(180)).toBeGreaterThan(agendaRowHeightPx(30));
+    // Capped: a whole day off must not push everything after it off screen.
+    expect(agendaRowHeightPx(600)).toBe(agendaRowHeightPx(300));
+    expect(agendaRowHeightPx(600)).toBeLessThan(120);
+  });
+
+  it("marks the free stretch between two rows, but not a back-to-back pair", () => {
+    renderDayflow();
+    expect(screen.getByText("Free 60m")).toBeInTheDocument();
+    // Standup 17:30–18:30 → Dinner 18:30: zero hole, so no marker.
+    expect(screen.queryByText("Free 0m")).toBeNull();
+    expect(screen.getAllByText(/^Free /)).toHaveLength(1);
+  });
+
+  it("omits gap markers when no formatter is supplied", () => {
+    render(<AgendaList items={DAYFLOW_ITEMS} dayflow labels={LABELS} />);
+    expect(screen.queryByText(/^Free /)).toBeNull();
   });
 });

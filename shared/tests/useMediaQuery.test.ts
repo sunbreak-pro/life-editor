@@ -18,7 +18,10 @@ function mockMatchMedia(initial: boolean) {
     addEventListener: (_type: string, cb: Listener) => listeners.add(cb),
     removeEventListener: (_type: string, cb: Listener) => listeners.delete(cb),
   };
-  // @ts-expect-error — assigning a minimal MediaQueryList stub for tests.
+  // A bare vi.fn() is untyped, so this partial stub needs no suppression (#711).
+  // Unlike the other suites it is not `satisfies Partial<MediaQueryList>`: the
+  // listeners here take no event argument, which the DOM's EventListener type
+  // rejects, and the point of the stub is to drive them by hand.
   window.matchMedia = vi.fn().mockReturnValue(mql);
   return {
     setMatches(next: boolean) {

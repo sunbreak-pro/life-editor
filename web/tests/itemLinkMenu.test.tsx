@@ -4,7 +4,10 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { Link2 } from "lucide-react";
 import { createItemLinkNode } from "../src/notes/itemLinkNode";
-import { createItemLinkSuggestion } from "../src/notes/itemLinkSuggestion";
+import {
+  createItemLinkSuggestion,
+  type ItemLinkSuggestionDeps,
+} from "../src/notes/itemLinkSuggestion";
 import { ItemLinkMenu, type ItemLinkMenuItem } from "../src/notes/ItemLinkMenu";
 
 /*
@@ -31,7 +34,15 @@ const LABELS = {
   roleTask: "Todo",
 };
 
-function makeEditor(loadTargets: ReturnType<typeof vi.fn>) {
+/*
+ * The loader carries its real signature (#711). A bare `vi.fn()` types as
+ * vitest's untyped Mock, which the `loadTargets` prop rejects — and typing it
+ * here is what makes `toHaveBeenCalledWith({ allowStale })` below check the
+ * argument shape rather than take any object at all.
+ */
+type LoadTargets = ItemLinkSuggestionDeps["loadTargets"];
+
+function makeEditor(loadTargets: LoadTargets) {
   return new Editor({
     element: document.createElement("div"),
     extensions: [
@@ -57,13 +68,13 @@ afterEach(() => {
 
 describe('"[[" candidate pool stays lazy (#430)', () => {
   it("fetches nothing while the editor is merely open", () => {
-    const loadTargets = vi.fn().mockResolvedValue([]);
+    const loadTargets = vi.fn<LoadTargets>().mockResolvedValue([]);
     editor = makeEditor(loadTargets);
     expect(loadTargets).not.toHaveBeenCalled();
   });
 
   it("fetches nothing while prose is being typed", async () => {
-    const loadTargets = vi.fn().mockResolvedValue([]);
+    const loadTargets = vi.fn<LoadTargets>().mockResolvedValue([]);
     editor = makeEditor(loadTargets);
 
     editor.commands.insertContent("a note about the roof repair");
@@ -73,7 +84,7 @@ describe('"[[" candidate pool stays lazy (#430)', () => {
   });
 
   it('fetches when "[[" opens the menu', async () => {
-    const loadTargets = vi.fn().mockResolvedValue([]);
+    const loadTargets = vi.fn<LoadTargets>().mockResolvedValue([]);
     editor = makeEditor(loadTargets);
 
     editor.commands.insertContent("see [[");
@@ -97,7 +108,7 @@ describe('"[[" candidate pool stays lazy (#430)', () => {
   });
 
   it("does not re-fetch for a bracket typed as prose", async () => {
-    const loadTargets = vi.fn().mockResolvedValue([]);
+    const loadTargets = vi.fn<LoadTargets>().mockResolvedValue([]);
     editor = makeEditor(loadTargets);
 
     editor.commands.insertContent("cost [1] was high");

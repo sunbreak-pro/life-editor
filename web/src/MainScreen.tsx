@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useMemo,
   useRef,
   useState,
@@ -12,8 +10,8 @@ import {
   signOut,
   AppShell,
   PageContainer,
-  type PageContainerWidth,
   HeaderTabs,
+  type HeaderTab,
   SegmentedControl,
   SectionHeader,
   RightSidebarProvider,
@@ -25,64 +23,28 @@ import {
   CommandPalette,
   ToastProvider,
   SyncProvider,
-  TaskTreeProvider,
-  DailiesUnifiedProvider,
-  NotesUnifiedProvider,
-  RoutineProvider,
-  ScheduleItemsProvider,
-  CalendarProvider,
-  WikiTagsUnifiedProvider,
   ShortcutConfigProvider,
   TimerProvider,
   AudioProvider,
   AudioChimeBridge,
   useTranslation,
-  type BriefingTab,
-  type AnalyticsTab,
   type DataService,
   type SectionId,
   type Session,
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
-import { TrashScreen } from "./trash/TrashScreen";
-import { DailyView } from "./daily/DailyView";
-// NotesView pulls in the TipTap editor stack (core/react/starter-kit +
-// extensions, ~hundreds of kB). Lazy-load it so that bundle stays out of
-// the initial chunk and only downloads when the Notes tab is opened
-// (L1 code-split — MainScreen already conditionally renders sections, so
-// lazy + Suspense slots in cleanly). NotesView is a named export, so map
-// it to the default the lazy() loader expects.
-const NotesView = lazy(() =>
-  import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
-);
-import { BriefingScreen } from "./briefing/BriefingScreen";
-import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
-import { SettingsScreen } from "./settings/SettingsScreen";
-import { WorkScreen } from "./work/WorkScreen";
-// Analytics drags in recharts and Connect drags in the d3 force/zoom stack —
-// together the two biggest non-editor vendor groups in the bundle. Both are
-// section bodies that only ever mount behind their own `section === …` guard,
-// so lazy + Suspense keeps them out of the initial chunk (#676 (a)). Named
-// exports, mapped to the default that lazy() expects (same shape as NotesView
-// above).
-const AnalyticsScreen = lazy(() =>
-  import("./analytics/AnalyticsScreen").then((m) => ({
-    default: m.AnalyticsScreen,
-  })),
-);
-const ConnectScreen = lazy(() =>
-  import("./connect/ConnectScreen").then((m) => ({ default: m.ConnectScreen })),
-);
 import { TagEditorHost } from "./tags/TagEditorHost";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { UndoRedoHost } from "./UndoRedoHost";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import {
-  useShellNavigation,
-  type MaterialsTab,
-} from "./hooks/useShellNavigation";
+  SECTION_DESCRIPTORS,
+  type NarrowHeader,
+  type TabBandId,
+} from "./sectionDescriptors";
+import { useShellNavigation } from "./hooks/useShellNavigation";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
 
@@ -110,29 +72,15 @@ import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
  * utility, with the document surfaces (Notes / Daily) folded under a single
  * "Materials" section addressed by an in-section tab (`materialsTab`). Todos
  * left that group in #411 and are now Schedule's second tab (`scheduleTab`),
- * next to the calendar they get scheduled onto. This host only wires the
- * shell — the section bodies + their Provider nesting are unchanged.
+ * next to the calendar they get scheduled onto.
+ *
+ * This host only wires the SHELL. Section identity/order/icons come from the
+ * shared registry (SSOT — shared/src/sections.ts, derived inside
+ * useShellChrome), and everything per-section the web host draws — width, tab
+ * band, narrow row, body + its Provider nesting — comes from ONE row of
+ * SECTION_DESCRIPTORS (#676 (b)). Adding a section is a registry edit plus a
+ * descriptor row; nothing below switches on a section id.
  */
-
-/*
- * Section identity, order, icons, and the desktop/mobile nav views all come
- * from the shared section registry (SSOT — shared/src/sections.ts), derived
- * inside useShellChrome rather than hand-maintained here. The old REPL
- * section is retired (§8) and never appears in the registry.
- */
-
-/*
- * v2 keeps the NARROW layout untouched (non-goal: mobile unchanged): the
- * in-body hamburger row appears only where it did pre-v2. Schedule and
- * Materials own their narrow chrome; Analytics / Trash had no row (they had
- * no panel before v2 — their new placeholder panel is Desktop-header-only
- * for now).
- */
-const MOBILE_HAMBURGER_SECTIONS: ReadonlySet<SectionId> = new Set([
-  "connect",
-  "work",
-  "settings",
-]);
 
 /*
  * Mobile 省略 Provider gate (#320 — CLAUDE.md §2). The SAME web bundle ships
@@ -155,34 +103,26 @@ function ShortcutConfigHost({ children }: { children: ReactNode }) {
   return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
 }
 
+/**
+ * One lifted in-section tab band, already translated (§6.4). The same object
+ * feeds BOTH controls — the wide SectionHeader's HeaderTabs and the narrow
+ * SegmentedControl — so the two can never drift apart.
+ */
+interface TabBand {
+  readonly defs: HeaderTab[];
+  readonly active: string;
+  readonly onSelect: (id: string) => void;
+  readonly label: string;
+}
+
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
   // Navigation half (hooks split — useShellNavigation): the section switch
   // (§3.2), the lifted in-section tab states, and the pending-intent stashes
   // (new-task flag / "[[" item-nav) the destination views consume on mount.
-  const {
-    section,
-    setSection,
-    materialsTab,
-    setMaterialsTab,
-    scheduleTab,
-    setScheduleTab,
-    analyticsTab,
-    setAnalyticsTab,
-    briefingTab,
-    setBriefingTab,
-    pendingNewTask,
-    consumeNewTask,
-    handleNavigate,
-    handleNewTask,
-    navigateToItem,
-    consumeItemNav,
-    pendingNoteSelect,
-    pendingDailySelect,
-    pendingTaskSelect,
-    pendingEventSelect,
-  } = useShellNavigation();
+  const nav = useShellNavigation();
+  const { section, setSection } = nav;
   // Chrome half (hooks split — useShellChrome): the palette commands, the
   // registry-derived nav section lists, the per-section tab-band defs, the
   // translated shell labels, and the Materials count badges the headless
@@ -198,14 +138,19 @@ export function MainScreen({ session }: { session: Session }) {
     analyticsTabDefs,
     briefingTabDefs,
     shellLabels,
-  } = useShellChrome({ setSection, setMaterialsTab, setScheduleTab });
+  } = useShellChrome({
+    setSection,
+    setMaterialsTab: nav.setMaterialsTab,
+    setScheduleTab: nav.setScheduleTab,
+  });
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
   // the tag master is reachable from every section — the panel itself is
   // mount-on-open (TagEditorHost) and fetches nothing while closed.
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
-  // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
-  // Independent of AppShell's own wide/narrow switch (same query, own read).
+  // Narrow-width switch for the in-section tab controls (HeaderTabs ↔
+  // Segmented). Independent of AppShell's own wide/narrow switch (same query,
+  // own read).
   const isWide = useMediaQuery(WIDE_QUERY, true);
 
   // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
@@ -215,24 +160,9 @@ export function MainScreen({ session }: { session: Session }) {
   // Timer fires it through the ref on each phase completion.
   const chimeRef = useRef<(() => void) | null>(null);
 
-  // Content width (Issue #305 — every section/tab is unified to one centered
-  // column, max-w-lumen-wide; the px lives in tokens.css and is deliberately
-  // not restated here). The only thing that varies now is the
-  // SCROLL OWNERSHIP, so PageContainer still gets two variants (both clamped to
-  // max-w-lumen-wide, see PageContainer.tsx):
-  //   - "fluid": canvas/board surfaces that own their full-bleed h-full layout
-  //     + self-scroll inside the clamped box (Connect graph, both Schedule tabs
-  //     — calendar grid and the Kanban that moved here in #411 — plus Analytics
-  //     whose shared view draws its own centered data column). Their internal
-  //     horizontal scroll (kanban board / week grid) stays inside the clamped
-  //     column — no page-level scroll.
-  //   - "wide": every document surface — PageContainer owns the vertical scroll
-  //     wrapper (Notes / Daily / Briefing / Work / Settings / Trash).
-  // Mobile is visually unchanged: below 768px the max-w clamp never engages, so
-  // both variants render gutter-padded full width.
-  const ownsFullBleed =
-    section === "connect" || section === "schedule" || section === "analytics";
-  const pageWidth: PageContainerWidth = ownsFullBleed ? "fluid" : "wide";
+  // The active section's descriptor — the one place per-section layout is
+  // decided (#676 (b)). Width, tab band, narrow row and body all read off it.
+  const descriptor = SECTION_DESCRIPTORS[section];
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -244,7 +174,7 @@ export function MainScreen({ session }: { session: Session }) {
   // Standard header controls (v2 §1). Left→right: the command-palette search
   // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:
   // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
-  // UNCONDITIONAL for all 7 sections (v2 §3); the v2 §5 width tab was retired
+  // UNCONDITIONAL for all sections (v2 §3); the v2 §5 width tab was retired
   // 2026-07-11 (all sections wide).
   const headerControls = (
     <>
@@ -263,149 +193,80 @@ export function MainScreen({ session }: { session: Session }) {
     </>
   );
 
+  // The four lifted tab bands, keyed by the id a descriptor names. Building
+  // them all is free (they are plain objects over already-memoised defs) and
+  // keeps the lookup total — a descriptor can never name a band that has no
+  // state behind it.
+  const tabBands: Record<TabBandId, TabBand> = {
+    materials: {
+      defs: materialsTabDefs,
+      active: nav.materialsTab,
+      onSelect: (id) => nav.setMaterialsTab(id as typeof nav.materialsTab),
+      label: t("section.materials"),
+    },
+    schedule: {
+      defs: scheduleTabDefs,
+      active: nav.scheduleTab,
+      onSelect: (id) => nav.setScheduleTab(id as typeof nav.scheduleTab),
+      label: t("section.schedule"),
+    },
+    analytics: {
+      defs: analyticsTabDefs,
+      active: nav.analyticsTab,
+      onSelect: (id) => nav.setAnalyticsTab(id as typeof nav.analyticsTab),
+      label: t("analytics.tabsLabel"),
+    },
+    briefing: {
+      defs: briefingTabDefs,
+      active: nav.briefingTab,
+      onSelect: (id) => nav.setBriefingTab(id as typeof nav.briefingTab),
+      label: t("briefing.tabsLabel"),
+    },
+  };
+  const band = descriptor.tabBand ? tabBands[descriptor.tabBand] : undefined;
+
   // Standard section header row (v2 §1), mounted in AppShell's header slot —
   // ABOVE the main + detail-panel flex row (§4), so the divider spans both
-  // and the controls never move when the panel opens. Materials', Schedule's,
-  // and Analytics' tab bands double as their titles (divider={false}: the
-  // SectionHeader owns the line); every other section shows its translated
-  // title. Sections that still draw their own in-body chrome (Connect internal
-  // header) migrate to this row in their v2 adoption pass (orders plans).
-  const sectionHeader =
-    section === "materials" ? (
-      <SectionHeader
-        tabs={
-          <HeaderTabs
-            divider={false}
-            tabs={materialsTabDefs}
-            activeTab={materialsTab}
-            onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
-            label={t("section.materials")}
-          />
-        }
-        controls={headerControls}
-      />
-    ) : section === "analytics" ? (
-      <SectionHeader
-        tabs={
-          <HeaderTabs
-            divider={false}
-            tabs={analyticsTabDefs}
-            activeTab={analyticsTab}
-            onSelect={(id) => setAnalyticsTab(id as AnalyticsTab)}
-            label={t("analytics.tabsLabel")}
-          />
-        }
-        controls={headerControls}
-      />
-    ) : section === "briefing" ? (
-      <SectionHeader
-        tabs={
-          <HeaderTabs
-            divider={false}
-            tabs={briefingTabDefs}
-            activeTab={briefingTab}
-            onSelect={(id) => setBriefingTab(id as BriefingTab)}
-            label={t("briefing.tabsLabel")}
-          />
-        }
-        controls={headerControls}
-      />
-    ) : section === "schedule" ? (
-      <SectionHeader
-        tabs={
-          <HeaderTabs
-            divider={false}
-            tabs={scheduleTabDefs}
-            activeTab={scheduleTab}
-            onSelect={(id) => setScheduleTab(id as ScheduleTab)}
-            label={t("section.schedule")}
-          />
-        }
-        controls={headerControls}
-      />
-    ) : (
-      <SectionHeader
-        title={t(`section.${section}`, { defaultValue: section })}
-        controls={headerControls}
-      />
-    );
-
-  // NARROW layout rows — unchanged from v1 (v2 non-goal: mobile untouched).
-  // Materials keeps its hamburger + segmented tab row; Connect / Work /
-  // Settings keep their hamburger row (MOBILE_HAMBURGER_SECTIONS).
-  const materialsMobileSwitcher = (
-    <div className="flex items-center gap-2">
-      <RightSidebarToggle
-        variant="hamburger"
-        openLabel={detailOpenLabel}
-        closeLabel={detailCloseLabel}
-      />
-      <SegmentedControl
-        className="flex-1"
-        options={materialsTabDefs}
-        value={materialsTab}
-        onChange={(id) => setMaterialsTab(id as MaterialsTab)}
-        label={t("section.materials")}
-      />
-    </div>
-  );
-
-  // Schedule's narrow Calendar/Todo switcher (#411). No hamburger beside it,
-  // unlike Materials': the Calendar body draws its own (next to the period
-  // label), and the Todo body closes the drawer outright below 768px — the
-  // mobile Kanban carries its task detail in its own bottom sheet (#470), not in
-  // the drawer — so a second hamburger here would either duplicate one or open
-  // an empty drawer.
-  const scheduleMobileSwitcher = (
-    <SegmentedControl
-      options={scheduleTabDefs}
-      value={scheduleTab}
-      onChange={(id) => setScheduleTab(id as ScheduleTab)}
-      label={t("section.schedule")}
+  // and the controls never move when the panel opens. A section with a tab
+  // band shows it as its title (divider={false}: the SectionHeader owns the
+  // line); every other section shows its translated title.
+  const sectionHeader = band ? (
+    <SectionHeader
+      tabs={
+        <HeaderTabs
+          divider={false}
+          tabs={band.defs}
+          activeTab={band.active}
+          onSelect={band.onSelect}
+          label={band.label}
+        />
+      }
+      controls={headerControls}
+    />
+  ) : (
+    <SectionHeader
+      title={t(`section.${section}`, { defaultValue: section })}
+      controls={headerControls}
     />
   );
 
-  // Briefing's narrow-width 朝刊/夕刊 switcher (#318). AppShell renders its
-  // header slot on the WIDE branch only, so below 768px the SectionHeader band
-  // — the sole route to 夕刊 — is gone. Briefing's body is a centered "paper"
-  // rather than a list, so unlike Materials the band is re-issued INSIDE the
-  // view (under the masthead) instead of in a PageContainer toolbar row.
-  //
-  // #609: the hamburger rides at its left edge, the same shape Materials uses.
-  // Below 768px the detail panel is a MobileDrawer, and Briefing had no opener
-  // of any kind for it — the wide SectionHeader toggle is gone at this width
-  // and the standalone hamburger row (MOBILE_HAMBURGER_SECTIONS) belongs to
-  // sections whose body is a list. So the「今日の Todo」tray was simply
-  // unreachable on a phone. It goes HERE rather than in a row of its own
-  // because the paper already re-issues this band: a second row above the
-  // masthead would push the paper down for one button.
-  const briefingMobileSwitcher = isWide ? undefined : (
-    <div className="flex items-center gap-2">
-      <RightSidebarToggle
-        variant="hamburger"
-        openLabel={detailOpenLabel}
-        closeLabel={detailCloseLabel}
-      />
-      <SegmentedControl
-        className="flex-1"
-        options={briefingTabDefs}
-        value={briefingTab}
-        onChange={(id) => setBriefingTab(id as BriefingTab)}
-        label={t("briefing.tabsLabel")}
-      />
-    </div>
+  // NARROW layout row — unchanged from v1 (v2 non-goal: mobile untouched).
+  // The shape comes from the descriptor (`narrowHeader`), so the old
+  // MOBILE_HAMBURGER_SECTIONS set and the per-section switcher constants are
+  // gone: Materials/Briefing get hamburger + segmented, Schedule the segmented
+  // alone (its Calendar body draws its own hamburger and its Todo body closes
+  // the drawer outright below 768px — the mobile Kanban carries task detail in
+  // its own bottom sheet, #470), Connect/Work/Settings the hamburger alone.
+  const detailHamburger = (
+    <RightSidebarToggle
+      variant="hamburger"
+      openLabel={detailOpenLabel}
+      closeLabel={detailCloseLabel}
+    />
   );
-
-  const sectionToolbar =
-    !isWide && MOBILE_HAMBURGER_SECTIONS.has(section) ? (
-      <div className="flex items-center">
-        <RightSidebarToggle
-          variant="hamburger"
-          openLabel={detailOpenLabel}
-          closeLabel={detailCloseLabel}
-        />
-      </div>
-    ) : null;
+  const narrowRow = isWide
+    ? undefined
+    : renderNarrowRow(descriptor.narrowHeader, band, detailHamburger);
 
   /*
    * Shared Suspense fallback for the code-split section bodies (#676 (a)).
@@ -426,155 +287,14 @@ export function MainScreen({ session }: { session: Session }) {
     resize: t("detailPanel.resize"),
   };
 
-  // The Materials document surfaces. Provider nesting is verbatim from
-  // the old flat sections (§6.2) — only the addressing changed (section+tab).
-  const materialsView = (
-    <>
-      {materialsTab === "notes" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <NotesUnifiedProvider dataService={ds}>
-            <Suspense
-              fallback={
-                <p className="text-lumen-text-secondary">Loading notes…</p>
-              }
-            >
-              <NotesView
-                dataService={ds}
-                onNavigateToItem={navigateToItem}
-                pendingSelectNoteId={pendingNoteSelect}
-                onConsumePendingSelect={consumeItemNav}
-              />
-            </Suspense>
-          </NotesUnifiedProvider>
-        </WikiTagsUnifiedProvider>
-      )}
-      {materialsTab === "daily" && (
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <DailiesUnifiedProvider dataService={ds}>
-            <DailyView
-              dataService={ds}
-              onNavigateToItem={navigateToItem}
-              pendingSelectDate={pendingDailySelect}
-              onConsumePendingSelect={consumeItemNav}
-            />
-          </DailiesUnifiedProvider>
-        </WikiTagsUnifiedProvider>
-      )}
-    </>
-  );
-
-  // The six non-Materials section bodies. Provider nesting is verbatim from the
-  // flat layout (§6.2) — only wrapped below with a detail-panel toolbar row.
-  const nonMaterialsBody = (
-    <>
-      {/*
-       * Briefing (Briefing plan Step 1) — the morning-paper home surface and
-       * the default landing section (useStartupSection). Crosses four domains
-       * (schedule / tasks / timer / dailies) read-only, so it uses no
-       * per-section Provider — BriefingScreen calls the injected DataService
-       * directly (same pattern as TrashScreen) and re-fetches on Realtime
-       * syncVersion bumps, which is how a briefing written by Claude via MCP
-       * appears without a reload.
-       */}
-      {section === "briefing" && (
-        <BriefingScreen
-          dataService={ds}
-          onNavigate={handleNavigate}
-          tab={briefingTab}
-          tabSwitcher={briefingMobileSwitcher}
-        />
-      )}
-      {/*
-       * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each
-       * inner Provider may read the outer one (ScheduleItems sits INSIDE
-       * Routine). CalendarProvider is NOT part of the pair — kept higher and
-       * enabled on Mobile (§2). The Routine→schedule_items generator (S4-5) is
-       * the headless RoutineScheduleSync, mounted inside the Providers.
-       *
-       * WikiTagsUnifiedProvider provides both the Event Tag/Link surface for
-       * ScheduleItemsView (DU-F Step 7) and the life-tag <select> for
-       * CalendarView (life-tags S2: calendars.tag_id FKs wiki_tags(id) ON
-       * DELETE CASCADE — the folder-scoped view is now a tag-scoped view, so
-       * TaskTreeProvider is no longer needed on this branch).
-       */}
-      {section === "schedule" && (
-        // TaskTreeProvider is OUTERMOST here (schedule redesign A-1): the
-        // Calendar reads scheduled TaskNodes to render task=blue chips. Provider
-        // order (§6.2) places TaskTree before Calendar, and TaskTree depends on
-        // neither WikiTags nor Calendar, so it sits at the very outside.
-        // #411 folded the Kanban in as the Todo tab. It needs the same two
-        // Providers it had in Materials (TaskTree + WikiTags) and both are
-        // already on this branch, so the tab reuses them rather than nesting a
-        // second pair — one task store for the calendar chips, the Todo tray
-        // and the board. `persistSelection` moved with the board: it is what
-        // re-opens the task the user was reading after a tab switch (#282).
-        <TaskTreeProvider dataService={ds} persistSelection>
-          <WikiTagsUnifiedProvider dataService={ds}>
-            <CalendarProvider dataService={ds}>
-              <RoutineProvider dataService={ds}>
-                <ScheduleItemsProvider dataService={ds}>
-                  <ScheduleScreen
-                    dataService={ds}
-                    tab={scheduleTab}
-                    onOpenTasks={() => setScheduleTab("todo")}
-                    pendingNewTask={pendingNewTask}
-                    onConsumeNewTask={consumeNewTask}
-                    pendingSelectTaskId={pendingTaskSelect}
-                    onConsumePendingSelect={consumeItemNav}
-                    pendingSelectEvent={pendingEventSelect}
-                    onConsumePendingEvent={consumeItemNav}
-                    onNavigateToItem={navigateToItem}
-                  />
-                </ScheduleItemsProvider>
-              </RoutineProvider>
-            </CalendarProvider>
-          </WikiTagsUnifiedProvider>
-        </TaskTreeProvider>
-      )}
-      {/*
-       * Settings (W1) — reads useThemeContext + useShortcutConfig (the
-       * ShortcutConfigProvider wrapping the whole shell) and injects values +
-       * t() copy into the shared pure primitives. No extra Provider needed.
-       */}
-      {section === "settings" && <SettingsScreen />}
-      {/*
-       * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset editor.
-       * TimerProvider is mounted at the shell level (above); this view reads
-       * useTimerContext + fetches the task list via the injected DataService.
-       */}
-      {section === "work" && <WorkScreen dataService={ds} />}
-      {/*
-       * Connect (W4; STEP 2 link editing) — node graph + backlink over the
-       * UNIFIED item-link model. ConnectScreen mounts its own
-       * WikiTagsUnifiedProvider internally. Legacy note_links are NOT used.
-       */}
-      {section === "connect" && (
-        <Suspense fallback={sectionLoadingFallback}>
-          <ConnectScreen dataService={ds} />
-        </Suspense>
-      )}
-      {/*
-       * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule).
-       * Host fetches sessions/tasks/schedule/routines via DataService and
-       * injects data + t into the pure shared <AnalyticsView>.
-       */}
-      {section === "analytics" && (
-        <Suspense fallback={sectionLoadingFallback}>
-          <AnalyticsScreen
-            dataService={ds}
-            tab={analyticsTab}
-            onTabChange={setAnalyticsTab}
-          />
-        </Suspense>
-      )}
-      {/*
-       * Trash (W2). Crosses all five soft-delete categories, so it uses no
-       * per-section Provider — TrashScreen calls the injected DataService
-       * directly and feeds the pure shared TrashView (§6.4).
-       */}
-      {section === "trash" && <TrashScreen dataService={ds} />}
-    </>
-  );
+  const sectionBody = descriptor.body({
+    ds,
+    nav,
+    // Briefing hosts its narrow band inside its own body (under the masthead);
+    // every other section puts it in the PageContainer header below.
+    narrowTabRow: descriptor.narrowHeaderInBody ? narrowRow : undefined,
+    loadingFallback: sectionLoadingFallback,
+  });
 
   return (
     /*
@@ -621,10 +341,10 @@ export function MainScreen({ session }: { session: Session }) {
              * inside GlobalShortcuts itself (#304 / PR #316).
              */}
             <GlobalShortcuts
-              onNavigate={handleNavigate}
+              onNavigate={nav.handleNavigate}
               onOpenSettings={() => setSection("settings")}
               onTogglePalette={() => setPaletteOpen((v) => !v)}
-              onNewTask={handleNewTask}
+              onNewTask={nav.handleNewTask}
             />
             {/*
              * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
@@ -700,33 +420,20 @@ export function MainScreen({ session }: { session: Session }) {
                     {/*
                      * PageContainer (Layout Standard v1 #180 / v2) owns width +
                      * gutter + scroll for every section. On the WIDE layout the
-                     * section chrome now lives in AppShell's header slot (the
+                     * section chrome lives in AppShell's header slot (the
                      * standard SectionHeader above), so the header slot here only
-                     * carries the NARROW-layout rows: Materials' hamburger +
-                     * segmented tab row, Schedule's Calendar/Todo segmented row
-                     * (#411 — the one narrow row v1 didn't have, since the tab
-                     * itself is new), and the Connect / Work / Settings
-                     * hamburger row.
+                     * carries the NARROW-layout row the descriptor asked for.
                      */}
-                    {section === "materials" ? (
-                      <PageContainer
-                        width={pageWidth}
-                        header={isWide ? undefined : materialsMobileSwitcher}
-                      >
-                        {materialsView}
-                      </PageContainer>
-                    ) : (
-                      <PageContainer
-                        width={pageWidth}
-                        header={
-                          !isWide && section === "schedule"
-                            ? scheduleMobileSwitcher
-                            : (sectionToolbar ?? undefined)
-                        }
-                      >
-                        {nonMaterialsBody}
-                      </PageContainer>
-                    )}
+                    <PageContainer
+                      width={descriptor.width}
+                      header={
+                        descriptor.narrowHeaderInBody
+                          ? undefined
+                          : (narrowRow ?? undefined)
+                      }
+                    >
+                      {sectionBody}
+                    </PageContainer>
                   </AppShell>
 
                   {/*
@@ -741,7 +448,7 @@ export function MainScreen({ session }: { session: Session }) {
                     placeholder={t("commandPalette.placeholder")}
                     noResultsLabel={t("commandPalette.noResults")}
                     dataService={ds}
-                    onOpenItem={navigateToItem}
+                    onOpenItem={nav.navigateToItem}
                   />
 
                   {/*
@@ -763,6 +470,39 @@ export function MainScreen({ session }: { session: Session }) {
         </UndoRedoHost>
       </SyncProvider>
     </ToastProvider>
+  );
+}
+
+/**
+ * The narrow-layout row a descriptor asked for. Called on the narrow branch
+ * only, so every arm is already width-gated. A `tabs*` shape without a band is
+ * impossible by construction (the descriptor that asks for tabs also names a
+ * tabBand), and falls back to no row rather than a half-drawn one.
+ */
+function renderNarrowRow(
+  shape: NarrowHeader,
+  band: TabBand | undefined,
+  hamburger: ReactNode,
+): ReactNode {
+  if (shape === "none") return undefined;
+  if (shape === "hamburger")
+    return <div className="flex items-center">{hamburger}</div>;
+  if (!band) return undefined;
+  const segmented = (
+    <SegmentedControl
+      className={shape === "tabs+hamburger" ? "flex-1" : undefined}
+      options={band.defs}
+      value={band.active}
+      onChange={band.onSelect}
+      label={band.label}
+    />
+  );
+  if (shape === "tabs") return segmented;
+  return (
+    <div className="flex items-center gap-2">
+      {hamburger}
+      {segmented}
+    </div>
   );
 }
 
