@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
   updateNode: vi.fn(),
   addNode: vi.fn(),
   softDelete: vi.fn(),
+  refetch: vi.fn().mockResolvedValue(undefined),
   syncInlineLinks: vi.fn().mockResolvedValue(undefined),
   open: vi.fn(),
   close: vi.fn(),
@@ -65,6 +66,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       updateNode: state.updateNode,
       addNode: state.addNode,
       softDelete: state.softDelete,
+      // The convert path pulls the re-roled row out through a refetch; without
+      // it here the success branch throws and lands in the failure banner
+      // instead, which is not what the convert tests below mean to exercise.
+      refetch: state.refetch,
     }),
     useWikiTagsUnifiedContext: () => ({
       allTags: state.tags,
@@ -727,6 +732,100 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     del();
     await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
     expect(screen.queryByText("common.unsavedCloseConfirm")).toBeNull();
+  });
+});
+
+/*
+ * #789 — what the two row-REMOVING exits leave behind. Clearing the selection
+ * empties the portal, but the sidebar shell holding it has its own open state
+ * and outlives that: after a delete the Desktop kept an up-to-560px column of
+ * "details, nothing selected" beside a board the user had just taken the row
+ * off. Convert had the identical gap, so both are pinned here — fixing one
+ * alone is how the two exits start disagreeing.
+ *
+ * Narrow is the control: there the detail IS the sheet, and the shell is held
+ * closed by the isWide effect, not by these handlers.
+ */
+describe("KanbanView — the detail shell after the row goes (#789)", () => {
+  const del = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoDelete" }),
+    );
+  const agree = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.delete" }),
+    );
+
+  it("closes the desktop sidebar once the delete is agreed", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+    // Nothing has asked the shell to close yet — the assertion below is about
+    // the delete, not about the mount.
+    expect(state.close).not.toHaveBeenCalled();
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    agree();
+
+    await waitFor(() => expect(state.close).toHaveBeenCalled());
+    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps the shell open when the delete is refused", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("scheduleScreen.todoDeleteConfirm|Buy milk"),
+      ).toBeNull(),
+    );
+    // The row is still there, so the panel showing it has to be too.
+    expect(state.close).not.toHaveBeenCalled();
+  });
+
+  it("leaves the narrow shell to the isWide effect", async () => {
+    state.isWide = false;
+    render(<KanbanView />);
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    // The narrow mount already holds the shell closed; counting from here is
+    // what isolates the delete's own contribution.
+    const before = state.close.mock.calls.length;
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    agree();
+
+    await waitFor(() =>
+      expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
+    );
+    expect(state.close.mock.calls.length).toBe(before);
+  });
+
+  it("closes it for the convert too", async () => {
+    const dataService = {
+      convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
+    } as unknown as DataService;
+    // jsdom has no native confirm; the convert's own guard still calls one.
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    state.selectedId = "task-a";
+    render(<KanbanView dataService={dataService} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "itemConvert.toEvent" }),
+    );
+
+    await waitFor(() =>
+      expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
+    );
+    // The row left this board for the calendar — the panel that was framing it
+    // has nothing left to show, and neither has the shell around it.
+    await waitFor(() => expect(state.close).toHaveBeenCalled());
+    confirmSpy.mockRestore();
   });
 });
 
