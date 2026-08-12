@@ -286,7 +286,13 @@ export function NotesView({
           <LinkPanel
             itemId={selected.id}
             resolveTitle={linking.resolveTitle}
-            linkableItems={linking.linkableItems}
+            // The same cross-role pool the body's "[[" menu searches, so both
+            // pickers offer the same items — and the panel can name a Task /
+            // Daily target instead of falling back to an id fragment (#749).
+            loadTargets={linking.loadLinkTargets}
+            // Row clicks reuse the "[[" navigation route (#475): the shell
+            // switches section + tab and hands the target id to the view.
+            onNavigateToItem={onNavigateToItem}
           />
         ) : null
       }
