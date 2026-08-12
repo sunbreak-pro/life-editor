@@ -3,7 +3,9 @@ import {
   eventToTodoBlock,
   todoToEventBlock,
   taskToEventPlacement,
+  eventToTaskSlot,
 } from "../src/utils/itemConversion";
+import { tasksToCalendarChips } from "../src/utils/taskCalendarChips";
 import type { TaskNode } from "../src/types/taskTree";
 import type { ScheduleItem } from "../src/types/schedule";
 
@@ -118,6 +120,124 @@ describe("taskToEventPlacement (#625)", () => {
       startTime: "00:00",
       endTime: "00:00",
       isAllDay: true,
+    });
+  });
+});
+
+/*
+ * #739 (D-20260811-sched-1 = B) — the other direction keeps its slot too.
+ *
+ * The values are asserted by DRAWING the chip the converted Todo would produce
+ * (tasksToCalendarChips, the same function the calendar uses) rather than by
+ * comparing ISO strings: the columns are UTC and the grid is local, so a raw
+ * string comparison would pass in one timezone and fail in the next. What the
+ * Issue actually promises is "the 8/20 10:00 event stays an 8/20 10:00 block".
+ */
+describe("eventToTaskSlot (#739)", () => {
+  /** The chip the calendar would draw for a Todo carrying this slot. */
+  const chipFor = (slot: ReturnType<typeof eventToTaskSlot>) =>
+    tasksToCalendarChips(
+      [task({ ...slot, title: "Dentist" })],
+      "0000-01-01",
+      "9999-12-31",
+    )[0];
+
+  it("lands a timed event on the same day and time", () => {
+    const slot = eventToTaskSlot({
+      date: "2026-08-20",
+      startTime: "10:00",
+      endTime: "11:30",
+      isAllDay: false,
+    });
+    expect(slot.isAllDay).toBe(false);
+    expect(chipFor(slot)).toMatchObject({
+      date: "2026-08-20",
+      startTime: "10:00",
+      endTime: "11:30",
+      isAllDay: false,
+    });
+  });
+
+  it("keeps an all-day event all day, on its own date", () => {
+    const slot = eventToTaskSlot({
+      date: "2026-08-20",
+      startTime: null,
+      endTime: null,
+      isAllDay: true,
+    });
+    expect(slot.isAllDay).toBe(true);
+    // The flag alone would leave the Todo unplaced — it needs a day.
+    expect(slot.scheduledAt).toBeDefined();
+    expect(chipFor(slot)).toMatchObject({
+      date: "2026-08-20",
+      isAllDay: true,
+    });
+  });
+
+  it("gives a missing end the chip's default block rather than a zero-length one", () => {
+    const slot = eventToTaskSlot({
+      date: "2026-08-20",
+      startTime: "10:00",
+      endTime: null,
+      isAllDay: false,
+    });
+    expect(slot.scheduledEndAt).toBeUndefined();
+    // A zero-length span is rescued into an ALL-DAY chip (#562), which would
+    // move the item off the very time it was converted at.
+    expect(chipFor(slot)).toMatchObject({
+      date: "2026-08-20",
+      startTime: "10:00",
+      endTime: "11:00",
+      isAllDay: false,
+    });
+  });
+
+  it("drops an end that is not after the start, for the same reason", () => {
+    const slot = eventToTaskSlot({
+      date: "2026-08-20",
+      startTime: "10:00",
+      endTime: "10:00",
+      isAllDay: false,
+    });
+    expect(slot.scheduledEndAt).toBeUndefined();
+    expect(chipFor(slot)).toMatchObject({
+      startTime: "10:00",
+      isAllDay: false,
+    });
+  });
+
+  it("leaves a dateless event unplaced", () => {
+    expect(
+      eventToTaskSlot({
+        date: null,
+        startTime: "10:00",
+        endTime: "11:00",
+        isAllDay: false,
+      }),
+    ).toEqual({ isAllDay: false });
+  });
+
+  it("round-trips a placed Todo through both directions unchanged", () => {
+    // The asymmetry #739 exists to close: Todo→Event kept the slot,
+    // Event→Todo threw it away, so a there-and-back moved the item.
+    const start = new Date(2026, 7, 20, 10, 0);
+    const end = new Date(2026, 7, 20, 11, 30);
+    const placed = task({
+      scheduledAt: start.toISOString(),
+      scheduledEndAt: end.toISOString(),
+    });
+    const asEvent = taskToEventPlacement(placed, "2026-08-11");
+    const backAsTodo = eventToTaskSlot({
+      date: asEvent.date,
+      startTime: asEvent.startTime,
+      endTime: asEvent.endTime,
+      isAllDay: asEvent.isAllDay,
+    });
+    expect(chipFor(backAsTodo)).toMatchObject({
+      date: "2026-08-20",
+      startTime: "10:00",
+      endTime: "11:30",
+      isAllDay: false,
     });
   });
 });

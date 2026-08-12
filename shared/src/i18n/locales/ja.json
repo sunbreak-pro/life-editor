@@ -443,7 +443,7 @@
   "itemConvert": {
     "toTodo": "Todo に変換",
     "toEvent": "予定に変換",
-    "toTodoConfirm": "「{{title}}」を Todo に変換します。日付・時刻・繰り返し設定は失われます。よろしいですか？",
+    "toTodoConfirm": "「{{title}}」を Todo に変換します。繰り返し設定は失われます。よろしいですか？",
     "toTodoDone": "Todo に変換しました",
     "toEventConfirm": "「{{title}}」を予定に変換します。ステータスは失われます。よろしいですか？",
     "toEventConfirmChild": "「{{title}}」を予定に変換します。ステータスは失われ、親 Todo との関係も解除されます。よろしいですか？",
