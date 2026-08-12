@@ -10,7 +10,12 @@ import {
   type ItemsMetaRow,
 } from "../utils/items.js";
 import { localDayUtcRange } from "../utils/localDate.js";
-import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
+import { contentPlainText, contentPreview } from "../utils/content.js";
+import {
+  fetchAllPages,
+  fetchByIdChunks,
+  resolveListLimit,
+} from "../utils/pagination.js";
 import {
   getTagsForEntity,
   getTagMapByRole,
@@ -86,7 +91,8 @@ function isLegacyFolder(row: TasksPayloadRow): boolean {
   return row.task_type === "folder";
 }
 
-function formatTask(meta: ItemsMetaRow, payload: TasksPayloadRow) {
+/** Every field but the body — how the body is carried differs per tool. */
+function formatTaskBase(meta: ItemsMetaRow, payload: TasksPayloadRow) {
   return {
     id: meta.id,
     type: payload.task_type ?? "task",
@@ -99,8 +105,45 @@ function formatTask(meta: ItemsMetaRow, payload: TasksPayloadRow) {
     scheduledAt: payload.scheduled_at,
     scheduledEndAt: payload.scheduled_end_at,
     isAllDay: payload.is_all_day,
-    content: payload.content,
     timeMemo: payload.time_memo,
+  };
+}
+
+/**
+ * Single-task result: the stored body plus its plain text (#702 ①).
+ *
+ * `content` is TipTap JSON while `update_task` writes Markdown, so reading a
+ * task and feeding `content` straight back would bury the JSON in the
+ * document as literal text. `contentText` is the half of that round trip
+ * that was missing — it is what a caller edits and writes back.
+ */
+export function formatTask(meta: ItemsMetaRow, payload: TasksPayloadRow) {
+  return {
+    ...formatTaskBase(meta, payload),
+    content: payload.content,
+    contentText: contentPlainText(payload.content),
+  };
+}
+
+/**
+ * List result: a preview by default (#702 ①). `list_tasks` used to return
+ * every task's whole TipTap JSON body, so asking "what is on my plate" cost
+ * the entire task collection's content in one answer.
+ */
+export function formatTaskListEntry(
+  meta: ItemsMetaRow,
+  payload: TasksPayloadRow,
+  includeContent: boolean,
+) {
+  const base = {
+    ...formatTaskBase(meta, payload),
+    contentPreview: contentPreview(payload.content),
+  };
+  if (!includeContent) return base;
+  return {
+    ...base,
+    content: payload.content,
+    contentText: contentPlainText(payload.content),
   };
 }
 
@@ -161,7 +204,10 @@ export async function listTasks(args: {
   /** Renamed from `folder_id` in #419 — it always filtered on the parent task,
    *  never on a folder (the folder node type retired in #225). */
   parent_id?: string;
+  include_content?: boolean;
+  limit?: number;
 }) {
+  const limit = resolveListLimit(args.limit);
   const { client } = await getSupabase();
 
   // A fresh builder per page: PostgREST builders are single-use, and the
@@ -183,16 +229,23 @@ export async function listTasks(args: {
       .order("item_id", { ascending: true })
       .range(from, to);
   }, "list tasks_payload");
-  if (payloads.length === 0) return [];
+  if (payloads.length === 0) return { tasks: [], total: 0, hasMore: false };
 
+  // A payload whose meta is missing is soft-deleted (or an orphan): it is not
+  // a task the caller can see, so it must not count towards `total` either.
   const metaById = await fetchTaskMetas(payloads.map((p) => p.item_id));
+  const live = payloads.filter((p) => metaById.has(p.item_id));
 
-  const out = [];
-  for (const p of payloads) {
-    const m = metaById.get(p.item_id);
-    if (m) out.push(formatTask(m, p));
-  }
-  return out;
+  const tasks = live
+    .slice(0, limit)
+    .map((p) =>
+      formatTaskListEntry(
+        metaById.get(p.item_id) as ItemsMetaRow,
+        p,
+        args.include_content === true,
+      ),
+    );
+  return { tasks, total: live.length, hasMore: live.length > tasks.length };
 }
 
 export async function getTask(args: { id: string }) {

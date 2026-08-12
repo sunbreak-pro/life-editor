@@ -20,6 +20,29 @@ export const PAGE_SIZE = 1000;
 /** Ids per `.in()` request — small enough for any URL-length limit. */
 export const IN_CHUNK_SIZE = 200;
 
+/**
+ * Items a list-shaped tool returns when the caller does not say (#702 ①).
+ * Every capped result reports `total` / `hasMore`, so this is a budget the
+ * caller can lift — never a truncation it has to guess at.
+ */
+export const DEFAULT_LIST_LIMIT = 50;
+
+/**
+ * Caller-supplied `limit` → the count to slice at. A zero or negative limit
+ * is a mistake that would otherwise look like an empty collection, so it is
+ * rejected rather than honoured.
+ */
+export function resolveListLimit(
+  limit: number | undefined,
+  fallback = DEFAULT_LIST_LIMIT,
+): number {
+  if (limit === undefined) return fallback;
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`limit must be a positive integer (got ${limit})`);
+  }
+  return limit;
+}
+
 /** Minimal result surface shared by PostgREST builder thenables. */
 export interface PostgrestListResult {
   data: unknown;

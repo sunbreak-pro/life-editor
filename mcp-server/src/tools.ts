@@ -8,7 +8,12 @@ import {
   deleteTask,
 } from "./handlers/taskHandlers.js";
 import { getDaily, upsertDaily } from "./handlers/dailyHandlers.js";
-import { listNotes, createNote, updateNote } from "./handlers/noteHandlers.js";
+import {
+  listNotes,
+  getNote,
+  createNote,
+  updateNote,
+} from "./handlers/noteHandlers.js";
 import {
   listSchedule,
   createScheduleItem,
@@ -75,7 +80,9 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "list_tasks",
     description:
-      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id.",
+      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id. " +
+      "Returns { tasks, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
+      "Use get_task for one task's full content, or include_content:true to get every body in the page.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -101,13 +108,25 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "Filter by parent task ID",
         },
+        include_content: {
+          type: "boolean",
+          description:
+            "Return each task's full body alongside the preview (default: false). Costly — prefer get_task.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Max tasks to return (default: 50). The result reports total and hasMore, so nothing is dropped silently.",
+        },
       },
     },
     handler: listTasks,
   }),
   defineTool({
     name: "get_task",
-    description: "Get a single task by ID.",
+    description:
+      "Get a single task by ID, with its full body. `content` is TipTap JSON (what the editor stores); " +
+      "`contentText` is the same body as plain text — edit that one and write it back via update_task, which takes Markdown.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -224,7 +243,10 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "list_notes",
-    description: "List all notes, optionally filtered by a search query.",
+    description:
+      "List notes, optionally filtered by a search query. " +
+      "Returns { notes, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
+      "Use get_note for one note's full content, or include_content:true to get every body in the page.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -232,9 +254,33 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "Search query (matches title and content)",
         },
+        include_content: {
+          type: "boolean",
+          description:
+            "Return each note's full body alongside the preview (default: false). Costly — prefer get_note.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Max notes to return (default: 50). The result reports total and hasMore, so nothing is dropped silently.",
+        },
       },
     },
     handler: listNotes,
+  }),
+  defineTool({
+    name: "get_note",
+    description:
+      "Get a single note by ID, with its full body. `content` is TipTap JSON (what the editor stores); " +
+      "`contentText` is the same body as plain text — edit that one and write it back via update_note, which takes Markdown.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Note ID" },
+      },
+      required: ["id"],
+    },
+    handler: getNote,
   }),
   defineTool({
     name: "create_note",

@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   PAGE_SIZE,
   IN_CHUNK_SIZE,
+  DEFAULT_LIST_LIMIT,
   chunkIds,
   fetchAllPages,
   fetchByIdChunks,
+  resolveListLimit,
 } from "../src/utils/pagination.js";
 
 /*
@@ -75,6 +77,23 @@ describe("fetchAllPages", () => {
         "list notes",
       ),
     ).rejects.toThrow("list notes: boom");
+  });
+});
+
+describe("resolveListLimit", () => {
+  it("falls back to the default budget when the caller says nothing", () => {
+    expect(resolveListLimit(undefined)).toBe(DEFAULT_LIST_LIMIT);
+  });
+
+  it("honours a caller-supplied cap", () => {
+    expect(resolveListLimit(5)).toBe(5);
+  });
+
+  it("rejects a limit that would look like an empty collection", () => {
+    // Returning nothing for limit:0 is the silent-failure shape #702 removes.
+    expect(() => resolveListLimit(0)).toThrow(/positive integer/);
+    expect(() => resolveListLimit(-3)).toThrow(/positive integer/);
+    expect(() => resolveListLimit(2.5)).toThrow(/positive integer/);
   });
 });
 
