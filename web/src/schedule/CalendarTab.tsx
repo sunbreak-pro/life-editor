@@ -43,27 +43,20 @@ import {
   ItemConversionError,
   logServiceError,
   minutesToTime,
-  deriveScheduleStatus,
   tasksToCalendarChips,
-  taskChipId,
   isTaskChip,
   unwrapTaskChipId,
   pickAddableTasks,
-  buildWeekdayLabels,
   frequencyLabel,
   nextRoutineOccurrence,
-  itemVariant,
   applyRepeatFilter,
   applyCalendarLens,
   buildCalendarMemberIds,
   pickSelectableCalendars,
   nowMinutesLocal,
-  sortDayItems,
   todayCalendarKey,
-  type FrequencyLabelCopy,
   type TaskCalendarChip,
   type TodayTodoRow,
-  type ScheduleStatus,
   type ScheduleItem,
   type ItemCreateNoteDraft,
   type WeekTimeGridItem,
@@ -73,12 +66,10 @@ import {
   type FrequencyEditorValue,
   type RoutineSummaryRow,
   type RepeatListRow,
-  type SegmentedOption,
   type StatusFilterChip,
   type DataService,
   MobileFab,
   WIDE_QUERY,
-  dateFromKey,
   type TranslationKey,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
@@ -102,6 +93,19 @@ import {
   placeTaskWrite,
 } from "./taskChipUndoWiring";
 import { itemTapRoute, taskChipPanelModel } from "./taskChipPanel";
+import {
+  toAgendaItems,
+  toEditorItem,
+  toMonthGridItems,
+  toWeekGridItems,
+} from "./scheduleViewModels";
+import {
+  formatFullDay as formatFullDayKey,
+  formatLongDate,
+  formatPeriodLabel,
+  formatShortDate,
+  useScheduleCopy,
+} from "./scheduleCopy";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -949,113 +953,62 @@ export function CalendarTab({
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
-  const weekdayLabels = useMemo(() => buildWeekdayLabels(t), [t]);
-  const freqCopy = useMemo<FrequencyLabelCopy>(
-    () => ({
-      daily: t("scheduleScreen.frequencyDaily"),
-      weekdaysFallback: t("scheduleScreen.frequencyWeekdays"),
-      intervalEvery: t("scheduleScreen.intervalEvery"),
-      intervalDays: t("scheduleScreen.intervalDays"),
-    }),
-    [t],
-  );
+  // Every `t(...)` bundle this host injects into the shared parts (#673 / C6 —
+  // pinned in web/tests/scheduleCopy.test.ts). No component state goes in, so
+  // the whole bundle is readable from a test without the Provider chain.
+  const {
+    weekdayLabels,
+    freqCopy,
+    desktopViewOptions,
+    toolbarLabels,
+    sidebarTabs,
+    repeatLabels,
+    statusLabels,
+    createPanelLabels,
+    formatDuration,
+    formatGapLabel,
+  } = useScheduleCopy({ isWide, notesError });
 
-  const mdFmt = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        month: "numeric",
-        day: "numeric",
-      }),
+  const formatDayDate = useCallback(
+    (key: string) => formatShortDate(i18n.language, key),
     [i18n.language],
   );
-  const formatDayDate = useCallback(
-    (key: string) => {
-      return mdFmt.format(dateFromKey(key));
-    },
-    [mdFmt],
-  );
 
-  const periodLabel = useMemo(() => {
-    const dObj = dateFromKey(anchorDate);
-    if (effView === "month") {
-      return new Intl.DateTimeFormat(i18n.language, {
-        year: "numeric",
-        month: "long",
-      }).format(dObj);
-    }
-    if (isWide && effView === "week") {
-      return `${formatDayDate(weekStart)} – ${formatDayDate(weekEnd)}`;
-    }
-    return new Intl.DateTimeFormat(i18n.language, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-    }).format(dObj);
-  }, [
-    anchorDate,
-    effView,
-    isWide,
-    i18n.language,
-    formatDayDate,
-    weekStart,
-    weekEnd,
-  ]);
+  const periodLabel = useMemo(
+    () =>
+      formatPeriodLabel({
+        language: i18n.language,
+        anchorDate,
+        view: effView,
+        isWide,
+        weekStart,
+        weekEnd,
+      }),
+    [anchorDate, effView, isWide, i18n.language, weekStart, weekEnd],
+  );
 
   // #353: the creation panel is reachable from three gestures (toolbar /
   // empty slot / month cell) and each carries its own target day, but only
   // the times were visible — "which day am I adding to?" had no answer on
   // screen. The year is included: the panel can be open on a day the user
   // navigated months away to.
-  const createDateLabel = useMemo(() => {
-    if (!createPanel) return undefined;
-    return new Intl.DateTimeFormat(i18n.language, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-    }).format(dateFromKey(createPanel.date));
-  }, [createPanel, i18n.language]);
+  const createDateLabel = useMemo(
+    () =>
+      createPanel ? formatLongDate(i18n.language, createPanel.date) : undefined,
+    [createPanel, i18n.language],
+  );
 
-  const todayLabel = useMemo(() => {
-    return new Intl.DateTimeFormat(i18n.language, {
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-    }).format(dateFromKey(today));
-  }, [today, i18n.language]);
+  const todayLabel = useMemo(
+    () => formatFullDayKey(i18n.language, today),
+    [today, i18n.language],
+  );
 
   // Month-cell accessible names (MonthGrid falls back to the raw ISO key —
   // a screen reader would announce "2026-07-09").
-  const fullDayFmt = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        month: "long",
-        day: "numeric",
-        weekday: "short",
-      }),
+  const formatFullDay = useCallback(
+    (key: string) => formatFullDayKey(i18n.language, key),
     [i18n.language],
   );
-  const formatFullDay = useCallback(
-    (key: string) => {
-      return fullDayFmt.format(dateFromKey(key));
-    },
-    [fullDayFmt],
-  );
-
-  const desktopViewOptions: SegmentedOption[] = [
-    { id: "day", label: t("scheduleScreen.viewDay") },
-    { id: "week", label: t("scheduleScreen.viewWeek") },
-    { id: "month", label: t("scheduleScreen.viewMonth") },
-  ];
-
-  const toolbarLabels = {
-    today: t("scheduleScreen.today"),
-    prev: t("scheduleScreen.prev"),
-    next: t("scheduleScreen.next"),
-    openSettings: t("scheduleScreen.openSettings"),
-    view: t("scheduleScreen.viewLabel"),
-  };
 
   // Scheduled-task chips (schedule redesign A-1). `rangeTaskChips` is the
   // unfiltered visible range — the grid + month draw `gridTaskChips`, its
@@ -1182,50 +1135,11 @@ export function CalendarTab({
   );
 
   const gridItems = useMemo<WeekTimeGridItem[]>(
-    () => [
-      ...gridRangeItems.map((i) => ({
-        id: i.id,
-        date: i.date,
-        title: i.title,
-        startTime: i.startTime,
-        endTime: i.endTime,
-        isAllDay: i.isAllDay,
-        completed: i.completed,
-        status: deriveScheduleStatus(i, now),
-        variant: itemVariant(i),
-      })),
-      ...gridTaskChips.map((c) => ({
-        id: taskChipId(c.id),
-        date: c.date,
-        title: c.title,
-        startTime: c.startTime,
-        endTime: c.endTime,
-        isAllDay: c.isAllDay,
-        completed: c.completed,
-        variant: "task" as const,
-      })),
-    ],
+    () => toWeekGridItems(gridRangeItems, gridTaskChips, now),
     [gridRangeItems, now, gridTaskChips],
   );
   const monthItems = useMemo<MonthGridItem[]>(
-    () => [
-      ...gridRangeItems.map((i) => ({
-        id: i.id,
-        date: i.date,
-        title: i.title,
-        variant: itemVariant(i),
-        completed: i.completed,
-        isAllDay: i.isAllDay,
-      })),
-      ...gridTaskChips.map((c) => ({
-        id: taskChipId(c.id),
-        date: c.date,
-        title: c.title,
-        variant: "task" as const,
-        completed: c.completed,
-        isAllDay: c.isAllDay,
-      })),
-    ],
+    () => toMonthGridItems(gridRangeItems, gridTaskChips),
     [gridRangeItems, gridTaskChips],
   );
 
@@ -1239,29 +1153,8 @@ export function CalendarTab({
   // did both. The status is derived exactly as an event's is: the chip carries
   // the same date / start / all-day / completed facts.
   const toAgenda = useCallback(
-    (arr: ScheduleItem[], chips: TaskCalendarChip[] = []): AgendaItem[] => {
-      const scheduleAgenda: AgendaItem[] = arr.map((i) => ({
-        id: i.id,
-        title: i.title,
-        startTime: i.startTime,
-        endTime: i.endTime,
-        isAllDay: i.isAllDay,
-        completed: i.completed,
-        status: deriveScheduleStatus(i, now),
-        variant: itemVariant(i),
-      }));
-      const taskAgenda: AgendaItem[] = chips.map((c) => ({
-        id: taskChipId(c.id),
-        title: c.title,
-        startTime: c.startTime,
-        endTime: c.endTime,
-        isAllDay: c.isAllDay,
-        completed: c.completed,
-        status: deriveScheduleStatus(c, now),
-        variant: "task" as const,
-      }));
-      return sortDayItems([...scheduleAgenda, ...taskAgenda]);
-    },
+    (arr: ScheduleItem[], chips: TaskCalendarChip[] = []): AgendaItem[] =>
+      toAgendaItems(arr, chips, now),
     [now],
   );
 
@@ -1300,20 +1193,7 @@ export function CalendarTab({
     [gridRangeItems, anchorDate],
   );
 
-  const editorItem: EventEditorItem | null = selected
-    ? {
-        id: selected.id,
-        title: selected.title,
-        date: selected.date,
-        isAllDay: selected.isAllDay ?? false,
-        startTime: selected.startTime,
-        endTime: selected.endTime,
-        completed: selected.completed,
-        status: deriveScheduleStatus(selected, now),
-        memo: selected.memo ?? "",
-        isRoutine: selected.routineId != null,
-      }
-    : null;
+  const editorItem: EventEditorItem | null = toEditorItem(selected, now);
 
   const originDetail = useMemo(() => {
     if (!selected || selected.routineId == null) return undefined;
@@ -1338,21 +1218,6 @@ export function CalendarTab({
       frequencyStartDate: selectedRoutine.frequencyStartDate,
     };
   }, [selectedRoutine]);
-
-  const repeatLabels = useMemo(
-    () => ({
-      frequency: t("scheduleScreen.frequency"),
-      frequencyNone: t("scheduleScreen.frequencyNone"),
-      frequencyDaily: t("scheduleScreen.frequencyDaily"),
-      frequencyWeekdays: t("scheduleScreen.frequencyWeekdays"),
-      frequencyInterval: t("scheduleScreen.frequencyInterval"),
-      intervalEvery: t("scheduleScreen.intervalEvery"),
-      intervalDays: t("scheduleScreen.intervalDays"),
-      startDate: t("scheduleScreen.startDate"),
-      converting: t("scheduleScreen.repeatConverting"),
-    }),
-    [t],
-  );
 
   const summaryRows = useMemo<RoutineSummaryRow[]>(
     () =>
@@ -1506,37 +1371,6 @@ export function CalendarTab({
       }
     },
     [selected, selectableCalendars, allAssignments],
-  );
-
-  // #553: duration suffix on the TimeRangeField's end options ("10:30
-  // (1時間30分)"). Hour/minute composition happens here so the words stay in
-  // the catalogs — the shared field never builds copy.
-  const formatDuration = useCallback(
-    (minutes: number) => {
-      const h = Math.floor(minutes / 60);
-      const m = minutes % 60;
-      if (h === 0) return t("scheduleScreen.durationMin", { m });
-      if (m === 0) return t("scheduleScreen.durationHour", { h });
-      return t("scheduleScreen.durationHourMin", { h, m });
-    },
-    [t],
-  );
-
-  // #691: the Mobile Dayflow calls out stretches with nothing in them. The
-  // words stay in the catalogs; AgendaList only receives the finished string.
-  const formatGapLabel = useCallback(
-    (minutes: number) =>
-      t("scheduleScreen.freeGap", { duration: formatDuration(minutes) }),
-    [t, formatDuration],
-  );
-
-  const statusLabels = useMemo<Record<ScheduleStatus, string>>(
-    () => ({
-      notStarted: t("scheduleScreen.statusNotStarted"),
-      inProgress: t("scheduleScreen.statusInProgress"),
-      done: t("scheduleScreen.statusDone"),
-    }),
-    [t],
   );
 
   const agendaLabels = {
@@ -1743,20 +1577,6 @@ export function CalendarTab({
   // route to it inside the drawer would be a duplicate; "繰り返し" is the one
   // that had no Mobile route at all (mobile-scope.md #5 — the list was
   // unreachable from narrow since #408 retired the Routines header tab).
-  const sidebarTabs = useMemo(
-    () =>
-      isWide
-        ? [
-            { id: "flow", label: t("scheduleScreen.todayFlow") },
-            { id: "todo", label: t("scheduleScreen.tabTodo") },
-            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-          ]
-        : [
-            { id: "flow", label: t("scheduleScreen.todayFlow") },
-            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-          ],
-    [isWide, t],
-  );
   // A resize can leave "todo" selected with no tab to match it, which would
   // draw the tray under a switcher that shows nothing as active. Fold it back
   // to the flow rather than resetting the state — widening again returns the
@@ -2482,49 +2302,6 @@ export function CalendarTab({
         {taskDetailBody}
       </div>
     </BottomSheet>
-  );
-
-  // #376: one label bundle for BOTH creation frames (Desktop overlay + Mobile
-  // sheet) — they render the same panel, so keeping two literals here is how
-  // the two would eventually drift apart.
-  const createPanelLabels = useMemo(
-    () => ({
-      typeLabel: t("scheduleScreen.itemTypeLabel"),
-      typeEvent: t("scheduleScreen.typeEvent"),
-      typeTask: t("scheduleScreen.typeTask"),
-      typeNote: t("scheduleScreen.typeNote"),
-      title: t("scheduleScreen.title"),
-      eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
-      taskPlaceholder: t("scheduleScreen.taskPlaceholder"),
-      date: t("scheduleScreen.date"),
-      startTime: t("scheduleScreen.startTime"),
-      endTime: t("scheduleScreen.endTime"),
-      addEvent: t("scheduleScreen.addEvent"),
-      addEventAndOpen: t("scheduleScreen.addEventAndOpen"),
-      sourceLabel: t("scheduleScreen.sourceLabel"),
-      sourceNew: t("scheduleScreen.sourceNew"),
-      sourceExisting: t("scheduleScreen.sourceExisting"),
-      addTask: t("scheduleScreen.addTask"),
-      placeTask: t("scheduleScreen.placeTask"),
-      searchTasks: t("scheduleScreen.searchTasks"),
-      // Same sentence as the tray's picker, and the same fact ("nothing left
-      // to schedule") — one key rather than two that can disagree.
-      taskPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
-      taskPickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
-      noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
-      notePlaceholder: t("scheduleScreen.notePlaceholder"),
-      searchNotes: t("scheduleScreen.searchNotes"),
-      // "No notes yet" is a claim about the user's data, so it must not stand
-      // in for a list we simply failed to read.
-      notePickerEmpty: notesError
-        ? t("scheduleScreen.notePickerError")
-        : t("scheduleScreen.notePickerEmpty"),
-      notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
-      noteLinkHint: t("scheduleScreen.noteLinkHint"),
-      attachedNote: t("scheduleScreen.attachedNote"),
-      clearNote: t("scheduleScreen.clearNote"),
-    }),
-    [t, notesError],
   );
 
   // #299 item-creation overlay (Desktop): the shared creation panel in an

@@ -10,7 +10,6 @@ import { cn } from "../cn";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import {
-  clamp,
   dayOfWeek,
   parseDateKey,
   layoutDayItems,
@@ -20,6 +19,7 @@ import {
   minutesToPx,
   snapMinutes,
   minutesToTime,
+  resolveDrag,
   DEFAULT_SNAP_MINUTES,
   type HourRange,
 } from "../../utils/scheduleGridLayout";
@@ -186,7 +186,6 @@ export interface WeekTimeGridProps {
 }
 
 const GUTTER = "3.25rem"; // hour-axis column width
-const DRAG_THRESHOLD_PX = 4; // pointer travel below this counts as a click
 
 function defaultFormatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
@@ -430,96 +429,41 @@ export function WeekTimeGrid({
     const onMove = (ev: PointerEvent) => {
       const d = dragRef.current;
       if (!d) return;
-      const dx = ev.clientX - d.startX;
-      const dy = ev.clientY - d.startY;
-      if (!d.moved && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD_PX) return;
-      d.moved = true;
-      const deltaMin = (dy / hourHeight) * 60;
-      let dayIdx = d.origDayIdx;
-      let startMin = d.origStartMin;
-      let endMin: number;
-      // All-day zone (#562): the pointer left the time body upward, i.e. it is
-      // over the all-day lane (or the header just above it). A "move" becomes
-      // a drop-to-all-day when the host opted in; a "place" reverts — the chip
-      // is still all-day, so releasing here must write nothing. Without this
-      // branch the lane's y used to be clamped into a time, which is how the
-      // 00:00 inverted full-day bands were minted.
+      // The decision itself is pure (`resolveDrag`, pinned in
+      // shared/tests/scheduleGridLayout.test.ts). Everything read from the DOM
+      // is measured here and handed over as numbers — which is what lets the
+      // rules be tested at all, since jsdom reports every rect as zero.
       const laneEl = allDayLaneRef.current;
-      const overAllDayLane =
-        (d.mode === "place" || (d.mode === "move" && !!onDropAllDay)) &&
-        !!laneEl &&
-        ev.clientY < laneEl.getBoundingClientRect().bottom;
-      if (overAllDayLane) {
-        if (d.mode === "move" && d.colWidth > 0 && dayKeys.length > 1) {
-          const offset = Math.round(dx / d.colWidth);
-          dayIdx = Math.min(
-            dayKeys.length - 1,
-            Math.max(0, d.origDayIdx + offset),
-          );
-        }
-        const dateISO = dayKeys[dayIdx] ?? dayKeys[d.origDayIdx];
-        d.final = { dateISO, startMin: 0, endMin: 0, allDay: true };
-        setDragPreview({
-          id: d.id,
-          date: dateISO,
-          startTime: "00:00",
-          endTime: "00:00",
-          isAllDay: true,
-        });
-        return;
-      }
-      if (d.mode === "place") {
-        // Absolute drop: map the pointer's Y over the scroll body to a start
-        // time (same mapping as empty-slot create). The day stays the chip's
-        // own — no horizontal remap — and the block is kept fully in-window.
-        const el = timeGridRef.current;
-        let mins = d.origStartMin;
-        if (el) {
-          // The time grid scrolls WITH the content, so its rect top already is
-          // the 00:00 line — no scrollTop term (#563).
-          const yInBody = ev.clientY - el.getBoundingClientRect().top;
-          mins = pxToMinutes(yInBody, hourHeight, hourRange);
-        }
-        startMin = Math.min(
-          Math.max(snapMinutes(mins, snapMinutesStep), startHour * 60),
-          endHour * 60 - d.durationMin,
-        );
-        endMin = startMin + d.durationMin;
-      } else if (d.mode === "move") {
-        // Clamp inside the visible window (#562): an unclamped overshoot past
-        // either edge used to snap to a negative / >24:00 start, and
-        // minutesToTime then flattened both ends onto the same minute — the
-        // inverted span the grid draws as an uneditable full-day band.
-        startMin = clamp(
-          snapMinutes(d.origStartMin + deltaMin, snapMinutesStep),
-          startHour * 60,
-          Math.max(startHour * 60, endHour * 60 - d.durationMin),
-        );
-        endMin = startMin + d.durationMin;
-        if (d.colWidth > 0 && dayKeys.length > 1) {
-          const offset = Math.round(dx / d.colWidth);
-          dayIdx = Math.min(
-            dayKeys.length - 1,
-            Math.max(0, d.origDayIdx + offset),
-          );
-        }
-      } else {
-        endMin = Math.max(
-          snapMinutes(
-            d.origStartMin + d.durationMin + deltaMin,
-            snapMinutesStep,
-          ),
-          d.origStartMin + snapMinutesStep,
-        );
-      }
-      const dateISO = dayKeys[dayIdx] ?? dayKeys[d.origDayIdx];
-      d.final = { dateISO, startMin, endMin, allDay: false };
+      const gridEl = timeGridRef.current;
+      const next = resolveDrag(
+        d,
+        { x: ev.clientX, y: ev.clientY },
+        {
+          dayKeys,
+          hourHeight,
+          hourRange,
+          snapStep: snapMinutesStep,
+          allDayLaneBottom: laneEl
+            ? laneEl.getBoundingClientRect().bottom
+            : null,
+          timeGridTop: gridEl ? gridEl.getBoundingClientRect().top : null,
+          canDropAllDay: !!onDropAllDay,
+        },
+      );
+      if (!next) return;
+      d.moved = true;
+      d.final = {
+        dateISO: next.dateISO,
+        startMin: next.startMin,
+        endMin: next.endMin,
+        allDay: next.allDay,
+      };
       setDragPreview({
         id: d.id,
-        date: dateISO,
-        startTime: minutesToTime(startMin),
-        endTime: minutesToTime(endMin),
-        isAllDay: d.mode === "place" ? false : undefined,
+        date: next.dateISO,
+        startTime: minutesToTime(next.startMin),
+        endTime: minutesToTime(next.endMin),
+        isAllDay: next.previewIsAllDay,
       });
     };
     const onUp = (ev: PointerEvent) => {
