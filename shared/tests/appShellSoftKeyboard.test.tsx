@@ -36,13 +36,14 @@ const LABELS = {
 };
 
 function mockMatchMedia(matches: boolean) {
-  // @ts-expect-error — minimal MediaQueryList stub for tests.
+  // A bare vi.fn() is untyped, so the partial stub needs no suppression;
+  // `satisfies` keeps the shape checked against the real interface (#711).
   window.matchMedia = vi.fn().mockReturnValue({
     matches,
     media: "",
     addEventListener: () => {},
     removeEventListener: () => {},
-  });
+  } satisfies Partial<MediaQueryList>);
 }
 
 /** Stands in for the phone's viewport; `setHeight` plays the keyboard. */

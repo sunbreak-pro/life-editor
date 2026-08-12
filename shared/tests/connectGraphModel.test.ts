@@ -44,6 +44,7 @@ function tag(id: string, isDeleted = false): WikiTag {
     id,
     name: id,
     color: null,
+    icon: null,
     createdAt: "2026-01-01",
     updatedAt: "2026-01-01",
     version: 1,
