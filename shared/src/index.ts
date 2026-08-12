@@ -102,6 +102,24 @@ export {
   useRightSidebarOptional,
 } from "./hooks/useRightSidebarContext";
 
+// UnsavedGuard (#753) — the container-level half of the save-button model
+// (D-20260810-sched-1). Content declares a pending draft with `useUnsavedDraft`;
+// the containers that would tear it down (the sidebar closing, the section
+// switching) ask through `confirmDiscard` first. Optional on both sides, so a
+// host with no Provider behaves exactly as it did.
+export {
+  UnsavedGuardProvider,
+  type UnsavedGuardProviderProps,
+  type UnsavedGuardLabels,
+  UnsavedGuardContext,
+  type UnsavedGuardContextValue,
+  type UnsavedProbe,
+} from "./context";
+export {
+  useUnsavedGuardOptional,
+  useUnsavedDraft,
+} from "./hooks/useUnsavedGuard";
+
 // Theme domain (W1) — Pattern A Provider + context hook. Web-lean (theme /
 // fontSize / language). Persists via useLocalStorage; language forwards to
 // the shared i18next singleton. useLocalStorage is exported for hosts/tests.
@@ -157,6 +175,12 @@ export {
   resetLocalPreferences,
   collectPreferenceKeys,
 } from "./utils/resetPreferences";
+// #718 — one-shot startup rename of the three legacy un-prefixed Notes keys
+// into the `life-editor:` namespace, so the reset sweep above can see them.
+export {
+  migrateLegacyPreferenceKeys,
+  LEGACY_PREFERENCE_KEY_RENAMES,
+} from "./utils/migrateLegacyPreferenceKeys";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
 // #473 — the on-screen area, which the soft keyboard shrinks and `vh` does not.

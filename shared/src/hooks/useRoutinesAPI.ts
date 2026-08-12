@@ -4,6 +4,7 @@ import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { useDomainLoad } from "./useDomainLoad";
 import { useSyncDomains } from "./useSyncDomains";
 
 /**
@@ -35,35 +36,31 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
 
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const routinesRef = useRef(routines);
   useEffect(() => {
     routinesRef.current = routines;
   }, [routines]);
 
-  // Initial load + every syncVersion bump (mirrors notes/daily). The
-  // two reads run independently so a failure in one (e.g. trash) does
-  // not block the other. Trash list is loaded alongside the active set.
+  // Initial load + every syncVersion bump (mirrors notes/daily), through the
+  // shared load effect (#672) — which also brings #296's error un-latch, so a
+  // transient failure no longer keeps the error latched for the session.
+  const { isLoading, error } = useDomainLoad({
+    domain: "Routines",
+    dataService: ds,
+    version: syncVersion,
+    load: (service) => service.fetchAllRoutines(),
+    apply: setRoutines,
+    fallbackMessage: "Failed to load routines",
+  });
+
+  // Trash, read on the same cursor but deliberately on its own: a failure here
+  // must not block the active list (nor gate `isLoading` / set `error` — the
+  // trash view has its own empty state and the active list is what the screen
+  // is waiting for).
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    (async () => {
-      try {
-        const r = await ds.fetchAllRoutines();
-        if (cancelled) return;
-        setRoutines(r);
-      } catch (e) {
-        logServiceError("Routines", "fetch", e);
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load routines");
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    (async () => {
+    void (async () => {
       try {
         const deleted = await ds.fetchDeletedRoutines();
         if (!cancelled) setDeletedRoutines(deleted);

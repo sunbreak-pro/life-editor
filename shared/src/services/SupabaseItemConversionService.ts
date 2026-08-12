@@ -19,6 +19,7 @@ import {
   type EventsPayloadRow,
 } from "./scheduleItemMapper";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
+import { requireSingleRow } from "./postgrestSingle";
 import { eventToTaskSlot } from "../utils/itemConversion";
 import { logServiceError } from "../utils/logError";
 
@@ -268,15 +269,14 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
     //    (its step-3 cleanup is best-effort), and a plain INSERT would then
     //    fail on the PK forever. The conflicting row is stale BY DEFINITION —
     //    the role filter below is what decides who actually converts.
-    const { data: inserted, error: insErr } = await this.client
-      .from("tasks_payload")
-      .upsert(taskPayload, { onConflict: "item_id" })
-      .select(TASKS_PAYLOAD_COLUMNS)
-      .single();
-    if (insErr)
-      throw new Error(
-        `convertEventToTask insert tasks_payload: ${insErr.message}`,
-      );
+    const inserted = await requireSingleRow<TasksPayloadRow>(
+      this.client
+        .from("tasks_payload")
+        .upsert(taskPayload, { onConflict: "item_id" })
+        .select(TASKS_PAYLOAD_COLUMNS)
+        .single(),
+      "convertEventToTask insert tasks_payload",
+    );
 
     // 2. role flip (+ DB-Q2 bump). The only step that needs undoing.
     try {
@@ -294,19 +294,15 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       this.client.from("events_payload").delete().eq("item_id", eventId),
     );
 
-    const { data: newMeta, error: newMetaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_TASK_COLUMNS)
-      .eq("id", eventId)
-      .single();
-    if (newMetaErr)
-      throw new Error(
-        `convertEventToTask read back items_meta: ${newMetaErr.message}`,
-      );
-    return rowsToTaskNode(
-      newMeta as unknown as ItemsMetaRow,
-      inserted as unknown as TasksPayloadRow,
+    const newMeta = await requireSingleRow<ItemsMetaRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_TASK_COLUMNS)
+        .eq("id", eventId)
+        .single(),
+      "convertEventToTask read back items_meta",
     );
+    return rowsToTaskNode(newMeta, inserted);
   }
 
   /**
@@ -417,15 +413,14 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
     const { payload: eventPayload } = scheduleItemToRows(item, userId);
 
     // 1. new payload in (UPSERT — see the twin method for why).
-    const { data: inserted, error: insErr } = await this.client
-      .from("events_payload")
-      .upsert(eventPayload, { onConflict: "item_id" })
-      .select(EVENTS_PAYLOAD_COLUMNS)
-      .single();
-    if (insErr)
-      throw new Error(
-        `convertTaskToEvent insert events_payload: ${insErr.message}`,
-      );
+    const inserted = await requireSingleRow<EventsPayloadRow>(
+      this.client
+        .from("events_payload")
+        .upsert(eventPayload, { onConflict: "item_id" })
+        .select(EVENTS_PAYLOAD_COLUMNS)
+        .single(),
+      "convertTaskToEvent insert events_payload",
+    );
 
     // 2. role flip (+ DB-Q2 bump).
     try {
@@ -442,19 +437,15 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       this.client.from("tasks_payload").delete().eq("item_id", taskId),
     );
 
-    const { data: newMeta, error: newMetaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_EVENT_COLUMNS)
-      .eq("id", taskId)
-      .single();
-    if (newMetaErr)
-      throw new Error(
-        `convertTaskToEvent read back items_meta: ${newMetaErr.message}`,
-      );
-    return rowsToScheduleItem(
-      newMeta as unknown as ItemsMetaEventRow,
-      inserted as unknown as EventsPayloadRow,
+    const newMeta = await requireSingleRow<ItemsMetaEventRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_EVENT_COLUMNS)
+        .eq("id", taskId)
+        .single(),
+      "convertTaskToEvent read back items_meta",
     );
+    return rowsToScheduleItem(newMeta, inserted);
   }
 }
 

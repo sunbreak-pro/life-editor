@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import {
   useNotesUnifiedContext,
   useWikiTagsUnifiedContext,
@@ -33,26 +33,21 @@ export function useNoteLinking({
   const { createItemLink, getLinksForItem, syncInlineLinks } =
     useWikiTagsUnifiedContext();
 
-  // Linkable candidates pool for the LinkPanel: active notes only.
-  const linkableItems = useMemo(
-    () =>
-      notes.notes
-        .filter((n) => !n.isDeleted)
-        .map((n) => ({
-          id: n.id,
-          label: `[${n.type}] ${n.title || "(untitled)"}`,
-        })),
-    [notes.notes],
-  );
+  // Live title lookup for the LinkPanel's own rows, from the domain this host
+  // owns. The panel asks this FIRST and the cross-role pool second: a note
+  // renamed a second ago is right here, where the pool is a snapshot.
+  // #749 dropped the "[note] " prefix — the row carries a role icon now, so
+  // spelling the role into the title said it twice.
   const resolveTitle = (id: string): string | undefined => {
     const n = notes.notes.find((nn) => nn.id === id);
     if (!n) return undefined;
-    return `[${n.type}] ${n.title || "(untitled)"}`;
+    return n.title || undefined;
   };
 
-  // "[[" link-target pool (notes + dailies + tasks, cross-domain) for the
-  // editor's wiki-link autocomplete. A loader, not a list: nothing is fetched
-  // until the first "[[" opens the menu (#430).
+  // Cross-domain item pool (notes + dailies + tasks). Feeds BOTH the editor's
+  // "[[" autocomplete and — since #749 — the LinkPanel's search picker, which
+  // is why a Note→Task link can now be made and read by title. A loader, not a
+  // list: nothing is fetched until a surface actually opens (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
 
   // A link click from another tab lands here with a pending note id — select
@@ -112,7 +107,6 @@ export function useNoteLinking({
   );
 
   return {
-    linkableItems,
     resolveTitle,
     loadLinkTargets,
     handleResolvedLinkInserted,

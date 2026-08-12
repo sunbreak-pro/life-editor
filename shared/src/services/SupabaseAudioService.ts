@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  AudioDataService,
-} from "./DataService";
+import type { AudioDataService } from "./DataService";
 import type { SoundSettings } from "../types/sound";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import {
@@ -20,6 +18,7 @@ import {
   type PlaylistItemRow,
 } from "./audioMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
+import { requireSingleRow, fetchMaybeSingleRow } from "./postgrestSingle";
 
 /*
  * SupabaseAudioService (W3-A). I/O layer over the independent audio tables
@@ -63,16 +62,15 @@ export class SupabaseAudioService implements AudioDataService {
   ): Promise<SoundSettings> {
     const now = new Date().toISOString();
     const row = soundSettingsToUpsert(soundType, volume, enabled, now);
-    const { data, error } = await this.client
-      .from("sound_settings")
-      .upsert(row, { onConflict: "user_id,sound_type" })
-      .select(SOUND_SETTINGS_COLUMNS)
-      .single();
-    if (error)
-      throw new Error(
-        `updateSoundSetting (type=${soundType}) failed: ${error.message}`,
-      );
-    return rowToSoundSettings(data as unknown as SoundSettingsRow);
+    const data = await requireSingleRow<SoundSettingsRow>(
+      this.client
+        .from("sound_settings")
+        .upsert(row, { onConflict: "user_id,sound_type" })
+        .select(SOUND_SETTINGS_COLUMNS)
+        .single(),
+      `updateSoundSetting (type=${soundType}) failed`,
+    );
+    return rowToSoundSettings(data);
   }
 
   // -------------------------------------------------------------------------
@@ -113,13 +111,15 @@ export class SupabaseAudioService implements AudioDataService {
 
   async createPlaylist(id: string, name: string): Promise<Playlist> {
     const insert = playlistToInsert(id, name);
-    const { data, error } = await this.client
-      .from("playlists")
-      .insert(insert)
-      .select(PLAYLIST_COLUMNS)
-      .single();
-    if (error) throw new Error(`createPlaylist failed: ${error.message}`);
-    return rowToPlaylist(data as unknown as PlaylistRow);
+    const data = await requireSingleRow<PlaylistRow>(
+      this.client
+        .from("playlists")
+        .insert(insert)
+        .select(PLAYLIST_COLUMNS)
+        .single(),
+      "createPlaylist failed",
+    );
+    return rowToPlaylist(data);
   }
 
   async updatePlaylist(
@@ -130,15 +130,16 @@ export class SupabaseAudioService implements AudioDataService {
   ): Promise<Playlist> {
     const now = new Date().toISOString();
     const patch = playlistUpdatesToPatch(updates, now);
-    const { data, error } = await this.client
-      .from("playlists")
-      .update(patch)
-      .eq("id", id)
-      .select(PLAYLIST_COLUMNS)
-      .single();
-    if (error)
-      throw new Error(`updatePlaylist (id=${id}) failed: ${error.message}`);
-    return rowToPlaylist(data as unknown as PlaylistRow);
+    const data = await requireSingleRow<PlaylistRow>(
+      this.client
+        .from("playlists")
+        .update(patch)
+        .eq("id", id)
+        .select(PLAYLIST_COLUMNS)
+        .single(),
+      `updatePlaylist (id=${id}) failed`,
+    );
+    return rowToPlaylist(data);
   }
 
   /** playlist_items are removed by the 0018 ON DELETE CASCADE FK. */
@@ -190,26 +191,28 @@ export class SupabaseAudioService implements AudioDataService {
     playlistId: string,
     soundId: string,
   ): Promise<PlaylistItem> {
-    const { data: existing, error: readErr } = await this.client
-      .from("playlist_items")
-      .select("sort_order")
-      .eq("playlist_id", playlistId)
-      .order("sort_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (readErr)
-      throw new Error(`addPlaylistItem read failed: ${readErr.message}`);
-    const nextOrder =
-      ((existing as { sort_order: number } | null)?.sort_order ?? -1) + 1;
+    const existing = await fetchMaybeSingleRow<{ sort_order: number }>(
+      this.client
+        .from("playlist_items")
+        .select("sort_order")
+        .eq("playlist_id", playlistId)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      "addPlaylistItem read failed",
+    );
+    const nextOrder = (existing?.sort_order ?? -1) + 1;
 
     const insert = playlistItemToInsert(id, playlistId, soundId, nextOrder);
-    const { data, error } = await this.client
-      .from("playlist_items")
-      .insert(insert)
-      .select(PLAYLIST_ITEM_COLUMNS)
-      .single();
-    if (error) throw new Error(`addPlaylistItem failed: ${error.message}`);
-    return rowToPlaylistItem(data as unknown as PlaylistItemRow);
+    const data = await requireSingleRow<PlaylistItemRow>(
+      this.client
+        .from("playlist_items")
+        .insert(insert)
+        .select(PLAYLIST_ITEM_COLUMNS)
+        .single(),
+      "addPlaylistItem failed",
+    );
+    return rowToPlaylistItem(data);
   }
 
   async removePlaylistItem(itemId: string): Promise<void> {
@@ -263,4 +266,6 @@ export const PHASE2_AUDIO_METHOD_NAMES = [
 
 export type AudioMethodName = (typeof PHASE2_AUDIO_METHOD_NAMES)[number];
 
-export const PHASE2_AUDIO_METHODS: ReadonlySet<string> = new Set(PHASE2_AUDIO_METHOD_NAMES);
+export const PHASE2_AUDIO_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_AUDIO_METHOD_NAMES,
+);

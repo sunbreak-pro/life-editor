@@ -55,3 +55,4 @@
 - D-20260810-mobile-2: **A**（「Consumption = 編集不可」の語のほうを実態に合わせる。§1 の定義を緩めるか #1 / #4 の目標列を「Consumption + Quick capture」に書き換える。同上）
 - D-20260810-mobile-3: **B**（Notes の FAB は現状維持。Materials のスクロール所有権は動かさない（Daily も同時に動くため）。同上）
 - D-20260812-web-2: **A**（TimerContext は 1 本のまま = 現状維持。Context 分割は WorkScreen の構造改修とセットでなければ実利が無い。同上）
+- D-20260812-refactor-2: **A+B**（Testing Library で画面ごと描いてハンドラを叩くのを既定にし、jsdom に載らない重い画面だけ純関数を切り出して逃がす。既存 241 テスト中 144 が既に Testing Library なので主流をそのまま伸ばす → #701 Step 2 の 🛑 ゲート解除。2026-08-12 チャットで回答・chat-refactor-core が転記）

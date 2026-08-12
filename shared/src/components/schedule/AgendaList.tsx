@@ -247,15 +247,21 @@ export function AgendaList({
         {it.status && labels.statusLabels && (
           <span className="shrink-0 self-center pr-1">
             {/* Timed rows: the tag toggles completion (replaces the old round
-                check). All-day rows keep the tag informational (they had no
-                toggle before), so pass onClick only when timed. */}
+                check). All-day EVENTS keep the tag informational (they had no
+                toggle before), so pass onClick only when timed.
+
+                #761: a task row is the exception. A todo staged as "today,
+                time TBD" is all-day by construction (the #298 tray writes it
+                that way), and "done" is the one thing a todo always means —
+                withholding its toggle would leave the commonest row on the
+                Mobile day list read-only. */}
             <ScheduleStatusTag
               status={it.status}
               label={labels.statusLabels[it.status]}
               ariaLabel={labels.complete}
               pressed={it.completed}
               onClick={
-                onToggleComplete && !it.isAllDay
+                onToggleComplete && (!it.isAllDay || variant === "task")
                   ? () => onToggleComplete(it.id)
                   : undefined
               }

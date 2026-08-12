@@ -10,11 +10,16 @@ import { sortNotesForList } from "../utils/noteSort";
 
 export type NoteSortDirection = "asc" | "desc";
 
-const LS_EXPANDED = "note-tree-expanded";
-const LS_SORT_DIRECTION = "note-sort-direction";
-// #283: sort MODE persistence. Namespaced (`life-editor:` prefix) — the newer
-// convention. The sibling LS_SORT_DIRECTION stays un-namespaced on purpose:
-// renaming it would silently discard the user's already-saved direction.
+// All three keys share the `life-editor:` per-surface prefix so "reset
+// settings" sweeps them (it matches by prefix — utils/resetPreferences.ts).
+// #718: LS_EXPANDED and LS_SORT_DIRECTION used to be bare (`note-tree-expanded`
+// / `note-sort-direction`) to avoid orphaning already-saved values, which meant
+// a reset cleared the sort MODE below but not its DIRECTION. Renaming is now
+// safe because `migrateLegacyPreferenceKeys` (utils/) copies the old values
+// across at startup — do not reintroduce an un-prefixed key here.
+const LS_EXPANDED = "life-editor:note-tree-expanded";
+const LS_SORT_DIRECTION = "life-editor:note-sort-direction";
+// #283: sort MODE persistence.
 const LS_SORT_MODE = "life-editor:note-sort-mode";
 
 export function loadExpandedIds(): Set<string> {

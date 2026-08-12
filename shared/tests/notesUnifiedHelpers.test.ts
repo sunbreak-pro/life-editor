@@ -52,7 +52,9 @@ afterEach(() => {
 describe("expanded-ids persistence", () => {
   it("round-trips a set through localStorage", () => {
     saveExpandedIds(new Set(["a", "b"]));
-    expect(localStorage.getItem("note-tree-expanded")).toBe('["a","b"]');
+    expect(localStorage.getItem("life-editor:note-tree-expanded")).toBe(
+      '["a","b"]',
+    );
     expect(loadExpandedIds()).toEqual(new Set(["a", "b"]));
   });
 
@@ -61,13 +63,13 @@ describe("expanded-ids persistence", () => {
   });
 
   it("returns an empty set on malformed JSON instead of throwing", () => {
-    localStorage.setItem("note-tree-expanded", "{not json");
+    localStorage.setItem("life-editor:note-tree-expanded", "{not json");
     expect(loadExpandedIds()).toEqual(new Set());
   });
 
   it("returns an empty set when the stored value is not iterable", () => {
     // `new Set(42)` throws inside the try — the catch must swallow it.
-    localStorage.setItem("note-tree-expanded", "42");
+    localStorage.setItem("life-editor:note-tree-expanded", "42");
     expect(loadExpandedIds()).toEqual(new Set());
   });
 
@@ -93,15 +95,17 @@ describe("sort-direction persistence", () => {
 
   it("round-trips both directions", () => {
     saveSortDirection("desc");
-    // Deliberately un-namespaced — see the comment on LS_SORT_DIRECTION.
-    expect(localStorage.getItem("note-sort-direction")).toBe("desc");
+    // Namespaced since #718 so "reset settings" sweeps it by prefix.
+    expect(localStorage.getItem("life-editor:note-sort-direction")).toBe(
+      "desc",
+    );
     expect(loadSortDirection()).toBe("desc");
     saveSortDirection("asc");
     expect(loadSortDirection()).toBe("asc");
   });
 
   it("falls back to asc on a value outside the union", () => {
-    localStorage.setItem("note-sort-direction", "sideways");
+    localStorage.setItem("life-editor:note-sort-direction", "sideways");
     expect(loadSortDirection()).toBe("asc");
   });
 

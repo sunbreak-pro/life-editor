@@ -11,9 +11,10 @@ import type { DataService } from "../src/services/DataService";
 /*
  * #283 — sort MODE persistence at the hook level. The Materials Notes provider
  * unmounts on tab/section switch; the chosen sort mode must survive via
- * localStorage (namespaced key `life-editor:note-sort-mode`), mirroring the
- * existing un-namespaced `note-sort-direction`. A stored value outside the
- * NoteSortMode union falls back to the "updatedAt" default.
+ * localStorage (namespaced key `life-editor:note-sort-mode`), alongside the
+ * sibling `life-editor:note-sort-direction` (namespaced too since #718). A
+ * stored value outside the NoteSortMode union falls back to the "updatedAt"
+ * default.
  */
 
 const LS_SORT_MODE = "life-editor:note-sort-mode";

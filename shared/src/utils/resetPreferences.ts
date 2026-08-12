@@ -11,7 +11,8 @@
  *   - `life-editor-` (hyphen) — the settings-screen prefs (theme, fonts,
  *     language, shortcuts, startup section, day start, week start …)
  *   - `life-editor:` (colon)  — the per-surface view prefs (Kanban view mode,
- *     Notes sort mode, Daily sort mode / direction)
+ *     Notes sort mode / direction, Notes tree expansion, Notes tag-group
+ *     collapse, Daily sort mode / direction)
  *   - `life-editor.` (dot)    — the layout / canvas state (#718): the shell's
  *     sidebar-collapsed flag and right-sidebar width, plus the Connect graph's
  *     saved node positions and viewport
@@ -21,13 +22,13 @@
  * here is enough BECAUSE the keys keep their names — nothing is renamed, so no
  * stored value is orphaned.
  *
- * KNOWN GAP (#718, awaiting a decision — do not "fix" this by renaming keys
- * without reading that issue): three Notes keys carry NO prefix at all
- * (`note-tree-expanded`, `note-sort-direction`, `note-tag-groups-collapsed`),
- * so they still survive a reset. Renaming them into this namespace would
- * silently discard the values already saved on the author's machine, which is
- * exactly why they were left un-prefixed in the first place — see the comment
- * in hooks/notesUnifiedHelpers.ts.
+ * Three Notes keys used to carry no prefix at all and so survived a reset
+ * (`note-tree-expanded`, `note-sort-direction`, `note-tag-groups-collapsed`).
+ * They were renamed into the colon family in #718; the values saved under the
+ * old bare names are carried across at startup by
+ * `migrateLegacyPreferenceKeys`. Prefix matching therefore has NO exceptions —
+ * an un-prefixed key is simply a bug, and tests/resetPreferences.test.ts is
+ * where it gets caught.
  */
 const NAMESPACE_PREFIXES: readonly string[] = [
   "life-editor-",

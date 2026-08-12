@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  TimerDataService,
-} from "./DataService";
+import type { TimerDataService } from "./DataService";
 import type {
   TimerSettings,
   TimerSession,
@@ -25,6 +23,7 @@ import {
   type PomodoroPresetRow,
 } from "./timerMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
+import { requireSingleRow, fetchMaybeSingleRow } from "./postgrestSingle";
 
 /*
  * SupabaseTimerService (W3-A). I/O layer over the independent timer tables
@@ -49,15 +48,15 @@ export class SupabaseTimerService implements TimerDataService {
     // Realtime echo re-ran it, editing a note produced a POST to
     // `timer_settings`. The row exists after the first call for the rest of
     // the account's life, so the write belongs on the miss path only.
-    const existing = await this.client
-      .from("timer_settings")
-      .select(TIMER_SETTINGS_COLUMNS)
-      .eq("id", 1)
-      .maybeSingle();
-    if (existing.error)
-      throw new Error(`fetchTimerSettings failed: ${existing.error.message}`);
-    if (existing.data)
-      return rowToTimerSettings(existing.data as unknown as TimerSettingsRow);
+    const existing = await fetchMaybeSingleRow<TimerSettingsRow>(
+      this.client
+        .from("timer_settings")
+        .select(TIMER_SETTINGS_COLUMNS)
+        .eq("id", 1)
+        .maybeSingle(),
+      "fetchTimerSettings failed",
+    );
+    if (existing) return rowToTimerSettings(existing);
 
     // QA-W3A申し送り #1: the old maybeSingle()→insert sequence had a race —
     // two concurrent first-accesses (e.g. TimerProvider mount + a Settings
@@ -73,13 +72,15 @@ export class SupabaseTimerService implements TimerDataService {
     if (upErr)
       throw new Error(`fetchTimerSettings upsert failed: ${upErr.message}`);
 
-    const { data, error } = await this.client
-      .from("timer_settings")
-      .select(TIMER_SETTINGS_COLUMNS)
-      .eq("id", 1)
-      .single();
-    if (error) throw new Error(`fetchTimerSettings failed: ${error.message}`);
-    return rowToTimerSettings(data as unknown as TimerSettingsRow);
+    const data = await requireSingleRow<TimerSettingsRow>(
+      this.client
+        .from("timer_settings")
+        .select(TIMER_SETTINGS_COLUMNS)
+        .eq("id", 1)
+        .single(),
+      "fetchTimerSettings failed",
+    );
+    return rowToTimerSettings(data);
   }
 
   async updateTimerSettings(
@@ -100,14 +101,16 @@ export class SupabaseTimerService implements TimerDataService {
     const now = new Date().toISOString();
     const patch = timerSettingsUpdatesToPatch(settings, now);
 
-    const { data, error } = await this.client
-      .from("timer_settings")
-      .update(patch)
-      .eq("id", 1)
-      .select(TIMER_SETTINGS_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateTimerSettings failed: ${error.message}`);
-    return rowToTimerSettings(data as unknown as TimerSettingsRow);
+    const data = await requireSingleRow<TimerSettingsRow>(
+      this.client
+        .from("timer_settings")
+        .update(patch)
+        .eq("id", 1)
+        .select(TIMER_SETTINGS_COLUMNS)
+        .single(),
+      "updateTimerSettings failed",
+    );
+    return rowToTimerSettings(data);
   }
 
   // -------------------------------------------------------------------------
@@ -124,13 +127,15 @@ export class SupabaseTimerService implements TimerDataService {
       taskId ?? null,
       startedAt,
     );
-    const { data, error } = await this.client
-      .from("timer_sessions")
-      .insert(insert)
-      .select(TIMER_SESSION_COLUMNS)
-      .single();
-    if (error) throw new Error(`startTimerSession failed: ${error.message}`);
-    return rowToTimerSession(data as unknown as TimerSessionRow);
+    const data = await requireSingleRow<TimerSessionRow>(
+      this.client
+        .from("timer_sessions")
+        .insert(insert)
+        .select(TIMER_SESSION_COLUMNS)
+        .single(),
+      "startTimerSession failed",
+    );
+    return rowToTimerSession(data);
   }
 
   async endTimerSession(
@@ -158,15 +163,16 @@ export class SupabaseTimerService implements TimerDataService {
   ): Promise<TimerSession> {
     const endedAt = new Date().toISOString();
     const patch = closeTimerSessionPatch(endedAt, duration, completed, label);
-    const { data, error } = await this.client
-      .from("timer_sessions")
-      .update(patch)
-      .eq("id", id)
-      .select(TIMER_SESSION_COLUMNS)
-      .single();
-    if (error)
-      throw new Error(`endTimerSession (id=${id}) failed: ${error.message}`);
-    return rowToTimerSession(data as unknown as TimerSessionRow);
+    const data = await requireSingleRow<TimerSessionRow>(
+      this.client
+        .from("timer_sessions")
+        .update(patch)
+        .eq("id", id)
+        .select(TIMER_SESSION_COLUMNS)
+        .single(),
+      `endTimerSession (id=${id}) failed`,
+    );
+    return rowToTimerSession(data);
   }
 
   async fetchTimerSessions(): Promise<TimerSession[]> {
@@ -223,13 +229,15 @@ export class SupabaseTimerService implements TimerDataService {
     preset: Omit<PomodoroPreset, "id" | "createdAt">,
   ): Promise<PomodoroPreset> {
     const insert = pomodoroPresetToInsert(preset);
-    const { data, error } = await this.client
-      .from("pomodoro_presets")
-      .insert(insert)
-      .select(POMODORO_PRESET_COLUMNS)
-      .single();
-    if (error) throw new Error(`createPomodoroPreset failed: ${error.message}`);
-    return rowToPomodoroPreset(data as unknown as PomodoroPresetRow);
+    const data = await requireSingleRow<PomodoroPresetRow>(
+      this.client
+        .from("pomodoro_presets")
+        .insert(insert)
+        .select(POMODORO_PRESET_COLUMNS)
+        .single(),
+      "createPomodoroPreset failed",
+    );
+    return rowToPomodoroPreset(data);
   }
 
   async updatePomodoroPreset(
@@ -238,17 +246,16 @@ export class SupabaseTimerService implements TimerDataService {
   ): Promise<PomodoroPreset> {
     const now = new Date().toISOString();
     const patch = pomodoroPresetUpdatesToPatch(updates, now);
-    const { data, error } = await this.client
-      .from("pomodoro_presets")
-      .update(patch)
-      .eq("id", id)
-      .select(POMODORO_PRESET_COLUMNS)
-      .single();
-    if (error)
-      throw new Error(
-        `updatePomodoroPreset (id=${id}) failed: ${error.message}`,
-      );
-    return rowToPomodoroPreset(data as unknown as PomodoroPresetRow);
+    const data = await requireSingleRow<PomodoroPresetRow>(
+      this.client
+        .from("pomodoro_presets")
+        .update(patch)
+        .eq("id", id)
+        .select(POMODORO_PRESET_COLUMNS)
+        .single(),
+      `updatePomodoroPreset (id=${id}) failed`,
+    );
+    return rowToPomodoroPreset(data);
   }
 
   async deletePomodoroPreset(id: number): Promise<void> {
@@ -279,4 +286,6 @@ export const PHASE2_TIMER_METHOD_NAMES = [
 
 export type TimerMethodName = (typeof PHASE2_TIMER_METHOD_NAMES)[number];
 
-export const PHASE2_TIMER_METHODS: ReadonlySet<string> = new Set(PHASE2_TIMER_METHOD_NAMES);
+export const PHASE2_TIMER_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_TIMER_METHOD_NAMES,
+);

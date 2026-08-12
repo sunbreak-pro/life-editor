@@ -98,7 +98,7 @@ import {
   todoAddCandidateWrite,
   placeTaskWrite,
 } from "./taskChipUndoWiring";
-import { answersChipClick, taskChipPanelModel } from "./taskChipPanel";
+import { itemTapRoute, taskChipPanelModel } from "./taskChipPanel";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -472,11 +472,18 @@ export function CalendarTab({
   // lane ended up with chips that answered a drag but not a click. They open
   // the same bubble with the task action set (see taskChipPanel.ts).
   //
-  // On NARROW they keep the old no-op, selection included — see
-  // answersChipClick for why.
+  // #761: on NARROW they used to be dropped instead, selection included, for
+  // want of a surface to send them to. They now open the task detail sheet —
+  // see itemTapRoute.
   const handleItemActivate = useCallback(
     (id: string, pos: { x: number; y: number }) => {
-      if (!answersChipClick(id, isWide)) return;
+      if (itemTapRoute(id, isWide) === "taskSheet") {
+        // Deliberately not selected on the way in: `selectedId` drives the
+        // EVENT surfaces (the ring, the narrow editor sheet), and a chip id
+        // resolves none of them.
+        setTaskDetailId(unwrapTaskChipId(id));
+        return;
+      }
       setSelectedId(id);
       if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
     },
@@ -491,20 +498,23 @@ export function CalendarTab({
   // #564: a task chip's detail is not this overlay — EventEditorPane edits a
   // schedule_item, and a task has none. #626 gives the chip its own in-place
   // surface on Desktop (TaskDetailPanel in an ItemDetailOverlay), so tags are
-  // editable without leaving Schedule; narrow keeps the #564 Tasks hand-off
-  // (its stand-in surface, the task BottomSheet, is still a follow-up).
+  // editable without leaving Schedule.
+  //
+  // #761: narrow gets the same panel in a BottomSheet, so it no longer answers
+  // with a jump to another section. The Tasks hand-off is still there — as a
+  // button inside the panel, where it is the user's choice rather than the only
+  // thing the row can do.
   const handleItemOpenDetail = useCallback(
     (id: string) => {
       setPopover(null);
       if (isTaskChip(id)) {
-        if (isWide) setTaskDetailId(unwrapTaskChipId(id));
-        else onOpenTasks();
+        setTaskDetailId(unwrapTaskChipId(id));
         return;
       }
       setSelectedId(id);
       if (isWide) setOverlayOpen(true);
     },
-    [isWide, onOpenTasks],
+    [isWide],
   );
 
   // #299 open the creation panel prefilled for a target day + time window.
@@ -702,6 +712,22 @@ export function CalendarTab({
     onRepeatConvertFailed: handleRepeatConvertError,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
+
+  /*
+   * #761: the agenda's completion tag, for BOTH kinds of row. The lists mix
+   * schedule items and task chips, and the two have different write paths — a
+   * chip's completion is a TaskTree status, not a schedule_item's `completed`
+   * flag — so the row's id is what decides which one runs. Sending a chip id to
+   * `handleToggle` would look up a schedule_item that is not there and write
+   * nothing: the same silent no-op the Issue is about.
+   */
+  const handleAgendaToggle = useCallback(
+    (id: string) => {
+      if (isTaskChip(id)) handleTodoToggleComplete(unwrapTaskChipId(id));
+      else handleToggle(id);
+    },
+    [handleTodoToggleComplete, handleToggle],
+  );
 
   // #355: whenever ANY other surface opens, drop a bubble still waiting its
   // turn — it would otherwise surface on top of that surface a moment later.
@@ -903,8 +929,14 @@ export function CalendarTab({
   // narrow the selection alone opens the BottomSheet editor, same as a tap.
   const handleItemContextMenu = useCallback(
     (id: string, pos: { x: number; y: number }) => {
-      // Same narrow guard as handleItemActivate.
-      if (!answersChipClick(id, isWide)) return;
+      // Same narrow routing as handleItemActivate — a long press is the
+      // gesture that produces this on a phone, and it must not land somewhere
+      // the tap beside it does not (#761).
+      if (itemTapRoute(id, isWide) === "taskSheet") {
+        cancelPopover();
+        setTaskDetailId(unwrapTaskChipId(id));
+        return;
+      }
       cancelPopover();
       setSelectedId(id);
       if (isWide) setPopover({ id, x: pos.x, y: pos.y });
@@ -1194,9 +1226,15 @@ export function CalendarTab({
     [gridRangeItems, gridTaskChips],
   );
 
-  // Merge schedule items + task chips into a single sorted agenda. Task rows
-  // carry no derived status, so AgendaList renders no toggle tag for them —
-  // completion for scheduled tasks lands in Step 3 (TaskTree API).
+  // Merge schedule items + task chips into a single sorted agenda.
+  //
+  // #761: task rows carry a derived status too. They used to be left without
+  // one — the A-3 note below said completion "lands in Step 3 (TaskTree API)",
+  // and it did (handleTodoToggleComplete, used by the tray since #298) — but
+  // the agenda was never wired to it, so the Mobile day list ended up with todo
+  // rows that showed no tag and answered no press while the event beside them
+  // did both. The status is derived exactly as an event's is: the chip carries
+  // the same date / start / all-day / completed facts.
   const toAgenda = useCallback(
     (arr: ScheduleItem[], chips: TaskCalendarChip[] = []): AgendaItem[] => {
       const scheduleAgenda: AgendaItem[] = arr.map((i) => ({
@@ -1216,6 +1254,7 @@ export function CalendarTab({
         endTime: c.endTime,
         isAllDay: c.isAllDay,
         completed: c.completed,
+        status: deriveScheduleStatus(c, now),
         variant: "task" as const,
       }));
       return sortDayItems([...scheduleAgenda, ...taskAgenda]);
@@ -1739,7 +1778,7 @@ export function CalendarTab({
       <AgendaList
         items={todayAgenda}
         nowMinutes={nowMinutes}
-        onToggleComplete={handleToggle}
+        onToggleComplete={handleAgendaToggle}
         onItemActivate={handleItemActivate}
         onItemDoubleClick={handleItemOpenDetail}
         selectedId={selectedId}
@@ -2274,97 +2313,129 @@ export function CalendarTab({
    *
    * The #564 hand-off survives as the button under the panel: in-place editing
    * covers tags/title/status, and anything deeper still lives in Tasks.
+   *
+   * #761: the body is built once and framed twice — the Desktop overlay below,
+   * and the Mobile BottomSheet at the end of the narrow branch. One body rather
+   * than two copies: the save button, the convert and the hand-off each carry a
+   * guard, and a second literal is how one of the two layouts eventually loses
+   * one of them. Only ever one frame is mounted (the layouts are separate
+   * returns, and both frames render nothing while closed).
    */
   const taskDetailTask =
     taskDetailId != null
       ? (taskNodes.find((n) => n.id === taskDetailId) ?? null)
       : null;
-  const taskDetailOverlayEl = (
-    <ItemDetailOverlay
-      open={isWide && !!taskDetailTask}
-      title={t("materials.tasks.detailTitle")}
-      // #736: Escape, the backdrop and the close button all land here, so one
-      // guard covers every plain exit from the todo panel.
-      onClose={() => {
-        void requestTaskDetailClose(() => setTaskDetailId(null));
-      }}
-    >
-      {taskDetailTask && (
-        <div className="flex flex-col gap-3">
-          <TaskDetailPanel
-            taskId={taskDetailTask.id}
-            title={taskDetailTask.title}
-            status={taskDetailTask.status}
-            // #713: the same save button Tasks now has. No content editor on
-            // this surface (the body stays in Tasks), so the press only ever
-            // carries the title — but the panel's contract allows an empty
-            // patch, and writing one would raise a no-op undo entry.
-            onSave={(id, patch) => {
-              if (patch.title === undefined) return;
-              updateNode(id, patch, { undoLabel: "taskTreeChange" });
-            }}
-            onToggleStatus={toggleTaskStatus}
-            titleLabel={t("taskDetail.titleLabel")}
-            statusLabel={t("taskDetail.status")}
-            statusText={t(
-              STATUS_TEXT_KEY[taskDetailTask.status ?? "NOT_STARTED"],
-            )}
-            saveLabel={t("taskDetail.save")}
-            savedLabel={t("taskDetail.saved")}
-            unsavedLabel={t("taskDetail.unsaved")}
-            // #736: the panel reports its pending title here; the three exits
-            // below read the flag before they tear the panel down. A ref rather
-            // than state — nothing on screen depends on it, and re-rendering
-            // the whole calendar on every keystroke would be a steep price.
-            onDirtyChange={(dirty) => {
-              taskDetailDirtyRef.current = dirty;
-            }}
-            // Same omission as Kanban: TagPicker's own kind badge captions the
-            // row, so TaskDetailPanel's generic tagsLabel would repeat it.
-            tagsSlot={
-              <TagPicker
-                itemId={taskDetailTask.id}
-                itemRole="task"
-                showLabel
-                size="sm"
-              />
-            }
+  // #736: every exit from the panel — Escape, the backdrop, the close button,
+  // the sheet's close button — funnels through this one guard.
+  const closeTaskDetail = () => {
+    void requestTaskDetailClose(() => setTaskDetailId(null));
+  };
+  const taskDetailBody = taskDetailTask && (
+    <div className="flex flex-col gap-3">
+      <TaskDetailPanel
+        taskId={taskDetailTask.id}
+        title={taskDetailTask.title}
+        status={taskDetailTask.status}
+        // #713: the same save button Tasks now has. No content editor on
+        // this surface (the body stays in Tasks), so the press only ever
+        // carries the title — but the panel's contract allows an empty
+        // patch, and writing one would raise a no-op undo entry.
+        onSave={(id, patch) => {
+          if (patch.title === undefined) return;
+          updateNode(id, patch, { undoLabel: "taskTreeChange" });
+        }}
+        onToggleStatus={toggleTaskStatus}
+        titleLabel={t("taskDetail.titleLabel")}
+        statusLabel={t("taskDetail.status")}
+        statusText={t(STATUS_TEXT_KEY[taskDetailTask.status ?? "NOT_STARTED"])}
+        saveLabel={t("taskDetail.save")}
+        savedLabel={t("taskDetail.saved")}
+        unsavedLabel={t("taskDetail.unsaved")}
+        // #736: the panel reports its pending title here; the three exits
+        // below read the flag before they tear the panel down. A ref rather
+        // than state — nothing on screen depends on it, and re-rendering
+        // the whole calendar on every keystroke would be a steep price.
+        onDirtyChange={(dirty) => {
+          taskDetailDirtyRef.current = dirty;
+        }}
+        // Same omission as Kanban: TagPicker's own kind badge captions the
+        // row, so TaskDetailPanel's generic tagsLabel would repeat it.
+        tagsSlot={
+          <TagPicker
+            itemId={taskDetailTask.id}
+            itemRole="task"
+            showLabel
+            size="sm"
           />
-          {/* #625: the same convert the chip bubble offers. The panel is the
+        }
+      />
+      {/* #625: the same convert the chip bubble offers. The panel is the
               surface a user reaches for when the todo turns out to be an
               appointment, so the action has to be here too — and this one
               closes the overlay itself, since the row it is showing changes
               role out from under it. #736: which is why a pending title has to
               be asked about FIRST — the conversion unmounts the panel, and the
               draft would go with it without a word. */}
-          <button
-            type="button"
-            onClick={() => {
-              void requestTaskDetailClose(() =>
-                handleConvertToEvent(taskDetailTask.id),
-              );
-            }}
-            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {t("itemConvert.toEvent")}
-          </button>
-          {/* #736: the hand-off leaves the section entirely, so it is a close
+      <button
+        type="button"
+        onClick={() => {
+          void requestTaskDetailClose(() =>
+            handleConvertToEvent(taskDetailTask.id),
+          );
+        }}
+        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+      >
+        {t("itemConvert.toEvent")}
+      </button>
+      {/* #736: the hand-off leaves the section entirely, so it is a close
               like any other as far as a pending title is concerned. */}
-          <button
-            type="button"
-            onClick={() => {
-              void requestTaskDetailClose(() => {
-                setTaskDetailId(null);
-                onOpenTasks();
-              });
-            }}
-            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {t("scheduleScreen.todoOpenInTasks")}
-          </button>
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          void requestTaskDetailClose(() => {
+            setTaskDetailId(null);
+            onOpenTasks();
+          });
+        }}
+        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+      >
+        {t("scheduleScreen.todoOpenInTasks")}
+      </button>
+    </div>
+  );
+
+  const taskDetailOverlayEl = (
+    <ItemDetailOverlay
+      open={isWide && !!taskDetailTask}
+      title={t("materials.tasks.detailTitle")}
+      onClose={closeTaskDetail}
+    >
+      {taskDetailBody}
     </ItemDetailOverlay>
+  );
+
+  /*
+   * #761: the same panel on narrow. A todo row in the Mobile day list had no
+   * detail surface at all — the tap was dropped before it could ask for one
+   * (itemTapRoute) — so the row read as broken next to an event that opens.
+   *
+   * A BottomSheet rather than the overlay, matching the event editor beside it:
+   * capped at 92svh with an inner scroller for the same reason (#633) — without
+   * them a tall panel pushes the sheet's top edge off the viewport and the only
+   * thing left to scroll is the document.
+   */
+  const taskDetailSheetEl = (
+    <BottomSheet
+      open={!isWide && !!taskDetailTask}
+      onClose={closeTaskDetail}
+      title={t("materials.tasks.detailTitle")}
+      closeLabel={t("common.close")}
+      className="flex max-h-[92svh] flex-col overflow-hidden"
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {taskDetailBody}
+      </div>
+    </BottomSheet>
   );
 
   // #376: one label bundle for BOTH creation frames (Desktop overlay + Mobile
@@ -2662,7 +2733,7 @@ export function CalendarTab({
                   rangeTaskChips.filter((c) => c.date === anchorDate),
                 )}
                 nowMinutes={anchorDate === today ? nowMinutes : null}
-                onToggleComplete={handleToggle}
+                onToggleComplete={handleAgendaToggle}
                 onItemActivate={handleItemActivate}
                 onItemDoubleClick={handleItemOpenDetail}
                 selectedId={selectedId}
@@ -2782,6 +2853,11 @@ export function CalendarTab({
           {editorPane}
         </div>
       </BottomSheet>
+
+      {/* #761: narrow's todo detail. Mounted after the editor sheet, though
+          the two are never open together — a tap resolves to exactly one of
+          them (itemTapRoute). */}
+      {taskDetailSheetEl}
 
       {scopeDialogEl}
 

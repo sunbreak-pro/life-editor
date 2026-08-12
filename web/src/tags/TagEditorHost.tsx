@@ -211,17 +211,28 @@ function TagEditorPanel({
           filterPlaceholder: t("materials.tags.filterPlaceholder"),
           filterLabel: t("materials.tags.filterLabel"),
           filterEmpty: t("materials.tags.filterEmpty"),
+          listLabel: t("materials.tags.listLabel"),
           renameLabel: t("materials.tags.rename"),
           saveLabel: t("materials.tags.save"),
+          savedLabel: t("materials.tags.saved"),
+          unsavedLabel: t("materials.tags.unsaved"),
           deleteLabel: t("materials.tags.deleteTag"),
           iconLabel: t("materials.tags.iconLabel"),
           clearIconLabel: t("materials.tags.clearIcon"),
           colorLabel: t("materials.tags.colorLabel"),
           colorClearLabel: t("materials.tags.colorClearLabel"),
           colorCustomLabel: t("materials.tags.colorCustomLabel"),
-          itemsToggleLabel: t("materials.tags.itemsToggle"),
+          detailEmpty: t("materials.tags.detailEmpty"),
+          backLabel: t("materials.tags.backToList"),
+          itemsHeading: t("materials.tags.itemsHeading"),
           itemsEmpty: t("materials.tags.itemsEmpty"),
           unassignLabel: t("materials.tags.unassign"),
+          // The panel asks this one itself (#740): switching tags is its own
+          // interaction, and only it knows a draft is about to be unmounted.
+          // The close guard below stays here, where `onClose` lives.
+          switchConfirm: t("materials.tags.unsavedSwitchConfirm"),
+          discardLabel: t("common.discard"),
+          cancelLabel: t("common.cancel"),
           roles: roleLabels,
         }}
       />

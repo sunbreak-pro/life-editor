@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { createElement, useEffect, useState, type ReactNode } from "react";
 import { useWikiTagsUnifiedAPI } from "../src/hooks/useWikiTagsUnifiedAPI";
-import { SyncContext } from "../src/context/SyncContextValue";
-import { uniformDomainVersions } from "../src/context/syncDomains";
+import { createBumpableSync } from "./helpers/bumpableSync";
 import type { DataService } from "../src/services/DataService";
 
 /*
@@ -15,29 +13,12 @@ import type { DataService } from "../src/services/DataService";
  */
 
 // Bumpable Sync provider — the captured setter lets a test simulate a
-// Realtime-driven syncVersion bump without the real SyncProvider. It lives on
-// a holder object and is published from an EFFECT: shared lint (#421) rejects
-// both reassigning an outer binding (react-hooks/globals) and mutating an
-// outer value (react-hooks/immutability) during render. The test awaits the
-// initial load before bumping, so the effect has always run by then.
-const sync: { bump: () => void } = { bump: () => {} };
-function BumpableSyncProvider({ children }: { children: ReactNode }) {
-  const [version, setVersion] = useState(0);
-  useEffect(() => {
-    sync.bump = () => setVersion((v) => v + 1);
-  }, []);
-  return createElement(
-    SyncContext.Provider,
-    {
-      value: {
-        syncVersion: version,
-        domainVersions: uniformDomainVersions(version),
-        triggerSync: async () => {},
-      },
-    },
-    children,
-  );
-}
+// Realtime-driven syncVersion bump without the real SyncProvider. Shared with
+// syncDomainWiring / the #672 load-effect suites (tests/helpers/bumpableSync);
+// calling `bump()` with no domain moves every counter, which is the app-wide
+// shape this suite was written against. The test awaits the initial load
+// before bumping, so the helper's publishing effect has always run by then.
+const { sync, wrapper } = createBumpableSync();
 
 // DataService stub: the initial round resolves immediately; after
 // deferNextRound() the three bulk list calls hang until releaseAll().
@@ -71,7 +52,7 @@ describe("useWikiTagsUnifiedAPI loading (#300)", () => {
   it("reports loading until the initial bulk load lands", async () => {
     const { ds } = makeDS();
     const hook = renderHook(() => useWikiTagsUnifiedAPI({ dataService: ds }), {
-      wrapper: BumpableSyncProvider,
+      wrapper,
     });
     expect(hook.result.current.loading).toBe(true);
     await waitFor(() => expect(hook.result.current.loading).toBe(false));
@@ -80,7 +61,7 @@ describe("useWikiTagsUnifiedAPI loading (#300)", () => {
   it("keeps loading=false while a syncVersion-bump refetch is in flight", async () => {
     const { ds, deferNextRound, releaseAll, pendingCount } = makeDS();
     const hook = renderHook(() => useWikiTagsUnifiedAPI({ dataService: ds }), {
-      wrapper: BumpableSyncProvider,
+      wrapper,
     });
     await waitFor(() => expect(hook.result.current.loading).toBe(false));
 
