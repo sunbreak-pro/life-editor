@@ -5,6 +5,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { Trash2 } from "lucide-react";
 import type { TaskStatus } from "../types/taskTree";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
@@ -39,6 +40,24 @@ import { FOCUS_RING } from "./styleTokens";
  * written behind the user's back any more. It is not thrown away in silence
  * either (#736): the panel reports its pending state through `onDirtyChange`,
  * and both hosts ask before any exit that tears the panel down.
+ *
+ * DELETE (#775). Optional, and off unless the host passes BOTH `onDelete` and
+ * `deleteLabel`: the panel serves three hosts and only Schedule's task detail
+ * wires one today — which is the surface that needed it, since on Mobile the
+ * detail sheet is the only way into a todo at all. The affordance copies
+ * <EventEditorPane>'s delete (danger text + Trash2, its own row above the save
+ * footer): the two panels open from the same day list, and a user who has
+ * deleted an event should recognise the control on a todo.
+ *
+ * It is deliberately NOT a second button in the save footer. That row is right
+ * aligned and holds the one accent-filled control; a destructive action of the
+ * same shape parked beside it is the classic mis-tap, and on a phone the thumb
+ * arrives at the bottom-right corner first. So: opposite edge, opposite
+ * treatment (borderless danger text, no fill), and a divider between.
+ *
+ * The panel does not ask before firing — the confirm belongs to the host, which
+ * is the only side that knows what the delete drags along (the subtree cascade)
+ * and how to put the question on screen (#707's in-app <ConfirmDialog>).
  *
  * Minimal scope (W7): title edit, status toggle, content edit. Heavier task
  * fields (priority / schedule / reminders / tags) are out of scope. The status
@@ -90,6 +109,12 @@ export interface TaskDetailPanelProps {
   /** Cycle the task status (host injects the toggle). */
   onToggleStatus?: (id: string) => void;
   /**
+   * Soft-delete the task (#775). Fires RAW: the host owns the confirm, the
+   * cascade count and the close that follows. Rendered only together with
+   * `deleteLabel`, so a host cannot ship the button without a name for it.
+   */
+  onDelete?: (id: string) => void;
+  /**
    * Replaces the built-in cycle button with a host-supplied status control —
    * the touch <TaskStatusChoices> row on Mobile (#470). The caption still comes
    * from `statusLabel`, and the row stacks (caption above) so three choices get
@@ -112,6 +137,9 @@ export interface TaskDetailPanelProps {
   savedLabel: string;
   /** Shown beside the button while a draft is pending — "未保存". */
   unsavedLabel: string;
+  /** Already-translated name for the delete button (#775). Pair with
+   *  `onDelete`; when either is absent the delete row is omitted. */
+  deleteLabel?: string;
   /** Already-translated caption preceding the tag row (§6.4). Paired with
    *  `tagsSlot`; when either is absent the tag row is omitted. */
   tagsLabel?: string;
@@ -138,6 +166,7 @@ function TaskDetailFields({
   contentDirty = false,
   onDirtyChange,
   onToggleStatus,
+  onDelete,
   statusControl,
   contentEditor,
   titleLabel,
@@ -147,6 +176,7 @@ function TaskDetailFields({
   saveLabel,
   savedLabel,
   unsavedLabel,
+  deleteLabel,
   tagsLabel,
   tagsSlot,
 }: Omit<TaskDetailPanelProps, "className">) {
@@ -256,6 +286,30 @@ function TaskDetailFields({
           )}
           {contentEditor}
         </div>
+      )}
+
+      {/* Delete (#775) — its own row, left aligned, above the divider the save
+          footer draws. Same idiom as EventEditorPane's delete on the screen
+          next door, and deliberately the opposite of the save button in both
+          position and weight so the two are never mistaken for each other.
+          `w-fit`, not `self-start`: the panel container is a space-y block, not
+          a flex row, so a bare `flex` button would stretch the full width and
+          land right under the save button after all.
+          min-h-lumen-tap-min is the project's hit-area floor (tokens.css) —
+          the CSS `:has()` rule that applies it for free only reaches icon-ONLY
+          buttons, and this one carries a label too. */}
+      {onDelete && deleteLabel && (
+        <button
+          type="button"
+          onClick={() => onDelete(taskId)}
+          className={cn(
+            "flex w-fit min-h-lumen-tap-min items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger",
+            FOCUS_RING,
+          )}
+        >
+          <Trash2 aria-hidden className="size-3.5" />
+          {deleteLabel}
+        </button>
       )}
 
       {/* Save footer (#713) — the only commit. Disabled while there is nothing
