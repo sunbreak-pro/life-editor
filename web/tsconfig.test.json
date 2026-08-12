@@ -22,17 +22,16 @@
     "types": ["vite/client", "node", "vitest/globals"]
   },
   "references": [{ "path": "../shared" }],
-  "include": ["src", "tests"],
 
   /*
-   * BASELINE (#668 C1) — see the longer note in shared/tsconfig.test.json.
-   * Exactly one of web's 24 suites failed the first type check: a `vi.fn()`
-   * handed to a prop typed `(options: { allowStale: boolean }) => ...`, which
-   * vitest types as the untyped `Mock<Procedure | Constructable>`. Fixing it
-   * means giving the mock its signature, which is a change to the suite and
-   * belongs in its own PR.
+   * There is deliberately no `exclude` here. #668 C1 landed the net with one
+   * quarantined suite ("BASELINE") — tests/itemLinkMenu.test.tsx, whose bare
+   * `vi.fn()` typed as vitest's untyped Mock and so could not be handed to a
+   * prop with a real signature. #711 gave the mock its signature and deleted
+   * the line, which is how a fix gets recorded.
    *
-   * DO NOT APPEND TO THIS LIST. Deleting the line is how the fix gets recorded.
+   * Every suite is checked now. Do not reintroduce the list: a suite that
+   * will not compile is a suite that is lying about the code.
    */
-  "exclude": ["tests/itemLinkMenu.test.tsx"]
+  "include": ["src", "tests"]
 }

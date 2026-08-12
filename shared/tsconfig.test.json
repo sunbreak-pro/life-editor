@@ -32,41 +32,15 @@
     "rootDir": ".",
     "types": ["react", "node", "vitest/globals"]
   },
-  "include": ["src", "src/**/*.json", "tests"],
-
   /*
-   * BASELINE (#668 C1) — the 12 suites that did not compile the first time a
-   * type checker was ever pointed at tests/. 15 errors total, measured before
-   * this list was written; the breakdown is in the PR that added it.
+   * There is deliberately no `exclude` here. #668 C1 landed the net with a
+   * 12-suite quarantine ("BASELINE") covering the 15 errors the first-ever
+   * type check of tests/ turned up — all real drift the suites had been
+   * hiding, not config problems. #711 fixed all 15 and deleted the list,
+   * which is how a fix gets recorded.
    *
-   * Same shape and same discipline as the eslint baseline in eslint.config.js:
-   * a per-file quarantine, not a rule relaxed everywhere. Turning the gate
-   * on only once all 15 were fixed would mean the other 180 suites keep
-   * drifting in the meantime; this way every suite outside the list is checked
-   * from today and a NEW broken one fails CI.
-   *
-   * None of these are config problems. They are real drift the suites had been
-   * hiding — fixtures missing a field the type gained (TrashViewLabels.close,
-   * WikiTag.icon), a patch object naming a property its type dropped
-   * (SeriesEditablePatch.memo), a status string that is no longer a TaskStatus,
-   * and five @ts-expect-error directives guarding errors that no longer happen.
-   * Fixing them changes assertions, so it belongs in its own PR, not the one
-   * that installs the net.
-   *
-   * DO NOT APPEND TO THIS LIST. Deleting a line is how a fix gets recorded.
+   * Every suite is checked now. Do not reintroduce the list: a suite that
+   * will not compile is a suite that is lying about the code.
    */
-  "exclude": [
-    "tests/appShell.test.tsx",
-    "tests/appShellSoftKeyboard.test.tsx",
-    "tests/bottomBarActions.test.tsx",
-    "tests/components.test.tsx",
-    "tests/connectGraphModel.test.ts",
-    "tests/eventEditorSave.test.ts",
-    "tests/notesUnifiedTrashLock.test.tsx",
-    "tests/reconcileRoutine.test.tsx",
-    "tests/trashView.test.tsx",
-    "tests/treeMovementReorderOnly.test.ts",
-    "tests/undoRedoManager.test.ts",
-    "tests/useMediaQuery.test.ts"
-  ]
+  "include": ["src", "src/**/*.json", "tests"]
 }
