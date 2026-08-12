@@ -444,7 +444,7 @@
   "itemConvert": {
     "toTodo": "Convert to Todo",
     "toEvent": "Convert to event",
-    "toTodoConfirm": "Convert \"{{title}}\" to a Todo? Its date, time and repeat settings will be lost.",
+    "toTodoConfirm": "Convert \"{{title}}\" to a Todo? Its repeat settings will be lost.",
     "toTodoDone": "Converted to a Todo",
     "toEventConfirm": "Convert \"{{title}}\" to an event? Its status will be lost.",
     "toEventConfirmChild": "Convert \"{{title}}\" to an event? Its status will be lost, and it will no longer belong to its parent Todo.",

@@ -20,6 +20,7 @@ import {
 } from "./scheduleItemMapper";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import { requireSingleRow } from "./postgrestSingle";
+import { eventToTaskSlot } from "../utils/itemConversion";
 import { logServiceError } from "../utils/logError";
 
 /*
@@ -155,11 +156,18 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
   }
 
   /**
-   * Event → Todo. The event's DATE, time span, all-day flag and reminder are
-   * dropped (D-20260810-sched-3: the host confirms that in a dialog first) —
-   * a Todo has nowhere to keep them. What DOES survive, because the dialog
-   * never offered them up: the memo (as the task body) and the completion
-   * state (a done event becomes a DONE Todo, keeping its completed_at).
+   * Event → Todo. The date, the time span and the all-day flag are KEPT
+   * (#739, D-20260811-sched-1 = B, superseding D-20260810-sched-3): they land
+   * in `tasks_payload.scheduled_at` / `scheduled_end_at` / `is_all_day`, the
+   * row the calendar draws task chips from, so an 8/20 10:00 event stays an
+   * 8/20 10:00 block and only its NATURE changes. That also makes the pair
+   * symmetric — Todo→Event already kept the chip's slot.
+   *
+   * What is still dropped: the reminder (a Todo's reminder is an offset from a
+   * due date, not an absolute instant, so there is nothing to map it onto).
+   * What survives besides the slot: the memo (as the task body) and the
+   * completion state (a done event becomes a DONE Todo, keeping its
+   * completed_at).
    *
    * A routine-derived event is refused (D-20260810-sched-5). The user-facing
    * reason is that a Todo has no repeat — but the rejection is also load-
@@ -225,13 +233,23 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
         `convertEventToTask: ${eventId} is routine-derived — a Todo cannot carry a repeat`,
       );
 
+    // #739: the slot travels with the row. Derived by the same pure function
+    // the tests pin (itemConversion.eventToTaskSlot) rather than inline here,
+    // for the reason the util's header gives — a service method needs a live
+    // Supabase client to run, so a mapping decided in here is untestable.
+    const slot = eventToTaskSlot({
+      date: payload.start_at,
+      startTime: payload.start_time,
+      endTime: payload.end_time,
+      isAllDay: payload.is_all_day,
+    });
     const node: TaskNode = {
       id: eventId,
       type: "task",
       title: meta.title,
       parentId: null,
       order: init.order,
-      // The dialog warns about time and repeat, not about progress — so a done
+      // The dialog warns about the repeat, not about progress — so a done
       // event must not come back as an untouched Todo.
       status: payload.done ? "DONE" : "NOT_STARTED",
       completedAt: payload.completed_at ?? undefined,
@@ -239,6 +257,9 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       isDeleted: meta.is_deleted,
       deletedAt: meta.deleted_at ?? undefined,
       content: payload.memo ?? undefined,
+      scheduledAt: slot.scheduledAt,
+      scheduledEndAt: slot.scheduledEndAt,
+      isAllDay: slot.isAllDay,
       version: meta.version,
     };
     const { payload: taskPayload } = taskNodeToRows(node, userId);

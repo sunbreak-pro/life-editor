@@ -373,9 +373,14 @@ export {
   eventToTodoBlock,
   todoToEventBlock,
   taskToEventPlacement,
+  // #739: the mirror of taskToEventPlacement — an event's slot, kept as the
+  // Todo's chip slot (D-20260811-sched-1).
+  eventToTaskSlot,
   type EventToTodoBlock,
   type TodoToEventBlock,
   type EventPlacement,
+  type EventSlot,
+  type TaskChipSlot,
 } from "./utils/itemConversion";
 // A-3 (#298): "add from tasks" selector for the Today's Todo tray.
 export { pickAddableTasks, type AddableTask } from "./utils/todayTodo";

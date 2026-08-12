@@ -1925,6 +1925,11 @@ export function CalendarTab({
    * and a second conversion of the same id would hit a row whose role has
    * already moved — recoverable, but it would report a failure for something
    * that actually worked.
+   *
+   * #739 (D-20260811-sched-1): Event→Todo now KEEPS the day and the time span
+   * — they land in the Todo's own chip slot — so the row does not leave the
+   * calendar, it changes what it IS. The only loss left is the repeat, which
+   * is what the dialog says and all it says.
    */
   const { begin: beginConvert, end: endConvert } = useInFlightGuard();
 
