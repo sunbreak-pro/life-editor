@@ -1,7 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type {
-  TasksDataService,
-} from "./DataService";
+import type { TasksDataService } from "./DataService";
 import type { TaskNode } from "../types/taskTree";
 // DU-B-3: full SupabaseTasksService rewrite over items_meta +
 // tasks_payload. Pure mapping lives in taskMapper.ts; this file is the
@@ -19,7 +17,7 @@ import {
 import type { ItemsMetaRow } from "./itemsMeta";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
-import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
+import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import {
   getAuthedUserId,
   livePayloadInnerJoin,
@@ -106,43 +104,18 @@ export class SupabaseTasksService implements TasksDataService {
    * task_type is 'task', so only the folder row itself is dropped.
    */
   async fetchTaskTree(): Promise<TaskNode[]> {
-    const metaRows = await fetchAllPages<ItemsMetaRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_TASK_COLUMNS)
-          .eq("role", "task")
-          .eq("is_deleted", false)
-          .order("id")
-          .range(from, to),
-      "fetchTaskTree items_meta",
-    );
-    if (metaRows.length === 0) return [];
-
-    const ids = metaRows.map((m) => m.id);
-    const payloadRows = await fetchByIdChunks<TasksPayloadRow>(ids, (chunk) =>
-      fetchAllPages(
-        (from, to) =>
-          this.client
-            .from("tasks_payload")
-            .select(TASKS_PAYLOAD_COLUMNS)
-            .in("item_id", chunk)
-            .order("item_id")
-            .range(from, to),
-        "fetchTaskTree tasks_payload",
-      ),
-    );
-    const payloadById = new Map<string, TasksPayloadRow>();
-    for (const p of payloadRows) payloadById.set(p.item_id, p);
-
-    const out: TaskNode[] = [];
-    for (const m of metaRows) {
-      const p = payloadById.get(m.id);
-      if (!p) continue; // R2 orphan: meta without payload — skip
-      if (isLegacyFolderRow(p)) continue; // S3: exclude legacy folder rows
-      out.push(rowsToTaskNode(m, p));
-    }
-    return out;
+    return fetchMetaFirstJoin<ItemsMetaRow, TasksPayloadRow, TaskNode>({
+      client: this.client,
+      role: "task",
+      isDeleted: false,
+      metaColumns: ITEMS_META_TASK_COLUMNS,
+      metaLabel: "fetchTaskTree items_meta",
+      payloadTable: "tasks_payload",
+      payloadColumns: TASKS_PAYLOAD_COLUMNS,
+      payloadLabel: "fetchTaskTree tasks_payload",
+      keep: (p) => !isLegacyFolderRow(p), // S3: exclude legacy folder rows
+      toDomain: rowsToTaskNode,
+    });
   }
 
   /**
@@ -201,43 +174,18 @@ export class SupabaseTasksService implements TasksDataService {
    * has soft-deleted folders that must not surface in Trash).
    */
   async fetchDeletedTasks(): Promise<TaskNode[]> {
-    const metaRows = await fetchAllPages<ItemsMetaRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_TASK_COLUMNS)
-          .eq("role", "task")
-          .eq("is_deleted", true)
-          .order("id")
-          .range(from, to),
-      "fetchDeletedTasks items_meta",
-    );
-    if (metaRows.length === 0) return [];
-
-    const ids = metaRows.map((m) => m.id);
-    const payloadRows = await fetchByIdChunks<TasksPayloadRow>(ids, (chunk) =>
-      fetchAllPages(
-        (from, to) =>
-          this.client
-            .from("tasks_payload")
-            .select(TASKS_PAYLOAD_COLUMNS)
-            .in("item_id", chunk)
-            .order("item_id")
-            .range(from, to),
-        "fetchDeletedTasks tasks_payload",
-      ),
-    );
-    const payloadById = new Map<string, TasksPayloadRow>();
-    for (const p of payloadRows) payloadById.set(p.item_id, p);
-
-    const out: TaskNode[] = [];
-    for (const m of metaRows) {
-      const p = payloadById.get(m.id);
-      if (!p) continue;
-      if (isLegacyFolderRow(p)) continue; // S3: exclude legacy folder rows
-      out.push(rowsToTaskNode(m, p));
-    }
-    return out;
+    return fetchMetaFirstJoin<ItemsMetaRow, TasksPayloadRow, TaskNode>({
+      client: this.client,
+      role: "task",
+      isDeleted: true,
+      metaColumns: ITEMS_META_TASK_COLUMNS,
+      metaLabel: "fetchDeletedTasks items_meta",
+      payloadTable: "tasks_payload",
+      payloadColumns: TASKS_PAYLOAD_COLUMNS,
+      payloadLabel: "fetchDeletedTasks tasks_payload",
+      keep: (p) => !isLegacyFolderRow(p), // S3: exclude legacy folder rows
+      toDomain: rowsToTaskNode,
+    });
   }
 
   /**
@@ -463,4 +411,6 @@ export const PHASE2_TASKS_METHOD_NAMES = [
 
 export type TasksMethodName = (typeof PHASE2_TASKS_METHOD_NAMES)[number];
 
-export const PHASE2_TASKS_METHODS: ReadonlySet<string> = new Set(PHASE2_TASKS_METHOD_NAMES);
+export const PHASE2_TASKS_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_TASKS_METHOD_NAMES,
+);

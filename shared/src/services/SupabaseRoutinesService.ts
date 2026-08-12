@@ -1,7 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type {
-  RoutinesDataService,
-} from "./DataService";
+import type { RoutinesDataService } from "./DataService";
 import type { RoutineNode } from "../types/routine";
 import {
   // DU-C-3: 2-row API (items_meta + routines_payload)
@@ -13,11 +11,8 @@ import {
   type ItemsMetaRoutineRow,
   type RoutinesPayloadRow,
 } from "./routineMapper";
-import {
-  fetchAllPages,
-  fetchByIdChunks,
-  forEachIdChunk,
-} from "./postgrestFetchAll";
+import { fetchAllPages, forEachIdChunk } from "./postgrestFetchAll";
+import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
@@ -49,86 +44,40 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    * routines_payload) joined in-app. Missing payload (R2 orphan) skipped.
    */
   async fetchAllRoutines(): Promise<RoutineNode[]> {
-    const metaRows = await fetchAllPages<ItemsMetaRoutineRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_ROUTINE_COLUMNS)
-          .eq("role", "routine")
-          .eq("is_deleted", false)
-          .order("id")
-          .range(from, to),
-      "fetchAllRoutines items_meta",
-    );
-    if (metaRows.length === 0) return [];
-
-    const ids = metaRows.map((m) => m.id);
-    const payloadRows = await fetchByIdChunks<RoutinesPayloadRow>(
-      ids,
-      (chunk) =>
-        fetchAllPages(
-          (from, to) =>
-            this.client
-              .from("routines_payload")
-              .select(ROUTINES_PAYLOAD_COLUMNS)
-              .in("item_id", chunk)
-              .order("item_id")
-              .range(from, to),
-          "fetchAllRoutines routines_payload",
-        ),
-    );
-    const payloadById = new Map<string, RoutinesPayloadRow>();
-    for (const p of payloadRows) payloadById.set(p.item_id, p);
-
-    const out: RoutineNode[] = [];
-    for (const m of metaRows) {
-      const p = payloadById.get(m.id);
-      if (!p) continue; // R2 orphan — skip
-      out.push(rowsToRoutineNode(m, p));
-    }
-    return out;
+    return fetchMetaFirstJoin<
+      ItemsMetaRoutineRow,
+      RoutinesPayloadRow,
+      RoutineNode
+    >({
+      client: this.client,
+      role: "routine",
+      isDeleted: false,
+      metaColumns: ITEMS_META_ROUTINE_COLUMNS,
+      metaLabel: "fetchAllRoutines items_meta",
+      payloadTable: "routines_payload",
+      payloadColumns: ROUTINES_PAYLOAD_COLUMNS,
+      payloadLabel: "fetchAllRoutines routines_payload",
+      toDomain: rowsToRoutineNode,
+    });
   }
 
   /** Trashed counterpart (Trash UI). */
   async fetchDeletedRoutines(): Promise<RoutineNode[]> {
-    const metaRows = await fetchAllPages<ItemsMetaRoutineRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_ROUTINE_COLUMNS)
-          .eq("role", "routine")
-          .eq("is_deleted", true)
-          .order("id")
-          .range(from, to),
-      "fetchDeletedRoutines items_meta",
-    );
-    if (metaRows.length === 0) return [];
-
-    const ids = metaRows.map((m) => m.id);
-    const payloadRows = await fetchByIdChunks<RoutinesPayloadRow>(
-      ids,
-      (chunk) =>
-        fetchAllPages(
-          (from, to) =>
-            this.client
-              .from("routines_payload")
-              .select(ROUTINES_PAYLOAD_COLUMNS)
-              .in("item_id", chunk)
-              .order("item_id")
-              .range(from, to),
-          "fetchDeletedRoutines routines_payload",
-        ),
-    );
-    const payloadById = new Map<string, RoutinesPayloadRow>();
-    for (const p of payloadRows) payloadById.set(p.item_id, p);
-
-    const out: RoutineNode[] = [];
-    for (const m of metaRows) {
-      const p = payloadById.get(m.id);
-      if (!p) continue;
-      out.push(rowsToRoutineNode(m, p));
-    }
-    return out;
+    return fetchMetaFirstJoin<
+      ItemsMetaRoutineRow,
+      RoutinesPayloadRow,
+      RoutineNode
+    >({
+      client: this.client,
+      role: "routine",
+      isDeleted: true,
+      metaColumns: ITEMS_META_ROUTINE_COLUMNS,
+      metaLabel: "fetchDeletedRoutines items_meta",
+      payloadTable: "routines_payload",
+      payloadColumns: ROUTINES_PAYLOAD_COLUMNS,
+      payloadLabel: "fetchDeletedRoutines routines_payload",
+      toDomain: rowsToRoutineNode,
+    });
   }
 
   /**
@@ -685,4 +634,6 @@ export const PHASE2_ROUTINES_METHOD_NAMES = [
 
 export type RoutinesMethodName = (typeof PHASE2_ROUTINES_METHOD_NAMES)[number];
 
-export const PHASE2_ROUTINES_METHODS: ReadonlySet<string> = new Set(PHASE2_ROUTINES_METHOD_NAMES);
+export const PHASE2_ROUTINES_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_ROUTINES_METHOD_NAMES,
+);
