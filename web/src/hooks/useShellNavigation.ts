@@ -6,7 +6,7 @@ import {
   type BriefingTab,
   type AnalyticsTab,
   type SectionId,
-  type NavSection,
+  type NavShortcutId,
 } from "@life-editor/shared";
 import type { ScheduleTab } from "../schedule/ScheduleScreen";
 
@@ -23,16 +23,45 @@ import type { ScheduleTab } from "../schedule/ScheduleScreen";
 export type MaterialsTab = "notes" | "daily";
 
 /**
+ * A navigation destination in the CURRENT information architecture (#676 (b)):
+ * the section to switch to, plus the in-section tab for the two sections that
+ * have one. Every navigation intent — a nav:* shortcut, a Briefing jump, a
+ * "[[" link click — speaks this one vocabulary now. It replaces the shared
+ * `NavSection` union ("tasks" / "daily" / "notes" / "tags"), which named the
+ * flat pre-2026-07 sections and so had to be re-translated by hand at each
+ * call site.
+ */
+export type NavDestination =
+  | { section: "materials"; tab: MaterialsTab }
+  | { section: "schedule"; tab: ScheduleTab }
+  | { section: Exclude<SectionId, "materials" | "schedule"> };
+
+/**
+ * Where each nav:* binding lands. The shared executor only reports WHICH
+ * binding fired (§ useGlobalShortcuts) — the IA lives here, in one table.
+ */
+const NAV_SHORTCUT_DESTINATION: Readonly<
+  Record<NavShortcutId, NavDestination | null>
+> = {
+  // Both Schedule bindings set the tab explicitly — otherwise nav:schedule
+  // pressed right after nav:tasks would "go to Schedule" and still show Todos.
+  "nav:tasks": { section: "schedule", tab: "todo" },
+  "nav:schedule": { section: "schedule", tab: "calendar" },
+  "nav:daily": { section: "materials", tab: "daily" },
+  "nav:notes": { section: "materials", tab: "notes" },
+  // The Tags tab was retired (#310) and nothing took its place, so this
+  // binding has nowhere to land. Declared as an explicit null rather than
+  // left as a silent fall-through inside the handler (#676 (b)).
+  "nav:tags": null,
+};
+
+/**
  * Where a "[[" link target opens (#285; tasks added in #370, and moved from
  * Materials to Schedule in #411 — hence a section+tab pair rather than a bare
  * Materials tab). A role absent here has no selectable surface yet, so its
  * link click no-ops.
  */
-type ItemNavTarget =
-  | { section: "materials"; tab: MaterialsTab }
-  | { section: "schedule"; tab: ScheduleTab };
-
-const ITEM_NAV_TARGET: Record<string, ItemNavTarget | undefined> = {
+const ITEM_NAV_TARGET: Record<string, NavDestination | undefined> = {
   note: { section: "materials", tab: "notes" },
   daily: { section: "materials", tab: "daily" },
   task: { section: "schedule", tab: "todo" },
@@ -41,6 +70,13 @@ const ITEM_NAV_TARGET: Record<string, ItemNavTarget | undefined> = {
   // this route is reached from the palette only, for now.
   event: { section: "schedule", tab: "calendar" },
 };
+
+/**
+ * The navigation half's public surface. Section descriptors take the whole
+ * object (`SectionBodyContext.nav`) rather than a dozen individually-drilled
+ * props, so adding a section body needs no new plumbing here.
+ */
+export type ShellNavigation = ReturnType<typeof useShellNavigation>;
 
 export function useShellNavigation() {
   // Startup section (§216): resolve the initial section from the user's
@@ -76,23 +112,24 @@ export function useShellNavigation() {
     persistLastSection(section);
   }, [section]);
 
-  // Map the shared nav:* shortcuts (tasks/daily/notes/schedule/tags) onto the
-  // target IA: schedule and tasks are two tabs of the Schedule section (#411);
-  // the document surfaces route to the Materials section + the matching tab.
-  // Both Schedule shortcuts set the tab explicitly — otherwise nav:schedule
-  // pressed right after nav:tasks would "go to Schedule" and still show Todos.
-  // The Tags tab was retired (#310), so a legacy nav:tags shortcut now no-ops
-  // rather than routing to a dead tab.
-  const handleNavigate = useCallback((nav: NavSection) => {
-    if (nav === "schedule" || nav === "tasks") {
-      setSection("schedule");
-      setScheduleTab(nav === "tasks" ? "todo" : "calendar");
-      return;
-    }
-    if (nav === "tags") return;
-    setSection("materials");
-    setMaterialsTab(nav);
+  // The one place a destination is applied. Everything that navigates — the
+  // nav:* shortcuts, Briefing's jump links, "[[" link clicks — routes through
+  // here, so section and tab can never be set out of step.
+  const navigateTo = useCallback((dest: NavDestination) => {
+    setSection(dest.section);
+    if (dest.section === "materials") setMaterialsTab(dest.tab);
+    else if (dest.section === "schedule") setScheduleTab(dest.tab);
   }, []);
+
+  // nav:* shortcut executor. The shared hook reports which binding fired; the
+  // table above says where it lands (null = a retired binding, no-op).
+  const handleNavigate = useCallback(
+    (id: NavShortcutId) => {
+      const dest = NAV_SHORTCUT_DESTINATION[id];
+      if (dest) navigateTo(dest);
+    },
+    [navigateTo],
+  );
 
   // global:new-task executor. Task creation lives inside the Kanban (mounted
   // per-tab behind its own Provider), so the shell can't call the create API
@@ -102,10 +139,9 @@ export function useShellNavigation() {
   // TaskTree provider). That is the app's own create-and-focus entry — no new
   // DataService API, no title-less junk rows.
   const handleNewTask = useCallback(() => {
-    setSection("schedule");
-    setScheduleTab("todo");
+    navigateTo({ section: "schedule", tab: "todo" });
     setPendingNewTask(true);
-  }, []);
+  }, [navigateTo]);
   // Kanban calls this once it has acted on the pending-new-task flag.
   const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
 
@@ -125,12 +161,10 @@ export function useShellNavigation() {
     (target: { id: string; role: string; date?: string }) => {
       const dest = ITEM_NAV_TARGET[target.role];
       if (!dest) return;
-      setSection(dest.section);
-      if (dest.section === "materials") setMaterialsTab(dest.tab);
-      else setScheduleTab(dest.tab);
+      navigateTo(dest);
       setPendingItemNav(target);
     },
-    [],
+    [navigateTo],
   );
   const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
   const pendingNoteSelect =
@@ -173,6 +207,7 @@ export function useShellNavigation() {
     setBriefingTab,
     pendingNewTask,
     consumeNewTask,
+    navigateTo,
     handleNavigate,
     handleNewTask,
     navigateToItem,

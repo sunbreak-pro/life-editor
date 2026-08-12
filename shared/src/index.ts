@@ -220,8 +220,10 @@ export {
   isEditableTarget,
   hasAccelerator,
   isActiveInInput,
+  isNavShortcutId,
+  NAV_SHORTCUT_IDS,
   type GlobalShortcutHandlers,
-  type NavSection,
+  type NavShortcutId,
 } from "./hooks/useGlobalShortcuts";
 export {
   useTaskTreeAPI,

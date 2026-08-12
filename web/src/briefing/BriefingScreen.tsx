@@ -16,9 +16,9 @@ import {
   type BriefingTab,
   type DataService,
   type ItemCreateNoteDraft,
-  type NavSection,
   WIDE_QUERY,
 } from "@life-editor/shared";
+import type { NavDestination } from "../hooks/useShellNavigation";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
@@ -39,7 +39,7 @@ import { useDailySections } from "./hooks/useDailySections";
 
 interface BriefingScreenProps {
   dataService: DataService;
-  onNavigate: (nav: NavSection) => void;
+  onNavigate: (dest: NavDestination) => void;
   /** Active header tab (朝刊 / 夕刊, #263 F-6) — lifted to MainScreen. */
   tab: BriefingTab;
   /**
@@ -302,7 +302,7 @@ export function BriefingScreen({
     ) => {
       handleCreateEvent(title, start, end, note);
       closeCreatePanel();
-      onNavigate("schedule");
+      onNavigate({ section: "schedule", tab: "calendar" });
     },
     [handleCreateEvent, closeCreatePanel, onNavigate],
   );
@@ -394,7 +394,7 @@ export function BriefingScreen({
           unplaced={todoUnplaced}
           addable={todoAddable}
           onToggleComplete={handleToggleTask}
-          onOpenTask={() => onNavigate("tasks")}
+          onOpenTask={() => onNavigate({ section: "schedule", tab: "todo" })}
           onAddCandidate={handleAddTodoCandidate}
           labels={todoTrayLabels}
         />
@@ -505,8 +505,8 @@ export function BriefingScreen({
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTask={handleDeleteTask}
         onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={() => onNavigate("schedule")}
-        onJumpToTasks={() => onNavigate("tasks")}
+        onJumpToSchedule={() => onNavigate({ section: "schedule", tab: "calendar" })}
+        onJumpToTasks={() => onNavigate({ section: "schedule", tab: "todo" })}
         tabSwitcher={tabSwitcher}
       />
       {deleteScopeDialog}
