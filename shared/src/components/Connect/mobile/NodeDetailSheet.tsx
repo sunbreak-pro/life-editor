@@ -16,6 +16,7 @@ import { isTagNodeId } from "../graph/graph-types";
 import type { BacklinkEntry } from "../BacklinkView";
 import { resolveLinkTarget, type LinkableItem } from "../SelectedNodeCard";
 import type { ConnectGraphLabels } from "../labels";
+import { isImeComposing } from "../../../utils/imeGuard";
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
   note: FileText,
@@ -270,7 +271,7 @@ export function NodeDetailSheet({
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                      if (e.key === "Enter" && !isImeComposing(e)) {
                         e.preventDefault();
                         submitLink();
                       }

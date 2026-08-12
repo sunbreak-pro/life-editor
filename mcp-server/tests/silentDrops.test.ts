@@ -145,6 +145,30 @@ describe("an argument nothing reads is reported, not swallowed", () => {
     ).toEqual([]);
   });
 
+  it("covers the tools #702 ③ renamed, which did not exist when this was written", () => {
+    /*
+     * set_schedule_complete / set_schedule_dismissed landed on main before
+     * this branch merged, so they postdate the guards above. Neither takes a
+     * date or a time, so the format checks have nothing to apply to — but the
+     * undeclared-argument notice is wired once in callTool rather than per
+     * tool, so it reaches every entry in the registry, new ones included.
+     */
+    expect(
+      unknownArgNames(schemaOf("set_schedule_complete"), {
+        id: "si-1",
+        completed: true,
+        date: "2026-08-11",
+      }),
+    ).toEqual(["date"]);
+    expect(
+      unknownArgNames(schemaOf("set_schedule_dismissed"), {
+        id: "si-1",
+        dismissed: false,
+        until: "tomorrow",
+      }),
+    ).toEqual(["until"]);
+  });
+
   it("reports every unknown name at once, not one per round trip", () => {
     expect(
       unknownArgNames(schemaOf("create_task"), {

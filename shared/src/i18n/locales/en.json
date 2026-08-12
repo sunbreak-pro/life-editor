@@ -492,7 +492,6 @@
     "save": "Save",
     "saved": "Saved",
     "unsaved": "Unsaved",
-    "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?",
     "originRoutine": "Generated from routine",
     "originEvent": "Event",
     "skipThisDay": "Skip this day",
@@ -556,6 +555,7 @@
     "durationMin": "{{m}} min",
     "durationHour": "{{h}} hr",
     "durationHourMin": "{{h}} hr {{m}} min",
+    "freeGap": "{{duration}} free",
     "todoDelete": "Delete todo",
     "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "rename": "Rename",
@@ -751,7 +751,8 @@
     "undo": "Undo",
     "redo": "Redo",
     "untitled": "Untitled",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
   "tabs": {
     "tasks": "Todos",

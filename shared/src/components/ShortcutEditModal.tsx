@@ -12,6 +12,7 @@ import type {
   ShortcutConfig,
   ShortcutId,
 } from "../types/shortcut";
+import { isImeComposing } from "../utils/imeGuard";
 
 export interface ShortcutEditModalLabels {
   title: string;
@@ -145,7 +146,7 @@ export function ShortcutEditModal({
   const handleCapture = useCallback(
     (id: ShortcutId, e: React.KeyboardEvent) => {
       // Never capture mid-IME-composition (§frontend gotcha).
-      if (e.nativeEvent.isComposing) return;
+      if (isImeComposing(e)) return;
       // Esc is handled by the Modal-level close router (cancel capture first).
       if (e.key === "Escape") return;
       e.preventDefault();

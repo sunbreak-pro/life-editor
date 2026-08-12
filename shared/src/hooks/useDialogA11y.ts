@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
+import { isImeComposing } from "../utils/imeGuard";
 
 const FOCUSABLE =
   'button, [href], input, textarea, select, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
@@ -100,7 +101,7 @@ export function useDialogA11y<T extends HTMLElement>({
       // Never intervene mid-composition (Japanese IME) — §frontend gotcha.
       // Escape there cancels a conversion; closing the dialog under the user's
       // hands would throw away what they were typing.
-      if (e.isComposing || e.keyCode === 229) return;
+      if (isImeComposing(e)) return;
       if (layerRef.current !== layers[layers.length - 1]) return;
       if (e.key === "Escape") {
         // One Escape = one layer: dialogs below, and plain document listeners

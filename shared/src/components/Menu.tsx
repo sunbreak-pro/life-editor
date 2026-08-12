@@ -6,6 +6,7 @@ import type {
   RefObject,
 } from "react";
 import { cn } from "./cn";
+import { isImeComposing } from "../utils/imeGuard";
 
 export type MenuItemVariant = "default" | "danger";
 
@@ -84,7 +85,7 @@ export function Menu({
       onClose();
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.isComposing || e.keyCode === 229) return;
+      if (isImeComposing(e)) return;
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("pointerdown", onPointer, true);
@@ -110,7 +111,7 @@ export function Menu({
     Array.from(ref.current?.querySelectorAll<HTMLElement>(ENABLED_ITEMS) ?? []);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.nativeEvent.isComposing) return;
+    if (isImeComposing(e)) return;
     // Tab exits the menu (WAI-ARIA menu pattern): close and let focus move
     // naturally to the next element (no preventDefault).
     if (e.key === "Tab") {

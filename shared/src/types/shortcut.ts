@@ -9,6 +9,8 @@
  * sections (tasks/daily/notes/schedule/tags), NOT the Tauri section names
  * (schedule/ideas/work/analytics/materials), so every binding is live.
  */
+import type { TranslationKey } from "../i18n/resources";
+
 export type ShortcutId =
   // Global
   | "global:command-palette"
@@ -56,8 +58,10 @@ export interface KeyBinding {
 export interface ShortcutDefinition {
   id: ShortcutId;
   category: ShortcutCategory;
-  /** i18n key resolved by the HOST (props-injected copy, CLAUDE.md §6.4). */
-  descriptionKey: string;
+  /** i18n key resolved by the HOST (props-injected copy, CLAUDE.md §6.4).
+   *  Typed as the catalog's key union (#726) — the settings sheet resolves it
+   *  through a variable, which nothing else can check. */
+  descriptionKey: TranslationKey;
   defaultBinding: KeyBinding;
   activeInInput: boolean;
 }

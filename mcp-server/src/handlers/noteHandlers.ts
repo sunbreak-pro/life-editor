@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { getSupabase } from "../supabase.js";
 import { markdownToTiptap } from "../utils/markdownToTiptap.js";
-import { contentJsonToString, contentPlainText } from "../utils/content.js";
+import {
+  contentJsonToString,
+  contentPlainText,
+  contentPreview,
+} from "../utils/content.js";
 import {
   META_COLUMNS,
   insertItem,
@@ -9,7 +13,11 @@ import {
   updatePayload,
   type ItemsMetaRow,
 } from "../utils/items.js";
-import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
+import {
+  fetchAllPages,
+  fetchByIdChunks,
+  resolveListLimit,
+} from "../utils/pagination.js";
 
 /*
  * Note handlers — Supabase edition (#360).
@@ -58,18 +66,55 @@ export function isLegacyFolder(
   return payload.note_type === "folder";
 }
 
-function formatNote(meta: ItemsMetaRow, payload: NotesPayloadRow) {
+/** Every field but the body — how the body is carried differs per tool. */
+function formatNoteBase(meta: ItemsMetaRow, payload: NotesPayloadRow) {
   return {
     id: meta.id,
     // Single-valued since #375: a legacy 'folder' row never reaches here
     // (fetchLiveNotes filters it out) and NULL means a plain note.
     type: "note",
     title: meta.title,
-    content: contentJsonToString(payload.content_json),
     isPinned: payload.is_pinned,
     color: payload.color ?? undefined,
     createdAt: meta.created_at,
     updatedAt: meta.updated_at,
+  };
+}
+
+/**
+ * Single-note result: the stored body plus its plain text (#702 ①).
+ *
+ * `content` is TipTap JSON while `update_note` writes Markdown, so the JSON
+ * a caller reads cannot be written back as-is. `contentText` is the half of
+ * that round trip that was missing.
+ */
+export function formatNote(meta: ItemsMetaRow, payload: NotesPayloadRow) {
+  return {
+    ...formatNoteBase(meta, payload),
+    content: contentJsonToString(payload.content_json),
+    contentText: contentPlainText(payload.content_json),
+  };
+}
+
+/**
+ * List result: a preview by default (#702 ①). `list_notes` used to return
+ * every note's whole TipTap JSON body, so reading one note cost the entire
+ * collection.
+ */
+export function formatNoteListEntry(
+  meta: ItemsMetaRow,
+  payload: NotesPayloadRow,
+  includeContent: boolean,
+) {
+  const base = {
+    ...formatNoteBase(meta, payload),
+    contentPreview: contentPreview(payload.content_json),
+  };
+  if (!includeContent) return base;
+  return {
+    ...base,
+    content: contentJsonToString(payload.content_json),
+    contentText: contentPlainText(payload.content_json),
   };
 }
 
@@ -132,21 +177,41 @@ async function getNoteRows(id: string): Promise<NoteRecord> {
   return { meta, payload: data as unknown as NotesPayloadRow };
 }
 
-export async function listNotes(args: { query?: string }) {
+export async function listNotes(args: {
+  query?: string;
+  include_content?: boolean;
+  limit?: number;
+}) {
+  const limit = resolveListLimit(args.limit);
   const notes = await fetchLiveNotes();
   const needle = args.query?.toLowerCase();
 
-  const out = [];
-  for (const { meta, payload } of notes) {
+  const matched: NoteRecord[] = [];
+  for (const record of notes) {
     if (needle) {
-      const haystack = `${meta.title}\n${contentPlainText(
-        payload.content_json,
+      const haystack = `${record.meta.title}\n${contentPlainText(
+        record.payload.content_json,
       )}`.toLowerCase();
       if (!haystack.includes(needle)) continue;
     }
-    out.push(formatNote(meta, payload));
+    matched.push(record);
   }
-  return out;
+
+  const out = matched
+    .slice(0, limit)
+    .map(({ meta, payload }) =>
+      formatNoteListEntry(meta, payload, args.include_content === true),
+    );
+  return {
+    notes: out,
+    total: matched.length,
+    hasMore: matched.length > out.length,
+  };
+}
+
+export async function getNote(args: { id: string }) {
+  const { meta, payload } = await getNoteRows(args.id);
+  return formatNote(meta, payload);
 }
 
 export async function createNote(args: { title: string; content?: string }) {
