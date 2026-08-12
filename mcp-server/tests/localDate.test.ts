@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   addDays,
   assertDateKey,
+  assertTimeOfDay,
   localDayUtcRange,
   localToday,
 } from "../src/utils/localDate.js";
@@ -42,5 +43,20 @@ describe("localDate", () => {
     expect(assertDateKey("2026-03-09")).toBe("2026-03-09");
     expect(() => assertDateKey("2026-3-9")).toThrow(/Invalid date/);
     expect(() => assertDateKey("tomorrow")).toThrow(/Invalid date/);
+  });
+
+  it("rejects anything that is not a 24-hour clock time", () => {
+    expect(assertTimeOfDay("09:00", "start_time")).toBe("09:00");
+    expect(assertTimeOfDay("23:59", "end_time")).toBe("23:59");
+    // The shapes a caller actually reaches for, and the DB would only report
+    // as a raw `time` parse error naming a column they never mentioned.
+    expect(() => assertTimeOfDay("9:00", "start_time")).toThrow(
+      /Invalid start_time/,
+    );
+    expect(() => assertTimeOfDay("24:00", "end_time")).toThrow(
+      /Invalid end_time/,
+    );
+    expect(() => assertTimeOfDay("09:60", "end_time")).toThrow(/Invalid/);
+    expect(() => assertTimeOfDay("9am", "start_time")).toThrow(/Invalid/);
   });
 });

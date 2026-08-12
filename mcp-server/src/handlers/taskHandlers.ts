@@ -86,8 +86,16 @@ export function toToolStatus(status: string | null): string | null {
   return status === null ? null : status.toLowerCase();
 }
 
-/** True for the retired folder node type (S3 #225). NULL is a plain task. */
-function isLegacyFolder(row: TasksPayloadRow): boolean {
+/**
+ * True for the retired folder node type (S3 #225). NULL is a plain task —
+ * the whole in-app filter hinges on that, which is why it is exported for
+ * the unit test. `list_tasks` used a query-side `.eq('task_type','task')`
+ * until #702 ②, which dropped every NULL row and made it disagree with
+ * `get_task_tree` about which tasks exist.
+ */
+export function isLegacyFolder(
+  row: Pick<TasksPayloadRow, "task_type">,
+): boolean {
   return row.task_type === "folder";
 }
 
@@ -213,10 +221,13 @@ export async function listTasks(args: {
   // A fresh builder per page: PostgREST builders are single-use, and the
   // order must end in a unique column or page boundaries can drop rows.
   const payloads = await fetchAllPages<TasksPayloadRow>((from, to) => {
-    let query = client
-      .from("tasks_payload")
-      .select(PAYLOAD_COLUMNS)
-      .eq("task_type", "task");
+    // The retired folder type is excluded IN-APP (below), never here: a
+    // query-side task_type filter also drops NULL rows, which are plain
+    // tasks. That is the mismatch #702 ② removes — get_task_tree has always
+    // filtered in-app, so the two tools used to disagree about which tasks
+    // exist, and the header comment at the top of this file warns about
+    // exactly the trap the query below used to fall into.
+    let query = client.from("tasks_payload").select(PAYLOAD_COLUMNS);
     if (args.status) query = query.eq("status", toDbStatus(args.status));
     if (args.date_range) {
       query = query
@@ -229,12 +240,16 @@ export async function listTasks(args: {
       .order("item_id", { ascending: true })
       .range(from, to);
   }, "list tasks_payload");
-  if (payloads.length === 0) return { tasks: [], total: 0, hasMore: false };
 
-  // A payload whose meta is missing is soft-deleted (or an orphan): it is not
-  // a task the caller can see, so it must not count towards `total` either.
-  const metaById = await fetchTaskMetas(payloads.map((p) => p.item_id));
-  const live = payloads.filter((p) => metaById.has(p.item_id));
+  // Two exclusions, both in-app and both before the count: the retired
+  // folder type (see above), and a payload whose meta is missing — that one
+  // is soft-deleted or an orphan, so it is not a task the caller can see and
+  // must not count towards `total` either.
+  const visible = payloads.filter((p) => !isLegacyFolder(p));
+  if (visible.length === 0) return { tasks: [], total: 0, hasMore: false };
+
+  const metaById = await fetchTaskMetas(visible.map((p) => p.item_id));
+  const live = visible.filter((p) => metaById.has(p.item_id));
 
   const tasks = live
     .slice(0, limit)
