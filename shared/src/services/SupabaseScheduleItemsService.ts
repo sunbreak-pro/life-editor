@@ -1,7 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type {
-  ScheduleItemsDataService,
-} from "./DataService";
+import type { ScheduleItemsDataService } from "./DataService";
 import type { ScheduleItem } from "../types/schedule";
 import {
   // DU-C-5: 2-row API (items_meta + events_payload)
@@ -18,6 +16,7 @@ import {
   fetchByIdChunks,
   forEachIdChunk,
 } from "./postgrestFetchAll";
+import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import {
   DEFAULT_ROUTINE_START_TIME,
@@ -218,26 +217,25 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     };
     const { meta, payload } = scheduleItemToRows(item, userId);
 
-    const { data: metaRow, error: metaErr } = await this.client
-      .from("items_meta")
-      .insert(meta)
-      .select(ITEMS_META_EVENT_COLUMNS)
-      .single();
-    if (metaErr)
-      throw new Error(`createScheduleItem items_meta: ${metaErr.message}`);
+    const metaRow = await requireSingleRow<ItemsMetaEventRow>(
+      this.client
+        .from("items_meta")
+        .insert(meta)
+        .select(ITEMS_META_EVENT_COLUMNS)
+        .single(),
+      "createScheduleItem items_meta",
+    );
 
     try {
-      const { data: payloadRow, error: pErr } = await this.client
-        .from("events_payload")
-        .insert(payload)
-        .select(EVENTS_PAYLOAD_COLUMNS)
-        .single();
-      if (pErr)
-        throw new Error(`createScheduleItem events_payload: ${pErr.message}`);
-      return rowsToScheduleItem(
-        metaRow as unknown as ItemsMetaEventRow,
-        payloadRow as unknown as EventsPayloadRow,
+      const payloadRow = await requireSingleRow<EventsPayloadRow>(
+        this.client
+          .from("events_payload")
+          .insert(payload)
+          .select(EVENTS_PAYLOAD_COLUMNS)
+          .single(),
+        "createScheduleItem events_payload",
       );
+      return rowsToScheduleItem(metaRow, payloadRow);
     } catch (err) {
       await this.client.from("items_meta").delete().eq("id", meta.id);
       throw err;
@@ -297,33 +295,24 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
         throw new Error(`updateScheduleItem events_payload: ${pErr.message}`);
     }
 
-    const [
-      { data: metaRow, error: metaReadErr },
-      { data: payloadRow, error: payloadReadErr },
-    ] = await Promise.all([
+    const [metaRow, payloadRow] = await requireRowPair<
+      ItemsMetaEventRow,
+      EventsPayloadRow
+    >(
       this.client
         .from("items_meta")
         .select(ITEMS_META_EVENT_COLUMNS)
         .eq("id", id)
         .single(),
+      "updateScheduleItem read items_meta",
       this.client
         .from("events_payload")
         .select(EVENTS_PAYLOAD_COLUMNS)
         .eq("item_id", id)
         .single(),
-    ]);
-    if (metaReadErr)
-      throw new Error(
-        `updateScheduleItem read items_meta: ${metaReadErr.message}`,
-      );
-    if (payloadReadErr)
-      throw new Error(
-        `updateScheduleItem read events_payload: ${payloadReadErr.message}`,
-      );
-    return rowsToScheduleItem(
-      metaRow as unknown as ItemsMetaEventRow,
-      payloadRow as unknown as EventsPayloadRow,
+      "updateScheduleItem read events_payload",
     );
+    return rowsToScheduleItem(metaRow, payloadRow);
   }
 
   /** Hard-delete via items_meta (events_payload cascades via 0008 FK). */
@@ -376,14 +365,15 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
    */
   async toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
     // Read current done state to flip.
-    const { data: cur, error: curErr } = await this.client
-      .from("events_payload")
-      .select("done")
-      .eq("item_id", id)
-      .single();
-    if (curErr)
-      throw new Error(`toggleScheduleItemComplete read: ${curErr.message}`);
-    const wasDone = (cur as unknown as { done: boolean }).done;
+    const cur = await requireSingleRow<{ done: boolean }>(
+      this.client
+        .from("events_payload")
+        .select("done")
+        .eq("item_id", id)
+        .single(),
+      "toggleScheduleItemComplete read",
+    );
+    const wasDone = cur.done;
     const now = new Date().toISOString();
 
     const { error: pErr } = await this.client
@@ -406,33 +396,24 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
       throw new Error(`toggleScheduleItemComplete items_meta: ${mErr.message}`);
 
     // Read back combined.
-    const [
-      { data: metaRow, error: mReadErr },
-      { data: payloadRow, error: pReadErr },
-    ] = await Promise.all([
+    const [metaRow, payloadRow] = await requireRowPair<
+      ItemsMetaEventRow,
+      EventsPayloadRow
+    >(
       this.client
         .from("items_meta")
         .select(ITEMS_META_EVENT_COLUMNS)
         .eq("id", id)
         .single(),
+      "toggleScheduleItemComplete read meta",
       this.client
         .from("events_payload")
         .select(EVENTS_PAYLOAD_COLUMNS)
         .eq("item_id", id)
         .single(),
-    ]);
-    if (mReadErr)
-      throw new Error(
-        `toggleScheduleItemComplete read meta: ${mReadErr.message}`,
-      );
-    if (pReadErr)
-      throw new Error(
-        `toggleScheduleItemComplete read payload: ${pReadErr.message}`,
-      );
-    return rowsToScheduleItem(
-      metaRow as unknown as ItemsMetaEventRow,
-      payloadRow as unknown as EventsPayloadRow,
+      "toggleScheduleItemComplete read payload",
     );
+    return rowsToScheduleItem(metaRow, payloadRow);
   }
 
   /**
@@ -832,6 +813,9 @@ export const PHASE2_SCHEDULE_ITEM_METHOD_NAMES = [
   "fetchEvents",
 ] as const;
 
-export type ScheduleItemMethodName = (typeof PHASE2_SCHEDULE_ITEM_METHOD_NAMES)[number];
+export type ScheduleItemMethodName =
+  (typeof PHASE2_SCHEDULE_ITEM_METHOD_NAMES)[number];
 
-export const PHASE2_SCHEDULE_ITEM_METHODS: ReadonlySet<string> = new Set(PHASE2_SCHEDULE_ITEM_METHOD_NAMES);
+export const PHASE2_SCHEDULE_ITEM_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_SCHEDULE_ITEM_METHOD_NAMES,
+);

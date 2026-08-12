@@ -12,6 +12,7 @@ import {
   type RoutinesPayloadRow,
 } from "./routineMapper";
 import { fetchAllPages, forEachIdChunk } from "./postgrestFetchAll";
+import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import { logServiceError } from "../utils/logError";
@@ -126,26 +127,25 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     };
     const { meta, payload } = routineNodeToRows(node, userId);
 
-    const { data: metaRow, error: metaErr } = await this.client
-      .from("items_meta")
-      .insert(meta)
-      .select(ITEMS_META_ROUTINE_COLUMNS)
-      .single();
-    if (metaErr)
-      throw new Error(`createRoutine items_meta: ${metaErr.message}`);
+    const metaRow = await requireSingleRow<ItemsMetaRoutineRow>(
+      this.client
+        .from("items_meta")
+        .insert(meta)
+        .select(ITEMS_META_ROUTINE_COLUMNS)
+        .single(),
+      "createRoutine items_meta",
+    );
 
     try {
-      const { data: payloadRow, error: pErr } = await this.client
-        .from("routines_payload")
-        .insert(payload)
-        .select(ROUTINES_PAYLOAD_COLUMNS)
-        .single();
-      if (pErr)
-        throw new Error(`createRoutine routines_payload: ${pErr.message}`);
-      return rowsToRoutineNode(
-        metaRow as unknown as ItemsMetaRoutineRow,
-        payloadRow as unknown as RoutinesPayloadRow,
+      const payloadRow = await requireSingleRow<RoutinesPayloadRow>(
+        this.client
+          .from("routines_payload")
+          .insert(payload)
+          .select(ROUTINES_PAYLOAD_COLUMNS)
+          .single(),
+        "createRoutine routines_payload",
       );
+      return rowsToRoutineNode(metaRow, payloadRow);
     } catch (err) {
       // R2 orphan recovery — same pattern as createTask.
       await this.client.from("items_meta").delete().eq("id", meta.id);
@@ -314,31 +314,24 @@ export class SupabaseRoutinesService implements RoutinesDataService {
         throw new Error(`updateRoutine routines_payload: ${pErr.message}`);
     }
 
-    const [
-      { data: metaRow, error: metaReadErr },
-      { data: payloadRow, error: payloadReadErr },
-    ] = await Promise.all([
+    const [metaRow, payloadRow] = await requireRowPair<
+      ItemsMetaRoutineRow,
+      RoutinesPayloadRow
+    >(
       this.client
         .from("items_meta")
         .select(ITEMS_META_ROUTINE_COLUMNS)
         .eq("id", id)
         .single(),
+      "updateRoutine read items_meta",
       this.client
         .from("routines_payload")
         .select(ROUTINES_PAYLOAD_COLUMNS)
         .eq("item_id", id)
         .single(),
-    ]);
-    if (metaReadErr)
-      throw new Error(`updateRoutine read items_meta: ${metaReadErr.message}`);
-    if (payloadReadErr)
-      throw new Error(
-        `updateRoutine read routines_payload: ${payloadReadErr.message}`,
-      );
-    return rowsToRoutineNode(
-      metaRow as unknown as ItemsMetaRoutineRow,
-      payloadRow as unknown as RoutinesPayloadRow,
+      "updateRoutine read routines_payload",
     );
+    return rowsToRoutineNode(metaRow, payloadRow);
   }
 
   /**

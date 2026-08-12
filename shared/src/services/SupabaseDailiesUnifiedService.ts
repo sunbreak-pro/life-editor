@@ -15,6 +15,7 @@ import type { DailyNode } from "../types/daily";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { ItemLockGate, nextItemVersion } from "./itemLockGate";
+import { fetchMaybeSingleRow } from "./postgrestSingle";
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -87,29 +88,28 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
   async getDailyByDateUnified(date: string): Promise<DailyNode | null> {
     assertDailyDate(date);
     // dailies_payload.date is UNIQUE — lookup payload first, then meta.
-    const { data: payload, error: payErr } = await this.client
-      .from("dailies_payload")
-      .select(DAILIES_PAYLOAD_COLUMNS)
-      .eq("date", date)
-      .maybeSingle();
-    if (payErr)
-      throw new Error(
-        `getDailyByDateUnified payload failed: ${payErr.message}`,
-      );
-    if (!payload) return null;
+    const payloadRow = await fetchMaybeSingleRow<DailiesPayloadRow>(
+      this.client
+        .from("dailies_payload")
+        .select(DAILIES_PAYLOAD_COLUMNS)
+        .eq("date", date)
+        .maybeSingle(),
+      "getDailyByDateUnified payload failed",
+    );
+    if (!payloadRow) return null;
 
-    const payloadRow = payload as unknown as DailiesPayloadRow;
-    const { data: meta, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_DAILY_COLUMNS)
-      .eq("id", payloadRow.item_id)
-      .eq("role", "daily")
-      .maybeSingle();
-    if (metaErr)
-      throw new Error(`getDailyByDateUnified meta failed: ${metaErr.message}`);
+    const meta = await fetchMaybeSingleRow<ItemsMetaDailyRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_DAILY_COLUMNS)
+        .eq("id", payloadRow.item_id)
+        .eq("role", "daily")
+        .maybeSingle(),
+      "getDailyByDateUnified meta failed",
+    );
     if (!meta) return null;
 
-    return rowsToDailyNode(meta as unknown as ItemsMetaDailyRow, payloadRow);
+    return rowsToDailyNode(meta, payloadRow);
   }
 
   // -------------------------------------------------------------------------
@@ -208,37 +208,32 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
     }
 
     // Lookup by id (not date) so the caller doesn't need to thread date.
-    const { data: meta, error: lookupMetaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_DAILY_COLUMNS)
-      .eq("id", id)
-      .eq("role", "daily")
-      .maybeSingle();
-    if (lookupMetaErr)
-      throw new Error(
-        `updateDailyUnified re-read meta failed: ${lookupMetaErr.message}`,
-      );
+    const meta = await fetchMaybeSingleRow<ItemsMetaDailyRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_DAILY_COLUMNS)
+        .eq("id", id)
+        .eq("role", "daily")
+        .maybeSingle(),
+      "updateDailyUnified re-read meta failed",
+    );
     if (!meta)
       throw new Error(
         `updateDailyUnified: row vanished after update (id="${id}")`,
       );
 
-    const { data: payload, error: lookupPayErr } = await this.client
-      .from("dailies_payload")
-      .select(DAILIES_PAYLOAD_COLUMNS)
-      .eq("item_id", id)
-      .maybeSingle();
-    if (lookupPayErr)
-      throw new Error(
-        `updateDailyUnified re-read payload failed: ${lookupPayErr.message}`,
-      );
+    const payload = await fetchMaybeSingleRow<DailiesPayloadRow>(
+      this.client
+        .from("dailies_payload")
+        .select(DAILIES_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .maybeSingle(),
+      "updateDailyUnified re-read payload failed",
+    );
     if (!payload)
       throw new Error(`updateDailyUnified: payload vanished (id="${id}")`);
 
-    return rowsToDailyNode(
-      meta as unknown as ItemsMetaDailyRow,
-      payload as unknown as DailiesPayloadRow,
-    );
+    return rowsToDailyNode(meta, payload);
   }
 
   // -------------------------------------------------------------------------
@@ -415,30 +410,29 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * keys by date — these mutators key by id, so we cannot reuse it directly.
    */
   private async readBackById(id: string, label: string): Promise<DailyNode> {
-    const { data: meta, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_DAILY_COLUMNS)
-      .eq("id", id)
-      .eq("role", "daily")
-      .maybeSingle();
-    if (metaErr)
-      throw new Error(`${label} re-read meta failed: ${metaErr.message}`);
+    const meta = await fetchMaybeSingleRow<ItemsMetaDailyRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_DAILY_COLUMNS)
+        .eq("id", id)
+        .eq("role", "daily")
+        .maybeSingle(),
+      `${label} re-read meta failed`,
+    );
     if (!meta)
       throw new Error(`${label}: row vanished after update (id="${id}")`);
 
-    const { data: payload, error: payErr } = await this.client
-      .from("dailies_payload")
-      .select(DAILIES_PAYLOAD_COLUMNS)
-      .eq("item_id", id)
-      .maybeSingle();
-    if (payErr)
-      throw new Error(`${label} re-read payload failed: ${payErr.message}`);
+    const payload = await fetchMaybeSingleRow<DailiesPayloadRow>(
+      this.client
+        .from("dailies_payload")
+        .select(DAILIES_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .maybeSingle(),
+      `${label} re-read payload failed`,
+    );
     if (!payload) throw new Error(`${label}: payload vanished (id="${id}")`);
 
-    return rowsToDailyNode(
-      meta as unknown as ItemsMetaDailyRow,
-      payload as unknown as DailiesPayloadRow,
-    );
+    return rowsToDailyNode(meta, payload);
   }
 
   /**
