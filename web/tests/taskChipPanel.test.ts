@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { TaskCalendarChip } from "@life-editor/shared";
 import {
-  answersChipClick,
+  itemTapRoute,
   taskChipPanelModel,
 } from "../src/schedule/taskChipPanel";
 
@@ -118,20 +118,20 @@ describe("taskChipPanelModel (#564)", () => {
   });
 });
 
-describe("answersChipClick (#564)", () => {
-  it("answers everything on Desktop", () => {
-    expect(answersChipClick("taskchip-task-1", true)).toBe(true);
-    expect(answersChipClick("evt-1", true)).toBe(true);
+describe("itemTapRoute (#564 → #761)", () => {
+  it("keeps every Desktop tap on the select-then-bubble path", () => {
+    expect(itemTapRoute("taskchip-task-1", true)).toBe("select");
+    expect(itemTapRoute("evt-1", true)).toBe("select");
   });
 
-  it("leaves a narrow tap on a task chip untouched", () => {
-    // Selection included: narrow's detail surface is the BottomSheet editor,
-    // which resolves schedule_items only, so a selected task chip would show a
-    // ring with nothing behind it.
-    expect(answersChipClick("taskchip-task-1", false)).toBe(false);
+  it("sends a narrow tap on a task chip to the task sheet", () => {
+    // #564 dropped this tap for want of a surface; #761 gives narrow one, so
+    // the row answers instead of doing nothing next to an event that opens.
+    expect(itemTapRoute("taskchip-task-1", false)).toBe("taskSheet");
   });
 
-  it("still answers a narrow tap on a schedule item", () => {
-    expect(answersChipClick("evt-1", false)).toBe(true);
+  it("leaves a narrow tap on a schedule item alone", () => {
+    // Selection alone brings up the narrow editor sheet — unchanged.
+    expect(itemTapRoute("evt-1", false)).toBe("select");
   });
 });

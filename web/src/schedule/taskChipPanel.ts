@@ -26,17 +26,26 @@ import type { ItemAction, TaskCalendarChip } from "@life-editor/shared";
  */
 
 /**
- * Whether a grid/agenda click on `id` should be answered at all.
+ * Where a grid/agenda tap on `id` goes.
  *
- * Everything is answered on Desktop. On NARROW a task chip is not, selection
- * included: the bubble is a Desktop surface and narrow's stand-in is the
- * BottomSheet editor, which only ever resolves a schedule_item — so a tap on a
- * task chip there would light its selection ring and open nothing, which reads
- * worse than the untouched tap #564 set out to fix. A mobile task sheet is a
- * follow-up; #564's scope is the Desktop panel.
+ * - `"select"` — the existing path: select the row, and on Desktop open the
+ *   bubble next to it. On narrow the selection alone brings up the BottomSheet
+ *   editor, which resolves a schedule_item.
+ * - `"taskSheet"` — narrow's todo surface: the task detail sheet, opened by the
+ *   UNWRAPPED task id behind the chip.
+ *
+ * #564 had to drop a narrow tap on a task chip entirely (selection included):
+ * the bubble is a Desktop surface, and narrow's stand-in resolves
+ * schedule_items only, so a selected chip would have lit a ring with nothing
+ * behind it. #761 gives narrow a surface of its own, so the tap has somewhere
+ * to land — and a row that answers nothing while the row beside it opens is
+ * exactly the press #434 S-1 bans.
  */
-export function answersChipClick(id: string, isWide: boolean): boolean {
-  return isWide || !isTaskChip(id);
+export function itemTapRoute(
+  id: string,
+  isWide: boolean,
+): "select" | "taskSheet" {
+  return !isWide && isTaskChip(id) ? "taskSheet" : "select";
 }
 
 /** Already-translated copy for the task-chip bubble (§6.4). */
