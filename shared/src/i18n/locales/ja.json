@@ -277,6 +277,22 @@
       "sortTitle": "タイトル",
       "tagFilterLabel": "タグで絞り込む"
     },
+    "links": {
+      "panelLabel": "リンク",
+      "add": "リンクを追加",
+      "pickerDialog": "リンク先を選ぶ",
+      "searchLabel": "リンクするアイテムを検索",
+      "searchPlaceholder": "タイトルで検索…",
+      "noCandidates": "該当するアイテムがありません",
+      "selfLink": "自分自身にはリンクできません。",
+      "outgoing": "ここからのリンク",
+      "backlinks": "ここへのリンク",
+      "outgoingEmpty": "リンクはまだありません",
+      "backlinksEmpty": "被リンクはまだありません",
+      "loading": "リンクを読み込み中…",
+      "open": "{{title}} を開く",
+      "remove": "{{title}} へのリンクを削除"
+    },
     "daily": {
       "toToday": "今日へ",
       "saved": "保存済み",

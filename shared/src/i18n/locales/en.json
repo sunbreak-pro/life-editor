@@ -278,6 +278,22 @@
       "sortTitle": "Title",
       "tagFilterLabel": "Filter by tag"
     },
+    "links": {
+      "panelLabel": "Links",
+      "add": "Add link",
+      "pickerDialog": "Link picker",
+      "searchLabel": "Search items to link",
+      "searchPlaceholder": "Search by title…",
+      "noCandidates": "No items match",
+      "selfLink": "An item cannot link to itself.",
+      "outgoing": "Links from here",
+      "backlinks": "Links to here",
+      "outgoingEmpty": "No links yet",
+      "backlinksEmpty": "No backlinks yet",
+      "loading": "Loading links…",
+      "open": "Open {{title}}",
+      "remove": "Remove link to {{title}}"
+    },
     "daily": {
       "toToday": "Today",
       "saved": "Saved",
