@@ -60,8 +60,20 @@ import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen, type ScheduleTab } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
-import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
-import { ConnectScreen } from "./connect/ConnectScreen";
+// Analytics drags in recharts and Connect drags in the d3 force/zoom stack —
+// together the two biggest non-editor vendor groups in the bundle. Both are
+// section bodies that only ever mount behind their own `section === …` guard,
+// so lazy + Suspense keeps them out of the initial chunk (#676 (a)). Named
+// exports, mapped to the default that lazy() expects (same shape as NotesView
+// above).
+const AnalyticsScreen = lazy(() =>
+  import("./analytics/AnalyticsScreen").then((m) => ({
+    default: m.AnalyticsScreen,
+  })),
+);
+const ConnectScreen = lazy(() =>
+  import("./connect/ConnectScreen").then((m) => ({ default: m.ConnectScreen })),
+);
 import { TagEditorHost } from "./tags/TagEditorHost";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { UndoRedoHost } from "./UndoRedoHost";
@@ -395,6 +407,18 @@ export function MainScreen({ session }: { session: Session }) {
       </div>
     ) : null;
 
+  /*
+   * Shared Suspense fallback for the code-split section bodies (#676 (a)).
+   * Plain text on a `lumen-*` token — no spinner, because the chunk usually
+   * lands within a frame or two on a warm cache and a flashing spinner reads
+   * as a glitch. `role="status"` so a screen reader announces the wait.
+   */
+  const sectionLoadingFallback = (
+    <p className="text-lumen-text-secondary" role="status">
+      {t("common.loading")}
+    </p>
+  );
+
   const detailPanelLabels = {
     title: t("detailPanel.title"),
     close: t("detailPanel.close"),
@@ -524,18 +548,24 @@ export function MainScreen({ session }: { session: Session }) {
        * UNIFIED item-link model. ConnectScreen mounts its own
        * WikiTagsUnifiedProvider internally. Legacy note_links are NOT used.
        */}
-      {section === "connect" && <ConnectScreen dataService={ds} />}
+      {section === "connect" && (
+        <Suspense fallback={sectionLoadingFallback}>
+          <ConnectScreen dataService={ds} />
+        </Suspense>
+      )}
       {/*
        * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule).
        * Host fetches sessions/tasks/schedule/routines via DataService and
        * injects data + t into the pure shared <AnalyticsView>.
        */}
       {section === "analytics" && (
-        <AnalyticsScreen
-          dataService={ds}
-          tab={analyticsTab}
-          onTabChange={setAnalyticsTab}
-        />
+        <Suspense fallback={sectionLoadingFallback}>
+          <AnalyticsScreen
+            dataService={ds}
+            tab={analyticsTab}
+            onTabChange={setAnalyticsTab}
+          />
+        </Suspense>
       )}
       {/*
        * Trash (W2). Crosses all five soft-delete categories, so it uses no

@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import {
+  ConfirmDialog,
+  useConfirmDialog,
   TagEditModal,
   itemRoleSortKey,
   useTaggedItemIndex,
@@ -9,6 +11,10 @@ import {
   type TagEditItem,
   type TagEditRow,
 } from "@life-editor/shared";
+// Section-agnostic despite living under schedule/ (#628 → #707): the two facts
+// it pins — never ask when nothing is pending, never clear the flag on a
+// REFUSED close — are the same for any editor whose only commit is a button.
+import { decideUnsavedClose } from "../schedule/unsavedCloseGuard";
 
 /*
  * TagEditorHost (#409) — the app-global tag master panel.
@@ -148,54 +154,92 @@ function TagEditorPanel({
    * The panel reports whether anything is pending; asking about it belongs
    * here, because this is what owns `onClose`. A ref (not state) keeps the
    * report from re-rendering the panel on every keystroke.
+   *
+   * The question is the in-app <ConfirmDialog> (#707), not the browser's own
+   * native one: that lands outside the theme and freezes the page hard enough
+   * to stall Playwright. Its answer arrives a tick later, which is why the
+   * whole decision goes through the shared `decideUnsavedClose` — a guard that
+   * read the pending promise as a truthy "yes" would discard the draft the
+   * moment the dialog opened.
    */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
   const dirtyRef = useRef(false);
   const close = useCallback(() => {
-    if (
-      dirtyRef.current &&
-      !window.confirm(t("materials.tags.unsavedCloseConfirm"))
-    )
-      return;
-    dirtyRef.current = false;
-    onClose();
-  }, [onClose, t]);
+    void (async () => {
+      const decision = await decideUnsavedClose({
+        dirty: dirtyRef.current,
+        askDiscard: () =>
+          askConfirm({
+            message: t("materials.tags.unsavedCloseConfirm"),
+            confirmLabel: t("common.discard"),
+            cancelLabel: t("common.cancel"),
+            // Throwing away typed-in work is the destructive answer here, even
+            // though nothing is deleted from the database.
+            danger: true,
+          }),
+      });
+      if (decision.clearDirty) dirtyRef.current = false;
+      if (decision.close) onClose();
+    })();
+  }, [askConfirm, onClose, t]);
 
   return (
-    <TagEditModal
-      open
-      onClose={close}
-      onDirtyChange={(dirty) => {
-        dirtyRef.current = dirty;
-      }}
-      tags={tagRows}
-      onCreate={(name) => void createTag(name)}
-      onRename={(id, name) => void renameTag(id, name)}
-      onDelete={(id) => void deleteTag(id)}
-      onSetColor={(id, color) => void setTagColor(id, color)}
-      onSetIcon={(id, icon) => void setTagIcon(id, icon)}
-      onUnassign={handleUnassign}
-      formatCount={(count) => t("materials.tags.usageCount", { count })}
-      labels={{
-        title: t("materials.tags.editTitle"),
-        addPlaceholder: t("materials.tags.addPlaceholder"),
-        addButton: t("materials.tags.addTag"),
-        empty: t("materials.tags.empty"),
-        filterPlaceholder: t("materials.tags.filterPlaceholder"),
-        filterLabel: t("materials.tags.filterLabel"),
-        filterEmpty: t("materials.tags.filterEmpty"),
-        renameLabel: t("materials.tags.rename"),
-        saveLabel: t("materials.tags.save"),
-        deleteLabel: t("materials.tags.deleteTag"),
-        iconLabel: t("materials.tags.iconLabel"),
-        clearIconLabel: t("materials.tags.clearIcon"),
-        colorLabel: t("materials.tags.colorLabel"),
-        colorClearLabel: t("materials.tags.colorClearLabel"),
-        colorCustomLabel: t("materials.tags.colorCustomLabel"),
-        itemsToggleLabel: t("materials.tags.itemsToggle"),
-        itemsEmpty: t("materials.tags.itemsEmpty"),
-        unassignLabel: t("materials.tags.unassign"),
-        roles: roleLabels,
-      }}
-    />
+    <>
+      <TagEditModal
+        open
+        onClose={close}
+        onDirtyChange={(dirty) => {
+          dirtyRef.current = dirty;
+        }}
+        tags={tagRows}
+        onCreate={(name) => void createTag(name)}
+        onRename={(id, name) => void renameTag(id, name)}
+        onDelete={(id) => void deleteTag(id)}
+        onSetColor={(id, color) => void setTagColor(id, color)}
+        onSetIcon={(id, icon) => void setTagIcon(id, icon)}
+        onUnassign={handleUnassign}
+        formatCount={(count) => t("materials.tags.usageCount", { count })}
+        labels={{
+          title: t("materials.tags.editTitle"),
+          addPlaceholder: t("materials.tags.addPlaceholder"),
+          addButton: t("materials.tags.addTag"),
+          empty: t("materials.tags.empty"),
+          filterPlaceholder: t("materials.tags.filterPlaceholder"),
+          filterLabel: t("materials.tags.filterLabel"),
+          filterEmpty: t("materials.tags.filterEmpty"),
+          renameLabel: t("materials.tags.rename"),
+          saveLabel: t("materials.tags.save"),
+          deleteLabel: t("materials.tags.deleteTag"),
+          iconLabel: t("materials.tags.iconLabel"),
+          clearIconLabel: t("materials.tags.clearIcon"),
+          colorLabel: t("materials.tags.colorLabel"),
+          colorClearLabel: t("materials.tags.colorClearLabel"),
+          colorCustomLabel: t("materials.tags.colorCustomLabel"),
+          itemsToggleLabel: t("materials.tags.itemsToggle"),
+          itemsEmpty: t("materials.tags.itemsEmpty"),
+          unassignLabel: t("materials.tags.unassign"),
+          roles: roleLabels,
+        }}
+      />
+
+      {/* Mounted last so it portals ABOVE the tag panel it is asked from — the
+          discard question has to sit on top of the thing it is about (#707).
+          It holds no place in the tree while nothing is being asked. */}
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
+        />
+      )}
+    </>
   );
 }

@@ -52,7 +52,6 @@ import { X, ChevronDown } from "lucide-react";
  * SessionCompletionModal.
  */
 
-
 /** Filled session dots: completedSessions within the current set. During a
  *  LONG_BREAK the set just wrapped, so show all dots filled (mod === 0). */
 function filledDots(
@@ -256,20 +255,21 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           apply: t("work.settings.apply"),
           deletePreset: t("pomodoro.deletePreset"),
           emptyValueConfirm: t("common.ok"),
+          save: t("work.settings.save"),
+          saved: t("work.settings.saved"),
+          unsaved: t("work.settings.unsaved"),
         }}
         formatEmptyValueMessage={(field) => t("pomodoro.emptyValue", { field })}
-        onWorkDurationChange={timer.setWorkDurationMinutes}
-        onBreakDurationChange={timer.setBreakDurationMinutes}
-        onLongBreakDurationChange={timer.setLongBreakDurationMinutes}
-        onSessionsBeforeLongBreakChange={timer.setSessionsBeforeLongBreak}
+        // #714: one patch per press of the panel's save button — the five
+        // per-field setters it replaced wrote (and synced) five times.
+        onSaveSettings={timer.saveSettings}
         onAutoStartBreaksChange={timer.setAutoStartBreaks}
-        onTargetSessionsChange={timer.setTargetSessions}
         onApplyPreset={(p) =>
           timer.applyPreset(
             timer.presets.find((x) => x.id === p.id) ?? { ...p, createdAt: "" },
           )
         }
-        onCreatePreset={(name) => void timer.createPresetFromCurrent(name)}
+        onCreatePreset={(name, values) => void timer.createPreset(name, values)}
         onDeletePreset={(id) => void timer.deletePreset(id)}
       />
     </div>
@@ -383,9 +383,17 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
             heading: t("audioMixer.heading"),
             toggle: t("audioMixer.toggle"),
             volume: t("audioMixer.volume"),
+            // Same three keys the settings panel uses — one wording for the
+            // one save affordance this section has (#714).
+            save: t("work.settings.save"),
+            saved: t("work.settings.saved"),
+            unsaved: t("work.settings.unsaved"),
           }}
           onToggle={audio.toggleEnabled}
+          // Audible per drag; only the write waits for the button (#714).
           onVolumeChange={audio.setVolume}
+          dirty={audio.volumeDirty}
+          onSave={audio.saveVolumes}
         />
       )}
       <RightSidebarPortal>{settingsPanel}</RightSidebarPortal>

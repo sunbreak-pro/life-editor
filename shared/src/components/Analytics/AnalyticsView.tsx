@@ -19,6 +19,7 @@ import { TasksTab } from "./TasksTab";
 import { TimeTab } from "./TimeTab";
 import { ScheduleTab } from "./ScheduleTab";
 import { MobileAnalyticsView } from "./MobileAnalyticsView";
+import { ANALYTICS_TAB_ORDER, type AnalyticsTab } from "./tabs";
 import type { AnalyticsLabels } from "./labels";
 
 /*
@@ -33,20 +34,6 @@ import type { AnalyticsLabels } from "./labels";
  * (MobileAnalyticsView). The former accent-filled tab pills and the per-chart
  * visibility sidebar are dropped.
  */
-
-export type AnalyticsTab = "overview" | "tasks" | "work" | "schedule";
-
-/*
- * Canonical tab order (SSOT). Exported so the shell (MainScreen) builds its
- * lifted SectionHeader tab band from the same list this view uses for content
- * — the two never drift (数値の非複製原則).
- */
-export const ANALYTICS_TAB_ORDER: readonly AnalyticsTab[] = [
-  "overview",
-  "tasks",
-  "work",
-  "schedule",
-];
 
 export interface AnalyticsViewProps {
   sessions: TimerSession[];

@@ -179,7 +179,10 @@
       "presetNamePlaceholder": "プリセット名",
       "saveAsPreset": "保存",
       "apply": "適用",
-      "presetsEmpty": "プリセットはまだありません"
+      "presetsEmpty": "プリセットはまだありません",
+      "save": "保存",
+      "saved": "保存済み",
+      "unsaved": "未保存"
     }
   },
   "audioMixer": {
@@ -743,7 +746,8 @@
     "close": "閉じる",
     "undo": "元に戻す",
     "redo": "やり直す",
-    "untitled": "無題"
+    "untitled": "無題",
+    "loading": "読み込み中…"
   },
   "tabs": {
     "tasks": "Todo",

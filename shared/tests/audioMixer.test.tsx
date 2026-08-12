@@ -1,12 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { Cloud, Flame } from "lucide-react";
 import { AudioMixer, type AudioMixerProps } from "../src/components/AudioMixer";
 
 /*
  * Ambient mixer row restyle. Pure primitive — props-injected copy (§6.4).
- * Covers the toggle wiring, the disabled-slider-while-off rule and the volume
- * readout.
+ * Covers the toggle wiring, the disabled-slider-while-off rule, the volume
+ * readout and the #714 save footer (volume is audible per drag, persisted per
+ * press — the two-stage split lives in AudioProvider, pinned separately in
+ * audioProviderVolumeSave.test.tsx).
  */
 
 const SOUNDS: AudioMixerProps["sounds"] = [
@@ -18,6 +20,9 @@ const LABELS: AudioMixerProps["labels"] = {
   heading: "Ambient sounds",
   toggle: "Toggle",
   volume: "Volume",
+  save: "Save",
+  saved: "Saved",
+  unsaved: "Unsaved",
 };
 
 function renderMixer(overrides?: Partial<AudioMixerProps>) {
@@ -30,6 +35,8 @@ function renderMixer(overrides?: Partial<AudioMixerProps>) {
     labels: LABELS,
     onToggle: vi.fn(),
     onVolumeChange: vi.fn(),
+    dirty: false,
+    onSave: vi.fn(),
     ...overrides,
   };
   render(<AudioMixer {...props} />);
@@ -58,5 +65,28 @@ describe("AudioMixer", () => {
     expect(screen.getByRole("slider", { name: "Volume: Fire" })).toBeDisabled();
     expect(screen.getByRole("slider", { name: "Volume: Rain" })).toBeEnabled();
     expect(screen.getByText("60")).toBeInTheDocument();
+  });
+
+  it("reports a drag straight away — the sound must not wait for the button", () => {
+    const props = renderMixer();
+    fireEvent.change(screen.getByRole("slider", { name: "Volume: Rain" }), {
+      target: { value: "80" },
+    });
+    expect(props.onVolumeChange).toHaveBeenCalledWith("rain", 80);
+    // The button is a separate press; moving the slider must not write.
+    expect(props.onSave).not.toHaveBeenCalled();
+  });
+
+  it("names the pending state and only saves while something is pending", () => {
+    const clean = renderMixer({ dirty: false });
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    cleanup();
+
+    const pending = renderMixer({ dirty: true });
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(pending.onSave).toHaveBeenCalledOnce();
+    expect(clean.onSave).not.toHaveBeenCalled();
   });
 });

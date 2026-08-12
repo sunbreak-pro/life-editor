@@ -22,6 +22,7 @@
 | D-20260812-shared-fix-1 | #702 Step 2 の着手順をどれにするか | shared-fix |
 | D-20260812-shared-fix-2 | `toggle_schedule_complete` / `dismiss_*` を `set_*(値)` へ破壊的に改名してよいか | shared-fix |
 | D-20260812-tags-1 | タグ編集パネルの保存ボタンを「pending がある行にだけ出す」か「全行に常設して disabled で出す」か | tags-docs |
+| D-20260812-web-1 | Briefing が抱える recharts も初期チャンクから外すか | web-public |
 
 ## Active（現在有効な裁定 — superseded-by なし）
 

@@ -179,7 +179,10 @@
       "presetNamePlaceholder": "Preset name",
       "saveAsPreset": "Save",
       "apply": "Apply",
-      "presetsEmpty": "No presets yet"
+      "presetsEmpty": "No presets yet",
+      "save": "Save",
+      "saved": "Saved",
+      "unsaved": "Unsaved"
     }
   },
   "audioMixer": {
@@ -744,7 +747,8 @@
     "close": "Close",
     "undo": "Undo",
     "redo": "Redo",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "loading": "Loading…"
   },
   "tabs": {
     "tasks": "Todos",
