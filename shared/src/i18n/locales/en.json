@@ -581,6 +581,7 @@
     "durationHourMin": "{{h}} hr {{m}} min",
     "freeGap": "{{duration}} free",
     "todoDelete": "Delete todo",
+    "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
     "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "rename": "Rename",
     "duplicate": "Duplicate",

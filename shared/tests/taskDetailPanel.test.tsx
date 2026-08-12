@@ -117,6 +117,23 @@ describe("useTaskTreeAPI selection basis (W7)", () => {
     expect(result.current.selectedTaskId).toBe("task-a");
     expect(result.current.selectedTask?.id).toBe("task-a");
   });
+
+  // #775 DoD: the panel's delete is a SOFT one, so Trash has to be able to
+  // hand the row back. Pinned here beside the panel that now fires it —
+  // "deleted from the sheet" and "gone for good" must not become the same
+  // thing on a phone, which is where the only copy of a quick capture lives.
+  it("soft-deletes to the trash list and restores from it", async () => {
+    const { result } = await renderTaskTree([makeTask("task-a")]);
+
+    act(() => result.current.softDelete("task-a"));
+    expect(result.current.nodes.map((n) => n.id)).toEqual([]);
+    expect(result.current.deletedNodes.map((n) => n.id)).toEqual(["task-a"]);
+    expect(result.current.deletedNodes[0].deletedAt).toBeTruthy();
+
+    act(() => result.current.restoreNode("task-a"));
+    expect(result.current.nodes.map((n) => n.id)).toEqual(["task-a"]);
+    expect(result.current.deletedNodes).toEqual([]);
+  });
 });
 
 // ---- TaskDetailPanel render ------------------------------------------
@@ -187,6 +204,104 @@ describe("TaskDetailPanel (W7)", () => {
     );
     expect(screen.getByText("Tags")).toBeInTheDocument();
     expect(screen.getByText("review")).toBeInTheDocument();
+  });
+
+  /*
+   * #775 — the delete affordance. Mobile's todo detail sheet was a one-way
+   * door: seven buttons and not one of them removed the row. What these pin is
+   * that the button is opt-in, that it fires RAW (the host asks), and that it
+   * is not tangled up with the save draft in either direction.
+   */
+  it("omits the delete button unless the host passes both halves", () => {
+    const { rerender } = render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="Write the plan"
+        onSave={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Delete todo" }),
+    ).not.toBeInTheDocument();
+
+    // A handler with no name would ship an unlabelled destructive control.
+    rerender(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="Write the plan"
+        onSave={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Delete todo" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="Write the plan"
+        onSave={() => {}}
+        onDelete={() => {}}
+        deleteLabel="Delete todo"
+        {...LABELS}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Delete todo" }),
+    ).toBeInTheDocument();
+  });
+
+  it("reports the delete raw, without writing or asking", () => {
+    const onDelete = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="Write the plan"
+        onSave={onSave}
+        onDelete={onDelete}
+        deleteLabel="Delete todo"
+        {...LABELS}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete todo" }));
+    // The panel never asks: the host owns the confirm (#707 ConfirmDialog),
+    // because it is the only side that knows about the subtree cascade.
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith("task-a");
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("stays pressable while a title draft is pending, and commits nothing", () => {
+    // The save button disables itself when there is nothing to write; delete
+    // is the opposite kind of act, so an untouched panel must still offer it —
+    // and a half-typed title must not ride along with the delete.
+    const onDelete = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        onSave={onSave}
+        onDelete={onDelete}
+        deleteLabel="Delete todo"
+        {...LABELS}
+      />,
+    );
+
+    const deleteButton = screen.getByRole("button", { name: "Delete todo" });
+    expect(deleteButton).toBeEnabled();
+    expect(saveButton()).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Task title"), {
+      target: { value: "new" },
+    });
+    fireEvent.click(deleteButton);
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith("task-a");
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("omits the tag row when no tagsSlot is passed (additive prop)", () => {
