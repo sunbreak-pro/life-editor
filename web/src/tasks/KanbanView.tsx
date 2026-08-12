@@ -294,6 +294,24 @@ export function KanbanView({
   });
 
   /*
+   * #789: the panel's teardown, for the two exits that remove the row itself
+   * (delete and convert). Clearing the selection empties the portal, but the
+   * sidebar SHELL has its own open state and survives that — leaving a column
+   * of "nothing selected" up to 560px wide next to a board the user just took
+   * a row off. Narrow keeps its own path: there the detail is the BottomSheet,
+   * and the shell is already held closed by the isWide effect below.
+   *
+   * One helper rather than the line twice: the two exits drifting apart is the
+   * shape of this bug (delete gained the close, convert kept the empty shell),
+   * and the only way for them to disagree now is for someone to stop calling
+   * this.
+   */
+  const closeDetailShell = useCallback(() => {
+    tree.setSelectedTaskId(null);
+    if (isWide) rightSidebar.close();
+  }, [tree, isWide, rightSidebar]);
+
+  /*
    * #625: "予定に変換" — the board's half of the Event <-> Todo pair.
    *
    * The write re-roles the row (id kept), so the task simply leaves this board
@@ -352,8 +370,9 @@ export function KanbanView({
         )
         .then(() => {
           // The detail panel is showing a row that is no longer a task; the
-          // refetch drops it from the tree and the selection resolves to null.
-          tree.setSelectedTaskId(null);
+          // refetch drops it from the tree and the selection resolves to null,
+          // and the shell that framed it goes with them (#789).
+          closeDetailShell();
           void tree.refetch();
         })
         .catch((err) => {
@@ -374,7 +393,7 @@ export function KanbanView({
         })
         .finally(() => endConvert(task.id));
     },
-    [dataService, tree, detail, t, beginConvert, endConvert],
+    [dataService, tree, detail, t, beginConvert, endConvert, closeDetailShell],
   );
 
   /*
@@ -409,7 +428,8 @@ export function KanbanView({
    * asking twice for one act reads as a bug. The selection is cleared here as
    * well as inside softDelete — the panel is this host's surface, so what makes
    * it disappear should be visible in this host, not an internal of the tree
-   * hook. Undo is the same one every other delete raises
+   * hook; the wide shell around it closes on the same beat (#789, via
+   * closeDetailShell). Undo is the same one every other delete raises
    * (softDelete → persistWithHistory), with Trash as the route that outlives
    * the section.
    */
@@ -425,11 +445,11 @@ export function KanbanView({
       }).then((ok) => {
         if (!ok) return;
         detail.closeSheet();
-        tree.setSelectedTaskId(null);
+        closeDetailShell();
         tree.softDelete(id);
       });
     },
-    [tree, detail, askConfirm, t],
+    [tree, detail, askConfirm, t, closeDetailShell],
   );
 
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
