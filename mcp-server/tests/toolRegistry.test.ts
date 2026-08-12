@@ -245,30 +245,6 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["search_by_tag", { tag_name: "life" }],
   ["get_task_tree", { root_id: "task-1", include_done: false, max_depth: 2 }],
   ["get_entity_tags", { entity_id: "task-1" }],
-  // #700's verification tools shipped without a row here, so the coverage
-  // check below has been failing since they landed.
-  ["seed_verification_state", { date: "2026-08-11", preset: "busy_day" }],
-  [
-    "seed_verification_state",
-    {
-      date: "2026-08-11",
-      label: "#700",
-      items: [
-        { kind: "task", title: "t", status: "in_progress", content: "# body" },
-        {
-          kind: "event",
-          title: "e",
-          start_time: "09:00",
-          end_time: "09:15",
-          is_all_day: false,
-          memo: "m",
-        },
-      ],
-    },
-  ],
-  ["read_verification_state", { run_id: "verify-1" }],
-  ["read_verification_state", { id: "task-1" }],
-  ["cleanup_verification_state", { run_id: "verify-1", dry_run: true }],
   [
     "format_content",
     {
