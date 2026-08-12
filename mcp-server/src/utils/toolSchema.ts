@@ -18,7 +18,9 @@
  * Two deliberate leniencies keep it from being stricter than the wire:
  *   - undeclared properties pass. No schema here sets
  *     `additionalProperties: false`, so rejecting extras would break a
- *     caller that sends a superset of what it needs.
+ *     caller that sends a superset of what it needs. Passing is not the same
+ *     as vanishing, though: `unknownArgNames` reports them so the caller
+ *     hears about the argument nothing acted on (#702 ②).
  *   - an explicit `null` on an OPTIONAL property is treated as "not
  *     supplied". Handlers already normalise with `?? null` / `!== undefined`,
  *     and rejecting it would fail calls that used to succeed. A `null` on a
@@ -156,6 +158,25 @@ function checkObject(
       problems,
     );
   }
+}
+
+/**
+ * Top-level argument names `schema` does not declare (#702 ②).
+ *
+ * These are accepted (see the header) but no handler reads them, so a
+ * misremembered name — `memo` for `time_memo`, `note` for `content` — used
+ * to come back as a plain success with nothing changed. Naming them turns
+ * that into something the caller can act on without inspecting the item.
+ *
+ * Underscore-prefixed keys are the MCP protocol's own (`_meta` carries the
+ * progress token), not the caller's, and are never reported.
+ */
+export function unknownArgNames(schema: ObjectSchema, args: unknown): string[] {
+  if (!isPlainObject(args)) return [];
+  const declared = new Set(Object.keys(schema.properties ?? {}));
+  return Object.keys(args).filter(
+    (name) => !name.startsWith("_") && !declared.has(name),
+  );
 }
 
 /**

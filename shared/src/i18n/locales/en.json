@@ -436,6 +436,8 @@
     "viewDay": "Day",
     "viewWeek": "Week",
     "viewMonth": "Month",
+    "openMonthView": "{{date}} — open month view",
+    "monthSheetTitle": "Month view",
     "today": "Today",
     "prev": "Previous",
     "next": "Next",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -251,6 +251,13 @@ export function CalendarTab({
     rangeEnd,
     step,
     goToday,
+    // #692: Mobile's month overview. Open ⇒ effView is "month", so the fetch
+    // window, the step size and the period label all follow without a second
+    // switch here.
+    monthSheetOpen,
+    openMonthSheet,
+    closeMonthSheet,
+    pickMonthDay,
   } = useCalendarNav(isWide);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2590,9 +2597,27 @@ export function CalendarTab({
               openLabel={t("scheduleScreen.openMenu")}
               closeLabel={t("scheduleScreen.closeMenu")}
             />
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
-              {periodLabel}
-            </span>
+            {/* #692: the date label is narrow's only route to the month —
+                #467 left no switcher to hang one on, and a second header
+                control would undo "単画面 + FAB". Tapping the label the user
+                already reads for "where am I?" answers "and what does the
+                month look like?". */}
+            <button
+              type="button"
+              onClick={openMonthSheet}
+              aria-haspopup="dialog"
+              aria-expanded={monthSheetOpen}
+              aria-label={t("scheduleScreen.openMonthView", {
+                date: periodLabel,
+              })}
+              className="flex min-h-8 min-w-0 flex-1 items-center gap-1 rounded-lumen-md px-1 text-left text-sm font-semibold text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            >
+              <span className="min-w-0 truncate">{periodLabel}</span>
+              <ChevronDown
+                aria-hidden
+                className="size-4 shrink-0 text-lumen-text-secondary"
+              />
+            </button>
             <div className="flex gap-1">
               <button
                 type="button"
@@ -2654,6 +2679,62 @@ export function CalendarTab({
           label={t("scheduleScreen.addEvent")}
         />
       </div>
+
+      {/*
+       * #692: the month overview. Consumption only — a cell hands back its day
+       * and nothing else, so `onSelectDay` is `pickMonthDay`, NOT the Desktop
+       * `handleMonthCreate` that opens the creation panel (#224). Mobile keeps
+       * one way to create things: the FAB.
+       *
+       * `compact` is what makes 42 cells legible on a phone (day badge + a dot
+       * row rather than title chips), and no item handlers are passed — the
+       * dots are a density cue, and the day underneath stays the tap target.
+       */}
+      <BottomSheet
+        open={monthSheetOpen}
+        onClose={closeMonthSheet}
+        title={t("scheduleScreen.monthSheetTitle")}
+        closeLabel={t("common.close")}
+        className="flex max-h-[85svh] flex-col overflow-hidden"
+      >
+        <div className="flex shrink-0 items-center gap-2 pb-2">
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
+            {periodLabel}
+          </span>
+          {/* Same `step` as the header — with the sheet open it pages by
+              months, which is the whole point of flipping effView. */}
+          <button
+            type="button"
+            aria-label={t("scheduleScreen.prev")}
+            onClick={() => step(-1)}
+            className={ICON_BTN}
+          >
+            <ChevronLeft aria-hidden className="size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={t("scheduleScreen.next")}
+            onClick={() => step(1)}
+            className={ICON_BTN}
+          >
+            <ChevronRight aria-hidden className="size-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <MonthGrid
+            compact
+            monthKey={anchorDate}
+            items={monthItems}
+            todayKey={today}
+            weekStartsOn={weekStartsOn}
+            weekdayLabels={weekdayLabels}
+            onSelectDay={pickMonthDay}
+            formatMoreCount={(n) => t("scheduleScreen.moreCount", { count: n })}
+            formatDayLabel={formatFullDay}
+            ariaLabel={t("scheduleScreen.calendar")}
+          />
+        </div>
+      </BottomSheet>
 
       {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
           empty-slot tap opens with the tapped slot's time prefilled. Same panel
