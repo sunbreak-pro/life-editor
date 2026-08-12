@@ -7,6 +7,7 @@ import { useTimerContext } from "../src/hooks/useTimerContext";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * TimerProvider — the Work panel's save button lands here (#714, Epic #627).
@@ -41,7 +42,7 @@ function syncWrapper({ children }: { children: ReactNode }) {
 }
 
 function makeDS(): DataService {
-  return {
+  return stubDataService({
     fetchTimerSettings: async () => ({
       workDuration: 25,
       breakDuration: 5,
@@ -53,7 +54,7 @@ function makeDS(): DataService {
     fetchPomodoroPresets: async () => [],
     updateTimerSettings,
     createPomodoroPreset,
-  } as unknown as DataService;
+  });
 }
 
 function Probe() {

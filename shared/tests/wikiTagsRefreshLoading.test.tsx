@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useWikiTagsUnifiedAPI } from "../src/hooks/useWikiTagsUnifiedAPI";
 import { createBumpableSync } from "./helpers/bumpableSync";
-import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * #300 — a background refetch (syncVersion bump) must NOT resurrect the
@@ -31,11 +31,11 @@ function makeDS() {
       pending.push(resolve);
     });
   };
-  const ds = {
+  const ds = stubDataService({
     listAllWikiTagsUnified: list,
     listAllTagAssignments: list,
     listAllTagConnections: list,
-  } as unknown as DataService;
+  });
   return {
     ds,
     deferNextRound: () => {

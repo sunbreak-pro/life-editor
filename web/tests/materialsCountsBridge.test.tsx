@@ -8,6 +8,7 @@ import {
   type SyncDomain,
   type WebSyncContextValue,
 } from "@life-editor/shared";
+import { stubDataService } from "./helpers";
 import { MaterialsCountsBridge } from "../src/MaterialsCountsBridge";
 
 /*
@@ -35,13 +36,13 @@ function zeroVersions(): Record<SyncDomain, number> {
   >;
 }
 
-function makeDataService(over: Partial<DataService> = {}): DataService {
-  return {
+function makeDS(over: Partial<DataService> = {}): DataService {
+  return stubDataService({
     countUnfinishedTasks: vi.fn().mockResolvedValue(3),
     countLiveNotes: vi.fn().mockResolvedValue(7),
     countLiveDailies: vi.fn().mockResolvedValue(9),
     ...over,
-  } as unknown as DataService;
+  });
 }
 
 function setup(ds: DataService) {
@@ -72,7 +73,7 @@ function setup(ds: DataService) {
 
 describe("MaterialsCountsBridge", () => {
   it("publishes the three counts once all of them have arrived", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     const { onCounts } = setup(ds);
 
     await waitFor(() =>
@@ -82,7 +83,7 @@ describe("MaterialsCountsBridge", () => {
 
   it("stays silent until the slowest count lands (no half-filled badges)", async () => {
     let releaseDailies: (n: number) => void = () => undefined;
-    const ds = makeDataService({
+    const ds = makeDS({
       countLiveDailies: vi.fn(
         () =>
           new Promise<number>((resolve) => {
@@ -103,7 +104,7 @@ describe("MaterialsCountsBridge", () => {
   });
 
   it("refetches only the domain that moved", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     const { onCounts, bump } = setup(ds);
     await waitFor(() => expect(onCounts).toHaveBeenCalled());
 
@@ -124,7 +125,7 @@ describe("MaterialsCountsBridge", () => {
   });
 
   it("keeps the last known count when a refetch fails", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     const { onCounts, bump } = setup(ds);
     await waitFor(() => expect(onCounts).toHaveBeenCalled());
 

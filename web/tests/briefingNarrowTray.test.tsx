@@ -9,6 +9,7 @@ import {
   type SyncDomain,
   type WebSyncContextValue,
 } from "@life-editor/shared";
+import { stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
@@ -34,15 +35,15 @@ const value: WebSyncContextValue = {
   triggerSync: async () => undefined,
 };
 
-function makeDataService(): DataService {
-  return {
+function makeDS(): DataService {
+  return stubDataService({
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
     fetchTaskTree: vi.fn().mockResolvedValue([]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
-  } as unknown as DataService;
+  });
 }
 
 /** jsdom has no matchMedia, and useMediaQuery falls back to wide without it. */
@@ -87,7 +88,7 @@ function renderWithPanel(wide: boolean) {
     <SyncContext.Provider value={value}>
       <RightSidebarContext.Provider value={sidebar}>
         <BriefingScreen
-          dataService={makeDataService()}
+          dataService={makeDS()}
           onNavigate={vi.fn()}
           tab="morning"
         />
