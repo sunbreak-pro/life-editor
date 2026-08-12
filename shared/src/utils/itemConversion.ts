@@ -1,7 +1,7 @@
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import { collectDescendantIds } from "./getDescendantTasks";
-import { tasksToCalendarChips } from "./taskCalendarChips";
+import { localDateTimeToISO, tasksToCalendarChips } from "./taskCalendarChips";
 
 /*
  * Event <-> Todo conversion — the pure half (#625).
@@ -114,4 +114,70 @@ export function taskToEventPlacement(
     endTime: chip.endTime,
     isAllDay: chip.isAllDay,
   };
+}
+
+/** An event's slot, as events_payload stores it (all LOCAL, all TEXT). */
+export interface EventSlot {
+  /** Local YYYY-MM-DD, or null when the row carries no date. */
+  date: string | null;
+  /** Local HH:MM, or null. */
+  startTime: string | null;
+  endTime: string | null;
+  isAllDay: boolean;
+}
+
+/** Where a converted event lands as a task chip (tasks_payload's own shape). */
+export interface TaskChipSlot {
+  /** UTC ISO instant, or undefined for an unplaced Todo. */
+  scheduledAt?: string;
+  scheduledEndAt?: string;
+  isAllDay: boolean;
+}
+
+/**
+ * The slot a converted event keeps as a Todo (#739, D-20260811-sched-1 = B).
+ *
+ * The mirror of `taskToEventPlacement` above, and the fix for the asymmetry it
+ * left: Todo→Event kept the chip's slot, while Event→Todo threw the date away
+ * (D-20260810-sched-3). That ruling assumed a Todo had nowhere to put a time —
+ * but `tasks_payload` carries `scheduled_at` / `scheduled_end_at` /
+ * `is_all_day`, which is exactly the row the calendar draws task chips from.
+ * So an 8/20 10:00 event becomes an 8/20 10:00 Todo chip: the calendar looks
+ * almost unchanged and only the item's NATURE has changed. The repeat is still
+ * dropped (D-20260810-sched-5 stands — a routine-derived event is refused
+ * outright).
+ *
+ * LOCAL → UTC, through the same `localDateTimeToISO` the drag/resize writes
+ * use, so the chip re-derives on the slot it was given rather than one time
+ * reader agreeing with another.
+ */
+export function eventToTaskSlot(slot: EventSlot): TaskChipSlot {
+  // No date at all: there is no slot to keep, and the Todo simply arrives
+  // unplaced (which is what every Todo created outside the calendar is).
+  if (!slot.date) return { isAllDay: false };
+
+  if (slot.isAllDay) {
+    // An all-day chip needs a `scheduledAt` to have a DAY at all — the flag
+    // alone would leave the Todo unplaced. The end is left off: chips ignore
+    // it while all-day, so writing one would be a value nothing reads.
+    return {
+      scheduledAt: localDateTimeToISO(slot.date, "00:00"),
+      isAllDay: true,
+    };
+  }
+
+  const startTime = slot.startTime ?? "00:00";
+  const scheduledAt = localDateTimeToISO(slot.date, startTime);
+  const scheduledEndAt =
+    slot.endTime && slot.endTime > startTime
+      ? localDateTimeToISO(slot.date, slot.endTime)
+      : undefined;
+  // A missing or degenerate end (an event model has no overnight span — the
+  // grids read an end at or before the start as zero-length) is dropped rather
+  // than carried over: with no end the chip draws its default 60-minute block,
+  // whereas a zero-length one is rescued into an ALL-DAY chip, which would move
+  // the item off the time it was converted at.
+  return scheduledEndAt
+    ? { scheduledAt, scheduledEndAt, isAllDay: false }
+    : { scheduledAt, isAllDay: false };
 }

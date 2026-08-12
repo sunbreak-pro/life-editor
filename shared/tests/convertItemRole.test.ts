@@ -220,16 +220,56 @@ describe("convertEventToTask (#625)", () => {
       parent_item_id: null,
       sort_order: 3,
       status: "NOT_STARTED",
-      // The memo is not dropped: the confirm dialog only warns about date,
-      // time and repeat, so the sentence the user wrote has to land somewhere.
+      // The memo is not dropped: the confirm dialog only warns about the
+      // repeat, so the sentence the user wrote has to land somewhere.
       content: "bring the card",
-      // The date IS dropped (D-20260810-sched-3) — writing it into
-      // scheduled_at would put the Todo straight back on the calendar the
-      // dialog just said it was leaving.
-      scheduled_at: null,
-      scheduled_end_at: null,
+      // #739 (D-20260811-sched-1 = B, superseding D-20260810-sched-3): the
+      // slot is KEPT. tasks_payload has the columns for it — the very ones the
+      // calendar draws task chips from — so a 10:00 event becomes a 10:00 Todo
+      // chip instead of vanishing off the day it was booked on.
       is_all_day: false,
     });
+    // Compared as instants, not as literals: the columns are UTC and the
+    // fixture's "10:00" is local, so a string would only be right in one
+    // timezone.
+    expect(written.values!.scheduled_at).toBe(
+      new Date(2026, 7, 10, 10, 0).toISOString(),
+    );
+    expect(written.values!.scheduled_end_at).toBe(
+      new Date(2026, 7, 10, 11, 0).toISOString(),
+    );
+  });
+
+  it("keeps an all-day event all-day, with a day to sit on", async () => {
+    const { client, ops } = makeClient({
+      results: {
+        ...happy(),
+        "events_payload:select": [
+          {
+            data: {
+              ...EVENT_PAYLOAD,
+              start_time: null,
+              end_time: null,
+              is_all_day: true,
+            },
+            error: null,
+          },
+        ],
+      },
+    });
+    const svc = new SupabaseItemConversionService(client);
+    await svc.convertEventToTask("item-1", { order: 0 });
+
+    const written = ops.find(
+      (o) => o.table === "tasks_payload" && o.kind === "upsert",
+    )!;
+    expect(written.values).toMatchObject({ is_all_day: true });
+    // The flag on its own would leave the Todo unplaced — an all-day chip
+    // still needs a day to sit on.
+    expect(written.values!.scheduled_at).toBe(
+      new Date(2026, 7, 10, 0, 0).toISOString(),
+    );
+    expect(written.values!.scheduled_end_at).toBeNull();
   });
 
   it("keeps a DONE event done — status is not blanket-reset", async () => {
