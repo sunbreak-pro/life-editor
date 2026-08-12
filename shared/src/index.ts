@@ -157,6 +157,12 @@ export {
   resetLocalPreferences,
   collectPreferenceKeys,
 } from "./utils/resetPreferences";
+// #718 — one-shot startup rename of the three legacy un-prefixed Notes keys
+// into the `life-editor:` namespace, so the reset sweep above can see them.
+export {
+  migrateLegacyPreferenceKeys,
+  LEGACY_PREFERENCE_KEY_RENAMES,
+} from "./utils/migrateLegacyPreferenceKeys";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
 // #473 — the on-screen area, which the soft keyboard shrinks and `vh` does not.

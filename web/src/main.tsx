@@ -1,8 +1,19 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { i18n, I18nProvider, ThemeProvider } from "@life-editor/shared";
+import {
+  i18n,
+  I18nProvider,
+  ThemeProvider,
+  migrateLegacyPreferenceKeys,
+} from "@life-editor/shared";
 import "./index.css";
 import App from "./App.tsx";
+
+// #718: carry the three legacy un-prefixed Notes keys over to their
+// `life-editor:` names. Must run before the first render — the owning hooks
+// read localStorage in a `useState` initializer. Idempotent, so the second and
+// every later start is a no-op.
+migrateLegacyPreferenceKeys();
 
 // I18nProvider wraps the app so every screen can call useTranslation against
 // the shared en/ja catalog (W0-4). Importing `i18n` from shared also runs its
