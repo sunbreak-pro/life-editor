@@ -111,7 +111,8 @@ export {
 
 // Timer (W3-B): Pattern A. REQUIRED Provider (Timer is enabled on Mobile —
 // NOT a §2 省略 Provider). Reads useSyncContext, so it sits inside Sync; per
-// §6.2 it nests just inside the Schedule trio (… → Timer → Audio → …).
+// §6.2 it nests just INSIDE Audio (… → Audio → Timer → …): the Timer's
+// onSessionComplete rings the completion chime Audio owns (#676 (c)).
 export { TimerProvider, type TimerProviderProps } from "./TimerContext";
 export {
   TimerContext,
@@ -128,7 +129,7 @@ export type { TimerPhase, ActiveTask } from "./timerReducer";
 // work timer, Full on mobile per mobile-scope.md #10/#11); only the Ambient
 // mixer UI is omitted, in WorkScreen. Consumers still use useAudioContext
 // (null-safe) because the Provider is absent in partial chains and tests.
-// Per §6.2 it nests INSIDE Timer (… → Timer → Audio → …).
+// Per §6.2 it nests OUTSIDE Timer (… → Audio → Timer → …) since #676 (c).
 export { AudioProvider, type AudioProviderProps } from "./AudioContext";
 export {
   AudioContext,

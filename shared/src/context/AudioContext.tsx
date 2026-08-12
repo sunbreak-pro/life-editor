@@ -35,8 +35,10 @@ import {
  * code does). The OPTIONAL hook variant stays because the Provider is still
  * absent in tests and in hosts that mount a partial chain. The host
  * injects the DataService (§6.4 — the Provider, being a host-side context, MAY
- * use the injected ds). Per §6.2 it nests INSIDE TimerProvider (… → Timer →
- * Audio → …); it reads useSyncContext so a cross-tab volume/enable edit
+ * use the injected ds). Per §6.2 it nests OUTSIDE TimerProvider (… → Audio →
+ * Timer → …) since #676 (c): the Timer's onSessionComplete rings the
+ * completion chime this Provider owns, so the dependency runs inward like
+ * every other pair. It reads useSyncContext so a cross-tab volume/enable edit
  * triggers a refetch.
  *
  * Audio model: each of the 5 ambient presets owns a looping HTMLAudioElement

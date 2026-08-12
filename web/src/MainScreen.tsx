@@ -2,7 +2,6 @@ import {
   lazy,
   Suspense,
   useMemo,
-  useRef,
   useState,
   type ComponentProps,
   type ReactNode,
@@ -33,9 +32,7 @@ import {
   CalendarProvider,
   WikiTagsUnifiedProvider,
   ShortcutConfigProvider,
-  TimerProvider,
   AudioProvider,
-  AudioChimeBridge,
   useTranslation,
   type BriefingTab,
   type AnalyticsTab,
@@ -45,6 +42,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
+import { TimerHost } from "./TimerHost";
 import { TrashScreen } from "./trash/TrashScreen";
 import { DailyView } from "./daily/DailyView";
 // NotesView pulls in the TipTap editor stack (core/react/starter-kit +
@@ -207,13 +205,6 @@ export function MainScreen({ session }: { session: Session }) {
   // Narrow-width switch for the Materials tab control (HeaderTabs ↔ Segmented).
   // Independent of AppShell's own wide/narrow switch (same query, own read).
   const isWide = useMediaQuery(WIDE_QUERY, true);
-
-  // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
-  // (§6.2 … → Timer → Audio → …), so the Timer's onSessionComplete can't read
-  // useAudioContext directly. The AudioChimeBridge (mounted inside the
-  // AudioProvider) publishes the live playCompletionChime into this ref; the
-  // Timer fires it through the ref on each phase completion.
-  const chimeRef = useRef<(() => void) | null>(null);
 
   // Content width (Issue #305 — every section/tab is unified to one centered
   // column, max-w-lumen-wide; the px lives in tokens.css and is deliberately
@@ -626,31 +617,24 @@ export function MainScreen({ session }: { session: Session }) {
               onTogglePalette={() => setPaletteOpen((v) => !v)}
               onNewTask={handleNewTask}
             />
-            {/*
-             * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
-             * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
-             * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
-             * section switch) so the Pomodoro keeps running while the user navigates
-             * away from the Work tab. The future W3-C AudioProvider nests INSIDE
-             * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
-             * inner-most shell Provider here. DataService is injected (§6.4).
-             */}
-            <TimerProvider
-              dataService={ds}
-              onSessionComplete={() => chimeRef.current?.()}
-            >
+            <AudioProvider dataService={ds}>
               {/*
-               * AudioProvider (W3-C) — mounted on EVERY host, native shells
-               * included (#320): the completion chime it powers is part of the
+               * TimerProvider (W3-B), mounted by TimerHost just INSIDE
+               * AudioProvider (§6.2 … → Audio → Timer → …). The Timer's
+               * onSessionComplete rings the completion chime, which Audio owns,
+               * so Audio is the outer of the pair — the dependency now runs
+               * inward like every other Provider pair, and the old chimeRef +
+               * AudioChimeBridge back-channel is gone (#676 (c)).
+               *
+               * Both are REQUIRED Providers on every host, native shells
+               * included (#320): the Pomodoro and its chime are part of the
                * Mobile-Full work timer (mobile-scope.md #10/#11), so only the
-               * ambient-mixer UI is native-omitted (WorkScreen), not the
-               * Provider. Nested INSIDE TimerProvider (§6.2 … → Timer → Audio
-               * → …). The headless AudioChimeBridge sits inside it and pipes
-               * the live playCompletionChime up to chimeRef so the Timer's
-               * onSessionComplete (declared on the outer Provider) can ring it.
+               * ambient-mixer UI is native-omitted, inside WorkScreen. Mounted
+               * ONCE at the shell level and OUTSIDE the section switch, so the
+               * Pomodoro keeps running while the user navigates away from the
+               * Work tab. DataService is injected (§6.4).
                */}
-              <AudioProvider dataService={ds}>
-                <AudioChimeBridge targetRef={chimeRef} />
+              <TimerHost dataService={ds}>
                 {/*
                  * RightSidebarProvider (App Shell Turn 2) — host mount for the
                  * target-IA detail panel. Sits OUTSIDE the section switch (like
@@ -757,8 +741,8 @@ export function MainScreen({ session }: { session: Session }) {
                     dataService={ds}
                   />
                 </RightSidebarProvider>
-              </AudioProvider>
-            </TimerProvider>
+              </TimerHost>
+            </AudioProvider>
           </ShortcutConfigHost>
         </UndoRedoHost>
       </SyncProvider>

@@ -341,10 +341,9 @@ export {
   type AudioMixerSound,
   type AudioMixerLabels,
 } from "./AudioMixer";
-export {
-  AudioChimeBridge,
-  type AudioChimeBridgeProps,
-} from "./AudioChimeBridge";
+// AudioChimeBridge (W3-C) was retired in #676 (c): it existed only to carry
+// playCompletionChime BACKWARDS through the Provider chain, and Audio now sits
+// outside Timer so the Timer reads the chime directly (web/src/TimerHost.tsx).
 // Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule). Pure
 // presentational: aggregation is pure, data + t are injected by the web host
 // (§6.4). Sub-barrel so the feature can grow exports without touching here.

@@ -29,12 +29,12 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 
 一本鎖ではなく **2 階建て**: 常時マウントの**グローバル層**と、section switch の内側で入れ替わる**セクション層**。実際のネストはコードが正（`web/src/main.tsx` + `web/src/MainScreen.tsx`）。
 
-- **グローバル層**（外→内）: I18n → Theme（`main.tsx`）→ Toast → Sync → UndoRedo（`UndoRedoHost` 経由）→ ShortcutConfig → Timer → Audio → RightSidebar（`MainScreen.tsx`）
+- **グローバル層**（外→内）: I18n → Theme（`main.tsx`）→ Toast → Sync → UndoRedo（`UndoRedoHost` 経由）→ ShortcutConfig → Audio → Timer（`TimerHost` 経由）→ RightSidebar（`MainScreen.tsx`）
 - **セクション層**（section switch の内側。セクションごとに独立した鎖で、横並びの兄弟関係）:
   - Materials: WikiTagsUnified → TaskTree / NotesUnified / DailiesUnified
   - Schedule: Calendar → Routine → ScheduleItems
   - Analytics: AnalyticsFilter（`components/Analytics/AnalyticsView.tsx` 内）
-- **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider）
+- **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider、TimerProvider → AudioProvider）。**#676 (c) で Audio と Timer を入れ替えた** — 完了チャイムを鳴らすのは Timer 側なので Audio が外。旧構成では ref（`chimeRef` + `AudioChimeBridge`）で内→外へ関数を渡し戻していた
 - **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TaskTreeContext.tsx` の unmount 時 UndoRedo stack clear）
 - **Mobile 省略ガードは配線済み**（#320）: web ホスト（`web/src/MainScreen.tsx` の ShortcutConfigHost）が `isNativeMobile()`（`utils/platform.ts`）で native mobile 時に ShortcutConfig Provider を省略する（一覧は CLAUDE.md §2 が正）。Audio は Provider 維持（完了チャイム維持 = `docs/requirements/mobile-scope.md` #10/#11）で Ambient mixer UI のみ `WorkScreen.tsx` 側で native 省略。省略 Provider は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）— 消費側は null ガードで no-op にする
 
