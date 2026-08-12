@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-13 - #776 inline `[[` リンク配線の 3 つ写しを 1 実装へ（PR #808）
+
+#### 概要
+
+「本文の `[[ ]]` リンクを item_links のエッジにし、保存時に本文から消えたエッジを畳む」という配線が Notes / Tasks / Daily に 3 実装あったのを、`web/src/hooks/useInlineItemLinks.ts` 1 本に畳んだ。Notes と Tasks は逐語コピーで差は `console.error` のタグ 1 文字列だけ、Daily は同じ 3 手が park / flush の中に埋まっていた。PR #808 提出（Closes #776・merge = こうだいさん）。挙動変更なし。
+
+#### 変更点
+
+- **共有 hook**: 新規 `web/src/hooks/useInlineItemLinks.ts` が 3 手（`getLinksForItem` の重複ガード / `createItemLink(..., "inline")` / 保存後の `syncInlineLinks`）を持つ。置き場は 3 面が等距離で届く `web/src/hooks/`。`useItemLinkTargets` の `web/src/notes/` からの移動は見送った — `RichTextEditor` も同じく notes 配下から 3 面が横断 import しており、動かすなら一緒に動かす話になってスコープが膨らむ
+- **写し痕の解消**: `console.error` のタグをホスト名の引数にした（`useInlineItemLinks("NotesView")` / `("KanbanView")` / `("DailyView")`）。`useTaskLinking.ts` の中に `[KanbanView]` が焼き付いていたのが Issue の指摘どおりコピー元の痕跡だった（Kanban はタスク詳細エディタの唯一のホストなので、呼び出し側が渡す名前としては正しい）
+- **Daily**: park / flush（`pendingItemLinks`）は Daily 固有として残し、flush の内側だけ差し替え。`targetId === saved.id` の自己リンク判定は共有ガードに吸収（両方 skip なので結果同値）。`useWikiTagsUnifiedContext` の直接参照は DailyView から消えた
+- **テスト +16 本**: `web/tests/useInlineItemLinks.test.tsx` 新設（8 本 = エッジ作成 / 生きた重複を書かない / soft-delete 済みなら書き直す / 自己リンク / 未保存 from / delete-sync / 失敗時タグが呼び出し元の名前になる×2）。`useNoteLinking.test.tsx` +3、`dailyView.test.tsx` +5（候補プールの受け渡し / park は保存着地で初めて書く #371 / 保存前に消したリンクは書かない / 既存エッジを触らない / 保存で消えたリンクの fold #372）。**Daily はエッジ作成も fold もこれが初カバー**。`useTaskLinking.test.tsx` は assertion 無変更で緑（DoD 要件）
+- **jsdom 制約への当て方**: レイアウトが無く実サジェストのポップアップは駆動できない（CLAUDE.md §7.1）ため、Daily は stub エディタのボタンで「候補を選ぶ」「本文を保存する」を DOM イベントとして起こす形にした。ポップアップ自体は既存 `web/tests/itemLinkMenu.test.tsx` がカバー済み
+- **検証**: shared lint（0 error / 既存 warning 3）・build・test 1980、web lint・build・test 285、shared / web の `typecheck:tests` — 8 ゲートすべて exit 0
+
 ### 2026-08-11 - #680 Notes の i18n 取りこぼし 3 点を catalog へ（PR #693）
 
 #### 概要
@@ -62,16 +77,3 @@ section:materials の Issue キュー消化。#300（入力中の Tag 表示ち�
 - **テスト**: 新規 3 ファイル 15 件（`jsonDocEquals.test.ts` / `wikiTagsRefreshLoading.test.tsx` / `notesHydrateCachePerf.test.tsx`）。shared vitest 132 files / 1067 tests green・shared tsc -b・web build 全 green
 - **プロセス注記**: #308 マージ待ちの間に #301 コミットを同ブランチへ push してしまい 2 Issue が 1 PR に同居（GitHub は同一ブランチ→main の PR を 1 つしか許さないため分割不可・PR タイトル/本文で両 Issue 明記して対応。次回は前 PR マージ後に次 Issue へ着手する運用に戻す）
 - **outbox**: follow-up 起票依頼 1 件（PR #289 由来・編集中 Note がタグ group 内で最新順ソートにより跳ねる現象）+ 上記プロセス注記を chat-main へ報告
-
-### 2026-07-19 - #282 選択状態のタブ跨ぎ保持 + #283 rightSidebar ソート・フィルタ（PR #289）
-
-#### 概要
-
-Materials の Notes/Daily/Tasks で選択中アイテムがセクション・タブ切替で失われるバグ（#282）を in-memory 選択ストアで修正し、rightSidebar リストにソート・フィルタ UI（#283・Notes + Daily）を追加。PR #289 提出（Closes #282/#283・merge = こうだいさん）。
-
-#### 変更点
-
-- **#282 選択ストア**: `shared/src/state/materialsSelectionStore.ts` 新設（モジュールスコープ・意図的に localStorage 不使用 = 再起動リセットで stale id 復元ゼロ）。3 フックに write-through + one-shot 復元を配線。Notes は hydrate-first（`getNoteUnified` 完了後にのみ選択が立つ — 空エディタ上書きのデータ損失経路を排除）・存在検証で消えた id はクリア・取得失敗ではクリアしない（一時エラー耐性）。TaskTree は `persistSelection` オプトイン（Schedule mount の非干渉を構造化）。Daily は「今日」選択でストアをクリア（日跨ぎ固定を防止）
-- **#283 ソート・フィルタ**: `SidebarListControls` 新設（props 注入・lumen トークン・IME 安全な onChange のみ filter）。Notes = 3 モード × 方向をタググループ内に適用・sortMode を `life-editor:note-sort-mode` に新規永続化・ソート実装を `utils/noteSort.ts` に一本化。Daily = 日付方向（`life-editor:daily-sort-direction`）+ テキスト絞り込み（`utils/dailyListView.ts`）。Tasks は N/A（リスト退役済み #286）・他セクション水平展開は outbox で起票依頼
-- **プロセス**: ultracode 采配 = 偵察 3 並列 → role-pm 分解 → engineer 3 本（A/B1 並列 → B2）→ role-qa + 敵対的レビュー並列監査。監査指摘 4 件（createNote ストア書き込み漏れ / fetch 失敗時の誤クリア / Schedule mount への復元リーク / Daily today 固定）を全修正 + 回帰テスト 5 件
-- **検証**: shared tsc -b / vitest 122 files・998 tests（新規 47）/ web build / eslint 全 green。実ブラウザ確認 = merge 後 chat-main（PR 本文にチェックリスト）

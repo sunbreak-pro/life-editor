@@ -14,6 +14,7 @@ import { useTaskTreeAPI } from "../src/hooks/useTaskTreeAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 import type { TaskNode } from "../src/types/taskTree";
 
 /*
@@ -40,12 +41,12 @@ function makeTask(id: string, parentId: string | null = null): TaskNode {
   };
 }
 
-function makeDataService(initial: TaskNode[]): DataService {
-  return {
+function makeDS(initial: TaskNode[]): DataService {
+  return stubDataService({
     fetchTaskTree: async () => initial.filter((n) => !n.isDeleted),
     fetchDeletedTasks: async () => initial.filter((n) => n.isDeleted),
     syncTaskTree: async () => {},
-  } as unknown as DataService;
+  });
 }
 
 function syncWrapper({ children }: { children: ReactNode }) {
@@ -63,7 +64,7 @@ function syncWrapper({ children }: { children: ReactNode }) {
 }
 
 async function renderTaskTree(initial: TaskNode[]) {
-  const ds = makeDataService(initial);
+  const ds = makeDS(initial);
   const view = renderHook(() => useTaskTreeAPI({ dataService: ds }), {
     wrapper: syncWrapper,
   });

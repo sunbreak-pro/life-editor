@@ -10,6 +10,7 @@ import {
   type TaskNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
+import { stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
@@ -72,8 +73,8 @@ const ROUTINE = scheduleItem({
 });
 const TASK = taskNode({ id: "t1", title: "Write report" });
 
-function makeDataService(over: Partial<DataService> = {}): DataService {
-  return {
+function makeDS(over: Partial<DataService> = {}): DataService {
+  return stubDataService({
     fetchScheduleItemsByDate: vi
       .fn()
       .mockImplementation((date: string) =>
@@ -96,7 +97,7 @@ function makeDataService(over: Partial<DataService> = {}): DataService {
     softDeleteTask: vi.fn().mockResolvedValue(undefined),
     restoreTask: vi.fn().mockResolvedValue(undefined),
     ...over,
-  } as unknown as DataService;
+  });
 }
 
 function renderScreen(ds: DataService) {
@@ -125,7 +126,7 @@ function deleteButtonOf(title: string): HTMLElement {
 
 describe("Briefing row delete (#585)", () => {
   it("soft-deletes a manual schedule row and drops it from the paper", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await screen.findByText("Dentist");
 
@@ -138,7 +139,7 @@ describe("Briefing row delete (#585)", () => {
   });
 
   it("asks which occurrences before deleting a routine row, then dismisses", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await screen.findByText("Morning stretch");
 
@@ -166,7 +167,7 @@ describe("Briefing row delete (#585)", () => {
   });
 
   it("detaches the series for 'this and following'", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await screen.findByText("Morning stretch");
 
@@ -180,7 +181,7 @@ describe("Briefing row delete (#585)", () => {
   });
 
   it("soft-deletes the routine for 'all'", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await screen.findByText("Morning stretch");
 
@@ -194,7 +195,7 @@ describe("Briefing row delete (#585)", () => {
   });
 
   it("cancelling the scope chooser writes nothing", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await screen.findByText("Morning stretch");
 
@@ -208,7 +209,7 @@ describe("Briefing row delete (#585)", () => {
   });
 
   it("soft-deletes a todo row and drops it from the paper", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await screen.findByText("Write report");
 

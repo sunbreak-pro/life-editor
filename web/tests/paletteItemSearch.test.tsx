@@ -28,7 +28,7 @@ const listDailiesUnified = vi.fn();
 const fetchTaskTree = vi.fn();
 const fetchEvents = vi.fn();
 
-function makeDataService() {
+function makeDS() {
   listNotesUnified.mockResolvedValue([
     { id: "n1", title: "テスト２", isDeleted: false },
     { id: "n-gone", title: "テスト削除済み", isDeleted: true },
@@ -51,7 +51,7 @@ function makeDataService() {
 }
 
 function setup(onOpenItem = vi.fn()) {
-  const ds = makeDataService();
+  const ds = makeDS();
   const view = renderHook(
     ({ isOpen }: { isOpen: boolean }) =>
       usePaletteItemSearch({ dataService: ds, isOpen, onOpenItem }),

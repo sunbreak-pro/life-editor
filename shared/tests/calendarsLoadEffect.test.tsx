@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { useCalendarsAPI } from "../src/hooks/useCalendarsAPI";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import type { CalendarNode } from "../src/types/calendar";
-import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * #672 — the load effect of useCalendarsAPI, which had no test of any kind
@@ -43,7 +43,7 @@ function makeDS(rounds: Array<CalendarNode[] | Error>) {
       pending.push(() => settle().then(resolve, reject));
     });
   });
-  const ds = { fetchCalendars } as unknown as DataService;
+  const ds = stubDataService({ fetchCalendars });
   return {
     ds,
     fetchCalendars,

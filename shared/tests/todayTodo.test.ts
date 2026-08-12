@@ -1,23 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { pickAddableTasks } from "../src/utils/todayTodo";
-import type { TaskNode } from "../src/types/taskTree";
+import { makeTask } from "./helpers/nodeFixtures";
 
 /*
  * todayTodo.pickAddableTasks (#298) — the "add from tasks" pool for the Today's
  * Todo tray: incomplete, unscheduled LEAF tasks, in input order.
  */
-
-function makeTask(over: Partial<TaskNode>): TaskNode {
-  return {
-    id: "task-1",
-    type: "task",
-    title: "T",
-    parentId: null,
-    order: 0,
-    createdAt: "2026-07-01T00:00:00.000Z",
-    ...over,
-  };
-}
 
 describe("pickAddableTasks (#298)", () => {
   it("includes an incomplete, unscheduled leaf task", () => {

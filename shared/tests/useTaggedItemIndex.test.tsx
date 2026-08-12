@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { useTaggedItemIndex } from "../src/hooks/useTaggedItemIndex";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
-import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * useTaggedItemIndex (#409) — pinned for #586. The contract under guard:
@@ -35,7 +35,7 @@ function makeDS() {
     { id: "task-1", title: "Ship the panel", isDeleted: false },
     { id: "task-2", title: "Old chore", isDeleted: true },
   ]);
-  const ds = {
+  const ds = stubDataService({
     fetchTaskTree,
     fetchEvents: async () => [
       { id: "event-1", title: "Standup", isDeleted: false },
@@ -46,7 +46,7 @@ function makeDS() {
     listDailiesUnified: async () => [
       { id: "daily-2026-08-10", date: "2026-08-10", isDeleted: false },
     ],
-  } as unknown as DataService;
+  });
   return { ds, fetchTaskTree };
 }
 

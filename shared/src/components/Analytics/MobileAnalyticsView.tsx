@@ -15,9 +15,10 @@ import {
   aggregateRoutineCompletion,
   calendarWeekRange,
   computeWorkStreak,
-  createdWithinLastDays,
+  createdWithinRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
+import { useWeekStartPref } from "../../hooks/useWeekStart";
 import { EmptyState } from "./EmptyState";
 import type { AnalyticsLabels } from "./labels";
 
@@ -66,6 +67,8 @@ export function MobileAnalyticsView(
     labels,
   } = props;
 
+  const { weekStartsOn } = useWeekStartPref();
+
   const model = useMemo(() => {
     // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics buckets
     // sessions by wall calendar date; the day-start-hour "today"
@@ -95,9 +98,12 @@ export function MobileAnalyticsView(
     // Streak
     const streak = computeWorkStreak(sessions);
 
-    // This week (Mon–Sun)
+    // This week — the calendar week, starting on the user's configured day.
     const now = new Date();
-    const { startKey: weekStart, endKey: weekEnd } = calendarWeekRange(now);
+    const { startKey: weekStart, endKey: weekEnd } = calendarWeekRange(
+      now,
+      weekStartsOn,
+    );
     const weekWork = getWorkSessions(sessions).filter((s) => {
       const d = formatDateKey(new Date(s.startedAt));
       return d >= weekStart && d <= weekEnd;
@@ -122,9 +128,14 @@ export function MobileAnalyticsView(
     // #375: the `type === "note"` half of this filter went away with the
     // folder type (every NoteNode is a note now).
     const activeNotes = notes.filter((n) => !n.isDeleted);
-    // Rolling 7 days — deliberately a DIFFERENT window from weekStart/weekEnd
-    // above (see the header of `utils/analyticsAggregation.ts`).
-    const notesThisWeek = createdWithinLastDays(activeNotes, 7, now).length;
+    // The SAME window as weekStart/weekEnd above (#780) — this card used to run
+    // on a rolling 7 days, so two differently-defined "this week" numbers sat
+    // side by side under one label. Unified per D-20260811-refactor-1 = A.
+    const notesThisWeek = createdWithinRange(
+      activeNotes,
+      weekStart,
+      weekEnd,
+    ).length;
 
     const rangeItems = scheduleItems.filter((i) => !i.isDeleted);
     const routineItems = rangeItems.filter((i) => i.routineId);
@@ -157,7 +168,15 @@ export function MobileAnalyticsView(
       routineRate,
       topRoutines,
     };
-  }, [sessions, nodes, todayItems, scheduleItems, notes, routines]);
+  }, [
+    sessions,
+    nodes,
+    todayItems,
+    scheduleItems,
+    notes,
+    routines,
+    weekStartsOn,
+  ]);
 
   if (props.loading) {
     return <MobileSkeleton title={labels.title} />;

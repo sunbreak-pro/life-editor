@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useScheduleItemsRoutineSync } from "../src/hooks/useScheduleItemsRoutineSync";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 import type { RoutineNode } from "../src/types/routine";
 import type { ScheduleItem } from "../src/types/schedule";
 import { todayDateKey } from "../src/utils/dateKey";
@@ -81,7 +82,7 @@ function makeItem(overrides: Partial<ScheduleItem> = {}): ScheduleItem {
   } as ScheduleItem;
 }
 
-function makeDs(rows: ScheduleItem[], opts: { failFetch?: boolean } = {}) {
+function makeDS(rows: ScheduleItem[], opts: { failFetch?: boolean } = {}) {
   const bulkSoftDeleteScheduleItems = vi.fn(
     async (ids: string[]) => ids.length,
   );
@@ -91,12 +92,12 @@ function makeDs(rows: ScheduleItem[], opts: { failFetch?: boolean } = {}) {
     if (opts.failFetch) throw new Error("offline");
     return rows;
   });
-  const ds = {
+  const ds = stubDataService({
     bulkSoftDeleteScheduleItems,
     bulkDeleteScheduleItems,
     bulkCreateScheduleItems,
     fetchScheduleItemsByDateRange,
-  } as unknown as DataService;
+  });
   return {
     ds,
     bulkSoftDeleteScheduleItems,
@@ -127,7 +128,7 @@ describe("ensureRoutineItemsForDateRange — cleanup guards (#296)", () => {
       makeItem({ id: "keep-done", date: T1, sourceDate: T1, completed: true }),
     ];
     const { ds, bulkSoftDeleteScheduleItems, bulkDeleteScheduleItems } =
-      makeDs(rows);
+      makeDS(rows);
     const gen = renderGenerator(ds);
 
     const ok = await gen.ensureRoutineItemsForDateRange(T, T3, [routine]);
@@ -152,7 +153,7 @@ describe("ensureRoutineItemsForDateRange — cleanup guards (#296)", () => {
     });
     const rows = [makeItem({ id: "keep-moved", date: T3, sourceDate: T })];
     const { ds, bulkCreateScheduleItems, bulkSoftDeleteScheduleItems } =
-      makeDs(rows);
+      makeDS(rows);
     const gen = renderGenerator(ds);
 
     const ok = await gen.ensureRoutineItemsForDateRange(T3, T3, [routine]);
@@ -165,7 +166,7 @@ describe("ensureRoutineItemsForDateRange — cleanup guards (#296)", () => {
   });
 
   it("returns false when the range read fails (callers must abort destructive follow-ups)", async () => {
-    const { ds, bulkSoftDeleteScheduleItems, bulkCreateScheduleItems } = makeDs(
+    const { ds, bulkSoftDeleteScheduleItems, bulkCreateScheduleItems } = makeDS(
       [],
       { failFetch: true },
     );

@@ -1,5 +1,20 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-08-13 - Analytics「今週」の窓をカレンダー週へ統一（#780・PR #820 open）
+
+#### 概要
+
+同じ「今週」ラベルの隣に別定義の数字が並んでいた状態を解消した。ノート数だけが直近 7 日のローリング窓で、作業時間・完了タスクは暦週を見ていた（#670 C3 は名前を付けただけ）。裁定 D-20260811-refactor-1 = A に従い暦週へ寄せ、週の開始曜日は `useWeekStart` の設定に追従させた。
+
+#### 変更点
+
+- **窓の共通化**: `calendarWeekRange(now, weekStartsOn)` の第 2 引数を**必須**にした（既定値を置くと読み忘れた呼び出し元が黙って別の週を選ぶため）。刻み方はカレンダーグリッドの `startOfWeekKey` と同式で、Analytics の週とグリッドの週が必ず同じ日に始まる。新ヘルパ `createdWithinRange` を追加し、`createdWithinLastDays` は呼び出し元ゼロ（`*.ts` / `*.tsx` 全数 grep で残存 0 = P-002）につき削除。
+- **消費側 3 箇所**: `MobileAnalyticsView` / `OverviewTab` のノート数を暦週へ、`WeeklySummary` の私有 `getWeekRange()`（月曜固定のコピー）を共通ヘルパへ統合。3 コンポーネントとも `useWeekStartPref()` で pref を読み、useMemo の deps に足した。WeeklySummary は Issue の Scope 外だが、残すと DoD の「月曜固定になっていない」を満たせないため含めた。
+- **表示値の変化（挙動変更ゼロの例外）**: ノート数は週の開始日より前が外れる。pref 既定が日曜始まりのため、モバイル / デスクトップ両方の「今週」の作業時間・完了タスク・セッション数が日〜土基準になる（旧: 月曜固定）。
+- **テスト**: `shared/tests/analyticsWeekWindow.test.tsx` を新規追加（12 件）。週初 00:00 ちょうどは入り 1 ミリ秒前は入らない / 週末が同じ週に留まる / pref 0・1 で窓が動く / **日付切替時刻 4 時でも窓は暦どおり**（#356 の pin）/ 8 日前のノートが落ちる。既存 `analyticsCompletedDayKey.test.tsx`（#420 ガード）は境界日を新しい窓の初日へ追随させた。
+- **ゲート**: shared・web の lint / build / test すべて exit 0（shared 1992 件 / web 269 件）。`records.mjs check`・`docs-lint` も OK。途中 1 回 vitest のワーカー起動タイムアウトで 7 ファイルが未起動になったが、単体再実行で全緑（環境フレークと確定）。
+- **判断キュー**: 実装中に「今週」カードの中へ残る別窓 2 つ（モバイル週バー = `aggregateByDay(sessions, 7)` の直近 7 日 / Work タブの `startOfWeek()` 月曜固定）を実測で発見。#780 の裁定文は「週バーは月〜日」を前提にしていたが事実と違った。表示が変わるため P-008 に従い実装せず D-20260813-briefing-1 として起票。
+
 ### 2026-08-10 - 朝刊の操作導線 3 件（#585 / #623 / #609）
 
 #### 概要

@@ -1,5 +1,21 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-13 - #701 Step 2 と C6（#673）— PR #800 / #819 open、#675 は merge 待ちで着手せず
+
+#### 概要
+
+「#701 Step 2 → #673 → #675」の 3 本立てゴールを、**2 本完走 + 1 本ブロック**で返した。#701 は D-20260812-refactor-2（A+B）で決まった道を Trash 1 画面ぶんだけ通し、#673 は CalendarTab / WeekTimeGrid の純粋部分を 3 モジュールへ出して 60 件のテストで固定した（挙動変更ゼロ）。#675 は前提の #673 が未 merge で、かつ schedule-refine レーンが同じ `CalendarTab.tsx` に open PR を 2 本持っていたため、Issue の「持っていたら merge を待つ」規定どおり着手していない。
+
+#### 変更点
+
+- **#701 Step 2（PR #800）**: `web/tests/trashScreenActions.test.tsx`（16 tests）。Trash を選んだのは Schedule 以外・Provider 不要・全ボタンが DataService 呼び出しで終わり引数がそのまま挙動、の 3 点。既存 `shared/tests/trashView.test.tsx` は `vi.fn()` を渡した presentation の pin なので、ホストの 2 つの switch 文（クリックが 10 個のメソッドの**どれ**に届くか）を一切見ていなかった
+- **#701 の使い分け基準**: `rules/frontend.md` に 1 行追記（既定 = Testing Library / 逃げ道 = 純関数切り出し）。決定の「波及」に成果物として明記されていた分
+- **#673（PR #819）**: 4 組の ViewModel 変換 → `web/src/schedule/scheduleViewModels.ts` / 日付書式 5 箇所 + `t(...)` バンドル → `web/src/schedule/scheduleCopy.ts` / ドラッグの配置解決 → `shared/src/utils/scheduleGridLayout.ts` の `resolveDrag`。CalendarTab 2,927 → 2,704 行、WeekTimeGrid 977 → 921 行
+- **DOM 計測は component に残した**: `resolveDrag` は数値（`allDayLaneBottom` / `timeGridTop` / `colWidth`）を受け取る。jsdom は rect が全部 0 なので、これがルールをテストできる唯一の形
+- **既存の非対称を揃えずに固定した**: task chip はアジェンダで status を持ちグリッドでは持たない（#761 がアジェンダだけ配線した）。揃えると UI 変更になるため、テストに「意図的」と明記して pin
+- **ミューテーション確認を 2 回**: #701 は notes の復元を `restoreTask` に取り違えて 2 件落ちるのを確認。#673 は all-day レーン境界を `<` → `<=` に壊したら**最初の版は捕まえられず**、境界そのもの（y == bottom）を突く形にテストを書き直してから捕まえた
+- **#675 の必須追加調査を消化**: `handleScopeChoose`（約 203 行）を読み、`handleChangeRepeat`（約 227 行）との重複は無い＝繰り返し系を `useRepeatMutations` へ分離する設計は成立する、と Issue #675 にコメント。共通なのは rule-2 テンプレートの作り方など語彙 4 点のみ
+
 ### 2026-08-11 - C3（#670）死蔵の削除と共有物の寄せ直し — 4 PR 完了（#698 / #699 / #703 / #705）
 
 #### 概要
