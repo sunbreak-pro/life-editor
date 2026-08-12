@@ -47,6 +47,10 @@
 - D-20260812-shared-fix-1: **A**（#702 Step 2 は ①一覧・取得の戻り値 → ②無言の取りこぼし → ③書き込みの往復 の順で進める。同上）
 - D-20260812-shared-fix-2: **A**（`set_schedule_complete(id, completed)` / `set_schedule_dismissed(id, dismissed)` へ破壊的に改名し、旧名は残さない。同上）
 - D-20260812-web-1: **A**（Briefing が抱える recharts は初期チャンクに残す = 現状維持。同上）
+- D-20260812-materials-1: **A**（#718 の接頭辞なし 3 キーは `life-editor` 接頭辞つきへ改名し、起動時に旧キーから値を引き継ぐ移行処理を入れる。以後に足すキーも自動で網に乗る → #718 の 🛑 ゲート解除。2026-08-12 チャットの AskUserQuestion で回答・chat-main が転記）
+- D-20260812-materials-2: **B = 書式を揃えない**（#674 の残りはエラー文字列の書式を 3 種類のまま据え置き、重複している判定処理だけをまとめる = 挙動変更ゼロを維持。AskUserQuestion で提示したときのラベルはキュー原文と逆（提示時 A = 揃えない）だったため、**ラベルはキュー原文に合わせて B と記録している** — 経緯は `decisions/D-20260812-materials-2.md`。同上）
+- D-20260812-mobile-1: **A**（Mobile の Dayflow で Todo 行をタップして完了・詳細を開けるようにする。修正先が schedule-refine の担当ファイルなので別 Issue #761 へ切り出し済み。同上）
+- D-20260812-refactor-1: **A 相当で決着済み**（ユーザー回答ではなく**事後記録** = chat-main 裁定。#726 が `CalendarTab.tsx` を 2 行だけ触った例外を認める。`git merge-tree` で PR #745 に対し衝突ゼロを実測済み・PR #752 として着地。2026-08-12 chat-main 記録）
 - D-20260810-mobile-1: **A**（narrow から書き換えられるタグの色は残す。スコープ表 #9 の目標列を「閲覧 + 名前のみ追加 + 色」に改める。同上）
 - D-20260810-mobile-2: **A**（「Consumption = 編集不可」の語のほうを実態に合わせる。§1 の定義を緩めるか #1 / #4 の目標列を「Consumption + Quick capture」に書き換える。同上）
 - D-20260810-mobile-3: **B**（Notes の FAB は現状維持。Materials のスクロール所有権は動かさない（Daily も同時に動くため）。同上）
