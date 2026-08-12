@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { useRoutinesAPI } from "../src/hooks/useRoutinesAPI";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import type { RoutineNode } from "../src/types/routine";
-import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * #672 — the load effect of useRoutinesAPI, untested until now (nothing in the
@@ -54,10 +54,10 @@ function makeDS(
   };
   const fetchAllRoutines = vi.fn(() => take(active));
   const fetchDeletedRoutines = vi.fn(() => take(deleted));
-  const ds = {
+  const ds = stubDataService({
     fetchAllRoutines,
     fetchDeletedRoutines,
-  } as unknown as DataService;
+  });
   return { ds, fetchAllRoutines, fetchDeletedRoutines };
 }
 
