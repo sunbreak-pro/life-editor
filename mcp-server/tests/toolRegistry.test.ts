@@ -255,30 +255,30 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       ],
     },
   ],
-  // #700's three, added here by #781: they reached TOOLS without a row of
-  // their own, and the miss went unseen because the run that would have caught
-  // it never got past an unrelated failure in the web suite.
+  // The #700 verification trio. Args only — the handlers refuse to run outside
+  // verification mode, which is exactly what the other suites cover.
   [
     "seed_verification_state",
     {
-      date: "2026-08-11",
+      date: "2026-08-12",
       preset: "busy_day",
       items: [
-        { kind: "task", title: "open one", status: "not_started" },
+        { kind: "task", title: "open task", status: "not_started" },
+        { kind: "task", is_all_day: true },
         {
           kind: "event",
-          title: "overlap",
+          title: "standup",
           start_time: "09:00",
-          end_time: "10:00",
+          end_time: "09:15",
           memo: "x",
         },
-        { kind: "note", title: "a note", content: "body" },
+        { kind: "note", content: "body" },
       ],
-      label: "#781",
+      label: "#700",
     },
   ],
-  ["read_verification_state", { run_id: "run-1" }],
-  ["cleanup_verification_state", { run_id: "run-1", dry_run: true }],
+  ["read_verification_state", { run_id: "verify-1" }],
+  ["cleanup_verification_state", { run_id: "verify-1", dry_run: true }],
 ];
 
 describe("valid arguments pass", () => {
