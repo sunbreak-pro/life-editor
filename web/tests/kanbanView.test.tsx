@@ -749,11 +749,11 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
 describe("KanbanView — the detail shell after the row goes (#789)", () => {
   const del = () =>
     fireEvent.click(
-      screen.getByRole("button", { name: "scheduleScreen.todoDelete" }),
+      screen.getByRole("button", { name: "taskDetail.todoDelete" }),
     );
   const agree = () =>
     fireEvent.click(
-      screen.getByRole("button", { name: "scheduleScreen.delete" }),
+      screen.getByRole("button", { name: "taskDetail.delete" }),
     );
 
   it("closes the desktop sidebar once the delete is agreed", async () => {
@@ -764,7 +764,7 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     expect(state.close).not.toHaveBeenCalled();
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     agree();
 
     await waitFor(() => expect(state.close).toHaveBeenCalled());
@@ -776,12 +776,12 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
 
     await waitFor(() =>
       expect(
-        screen.queryByText("scheduleScreen.todoDeleteConfirm|Buy milk"),
+        screen.queryByText("taskDetail.todoDeleteConfirm|Buy milk"),
       ).toBeNull(),
     );
     // The row is still there, so the panel showing it has to be too.
@@ -797,7 +797,7 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     const before = state.close.mock.calls.length;
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     agree();
 
     await waitFor(() =>
