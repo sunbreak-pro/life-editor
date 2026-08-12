@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { TaskNode } from "@life-editor/shared";
+import type { DataService, TaskNode } from "@life-editor/shared";
 import { KanbanView } from "../src/tasks/KanbanView";
 
 /*
@@ -322,6 +322,163 @@ describe("KanbanView — the task detail save button (#713)", () => {
     fireEvent.click(save());
     expect(state.updateNode).toHaveBeenCalledExactlyOnceWith("task-a", {
       content: "body of task-a",
+    });
+  });
+});
+
+/*
+ * #736 — the press is the only commit, so every exit that tears the panel down
+ * is a DISCARD, and it has to be asked about. `onDirtyChange` had been on the
+ * panel since #628's contract, but no host read it: that is exactly how a typed
+ * title could vanish without a word.
+ *
+ * The question is the in-app <ConfirmDialog>, whose answer arrives a tick later
+ * — hence the awaits below. A guard that read the pending promise as a truthy
+ * "yes" would discard the draft the moment the dialog opened, which is the bug
+ * this shape exists to prevent (#707 / #729 hit it twice).
+ */
+describe("KanbanView — the unsaved-close guard (#736)", () => {
+  const ASK = "common.unsavedCloseConfirm";
+  const sheet = () =>
+    screen.queryByRole("dialog", { name: "materials.tasks.detailTitle" });
+  const save = () =>
+    screen.getByRole("button", {
+      name: "taskDetail.save",
+    }) as HTMLButtonElement;
+  const closeSheet = () =>
+    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
+
+  // Open the narrow detail sheet on "Buy milk" and leave a body draft pending.
+  const openDirtySheet = () => {
+    render(<KanbanView />);
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    fireEvent.click(screen.getByText("type in the body"));
+  };
+
+  beforeEach(() => {
+    state.isWide = false;
+  });
+
+  it("closes straight through when nothing is pending", async () => {
+    render(<KanbanView />);
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    closeSheet();
+
+    // Asking with nothing to discard is what teaches the user to dismiss the
+    // dialog unread — and then the real one is useless too.
+    await waitFor(() => expect(sheet()).toBeNull());
+    expect(screen.queryByText(ASK)).toBeNull();
+  });
+
+  it("asks before the sheet throws a draft away", async () => {
+    openDirtySheet();
+    closeSheet();
+
+    await screen.findByText(ASK);
+    // The dialog is a QUESTION, not a farewell: the sheet is still there and so
+    // is the draft behind it.
+    expect(sheet()).not.toBeNull();
+    expect(save().disabled).toBe(false);
+    expect(state.updateNode).not.toHaveBeenCalled();
+  });
+
+  it("keeps the sheet AND the draft when the discard is refused", async () => {
+    openDirtySheet();
+    closeSheet();
+    await screen.findByText(ASK);
+
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(screen.queryByText(ASK)).toBeNull());
+    expect(sheet()).not.toBeNull();
+    expect(save().disabled).toBe(false);
+
+    // And the SECOND attempt must ask again: a guard that cleared its flag on a
+    // refused close would discard the draft here, in silence, having just
+    // promised not to.
+    closeSheet();
+    await screen.findByText(ASK);
+  });
+
+  it("closes once the discard is agreed to", async () => {
+    openDirtySheet();
+    closeSheet();
+    await screen.findByText(ASK);
+
+    fireEvent.click(screen.getByRole("button", { name: "common.discard" }));
+    await waitFor(() => expect(sheet()).toBeNull());
+    // Discarded means discarded — nothing is written on the way out.
+    expect(state.updateNode).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The convert button unmounts the panel too (the selection is cleared once
+   * the row stops being a task). Before #713 the blur flush had already written
+   * the new title so it rode along into the event; now it has to be asked
+   * about, or the user watches their typing disappear.
+   */
+  describe("convert to event", () => {
+    const dataService = {
+      convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
+    } as unknown as DataService;
+    // jsdom has no native confirm; the convert's OWN guard still calls one.
+    const confirmSpy = vi.spyOn(window, "confirm");
+
+    beforeEach(() => {
+      state.isWide = true;
+      state.selectedId = "task-a";
+      vi.mocked(dataService.convertTaskToEvent).mockClear();
+      confirmSpy.mockReturnValue(true);
+    });
+    afterEach(() => confirmSpy.mockReset());
+
+    const convert = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "itemConvert.toEvent" }),
+      );
+
+    it("asks about the draft before the conversion's own question", async () => {
+      render(<KanbanView dataService={dataService} />);
+      fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+        target: { value: "Buy oat milk" },
+      });
+      convert();
+
+      await screen.findByText(ASK);
+      expect(confirmSpy).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+      await waitFor(() => expect(screen.queryByText(ASK)).toBeNull());
+      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+      // The refusal keeps the user where they were, draft and all.
+      expect(
+        (screen.getByLabelText("taskDetail.titleLabel") as HTMLInputElement)
+          .value,
+      ).toBe("Buy oat milk");
+    });
+
+    it("hands over to the conversion once the draft is discarded", async () => {
+      render(<KanbanView dataService={dataService} />);
+      fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+        target: { value: "Buy oat milk" },
+      });
+      convert();
+      await screen.findByText(ASK);
+
+      fireEvent.click(screen.getByRole("button", { name: "common.discard" }));
+      await waitFor(() =>
+        expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
+      );
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+
+    it("converts without a question when nothing is pending", async () => {
+      render(<KanbanView dataService={dataService} />);
+      convert();
+
+      await waitFor(() =>
+        expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
+      );
+      expect(screen.queryByText(ASK)).toBeNull();
     });
   });
 });

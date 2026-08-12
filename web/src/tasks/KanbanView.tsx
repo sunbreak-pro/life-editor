@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,6 +14,8 @@ import {
 } from "@dnd-kit/core";
 import { ListTodo, Plus } from "lucide-react";
 import {
+  ConfirmDialog,
+  useConfirmDialog,
   KanbanBoard,
   KanbanCard,
   STATUS_TEXT_KEY,
@@ -48,6 +51,10 @@ import {
   type TaskNode,
   WIDE_QUERY,
 } from "@life-editor/shared";
+// Section-agnostic despite living under schedule/ (#628 → #707 → #736): the two
+// facts it pins — never ask when nothing is pending, never treat a pending
+// promise as a "yes" — hold for any editor whose only commit is a button.
+import { decideUnsavedClose } from "../schedule/unsavedCloseGuard";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
 import { useTaskLinking } from "./hooks/useTaskLinking";
@@ -212,6 +219,49 @@ export function KanbanView({
   );
 
   /*
+   * #736: since the press became the only commit, walking away from the detail
+   * is a DISCARD — so it has to be asked about. `onDirtyChange` had been on the
+   * panel since #628's contract but no host read it, which is exactly how a
+   * typed title could vanish without a word.
+   *
+   * The question is the in-app <ConfirmDialog> (#707), never `window.confirm`:
+   * the native one lands outside the theme and freezes the page hard enough to
+   * stall Playwright. Its answer arrives a tick later, hence `decideUnsavedClose`
+   * — a guard that read the pending promise as a truthy "yes" would throw the
+   * draft away the moment the dialog opened.
+   *
+   * The flag is deliberately NOT cleared on an agreed discard: the panel owns
+   * it and re-reports `false` as it unmounts, so clearing here could only ever
+   * be wrong. The convert path below asks its own question afterwards, and a
+   * refusal there leaves the draft on screen — with a flag already wiped, the
+   * NEXT exit would discard it in silence, having just promised not to.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
+  const detailDirtyRef = useRef(false);
+  const requestDetailClose = useCallback(
+    async (proceed: () => void) => {
+      const decision = await decideUnsavedClose({
+        dirty: detailDirtyRef.current,
+        askDiscard: () =>
+          askConfirm({
+            message: t("common.unsavedCloseConfirm"),
+            confirmLabel: t("common.discard"),
+            cancelLabel: t("common.cancel"),
+            // Throwing away typed-in work is the destructive answer here, even
+            // though nothing is deleted from the database.
+            danger: true,
+          }),
+      });
+      if (decision.close) proceed();
+    },
+    [askConfirm, t],
+  );
+
+  /*
    * Which task's detail is open, and how it got there (#470) — a narrow card
    * tap, a "[[" link landing from another tab, a wide↔narrow crossing, or a
    * task deleted underneath the sheet. Extracted so those transitions can be
@@ -309,6 +359,19 @@ export function KanbanView({
         .finally(() => endConvert(task.id));
     },
     [dataService, tree, detail, t, beginConvert, endConvert],
+  );
+
+  /*
+   * #736: the detail's own convert button, guarded. Declared here rather than
+   * inline in `renderTaskDetail` because that helper runs during render, and a
+   * ref read reached from there is what react-hooks/refs rejects — the guard
+   * has to be entered from a stable callback.
+   */
+  const handleConvertFromDetail = useCallback(
+    (task: TaskNode) => {
+      void requestDetailClose(() => handleConvertToEvent(task));
+    },
+    [requestDetailClose, handleConvertToEvent],
   );
 
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
@@ -602,6 +665,13 @@ export function KanbanView({
             status={task.status}
             onSave={draft.onSave}
             contentDirty={draft.dirty}
+            // #736: title AND body, since `contentDirty` is folded in before
+            // the panel reports. A ref rather than state — nothing on screen
+            // depends on it, and re-rendering every column on each keystroke
+            // would be a steep price for a flag only handlers read.
+            onDirtyChange={(dirty) => {
+              detailDirtyRef.current = dirty;
+            }}
             onToggleStatus={tree.toggleTaskStatus}
             statusControl={statusControl}
             titleLabel={t("taskDetail.titleLabel")}
@@ -639,9 +709,13 @@ export function KanbanView({
         )}
       </TaskBodyDraft>
       {dataService && (
+        // #736: the conversion clears the selection, which unmounts this whole
+        // subtree — draft included. Before #713 the blur flush had already
+        // written the new title, so it rode along; now it has to be asked about
+        // first, or the user watches their typing disappear into an event.
         <button
           type="button"
-          onClick={() => handleConvertToEvent(task)}
+          onClick={() => handleConvertFromDetail(task)}
           className="self-start rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           {t("itemConvert.toEvent")}
@@ -720,7 +794,11 @@ export function KanbanView({
             onQuickAdd={(title) => tree.addNode("task", null, title)}
             detailTaskId={sheetTask ? sheetTask.id : null}
             onSelectTask={detail.openSheet}
-            onCloseDetail={detail.closeSheet}
+            // #736: the sheet funnels Escape, the backdrop and its close button
+            // into this one callback, so guarding it covers every narrow exit.
+            onCloseDetail={() => {
+              void requestDetailClose(detail.closeSheet);
+            }}
             detail={mobileTaskDetail}
           />
         </div>
@@ -745,6 +823,22 @@ export function KanbanView({
             submit: t("kanban.addSubmit"),
             cancel: t("kanban.addCancel"),
           }}
+        />
+      )}
+
+      {/* Mounted last so it portals ABOVE the surface it is asked from — the
+          discard question has to sit on top of the detail it is about (#707),
+          and on narrow that means over the sheet. It holds no place in the tree
+          while nothing is being asked. */}
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
         />
       )}
     </div>
