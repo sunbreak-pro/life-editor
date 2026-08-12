@@ -17,6 +17,7 @@ import {
   type WikiTagConnectionRow,
 } from "./wikiTagConnectionMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
+import { requireSingleRow } from "./postgrestSingle";
 import type {
   WikiTag,
   WikiTagAssignment,
@@ -73,20 +74,22 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
   ): Promise<WikiTag> {
     // user_id omitted on insert — DB default `auth.uid()` fills it.
     // Saves the frontend from threading a userId through every call site.
-    const { data, error } = await this.client
-      .from("wiki_tags")
-      .insert({
-        id,
-        name,
-        color,
-        is_deleted: false,
-        deleted_at: null,
-        version: 1,
-      })
-      .select(WIKI_TAGS_COLUMNS)
-      .single();
-    if (error) throw new Error(`createWikiTagUnified failed: ${error.message}`);
-    return rowToWikiTag(data as unknown as WikiTagRow);
+    const data = await requireSingleRow<WikiTagRow>(
+      this.client
+        .from("wiki_tags")
+        .insert({
+          id,
+          name,
+          color,
+          is_deleted: false,
+          deleted_at: null,
+          version: 1,
+        })
+        .select(WIKI_TAGS_COLUMNS)
+        .single(),
+      "createWikiTagUnified failed",
+    );
+    return rowToWikiTag(data);
   }
 
   async updateWikiTagUnified(
@@ -94,14 +97,16 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
     updates: Partial<WikiTag>,
   ): Promise<WikiTag> {
     const patch = wikiTagUpdatesToPatch(updates, new Date().toISOString());
-    const { data, error } = await this.client
-      .from("wiki_tags")
-      .update(patch)
-      .eq("id", id)
-      .select(WIKI_TAGS_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateWikiTagUnified failed: ${error.message}`);
-    return rowToWikiTag(data as unknown as WikiTagRow);
+    const data = await requireSingleRow<WikiTagRow>(
+      this.client
+        .from("wiki_tags")
+        .update(patch)
+        .eq("id", id)
+        .select(WIKI_TAGS_COLUMNS)
+        .single(),
+      "updateWikiTagUnified failed",
+    );
+    return rowToWikiTag(data);
   }
 
   async softDeleteWikiTagUnified(id: string): Promise<void> {
@@ -176,19 +181,21 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
     itemId: string,
     tagId: string,
   ): Promise<WikiTagAssignment> {
-    const { data, error } = await this.client
-      .from("wiki_tag_assignments")
-      .insert({
-        id: assignmentId,
-        item_id: itemId,
-        tag_id: tagId,
-        is_deleted: false,
-        deleted_at: null,
-      })
-      .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
-      .single();
-    if (error) throw new Error(`assignTagToItem failed: ${error.message}`);
-    return rowToWikiTagAssignment(data as unknown as WikiTagAssignmentRow);
+    const data = await requireSingleRow<WikiTagAssignmentRow>(
+      this.client
+        .from("wiki_tag_assignments")
+        .insert({
+          id: assignmentId,
+          item_id: itemId,
+          tag_id: tagId,
+          is_deleted: false,
+          deleted_at: null,
+        })
+        .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
+        .single(),
+      "assignTagToItem failed",
+    );
+    return rowToWikiTagAssignment(data);
   }
 
   async unassignTagFromItem(assignmentId: string): Promise<void> {
@@ -260,20 +267,22 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
         `createItemLink: self-loop rejected (from === to === "${fromItemId}")`,
       );
     }
-    const { data, error } = await this.client
-      .from("wiki_tag_connections")
-      .insert({
-        id: linkId,
-        from_item_id: fromItemId,
-        to_item_id: toItemId,
-        origin,
-        is_deleted: false,
-        deleted_at: null,
-      })
-      .select(WIKI_TAG_CONNECTIONS_COLUMNS)
-      .single();
-    if (error) throw new Error(`createItemLink failed: ${error.message}`);
-    return rowToWikiTagConnection(data as unknown as WikiTagConnectionRow);
+    const data = await requireSingleRow<WikiTagConnectionRow>(
+      this.client
+        .from("wiki_tag_connections")
+        .insert({
+          id: linkId,
+          from_item_id: fromItemId,
+          to_item_id: toItemId,
+          origin,
+          is_deleted: false,
+          deleted_at: null,
+        })
+        .select(WIKI_TAG_CONNECTIONS_COLUMNS)
+        .single(),
+      "createItemLink failed",
+    );
+    return rowToWikiTagConnection(data);
   }
 
   async deleteItemLink(linkId: string): Promise<void> {

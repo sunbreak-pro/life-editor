@@ -13,6 +13,7 @@ import {
 import type { NoteNode } from "../types/note";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
+import { fetchMaybeSingleRow } from "./postgrestSingle";
 
 /**
  * Read side of SupabaseNotesUnifiedService (#587 split): the list / detail /
@@ -121,28 +122,27 @@ export class SupabaseNotesUnifiedReads {
   }
 
   async getNoteUnified(id: string): Promise<NoteNode | null> {
-    const { data: meta, error: metaErr } = await this.client
-      .from("items_meta")
-      .select(ITEMS_META_NOTE_COLUMNS)
-      .eq("id", id)
-      .eq("role", "note")
-      .maybeSingle();
-    if (metaErr)
-      throw new Error(`getNoteUnified meta failed: ${metaErr.message}`);
+    const meta = await fetchMaybeSingleRow<ItemsMetaNoteRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_NOTE_COLUMNS)
+        .eq("id", id)
+        .eq("role", "note")
+        .maybeSingle(),
+      "getNoteUnified meta failed",
+    );
     if (!meta) return null;
 
-    const { data: payload, error: payErr } = await this.client
-      .from("notes_payload")
-      .select(NOTES_PAYLOAD_COLUMNS)
-      .eq("item_id", id)
-      .maybeSingle();
-    if (payErr)
-      throw new Error(`getNoteUnified payload failed: ${payErr.message}`);
+    const payload = await fetchMaybeSingleRow<NotesPayloadRow>(
+      this.client
+        .from("notes_payload")
+        .select(NOTES_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .maybeSingle(),
+      "getNoteUnified payload failed",
+    );
     if (!payload) return null;
 
-    return rowsToNoteNode(
-      meta as unknown as ItemsMetaNoteRow,
-      payload as unknown as NotesPayloadRow,
-    );
+    return rowsToNoteNode(meta, payload);
   }
 }

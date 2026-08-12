@@ -1,7 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type {
-  CalendarsDataService,
-} from "./DataService";
+import type { CalendarsDataService } from "./DataService";
 import type { CalendarNode } from "../types/calendar";
 import {
   CALENDAR_SELECT_COLUMNS,
@@ -10,6 +8,7 @@ import {
   type CalendarRow,
 } from "./calendarMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
+import { requireSingleRow, fetchMaybeSingleRow } from "./postgrestSingle";
 
 /*
  * Calendars domain (S4-2). VERSIONED but PHYSICAL-delete (0006 omits
@@ -72,13 +71,15 @@ export class SupabaseCalendarsService implements CalendarsDataService {
       updated_at: now,
       version: 1,
     };
-    const { data, error } = await this.client
-      .from("calendars")
-      .insert(payload)
-      .select(CALENDAR_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`createCalendar failed: ${error.message}`);
-    return rowToCalendar(data as unknown as CalendarRow);
+    const data = await requireSingleRow<CalendarRow>(
+      this.client
+        .from("calendars")
+        .insert(payload)
+        .select(CALENDAR_SELECT_COLUMNS)
+        .single(),
+      "createCalendar failed",
+    );
+    return rowToCalendar(data);
   }
 
   /**
@@ -93,27 +94,31 @@ export class SupabaseCalendarsService implements CalendarsDataService {
   ): Promise<CalendarNode> {
     const patch = calendarUpdatesToPatch(updates);
     if (Object.keys(patch).length === 0) {
-      const { data, error } = await this.client
-        .from("calendars")
-        .select(CALENDAR_SELECT_COLUMNS)
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(`updateCalendar failed: ${error.message}`);
-      return rowToCalendar(data as unknown as CalendarRow);
+      const data = await requireSingleRow<CalendarRow>(
+        this.client
+          .from("calendars")
+          .select(CALENDAR_SELECT_COLUMNS)
+          .eq("id", id)
+          .single(),
+        "updateCalendar failed",
+      );
+      return rowToCalendar(data);
     }
     const next = await this.nextVersion(id, "updateCalendar");
-    const { data, error } = await this.client
-      .from("calendars")
-      .update({
-        ...patch,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(CALENDAR_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateCalendar failed: ${error.message}`);
-    return rowToCalendar(data as unknown as CalendarRow);
+    const data = await requireSingleRow<CalendarRow>(
+      this.client
+        .from("calendars")
+        .update({
+          ...patch,
+          version: next,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select(CALENDAR_SELECT_COLUMNS)
+        .single(),
+      "updateCalendar failed",
+    );
+    return rowToCalendar(data);
   }
 
   /** Tauri `delete`: physical DELETE by id (no soft-delete column). */
@@ -123,25 +128,24 @@ export class SupabaseCalendarsService implements CalendarsDataService {
   }
 
   private async nextOrder(): Promise<number> {
-    const { data, error } = await this.client
-      .from("calendars")
-      .select('"order"')
-      .order("order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(`createCalendar failed: ${error.message}`);
-    const max = (data as { order: number } | null)?.order;
-    return (max ?? -1) + 1;
+    const data = await fetchMaybeSingleRow<{ order: number }>(
+      this.client
+        .from("calendars")
+        .select('"order"')
+        .order("order", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      "createCalendar failed",
+    );
+    return (data?.order ?? -1) + 1;
   }
 
   private async nextVersion(id: string, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("calendars")
-      .select("version")
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return ((data as { version: number }).version ?? 0) + 1;
+    const data = await requireSingleRow<{ version: number }>(
+      this.client.from("calendars").select("version").eq("id", id).single(),
+      `${label} failed`,
+    );
+    return (data.version ?? 0) + 1;
   }
 }
 
@@ -154,4 +158,6 @@ export const PHASE2_CALENDAR_METHOD_NAMES = [
 
 export type CalendarMethodName = (typeof PHASE2_CALENDAR_METHOD_NAMES)[number];
 
-export const PHASE2_CALENDAR_METHODS: ReadonlySet<string> = new Set(PHASE2_CALENDAR_METHOD_NAMES);
+export const PHASE2_CALENDAR_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_CALENDAR_METHOD_NAMES,
+);

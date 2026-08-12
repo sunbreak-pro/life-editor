@@ -22,6 +22,7 @@ import {
   getAuthedUserId,
   livePayloadInnerJoin,
 } from "./supabaseServiceHelpers";
+import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 
 /*
  * Tasks domain (DU-B-3). Full 9-method rewrite over the items_meta
@@ -202,24 +203,25 @@ export class SupabaseTasksService implements TasksDataService {
     const userId = await getAuthedUserId(this.client);
     const { meta, payload } = taskNodeToRows(node, userId);
 
-    const { data: metaRow, error: metaErr } = await this.client
-      .from("items_meta")
-      .insert(meta)
-      .select(ITEMS_META_TASK_COLUMNS)
-      .single();
-    if (metaErr) throw new Error(`createTask items_meta: ${metaErr.message}`);
+    const metaRow = await requireSingleRow<ItemsMetaRow>(
+      this.client
+        .from("items_meta")
+        .insert(meta)
+        .select(ITEMS_META_TASK_COLUMNS)
+        .single(),
+      "createTask items_meta",
+    );
 
     try {
-      const { data: payloadRow, error: pErr } = await this.client
-        .from("tasks_payload")
-        .insert(payload)
-        .select(TASKS_PAYLOAD_COLUMNS)
-        .single();
-      if (pErr) throw new Error(`createTask tasks_payload: ${pErr.message}`);
-      return rowsToTaskNode(
-        metaRow as unknown as ItemsMetaRow,
-        payloadRow as unknown as TasksPayloadRow,
+      const payloadRow = await requireSingleRow<TasksPayloadRow>(
+        this.client
+          .from("tasks_payload")
+          .insert(payload)
+          .select(TASKS_PAYLOAD_COLUMNS)
+          .single(),
+        "createTask tasks_payload",
       );
+      return rowsToTaskNode(metaRow, payloadRow);
     } catch (err) {
       // R2 hard-delete: remove the orphan meta. A failure here is
       // logged via the thrown error context but does NOT mask the
@@ -264,31 +266,24 @@ export class SupabaseTasksService implements TasksDataService {
 
     // Read-back both rows to materialise the returned TaskNode. Parallel
     // SELECTs because they are independent and small.
-    const [
-      { data: metaRow, error: metaReadErr },
-      { data: payloadRow, error: payloadReadErr },
-    ] = await Promise.all([
+    const [metaRow, payloadRow] = await requireRowPair<
+      ItemsMetaRow,
+      TasksPayloadRow
+    >(
       this.client
         .from("items_meta")
         .select(ITEMS_META_TASK_COLUMNS)
         .eq("id", id)
         .single(),
+      "updateTask read items_meta",
       this.client
         .from("tasks_payload")
         .select(TASKS_PAYLOAD_COLUMNS)
         .eq("item_id", id)
         .single(),
-    ]);
-    if (metaReadErr)
-      throw new Error(`updateTask read items_meta: ${metaReadErr.message}`);
-    if (payloadReadErr)
-      throw new Error(
-        `updateTask read tasks_payload: ${payloadReadErr.message}`,
-      );
-    return rowsToTaskNode(
-      metaRow as unknown as ItemsMetaRow,
-      payloadRow as unknown as TasksPayloadRow,
+      "updateTask read tasks_payload",
     );
+    return rowsToTaskNode(metaRow, payloadRow);
   }
 
   /**
