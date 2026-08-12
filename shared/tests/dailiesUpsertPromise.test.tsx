@@ -5,6 +5,7 @@ import { useDailiesUnifiedAPI } from "../src/hooks/useDailiesUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 import type { DailyNode } from "../src/types/daily";
 
 /*
@@ -38,10 +39,10 @@ const SAVED: DailyNode = {
 };
 
 function makeDS(upsert: DataService["upsertDailyByDateUnified"]) {
-  return {
+  return stubDataService({
     listDailiesUnified: () => Promise.resolve([]),
     upsertDailyByDateUnified: upsert,
-  } as unknown as DataService;
+  });
 }
 
 describe("useDailiesUnifiedAPI.upsertDaily (#371)", () => {

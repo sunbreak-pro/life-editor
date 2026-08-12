@@ -1,9 +1,6 @@
-import { useCallback } from "react";
-import {
-  useWikiTagsUnifiedContext,
-  type DataService,
-} from "@life-editor/shared";
+import { type DataService } from "@life-editor/shared";
 import { useItemLinkTargets } from "../../notes/useItemLinkTargets";
+import { useInlineItemLinks } from "../../hooks/useInlineItemLinks";
 
 /*
  * "[[" link plumbing for the task body (#507) — the task-side twin of
@@ -17,51 +14,27 @@ import { useItemLinkTargets } from "../../notes/useItemLinkTargets";
  * that all three surfaces can reach is what stops the next editor from being
  * added with the same hole.
  *
+ * #776 finished that sentence: the graph half (edge write + save-time
+ * delete-sync) now IS one implementation, `useInlineItemLinks`, which the three
+ * surfaces share. What is left here is the task-side assembly — the candidate
+ * pool plus the host name the shared code puts in its console errors.
+ *
  * No create-note row: like the Daily editor, the task body links to EXISTING
  * items only (there is no "make a note from here" path to hang it on).
  */
 
 export function useTaskLinking({ dataService }: { dataService?: DataService }) {
-  const { createItemLink, getLinksForItem, syncInlineLinks } =
-    useWikiTagsUnifiedContext();
-
   // A LOADER, not a list — nothing is fetched until the first "[[" opens the
   // menu (#430: typing prose must not hit the network).
   const loadLinkTargets = useItemLinkTargets(dataService);
 
-  /*
-   * Mirror a resolved "[[" link into the item_links graph as an edge from the
-   * current task to the target, so a link written in a task shows up in Connect
-   * and in the target's backlinks — same contract Notes and Daily already have.
-   *
-   * Duplicate-guarded against the cache. Marked origin "inline" so the
-   * save-time delete-sync (#372, handleBodySaved below) may remove it when the
-   * text link goes away — manual LinkPanel edges stay untouched.
-   */
-  const handleResolvedLinkInserted = useCallback(
-    (fromId: string, targetId: string) => {
-      if (!fromId || fromId === targetId) return;
-      const already = getLinksForItem(fromId).outgoing.some(
-        (l) => !l.isDeleted && l.toItemId === targetId,
-      );
-      if (already) return;
-      void createItemLink(fromId, targetId, "inline").catch((e) =>
-        console.error("[KanbanView] item link upsert failed", e),
-      );
-    },
-    [getLinksForItem, createItemLink],
-  );
+  // The Kanban is the only host of the task body editor (both widths render
+  // through its renderTaskDetail), so it is the name a failed write reports.
+  const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("KanbanView");
 
-  // #372: after a body save, soft-delete the inline-origin edges whose "[[ ]]"
-  // link is no longer in the saved text.
-  const handleBodySaved = useCallback(
-    (fromId: string, content: string) => {
-      void syncInlineLinks(fromId, content).catch((e) =>
-        console.error("[KanbanView] inline link delete-sync failed", e),
-      );
-    },
-    [syncInlineLinks],
-  );
-
-  return { loadLinkTargets, handleResolvedLinkInserted, handleBodySaved };
+  return {
+    loadLinkTargets,
+    handleResolvedLinkInserted: mirrorInlineLink,
+    handleBodySaved: syncSavedBody,
+  };
 }

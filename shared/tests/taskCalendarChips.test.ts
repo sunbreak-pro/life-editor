@@ -7,7 +7,7 @@ import {
   localDateTimeToISO,
   tasksToCalendarChips,
 } from "../src/utils/taskCalendarChips";
-import type { TaskNode } from "../src/types/taskTree";
+import { makeTask } from "./helpers/nodeFixtures";
 
 /*
  * taskCalendarChips — pure UTC→local conversion of scheduled TaskNodes into
@@ -24,18 +24,6 @@ function localKey(d: Date): string {
 }
 function localTime(d: Date): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-
-function makeTask(over: Partial<TaskNode>): TaskNode {
-  return {
-    id: "task-1",
-    type: "task",
-    title: "T",
-    parentId: null,
-    order: 0,
-    createdAt: "2026-07-01T00:00:00.000Z",
-    ...over,
-  };
 }
 
 const ISO = "2026-07-09T05:30:00.000Z";

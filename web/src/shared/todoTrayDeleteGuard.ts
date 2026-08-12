@@ -23,6 +23,14 @@ import type { ConfirmRequest, TaskNode } from "@life-editor/shared";
  * whole Provider stack plus real layout to render, so anything decided inside
  * it is invisible to every test we can afford to run. Pinned in
  * web/tests/todoTrayDeleteGuard.test.ts.
+ *
+ * #790 moved it out of schedule/ and into this host-neutral folder (NOT the
+ * @life-editor/shared package — this is web's own). It had stayed under
+ * schedule/ while tasks/ imported across the section boundary, which #786 left
+ * deliberately: a parallel lane was editing schedule/ and the move would have
+ * collided for no gain. Two sections ask this question now, so neither owns it,
+ * and someone tidying schedule/ can no longer break Tasks by moving a file that
+ * looks local.
  */
 
 export interface TodoDeleteCascade {

@@ -56,12 +56,11 @@ import {
 // facts it pins — never ask when nothing is pending, never treat a pending
 // promise as a "yes" — hold for any editor whose only commit is a button.
 import { decideUnsavedClose } from "../schedule/unsavedCloseGuard";
-// Imported ACROSS sections on purpose (#786): the todo detail's delete question
-// is one behaviour on two screens, and the count it names has to agree wherever
-// it is asked. Left where #775 put it rather than moved to a neutral home — a
-// parallel lane is editing schedule/ right now, and a file move would collide
-// with it for no gain.
-import { confirmTodoDetailDelete } from "../schedule/todoTrayDeleteGuard";
+// The todo detail's delete question is one behaviour on two screens, and the
+// count it names has to agree wherever it is asked. #790 moved it out of
+// schedule/ (where #775 wrote it) into a host-neutral home, so this is no
+// longer a reach across the section boundary.
+import { confirmTodoDetailDelete } from "../shared/todoTrayDeleteGuard";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
 import { useTaskLinking } from "./hooks/useTaskLinking";
@@ -294,6 +293,24 @@ export function KanbanView({
   });
 
   /*
+   * #789: the panel's teardown, for the two exits that remove the row itself
+   * (delete and convert). Clearing the selection empties the portal, but the
+   * sidebar SHELL has its own open state and survives that — leaving a column
+   * of "nothing selected" up to 560px wide next to a board the user just took
+   * a row off. Narrow keeps its own path: there the detail is the BottomSheet,
+   * and the shell is already held closed by the isWide effect below.
+   *
+   * One helper rather than the line twice: the two exits drifting apart is the
+   * shape of this bug (delete gained the close, convert kept the empty shell),
+   * and the only way for them to disagree now is for someone to stop calling
+   * this.
+   */
+  const closeDetailShell = useCallback(() => {
+    tree.setSelectedTaskId(null);
+    if (isWide) rightSidebar.close();
+  }, [tree, isWide, rightSidebar]);
+
+  /*
    * #625: "予定に変換" — the board's half of the Event <-> Todo pair.
    *
    * The write re-roles the row (id kept), so the task simply leaves this board
@@ -352,8 +369,9 @@ export function KanbanView({
         )
         .then(() => {
           // The detail panel is showing a row that is no longer a task; the
-          // refetch drops it from the tree and the selection resolves to null.
-          tree.setSelectedTaskId(null);
+          // refetch drops it from the tree and the selection resolves to null,
+          // and the shell that framed it goes with them (#789).
+          closeDetailShell();
           void tree.refetch();
         })
         .catch((err) => {
@@ -374,7 +392,7 @@ export function KanbanView({
         })
         .finally(() => endConvert(task.id));
     },
-    [dataService, tree, detail, t, beginConvert, endConvert],
+    [dataService, tree, detail, t, beginConvert, endConvert, closeDetailShell],
   );
 
   /*
@@ -409,27 +427,28 @@ export function KanbanView({
    * asking twice for one act reads as a bug. The selection is cleared here as
    * well as inside softDelete — the panel is this host's surface, so what makes
    * it disappear should be visible in this host, not an internal of the tree
-   * hook. Undo is the same one every other delete raises
+   * hook; the wide shell around it closes on the same beat (#789, via
+   * closeDetailShell). Undo is the same one every other delete raises
    * (softDelete → persistWithHistory), with Trash as the route that outlives
    * the section.
    */
   const handleDeleteFromDetail = useCallback(
     (id: string) => {
       void confirmTodoDetailDelete(tree.nodes, id, askConfirm, {
-        confirm: (name) => t("scheduleScreen.todoDeleteConfirm", { name }),
+        confirm: (name) => t("taskDetail.todoDeleteConfirm", { name }),
         cascadeConfirm: (name, count) =>
-          t("scheduleScreen.todoDeleteCascadeConfirm", { name, count }),
+          t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
         untitled: t("common.untitled"),
-        confirmLabel: t("scheduleScreen.delete"),
+        confirmLabel: t("taskDetail.delete"),
         cancelLabel: t("common.cancel"),
       }).then((ok) => {
         if (!ok) return;
         detail.closeSheet();
-        tree.setSelectedTaskId(null);
+        closeDetailShell();
         tree.softDelete(id);
       });
     },
-    [tree, detail, askConfirm, t],
+    [tree, detail, askConfirm, t, closeDetailShell],
   );
 
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
@@ -736,7 +755,7 @@ export function KanbanView({
             // `deleteLabel`; the shared panel draws the row only when both are
             // present, so this is the one place either surface gains a delete.
             onDelete={handleDeleteFromDetail}
-            deleteLabel={t("scheduleScreen.todoDelete")}
+            deleteLabel={t("taskDetail.todoDelete")}
             statusControl={statusControl}
             titleLabel={t("taskDetail.titleLabel")}
             statusLabel={t("taskDetail.status")}

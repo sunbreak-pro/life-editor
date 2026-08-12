@@ -4,6 +4,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useNotesUnifiedCRUD } from "../src/hooks/useNotesUnifiedCRUD";
 import type { DataService } from "../src/services/DataService";
 import type { NoteNode } from "../src/types/note";
+import { makeNote } from "./helpers/nodeFixtures";
 import {
   getNotesSelection,
   resetMaterialsSelection,
@@ -24,22 +25,6 @@ import {
  * That also keeps the suite clear of the react-hooks lint rules that a
  * ref-written-during-render harness would trip.
  */
-
-function makeNote(id: string, overrides: Partial<NoteNode> = {}): NoteNode {
-  return {
-    id,
-    type: "note",
-    title: id,
-    content: "",
-    parentId: null,
-    order: 0,
-    isPinned: false,
-    isDeleted: false,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
 
 interface Command {
   label: string;

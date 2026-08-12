@@ -60,7 +60,7 @@ type WorkScreenDataService = Parameters<typeof WorkScreen>[0]["dataService"];
 
 const fetchTaskTree = vi.fn();
 
-function makeDataService(): WorkScreenDataService {
+function makeDS(): WorkScreenDataService {
   fetchTaskTree.mockResolvedValue([
     { id: "t1", type: "task", title: "Write the spec", isDeleted: false },
     { id: "t-gone", type: "task", title: "Deleted task", isDeleted: true },
@@ -156,7 +156,7 @@ function NarrowShell({ children }: { children: ReactNode }) {
 function renderWork(Shell: typeof WideShell) {
   render(
     <Shell>
-      <WorkScreen dataService={makeDataService()} />
+      <WorkScreen dataService={makeDS()} />
     </Shell>,
   );
   return screen.getByTestId("work-main");

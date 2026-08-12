@@ -189,3 +189,47 @@ describe("AppShell (narrow)", () => {
     expect(onNavigate).toHaveBeenCalledWith("connect");
   });
 });
+
+/*
+ * iOS safe areas (#791). These assert CLASS NAMES, which is unusual here and
+ * deliberate: jsdom has no layout and never resolves env(), so the only thing
+ * a unit test can hold still is WHICH element declares each inset. The failure
+ * this guards is exactly that — the shell root shipped with left/right but no
+ * top, so the narrow header row painted under the iPhone status bar in the
+ * home-screen PWA. Whether the resulting pixels look right stays a real-device
+ * check (issue DoD); this only keeps the declarations from going missing again.
+ */
+describe("AppShell (narrow) — safe-area insets", () => {
+  const shellRoot = () => {
+    const root = document.querySelector("main")?.parentElement;
+    if (!root) throw new Error("narrow shell root not found");
+    return root;
+  };
+
+  it("clears the status bar and the display cutout on the shell root", () => {
+    mockMatchMedia(false);
+    renderShell();
+    const cls = shellRoot().className;
+
+    // `viewport-fit=cover` puts the top of this box under the clock, so the
+    // shell — not the section body — has to step out of the status bar.
+    expect(cls).toContain("pt-[env(safe-area-inset-top)]");
+    expect(cls).toContain("pl-[env(safe-area-inset-left)]");
+    expect(cls).toContain("pr-[env(safe-area-inset-right)]");
+  });
+
+  it("reserves the home-indicator strip on the bottom bar and nowhere else", () => {
+    mockMatchMedia(false);
+    renderShell();
+    const owners = [
+      shellRoot(),
+      screen.getByRole("navigation", { name: "More" }),
+    ].filter((el) => el.className.includes("safe-area-inset-bottom"));
+
+    // One strip, one padding. MobileFab's placement contract (and the bar's
+    // own doc) assume the bar is the single owner; a second reservation on the
+    // root would stack two paddings for the same 34px of screen.
+    expect(owners).toHaveLength(1);
+    expect(owners[0].tagName).toBe("NAV");
+  });
+});

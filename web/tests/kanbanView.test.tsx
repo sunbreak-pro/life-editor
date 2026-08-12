@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
   updateNode: vi.fn(),
   addNode: vi.fn(),
   softDelete: vi.fn(),
+  refetch: vi.fn().mockResolvedValue(undefined),
   syncInlineLinks: vi.fn().mockResolvedValue(undefined),
   open: vi.fn(),
   close: vi.fn(),
@@ -65,6 +66,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       updateNode: state.updateNode,
       addNode: state.addNode,
       softDelete: state.softDelete,
+      // The convert path pulls the re-roled row out through a refetch; without
+      // it here the success branch throws and lands in the failure banner
+      // instead, which is not what the convert tests below mean to exercise.
+      refetch: state.refetch,
     }),
     useWikiTagsUnifiedContext: () => ({
       allTags: state.tags,
@@ -615,9 +620,9 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
   });
   const del = () =>
     fireEvent.click(
-      screen.getByRole("button", { name: "scheduleScreen.todoDelete" }),
+      screen.getByRole("button", { name: "taskDetail.todoDelete" }),
     );
-  const answer = (label: "scheduleScreen.delete" | "common.cancel") =>
+  const answer = (label: "taskDetail.delete" | "common.cancel") =>
     fireEvent.click(screen.getByRole("button", { name: label }));
 
   it("asks before deleting, and names the row", async () => {
@@ -625,7 +630,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     // A question, not a farewell: nothing is written until it is answered.
     expect(state.softDelete).not.toHaveBeenCalled();
   });
@@ -635,12 +640,12 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     answer("common.cancel");
 
     await waitFor(() =>
       expect(
-        screen.queryByText("scheduleScreen.todoDeleteConfirm|Buy milk"),
+        screen.queryByText("taskDetail.todoDeleteConfirm|Buy milk"),
       ).toBeNull(),
     );
     expect(state.softDelete).not.toHaveBeenCalled();
@@ -656,8 +661,8 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
-    answer("scheduleScreen.delete");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    answer("taskDetail.delete");
 
     // softDelete (→ Trash + the undo entry), never a permanent delete.
     await waitFor(() =>
@@ -678,9 +683,9 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     // comes from the SAME guard the Schedule side asks through, so the two
     // screens can never disagree about how many rows are going.
     await screen.findByText(
-      "scheduleScreen.todoDeleteCascadeConfirm|Buy milk,1",
+      "taskDetail.todoDeleteCascadeConfirm|Buy milk,1",
     );
-    answer("scheduleScreen.delete");
+    answer("taskDetail.delete");
     await waitFor(() =>
       expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
     );
@@ -693,7 +698,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
 
     del();
     // "Delete ""?" would be a dialog about nothing.
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|common.untitled");
+    await screen.findByText("taskDetail.todoDeleteConfirm|common.untitled");
   });
 
   it("deletes from the mobile sheet, and closes it", async () => {
@@ -703,8 +708,8 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     screen.getByRole("dialog", { name: "materials.tasks.detailTitle" });
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
-    answer("scheduleScreen.delete");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    answer("taskDetail.delete");
 
     await waitFor(() =>
       expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
@@ -725,8 +730,102 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     fireEvent.click(screen.getByText("type in the body"));
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     expect(screen.queryByText("common.unsavedCloseConfirm")).toBeNull();
+  });
+});
+
+/*
+ * #789 — what the two row-REMOVING exits leave behind. Clearing the selection
+ * empties the portal, but the sidebar shell holding it has its own open state
+ * and outlives that: after a delete the Desktop kept an up-to-560px column of
+ * "details, nothing selected" beside a board the user had just taken the row
+ * off. Convert had the identical gap, so both are pinned here — fixing one
+ * alone is how the two exits start disagreeing.
+ *
+ * Narrow is the control: there the detail IS the sheet, and the shell is held
+ * closed by the isWide effect, not by these handlers.
+ */
+describe("KanbanView — the detail shell after the row goes (#789)", () => {
+  const del = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoDelete" }),
+    );
+  const agree = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.delete" }),
+    );
+
+  it("closes the desktop sidebar once the delete is agreed", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+    // Nothing has asked the shell to close yet — the assertion below is about
+    // the delete, not about the mount.
+    expect(state.close).not.toHaveBeenCalled();
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    agree();
+
+    await waitFor(() => expect(state.close).toHaveBeenCalled());
+    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps the shell open when the delete is refused", async () => {
+    state.selectedId = "task-a";
+    render(<KanbanView />);
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("scheduleScreen.todoDeleteConfirm|Buy milk"),
+      ).toBeNull(),
+    );
+    // The row is still there, so the panel showing it has to be too.
+    expect(state.close).not.toHaveBeenCalled();
+  });
+
+  it("leaves the narrow shell to the isWide effect", async () => {
+    state.isWide = false;
+    render(<KanbanView />);
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    // The narrow mount already holds the shell closed; counting from here is
+    // what isolates the delete's own contribution.
+    const before = state.close.mock.calls.length;
+
+    del();
+    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    agree();
+
+    await waitFor(() =>
+      expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
+    );
+    expect(state.close.mock.calls.length).toBe(before);
+  });
+
+  it("closes it for the convert too", async () => {
+    const dataService = {
+      convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
+    } as unknown as DataService;
+    // jsdom has no native confirm; the convert's own guard still calls one.
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    state.selectedId = "task-a";
+    render(<KanbanView dataService={dataService} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "itemConvert.toEvent" }),
+    );
+
+    await waitFor(() =>
+      expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
+    );
+    // The row left this board for the calendar — the panel that was framing it
+    // has nothing left to show, and neither has the shell around it.
+    await waitFor(() => expect(state.close).toHaveBeenCalled());
+    confirmSpy.mockRestore();
   });
 });
 

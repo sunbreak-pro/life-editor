@@ -133,3 +133,31 @@ PostgREST は全 SELECT をサーバ側 `max-rows`（Supabase 既定 1000）で*
 - **既存 migration のファイル名を振り直さない**。適用済みの version 文字列は台帳に記録済みで、リネームは Supabase CLI から「未適用の新規 migration」に見える。既に当たっている DDL を再実行しにいく
 
 番号の連番性を見る監査（`life-editor-migration-validator` 等）が 0013 を欠番として挙げた場合、それは想定どおりで対処不要。
+
+---
+
+## 14. 検証データの規約（#700 / [`D-20260812-shared-fix-3`](../../decisions/D-20260812-shared-fix-3.md)）
+
+MCP の検証ツール（`seed_verification_state` / `read_verification_state` / `cleanup_verification_state`）が撒くデータの置き場所と後始末。実装 = `mcp-server/src/utils/verification.ts` + `mcp-server/src/handlers/verificationHandlers.ts`。
+
+- **撒き先は検証専用アカウント 1 つ。分離は RLS が担う** — 全テーブルのポリシーが `auth.uid() = user_id` で `user_id` はサーバ側既定（`supabase/migrations/0002_rls_tasks.sql`）。MCP Server は anon key + `signInWithPassword` の一般ユーザーとして繋ぐ（service_role を使わない）ので、撒き先の切替は env の差し替えだけで済む。**id の接頭辞やタイトルの `[verify]` は目印であって分離ではない**（接頭辞方式は #700 の案 B として却下済み）
+- **3 ツールは `LIFE_EDITOR_VERIFICATION_MODE=1` のときしか動かない**。推奨形は `.mcp.json` に検証用エントリをもう 1 本立て、その `env` ブロックでだけ検証アカウントの認証情報とフラグを渡すこと（下記）。日常の接続からはツールに到達できなくなる。認証情報は `${VAR}` 参照のまま・平文展開禁止（CLAUDE.md §9）
+
+```jsonc
+"life-editor-verify": {
+  "command": "node",
+  "args": ["<repo>/mcp-server/dist/index.js"],
+  "env": {
+    "LIFE_EDITOR_SUPABASE_URL": "${LIFE_EDITOR_SUPABASE_URL}",
+    "LIFE_EDITOR_SUPABASE_ANON_KEY": "${LIFE_EDITOR_SUPABASE_ANON_KEY}",
+    "LIFE_EDITOR_SUPABASE_EMAIL": "${LIFE_EDITOR_VERIFY_SUPABASE_EMAIL}",
+    "LIFE_EDITOR_SUPABASE_PASSWORD": "${LIFE_EDITOR_VERIFY_SUPABASE_PASSWORD}",
+    "LIFE_EDITOR_VERIFICATION_MODE": "1"
+  }
+}
+```
+
+- **撒いた行はツール側の台帳が覚える** — `mcp-server/.verification-ledger.json`（git 非追跡）。cleanup はこの台帳の id しか消さず、削除に失敗した行は台帳に残るので再実行が復旧手順になる。撒く途中で落ちた場合も、既に書けた行は台帳に載る
+- **daily は撒けない** — DailyNode の id は日付由来（`daily-<YYYY-MM-DD>`）で実データと区別できず、id で消す cleanup が本物の日記を巻き込む。task / event / note はランダム id なので衝突しない
+- **cleanup は hard delete で、payload → `items_meta` の順**。soft delete では TrashView に残って「片付いていない」ため。順序は composite FK が NO ACTION（§10.4）だから
+- **後片付けはアカウントより先に行**。`user_id` から `auth.users` への FK が無いため、アカウントを先に消すと行が誰にも見えないまま残る。cleanup の応答は台帳が空になったときだけ「アカウントを消してよい」と言う

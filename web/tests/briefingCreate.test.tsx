@@ -10,6 +10,7 @@ import {
   type TaskNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
+import { stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
@@ -55,8 +56,8 @@ const UNPLACED = {
   updatedAt: "2026-08-10T00:00:00.000Z",
 } as TaskNode;
 
-function makeDataService(over: Partial<DataService> = {}): DataService {
-  return {
+function makeDS(over: Partial<DataService> = {}): DataService {
+  return stubDataService({
     fetchScheduleItemsByDate: vi
       .fn()
       .mockImplementation((date: string) =>
@@ -83,7 +84,7 @@ function makeDataService(over: Partial<DataService> = {}): DataService {
     createNoteUnified: vi.fn(),
     createItemLink: vi.fn(),
     ...over,
-  } as unknown as DataService;
+  });
 }
 
 function renderScreen(ds: DataService, onNavigate = vi.fn()) {
@@ -118,7 +119,7 @@ function typeTitle(text: string) {
 
 describe("Briefing create panel (#623)", () => {
   it("creates an event on the paper's own day and shows it at once", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await openPanel();
 
@@ -138,7 +139,7 @@ describe("Briefing create panel (#623)", () => {
   });
 
   it("creates a task scheduled into today's window", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await openPanel();
 
@@ -156,7 +157,7 @@ describe("Briefing create panel (#623)", () => {
   });
 
   it("places an existing task into today", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await openPanel();
 
@@ -174,7 +175,7 @@ describe("Briefing create panel (#623)", () => {
   });
 
   it("'add and open' creates, then hands over to Schedule", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     const { onNavigate } = renderScreen(ds);
     await openPanel();
 
@@ -192,7 +193,7 @@ describe("Briefing create panel (#623)", () => {
   });
 
   it("writes nothing when the panel is dismissed", async () => {
-    const ds = makeDataService();
+    const ds = makeDS();
     renderScreen(ds);
     await openPanel();
 

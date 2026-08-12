@@ -10,6 +10,7 @@ import {
   META_COLUMNS,
   insertItem,
   requireMeta,
+  softDeleteItem,
   updatePayload,
   type ItemsMetaRow,
 } from "../utils/items.js";
@@ -241,6 +242,7 @@ export async function updateNote(args: {
   title?: string;
   content?: string;
   color?: string;
+  is_pinned?: boolean;
 }) {
   await getNoteRows(args.id); // not-found guard
 
@@ -251,6 +253,7 @@ export async function updateNote(args: {
   if (args.content !== undefined)
     payloadPatch.content_json = markdownToTiptap(args.content);
   if (args.color !== undefined) payloadPatch.color = args.color;
+  if (args.is_pinned !== undefined) payloadPatch.is_pinned = args.is_pinned;
 
   await updatePayload(
     "notes_payload",
@@ -262,4 +265,10 @@ export async function updateNote(args: {
 
   const { meta, payload } = await getNoteRows(args.id);
   return formatNote(meta, payload);
+}
+
+export async function deleteNote(args: { id: string }) {
+  await requireMeta(args.id, "note", "Note");
+  await softDeleteItem(args.id, "note");
+  return { success: true, id: args.id, softDeleted: true };
 }

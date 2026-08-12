@@ -210,8 +210,25 @@ export function AppShell({
 
   // Pull-to-refresh suppression lives on html/body (web/src/index.css, #631)
   // — overscroll-behavior on this non-scrolling div never fired.
+  //
+  // Safe areas (#791). `viewport-fit=cover` (web/index.html) plus the PWA's
+  // `black-translucent` status-bar style means the web view spans the WHOLE
+  // screen — on an iPhone the top of this div is under the clock, not under
+  // the notch. Whatever renders first therefore has to clear the status bar
+  // itself, and only the left/right insets were here: the narrow header row
+  // was painting straight into the status bar (reported from the home-screen
+  // PWA). `pt-` closes that, matching MobileDrawer / AuthScreen.
+  //
+  // The BOTTOM inset is deliberately NOT here — <BottomTabBar> owns the
+  // home-indicator strip (its own `pb-`), which is the single-reservation
+  // contract MobileFab's placement doc already leans on. Reserving it on both
+  // would stack two paddings for one strip.
+  //
+  // box-sizing is border-box (Tailwind preflight), so these paddings come out
+  // of the 100svh box rather than adding to it: <main> shrinks, the shell
+  // still ends exactly at the bottom of the screen.
   return (
-    <div className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       {!keyboardOpen && (
         <BottomTabBar
