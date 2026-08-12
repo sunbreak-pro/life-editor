@@ -82,6 +82,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 jsdom にレイアウトが無い（座標がすべて 0）という環境の事実の正本は **CLAUDE.md §7.1**。`shared/tests/` も同じで、`elementFromPoint` は null・画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は検証できない。
 
 - 規約: UI の入力経路は座標に依存しない形で組む — DOM イベント + `closest("[data-…]")` で対象を引く（実例 = `web/src/notes/itemLinkNode.ts` の `handleDOMEvents.click`）
+- **規約（ボタンの処理をどう固定するか。[`D-20260812-refactor-2`](../decisions/D-20260812-refactor-2.md) = A+B）: 既定は Testing Library で画面ごと render してハンドラを叩き、引数と呼び先を assert する**（実例 = `web/tests/trashScreenActions.test.tsx`）。**純関数を切り出して直接呼ぶ形は、その画面が jsdom に載らないときの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等。実例 = `web/src/schedule/taskChipUndoWiring.ts`）— 載る画面で使うとテスト専用の間接層が 1 枚増えるだけになる
 
 ## Gotchas
 
