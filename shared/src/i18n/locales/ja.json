@@ -528,6 +528,7 @@
     "done": "完了",
     "doneSummary": "{{total}}件中{{done}}件完了",
     "emptyToday": "今日の予定はありません",
+    "emptyDay": "この日の予定はありません",
     "frequency": "繰り返し",
     "viewLabel": "表示",
     "frequencyNone": "なし",

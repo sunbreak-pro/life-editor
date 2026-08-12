@@ -2,23 +2,20 @@
 
 ## 進行中
 
-- **#632 mobile FAB の位置統一** → **PR #660 open（非 draft・merge 待ち）**。配置定義を `shared/src/components/MobileFab.tsx` に 1 本化し、Schedule（`CalendarTab.tsx`）と Notes（`NotesMobileList.tsx`）を差し替え。**Schedule の実害（`fixed` がモバイル Chrome のレイアウトビューポート基準で URL バーの伸縮に付いて動く）は解消。Notes の「セクションの箱に貼り付く」は未達**で判断キュー `D-20260810-mobile-3` 行き（P-008）
-- **#660 は main を取り込み済み**: #588（PR #646）で `NotesView` のモバイル本体が `NotesMobileList.tsx` へ分割されたため衝突。`NotesView` は main を丸ごと採り、FAB の差し替えを `NotesMobileList` 側へ移した
+- **Epic #716「裁定済み・実装の着地が未確認」3 件の実測** → **PR #803 open**（コード無変更・`.claude/decisions/D-20260730-mobile-{1,2,3}.md` の `implemented-by` と根拠セクションのみ）。**3 件とも現状のコードで満たされていた**（mobile-1 → #494 / mobile-2 → #539 / mobile-3 → #541）ため、未達ゼロ = 起票依頼なし
 
 ## 判断待ち（回答が付いたら消化 → 台帳へ昇格）
 
-- `D-20260810-mobile-1` — narrow から書き換えられる「タグの色」を残すか塞ぐか（推奨 A = 残す）
-- `D-20260810-mobile-2` — 「Consumption = 編集不可」の語を実態に寄せるか実装を絞るか（#1 / #4 共通・推奨 A = 語を寄せる）
-- `D-20260810-mobile-3` — Notes の FAB を本当に貼り付けるため narrow の Materials を fluid 変種へ動かすか（推奨は保留 = B。A は `MainScreen.tsx` が対象で #632 のスコープ外・Daily のスクロール所有権も動くので実機確認が要る）
-- mobile-1 / mobile-2 で B を選ぶ場合の実装は `web/src/schedule/**` = **schedule-refine の担当**。outbox でハンドオフ予告済み
+- （なし）— `D-20260810-mobile-1` / `-2` / `-3` と `D-20260812-mobile-1` はいずれも回答済みで、2026-08-12 に chat-main が台帳へ昇格済み
 
 ## 直近の完了
 
-- **#589 mobile-scope 現状維持 9 行のコード実測 ✅**（2026-08-10・PR #651 merged）。6 行は表どおり・#1 / #4 / #9 がズレ。**残: Epic #321 の close 判断と狭幅の実機目視は chat-main 側**
-- #473 コマンドパレットのモバイルタッチ導線 ✅（2026-07-31・PR #498 + レビュー回収 #500 いずれも merged）
-- #507 タスク本文の `[[` リンク配線 ✅（2026-08-02・PR #542 merged）
+- **Epic #716 裁定 3 件の着地確認 ✅**（2026-08-13・PR #803 open）
+- **#691 Mobile の Dayflow ✅**（PR #750 merged）／ **#692 Mobile の月ビュー ✅**（PR #758 merged）。**この 2 本は history に詳細エントリが無い**（前セッションが tracker END を通していない）
+- **#632 mobile FAB の位置統一 ✅**（2026-08-10・PR #660 merged）。Notes 側の未達は `D-20260810-mobile-3` = B で「現状維持」に決着済み
 
 ## 予定
 
-- 判断キュー 3 件に回答が付いたら消化 → `.claude/decisions/` へ昇格（mobile-1 / mobile-2 は A なら `mobile-scope.md` の目標列を 1 行直す・B なら schedule-refine へ Issue 化を依頼／mobile-3 は A なら chat-main に「narrow の Materials を fluid 変種へ」の起票を依頼）
-- **PR #660 merge 後に chat-main へ実ブラウザ確認を依頼済み**（outbox 2026-08-10 (2)）: Schedule で長いリストをスクロールしても「+」が動かないこと / Notes は現状どおり末尾に付いてくること
+- `D-20260810-mobile-1` = A / `-2` = A の docs 追随（`mobile-scope.md` の #9 の目標列を「閲覧 + 名前のみ追加 + 色」に、#1 / #4 を「Consumption + Quick capture」に）。どちらも台帳の `implemented-by` が空のまま
+- #691 の残件 = Issue **#761**（Dayflow の Todo 行から完了・詳細へ）は `web/src/schedule/**` = schedule-refine の担当レーン
+- **merge 済み 2 本の実ブラウザ確認を chat-main へ依頼済み**（outbox 2026-08-12。このレーンは playwright を使えない = CLAUDE.md §7.4）

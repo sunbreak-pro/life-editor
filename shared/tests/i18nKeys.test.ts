@@ -21,6 +21,14 @@ import ja from "../src/i18n/locales/ja.json";
  *   2. every literal `t("...")` in shared/src and web/src names a key the
  *      catalog actually has.
  *
+ * This file is the only place the catalogs' KEY SETS are checked — parity,
+ * the `_other` requirement, and the plural-suffix normalization they share.
+ * i18n.test.ts asserted the same two invariants with its own copy of the
+ * plural regex until #778 folded them here; two copies meant a change to the
+ * suffix handling could leave the looser one green, and one real violation
+ * turned two files red without saying which to read. i18n.test.ts now covers
+ * runtime behaviour only (init, fallbackLng, plurals through `t()`).
+ *
  * Dynamic keys (`t(labelKey)`, template literals) are outside a runtime
  * scan's reach — closing those needs the i18next `CustomTypeOptions` type
  * extension, which is tracked separately.
