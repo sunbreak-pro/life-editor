@@ -22,7 +22,11 @@ import {
 // Collapse state for tag-group headings. Persisted so a folded group stays
 // folded across reloads. The group key (incl. the untagged sentinel) comes from
 // shared — the #369 tag filter keys off the same identity.
-const LS_TAG_GROUPS_COLLAPSED = "note-tag-groups-collapsed";
+// #718: renamed from the bare `note-tag-groups-collapsed`, which "reset
+// settings" could not see (it sweeps the `life-editor` namespace by prefix).
+// Values saved under the old name are carried over at startup by
+// `migrateLegacyPreferenceKeys` — see shared/src/utils/.
+const LS_TAG_GROUPS_COLLAPSED = "life-editor:note-tag-groups-collapsed";
 
 function loadCollapsedGroups(): Set<string> {
   try {
