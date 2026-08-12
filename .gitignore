@@ -54,6 +54,14 @@ mobile/node_modules/
 .claude/memory/INDEX.md
 .claude/history/INDEX.md
 
+# 同じ理由で `records.mjs index` の生成物 2 本も非追跡（2026-08-12 #735 / 案 B）。
+# 決定台帳・plans を全走査して毎回まるごと書き直すため、判断を 1 件足した PR が
+# 構造的に必ず衝突していた（2026-08-12 の #719 / #720 / #733 の衝突箇所はこの 2 本だけ）。
+# 正本は decisions/D-*.md と docs/vision/plans/*.md。再生成は SessionStart hook
+# （.claude/settings.json）+ 手動 `node .claude/scripts/records.mjs index`。
+.claude/INDEX.md
+.claude/decisions/INDEX.md
+
 # Dev digest output (dev-digest スキルが毎朝生成する派生ビュー — 正本は収集元)
 .claude/comm/digest/
 

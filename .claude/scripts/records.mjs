@@ -3,14 +3,14 @@
 //
 // 使い方:
 //   node .claude/scripts/records.mjs index   # .claude/INDEX.md + .claude/decisions/INDEX.md を再生成
-//   node .claude/scripts/records.mjs check   # frontmatter スキーマ検証 + 索引の鮮度検証（CI / docs-lint 用）
+//   node .claude/scripts/records.mjs check   # frontmatter スキーマ / supersede / ANSWERS 突合の検証（CI / docs-lint 用）
 //
 // 決定論の規約: 出力にタイムスタンプ・環境依存パスを含めない / ソートは ID のバイト順
 // （localeCompare 不使用）/ 改行 LF 固定 / 内容が同一なら書かない（無駄 diff ゼロ）。
 // リンク実在チェックは持たない — それは scripts/docs-lint.sh (a) の担当（検査の非複製）。
 //
-// 索引は「plans/ か decisions/ を変えた PR と同一コミット」でのみ再生成する。
-// merge で INDEX が衝突したら中身を読まずに index を再実行して上書きする（正本は D ファイル群）。
+// 出力 2 本（.claude/INDEX.md / .claude/decisions/INDEX.md）は git 非追跡の派生ビュー
+// （2026-08-12 #735）。commit に載らないので、いつ再生成しても他レーンとぶつからない。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -171,7 +171,7 @@ function renderDecisionsIndex(records, open) {
   const lines = [];
   lines.push('# Decisions Index');
   lines.push('');
-  lines.push('> **生成物 — 手編集禁止。** 再生成: `node .claude/scripts/records.mjs index`。正本 = 本ディレクトリの `D-*.md`（未決 = `comm/decisions/chat-*.md` キュー）。merge で衝突したら中身を読まず再生成で上書きする（→ [`README.md`](./README.md)）。');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`。正本 = 本ディレクトリの `D-*.md`（未決 = `comm/decisions/chat-*.md` キュー）。古ければ再生成する（→ [`README.md`](./README.md)）。');
   lines.push('');
   lines.push('## Open（キュー — 回答待ち）');
   lines.push('');
@@ -226,7 +226,7 @@ function renderRootIndex(records, open, plans) {
   const lines = [];
   lines.push('# .claude INDEX — 記録の入口');
   lines.push('');
-  lines.push('> **生成物 — 手編集禁止。** 再生成: `node .claude/scripts/records.mjs index`（plans/ か decisions/ を変えた PR と同一コミットで再生成 — 鮮度は `records.mjs check` が CI で検証）。');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`（SessionStart hook でも自動実行。正本 = `decisions/D-*.md` + `docs/vision/plans/*.md`）。');
   lines.push('> 無人セッションの読む順: CLAUDE.md（自動ロード）→ 本ファイル → [`decisions/INDEX.md`](./decisions/INDEX.md) §Open + [`comm/decisions/ANSWERS.md`](./comm/decisions/ANSWERS.md) → `memory/chat-<self>.md` → 自分宛 open Issue。ここまで grep なしで届く。');
   lines.push('');
   lines.push('## 進行中の計画（`docs/vision/plans/` の Status 行より）');
@@ -290,12 +290,13 @@ if (cmd === 'index') {
     }
   }
 } else if (cmd === 'check') {
-  const { outputs } = build();
-  for (const o of outputs) {
-    const rel = path.relative(process.cwd(), o.path);
-    if (!fs.existsSync(o.path)) err(`${rel}: 索引が存在しない（node .claude/scripts/records.mjs index で生成）`);
-    else if (read(o.path) !== o.content) err(`${rel}: 索引が stale（node .claude/scripts/records.mjs index で再生成して同一コミットに含める）`);
-  }
+  // 索引の鮮度（存在しない / stale）は検査しない（2026-08-12 #735）。出力 2 本を git 非追跡に
+  // したため、CI の checkout には存在しないのが正常であり、鮮度を強制すると「plans か
+  // decisions を触った PR に索引の全文再生成を同梱せよ」という規約に戻る — それが並行
+  // レーンの衝突の製造元だった（同日の #719 / #720 / #733 の衝突箇所はこの 2 本だけ）。
+  // 検証の価値は正本側（frontmatter スキーマ・supersede 双方向・ANSWERS 突合 = build()
+  // 内の err()）にあるので、そちらは CI ゲートとして残す。
+  build();
   if (errors.length > 0) {
     for (const e of errors) console.error(`records: ${e}`);
     process.exit(1);

@@ -16,11 +16,11 @@
 
 1. `decisions/D-<id>.md` を作成 — キューのエントリ本文を「背景」へそのまま貼り、frontmatter を付ける（形式 = [`_TEMPLATE.md`](./_TEMPLATE.md)）
 2. キューの自分のファイルからエントリを削除（従来プロトコルどおり。`ANSWERS.md` の行は消さない — frontmatter `answer` との突合で監査可能）
-3. `node .claude/scripts/records.mjs index` で INDEX を再生成し、**同一コミット**に含める
+3. INDEX の再生成は不要（git 非追跡の派生ビューで、SessionStart hook が作り直す）。手元で今すぐ見たいときだけ `node .claude/scripts/records.mjs index` を回す
 
 ## INDEX.md について
 
-[`INDEX.md`](./INDEX.md) は **`records.mjs` の生成物（git 追跡・手編集禁止）**。merge で衝突したら中身を読まずに `node .claude/scripts/records.mjs index` を再実行して上書きする（正本は D ファイル群なので常に機械解消できる）。
+[`INDEX.md`](./INDEX.md) は **`records.mjs` の生成物（git 非追跡・手編集禁止）**。2026-08-12 に追跡を外した（[#735](https://github.com/sunbreak-pro/life-editor/issues/735)）— D ファイルを 1 本足すたびに目次が全文書き換わり、並行レーンの PR が構造的に必ず衝突していたため。追跡外になったので **commit にも PR にも載せない**（再生成は SessionStart hook が自動で行う。手元で古ければ `node .claude/scripts/records.mjs index`）。正本は D ファイル群なので、消えてもいつでも作り直せる。
 
 ## 他の記録層との分担
 
