@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { KeyboardEvent } from "react";
 import { cn } from "./cn";
+import { stepSegmentFocus } from "./segmentedKeyNav";
 
 export interface SettingsSegmentOption<V extends string> {
   value: V;
@@ -24,8 +25,9 @@ export interface SettingsSegmentProps<V extends string> {
  * value. Pure / props-injected (CLAUDE.md §6.4): lumen-* tokens only, opaque
  * surfaces (§5), no i18n inside (host injects translated copy). Selection =
  * accent border + tinted surface; the whole strip is one radiogroup with
- * roving tabindex + ←/→ (and ↑/↓) to move + select — matching the shell's
- * SegmentedControl a11y bar.
+ * roving tabindex + ←/→ / ↑/↓ to move + select — the shared stepSegmentFocus
+ * walk, so this really does answer the same keys as the shell's
+ * SegmentedControl (#779: it used to hand-roll the same loop).
  */
 export function SettingsSegment<V extends string>({
   label,
@@ -43,17 +45,8 @@ export function SettingsSegment<V extends string>({
     e: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ) => {
-    const forward = e.key === "ArrowRight" || e.key === "ArrowDown";
-    const backward = e.key === "ArrowLeft" || e.key === "ArrowUp";
-    if (!forward && !backward) return;
-    e.preventDefault();
-    if (options.length === 0) return;
-    const dir = forward ? 1 : -1;
-    const next = (index + dir + options.length) % options.length;
-    const nextOption = options[next];
-    if (!nextOption) return;
-    refs.current[next]?.focus();
-    onChange(nextOption.value);
+    const next = stepSegmentFocus(e, index, options, refs);
+    if (next) onChange(next.value);
   };
 
   return (

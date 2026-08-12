@@ -26,9 +26,10 @@ export interface SegmentedToggleProps<T extends string> {
  * semantics — it switches *views*), while this one switches a *form's mode*
  * (radiogroup semantics, accent-subtle fill + accent border on the active
  * segment per the Auth design). Segments are touch-first (44px) and compact
- * from md up (32px). Roving tabindex: ←/→ move focus + select. Pure
- * presentation: labels injected already-translated (§6.4), lumen-* tokens
- * only (§5).
+ * from md up (32px). Roving tabindex: ←/→ and ↑/↓ move focus + select
+ * (shared stepSegmentFocus — ↑/↓ are what the radiogroup pattern asks for,
+ * #779). Pure presentation: labels injected already-translated (§6.4),
+ * lumen-* tokens only (§5).
  */
 export function SegmentedToggle<T extends string>({
   options,
