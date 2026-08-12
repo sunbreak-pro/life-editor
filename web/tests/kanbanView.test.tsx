@@ -620,9 +620,9 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
   });
   const del = () =>
     fireEvent.click(
-      screen.getByRole("button", { name: "scheduleScreen.todoDelete" }),
+      screen.getByRole("button", { name: "taskDetail.todoDelete" }),
     );
-  const answer = (label: "scheduleScreen.delete" | "common.cancel") =>
+  const answer = (label: "taskDetail.delete" | "common.cancel") =>
     fireEvent.click(screen.getByRole("button", { name: label }));
 
   it("asks before deleting, and names the row", async () => {
@@ -630,7 +630,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     // A question, not a farewell: nothing is written until it is answered.
     expect(state.softDelete).not.toHaveBeenCalled();
   });
@@ -640,12 +640,12 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     answer("common.cancel");
 
     await waitFor(() =>
       expect(
-        screen.queryByText("scheduleScreen.todoDeleteConfirm|Buy milk"),
+        screen.queryByText("taskDetail.todoDeleteConfirm|Buy milk"),
       ).toBeNull(),
     );
     expect(state.softDelete).not.toHaveBeenCalled();
@@ -661,8 +661,8 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
-    answer("scheduleScreen.delete");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    answer("taskDetail.delete");
 
     // softDelete (→ Trash + the undo entry), never a permanent delete.
     await waitFor(() =>
@@ -683,9 +683,9 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     // comes from the SAME guard the Schedule side asks through, so the two
     // screens can never disagree about how many rows are going.
     await screen.findByText(
-      "scheduleScreen.todoDeleteCascadeConfirm|Buy milk,1",
+      "taskDetail.todoDeleteCascadeConfirm|Buy milk,1",
     );
-    answer("scheduleScreen.delete");
+    answer("taskDetail.delete");
     await waitFor(() =>
       expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
     );
@@ -698,7 +698,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
 
     del();
     // "Delete ""?" would be a dialog about nothing.
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|common.untitled");
+    await screen.findByText("taskDetail.todoDeleteConfirm|common.untitled");
   });
 
   it("deletes from the mobile sheet, and closes it", async () => {
@@ -708,8 +708,8 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     screen.getByRole("dialog", { name: "materials.tasks.detailTitle" });
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
-    answer("scheduleScreen.delete");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    answer("taskDetail.delete");
 
     await waitFor(() =>
       expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
@@ -730,7 +730,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     fireEvent.click(screen.getByText("type in the body"));
 
     del();
-    await screen.findByText("scheduleScreen.todoDeleteConfirm|Buy milk");
+    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
     expect(screen.queryByText("common.unsavedCloseConfirm")).toBeNull();
   });
 });
