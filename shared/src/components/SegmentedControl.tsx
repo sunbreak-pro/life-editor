@@ -36,7 +36,9 @@ export interface SegmentedControlProps {
  * Desktop HeaderTabs). Recessed track (bg-secondary) with equal-width
  * segments; the active segment lifts onto the base surface with a small
  * elevation. No badges (Mobile drops the count pills). WAI-ARIA tablist with
- * roving tabindex: ←/→ move focus + activate. Pure presentation: labels
+ * roving tabindex: ←/→ and ↑/↓ move focus + activate (shared
+ * stepSegmentFocus — the same keys as its two radiogroup siblings, #779).
+ * Pure presentation: labels
  * injected already-translated (§6.4), lumen-* tokens only (§5). Segments carry
  * horizontal padding (px-3) so they stay visually separated even under
  * intrinsic (w-auto) width, where flex-1 no longer pads them apart.
