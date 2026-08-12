@@ -149,7 +149,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 **Tier**: 1
 **Status**: ○基本完成 → 再設計中（2026-07-14 —「今日を組む場所」化）→ **再設計完了（2026-08-10 #591 実測。正本 = `archive/2026-07-14-schedule-redesign.md` — 全 Step + 並走 α 完了で archive 移動済み）**
 **Owner Provider/Module**: `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider` / `frontend/src/components/Tasks/Schedule/` / `src-tauri/src/commands/{routine,schedule_item,calendar,calendar_tag,routine_tag,routine_group}_commands.rs`
-**MCP Coverage**: `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `toggle_schedule_complete`
+**MCP Coverage**: `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `set_schedule_complete` / `set_schedule_dismissed`
 **Supports Value Prop**: V1 / V2
 **Stack** (2026-05-24 並立期): Tauri SQLite → Supabase Postgres (Phase 2 S4 完了 / DU-C 着手予定)
 
@@ -184,7 +184,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] AC1: `frequencyType=weekdays` + `frequencyDays=[1,3,5]` のルーチンを作成すると、今後 1 週間の月水金に ScheduleItem が自動生成され Calendar / DayFlow に表示される（2026-07-14 訂正: 現行の実挙動は「該当日を Calendar で表示した時点で materialise」— 週先行 backfill は未配線。DayFlow は退役済み）
 - [ ] AC2: 既存 Routine の `startTime` を変更すると、未完了の関連 ScheduleItem の時刻が追従し、完了済みアイテムは影響を受けない（**Calendar 経由は成立**: 時刻 / タイトルは範囲選択ダイアログ → `updateFutureScheduleItemsByRoutine`（#279）、頻度は `reconcileRoutineScheduleItems`（2026-07-26 #352）。どちらも done / dismissed / 手動編集済みを除外する。**旧「未達 = Routines タブ経由の時刻変更」は 2026-07-28 #408 で解消**: 同タブごと退役し、時刻変更の経路が Calendar の範囲選択ダイアログ 1 本に集約された。詳細は下記「競合解決ルール」）
 - [ ] AC3: Routine を削除（ソフトデリート）すると、その `routineId` を持つ未完了 ScheduleItem が同時に削除される（カスケード）
-- [ ] AC4: `toggle_schedule_complete` で ScheduleItem を完了すると `completed=true` + `completedAt` が保存され、`routineId` がある場合は `routine_logs` に日次完了が記録される
+- [ ] AC4: `set_schedule_complete(id, completed: true)` で ScheduleItem を完了すると `completed=true` + `completedAt` が保存され、`routineId` がある場合は `routine_logs` に日次完了が記録される
 - [ ] AC5: Calendar ビューの月 / 週 / 日表示が同じデータを一貫して表示し、どの画面で編集しても即時相互反映される（`useScheduleItemsContext` 共有）
 - [ ] AC6: ScheduleItem を編集モードに入ると編集内容がリアルタイムでプレビュー表示され、キャンセル時は変更前の状態に戻る
 - [ ] ~~AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags は DU-F で全プラットフォーム撤去済みのため形骸化。分類の後継 = カレンダー台帳（calendars）のタグフィルタ（再設計 Step 6 で配線）

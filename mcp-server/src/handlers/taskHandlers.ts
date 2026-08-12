@@ -370,7 +370,14 @@ export async function createTask(args: {
   scheduled_at?: string;
   scheduled_end_at?: string;
   is_all_day?: boolean;
+  content?: string;
+  status?: string;
 }) {
+  // #702 ③: create_task took neither body nor status, so creating a task
+  // with anything in it always cost two calls (create → update). The write
+  // vocabulary is update_task's, unchanged: Markdown in, TipTap JSON stored.
+  const status =
+    args.status === undefined ? "NOT_STARTED" : toDbStatus(args.status);
   const { client } = await getSupabase();
   const id = `task-${randomUUID()}`;
 
@@ -395,9 +402,14 @@ export async function createTask(args: {
     payload: {
       parent_item_id: args.parent_id ?? null,
       task_type: "task",
-      status: "NOT_STARTED",
+      status,
+      // A task created as already done still records when — update_task does
+      // the same, and a DONE row with no completed_at reads as never finished.
+      completed_at: status === "DONE" ? new Date().toISOString() : null,
       is_expanded: false,
-      content: null,
+      content: args.content
+        ? JSON.stringify(markdownToTiptap(args.content))
+        : null,
       scheduled_at: args.scheduled_at ?? null,
       scheduled_end_at: args.scheduled_end_at ?? null,
       is_all_day: args.is_all_day ?? false,
