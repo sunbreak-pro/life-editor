@@ -282,6 +282,30 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       ],
     },
   ],
+  // The #700 verification trio. Args only — the handlers refuse to run outside
+  // verification mode, which is exactly what the other suites cover.
+  [
+    "seed_verification_state",
+    {
+      date: "2026-08-12",
+      preset: "busy_day",
+      items: [
+        { kind: "task", title: "open task", status: "not_started" },
+        { kind: "task", is_all_day: true },
+        {
+          kind: "event",
+          title: "standup",
+          start_time: "09:00",
+          end_time: "09:15",
+          memo: "x",
+        },
+        { kind: "note", content: "body" },
+      ],
+      label: "#700",
+    },
+  ],
+  ["read_verification_state", { run_id: "verify-1" }],
+  ["cleanup_verification_state", { run_id: "verify-1", dry_run: true }],
 ];
 
 describe("valid arguments pass", () => {
