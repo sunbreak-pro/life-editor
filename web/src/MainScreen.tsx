@@ -8,17 +8,11 @@ import {
   type HeaderTab,
   SegmentedControl,
   SectionHeader,
-  RightSidebarProvider,
   RightSidebarToggle,
   CommandSearchField,
   useMediaQuery,
   isMac,
-  isNativeMobile,
   CommandPalette,
-  ToastProvider,
-  SyncProvider,
-  ShortcutConfigProvider,
-  AudioProvider,
   useTranslation,
   useUnsavedGuardOptional,
   type DataService,
@@ -26,11 +20,8 @@ import {
   type Session,
   WIDE_QUERY,
 } from "@life-editor/shared";
-import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
-import { TimerHost } from "./TimerHost";
+import { AppProviders } from "./AppProviders";
 import { TagEditorHost } from "./tags/TagEditorHost";
-import { GlobalShortcuts } from "./GlobalShortcuts";
-import { UndoRedoHost } from "./UndoRedoHost";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import {
@@ -45,20 +36,14 @@ import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
 /*
  * Phase 2 S1+S2 host shell — target-IA wiring (App Shell).
  *
- * One DataService is created once and injected into every domain
- * Provider (the shared hooks never reach a module singleton —
- * CLAUDE.md §6.4). Provider order follows CLAUDE.md §6.2 (outer→inner):
- * Sync → TaskTree → … → Daily. Every domain reads `useSyncDomains` to know
- * when the data IT owns changed — since #499 a note edit does not refetch
- * the task tree, the tag graph, or the timer settings.
- *
- * S8: SyncProvider is now Supabase Realtime backed (one channel, all
- * tables). It is mounted ONCE at the top of MainScreen — wrapping the
- * whole shell, OUTSIDE the section switch — rather than per-section. A
- * per-section mount would tear down and reconnect the Realtime channel on
- * every section change (chatter + leak risk). Each section keeps its own
- * inner Provider nesting/order (§6.2); only SyncProvider moved up one
- * level, so every sync reader still sits inside it.
+ * One DataService is created once and handed to <AppProviders>, which injects
+ * it into every global Provider (the shared hooks never reach a module
+ * singleton — CLAUDE.md §6.4). The global chain itself — its order, the two
+ * headless bridges inside it, and the Mobile 省略 gate — moved to
+ * `AppProviders.tsx` in #676 (a); each section's own Provider nesting stays in
+ * its descriptor row. Every domain reads `useSyncDomains` to know when the
+ * data IT owns changed, so since #499 a note edit does not refetch the task
+ * tree, the tag graph, or the timer settings.
  *
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). The target IA
@@ -75,27 +60,6 @@ import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
  * SECTION_DESCRIPTORS (#676 (b)). Adding a section is a registry edit plus a
  * descriptor row; nothing below switches on a section id.
  */
-
-/*
- * Mobile 省略 Provider gate (#320 — CLAUDE.md §2). The SAME web bundle ships
- * to browser / Electron / Capacitor, so the omission is a runtime decision:
- * on the native mobile shells (`isNativeMobile()` — window.Capacitor present)
- * this host renders children WITHOUT the Provider. Consumers stay safe
- * because the context exposes an OPTIONAL hook (useShortcutConfig → null
- * outside a Provider, coding-principles §4): the shortcut executor goes
- * inert and Settings hides the Shortcuts card. `isNativeMobile()` reads a
- * runtime global that never changes within a page load, so evaluating it
- * during render is stable (no reactivity needed).
- *
- * AudioProvider is deliberately NOT gated: the Pomodoro completion chime is
- * part of the Mobile-Full work timer (mobile-scope.md #10/#11 — user-confirmed
- * #319), so the Provider stays mounted everywhere and only the ambient-mixer
- * UI is native-omitted, inside WorkScreen.
- */
-function ShortcutConfigHost({ children }: { children: ReactNode }) {
-  if (isNativeMobile()) return <>{children}</>;
-  return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
-}
 
 /**
  * One lifted in-section tab band, already translated (§6.4). The same object
@@ -294,171 +258,110 @@ export function MainScreen({ session }: { session: Session }) {
 
   return (
     /*
-     * ToastProvider (follow-up #6) — host mount for the shared toast stack.
-     * Per CLAUDE.md §6.2 Toast sits between Theme (main.tsx) and Sync, OUTSIDE
-     * the section switch, so any section (currently Connect's link-edit
-     * failures) can raise a toast via useToast(). dismissLabel is injected
-     * already-translated (§6.4); the card copy itself is host-resolved too.
+     * The global Provider chain — order, the two headless bridges, and the
+     * Mobile 省略 gate all live in AppProviders (#676 (a)). What stays here is
+     * the part that changes per render: the chrome above and the three
+     * shell-level children below.
+     *
+     * The shortcut handlers are handed over rather than wired here because the
+     * executor has to sit inside the ShortcutConfig Provider, which is inside
+     * the chain; nav:* + new-task route through the target-IA mapping
+     * (handleNavigate / handleNewTask → Materials + tab + create dialog), and
+     * undo / redo route through the ambient UndoRedo context inside
+     * GlobalShortcuts itself (#304 / PR #316).
      */
-    <ToastProvider dismissLabel={t("common.close")}>
-      <SyncProvider>
+    <AppProviders
+      dataService={ds}
+      onMaterialsCounts={setMaterialsCounts}
+      shortcuts={{
+        onNavigate: nav.handleNavigate,
+        onOpenSettings: () => setSection("settings"),
+        onTogglePalette: () => setPaletteOpen((v) => !v),
+        onNewTask: nav.handleNewTask,
+      }}
+    >
+      {/*
+       * W5 app shell — responsive single shell (wide sidebar ↔ narrow bottom
+       * tabs via useMediaQuery). Section state stays here (useState switch, no
+       * React Router — §3.2); the shell is pure presentation (DataService-free,
+       * §3.1) and receives section list / labels / callbacks as props (§6.4).
+       * detailPanelLabels mounts the Turn 2 push-in panel (Desktop) / left
+       * drawer (Mobile) — valid because AppProviders wraps us in a
+       * RightSidebarProvider.
+       */}
+      <AppShell
+        sections={navSections}
+        utilitySections={utilitySections}
+        mobileSections={mobileSections}
+        activeSection={section}
+        onNavigate={(id) => setSection(id as SectionId)}
+        onTogglePalette={() => setPaletteOpen((v) => !v)}
+        onOpenTagEditor={() => setTagEditorOpen(true)}
+        userEmail={session.user.email ?? ""}
+        onSignOut={() => void signOut()}
+        labels={shellLabels}
+        detailPanelLabels={detailPanelLabels}
+        header={sectionHeader}
+        /*
+         * Narrow-only counterpart to `header` (#472). `header` is a wide-branch
+         * slot, so undo/redo and the command palette (#473) would otherwise be
+         * unreachable on mobile; AppShell hands these to the bottom bar's
+         * "More" sheet. A callback (not a node) because the rows read
+         * UndoRedoContext, and MainScreen's own body sits OUTSIDE the
+         * UndoRedo Provider that AppProviders mounts.
+         */
+        bottomBarActions={(closeSheet) => (
+          <MobileShellActions
+            onOpenPalette={() => setPaletteOpen(true)}
+            closeSheet={closeSheet}
+          />
+        )}
+      >
         {/*
-         * Materials tab count badges (target IA). Headless — sits inside
-         * SyncProvider so it can refetch the four Materials lists on every
-         * Realtime `syncVersion` bump, then reports the derived counts up to
-         * the shell (materialsTabDefs badges). DataService is injected (§6.4).
+         * PageContainer (Layout Standard v1 #180 / v2) owns width + gutter +
+         * scroll for every section. On the WIDE layout the section chrome lives
+         * in AppShell's header slot (the standard SectionHeader above), so the
+         * header slot here only carries the NARROW-layout row the descriptor
+         * asked for.
          */}
-        <MaterialsCountsBridge dataService={ds} onCounts={setMaterialsCounts} />
-        {/*
-         * UndoRedoHost (#304) — mounts the app-wide UndoRedo provider just
-         * inside Sync (§6.2 Sync → UndoRedo), wrapping the shortcut executor,
-         * the domain providers (which auto-connect via useUndoRedoOptional), and
-         * the shell (whose header hosts the Undo/Redo buttons). Raises a toast
-         * of what was undone/redone.
-         */}
-        <UndoRedoHost>
-          {/*
-           * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2):
-           * the host gate above (#320) mounts it on browser / Electron and skips
-           * it on the native Capacitor shells. Per §6.2 Theme is outer (it lives
-           * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
-           * the section switch, so the (currently settings-only) consumer reads a
-           * stable Provider regardless of the active section.
-           */}
-          <ShortcutConfigHost>
-            {/*
-             * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
-             * ShortcutConfigProvider (MainScreen's own body can't read
-             * useShortcutConfig) and wires keydown to section nav + palette toggle.
-             * Reads the live (rebindable) config, so Settings rebinds apply at
-             * once. nav:* + new-task route through the target-IA mapping
-             * (handleNavigate / handleNewTask → Materials + tab + create dialog).
-             * undo / redo route through the ambient global UndoRedo context
-             * inside GlobalShortcuts itself (#304 / PR #316).
-             */}
-            <GlobalShortcuts
-              onNavigate={nav.handleNavigate}
-              onOpenSettings={() => setSection("settings")}
-              onTogglePalette={() => setPaletteOpen((v) => !v)}
-              onNewTask={nav.handleNewTask}
-            />
-            <AudioProvider dataService={ds}>
-              {/*
-               * TimerProvider (W3-B), mounted by TimerHost just INSIDE
-               * AudioProvider (§6.2 … → Audio → Timer → …). The Timer's
-               * onSessionComplete rings the completion chime, which Audio owns,
-               * so Audio is the outer of the pair — the dependency now runs
-               * inward like every other Provider pair, and the old chimeRef +
-               * AudioChimeBridge back-channel is gone (#676 (c)).
-               *
-               * Both are REQUIRED Providers on every host, native shells
-               * included (#320): the Pomodoro and its chime are part of the
-               * Mobile-Full work timer (mobile-scope.md #10/#11), so only the
-               * ambient-mixer UI is native-omitted, inside WorkScreen. Mounted
-               * ONCE at the shell level and OUTSIDE the section switch, so the
-               * Pomodoro keeps running while the user navigates away from the
-               * Work tab. DataService is injected (§6.4).
-               */}
-              <TimerHost dataService={ds}>
-                {/*
-                 * RightSidebarProvider (App Shell Turn 2) — host mount for the
-                 * target-IA detail panel. Sits OUTSIDE the section switch (like
-                 * ToastProvider), wrapping the shell + CommandPalette so the panel
-                 * survives navigation and every section body can portal into it.
-                 * Pure UI state (DataService-free, §3.1).
-                 */}
-                <RightSidebarProvider>
-                  {/*
-                   * W5 app shell — responsive single shell (wide sidebar ↔ narrow
-                   * bottom tabs via useMediaQuery). Section state stays here
-                   * (useState switch, no React Router — §3.2); the shell is pure
-                   * presentation (DataService-free, §3.1) and receives section
-                   * list / labels / callbacks as props (§6.4). detailPanelLabels
-                   * mounts the Turn 2 push-in panel (Desktop) / left drawer
-                   * (Mobile) — valid because we wrap in RightSidebarProvider above.
-                   */}
-                  <AppShell
-                    sections={navSections}
-                    utilitySections={utilitySections}
-                    mobileSections={mobileSections}
-                    activeSection={section}
-                    onNavigate={(id) => setSection(id as SectionId)}
-                    onTogglePalette={() => setPaletteOpen((v) => !v)}
-                    onOpenTagEditor={() => setTagEditorOpen(true)}
-                    userEmail={session.user.email ?? ""}
-                    onSignOut={() => void signOut()}
-                    labels={shellLabels}
-                    detailPanelLabels={detailPanelLabels}
-                    header={sectionHeader}
-                    /*
-                     * Narrow-only counterpart to `header` (#472). `header` is a
-                     * wide-branch slot, so undo/redo and the command palette
-                     * (#473) would otherwise be unreachable on mobile; AppShell
-                     * hands these to the bottom bar's "More" sheet. A callback
-                     * (not a node) because the rows read UndoRedoContext, and
-                     * MainScreen's own body sits OUTSIDE the <UndoRedoHost> it
-                     * mounts.
-                     */
-                    bottomBarActions={(closeSheet) => (
-                      <MobileShellActions
-                        onOpenPalette={() => setPaletteOpen(true)}
-                        closeSheet={closeSheet}
-                      />
-                    )}
-                  >
-                    {/*
-                     * PageContainer (Layout Standard v1 #180 / v2) owns width +
-                     * gutter + scroll for every section. On the WIDE layout the
-                     * section chrome lives in AppShell's header slot (the
-                     * standard SectionHeader above), so the header slot here only
-                     * carries the NARROW-layout row the descriptor asked for.
-                     */}
-                    <PageContainer
-                      width={descriptor.width}
-                      header={
-                        descriptor.narrowHeaderInBody
-                          ? undefined
-                          : (narrowRow ?? undefined)
-                      }
-                    >
-                      {sectionBody}
-                    </PageContainer>
-                  </AppShell>
+        <PageContainer
+          width={descriptor.width}
+          header={
+            descriptor.narrowHeaderInBody ? undefined : (narrowRow ?? undefined)
+          }
+        >
+          {sectionBody}
+        </PageContainer>
+      </AppShell>
 
-                  {/*
-                   * Command palette mounted ONCE at the shell level, outside the
-                   * section switch (so Cmd+K works from any section). Copy is
-                   * injected as props — the primitive never calls useTranslation.
-                   */}
-                  <PaletteWithItemSearch
-                    isOpen={paletteOpen}
-                    onClose={() => setPaletteOpen(false)}
-                    commands={commands}
-                    placeholder={t("commandPalette.placeholder")}
-                    noResultsLabel={t("commandPalette.noResults")}
-                    dataService={ds}
-                    onOpenItem={nav.navigateToItem}
-                  />
+      {/*
+       * Command palette mounted ONCE at the shell level, outside the section
+       * switch (so Cmd+K works from any section). Copy is injected as props —
+       * the primitive never calls useTranslation.
+       */}
+      <PaletteWithItemSearch
+        isOpen={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={commands}
+        placeholder={t("commandPalette.placeholder")}
+        noResultsLabel={t("commandPalette.noResults")}
+        dataService={ds}
+        onOpenItem={nav.navigateToItem}
+      />
 
-                  {/*
-                   * Global tag editor (#409), mounted beside the palette at the
-                   * shell level so it opens over any section. It owns its own
-                   * tag hook instance rather than a WikiTagsUnifiedProvider —
-                   * that Provider is section-layer and absent on Briefing /
-                   * Work / Analytics / Settings / Trash (see TagEditorHost).
-                   */}
-                  <TagEditorHost
-                    open={tagEditorOpen}
-                    onClose={() => setTagEditorOpen(false)}
-                    dataService={ds}
-                  />
-                </RightSidebarProvider>
-              </TimerHost>
-            </AudioProvider>
-          </ShortcutConfigHost>
-        </UndoRedoHost>
-      </SyncProvider>
-    </ToastProvider>
+      {/*
+       * Global tag editor (#409), mounted beside the palette at the shell level
+       * so it opens over any section. It owns its own tag hook instance rather
+       * than a WikiTagsUnifiedProvider — that Provider is section-layer and
+       * absent on Briefing / Work / Analytics / Settings / Trash (see
+       * TagEditorHost).
+       */}
+      <TagEditorHost
+        open={tagEditorOpen}
+        onClose={() => setTagEditorOpen(false)}
+        dataService={ds}
+      />
+    </AppProviders>
   );
 }
 
