@@ -15,6 +15,7 @@ export {
 } from "./MonthGrid";
 export {
   AgendaList,
+  agendaRowHeightPx,
   type AgendaListProps,
   type AgendaListLabels,
   type AgendaItem,

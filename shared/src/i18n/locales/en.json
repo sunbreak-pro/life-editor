@@ -555,6 +555,7 @@
     "durationMin": "{{m}} min",
     "durationHour": "{{h}} hr",
     "durationHourMin": "{{h}} hr {{m}} min",
+    "freeGap": "{{duration}} free",
     "todoDelete": "Delete todo",
     "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "rename": "Rename",
