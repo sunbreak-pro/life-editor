@@ -164,8 +164,11 @@ export async function fetchLiveNotes(): Promise<NoteRecord[]> {
   return out;
 }
 
-/** Fetch one live note (meta + payload) or throw a not-found error. */
-async function getNoteRows(id: string): Promise<NoteRecord> {
+/**
+ * Fetch one live note (meta + payload) or throw a not-found error. Exported
+ * for get_note_context (#782 ③), which starts from the same two reads.
+ */
+export async function getNoteRows(id: string): Promise<NoteRecord> {
   const meta = await requireMeta(id, "note", "Note");
   const { client } = await getSupabase();
   const { data, error } = await client

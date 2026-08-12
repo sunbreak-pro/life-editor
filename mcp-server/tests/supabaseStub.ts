@@ -8,8 +8,8 @@
  * needs a client whose writes can be inspected instead of performed.
  *
  * Only the surface those handlers use is implemented: from().select/insert/
- * update/delete, .eq() filters, .maybeSingle(), and a thenable builder (the
- * items.ts write helpers await the chain itself).
+ * update/delete, the filters below, .maybeSingle(), and a thenable builder
+ * (the items.ts write helpers await the chain itself).
  */
 
 export interface QueryCall {
@@ -17,13 +17,33 @@ export interface QueryCall {
   op: "select" | "insert" | "update" | "delete";
   /** The row values passed to insert/update. */
   values?: Record<string, unknown>;
+  /** `.eq()` filters, by column. */
   filters: Record<string, unknown>;
+  /**
+   * Every other filter, keyed "<column>.<operator>" — `.gte("date", d)` lands
+   * on "date.gte" and `.not("scheduled_at", "is", null)` on
+   * "scheduled_at.not.is". Kept apart from `filters` so an exact-match
+   * assertion on the equality filters stays readable (#782 ③).
+   */
+  bounds: Record<string, unknown>;
+  /** `.or()` expressions, in chain order. */
+  or: string[];
+  /** `.order()` calls, in chain order (PostgREST reads the first as primary). */
+  orders: Array<{ column: string; ascending: boolean }>;
+  /** The `.range()` window, for the paged reads. */
+  range?: { from: number; to: number };
   /**
    * True once the builder was awaited. supabase-js only sends the request on
    * `then`, so a built-but-never-awaited write must not count as one — an
    * `await` dropped in a handler would otherwise still turn the test green.
    */
   executed?: boolean;
+}
+
+/** The id list a `.in(column, ids)` filter carried, or null if there was none. */
+export function inFilter(call: QueryCall, column: string): string[] | null {
+  const ids = call.bounds[`${column}.in`];
+  return Array.isArray(ids) ? (ids as string[]) : null;
 }
 
 export interface SupabaseStub {
@@ -45,7 +65,15 @@ export function createSupabaseStub(
       op: QueryCall["op"],
       values?: Record<string, unknown>,
     ): Record<string, unknown> => {
-      const call: QueryCall = { table, op, values, filters: {} };
+      const call: QueryCall = {
+        table,
+        op,
+        values,
+        filters: {},
+        bounds: {},
+        or: [],
+        orders: [],
+      };
       calls.push(call);
 
       const result = () => {
@@ -55,9 +83,40 @@ export function createSupabaseStub(
           error: null,
         };
       };
+      /** A filter that is not an equality: recorded, never applied. */
+      const bound = (operator: string) => (column: string, value: unknown) => {
+        call.bounds[`${column}.${operator}`] = value;
+        return builder;
+      };
+
       const builder: Record<string, unknown> = {
         eq(column: string, value: unknown) {
           call.filters[column] = value;
+          return builder;
+        },
+        gte: bound("gte"),
+        gt: bound("gt"),
+        lte: bound("lte"),
+        lt: bound("lt"),
+        is: bound("is"),
+        in: bound("in"),
+        not(column: string, operator: string, value: unknown) {
+          call.bounds[`${column}.not.${operator}`] = value;
+          return builder;
+        },
+        or(expression: string) {
+          call.or.push(expression);
+          return builder;
+        },
+        order(column: string, options?: { ascending?: boolean }) {
+          call.orders.push({
+            column,
+            ascending: options?.ascending !== false,
+          });
+          return builder;
+        },
+        range(from: number, to: number) {
+          call.range = { from, to };
           return builder;
         },
         maybeSingle: async () => result(),

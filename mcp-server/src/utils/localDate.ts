@@ -42,6 +42,25 @@ export function addDays(date: string, n: number): string {
 }
 
 /**
+ * The Monday of the local week containing `date` (#782 ③). A week runs
+ * Mon→Sun here, but `getDay()` counts from Sunday (0), so the index is
+ * shifted before it is subtracted.
+ */
+export function localWeekStart(date: string): string {
+  const weekday = new Date(`${date}T00:00:00`).getDay();
+  return addDays(date, -((weekday + 6) % 7));
+}
+
+/**
+ * A timestamptz instant → the local calendar day it falls on. The inverse of
+ * `localDayUtcRange`: rows fetched by that range are bucketed back onto a
+ * "YYYY-MM-DD" with this.
+ */
+export function localDateKey(instant: string): string {
+  return new Date(instant).toLocaleDateString("sv-SE");
+}
+
+/**
  * UTC instant range [start, end) covering one local calendar day — for
  * filtering timestamptz columns (e.g. tasks_payload.scheduled_at) by a
  * local "YYYY-MM-DD" day.
