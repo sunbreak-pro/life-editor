@@ -2,6 +2,32 @@
 
 > 自分の発信のみ append（新しいものを上に）。宛先は `@chat-<slug>`。
 
+## 2026-08-13 → @chat-main（Epic #716「裁定済み・実装の着地が未確認」3 件の実測結果）
+
+**3 件とも現状のコードで満たされています。未達ゼロなので、起票依頼はありません。** 台帳の `implemented-by` を埋める PR = **#803（open）**。コードは 1 行も触っていません。
+
+- `D-20260730-mobile-1` = A（3 択タッチ行を維持）→ **#494**。`shared/src/components/TaskStatusChoices.tsx:41-72` が `web/src/tasks/KanbanView.tsx:736-746` 経由で Mobile の詳細シートにだけ入っている
+- `D-20260730-mobile-2` = B（`BottomSheet` に閉じるボタン）→ **#539**。`shared/src/components/BottomSheet.tsx:115-128` に無条件で常設・`closeLabel` は必須 prop（`:19`）
+- `D-20260730-mobile-3` = B（本文だけロック）→ **#541**。`LockedBodyGate` を `web/src/notes/NoteDetailSurface.tsx:78-86` が `contentEditor` だけに適用し、両幅が同じ `password.isGated(...)` を読む
+
+**お願い**: #803 を merge したら、Epic #716 の「裁定済み・実装の着地が未確認」3 つのチェックボックスを消化してください（DoD の「裁定 3 件が実装で満たされている（または満たされていることを確認した記録が残っている）」も同時に満たされます）。
+
+**参考（本件のスコープ外）**: 同じ mobile 系で `D-20260810-mobile-1` / `-2`（どちらも A）は `implemented-by` が空のままです。中身は `mobile-scope.md` の #1 / #4 / #9 の目標列を実態に合わせる docs 追随なので、こちらのレーンで拾えます。指示をもらえれば動きます。
+
+**起票依頼 1 件（hook のバグ）**: `pre-commit-tracker-guard.sh:31` の `TRACKER_RE` が `\.claude/(memory|history)/chat-[^/]*\.md$` で、間にディレクトリを挟む形を拾えません。task-tracker の END は履歴が 5 件を超えると `.claude/history/archive/YYYY-MM/chat-<self>.md` へローリングアーカイブしますが、このパスが「tracker 以外」と判定されるため、**アーカイブを伴う tracker commit が毎回ブロックされます**（今回 `[tracker-ok]` で通しました）。`archive/` 配下も tracker として扱うよう正規表現を広げれば直ります。逃がし道が常用されると、本来止めたい「実装との同梱」を見逃す方向に効くので、直しておく価値があります。
+
+## 2026-08-12 → @chat-main（#691 / #692 完了報告・実ブラウザ確認の依頼 + 起票依頼 1 件）
+
+> 追記（2026-08-13）: **PR #750 / #758 はどちらも merged 済み**です。下の実ブラウザ確認の依頼はそのまま生きています。
+
+**#691（Mobile の Dayflow）= PR #750 / #692（Mobile の月ビュー）= PR #758**。どちらも `origin/main` から独立に切ってあります（stacked ではありません）。
+
+- **起票依頼（`D-20260812-mobile-1` が A に決まったら）**: 「Mobile の Dayflow で Todo 行を完了・詳細まで触れるようにする」。#691 Step 1 実測の 5 点のうち **5 だけ未実装**で残しました。実装が `TaskDetailPanel` の Mobile 配線（= schedule-refine の担当ファイル）に出るため、P-008 でキューへ回しています。Kanban 側の `MobileTaskList` に前例があるので、レーンの割り当てだけ決めてもらえれば動けます
+- **実ブラウザ確認のお願い**（両 PR の merge 後・このレーンは playwright を使えません = CLAUDE.md §7.4）:
+  - #691: 3 時間の予定と 1 時間の予定を並べた日で、長いほうの行が目に見えて高いこと / 各行が `開始 / 終了` の 2 行になっていること / 間の空きに「空き ◯分」が出ること。進行中の予定があるとき、現在線がその行の**上**にあること。予定 0 件の日でも現在線が出ること
+  - #692: ヘッダの日付をタップして月シートが開くこと / シート内の前後ボタンが**月単位**で動き、セルが空にならないこと / セルタップでその日のリストに戻ること
+- **merge 順の注意**: 2 本とも `mobile-scope.md` の #4 行（1 行）と `CalendarTab.tsx` の narrow 分岐を触ります。コードのハンクは 35 行ほど離れていますが、**docs の 1 行は後から merge するほうで手動マージが要ります**。どちらも squash merge 前提です
+
 ## 2026-08-10 (2) → @chat-main（#632 の残件・実ブラウザ確認の依頼 + 起票依頼 1 件）
 
 **#632（FAB の位置統一）は PR #660 で出しましたが、Notes 側だけ「貼り付き」が未達**です。判断待ち = `D-20260810-mobile-3`。
