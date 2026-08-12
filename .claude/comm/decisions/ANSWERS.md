@@ -35,3 +35,15 @@
 - D-20260810-main-3: **A**（STALE スキル 5 本を現行アーキで書き直す。`add-ipc-channel` は「IPC 層は無い・正本は DataService 境界」への短い導線に絞る方向。書き直しは PR レビューを通す。同上）
 - D-20260811-main-1: **A**（Epic #627 は「DataService に書く既存要素の編集」だけを対象にする。Settings 4 パネル（localStorage 直書き）・Briefing 2 面（長文自動保存系）・作成専用フォーム 4 種は対象外。子 Issue は Schedule / Tasks / Work / Tags の 4 本。2026-08-11 チャットの AskUserQuestion で回答・chat-main が 2026-08-12 に転記）
 - D-20260811-main-2: **A**（Epic #321 は現スコープで閉じ、#691 / #692 と mobile 裁定 3 件は新 Epic「Mobile UI/UX 追随 v2」に束ねる。#321 の close 自体は狭幅の実機目視（ユーザー手番）が済んでから。同上）
+- D-20260730-sched-1: **A**（日付を変えてもカレンダーを移動先の日へ飛ばさない = 現行実装のまま。2026-08-12 チャットの AskUserQuestion で回答・chat-main が転記）
+- D-20260731-sched-2: **A**（#468 に「予定へタグを付ける導線」を同梱したのは正しい。同上）
+- D-20260731-sched-3: **A**（台帳フィルタを青いタスクチップにも効かせる = 現行実装のまま。同上）
+- D-20260801-sched-2: **A**（Connect グラフのダブルクリックを「開く」に返す。d3 既定の拡大は切る → 実装 Issue #741。同上）
+- D-20260802-sched-1: **B**（outbox エントリを実装 PR に載せず、tracker と同じく別枠にする。同上）
+- D-20260811-sched-1: **B**（#625 Event → Todo で日付・時間帯を task チップスロットへ引き継ぐ。繰り返しは引き続き破棄 → 実装 Issue #739。D-20260810-sched-3 を supersede。同上）
+- D-20260811-sched-2: **A**（Mobile 月ビューの入口 = narrow ヘッダの日付ラベルをタップして月シートを開く。表示切替は復活させない → #692 の 🛑 ゲート解除。同上）
+- D-20260802-settings-1: **A**（briefing の題字 2 つ + 焦点行は serif 固定、本文のみ Settings のフォント選択に追従。同上）
+- D-20260812-tags-1: **2-column**（キューの A / B はどちらも不採用。「パネル内を 2 カラムにできないか」というユーザー提案を受けて出し直した 4 案から、左 = タグ一覧 / 右 = 選択中タグの編集というマスター・ディテール構成を採択 → 実装 Issue #740。同上）
+- D-20260812-shared-fix-1: **A**（#702 Step 2 は ①一覧・取得の戻り値 → ②無言の取りこぼし → ③書き込みの往復 の順で進める。同上）
+- D-20260812-shared-fix-2: **A**（`set_schedule_complete(id, completed)` / `set_schedule_dismissed(id, dismissed)` へ破壊的に改名し、旧名は残さない。同上）
+- D-20260812-web-1: **A**（Briefing が抱える recharts は初期チャンクに残す = 現状維持。同上）
