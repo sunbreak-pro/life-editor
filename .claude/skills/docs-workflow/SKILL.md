@@ -59,4 +59,6 @@ Issue はプロダクト課題（life-editor のコードを直せば直るも�
 
 ユーザー判断は `.claude/comm/decisions/` に書き溜めて次の作業へ進む（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
 
+回答が付いて実装 Issue を起票する前に、`gh issue list -R sunbreak-pro/life-editor --state closed --search <キーワード>` で先行着地が無いか確かめる（裁定は数日〜数週間寝るので、待っている間に別レーンが直していることがある — D-20260801-sched-2 は回答の 10 日前に PR #547 で着地済みで、#741 が重複起票になった）。
+
 回答が付いたらキューを消す前に確定台帳へ昇格する（D-20260809-main-1）。**手順・書式・INDEX の扱いの正本 = [`.claude/decisions/README.md`](../../decisions/README.md)**。過去の判断の Why・却下案を探すときは grep でなく `.claude/decisions/INDEX.md` の Active 表・Topic 逆引きから辿る。
