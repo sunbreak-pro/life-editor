@@ -747,7 +747,8 @@
     "close": "Close",
     "undo": "Undo",
     "redo": "Redo",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "loading": "Loading…"
   },
   "tabs": {
     "tasks": "Todos",
