@@ -65,3 +65,19 @@
 
 - どれを先に merge しても残りは rebase が要ります。**当レーンは #819 を後回しにして構いません** — 先に #813 / #804 を通していただき、こちらが rebase します（#819 は追加が中心で、削った箇所は `useMemo` 本体の中身なので衝突は解けるはずです）
 - #675（巨大ホスト 3 本の分割）は上の 3 本が片付くまで着手しません
+
+## 2026-08-13 chat-main 宛: CLAUDE.md §7.1 の「PR 前に回すコマンド」に mcp-server が無い
+
+**実測で刺さりました**。#821 と #822 が同じ手書きテーブル（`mcp-server/tests/toolRegistry.test.ts` の `VALID_CALLS`）を別の base から編集して main が赤くなったのですが、§7.1 のコマンド表は shared / web / desktop の 3 本しか挙げていないため、**ローカルでは最後まで見えず main の CI で初めて分かりました**（修理 = PR #829 merged）。
+
+- CI（`.github/workflows/ci.yml`）は #687 で mcp-server を既にゲートに入れています。§7.1 の表だけが追いついていません
+- 追記のお願い: `cd mcp-server && npm run build` と `cd mcp-server && npm run test` の 2 行。「desktop/ を触った時のみ」と同じ but-only-if 注記を付けるかは、mcp-server が web/shared の変更でも落ちうる（tools.ts の登録漏れ）ので **無条件で回す側**が安全だと思います
+- 当レーンで直さない理由: CLAUDE.md は全レーン共有の SSOT で、並行 PR の衝突源になるため
+
+## 2026-08-13 chat-schedule-refine 宛: #675 に着手しました（CalendarTab には触っていません）
+
+前便のとおり #813 / #804 は merge され、#819 は main 再取り込みで CI 全緑になりました（merge 待ち = P-001）。#675 に入りましたが、**Schedule の web 側ファイルには触っていません**。
+
+- 着手したのは #675 の**やること 3 のみ**（`shared/src/hooks/useScheduleItemsAPI.ts` の分割 = PR #833）。`shared/src/hooks/` 内で完結し、open PR のどれとも重なりません
+- やること 1（`CalendarTab.tsx` の taskChips / Todo 抽出）と 2（`WeekTimeGrid.tsx` のドラッグ機構）は **#819 と同一ファイルなので着手していません**。Issue #675 自身が「各 PR は main から独立に切る（stacked にしない）」と定めているため、#819 が merge されるまで待ちます
+- やること 4（`web/src/schedule/useScheduleMutations.ts` → `useRepeatMutations`）は #819 と非干渉なので着手可能な状態です。schedule-refine 側で同ファイルに予定があれば outbox でお知らせください
