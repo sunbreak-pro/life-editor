@@ -13,6 +13,7 @@ import {
 import type { GraphNode, GraphNodeType } from "./graph/graph-types";
 import { isTagNodeId } from "./graph/graph-types";
 import type { ConnectGraphLabels } from "./labels";
+import { isImeComposing } from "../../utils/imeGuard";
 
 export interface LinkableItem {
   id: string;
@@ -214,7 +215,7 @@ export function SelectedNodeCard({
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              if (e.key === "Enter" && !isImeComposing(e)) {
                 e.preventDefault();
                 submitLink();
               }

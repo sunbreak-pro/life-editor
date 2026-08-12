@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { TaskStatus } from "../types/taskTree";
+import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
 import { FOCUS_RING } from "./styleTokens";
 
@@ -178,8 +179,10 @@ function TaskDetailFields({
   };
 
   const saveOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    // IME guard: the Enter that confirms a Japanese conversion is not a save.
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+    // IME guard: the Enter that CONFIRMS a Japanese conversion is not a save.
+    // `isComposing` alone misses exactly that keypress on WebKit (#737) — the
+    // shared helper is what knows both halves of the answer.
+    if (e.key === "Enter" && !isImeComposing(e)) {
       e.preventDefault();
       save();
     }

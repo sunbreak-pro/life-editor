@@ -5,6 +5,7 @@ import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { TimeRangeField } from "../TimeRangeField";
+import { isImeComposing } from "../../utils/imeGuard";
 
 /*
  * ItemCreatePanel (#376) — the unified "add something to this day" panel behind
@@ -409,8 +410,7 @@ export function ItemCreatePanel({
               value={noteTitle}
               onChange={(e) => setNoteTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing)
-                  submitPrimary();
+                if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
               }}
               placeholder={labels.notePlaceholder}
               aria-label={labels.noteTitleLabel}
@@ -450,8 +450,7 @@ export function ItemCreatePanel({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing)
-              submitPrimary();
+            if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
           }}
           placeholder={
             type === "event" ? labels.eventPlaceholder : labels.taskPlaceholder

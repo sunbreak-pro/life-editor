@@ -211,6 +211,11 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
     // A composition-confirming Enter is the IME accepting 漢字, not a command.
     fireEvent.keyDown(title, { key: "Enter", isComposing: true });
     expect(onSave).not.toHaveBeenCalled();
+    // #737: WebKit — the project's main target — reports that same confirming
+    // Enter with `isComposing: false` and keyCode 229. Reading only the flag
+    // let exactly the worst keypress through.
+    fireEvent.keyDown(title, { key: "Enter", keyCode: 229 });
+    expect(onSave).not.toHaveBeenCalled();
     fireEvent.keyDown(title, { key: "Enter" });
     expect(onSave).toHaveBeenCalledWith("m1", { title: "Dentist checkup" });
   });

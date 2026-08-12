@@ -33,6 +33,7 @@ import {
 import { buildAdjacency } from "./graph/graph-render";
 import { isTagNodeId } from "./graph/graph-types";
 import type { ConnectGraphLabels } from "./labels";
+import { isImeComposing } from "../../utils/imeGuard";
 
 export interface ConnectGraphViewProps {
   /** unified reads (host-fetched). Legacy note_links is NOT used. */
@@ -235,7 +236,7 @@ export function ConnectGraphView({
       // routes its Escape here first: the conversion was cancelled AND the
       // graph selection cleared, from one keypress the user meant for the
       // input (#670 C3 PR 4).
-      if (e.isComposing) return;
+      if (isImeComposing(e)) return;
       if (e.key === "Escape") {
         handleSelectedIdChange(null);
         return;

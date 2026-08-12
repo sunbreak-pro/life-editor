@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { ShortcutId } from "../types/shortcut";
 import type { ShortcutConfigContextValue } from "../context/ShortcutConfigContextValue";
 import { DEFAULT_SHORTCUTS } from "../constants/defaultShortcuts";
+import { isImeComposing } from "../utils/imeGuard";
 
 /*
  * Global shortcut executor (W3-0). W1 shipped the ShortcutConfig settings UI
@@ -132,13 +133,14 @@ export function resolveShortcut(
     | "shiftKey"
     | "altKey"
     | "isComposing"
+    | "keyCode"
   >,
   target: EventTarget | null,
   ids: readonly ShortcutId[],
   matchEvent: (e: KeyboardEvent, id: ShortcutId) => boolean,
   activeInInput: (id: ShortcutId) => boolean = isActiveInInput,
 ): ShortcutId | null {
-  if (e.isComposing) return null;
+  if (isImeComposing(e)) return null;
   const editable = isEditableTarget(target);
   for (const id of ids) {
     if (!matchEvent(e as KeyboardEvent, id)) continue;

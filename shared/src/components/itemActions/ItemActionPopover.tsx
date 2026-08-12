@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import type { ItemAction } from "./types";
 import { ItemActionRow } from "./ItemActionRow";
 import { clampToViewport, useFloatingDismiss } from "./floating";
+import { isImeComposing } from "../../utils/imeGuard";
 
 /*
  * ItemActionPopover (Issue #307) — the generic click bubble for an item.
@@ -136,7 +137,7 @@ export function ItemActionPopover({
             placeholder={inlineAction.inlineInput.placeholder}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return;
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 // Stop the document-level Escape/close listener from also
