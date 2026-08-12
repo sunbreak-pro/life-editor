@@ -60,6 +60,16 @@ describe("SegmentedToggle", () => {
     expect(onChange).toHaveBeenCalledWith("signUp");
   });
 
+  it("moves selection with ↑/↓ too (radiogroup pattern, #779)", () => {
+    const { onChange } = renderToggle();
+    const signIn = screen.getByRole("radio", { name: "Sign in" });
+    fireEvent.keyDown(signIn, { key: "ArrowDown" });
+    expect(onChange).toHaveBeenCalledWith("signUp");
+    onChange.mockClear();
+    fireEvent.keyDown(signIn, { key: "ArrowUp" });
+    expect(onChange).toHaveBeenCalledWith("signUp");
+  });
+
   it("wraps backwards from the first segment on ArrowLeft", () => {
     const { onChange } = renderToggle();
     fireEvent.keyDown(screen.getByRole("radio", { name: "Sign in" }), {

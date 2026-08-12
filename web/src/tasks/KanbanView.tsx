@@ -56,12 +56,11 @@ import {
 // facts it pins — never ask when nothing is pending, never treat a pending
 // promise as a "yes" — hold for any editor whose only commit is a button.
 import { decideUnsavedClose } from "../schedule/unsavedCloseGuard";
-// Imported ACROSS sections on purpose (#786): the todo detail's delete question
-// is one behaviour on two screens, and the count it names has to agree wherever
-// it is asked. Left where #775 put it rather than moved to a neutral home — a
-// parallel lane is editing schedule/ right now, and a file move would collide
-// with it for no gain.
-import { confirmTodoDetailDelete } from "../schedule/todoTrayDeleteGuard";
+// The todo detail's delete question is one behaviour on two screens, and the
+// count it names has to agree wherever it is asked. #790 moved it out of
+// schedule/ (where #775 wrote it) into a host-neutral home, so this is no
+// longer a reach across the section boundary.
+import { confirmTodoDetailDelete } from "../shared/todoTrayDeleteGuard";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
 import { useTaskLinking } from "./hooks/useTaskLinking";
@@ -231,11 +230,11 @@ export function KanbanView({
    * panel since #628's contract but no host read it, which is exactly how a
    * typed title could vanish without a word.
    *
-   * The question is the in-app <ConfirmDialog> (#707), never `window.confirm`:
-   * the native one lands outside the theme and freezes the page hard enough to
-   * stall Playwright. Its answer arrives a tick later, hence `decideUnsavedClose`
-   * — a guard that read the pending promise as a truthy "yes" would throw the
-   * draft away the moment the dialog opened.
+   * The question is the in-app <ConfirmDialog> (#707), never the browser's own
+   * confirm: the native one lands outside the theme and freezes the page hard
+   * enough to stall Playwright. Its answer arrives a tick later, hence
+   * `decideUnsavedClose` — a guard that read the pending promise as a truthy
+   * "yes" would throw the draft away the moment the dialog opened.
    *
    * The flag is deliberately NOT cleared on an agreed discard: the panel owns
    * it and re-reports `false` as it unmounts, so clearing here could only ever
@@ -294,6 +293,24 @@ export function KanbanView({
   });
 
   /*
+   * #789: the panel's teardown, for the two exits that remove the row itself
+   * (delete and convert). Clearing the selection empties the portal, but the
+   * sidebar SHELL has its own open state and survives that — leaving a column
+   * of "nothing selected" up to 560px wide next to a board the user just took
+   * a row off. Narrow keeps its own path: there the detail is the BottomSheet,
+   * and the shell is already held closed by the isWide effect below.
+   *
+   * One helper rather than the line twice: the two exits drifting apart is the
+   * shape of this bug (delete gained the close, convert kept the empty shell),
+   * and the only way for them to disagree now is for someone to stop calling
+   * this.
+   */
+  const closeDetailShell = useCallback(() => {
+    tree.setSelectedTaskId(null);
+    if (isWide) rightSidebar.close();
+  }, [tree, isWide, rightSidebar]);
+
+  /*
    * #625: "予定に変換" — the board's half of the Event <-> Todo pair.
    *
    * The write re-roles the row (id kept), so the task simply leaves this board
@@ -304,8 +321,15 @@ export function KanbanView({
    * A todo WITH CHILDREN is refused (D-20260810-sched-4) — 0009's composite FK
    * (parent_item_id, parent_item_role='task') would reject the role change
    * anyway, and a sentence beats an FK error. The guard is per-id and claimed
-   * synchronously (#434): confirm + async write is exactly the window a second
-   * click lands in.
+   * synchronously the moment the answer arrives (#434): question + async write
+   * is exactly the window a second click lands in.
+   *
+   * #781: both the refusal and the question are the in-app <ConfirmDialog> the
+   * rest of this file already uses — the same pair the Schedule side asks
+   * through. The refusal carries no cancel label: a "no, and here is why" has
+   * nothing for the user to decide, so a second button would invent a choice.
+   * Their answers arrive a tick later, so what used to be straight-line code
+   * continues in a `.then`.
    *
    * A failure lands in the board's own alert banner (`moveError`) rather than a
    * toast: it is the failure surface this screen already has, it auto-dismisses
@@ -323,58 +347,71 @@ export function KanbanView({
       if (!dataService) return;
       const blocked = todoToEventBlock(tree.nodes, task.id);
       if (blocked) {
-        window.alert(
-          t("itemConvert.childrenBlocked", {
+        void askConfirm({
+          message: t("itemConvert.childrenBlocked", {
             title: blocked.title,
             count: blocked.childCount,
           }),
-        );
+          confirmLabel: t("common.ok"),
+        });
         return;
       }
-      if (
-        !window.confirm(
-          // A child Todo loses its parent link (events have no hierarchy), and
-          // the dialog is the only place that can say so before it happens.
-          t(
-            task.parentId != null
-              ? "itemConvert.toEventConfirmChild"
-              : "itemConvert.toEventConfirm",
-            { title: task.title || t("common.untitled") },
-          ),
-        )
-      )
-        return;
-      if (!beginConvert(task.id)) return;
-      void dataService
-        .convertTaskToEvent(
-          task.id,
-          taskToEventPlacement(task, todayCalendarKey()),
-        )
-        .then(() => {
-          // The detail panel is showing a row that is no longer a task; the
-          // refetch drops it from the tree and the selection resolves to null.
-          tree.setSelectedTaskId(null);
-          void tree.refetch();
-        })
-        .catch((err) => {
-          logServiceError(
-            "ItemConversion",
-            `convertTaskToEvent (${task.id})`,
-            err,
-          );
-          // The DB sees children the live tree cannot (trashed ones still hold
-          // the 0009 FK), so that refusal gets its own sentence — "conversion
-          // failed" would send the user looking for a network problem.
-          detail.closeSheet();
-          setMoveError(
-            err instanceof ItemConversionError && err.reason === "children"
-              ? t("itemConvert.childrenBlockedServer")
-              : t("itemConvert.failed"),
-          );
-        })
-        .finally(() => endConvert(task.id));
+      void askConfirm({
+        // A child Todo loses its parent link (events have no hierarchy), and
+        // the dialog is the only place that can say so before it happens.
+        message: t(
+          task.parentId != null
+            ? "itemConvert.toEventConfirmChild"
+            : "itemConvert.toEventConfirm",
+          { title: task.title || t("common.untitled") },
+        ),
+        confirmLabel: t("itemConvert.toEvent"),
+        cancelLabel: t("common.cancel"),
+      }).then((ok) => {
+        if (!ok) return;
+        if (!beginConvert(task.id)) return;
+        void dataService
+          .convertTaskToEvent(
+            task.id,
+            taskToEventPlacement(task, todayCalendarKey()),
+          )
+          .then(() => {
+            // The detail panel is showing a row that is no longer a task; the
+            // refetch drops it from the tree and the selection resolves to
+            // null, and the shell that framed it goes with them (#789).
+            closeDetailShell();
+            void tree.refetch();
+          })
+          .catch((err) => {
+            logServiceError(
+              "ItemConversion",
+              `convertTaskToEvent (${task.id})`,
+              err,
+            );
+            // The DB sees children the live tree cannot (trashed ones still
+            // hold the 0009 FK), so that refusal gets its own sentence —
+            // "conversion failed" would send the user looking for a network
+            // problem.
+            detail.closeSheet();
+            setMoveError(
+              err instanceof ItemConversionError && err.reason === "children"
+                ? t("itemConvert.childrenBlockedServer")
+                : t("itemConvert.failed"),
+            );
+          })
+          .finally(() => endConvert(task.id));
+      });
     },
-    [dataService, tree, detail, t, beginConvert, endConvert],
+    [
+      dataService,
+      tree,
+      detail,
+      t,
+      askConfirm,
+      beginConvert,
+      endConvert,
+      closeDetailShell,
+    ],
   );
 
   /*
@@ -397,39 +434,40 @@ export function KanbanView({
    * add one, on Desktop AND in the narrow sheet, which #775 left behind because
    * this host never passed `onDelete`.
    *
-   * The question is the in-app <ConfirmDialog> (#707), never `window.confirm`,
-   * and it is asked whatever the row is: the sheet is reached by a deliberate
-   * tap, but a phone has no hover to reveal what a control does and no keyboard
-   * undo behind it. A parent row gets the cascade sentence instead — the count
-   * is the one thing the user cannot see from here, and the shared guard is
-   * what keeps that number identical to the Schedule side's.
+   * The question is the in-app <ConfirmDialog> (#707), never the browser's own
+   * confirm, and it is asked whatever the row is: the sheet is reached by a
+   * deliberate tap, but a phone has no hover to reveal what a control does and
+   * no keyboard undo behind it. A parent row gets the cascade sentence
+   * instead — the count is the one thing the user cannot see from here, and the
+   * shared guard is what keeps that number identical to the Schedule side's.
    *
    * Closed BEFORE the write, and deliberately NOT through `requestDetailClose`:
    * a pending title on a row being deleted is not something to rescue, and
    * asking twice for one act reads as a bug. The selection is cleared here as
    * well as inside softDelete — the panel is this host's surface, so what makes
    * it disappear should be visible in this host, not an internal of the tree
-   * hook. Undo is the same one every other delete raises
+   * hook; the wide shell around it closes on the same beat (#789, via
+   * closeDetailShell). Undo is the same one every other delete raises
    * (softDelete → persistWithHistory), with Trash as the route that outlives
    * the section.
    */
   const handleDeleteFromDetail = useCallback(
     (id: string) => {
       void confirmTodoDetailDelete(tree.nodes, id, askConfirm, {
-        confirm: (name) => t("scheduleScreen.todoDeleteConfirm", { name }),
+        confirm: (name) => t("taskDetail.todoDeleteConfirm", { name }),
         cascadeConfirm: (name, count) =>
-          t("scheduleScreen.todoDeleteCascadeConfirm", { name, count }),
+          t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
         untitled: t("common.untitled"),
-        confirmLabel: t("scheduleScreen.delete"),
+        confirmLabel: t("taskDetail.delete"),
         cancelLabel: t("common.cancel"),
       }).then((ok) => {
         if (!ok) return;
         detail.closeSheet();
-        tree.setSelectedTaskId(null);
+        closeDetailShell();
         tree.softDelete(id);
       });
     },
-    [tree, detail, askConfirm, t],
+    [tree, detail, askConfirm, t, closeDetailShell],
   );
 
   // Board-only layout (list mode retired): the rightSidebar hosts the selected
@@ -736,7 +774,7 @@ export function KanbanView({
             // `deleteLabel`; the shared panel draws the row only when both are
             // present, so this is the one place either surface gains a delete.
             onDelete={handleDeleteFromDetail}
-            deleteLabel={t("scheduleScreen.todoDelete")}
+            deleteLabel={t("taskDetail.todoDelete")}
             statusControl={statusControl}
             titleLabel={t("taskDetail.titleLabel")}
             statusLabel={t("taskDetail.status")}

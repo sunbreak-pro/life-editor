@@ -16,7 +16,7 @@
 **Tier**: 1
 **Status**: △Step 1（読む面）出荷済み（#249）— ループ全体は進行中。**テーマ正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)**（Steps 索引・決定録・完成判定 = 同書 §Acceptance「ループが平日 5 日連続で回る」）
 **Owner Provider/Module**: `shared/src/components/briefing/`（`BriefingView` / `extractBriefing`）+ `web/src/briefing/BriefingScreen.tsx`（ホスト = fetch / i18n 解決）。セクション定義・デフォルト起動 = `shared/src/sections.ts`
-**MCP Coverage**: —（briefing-loop Step 2 で `get_today_context` / `write_briefing` を追加予定 — 未実装）
+**MCP Coverage**: あり（`get_today_context` / `get_week_context` / `write_briefing` 実装済み — 一覧はコード `mcp-server/src/tools.ts` が正）
 **Supports Value Prop**: V1
 **Stack**: `shared/` + `web/` 本流のみ（Supabase Postgres。旧 Tauri 期の実装を持たない）
 
@@ -235,7 +235,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 **Tier**: 1
 **Status**: ◎完成
 **Owner Provider/Module**: `NoteProvider` / `frontend/src/components/Materials/Notes/` / `src-tauri/src/commands/{note,note_connection}_commands.rs`
-**MCP Coverage**: `list_notes` / `create_note` / `update_note`
+**MCP Coverage**: あり（一覧はコード `mcp-server/src/tools.ts` が正）
 **Supports Value Prop**: V1 / V3
 **Stack** (2026-05-24 並立期): Tauri SQLite → Supabase Postgres (Phase 2 S3 完了)
 
@@ -267,7 +267,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] AC5: Note にパスワードを設定すると、開く前に verify が要求され、失敗時は `content` が表示されない
 - [ ] AC6: 全文検索（`db_notes_search`）で本文 / タイトル両方にマッチし、UI の検索結果が DB 結果と一致する
 - [ ] AC7: Claude Code が MCP `list_notes` を呼ぶと現在の UI に表示されているノート一覧が返る。`update_note` で編集すると UI 側にも即時反映される（再読込で）
-- [ ] AC8: Note を削除するとゴミ箱に移動し、TrashView から復元 / 完全削除できる（MCP 経由では削除できない）
+- [ ] AC8: Note を削除するとゴミ箱に移動し、TrashView から復元 / 完全削除できる（MCP からも `delete_note` で削除・`restore_item` で復元できる — #782 ①。完全削除は TrashView のみ）
 
 ### Dependencies
 

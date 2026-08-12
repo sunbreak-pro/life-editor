@@ -125,6 +125,168 @@ export function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** Pointer travel (px) below which a drag still counts as a click. */
+export const DRAG_THRESHOLD_PX = 4;
+
+/**
+ * What the grid knew when the pointer went down. Everything here is captured
+ * once at drag start — the geometry that can only be read from the DOM
+ * (`colWidth`) included.
+ */
+export interface DragOrigin {
+  /** "move" = whole block, "resize" = bottom edge, "place" = all-day chip
+   *  dropped into the time body (#298 — no time origin of its own). */
+  mode: "move" | "resize" | "place";
+  startX: number;
+  startY: number;
+  /** Width of one day column in px; 0 disables the horizontal day remap. */
+  colWidth: number;
+  /** Index of the dragged item's day within `dayKeys`. */
+  origDayIdx: number;
+  origStartMin: number;
+  durationMin: number;
+  /** Whether the threshold was already crossed earlier in this same drag. */
+  moved: boolean;
+}
+
+/**
+ * The measurements the resolver needs from the live DOM. The caller reads them
+ * (getBoundingClientRect) and passes numbers, which is what keeps the decision
+ * itself testable: jsdom has no layout, so every rect it could read is zero.
+ */
+export interface DragGeometry {
+  /** Date keys of the rendered columns, left to right. */
+  dayKeys: string[];
+  hourHeight: number;
+  hourRange: HourRange;
+  snapStep: number;
+  /** Viewport Y of the all-day lane's bottom edge; null when there is no lane. */
+  allDayLaneBottom: number | null;
+  /** Viewport Y of the time grid's 00:00 line; null when it is not mounted. */
+  timeGridTop: number | null;
+  /** The host accepts a drop back onto the all-day lane ("move" only). */
+  canDropAllDay: boolean;
+}
+
+/** Where the drag currently says the item belongs. */
+export interface DragResolution {
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  /** Released here, the item becomes (or stays) all-day. */
+  allDay: boolean;
+  /** What the optimistic preview should claim about all-day-ness; undefined
+   *  leaves the item's own value alone. */
+  previewIsAllDay: boolean | undefined;
+}
+
+/**
+ * Pointer position + captured geometry → the item's new placement (#673 / C6).
+ *
+ * Lifted out of WeekTimeGrid's pointermove listener, which is where every
+ * schedule drag bug so far has come from (#562's inverted 00:00 full-day bands,
+ * #563's lane boundary) and which no test could reach: it needs a live pointer
+ * sequence over an element tree with real rects, and jsdom has neither.
+ *
+ * Returns null while the pointer is still inside the click threshold — the
+ * caller keeps treating the gesture as a click until this says otherwise.
+ */
+export function resolveDrag(
+  drag: DragOrigin,
+  pointer: { x: number; y: number },
+  geo: DragGeometry,
+): DragResolution | null {
+  const dx = pointer.x - drag.startX;
+  const dy = pointer.y - drag.startY;
+  if (!drag.moved && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD_PX) {
+    return null;
+  }
+  const [startHour, endHour] = geo.hourRange;
+  const deltaMin = (dy / geo.hourHeight) * 60;
+  const remapDay = (): number => {
+    if (!(drag.colWidth > 0 && geo.dayKeys.length > 1)) return drag.origDayIdx;
+    const offset = Math.round(dx / drag.colWidth);
+    return Math.min(
+      geo.dayKeys.length - 1,
+      Math.max(0, drag.origDayIdx + offset),
+    );
+  };
+  const dateOf = (idx: number): string =>
+    geo.dayKeys[idx] ?? geo.dayKeys[drag.origDayIdx];
+
+  // All-day zone (#562): the pointer left the time body upward, i.e. it is over
+  // the all-day lane (or the header just above it). A "move" becomes a
+  // drop-to-all-day when the host opted in; a "place" reverts — the chip is
+  // still all-day, so releasing here must write nothing. Without this branch
+  // the lane's y used to be clamped into a time, which is how the 00:00
+  // inverted full-day bands were minted.
+  const overAllDayLane =
+    (drag.mode === "place" || (drag.mode === "move" && geo.canDropAllDay)) &&
+    geo.allDayLaneBottom != null &&
+    pointer.y < geo.allDayLaneBottom;
+  if (overAllDayLane) {
+    return {
+      dateISO: dateOf(drag.mode === "move" ? remapDay() : drag.origDayIdx),
+      startMin: 0,
+      endMin: 0,
+      allDay: true,
+      previewIsAllDay: true,
+    };
+  }
+
+  let dayIdx = drag.origDayIdx;
+  let startMin = drag.origStartMin;
+  let endMin: number;
+  if (drag.mode === "place") {
+    // Absolute drop: map the pointer's Y over the scroll body to a start time
+    // (same mapping as empty-slot create). The day stays the chip's own — no
+    // horizontal remap — and the block is kept fully in-window. The time grid
+    // scrolls WITH the content, so its rect top already is the 00:00 line —
+    // no scrollTop term (#563).
+    const mins =
+      geo.timeGridTop != null
+        ? pxToMinutes(
+            pointer.y - geo.timeGridTop,
+            geo.hourHeight,
+            geo.hourRange,
+          )
+        : drag.origStartMin;
+    startMin = Math.min(
+      Math.max(snapMinutes(mins, geo.snapStep), startHour * 60),
+      endHour * 60 - drag.durationMin,
+    );
+    endMin = startMin + drag.durationMin;
+  } else if (drag.mode === "move") {
+    // Clamp inside the visible window (#562): an unclamped overshoot past
+    // either edge used to snap to a negative / >24:00 start, and minutesToTime
+    // then flattened both ends onto the same minute — the inverted span the
+    // grid draws as an uneditable full-day band.
+    startMin = clamp(
+      snapMinutes(drag.origStartMin + deltaMin, geo.snapStep),
+      startHour * 60,
+      Math.max(startHour * 60, endHour * 60 - drag.durationMin),
+    );
+    endMin = startMin + drag.durationMin;
+    dayIdx = remapDay();
+  } else {
+    endMin = Math.max(
+      snapMinutes(
+        drag.origStartMin + drag.durationMin + deltaMin,
+        geo.snapStep,
+      ),
+      drag.origStartMin + geo.snapStep,
+    );
+  }
+  return {
+    dateISO: dateOf(dayIdx),
+    startMin,
+    endMin,
+    allDay: false,
+    // "place" flips the previewed chip to timed so it leaves the all-day lane.
+    previewIsAllDay: drag.mode === "place" ? false : undefined,
+  };
+}
+
 /**
  * Lay out the TIMED items of a single day (all-day items are filtered out —
  * callers render those in a separate lane). Returns positions in the SAME

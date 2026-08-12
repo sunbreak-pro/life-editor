@@ -5,6 +5,7 @@ import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { todayCalendarKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { useDomainLoad } from "./useDomainLoad";
 import { useSyncDomains } from "./useSyncDomains";
 
 /**
@@ -112,8 +113,6 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
 
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [deletedItems, setDeletedItems] = useState<ScheduleItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const itemsRef = useRef(items);
   useEffect(() => {
@@ -165,34 +164,33 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
     [],
   );
 
-  // Initial load + every syncVersion bump (mirrors routines/notes). The
-  // active-date read and the trash read run independently so a failure
-  // in one does not block the other. fetch_by_date_all keeps dismissed
-  // items visible so the UI can offer "undismiss".
+  // Initial load + every syncVersion bump (mirrors routines/calendars),
+  // through the shared load effect (#672) — loading is DERIVED from whether
+  // the read for the current (service, version, date) has settled, so the
+  // effect no longer opens by synchronously flipping a loading flag (this file
+  // was the last entry in shared's eslint baseline). The anchored date rides
+  // along as `anchor`: switching days restarts the load exactly like a
+  // Realtime bump. fetch_by_date_all keeps dismissed items visible so the UI
+  // can offer "undismiss".
+  const { isLoading, error, setError } = useDomainLoad({
+    domain: "ScheduleItems",
+    dataService: ds,
+    version: syncVersion,
+    anchor: date,
+    load: (service) => service.fetchScheduleItemsByDateAll(date),
+    apply: setItems,
+    fallbackMessage: "Failed to load schedule items",
+  });
+
+  // Trash, read on the same cursor but deliberately on its own: a failure here
+  // must not block the active list (nor gate `isLoading` / set `error` — the
+  // trash view has its own empty state and the active list is what the screen
+  // is waiting for). Unlike the read above it is NOT keyed on `date` — the
+  // trash list is not date-anchored, and TrashView refreshes imperatively
+  // through `loadDeletedScheduleItems` when it opens.
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    (async () => {
-      try {
-        const list = await ds.fetchScheduleItemsByDateAll(date);
-        if (cancelled) return;
-        setItems(list);
-        // #296: clear a previously latched error — without this, one
-        // transient fetch failure kept the section's error card up forever
-        // (no code path ever reset `error` back to null).
-        setError(null);
-      } catch (e) {
-        logServiceError("ScheduleItems", "fetch", e);
-        if (!cancelled) {
-          setError(
-            e instanceof Error ? e.message : "Failed to load schedule items",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    (async () => {
+    void (async () => {
       try {
         const deleted = await ds.fetchDeletedScheduleItems();
         if (!cancelled) setDeletedItems(deleted);
@@ -203,7 +201,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
     return () => {
       cancelled = true;
     };
-  }, [ds, syncVersion, date]);
+  }, [ds, syncVersion]);
 
   const loadDate = useCallback(
     async (target: string) => {
@@ -222,7 +220,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
         return [];
       }
     },
-    [ds, options.date, date],
+    [ds, options.date, date, setError],
   );
 
   // #296: re-throws on failure instead of returning []. The old

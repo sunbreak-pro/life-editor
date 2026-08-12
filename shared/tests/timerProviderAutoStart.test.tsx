@@ -7,6 +7,7 @@ import { useTimerContext } from "../src/hooks/useTimerContext";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 import type { TimerPhase } from "../src/context/timerReducer";
 
 /*
@@ -35,7 +36,7 @@ function syncWrapper({ children }: { children: ReactNode }) {
 }
 
 function makeDS(overrides?: { autoStartBreaks?: boolean }): DataService {
-  return {
+  return stubDataService({
     fetchTimerSettings: async () => ({
       // 1-minute work / 5-minute break keeps the fake-timer loop short.
       workDuration: 1,
@@ -56,7 +57,7 @@ function makeDS(overrides?: { autoStartBreaks?: boolean }): DataService {
       taskId: null,
     }),
     endTimerSession: async () => {},
-  } as unknown as DataService;
+  });
 }
 
 function Probe() {

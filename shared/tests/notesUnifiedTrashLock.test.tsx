@@ -5,6 +5,7 @@ import { useNotesUnifiedAPI } from "../src/hooks/useNotesUnifiedAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 import type { NoteNode } from "../src/types/note";
 
 /*
@@ -45,14 +46,16 @@ function makeNote(id: string, extra?: Partial<NoteNode>): NoteNode {
   };
 }
 
-function makeDs(overrides: Record<string, unknown>): DataService {
-  return {
+function makeDS(
+  overrides: Partial<Record<keyof DataService, unknown>>,
+): DataService {
+  return stubDataService({
     listNotesUnified: async () => [],
     fetchDeletedNotesUnified: async () => [],
     getNoteUnified: async () => null,
     updateNoteUnified: async () => {},
     ...overrides,
-  } as unknown as DataService;
+  });
 }
 
 async function renderLoaded(ds: DataService) {
@@ -73,7 +76,7 @@ describe("softDeleteNote cascade", () => {
     const softDeleteNoteUnified = vi.fn<(id: string) => Promise<void>>(
       async () => {},
     );
-    const ds = makeDs({
+    const ds = makeDS({
       listNotesUnified: async () => rows.map((n) => ({ ...n })),
       getNoteUnified: async (id: string) => ({
         ...rows.find((n) => n.id === id)!,
@@ -113,7 +116,7 @@ describe("softDeleteNote cascade", () => {
 describe("Trash trio", () => {
   it("restoreNote moves the row back into the tree and writes through", async () => {
     const restoreNoteUnified = vi.fn(async () => {});
-    const ds = makeDs({
+    const ds = makeDS({
       fetchDeletedNotesUnified: async () => [
         makeNote("note-gone", { isDeleted: true }),
       ],
@@ -134,7 +137,7 @@ describe("Trash trio", () => {
 
   it("permanentDeleteNote drops the Trash row and writes through", async () => {
     const permanentDeleteNoteUnified = vi.fn(async () => {});
-    const ds = makeDs({
+    const ds = makeDS({
       fetchDeletedNotesUnified: async () => [
         makeNote("note-gone", { isDeleted: true }),
       ],
@@ -153,7 +156,7 @@ describe("Trash trio", () => {
 
   it("loadDeletedNotes refreshes the Trash list on demand", async () => {
     let deletedRows: NoteNode[] = [];
-    const ds = makeDs({
+    const ds = makeDS({
       fetchDeletedNotesUnified: async () => deletedRows,
     });
     const hook = await renderLoaded(ds);
@@ -172,7 +175,7 @@ describe("Trash trio", () => {
 describe("togglePin", () => {
   it("flips the pin optimistically and writes through", async () => {
     const updateNoteUnified = vi.fn(async () => {});
-    const ds = makeDs({
+    const ds = makeDS({
       listNotesUnified: async () => [makeNote("note-1")],
       updateNoteUnified,
     });
@@ -195,7 +198,7 @@ describe("password gate and edit lock", () => {
     const removeNotePasswordUnified = vi.fn(async (id: string) =>
       makeNote(id, { hasPassword: false }),
     );
-    const ds = makeDs({
+    const ds = makeDS({
       listNotesUnified: async () => [makeNote("note-1")],
       setNotePasswordUnified,
       removeNotePasswordUnified,
@@ -217,7 +220,7 @@ describe("password gate and edit lock", () => {
 
   it("verifyNotePassword delegates to the service verbatim", async () => {
     const verifyNotePasswordUnified = vi.fn(async () => true);
-    const ds = makeDs({ verifyNotePasswordUnified });
+    const ds = makeDS({ verifyNotePasswordUnified });
     const hook = await renderLoaded(ds);
 
     let ok = false;
@@ -232,7 +235,7 @@ describe("password gate and edit lock", () => {
     const toggleNoteEditLockUnified = vi.fn(async (id: string) =>
       makeNote(id, { isEditLocked: true }),
     );
-    const ds = makeDs({
+    const ds = makeDS({
       listNotesUnified: async () => [makeNote("note-1")],
       toggleNoteEditLockUnified,
     });

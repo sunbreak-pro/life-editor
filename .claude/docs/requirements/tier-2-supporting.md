@@ -164,7 +164,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 **Tier**: 2
 **Status**: ◎完成
 **Owner Provider/Module**: `WikiTagProvider` / `frontend/src/components/WikiTags/` / `src-tauri/src/commands/{wiki_tag,wiki_tag_group,wiki_tag_connection}_commands.rs`
-**MCP Coverage**: `list_wiki_tags` / `tag_entity` / `search_by_tag` / `get_entity_tags`
+**MCP Coverage**: あり（一覧はコード `mcp-server/src/tools.ts` が正）
 **Platform**: Desktop + Mobile（WikiTag は Mobile でも有効 — CLAUDE.md §2。省略 Provider には含まない）
 
 ### Purpose

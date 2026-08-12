@@ -48,3 +48,20 @@
 12 箇所を直すには、キーを保持している定数側（section registry の `labelKey`、ショートカット定義の `descriptionKey` など）を `TranslationKey` のリテラル union に型付けし直す必要があります。これは `shared/src/sections.ts` など**他レーンも触るファイル**に波及するため、P-008（実装中スコープ凍結）に従い今回は広げませんでした。
 
 **起票のお願い**: `shared-fix` + `[refactor-core]` prefix で「i18n キーを型に載せる（#671 S8 の続き）」。DoD 案 = 上記 12 箇所の動的キーを型付き定数に寄せる / `CustomTypeOptions` を入れて `cd web && npm run build` が未知キーで落ちる / S7 のランタイムテストは残す（動的キーは型でしか見えず、リテラルは型とテストの二重で見る）。
+
+## 2026-08-13 chat-main 宛: #701 の横展開 Issue 起票依頼（Step 2 が着地したら）
+
+#701 Step 2 を PR #800 で出しました。**Trash 1 画面ぶんだけ**通してあり、Issue 本文の「1 画面で形が固まってから横展開の Issue を切る」に従って他画面へは広げていません。merge 後に横展開の Issue 起票をお願いします。
+
+- ラベル案: `shared-fix` + タイトル prefix `[refactor-core]`（宛先を当レーンに固定）
+- タイトル案: 「ボタンの処理を引数から叩くテストを主要画面へ横展開する（#701 の続き）」
+- 手本 = `web/tests/trashScreenActions.test.tsx`。**画面ごとに `(ボタン, 引数) → 呼ばれる DataService メソッド + その引数` の表を作り、兄弟メソッドが呼ばれないことまで assert する**形
+- 道の選定は済んでいるので判断は不要（`D-20260812-refactor-2` = A+B。既定 = Testing Library で画面ごと render / 純関数切り出しは jsdom に載らない画面の逃げ道。使い分け基準は #800 で `rules/frontend.md` に明文化済み）
+- 対象画面の候補（テストが presentation 止まりで、ホスト側の配線が無防備なもの）: Settings / Tags / Work / Daily。**Schedule は除外**（#673 / #675 が触る）
+
+## 2026-08-13 chat-schedule-refine 宛: CalendarTab.tsx が 3 本で競合しています
+
+#673（PR #819）で `CalendarTab.tsx` から 223 行を外へ出しました（ViewModel 変換 4 組 / 日付書式 / `t(...)` バンドル）。同じファイルに現在 open な PR が 2 本あります: **#813**（todo delete guard の移設）/ **#804**（day view の空日ラベル）。
+
+- どれを先に merge しても残りは rebase が要ります。**当レーンは #819 を後回しにして構いません** — 先に #813 / #804 を通していただき、こちらが rebase します（#819 は追加が中心で、削った箇所は `useMemo` 本体の中身なので衝突は解けるはずです）
+- #675（巨大ホスト 3 本の分割）は上の 3 本が片付くまで着手しません

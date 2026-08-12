@@ -3,7 +3,7 @@ import {
   confirmTodoDetailDelete,
   todoDeleteCascade,
   todoDeleteTarget,
-} from "../src/schedule/todoTrayDeleteGuard";
+} from "../src/shared/todoTrayDeleteGuard";
 import type { TaskNode } from "@life-editor/shared";
 
 /*

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useScheduleItemsRoutineSync } from "../src/hooks/useScheduleItemsRoutineSync";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 import type { RoutineNode } from "../src/types/routine";
 import type { ScheduleItem } from "../src/types/schedule";
 import { todayDateKey } from "../src/utils/dateKey";
@@ -101,7 +102,7 @@ const TEMPLATE = {
   endTime: "10:30" as string | null,
 };
 
-function makeDs(rows: ScheduleItem[]) {
+function makeDS(rows: ScheduleItem[]) {
   const bulkSoftDeleteScheduleItems = vi.fn(
     async (ids: string[]) => ids.length,
   );
@@ -116,12 +117,12 @@ function makeDs(rows: ScheduleItem[]) {
   const fetchScheduleItemsByRoutineId = vi.fn(async () =>
     rows.filter((r) => !r.isDismissed),
   );
-  const ds = {
+  const ds = stubDataService({
     fetchScheduleItemsByRoutineId,
     bulkSoftDeleteScheduleItems,
     bulkDeleteScheduleItems,
     bulkCreateScheduleItems,
-  } as unknown as DataService;
+  });
   return {
     ds,
     bulkSoftDeleteScheduleItems,
@@ -156,7 +157,7 @@ describe("reconcileRoutineScheduleItems — rule 1: 実績は不可侵", () => {
       makeItem({ id: "keep-past", date: YESTERDAY }),
     ];
     const { ds, bulkSoftDeleteScheduleItems, bulkDeleteScheduleItems } =
-      makeDs(rows);
+      makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(routine, undefined, TEMPLATE);
@@ -171,7 +172,7 @@ describe("reconcileRoutineScheduleItems — rule 1: 実績は不可侵", () => {
     // changed, the hook must still refuse to delete them.
     const routine = makeRoutine();
     const rows = [makeItem({ id: "dismissed", date: T1, isDismissed: true })];
-    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
+    const { ds, bulkSoftDeleteScheduleItems } = makeDS(rows);
     // Bypass the service-level filter to hand the row straight to the hook.
     (
       ds as unknown as { fetchScheduleItemsByRoutineId: () => Promise<unknown> }
@@ -194,7 +195,7 @@ describe("reconcileRoutineScheduleItems — rule 2: 手動編集は Routine 変�
       // Generated for T2, dragged onto T3+1: date ≠ sourceDate ⇒ user edit.
       makeItem({ id: "keep-moved", date: addDays(T, 4), sourceDate: T2 }),
     ];
-    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
+    const { ds, bulkSoftDeleteScheduleItems } = makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(routine, undefined, TEMPLATE);
@@ -222,7 +223,7 @@ describe("reconcileRoutineScheduleItems — rule 2: 手動編集は Routine 変�
         endTime: "10:30",
       }),
     ];
-    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
+    const { ds, bulkSoftDeleteScheduleItems } = makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(routine, undefined, {
@@ -242,7 +243,7 @@ describe("reconcileRoutineScheduleItems — rule 2: 手動編集は Routine 変�
       makeItem({ id: "del-a", date: T1 }),
       makeItem({ id: "del-b", date: T2, title: "Stretch (long)" }),
     ];
-    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
+    const { ds, bulkSoftDeleteScheduleItems } = makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(routine);
@@ -259,7 +260,7 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
     const routine = makeRoutine({ frequencyType: "daily" });
     const rows = [makeItem({ id: "existing", date: T1 })];
     const { ds, bulkCreateScheduleItems, bulkSoftDeleteScheduleItems } =
-      makeDs(rows);
+      makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(
@@ -289,7 +290,7 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
       makeItem({ id: "keep-retitled", date: T2, title: "Stretch (long)" }),
     ];
     const { ds, bulkCreateScheduleItems, bulkSoftDeleteScheduleItems } =
-      makeDs(rows);
+      makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(
@@ -304,7 +305,7 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
 
   it("does not regenerate for a soft-deleted routine (Issue 017 (b)/(d))", async () => {
     const routine = makeRoutine({ frequencyType: "daily", isDeleted: true });
-    const { ds, bulkCreateScheduleItems } = makeDs([]);
+    const { ds, bulkCreateScheduleItems } = makeDS([]);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(
@@ -327,7 +328,7 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
       makeItem({ id: "del-in-window", date: T1 }),
       makeItem({ id: "keep-far-future", date: addDays(T, 90) }),
     ];
-    const { ds, bulkSoftDeleteScheduleItems } = makeDs(rows);
+    const { ds, bulkSoftDeleteScheduleItems } = makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(
@@ -343,7 +344,7 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
     const routine = makeRoutine();
     const rows = [makeItem({ id: "del-stale", date: T1 })];
     const { ds, bulkCreateScheduleItems, bulkSoftDeleteScheduleItems } =
-      makeDs(rows);
+      makeDS(rows);
     const gen = renderGenerator(ds);
 
     await gen.reconcileRoutineScheduleItems(routine, undefined, TEMPLATE);
@@ -357,7 +358,7 @@ describe("reconcileRoutineScheduleItems — change signal", () => {
   it("signals the host once the pass wrote something", async () => {
     const onChanged = vi.fn();
     const routine = makeRoutine();
-    const { ds } = makeDs([makeItem({ id: "del-stale", date: T1 })]);
+    const { ds } = makeDS([makeItem({ id: "del-stale", date: T1 })]);
     const gen = renderGenerator(ds, onChanged);
 
     await gen.reconcileRoutineScheduleItems(routine, undefined, TEMPLATE);
@@ -369,7 +370,7 @@ describe("reconcileRoutineScheduleItems — change signal", () => {
     const onChanged = vi.fn();
     // Fires on T1's weekday, and T1's row already exists and matches.
     const routine = makeRoutine({ frequencyDays: [dow(T1)] });
-    const { ds } = makeDs([makeItem({ id: "keep", date: T1 })]);
+    const { ds } = makeDS([makeItem({ id: "keep", date: T1 })]);
     const gen = renderGenerator(ds, onChanged);
 
     await gen.reconcileRoutineScheduleItems(
@@ -384,7 +385,7 @@ describe("reconcileRoutineScheduleItems — change signal", () => {
   it("swallows a read failure without signalling (host keeps its state)", async () => {
     const onChanged = vi.fn();
     const routine = makeRoutine();
-    const { ds } = makeDs([]);
+    const { ds } = makeDS([]);
     (
       ds as unknown as { fetchScheduleItemsByRoutineId: () => Promise<unknown> }
     ).fetchScheduleItemsByRoutineId = async () => {

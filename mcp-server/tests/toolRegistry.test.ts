@@ -174,6 +174,11 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["get_note", { id: "note-1" }],
   ["create_note", { title: "note", content: "body" }],
   ["update_note", { id: "note-1", color: "#E8D5F5" }],
+  [
+    "update_note",
+    { id: "note-1", title: "n", content: "body", is_pinned: true },
+  ],
+  ["delete_note", { id: "note-1" }],
   ["list_schedule", { start_date: "2026-08-11", end_date: "2026-08-12" }],
   [
     "create_schedule_item",
@@ -192,9 +197,13 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ],
   ["update_schedule_item", { id: "si-1", is_all_day: true }],
   ["delete_schedule_item", { id: "si-1" }],
+  ["restore_item", { id: "task-1" }],
   ["set_schedule_complete", { id: "si-1", completed: true }],
   ["set_schedule_dismissed", { id: "si-1", dismissed: false }],
   ["get_today_context", {}],
+  ["get_week_context", {}],
+  ["get_week_context", { start_date: "2026-08-10" }],
+  ["get_note_context", { id: "note-1" }],
   ["write_briefing", { focus: "one thing", paragraphs: ["a", "b"] }],
   ["search_all", { query: "q", domains: ["tasks", "notes"], limit: 5 }],
   ["search_all", { query: "q", limit: 5, offset: 5 }],
@@ -233,6 +242,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
     "tag_entity",
     { tag_name: "life", entity_id: "task-1", entity_type: "task" },
   ],
+  ["untag_entity", { tag_name: "life", entity_id: "task-1" }],
   ["search_by_tag", { tag_name: "life" }],
   ["get_task_tree", { root_id: "task-1", include_done: false, max_depth: 2 }],
   ["get_entity_tags", { entity_id: "task-1" }],
@@ -249,9 +259,42 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       ],
     },
   ],
+  // The #700 verification trio. Args only — the handlers refuse to run outside
+  // verification mode, which is exactly what the other suites cover.
+  [
+    "seed_verification_state",
+    {
+      date: "2026-08-12",
+      preset: "busy_day",
+      items: [
+        { kind: "task", title: "open task", status: "not_started" },
+        { kind: "task", is_all_day: true },
+        {
+          kind: "event",
+          title: "standup",
+          start_time: "09:00",
+          end_time: "09:15",
+          memo: "x",
+        },
+        { kind: "note", content: "body" },
+      ],
+      label: "#700",
+    },
+  ],
+  ["read_verification_state", { run_id: "verify-1" }],
+  ["cleanup_verification_state", { run_id: "verify-1", dry_run: true }],
 ];
 
 describe("valid arguments pass", () => {
+  it("covers every published tool", () => {
+    // The dispatch/type-rejection half runs off it.each(TOOLS) and cannot go
+    // stale; this table is hand-written, so a new tool that nobody adds here
+    // would ship with its happy path untested. Fail loudly instead.
+    expect(new Set(VALID_CALLS.map(([name]) => name))).toEqual(
+      new Set(TOOLS.map((t) => t.name)),
+    );
+  });
+
   it.each(VALID_CALLS)("%s accepts %j", (name, args) => {
     expect(() => validateToolArgs(name, schemaOf(name), args)).not.toThrow();
   });

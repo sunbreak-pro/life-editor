@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
+import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
 
 /*
  * Shared password gate + edit lock for items_meta-backed domains (#674 / C7).
@@ -26,6 +27,11 @@ import { hashPassword, verifyPassword } from "../utils/passwordHash";
  * path — defence in depth on top of the hash. `has_password` is the generated
  * stored column projected back to the client (true for a hash string just as
  * for plaintext).
+ *
+ * The three single-row READS below go through `postgrestSingle` like the rest
+ * of the layer (#674). The two write paths (`bumpMeta` / `patchPayload`) stay
+ * hand-written: an UPDATE without `.select()` returns no row, so there is
+ * nothing for those helpers to unwrap.
  */
 
 /**
@@ -42,14 +48,18 @@ export async function nextItemVersion(
   id: string,
   label: string,
 ): Promise<number> {
-  const { data, error } = await client
-    .from("items_meta")
-    .select("version")
-    .eq("id", id)
-    .eq("role", role)
-    .single();
-  if (error) throw new Error(`${label} version read: ${error.message}`);
-  const row = data as { version: number | null };
+  // Row type stays nullable so the `?? 0` fallback keeps covering a null row,
+  // not just a null version — the same defensive shape the hand-written read
+  // had before it moved onto the shared helper.
+  const row = await requireSingleRow<{ version: number | null } | null>(
+    client
+      .from("items_meta")
+      .select("version")
+      .eq("id", id)
+      .eq("role", role)
+      .single(),
+    `${label} version read`,
+  );
   return (row?.version ?? 0) + 1;
 }
 
@@ -173,15 +183,15 @@ export class ItemLockGate<TNode> {
    */
   async verifyPassword(id: string, password: string): Promise<boolean> {
     const { client, payloadTable, labels } = this.config;
-    const { data, error } = await client
-      .from(payloadTable)
-      .select("password_hash")
-      .eq("item_id", id)
-      .maybeSingle();
-    if (error)
-      throw new Error(`${labels.verifyPassword} failed: ${error.message}`);
-    const stored = (data as { password_hash: string | null } | null)
-      ?.password_hash;
+    const row = await fetchMaybeSingleRow<{ password_hash: string | null }>(
+      client
+        .from(payloadTable)
+        .select("password_hash")
+        .eq("item_id", id)
+        .maybeSingle(),
+      `${labels.verifyPassword} failed`,
+    );
+    const stored = row?.password_hash;
     if (stored == null) return false;
 
     const { ok, needsRehash } = await verifyPassword(password, stored);
@@ -230,13 +240,15 @@ export class ItemLockGate<TNode> {
     const label = labels.toggleEditLock;
     this.config.assertId?.(id);
 
-    const { data: cur, error: readErr } = await client
-      .from(payloadTable)
-      .select("is_edit_locked")
-      .eq("item_id", id)
-      .single();
-    if (readErr) throw new Error(`${label} read failed: ${readErr.message}`);
-    const next = !(cur as { is_edit_locked: boolean }).is_edit_locked;
+    const cur = await requireSingleRow<{ is_edit_locked: boolean }>(
+      client
+        .from(payloadTable)
+        .select("is_edit_locked")
+        .eq("item_id", id)
+        .single(),
+      `${label} read failed`,
+    );
+    const next = !cur.is_edit_locked;
 
     await this.bumpMeta(id, label);
     await this.patchPayload(id, label, { is_edit_locked: next });

@@ -10,7 +10,6 @@ import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
   useLocalStorage,
-  useWikiTagsUnifiedContext,
   useMediaQuery,
   useTranslation,
   Menu,
@@ -46,6 +45,7 @@ import {
   useItemLinkTargets,
   type LoadItemLinkTargets,
 } from "../notes/useItemLinkTargets";
+import { useInlineItemLinks } from "../hooks/useInlineItemLinks";
 
 /*
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
@@ -173,8 +173,10 @@ export function DailyView({
     togglePin,
     getDailyForDate,
   } = useDailiesUnifiedContext();
-  const { createItemLink, getLinksForItem, syncInlineLinks } =
-    useWikiTagsUnifiedContext();
+  // "[[" → item_links, shared with Notes and Tasks (#776). Daily differs only
+  // in WHEN the edge can be written (see the park / flush below); the write
+  // itself and the save-time delete-sync are the shared ones.
+  const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("DailyView");
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
 
@@ -203,9 +205,8 @@ export function DailyView({
   // So every insertion parks under its DATE (the row's id isn't knowable yet)
   // and is written by the save that persists the text carrying the link —
   // inserting a link dirties the editor, so a save always follows within the
-  // 800ms debounce. Duplicate-guarded; written with origin "inline" so the
-  // save-time delete-sync (#372) may remove it once its "[[ ]]" leaves the
-  // text — manual LinkPanel edges stay untouched.
+  // 800ms debounce. Parking is the whole of what is Daily-specific: strip it
+  // away and the remainder is the shared mirrorInlineLink / syncSavedBody pair.
   const pendingLinksRef = useRef(createPendingItemLinks());
 
   const handleResolvedLinkInserted = useCallback(
@@ -229,18 +230,13 @@ export function DailyView({
         pendingLinksRef.current,
         date,
       )) {
-        if (targetId === saved.id) continue;
         if (present !== null && !present.includes(targetId)) continue;
-        const already = getLinksForItem(saved.id).outgoing.some(
-          (l) => !l.isDeleted && l.toItemId === targetId,
-        );
-        if (already) continue;
-        void createItemLink(saved.id, targetId, "inline").catch((e) =>
-          console.error("[DailyView] item link upsert failed", e),
-        );
+        // Duplicate guard, self-link skip and the "inline" origin all come from
+        // the shared hook — a day linking to itself is dropped there.
+        mirrorInlineLink(saved.id, targetId);
       }
     },
-    [getLinksForItem, createItemLink],
+    [mirrorInlineLink],
   );
 
   // Header actions kebab (#284) — collapsed pin / delete menu.
@@ -325,11 +321,7 @@ export function DailyView({
       flushPendingLinks(date, saved, json);
       // #372: drop inline-origin edges whose "[[ ]]" left the text. Edges the
       // flush just created are not candidates — their targets are in `json`.
-      if (saved) {
-        void syncInlineLinks(saved.id, json).catch((e) =>
-          console.error("[DailyView] inline link delete-sync failed", e),
-        );
-      }
+      if (saved) syncSavedBody(saved.id, json);
     });
   };
 

@@ -2,6 +2,39 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-10 - 確認待ちの摩擦を除去（#618 permissions + tracker 新運用の規約化・PR #619 / dotfiles PR #15 open）
+
+#### 概要
+
+対話セッションが「許可を出してください」「merge したら声をかけてください」で止まる 2 つの摩擦を外した。前者は `permissions.ask` の非破壊ゲート撤去（#618）、後者は END の task-tracker を session-verifier 直後に実行する新運用の台帳化（D-20260810-main-1）。life-editor は PR #619、グローバル資産は dotfiles PR #15 に分けた（どちらも open）。
+
+#### 変更点
+
+- **`permissions.ask` を 1 件へ縮小**（#618）: `Bash(git push*)` / `Bash(gh pr create*)` を除去し `Bash(gh pr merge*)` のみ残した（P-001 の機械担保）。**`deny` は 27 件のまま無変更**（diff の deny 行の増減ゼロを機械確認）。プロンプトが増えた原因は PR #594（夜間レーンの柵）と PR #596（P-001 の担保）の 2 つで、それ以前はグローバル `Bash(*)` allow で素通りしていた
+- **無人レーンの担保を runner 側へ分離**: 夜のレーンが commit 止まりである根拠が「repo の `permissions.ask` が止めてくれる」だったため、外した時点で**プロンプトの禁止文しか残らない**状態になる。`automation/routine-night.md` §停止条件 と `automation/README.md`（動作モデル + 安全則の 2 箇所）を「**runner 側 settings で担保する**（`claude -p --settings <無人用>` / `--disallowedTools`）」に書き換えた。対話セッションの柵と無人レーンの柵を同じ settings.json で兼用しない
+- **D-20260810-main-1 を台帳化**: END の tracker は **session-verifier が緑になった直後**に実行し、ユーザー確認も実装 PR の merge も待たない。**`D-20260801-main-1`（tracker を実装ブランチに載せない）は維持**で、置き換えたのは実行タイミングだけ。`supersedes` は D-ID ではなく「CLAUDE.md §7.4 の該当行」「worktree-policy SKILL.md の該当節」という**文書位置の文字列**で宣言している（`records.mjs check` は D-ID 形式のみ双方向検証するため、旧決定を Active から落とさずに済む）
+- **反映は 2 文書を行単位で**: CLAUDE.md §7.4 の「merge 後に 1 commit でまとめ」と `skills/worktree-policy/SKILL.md` の同文。§7.4 は「正本は worktree-policy スキル」と宣言しているので、CLAUDE.md だけ直すと SSOT と矛盾する
+- **dotfiles PR #15**: `skills/task-tracker/SKILL.md`（作業終了フロー冒頭に実行タイミング）・`skills/lead-pipeline/SKILL.md`（中ティア連鎖の 3）・`agents/role-engineer.md`（引き継ぎの「セルフ検証結果」を session-verifier と同じ 5 ゲート表 + 総合 PASS/FAIL へ）。role-engineer は **G7/G14 の対の残件** — PR #14 で lead-pipeline Step 4 と role-qa Step 2 が「role-engineer の Verdict を検分」に変わったのに、出す側が `session-verifier 出力: <要約>` のままで受け手が検分できなかった
+- **PR #14 との衝突回避**: dotfiles の 2 スキルは PR #14 も触っているため、編集行が重ならない位置（#14 = 中ティア Step 0 追加 / END フロー Step 5、こちら = Step 3 の行末 / END フロー冒頭）を選んだ。どちらを先に merge しても自動マージできる想定
+- **DoD の 4 つ目は持ち越し**: 「確認プロンプトなしで push / PR 作成が通る」の実測は、**このセッションが読んでいる settings が main 側の旧 `ask`**（worktree の settings.json はロードされない）なので確定できない。merge + セッション再起動後に 1 回測る
+- **本セッションが新運用の初適用**: verifier 緑（Types〜Coverage は ⏭️ / Project Rules ✅ = records check + docs-lint）の直後に、merge を待たず本 tracker を実行した
+
+### 2026-08-10 - ハーネス統合とループ再設計 Phase A+B+C（PR #616 merged・dotfiles PR #14 open）
+
+#### 概要
+
+「計画 → 実装 → 検証 → 改善」のループを長期運用できるよう、ハーネスの穴 5 件と重複 8 系統を life-editor（19 ファイル）+ claude-dotfiles（26 ファイル）の 2 レーンで一括改修した。P-008（実装中スコープ凍結）を POLICY に追加し、計画テンプレートへ「検討した代替案」節と完了時の乖離レビュー 3 行を義務化。life-editor 側は PR #616 が merge 済み、dotfiles 側は PR #14 が open（中身は symlink 経由で `~/.claude` に実効済み・merge はユーザー手番）。（計画書: archive/2026-08-10-harness-loop-consolidation.md）
+
+#### 変更点
+
+- **P-008 実装中スコープ凍結**（ユーザー承認 2026-08-10・POLICY.md）: 実装中に計画外の追加・変更・削除が浮上したら実装せずキュー or Issue 依頼へ積み、現計画を続行。Scope / AC の変更・逸脱の自己免除はユーザー回答まで禁止。`_TEMPLATE.md`・`rules/decision-queue.md`・dotfiles の lead-pipeline（中ティアのミニスコープ宣言）へ配線
+- **計画テンプレの強化**: 「検討した代替案（案 / 採否 / 却下理由 / 復活条件・最低 2 案）」節を必須化（ask-user の選択肢と回答も転記）。完了時の乖離レビュー 3 行（スコープ逸脱 / AC 免除 / 途中判断の行き先）を Worklog 必須に（実行者 = task-tracker END フロー）
+- **重複のポインタ化（Lane L）**: comm/README の「タスク分配の正本」宣言を撤回し docs-workflow へ／ decisions 昇格手順・分担表・loop-\* の環境事実・frontend.md の jsdom 段落を各正本への ID 参照へ／ records.md に「インライン注記には D-ID を添える」を追加
+- **Mac 専用 symlink 10 本 = known-issues/031**: skills 8 + agents 2 は Mac 絶対パスで Windows では解決不能。削除・stub 化は Mac を壊すため禁止。実体化は Mac セッションの手番（skill-lib / agents-lib に git remote があれば Windows clone でも可 — remote の有無は Mac で確認）
+- **dotfiles 側（Lane G・PR #14）**: tone 3 ファイルの正本を tone-persona へ一本化（呼び名はサブエージェント向け複写 1 行だけ tone.md に残す — QA Blocking の回収）／ role-qa の判定ラベルを Blocking / Important / Suggestion に統一／ git-workflow §0.1.1 に「プロジェクト側 POLICY override が優先」を明記／ `MANDATORY FIRST ACTION` 行を rule + hook の 2 系統へ集約（G19）
+- **QA / 検証**: role-qa 監査 NEEDS REVISION（Blocking 1 / Important 6）→ 同日全件回収。docs-lint（LC_ALL=C）+ `records.mjs check` 緑。乖離レビュー = G19 の Scope 逸脱 4 ファイルを Scope 追記で正規化 / AC 免除なし / role-engineer Verdict 形式は次 PR へ
+- **残件**: dotfiles PR #14 merge（ユーザー）/ role-engineer Verdict 形式（次 PR）/ Phase D = Scope 照合 hook（#173 系）/ symlink 実体化（Mac — known-issues 031）
+
 ### 2026-08-09 - main の未追跡資産を 2 PR に整理（Codex 対応を複製から参照へ・PR #610 / #611 merged）
 
 #### 概要

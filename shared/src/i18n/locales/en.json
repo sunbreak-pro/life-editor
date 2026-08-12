@@ -99,7 +99,8 @@
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
       "button": "Reset preferences",
-      "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected."
+      "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected.",
+      "confirmButton": "Reset and reload"
     }
   },
   "timerSettings": {
@@ -213,6 +214,10 @@
   },
   "taskDetail": {
     "titleLabel": "Todo title",
+    "delete": "Delete",
+    "todoDelete": "Delete todo",
+    "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
+    "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "status": "Status",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
@@ -528,6 +533,7 @@
     "done": "Done",
     "doneSummary": "{{done}} of {{total}} done",
     "emptyToday": "Nothing scheduled for today",
+    "emptyDay": "Nothing scheduled for this day",
     "frequency": "Repeat",
     "viewLabel": "View",
     "frequencyNone": "None",
@@ -580,9 +586,6 @@
     "durationHour": "{{h}} hr",
     "durationHourMin": "{{h}} hr {{m}} min",
     "freeGap": "{{duration}} free",
-    "todoDelete": "Delete todo",
-    "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
-    "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "rename": "Rename",
     "duplicate": "Duplicate",
     "copySuffix": " (copy)",

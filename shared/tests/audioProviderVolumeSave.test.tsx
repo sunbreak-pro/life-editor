@@ -7,6 +7,7 @@ import { useAudioContext } from "../src/hooks/useAudioContext";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * AudioProvider — volume is TWO-STAGE (#714, Epic #627).
@@ -41,14 +42,14 @@ function syncWrapper({ children }: { children: ReactNode }) {
 }
 
 function makeDS(): DataService {
-  return {
+  return stubDataService({
     // One row is enough; the other four fall back to the defaults.
     fetchSoundSettings: async () => [
       { soundType: "rain", volume: 60, enabled: true },
     ],
     getSoundAssetUrl: async (name: string) => `https://example.test/${name}`,
     updateSoundSetting,
-  } as unknown as DataService;
+  });
 }
 
 function Probe() {

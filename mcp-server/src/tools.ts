@@ -13,6 +13,7 @@ import {
   getNote,
   createNote,
   updateNote,
+  deleteNote,
 } from "./handlers/noteHandlers.js";
 import {
   listSchedule,
@@ -22,15 +23,27 @@ import {
   setScheduleComplete,
   setScheduleDismissed,
 } from "./handlers/scheduleHandlers.js";
-import { getTodayContext, writeBriefing } from "./handlers/briefingHandlers.js";
+import {
+  getTodayContext,
+  getWeekContext,
+  writeBriefing,
+} from "./handlers/briefingHandlers.js";
+import { getNoteContext } from "./handlers/noteContextHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
 import { generateContent, formatContent } from "./handlers/contentHandlers.js";
 import {
   listWikiTags,
   tagEntity,
+  untagEntity,
   searchByTag,
   getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
+import { restoreItem } from "./handlers/trashHandlers.js";
+import {
+  seedVerificationState,
+  readVerificationState,
+  cleanupVerificationState,
+} from "./handlers/verificationHandlers.js";
 import {
   validateToolArgs,
   unknownArgNames,
@@ -217,7 +230,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "delete_task",
-    description: "Soft-delete a task (moves to trash).",
+    description: "Soft-delete a task (moves to trash). Undo with restore_item.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -343,10 +356,26 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "Note icon color (hex, e.g. #E8D5F5)",
         },
+        is_pinned: {
+          type: "boolean",
+          description: "Pin the note to the top of the list",
+        },
       },
       required: ["id"],
     },
     handler: updateNote,
+  }),
+  defineTool({
+    name: "delete_note",
+    description: "Soft-delete a note (moves to trash). Undo with restore_item.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Note ID" },
+      },
+      required: ["id"],
+    },
+    handler: deleteNote,
   }),
   defineTool({
     name: "list_schedule",
@@ -448,7 +477,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "delete_schedule_item",
     description:
-      "Soft-delete a schedule item (moves it to trash; restorable from the Trash view).",
+      "Soft-delete a schedule item (moves it to trash; restorable with restore_item or from the Trash view).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -457,6 +486,25 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["id"],
     },
     handler: deleteScheduleItem,
+  }),
+  defineTool({
+    name: "restore_item",
+    description:
+      "Restore an item from the trash — the inverse of delete_task / delete_note / delete_schedule_item. " +
+      "Restorable roles: task, note, event (schedule item); a daily comes back through upsert_daily instead. " +
+      "Restoring an item that is not in the trash is a no-op, not an error. " +
+      "Restores the one item only — a task whose parent is still trashed stays out of get_task_tree (it does appear in list_tasks).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the trashed task, note or schedule item",
+        },
+      },
+      required: ["id"],
+    },
+    handler: restoreItem,
   }),
   defineTool({
     name: "set_schedule_complete",
@@ -507,6 +555,35 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
     handler: getTodayContext,
+  }),
+  defineTool({
+    name: "get_week_context",
+    description:
+      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the tasks scheduled onto it and its daily note text, plus the open tasks carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Monday to Sunday. Task and note BODIES are not included — read one with get_task / get_note when you decide you need it.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        start_date: {
+          type: "string",
+          description:
+            "First day of the 7-day window, YYYY-MM-DD (default: the Monday of the current local week)",
+        },
+      },
+    },
+    handler: getWeekContext,
+  }),
+  defineTool({
+    name: "get_note_context",
+    description:
+      "Get everything needed to reorganise a note in one call: the note itself (content + contentText), its tags, and its WikiLink neighbours in both directions — links (this note points at them) and backlinks (they point at this note). Neighbours are id/role/title only; their bodies and tags are not included — follow up with get_note / get_task by id for the ones you want to read.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Note ID" },
+      },
+      required: ["id"],
+    },
+    handler: getNoteContext,
   }),
   defineTool({
     name: "write_briefing",
@@ -732,6 +809,21 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     handler: tagEntity,
   }),
   defineTool({
+    name: "untag_entity",
+    description:
+      "Remove a wiki tag from a task, daily, or note. Only this assignment goes away — the tag itself, and its other assignments, stay. " +
+      "Removing a tag that is not assigned is a no-op, not an error.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        tag_name: { type: "string", description: "Tag name" },
+        entity_id: { type: "string", description: "Entity ID" },
+      },
+      required: ["tag_name", "entity_id"],
+    },
+    handler: untagEntity,
+  }),
+  defineTool({
     name: "search_by_tag",
     description: "Search for tasks, dailies, and notes by wiki tag name.",
     inputSchema: {
@@ -856,6 +948,132 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["target", "operations"],
     },
     handler: formatContent,
+  }),
+
+  /*
+   * The verification harness (#700). All three refuse to run unless the
+   * server was started in verification mode, against the dedicated
+   * verification account — see src/utils/verification.ts.
+   */
+  defineTool({
+    name: "seed_verification_state",
+    description:
+      "VERIFICATION ONLY. Build a known state on one day — tasks, events and notes — so a change can be checked without arranging data by hand in the UI. " +
+      "Writes through the ordinary create tools, records every row it creates in a ledger, and returns a run_id; " +
+      "read_verification_state reads that run back and cleanup_verification_state deletes exactly it. " +
+      "Disabled unless the server runs in verification mode against the verification account.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        date: {
+          type: "string",
+          description:
+            "Day to place the fixture on, YYYY-MM-DD (default: today in local time)",
+        },
+        preset: {
+          type: "string",
+          enum: ["busy_day"],
+          description:
+            "Ready-made fixture. busy_day = two overlapping events + an all-day event + a done task + an open task + an undated task.",
+        },
+        items: {
+          type: "array",
+          description:
+            "Items to create, appended after any preset. At least one item (here or from a preset) is required.",
+          items: {
+            type: "object",
+            properties: {
+              kind: {
+                type: "string",
+                enum: ["task", "event", "note"],
+                description:
+                  "What to create. Dailies are not seedable: their id comes from the date, so a seeded one cannot be told apart from a real entry.",
+              },
+              title: {
+                type: "string",
+                description:
+                  "Title (a [verify] marker is prepended). Defaults to 'kind N'.",
+              },
+              content: {
+                type: "string",
+                description: "Markdown body (task and note)",
+              },
+              status: {
+                type: "string",
+                enum: ["not_started", "in_progress", "done"],
+                description: "Task status (task only, default: not_started)",
+              },
+              start_time: {
+                type: "string",
+                description:
+                  "HH:MM. Event: its start. Task: schedules it at that time on the day — a task with no time and no is_all_day stays undated.",
+              },
+              end_time: {
+                type: "string",
+                description: "HH:MM. Event: its end. Task: its scheduled end.",
+              },
+              is_all_day: {
+                type: "boolean",
+                description:
+                  "All-day item. An all-day event stores no times; an all-day task lands on the day's local midnight.",
+              },
+              memo: { type: "string", description: "Event memo (event only)" },
+            },
+            required: ["kind"],
+          },
+        },
+        label: {
+          type: "string",
+          description:
+            "Free-text note stored with the run (e.g. the Issue being verified)",
+        },
+      },
+    },
+    handler: seedVerificationState,
+  }),
+  defineTool({
+    name: "read_verification_state",
+    description:
+      "VERIFICATION ONLY. Read what the DB actually stores, without going through the UI: both rows of the 2-row model (items_meta + <role>_payload) in one object per item. " +
+      "Soft-deleted items are included and flagged, so 'the screen stopped showing it' and 'the row is gone' can be told apart. " +
+      "Select by run_id (a seed run), date (everything on one local day), or id (one item) — exactly one of the three.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        run_id: {
+          type: "string",
+          description: "A run_id returned by seed_verification_state",
+        },
+        date: {
+          type: "string",
+          description:
+            "Local day (YYYY-MM-DD): events on it plus tasks scheduled into it",
+        },
+        id: { type: "string", description: "A single item id" },
+      },
+    },
+    handler: readVerificationState,
+  }),
+  defineTool({
+    name: "cleanup_verification_state",
+    description:
+      "VERIFICATION ONLY. Delete the rows seeded earlier — read from the ledger, not from the caller's memory — hard, so nothing is left in the trash. " +
+      "Defaults to every recorded run; pass run_id for one. Rows that fail to delete stay in the ledger so a re-run finishes them. " +
+      "Retire the verification account only after this reports the ledger empty: user_id has no FK to auth.users, so rows outlive a deleted account.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        run_id: {
+          type: "string",
+          description: "Clean one run (default: every run in the ledger)",
+        },
+        dry_run: {
+          type: "boolean",
+          description: "Report what would be deleted and delete nothing",
+        },
+      },
+    },
+    handler: cleanupVerificationState,
   }),
 ];
 

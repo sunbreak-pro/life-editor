@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- #776 inline `[[` リンク配線の 3 つ写しを 1 実装へ ✅（2026-08-13 — **PR #808 open**（Closes #776・merge = こうだいさん）。新規 `web/src/hooks/useInlineItemLinks.ts` に重複ガード / inline エッジ作成 / 保存後 delete-sync を集約し、Notes / Tasks / Daily の 3 面がそこを通る。Daily の park / flush は Daily 固有として残し flush の内側だけ差し替え。console タグはホスト名を引数化（`useTaskLinking` に焼き付いていた `[KanbanView]` の写し痕を解消）。テスト +16 本（共有ガード 8 / Notes 3 / Daily 5 — Daily は park→保存→エッジ と #372 fold のどちらも初カバー）。8 ゲート exit 0）
 - #680 Notes の i18n 取りこぼし 3 点（ゴミ箱行 aria-label / 本文 placeholder / en の単複）✅（2026-08-11 — **PR #693 open**（Closes #680・merge = こうだいさん）。catalog に 4 キー追加 + `taskCount` を i18next 複数形へ。ja を実際に描画して読み戻す `web/tests/notesI18n.test.tsx` を新設（既存 notesView.test.tsx は `t` をキーのエコーに差し替えるため、この種のバグに構造的に無反応だった）。en/ja lockstep 検査を shared/tests/i18n.test.ts に追加）
 - #588 NotesView 925 行の分割 + materials 3 画面のテスト整備 ✅（2026-08-10 — PR #646 **merge 済み**（2026-08-11 確認・main 7ad31a5e）。テスト 36 本を先に敷いてから 5 ファイルへ分割し、同じテストが前後で緑なのを挙動不変の根拠にした。ホスト 925 → 469 行。実ブラウザ確認は chat-main）
-- materials 担当5件（#310/#311/#312/#302/#303）✅（2026-07-23 — 全 Issue close 済み・merge 済み）
 
 ## 予定
 

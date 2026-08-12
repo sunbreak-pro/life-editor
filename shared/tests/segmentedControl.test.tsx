@@ -78,4 +78,21 @@ describe("SegmentedControl", () => {
     fireEvent.keyDown(active, { key: "ArrowLeft" });
     expect(onChange).toHaveBeenCalledWith("tags");
   });
+
+  it("switches with ↑/↓ as well, matching its radiogroup siblings (#779)", () => {
+    const { onChange } = renderControl();
+    const active = screen.getByRole("tab", { name: "Tasks" });
+    fireEvent.keyDown(active, { key: "ArrowDown" });
+    expect(onChange).toHaveBeenCalledWith("notes");
+    fireEvent.keyDown(active, { key: "ArrowUp" });
+    expect(onChange).toHaveBeenCalledWith("tags");
+  });
+
+  it("ignores arrow keys while disabled", () => {
+    const { onChange } = renderControl({ disabled: true });
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Tasks" }), {
+      key: "ArrowDown",
+    });
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
