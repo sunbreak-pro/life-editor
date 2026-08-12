@@ -72,6 +72,9 @@ function renderWithPanel(wide: boolean) {
     isOpen: true,
     open: () => undefined,
     close: () => undefined,
+    // #753: the guarded close. Nothing here holds a draft, so it behaves as
+    // the plain one.
+    requestClose: () => undefined,
     toggle: () => undefined,
     width: 320,
     setWidth: () => undefined,

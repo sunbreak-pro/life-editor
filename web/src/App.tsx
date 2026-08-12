@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import {
   getSession,
   onAuthStateChange,
+  UnsavedGuardProvider,
+  useTranslation,
   type Session,
 } from "@life-editor/shared";
 import { AuthScreen } from "./AuthScreen";
@@ -14,6 +16,7 @@ import { OfflineBanner } from "./components/OfflineBanner";
  * Supabase; section switch is local state per CLAUDE.md §3.2).
  */
 function App() {
+  const { t } = useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -48,11 +51,28 @@ function App() {
     body = session ? <MainScreen session={session} /> : <AuthScreen />;
   }
 
+  /*
+   * UnsavedGuardProvider (#753) is mounted HERE rather than inside MainScreen,
+   * and the placement is the whole point: the two containers that ask through
+   * it are MainScreen's own section switch (a hook called in MainScreen's body,
+   * which sits OUTSIDE every Provider MainScreen renders — the #548 trap) and
+   * RightSidebarProvider, which MainScreen renders. One level up is the only
+   * place both can see it.
+   *
+   * Copy is injected already translated (§6.4) — the shared Provider owns the
+   * dialog but never calls useTranslation itself.
+   */
   return (
-    <>
+    <UnsavedGuardProvider
+      labels={{
+        message: t("common.unsavedCloseConfirm"),
+        discard: t("common.discard"),
+        cancel: t("common.cancel"),
+      }}
+    >
       <OfflineBanner />
       {body}
-    </>
+    </UnsavedGuardProvider>
   );
 }
 

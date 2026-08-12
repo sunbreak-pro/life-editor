@@ -1,9 +1,4 @@
-import {
-  useMemo,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import {
   getDataService,
   signOut,
@@ -25,6 +20,7 @@ import {
   ShortcutConfigProvider,
   AudioProvider,
   useTranslation,
+  useUnsavedGuardOptional,
   type DataService,
   type SectionId,
   type Session,
@@ -119,7 +115,16 @@ export function MainScreen({ session }: { session: Session }) {
   // Navigation half (hooks split — useShellNavigation): the section switch
   // (§3.2), the lifted in-section tab states, and the pending-intent stashes
   // (new-task flag / "[[" item-nav) the destination views consume on mount.
-  const nav = useShellNavigation();
+  /*
+   * #753: a section change unmounts the whole body, so a draft inside it is
+   * discarded by an act the panel never sees. Every navigation runs past the
+   * shell-level guard first (App.tsx mounts the Provider ABOVE MainScreen —
+   * this body sits outside every Provider MainScreen itself renders).
+   */
+  const unsavedGuard = useUnsavedGuardOptional();
+  const nav = useShellNavigation({
+    confirmLeave: unsavedGuard?.confirmDiscard,
+  });
   const { section, setSection } = nav;
   // Chrome half (hooks split — useShellChrome): the palette commands, the
   // registry-derived nav section lists, the per-section tab-band defs, the

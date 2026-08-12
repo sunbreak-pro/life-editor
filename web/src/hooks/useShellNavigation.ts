@@ -78,11 +78,24 @@ const ITEM_NAV_TARGET: Record<string, NavDestination | undefined> = {
  */
 export type ShellNavigation = ReturnType<typeof useShellNavigation>;
 
-export function useShellNavigation() {
+export interface ShellNavigationOptions {
+  /**
+   * #753: asked before the section changes, because a section change unmounts
+   * the whole body — draft and all — and the panel inside has no way to see it
+   * coming. Resolves `true` when navigation may go ahead (nothing pending, or
+   * the user agreed to discard it). Omit and every navigation goes straight
+   * through, exactly as before.
+   */
+  confirmLeave?: () => Promise<boolean>;
+}
+
+export function useShellNavigation({
+  confirmLeave,
+}: ShellNavigationOptions = {}) {
   // Startup section (§216): resolve the initial section from the user's
   // preference (resume last-visited / a fixed section), falling back to the
   // default. Lazy init so the localStorage read runs once.
-  const [section, setSection] = useState<SectionId>(() =>
+  const [section, setSectionNow] = useState<SectionId>(() =>
     resolveInitialSection(),
   );
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("notes");
@@ -112,14 +125,52 @@ export function useShellNavigation() {
     persistLastSection(section);
   }, [section]);
 
+  /*
+   * #753: the one gate every navigation passes through. Leaving a section
+   * tears its body down, so a pending draft has to be asked about first — and
+   * asking is asynchronous (the answer is an in-app dialog), which is why the
+   * move itself is handed in as a callback rather than returned as a verdict.
+   *
+   * Without a `confirmLeave` this is a plain call, so the hook keeps working
+   * unchanged for any host that does not mount the guard.
+   */
+  const guarded = useCallback(
+    (move: () => void) => {
+      if (!confirmLeave) {
+        move();
+        return;
+      }
+      void confirmLeave().then((ok) => {
+        if (ok) move();
+      });
+    },
+    [confirmLeave],
+  );
+
   // The one place a destination is applied. Everything that navigates — the
   // nav:* shortcuts, Briefing's jump links, "[[" link clicks — routes through
-  // here, so section and tab can never be set out of step.
-  const navigateTo = useCallback((dest: NavDestination) => {
-    setSection(dest.section);
+  // here, so section and tab can never be set out of step. Unguarded: the
+  // public entry points below are what ask.
+  const applyDestination = useCallback((dest: NavDestination) => {
+    setSectionNow(dest.section);
     if (dest.section === "materials") setMaterialsTab(dest.tab);
     else if (dest.section === "schedule") setScheduleTab(dest.tab);
   }, []);
+
+  const navigateTo = useCallback(
+    (dest: NavDestination) => guarded(() => applyDestination(dest)),
+    [guarded, applyDestination],
+  );
+
+  /*
+   * The bare section switch (nav rail, bottom bar, palette commands). Not the
+   * raw setState any more, so it takes a section id rather than a React
+   * updater — every caller already passed one.
+   */
+  const setSection = useCallback(
+    (next: SectionId) => guarded(() => setSectionNow(next)),
+    [guarded],
+  );
 
   // nav:* shortcut executor. The shared hook reports which binding fired; the
   // table above says where it lands (null = a retired binding, no-op).
@@ -138,10 +189,16 @@ export function useShellNavigation() {
   // (which auto-focuses the title input and creates the task on submit via the
   // TaskTree provider). That is the app's own create-and-focus entry — no new
   // DataService API, no title-less junk rows.
+  //
+  // #753: the intent and the move are raised together INSIDE the guard — a
+  // refused navigation that still set the flag would open the create dialog
+  // the next time the user went to Todos of their own accord.
   const handleNewTask = useCallback(() => {
-    navigateTo({ section: "schedule", tab: "todo" });
-    setPendingNewTask(true);
-  }, [navigateTo]);
+    guarded(() => {
+      applyDestination({ section: "schedule", tab: "todo" });
+      setPendingNewTask(true);
+    });
+  }, [guarded, applyDestination]);
   // Kanban calls this once it has acted on the pending-new-task flag.
   const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
 
@@ -161,10 +218,14 @@ export function useShellNavigation() {
     (target: { id: string; role: string; date?: string }) => {
       const dest = ITEM_NAV_TARGET[target.role];
       if (!dest) return;
-      navigateTo(dest);
-      setPendingItemNav(target);
+      // Stashed inside the guard, like handleNewTask: a refused jump must not
+      // leave a pending selection waiting to fire on the next visit.
+      guarded(() => {
+        applyDestination(dest);
+        setPendingItemNav(target);
+      });
     },
-    [navigateTo],
+    [guarded, applyDestination],
   );
   const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
   const pendingNoteSelect =

@@ -17,6 +17,21 @@ export {
   type RightSidebarContextValue,
 } from "./RightSidebarContextValue";
 
+// UnsavedGuard (#753): Pattern A. Asks before a CONTAINER tears content down —
+// the right sidebar closing, the section switching — neither of which the
+// content itself can see (it only ever gets unmounted). Mounts OUTSIDE both:
+// above the section switch AND above RightSidebarProvider, which consults it.
+export {
+  UnsavedGuardProvider,
+  type UnsavedGuardProviderProps,
+  type UnsavedGuardLabels,
+} from "./UnsavedGuardContext";
+export {
+  UnsavedGuardContext,
+  type UnsavedGuardContextValue,
+  type UnsavedProbe,
+} from "./UnsavedGuardContextValue";
+
 // Toast (follow-up #6): host-mounted consumption layer for the shared
 // <Toast>/<ToastViewport> primitives (§6). Self-contained single file (the
 // frontend `ToastContext` precedent) — no other Provider depends on it, so it
