@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { SyncContext, type WebSyncContextValue } from "./SyncContextValue";
 import {
@@ -100,20 +100,52 @@ const ZERO_DOMAIN_VERSIONS: Readonly<Record<SyncDomain, number>> =
   Object.freeze(uniformDomainVersions(0));
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const [syncVersion, setSyncVersion] = useState(0);
-  const [domainVersions, setDomainVersions] =
-    useState<Readonly<Record<SyncDomain, number>>>(ZERO_DOMAIN_VERSIONS);
-  // The setters' identities are stable, but we reach them through a ref so the
-  // mount effect can stay deps-free (the channel must be built exactly once
-  // per mount; including a changing dep would reconnect on every bump).
+  /*
+   * The counters are an EXTERNAL STORE, not Provider state (#676 (d)).
+   *
+   * As Provider state they made the context value a fresh object on every
+   * bump, so every consumer re-rendered — including the ones whose own domain
+   * had not moved. That is the very cost #499 set out to remove: a note edit
+   * still woke TimerProvider, AudioProvider, CalendarProvider and each domain
+   * hook, which then re-ran their memos to conclude nothing had changed.
+   *
+   * Now a bump mutates the ref and notifies listeners, and `useSyncDomains`
+   * reads it through useSyncExternalStore with a NUMERIC snapshot (the sum of
+   * the domains it asked for). React compares that number and bails out when
+   * it has not moved, so an unrelated domain's change costs the consumer
+   * nothing at all.
+   */
+  const storeRef = useRef<{
+    syncVersion: number;
+    domainVersions: Readonly<Record<SyncDomain, number>>;
+  }>({ syncVersion: 0, domainVersions: ZERO_DOMAIN_VERSIONS });
+  const listenersRef = useRef(new Set<() => void>());
+
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    const listeners = listenersRef.current;
+    listeners.add(onStoreChange);
+    return () => {
+      listeners.delete(onStoreChange);
+    };
+  }, []);
+
+  // Reached through a ref so the mount effect can stay deps-free (the channel
+  // must be built exactly once per mount; a changing dep would reconnect on
+  // every bump).
   const bumpRef = useRef((domains: readonly SyncDomain[]) => {
-    setSyncVersion((v) => v + 1);
-    if (domains.length === 0) return;
-    setDomainVersions((prev) => {
-      const next = { ...prev };
-      for (const d of domains) next[d] = next[d] + 1;
-      return next;
-    });
+    const prev = storeRef.current;
+    let next = prev.domainVersions;
+    if (domains.length > 0) {
+      const moved = { ...prev.domainVersions };
+      for (const d of domains) moved[d] = moved[d] + 1;
+      next = moved;
+    }
+    storeRef.current = {
+      syncVersion: prev.syncVersion + 1,
+      domainVersions: next,
+    };
+    // A plain notify loop: React batches whatever re-renders these schedule.
+    for (const listener of listenersRef.current) listener();
   });
 
   useEffect(() => {
@@ -177,18 +209,33 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // triggerSync is unused by Realtime (subscription is passive) but kept on
-  // the interface for compatibility; a manual sync has no changed table to
-  // route on, so it moves every domain — the pre-#499 behaviour.
+  /*
+   * ONE value object for the Provider's whole life. Nothing here re-renders on
+   * a bump, so the identity never has to change — which is what stops
+   * `useContext` from waking every consumer. `syncVersion` / `domainVersions`
+   * stay on the interface (stub Providers in tests supply them as plain
+   * fields) and read through live getters here, so a direct read is current
+   * even though it does not subscribe.
+   *
+   * triggerSync is unused by Realtime (the subscription is passive) but kept
+   * on the interface for compatibility; a manual sync has no changed table to
+   * route on, so it moves every domain — the pre-#499 behaviour.
+   */
   const value: WebSyncContextValue = useMemo(
     () => ({
-      syncVersion,
-      domainVersions,
+      get syncVersion() {
+        return storeRef.current.syncVersion;
+      },
+      get domainVersions() {
+        return storeRef.current.domainVersions;
+      },
+      subscribe,
+      getDomainVersions: () => storeRef.current.domainVersions,
       triggerSync: async () => {
         bumpRef.current(SYNC_DOMAINS);
       },
     }),
-    [syncVersion, domainVersions],
+    [subscribe],
   );
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
