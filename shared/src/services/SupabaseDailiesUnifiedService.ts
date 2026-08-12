@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  DailiesUnifiedDataService,
-} from "./DataService";
+import type { DailiesUnifiedDataService } from "./DataService";
 import {
   ITEMS_META_DAILY_COLUMNS,
   DAILIES_PAYLOAD_COLUMNS,
@@ -14,9 +12,9 @@ import {
   type DailiesPayloadRow,
 } from "./dailiesUnifiedMapper";
 import type { DailyNode } from "../types/daily";
-import { hashPassword, verifyPassword } from "../utils/passwordHash";
-import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
+import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
+import { ItemLockGate, nextItemVersion } from "./itemLockGate";
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -28,53 +26,36 @@ import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
  * (N=1 / no-multitenancy Non-goal).
  */
 export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService {
-  constructor(private readonly client: SupabaseClient) {}
+  /**
+   * Password gate + edit lock (#674 / C7). The six methods used to be a
+   * line-for-line clone of SupabaseNotesUnifiedLock; both now bind the shared
+   * `ItemLockGate` and differ only in the values passed here.
+   */
+  private readonly lock: ItemLockGate<DailyNode>;
+
+  constructor(private readonly client: SupabaseClient) {
+    this.lock = new ItemLockGate<DailyNode>({
+      client,
+      role: "daily",
+      payloadTable: "dailies_payload",
+      readBack: (id, label) => this.readBackById(id, label),
+      assertId: assertDailyId,
+      labels: {
+        setPassword: "setDailyPasswordUnified",
+        removePassword: "removeDailyPasswordUnified",
+        verifyPassword: "verifyDailyPasswordUnified",
+        lazyRehash: "lazyRehashDailyPassword",
+        toggleEditLock: "toggleDailyEditLockUnified",
+      },
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Read
   // -------------------------------------------------------------------------
 
   async listDailiesUnified(): Promise<DailyNode[]> {
-    const metas = await fetchAllPages<ItemsMetaDailyRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_DAILY_COLUMNS)
-          .eq("role", "daily")
-          .eq("is_deleted", false)
-          .order("id")
-          .range(from, to),
-      "listDailiesUnified meta failed",
-    );
-
-    const ids = metas.map((m) => m.id);
-    if (ids.length === 0) return [];
-
-    const payloads = await fetchByIdChunks<DailiesPayloadRow>(ids, (chunk) =>
-      fetchAllPages(
-        (from, to) =>
-          this.client
-            .from("dailies_payload")
-            .select(DAILIES_PAYLOAD_COLUMNS)
-            .in("item_id", chunk)
-            .order("item_id")
-            .range(from, to),
-        "listDailiesUnified payload failed",
-      ),
-    );
-
-    const payloadById = new Map<string, DailiesPayloadRow>();
-    for (const row of payloads) {
-      payloadById.set(row.item_id, row);
-    }
-
-    const out: DailyNode[] = [];
-    for (const meta of metas) {
-      const payload = payloadById.get(meta.id);
-      if (!payload) continue;
-      out.push(rowsToDailyNode(meta, payload));
-    }
-    return out;
+    return this.listByDeletedBucket(false, "listDailiesUnified");
   }
 
   /**
@@ -290,48 +271,35 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * Notes G1 — see SupabaseNotesUnifiedService.permanentDeleteNoteUnified).
    */
   async fetchDeletedDailiesUnified(): Promise<DailyNode[]> {
-    // Trailing .order("id") = unique tiebreaker for deterministic pages.
-    const metas = await fetchAllPages<ItemsMetaDailyRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_DAILY_COLUMNS)
-          .eq("role", "daily")
-          .eq("is_deleted", true)
-          .order("deleted_at", { ascending: false })
-          .order("id")
-          .range(from, to),
-      "fetchDeletedDailiesUnified meta failed",
-    );
+    // Trailing .order("id") (added by the shared join) = unique tiebreaker for
+    // deterministic pages, after the deleted_at DESC ordering asked for here.
+    return this.listByDeletedBucket(true, "fetchDeletedDailiesUnified");
+  }
 
-    const ids = metas.map((m) => m.id);
-    if (ids.length === 0) return [];
-
-    const payloads = await fetchByIdChunks<DailiesPayloadRow>(ids, (chunk) =>
-      fetchAllPages(
-        (from, to) =>
-          this.client
-            .from("dailies_payload")
-            .select(DAILIES_PAYLOAD_COLUMNS)
-            .in("item_id", chunk)
-            .order("item_id")
-            .range(from, to),
-        "fetchDeletedDailiesUnified payload failed",
-      ),
-    );
-
-    const payloadById = new Map<string, DailiesPayloadRow>();
-    for (const row of payloads) {
-      payloadById.set(row.item_id, row);
-    }
-
-    const out: DailyNode[] = [];
-    for (const meta of metas) {
-      const payload = payloadById.get(meta.id);
-      if (!payload) continue; // orphan meta — skip rather than throw
-      out.push(rowsToDailyNode(meta, payload));
-    }
-    return out;
+  /**
+   * Shared body of the two list reads (#674 / C7): the items_meta +
+   * dailies_payload join for one `is_deleted` bucket. `label` reproduces each
+   * caller's own error strings verbatim.
+   */
+  private listByDeletedBucket(
+    isDeleted: boolean,
+    label: string,
+  ): Promise<DailyNode[]> {
+    return fetchMetaFirstJoin<ItemsMetaDailyRow, DailiesPayloadRow, DailyNode>({
+      client: this.client,
+      role: "daily",
+      isDeleted,
+      metaColumns: ITEMS_META_DAILY_COLUMNS,
+      metaLabel: `${label} meta failed`,
+      // Trash orders by deleted_at DESC ("most recently trashed first").
+      metaOrderBy: isDeleted
+        ? [{ column: "deleted_at", ascending: false }]
+        : undefined,
+      payloadTable: "dailies_payload",
+      payloadColumns: DAILIES_PAYLOAD_COLUMNS,
+      payloadLabel: `${label} payload failed`,
+      toDomain: rowsToDailyNode,
+    });
   }
 
   /**
@@ -395,35 +363,8 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * `has_password` column reflects on the returned domain object. Bumps
    * items_meta.updated_at + version so Sync LWW propagates.
    */
-  async setDailyPasswordUnified(
-    id: string,
-    password: string,
-  ): Promise<DailyNode> {
-    assertDailyId(id);
-    const passwordHash = await hashPassword(password);
-    const now = new Date().toISOString();
-    const nextVersion = await this.nextVersion(id, "setDailyPasswordUnified");
-
-    const { error: metaErr } = await this.client
-      .from("items_meta")
-      .update({ updated_at: now, version: nextVersion })
-      .eq("id", id)
-      .eq("role", "daily");
-    if (metaErr)
-      throw new Error(
-        `setDailyPasswordUnified meta failed: ${metaErr.message}`,
-      );
-
-    const { error: payErr } = await this.client
-      .from("dailies_payload")
-      .update({ password_hash: passwordHash })
-      .eq("item_id", id);
-    if (payErr)
-      throw new Error(
-        `setDailyPasswordUnified payload failed: ${payErr.message}`,
-      );
-
-    return this.readBackById(id, "setDailyPasswordUnified");
+  setDailyPasswordUnified(id: string, password: string): Promise<DailyNode> {
+    return this.lock.setPassword(id, password);
   }
 
   /**
@@ -432,40 +373,11 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * Verify hashes via PBKDF2 (Issue #118); a legacy plaintext match is
    * lazily rehashed inside verify before the row is cleared here.
    */
-  async removeDailyPasswordUnified(
+  removeDailyPasswordUnified(
     id: string,
     currentPassword: string,
   ): Promise<DailyNode> {
-    assertDailyId(id);
-    const valid = await this.verifyDailyPasswordUnified(id, currentPassword);
-    if (!valid) throw new Error("Invalid password");
-
-    const now = new Date().toISOString();
-    const nextVersion = await this.nextVersion(
-      id,
-      "removeDailyPasswordUnified",
-    );
-
-    const { error: metaErr } = await this.client
-      .from("items_meta")
-      .update({ updated_at: now, version: nextVersion })
-      .eq("id", id)
-      .eq("role", "daily");
-    if (metaErr)
-      throw new Error(
-        `removeDailyPasswordUnified meta failed: ${metaErr.message}`,
-      );
-
-    const { error: payErr } = await this.client
-      .from("dailies_payload")
-      .update({ password_hash: null })
-      .eq("item_id", id);
-    if (payErr)
-      throw new Error(
-        `removeDailyPasswordUnified payload failed: ${payErr.message}`,
-      );
-
-    return this.readBackById(id, "removeDailyPasswordUnified");
+    return this.lock.removePassword(id, currentPassword);
   }
 
   /**
@@ -473,69 +385,10 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * password_hash from dailies_payload (RLS scopes to auth.uid()'s rows).
    * Returns `false` when no hash is set OR the row does not exist
    * (maybeSingle -> null). A legacy plaintext row that matches is lazily
-   * rehashed into PBKDF2 form (best-effort — see lazyRehashDailyPassword).
-   *
-   * DEBT status: the plaintext-at-rest debt (old known-issues 027) is
-   * RESOLVED. The RPC debt REMAINS — ideally a `security invoker` RPC so the
-   * hash never leaves Postgres; today the SELECT list only keeps it off the
-   * public read path (defence in depth, not a substitute).
+   * rehashed into PBKDF2 form (best-effort — see itemLockGate's lazyRehash).
    */
-  async verifyDailyPasswordUnified(
-    id: string,
-    password: string,
-  ): Promise<boolean> {
-    const { data, error } = await this.client
-      .from("dailies_payload")
-      .select("password_hash")
-      .eq("item_id", id)
-      .maybeSingle();
-    if (error)
-      throw new Error(`verifyDailyPasswordUnified failed: ${error.message}`);
-    const stored = (data as { password_hash: string | null } | null)
-      ?.password_hash;
-    if (stored == null) return false;
-
-    const { ok, needsRehash } = await verifyPassword(password, stored);
-    if (ok && needsRehash) await this.lazyRehashDailyPassword(id, password);
-    return ok;
-  }
-
-  /**
-   * Migrate a legacy plaintext password to PBKDF2 form (Issue #118) after a
-   * successful verify.
-   *
-   * DELIBERATE DB-Q2 EXCEPTION — payload-only UPDATE, NO items_meta bump:
-   * password_hash sits outside every `*_PAYLOAD_COLUMNS` SELECT shape, so it
-   * is absent from the sync surface, and verify always re-reads the single
-   * column straight from the cloud row (no client cache). LWW propagation is
-   * therefore unnecessary, and bumping updated_at would be harmful (a mere
-   * unlock would reorder updated_at DESC views). A payload-only write is also
-   * atomic. has_password stays true throughout (plaintext -> hash non-null).
-   *
-   * Best-effort: a write failure is swallowed so it never changes the verify
-   * result; the next successful unlock retries the migration.
-   */
-  private async lazyRehashDailyPassword(
-    id: string,
-    password: string,
-  ): Promise<void> {
-    try {
-      const passwordHash = await hashPassword(password);
-      const { error: payErr } = await this.client
-        .from("dailies_payload")
-        .update({ password_hash: passwordHash })
-        .eq("item_id", id);
-      if (payErr)
-        throw new Error(
-          `lazyRehashDailyPassword payload failed: ${payErr.message}`,
-        );
-    } catch (err) {
-      // Swallow (but log): rehash is opportunistic. The verify already
-      // succeeded and the plaintext still verifies next time, so a failed
-      // migration simply retries on the next unlock. The warn keeps a
-      // chronically failing migration observable.
-      console.warn(`lazyRehashDailyPassword(${id}) failed:`, err);
-    }
+  verifyDailyPasswordUnified(id: string, password: string): Promise<boolean> {
+    return this.lock.verifyPassword(id, password);
   }
 
   // -------------------------------------------------------------------------
@@ -547,45 +400,8 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * cannot express the SQLite `CASE WHEN ... END` in one statement. Bumps
    * items_meta.updated_at + version so Sync LWW propagates.
    */
-  async toggleDailyEditLockUnified(id: string): Promise<DailyNode> {
-    assertDailyId(id);
-    const { data: cur, error: readErr } = await this.client
-      .from("dailies_payload")
-      .select("is_edit_locked")
-      .eq("item_id", id)
-      .single();
-    if (readErr)
-      throw new Error(
-        `toggleDailyEditLockUnified read failed: ${readErr.message}`,
-      );
-    const next = !(cur as { is_edit_locked: boolean }).is_edit_locked;
-
-    const now = new Date().toISOString();
-    const nextVersion = await this.nextVersion(
-      id,
-      "toggleDailyEditLockUnified",
-    );
-
-    const { error: metaErr } = await this.client
-      .from("items_meta")
-      .update({ updated_at: now, version: nextVersion })
-      .eq("id", id)
-      .eq("role", "daily");
-    if (metaErr)
-      throw new Error(
-        `toggleDailyEditLockUnified meta failed: ${metaErr.message}`,
-      );
-
-    const { error: payErr } = await this.client
-      .from("dailies_payload")
-      .update({ is_edit_locked: next })
-      .eq("item_id", id);
-    if (payErr)
-      throw new Error(
-        `toggleDailyEditLockUnified payload failed: ${payErr.message}`,
-      );
-
-    return this.readBackById(id, "toggleDailyEditLockUnified");
+  toggleDailyEditLockUnified(id: string): Promise<DailyNode> {
+    return this.lock.toggleEditLock(id);
   }
 
   // -------------------------------------------------------------------------
@@ -626,21 +442,12 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
   }
 
   /**
-   * Read current items_meta.version and return version + 1. Mirrors the
-   * Notes G1 `nextVersion` helper. A missing row throws (caller invariant:
-   * the row exists; this helper only runs from password/lock/restore paths
-   * where the caller has already located the daily by id).
+   * Read current items_meta.version and return version + 1. Thin binding of
+   * the shared `nextItemVersion` (#674 / C7) — kept as a method because
+   * `restoreDailyUnified` bumps the version outside the lock gate.
    */
-  private async nextVersion(id: string, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("items_meta")
-      .select("version")
-      .eq("id", id)
-      .eq("role", "daily")
-      .single();
-    if (error) throw new Error(`${label} version read: ${error.message}`);
-    const row = data as { version: number | null };
-    return (row?.version ?? 0) + 1;
+  private nextVersion(id: string, label: string): Promise<number> {
+    return nextItemVersion(this.client, "daily", id, label);
   }
 }
 
@@ -662,6 +469,9 @@ export const PHASE2_DAILIES_UNIFIED_METHOD_NAMES = [
   "toggleDailyEditLockUnified",
 ] as const;
 
-export type DailiesUnifiedMethodName = (typeof PHASE2_DAILIES_UNIFIED_METHOD_NAMES)[number];
+export type DailiesUnifiedMethodName =
+  (typeof PHASE2_DAILIES_UNIFIED_METHOD_NAMES)[number];
 
-export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set(PHASE2_DAILIES_UNIFIED_METHOD_NAMES);
+export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_DAILIES_UNIFIED_METHOD_NAMES,
+);
