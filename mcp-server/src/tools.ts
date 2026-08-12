@@ -229,7 +229,11 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "get_daily",
-    description: "Get the daily entry for a specific date.",
+    // A date with no daily and a date whose daily is in the trash both come
+    // back with content: null, so the flags are the only way to tell them
+    // apart (#782 ②).
+    description:
+      "Get the daily entry for a specific date. Returns exists (is there a readable daily), isTrashed (there is one, but it is in the trash — its body is withheld and writing to this date would restore it) and hasBriefing (the 朝刊 section is already written; write_briefing would replace it) alongside content. When exists is false, hasBriefing is always false — a trashed body is not read.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -534,7 +538,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "search_all",
     description:
-      "Search across tasks, dailies, and notes. Use this to find information across all domains.",
+      "Search across tasks, dailies, and notes. Use this to find information across all domains. Each requested domain answers as { results, total, hasMore }: total counts every match in that domain, results is the page cut by limit/offset, and hasMore says whether matches remain beyond it — page through with offset instead of re-searching with a bigger limit. totalHits is the sum of the per-domain totals. Daily hits carry the daily's id (the handle tag_entity / get_entity_tags take) as well as its date.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -554,7 +558,13 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
         limit: {
           type: "number",
-          description: "Max results per domain (default: 10)",
+          description:
+            "Max results per domain (default: 10, positive integer). Each domain reports total and hasMore, so nothing is dropped silently.",
+        },
+        offset: {
+          type: "number",
+          description:
+            "Rows to skip per domain (default: 0) — page with limit.",
         },
       },
       required: ["query"],

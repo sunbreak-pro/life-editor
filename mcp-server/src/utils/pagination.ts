@@ -30,17 +30,32 @@ export const DEFAULT_LIST_LIMIT = 50;
 /**
  * Caller-supplied `limit` → the count to slice at. A zero or negative limit
  * is a mistake that would otherwise look like an empty collection, so it is
- * rejected rather than honoured.
+ * rejected rather than honoured. An explicit null is unset, not a mistake —
+ * the validator deliberately lets null through on optional properties
+ * (toolSchema.ts), so rejecting it here would break calls that always worked.
  */
 export function resolveListLimit(
-  limit: number | undefined,
+  limit: number | null | undefined,
   fallback = DEFAULT_LIST_LIMIT,
 ): number {
-  if (limit === undefined) return fallback;
+  if (limit === undefined || limit === null) return fallback;
   if (!Number.isInteger(limit) || limit < 1) {
     throw new Error(`limit must be a positive integer (got ${limit})`);
   }
   return limit;
+}
+
+/**
+ * Caller-supplied `offset` → the rows to skip. A negative offset would slice
+ * from the tail instead of failing, i.e. answer a page nobody asked for.
+ * Null is unset, same rule as resolveListLimit above.
+ */
+export function resolveListOffset(offset: number | null | undefined): number {
+  if (offset === undefined || offset === null) return 0;
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new Error(`offset must be a non-negative integer (got ${offset})`);
+  }
+  return offset;
 }
 
 /** Minimal result surface shared by PostgREST builder thenables. */
