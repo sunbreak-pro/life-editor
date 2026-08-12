@@ -51,6 +51,7 @@ const TRASH_LABELS: TrashViewLabels = {
   confirmMessage: 'Permanently delete "{name}"? This cannot be undone.',
   cascadeWarning: "Related sub-items and tag assignments are deleted together.",
   cancel: "Cancel",
+  close: "Close",
 };
 
 describe("cn", () => {

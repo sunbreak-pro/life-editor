@@ -3,6 +3,17 @@ import {
   seriesPropagatableFields,
   touchesSeries,
 } from "../src/utils/eventEditorSave";
+import type { ScheduleItem } from "../src/types/schedule";
+
+/*
+ * The call site (web/src/schedule/useScheduleMutations.ts) hands these a
+ * `Partial<ScheduleItem>`, which structurally satisfies SeriesEditablePatch
+ * while carrying occurrence-only fields the patch type never lists — `memo`
+ * being the one this suite asserts about. Building those fixtures at the call
+ * site's type keeps the assertion honest without loosening the patch type
+ * (#711).
+ */
+const patch = (p: Partial<ScheduleItem>): Partial<ScheduleItem> => p;
 
 /*
  * seriesPropagatableFields / touchesSeries (#279 / #469 / #628) — the rule that
@@ -30,7 +41,7 @@ describe("touchesSeries — is this edit a question about the repeat?", () => {
     // propagate to, so nothing to ask about (this is what seriesEditHint
     // promises the user).
     expect(touchesSeries({ date: "2026-08-03" })).toBe(false);
-    expect(touchesSeries({ memo: "bring the card" })).toBe(false);
+    expect(touchesSeries(patch({ memo: "bring the card" }))).toBe(false);
     expect(touchesSeries({})).toBe(false);
   });
 
@@ -75,11 +86,13 @@ describe("seriesPropagatableFields — what the template may receive", () => {
 
   it("drops the occurrence-only fields of a mixed patch", () => {
     expect(
-      seriesPropagatableFields({
-        title: "Gym (long)",
-        date: "2026-08-03",
-        memo: "bring the card",
-      }),
+      seriesPropagatableFields(
+        patch({
+          title: "Gym (long)",
+          date: "2026-08-03",
+          memo: "bring the card",
+        }),
+      ),
     ).toEqual({ title: "Gym (long)" });
   });
 
@@ -98,7 +111,7 @@ describe("seriesPropagatableFields — what the template may receive", () => {
 
   it("returns nothing for a purely occurrence-level patch", () => {
     expect(
-      seriesPropagatableFields({ date: "2026-08-03", memo: "note" }),
+      seriesPropagatableFields(patch({ date: "2026-08-03", memo: "note" })),
     ).toEqual({});
   });
 });

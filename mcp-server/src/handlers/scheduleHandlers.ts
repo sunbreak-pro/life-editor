@@ -218,11 +218,20 @@ export async function listSchedule(args: {
 export async function createScheduleItem(args: {
   date: string;
   title: string;
-  start_time: string;
-  end_time: string;
+  start_time?: string;
+  end_time?: string;
   is_all_day?: boolean;
   memo?: string;
 }) {
+  // #702 ③: the times were `required` even for an all-day event, which then
+  // threw them away — so a caller had to invent two values to be ignored.
+  // They are required exactly when they mean something.
+  if (!args.is_all_day && (!args.start_time || !args.end_time)) {
+    throw new Error(
+      "start_time and end_time are required unless is_all_day is true",
+    );
+  }
+
   const id = `si-${randomUUID()}`;
 
   await insertItem({
@@ -258,7 +267,7 @@ export async function updateScheduleItem(args: {
   memo?: string;
   is_all_day?: boolean;
 }) {
-  await getEvent(args.id); // not-found guard
+  const { payload: current } = await getEvent(args.id); // not-found guard
 
   const metaPatch: Record<string, unknown> = {};
   if (args.title !== undefined) metaPatch.title = args.title;
@@ -268,7 +277,31 @@ export async function updateScheduleItem(args: {
   if (args.start_time !== undefined) payloadPatch.start_time = args.start_time;
   if (args.end_time !== undefined) payloadPatch.end_time = args.end_time;
   if (args.memo !== undefined) payloadPatch.memo = args.memo;
-  if (args.is_all_day !== undefined) payloadPatch.is_all_day = args.is_all_day;
+
+  /*
+   * #702 ③: is_all_day and the times used to move independently here, while
+   * create_schedule_item nulled the times for an all-day event. Flipping an
+   * event to all-day therefore left 09:00-09:15 sitting in the row, and
+   * flipping one back left an event with no times at all — two shapes the
+   * create path can never produce. Both directions now settle the times.
+   */
+  if (args.is_all_day !== undefined) {
+    payloadPatch.is_all_day = args.is_all_day;
+    if (args.is_all_day) {
+      payloadPatch.start_time = null;
+      payloadPatch.end_time = null;
+    } else {
+      const start = args.start_time ?? current.start_time;
+      const end = args.end_time ?? current.end_time;
+      if (!start || !end) {
+        throw new Error(
+          "start_time and end_time are required when turning is_all_day off (this item has none stored)",
+        );
+      }
+      payloadPatch.start_time = start;
+      payloadPatch.end_time = end;
+    }
+  }
 
   // §10.2: the updated_at bump is unconditional, even for a call that names
   // no field at all. `updatePayload` would treat "nothing to change" as a
@@ -290,22 +323,26 @@ export async function updateScheduleItem(args: {
   return formatItem(meta, payload);
 }
 
-async function setDismissed(id: string, dismissed: boolean) {
-  await getEvent(id);
-  await updatePayload("events_payload", id, "event", {
-    is_dismissed: dismissed,
+/**
+ * Hide or unhide an event (#702 ③).
+ *
+ * Was two tools, `dismiss_schedule_item` / `undismiss_schedule_item`, over
+ * this one line. Two names for one boolean means the caller picks the tool
+ * from the state it thinks the item is in; one tool taking the value means
+ * it states the state it wants. Renamed rather than aliased, per #419: an
+ * old name kept beside the new one is a wrong instruction still on offer.
+ */
+export async function setScheduleDismissed(args: {
+  id: string;
+  dismissed: boolean;
+}) {
+  await getEvent(args.id);
+  await updatePayload("events_payload", args.id, "event", {
+    is_dismissed: args.dismissed,
   });
 
-  const { meta, payload } = await getEvent(id);
+  const { meta, payload } = await getEvent(args.id);
   return formatItem(meta, payload);
-}
-
-export async function dismissScheduleItem(args: { id: string }) {
-  return setDismissed(args.id, true);
-}
-
-export async function undismissScheduleItem(args: { id: string }) {
-  return setDismissed(args.id, false);
 }
 
 export async function deleteScheduleItem(args: { id: string }) {
@@ -314,15 +351,27 @@ export async function deleteScheduleItem(args: { id: string }) {
   return { success: true, id: args.id, softDeleted: true };
 }
 
-export async function toggleScheduleComplete(args: { id: string }) {
-  const { payload } = await getEvent(args.id);
+/**
+ * Mark an event done or not done (#702 ③).
+ *
+ * Was `toggle_schedule_complete`, which flipped whatever the row held. A
+ * caller that means "mark this done" cannot predict the outcome without
+ * first reading the current value, and calling it twice undoes the intent —
+ * the tool was not idempotent (running it again changes the answer). Taking
+ * the value instead makes the result knowable before the call. Renamed
+ * rather than aliased, per #419.
+ */
+export async function setScheduleComplete(args: {
+  id: string;
+  completed: boolean;
+}) {
+  await getEvent(args.id);
 
-  const done = !payload.done;
   await updatePayload("events_payload", args.id, "event", {
-    done,
-    completed_at: done ? new Date().toISOString() : null,
+    done: args.completed,
+    completed_at: args.completed ? new Date().toISOString() : null,
   });
 
-  const { meta, payload: fresh } = await getEvent(args.id);
-  return formatItem(meta, fresh);
+  const { meta, payload } = await getEvent(args.id);
+  return formatItem(meta, payload);
 }

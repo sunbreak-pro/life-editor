@@ -106,7 +106,11 @@ function makeDs(rows: ScheduleItem[]) {
     async (ids: string[]) => ids.length,
   );
   const bulkDeleteScheduleItems = vi.fn(async (ids: string[]) => ids.length);
-  const bulkCreateScheduleItems = vi.fn(async () => {});
+  // Typed with the DataService signature so `.mock.calls[0][0]` is the items
+  // array rather than an unindexable empty tuple (#711).
+  const bulkCreateScheduleItems = vi.fn<DataService["bulkCreateScheduleItems"]>(
+    async () => {},
+  );
   // Mirrors the real contract: the service filters is_dismissed = false, so
   // dismissed occurrences never reach the hook at all (rule 1).
   const fetchScheduleItemsByRoutineId = vi.fn(async () =>
@@ -266,13 +270,7 @@ describe("reconcileRoutineScheduleItems — regeneration of newly firing days", 
 
     expect(bulkSoftDeleteScheduleItems).not.toHaveBeenCalled();
     expect(bulkCreateScheduleItems).toHaveBeenCalledTimes(1);
-    const created = bulkCreateScheduleItems.mock
-      .calls[0][0] as unknown as Array<{
-      date: string;
-      title: string;
-      startTime: string;
-      routineId: string;
-    }>;
+    const created = bulkCreateScheduleItems.mock.calls[0][0];
     expect(created.map((c) => c.date).sort()).toEqual([T, T2, T3].sort());
     expect(created[0]).toMatchObject({
       title: "Stretch",

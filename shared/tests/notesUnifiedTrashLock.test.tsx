@@ -70,7 +70,9 @@ describe("softDeleteNote cascade", () => {
       makeNote("note-child", { parentId: "note-root" }),
       makeNote("note-other"),
     ];
-    const softDeleteNoteUnified = vi.fn(async () => {});
+    const softDeleteNoteUnified = vi.fn<(id: string) => Promise<void>>(
+      async () => {},
+    );
     const ds = makeDs({
       listNotesUnified: async () => rows.map((n) => ({ ...n })),
       getNoteUnified: async (id: string) => ({

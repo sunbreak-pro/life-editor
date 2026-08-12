@@ -5,6 +5,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { TaskStatus } from "../types/taskTree";
+import type { TranslationKey } from "../i18n/resources";
 
 /*
  * Shared Task-status visuals (C5 dedup): canonical order, icon map and
@@ -30,7 +31,7 @@ export const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
  * TaskDetailPanel (Kanban board, schedule task-chip detail) words a status
  * identically.
  */
-export const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
+export const STATUS_TEXT_KEY: Record<TaskStatus, TranslationKey> = {
   NOT_STARTED: "taskDetail.statusNotStarted",
   IN_PROGRESS: "taskDetail.statusInProgress",
   DONE: "taskDetail.statusDone",

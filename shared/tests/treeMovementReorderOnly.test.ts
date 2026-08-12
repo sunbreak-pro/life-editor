@@ -28,7 +28,7 @@ function task(
     title: id,
     parentId,
     order,
-    status: "todo",
+    status: "NOT_STARTED",
     isDeleted,
     createdAt: "2026-07-27T00:00:00.000Z",
   };

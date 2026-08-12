@@ -9,7 +9,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 /*
  * Design-system text input. Opaque bg-lumen-bg background (§5), lumen-*
- * tokens only. The host owns IME handling (e.nativeEvent.isComposing,
+ * tokens only. The host owns IME handling (`isImeComposing(e)` — utils/imeGuard,
  * §6.6) by passing onKeyDown — this primitive is intentionally unopinionated
  * about composition so it stays reusable.
  */

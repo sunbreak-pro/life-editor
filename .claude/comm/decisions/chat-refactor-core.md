@@ -23,3 +23,13 @@
 - C: `askDiscard` 以外の 5 箇所だけ置き換える（同期契約に手を入れない範囲）
 - 放置時: **現状維持**（A と同じ）。#670 の DoD にこの項目は無いので、C3 の完了はブロックしない
 - 期限感: いつでも（#290 Schedule redesign の着手時に一緒に決めるのが自然）
+
+### D-20260812-refactor-1: #726 で `CalendarTab.tsx` に 2 行だけ触れたことの事後確認
+
+- 背景: レーン指示は「`CalendarTab.tsx` には触らない（schedule-refine が #736 で同じ領域を触っている）」だった。#726 の 12 箇所のうち **11 箇所は shared 側の定数に型を付けるだけで消えた**（`sections.ts` / `types/shortcut.ts` / `constants/sounds.ts` / `components/taskStatusVisuals.ts` / `utils/scheduleLabels.ts`）。MainScreen・SettingsScreen・KanbanView・WorkScreen は 1 文字も変えていない
+- 残った 1 箇所だけが `CalendarTab.tsx` の**中で定義された定数** `REPEAT_FAILURE_COPY_KEY`（現 140-143 行）で、外から型を付ける手段が無い。ここを直さないと `cd web && npm run build` が赤のままで、#726 は 1 行も出せない
+- 実際に入れた差分は **2 行**: import に `type TranslationKey` を足す（82 行付近）と、`Record<..., string>` を `Record<..., TranslationKey>` にする（142 行）。**挙動ゼロ・ファイル冒頭の定数ブロック**で、#736 が触る TaskDetailPanel の配線（2240 行以降）とは 2000 行以上離れている
+- A: **このまま（推奨）** — 型引数 1 個の差し替えなので #736 側と意味的に衝突しない。git も別ハンクとして扱う
+- B: この 2 行を PR から外し、#736 の merge 後に別 PR で入れる（その間 #726 は着地できない）
+- 放置時: **A のまま**（PR #745 に含まれた状態で出してある）。B にしたい場合は該当 2 行を revert すれば残りはそのまま緑
+- 期限感: #726 の PR を merge する前まで

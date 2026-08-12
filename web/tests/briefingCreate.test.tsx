@@ -183,8 +183,12 @@ describe("Briefing create panel (#623)", () => {
 
     await waitFor(() => expect(ds.createScheduleItem).toHaveBeenCalled());
     // The paper has no event editor of its own, so "open" means the section
-    // that does.
-    expect(onNavigate).toHaveBeenCalledWith("schedule");
+    // that does — named in the target-IA destination vocabulary (#676 (b)):
+    // the Schedule section, on its Calendar tab.
+    expect(onNavigate).toHaveBeenCalledWith({
+      section: "schedule",
+      tab: "calendar",
+    });
   });
 
   it("writes nothing when the panel is dismissed", async () => {

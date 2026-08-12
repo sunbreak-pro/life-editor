@@ -220,8 +220,10 @@ export {
   isEditableTarget,
   hasAccelerator,
   isActiveInInput,
+  isNavShortcutId,
+  NAV_SHORTCUT_IDS,
   type GlobalShortcutHandlers,
-  type NavSection,
+  type NavShortcutId,
 } from "./hooks/useGlobalShortcuts";
 export {
   useTaskTreeAPI,
@@ -584,6 +586,10 @@ export {
 export { generateId } from "./utils/generateId";
 // Fair-share truncation for the role-concatenated "[[" candidate pool (#370).
 export { balanceByRole } from "./utils/balanceByRole";
+// The one IME guard every keydown handler asks (#737) — web has its own
+// handlers (the editor suggestion menus, the calendar's inline title) and must
+// reach the same answer as shared's.
+export { isImeComposing } from "./utils/imeGuard";
 
 // Design system (W0-3) — cross-platform UI primitives. Case A: shared
 // owns the UI layer (lucide-react etc.). lumen-* tokens come from
@@ -601,3 +607,7 @@ export {
   Trans,
   LANGUAGE_STORAGE_KEY,
 } from "./i18n";
+// The catalog as a type (#726). `TranslationKey` is what a constant holding a
+// key gets annotated with, so a key that reaches t() through a variable is
+// checked where it is written down.
+export type { TranslationKey } from "./i18n/resources";

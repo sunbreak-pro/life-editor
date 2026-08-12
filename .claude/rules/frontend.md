@@ -13,6 +13,12 @@ paths:
 
 - 新規 UI は `shared/src/components/`（部品層）に集約し、画面層は `web/src/`。Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`。旧 `frontend/`（Tauri 時代）は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）
 
+## セクションを 1 つ足すときに触る 2 箇所（#676 (b)）
+
+- **アイデンティティ = `shared/src/sections.ts` の registry**（`SectionId` / nav 順 / グループ / アイコン / i18n key / mobile 順）
+- **web ホストの描き方 = `web/src/sectionDescriptors.tsx` の `SECTION_DESCRIPTORS`**（PageContainer の width / ヘッダーのタブ帯 / 狭幅レイアウトの行 / body とその section 層 Provider）。`Record<SectionId, …>` なので registry に足すと descriptor 行が無い間はコンパイルが通らない
+- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics / Connect）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`）
+
 ## 命名（プロジェクト固有のみ）
 
 - Context Value 型は PascalCase ファイル名: `AudioContextValue.ts`。他は一般的 TS/React 慣習（コンポーネント PascalCase / フック `use`+camelCase / 定数 SCREAMING_SNAKE_CASE）
@@ -79,6 +85,6 @@ jsdom にレイアウトが無い（座標がすべて 0）という環境の事
 
 ## Gotchas
 
-- **IME**: keydown 処理に `e.nativeEvent.isComposing` チェック必須（日本語入力破壊防止）
+- **IME**: keydown 処理は **`isImeComposing(e)`（`shared/src/utils/imeGuard.ts`）必須**（日本語入力破壊防止）。`isComposing` を直に見ない — WebKit（macOS + iOS = 主ターゲット）は変換を**確定する** Enter を `isComposing: false` + `keyCode === 229` で飛ばすため、フラグ単独だと一番まずいキーだけ素通りする（#737。React 合成イベント・native イベントのどちらも同じヘルパで受ける）
 - **リッチテキスト**: TipTap
 - **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断）。`moveNode` は同一階層の並び替え専用で、親を変える API（旧 `moveNodeInto`）は Tasks / Notes とも存在しない

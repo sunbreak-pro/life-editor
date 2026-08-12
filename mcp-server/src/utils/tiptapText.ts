@@ -7,12 +7,9 @@ export function extractTextFromTipTap(node: unknown): string {
   return "";
 }
 
-export function getContentPreview(content: string, maxLength = 100): string {
-  if (!content) return "";
-  try {
-    const parsed = JSON.parse(content);
-    return extractTextFromTipTap(parsed).slice(0, maxLength) || "";
-  } catch {
-    return content.slice(0, maxLength);
-  }
-}
+/*
+ * `getContentPreview` lived here until #702 ①. It was a second copy of
+ * contentPlainText + slice that only handled TipTap *strings*, so the jsonb
+ * bodies (notes / dailies) could not use it and sliced by hand instead. The
+ * one preview every tool shares is now `contentPreview` in ./content.ts.
+ */

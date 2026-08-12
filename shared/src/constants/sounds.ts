@@ -1,4 +1,12 @@
-import { CloudRain, Wind, Waves, Bird, Flame, type LucideIcon } from "lucide-react";
+import {
+  CloudRain,
+  Wind,
+  Waves,
+  Bird,
+  Flame,
+  type LucideIcon,
+} from "lucide-react";
+import type { TranslationKey } from "../i18n/resources";
 
 /*
  * W3-C ambient sound presets (scope-confirmed 2026-06-10): exactly 5 presets
@@ -20,8 +28,9 @@ import { CloudRain, Wind, Waves, Bird, Flame, type LucideIcon } from "lucide-rea
 export interface SoundPresetDef {
   /** Stable preset id; also the sound_settings.sound_type value + asset stem. */
   id: string;
-  /** i18n key for the display label (host resolves with t()). */
-  labelKey: string;
+  /** i18n key for the display label (host resolves with t()). Typed as the
+   *  catalog's key union (#726). */
+  labelKey: TranslationKey;
   /** lucide-react icon component. */
   icon: LucideIcon;
   /** Storage object name in the `sounds` bucket (`<id>.mp3`). */
@@ -29,11 +38,36 @@ export interface SoundPresetDef {
 }
 
 export const SOUND_PRESETS: readonly SoundPresetDef[] = [
-  { id: "rain", labelKey: "audioMixer.sound.rain", icon: CloudRain, objectName: "rain.mp3" },
-  { id: "wind", labelKey: "audioMixer.sound.wind", icon: Wind, objectName: "wind.mp3" },
-  { id: "ocean", labelKey: "audioMixer.sound.ocean", icon: Waves, objectName: "ocean.mp3" },
-  { id: "birds", labelKey: "audioMixer.sound.birds", icon: Bird, objectName: "birds.mp3" },
-  { id: "fire", labelKey: "audioMixer.sound.fire", icon: Flame, objectName: "fire.mp3" },
+  {
+    id: "rain",
+    labelKey: "audioMixer.sound.rain",
+    icon: CloudRain,
+    objectName: "rain.mp3",
+  },
+  {
+    id: "wind",
+    labelKey: "audioMixer.sound.wind",
+    icon: Wind,
+    objectName: "wind.mp3",
+  },
+  {
+    id: "ocean",
+    labelKey: "audioMixer.sound.ocean",
+    icon: Waves,
+    objectName: "ocean.mp3",
+  },
+  {
+    id: "birds",
+    labelKey: "audioMixer.sound.birds",
+    icon: Bird,
+    objectName: "birds.mp3",
+  },
+  {
+    id: "fire",
+    labelKey: "audioMixer.sound.fire",
+    icon: Flame,
+    objectName: "fire.mp3",
+  },
 ] as const;
 
 /** Storage object name of the phase-completion chime. */

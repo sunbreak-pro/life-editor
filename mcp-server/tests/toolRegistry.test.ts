@@ -122,12 +122,12 @@ describe("invalid arguments never reach a handler", () => {
   it("reports every problem in one message", async () => {
     const error = await callTool("create_schedule_item", {
       date: 2026,
-      title: "standup",
+      start_time: 9,
     }).catch((e: unknown) => e as Error);
 
     expect(error.message).toContain("date must be a string");
-    expect(error.message).toContain("start_time is required");
-    expect(error.message).toContain("end_time is required");
+    expect(error.message).toContain("start_time must be a string");
+    expect(error.message).toContain("title is required");
   });
 });
 
@@ -144,6 +144,8 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       status: "in_progress",
       date_range: { start: "2026-08-01", end: "2026-08-31" },
       parent_id: "task-1",
+      include_content: true,
+      limit: 10,
     },
   ],
   ["get_task", { id: "task-1" }],
@@ -156,14 +158,20 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       scheduled_at: "2026-08-11T09:00:00Z",
       scheduled_end_at: "2026-08-11T10:00:00Z",
       is_all_day: false,
+      status: "in_progress",
+      content: "# notes",
     },
   ],
-  ["update_task", { id: "task-1", status: "done", content: "# done" }],
+  [
+    "update_task",
+    { id: "task-1", status: "done", content: "# done", time_memo: "朝イチ" },
+  ],
   ["delete_task", { id: "task-1" }],
   ["get_daily", { date: "2026-08-11" }],
   ["upsert_daily", { date: "2026-08-11", content: "hello" }],
   ["list_notes", {}],
-  ["list_notes", { query: "refactor" }],
+  ["list_notes", { query: "refactor", include_content: true, limit: 10 }],
+  ["get_note", { id: "note-1" }],
   ["create_note", { title: "note", content: "body" }],
   ["update_note", { id: "note-1", color: "#E8D5F5" }],
   ["list_schedule", { start_date: "2026-08-11", end_date: "2026-08-12" }],
@@ -178,11 +186,14 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       memo: "daily",
     },
   ],
+  [
+    "create_schedule_item",
+    { date: "2026-08-11", title: "day off", is_all_day: true },
+  ],
   ["update_schedule_item", { id: "si-1", is_all_day: true }],
   ["delete_schedule_item", { id: "si-1" }],
-  ["toggle_schedule_complete", { id: "si-1" }],
-  ["dismiss_schedule_item", { id: "si-1" }],
-  ["undismiss_schedule_item", { id: "si-1" }],
+  ["set_schedule_complete", { id: "si-1", completed: true }],
+  ["set_schedule_dismissed", { id: "si-1", dismissed: false }],
   ["get_today_context", {}],
   ["write_briefing", { focus: "one thing", paragraphs: ["a", "b"] }],
   ["search_all", { query: "q", domains: ["tasks", "notes"], limit: 5 }],

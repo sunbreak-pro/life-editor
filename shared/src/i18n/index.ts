@@ -2,6 +2,10 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import ja from "./locales/ja.json";
+// Side-effect import: carries the `declare module "i18next"` in that file into
+// every tree that loads the singleton, which is what makes web's `t` typed
+// against the catalog (#726).
+import "./resources";
 
 /*
  * Shared i18n — single source of truth for the en/ja translation catalog

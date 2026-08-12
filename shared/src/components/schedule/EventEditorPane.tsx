@@ -17,6 +17,7 @@ import {
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
+import { isImeComposing } from "../../utils/imeGuard";
 import {
   FIELD,
   FIELD_LABEL,
@@ -463,8 +464,10 @@ function EventEditorFields({
   // commits anything (#628), so the old "Enter blurs to commit" would have left
   // the key doing nothing visible at all.
   const saveOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    // IME guard: do not treat a composition-confirming Enter as a save.
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+    // IME guard: the Enter that CONFIRMS a Japanese conversion is not a save.
+    // `isComposing` alone misses exactly that keypress on WebKit (#737) — the
+    // shared helper is what knows both halves of the answer.
+    if (e.key === "Enter" && !isImeComposing(e)) {
       e.preventDefault();
       save();
     }

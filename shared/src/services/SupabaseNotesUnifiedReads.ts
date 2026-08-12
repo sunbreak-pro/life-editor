@@ -11,7 +11,7 @@ import {
   type NotesPayloadRow,
 } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
-import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
+import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 
 /**
@@ -42,19 +42,7 @@ export class SupabaseNotesUnifiedReads {
     // legacy notes. A note whose parentId points at an excluded folder still
     // surfaces (orphan tolerance): its own note_type is 'note', so only the
     // folder row itself is dropped.
-    const metas = await fetchAllPages<ItemsMetaNoteRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_NOTE_COLUMNS)
-          .eq("role", "note")
-          .eq("is_deleted", false)
-          .order("id")
-          .range(from, to),
-      "listNotesUnified meta failed",
-    );
-
-    return this.joinLitePayloads(metas, "listNotesUnified payload failed");
+    return this.listLite(false, "listNotesUnified");
   }
 
   /**
@@ -70,67 +58,37 @@ export class SupabaseNotesUnifiedReads {
    * pop up in Trash as restorable "notes".
    */
   async fetchDeletedNotesUnified(): Promise<NoteNode[]> {
-    // Trailing .order("id") = unique tiebreaker for deterministic pages.
-    const metas = await fetchAllPages<ItemsMetaNoteRow>(
-      (from, to) =>
-        this.client
-          .from("items_meta")
-          .select(ITEMS_META_NOTE_COLUMNS)
-          .eq("role", "note")
-          .eq("is_deleted", true)
-          .order("deleted_at", { ascending: false })
-          .order("id")
-          .range(from, to),
-      "fetchDeletedNotesUnified meta failed",
-    );
-
     // M1 (perf): Trash likewise never renders the body (restore /
     // permanentDelete only need id/parentId), so it uses the light query.
-    return this.joinLitePayloads(
-      metas,
-      "fetchDeletedNotesUnified payload failed",
-    );
+    // Trailing .order("id") (added by the shared join) = unique tiebreaker for
+    // deterministic pages, after the deleted_at DESC ordering asked for here.
+    return this.listLite(true, "fetchDeletedNotesUnified");
   }
 
   /**
-   * Shared tail of the two list reads: fetch the light payload rows for
-   * `metas` and join in memory, skipping orphan metas and legacy folder rows
-   * (#375). Was duplicated verbatim between listNotesUnified and
-   * fetchDeletedNotesUnified before the #587 split.
+   * Shared body of the two list reads: the items_meta + notes_payload join on
+   * the LIGHT payload column set, skipping orphan metas and legacy folder
+   * rows (#375). `label` reproduces each caller's own error strings verbatim
+   * (`"<method> meta failed"` / `"<method> payload failed"`).
    */
-  private async joinLitePayloads(
-    metas: ItemsMetaNoteRow[],
-    errorLabel: string,
-  ): Promise<NoteNode[]> {
-    const ids = metas.map((m) => m.id);
-    if (ids.length === 0) return [];
-
-    const payloads = await fetchByIdChunks<NotesPayloadListRow>(ids, (chunk) =>
-      fetchAllPages(
-        (from, to) =>
-          this.client
-            .from("notes_payload")
-            .select(NOTES_PAYLOAD_LIST_COLUMNS)
-            .in("item_id", chunk)
-            .order("item_id")
-            .range(from, to),
-        errorLabel,
-      ),
-    );
-
-    const payloadById = new Map<string, NotesPayloadListRow>();
-    for (const row of payloads) {
-      payloadById.set(row.item_id, row);
-    }
-
-    const out: NoteNode[] = [];
-    for (const meta of metas) {
-      const payload = payloadById.get(meta.id);
-      if (!payload) continue; // orphan meta — skip rather than throw
-      if (isLegacyNoteFolderRow(payload)) continue; // #375: legacy folder row
-      out.push(rowsToNoteNodeLite(meta, payload));
-    }
-    return out;
+  private listLite(isDeleted: boolean, label: string): Promise<NoteNode[]> {
+    return fetchMetaFirstJoin<ItemsMetaNoteRow, NotesPayloadListRow, NoteNode>({
+      client: this.client,
+      role: "note",
+      isDeleted,
+      metaColumns: ITEMS_META_NOTE_COLUMNS,
+      metaLabel: `${label} meta failed`,
+      // Trash orders by deleted_at DESC ("most recently trashed first",
+      // legacy parity); the live list has no extra ordering.
+      metaOrderBy: isDeleted
+        ? [{ column: "deleted_at", ascending: false }]
+        : undefined,
+      payloadTable: "notes_payload",
+      payloadColumns: NOTES_PAYLOAD_LIST_COLUMNS,
+      payloadLabel: `${label} payload failed`,
+      keep: (payload) => !isLegacyNoteFolderRow(payload), // #375
+      toDomain: rowsToNoteNodeLite,
+    });
   }
 
   /**

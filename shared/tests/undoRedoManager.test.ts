@@ -14,8 +14,14 @@ import {
 function cmd(log: string[], name: string): UndoCommand {
   return {
     label: name,
-    undo: () => log.push(`undo:${name}`),
-    redo: () => log.push(`redo:${name}`),
+    // Braces, not a concise body: Array.push returns the new length, and
+    // UndoCommand's hooks return void | Promise<void> (#711).
+    undo: () => {
+      log.push(`undo:${name}`);
+    },
+    redo: () => {
+      log.push(`redo:${name}`);
+    },
   };
 }
 

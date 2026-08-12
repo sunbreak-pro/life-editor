@@ -393,7 +393,29 @@ export function TimerProvider({
     [ds],
   );
 
-  const value = useMemo<TimerContextValue>(
+  /*
+   * The value is assembled from TWO memos, split along the only line that
+   * matters here: what the 1 s pulse touches (#676 (d)).
+   *
+   *  - `live` is the display face. Every field in it is derived from the
+   *    wall-clock anchors and so is rebuilt each tick, by design.
+   *  - `controls` is the imperative surface plus the settings and presets. It
+   *    changes when the user (or a cross-tab edit) changes something, which is
+   *    rare — it does NOT move with the clock.
+   *
+   * They used to be one memo over a 26-entry dependency list, which is the
+   * kind of list that goes wrong quietly: drop an entry and the value keeps a
+   * stale field forever, add a churning one and the memo never hits. Two short
+   * lists say which half a new field belongs to, and the composition below
+   * makes "everything is rebuilt every second" visible rather than implied.
+   *
+   * The composed value still changes each tick, so this is not a render
+   * optimisation — both consumers (NavTimerStatus and WorkScreen) show the
+   * countdown and must re-render anyway. Giving the halves their own contexts
+   * would only pay off with memoised panels inside WorkScreen; that is a
+   * bigger, screen-side change and is queued rather than smuggled in here.
+   */
+  const live = useMemo(
     () => ({
       phase: state.phase,
       isRunning: state.isRunning,
@@ -403,6 +425,21 @@ export function TimerProvider({
       completedSessions: state.completedSessions,
       formatted,
       activeTask: state.activeTask,
+    }),
+    [
+      state.phase,
+      state.isRunning,
+      remaining,
+      progress,
+      totalSeconds,
+      state.completedSessions,
+      formatted,
+      state.activeTask,
+    ],
+  );
+
+  const controls = useMemo(
+    () => ({
       workDurationMinutes: state.config.workDuration,
       breakDurationMinutes: state.config.breakDuration,
       longBreakDurationMinutes: state.config.longBreakDuration,
@@ -423,14 +460,6 @@ export function TimerProvider({
       deletePreset,
     }),
     [
-      state.phase,
-      state.isRunning,
-      remaining,
-      progress,
-      totalSeconds,
-      state.completedSessions,
-      formatted,
-      state.activeTask,
       state.config.workDuration,
       state.config.breakDuration,
       state.config.longBreakDuration,
@@ -450,6 +479,11 @@ export function TimerProvider({
       applyPreset,
       deletePreset,
     ],
+  );
+
+  const value = useMemo<TimerContextValue>(
+    () => ({ ...live, ...controls }),
+    [live, controls],
   );
 
   return (

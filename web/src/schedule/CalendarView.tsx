@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  isImeComposing,
   useCalendarContext,
   useTranslation,
   useWikiTagsUnifiedContext,
@@ -135,7 +136,7 @@ export function CalendarView() {
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              if (e.key === "Enter" && !isImeComposing(e)) {
                 handleCreate();
               }
             }}
