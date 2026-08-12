@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { TagEditModal, type TagEditRow } from "../src/components";
 
@@ -299,23 +299,32 @@ describe("TagEditModal — unsaved drafts and the close guard (#715)", () => {
   });
 });
 
-/** The host wiring TagEditorHost uses, reduced to the parts under test. */
+/*
+ * The host wiring TagEditorHost uses, reduced to the parts under test.
+ *
+ * `askDiscard` returns a PROMISE on purpose: since #707 the question is the
+ * in-app <ConfirmDialog>, which answers a tick later, and a guard that read the
+ * pending promise as a truthy "yes" would discard the draft the moment the
+ * dialog opened.
+ */
 function Harness({
   onRename,
+  askDiscard,
 }: {
   onRename: (id: string, name: string) => void;
+  askDiscard: () => Promise<boolean>;
 }) {
   const dirtyRef = useRef(false);
   const [open, setOpen] = useState(true);
-  const close = () => {
-    if (dirtyRef.current && !window.confirm("Discard?")) return;
+  const close = async () => {
+    if (dirtyRef.current && !(await askDiscard())) return;
     dirtyRef.current = false;
     setOpen(false);
   };
   return (
     <TagEditModal
       {...props({ onRename, open })}
-      onClose={close}
+      onClose={() => void close()}
       onDirtyChange={(dirty) => {
         dirtyRef.current = dirty;
       }}
@@ -327,38 +336,67 @@ const panelIsOpen = () => screen.queryByRole("dialog") !== null;
 const pressEscape = () => fireEvent.keyDown(document, { key: "Escape" });
 
 describe("TagEditModal — the host's unsaved-close guard (#715, same shape as #628)", () => {
-  it("closes without a word when nothing is pending", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<Harness onRename={vi.fn()} />);
+  it("closes without a word when nothing is pending", async () => {
+    const askDiscard = vi.fn().mockResolvedValue(true);
+    render(<Harness onRename={vi.fn()} askDiscard={askDiscard} />);
 
     pressEscape();
     // Asking to discard when there is nothing to discard is the fastest way to
     // teach the user to dismiss the dialog without reading it.
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(panelIsOpen()).toBe(false);
+    expect(askDiscard).not.toHaveBeenCalled();
+    await waitFor(() => expect(panelIsOpen()).toBe(false));
   });
 
-  it("asks before discarding, and stays open when the answer is no", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<Harness onRename={vi.fn()} />);
+  it("asks before discarding, and stays open when the answer is no", async () => {
+    const askDiscard = vi.fn().mockResolvedValue(false);
+    render(<Harness onRename={vi.fn()} askDiscard={askDiscard} />);
 
     typeName("chores");
     pressEscape();
 
-    expect(confirmSpy).toHaveBeenCalledOnce();
+    await waitFor(() => expect(askDiscard).toHaveBeenCalledOnce());
     expect(panelIsOpen()).toBe(true);
     expect(nameInput().value).toBe("chores");
   });
 
-  it("throws the draft away when the answer is yes", () => {
-    const onRename = vi.fn();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<Harness onRename={onRename} />);
+  it("keeps the draft while the question is still on screen", async () => {
+    // The promise is still pending here — exactly the state the panel is in
+    // for as long as the in-app dialog waits for an answer (#729). Reading it
+    // as a truthy "yes" would throw the draft away the moment the dialog
+    // opened, which is what `window.confirm` never did (it blocked instead).
+    let answer: (discard: boolean) => void = () => {};
+    const askDiscard = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    render(<Harness onRename={vi.fn()} askDiscard={askDiscard} />);
 
     typeName("chores");
     pressEscape();
 
-    expect(panelIsOpen()).toBe(false);
+    await waitFor(() => expect(askDiscard).toHaveBeenCalledOnce());
+    expect(panelIsOpen()).toBe(true);
+    expect(nameInput().value).toBe("chores");
+
+    answer(true);
+    await waitFor(() => expect(panelIsOpen()).toBe(false));
+  });
+
+  it("throws the draft away when the answer is yes", async () => {
+    const onRename = vi.fn();
+    render(
+      <Harness
+        onRename={onRename}
+        askDiscard={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    typeName("chores");
+    pressEscape();
+
+    await waitFor(() => expect(panelIsOpen()).toBe(false));
     expect(onRename).not.toHaveBeenCalled();
   });
 });
