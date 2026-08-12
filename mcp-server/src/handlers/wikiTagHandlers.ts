@@ -305,6 +305,41 @@ export async function tagEntity(args: {
   };
 }
 
+/**
+ * The inverse of `tagEntity` (#782 ①). That one revives a trashed assignment
+ * rather than inserting a duplicate, so this one only trashes the live row —
+ * the pair keeps working after any number of tag/untag cycles. `wiki_tags`
+ * itself is left alone: other items may still carry the tag.
+ */
+export async function untagEntity(args: {
+  tag_name: string;
+  entity_id: string;
+}) {
+  const tag = await findTagByName(args.tag_name);
+  // Nothing to remove is the state the caller asked for, not an error.
+  if (!tag) return { removed: false };
+
+  const { client } = await getSupabase();
+  const { data, error } = await client
+    .from("wiki_tag_assignments")
+    .select("id")
+    .eq("item_id", args.entity_id)
+    .eq("tag_id", tag.id)
+    .eq("is_deleted", false)
+    .maybeSingle();
+  if (error) throw new Error(`assignment lookup: ${error.message}`);
+  if (!data) return { removed: false };
+
+  const now = new Date().toISOString();
+  const { error: uErr } = await client
+    .from("wiki_tag_assignments")
+    .update({ is_deleted: true, deleted_at: now, updated_at: now })
+    .eq("id", (data as { id: string }).id);
+  if (uErr) throw new Error(`remove assignment: ${uErr.message}`);
+
+  return { removed: true, tag: formatTag(tag), entityId: args.entity_id };
+}
+
 export async function searchByTag(args: {
   tag_name: string;
   entity_type?: string;

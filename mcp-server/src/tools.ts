@@ -13,6 +13,7 @@ import {
   getNote,
   createNote,
   updateNote,
+  deleteNote,
 } from "./handlers/noteHandlers.js";
 import {
   listSchedule,
@@ -28,9 +29,11 @@ import { generateContent, formatContent } from "./handlers/contentHandlers.js";
 import {
   listWikiTags,
   tagEntity,
+  untagEntity,
   searchByTag,
   getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
+import { restoreItem } from "./handlers/trashHandlers.js";
 import {
   validateToolArgs,
   unknownArgNames,
@@ -217,7 +220,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "delete_task",
-    description: "Soft-delete a task (moves to trash).",
+    description: "Soft-delete a task (moves to trash). Undo with restore_item.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -339,10 +342,26 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "Note icon color (hex, e.g. #E8D5F5)",
         },
+        is_pinned: {
+          type: "boolean",
+          description: "Pin the note to the top of the list",
+        },
       },
       required: ["id"],
     },
     handler: updateNote,
+  }),
+  defineTool({
+    name: "delete_note",
+    description: "Soft-delete a note (moves to trash). Undo with restore_item.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Note ID" },
+      },
+      required: ["id"],
+    },
+    handler: deleteNote,
   }),
   defineTool({
     name: "list_schedule",
@@ -444,7 +463,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "delete_schedule_item",
     description:
-      "Soft-delete a schedule item (moves it to trash; restorable from the Trash view).",
+      "Soft-delete a schedule item (moves it to trash; restorable with restore_item or from the Trash view).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -453,6 +472,25 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["id"],
     },
     handler: deleteScheduleItem,
+  }),
+  defineTool({
+    name: "restore_item",
+    description:
+      "Restore an item from the trash — the inverse of delete_task / delete_note / delete_schedule_item. " +
+      "Restorable roles: task, note, event (schedule item); a daily comes back through upsert_daily instead. " +
+      "Restoring an item that is not in the trash is a no-op, not an error. " +
+      "Restores the one item only — a task whose parent is still trashed stays out of get_task_tree (it does appear in list_tasks).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the trashed task, note or schedule item",
+        },
+      },
+      required: ["id"],
+    },
+    handler: restoreItem,
   }),
   defineTool({
     name: "set_schedule_complete",
@@ -720,6 +758,21 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["tag_name", "entity_id"],
     },
     handler: tagEntity,
+  }),
+  defineTool({
+    name: "untag_entity",
+    description:
+      "Remove a wiki tag from a task, daily, or note. Only this assignment goes away — the tag itself, and its other assignments, stay. " +
+      "Removing a tag that is not assigned is a no-op, not an error.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        tag_name: { type: "string", description: "Tag name" },
+        entity_id: { type: "string", description: "Entity ID" },
+      },
+      required: ["tag_name", "entity_id"],
+    },
+    handler: untagEntity,
   }),
   defineTool({
     name: "search_by_tag",
