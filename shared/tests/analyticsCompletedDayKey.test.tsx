@@ -186,9 +186,15 @@ function makeMobileLabels(): AnalyticsLabels {
  * a UTC ISO string, compared against a LOCAL `formatDateKey` week boundary in
  * the "notes this week" stat. A note written at 01:00 local on the boundary day
  * therefore fell just outside the window east of UTC.
+ *
+ * The boundary day moved with #780: the window is now the calendar week
+ * containing NOW, so its first day — Sunday 2026-07-12 under the default
+ * week-start pref — is what the note has to land on. (It was NOW − 7d while the
+ * stat ran on a rolling 7-day window.) The window itself is pinned in
+ * `analyticsWeekWindow.test.tsx`; this file only guards the UTC-vs-local key.
  */
-const WEEK_AGO_KEY = "2026-07-06"; // NOW − 7d, the inclusive boundary
-const NOTE_CREATED_AT = new Date(2026, 6, 6, 1, 0, 0); // boundary day, 01:00 local
+const WEEK_START_KEY = "2026-07-12"; // first day of the week containing NOW
+const NOTE_CREATED_AT = new Date(2026, 6, 12, 1, 0, 0); // boundary day, 01:00 local
 
 function earlyMorningNote(): NoteNode {
   return {
@@ -298,7 +304,7 @@ describe("Analytics createdAt day key (#420 QA follow-up)", () => {
     if (SLICE_READS_ANOTHER_DAY) {
       // The old slice read the previous UTC day, which sorts BELOW the
       // inclusive boundary — that is exactly how the note fell out.
-      expect(earlyMorningNote().createdAt.slice(0, 10) >= WEEK_AGO_KEY).toBe(
+      expect(earlyMorningNote().createdAt.slice(0, 10) >= WEEK_START_KEY).toBe(
         false,
       );
     }

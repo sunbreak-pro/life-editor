@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
-import { getWorkSessions } from "../../utils/analyticsAggregation";
+import {
+  calendarWeekRange,
+  getWorkSessions,
+} from "../../utils/analyticsAggregation";
+import { useWeekStartPref } from "../../hooks/useWeekStart";
 import { dateKeyOfInstant, formatDateKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
@@ -20,31 +24,20 @@ interface WeeklySummaryProps {
   labels: WeeklySummaryLabels;
 }
 
-function getWeekRange(): { start: string; end: string } {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  return { start: formatDateKey(monday), end: formatDateKey(sunday) };
-}
-
 export function WeeklySummary({
   sessions,
   nodes,
   labels,
 }: WeeklySummaryProps): React.JSX.Element {
+  const { weekStartsOn } = useWeekStartPref();
+
   const stats = useMemo(() => {
-    const range = getWeekRange();
+    // Was a private Mon-only copy of this window (#780) — the shared helper
+    // honours the week-start pref, so this card and the mobile one agree.
+    const range = calendarWeekRange(new Date(), weekStartsOn);
     const work = getWorkSessions(sessions).filter((s) => {
       const d = formatDateKey(new Date(s.startedAt));
-      return d >= range.start && d <= range.end;
+      return d >= range.startKey && d <= range.endKey;
     });
     const completedTasks = nodes.filter((n) => {
       if (n.type !== "task" || !n.completedAt) return false;
@@ -52,7 +45,7 @@ export function WeeklySummary({
       // built from local dates, so a sliced UTC key disagreed at the edges.
       const d = dateKeyOfInstant(n.completedAt);
       if (d === null) return false;
-      return d >= range.start && d <= range.end;
+      return d >= range.startKey && d <= range.endKey;
     }).length;
 
     return {
@@ -60,7 +53,7 @@ export function WeeklySummary({
       sessionCount: work.length,
       completedTasks,
     };
-  }, [sessions, nodes]);
+  }, [sessions, nodes, weekStartsOn]);
 
   return (
     <ChartCard title={labels.title}>
