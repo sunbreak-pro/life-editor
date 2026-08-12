@@ -56,12 +56,11 @@ import {
 // facts it pins — never ask when nothing is pending, never treat a pending
 // promise as a "yes" — hold for any editor whose only commit is a button.
 import { decideUnsavedClose } from "../schedule/unsavedCloseGuard";
-// Imported ACROSS sections on purpose (#786): the todo detail's delete question
-// is one behaviour on two screens, and the count it names has to agree wherever
-// it is asked. Left where #775 put it rather than moved to a neutral home — a
-// parallel lane is editing schedule/ right now, and a file move would collide
-// with it for no gain.
-import { confirmTodoDetailDelete } from "../schedule/todoTrayDeleteGuard";
+// The todo detail's delete question is one behaviour on two screens, and the
+// count it names has to agree wherever it is asked. #790 moved it out of
+// schedule/ (where #775 wrote it) into a host-neutral home, so this is no
+// longer a reach across the section boundary.
+import { confirmTodoDetailDelete } from "../shared/todoTrayDeleteGuard";
 import { useKanbanDnd } from "./useKanbanDnd";
 import { useTaskDetailTarget } from "./useTaskDetailTarget";
 import { useTaskLinking } from "./hooks/useTaskLinking";
@@ -416,11 +415,11 @@ export function KanbanView({
   const handleDeleteFromDetail = useCallback(
     (id: string) => {
       void confirmTodoDetailDelete(tree.nodes, id, askConfirm, {
-        confirm: (name) => t("scheduleScreen.todoDeleteConfirm", { name }),
+        confirm: (name) => t("taskDetail.todoDeleteConfirm", { name }),
         cascadeConfirm: (name, count) =>
-          t("scheduleScreen.todoDeleteCascadeConfirm", { name, count }),
+          t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
         untitled: t("common.untitled"),
-        confirmLabel: t("scheduleScreen.delete"),
+        confirmLabel: t("taskDetail.delete"),
         cancelLabel: t("common.cancel"),
       }).then((ok) => {
         if (!ok) return;
@@ -736,7 +735,7 @@ export function KanbanView({
             // `deleteLabel`; the shared panel draws the row only when both are
             // present, so this is the one place either surface gains a delete.
             onDelete={handleDeleteFromDetail}
-            deleteLabel={t("scheduleScreen.todoDelete")}
+            deleteLabel={t("taskDetail.todoDelete")}
             statusControl={statusControl}
             titleLabel={t("taskDetail.titleLabel")}
             statusLabel={t("taskDetail.status")}

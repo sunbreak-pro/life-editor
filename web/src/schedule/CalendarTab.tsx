@@ -88,10 +88,12 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
+// Host-neutral since #790: the todo delete question is one behaviour asked on
+// two sections, so it lives under neither.
 import {
   confirmTodoDetailDelete,
   todoDeleteCascade,
-} from "./todoTrayDeleteGuard";
+} from "../shared/todoTrayDeleteGuard";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import {
   timedPlacement,
@@ -1898,11 +1900,11 @@ export function CalendarTab({
         return;
       }
       void askConfirm({
-        message: t("scheduleScreen.todoDeleteCascadeConfirm", {
+        message: t("taskDetail.todoDeleteCascadeConfirm", {
           name: cascade.title,
           count: cascade.childCount,
         }),
-        confirmLabel: t("scheduleScreen.delete"),
+        confirmLabel: t("taskDetail.delete"),
         cancelLabel: t("common.cancel"),
         danger: true,
       }).then((ok) => {
@@ -1935,11 +1937,11 @@ export function CalendarTab({
   const handleTodoDetailDelete = useCallback(
     (id: string) => {
       void confirmTodoDetailDelete(taskNodes, id, askConfirm, {
-        confirm: (name) => t("scheduleScreen.todoDeleteConfirm", { name }),
+        confirm: (name) => t("taskDetail.todoDeleteConfirm", { name }),
         cascadeConfirm: (name, count) =>
-          t("scheduleScreen.todoDeleteCascadeConfirm", { name, count }),
+          t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
         untitled: t("common.untitled"),
-        confirmLabel: t("scheduleScreen.delete"),
+        confirmLabel: t("taskDetail.delete"),
         cancelLabel: t("common.cancel"),
       }).then((ok) => {
         if (!ok) return;
@@ -2140,7 +2142,7 @@ export function CalendarTab({
         emptyAddable: t("scheduleScreen.todoEmptyAddable"),
         complete: t("scheduleScreen.complete"),
         openInTasks: t("scheduleScreen.todoOpenInTasks"),
-        delete: t("scheduleScreen.todoDelete"),
+        delete: t("taskDetail.todoDelete"),
       }}
     />
   );
@@ -2225,7 +2227,7 @@ export function CalendarTab({
           untitled: t("common.untitled"),
           allDay: t("scheduleScreen.allDay"),
           rename: t("scheduleScreen.rename"),
-          delete: t("scheduleScreen.todoDelete"),
+          delete: t("taskDetail.todoDelete"),
           convertToEvent: t("itemConvert.toEvent"),
         },
         {
@@ -2396,7 +2398,7 @@ export function CalendarTab({
         saveLabel={t("taskDetail.save")}
         savedLabel={t("taskDetail.saved")}
         unsavedLabel={t("taskDetail.unsaved")}
-        deleteLabel={t("scheduleScreen.todoDelete")}
+        deleteLabel={t("taskDetail.todoDelete")}
         // #736: the panel reports its pending title here; the three exits
         // below read the flag before they tear the panel down. A ref rather
         // than state — nothing on screen depends on it, and re-rendering
