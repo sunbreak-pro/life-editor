@@ -44,6 +44,32 @@ describe("update_task publishes the field it has always written", () => {
   });
 });
 
+describe("every write has a way back (#782 ①)", () => {
+  it("publishes delete_note beside the other two deletes", () => {
+    // A note was the only domain that could be created and edited from here
+    // but never trashed.
+    expect(tool("delete_note")).toBeDefined();
+    expect(required("delete_note")).toEqual(["id"]);
+  });
+
+  it("publishes restore_item, and says which roles it takes", () => {
+    expect(required("restore_item")).toEqual(["id"]);
+    const description = tool("restore_item")?.description ?? "";
+    expect(description).toMatch(/task, note, event/);
+    // The no-op case is a decision the caller cannot guess from the name.
+    expect(description).toMatch(/no-op/);
+  });
+
+  it("publishes untag_entity opposite tag_entity", () => {
+    expect(required("untag_entity")).toEqual(["tag_name", "entity_id"]);
+  });
+
+  it("declares the note field every result already reports", () => {
+    // formatNote has always returned isPinned; nothing could set it.
+    expect(props("update_note").is_pinned).toMatchObject({ type: "boolean" });
+  });
+});
+
 describe("an all-day event is not asked for times it discards", () => {
   it("does not mark the times required", () => {
     expect(required("create_schedule_item")).toEqual(["date", "title"]);

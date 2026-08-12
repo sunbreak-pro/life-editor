@@ -174,6 +174,11 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["get_note", { id: "note-1" }],
   ["create_note", { title: "note", content: "body" }],
   ["update_note", { id: "note-1", color: "#E8D5F5" }],
+  [
+    "update_note",
+    { id: "note-1", title: "n", content: "body", is_pinned: true },
+  ],
+  ["delete_note", { id: "note-1" }],
   ["list_schedule", { start_date: "2026-08-11", end_date: "2026-08-12" }],
   [
     "create_schedule_item",
@@ -192,6 +197,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ],
   ["update_schedule_item", { id: "si-1", is_all_day: true }],
   ["delete_schedule_item", { id: "si-1" }],
+  ["restore_item", { id: "task-1" }],
   ["set_schedule_complete", { id: "si-1", completed: true }],
   ["set_schedule_dismissed", { id: "si-1", dismissed: false }],
   ["get_today_context", {}],
@@ -232,6 +238,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
     "tag_entity",
     { tag_name: "life", entity_id: "task-1", entity_type: "task" },
   ],
+  ["untag_entity", { tag_name: "life", entity_id: "task-1" }],
   ["search_by_tag", { tag_name: "life" }],
   ["get_task_tree", { root_id: "task-1", include_done: false, max_depth: 2 }],
   ["get_entity_tags", { entity_id: "task-1" }],
@@ -251,6 +258,15 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
 ];
 
 describe("valid arguments pass", () => {
+  it("covers every published tool", () => {
+    // The dispatch/type-rejection half runs off it.each(TOOLS) and cannot go
+    // stale; this table is hand-written, so a new tool that nobody adds here
+    // would ship with its happy path untested. Fail loudly instead.
+    expect(new Set(VALID_CALLS.map(([name]) => name))).toEqual(
+      new Set(TOOLS.map((t) => t.name)),
+    );
+  });
+
   it.each(VALID_CALLS)("%s accepts %j", (name, args) => {
     expect(() => validateToolArgs(name, schemaOf(name), args)).not.toThrow();
   });
