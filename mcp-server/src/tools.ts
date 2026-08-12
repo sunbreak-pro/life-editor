@@ -27,7 +27,11 @@ import {
   searchByTag,
   getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
-import { validateToolArgs, type ObjectSchema } from "./utils/toolSchema.js";
+import {
+  validateToolArgs,
+  unknownArgNames,
+  type ObjectSchema,
+} from "./utils/toolSchema.js";
 
 /*
  * The tool registry (#669 / core-refactor C2).
@@ -279,22 +283,24 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "list_schedule",
     description:
-      "List schedule items and scheduled tasks for a specific date or date range.",
+      "List schedule items and scheduled tasks for a specific date or date range. " +
+      "Pass either date (one day) or start_date AND end_date (a range) — half a range, or both forms at once, is an error rather than a silent fallback to today. Omit all three for today.",
     inputSchema: {
       type: "object" as const,
       properties: {
         date: {
           type: "string",
-          description: "Single date in YYYY-MM-DD format",
+          description:
+            "Single date in YYYY-MM-DD format. Defaults to today when no date and no range is given.",
         },
         start_date: {
           type: "string",
           description:
-            "Range start date (YYYY-MM-DD). Use with end_date instead of date.",
+            "Range start date (YYYY-MM-DD). Requires end_date; use date instead for a single day.",
         },
         end_date: {
           type: "string",
-          description: "Range end date (YYYY-MM-DD). Use with start_date.",
+          description: "Range end date (YYYY-MM-DD). Requires start_date.",
         },
       },
     },
@@ -314,11 +320,13 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         title: { type: "string", description: "Event title" },
         start_time: {
           type: "string",
-          description: "Start time in HH:MM format",
+          description:
+            "Start time in 24-hour HH:MM format (e.g. 09:00). Ignored when is_all_day is true.",
         },
         end_time: {
           type: "string",
-          description: "End time in HH:MM format",
+          description:
+            "End time in 24-hour HH:MM format (e.g. 09:15). Ignored when is_all_day is true.",
         },
         is_all_day: {
           type: "boolean",
@@ -348,11 +356,11 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
         start_time: {
           type: "string",
-          description: "New start time (HH:MM)",
+          description: "New start time in 24-hour HH:MM format (e.g. 09:00)",
         },
         end_time: {
           type: "string",
-          description: "New end time (HH:MM)",
+          description: "New end time in 24-hour HH:MM format (e.g. 09:15)",
         },
         memo: { type: "string", description: "Memo/notes about the item" },
         is_all_day: { type: "boolean", description: "All-day event flag" },
@@ -792,9 +800,25 @@ export async function callTool(
   // Validate before dispatch: an argument the schema does not allow must not
   // reach a handler, where it would become a Supabase error or a bad write.
   validateToolArgs(name, def.inputSchema, args);
+  const ignored = unknownArgNames(def.inputSchema, args);
   const result = await def.run(args);
 
-  return {
-    content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-  };
+  const content: Array<{ type: "text"; text: string }> = [
+    { type: "text", text: JSON.stringify(result, null, 2) },
+  ];
+
+  // #702 ②: an undeclared argument is accepted by the validator and then read
+  // by nobody. Left unsaid, a misremembered name looks exactly like a
+  // successful edit — so say it, next to the result it did not affect.
+  if (ignored.length > 0) {
+    content.push({
+      type: "text",
+      text:
+        `Note: ${name} does not accept ${ignored.join(", ")}. ` +
+        `Nothing was applied for ${ignored.length === 1 ? "it" : "them"} — ` +
+        `check this tool's schema for the argument you meant.`,
+    });
+  }
+
+  return { content };
 }

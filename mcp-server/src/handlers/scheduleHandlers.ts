@@ -4,6 +4,7 @@ import {
   localToday,
   localDayUtcRange,
   assertDateKey,
+  assertTimeOfDay,
 } from "../utils/localDate.js";
 import {
   META_COLUMNS,
@@ -187,11 +188,42 @@ async function getEvent(id: string) {
   };
 }
 
+/**
+ * Reject the argument combinations that used to answer a different question
+ * than the one asked (#702 ②).
+ *
+ * `start_date` alone fell through to the single-day branch and returned
+ * TODAY: a caller who asked for "this week from Monday" got one day back,
+ * with nothing in the result saying so. `date` alongside a range was
+ * likewise dropped without a word. Both look like success, which is the
+ * worst way to be wrong.
+ */
+function assertScheduleWindow(args: {
+  date?: string;
+  start_date?: string;
+  end_date?: string;
+}): void {
+  if (Boolean(args.start_date) !== Boolean(args.end_date)) {
+    const given = args.start_date ? "start_date" : "end_date";
+    const missing = args.start_date ? "end_date" : "start_date";
+    throw new Error(
+      `${missing} is required when ${given} is given (use date on its own for a single day)`,
+    );
+  }
+  if (args.date && args.start_date) {
+    throw new Error(
+      "date and start_date/end_date are mutually exclusive (pass a single day or a range, not both)",
+    );
+  }
+}
+
 export async function listSchedule(args: {
   date?: string;
   start_date?: string;
   end_date?: string;
 }) {
+  assertScheduleWindow(args);
+
   if (args.start_date && args.end_date) {
     assertDateKey(args.start_date);
     assertDateKey(args.end_date);
@@ -223,6 +255,15 @@ export async function createScheduleItem(args: {
   is_all_day?: boolean;
   memo?: string;
 }) {
+  // #702 ②: the write path checked none of its own formats, so a typo in
+  // `date` or a "9:00" instead of "09:00" surfaced as a raw Postgres parse
+  // error naming a column the caller never mentioned.
+  assertDateKey(args.date);
+  if (!args.is_all_day) {
+    assertTimeOfDay(args.start_time, "start_time");
+    assertTimeOfDay(args.end_time, "end_time");
+  }
+
   const id = `si-${randomUUID()}`;
 
   await insertItem({
@@ -258,6 +299,14 @@ export async function updateScheduleItem(args: {
   memo?: string;
   is_all_day?: boolean;
 }) {
+  // #702 ②: same formats as create_schedule_item, checked the same way —
+  // and before the not-found round trip, since a malformed argument is
+  // wrong whether or not the item exists.
+  if (args.date !== undefined) assertDateKey(args.date);
+  if (args.start_time !== undefined)
+    assertTimeOfDay(args.start_time, "start_time");
+  if (args.end_time !== undefined) assertTimeOfDay(args.end_time, "end_time");
+
   await getEvent(args.id); // not-found guard
 
   const metaPatch: Record<string, unknown> = {};
