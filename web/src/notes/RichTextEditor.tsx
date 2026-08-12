@@ -40,6 +40,11 @@ import type { LoadItemLinkTargets } from "./useItemLinkTargets";
  * keydown handlers here), so `isComposing` cannot be broken. Persistence
  * is debounced (800ms) and flushed on unmount / beforeunload so a
  * note switch never loses the last keystrokes.
+ *
+ * `onDraftChange` (#713) turns that persistence off for ONE caller — the task
+ * body, whose panel commits on a save button. Notes and Daily are outside Epic
+ * #627 and keep auto-saving, so the switch is a prop rather than a change of
+ * default.
  */
 
 const BoldNoInputRules = Bold.extend({
@@ -68,10 +73,30 @@ const BlockquoteNoInputRules = Blockquote.extend({
   },
 });
 
-interface RichTextEditorProps {
+/**
+ * How the editor's changes leave it — exactly one of the two (#713).
+ *
+ * `onUpdate` is the original and still the default everywhere: persist on an
+ * 800ms debounce, flushed on unmount and on tab close.
+ *
+ * `onDraftChange` reports every change instead of persisting it. It switches
+ * this editor to DRAFT mode — no debounce, no unmount / beforeunload flush,
+ * `onUpdate` never called — for a host that commits from its own save button.
+ * Opt-in per call rather than a change of default, because Notes and Daily are
+ * deliberately outside Epic #627 and keep auto-saving. Nothing else about the
+ * editor differs between the two modes.
+ *
+ * A union rather than two optionals: an editor wired to NEITHER would type its
+ * user's work into a component that quietly throws it away, and that is a
+ * mistake worth catching at build time instead of in the UI.
+ */
+type RichTextEditorPersistence =
+  | { onUpdate: (content: string) => void; onDraftChange?: never }
+  | { onUpdate?: never; onDraftChange: (content: string) => void };
+
+interface RichTextEditorBaseProps {
   noteId: string;
   initialContent?: string;
-  onUpdate: (content: string) => void;
   editable?: boolean;
   /** Empty-doc hint. Omitted → the translated note-body wording. */
   placeholder?: string;
@@ -95,6 +120,8 @@ interface RichTextEditorProps {
   onCreateNoteForLink?: (label: string) => Promise<{ id: string } | null>;
 }
 
+type RichTextEditorProps = RichTextEditorBaseProps & RichTextEditorPersistence;
+
 function tryParseJSON(str: string): Record<string, unknown> | string {
   try {
     return JSON.parse(str);
@@ -107,6 +134,7 @@ export function RichTextEditor({
   noteId,
   initialContent,
   onUpdate,
+  onDraftChange,
   editable = true,
   placeholder,
   className = "rounded-md border border-lumen-border bg-lumen-bg p-3",
@@ -119,6 +147,7 @@ export function RichTextEditor({
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
+  const onDraftChangeRef = useRef(onDraftChange);
   const latestContentRef = useRef<string | null>(null);
 
   // The editor is rebuilt only on [noteId] (below), so link wiring is read
@@ -134,6 +163,7 @@ export function RichTextEditor({
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
+    onDraftChangeRef.current = onDraftChange;
     loadLinkTargetsRef.current = loadLinkTargets;
     onResolvedInsertedRef.current = onResolvedLinkInserted;
     onCreateNoteRef.current = onCreateNoteForLink;
@@ -161,10 +191,13 @@ export function RichTextEditor({
       debounceRef.current = null;
     }
     if (latestContentRef.current !== null) {
-      onUpdateRef.current(latestContentRef.current);
+      onUpdateRef.current?.(latestContentRef.current);
       latestContentRef.current = null;
     }
   };
+  // Draft mode never parks anything in latestContentRef, so both flushes above
+  // are already no-ops there — the "do not write on unmount" half of #713 needs
+  // no branch of its own.
 
   // Flush on unmount (note switch).
   useEffect(() => {
@@ -275,13 +308,20 @@ export function RichTextEditor({
         );
       },
       onUpdate: ({ editor }) => {
+        const json = JSON.stringify(editor.getJSON());
+        // #713: draft mode reports and stops. Read through the ref because the
+        // editor is built once per [noteId] — a directly captured prop would
+        // freeze at mount, which is the #475 shape.
+        if (onDraftChangeRef.current) {
+          onDraftChangeRef.current(json);
+          return;
+        }
         if (debounceRef.current) {
           clearTimeout(debounceRef.current);
         }
-        const json = JSON.stringify(editor.getJSON());
         latestContentRef.current = json;
         debounceRef.current = window.setTimeout(() => {
-          onUpdateRef.current(json);
+          onUpdateRef.current?.(json);
           latestContentRef.current = null;
           debounceRef.current = null;
         }, 800);
@@ -294,7 +334,14 @@ export function RichTextEditor({
   );
 
   useEffect(() => {
-    if (editor) editor.setEditable(editable);
+    // `emitUpdate: false`. TipTap's setEditable fires an `update` by default,
+    // and this effect runs once on mount with the SAME value useEditor was
+    // already built with — so every open reported a change nobody made. Under
+    // auto-save that only cost a redundant write of identical content (and the
+    // `updated_at` bump the sync cursor reads from it); under #713's draft mode
+    // it would light the save button up before the user had typed anything.
+    // Toggling editability is not a content change either way.
+    if (editor) editor.setEditable(editable, false);
   }, [editor, editable]);
 
   return (

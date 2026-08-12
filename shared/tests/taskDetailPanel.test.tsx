@@ -126,7 +126,12 @@ const LABELS = {
   statusLabel: "Status",
   statusText: "Not started",
   contentLabel: "Notes",
+  saveLabel: "Save",
+  savedLabel: "Saved",
+  unsavedLabel: "Unsaved",
 };
+
+const saveButton = () => screen.getByRole("button", { name: "Save" });
 
 describe("TaskDetailPanel (W7)", () => {
   it("renders the title, status control and injected content editor", () => {
@@ -135,7 +140,7 @@ describe("TaskDetailPanel (W7)", () => {
         taskId="task-a"
         title="Write the plan"
         status="NOT_STARTED"
-        onTitleCommit={() => {}}
+        onSave={() => {}}
         onToggleStatus={() => {}}
         contentEditor={<div>editor slot</div>}
         {...LABELS}
@@ -148,27 +153,23 @@ describe("TaskDetailPanel (W7)", () => {
     expect(screen.getByText("editor slot")).toBeInTheDocument();
   });
 
-  it("commits a title edit on blur and toggles status on click", () => {
-    const onTitleCommit = vi.fn();
+  it("toggles status on click — a discrete act, not a drafted field (#713)", () => {
+    const onSave = vi.fn();
     const onToggleStatus = vi.fn();
     render(
       <TaskDetailPanel
         taskId="task-a"
         title="old"
         status="NOT_STARTED"
-        onTitleCommit={onTitleCommit}
+        onSave={onSave}
         onToggleStatus={onToggleStatus}
         {...LABELS}
       />,
     );
 
-    const input = screen.getByLabelText("Task title");
-    fireEvent.change(input, { target: { value: "new" } });
-    fireEvent.blur(input);
-    expect(onTitleCommit).toHaveBeenCalledWith("task-a", "new");
-
     fireEvent.click(screen.getByRole("button", { name: "Status" }));
     expect(onToggleStatus).toHaveBeenCalledWith("task-a");
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("renders the tag row when a tagsSlot is provided", () => {
@@ -177,7 +178,7 @@ describe("TaskDetailPanel (W7)", () => {
         taskId="task-a"
         title="Write the plan"
         status="NOT_STARTED"
-        onTitleCommit={() => {}}
+        onSave={() => {}}
         onToggleStatus={() => {}}
         tagsLabel="Tags"
         tagsSlot={<span>review</span>}
@@ -194,12 +195,216 @@ describe("TaskDetailPanel (W7)", () => {
         taskId="task-a"
         title="Write the plan"
         status="NOT_STARTED"
-        onTitleCommit={() => {}}
+        onSave={() => {}}
         onToggleStatus={() => {}}
         tagsLabel="Tags"
         {...LABELS}
       />,
     );
     expect(screen.queryByText("Tags")).not.toBeInTheDocument();
+  });
+});
+
+// ---- the save button (#713) -------------------------------------------
+
+/*
+ * The panel used to persist the title on a 300ms debounce, flushed on blur and
+ * on unmount. Since D-20260810-sched-1 the button is the only commit, so what
+ * these pin is mostly the ABSENCE of a write: typing, blurring and closing all
+ * have to leave the task alone.
+ */
+describe("TaskDetailPanel — save button (#713)", () => {
+  it("writes nothing while the user types, blurs, or closes", () => {
+    const onSave = vi.fn();
+    const { unmount } = render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={onSave}
+        {...LABELS}
+      />,
+    );
+
+    const input = screen.getByLabelText("Task title");
+    fireEvent.change(input, { target: { value: "new" } });
+    fireEvent.blur(input);
+    unmount();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("commits the title on the press, once, carrying the draft", () => {
+    const onSave = vi.fn();
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={onSave}
+        {...LABELS}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Task title"), {
+      target: { value: "new" },
+    });
+    fireEvent.click(saveButton());
+    expect(onSave).toHaveBeenCalledExactlyOnceWith("task-a", { title: "new" });
+  });
+
+  it("sits disabled until something is pending, and says which it is", () => {
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        {...LABELS}
+      />,
+    );
+
+    expect(saveButton()).toBeDisabled();
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Task title"), {
+      target: { value: "new" },
+    });
+    expect(saveButton()).toBeEnabled();
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+
+    // Typed back to the live value: there is nothing to write again.
+    fireEvent.change(screen.getByLabelText("Task title"), {
+      target: { value: "old" },
+    });
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("saves on Enter, but not on the Enter that confirms an IME conversion", () => {
+    const onSave = vi.fn();
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={onSave}
+        {...LABELS}
+      />,
+    );
+
+    const input = screen.getByLabelText("Task title");
+    fireEvent.change(input, { target: { value: "新しい" } });
+    // Mid-conversion: this Enter belongs to the IME, not to the panel.
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+    expect(onSave).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSave).toHaveBeenCalledExactlyOnceWith("task-a", {
+      title: "新しい",
+    });
+  });
+
+  it("enables the button for a body-only edit and reports an empty patch", () => {
+    // The body draft lives in the host (the editor is a web dependency), so
+    // `contentDirty` is the only way the panel can know about it — and the
+    // press is the only signal the host gets back.
+    const onSave = vi.fn();
+    render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={onSave}
+        contentDirty
+        contentEditor={<div>editor slot</div>}
+        {...LABELS}
+      />,
+    );
+
+    expect(saveButton()).toBeEnabled();
+    fireEvent.click(saveButton());
+    expect(onSave).toHaveBeenCalledExactlyOnceWith("task-a", {});
+  });
+
+  it("drops a pending title when the panel switches task", () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={onSave}
+        {...LABELS}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Task title"), {
+      target: { value: "new" },
+    });
+    rerender(
+      <TaskDetailPanel
+        taskId="task-b"
+        title="other"
+        status="NOT_STARTED"
+        onSave={onSave}
+        {...LABELS}
+      />,
+    );
+
+    expect(
+      (screen.getByLabelText("Task title") as HTMLInputElement).value,
+    ).toBe("other");
+    expect(saveButton()).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("keeps following the live title until the user touches the field", () => {
+    // A rename made elsewhere has to land in front of the user rather than be
+    // pushed back by a snapshot taken at open.
+    const { rerender } = render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        {...LABELS}
+      />,
+    );
+    rerender(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="renamed elsewhere"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Task title") as HTMLInputElement).value,
+    ).toBe("renamed elsewhere");
+  });
+
+  it("reports the pending state to the host, and clears it on unmount", () => {
+    const onDirtyChange = vi.fn();
+    const { unmount } = render(
+      <TaskDetailPanel
+        taskId="task-a"
+        title="old"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        onDirtyChange={onDirtyChange}
+        {...LABELS}
+      />,
+    );
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    fireEvent.change(screen.getByLabelText("Task title"), {
+      target: { value: "new" },
+    });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    // The draft dies with the panel, so a host holding the flag must not go on
+    // guarding a surface that no longer exists.
+    unmount();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 });

@@ -96,7 +96,11 @@ export {
 // Task detail panel (W7) — the selected task's detail, shown in the shared
 // rightSidebar by the Kanban host. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
-export { TaskDetailPanel, type TaskDetailPanelProps } from "./TaskDetailPanel";
+export {
+  TaskDetailPanel,
+  type TaskDetailPanelProps,
+  type TaskDetailPatch,
+} from "./TaskDetailPanel";
 export {
   TaskStatusChoices,
   type TaskStatusChoicesProps,
