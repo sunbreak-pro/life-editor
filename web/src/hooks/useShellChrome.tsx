@@ -20,6 +20,7 @@ import {
   type SectionId,
   type SectionDef,
   type Command,
+  type TranslationKey,
 } from "@life-editor/shared";
 import type { ScheduleTab } from "../schedule/ScheduleScreen";
 import type { MaterialsTab } from "./useShellNavigation";
@@ -56,7 +57,7 @@ const SCHEDULE_TABS: readonly ScheduleTab[] = ["calendar", "todo"];
  * in Materials. Note the rightSidebar's own "Today's Todo" tray is a different
  * thing — today's slice, not the whole board.
  */
-const SCHEDULE_TAB_LABEL_KEY: Record<ScheduleTab, string> = {
+const SCHEDULE_TAB_LABEL_KEY: Record<ScheduleTab, TranslationKey> = {
   calendar: "scheduleScreen.calendar",
   todo: "section.tasks",
 };

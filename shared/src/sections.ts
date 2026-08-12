@@ -18,6 +18,7 @@
  * (CLAUDE.md §6.4). The old REPL section is retired (§8) and never appears here.
  */
 import type { LucideIcon } from "lucide-react";
+import type { TranslationKey } from "./i18n/resources";
 import {
   Sunrise,
   Clock,
@@ -39,8 +40,10 @@ export interface SectionDef {
   readonly group: SectionGroup;
   /** lucide icon component — rendered by the host (`<Icon size={18} />`). */
   readonly icon: LucideIcon;
-  /** i18n key (`section.*`); the host resolves it via t() (§6.4). */
-  readonly labelKey: string;
+  /** i18n key (`section.*`); the host resolves it via t() (§6.4). Typed as
+   *  the catalog's key union (#726) so a section whose label was never
+   *  translated fails here, not silently on screen. */
+  readonly labelKey: TranslationKey;
   /** Mobile bottom-bar priority (ascending). Fixed 4 = lowest, rest → More. */
   readonly mobileOrder: number;
 }
