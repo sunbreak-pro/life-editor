@@ -18,6 +18,22 @@ export function assertDateKey(date: string): string {
   return date;
 }
 
+/**
+ * Guard a tool-supplied clock time (HH:MM) before it reaches the DB (#702 ②).
+ *
+ * `events_payload.start_time` / `end_time` are `time` columns, so an
+ * ill-formed value came back as a raw Postgres parse error naming a type the
+ * caller never saw. The schema says HH:MM; this is the schema enforced.
+ */
+export function assertTimeOfDay(value: string, field: string): string {
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    throw new Error(
+      `Invalid ${field} "${value}" (expected HH:MM, 00:00-23:59)`,
+    );
+  }
+  return value;
+}
+
 /** date ± n days, in local time ("YYYY-MM-DD" in, "YYYY-MM-DD" out). */
 export function addDays(date: string, n: number): string {
   const d = new Date(`${date}T00:00:00`);
