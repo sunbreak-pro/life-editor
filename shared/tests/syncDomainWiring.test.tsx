@@ -1,14 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { createElement, useEffect, useState, type ReactNode } from "react";
 import { useNotesUnifiedAPI } from "../src/hooks/useNotesUnifiedAPI";
 import { useTaskTreeAPI } from "../src/hooks/useTaskTreeAPI";
-import { SyncContext } from "../src/context/SyncContextValue";
-import {
-  SYNC_DOMAINS,
-  uniformDomainVersions,
-  type SyncDomain,
-} from "../src/context/syncDomains";
+import { createBumpableSync } from "./helpers/bumpableSync";
+import { SYNC_DOMAINS, type SyncDomain } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
 
 /*
@@ -26,36 +21,18 @@ import type { DataService } from "../src/services/DataService";
  * itself gets asserted.
  */
 
-// Per-domain bumpable Provider. The setter is published from an EFFECT rather
-// than during render: shared lint (#421) rejects both reassigning an outer
-// binding and mutating an outer value mid-render. Every test awaits the
-// initial load first, so the effect has always run by then.
-const sync: { bump: (domain: SyncDomain) => void } = { bump: () => {} };
-
-function DomainBumpableSyncProvider({ children }: { children: ReactNode }) {
-  const [versions, setVersions] = useState(() => uniformDomainVersions(0));
-  useEffect(() => {
-    sync.bump = (domain) =>
-      setVersions((prev) => ({ ...prev, [domain]: prev[domain] + 1 }));
-  }, []);
-  return createElement(
-    SyncContext.Provider,
-    {
-      value: {
-        // Deliberately frozen: a hook that still reads the app-wide counter
-        // instead of its domain would never refetch here, and the "refetches
-        // on its own domain" test below would catch it.
-        syncVersion: 0,
-        domainVersions: versions,
-        triggerSync: async () => {},
-      },
-    },
-    children,
-  );
-}
-
-const wrapper = ({ children }: { children: ReactNode }) =>
-  createElement(DomainBumpableSyncProvider, null, children);
+// Per-domain bumpable Provider (tests/helpers/bumpableSync — shared with
+// wikiTagsRefreshLoading and the #672 load-effect suites). The setter is
+// published from an EFFECT rather than during render: shared lint (#421)
+// rejects both reassigning an outer binding and mutating an outer value
+// mid-render. Every test awaits the initial load first, so the effect has
+// always run by then.
+//
+// Naming a domain leaves the app-wide `syncVersion` frozen at 0 on purpose: a
+// hook that still reads the app-wide counter instead of its own domain would
+// never refetch here, and the "refetches on its own domain" test below would
+// catch it.
+const { sync, wrapper } = createBumpableSync();
 
 /** Every domain except the ones passed — what must NOT trigger a refetch. */
 function otherDomains(...owned: SyncDomain[]): SyncDomain[] {

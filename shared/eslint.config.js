@@ -61,13 +61,15 @@ export default defineConfig([
    * the exceptions are a shrinking to-do — deleting a path from a list is how
    * a fix gets recorded, and a NEW violation in an unlisted file still fails
    * CI. Do not append to these lists; fix the file instead.
+   *
+   * #672 removed useCalendarsAPI and useRoutinesAPI: both now derive `loading`
+   * through `useDomainLoad` instead of opening their effect with
+   * `setIsLoading(true)`. useScheduleItemsAPI is the last entry and is held
+   * back only because #675 is splitting that file at the same time — porting
+   * it is the same one-line change, tracked on #672.
    */
   {
-    files: [
-      "src/hooks/useCalendarsAPI.ts",
-      "src/hooks/useRoutinesAPI.ts",
-      "src/hooks/useScheduleItemsAPI.ts",
-    ],
+    files: ["src/hooks/useScheduleItemsAPI.ts"],
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
 ]);
