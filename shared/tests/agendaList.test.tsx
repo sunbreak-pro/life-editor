@@ -56,7 +56,7 @@ const ITEMS: AgendaItem[] = [
     startTime: "09:00",
     endTime: "10:00",
     variant: "task",
-    // No status → no toggle tag (task rows are read-only in A-1).
+    status: "notStarted",
   },
 ];
 
@@ -145,6 +145,58 @@ describe("AgendaList", () => {
     // Event rows keep dot-only (no glyph — #593 touches task only).
     const eventRow = screen.getByText("Project review").closest("li");
     expect(eventRow?.querySelector("svg")).toBeNull();
+  });
+
+  /*
+   * #761: a todo row answers the same press an event does. Asserted through the
+   * row's own tag rather than a click position — jsdom has no layout, so
+   * anything read off coordinates here would pass on a broken list.
+   */
+  it("fires onToggleComplete from a task row's status tag", () => {
+    const { onToggleComplete } = renderList();
+    const row = screen.getByText("Write report").closest("li");
+    const toggle = row?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Toggle complete"]',
+    );
+    expect(toggle).not.toBeNull();
+    fireEvent.click(toggle!);
+    expect(onToggleComplete).toHaveBeenCalledWith("t");
+  });
+
+  it("keeps the toggle on an ALL-DAY task row, unlike an all-day event", () => {
+    // A todo staged as "today, time TBD" is all-day by construction, and it is
+    // the commonest row on the Mobile day list — leaving it informational
+    // would put completion out of reach exactly where it is wanted.
+    const onToggleComplete = vi.fn();
+    render(
+      <AgendaList
+        items={[
+          {
+            id: "staged",
+            title: "Buy stamps",
+            startTime: "00:00",
+            endTime: "00:00",
+            isAllDay: true,
+            variant: "task",
+            status: "inProgress",
+          },
+          {
+            id: "trash",
+            title: "Trash day",
+            startTime: "00:00",
+            endTime: "00:00",
+            isAllDay: true,
+            status: "inProgress",
+          },
+        ]}
+        onToggleComplete={onToggleComplete}
+        labels={LABELS}
+      />,
+    );
+    const toggles = screen.getAllByRole("button", { name: "Toggle complete" });
+    expect(toggles).toHaveLength(1); // the task row only
+    fireEvent.click(toggles[0]);
+    expect(onToggleComplete).toHaveBeenCalledWith("staged");
   });
 });
 
