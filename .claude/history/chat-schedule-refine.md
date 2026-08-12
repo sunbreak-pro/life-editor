@@ -1,5 +1,23 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-13 - /goal 一括 4 件（#789 / #774 / #708 / #790）— PR 3 本 + 判断キュー 1 件
+
+#### 概要
+
+/goal 指定で #789 → #774 → #708 → #790 を順に消化した。実装できた 3 件は Issue ごとに `origin/main` から切って 1 Issue = 1 PR（**#798 / #804 / #813**）。#708 は Issue 本文自身が方式 A/B/C の裁定を求めていたため実装せず **D-20260812-sched-2** として判断キューへ積み、次の Issue へ進んだ（P-008）。3 PR とも 6 ゲート（shared / web の lint・build・test）を exit 0 で実測。merge は行っていない（P-001）。
+
+#### 変更点
+
+- **#789（PR #798）rightSidebar の空の殻**: `KanbanView` の削除と「予定に変換」は**どちらも行そのものが盤面から消える出口**なのに、選択を外すだけで殻を閉じていなかった。後始末を `closeDetailShell`（選択解除 + wide のみ `rightSidebar.close()`）に集約。**1 行を 2 箇所に書かずヘルパーにしたのは、2 経路が割れることがこのバグの形だから** — 削除だけ直せば今度は変換と食い違う。narrow は無変更（そこでは detail = BottomSheet で、殻は `isWide` の effect が持っている）。vitest 4 件（wide 削除で閉じる / 拒否では閉じない / narrow は mount 時の close 回数から増えない / 変換でも閉じる）
+- **テストの tree モックに `refetch` が無かった**（#789 の副産物）: 変換の `.then()` が `tree.refetch()` を呼ぶのにモックに無く、**成功分岐が例外で `.catch()` の失敗バナーへ流れていた**。既存の変換テストは「convertTaskToEvent が呼ばれたか」しか見ていないので素通りしていた。追加して成功経路が最後まで走るようにした
+- **#774（PR #804）別の日でも「今日の予定はありません」**: モバイル日ビューは矢印でも月シートでもどの日にも行けるのに空状態が `emptyToday` 固定だった。判定を `web/src/schedule/agendaEmptyLabel.ts` へ切り出し（**CalendarTab は Provider 一式と実レイアウトが無いと描画できず、中で決めたことはテストから見えない** = `taskChipPanel` / `unsavedCloseGuard` が外に出ているのと同じ理由）。**Dayflow タブ（今日の流れ）は `emptyToday` のまま** — あちらは本当に今日のリストで、分岐しても同じ文言にしかならない
+- **`TranslationKey` は手書きの union ではない**（#774 で実測）: `shared/src/i18n/resources.ts:45` が `ParseKeys<"translation">` で **en catalog の型から導出**しているので、en / ja に足せば型は自動で通る。Issue 本文の「`TranslationKey` にも足すこと」は現状と食い違う
+- **#708 は実装せず D-20260812-sched-2 へ**: 繰り返し削除の Undo で、ルーチン行だけが戻りオカレンスと種イベントは削除済みのまま・当日分が新 id で再生成される。A（全部を元 id で復元・推奨）/ B（種イベントのみ）/ C（現状 + 削除確認で予告）で UX が割れるため P-005 / P-008 に従いキュー行き。放置時は #708 保留
+- **#790（PR #813）ガードとキーの引っ越し**: `todoTrayDeleteGuard.ts` を `web/src/schedule/` → `web/src/shared/`（**web ホスト自身の中立フォルダで、`@life-editor/shared` パッケージとは別物**。ファイル冒頭に明記した）、3 キーを `scheduleScreen.*` → `taskDetail.*`。**確認ボタンの `scheduleScreen.delete`（予定・繰り返しにも使う汎用の「削除」）も `taskDetail.delete` を新設して差し替えた** — Issue が名指ししたのは 3 キーだが、DoD「Tasks 側の削除文言がセクション非依存のキーになる」に確認ボタンも含まれると読んだ。表示文字列は全部そのまま
+- **#798 と #813 は必ずコンフリクトする**（実装前に判明・PR 本文に明記済み）: どちらも `web/tests/kanbanView.test.tsx` を触り、**#798 が追加する describe の中に #813 が書き換える旧キーの文字列がある**。#813 のベースにはその行が存在しないので、**どちらを先に merge しても後続に旧キーが残ってテストが落ちる**。#798 → #813 の順で merge して #813 を rebase するのが素直（追従は 3 行程度）
+- **CalendarTab を触る前に #673 との衝突を確認**（指示どおり実施）: `git fetch` 後 origin に 673 のブランチは無く、CalendarTab を触る open PR も無し（refactor-core レーンは 671 / 701 / 711 / 726 のブランチのみ）
+- 検証: 3 PR とも `cd shared && npm run lint / build / test`（0 errors・217 files 1980 pass）+ `cd web && npm run lint / build / test`（#798 = 32 files 273 pass / #804 = 33 files 273 pass / #813 = 32 files 269 pass）をすべて exit 0 で実測。実ブラウザ検証は merge 後に chat-main
+
 ### 2026-08-11 (2) - #691 / #692 の Step 1（narrow の実ブラウザ実測 + 月ビュー入口の A/B 案）
 
 #### 概要
