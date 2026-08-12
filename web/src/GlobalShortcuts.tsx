@@ -2,7 +2,7 @@ import {
   useGlobalShortcuts,
   useShortcutConfig,
   useUndoRedoOptional,
-  type NavSection,
+  type NavShortcutId,
 } from "@life-editor/shared";
 
 /*
@@ -29,7 +29,7 @@ export function GlobalShortcuts({
   onTogglePalette,
   onNewTask,
 }: {
-  onNavigate: (section: NavSection) => void;
+  onNavigate: (id: NavShortcutId) => void;
   onOpenSettings: () => void;
   onTogglePalette: () => void;
   onNewTask?: () => void;

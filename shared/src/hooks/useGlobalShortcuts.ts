@@ -32,25 +32,42 @@ export interface GlobalShortcutHandlers {
   onOpenSettings?: () => void;
   /** global:new-task — start a new task (W3-B: Materials + create dialog). */
   onNewTask?: () => void;
-  /** nav:* — switch to the given section. The string is the web Section id. */
-  onNavigate?: (section: NavSection) => void;
+  /**
+   * nav:* — the host navigates wherever the pressed binding points. The
+   * argument is the ShortcutId itself, NOT a destination: where `nav:tasks`
+   * lands is the HOST's information architecture, which shared has no
+   * business restating (it used to, as a `NavSection` union frozen in the
+   * pre-2026-07 flat IA — see #676 (b)).
+   */
+  onNavigate?: (id: NavShortcutId) => void;
   /** edit:undo — app-level undo via the global UndoRedo stack (#304). */
   onUndo?: () => void;
   /** edit:redo — app-level redo via the global UndoRedo stack (#304). */
   onRedo?: () => void;
 }
 
-/** Section ids the nav:* shortcuts map to (web MainScreen sections). */
-export type NavSection = "tasks" | "daily" | "notes" | "schedule" | "tags";
+/**
+ * The nav:* shortcut ids, in dispatch order — the SSOT this module and its
+ * DISPATCH_ORDER both read, so a new binding is one line rather than four
+ * parallel lists. Where each one LANDS belongs to the host (see
+ * `GlobalShortcutHandlers.onNavigate`).
+ */
+export const NAV_SHORTCUT_IDS = [
+  "nav:tasks",
+  "nav:daily",
+  "nav:notes",
+  "nav:schedule",
+  "nav:tags",
+] as const satisfies readonly ShortcutId[];
 
-/** nav:* ShortcutId → web Section id. */
-const NAV_TARGET: Record<string, NavSection> = {
-  "nav:tasks": "tasks",
-  "nav:daily": "daily",
-  "nav:notes": "notes",
-  "nav:schedule": "schedule",
-  "nav:tags": "tags",
-};
+export type NavShortcutId = (typeof NAV_SHORTCUT_IDS)[number];
+
+const NAV_SHORTCUT_ID_SET: ReadonlySet<string> = new Set(NAV_SHORTCUT_IDS);
+
+/** Is this a nav:* shortcut (i.e. one the host's `onNavigate` handles)? */
+export function isNavShortcutId(id: ShortcutId): id is NavShortcutId {
+  return NAV_SHORTCUT_ID_SET.has(id);
+}
 
 /**
  * Is the event currently inside an editable field (input / textarea /
@@ -137,11 +154,7 @@ const DISPATCH_ORDER: readonly ShortcutId[] = [
   "global:command-palette",
   "global:settings",
   "global:new-task",
-  "nav:tasks",
-  "nav:daily",
-  "nav:notes",
-  "nav:schedule",
-  "nav:tags",
+  ...NAV_SHORTCUT_IDS,
   "edit:redo",
   "edit:undo",
 ];
@@ -173,6 +186,15 @@ export function useGlobalShortcuts(
       const id = resolveShortcut(e, e.target, DISPATCH_ORDER, matchEvent);
       if (!id) return;
 
+      // The nav:* family dispatches as one arm — the host decides where each
+      // id lands, so there is nothing per-id to do here.
+      if (isNavShortcutId(id)) {
+        if (!onNavigate) return;
+        e.preventDefault();
+        onNavigate(id);
+        return;
+      }
+
       switch (id) {
         case "global:command-palette":
           if (!onTogglePalette) return;
@@ -188,15 +210,6 @@ export function useGlobalShortcuts(
           if (!onNewTask) return;
           e.preventDefault();
           onNewTask();
-          return;
-        case "nav:tasks":
-        case "nav:daily":
-        case "nav:notes":
-        case "nav:schedule":
-        case "nav:tags":
-          if (!onNavigate) return;
-          e.preventDefault();
-          onNavigate(NAV_TARGET[id]);
           return;
         case "edit:undo":
           if (!onUndo) return;
