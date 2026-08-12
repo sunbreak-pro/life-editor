@@ -10,6 +10,7 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
 } from "../types/wikiTagUnified";
+import type { WeekStartsOn } from "../hooks/useWeekStart";
 import {
   dateKeyOfInstant,
   formatDateKey as toDateStr,
@@ -17,56 +18,64 @@ import {
 } from "./dateKey";
 
 /*
- * "This week" means two different things in Analytics, and both are live:
+ * "This week" has ONE meaning in Analytics: the CALENDAR week containing now
+ * (`calendarWeekRange`). Every card under that label — work minutes, completed
+ * tasks, notes — reads the same window.
  *
- *   - `createdWithinLastDays(…, 7)` — a ROLLING 7-day window ending now.
- *     Used by the "notes this week" cards (OverviewTab + MobileAnalyticsView).
- *   - `calendarWeekRange()` — the Mon–Sun CALENDAR week containing now.
- *     Used by MobileAnalyticsView's work-minutes and completed-task cards.
+ * It used to mean two things at once: the notes cards ran on a rolling 7-day
+ * window (`createdWithinLastDays`) while the work / completed cards beside them
+ * ran on the calendar week, so two differently-defined numbers sat under one
+ * label. #670 C3 PR 3 only gave the two windows names; unifying them changes
+ * displayed numbers, so it went to the decision queue and came back as
+ * D-20260811-refactor-1 = A (calendar week), implemented here (#780).
  *
- * So the mobile Analytics screen shows both meanings side by side. Naming
- * them was the point of #670 C3 PR 3 — the two windows were open-coded, so
- * nothing on screen said which card meant which. Unifying them would change
- * displayed numbers, which is a product call, not a refactor: see the
- * decision queue entry in `.claude/comm/decisions/chat-refactor-core.md`.
+ * The first day of the week is the stored `useWeekStart` pref, NOT a hardcoded
+ * Monday — the same pref the calendar grids key on, so the two agree.
  */
 
 /**
- * Items created within the last `days` days, as a ROLLING window ending at
- * `now`. Comparison is on LOCAL calendar keys (#420): the stored
- * `createdAt` is a UTC instant, so slicing its ISO string would read the UTC
- * day and drop anything written before 09:00 JST on the boundary day.
+ * Items created inside the inclusive local-key range `startKey`…`endKey`.
+ * Comparison is on LOCAL calendar keys (#420): the stored `createdAt` is a UTC
+ * instant, so slicing its ISO string would read the UTC day and drop anything
+ * written before 09:00 JST on the boundary day.
  */
-export function createdWithinLastDays<T extends { createdAt: string }>(
+export function createdWithinRange<T extends { createdAt: string }>(
   items: readonly T[],
-  days: number,
-  now: Date = new Date(),
+  startKey: string,
+  endKey: string,
 ): T[] {
-  const start = new Date(now);
-  start.setDate(start.getDate() - days);
-  const startKey = toDateStr(start);
   return items.filter((item) => {
     const key = dateKeyOfInstant(item.createdAt);
-    return key !== null && key >= startKey;
+    return key !== null && key >= startKey && key <= endKey;
   });
 }
 
 /**
- * The Mon–Sun CALENDAR week containing `now`, as inclusive local date keys.
- * Sunday belongs to the week that just ended (`getDay() === 0` steps back 6
- * days), matching the week bars the mobile screen renders beside it.
+ * The CALENDAR week containing `now`, as inclusive local date keys.
+ *
+ * `weekStartsOn` is required on purpose: it is a user pref (`useWeekStart`,
+ * 0 = Sunday / 1 = Monday) and a default here would silently pick a week for
+ * callers that forgot to read it. The step-back math is `startOfWeekKey`'s
+ * (`utils/scheduleGridLayout.ts`), so an Analytics week and a calendar grid
+ * week always begin on the same day.
+ *
+ * The boundary is the wall calendar midnight — Analytics deliberately ignores
+ * the day-start-hour pref that Daily / routine sync roll over on (#356), and
+ * so must the window its buckets are compared against.
  */
-export function calendarWeekRange(now: Date = new Date()): {
+export function calendarWeekRange(
+  now: Date,
+  weekStartsOn: WeekStartsOn,
+): {
   startKey: string;
   endKey: string;
 } {
-  const dow = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow));
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { startKey: toDateStr(monday), endKey: toDateStr(sunday) };
+  const start = new Date(now);
+  start.setDate(now.getDate() - ((now.getDay() - weekStartsOn + 7) % 7));
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { startKey: toDateStr(start), endKey: toDateStr(end) };
 }
 
 export interface DayBucket {

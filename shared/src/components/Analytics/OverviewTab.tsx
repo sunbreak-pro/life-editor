@@ -14,10 +14,12 @@ import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
 import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import {
+  calendarWeekRange,
   computeSummary,
-  createdWithinLastDays,
+  createdWithinRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
+import { useWeekStartPref } from "../../hooks/useWeekStart";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { TodayDashboard, type TodayDashboardLabels } from "./TodayDashboard";
 import { WeeklySummary, type WeeklySummaryLabels } from "./WeeklySummary";
@@ -65,6 +67,8 @@ export function OverviewTab({
   assignmentCount,
   labels,
 }: OverviewTabProps): React.JSX.Element {
+  const { weekStartsOn } = useWeekStartPref();
+
   const stats = useMemo(() => {
     // Tasks
     const tasks = nodes.filter((n) => n.type === "task");
@@ -82,9 +86,15 @@ export function OverviewTab({
     // folder type (every NoteNode is a note now).
     const activeNotes = notes.filter((n) => !n.isDeleted);
     const now = new Date();
-    // Rolling 7 days, NOT the Mon–Sun week — see the header of
-    // `utils/analyticsAggregation.ts` for why both meanings are live.
-    const notesThisWeek = createdWithinLastDays(activeNotes, 7, now);
+    // The calendar week (#780) — this card used to run on a rolling 7 days
+    // while every other "this week" number ran on the week, so the two
+    // disagreed. Unified per D-20260811-refactor-1 = A.
+    const week = calendarWeekRange(now, weekStartsOn);
+    const notesThisWeek = createdWithinRange(
+      activeNotes,
+      week.startKey,
+      week.endKey,
+    );
 
     // Work
     const summary = computeSummary(sessions);
@@ -133,6 +143,7 @@ export function OverviewTab({
     tagCount,
     assignmentCount,
     labels,
+    weekStartsOn,
   ]);
 
   return (
