@@ -94,6 +94,10 @@ supabase/.env
 # MCP Server
 mcp-server/dist/
 mcp-server/node_modules/
+# What the verification tools seeded and have not cleaned up yet (#700).
+# Machine-local by definition — it lists rows in ONE account's DB, and a
+# committed copy would send another machine hunting for ids it cannot see.
+mcp-server/.verification-ledger.json
 
 # graphify (generated code-graph output, machine-local)
 graphify-out/
