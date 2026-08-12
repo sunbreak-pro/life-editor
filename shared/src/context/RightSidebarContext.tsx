@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useUnsavedGuardOptional } from "../hooks/useUnsavedGuard";
 import {
   RightSidebarContext,
   type RightSidebarContextValue,
@@ -32,10 +33,35 @@ export function RightSidebarProvider({ children }: RightSidebarProviderProps) {
   );
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const [contentCount, setContentCount] = useState(0);
+  /*
+   * #753: closing the sidebar unmounts whatever a section portalled into it —
+   * the portal target goes null and the children go with it. The panel cannot
+   * defend itself against that (there is no close event to hook, only an
+   * unmount that has already happened), so the guard is consulted HERE, at the
+   * one place every user-initiated close funnels through.
+   *
+   * Optional: a host with no UnsavedGuardProvider (tests, standalone renders)
+   * keeps the old behaviour exactly.
+   */
+  const guard = useUnsavedGuardOptional();
 
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen((v) => !v), []);
+  const requestClose = useCallback(() => {
+    if (!guard) {
+      setIsOpen(false);
+      return;
+    }
+    void guard.confirmDiscard().then((ok) => {
+      if (ok) setIsOpen(false);
+    });
+  }, [guard]);
+  // Not a functional setState any more: the closing half has to be the guarded
+  // one, and which half this press is depends on the CURRENT state.
+  const toggle = useCallback(() => {
+    if (isOpen) requestClose();
+    else setIsOpen(true);
+  }, [isOpen, requestClose]);
 
   // Mount = +1, the returned cleanup = −1. Guards against double-decrement by
   // only ever moving one step per registration.
@@ -49,6 +75,7 @@ export function RightSidebarProvider({ children }: RightSidebarProviderProps) {
       isOpen,
       open,
       close,
+      requestClose,
       toggle,
       width,
       setWidth,
@@ -61,6 +88,7 @@ export function RightSidebarProvider({ children }: RightSidebarProviderProps) {
       isOpen,
       open,
       close,
+      requestClose,
       toggle,
       width,
       setWidth,

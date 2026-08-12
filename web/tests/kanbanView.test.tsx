@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { DataService, TaskNode } from "@life-editor/shared";
+import {
+  UnsavedGuardProvider,
+  useUnsavedGuardOptional,
+} from "@life-editor/shared";
 import { KanbanView } from "../src/tasks/KanbanView";
 
 /*
@@ -480,6 +484,111 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
       );
       expect(screen.queryByText(ASK)).toBeNull();
     });
+  });
+});
+
+/*
+ * #753 — the exits the board CANNOT see. Closing the right sidebar takes the
+ * portalled panel down with it, and switching sections unmounts the whole body;
+ * neither is an event this view could hook, only an unmount that has already
+ * happened. So the board declares its pending draft to the shell guard, and the
+ * containers ask through that.
+ *
+ * Driven through the guard's own `confirmDiscard` rather than through a real
+ * sidebar: this file mocks RightSidebarPortal away (the board needs no shell to
+ * render), and what has to hold here is the DECLARATION — that the board's
+ * draft is visible from above at all.
+ */
+describe("KanbanView — the shell teardown guard (#753)", () => {
+  const ASK = "common.unsavedCloseConfirm";
+
+  function Shell({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
+    const guard = useUnsavedGuardOptional();
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => void guard?.confirmDiscard().then(onAnswer)}
+        >
+          tear the container down
+        </button>
+        <KanbanView />
+      </>
+    );
+  }
+
+  const renderGuarded = (onAnswer: (ok: boolean) => void) =>
+    render(
+      <UnsavedGuardProvider
+        labels={{
+          message: ASK,
+          discard: "common.discard",
+          cancel: "common.cancel",
+        }}
+      >
+        <Shell onAnswer={onAnswer} />
+      </UnsavedGuardProvider>,
+    );
+  const tearDown = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "tear the container down" }),
+    );
+  const save = () =>
+    screen.getByRole("button", {
+      name: "taskDetail.save",
+    }) as HTMLButtonElement;
+
+  it("lets the container through when nothing is pending", async () => {
+    state.selectedId = "task-a";
+    const answers: boolean[] = [];
+    renderGuarded((ok) => answers.push(ok));
+
+    tearDown();
+    await waitFor(() => expect(answers).toEqual([true]));
+    expect(screen.queryByText(ASK)).toBeNull();
+  });
+
+  it("asks before a container throws the board's draft away", async () => {
+    state.selectedId = "task-a";
+    const answers: boolean[] = [];
+    renderGuarded((ok) => answers.push(ok));
+    fireEvent.click(screen.getByText("type in the body"));
+
+    tearDown();
+    await screen.findByText(ASK);
+    // A question, not a farewell: the draft is still there behind it.
+    expect(save().disabled).toBe(false);
+    expect(answers).toEqual([]);
+  });
+
+  it("keeps the draft on a refusal, and asks again on the next attempt", async () => {
+    state.selectedId = "task-a";
+    const answers: boolean[] = [];
+    renderGuarded((ok) => answers.push(ok));
+    fireEvent.click(screen.getByText("type in the body"));
+
+    tearDown();
+    await screen.findByText(ASK);
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(answers).toEqual([false]));
+    expect(save().disabled).toBe(false);
+    expect(state.updateNode).not.toHaveBeenCalled();
+
+    // Nothing is cached up there either, so the second attempt asks again.
+    tearDown();
+    await screen.findByText(ASK);
+  });
+
+  it("goes quiet once the draft has been saved", async () => {
+    state.selectedId = "task-a";
+    const answers: boolean[] = [];
+    renderGuarded((ok) => answers.push(ok));
+    fireEvent.click(screen.getByText("type in the body"));
+    fireEvent.click(save());
+
+    tearDown();
+    await waitFor(() => expect(answers).toEqual([true]));
+    expect(screen.queryByText(ASK)).toBeNull();
   });
 });
 

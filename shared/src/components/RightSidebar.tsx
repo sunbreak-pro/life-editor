@@ -37,8 +37,16 @@ export function RightSidebar({
   emptyLabel,
   resizeLabel,
 }: RightSidebarProps) {
-  const { isOpen, close, width, setWidth, contentCount, setPortalTarget } =
-    useRightSidebarContext();
+  const {
+    isOpen,
+    // #753: the panel's close button is the user asking, so it goes through the
+    // guarded route — closing takes the portalled panel down with it.
+    requestClose,
+    width,
+    setWidth,
+    contentCount,
+    setPortalTarget,
+  } = useRightSidebarContext();
   const asideRef = useRef<HTMLElement>(null);
   const resizingRef = useRef(false);
 
@@ -106,7 +114,7 @@ export function RightSidebar({
         title={title}
         closeLabel={closeLabel}
         emptyLabel={emptyLabel}
-        onClose={close}
+        onClose={requestClose}
         contentCount={contentCount}
         setPortalTarget={setPortalTarget}
       />

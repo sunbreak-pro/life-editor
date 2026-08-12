@@ -24,7 +24,22 @@ import { createContext } from "react";
 export interface RightSidebarContextValue {
   isOpen: boolean;
   open: () => void;
+  /**
+   * Close it, no questions asked. For the PROGRAMMATIC closes — a wide→narrow
+   * crossing that would leave the drawer covering the screen, a section body
+   * tidying up after itself. A resize is not the user saying "throw my draft
+   * away", so it must not be able to raise that question (#753).
+   */
   close: () => void;
+  /**
+   * The user asked to close it (the panel's close button, the drawer's
+   * backdrop, the header toggle). Consults the unsaved guard first, so a draft
+   * inside the panel is asked about before the portal target goes null and
+   * takes the panel's children with it (#753). Falls back to a plain close
+   * when no UnsavedGuardProvider is mounted.
+   */
+  requestClose: () => void;
+  /** The header/hamburger toggle. Opens directly, closes via `requestClose`. */
   toggle: () => void;
   /** Desktop panel width in px (persisted). Clamped to [240, 560]. */
   width: number;

@@ -33,6 +33,7 @@ import {
   useTaskTreeContext,
   useWikiTagsUnifiedContext,
   useTranslation,
+  useUnsavedDraft,
   useInFlightGuard,
   readKanbanViewMode,
   persistKanbanViewMode,
@@ -242,6 +243,15 @@ export function KanbanView({
     resolve: resolveConfirm,
   } = useConfirmDialog();
   const detailDirtyRef = useRef(false);
+  /*
+   * #753: the same pending draft, declared to the SHELL. The exits above are
+   * the ones this view can see; closing the right sidebar and switching
+   * sections are not — both remove the container, and the panel just stops
+   * existing. The probe is the same ref read live, so a refused discard leaves
+   * it pending and the next attempt asks again (nothing is cached up there
+   * either — the reason #745's hosts could not apply `clearDirty`).
+   */
+  useUnsavedDraft(useCallback(() => detailDirtyRef.current, []));
   const requestDetailClose = useCallback(
     async (proceed: () => void) => {
       const decision = await decideUnsavedClose({

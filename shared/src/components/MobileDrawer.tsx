@@ -36,17 +36,23 @@ export function MobileDrawer({
   closeLabel,
   emptyLabel,
 }: MobileDrawerProps) {
-  const { isOpen, close, contentCount, setPortalTarget } =
+  // #753: Escape, the scrim and the close button are all the user asking, so
+  // all three take the guarded route — the drawer holds the same portalled
+  // panel the Desktop sidebar does, and closing it unmounts the draft inside.
+  const { isOpen, requestClose, contentCount, setPortalTarget } =
     useRightSidebarContext();
   const panelRef = useDialogA11y<HTMLDivElement>({
     open: isOpen,
-    onClose: close,
+    onClose: requestClose,
   });
 
   if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex bg-black/30" onMouseDown={close}>
+    <div
+      className="fixed inset-0 z-50 flex bg-black/30"
+      onMouseDown={requestClose}
+    >
       <div
         ref={panelRef}
         role="dialog"
@@ -60,7 +66,7 @@ export function MobileDrawer({
           title={title}
           closeLabel={closeLabel}
           emptyLabel={emptyLabel}
-          onClose={close}
+          onClose={requestClose}
           contentCount={contentCount}
           setPortalTarget={setPortalTarget}
         />
