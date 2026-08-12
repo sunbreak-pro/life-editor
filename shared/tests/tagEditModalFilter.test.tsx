@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TagEditModal, type TagEditRow } from "../src/components";
+import { TAG_LABELS, listedTagNames } from "./tagEditLabels";
 
 /*
  * #368 — the tag master list's name filter. The tag editor is the app's only
@@ -8,38 +9,14 @@ import { TagEditModal, type TagEditRow } from "../src/components";
  * filtering ONLY: no sort controls, because the host receives `allTags` already
  * name-ordered from the service query (D-20260728-main-3).
  *
+ * Since #740 the filter belongs to the LEFT column (the master list); the names
+ * under test are the list rows rather than a rename field per row, because only
+ * the selected tag has one of those now.
+ *
  * Covers narrowing, case-insensitivity, the no-match copy, the "nothing to
  * narrow" guard, that filtering leaves the add row working, and the
  * reset-on-reopen contract.
  */
-
-const LABELS = {
-  title: "Edit tags",
-  addPlaceholder: "Enter a tag name",
-  addButton: "Add",
-  empty: "No tags yet",
-  filterPlaceholder: "Filter tags…",
-  filterLabel: "Filter tags by name",
-  filterEmpty: "No tags match",
-  renameLabel: "Rename tag",
-  saveLabel: "Save",
-  deleteLabel: "Delete tag",
-  iconLabel: "Icon",
-  clearIconLabel: "Default icon",
-  colorLabel: "Color",
-  colorClearLabel: "Default color",
-  colorCustomLabel: "Custom",
-  itemsToggleLabel: "Show tagged items",
-  itemsEmpty: "Nothing carries this tag",
-  unassignLabel: "Remove this tag",
-  roles: {
-    task: "Task",
-    event: "Event",
-    note: "Note",
-    daily: "Daily",
-    unknown: "Other",
-  },
-};
 
 // Name-ordered like the service query delivers them (`.order("name")`), with a
 // deliberate case mix + an overlapping pair ("work" is a substring of
@@ -63,54 +40,48 @@ function props(over: Partial<ModalProps> = {}): ModalProps {
     onSetColor: vi.fn(),
     onSetIcon: vi.fn(),
     formatCount: (count: number) => `${count} items`,
-    labels: LABELS,
+    labels: TAG_LABELS,
     ...over,
   };
 }
-
-/** The rename input of each visible row carries the tag name as its value. */
-const visibleNames = () =>
-  screen
-    .getAllByLabelText("Rename tag")
-    .map((input) => (input as HTMLInputElement).value);
 
 const filterInput = () => screen.getByLabelText("Filter tags by name");
 
 describe("TagEditModal name filter (#368)", () => {
   it("lists every tag until a query is typed", () => {
     render(<TagEditModal {...props()} />);
-    expect(visibleNames()).toEqual(["Home", "homework", "work"]);
+    expect(listedTagNames()).toEqual(["Home", "homework", "work"]);
   });
 
   it("narrows the list to names containing the query", () => {
     render(<TagEditModal {...props()} />);
     fireEvent.change(filterInput(), { target: { value: "home" } });
-    expect(visibleNames()).toEqual(["Home", "homework"]);
+    expect(listedTagNames()).toEqual(["Home", "homework"]);
   });
 
   it("matches anywhere in the name, not just the start", () => {
     render(<TagEditModal {...props()} />);
     fireEvent.change(filterInput(), { target: { value: "work" } });
-    expect(visibleNames()).toEqual(["homework", "work"]);
+    expect(listedTagNames()).toEqual(["homework", "work"]);
   });
 
   it("ignores case on both sides", () => {
     render(<TagEditModal {...props()} />);
     fireEvent.change(filterInput(), { target: { value: "HOME" } });
-    expect(visibleNames()).toEqual(["Home", "homework"]);
+    expect(listedTagNames()).toEqual(["Home", "homework"]);
   });
 
   it("ignores surrounding whitespace", () => {
     render(<TagEditModal {...props()} />);
     fireEvent.change(filterInput(), { target: { value: "  work  " } });
-    expect(visibleNames()).toEqual(["homework", "work"]);
+    expect(listedTagNames()).toEqual(["homework", "work"]);
   });
 
   it("shows the no-match copy instead of an empty list", () => {
     render(<TagEditModal {...props()} />);
     fireEvent.change(filterInput(), { target: { value: "zzz" } });
     expect(screen.getByText("No tags match")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Rename tag")).toBeNull();
+    expect(screen.queryByRole("list", { name: "Tags" })).toBeNull();
     // Not the "no tags at all" copy — the tags exist, they are just hidden.
     expect(screen.queryByText("No tags yet")).toBeNull();
   });
@@ -136,7 +107,7 @@ describe("TagEditModal name filter (#368)", () => {
     // is about to add, so the panel would look exactly as it did before — and a
     // second Add attempt would hit the unique-name constraint silently.
     expect((filterInput() as HTMLInputElement).value).toBe("");
-    expect(visibleNames()).toEqual(["Home", "homework", "work"]);
+    expect(listedTagNames()).toEqual(["Home", "homework", "work"]);
   });
 
   it("clears the query when the panel is reopened", () => {
@@ -148,7 +119,7 @@ describe("TagEditModal name filter (#368)", () => {
     rerender(<TagEditModal {...props()} />);
 
     expect(screen.queryByText("No tags match")).toBeNull();
-    expect(visibleNames()).toEqual(["Home", "homework", "work"]);
+    expect(listedTagNames()).toEqual(["Home", "homework", "work"]);
     expect((filterInput() as HTMLInputElement).value).toBe("");
   });
 
@@ -166,16 +137,16 @@ describe("TagEditModal name filter (#368)", () => {
   });
 
   // #586 pin: a rename that lands from outside (another surface / sync)
-  // re-seeds the row's local editable name.
+  // re-seeds the list.
   it("adopts a tag name that changes from outside", () => {
     const { rerender } = render(<TagEditModal {...props()} />);
-    expect(visibleNames()).toEqual(["Home", "homework", "work"]);
+    expect(listedTagNames()).toEqual(["Home", "homework", "work"]);
 
     const renamed = ROWS.map((r) =>
       r.id === "tag-3" ? { ...r, name: "chores" } : r,
     );
     rerender(<TagEditModal {...props({ tags: renamed })} />);
 
-    expect(visibleNames()).toEqual(["Home", "homework", "chores"]);
+    expect(listedTagNames()).toEqual(["Home", "homework", "chores"]);
   });
 });
