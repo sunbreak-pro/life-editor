@@ -6,9 +6,9 @@
 # から呼ばれる。
 #
 # 対象は memory/INDEX.md と history/INDEX.md の 2 本だけ（どちらも .gitignore 済みの派生
-# ビュー・SSOT は chat-*.md）。git 追跡している .claude/INDEX.md と
-# .claude/decisions/INDEX.md は records.mjs の生成物で commit されるべきものなので、
-# 対象に含めない（2026-08-09 実測で外部版も同じ 2 本限定と確認済み）。
+# ビュー・SSOT は chat-*.md）。records.mjs の生成物（.claude/INDEX.md /
+# .claude/decisions/INDEX.md）も #735 で .gitignore 済みになり、そもそも stage されない
+# ので対象に足していない（2026-08-09 実測で外部版も同じ 2 本限定と確認済み）。
 #
 # 方針は AUTO-FIX（ブロックしない）: staged に残っていたら git rm --cached で外すだけ。
 # 作業ファイルには触らない（regen-index.sh が作り直す）。

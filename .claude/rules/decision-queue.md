@@ -7,4 +7,4 @@
 - 実装中に計画外の変更が浮上したら **P-008**（実装せずキューへ・現計画を続行・Scope / AC の自己免除はしない）
 - セッション開始時に `decisions/ANSWERS.md` を確認し、自分宛の回答を消化してから新規作業に入る
 - エントリの「放置時」は必ず安全側（保留・別作業へ）。無回答で作業が勝手に進む設計にしない
-- **回答が付いたら消す前に台帳へ昇格する**（2026-08-09 D-20260809-main-1）: `.claude/decisions/D-<id>.md` を作成（キュー本文をそのまま貼る）→ キューから削除 → `node .claude/scripts/records.mjs index` を同一コミットで実行。手順の正本 = `.claude/decisions/README.md`
+- **回答が付いたら消す前に台帳へ昇格する**（2026-08-09 D-20260809-main-1）: `.claude/decisions/D-<id>.md` を作成（キュー本文をそのまま貼る）→ キューから削除（INDEX の再生成は不要 — git 非追跡の派生ビューで SessionStart hook が作り直す = #735）。手順の正本 = `.claude/decisions/README.md`
