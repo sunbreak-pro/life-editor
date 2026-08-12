@@ -24,4 +24,4 @@
 - 放置時: **現状維持**（A と同じ）。#670 の DoD にこの項目は無いので、C3 の完了はブロックしない
 - 期限感: いつでも（#290 Schedule redesign の着手時に一緒に決めるのが自然）
 
-（2026-08-12 昇格分 = D-20260812-refactor-1 — `.claude/decisions/` 台帳へ。台帳化とキューからの除去は chat-main が代行した）
+（2026-08-12 昇格分 = D-20260812-refactor-1 / D-20260812-refactor-2 — `.claude/decisions/` 台帳へ。refactor-1 の台帳化とキューからの除去は chat-main が代行した）
