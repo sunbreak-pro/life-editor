@@ -133,9 +133,24 @@ export function BottomTabBar({
 
   return (
     <>
+      {/*
+       * The home-indicator strip (#791). The tabs already carry `py-2`, so
+       * 0.5rem of clearance sits under the labels before this padding starts;
+       * reserving the FULL inset here put 0.5rem + 34px between the labels and
+       * the screen edge, and that surplus is the band of dead space the PWA
+       * report called "wider than expected". Adding only the REMAINDER lands
+       * the labels exactly `env(safe-area-inset-bottom)` above the edge — the
+       * clearance iOS actually asks for, no more.
+       *
+       * `max(0px, …)` is what keeps every non-notched target byte-identical to
+       * before: the inset is 0 in a desktop browser and in Chrome-on-iOS with
+       * its toolbar up, so the whole expression collapses to 0 and the bar is
+       * the `py-2` it has always been. The tabs keep their own padding, so no
+       * touch target shrinks either.
+       */}
       <nav
         aria-label={labels.moreTitle}
-        className="flex shrink-0 border-t border-lumen-border bg-lumen-bg pb-[env(safe-area-inset-bottom)]"
+        className="flex shrink-0 border-t border-lumen-border bg-lumen-bg pb-[max(0px,calc(env(safe-area-inset-bottom)_-_0.5rem))]"
       >
         {visible.map((s) => {
           const isActive = activeSection === s.id;
