@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   defaultBriefingTab,
+  eveningBodyEquals,
   extractEveningSection,
   isEmptyDocJson,
   mergeEveningSection,
@@ -300,5 +301,30 @@ describe("defaultBriefingTab", () => {
 
   it("ignores nonsense day-start prefs (> 12) for the tail rule", () => {
     expect(defaultBriefingTab(at(9), 18)).toBe("morning");
+  });
+});
+
+// ── eveningBodyEquals (#793) ─────────────────────────────────────────────
+
+describe("eveningBodyEquals", () => {
+  // What TipTap emits vs what the jsonb column hands back: same document,
+  // keys reordered (length first, then bytewise). Byte equality answers "not
+  // my echo" to every save, which is what pinned the caption on Unsaved.
+  const emitted = '{"type":"doc","content":[{"type":"text","text":"hi"}]}';
+  const echoed = '{"type":"doc","content":[{"text":"hi","type":"text"}]}';
+
+  it("sees a jsonb key-order echo as the same body", () => {
+    expect(eveningBodyEquals(emitted, echoed)).toBe(true);
+  });
+
+  it("still separates a genuinely different body", () => {
+    const other = '{"type":"doc","content":[{"type":"text","text":"ho"}]}';
+    expect(eveningBodyEquals(emitted, other)).toBe(false);
+  });
+
+  it("treats null as a value, not a wildcard", () => {
+    expect(eveningBodyEquals(null, null)).toBe(true);
+    expect(eveningBodyEquals(null, emitted)).toBe(false);
+    expect(eveningBodyEquals(emitted, null)).toBe(false);
   });
 });
