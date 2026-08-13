@@ -206,6 +206,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["get_note_context", { id: "note-1" }],
   ["write_briefing", { focus: "one thing", paragraphs: ["a", "b"] }],
   ["search_all", { query: "q", domains: ["tasks", "notes"], limit: 5 }],
+  ["search_all", { query: "q", limit: 5, offset: 5 }],
   [
     "generate_content",
     {

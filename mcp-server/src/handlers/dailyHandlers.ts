@@ -9,6 +9,7 @@ import {
   type ItemsMetaRow,
 } from "../utils/items.js";
 import { assertDateKey } from "../utils/localDate.js";
+import { hasBriefingSection } from "../utils/briefingSection.js";
 import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
 
 /*
@@ -92,18 +93,50 @@ export async function findDailyPayload(
   return (data as unknown as DailiesPayloadRow | null) ?? null;
 }
 
+/**
+ * Read a date's daily (#782 ②).
+ *
+ * Three answers, not two: a date with no daily and a date whose daily is in
+ * the trash both carry `content: null`, and only `exists` / `isTrashed` tell
+ * them apart — the caller used to see one blank day for both and could not
+ * know that writing would resurrect a trashed entry. `hasBriefing` reports
+ * whether the 朝刊 section is already there, which write_briefing would
+ * otherwise have to fetch the whole body to find out.
+ */
 export async function getDaily(args: { date: string }) {
   const date = assertDateKey(args.date);
   const payload = await findDailyPayload(date);
-  if (!payload) return { date, content: null };
+  if (!payload) {
+    return {
+      date,
+      exists: false,
+      isTrashed: false,
+      hasBriefing: false,
+      content: null,
+    };
+  }
 
   const meta = await findMeta(payload.item_id, "daily");
-  if (!meta) return { date, content: null }; // trashed daily reads as empty
+  // A trashed daily still reads as empty — what the app hides, the tool does
+  // not hand back — but it now says why.
+  if (!meta) {
+    return {
+      date,
+      exists: false,
+      isTrashed: true,
+      hasBriefing: false,
+      content: null,
+    };
+  }
 
+  const content = contentJsonToString(payload.content_json);
   return {
     id: meta.id,
     date: payload.date,
-    content: contentJsonToString(payload.content_json),
+    exists: true,
+    isTrashed: false,
+    hasBriefing: hasBriefingSection(content),
+    content,
     createdAt: meta.created_at,
     updatedAt: meta.updated_at,
   };

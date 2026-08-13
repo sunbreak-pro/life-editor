@@ -5,7 +5,12 @@ import {
   PREVIEW_LENGTH,
 } from "../utils/content.js";
 import { META_COLUMNS, type ItemsMetaRow } from "../utils/items.js";
-import { fetchByIdChunks } from "../utils/pagination.js";
+import {
+  fetchAllPages,
+  fetchByIdChunks,
+  resolveListLimit,
+  resolveListOffset,
+} from "../utils/pagination.js";
 import { fetchLiveNotes } from "./noteHandlers.js";
 import { fetchLiveDailies } from "./dailyHandlers.js";
 
@@ -21,10 +26,39 @@ import { fetchLiveDailies } from "./dailyHandlers.js";
  *     `ilike`. Those domains pull the live collection and match the
  *     extracted plain text — more accurate than the legacy LIKE over raw
  *     TipTap JSON, which also matched node names like "paragraph".
+ *
+ * Every domain answers with the same `{ results, total, hasMore }` page
+ * (#782 ②). A bare array told the caller nothing about what it did not get:
+ * `limit` hits looked identical whether they were all the matches or the
+ * first of hundreds, so the only way to find out was to raise `limit` and
+ * search again.
  */
 
 const VALID_DOMAINS = ["tasks", "dailies", "notes"] as const;
 type Domain = (typeof VALID_DOMAINS)[number];
+
+/** Items a domain returns when the caller does not say. */
+const DEFAULT_SEARCH_LIMIT = 10;
+
+/** One domain's answer: the caller's slice, plus what it does not hold. */
+interface DomainPage<Result> {
+  results: Result[];
+  total: number;
+  hasMore: boolean;
+}
+
+/** Cut a domain's full match list down to the caller's page. */
+function toPage<Result>(
+  matches: Result[],
+  offset: number,
+  limit: number,
+): DomainPage<Result> {
+  return {
+    results: matches.slice(offset, offset + limit),
+    total: matches.length,
+    hasMore: offset + limit < matches.length,
+  };
+}
 
 interface TasksPayloadRow {
   item_id: string;
@@ -37,37 +71,50 @@ interface TasksPayloadRow {
 const TASK_PAYLOAD_COLUMNS =
   "item_id, task_type, status, scheduled_at, content";
 
-/** Tasks whose title OR content matches, newest first, capped at `limit`. */
-async function searchTasks(pattern: string, limit: number) {
+/** Tasks whose title OR content matches, newest first, as one page. */
+async function searchTasks(pattern: string, offset: number, limit: number) {
   const { client } = await getSupabase();
 
-  const [{ data: titleRows, error: tErr }, { data: contentRows, error: cErr }] =
-    await Promise.all([
-      client
-        .from("items_meta")
-        .select(META_COLUMNS)
-        .eq("role", "task")
-        .eq("is_deleted", false)
-        .ilike("title", pattern)
-        .order("created_at", { ascending: false })
-        .limit(limit),
-      client
-        .from("tasks_payload")
-        .select(TASK_PAYLOAD_COLUMNS)
-        .eq("task_type", "task")
-        .ilike("content", pattern)
-        .limit(limit),
-    ]);
-  if (tErr) throw new Error(`search task items_meta: ${tErr.message}`);
-  if (cErr) throw new Error(`search tasks_payload: ${cErr.message}`);
+  /*
+   * Both halves are read in full rather than capped server-side. A
+   * `.limit(limit)` on each query cuts rows before the union is merged, so
+   * the merged `total` could only ever be a lower bound and `hasMore` a
+   * guess — and a page past the first would be cut from the wrong set. The
+   * whole-collection read matches what notes / dailies already do, and this
+   * is a single-user database (CLAUDE.md §1).
+   */
+  const [titleRows, contentRows] = await Promise.all([
+    fetchAllPages<ItemsMetaRow>(
+      (from, to) =>
+        client
+          .from("items_meta")
+          .select(META_COLUMNS)
+          .eq("role", "task")
+          .eq("is_deleted", false)
+          .ilike("title", pattern)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to),
+      "search task items_meta",
+    ),
+    fetchAllPages<TasksPayloadRow>(
+      (from, to) =>
+        client
+          .from("tasks_payload")
+          .select(TASK_PAYLOAD_COLUMNS)
+          .eq("task_type", "task")
+          .ilike("content", pattern)
+          .order("item_id", { ascending: true })
+          .range(from, to),
+      "search tasks_payload",
+    ),
+  ]);
 
   const metaById = new Map<string, ItemsMetaRow>();
-  for (const m of (titleRows ?? []) as unknown as ItemsMetaRow[])
-    metaById.set(m.id, m);
+  for (const m of titleRows) metaById.set(m.id, m);
 
   const payloadById = new Map<string, TasksPayloadRow>();
-  for (const p of (contentRows ?? []) as unknown as TasksPayloadRow[])
-    payloadById.set(p.item_id, p);
+  for (const p of contentRows) payloadById.set(p.item_id, p);
 
   // Fill in each half's missing side: payloads for title-only hits, live
   // metas for content-only hits (a content hit on a trashed task drops out).
@@ -117,19 +164,29 @@ async function searchTasks(pattern: string, limit: number) {
       createdAt: meta.created_at,
     });
   }
-  merged.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // Tie-break on id: created_at is `default now()`, so bulk-inserted rows
+  // share a timestamp, and without a total order the offset paging above
+  // could repeat or drop rows across pages.
+  merged.sort(
+    (a, b) =>
+      b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id),
+  );
 
-  return merged
-    .slice(0, limit)
-    .map(({ createdAt: _createdAt, ...rest }) => rest);
+  return toPage(
+    merged.map(({ createdAt: _createdAt, ...rest }) => rest),
+    offset,
+    limit,
+  );
 }
 
 export async function searchAll(args: {
   query: string;
   domains?: string[];
   limit?: number;
+  offset?: number;
 }) {
-  const limit = args.limit ?? 10;
+  const limit = resolveListLimit(args.limit, DEFAULT_SEARCH_LIMIT);
+  const offset = resolveListOffset(args.offset);
   const domains: Domain[] = args.domains
     ? (args.domains.filter((d) =>
         VALID_DOMAINS.includes(d as Domain),
@@ -137,33 +194,38 @@ export async function searchAll(args: {
     : [...VALID_DOMAINS];
 
   const needle = args.query.toLowerCase();
-  const result: Record<string, unknown[]> = {};
+  const result: Record<string, DomainPage<unknown>> = {};
   let totalHits = 0;
 
   if (domains.includes("tasks")) {
-    const tasks = await searchTasks(`%${args.query}%`, limit);
+    const tasks = await searchTasks(`%${args.query}%`, offset, limit);
     result.tasks = tasks;
-    totalHits += tasks.length;
+    totalHits += tasks.total;
   }
 
   if (domains.includes("dailies")) {
-    const dailies = (await fetchLiveDailies())
+    const matches = (await fetchLiveDailies())
       .map((d) => ({
+        // The date is a daily's identity, but the id is what every other
+        // tool (tag_entity, get_entity_tags) takes — a hit used to be a
+        // dead end for want of it.
+        id: d.payload.item_id,
         date: d.payload.date,
         text: contentPlainText(d.payload.content_json),
       }))
       .filter((d) => d.text.toLowerCase().includes(needle))
-      .slice(0, limit)
       .map((d) => ({
+        id: d.id,
         date: d.date,
         contentPreview: d.text.slice(0, PREVIEW_LENGTH),
       }));
+    const dailies = toPage(matches, offset, limit);
     result.dailies = dailies;
-    totalHits += dailies.length;
+    totalHits += dailies.total;
   }
 
   if (domains.includes("notes")) {
-    const notes = (await fetchLiveNotes())
+    const matches = (await fetchLiveNotes())
       .map((n) => ({
         id: n.meta.id,
         title: n.meta.title,
@@ -175,16 +237,18 @@ export async function searchAll(args: {
           n.title.toLowerCase().includes(needle) ||
           n.text.toLowerCase().includes(needle),
       )
-      .slice(0, limit)
       .map((n) => ({
         id: n.id,
         title: n.title,
         contentPreview: n.text.slice(0, PREVIEW_LENGTH),
         updatedAt: n.updatedAt,
       }));
+    const notes = toPage(matches, offset, limit);
     result.notes = notes;
-    totalHits += notes.length;
+    totalHits += notes.total;
   }
 
+  // Still the sum across domains, now counting every match rather than the
+  // ones that fit on the page.
   return { ...result, totalHits };
 }
