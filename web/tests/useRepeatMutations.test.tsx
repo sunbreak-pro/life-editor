@@ -339,7 +339,9 @@ describe("delete scopes", () => {
 
     const opts = h.deleteRoutine.mock.calls[0][1];
     expect(h.reload).not.toHaveBeenCalled();
-    opts.onCascadeChanged?.();
+    // `opts?.` because the arg is optional in the signature: if it were ever
+    // dropped the next assertion is what fails, and it says why.
+    opts?.onCascadeChanged?.();
     expect(h.reload).toHaveBeenCalledTimes(1);
   });
 
