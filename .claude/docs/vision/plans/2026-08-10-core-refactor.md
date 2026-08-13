@@ -184,6 +184,8 @@ mcp-server/**            （C1 / C2）
 - **PR-C**: `useScheduleItemsAPI` を載せ替え、**BASELINE ブロックをコメントごと全削除**
 - **PR-D**（任意）: `useLatestRef.ts` を新設して 7 箇所の手写しを置換 + `createNoopUndoRedo` をモジュールレベルの凍結シングルトンへ。**コールバックの identity が安定化するので deps 漏れが stale closure として顕在化しうる** — この PR だけは playwright を必須にする
 
+**着地状況（2026-08-13）**: PR-A + PR-B = [#769](https://github.com/sunbreak-pro/life-editor/pull/769)（`useDomainLoad` 新設・calendars / routines 載せ替え・baseline 3 → 1）／ PR-C = [#801](https://github.com/sunbreak-pro/life-editor/pull/801)（`useScheduleItemsAPI` 載せ替え・BASELINE ブロック全削除）／ PR-E = [#686](https://github.com/sunbreak-pro/life-editor/pull/686)（`RoutineContext` の UndoRedo 配線 + i18n ラベル 3 件）。**DoD は全項目達成**（残りは merge 後の playwright のみ = chat-main）。**PR-D は未着手**で、任意かつ playwright 必須のため #672 の close 条件からは外す — やるなら独立 Issue として起こす。
+
 **追い風**（実測）: 導出パターンの実装モデルがリポ内にある / schedule の消費側は既に「データが空の時だけスケルトン」なので loading 意味論の変更がほぼ不可視 / **routines の isLoading・error は消費者ゼロ** / 型が `ReturnType` 経由なので返り値変更は必ずコンパイルで捕まる。
 
 **ルーチンの Undo/Redo は繋ぐ（裁定済み = [D-20260810-refactor-1](../../../decisions/D-20260810-refactor-1.md) の A・2026-08-11）**: `RoutineProvider` だけ UndoRedo に未接続で undo コード約 60 行が空撃ちになっている。`RoutineContext` に `useUndoRedoOptional()` を配線し、**同じ PR で `undoRedo.labels` に `createRoutine` / `updateRoutine` / `deleteRoutine` を en・ja 両方へ追加する**（ラベルが無いと「Undid: createRoutine」という生キーの toast が出る）。
@@ -276,9 +278,9 @@ mcp-server が shared に一切依存せず DB 行型 8 種・書き込み儀式
 - [ ] `grep -rn '_unused_' shared/src/services/` が 0 件（C3）
 - [ ] DataService の宣言数 == `PHASE2_*` 和集合サイズ（C4・一致しない限り build が通らない状態）
 - [ ] 負のテスト: セット / interface のどちらかに架空のメソッドを足すと `cd shared && npm run build` が名指しで落ちる（C4・確認後 revert）
-- [ ] `grep -c 'set-state-in-effect' shared/eslint.config.js` が 0（C5・BASELINE ブロックごと削除）
-- [ ] `grep -rn 'setIsLoading(true)' shared/src/hooks/` が 0 件（C5）
-- [ ] `shared/eslint.config.js` の diff が**削除のみ**（C5・新ファイルの baseline 追記が無い）
+- [x] `grep -c 'set-state-in-effect' shared/eslint.config.js` が 0（C5・BASELINE ブロックごと削除）
+- [x] `grep -rn 'setIsLoading(true)' shared/src/hooks/` が 0 件（C5）
+- [x] `shared/eslint.config.js` の diff が**削除のみ**（C5・新ファイルの baseline 追記が無い）
 - [ ] C6 で切り出した 3 モジュールに対応する vitest がある
 
 ---
