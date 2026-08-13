@@ -2,6 +2,76 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-10 - ユーザー要望 7 件の起票と、最優先 1 本（#624 ポモドーロ数値入力）の実装
+
+#### 概要
+
+ユーザーから届いた要望 7 件を重複チェックのうえ GitHub Issue 6 本（#623〜#628）に落とし、そのうち唯一の `type:bug` である #624 を実装した（**PR #629 merged → iPhone Chrome で実機確認 OK → #624 CLOSED**）。要件の 1 つは既存 Issue に該当したので新規は立てず、実測結果をコメントで足した。あわせて #607 / #608 の計画書を乖離レビュー付きで archive し、**同じ実機確認で残っていた目視 4 点も全て消化**した（#607 / #608 とも CLOSED）。
+
+#### 変更点
+
+- **起票 6 本**: **#623** 朝刊の本文 / rightSidebar に `+` を置き Schedule アイテムを追加（`section:briefing`）/ **#624** ポモドーロ数値入力の空欄バグ（`type:bug` `sev:important` `section:work`）/ **#625** Event⇄Todo の相互変換（`section:schedule`）/ **#626** Todo の詳細からもタグを付け外し（`section:schedule`）/ **#627** Epic「編集の確定を保存ボタンに統一（Note・Daily 除く）」（`shared-fix` `[all]` — `[all]` は Epic に限り可）/ **#628** その段階 1 = Schedule 詳細編集パネル（`section:schedule`）
+- **要件「Task→Todo 改称」は起票せず #592 にコメント**: Work 画面の i18n 名前空間（`work.*` / `pomodoro.*` / `taskDetail.*` / `kanban.*`）は既に全て Todo 表記で、`.ts` / `.tsx` の「タスク」ハードコードもテスト 2 本の中だけだった。残存は #592 が既に列挙している schedule 系キーのみなので、スコープを広げず実測結果だけ足した
+- **#625 / #628 は Issue 本文に「先に決めること」を明記**: #625 = 変換で id を維持するか（維持ならタグ / リンクが無傷だが、payload 生成列 `parent_item_role` の都合で「旧 payload 削除 → `items_meta.role` UPDATE → 新 payload INSERT」の順序が要る）・落ちるフィールド・routine occurrence の可否。#628 = 保存ボタンでのみ確定するか blur 保存を残すか。どちらも着手レーンが判断キューへ積んでから実装に入る（P-005）
+- **#624 の原因**（`shared/src/components/PomodoroSettings.tsx:211-239`）: `NumberField` が毎キーストロークで `Number(e.target.value)` を commit していたため、欄を空にすると `Number("") === 0` が飛び、`TimerContext.tsx:276` の `clampMinutes` が最小値 1 に丸めて書き戻していた。制御コンポーネントなので次のキーが来る前に `1` が再描画され、その上に `50` が乗って **`150`** になる
+- **修正 = 「空欄」を独立した状態に**: 空にした欄は `""` を表示して**何も commit しない**（保存済みの値は数値が入るまで無傷）。それ以外は従来どおり host の値が正なので clamp は今も見える。空欄のまま blur / プリセット保存すると「`<項目名>`に数値を入力してください」ダイアログ。**ダイアログを閉じると空欄はすべて保存済みの値へ戻す** — 空欄のまま残すと次の blur でまたダイアログが出て、ユーザーが nav に到達できない罠になるため
+- **セクション遷移そのものは止めていない**（意図的）: router が無く `setSection` の呼び出し口が app shell 全体に散るため、ガードを通すと `shared-fix` 級になり他レーンと衝突する。実際には nav をクリックする動作が先にフィールドを blur させるので警告は出る。PR 本文に明記した
+- **RED チェック済み**: 修正を外すと新規 4 テストが落ち、1 本は `expected '150' to be '50'` とユーザー報告そのままの値を出す。clamp を再現するホストをテスト側に置いたのが要点で、これが無いと「150」は現れない
+- **#607 / #608 の計画書を archive**（PR #621 / #622 とも merged 2026-08-10 10:05 UTC）: 乖離レビュー 3 行を記入 — スコープ逸脱 1 件（`useNotesUnifiedAPI.ts` = D-20260810-main-4）/ AC 免除ゼロだが diff 行数超過を明示 / 判断の行き先は全て埋まり「行き先なし」ゼロ
+- **実機確認で 4 点すべて OK**（2026-08-10・**iPhone の Chrome**）: ① Note の本文タップで入力パネルが閉じない ② キーボードでタブバーが消え、閉じると戻る ③ タブバー非表示中もホームインジケータ帯に本文が乗らない（QA の NIT 1 件目）④ 「その他」シートがキーボードで消えるのは許容（NIT 2 件目）。#607 / #608 とも CLOSED。**計画書 Step 5 の未達はこれで解消**したので、archive 時点の乖離レビューから「未達」の記述を落とした
+- **「iOS 未検証」が解消**: iOS のブラウザは全て WebKit（WKWebView）なので、Chrome で見ても `visualViewport` の挙動は Safari と同じ経路を通る。`useSoftKeyboard` の「同じ幅で観測した最大可視高との差」判定が iOS でも成立することを実機で確認できた（Safari の UI そのものは未確認）
+- **副産物 = #512 が測れる状態になった**: 「コマンドパレットの上余白が safe-area を踏む」は iPhone のノッチ前提の指摘で、Android 実測（上端 inset ≈ 0）では反証にならず宙に浮いていた。**ユーザーが iPhone を実機として使えると分かった**ので 👀 節へ回す
+- **追加起票 3 本**（同日・実機確認の最中にユーザーが見つけたスマホ固有の崩れ。いずれもコード実測で原因の当たりまで書いた）: **#631** ドキュメント自体がスクロールしてボトムタブバーの下まで行ける + pull-to-refresh 誤爆（`body { min-height: 100vh }` と `h-[100svh]` の単位不一致 / `overscroll-behavior` が内側 div にしか無い）/ **#632** 追加用 FAB の位置が画面ごとに揃わない（Schedule = `fixed bottom-6 right-6` vs Notes = `absolute bottom-5 right-5` で基準もオフセットも別）/ **#633** Schedule 編集シートの上端がブラウザ UI に隠れ内部スクロールが無い（同じ `BottomSheet` を使う他 2 面だけが `max-h-[92vh] min-h-[70vh] overflow-hidden` を渡している）。**3 本は #631 → #632 / #633 の順**（`fixed` の見かけがドキュメントスクロールに引きずられるため、#631 を直さないと後続を実測できない）
+
+#### 次セッションへの引き継ぎプロンプト（貼り付け用）
+
+```text
+life-editor の chat-main セッションを開始する。
+
+まず `.claude/memory/chat-main.md` と `.claude/comm/decisions/ANSWERS.md` を読み、
+`gh issue list -R sunbreak-pro/life-editor --state open` で自分宛の open Issue を確認すること。
+未 merge の PR #630（tracker）が残っていたら、merge はユーザーの手番なので状態だけ確認して先へ進む。
+
+今回の目標 = スマホ実機で見つかった崩れ 3 本（#631 / #632 / #633）を片付け、その後で「保存ボタン統一」の
+段階 1（#628）へ進む。#624 は実装 + iPhone 実機確認まで完了して CLOSED 済み。
+
+0. **#631 から着手する**（触るのは `web/src/index.css` と `shared/src/components/AppShell.tsx` の 2 ファイル）。
+   ボトムタブバーの下までスクロールでき、上に引っ張ると Chrome が再読み込みする件。原因は Issue 本文に
+   実測付きで書いた = `body { min-height: 100vh }`（index.css:32）と `h-[100svh]`（AppShell.tsx:212）の
+   単位不一致で、モバイル Chrome では body だけ URL バー分高くなる。`overscroll-behavior: none` も
+   AppShell 内側の div にしかなく、viewport のスクローラ（html / body）に無いので効いていない。
+   **これが #632 / #633 の実測前提**（`fixed` の見かけがドキュメントスクロールに引きずられる）。
+
+   続けて #632（FAB の位置が画面ごとに揃わない → 共通部品へ寄せる。#509 の「最終行に重なる」を再発させない）
+   → #633（Schedule 編集シートに max-height + 内部スクロールを与える）。#633 は #628 と同じ
+   `web/src/schedule/CalendarTab.tsx` を触るので、片方ずつ順に進めること。
+   3 本とも DoD に 👀 実機（iPhone Chrome）目視が入るので、実装が終わったらユーザーに見てもらう。
+
+1. #628（Schedule 詳細編集パネルに保存ボタン）へ進む。これが Epic #627 の雛形になり、
+   ここで決めた流儀が Work / Tasks / Settings へ波及する。着手前に Issue 本文の「先に決めること」を
+   ユーザーへ確認すること:
+     (a) 保存ボタンでのみ確定し、blur は draft 保持のみ（未保存で閉じるときは確認ダイアログ）
+     (b) blur 保存は据え置き、ボタンは「今すぐ確定 + 保存済み表示」
+   P-005 により UX が分岐する判断はキュー必須。回答が来るまで実装に入らない。
+
+2. 流儀が決まったら実装する。`EventEditorPane` は Desktop のオーバーレイと Mobile の BottomSheet の
+   両方を backing しているので、片方だけ見て終わらせない。routine アイテムの scope ダイアログ（#279）が
+   1 回しか出ないこと（1 ジェスチャ 1 コミット = #553）と、日付の unmount flush と二重書き込みしないことを守る。
+
+3. #628 が close したら Epic #627 の対象面の棚卸しを grep で実測して本文を更新し、子 Issue を
+   1 面 1 本で起票する（`[all]` は Epic 専用。子は宛先 slug を 1 つに決める）。
+
+余力があれば #626（Todo の詳細からタグ付け外し）→ #623（朝刊の + 追加導線）の順。どちらも既存部品の
+流用が前提で、新しい生成 UI やタグ操作経路を作らない。#625（Event⇄Todo 変換）は items_meta +
+<role>_payload の 2 行分割モデルに触るので最後に回し、判断 3 件が未回答のうちは着手しない。
+
+小粒だが 1 つ: #512（コマンドパレットの上余白）は iPhone で測れる状態になった。キーボード表示中に
+パレットを開いて上端が safe-area へ潜らないかユーザーに見てもらい、踏まないなら NOT_PLANNED で close する。
+
+工程は lead-pipeline に従う（中ティア = 実装 → session-verifier → task-tracker）。
+tracker は実装ブランチに載せない（D-20260801-main-1）。merge は常にユーザー（P-001）。
+```
+
 ### 2026-08-10 - スマホ ソフトキーボード起因バグ 2 件（#607 / #608・PR #621 merged）
 
 #### 概要
