@@ -17,11 +17,12 @@
 
 > ここに残す未解決項目は **環境系（Claude Code 作業環境・Issue 化対象外）** のみ。プロダクト課題の追跡は GitHub Issues が正。
 
-| ID  | Title                                                                                                                                 | Category | Since      | Status     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- | ---------- |
-| 032 | [コミット本文の行頭 `#` が git にコメント扱いされ、Issue 番号で始まる行が黙って消える](./032-git-commit-message-hash-line-dropped.md) | Tooling  | 2026-08-12 | Workaround |
-| 028 | [Bash の `cd` が worktree を跨いで持続し、以降の相対パス操作が別 worktree に着地する](./028-bash-cwd-drift-across-worktrees.md)       | Tooling  | 2026-05-26 | Workaround |
-| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)                 | Tooling  | 2026-05-24 | Active     |
+| ID  | Title                                                                                                                                               | Category | Since      | Status     |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- | ---------- |
+| 033 | [Electron バイナリが展開されず `npm run dev` だけが起動しない（`build:win` は通るので気づけない）](./033-electron-binary-not-extracted-dev-only.md) | Tooling  | 2026-08-13 | Workaround |
+| 032 | [コミット本文の行頭 `#` が git にコメント扱いされ、Issue 番号で始まる行が黙って消える](./032-git-commit-message-hash-line-dropped.md)               | Tooling  | 2026-08-12 | Workaround |
+| 028 | [Bash の `cd` が worktree を跨いで持続し、以降の相対パス操作が別 worktree に着地する](./028-bash-cwd-drift-across-worktrees.md)                     | Tooling  | 2026-05-26 | Workaround |
+| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)                               | Tooling  | 2026-05-24 | Active     |
 
 > - **027**（Notes/Daily plaintext password）は追跡を GitHub Issue [#118](https://github.com/sunbreak-pro/life-editor/issues/118) へ移行済み。本ディレクトリの 027 本文は参照用（file Status は Active (Backlog) のまま。集計では Active に計上）。
 > - **Issue 追跡は 027→#118 のみ**。026 / 028 は環境系のため本ディレクトリが正（起票済みだった #117 / #119 は整理のため close 済み）。

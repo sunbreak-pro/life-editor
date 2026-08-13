@@ -344,6 +344,8 @@ life-editor/
 
 > **2026-08-01 進捗 (#529)**: Windows NSIS はローカル実測で green（Windows 11 実機・`npm run build:win` exit 0・アイコンは `resources/icon.png` から build 時に .ico 自動変換）。CI には desktop ジョブ（typecheck + electron-vite build）を追加 — electron-builder のフルパッケージングは NSIS が ubuntu ランナーで動かず OS 別ランナーは分数コスト非対応のため CI では回さない（= 「CI ビルド green」の判定対象は typecheck + bundle まで）。Windows 実起動・golden path は #530（chat-main）で確認
 
+> **2026-08-13 進捗 (#530 — Windows 実機 golden path 通過)**: Windows 11 実機で `build:win` exit 0 → NSIS サイレントインストール（`/S`・per-user）→ **インストール先から起動してログイン → Todo の追加・編集・削除まで通過**（目視）。起動判定は「プロセス生存」ではなく **Electron のプロセス 4 本**を基準にする（#545 当時は 1 本だけ立って落ちており、生存だけを見た煙試験がそれを見抜けなかった）。ネイティブ Menu（Edit / View / Window）・Tray 4 項目・ウィンドウサイズ復元も目視 OK — 復元先は `%APPDATA%\desktop\config.json`（`app.getName()` が `desktop/package.json` の `name` を返すため、`productName: Life Editor` とは別名のフォルダになる）。`npm run dev` も 4 本で起動を確認したが、この機械では Electron バイナリの展開が壊れており手動復旧が要った（環境系 = [known-issues 033](./docs/known-issues/033-electron-binary-not-extracted-dev-only.md)）。**macOS / Linux 分は未確認のため上のチェックボックスは未達のまま**
+
 #### Phase 3 完了判定
 
 - [ ] macOS で .dmg を起動 → 全 Section 動作
