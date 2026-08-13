@@ -206,6 +206,15 @@ export {
 // #508 — Escape / Tab trap / focus restore for aria-modal surfaces. Backs
 // Modal and BottomSheet; exported so web-side dialogs can stop hand-rolling it.
 export { useDialogA11y, type DialogA11yOptions } from "./hooks/useDialogA11y";
+// #792 — the swipe-to-close gesture behind BottomSheet / MobileDrawer.
+// Exported so a web-side overlay that enters from an edge can take the same
+// one-thumb exit instead of inventing a second gesture with its own threshold.
+export {
+  useSwipeToDismiss,
+  type SwipeToDismiss,
+  type SwipeToDismissOptions,
+  type SwipeDismissDirection,
+} from "./hooks/useSwipeToDismiss";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
