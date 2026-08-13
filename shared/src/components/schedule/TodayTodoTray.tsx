@@ -22,6 +22,14 @@ import type { StatusLabelSet } from "../taskStatusVisuals";
  * Notes idiom; undo + Trash restore are the safety nets) and a renderRowExtra
  * slot under the title row, which the Schedule host fills with the web-layer
  * <TagPicker> (the tag layer stays outside this pure part).
+ *
+ * #795 adds `singleList`, which collapses the PLACED / UNPLACED pair into one
+ * list. Briefing turns it on: "pick a todo → it lands in Candidates → it later
+ * becomes Scheduled" was two names and two lists for one act. A todo with no
+ * time then reads as an all-day row — AgendaList's pill in the same slot the
+ * timed rows use for their clock — tinted with the chip-task family so it is
+ * still tellable from an all-day EVENT. Schedule stages candidates on purpose
+ * and keeps the pair.
  */
 
 export interface TodayTodoRow {
@@ -45,9 +53,12 @@ export interface TodayTodoAddableRow {
 
 export interface TodayTodoTrayLabels {
   placedHeading: string;
-  unplacedHeading: string;
   emptyPlaced: string;
-  emptyUnplaced: string;
+  /** Second group's copy — the paired-groups layout only (not `singleList`). */
+  unplacedHeading?: string;
+  emptyUnplaced?: string;
+  /** Marker for a row with no time, e.g. "All-day" (pair with `singleList`). */
+  allDay?: string;
   addHeading: string;
   /** Accessible name for the per-task "add to today" button. */
   addAction: string;
@@ -87,6 +98,12 @@ export interface TodayTodoTrayProps {
   onDelete?: (id: string) => void;
   /** Extra content under the title row (#555 — the host's tag surface). */
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
+  /**
+   * Show ONE list (headed `labels.placedHeading`) instead of the placed /
+   * unplaced pair (#795): time-less rows first, as all-day rows. Needs
+   * labels.allDay; leaves labels.unplacedHeading / emptyUnplaced unused.
+   */
+  singleList?: boolean;
   labels: TodayTodoTrayLabels;
   className?: string;
 }
@@ -106,6 +123,7 @@ function TaskRow({
   deleteLabel,
   statusLabel,
   statusLabels,
+  allDayLabel,
 }: {
   row: TodayTodoRow;
   onToggleComplete: (id: string) => void;
@@ -118,6 +136,7 @@ function TaskRow({
   deleteLabel?: string;
   statusLabel?: string;
   statusLabels?: StatusLabelSet;
+  allDayLabel?: string;
 }) {
   const done = row.status === undefined ? row.completed : row.status === "DONE";
   return (
@@ -166,10 +185,21 @@ function TaskRow({
           >
             {row.title}
           </span>
-          {row.timeLabel && (
+          {row.timeLabel ? (
             <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
               {row.timeLabel}
             </span>
+          ) : (
+            // Same pill AgendaList gives an all-day row, in the same slot the
+            // timed rows use for their clock — but wearing the chip-task
+            // family, so a todo with no time never reads as an all-day EVENT
+            // (#795). Only on the merged list; the paired layout says
+            // "unplaced" with its heading already.
+            allDayLabel && (
+              <span className="shrink-0 rounded border border-lumen-chip-task-dot bg-lumen-chip-task-bg px-1.5 py-0.5 text-xs font-semibold text-lumen-chip-task-fg">
+                {allDayLabel}
+              </span>
+            )
           )}
         </button>
         {onDelete && deleteLabel && (
@@ -212,6 +242,7 @@ function Group({
   deleteLabel,
   statusLabel,
   statusLabels,
+  allDayLabel,
 }: {
   heading: string;
   rows: TodayTodoRow[];
@@ -226,6 +257,7 @@ function Group({
   deleteLabel?: string;
   statusLabel?: string;
   statusLabels?: StatusLabelSet;
+  allDayLabel?: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -252,6 +284,7 @@ function Group({
               deleteLabel={deleteLabel}
               statusLabel={statusLabel}
               statusLabels={statusLabels}
+              allDayLabel={allDayLabel}
             />
           ))}
         </ul>
@@ -270,41 +303,41 @@ export function TodayTodoTray({
   onAddCandidate,
   onDelete,
   renderRowExtra,
+  singleList,
   labels,
   className,
 }: TodayTodoTrayProps) {
+  const shared = {
+    onToggleComplete,
+    onSetStatus,
+    onOpenTask,
+    onDelete,
+    renderRowExtra,
+    completeLabel: labels.complete,
+    openLabel: labels.openInTasks,
+    deleteLabel: labels.delete,
+    statusLabel: labels.status,
+    statusLabels: labels.statusLabels,
+  };
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <Group
+        {...shared}
         heading={labels.placedHeading}
-        rows={placed}
+        // Time-less first, the order every other surface files all-day items
+        // in (BriefingView's schedule sort, AgendaList's two blocks).
+        rows={singleList ? [...unplaced, ...placed] : placed}
         empty={labels.emptyPlaced}
-        onToggleComplete={onToggleComplete}
-        onSetStatus={onSetStatus}
-        onOpenTask={onOpenTask}
-        onDelete={onDelete}
-        renderRowExtra={renderRowExtra}
-        completeLabel={labels.complete}
-        openLabel={labels.openInTasks}
-        deleteLabel={labels.delete}
-        statusLabel={labels.status}
-        statusLabels={labels.statusLabels}
+        allDayLabel={singleList ? labels.allDay : undefined}
       />
-      <Group
-        heading={labels.unplacedHeading}
-        rows={unplaced}
-        empty={labels.emptyUnplaced}
-        onToggleComplete={onToggleComplete}
-        onSetStatus={onSetStatus}
-        onOpenTask={onOpenTask}
-        onDelete={onDelete}
-        renderRowExtra={renderRowExtra}
-        completeLabel={labels.complete}
-        openLabel={labels.openInTasks}
-        deleteLabel={labels.delete}
-        statusLabel={labels.status}
-        statusLabels={labels.statusLabels}
-      />
+      {!singleList && (
+        <Group
+          {...shared}
+          heading={labels.unplacedHeading ?? ""}
+          rows={unplaced}
+          empty={labels.emptyUnplaced ?? ""}
+        />
+      )}
       <div className="flex flex-col gap-1.5">
         <h4 className="text-xs font-semibold text-lumen-text-secondary">
           {labels.addHeading}

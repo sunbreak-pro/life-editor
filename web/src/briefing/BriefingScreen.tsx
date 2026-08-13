@@ -344,10 +344,11 @@ export function BriefingScreen({
   const todoTrayLabels = useMemo(
     () => ({
       placedHeading: t("briefing.todo.placedHeading"),
-      unplacedHeading: t("briefing.todo.unplacedHeading"),
       emptyPlaced: t("briefing.todo.emptyPlaced"),
-      emptyUnplaced: t("briefing.todo.emptyUnplaced"),
       addHeading: t("briefing.todo.addHeading"),
+      // A todo with no time is an all-day row on the merged list (#795) — the
+      // paper's own word for it, not a tray-only synonym.
+      allDay: t("briefing.allDay"),
       addAction: t("briefing.todo.addAction"),
       emptyAddable: t("briefing.todo.emptyAddable"),
       // Same action, same words as the paper's own rows — no near-duplicate
@@ -409,6 +410,10 @@ export function BriefingScreen({
           placed={todoPlaced}
           unplaced={todoUnplaced}
           addable={todoAddable}
+          // One list, not「Todo 一覧 → 候補 → 予定済み」(#795). Picking a todo
+          // and it appearing where it now lives is ONE act; naming the middle
+          // of it「候補」made the tray describe its own bookkeeping.
+          singleList
           onToggleComplete={handleToggleTask}
           onSetStatus={handleSetTaskStatus}
           onOpenTask={() => onNavigate({ section: "schedule", tab: "todo" })}
