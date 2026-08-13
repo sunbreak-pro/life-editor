@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
+import type { TaskStatus } from "../../types/taskTree";
 import { cn } from "../cn";
+import { TaskStatusCycleButton } from "../TaskStatusCycleButton";
+import type { StatusLabelSet } from "../taskStatusVisuals";
 
 /*
  * TodayTodoTray (schedule redesign A-3 / #298) — the rightSidebar "Today's
@@ -28,6 +31,11 @@ export interface TodayTodoRow {
   /** Local HH:MM start for a PLACED row; omitted for an UNPLACED (all-day) row. */
   timeLabel?: string;
   completed: boolean;
+  /**
+   * The Todo's real status. Only read on the three-status branch (#796 — see
+   * `onSetStatus`); the binary branch keeps using `completed`.
+   */
+  status?: TaskStatus;
 }
 
 export interface TodayTodoAddableRow {
@@ -50,6 +58,10 @@ export interface TodayTodoTrayLabels {
   openInTasks: string;
   /** Accessible name for the per-row delete button (pair with onDelete). */
   delete?: string;
+  /** Name of what the status control sets, e.g. "Status" (pair with onSetStatus). */
+  status?: string;
+  /** Per-status copy for the status control (pair with onSetStatus). */
+  statusLabels?: StatusLabelSet;
 }
 
 export interface TodayTodoTrayProps {
@@ -60,6 +72,15 @@ export interface TodayTodoTrayProps {
   /** Unscheduled, incomplete leaf tasks offered for "add to today". */
   addable: TodayTodoAddableRow[];
   onToggleComplete: (id: string) => void;
+  /**
+   * Opt in to the three-status control (#796): rows render
+   * <TaskStatusCycleButton> over `row.status` instead of the binary checkbox,
+   * and this receives the status the press lands on. Briefing passes it so its
+   * tray and its paper say the same thing about a Todo; Schedule has not asked
+   * for it and keeps the checkbox until it does. Needs labels.status +
+   * labels.statusLabels.
+   */
+  onSetStatus?: (id: string, status: TaskStatus) => void;
   onOpenTask: (id: string) => void;
   onAddCandidate: (id: string) => void;
   /** Soft-delete the row's task (#555). Rendered only with labels.delete. */
@@ -76,40 +97,56 @@ const FOCUS =
 function TaskRow({
   row,
   onToggleComplete,
+  onSetStatus,
   onOpenTask,
   onDelete,
   extra,
   completeLabel,
   openLabel,
   deleteLabel,
+  statusLabel,
+  statusLabels,
 }: {
   row: TodayTodoRow;
   onToggleComplete: (id: string) => void;
+  onSetStatus?: (id: string, status: TaskStatus) => void;
   onOpenTask: (id: string) => void;
   onDelete?: (id: string) => void;
   extra?: ReactNode;
   completeLabel: string;
   openLabel: string;
   deleteLabel?: string;
+  statusLabel?: string;
+  statusLabels?: StatusLabelSet;
 }) {
+  const done = row.status === undefined ? row.completed : row.status === "DONE";
   return (
     <li className="flex flex-col border-b border-lumen-border">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label={completeLabel}
-          aria-pressed={row.completed}
-          onClick={() => onToggleComplete(row.id)}
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded border",
-            row.completed
-              ? "border-lumen-accent text-lumen-accent"
-              : "border-lumen-border-strong text-transparent",
-            FOCUS,
-          )}
-        >
-          <Check aria-hidden className="size-3.5" strokeWidth={3} />
-        </button>
+        {onSetStatus && statusLabel && statusLabels ? (
+          <TaskStatusCycleButton
+            status={row.status ?? (row.completed ? "DONE" : "NOT_STARTED")}
+            onChange={(next) => onSetStatus(row.id, next)}
+            labels={statusLabels}
+            label={statusLabel}
+          />
+        ) : (
+          <button
+            type="button"
+            aria-label={completeLabel}
+            aria-pressed={row.completed}
+            onClick={() => onToggleComplete(row.id)}
+            className={cn(
+              "flex size-5 shrink-0 items-center justify-center rounded border",
+              row.completed
+                ? "border-lumen-accent text-lumen-accent"
+                : "border-lumen-border-strong text-transparent",
+              FOCUS,
+            )}
+          >
+            <Check aria-hidden className="size-3.5" strokeWidth={3} />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onOpenTask(row.id)}
@@ -122,7 +159,7 @@ function TaskRow({
           <span
             className={cn(
               "min-w-0 flex-1 truncate text-sm",
-              row.completed
+              done
                 ? "text-lumen-text-secondary line-through"
                 : "text-lumen-text",
             )}
@@ -150,8 +187,13 @@ function TaskRow({
           </button>
         )}
       </div>
-      {/* pl-7 = checkbox (size-5) + gap-2, so the extra aligns with the title. */}
-      {extra && <div className="pb-1.5 pl-7">{extra}</div>}
+      {/* Leading control + gap-2, so the extra aligns with the title: pl-7 for
+          the size-5 checkbox, pl-13 for the 44px status button (#796). */}
+      {extra && (
+        <div className={cn("pb-1.5", onSetStatus ? "pl-13" : "pl-7")}>
+          {extra}
+        </div>
+      )}
     </li>
   );
 }
@@ -161,23 +203,29 @@ function Group({
   rows,
   empty,
   onToggleComplete,
+  onSetStatus,
   onOpenTask,
   onDelete,
   renderRowExtra,
   completeLabel,
   openLabel,
   deleteLabel,
+  statusLabel,
+  statusLabels,
 }: {
   heading: string;
   rows: TodayTodoRow[];
   empty: string;
   onToggleComplete: (id: string) => void;
+  onSetStatus?: (id: string, status: TaskStatus) => void;
   onOpenTask: (id: string) => void;
   onDelete?: (id: string) => void;
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   completeLabel: string;
   openLabel: string;
   deleteLabel?: string;
+  statusLabel?: string;
+  statusLabels?: StatusLabelSet;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -195,12 +243,15 @@ function Group({
               key={row.id}
               row={row}
               onToggleComplete={onToggleComplete}
+              onSetStatus={onSetStatus}
               onOpenTask={onOpenTask}
               onDelete={onDelete}
               extra={renderRowExtra?.(row)}
               completeLabel={completeLabel}
               openLabel={openLabel}
               deleteLabel={deleteLabel}
+              statusLabel={statusLabel}
+              statusLabels={statusLabels}
             />
           ))}
         </ul>
@@ -214,6 +265,7 @@ export function TodayTodoTray({
   unplaced,
   addable,
   onToggleComplete,
+  onSetStatus,
   onOpenTask,
   onAddCandidate,
   onDelete,
@@ -228,24 +280,30 @@ export function TodayTodoTray({
         rows={placed}
         empty={labels.emptyPlaced}
         onToggleComplete={onToggleComplete}
+        onSetStatus={onSetStatus}
         onOpenTask={onOpenTask}
         onDelete={onDelete}
         renderRowExtra={renderRowExtra}
         completeLabel={labels.complete}
         openLabel={labels.openInTasks}
         deleteLabel={labels.delete}
+        statusLabel={labels.status}
+        statusLabels={labels.statusLabels}
       />
       <Group
         heading={labels.unplacedHeading}
         rows={unplaced}
         empty={labels.emptyUnplaced}
         onToggleComplete={onToggleComplete}
+        onSetStatus={onSetStatus}
         onOpenTask={onOpenTask}
         onDelete={onDelete}
         renderRowExtra={renderRowExtra}
         completeLabel={labels.complete}
         openLabel={labels.openInTasks}
         deleteLabel={labels.delete}
+        statusLabel={labels.status}
+        statusLabels={labels.statusLabels}
       />
       <div className="flex flex-col gap-1.5">
         <h4 className="text-xs font-semibold text-lumen-text-secondary">

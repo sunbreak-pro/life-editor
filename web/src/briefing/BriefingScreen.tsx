@@ -78,6 +78,7 @@ export function BriefingScreen({
     upcoming,
     handleToggleScheduleItem,
     handleToggleTask,
+    handleSetTaskStatus,
     handleDeleteScheduleItem,
     handleDeleteTask,
     deleteScopeItem,
@@ -200,6 +201,13 @@ export function BriefingScreen({
         : t("materials.daily.unsaved"),
       todosTitle: t("briefing.evening.todosTitle"),
       noTodos: t("briefing.evening.noTodos"),
+      // The three statuses are worded ONCE, in the Tasks section's own copy —
+      // a briefing.* paraphrase of「未着手」would be a second vocabulary for
+      // the same three values (#796).
+      todoStatus: t("taskDetail.status"),
+      statusNotStarted: t("taskDetail.statusNotStarted"),
+      statusInProgress: t("taskDetail.statusInProgress"),
+      statusDone: t("taskDetail.statusDone"),
       upcomingTitle: t("briefing.evening.upcomingTitle"),
       noUpcoming: t("briefing.evening.noUpcoming"),
       tomorrowTag: t("briefing.evening.tomorrowTag"),
@@ -346,6 +354,14 @@ export function BriefingScreen({
       // keys inside one namespace.
       complete: t("briefing.toggleComplete"),
       openInTasks: t("briefing.jumpToTasks"),
+      // Same three statuses the paper's rows show — the tray must not disagree
+      // with the list it sits beside (#796).
+      status: t("taskDetail.status"),
+      statusLabels: {
+        statusNotStarted: t("taskDetail.statusNotStarted"),
+        statusInProgress: t("taskDetail.statusInProgress"),
+        statusDone: t("taskDetail.statusDone"),
+      },
     }),
     [t],
   );
@@ -394,6 +410,7 @@ export function BriefingScreen({
           unplaced={todoUnplaced}
           addable={todoAddable}
           onToggleComplete={handleToggleTask}
+          onSetStatus={handleSetTaskStatus}
           onOpenTask={() => onNavigate({ section: "schedule", tab: "todo" })}
           onAddCandidate={handleAddTodoCandidate}
           labels={todoTrayLabels}
@@ -479,6 +496,7 @@ export function BriefingScreen({
           onIntentionChange={handleIntentionChange}
           onIntentionBlur={flushIntention}
           todos={remainingTodos}
+          onSetTodoStatus={handleSetTaskStatus}
           schedule={upcoming}
           labels={eveningLabels}
           tabSwitcher={tabSwitcher}
