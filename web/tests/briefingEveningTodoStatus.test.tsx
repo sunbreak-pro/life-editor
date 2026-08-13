@@ -26,6 +26,12 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  *   2. the new status is painted BEFORE the write resolves. `updateTask` is
  *      several sequential requests, and a control that does not move until they
  *      all return reads as broken (that is the "重い" half of #794's report).
+ *
+ * This suite REPLACES briefingEveningTodoToggle.test.tsx: #794 gave the paper a
+ * binary checkbox and that file guarded it, but #796 removed the checkbox, so
+ * the questions it asked now have to be asked of the status control instead.
+ * Nothing it covered is dropped — the write, the optimistic paint and the
+ * rollback are all still asserted here, at both widths.
  */
 
 const TODAY = todayDateKey();
