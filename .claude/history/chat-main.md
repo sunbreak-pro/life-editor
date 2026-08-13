@@ -1,5 +1,21 @@
 # HISTORY (chat-main)
 
+### 2026-08-13 - #530 Windows 実機 golden path 通過（CLOSED）+ 11 レーンへの /goal 配布
+
+#### 概要
+
+open Issue 23 件を実測して 11 レーンへ /goal で配り、chat-main 自身の手番だった **#530（Windows 実機起動）を最後まで通して CLOSED** した。08-02 から止まっていた前提（`desktop/.env` 不在・#548 の白画面）が両方解けたため、ビルドからインストール、golden path の目視までを一続きで実施。途中で `npm run dev` だけが壊れている環境問題を踏み、known-issues 033 として記録した。
+
+#### 変更点
+
+- **/goal fan-out（11 レーン）**: Issue 本文の「担当レーン」指定と、直近 merge PR のブランチ名（誰が続きを持っているか）で割り当てた。schedule-refine = #789 → #774 → #708 → #790 / shared-fix = #672 残り → #782 / refactor-core = #701 Step 2 → #673 → #675 / web-public = #791 → #676 残り / tags-docs = #674 残り → #777 / materials-refine = #776 / settings-refine = #779 → #778 / mobile-refine = #716 の裁定済み 3 件 / work-refine = #781 / briefing-refine = #780 / harness-loop = #700 Step 2
+- **#530 の前提解除**: `desktop/.env` は `web/.env.local` に必要な 2 キーが揃っていたのでコピーで配線（値を読まずに済み・`.gitignore:83` で除外済み）。renderer への注入は `out/renderer/assets/index-*.js` に `supabase.co` が 39 ヒット / `VITE_SUPABASE_URL` の未置換リテラルが 0 で確認（08-11 の実測は逆で `undefined` のままだった）
+- **#530 の検証**: `build:win` exit 0 → `win-unpacked` 起動でプロセス 4 本 → NSIS サイレントインストール（`/S`・per-user）で実体を 08-02 13:17 → 08-13 00:07 に更新 → インストール先から起動して 4 本 → **ログイン → Todo 追加・編集・削除が PASS**（目視）。Menu / Tray / ウィンドウサイズ復元も PASS で、`%APPDATA%\desktop\config.json` に `windowBounds` が書かれることを実測
+- **起動判定の基準**: 「プロセスが生きている」ではなく **4 本立つこと**。#545 は 1 本だけ立って落ちており、生存だけを見た煙試験が見抜けなかった
+- **known-issues 033 新設**: `npm run dev` が `Error: Electron uninstall` で落ちる件。`node_modules/electron/dist` にライセンスファイル 1 個しか無く `path.txt` も欠けていた。**`build:win` は緑のまま**なので CI ゲートを素通りする（dev と electron-builder で Electron の入手経路が違う）。キャッシュ済み zip の手動展開で復旧。`path.txt` を `echo` で書くと改行がパスに混ざって `ENOENT` になる落とし穴つき（`printf` を使う）
+- **新規起票 2 件**: **#831** = コード上の名前を Task → Todo に統一する（画面表示は既に Todo・DB は据え置き。実測 = ファイル 55 本 / 出現 3,470 箇所。据え置きは ID prefix `task-` / `role: "task"` の値 / DB 列名の 3 点）。**#837** = userData が `%APPDATA%\desktop` に入り `productName: Life Editor` と一致しない
+- **#831 の着手条件**: `gh pr list --state open` が 0 件の谷間。起票直後に 11 レーンへ /goal が配られて open PR 4 件になったため、その旨を Issue にコメントして条件を明文化した
+
 ### 2026-08-13 - #700 Step 2: 検証用 MCP ツール 3 本（投入 / 読み出し / 後片付け）
 
 #### 概要
@@ -146,21 +162,5 @@ life-editor の chat-main セッションを開始する。
 工程は lead-pipeline に従う（中ティア = 実装 → session-verifier → task-tracker）。
 tracker は実装ブランチに載せない（D-20260801-main-1）。merge は常にユーザー（P-001）。
 ```
-
-### 2026-08-10 - スマホ ソフトキーボード起因バグ 2 件（#607 / #608・PR #621 merged）
-
-#### 概要
-
-公開 Web URL をスマホの主導線に据えた直後（D-20260807-main-1）に出た `sev:important` 2 件を 1 本の計画で片付けた。#607（Note に書き込めない）は「自分の書き込みが自分の hydrate を無効化する」、#608（タブバーがせり上がる）はキーボード表示中の非描画で対処。どちらも実装 + 回帰テストまで着地し、実機での見た目確認は deploy 後に残る。
-
-#### 変更点
-
-- **#607 の原因確定と修正**（`shared/src/hooks/useNotesUnifiedAPI.ts`）: `updateNote` はローカル行に**クライアント時計**の `updatedAt` を載せるが、own-write のエコーで走るリロードが返すのは**サーバ時計**。#301 の限定無効化マージ（`prev.updatedAt === row.updatedAt` の行だけ本文キャッシュを維持）は、**いま編集中のノートだけが必ず外れる**構造だった → `isContentLoaded` false → mobile シートがエディタを skeleton に差し替え → フォーカスが外れてキーボードが閉じる。Desktop はエディタが note id で keyed され remount しないため無傷。マージ判定に「**開いている行 かつ 自分が書いた行**」を OR で追加
-- **マークの寿命を「リロード 1 回」に**（QA の BLOCKING 指摘）: 初版は「選択が外れるまで」だったが、mobile シートの `closeSheet` は shared の選択を落とさないため実質セッション中ずっと生き、その間に他デバイス / MCP が同じノートに書くと**こちらの古い本文で無言上書き**する筋があった。保持した行はサーバの `updatedAt` を取り込むので使い捨てで足り、in-flight の書き込みがある間だけ保留する（`unackedWritesRef`）
-- **#608 = `shared/src/hooks/useSoftKeyboard.ts` 新設 + `AppShell.tsx`**: narrow でキーボード表示中は `BottomTabBar` を描画しない。判定は「**同じ幅で観測した最大可視高との差**」で、レイアウトごと縮む UA でも visual だけ縮む UA でも成立する（実機での `innerHeight` / `visualViewport.height` 実測待ちを解消）。`documentElement.clientHeight` との差を使う案は QA 指摘で棄却 — モバイルの ICB は大ビューポートを返すため常時 60〜110px 浮き、上下 2 段バーの UA では**キーボード無しでナビが恒久的に消える**危険側の失敗になる。ピンチズームは `vv.scale > 1` で除外
-- **回帰テスト 2 本**（`shared/tests/notesOpenNoteOwnEditHydrate.test.tsx` 3 ケース / `appShellSoftKeyboard.test.tsx` 3 ケース）。#607 側 2 件は**修正を戻すと落ちることを実測で確認**。jsdom にレイアウトが無いので固定するのは「判断が下ること」まで（CLAUDE.md §7.1）
-- **Scope 例外 = D-20260810-main-4**: `useNotesUnifiedAPI.ts` は #587（分割予定）のため「触らない」宣言だったが、原因確定を受けてユーザー裁定で例外入り（実測 = #587 未着手・open PR ゼロ）。#587 に分割時の申し送りをコメント済み
-- **#512 は close せず**: Android 実機で「潜っていない」を実測しコメントしたが、指摘は iPhone の `safe-area-inset-top` 前提で Android は上端 inset ≈ 0 のため反証にならない
-- **AC「PR diff ±200 行以内」超過を明示**（免除ではなく PR 本文に内訳記載）: 実装 約 200 行 + テスト 約 380 行 + 記録類
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
