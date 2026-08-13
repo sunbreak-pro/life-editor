@@ -29,7 +29,7 @@
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
 - **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`（旧 `frontend/` は 2026-07-11 削除 #197・復元 = git tag `pre-tauri-removal`）。バックエンドが替わってもこの境界は不変
-- **3.2 Section Routing**: React Router なし。`web/src/MainScreen.tsx` の section state で切替（旧 frontend は `App.tsx::activeSection`）。セクション定義（`SectionId`・nav 順・グループ・アイコン・mobile 順）は **`shared/src/sections.ts` の registry が SSOT**（`types/taskTree.ts::SectionId` は registry 派生の再 export・一覧はコードが正）。旧 `terminal` セクションは SectionId / nav / i18n から除去済み（#146・退役の経緯 → §8）
+- **3.2 Section Routing**: React Router なし。`web/src/MainScreen.tsx` の section state で切替（旧 frontend は `App.tsx::activeSection`）。セクション定義（`SectionId`・nav 順・グループ・アイコン・mobile 順）は **`shared/src/sections.ts` の registry が SSOT**（`types/todoTree.ts::SectionId` は registry 派生の再 export・一覧はコードが正）。旧 `terminal` セクションは SectionId / nav / i18n から除去済み（#146・退役の経緯 → §8）
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
 - **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 
@@ -37,10 +37,10 @@
 
 - 約 20 テーブル（`items_meta` + `<role>_payload` モデル・移行済みドメインのみ。ドメイン一覧はコード / db-conventions が正）
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
-- **ID 不変式**: TaskNode `<type>-<timestamp+counter>` / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
+- **ID 不変式**: TodoNode `<type>-<timestamp+counter>`（`<type>` は `items_meta.role` の値。Todo は `task` のまま据え置き = #831） / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
 - **items_meta + composite FK**: 5 role（task / event / routine / note / daily）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照
 - **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（2026-07-11 #185 決定 = D-20260711-main-1）
-- **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象: Tasks / Notes / Dailies / Routines / Databases / Templates
+- **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象: Todos / Notes / Dailies / Routines / Databases / Templates
 - PropertyType 実装済み: text / number / select / date / checkbox。汎用 DB は MCP 未対応（新型追加時に MCP ツールも整備）
 
 ## 5. AI Integration

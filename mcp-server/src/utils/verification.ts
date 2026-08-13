@@ -9,7 +9,7 @@ import type { ItemRole } from "./items.js";
  * WHERE THE DATA GOES — D-20260812-shared-fix-3 picked option A: a dedicated
  * verification account, separated from the owner's real data by the RLS
  * policies every table already carries (`auth.uid() = user_id`, with
- * `user_id` defaulted server-side — see supabase/migrations/0002_rls_tasks.sql).
+ * `user_id` defaulted server-side — see supabase/migrations/0002_rls_todos.sql).
  * The MCP server signs in as an ordinary authenticated user with the anon key
  * (supabase.ts), never service_role, so it cannot read or write another
  * account's rows even if a tool here is buggy. Switching accounts is an env

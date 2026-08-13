@@ -59,7 +59,7 @@ const event = (id: string, date: string, startTime: string | null = "09:00") =>
     memo: null,
   }) as Row;
 
-const scheduledTask = (id: string, instant: string) =>
+const scheduledTodo = (id: string, instant: string) =>
   ({
     item_id: id,
     scheduled_at: instant,
@@ -68,7 +68,7 @@ const scheduledTask = (id: string, instant: string) =>
     status: "NOT_STARTED",
   }) as Row;
 
-const openTask = (id: string, over: Row = {}) =>
+const openTodo = (id: string, over: Row = {}) =>
   ({
     item_id: id,
     due_at: null,
@@ -93,7 +93,7 @@ function install(fixture: Fixture): void {
       case "dailies_payload":
         return fixture.dailies ?? [];
       case "tasks_payload":
-        // The three task reads, told apart by the filters that differ:
+        // The three todo reads, told apart by the filters that differ:
         // in-progress pins a status, and only the scheduled window has a
         // lower bound.
         if (call.filters.status === "IN_PROGRESS")
@@ -129,7 +129,7 @@ const WEEK = [
 const TUESDAY_MORNING = "2026-08-11T00:30:00.000Z";
 
 const callTo = (table: string) => stub.calls.find((c) => c.table === table)!;
-/** The two task reads that both bound `scheduled_at`, told apart as install does. */
+/** The two todo reads that both bound `scheduled_at`, told apart as install does. */
 const scheduledCall = () =>
   stub.calls.find(
     (c) => c.table === "tasks_payload" && "scheduled_at.gte" in c.bounds,
@@ -153,7 +153,7 @@ describe("the week the caller asked for", () => {
         event("event-mon", "2026-08-10"),
         event("event-wed", "2026-08-12"),
       ],
-      scheduled: [scheduledTask("task-tue", TUESDAY_MORNING)],
+      scheduled: [scheduledTodo("task-tue", TUESDAY_MORNING)],
       dailies: [daily("2026-08-11", "火曜の記録")],
     });
 
@@ -165,15 +165,15 @@ describe("the week the caller asked for", () => {
     expect(week.days[0].events.map((e) => e.id)).toEqual(["event-mon"]);
     expect(week.days[2].events.map((e) => e.id)).toEqual(["event-wed"]);
     expect(week.days[1].events).toEqual([]);
-    expect(week.days[1].scheduledTasks.map((t) => t.id)).toEqual(["task-tue"]);
-    expect(week.days[0].scheduledTasks).toEqual([]);
+    expect(week.days[1].scheduledTodos.map((t) => t.id)).toEqual(["task-tue"]);
+    expect(week.days[0].scheduledTodos).toEqual([]);
     expect(week.days[1].daily).toEqual({ exists: true, text: "火曜の記録" });
   });
 
   it("returns the day shapes get_today_context returns, bodies excluded", async () => {
     install({
       events: [event("event-mon", "2026-08-10")],
-      scheduled: [scheduledTask("task-tue", TUESDAY_MORNING)],
+      scheduled: [scheduledTodo("task-tue", TUESDAY_MORNING)],
     });
 
     const week = await getWeekContext({ start_date: MONDAY });
@@ -187,8 +187,8 @@ describe("the week the caller asked for", () => {
       completed: false,
       memo: null,
     });
-    // A week of task documents is the context this tool exists to save.
-    expect(week.days[1].scheduledTasks[0]).toEqual({
+    // A week of todo documents is the context this tool exists to save.
+    expect(week.days[1].scheduledTodos[0]).toEqual({
       id: "task-tue",
       title: "title:task-tue",
       scheduledAt: TUESDAY_MORNING,
@@ -251,19 +251,19 @@ describe("nothing from outside the week gets in", () => {
     install({
       events: [event("event-next-mon", "2026-08-17")],
       // 00:00 JST on 2026-08-17 — one minute past the window's far edge.
-      scheduled: [scheduledTask("task-next-mon", "2026-08-16T15:00:00.000Z")],
+      scheduled: [scheduledTodo("task-next-mon", "2026-08-16T15:00:00.000Z")],
     });
 
     const week = await getWeekContext({ start_date: MONDAY });
 
     expect(week.days.flatMap((d) => d.events)).toEqual([]);
-    expect(week.days.flatMap((d) => d.scheduledTasks)).toEqual([]);
+    expect(week.days.flatMap((d) => d.scheduledTodos)).toEqual([]);
   });
 });
 
-describe("open tasks are counted once, against the start of the week", () => {
-  it("merges a task that is both carried over and in progress", async () => {
-    const carried = openTask("task-1", {
+describe("open todos are counted once, against the start of the week", () => {
+  it("merges a todo that is both carried over and in progress", async () => {
+    const carried = openTodo("task-1", {
       status: "IN_PROGRESS",
       scheduled_at: "2026-08-05T00:00:00.000Z",
     });
@@ -271,7 +271,7 @@ describe("open tasks are counted once, against the start of the week", () => {
 
     const week = await getWeekContext({ start_date: MONDAY });
 
-    expect(week.openTasks).toEqual([
+    expect(week.openTodos).toEqual([
       {
         id: "task-1",
         title: "title:task-1",
@@ -287,22 +287,22 @@ describe("open tasks are counted once, against the start of the week", () => {
   it("flags carry-over by the week's start, not by each day", async () => {
     install({
       carryover: [
-        openTask("task-before", { scheduled_at: "2026-08-05T00:00:00.000Z" }),
+        openTodo("task-before", { scheduled_at: "2026-08-05T00:00:00.000Z" }),
       ],
       // Scheduled inside the week: in progress, but nothing was carried.
       inProgress: [
-        openTask("task-inside", {
+        openTodo("task-inside", {
           status: "IN_PROGRESS",
           scheduled_at: "2026-08-13T01:00:00.000Z",
         }),
-        openTask("task-unscheduled", { status: "IN_PROGRESS" }),
+        openTodo("task-unscheduled", { status: "IN_PROGRESS" }),
       ],
     });
 
     const week = await getWeekContext({ start_date: MONDAY });
 
     const carriedOverById = Object.fromEntries(
-      week.openTasks.map((t) => [t.id, t.carriedOver]),
+      week.openTodos.map((t) => [t.id, t.carriedOver]),
     );
     expect(carriedOverById).toEqual({
       "task-before": true,
@@ -317,7 +317,7 @@ describe("open tasks are counted once, against the start of the week", () => {
       // timestamptz. A string compare against toISOString's `.000Z` calls
       // this "before the week" (`+` sorts before `.`).
       inProgress: [
-        openTask("task-midnight", {
+        openTodo("task-midnight", {
           status: "IN_PROGRESS",
           scheduled_at: "2026-08-09T15:00:00+00:00",
         }),
@@ -326,7 +326,7 @@ describe("open tasks are counted once, against the start of the week", () => {
 
     const week = await getWeekContext({ start_date: MONDAY });
 
-    expect(week.openTasks.map((t) => [t.id, t.carriedOver])).toEqual([
+    expect(week.openTodos.map((t) => [t.id, t.carriedOver])).toEqual([
       ["task-midnight", false],
     ]);
   });
@@ -398,6 +398,6 @@ describe("what get_week_context publishes", () => {
     const description = tool?.description ?? "";
     expect(description).toMatch(/Monday/);
     // The caller cannot guess that bodies are missing, nor what to do about it.
-    expect(description).toMatch(/get_task/);
+    expect(description).toMatch(/get_todo/);
   });
 });

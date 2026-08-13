@@ -20,7 +20,7 @@ vi.mock("../src/supabase.js", async () => {
  * pinning: exactly `limit` matches must NOT claim there are more, and one
  * past it must.
  *
- * The per-domain slice lives on both sides of the same tool — tasks merge two
+ * The per-domain slice lives on both sides of the same tool — todos merge two
  * server-side queries in-app, notes / dailies filter a whole collection — so
  * each model is checked, not just the cheap one.
  */
@@ -33,8 +33,8 @@ const doc = (text: string) => ({
 
 const day = (i: number) => `2026-08-${String(i + 1).padStart(2, "0")}`;
 
-/** `count` live tasks titled "alpha <i>", newest last. */
-function taskTables(count: number): Record<string, StubRow[]> {
+/** `count` live todos titled "alpha <i>", newest last. */
+function todoTables(count: number): Record<string, StubRow[]> {
   const items_meta: StubRow[] = [];
   const tasks_payload: StubRow[] = [];
   for (let i = 0; i < count; i++) {
@@ -117,7 +117,7 @@ interface Page {
 }
 
 async function search(
-  domain: "tasks" | "notes" | "dailies",
+  domain: "todos" | "notes" | "dailies",
   args: { limit?: number; offset?: number } = {},
 ): Promise<Page & { totalHits: number }> {
   const res = (await searchAll({
@@ -132,11 +132,11 @@ async function search(
 }
 
 describe("a full page does not claim there is another one", () => {
-  it.each(["tasks", "notes", "dailies"] as const)(
+  it.each(["todos", "notes", "dailies"] as const)(
     "%s: exactly limit matches → hasMore false",
     async (domain) => {
       const tables = {
-        tasks: taskTables,
+        todos: todoTables,
         notes: noteTables,
         dailies: dailyTables,
       };
@@ -150,11 +150,11 @@ describe("a full page does not claim there is another one", () => {
     },
   );
 
-  it.each(["tasks", "notes", "dailies"] as const)(
+  it.each(["todos", "notes", "dailies"] as const)(
     "%s: one match past limit → hasMore true, and total counts it",
     async (domain) => {
       const tables = {
-        tasks: taskTables,
+        todos: todoTables,
         notes: noteTables,
         dailies: dailyTables,
       };
@@ -173,11 +173,11 @@ describe("a full page does not claim there is another one", () => {
 
 describe("offset pages through a domain", () => {
   it("returns the next slice without repeating the first", async () => {
-    setStubTables(taskTables(5));
+    setStubTables(todoTables(5));
 
-    const first = await search("tasks", { limit: 2 });
-    const second = await search("tasks", { limit: 2, offset: 2 });
-    const last = await search("tasks", { limit: 2, offset: 4 });
+    const first = await search("todos", { limit: 2 });
+    const second = await search("todos", { limit: 2, offset: 2 });
+    const last = await search("todos", { limit: 2, offset: 4 });
 
     const idsOf = (page: Page) => page.results.map((r) => r.id);
     expect(idsOf(first)).toHaveLength(2);
@@ -195,14 +195,14 @@ describe("offset pages through a domain", () => {
   });
 
   it("refuses an offset that would slice from the tail", async () => {
-    setStubTables(taskTables(3));
+    setStubTables(todoTables(3));
     await expect(searchAll({ query: "alpha", offset: -1 })).rejects.toThrow(
       /offset must be a non-negative integer/,
     );
   });
 });
 
-describe("a task page is cut after the union, not before it", () => {
+describe("a todo page is cut after the union, not before it", () => {
   /*
    * The two halves (title ilike on items_meta, content ilike on
    * tasks_payload) used to be capped server-side with `.limit()`. A
@@ -210,7 +210,7 @@ describe("a task page is cut after the union, not before it", () => {
    * count the caller saw was of one half's rows, not of the matches.
    */
   it("counts content-only hits in total and returns them on later pages", async () => {
-    const tables = taskTables(3);
+    const tables = todoTables(3);
     // MORE content-only hits than the page size: if the tasks_payload half
     // were capped server-side again, the ones past the cap would never reach
     // the merge and total would undercount without any test going red.
@@ -234,19 +234,19 @@ describe("a task page is cut after the union, not before it", () => {
     }
     setStubTables(tables);
 
-    const page = await search("tasks", { limit: 3 });
+    const page = await search("todos", { limit: 3 });
     expect(page.total).toBe(7);
     expect(page.hasMore).toBe(true);
 
     // All four share the oldest created_at, so they land last in id order
     // (the tie-break) — reachable only via offset, stable across pages.
-    const tail = await search("tasks", { limit: 3, offset: 3 });
+    const tail = await search("todos", { limit: 3, offset: 3 });
     expect(tail.results.map((r) => r.id)).toEqual([
       "task-x0",
       "task-x1",
       "task-x2",
     ]);
-    const last = await search("tasks", { limit: 3, offset: 6 });
+    const last = await search("todos", { limit: 3, offset: 6 });
     expect(last.results.map((r) => r.id)).toEqual(["task-x3"]);
     expect(last.hasMore).toBe(false);
   });

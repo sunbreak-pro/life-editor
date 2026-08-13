@@ -3,10 +3,10 @@ import {
   toDbStatus,
   toToolStatus,
   rangeBound,
-} from "../src/handlers/taskHandlers.js";
+} from "../src/handlers/todoHandlers.js";
 
 /*
- * Pure translation seams of the Supabase task handlers (#360). The status
+ * Pure translation seams of the Supabase todo handlers (#360). The status
  * vocabularies are the risky part: the DB CHECK constraint is UPPERCASE
  * while the MCP tool schema kept its lowercase enum, and a silent mismatch
  * would make every status filter return nothing instead of failing loudly.

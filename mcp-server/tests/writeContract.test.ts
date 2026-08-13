@@ -20,27 +20,27 @@ const props = (name: string) =>
   (tool(name)?.inputSchema.properties ?? {}) as Record<string, unknown>;
 const required = (name: string) => tool(name)?.inputSchema.required ?? [];
 
-describe("create_task no longer needs a second call", () => {
-  it("accepts the body and the status the task is created with", () => {
-    expect(props("create_task")).toHaveProperty("content");
-    expect(props("create_task")).toHaveProperty("status");
+describe("create_todo no longer needs a second call", () => {
+  it("accepts the body and the status the todo is created with", () => {
+    expect(props("create_todo")).toHaveProperty("content");
+    expect(props("create_todo")).toHaveProperty("status");
   });
 
-  it("keeps status on the same vocabulary update_task uses", () => {
-    const status = props("create_task").status as { enum?: string[] };
+  it("keeps status on the same vocabulary update_todo uses", () => {
+    const status = props("create_todo").status as { enum?: string[] };
     expect(status.enum).toEqual(["not_started", "in_progress", "done"]);
   });
 
   it("still needs nothing but a title", () => {
-    expect(required("create_task")).toEqual(["title"]);
+    expect(required("create_todo")).toEqual(["title"]);
   });
 });
 
-describe("update_task publishes the field it has always written", () => {
+describe("update_todo publishes the field it has always written", () => {
   it("declares time_memo", () => {
     // The handler wrote tasks_payload.time_memo all along; only the schema
     // omitted it, which made it unreachable for the caller that reads it.
-    expect(props("update_task")).toHaveProperty("time_memo");
+    expect(props("update_todo")).toHaveProperty("time_memo");
   });
 });
 
@@ -55,7 +55,7 @@ describe("every write has a way back (#782 ①)", () => {
   it("publishes restore_item, and says which roles it takes", () => {
     expect(required("restore_item")).toEqual(["id"]);
     const description = tool("restore_item")?.description ?? "";
-    expect(description).toMatch(/task, note, event/);
+    expect(description).toMatch(/todo, note, event/);
     // The no-op case is a decision the caller cannot guess from the name.
     expect(description).toMatch(/no-op/);
   });

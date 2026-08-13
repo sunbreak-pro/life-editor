@@ -23,11 +23,11 @@ import {
 } from "./wikiTagHandlers.js";
 
 /*
- * Task handlers — Supabase edition (#360).
+ * Todo handlers — Supabase edition (#360).
  *
- * Replaces the legacy single-table SQLite `tasks` access (dropped by 0007)
+ * Replaces the legacy single-table SQLite `todos` access (dropped by 0007)
  * with the unified 2-row model (0008): one `items_meta` row (role='task') +
- * one `tasks_payload` row per task. Write rituals (orphan recovery, the
+ * one `tasks_payload` row per todo. Write rituals (orphan recovery, the
  * §10.2 updated_at bump, soft delete) live in ../utils/items.ts.
  *
  * Column-set deltas vs the legacy SQLite shape:
@@ -36,14 +36,14 @@ import {
  *   - `status` is UPPERCASE in the DB (CHECK NOT_STARTED|IN_PROGRESS|DONE).
  *     The MCP tool contract keeps the lowercase vocabulary it always had,
  *     so this module translates in both directions — a caller can feed a
- *     `get_task` result straight back into `update_task`.
+ *     `get_todo` result straight back into `update_todo`.
  *   - title / created_at / is_deleted live on items_meta, not the payload.
  *
  * life-tags S3 (#225) retired the folder node type. Legacy `task_type =
  * 'folder'` rows are excluded in-app (same rule as
- * SupabaseDataService.fetchTaskTree): filtering query-side with `.neq`
- * would also drop NULL task_type rows and silently hide plain tasks. A
- * task parented to an excluded folder still surfaces (orphan tolerance).
+ * SupabaseDataService.fetchTodoTree): filtering query-side with `.neq`
+ * would also drop NULL task_type rows and silently hide plain todos. A
+ * todo parented to an excluded folder still surfaces (orphan tolerance).
  */
 
 interface TasksPayloadRow {
@@ -87,11 +87,11 @@ export function toToolStatus(status: string | null): string | null {
 }
 
 /**
- * True for the retired folder node type (S3 #225). NULL is a plain task —
+ * True for the retired folder node type (S3 #225). NULL is a plain todo —
  * the whole in-app filter hinges on that, which is why it is exported for
- * the unit test. `list_tasks` used a query-side `.eq('task_type','task')`
+ * the unit test. `list_todos` used a query-side `.eq('task_type','task')`
  * until #702 ②, which dropped every NULL row and made it disagree with
- * `get_task_tree` about which tasks exist.
+ * `get_todo_tree` about which todos exist.
  */
 export function isLegacyFolder(
   row: Pick<TasksPayloadRow, "task_type">,
@@ -100,7 +100,7 @@ export function isLegacyFolder(
 }
 
 /** Every field but the body — how the body is carried differs per tool. */
-function formatTaskBase(meta: ItemsMetaRow, payload: TasksPayloadRow) {
+function formatTodoBase(meta: ItemsMetaRow, payload: TasksPayloadRow) {
   return {
     id: meta.id,
     type: payload.task_type ?? "task",
@@ -118,33 +118,33 @@ function formatTaskBase(meta: ItemsMetaRow, payload: TasksPayloadRow) {
 }
 
 /**
- * Single-task result: the stored body plus its plain text (#702 ①).
+ * Single-todo result: the stored body plus its plain text (#702 ①).
  *
- * `content` is TipTap JSON while `update_task` writes Markdown, so reading a
- * task and feeding `content` straight back would bury the JSON in the
+ * `content` is TipTap JSON while `update_todo` writes Markdown, so reading a
+ * todo and feeding `content` straight back would bury the JSON in the
  * document as literal text. `contentText` is the half of that round trip
  * that was missing — it is what a caller edits and writes back.
  */
-export function formatTask(meta: ItemsMetaRow, payload: TasksPayloadRow) {
+export function formatTodo(meta: ItemsMetaRow, payload: TasksPayloadRow) {
   return {
-    ...formatTaskBase(meta, payload),
+    ...formatTodoBase(meta, payload),
     content: payload.content,
     contentText: contentPlainText(payload.content),
   };
 }
 
 /**
- * List result: a preview by default (#702 ①). `list_tasks` used to return
- * every task's whole TipTap JSON body, so asking "what is on my plate" cost
- * the entire task collection's content in one answer.
+ * List result: a preview by default (#702 ①). `list_todos` used to return
+ * every todo's whole TipTap JSON body, so asking "what is on my plate" cost
+ * the entire todo collection's content in one answer.
  */
-export function formatTaskListEntry(
+export function formatTodoListEntry(
   meta: ItemsMetaRow,
   payload: TasksPayloadRow,
   includeContent: boolean,
 ) {
   const base = {
-    ...formatTaskBase(meta, payload),
+    ...formatTodoBase(meta, payload),
     contentPreview: contentPreview(payload.content),
   };
   if (!includeContent) return base;
@@ -168,11 +168,11 @@ export function rangeBound(value: string, edge: "start" | "end"): string {
 }
 
 /**
- * Live items_meta rows for the given task ids, keyed by id. Chunked: the
+ * Live items_meta rows for the given todo ids, keyed by id. Chunked: the
  * ids ride in the query string, so an unbounded `.in()` risks URL limits.
  * An id absent from the result is soft-deleted or never existed.
  */
-async function fetchTaskMetas(
+async function fetchTodoMetas(
   ids: string[],
 ): Promise<Map<string, ItemsMetaRow>> {
   const { client } = await getSupabase();
@@ -183,7 +183,7 @@ async function fetchTaskMetas(
       .eq("role", "task")
       .eq("is_deleted", false)
       .in("id", chunk);
-    if (error) throw new Error(`list task items_meta: ${error.message}`);
+    if (error) throw new Error(`list todo items_meta: ${error.message}`);
     return (data ?? []) as unknown as ItemsMetaRow[];
   });
 
@@ -192,9 +192,9 @@ async function fetchTaskMetas(
   return byId;
 }
 
-/** Fetch one live task (meta + payload) or throw a not-found error. */
-async function getTaskRows(id: string) {
-  const meta = await requireMeta(id, "task", "Task");
+/** Fetch one live todo (meta + payload) or throw a not-found error. */
+async function getTodoRows(id: string) {
+  const meta = await requireMeta(id, "task", "Todo");
   const { client } = await getSupabase();
   const { data, error } = await client
     .from("tasks_payload")
@@ -202,14 +202,14 @@ async function getTaskRows(id: string) {
     .eq("item_id", id)
     .maybeSingle();
   if (error) throw new Error(`get tasks_payload: ${error.message}`);
-  if (!data) throw new Error(`Task not found: ${id}`);
+  if (!data) throw new Error(`Todo not found: ${id}`);
   return { meta, payload: data as unknown as TasksPayloadRow };
 }
 
-export async function listTasks(args: {
+export async function listTodos(args: {
   status?: string;
   date_range?: { start: string; end: string };
-  /** Renamed from `folder_id` in #419 — it always filtered on the parent task,
+  /** Renamed from `folder_id` in #419 — it always filtered on the parent todo,
    *  never on a folder (the folder node type retired in #225). */
   parent_id?: string;
   include_content?: boolean;
@@ -223,8 +223,8 @@ export async function listTasks(args: {
   const payloads = await fetchAllPages<TasksPayloadRow>((from, to) => {
     // The retired folder type is excluded IN-APP (below), never here: a
     // query-side task_type filter also drops NULL rows, which are plain
-    // tasks. That is the mismatch #702 ② removes — get_task_tree has always
-    // filtered in-app, so the two tools used to disagree about which tasks
+    // todos. That is the mismatch #702 ② removes — get_todo_tree has always
+    // filtered in-app, so the two tools used to disagree about which todos
     // exist, and the header comment at the top of this file warns about
     // exactly the trap the query below used to fall into.
     let query = client.from("tasks_payload").select(PAYLOAD_COLUMNS);
@@ -243,30 +243,30 @@ export async function listTasks(args: {
 
   // Two exclusions, both in-app and both before the count: the retired
   // folder type (see above), and a payload whose meta is missing — that one
-  // is soft-deleted or an orphan, so it is not a task the caller can see and
+  // is soft-deleted or an orphan, so it is not a todo the caller can see and
   // must not count towards `total` either.
   const visible = payloads.filter((p) => !isLegacyFolder(p));
-  if (visible.length === 0) return { tasks: [], total: 0, hasMore: false };
+  if (visible.length === 0) return { todos: [], total: 0, hasMore: false };
 
-  const metaById = await fetchTaskMetas(visible.map((p) => p.item_id));
+  const metaById = await fetchTodoMetas(visible.map((p) => p.item_id));
   const live = visible.filter((p) => metaById.has(p.item_id));
 
-  const tasks = live
+  const todos = live
     .slice(0, limit)
     .map((p) =>
-      formatTaskListEntry(
+      formatTodoListEntry(
         metaById.get(p.item_id) as ItemsMetaRow,
         p,
         args.include_content === true,
       ),
     );
-  return { tasks, total: live.length, hasMore: live.length > tasks.length };
+  return { todos, total: live.length, hasMore: live.length > todos.length };
 }
 
-export async function getTask(args: { id: string }) {
-  const { meta, payload } = await getTaskRows(args.id);
+export async function getTodo(args: { id: string }) {
+  const { meta, payload } = await getTodoRows(args.id);
   return {
-    ...formatTask(meta, payload),
+    ...formatTodo(meta, payload),
     tags: await getTagsForEntity(args.id),
   };
 }
@@ -286,7 +286,7 @@ interface TreeNode {
   children: TreeNode[];
 }
 
-export async function getTaskTree(args: {
+export async function getTodoTree(args: {
   root_id?: string;
   include_done?: boolean;
   max_depth?: number;
@@ -372,14 +372,14 @@ export async function getTaskTree(args: {
 
   if (args.root_id) {
     const rootRow = rows.find((r) => r.meta.id === args.root_id);
-    if (!rootRow) throw new Error(`Task not found: ${args.root_id}`);
+    if (!rootRow) throw new Error(`Todo not found: ${args.root_id}`);
     return toNode(rootRow, buildTree(args.root_id, 1));
   }
 
   return buildTree(null, 0);
 }
 
-export async function createTask(args: {
+export async function createTodo(args: {
   title: string;
   parent_id?: string;
   scheduled_at?: string;
@@ -388,9 +388,9 @@ export async function createTask(args: {
   content?: string;
   status?: string;
 }) {
-  // #702 ③: create_task took neither body nor status, so creating a task
+  // #702 ③: create_todo took neither body nor status, so creating a todo
   // with anything in it always cost two calls (create → update). The write
-  // vocabulary is update_task's, unchanged: Markdown in, TipTap JSON stored.
+  // vocabulary is update_todo's, unchanged: Markdown in, TipTap JSON stored.
   const status =
     args.status === undefined ? "NOT_STARTED" : toDbStatus(args.status);
   const { client } = await getSupabase();
@@ -418,7 +418,7 @@ export async function createTask(args: {
       parent_item_id: args.parent_id ?? null,
       task_type: "task",
       status,
-      // A task created as already done still records when — update_task does
+      // A todo created as already done still records when — update_todo does
       // the same, and a DONE row with no completed_at reads as never finished.
       completed_at: status === "DONE" ? new Date().toISOString() : null,
       is_expanded: false,
@@ -433,11 +433,11 @@ export async function createTask(args: {
     },
   });
 
-  const { meta, payload } = await getTaskRows(id);
-  return formatTask(meta, payload);
+  const { meta, payload } = await getTodoRows(id);
+  return formatTodo(meta, payload);
 }
 
-export async function updateTask(args: {
+export async function updateTodo(args: {
   id: string;
   title?: string;
   status?: string;
@@ -446,7 +446,7 @@ export async function updateTask(args: {
   content?: string;
   time_memo?: string | null;
 }) {
-  await getTaskRows(args.id); // not-found guard
+  await getTodoRows(args.id); // not-found guard
 
   const metaPatch: Record<string, unknown> = {};
   if (args.title !== undefined) metaPatch.title = args.title;
@@ -474,12 +474,12 @@ export async function updateTask(args: {
     metaPatch,
   );
 
-  const { meta, payload } = await getTaskRows(args.id);
-  return formatTask(meta, payload);
+  const { meta, payload } = await getTodoRows(args.id);
+  return formatTodo(meta, payload);
 }
 
-export async function deleteTask(args: { id: string }) {
-  await requireMeta(args.id, "task", "Task");
+export async function deleteTodo(args: { id: string }) {
+  await requireMeta(args.id, "task", "Todo");
   await softDeleteItem(args.id, "task");
   return { success: true, id: args.id, softDeleted: true };
 }

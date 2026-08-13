@@ -1,12 +1,12 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
-  listTasks,
-  getTask,
-  getTaskTree,
-  createTask,
-  updateTask,
-  deleteTask,
-} from "./handlers/taskHandlers.js";
+  listTodos,
+  getTodo,
+  getTodoTree,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+} from "./handlers/todoHandlers.js";
 import { getDaily, upsertDaily } from "./handlers/dailyHandlers.js";
 import {
   listNotes,
@@ -94,18 +94,18 @@ function defineTool<A>(def: {
 
 const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
-    name: "list_tasks",
+    name: "list_todos",
     description:
-      "List tasks. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id. " +
-      "Returns { tasks, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
-      "Use get_task for one task's full content, or include_content:true to get every body in the page.",
+      "List todos. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id. " +
+      "Returns { todos, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
+      "Use get_todo for one todo's full content, or include_content:true to get every body in the page.",
     inputSchema: {
       type: "object" as const,
       properties: {
         status: {
           type: "string",
           enum: ["not_started", "in_progress", "done"],
-          description: "Filter by task status",
+          description: "Filter by todo status",
         },
         date_range: {
           type: "object",
@@ -116,53 +116,53 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           required: ["start", "end"],
           description: "Filter by scheduled date range",
         },
-        // Same concept and same name as create_task's `parent_id` below. It
+        // Same concept and same name as create_todo's `parent_id` below. It
         // was called `folder_id` until #419 — a leftover from the retired
         // folder node type (#225) that never matched what it filters on
         // (tasks_payload.parent_item_id).
         parent_id: {
           type: "string",
-          description: "Filter by parent task ID",
+          description: "Filter by parent todo ID",
         },
         include_content: {
           type: "boolean",
           description:
-            "Return each task's full body alongside the preview (default: false). Costly — prefer get_task.",
+            "Return each todo's full body alongside the preview (default: false). Costly — prefer get_todo.",
         },
         limit: {
           type: "number",
           description:
-            "Max tasks to return (default: 50). The result reports total and hasMore, so nothing is dropped silently.",
+            "Max todos to return (default: 50). The result reports total and hasMore, so nothing is dropped silently.",
         },
       },
     },
-    handler: listTasks,
+    handler: listTodos,
   }),
   defineTool({
-    name: "get_task",
+    name: "get_todo",
     description:
-      "Get a single task by ID, with its full body. `content` is TipTap JSON (what the editor stores); " +
-      "`contentText` is the same body as plain text — edit that one and write it back via update_task, which takes Markdown.",
+      "Get a single todo by ID, with its full body. `content` is TipTap JSON (what the editor stores); " +
+      "`contentText` is the same body as plain text — edit that one and write it back via update_todo, which takes Markdown.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        id: { type: "string", description: "Task ID" },
+        id: { type: "string", description: "Todo ID" },
       },
       required: ["id"],
     },
-    handler: getTask,
+    handler: getTodo,
   }),
   defineTool({
-    name: "create_task",
+    name: "create_todo",
     description:
-      "Create a new task, body and status included — no follow-up update_task needed.",
+      "Create a new todo, body and status included — no follow-up update_todo needed.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        title: { type: "string", description: "Task title" },
+        title: { type: "string", description: "Todo title" },
         parent_id: {
           type: "string",
-          description: "Parent task ID (optional)",
+          description: "Parent todo ID (optional)",
         },
         scheduled_at: {
           type: "string",
@@ -186,16 +186,16 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ["title"],
     },
-    handler: createTask,
+    handler: createTodo,
   }),
   defineTool({
-    name: "update_task",
+    name: "update_todo",
     description:
-      "Update an existing task. Only provide fields you want to change.",
+      "Update an existing todo. Only provide fields you want to change.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        id: { type: "string", description: "Task ID" },
+        id: { type: "string", description: "Todo ID" },
         title: { type: "string", description: "New title" },
         status: {
           type: "string",
@@ -226,19 +226,19 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ["id"],
     },
-    handler: updateTask,
+    handler: updateTodo,
   }),
   defineTool({
-    name: "delete_task",
-    description: "Soft-delete a task (moves to trash). Undo with restore_item.",
+    name: "delete_todo",
+    description: "Soft-delete a todo (moves to trash). Undo with restore_item.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        id: { type: "string", description: "Task ID" },
+        id: { type: "string", description: "Todo ID" },
       },
       required: ["id"],
     },
-    handler: deleteTask,
+    handler: deleteTodo,
   }),
   defineTool({
     name: "get_daily",
@@ -380,7 +380,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "list_schedule",
     description:
-      "List schedule items and scheduled tasks for a specific date or date range. " +
+      "List schedule items and scheduled todos for a specific date or date range. " +
       "Pass either date (one day) or start_date AND end_date (a range) — half a range, or both forms at once, is an error rather than a silent fallback to today. Omit all three for today.",
     inputSchema: {
       type: "object" as const,
@@ -406,7 +406,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "create_schedule_item",
     description:
-      "Create a new schedule item (event) on the calendar. start_time and end_time are required unless is_all_day is true (an all-day event stores no times). For routine-based items, use tasks instead.",
+      "Create a new schedule item (event) on the calendar. start_time and end_time are required unless is_all_day is true (an all-day event stores no times). For routine-based items, use todos instead.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -490,16 +490,16 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "restore_item",
     description:
-      "Restore an item from the trash — the inverse of delete_task / delete_note / delete_schedule_item. " +
-      "Restorable roles: task, note, event (schedule item); a daily comes back through upsert_daily instead. " +
+      "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item. " +
+      "Restorable roles: todo, note, event (schedule item); a daily comes back through upsert_daily instead. " +
       "Restoring an item that is not in the trash is a no-op, not an error. " +
-      "Restores the one item only — a task whose parent is still trashed stays out of get_task_tree (it does appear in list_tasks).",
+      "Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
     inputSchema: {
       type: "object" as const,
       properties: {
         id: {
           type: "string",
-          description: "ID of the trashed task, note or schedule item",
+          description: "ID of the trashed todo, note or schedule item",
         },
       },
       required: ["id"],
@@ -543,7 +543,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "get_today_context",
     description:
-      "Get everything needed to write the morning briefing (朝刊) in one call: today's events, tasks scheduled onto today, open tasks (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
+      "Get everything needed to write the morning briefing (朝刊) in one call: today's events, todos scheduled onto today, open todos (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -559,7 +559,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "get_week_context",
     description:
-      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the tasks scheduled onto it and its daily note text, plus the open tasks carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Monday to Sunday. Task and note BODIES are not included — read one with get_task / get_note when you decide you need it.",
+      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Monday to Sunday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -575,7 +575,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "get_note_context",
     description:
-      "Get everything needed to reorganise a note in one call: the note itself (content + contentText), its tags, and its WikiLink neighbours in both directions — links (this note points at them) and backlinks (they point at this note). Neighbours are id/role/title only; their bodies and tags are not included — follow up with get_note / get_task by id for the ones you want to read.",
+      "Get everything needed to reorganise a note in one call: the note itself (content + contentText), its tags, and its WikiLink neighbours in both directions — links (this note points at them) and backlinks (they point at this note). Neighbours are id/role/title only; their bodies and tags are not included — follow up with get_note / get_todo by id for the ones you want to read.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -615,7 +615,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "search_all",
     description:
-      "Search across tasks, dailies, and notes. Use this to find information across all domains. Each requested domain answers as { results, total, hasMore }: total counts every match in that domain, results is the page cut by limit/offset, and hasMore says whether matches remain beyond it — page through with offset instead of re-searching with a bigger limit. totalHits is the sum of the per-domain totals. Daily hits carry the daily's id (the handle tag_entity / get_entity_tags take) as well as its date.",
+      "Search across todos, dailies, and notes. Use this to find information across all domains. Each requested domain answers as { results, total, hasMore }: total counts every match in that domain, results is the page cut by limit/offset, and hasMore says whether matches remain beyond it — page through with offset instead of re-searching with a bigger limit. totalHits is the sum of the per-domain totals. Daily hits carry the daily's id (the handle tag_entity / get_entity_tags take) as well as its date.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -628,10 +628,10 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "array",
           items: {
             type: "string",
-            enum: ["tasks", "dailies", "notes"],
+            enum: ["todos", "dailies", "notes"],
           },
           description:
-            "Domains to search (default: all). Example: ['tasks', 'notes']",
+            "Domains to search (default: all). Example: ['todos', 'notes']",
         },
         limit: {
           type: "number",
@@ -776,7 +776,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "list_wiki_tags",
     description:
-      "List all wiki tags. Tags are cross-domain labels that connect tasks, dailies, and notes.",
+      "List all wiki tags. Tags are cross-domain labels that connect todos, dailies, and notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -791,7 +791,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "tag_entity",
     description:
-      "Assign a wiki tag to a task, daily, or note. Creates the tag if it doesn't exist.",
+      "Assign a wiki tag to a todo, daily, or note. Creates the tag if it doesn't exist.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -811,7 +811,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "untag_entity",
     description:
-      "Remove a wiki tag from a task, daily, or note. Only this assignment goes away — the tag itself, and its other assignments, stay. " +
+      "Remove a wiki tag from a todo, daily, or note. Only this assignment goes away — the tag itself, and its other assignments, stay. " +
       "Removing a tag that is not assigned is a no-op, not an error.",
     inputSchema: {
       type: "object" as const,
@@ -825,7 +825,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   }),
   defineTool({
     name: "search_by_tag",
-    description: "Search for tasks, dailies, and notes by wiki tag name.",
+    description: "Search for todos, dailies, and notes by wiki tag name.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -841,20 +841,20 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     handler: searchByTag,
   }),
   defineTool({
-    name: "get_task_tree",
+    name: "get_todo_tree",
     description:
-      "Get tasks as a hierarchical tree structure. Returns tasks with their children, tags, and metadata (excludes content — use get_task for full content).",
+      "Get todos as a hierarchical tree structure. Returns todos with their children, tags, and metadata (excludes content — use get_todo for full content).",
     inputSchema: {
       type: "object" as const,
       properties: {
         root_id: {
           type: "string",
           description:
-            "Task ID to use as root (returns subtree). Omit for full tree.",
+            "Todo ID to use as root (returns subtree). Omit for full tree.",
         },
         include_done: {
           type: "boolean",
-          description: "Include completed tasks (default: true).",
+          description: "Include completed todos (default: true).",
         },
         max_depth: {
           type: "number",
@@ -863,18 +863,18 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
     },
-    handler: getTaskTree,
+    handler: getTodoTree,
   }),
   defineTool({
     name: "get_entity_tags",
     description:
-      "Get all wiki tags assigned to a specific entity (task, daily, or note).",
+      "Get all wiki tags assigned to a specific entity (todo, daily, or note).",
     inputSchema: {
       type: "object" as const,
       properties: {
         entity_id: {
           type: "string",
-          description: "Entity ID (task, daily, or note)",
+          description: "Entity ID (todo, daily, or note)",
         },
       },
       required: ["entity_id"],
@@ -958,7 +958,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "seed_verification_state",
     description:
-      "VERIFICATION ONLY. Build a known state on one day — tasks, events and notes — so a change can be checked without arranging data by hand in the UI. " +
+      "VERIFICATION ONLY. Build a known state on one day — todos, events and notes — so a change can be checked without arranging data by hand in the UI. " +
       "Writes through the ordinary create tools, records every row it creates in a ledger, and returns a run_id; " +
       "read_verification_state reads that run back and cleanup_verification_state deletes exactly it. " +
       "Disabled unless the server runs in verification mode against the verification account.",
@@ -974,7 +974,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           enum: ["busy_day"],
           description:
-            "Ready-made fixture. busy_day = two overlapping events + an all-day event + a done task + an open task + an undated task.",
+            "Ready-made fixture. busy_day = two overlapping events + an all-day event + a done todo + an open todo + an undated todo.",
         },
         items: {
           type: "array",
@@ -996,26 +996,26 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
               },
               content: {
                 type: "string",
-                description: "Markdown body (task and note)",
+                description: "Markdown body (todo and note)",
               },
               status: {
                 type: "string",
                 enum: ["not_started", "in_progress", "done"],
-                description: "Task status (task only, default: not_started)",
+                description: "Todo status (todo only, default: not_started)",
               },
               start_time: {
                 type: "string",
                 description:
-                  "HH:MM. Event: its start. Task: schedules it at that time on the day — a task with no time and no is_all_day stays undated.",
+                  "HH:MM. Event: its start. Todo: schedules it at that time on the day — a todo with no time and no is_all_day stays undated.",
               },
               end_time: {
                 type: "string",
-                description: "HH:MM. Event: its end. Task: its scheduled end.",
+                description: "HH:MM. Event: its end. Todo: its scheduled end.",
               },
               is_all_day: {
                 type: "boolean",
                 description:
-                  "All-day item. An all-day event stores no times; an all-day task lands on the day's local midnight.",
+                  "All-day item. An all-day event stores no times; an all-day todo lands on the day's local midnight.",
               },
               memo: { type: "string", description: "Event memo (event only)" },
             },
@@ -1047,7 +1047,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         date: {
           type: "string",
           description:
-            "Local day (YYYY-MM-DD): events on it plus tasks scheduled into it",
+            "Local day (YYYY-MM-DD): events on it plus todos scheduled into it",
         },
         id: { type: "string", description: "A single item id" },
       },

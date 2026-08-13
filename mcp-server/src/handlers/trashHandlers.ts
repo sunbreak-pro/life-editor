@@ -4,7 +4,7 @@ import { bumpMeta, type ItemRole } from "../utils/items.js";
 /*
  * Trash handlers — the other half of the soft delete (#782 ①).
  *
- * delete_task / delete_note / delete_schedule_item only set
+ * delete_todo / delete_note / delete_schedule_item only set
  * items_meta.is_deleted, and until now nothing but the app's TrashView could
  * clear it again: an MCP caller that trashed the wrong item had no way back.
  * Clearing the flags is an ordinary write, so it goes through `bumpMeta` and
@@ -38,7 +38,7 @@ export async function restoreItem(args: { id: string }) {
   const meta = data as unknown as RestorableMetaRow;
   if (!RESTORABLE_ROLES.includes(meta.role)) {
     throw new Error(
-      `restore_item supports tasks, notes and schedule items; ` +
+      `restore_item supports todos, notes and schedule items; ` +
         `${meta.id} is a "${meta.role}"`,
     );
   }

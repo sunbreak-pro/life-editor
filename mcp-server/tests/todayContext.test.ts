@@ -123,7 +123,7 @@ describe("getTodayContext", () => {
           memo: "standup",
         },
       ],
-      scheduledTasks: [
+      scheduledTodos: [
         {
           id: "task-sched",
           title: "title:task-sched",
@@ -133,7 +133,7 @@ describe("getTodayContext", () => {
           status: "NOT_STARTED",
         },
       ],
-      openTasks: [
+      openTodos: [
         {
           id: "task-old",
           title: "title:task-old",

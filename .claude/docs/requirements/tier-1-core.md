@@ -83,13 +83,13 @@
 **Tier**: 1
 **Status**: ◎完成（基本機能）
 **Owner Provider/Module**: `TaskTreeProvider` / `frontend/src/components/Tasks/` / `src-tauri/src/commands/task_commands.rs` / `src-tauri/src/db/task_repository.rs`
-**MCP Coverage**: `list_tasks` / `get_task` / `create_task` / `update_task` / `delete_task` / `get_task_tree`
+**MCP Coverage**: `list_todos` / `get_todo` / `create_todo` / `update_todo` / `delete_todo` / `get_todo_tree`
 **Supports Value Prop**: V1 / V2 / V3
 **Stack** (2026-05-24 並立期): Tauri SQLite (`frontend/` + `src-tauri/`) → Supabase Postgres (`shared/` + `web/`, 移行 SSOT Phase 2 + DU-B 進行中)
 
 ### Purpose
 
-TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。**入れ子（親子）は 2026-07-27 #418 でユーザー判断により退役** — `parentId` はデータモデルとして残り MCP `create_task(parent_id)` 等からは書けるが、UI から親子を作る導線は無い）
+TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。**入れ子（親子）は 2026-07-27 #418 でユーザー判断により退役** — `parentId` はデータモデルとして残り MCP `create_todo(parent_id)` 等からは書けるが、UI から親子を作る導線は無い）
 
 ### Boundary
 
@@ -109,7 +109,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Acceptance Criteria
 
-- [ ] AC1: タスクを作成すると `parentId`（UI からは常に root = `null`）と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換。~~任意のタスク配下にサブタスクを作成できる~~ → UI 導線は 2026-07-27 #418 で退役 — MCP `create_task(parent_id)` は依然 parentId を書ける）
+- [ ] AC1: タスクを作成すると `parentId`（UI からは常に root = `null`）と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換。~~任意のタスク配下にサブタスクを作成できる~~ → UI 導線は 2026-07-27 #418 で退役 — MCP `create_todo(parent_id)` は依然 parentId を書ける）
 - [ ] AC2: タスク行をクリックすると `NOT_STARTED → IN_PROGRESS → DONE` の順にステータス遷移し、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される
 - [ ] ~~AC3: TaskNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される~~ → **Retired (2026-07-27 #418)**: 入れ子の退役に伴い「中央ドロップ = 階層移動」は達成対象外。並び替えは同一階層内のみで、非兄弟へのドロップは拒否される（循環ガード `isDescendantOf` は存続）
 - [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
@@ -117,7 +117,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
 - [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される（2026-07-14 注記: **未達** — `scheduledAt` / `scheduledEndAt` / `isAllDay` は型・Mapper・MCP に存在するが UI 出現 0 件。旧 DayFlow は退役済みのため表示先は Calendar（Week / Day / Month / 今日の流れ）に読み替え。Schedule 再設計 Step 1–3 で実装予定 → `docs/vision/plans/2026-07-14-schedule-redesign.md`）
 - [ ] AC8: 実行中タスクには TaskTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
-- [ ] AC9: Claude Code が MCP `get_task_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
+- [ ] AC9: Claude Code が MCP `get_todo_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
 - [ ] ~~AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ~~ → **Retired (2026-07-11 #225)**: 色はタグ（life-tags）側が保持 — folder→tag 変換で色は tag へ継承済み
 
 ### Dependencies
@@ -444,8 +444,8 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Acceptance Criteria
 
 - [ ] AC1: Life Editor 起動中に `claude` コマンドを実行すると、MCP Server `life-editor` が自動接続され、`/mcp` コマンドで全ツールが列挙される（起動導線だったアプリ内ターミナルは 2026-07-05 退役・常設起動導線は再設計中 → §Terminal）
-- [ ] AC2: Claude に「今日の Todo 一覧を見せて」と指示すると MCP `list_tasks` が呼ばれ、UI で表示されている内容と同じ Todo が返る
-- [ ] AC3: Claude が `create_task` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
+- [ ] AC2: Claude に「今日の Todo 一覧を見せて」と指示すると MCP `list_todos` が呼ばれ、UI で表示されている内容と同じ Todo が返る
+- [ ] AC3: Claude が `create_todo` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
 - [ ] AC4: `search_all` で複数ドメイン（tasks / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
 - [ ] AC5: `tag_entity` で WikiTag を任意エンティティに付与し、`search_by_tag` / `get_entity_tags` で取得できる（UI 側のタグ一覧と一致）
 - ~~AC6: ファイル系ツールが life-editor 管理下のディレクトリで動作し、不正パスは拒否される~~ → **撤回（2026-07-26 #362 でファイル系ツールを退役）**
