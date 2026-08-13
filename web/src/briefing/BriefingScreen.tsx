@@ -200,6 +200,9 @@ export function BriefingScreen({
         : t("materials.daily.unsaved"),
       todosTitle: t("briefing.evening.todosTitle"),
       noTodos: t("briefing.evening.noTodos"),
+      // Same act, same words as the morning paper's rows and the tray's — one
+      // sentence per action, not a near-duplicate key per surface.
+      toggleTodo: t("briefing.toggleComplete"),
       upcomingTitle: t("briefing.evening.upcomingTitle"),
       noUpcoming: t("briefing.evening.noUpcoming"),
       tomorrowTag: t("briefing.evening.tomorrowTag"),
@@ -479,6 +482,7 @@ export function BriefingScreen({
           onIntentionChange={handleIntentionChange}
           onIntentionBlur={flushIntention}
           todos={remainingTodos}
+          onToggleTodo={handleToggleTask}
           schedule={upcoming}
           labels={eveningLabels}
           tabSwitcher={tabSwitcher}
@@ -505,7 +509,9 @@ export function BriefingScreen({
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTask={handleDeleteTask}
         onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={() => onNavigate({ section: "schedule", tab: "calendar" })}
+        onJumpToSchedule={() =>
+          onNavigate({ section: "schedule", tab: "calendar" })
+        }
         onJumpToTasks={() => onNavigate({ section: "schedule", tab: "todo" })}
         tabSwitcher={tabSwitcher}
       />

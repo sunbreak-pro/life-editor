@@ -266,22 +266,35 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     ],
   );
 
-  //「残りの Todo」— today's unfinished + open carryover (display only).
-  const remainingTodos = useMemo<EveningTodoEntry[]>(
-    () => [
-      ...todayTasks
-        .filter((task) => task.status !== "DONE")
-        .map(({ id, title }) => ({ id, title })),
-      ...carryover
-        .filter((item) => !item.completed)
-        .map((item) => ({
-          id: item.id,
-          title: item.title,
-          meta: item.daysLabel,
+  //「残りの Todo」— today's unfinished + open carryover, tickable from the
+  // paper (#794). A row closed TODAY stays listed (struck through) instead of
+  // vanishing: the tap has to be visible to have happened, and taking it back
+  // must not mean going to another screen. Same "completed today still counts"
+  // rule the carryover block already uses, so a task closed yesterday is gone.
+  const remainingTodos = useMemo<EveningTodoEntry[]>(() => {
+    const dayStart = Date.parse(`${todayKey}T00:00:00`);
+    return [
+      ...liveTasks
+        .filter((n) => dateKeyOf(n.scheduledAt) === todayKey)
+        .filter(
+          (n) =>
+            n.status !== "DONE" ||
+            (n.completedAt !== undefined &&
+              Date.parse(n.completedAt) >= dayStart),
+        )
+        .map((n) => ({
+          id: n.id,
+          title: n.title,
+          completed: n.status === "DONE",
         })),
-    ],
-    [todayTasks, carryover],
-  );
+      ...carryover.map((item) => ({
+        id: item.id,
+        title: item.title,
+        meta: item.daysLabel,
+        completed: item.completed,
+      })),
+    ];
+  }, [liveTasks, todayKey, carryover]);
 
   //「今後の予定」— the rest of today (from now) + all of tomorrow.
   const upcoming = useMemo<EveningScheduleEntry[]>(() => {
@@ -332,23 +345,30 @@ export function useBriefingData(ds: DataService, todayKey: string) {
       const target = taskNodes.find((n) => n.id === id);
       if (target === undefined) return;
       const done = target.status === "DONE";
+      const patch = done
+        ? { status: "NOT_STARTED" as const, completedAt: undefined }
+        : { status: "DONE" as const, completedAt: new Date().toISOString() };
+
+      // Paint the tick NOW and reconcile with the write afterwards (#794).
+      // Waiting for the round trip is what made the tray's checkbox feel
+      // heavy: `updateTask` is several sequential requests, and until the last
+      // one returned the box the user just pressed had not moved.
+      setTaskNodes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, ...patch } : n)),
+      );
       void ds
-        .updateTask(
-          id,
-          done
-            ? { status: "NOT_STARTED", completedAt: undefined }
-            : { status: "DONE", completedAt: new Date().toISOString() },
-        )
+        .updateTask(id, patch)
         .then((updated) => {
           setTaskNodes((prev) =>
             prev.map((n) => (n.id === updated.id ? updated : n)),
           );
         })
-        // The row also renders in the rightSidebar tray now (#413), so a
-        // failed write is worth a console line instead of an unhandled
-        // rejection: the checkbox just stays put and nothing says why.
+        // The row renders on the paper and in the rightSidebar tray (#413), so
+        // a failed write puts the ORIGINAL node back — an optimistic tick that
+        // survives its own failure is a lie about what is stored.
         .catch((err) => {
           console.error("[BriefingScreen] task completion toggle failed", err);
+          setTaskNodes((prev) => prev.map((n) => (n.id === id ? target : n)));
         });
     },
     [ds, taskNodes],

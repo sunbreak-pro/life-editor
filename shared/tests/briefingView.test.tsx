@@ -348,6 +348,7 @@ const EVENING_LABELS: EveningLabels = {
   savedCaption: "Saved",
   todosTitle: "REMAINING",
   noTodos: "No todos",
+  toggleTodo: "Toggle complete",
   upcomingTitle: "UPCOMING",
   noUpcoming: "Nothing upcoming",
   tomorrowTag: "Tomorrow",
@@ -357,6 +358,7 @@ const EVENING_LABELS: EveningLabels = {
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
+  const onToggleTodo = vi.fn();
   const result = render(
     <EveningView
       loading={false}
@@ -369,12 +371,13 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
       todos={[]}
+      onToggleTodo={onToggleTodo}
       schedule={[]}
       labels={EVENING_LABELS}
       {...props}
     />,
   );
-  return { ...result, onIntentionChange, onIntentionBlur };
+  return { ...result, onIntentionChange, onIntentionBlur, onToggleTodo };
 }
 
 /**
@@ -530,5 +533,46 @@ describe("Intention caption omission (#427)", () => {
   it("still renders the caption once the host supplies one", () => {
     renderView({ labels: { ...LABELS, intentionCaption: "Saved" } });
     expect(screen.getByText("Saved")).toBeTruthy();
+  });
+});
+
+/*
+ * #794 — the REMAINING TODOS rows. The block used to be display-only and drew
+ * a decorative <span> in the shape of a checkbox, so a tap on a phone did
+ * literally nothing (the rightSidebar tray's real checkbox was the only way to
+ * tick a todo off). The row is a button now, and it stays on the list once
+ * ticked so the tap is visible and reversible.
+ */
+describe("EveningView remaining todos (#794)", () => {
+  const TODOS = [
+    { id: "t1", title: "Write the report", completed: false },
+    { id: "t2", title: "Book the room", completed: true },
+  ];
+
+  it("reports a tap on a todo row to the host", () => {
+    const { onToggleTodo } = renderEvening({ todos: TODOS });
+    fireEvent.click(screen.getAllByRole("button", { name: "Toggle complete" })[0]!);
+    expect(onToggleTodo).toHaveBeenCalledWith("t1");
+  });
+
+  it("keeps a completed row listed and reports its state", () => {
+    renderEvening({ todos: TODOS });
+    const rows = screen.getAllByRole("button", { name: "Toggle complete" });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.getAttribute("aria-pressed")).toBe("false");
+    expect(rows[1]!.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("Book the room").className).toContain(
+      "line-through",
+    );
+  });
+
+  it("gives every row the phone minimum touch target", () => {
+    renderEvening({ todos: TODOS });
+    for (const row of screen.getAllByRole("button", {
+      name: "Toggle complete",
+    })) {
+      // mobile-scope.md: 44px is the floor, and a 16px box cannot meet it.
+      expect(row.className).toContain("min-h-[44px]");
+    }
   });
 });

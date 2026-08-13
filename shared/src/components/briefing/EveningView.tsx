@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 import { SkeletonList } from "../SkeletonList";
 import { IntentionField } from "./IntentionField";
 
@@ -14,17 +14,25 @@ import { IntentionField } from "./IntentionField";
  * double-rule masthead, 朱 (lumen-briefing-shu) for marks, 琥珀
  * (lumen-briefing-kohaku) for annotations — lumen-* tokens only.
  *
- * The remaining-todo and upcoming-schedule blocks are DISPLAY ONLY (F-6:
- * they are never copied into the daily body — analysis reads raw data via
- * get_today_context; the body is the user's own reflection).
+ * Neither the remaining-todo nor the upcoming-schedule block is ever copied
+ * into the daily body (F-6: analysis reads raw data via get_today_context; the
+ * body is the user's own reflection). The todo rows are still ACTIONABLE
+ * though — closing the day means ticking things off, and #794 found the block
+ * drawing checkbox-shaped decoration that nothing listened to.
  */
 
-/** One read-only row of「残りの Todo」(today's unfinished + open carryover). */
+/** One row of「残りの Todo」(today's unfinished + open carryover). */
 export interface EveningTodoEntry {
   id: string;
   title: string;
   /** Optional annotation, e.g. the carryover "N日目" label (host-formatted). */
   meta?: string;
+  /**
+   * Ticked off. A row completed TODAY stays on the list struck through rather
+   * than vanishing under the finger that tapped it — the tap has to be visible
+   * to have happened, and undoing it must not require another screen (#794).
+   */
+  completed: boolean;
 }
 
 /** One read-only row of「今後の予定」(rest of today + tomorrow). */
@@ -63,6 +71,8 @@ export interface EveningLabels {
   savedCaption: string;
   todosTitle: string;
   noTodos: string;
+  /** Accessible name for a todo row's completion toggle. */
+  toggleTodo: string;
   upcomingTitle: string;
   noUpcoming: string;
   tomorrowTag: string;
@@ -100,6 +110,12 @@ export interface EveningViewProps {
   /** Blur while editable — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
   todos: EveningTodoEntry[];
+  /**
+   * Tick a todo off (or back on) straight from the paper (#794). The block used
+   * to be display-only and drew a decorative box that nothing was listening to,
+   * so tapping it on a phone did nothing at all.
+   */
+  onToggleTodo: (id: string) => void;
   schedule: EveningScheduleEntry[];
   labels: EveningLabels;
   /**
@@ -145,6 +161,7 @@ export function EveningView({
   onIntentionChange,
   onIntentionBlur,
   todos,
+  onToggleTodo,
   schedule,
   labels,
   tabSwitcher,
@@ -261,18 +278,43 @@ export function EveningView({
             {todos.map((todo) => (
               <li
                 key={todo.id}
-                className="flex items-center gap-2.5 border-b border-dashed border-lumen-border py-2 last:border-b-0"
+                className="border-b border-dashed border-lumen-border last:border-b-0"
               >
-                <span
-                  aria-hidden="true"
-                  className="h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                />
-                <span className="text-sm text-lumen-text">{todo.title}</span>
-                {todo.meta !== undefined && (
-                  <span className="text-xs font-bold text-lumen-briefing-shu">
-                    {todo.meta}
+                {/* The whole row is the target, as on the morning paper — and
+                    min-h-[44px] is the phone minimum (mobile-scope.md), which
+                    a 16px box on its own could never meet. */}
+                <button
+                  type="button"
+                  onClick={() => onToggleTodo(todo.id)}
+                  aria-label={labels.toggleTodo}
+                  aria-pressed={todo.completed}
+                  className="flex min-h-[44px] w-full items-center gap-2.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={
+                      todo.completed
+                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
+                        : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
+                    }
+                  >
+                    {todo.completed && <Check size={11} />}
                   </span>
-                )}
+                  <span
+                    className={
+                      todo.completed
+                        ? "text-sm text-lumen-text-secondary line-through"
+                        : "text-sm text-lumen-text"
+                    }
+                  >
+                    {todo.title}
+                  </span>
+                  {todo.meta !== undefined && (
+                    <span className="text-xs font-bold text-lumen-briefing-shu">
+                      {todo.meta}
+                    </span>
+                  )}
+                </button>
               </li>
             ))}
           </ul>
