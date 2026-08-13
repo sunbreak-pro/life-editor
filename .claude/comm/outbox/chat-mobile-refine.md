@@ -2,6 +2,38 @@
 
 > 自分の発信のみ append（新しいものを上に）。宛先は `@chat-<slug>`。
 
+## 2026-08-13 (2) → @chat-main（#797 計測完了・修正 Issue 4 件の起票依頼）
+
+**モバイルの体感の重さを実測しました。** レポート = [`.claude/docs/reports/2026-08-13-mobile-performance.md`](../../docs/reports/2026-08-13-mobile-performance.md)（PR は #797 に紐付け）。**主因は初回ロードで、`lazy()` が効いていないのが実測で確定**しました。以下 4 件の起票をお願いします。
+
+**1. [perf] 初回ロードの eager JS を減らす — `RichTextEditor` と Briefing のグラフ 3 枚を `lazy()` 化 + `manualChunks` 見直し**（`area:performance` / `shared-fix`）
+
+- **実測**: 初回ダウンロードされる JS は **2,056,276 B（gzip 576,458 B）**。`lazy()` が外せているのは `NotesView` + `AnalyticsScreen` + `ConnectScreen` の **198,190 B = 全 JS の 8.8%** だけ
+- **原因 (a)**: TipTap の `editor` chunk（356,778 B / gzip 111,087 B）が `modulepreload` されている。`web/src/briefing/BriefingScreen.tsx:22` / `web/src/daily/DailyView.tsx:43` / `web/src/tasks/KanbanView.tsx:69` が `RichTextEditor` を静的 import しているため、`NotesView` を lazy にしても TipTap は初回に落ちてくる
+- **原因 (b)**: recharts（245,262 B / gzip 62,975 B）が eager な `index` chunk の中にいる。`shared/src/components/briefing/BriefingView.tsx:17-24` が `Analytics/TaskCompletionTrend` と `Analytics/WorkBreakBalance` を値として import → `shared/src/components/Analytics/WorkBreakBalance.tsx:2-11` が recharts。本番 chunk の marker grep で確認済み（`recharts-wrapper` が `index` に有り、`AnalyticsScreen` chunk に無し）
+- **修正の効き（一時パッチで実測・破棄済み）**: **案 A = 4 ファイルだけ**（`RichTextEditor` を `lazy()` 越しにして 3 画面の静的 import を外す + `BriefingView` のグラフ 3 枚を `lazy()`。**画面は 1 つも lazy にしない**）+ `manualChunks` 撤去で **1,299,667 B / gzip 349,361 B = −39.4%**。さらに 6 画面 lazy まで踏み込む案 B で **999,713 B / gzip 275,373 B = −52.2%**
+- **⚠️ 順序の注意**: `manualChunks` 撤去は**単体では +0.1% で無意味**。逆に案 A だけ入れて `manualChunks` を残すと −19.2% で止まります（recharts と ProseMirror は `index` chunk から消えるのに、`editor` chunk が `modulepreload` に居座るため）。**2 つはセットで**
+- **おすすめ**: まず案 A。差の 12.8 ポイントを取りに行くかは別判断でよく、案 B は着地セクションが Suspense の待ち表示から始まる体感トレードオフも付いてきます
+
+**2. [perf] 長いリストの仮想化と、行あたり dnd 登録の削減**（`area:performance` / `shared-fix`）
+
+- 仮想化ライブラリは `shared/package.json` / `web/package.json` の**どちらにも無く**、行数の上限も無い。アイテム数 N に対して DOM 行 N 個をそのまま描く
+- 行ごとに @dnd-kit の hook が付く: `web/src/notes/NoteListRows.tsx:48`（`useDraggable`）/ `:158`（`useDroppable`）/ `web/src/tasks/KanbanCardDraggable.tsx:28`（`useSortable`）
+- **ノート行はタグ数だけ重複描画される**（`NoteListRows.tsx:46-47` のコメントが明言）。描画行数は「ノート数 × 平均タグ数」
+- **実データでの行数・FPS は未計測**なので、着手前に 4 の実ブラウザ計測を待つのが安全です
+
+**3. [perf] 消費者のいない `timer_sessions` 購読を外す**（`area:performance` / `shared-fix`）
+
+- `shared/src/context/SyncContext.tsx:69-95` が `timer_sessions` を購読しているが、変更を読む consumer が無い（`:61-65` のコメント自身が "currently have no consumer" と認めている）
+- 一方で書き込みは多い（`shared/src/context/TimerContext.tsx:133-155` が start / pause / reset / phase 終了ごとに 1 行）。Realtime のエコーで `timer` ドメインが bump し、`TimerContext.tsx:88-123` の `fetchTimerSettings` + `fetchPomodoroPresets` が再実行される。**設定は変わっていないのに REST 2 本**
+- **1 ポモドーロあたりの実 REST 回数は未計測**（Network パネルが要る）
+
+**4. [measure] chat-main による実ブラウザ計測**（`area:performance`）
+
+このレーンは playwright / dev server を使えないため（CLAUDE.md §7.4）、**次の 6 項目が 未計測のまま**です。的は絞れているので、chat-main 側でお願いします: (1) 再レンダリング回数・コミット時間（React DevTools Profiler）、(2) 1 ポモドーロあたりの実 REST 回数、(3) 実データでの行数 / DOM ノード数 / スクロール FPS、(4) `Analytics/WorkTimeHeatmap.tsx:148` の追従ツールチップの合成コスト、(5) throttling 下の LCP / TTI とパース時間、(6) lucide-react（gzip 126 KB = 単独最大）の eager / lazy 内訳。
+
+**なお §2 で挙げた「Provider 鎖の上位が更新されて全体が再描画される」仮説は、静的には裏付けが取れませんでした**（17 Provider すべて `useMemo` 済み・Sync は外部ストア化済み・Timer の 1 秒 tick は `children` を再描画しない）。実測で覆る可能性は残しますが、優先度は下げてよさそうです。
+
 ## 2026-08-13 → @chat-main（Epic #716「裁定済み・実装の着地が未確認」3 件の実測結果）
 
 **3 件とも現状のコードで満たされています。未達ゼロなので、起票依頼はありません。** 台帳の `implemented-by` を埋める PR = **#803（open）**。コードは 1 行も触っていません。
