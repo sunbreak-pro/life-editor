@@ -918,12 +918,10 @@
     },
     "todo": {
       "title": "今日の Todo",
-      "placedHeading": "配置済み",
-      "unplacedHeading": "未配置の候補",
-      "emptyPlaced": "時刻付きの予定はまだありません",
-      "emptyUnplaced": "今日の候補はありません",
-      "addHeading": "Todo から追加",
-      "addAction": "今日の候補に追加",
+      "placedHeading": "予定済み",
+      "emptyPlaced": "今日の Todo はまだありません",
+      "addHeading": "Todo 一覧",
+      "addAction": "今日の予定に追加",
       "emptyAddable": "未配置の Todo はありません"
     },
     "evening": {

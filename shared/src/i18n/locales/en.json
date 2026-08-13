@@ -920,10 +920,8 @@
     "todo": {
       "title": "Today's Todo",
       "placedHeading": "Scheduled",
-      "unplacedHeading": "Candidates",
-      "emptyPlaced": "Nothing scheduled with a time yet",
-      "emptyUnplaced": "No candidates for today",
-      "addHeading": "Add from todos",
+      "emptyPlaced": "Nothing on today's list yet",
+      "addHeading": "Todos list",
       "addAction": "Add to today",
       "emptyAddable": "No unscheduled todos"
     },
