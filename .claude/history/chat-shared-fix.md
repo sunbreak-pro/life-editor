@@ -1,5 +1,21 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-13 - #831 コード上の Task → Todo 統一を stacked 3 PR で実装
+
+#### 概要
+
+画面は既に Todo なのにコードが task のままだった語彙のねじれ（実測 約 3,470 箇所）を、機械置換 3 本で解消。着手条件（Issue コメント「open PR が 0 件になってから」）を `gh pr list --state open` = 0 件で実測してから開始した。PR #861 骨格 / #862 画面 + i18n キー / #863 MCP + docs（#863 に Closes #831）。3 本とも stacked（base は前段のブランチ）で、各 PR 単独で shared / web / mcp / desktop / docs-lint 全ゲート緑。merge はユーザー手番（P-001）。
+
+#### 変更点
+
+- **PR-A #861 骨格**: `types/taskTree.ts` → `todoTree.ts`、`TaskNode` / `NodeType` / `TaskStatus` → `TodoNode` / `TodoNodeType` / `TodoStatus`、context 2 本・`useTaskTree*` 6 本・`SupabaseTasksService` / `taskMapper` / `getDescendantTasks`、`TasksDataService` のメソッド名、SyncDomain `"tasks"` → `"todos"`。参照更新は 145 ファイル（1168 +/-）
+- **PR-B #862 画面**: 36 ファイル改名（`web/src/tasks/` ディレクトリごと `todos/` へ）+ i18n キー名。252 ファイル（3035 +/-）
+- **PR-C #863 MCP + docs**: 6 ツールを破壊的改名（`list_tasks` → `list_todos` ほか）+ `search_items` の domain 語彙と戻り値キー。docs は CLAUDE.md §3.2 / §4・rules/frontend.md・db-conventions.md、加えて tier-1-core の MCP Coverage 行（放置すると存在しないツール名が残るため）
+- **据え置きの実測**: `generateId("task")` / `role: "task"` / DB 名（`tasks_payload` / `task_type` / `task_id` とその TS 名）は不変。各 PR 本文に grep 出力を貼付。加えて lumen デザイントークン・TipTap の `taskList` / `taskItem` / `toggleTaskList()`・localStorage に保存されるショートカット id（`nav:tasks` / `global:new-task`）も据え置き
+- **表示文字列の不変を機械証明**: i18n の葉の値を改名前後で集合比較 → 差分は各 catalog 1 件のみで、それも補間変数名（`{{task}}` → `{{todo}}`、コード側と同時改名）。レンダリング結果は不変
+- **型で捕まらない罠 2 種**: `Record<ItemRole, …>` 系のキーは `items_meta.role` そのものなので `task` 据え置き（`itemRole.task` の i18n キーも同様）。うち `itemLinkSuggestion` / `useShellNavigation` / mcp の `ROLE_PAYLOAD_TABLE` は `Record<string, …>` で **改名しても build が通ってしまう** — 手検査で発見（mcp 側の 1 件は verification suite が実行時に検出）
+- **見送り**: CLAUDE.md §8 Tier マップと tier-1-core 本文の機能名「Tasks」（プロダクト語彙のため別判断）。archive / history / memory / decisions / comm は `rules/records.md` に従い書き換えない
+
 ### 2026-08-13 - #838 セッション永続の storage 差し替え + #827 ダークスクロールバー
 
 #### 概要
@@ -55,16 +71,3 @@ core-refactor C2（計画書 `docs/vision/plans/2026-08-10-core-refactor.md` §C
 - **テスト**: `tests/toolRegistry.test.ts` を追加（mcp-server 118 tests / 8 files 緑）。公開中の全ツールに型違いを投げて `Invalid arguments for <name>:` で止まる = レジストリ登録済 かつ ハンドラ未到達（メッセージに `Supabase` を含まない）を検証。逆方向に全 27 ツールの「正しい引数」テーブルも通す
 - **挙動不変の実測**: main の build と本ブランチの build で `JSON.stringify(TOOLS, null, 2)` を生成して diff → 差分ゼロ（md5 一致）。wire に出る差分は DB エラー時のメッセージ接頭辞のみ
 - **db-conventions §13**: migration 0013 は「一度も存在しなかった番号」と実測で確定（`git log --all --full-history -- '*0013*'` が 0 件・リモート台帳も 0012 → 0014）。0012 と 0014 は同一 commit `fe2c7d86` で、並行 2 計画が番号を先取りした結果。埋めない / 振り直さない を運用則として明記
-
-### 2026-08-10 - #587 Notes 系の共有神ファイル 2 本を分割
-
-#### 概要
-
-`useNotesUnifiedAPI.ts`（1075 行）と `SupabaseNotesUnifiedService.ts`（842 行）を責務ごとのモジュールへ分割（挙動変更ゼロ・テスト先行・1 ファイル = 1 PR）。PR #642 / #647（書いた時点でどちらも open、#642 は CI 緑）。
-
-#### 変更点
-
-- **PR #642（hook）**: 429 行のオーケストレータ + `notesUnifiedHelpers`（純粋ヘルパ）/ `useNoteHydrationLedger`（#301+#607 の own-write 台帳 — D-20260810-main-4 のとおりコメントごと吸収）/ `useNotesUnifiedCRUD` / `useNotesUnifiedTrash` / `useNotesUnifiedLock`。公開 I/F・barrel・呼び出し側 diff ゼロ
-- **PR #647（service）**: 303 行の facade（書き込み系 + PHASE2 dispatch セット）+ `SupabaseNotesUnifiedReads`（list/trash/detail/count・join ループ重複解消）/ `SupabaseNotesUnifiedSearch` / `SupabaseNotesUnifiedLock` / `notesUnifiedPurgeOrder`（純粋・leaf-first）
-- **テスト先行**: 無防備だった経路に計 17 テストを分割前に追加（hook の trash/lock/pin/cascade 8 件 + service の write 4 経路 6 件 + purge 順序 3 件）。全ゲート緑（shared 1521 / web 124）
-- **知見**: `react-hooks/set-state-in-effect` は「ref 直読みの guard」は許すが「関数呼び出し越しの guard」を弾く — 台帳から `hydratedIdsRef` を公開して元の形を維持した
