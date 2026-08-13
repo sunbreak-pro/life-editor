@@ -32,6 +32,7 @@ export {
 export {
   extractEveningSection,
   mergeEveningSection,
+  eveningBodyEquals,
   isEmptyDocJson,
   moodLineText,
   defaultBriefingTab,
