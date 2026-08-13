@@ -232,7 +232,13 @@ describe("edit scopes", () => {
       "all",
     );
     await waitFor(() => expect(all.updateFutureOccurrences).toHaveBeenCalled());
-    expect(all.updateFutureOccurrences.mock.calls[0][2]).toBe("0000-01-01");
+    expect(all.updateFutureOccurrences).toHaveBeenCalledWith(
+      ROUTINE_ID,
+      { title: "Evening run" },
+      // "all" reaches back past every materialised day.
+      "0000-01-01",
+      expect.anything(),
+    );
   });
 
   // #504: template first, and a lost template write aborts. The reverse order
