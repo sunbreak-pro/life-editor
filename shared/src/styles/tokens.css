@@ -256,6 +256,30 @@
     0 18px 44px -10px rgb(0 0 0 / 0.7), 0 6px 16px -6px rgb(0 0 0 / 0.5);
 }
 
+/* Native scroll UI follows the theme (#827). Nothing declared `color-scheme`,
+   so Chromium kept painting its default LIGHT scrollbars on the dark theme —
+   the week-grid scrollbar (and every other scroll area) stood out white.
+   `color-scheme` flips the UA scrollbar/form chrome per theme; the extra
+   `[data-theme="light"]` scope lets a nested light subtree (ThemePreviewCard)
+   opt back out of the dark root, mirroring the token blocks above.
+   `scrollbar-color` is inherited, so declaring it once on :root covers every
+   scroll container app-wide; the thumb rides the border-strong token (no
+   hardcoded colors — rules/frontend.md §デザイン規約) and re-resolves per
+   theme via the custom property. The track stays transparent so it blends
+   into each container's own background. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
 @theme {
   --color-lumen-bg: var(--color-bg-primary);
   --color-lumen-bg-secondary: var(--color-bg-secondary);
