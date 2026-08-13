@@ -21,7 +21,7 @@ export {
 } from "./IconButton";
 export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
-export { Modal, type ModalProps } from "./Modal";
+export { Modal, type ModalProps, type ModalSize } from "./Modal";
 // In-app confirm / acknowledge dialog (#707) — the replacement for the
 // browser's own confirm / alert, which draw outside the theme and freeze the
 // page. `useConfirmDialog` turns it into an awaitable question. Since #781 it

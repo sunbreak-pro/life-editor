@@ -1845,7 +1845,7 @@ export function CalendarTab({
       open={calendarsOpen}
       onClose={() => setCalendarsOpen(false)}
       title={t("scheduleScreen.calendarsTitle")}
-      className="max-w-lg"
+      size="lg"
     >
       <CalendarView />
     </Modal>

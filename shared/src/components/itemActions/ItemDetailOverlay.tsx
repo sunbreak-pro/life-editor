@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Modal } from "../Modal";
-import { cn } from "../cn";
 import type { ItemAction } from "./types";
 import { ItemActionRow } from "./ItemActionRow";
 
@@ -53,7 +52,8 @@ export function ItemDetailOverlay({
       open={open}
       onClose={onClose}
       title={title}
-      className={cn("max-w-lg", className)}
+      size="lg"
+      className={className}
     >
       <div className="flex min-h-0 flex-col gap-4">
         <div className="min-h-0">{children}</div>

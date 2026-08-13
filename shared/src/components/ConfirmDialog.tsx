@@ -60,12 +60,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const messageId = useId();
   return (
-    <Modal
-      open={open}
-      onClose={onCancel}
-      labelledBy={messageId}
-      className="max-w-sm"
-    >
+    <Modal open={open} onClose={onCancel} labelledBy={messageId} size="sm">
       <p
         id={messageId}
         className="whitespace-pre-line text-sm leading-relaxed text-lumen-text"
