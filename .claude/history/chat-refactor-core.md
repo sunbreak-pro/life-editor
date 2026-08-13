@@ -1,5 +1,21 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-13 - main の赤を直して #819 を緑にし、#675 に着手（PR #829 merged / #833 open）
+
+#### 概要
+
+#819 のコンフリクト確認から入り、**落ちていたのは #819 ではなく main 自体**だと突き止めた。手書きのテーブル 2 本が merge の波で古びる、同じ型の事故が 2 件同時に起きていた。修理を #819 に混ぜず別 PR（#829）に切ったので、1,400 行のリファクタをレビューせずに main を直せる。#829 merge 後に main を再取り込みして #819 は CI 全緑。続けて #675 に入り、4 項目のうち **#819 と非干渉な「やること 3」だけ**を選んで PR #833 を open した。
+
+#### 変更点
+
+- **main の赤 その 1（`web/tests/kanbanView.test.tsx`）**: #798（#789）が `scheduleScreen.*` の削除キーを使う describe を足し、#813（#790）がそのキーを `taskDetail.*` へ改名したが、改名 PR の base に #798 の describe が無かった。6 箇所を改名して 3 件の失敗を解消
+- **main の赤 その 2（`mcp-server/tests/toolRegistry.test.ts`）**: #821（#700）が verification 3 ツールを registry に足し、#822（#782）が同じ手書き `VALID_CALLS` を verification 抜きの base から編集。`covers every published tool` ガードは**正しく発火した**ので、3 行足して解消（ガード自体は直していない）
+- **どちらも「各 PR 単独では緑・組み合わせで赤」**: 手書きの網羅テーブルは並行レーンの構造的な地雷。CI が main で初めて赤くなる
+- **#675 やること 3（PR #833）**: `shared/` 最後の未分割 API hook。727 行 → 4 モジュール（mirror 137 / CRUD 459 / trash 73 / composer 239）。mirror は `viewMirrorRef.current?.` を十数箇所で書いていたのを「未登録なら no-op」を 1 度だけ述べる access object に寄せた
+- **戻り値は無改造**: `ScheduleItemsContextValue` が `ReturnType<typeof useScheduleItemsAPI>` なので、公開インターフェースがズレたらコンパイルが通らない。`ScheduleItemsViewMirror` は新居から re-export して barrel も維持
+- **新規テストは既存の守りの穴だけを取った**: `undoRedoDomainWiring` が update / toggle / delete のアンカー外の日を既にカバーしているので、create / dismiss / undismiss / bulk delete / ゴミ箱一式 / mirror の端条件へ。3 本ともソースをわざと壊して落ちることを実測（`dateRef.current` → `date` / StrictMode ガード除去 / restore の日付判定除去）
+- **#675 の項目選択は衝突回避**: やること 1（CalendarTab）と 2（WeekTimeGrid）は #819 と同一ファイルで、Issue 自身が「stacked にしない」と定めているため着手不可。3 は `shared/src/hooks/` 内で完結し main から独立に切れる唯一の項目だった
+
 ### 2026-08-13 - #701 Step 2 と C6（#673）— PR #800 / #819 open、#675 は merge 待ちで着手せず
 
 #### 概要
