@@ -8,6 +8,7 @@ import {
   Tray,
   nativeImage,
   nativeTheme,
+  safeStorage,
   screen,
 } from "electron";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
@@ -37,6 +38,10 @@ interface DesktopStoreSchema {
   // When true, closing the window keeps the app resident in the tray instead of
   // quitting (so Supabase realtime stays connected and reopening is instant).
   closeToTray: boolean;
+  // Supabase auth session, keyed by supabase-js's storage key. Values are
+  // safeStorage-encrypted (base64, "enc:" prefix) or plaintext ("plain:"
+  // prefix) when OS encryption is unavailable. See setupAuthStorageIpc.
+  authStorage: Record<string, string>;
 }
 
 const store = new Store<DesktopStoreSchema>({
@@ -44,6 +49,7 @@ const store = new Store<DesktopStoreSchema>({
     windowBounds: { width: 1280, height: 800 },
     theme: "system",
     closeToTray: true,
+    authStorage: {},
   },
 });
 
@@ -328,6 +334,79 @@ function setupIpcHandlers(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Supabase auth-session storage (#838).
+//
+// Why main-process storage: the packaged renderer is served via loadFile, so
+// its origin is file://, where Chromium does not reliably persist localStorage
+// — the session supabase-js saved was lost across restarts, forcing a login
+// on every launch (dev builds load http://localhost and were unaffected).
+// Storing the session behind IPC in the main process sidesteps the file://
+// origin entirely.
+//
+// Why safeStorage (and not an app:// custom scheme, which would also fix
+// persistence): the refresh token is effectively a long-lived login key.
+// safeStorage encrypts it at rest with the OS keychain / credential manager
+// instead of leaving it in plaintext renderer storage. Fallback: where OS
+// encryption is unavailable (e.g. Linux without a keyring) values are stored
+// plaintext-marked rather than breaking auth persistence.
+//
+// Token-refresh concurrency (Supabase invalidates a session on refresh-token
+// reuse outside a ~10s interval): safe here — the app has a single
+// BrowserWindow / single supabase-js client, so no two processes ever race on
+// the same refresh token.
+// ---------------------------------------------------------------------------
+const AUTH_ENC_PREFIX = "enc:";
+const AUTH_PLAIN_PREFIX = "plain:";
+
+function setupAuthStorageIpc(): void {
+  ipcMain.handle("authStorage:getItem", (_event, key: unknown) => {
+    if (typeof key !== "string") {
+      throw new Error("authStorage:getItem: invalid key");
+    }
+    const stored = store.get("authStorage")[key];
+    if (stored === undefined) return null;
+    if (stored.startsWith(AUTH_PLAIN_PREFIX)) {
+      return stored.slice(AUTH_PLAIN_PREFIX.length);
+    }
+    if (stored.startsWith(AUTH_ENC_PREFIX)) {
+      try {
+        return safeStorage.decryptString(
+          Buffer.from(stored.slice(AUTH_ENC_PREFIX.length), "base64"),
+        );
+      } catch {
+        // OS keychain changed or blob corrupt — treat as signed out (forces a
+        // fresh login) instead of crashing the renderer's auth init.
+        return null;
+      }
+    }
+    return null;
+  });
+
+  ipcMain.handle(
+    "authStorage:setItem",
+    (_event, key: unknown, value: unknown) => {
+      if (typeof key !== "string" || typeof value !== "string") {
+        throw new Error("authStorage:setItem: invalid key/value");
+      }
+      const encoded = safeStorage.isEncryptionAvailable()
+        ? AUTH_ENC_PREFIX + safeStorage.encryptString(value).toString("base64")
+        : AUTH_PLAIN_PREFIX + value;
+      store.set("authStorage", { ...store.get("authStorage"), [key]: encoded });
+    },
+  );
+
+  // signOut must reliably clear the persisted session (#838 DoD).
+  ipcMain.handle("authStorage:removeItem", (_event, key: unknown) => {
+    if (typeof key !== "string") {
+      throw new Error("authStorage:removeItem: invalid key");
+    }
+    const all = { ...store.get("authStorage") };
+    delete all[key];
+    store.set("authStorage", all);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Auto-updater: SKELETON ONLY for Phase 3. The real GitHub Releases feed and
 // the actual update check are wired in Phase 5. Do NOT call checkForUpdates()
 // here — this only constructs the structure so Phase 5 fills in config.
@@ -355,6 +434,7 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = store.get("theme");
 
   setupIpcHandlers();
+  setupAuthStorageIpc();
   setupApplicationMenu();
   setupTray();
   setupAutoUpdater();

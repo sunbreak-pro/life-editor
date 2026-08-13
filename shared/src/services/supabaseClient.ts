@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { resolveAuthStorage } from "./supabaseAuthStorage";
 
 /*
  * Single shared Supabase browser client.
@@ -16,8 +17,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as
-  | string
-  | undefined;
+  string | undefined;
 
 let cached: SupabaseClient | null = null;
 
@@ -28,11 +28,15 @@ export function getSupabaseClient(): SupabaseClient {
       "Supabase credentials missing: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local",
     );
   }
+  // Platform-aware session storage (#838): Electron main-process safeStorage /
+  // Capacitor Preferences / browser localStorage — see supabaseAuthStorage.ts.
+  const storage = resolveAuthStorage();
   cached = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
+      ...(storage ? { storage } : {}),
     },
   });
   return cached;
