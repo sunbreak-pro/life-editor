@@ -1,5 +1,5 @@
 /*
- * Faint drag ghost for the Notes/Tasks trees (DU-G). A translucent copy of
+ * Faint drag ghost for the Notes/Todos trees (DU-G). A translucent copy of
  * the grabbed row's title that trails the cursor for orientation. Rendered
  * inside @dnd-kit's <DragOverlay> portal, so it never moves the list block
  * itself (the source row stays put). Purely a "what am I holding" cue — the

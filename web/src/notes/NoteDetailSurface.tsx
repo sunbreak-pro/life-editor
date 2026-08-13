@@ -70,7 +70,7 @@ export function NoteDetailSurface({
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
       tagsSlot={
-        // itemRole (#412): the note detail adopts the same kind badge the task
+        // itemRole (#412): the note detail adopts the same kind badge the todo
         // detail uses, so the two tag rows stay one design.
         <TagPicker itemId={note.id} itemRole="note" showLabel size="sm" />
       }

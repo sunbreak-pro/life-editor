@@ -48,7 +48,7 @@ function scheduleItem(over: Partial<ScheduleItem> & { id: string }) {
   } as ScheduleItem;
 }
 
-function taskNode(over: Partial<TodoNode> & { id: string }) {
+function todoNode(over: Partial<TodoNode> & { id: string }) {
   return {
     type: "task",
     title: "Write report",
@@ -71,7 +71,7 @@ const ROUTINE = scheduleItem({
   endTime: "07:15",
   routineId: "r1",
 });
-const TASK = taskNode({ id: "t1", title: "Write report" });
+const TODO = todoNode({ id: "t1", title: "Write report" });
 
 function makeDS(over: Partial<DataService> = {}): DataService {
   return stubDataService({
@@ -80,7 +80,7 @@ function makeDS(over: Partial<DataService> = {}): DataService {
       .mockImplementation((date: string) =>
         Promise.resolve(date === TODAY ? [MANUAL, ROUTINE] : []),
       ),
-    fetchTodoTree: vi.fn().mockResolvedValue([TASK]),
+    fetchTodoTree: vi.fn().mockResolvedValue([TODO]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),

@@ -9,7 +9,7 @@ import { useNoteSheetTarget } from "../src/notes/hooks/useNoteSheetTarget";
  * deleting from inside it, a "[[" link tapped inside it, and a breakpoint
  * crossing all have to leave a consistent state.
  *
- * Same shape as useTaskDetailTarget's tests (#470) — the two sheets deliberately
+ * Same shape as useTodoDetailTarget's tests (#470) — the two sheets deliberately
  * behave alike.
  */
 

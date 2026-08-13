@@ -15,7 +15,7 @@ import {
 } from "./AnalyticsFilterContext";
 import { DateRangePresetSelector } from "./DateRangePresetSelector";
 import { OverviewTab } from "./OverviewTab";
-import { TasksTab } from "./TasksTab";
+import { TodosTab } from "./TodosTab";
 import { TimeTab } from "./TimeTab";
 import { ScheduleTab } from "./ScheduleTab";
 import { MobileAnalyticsView } from "./MobileAnalyticsView";
@@ -64,10 +64,10 @@ export interface AnalyticsViewProps {
   initialLoading?: boolean;
   notes: NoteNode[];
   routines: RoutineNode[];
-  /** Pre-built taskId → display name map (Work tab task chart). */
-  taskNameMap: Map<string, string>;
+  /** Pre-built todoId → display name map (Work tab todo chart). */
+  todoNameMap: Map<string, string>;
   /**
-   * Active life-tags. Feeds both the Overview tag count and the Tasks tab's
+   * Active life-tags. Feeds both the Overview tag count and the Todos tab's
    * tag work-time ring — the counts are derived here rather than passed
    * separately so the two can never disagree (数値の非複製原則).
    */
@@ -127,7 +127,7 @@ function DesktopAnalytics({
   initialLoading,
   notes,
   routines,
-  taskNameMap,
+  todoNameMap,
   tags,
   assignments,
   targetPerDay,
@@ -206,7 +206,7 @@ function DesktopAnalytics({
                   tagCount={tags.length}
                   assignmentCount={assignments.length}
                   labels={{
-                    tasks: labels.overview.tasks,
+                    todos: labels.overview.todos,
                     events: labels.overview.events,
                     notes: labels.overview.notes,
                     work: labels.overview.work,
@@ -221,7 +221,7 @@ function DesktopAnalytics({
                     todayCard: {
                       title: labels.todayCard.title,
                       workTime: labels.todayCard.workTime,
-                      completedTasks: labels.todayCard.completedTasks,
+                      completedTodos: labels.todayCard.completedTodos,
                       pomodoroCount: labels.todayCard.pomodoroCount,
                       formatHours: labels.formatHours,
                     },
@@ -237,14 +237,14 @@ function DesktopAnalytics({
                 />
               )}
 
-              {activeTab === "tasks" && (
-                <TasksTab
+              {activeTab === "todos" && (
+                <TodosTab
                   sessions={sessions}
                   nodes={nodes}
                   assignments={assignments}
                   tags={tags}
                   labels={{
-                    taskTrend: labels.taskTrend,
+                    todoTrend: labels.todoTrend,
                     stagnation: labels.stagnation,
                     tagTime: {
                       title: labels.tagTime.title,
@@ -260,7 +260,7 @@ function DesktopAnalytics({
               {activeTab === "work" && (
                 <TimeTab
                   sessions={sessions}
-                  taskNameMap={taskNameMap}
+                  todoNameMap={todoNameMap}
                   targetPerDay={targetPerDay}
                   labels={{
                     totalWorkTime: labels.totalWorkTime,
@@ -281,8 +281,8 @@ function DesktopAnalytics({
                       break: labels.workBreak.break,
                       longBreak: labels.workBreak.longBreak,
                     },
-                    taskWorkTime: {
-                      title: labels.taskWorkTime,
+                    todoWorkTime: {
+                      title: labels.todoWorkTime,
                       sessions: labels.sessions,
                     },
                   }}

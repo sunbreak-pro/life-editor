@@ -24,9 +24,9 @@ const LABELS: KanbanLabels = {
   statusInProgress: "In progress",
   statusDone: "Done",
   cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
-  emptyColumn: "No tasks here yet",
+  emptyColumn: "No todos here yet",
   placeholderHint: "Coming soon",
-  countAriaLabel: (n) => `${n} tasks`,
+  countAriaLabel: (n) => `${n} todos`,
   untagged: "No tag",
   colorPickerLabel: "Change color",
   colorClearLabel: "Default",
@@ -106,7 +106,7 @@ describe("KanbanColumn (Materials Step 2)", () => {
         onSelectCard={() => {}}
       />,
     );
-    expect(screen.getByText("No tasks here yet")).toBeInTheDocument();
+    expect(screen.getByText("No todos here yet")).toBeInTheDocument();
   });
 
   it("shows the card count badge when the column has cards", () => {
@@ -117,8 +117,8 @@ describe("KanbanColumn (Materials Step 2)", () => {
         onSelectCard={() => {}}
       />,
     );
-    // countAriaLabel("2 tasks") is the accessible name of the count badge.
-    expect(screen.getByLabelText("2 tasks")).toHaveTextContent("2");
+    // countAriaLabel("2 todos") is the accessible name of the count badge.
+    expect(screen.getByLabelText("2 todos")).toHaveTextContent("2");
   });
 
   it("keeps the fixed 316px strip width when fluidWidth is not passed (#565)", () => {

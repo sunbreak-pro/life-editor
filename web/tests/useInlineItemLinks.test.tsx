@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
 /*
- * #776 — the one copy of the "[[" → item_links wiring, after Notes / Tasks /
+ * #776 — the one copy of the "[[" → item_links wiring, after Notes / Todos /
  * Daily stopped each carrying their own.
  *
  * The guards below are not stylistic: each one is the difference between a
@@ -11,7 +11,7 @@ import { renderHook } from "@testing-library/react";
  * own test then only has to show it reaches this hook.
  *
  * The console tag is pinned too, because it is what the copies got wrong: the
- * task hook reported `[KanbanView]` from inside a file called useTaskLinking,
+ * todo hook reported `[KanbanView]` from inside a file called useTodoLinking,
  * so an error in the Notes editor could be read as coming from the board.
  */
 

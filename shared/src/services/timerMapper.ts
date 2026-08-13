@@ -185,7 +185,7 @@ export function timerSettingsUpdatesToPatch(
 export function rowToTimerSession(row: TimerSessionRow): TimerSession {
   return {
     id: row.id,
-    taskId: row.task_id,
+    todoId: row.task_id,
     sessionType: toSessionType(row.session_type),
     startedAt: new Date(row.started_at),
     completedAt: row.ended_at === null ? null : new Date(row.ended_at),
@@ -209,12 +209,12 @@ export interface TimerSessionInsertRow {
  */
 export function newTimerSessionInsert(
   sessionType: SessionType,
-  taskId: string | null,
+  todoId: string | null,
   startedAt: string,
 ): TimerSessionInsertRow {
   return {
     session_type: sessionType,
-    task_id: taskId,
+    task_id: todoId,
     started_at: startedAt,
   };
 }

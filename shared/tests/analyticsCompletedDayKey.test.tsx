@@ -5,7 +5,7 @@ import { WeeklySummary } from "../src/components/Analytics/WeeklySummary";
 import { MobileAnalyticsView } from "../src/components/Analytics/MobileAnalyticsView";
 import { OverviewTab } from "../src/components/Analytics/OverviewTab";
 import type { AnalyticsLabels } from "../src/components/Analytics/labels";
-import { aggregateTaskCompletionTrend } from "../src/utils/analyticsAggregation";
+import { aggregateTodoCompletionTrend } from "../src/utils/analyticsAggregation";
 import type { TodoNode } from "../src/types/todoTree";
 import type { NoteNode } from "../src/types/note";
 
@@ -14,7 +14,7 @@ import type { NoteNode } from "../src/types/note";
  * (`new Date().toISOString()`), but every Analytics bucket is keyed on the
  * LOCAL calendar day (#356). The five consumers below used to slice the first
  * 10 characters off the ISO string, which reads the UTC day — so east of UTC a
- * task finished in the small hours was filed on the PREVIOUS day and vanished
+ * todo finished in the small hours was filed on the PREVIOUS day and vanished
  * from "today" (in JST, anything before 09:00).
  *
  * Fixture: Monday 2026-07-13, completed at 01:00 LOCAL. That single instant
@@ -34,7 +34,7 @@ const COMPLETED_ISO = COMPLETED_AT.toISOString();
 /** East of UTC the sliced UTC key lands on the previous day — the #420 bug. */
 const SLICE_READS_ANOTHER_DAY = COMPLETED_AT.getTimezoneOffset() < 0;
 
-function earlyMorningTask(): TodoNode {
+function earlyMorningTodo(): TodoNode {
   return {
     id: "task-1",
     type: "task",
@@ -50,7 +50,7 @@ function earlyMorningTask(): TodoNode {
 const TODAY_LABELS = {
   title: "Today",
   workTime: "Work time",
-  completedTasks: "Completed today",
+  completedTodos: "Completed today",
   pomodoroCount: "Pomodoros",
   formatHours: (minutes: number) => `${Math.round(minutes)}m`,
 };
@@ -80,7 +80,7 @@ function makeMobileLabels(): AnalyticsLabels {
     tabsLabel: "Analytics views",
     tabs: {
       overview: "Overview",
-      tasks: "Tasks",
+      todos: "Todos",
       schedule: "Schedule",
       work: "Work",
     },
@@ -96,7 +96,7 @@ function makeMobileLabels(): AnalyticsLabels {
     },
     period: { day: "Day", week: "Week", month: "Month" },
     workTime: "Work Time",
-    taskWorkTime: "Work Time by Task",
+    todoWorkTime: "Work Time by Todo",
     totalWorkTime: "Total Work Time",
     sessions: "Sessions",
     avgPerDay: "Avg / Day",
@@ -104,7 +104,7 @@ function makeMobileLabels(): AnalyticsLabels {
     emptySchedule: { title: "No events", description: "Add events." },
     emptyMobile: { title: "Nothing recorded yet", description: "Get started." },
     overview: {
-      tasks: "Tasks",
+      todos: "Todos",
       events: "Events",
       notes: "Notes",
       work: "Work Time",
@@ -119,7 +119,7 @@ function makeMobileLabels(): AnalyticsLabels {
     todayCard: {
       title: "Today",
       workTime: "Work time",
-      completedTasks: "Completed today",
+      completedTodos: "Completed today",
       pomodoroCount: "Pomodoros",
     },
     weekly: {
@@ -155,8 +155,8 @@ function makeMobileLabels(): AnalyticsLabels {
       longBreak: "Long break",
     },
     timeline: { title: "Timeline", noSessions: "No sessions" },
-    taskTrend: { title: "Task trend", completedCount: "Completed" },
-    stagnation: { title: "Stagnation", tasks: "tasks" },
+    todoTrend: { title: "Todo trend", completedCount: "Completed" },
+    stagnation: { title: "Stagnation", todos: "todos" },
     tagTime: {
       title: "Time by tag",
       noData: "No data",
@@ -230,7 +230,7 @@ describe("Analytics completedAt day key (#420)", () => {
   });
 
   it("buckets a 01:00 completion into today's completion-trend bucket", () => {
-    const buckets = aggregateTaskCompletionTrend([earlyMorningTask()], 30);
+    const buckets = aggregateTodoCompletionTrend([earlyMorningTodo()], 30);
     const today = buckets.find((b) => b.date === TODAY_KEY);
 
     expect(today?.completedCount).toBe(1);
@@ -242,12 +242,12 @@ describe("Analytics completedAt day key (#420)", () => {
     render(
       <TodayDashboard
         sessions={[]}
-        nodes={[earlyMorningTask()]}
+        nodes={[earlyMorningTodo()]}
         labels={TODAY_LABELS}
       />,
     );
 
-    const row = screen.getByText(TODAY_LABELS.completedTasks).parentElement;
+    const row = screen.getByText(TODAY_LABELS.completedTodos).parentElement;
     expect(row).toHaveTextContent("1");
   });
 
@@ -255,7 +255,7 @@ describe("Analytics completedAt day key (#420)", () => {
     render(
       <WeeklySummary
         sessions={[]}
-        nodes={[earlyMorningTask()]}
+        nodes={[earlyMorningTodo()]}
         labels={WEEKLY_LABELS}
       />,
     );
@@ -269,7 +269,7 @@ describe("Analytics completedAt day key (#420)", () => {
     const { container } = render(
       <MobileAnalyticsView
         sessions={[]}
-        nodes={[earlyMorningTask()]}
+        nodes={[earlyMorningTodo()]}
         todayItems={[]}
         scheduleItems={[]}
         notes={[]}
@@ -280,7 +280,7 @@ describe("Analytics completedAt day key (#420)", () => {
     );
 
     const todayCell = screen.getByText(
-      labels.todayCard.completedTasks,
+      labels.todayCard.completedTodos,
     ).parentElement;
     expect(todayCell).toHaveTextContent("1");
     // Week line renders "<completedLabel> <count>" (MobileAnalyticsView week window).

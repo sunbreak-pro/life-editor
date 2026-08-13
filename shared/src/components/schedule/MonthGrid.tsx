@@ -249,7 +249,7 @@ export function MonthGrid({
                         title={it.title}
                         className={cn(
                           "pointer-events-auto rounded px-1 py-0.5 text-left text-xs font-medium",
-                          // #593: task chips carry the CheckSquare todo mark,
+                          // #593: todo chips carry the CheckSquare todo mark,
                           // matching the week grid, so the cue does not vanish
                           // when the same item is viewed by month.
                           it.variant === "task"

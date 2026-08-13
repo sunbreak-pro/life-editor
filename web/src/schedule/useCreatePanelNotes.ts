@@ -86,7 +86,7 @@ export function useCreatePanelNotes({
         setNotes(toOptions(rows));
         setNotesError(false);
       })
-      // A failed fetch leaves the previous list. Creation of the event / task
+      // A failed fetch leaves the previous list. Creation of the event / todo
       // must not be blocked by the picker being unavailable.
       .catch((e) => {
         console.error("[Schedule] note list fetch failed", e);

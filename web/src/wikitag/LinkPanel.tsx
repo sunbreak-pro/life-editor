@@ -45,7 +45,7 @@ import {
  *     same `pendingSelect…` handoff a "[[" link click uses — #475), with the
  *     icon + count treatment of <BacklinkView> in Connect.
  *   - TITLES RESOLVE CROSS-ROLE. `resolveTitle` only knows the host's own
- *     domain (Notes), so a Note→Task link rendered as an id fragment. The
+ *     domain (Notes), so a Note→Todo link rendered as an id fragment. The
  *     candidate pool doubles as the title source for every role it carries;
  *     the id fragment is now only the last resort.
  *
@@ -69,7 +69,7 @@ interface LinkPanelProps {
    */
   resolveTitle?: (itemId: string) => string | undefined;
   /**
-   * Cross-role candidate pool loader (notes / dailies / tasks). Lazy by
+   * Cross-role candidate pool loader (notes / dailies / todos). Lazy by
    * contract — the panel sits behind a disclosure, so mounting is the "someone
    * actually asked" signal. Absent → the picker has no candidates and titles
    * fall back to `resolveTitle`.
@@ -193,7 +193,7 @@ export function LinkPanel({
         (q ? target.label.toLowerCase().includes(q) : true),
     );
     // balanceByRole, not slice: the pool is concatenated per role, so a plain
-    // cut would hand all 8 slots to notes and never surface a task (#370).
+    // cut would hand all 8 slots to notes and never surface a todo (#370).
     return balanceByRole(pool, MAX_CANDIDATES);
   }, [targets, itemId, linkedIds, query]);
 

@@ -212,16 +212,16 @@ describe("SET_CONFIG", () => {
   });
 });
 
-describe("SET_ACTIVE_TASK", () => {
-  it("sets and clears the attributed task", () => {
+describe("SET_ACTIVE_TODO", () => {
+  it("sets and clears the attributed todo", () => {
     let s = initial();
     s = timerReducer(s, {
-      type: "SET_ACTIVE_TASK",
-      task: { id: "task-1", title: "Write tests" },
+      type: "SET_ACTIVE_TODO",
+      todo: { id: "task-1", title: "Write tests" },
     });
-    expect(s.activeTask).toEqual({ id: "task-1", title: "Write tests" });
-    s = timerReducer(s, { type: "SET_ACTIVE_TASK", task: null });
-    expect(s.activeTask).toBeNull();
+    expect(s.activeTodo).toEqual({ id: "task-1", title: "Write tests" });
+    s = timerReducer(s, { type: "SET_ACTIVE_TODO", todo: null });
+    expect(s.activeTodo).toBeNull();
   });
 });
 

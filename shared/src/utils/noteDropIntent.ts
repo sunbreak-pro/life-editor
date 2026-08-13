@@ -1,5 +1,5 @@
 /*
- * Pure drop-intent classifier for the tree DnD (Notes + Tasks share it).
+ * Pure drop-intent classifier for the tree DnD (Notes + Todos share it).
  * Given where the pointer sits inside a row (a 0..1 ratio) and whether that
  * row is a folder, decide whether the drop means "reorder above", "reorder
  * below", or "go inside the folder".
@@ -10,7 +10,7 @@
  *
  * STATUS (#418): no host consumes this today. Both tree-DnD hooks that used
  * it are gone — Notes DnD only assigns tags since S1 (`useNoteTagDnd`), and
- * `web/src/tasks/useTaskTreeDnd.ts` was retired with the nesting chain. Kept
+ * `web/src/todos/useTodoTreeDnd.ts` was retired with the nesting chain. Kept
  * as the drop-geometry primitive a future tree view would reorder with; the
  * `isFolder: true` ("inside") half is only meaningful if nesting ever
  * returns, which is currently a No.

@@ -77,20 +77,20 @@ describe("MonthGrid", () => {
     expect(screen.queryByText("+1 more")).toBeNull();
   });
 
-  it("renders a task chip with the blue task face and the CheckSquare glyph (#593)", () => {
+  it("renders a todo chip with the blue todo face and the CheckSquare glyph (#593)", () => {
     renderGrid();
     const chip = screen.getByRole("button", { name: "Write report" });
     expect(chip.className).toContain("bg-lumen-chip-task-bg");
     expect(chip.className).toContain("text-lumen-chip-task-fg");
     // #593: same todo mark as the week grid, so the cue survives the month view.
     expect(chip.querySelector("svg")).not.toBeNull();
-    // Event chips stay glyph-free (face color only — #593 touches task only).
+    // Event chips stay glyph-free (face color only — #593 touches todo only).
     expect(
       screen.getByRole("button", { name: "Dentist" }).querySelector("svg"),
     ).toBeNull();
   });
 
-  it("paints the task dot with the task dot color in compact mode", () => {
+  it("paints the todo dot with the todo dot color in compact mode", () => {
     const { container } = render(
       <MonthGrid
         monthKey="2026-07-15"

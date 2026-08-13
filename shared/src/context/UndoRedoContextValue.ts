@@ -9,7 +9,7 @@ import type { UndoRedoLike } from "../hooks/useTodoTreeHistory";
  * The `domain` argument on undo/redo/canUndo/canRedo/clear is accepted for
  * UndoRedoLike compatibility but IGNORED — there is one shared stack, so the
  * header drives it with the no-arg forms (`undo()`, `canUndo()`), while a
- * domain hook that calls `undo("taskTree")` reverses the same global top. The
+ * domain hook that calls `undo("todoTree")` reverses the same global top. The
  * params are widened to optional here so the header can omit them.
  */
 export interface UndoRedoContextValue extends UndoRedoLike {

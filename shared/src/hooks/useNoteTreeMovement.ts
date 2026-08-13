@@ -12,9 +12,9 @@ import { isDescendantOf } from "../utils/getDescendantTodos";
  * package stays UI/dnd-free (Option A: shared is UI-free like S1/S2).
  *
  * #418: kept symmetric with useTodoTreeMovement — note nesting is retired
- * along with task nesting, so `moveNodeInto` and `moveNode`'s re-parent
+ * along with todo nesting, so `moveNodeInto` and `moveNode`'s re-parent
  * branch were removed. Notes DnD has only assigned tags since S1, so nothing
- * called either of them. See the task twin's header for the one nuance: the
+ * called either of them. See the todo twin's header for the one nuance: the
  * re-parent branch's guard sat inside `if (newParentId !== null)`, so dropping
  * next to a ROOT note used to succeed (positioned lift-out to the root list).
  * `moveToRoot` is the successor and appends to the tail instead.
@@ -89,10 +89,10 @@ export function useNoteTreeMovement(
       // #418: reorder only, never re-parent. The sibling list is always the
       // active note's own; a drop target outside it falls out of the
       // findIndex check below as `node_not_found` instead of moving the note
-      // under a new parent. See the task twin for the "if this is ever shown
+      // under a new parent. See the todo twin for the "if this is ever shown
       // to the user, split the reason out" note.
       //
-      // Deliberate asymmetry with Tasks: no `isDeleted` guard here, so a
+      // Deliberate asymmetry with Todos: no `isDeleted` guard here, so a
       // soft-deleted note reports `node_not_found` (it is filtered out of the
       // sibling list) rather than `deleted_node`. Pinned by test.
       const siblings = notes

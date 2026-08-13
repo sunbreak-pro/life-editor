@@ -29,12 +29,12 @@ describe("UndoRedoManager", () => {
   it("undoes the globally most-recent command regardless of source", async () => {
     const log: string[] = [];
     const m = new UndoRedoManager();
-    m.push(cmd(log, "task")); // e.g. from taskTree
+    m.push(cmd(log, "todo")); // e.g. from todoTree
     m.push(cmd(log, "event")); // e.g. from schedule
     await m.undo();
     expect(log).toEqual(["undo:event"]);
     await m.undo();
-    expect(log).toEqual(["undo:event", "undo:task"]);
+    expect(log).toEqual(["undo:event", "undo:todo"]);
   });
 
   it("redoes in reverse-undo order", async () => {
@@ -60,11 +60,11 @@ describe("UndoRedoManager", () => {
 
   it("returns the applied command so callers can label a toast", async () => {
     const m = new UndoRedoManager();
-    m.push(cmd([], "renamed task"));
+    m.push(cmd([], "renamed todo"));
     const undone = await m.undo();
-    expect(undone?.label).toBe("renamed task");
+    expect(undone?.label).toBe("renamed todo");
     const redone = await m.redo();
-    expect(redone?.label).toBe("renamed task");
+    expect(redone?.label).toBe("renamed todo");
   });
 
   it("returns null on undo/redo when the stack is empty", async () => {

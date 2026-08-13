@@ -20,7 +20,7 @@ import {
 } from "./scheduleItemMapper";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import { requireSingleRow } from "./postgrestSingle";
-import { eventToTaskSlot } from "../utils/itemConversion";
+import { eventToTodoSlot } from "../utils/itemConversion";
 import { logServiceError } from "../utils/logError";
 
 /*
@@ -159,13 +159,13 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
    * Event → Todo. The date, the time span and the all-day flag are KEPT
    * (#739, D-20260811-sched-1 = B, superseding D-20260810-sched-3): they land
    * in `tasks_payload.scheduled_at` / `scheduled_end_at` / `is_all_day`, the
-   * row the calendar draws task chips from, so an 8/20 10:00 event stays an
+   * row the calendar draws todo chips from, so an 8/20 10:00 event stays an
    * 8/20 10:00 block and only its NATURE changes. That also makes the pair
    * symmetric — Todo→Event already kept the chip's slot.
    *
    * What is still dropped: the reminder (a Todo's reminder is an offset from a
    * due date, not an absolute instant, so there is nothing to map it onto).
-   * What survives besides the slot: the memo (as the task body) and the
+   * What survives besides the slot: the memo (as the todo body) and the
    * completion state (a done event becomes a DONE Todo, keeping its
    * completed_at).
    *
@@ -176,10 +176,10 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
    * routine generator from simply re-creating the occurrence the next time it
    * runs. Anyone relaxing that ruling has to solve both of those first.
    *
-   * `order` comes from the host so the new row lands the way a fresh task does
+   * `order` comes from the host so the new row lands the way a fresh todo does
    * (top of the root group).
    */
-  async convertEventToTask(
+  async convertEventToTodo(
     eventId: string,
     init: { order: number },
   ): Promise<TodoNode> {
@@ -201,15 +201,15 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
         .maybeSingle(),
     ]);
     if (metaErr)
-      throw new Error(`convertEventToTask read items_meta: ${metaErr.message}`);
+      throw new Error(`convertEventToTodo read items_meta: ${metaErr.message}`);
     if (payloadErr)
       throw new Error(
-        `convertEventToTask read events_payload: ${payloadErr.message}`,
+        `convertEventToTodo read events_payload: ${payloadErr.message}`,
       );
     if (!metaRow || !payloadRow)
       throw new ItemConversionError(
         "missing",
-        `convertEventToTask: ${eventId} has no event row to convert`,
+        `convertEventToTodo: ${eventId} has no event row to convert`,
       );
 
     const meta = metaRow as unknown as ItemsMetaEventRow;
@@ -217,7 +217,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
     if (meta.role !== "event")
       throw new ItemConversionError(
         "role",
-        `convertEventToTask: ${eventId} is a "${meta.role}", not an event`,
+        `convertEventToTodo: ${eventId} is a "${meta.role}", not an event`,
       );
     // Defensive: no UI reaches Trash's rows with a convert action today, but a
     // trashed item re-roled here would land in the OTHER section's Trash, which
@@ -225,19 +225,19 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
     if (meta.is_deleted)
       throw new ItemConversionError(
         "trashed",
-        `convertEventToTask: ${eventId} is in Trash — restore it first`,
+        `convertEventToTodo: ${eventId} is in Trash — restore it first`,
       );
     if (payload.routine_item_id != null)
       throw new ItemConversionError(
         "routine",
-        `convertEventToTask: ${eventId} is routine-derived — a Todo cannot carry a repeat`,
+        `convertEventToTodo: ${eventId} is routine-derived — a Todo cannot carry a repeat`,
       );
 
     // #739: the slot travels with the row. Derived by the same pure function
-    // the tests pin (itemConversion.eventToTaskSlot) rather than inline here,
+    // the tests pin (itemConversion.eventToTodoSlot) rather than inline here,
     // for the reason the util's header gives — a service method needs a live
     // Supabase client to run, so a mapping decided in here is untestable.
-    const slot = eventToTaskSlot({
+    const slot = eventToTodoSlot({
       date: payload.start_at,
       startTime: payload.start_time,
       endTime: payload.end_time,
@@ -262,7 +262,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       isAllDay: slot.isAllDay,
       version: meta.version,
     };
-    const { payload: taskPayload } = todoNodeToRows(node, userId);
+    const { payload: todoPayload } = todoNodeToRows(node, userId);
 
     // 1. new payload in. UPSERT, not INSERT: a conversion that lost the race
     //    at step 2 on another device can leave a stale payload row behind
@@ -272,17 +272,17 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
     const inserted = await requireSingleRow<TasksPayloadRow>(
       this.client
         .from("tasks_payload")
-        .upsert(taskPayload, { onConflict: "item_id" })
+        .upsert(todoPayload, { onConflict: "item_id" })
         .select(TASKS_PAYLOAD_COLUMNS)
         .single(),
-      "convertEventToTask insert tasks_payload",
+      "convertEventToTodo insert tasks_payload",
     );
 
     // 2. role flip (+ DB-Q2 bump). The only step that needs undoing.
     try {
       await this.reRole(eventId, "event", "task");
     } catch (err) {
-      await this.bestEffort("convertEventToTask undo tasks_payload", () =>
+      await this.bestEffort("convertEventToTodo undo tasks_payload", () =>
         this.client.from("tasks_payload").delete().eq("item_id", eventId),
       );
       throw err;
@@ -290,7 +290,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
 
     // 3. old payload out. Past this point the conversion HAS happened for
     //    every reader, so a failure here is logged, not thrown.
-    await this.bestEffort("convertEventToTask drop events_payload", () =>
+    await this.bestEffort("convertEventToTodo drop events_payload", () =>
       this.client.from("events_payload").delete().eq("item_id", eventId),
     );
 
@@ -300,13 +300,13 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
         .select(ITEMS_META_TASK_COLUMNS)
         .eq("id", eventId)
         .single(),
-      "convertEventToTask read back items_meta",
+      "convertEventToTodo read back items_meta",
     );
     return rowsToTodoNode(newMeta, inserted);
   }
 
   /**
-   * Todo → Event. The task's status is dropped (D-20260810-sched-4: the host
+   * Todo → Event. The todo's status is dropped (D-20260810-sched-4: the host
    * confirms that first) — an event has no third state to map "in progress"
    * onto — except for DONE, which an event CAN hold, so a finished Todo does
    * not reopen itself. The body survives as the event memo. A child Todo loses
@@ -321,11 +321,11 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
    * host's live-tree check.
    *
    * `date` / `startTime` / `endTime` / `isAllDay` come from the host
-   * (taskToEventPlacement): a placed Todo keeps its slot, an unplaced one
+   * (todoToEventPlacement): a placed Todo keeps its slot, an unplaced one
    * becomes an all-day item on the day the host is showing.
    */
-  async convertTaskToEvent(
-    taskId: string,
+  async convertTodoToEvent(
+    todoId: string,
     init: {
       date: string;
       startTime: string;
@@ -343,31 +343,31 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       this.client
         .from("items_meta")
         .select(ITEMS_META_TASK_COLUMNS)
-        .eq("id", taskId)
+        .eq("id", todoId)
         .maybeSingle(),
       this.client
         .from("tasks_payload")
         .select(TASKS_PAYLOAD_COLUMNS)
-        .eq("item_id", taskId)
+        .eq("item_id", todoId)
         .maybeSingle(),
       this.client
         .from("tasks_payload")
         .select("item_id")
-        .eq("parent_item_id", taskId)
+        .eq("parent_item_id", todoId)
         .limit(1),
     ]);
     if (metaErr)
-      throw new Error(`convertTaskToEvent read items_meta: ${metaErr.message}`);
+      throw new Error(`convertTodoToEvent read items_meta: ${metaErr.message}`);
     if (payloadErr)
       throw new Error(
-        `convertTaskToEvent read tasks_payload: ${payloadErr.message}`,
+        `convertTodoToEvent read tasks_payload: ${payloadErr.message}`,
       );
     if (childErr)
-      throw new Error(`convertTaskToEvent read children: ${childErr.message}`);
+      throw new Error(`convertTodoToEvent read children: ${childErr.message}`);
     if (!metaRow || !payloadRow)
       throw new ItemConversionError(
         "missing",
-        `convertTaskToEvent: ${taskId} has no task row to convert`,
+        `convertTodoToEvent: ${todoId} has no todo row to convert`,
       );
 
     const meta = metaRow as unknown as ItemsMetaRow;
@@ -375,21 +375,21 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
     if (meta.role !== "task")
       throw new ItemConversionError(
         "role",
-        `convertTaskToEvent: ${taskId} is a "${meta.role}", not a task`,
+        `convertTodoToEvent: ${todoId} is a "${meta.role}", not a todo`,
       );
     if (meta.is_deleted)
       throw new ItemConversionError(
         "trashed",
-        `convertTaskToEvent: ${taskId} is in Trash — restore it first`,
+        `convertTodoToEvent: ${todoId} is in Trash — restore it first`,
       );
     if (childRows && childRows.length > 0)
       throw new ItemConversionError(
         "children",
-        `convertTaskToEvent: ${taskId} still has child tasks — move or delete them first`,
+        `convertTodoToEvent: ${todoId} still has child todos — move or delete them first`,
       );
 
     const item: ScheduleItem = {
-      id: taskId,
+      id: todoId,
       date: init.date,
       title: meta.title,
       startTime: init.startTime,
@@ -419,39 +419,39 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
         .upsert(eventPayload, { onConflict: "item_id" })
         .select(EVENTS_PAYLOAD_COLUMNS)
         .single(),
-      "convertTaskToEvent insert events_payload",
+      "convertTodoToEvent insert events_payload",
     );
 
     // 2. role flip (+ DB-Q2 bump).
     try {
-      await this.reRole(taskId, "task", "event");
+      await this.reRole(todoId, "task", "event");
     } catch (err) {
-      await this.bestEffort("convertTaskToEvent undo events_payload", () =>
-        this.client.from("events_payload").delete().eq("item_id", taskId),
+      await this.bestEffort("convertTodoToEvent undo events_payload", () =>
+        this.client.from("events_payload").delete().eq("item_id", todoId),
       );
       throw err;
     }
 
     // 3. old payload out (logged, not thrown — the conversion has landed).
-    await this.bestEffort("convertTaskToEvent drop tasks_payload", () =>
-      this.client.from("tasks_payload").delete().eq("item_id", taskId),
+    await this.bestEffort("convertTodoToEvent drop tasks_payload", () =>
+      this.client.from("tasks_payload").delete().eq("item_id", todoId),
     );
 
     const newMeta = await requireSingleRow<ItemsMetaEventRow>(
       this.client
         .from("items_meta")
         .select(ITEMS_META_EVENT_COLUMNS)
-        .eq("id", taskId)
+        .eq("id", todoId)
         .single(),
-      "convertTaskToEvent read back items_meta",
+      "convertTodoToEvent read back items_meta",
     );
     return rowsToScheduleItem(newMeta, inserted);
   }
 }
 
 export const PHASE2_ITEM_CONVERSION_METHOD_NAMES = [
-  "convertEventToTask",
-  "convertTaskToEvent",
+  "convertEventToTodo",
+  "convertTodoToEvent",
 ] as const;
 
 export type ItemConversionMethodName =

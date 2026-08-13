@@ -51,7 +51,7 @@ export interface ItemLinkSuggestionLabels {
   create: (query: string) => string;
   roleNote: string;
   roleDaily: string;
-  roleTask: string;
+  roleTodo: string;
 }
 
 export interface ItemLinkSuggestionDeps {
@@ -88,7 +88,7 @@ function roleIcon(role: string): LucideIcon {
 function roleHint(role: string, labels: ItemLinkSuggestionLabels): string {
   if (role === "note") return labels.roleNote;
   if (role === "daily") return labels.roleDaily;
-  if (role === "task") return labels.roleTask;
+  if (role === "task") return labels.roleTodo;
   return role;
 }
 
@@ -145,7 +145,7 @@ async function buildItems(
   const createNote = deps.getCreateNote();
 
   // balanceByRole, not slice: the pool is concatenated per role (notes →
-  // dailies → tasks), so a plain cut handed all 8 slots to notes and the task
+  // dailies → todos), so a plain cut handed all 8 slots to notes and the todo
   // candidates added in #370 never reached the menu on a 8+ note vault.
   const filtered = balanceByRole(
     q ? targets.filter((t) => t.label.toLowerCase().includes(q)) : targets,
@@ -189,7 +189,7 @@ async function buildItems(
           editor.chain().focus().deleteRange(range).run();
           void (async () => {
             const created = await createNote(trimmed);
-            // Today's hosts resolve createNote in a microtask, but guard the
+            // Today's hosts resolve createNote in a microtodo, but guard the
             // await boundary anyway — a chain() on a torn-down editor throws.
             if (editor.isDestroyed) return;
             if (created) {

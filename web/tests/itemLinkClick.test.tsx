@@ -129,7 +129,7 @@ describe("itemLink click navigation", () => {
   });
 
   // The role is what the host routes on (MainScreen's ITEM_NAV_TARGET maps
-  // note/daily → Materials tabs and task → Schedule → Todo), so the editor's
+  // note/daily → Materials tabs and todo → Schedule → Todo), so the editor's
   // contract is "hand back the target's own role verbatim".
   it.each([
     ["task", "task-1779546217506"],

@@ -16,7 +16,7 @@ import { cn } from "./cn";
 export interface SessionCompletionModalLabels {
   /** Already-interpolated, e.g. "セッション 2 が完了しました". */
   title: string;
-  /** Already-interpolated body (task / no-task variant chosen by the host). */
+  /** Already-interpolated body (todo / no-todo variant chosen by the host). */
   body: string;
   startBreak: string;
   oneMore: string;

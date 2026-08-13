@@ -4,7 +4,7 @@ import { createSupabaseDataService } from "./SupabaseDataService";
 /*
  * Single source for the web/Electron/Capacitor DataService singleton.
  *
- * Hosts (MainScreen / TasksScreen) previously each kept a private
+ * Hosts (MainScreen / TodosScreen) previously each kept a private
  * `dataServiceSingleton` + `getDataService()`, which produced one
  * SupabaseDataService PER screen. Centralising here gives the whole web
  * build one shared instance. CLAUDE.md §3.1: components reach data only

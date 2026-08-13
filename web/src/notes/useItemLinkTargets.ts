@@ -20,9 +20,9 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  *
  * Roles: notes → "note" (#375: every live note is openable now that the
  * folder type is gone), dailies → "daily" with the canonical `daily-<YYYY-MM-DD>`
- * items_meta id (the id the item_links graph references), tasks → "task"
+ * items_meta id (the id the item_links graph references), todos → "task"
  * (#370 — the v1 pool left them out because nothing could open a specific
- * task from another tab; the Kanban now consumes a pending selection the
+ * todo from another tab; the Kanban now consumes a pending selection the
  * same way Notes / Daily do).
  *
  * The lazy / stale / in-flight machinery this hook introduced in #430 now
@@ -48,7 +48,7 @@ export function useItemLinkTargets(
 
   const fetchPool = useCallback(async (): Promise<ItemLinkTarget[]> => {
     if (!dataService) return EMPTY;
-    const [notes, dailies, tasks] = await Promise.all([
+    const [notes, dailies, todos] = await Promise.all([
       dataService.listNotesUnified(),
       dataService.listDailiesUnified(),
       dataService.fetchTodoTree(),
@@ -62,11 +62,11 @@ export function useItemLinkTargets(
       if (d.isDeleted) continue;
       next.push({ id: d.id, label: d.date, role: "daily" });
     }
-    for (const task of tasks) {
-      if (task.isDeleted) continue;
+    for (const todo of todos) {
+      if (todo.isDeleted) continue;
       next.push({
-        id: task.id,
-        label: task.title || "(untitled)",
+        id: todo.id,
+        label: todo.title || "(untitled)",
         role: "task",
       });
     }

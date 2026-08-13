@@ -8,7 +8,7 @@ import { WikiTagsUnifiedContext } from "./WikiTagsUnifiedContextValue";
 /*
  * Pattern A Provider for DU-C+ unified WikiTag state. Mounted by the
  * host App.tsx after Sync (the hook reads `useSyncContext`) and any
- * items_meta-owning Providers (Tasks / Events / Routine / Notes /
+ * items_meta-owning Providers (Todos / Events / Routine / Notes /
  * Daily) — assignments / links may reference items from any of those
  * roles, so this Provider is the "last sibling" of that group.
  *

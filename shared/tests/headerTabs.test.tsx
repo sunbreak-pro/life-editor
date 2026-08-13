@@ -9,7 +9,7 @@ import { HeaderTabs, type HeaderTab } from "../src/components";
  */
 
 const TABS: HeaderTab[] = [
-  { id: "tasks", label: "Tasks", badge: 12 },
+  { id: "todos", label: "Todos", badge: 12 },
   { id: "notes", label: "Notes" },
   { id: "daily", label: "Daily" },
 ];
@@ -17,7 +17,7 @@ const TABS: HeaderTab[] = [
 function renderTabs(props?: Partial<Parameters<typeof HeaderTabs>[0]>) {
   const onSelect = vi.fn();
   render(
-    <HeaderTabs tabs={TABS} activeTab="tasks" onSelect={onSelect} {...props} />,
+    <HeaderTabs tabs={TABS} activeTab="todos" onSelect={onSelect} {...props} />,
   );
   return { onSelect };
 }
@@ -25,7 +25,7 @@ function renderTabs(props?: Partial<Parameters<typeof HeaderTabs>[0]>) {
 describe("HeaderTabs", () => {
   it("marks the active tab with aria-selected and leaves the rest unselected", () => {
     renderTabs();
-    expect(screen.getByRole("tab", { name: /Tasks/ })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: /Todos/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -37,7 +37,7 @@ describe("HeaderTabs", () => {
 
   it("renders a badge only for tabs that declare one", () => {
     renderTabs();
-    // Tasks carries a count; it is shown.
+    // Todos carries a count; it is shown.
     expect(screen.getByText("12")).toBeInTheDocument();
     // Notes / Daily declare no badge → no extra pill beside their label.
     expect(screen.getByRole("tab", { name: "Notes" }).textContent).toBe(
@@ -56,7 +56,7 @@ describe("HeaderTabs", () => {
 
   it("moves selection to the next tab on ArrowRight and wraps around", () => {
     const { onSelect } = renderTabs();
-    fireEvent.keyDown(screen.getByRole("tab", { name: /Tasks/ }), {
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Todos/ }), {
       key: "ArrowRight",
     });
     expect(onSelect).toHaveBeenCalledWith("notes");
@@ -64,7 +64,7 @@ describe("HeaderTabs", () => {
 
   it("moves selection to the previous tab on ArrowLeft (wrapping to the end)", () => {
     const { onSelect } = renderTabs();
-    fireEvent.keyDown(screen.getByRole("tab", { name: /Tasks/ }), {
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Todos/ }), {
       key: "ArrowLeft",
     });
     expect(onSelect).toHaveBeenCalledWith("daily");
@@ -72,7 +72,7 @@ describe("HeaderTabs", () => {
 
   it("drops its own bottom border when divider={false} (v2 SectionHeader owns the line)", () => {
     const withDivider = render(
-      <HeaderTabs tabs={TABS} activeTab="tasks" onSelect={vi.fn()} />,
+      <HeaderTabs tabs={TABS} activeTab="todos" onSelect={vi.fn()} />,
     );
     expect(withDivider.container.querySelector(".border-b")).not.toBeNull();
     withDivider.unmount();
@@ -80,7 +80,7 @@ describe("HeaderTabs", () => {
     const noDivider = render(
       <HeaderTabs
         tabs={TABS}
-        activeTab="tasks"
+        activeTab="todos"
         onSelect={vi.fn()}
         divider={false}
       />,

@@ -16,4 +16,4 @@
  * nothing here reaches the browser bundle or `tsc -b`.
  */
 export { stubDataService } from "../../../shared/tests/helpers/dataServiceStub";
-export { makeNote, makeTask } from "../../../shared/tests/helpers/nodeFixtures";
+export { makeNote, makeTodo } from "../../../shared/tests/helpers/nodeFixtures";

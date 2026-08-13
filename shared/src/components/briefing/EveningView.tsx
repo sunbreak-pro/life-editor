@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Star } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
-import { TaskStatusCycleButton } from "../TaskStatusCycleButton";
+import { TodoStatusCycleButton } from "../TodoStatusCycleButton";
 import { IntentionField } from "./IntentionField";
 
 /*
@@ -76,7 +76,7 @@ export interface EveningLabels {
   /**
    * Copy for the per-row status control (#796) — `todoStatus` names what the
    * button controls, the three `status*` members name each value. Same words
-   * the Tasks section uses (taskDetail.*), injected rather than re-worded.
+   * the Todos section uses (todoDetail.*), injected rather than re-worded.
    */
   todoStatus: string;
   statusNotStarted: string;
@@ -291,7 +291,7 @@ export function EveningView({
               >
                 {/* 朱 is the user's own action voice on the paper, so the
                     control wears it rather than the app accent. */}
-                <TaskStatusCycleButton
+                <TodoStatusCycleButton
                   status={todo.status}
                   onChange={(next) => onSetTodoStatus(todo.id, next)}
                   labels={labels}

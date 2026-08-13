@@ -32,7 +32,7 @@ function makeLabels(): AnalyticsLabels {
     tabsLabel: "Analytics views",
     tabs: {
       overview: "Overview",
-      tasks: "Tasks",
+      todos: "Todos",
       schedule: "Schedule",
       work: "Work",
     },
@@ -48,7 +48,7 @@ function makeLabels(): AnalyticsLabels {
     },
     period: { day: "Day", week: "Week", month: "Month" },
     workTime: "Work Time",
-    taskWorkTime: "Work Time by Task",
+    todoWorkTime: "Work Time by Todo",
     totalWorkTime: "Total Work Time",
     sessions: "Sessions",
     avgPerDay: "Avg / Day",
@@ -56,7 +56,7 @@ function makeLabels(): AnalyticsLabels {
     emptySchedule: { title: "No events", description: "Add events." },
     emptyMobile: { title: "Nothing recorded yet", description: "Get started." },
     overview: {
-      tasks: "Tasks",
+      todos: "Todos",
       events: "Events",
       notes: "Notes",
       work: "Work Time",
@@ -71,7 +71,7 @@ function makeLabels(): AnalyticsLabels {
     todayCard: {
       title: "Today",
       workTime: "Work Time",
-      completedTasks: "Completed",
+      completedTodos: "Completed",
       pomodoroCount: "Pomodoros",
     },
     weekly: {
@@ -103,8 +103,8 @@ function makeLabels(): AnalyticsLabels {
       longBreak: "Long Break",
     },
     timeline: { title: "Timeline", noSessions: "No sessions" },
-    taskTrend: { title: "Trend", completedCount: "Completed" },
-    stagnation: { title: "Stagnation", tasks: "tasks" },
+    todoTrend: { title: "Trend", completedCount: "Completed" },
+    stagnation: { title: "Stagnation", todos: "todos" },
     tagTime: {
       title: "By Tag",
       noData: "No data",
@@ -147,7 +147,7 @@ function baseProps(over?: Partial<AnalyticsViewProps>): AnalyticsViewProps {
     scheduleItems: [],
     notes: [],
     routines: [],
-    taskNameMap: new Map(),
+    todoNameMap: new Map(),
     tags: [],
     assignments: [],
     targetPerDay: 4,
@@ -178,7 +178,7 @@ describe("AnalyticsView responsive branch", () => {
     expect(tabs).toHaveLength(4);
     expect(tabs.map((t) => t.textContent)).toEqual([
       "Overview",
-      "Tasks",
+      "Todos",
       "Work",
       "Schedule",
     ]);

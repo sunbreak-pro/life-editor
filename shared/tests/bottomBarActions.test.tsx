@@ -18,7 +18,7 @@ import { AppShell, BottomTabActionRow } from "../src/components";
  */
 
 const SECTIONS = [
-  { id: "tasks", label: "Tasks", icon: <Dot /> },
+  { id: "todos", label: "Todos", icon: <Dot /> },
   { id: "daily", label: "Daily", icon: <Dot /> },
   { id: "notes", label: "Notes", icon: <Dot /> },
   { id: "schedule", label: "Schedule", icon: <Dot /> },
@@ -54,7 +54,7 @@ function renderShell(props?: Partial<Parameters<typeof AppShell>[0]>) {
   render(
     <AppShell
       sections={SECTIONS}
-      activeSection="tasks"
+      activeSection="todos"
       onNavigate={vi.fn()}
       onTogglePalette={vi.fn()}
       userEmail="user@example.com"
@@ -148,7 +148,7 @@ describe("bottom bar actions (#472, narrow)", () => {
     render(
       <AppShell
         sections={SECTIONS}
-        activeSection="tasks"
+        activeSection="todos"
         onNavigate={vi.fn()}
         onTogglePalette={vi.fn()}
         userEmail="user@example.com"

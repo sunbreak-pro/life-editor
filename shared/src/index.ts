@@ -52,7 +52,7 @@ export type { RoutineNode, FrequencyType } from "./types/routine";
 export type { ScheduleItem } from "./types/schedule";
 export type { CalendarNode } from "./types/calendar";
 
-// Tasks domain — context (Pattern A) + hooks
+// Todos domain — context (Pattern A) + hooks
 export {
   SyncProvider,
   SyncContext,
@@ -367,32 +367,32 @@ export {
   type RoutineSyncCreate,
 } from "./utils/routineScheduleSync";
 export {
-  tasksToCalendarChips,
-  taskChipId,
-  isTaskChip,
-  unwrapTaskChipId,
+  todosToCalendarChips,
+  todoChipId,
+  isTodoChip,
+  unwrapTodoChipId,
   localDateTimeToISO,
-  TASK_CHIP_PREFIX,
-  type TaskCalendarChip,
-} from "./utils/taskCalendarChips";
+  TODO_CHIP_PREFIX,
+  type TodoCalendarChip,
+} from "./utils/todoCalendarChips";
 // #625: Event <-> Todo conversion — the host-side decisions (what blocks a
 // conversion, where a converted Todo lands). The write itself is a
-// DataService method (convertEventToTask / convertTaskToEvent).
+// DataService method (convertEventToTodo / convertTodoToEvent).
 export {
   eventToTodoBlock,
   todoToEventBlock,
-  taskToEventPlacement,
-  // #739: the mirror of taskToEventPlacement — an event's slot, kept as the
+  todoToEventPlacement,
+  // #739: the mirror of todoToEventPlacement — an event's slot, kept as the
   // Todo's chip slot (D-20260811-sched-1).
-  eventToTaskSlot,
+  eventToTodoSlot,
   type EventToTodoBlock,
   type TodoToEventBlock,
   type EventPlacement,
   type EventSlot,
-  type TaskChipSlot,
+  type TodoChipSlot,
 } from "./utils/itemConversion";
-// A-3 (#298): "add from tasks" selector for the Today's Todo tray.
-export { pickAddableTasks, type AddableTask } from "./utils/todayTodo";
+// A-3 (#298): "add from todos" selector for the Today's Todo tray.
+export { pickAddableTodos, type AddableTodo } from "./utils/todayTodo";
 // Schedule host domain helpers (#280, extracted from web CalendarTab /
 // scheduleLabels): pure label mapping, view-mode normalisation + visible
 // range, and the optimistic-create row factory.
@@ -511,7 +511,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
   type TimerPhase,
-  type ActiveTask,
+  type ActiveTodo,
 } from "./context";
 export { useTimerContext } from "./hooks/useTimerContext";
 export {
@@ -555,12 +555,12 @@ export {
   type SoundPresetDef,
 } from "./constants/sounds";
 
-// Tasks domain — tree utilities (host UI builds on these)
+// Todos domain — tree utilities (host UI builds on these)
 export {
   collectDescendantIds,
   isDescendantOf,
 } from "./utils/getDescendantTodos";
-// Shared UI class-string tokens + task-status visuals (C5 dedup) — the web
+// Shared UI class-string tokens + todo-status visuals (C5 dedup) — the web
 // host imports these through the barrel.
 export {
   FOCUS_RING,
@@ -573,7 +573,7 @@ export {
   STATUS_TEXT_KEY,
   statusLabel,
   type StatusLabelSet,
-} from "./components/taskStatusVisuals";
+} from "./components/todoStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";

@@ -8,15 +8,15 @@ import { useTimerContext } from "../hooks/useTimerContext";
  * Provider layer the countdown stays live whichever section is open. Renders
  * nothing while the timer is idle, which is what keeps the resting nav
  * identical to the no-timer shell. Copy-free: the countdown is numeric and
- * the task title is user data, so there is nothing to translate.
+ * the todo title is user data, so there is nothing to translate.
  */
 export function NavTimerStatus() {
-  const { isRunning, formatted, activeTask } = useTimerContext();
+  const { isRunning, formatted, activeTodo } = useTimerContext();
   if (!isRunning) return null;
   return (
     <>
       <span className="tabular-nums">{formatted}</span>
-      {activeTask != null && ` · ${activeTask.title}`}
+      {activeTodo != null && ` · ${activeTodo.title}`}
     </>
   );
 }

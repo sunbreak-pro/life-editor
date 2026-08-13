@@ -111,7 +111,7 @@ export const SECTION_DESCRIPTORS: Readonly<
   /*
    * Briefing (Briefing plan Step 1) — the morning-paper home surface and the
    * default landing section (useStartupSection). Crosses four domains
-   * (schedule / tasks / timer / dailies) read-only, so it uses no per-section
+   * (schedule / todos / timer / dailies) read-only, so it uses no per-section
    * Provider — BriefingScreen calls the injected DataService directly (same
    * pattern as TrashScreen) and re-fetches on Realtime syncVersion bumps,
    * which is how a briefing written by Claude via MCP appears without a
@@ -145,14 +145,14 @@ export const SECTION_DESCRIPTORS: Readonly<
    * longer needed on that count).
    *
    * TodoTreeProvider is OUTERMOST here (schedule redesign A-1): the Calendar
-   * reads scheduled TodoNodes to render task=blue chips. Provider order (§6.2)
-   * places TaskTree before Calendar, and TaskTree depends on neither WikiTags
+   * reads scheduled TodoNodes to render todo=blue chips. Provider order (§6.2)
+   * places TodoTree before Calendar, and TodoTree depends on neither WikiTags
    * nor Calendar, so it sits at the very outside. #411 folded the Kanban in as
    * the Todo tab. It needs the same two Providers it had in Materials
-   * (TaskTree + WikiTags) and both are already on this branch, so the tab
-   * reuses them rather than nesting a second pair — one task store for the
+   * (TodoTree + WikiTags) and both are already on this branch, so the tab
+   * reuses them rather than nesting a second pair — one todo store for the
    * calendar chips, the Todo tray and the board. `persistSelection` moved with
-   * the board: it is what re-opens the task the user was reading after a tab
+   * the board: it is what re-opens the todo the user was reading after a tab
    * switch (#282).
    */
   schedule: {
@@ -168,10 +168,10 @@ export const SECTION_DESCRIPTORS: Readonly<
                 <ScheduleScreen
                   dataService={ds}
                   tab={nav.scheduleTab}
-                  onOpenTasks={() => nav.setScheduleTab("todo")}
-                  pendingNewTask={nav.pendingNewTask}
-                  onConsumeNewTask={nav.consumeNewTask}
-                  pendingSelectTaskId={nav.pendingTaskSelect}
+                  onOpenTodos={() => nav.setScheduleTab("todo")}
+                  pendingNewTodo={nav.pendingNewTodo}
+                  onConsumeNewTodo={nav.consumeNewTodo}
+                  pendingSelectTodoId={nav.pendingTodoSelect}
                   onConsumePendingSelect={nav.consumeItemNav}
                   pendingSelectEvent={nav.pendingEventSelect}
                   onConsumePendingEvent={nav.consumeItemNav}
@@ -243,9 +243,9 @@ export const SECTION_DESCRIPTORS: Readonly<
     ),
   },
   /*
-   * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset editor.
+   * Work (W3-B) — Pomodoro timer + TodoSelector + settings/preset editor.
    * TimerProvider is mounted at the shell level; this view reads
-   * useTimerContext + fetches the task list via the injected DataService.
+   * useTimerContext + fetches the todo list via the injected DataService.
    */
   work: {
     width: "wide",
@@ -253,8 +253,8 @@ export const SECTION_DESCRIPTORS: Readonly<
     body: ({ ds }) => <WorkScreen dataService={ds} />,
   },
   /*
-   * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule). Host
-   * fetches sessions/tasks/schedule/routines via DataService and injects data
+   * Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Host
+   * fetches sessions/todos/schedule/routines via DataService and injects data
    * + t into the pure shared <AnalyticsView>.
    */
   analytics: {

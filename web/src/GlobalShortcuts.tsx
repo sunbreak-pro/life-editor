@@ -15,8 +15,8 @@ import {
  * callbacks, to the shared useGlobalShortcuts executor.
  *
  * Renders nothing — it only installs the window keydown listener. Callbacks are
- * injected as props (CLAUDE.md §6.4). `onNewTask` is wired in W3-B (the host
- * navigates to the Tasks section — see MainScreen). undo / redo (#304) route
+ * injected as props (CLAUDE.md §6.4). `onNewTodo` is wired in W3-B (the host
+ * navigates to the Todos section — see MainScreen). undo / redo (#304) route
  * through the ambient global UndoRedo context (⌘Z / ⌘⇧Z; the shared executor
  * already skips text fields / contentEditable and IME composition, so TipTap
  * keeps its own history). Both hooks are OPTIONAL: when a Provider is absent
@@ -27,12 +27,12 @@ export function GlobalShortcuts({
   onNavigate,
   onOpenSettings,
   onTogglePalette,
-  onNewTask,
+  onNewTodo,
 }: {
   onNavigate: (id: NavShortcutId) => void;
   onOpenSettings: () => void;
   onTogglePalette: () => void;
-  onNewTask?: () => void;
+  onNewTodo?: () => void;
 }) {
   const shortcutConfig = useShortcutConfig();
   const undoRedo = useUndoRedoOptional();
@@ -40,7 +40,7 @@ export function GlobalShortcuts({
     onNavigate,
     onOpenSettings,
     onTogglePalette,
-    onNewTask,
+    onNewTodo,
     // #304: app-level undo/redo via the ambient global stack (null → no-op).
     onUndo: undoRedo ? () => undoRedo.undo() : undefined,
     onRedo: undoRedo ? () => undoRedo.redo() : undefined,

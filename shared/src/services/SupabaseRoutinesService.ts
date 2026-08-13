@@ -589,7 +589,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const eventIds = eventRows.map((r) => r.item_id);
 
     // 2. Hard-delete event items_meta rows. events_payload cascades via
-    //    the 0008 item_id FK. Done one-by-one to mirror the Tasks
+    //    the 0008 item_id FK. Done one-by-one to mirror the Todos
     //    descendants-first pattern (NO ACTION-friendly).
     for (const eid of eventIds) {
       const { error } = await this.client

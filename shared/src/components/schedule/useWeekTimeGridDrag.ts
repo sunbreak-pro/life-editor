@@ -30,7 +30,7 @@ import type { WeekTimeGridItem } from "./WeekTimeGrid";
 /**
  * Live drag state held in a ref so the window listeners read fresh values.
  *
- * "place" (schedule redesign A-3 / #298): an all-day task chip is dragged out
+ * "place" (schedule redesign A-3 / #298): an all-day todo chip is dragged out
  * of the all-day lane into the time body to gain a start time. Unlike "move"
  * (delta from the block's own time origin) it has no time origin, so the drop
  * time is read from the ABSOLUTE pointer Y over the scroll body; the day stays
@@ -259,7 +259,7 @@ export function useWeekTimeGridDrag({
             if (d.mode === "move") onDropAllDay?.(d.id, d.final.dateISO);
           } else if (d.mode === "move" || d.mode === "place") {
             // "place" writes through the same host callback as move — the host
-            // routes a task chip to updateNode(scheduledAt/…, isAllDay:false),
+            // routes a todo chip to updateNode(scheduledAt/…, isAllDay:false),
             // turning the all-day candidate into a timed block (A-3 / #298).
             onMoveItem?.(
               d.id,
@@ -274,7 +274,7 @@ export function useWeekTimeGridDrag({
           // Non-drag pointer-up = a click on a movable block (#297 guard). Open
           // the bubble anchored at the pointer, not the old rightSidebar select
           // (#299). This is the ONLY click route a draggable item has — an
-          // all-day task chip included — since a drag handler leaves no onClick
+          // all-day todo chip included — since a drag handler leaves no onClick
           // to fall back on (#564).
           if (onItemActivate)
             onItemActivate(d.id, { x: ev.clientX, y: ev.clientY });

@@ -4,12 +4,12 @@ import { useWikiTagsUnifiedContext } from "@life-editor/shared";
 /*
  * The one copy of "a `[[ ]]` link in a body is an edge in item_links" (#776).
  *
- * Notes, Tasks and Daily each grew their own version of this: Notes and Tasks
- * were verbatim copies whose only difference was the console tag (and the task
+ * Notes, Todos and Daily each grew their own version of this: Notes and Todos
+ * were verbatim copies whose only difference was the console tag (and the todo
  * hook still named `[KanbanView]` from where it was copied), while Daily had
  * the same three steps buried inside its park / flush machinery. A fourth
  * editing surface would have needed a fourth copy — which is exactly what the
- * task hook's own header said it existed to prevent.
+ * todo hook's own header said it existed to prevent.
  *
  * Three steps, and all three surfaces need every one of them:
  *
@@ -23,14 +23,14 @@ import { useWikiTagsUnifiedContext } from "@life-editor/shared";
  *      beside the save — a failed sync only leaves a stale edge the next save
  *      retries.
  *
- * What stays with the host is WHEN these run: Notes and Tasks link from a row
+ * What stays with the host is WHEN these run: Notes and Todos link from a row
  * that already exists, so they call straight through; Daily's row is minted by
  * the save that carries the link, so it parks insertions by date and calls
  * `mirrorInlineLink` from the flush (see DailyView).
  *
  * `hostTag` is the surface's own name for its console errors, passed in rather
  * than written here — a tag baked into shared code is how `[KanbanView]` ended
- * up inside a hook called `useTaskLinking`.
+ * up inside a hook called `useTodoLinking`.
  */
 export function useInlineItemLinks(hostTag: string) {
   const { createItemLink, getLinksForItem, syncInlineLinks } =

@@ -12,7 +12,7 @@ import { OfflineBanner } from "./components/OfflineBanner";
 
 /*
  * Root: session gate.
- * No session -> AuthScreen. Session -> MainScreen (Tasks + Daily over
+ * No session -> AuthScreen. Session -> MainScreen (Todos + Daily over
  * Supabase; section switch is local state per CLAUDE.md §3.2).
  */
 function App() {

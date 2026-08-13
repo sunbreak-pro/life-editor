@@ -19,7 +19,7 @@ import { UndoRedoHost } from "./UndoRedoHost";
  *
  * Everything here is mounted ONCE, above the section switch, and stays
  * mounted for the life of the session — that is the property that makes it a
- * unit worth naming. The section-layer Providers (Materials' tag/task/note
+ * unit worth naming. The section-layer Providers (Materials' tag/todo/note
  * trees, Schedule's calendar/routine stack, Analytics' filter) are the
  * opposite: they live in the descriptor rows and are torn down on navigation.
  * Splitting the two apart is what lets MainScreen read as "chrome + shell"

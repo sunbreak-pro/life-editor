@@ -9,7 +9,7 @@ export interface HeaderTab {
   /**
    * Optional count / marker pill. Omit on tabs without a meaningful count
    * (target-IA: badges only on tabs where a number means something, e.g.
-   * Materials → Tasks unfinished count).
+   * Materials → Todos unfinished count).
    */
   badge?: number | string;
 }

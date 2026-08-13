@@ -18,7 +18,7 @@ import { useScheduleItemsTrash } from "./useScheduleItemsTrash";
  * dependencies are injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton → `options.dataService`
  * - host UndoRedo Context        → `options.undoRedo` (no-op default;
- *   real UndoRedo lands in S6, same as tasks/daily/notes/routines)
+ *   real UndoRedo lands in S6, same as todos/daily/notes/routines)
  *
  * Must sit inside a Sync Provider (reads `useSyncContext`) — CLAUDE.md
  * §6.2 places ScheduleItems as the SECOND of the Schedule trio, inside

@@ -21,7 +21,7 @@ const labels: TodayTodoTrayLabels = {
   addAction: "add to today",
   emptyAddable: "empty addable",
   complete: "complete",
-  openInTasks: "open in tasks",
+  openInTodos: "open in todos",
 };
 
 const rows = {
@@ -37,12 +37,12 @@ const noop = () => {};
 describe("TodayTodoTray #555 surfaces", () => {
   it("soft-deletes the clicked row via onDelete", () => {
     const onDelete = vi.fn();
-    const onOpenTask = vi.fn();
+    const onOpenTodo = vi.fn();
     render(
       <TodayTodoTray
         {...rows}
         onToggleComplete={noop}
-        onOpenTask={onOpenTask}
+        onOpenTodo={onOpenTodo}
         onAddCandidate={noop}
         onDelete={onDelete}
         labels={{ ...labels, delete: "delete todo" }}
@@ -56,7 +56,7 @@ describe("TodayTodoTray #555 surfaces", () => {
     fireEvent.click(buttons[1]);
     expect(onDelete).toHaveBeenCalledWith("task-2");
     // The delete button sits beside the title button, not inside it.
-    expect(onOpenTask).not.toHaveBeenCalled();
+    expect(onOpenTodo).not.toHaveBeenCalled();
   });
 
   it("renders no delete button without onDelete (Briefing contract)", () => {
@@ -64,7 +64,7 @@ describe("TodayTodoTray #555 surfaces", () => {
       <TodayTodoTray
         {...rows}
         onToggleComplete={noop}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         labels={{ ...labels, delete: "delete todo" }}
       />,
@@ -77,7 +77,7 @@ describe("TodayTodoTray #555 surfaces", () => {
       <TodayTodoTray
         {...rows}
         onToggleComplete={noop}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         onDelete={vi.fn()}
         labels={labels}
@@ -93,7 +93,7 @@ describe("TodayTodoTray #555 surfaces", () => {
       <TodayTodoTray
         {...rows}
         onToggleComplete={noop}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         renderRowExtra={(row) => <span>{`extra-${row.id}`}</span>}
         labels={labels}
@@ -149,7 +149,7 @@ describe("TodayTodoTray three-status rows (#796)", () => {
         {...statusRows}
         onToggleComplete={onToggleComplete}
         onSetStatus={onSetStatus}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         labels={{ ...labels, status: "Status", statusLabels }}
       />,
@@ -180,7 +180,7 @@ describe("TodayTodoTray three-status rows (#796)", () => {
       <TodayTodoTray
         {...statusRows}
         onToggleComplete={onToggleComplete}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         labels={labels}
       />,
@@ -199,7 +199,7 @@ describe("TodayTodoTray three-status rows (#796)", () => {
  * "Pick a todo from Add from todos → it lands in Candidates → it later becomes
  * Scheduled" was two names and two lists for one act, so Briefing collapses
  * them: one list, with the time-less rows reading as all-day. The pill wears
- * the chip-task family rather than the neutral one AgendaList gives an event,
+ * the chip-todo family rather than the neutral one AgendaList gives an event,
  * which is the whole point of the third bullet — same row shape, Todo colour.
  *
  * Schedule stages candidates deliberately and keeps the pair, so the "off"
@@ -219,7 +219,7 @@ describe("TodayTodoTray single list (#795)", () => {
       <TodayTodoTray
         {...merged}
         onToggleComplete={noop}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         singleList
         labels={{ ...labels, allDay: "All-day" }}
@@ -259,7 +259,7 @@ describe("TodayTodoTray single list (#795)", () => {
       <TodayTodoTray
         {...merged}
         onToggleComplete={noop}
-        onOpenTask={noop}
+        onOpenTodo={noop}
         onAddCandidate={noop}
         labels={{ ...labels, allDay: "All-day" }}
       />,

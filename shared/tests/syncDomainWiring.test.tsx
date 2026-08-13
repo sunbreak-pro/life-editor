@@ -65,7 +65,7 @@ describe("useNotesUnifiedAPI listens to the notes domain only", () => {
     renderHook(() => useNotesUnifiedAPI({ dataService: ds }), { wrapper });
     await waitFor(() => expect(listNotesUnified).toHaveBeenCalledTimes(1));
 
-    // Editing a task, a routine, the tag graph, the timer or the sound
+    // Editing a todo, a routine, the tag graph, the timer or the sound
     // settings must not re-pull the note list — that cross-domain traffic is
     // what #499 measured as ~86 REST requests for one note edit.
     act(() => {

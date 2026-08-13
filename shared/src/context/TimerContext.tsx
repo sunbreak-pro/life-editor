@@ -23,7 +23,7 @@ import {
   phaseDurationSeconds,
   remainingSeconds as computeRemaining,
   elapsedSeconds as computeElapsed,
-  type ActiveTask,
+  type ActiveTodo,
   type TimerConfig,
   type TimerPhase,
 } from "./timerReducer";
@@ -131,9 +131,9 @@ export function TimerProvider({
 
   // --- session log helpers ---
   const startSession = useCallback(
-    (phase: TimerPhase, taskId: string | null) => {
+    (phase: TimerPhase, todoId: string | null) => {
       void ds
-        .startTimerSession(phase, taskId ?? undefined)
+        .startTimerSession(phase, todoId ?? undefined)
         .then((session) => {
           currentSessionIdRef.current = session.id;
         })
@@ -200,7 +200,7 @@ export function TimerProvider({
       // (#586): elapsedSeconds clamps (stale tickNow − startedAt) to ≥ 0 and
       // the fresh phase has accumulatedMs 0, so the display shows the full
       // target either way until the 1 s pulse takes over.
-      startSession(state.phase, state.activeTask?.id ?? null);
+      startSession(state.phase, state.activeTodo?.id ?? null);
       dispatch({ type: "START", now: Date.now() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -212,7 +212,7 @@ export function TimerProvider({
     const now = Date.now();
     // A fresh segment from elapsed 0 means a new session row.
     if (state.accumulatedMs === 0 && currentSessionIdRef.current === null) {
-      startSession(state.phase, state.activeTask?.id ?? null);
+      startSession(state.phase, state.activeTodo?.id ?? null);
     }
     dispatch({ type: "START", now });
     setTickNow(now);
@@ -220,7 +220,7 @@ export function TimerProvider({
     state.isRunning,
     state.accumulatedMs,
     state.phase,
-    state.activeTask,
+    state.activeTodo,
     startSession,
   ]);
 
@@ -253,8 +253,8 @@ export function TimerProvider({
     [state, closeSession],
   );
 
-  const setActiveTask = useCallback((task: ActiveTask | null) => {
-    dispatch({ type: "SET_ACTIVE_TASK", task });
+  const setActiveTodo = useCallback((todo: ActiveTodo | null) => {
+    dispatch({ type: "SET_ACTIVE_TODO", todo });
   }, []);
 
   const adjustRemainingMinutes = useCallback(
@@ -424,7 +424,7 @@ export function TimerProvider({
       totalSeconds,
       completedSessions: state.completedSessions,
       formatted,
-      activeTask: state.activeTask,
+      activeTodo: state.activeTodo,
     }),
     [
       state.phase,
@@ -434,7 +434,7 @@ export function TimerProvider({
       totalSeconds,
       state.completedSessions,
       formatted,
-      state.activeTask,
+      state.activeTodo,
     ],
   );
 
@@ -451,7 +451,7 @@ export function TimerProvider({
       pause,
       reset,
       setPhase,
-      setActiveTask,
+      setActiveTodo,
       adjustRemainingMinutes,
       saveSettings,
       setAutoStartBreaks,
@@ -471,7 +471,7 @@ export function TimerProvider({
       pause,
       reset,
       setPhase,
-      setActiveTask,
+      setActiveTodo,
       adjustRemainingMinutes,
       saveSettings,
       setAutoStartBreaks,

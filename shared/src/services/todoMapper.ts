@@ -19,7 +19,7 @@ import {
  *   - The `tasks_payload` shape for SELECTs (`TasksPayloadRow`) and its
  *     WRITE shape (no `parent_item_role` — it is a generated stored
  *     column the client cannot supply).
- *   - SELECT column lists for items_meta (role=task) + tasks_payload.
+ *   - SELECT column lists for items_meta (role=todo) + tasks_payload.
  *   - `rowsToTodoNode` / `todoNodeToRows` (INSERT) / `todoUpdatesToPatches`
  *     (UPDATE). All pure: zero `new Date()`, zero Supabase, zero I/O.
  *
@@ -147,7 +147,7 @@ export function toNodeType(value: string | null): TodoNodeType {
   if (value === null) return "task"; // legacy / unset → todo
   if (NODE_TYPES.has(value)) return "task"; // "task" | legacy "folder" → todo
   throw new Error(
-    `tasks_payload: invalid task_type "${value}" (expected folder|task)`,
+    `tasks_payload: invalid task_type "${value}" (expected folder|todo)`,
   );
 }
 

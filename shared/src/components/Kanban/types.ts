@@ -30,14 +30,14 @@ export interface KanbanCardTag {
 }
 
 /**
- * A single task rendered as a card. `status` is normalized to a non-null
+ * A single todo rendered as a card. `status` is normalized to a non-null
  * TodoStatus by the column builder (folders are excluded from cards).
  */
 export interface KanbanCardModel {
   id: string;
   title: string;
   status: TodoStatus;
-  /** Tags assigned to this task. Rendered as chips on the status view;
+  /** Tags assigned to this todo. Rendered as chips on the status view;
    *  omitted on the tag view (the column already conveys the tag). */
   tags?: KanbanCardTag[];
 }

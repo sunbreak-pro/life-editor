@@ -62,7 +62,7 @@ describe("hasAccelerator", () => {
 
 describe("isActiveInInput (QA #2 — definition-driven flag)", () => {
   it("reads activeInInput from the matching definition", () => {
-    // command-palette is activeInInput:true; new-task is false (defaults).
+    // command-palette is activeInInput:true; new-todo is false (defaults).
     expect(isActiveInInput("global:command-palette")).toBe(true);
     expect(isActiveInInput("global:new-task")).toBe(false);
   });
@@ -119,7 +119,7 @@ describe("resolveShortcut", () => {
     expect(id).toBe("nav:tasks");
   });
 
-  it("resolves bare 'n' (new-task) when not in an input", () => {
+  it("resolves bare 'n' (new-todo) when not in an input", () => {
     const id = resolveShortcut(
       evt({ key: "n" }),
       document.createElement("div"),
@@ -211,7 +211,7 @@ describe("resolveShortcut", () => {
       document.createElement("input"),
       ALL_IDS,
       defaultMatchEvent,
-      (sid) => sid === "global:new-task", // make new-task active-in-input
+      (sid) => sid === "global:new-task", // make new-todo active-in-input
     );
     expect(id).toBe("global:new-task");
   });

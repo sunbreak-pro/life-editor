@@ -112,7 +112,7 @@ function makeHarness(initialNotes: NoteNode[] = []) {
   };
 }
 
-/** Let the write chain's `.then` / `.catch` microtasks run. */
+/** Let the write chain's `.then` / `.catch` microtodos run. */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {

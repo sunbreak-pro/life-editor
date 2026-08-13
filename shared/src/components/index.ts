@@ -94,34 +94,34 @@ export {
   type MenuItemProps,
   type MenuItemVariant,
 } from "./Menu";
-// Task detail panel (W7) — the selected task's detail, shown in the shared
+// Todo detail panel (W7) — the selected todo's detail, shown in the shared
 // rightSidebar by the Kanban host. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
 export {
-  TaskDetailPanel,
-  type TaskDetailPanelProps,
-  type TaskDetailPatch,
-} from "./TaskDetailPanel";
+  TodoDetailPanel,
+  type TodoDetailPanelProps,
+  type TodoDetailPatch,
+} from "./TodoDetailPanel";
 export {
-  TaskStatusChoices,
-  type TaskStatusChoicesProps,
-} from "./TaskStatusChoices";
+  TodoStatusChoices,
+  type TodoStatusChoicesProps,
+} from "./TodoStatusChoices";
 // The list-row half of the same idea (#796): one button cycling through the
 // three statuses, for rows with no width for the full picker.
 export {
-  TaskStatusCycleButton,
-  nextTaskStatus,
-  type TaskStatusCycleButtonProps,
-} from "./TaskStatusCycleButton";
-// Task add dialog (W-UX) — small centered overlay to create a task. Pure
+  TodoStatusCycleButton,
+  nextTodoStatus,
+  type TodoStatusCycleButtonProps,
+} from "./TodoStatusCycleButton";
+// Todo add dialog (W-UX) — small centered overlay to create a todo. Pure
 // presentation: host injects copy, receives create intent via onSubmit
 // (§3.1 / §6.4).
 export {
-  TaskAddDialog,
-  type TaskAddDialogProps,
-  type TaskAddDialogLabels,
-  type TaskAddType,
-} from "./TaskAddDialog";
+  TodoAddDialog,
+  type TodoAddDialogProps,
+  type TodoAddDialogLabels,
+  type TodoAddType,
+} from "./TodoAddDialog";
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
 export { NavItem, type NavItemProps, type NavItemTone } from "./NavItem";
@@ -287,7 +287,7 @@ export {
   SettingsDetailPanel,
   type SettingsDetailPanelProps,
   type SettingsDetailTip,
-  type SettingsDetailTask,
+  type SettingsDetailTodo,
 } from "./SettingsDetailPanel";
 export {
   CommandPalette,
@@ -305,7 +305,7 @@ export {
   type TrashBusyAction,
 } from "./TrashView";
 // Work / Pomodoro (target-IA import) — pure timer face + phase badge + session
-// dots + task selector/sheet + settings editor + completion modal.
+// dots + todo selector/sheet + settings editor + completion modal.
 export {
   PhaseBadge,
   type PhaseBadgeProps,
@@ -318,16 +318,16 @@ export {
   type PomodoroTimerLabels,
 } from "./PomodoroTimer";
 export {
-  PomodoroTaskSelector,
-  type PomodoroTaskSelectorProps,
-  type PomodoroTaskSelectorLabels,
-  type TaskOption,
-} from "./PomodoroTaskSelector";
+  PomodoroTodoSelector,
+  type PomodoroTodoSelectorProps,
+  type PomodoroTodoSelectorLabels,
+  type TodoOption,
+} from "./PomodoroTodoSelector";
 export {
-  PomodoroTaskSheet,
-  type PomodoroTaskSheetProps,
-  type PomodoroTaskSheetLabels,
-} from "./PomodoroTaskSheet";
+  PomodoroTodoSheet,
+  type PomodoroTodoSheetProps,
+  type PomodoroTodoSheetLabels,
+} from "./PomodoroTodoSheet";
 export {
   PomodoroSettings,
   type PomodoroSettingsProps,
@@ -352,12 +352,12 @@ export {
 // AudioChimeBridge (W3-C) was retired in #676 (c): it existed only to carry
 // playCompletionChime BACKWARDS through the Provider chain, and Audio now sits
 // outside Timer so the Timer reads the chime directly (web/src/TimerHost.tsx).
-// Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule). Pure
+// Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Pure
 // presentational: aggregation is pure, data + t are injected by the web host
 // (§6.4). Sub-barrel so the feature can grow exports without touching here.
 export * from "./Analytics";
 // Briefing (Briefing plan Step 1) — the morning-paper home surface. Pure
-// presentational: the host fetches/aggregates (today's schedule + tasks +
+// presentational: the host fetches/aggregates (today's schedule + todos +
 // sessions + the daily's Briefing section) and injects data + labels (§6.4).
 // Reuses the 3 adopted Analytics widgets internally (Analytics shrink).
 export * from "./briefing";
@@ -369,7 +369,7 @@ export * from "./Connect";
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
 export * from "./schedule";
-// Kanban (K1) — Tasks board primitives (card / column / board) + pure
+// Kanban (K1) — Todos board primitives (card / column / board) + pure
 // column builders. Pure presentational: the host maps TodoNode[] →
 // columns and injects copy (§6.4). Folder + Status views; Tag view is K2.
 export * from "./Kanban";

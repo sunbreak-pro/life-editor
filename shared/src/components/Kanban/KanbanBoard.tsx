@@ -6,7 +6,7 @@
  * also drive it via `viewMode` (controlled) if it prefers.
  *
  * The board is a horizontal-scroll full-width strip (the host removes the
- * section max-w wrapper for tasks). Columns are pre-built by the host with
+ * section max-w wrapper for todos). Columns are pre-built by the host with
  * buildStatusColumns / buildTagColumns so this stays pure and testable.
  */
 

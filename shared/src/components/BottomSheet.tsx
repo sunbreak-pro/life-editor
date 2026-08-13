@@ -60,7 +60,7 @@ export interface BottomSheetProps {
  * events from the portal container — document.body — so the panel's
  * stopPropagation also killed the native event before it reached document, and
  * every click-outside popover placed inside a sheet (the TagPicker in the mobile
- * task detail is the first) lost its only way to close.
+ * todo detail is the first) lost its only way to close.
  */
 export function BottomSheet({
   open,

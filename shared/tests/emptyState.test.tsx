@@ -9,8 +9,8 @@ import { EmptyState } from "../src/components";
  */
 describe("EmptyState", () => {
   it("renders the message", () => {
-    render(<EmptyState message="No tasks yet" />);
-    expect(screen.getByText("No tasks yet")).toBeInTheDocument();
+    render(<EmptyState message="No todos yet" />);
+    expect(screen.getByText("No todos yet")).toBeInTheDocument();
   });
 
   it("renders the injected icon", () => {

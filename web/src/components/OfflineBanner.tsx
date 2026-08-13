@@ -14,7 +14,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
  *   - Opaque `lumen-bg-secondary` surface with a `lumen-danger` bottom
  *     border + danger-colored text (CLAUDE.md §6.4 — no transparency on
  *     primary UI containers; tokens only, no hardcoded colors). This
- *     mirrors the existing error treatment in AuthScreen / TaskTreeView
+ *     mirrors the existing error treatment in AuthScreen / TodoTreeView
  *     (border + text-lumen-danger) rather than introducing an undefined
  *     on-danger foreground token.
  *

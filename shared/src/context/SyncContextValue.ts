@@ -12,7 +12,7 @@ import type { SyncDomain } from "./syncDomains";
  *
  * Since #499 the bump is PER DOMAIN: a change routes through
  * `domainsForChange` and moves only the counters it affects, so a note edit no
- * longer re-pulls tasks, tags, the timer and the sound settings. Consumers ask
+ * longer re-pulls todos, tags, the timer and the sound settings. Consumers ask
  * for the domains they read via `useSyncDomains`, which is the supported
  * entry point — `domainVersions` is exposed for it and for tests.
  *

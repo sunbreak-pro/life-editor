@@ -49,7 +49,7 @@ import {
 /*
  * Phase 2 S1 Supabase implementation.
  *
- * The `tasks` domain is fully implemented (full-column round-trip against
+ * The `todos` domain is fully implemented (full-column round-trip against
  * the 0003_tasks_full_schema.sql shape: hierarchy / soft-delete /
  * scheduling / versioning). Pure mapping lives in `todoMapper.ts`; this
  * file is the I/O layer only. Every other domain is ported too (daily /
@@ -88,7 +88,7 @@ export {
 /**
  * Create a Phase 2 Supabase-backed DataService.
  *
- * Implemented: the full tasks domain (9 methods) + the full daily domain
+ * Implemented: the full todos domain (9 methods) + the full daily domain
  * (12 methods) + the notes domain (S3: 14 note methods + 7 note-link
  * methods + 4 note-connection methods — full CRUD / hierarchy / search /
  * soft-delete / versioning / password gate, plus versioned note links and
@@ -112,7 +112,7 @@ export function createSupabaseDataService(): DataService {
   const wikiTagsUnifiedService = new SupabaseWikiTagsUnifiedService(client);
   const notesUnifiedService = new SupabaseNotesUnifiedService(client);
   const dailiesUnifiedService = new SupabaseDailiesUnifiedService(client);
-  const tasksService = new SupabaseTodosService(client);
+  const todosService = new SupabaseTodosService(client);
   const noteLinkService = new SupabaseNoteLinkService(client);
   const noteConnectionService = new SupabaseNoteConnectionService(client);
   const routinesService = new SupabaseRoutinesService(client);
@@ -120,7 +120,7 @@ export function createSupabaseDataService(): DataService {
   const calendarsService = new SupabaseCalendarsService(client);
   // #625: Event <-> Todo. Its own class rather than a method on either domain
   // service, because it writes BOTH payload tables plus items_meta — hanging
-  // it off Tasks or Schedule would make one of them the silent owner of the
+  // it off Todos or Schedule would make one of them the silent owner of the
   // other's rows.
   const itemConversionService = new SupabaseItemConversionService(client);
   // W3-A: independent timer / audio tables (0018). Not items_meta entities.
@@ -131,7 +131,7 @@ export function createSupabaseDataService(): DataService {
   // Proxy's target is arbitrary (an empty object); routing is entirely
   // by this map so adding a domain is one entry, no target juggling.
   const route = (prop: string): object | null => {
-    if (PHASE2_TODOS_METHODS.has(prop)) return tasksService;
+    if (PHASE2_TODOS_METHODS.has(prop)) return todosService;
     if (PHASE2_NOTE_LINK_METHODS.has(prop)) return noteLinkService;
     if (PHASE2_NOTE_CONNECTION_METHODS.has(prop)) return noteConnectionService;
     if (PHASE2_ROUTINES_METHODS.has(prop)) return routinesService;
@@ -175,8 +175,8 @@ export function createSupabaseDataService(): DataService {
 
 // Re-exported for round-trip unit testing + host convenience.
 // DU-B-2: 2-row API (items_meta + tasks_payload). Old single-row symbols
-// (rowToTaskNode / taskNodeToRow / taskUpdatesToPatch / TaskRow /
-// TaskWriteRow) are gone — call sites must migrate to the new API.
+// (rowToTodoNode / todoNodeToRow / todoUpdatesToPatch / TodoRow /
+// TodoWriteRow) are gone — call sites must migrate to the new API.
 export {
   rowsToTodoNode,
   todoNodeToRows,

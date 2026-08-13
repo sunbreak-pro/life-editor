@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { balanceByRole } from "../src/utils/balanceByRole";
 
 /*
- * #370 — the "[[" pool is concatenated per role (notes → dailies → tasks), so
- * a plain slice(0, 8) gave every slot to notes and the newly-added task
+ * #370 — the "[[" pool is concatenated per role (notes → dailies → todos), so
+ * a plain slice(0, 8) gave every slot to notes and the newly-added todo
  * candidates never reached the menu.
  */
 
@@ -46,7 +46,7 @@ describe("balanceByRole (#370)", () => {
       t("n4", "note"),
       t("k1", "task"),
     ];
-    // Round 1: n1, k1. Round 2: task bucket is empty, so notes carry on.
+    // Round 1: n1, k1. Round 2: todo bucket is empty, so notes carry on.
     expect(ids(balanceByRole(pool, 4))).toEqual(["n1", "k1", "n2", "n3"]);
   });
 

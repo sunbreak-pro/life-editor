@@ -8,7 +8,7 @@ import {
 /*
  * QuickCaptureSheet — the Mobile quick-capture form inside a BottomSheet. Since
  * #299 it is a thin frame around the shared creation fields; since #376 those
- * fields are the unified <ItemCreatePanel> (event / task tabs), so the Mobile
+ * fields are the unified <ItemCreatePanel> (event / todo tabs), so the Mobile
  * FAB reaches everything the Desktop overlay does.
  *
  * The frame owns nothing but the sheet: every prop below is forwarded verbatim

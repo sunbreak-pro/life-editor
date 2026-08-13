@@ -343,7 +343,7 @@ describe("WeekTimeGrid — interactions", () => {
         allDayLabel="All-day"
         onMoveItem={onMoveItem}
         onDropAllDay={onDropAllDay}
-        taskInteractive
+        todoInteractive
       />,
     );
     firePointerDown(screen.getByText("Candidate"), 10, 10);
@@ -439,7 +439,7 @@ describe("WeekTimeGrid — interactions", () => {
    * The Issue reported the lane as having no affordance at all, so the grid's
    * half of that is pinned per gesture and per chip kind. The two kinds take
    * DIFFERENT routes to the same callback: an events/routines chip has a plain
-   * onClick, while a task chip's click is the pointer-up of a place drag that
+   * onClick, while a todo chip's click is the pointer-up of a place drag that
    * never moved (#297 guard), so a regression in either one is invisible from
    * the other.
    */
@@ -477,7 +477,7 @@ describe("WeekTimeGrid — interactions", () => {
         weekdayLabels={WEEKDAYS}
         allDayLabel="All-day"
         onMoveItem={vi.fn()}
-        taskInteractive
+        todoInteractive
         {...handlers}
       />,
     );
@@ -490,7 +490,7 @@ describe("WeekTimeGrid — interactions", () => {
     expect(onItemActivate).toHaveBeenCalledWith("ev", { x: 7, y: 9 });
   });
 
-  it("activates an all-day task chip when its place drag never moves", () => {
+  it("activates an all-day todo chip when its place drag never moves", () => {
     const { onItemActivate } = renderAllDayLane();
     // The chip is draggable, so it has no onClick — the gesture is a press and
     // release below the drag threshold.
@@ -538,7 +538,7 @@ describe("WeekTimeGrid — interactions", () => {
         allDayLabel="All-day"
         onMoveItem={onMoveItem}
         onItemActivate={onItemActivate}
-        taskInteractive
+        todoInteractive
       />,
     );
     firePointerDown(screen.getByText("Candidate"), 10, 10);
@@ -600,7 +600,7 @@ describe("WeekTimeGrid — interactions", () => {
         weekdayLabels={WEEKDAYS}
         allDayLabel="All-day"
         onMoveItem={onMoveItem}
-        taskInteractive
+        todoInteractive
       />,
     );
     stubGridGeometry(container);

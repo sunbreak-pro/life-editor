@@ -6,7 +6,7 @@
  * reset-timer / view toggles / tree nav / calendar nav / tab nav — none of
  * those surfaces exist in the web build. The web `nav:*` IDs are re-keyed to
  * the web MainScreen
- * sections (tasks/daily/notes/schedule/tags), NOT the Tauri section names
+ * sections (todos/daily/notes/schedule/tags), NOT the Tauri section names
  * (schedule/ideas/work/analytics/materials), so every binding is live.
  */
 import type { TranslationKey } from "../i18n/resources";
@@ -22,7 +22,7 @@ export type ShortcutId =
   | "nav:notes"
   | "nav:schedule"
   | "nav:tags"
-  // Edit (task tree undo/redo)
+  // Edit (todo tree undo/redo)
   | "edit:undo"
   | "edit:redo";
 

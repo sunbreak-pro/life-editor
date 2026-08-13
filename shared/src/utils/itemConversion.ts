@@ -1,13 +1,13 @@
 import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import { collectDescendantIds } from "./getDescendantTodos";
-import { localDateTimeToISO, tasksToCalendarChips } from "./taskCalendarChips";
+import { localDateTimeToISO, todosToCalendarChips } from "./todoCalendarChips";
 
 /*
  * Event <-> Todo conversion — the pure half (#625).
  *
- * The write itself is a DataService method (convertEventToTask /
- * convertTaskToEvent): it re-roles ONE items_meta row, so it has to run against
+ * The write itself is a DataService method (convertEventToTodo /
+ * convertTodoToEvent): it re-roles ONE items_meta row, so it has to run against
  * the DB. What lives here is everything a host has to decide BEFORE calling it,
  * kept out of CalendarTab / KanbanView for the same reason as
  * todoTrayDeleteGuard.ts — those hosts need the whole Provider stack plus real
@@ -84,7 +84,7 @@ export interface EventPlacement {
  * The date/time the new event gets (#625, P-006 implementer judgement).
  *
  * A Todo already placed on the grid keeps exactly the slot its chip occupied:
- * the conversion is deliberately routed through `tasksToCalendarChips`, the
+ * the conversion is deliberately routed through `todosToCalendarChips`, the
  * same function that DREW that chip, so "the event lands where the chip was"
  * is true by construction rather than by two date/time readers agreeing.
  * Dropping a placed Todo's own time would be data loss the confirm dialog
@@ -93,13 +93,13 @@ export interface EventPlacement {
  * An UNPLACED Todo has no time to keep, and that is the case the ruling
  * describes: it becomes an all-day item on `todayKey`.
  */
-export function taskToEventPlacement(
-  task: TodoNode,
+export function todoToEventPlacement(
+  todo: TodoNode,
   todayKey: string,
 ): EventPlacement {
-  // Unbounded window: the caller wants this task's placement, not a range
+  // Unbounded window: the caller wants this todo's placement, not a range
   // filter. Lexicographic YYYY-MM-DD bounds, same as every other caller.
-  const [chip] = tasksToCalendarChips([task], "0000-01-01", "9999-12-31");
+  const [chip] = todosToCalendarChips([todo], "0000-01-01", "9999-12-31");
   if (!chip) {
     return {
       date: todayKey,
@@ -126,8 +126,8 @@ export interface EventSlot {
   isAllDay: boolean;
 }
 
-/** Where a converted event lands as a task chip (tasks_payload's own shape). */
-export interface TaskChipSlot {
+/** Where a converted event lands as a todo chip (tasks_payload's own shape). */
+export interface TodoChipSlot {
   /** UTC ISO instant, or undefined for an unplaced Todo. */
   scheduledAt?: string;
   scheduledEndAt?: string;
@@ -137,11 +137,11 @@ export interface TaskChipSlot {
 /**
  * The slot a converted event keeps as a Todo (#739, D-20260811-sched-1 = B).
  *
- * The mirror of `taskToEventPlacement` above, and the fix for the asymmetry it
+ * The mirror of `todoToEventPlacement` above, and the fix for the asymmetry it
  * left: Todo→Event kept the chip's slot, while Event→Todo threw the date away
  * (D-20260810-sched-3). That ruling assumed a Todo had nowhere to put a time —
  * but `tasks_payload` carries `scheduled_at` / `scheduled_end_at` /
- * `is_all_day`, which is exactly the row the calendar draws task chips from.
+ * `is_all_day`, which is exactly the row the calendar draws todo chips from.
  * So an 8/20 10:00 event becomes an 8/20 10:00 Todo chip: the calendar looks
  * almost unchanged and only the item's NATURE has changed. The repeat is still
  * dropped (D-20260810-sched-5 stands — a routine-derived event is refused
@@ -151,7 +151,7 @@ export interface TaskChipSlot {
  * use, so the chip re-derives on the slot it was given rather than one time
  * reader agreeing with another.
  */
-export function eventToTaskSlot(slot: EventSlot): TaskChipSlot {
+export function eventToTodoSlot(slot: EventSlot): TodoChipSlot {
   // No date at all: there is no slot to keep, and the Todo simply arrives
   // unplaced (which is what every Todo created outside the calendar is).
   if (!slot.date) return { isAllDay: false };

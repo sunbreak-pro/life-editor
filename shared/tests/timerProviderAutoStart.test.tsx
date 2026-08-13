@@ -54,7 +54,7 @@ function makeDS(overrides?: { autoStartBreaks?: boolean }): DataService {
       endedAt: null,
       durationSeconds: 0,
       completed: false,
-      taskId: null,
+      todoId: null,
     }),
     endTimerSession: async () => {},
   });
@@ -86,7 +86,7 @@ async function renderTimer(opts: {
     </TimerProvider>,
     { wrapper: syncWrapper },
   );
-  // Let the settings fetch land (microtasks only — no timer advance needed).
+  // Let the settings fetch land (microtodos only — no timer advance needed).
   await act(async () => {});
   expect(screen.getByTestId("remaining").textContent).toBe("60");
 }

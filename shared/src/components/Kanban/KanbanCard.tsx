@@ -1,5 +1,5 @@
 /*
- * KanbanCard (K1) — a single task card. Pure presentation: the host maps a
+ * KanbanCard (K1) — a single todo card. Pure presentation: the host maps a
  * TodoNode → KanbanCardModel and injects copy; this component never reaches
  * data or i18n directly (§6.4). Faithful port of the HTML mock's card:
  *   - 4px left status band (color-encoded, but never the SOLE signal)
@@ -11,12 +11,12 @@
  *
  * The card carries its assigned tags as chips (status view); the tag view
  * omits them since the column already conveys the tag. Folders no longer group
- * tasks (life-tags S1), so there is no folder pill.
+ * todos (life-tags S1), so there is no folder pill.
  */
 
 import type { CSSProperties } from "react";
 import { cn } from "../cn";
-import { STATUS_ICON } from "../taskStatusVisuals";
+import { STATUS_ICON } from "../todoStatusVisuals";
 import type { TodoStatus } from "../../types/todoTree";
 import type {
   KanbanCardDndAdapter,

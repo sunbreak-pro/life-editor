@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { StatusFilterChips, type StatusFilterChip } from "../src/components";
 
 /*
- * Mobile Tasks status filter. Single-select group of aria-pressed pills:
+ * Mobile Todos status filter. Single-select group of aria-pressed pills:
  * clicking an unselected chip selects it (emits its id), clicking the active
  * chip again clears the filter (emits null). Counts render when provided.
  */
@@ -20,7 +20,7 @@ function renderChips(props?: Partial<Parameters<typeof StatusFilterChips>[0]>) {
       chips={CHIPS}
       value="todo"
       onChange={onChange}
-      label="Filter tasks"
+      label="Filter todos"
       {...props}
     />,
   );
@@ -62,7 +62,7 @@ describe("StatusFilterChips", () => {
   it("exposes an accessible group label", () => {
     renderChips();
     expect(
-      screen.getByRole("group", { name: "Filter tasks" }),
+      screen.getByRole("group", { name: "Filter todos" }),
     ).toBeInTheDocument();
   });
 

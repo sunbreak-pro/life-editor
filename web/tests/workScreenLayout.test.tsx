@@ -19,7 +19,7 @@ import type { TimerContextValue } from "@life-editor/shared";
  *     divider (v2 §4);
  *   - nothing the header carries is lost below 768px, where AppShell renders
  *     no header at all — the timer is Mobile-Full (mobile-scope.md #10), so
- *     both the task picker and the settings have to stay reachable.
+ *     both the todo picker and the settings have to stay reachable.
  *
  * The harness rebuilds the shell around WorkScreen (header row + main + panel)
  * instead of rendering MainScreen, which would need a Supabase session and
@@ -63,17 +63,17 @@ const fetchTodoTree = vi.fn();
 function makeDS(): WorkScreenDataService {
   fetchTodoTree.mockResolvedValue([
     { id: "t1", type: "task", title: "Write the spec", isDeleted: false },
-    { id: "t-gone", type: "task", title: "Deleted task", isDeleted: true },
+    { id: "t-gone", type: "task", title: "Deleted todo", isDeleted: true },
   ]);
   return { fetchTodoTree } as unknown as WorkScreenDataService;
 }
 
 /**
- * Idle 25:00 WORK timer. Only the task attribution is stateful — it is the one
+ * Idle 25:00 WORK timer. Only the todo attribution is stateful — it is the one
  * piece of timer state these layout tests drive (the mobile picker writes it).
  */
 function useStubTimer(): Timer {
-  const [activeTask, setActiveTask] = useState<Timer["activeTask"]>(null);
+  const [activeTodo, setActiveTodo] = useState<Timer["activeTodo"]>(null);
   const noop = useCallback(() => {}, []);
   const asyncNoop = useCallback(() => Promise.resolve(), []);
   return useMemo(
@@ -85,7 +85,7 @@ function useStubTimer(): Timer {
       totalSeconds: 1500,
       completedSessions: 0,
       formatted: "25:00",
-      activeTask,
+      activeTodo,
       workDurationMinutes: 25,
       breakDurationMinutes: 5,
       longBreakDurationMinutes: 15,
@@ -97,7 +97,7 @@ function useStubTimer(): Timer {
       pause: noop,
       reset: noop,
       setPhase: noop,
-      setActiveTask,
+      setActiveTodo,
       adjustRemainingMinutes: noop,
       saveSettings: noop,
       setAutoStartBreaks: noop,
@@ -105,7 +105,7 @@ function useStubTimer(): Timer {
       applyPreset: noop,
       deletePreset: asyncNoop,
     }),
-    [activeTask, noop, asyncNoop],
+    [activeTodo, noop, asyncNoop],
   );
 }
 
@@ -195,16 +195,16 @@ describe("Work — Layout Standard v2 adoption (#590)", () => {
     expect(within(main).getByLabelText("work.controls.reset")).not.toBeNull();
   });
 
-  it("keeps the task picker and the settings reachable below 768px", async () => {
+  it("keeps the todo picker and the settings reachable below 768px", async () => {
     stub.wide = false;
     const main = renderWork(NarrowShell);
 
-    // The task attribution route on narrow is the chip/sheet, not the header.
+    // The todo attribution route on narrow is the chip/sheet, not the header.
     fireEvent.click(
-      within(main).getByRole("button", { name: "work.taskSelector.select" }),
+      within(main).getByRole("button", { name: "work.todoSelector.select" }),
     );
-    const task = await screen.findByRole("button", { name: "Write the spec" });
-    fireEvent.click(task);
+    const todo = await screen.findByRole("button", { name: "Write the spec" });
+    fireEvent.click(todo);
     expect(within(main).getByText("Write the spec")).not.toBeNull();
 
     // And the settings still arrive through the same portal, via the drawer.

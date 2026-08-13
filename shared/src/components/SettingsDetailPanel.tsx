@@ -6,7 +6,7 @@ export interface SettingsDetailTip {
   body: string;
 }
 
-export interface SettingsDetailTask {
+export interface SettingsDetailTodo {
   label: string;
   done: boolean;
 }
@@ -14,7 +14,7 @@ export interface SettingsDetailTask {
 export interface SettingsDetailPanelProps {
   /** Current body font size in px — the preview reflects live changes. */
   fontPx: number;
-  tasks: SettingsDetailTask[];
+  todos: SettingsDetailTodo[];
   tips: SettingsDetailTip[];
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
   labels: {
@@ -38,7 +38,7 @@ const TIP_ICONS = [Info, Type, Command] as const;
  */
 export function SettingsDetailPanel({
   fontPx,
-  tasks,
+  todos,
   tips,
   labels,
 }: SettingsDetailPanelProps) {
@@ -65,28 +65,28 @@ export function SettingsDetailPanel({
             >
               {labels.previewTitle}
             </span>
-            {tasks.map((task, i) => (
+            {todos.map((todo, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span
                   className={cn(
                     "grid h-4 w-4 shrink-0 place-items-center rounded-[5px] border-[1.5px]",
-                    task.done
+                    todo.done
                       ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
                       : "border-lumen-border-strong bg-lumen-bg",
                   )}
                 >
-                  {task.done && <Check size={9} strokeWidth={3.5} />}
+                  {todo.done && <Check size={9} strokeWidth={3.5} />}
                 </span>
                 <span
                   className={cn(
                     "leading-snug",
-                    task.done
+                    todo.done
                       ? "text-lumen-text-secondary line-through"
                       : "text-lumen-text",
                   )}
                   style={{ fontSize: `${fontPx}px` }}
                 >
-                  {task.label}
+                  {todo.label}
                 </span>
               </div>
             ))}

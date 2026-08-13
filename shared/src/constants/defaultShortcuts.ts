@@ -25,7 +25,7 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   {
     id: "global:new-task",
     category: "global",
-    descriptionKey: "settings.shortcutLabels.newTask",
+    descriptionKey: "settings.shortcutLabels.newTodo",
     defaultBinding: { key: "n" },
     activeInInput: false,
   },
@@ -33,7 +33,7 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   {
     id: "nav:tasks",
     category: "navigation",
-    descriptionKey: "settings.shortcutLabels.goToTasks",
+    descriptionKey: "settings.shortcutLabels.goToTodos",
     defaultBinding: { key: "1", meta: true },
     activeInInput: true,
   },

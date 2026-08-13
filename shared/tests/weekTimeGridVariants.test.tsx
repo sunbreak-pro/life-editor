@@ -67,7 +67,7 @@ describe("WeekTimeGrid — provenance variants", () => {
     expect(block.querySelector("svg")).toBeNull();
   });
 
-  it("gives a task item the blue face and the CheckSquare glyph (#593)", () => {
+  it("gives a todo item the blue face and the CheckSquare glyph (#593)", () => {
     renderGrid();
     const block = screen.getByTitle("09:00–10:00 Write report");
     expect(block.className).toContain("bg-lumen-schedule-task-bg");
@@ -75,16 +75,16 @@ describe("WeekTimeGrid — provenance variants", () => {
     // Not the routine face, and no border like the event face.
     expect(block.className).not.toContain("bg-lumen-schedule-routine-bg");
     expect(block.className).not.toContain("border-lumen-schedule-event-border");
-    // #593: the task's non-hue cue — the CheckSquare todo mark.
+    // #593: the todo's non-hue cue — the CheckSquare todo mark.
     expect(block.querySelector("svg")).not.toBeNull();
   });
 
-  it("marks an all-day task chip with the glyph, all-day events without (#593)", () => {
+  it("marks an all-day todo chip with the glyph, all-day events without (#593)", () => {
     renderGrid({
       items: [
         ...ITEMS,
         {
-          id: "allday-task",
+          id: "allday-todo",
           date: "2026-07-09",
           title: "Buy milk",
           startTime: "00:00",

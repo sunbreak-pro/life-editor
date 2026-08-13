@@ -16,7 +16,7 @@ import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
  * (… → Routine → ScheduleItems → CalendarTags → …); the inner Provider
  * may depend on the outer one.
  *
- * ScheduleItems is enabled on Mobile too (Tasks/Schedule are core,
+ * ScheduleItems is enabled on Mobile too (Todos/Schedule are core,
  * CLAUDE.md §2), so no Optional variant is needed (it is not in the
  * Mobile 省略 Provider list — only CalendarTags from this trio is).
  *

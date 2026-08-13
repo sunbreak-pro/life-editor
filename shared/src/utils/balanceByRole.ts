@@ -4,7 +4,7 @@
  * A pool built by concatenating per-role fetches is ordered by ROLE, not by
  * relevance, so a plain `.slice(0, limit)` hands every slot to whichever role
  * was pushed first. The "[[" link autocomplete hit exactly that: notes are
- * appended before dailies and tasks, so a user with 8+ notes never saw a task
+ * appended before dailies and todos, so a user with 8+ notes never saw a todo
  * candidate — the pool contained them, the cap ate them (#370).
  *
  * Round-robin one item per role per pass instead, so every role present gets a

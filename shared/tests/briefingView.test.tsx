@@ -9,7 +9,7 @@ import {
 } from "../src/components";
 
 /*
- * BriefingView — pure morning-paper view. Every row (schedule / task /
+ * BriefingView — pure morning-paper view. Every row (schedule / todo /
  * carryover) exposes a title button (toggles completion) plus an icon-only
  * jump button (navigates to the owning section). The circle on schedule rows
  * still toggles too. This suite guards the click routing and the no-nested-
@@ -30,17 +30,17 @@ const LABELS: BriefingLabels = {
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
-  tasksTitle: "TASKS",
-  noTasks: "No tasks",
+  todosTitle: "TODOS",
+  noTodos: "No todos",
   vizTitle: "VIZ",
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
   edit: "Edit",
   delete: "Delete",
   deleteScheduleHint: "Delete this event",
-  deleteTaskHint: "Delete this todo",
+  deleteTodoHint: "Delete this todo",
   jumpToSchedule: "Open in Schedule",
-  jumpToTasks: "Open in Tasks",
+  jumpToTodos: "Open in Todos",
 };
 
 const STREAK_LABELS = {
@@ -79,7 +79,7 @@ const DATA: BriefingData = {
       isAllDay: false,
     },
   ],
-  tasks: [
+  todos: [
     { id: "t1", title: "Write report", status: "NOT_STARTED", purposes: [] },
     { id: "t2", title: "Ship feature", status: "DONE", purposes: [] },
   ],
@@ -93,17 +93,17 @@ const DATA: BriefingData = {
     },
   ],
   sessions: [],
-  taskNodes: [],
+  todoNodes: [],
 };
 
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleScheduleItem = vi.fn();
-  const onToggleTask = vi.fn();
+  const onToggleTodo = vi.fn();
   const onDeleteScheduleItem = vi.fn();
-  const onDeleteTask = vi.fn();
+  const onDeleteTodo = vi.fn();
   const onAddScheduleItem = vi.fn();
   const onJumpToSchedule = vi.fn();
-  const onJumpToTasks = vi.fn();
+  const onJumpToTodos = vi.fn();
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
   const result = render(
@@ -118,24 +118,24 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
       onToggleScheduleItem={onToggleScheduleItem}
-      onToggleTask={onToggleTask}
+      onToggleTodo={onToggleTodo}
       onDeleteScheduleItem={onDeleteScheduleItem}
-      onDeleteTask={onDeleteTask}
+      onDeleteTodo={onDeleteTodo}
       onAddScheduleItem={onAddScheduleItem}
       onJumpToSchedule={onJumpToSchedule}
-      onJumpToTasks={onJumpToTasks}
+      onJumpToTodos={onJumpToTodos}
       {...props}
     />,
   );
   return {
     ...result,
     onToggleScheduleItem,
-    onToggleTask,
+    onToggleTodo,
     onDeleteScheduleItem,
-    onDeleteTask,
+    onDeleteTodo,
     onAddScheduleItem,
     onJumpToSchedule,
-    onJumpToTasks,
+    onJumpToTodos,
     onIntentionChange,
     onIntentionBlur,
   };
@@ -171,24 +171,24 @@ describe("BriefingView row actions", () => {
     ).toContain("line-through");
   });
 
-  it("toggles a task from its title button (no nav)", () => {
-    const { onToggleTask, onJumpToTasks } = renderView();
+  it("toggles a todo from its title button (no nav)", () => {
+    const { onToggleTodo, onJumpToTodos } = renderView();
     fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
-    expect(onToggleTask).toHaveBeenCalledWith("t1");
-    expect(onJumpToTasks).not.toHaveBeenCalled();
+    expect(onToggleTodo).toHaveBeenCalledWith("t1");
+    expect(onJumpToTodos).not.toHaveBeenCalled();
   });
 
-  it("jumps to Tasks from a task move button (no toggle)", () => {
-    const { onJumpToTasks, onToggleTask } = renderView();
-    // Move buttons for tasks and carryover share the label; the first two are
-    // the two task rows.
-    const jumps = screen.getAllByTitle("Open in Tasks");
+  it("jumps to Todos from a todo move button (no toggle)", () => {
+    const { onJumpToTodos, onToggleTodo } = renderView();
+    // Move buttons for todos and carryover share the label; the first two are
+    // the two todo rows.
+    const jumps = screen.getAllByTitle("Open in Todos");
     fireEvent.click(jumps[0]);
-    expect(onJumpToTasks).toHaveBeenCalledTimes(1);
-    expect(onToggleTask).not.toHaveBeenCalled();
+    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
+    expect(onToggleTodo).not.toHaveBeenCalled();
   });
 
-  it("strikes through a DONE task title", () => {
+  it("strikes through a DONE todo title", () => {
     renderView();
     expect(screen.getByText("Ship feature").className).toContain(
       "line-through",
@@ -196,14 +196,14 @@ describe("BriefingView row actions", () => {
   });
 
   it("toggles + jumps from a carryover row and strikes completed ones", () => {
-    const { onToggleTask, onJumpToTasks } = renderView();
+    const { onToggleTodo, onJumpToTodos } = renderView();
     fireEvent.click(screen.getByRole("button", { name: /Old todo/ }));
-    expect(onToggleTask).toHaveBeenCalledWith("c1");
+    expect(onToggleTodo).toHaveBeenCalledWith("c1");
 
-    const jumps = screen.getAllByTitle("Open in Tasks");
-    // task rows (2) then carryover rows (2): the third jump button is c1.
+    const jumps = screen.getAllByTitle("Open in Todos");
+    // todo rows (2) then carryover rows (2): the third jump button is c1.
     fireEvent.click(jumps[2]);
-    expect(onJumpToTasks).toHaveBeenCalledTimes(1);
+    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
 
     expect(screen.getByText("Finished carryover").className).toContain(
       "line-through",
@@ -246,15 +246,15 @@ describe("BriefingView row actions", () => {
     expect(onJumpToSchedule).not.toHaveBeenCalled();
   });
 
-  it("deletes a task row without toggling or navigating (#585)", () => {
-    const { onDeleteTask, onToggleTask, onJumpToTasks } = renderView();
+  it("deletes a todo row without toggling or navigating (#585)", () => {
+    const { onDeleteTodo, onToggleTodo, onJumpToTodos } = renderView();
     const deletes = screen.getAllByTitle("Delete this todo");
-    // Task rows only — carryover keeps the jump alone.
+    // Todo rows only — carryover keeps the jump alone.
     expect(deletes).toHaveLength(2);
     fireEvent.click(deletes[1]);
-    expect(onDeleteTask).toHaveBeenCalledWith("t2");
-    expect(onToggleTask).not.toHaveBeenCalled();
-    expect(onJumpToTasks).not.toHaveBeenCalled();
+    expect(onDeleteTodo).toHaveBeenCalledWith("t2");
+    expect(onToggleTodo).not.toHaveBeenCalled();
+    expect(onJumpToTodos).not.toHaveBeenCalled();
   });
 
   it("names every delete button by its visible label first (WCAG 2.5.3)", () => {
@@ -448,7 +448,7 @@ describe("Briefing narrow-width tab switcher (#318)", () => {
 describe("Row edit action (#410)", () => {
   it("labels every jump button with the visible edit text", () => {
     renderView();
-    // 2 schedule rows + 2 task rows + 2 carryover rows.
+    // 2 schedule rows + 2 todo rows + 2 carryover rows.
     expect(screen.getAllByRole("button", { name: /Edit/ }).length).toBe(6);
   });
 
@@ -462,7 +462,7 @@ describe("Row edit action (#410)", () => {
     const jump = screen.getAllByTitle("Open in Schedule")[0];
     expect(jump.textContent).toContain("Edit");
     expect(jump.getAttribute("aria-label")).toBe("Edit: Open in Schedule");
-    expect(screen.getAllByLabelText("Edit: Open in Tasks").length).toBe(4);
+    expect(screen.getAllByLabelText("Edit: Open in Todos").length).toBe(4);
   });
 
   it("pins every row's action cluster to the right edge with padded hit targets", () => {
@@ -544,7 +544,7 @@ describe("Intention caption omission (#427)", () => {
  *
  * The block drew a checkbox-shaped <span> with nothing listening to it, which
  * both flattened Not started / In progress / Done into two values and left the
- * row unpressable. It is one button now, cycling in the same order the Tasks
+ * row unpressable. It is one button now, cycling in the same order the Todos
  * side has always used, and a row moved to Done stays listed struck through so
  * the press is visible and reversible.
  */

@@ -126,7 +126,7 @@ describe("createdWithinRange (#780)", () => {
 const HOURS = (minutes: number): string => `${Math.round(minutes)}m`;
 
 const LABELS: OverviewTabLabels = {
-  tasks: "Tasks",
+  todos: "Todos",
   events: "Events",
   notes: "Notes",
   work: "Work",
@@ -141,7 +141,7 @@ const LABELS: OverviewTabLabels = {
   todayCard: {
     title: "Today",
     workTime: "Work time",
-    completedTasks: "Completed",
+    completedTodos: "Completed",
     pomodoroCount: "Pomodoros",
     formatHours: HOURS,
   },

@@ -9,7 +9,7 @@ import type { SyncDomain } from "../context/syncDomains";
  * Drop-in for the old `const { syncVersion } = useSyncContext()`: it returns a
  * single number for the effect's dep array, but one that only moves when a
  * table belonging to one of the named domains changed. A note edit no longer
- * re-pulls the task tree, and — because reading the timer settings WRITES a
+ * re-pulls the todo tree, and — because reading the timer settings WRITES a
  * defaults row — no longer writes to `timer_settings` either.
  *
  * The sum is the combining function on purpose: each counter only ever

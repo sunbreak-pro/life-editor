@@ -135,14 +135,14 @@ describe("AgendaList", () => {
     expect(screen.getByText("Nothing today")).toBeInTheDocument();
   });
 
-  it("renders a task row with the task dot and the CheckSquare glyph (#593)", () => {
+  it("renders a todo row with the todo dot and the CheckSquare glyph (#593)", () => {
     renderList();
     const row = screen.getByText("Write report").closest("li");
     expect(row).not.toBeNull();
     expect(row?.querySelector(".bg-lumen-chip-task-dot")).not.toBeNull();
     // #593: the row's variant cue is a shape (CheckSquare), not the dot's hue.
     expect(row?.querySelector("svg")).not.toBeNull();
-    // Event rows keep dot-only (no glyph — #593 touches task only).
+    // Event rows keep dot-only (no glyph — #593 touches todo only).
     const eventRow = screen.getByText("Project review").closest("li");
     expect(eventRow?.querySelector("svg")).toBeNull();
   });
@@ -152,7 +152,7 @@ describe("AgendaList", () => {
    * row's own tag rather than a click position — jsdom has no layout, so
    * anything read off coordinates here would pass on a broken list.
    */
-  it("fires onToggleComplete from a task row's status tag", () => {
+  it("fires onToggleComplete from a todo row's status tag", () => {
     const { onToggleComplete } = renderList();
     const row = screen.getByText("Write report").closest("li");
     const toggle = row?.querySelector<HTMLButtonElement>(
@@ -163,7 +163,7 @@ describe("AgendaList", () => {
     expect(onToggleComplete).toHaveBeenCalledWith("t");
   });
 
-  it("keeps the toggle on an ALL-DAY task row, unlike an all-day event", () => {
+  it("keeps the toggle on an ALL-DAY todo row, unlike an all-day event", () => {
     // A todo staged as "today, time TBD" is all-day by construction, and it is
     // the commonest row on the Mobile day list — leaving it informational
     // would put completion out of reach exactly where it is wanted.
@@ -194,7 +194,7 @@ describe("AgendaList", () => {
       />,
     );
     const toggles = screen.getAllByRole("button", { name: "Toggle complete" });
-    expect(toggles).toHaveLength(1); // the task row only
+    expect(toggles).toHaveLength(1); // the todo row only
     fireEvent.click(toggles[0]);
     expect(onToggleComplete).toHaveBeenCalledWith("staged");
   });

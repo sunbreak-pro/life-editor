@@ -20,7 +20,7 @@ export interface StatusFilterChipsProps {
   /** Already-translated accessible name for the group (§6.4). */
   label?: string;
   /**
-   * "md" (default) is the Mobile Tasks pill size. "sm" is the compact variant
+   * "md" (default) is the Mobile Todos pill size. "sm" is the compact variant
    * the ~240px rightSidebar needs (#369 Notes tag filter) — same shape, smaller
    * type and padding so a dozen tag chips do not eat the sidebar.
    */
@@ -29,7 +29,7 @@ export interface StatusFilterChipsProps {
 }
 
 /*
- * Round-pill single-select filter. Born as the Mobile Tasks status filter
+ * Round-pill single-select filter. Born as the Mobile Todos status filter
  * (brief); #369 reuses it for the Notes tag filter via `size="sm"`, since both
  * are "solo one bucket, click again for all". Selected = accent-subtle
  * fill + accent text/border + semibold; unselected = base surface + border +

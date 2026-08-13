@@ -78,7 +78,7 @@ function NoteProbe() {
   return <button onClick={() => createNote("N")}>mutate</button>;
 }
 
-function TaskProbe() {
+function TodoProbe() {
   const { addNode } = useTodoTreeContext();
   return <button onClick={() => addNode("task", null, "T")}>mutate</button>;
 }
@@ -109,7 +109,7 @@ const noteDS = {
   createNoteUnified: async () => ({}),
 } as unknown as DataService;
 
-const taskDS = {
+const todoDS = {
   fetchTodoTree: async () => [],
   fetchDeletedTodos: async () => [],
   syncTodoTree: async () => {},
@@ -345,10 +345,10 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
   // Regression for the child-1 unmount-clear effect: it depended on the
   // reactive context value, so its cleanup re-ran after every push and wiped
   // the history immediately ("canUndo" never survived a mutation).
-  it("taskTree: push survives (child-1 clear-on-every-push regression)", async () => {
+  it("todoTree: push survives (child-1 clear-on-every-push regression)", async () => {
     await expectPushAndClearOnUnmount(
-      <TodoTreeProvider dataService={taskDS}>
-        <TaskProbe />
+      <TodoTreeProvider dataService={todoDS}>
+        <TodoProbe />
       </TodoTreeProvider>,
     );
   });

@@ -26,7 +26,7 @@ import {
   ItemCreatePanel,
   ItemActionPopover,
   ItemDetailOverlay,
-  TaskDetailPanel,
+  TodoDetailPanel,
   STATUS_TEXT_KEY,
   StatusFilterChips,
   BottomSheet,
@@ -39,12 +39,12 @@ import {
   useToast,
   eventToTodoBlock,
   todoToEventBlock,
-  taskToEventPlacement,
+  todoToEventPlacement,
   ItemConversionError,
   logServiceError,
   minutesToTime,
-  isTaskChip,
-  unwrapTaskChipId,
+  isTodoChip,
+  unwrapTodoChipId,
   frequencyLabel,
   nextRoutineOccurrence,
   applyRepeatFilter,
@@ -53,7 +53,7 @@ import {
   pickSelectableCalendars,
   nowMinutesLocal,
   todayCalendarKey,
-  type TaskCalendarChip,
+  type TodoCalendarChip,
   type ScheduleItem,
   type ItemCreateNoteDraft,
   type WeekTimeGridItem,
@@ -76,10 +76,10 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
-import { useScheduleTaskChips } from "./useScheduleTaskChips";
+import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
-import { timedPlacement, placeTaskWrite } from "./taskChipUndoWiring";
-import { itemTapRoute, taskChipPanelModel } from "./taskChipPanel";
+import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
+import { itemTapRoute, todoChipPanelModel } from "./todoChipPanel";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
 import {
   toAgendaItems,
@@ -149,13 +149,13 @@ const REPEAT_FAILURE_COPY_KEY: Record<
 
 export function CalendarTab({
   dataService,
-  onOpenTasks,
+  onOpenTodos,
   pendingSelectEvent,
   onConsumePendingEvent,
 }: {
   dataService: DataService;
-  /** Jump to the Tasks section (Today's Todo tray title click — A-3 / #298). */
-  onOpenTasks: () => void;
+  /** Jump to the Todos section (Today's Todo tray title click — A-3 / #298). */
+  onOpenTodos: () => void;
   /**
    * "Open this event" intent from the command palette (#503) — the same
    * pending-select idiom Notes / Daily / Kanban consume, plus the date: the
@@ -203,24 +203,24 @@ export function CalendarTab({
     useScheduleItemsRoutineSync({
       dataService,
     });
-  // Scheduled TodoNodes → task=blue chips (schedule redesign A-1). `nodes`
-  // already excludes soft-deleted tasks (useTodoTreeAPI). A-2 (#297) writes
+  // Scheduled TodoNodes → todo=blue chips (schedule redesign A-1). `nodes`
+  // already excludes soft-deleted todos (useTodoTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
-  // addNode (#376): the creation panel's task tab writes a NEW TodoNode that is
+  // addNode (#376): the creation panel's todo tab writes a NEW TodoNode that is
   // already scheduled into the target slot — the same provider the tray and the
-  // chip drags write through, so there is no second source of task truth.
+  // chip drags write through, so there is no second source of todo truth.
   // refetch (#625): the Event <-> Todo conversion writes through the
   // DataService, not through this provider's own persist path, so the tree
   // in memory would keep showing the pre-conversion shape until Realtime got
   // around to it. The conversion asks for the truth directly.
   const {
-    nodes: taskNodes,
+    nodes: todoNodes,
     addNode,
     updateNode,
     setTodoStatus,
     toggleTodoStatus,
     softDelete: softDeleteTodo,
-    refetch: refetchTasks,
+    refetch: refetchTodos,
   } = useTodoTreeContext();
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
   // view over ONE life tag, so the grid needs both halves — the ledger (which
@@ -345,7 +345,7 @@ export function CalendarTab({
    * outside the window — but selection is by id, so it simply starts showing
    * once the range lands.
    *
-   * Consumed immediately (like pendingNewTask), so coming back to the Calendar
+   * Consumed immediately (like pendingNewTodo), so coming back to the Calendar
    * later does not re-select an event the user has moved on from. #467 retired
    * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
    * the anchor is now the only day either layout draws from — moving it is the
@@ -362,7 +362,7 @@ export function CalendarTab({
     // They fire once per arrival — a user navigating from the palette, not a
     // render loop — and the intent exists only as a PROP, so there is no event
     // handler inside this component to move them into. Same shape and same
-    // reasoning as the task handoff (useTaskDetailTarget.ts:112).
+    // reasoning as the todo handoff (useTodoDetailTarget.ts:112).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     revealOnGrid();
     setAnchorDate(pendingSelectEvent.date);
@@ -435,12 +435,12 @@ export function CalendarTab({
   });
 
   /*
-   * The TASK half of this host (#675 → useScheduleTaskChips): the chips derived
+   * The TODO half of this host (#675 → useScheduleTodoChips): the chips derived
    * from scheduled TodoNodes, the "本日の Todo" tray they back, and every
    * gesture that writes a TodoNode. None of it reads `rangeItems`, the repeat
    * machinery or the mutation layer, which is what let it come out whole.
    *
-   * `taskDetailId` moved in with it — it is the id of a TASK, which
+   * `todoDetailId` moved in with it — it is the id of a TODO, which
    * `selectedId` cannot hold (#626).
    */
   // Memoised because the hook keeps it in the deps of both delete handlers, and
@@ -448,33 +448,33 @@ export function CalendarTab({
   // in this file.
   const todoDeleteCopy = useMemo(
     () => ({
-      confirm: (name: string) => t("taskDetail.todoDeleteConfirm", { name }),
+      confirm: (name: string) => t("todoDetail.todoDeleteConfirm", { name }),
       cascadeConfirm: (name: string, count: number) =>
-        t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
+        t("todoDetail.todoDeleteCascadeConfirm", { name, count }),
       untitled: t("common.untitled"),
-      confirmLabel: t("taskDetail.delete"),
+      confirmLabel: t("todoDetail.delete"),
       cancelLabel: t("common.cancel"),
     }),
     [t],
   );
   const {
-    rangeTaskChips,
-    todayTaskChips,
+    rangeTodoChips,
+    todayTodoChips,
     todoPlaced,
     todoUnplaced,
     todoAddable,
-    findTaskChip,
-    taskDetailId,
-    setTaskDetailId,
-    handleTaskChipMove,
-    handleTaskChipResize,
-    handleTaskChipDropAllDay,
+    findTodoChip,
+    todoDetailId,
+    setTodoDetailId,
+    handleTodoChipMove,
+    handleTodoChipResize,
+    handleTodoChipDropAllDay,
     handleTodoToggleComplete,
     handleTodoAddCandidate,
     handleTodoDelete,
     handleTodoDetailDelete,
-  } = useScheduleTaskChips({
-    taskNodes,
+  } = useScheduleTodoChips({
+    todoNodes,
     updateNode,
     setTodoStatus,
     softDeleteTodo,
@@ -490,11 +490,11 @@ export function CalendarTab({
   // by the activate/open-detail handlers below.
   const handleSelectItem = useCallback((id: string) => {
     // A chip id is not a ScheduleItem id, and this path exists to point the
-    // schedule-item surfaces (editor pane / mutation layer) at a row. Task
+    // schedule-item surfaces (editor pane / mutation layer) at a row. Todo
     // chips DO answer a click since #564 — through handleItemActivate, which
     // opens their own panel — so this guard is about the id's shape, not about
     // chips being read-only.
-    if (isTaskChip(id)) return;
+    if (isTodoChip(id)) return;
     setSelectedId(id);
   }, []);
 
@@ -508,22 +508,22 @@ export function CalendarTab({
   // Selection stays immediate — it is the part that should feel instant, and
   // the detail surface wants it anyway.
   //
-  // #564: task chips come through here too. They used to be dropped on the
+  // #564: todo chips come through here too. They used to be dropped on the
   // spot (the A-1 "read-only display" rule), which by now was only true of the
   // click — #297/#298/#569 had made the same chip draggable, so the all-day
   // lane ended up with chips that answered a drag but not a click. They open
-  // the same bubble with the task action set (see taskChipPanel.ts).
+  // the same bubble with the todo action set (see todoChipPanel.ts).
   //
   // #761: on NARROW they used to be dropped instead, selection included, for
-  // want of a surface to send them to. They now open the task detail sheet —
+  // want of a surface to send them to. They now open the todo detail sheet —
   // see itemTapRoute.
   const handleItemActivate = useCallback(
     (id: string, pos: { x: number; y: number }) => {
-      if (itemTapRoute(id, isWide) === "taskSheet") {
+      if (itemTapRoute(id, isWide) === "todoSheet") {
         // Deliberately not selected on the way in: `selectedId` drives the
         // EVENT surfaces (the ring, the narrow editor sheet), and a chip id
         // resolves none of them.
-        setTaskDetailId(unwrapTaskChipId(id));
+        setTodoDetailId(unwrapTodoChipId(id));
         return;
       }
       setSelectedId(id);
@@ -537,20 +537,20 @@ export function CalendarTab({
   // drives it). Closes any open bubble; one still waiting to appear is dropped
   // by the "another surface opened" effect below (#355).
   //
-  // #564: a task chip's detail is not this overlay — EventEditorPane edits a
-  // schedule_item, and a task has none. #626 gives the chip its own in-place
-  // surface on Desktop (TaskDetailPanel in an ItemDetailOverlay), so tags are
+  // #564: a todo chip's detail is not this overlay — EventEditorPane edits a
+  // schedule_item, and a todo has none. #626 gives the chip its own in-place
+  // surface on Desktop (TodoDetailPanel in an ItemDetailOverlay), so tags are
   // editable without leaving Schedule.
   //
   // #761: narrow gets the same panel in a BottomSheet, so it no longer answers
-  // with a jump to another section. The Tasks hand-off is still there — as a
+  // with a jump to another section. The Todos hand-off is still there — as a
   // button inside the panel, where it is the user's choice rather than the only
   // thing the row can do.
   const handleItemOpenDetail = useCallback(
     (id: string) => {
       setPopover(null);
-      if (isTaskChip(id)) {
-        setTaskDetailId(unwrapTaskChipId(id));
+      if (isTodoChip(id)) {
+        setTodoDetailId(unwrapTodoChipId(id));
         return;
       }
       setSelectedId(id);
@@ -671,24 +671,24 @@ export function CalendarTab({
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
     reconcileRoutineScheduleItems,
-    onMoveTaskChip: handleTaskChipMove,
-    onResizeTaskChip: handleTaskChipResize,
-    onDropTaskChipAllDay: handleTaskChipDropAllDay,
+    onMoveTodoChip: handleTodoChipMove,
+    onResizeTodoChip: handleTodoChipResize,
+    onDropTodoChipAllDay: handleTodoChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
   /*
    * #761: the agenda's completion tag, for BOTH kinds of row. The lists mix
-   * schedule items and task chips, and the two have different write paths — a
-   * chip's completion is a TaskTree status, not a schedule_item's `completed`
+   * schedule items and todo chips, and the two have different write paths — a
+   * chip's completion is a TodoTree status, not a schedule_item's `completed`
    * flag — so the row's id is what decides which one runs. Sending a chip id to
    * `handleToggle` would look up a schedule_item that is not there and write
    * nothing: the same silent no-op the Issue is about.
    */
   const handleAgendaToggle = useCallback(
     (id: string) => {
-      if (isTaskChip(id)) handleTodoToggleComplete(unwrapTaskChipId(id));
+      if (isTodoChip(id)) handleTodoToggleComplete(unwrapTodoChipId(id));
       else handleToggle(id);
     },
     [handleTodoToggleComplete, handleToggle],
@@ -706,7 +706,7 @@ export function CalendarTab({
       createPanel ||
       calendarsOpen ||
       scopeRequest ||
-      taskDetailId != null
+      todoDetailId != null
     ) {
       cancelPopover();
     }
@@ -715,7 +715,7 @@ export function CalendarTab({
     createPanel,
     calendarsOpen,
     scopeRequest,
-    taskDetailId,
+    todoDetailId,
     cancelPopover,
   ]);
 
@@ -728,7 +728,7 @@ export function CalendarTab({
   // auto-filing it into the active calendar would be a write the user never
   // asked for.
   //
-  // Placing an EXISTING task gets the same treatment: it only survives the lens
+  // Placing an EXISTING todo gets the same treatment: it only survives the lens
   // if it already carries that calendar's tag, so otherwise it disappears from
   // the very slot it was just dropped into.
   //
@@ -816,11 +816,11 @@ export function CalendarTab({
     ],
   );
 
-  // #376 task tab — the timed counterpart of the #298 tray. The tray stages a
-  // task as "today, time TBD" (all-day); this panel commits it to a concrete
+  // #376 todo tab — the timed counterpart of the #298 tray. The tray stages a
+  // todo as "today, time TBD" (all-day); this panel commits it to a concrete
   // day + window, which is what makes it show up as a placed block rather than
-  // an all-day candidate (the shape itself: taskChipUndoWiring.timedPlacement).
-  const scheduleTaskAt = useCallback(
+  // an all-day candidate (the shape itself: todoChipUndoWiring.timedPlacement).
+  const scheduleTodoAt = useCallback(
     (start: string, end: string) => {
       if (!createPanel) return null;
       return timedPlacement(createPanel.date, start, end);
@@ -828,17 +828,17 @@ export function CalendarTab({
     [createPanel],
   );
 
-  const handleCreateTaskSubmit = useCallback(
+  const handleCreateTodoSubmit = useCallback(
     (
       title: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      const placement = scheduleTaskAt(start, end);
+      const placement = scheduleTodoAt(start, end);
       if (!placement) return;
-      // Root-level task (parentId null), matching every other "quick create"
-      // entry — the panel carries no place-in-the-tree control, and the Tasks
+      // Root-level todo (parentId null), matching every other "quick create"
+      // entry — the panel carries no place-in-the-tree control, and the Todos
       // section is where re-parenting belongs.
       addNode("task", null, title, {
         ...placement,
@@ -852,12 +852,12 @@ export function CalendarTab({
       });
       finishCreatePanel();
     },
-    [scheduleTaskAt, addNode, attachNote, handleAttachError, finishCreatePanel],
+    [scheduleTodoAt, addNode, attachNote, handleAttachError, finishCreatePanel],
   );
 
-  const handlePlaceTaskSubmit = useCallback(
+  const handlePlaceTodoSubmit = useCallback(
     (
-      taskId: string,
+      todoId: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
@@ -865,19 +865,19 @@ export function CalendarTab({
       if (!createPanel) return;
       // Undoable only when no note rides along (#569): a note attaches a
       // separate link row this panel has no un-write for, and an undo that
-      // moved the task back while leaving the note on it would be a half
-      // reversal the toast claims was whole. See placeTaskWrite.
-      const { patch, options } = placeTaskWrite(
+      // moved the todo back while leaving the note on it would be a half
+      // reversal the toast claims was whole. See placeTodoWrite.
+      const { patch, options } = placeTodoWrite(
         createPanel.date,
         start,
         end,
         note != null,
       );
-      updateNode(taskId, patch, options);
-      // No onSaved wait here, unlike the create paths: this task was picked
+      updateNode(todoId, patch, options);
+      // No onSaved wait here, unlike the create paths: this todo was picked
       // out of a pool that came from the DB, so its `items_meta` row is
       // already there and the link's FK is satisfied right now.
-      attachNote(taskId, note);
+      attachNote(todoId, note);
       finishCreatePanel();
     },
     [createPanel, updateNode, attachNote, finishCreatePanel],
@@ -897,9 +897,9 @@ export function CalendarTab({
       // Same narrow routing as handleItemActivate — a long press is the
       // gesture that produces this on a phone, and it must not land somewhere
       // the tap beside it does not (#761).
-      if (itemTapRoute(id, isWide) === "taskSheet") {
+      if (itemTapRoute(id, isWide) === "todoSheet") {
         cancelPopover();
-        setTaskDetailId(unwrapTaskChipId(id));
+        setTodoDetailId(unwrapTodoChipId(id));
         return;
       }
       cancelPopover();
@@ -1007,7 +1007,7 @@ export function CalendarTab({
   // only, so a window narrowed below 768px while a calendar is picked would
   // otherwise leave the grid filtered with nothing on screen able to clear it.
   // Gating the membership set (rather than each consumer) means every layer
-  // below — grid rows, task chips, chip counts — un-narrows together.
+  // below — grid rows, todo chips, chip counts — un-narrows together.
   const calendarMemberIds = useMemo(
     () =>
       isWide && activeCalendar
@@ -1016,24 +1016,24 @@ export function CalendarTab({
     [isWide, activeCalendar, allAssignments],
   );
   // Both grid layers go through the lens together. Narrowing only the schedule
-  // rows would hide the other calendars' events while every task chip stayed
-  // put — tasks carry the same life-tags (KanbanView) and a chip's id IS the
-  // task's items_meta.id, so the same membership set applies unchanged.
+  // rows would hide the other calendars' events while every todo chip stayed
+  // put — todos carry the same life-tags (KanbanView) and a chip's id IS the
+  // todo's items_meta.id, so the same membership set applies unchanged.
   // `hiddenByCalendar` is the total across both, so the "N hidden" line counts
-  // the task chips it actually took away.
+  // the todo chips it actually took away.
   const {
     events: gridRangeItems,
-    taskChips: gridTaskChips,
+    todoChips: gridTodoChips,
     hiddenCount: hiddenByCalendar,
   } = useMemo(
     () =>
-      applyCalendarLens(repeatFilteredItems, rangeTaskChips, calendarMemberIds),
-    [repeatFilteredItems, rangeTaskChips, calendarMemberIds],
+      applyCalendarLens(repeatFilteredItems, rangeTodoChips, calendarMemberIds),
+    [repeatFilteredItems, rangeTodoChips, calendarMemberIds],
   );
 
   // Chip row data. The count comes out of the SAME call the grid uses, over the
   // same post-repeat lists, so the number on a chip is exactly what clicking it
-  // leaves on screen — including the task chips.
+  // leaves on screen — including the todo chips.
   const calendarChips = useMemo<StatusFilterChip[]>(
     () =>
       selectableCalendars.map((c) => ({
@@ -1041,33 +1041,33 @@ export function CalendarTab({
         label: c.title,
         count: applyCalendarLens(
           repeatFilteredItems,
-          rangeTaskChips,
+          rangeTodoChips,
           buildCalendarMemberIds(allAssignments, c.tagId),
         ).visibleCount,
       })),
-    [selectableCalendars, repeatFilteredItems, rangeTaskChips, allAssignments],
+    [selectableCalendars, repeatFilteredItems, rangeTodoChips, allAssignments],
   );
 
   const gridItems = useMemo<WeekTimeGridItem[]>(
-    () => toWeekGridItems(gridRangeItems, gridTaskChips, now),
-    [gridRangeItems, now, gridTaskChips],
+    () => toWeekGridItems(gridRangeItems, gridTodoChips, now),
+    [gridRangeItems, now, gridTodoChips],
   );
   const monthItems = useMemo<MonthGridItem[]>(
-    () => toMonthGridItems(gridRangeItems, gridTaskChips),
-    [gridRangeItems, gridTaskChips],
+    () => toMonthGridItems(gridRangeItems, gridTodoChips),
+    [gridRangeItems, gridTodoChips],
   );
 
-  // Merge schedule items + task chips into a single sorted agenda.
+  // Merge schedule items + todo chips into a single sorted agenda.
   //
-  // #761: task rows carry a derived status too. They used to be left without
-  // one — the A-3 note below said completion "lands in Step 3 (TaskTree API)",
+  // #761: todo rows carry a derived status too. They used to be left without
+  // one — the A-3 note below said completion "lands in Step 3 (TodoTree API)",
   // and it did (handleTodoToggleComplete, used by the tray since #298) — but
   // the agenda was never wired to it, so the Mobile day list ended up with todo
   // rows that showed no tag and answered no press while the event beside them
   // did both. The status is derived exactly as an event's is: the chip carries
   // the same date / start / all-day / completed facts.
   const toAgenda = useCallback(
-    (arr: ScheduleItem[], chips: TaskCalendarChip[] = []): AgendaItem[] =>
+    (arr: ScheduleItem[], chips: TodoCalendarChip[] = []): AgendaItem[] =>
       toAgendaItems(arr, chips, now),
     [now],
   );
@@ -1093,8 +1093,8 @@ export function CalendarTab({
     [undismiss, reload],
   );
   const todayAgenda = useMemo(
-    () => toAgenda(todayItems, todayTaskChips),
-    [todayItems, todayTaskChips, toAgenda],
+    () => toAgenda(todayItems, todayTodoChips),
+    [todayItems, todayTodoChips, toAgenda],
   );
   const todayDone = todayItems.filter((i) => i.completed).length;
   const todayTotal = todayItems.length;
@@ -1318,7 +1318,7 @@ export function CalendarTab({
    * so a closed editor can never leave a stale "dirty" behind.
    *
    * The decision itself sits in `decideUnsavedClose` (pinned in web/tests, same
-   * arrangement as taskChipUndoWiring): CalendarTab needs the whole Provider
+   * arrangement as todoChipUndoWiring): CalendarTab needs the whole Provider
    * chain to render, so nothing reachable only from inside it can be tested.
    */
   const editorDirtyRef = useRef(false);
@@ -1349,13 +1349,13 @@ export function CalendarTab({
   );
 
   /*
-   * #736: the task-chip detail (TaskDetailPanel, below) commits on its own save
+   * #736: the todo-chip detail (TodoDetailPanel, below) commits on its own save
    * button too, so the same silent discard was possible on this screen — the
    * event editor beside it asked, and the todo panel did not.
    *
    * Guarded here rather than inside the panel because the three ways out of it
    * all belong to this file: the overlay's own onClose (Escape, the backdrop,
-   * the close button), the convert-to-event button, and the "open in Tasks"
+   * the close button), the convert-to-event button, and the "open in Todos"
    * hand-off. Each tears the panel down, and the draft dies with it.
    *
    * The flag is NOT cleared on an agreed discard (unlike the event editor
@@ -1364,11 +1364,11 @@ export function CalendarTab({
    * its OWN question afterwards, and a refusal there leaves the draft on screen
    * with the flag already wiped.
    */
-  const taskDetailDirtyRef = useRef(false);
-  const requestTaskDetailClose = useCallback(
+  const todoDetailDirtyRef = useRef(false);
+  const requestTodoDetailClose = useCallback(
     async (proceed: () => void) => {
       const decision = await decideUnsavedClose({
-        dirty: taskDetailDirtyRef.current,
+        dirty: todoDetailDirtyRef.current,
         askDiscard: () =>
           askConfirm({
             message: t("common.unsavedCloseConfirm"),
@@ -1639,7 +1639,7 @@ export function CalendarTab({
    * The write keeps the item's id, so both surfaces stay pointed at the same
    * row and its tags/links survive — but the row changes ROLE, which means the
    * list it was in stops holding it and another list starts. Neither store
-   * finds that out on its own here: the schedule range reloads and the task
+   * finds that out on its own here: the schedule range reloads and the todo
    * tree refetches, and the item is simply gone from one surface and present
    * on the other. No navigation (per the Issue) — jumping the user to the
    * other section after a one-line action reads as losing their place.
@@ -1689,21 +1689,21 @@ export function CalendarTab({
         if (!beginConvert(id)) return;
         setPopover(null);
         // order 0 = the top of the root group, the slot addNode aims a new
-        // task at. It does NOT shift the existing siblings down the way
+        // todo at. It does NOT shift the existing siblings down the way
         // addNode does: that would be a second, unrelated write over every
         // root row, and a tie in sort_order only costs an arbitrary order
         // between two rows.
         void dataService
-          .convertEventToTask(id, { order: 0 })
+          .convertEventToTodo(id, { order: 0 })
           .then(() => {
             reload();
-            void refetchTasks();
+            void refetchTodos();
           })
           .then(() => showToast("success", t("itemConvert.toTodoDone")))
           .catch((err) => {
             logServiceError(
               "ItemConversion",
-              `convertEventToTask (${id})`,
+              `convertEventToTodo (${id})`,
               err,
             );
             showToast("danger", t("itemConvert.failed"));
@@ -1716,7 +1716,7 @@ export function CalendarTab({
       contextItems,
       dataService,
       reload,
-      refetchTasks,
+      refetchTodos,
       showToast,
       askConfirm,
       beginConvert,
@@ -1727,12 +1727,12 @@ export function CalendarTab({
 
   const handleConvertToEvent = useCallback(
     (id: string) => {
-      const task = taskNodes.find((n) => n.id === id);
-      if (!task) return;
+      const todo = todoNodes.find((n) => n.id === id);
+      if (!todo) return;
       // D-20260810-sched-4. The service repeats this check against the DB
       // (soft-deleted children are invisible here but still hold the FK); this
       // one exists so the common case gets a sentence instead of a red toast.
-      const blocked = todoToEventBlock(taskNodes, id);
+      const blocked = todoToEventBlock(todoNodes, id);
       if (blocked) {
         void askConfirm({
           message: t("itemConvert.childrenBlocked", {
@@ -1747,10 +1747,10 @@ export function CalendarTab({
         // A child Todo loses its parent link (events have no hierarchy), and
         // the dialog is the only place that can say so before it happens.
         message: t(
-          task.parentId != null
+          todo.parentId != null
             ? "itemConvert.toEventConfirmChild"
             : "itemConvert.toEventConfirm",
-          { title: task.title || t("common.untitled") },
+          { title: todo.title || t("common.untitled") },
         ),
         confirmLabel: t("itemConvert.toEvent"),
         cancelLabel: t("common.cancel"),
@@ -1758,17 +1758,17 @@ export function CalendarTab({
         if (!ok) return;
         if (!beginConvert(id)) return;
         setPopover(null);
-        setTaskDetailId(null);
+        setTodoDetailId(null);
         void dataService
-          .convertTaskToEvent(id, taskToEventPlacement(task, listDate))
+          .convertTodoToEvent(id, todoToEventPlacement(todo, listDate))
           .then(() => {
             reload();
-            void refetchTasks();
+            void refetchTodos();
           })
           .catch((err) => {
             logServiceError(
               "ItemConversion",
-              `convertTaskToEvent (${id})`,
+              `convertTodoToEvent (${id})`,
               err,
             );
             // The DB sees children the live tree cannot (trashed ones still
@@ -1786,11 +1786,11 @@ export function CalendarTab({
       });
     },
     [
-      taskNodes,
+      todoNodes,
       dataService,
       listDate,
       reload,
-      refetchTasks,
+      refetchTodos,
       showToast,
       askConfirm,
       beginConvert,
@@ -1799,10 +1799,10 @@ export function CalendarTab({
     ],
   );
 
-  // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
+  // A-3 (#298): "本日の Todo" tray — placed / unplaced todo groups + an add
   // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
   // #555: rows also soft-delete (softDeleteTodo → Trash) and carry the same
-  // <TagPicker> the task detail uses, so tags attach without leaving the tray.
+  // <TagPicker> the todo detail uses, so tags attach without leaving the tray.
   const todoBody = (
     <TodayTodoTray
       placed={todoPlaced}
@@ -1810,7 +1810,7 @@ export function CalendarTab({
       addable={todoAddable}
       onToggleComplete={handleTodoToggleComplete}
       onAddCandidate={handleTodoAddCandidate}
-      onOpenTask={() => onOpenTasks()}
+      onOpenTodo={() => onOpenTodos()}
       onDelete={handleTodoDelete}
       renderRowExtra={(row) => <TagPicker itemId={row.id} />}
       labels={{
@@ -1822,8 +1822,8 @@ export function CalendarTab({
         addAction: t("scheduleScreen.todoAddAction"),
         emptyAddable: t("scheduleScreen.todoEmptyAddable"),
         complete: t("scheduleScreen.complete"),
-        openInTasks: t("scheduleScreen.todoOpenInTasks"),
-        delete: t("taskDetail.todoDelete"),
+        openInTodos: t("scheduleScreen.todoOpenInTodos"),
+        delete: t("todoDetail.todoDelete"),
       }}
     />
   );
@@ -1877,46 +1877,46 @@ export function CalendarTab({
   );
 
   /*
-   * #564: the chip behind an open bubble, when the bubble belongs to a TASK
+   * #564: the chip behind an open bubble, when the bubble belongs to a TODO
    * chip rather than a schedule item.
    *
-   * Resolved against the unfiltered `rangeTaskChips` for the same reason
+   * Resolved against the unfiltered `rangeTodoChips` for the same reason
    * `selected` reads `rangeItems`: the calendar lens narrows what the grid
    * DRAWS, and a panel already on screen has to keep acting on its item even if
    * the row behind it stops being drawn (a rename can move it out of the lens).
    *
-   * `todayTaskChips` is the second half of the same pair `selected` uses
+   * `todayTodoChips` is the second half of the same pair `selected` uses
    * (rangeItems ?? contextItems): the "今日の流れ" agenda always lists TODAY, so
-   * with the grid parked on another week its task rows are in no range chip at
+   * with the grid parked on another week its todo rows are in no range chip at
    * all — and looking only at the range would leave that surface with exactly
    * the silently-dead click this Issue is about.
    */
-  const popoverTaskChip = popover ? findTaskChip(popover.id) : null;
-  // The task action set. Deliberately not the event one: a task has no
-  // duplicate write and its detail lives in another section (taskChipPanel.ts).
-  const taskChipPanel = popoverTaskChip
-    ? taskChipPanelModel(
-        popoverTaskChip,
+  const popoverTodoChip = popover ? findTodoChip(popover.id) : null;
+  // The todo action set. Deliberately not the event one: a todo has no
+  // duplicate write and its detail lives in another section (todoChipPanel.ts).
+  const todoChipPanel = popoverTodoChip
+    ? todoChipPanelModel(
+        popoverTodoChip,
         {
           // NOT scheduleScreen.untitled — that one reads "無題の繰り返し",
-          // written for the repeat list. A task is neither.
+          // written for the repeat list. A todo is neither.
           untitled: t("common.untitled"),
           allDay: t("scheduleScreen.allDay"),
           rename: t("scheduleScreen.rename"),
-          delete: t("taskDetail.todoDelete"),
+          delete: t("todoDetail.todoDelete"),
           convertToEvent: t("itemConvert.toEvent"),
         },
         {
           onRename: (title) =>
             updateNode(
-              popoverTaskChip.id,
+              popoverTodoChip.id,
               { title },
               // The catch-all tree label: a rename is not a move, so none of
-              // the position-shaped taskChip* words fit (useTodoTreeHistory).
+              // the position-shaped todoChip* words fit (useTodoTreeHistory).
               { undoLabel: "todoTreeChange" },
             ),
-          onDelete: () => handleTodoDelete(popoverTaskChip.id),
-          onConvertToEvent: () => handleConvertToEvent(popoverTaskChip.id),
+          onDelete: () => handleTodoDelete(popoverTodoChip.id),
+          onConvertToEvent: () => handleConvertToEvent(popoverTodoChip.id),
         },
       )
     : null;
@@ -1926,24 +1926,24 @@ export function CalendarTab({
   // same id); guard against a transient mismatch. Portalled to body → does not
   // touch the rightSidebar contentCount invariant.
   const popoverEl =
-    !isWide || !popover ? null : taskChipPanel ? (
+    !isWide || !popover ? null : todoChipPanel ? (
       <ItemActionPopover
         key={popover.id}
         position={{ x: popover.x, y: popover.y }}
         summary={
           <div className="flex flex-col gap-0.5">
             <p className="truncate font-semibold text-lumen-text">
-              {taskChipPanel.title}
+              {todoChipPanel.title}
             </p>
             <p className="text-lumen-text-secondary">
-              {taskChipPanel.timeLabel}
+              {todoChipPanel.timeLabel}
             </p>
           </div>
         }
-        actions={taskChipPanel.actions}
+        actions={todoChipPanel.actions}
         onEditDetail={() => handleItemOpenDetail(popover.id)}
-        // #626: the primary hand-off now opens the in-Schedule task detail
-        // (tags editable in place); "open in Tasks" moved inside that panel.
+        // #626: the primary hand-off now opens the in-Schedule todo detail
+        // (tags editable in place); "open in Todos" moved inside that panel.
         editDetailLabel={t("scheduleScreen.editDetail")}
         label={t("scheduleScreen.itemActionsLabel")}
         onClose={() => setPopover(null)}
@@ -2023,15 +2023,15 @@ export function CalendarTab({
   );
 
   /*
-   * #626: task-chip detail overlay (Desktop) — the same TaskDetailPanel +
+   * #626: todo-chip detail overlay (Desktop) — the same TodoDetailPanel +
    * TagPicker pair Kanban renders, so a todo's tags are editable without
    * leaving Schedule. Deliberately NOT EventEditorPane: that pane edits a
-   * schedule_item and a task has none (#564), so the task counterpart is the
-   * panel the Tasks section already trusts. Resolved against the live tree —
-   * a task deleted elsewhere while open simply closes the overlay.
+   * schedule_item and a todo has none (#564), so the todo counterpart is the
+   * panel the Todos section already trusts. Resolved against the live tree —
+   * a todo deleted elsewhere while open simply closes the overlay.
    *
    * The #564 hand-off survives as the button under the panel: in-place editing
-   * covers tags/title/status, and anything deeper still lives in Tasks.
+   * covers tags/title/status, and anything deeper still lives in Todos.
    *
    * #761: the body is built once and framed twice — the Desktop overlay below,
    * and the Mobile BottomSheet at the end of the narrow branch. One body rather
@@ -2040,23 +2040,23 @@ export function CalendarTab({
    * one of them. Only ever one frame is mounted (the layouts are separate
    * returns, and both frames render nothing while closed).
    */
-  const taskDetailTask =
-    taskDetailId != null
-      ? (taskNodes.find((n) => n.id === taskDetailId) ?? null)
+  const todoDetailTodo =
+    todoDetailId != null
+      ? (todoNodes.find((n) => n.id === todoDetailId) ?? null)
       : null;
   // #736: every exit from the panel — Escape, the backdrop, the close button,
   // the sheet's close button — funnels through this one guard.
-  const closeTaskDetail = () => {
-    void requestTaskDetailClose(() => setTaskDetailId(null));
+  const closeTodoDetail = () => {
+    void requestTodoDetailClose(() => setTodoDetailId(null));
   };
-  const taskDetailBody = taskDetailTask && (
+  const todoDetailBody = todoDetailTodo && (
     <div className="flex flex-col gap-3">
-      <TaskDetailPanel
-        taskId={taskDetailTask.id}
-        title={taskDetailTask.title}
-        status={taskDetailTask.status}
-        // #713: the same save button Tasks now has. No content editor on
-        // this surface (the body stays in Tasks), so the press only ever
+      <TodoDetailPanel
+        todoId={todoDetailTodo.id}
+        title={todoDetailTodo.title}
+        status={todoDetailTodo.status}
+        // #713: the same save button Todos now has. No content editor on
+        // this surface (the body stays in Todos), so the press only ever
         // carries the title — but the panel's contract allows an empty
         // patch, and writing one would raise a no-op undo entry.
         onSave={(id, patch) => {
@@ -2068,25 +2068,25 @@ export function CalendarTab({
         // into a todo is not a one-way door. It fires raw — the confirm, the
         // cascade count and the close all belong to the handler above.
         onDelete={handleTodoDetailDelete}
-        titleLabel={t("taskDetail.titleLabel")}
-        statusLabel={t("taskDetail.status")}
-        statusText={t(STATUS_TEXT_KEY[taskDetailTask.status ?? "NOT_STARTED"])}
-        saveLabel={t("taskDetail.save")}
-        savedLabel={t("taskDetail.saved")}
-        unsavedLabel={t("taskDetail.unsaved")}
-        deleteLabel={t("taskDetail.todoDelete")}
+        titleLabel={t("todoDetail.titleLabel")}
+        statusLabel={t("todoDetail.status")}
+        statusText={t(STATUS_TEXT_KEY[todoDetailTodo.status ?? "NOT_STARTED"])}
+        saveLabel={t("todoDetail.save")}
+        savedLabel={t("todoDetail.saved")}
+        unsavedLabel={t("todoDetail.unsaved")}
+        deleteLabel={t("todoDetail.todoDelete")}
         // #736: the panel reports its pending title here; the three exits
         // below read the flag before they tear the panel down. A ref rather
         // than state — nothing on screen depends on it, and re-rendering
         // the whole calendar on every keystroke would be a steep price.
         onDirtyChange={(dirty) => {
-          taskDetailDirtyRef.current = dirty;
+          todoDetailDirtyRef.current = dirty;
         }}
         // Same omission as Kanban: TagPicker's own kind badge captions the
-        // row, so TaskDetailPanel's generic tagsLabel would repeat it.
+        // row, so TodoDetailPanel's generic tagsLabel would repeat it.
         tagsSlot={
           <TagPicker
-            itemId={taskDetailTask.id}
+            itemId={todoDetailTodo.id}
             itemRole="task"
             showLabel
             size="sm"
@@ -2103,8 +2103,8 @@ export function CalendarTab({
       <button
         type="button"
         onClick={() => {
-          void requestTaskDetailClose(() =>
-            handleConvertToEvent(taskDetailTask.id),
+          void requestTodoDetailClose(() =>
+            handleConvertToEvent(todoDetailTodo.id),
           );
         }}
         className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
@@ -2116,25 +2116,25 @@ export function CalendarTab({
       <button
         type="button"
         onClick={() => {
-          void requestTaskDetailClose(() => {
-            setTaskDetailId(null);
-            onOpenTasks();
+          void requestTodoDetailClose(() => {
+            setTodoDetailId(null);
+            onOpenTodos();
           });
         }}
         className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
-        {t("scheduleScreen.todoOpenInTasks")}
+        {t("scheduleScreen.todoOpenInTodos")}
       </button>
     </div>
   );
 
-  const taskDetailOverlayEl = (
+  const todoDetailOverlayEl = (
     <ItemDetailOverlay
-      open={isWide && !!taskDetailTask}
-      title={t("materials.tasks.detailTitle")}
-      onClose={closeTaskDetail}
+      open={isWide && !!todoDetailTodo}
+      title={t("materials.todos.detailTitle")}
+      onClose={closeTodoDetail}
     >
-      {taskDetailBody}
+      {todoDetailBody}
     </ItemDetailOverlay>
   );
 
@@ -2148,16 +2148,16 @@ export function CalendarTab({
    * them a tall panel pushes the sheet's top edge off the viewport and the only
    * thing left to scroll is the document.
    */
-  const taskDetailSheetEl = (
+  const todoDetailSheetEl = (
     <BottomSheet
-      open={!isWide && !!taskDetailTask}
-      onClose={closeTaskDetail}
-      title={t("materials.tasks.detailTitle")}
+      open={!isWide && !!todoDetailTodo}
+      onClose={closeTodoDetail}
+      title={t("materials.todos.detailTitle")}
       closeLabel={t("common.close")}
       className="flex max-h-[92svh] flex-col overflow-hidden"
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {taskDetailBody}
+        {todoDetailBody}
       </div>
     </BottomSheet>
   );
@@ -2177,12 +2177,12 @@ export function CalendarTab({
           dateLabel={createDateLabel}
           initialStart={createPanel.start}
           initialEnd={createPanel.end}
-          existingTasks={todoAddable}
+          existingTodos={todoAddable}
           existingNotes={noteOptions}
           onSubmitEvent={handleCreateSubmit}
           onSubmitEventAndOpen={handleCreateSubmitAndOpen}
-          onCreateTask={handleCreateTaskSubmit}
-          onPlaceTask={handlePlaceTaskSubmit}
+          onCreateTodo={handleCreateTodoSubmit}
+          onPlaceTodo={handlePlaceTodoSubmit}
           formatDuration={formatDuration}
           labels={createPanelLabels}
         />
@@ -2301,7 +2301,7 @@ export function CalendarTab({
                 onMoveItem={handleMoveItem}
                 onResizeItem={handleResizeItem}
                 onDropAllDay={handleDropAllDay}
-                taskInteractive
+                todoInteractive
                 weekdayLabels={weekdayLabels}
                 allDayLabel={t("scheduleScreen.allDay")}
                 statusLabels={statusLabels}
@@ -2317,7 +2317,7 @@ export function CalendarTab({
         {calendarsModal}
         {popoverEl}
         {detailOverlayEl}
-        {taskDetailOverlayEl}
+        {todoDetailOverlayEl}
         {createOverlayEl}
         {scopeDialogEl}
       </>
@@ -2411,7 +2411,7 @@ export function CalendarTab({
               <AgendaList
                 items={toAgenda(
                   anchorDayItems,
-                  rangeTaskChips.filter((c) => c.date === anchorDate),
+                  rangeTodoChips.filter((c) => c.date === anchorDate),
                 )}
                 nowMinutes={anchorDate === today ? nowMinutes : null}
                 onToggleComplete={handleAgendaToggle}
@@ -2495,7 +2495,7 @@ export function CalendarTab({
 
       {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
           empty-slot tap opens with the tapped slot's time prefilled. Same panel
-          as the Desktop overlay, so the task tab is reachable here too. */}
+          as the Desktop overlay, so the todo tab is reachable here too. */}
       <QuickCaptureSheet
         open={!!createPanel}
         onClose={() => setCreatePanel(null)}
@@ -2504,17 +2504,17 @@ export function CalendarTab({
         dateLabel={createDateLabel}
         initialStart={createPanel?.start}
         initialEnd={createPanel?.end}
-        existingTasks={todoAddable}
+        existingTodos={todoAddable}
         existingNotes={noteOptions}
         onSubmitEvent={handleCreateSubmit}
         onSubmitEventAndOpen={handleCreateSubmitAndOpen}
-        onCreateTask={handleCreateTaskSubmit}
-        onPlaceTask={handlePlaceTaskSubmit}
+        onCreateTodo={handleCreateTodoSubmit}
+        onPlaceTodo={handlePlaceTodoSubmit}
         formatDuration={formatDuration}
         labels={createPanelLabels}
       />
 
-      {/* #633: cap + inner scroller, like the Notes/Tasks detail sheets — without
+      {/* #633: cap + inner scroller, like the Notes/Todos detail sheets — without
           them a tall editor pushes the sheet's top edge past the viewport and
           the only thing left to scroll is the document (= pull-to-refresh).
           svh, not vh: 100vh is the URL-bar-hidden viewport, so a vh cap can
@@ -2538,7 +2538,7 @@ export function CalendarTab({
       {/* #761: narrow's todo detail. Mounted after the editor sheet, though
           the two are never open together — a tap resolves to exactly one of
           them (itemTapRoute). */}
-      {taskDetailSheetEl}
+      {todoDetailSheetEl}
 
       {scopeDialogEl}
 

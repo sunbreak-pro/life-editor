@@ -38,8 +38,8 @@ export interface TimerConfig {
   sessionsBeforeLongBreak: number;
 }
 
-/** The task a session is attributed to (task_id on timer_sessions). */
-export interface ActiveTask {
+/** The todo a session is attributed to (task_id on timer_sessions). */
+export interface ActiveTodo {
   id: string;
   title: string;
 }
@@ -55,7 +55,7 @@ export interface TimerState {
   durationSeconds: number;
   /** Completed WORK sessions in the current run (drives long-break cadence). */
   completedSessions: number;
-  activeTask: ActiveTask | null;
+  activeTodo: ActiveTodo | null;
   config: TimerConfig;
 }
 
@@ -66,7 +66,7 @@ export type TimerAction =
   | { type: "ADVANCE"; now: number }
   | { type: "SET_PHASE"; phase: TimerPhase }
   | { type: "SET_CONFIG"; config: Partial<TimerConfig> }
-  | { type: "SET_ACTIVE_TASK"; task: ActiveTask | null }
+  | { type: "SET_ACTIVE_TODO"; todo: ActiveTodo | null }
   | { type: "ADJUST_REMAINING"; deltaMinutes: number };
 
 export const DEFAULT_CONFIG: TimerConfig = {
@@ -121,7 +121,7 @@ export function createInitialState(config?: Partial<TimerConfig>): TimerState {
     accumulatedMs: 0,
     durationSeconds: phaseDurationSeconds("WORK", cfg),
     completedSessions: 0,
-    activeTask: null,
+    activeTodo: null,
     config: cfg,
   };
 }
@@ -222,8 +222,8 @@ export function timerReducer(
       return { ...state, config, durationSeconds };
     }
 
-    case "SET_ACTIVE_TASK":
-      return { ...state, activeTask: action.task };
+    case "SET_ACTIVE_TODO":
+      return { ...state, activeTodo: action.todo };
 
     case "ADJUST_REMAINING": {
       // Nudge the current phase length by ±deltaMinutes while paused/idle so
