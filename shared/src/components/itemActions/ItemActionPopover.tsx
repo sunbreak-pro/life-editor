@@ -40,6 +40,11 @@ import { isImeComposing } from "../../utils/imeGuard";
 
 const DEFAULT_WIDTH = 248;
 const EDGE_GAP = 8;
+// First-paint estimates only. The real height is measured right after mount
+// and takes over from there (#826): the panel's height is set by however many
+// `actions` the host passes, so no constant can be right for every caller —
+// the old fixed 220 left an event's "edit detail" button off-screen below
+// 19:00 in week view. These just keep the first frame near its final spot.
 const EST_HEIGHT = 220;
 // The inline input replaces the action list AND the edit-detail button, so
 // the panel is much shorter — clamping with the full estimate would push it
@@ -77,6 +82,7 @@ export function ItemActionPopover({
   const inputRef = useRef<HTMLInputElement>(null);
   const [inlineId, setInlineId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
   useFloatingDismiss(panelRef, onClose);
 
   const inlineAction =
@@ -95,10 +101,21 @@ export function ItemActionPopover({
     }
   }, [inlineId]);
 
-  const { top, left } = clampToViewport(
+  // Measure the panel we just drew and re-clamp with the real number, before
+  // the browser paints. Re-runs on the two things that change the height — the
+  // host's `actions` and the inline-input swap — plus its own result, so a
+  // measurement that shifts the panel gets checked again. Writing state only
+  // on an actual change is what stops this from looping (a capped panel
+  // measures its cap, which re-derives the same cap).
+  useLayoutEffect(() => {
+    const height = panelRef.current?.offsetHeight;
+    if (height != null && height !== measuredHeight) setMeasuredHeight(height);
+  }, [measuredHeight, actions, inlineAction]);
+
+  const { top, left, maxHeight } = clampToViewport(
     position,
     width,
-    inlineAction ? EST_HEIGHT_INLINE : EST_HEIGHT,
+    measuredHeight ?? (inlineAction ? EST_HEIGHT_INLINE : EST_HEIGHT),
     EDGE_GAP,
   );
 
@@ -125,7 +142,16 @@ export function ItemActionPopover({
       role="dialog"
       aria-label={label}
       className="fixed z-[60] overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg py-1 shadow-lumen-lg"
-      style={{ top, left, width }}
+      // A panel too tall for the viewport is capped and scrolls inside itself
+      // rather than running off both edges. `overflowY` overrides the class's
+      // `overflow-hidden` on that axis only, so the rounded corners still clip.
+      style={{
+        top,
+        left,
+        width,
+        maxHeight,
+        overflowY: maxHeight != null ? "auto" : undefined,
+      }}
     >
       <div className="px-3 py-2 text-xs text-lumen-text">{summary}</div>
 
