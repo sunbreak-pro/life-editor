@@ -523,7 +523,9 @@ export function BriefingScreen({
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTask={handleDeleteTask}
         onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={() => onNavigate({ section: "schedule", tab: "calendar" })}
+        onJumpToSchedule={() =>
+          onNavigate({ section: "schedule", tab: "calendar" })
+        }
         onJumpToTasks={() => onNavigate({ section: "schedule", tab: "todo" })}
         tabSwitcher={tabSwitcher}
       />

@@ -3,6 +3,30 @@ import type { ReactNode } from "react";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { cn } from "./cn";
 
+/** Panel width. `panel` is a two-column work surface, not a dialog. */
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "panel";
+
+/*
+ * One max-width per size, emitted INSTEAD of the default — never alongside it.
+ *
+ * `cn` is a plain string join, not tailwind-merge (see cn.ts), so two max-w-*
+ * classes on the same element are settled by the order Tailwind emits them in
+ * the stylesheet, not by which one the caller passed last. Tailwind v4 emits
+ * them sorted by suffix, which put `.max-w-[860px]` ABOVE `.max-w-md`: the tag
+ * panel that asked for 860px rendered at 448 (#830). `max-w-lg` lost the same
+ * way, `max-w-[400px]` and `max-w-[560px]` too — while `max-w-sm` happened to
+ * win, which is the tell that class order rather than intent was deciding.
+ * Routing width through a prop makes the caller win by construction. `padded`
+ * exists for the same reason: `.p-0` sorts above `.p-5`, so it never applied.
+ */
+const MODAL_MAX_WIDTH: Record<ModalSize, string> = {
+  sm: "max-w-sm", // 384px — confirmations
+  md: "max-w-md", // 448px — short forms (default)
+  lg: "max-w-lg", // 512px — item detail overlays
+  xl: "max-w-[560px]", // shortcut editor
+  panel: "max-w-[860px]", // two-column master–detail (tag editor, #740)
+};
+
 export interface ModalProps {
   open: boolean;
   onClose: () => void;
@@ -12,7 +36,13 @@ export interface ModalProps {
       that render their own layout instead of the default `title` heading. */
   labelledBy?: string;
   children: ReactNode;
-  /** Extra classes for the dialog panel. */
+  /** Panel width. Default "md". Never pass a max-w-* class in `className`. */
+  size?: ModalSize;
+  /** Panel padding. Pass false when `children` bring their own insets (rows
+      that need to run edge to edge). The title heading stays inset either
+      way. Default true. */
+  padded?: boolean;
+  /** Extra classes for the dialog panel — anything but width and padding. */
   className?: string;
   /** Close when the backdrop is clicked. Default true. */
   closeOnBackdrop?: boolean;
@@ -38,6 +68,8 @@ export function Modal({
   title,
   labelledBy,
   children,
+  size = "md",
+  padded = true,
   className,
   closeOnBackdrop = true,
 }: ModalProps) {
@@ -62,14 +94,23 @@ export function Modal({
         aria-label={labelledBy ? undefined : title}
         aria-labelledby={labelledBy}
         className={cn(
-          "w-full max-w-md rounded-lg border border-lumen-border",
-          "bg-lumen-bg p-5 shadow-lumen-lg",
+          "w-full rounded-lg border border-lumen-border",
+          MODAL_MAX_WIDTH[size],
+          "bg-lumen-bg shadow-lumen-lg",
+          padded ? "p-5" : null,
           className,
         )}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {title ? (
-          <h2 className="mb-3 text-base font-semibold text-lumen-text">
+          <h2
+            className={cn(
+              "mb-3 text-base font-semibold text-lumen-text",
+              // An unpadded panel still owes its heading an inset — only the
+              // BODY rows asked to run edge to edge.
+              padded ? null : "px-5 pt-5",
+            )}
+          >
             {title}
           </h2>
         ) : null}

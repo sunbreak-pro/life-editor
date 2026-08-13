@@ -7,12 +7,13 @@
 **対象**: `shared/src/**` / `web/src/**` / `mcp-server/**` / CI・tsconfig 群
 **計画書**: `.claude/docs/vision/plans/2026-08-10-core-refactor.md`
 
-- 前回: **#675 やること 3（PR #833 merged）**。前提の #819 / #829 もユーザーが merge 済み
-- 現在: **#675 の残り 3 項目を完走 — PR #839 / #841 / #842 を open**（書いた時点の実測）。1 = taskChips・Todo → `useScheduleTaskChips` / 2 = WeekTimeGrid のドラッグ → `useWeekTimeGridDrag` / 4 = 繰り返し・スコープ → `useRepeatMutations`。**4 本とも互いにファイルが重ならないので merge 順は自由**（merge は常にユーザー = P-001）
-- 次: **merge 後に chat-main で playwright**（週表示 / 月表示 / ドラッグ移動 / リサイズ / 繰り返しのスコープ選択 / Todo の追加と削除）。これが #675 の DoD で唯一残る項目。実装は #671 へ
+- 前回: **#675 の 4 項目すべて merged**（PR #833 / #839 / #841 / #842）
+- 現在: **C5（#672）を締めた — PR #846 open**（書いた時点の実測）。着手して分かったのは**実装が着手前に全部 main へ着地済み**だったこと（PR-A+B = #769 / PR-C = #801 / PR-E = #686）。DoD の grep 系 3 項目・テスト件数・RoutineContext の UndoRedo 配線と i18n ラベルはすべて実測で充足。本レーンが足したのは共通化した `useDomainLoad` **自体**の直接テスト 4 件と計画書 §C5 の実態反映
+- 次: 実装セッション 1 の残り = **#671**。**merge 後の playwright は chat-main へ 2 件引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）と #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）
 
 ## 直近の完了
 
+- **C5（#672）use\*API の load effect 共通化 + eslint baseline 退役 — PR #846 open** ✅（2026-08-13）: 実装は着手前に全部着地済み（#769 / #801 / #686）だったので、足したのは `useDomainLoad` の直接テスト 4 件。3 本のドメインスイート（計 16 ケース）は呼び出し側からしか叩けず、**superseded ガード**（2 本が同時に飛んで古い方が後着する並びを作れない）/ **dep 配列の `dataService`**（service を差し替えるスイートが 1 本も無い）/ **`load`・`apply` の ref ミラー**（dep に戻すと永久ループになるがドメインスイートは落ちず回り続ける）の 3 つに届いていなかった。逆テストで 3 つとも「守りを外すと対応テストだけ落ちる」ことを実測
 - **C8（#675）巨大ホスト 3 本の分割 — 4 項目すべて PR 化（#833 merged / #839・#841・#842 open）** ✅（2026-08-13）: 1 = CalendarTab の task 半分 → `useScheduleTaskChips`（2,716 → 2,553 行・16 tests）/ 2 = WeekTimeGrid のドラッグ → `useWeekTimeGridDrag`（921 → 719 行・7 tests + 既存 21 が無改造で通る）/ 4 = 繰り返し・スコープ → `useRepeatMutations`（1,041 → 456 行・16 tests。**この機構は今までテストが 1 つも無かった**）。全 PR で公開インターフェース不変・挙動変更ゼロ、各テストはソース変異で噛みを実測
 - **C8（#675）やること 3 = `useScheduleItemsAPI` の分割 — PR #833 merged** ✅（2026-08-13）: `shared/` 最後の未分割 API hook。727 → 239 行 + `useScheduleItemsViewMirror`（137）/ `useScheduleItemsCRUD`（459）/ `useScheduleItemsTrash`（73）。戻り値は無改造（`ScheduleItemsContextValue` がその `ReturnType`）。新規 22 tests は 3 本ともソースをわざと壊して落ちることを実測
 - **C6（#673）Schedule の純関数 pin — PR #819 open・CI 全緑** ✅（2026-08-13）: 4 組の ViewModel 変換 → `scheduleViewModels.ts`（13 tests）/ 日付書式 5 箇所 + `t(...)` バンドル → `scheduleCopy.ts`（18 tests）/ ドラッグの配置解決 → `scheduleGridLayout.resolveDrag`（29 tests）。CalendarTab 2,927 → 2,704 行・WeekTimeGrid 977 → 921 行。挙動変更ゼロ

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
+  eveningBodyEquals,
   extractEveningSection,
   extractIntentionSection,
   isEmptyDocJson,
@@ -45,6 +46,12 @@ export function useDailySections(
   // when the STORED evening body changes from OUTSIDE this editor (sync
   // refetch / MCP / Daily-side edit). Our own save echoes match
   // lastEmittedBody and never remount, so typing keeps cursor + IME state.
+  //
+  // The echo test is SEMANTIC, not byte-wise (#793 — the same trap #300 hit in
+  // the Daily editor): the body round-trips through a jsonb column, which hands
+  // object keys back in a different order than TipTap emitted them. Under `===`
+  // every save read as an outside edit, so the caption stuck on Unsaved and the
+  // editor remounted on each write.
   const [lastEmittedBody, setLastEmittedBody] = useState<string | null>(null);
   const [eveningGen, setEveningGen] = useState(0);
   const [syncedBody, setSyncedBody] = useState<string | null>(
@@ -58,7 +65,7 @@ export function useDailySections(
     eveningStored.mood,
   );
   if (syncedBody !== eveningStored.bodyDocJson) {
-    if (eveningStored.bodyDocJson !== lastEmittedBody) {
+    if (!eveningBodyEquals(eveningStored.bodyDocJson, lastEmittedBody)) {
       setEveningGen((g) => g + 1);
     }
     setSyncedBody(eveningStored.bodyDocJson);
@@ -120,7 +127,7 @@ export function useDailySections(
 
   const eveningSaved =
     (lastEmittedBody === null ||
-      lastEmittedBody === eveningStored.bodyDocJson) &&
+      eveningBodyEquals(lastEmittedBody, eveningStored.bodyDocJson)) &&
     (moodDraft === undefined || moodDraft === eveningStored.mood);
 
   // ── Intention (宣言 — Step 4) ────────────────────────────────────────

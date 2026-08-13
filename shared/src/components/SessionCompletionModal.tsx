@@ -42,12 +42,7 @@ export function SessionCompletionModal({
 }: SessionCompletionModalProps) {
   const titleId = useId();
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      labelledBy={titleId}
-      className="max-w-[400px]"
-    >
+    <Modal open={open} onClose={onClose} labelledBy={titleId} size="sm">
       <div className="flex flex-col items-center gap-4">
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-lumen-accent-subtle text-lumen-accent">
           <Timer size={22} aria-hidden="true" />
