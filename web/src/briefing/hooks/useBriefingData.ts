@@ -23,6 +23,7 @@ import {
   type NoteNode,
   type ScheduleItem,
   type TaskNode,
+  type TaskStatus,
   type TimerSession,
   type TodayTodoRow,
   type WikiTagConnectionUnified,
@@ -195,6 +196,15 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [taskNodes],
   );
 
+  // Not started / In progress / Done by task id (#796). The paper's rows and
+  // the tray's chips both flattened status to a boolean; this is what they read
+  // it back from, so neither has to carry its own copy of the rule.
+  const statusById = useMemo(() => {
+    const map = new Map<string, TaskStatus>();
+    for (const n of liveTasks) map.set(n.id, n.status ?? "NOT_STARTED");
+    return map;
+  }, [liveTasks]);
+
   const todayTasks = useMemo<BriefingTaskEntry[]>(
     () =>
       liveTasks
@@ -266,11 +276,14 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     ],
   );
 
-  //「残りの Todo」— today's unfinished + open carryover, tickable from the
-  // paper (#794). A row closed TODAY stays listed (struck through) instead of
-  // vanishing: the tap has to be visible to have happened, and taking it back
-  // must not mean going to another screen. Same "completed today still counts"
-  // rule the carryover block already uses, so a task closed yesterday is gone.
+  //「残りの Todo」— today's unfinished + open carryover, each carrying its real
+  // Not started / In progress / Done status (#796).
+  //
+  // A row moved to DONE **today** stays on the list (struck through) instead of
+  // vanishing under the finger that tapped it: a control you cannot see the
+  // result of is not a control, and taking a mis-tap back must not mean going
+  // to another screen. Same "completed today still counts" rule the carryover
+  // block already used, so a task closed yesterday is still gone.
   const remainingTodos = useMemo<EveningTodoEntry[]>(() => {
     const dayStart = Date.parse(`${todayKey}T00:00:00`);
     return [
@@ -285,16 +298,16 @@ export function useBriefingData(ds: DataService, todayKey: string) {
         .map((n) => ({
           id: n.id,
           title: n.title,
-          completed: n.status === "DONE",
+          status: n.status ?? "NOT_STARTED",
         })),
       ...carryover.map((item) => ({
         id: item.id,
         title: item.title,
         meta: item.daysLabel,
-        completed: item.completed,
+        status: statusById.get(item.id) ?? "NOT_STARTED",
       })),
     ];
-  }, [liveTasks, todayKey, carryover]);
+  }, [liveTasks, todayKey, carryover, statusById]);
 
   //「今後の予定」— the rest of today (from now) + all of tomorrow.
   const upcoming = useMemo<EveningScheduleEntry[]>(() => {
@@ -340,19 +353,24 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [ds],
   );
 
-  const handleToggleTask = useCallback(
-    (id: string) => {
+  /**
+   * Write a Todo's status (#796). `completedAt` follows it — DONE stamps the
+   * moment, anything else clears it — because that stamp is what decides
+   * whether a closed task still belongs on today's paper.
+   *
+   * The new status is painted BEFORE the write resolves and rolled back if it
+   * fails. `updateTask` is several sequential requests, and a status control
+   * that does not move until they all return reads as broken.
+   */
+  const handleSetTaskStatus = useCallback(
+    (id: string, status: TaskStatus) => {
       const target = taskNodes.find((n) => n.id === id);
-      if (target === undefined) return;
-      const done = target.status === "DONE";
-      const patch = done
-        ? { status: "NOT_STARTED" as const, completedAt: undefined }
-        : { status: "DONE" as const, completedAt: new Date().toISOString() };
+      if (target === undefined || target.status === status) return;
+      const patch = {
+        status,
+        completedAt: status === "DONE" ? new Date().toISOString() : undefined,
+      };
 
-      // Paint the tick NOW and reconcile with the write afterwards (#794).
-      // Waiting for the round trip is what made the tray's checkbox feel
-      // heavy: `updateTask` is several sequential requests, and until the last
-      // one returned the box the user just pressed had not moved.
       setTaskNodes((prev) =>
         prev.map((n) => (n.id === id ? { ...n, ...patch } : n)),
       );
@@ -364,14 +382,28 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           );
         })
         // The row renders on the paper and in the rightSidebar tray (#413), so
-        // a failed write puts the ORIGINAL node back — an optimistic tick that
-        // survives its own failure is a lie about what is stored.
+        // a failed write puts the ORIGINAL node back — an optimistic status
+        // that survives its own failure is a lie about what is stored.
         .catch((err) => {
-          console.error("[BriefingScreen] task completion toggle failed", err);
+          console.error("[BriefingScreen] task status write failed", err);
           setTaskNodes((prev) => prev.map((n) => (n.id === id ? target : n)));
         });
     },
     [ds, taskNodes],
+  );
+
+  /** Binary completion, still what the morning paper's rows speak (#796 gave
+   *  the three statuses to the evening rows and the tray only). */
+  const handleToggleTask = useCallback(
+    (id: string) => {
+      const target = taskNodes.find((n) => n.id === id);
+      if (target === undefined) return;
+      handleSetTaskStatus(
+        id,
+        target.status === "DONE" ? "NOT_STARTED" : "DONE",
+      );
+    },
+    [taskNodes, handleSetTaskStatus],
   );
 
   // ── Creating into today (#623) ───────────────────────────────────────
@@ -719,6 +751,8 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     () => tasksToCalendarChips(liveTasks, todayKey, todayKey),
     [liveTasks, todayKey],
   );
+  // The chips carry a completed flag, not the three-way status the tray now
+  // shows (#796) — read it back off the task the chip came from (statusById).
   const todoPlaced = useMemo<TodayTodoRow[]>(
     () =>
       todayChips
@@ -728,15 +762,21 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           title: c.title,
           timeLabel: c.startTime,
           completed: c.completed,
+          status: statusById.get(c.id) ?? "NOT_STARTED",
         })),
-    [todayChips],
+    [todayChips, statusById],
   );
   const todoUnplaced = useMemo<TodayTodoRow[]>(
     () =>
       todayChips
         .filter((c) => c.isAllDay)
-        .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
-    [todayChips],
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          completed: c.completed,
+          status: statusById.get(c.id) ?? "NOT_STARTED",
+        })),
+    [todayChips, statusById],
   );
   const todoAddable = useMemo(() => pickAddableTasks(liveTasks), [liveTasks]);
 
@@ -772,6 +812,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     upcoming,
     handleToggleScheduleItem,
     handleToggleTask,
+    handleSetTaskStatus,
     handleDeleteScheduleItem,
     handleDeleteTask,
     deleteScopeItem,

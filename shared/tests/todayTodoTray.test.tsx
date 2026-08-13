@@ -106,6 +106,94 @@ describe("TodayTodoTray #555 surfaces", () => {
 });
 
 /*
+ * #796 — the tray's opt-in three-status control.
+ *
+ * Briefing shows Not started / In progress / Done on its paper, so the tray it
+ * mounts beside that paper has to say the same thing about a Todo. Schedule
+ * has not asked for it, so the binary checkbox stays the default: leaving
+ * `onSetStatus` off must change nothing there, which is what the "absent" case
+ * below is for.
+ */
+describe("TodayTodoTray three-status rows (#796)", () => {
+  const statusLabels = {
+    statusNotStarted: "Not started",
+    statusInProgress: "In progress",
+    statusDone: "Done",
+  };
+  const statusRows = {
+    placed: [
+      {
+        id: "task-1",
+        title: "Placed",
+        timeLabel: "09:00",
+        completed: false,
+        status: "IN_PROGRESS" as const,
+      },
+    ],
+    unplaced: [
+      {
+        id: "task-2",
+        title: "Unplaced",
+        completed: true,
+        status: "DONE" as const,
+      },
+    ],
+    addable: [{ id: "task-3", title: "Addable" }],
+  };
+
+  function renderTray() {
+    const onSetStatus = vi.fn();
+    const onToggleComplete = vi.fn();
+    render(
+      <TodayTodoTray
+        {...statusRows}
+        onToggleComplete={onToggleComplete}
+        onSetStatus={onSetStatus}
+        onOpenTask={noop}
+        onAddCandidate={noop}
+        labels={{ ...labels, status: "Status", statusLabels }}
+      />,
+    );
+    return { onSetStatus, onToggleComplete };
+  }
+
+  it("replaces the checkbox with the status control", () => {
+    renderTray();
+    expect(screen.queryByLabelText("complete")).toBeNull();
+    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
+  });
+
+  it("reports the status the press lands on", () => {
+    const { onSetStatus, onToggleComplete } = renderTray();
+    fireEvent.click(screen.getByLabelText("Status: In progress"));
+    expect(onSetStatus).toHaveBeenCalledWith("task-1", "DONE");
+    fireEvent.click(screen.getByLabelText("Status: Done"));
+    expect(onSetStatus).toHaveBeenCalledWith("task-2", "NOT_STARTED");
+    // The binary path is not also fired — one press, one write.
+    expect(onToggleComplete).not.toHaveBeenCalled();
+  });
+
+  it("keeps the binary checkbox for a host that does not opt in", () => {
+    const onToggleComplete = vi.fn();
+    render(
+      <TodayTodoTray
+        {...statusRows}
+        onToggleComplete={onToggleComplete}
+        onOpenTask={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    expect(screen.queryByLabelText("Status: Done")).toBeNull();
+    const boxes = screen.getAllByLabelText("complete");
+    expect(boxes).toHaveLength(2);
+    fireEvent.click(boxes[0]!);
+    expect(onToggleComplete).toHaveBeenCalledWith("task-1");
+  });
+});
+
+/*
  * #795 — the merged single list.
  *
  * "Pick a todo from Add from todos → it lands in Candidates → it later becomes

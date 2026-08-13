@@ -348,7 +348,10 @@ const EVENING_LABELS: EveningLabels = {
   savedCaption: "Saved",
   todosTitle: "REMAINING",
   noTodos: "No todos",
-  toggleTodo: "Toggle complete",
+  todoStatus: "Status",
+  statusNotStarted: "Not started",
+  statusInProgress: "In progress",
+  statusDone: "Done",
   upcomingTitle: "UPCOMING",
   noUpcoming: "Nothing upcoming",
   tomorrowTag: "Tomorrow",
@@ -358,7 +361,7 @@ const EVENING_LABELS: EveningLabels = {
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
-  const onToggleTodo = vi.fn();
+  const onSetTodoStatus = vi.fn();
   const result = render(
     <EveningView
       loading={false}
@@ -371,13 +374,13 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
       todos={[]}
-      onToggleTodo={onToggleTodo}
+      onSetTodoStatus={onSetTodoStatus}
       schedule={[]}
       labels={EVENING_LABELS}
       {...props}
     />,
   );
-  return { ...result, onIntentionChange, onIntentionBlur, onToggleTodo };
+  return { ...result, onIntentionChange, onIntentionBlur, onSetTodoStatus };
 }
 
 /**
@@ -537,42 +540,55 @@ describe("Intention caption omission (#427)", () => {
 });
 
 /*
- * #794 — the REMAINING TODOS rows. The block used to be display-only and drew
- * a decorative <span> in the shape of a checkbox, so a tap on a phone did
- * literally nothing (the rightSidebar tray's real checkbox was the only way to
- * tick a todo off). The row is a button now, and it stays on the list once
- * ticked so the tap is visible and reversible.
+ * #796 — the REMAINING TODOS rows speak the Todo's real three statuses.
+ *
+ * The block drew a checkbox-shaped <span> with nothing listening to it, which
+ * both flattened Not started / In progress / Done into two values and left the
+ * row unpressable. It is one button now, cycling in the same order the Tasks
+ * side has always used, and a row moved to Done stays listed struck through so
+ * the press is visible and reversible.
  */
-describe("EveningView remaining todos (#794)", () => {
+describe("EveningView remaining todos, three statuses (#796)", () => {
   const TODOS = [
-    { id: "t1", title: "Write the report", completed: false },
-    { id: "t2", title: "Book the room", completed: true },
+    { id: "t1", title: "Write the report", status: "NOT_STARTED" as const },
+    { id: "t2", title: "Book the room", status: "IN_PROGRESS" as const },
+    { id: "t3", title: "Send the invite", status: "DONE" as const },
   ];
 
-  it("reports a tap on a todo row to the host", () => {
-    const { onToggleTodo } = renderEvening({ todos: TODOS });
-    fireEvent.click(screen.getAllByRole("button", { name: "Toggle complete" })[0]!);
-    expect(onToggleTodo).toHaveBeenCalledWith("t1");
+  it("names each row's current status", () => {
+    renderEvening({ todos: TODOS });
+    expect(screen.getByLabelText("Status: Not started")).toBeTruthy();
+    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
   });
 
-  it("keeps a completed row listed and reports its state", () => {
+  it("advances one step per press, wrapping at Done", () => {
+    const { onSetTodoStatus } = renderEvening({ todos: TODOS });
+    fireEvent.click(screen.getByLabelText("Status: Not started"));
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t1", "IN_PROGRESS");
+    fireEvent.click(screen.getByLabelText("Status: In progress"));
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t2", "DONE");
+    fireEvent.click(screen.getByLabelText("Status: Done"));
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t3", "NOT_STARTED");
+  });
+
+  it("keeps a Done row listed, struck through", () => {
     renderEvening({ todos: TODOS });
-    const rows = screen.getAllByRole("button", { name: "Toggle complete" });
-    expect(rows).toHaveLength(2);
-    expect(rows[0]!.getAttribute("aria-pressed")).toBe("false");
-    expect(rows[1]!.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByText("Book the room").className).toContain(
+    expect(screen.getByText("Send the invite").className).toContain(
+      "line-through",
+    );
+    expect(screen.getByText("Book the room").className).not.toContain(
       "line-through",
     );
   });
 
-  it("gives every row the phone minimum touch target", () => {
+  it("gives every control the phone minimum touch target", () => {
     renderEvening({ todos: TODOS });
-    for (const row of screen.getAllByRole("button", {
-      name: "Toggle complete",
-    })) {
+    for (const label of ["Not started", "In progress", "Done"]) {
       // mobile-scope.md: 44px is the floor, and a 16px box cannot meet it.
-      expect(row.className).toContain("min-h-[44px]");
+      expect(screen.getByLabelText(`Status: ${label}`).className).toContain(
+        "min-h-11",
+      );
     }
   });
 });

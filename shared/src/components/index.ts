@@ -106,6 +106,13 @@ export {
   TaskStatusChoices,
   type TaskStatusChoicesProps,
 } from "./TaskStatusChoices";
+// The list-row half of the same idea (#796): one button cycling through the
+// three statuses, for rows with no width for the full picker.
+export {
+  TaskStatusCycleButton,
+  nextTaskStatus,
+  type TaskStatusCycleButtonProps,
+} from "./TaskStatusCycleButton";
 // Task add dialog (W-UX) — small centered overlay to create a task. Pure
 // presentation: host injects copy, receives create intent via onSubmit
 // (§3.1 / §6.4).

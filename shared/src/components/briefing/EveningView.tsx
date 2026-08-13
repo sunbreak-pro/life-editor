@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { Check, Star } from "lucide-react";
+import { Star } from "lucide-react";
+import type { TaskStatus } from "../../types/taskTree";
 import { SkeletonList } from "../SkeletonList";
+import { TaskStatusCycleButton } from "../TaskStatusCycleButton";
 import { IntentionField } from "./IntentionField";
 
 /*
@@ -17,8 +19,8 @@ import { IntentionField } from "./IntentionField";
  * Neither the remaining-todo nor the upcoming-schedule block is ever copied
  * into the daily body (F-6: analysis reads raw data via get_today_context; the
  * body is the user's own reflection). The todo rows are still ACTIONABLE
- * though — closing the day means ticking things off, and #794 found the block
- * drawing checkbox-shaped decoration that nothing listened to.
+ * though — closing the day means moving things along, and #796 gave them the
+ * same three statuses a Todo has everywhere else in the app.
  */
 
 /** One row of「残りの Todo」(today's unfinished + open carryover). */
@@ -28,11 +30,11 @@ export interface EveningTodoEntry {
   /** Optional annotation, e.g. the carryover "N日目" label (host-formatted). */
   meta?: string;
   /**
-   * Ticked off. A row completed TODAY stays on the list struck through rather
-   * than vanishing under the finger that tapped it — the tap has to be visible
-   * to have happened, and undoing it must not require another screen (#794).
+   * Not started / In progress / Done — the Todo's real state, not a boolean
+   * flattening of it (#796). A row moved to DONE **today** stays on the list
+   * struck through rather than vanishing under the finger that tapped it.
    */
-  completed: boolean;
+  status: TaskStatus;
 }
 
 /** One read-only row of「今後の予定」(rest of today + tomorrow). */
@@ -71,8 +73,15 @@ export interface EveningLabels {
   savedCaption: string;
   todosTitle: string;
   noTodos: string;
-  /** Accessible name for a todo row's completion toggle. */
-  toggleTodo: string;
+  /**
+   * Copy for the per-row status control (#796) — `todoStatus` names what the
+   * button controls, the three `status*` members name each value. Same words
+   * the Tasks section uses (taskDetail.*), injected rather than re-worded.
+   */
+  todoStatus: string;
+  statusNotStarted: string;
+  statusInProgress: string;
+  statusDone: string;
   upcomingTitle: string;
   noUpcoming: string;
   tomorrowTag: string;
@@ -111,11 +120,11 @@ export interface EveningViewProps {
   onIntentionBlur: () => void;
   todos: EveningTodoEntry[];
   /**
-   * Tick a todo off (or back on) straight from the paper (#794). The block used
-   * to be display-only and drew a decorative box that nothing was listening to,
-   * so tapping it on a phone did nothing at all.
+   * Move a todo to the next status straight from the paper (#796). The block
+   * used to draw a checkbox-shaped <span> with nothing listening to it, which
+   * both flattened three states into two and left the row unpressable.
    */
-  onToggleTodo: (id: string) => void;
+  onSetTodoStatus: (id: string, status: TaskStatus) => void;
   schedule: EveningScheduleEntry[];
   labels: EveningLabels;
   /**
@@ -161,7 +170,7 @@ export function EveningView({
   onIntentionChange,
   onIntentionBlur,
   todos,
-  onToggleTodo,
+  onSetTodoStatus,
   schedule,
   labels,
   tabSwitcher,
@@ -278,43 +287,31 @@ export function EveningView({
             {todos.map((todo) => (
               <li
                 key={todo.id}
-                className="border-b border-dashed border-lumen-border last:border-b-0"
+                className="flex items-center gap-1.5 border-b border-dashed border-lumen-border last:border-b-0"
               >
-                {/* The whole row is the target, as on the morning paper — and
-                    min-h-[44px] is the phone minimum (mobile-scope.md), which
-                    a 16px box on its own could never meet. */}
-                <button
-                  type="button"
-                  onClick={() => onToggleTodo(todo.id)}
-                  aria-label={labels.toggleTodo}
-                  aria-pressed={todo.completed}
-                  className="flex min-h-[44px] w-full items-center gap-2.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset"
+                {/* 朱 is the user's own action voice on the paper, so the
+                    control wears it rather than the app accent. */}
+                <TaskStatusCycleButton
+                  status={todo.status}
+                  onChange={(next) => onSetTodoStatus(todo.id, next)}
+                  labels={labels}
+                  label={labels.todoStatus}
+                  accentClassName="text-lumen-briefing-shu"
+                />
+                <span
+                  className={
+                    todo.status === "DONE"
+                      ? "text-sm text-lumen-text-secondary line-through"
+                      : "text-sm text-lumen-text"
+                  }
                 >
-                  <span
-                    aria-hidden="true"
-                    className={
-                      todo.completed
-                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
-                        : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                    }
-                  >
-                    {todo.completed && <Check size={11} />}
+                  {todo.title}
+                </span>
+                {todo.meta !== undefined && (
+                  <span className="text-xs font-bold text-lumen-briefing-shu">
+                    {todo.meta}
                   </span>
-                  <span
-                    className={
-                      todo.completed
-                        ? "text-sm text-lumen-text-secondary line-through"
-                        : "text-sm text-lumen-text"
-                    }
-                  >
-                    {todo.title}
-                  </span>
-                  {todo.meta !== undefined && (
-                    <span className="text-xs font-bold text-lumen-briefing-shu">
-                      {todo.meta}
-                    </span>
-                  )}
-                </button>
+                )}
               </li>
             ))}
           </ul>
