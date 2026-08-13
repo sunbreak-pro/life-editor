@@ -4,21 +4,21 @@ import type { ReactNode } from "react";
 import { createElement } from "react";
 import { useNotesUnifiedAPI } from "../src/hooks/useNotesUnifiedAPI";
 import { useDailiesUnifiedAPI } from "../src/hooks/useDailiesUnifiedAPI";
-import { useTaskTreeAPI } from "../src/hooks/useTaskTreeAPI";
+import { useTodoTreeAPI } from "../src/hooks/useTodoTreeAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import {
   resetMaterialsSelection,
   setNotesSelection,
   getNotesSelection,
-  setTaskSelection,
-  getTaskSelection,
+  setTodoSelection,
+  getTodoSelection,
   getDailySelection,
 } from "../src/state/materialsSelectionStore";
 import { todayDateKey } from "../src/utils/dateKey";
 import type { DataService } from "../src/services/DataService";
 import type { NoteNode } from "../src/types/note";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * #282 — cross-remount selection persistence at the hook level. The Materials
@@ -82,7 +82,7 @@ function makeNotesDS(
 
 // ---- Tasks fixtures ---------------------------------------------------
 
-function makeTask(id: string): TaskNode {
+function makeTask(id: string): TodoNode {
   return {
     id,
     type: "task",
@@ -91,14 +91,14 @@ function makeTask(id: string): TaskNode {
     order: 0,
     status: "NOT_STARTED",
     createdAt: "2026-07-01T00:00:00.000Z",
-  } as unknown as TaskNode;
+  } as unknown as TodoNode;
 }
 
-function makeTasksDS(all: TaskNode[]): DataService {
+function makeTasksDS(all: TodoNode[]): DataService {
   return {
-    fetchTaskTree: async () => all.filter((n) => !n.isDeleted),
-    fetchDeletedTasks: async () => all.filter((n) => n.isDeleted),
-    syncTaskTree: async () => {},
+    fetchTodoTree: async () => all.filter((n) => !n.isDeleted),
+    fetchDeletedTodos: async () => all.filter((n) => n.isDeleted),
+    syncTodoTree: async () => {},
   } as unknown as DataService;
 }
 
@@ -201,7 +201,7 @@ describe("Materials selection persistence (#282)", () => {
 
     const m1 = renderHook(
       () =>
-        useTaskTreeAPI({
+        useTodoTreeAPI({
           dataService: makeTasksDS(initial),
           persistSelection: true,
         }),
@@ -209,56 +209,56 @@ describe("Materials selection persistence (#282)", () => {
     );
     await waitFor(() => expect(m1.result.current.isLoading).toBe(false));
     act(() => {
-      m1.result.current.setSelectedTaskId("task-a");
+      m1.result.current.setSelectedTodoId("task-a");
     });
-    expect(m1.result.current.selectedTaskId).toBe("task-a");
-    expect(getTaskSelection()).toBe("task-a");
+    expect(m1.result.current.selectedTodoId).toBe("task-a");
+    expect(getTodoSelection()).toBe("task-a");
     m1.unmount();
 
     const m2 = renderHook(
       () =>
-        useTaskTreeAPI({
+        useTodoTreeAPI({
           dataService: makeTasksDS(initial),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
     );
     await waitFor(() =>
-      expect(m2.result.current.selectedTaskId).toBe("task-a"),
+      expect(m2.result.current.selectedTodoId).toBe("task-a"),
     );
-    expect(m2.result.current.selectedTask?.id).toBe("task-a");
+    expect(m2.result.current.selectedTodo?.id).toBe("task-a");
     m2.unmount();
   });
 
   it("Tasks: a stored id that is missing clears the store and stays null", async () => {
-    setTaskSelection("task-gone");
+    setTodoSelection("task-gone");
     const { result } = renderHook(
       () =>
-        useTaskTreeAPI({
+        useTodoTreeAPI({
           dataService: makeTasksDS([makeTask("task-a")]),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    await waitFor(() => expect(getTaskSelection()).toBeNull());
-    expect(result.current.selectedTaskId).toBeNull();
+    await waitFor(() => expect(getTodoSelection()).toBeNull());
+    expect(result.current.selectedTodoId).toBeNull();
   });
 
   it("Tasks: a soft-deleted stored id clears the store and stays null", async () => {
-    setTaskSelection("task-d");
-    const deleted = { ...makeTask("task-d"), isDeleted: true } as TaskNode;
+    setTodoSelection("task-d");
+    const deleted = { ...makeTask("task-d"), isDeleted: true } as TodoNode;
     const { result } = renderHook(
       () =>
-        useTaskTreeAPI({
+        useTodoTreeAPI({
           dataService: makeTasksDS([makeTask("task-a"), deleted]),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    await waitFor(() => expect(getTaskSelection()).toBeNull());
-    expect(result.current.selectedTaskId).toBeNull();
+    await waitFor(() => expect(getTodoSelection()).toBeNull());
+    expect(result.current.selectedTodoId).toBeNull();
   });
 
   it("Notes: creating a note writes the store so the new note survives a tab switch", async () => {
@@ -294,39 +294,39 @@ describe("Materials selection persistence (#282)", () => {
   });
 
   it("Tasks: a failed fetch keeps the store entry (transient error must not erase it)", async () => {
-    setTaskSelection("task-a");
+    setTodoSelection("task-a");
     const ds = {
-      fetchTaskTree: async () => {
+      fetchTodoTree: async () => {
         throw new Error("offline");
       },
-      fetchDeletedTasks: async () => [],
-      syncTaskTree: async () => {},
+      fetchDeletedTodos: async () => [],
+      syncTodoTree: async () => {},
     } as unknown as DataService;
     const { result } = renderHook(
-      () => useTaskTreeAPI({ dataService: ds, persistSelection: true }),
+      () => useTodoTreeAPI({ dataService: ds, persistSelection: true }),
       { wrapper: syncWrapper },
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(getTaskSelection()).toBe("task-a"); // NOT cleared by the failure
-    expect(result.current.selectedTaskId).toBeNull();
+    expect(getTodoSelection()).toBe("task-a"); // NOT cleared by the failure
+    expect(result.current.selectedTodoId).toBeNull();
   });
 
   it("Tasks: a non-Materials mount (no persistSelection) neither restores nor overwrites the store", async () => {
-    setTaskSelection("task-a");
+    setTodoSelection("task-a");
     const { result } = renderHook(
       () =>
-        useTaskTreeAPI({
+        useTodoTreeAPI({
           dataService: makeTasksDS([makeTask("task-a"), makeTask("task-b")]),
         }),
       { wrapper: syncWrapper },
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.selectedTaskId).toBeNull(); // no restore ran
+    expect(result.current.selectedTodoId).toBeNull(); // no restore ran
     act(() => {
-      result.current.setSelectedTaskId("task-b");
+      result.current.setSelectedTodoId("task-b");
     });
-    expect(result.current.selectedTaskId).toBe("task-b");
-    expect(getTaskSelection()).toBe("task-a"); // Materials selection untouched
+    expect(result.current.selectedTodoId).toBe("task-b");
+    expect(getTodoSelection()).toBe("task-a"); // Materials selection untouched
   });
 
   it("Daily: picking today clears the store instead of pinning a concrete date", async () => {
@@ -363,14 +363,14 @@ describe("Materials selection persistence (#282)", () => {
 
     const tasks = renderHook(
       () =>
-        useTaskTreeAPI({
+        useTodoTreeAPI({
           dataService: makeTasksDS([makeTask("task-a")]),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
     );
     await waitFor(() => expect(tasks.result.current.isLoading).toBe(false));
-    expect(tasks.result.current.selectedTaskId).toBeNull();
+    expect(tasks.result.current.selectedTodoId).toBeNull();
     tasks.unmount();
 
     const daily = renderHook(

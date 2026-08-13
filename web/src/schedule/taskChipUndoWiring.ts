@@ -1,8 +1,8 @@
 import { localDateTimeToISO } from "@life-editor/shared";
-import type { TaskNode, UpdateNodeOptions } from "@life-editor/shared";
+import type { TodoNode, UpdateNodeOptions } from "@life-editor/shared";
 
 /*
- * What each Schedule gesture writes onto a TaskNode, and whether that write is
+ * What each Schedule gesture writes onto a TodoNode, and whether that write is
  * undoable (#569).
  *
  * Extracted out of CalendarTab as pure functions for one reason: inside the
@@ -18,7 +18,7 @@ import type { TaskNode, UpdateNodeOptions } from "@life-editor/shared";
 
 /** A patch for `updateNode`, plus the options that decide its undo entry. */
 export interface TaskChipWrite {
-  patch: Partial<TaskNode>;
+  patch: Partial<TodoNode>;
   /** Absent = a silent persist (no undo command). */
   options?: UpdateNodeOptions;
 }
@@ -33,7 +33,7 @@ export function timedPlacement(
   dateKey: string,
   start: string,
   end: string,
-): Partial<TaskNode> {
+): Partial<TodoNode> {
   return {
     scheduledAt: localDateTimeToISO(dateKey, start),
     scheduledEndAt: localDateTimeToISO(dateKey, end),
@@ -55,14 +55,14 @@ export function timedPlacement(
  * arise in practice).
  */
 export function taskChipMoveWrite(
-  task: TaskNode | undefined,
+  task: TodoNode | undefined,
   dateISO: string,
   startISO: string,
   endISO: string,
 ): TaskChipWrite {
   return {
     patch: timedPlacement(dateISO, startISO, endISO),
-    options: { undoLabel: task?.isAllDay ? "taskChipPlace" : "taskChipMove" },
+    options: { undoLabel: task?.isAllDay ? "todoChipPlace" : "todoChipMove" },
   };
 }
 
@@ -74,7 +74,7 @@ export function taskChipMoveWrite(
  * one anyway would move the task to an arbitrary date.
  */
 export function taskChipResizeWrite(
-  task: TaskNode | undefined,
+  task: TodoNode | undefined,
   endISO: string,
 ): TaskChipWrite | null {
   if (!task?.scheduledAt) return null;
@@ -85,7 +85,7 @@ export function taskChipResizeWrite(
   ).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
   return {
     patch: { scheduledEndAt: localDateTimeToISO(dateKey, endISO) },
-    options: { undoLabel: "taskChipResize" },
+    options: { undoLabel: "todoChipResize" },
   };
 }
 
@@ -101,7 +101,7 @@ export function taskChipAllDayWrite(dateISO: string): TaskChipWrite {
       scheduledAt: localDateTimeToISO(dateISO, "00:00"),
       isAllDay: true,
     },
-    options: { undoLabel: "taskChipAllDay" },
+    options: { undoLabel: "todoChipAllDay" },
   };
 }
 
@@ -116,7 +116,7 @@ export function todoAddCandidateWrite(todayKey: string): TaskChipWrite {
       scheduledAt: localDateTimeToISO(todayKey, "00:00"),
       isAllDay: true,
     },
-    options: { undoLabel: "taskAddToToday" },
+    options: { undoLabel: "todoAddToToday" },
   };
 }
 
@@ -138,6 +138,6 @@ export function placeTaskWrite(
 ): TaskChipWrite {
   return {
     patch: timedPlacement(dateKey, start, end),
-    options: hasNote ? undefined : { undoLabel: "taskChipPlace" },
+    options: hasNote ? undefined : { undoLabel: "todoChipPlace" },
   };
 }

@@ -7,7 +7,7 @@ import {
   Sunrise,
   Trash2,
 } from "lucide-react";
-import type { TaskNode, TaskStatus } from "../../types/taskTree";
+import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
 import {
@@ -59,7 +59,7 @@ export interface BriefingScheduleEntry {
 export interface BriefingTaskEntry {
   id: string;
   title: string;
-  status: TaskStatus;
+  status: TodoStatus;
   /** Titles of linked goal/notes (WikiTagsUnified item↔item links). */
   purposes: string[];
 }
@@ -85,7 +85,7 @@ export interface BriefingData {
   /** Timer sessions — feeds StreakDisplay + WorkBreakBalance. */
   sessions: TimerSession[];
   /** Full task tree — feeds TaskCompletionTrend. */
-  taskNodes: TaskNode[];
+  taskNodes: TodoNode[];
 }
 
 export interface BriefingLabels {

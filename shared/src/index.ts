@@ -42,7 +42,7 @@ export {
 } from "./materials/materialsCounts";
 
 // Types
-export type { TaskNode, NodeType, TaskStatus } from "./types/taskTree";
+export type { TodoNode, TodoNodeType, TodoStatus } from "./types/todoTree";
 export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
 export type { DailyNode } from "./types/daily";
 export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
@@ -57,11 +57,11 @@ export {
   SyncProvider,
   SyncContext,
   type WebSyncContextValue,
-  TaskTreeProvider,
-  TaskTreeContext,
-  type TaskTreeContextValue,
+  TodoTreeProvider,
+  TodoTreeContext,
+  type TodoTreeContextValue,
 } from "./context";
-export { useTaskTreeContext } from "./hooks/useTaskTreeContext";
+export { useTodoTreeContext } from "./hooks/useTodoTreeContext";
 export { useSyncContext } from "./hooks/useSyncContext";
 // #499 — refetch keyed to the domains a consumer reads, so one domain's write
 // no longer re-pulls (or, for the timer, re-WRITES) every other domain.
@@ -259,14 +259,14 @@ export {
   type NavShortcutId,
 } from "./hooks/useGlobalShortcuts";
 export {
-  useTaskTreeAPI,
-  type UseTaskTreeAPIOptions,
-} from "./hooks/useTaskTreeAPI";
+  useTodoTreeAPI,
+  type UseTodoTreeAPIOptions,
+} from "./hooks/useTodoTreeAPI";
 export {
   createNoopUndoRedo,
   type UndoRedoLike,
-  type TaskHistoryLabel,
-} from "./hooks/useTaskTreeHistory";
+  type TodoHistoryLabel,
+} from "./hooks/useTodoTreeHistory";
 // UndoRedo (Issue #304) — global single-stack manager + context + hooks.
 export {
   UndoRedoManager,
@@ -286,7 +286,7 @@ export {
 export type {
   AddNodeOptions,
   UpdateNodeOptions,
-} from "./hooks/useTaskTreeCRUD";
+} from "./hooks/useTodoTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // DU-G G4: the legacy Daily Provider / context hook / API hook were
@@ -559,7 +559,7 @@ export {
 export {
   collectDescendantIds,
   isDescendantOf,
-} from "./utils/getDescendantTasks";
+} from "./utils/getDescendantTodos";
 // Shared UI class-string tokens + task-status visuals (C5 dedup) — the web
 // host imports these through the barrel.
 export {

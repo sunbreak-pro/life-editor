@@ -1,4 +1,4 @@
-import type { TaskStatus } from "../types/taskTree";
+import type { TodoStatus } from "../types/todoTree";
 import { cn } from "./cn";
 import { FOCUS_RING_TIGHT } from "./styleTokens";
 import {
@@ -16,7 +16,7 @@ import {
  * has no such width, so this is the other half of the same idea: one button
  * showing the current status, advancing to the next on press —
  * NOT_STARTED → IN_PROGRESS → DONE → NOT_STARTED, the same cycle
- * `useTaskTreeCRUD.toggleTaskStatus` has always used on the Tasks side.
+ * `useTodoTreeCRUD.toggleTodoStatus` has always used on the Tasks side.
  *
  * The icons and the order come from `taskStatusVisuals`, so a status is drawn
  * the same here as on the Kanban board and the mobile task list — the point of
@@ -27,9 +27,9 @@ import {
  */
 
 export interface TaskStatusCycleButtonProps {
-  status: TaskStatus;
+  status: TodoStatus;
   /** The next status in the cycle — the host persists it. */
-  onChange: (next: TaskStatus) => void;
+  onChange: (next: TodoStatus) => void;
   /** Already-translated per-status labels (§6.4). */
   labels: StatusLabelSet;
   /**
@@ -48,7 +48,7 @@ export interface TaskStatusCycleButtonProps {
 }
 
 /** The status one press advances to. */
-export function nextTaskStatus(status: TaskStatus): TaskStatus {
+export function nextTaskStatus(status: TodoStatus): TodoStatus {
   const i = STATUS_ORDER.indexOf(status);
   return STATUS_ORDER[(i + 1) % STATUS_ORDER.length] ?? "NOT_STARTED";
 }

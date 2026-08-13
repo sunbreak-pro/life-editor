@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { DataService, TaskNode } from "@life-editor/shared";
+import type { DataService, TodoNode } from "@life-editor/shared";
 import {
   UnsavedGuardProvider,
   useUnsavedGuardOptional,
@@ -35,9 +35,9 @@ const state = vi.hoisted(() => ({
   selectedId: null as string | null,
   tags: [] as unknown[],
   assignments: {} as Record<string, unknown[]>,
-  setSelectedTaskId: vi.fn(),
-  setTaskStatus: vi.fn(),
-  toggleTaskStatus: vi.fn(),
+  setSelectedTodoId: vi.fn(),
+  setTodoStatus: vi.fn(),
+  toggleTodoStatus: vi.fn(),
   updateNode: vi.fn(),
   addNode: vi.fn(),
   softDelete: vi.fn(),
@@ -57,18 +57,18 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     }),
     useMediaQuery: () => state.isWide,
     useSyncDomains: () => 0,
-    useTaskTreeContext: () => ({
+    useTodoTreeContext: () => ({
       nodes: state.nodes,
       nodeMap: new Map(
-        (state.nodes as TaskNode[]).map((n) => [n.id, n] as const),
+        (state.nodes as TodoNode[]).map((n) => [n.id, n] as const),
       ),
       isLoading: state.isLoading,
-      selectedTask:
-        (state.nodes as TaskNode[]).find((n) => n.id === state.selectedId) ??
+      selectedTodo:
+        (state.nodes as TodoNode[]).find((n) => n.id === state.selectedId) ??
         null,
-      setSelectedTaskId: state.setSelectedTaskId,
-      setTaskStatus: state.setTaskStatus,
-      toggleTaskStatus: state.toggleTaskStatus,
+      setSelectedTodoId: state.setSelectedTodoId,
+      setTodoStatus: state.setTodoStatus,
+      toggleTodoStatus: state.toggleTodoStatus,
       updateNode: state.updateNode,
       addNode: state.addNode,
       softDelete: state.softDelete,
@@ -128,7 +128,7 @@ vi.mock("../src/wikitag/TagPicker", () => ({
   TagPicker: () => <div data-testid="tag-picker" />,
 }));
 
-function task(over: Partial<TaskNode> & { id: string }): TaskNode {
+function task(over: Partial<TodoNode> & { id: string }): TodoNode {
   return {
     type: "task",
     title: "Untitled",
@@ -139,7 +139,7 @@ function task(over: Partial<TaskNode> & { id: string }): TaskNode {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     ...over,
-  } as TaskNode;
+  } as TodoNode;
 }
 
 const MILK = task({ id: "task-a", title: "Buy milk" });
@@ -213,7 +213,7 @@ describe("KanbanView — the task detail", () => {
     render(<KanbanView />);
 
     fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
-    expect(state.setSelectedTaskId).toHaveBeenCalledExactlyOnceWith("task-a");
+    expect(state.setSelectedTodoId).toHaveBeenCalledExactlyOnceWith("task-a");
     expect(state.open).toHaveBeenCalled();
   });
 
@@ -528,7 +528,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
       await waitFor(() => expect(screen.queryByText(CONVERT_ASK)).toBeNull());
       expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
       // Refused means nothing moved: the row is still a task, still selected.
-      expect(state.setSelectedTaskId).not.toHaveBeenCalledWith(null);
+      expect(state.setSelectedTodoId).not.toHaveBeenCalledWith(null);
     });
 
     it("converts once the question is agreed to", async () => {
@@ -748,7 +748,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     );
     // What takes the panel down: the fixture selection is prop-driven here, so
     // the clearing call is the observable half of "the detail closes".
-    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+    expect(state.setSelectedTodoId).toHaveBeenCalledWith(null);
   });
 
   it("names how many children go with a parent row", async () => {
@@ -844,7 +844,7 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     agree();
 
     await waitFor(() => expect(state.close).toHaveBeenCalled());
-    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+    expect(state.setSelectedTodoId).toHaveBeenCalledWith(null);
   });
 
   it("keeps the shell open when the delete is refused", async () => {

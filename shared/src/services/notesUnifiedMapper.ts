@@ -173,7 +173,7 @@ export const NOTES_PAYLOAD_LIST_COLUMNS =
 // NOTE_TYPES still includes the legacy "folder" value: the DB column keeps
 // it (rollback), and a folder row must be *recognisable*
 // (isLegacyNoteFolderRow) even though it can no longer be materialised as a
-// distinct NoteNodeType. Mirrors taskMapper's NODE_TYPES after S3 (#225).
+// distinct NoteNodeType. Mirrors todoMapper's NODE_TYPES after S3 (#225).
 const NOTE_TYPES: ReadonlySet<string> = new Set(["folder", "note"]);
 
 /**
@@ -381,7 +381,7 @@ export function noteUpdatesToPatches(
 
   // -- payload side --
   const payloadPatch: NotesPayloadUpdatePatch = {};
-  void userId; // reserved for future identity bumps (parity with taskMapper)
+  void userId; // reserved for future identity bumps (parity with todoMapper)
 
   if ("type" in updates && updates.type !== undefined)
     payloadPatch.note_type = updates.type;

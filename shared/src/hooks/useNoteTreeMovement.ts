@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { NoteNode } from "../types/note";
 import type { MoveResult } from "../types/moveResult";
-import { isDescendantOf } from "../utils/getDescendantTasks";
+import { isDescendantOf } from "../utils/getDescendantTodos";
 
 /**
  * Pure note-tree move logic. 1:1 port of
@@ -11,7 +11,7 @@ import { isDescendantOf } from "../utils/getDescendantTasks";
  * these operations lives in the host UI (web), not here, so the shared
  * package stays UI/dnd-free (Option A: shared is UI-free like S1/S2).
  *
- * #418: kept symmetric with useTaskTreeMovement — note nesting is retired
+ * #418: kept symmetric with useTodoTreeMovement — note nesting is retired
  * along with task nesting, so `moveNodeInto` and `moveNode`'s re-parent
  * branch were removed. Notes DnD has only assigned tags since S1, so nothing
  * called either of them. See the task twin's header for the one nuance: the
@@ -25,7 +25,7 @@ import { isDescendantOf } from "../utils/getDescendantTasks";
  */
 
 // Re-exported for the cycle-safety regression test (KI-016 anchor). The
-// implementation is the generic twin in getDescendantTasks — the local
+// implementation is the generic twin in getDescendantTodos — the local
 // byte-identical copy was removed (C3 dedup); behaviour unchanged.
 export { isDescendantOf };
 

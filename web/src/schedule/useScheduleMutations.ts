@@ -71,7 +71,7 @@ export interface UseScheduleMutationsArgs
   ) => void;
   onResizeTaskChip: (chipId: string, endISO: string) => void;
   // #562: a timed task chip dropped back onto the all-day lane — the host
-  // rewrites the TaskNode to an all-day candidate (isAllDay:true) on dateISO.
+  // rewrites the TodoNode to an all-day candidate (isAllDay:true) on dateISO.
   onDropTaskChipAllDay: (chipId: string, dateISO: string) => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
@@ -282,7 +282,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   const handleMoveItem = useCallback(
     (id: string, dateISO: string, startISO: string, endISO: string) => {
       // A-2 (#297): a task chip drag writes scheduledAt/scheduledEndAt on the
-      // underlying TaskNode. The host owns that write (it holds taskNodes +
+      // underlying TodoNode. The host owns that write (it holds taskNodes +
       // updateNode); this layer only routes.
       if (isTaskChip(id)) {
         onMoveTaskChip(id, dateISO, startISO, endISO);
@@ -310,7 +310,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   );
 
   // #562: drop on the all-day lane → back to all-day. A task chip routes to
-  // the host's TaskNode write; a ScheduleItem flips isAllDay on the single
+  // the host's TodoNode write; a ScheduleItem flips isAllDay on the single
   // occurrence — same reasoning as #469: the routine template has no isAllDay
   // to propagate one to, so no scope dialog even for a routine occurrence.
   // The times are left as they are so an all-day OFF flip later restores them.

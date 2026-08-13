@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import {
   calendarWeekRange,
   getWorkSessions,
@@ -20,7 +20,7 @@ export interface WeeklySummaryLabels {
 
 interface WeeklySummaryProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   labels: WeeklySummaryLabels;
 }
 

@@ -1,21 +1,21 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type { TasksDataService } from "./DataService";
-import type { TaskNode } from "../types/taskTree";
-// DU-B-3: full SupabaseTasksService rewrite over items_meta +
-// tasks_payload. Pure mapping lives in taskMapper.ts; this file is the
+import type { TodosDataService } from "./DataService";
+import type { TodoNode } from "../types/todoTree";
+// DU-B-3: full SupabaseTodosService rewrite over items_meta +
+// tasks_payload. Pure mapping lives in todoMapper.ts; this file is the
 // I/O layer only. Re-exports at the bottom of SupabaseDataService.ts keep
 // one stable surface for host modules and the round-trip harness.
 import {
   ITEMS_META_TASK_COLUMNS,
   TASKS_PAYLOAD_COLUMNS,
-  rowsToTaskNode,
-  taskNodeToRows,
-  taskUpdatesToPatches,
+  rowsToTodoNode,
+  todoNodeToRows,
+  todoUpdatesToPatches,
   isLegacyFolderRow,
   type TasksPayloadRow,
-} from "./taskMapper";
+} from "./todoMapper";
 import type { ItemsMetaRow } from "./itemsMeta";
-import { collectDescendantIds } from "../utils/getDescendantTasks";
+import { collectDescendantIds } from "../utils/getDescendantTodos";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import {
@@ -25,20 +25,20 @@ import {
 import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 
 /*
- * Tasks domain (DU-B-3). Full 9-method rewrite over the items_meta
+ * Todos domain (DU-B-3). Full 9-method rewrite over the items_meta
  * (role='task') + tasks_payload 2-row split introduced in migration
  * 0008 and hardened by 0009 (composite FK + parent_item_role generated
- * stored). Pure mapping lives in taskMapper.ts; this class is the I/O
+ * stored). Pure mapping lives in todoMapper.ts; this class is the I/O
  * layer only.
  *
  * Write-path invariants enforced here (parent SSOT:
  * docs/vision/plans/2026-05-21-data-unification-items-meta.md +
- * 2026-05-23-data-unification-b-tasks.md):
+ * 2026-05-23-data-unification-b-todos.md):
  *
- *   - DB-Q1 hard-delete on createTask payload failure (R2): a successful
+ *   - DB-Q1 hard-delete on createTodo payload failure (R2): a successful
  *     items_meta INSERT followed by a failed tasks_payload INSERT would
  *     leave an orphan meta row that no other code path can reach (role=
- *     task without a payload is not surfaced by fetchTaskTree). The
+ *     todo without a payload is not surfaced by fetchTodoTree). The
  *     try/catch hard-deletes the orphan so the next operation starts
  *     from a clean state and Cloud Sync LWW does not propagate a
  *     half-born row.
@@ -47,21 +47,21 @@ import { requireSingleRow, requireRowPair } from "./postgrestSingle";
  *     cursor for Sync; tasks_payload has no own updated_at. Every write
  *     path that touches a row MUST bump items_meta.updated_at, including
  *     payload-only updates and soft-delete / restore. The mapper's
- *     taskUpdatesToPatches always sets metaPatch.updated_at; soft /
+ *     todoUpdatesToPatches always sets metaPatch.updated_at; soft /
  *     restore set it explicitly; permanentDelete physically removes the
  *     row so a bump is moot.
  *
  *   - DB-Q3 composite FK ON DELETE NO ACTION (v3-rev2):
- *     permanentDeleteTask deletes descendants before their parent so PG
+ *     permanentDeleteTodo deletes descendants before their parent so PG
  *     never rejects a parent DELETE while a child payload still
  *     references it. The order is computed by sortByDepthDesc against
  *     the union of live + trashed pool so trashed children of a
  *     soft-deleted root are also purged in the right order.
  *
- * migrateTasksToBackend is a deliberate no-op on web (Supabase-native;
+ * migrateTodosToBackend is a deliberate no-op on web (Supabase-native;
  * nothing to migrate). Kept to satisfy the DataService interface.
  */
-export class SupabaseTasksService implements TasksDataService {
+export class SupabaseTodosService implements TodosDataService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -71,7 +71,7 @@ export class SupabaseTasksService implements TasksDataService {
   /**
    * Bump items_meta.updated_at for write paths that do NOT route through
    * the mapper (which auto-injects updated_at into metaPatch). Used only
-   * by code paths that touch items_meta directly without taskUpdates.
+   * by code paths that touch items_meta directly without todoUpdates.
    * NOTE: currently inlined into softDelete / restore so the bump and
    * the state change happen in one UPDATE — kept here as the canonical
    * helper for future single-column writes.
@@ -89,7 +89,7 @@ export class SupabaseTasksService implements TasksDataService {
   }
 
   /**
-   * Read all live tasks. Two SELECTs (items_meta then tasks_payload)
+   * Read all live todos. Two SELECTs (items_meta then tasks_payload)
    * joined in-app: the role=task filter and the explicit shape match
    * keep query intent reviewable, and a missing payload row (R2
    * orphan) is silently dropped from the result so a half-born row
@@ -100,45 +100,45 @@ export class SupabaseTasksService implements TasksDataService {
    * excluded here client-side (isLegacyFolderRow). Filtering in-app
    * rather than query-side (`.neq`) is deliberate — a PostgREST
    * inequality would also drop NULL task_type rows (NULL comparison),
-   * silently hiding plain legacy tasks. A task whose parentId points at
+   * silently hiding plain legacy todos. A todo whose parentId points at
    * an excluded folder still surfaces (orphan tolerance): its own
    * task_type is 'task', so only the folder row itself is dropped.
    */
-  async fetchTaskTree(): Promise<TaskNode[]> {
-    return fetchMetaFirstJoin<ItemsMetaRow, TasksPayloadRow, TaskNode>({
+  async fetchTodoTree(): Promise<TodoNode[]> {
+    return fetchMetaFirstJoin<ItemsMetaRow, TasksPayloadRow, TodoNode>({
       client: this.client,
       role: "task",
       isDeleted: false,
       metaColumns: ITEMS_META_TASK_COLUMNS,
-      metaLabel: "fetchTaskTree items_meta",
+      metaLabel: "fetchTodoTree items_meta",
       payloadTable: "tasks_payload",
       payloadColumns: TASKS_PAYLOAD_COLUMNS,
-      payloadLabel: "fetchTaskTree tasks_payload",
+      payloadLabel: "fetchTodoTree tasks_payload",
       keep: (p) => !isLegacyFolderRow(p), // S3: exclude legacy folder rows
-      toDomain: rowsToTaskNode,
+      toDomain: rowsToTodoNode,
     });
   }
 
   /**
-   * Count live, unfinished tasks without pulling a single row (#511).
+   * Count live, unfinished todos without pulling a single row (#511).
    *
    * The Materials/Todo badge only ever needed a number, but it used to
-   * ride on fetchTaskTree() — two paginated SELECTs carrying every column
-   * of every task, re-run on each tasks-domain bump. `count: 'exact'` +
+   * ride on fetchTodoTree() — two paginated SELECTs carrying every column
+   * of every todo, re-run on each todos-domain bump. `count: 'exact'` +
    * `head: true` asks PostgREST for the Content-Range header alone, so
    * the response has no body.
    *
    * The predicate reproduces the old in-app derivation clause for clause
    * (badge meaning: materials/materialsCounts.ts):
    *
-   *   - role='task' + is_deleted=false — live tasks (what fetchTaskTree
+   *   - role='task' + is_deleted=false — live todos (what fetchTodoTree
    *     filters on, and what the old `!n.isDeleted` re-checked).
    *   - INNER JOIN on tasks_payload — drops R2 orphans, matching
-   *     fetchTaskTree's `if (!p) continue`.
+   *     fetchTodoTree's `if (!p) continue`.
    *   - task_type IS NULL OR <> 'folder' — S3 legacy folder rows
    *     (isLegacyFolderRow). The NULL leg is required: a bare `neq` in
    *     PostgREST also drops NULL rows, which would silently hide every
-   *     plain legacy task — the exact trap fetchTaskTree's comment warns
+   *     plain legacy todo — the exact trap fetchTodoTree's comment warns
    *     about for the query-side filter.
    *   - status IS NULL OR <> 'DONE' — "still to do". Same NULL trap:
    *     toStatus(null) is undefined, and `undefined !== "DONE"` counted.
@@ -147,7 +147,7 @@ export class SupabaseTasksService implements TasksDataService {
    * could never be false, because toNodeType coerces legacy 'folder' to
    * "task" and the folder rows are already excluded above.
    */
-  async countUnfinishedTasks(): Promise<number> {
+  async countUnfinishedTodos(): Promise<number> {
     const { count, error } = await this.client
       .from("items_meta")
       .select(
@@ -165,27 +165,27 @@ export class SupabaseTasksService implements TasksDataService {
       .or("status.is.null,status.neq.DONE", {
         referencedTable: "tasks_payload",
       });
-    if (error) throw new Error(`countUnfinishedTasks failed: ${error.message}`);
+    if (error) throw new Error(`countUnfinishedTodos failed: ${error.message}`);
     return count ?? 0;
   }
 
   /**
-   * Trashed counterpart of fetchTaskTree (Trash UI). Legacy folder rows
+   * Trashed counterpart of fetchTodoTree (Trash UI). Legacy folder rows
    * (task_type='folder') are excluded client-side too (S3 #225 — prod
    * has soft-deleted folders that must not surface in Trash).
    */
-  async fetchDeletedTasks(): Promise<TaskNode[]> {
-    return fetchMetaFirstJoin<ItemsMetaRow, TasksPayloadRow, TaskNode>({
+  async fetchDeletedTodos(): Promise<TodoNode[]> {
+    return fetchMetaFirstJoin<ItemsMetaRow, TasksPayloadRow, TodoNode>({
       client: this.client,
       role: "task",
       isDeleted: true,
       metaColumns: ITEMS_META_TASK_COLUMNS,
-      metaLabel: "fetchDeletedTasks items_meta",
+      metaLabel: "fetchDeletedTodos items_meta",
       payloadTable: "tasks_payload",
       payloadColumns: TASKS_PAYLOAD_COLUMNS,
-      payloadLabel: "fetchDeletedTasks tasks_payload",
+      payloadLabel: "fetchDeletedTodos tasks_payload",
       keep: (p) => !isLegacyFolderRow(p), // S3: exclude legacy folder rows
-      toDomain: rowsToTaskNode,
+      toDomain: rowsToTodoNode,
     });
   }
 
@@ -199,9 +199,9 @@ export class SupabaseTasksService implements TasksDataService {
    * case the throw escapes the catch and the daily R2 detection SQL
    * (Recovery Playbook) sweeps the orphan up later.
    */
-  async createTask(node: TaskNode): Promise<TaskNode> {
+  async createTodo(node: TodoNode): Promise<TodoNode> {
     const userId = await getAuthedUserId(this.client);
-    const { meta, payload } = taskNodeToRows(node, userId);
+    const { meta, payload } = todoNodeToRows(node, userId);
 
     const metaRow = await requireSingleRow<ItemsMetaRow>(
       this.client
@@ -209,7 +209,7 @@ export class SupabaseTasksService implements TasksDataService {
         .insert(meta)
         .select(ITEMS_META_TASK_COLUMNS)
         .single(),
-      "createTask items_meta",
+      "createTodo items_meta",
     );
 
     try {
@@ -219,9 +219,9 @@ export class SupabaseTasksService implements TasksDataService {
           .insert(payload)
           .select(TASKS_PAYLOAD_COLUMNS)
           .single(),
-        "createTask tasks_payload",
+        "createTodo tasks_payload",
       );
-      return rowsToTaskNode(metaRow, payloadRow);
+      return rowsToTodoNode(metaRow, payloadRow);
     } catch (err) {
       // R2 hard-delete: remove the orphan meta. A failure here is
       // logged via the thrown error context but does NOT mask the
@@ -233,17 +233,17 @@ export class SupabaseTasksService implements TasksDataService {
 
   /**
    * Mapper-driven dual UPDATE. metaPatch ALWAYS carries updated_at
-   * (DB-Q2 enforcement is in taskUpdatesToPatches, not here). payload
+   * (DB-Q2 enforcement is in todoUpdatesToPatches, not here). payload
    * UPDATE is skipped when payloadPatch is empty so a metadata-only
    * change (e.g. title) doesn't issue a no-op tasks_payload write.
-   * The final read joins the two rows back into a TaskNode — atomic
+   * The final read joins the two rows back into a TodoNode — atomic
    * row-snapshot from the caller's perspective even though PostgREST
    * cannot wrap the two writes in a transaction.
    */
-  async updateTask(id: string, updates: Partial<TaskNode>): Promise<TaskNode> {
+  async updateTodo(id: string, updates: Partial<TodoNode>): Promise<TodoNode> {
     const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
-    const { metaPatch, payloadPatch } = taskUpdatesToPatches(
+    const { metaPatch, payloadPatch } = todoUpdatesToPatches(
       updates,
       userId,
       now,
@@ -254,17 +254,17 @@ export class SupabaseTasksService implements TasksDataService {
       .from("items_meta")
       .update(metaPatch)
       .eq("id", id);
-    if (metaErr) throw new Error(`updateTask items_meta: ${metaErr.message}`);
+    if (metaErr) throw new Error(`updateTodo items_meta: ${metaErr.message}`);
 
     if (Object.keys(payloadPatch).length > 0) {
       const { error: pErr } = await this.client
         .from("tasks_payload")
         .update(payloadPatch)
         .eq("item_id", id);
-      if (pErr) throw new Error(`updateTask tasks_payload: ${pErr.message}`);
+      if (pErr) throw new Error(`updateTodo tasks_payload: ${pErr.message}`);
     }
 
-    // Read-back both rows to materialise the returned TaskNode. Parallel
+    // Read-back both rows to materialise the returned TodoNode. Parallel
     // SELECTs because they are independent and small.
     const [metaRow, payloadRow] = await requireRowPair<
       ItemsMetaRow,
@@ -275,15 +275,15 @@ export class SupabaseTasksService implements TasksDataService {
         .select(ITEMS_META_TASK_COLUMNS)
         .eq("id", id)
         .single(),
-      "updateTask read items_meta",
+      "updateTodo read items_meta",
       this.client
         .from("tasks_payload")
         .select(TASKS_PAYLOAD_COLUMNS)
         .eq("item_id", id)
         .single(),
-      "updateTask read tasks_payload",
+      "updateTodo read tasks_payload",
     );
-    return rowsToTaskNode(metaRow, payloadRow);
+    return rowsToTodoNode(metaRow, payloadRow);
   }
 
   /**
@@ -292,21 +292,21 @@ export class SupabaseTasksService implements TasksDataService {
    * respectively. Each call to the mapper supplies a fresh meta+payload
    * pair, so an UPSERT against an existing row overwrites every column
    * including version — callers that need version-aware merging must
-   * compose updateTask instead.
+   * compose updateTodo instead.
    */
-  async syncTaskTree(nodes: TaskNode[]): Promise<void> {
+  async syncTodoTree(nodes: TodoNode[]): Promise<void> {
     if (nodes.length === 0) return;
     const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
-    const rowsPairs = nodes.map((n) => taskNodeToRows(n, userId));
+    const rowsPairs = nodes.map((n) => todoNodeToRows(n, userId));
 
-    // DB-Q2 enforcement on the UPSERT-as-UPDATE branch. taskNodeToRows
+    // DB-Q2 enforcement on the UPSERT-as-UPDATE branch. todoNodeToRows
     // omits `updated_at` from the meta INSERT row because the items_meta
     // column has `DEFAULT now()` — which only fires on a real INSERT. A
     // PostgREST upsert that hits an existing row becomes a straight
     // UPDATE, and items_meta has no UPDATE-side trigger to refresh
     // updated_at (migration 0008). Without an explicit bump here, a
-    // syncTaskTree-driven structural change (e.g. a DnD reorder that
+    // syncTodoTree-driven structural change (e.g. a DnD reorder that
     // rewrites every sibling) would leave updated_at stale and Sync's
     // LWW cursor would never propagate the move. Spread `updated_at:
     // now` so the bump is structural, not caller-dependent.
@@ -314,13 +314,13 @@ export class SupabaseTasksService implements TasksDataService {
       rowsPairs.map((r) => ({ ...r.meta, updated_at: now })),
       { onConflict: "id" },
     );
-    if (metaErr) throw new Error(`syncTaskTree items_meta: ${metaErr.message}`);
+    if (metaErr) throw new Error(`syncTodoTree items_meta: ${metaErr.message}`);
 
     const { error: pErr } = await this.client.from("tasks_payload").upsert(
       rowsPairs.map((r) => r.payload),
       { onConflict: "item_id" },
     );
-    if (pErr) throw new Error(`syncTaskTree tasks_payload: ${pErr.message}`);
+    if (pErr) throw new Error(`syncTodoTree tasks_payload: ${pErr.message}`);
   }
 
   /**
@@ -329,23 +329,23 @@ export class SupabaseTasksService implements TasksDataService {
    * FK keeps the payload reachable via the trashed meta, and a restore
    * needs the payload columns intact.
    */
-  async softDeleteTask(id: string): Promise<void> {
+  async softDeleteTodo(id: string): Promise<void> {
     const now = new Date().toISOString();
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: true, deleted_at: now, updated_at: now })
       .eq("id", id);
-    if (error) throw new Error(`softDeleteTask: ${error.message}`);
+    if (error) throw new Error(`softDeleteTodo: ${error.message}`);
   }
 
-  /** Inverse of softDeleteTask. updated_at is bumped (DB-Q2). */
-  async restoreTask(id: string): Promise<void> {
+  /** Inverse of softDeleteTodo. updated_at is bumped (DB-Q2). */
+  async restoreTodo(id: string): Promise<void> {
     const now = new Date().toISOString();
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: false, deleted_at: null, updated_at: now })
       .eq("id", id);
-    if (error) throw new Error(`restoreTask: ${error.message}`);
+    if (error) throw new Error(`restoreTodo: ${error.message}`);
   }
 
   /**
@@ -357,10 +357,10 @@ export class SupabaseTasksService implements TasksDataService {
    * the 0008 ON DELETE CASCADE FK to items_meta — only items_meta
    * needs explicit DELETE statements.
    */
-  async permanentDeleteTask(id: string): Promise<void> {
+  async permanentDeleteTodo(id: string): Promise<void> {
     const [live, deleted] = await Promise.all([
-      this.fetchTaskTree(),
-      this.fetchDeletedTasks(),
+      this.fetchTodoTree(),
+      this.fetchDeletedTodos(),
     ]);
     const pool = [...live, ...deleted];
 
@@ -374,38 +374,38 @@ export class SupabaseTasksService implements TasksDataService {
         .delete()
         .eq("id", did);
       if (error)
-        throw new Error(`permanentDeleteTask ${did}: ${error.message}`);
+        throw new Error(`permanentDeleteTodo ${did}: ${error.message}`);
     }
   }
 
   /**
    * Web no-op stub (user-confirmed). On Tauri this migrated local
-   * SQLite tasks into the cloud backend; the web build is Supabase-
+   * SQLite todos into the cloud backend; the web build is Supabase-
    * native so there is nothing to migrate. Kept to satisfy the
    * DataService interface and any caller that invokes it
    * unconditionally.
    */
-  async migrateTasksToBackend(_nodes: TaskNode[]): Promise<void> {
+  async migrateTodosToBackend(_nodes: TodoNode[]): Promise<void> {
     void _nodes;
     void this.client; // explicit no-op — bound method but does not touch DB
   }
 }
 
-export const PHASE2_TASKS_METHOD_NAMES = [
-  "fetchTaskTree",
-  "countUnfinishedTasks",
-  "fetchDeletedTasks",
-  "createTask",
-  "updateTask",
-  "syncTaskTree",
-  "softDeleteTask",
-  "restoreTask",
-  "permanentDeleteTask",
-  "migrateTasksToBackend",
+export const PHASE2_TODOS_METHOD_NAMES = [
+  "fetchTodoTree",
+  "countUnfinishedTodos",
+  "fetchDeletedTodos",
+  "createTodo",
+  "updateTodo",
+  "syncTodoTree",
+  "softDeleteTodo",
+  "restoreTodo",
+  "permanentDeleteTodo",
+  "migrateTodosToBackend",
 ] as const;
 
-export type TasksMethodName = (typeof PHASE2_TASKS_METHOD_NAMES)[number];
+export type TodosMethodName = (typeof PHASE2_TODOS_METHOD_NAMES)[number];
 
-export const PHASE2_TASKS_METHODS: ReadonlySet<string> = new Set(
-  PHASE2_TASKS_METHOD_NAMES,
+export const PHASE2_TODOS_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_TODOS_METHOD_NAMES,
 );

@@ -1,4 +1,4 @@
-import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
+import type { TodoNode, TodoNodeType, TodoStatus } from "../types/todoTree";
 import {
   ITEMS_META_COLUMNS,
   type ItemsMetaRow,
@@ -7,9 +7,9 @@ import {
 } from "./itemsMeta";
 
 /*
- * Pure TaskNode <-> 2-row (items_meta + tasks_payload) mappers (DU-B-2).
+ * Pure TodoNode <-> 2-row (items_meta + tasks_payload) mappers (DU-B-2).
  *
- * Historical context: DU-A migrated the legacy `public.tasks` single-table
+ * Historical context: DU-A migrated the legacy `public.todos` single-table
  * shape (0003) into the unified items_meta (role discriminator) +
  * tasks_payload (per-role business columns) split (0008). The 0009
  * migration further hardens parent_item_id with a composite FK that
@@ -20,23 +20,23 @@ import {
  *     WRITE shape (no `parent_item_role` — it is a generated stored
  *     column the client cannot supply).
  *   - SELECT column lists for items_meta (role=task) + tasks_payload.
- *   - `rowsToTaskNode` / `taskNodeToRows` (INSERT) / `taskUpdatesToPatches`
+ *   - `rowsToTodoNode` / `todoNodeToRows` (INSERT) / `todoUpdatesToPatches`
  *     (UPDATE). All pure: zero `new Date()`, zero Supabase, zero I/O.
  *
  * What this module does NOT own:
  *   - The `items_meta` row / insert / patch shapes and their SELECT column
  *     list. They are role-independent and live in `itemsMeta.ts` — keeping
  *     them here made the other 4 role mappers import a shared type from the
- *     Tasks module, which reads as a dependency that does not exist
+ *     Todos module, which reads as a dependency that does not exist
  *     (#670 C3 PR 2).
  *   - The orphan-cleanup `try/catch` after a failed payload INSERT
- *     (R2 → DU-B-3 SupabaseTasksService.createTask).
+ *     (R2 → DU-B-3 SupabaseTodosService.createTodo).
  *   - The descendants-first hard-delete order for permanentDelete (Tauri
  *     parity now that the composite FK is `ON DELETE NO ACTION`, v3-rev2).
  *   - The `items_meta.updated_at = now()` bump call itself — but this
- *     module's `taskUpdatesToPatches` ALWAYS emits the bump into
+ *     module's `todoUpdatesToPatches` ALWAYS emits the bump into
  *     `metaPatch.updated_at` regardless of which payload columns changed,
- *     so SupabaseTasksService cannot accidentally forget it (DB-Q2 / R3).
+ *     so SupabaseTodosService cannot accidentally forget it (DB-Q2 / R3).
  *
  * Carries NO `@supabase/supabase-js` dependency: the roundtrip harness
  * runs under plain Node ESM. The 0008 + 0009 migrations are the SSOT for
@@ -63,7 +63,7 @@ export interface TasksPayloadRow {
   folder_type: "normal" | "complete" | null;
   start_at: string | null;
   due_at: string | null;
-  status: TaskStatus | null;
+  status: TodoStatus | null;
   is_expanded: boolean;
   content: string | null;
   work_duration_minutes: number | null;
@@ -100,7 +100,7 @@ export type TasksPayloadUpdatePatch = Partial<
 // 2. SELECT column lists (literal strings to keep query intent reviewable)
 // ---------------------------------------------------------------------------
 
-/** Role-scoped alias of `ITEMS_META_COLUMNS` for Tasks call sites. */
+/** Role-scoped alias of `ITEMS_META_COLUMNS` for Todos call sites. */
 export const ITEMS_META_TASK_COLUMNS = ITEMS_META_COLUMNS;
 
 /**
@@ -123,9 +123,9 @@ export const TASKS_PAYLOAD_COLUMNS =
 
 // NODE_TYPES still includes the legacy "folder" value: the DB column keeps
 // it (rollback), and a folder row must be *recognisable* (isLegacyFolderRow)
-// even though it can no longer be materialised as a distinct NodeType.
+// even though it can no longer be materialised as a distinct TodoNodeType.
 const NODE_TYPES: ReadonlySet<string> = new Set(["folder", "task"]);
-const TASK_STATUSES: ReadonlySet<string> = new Set([
+const TODO_STATUSES: ReadonlySet<string> = new Set([
   "NOT_STARTED",
   "IN_PROGRESS",
   "DONE",
@@ -133,19 +133,19 @@ const TASK_STATUSES: ReadonlySet<string> = new Set([
 const PRIORITIES: ReadonlySet<number> = new Set([1, 2, 3, 4]);
 
 /**
- * Narrow a DB `task_type` value to the `NodeType` union.
+ * Narrow a DB `task_type` value to the `TodoNodeType` union.
  *
- * life-tags S3 (#225): NodeType is now single-valued ("task"). The DB column
+ * life-tags S3 (#225): TodoNodeType is now single-valued ("task"). The DB column
  * still carries a legacy "folder" value for rows created before the
  * retirement; those rows are excluded upstream by the fetch filter
- * (`isLegacyFolderRow` / SupabaseDataService.fetchTaskTree), so this narrower
+ * (`isLegacyFolderRow` / SupabaseDataService.fetchTodoTree), so this narrower
  * normally only ever sees "task" | null. A stray "folder" that reaches here
  * is coerced to "task" (defence-in-depth — it has already been filtered out
  * of every UI-facing fetch). A genuinely unknown value still throws.
  */
-export function toNodeType(value: string | null): NodeType {
-  if (value === null) return "task"; // legacy / unset → task
-  if (NODE_TYPES.has(value)) return "task"; // "task" | legacy "folder" → task
+export function toNodeType(value: string | null): TodoNodeType {
+  if (value === null) return "task"; // legacy / unset → todo
+  if (NODE_TYPES.has(value)) return "task"; // "task" | legacy "folder" → todo
   throw new Error(
     `tasks_payload: invalid task_type "${value}" (expected folder|task)`,
   );
@@ -155,9 +155,9 @@ export function toNodeType(value: string | null): NodeType {
  * True when a tasks_payload row is a legacy folder (task_type = 'folder').
  * life-tags S3 retired the folder node type, but prod still has a handful of
  * such rows (active + soft-deleted) until the user runs the data migration.
- * The fetch paths use this to exclude them from the materialised TaskNode set
+ * The fetch paths use this to exclude them from the materialised TodoNode set
  * so they never surface as phantom nodes. A NULL task_type is NOT a folder
- * (legacy / unset rows default to a plain task).
+ * (legacy / unset rows default to a plain todo).
  */
 export function isLegacyFolderRow(
   payload: Pick<TasksPayloadRow, "task_type">,
@@ -165,9 +165,9 @@ export function isLegacyFolderRow(
   return payload.task_type === "folder";
 }
 
-export function toStatus(value: string | null): TaskStatus | undefined {
+export function toStatus(value: string | null): TodoStatus | undefined {
   if (value === null) return undefined;
-  if (TASK_STATUSES.has(value)) return value as TaskStatus;
+  if (TODO_STATUSES.has(value)) return value as TodoStatus;
   throw new Error(
     `tasks_payload: invalid status "${value}" (expected NOT_STARTED|IN_PROGRESS|DONE)`,
   );
@@ -180,13 +180,13 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
 }
 
 // ---------------------------------------------------------------------------
-// 4. SELECT: 2 rows -> TaskNode
+// 4. SELECT: 2 rows -> TodoNode
 // ---------------------------------------------------------------------------
 
 /**
- * Materialise a domain TaskNode from one items_meta row (role='task') +
+ * Materialise a domain TodoNode from one items_meta row (role='task') +
  * its matching tasks_payload row. Optional fields are only set when the
- * underlying column is non-null so `taskNodeToRows ∘ rowsToTaskNode`
+ * underlying column is non-null so `todoNodeToRows ∘ rowsToTodoNode`
  * round-trips without manufacturing `undefined`-vs-absent differences.
  * NOT-NULL columns (is_expanded / is_deleted / is_all_day /
  * reminder_enabled / version) are always materialised.
@@ -213,26 +213,26 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
  *   payload.work_duration_minutes <- workDurationMinutes
  *   payload.time_memo        <- timeMemo
  *   payload.{content,color,icon,priority,status} pass-through
- *   payload.{start_at,due_at}  — NOT YET surfaced (no TaskNode field;
+ *   payload.{start_at,due_at}  — NOT YET surfaced (no TodoNode field;
  *     reserved for future scheduling work, written as NULL by
- *     `taskNodeToRows`).
+ *     `todoNodeToRows`).
  */
-export function rowsToTaskNode(
+export function rowsToTodoNode(
   meta: ItemsMetaRow,
   payload: TasksPayloadRow,
-): TaskNode {
+): TodoNode {
   if (meta.id !== payload.item_id) {
     throw new Error(
-      `taskMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
+      `todoMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
     );
   }
   if (meta.role !== "task") {
     throw new Error(
-      `taskMapper: items_meta.role expected "task" but got "${meta.role}"`,
+      `todoMapper: items_meta.role expected "task" but got "${meta.role}"`,
     );
   }
 
-  const node: TaskNode = {
+  const node: TodoNode = {
     id: meta.id,
     type: toNodeType(payload.task_type),
     title: meta.title,
@@ -269,11 +269,11 @@ export function rowsToTaskNode(
 }
 
 // ---------------------------------------------------------------------------
-// 5. INSERT: TaskNode -> { meta, payload }
+// 5. INSERT: TodoNode -> { meta, payload }
 // ---------------------------------------------------------------------------
 
 /**
- * Project a TaskNode into the 2 INSERT rows. `created_at` /
+ * Project a TodoNode into the 2 INSERT rows. `created_at` /
  * `updated_at` are deliberately NOT included on the meta row — let the
  * column DEFAULT `now()` handle the first write (DB-Q2 only applies on
  * UPDATE). The payload row excludes `parent_item_role` by type
@@ -285,8 +285,8 @@ export function rowsToTaskNode(
  * items_meta row (R2 Recovery Playbook — v2 改訂: NOT soft-delete, to
  * avoid polluting other devices' TrashView with a same-session ghost).
  */
-export function taskNodeToRows(
-  node: TaskNode,
+export function todoNodeToRows(
+  node: TodoNode,
   userId: string,
 ): { meta: ItemsMetaInsertRow; payload: TasksPayloadWriteRow } {
   const meta: ItemsMetaInsertRow = {
@@ -303,12 +303,12 @@ export function taskNodeToRows(
     item_id: node.id,
     user_id: userId,
     parent_item_id: node.parentId,
-    // S3: NodeType is single-valued, so task_type is always 'task' and
+    // S3: TodoNodeType is single-valued, so task_type is always 'task' and
     // folder_type is always NULL for client-written rows. The columns
     // survive for rollback / legacy-row detection only.
     task_type: node.type,
     folder_type: null,
-    // start_at / due_at have no TaskNode field yet — write NULL so an
+    // start_at / due_at have no TodoNode field yet — write NULL so an
     // UPSERT fully specifies the row without clobbering future data.
     start_at: null,
     due_at: null,
@@ -334,12 +334,12 @@ export function taskNodeToRows(
 }
 
 // ---------------------------------------------------------------------------
-// 6. UPDATE: Partial<TaskNode> -> { metaPatch, payloadPatch }
+// 6. UPDATE: Partial<TodoNode> -> { metaPatch, payloadPatch }
 // ---------------------------------------------------------------------------
 
 /**
  * Build snake_case PATCH objects for items_meta + tasks_payload from a
- * partial TaskNode update. Only keys explicitly present on `updates`
+ * partial TodoNode update. Only keys explicitly present on `updates`
  * are emitted so a partial UPDATE never clobbers untouched columns.
  *
  * DB-Q2 contract — `metaPatch.updated_at = now` is ALWAYS set,
@@ -348,16 +348,16 @@ export function taskNodeToRows(
  * no own `updated_at` column (single-owner via the 1:1 FK). If a caller
  * patches only payload columns and forgets to bump meta, other devices
  * will never pull the change. Centralising the bump here makes "forgot
- * to bump" structurally impossible — see `taskMapper.test.ts` for the
+ * to bump" structurally impossible — see `todoMapper.test.ts` for the
  * regression case.
  *
  * `now` is injected (not `new Date().toISOString()`) so:
  *   - the mapper stays pure / side-effect-free (testability);
- *   - SupabaseTasksService can supply a single consistent timestamp for
+ *   - SupabaseTodosService can supply a single consistent timestamp for
  *     a batch operation.
  */
-export function taskUpdatesToPatches(
-  updates: Partial<TaskNode>,
+export function todoUpdatesToPatches(
+  updates: Partial<TodoNode>,
   userId: string,
   now: string,
 ): { metaPatch: ItemsMetaUpdatePatch; payloadPatch: TasksPayloadUpdatePatch } {
@@ -376,7 +376,7 @@ export function taskUpdatesToPatches(
   const payloadPatch: TasksPayloadUpdatePatch = {};
   // `userId` is currently only used if the caller updates row identity
   // (it never does on this code path) — keep the parameter in the
-  // signature for future symmetry with `taskNodeToRows` and to make the
+  // signature for future symmetry with `todoNodeToRows` and to make the
   // mapper self-documenting about *whose* update it is.
   void userId;
 
@@ -403,7 +403,7 @@ export function taskUpdatesToPatches(
   if ("color" in updates) payloadPatch.color = updates.color ?? null;
   if ("icon" in updates) payloadPatch.icon = updates.icon ?? null;
   if ("timeMemo" in updates) payloadPatch.time_memo = updates.timeMemo ?? null;
-  // S3: folderType / originalParentId are no longer TaskNode fields, so no
+  // S3: folderType / originalParentId are no longer TodoNode fields, so no
   // update path emits folder_type / original_parent_id patches.
   if ("priority" in updates) payloadPatch.priority = updates.priority ?? null;
   if ("reminderEnabled" in updates)

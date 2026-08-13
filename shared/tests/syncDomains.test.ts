@@ -22,7 +22,7 @@ import {
  * no other alarm.
  */
 
-const ITEM_DOMAINS: SyncDomain[] = ["tasks", "notes", "dailies", "schedule"];
+const ITEM_DOMAINS: SyncDomain[] = ["todos", "notes", "dailies", "schedule"];
 
 describe("syncDomains — lockstep with REALTIME_TABLES", () => {
   it("routes every subscribed table to a domain", () => {
@@ -52,7 +52,7 @@ describe("syncDomains — lockstep with REALTIME_TABLES", () => {
 describe("syncDomains — payload tables", () => {
   it("routes each payload table to its own domain", () => {
     expect(domainsForChange("notes_payload")).toEqual(["notes"]);
-    expect(domainsForChange("tasks_payload")).toEqual(["tasks"]);
+    expect(domainsForChange("tasks_payload")).toEqual(["todos"]);
     expect(domainsForChange("dailies_payload")).toEqual(["dailies"]);
   });
 
@@ -67,7 +67,7 @@ describe("syncDomains — payload tables", () => {
     // bumped the timer domain would POST to timer_settings.
     expect(domainsForChange("notes_payload")).not.toContain("timer");
     expect(domainsForChange("notes_payload")).not.toContain("audio");
-    expect(domainsForChange("notes_payload")).not.toContain("tasks");
+    expect(domainsForChange("notes_payload")).not.toContain("todos");
   });
 
   it("returns nothing for a table it does not know", () => {
@@ -78,7 +78,7 @@ describe("syncDomains — payload tables", () => {
 describe("syncDomains — items_meta is routed by role", () => {
   it("sends a row to the domain its role belongs to", () => {
     expect(domainsForChange("items_meta", { role: "note" })).toEqual(["notes"]);
-    expect(domainsForChange("items_meta", { role: "task" })).toEqual(["tasks"]);
+    expect(domainsForChange("items_meta", { role: "task" })).toEqual(["todos"]);
     expect(domainsForChange("items_meta", { role: "daily" })).toEqual([
       "dailies",
     ]);
@@ -126,9 +126,9 @@ describe("syncDomains — items_meta is routed by role", () => {
       ...domainsForChange("items_meta", { role: "task" }),
       ...domainsForChange("tasks_payload"),
     ]);
-    expect([...moved].sort()).toEqual(["schedule", "tasks"]);
+    expect([...moved].sort()).toEqual(["schedule", "todos"]);
     // The role-routed half on its own is one-lunged, in both directions.
-    expect(domainsForChange("items_meta", { role: "task" })).toEqual(["tasks"]);
+    expect(domainsForChange("items_meta", { role: "task" })).toEqual(["todos"]);
     expect(domainsForChange("items_meta", { role: "event" })).toEqual([
       "schedule",
     ]);

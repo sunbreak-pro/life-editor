@@ -1,4 +1,4 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 
 /**
  * Collects the IDs of a node and all its descendants.
@@ -6,7 +6,7 @@ import type { TaskNode } from "../types/taskTree";
  */
 export function collectDescendantIds(
   id: string,
-  nodes: TaskNode[],
+  nodes: TodoNode[],
 ): Set<string> {
   const childrenMap = new Map<string | null, string[]>();
   for (const node of nodes) {
@@ -42,7 +42,7 @@ export function collectDescendantIds(
 /**
  * Checks if `childId` is a descendant of `parentId`.
  * Uses a parentMap + iterative BFS for O(n) performance.
- * Generic over any `{ id, parentId }` flat tree (TaskNode / NoteNode —
+ * Generic over any `{ id, parentId }` flat tree (TodoNode / NoteNode —
  * the note twin in useNoteTreeMovement re-exports this one).
  * @param parentId - The ancestor node to search from (root of the subtree)
  * @param childId - The node to find within the subtree

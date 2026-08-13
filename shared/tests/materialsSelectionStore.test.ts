@@ -6,9 +6,9 @@ import {
   getDailySelection,
   setDailySelection,
   clearDailySelection,
-  getTaskSelection,
-  setTaskSelection,
-  clearTaskSelection,
+  getTodoSelection,
+  setTodoSelection,
+  clearTodoSelection,
   resetMaterialsSelection,
 } from "../src/state/materialsSelectionStore";
 
@@ -27,35 +27,35 @@ describe("materialsSelectionStore", () => {
   it("defaults every domain to null on a fresh store", () => {
     expect(getNotesSelection()).toBeNull();
     expect(getDailySelection()).toBeNull();
-    expect(getTaskSelection()).toBeNull();
+    expect(getTodoSelection()).toBeNull();
   });
 
   it("round-trips each domain independently (no cross-talk)", () => {
     setNotesSelection("note-1");
     setDailySelection("2026-07-01");
-    setTaskSelection("task-9");
+    setTodoSelection("task-9");
 
     expect(getNotesSelection()).toBe("note-1");
     expect(getDailySelection()).toBe("2026-07-01");
-    expect(getTaskSelection()).toBe("task-9");
+    expect(getTodoSelection()).toBe("task-9");
   });
 
   it("clearing one domain does not touch the others", () => {
     setNotesSelection("note-1");
     setDailySelection("2026-07-01");
-    setTaskSelection("task-9");
+    setTodoSelection("task-9");
 
     clearNotesSelection();
     expect(getNotesSelection()).toBeNull();
     expect(getDailySelection()).toBe("2026-07-01");
-    expect(getTaskSelection()).toBe("task-9");
+    expect(getTodoSelection()).toBe("task-9");
 
     clearDailySelection();
     expect(getDailySelection()).toBeNull();
-    expect(getTaskSelection()).toBe("task-9");
+    expect(getTodoSelection()).toBe("task-9");
 
-    clearTaskSelection();
-    expect(getTaskSelection()).toBeNull();
+    clearTodoSelection();
+    expect(getTodoSelection()).toBeNull();
   });
 
   it("setting null via the setters clears the entry", () => {
@@ -67,20 +67,20 @@ describe("materialsSelectionStore", () => {
     setDailySelection(null);
     expect(getDailySelection()).toBeNull();
 
-    setTaskSelection("task-9");
-    setTaskSelection(null);
-    expect(getTaskSelection()).toBeNull();
+    setTodoSelection("task-9");
+    setTodoSelection(null);
+    expect(getTodoSelection()).toBeNull();
   });
 
   it("resetMaterialsSelection clears all three domains at once", () => {
     setNotesSelection("note-1");
     setDailySelection("2026-07-01");
-    setTaskSelection("task-9");
+    setTodoSelection("task-9");
 
     resetMaterialsSelection();
 
     expect(getNotesSelection()).toBeNull();
     expect(getDailySelection()).toBeNull();
-    expect(getTaskSelection()).toBeNull();
+    expect(getTodoSelection()).toBeNull();
   });
 });

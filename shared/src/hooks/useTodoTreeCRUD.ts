@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
-import type { PersistSettled, TaskHistoryLabel } from "./useTaskTreeHistory";
+import type { TodoNode, TodoNodeType, TodoStatus } from "../types/todoTree";
+import type { PersistSettled, TodoHistoryLabel } from "./useTodoTreeHistory";
 
 export interface AddNodeOptions {
   scheduledAt?: string;
@@ -14,7 +14,7 @@ export interface AddNodeOptions {
    * something referencing that row (an item link — `wiki_tag_connections`
    * carries an FK to `items_meta`) must wait for this instead.
    */
-  onSaved?: (saved: TaskNode | null) => void;
+  onSaved?: (saved: TodoNode | null) => void;
 }
 
 export interface UpdateNodeOptions {
@@ -22,7 +22,7 @@ export interface UpdateNodeOptions {
    * #569: make THIS write undoable, under the given label.
    *
    * Opt-in rather than always-on, and that is the whole design. `updateNode` is
-   * also how the Tasks board saves a title / body as the user types
+   * also how the Todos board saves a title / body as the user types
    * (KanbanView.tsx:447 / :463) — pushing a command per keystroke would bury
    * every other action in the app under a stack of half-typed words, which is
    * exactly why this path was silent to begin with. The Schedule gestures are
@@ -32,35 +32,35 @@ export interface UpdateNodeOptions {
    * Callers pass this only for such a gesture; everything else keeps the old
    * silent persist.
    */
-  undoLabel?: TaskHistoryLabel;
+  undoLabel?: TodoHistoryLabel;
 }
 
-export function useTaskTreeCRUD(
-  nodes: TaskNode[],
+export function useTodoTreeCRUD(
+  nodes: TodoNode[],
   persistWithHistory: (
-    currentNodes: TaskNode[],
-    updated: TaskNode[],
+    currentNodes: TodoNode[],
+    updated: TodoNode[],
     onSettled?: PersistSettled,
-    label?: TaskHistoryLabel,
+    label?: TodoHistoryLabel,
   ) => void,
-  persistSilent: (updated: TaskNode[], onSettled?: PersistSettled) => void,
-  generateId: (type: NodeType) => string,
+  persistSilent: (updated: TodoNode[], onSettled?: PersistSettled) => void,
+  generateId: (type: TodoNodeType) => string,
 ) {
   const addNode = useCallback(
     (
-      type: NodeType,
+      type: TodoNodeType,
       parentId: string | null,
       title: string,
       options?: AddNodeOptions,
     ) => {
       // life-tags S1 retired the default-folder behaviour and S3 (#225)
-      // removed the folder node type entirely — a new node is always a task
+      // removed the folder node type entirely — a new node is always a todo
       // and keeps the caller's parent verbatim (subtask nesting still works).
       const siblings = nodes.filter(
         (n) => !n.isDeleted && n.parentId === parentId,
       );
 
-      // Insert the new task at the top of the incomplete group (order: 0),
+      // Insert the new todo at the top of the incomplete group (order: 0),
       // shifting the existing incomplete siblings down by one.
       const shiftIds = new Set(
         siblings.filter((n) => n.status !== "DONE").map((n) => n.id),
@@ -69,7 +69,7 @@ export function useTaskTreeCRUD(
         shiftIds.has(n.id) ? { ...n, order: n.order + 1 } : n,
       );
 
-      const newNode: TaskNode = {
+      const newNode: TodoNode = {
         id: generateId(type),
         type,
         title,
@@ -96,7 +96,7 @@ export function useTaskTreeCRUD(
   );
 
   const updateNode = useCallback(
-    (id: string, updates: Partial<TaskNode>, options?: UpdateNodeOptions) => {
+    (id: string, updates: Partial<TodoNode>, options?: UpdateNodeOptions) => {
       const updated = nodes.map((n) =>
         n.id === id ? { ...n, ...updates } : n,
       );
@@ -116,7 +116,7 @@ export function useTaskTreeCRUD(
       // this stays a note rather than a deep compare nothing needs yet.
       const changed =
         target != null &&
-        (Object.keys(updates) as Array<keyof TaskNode>).some(
+        (Object.keys(updates) as Array<keyof TodoNode>).some(
           (key) => target[key] !== updates[key],
         );
       if (options?.undoLabel && changed) {
@@ -143,20 +143,20 @@ export function useTaskTreeCRUD(
   );
 
   /**
-   * Apply a status change. Sets status + completedAt and re-sorts the task's
+   * Apply a status change. Sets status + completedAt and re-sorts the todo's
    * siblings so DONE items sink below the incomplete ones. life-tags S1 retired
-   * the Complete-folder auto-management (folders no longer group tasks; status
-   * = DONE is the successor) — the task keeps its parent verbatim, so subtask
+   * the Complete-folder auto-management (folders no longer group todos; status
+   * = DONE is the successor) — the todo keeps its parent verbatim, so subtask
    * hierarchy is untouched.
    */
   const applyStatusChange = useCallback(
-    (id: string, newStatus: TaskStatus) => {
+    (id: string, newStatus: TodoStatus) => {
       const target = nodes.find((n) => n.id === id);
       if (!target || target.type !== "task") return;
       if (target.status === newStatus) return;
 
       const targetParentId = target.parentId;
-      const updatedTarget: TaskNode = {
+      const updatedTarget: TodoNode = {
         ...target,
         status: newStatus,
         completedAt:
@@ -196,25 +196,25 @@ export function useTaskTreeCRUD(
     [nodes, persistWithHistory],
   );
 
-  const toggleTaskStatus = useCallback(
+  const toggleTodoStatus = useCallback(
     (id: string) => {
       const target = nodes.find((n) => n.id === id);
       if (!target || target.type !== "task") return;
 
-      const statusCycle: Record<string, TaskStatus> = {
+      const statusCycle: Record<string, TodoStatus> = {
         NOT_STARTED: "IN_PROGRESS",
         IN_PROGRESS: "DONE",
         DONE: "NOT_STARTED",
       };
       const currentStatus = target.status ?? "NOT_STARTED";
-      const newStatus: TaskStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
+      const newStatus: TodoStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
       applyStatusChange(id, newStatus);
     },
     [nodes, applyStatusChange],
   );
 
-  const setTaskStatus = useCallback(
-    (id: string, newStatus: TaskStatus) => {
+  const setTodoStatus = useCallback(
+    (id: string, newStatus: TodoStatus) => {
       applyStatusChange(id, newStatus);
     },
     [applyStatusChange],
@@ -224,7 +224,7 @@ export function useTaskTreeCRUD(
     addNode,
     updateNode,
     toggleExpanded,
-    toggleTaskStatus,
-    setTaskStatus,
+    toggleTodoStatus,
+    setTodoStatus,
   };
 }

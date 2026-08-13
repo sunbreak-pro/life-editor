@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useScheduleItemsAPI } from "../src/hooks/useScheduleItemsAPI";
-import type { UndoRedoLike } from "../src/hooks/useTaskTreeHistory";
+import type { UndoRedoLike } from "../src/hooks/useTodoTreeHistory";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import type { ScheduleItem } from "../src/types/schedule";
 import type { DataService } from "../src/services/DataService";

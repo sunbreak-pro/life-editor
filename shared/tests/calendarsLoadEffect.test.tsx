@@ -122,7 +122,7 @@ describe("useCalendarsAPI load effect (#672)", () => {
     // A note edit or a task edit must not re-pull the calendar list (#499).
     act(() => {
       sync.bump("notes");
-      sync.bump("tasks");
+      sync.bump("todos");
     });
     await act(async () => {});
     expect(fetchCalendars).toHaveBeenCalledTimes(1);

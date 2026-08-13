@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type { KanbanLabels } from "../src/components/Kanban/types";
 import {
   buildStatusColumns,
@@ -8,7 +8,7 @@ import {
 
 /*
  * Column builders (life-tags S1: folder view retired; S3 #225: folder node
- * type removed). Pure mapping from the active TaskNode set →
+ * type removed). Pure mapping from the active TodoNode set →
  * KanbanColumnModel[] per view mode. Tests pin: status grouping, order
  * sorting, deleted-node exclusion, transitional orphan tolerance (a task
  * pointing at a legacy — now excluded — folder parent still surfaces), and
@@ -16,7 +16,7 @@ import {
  * fan-out).
  */
 
-function makeNode(overrides: Partial<TaskNode> & { id: string }): TaskNode {
+function makeNode(overrides: Partial<TodoNode> & { id: string }): TodoNode {
   return {
     type: "task",
     title: overrides.id,
@@ -60,7 +60,7 @@ describe("buildStatusColumns", () => {
   });
 
   it("groups tasks by status, treating missing status as NOT_STARTED", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", status: "IN_PROGRESS" }),
       makeNode({ id: "t2", status: "DONE" }),
       makeNode({ id: "t3" }), // no status → NOT_STARTED
@@ -77,7 +77,7 @@ describe("buildStatusColumns", () => {
     // by the fetch filter and can no longer be constructed as a node, but a
     // task still referencing that (now-missing) parent id must appear by
     // status all the same.
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", parentId: "f1-legacy", status: "DONE" }),
       makeNode({ id: "t2", parentId: null, status: "DONE" }),
     ];
@@ -87,7 +87,7 @@ describe("buildStatusColumns", () => {
   });
 
   it("excludes deleted tasks", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", status: "NOT_STARTED" }),
       makeNode({ id: "tdel", status: "NOT_STARTED", isDeleted: true }),
     ];
@@ -102,7 +102,7 @@ describe("buildTagColumns", () => {
   const VIOLET = { id: "tagV", name: "Idea", color: "#8b5cf6" };
 
   it("makes one column per tag (in order) + a trailing untagged bucket", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", order: 0 }),
       makeNode({ id: "t2", order: 1 }),
       makeNode({ id: "t3", order: 2 }),
@@ -129,7 +129,7 @@ describe("buildTagColumns", () => {
   });
 
   it("places a multi-tag task in every matching column", () => {
-    const nodes: TaskNode[] = [makeNode({ id: "t1", order: 0 })];
+    const nodes: TodoNode[] = [makeNode({ id: "t1", order: 0 })];
     const tagsByTask = new Map([["t1", [RED, VIOLET]]]);
     const cols = buildTagColumns(nodes, [RED, VIOLET], tagsByTask, LABELS);
     expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]); // RED
@@ -137,7 +137,7 @@ describe("buildTagColumns", () => {
   });
 
   it("collects only untagged tasks in the untagged bucket", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", order: 0 }),
       makeNode({ id: "t2", order: 1 }),
       makeNode({ id: "t3", order: 2 }),
@@ -156,7 +156,7 @@ describe("buildTagColumns", () => {
   });
 
   it("excludes deleted tasks", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", order: 1 }),
       makeNode({ id: "tdel", order: 2, isDeleted: true }),
     ];
@@ -171,7 +171,7 @@ describe("buildTagColumns", () => {
   });
 
   it("surfaces a task pointing at a legacy (missing) folder parent in its tag column", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", parentId: "f1-legacy", order: 1 }),
     ];
     const tagsByTask = new Map([["t1", [RED]]]);

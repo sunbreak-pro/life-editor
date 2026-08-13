@@ -6,7 +6,7 @@ import { MobileAnalyticsView } from "../src/components/Analytics/MobileAnalytics
 import { OverviewTab } from "../src/components/Analytics/OverviewTab";
 import type { AnalyticsLabels } from "../src/components/Analytics/labels";
 import { aggregateTaskCompletionTrend } from "../src/utils/analyticsAggregation";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type { NoteNode } from "../src/types/note";
 
 /*
@@ -34,7 +34,7 @@ const COMPLETED_ISO = COMPLETED_AT.toISOString();
 /** East of UTC the sliced UTC key lands on the previous day — the #420 bug. */
 const SLICE_READS_ANOTHER_DAY = COMPLETED_AT.getTimezoneOffset() < 0;
 
-function earlyMorningTask(): TaskNode {
+function earlyMorningTask(): TodoNode {
   return {
     id: "task-1",
     type: "task",

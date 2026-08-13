@@ -8,7 +8,7 @@ import {
   type DataService,
   type RightSidebarContextValue,
   type SyncDomain,
-  type TaskNode,
+  type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
 import { makeTask, stubDataService } from "./helpers";
@@ -36,7 +36,7 @@ const syncValue: WebSyncContextValue = {
 };
 
 /** Staged as "today, time TBD" — what the tray's own add button writes. */
-const UNTIMED: TaskNode = makeTask({
+const UNTIMED: TodoNode = makeTask({
   id: "t-untimed",
   title: "Draft the outline",
   status: "NOT_STARTED",
@@ -44,7 +44,7 @@ const UNTIMED: TaskNode = makeTask({
   isAllDay: true,
 });
 /** Unscheduled, so it shows up in the picker rather than on the list. */
-const ADDABLE: TaskNode = makeTask({
+const ADDABLE: TodoNode = makeTask({
   id: "t-addable",
   title: "Someday task",
   status: "NOT_STARTED",
@@ -53,7 +53,7 @@ const ADDABLE: TaskNode = makeTask({
 function makeDS(): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
-    fetchTaskTree: vi.fn().mockResolvedValue([UNTIMED, ADDABLE]),
+    fetchTodoTree: vi.fn().mockResolvedValue([UNTIMED, ADDABLE]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),

@@ -64,7 +64,7 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   // state only AFTER an await (react-hooks/set-state-in-effect).
   const fetchGroups = useCallback(async (): Promise<TrashGroup[]> => {
     const [tasks, notes, dailies, routines, events] = await Promise.all([
-      ds.fetchDeletedTasks(),
+      ds.fetchDeletedTodos(),
       ds.fetchDeletedNotesUnified(),
       ds.fetchDeletedDailiesUnified(),
       ds.fetchDeletedRoutines(),
@@ -264,7 +264,7 @@ function restoreByCategory(
 ): Promise<void> {
   switch (category) {
     case "tasks":
-      return ds.restoreTask(id);
+      return ds.restoreTodo(id);
     case "notes":
       return ds.restoreNoteUnified(id);
     case "dailies":
@@ -283,7 +283,7 @@ function permanentDeleteByCategory(
 ): Promise<void> {
   switch (category) {
     case "tasks":
-      return ds.permanentDeleteTask(id);
+      return ds.permanentDeleteTodo(id);
     case "notes":
       return ds.permanentDeleteNoteUnified(id);
     case "dailies":

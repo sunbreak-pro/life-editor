@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Star } from "lucide-react";
-import type { TaskStatus } from "../../types/taskTree";
+import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
 import { TaskStatusCycleButton } from "../TaskStatusCycleButton";
 import { IntentionField } from "./IntentionField";
@@ -34,7 +34,7 @@ export interface EveningTodoEntry {
    * flattening of it (#796). A row moved to DONE **today** stays on the list
    * struck through rather than vanishing under the finger that tapped it.
    */
-  status: TaskStatus;
+  status: TodoStatus;
 }
 
 /** One read-only row of「今後の予定」(rest of today + tomorrow). */
@@ -124,7 +124,7 @@ export interface EveningViewProps {
    * used to draw a checkbox-shaped <span> with nothing listening to it, which
    * both flattened three states into two and left the row unpressable.
    */
-  onSetTodoStatus: (id: string, status: TaskStatus) => void;
+  onSetTodoStatus: (id: string, status: TodoStatus) => void;
   schedule: EveningScheduleEntry[];
   labels: EveningLabels;
   /**

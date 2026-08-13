@@ -8,7 +8,7 @@ import {
   FileText,
 } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
@@ -47,7 +47,7 @@ export interface OverviewTabLabels {
 
 interface OverviewTabProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   /** Schedule items for today (host: fetchScheduleItemsByDateRange today,today). */
   todayItems: ScheduleItem[];
   notes: NoteNode[];

@@ -4,7 +4,7 @@ import {
   todoDeleteCascade,
   todoDeleteTarget,
 } from "../src/shared/todoTrayDeleteGuard";
-import type { TaskNode } from "@life-editor/shared";
+import type { TodoNode } from "@life-editor/shared";
 
 /*
  * #573 — the confirm-before-cascade guard for the Todo tray / task-chip
@@ -12,7 +12,7 @@ import type { TaskNode } from "@life-editor/shared";
  * and the count they ask with is the whole subtree, not just direct children.
  */
 
-function task(id: string, parentId: string | null, title = id): TaskNode {
+function task(id: string, parentId: string | null, title = id): TodoNode {
   return {
     id,
     type: "task",
@@ -23,7 +23,7 @@ function task(id: string, parentId: string | null, title = id): TaskNode {
   };
 }
 
-const TREE: TaskNode[] = [
+const TREE: TodoNode[] = [
   task("root", null, "Pack for the trip"),
   task("child-a", "root"),
   task("grandchild", "child-a"),

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Flame, Trophy, BarChart3 } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
@@ -31,7 +31,7 @@ import type { AnalyticsLabels } from "./labels";
  */
 interface MobileAnalyticsViewProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   todayItems: ScheduleItem[];
   /** Schedule items for the default (30d) range — routine rate + top routines. */
   scheduleItems: ScheduleItem[];

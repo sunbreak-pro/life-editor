@@ -3,7 +3,7 @@ import type { DailyNode } from "../types/daily";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
-import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import {
   getDailySelection,

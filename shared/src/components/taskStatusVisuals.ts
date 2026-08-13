@@ -4,7 +4,7 @@ import {
   CheckCircle2,
   type LucideIcon,
 } from "lucide-react";
-import type { TaskStatus } from "../types/taskTree";
+import type { TodoStatus } from "../types/todoTree";
 import type { TranslationKey } from "../i18n/resources";
 
 /*
@@ -14,13 +14,13 @@ import type { TranslationKey } from "../i18n/resources";
  * were byte-identical live here.
  */
 
-export const STATUS_ORDER: readonly TaskStatus[] = [
+export const STATUS_ORDER: readonly TodoStatus[] = [
   "NOT_STARTED",
   "IN_PROGRESS",
   "DONE",
 ];
 
-export const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
+export const STATUS_ICON: Record<TodoStatus, LucideIcon> = {
   NOT_STARTED: Circle,
   IN_PROGRESS: CircleDashed,
   DONE: CheckCircle2,
@@ -31,7 +31,7 @@ export const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
  * TaskDetailPanel (Kanban board, schedule task-chip detail) words a status
  * identically.
  */
-export const STATUS_TEXT_KEY: Record<TaskStatus, TranslationKey> = {
+export const STATUS_TEXT_KEY: Record<TodoStatus, TranslationKey> = {
   NOT_STARTED: "taskDetail.statusNotStarted",
   IN_PROGRESS: "taskDetail.statusInProgress",
   DONE: "taskDetail.statusDone",
@@ -45,7 +45,7 @@ export interface StatusLabelSet {
 }
 
 export function statusLabel(
-  status: TaskStatus,
+  status: TodoStatus,
   labels: StatusLabelSet,
 ): string {
   switch (status) {

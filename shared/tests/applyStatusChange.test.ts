@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useTaskTreeCRUD } from "../src/hooks/useTaskTreeCRUD";
-import type { NodeType, TaskNode, TaskStatus } from "../src/types/taskTree";
+import { useTodoTreeCRUD } from "../src/hooks/useTodoTreeCRUD";
+import type { TodoNodeType, TodoNode, TodoStatus } from "../src/types/todoTree";
 
 /*
  * applyStatusChange DONE-sink reorder (life-tags S3 #225 follow-up). Promised
@@ -9,17 +9,17 @@ import type { NodeType, TaskNode, TaskStatus } from "../src/types/taskTree";
  * same-parent siblings are re-ordered so DONE items sink below the incomplete
  * ones, and the resulting `order` fields are a dense 0..n-1 sequence.
  *
- * applyStatusChange is internal to useTaskTreeCRUD; the test drives it through
- * the public setTaskStatus and captures the persisted node array (the hook's
+ * applyStatusChange is internal to useTodoTreeCRUD; the test drives it through
+ * the public setTodoStatus and captures the persisted node array (the hook's
  * persistWithHistory callback receives the updated nodes).
  */
 
 function task(
   id: string,
   order: number,
-  status: TaskStatus,
+  status: TodoStatus,
   parentId: string | null = null,
-): TaskNode {
+): TodoNode {
   return {
     id,
     type: "task",
@@ -31,13 +31,13 @@ function task(
   };
 }
 
-function setup(nodes: TaskNode[]) {
+function setup(nodes: TodoNode[]) {
   const persistWithHistory =
-    vi.fn<(current: TaskNode[], updated: TaskNode[]) => void>();
-  const persistSilent = vi.fn<(updated: TaskNode[]) => void>();
-  const generateId = (t: NodeType) => `${t}-x`;
+    vi.fn<(current: TodoNode[], updated: TodoNode[]) => void>();
+  const persistSilent = vi.fn<(updated: TodoNode[]) => void>();
+  const generateId = (t: TodoNodeType) => `${t}-x`;
   const { result } = renderHook(() =>
-    useTaskTreeCRUD(nodes, persistWithHistory, persistSilent, generateId),
+    useTodoTreeCRUD(nodes, persistWithHistory, persistSilent, generateId),
   );
   return { result, persistWithHistory };
 }
@@ -45,9 +45,9 @@ function setup(nodes: TaskNode[]) {
 /** Extract the persisted nodes from the last persistWithHistory call. */
 function lastPersisted(persistWithHistory: {
   mock: { calls: unknown[][] };
-}): TaskNode[] {
+}): TodoNode[] {
   const calls = persistWithHistory.mock.calls;
-  return calls[calls.length - 1][1] as TaskNode[];
+  return calls[calls.length - 1][1] as TodoNode[];
 }
 
 describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
@@ -59,7 +59,7 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
     ];
     const { result, persistWithHistory } = setup(nodes);
 
-    act(() => result.current.setTaskStatus("a", "DONE"));
+    act(() => result.current.setTodoStatus("a", "DONE"));
 
     const persisted = lastPersisted(persistWithHistory);
     const byId = new Map(persisted.map((n) => [n.id, n]));
@@ -80,7 +80,7 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
     const { result, persistWithHistory } = setup(nodes);
 
     // c goes back to IN_PROGRESS → it must rise above the remaining DONE (b).
-    act(() => result.current.setTaskStatus("c", "IN_PROGRESS"));
+    act(() => result.current.setTodoStatus("c", "IN_PROGRESS"));
 
     const persisted = lastPersisted(persistWithHistory);
     const byId = new Map(persisted.map((n) => [n.id, n]));
@@ -98,7 +98,7 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
     ];
     const { result, persistWithHistory } = setup(nodes);
 
-    act(() => result.current.setTaskStatus("s1", "DONE"));
+    act(() => result.current.setTodoStatus("s1", "DONE"));
 
     const persisted = lastPersisted(persistWithHistory);
     const byId = new Map(persisted.map((n) => [n.id, n]));
@@ -113,7 +113,7 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
     const nodes = [task("a", 0, "DONE")];
     const { result, persistWithHistory } = setup(nodes);
 
-    act(() => result.current.setTaskStatus("a", "DONE"));
+    act(() => result.current.setTodoStatus("a", "DONE"));
 
     expect(persistWithHistory).not.toHaveBeenCalled();
   });

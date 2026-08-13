@@ -1,9 +1,9 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import { dateFromKey } from "./scheduleGridLayout";
 
 /*
  * taskCalendarChips (schedule redesign A-1) — pure conversion from scheduled
- * TaskNodes into calendar-ready chip data. No React, no DataService; the
+ * TodoNodes into calendar-ready chip data. No React, no DataService; the
  * Schedule host maps the output into WeekTimeGrid / MonthGrid / AgendaList
  * items with variant "task".
  *
@@ -13,7 +13,7 @@ import { dateFromKey } from "./scheduleGridLayout";
  */
 
 export interface TaskCalendarChip {
-  /** Source TaskNode id (unprefixed — the host prefixes synthetic chip ids). */
+  /** Source TodoNode id (unprefixed — the host prefixes synthetic chip ids). */
   id: string;
   /** Local YYYY-MM-DD of `scheduledAt`. */
   date: string;
@@ -36,7 +36,7 @@ export interface TaskCalendarChip {
  */
 export const TASK_CHIP_PREFIX = "taskchip-";
 
-/** Synthetic grid id for a chip (prefix + source TaskNode id). */
+/** Synthetic grid id for a chip (prefix + source TodoNode id). */
 export function taskChipId(id: string): string {
   return TASK_CHIP_PREFIX + id;
 }
@@ -47,10 +47,10 @@ export function isTaskChip(id: string): boolean {
 }
 
 /**
- * Inverse of `taskChipId`: recover the source TaskNode id from a synthetic
+ * Inverse of `taskChipId`: recover the source TodoNode id from a synthetic
  * chip id. A non-prefixed id is returned unchanged (defensive — callers gate
  * on `isTaskChip` first). Used by the Step-2 drag-to-write path to address the
- * underlying TaskNode.
+ * underlying TodoNode.
  */
 export function unwrapTaskChipId(id: string): string {
   return id.startsWith(TASK_CHIP_PREFIX)
@@ -97,7 +97,7 @@ function localTime(d: Date): string {
  * the chip lands on the START date only.
  */
 export function tasksToCalendarChips(
-  tasks: TaskNode[],
+  tasks: TodoNode[],
   rangeStartKey: string,
   rangeEndKey: string,
 ): TaskCalendarChip[] {

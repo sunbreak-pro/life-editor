@@ -12,7 +12,7 @@ import {
 
 /*
  * routineMapper vitest suite (DU-C-2 — 2026-05-24). Mirrors the
- * taskMapper.test.ts structure: 2-row mapper invariants exercised
+ * todoMapper.test.ts structure: 2-row mapper invariants exercised
  * end-to-end without any DB fixture or mock layer (the mapper is pure).
  *
  * Mandatory cases per DU-C 子計画書 §"Acceptance Criteria":

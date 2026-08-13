@@ -10,26 +10,26 @@ import {
 import type { ReactNode } from "react";
 import { createElement } from "react";
 import { TaskDetailPanel } from "../src/components";
-import { useTaskTreeAPI } from "../src/hooks/useTaskTreeAPI";
+import { useTodoTreeAPI } from "../src/hooks/useTodoTreeAPI";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
 import { stubDataService } from "./helpers/dataServiceStub";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * W7 — Tasks detail. Two concerns, both new in W7:
- *   1. the selection basis on useTaskTreeAPI (selectedTaskId /
- *      setSelectedTaskId / selectedTask, + delete clearing the selection),
+ *   1. the selection basis on useTodoTreeAPI (selectedTodoId /
+ *      setSelectedTodoId / selectedTodo, + delete clearing the selection),
  *   2. TaskDetailPanel's minimal render (title / status / content slot).
  * The responsive two-pane part this panel once sat in (MasterDetail, W6) was
  * retired in code-reduction #346 along with its suite; the panel now reaches
  * the screen through the host's rightSidebar, which is covered elsewhere.
  */
 
-// ---- selection basis (useTaskTreeAPI) ---------------------------------
+// ---- selection basis (useTodoTreeAPI) ---------------------------------
 
-function makeTask(id: string, parentId: string | null = null): TaskNode {
+function makeTask(id: string, parentId: string | null = null): TodoNode {
   return {
     id,
     type: "task",
@@ -41,11 +41,11 @@ function makeTask(id: string, parentId: string | null = null): TaskNode {
   };
 }
 
-function makeDS(initial: TaskNode[]): DataService {
+function makeDS(initial: TodoNode[]): DataService {
   return stubDataService({
-    fetchTaskTree: async () => initial.filter((n) => !n.isDeleted),
-    fetchDeletedTasks: async () => initial.filter((n) => n.isDeleted),
-    syncTaskTree: async () => {},
+    fetchTodoTree: async () => initial.filter((n) => !n.isDeleted),
+    fetchDeletedTodos: async () => initial.filter((n) => n.isDeleted),
+    syncTodoTree: async () => {},
   });
 }
 
@@ -63,33 +63,33 @@ function syncWrapper({ children }: { children: ReactNode }) {
   );
 }
 
-async function renderTaskTree(initial: TaskNode[]) {
+async function renderTaskTree(initial: TodoNode[]) {
   const ds = makeDS(initial);
-  const view = renderHook(() => useTaskTreeAPI({ dataService: ds }), {
+  const view = renderHook(() => useTodoTreeAPI({ dataService: ds }), {
     wrapper: syncWrapper,
   });
   await waitFor(() => expect(view.result.current.isLoading).toBe(false));
   return view;
 }
 
-describe("useTaskTreeAPI selection basis (W7)", () => {
-  it("resolves selectedTask from selectedTaskId", async () => {
+describe("useTodoTreeAPI selection basis (W7)", () => {
+  it("resolves selectedTodo from selectedTodoId", async () => {
     const { result } = await renderTaskTree([makeTask("task-a")]);
-    expect(result.current.selectedTask).toBeNull();
+    expect(result.current.selectedTodo).toBeNull();
 
-    act(() => result.current.setSelectedTaskId("task-a"));
-    expect(result.current.selectedTaskId).toBe("task-a");
-    expect(result.current.selectedTask?.id).toBe("task-a");
+    act(() => result.current.setSelectedTodoId("task-a"));
+    expect(result.current.selectedTodoId).toBe("task-a");
+    expect(result.current.selectedTodo?.id).toBe("task-a");
   });
 
   it("clears the selection when the selected task is soft-deleted", async () => {
     const { result } = await renderTaskTree([makeTask("task-a")]);
-    act(() => result.current.setSelectedTaskId("task-a"));
-    expect(result.current.selectedTask?.id).toBe("task-a");
+    act(() => result.current.setSelectedTodoId("task-a"));
+    expect(result.current.selectedTodo?.id).toBe("task-a");
 
     act(() => result.current.softDelete("task-a"));
-    expect(result.current.selectedTaskId).toBeNull();
-    expect(result.current.selectedTask).toBeNull();
+    expect(result.current.selectedTodoId).toBeNull();
+    expect(result.current.selectedTodo).toBeNull();
   });
 
   it("clears the selection when an ancestor task is deleted", async () => {
@@ -97,14 +97,14 @@ describe("useTaskTreeAPI selection basis (W7)", () => {
       makeTask("parent-a"),
       makeTask("task-a", "parent-a"),
     ]);
-    act(() => result.current.setSelectedTaskId("task-a"));
-    expect(result.current.selectedTask?.id).toBe("task-a");
+    act(() => result.current.setSelectedTodoId("task-a"));
+    expect(result.current.selectedTodo?.id).toBe("task-a");
 
     // Deleting the parent task cascades to its subtask — the selection, which
     // sits inside the removed subtree, must be cleared. (S3 #225: folders are
     // gone; subtask cascade is the generic behaviour this guards.)
     act(() => result.current.softDelete("parent-a"));
-    expect(result.current.selectedTaskId).toBeNull();
+    expect(result.current.selectedTodoId).toBeNull();
   });
 
   it("keeps the selection when an unrelated task is deleted", async () => {
@@ -112,11 +112,11 @@ describe("useTaskTreeAPI selection basis (W7)", () => {
       makeTask("task-a"),
       makeTask("task-b"),
     ]);
-    act(() => result.current.setSelectedTaskId("task-a"));
+    act(() => result.current.setSelectedTodoId("task-a"));
 
     act(() => result.current.softDelete("task-b"));
-    expect(result.current.selectedTaskId).toBe("task-a");
-    expect(result.current.selectedTask?.id).toBe("task-a");
+    expect(result.current.selectedTodoId).toBe("task-a");
+    expect(result.current.selectedTodo?.id).toBe("task-a");
   });
 
   // #775 DoD: the panel's delete is a SOFT one, so Trash has to be able to

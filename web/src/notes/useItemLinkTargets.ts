@@ -44,14 +44,14 @@ const EMPTY: ItemLinkTarget[] = [];
 export function useItemLinkTargets(
   dataService: DataService | undefined,
 ): LoadItemLinkTargets {
-  const syncVersion = useSyncDomains("notes", "dailies", "tasks");
+  const syncVersion = useSyncDomains("notes", "dailies", "todos");
 
   const fetchPool = useCallback(async (): Promise<ItemLinkTarget[]> => {
     if (!dataService) return EMPTY;
     const [notes, dailies, tasks] = await Promise.all([
       dataService.listNotesUnified(),
       dataService.listDailiesUnified(),
-      dataService.fetchTaskTree(),
+      dataService.fetchTodoTree(),
     ]);
     const next: ItemLinkTarget[] = [];
     for (const n of notes) {

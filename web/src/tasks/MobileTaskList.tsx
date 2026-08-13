@@ -13,7 +13,7 @@ import {
   type KanbanColumnModel,
   type KanbanLabels,
   type StatusFilterChip,
-  type TaskStatus,
+  type TodoStatus,
 } from "@life-editor/shared";
 
 /*
@@ -91,12 +91,12 @@ export function MobileTaskList({
   onCloseDetail,
   detail,
 }: MobileTaskListProps): React.JSX.Element {
-  const [filter, setFilter] = useState<TaskStatus | null>(null);
+  const [filter, setFilter] = useState<TodoStatus | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   // Index the columns by status for O(1) lookups (counts + filtered cards).
   const columnByStatus = useMemo(() => {
-    const map = new Map<TaskStatus, KanbanColumnModel>();
+    const map = new Map<TodoStatus, KanbanColumnModel>();
     for (const col of statusColumns) {
       if (col.statusKind) map.set(col.statusKind, col);
     }
@@ -130,7 +130,7 @@ export function MobileTaskList({
           <StatusFilterChips
             chips={chips}
             value={filter}
-            onChange={(id) => setFilter(id as TaskStatus | null)}
+            onChange={(id) => setFilter(id as TodoStatus | null)}
             label={labels.filterLabel}
             className="flex-nowrap"
           />

@@ -6,7 +6,7 @@
  * beside it. The shape below is therefore role-independent, and every role
  * mapper aliases it rather than keeping a byte-identical copy.
  *
- * It used to live in `taskMapper.ts` because Tasks was the first domain
+ * It used to live in `todoMapper.ts` because Tasks was the first domain
  * ported, which left the other four mappers importing a *shared* type from
  * the *Tasks* module — a dependency that reads as "Notes depend on Tasks"
  * and is not true (#670 C3 PR 2). Role-scoped aliases

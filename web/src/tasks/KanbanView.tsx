@@ -30,7 +30,7 @@ import {
   TaskAddDialog,
   useMediaQuery,
   useRightSidebarContext,
-  useTaskTreeContext,
+  useTodoTreeContext,
   useWikiTagsUnifiedContext,
   useTranslation,
   useUnsavedDraft,
@@ -49,7 +49,7 @@ import {
   type KanbanLabels,
   type KanbanViewMode,
   type TaskAddType,
-  type TaskNode,
+  type TodoNode,
   WIDE_QUERY,
 } from "@life-editor/shared";
 // Section-agnostic despite living under schedule/ (#628 → #707 → #736): the two
@@ -74,14 +74,14 @@ import { TagPicker } from "../wikitag/TagPicker";
  * Tasks section. Owns the data + i18n wiring; the shared <KanbanBoard> and
  * its children stay pure (§6.4):
  *
- *   - data: useTaskTreeContext() → nodes / status mutations;
+ *   - data: useTodoTreeContext() → nodes / status mutations;
  *     useWikiTagsUnifiedContext() → tag master + assignments + tag color.
  *     Columns are built by the pure shared builders, keyed off the active
  *     view mode (status / tag — folder view retired in life-tags S1).
  *   - i18n: useTranslation() here → a KanbanLabels object injected as props.
  *
  * K-DnD (status view only): drag a card between status columns to SET the task
- * status (setTaskStatus).
+ * status (setTodoStatus).
  *   - tag view: NOT draggable (reassigning a multi-tag card by drag is
  *     ambiguous) — the host renders the plain board there.
  *
@@ -183,7 +183,7 @@ export function KanbanView({
   dataService,
   onNavigateToItem,
 }: KanbanViewProps = {}): React.JSX.Element {
-  const tree = useTaskTreeContext();
+  const tree = useTodoTreeContext();
   const wikiTags = useWikiTagsUnifiedContext();
   const { allTags, getTagsForItem, setTagColor } = wikiTags;
   const { t } = useTranslation();
@@ -287,7 +287,7 @@ export function KanbanView({
     nodeMap: tree.nodeMap,
     isLoading: tree.isLoading,
     pendingSelectTaskId,
-    onSelect: tree.setSelectedTaskId,
+    onSelect: tree.setSelectedTodoId,
     onOpenWide: rightSidebar.open,
     onConsumePendingSelect,
   });
@@ -306,7 +306,7 @@ export function KanbanView({
    * this.
    */
   const closeDetailShell = useCallback(() => {
-    tree.setSelectedTaskId(null);
+    tree.setSelectedTodoId(null);
     if (isWide) rightSidebar.close();
   }, [tree, isWide, rightSidebar]);
 
@@ -343,7 +343,7 @@ export function KanbanView({
    */
   const { begin: beginConvert, end: endConvert } = useInFlightGuard();
   const handleConvertToEvent = useCallback(
-    (task: TaskNode) => {
+    (task: TodoNode) => {
       if (!dataService) return;
       const blocked = todoToEventBlock(tree.nodes, task.id);
       if (blocked) {
@@ -421,7 +421,7 @@ export function KanbanView({
    * has to be entered from a stable callback.
    */
   const handleConvertFromDetail = useCallback(
-    (task: TaskNode) => {
+    (task: TodoNode) => {
       void requestDetailClose(() => handleConvertToEvent(task));
     },
     [requestDetailClose, handleConvertToEvent],
@@ -486,7 +486,7 @@ export function KanbanView({
   // this handler is the wide-board path only.
   const handleSelectCard = useCallback(
     (id: string) => {
-      tree.setSelectedTaskId(id);
+      tree.setSelectedTodoId(id);
       rightSidebar.open();
     },
     [tree, rightSidebar],
@@ -523,7 +523,7 @@ export function KanbanView({
     (input: { type: TaskAddType; title: string; parentId: string | null }) => {
       const node = tree.addNode(input.type, input.parentId, input.title);
       setAddOpen(false);
-      tree.setSelectedTaskId(node.id);
+      tree.setSelectedTodoId(node.id);
     },
     [tree],
   );
@@ -627,7 +627,7 @@ export function KanbanView({
   const dnd = useKanbanDnd({
     viewMode,
     columns,
-    setTaskStatus: tree.setTaskStatus,
+    setTodoStatus: tree.setTodoStatus,
   });
 
   // The card currently being dragged, for the DragOverlay ghost.
@@ -728,7 +728,7 @@ export function KanbanView({
   // rightSidebar panel (Desktop) instead of a centered modal. narrow shows the
   // same panel inside the MobileTaskList sheet (#470), so the portal is
   // wide-only.
-  const selected = tree.selectedTask;
+  const selected = tree.selectedTodo;
 
   /*
    * One panel, two surfaces. Everything except the status control is identical,
@@ -746,7 +746,7 @@ export function KanbanView({
    * the only place the "+ Tag" affordance can live, and without it a task with
    * no tags would have no route to its first one.
    */
-  const renderTaskDetail = (task: TaskNode, statusControl?: ReactNode) => (
+  const renderTaskDetail = (task: TodoNode, statusControl?: ReactNode) => (
     // #625: the convert action sits BELOW the panel rather than inside it, so
     // TaskDetailPanel (shared, and rendered by Schedule too) keeps its current
     // shape. Same wrapper the Schedule task overlay uses for its own button.
@@ -768,7 +768,7 @@ export function KanbanView({
             onDirtyChange={(dirty) => {
               detailDirtyRef.current = dirty;
             }}
-            onToggleStatus={tree.toggleTaskStatus}
+            onToggleStatus={tree.toggleTodoStatus}
             // #786: fires RAW — the confirm, the close and the write all live
             // in the host (see handleDeleteFromDetail). Paired with
             // `deleteLabel`; the shared panel draws the row only when both are
@@ -840,7 +840,7 @@ export function KanbanView({
         sheetTask,
         <TaskStatusChoices
           value={sheetTask.status ?? "NOT_STARTED"}
-          onChange={(status) => tree.setTaskStatus(sheetTask.id, status)}
+          onChange={(status) => tree.setTodoStatus(sheetTask.id, status)}
           labels={labels}
           label={t("materials.tasks.statusGroupLabel")}
         />,

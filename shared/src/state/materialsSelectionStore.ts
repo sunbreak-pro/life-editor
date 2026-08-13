@@ -1,7 +1,7 @@
 /**
  * Module-level in-memory selection store for the Materials section (#282).
  *
- * Notes / Daily / Tasks each mount their domain provider inside a conditional
+ * Notes / Daily / Todos each mount their domain provider inside a conditional
  * in the web host, so switching tab or section UNMOUNTS the provider and wipes
  * the component-local selection state. This store lives at module scope, so it
  * outlives any single React tree and lets a remounted provider re-open the item
@@ -17,7 +17,7 @@
 
 let notesSelection: string | null = null;
 let dailySelection: string | null = null;
-let taskSelection: string | null = null;
+let todoSelection: string | null = null;
 
 export function getNotesSelection(): string | null {
   return notesSelection;
@@ -44,21 +44,21 @@ export function clearDailySelection(): void {
   dailySelection = null;
 }
 
-export function getTaskSelection(): string | null {
-  return taskSelection;
+export function getTodoSelection(): string | null {
+  return todoSelection;
 }
 
-export function setTaskSelection(id: string | null): void {
-  taskSelection = id;
+export function setTodoSelection(id: string | null): void {
+  todoSelection = id;
 }
 
-export function clearTaskSelection(): void {
-  taskSelection = null;
+export function clearTodoSelection(): void {
+  todoSelection = null;
 }
 
 /** Clear all three domains. Primarily for test isolation (beforeEach). */
 export function resetMaterialsSelection(): void {
   notesSelection = null;
   dailySelection = null;
-  taskSelection = null;
+  todoSelection = null;
 }

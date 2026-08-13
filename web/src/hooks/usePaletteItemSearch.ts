@@ -72,14 +72,14 @@ export function usePaletteItemSearch({
   const { t } = useTranslation();
   // Every domain this pool reads. Under-declaring here is a silent stale the
   // user has no way to fix (rules/frontend.md §Sync).
-  const syncVersion = useSyncDomains("notes", "dailies", "tasks", "schedule");
+  const syncVersion = useSyncDomains("notes", "dailies", "todos", "schedule");
 
   const fetchPool = useCallback(async (): Promise<SearchableItem[]> => {
     if (!dataService) return EMPTY_POOL;
     const [notes, dailies, tasks, events] = await Promise.all([
       dataService.listNotesUnified(),
       dataService.listDailiesUnified(),
-      dataService.fetchTaskTree(),
+      dataService.fetchTodoTree(),
       dataService.fetchEvents(),
     ]);
     const pool: SearchableItem[] = [];

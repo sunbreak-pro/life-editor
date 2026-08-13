@@ -27,7 +27,7 @@ import {
  * DU-C-5: SupabaseScheduleItemsService over items_meta (role='event') +
  * events_payload. Pure mapping lives in scheduleItemMapper.ts.
  *
- * KEY DIFFERENCES FROM SupabaseTasksService:
+ * KEY DIFFERENCES FROM SupabaseTodosService:
  *   - The Issue-011 partial UNIQUE (routine_item_id, source_date)
  *     WHERE routine_item_id IS NOT NULL AND is_deleted_cache=false
  *     enforces "at most one LIVE routine-generated event per (routine,

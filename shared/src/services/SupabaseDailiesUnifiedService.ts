@@ -61,7 +61,7 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
 
   /**
    * Count live dailies without pulling a single row (#511). Same shape and
-   * rationale as SupabaseTasksService.countUnfinishedTasks — see that
+   * rationale as SupabaseTodosService.countUnfinishedTodos — see that
    * method for why `head: true` and the `!inner` join are used.
    *
    * No legacy-folder clause here: Daily is flat (1 row per date), so

@@ -1,18 +1,18 @@
 import { useCallback } from "react";
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type { MoveResult } from "../types/moveResult";
-import { isDescendantOf } from "../utils/getDescendantTasks";
+import { isDescendantOf } from "../utils/getDescendantTodos";
 
 /*
- * Pure task-tree move logic (no @dnd-kit / host coupling).
+ * Pure todo-tree move logic (no @dnd-kit / host coupling).
  *
- * #418: task nesting is retired by user decision (2026-07-27). `moveNodeInto`
+ * #418: todo nesting is retired by user decision (2026-07-27). `moveNodeInto`
  * and `moveNode`'s re-parent branch are gone. What made them dead was that
- * their only caller — web's `useTaskTreeDnd` — was never wired into a screen;
+ * their only caller — web's `useTodoTreeDnd` — was never wired into a screen;
  * the folder-era guard is a separate story and was NOT uniformly always-true:
  *
  *   - `moveNodeInto`: guard `target.type === "task"` sat on every path, so it
- *     really did reject everything once #225 made NodeType single-valued.
+ *     really did reject everything once #225 made TodoNodeType single-valued.
  *   - `moveNode`'s re-parent branch: the guard lived inside
  *     `if (newParentId !== null)`, so dropping next to a ROOT node skipped it
  *     and SUCCEEDED — it pulled a legacy child row out to a chosen slot in the
@@ -23,13 +23,13 @@ import { isDescendantOf } from "../utils/getDescendantTasks";
  * Neither creates hierarchy — but note that neither has a caller either, so
  * this whole hook is currently unconsumed (see #418 for the open question of
  * whether to retire the rest of the chain). `parentId` itself is NOT retired:
- * `useTaskTreeCRUD.addNode(type, parentId, …)` and MCP `create_task(parent_id)`
+ * `useTodoTreeCRUD.addNode(type, parentId, …)` and MCP `create_todo(parent_id)`
  * can still write a parent/child pair.
  */
 
-export function useTaskTreeMovement(
-  nodes: TaskNode[],
-  persistWithHistory: (currentNodes: TaskNode[], updated: TaskNode[]) => void,
+export function useTodoTreeMovement(
+  nodes: TodoNode[],
+  persistWithHistory: (currentNodes: TodoNode[], updated: TodoNode[]) => void,
 ) {
   const moveToRoot = useCallback(
     (activeId: string): MoveResult => {

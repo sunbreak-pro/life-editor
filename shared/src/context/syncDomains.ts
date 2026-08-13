@@ -21,7 +21,7 @@
  */
 
 export const SYNC_DOMAINS = [
-  "tasks",
+  "todos",
   "notes",
   "dailies",
   "schedule",
@@ -35,7 +35,7 @@ export type SyncDomain = (typeof SYNC_DOMAINS)[number];
 
 /** The four domains that live in `items_meta` — see ITEMS_META_ROLE_DOMAIN. */
 const ITEM_DOMAINS: readonly SyncDomain[] = [
-  "tasks",
+  "todos",
   "notes",
   "dailies",
   "schedule",
@@ -47,7 +47,7 @@ const ITEM_DOMAINS: readonly SyncDomain[] = [
  * is an Event template — CLAUDE.md §4).
  */
 const ITEMS_META_ROLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
-  task: "tasks",
+  task: "todos",
   note: "notes",
   daily: "dailies",
   event: "schedule",
@@ -61,7 +61,7 @@ const ITEMS_META_ROLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
  * table with no domain would silently stop triggering any refetch at all.
  */
 const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
-  tasks_payload: "tasks",
+  tasks_payload: "todos",
   notes_payload: "notes",
   dailies_payload: "dailies",
   events_payload: "schedule",

@@ -11,7 +11,7 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   type KanbanColumnModel,
   type KanbanViewMode,
-  type TaskStatus,
+  type TodoStatus,
 } from "@life-editor/shared";
 
 /*
@@ -36,7 +36,7 @@ import {
 
 const STATUS_COL_PREFIX = "status-";
 
-function parseStatusColumnId(columnId: string): TaskStatus | null {
+function parseStatusColumnId(columnId: string): TodoStatus | null {
   if (!columnId.startsWith(STATUS_COL_PREFIX)) return null;
   const raw = columnId.slice(STATUS_COL_PREFIX.length);
   if (raw === "NOT_STARTED" || raw === "IN_PROGRESS" || raw === "DONE") {
@@ -48,7 +48,7 @@ function parseStatusColumnId(columnId: string): TaskStatus | null {
 interface UseKanbanDndParams {
   viewMode: KanbanViewMode;
   columns: KanbanColumnModel[];
-  setTaskStatus: (id: string, status: TaskStatus) => void;
+  setTodoStatus: (id: string, status: TodoStatus) => void;
 }
 
 export interface UseKanbanDndResult {
@@ -64,7 +64,7 @@ export interface UseKanbanDndResult {
 export function useKanbanDnd({
   viewMode,
   columns,
-  setTaskStatus,
+  setTodoStatus,
 }: UseKanbanDndParams): UseKanbanDndResult {
   const enabled = viewMode === "status";
 
@@ -120,10 +120,10 @@ export function useKanbanDnd({
       // reorder is meaningless for status grouping, so it's a no-op.
       const targetStatus = parseStatusColumnId(targetColumnId);
       if (targetStatus && !sameColumn) {
-        setTaskStatus(activeId, targetStatus);
+        setTodoStatus(activeId, targetStatus);
       }
     },
-    [cardToColumn, resolveOverColumn, setTaskStatus],
+    [cardToColumn, resolveOverColumn, setTodoStatus],
   );
 
   const handleDragCancel = useCallback(() => {

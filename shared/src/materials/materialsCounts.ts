@@ -10,7 +10,7 @@
  * #511: the numbers used to be derived here, in app memory, from the same
  * full list fetches the surfaces use — the badge paid for every column of
  * every row just to call `.length`. The counting moved into the DataService
- * (countUnfinishedTasks / countLiveNotes / countLiveDailies), which asks
+ * (countUnfinishedTodos / countLiveNotes / countLiveDailies), which asks
  * PostgREST for a header-only COUNT. This file keeps the badge's MEANING —
  * the definition each query has to reproduce — plus the shared types; the
  * queries carry it clause by clause and cite this file.

@@ -58,14 +58,14 @@ const { WorkScreen } = await import("../src/work/WorkScreen");
 type Timer = TimerContextValue;
 type WorkScreenDataService = Parameters<typeof WorkScreen>[0]["dataService"];
 
-const fetchTaskTree = vi.fn();
+const fetchTodoTree = vi.fn();
 
 function makeDS(): WorkScreenDataService {
-  fetchTaskTree.mockResolvedValue([
+  fetchTodoTree.mockResolvedValue([
     { id: "t1", type: "task", title: "Write the spec", isDeleted: false },
     { id: "t-gone", type: "task", title: "Deleted task", isDeleted: true },
   ]);
-  return { fetchTaskTree } as unknown as WorkScreenDataService;
+  return { fetchTodoTree } as unknown as WorkScreenDataService;
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { NoteNode } from "../../src/types/note";
-import type { TaskNode } from "../../src/types/taskTree";
+import type { TodoNode } from "../../src/types/todoTree";
 
 /*
  * Shared node fixtures (#777).
@@ -61,7 +61,7 @@ export function makeNote(
  * A root-level task with no status set — the shape the scheduling suites use,
  * where only id / title / dates matter.
  */
-export function makeTask(over: Partial<TaskNode> = {}): TaskNode {
+export function makeTask(over: Partial<TodoNode> = {}): TodoNode {
   return {
     id: "task-1",
     type: "task",

@@ -1,14 +1,14 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import type { ItemConversionDataService } from "./DataService";
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import {
   ITEMS_META_TASK_COLUMNS,
   TASKS_PAYLOAD_COLUMNS,
-  rowsToTaskNode,
-  taskNodeToRows,
+  rowsToTodoNode,
+  todoNodeToRows,
   type TasksPayloadRow,
-} from "./taskMapper";
+} from "./todoMapper";
 import type { ItemsMetaRow } from "./itemsMeta";
 import {
   ITEMS_META_EVENT_COLUMNS,
@@ -48,7 +48,7 @@ import { logServiceError } from "../utils/logError";
  *
  *   - This order leaves, at worst, an item that holds TWO payload rows. Every
  *     read path filters items_meta by role and joins its own payload
- *     (SupabaseTasksService.fetchTaskTree / SupabaseScheduleItemsService
+ *     (SupabaseTodosService.fetchTodoTree / SupabaseScheduleItemsService
  *     .fetchByPayloadFilter), so the payload belonging to the role the item no
  *     longer has is simply never reached. Invisible, harmless, and swept away
  *     with the item itself (both payload FKs are ON DELETE CASCADE).
@@ -182,7 +182,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
   async convertEventToTask(
     eventId: string,
     init: { order: number },
-  ): Promise<TaskNode> {
+  ): Promise<TodoNode> {
     const userId = await getAuthedUserId(this.client);
 
     const [
@@ -243,7 +243,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       endTime: payload.end_time,
       isAllDay: payload.is_all_day,
     });
-    const node: TaskNode = {
+    const node: TodoNode = {
       id: eventId,
       type: "task",
       title: meta.title,
@@ -262,7 +262,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       isAllDay: slot.isAllDay,
       version: meta.version,
     };
-    const { payload: taskPayload } = taskNodeToRows(node, userId);
+    const { payload: taskPayload } = todoNodeToRows(node, userId);
 
     // 1. new payload in. UPSERT, not INSERT: a conversion that lost the race
     //    at step 2 on another device can leave a stale payload row behind
@@ -302,7 +302,7 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
         .single(),
       "convertEventToTask read back items_meta",
     );
-    return rowsToTaskNode(newMeta, inserted);
+    return rowsToTodoNode(newMeta, inserted);
   }
 
   /**

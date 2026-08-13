@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { TagWorkTimeChart } from "../src/components/Analytics/TagWorkTimeChart";
 import type { TimerSession } from "../src/types/timer";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * #334: the aggregation tests cover the buckets; this covers the mapping from
@@ -85,7 +85,7 @@ function session(id: number, taskId: string | null, minutes: number) {
 }
 
 /** Live task tree stand-in — ids absent from it read as trashed (#428). */
-function liveTasks(...ids: string[]): TaskNode[] {
+function liveTasks(...ids: string[]): TodoNode[] {
   return ids.map((id, i) => ({
     id,
     type: "task",

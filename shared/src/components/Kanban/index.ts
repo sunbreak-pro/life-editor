@@ -1,6 +1,6 @@
 /*
  * Kanban (K1) barrel. Pure cross-platform Tasks-board primitives + the pure
- * column builders. The host (web/electron/capacitor) maps its TaskNode set
+ * column builders. The host (web/electron/capacitor) maps its TodoNode set
  * → KanbanColumnModel[] via the builders and injects copy (§6.4).
  */
 export { KanbanBoard, type KanbanBoardProps } from "./KanbanBoard";

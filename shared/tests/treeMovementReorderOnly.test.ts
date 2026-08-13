@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useTaskTreeMovement } from "../src/hooks/useTaskTreeMovement";
+import { useTodoTreeMovement } from "../src/hooks/useTodoTreeMovement";
 import { useNoteTreeMovement } from "../src/hooks/useNoteTreeMovement";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type { NoteNode } from "../src/types/note";
 
 /*
@@ -21,7 +21,7 @@ function task(
   order: number,
   parentId: string | null = null,
   isDeleted = false,
-): TaskNode {
+): TodoNode {
   return {
     id,
     type: "task",
@@ -49,11 +49,11 @@ function note(id: string, order: number, parentId: string | null): NoteNode {
   };
 }
 
-function setupTasks(nodes: TaskNode[]) {
+function setupTasks(nodes: TodoNode[]) {
   const persistWithHistory =
-    vi.fn<(current: TaskNode[], updated: TaskNode[]) => void>();
+    vi.fn<(current: TodoNode[], updated: TodoNode[]) => void>();
   const { result } = renderHook(() =>
-    useTaskTreeMovement(nodes, persistWithHistory),
+    useTodoTreeMovement(nodes, persistWithHistory),
   );
   return { api: result.current, persistWithHistory };
 }
@@ -70,7 +70,7 @@ function setupNotes(notes: NoteNode[]) {
 const orderOf = (nodes: { id: string; order: number }[]) =>
   Object.fromEntries(nodes.map((n) => [n.id, n.order]));
 
-describe("useTaskTreeMovement — reorder only (#418)", () => {
+describe("useTodoTreeMovement — reorder only (#418)", () => {
   it("reorders siblings and rewrites order densely", () => {
     const nodes = [task("A", 0), task("B", 1), task("C", 2)];
     const { api, persistWithHistory } = setupTasks(nodes);

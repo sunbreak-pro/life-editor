@@ -1,19 +1,19 @@
 import { describe, it, expect } from "vitest";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import {
-  rowsToTaskNode,
-  taskNodeToRows,
-  taskUpdatesToPatches,
+  rowsToTodoNode,
+  todoNodeToRows,
+  todoUpdatesToPatches,
   toNodeType,
   isLegacyFolderRow,
   type TasksPayloadRow,
   type TasksPayloadWriteRow,
-} from "../src/services/taskMapper";
+} from "../src/services/todoMapper";
 import type { ItemsMetaRow } from "../src/services/itemsMeta";
 
 /*
- * taskMapper vitest suite (DU-B-4 — 2026-05-23). Complements
- * `taskMapper.roundtrip.ts` (standalone Node harness with `console.assert`)
+ * todoMapper vitest suite (DU-B-4 — 2026-05-23). Complements
+ * `todoMapper.roundtrip.ts` (standalone Node harness with `console.assert`)
  * by integrating the same invariants into the project's vitest run so
  * `npm test` covers them alongside the rest of the shared suite.
  *
@@ -33,13 +33,13 @@ const NOW = "2026-05-23T12:00:00.000Z";
 
 /**
  * Re-attach server-derived items_meta columns (created_at / updated_at)
- * so the INSERT row produced by `taskNodeToRows` can feed back into
- * `rowsToTaskNode`. The DB DEFAULT `now()` would do this on a real
+ * so the INSERT row produced by `todoNodeToRows` can feed back into
+ * `rowsToTodoNode`. The DB DEFAULT `now()` would do this on a real
  * INSERT; the helper emulates that for the round-trip.
  */
 function reattachMetaServerCols(
-  insertRow: ReturnType<typeof taskNodeToRows>["meta"],
-  node: TaskNode,
+  insertRow: ReturnType<typeof todoNodeToRows>["meta"],
+  node: TodoNode,
 ): ItemsMetaRow {
   return {
     ...insertRow,
@@ -59,9 +59,9 @@ function reattachPayloadGeneratedCols(
   return { ...writeRow, parent_item_role: "task" };
 }
 
-function roundtrip(node: TaskNode): TaskNode {
-  const { meta, payload } = taskNodeToRows(node, TEST_USER_ID);
-  return rowsToTaskNode(
+function roundtrip(node: TodoNode): TodoNode {
+  const { meta, payload } = todoNodeToRows(node, TEST_USER_ID);
+  return rowsToTodoNode(
     reattachMetaServerCols(meta, node),
     reattachPayloadGeneratedCols(payload),
   );
@@ -71,9 +71,9 @@ function roundtrip(node: TaskNode): TaskNode {
 // 1. roundtrip across all 5 (status × type) shapes
 // ---------------------------------------------------------------------------
 
-describe("rowsToTaskNode ∘ taskNodeToRows roundtrip — 5 shapes", () => {
-  it("minimal NOT_STARTED task", () => {
-    const node: TaskNode = {
+describe("rowsToTodoNode ∘ todoNodeToRows roundtrip — 5 shapes", () => {
+  it("minimal NOT_STARTED todo", () => {
+    const node: TodoNode = {
       id: "task-1",
       type: "task",
       title: "alpha",
@@ -91,8 +91,8 @@ describe("rowsToTaskNode ∘ taskNodeToRows roundtrip — 5 shapes", () => {
     expect(recovered.order).toBe(0);
   });
 
-  it("fully populated IN_PROGRESS task — every optional field present", () => {
-    const node: TaskNode = {
+  it("fully populated IN_PROGRESS todo — every optional field present", () => {
+    const node: TodoNode = {
       id: "task-2",
       type: "task",
       title: "beta",
@@ -120,8 +120,8 @@ describe("rowsToTaskNode ∘ taskNodeToRows roundtrip — 5 shapes", () => {
     expect(r).toEqual(node);
   });
 
-  it("DONE task with completedAt", () => {
-    const node: TaskNode = {
+  it("DONE todo with completedAt", () => {
+    const node: TodoNode = {
       id: "task-3",
       type: "task",
       title: "gamma",
@@ -136,10 +136,10 @@ describe("rowsToTaskNode ∘ taskNodeToRows roundtrip — 5 shapes", () => {
     expect(r.completedAt).toBe("2026-05-23T12:00:00.000Z");
   });
 
-  it("soft-deleted task round-trips with deletedAt", () => {
+  it("soft-deleted todo round-trips with deletedAt", () => {
     // Replaces the retired "folder complete (soft-deleted)" case (S3 #225):
     // folders are gone, but soft-delete + restore must still round-trip.
-    const node: TaskNode = {
+    const node: TodoNode = {
       id: "task-5",
       type: "task",
       title: "Done bucket",
@@ -163,8 +163,8 @@ describe("rowsToTaskNode ∘ taskNodeToRows roundtrip — 5 shapes", () => {
 // ---------------------------------------------------------------------------
 
 describe("S3 folder retirement — write shape + legacy detection", () => {
-  it("taskNodeToRows writes folder_type=null and original_parent_id=null", () => {
-    const node: TaskNode = {
+  it("todoNodeToRows writes folder_type=null and original_parent_id=null", () => {
+    const node: TodoNode = {
       id: "task-s3",
       type: "task",
       title: "plain",
@@ -172,13 +172,13 @@ describe("S3 folder retirement — write shape + legacy detection", () => {
       order: 0,
       createdAt: "2026-07-11T10:00:00.000Z",
     };
-    const { payload } = taskNodeToRows(node, TEST_USER_ID);
+    const { payload } = todoNodeToRows(node, TEST_USER_ID);
     expect(payload.task_type).toBe("task");
     expect(payload.folder_type).toBeNull();
     expect(payload.original_parent_id).toBeNull();
   });
 
-  it("isLegacyFolderRow flags task_type='folder' only (NULL is a task)", () => {
+  it("isLegacyFolderRow flags task_type='folder' only (NULL is a todo)", () => {
     expect(isLegacyFolderRow({ task_type: "folder" })).toBe(true);
     expect(isLegacyFolderRow({ task_type: "task" })).toBe(false);
     expect(isLegacyFolderRow({ task_type: null })).toBe(false);
@@ -186,7 +186,7 @@ describe("S3 folder retirement — write shape + legacy detection", () => {
 
   it("toNodeType coerces a legacy 'folder' value to 'task'", () => {
     // Defence-in-depth: folder rows are excluded upstream, but if one reaches
-    // the mapper it must not throw — it materialises as a plain task.
+    // the mapper it must not throw — it materialises as a plain todo.
     expect(toNodeType("folder")).toBe("task");
     expect(toNodeType("task")).toBe("task");
     expect(toNodeType(null)).toBe("task");
@@ -198,9 +198,9 @@ describe("S3 folder retirement — write shape + legacy detection", () => {
 // 2. DB-Q2 updated_at bump enforcement
 // ---------------------------------------------------------------------------
 
-describe("taskUpdatesToPatches — DB-Q2 updated_at bump", () => {
+describe("todoUpdatesToPatches — DB-Q2 updated_at bump", () => {
   it("metaPatch.updated_at === now when title changes (meta path)", () => {
-    const { metaPatch, payloadPatch } = taskUpdatesToPatches(
+    const { metaPatch, payloadPatch } = todoUpdatesToPatches(
       { title: "renamed" },
       TEST_USER_ID,
       NOW,
@@ -214,7 +214,7 @@ describe("taskUpdatesToPatches — DB-Q2 updated_at bump", () => {
     // The regression this guards: a caller that only changes a payload
     // column (e.g. status) must still bump items_meta.updated_at so
     // Cloud Sync's LWW cursor advances. The mapper centralises this.
-    const { metaPatch, payloadPatch } = taskUpdatesToPatches(
+    const { metaPatch, payloadPatch } = todoUpdatesToPatches(
       { status: "DONE" },
       TEST_USER_ID,
       NOW,
@@ -225,7 +225,7 @@ describe("taskUpdatesToPatches — DB-Q2 updated_at bump", () => {
   });
 
   it("metaPatch.updated_at === now even for an empty update", () => {
-    const { metaPatch, payloadPatch } = taskUpdatesToPatches(
+    const { metaPatch, payloadPatch } = todoUpdatesToPatches(
       {},
       TEST_USER_ID,
       NOW,
@@ -241,8 +241,8 @@ describe("taskUpdatesToPatches — DB-Q2 updated_at bump", () => {
 // ---------------------------------------------------------------------------
 
 describe("parent_item_role guard — generated column excluded from write rows", () => {
-  it("taskNodeToRows().payload does not own parent_item_role", () => {
-    const node: TaskNode = {
+  it("todoNodeToRows().payload does not own parent_item_role", () => {
+    const node: TodoNode = {
       id: "task-6",
       type: "task",
       title: "x",
@@ -250,7 +250,7 @@ describe("parent_item_role guard — generated column excluded from write rows",
       order: 0,
       createdAt: "2026-05-23T10:00:00.000Z",
     };
-    const { payload } = taskNodeToRows(node, TEST_USER_ID);
+    const { payload } = todoNodeToRows(node, TEST_USER_ID);
     expect(
       Object.prototype.hasOwnProperty.call(payload, "parent_item_role"),
     ).toBe(false);
@@ -264,10 +264,10 @@ describe("parent_item_role guard — generated column excluded from write rows",
 // 4. soft-delete patch shape
 // ---------------------------------------------------------------------------
 
-describe("taskUpdatesToPatches — soft-delete shape", () => {
+describe("todoUpdatesToPatches — soft-delete shape", () => {
   it("emits is_deleted + deleted_at + updated_at on meta; empty payload", () => {
     const deletedAt = "2026-05-23T11:30:00.000Z";
-    const { metaPatch, payloadPatch } = taskUpdatesToPatches(
+    const { metaPatch, payloadPatch } = todoUpdatesToPatches(
       { isDeleted: true, deletedAt, updatedAt: NOW },
       TEST_USER_ID,
       NOW,
@@ -281,7 +281,7 @@ describe("taskUpdatesToPatches — soft-delete shape", () => {
   });
 
   it("restore path: is_deleted=false + deleted_at=null + updated_at bump", () => {
-    const { metaPatch, payloadPatch } = taskUpdatesToPatches(
+    const { metaPatch, payloadPatch } = todoUpdatesToPatches(
       { isDeleted: false, deletedAt: undefined },
       TEST_USER_ID,
       NOW,
@@ -299,7 +299,7 @@ describe("taskUpdatesToPatches — soft-delete shape", () => {
 
 describe("order ↔ sort_order rename", () => {
   it("write: node.order=5 -> payload.sort_order=5", () => {
-    const node: TaskNode = {
+    const node: TodoNode = {
       id: "task-7",
       type: "task",
       title: "ord",
@@ -307,7 +307,7 @@ describe("order ↔ sort_order rename", () => {
       order: 5,
       createdAt: "2026-05-23T10:00:00.000Z",
     };
-    const { payload } = taskNodeToRows(node, TEST_USER_ID);
+    const { payload } = todoNodeToRows(node, TEST_USER_ID);
     expect(payload.sort_order).toBe(5);
   });
 
@@ -349,12 +349,12 @@ describe("order ↔ sort_order rename", () => {
       original_parent_id: null,
       sort_order: 7,
     };
-    const node = rowsToTaskNode(meta, payload);
+    const node = rowsToTodoNode(meta, payload);
     expect(node.order).toBe(7);
   });
 
   it("patch: { order: 9 } -> payloadPatch.sort_order=9", () => {
-    const { payloadPatch } = taskUpdatesToPatches(
+    const { payloadPatch } = todoUpdatesToPatches(
       { order: 9 },
       TEST_USER_ID,
       NOW,

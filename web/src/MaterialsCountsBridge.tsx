@@ -36,7 +36,7 @@ export function MaterialsCountsBridge({
   dataService: DataService;
   onCounts: (counts: MaterialsCounts) => void;
 }) {
-  const tasksVersion = useSyncDomains("tasks");
+  const tasksVersion = useSyncDomains("todos");
   const notesVersion = useSyncDomains("notes");
   const dailiesVersion = useSyncDomains("dailies");
 
@@ -57,7 +57,7 @@ export function MaterialsCountsBridge({
     // A failed refetch keeps the last known count (transient network / Realtime
     // blip) rather than flashing that badge back to zero.
     void ds
-      .countUnfinishedTasks()
+      .countUnfinishedTodos()
       .then((count) => {
         if (cancelled) return;
         countsRef.current.tasks = count;

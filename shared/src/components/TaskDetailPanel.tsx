@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { Trash2 } from "lucide-react";
-import type { TaskStatus } from "../types/taskTree";
+import type { TodoStatus } from "../types/todoTree";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
 import { FOCUS_RING } from "./styleTokens";
@@ -67,7 +67,7 @@ import { FOCUS_RING } from "./styleTokens";
 
 // Status cue glyph — symbols, not copy, so they stay in the component
 // (mirrors web TaskTreeView's STATUS_GLYPH). The textual label is injected.
-const STATUS_GLYPH: Record<TaskStatus, string> = {
+const STATUS_GLYPH: Record<TodoStatus, string> = {
   NOT_STARTED: "○",
   IN_PROGRESS: "◐",
   DONE: "●",
@@ -84,7 +84,7 @@ export interface TaskDetailPanelProps {
   /** Current title (the draft sits on top of it). */
   title: string;
   /** Current status. */
-  status?: TaskStatus;
+  status?: TodoStatus;
   /**
    * Commit the pending draft (#713). Fires only from the save button (or Enter
    * in the title), carrying the title when it changed. The host writes it

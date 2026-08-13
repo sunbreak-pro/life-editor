@@ -92,7 +92,7 @@ function makeDS(): { ds: DataService; read: () => string } {
   });
   const ds = stubDataService({
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
-    fetchTaskTree: vi.fn().mockResolvedValue([]),
+    fetchTodoTree: vi.fn().mockResolvedValue([]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),

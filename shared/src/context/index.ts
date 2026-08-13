@@ -70,11 +70,11 @@ export {
   type ShortcutConfigContextValue,
 } from "./ShortcutConfigContextValue";
 
-export { TaskTreeProvider } from "./TaskTreeContext";
+export { TodoTreeProvider } from "./TodoTreeContext";
 export {
-  TaskTreeContext,
-  type TaskTreeContextValue,
-} from "./TaskTreeContextValue";
+  TodoTreeContext,
+  type TodoTreeContextValue,
+} from "./TodoTreeContextValue";
 
 // DU-G G4: Pattern A Provider in the "Unified naming" surface. The legacy
 // Daily Provider / Context were retired; the hook body now calls

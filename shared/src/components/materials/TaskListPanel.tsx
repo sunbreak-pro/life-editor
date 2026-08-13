@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CircleDot, Tag, ChevronDown, ChevronRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../cn";
-import type { TaskStatus } from "../../types/taskTree";
+import type { TodoStatus } from "../../types/todoTree";
 import type {
   KanbanCardModel,
   KanbanColumnModel,
@@ -35,14 +35,14 @@ const VIEW_ICON: Record<KanbanViewMode, LucideIcon> = {
 };
 
 // Status cue glyph — symbols, not copy (mirrors TaskDetailPanel's STATUS_GLYPH).
-const STATUS_GLYPH: Record<TaskStatus, string> = {
+const STATUS_GLYPH: Record<TodoStatus, string> = {
   NOT_STARTED: "○",
   IN_PROGRESS: "◐",
   DONE: "●",
 };
 
 // Status band accent (design tokens — same CSS vars buildColumns uses).
-const STATUS_BAND: Record<TaskStatus, string> = {
+const STATUS_BAND: Record<TodoStatus, string> = {
   NOT_STARTED: "var(--color-status-todo-band)",
   IN_PROGRESS: "var(--color-status-progress-band)",
   DONE: "var(--color-status-done-band)",
@@ -77,7 +77,7 @@ export interface TaskListPanelProps {
   /** Host changes the grouping axis (persists + rebuilds columns). */
   onViewModeChange: (mode: KanbanViewMode) => void;
   /** Currently selected task id (accent-highlights its row). */
-  selectedTaskId: string | null;
+  selectedTodoId: string | null;
   /** Host selects a task (fills the main detail surface). */
   onSelectTask: (id: string) => void;
   labels: TaskListPanelLabels;
@@ -137,7 +137,7 @@ export function TaskListPanel({
   columns,
   viewMode,
   onViewModeChange,
-  selectedTaskId,
+  selectedTodoId,
   onSelectTask,
   labels,
   className,
@@ -266,7 +266,7 @@ export function TaskListPanel({
                       <TaskRow
                         key={card.id}
                         card={card}
-                        selected={selectedTaskId === card.id}
+                        selected={selectedTodoId === card.id}
                         statusText={statusLabel(card.status, labels)}
                         onSelect={onSelectTask}
                         untitled={labels.untitled}

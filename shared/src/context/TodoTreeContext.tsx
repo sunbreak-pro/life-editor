@@ -1,25 +1,25 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import {
-  useTaskTreeAPI,
-  type UseTaskTreeAPIOptions,
-} from "../hooks/useTaskTreeAPI";
+  useTodoTreeAPI,
+  type UseTodoTreeAPIOptions,
+} from "../hooks/useTodoTreeAPI";
 import { useUndoRedoOptional } from "../hooks/useUndoRedoContext";
-import { TaskTreeContext } from "./TaskTreeContextValue";
+import { TodoTreeContext } from "./TodoTreeContextValue";
 
 /**
  * Pattern A Provider (CLAUDE.md §6.3). Unlike the Tauri version it takes
- * `UseTaskTreeAPIOptions` props so the host injects the DataService /
+ * `UseTodoTreeAPIOptions` props so the host injects the DataService /
  * UndoRedo / config (the shared hook never reaches for a module
  * singleton). Must sit inside a Sync Provider (reads `useSyncContext`)
- * — CLAUDE.md §6.2 order: Sync → … → TaskTree.
+ * — CLAUDE.md §6.2 order: Sync → … → TodoTree.
  *
  * #304: auto-connects to the ambient global UndoRedo stack when a provider is
- * mounted (useUndoRedoOptional), so task mutations become app-level undoable
+ * mounted (useUndoRedoOptional), so todo mutations become app-level undoable
  * without extra host wiring. An explicit `undoRedo` prop still wins; with no
- * provider it stays the no-op history (useTaskTreeAPI default).
+ * provider it stays the no-op history (useTodoTreeAPI default).
  *
  * #304 child-1 safety valve: this provider is mounted INSIDE the section switch
- * (materials-tasks / schedule), so it unmounts on navigation while the global
+ * (materials-todos / schedule), so it unmounts on navigation while the global
  * UndoRedo stack (mounted outside the switch) survives. A command it pushed
  * closes over THIS provider's setNodes/syncToDb; running its undo after unmount
  * would write a stale snapshot to the DB while the newly-mounted provider keeps
@@ -31,12 +31,12 @@ import { TaskTreeContext } from "./TaskTreeContextValue";
  * cross-section re-sync stays future work if per-view history ever feels too
  * limiting.
  */
-export function TaskTreeProvider({
+export function TodoTreeProvider({
   children,
   ...options
-}: { children: ReactNode } & UseTaskTreeAPIOptions) {
+}: { children: ReactNode } & UseTodoTreeAPIOptions) {
   const undoRedo = useUndoRedoOptional();
-  const taskTree = useTaskTreeAPI({
+  const todoTree = useTodoTreeAPI({
     ...options,
     undoRedo: options.undoRedo ?? undoRedo ?? undefined,
   });
@@ -64,8 +64,8 @@ export function TaskTreeProvider({
   }, [hasExplicitUndoRedo]);
 
   return (
-    <TaskTreeContext.Provider value={taskTree}>
+    <TodoTreeContext.Provider value={todoTree}>
       {children}
-    </TaskTreeContext.Provider>
+    </TodoTreeContext.Provider>
   );
 }

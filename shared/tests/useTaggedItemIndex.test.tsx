@@ -31,12 +31,12 @@ function syncWrapper({ children }: { children: ReactNode }) {
 }
 
 function makeDS() {
-  const fetchTaskTree = vi.fn(async () => [
+  const fetchTodoTree = vi.fn(async () => [
     { id: "task-1", title: "Ship the panel", isDeleted: false },
     { id: "task-2", title: "Old chore", isDeleted: true },
   ]);
   const ds = stubDataService({
-    fetchTaskTree,
+    fetchTodoTree,
     fetchEvents: async () => [
       { id: "event-1", title: "Standup", isDeleted: false },
     ],
@@ -47,7 +47,7 @@ function makeDS() {
       { id: "daily-2026-08-10", date: "2026-08-10", isDeleted: false },
     ],
   });
-  return { ds, fetchTaskTree };
+  return { ds, fetchTodoTree };
 }
 
 describe("useTaggedItemIndex (#409 / #586 pins)", () => {
@@ -81,13 +81,13 @@ describe("useTaggedItemIndex (#409 / #586 pins)", () => {
   });
 
   it("stays loading (and fetches nothing) while disabled", async () => {
-    const { ds, fetchTaskTree } = makeDS();
+    const { ds, fetchTodoTree } = makeDS();
     const { result } = renderHook(() => useTaggedItemIndex(ds, false), {
       wrapper: syncWrapper,
     });
     // Give any (wrong) fetch a chance to fire before asserting it did not.
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(result.current.loading).toBe(true);
-    expect(fetchTaskTree).not.toHaveBeenCalled();
+    expect(fetchTodoTree).not.toHaveBeenCalled();
   });
 });

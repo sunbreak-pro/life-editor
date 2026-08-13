@@ -7,7 +7,7 @@ import {
   type AnalyticsTab,
   type DateRange,
   type TimerSession,
-  type TaskNode,
+  type TodoNode,
   type ScheduleItem,
   type NoteNode,
   type RoutineNode,
@@ -49,7 +49,7 @@ interface AnalyticsScreenProps {
 // Data fetched once on mount (independent of the selected analytics range).
 interface AnalyticsData {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   todayItems: ScheduleItem[];
   notes: NoteNode[];
   routines: RoutineNode[];
@@ -95,7 +95,7 @@ export function AnalyticsScreen({
 
     void Promise.all([
       ds.fetchTimerSessions(),
-      ds.fetchTaskTree(),
+      ds.fetchTodoTree(),
       ds.fetchScheduleItemsByDateRange(today, today),
       ds.fetchAllRoutines(),
       ds.listNotesUnified(),

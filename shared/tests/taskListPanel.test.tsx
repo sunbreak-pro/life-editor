@@ -53,7 +53,7 @@ function renderPanel(
       columns={COLUMNS}
       viewMode="status"
       onViewModeChange={onViewModeChange}
-      selectedTaskId={null}
+      selectedTodoId={null}
       onSelectTask={onSelectTask}
       labels={LABELS}
       {...overrides}
@@ -86,7 +86,7 @@ describe("TaskListPanel", () => {
   });
 
   it("highlights the selected task row via aria-current", () => {
-    renderPanel({ selectedTaskId: "task-2" });
+    renderPanel({ selectedTodoId: "task-2" });
     const selectedRow = screen.getByText("Review PR").closest("button");
     expect(selectedRow).toHaveAttribute("aria-current", "true");
     const otherRow = screen.getByText("Write plan").closest("button");

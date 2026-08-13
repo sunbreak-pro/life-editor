@@ -1,5 +1,5 @@
 import type { TimerSession } from "../types/timer";
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
 // The live tag data (DataService.listAllWikiTagsUnified / listAllTagAssignments)
@@ -442,7 +442,7 @@ export function aggregateDailyTimeline(
 
 /** Task completion trend: completed tasks per day */
 export function aggregateTaskCompletionTrend(
-  nodes: TaskNode[],
+  nodes: TodoNode[],
   days: number,
 ): CompletionTrendBucket[] {
   const now = new Date();
@@ -475,7 +475,7 @@ export function aggregateTaskCompletionTrend(
 }
 
 /** Task stagnation: distribution of incomplete task ages */
-export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
+export function aggregateTaskStagnation(nodes: TodoNode[]): StagnationBucket[] {
   const now = new Date();
   const buckets: StagnationBucket[] = [
     {
@@ -538,9 +538,9 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
  *   rather than dropped, so no tag's share is overstated.
  * - Work on a task that is NOT in `liveTasks` is dropped entirely — see the
  *   trash rule below. The condition is literally "absent from the live tree",
- *   which is wider than "trashed": `fetchTaskTree` also drops purged rows, R2
+ *   which is wider than "trashed": `fetchTodoTree` also drops purged rows, R2
  *   orphans (meta with no payload) and legacy folder rows
- *   (`SupabaseDataService.fetchTaskTree`). Sessions attached to any of those
+ *   (`SupabaseDataService.fetchTodoTree`). Sessions attached to any of those
  *   disappear from this ring rather than reading as untagged.
  * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
  *   are ignored rather than surfaced as a raw id; that work reads as untagged.
@@ -549,7 +549,7 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
  * stop being returned by `listAllTagAssignments`, so before this its minutes did
  * not vanish — they silently piled into "untagged", which reads as "work on a
  * task I never tagged". Analytics excludes trashed items everywhere else
- * (`fetchTaskTree` is live-only, so the completion trend and stagnation charts
+ * (`fetchTodoTree` is live-only, so the completion trend and stagnation charts
  * never saw them), and Connect already drops any edge whose endpoint is not a
  * live node; this aligns the ring with both. Restoring an item brings its work
  * back for free — nothing is mutated.
@@ -566,14 +566,14 @@ export function aggregateWorkTimeByTag(
   sessions: TimerSession[],
   assignments: WikiTagAssignmentUnified[],
   tags: WikiTagUnified[],
-  liveTasks: TaskNode[],
+  liveTasks: TodoNode[],
   limit: number = 10,
 ): TagWorkTimeBucket[] {
   const work = getWorkSessions(sessions);
   const tagMap = new Map(
     tags.filter((t) => !t.isDeleted).map((t) => [t.id, t] as const),
   );
-  // `fetchTaskTree` is already live-only; the isDeleted guard keeps callers
+  // `fetchTodoTree` is already live-only; the isDeleted guard keeps callers
   // that hand over a wider list (or a stale cache) from reviving trashed work.
   const liveTaskIds = new Set(
     liveTasks.filter((n) => !n.isDeleted).map((n) => n.id),

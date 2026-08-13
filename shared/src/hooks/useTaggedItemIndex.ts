@@ -46,7 +46,7 @@ export function useTaggedItemIndex(
   /** Skip fetching entirely while false (the panel is closed). */
   enabled = true,
 ): UseTaggedItemIndexResult {
-  const syncVersion = useSyncDomains("tasks", "notes", "dailies", "schedule");
+  const syncVersion = useSyncDomains("todos", "notes", "dailies", "schedule");
   const [index, setIndex] =
     useState<ReadonlyMap<string, TaggedItemInfo>>(EMPTY_INDEX);
   // True once the first fetch lands. `loading` is DERIVED from it below
@@ -63,7 +63,7 @@ export function useTaggedItemIndex(
       const [notes, dailies, tasks, events] = await Promise.all([
         dataService.listNotesUnified(),
         dataService.listDailiesUnified(),
-        dataService.fetchTaskTree(),
+        dataService.fetchTodoTree(),
         dataService.fetchEvents(),
       ]);
       if (cancelled) return;
