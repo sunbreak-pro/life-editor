@@ -455,7 +455,8 @@ export function TagEditModal({
         open={open}
         onClose={onClose}
         title={labels.title}
-        className="max-w-[860px] p-0"
+        size="panel"
+        padded={false}
       >
         {/* A fixed height, not a content-driven one: the panel must not resize
             when a tag with twenty items is selected after one with none. */}

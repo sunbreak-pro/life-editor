@@ -61,12 +61,7 @@ export function RepeatScopeDialog({
     { scope: "all", label: labels.all },
   ];
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={labels.title}
-      className="max-w-sm"
-    >
+    <Modal open={open} onClose={onClose} title={labels.title} size="sm">
       <div className="flex flex-col gap-2">
         {/* Cancel is DOM-first so the Modal's initial focus lands on the safe
             choice (never a destructive option in delete mode); order-last

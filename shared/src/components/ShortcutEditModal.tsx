@@ -213,7 +213,8 @@ export function ShortcutEditModal({
       open={open}
       onClose={handleModalClose}
       title={labels.title}
-      className="max-w-[560px] p-0"
+      size="xl"
+      padded={false}
     >
       <div className="flex max-h-[80vh] flex-col">
         <div className="flex-shrink-0 border-b border-lumen-border px-5 pb-3.5 pt-1">
