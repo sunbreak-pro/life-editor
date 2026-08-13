@@ -43,10 +43,8 @@ import {
   ItemConversionError,
   logServiceError,
   minutesToTime,
-  tasksToCalendarChips,
   isTaskChip,
   unwrapTaskChipId,
-  pickAddableTasks,
   frequencyLabel,
   nextRoutineOccurrence,
   applyRepeatFilter,
@@ -56,7 +54,6 @@ import {
   nowMinutesLocal,
   todayCalendarKey,
   type TaskCalendarChip,
-  type TodayTodoRow,
   type ScheduleItem,
   type ItemCreateNoteDraft,
   type WeekTimeGridItem,
@@ -79,21 +76,9 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
-// Host-neutral since #790: the todo delete question is one behaviour asked on
-// two sections, so it lives under neither.
-import {
-  confirmTodoDetailDelete,
-  todoDeleteCascade,
-} from "../shared/todoTrayDeleteGuard";
+import { useScheduleTaskChips } from "./useScheduleTaskChips";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
-import {
-  timedPlacement,
-  taskChipMoveWrite,
-  taskChipResizeWrite,
-  taskChipAllDayWrite,
-  todoAddCandidateWrite,
-  placeTaskWrite,
-} from "./taskChipUndoWiring";
+import { timedPlacement, placeTaskWrite } from "./taskChipUndoWiring";
 import { itemTapRoute, taskChipPanelModel } from "./taskChipPanel";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
 import {
@@ -310,10 +295,6 @@ export function CalendarTab({
   } | null>(null);
   // #299 detail-edit overlay open flag (Desktop; Mobile keeps the BottomSheet).
   const [overlayOpen, setOverlayOpen] = useState(false);
-  // #626: task-chip detail overlay — the UNWRAPPED TaskNode id behind an open
-  // task detail, or null. Separate from selectedId/overlayOpen because those
-  // resolve schedule_items and a chip has none.
-  const [taskDetailId, setTaskDetailId] = useState<string | null>(null);
   // #299 event-creation panel: the target day + prefilled start/end. null =
   // closed. Desktop shows it in an ItemDetailOverlay-style modal; Mobile in the
   // QuickCaptureSheet. Replaces the old eager-create + Mobile `quickOpen`.
@@ -453,6 +434,57 @@ export function CalendarTab({
     onAttachError: handleAttachError,
   });
 
+  /*
+   * The TASK half of this host (#675 → useScheduleTaskChips): the chips derived
+   * from scheduled TaskNodes, the "本日の Todo" tray they back, and every
+   * gesture that writes a TaskNode. None of it reads `rangeItems`, the repeat
+   * machinery or the mutation layer, which is what let it come out whole.
+   *
+   * `taskDetailId` moved in with it — it is the id of a TASK, which
+   * `selectedId` cannot hold (#626).
+   */
+  // Memoised because the hook keeps it in the deps of both delete handlers, and
+  // a fresh object per render would rebuild them on every keystroke elsewhere
+  // in this file.
+  const todoDeleteCopy = useMemo(
+    () => ({
+      confirm: (name: string) => t("taskDetail.todoDeleteConfirm", { name }),
+      cascadeConfirm: (name: string, count: number) =>
+        t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
+      untitled: t("common.untitled"),
+      confirmLabel: t("taskDetail.delete"),
+      cancelLabel: t("common.cancel"),
+    }),
+    [t],
+  );
+  const {
+    rangeTaskChips,
+    todayTaskChips,
+    todoPlaced,
+    todoUnplaced,
+    todoAddable,
+    findTaskChip,
+    taskDetailId,
+    setTaskDetailId,
+    handleTaskChipMove,
+    handleTaskChipResize,
+    handleTaskChipDropAllDay,
+    handleTodoToggleComplete,
+    handleTodoAddCandidate,
+    handleTodoDelete,
+    handleTodoDetailDelete,
+  } = useScheduleTaskChips({
+    taskNodes,
+    updateNode,
+    setTaskStatus,
+    softDeleteTask,
+    today,
+    rangeStart,
+    rangeEnd,
+    askConfirm,
+    copy: todoDeleteCopy,
+  });
+
   // Selection = highlight only (#299). The grid ring follows selectedId; the
   // duplicate handler re-selects the copy. Bubble / overlay opening is handled
   // by the activate/open-detail handlers below.
@@ -554,83 +586,6 @@ export function CalendarTab({
   const handleMonthCreate = useCallback(
     (day: string) => openCreatePanel(day, "09:00", "10:00"),
     [openCreatePanel],
-  );
-
-  /*
-   * A-2 (#297) / #562 / #569: the task-chip writes.
-   *
-   * What each gesture writes — the patch AND whether it lands on the undo stack
-   * — lives in taskChipUndoWiring.ts, not here. Inside this component those
-   * decisions cannot be tested: the calendar needs the whole Provider stack to
-   * render and the grid needs real layout, which jsdom does not have, so
-   * deleting a label or swapping place ↔ move went unnoticed by all seven gates
-   * (#569 QA). As plain functions they are pinned in
-   * web/tests/taskChipUndoWiring.test.ts.
-   *
-   * These handlers keep what is actually the host's: unwrapping the synthetic
-   * chip id, finding the task, and calling updateNode (which is optimistic — the
-   * chip re-derives at its new position with no manual patch, closing Schedule
-   * AC10).
-   */
-  const handleTaskChipMove = useCallback(
-    (chipId: string, dateISO: string, startISO: string, endISO: string) => {
-      const taskId = unwrapTaskChipId(chipId);
-      const { patch, options } = taskChipMoveWrite(
-        taskNodes.find((n) => n.id === taskId),
-        dateISO,
-        startISO,
-        endISO,
-      );
-      updateNode(taskId, patch, options);
-    },
-    [taskNodes, updateNode],
-  );
-
-  const handleTaskChipResize = useCallback(
-    (chipId: string, endISO: string) => {
-      const taskId = unwrapTaskChipId(chipId);
-      // null = the task has no usable start, so there is no day to anchor the
-      // new end to (see taskChipResizeWrite).
-      const write = taskChipResizeWrite(
-        taskNodes.find((n) => n.id === taskId),
-        endISO,
-      );
-      if (!write) return;
-      updateNode(taskId, write.patch, write.options);
-    },
-    [taskNodes, updateNode],
-  );
-
-  const handleTaskChipDropAllDay = useCallback(
-    (chipId: string, dateISO: string) => {
-      const { patch, options } = taskChipAllDayWrite(dateISO);
-      updateNode(unwrapTaskChipId(chipId), patch, options);
-    },
-    [updateNode],
-  );
-
-  // A-3 (#298) Today's Todo tray. Completion routes to the TaskTree status API
-  // (the tray owns no completion state of its own); a plain binary toggle, not
-  // the 3-state cycle (NOT_STARTED ↔ DONE).
-  const handleTodoToggleComplete = useCallback(
-    (taskId: string) => {
-      const task = taskNodes.find((n) => n.id === taskId);
-      setTaskStatus(taskId, task?.status === "DONE" ? "NOT_STARTED" : "DONE");
-    },
-    [taskNodes, setTaskStatus],
-  );
-
-  // "Add to today" (案 c staging — the write itself is in
-  // taskChipUndoWiring.ts). #569 made it undoable: it is a single button press
-  // with no gesture to reverse it, and the tray's "add from tasks" list drops
-  // the task the moment it is added, so a mis-tap left the user hunting for the
-  // row in the unplaced group to put it back by hand.
-  const handleTodoAddCandidate = useCallback(
-    (taskId: string) => {
-      const { patch, options } = todoAddCandidateWrite(today);
-      updateNode(taskId, patch, options);
-    },
-    [today, updateNode],
   );
 
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
@@ -1012,50 +967,6 @@ export function CalendarTab({
     (key: string) => formatFullDayKey(i18n.language, key),
     [i18n.language],
   );
-
-  // Scheduled-task chips (schedule redesign A-1). `rangeTaskChips` is the
-  // unfiltered visible range — the grid + month draw `gridTaskChips`, its
-  // post-lens narrowing (#468). `todayTaskChips` backs the "今日の流れ" flow,
-  // which always shows today regardless of the grid's visible range AND stays
-  // outside the lens: the sidebar is where a hidden row is still reachable.
-  // Task chips are merged only at this derived (map) layer — never into
-  // `rangeItems` (the optimistic ScheduleItem mutation store).
-  const scheduledTasks = useMemo(
-    () => taskNodes.filter((n) => n.scheduledAt != null),
-    [taskNodes],
-  );
-  const rangeTaskChips = useMemo(
-    () => tasksToCalendarChips(scheduledTasks, rangeStart, rangeEnd),
-    [scheduledTasks, rangeStart, rangeEnd],
-  );
-  const todayTaskChips = useMemo(
-    () => tasksToCalendarChips(scheduledTasks, today, today),
-    [scheduledTasks, today],
-  );
-
-  // A-3 (#298) Today's Todo tray groups. Reuse today's chips: a time = placed,
-  // all-day = an unplaced candidate (案 c staging). "Add from tasks" offers the
-  // incomplete, unscheduled leaves (pickAddableTasks).
-  const todoPlaced = useMemo<TodayTodoRow[]>(
-    () =>
-      todayTaskChips
-        .filter((c) => !c.isAllDay)
-        .map((c) => ({
-          id: c.id,
-          title: c.title,
-          timeLabel: c.startTime,
-          completed: c.completed,
-        })),
-    [todayTaskChips],
-  );
-  const todoUnplaced = useMemo<TodayTodoRow[]>(
-    () =>
-      todayTaskChips
-        .filter((c) => c.isAllDay)
-        .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
-    [todayTaskChips],
-  );
-  const todoAddable = useMemo(() => pickAddableTasks(taskNodes), [taskNodes]);
 
   // #466: the grid's view of the range. The filter is applied HERE and nowhere
   // upstream — `rangeItems` stays the whole truth for `selected`, the mutation
@@ -1717,71 +1628,6 @@ export function CalendarTab({
     </div>
   );
 
-  // #573 (#555 follow-up): softDelete cascades through the subtree and both
-  // recovery routes are weak (undo clears on section unmount; Trash restores
-  // one row at a time), so a row with children confirms first. Leaves keep
-  // the one-click delete. Guards the tray AND the task-chip bubble (same
-  // write); #707 moved the question in-app.
-  const handleTodoDelete = useCallback(
-    (id: string) => {
-      const cascade = todoDeleteCascade(taskNodes, id);
-      if (!cascade) {
-        softDeleteTask(id);
-        return;
-      }
-      void askConfirm({
-        message: t("taskDetail.todoDeleteCascadeConfirm", {
-          name: cascade.title,
-          count: cascade.childCount,
-        }),
-        confirmLabel: t("taskDetail.delete"),
-        cancelLabel: t("common.cancel"),
-        danger: true,
-      }).then((ok) => {
-        if (ok) softDeleteTask(id);
-      });
-    },
-    [taskNodes, softDeleteTask, askConfirm, t],
-  );
-
-  /*
-   * #775: the todo DETAIL panel's delete — the Mobile sheet's, above all. Until
-   * now a todo created on a phone could not be removed from one: the sheet
-   * offered close / status / tags / save / convert and nothing else, while the
-   * event beside it in the same day list had a delete all along.
-   *
-   * A separate handler from handleTodoDelete because the QUESTION differs, not
-   * the write. The tray's trash icon is a one-tap row control and stays
-   * frictionless for a leaf (#573); this one always asks, because a phone has
-   * no hover to reveal what a control does, no keyboard undo, and the sheet is
-   * where a mis-tap is most likely to be a fat finger rather than a decision.
-   * A parent row still gets the cascade sentence — the count is what the user
-   * cannot see from here.
-   *
-   * The panel is closed FIRST, without the unsaved-draft guard: a pending title
-   * on a row that is being deleted is not something to rescue, and asking twice
-   * for one act reads as a bug. Undo is the same one the tray's delete raises
-   * (softDelete → persistWithHistory), so the header's undo still takes it back
-   * while the section stays mounted; Trash is the route that survives longer.
-   */
-  const handleTodoDetailDelete = useCallback(
-    (id: string) => {
-      void confirmTodoDetailDelete(taskNodes, id, askConfirm, {
-        confirm: (name) => t("taskDetail.todoDeleteConfirm", { name }),
-        cascadeConfirm: (name, count) =>
-          t("taskDetail.todoDeleteCascadeConfirm", { name, count }),
-        untitled: t("common.untitled"),
-        confirmLabel: t("taskDetail.delete"),
-        cancelLabel: t("common.cancel"),
-      }).then((ok) => {
-        if (!ok) return;
-        setTaskDetailId(null);
-        softDeleteTask(id);
-      });
-    },
-    [taskNodes, softDeleteTask, askConfirm, t],
-  );
-
   /*
    * #625: Event <-> Todo conversion.
    *
@@ -2040,12 +1886,7 @@ export function CalendarTab({
    * all — and looking only at the range would leave that surface with exactly
    * the silently-dead click this Issue is about.
    */
-  const popoverTaskChip =
-    popover && isTaskChip(popover.id)
-      ? (rangeTaskChips.find((c) => c.id === unwrapTaskChipId(popover.id)) ??
-        todayTaskChips.find((c) => c.id === unwrapTaskChipId(popover.id)) ??
-        null)
-      : null;
+  const popoverTaskChip = popover ? findTaskChip(popover.id) : null;
   // The task action set. Deliberately not the event one: a task has no
   // duplicate write and its detail lives in another section (taskChipPanel.ts).
   const taskChipPanel = popoverTaskChip
