@@ -1233,7 +1233,12 @@ export function CalendarTab({
   const handleDeleteRepeat = useCallback(
     (id: string) => {
       void (async () => {
-        const { landed } = await deleteRoutine(id);
+        // `onCascadeChanged` (#708): an undo restores the occurrences and the
+        // seed event straight through the DataService, so the visible range
+        // has to be re-read there too — same reason as the reload below.
+        const { landed } = await deleteRoutine(id, {
+          onCascadeChanged: reload,
+        });
         // The calendar is on screen here (it never was behind the old Routines
         // tab), so without this the deleted routine's occurrences linger until
         // something else refetches the visible range.

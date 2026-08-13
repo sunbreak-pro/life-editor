@@ -390,6 +390,14 @@ export interface ScheduleItemsDataService {
    * was #296's worst data-loss path.
    */
   bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
+  /**
+   * Inverse of bulkSoftDeleteScheduleItems. Undoing a routine deletion has to
+   * bring back the exact rows softDeleteRoutine trashed — occurrences AND the
+   * seed event the user made by hand (#708) — and one restore call per row is
+   * a round trip per occurrence for a routine that has been running for
+   * months. Chunked like its inverse, for the same reason.
+   */
+  bulkRestoreScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
 }
 

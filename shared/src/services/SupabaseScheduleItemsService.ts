@@ -789,6 +789,32 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     );
     return ids.length;
   }
+
+  /**
+   * Inverse of bulkSoftDeleteScheduleItems (the 0008 trigger mirrors the
+   * cleared flag back onto events_payload.is_deleted_cache, so the generator's
+   * partial-UNIQUE filter sees these rows again).
+   *
+   * Undoing a routine deletion restores the whole cascade through here (#708):
+   * the reads that feed the generator filter is_deleted, so a still-trashed
+   * occurrence is invisible to it and it mints a fresh id for the same day
+   * instead. Bringing the rows back BEFORE the routine returns to the live
+   * list is what keeps the original ids.
+   */
+  async bulkRestoreScheduleItems(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const now = new Date().toISOString();
+    await forEachIdChunk(
+      ids,
+      (chunk) =>
+        this.client
+          .from("items_meta")
+          .update({ is_deleted: false, deleted_at: null, updated_at: now })
+          .in("id", chunk),
+      "bulkRestoreScheduleItems",
+    );
+    return ids.length;
+  }
 }
 
 export const PHASE2_SCHEDULE_ITEM_METHOD_NAMES = [
@@ -810,6 +836,7 @@ export const PHASE2_SCHEDULE_ITEM_METHOD_NAMES = [
   "fetchScheduleItemsByRoutineId",
   "bulkDeleteScheduleItems",
   "bulkSoftDeleteScheduleItems",
+  "bulkRestoreScheduleItems",
   "fetchEvents",
 ] as const;
 

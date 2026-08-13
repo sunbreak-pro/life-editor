@@ -91,7 +91,14 @@ function renderRepeat(
   const ds = {
     convertEventToRoutine: vi.fn(() => Promise.resolve("routine-new")),
     updateRoutine: vi.fn(() => Promise.resolve(opts.templateLands ?? true)),
-    deleteRoutine: vi.fn(() =>
+    // Typed through the generic rather than named params: the body ignores
+    // both, and #708's assertion needs `mock.calls[0][1]` to be the opts bag.
+    deleteRoutine: vi.fn<
+      (
+        id: string,
+        opts?: { onCascadeChanged?: () => void },
+      ) => Promise<{ deletedScheduleItemIds: string[]; landed: boolean }>
+    >(() =>
       Promise.resolve({ deletedScheduleItemIds: ["occ-1"], landed: true }),
     ),
     detachRoutine: vi.fn(() =>
@@ -313,9 +320,29 @@ describe("delete scopes", () => {
     const h = renderRepeat();
     choose(h, { mode: "delete", item: occurrence() }, "all");
     await waitFor(() =>
-      expect(h.deleteRoutine).toHaveBeenCalledWith(ROUTINE_ID),
+      expect(h.deleteRoutine).toHaveBeenCalledWith(
+        ROUTINE_ID,
+        expect.anything(),
+      ),
     );
     expect(h.detachRoutine).not.toHaveBeenCalled();
+  });
+
+  // #708: an undo restores the occurrences and the seed event through the
+  // DataService, which this store never sees — so the delete has to hand the
+  // range re-read down with it, or the routine comes back to the list with an
+  // empty calendar under it.
+  it("hands the range re-read to deleteRoutine for the undo path", async () => {
+    const h = renderRepeat();
+    choose(h, { mode: "delete", item: occurrence() }, "all");
+    await waitFor(() => expect(h.deleteRoutine).toHaveBeenCalled());
+
+    const opts = h.deleteRoutine.mock.calls[0][1];
+    expect(h.reload).not.toHaveBeenCalled();
+    // `opts?.` because the arg is optional in the signature: if it were ever
+    // dropped the next assertion is what fails, and it says why.
+    opts?.onCascadeChanged?.();
+    expect(h.reload).toHaveBeenCalledTimes(1);
   });
 
   // #296: the days between today and a FUTURE anchor exist only on demand.
