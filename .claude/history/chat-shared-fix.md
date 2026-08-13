@@ -1,5 +1,19 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-13 - #838 セッション永続の storage 差し替え + #827 ダークスクロールバー
+
+#### 概要
+
+shared-fix 2 連。#838 = 同じ端末で毎回ログインし直しになる問題を、Supabase auth の保存先をプラットフォーム別に差し替えて解消（PR #847・書いた時点で open）。#827 = ダークテーマでスクロールバーだけ白い問題を `color-scheme` + `scrollbar-color` で解消（PR #850・同 open）。どちらも Closes 付き・main から個別分岐・全ゲート緑（shared / web 各 lint+test+build、#838 は desktop typecheck+build も。desktop は本 worktree 初 install）。merge はユーザー手番（P-001）。
+
+#### 変更点
+
+- **#838 shared**: `services/supabaseAuthStorage.ts` 新設 = プラットフォーム判定の一元点（DoD）。Electron → preload の `window.desktop.authStorage` ブリッジ / native mobile → `window.Capacitor.Plugins.Preferences`（runtime global 経由 — shared に `@capacitor/*` import を入れない不変式を維持）/ web → localStorage 既定。ブリッジ不在時は従来挙動へフォールバック。resolver テスト 5 件
+- **#838 desktop**: `authStorage:*` IPC 3 本 + electron-store 保存。`safeStorage` で OS キーチェーン暗号化（refresh token を平文 localStorage に置かない — file:// 起因の消失と保管場所の両方を解決。app:// 配信案との比較理由は `setupAuthStorageIpc` のコメントに記録 = DoD）。暗号化不可環境は `plain:` マーカーで劣化動作
+- **#838 mobile**: `@capacitor/preferences@^8` を依存追加（lock 再生成は `--package-lock-only`）
+- **#827**: `tokens.css` に `color-scheme: light/dark`（テーマ属性スコープ・ThemePreviewCard の入れ子 light も考慮）+ `:root` の `scrollbar-color: var(--color-border-strong) transparent`（継承でアプリ全域・トークン経由でハードコード無し）。jsdom はスクロールバーを描けないため宣言のピン留めテストで回帰を防止
+- **申し送り**: 実測系 DoD（パッケージ版 Electron 再起動 / モバイル殻再起動 / ダークテーマ目視）は merge 後 chat-main 実測 — 両 PR 本文に記載済み
+
 ### 2026-08-13 - #782 MCP 棚卸しの残り 3 塊を 3 PR で実装
 
 #### 概要
@@ -54,15 +68,3 @@ core-refactor C2（計画書 `docs/vision/plans/2026-08-10-core-refactor.md` §C
 - **PR #647（service）**: 303 行の facade（書き込み系 + PHASE2 dispatch セット）+ `SupabaseNotesUnifiedReads`（list/trash/detail/count・join ループ重複解消）/ `SupabaseNotesUnifiedSearch` / `SupabaseNotesUnifiedLock` / `notesUnifiedPurgeOrder`（純粋・leaf-first）
 - **テスト先行**: 無防備だった経路に計 17 テストを分割前に追加（hook の trash/lock/pin/cascade 8 件 + service の write 4 経路 6 件 + purge 順序 3 件）。全ゲート緑（shared 1521 / web 124）
 - **知見**: `react-hooks/set-state-in-effect` は「ref 直読みの guard」は許すが「関数呼び出し越しの guard」を弾く — 台帳から `hydratedIdsRef` を公開して元の形を維持した
-
-### 2026-08-10 - #631 mobile ドキュメントスクロール + pull-to-refresh 誤爆の修正
-
-#### 概要
-
-スマホ Web でボトムタブバーの下までドキュメントがスクロールし、上に引っ張ると pull-to-refresh が誤爆する問題を修正。PR #635（branch `claude/shared-fix-631`・書いた時点で open・CI 実行中）。
-
-#### 変更点
-
-- **web/src/index.css**: body の `min-height` を `100vh` → `100svh` に変更（AppShell narrow root の `h-[100svh]` と単位を揃え、URL バー分の document scroll を排除）。`html, body { overscroll-behavior: none }` を追加（pull-to-refresh は viewport スクローラ側でしか抑止できない）
-- **shared/src/components/AppShell.tsx**: narrow shell の効いていなかったインライン `overscrollBehavior: "none"` を撤去（html/body 側へ移設した旨のコメントを残置）
-- **検証**: shared / web の lint・test・build 全て exit 0（web 124 tests）。実機（iPhone Chrome）確認は merge 後に chat-main へ申し送り

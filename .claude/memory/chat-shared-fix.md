@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- #838 セッション永続の storage 差し替え（Electron safeStorage / Capacitor Preferences / web localStorage — PR #847 open・Closes 付き・実測系 DoD は merge 後 chat-main）✅（2026-08-13）
+- #827 ダークテーマのスクロールバー配色（`color-scheme` + `scrollbar-color` トークン経由 — PR #850 open・Closes 付き・目視は merge 後 chat-main）✅（2026-08-13）
 - #782 MCP 棚卸しの残り 3 塊（① #822 merged / ② #828 open / ③ #832 open — 各 PR に Closes 付き・mcp 260 / web 343 / shared 2038 tests 緑）✅（2026-08-13）
-- #672 use\*API load effect 共通化の完走（schedule 導出化 + baseline 全削除 = PR #801 merged・playwright は chat-main 宛て）✅（2026-08-13）
-- #669 core-refactor C2（mcp-server の書き込みを `utils/items` へ・`tools.ts` を宣言的レジストリ + 引数 validator・db-conventions §13）✅（2026-08-11・PR #694 open）
 
 ## 予定
 
