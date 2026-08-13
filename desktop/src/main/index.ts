@@ -1,3 +1,4 @@
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   app,
@@ -19,6 +20,45 @@ import Store from "electron-store";
 import electronUpdater from "electron-updater";
 
 const { autoUpdater } = electronUpdater;
+
+// ---------------------------------------------------------------------------
+// userData location (#837). app.getPath("userData") is derived from
+// app.getName(), which returns the asar package.json's "name" ("desktop") —
+// not electron-builder's productName. That put the prefs under
+// %APPDATA%\desktop: a name generic enough to collide with other apps, and one
+// nobody finds when looking for "Life Editor".
+//
+// Both calls must run before anything reads userData (the Store below does),
+// because the resolved path is cached on first read.
+// ---------------------------------------------------------------------------
+const APP_NAME = "Life Editor";
+
+function useProductNamedUserData(): void {
+  app.setName(APP_NAME);
+  app.setPath("userData", join(app.getPath("appData"), APP_NAME));
+}
+
+// One-time carry-over of the pre-#837 prefs file, so an existing install keeps
+// its window position / theme / tray preference instead of silently resetting.
+// Copy rather than move: the old build (or a downgrade) still finds its own
+// file, and this is ~1KB. Skipped as soon as the new location has a config, so
+// later edits are never overwritten by the stale copy.
+function migrateLegacyUserData(): void {
+  const legacyConfig = join(app.getPath("appData"), "desktop", "config.json");
+  const currentConfig = join(app.getPath("userData"), "config.json");
+  if (existsSync(currentConfig) || !existsSync(legacyConfig)) return;
+  try {
+    mkdirSync(app.getPath("userData"), { recursive: true });
+    copyFileSync(legacyConfig, currentConfig);
+  } catch (error) {
+    // Non-fatal: the worst case is defaults on this one launch, which is a far
+    // better outcome than refusing to start.
+    console.error("[main] could not carry over the legacy prefs file", error);
+  }
+}
+
+useProductNamedUserData();
+migrateLegacyUserData();
 
 // ---------------------------------------------------------------------------
 // Persistent config (electron-store). Minimal use only: window bounds + theme +
