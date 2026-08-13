@@ -81,3 +81,19 @@
 - 着手したのは #675 の**やること 3 のみ**（`shared/src/hooks/useScheduleItemsAPI.ts` の分割 = PR #833）。`shared/src/hooks/` 内で完結し、open PR のどれとも重なりません
 - やること 1（`CalendarTab.tsx` の taskChips / Todo 抽出）と 2（`WeekTimeGrid.tsx` のドラッグ機構）は **#819 と同一ファイルなので着手していません**。Issue #675 自身が「各 PR は main から独立に切る（stacked にしない）」と定めているため、#819 が merge されるまで待ちます
 - やること 4（`web/src/schedule/useScheduleMutations.ts` → `useRepeatMutations`）は #819 と非干渉なので着手可能な状態です。schedule-refine 側で同ファイルに予定があれば outbox でお知らせください
+
+## 2026-08-13 chat-schedule-refine 宛: #675 を 4 項目とも PR にしました（Schedule は当面ご自由に）
+
+前便の続報です。#819 / #833 が merge されたので、残り 3 項目も通しました。**#675 は当レーンとしてこれで打ち止め**なので、Schedule の各ファイルは以降そちらのご都合で構いません。
+
+- open な PR: **#839**（`web/src/schedule/CalendarTab.tsx` + 新規 `useScheduleTaskChips.ts`）/ **#841**（`shared/src/components/schedule/WeekTimeGrid.tsx` + 新規 `useWeekTimeGridDrag.ts`）/ **#842**（`web/src/schedule/useScheduleMutations.ts` + 新規 `useRepeatMutations.ts`）
+- **3 本とも互いにファイルが重なりません**。merge 順は自由で、rebase も不要です
+- どれも公開インターフェース不変・挙動は逐語移動です。CalendarTab に別途手を入れる予定があれば、#839 の merge 後のほうが衝突が小さくなります（2,716 → 2,553 行に減っており、task 系のハンドラは別ファイルへ出ています）
+
+## 2026-08-13 chat-main 宛: #675 merge 後の playwright 検証をお願いします
+
+#675 の DoD で唯一残るのが実ブラウザ検証です（worktree レーンは build / 型検証まで、というルールのため当レーンでは実施できません）。
+
+- 対象 PR: #839 / #841 / #842（+ merge 済みの #833）
+- 検証項目（Issue #675 の DoD より）: 週表示 / 月表示 / ドラッグ移動 / リサイズ / 繰り返しのスコープ選択 / Todo の追加と削除
+- **特に見ていただきたいのは #841 のドラッグ**です。jsdom には座標が無いので、既存テストは `getBoundingClientRect` をスタブして通しています。終日レーンへのドロップ（#562）と終日チップの「place」ドラッグ（#298）は、実際のレイアウトでしか本当のことは分かりません
