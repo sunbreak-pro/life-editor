@@ -84,6 +84,7 @@ export interface UseRepeatMutationsArgs {
   ) => Promise<boolean>;
   deleteRoutine: (
     id: string,
+    opts?: { onCascadeChanged?: () => void },
   ) => Promise<{ deletedScheduleItemIds: string[]; landed: boolean }>;
   detachRoutine: (
     id: string,
@@ -671,7 +672,13 @@ export function useRepeatMutations({
       }
       void (async () => {
         try {
-          const { deletedScheduleItemIds } = await deleteRoutine(routineId);
+          // `onCascadeChanged` (#708): an undo restores the occurrences and
+          // the seed event straight through the DataService, which this store
+          // never sees — without the re-read the routine comes back to the
+          // list with an empty calendar under it.
+          const { deletedScheduleItemIds } = await deleteRoutine(routineId, {
+            onCascadeChanged: reload,
+          });
           const removed = new Set(deletedScheduleItemIds);
           // deleteRoutine swallows service errors (hook-wide log-and-continue
           // convention) and returns [] — an empty cascade is also legitimate,
