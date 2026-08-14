@@ -38,7 +38,7 @@ AI 支援で計画書の想定より速いペース。ただし約 1/3 がドキ
 | Phase | 内容 | 状態 | 根拠 PR |
 |---|---|---|---|
 | 1 | 新スタック土台（Supabase/Auth/RLS） | ✅ 完了(05-16) | #3-9 |
-| 2 | コア機能移植（Tasks/Schedule/Notes/Daily/WikiTags） | ✅ 完了(06-05)+Realtime/レスポンシブ | #43,#44,#47,#49 |
+| 2 | コア機能移植（Todos/Schedule/Notes/Daily/WikiTags） | ✅ 完了(06-05)+Realtime/レスポンシブ | #43,#44,#47,#49 |
 | (追加) | Web/Desktop parity W0〜W4（計画外スコープ） | ✅ ほぼ完了(06-14) | #59,#63,#64,#68-70,#75,#78 |
 | 3 | Electron 包装 | 🔧 scaffold のみ merged | #79 |
 | 4 | Capacitor 包装（Mobile） | ❌ 未着手（`mobile/` ディレクトリ不在で確認） | — |

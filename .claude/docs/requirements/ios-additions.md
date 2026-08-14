@@ -38,7 +38,7 @@ Desktop の `TitleBar` に置かれている Undo / Redo ボタンと同等の�
 #### Boundary
 
 - やる:
-  - `Mobile*View.tsx`（Schedule / Memo / Note / Tasks / Materials / Work / Settings 等）の共通ヘッダー右上に Undo / Redo ボタンを表示
+  - `Mobile*View.tsx`（Schedule / Memo / Note / Todos / Materials / Work / Settings 等）の共通ヘッダー右上に Undo / Redo ボタンを表示
   - 既存 `UndoRedoButtons` コンポーネントを再利用（タッチ向けに最小タップ領域 44px は満たす）
   - ボタンの enabled / disabled は UndoRedoProvider の `canUndo` / `canRedo` に追従
 - やらない:
@@ -143,7 +143,7 @@ Mobile では Desktop の RightSidebar が常時表示できない。
 
 **Status**: △ 部分着手（`Mobile*View.tsx` は存在するが Desktop との差分が大きい箇所あり — 詳細は per-section 要件として別途追加予定）
 **Owner Provider/Module**: `frontend/src/components/Mobile/Mobile*View.tsx`
-**Depends on Feature**: Tasks / Schedule / Notes / Memo / Materials / Work（Tier 1-2 一式）
+**Depends on Feature**: Todos / Schedule / Notes / Memo / Materials / Work（Tier 1-2 一式）
 **Platform**: iOS only
 
 #### Purpose
@@ -169,12 +169,12 @@ Mobile 専用の独自レイアウトに分岐させすぎず、**Desktop で慣
 
 #### Dependencies
 
-- 他機能: 全 Tier 1 / Tier 2 セクション（Tasks / Schedule / Notes / Memo / Materials / Work / Settings）
+- 他機能: 全 Tier 1 / Tier 2 セクション（Todos / Schedule / Notes / Memo / Materials / Work / Settings）
 - 設計制約: CLAUDE.md §6 / `vision/mobile-data-parity.md`（後者は旧構成の歴史参照・現存せず）
 
 #### Notes
 
-- 本要件は方針 / ゲートとして機能する。具体的な per-section 差分（例: Schedule の DayFlow を Mobile でも出す等）は元 note の続き（Schedule / Tasks / Notes 等のセクション）から順次追記する想定
+- 本要件は方針 / ゲートとして機能する。具体的な per-section 差分（例: Schedule の DayFlow を Mobile でも出す等）は元 note の続き（Schedule / Todos / Notes 等のセクション）から順次追記する想定
 
 ---
 
@@ -406,7 +406,7 @@ Mobile `schedule` タブの Calendar ビューに関する追加要件。
 
 - 横にスライドで月の Calendar grid がスライドされ先月、来月のものに移動可能
 - フィルタ機能、並び替え機能実装
-- add item のとき、Events / Tasks / Routine / Notes / Daily の 5 つの role を iOS でも選択可能にできるようにする
+- add item のとき、Events / Todos / Routine / Notes / Daily の 5 つの role を iOS でも選択可能にできるようにする
 
 ---
 
@@ -479,7 +479,7 @@ Calendar 上の表示項目を role（Event / Task / Routine / Note / Daily）�
 
 ---
 
-### C-3: add item で 5 role（Events / Tasks / Routine / Notes / Daily）を選択
+### C-3: add item で 5 role（Events / Todos / Routine / Notes / Daily）を選択
 
 **Status**: △ Desktop 実装済 / Mobile 未着手（2026-04-24 — Desktop `CreateItemPopover` に Routine 追加、Mobile `MobileScheduleItemForm` は別 PR 継続）
 **Owner Provider/Module**: `frontend/src/components/Tasks/Schedule/Calendar/CreateItemPopover.tsx`（Desktop, 既存 4 role）/ `frontend/src/components/Mobile/MobileScheduleItemForm.tsx`
@@ -503,7 +503,7 @@ Schedule への add item 時、Desktop は現在 4 role（Task / Note / Daily / 
 
 #### Acceptance Criteria
 
-- [ ] AC1: Mobile の add item で Events / Tasks / Routine / Notes / Daily の 5 role を選択できる
+- [ ] AC1: Mobile の add item で Events / Todos / Routine / Notes / Daily の 5 role を選択できる
 - [ ] AC2: Routine 選択時は既存 Routine 作成フロー（繰り返しパターン指定）に接続される
 - [ ] AC3: Note / Daily 選択時は既存 note / daily の参照 or 新規作成が可能
 - [ ] AC4: Desktop の CreateItemPopover でも Routine が選べるようになる
@@ -521,13 +521,13 @@ Schedule への add item 時、Desktop は現在 4 role（Task / Note / Daily / 
 Mobile `work` タブ（Pomodoro Timer）に関する追加要件。
 元 note 原文:
 
-- Work の Task を選択する際に、background が透明になっているため視認性が非常に悪いため不透明にする
+- Work の Todo を選択する際に、background が透明になっているため視認性が非常に悪いため不透明にする
 - タイマー上のワーク、少休憩、長休憩のタブを押して長休憩のタブがメインになったあとにタブを押してもタイマーがスタート、ストップの繰り返しになる。
 - タブの配置をタイマー上ではなく右上に配置する
 
 ---
 
-### W-1: Task 選択時の背景を不透明にする
+### W-1: Todo 選択時の背景を不透明にする
 
 **Status**: ✓ Done（2026-04-24 — Known Issue 015 で `notion-*-primary`（旧称トークン・現 `lumen-*`）サフィックス修正により解消）
 **Owner Provider/Module**: `frontend/src/components/Mobile/MobileWorkView.tsx` / Task Picker 部品

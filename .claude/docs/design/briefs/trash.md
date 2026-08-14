@@ -15,7 +15,7 @@ Branch: claude/design-trash
 ## 1. 画面要件ダイジェスト
 
 - **目的 / 主ユースケース**: 全ドメイン共通のソフトデリート（`is_deleted=1` + `deleted_at`）モデルを、単一の UI で復元 / 完全削除する「誤削除からの復旧窓口」（`.claude/docs/requirements/tier-2-supporting.md:486`）。日常的に開く画面ではなく、消したものを戻す・掃除するための低頻度アクセスのユーティリティ画面。削除は `deleted_at` 降順で並ぶ想定（`tier-2-supporting.md:502`）
-- **表示するデータ**: web（W2）実装が surface する 5 カテゴリの削除済み項目 = tasks / notes / dailies / routines / events（型は `shared/src/components/TrashView.tsx:19-24`、host の並列 fetch は `web/src/trash/TrashScreen.tsx:57-63`）。各行は id + 表示ラベル（title、無ければ "Untitled"、daily は日付文字列 — `TrashScreen.tsx:64-90`）。件数感は数件〜十数件（削除は稀）。要件は Tasks / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds を対象に挙げる（`tier-2-supporting.md:491,509`）が、現行 web が扱うのはこの 5 つ（Databases / Templates / CustomSounds は web 未実装）
+- **表示するデータ**: web（W2）実装が surface する 5 カテゴリの削除済み項目 = tasks / notes / dailies / routines / events（型は `shared/src/components/TrashView.tsx:19-24`、host の並列 fetch は `web/src/trash/TrashScreen.tsx:57-63`）。各行は id + 表示ラベル（title、無ければ "Untitled"、daily は日付文字列 — `TrashScreen.tsx:64-90`）。件数感は数件〜十数件（削除は稀）。要件は Todos / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds を対象に挙げる（`tier-2-supporting.md:491,509`）が、現行 web が扱うのはこの 5 つ（Databases / Templates / CustomSounds は web 未実装）
 - **主要操作**: 復元（`restoreByCategory` — `TrashScreen.tsx:122-133,174-191`。`is_deleted=0` + `deleted_at=NULL` に戻る `tier-2-supporting.md:503`）/ 完全削除（**確認モーダル経由**で `permanentDeleteByCategory` — `TrashScreen.tsx:135-146,193-209`。関連レコードもカスケード削除 `tier-2-supporting.md:504`）。どちらも操作後に全カテゴリを再 fetch してリストを更新（`TrashScreen.tsx:112-120`）。処理中は `busy` で連打をブロック（`TrashScreen.tsx:31,122-146`）。一括完全削除・自動パージ（30 日経過での自動削除）は現行 web に無い（要件でも自動パージは未実装 `tier-2-supporting.md:496`）
 - **Desktop / Mobile の責務分割**: Trash は「閲覧して誤削除を戻す」Consumption 寄りの窓口なので、**Mobile でも機能は落とさず**、レスポンシブ単一カラムで同じ操作（復元 / 完全削除 / 確認）を提供する（構造分岐は不要）。差は置き場所だけ: Desktop は本流 5 セクションから視覚分離した下部ユーティリティ枠、Mobile は下部固定 4 タブに入らず More のボトムシート経由で開く（`.claude/docs/design/IA.md:14,27,42`）
 
@@ -71,7 +71,7 @@ Branch: claude/design-trash
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -197,7 +197,7 @@ light / dark の両テーマで各 1440×900。dark は色の反転だけでな�
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -311,6 +311,6 @@ light / dark の両テーマで各 390×844。ボトムタブバーは不透明�
 
 - 分業: 生成 = claude.ai/design 側（ユーザーがプロンプト投入）/ Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
 - 移植先候補: `shared/src/components/TrashView.tsx` の改修（件数バッジ / 空カテゴリの畳み / 行スピナー / カスケード警告つき確認モーダル）+ `web/src/trash/TrashScreen.tsx`（loading skeleton / error カード + 再読込導線）。§3 の新規部品候補（TrashCategoryGroup / ConfirmDangerModal / RowBusySpinner）
-- 要件との既知差分: 要件（`.claude/docs/requirements/tier-2-supporting.md:491,509`）は Tasks / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds を Trash 対象に挙げるが、現行 web（W2）が扱うのは 5 カテゴリ（tasks / notes / dailies / routines / events）。本デザインは現行実装の 5 カテゴリに合わせた（Databases / Templates / CustomSounds は web 未実装のため対象外）。一括完全削除・自動パージも要件では触れるが現行 web 未実装のため本デザインには含めない
+- 要件との既知差分: 要件（`.claude/docs/requirements/tier-2-supporting.md:491,509`）は Todos / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds を Trash 対象に挙げるが、現行 web（W2）が扱うのは 5 カテゴリ（tasks / notes / dailies / routines / events）。本デザインは現行実装の 5 カテゴリに合わせた（Databases / Templates / CustomSounds は web 未実装のため対象外）。一括完全削除・自動パージも要件では触れるが現行 web 未実装のため本デザインには含めない
 - v2 準拠: 本 brief は `_COMMON-CONTEXT.md` **v2**（2026-07-05・Lumen accent `#1d4ed8`）を最初から埋め込んで作成したため、settings のような accent resync は不要 → 2026-07-05: 共通ブロックを **v3**（rightSidebar + ハンバーガー追加）へ同期済み
 - 生成デザインへのフィードバックで本 brief の §4 を更新した場合、Status と履歴を追記する

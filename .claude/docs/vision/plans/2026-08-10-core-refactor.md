@@ -137,7 +137,7 @@ mcp-server/**            （C1 / C2）
 **PR 4 本**（この順に）:
 
 1. 死蔵コードの削除 — 旧単一テーブル Mapper（`_unused_` フィールドだけで生きている約 300 行）と孤児型ファイル 6 本
-2. 共有型の移設 — `ItemsMetaRow`（Tasks 専用 mapper 内にあり他 4 mapper が Tasks に依存）/ `ShortcutRow`（表示コンポーネント内）/ `TimerState`（2 形で重複）/ contentJson ヘルパ
+2. 共有型の移設 — `ItemsMetaRow`（Todos 専用 mapper 内にあり他 4 mapper が Todos に依存）/ `ShortcutRow`（表示コンポーネント内）/ `TimerState`（2 形で重複）/ contentJson ヘルパ
 3. 共有ヘルパへの置換 — ブレークポイント定数 / `parseDateKey` / `minutesToTime` / `clamp` / Analytics の「今日・今週」集計（4 コンポーネントに重複）
 4. 規約ドリフト是正 — Notes の `[[` リンク・スラッシュメニューと Connect の keydown に IME ガード追加 / `window.confirm` を既存 `RepeatScopeDialog` の形へ / Audio の「Mobile 省略 Provider」という誤コメント 2 箇所
 
@@ -173,7 +173,7 @@ mcp-server/**            （C1 / C2）
 
 **問題**: 同じ形の hook が並んでいるのに修正が 1 本にしか行き渡っていない。#296 の error un-latch は `useScheduleItemsAPI` にしかなく、他の hook はエラーカードが永久に残る。eslint baseline に残る 3 ファイルは全部「effect 冒頭の `setIsLoading(true)`」1 行が原因。
 
-**⚠️ 対象を絞ること**: 「use\*API 6 本を 1 つに括る」と言うと失敗する。実際に 7 本読むと形がかなり違う（TaskTree は `Promise.all` + 選択復元、Notes は本文ハイドレート副作用、Dailies は isLoading も error も無し、WikiTags は 3 本 `Promise.all` を外へ出している）。**対象は baseline の 3 本（schedule / routines / calendars）に絞る**。この 3 本だけは形が本当に揃っている。Notes / TaskTree / Dailies / WikiTags は違反しておらず #300 / #301 / #282 の繊細な意味論を持つので触らない。
+**⚠️ 対象を絞ること**: 「use\*API 6 本を 1 つに括る」と言うと失敗する。実際に 7 本読むと形がかなり違う（TodoTree は `Promise.all` + 選択復元、Notes は本文ハイドレート副作用、Dailies は isLoading も error も無し、WikiTags は 3 本 `Promise.all` を外へ出している）。**対象は baseline の 3 本（schedule / routines / calendars）に絞る**。この 3 本だけは形が本当に揃っている。Notes / TodoTree / Dailies / WikiTags は違反しておらず #300 / #301 / #282 の繊細な意味論を持つので触らない。
 
 **⚠️ 最大の落とし穴 — lint ロンダリング**: `react-hooks/set-state-in-effect` は `useCallback` や別 hook を跨ぐと検出しない（`useWikiTagsUnifiedAPI` の `setLoading(true)` が現に検出されていない）。**effect を共通 hook へ移すだけで lint は緑になり baseline も消せてしまうが、実行タイミングは 1 ミリも変わらない**。逆に共通 hook の effect 本体に `setIsLoading(true)` を残すと違反が新ファイルへ引っ越し、`eslint.config.js` が「新ファイルを baseline に足すな」と禁じているので詰む。**唯一の誠実な解は導出 loading**（`useTaggedItemIndex` が #586 で採用済みの前例）。`async` IIFE で包む逃げ道も禁止（最初の await までは同期実行でタイミングが変わらない）。
 
@@ -198,7 +198,7 @@ mcp-server/**            （C1 / C2）
 
 **問題**: `CalendarTab.tsx` と `useScheduleMutations.ts`（計 3,412 行）に直接のテストが 1 本も無い。リポジトリ最大の 2 本が最も無防備。
 
-**やること**: チームが既に確立した手口（`taskChipUndoWiring` / `taskChipPanel` / `inFlightGuard` = **純粋部分を外へ出してから vitest で pin する**）を横展開する。対象は React 状態に触らない 3 つ:
+**やること**: チームが既に確立した手口（`todoChipUndoWiring` / `todoChipPanel` / `inFlightGuard` = **純粋部分を外へ出してから vitest で pin する**）を横展開する。対象は React 状態に触らない 3 つ:
 
 1. 4 組重複している ViewModel マッパー → `scheduleViewModels.ts` + テスト
 2. 約 220 行の i18n 文言・日付書式の組み立て → `useScheduleCopy`
@@ -220,9 +220,9 @@ mcp-server/**            （C1 / C2）
 
 ### C8 — Schedule の巨大ホスト 3 本を分割
 
-`CalendarTab` 2,392 行 / `useScheduleMutations` 1,020 行 / `useScheduleItemsAPI` 729 行 + WeekTimeGrid のドラッグ機構。3 領域の調査が揃って「分割線は既に見えている」と報告（TaskTree チップ・Todo は `rangeItems` や繰り返し系に一切触れず綺麗に剥がれる。`useScheduleMutations` は 28 引数のうち 12 個が繰り返し系専用）。
+`CalendarTab` 2,392 行 / `useScheduleMutations` 1,020 行 / `useScheduleItemsAPI` 729 行 + WeekTimeGrid のドラッグ機構。3 領域の調査が揃って「分割線は既に見えている」と報告（TodoTree チップ・Todo は `rangeItems` や繰り返し系に一切触れず綺麗に剥がれる。`useScheduleMutations` は 28 引数のうち 12 個が繰り返し系専用）。
 
-**着手順**: taskChips 抽出 → WeekTimeGrid のドラッグをフック化（既存テストが守る）→ `useScheduleItemsAPI` 分割（手本が 2 本ある）→ 繰り返し分離。
+**着手順**: todoChips 抽出 → WeekTimeGrid のドラッグをフック化（既存テストが守る）→ `useScheduleItemsAPI` 分割（手本が 2 本ある）→ 繰り返し分離。
 
 **着手前に必須の追加調査**: `useScheduleMutations.ts` の `handleScopeChoose` 本文 約 210 行が未読。`handleChangeRepeat` との重複有無が未確認で、繰り返し分離の設計はここを読まないと確定できない。
 

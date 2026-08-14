@@ -56,7 +56,7 @@ permissionMode: default
 
 - **LWW cursor = `items_meta.updated_at` の 1 本**。`<role>_payload` は `updated_at` を**持たない**（単一所有）
 - **bump の責務は mapper**: `typeUpdatesToPatches` が `metaPatch.updated_at = now` を**無条件注入**（`now` は caller 注入 = mapper の純粋性維持）
-- **UPSERT の落とし穴**: `typeToRows` の meta insert 行は `updated_at` を含めず DB DEFAULT `now()` 任せ。PostgREST `.upsert()` が既存行に当たり UPDATE に転じると UPDATE-side trigger が無く `updated_at` が古いまま残る → `syncTaskTree` 系 bulk upsert は caller が `{ ...meta, updated_at: now }` を spread して bump 強制
+- **UPSERT の落とし穴**: `typeToRows` の meta insert 行は `updated_at` を含めず DB DEFAULT `now()` 任せ。PostgREST `.upsert()` が既存行に当たり UPDATE に転じると UPDATE-side trigger が無く `updated_at` が古いまま残る → `syncTodoTree` 系 bulk upsert は caller が `{ ...meta, updated_at: now }` を spread して bump 強制
 - **ソフトデリート伝播**: `items_meta.is_deleted` + `deleted_at`。events_payload は `is_deleted_cache` を trigger（`trg_sync_event_deleted_cache` / `trg_events_payload_init_cache`）でミラーし partial UNIQUE フィルタに使う。Routine→Event cascade はアプリ層（`softDeleteRoutine` が routine_item_id で `.in()` 一括 UPDATE）
 - **partial UNIQUE 冪等化**: `events_payload` の `(routine_item_id, source_date) WHERE routine_item_id IS NOT NULL AND is_deleted_cache = false` へは `upsert(rows, { onConflict, ignoreDuplicates: true })` で month-flip 連打を silent skip（Issue 011 contract）
 - **R2 孤児回収**: `createX` は payload INSERT 失敗時に items_meta を **hard delete**（soft ではない — 他デバイス TrashView 汚染防止）
@@ -72,7 +72,7 @@ permissionMode: default
     → payload 側に updated_at 列を書き込んでいないか（単一所有違反）
 
 1b. Read shared/src/services/SupabaseDataService.ts / Supabase*UnifiedService.ts
-    → syncTaskTree 系 bulk upsert の caller-side bump 補完（{ ...meta, updated_at: now }）を確認
+    → syncTodoTree 系 bulk upsert の caller-side bump 補完（{ ...meta, updated_at: now }）を確認
     → createX の R2 孤児回収（payload 失敗 → meta hard delete）を確認
     → permanentDeleteX の descendants-first ordering（子→親）を確認
 

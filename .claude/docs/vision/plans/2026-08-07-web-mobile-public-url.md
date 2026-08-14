@@ -172,7 +172,7 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
 - [x] ブラウザで `https://life-editor.sunbreak-pro.workers.dev` を開き、**ログインできる**
 - [x] 下タブバーが出て、モバイルレイアウトになっている（デスクトップのサイドバーが出ていたら幅判定の不具合 → 報告）
 - [x] ノッチ / ホームバーに UI が潜り込んでいない（safe-area）
-- [ ] Briefing / Tasks / Schedule / Notes / Daily を一巡して、データが Electron 版と一致する → **Notes で入力に入れず未完（#607）**
+- [ ] Briefing / Todos / Schedule / Notes / Daily を一巡して、データが Electron 版と一致する → **Notes で入力に入れず未完（#607）**
 - [ ] 共有ボタン → 「ホーム画面に追加」→ **アイコンと名前が Life Editor になっている**
 - [ ] ホーム画面から起動して**アドレスバーが消えている**（standalone が効いている）
 - [x] 一度アプリを閉じて開き直しても**ログインが保持されている**

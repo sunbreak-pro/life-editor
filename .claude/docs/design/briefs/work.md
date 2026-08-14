@@ -14,7 +14,7 @@ Branch: claude/design-work-v2
 
 ## 1. 画面要件ダイジェスト
 
-- **目的 / 主ユースケース**: 集中作業サイクルを WORK / BREAK / LONG_BREAK の 3 フェーズで管理するポモドーロタイマー。タスクに紐付けて `timer_sessions` に記録し、Analytics / サイドバー / TaskTree に残り時間を同期表示する（`.claude/docs/requirements/tier-2-supporting.md:119-121`, `:133`）。主ユースケース: タスクを選んで 25 分集中 → 5 分休憩 → 4 セット目の後に長休憩。
+- **目的 / 主ユースケース**: 集中作業サイクルを WORK / BREAK / LONG_BREAK の 3 フェーズで管理するポモドーロタイマー。タスクに紐付けて `timer_sessions` に記録し、Analytics / サイドバー / TodoTree に残り時間を同期表示する（`.claude/docs/requirements/tier-2-supporting.md:119-121`, `:133`）。主ユースケース: タスクを選んで 25 分集中 → 5 分休憩 → 4 セット目の後に長休憩。
 - **表示するデータ**:
   - タイマー状態: フェーズ（3 種）/ 残り時間 MM:SS / 進捗 0–100% / 稼働中フラグ（`web/src/work/WorkScreen.tsx:103-107`）
   - セッション進捗: `completedSessions` / `targetSessions`（`web/src/work/WorkScreen.tsx:80-83`。例: 2 / 4）
@@ -25,7 +25,7 @@ Branch: claude/design-work-v2
 - **主要操作**（要件: `tier-2-supporting.md:126-133`）:
   - タイマー: 開始 / 一時停止 / リセット / スキップ（`web/src/work/WorkScreen.tsx:96-98,116-119`）
   - **一時停止中のみ ±5 分調整**（`tier-2-supporting.md:129`, AC4 `:145` — 現行 Web UI 未実装。デザインで復活させる）
-  - タスク選択 / クリア（`shared/src/components/PomodoroTaskSelector.tsx:47-82`）
+  - タスク選択 / クリア（`shared/src/components/PomodoroTodoSelector.tsx:47-82`）
   - 設定変更 + プリセット CRUD（保存 / 適用 / 削除。`shared/src/components/PomodoroSettings.tsx:126-173`）
   - 環境音のトグル + ボリューム調整（`shared/src/components/AudioMixer.tsx:53-89`）
   - WORK 完了時: 完了音 + 通知 + `SessionCompletionModal`（AC2 `tier-2-supporting.md:143` — モーダル意匠は未デザイン）
@@ -36,11 +36,11 @@ Branch: claude/design-work-v2
 - **host 画面**: `web/src/work/WorkScreen.tsx:101`（`grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]` — 左 = タイマー縦積み / 右 = 設定パネル 320px。lg 未満は 1 カラム縦積み）
 - **shared 部品**:
   - `shared/src/components/PomodoroTimer.tsx` — フェーズチップ + SVG 円形進捗リング（r=86 / 線幅 10、`:41-42`）+ font-mono 4xl の MM:SS（`:110-120`）+ transport 3 ボタン（`:123-161`）
-  - `shared/src/components/PomodoroTaskSelector.tsx` — native `<select>` 候補ピッカー / 選択済みはチップ + クリア（`:47-82`）
+  - `shared/src/components/PomodoroTodoSelector.tsx` — native `<select>` 候補ピッカー / 選択済みはチップ + クリア（`:47-82`）
   - `shared/src/components/PomodoroSettings.tsx` — NumberField ×5 の 2 列グリッド（`:75-114`）+ 自動開始 checkbox（`:116-124`）+ プリセット行リスト & 保存フォーム（`:126-173`）
   - `shared/src/components/AudioMixer.tsx` — アイコントグル + range スライダー + 数値の行 ×5（`:53-89`）
 - **特徴的 UI**: stroke-dashoffset を 1 秒 linear で更新する円形進捗リング（`PomodoroTimer.tsx:103-108`）。フェーズ→色は WORK = accent / BREAK・LONG_BREAK = success の 2 値のみ（`PomodoroTimer.tsx:46-50`）
-- **状態の現状**: empty はタスクセレクタの「なし」placeholder のみ（`PomodoroTaskSelector.tsx:73-75`）。候補 fetch 失敗は空配列 fallback で無表示（`WorkScreen.tsx:63-65`）。loading / error の意匠なし。プリセット 0 件は空リストのまま
+- **状態の現状**: empty はタスクセレクタの「なし」placeholder のみ（`PomodoroTodoSelector.tsx:73-75`）。候補 fetch 失敗は空配列 fallback で無表示（`WorkScreen.tsx:63-65`）。loading / error の意匠なし。プリセット 0 件は空リストのまま
 - **現状の課題**（デザイン観点）:
   1. BREAK と LONG_BREAK が同色で、フェーズ 3 種の視覚区別が弱い（`PomodoroTimer.tsx:46-50`）
   2. セッション進捗がテキストのみ。要件のドットインジケーター（`tier-2-supporting.md:128`）が新 UI に未実装
@@ -82,7 +82,7 @@ Branch: claude/design-work-v2
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -210,7 +210,7 @@ Branch: claude/design-work-v2
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
