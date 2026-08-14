@@ -1,5 +1,23 @@
 # HISTORY (chat-main)
 
+### 2026-08-14 - #831 の stacked merge 事故を検出して復旧 + D-20260813-briefing-1 の昇格（#860 起票）
+
+#### 概要
+
+#831（コード上の Task → Todo 改名）の 3 PR が**すべて MERGED 表示のまま、main に届いたのは PR-A だけ**という状態を検出し、復旧 PR #865 の着地まで見届けた。あわせて判断キュー D-20260813-briefing-1 をユーザー回答 = A で確定し、台帳へ昇格して実装 Issue #860 を起票した。
+
+#### 変更点
+
+- **事故の正体 = stacked PR の base 張り替えレース**: #861（base=main）が 01:44:14Z、#862 が **01:44:24Z**（10 秒差）に merge。GitHub が #862 の base を main へ張り替える前に merge されたため、#862 は PR-A のブランチへ、#863 は #862 のブランチへ入った。3 本とも MERGED 表示になるので PR state だけ見ると気付けない（memory `stacked-pr-base-retarget-race` / #397 と同型）
+- **検出の決め手は 3 角度**: ① `gh pr view <n> --json mergeCommit` の SHA を `git merge-base --is-ancestor <sha> origin/main` にかけると #861 = IN / #862・#863 = NOT ② main の `mcp-server/src/tools.ts` に `list_tasks` / `create_task`、i18n に `typeTask` / `noTasks` が残存 ③ `git diff --stat origin/main origin/claude/shared-fix-831-task-to-todo-mcp-docs` が **284 files / +3,461 / −3,478**
+- **⚠️ 変数名の grep で誤検出しかけた**: `TaskNode` の件数で判定したら `setTaskNodes` というローカル変数に当たり、一瞬「PR-A も壊れている」と読み違えた。**改名の着地判定は型名ではなく「その PR でしか生まれない成果物」で行う** — MCP ツール名・i18n キー名・リネーム後のファイル名（`useScheduleTodoChips.test.tsx` 等）が該当する
+- **復旧はやり直し不要だった**: 3 ブランチとも remote に健在で、`-mcp-docs` が PR-B + PR-C の commit を両方持っていた → main を取り込んで base=main の PR 1 本（#865）にまとめて着地。実装の書き直しはゼロ
+- **着地の再確認**: `list_tasks` / `typeTask` が 0 ヒット、リネーム後ファイル 3 本が main のツリーに出現、#831 は `Closes` で自動 CLOSED
+- **据え置き 3 点は無事**: `TodoNodeType = "task"`（型名だけ変わり `generateId` は `task-` を作り続ける）/ `role: "task"` が `SupabaseTodosService.ts:110,180` + `todoMapper.ts:61,295` の 4 箇所とも残存 / `tasks_payload` が mcp-server 各ハンドラで健在
+- **D-20260813-briefing-1 = A**: 「今週」カードの週バー（直近 7 日）と Work タブ週次集計（月曜固定）を両方とも暦週へ寄せる。台帳 `decisions/D-20260813-briefing-1.md` を作成 → `ANSWERS.md` へ 1 行転記 → `comm/decisions/chat-briefing-refine.md` を空に
+- **#860 起票**: `[analytics]` / `section:analytics`（briefing-refine レーン）。対象は `MobileAnalyticsView.tsx:121` の `aggregateByDay(sessions, 7)` と `analyticsAggregation.ts:162` の私有 `startOfWeek()` の 2 箇所で、`WorkTimeChart.tsx:56` の 14 日窓は対象外と本文に明記
+- **レーン投入の順序を保留に**: #860 / #675 のプロンプトは用意済みだが、#831 が `shared/src/components` と `web/src` を丸ごと触るため投入を止めた。とくに #675 のやること 1（taskChips 抽出）は改名対象そのもの。**大規模改名は後・細かい作業が先**の順序をユーザーへ提示した
+
 ### 2026-08-13 - #837 userData を productName 配下へ（PR #857 open）+ /goal 再配布が実質不要だった件
 
 #### 概要
@@ -92,21 +110,5 @@ console error は操作区間で 0 件（warning は `apple-mobile-web-app-capab
 
 - **`chore/tracker-main-20260811` は使えなかった**: 別 worktree（harness-loop）が占有中で、かつその PR #682 は既に MERGED。merge 済み PR のブランチへ後追い push しても main に届かないため、**`chore/tracker-main-20260811-2` を新設**した
 - サブエージェントの引用は全数スポットチェックした（`EventEditorPane.tsx:589` / `TaskDetailPanel.tsx:85,87` / `CommandPalette.tsx:206-216` / `useCalendarNav.ts:32` / `BriefingScreen.tsx:66` / `MobileShellActions.tsx:51-70` / `CalendarTab.tsx:1818` / `useRoutinesAPI.ts:344-350` / `TaskAddDialog.tsx:72` ほか）。**存在しない引用はゼロ**
-
-### 2026-08-10 - /goal バッチのオーケストレーションと merge 後の一括検証（実ブラウザ 9 PASS / FAIL 0）
-
-#### 概要
-
-open Issue 20 件を Issue タイトルのレーン接頭辞どおり 8 レーンへ `/goal` プロンプトで分配し（briefing-refine worktree 新設込み）、同日中に merge された 17 PR を main へ取り込んで一括検証した。静的ゲート（shared 1554 / web 167 tests）全緑・playwright 実ブラウザ検証 9 PASS / FAIL 0。検証で発覚した DDL 未適用（0023）をユーザーが push してタグ機能を復旧し、最後の BLOCKED だった #626 も実測 PASS で締めた。
-
-#### 変更点
-
-- **オーケストレーション**: 8 レーン（schedule-refine / shared-fix / mobile-refine / briefing-refine / materials-refine / refactor-core / work-refine / tags-docs）へ `/goal` を配布。達成条件は「担当 Issue が closed / CI 緑 PR で merge 待ち / 判断キュー待ちのいずれか」。レーン間依存は #631 → #632 の 1 本だけと明示。briefing-refine worktree を新設（絶対パス・`.session-branch` / `.session-name` 同時作成）
-- **取り込みと静的ゲート**: main `8a701323` → `3a64470e`（86 files・+5,772/−2,238。Notes 神ファイル分割 #587 / #588 を含む）。web は vitest 不在で空振り → `npm install` で解消（この Windows 機の `web/node_modules` が古かった）
-- **実ブラウザ検証（playwright-ui-verifier）**: PASS 9 = #590 Work レイアウト / #593 Todo チップグリフ / #592 Todo 文言統一 / #572 タグ色空状態 a11y / #587+#588 Notes 回帰（エラー 0）/ materials 3 画面 / #586 モーダル・グラフ回帰 / #631 ドキュメント不動（モバイル幅実測）/ #633 シート max-height + 内部スクロール。ログインは資格情報がこの PC に無くユーザーの手動サインインで解除（Playwright 永続プロファイルにセッション保持）
-- **DDL 適用（ユーザー実行）**: `0023_wiki_tag_connections_origin` 未適用が発覚 — `wiki_tag_connections` への GET が 400（`column origin does not exist`）になり `useWikiTagsUnifiedAPI` の `Promise.all` ごと reject してタグ機能がアプリ全体で無効化されていた。supabase CLI 不在のため `npx supabase link + db push` で適用 → #626（チップ詳細のタグ付け外し）を実測 PASS・テストデータ片付け完了（`verify-20260810-tag` 削除含む）
-- **裏取り**: パスワードノートの set / remove UI 不在は分割前 `8a701323` の NotesView でも `mode: "verify"` しか配線されていなかった = #588 の欠落ではなく従前からのギャップ
-- **起票 / 追記**: **#680**（i18n 取りこぼし 3 点 — trash 行 aria-label / エディタ placeholder / en 単複）を新規起票、**#632** へ FAB の実測コメント追記（#631 着地により着手可能化）
-- **残**: #632（mobile-refine）/ #628・#625（判断キュー待ち）/ #623・#609・#585（briefing-refine）/ #586 残り（PR #649 open）/ iPhone 目視 3 点（#631 pull-to-refresh・#633 シート上端・#512 パレット safe-area）
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

@@ -2,6 +2,22 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-10 - /goal バッチのオーケストレーションと merge 後の一括検証（実ブラウザ 9 PASS / FAIL 0）
+
+#### 概要
+
+open Issue 20 件を Issue タイトルのレーン接頭辞どおり 8 レーンへ `/goal` プロンプトで分配し（briefing-refine worktree 新設込み）、同日中に merge された 17 PR を main へ取り込んで一括検証した。静的ゲート（shared 1554 / web 167 tests）全緑・playwright 実ブラウザ検証 9 PASS / FAIL 0。検証で発覚した DDL 未適用（0023）をユーザーが push してタグ機能を復旧し、最後の BLOCKED だった #626 も実測 PASS で締めた。
+
+#### 変更点
+
+- **オーケストレーション**: 8 レーン（schedule-refine / shared-fix / mobile-refine / briefing-refine / materials-refine / refactor-core / work-refine / tags-docs）へ `/goal` を配布。達成条件は「担当 Issue が closed / CI 緑 PR で merge 待ち / 判断キュー待ちのいずれか」。レーン間依存は #631 → #632 の 1 本だけと明示。briefing-refine worktree を新設（絶対パス・`.session-branch` / `.session-name` 同時作成）
+- **取り込みと静的ゲート**: main `8a701323` → `3a64470e`（86 files・+5,772/−2,238。Notes 神ファイル分割 #587 / #588 を含む）。web は vitest 不在で空振り → `npm install` で解消（この Windows 機の `web/node_modules` が古かった）
+- **実ブラウザ検証（playwright-ui-verifier）**: PASS 9 = #590 Work レイアウト / #593 Todo チップグリフ / #592 Todo 文言統一 / #572 タグ色空状態 a11y / #587+#588 Notes 回帰（エラー 0）/ materials 3 画面 / #586 モーダル・グラフ回帰 / #631 ドキュメント不動（モバイル幅実測）/ #633 シート max-height + 内部スクロール。ログインは資格情報がこの PC に無くユーザーの手動サインインで解除（Playwright 永続プロファイルにセッション保持）
+- **DDL 適用（ユーザー実行）**: `0023_wiki_tag_connections_origin` 未適用が発覚 — `wiki_tag_connections` への GET が 400（`column origin does not exist`）になり `useWikiTagsUnifiedAPI` の `Promise.all` ごと reject してタグ機能がアプリ全体で無効化されていた。supabase CLI 不在のため `npx supabase link + db push` で適用 → #626（チップ詳細のタグ付け外し）を実測 PASS・テストデータ片付け完了（`verify-20260810-tag` 削除含む）
+- **裏取り**: パスワードノートの set / remove UI 不在は分割前 `8a701323` の NotesView でも `mode: "verify"` しか配線されていなかった = #588 の欠落ではなく従前からのギャップ
+- **起票 / 追記**: **#680**（i18n 取りこぼし 3 点 — trash 行 aria-label / エディタ placeholder / en 単複）を新規起票、**#632** へ FAB の実測コメント追記（#631 着地により着手可能化）
+- **残**: #632（mobile-refine）/ #628・#625（判断キュー待ち）/ #623・#609・#585（briefing-refine）/ #586 残り（PR #649 open）/ iPhone 目視 3 点（#631 pull-to-refresh・#633 シート上端・#512 パレット safe-area）
+
 ### 2026-08-10 - ユーザー要望 7 件の起票と、最優先 1 本（#624 ポモドーロ数値入力）の実装
 
 #### 概要
