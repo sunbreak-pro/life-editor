@@ -11,7 +11,7 @@ import {
   todayCalendarKey,
 } from "../../utils/dateKey";
 import {
-  aggregateByDay,
+  aggregateCalendarWeekByDay,
   aggregateRoutineCompletion,
   calendarWeekRange,
   computeWorkStreak,
@@ -118,7 +118,10 @@ export function MobileAnalyticsView(
       if (d === null) return false;
       return d >= weekStart && d <= weekEnd;
     }).length;
-    const weekBars = aggregateByDay(sessions, 7);
+    // The SAME window as weekMinutes above (#860) — these bars used to be a
+    // rolling 7 days, so mid-week the row and the number beside it covered
+    // different days. Mid-week the not-yet-happened days now draw as empty.
+    const weekBars = aggregateCalendarWeekByDay(sessions, now, weekStartsOn);
     const weekMax = Math.max(...weekBars.map((b) => b.totalMinutes), 1);
 
     // Todos / notes / routine rate
