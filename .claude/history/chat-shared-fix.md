@@ -1,5 +1,20 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-14 - #831 機能名 Tasks → Todos の全 docs 展開と、stacked merge 取りこぼしの復旧
+
+#### 概要
+
+前日の 3 PR で「プロダクト語彙なので別判断」として見送った機能名「Tasks」を、ユーザー指示で live docs 全域に展開。その最中に **#862 / #863 が MERGED 表示のまま main に届いていない**ことを検出し、復旧 PR #865（open・Closes #831）にまとめた。
+
+#### 変更点
+
+- **機能名**: `Feature: Tasks (TaskTree)` → `Todos (TodoTree)`。CLAUDE.md §8 Tier 1 一覧も同時（tier-1-core へのリンク元で、片方だけ直すと即矛盾するため）。Status 行に「旧称 Tasks / TaskTree（#831 …）」を残して grep 可能性を維持（docs-consistency §2）
+- **全 docs sweep（32 ファイル）**: requirements / design briefs / IA / vision + plans / known-issues / reports / 移行 SSOT / agent 1 / skill 1。docs が名指しするコード記号も現行ツリーに実在するものだけ追随（TodoTree / TodoNode / TodoDetailPanel / PomodoroTodoSelector / MobileTodoList / setTodoStatus / permanentDeleteTodo / todoChip\*）。置換は保護リスト付きスクリプトで実行し、diff を全件目視
+- **据え置き**: 退役 Tauri ツリーのパスと `getDescendantTasks` / `countDescendantTasks`（known-issues 016 は削除済みコードの file:line を固定する記録）・`tasks_payload` 系 DB 名と行型・`task` role リテラル（prose の role 列挙含む）・TipTap の `taskList` / **Windows Task Scheduler** / Claude Code の `Task` ツール / plan frontmatter の `Task:` / 日本語の「タスク」
+- **stacked merge の取りこぼし（本セッション最大の発見）**: 3 本を数十秒差で連続 merge したため base 張り替えが間に合わず、#862 は PR-A のブランチへ、#863 は PR-B のブランチへ merge された。**MERGED 表示は嘘ではないが main には無い**。実測 = `gh pr view <n> --json baseRefName,mergeCommit` と `git cat-file -e origin/main:<path>`（`web/src/todos/` と `mcp-server/src/handlers/todoHandlers.ts` が不在・`tools.ts` は `list_tasks` のまま）。#831 も既定ブランチ以外への merge のため close していない
+- **復旧 PR #865**: PR-C ブランチ先端（A+B+C+docs 2 本）に最新 main を merge。conflict 65 件はすべて「同じ改名が両側に入った」形（merge-base は c257e27a・main の増分は PR-A squash と tracker の 2 commit のみと実測 → 取りこぼしゼロを保証）。全ゲート緑（mcp 19/282・shared 232/2121・web 44/394・desktop typecheck・docs-lint OK）
+- **訂正**: 前エントリと旧 PR 本文で domain 語彙の変更元を `search_items` と書いていたが、実在するツール名は `search_all`
+
 ### 2026-08-13 - #831 コード上の Task → Todo 統一を stacked 3 PR で実装
 
 #### 概要
@@ -56,18 +71,3 @@ shared-fix 2 連。#838 = 同じ端末で毎回ログインし直しになる問
 - **eslint.config.js**: BASELINE ブロック 30 行を削除のみで撤去。`react-hooks/set-state-in-effect` が shared/ 全域で有効に
 - **テスト**: `scheduleItemsLoadEffect.test.tsx` 新規 5 件（routinesLoadEffect と同契約 + date アンカー再開始）。DoD の grep 3 点（baseline 0 / 削除のみ / hooks 配下 `setIsLoading(true)` 0 件）を実測達成 — useDomainLoad のコメント文言も文字列一致しないよう書き換えた
 - **申し送り**: merge 後の playwright（Schedule 初回描画 / 日付切替 / Realtime bump / Calendar 管理ビュー）は chat-main 宛てに PR 本文へ記載。完了で #672 を手動 close（PR に Closes を付けなかった理由）
-
-### 2026-08-11 - #669 mcp-server の書き込み儀式を utils/items へ・tools.ts を宣言的レジストリ化
-
-#### 概要
-
-core-refactor C2（計画書 `docs/vision/plans/2026-08-10-core-refactor.md` §C2）。`utils/items.ts` に正解がありながら `scheduleHandlers` / `briefingHandlers` が手写ししていた items_meta 書き込みを置換し、`tools.ts` の手動レジストリ（import + 配列 + switch の 3 箇所同時編集）を宣言的な 1 箇所へ畳んで、引数の実行時検証を同じ PR で入れた。PR #694（書いた時点で open）。
-
-#### 変更点
-
-- **書き込みの集約**: schedule 5 経路 + briefing 2 経路を `insertItem` / `updatePayload` / `softDeleteItem` / `bumpMeta` へ置換。`grep -rn -A2 'from("items_meta")' mcp-server/src/handlers/ | grep -E '\.(insert|update|delete)\('` が 9 行ヒット → 0 行
-- **レジストリ**: `TOOL_DEFINITIONS`（name / description / inputSchema / handler の 1 エントリ）から `TOOLS` と dispatch を導出。`switch` 削除・JSON→型のキャストは `defineTool` の 1 行に集約
-- **validator**: `src/utils/toolSchema.ts` を新規追加し `callTool` が dispatch 前に公開スキーマで検証。未宣言プロパティの素通しと「任意プロパティの明示 null = 未指定」は現行の呼び出しを落とさないため意図的に緩めてある
-- **テスト**: `tests/toolRegistry.test.ts` を追加（mcp-server 118 tests / 8 files 緑）。公開中の全ツールに型違いを投げて `Invalid arguments for <name>:` で止まる = レジストリ登録済 かつ ハンドラ未到達（メッセージに `Supabase` を含まない）を検証。逆方向に全 27 ツールの「正しい引数」テーブルも通す
-- **挙動不変の実測**: main の build と本ブランチの build で `JSON.stringify(TOOLS, null, 2)` を生成して diff → 差分ゼロ（md5 一致）。wire に出る差分は DB エラー時のメッセージ接頭辞のみ
-- **db-conventions §13**: migration 0013 は「一度も存在しなかった番号」と実測で確定（`git log --all --full-history -- '*0013*'` が 0 件・リモート台帳も 0012 → 0014）。0012 と 0014 は同一 commit `fe2c7d86` で、並行 2 計画が番号を先取りした結果。埋めない / 振り直さない を運用則として明記
