@@ -1,5 +1,20 @@
 # HISTORY archive (chat-shared-fix) — 2026-08
 
+### 2026-08-11 - #669 mcp-server の書き込み儀式を utils/items へ・tools.ts を宣言的レジストリ化
+
+#### 概要
+
+core-refactor C2（計画書 `docs/vision/plans/2026-08-10-core-refactor.md` §C2）。`utils/items.ts` に正解がありながら `scheduleHandlers` / `briefingHandlers` が手写ししていた items_meta 書き込みを置換し、`tools.ts` の手動レジストリ（import + 配列 + switch の 3 箇所同時編集）を宣言的な 1 箇所へ畳んで、引数の実行時検証を同じ PR で入れた。PR #694（書いた時点で open）。
+
+#### 変更点
+
+- **書き込みの集約**: schedule 5 経路 + briefing 2 経路を `insertItem` / `updatePayload` / `softDeleteItem` / `bumpMeta` へ置換。`grep -rn -A2 'from("items_meta")' mcp-server/src/handlers/ | grep -E '\.(insert|update|delete)\('` が 9 行ヒット → 0 行
+- **レジストリ**: `TOOL_DEFINITIONS`（name / description / inputSchema / handler の 1 エントリ）から `TOOLS` と dispatch を導出。`switch` 削除・JSON→型のキャストは `defineTool` の 1 行に集約
+- **validator**: `src/utils/toolSchema.ts` を新規追加し `callTool` が dispatch 前に公開スキーマで検証。未宣言プロパティの素通しと「任意プロパティの明示 null = 未指定」は現行の呼び出しを落とさないため意図的に緩めてある
+- **テスト**: `tests/toolRegistry.test.ts` を追加（mcp-server 118 tests / 8 files 緑）。公開中の全ツールに型違いを投げて `Invalid arguments for <name>:` で止まる = レジストリ登録済 かつ ハンドラ未到達（メッセージに `Supabase` を含まない）を検証。逆方向に全 27 ツールの「正しい引数」テーブルも通す
+- **挙動不変の実測**: main の build と本ブランチの build で `JSON.stringify(TOOLS, null, 2)` を生成して diff → 差分ゼロ（md5 一致）。wire に出る差分は DB エラー時のメッセージ接頭辞のみ
+- **db-conventions §13**: migration 0013 は「一度も存在しなかった番号」と実測で確定（`git log --all --full-history -- '*0013*'` が 0 件・リモート台帳も 0012 → 0014）。0012 と 0014 は同一 commit `fe2c7d86` で、並行 2 計画が番号を先取りした結果。埋めない / 振り直さない を運用則として明記
+
 ### 2026-08-10 - #587 Notes 系の共有神ファイル 2 本を分割
 
 #### 概要
