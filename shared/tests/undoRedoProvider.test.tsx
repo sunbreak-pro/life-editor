@@ -18,7 +18,7 @@ function Probe() {
       <span data-testid="can-redo">{String(canRedo())}</span>
       <button
         onClick={() =>
-          push("taskTree", {
+          push("todoTree", {
             label: "todoTreeChange",
             undo: () => {},
             redo: () => {},

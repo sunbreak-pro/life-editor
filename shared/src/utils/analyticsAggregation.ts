@@ -20,7 +20,7 @@ import {
 /*
  * "This week" has ONE meaning in Analytics: the CALENDAR week containing now
  * (`calendarWeekRange`). Every card under that label — work minutes, completed
- * tasks, notes — reads the same window.
+ * todos, notes — reads the same window.
  *
  * It used to mean two things at once: the notes cards ran on a rolling 7-day
  * window (`createdWithinLastDays`) while the work / completed cards beside them
@@ -84,9 +84,9 @@ export interface DayBucket {
   sessionCount: number;
 }
 
-export interface TaskBucket {
-  taskId: string;
-  taskName: string;
+export interface TodoBucket {
+  todoId: string;
+  todoName: string;
   totalMinutes: number;
   sessionCount: number;
 }
@@ -116,7 +116,7 @@ export interface TimelineBlock {
   startMinute: number;
   durationMinutes: number;
   sessionType: string;
-  taskId: string | null;
+  todoId: string | null;
 }
 
 export interface CompletionTrendBucket {
@@ -133,8 +133,8 @@ export interface StagnationBucket {
 /**
  * One slice of the tag work-time ring. A discriminated union so a "tag" slice
  * is statically guaranteed to carry a name — the two synthetic buckets ("other"
- * = tags past the top-N cap, folded together; "untagged" = work on a task with
- * no tag, or with no task at all) carry none, because the host supplies their
+ * = tags past the top-N cap, folded together; "untagged" = work on a todo with
+ * no tag, or with no todo at all) carry none, because the host supplies their
  * labels: the shared tree holds no strings.
  */
 export type TagWorkTimeBucket =
@@ -270,21 +270,21 @@ export function aggregateByMonth(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function aggregateByTask(
+export function aggregateByTodo(
   sessions: TimerSession[],
-  taskNameMap: Map<string, string>,
-): TaskBucket[] {
+  todoNameMap: Map<string, string>,
+): TodoBucket[] {
   const work = getWorkSessions(sessions);
-  const map = new Map<string, TaskBucket>();
+  const map = new Map<string, TodoBucket>();
 
   for (const s of work) {
-    const tid = s.taskId ?? "__none__";
+    const tid = s.todoId ?? "__none__";
     let bucket = map.get(tid);
     if (!bucket) {
       bucket = {
-        taskId: tid,
-        taskName:
-          taskNameMap.get(tid) ?? (tid === "__none__" ? "No Task" : tid),
+        todoId: tid,
+        todoName:
+          todoNameMap.get(tid) ?? (tid === "__none__" ? "No Todo" : tid),
         totalMinutes: 0,
         sessionCount: 0,
       };
@@ -430,7 +430,7 @@ export function aggregateDailyTimeline(
       startMinute: started.getMinutes(),
       durationMinutes: s.duration / 60,
       sessionType: s.sessionType,
-      taskId: s.taskId,
+      todoId: s.todoId,
     });
   }
 
@@ -440,8 +440,8 @@ export function aggregateDailyTimeline(
   );
 }
 
-/** Task completion trend: completed tasks per day */
-export function aggregateTaskCompletionTrend(
+/** Todo completion trend: completed todos per day */
+export function aggregateTodoCompletionTrend(
   nodes: TodoNode[],
   days: number,
 ): CompletionTrendBucket[] {
@@ -474,8 +474,8 @@ export function aggregateTaskCompletionTrend(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Task stagnation: distribution of incomplete task ages */
-export function aggregateTaskStagnation(nodes: TodoNode[]): StagnationBucket[] {
+/** Todo stagnation: distribution of incomplete todo ages */
+export function aggregateTodoStagnation(nodes: TodoNode[]): StagnationBucket[] {
   const now = new Date();
   const buckets: StagnationBucket[] = [
     {
@@ -524,19 +524,19 @@ export function aggregateTaskStagnation(nodes: TodoNode[]): StagnationBucket[] {
 
 /**
  * Work time by life-tag — the successor of the retired folder aggregation
- * (#334 / life-tags §Step 4: the Tasks domain has no folder nodes since #225,
+ * (#334 / life-tags §Step 4: the Todos domain has no folder nodes since #225,
  * so `aggregateByFolder` always returned [] while its unguarded parent climb
  * could still hang on a cyclic `parentId`). Attribution runs off
- * `wiki_tag_assignments` instead of the task tree, so no ancestor walk exists
+ * `wiki_tag_assignments` instead of the todo tree, so no ancestor walk exists
  * here at all.
  *
  * Rules:
  * - Only WORK sessions count (same filter as every other work-time chart).
- * - A session's minutes are split evenly across its task's tags.
- * - Work on an untagged task — or with no task at all — lands in the trailing
+ * - A session's minutes are split evenly across its todo's tags.
+ * - Work on an untagged todo — or with no todo at all — lands in the trailing
  *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
  *   rather than dropped, so no tag's share is overstated.
- * - Work on a task that is NOT in `liveTasks` is dropped entirely — see the
+ * - Work on a todo that is NOT in `liveTodos` is dropped entirely — see the
  *   trash rule below. The condition is literally "absent from the live tree",
  *   which is wider than "trashed": `fetchTodoTree` also drops purged rows, R2
  *   orphans (meta with no payload) and legacy folder rows
@@ -545,10 +545,10 @@ export function aggregateTaskStagnation(nodes: TodoNode[]): StagnationBucket[] {
  * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
  *   are ignored rather than surfaced as a raw id; that work reads as untagged.
  *
- * Trash rule (#428, finishing what #365 started): a trashed task's assignments
+ * Trash rule (#428, finishing what #365 started): a trashed todo's assignments
  * stop being returned by `listAllTagAssignments`, so before this its minutes did
  * not vanish — they silently piled into "untagged", which reads as "work on a
- * task I never tagged". Analytics excludes trashed items everywhere else
+ * todo I never tagged". Analytics excludes trashed items everywhere else
  * (`fetchTodoTree` is live-only, so the completion trend and stagnation charts
  * never saw them), and Connect already drops any edge whose endpoint is not a
  * live node; this aligns the ring with both. Restoring an item brings its work
@@ -556,17 +556,17 @@ export function aggregateTaskStagnation(nodes: TodoNode[]): StagnationBucket[] {
  *
  * Consequence: the buckets sum to the work logged on LIVE items, not to the
  * grand total the Work tab reports (which still counts every session). The two
- * differ by exactly the time spent on trashed tasks — the same kind of gap as
- * the Tasks tab not listing trashed tasks.
+ * differ by exactly the time spent on trashed todos — the same kind of gap as
+ * the Todos tab not listing trashed todos.
  *
  * Assignments are matched by `itemId` — item ids are unique across roles, so
- * a note/daily/event assignment simply never matches a session's `taskId`.
+ * a note/daily/event assignment simply never matches a session's `todoId`.
  */
 export function aggregateWorkTimeByTag(
   sessions: TimerSession[],
   assignments: WikiTagAssignmentUnified[],
   tags: WikiTagUnified[],
-  liveTasks: TodoNode[],
+  liveTodos: TodoNode[],
   limit: number = 10,
 ): TagWorkTimeBucket[] {
   const work = getWorkSessions(sessions);
@@ -575,18 +575,18 @@ export function aggregateWorkTimeByTag(
   );
   // `fetchTodoTree` is already live-only; the isDeleted guard keeps callers
   // that hand over a wider list (or a stale cache) from reviving trashed work.
-  const liveTaskIds = new Set(
-    liveTasks.filter((n) => !n.isDeleted).map((n) => n.id),
+  const liveTodoIds = new Set(
+    liveTodos.filter((n) => !n.isDeleted).map((n) => n.id),
   );
 
   // itemId -> its tag ids (Set: the same tag can be assigned twice — e.g.
   // inline text plus a manual chip — and double counting would skew the split).
-  const taskTags = new Map<string, Set<string>>();
+  const todoTags = new Map<string, Set<string>>();
   for (const a of assignments) {
     if (a.isDeleted || !tagMap.has(a.tagId)) continue;
-    const set = taskTags.get(a.itemId);
+    const set = todoTags.get(a.itemId);
     if (set) set.add(a.tagId);
-    else taskTags.set(a.itemId, new Set([a.tagId]));
+    else todoTags.set(a.itemId, new Set([a.tagId]));
   }
 
   const minutesByTag = new Map<string, number>();
@@ -594,13 +594,13 @@ export function aggregateWorkTimeByTag(
 
   for (const s of work) {
     const minutes = (s.duration ?? 0) / 60;
-    // A session that names a task no longer in the live tree is work on a
-    // trashed (or purged) task — dropped, NOT folded into untagged (#428).
-    // A missing task id is different: that is genuine task-less work. Tested
+    // A session that names a todo no longer in the live tree is work on a
+    // trashed (or purged) todo — dropped, NOT folded into untagged (#428).
+    // A missing todo id is different: that is genuine todo-less work. Tested
     // for truthiness, matching the tag lookup on the next line — an empty
-    // `taskId` would otherwise count as "trashed" here and as "no task" there.
-    if (s.taskId && !liveTaskIds.has(s.taskId)) continue;
-    const tagIds = s.taskId ? taskTags.get(s.taskId) : undefined;
+    // `todoId` would otherwise count as "trashed" here and as "no todo" there.
+    if (s.todoId && !liveTodoIds.has(s.todoId)) continue;
+    const tagIds = s.todoId ? todoTags.get(s.todoId) : undefined;
     if (!tagIds || tagIds.size === 0) {
       untaggedMinutes += minutes;
       continue;

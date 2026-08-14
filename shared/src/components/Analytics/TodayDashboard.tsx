@@ -13,7 +13,7 @@ import { SummaryRow } from "./SummaryRow";
 export interface TodayDashboardLabels {
   title: string;
   workTime: string;
-  completedTasks: string;
+  completedTodos: string;
   pomodoroCount: string;
   formatHours: (minutes: number) => string;
 }
@@ -53,7 +53,7 @@ export function TodayDashboard({
         n.type === "task" &&
         n.completedAt &&
         // completedAt is stored as a UTC ISO string, so read its LOCAL day
-        // (#420) — slicing it counted a task finished before 09:00 JST as
+        // (#420) — slicing it counted a todo finished before 09:00 JST as
         // yesterday, disagreeing with the calendar-keyed cards beside it.
         dateKeyOfInstant(n.completedAt) === todayStr,
     ).length;
@@ -69,7 +69,7 @@ export function TodayDashboard({
           value={labels.formatHours(stats.workMinutes)}
         />
         <SummaryRow
-          label={labels.completedTasks}
+          label={labels.completedTodos}
           value={String(stats.completedToday)}
         />
         <SummaryRow

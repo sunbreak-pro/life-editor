@@ -21,7 +21,7 @@ export type DailyListSortMode = "date" | "updatedAt" | "createdAt";
  * The timestamps are REQUIRED even though only two of the three modes read
  * them: making them optional would let a caller pass entries that silently
  * degrade to date order under a timestamp mode. Same reasoning as #428's
- * required `liveTasks`.
+ * required `liveTodos`.
  */
 export interface DailyListEntry {
   date: string;

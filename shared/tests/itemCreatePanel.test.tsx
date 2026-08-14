@@ -15,7 +15,7 @@ import {
  *   - the #299/#353/#354 event contract inherited from EventCreateFields
  *     (prefill, trimming, blank-title no-op, Enter = plain create, read-only
  *     target day),
- *   - the task contract (new task vs placing an existing one, and that both
+ *   - the todo contract (new todo vs placing an existing one, and that both
  *     carry the panel's times),
  *   - the note contract (staging only — the note tab creates nothing on its
  *     own and never changes what the submit acts on),
@@ -26,24 +26,24 @@ import {
 const LABELS: ItemCreatePanelLabels = {
   typeLabel: "Item type",
   typeEvent: "Event",
-  typeTask: "Task",
+  typeTodo: "Todo",
   typeNote: "Note",
   title: "Title",
   eventPlaceholder: "Event title",
-  taskPlaceholder: "Task title",
+  todoPlaceholder: "Todo title",
   date: "Date",
   startTime: "Start",
   endTime: "End",
   addEvent: "Add",
   addEventAndOpen: "Add and edit",
-  addTask: "Add task",
-  placeTask: "Place",
+  addTodo: "Add todo",
+  placeTodo: "Place",
   sourceLabel: "How to add",
   sourceNew: "New",
   sourceExisting: "From existing",
-  searchTasks: "Search tasks",
-  taskPickerEmpty: "No unscheduled tasks",
-  taskPickerNoMatch: "No matching tasks",
+  searchTodos: "Search todos",
+  todoPickerEmpty: "No unscheduled todos",
+  todoPickerNoMatch: "No matching todos",
   noteTitleLabel: "Note title",
   notePlaceholder: "Note title placeholder",
   searchNotes: "Search notes",
@@ -57,7 +57,7 @@ const LABELS: ItemCreatePanelLabels = {
   clearNote: "Remove the note",
 };
 
-const TASKS: ItemCreateOption[] = [
+const TODOS: ItemCreateOption[] = [
   { id: "task-1", title: "Draft the invoice" },
   { id: "task-2", title: "Review PR 376" },
   { id: "task-3", title: "Book the dentist" },
@@ -71,31 +71,31 @@ const NOTES: ItemCreateOption[] = [
 function renderPanel(props?: Partial<Parameters<typeof ItemCreatePanel>[0]>) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
-  const onCreateTask = vi.fn();
-  const onPlaceTask = vi.fn();
+  const onCreateTodo = vi.fn();
+  const onPlaceTodo = vi.fn();
   render(
     <ItemCreatePanel
-      existingTasks={TASKS}
+      existingTodos={TODOS}
       existingNotes={NOTES}
       onSubmitEvent={onSubmitEvent}
       onSubmitEventAndOpen={onSubmitEventAndOpen}
-      onCreateTask={onCreateTask}
-      onPlaceTask={onPlaceTask}
+      onCreateTodo={onCreateTodo}
+      onPlaceTodo={onPlaceTodo}
       labels={LABELS}
       {...props}
     />,
   );
-  return { onSubmitEvent, onSubmitEventAndOpen, onCreateTask, onPlaceTask };
+  return { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo };
 }
 
-/** Switch to the task tab (and, optionally, to the existing-task source). */
-function openTaskTab(source?: "existing") {
-  fireEvent.click(screen.getByText("Task"));
+/** Switch to the todo tab (and, optionally, to the existing-todo source). */
+function openTodoTab(source?: "existing") {
+  fireEvent.click(screen.getByText("Todo"));
   if (source === "existing") fireEvent.click(screen.getByText("From existing"));
 }
 
 /** Stage a brand-new note, then return to the tab that will do the creating. */
-function stageNewNote(title: string, backTo: "Event" | "Task") {
+function stageNewNote(title: string, backTo: "Event" | "Todo") {
   fireEvent.click(screen.getByText("Note"));
   fireEvent.change(screen.getByLabelText("Note title"), {
     target: { value: title },
@@ -209,18 +209,18 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
   });
 });
 
-describe("ItemCreatePanel — task tab (#376)", () => {
-  it("creates a new task with the panel's times", () => {
-    const { onCreateTask, onSubmitEvent } = renderPanel({
+describe("ItemCreatePanel — todo tab (#376)", () => {
+  it("creates a new todo with the panel's times", () => {
+    const { onCreateTodo, onSubmitEvent } = renderPanel({
       initialStart: "11:00",
       initialEnd: "11:45",
     });
-    openTaskTab();
-    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+    openTodoTab();
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "  Write the report  " },
     });
-    fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith(
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the report",
       "11:00",
       "11:45",
@@ -229,13 +229,13 @@ describe("ItemCreatePanel — task tab (#376)", () => {
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
 
-  it("Enter on the task tab routes to the task create, not the event create", () => {
-    const { onCreateTask, onSubmitEvent } = renderPanel();
-    openTaskTab();
-    const input = screen.getByPlaceholderText("Task title");
+  it("Enter on the todo tab routes to the todo create, not the event create", () => {
+    const { onCreateTodo, onSubmitEvent } = renderPanel();
+    openTodoTab();
+    const input = screen.getByPlaceholderText("Todo title");
     fireEvent.change(input, { target: { value: "Groceries" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(onCreateTask).toHaveBeenCalledWith(
+    expect(onCreateTodo).toHaveBeenCalledWith(
       "Groceries",
       "09:00",
       "10:00",
@@ -244,67 +244,67 @@ describe("ItemCreatePanel — task tab (#376)", () => {
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
 
-  it("places an existing task at the panel's times", () => {
-    const { onPlaceTask } = renderPanel({
+  it("places an existing todo at the panel's times", () => {
+    const { onPlaceTodo } = renderPanel({
       initialStart: "16:00",
       initialEnd: "17:00",
     });
-    openTaskTab("existing");
+    openTodoTab("existing");
     fireEvent.click(screen.getByText("Review PR 376"));
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTask).toHaveBeenCalledWith("task-2", "16:00", "17:00", null);
+    expect(onPlaceTodo).toHaveBeenCalledWith("task-2", "16:00", "17:00", null);
   });
 
-  it("does nothing until a task is picked", () => {
-    const { onPlaceTask } = renderPanel();
-    openTaskTab("existing");
+  it("does nothing until a todo is picked", () => {
+    const { onPlaceTodo } = renderPanel();
+    openTodoTab("existing");
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTask).not.toHaveBeenCalled();
+    expect(onPlaceTodo).not.toHaveBeenCalled();
   });
 
   it("filters the pool by the search query, case-insensitively", () => {
     renderPanel();
-    openTaskTab("existing");
-    fireEvent.change(screen.getByLabelText("Search tasks"), {
+    openTodoTab("existing");
+    fireEvent.change(screen.getByLabelText("Search todos"), {
       target: { value: "invoice" },
     });
     expect(screen.getByText("Draft the invoice")).toBeInTheDocument();
     expect(screen.queryByText("Review PR 376")).toBeNull();
   });
 
-  it("drops a selection the query has filtered away (never place an unseen task)", () => {
+  it("drops a selection the query has filtered away (never place an unseen todo)", () => {
     // Picking, then narrowing past the picked row, must not leave a live
     // selection behind: the submit would act on something off screen.
-    const { onPlaceTask } = renderPanel();
-    openTaskTab("existing");
+    const { onPlaceTodo } = renderPanel();
+    openTodoTab("existing");
     fireEvent.click(screen.getByText("Draft the invoice"));
-    fireEvent.change(screen.getByLabelText("Search tasks"), {
+    fireEvent.change(screen.getByLabelText("Search todos"), {
       target: { value: "dentist" },
     });
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTask).not.toHaveBeenCalled();
+    expect(onPlaceTodo).not.toHaveBeenCalled();
   });
 
   it("says the pool itself is empty when there is nothing left to place", () => {
-    renderPanel({ existingTasks: [] });
-    openTaskTab("existing");
-    expect(screen.getByText("No unscheduled tasks")).toBeInTheDocument();
-    expect(screen.queryByText("No matching tasks")).toBeNull();
+    renderPanel({ existingTodos: [] });
+    openTodoTab("existing");
+    expect(screen.getByText("No unscheduled todos")).toBeInTheDocument();
+    expect(screen.queryByText("No matching todos")).toBeNull();
   });
 
   it("reports an empty search result separately from an empty pool", () => {
     renderPanel();
-    openTaskTab("existing");
-    fireEvent.change(screen.getByLabelText("Search tasks"), {
+    openTodoTab("existing");
+    fireEvent.change(screen.getByLabelText("Search todos"), {
       target: { value: "zzz" },
     });
-    expect(screen.getByText("No matching tasks")).toBeInTheDocument();
-    expect(screen.queryByText("No unscheduled tasks")).toBeNull();
+    expect(screen.getByText("No matching todos")).toBeInTheDocument();
+    expect(screen.queryByText("No unscheduled todos")).toBeNull();
   });
 
-  it("offers no 'add and open' twin on the task tab (Schedule has no task editor — #297)", () => {
+  it("offers no 'add and open' twin on the todo tab (Schedule has no todo editor — #297)", () => {
     renderPanel();
-    openTaskTab();
+    openTodoTab();
     expect(screen.queryByText("Add and edit")).toBeNull();
   });
 });
@@ -321,9 +321,9 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
     expect(screen.getByText("Add and edit")).toBeEnabled();
   });
 
-  it("disables the place button until a task is picked", () => {
+  it("disables the place button until a todo is picked", () => {
     renderPanel();
-    openTaskTab("existing");
+    openTodoTab("existing");
     expect(screen.getByText("Place")).toBeDisabled();
     fireEvent.click(screen.getByText("Draft the invoice"));
     expect(screen.getByText("Place")).toBeEnabled();
@@ -331,10 +331,10 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
 
   it("stays disabled on the note tab, where the missing field is off screen", () => {
     // The worst case for a silent no-op: the note tab hides both the title
-    // field and the task picker, so a lit-but-dead button would leave the user
+    // field and the todo picker, so a lit-but-dead button would leave the user
     // with no way to see why nothing happened.
     renderPanel();
-    openTaskTab("existing");
+    openTodoTab("existing");
     fireEvent.click(screen.getByText("Note"));
     expect(screen.getByText("Place")).toBeDisabled();
   });
@@ -370,15 +370,15 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     });
   });
 
-  it("rides along with the TASK create too", () => {
-    const { onCreateTask } = renderPanel();
-    openTaskTab();
-    stageNewNote("Prep", "Task");
-    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+  it("rides along with the TODO create too", () => {
+    const { onCreateTodo } = renderPanel();
+    openTodoTab();
+    stageNewNote("Prep", "Todo");
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "Write the deck" },
     });
-    fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith(
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the deck",
       "09:00",
       "10:00",
@@ -386,19 +386,19 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     );
   });
 
-  it("keeps the submit on the last event/task tab while the note tab shows", () => {
+  it("keeps the submit on the last event/todo tab while the note tab shows", () => {
     // The note tab creates nothing, so the footer must not go dead — it keeps
-    // acting on whichever of event / task was last open.
-    const { onCreateTask } = renderPanel();
-    openTaskTab();
-    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+    // acting on whichever of event / todo was last open.
+    const { onCreateTodo } = renderPanel();
+    openTodoTab();
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "Write the deck" },
     });
     fireEvent.click(screen.getByText("Note"));
-    expect(screen.getByText("Add task")).toBeInTheDocument();
+    expect(screen.getByText("Add todo")).toBeInTheDocument();
     expect(screen.queryByText("Add and edit")).toBeNull();
-    fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith(
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the deck",
       "09:00",
       "10:00",
@@ -445,7 +445,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
   });
 
   it("keeps a staged note when the note search narrows past it", () => {
-    // The opposite of the task picker's rule, on purpose: a staged note is
+    // The opposite of the todo picker's rule, on purpose: a staged note is
     // carried to another tab and echoed back as a chip, so it stays visible
     // after the query moves on. Dropping it would lose the attachment
     // somewhere between picking it and submitting.
@@ -468,13 +468,13 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     });
   });
 
-  it("rides along when an EXISTING task is placed", () => {
-    const { onPlaceTask } = renderPanel();
-    openTaskTab("existing");
+  it("rides along when an EXISTING todo is placed", () => {
+    const { onPlaceTodo } = renderPanel();
+    openTodoTab("existing");
     fireEvent.click(screen.getByText("Draft the invoice"));
-    stageNewNote("Prep", "Task");
+    stageNewNote("Prep", "Todo");
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTask).toHaveBeenCalledWith("task-1", "09:00", "10:00", {
+    expect(onPlaceTodo).toHaveBeenCalledWith("task-1", "09:00", "10:00", {
       kind: "new",
       title: "Prep",
     });
@@ -495,9 +495,9 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
 
 describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
   it("keeps the typed title and the edited times when the type changes", () => {
-    // Realising halfway through that this is a task, not an event, must not
+    // Realising halfway through that this is a todo, not an event, must not
     // cost the typing — that is why the drafts live on the panel.
-    const { onCreateTask } = renderPanel();
+    const { onCreateTodo } = renderPanel();
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Dentist" },
     });
@@ -508,12 +508,12 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
     const end = screen.getByLabelText("End");
     fireEvent.change(end, { target: { value: "13:30" } });
     fireEvent.blur(end);
-    openTaskTab();
+    openTodoTab();
     expect(
-      (screen.getByPlaceholderText("Task title") as HTMLInputElement).value,
+      (screen.getByPlaceholderText("Todo title") as HTMLInputElement).value,
     ).toBe("Dentist");
-    fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith(
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
       "Dentist",
       "13:00",
       "13:30",

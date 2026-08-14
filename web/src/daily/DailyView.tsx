@@ -173,14 +173,14 @@ export function DailyView({
     togglePin,
     getDailyForDate,
   } = useDailiesUnifiedContext();
-  // "[[" → item_links, shared with Notes and Tasks (#776). Daily differs only
+  // "[[" → item_links, shared with Notes and Todos (#776). Daily differs only
   // in WHEN the edge can be written (see the park / flush below); the write
   // itself and the save-time delete-sync are the shared ones.
   const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("DailyView");
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
 
-  // "[[" link-target pool (notes + dailies + tasks, cross-domain). A loader,
+  // "[[" link-target pool (notes + dailies + todos, cross-domain). A loader,
   // not a list: nothing is fetched until the first "[[" (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
 

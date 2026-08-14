@@ -6,7 +6,7 @@ import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
 /*
  * Daily past-entries panel (Materials mini-plan Step 4). The right-hand pane
  * the Daily tab pushes into the shared rightSidebar (Desktop only). Unlike the
- * Tasks / Notes detail panels this is always-present content (not selection-
+ * Todos / Notes detail panels this is always-present content (not selection-
  * driven): a "today / yesterday" quick-jump pair, a native date picker row, and
  * the chronological entry list. Pure presentation, DataService-free (§3.1):
  * every jump / pick / select is a host-injected callback, all copy is already-

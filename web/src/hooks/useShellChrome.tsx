@@ -46,7 +46,7 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
 /*
  * In-Schedule tabs (#411). Todos left Materials so that "the place you build
  * today" holds both the calendar and the list that feeds it (Epic #290) — the
- * Todo tray in the Calendar's rightSidebar pulls from the same tasks. The
+ * Todo tray in the Calendar's rightSidebar pulls from the same todos. The
  * union itself lives with the screen that switches on it (ScheduleScreen).
  */
 const SCHEDULE_TABS: readonly ScheduleTab[] = ["calendar", "todo"];
@@ -59,7 +59,7 @@ const SCHEDULE_TABS: readonly ScheduleTab[] = ["calendar", "todo"];
  */
 const SCHEDULE_TAB_LABEL_KEY: Record<ScheduleTab, TranslationKey> = {
   calendar: "scheduleScreen.calendar",
-  todo: "section.tasks",
+  todo: "section.todos",
 };
 
 const SCHEDULE_ICON: Record<ScheduleTab, LucideIcon> = {
@@ -177,7 +177,7 @@ export function useShellChrome({
   );
 
   // Schedule in-section tab defs (Calendar / Todo — #411). Todo keeps the
-  // unfinished-task badge it wore in Materials; the same bridge still feeds it,
+  // unfinished-todo badge it wore in Materials; the same bridge still feeds it,
   // so the count follows the surface rather than the section it used to sit in.
   const scheduleTabDefs = useMemo(
     () =>
@@ -185,14 +185,14 @@ export function useShellChrome({
         id,
         label: t(SCHEDULE_TAB_LABEL_KEY[id]),
         badge:
-          id === "todo" && materialsCounts.tasks > 0
-            ? materialsCounts.tasks
+          id === "todo" && materialsCounts.todos > 0
+            ? materialsCounts.todos
             : undefined,
       })),
     [t, materialsCounts],
   );
 
-  // Analytics in-section tab defs (Overview / Tasks / Work / Schedule). No
+  // Analytics in-section tab defs (Overview / Todos / Work / Schedule). No
   // count badges — these tabs are views, not item lists. Order comes from the
   // shared ANALYTICS_TAB_ORDER (SSOT) so the shell band and AnalyticsView's
   // content never drift.

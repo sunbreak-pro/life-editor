@@ -11,7 +11,7 @@ import { AppShell, type AppShellSection } from "../src/components";
 const Dot = () => <span data-testid="icon">•</span>;
 
 const SECTIONS: AppShellSection[] = [
-  { id: "tasks", label: "Tasks", icon: <Dot /> },
+  { id: "todos", label: "Todos", icon: <Dot /> },
   { id: "daily", label: "Daily", icon: <Dot /> },
   { id: "notes", label: "Notes", icon: <Dot /> },
   { id: "schedule", label: "Schedule", icon: <Dot /> },
@@ -48,7 +48,7 @@ function renderShell(props?: Partial<Parameters<typeof AppShell>[0]>) {
   render(
     <AppShell
       sections={SECTIONS}
-      activeSection="tasks"
+      activeSection="todos"
       onNavigate={onNavigate}
       onTogglePalette={onTogglePalette}
       userEmail="user@example.com"

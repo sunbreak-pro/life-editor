@@ -90,26 +90,26 @@ describe("every published tool is registered and validated", () => {
 
 describe("invalid arguments never reach a handler", () => {
   it("rejects a missing required argument", async () => {
-    await expect(callTool("create_task", {})).rejects.toThrow(
-      "Invalid arguments for create_task: title is required",
+    await expect(callTool("create_todo", {})).rejects.toThrow(
+      "Invalid arguments for create_todo: title is required",
     );
   });
 
   it("rejects an explicit null where a value is required", async () => {
-    await expect(callTool("get_task", { id: null })).rejects.toThrow(
-      "Invalid arguments for get_task: id is required",
+    await expect(callTool("get_todo", { id: null })).rejects.toThrow(
+      "Invalid arguments for get_todo: id is required",
     );
   });
 
   it("rejects a value outside an enum", async () => {
     await expect(
-      callTool("list_tasks", { status: "almost_done" }),
+      callTool("list_todos", { status: "almost_done" }),
     ).rejects.toThrow(/status must be one of/);
   });
 
   it("rejects a badly shaped nested object", async () => {
     await expect(
-      callTool("list_tasks", { date_range: { start: "2026-08-11" } }),
+      callTool("list_todos", { date_range: { start: "2026-08-11" } }),
     ).rejects.toThrow("date_range.end is required");
   });
 
@@ -137,9 +137,9 @@ describe("invalid arguments never reach a handler", () => {
  * enforces, this is the table that goes red.
  */
 const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
-  ["list_tasks", {}],
+  ["list_todos", {}],
   [
-    "list_tasks",
+    "list_todos",
     {
       status: "in_progress",
       date_range: { start: "2026-08-01", end: "2026-08-31" },
@@ -148,10 +148,10 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       limit: 10,
     },
   ],
-  ["get_task", { id: "task-1" }],
-  ["create_task", { title: "write the thing" }],
+  ["get_todo", { id: "task-1" }],
+  ["create_todo", { title: "write the thing" }],
   [
-    "create_task",
+    "create_todo",
     {
       title: "write the thing",
       parent_id: "task-0",
@@ -163,10 +163,10 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
     },
   ],
   [
-    "update_task",
+    "update_todo",
     { id: "task-1", status: "done", content: "# done", time_memo: "朝イチ" },
   ],
-  ["delete_task", { id: "task-1" }],
+  ["delete_todo", { id: "task-1" }],
   ["get_daily", { date: "2026-08-11" }],
   ["upsert_daily", { date: "2026-08-11", content: "hello" }],
   ["list_notes", {}],
@@ -205,7 +205,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["get_week_context", { start_date: "2026-08-10" }],
   ["get_note_context", { id: "note-1" }],
   ["write_briefing", { focus: "one thing", paragraphs: ["a", "b"] }],
-  ["search_all", { query: "q", domains: ["tasks", "notes"], limit: 5 }],
+  ["search_all", { query: "q", domains: ["todos", "notes"], limit: 5 }],
   ["search_all", { query: "q", limit: 5, offset: 5 }],
   [
     "generate_content",
@@ -217,7 +217,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
         { type: "bulletList", items: ["one", "two"] },
         {
           type: "taskList",
-          tasks: [{ text: "do it", checked: false }],
+          todos: [{ text: "do it", checked: false }],
         },
         {
           type: "callout",
@@ -244,7 +244,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ],
   ["untag_entity", { tag_name: "life", entity_id: "task-1" }],
   ["search_by_tag", { tag_name: "life" }],
-  ["get_task_tree", { root_id: "task-1", include_done: false, max_depth: 2 }],
+  ["get_todo_tree", { root_id: "task-1", include_done: false, max_depth: 2 }],
   ["get_entity_tags", { entity_id: "task-1" }],
   [
     "format_content",
@@ -267,7 +267,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       date: "2026-08-12",
       preset: "busy_day",
       items: [
-        { kind: "task", title: "open task", status: "not_started" },
+        { kind: "task", title: "open todo", status: "not_started" },
         { kind: "task", is_all_day: true },
         {
           kind: "event",
@@ -301,7 +301,7 @@ describe("valid arguments pass", () => {
 
   it("ignores properties the schema does not declare", () => {
     expect(() =>
-      validateToolArgs("get_task", schemaOf("get_task"), {
+      validateToolArgs("get_todo", schemaOf("get_todo"), {
         id: "task-1",
         _meta: { progressToken: 1 },
       }),

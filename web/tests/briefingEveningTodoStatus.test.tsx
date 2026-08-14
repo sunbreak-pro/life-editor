@@ -9,7 +9,7 @@ import {
   type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
-import { makeTask, stubDataService } from "./helpers";
+import { makeTodo, stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
@@ -20,7 +20,7 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  * and the right repaint:
  *
  *   1. `DataService.updateTodo` gets the status the cycle landed on, with
- *      `completedAt` following it — that stamp decides whether a closed task
+ *      `completedAt` following it — that stamp decides whether a closed todo
  *      still belongs on today's paper, so a status write that forgets it drops
  *      the row on the next fetch.
  *   2. the new status is painted BEFORE the write resolves. `updateTodo` is
@@ -63,7 +63,7 @@ function setWidth(wide: boolean) {
   });
 }
 
-const OPEN_TASK: TodoNode = makeTask({
+const OPEN_TODO: TodoNode = makeTodo({
   id: "t-open",
   title: "Write the report",
   status: "NOT_STARTED",
@@ -73,7 +73,7 @@ const OPEN_TASK: TodoNode = makeTask({
 function makeDS(updateTodo: DataService["updateTodo"]): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
-    fetchTodoTree: vi.fn().mockResolvedValue([OPEN_TASK]),
+    fetchTodoTree: vi.fn().mockResolvedValue([OPEN_TODO]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
@@ -106,7 +106,7 @@ describe.each([
   it("writes the status the cycle landed on, with completedAt", async () => {
     const updateTodo = vi.fn(
       (id: string, updates: Partial<TodoNode>): Promise<TodoNode> =>
-        Promise.resolve({ ...OPEN_TASK, ...updates, id }),
+        Promise.resolve({ ...OPEN_TODO, ...updates, id }),
     );
     await renderEvening(updateTodo);
 
@@ -143,7 +143,7 @@ describe.each([
     const updateTodo = vi.fn(
       (id: string, updates: Partial<TodoNode>): Promise<TodoNode> =>
         new Promise<TodoNode>((resolve) => {
-          settle = () => resolve({ ...OPEN_TASK, ...updates, id });
+          settle = () => resolve({ ...OPEN_TODO, ...updates, id });
         }),
     );
     await renderEvening(updateTodo);

@@ -2,12 +2,12 @@ import {
   deriveScheduleStatus,
   itemVariant,
   sortDayItems,
-  taskChipId,
+  todoChipId,
   type AgendaItem,
   type EventEditorItem,
   type MonthGridItem,
   type ScheduleItem,
-  type TaskCalendarChip,
+  type TodoCalendarChip,
   type WeekTimeGridItem,
 } from "@life-editor/shared";
 
@@ -15,7 +15,7 @@ import {
  * Schedule view models (#673 / C6) — the four conversions CalendarTab used to
  * spell out inline, one per surface it feeds.
  *
- * Every surface receives the SAME two lists (schedule items + task chips) and
+ * Every surface receives the SAME two lists (schedule items + todo chips) and
  * differs only in which fields it keeps, so the four blocks read as copies of
  * each other while quietly disagreeing on details (see the asymmetries pinned
  * below). Inside a 2,900-line component nothing could see them: CalendarTab
@@ -28,19 +28,19 @@ import {
  * so status derivation is deterministic under test.
  *
  * Behavior is deliberately preserved field-for-field, asymmetries included:
- *   - week grid: schedule items carry `status`, task chips DO NOT (#761 wired
+ *   - week grid: schedule items carry `status`, todo chips DO NOT (#761 wired
  *     chip status into the agenda only);
  *   - month grid: nothing carries `status` (month cells render no status tag);
  *   - agenda: BOTH carry `status`, and the merged list is sorted (all-day
  *     first, then by start time) — the grids position by time and need no sort.
- * A chip's grid id is the prefixed synthetic id (`taskChipId`) on every
+ * A chip's grid id is the prefixed synthetic id (`todoChipId`) on every
  * surface; the host's handlers tell chips from events by that prefix.
  */
 
 /** Blocks for the week/day time grid (WeekTimeGrid). */
 export function toWeekGridItems(
   events: ScheduleItem[],
-  chips: TaskCalendarChip[],
+  chips: TodoCalendarChip[],
   now: Date,
 ): WeekTimeGridItem[] {
   return [
@@ -56,7 +56,7 @@ export function toWeekGridItems(
       variant: itemVariant(i),
     })),
     ...chips.map((c) => ({
-      id: taskChipId(c.id),
+      id: todoChipId(c.id),
       date: c.date,
       title: c.title,
       startTime: c.startTime,
@@ -71,7 +71,7 @@ export function toWeekGridItems(
 /** Cell entries for the month grid (MonthGrid) — no times, no status. */
 export function toMonthGridItems(
   events: ScheduleItem[],
-  chips: TaskCalendarChip[],
+  chips: TodoCalendarChip[],
 ): MonthGridItem[] {
   return [
     ...events.map((i) => ({
@@ -83,7 +83,7 @@ export function toMonthGridItems(
       isAllDay: i.isAllDay,
     })),
     ...chips.map((c) => ({
-      id: taskChipId(c.id),
+      id: todoChipId(c.id),
       date: c.date,
       title: c.title,
       variant: "task" as const,
@@ -94,12 +94,12 @@ export function toMonthGridItems(
 }
 
 /**
- * One day's rows for AgendaList — schedule items and task chips merged into a
+ * One day's rows for AgendaList — schedule items and todo chips merged into a
  * single sorted list (all-day first, then ascending by start time).
  */
 export function toAgendaItems(
   events: ScheduleItem[],
-  chips: TaskCalendarChip[],
+  chips: TodoCalendarChip[],
   now: Date,
 ): AgendaItem[] {
   const scheduleAgenda: AgendaItem[] = events.map((i) => ({
@@ -112,8 +112,8 @@ export function toAgendaItems(
     status: deriveScheduleStatus(i, now),
     variant: itemVariant(i),
   }));
-  const taskAgenda: AgendaItem[] = chips.map((c) => ({
-    id: taskChipId(c.id),
+  const todoAgenda: AgendaItem[] = chips.map((c) => ({
+    id: todoChipId(c.id),
     title: c.title,
     startTime: c.startTime,
     endTime: c.endTime,
@@ -122,7 +122,7 @@ export function toAgendaItems(
     status: deriveScheduleStatus(c, now),
     variant: "task" as const,
   }));
-  return sortDayItems([...scheduleAgenda, ...taskAgenda]);
+  return sortDayItems([...scheduleAgenda, ...todoAgenda]);
 }
 
 /**

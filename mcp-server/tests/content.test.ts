@@ -57,7 +57,7 @@ describe("contentPreview", () => {
     expect(contentPreview(DOC)).toBe("買い物メモ");
   });
 
-  it("previews a TipTap JSON string body (tasks store one)", () => {
+  it("previews a TipTap JSON string body (todos store one)", () => {
     expect(contentPreview(JSON.stringify(DOC))).toBe("買い物メモ");
   });
 

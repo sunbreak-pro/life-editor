@@ -30,8 +30,8 @@ const LABELS: TrashViewLabels = {
 
 const GROUPS: TrashGroup[] = [
   {
-    category: "tasks",
-    title: "Tasks",
+    category: "todos",
+    title: "Todos",
     items: [
       { id: "t1", label: "Buy milk" },
       { id: "t2", label: "Walk the dog" },
@@ -79,7 +79,7 @@ function renderView(props?: Partial<Parameters<typeof TrashView>[0]>) {
 describe("TrashView — target IA", () => {
   it("collapses empty categories instead of rendering empty sections", () => {
     renderView();
-    expect(screen.getByRole("region", { name: "Tasks" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Todos" })).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Routines" }),
     ).toBeInTheDocument();
@@ -89,14 +89,14 @@ describe("TrashView — target IA", () => {
   it("renders no in-body heading (v2: the shell owns the title) and shows per-category badges", () => {
     renderView();
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
-    const tasks = screen.getByRole("region", { name: "Tasks" });
-    expect(within(tasks).getByText("2")).toBeInTheDocument();
+    const todos = screen.getByRole("region", { name: "Todos" });
+    expect(within(todos).getByText("2")).toBeInTheDocument();
   });
 
   it("shows the global empty state", () => {
     renderView({
       groups: [
-        { category: "tasks", title: "Tasks", items: [] },
+        { category: "todos", title: "Todos", items: [] },
         { category: "notes", title: "Notes", items: [] },
       ],
     });
@@ -147,11 +147,11 @@ describe("TrashView — target IA", () => {
     expect(buttons[buttons.length - 1]).toHaveTextContent("Cancel");
 
     fireEvent.click(buttons[0]);
-    expect(onPermanentDelete).toHaveBeenCalledWith("tasks", "t1");
+    expect(onPermanentDelete).toHaveBeenCalledWith("todos", "t1");
   });
 
   it("pins the busy marker to its row and disables every action", () => {
-    renderView({ busy: { category: "tasks", id: "t1", action: "restore" } });
+    renderView({ busy: { category: "todos", id: "t1", action: "restore" } });
     expect(screen.getByText("Restoring…")).toBeInTheDocument();
     // The busy row swaps its Restore button for the status chip; every
     // remaining action (other rows' restore + all delete icons) is disabled.

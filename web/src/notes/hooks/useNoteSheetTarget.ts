@@ -8,7 +8,7 @@ import { useState } from "react";
  * It deliberately does NOT key on the shared `selectedNote`: the sheet has its
  * own identity because opening it also has to HYDRATE the note (the side list
  * omits bodies), and because a selection restored from storage on mount would
- * otherwise pop the sheet open over the list. `useTaskDetailTarget` (#470) keeps
+ * otherwise pop the sheet open over the list. `useTodoDetailTarget` (#470) keeps
  * the same separation for the Todo sheet, for the same reason.
  *
  * The transitions worth remembering:

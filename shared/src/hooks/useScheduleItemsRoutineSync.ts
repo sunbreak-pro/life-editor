@@ -39,7 +39,7 @@ import {
  *   identical to the Tauri original; only the UI-refresh signal is injected.
  *
  * Issue 017 four-system guard map (SSOT 軸 3):
- *   (a) is_deleted filter on schedule_items/tasks reads → enforced in
+ *   (a) is_deleted filter on schedule_items/todos reads → enforced in
  *       S4-2 DataService (this hook calls through correctly).
  *   (b) routine soft-delete cascades child schedule_items → S4-2
  *       softDeleteRoutine; the generator never resurrects them because

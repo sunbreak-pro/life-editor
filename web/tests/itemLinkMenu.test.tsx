@@ -16,7 +16,7 @@ import { ItemLinkMenu, type ItemLinkMenuItem } from "../src/notes/ItemLinkMenu";
  *
  * 1. WHEN the candidate pool is fetched. #430 made it lazy: nothing is read
  *    until the menu actually opens, because the old version re-read notes +
- *    dailies + tasks on every sync bump — i.e. after every typing pause, for as
+ *    dailies + todos on every sync bump — i.e. after every typing pause, for as
  *    long as a note was open. Handing the loader to a second surface (the mobile
  *    sheet) must not quietly undo that, so these drive a real editor and assert
  *    on the loader.
@@ -31,7 +31,7 @@ const LABELS = {
   create: (q: string) => `Create "${q}"`,
   roleNote: "Note",
   roleDaily: "Daily",
-  roleTask: "Todo",
+  roleTodo: "Todo",
 };
 
 /*

@@ -37,7 +37,7 @@ import {
  * Host dependencies are injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton  → `options.dataService`
  * - host UndoRedo Context         → `options.undoRedo` (no-op default;
- *   real UndoRedo lands in S6, same as tasks/daily)
+ *   real UndoRedo lands in S6, same as todos/daily)
  *
  * #587 split — this file is the orchestrator (state, selection, the load /
  * restore effects, and composition), shaped after useTodoTreeAPI. The

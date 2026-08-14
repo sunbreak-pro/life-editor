@@ -11,14 +11,14 @@ import {
   type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
-import { makeTask, stubDataService } from "./helpers";
+import { makeTodo, stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
  * Briefing's Todo tray after #795 — the host half of the merge.
  *
  * The pure tray's own suite covers the layout (one heading, time-less rows
- * first, the chip-task pill). What only the host can answer is whether
+ * first, the chip-todo pill). What only the host can answer is whether
  * Briefing actually opts in and which words it opts in WITH: the point of the
  * issue is that「Add from todos → Candidates」became「Todos list → Scheduled」,
  * and that is a translation-catalogue fact the component cannot assert.
@@ -36,7 +36,7 @@ const syncValue: WebSyncContextValue = {
 };
 
 /** Staged as "today, time TBD" — what the tray's own add button writes. */
-const UNTIMED: TodoNode = makeTask({
+const UNTIMED: TodoNode = makeTodo({
   id: "t-untimed",
   title: "Draft the outline",
   status: "NOT_STARTED",
@@ -44,9 +44,9 @@ const UNTIMED: TodoNode = makeTask({
   isAllDay: true,
 });
 /** Unscheduled, so it shows up in the picker rather than on the list. */
-const ADDABLE: TodoNode = makeTask({
+const ADDABLE: TodoNode = makeTodo({
   id: "t-addable",
-  title: "Someday task",
+  title: "Someday todo",
   status: "NOT_STARTED",
 });
 
@@ -118,6 +118,6 @@ describe("Briefing Todo tray copy + merge (#795)", () => {
     // Todo colour, not the neutral face an all-day EVENT wears.
     expect(pill.className).toContain("bg-lumen-chip-task-bg");
     // The unscheduled one is still only an offer in the picker.
-    expect(within(panelBody).getByText("Someday task")).toBeTruthy();
+    expect(within(panelBody).getByText("Someday todo")).toBeTruthy();
   });
 });

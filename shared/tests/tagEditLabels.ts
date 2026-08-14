@@ -11,7 +11,7 @@ import type { TagEditModalLabels } from "../src/components";
  */
 
 export const TAG_ROLE_LABELS = {
-  task: "Task",
+  task: "Todo",
   event: "Event",
   note: "Note",
   daily: "Daily",

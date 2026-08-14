@@ -11,7 +11,7 @@
 >
 > - **Audio Mixer / File Explorer / Shortcuts**: Desktop 専用 + Mobile 省略 Provider。Capacitor 移行 (Phase 4) で iOS / Android 向けに省略バリアントを再評価（⚠️ **File Explorer は退役 = 移行 SSOT Phase 5-A 決定・以下の本文は履歴として保持**）。
 > - **WikiTags**: Data Unification 計画 (`2026-05-21-data-unification-items-meta.md`) で `items_meta` 統合の対象。S5 WikiTags 旧計画は DU に吸収済。
-> - **Templates / UndoRedo / Trash**: Tier 1 機能（Tasks / Notes / Schedule）の移行と同タイミングで shared/ + web/ に並行移植。
+> - **Templates / UndoRedo / Trash**: Tier 1 機能（Todos / Notes / Schedule）の移行と同タイミングで shared/ + web/ に並行移植。
 >
 > Phase 5 完了時に本注記は廃止し、各 Feature に新スタック向けの単一 Stack 行を残す。
 
@@ -118,7 +118,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 
 ### Purpose
 
-集中作業サイクルを WORK / BREAK / LONG_BREAK の 3 モードで管理し、プリセット + 自動休憩 + 完了モーダル + セッション DB 記録を提供する。Task と紐付けると `timer_sessions` に task_id が記録され、Analytics / サイドバー / TaskTree 各所に残り時間が同期表示される。
+集中作業サイクルを WORK / BREAK / LONG_BREAK の 3 モードで管理し、プリセット + 自動休憩 + 完了モーダル + セッション DB 記録を提供する。Todo と紐付けると `timer_sessions` に task_id が記録され、Analytics / サイドバー / TodoTree 各所に残り時間が同期表示される。
 
 ### Boundary
 
@@ -130,18 +130,18 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
   - WORK 完了時: 完了音 + デスクトップ通知 + `SessionCompletionModal`
   - `autoStartBreaks: true` で休憩自動開始
   - タスク紐付け（`startForTask(id, title)`）で `timer_sessions.task_id` 記録
-  - サイドバー / TaskTree 行 / Work 画面の残り時間が一致表示
+  - サイドバー / TodoTree 行 / Work 画面の残り時間が一致表示
   - Mobile（iOS）でもタイマー自体は動作（§2 Mobile 対応）
 - やらない:
   - Mobile トレイアイコン（`updateTrayTimer` は Desktop 限定、Mobile では skip）
-  - タイマー完了時の紙吹雪（タスク完了時のみ fire、§Tasks AC2 参照）
+  - タイマー完了時の紙吹雪（タスク完了時のみ fire、§Todos AC2 参照）
   - 複数タイマー並列実行
 
 ### Acceptance Criteria
 
 - [ ] AC1: プリセットを作成 / 選択すると WORK / BREAK / LONG_BREAK 分数と `sessionsBeforeLongBreak` が保存され、次回起動時も復元される
 - [ ] AC2: WORK 完了時に完了音 + デスクトップ通知 + `SessionCompletionModal` が表示され、`autoStartBreaks: true` なら自動で BREAK が開始される
-- [ ] AC3: `startForTask` で起動したタイマーの残り時間が Work 画面 / サイドバー / TaskTree 行の 3 箇所で同じ値として表示される
+- [ ] AC3: `startForTask` で起動したタイマーの残り時間が Work 画面 / サイドバー / TodoTree 行の 3 箇所で同じ値として表示される
 - [ ] AC4: 一時停止中のみ ±5 分ボタンが有効化され、タイマー稼働中は無効化される
 - [ ] AC5: 完了したセッションは `timer_sessions` に `task_id` / `session_type` / 開始 / 終了時刻付きで記録され、Analytics で集計される
 - [ ] AC6: `sessionsBeforeLongBreak=4` のとき、4 セッション目の WORK 完了後に `LONG_BREAK` が開始される
@@ -150,7 +150,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 
 - DB Tables: `timer_settings`（シングルトン）/ `timer_sessions` / `pomodoro_presets`
 - IPC Commands: `db_timer_fetch_settings|update_settings` / `db_timer_{start,end,fetch}_session[s]` / `db_timer_{fetch,create,update,delete}_pomodoro_preset[s]`
-- 他機能: Tasks（task_id 紐付け）/ Audio Mixer（完了音）/ Playlist（timerPlaylistId 連動開始）/ Analytics（セッション集計）
+- 他機能: Todos（task_id 紐付け）/ Audio Mixer（完了音）/ Playlist（timerPlaylistId 連動開始）/ Analytics（セッション集計）
 
 ### Known Issues / Tech Debt
 
@@ -169,7 +169,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 
 ### Purpose
 
-Notes / Dailies / Schedule Items など RichTextEditor を持つエンティティを横断して単一のタグ体系で束ねる「wiki-style」タグシステム。インラインタグ（`#tag` 記法）による自動認識と、タグの有向接続 / グルーピングで知識の構造化を支援する。~~Tasks は RichTextEditor を持たないため対象外（タグ付けは CalendarTags が担当）~~ → **2026-07-11 life-tags 統一（#225）**: WikiTag 基盤は全セクション共通の整理概念 **life-tags** の実体に昇格し Tasks も対象（Kanban tag ビュー・folder→tag 変換・calendars の tag バインド）。CalendarTags は DU-F で撤去済み。方向の正本 = `archive/2026-07-11-life-tags-unification.md`（COMPLETED・#474 で archive 移動）。
+Notes / Dailies / Schedule Items など RichTextEditor を持つエンティティを横断して単一のタグ体系で束ねる「wiki-style」タグシステム。インラインタグ（`#tag` 記法）による自動認識と、タグの有向接続 / グルーピングで知識の構造化を支援する。~~Todos は RichTextEditor を持たないため対象外（タグ付けは CalendarTags が担当）~~ → **2026-07-11 life-tags 統一（#225）**: WikiTag 基盤は全セクション共通の整理概念 **life-tags** の実体に昇格し Todos も対象（Kanban tag ビュー・folder→tag 変換・calendars の tag バインド）。CalendarTags は DU-F で撤去済み。方向の正本 = `archive/2026-07-11-life-tags-unification.md`（COMPLETED・#474 で archive 移動）。
 
 ### Boundary
 
@@ -184,11 +184,11 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 - やらない:
   - 複数 entity_type を跨ぐリレーション型タグ（Database の relation プロパティで別対応）
   - 権限管理（個人利用前提、§1 Non-Goals）
-  - ~~Tasks へのタグ付与（Task は RichTextEditor を持たないため UI 上で付与経路がなく、タグ管理は CalendarTags に集約。MCP `tag_entity` の entity_type='task' も将来要件として保留）~~ → **2026-07-11 #225 で解除**: life-tags 統一により Tasks へのタグ付与は「やる」側（Kanban tag ビュー / assignments）
+  - ~~Todos へのタグ付与（Todo は RichTextEditor を持たないため UI 上で付与経路がなく、タグ管理は CalendarTags に集約。MCP `tag_entity` の entity_type='task' も将来要件として保留）~~ → **2026-07-11 #225 で解除**: life-tags 統一により Todos へのタグ付与は「やる」側（Kanban tag ビュー / assignments）
 
 ### Acceptance Criteria
 
-- [ ] AC1: Note / Daily / Schedule Item のいずれのエンティティにも同じ WikiTag を付与でき、`search_by_tag` で 3 ドメイン横断結果が返る（Tasks は対象外）
+- [ ] AC1: Note / Daily / Schedule Item のいずれのエンティティにも同じ WikiTag を付与でき、`search_by_tag` で 3 ドメイン横断結果が返る（Todos は対象外）
 - [ ] AC2: Note や Memo の本文に `#tag` を書いて保存すると、`sync_inline_tags` により自動で assign が作られ `source='inline'` が記録される。タグを本文から消すと assign も自動削除される
 - [ ] AC3: WikiTagManager UI でタグを作成 / 色変更 / 削除でき、削除時は関連 assignments / group members / connections がカスケードで整理される
 - [ ] AC4: タグ A → タグ B の接続を作成し、`list_wiki_tags` に hierarchy 情報が含まれる（1 対多の有向グラフ）
@@ -198,7 +198,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 
 - DB Tables: `wiki_tags` / `wiki_tag_assignments` / `wiki_tag_connections` / `wiki_tag_groups` / `wiki_tag_group_members`
 - IPC Commands: `db_wiki_tags_*`（fetch*all / search / create / update / delete / merge / fetch_for_entity / set_for_entity / sync_inline / restore_assignment 11 件）/ `db_wiki_tag_groups*_`6 件 /`db*wiki_tag_connections*_` 4 件
-- 他機能: Notes / Dailies / Schedule / Database（entity_type を拡張すれば対応可。Tasks は本仕様で対象外）
+- 他機能: Notes / Dailies / Schedule / Database（entity_type を拡張すれば対応可。Todos は本仕様で対象外）
 
 ---
 
@@ -271,7 +271,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 
 ### Acceptance Criteria
 
-- [ ] AC1: 既存の TaskTree から選択したサブツリーを「Save as Template」でテンプレート保存すると、`templates` テーブルに `name` + JSON `content` として記録される
+- [ ] AC1: 既存の TodoTree から選択したサブツリーを「Save as Template」でテンプレート保存すると、`templates` テーブルに `name` + JSON `content` として記録される
 - [ ] AC2: テンプレート一覧から「Insert」すると、指定配置先にツリー構造が新規 ID で展開される（元のテンプレートは変更されない）
 - [ ] AC3: テンプレートをソフトデリートすると一覧から消え、Trash から復元 / 完全削除できる
 - [ ] AC4: テンプレート名を変更すると `db_templates_update` で保存され、再起動後も反映される
@@ -280,7 +280,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 
 - DB Tables: `templates`（アクティブ運用中）/ `task_templates`（レガシーテーブル、migrations.rs で作成されるが CRUD コマンドなし、data_io_commands.rs のリセット時のみ DELETE 対象）
 - IPC Commands: `db_templates_fetch_all|fetch_by_id|create|update|soft_delete|permanent_delete`
-- 他機能: Tasks（主対象）/ Trash（復元）
+- 他機能: Todos（主対象）/ Trash（復元）
 
 ### Known Issues / Tech Debt
 
@@ -297,12 +297,12 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 
 ### Purpose
 
-コマンドパターン + ドメイン別スタックで、破壊的操作の即時取り消しを全ドメイン（Tasks / Notes / Memo / Schedule 等）で統一的に提供する。`Cmd+Z` / `Cmd+Shift+Z` とヘッダーボタンの 2 経路から同じ履歴を操作できる。
+コマンドパターン + ドメイン別スタックで、破壊的操作の即時取り消しを全ドメイン（Todos / Notes / Memo / Schedule 等）で統一的に提供する。`Cmd+Z` / `Cmd+Shift+Z` とヘッダーボタンの 2 経路から同じ履歴を操作できる。
 
 ### Boundary
 
 - やる:
-  - ドメイン別スタック（Tasks / Notes / Memo / Schedule / Database / etc. が独立して履歴保持）
+  - ドメイン別スタック（Todos / Notes / Memo / Schedule / Database / etc. が独立して履歴保持）
   - Cmd+Z / Cmd+Shift+Z（macOS）/ Ctrl+Z / Ctrl+Shift+Z（Windows/Linux）対応
   - 各セクションヘッダーの Undo/Redo ボタン
   - 複合操作の 1 ステップ化（例: 削除カスケードを単一 Undo で巻き戻し）
@@ -313,15 +313,15 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 
 ### Acceptance Criteria
 
-- [ ] AC1: Tasks / Notes / Memo / Schedule の任意 CRUD を実行後、Cmd+Z で 1 ステップずつ取り消せる。続けて Cmd+Shift+Z でやり直せる
-- [ ] AC2: ドメインごとの履歴が独立しており、Tasks で Undo しても Notes の編集履歴には影響しない
+- [ ] AC1: Todos / Notes / Memo / Schedule の任意 CRUD を実行後、Cmd+Z で 1 ステップずつ取り消せる。続けて Cmd+Shift+Z でやり直せる
+- [ ] AC2: ドメインごとの履歴が独立しており、Todos で Undo しても Notes の編集履歴には影響しない
 - [ ] AC3: セクションヘッダーの Undo/Redo ボタンが履歴状態に応じて有効 / 無効化され、キーボード経路と同じ操作を実行する
 - [ ] AC4: IME 入力中（`nativeEvent.isComposing`）の Cmd+Z は Undo ではなく変換キャンセルとして扱われる
 - [ ] AC5: アプリ再起動後は履歴スタックが空（前セッションの Undo は不可）
 
 ### Dependencies
 
-- 他機能: Tasks / Notes / Memo / Schedule（全 CRUD ドメイン）/ Database
+- 他機能: Todos / Notes / Memo / Schedule（全 CRUD ドメイン）/ Database
 
 ---
 
@@ -406,7 +406,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 ### Purpose
 
-29 件のキーボードショートカット（6 カテゴリ: Navigation / Tasks / Schedule / Timer / Editor / System）を集中管理し、Tips 画面で一覧 / Settings でカスタマイズ可能にする。ユーザー操作の大半をマウス無しで完結させる生産性の基盤。
+29 件のキーボードショートカット（6 カテゴリ: Navigation / Todos / Schedule / Timer / Editor / System）を集中管理し、Tips 画面で一覧 / Settings でカスタマイズ可能にする。ユーザー操作の大半をマウス無しで完結させる生産性の基盤。
 
 ### Boundary
 
@@ -429,7 +429,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 ### Dependencies
 
 - DB Tables: `app_settings`（ショートカット設定保存）
-- 他機能: Tasks / Schedule / Timer / Settings / CommandPalette / Terminal / UndoRedo
+- 他機能: Todos / Schedule / Timer / Settings / CommandPalette / Terminal / UndoRedo
 
 ---
 
@@ -487,9 +487,9 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 ### Boundary
 
 - やる:
-  - Tasks / Notes / Memos / Routines / Databases / Templates / ScheduleItems の復元 / 完全削除
+  - Todos / Notes / Memos / Routines / Databases / Templates / ScheduleItems の復元 / 完全削除
   - カスタムサウンドは FS ベースだが TrashView に相当する復元窓口を提供
-  - ドメイン別タブ切替（削除済み Tasks / Notes 等を別々に表示）
+  - ドメイン別タブ切替（削除済み Todos / Notes 等を別々に表示）
   - 一括完全削除
 - やらない:
   - 削除からの自動パージ（30 日経過等の自動完全削除は未実装）
@@ -498,12 +498,12 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 ### Acceptance Criteria
 
-- [ ] AC1: Tasks / Notes / Memos / Routines / Databases / Templates を削除した後、TrashView のそれぞれのタブに表示され、`deleted_at` 降順で並ぶ
+- [ ] AC1: Todos / Notes / Memos / Routines / Databases / Templates を削除した後、TrashView のそれぞれのタブに表示され、`deleted_at` 降順で並ぶ
 - [ ] AC2: Trash 画面から「復元」を選ぶと該当レコードが元の位置 / 親に戻り、`is_deleted=0` + `deleted_at=NULL` に更新される
 - [ ] AC3: 「完全削除」を選ぶと確認ダイアログ経由で `permanent_delete` が呼ばれ、関連レコード（子タスク / assignments 等）もカスケード削除される
 - [ ] AC4: カスタムサウンドの削除 / 復元は FS ベースでも TrashView に統合され、他ドメインと同じ UI で扱える
 
 ### Dependencies
 
-- 全ソフトデリート対象テーブル（対象リストの正は CLAUDE.md §4 Data Model・本表は参考）: Tasks / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds（FS）
+- 全ソフトデリート対象テーブル（対象リストの正は CLAUDE.md §4 Data Model・本表は参考）: Todos / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds（FS）
 - IPC Commands: 各ドメインの `*_restore` / `*_permanent_delete` コマンド

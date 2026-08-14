@@ -9,7 +9,7 @@ import { SegmentedControl, type SegmentedOption } from "../src/components";
  */
 
 const OPTIONS: SegmentedOption[] = [
-  { id: "tasks", label: "Tasks" },
+  { id: "todos", label: "Todos" },
   { id: "notes", label: "Notes" },
   { id: "daily", label: "Daily" },
   { id: "tags", label: "Tags" },
@@ -22,7 +22,7 @@ function renderControl(
   render(
     <SegmentedControl
       options={OPTIONS}
-      value="tasks"
+      value="todos"
       onChange={onChange}
       {...props}
     />,
@@ -36,7 +36,7 @@ describe("SegmentedControl", () => {
     const tabs = screen.getAllByRole("tab");
     expect(tabs).toHaveLength(OPTIONS.length);
     expect(tabs.map((t) => t.textContent)).toEqual([
-      "Tasks",
+      "Todos",
       "Notes",
       "Daily",
       "Tags",
@@ -54,7 +54,7 @@ describe("SegmentedControl", () => {
 
   it("marks the selected segment with aria-selected", () => {
     renderControl();
-    expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Todos" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -72,7 +72,7 @@ describe("SegmentedControl", () => {
 
   it("switches with arrow keys (wrapping past the ends)", () => {
     const { onChange } = renderControl();
-    const active = screen.getByRole("tab", { name: "Tasks" });
+    const active = screen.getByRole("tab", { name: "Todos" });
     fireEvent.keyDown(active, { key: "ArrowRight" });
     expect(onChange).toHaveBeenCalledWith("notes");
     fireEvent.keyDown(active, { key: "ArrowLeft" });
@@ -81,7 +81,7 @@ describe("SegmentedControl", () => {
 
   it("switches with ↑/↓ as well, matching its radiogroup siblings (#779)", () => {
     const { onChange } = renderControl();
-    const active = screen.getByRole("tab", { name: "Tasks" });
+    const active = screen.getByRole("tab", { name: "Todos" });
     fireEvent.keyDown(active, { key: "ArrowDown" });
     expect(onChange).toHaveBeenCalledWith("notes");
     fireEvent.keyDown(active, { key: "ArrowUp" });
@@ -90,7 +90,7 @@ describe("SegmentedControl", () => {
 
   it("ignores arrow keys while disabled", () => {
     const { onChange } = renderControl({ disabled: true });
-    fireEvent.keyDown(screen.getByRole("tab", { name: "Tasks" }), {
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Todos" }), {
       key: "ArrowDown",
     });
     expect(onChange).not.toHaveBeenCalled();

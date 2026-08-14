@@ -15,7 +15,7 @@ import type { ScheduleTab } from "../schedule/ScheduleScreen";
  * hooks split, zero behavior change): the section switch (a local
  * `useState`, no React Router — CLAUDE.md §3.2), the in-section tab states
  * lifted so the standard SectionHeader can render each band, and the
- * pending-intent idiom (new-task flag / "[[" item-nav stash) that the
+ * pending-intent idiom (new-todo flag / "[[" item-nav stash) that the
  * destination views consume on mount.
  */
 
@@ -27,7 +27,7 @@ export type MaterialsTab = "notes" | "daily";
  * the section to switch to, plus the in-section tab for the two sections that
  * have one. Every navigation intent — a nav:* shortcut, a Briefing jump, a
  * "[[" link click — speaks this one vocabulary now. It replaces the shared
- * `NavSection` union ("tasks" / "daily" / "notes" / "tags"), which named the
+ * `NavSection` union ("todos" / "daily" / "notes" / "tags"), which named the
  * flat pre-2026-07 sections and so had to be re-translated by hand at each
  * call site.
  */
@@ -56,7 +56,7 @@ const NAV_SHORTCUT_DESTINATION: Readonly<
 };
 
 /**
- * Where a "[[" link target opens (#285; tasks added in #370, and moved from
+ * Where a "[[" link target opens (#285; todos added in #370, and moved from
  * Materials to Schedule in #411 — hence a section+tab pair rather than a bare
  * Materials tab). A role absent here has no selectable surface yet, so its
  * link click no-ops.
@@ -102,7 +102,7 @@ export function useShellNavigation({
   // Schedule's Calendar/Todo tab (#411), lifted here for the same reason as
   // materialsTab: the standard SectionHeader renders the band.
   const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
-  // Analytics's Overview/Tasks/Work/Schedule tab, lifted here (v2 adoption
+  // Analytics's Overview/Todos/Work/Schedule tab, lifted here (v2 adoption
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab.
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
@@ -114,9 +114,9 @@ export function useShellNavigation({
     defaultBriefingTab(),
   );
   // global:new-task intent, consumed once by the Kanban when it mounts (see
-  // handleNewTask). A boolean "pending" flag — not a nonce — so returning to
-  // the Tasks tab later never re-opens the add dialog.
-  const [pendingNewTask, setPendingNewTask] = useState(false);
+  // handleNewTodo). A boolean "pending" flag — not a nonce — so returning to
+  // the Todos tab later never re-opens the add dialog.
+  const [pendingNewTodo, setPendingNewTodo] = useState(false);
 
   // Startup section (§216): remember the last-visited section so the "resume"
   // startup preference can restore it on the next launch. Writes on every
@@ -182,31 +182,31 @@ export function useShellNavigation({
     [navigateTo],
   );
 
-  // global:new-task executor. Task creation lives inside the Kanban (mounted
+  // global:new-task executor. Todo creation lives inside the Kanban (mounted
   // per-tab behind its own Provider), so the shell can't call the create API
   // directly. Instead it navigates to Schedule → Todo (#411) and raises a
-  // "pending new task" flag; the Kanban consumes it on mount and opens its dialog
-  // (which auto-focuses the title input and creates the task on submit via the
-  // TaskTree provider). That is the app's own create-and-focus entry — no new
+  // "pending new todo" flag; the Kanban consumes it on mount and opens its dialog
+  // (which auto-focuses the title input and creates the todo on submit via the
+  // TodoTree provider). That is the app's own create-and-focus entry — no new
   // DataService API, no title-less junk rows.
   //
   // #753: the intent and the move are raised together INSIDE the guard — a
   // refused navigation that still set the flag would open the create dialog
   // the next time the user went to Todos of their own accord.
-  const handleNewTask = useCallback(() => {
+  const handleNewTodo = useCallback(() => {
     guarded(() => {
       applyDestination({ section: "schedule", tab: "todo" });
-      setPendingNewTask(true);
+      setPendingNewTodo(true);
     });
   }, [guarded, applyDestination]);
-  // Kanban calls this once it has acted on the pending-new-task flag.
-  const consumeNewTask = useCallback(() => setPendingNewTask(false), []);
+  // Kanban calls this once it has acted on the pending-new-todo flag.
+  const consumeNewTodo = useCallback(() => setPendingNewTodo(false), []);
 
   // "[[" wiki-link navigation (Issue #285). A resolved link click in the Notes
   // or Daily editor routes here; the shell owns the section + tab switch (the
   // target view lives behind a different domain Provider), then stashes a
   // pending selection the destination view consumes on mount — the same idiom
-  // as pendingNewTask. Tasks joined note / daily in #370 and now land on
+  // as pendingNewTodo. Todos joined note / daily in #370 and now land on
   // Schedule → Todo (#411); any other role has no selectable surface yet, so
   // it no-ops.
   const [pendingItemNav, setPendingItemNav] = useState<{
@@ -218,7 +218,7 @@ export function useShellNavigation({
     (target: { id: string; role: string; date?: string }) => {
       const dest = ITEM_NAV_TARGET[target.role];
       if (!dest) return;
-      // Stashed inside the guard, like handleNewTask: a refused jump must not
+      // Stashed inside the guard, like handleNewTodo: a refused jump must not
       // leave a pending selection waiting to fire on the next visit.
       guarded(() => {
         applyDestination(dest);
@@ -234,7 +234,7 @@ export function useShellNavigation({
     pendingItemNav?.role === "daily"
       ? pendingItemNav.id.replace(/^daily-/, "")
       : null;
-  const pendingTaskSelect =
+  const pendingTodoSelect =
     pendingItemNav?.role === "task" ? pendingItemNav.id : null;
   /*
    * An event carries its DATE alongside its id (#503), unlike the other three.
@@ -266,16 +266,16 @@ export function useShellNavigation({
     setAnalyticsTab,
     briefingTab,
     setBriefingTab,
-    pendingNewTask,
-    consumeNewTask,
+    pendingNewTodo,
+    consumeNewTodo,
     navigateTo,
     handleNavigate,
-    handleNewTask,
+    handleNewTodo,
     navigateToItem,
     consumeItemNav,
     pendingNoteSelect,
     pendingDailySelect,
-    pendingTaskSelect,
+    pendingTodoSelect,
     pendingEventSelect,
   };
 }

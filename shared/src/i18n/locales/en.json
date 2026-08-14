@@ -6,8 +6,8 @@
     "shortcutLabels": {
       "commandPalette": "Open command palette",
       "openSettings": "Open settings",
-      "newTask": "Create new todo",
-      "goToTasks": "Go to Todos",
+      "newTodo": "Create new todo",
+      "goToTodos": "Go to Todos",
       "goToDaily": "Go to Daily",
       "goToNotes": "Go to Notes",
       "goToSchedule": "Go to Schedule",
@@ -52,7 +52,7 @@
       "previewTitle": "Today's todos",
       "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
       "tipsHeading": "Tips",
-      "tasks": {
+      "todos": {
         "shopping": "Make a shopping list",
         "coffee": "Order coffee beans",
         "dinner": "Prep dinner"
@@ -112,7 +112,7 @@
   "trash": {
     "empty": "Trash is empty",
     "emptyDescription": "Deleted items will appear here.",
-    "tasks": "Todos",
+    "todos": "Todos",
     "notes": "Notes",
     "restore": "Restore",
     "deletePermanently": "Delete permanently",
@@ -160,7 +160,7 @@
       "BREAK": "Break",
       "LONG_BREAK": "Long Break"
     },
-    "taskSelector": {
+    "todoSelector": {
       "heading": "Linked Todo",
       "placeholder": "Select a todo…",
       "clear": "Clear todo",
@@ -170,8 +170,8 @@
     },
     "completion": {
       "title": "Session {{index}} complete",
-      "body": "Logged {{minutes}} min to “{{task}}”. Take a {{breakMinutes}}-minute break.",
-      "bodyNoTask": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
+      "body": "Logged {{minutes}} min to “{{todo}}”. Take a {{breakMinutes}}-minute break.",
+      "bodyNoTodo": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
       "startBreak": "Start break",
       "oneMore": "One more session",
       "close": "Close"
@@ -212,7 +212,7 @@
   "timer": {
     "work": "WORK"
   },
-  "taskDetail": {
+  "todoDetail": {
     "titleLabel": "Todo title",
     "delete": "Delete",
     "todoDelete": "Delete todo",
@@ -238,7 +238,7 @@
     "colorPickerLabel": "Change color",
     "colorClearLabel": "Default color",
     "colorCustomLabel": "Custom",
-    "addTask": "Add",
+    "addTodo": "Add",
     "addDialogTitle": "Add todo",
     "addTitleLabel": "Title",
     "addTitlePlaceholder": "Enter a title",
@@ -246,7 +246,7 @@
     "addCancel": "Cancel"
   },
   "materials": {
-    "tasks": {
+    "todos": {
       "filterLabel": "Filter by status",
       "statusGroupLabel": "Change status",
       "detailTitle": "Todo details",
@@ -255,8 +255,8 @@
       "quickAddSubmit": "Add",
       "empty": "No todos yet",
       "addCta": "Add todo",
-      "taskCount_one": "{{count}} todo",
-      "taskCount_other": "{{count}} todos"
+      "todoCount_one": "{{count}} todo",
+      "todoCount_other": "{{count}} todos"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
@@ -473,16 +473,16 @@
     "addItem": "Add item",
     "itemTypeLabel": "Item type",
     "typeEvent": "Event",
-    "typeTask": "Todo",
+    "typeTodo": "Todo",
     "typeNote": "Note",
     "sourceLabel": "How to add",
     "sourceNew": "New",
     "sourceExisting": "From existing",
-    "taskPlaceholder": "Enter a todo…",
-    "searchTasks": "Search todos",
-    "taskPickerNoMatch": "No matching todos",
-    "addTask": "Add todo",
-    "placeTask": "Place at this time",
+    "todoPlaceholder": "Enter a todo…",
+    "searchTodos": "Search todos",
+    "todoPickerNoMatch": "No matching todos",
+    "addTodo": "Add todo",
+    "placeTodo": "Place at this time",
     "noteTitleLabel": "Note title",
     "notePlaceholder": "Enter a note title…",
     "searchNotes": "Search notes",
@@ -581,7 +581,7 @@
     "todoAddHeading": "Add from todos",
     "todoAddAction": "Add to today",
     "todoEmptyAddable": "No unscheduled todos",
-    "todoOpenInTasks": "Open in Todos",
+    "todoOpenInTodos": "Open in Todos",
     "durationMin": "{{m}} min",
     "durationHour": "{{h}} hr",
     "durationHourMin": "{{h}} hr {{m}} min",
@@ -631,12 +631,12 @@
     },
     "tabs": {
       "overview": "Overview",
-      "tasks": "Todos",
+      "todos": "Todos",
       "schedule": "Schedule",
       "work": "Work"
     },
     "workTime": "Work Time",
-    "taskWorkTime": "Work Time by Todo",
+    "todoWorkTime": "Work Time by Todo",
     "period": {
       "day": "Day",
       "week": "Week",
@@ -649,7 +649,7 @@
     "today": {
       "title": "Today",
       "workTime": "Work Time",
-      "completedTasks": "Completed",
+      "completedTodos": "Completed",
       "pomodoroCount": "Pomodoros"
     },
     "weekly": {
@@ -694,13 +694,13 @@
       "title": "Daily Timeline",
       "noSessions": "No sessions for this day"
     },
-    "taskTrend": {
+    "todoTrend": {
       "title": "Todo Completion Trend",
       "completedCount": "Completed"
     },
     "stagnation": {
       "title": "Todo Age Distribution",
-      "tasks": "todos"
+      "todos": "todos"
     },
     "tagTime": {
       "title": "Work Time by Tag",
@@ -709,7 +709,7 @@
       "other": "Other tags"
     },
     "overview": {
-      "tasks": "Todos",
+      "todos": "Todos",
       "events": "Events",
       "notes": "Notes",
       "work": "Work Time",
@@ -783,7 +783,7 @@
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
   "tabs": {
-    "tasks": "Todos",
+    "todos": "Todos",
     "schedule": "Schedule",
     "overview": "Overview"
   },
@@ -794,7 +794,7 @@
     "goTo": "Go to"
   },
   "section": {
-    "tasks": "Todos",
+    "todos": "Todos",
     "daily": "Daily",
     "notes": "Notes",
     "materials": "Materials",
@@ -863,7 +863,7 @@
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTask": "Todo"
+    "roleTodo": "Todo"
   },
   "auth": {
     "productName": "Life Editor",
@@ -900,8 +900,8 @@
     "noSchedule": "Nothing scheduled today",
     "routineTag": "Routine",
     "allDay": "All day",
-    "tasksTitle": "TODAY'S TODOS — AND WHY",
-    "noTasks": "No todos scheduled for today",
+    "todosTitle": "TODAY'S TODOS — AND WHY",
+    "noTodos": "No todos scheduled for today",
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",
@@ -909,9 +909,9 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteScheduleHint": "Delete this event",
-    "deleteTaskHint": "Delete this todo",
+    "deleteTodoHint": "Delete this todo",
     "jumpToSchedule": "Open in Schedule",
-    "jumpToTasks": "Open in Todos",
+    "jumpToTodos": "Open in Todos",
     "tabsLabel": "Morning / Evening",
     "tabs": {
       "morning": "Morning",

@@ -4,7 +4,7 @@
  *
  * Until now every owned-table change bumped ONE counter and every mounted
  * domain refetched everything it had. Editing a note therefore re-pulled the
- * task tree, the daily list, the tag graph, the timer settings and the sound
+ * todo tree, the daily list, the tag graph, the timer settings and the sound
  * settings — and, because Realtime echoes a tab's OWN writes back to it, the
  * five PATCHes of a single note edit turned into four full sweeps (~86 REST
  * requests, measured on origin/main c2b359c6).

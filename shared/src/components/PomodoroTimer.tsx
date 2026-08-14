@@ -13,7 +13,7 @@ import { cn } from "./cn";
  *  - "card"       — Desktop: a bordered Card, 200px ring, pill main button.
  *  - "fullscreen" — Mobile: no Card chrome, 270px ring, 72px icon-only main
  *                   button, a flex-1 spacer pushing the transport to the base,
- *                   and an optional `taskSlot` (the task chip/picker) between
+ *                   and an optional `todoSlot` (the todo chip/picker) between
  *                   the dots and the spacer.
  *
  * The host (WorkScreen) reads useTimerContext and feeds these. The ring arc
@@ -54,8 +54,8 @@ export interface PomodoroTimerProps {
   /** Session cadence dots. */
   sessions: { total: number; filled: number };
   labels: PomodoroTimerLabels;
-  /** Fullscreen only: the task chip / picker rendered above the transport. */
-  taskSlot?: ReactNode;
+  /** Fullscreen only: the todo chip / picker rendered above the transport. */
+  todoSlot?: ReactNode;
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -87,7 +87,7 @@ export function PomodoroTimer({
   progress,
   sessions,
   labels,
-  taskSlot,
+  todoSlot,
   onStart,
   onPause,
   onReset,
@@ -279,7 +279,7 @@ export function PomodoroTimer({
             orientation="stack"
           />
         </div>
-        {taskSlot ? <div className="mt-7 max-w-full">{taskSlot}</div> : null}
+        {todoSlot ? <div className="mt-7 max-w-full">{todoSlot}</div> : null}
         <div className="flex-1" />
         {adjustPills ? <div className="mb-4">{adjustPills}</div> : null}
         <div className="mb-7">{transport}</div>

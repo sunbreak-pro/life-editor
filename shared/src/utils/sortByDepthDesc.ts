@@ -1,7 +1,7 @@
 import type { TodoNode } from "../types/todoTree";
 
 /*
- * Sort a set of task ids so that **deeper nodes come first** (leaf-first
+ * Sort a set of todo ids so that **deeper nodes come first** (leaf-first
  * ordering). Used by `SupabaseTodosService.permanentDeleteTodo` to delete
  * children before their parent, satisfying the composite FK
  * `ON DELETE NO ACTION` constraint introduced in migration 0009

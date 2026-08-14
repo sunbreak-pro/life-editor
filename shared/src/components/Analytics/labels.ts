@@ -21,7 +21,7 @@ export interface AnalyticsLabels {
 
   tabs: {
     overview: string;
-    tasks: string;
+    todos: string;
     schedule: string;
     work: string;
   };
@@ -40,7 +40,7 @@ export interface AnalyticsLabels {
 
   /** Work tab summary stat-card labels. */
   workTime: string;
-  taskWorkTime: string;
+  todoWorkTime: string;
   totalWorkTime: string;
   sessions: string;
   avgPerDay: string;
@@ -51,7 +51,7 @@ export interface AnalyticsLabels {
   emptyMobile: { title: string; description: string };
 
   overview: {
-    tasks: string;
+    todos: string;
     events: string;
     notes: string;
     work: string;
@@ -67,7 +67,7 @@ export interface AnalyticsLabels {
   todayCard: {
     title: string;
     workTime: string;
-    completedTasks: string;
+    completedTodos: string;
     pomodoroCount: string;
   };
 
@@ -117,17 +117,17 @@ export interface AnalyticsLabels {
     noSessions: string;
   };
 
-  taskTrend: {
+  todoTrend: {
     title: string;
     completedCount: string;
   };
 
   stagnation: {
     title: string;
-    tasks: string;
+    todos: string;
   };
 
-  /** Tasks tab — work time split by life-tag (successor of the folder ring). */
+  /** Todos tab — work time split by life-tag (successor of the folder ring). */
   tagTime: {
     title: string;
     noData: string;

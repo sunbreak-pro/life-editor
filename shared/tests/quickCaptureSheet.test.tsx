@@ -17,24 +17,24 @@ import { QuickCaptureSheet, type QuickCaptureLabels } from "../src/components";
 const LABELS: QuickCaptureLabels = {
   typeLabel: "Item type",
   typeEvent: "Event",
-  typeTask: "Task",
+  typeTodo: "Todo",
   typeNote: "Note",
   title: "Title",
   eventPlaceholder: "Event title",
-  taskPlaceholder: "Task title",
+  todoPlaceholder: "Todo title",
   date: "Date",
   startTime: "Start",
   endTime: "End",
   addEvent: "Add",
   addEventAndOpen: "Add and edit",
-  addTask: "Add task",
-  placeTask: "Place",
+  addTodo: "Add todo",
+  placeTodo: "Place",
   sourceLabel: "How to add",
   sourceNew: "New",
   sourceExisting: "From existing",
-  searchTasks: "Search tasks",
-  taskPickerEmpty: "No unscheduled tasks",
-  taskPickerNoMatch: "No matching tasks",
+  searchTodos: "Search todos",
+  todoPickerEmpty: "No unscheduled todos",
+  todoPickerNoMatch: "No matching todos",
   noteTitleLabel: "Note title",
   notePlaceholder: "Note title placeholder",
   searchNotes: "Search notes",
@@ -48,8 +48,8 @@ const LABELS: QuickCaptureLabels = {
 function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
-  const onCreateTask = vi.fn();
-  const onPlaceTask = vi.fn();
+  const onCreateTodo = vi.fn();
+  const onPlaceTodo = vi.fn();
   const onClose = vi.fn();
   render(
     <QuickCaptureSheet
@@ -57,12 +57,12 @@ function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
       onClose={onClose}
       sheetTitle="Add item"
       closeLabel="Close"
-      existingTasks={[{ id: "task-1", title: "Draft the invoice" }]}
+      existingTodos={[{ id: "task-1", title: "Draft the invoice" }]}
       existingNotes={[{ id: "note-1", title: "Standup minutes" }]}
       onSubmitEvent={onSubmitEvent}
       onSubmitEventAndOpen={onSubmitEventAndOpen}
-      onCreateTask={onCreateTask}
-      onPlaceTask={onPlaceTask}
+      onCreateTodo={onCreateTodo}
+      onPlaceTodo={onPlaceTodo}
       labels={LABELS}
       {...props}
     />,
@@ -70,8 +70,8 @@ function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
   return {
     onSubmitEvent,
     onSubmitEventAndOpen,
-    onCreateTask,
-    onPlaceTask,
+    onCreateTodo,
+    onPlaceTodo,
     onClose,
   };
 }
@@ -110,14 +110,14 @@ describe("QuickCaptureSheet", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith("Gym", "19:00", "20:30", null);
   });
 
-  it("reaches the task tab too — Mobile gets the same panel as Desktop (#376)", () => {
-    const { onCreateTask } = renderSheet();
-    fireEvent.click(screen.getByText("Task"));
-    fireEvent.change(screen.getByPlaceholderText("Task title"), {
+  it("reaches the todo tab too — Mobile gets the same panel as Desktop (#376)", () => {
+    const { onCreateTodo } = renderSheet();
+    fireEvent.click(screen.getByText("Todo"));
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "Groceries" },
     });
-    fireEvent.click(screen.getByText("Add task"));
-    expect(onCreateTask).toHaveBeenCalledWith(
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
       "Groceries",
       "09:00",
       "10:00",

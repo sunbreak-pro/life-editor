@@ -20,7 +20,7 @@ import { FOCUS_RING } from "../styleTokens";
  */
 
 /*
- * Title field. Mirrors NoteTitleInput / TaskTitleInput debounce-and-flush
+ * Title field. Mirrors NoteTitleInput / TodoTitleInput debounce-and-flush
  * exactly: a local draft, a 300ms debounced persist, an immediate flush on
  * blur, and a final flush on unmount. The parent remounts this via
  * `key={noteId}` so a note switch re-seeds the draft cleanly. The key

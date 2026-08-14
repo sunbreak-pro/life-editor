@@ -44,7 +44,7 @@ const EXISTING = {
   updatedAt: "2026-08-10T00:00:00.000Z",
 } as ScheduleItem;
 
-/** An unscheduled leaf task — the pool the "existing task" source offers. */
+/** An unscheduled leaf todo — the pool the "existing todo" source offers. */
 const UNPLACED = {
   id: "t-free",
   type: "task",
@@ -138,7 +138,7 @@ describe("Briefing create panel (#623)", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("creates a task scheduled into today's window", async () => {
+  it("creates a todo scheduled into today's window", async () => {
     const ds = makeDS();
     renderScreen(ds);
     await openPanel();
@@ -151,12 +151,12 @@ describe("Briefing create panel (#623)", () => {
     const node = vi.mocked(ds.createTodo).mock.calls[0][0];
     expect(node.title).toBe("Write the deck");
     expect(node.scheduledAt?.slice(0, 10)).toBe(TODAY);
-    // A task given a concrete window is not an all-day candidate.
+    // A todo given a concrete window is not an all-day candidate.
     expect(node.isAllDay).toBe(false);
     expect(await screen.findByText("Write the deck")).toBeTruthy();
   });
 
-  it("places an existing task into today", async () => {
+  it("places an existing todo into today", async () => {
     const ds = makeDS();
     renderScreen(ds);
     await openPanel();

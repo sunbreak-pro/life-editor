@@ -2,13 +2,13 @@
  * The `public.items_meta` row shape — shared by all 5 roles.
  *
  * DU-A (migration 0008) made items_meta the authority row for every item
- * (task / event / routine / note / daily) with one `<role>_payload` row
+ * (todo / event / routine / note / daily) with one `<role>_payload` row
  * beside it. The shape below is therefore role-independent, and every role
  * mapper aliases it rather than keeping a byte-identical copy.
  *
- * It used to live in `todoMapper.ts` because Tasks was the first domain
+ * It used to live in `todoMapper.ts` because Todos was the first domain
  * ported, which left the other four mappers importing a *shared* type from
- * the *Tasks* module — a dependency that reads as "Notes depend on Tasks"
+ * the *Todos* module — a dependency that reads as "Notes depend on Todos"
  * and is not true (#670 C3 PR 2). Role-scoped aliases
  * (`ITEMS_META_TASK_COLUMNS` and friends) stay in their own mappers, so
  * query call sites keep their role-scoped names.

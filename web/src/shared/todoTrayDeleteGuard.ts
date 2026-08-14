@@ -4,7 +4,7 @@ import type { ConfirmRequest, TodoNode } from "@life-editor/shared";
 /*
  * Guard for the Todo tray's one-click delete (#573, a #555 follow-up).
  *
- * Tray rows come from todayTaskChips with no leaf filter, and softDelete
+ * Tray rows come from todayTodoChips with no leaf filter, and softDelete
  * cascades through the subtree (useTodoTreeDeletion) — so a parent row
  * deleted from the tray silently took its children with it. Neither recovery
  * route holds the line: the undo stack clears when the section unmounts, and
@@ -19,17 +19,17 @@ import type { ConfirmRequest, TodoNode } from "@life-editor/shared";
  * all (#775 = there was no delete there). Both routes share the subtree count
  * so the two questions can never disagree about how many rows are going.
  *
- * Pure data, for the same reason as taskChipPanel.ts: CalendarTab needs the
+ * Pure data, for the same reason as todoChipPanel.ts: CalendarTab needs the
  * whole Provider stack plus real layout to render, so anything decided inside
  * it is invisible to every test we can afford to run. Pinned in
  * web/tests/todoTrayDeleteGuard.test.ts.
  *
  * #790 moved it out of schedule/ and into this host-neutral folder (NOT the
  * @life-editor/shared package — this is web's own). It had stayed under
- * schedule/ while tasks/ imported across the section boundary, which #786 left
+ * schedule/ while todos/ imported across the section boundary, which #786 left
  * deliberately: a parallel lane was editing schedule/ and the move would have
  * collided for no gain. Two sections ask this question now, so neither owns it,
- * and someone tidying schedule/ can no longer break Tasks by moving a file that
+ * and someone tidying schedule/ can no longer break Todos by moving a file that
  * looks local.
  */
 

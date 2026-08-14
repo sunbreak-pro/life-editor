@@ -122,7 +122,7 @@ const ASSIGNMENT = {
   tag_id: "tag-1",
   updated_at: "2026-08-01T09:00:00Z",
 };
-const TASK_ITEM = { id: "task-1", role: "task", title: "実装する" };
+const TODO_ITEM = { id: "task-1", role: "task", title: "実装する" };
 const DAILY_ITEM = {
   id: "daily-2026-08-10",
   role: "daily",
@@ -138,7 +138,7 @@ describe("one call answers what three used to", () => {
         connection("note-1", "task-1"),
         connection("daily-2026-08-10", "note-1"),
       ],
-      items: [TASK_ITEM, DAILY_ITEM],
+      items: [TODO_ITEM, DAILY_ITEM],
     });
 
     const context = await getNoteContext({ id: "note-1" });
@@ -160,7 +160,7 @@ describe("one call answers what three used to", () => {
         assignedAt: "2026-08-01T09:00:00Z",
       },
     ]);
-    expect(context.links).toEqual([TASK_ITEM]);
+    expect(context.links).toEqual([TODO_ITEM]);
     expect(context.backlinks).toEqual([DAILY_ITEM]);
   });
 
@@ -170,7 +170,7 @@ describe("one call answers what three used to", () => {
         connection("note-1", "task-1"),
         connection("daily-2026-08-10", "note-1"),
       ],
-      items: [TASK_ITEM, DAILY_ITEM],
+      items: [TODO_ITEM, DAILY_ITEM],
     });
 
     const context = await getNoteContext({ id: "note-1" });
@@ -198,14 +198,14 @@ describe("one call answers what three used to", () => {
   it("stops at the neighbour's identity", async () => {
     install({
       connections: [connection("note-1", "task-1")],
-      items: [TASK_ITEM],
+      items: [TODO_ITEM],
     });
 
     const context = await getNoteContext({ id: "note-1" });
 
     // Exactly id/role/title — a body or a tag list here would make the result
     // grow with the graph instead of with the note.
-    expect(context.links[0]).toEqual(TASK_ITEM);
+    expect(context.links[0]).toEqual(TODO_ITEM);
     // Nothing was read on the neighbour's behalf: one payload read (this
     // note's) and one assignment read (this note's tags).
     expect(stub.calls.filter((c) => c.table === "notes_payload")).toHaveLength(
@@ -236,18 +236,18 @@ describe("a link to something that is no longer there", () => {
       ],
       // Soft delete leaves the edge alone, so the connection row outlives its
       // target and only items_meta knows the target is gone.
-      items: [TASK_ITEM],
+      items: [TODO_ITEM],
     });
 
     const context = await getNoteContext({ id: "note-1" });
 
-    expect(context.links).toEqual([TASK_ITEM]);
+    expect(context.links).toEqual([TODO_ITEM]);
   });
 
   it("reads live items only when resolving them", async () => {
     install({
       connections: [connection("note-1", "task-1")],
-      items: [TASK_ITEM],
+      items: [TODO_ITEM],
     });
 
     await getNoteContext({ id: "note-1" });

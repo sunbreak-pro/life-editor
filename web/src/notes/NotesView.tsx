@@ -287,7 +287,7 @@ export function NotesView({
             itemId={selected.id}
             resolveTitle={linking.resolveTitle}
             // The same cross-role pool the body's "[[" menu searches, so both
-            // pickers offer the same items — and the panel can name a Task /
+            // pickers offer the same items — and the panel can name a Todo /
             // Daily target instead of falling back to an id fragment (#749).
             loadTargets={linking.loadLinkTargets}
             // Row clicks reuse the "[[" navigation route (#475): the shell
@@ -338,7 +338,7 @@ export function NotesView({
   // — every selectable row is a note with a body.
   //
   // Main-content toolbar (#302): "+ Add Note" lives at the main-content
-  // top-right — same accent pill + position sense as the Tasks board toolbar.
+  // top-right — same accent pill + position sense as the Todos board toolbar.
   // Always present so a new note can be made with nothing selected.
   const desktopMain = (
     <>

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { TOOLS } from "../src/tools.js";
 import {
-  formatTask,
-  formatTaskListEntry,
-} from "../src/handlers/taskHandlers.js";
+  formatTodo,
+  formatTodoListEntry,
+} from "../src/handlers/todoHandlers.js";
 import {
   formatNote,
   formatNoteListEntry,
@@ -15,10 +15,10 @@ import type { NotesPayloadRow } from "../src/handlers/noteHandlers.js";
 /*
  * What a list result costs, and whether a body can be read back (#702 ①).
  *
- * `list_tasks` / `list_notes` used to return every item's whole TipTap JSON
+ * `list_todos` / `list_notes` used to return every item's whole TipTap JSON
  * body. Asking "what is on my plate" therefore cost the entire collection's
  * content in one answer, and the JSON that came back could not be handed to
- * update_task / update_note (those take Markdown) — the two problems this
+ * update_todo / update_note (those take Markdown) — the two problems this
  * chunk removes together.
  *
  * These are the pieces that can be checked without Supabase: the formatters
@@ -41,7 +41,7 @@ const doc = (text: string) => ({
   content: [{ type: "paragraph", content: [{ type: "text", text }] }],
 });
 
-const TASK_PAYLOAD = {
+const TODO_PAYLOAD = {
   item_id: "task-1",
   parent_item_id: null,
   task_type: "task" as const,
@@ -64,8 +64,8 @@ const NOTE_PAYLOAD: NotesPayloadRow = {
 };
 
 describe("list entries carry a preview, not the body", () => {
-  it("omits the task body by default and previews it instead", () => {
-    const entry = formatTaskListEntry(META, TASK_PAYLOAD, false);
+  it("omits the todo body by default and previews it instead", () => {
+    const entry = formatTodoListEntry(META, TODO_PAYLOAD, false);
 
     expect(entry).not.toHaveProperty("content");
     expect(entry).not.toHaveProperty("contentText");
@@ -82,38 +82,38 @@ describe("list entries carry a preview, not the body", () => {
 
   it("caps the preview so one long item cannot dominate a page", () => {
     const long = {
-      ...TASK_PAYLOAD,
+      ...TODO_PAYLOAD,
       content: JSON.stringify(doc("あ".repeat(500))),
     };
-    expect(formatTaskListEntry(META, long, false).contentPreview).toHaveLength(
+    expect(formatTodoListEntry(META, long, false).contentPreview).toHaveLength(
       PREVIEW_LENGTH,
     );
   });
 
   it("returns the body only when the caller asks for it", () => {
-    const entry = formatTaskListEntry(META, TASK_PAYLOAD, true);
+    const entry = formatTodoListEntry(META, TODO_PAYLOAD, true);
 
-    expect(entry).toHaveProperty("content", TASK_PAYLOAD.content);
+    expect(entry).toHaveProperty("content", TODO_PAYLOAD.content);
     expect(entry).toHaveProperty("contentText", "牛乳と卵を買う");
     // Still previewed: include_content adds to the entry, never replaces it.
     expect(entry.contentPreview).toBe("牛乳と卵を買う");
   });
 
   it("previews an empty body as an empty string rather than null", () => {
-    const empty = { ...TASK_PAYLOAD, content: null };
-    expect(formatTaskListEntry(META, empty, false).contentPreview).toBe("");
+    const empty = { ...TODO_PAYLOAD, content: null };
+    expect(formatTodoListEntry(META, empty, false).contentPreview).toBe("");
   });
 });
 
 describe("a single-item read can be written back", () => {
-  it("gives get_task the plain text update_task accepts", () => {
-    const task = formatTask(META, TASK_PAYLOAD);
+  it("gives get_todo the plain text update_todo accepts", () => {
+    const todo = formatTodo(META, TODO_PAYLOAD);
 
     // The stored body stays available for callers that render TipTap …
-    expect(task.content).toBe(TASK_PAYLOAD.content);
-    // … but the round trip runs through the plain text, since update_task
+    expect(todo.content).toBe(TODO_PAYLOAD.content);
+    // … but the round trip runs through the plain text, since update_todo
     // takes Markdown and would bury raw JSON in the document as literal text.
-    expect(task.contentText).toBe("牛乳と卵を買う");
+    expect(todo.contentText).toBe("牛乳と卵を買う");
   });
 
   it("gives get_note the plain text update_note accepts", () => {
@@ -129,7 +129,7 @@ describe("the published schemas say so", () => {
   const props = (name: string) =>
     (tool(name)?.inputSchema.properties ?? {}) as Record<string, unknown>;
 
-  it.each(["list_tasks", "list_notes"])(
+  it.each(["list_todos", "list_notes"])(
     "%s offers include_content and limit",
     (name) => {
       expect(props(name)).toHaveProperty("include_content");
@@ -137,7 +137,7 @@ describe("the published schemas say so", () => {
     },
   );
 
-  it.each(["list_tasks", "list_notes"])(
+  it.each(["list_todos", "list_notes"])(
     "%s tells the caller the result is previewed and capped",
     (name) => {
       const description = tool(name)?.description ?? "";

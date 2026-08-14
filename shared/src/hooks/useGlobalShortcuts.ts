@@ -21,7 +21,7 @@ import { isImeComposing } from "../utils/imeGuard";
  *
  * Callbacks are injected per CLAUDE.md §6.4 (no getDataService / no
  * useTranslation inside shared hooks). Every handler is optional — an
- * unmapped intent is a no-op (new-task landed in W3-B; undo / redo route
+ * unmapped intent is a no-op (new-todo landed in W3-B; undo / redo route
  * through the app-level global UndoRedo stack, #304).
  */
 
@@ -31,8 +31,8 @@ export interface GlobalShortcutHandlers {
   onTogglePalette?: () => void;
   /** global:settings — open the Settings section. */
   onOpenSettings?: () => void;
-  /** global:new-task — start a new task (W3-B: Materials + create dialog). */
-  onNewTask?: () => void;
+  /** global:new-task — start a new todo (W3-B: Materials + create dialog). */
+  onNewTodo?: () => void;
   /**
    * nav:* — the host navigates wherever the pressed binding points. The
    * argument is the ShortcutId itself, NOT a destination: where `nav:tasks`
@@ -174,7 +174,7 @@ export function useGlobalShortcuts(
   const {
     onTogglePalette,
     onOpenSettings,
-    onNewTask,
+    onNewTodo,
     onNavigate,
     onUndo,
     onRedo,
@@ -209,9 +209,9 @@ export function useGlobalShortcuts(
           onOpenSettings();
           return;
         case "global:new-task":
-          if (!onNewTask) return;
+          if (!onNewTodo) return;
           e.preventDefault();
-          onNewTask();
+          onNewTodo();
           return;
         case "edit:undo":
           if (!onUndo) return;
@@ -232,7 +232,7 @@ export function useGlobalShortcuts(
     shortcutConfig,
     onTogglePalette,
     onOpenSettings,
-    onNewTask,
+    onNewTodo,
     onNavigate,
     onUndo,
     onRedo,

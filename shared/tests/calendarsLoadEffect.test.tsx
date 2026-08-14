@@ -119,7 +119,7 @@ describe("useCalendarsAPI load effect (#672)", () => {
     renderHook(() => useCalendarsAPI({ dataService: ds }), { wrapper });
     await waitFor(() => expect(fetchCalendars).toHaveBeenCalledTimes(1));
 
-    // A note edit or a task edit must not re-pull the calendar list (#499).
+    // A note edit or a todo edit must not re-pull the calendar list (#499).
     act(() => {
       sync.bump("notes");
       sync.bump("todos");

@@ -244,7 +244,7 @@ life-editor/
 7. **RLS ポリシー**: `auth.uid() = user_id` で自分のデータのみアクセス可能に
 8. **shared/ 雛形**: `shared/src/services/DataService.ts` を `frontend/src/services/DataService.ts` からコピー
 9. **`shared/src/services/SupabaseDataService.ts`**: tasks 用最小実装
-10. **本格 Supabase スキーマ**: 既存 SQLite から Tasks / Schedule / Notes / Daily / WikiTags の Postgres スキーマを起こす
+10. **本格 Supabase スキーマ**: 既存 SQLite から Todos / Schedule / Notes / Daily / WikiTags の Postgres スキーマを起こす
 11. **データ移行スクリプト**: 既存 SQLite データを Supabase へ移す 1 回限りスクリプト（任意、Phase 2 序盤でも可）
 
 #### 影響ファイル
@@ -256,7 +256,7 @@ life-editor/
 | `shared/src/services/DataService.ts`         | コピー    | frontend/ から interface のみ                   |
 | `shared/src/services/SupabaseDataService.ts` | 新規      | Postgres 実装                                   |
 | `supabase/migrations/0001_initial.sql`       | 新規      | tasks のみ                                      |
-| `supabase/migrations/0002_full_schema.sql`   | 新規      | Tasks / Schedule / Notes / Daily / WikiTags     |
+| `supabase/migrations/0002_full_schema.sql`   | 新規      | Todos / Schedule / Notes / Daily / WikiTags     |
 | `scripts/migrate-sqlite-to-supabase.ts`      | 任意      | データ移行（不要なら作らない）                  |
 | `frontend/`, `src-tauri/`                    | 触らない  | 並立期間は維持（`cloud/` は 2026-06-28 撤去済） |
 
@@ -274,12 +274,12 @@ life-editor/
 
 ### Phase 2 — コア機能のフロントエンド移植
 
-ゴール: 既存 `frontend/src/` の **Tauri 非依存コンポーネント** を `shared/src/` に移し、Tasks / Schedule / Notes / Daily / WikiTags が Supabase 上で動作。
+ゴール: 既存 `frontend/src/` の **Tauri 非依存コンポーネント** を `shared/src/` に移し、Todos / Schedule / Notes / Daily / WikiTags が Supabase 上で動作。
 
 #### 着手順序（小さい順）
 
-1. **Tasks**: 最も成熟、TaskTree + DnD。Provider 経由で Supabase に寄せる
-2. **Daily**: 単一テーブル、UPSERT 中心。Tasks の次に簡単
+1. **Todos**: 最も成熟、TodoTree + DnD。Provider 経由で Supabase に寄せる
+2. **Daily**: 単一テーブル、UPSERT 中心。Todos の次に簡単
 3. **Notes**: TipTap + 階層。中規模
 4. **Schedule**: Routine + ScheduleItems + CalendarTags の 3 分割。最大
 5. **WikiTags**: relation テーブル。Tag アサインの move
@@ -303,7 +303,7 @@ life-editor/
 
 #### Phase 2 完了判定
 
-- [x] Tasks / Schedule / Notes / Daily / WikiTags の CRUD が `web/` で動く
+- [x] Todos / Schedule / Notes / Daily / WikiTags の CRUD が `web/` で動く
 - [x] PC + Mobile の両方でレイアウトが崩れない（モバイル目視の残りは design fan-out 実装レーンへ）
 - [x] Supabase Realtime 経由で他タブからの変更が反映される
 - [x] オフライン時にバナーが表示される
@@ -314,7 +314,7 @@ life-editor/
 
 **完了済 Phase**:
 
-- DU-A (DB スキーマ) / DU-B (Tasks) / DU-C (Events+Routine) / DU-C+ (CalendarTag DROP + shared WikiTagUnified 層) / DU-D (Notes/Daily 2-row mapper + composite FK) / **DU-F (WikiTag/Link UI 4 role + wiki_tag_groups UI + CalendarTag 死削除)** ✅ 2026-05-24
+- DU-A (DB スキーマ) / DU-B (Todos) / DU-C (Events+Routine) / DU-C+ (CalendarTag DROP + shared WikiTagUnified 層) / DU-D (Notes/Daily 2-row mapper + composite FK) / **DU-F (WikiTag/Link UI 4 role + wiki_tag_groups UI + CalendarTag 死削除)** ✅ 2026-05-24
 
 **残作業**:
 
@@ -339,7 +339,7 @@ life-editor/
 - [ ] `desktop/src/renderer/` から `shared/` を import して mount
 - [ ] `electron-builder.yml`: macOS / Windows / Linux 3 ターゲット
 - [ ] macOS .dmg / Windows NSIS / Linux AppImage がビルドできる（**未署名**、$0）
-- [ ] 起動 → ログイン → Tasks 操作の golden path 通過確認(macOS 実機)
+- [ ] 起動 → ログイン → Todos 操作の golden path 通過確認(macOS 実機)
 - [ ] Windows / Linux は GitHub Actions のビルド成否のみ確認（友達 PC 配布は完成後）
 
 > **2026-08-01 進捗 (#529)**: Windows NSIS はローカル実測で green（Windows 11 実機・`npm run build:win` exit 0・アイコンは `resources/icon.png` から build 時に .ico 自動変換）。CI には desktop ジョブ（typecheck + electron-vite build）を追加 — electron-builder のフルパッケージングは NSIS が ubuntu ランナーで動かず OS 別ランナーは分数コスト非対応のため CI では回さない（= 「CI ビルド green」の判定対象は typecheck + bundle まで）。Windows 実起動・golden path は #530（chat-main）で確認
@@ -415,7 +415,7 @@ life-editor/
 
 #### Phase 5 完了判定 = **完成**
 
-- [ ] terminal-division から Life Editor MCP 経由で Tasks 操作可能（⚠️ Terminal 退役 2026-07-05 — 導線再設計後に再定義）
+- [ ] terminal-division から Life Editor MCP 経由で Todos 操作可能（⚠️ Terminal 退役 2026-07-05 — 導線再設計後に再定義）
 - [ ] electron-updater で auto-update が GitHub Releases から流れる
 - [x] Web URL が公開されている（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`）
 - [x] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない（2026-07-11 #197 — 3 ツリーとも削除済み。旧 build.yml / .ignore / loop-engine check.sh の残存参照も同時整理）

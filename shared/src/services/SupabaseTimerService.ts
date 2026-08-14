@@ -119,12 +119,12 @@ export class SupabaseTimerService implements TimerDataService {
 
   async startTimerSession(
     sessionType: SessionType,
-    taskId?: string,
+    todoId?: string,
   ): Promise<TimerSession> {
     const startedAt = new Date().toISOString();
     const insert = newTimerSessionInsert(
       sessionType,
-      taskId ?? null,
+      todoId ?? null,
       startedAt,
     );
     const data = await requireSingleRow<TimerSessionRow>(
@@ -192,17 +192,17 @@ export class SupabaseTimerService implements TimerDataService {
     return rows.map(rowToTimerSession);
   }
 
-  async fetchSessionsByTaskId(taskId: string): Promise<TimerSession[]> {
+  async fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]> {
     const rows = await fetchAllPages<TimerSessionRow>(
       (from, to) =>
         this.client
           .from("timer_sessions")
           .select(TIMER_SESSION_COLUMNS)
-          .eq("task_id", taskId)
+          .eq("task_id", todoId)
           .order("started_at", { ascending: false })
           .order("id")
           .range(from, to),
-      "fetchSessionsByTaskId failed",
+      "fetchSessionsByTodoId failed",
     );
     return rows.map(rowToTimerSession);
   }
@@ -277,7 +277,7 @@ export const PHASE2_TIMER_METHOD_NAMES = [
   "endTimerSession",
   "endTimerSessionWithLabel",
   "fetchTimerSessions",
-  "fetchSessionsByTaskId",
+  "fetchSessionsByTodoId",
   "fetchPomodoroPresets",
   "createPomodoroPreset",
   "updatePomodoroPreset",

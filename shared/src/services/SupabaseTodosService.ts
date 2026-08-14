@@ -90,7 +90,7 @@ export class SupabaseTodosService implements TodosDataService {
 
   /**
    * Read all live todos. Two SELECTs (items_meta then tasks_payload)
-   * joined in-app: the role=task filter and the explicit shape match
+   * joined in-app: the role=todo filter and the explicit shape match
    * keep query intent reviewable, and a missing payload row (R2
    * orphan) is silently dropped from the result so a half-born row
    * never surfaces in the UI. The orphan is still detectable via the

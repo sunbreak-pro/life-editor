@@ -9,7 +9,7 @@ import type { NoteNode } from "../types/note";
  *
  * sortByDepthDesc lives in utils/ keyed to TodoNode; rather than
  * generalising it (out of scope), the depth walk is implemented here
- * against the Note pool. Cycle guards mirror the task-tree pattern
+ * against the Note pool. Cycle guards mirror the todo-tree pattern
  * (known-issue 016).
  */
 export function orderNotePurge(pool: NoteNode[], id: string): string[] {

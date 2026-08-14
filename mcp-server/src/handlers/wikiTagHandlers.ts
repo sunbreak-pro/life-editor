@@ -388,19 +388,19 @@ export async function searchByTag(args: {
   if (metaById.size === 0) return { tag: formatTag(tag), results: [] };
 
   // Per-role payload details, mirroring the columns the legacy handler
-  // surfaced (task: status/schedule, daily: date, note: meta only).
+  // surfaced (todo: status/schedule, daily: date, note: meta only).
   const ids = [...metaById.keys()];
-  const taskIds = ids.filter((id) => metaById.get(id)?.role === "task");
+  const todoIds = ids.filter((id) => metaById.get(id)?.role === "task");
   const dailyIds = ids.filter((id) => metaById.get(id)?.role === "daily");
 
-  const [taskDetail, dailyDetail] = await Promise.all([
+  const [todoDetail, dailyDetail] = await Promise.all([
     (async () => {
       const map = new Map<string, Record<string, unknown>>();
       const rows = await fetchByIdChunks<{
         item_id: string;
         status: string | null;
         scheduled_at: string | null;
-      }>(taskIds, async (chunk) => {
+      }>(todoIds, async (chunk) => {
         const { data, error } = await client
           .from("tasks_payload")
           .select("item_id, status, scheduled_at")
@@ -451,7 +451,7 @@ export async function searchByTag(args: {
         id: meta.id,
         title: meta.title,
         createdAt: meta.created_at,
-        ...(taskDetail.get(meta.id) ?? {}),
+        ...(todoDetail.get(meta.id) ?? {}),
         ...(dailyDetail.get(meta.id) ?? {}),
       },
     });

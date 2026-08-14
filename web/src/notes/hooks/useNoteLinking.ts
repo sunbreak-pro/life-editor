@@ -27,7 +27,7 @@ export function useNoteLinking({
   onPendingSelected?: (id: string) => void;
 }) {
   const notes = useNotesUnifiedContext();
-  // "[[" → item_links, shared with Tasks and Daily (#776). The edge write and
+  // "[[" → item_links, shared with Todos and Daily (#776). The edge write and
   // the save-time delete-sync live there; this host only names itself for the
   // console and hands both callbacks to its body editors.
   const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("NotesView");
@@ -43,9 +43,9 @@ export function useNoteLinking({
     return n.title || undefined;
   };
 
-  // Cross-domain item pool (notes + dailies + tasks). Feeds BOTH the editor's
+  // Cross-domain item pool (notes + dailies + todos). Feeds BOTH the editor's
   // "[[" autocomplete and — since #749 — the LinkPanel's search picker, which
-  // is why a Note→Task link can now be made and read by title. A loader, not a
+  // is why a Note→Todo link can now be made and read by title. A loader, not a
   // list: nothing is fetched until a surface actually opens (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
 

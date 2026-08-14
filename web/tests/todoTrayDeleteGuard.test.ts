@@ -7,12 +7,12 @@ import {
 import type { TodoNode } from "@life-editor/shared";
 
 /*
- * #573 — the confirm-before-cascade guard for the Todo tray / task-chip
+ * #573 — the confirm-before-cascade guard for the Todo tray / todo-chip
  * bubble delete. The verdict under test: only rows with LIVE descendants ask,
  * and the count they ask with is the whole subtree, not just direct children.
  */
 
-function task(id: string, parentId: string | null, title = id): TodoNode {
+function todo(id: string, parentId: string | null, title = id): TodoNode {
   return {
     id,
     type: "task",
@@ -24,11 +24,11 @@ function task(id: string, parentId: string | null, title = id): TodoNode {
 }
 
 const TREE: TodoNode[] = [
-  task("root", null, "Pack for the trip"),
-  task("child-a", "root"),
-  task("grandchild", "child-a"),
-  task("child-b", "root"),
-  task("leaf", null, "Water the plants"),
+  todo("root", null, "Pack for the trip"),
+  todo("child-a", "root"),
+  todo("grandchild", "child-a"),
+  todo("child-b", "root"),
+  todo("leaf", null, "Water the plants"),
 ];
 
 describe("todoTrayDeleteGuard", () => {
@@ -136,7 +136,7 @@ describe("confirmTodoDetailDelete", () => {
   it("stands in for an empty title rather than quoting nothing", async () => {
     const ask = vi.fn().mockResolvedValue(true);
     await confirmTodoDetailDelete(
-      [task("blank", null, "")],
+      [todo("blank", null, "")],
       "blank",
       ask,
       COPY,

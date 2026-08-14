@@ -77,17 +77,17 @@ export function BriefingScreen({
     remainingTodos,
     upcoming,
     handleToggleScheduleItem,
-    handleToggleTask,
-    handleSetTaskStatus,
+    handleToggleTodo,
+    handleSetTodoStatus,
     handleDeleteScheduleItem,
-    handleDeleteTask,
+    handleDeleteTodo,
     deleteScopeItem,
     handleDeleteScopeChoose,
     closeDeleteScope,
     noteOptions,
     handleCreateEvent,
-    handleCreateTask,
-    handlePlaceTask,
+    handleCreateTodo,
+    handlePlaceTodo,
     todoPlaced,
     todoUnplaced,
     todoAddable,
@@ -138,17 +138,17 @@ export function BriefingScreen({
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
-      tasksTitle: t("briefing.tasksTitle"),
-      noTasks: t("briefing.noTasks"),
+      todosTitle: t("briefing.todosTitle"),
+      noTodos: t("briefing.noTodos"),
       vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
       edit: t("briefing.edit"),
       delete: t("briefing.delete"),
       deleteScheduleHint: t("briefing.deleteScheduleHint"),
-      deleteTaskHint: t("briefing.deleteTaskHint"),
+      deleteTodoHint: t("briefing.deleteTodoHint"),
       jumpToSchedule: t("briefing.jumpToSchedule"),
-      jumpToTasks: t("briefing.jumpToTasks"),
+      jumpToTodos: t("briefing.jumpToTodos"),
     }),
     [t, intentionCaption],
   );
@@ -166,8 +166,8 @@ export function BriefingScreen({
   );
   const trendLabels = useMemo(
     () => ({
-      title: t("analytics.taskTrend.title"),
-      completedCount: t("analytics.taskTrend.completedCount"),
+      title: t("analytics.todoTrend.title"),
+      completedCount: t("analytics.todoTrend.completedCount"),
     }),
     [t],
   );
@@ -201,13 +201,13 @@ export function BriefingScreen({
         : t("materials.daily.unsaved"),
       todosTitle: t("briefing.evening.todosTitle"),
       noTodos: t("briefing.evening.noTodos"),
-      // The three statuses are worded ONCE, in the Tasks section's own copy —
+      // The three statuses are worded ONCE, in the Todos section's own copy —
       // a briefing.* paraphrase of「未着手」would be a second vocabulary for
       // the same three values (#796).
-      todoStatus: t("taskDetail.status"),
-      statusNotStarted: t("taskDetail.statusNotStarted"),
-      statusInProgress: t("taskDetail.statusInProgress"),
-      statusDone: t("taskDetail.statusDone"),
+      todoStatus: t("todoDetail.status"),
+      statusNotStarted: t("todoDetail.statusNotStarted"),
+      statusInProgress: t("todoDetail.statusInProgress"),
+      statusDone: t("todoDetail.statusDone"),
       upcomingTitle: t("briefing.evening.upcomingTitle"),
       noUpcoming: t("briefing.evening.noUpcoming"),
       tomorrowTag: t("briefing.evening.tomorrowTag"),
@@ -255,11 +255,11 @@ export function BriefingScreen({
     () => ({
       typeLabel: t("scheduleScreen.itemTypeLabel"),
       typeEvent: t("scheduleScreen.typeEvent"),
-      typeTask: t("scheduleScreen.typeTask"),
+      typeTodo: t("scheduleScreen.typeTodo"),
       typeNote: t("scheduleScreen.typeNote"),
       title: t("scheduleScreen.title"),
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
-      taskPlaceholder: t("scheduleScreen.taskPlaceholder"),
+      todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
       date: t("scheduleScreen.date"),
       startTime: t("scheduleScreen.startTime"),
       endTime: t("scheduleScreen.endTime"),
@@ -268,11 +268,11 @@ export function BriefingScreen({
       sourceLabel: t("scheduleScreen.sourceLabel"),
       sourceNew: t("scheduleScreen.sourceNew"),
       sourceExisting: t("scheduleScreen.sourceExisting"),
-      addTask: t("scheduleScreen.addTask"),
-      placeTask: t("scheduleScreen.placeTask"),
-      searchTasks: t("scheduleScreen.searchTasks"),
-      taskPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
-      taskPickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
+      addTodo: t("scheduleScreen.addTodo"),
+      placeTodo: t("scheduleScreen.placeTodo"),
+      searchTodos: t("scheduleScreen.searchTodos"),
+      todoPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
+      todoPickerNoMatch: t("scheduleScreen.todoPickerNoMatch"),
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
       searchNotes: t("scheduleScreen.searchNotes"),
@@ -315,30 +315,30 @@ export function BriefingScreen({
     [handleCreateEvent, closeCreatePanel, onNavigate],
   );
 
-  const submitTask = useCallback(
+  const submitTodo = useCallback(
     (
       title: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      handleCreateTask(title, start, end, note);
+      handleCreateTodo(title, start, end, note);
       closeCreatePanel();
     },
-    [handleCreateTask, closeCreatePanel],
+    [handleCreateTodo, closeCreatePanel],
   );
 
-  const submitPlaceTask = useCallback(
+  const submitPlaceTodo = useCallback(
     (
-      taskId: string,
+      todoId: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      handlePlaceTask(taskId, start, end, note);
+      handlePlaceTodo(todoId, start, end, note);
       closeCreatePanel();
     },
-    [handlePlaceTask, closeCreatePanel],
+    [handlePlaceTodo, closeCreatePanel],
   );
 
   const todoTrayLabels = useMemo(
@@ -354,14 +354,14 @@ export function BriefingScreen({
       // Same action, same words as the paper's own rows — no near-duplicate
       // keys inside one namespace.
       complete: t("briefing.toggleComplete"),
-      openInTasks: t("briefing.jumpToTasks"),
+      openInTodos: t("briefing.jumpToTodos"),
       // Same three statuses the paper's rows show — the tray must not disagree
       // with the list it sits beside (#796).
-      status: t("taskDetail.status"),
+      status: t("todoDetail.status"),
       statusLabels: {
-        statusNotStarted: t("taskDetail.statusNotStarted"),
-        statusInProgress: t("taskDetail.statusInProgress"),
-        statusDone: t("taskDetail.statusDone"),
+        statusNotStarted: t("todoDetail.statusNotStarted"),
+        statusInProgress: t("todoDetail.statusInProgress"),
+        statusDone: t("todoDetail.statusDone"),
       },
     }),
     [t],
@@ -414,9 +414,9 @@ export function BriefingScreen({
           // and it appearing where it now lives is ONE act; naming the middle
           // of it「候補」made the tray describe its own bookkeeping.
           singleList
-          onToggleComplete={handleToggleTask}
-          onSetStatus={handleSetTaskStatus}
-          onOpenTask={() => onNavigate({ section: "schedule", tab: "todo" })}
+          onToggleComplete={handleToggleTodo}
+          onSetStatus={handleSetTodoStatus}
+          onOpenTodo={() => onNavigate({ section: "schedule", tab: "todo" })}
           onAddCandidate={handleAddTodoCandidate}
           labels={todoTrayLabels}
         />
@@ -435,12 +435,12 @@ export function BriefingScreen({
       <ItemCreatePanel
         key={todayKey}
         dateLabel={createDateLabel}
-        existingTasks={todoAddable}
+        existingTodos={todoAddable}
         existingNotes={noteOptions}
         onSubmitEvent={submitEvent}
         onSubmitEventAndOpen={submitEventAndOpen}
-        onCreateTask={submitTask}
-        onPlaceTask={submitPlaceTask}
+        onCreateTodo={submitTodo}
+        onPlaceTodo={submitPlaceTodo}
         formatDuration={formatDuration}
         labels={createPanelLabels}
       />
@@ -501,7 +501,7 @@ export function BriefingScreen({
           onIntentionChange={handleIntentionChange}
           onIntentionBlur={flushIntention}
           todos={remainingTodos}
-          onSetTodoStatus={handleSetTaskStatus}
+          onSetTodoStatus={handleSetTodoStatus}
           schedule={upcoming}
           labels={eveningLabels}
           tabSwitcher={tabSwitcher}
@@ -524,14 +524,14 @@ export function BriefingScreen({
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}
         onToggleScheduleItem={handleToggleScheduleItem}
-        onToggleTask={handleToggleTask}
+        onToggleTodo={handleToggleTodo}
         onDeleteScheduleItem={handleDeleteScheduleItem}
-        onDeleteTask={handleDeleteTask}
+        onDeleteTodo={handleDeleteTodo}
         onAddScheduleItem={openCreatePanel}
         onJumpToSchedule={() =>
           onNavigate({ section: "schedule", tab: "calendar" })
         }
-        onJumpToTasks={() => onNavigate({ section: "schedule", tab: "todo" })}
+        onJumpToTodos={() => onNavigate({ section: "schedule", tab: "todo" })}
         tabSwitcher={tabSwitcher}
       />
       {deleteScopeDialog}

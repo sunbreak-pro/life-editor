@@ -121,9 +121,9 @@ export function MobileAnalyticsView(
     const weekBars = aggregateByDay(sessions, 7);
     const weekMax = Math.max(...weekBars.map((b) => b.totalMinutes), 1);
 
-    // Tasks / notes / routine rate
-    const tasks = nodes.filter((n) => n.type === "task");
-    const completedTasks = tasks.filter((n) => n.status === "DONE").length;
+    // Todos / notes / routine rate
+    const todos = nodes.filter((n) => n.type === "task");
+    const completedTodos = todos.filter((n) => n.status === "DONE").length;
     const todayEventsCompleted = todayItems.filter((i) => i.completed).length;
     // #375: the `type === "note"` half of this filter went away with the
     // folder type (every NoteNode is a note now).
@@ -159,8 +159,8 @@ export function MobileAnalyticsView(
       weekCompleted,
       weekBars,
       weekMax,
-      totalTasks: tasks.length,
-      completedTasks,
+      totalTodos: todos.length,
+      completedTodos,
       todayEvents: todayItems.length,
       todayEventsCompleted,
       totalNotes: activeNotes.length,
@@ -219,7 +219,7 @@ export function MobileAnalyticsView(
             />
             <MiniCol
               value={String(model.completedToday)}
-              label={labels.todayCard.completedTasks}
+              label={labels.todayCard.completedTodos}
             />
             <MiniCol
               value={String(model.pomodoroCount)}
@@ -306,9 +306,9 @@ export function MobileAnalyticsView(
         {/* Stat 2×2 */}
         <div className="grid grid-cols-2 gap-3">
           <StatBox
-            value={model.totalTasks}
-            label={labels.overview.tasks}
-            subtitle={`${model.completedTasks} ${labels.overview.completed}`}
+            value={model.totalTodos}
+            label={labels.overview.todos}
+            subtitle={`${model.completedTodos} ${labels.overview.completed}`}
           />
           <StatBox
             value={model.todayEvents}

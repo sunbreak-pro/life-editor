@@ -13,7 +13,7 @@ import { useCalendarNav } from "../src/schedule/useCalendarNav";
  * any markup.
  *
  * CalendarTab itself needs the whole Provider chain to render, which is why
- * this pins the hook (same arrangement as taskChipUndoWiring / unsavedClose).
+ * this pins the hook (same arrangement as todoChipUndoWiring / unsavedClose).
  * jsdom has no layout, so nothing here depends on a coordinate.
  */
 

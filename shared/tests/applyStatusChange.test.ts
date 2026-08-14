@@ -5,7 +5,7 @@ import type { TodoNodeType, TodoNode, TodoStatus } from "../src/types/todoTree";
 
 /*
  * applyStatusChange DONE-sink reorder (life-tags S3 #225 follow-up). Promised
- * coverage that previously had none: when a task's status changes, its
+ * coverage that previously had none: when a todo's status changes, its
  * same-parent siblings are re-ordered so DONE items sink below the incomplete
  * ones, and the resulting `order` fields are a dense 0..n-1 sequence.
  *
@@ -14,7 +14,7 @@ import type { TodoNodeType, TodoNode, TodoStatus } from "../src/types/todoTree";
  * persistWithHistory callback receives the updated nodes).
  */
 
-function task(
+function todo(
   id: string,
   order: number,
   status: TodoStatus,
@@ -51,11 +51,11 @@ function lastPersisted(persistWithHistory: {
 }
 
 describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
-  it("moves a newly-DONE task below its NOT_STARTED / IN_PROGRESS siblings", () => {
+  it("moves a newly-DONE todo below its NOT_STARTED / IN_PROGRESS siblings", () => {
     const nodes = [
-      task("a", 0, "NOT_STARTED"),
-      task("b", 1, "NOT_STARTED"),
-      task("c", 2, "IN_PROGRESS"),
+      todo("a", 0, "NOT_STARTED"),
+      todo("b", 1, "NOT_STARTED"),
+      todo("c", 2, "IN_PROGRESS"),
     ];
     const { result, persistWithHistory } = setup(nodes);
 
@@ -71,11 +71,11 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
     expect(persisted.map((n) => n.order).sort()).toEqual([0, 1, 2]);
   });
 
-  it("lifts a task back above the DONE ones when it leaves DONE", () => {
+  it("lifts a todo back above the DONE ones when it leaves DONE", () => {
     const nodes = [
-      task("a", 0, "NOT_STARTED"),
-      task("b", 1, "DONE"),
-      task("c", 2, "DONE"),
+      todo("a", 0, "NOT_STARTED"),
+      todo("b", 1, "DONE"),
+      todo("c", 2, "DONE"),
     ];
     const { result, persistWithHistory } = setup(nodes);
 
@@ -91,10 +91,10 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
 
   it("only reorders within the same parent (subtask groups are independent)", () => {
     const nodes = [
-      task("p", 0, "NOT_STARTED"),
-      task("s1", 0, "NOT_STARTED", "p"),
-      task("s2", 1, "NOT_STARTED", "p"),
-      task("root2", 1, "NOT_STARTED"),
+      todo("p", 0, "NOT_STARTED"),
+      todo("s1", 0, "NOT_STARTED", "p"),
+      todo("s2", 1, "NOT_STARTED", "p"),
+      todo("root2", 1, "NOT_STARTED"),
     ];
     const { result, persistWithHistory } = setup(nodes);
 
@@ -110,7 +110,7 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
   });
 
   it("no-ops when the status is unchanged", () => {
-    const nodes = [task("a", 0, "DONE")];
+    const nodes = [todo("a", 0, "DONE")];
     const { result, persistWithHistory } = setup(nodes);
 
     act(() => result.current.setTodoStatus("a", "DONE"));

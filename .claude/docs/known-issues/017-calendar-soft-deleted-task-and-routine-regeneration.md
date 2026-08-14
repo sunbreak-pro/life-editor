@@ -40,6 +40,6 @@
 ## Lessons Learned
 
 - 「表示が消えない」系バグは **(a) 取得 filter の欠落** と **(b) 生成器の冪等性破れ** の 2 方向を必ず両方疑う。片方だけ直すと別経路で再発する。
-- ソフトデリート対象テーブル（CLAUDE.md §4.4: Tasks/Notes/Dailies/Routines/Databases/Templates）の派生ビュー（カレンダー / 集計 / by-date）は、status だけでなく **`is_deleted` を必ず filter 条件に含める**。新規 by-date / by-range hook 追加時のチェックポイント。
+- ソフトデリート対象テーブル（CLAUDE.md §4.4: Todos/Notes/Dailies/Routines/Databases/Templates）の派生ビュー（カレンダー / 集計 / by-date）は、status だけでなく **`is_deleted` を必ず filter 条件に含める**。新規 by-date / by-range hook 追加時のチェックポイント。
 - 親エンティティ削除時は **派生生成物（Routine → schedule_items 等）の cascade 掃除**を同一トランザクション意図で行う。表示のたびに走る生成器（`ensureXxxForDateRange`）は「無ければ作る」ので、掃除漏れは無限復活になる。
 - 検索キーワード: `tasksByDate` `is_deleted` `ensureRoutineItemsForDateRange` calendar ghost soft-delete regeneration

@@ -121,7 +121,7 @@ type Mismatch<Iface, Names extends string> =
 
 // One assertion per routed domain. Each name is exported so the failure
 // surfaces at a named declaration rather than inside an unused local.
-export type TasksRoutingIsExact = AssertNever<
+export type TodosRoutingIsExact = AssertNever<
   Mismatch<TodosDataService, TodosMethodName>
 >;
 export type TimerRoutingIsExact = AssertNever<
@@ -192,7 +192,7 @@ export type DataServiceIsFullyRouted = AssertNever<
  */
 export const PHASE2_ROUTING_DOMAINS = [
   {
-    domain: "tasks",
+    domain: "todos",
     names: PHASE2_TODOS_METHOD_NAMES,
     methods: PHASE2_TODOS_METHODS,
     service: SupabaseTodosService,

@@ -11,7 +11,7 @@ import { useShellNavigation } from "../src/hooks/useShellNavigation";
  * Pinned at the hook rather than through MainScreen: the shell needs the entire
  * Provider chain to render, and what can actually break here is the ORDER —
  * a navigation that moved first and asked afterwards, or a pending intent
- * (new-task / "[[" jump) raised even though the move was refused.
+ * (new-todo / "[[" jump) raised even though the move was refused.
  */
 
 beforeEach(() => {
@@ -93,23 +93,23 @@ describe("useShellNavigation — the leave guard (#753)", () => {
     expect(result.current.materialsTab).toBe("daily");
   });
 
-  it("raises the new-task intent only once the move is agreed", async () => {
+  it("raises the new-todo intent only once the move is agreed", async () => {
     const guard = deferredGuard();
     const { result } = renderHook(() =>
       useShellNavigation({ confirmLeave: guard.confirmLeave }),
     );
 
-    act(() => result.current.handleNewTask());
+    act(() => result.current.handleNewTodo());
     // A refused jump that still raised the flag would open the create dialog
     // the next time the user went to Todos of their own accord.
-    expect(result.current.pendingNewTask).toBe(false);
+    expect(result.current.pendingNewTodo).toBe(false);
 
     await guard.answer(false);
-    expect(result.current.pendingNewTask).toBe(false);
+    expect(result.current.pendingNewTodo).toBe(false);
 
-    act(() => result.current.handleNewTask());
+    act(() => result.current.handleNewTodo());
     await guard.answer(true);
-    await waitFor(() => expect(result.current.pendingNewTask).toBe(true));
+    await waitFor(() => expect(result.current.pendingNewTodo).toBe(true));
     expect(result.current.scheduleTab).toBe("todo");
   });
 

@@ -39,7 +39,7 @@ describe("applyRepeatFilter", () => {
   });
 
   it("keeps rows whose routineId is null or absent", () => {
-    // A manual event carries null; a task chip / partial row carries neither.
+    // A manual event carries null; a todo chip / partial row carries neither.
     // Both are one-offs and must survive — only a routine origin hides a row.
     const { visible, hiddenCount } = applyRepeatFilter(
       [{ id: "a", routineId: null }, { id: "b" }],
@@ -212,30 +212,30 @@ describe("pickSelectableCalendars", () => {
 });
 
 /*
- * #468 N1: the lens has to cover BOTH layers the grid stacks. Task chips carry
- * the same life-tags and a chip's id is the task's items_meta.id, so filtering
- * only the schedule rows leaves every task on screen — a lens with a hole in
+ * #468 N1: the lens has to cover BOTH layers the grid stacks. Todo chips carry
+ * the same life-tags and a chip's id is the todo's items_meta.id, so filtering
+ * only the schedule rows leaves every todo on screen — a lens with a hole in
  * it, and a chip count that describes a different screen than the one you get.
  */
 describe("applyCalendarLens", () => {
   // task-1 carries tag-work directly; task-2 carries nothing.
-  const taskChips = [{ id: "task-1" }, { id: "task-2" }];
-  const withTasks = [...assignments, { itemId: "task-1", tagId: "tag-work" }];
-  const work = buildCalendarMemberIds(withTasks, "tag-work");
+  const todoChips = [{ id: "task-1" }, { id: "task-2" }];
+  const withTodos = [...assignments, { itemId: "task-1", tagId: "tag-work" }];
+  const work = buildCalendarMemberIds(withTodos, "tag-work");
 
-  it("narrows task chips with the same membership set as the rows", () => {
-    const lens = applyCalendarLens(rows, taskChips, work);
+  it("narrows todo chips with the same membership set as the rows", () => {
+    const lens = applyCalendarLens(rows, todoChips, work);
     expect(lens.events.map((r) => r.id)).toEqual(["si-1", "si-2"]);
-    expect(lens.taskChips.map((c) => c.id)).toEqual(["task-1"]);
+    expect(lens.todoChips.map((c) => c.id)).toEqual(["task-1"]);
   });
 
-  it("folds the dropped task chips into the single hidden count", () => {
-    const lens = applyCalendarLens(rows, taskChips, work);
-    // 2 rows + 1 task chip. A count that only knew about the rows would say 2
+  it("folds the dropped todo chips into the single hidden count", () => {
+    const lens = applyCalendarLens(rows, todoChips, work);
+    // 2 rows + 1 todo chip. A count that only knew about the rows would say 2
     // while 3 things went missing.
     expect(lens.hiddenCount).toBe(3);
     expect(lens.hiddenCount).toBe(
-      rows.length + taskChips.length - lens.visibleCount,
+      rows.length + todoChips.length - lens.visibleCount,
     );
   });
 
@@ -244,15 +244,15 @@ describe("applyCalendarLens", () => {
     // same call, so this holds for every calendar in the ledger, not just the
     // selected one.
     for (const tagId of ["tag-work", "tag-home", "tag-unused"]) {
-      const members = buildCalendarMemberIds(withTasks, tagId);
+      const members = buildCalendarMemberIds(withTodos, tagId);
       const chipCount = applyCalendarLens(
         rows,
-        taskChips,
+        todoChips,
         members,
       ).visibleCount;
-      const afterClick = applyCalendarLens(rows, taskChips, members);
+      const afterClick = applyCalendarLens(rows, todoChips, members);
       expect(chipCount).toBe(
-        afterClick.events.length + afterClick.taskChips.length,
+        afterClick.events.length + afterClick.todoChips.length,
       );
     }
   });
@@ -262,7 +262,7 @@ describe("applyCalendarLens", () => {
     // there too — counting over the unfiltered rows would advertise rows the
     // repeat filter has already taken away.
     const repeat = applyRepeatFilter(rows, true);
-    const lens = applyCalendarLens(repeat.visible, taskChips, work);
+    const lens = applyCalendarLens(repeat.visible, todoChips, work);
     expect(lens.events.map((r) => r.id)).toEqual(["si-2"]);
     expect(lens.visibleCount).toBe(2); // si-2 + task-1
     expect(lens.hiddenCount).toBe(2); // si-3 + task-2
@@ -272,18 +272,18 @@ describe("applyCalendarLens", () => {
     // What `isWide === false` produces: passing null un-narrows every layer at
     // once, so a window narrowed below the breakpoint cannot strand a filter
     // whose only off-switch lives in the Desktop chip row.
-    const lens = applyCalendarLens(rows, taskChips, null);
+    const lens = applyCalendarLens(rows, todoChips, null);
     expect(lens.events).toBe(rows);
-    expect(lens.taskChips).toBe(taskChips);
+    expect(lens.todoChips).toBe(todoChips);
     expect(lens.hiddenCount).toBe(0);
-    expect(lens.visibleCount).toBe(rows.length + taskChips.length);
+    expect(lens.visibleCount).toBe(rows.length + todoChips.length);
   });
 
   it("empties both layers for a calendar that owns nothing", () => {
-    const lens = applyCalendarLens(rows, taskChips, new Set<string>());
+    const lens = applyCalendarLens(rows, todoChips, new Set<string>());
     expect(lens.events).toEqual([]);
-    expect(lens.taskChips).toEqual([]);
+    expect(lens.todoChips).toEqual([]);
     expect(lens.visibleCount).toBe(0);
-    expect(lens.hiddenCount).toBe(rows.length + taskChips.length);
+    expect(lens.hiddenCount).toBe(rows.length + todoChips.length);
   });
 });

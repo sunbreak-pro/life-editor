@@ -10,7 +10,7 @@
  * while letting the charts stay behind the lazy boundary.
  */
 
-export type AnalyticsTab = "overview" | "tasks" | "work" | "schedule";
+export type AnalyticsTab = "overview" | "todos" | "work" | "schedule";
 
 /*
  * Canonical tab order (SSOT). Shared by the shell's tab band and the view's
@@ -18,7 +18,7 @@ export type AnalyticsTab = "overview" | "tasks" | "work" | "schedule";
  */
 export const ANALYTICS_TAB_ORDER: readonly AnalyticsTab[] = [
   "overview",
-  "tasks",
+  "todos",
   "work",
   "schedule",
 ];

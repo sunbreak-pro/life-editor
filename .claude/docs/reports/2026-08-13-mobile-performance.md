@@ -59,7 +59,7 @@ gzip 値はすべて `gzip -c <file> | wc -c`（level 6）で自前計測。vite
 
 - `web/src/briefing/BriefingScreen.tsx:22`
 - `web/src/daily/DailyView.tsx:43`
-- `web/src/tasks/KanbanView.tsx:69`
+- `web/src/todos/KanbanView.tsx:69`
 
 この 3 画面は `web/src/sectionDescriptors.tsx:14-19` で静的 import されている（`BriefingScreen` は :16、`DailyView` は :15、`KanbanView` は `ScheduleScreen` :17 経由）。
 `NotesView` を `lazy()` にしても、同じ TipTap を別の 3 経路が eager に引いているため、初回ダウンロードから出ていかない。
@@ -172,8 +172,8 @@ gzip 値はすべて `gzip -c <file> | wc -c`（level 6）で自前計測。vite
 
 - `web/src/notes/NoteListRows.tsx:48` — ノート行ごとに `useDraggable`
 - `web/src/notes/NoteListRows.tsx:158` — タグ見出しごとに `useDroppable`
-- `web/src/tasks/KanbanCardDraggable.tsx:28` — カードごとに `useSortable`
-- `web/src/tasks/KanbanColumnDroppable.tsx:36,40` — 列ごとに `useDroppable` + `SortableContext`
+- `web/src/todos/KanbanCardDraggable.tsx:28` — カードごとに `useSortable`
+- `web/src/todos/KanbanColumnDroppable.tsx:36,40` — 列ごとに `useDroppable` + `SortableContext`
 
 N 行 = N 個の dnd 登録であり、DndContext 側は登録の集合を保持する。行を増やすほど登録コストとドラッグ中の再計算が増える。
 

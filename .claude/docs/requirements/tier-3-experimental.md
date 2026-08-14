@@ -64,7 +64,7 @@
 
 ### Dependencies
 
-- 他機能: Tasks / Timer / Schedule（データ源）/ Cognitive Architecture（将来の分析データ源）
+- 他機能: Todos / Timer / Schedule（データ源）/ Cognitive Architecture（将来の分析データ源）
 
 ---
 
@@ -98,7 +98,7 @@
 
 **Tier**: 3
 **Status**: ×未着手（構想のみ）
-**Verdict**: **凍結（2026-07-14 路線変更）** — アプリ内蔵連携・一時検討した「Claude 側ミラー」案とも当面しない。「本日の Todo」はアプリ内の Task で完結させる。**再開条件 = 朝刊（Briefing）ループが安定運用に入った後、ユーザーが改めて望んだ場合のみ**（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md` §5 決定 7。旧 Verdict「ICS 購読を短期 Phase 1 として予定」は SUPERSEDED）
+**Verdict**: **凍結（2026-07-14 路線変更）** — アプリ内蔵連携・一時検討した「Claude 側ミラー」案とも当面しない。「本日の Todo」はアプリ内の Todo で完結させる。**再開条件 = 朝刊（Briefing）ループが安定運用に入った後、ユーザーが改めて望んだ場合のみ**（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md` §5 決定 7。旧 Verdict「ICS 購読を短期 Phase 1 として予定」は SUPERSEDED）
 **Owner Provider/Module**: 未実装
 
 ### Boundary

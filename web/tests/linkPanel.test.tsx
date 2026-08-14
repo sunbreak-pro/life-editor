@@ -7,7 +7,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
  *   1. ADD BY TITLE. The former input took an `items_meta.id`, so linking to
  *      anything meant knowing its id. The picker filters the cross-role pool by
  *      title and hands `createItemLink` the id behind the row the user chose —
- *      including for roles the Notes context cannot see (a Task).
+ *      including for roles the Notes context cannot see (a Todo).
  *   2. OPEN A LINK. Rows were a <span> / an <li>; a click did nothing. They are
  *      buttons now and emit the same `{ id, role }` navigation intent a "[["
  *      link click emits (#475).

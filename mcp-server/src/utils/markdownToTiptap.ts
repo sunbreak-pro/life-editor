@@ -191,21 +191,21 @@ export function markdownToTiptap(text: string): TipTapDoc {
       continue;
     }
 
-    // Task list: - [ ] or - [x]
-    const taskMatch = line.match(/^- \[([ xX])\] /);
-    if (taskMatch) {
-      const taskItems: TipTapNode[] = [];
+    // Todo list: - [ ] or - [x]
+    const todoMatch = line.match(/^- \[([ xX])\] /);
+    if (todoMatch) {
+      const todoItems: TipTapNode[] = [];
       while (i < lines.length) {
         const tm = lines[i].match(/^- \[([ xX])\] (.*)$/);
         if (!tm) break;
-        taskItems.push({
+        todoItems.push({
           type: "taskItem",
           attrs: { checked: tm[1] !== " " },
           content: [paragraphWithInline(tm[2])],
         });
         i++;
       }
-      content.push({ type: "taskList", content: taskItems });
+      content.push({ type: "taskList", content: todoItems });
       continue;
     }
 

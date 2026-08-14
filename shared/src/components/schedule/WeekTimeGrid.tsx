@@ -130,7 +130,7 @@ export interface WeekTimeGridProps {
    * false keeps the A-1 read-only semantics; the callbacks still decide
    * whether any block moves at all.
    */
-  taskInteractive?: boolean;
+  todoInteractive?: boolean;
   /** Snap granularity in minutes for create/move/resize. Default 30. */
   snapMinutesStep?: number;
   /** Default duration (minutes) of an event created via empty-slot click. Default 60. */
@@ -196,7 +196,7 @@ const defaultFormatNowLabel = minutesToTime;
 /**
  * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
  * inner left band is rendered separately); event (default) = 紫 face + border;
- * task = blue face (a CheckSquare glyph is rendered separately, #593). Every
+ * todo = blue face (a CheckSquare glyph is rendered separately, #593). Every
  * variant carries a non-hue cue — band / border / glyph — so provenance never
  * relies on hue alone.
  */
@@ -224,7 +224,7 @@ export function WeekTimeGrid({
   onMoveItem,
   onResizeItem,
   onDropAllDay,
-  taskInteractive = false,
+  todoInteractive = false,
   snapMinutesStep = DEFAULT_SNAP_MINUTES,
   defaultCreateDuration = 60,
   hourRange = [0, 24],
@@ -439,12 +439,12 @@ export function WeekTimeGrid({
                 >
                   {allDay.map((it) => {
                     const selected = it.id === selectedId;
-                    // A-3 (#298): an all-day task chip can be dragged down into
-                    // the time body to gain a start time (only task chips, only
-                    // when the host opts in via taskInteractive + onMoveItem).
+                    // A-3 (#298): an all-day todo chip can be dragged down into
+                    // the time body to gain a start time (only todo chips, only
+                    // when the host opts in via todoInteractive + onMoveItem).
                     // Events/routines in the lane have no drag at all.
                     const placeable =
-                      it.variant === "task" && taskInteractive && !!onMoveItem;
+                      it.variant === "task" && todoInteractive && !!onMoveItem;
                     return (
                       <button
                         key={it.id}
@@ -466,7 +466,7 @@ export function WeekTimeGrid({
                         // used to be dropped for placeable ones alongside
                         // onClick, but a drag never produces a dblclick, so all
                         // that suppressed was the keyboard-free route to the
-                        // detail surface — the all-day task chip's only one.
+                        // detail surface — the all-day todo chip's only one.
                         onDoubleClick={() => onItemDoubleClick?.(it.id)}
                         onContextMenu={
                           onItemContextMenu
@@ -589,11 +589,11 @@ export function WeekTimeGrid({
                   const selected = it.id === selectedId;
                   const widthPct = 100 / p.columns;
                   const variant = it.variant ?? "event";
-                  // A-1 made task chips read-only; A-2 (#297) opts them back in
-                  // via `taskInteractive` so a drag writes scheduledAt. Events/
+                  // A-1 made todo chips read-only; A-2 (#297) opts them back in
+                  // via `todoInteractive` so a drag writes scheduledAt. Events/
                   // routines are always movable when the callback is present.
                   const interactiveVariant =
-                    variant !== "task" || taskInteractive;
+                    variant !== "task" || todoInteractive;
                   const movable = !!onMoveItem && interactiveVariant;
                   return (
                     <button
@@ -652,8 +652,8 @@ export function WeekTimeGrid({
                             strokeWidth={2.5}
                           />
                         )}
-                        {/* Task provenance (#593): CheckSquare — the nav's
-                            Todos mark — as the task counterpart of the
+                        {/* Todo provenance (#593): CheckSquare — the nav's
+                            Todos mark — as the todo counterpart of the
                             routine's Repeat. Static (not a completion state:
                             done already reads via line-through). */}
                         {variant === "task" && (
@@ -682,7 +682,7 @@ export function WeekTimeGrid({
                         )}
                       </span>
                       {/* Resize handle (bottom edge) — only when host opts in.
-                          Task chips resize only when taskInteractive (A-2). */}
+                          Todo chips resize only when todoInteractive (A-2). */}
                       {onResizeItem && interactiveVariant && (
                         <span
                           aria-hidden

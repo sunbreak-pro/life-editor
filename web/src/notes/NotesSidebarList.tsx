@@ -360,7 +360,7 @@ export function NotesSidebarList({
        * master now lives in the app shell's left sidebar (above ⌘K), reachable
        * from every section including this one. Two doors to the same panel is
        * one too many, and the panel's scope outgrew this sidebar anyway — it
-       * lists items of every kind (tasks / events / notes / dailies), so
+       * lists items of every kind (todos / events / notes / dailies), so
        * presenting it as a Notes feature misdescribed it.
        */}
     </div>

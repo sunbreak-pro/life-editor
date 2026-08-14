@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   PomodoroTimer,
-  PomodoroTaskSelector,
-  PomodoroTaskSheet,
+  PomodoroTodoSelector,
+  PomodoroTodoSheet,
   PomodoroSettings,
   SessionCompletionModal,
   AudioMixer,
@@ -16,7 +16,7 @@ import {
   SOUND_PRESETS,
   cn,
   type DataService,
-  type TaskOption,
+  type TodoOption,
   type TimerPhase,
   type AudioMixerSound,
   WIDE_QUERY,
@@ -27,12 +27,12 @@ import { X, ChevronDown } from "lucide-react";
  * Web Work tab host (target-IA import). Mounts inside the TimerProvider (wired
  * in MainScreen) and reads useTimerContext, then feeds the pure shared Pomodoro
  * primitives with t()-resolved copy (§6.4 — primitives never call
- * useTranslation). It fetches the (leaf, non-deleted) task list from the
+ * useTranslation). It fetches the (leaf, non-deleted) todo list from the
  * injected DataService for the picker — the same "hosts may call getDataService"
  * allowance TrashScreen uses (§6.4).
  *
  * Layout (isWide = min-width 768px):
- *  - Desktop → three cards (timer / task / ambient) stacked. ALL the section
+ *  - Desktop → three cards (timer / todo / ambient) stacked. ALL the section
  *    chrome belongs to the shell (Layout Standard v2 adoption, #590): the
  *    standard <SectionHeader> in AppShell's header slot carries the title
  *    (section.work) + divider + rightSidebar toggle, and MainScreen's
@@ -44,7 +44,7 @@ import { X, ChevronDown } from "lucide-react";
  *    the timer runs), which under v2 §4 opens BELOW the header's divider.
  *  - Mobile  → the header slot is wide-only, so below 768px there is no title
  *    row at all (v2 non-goal: mobile unchanged): a single fullscreen timer
- *    face; the task chip opens a BottomSheet picker; the settings editor is
+ *    face; the todo chip opens a BottomSheet picker; the settings editor is
  *    reached through the shell's left drawer (the same portal), opened from
  *    MainScreen's hamburger row. The ambient mixer is Desktop-only.
  *
@@ -78,8 +78,8 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   const isWide = useMediaQuery(WIDE_QUERY, true);
   // Optional (Mobile 省略 Provider) — null when no AudioProvider mounted.
   const audio = useAudioContext();
-  const [tasks, setTasks] = useState<TaskOption[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [todos, setTodos] = useState<TodoOption[]>([]);
+  const [todosLoading, setTodosLoading] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
 
@@ -94,7 +94,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   );
 
   useEffect(() => {
-    // tasksLoading starts true (useState) so the initial fetch shows the
+    // todosLoading starts true (useState) so the initial fetch shows the
     // skeleton; the async .finally clears it. We avoid a synchronous
     // setState(true) here (react-hooks/set-state-in-effect) — a re-fetch on
     // ds change simply keeps the (still-valid) list visible until it resolves.
@@ -106,13 +106,13 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         const options = nodes
           .filter((n) => n.type === "task" && !n.isDeleted)
           .map((n) => ({ id: n.id, title: n.title || t("common.untitled") }));
-        setTasks(options);
+        setTodos(options);
       })
       .catch(() => {
-        if (!cancelled) setTasks([]);
+        if (!cancelled) setTodos([]);
       })
       .finally(() => {
-        if (!cancelled) setTasksLoading(false);
+        if (!cancelled) setTodosLoading(false);
       });
     return () => {
       cancelled = true;
@@ -150,9 +150,9 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     [timer.totalSeconds],
   );
 
-  const handleSelectTask = useCallback(
-    (task: TaskOption | null) => {
-      timer.setActiveTask(task);
+  const handleSelectTodo = useCallback(
+    (todo: TodoOption | null) => {
+      timer.setActiveTodo(todo);
     },
     [timer],
   );
@@ -185,13 +185,13 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   const completionTitle = t("work.completion.title", {
     index: timer.completedSessions,
   });
-  const completionBody = timer.activeTask
+  const completionBody = timer.activeTodo
     ? t("work.completion.body", {
         minutes: timer.workDurationMinutes,
-        task: timer.activeTask.title,
+        todo: timer.activeTodo.title,
         breakMinutes,
       })
-    : t("work.completion.bodyNoTask", {
+    : t("work.completion.bodyNoTodo", {
         minutes: timer.workDurationMinutes,
         breakMinutes,
       });
@@ -209,7 +209,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     sessionsProgress,
   };
 
-  const timerFace = (variant: "card" | "fullscreen", taskSlot?: ReactNode) => (
+  const timerFace = (variant: "card" | "fullscreen", todoSlot?: ReactNode) => (
     <PomodoroTimer
       variant={variant}
       phase={timer.phase}
@@ -219,7 +219,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       progress={timer.progress}
       sessions={sessions}
       labels={timerLabels}
-      taskSlot={taskSlot}
+      todoSlot={todoSlot}
       onStart={timer.start}
       onPause={timer.pause}
       onReset={timer.reset}
@@ -275,15 +275,15 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     </div>
   );
 
-  // Mobile task slot: the chip (selected) or a "choose a task" button that
+  // Mobile todo slot: the chip (selected) or a "choose a todo" button that
   // opens the BottomSheet picker.
-  const mobileTaskSlot = timer.activeTask ? (
+  const mobileTodoSlot = timer.activeTodo ? (
     <span className="inline-flex max-w-full items-center gap-2 rounded-lumen-md bg-lumen-chip-task-bg py-2 pl-3.5 pr-2.5 text-sm font-medium text-lumen-chip-task-fg">
-      <span className="truncate">{timer.activeTask.title}</span>
+      <span className="truncate">{timer.activeTodo.title}</span>
       <button
         type="button"
-        aria-label={t("work.taskSelector.clear")}
-        onClick={() => handleSelectTask(null)}
+        aria-label={t("work.todoSelector.clear")}
+        onClick={() => handleSelectTodo(null)}
         className="inline-flex shrink-0 items-center justify-center rounded p-0.5 hover:opacity-70"
       >
         <X size={14} aria-hidden="true" />
@@ -295,7 +295,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       onClick={() => setSheetOpen(true)}
       className="inline-flex items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-medium text-lumen-text-secondary hover:bg-lumen-hover"
     >
-      {t("work.taskSelector.select")}
+      {t("work.todoSelector.select")}
       <ChevronDown size={15} aria-hidden="true" />
     </button>
   );
@@ -327,20 +327,20 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   if (!isWide) {
     return (
       <div className="flex flex-col">
-        {timerFace("fullscreen", mobileTaskSlot)}
+        {timerFace("fullscreen", mobileTodoSlot)}
         <RightSidebarPortal>{settingsPanel}</RightSidebarPortal>
-        <PomodoroTaskSheet
+        <PomodoroTodoSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
-          tasks={tasks}
-          selectedId={timer.activeTask?.id ?? null}
+          todos={todos}
+          selectedId={timer.activeTodo?.id ?? null}
           labels={{
-            title: t("work.taskSelector.select"),
+            title: t("work.todoSelector.select"),
             close: t("common.close"),
-            clearSelection: t("work.taskSelector.clearSelection"),
-            emptyHint: t("work.taskSelector.emptyHint"),
+            clearSelection: t("work.todoSelector.clearSelection"),
+            emptyHint: t("work.todoSelector.emptyHint"),
           }}
-          onSelect={handleSelectTask}
+          onSelect={handleSelectTodo}
         />
         {completionModal}
       </div>
@@ -354,18 +354,18 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     // new header row cannot double up with it.
     <div className="flex flex-col gap-6">
       {timerFace("card")}
-      <PomodoroTaskSelector
-        tasks={tasks}
-        selectedId={timer.activeTask?.id ?? null}
-        loading={tasksLoading}
+      <PomodoroTodoSelector
+        todos={todos}
+        selectedId={timer.activeTodo?.id ?? null}
+        loading={todosLoading}
         labels={{
-          heading: t("work.taskSelector.heading"),
-          placeholder: t("work.taskSelector.placeholder"),
-          clear: t("work.taskSelector.clear"),
-          emptyHint: t("work.taskSelector.emptyHint"),
-          menuLabel: t("work.taskSelector.heading"),
+          heading: t("work.todoSelector.heading"),
+          placeholder: t("work.todoSelector.placeholder"),
+          clear: t("work.todoSelector.clear"),
+          emptyHint: t("work.todoSelector.emptyHint"),
+          menuLabel: t("work.todoSelector.heading"),
         }}
-        onSelect={handleSelectTask}
+        onSelect={handleSelectTodo}
       />
       {/*
        * Ambient mixer (W3-C). Desktop/web-only per mobile-scope.md #11 (#320):

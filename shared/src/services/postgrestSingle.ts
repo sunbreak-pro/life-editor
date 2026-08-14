@@ -25,7 +25,7 @@
  * own worded error, some fall back to a default.
  *
  * Also NOT folded in: SupabaseItemConversionService's two read-backs. They
- * `Promise.all` a maybeSingle PAIR (plus, in convertTaskToEvent, a third
+ * `Promise.all` a maybeSingle PAIR (plus, in convertTodoToEvent, a third
  * child-existence query) and answer a missing row with a typed
  * ItemConversionError rather than null. Routing them through `requireRowPair`
  * would either drop the third query out of the same parallel batch or need a

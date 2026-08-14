@@ -26,7 +26,7 @@ CLAUDE.md §8 Feature Tier Map の詳細版。各機能の Purpose / Boundary / 
 
 **Tier**: 1 | 2 | 3
 **Status**: ◎完成 / ○基本完成 / △基盤のみ / ×未着手
-**Owner Provider/Module**: 例 `TaskTreeProvider` / `shared/src/services/SupabaseDataService.ts`（旧例の `src-tauri/` は 2026-07-11 削除済み #197）
+**Owner Provider/Module**: 例 `TodoTreeProvider` / `shared/src/services/SupabaseDataService.ts`（旧例の `src-tauri/` は 2026-07-11 削除済み #197）
 **MCP Coverage**: 対応ツール名一覧 / —
 **Supports Value Prop**: V1 / V2 / V3（CLAUDE.md §1 参照）
 

@@ -6,7 +6,7 @@
 
 ```
 Loading  → 初回データ取得中、まだ表示するものが何もない
-Empty    → 取得成功、ただし結果ゼロ件 (Tasks 0, Notes 0 等)
+Empty    → 取得成功、ただし結果ゼロ件 (Todos 0, Notes 0 等)
 Error    → 取得失敗 / IPC 失敗 / 例外
 Idle     → データあり、通常表示
 ```
@@ -22,7 +22,7 @@ Claude は Idle だけを書きがち。**4 状態すべてを設計してから
 | Error   | 原因 1 行 + リトライ操作 + 詳細ログは consol e のみ                             | スタックトレースを画面に出す                     |
 | Idle    | データ + ホバー / focus / DnD のフィードバック                                  | 状態フィードバック無しの static な見た目         |
 
-### 例: Tasks リストの 4 状態
+### 例: Todos リストの 4 状態
 
 ```tsx
 function TaskList({ tasks, status, error, onRetry }: Props) {

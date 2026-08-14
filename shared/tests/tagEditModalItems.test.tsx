@@ -14,7 +14,7 @@ import { TAG_LABELS, TAG_ROLE_LABELS, selectTagRow } from "./tagEditLabels";
 /*
  * #409 — the tag editor's per-tag item list. The panel is app-global, so the
  * tag being edited discloses the items carrying it and each row states its KIND
- * (task / event / note / daily) and can be detached.
+ * (todo / event / note / daily) and can be detached.
  *
  * #740 moved that list out from under a count-pill disclosure and into the
  * editor column: the right side is already about one tag, so its memberships
@@ -200,7 +200,7 @@ describe("item-kind display contract (#409, shared with #412)", () => {
   });
 
   it("falls back to the unknown label outside the set", () => {
-    expect(itemRoleLabel("task", TAG_ROLE_LABELS)).toBe("Task");
+    expect(itemRoleLabel("task", TAG_ROLE_LABELS)).toBe("Todo");
     expect(itemRoleLabel("routine", TAG_ROLE_LABELS)).toBe("Other");
     expect(itemRoleLabel(null, TAG_ROLE_LABELS)).toBe("Other");
   });

@@ -11,7 +11,7 @@ export {
   type BriefingData,
   type BriefingLabels,
   type BriefingScheduleEntry,
-  type BriefingTaskEntry,
+  type BriefingTodoEntry,
   type BriefingCarryoverEntry,
 } from "./BriefingView";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";

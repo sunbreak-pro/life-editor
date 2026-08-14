@@ -29,12 +29,12 @@ PG の generated stored 列は INSERT/UPDATE 時の値指定を SQLSTATE 42601 �
 
 ## Fix / Workaround
 
-migration 0009 v3-rev2 で `ON DELETE NO ACTION` に確定（commit `ba1b6f1` / `9bbc377` 周辺）。caller (`SupabaseTasksService.permanentDeleteTask`) で `collectDescendantIds` + `sortByDepthDesc` を使い、子から順に DELETE する設計に。生成列 `parent_item_role` は SELECT 専用、write 用 TS 型 (`TasksPayloadWriteRow`) から `Omit` で除外して型レベル + ランタイム両方でガード。
+migration 0009 v3-rev2 で `ON DELETE NO ACTION` に確定（commit `ba1b6f1` / `9bbc377` 周辺）。caller (`SupabaseTodosService.permanentDeleteTodo`) で `collectDescendantIds` + `sortByDepthDesc` を使い、子から順に DELETE する設計に。生成列 `parent_item_role` は SELECT 専用、write 用 TS 型 (`TasksPayloadWriteRow`) から `Omit` で除外して型レベル + ランタイム両方でガード。
 
 ## References
 
 - 関連ファイル: `supabase/migrations/0009_tasks_payload_parent_fk.sql`
-- 関連実装: `shared/src/services/SupabaseDataService.ts:permanentDeleteTask` / `shared/src/utils/sortByDepthDesc.ts`
+- 関連実装: `shared/src/services/SupabaseDataService.ts:permanentDeleteTodo` / `shared/src/utils/sortByDepthDesc.ts`
 - 関連 mapper 規約: `.claude/docs/vision/db-conventions.md §10.3 / §10.4`
 - 関連 plan: `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md` (DB-Q3 / R8)
 

@@ -191,7 +191,7 @@ describe("TrashScreen — permanent delete routes through the confirm dialog", (
 });
 
 describe("TrashScreen — the arguments the host derives before the call", () => {
-  it("labels a daily by its date and an untitled task by the fallback", async () => {
+  it("labels a daily by its date and an untitled todo by the fallback", async () => {
     await renderTrash();
     // Both come from the host's row mapping, and both are the label the
     // confirm dialog then quotes back — a wrong field silently deletes the

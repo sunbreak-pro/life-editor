@@ -228,7 +228,7 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
    * from live + trashed (a trashed root with trashed children must purge
    * in one call).
    *
-   * KNOWN LIMIT (#375, same as the Tasks side): the pool inherits the legacy
+   * KNOWN LIMIT (#375, same as the Todos side): the pool inherits the legacy
    * folder exclusion, so a legacy `note_type='folder'` row is invisible here
    * — it can be neither restored nor purged from the UI, and a subtree that
    * still hangs off one cannot be walked through it (the FK would reject the

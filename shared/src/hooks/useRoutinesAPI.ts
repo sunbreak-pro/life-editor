@@ -13,7 +13,7 @@ import { useSyncDomains } from "./useSyncDomains";
  * injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton → `options.dataService`
  * - host UndoRedo Context        → `options.undoRedo` (no-op default;
- *   real UndoRedo lands in S6, same as tasks/daily/notes)
+ *   real UndoRedo lands in S6, same as todos/daily/notes)
  *
  * Must sit inside a Sync Provider (reads `useSyncContext`) — CLAUDE.md
  * §6.2 places Routine after Sync and as the first of the Schedule trio

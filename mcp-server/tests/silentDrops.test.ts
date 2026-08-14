@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { TOOLS, callTool } from "../src/tools.js";
 import { unknownArgNames, type ObjectSchema } from "../src/utils/toolSchema.js";
-import { isLegacyFolder } from "../src/handlers/taskHandlers.js";
+import { isLegacyFolder } from "../src/handlers/todoHandlers.js";
 
 /*
  * The three ways a call used to succeed at the wrong thing (#702 ②).
  *
  * None of these ever raised. `list_schedule` answered for today when asked
- * for a week, `list_tasks` hid tasks whose `task_type` is NULL, and an
+ * for a week, `list_todos` hid todos whose `task_type` is NULL, and an
  * argument nobody declared went in and came back out with the result looking
  * unchanged. A wrong answer that announces itself costs one round trip; one
  * that looks right costs however long it takes to notice.
@@ -100,11 +100,11 @@ describe("schedule writes check their own formats", () => {
   });
 });
 
-describe("list_tasks agrees with get_task_tree about which tasks exist", () => {
+describe("list_todos agrees with get_todo_tree about which todos exist", () => {
   /*
-   * `list_tasks` filtered query-side with `.eq('task_type','task')`, which
+   * `list_todos` filtered query-side with `.eq('task_type','task')`, which
    * PostgREST also applies to NULL rows — and a NULL task_type IS a plain
-   * task (pre-#225 rows). `get_task_tree` has always excluded the retired
+   * todo (pre-#225 rows). `get_todo_tree` has always excluded the retired
    * folder type in-app, so the two tools disagreed. Both now sit on this one
    * predicate, which is why it is exported.
    */
@@ -112,33 +112,33 @@ describe("list_tasks agrees with get_task_tree about which tasks exist", () => {
     expect(isLegacyFolder({ task_type: "folder" })).toBe(true);
   });
 
-  it("treats a NULL task_type as a plain task (legacy rows survive)", () => {
+  it("treats a NULL task_type as a plain todo (legacy rows survive)", () => {
     expect(isLegacyFolder({ task_type: null })).toBe(false);
   });
 
-  it("treats 'task' as a plain task", () => {
+  it("treats 'task' as a plain todo", () => {
     expect(isLegacyFolder({ task_type: "task" })).toBe(false);
   });
 });
 
 describe("an argument nothing reads is reported, not swallowed", () => {
   it("names a misremembered argument", () => {
-    // `memo` is update_schedule_item's word; update_task's is `time_memo`.
+    // `memo` is update_schedule_item's word; update_todo's is `time_memo`.
     expect(
-      unknownArgNames(schemaOf("update_task"), { id: "t", memo: "x" }),
+      unknownArgNames(schemaOf("update_todo"), { id: "t", memo: "x" }),
     ).toEqual(["memo"]);
   });
 
   it("says nothing when every argument is declared", () => {
     expect(
-      unknownArgNames(schemaOf("update_task"), { id: "t", title: "new" }),
+      unknownArgNames(schemaOf("update_todo"), { id: "t", title: "new" }),
     ).toEqual([]);
   });
 
   it("ignores the MCP protocol's own keys", () => {
     // `_meta` carries the progress token — the client's, not the caller's.
     expect(
-      unknownArgNames(schemaOf("get_task"), {
+      unknownArgNames(schemaOf("get_todo"), {
         id: "task-1",
         _meta: { progressToken: 1 },
       }),
@@ -171,7 +171,7 @@ describe("an argument nothing reads is reported, not swallowed", () => {
 
   it("reports every unknown name at once, not one per round trip", () => {
     expect(
-      unknownArgNames(schemaOf("create_task"), {
+      unknownArgNames(schemaOf("create_todo"), {
         title: "t",
         note: "a",
         due: "b",

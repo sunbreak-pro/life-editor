@@ -79,7 +79,7 @@ function makeStub(result: CountResult) {
 const OK = (count: number | null): CountResult => ({ count, error: null });
 
 describe("countUnfinishedTodos", () => {
-  it("asks for a header-only exact count over the live task rows", async () => {
+  it("asks for a header-only exact count over the live todo rows", async () => {
     const { client, rec } = makeStub(OK(3));
     const n = await new SupabaseTodosService(client).countUnfinishedTodos();
 

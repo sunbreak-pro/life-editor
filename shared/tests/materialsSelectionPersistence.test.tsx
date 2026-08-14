@@ -80,9 +80,9 @@ function makeNotesDS(
   return { ds, getNoteUnified };
 }
 
-// ---- Tasks fixtures ---------------------------------------------------
+// ---- Todos fixtures ---------------------------------------------------
 
-function makeTask(id: string): TodoNode {
+function makeTodo(id: string): TodoNode {
   return {
     id,
     type: "task",
@@ -94,7 +94,7 @@ function makeTask(id: string): TodoNode {
   } as unknown as TodoNode;
 }
 
-function makeTasksDS(all: TodoNode[]): DataService {
+function makeTodosDS(all: TodoNode[]): DataService {
   return {
     fetchTodoTree: async () => all.filter((n) => !n.isDeleted),
     fetchDeletedTodos: async () => all.filter((n) => n.isDeleted),
@@ -196,13 +196,13 @@ describe("Materials selection persistence (#282)", () => {
     m2.unmount();
   });
 
-  it("Tasks: restores the selected task after remount", async () => {
-    const initial = [makeTask("task-a")];
+  it("Todos: restores the selected todo after remount", async () => {
+    const initial = [makeTodo("task-a")];
 
     const m1 = renderHook(
       () =>
         useTodoTreeAPI({
-          dataService: makeTasksDS(initial),
+          dataService: makeTodosDS(initial),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
@@ -218,7 +218,7 @@ describe("Materials selection persistence (#282)", () => {
     const m2 = renderHook(
       () =>
         useTodoTreeAPI({
-          dataService: makeTasksDS(initial),
+          dataService: makeTodosDS(initial),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
@@ -230,12 +230,12 @@ describe("Materials selection persistence (#282)", () => {
     m2.unmount();
   });
 
-  it("Tasks: a stored id that is missing clears the store and stays null", async () => {
+  it("Todos: a stored id that is missing clears the store and stays null", async () => {
     setTodoSelection("task-gone");
     const { result } = renderHook(
       () =>
         useTodoTreeAPI({
-          dataService: makeTasksDS([makeTask("task-a")]),
+          dataService: makeTodosDS([makeTodo("task-a")]),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
@@ -245,13 +245,13 @@ describe("Materials selection persistence (#282)", () => {
     expect(result.current.selectedTodoId).toBeNull();
   });
 
-  it("Tasks: a soft-deleted stored id clears the store and stays null", async () => {
+  it("Todos: a soft-deleted stored id clears the store and stays null", async () => {
     setTodoSelection("task-d");
-    const deleted = { ...makeTask("task-d"), isDeleted: true } as TodoNode;
+    const deleted = { ...makeTodo("task-d"), isDeleted: true } as TodoNode;
     const { result } = renderHook(
       () =>
         useTodoTreeAPI({
-          dataService: makeTasksDS([makeTask("task-a"), deleted]),
+          dataService: makeTodosDS([makeTodo("task-a"), deleted]),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
@@ -293,7 +293,7 @@ describe("Materials selection persistence (#282)", () => {
     expect(result.current.selectedNoteId).toBeNull();
   });
 
-  it("Tasks: a failed fetch keeps the store entry (transient error must not erase it)", async () => {
+  it("Todos: a failed fetch keeps the store entry (transient error must not erase it)", async () => {
     setTodoSelection("task-a");
     const ds = {
       fetchTodoTree: async () => {
@@ -311,12 +311,12 @@ describe("Materials selection persistence (#282)", () => {
     expect(result.current.selectedTodoId).toBeNull();
   });
 
-  it("Tasks: a non-Materials mount (no persistSelection) neither restores nor overwrites the store", async () => {
+  it("Todos: a non-Materials mount (no persistSelection) neither restores nor overwrites the store", async () => {
     setTodoSelection("task-a");
     const { result } = renderHook(
       () =>
         useTodoTreeAPI({
-          dataService: makeTasksDS([makeTask("task-a"), makeTask("task-b")]),
+          dataService: makeTodosDS([makeTodo("task-a"), makeTodo("task-b")]),
         }),
       { wrapper: syncWrapper },
     );
@@ -348,7 +348,7 @@ describe("Materials selection persistence (#282)", () => {
     m.unmount();
   });
 
-  it("truly-empty: with a reset store, fresh mounts give Notes null / Tasks null / Daily today", async () => {
+  it("truly-empty: with a reset store, fresh mounts give Notes null / Todos null / Daily today", async () => {
     const full = makeNote("note-1", "body");
     const notes = renderHook(
       () =>
@@ -361,17 +361,17 @@ describe("Materials selection persistence (#282)", () => {
     expect(notes.result.current.selectedNoteId).toBeNull();
     notes.unmount();
 
-    const tasks = renderHook(
+    const todos = renderHook(
       () =>
         useTodoTreeAPI({
-          dataService: makeTasksDS([makeTask("task-a")]),
+          dataService: makeTodosDS([makeTodo("task-a")]),
           persistSelection: true,
         }),
       { wrapper: syncWrapper },
     );
-    await waitFor(() => expect(tasks.result.current.isLoading).toBe(false));
-    expect(tasks.result.current.selectedTodoId).toBeNull();
-    tasks.unmount();
+    await waitFor(() => expect(todos.result.current.isLoading).toBe(false));
+    expect(todos.result.current.selectedTodoId).toBeNull();
+    todos.unmount();
 
     const daily = renderHook(
       () => useDailiesUnifiedAPI({ dataService: dailiesDS }),

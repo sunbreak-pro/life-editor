@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
  * suite that wrote to the real project would be the very thing #700 exists to
  * avoid. The fake speaks the slice of PostgREST this package uses (filters,
  * ordering, range, maybeSingle), so the handlers under test run their real
- * code paths: seeding goes through createTask / createScheduleItem /
+ * code paths: seeding goes through createTodo / createScheduleItem /
  * createNote, and cleanup deletes payload-then-meta exactly as it would live.
  *
  * What is pinned here:
@@ -277,9 +277,9 @@ describe("seed → read → cleanup", () => {
     const { items } = await readVerificationState({ run_id: run.runId });
 
     const events = items.filter((i) => i.role === "event");
-    const tasks = items.filter((i) => i.role === "task");
+    const todos = items.filter((i) => i.role === "task");
     expect(events).toHaveLength(3);
-    expect(tasks).toHaveLength(3);
+    expect(todos).toHaveLength(3);
 
     // Two events overlapping, and one all-day event storing no times.
     const timed = events
@@ -291,13 +291,13 @@ describe("seed → read → cleanup", () => {
     const allDay = events.find((e) => (e.payload as Row).is_all_day === true);
     expect(allDay?.payload).toMatchObject({ start_time: null, end_time: null });
 
-    // A finished todo carries its completion instant, and exactly one task is
+    // A finished todo carries its completion instant, and exactly one todo is
     // left undated — the backlog row layout code forgets about.
-    const done = tasks.filter((t) => (t.payload as Row).status === "DONE");
+    const done = todos.filter((t) => (t.payload as Row).status === "DONE");
     expect(done).toHaveLength(1);
     expect((done[0].payload as Row).completed_at).not.toBeNull();
     expect(
-      tasks.filter((t) => (t.payload as Row).scheduled_at === null),
+      todos.filter((t) => (t.payload as Row).scheduled_at === null),
     ).toHaveLength(1);
   });
 
@@ -325,7 +325,7 @@ describe("seed → read → cleanup", () => {
     await seedVerificationState({ date: DATE, preset: "busy_day" });
     const { items } = await readVerificationState({ date: DATE });
 
-    // 3 events + the 2 scheduled tasks. The undated task is not on this day,
+    // 3 events + the 2 scheduled todos. The undated todo is not on this day,
     // and saying otherwise would be the answer-a-different-question failure.
     expect(items).toHaveLength(5);
     expect(items.every((i) => i.payload !== null)).toBe(true);
@@ -338,7 +338,7 @@ describe("seed → read → cleanup", () => {
     });
     const id = run.seeded[0].id;
 
-    // What delete_task does: soft, so the row survives for TrashView.
+    // What delete_todo does: soft, so the row survives for TrashView.
     const meta = metaRows().find((row) => row.id === id) as Row;
     meta.is_deleted = true;
     meta.deleted_at = new Date().toISOString();
@@ -404,7 +404,7 @@ describe("cleanup keeps its promises when something goes wrong", () => {
 
     const result = await cleanupVerificationState({ run_id: run.runId });
 
-    // The 3 tasks went; the 3 events did not, and are still written down.
+    // The 3 todos went; the 3 events did not, and are still written down.
     expect(result.deleted).toBe(3);
     expect(result.failures).toHaveLength(3);
     expect(result.accountNote).toContain(
@@ -429,7 +429,7 @@ describe("cleanup keeps its promises when something goes wrong", () => {
     }).catch((e: unknown) => e as Error);
 
     expect(run).toBeInstanceOf(Error);
-    // The task landed before the note failed. Unrecorded, it would be exactly
+    // The todo landed before the note failed. Unrecorded, it would be exactly
     // the leftover this harness exists to prevent — so the ledger has it, and
     // cleanup can still take it out.
     expect(readLedgerFile().runs[0].items).toHaveLength(1);

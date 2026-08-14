@@ -6,8 +6,8 @@
     "shortcutLabels": {
       "commandPalette": "コマンドパレットを開く",
       "openSettings": "設定を開く",
-      "newTask": "新規 Todo を作成",
-      "goToTasks": "Todo へ移動",
+      "newTodo": "新規 Todo を作成",
+      "goToTodos": "Todo へ移動",
       "goToDaily": "デイリーへ移動",
       "goToNotes": "ノートへ移動",
       "goToSchedule": "スケジュールへ移動",
@@ -52,7 +52,7 @@
       "previewTitle": "今日の Todo",
       "appearanceSummary": "テーマ: {{theme}} · 文字サイズ {{fontValue}}",
       "tipsHeading": "ヒント",
-      "tasks": {
+      "todos": {
         "shopping": "買い物リストを作る",
         "coffee": "コーヒー豆を注文する",
         "dinner": "夕食の下ごしらえをする"
@@ -112,7 +112,7 @@
   "trash": {
     "empty": "ゴミ箱は空です",
     "emptyDescription": "削除した項目がここに表示されます。",
-    "tasks": "Todo",
+    "todos": "Todo",
     "notes": "ノート",
     "restore": "復元",
     "deletePermanently": "完全に削除",
@@ -160,7 +160,7 @@
       "BREAK": "休憩",
       "LONG_BREAK": "長い休憩"
     },
-    "taskSelector": {
+    "todoSelector": {
       "heading": "紐づける Todo",
       "placeholder": "Todo を選択…",
       "clear": "Todo を解除",
@@ -170,8 +170,8 @@
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
-      "body": "「{{task}}」に {{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
-      "bodyNoTask": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
+      "body": "「{{todo}}」に {{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
+      "bodyNoTodo": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
       "startBreak": "休憩を開始",
       "oneMore": "もう 1 セッション",
       "close": "閉じる"
@@ -212,7 +212,7 @@
   "timer": {
     "work": "ワーク"
   },
-  "taskDetail": {
+  "todoDetail": {
     "titleLabel": "Todo のタイトル",
     "delete": "削除",
     "todoDelete": "Todo を削除",
@@ -238,7 +238,7 @@
     "colorPickerLabel": "色を変更",
     "colorClearLabel": "デフォルト色",
     "colorCustomLabel": "カスタム",
-    "addTask": "追加",
+    "addTodo": "追加",
     "addDialogTitle": "Todo を追加",
     "addTitleLabel": "タイトル",
     "addTitlePlaceholder": "タイトルを入力",
@@ -246,7 +246,7 @@
     "addCancel": "キャンセル"
   },
   "materials": {
-    "tasks": {
+    "todos": {
       "filterLabel": "ステータスで絞り込む",
       "statusGroupLabel": "ステータスを変更",
       "detailTitle": "Todo の詳細",
@@ -255,7 +255,7 @@
       "quickAddSubmit": "追加",
       "empty": "Todo がありません",
       "addCta": "Todo を追加",
-      "taskCount_other": "Todo {{count}} 件"
+      "todoCount_other": "Todo {{count}} 件"
     },
     "notes": {
       "searchPlaceholder": "ノートを検索…",
@@ -472,16 +472,16 @@
     "addItem": "アイテムを追加",
     "itemTypeLabel": "種類",
     "typeEvent": "予定",
-    "typeTask": "Todo",
+    "typeTodo": "Todo",
     "typeNote": "ノート",
     "sourceLabel": "追加方法",
     "sourceNew": "新規作成",
     "sourceExisting": "既存から選ぶ",
-    "taskPlaceholder": "Todo を入力…",
-    "searchTasks": "Todo を検索",
-    "taskPickerNoMatch": "該当する Todo がありません",
-    "addTask": "Todo を追加",
-    "placeTask": "この時間に配置",
+    "todoPlaceholder": "Todo を入力…",
+    "searchTodos": "Todo を検索",
+    "todoPickerNoMatch": "該当する Todo がありません",
+    "addTodo": "Todo を追加",
+    "placeTodo": "この時間に配置",
     "noteTitleLabel": "ノートのタイトル",
     "notePlaceholder": "ノートのタイトルを入力…",
     "searchNotes": "ノートを検索",
@@ -580,7 +580,7 @@
     "todoAddHeading": "Todo から追加",
     "todoAddAction": "今日の候補に追加",
     "todoEmptyAddable": "未配置の Todo はありません",
-    "todoOpenInTasks": "Todo で開く",
+    "todoOpenInTodos": "Todo で開く",
     "durationMin": "{{m}}分",
     "durationHour": "{{h}}時間",
     "durationHourMin": "{{h}}時間{{m}}分",
@@ -630,12 +630,12 @@
     },
     "tabs": {
       "overview": "概要",
-      "tasks": "Todo",
+      "todos": "Todo",
       "schedule": "スケジュール",
       "work": "作業"
     },
     "workTime": "作業時間",
-    "taskWorkTime": "Todo 別作業時間",
+    "todoWorkTime": "Todo 別作業時間",
     "period": {
       "day": "日",
       "week": "週",
@@ -648,7 +648,7 @@
     "today": {
       "title": "今日",
       "workTime": "作業時間",
-      "completedTasks": "完了",
+      "completedTodos": "完了",
       "pomodoroCount": "ポモドーロ"
     },
     "weekly": {
@@ -693,13 +693,13 @@
       "title": "デイリータイムライン",
       "noSessions": "この日のセッションはありません"
     },
-    "taskTrend": {
+    "todoTrend": {
       "title": "Todo 完了トレンド",
       "completedCount": "完了数"
     },
     "stagnation": {
       "title": "Todo 経過日数分布",
-      "tasks": "件"
+      "todos": "件"
     },
     "tagTime": {
       "title": "タグ別作業時間",
@@ -708,7 +708,7 @@
       "other": "その他のタグ"
     },
     "overview": {
-      "tasks": "Todo",
+      "todos": "Todo",
       "events": "イベント",
       "notes": "ノート",
       "work": "作業時間",
@@ -782,7 +782,7 @@
     "unsavedCloseConfirm": "保存していない変更があります。破棄して閉じますか？"
   },
   "tabs": {
-    "tasks": "Todo",
+    "todos": "Todo",
     "schedule": "スケジュール",
     "overview": "概要"
   },
@@ -793,7 +793,7 @@
     "goTo": "移動"
   },
   "section": {
-    "tasks": "Todo",
+    "todos": "Todo",
     "daily": "デイリー",
     "notes": "ノート",
     "materials": "資料",
@@ -862,7 +862,7 @@
     "createNote": "「{{query}}」のノートを作成してリンク",
     "roleNote": "ノート",
     "roleDaily": "デイリー",
-    "roleTask": "Todo"
+    "roleTodo": "Todo"
   },
   "auth": {
     "productName": "Life Editor",
@@ -899,8 +899,8 @@
     "noSchedule": "今日のスケジュールはありません",
     "routineTag": "ルーチン",
     "allDay": "終日",
-    "tasksTitle": "今日の Todo と、その目的",
-    "noTasks": "今日に予定された Todo はありません",
+    "todosTitle": "今日の Todo と、その目的",
+    "noTodos": "今日に予定された Todo はありません",
     "vizTitle": "きのうまでの自分",
     "carryoverTitle": "持ち越し",
     "carryoverDays": "{{count}}日目",
@@ -908,9 +908,9 @@
     "edit": "編集",
     "delete": "削除",
     "deleteScheduleHint": "この予定を削除",
-    "deleteTaskHint": "この Todo を削除",
+    "deleteTodoHint": "この Todo を削除",
     "jumpToSchedule": "スケジュールで開く",
-    "jumpToTasks": "Todo で開く",
+    "jumpToTodos": "Todo で開く",
     "tabsLabel": "朝刊 / 夕刊",
     "tabs": {
       "morning": "朝刊",

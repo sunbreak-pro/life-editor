@@ -8,8 +8,8 @@ import Code from "@tiptap/extension-code";
 import Blockquote from "@tiptap/extension-blockquote";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
+import TodoList from "@tiptap/extension-task-list";
+import TodoItem from "@tiptap/extension-task-item";
 import { useTranslation } from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
 import { createItemLinkNode } from "./itemLinkNode";
@@ -20,10 +20,10 @@ import type { LoadItemLinkTargets } from "./useItemLinkTargets";
  * Lean web Notes rich-text editor (S3). A deliberately reduced
  * re-implementation of frontend/src/components/shared/RichTextEditor.tsx
  * — the marks/blocks Notes needs: headings (1-3), bullet/ordered/checkbox
- * (task) lists, blockquote, inline code + code block, bold / italic /
+ * (todo) lists, blockquote, inline code + code block, bold / italic /
  * strike, links. A "/" slash-command menu inserts the block types
  * (slashCommand.ts); checkbox lists also accept the "[] " input shortcut
- * (TaskList's built-in rule). A "[[" suggestion inserts `itemLink` atoms —
+ * (TodoList's built-in rule). A "[[" suggestion inserts `itemLink` atoms —
  * Notion/Obsidian-style wiki links to other items (itemLinkNode.ts +
  * itemLinkSuggestion.ts, gated on the `loadLinkTargets` prop; the node itself is
  * ALWAYS registered so stored `[[…]]` JSON round-trips on every surface).
@@ -41,7 +41,7 @@ import type { LoadItemLinkTargets } from "./useItemLinkTargets";
  * is debounced (800ms) and flushed on unmount / beforeunload so a
  * note switch never loses the last keystrokes.
  *
- * `onDraftChange` (#713) turns that persistence off for ONE caller — the task
+ * `onDraftChange` (#713) turns that persistence off for ONE caller — the todo
  * body, whose panel commits on a save button. Notes and Daily are outside Epic
  * #627 and keep auto-saving, so the switch is a prop rather than a change of
  * default.
@@ -238,15 +238,15 @@ export function RichTextEditor({
           defaultProtocol: "https",
         }),
         // The fallback is translated, not a hardcoded English string: a call
-        // site that passes nothing (the Kanban task body) used to print
+        // site that passes nothing (the Kanban todo body) used to print
         // "Write your note…" on a Japanese screen (#680).
         Placeholder.configure({
           placeholder: placeholder ?? t("materials.notes.bodyPlaceholder"),
         }),
         // Checkbox lists — the built-in input rule turns a leading "[] " (or
-        // "[x] ") into a task item; nested items allow indented sub-tasks.
-        TaskList,
-        TaskItem.configure({ nested: true }),
+        // "[x] ") into a todo item; nested items allow indented sub-todos.
+        TodoList,
+        TodoItem.configure({ nested: true }),
         // "/" slash-command block menu (headings + lists). Labels reuse the
         // turn-into catalog so the picker matches the rest of the app.
         ...(slashMenu
@@ -289,7 +289,7 @@ export function RichTextEditor({
                   create: (query) => t("itemLink.createNote", { query }),
                   roleNote: t("itemLink.roleNote"),
                   roleDaily: t("itemLink.roleDaily"),
-                  roleTask: t("itemLink.roleTask"),
+                  roleTodo: t("itemLink.roleTodo"),
                 },
               }),
             ]

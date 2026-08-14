@@ -4,19 +4,19 @@
  * calls these with the data it already has from useTodoTreeContext /
  * useWikiTagsUnifiedContext and injects the resolved status labels.
  *
- * Status view: three fixed columns keyed by status, cards = every active task
+ * Status view: three fixed columns keyed by status, cards = every active todo
  * (regardless of any parent folder). Tag view: one column per tag (tag's own
- * color), cards = every task carrying that tag, plus a trailing "untagged"
+ * color), cards = every todo carrying that tag, plus a trailing "untagged"
  * bucket. Folders are never cards and never group the board (life-tags S1
- * retired the folder view) — every active task surfaces on both views even if
+ * retired the folder view) — every active todo surfaces on both views even if
  * it still sits under a legacy folder node.
  *
- * Tag data is passed in as `tagsByTask` (taskId → its tags) so the builders
+ * Tag data is passed in as `tagsByTodo` (todoId → its tags) so the builders
  * stay pure; the host resolves assignments → tags from the WikiTags context.
  */
 
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
-import { STATUS_ORDER, statusLabel } from "../taskStatusVisuals";
+import { STATUS_ORDER, statusLabel } from "../todoStatusVisuals";
 import type {
   KanbanCardModel,
   KanbanCardTag,
@@ -24,8 +24,8 @@ import type {
   KanbanLabels,
 } from "./types";
 
-/** taskId → the tags assigned to it. Empty/absent = untagged. */
-export type TagsByTask = ReadonlyMap<string, KanbanCardTag[]>;
+/** todoId → the tags assigned to it. Empty/absent = untagged. */
+export type TagsByTodo = ReadonlyMap<string, KanbanCardTag[]>;
 
 /** Fixed status column order + their accent CSS vars (status-encoding hue). */
 const STATUS_BAND_VAR: Record<TodoStatus, string> = {
@@ -41,18 +41,18 @@ function normalizeStatus(node: TodoNode): TodoStatus {
   return node.status ?? "NOT_STARTED";
 }
 
-function isActiveTask(node: TodoNode): boolean {
+function isActiveTodo(node: TodoNode): boolean {
   return node.type === "task" && !node.isDeleted;
 }
 
 const EMPTY_TAGS: KanbanCardTag[] = [];
 
-function tagsFor(taskId: string, tagsByTask?: TagsByTask): KanbanCardTag[] {
-  return tagsByTask?.get(taskId) ?? EMPTY_TAGS;
+function tagsFor(todoId: string, tagsByTodo?: TagsByTodo): KanbanCardTag[] {
+  return tagsByTodo?.get(todoId) ?? EMPTY_TAGS;
 }
 
 /**
- * Build a card model from a task node. `tags` is filled on the status view
+ * Build a card model from a todo node. `tags` is filled on the status view
  * (the tag view conveys the tag via the column, so it omits per-card chips).
  */
 function toCard(
@@ -71,24 +71,24 @@ function toCard(
 
 /**
  * Status view: three fixed columns (未着手 / 進行中 / 完了). Cards are every
- * active task, grouped by status, each carrying its tags. Status colors are
- * fixed (not editable). Legacy folder nodes are ignored — the task surfaces by
+ * active todo, grouped by status, each carrying its tags. Status colors are
+ * fixed (not editable). Legacy folder nodes are ignored — the todo surfaces by
  * its status regardless of any parent folder.
  */
 export function buildStatusColumns(
   nodes: TodoNode[],
   labels: KanbanLabels,
-  tagsByTask?: TagsByTask,
+  tagsByTodo?: TagsByTodo,
 ): KanbanColumnModel[] {
   const byStatus = new Map<TodoStatus, TodoNode[]>();
   for (const status of STATUS_ORDER) byStatus.set(status, []);
   for (const node of nodes) {
-    if (!isActiveTask(node)) continue;
+    if (!isActiveTodo(node)) continue;
     byStatus.get(normalizeStatus(node))?.push(node);
   }
 
   return STATUS_ORDER.map((status) => {
-    const tasks = [...(byStatus.get(status) ?? [])].sort(
+    const todos = [...(byStatus.get(status) ?? [])].sort(
       (a, b) => a.order - b.order,
     );
     return {
@@ -96,8 +96,8 @@ export function buildStatusColumns(
       title: statusLabel(status, labels),
       statusKind: status,
       accentColor: STATUS_BAND_VAR[status],
-      cards: tasks.map((task) =>
-        toCard(task, { tags: tagsFor(task.id, tagsByTask) }),
+      cards: todos.map((todo) =>
+        toCard(todo, { tags: tagsFor(todo.id, tagsByTodo) }),
       ),
     };
   });
@@ -105,21 +105,21 @@ export function buildStatusColumns(
 
 /**
  * Tag view: one column per tag (in the order `tags` is given), cards = active
- * tasks carrying that tag. A trailing "untagged" bucket collects active tasks
+ * todos carrying that tag. A trailing "untagged" bucket collects active todos
  * with no tags. Tag columns are colorEditable (the "untagged" bucket is not).
  * The tag view omits per-card tag chips (the column already conveys the tag).
  */
 export function buildTagColumns(
   nodes: TodoNode[],
   tags: KanbanCardTag[],
-  tagsByTask: TagsByTask,
+  tagsByTodo: TagsByTodo,
   labels: KanbanLabels,
 ): KanbanColumnModel[] {
-  const activeTasks = nodes
-    .filter(isActiveTask)
+  const activeTodos = nodes
+    .filter(isActiveTodo)
     .sort((a, b) => a.order - b.order);
 
-  const cardFor = (task: TodoNode): KanbanCardModel => toCard(task);
+  const cardFor = (todo: TodoNode): KanbanCardModel => toCard(todo);
 
   const columns: KanbanColumnModel[] = tags.map((tag) => ({
     id: `tag-${tag.id}`,
@@ -127,15 +127,15 @@ export function buildTagColumns(
     accentColor: tag.color,
     colorEditable: true,
     roundDot: true,
-    cards: activeTasks
-      .filter((task) =>
-        (tagsByTask.get(task.id) ?? EMPTY_TAGS).some((t) => t.id === tag.id),
+    cards: activeTodos
+      .filter((todo) =>
+        (tagsByTodo.get(todo.id) ?? EMPTY_TAGS).some((t) => t.id === tag.id),
       )
       .map(cardFor),
   }));
 
-  const untagged = activeTasks.filter(
-    (task) => (tagsByTask.get(task.id) ?? EMPTY_TAGS).length === 0,
+  const untagged = activeTodos.filter(
+    (todo) => (tagsByTodo.get(todo.id) ?? EMPTY_TAGS).length === 0,
   );
   columns.push({
     id: "tag-__none__",

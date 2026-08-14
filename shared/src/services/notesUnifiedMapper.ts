@@ -15,7 +15,7 @@ import { contentJsonToString, contentStringToJson } from "./contentJson";
  * notes_payload (per-role business columns) split (0008). DU-D Step 5
  * (0014_notes_payload_parent_fk.sql) further hardens parent_item_id with a
  * composite FK that blocks cross-role parenting at the DB layer — same
- * pattern as DU-B Step 1 (0009) for tasks.
+ * pattern as DU-B Step 1 (0009) for todos.
  *
  * Replaced the legacy single-table Notes mapper, which was retired in
  * DU-G G4; this 2-row mapper is now the only Notes mapper.

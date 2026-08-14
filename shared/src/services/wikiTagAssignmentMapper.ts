@@ -9,7 +9,7 @@ import { relationSoftDeleteUpdatesToPatch } from "./softDeleteMapper";
  * `is_deleted` (Issue 008 pattern). UNIQUE(item_id, tag_id) WHERE
  * is_deleted=false means a soft-deleted assignment can be re-created.
  *
- * `item_id` references items_meta(id) — any of the 5 roles (task /
+ * `item_id` references items_meta(id) — any of the 5 roles (todo /
  * event / routine / note / daily). No composite FK / role guard: tags
  * span all roles by design (DU-C+ R4).
  */

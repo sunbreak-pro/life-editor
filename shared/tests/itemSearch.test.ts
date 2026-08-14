@@ -57,7 +57,7 @@ describe("searchItemPool", () => {
       { id: "d", role: "daily", title: "2026-01-01", detail: "x" },
       { id: "e", role: "event", title: "x-event" },
       { id: "n", role: "note", title: "x-note" },
-      { id: "t", role: "task", title: "x-task" },
+      { id: "t", role: "task", title: "x-todo" },
     ];
     expect(searchItemPool(wide, "x").map((h) => h.role)).toEqual([
       "note",
@@ -74,11 +74,11 @@ describe("searchItemPool", () => {
         role: "note" as const,
         title: `note ${i}`,
       })),
-      { id: "t1", role: "task", title: "note-shaped task" },
+      { id: "t1", role: "task", title: "note-shaped todo" },
     ];
     const hits = searchItemPool(many, "note", { perRoleLimit: 5 });
     expect(hits.filter((h) => h.role === "note")).toHaveLength(5);
-    // The single task survives — an overall cap would have dropped it.
+    // The single todo survives — an overall cap would have dropped it.
     expect(hits.map((h) => h.id)).toContain("t1");
   });
 
