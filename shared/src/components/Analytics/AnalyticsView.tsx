@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { TimerSession } from "../../types/timer";
 import { WIDE_QUERY } from "../../constants/breakpoints";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
@@ -37,7 +37,7 @@ import type { AnalyticsLabels } from "./labels";
 
 export interface AnalyticsViewProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   /** Schedule items for today only (Overview stat cards). */
   todayItems: ScheduleItem[];
   /**

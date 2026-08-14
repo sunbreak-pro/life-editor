@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { localDateTimeToISO, taskChipId } from "@life-editor/shared";
-import type { ConfirmRequest, TaskNode } from "@life-editor/shared";
+import type { ConfirmRequest, TodoNode } from "@life-editor/shared";
 import { useScheduleTaskChips } from "../src/schedule/useScheduleTaskChips";
 
 /*
@@ -26,7 +26,7 @@ const RANGE_END = "2026-08-16";
 const AWAY_START = "2026-09-07";
 const AWAY_END = "2026-09-13";
 
-function task(id: string, overrides: Partial<TaskNode> = {}): TaskNode {
+function task(id: string, overrides: Partial<TodoNode> = {}): TodoNode {
   return {
     id,
     type: "task",
@@ -47,8 +47,8 @@ function timed(
   id: string,
   dateKey: string,
   start = "09:00",
-  overrides: Partial<TaskNode> = {},
-): TaskNode {
+  overrides: Partial<TodoNode> = {},
+): TodoNode {
   const end = `${String(Number(start.slice(0, 2)) + 1).padStart(2, "0")}${start.slice(2)}`;
   return task(id, {
     scheduledAt: localDateTimeToISO(dateKey, start),
@@ -61,8 +61,8 @@ function timed(
 function allDay(
   id: string,
   dateKey: string,
-  overrides: Partial<TaskNode> = {},
-): TaskNode {
+  overrides: Partial<TodoNode> = {},
+): TodoNode {
   return task(id, {
     scheduledAt: localDateTimeToISO(dateKey, "00:00"),
     isAllDay: true,
@@ -80,7 +80,7 @@ const COPY = {
 };
 
 function renderChips(
-  taskNodes: TaskNode[],
+  taskNodes: TodoNode[],
   opts: {
     /** What the user answers the confirm dialog. */
     answer?: boolean;
@@ -89,8 +89,8 @@ function renderChips(
   } = {},
 ) {
   const updateNode = vi.fn();
-  const setTaskStatus = vi.fn();
-  const softDeleteTask = vi.fn();
+  const setTodoStatus = vi.fn();
+  const softDeleteTodo = vi.fn();
   const asked: ConfirmRequest[] = [];
   const askConfirm = vi.fn((request: ConfirmRequest) => {
     asked.push(request);
@@ -100,8 +100,8 @@ function renderChips(
     useScheduleTaskChips({
       taskNodes,
       updateNode,
-      setTaskStatus,
-      softDeleteTask,
+      setTodoStatus,
+      softDeleteTodo,
       today: TODAY,
       rangeStart: opts.rangeStart ?? RANGE_START,
       rangeEnd: opts.rangeEnd ?? RANGE_END,
@@ -109,7 +109,7 @@ function renderChips(
       copy: COPY,
     }),
   );
-  return { hook, updateNode, setTaskStatus, softDeleteTask, askConfirm, asked };
+  return { hook, updateNode, setTodoStatus, softDeleteTodo, askConfirm, asked };
 }
 
 describe("the two chip windows", () => {
@@ -203,7 +203,7 @@ describe("findTaskChip", () => {
 });
 
 describe("the chip gestures", () => {
-  // The grid speaks in synthetic chip ids; updateNode speaks in TaskNode ids.
+  // The grid speaks in synthetic chip ids; updateNode speaks in TodoNode ids.
   // Forget the unwrap and the write lands on nothing.
   it("addresses the underlying task, and labels a move by the task's shape", () => {
     const { hook, updateNode } = renderChips([
@@ -222,7 +222,7 @@ describe("the chip gestures", () => {
     expect(updateNode).toHaveBeenCalledWith(
       "timed-task",
       expect.objectContaining({ isAllDay: false }),
-      { undoLabel: "taskChipMove" },
+      { undoLabel: "todoChipMove" },
     );
 
     // An all-day candidate dragged into the time body is a PLACE, and the undo
@@ -238,7 +238,7 @@ describe("the chip gestures", () => {
     expect(updateNode).toHaveBeenLastCalledWith(
       "candidate",
       expect.anything(),
-      { undoLabel: "taskChipPlace" },
+      { undoLabel: "todoChipPlace" },
     );
   });
 
@@ -257,7 +257,7 @@ describe("the chip gestures", () => {
     expect(updateNode).toHaveBeenCalledWith(
       "timed-task",
       expect.objectContaining({ scheduledEndAt: expect.any(String) }),
-      { undoLabel: "taskChipResize" },
+      { undoLabel: "todoChipResize" },
     );
 
     updateNode.mockClear();
@@ -281,23 +281,23 @@ describe("the chip gestures", () => {
     expect(updateNode).toHaveBeenCalledWith(
       "timed-task",
       expect.objectContaining({ isAllDay: true }),
-      { undoLabel: "taskChipAllDay" },
+      { undoLabel: "todoChipAllDay" },
     );
   });
 
   // A plain binary toggle, NOT the tree's 3-state cycle — the tray shows a
   // checkbox, and a press that landed on IN_PROGRESS would read as a no-op.
   it("toggles a todo between done and not-started only", () => {
-    const { hook, setTaskStatus } = renderChips([
+    const { hook, setTodoStatus } = renderChips([
       timed("done", TODAY, "09:00", { status: "DONE" }),
       timed("half", TODAY, "09:00", { status: "IN_PROGRESS" }),
     ]);
 
     act(() => hook.result.current.handleTodoToggleComplete("done"));
-    expect(setTaskStatus).toHaveBeenCalledWith("done", "NOT_STARTED");
+    expect(setTodoStatus).toHaveBeenCalledWith("done", "NOT_STARTED");
 
     act(() => hook.result.current.handleTodoToggleComplete("half"));
-    expect(setTaskStatus).toHaveBeenLastCalledWith("half", "DONE");
+    expect(setTodoStatus).toHaveBeenLastCalledWith("half", "DONE");
   });
 
   it("stages 'add to today' onto today, not onto the grid's day", () => {
@@ -312,7 +312,7 @@ describe("the chip gestures", () => {
         scheduledAt: localDateTimeToISO(TODAY, "00:00"),
         isAllDay: true,
       },
-      { undoLabel: "taskAddToToday" },
+      { undoLabel: "todoAddToToday" },
     );
   });
 });
@@ -328,16 +328,16 @@ describe("the two delete questions", () => {
   // #573: the tray's trash icon is a one-tap row control, and friction on a
   // leaf buys nothing — undo is a click away and there is nothing else to lose.
   it("deletes a leaf from the tray without asking", () => {
-    const { hook, softDeleteTask, askConfirm } = renderChips(TREE);
+    const { hook, softDeleteTodo, askConfirm } = renderChips(TREE);
     act(() => hook.result.current.handleTodoDelete("leaf"));
-    expect(softDeleteTask).toHaveBeenCalledWith("leaf");
+    expect(softDeleteTodo).toHaveBeenCalledWith("leaf");
     expect(askConfirm).not.toHaveBeenCalled();
   });
 
   it("asks with the whole subtree's count before a cascade", async () => {
-    const { hook, softDeleteTask, asked } = renderChips(TREE);
+    const { hook, softDeleteTodo, asked } = renderChips(TREE);
     act(() => hook.result.current.handleTodoDelete("parent"));
-    await waitFor(() => expect(softDeleteTask).toHaveBeenCalledWith("parent"));
+    await waitFor(() => expect(softDeleteTodo).toHaveBeenCalledWith("parent"));
     // Two rows go with it, the grandchild included — the count is what the
     // user cannot see from a tray row.
     expect(asked[0].message).toBe("delete Pack for the trip and 2 more?");
@@ -345,23 +345,23 @@ describe("the two delete questions", () => {
   });
 
   it("writes nothing when the cascade question is declined", async () => {
-    const { hook, softDeleteTask, askConfirm } = renderChips(TREE, {
+    const { hook, softDeleteTodo, askConfirm } = renderChips(TREE, {
       answer: false,
     });
     act(() => hook.result.current.handleTodoDelete("parent"));
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
-    expect(softDeleteTask).not.toHaveBeenCalled();
+    expect(softDeleteTodo).not.toHaveBeenCalled();
   });
 
   // #775: the detail panel asks whatever the row is. On Mobile the sheet is
   // the only way into a todo, there is no hover to reveal what a control does
   // and no keyboard undo — so the leaf's frictionless path does not apply.
   it("always asks from the detail panel, and closes it on the way out", async () => {
-    const { hook, softDeleteTask, asked } = renderChips(TREE);
+    const { hook, softDeleteTodo, asked } = renderChips(TREE);
     act(() => hook.result.current.setTaskDetailId("leaf"));
 
     act(() => hook.result.current.handleTodoDetailDelete("leaf"));
-    await waitFor(() => expect(softDeleteTask).toHaveBeenCalledWith("leaf"));
+    await waitFor(() => expect(softDeleteTodo).toHaveBeenCalledWith("leaf"));
     expect(asked[0].message).toBe("delete Water the plants?");
     // Closed FIRST and without the unsaved-draft guard: a pending title on a
     // row being deleted is not worth a second question.
@@ -369,14 +369,14 @@ describe("the two delete questions", () => {
   });
 
   it("leaves the panel open when the detail delete is declined", async () => {
-    const { hook, softDeleteTask, askConfirm } = renderChips(TREE, {
+    const { hook, softDeleteTodo, askConfirm } = renderChips(TREE, {
       answer: false,
     });
     act(() => hook.result.current.setTaskDetailId("parent"));
 
     act(() => hook.result.current.handleTodoDetailDelete("parent"));
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
-    expect(softDeleteTask).not.toHaveBeenCalled();
+    expect(softDeleteTodo).not.toHaveBeenCalled();
     expect(hook.result.current.taskDetailId).toBe("parent");
   });
 });

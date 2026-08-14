@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import { sortByDepthDesc } from "../src/utils/sortByDepthDesc";
 
 /*
  * sortByDepthDesc unit tests (DU-B-4 — RB3-4 mitigation). Guarantees
- * permanentDeleteTask's leaf-first DELETE order so PG's ON DELETE NO
+ * permanentDeleteTodo's leaf-first DELETE order so PG's ON DELETE NO
  * ACTION composite FK (DU-B-1 / 0009) is never violated.
  *
  * Required scenarios per DU-B 子計画書 §DU-B-4:
@@ -17,8 +17,8 @@ import { sortByDepthDesc } from "../src/utils/sortByDepthDesc";
 function node(
   id: string,
   parentId: string | null,
-  type: TaskNode["type"] = "task",
-): TaskNode {
+  type: TodoNode["type"] = "task",
+): TodoNode {
   return {
     id,
     type,
@@ -37,7 +37,7 @@ describe("sortByDepthDesc", () => {
     //  │   └─ A2
     //  └─ B
     //      └─ B1
-    const pool: TaskNode[] = [
+    const pool: TodoNode[] = [
       node("root", null),
       node("A", "root"),
       node("A1", "A"),
@@ -59,7 +59,7 @@ describe("sortByDepthDesc", () => {
 
   it("keeps caller order stable across equal-depth siblings", () => {
     // Two siblings at depth 1; the sort must not shuffle them.
-    const pool: TaskNode[] = [
+    const pool: TodoNode[] = [
       node("root", null),
       node("S1", "root"),
       node("S2", "root"),
@@ -81,14 +81,14 @@ describe("sortByDepthDesc", () => {
     // increments depth, then breaks on the missing lookup — exact
     // depth value is irrelevant since no other id competes; the
     // critical guarantee is "no throw, single-element identity sort".
-    const pool: TaskNode[] = [node("ghost", "missing-parent")];
+    const pool: TodoNode[] = [node("ghost", "missing-parent")];
     expect(() => sortByDepthDesc(["ghost"], pool)).not.toThrow();
     expect(sortByDepthDesc(["ghost"], pool)).toEqual(["ghost"]);
   });
 
   it("does not infinite-loop on a self-referential cycle (known-issue 016)", () => {
     // a -> b -> a forms a 2-node cycle. visited guard must terminate.
-    const pool: TaskNode[] = [node("a", "b"), node("b", "a")];
+    const pool: TodoNode[] = [node("a", "b"), node("b", "a")];
     expect(() => sortByDepthDesc(["a", "b"], pool)).not.toThrow();
     const sorted = sortByDepthDesc(["a", "b"], pool);
     expect(sorted.length).toBe(2);
@@ -100,7 +100,7 @@ describe("sortByDepthDesc", () => {
   });
 
   it("handles a single root with no children", () => {
-    const pool: TaskNode[] = [node("solo", null)];
+    const pool: TodoNode[] = [node("solo", null)];
     expect(sortByDepthDesc(["solo"], pool)).toEqual(["solo"]);
   });
 });

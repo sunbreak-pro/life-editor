@@ -29,7 +29,7 @@ describe("requireSingleRow", () => {
   it("returns the row typed by the call site's type argument", async () => {
     const row = await requireSingleRow<{ id: string; done: boolean }>(
       result({ id: "task-1", done: true }),
-      "createTask tasks_payload",
+      "createTodo tasks_payload",
     );
     expect(row.id).toBe("task-1");
     expect(row.done).toBe(true);
@@ -40,9 +40,9 @@ describe("requireSingleRow", () => {
     await expect(
       requireSingleRow(
         result(null, { message: "boom" }),
-        "createTask items_meta",
+        "createTodo items_meta",
       ),
-    ).rejects.toThrow("createTask items_meta: boom");
+    ).rejects.toThrow("createTodo items_meta: boom");
     await expect(
       requireSingleRow(
         result(null, { message: "boom" }),
@@ -86,9 +86,9 @@ describe("requireRowPair", () => {
       { item_id: string }
     >(
       result({ id: "task-1" }),
-      "updateTask read items_meta",
+      "updateTodo read items_meta",
       result({ item_id: "task-1" }),
-      "updateTask read tasks_payload",
+      "updateTodo read tasks_payload",
     );
     expect(meta.id).toBe("task-1");
     expect(payload.item_id).toBe("task-1");
@@ -132,21 +132,21 @@ describe("requireRowPair", () => {
     await expect(
       requireRowPair(
         result(null, { message: "meta down" }),
-        "updateTask read items_meta",
+        "updateTodo read items_meta",
         result(null, { message: "payload down" }),
-        "updateTask read tasks_payload",
+        "updateTodo read tasks_payload",
       ),
-    ).rejects.toThrow("updateTask read items_meta: meta down");
+    ).rejects.toThrow("updateTodo read items_meta: meta down");
   });
 
   it("reports the second label when only the second read fails", async () => {
     await expect(
       requireRowPair(
         result({ id: "task-1" }),
-        "updateTask read items_meta",
+        "updateTodo read items_meta",
         result(null, { message: "payload down" }),
-        "updateTask read tasks_payload",
+        "updateTodo read tasks_payload",
       ),
-    ).rejects.toThrow("updateTask read tasks_payload: payload down");
+    ).rejects.toThrow("updateTodo read tasks_payload: payload down");
   });
 });

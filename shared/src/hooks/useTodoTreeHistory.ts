@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 
 /**
  * The slice of the UndoRedo manager this hook needs. The Tauri build
@@ -45,34 +45,34 @@ export type PersistSettled = (ok: boolean) => void;
  *
  * A label is a KEY, resolved by the host against `undoRedo.labels.*`
  * (web/src/UndoRedoHost.tsx) — an unmapped one falls back to the raw string, so
- * the toast would read "Undid: taskChipMove". That toast is the only thing
+ * the toast would read "Undid: todoChipMove". That toast is the only thing
  * telling the user WHAT Ctrl+Z just reversed, and nothing about a missing
  * catalog entry is loud, so the set is closed (the derived union catches typos
  * at the call site) AND kept as a runtime ARRAY: the other half of each label
  * lives in two i18n catalogs, and a list a test can walk is what makes the pair
- * checkable (shared/tests/taskChipScheduleUndo.test.tsx).
+ * checkable (shared/tests/todoChipScheduleUndo.test.tsx).
  *
- * "taskTreeChange" is the catch-all every pre-#569 path already used (add /
+ * "todoTreeChange" is the catch-all every pre-#569 path already used (add /
  * status / move / delete — one generic word for the whole tree). The
- * `taskChip*` / `taskAddToToday` entries are the Schedule-originated writes
- * #569 made undoable, where "task change" would be true but useless: on a
+ * `todoChip*` / `todoAddToToday` entries are the Schedule-originated writes
+ * #569 made undoable, where "todo change" would be true but useless: on a
  * calendar the user has just done something with a POSITION, and the word has
  * to name that.
  */
-export const TASK_HISTORY_LABELS = [
-  "taskTreeChange",
-  "taskChipPlace",
-  "taskChipMove",
-  "taskChipResize",
-  "taskChipAllDay",
-  "taskAddToToday",
+export const TODO_HISTORY_LABELS = [
+  "todoTreeChange",
+  "todoChipPlace",
+  "todoChipMove",
+  "todoChipResize",
+  "todoChipAllDay",
+  "todoAddToToday",
 ] as const;
 
-export type TaskHistoryLabel = (typeof TASK_HISTORY_LABELS)[number];
+export type TodoHistoryLabel = (typeof TODO_HISTORY_LABELS)[number];
 
-export function useTaskTreeHistory(
-  setNodes: Dispatch<SetStateAction<TaskNode[]>>,
-  syncToDb: (nodes: TaskNode[], onSettled?: PersistSettled) => void,
+export function useTodoTreeHistory(
+  setNodes: Dispatch<SetStateAction<TodoNode[]>>,
+  syncToDb: (nodes: TodoNode[], onSettled?: PersistSettled) => void,
   undoRedo: UndoRedoLike,
 ) {
   const {
@@ -86,17 +86,17 @@ export function useTaskTreeHistory(
 
   const persistWithHistory = useCallback(
     (
-      currentNodes: TaskNode[],
-      updated: TaskNode[],
+      currentNodes: TodoNode[],
+      updated: TodoNode[],
       onSettled?: PersistSettled,
-      label: TaskHistoryLabel = "taskTreeChange",
+      label: TodoHistoryLabel = "todoTreeChange",
     ) => {
       const before = currentNodes;
       const after = updated;
       // Deliberately NOT forwarding onSettled into undo/redo: it belongs to
       // this one write. A redo re-runs the sync, and re-firing a follow-up
       // (e.g. attaching a note) would duplicate it.
-      push("taskTree", {
+      push("todoTree", {
         label,
         undo: () => {
           setNodes(before);
@@ -114,7 +114,7 @@ export function useTaskTreeHistory(
   );
 
   const persistSilent = useCallback(
-    (updated: TaskNode[], onSettled?: PersistSettled) => {
+    (updated: TodoNode[], onSettled?: PersistSettled) => {
       setNodes(updated);
       syncToDb(updated, onSettled);
     },
@@ -122,18 +122,18 @@ export function useTaskTreeHistory(
   );
 
   const undo = useCallback(() => {
-    undoCtx("taskTree");
+    undoCtx("todoTree");
   }, [undoCtx]);
 
   const redo = useCallback(() => {
-    redoCtx("taskTree");
+    redoCtx("todoTree");
   }, [redoCtx]);
 
-  const canUndo = canUndoCtx("taskTree");
-  const canRedo = canRedoCtx("taskTree");
+  const canUndo = canUndoCtx("todoTree");
+  const canRedo = canRedoCtx("todoTree");
 
   const clearHistory = useCallback(() => {
-    clearCtx("taskTree");
+    clearCtx("todoTree");
   }, [clearCtx]);
 
   return {

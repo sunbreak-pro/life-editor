@@ -6,7 +6,7 @@ import {
   todayDateKey,
   type DataService,
   type SyncDomain,
-  type TaskNode,
+  type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
 import { makeTask, stubDataService } from "./helpers";
@@ -19,11 +19,11 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  * What only the host can answer is whether a press turns into the right write
  * and the right repaint:
  *
- *   1. `DataService.updateTask` gets the status the cycle landed on, with
+ *   1. `DataService.updateTodo` gets the status the cycle landed on, with
  *      `completedAt` following it — that stamp decides whether a closed task
  *      still belongs on today's paper, so a status write that forgets it drops
  *      the row on the next fetch.
- *   2. the new status is painted BEFORE the write resolves. `updateTask` is
+ *   2. the new status is painted BEFORE the write resolves. `updateTodo` is
  *      several sequential requests, and a control that does not move until they
  *      all return reads as broken (that is the "重い" half of #794's report).
  *
@@ -63,30 +63,30 @@ function setWidth(wide: boolean) {
   });
 }
 
-const OPEN_TASK: TaskNode = makeTask({
+const OPEN_TASK: TodoNode = makeTask({
   id: "t-open",
   title: "Write the report",
   status: "NOT_STARTED",
   scheduledAt: `${TODAY}T09:00:00.000Z`,
 });
 
-function makeDS(updateTask: DataService["updateTask"]): DataService {
+function makeDS(updateTodo: DataService["updateTodo"]): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
-    fetchTaskTree: vi.fn().mockResolvedValue([OPEN_TASK]),
+    fetchTodoTree: vi.fn().mockResolvedValue([OPEN_TASK]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
-    updateTask,
+    updateTodo,
   });
 }
 
-async function renderEvening(updateTask: DataService["updateTask"]) {
+async function renderEvening(updateTodo: DataService["updateTodo"]) {
   const view = render(
     <SyncContext.Provider value={syncValue}>
       <BriefingScreen
-        dataService={makeDS(updateTask)}
+        dataService={makeDS(updateTodo)}
         onNavigate={vi.fn()}
         tab="evening"
       />
@@ -104,18 +104,18 @@ describe.each([
   beforeEach(() => setWidth(wide));
 
   it("writes the status the cycle landed on, with completedAt", async () => {
-    const updateTask = vi.fn(
-      (id: string, updates: Partial<TaskNode>): Promise<TaskNode> =>
+    const updateTodo = vi.fn(
+      (id: string, updates: Partial<TodoNode>): Promise<TodoNode> =>
         Promise.resolve({ ...OPEN_TASK, ...updates, id }),
     );
-    await renderEvening(updateTask);
+    await renderEvening(updateTodo);
 
     // Not started → In progress: no completion stamp yet.
     await act(async () => {
       screen.getByLabelText("Status: Not started").click();
     });
-    expect(updateTask.mock.calls[0]?.[0]).toBe("t-open");
-    expect(updateTask.mock.calls[0]?.[1]).toEqual({
+    expect(updateTodo.mock.calls[0]?.[0]).toBe("t-open");
+    expect(updateTodo.mock.calls[0]?.[1]).toEqual({
       status: "IN_PROGRESS",
       completedAt: undefined,
     });
@@ -126,8 +126,8 @@ describe.each([
     await act(async () => {
       screen.getByLabelText("Status: In progress").click();
     });
-    expect(updateTask.mock.calls[1]?.[1]?.status).toBe("DONE");
-    expect(typeof updateTask.mock.calls[1]?.[1]?.completedAt).toBe("string");
+    expect(updateTodo.mock.calls[1]?.[1]?.status).toBe("DONE");
+    expect(typeof updateTodo.mock.calls[1]?.[1]?.completedAt).toBe("string");
 
     // Still listed, struck through — the press has to stay visible.
     await waitFor(() =>
@@ -140,13 +140,13 @@ describe.each([
 
   it("paints the new status before the write resolves", async () => {
     let settle: () => void = () => undefined;
-    const updateTask = vi.fn(
-      (id: string, updates: Partial<TaskNode>): Promise<TaskNode> =>
-        new Promise<TaskNode>((resolve) => {
+    const updateTodo = vi.fn(
+      (id: string, updates: Partial<TodoNode>): Promise<TodoNode> =>
+        new Promise<TodoNode>((resolve) => {
           settle = () => resolve({ ...OPEN_TASK, ...updates, id });
         }),
     );
-    await renderEvening(updateTask);
+    await renderEvening(updateTodo);
 
     await act(async () => {
       screen.getByLabelText("Status: Not started").click();
@@ -160,10 +160,10 @@ describe.each([
   });
 
   it("puts the old status back when the write fails", async () => {
-    const updateTask = vi.fn(() => Promise.reject(new Error("offline")));
+    const updateTodo = vi.fn(() => Promise.reject(new Error("offline")));
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
-      await renderEvening(updateTask as unknown as DataService["updateTask"]);
+      await renderEvening(updateTodo as unknown as DataService["updateTodo"]);
       await act(async () => {
         screen.getByLabelText("Status: Not started").click();
       });

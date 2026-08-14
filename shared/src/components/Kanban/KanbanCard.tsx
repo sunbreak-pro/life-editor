@@ -1,6 +1,6 @@
 /*
  * KanbanCard (K1) — a single task card. Pure presentation: the host maps a
- * TaskNode → KanbanCardModel and injects copy; this component never reaches
+ * TodoNode → KanbanCardModel and injects copy; this component never reaches
  * data or i18n directly (§6.4). Faithful port of the HTML mock's card:
  *   - 4px left status band (color-encoded, but never the SOLE signal)
  *   - status chip = icon + label (color-independent state, a11y)
@@ -17,7 +17,7 @@
 import type { CSSProperties } from "react";
 import { cn } from "../cn";
 import { STATUS_ICON } from "../taskStatusVisuals";
-import type { TaskStatus } from "../../types/taskTree";
+import type { TodoStatus } from "../../types/todoTree";
 import type {
   KanbanCardDndAdapter,
   KanbanCardModel,
@@ -25,20 +25,20 @@ import type {
 } from "./types";
 
 // Left 4px band per status (lumen tokens — no hardcoded color, §6).
-const STATUS_BAND_CLASS: Record<TaskStatus, string> = {
+const STATUS_BAND_CLASS: Record<TodoStatus, string> = {
   NOT_STARTED: "bg-lumen-status-todo-band",
   IN_PROGRESS: "bg-lumen-status-progress-band",
   DONE: "bg-lumen-status-done-band",
 };
 
 // Chip face classes per status (lumen tokens — no hardcoded color, §6).
-const STATUS_CHIP_CLASS: Record<TaskStatus, string> = {
+const STATUS_CHIP_CLASS: Record<TodoStatus, string> = {
   NOT_STARTED: "bg-lumen-chip-task-bg text-lumen-chip-task-fg",
   IN_PROGRESS: "bg-lumen-chip-progress-bg text-lumen-chip-progress-fg",
   DONE: "bg-lumen-chip-completed-bg text-lumen-chip-completed-fg",
 };
 
-function statusText(status: TaskStatus, labels: KanbanLabels): string {
+function statusText(status: TodoStatus, labels: KanbanLabels): string {
   switch (status) {
     case "NOT_STARTED":
       return labels.statusNotStarted;

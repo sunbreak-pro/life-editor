@@ -1,4 +1,4 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type {
   TimerSettings,
   TimerSession,
@@ -54,7 +54,7 @@ export interface BulkSoftDeleteResult {
  * DataService is split into one interface per routing domain (#671 C4 S5).
  *
  * The split is not cosmetic: each domain interface is the contract of
- * exactly ONE Supabase service class (SupabaseTasksService,
+ * exactly ONE Supabase service class (SupabaseTodosService,
  * SupabaseTimerService, ...), so those classes can carry a real
  * `implements` clause instead of being typed only by the
  * `as unknown as DataService` cast in SupabaseDataService's Proxy.
@@ -69,25 +69,25 @@ export interface BulkSoftDeleteResult {
  */
 
 // ---------------------------------------------------------------------------
-// Tasks — SupabaseTasksService
+// Tasks — SupabaseTodosService
 // ---------------------------------------------------------------------------
 
-export interface TasksDataService {
-  fetchTaskTree(): Promise<TaskNode[]>;
+export interface TodosDataService {
+  fetchTodoTree(): Promise<TodoNode[]>;
   /**
    * Live, unfinished task count for the badge (#511) — a number, not a
    * list, so the read carries no row bodies. Meaning of the number:
    * materials/materialsCounts.ts.
    */
-  countUnfinishedTasks(): Promise<number>;
-  fetchDeletedTasks(): Promise<TaskNode[]>;
-  createTask(node: TaskNode): Promise<TaskNode>;
-  updateTask(id: string, updates: Partial<TaskNode>): Promise<TaskNode>;
-  syncTaskTree(nodes: TaskNode[]): Promise<void>;
-  softDeleteTask(id: string): Promise<void>;
-  restoreTask(id: string): Promise<void>;
-  permanentDeleteTask(id: string): Promise<void>;
-  migrateTasksToBackend(nodes: TaskNode[]): Promise<void>;
+  countUnfinishedTodos(): Promise<number>;
+  fetchDeletedTodos(): Promise<TodoNode[]>;
+  createTodo(node: TodoNode): Promise<TodoNode>;
+  updateTodo(id: string, updates: Partial<TodoNode>): Promise<TodoNode>;
+  syncTodoTree(nodes: TodoNode[]): Promise<void>;
+  softDeleteTodo(id: string): Promise<void>;
+  restoreTodo(id: string): Promise<void>;
+  permanentDeleteTodo(id: string): Promise<void>;
+  migrateTodosToBackend(nodes: TodoNode[]): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -429,7 +429,7 @@ export interface ItemConversionDataService {
   convertEventToTask(
     eventId: string,
     init: { order: number },
-  ): Promise<TaskNode>;
+  ): Promise<TodoNode>;
   /**
    * Turn a Todo into an event, keeping its id — the mirror of
    * convertEventToTask, same ordering and same compensation.
@@ -511,7 +511,7 @@ export interface WikiTagsUnifiedDataService {
 
 export interface NotesUnifiedDataService {
   listNotesUnified(): Promise<NoteNode[]>;
-  /** Live note count for the badge (#511) — see countUnfinishedTasks. */
+  /** Live note count for the badge (#511) — see countUnfinishedTodos. */
   countLiveNotes(): Promise<number>;
   getNoteUnified(id: string): Promise<NoteNode | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
@@ -545,7 +545,7 @@ export interface NotesUnifiedDataService {
 
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
-  /** Live daily count for the badge (#511) — see countUnfinishedTasks. */
+  /** Live daily count for the badge (#511) — see countUnfinishedTodos. */
   countLiveDailies(): Promise<number>;
   getDailyByDateUnified(date: string): Promise<DailyNode | null>;
   upsertDailyByDateUnified(date: string, content: string): Promise<DailyNode>;
@@ -614,7 +614,7 @@ export interface NoteLinksDataService {
  */
 export interface DataService
   extends
-    TasksDataService,
+    TodosDataService,
     TimerDataService,
     AudioDataService,
     CalendarsDataService,

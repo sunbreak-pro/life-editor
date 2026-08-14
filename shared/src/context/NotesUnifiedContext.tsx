@@ -17,9 +17,9 @@ import { NotesUnifiedContext } from "./NotesUnifiedContextValue";
  *
  * #304 child-2: auto-connects to the ambient global UndoRedo stack when a
  * provider is mounted (useUndoRedoOptional), same pattern as
- * TaskTreeProvider. An explicit `undoRedo` prop still wins; with no
+ * TodoTreeProvider. An explicit `undoRedo` prop still wins; with no
  * provider it stays the no-op history. The stack is cleared on unmount
- * (child-1 safety valve — see TaskTreeContext.tsx for the rationale).
+ * (child-1 safety valve — see TodoTreeContext.tsx for the rationale).
  * Note the API hook itself skips content-only note updates (TipTap owns
  * text undo), so the app-level stack never fights the editor history.
  */
@@ -34,7 +34,7 @@ export function NotesUnifiedProvider({
   });
 
   // Unmount-clear via ref — the context value identity changes on every stack
-  // mutation, so the cleanup must not depend on it (see TaskTreeContext.tsx
+  // mutation, so the cleanup must not depend on it (see TodoTreeContext.tsx
   // for the full rationale). Explicit injected undoRedo is the host's to
   // manage.
   const undoRedoRef = useRef(undoRedo);

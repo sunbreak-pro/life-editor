@@ -38,7 +38,7 @@ function zeroVersions(): Record<SyncDomain, number> {
 
 function makeDS(over: Partial<DataService> = {}): DataService {
   return stubDataService({
-    countUnfinishedTasks: vi.fn().mockResolvedValue(3),
+    countUnfinishedTodos: vi.fn().mockResolvedValue(3),
     countLiveNotes: vi.fn().mockResolvedValue(7),
     countLiveDailies: vi.fn().mockResolvedValue(9),
     ...over,
@@ -119,7 +119,7 @@ describe("MaterialsCountsBridge", () => {
       }),
     );
     // The other two never ran a second time — that is the #499 invariant.
-    expect(ds.countUnfinishedTasks).toHaveBeenCalledTimes(1);
+    expect(ds.countUnfinishedTodos).toHaveBeenCalledTimes(1);
     expect(ds.countLiveDailies).toHaveBeenCalledTimes(1);
     expect(ds.countLiveNotes).toHaveBeenCalledTimes(2);
   });

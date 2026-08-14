@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { TaskNode } from "@life-editor/shared";
+import type { TodoNode } from "@life-editor/shared";
 import {
   timedPlacement,
   taskChipMoveWrite,
@@ -11,7 +11,7 @@ import {
 
 /*
  * #569 QA (S1): these five routes decide BOTH what a Schedule gesture writes
- * onto a TaskNode and whether Ctrl+Z can take it back. While they lived inside
+ * onto a TodoNode and whether Ctrl+Z can take it back. While they lived inside
  * CalendarTab nothing could see them — the component needs the whole Provider
  * stack plus real grid layout, which jsdom has none of — so removing a label
  * outright, or swapping place ↔ move, left all seven gates green.
@@ -22,7 +22,7 @@ import {
  * just "some label is present".
  */
 
-const PLACED: TaskNode = {
+const PLACED: TodoNode = {
   id: "task-placed",
   type: "task",
   title: "write the report",
@@ -37,7 +37,7 @@ const PLACED: TaskNode = {
 };
 
 /** The #298 staging shape: on the calendar, day known, time still TBD. */
-const CANDIDATE: TaskNode = {
+const CANDIDATE: TodoNode = {
   ...PLACED,
   id: "task-candidate",
   scheduledAt: new Date(2026, 2, 9, 0, 0).toISOString(),
@@ -69,7 +69,7 @@ describe("timedPlacement", () => {
 describe("taskChipMoveWrite", () => {
   it("labels an all-day chip dragged into the day as a PLACE", () => {
     const write = taskChipMoveWrite(CANDIDATE, "2026-03-09", "14:00", "15:00");
-    expect(write.options).toEqual({ undoLabel: "taskChipPlace" });
+    expect(write.options).toEqual({ undoLabel: "todoChipPlace" });
     expect(write.patch).toEqual({
       scheduledAt: localISO(2026, 3, 9, 14, 0),
       scheduledEndAt: localISO(2026, 3, 9, 15, 0),
@@ -79,7 +79,7 @@ describe("taskChipMoveWrite", () => {
 
   it("labels a timed chip dragged elsewhere as a MOVE", () => {
     const write = taskChipMoveWrite(PLACED, "2026-03-10", "13:00", "14:00");
-    expect(write.options).toEqual({ undoLabel: "taskChipMove" });
+    expect(write.options).toEqual({ undoLabel: "todoChipMove" });
     // A horizontal drag changes the day; both ends follow it.
     expect(write.patch.scheduledAt).toBe(localISO(2026, 3, 10, 13, 0));
     expect(write.patch.scheduledEndAt).toBe(localISO(2026, 3, 10, 14, 0));
@@ -87,7 +87,7 @@ describe("taskChipMoveWrite", () => {
 
   it("still writes (as a move) when the task cannot be found", () => {
     const write = taskChipMoveWrite(undefined, "2026-03-09", "09:00", "10:00");
-    expect(write.options).toEqual({ undoLabel: "taskChipMove" });
+    expect(write.options).toEqual({ undoLabel: "todoChipMove" });
     expect(write.patch.scheduledAt).toBe(localISO(2026, 3, 9, 9, 0));
   });
 });
@@ -96,7 +96,7 @@ describe("taskChipResizeWrite", () => {
   it("moves the end only, on the task's own day", () => {
     const write = taskChipResizeWrite(PLACED, "11:30");
     expect(write).not.toBeNull();
-    expect(write?.options).toEqual({ undoLabel: "taskChipResize" });
+    expect(write?.options).toEqual({ undoLabel: "todoChipResize" });
     // The day comes from scheduledAt (the grid sends a time alone), and the
     // start is left untouched — a resize that moved it would be a move.
     expect(write?.patch).toEqual({
@@ -125,7 +125,7 @@ describe("taskChipResizeWrite", () => {
 describe("taskChipAllDayWrite", () => {
   it("returns the chip to the all-day lane on the dropped day", () => {
     const write = taskChipAllDayWrite("2026-03-11");
-    expect(write.options).toEqual({ undoLabel: "taskChipAllDay" });
+    expect(write.options).toEqual({ undoLabel: "todoChipAllDay" });
     expect(write.patch).toEqual({
       scheduledAt: localISO(2026, 3, 11, 0, 0),
       isAllDay: true,
@@ -139,7 +139,7 @@ describe("taskChipAllDayWrite", () => {
 describe("todoAddCandidateWrite", () => {
   it("stages the task on today with the time still TBD", () => {
     const write = todoAddCandidateWrite("2026-03-09");
-    expect(write.options).toEqual({ undoLabel: "taskAddToToday" });
+    expect(write.options).toEqual({ undoLabel: "todoAddToToday" });
     expect(write.patch).toEqual({
       scheduledAt: localISO(2026, 3, 9, 0, 0),
       isAllDay: true,
@@ -150,7 +150,7 @@ describe("todoAddCandidateWrite", () => {
 describe("placeTaskWrite", () => {
   it("is undoable when the panel attaches no note", () => {
     const write = placeTaskWrite("2026-03-09", "14:00", "15:00", false);
-    expect(write.options).toEqual({ undoLabel: "taskChipPlace" });
+    expect(write.options).toEqual({ undoLabel: "todoChipPlace" });
     expect(write.patch).toEqual(timedPlacement("2026-03-09", "14:00", "15:00"));
   });
 

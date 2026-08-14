@@ -1,12 +1,12 @@
 import { useCallback } from "react";
-import type { TaskNode } from "../types/taskTree";
-import { collectDescendantIds } from "../utils/getDescendantTasks";
+import type { TodoNode } from "../types/todoTree";
+import { collectDescendantIds } from "../utils/getDescendantTodos";
 import { walkAncestors } from "../utils/walkAncestors";
 
-export function useTaskTreeDeletion(
-  nodes: TaskNode[],
-  persistWithHistory: (currentNodes: TaskNode[], updated: TaskNode[]) => void,
-  persistSilent: (updated: TaskNode[]) => void,
+export function useTodoTreeDeletion(
+  nodes: TodoNode[],
+  persistWithHistory: (currentNodes: TodoNode[], updated: TodoNode[]) => void,
+  persistSilent: (updated: TodoNode[]) => void,
   clearHistory: () => void,
 ) {
   const softDelete = useCallback(

@@ -10,7 +10,7 @@ import {
 import { makeTask } from "./helpers/nodeFixtures";
 
 /*
- * taskCalendarChips — pure UTC→local conversion of scheduled TaskNodes into
+ * taskCalendarChips — pure UTC→local conversion of scheduled TodoNodes into
  * calendar chip data. Expected local parts are computed IN THE TEST via the
  * same Date APIs the helper uses, so the assertions are timezone-agnostic (they
  * don't assume the machine runs in any particular offset).
@@ -176,7 +176,7 @@ describe("taskChipId / isTaskChip (#280)", () => {
 });
 
 describe("unwrapTaskChipId (#297)", () => {
-  it("recovers the source TaskNode id from a synthetic chip id", () => {
+  it("recovers the source TodoNode id from a synthetic chip id", () => {
     expect(unwrapTaskChipId(taskChipId("task-123"))).toBe("task-123");
   });
 

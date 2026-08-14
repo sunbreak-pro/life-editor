@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -188,10 +188,10 @@ function makeUnifiedAssignment(
 
 /**
  * Live task tree stand-in (#428): the ring only counts sessions whose task is
- * still in `fetchTaskTree`'s live result, so every fixture has to say which
+ * still in `fetchTodoTree`'s live result, so every fixture has to say which
  * task ids exist. An id left out of this list means "trashed or purged".
  */
-function liveTasks(...ids: string[]): TaskNode[] {
+function liveTasks(...ids: string[]): TodoNode[] {
   return ids.map((id, i) => ({
     id,
     type: "task",
@@ -361,7 +361,7 @@ describe("aggregateWorkTimeByTag", () => {
    * "untagged". #365 stopped returning a trashed item's assignments, which
    * turned its minutes into phantom untagged work — the ring said "you spent
    * 30 min on something you never tagged" about a task sitting in the bin.
-   * Analytics excludes trashed items everywhere else (fetchTaskTree is
+   * Analytics excludes trashed items everywhere else (fetchTodoTree is
    * live-only), so the ring follows. Restoring the task brings the time back.
    */
   it("drops work on a trashed task instead of counting it as untagged", () => {
@@ -372,7 +372,7 @@ describe("aggregateWorkTimeByTag", () => {
       ],
       [makeUnifiedAssignment()],
       [makeUnifiedTag()],
-      // "task-trashed" is absent: fetchTaskTree never returns trashed rows,
+      // "task-trashed" is absent: fetchTodoTree never returns trashed rows,
       // and #365 already withheld its assignments.
       liveTasks("task-1"),
     );
@@ -408,7 +408,7 @@ describe("aggregateWorkTimeByTag", () => {
 });
 
 describe("analytics aggregation over a cyclic task graph (KI-016 class)", () => {
-  function cyclicNodes(): TaskNode[] {
+  function cyclicNodes(): TodoNode[] {
     // A -> B -> A plus a self-reference: the shape that made the retired
     // findRootFolder spin forever and freeze the Analytics screen.
     return [

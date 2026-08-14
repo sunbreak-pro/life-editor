@@ -8,7 +8,7 @@ import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
-import type { UndoRedoLike } from "./useTaskTreeHistory";
+import type { UndoRedoLike } from "./useTodoTreeHistory";
 import { buildNoteNode, collectNoteSubtree } from "./notesUnifiedHelpers";
 import {
   setNotesSelection,

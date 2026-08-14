@@ -4,7 +4,7 @@ import {
   useScheduleItemsContext,
   useRoutineContext,
   useSyncDomains,
-  useTaskTreeContext,
+  useTodoTreeContext,
   useCalendarContext,
   useWikiTagsUnifiedContext,
   useTranslation,
@@ -203,10 +203,10 @@ export function CalendarTab({
     useScheduleItemsRoutineSync({
       dataService,
     });
-  // Scheduled TaskNodes → task=blue chips (schedule redesign A-1). `nodes`
-  // already excludes soft-deleted tasks (useTaskTreeAPI). A-2 (#297) writes
+  // Scheduled TodoNodes → task=blue chips (schedule redesign A-1). `nodes`
+  // already excludes soft-deleted tasks (useTodoTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
-  // addNode (#376): the creation panel's task tab writes a NEW TaskNode that is
+  // addNode (#376): the creation panel's task tab writes a NEW TodoNode that is
   // already scheduled into the target slot — the same provider the tray and the
   // chip drags write through, so there is no second source of task truth.
   // refetch (#625): the Event <-> Todo conversion writes through the
@@ -217,11 +217,11 @@ export function CalendarTab({
     nodes: taskNodes,
     addNode,
     updateNode,
-    setTaskStatus,
-    toggleTaskStatus,
-    softDelete: softDeleteTask,
+    setTodoStatus,
+    toggleTodoStatus,
+    softDelete: softDeleteTodo,
     refetch: refetchTasks,
-  } = useTaskTreeContext();
+  } = useTodoTreeContext();
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
   // view over ONE life tag, so the grid needs both halves — the ledger (which
   // calendars exist, and which tag each points at) and the assignments (which
@@ -436,8 +436,8 @@ export function CalendarTab({
 
   /*
    * The TASK half of this host (#675 → useScheduleTaskChips): the chips derived
-   * from scheduled TaskNodes, the "本日の Todo" tray they back, and every
-   * gesture that writes a TaskNode. None of it reads `rangeItems`, the repeat
+   * from scheduled TodoNodes, the "本日の Todo" tray they back, and every
+   * gesture that writes a TodoNode. None of it reads `rangeItems`, the repeat
    * machinery or the mutation layer, which is what let it come out whole.
    *
    * `taskDetailId` moved in with it — it is the id of a TASK, which
@@ -476,8 +476,8 @@ export function CalendarTab({
   } = useScheduleTaskChips({
     taskNodes,
     updateNode,
-    setTaskStatus,
-    softDeleteTask,
+    setTodoStatus,
+    softDeleteTodo,
     today,
     rangeStart,
     rangeEnd,
@@ -843,7 +843,7 @@ export function CalendarTab({
       addNode("task", null, title, {
         ...placement,
         // Same ordering rule as the event path: the node is optimistic until
-        // the tree sync lands, and the guard in useTaskTreeAPI can drop the
+        // the tree sync lands, and the guard in useTodoTreeAPI can drop the
         // write entirely (tree not loaded), which reports `null` here.
         onSaved: (saved) => {
           if (saved) attachNote(saved.id, note);
@@ -1801,7 +1801,7 @@ export function CalendarTab({
 
   // A-3 (#298): "本日の Todo" tray — placed / unplaced task groups + an add
   // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
-  // #555: rows also soft-delete (softDeleteTask → Trash) and carry the same
+  // #555: rows also soft-delete (softDeleteTodo → Trash) and carry the same
   // <TagPicker> the task detail uses, so tags attach without leaving the tray.
   const todoBody = (
     <TodayTodoTray
@@ -1912,8 +1912,8 @@ export function CalendarTab({
               popoverTaskChip.id,
               { title },
               // The catch-all tree label: a rename is not a move, so none of
-              // the position-shaped taskChip* words fit (useTaskTreeHistory).
-              { undoLabel: "taskTreeChange" },
+              // the position-shaped taskChip* words fit (useTodoTreeHistory).
+              { undoLabel: "todoTreeChange" },
             ),
           onDelete: () => handleTodoDelete(popoverTaskChip.id),
           onConvertToEvent: () => handleConvertToEvent(popoverTaskChip.id),
@@ -2061,9 +2061,9 @@ export function CalendarTab({
         // patch, and writing one would raise a no-op undo entry.
         onSave={(id, patch) => {
           if (patch.title === undefined) return;
-          updateNode(id, patch, { undoLabel: "taskTreeChange" });
+          updateNode(id, patch, { undoLabel: "todoTreeChange" });
         }}
-        onToggleStatus={toggleTaskStatus}
+        onToggleStatus={toggleTodoStatus}
         // #775: the panel's own delete, so the sheet that is Mobile's only way
         // into a todo is not a one-way door. It fires raw — the confirm, the
         // cascade count and the close all belong to the handler above.

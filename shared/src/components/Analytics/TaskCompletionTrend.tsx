@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import { aggregateTaskCompletionTrend } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
@@ -19,7 +19,7 @@ export interface TaskCompletionTrendLabels {
 }
 
 interface TaskCompletionTrendProps {
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   days: number;
   labels: TaskCompletionTrendLabels;
 }

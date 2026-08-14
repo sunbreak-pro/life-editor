@@ -15,7 +15,7 @@ import { isImeComposing } from "../../utils/imeGuard";
  *
  * Three tabs, but only TWO of them create something:
  *   - event: creates a ScheduleItem, exactly as before.
- *   - task:  either creates a NEW TaskNode already scheduled into the target
+ *   - task:  either creates a NEW TodoNode already scheduled into the target
  *            slot, or takes an EXISTING unscheduled task and gives it that slot
  *            (Tasks AC7). This is the timed sibling of the #298 "Today's Todo"
  *            tray: the tray declares "today, time TBD" (all-day staging), this
@@ -49,7 +49,7 @@ export type ItemCreateSource = "new" | "existing";
 
 /** One row of a picker (an existing task, or an existing note). */
 export interface ItemCreateOption {
-  /** Source TaskNode / NoteNode id. */
+  /** Source TodoNode / NoteNode id. */
   id: string;
   title: string;
 }

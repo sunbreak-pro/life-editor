@@ -15,7 +15,7 @@ import type { WikiTag } from "../types/wikiTagUnified";
  * What this module does NOT own:
  *   - The `updated_at = now()` bump on UPDATE — `wikiTagUpdatesToPatch`
  *     ALWAYS emits it, so callers cannot accidentally skip it (same
- *     contract as taskMapper / DB-Q2).
+ *     contract as todoMapper / DB-Q2).
  *   - Sync delta cursor logic (lives in SupabaseDataService).
  */
 

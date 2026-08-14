@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
-import type { TaskStatus } from "../../types/taskTree";
+import type { TodoStatus } from "../../types/todoTree";
 import { cn } from "../cn";
 import { TaskStatusCycleButton } from "../TaskStatusCycleButton";
 import type { StatusLabelSet } from "../taskStatusVisuals";
@@ -33,7 +33,7 @@ import type { StatusLabelSet } from "../taskStatusVisuals";
  */
 
 export interface TodayTodoRow {
-  /** Source TaskNode id (unprefixed). */
+  /** Source TodoNode id (unprefixed). */
   id: string;
   title: string;
   /** Local HH:MM start for a PLACED row; omitted for an UNPLACED (all-day) row. */
@@ -43,7 +43,7 @@ export interface TodayTodoRow {
    * The Todo's real status. Only read on the three-status branch (#796 — see
    * `onSetStatus`); the binary branch keeps using `completed`.
    */
-  status?: TaskStatus;
+  status?: TodoStatus;
 }
 
 export interface TodayTodoAddableRow {
@@ -91,7 +91,7 @@ export interface TodayTodoTrayProps {
    * for it and keeps the checkbox until it does. Needs labels.status +
    * labels.statusLabels.
    */
-  onSetStatus?: (id: string, status: TaskStatus) => void;
+  onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTask: (id: string) => void;
   onAddCandidate: (id: string) => void;
   /** Soft-delete the row's task (#555). Rendered only with labels.delete. */
@@ -127,7 +127,7 @@ function TaskRow({
 }: {
   row: TodayTodoRow;
   onToggleComplete: (id: string) => void;
-  onSetStatus?: (id: string, status: TaskStatus) => void;
+  onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTask: (id: string) => void;
   onDelete?: (id: string) => void;
   extra?: ReactNode;
@@ -248,7 +248,7 @@ function Group({
   rows: TodayTodoRow[];
   empty: string;
   onToggleComplete: (id: string) => void;
-  onSetStatus?: (id: string, status: TaskStatus) => void;
+  onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTask: (id: string) => void;
   onDelete?: (id: string) => void;
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;

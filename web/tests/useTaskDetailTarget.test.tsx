@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import type { TaskNode } from "@life-editor/shared";
+import type { TodoNode } from "@life-editor/shared";
 import {
   useTaskDetailTarget,
   type UseTaskDetailTargetParams,
@@ -14,7 +14,7 @@ import {
  * board, its four providers and TipTap.
  */
 
-function makeTask(id: string, over: Partial<TaskNode> = {}): TaskNode {
+function makeTask(id: string, over: Partial<TodoNode> = {}): TodoNode {
   return {
     id,
     type: "task",
@@ -27,7 +27,7 @@ function makeTask(id: string, over: Partial<TaskNode> = {}): TaskNode {
   };
 }
 
-function mapOf(...tasks: TaskNode[]): Map<string, TaskNode> {
+function mapOf(...tasks: TodoNode[]): Map<string, TodoNode> {
   return new Map(tasks.map((t) => [t.id, t]));
 }
 

@@ -12,7 +12,7 @@ import {
  * inside SyncProvider (§6.2 Sync → UndoRedo), wrapping the domain providers
  * that push commands + the shell that hosts the header buttons.
  *
- * The provider hands us the command's stable label key (e.g. "taskTreeChange");
+ * The provider hands us the command's stable label key (e.g. "todoTreeChange");
  * we translate it via undoRedo.labels.*, falling back to the raw key so an
  * unmapped domain still shows a sensible toast.
  */

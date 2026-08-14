@@ -1,4 +1,4 @@
-import type { TaskStatus } from "../types/taskTree";
+import type { TodoStatus } from "../types/todoTree";
 import { cn } from "./cn";
 import { FOCUS_RING_TIGHT } from "./styleTokens";
 import {
@@ -22,8 +22,8 @@ import {
 
 export interface TaskStatusChoicesProps {
   /** Current status. null / undefined renders every choice unselected. */
-  value?: TaskStatus | null;
-  onChange: (status: TaskStatus) => void;
+  value?: TodoStatus | null;
+  onChange: (status: TodoStatus) => void;
   /** Already-translated per-status labels (§6.4). */
   labels: StatusLabelSet;
   /** Already-translated accessible name for the group (§6.4). */

@@ -22,8 +22,8 @@ import {
   type ItemCreateOption,
   type NoteNode,
   type ScheduleItem,
-  type TaskNode,
-  type TaskStatus,
+  type TodoNode,
+  type TodoStatus,
   type TimerSession,
   type TodayTodoRow,
   type WikiTagConnectionUnified,
@@ -36,7 +36,7 @@ import {
  *
  * Data sources (all EXISTING APIs — Step 1 ships with zero DDL):
  *   - fetchScheduleItemsByDate(today)     → 今日の予定
- *   - fetchTaskTree()                     → 今日の Todo / 持ち越し / trend widget
+ *   - fetchTodoTree()                     → 今日の Todo / 持ち越し / trend widget
  *   - fetchTimerSessions()                → streak + work/break widgets
  *   - getDailyByDateUnified(today)        → the "Briefing"/「朝刊」 section
  *     (extractBriefing convention — written later by MCP write_briefing,
@@ -78,7 +78,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   const { t, i18n } = useTranslation();
   const syncVersion = useSyncDomains(
     "schedule",
-    "tasks",
+    "todos",
     "timer",
     "dailies",
     "notes",
@@ -88,7 +88,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   const [loading, setLoading] = useState(true);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [tomorrowItems, setTomorrowItems] = useState<ScheduleItem[]>([]);
-  const [taskNodes, setTaskNodes] = useState<TaskNode[]>([]);
+  const [taskNodes, setTaskNodes] = useState<TodoNode[]>([]);
   const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
   const [notes, setNotes] = useState<NoteNode[]>([]);
@@ -117,7 +117,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     let cancelled = false;
     void Promise.allSettled([
       ds.fetchScheduleItemsByDate(todayKey),
-      ds.fetchTaskTree(),
+      ds.fetchTodoTree(),
       ds.fetchTimerSessions(),
       ds.getDailyByDateUnified(todayKey),
       ds.listNotesUnified(),
@@ -200,7 +200,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   // the tray's chips both flattened status to a boolean; this is what they read
   // it back from, so neither has to carry its own copy of the rule.
   const statusById = useMemo(() => {
-    const map = new Map<string, TaskStatus>();
+    const map = new Map<string, TodoStatus>();
     for (const n of liveTasks) map.set(n.id, n.status ?? "NOT_STARTED");
     return map;
   }, [liveTasks]);
@@ -359,11 +359,11 @@ export function useBriefingData(ds: DataService, todayKey: string) {
    * whether a closed task still belongs on today's paper.
    *
    * The new status is painted BEFORE the write resolves and rolled back if it
-   * fails. `updateTask` is several sequential requests, and a status control
+   * fails. `updateTodo` is several sequential requests, and a status control
    * that does not move until they all return reads as broken.
    */
   const handleSetTaskStatus = useCallback(
-    (id: string, status: TaskStatus) => {
+    (id: string, status: TodoStatus) => {
       const target = taskNodes.find((n) => n.id === id);
       if (target === undefined || target.status === status) return;
       const patch = {
@@ -375,7 +375,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
         prev.map((n) => (n.id === id ? { ...n, ...patch } : n)),
       );
       void ds
-        .updateTask(id, patch)
+        .updateTodo(id, patch)
         .then((updated) => {
           setTaskNodes((prev) =>
             prev.map((n) => (n.id === updated.id ? updated : n)),
@@ -416,7 +416,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
    * what the rule is about), and the results are folded straight into the
    * fetched state so the paper updates without waiting for the Realtime bump.
    *
-   * `useSyncDomains("schedule", "tasks", …)` at the top of this hook is what
+   * `useSyncDomains("schedule", "todos", …)` at the top of this hook is what
    * makes the OTHER direction work — a row created here shows up in Schedule
    * as soon as Realtime reports it, and vice versa.
    */
@@ -525,7 +525,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
       // panel carries no place-in-the-tree control and re-parenting belongs to
       // the Tasks section.
       void ds
-        .createTask({
+        .createTodo({
           id: generateId("task"),
           type: "task",
           title,
@@ -560,7 +560,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
       // is by definition not an all-day candidate — leaving the flag alone is
       // what kept placed chips rendering in the all-day lane (timedPlacement).
       void ds
-        .updateTask(taskId, {
+        .updateTodo(taskId, {
           scheduledAt: localDateTimeToISO(todayKey, start),
           scheduledEndAt: localDateTimeToISO(todayKey, end),
           isAllDay: false,
@@ -582,7 +582,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   // The paper writes through `ds` rather than the Schedule / TaskTree
   // providers (MainScreen mounts this screen bare), so the optimistic list
   // update and the undo command are spelled out here instead of coming free
-  // from useScheduleItemsAPI / useTaskTreeHistory. The DataService calls
+  // from useScheduleItemsAPI / useTodoTreeHistory. The DataService calls
   // themselves are the EXISTING delete paths — same soft delete, same Trash,
   // same restore — so a row deleted from the paper behaves like one deleted
   // from its own section.
@@ -708,20 +708,20 @@ export function useBriefingData(ds: DataService, todayKey: string) {
         );
       };
       markDeleted(true);
-      ds.softDeleteTask(id).catch((err) => {
+      ds.softDeleteTodo(id).catch((err) => {
         console.error("[BriefingScreen] task delete failed", err);
       });
       push?.("taskTree", {
         label: "deleteTask",
         undo: () => {
           markDeleted(false);
-          void ds.restoreTask(id).catch((err) => {
+          void ds.restoreTodo(id).catch((err) => {
             console.error("[BriefingScreen] task delete undo failed", err);
           });
         },
         redo: () => {
           markDeleted(true);
-          void ds.softDeleteTask(id).catch((err) => {
+          void ds.softDeleteTodo(id).catch((err) => {
             console.error("[BriefingScreen] task delete redo failed", err);
           });
         },
@@ -737,11 +737,11 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   // "add from tasks" picker. One implementation, two hosts — a second copy
   // here would drift the moment one side is fixed.
   //
-  // Host difference: Briefing mounts no TaskTreeProvider (MainScreen renders
+  // Host difference: Briefing mounts no TodoTreeProvider (MainScreen renders
   // this screen bare and injects the DataService instead), so completion and
-  // "add to today" write through ds.updateTask rather than the provider's
-  // setTaskStatus / updateNode. Both end up on the same items_meta +
-  // tasks_payload columns (taskUpdatesToPatches), so the two trays agree.
+  // "add to today" write through ds.updateTodo rather than the provider's
+  // setTodoStatus / updateNode. Both end up on the same items_meta +
+  // tasks_payload columns (todoUpdatesToPatches), so the two trays agree.
   //
   // "Today" here is Briefing's own todayKey (todayDateKey — day-start-hour
   // aware, #373), NOT Schedule's plain calendar key: the tray sits beside the
@@ -786,7 +786,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   const handleAddTodoCandidate = useCallback(
     (taskId: string) => {
       void ds
-        .updateTask(taskId, {
+        .updateTodo(taskId, {
           scheduledAt: localDateTimeToISO(todayKey, "00:00"),
           isAllDay: true,
         })

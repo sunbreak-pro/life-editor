@@ -25,7 +25,7 @@ const { usePaletteItemSearch } =
 
 const listNotesUnified = vi.fn();
 const listDailiesUnified = vi.fn();
-const fetchTaskTree = vi.fn();
+const fetchTodoTree = vi.fn();
 const fetchEvents = vi.fn();
 
 function makeDS() {
@@ -36,7 +36,7 @@ function makeDS() {
   listDailiesUnified.mockResolvedValue([
     { id: "daily-2026-07-30", date: "2026-07-30", isDeleted: false },
   ]);
-  fetchTaskTree.mockResolvedValue([
+  fetchTodoTree.mockResolvedValue([
     { id: "t1", title: "これはテストです", isDeleted: false },
   ]);
   fetchEvents.mockResolvedValue([
@@ -45,7 +45,7 @@ function makeDS() {
   return {
     listNotesUnified,
     listDailiesUnified,
-    fetchTaskTree,
+    fetchTodoTree,
     fetchEvents,
   } as unknown as Parameters<typeof usePaletteItemSearch>[0]["dataService"];
 }

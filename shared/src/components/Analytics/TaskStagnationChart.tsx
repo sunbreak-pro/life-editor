@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import { aggregateTaskStagnation } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
@@ -20,7 +20,7 @@ export interface TaskStagnationChartLabels {
 }
 
 interface TaskStagnationChartProps {
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   labels: TaskStagnationChartLabels;
 }
 

@@ -6,7 +6,7 @@ import {
   eventToTaskSlot,
 } from "../src/utils/itemConversion";
 import { tasksToCalendarChips } from "../src/utils/taskCalendarChips";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type { ScheduleItem } from "../src/types/schedule";
 
 /*
@@ -36,7 +36,7 @@ function event(over: Partial<ScheduleItem> = {}): ScheduleItem {
   };
 }
 
-function task(over: Partial<TaskNode> = {}): TaskNode {
+function task(over: Partial<TodoNode> = {}): TodoNode {
   return {
     id: "task-1",
     type: "task",

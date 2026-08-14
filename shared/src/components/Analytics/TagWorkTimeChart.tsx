@@ -8,7 +8,7 @@ import {
   Legend,
 } from "recharts";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { aggregateWorkTimeByTag } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
@@ -26,8 +26,8 @@ export interface TagWorkTimeChartLabels {
 
 interface TagWorkTimeChartProps {
   sessions: TimerSession[];
-  /** Live task tree (`fetchTaskTree` — trashed tasks are already absent). */
-  nodes: TaskNode[];
+  /** Live task tree (`fetchTodoTree` — trashed tasks are already absent). */
+  nodes: TodoNode[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   labels: TagWorkTimeChartLabels;

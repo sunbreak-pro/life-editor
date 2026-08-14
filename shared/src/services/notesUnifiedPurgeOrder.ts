@@ -5,9 +5,9 @@ import type { NoteNode } from "../types/note";
  * Pure: operates on the live+trashed pool, no client. The composite parent
  * FK (0014) is `ON DELETE NO ACTION`, so a node whose subtree still
  * references it must be purged descendants-first — mirrors
- * `permanentDeleteTask` (DB-Q3).
+ * `permanentDeleteTodo` (DB-Q3).
  *
- * sortByDepthDesc lives in utils/ keyed to TaskNode; rather than
+ * sortByDepthDesc lives in utils/ keyed to TodoNode; rather than
  * generalising it (out of scope), the depth walk is implemented here
  * against the Note pool. Cycle guards mirror the task-tree pattern
  * (known-issue 016).

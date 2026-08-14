@@ -100,7 +100,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     // ds change simply keeps the (still-valid) list visible until it resolves.
     let cancelled = false;
     void ds
-      .fetchTaskTree()
+      .fetchTodoTree()
       .then((nodes) => {
         if (cancelled) return;
         const options = nodes

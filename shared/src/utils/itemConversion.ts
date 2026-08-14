@@ -1,6 +1,6 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
-import { collectDescendantIds } from "./getDescendantTasks";
+import { collectDescendantIds } from "./getDescendantTodos";
 import { localDateTimeToISO, tasksToCalendarChips } from "./taskCalendarChips";
 
 /*
@@ -52,13 +52,13 @@ export interface TodoToEventBlock {
 
 /**
  * Whether this Todo may become an event. `nodes` is the LIVE tree (soft-deleted
- * rows already excluded by useTaskTreeAPI), so the count only ever names rows
+ * rows already excluded by useTodoTreeAPI), so the count only ever names rows
  * the user can still see. A trashed child is invisible here but still holds the
  * FK, so the service repeats the check against the DB and the host surfaces
  * that as a plain failure — the authority is the service, this is the sentence.
  */
 export function todoToEventBlock(
-  nodes: TaskNode[],
+  nodes: TodoNode[],
   id: string,
 ): TodoToEventBlock | null {
   const childCount = collectDescendantIds(id, nodes).size - 1;
@@ -94,7 +94,7 @@ export interface EventPlacement {
  * describes: it becomes an all-day item on `todayKey`.
  */
 export function taskToEventPlacement(
-  task: TaskNode,
+  task: TodoNode,
   todayKey: string,
 ): EventPlacement {
   // Unbounded window: the caller wants this task's placement, not a range

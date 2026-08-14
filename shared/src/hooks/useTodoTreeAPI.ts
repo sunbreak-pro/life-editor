@@ -1,27 +1,27 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import type { TaskNode, NodeType } from "../types/taskTree";
+import type { TodoNode, TodoNodeType } from "../types/todoTree";
 import type { DataService } from "../services/DataService";
-import { useTaskTreeCRUD } from "./useTaskTreeCRUD";
-import { useTaskTreeDeletion } from "./useTaskTreeDeletion";
-import { useTaskTreeMovement } from "./useTaskTreeMovement";
+import { useTodoTreeCRUD } from "./useTodoTreeCRUD";
+import { useTodoTreeDeletion } from "./useTodoTreeDeletion";
+import { useTodoTreeMovement } from "./useTodoTreeMovement";
 import {
-  useTaskTreeHistory,
+  useTodoTreeHistory,
   createNoopUndoRedo,
   type UndoRedoLike,
   type PersistSettled,
-  type TaskHistoryLabel,
-} from "./useTaskTreeHistory";
+  type TodoHistoryLabel,
+} from "./useTodoTreeHistory";
 import { logServiceError } from "../utils/logError";
-import { collectDescendantIds } from "../utils/getDescendantTasks";
+import { collectDescendantIds } from "../utils/getDescendantTodos";
 import { useSyncDomains } from "./useSyncDomains";
 import {
-  getTaskSelection,
-  setTaskSelection,
-  clearTaskSelection,
+  getTodoSelection,
+  setTodoSelection,
+  clearTodoSelection,
 } from "../state/materialsSelectionStore";
 
 let idCounter = Date.now();
-function generateId(type: NodeType): string {
+function generateId(type: TodoNodeType): string {
   return `${type}-${++idCounter}`;
 }
 
@@ -31,56 +31,56 @@ function generateId(type: NodeType): string {
  * takes both by injection so it is host-agnostic (CLAUDE.md §6.4). `undoRedo`
  * defaults to a no-op (web S1 — real UndoRedo lands in S6).
  */
-export interface UseTaskTreeAPIOptions {
+export interface UseTodoTreeAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
   /**
    * #282: opt-in cross-remount selection persistence via the module-level
-   * materialsSelectionStore. Only the Materials Tasks mount passes true —
+   * materialsSelectionStore. Only the Materials Todos mount passes true —
    * the Schedule section mounts this hook too (MainScreen) and must neither
    * restore nor overwrite the Materials selection.
    */
   persistSelection?: boolean;
 }
 
-export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
+export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   const { dataService: ds } = options;
   const undoRedo = options.undoRedo ?? createNoopUndoRedo();
   const persistSelection = options.persistSelection ?? false;
 
-  const [nodes, setNodes] = useState<TaskNode[]>([]);
+  const [nodes, setNodes] = useState<TodoNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   // Pure selection state (W7). DataService-independent — mirrors Notes'
-  // `selectedNoteId` (useNotesUnifiedAPI). Drives the task detail the Kanban
+  // `selectedNoteId` (useNotesUnifiedAPI). Drives the todo detail the Kanban
   // host shows in the rightSidebar; the ref lets the delete wrappers below clear a selection
   // that falls inside a deleted subtree without re-subscribing.
-  const [selectedTaskId, setSelectedTaskIdState] = useState<string | null>(
+  const [selectedTodoId, setSelectedTodoIdState] = useState<string | null>(
     null,
   );
-  const selectedTaskIdRef = useRef(selectedTaskId);
+  const selectedTodoIdRef = useRef(selectedTodoId);
   useEffect(() => {
-    selectedTaskIdRef.current = selectedTaskId;
-  }, [selectedTaskId]);
+    selectedTodoIdRef.current = selectedTodoId;
+  }, [selectedTodoId]);
   // #282: write-through wrapper for the PUBLIC setter so a Materials tab/
   // section switch can restore the selection after this provider remounts.
-  // null clears the store entry. Task ids need existence validation on
+  // null clears the store entry. Todo ids need existence validation on
   // restore (see the restore effect), unlike Daily's always-valid date key,
   // so we do NOT seed the initial state from the store here.
-  const setSelectedTaskId = useCallback(
+  const setSelectedTodoId = useCallback(
     (id: string | null): void => {
-      setSelectedTaskIdState(id);
+      setSelectedTodoIdState(id);
       if (!persistSelection) return;
-      if (id === null) clearTaskSelection();
-      else setTaskSelection(id);
+      if (id === null) clearTodoSelection();
+      else setTodoSelection(id);
     },
     [persistSelection],
   );
   const loadedRef = useRef(false);
-  const syncVersion = useSyncDomains("tasks");
+  const syncVersion = useSyncDomains("todos");
 
-  // One-shot RESTORE (#282): re-select the task the user had open before the
+  // One-shot RESTORE (#282): re-select the todo the user had open before the
   // provider unmounted (Materials tab/section switch). The id lives in the
   // module-level materialsSelectionStore, which outlives this React tree.
   // Called from the load path's async continuation below (#586 — setState
@@ -93,31 +93,31 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   // store entry.
   const restoredRef = useRef(false);
   const restoreSelection = useCallback(
-    (loaded: TaskNode[]) => {
+    (loaded: TodoNode[]) => {
       if (!persistSelection) return; // non-Materials mount (Schedule) — no restore
       if (restoredRef.current) return;
       restoredRef.current = true;
-      const storedId = getTaskSelection();
+      const storedId = getTodoSelection();
       if (storedId === null) return;
-      if (selectedTaskIdRef.current !== null) return; // user already selected
+      if (selectedTodoIdRef.current !== null) return; // user already selected
       const node = loaded.find((n) => n.id === storedId);
       if (!node || node.isDeleted) {
-        clearTaskSelection(); // stale/soft-deleted id — drop it
+        clearTodoSelection(); // stale/soft-deleted id — drop it
         return;
       }
-      setSelectedTaskIdState(storedId); // store already holds it, no write-through
+      setSelectedTodoIdState(storedId); // store already holds it, no write-through
     },
     [persistSelection],
   );
 
-  // Load from DataService on mount (including soft-deleted tasks)
+  // Load from DataService on mount (including soft-deleted todos)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const [active, deleted] = await Promise.all([
-          ds.fetchTaskTree(),
-          ds.fetchDeletedTasks(),
+          ds.fetchTodoTree(),
+          ds.fetchDeletedTodos(),
         ]);
         if (!cancelled) {
           const all = [...active, ...deleted];
@@ -127,7 +127,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load tasks");
+          setError(e instanceof Error ? e.message : "Failed to load todos");
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -141,24 +141,24 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const refetch = useCallback(async () => {
     try {
       const [active, deleted] = await Promise.all([
-        ds.fetchTaskTree(),
-        ds.fetchDeletedTasks(),
+        ds.fetchTodoTree(),
+        ds.fetchDeletedTodos(),
       ]);
       setNodes([...active, ...deleted]);
     } catch (e) {
-      logServiceError("TaskTree", "refetch", e);
+      logServiceError("TodoTree", "refetch", e);
     }
   }, [ds]);
 
   const syncToDb = useCallback(
-    (updated: TaskNode[], onSettled?: PersistSettled) => {
+    (updated: TodoNode[], onSettled?: PersistSettled) => {
       setPersistError(null);
-      ds.syncTaskTree(updated)
+      ds.syncTodoTree(updated)
         .then(() => onSettled?.(true))
         .catch((e) => {
-          logServiceError("TaskTree", "sync", e);
+          logServiceError("TodoTree", "sync", e);
           setPersistError(
-            e instanceof Error ? e.message : "Failed to save tasks",
+            e instanceof Error ? e.message : "Failed to save todos",
           );
           onSettled?.(false);
         });
@@ -174,7 +174,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     canUndo,
     canRedo,
     clearHistory,
-  } = useTaskTreeHistory(setNodes, syncToDb, undoRedo);
+  } = useTodoTreeHistory(setNodes, syncToDb, undoRedo);
 
   // The guard drops the write when the tree has not loaded yet (persisting a
   // half-known tree would delete the rows it doesn't know about). That drop is
@@ -182,10 +182,10 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   // — otherwise a follow-up would write against a row that was never created.
   const guardedPersistWithHistory = useCallback(
     (
-      currentNodes: TaskNode[],
-      updated: TaskNode[],
+      currentNodes: TodoNode[],
+      updated: TodoNode[],
       onSettled?: PersistSettled,
-      label?: TaskHistoryLabel,
+      label?: TodoHistoryLabel,
     ) => {
       if (!loadedRef.current) {
         onSettled?.(false);
@@ -197,7 +197,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   );
 
   const guardedPersistSilent = useCallback(
-    (updated: TaskNode[], onSettled?: PersistSettled) => {
+    (updated: TodoNode[], onSettled?: PersistSettled) => {
       if (!loadedRef.current) {
         onSettled?.(false);
         return;
@@ -213,11 +213,11 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
 
   // childrenByParent is built once per activeNodes change (O(n) group +
   // sort) so getChildren is an O(1) Map lookup instead of an O(n) filter+
-  // sort per call. TaskTreeView's flatten calls getChildren twice per node
+  // sort per call. TodoTreeView's flatten calls getChildren twice per node
   // (children + hasChildren probe) -> O(n^2); the Map collapses that to O(n).
   // life-tags S3: folders were retired, so siblings sort by `order` alone.
   const childrenByParent = useMemo(() => {
-    const map = new Map<string | null, TaskNode[]>();
+    const map = new Map<string | null, TodoNode[]>();
     for (const n of activeNodes) {
       const list = map.get(n.parentId);
       if (list) list.push(n);
@@ -230,7 +230,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   }, [activeNodes]);
 
   const getChildren = useCallback(
-    (parentId: string | null): TaskNode[] => {
+    (parentId: string | null): TodoNode[] => {
       return childrenByParent.get(parentId) ?? [];
     },
     [childrenByParent],
@@ -240,9 +240,9 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     addNode,
     updateNode,
     toggleExpanded,
-    toggleTaskStatus,
-    setTaskStatus,
-  } = useTaskTreeCRUD(
+    toggleTodoStatus,
+    setTodoStatus,
+  } = useTodoTreeCRUD(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
@@ -252,7 +252,7 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     softDelete: rawSoftDelete,
     restoreNode,
     permanentDelete: rawPermanentDelete,
-  } = useTaskTreeDeletion(
+  } = useTodoTreeDeletion(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
@@ -266,10 +266,10 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const softDelete = useCallback(
     (id: string, options?: { skipUndo?: boolean }) => {
       const subtree = collectDescendantIds(id, nodes);
-      const current = selectedTaskIdRef.current;
+      const current = selectedTodoIdRef.current;
       if (current !== null && subtree.has(current)) {
-        setSelectedTaskIdState(null);
-        if (persistSelection) clearTaskSelection(); // #282: don't restore a soft-deleted task
+        setSelectedTodoIdState(null);
+        if (persistSelection) clearTodoSelection(); // #282: don't restore a soft-deleted todo
       }
       rawSoftDelete(id, options);
     },
@@ -279,25 +279,25 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const permanentDelete = useCallback(
     (id: string) => {
       const subtree = collectDescendantIds(id, nodes);
-      const current = selectedTaskIdRef.current;
+      const current = selectedTodoIdRef.current;
       if (current !== null && subtree.has(current)) {
-        setSelectedTaskIdState(null);
-        if (persistSelection) clearTaskSelection(); // #282: don't restore a permanently-deleted task
+        setSelectedTodoIdState(null);
+        if (persistSelection) clearTodoSelection(); // #282: don't restore a permanently-deleted todo
       }
       rawPermanentDelete(id);
     },
     [nodes, rawPermanentDelete, persistSelection],
   );
-  const { moveNode, moveToRoot } = useTaskTreeMovement(
+  const { moveNode, moveToRoot } = useTodoTreeMovement(
     nodes,
     guardedPersistWithHistory,
   );
 
   // Resolve the selected node from the live map (null when nothing is
   // selected or the id no longer exists). Mirrors Notes' `selectedNote`.
-  const selectedTask = useMemo(
-    () => (selectedTaskId ? (nodeMap.get(selectedTaskId) ?? null) : null),
-    [nodeMap, selectedTaskId],
+  const selectedTodo = useMemo(
+    () => (selectedTodoId ? (nodeMap.get(selectedTodoId) ?? null) : null),
+    [nodeMap, selectedTodoId],
   );
 
   return useMemo(
@@ -309,9 +309,9 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       isLoading,
       error,
       persistError,
-      selectedTaskId,
-      setSelectedTaskId,
-      selectedTask,
+      selectedTodoId,
+      setSelectedTodoId,
+      selectedTodo,
       refetch,
       undo,
       redo,
@@ -320,8 +320,8 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       addNode,
       updateNode,
       toggleExpanded,
-      toggleTaskStatus,
-      setTaskStatus,
+      toggleTodoStatus,
+      setTodoStatus,
       softDelete,
       restoreNode,
       permanentDelete,
@@ -336,9 +336,9 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       isLoading,
       error,
       persistError,
-      selectedTaskId,
-      setSelectedTaskId,
-      selectedTask,
+      selectedTodoId,
+      setSelectedTodoId,
+      selectedTodo,
       refetch,
       undo,
       redo,
@@ -347,8 +347,8 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       addNode,
       updateNode,
       toggleExpanded,
-      toggleTaskStatus,
-      setTaskStatus,
+      toggleTodoStatus,
+      setTodoStatus,
       softDelete,
       restoreNode,
       permanentDelete,

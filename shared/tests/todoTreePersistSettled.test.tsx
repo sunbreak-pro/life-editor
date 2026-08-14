@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import {
-  useTaskTreeHistory,
+  useTodoTreeHistory,
   createNoopUndoRedo,
   type UndoRedoLike,
-} from "../src/hooks/useTaskTreeHistory";
-import { useTaskTreeCRUD } from "../src/hooks/useTaskTreeCRUD";
-import type { TaskNode } from "../src/types/taskTree";
+} from "../src/hooks/useTodoTreeHistory";
+import { useTodoTreeCRUD } from "../src/hooks/useTodoTreeCRUD";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * The "did it actually land?" signal (#376).
@@ -24,7 +24,7 @@ import type { TaskNode } from "../src/types/taskTree";
  * redo (which would attach the note a second time).
  */
 
-function task(id: string): TaskNode {
+function todo(id: string): TodoNode {
   return {
     id,
     type: "task",
@@ -38,33 +38,33 @@ function task(id: string): TaskNode {
 
 type SyncSpy = ReturnType<typeof makeSyncSpy>;
 
-/** Stands in for useTaskTreeAPI's syncToDb, capturing the settle callback. */
+/** Stands in for useTodoTreeAPI's syncToDb, capturing the settle callback. */
 function makeSyncSpy() {
   return vi.fn<
-    (nodes: TaskNode[], onSettled?: (ok: boolean) => void) => void
+    (nodes: TodoNode[], onSettled?: (ok: boolean) => void) => void
   >();
 }
 
 function renderHistory(syncToDb: SyncSpy, undoRedo: UndoRedoLike) {
-  return renderHook(() => useTaskTreeHistory(vi.fn(), syncToDb, undoRedo))
+  return renderHook(() => useTodoTreeHistory(vi.fn(), syncToDb, undoRedo))
     .result;
 }
 
-describe("useTaskTreeHistory — the settle callback belongs to one write", () => {
+describe("useTodoTreeHistory — the settle callback belongs to one write", () => {
   it("hands persistSilent's callback to the sync", () => {
     const syncToDb = makeSyncSpy();
     const result = renderHistory(syncToDb, createNoopUndoRedo());
     const onSettled = vi.fn();
-    act(() => result.current.persistSilent([task("a")], onSettled));
-    expect(syncToDb).toHaveBeenCalledWith([task("a")], onSettled);
+    act(() => result.current.persistSilent([todo("a")], onSettled));
+    expect(syncToDb).toHaveBeenCalledWith([todo("a")], onSettled);
   });
 
   it("hands persistWithHistory's callback to the sync", () => {
     const syncToDb = makeSyncSpy();
     const result = renderHistory(syncToDb, createNoopUndoRedo());
     const onSettled = vi.fn();
-    act(() => result.current.persistWithHistory([], [task("a")], onSettled));
-    expect(syncToDb).toHaveBeenCalledWith([task("a")], onSettled);
+    act(() => result.current.persistWithHistory([], [todo("a")], onSettled));
+    expect(syncToDb).toHaveBeenCalledWith([todo("a")], onSettled);
   });
 
   it("does not re-fire it on undo or redo", () => {
@@ -80,7 +80,7 @@ describe("useTaskTreeHistory — the settle callback belongs to one write", () =
     };
     const result = renderHistory(syncToDb, undoRedo);
     const onSettled = vi.fn();
-    act(() => result.current.persistWithHistory([], [task("a")], onSettled));
+    act(() => result.current.persistWithHistory([], [todo("a")], onSettled));
     syncToDb.mockClear();
 
     const command = pushed as unknown as { undo: () => void; redo: () => void };
@@ -93,20 +93,20 @@ describe("useTaskTreeHistory — the settle callback belongs to one write", () =
   });
 });
 
-describe("useTaskTreeCRUD.addNode — onSaved reports the row, not the draft", () => {
+describe("useTodoTreeCRUD.addNode — onSaved reports the row, not the draft", () => {
   function renderCRUD() {
     const persistWithHistory =
       vi.fn<
         (
-          current: TaskNode[],
-          updated: TaskNode[],
+          current: TodoNode[],
+          updated: TodoNode[],
           onSettled?: (ok: boolean) => void,
         ) => void
       >();
     const persistSilent =
-      vi.fn<(updated: TaskNode[], onSettled?: (ok: boolean) => void) => void>();
+      vi.fn<(updated: TodoNode[], onSettled?: (ok: boolean) => void) => void>();
     const { result } = renderHook(() =>
-      useTaskTreeCRUD(
+      useTodoTreeCRUD(
         [],
         persistWithHistory,
         persistSilent,
@@ -119,7 +119,7 @@ describe("useTaskTreeCRUD.addNode — onSaved reports the row, not the draft", (
   it("passes the new node once the sync reports success", () => {
     const { result, persistWithHistory } = renderCRUD();
     const onSaved = vi.fn();
-    let created: TaskNode | undefined;
+    let created: TodoNode | undefined;
     act(() => {
       created = result.current.addNode("task", null, "Write the deck", {
         onSaved,
@@ -160,7 +160,7 @@ describe("useTaskTreeCRUD.addNode — onSaved reports the row, not the draft", (
 
   it("adds no callback at all when the caller wants none", () => {
     // The plumbing must stay invisible to the many callers that just add a
-    // task — an always-present wrapper would make every write look chained.
+    // todo — an always-present wrapper would make every write look chained.
     const { result, persistWithHistory } = renderCRUD();
     act(() => {
       result.current.addNode("task", null, "Plain add");

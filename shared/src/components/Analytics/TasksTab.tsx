@@ -1,5 +1,5 @@
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import {
   TaskCompletionTrend,
@@ -22,7 +22,7 @@ export interface TasksTabLabels {
 
 interface TasksTabProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   labels: TasksTabLabels;

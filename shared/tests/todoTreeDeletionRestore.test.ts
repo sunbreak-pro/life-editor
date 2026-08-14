@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useTaskTreeDeletion } from "../src/hooks/useTaskTreeDeletion";
-import type { TaskNode } from "../src/types/taskTree";
+import { useTodoTreeDeletion } from "../src/hooks/useTodoTreeDeletion";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * restoreNode ancestor climb. The climb used to be a bare
@@ -14,11 +14,11 @@ import type { TaskNode } from "../src/types/taskTree";
  * makes the cycle cases spin instead of returning — the suite times out.
  */
 
-function task(
+function todo(
   id: string,
   parentId: string | null,
   isDeleted: boolean,
-): TaskNode {
+): TodoNode {
   return {
     id,
     type: "task",
@@ -32,13 +32,13 @@ function task(
   };
 }
 
-function setup(nodes: TaskNode[]) {
+function setup(nodes: TodoNode[]) {
   const persistWithHistory =
-    vi.fn<(current: TaskNode[], updated: TaskNode[]) => void>();
-  const persistSilent = vi.fn<(updated: TaskNode[]) => void>();
+    vi.fn<(current: TodoNode[], updated: TodoNode[]) => void>();
+  const persistSilent = vi.fn<(updated: TodoNode[]) => void>();
   const clearHistory = vi.fn<() => void>();
   const { result } = renderHook(() =>
-    useTaskTreeDeletion(nodes, persistWithHistory, persistSilent, clearHistory),
+    useTodoTreeDeletion(nodes, persistWithHistory, persistSilent, clearHistory),
   );
   return { result, persistWithHistory };
 }
@@ -46,16 +46,16 @@ function setup(nodes: TaskNode[]) {
 /** ids of nodes that are live (not deleted) in the last persisted array. */
 function liveIds(persistWithHistory: { mock: { calls: unknown[][] } }): string[] {
   const calls = persistWithHistory.mock.calls;
-  const persisted = calls[calls.length - 1][1] as TaskNode[];
+  const persisted = calls[calls.length - 1][1] as TodoNode[];
   return persisted.filter((n) => !n.isDeleted).map((n) => n.id);
 }
 
-describe("useTaskTreeDeletion.restoreNode — ancestor climb", () => {
+describe("useTodoTreeDeletion.restoreNode — ancestor climb", () => {
   it("restores the node together with its deleted ancestors", () => {
     const nodes = [
-      task("root", null, true),
-      task("mid", "root", true),
-      task("leaf", "mid", true),
+      todo("root", null, true),
+      todo("mid", "root", true),
+      todo("leaf", "mid", true),
     ];
     const { result, persistWithHistory } = setup(nodes);
 
@@ -70,9 +70,9 @@ describe("useTaskTreeDeletion.restoreNode — ancestor climb", () => {
 
   it("leaves unrelated deleted nodes alone", () => {
     const nodes = [
-      task("root", null, true),
-      task("leaf", "root", true),
-      task("other", null, true),
+      todo("root", null, true),
+      todo("leaf", "root", true),
+      todo("other", null, true),
     ];
     const { result, persistWithHistory } = setup(nodes);
 
@@ -82,7 +82,7 @@ describe("useTaskTreeDeletion.restoreNode — ancestor climb", () => {
   });
 
   it("terminates on a self-referential parentId (A -> A)", () => {
-    const nodes = [task("A", "A", true)];
+    const nodes = [todo("A", "A", true)];
     const { result, persistWithHistory } = setup(nodes);
 
     act(() => result.current.restoreNode("A"));
@@ -91,7 +91,7 @@ describe("useTaskTreeDeletion.restoreNode — ancestor climb", () => {
   });
 
   it("terminates on a 2-node parentId cycle (A <-> B)", () => {
-    const nodes = [task("A", "B", true), task("B", "A", true)];
+    const nodes = [todo("A", "B", true), todo("B", "A", true)];
     const { result, persistWithHistory } = setup(nodes);
 
     act(() => result.current.restoreNode("A"));
@@ -102,7 +102,7 @@ describe("useTaskTreeDeletion.restoreNode — ancestor climb", () => {
   });
 
   it("stops when an ancestor id is missing from the node list", () => {
-    const nodes = [task("leaf", "ghost", true)];
+    const nodes = [todo("leaf", "ghost", true)];
     const { result, persistWithHistory } = setup(nodes);
 
     act(() => result.current.restoreNode("leaf"));

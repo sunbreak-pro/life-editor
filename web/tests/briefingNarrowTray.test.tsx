@@ -38,7 +38,7 @@ const value: WebSyncContextValue = {
 function makeDS(): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
-    fetchTaskTree: vi.fn().mockResolvedValue([]),
+    fetchTodoTree: vi.fn().mockResolvedValue([]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),

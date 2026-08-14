@@ -8,8 +8,8 @@ import {
   type AddableTask,
   type ConfirmRequest,
   type TaskCalendarChip,
-  type TaskNode,
-  type TaskStatus,
+  type TodoNode,
+  type TodoStatus,
   type TodayTodoRow,
   type UpdateNodeOptions,
 } from "@life-editor/shared";
@@ -30,10 +30,10 @@ import {
  *
  * Schedule draws two kinds of row from two different stores. Events come from
  * the ScheduleItems provider through the visible-range store; scheduled
- * TaskNodes come from the TaskTree provider and are turned into blue chips at
+ * TodoNodes come from the TaskTree provider and are turned into blue chips at
  * a derived layer that never touches `rangeItems` (A-1). Everything in this
  * file belongs to the second kind — the chips, the "本日の Todo" tray they
- * back, and every gesture that writes a TaskNode — and none of it reads the
+ * back, and every gesture that writes a TodoNode — and none of it reads the
  * range store, the repeat machinery or the mutation layer. That is the whole
  * reason it comes out as one piece: the two halves shared a file, not a
  * thought.
@@ -53,15 +53,15 @@ import {
  */
 
 export interface UseScheduleTaskChipsArgs {
-  /** The live tree (soft-deleted rows already excluded by useTaskTreeAPI). */
-  taskNodes: TaskNode[];
+  /** The live tree (soft-deleted rows already excluded by useTodoTreeAPI). */
+  taskNodes: TodoNode[];
   updateNode: (
     id: string,
-    updates: Partial<TaskNode>,
+    updates: Partial<TodoNode>,
     options?: UpdateNodeOptions,
   ) => void;
-  setTaskStatus: (id: string, status: TaskStatus) => void;
-  softDeleteTask: (id: string) => void;
+  setTodoStatus: (id: string, status: TodoStatus) => void;
+  softDeleteTodo: (id: string) => void;
   /** Today's calendar key — the tray's day, independent of the grid's. */
   today: string;
   /** The grid's visible window (useCalendarNav). */
@@ -81,7 +81,7 @@ export interface ScheduleTaskChipsApi {
   todoAddable: AddableTask[];
   /** Resolve a chip id (as the grid spells it) to the chip behind it. */
   findTaskChip: (chipId: string) => TaskCalendarChip | null;
-  /** #626: the TaskNode id behind an open task detail, or null. */
+  /** #626: the TodoNode id behind an open task detail, or null. */
   taskDetailId: string | null;
   setTaskDetailId: Dispatch<SetStateAction<string | null>>;
   handleTaskChipMove: (
@@ -103,15 +103,15 @@ export interface ScheduleTaskChipsApi {
 export function useScheduleTaskChips({
   taskNodes,
   updateNode,
-  setTaskStatus,
-  softDeleteTask,
+  setTodoStatus,
+  softDeleteTodo,
   today,
   rangeStart,
   rangeEnd,
   askConfirm,
   copy,
 }: UseScheduleTaskChipsArgs): ScheduleTaskChipsApi {
-  // #626: task-chip detail overlay — the UNWRAPPED TaskNode id behind an open
+  // #626: task-chip detail overlay — the UNWRAPPED TodoNode id behind an open
   // task detail, or null. Separate from the host's selectedId/overlayOpen
   // because those resolve schedule_items and a chip has none.
   const [taskDetailId, setTaskDetailId] = useState<string | null>(null);
@@ -235,9 +235,9 @@ export function useScheduleTaskChips({
   const handleTodoToggleComplete = useCallback(
     (taskId: string) => {
       const task = taskNodes.find((n) => n.id === taskId);
-      setTaskStatus(taskId, task?.status === "DONE" ? "NOT_STARTED" : "DONE");
+      setTodoStatus(taskId, task?.status === "DONE" ? "NOT_STARTED" : "DONE");
     },
-    [taskNodes, setTaskStatus],
+    [taskNodes, setTodoStatus],
   );
 
   // "Add to today" (案 c staging — the write itself is in
@@ -262,7 +262,7 @@ export function useScheduleTaskChips({
     (id: string) => {
       const cascade = todoDeleteCascade(taskNodes, id);
       if (!cascade) {
-        softDeleteTask(id);
+        softDeleteTodo(id);
         return;
       }
       void askConfirm({
@@ -271,10 +271,10 @@ export function useScheduleTaskChips({
         cancelLabel: copy.cancelLabel,
         danger: true,
       }).then((ok) => {
-        if (ok) softDeleteTask(id);
+        if (ok) softDeleteTodo(id);
       });
     },
-    [taskNodes, softDeleteTask, askConfirm, copy],
+    [taskNodes, softDeleteTodo, askConfirm, copy],
   );
 
   /*
@@ -303,11 +303,11 @@ export function useScheduleTaskChips({
         (ok) => {
           if (!ok) return;
           setTaskDetailId(null);
-          softDeleteTask(id);
+          softDeleteTodo(id);
         },
       );
     },
-    [taskNodes, softDeleteTask, askConfirm, copy],
+    [taskNodes, softDeleteTodo, askConfirm, copy],
   );
 
   return {

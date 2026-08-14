@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { TaskNode } from "@life-editor/shared";
+import type { TodoNode } from "@life-editor/shared";
 
 /*
  * Which task's detail is open, and how it got there (#470).
@@ -12,8 +12,8 @@ import type { TaskNode } from "@life-editor/shared";
  * it lives here instead of inline in KanbanView: this shape is testable without
  * mounting the board, its providers and TipTap.
  *
- * The sheet id is deliberately NOT tree.selectedTaskId: the selection is
- * persisted and restored on mount (useTaskTreeAPI's one-shot RESTORE), so keying
+ * The sheet id is deliberately NOT tree.selectedTodoId: the selection is
+ * persisted and restored on mount (useTodoTreeAPI's one-shot RESTORE), so keying
  * the sheet off it would boot the app with a detail sheet covering the list.
  */
 
@@ -21,12 +21,12 @@ export interface UseTaskDetailTargetParams {
   /** Wide = the rightSidebar owns the detail; narrow = the bottom sheet does. */
   isWide: boolean;
   /** Every task by id — soft-deleted rows included, hence the isDeleted check. */
-  nodeMap: Map<string, TaskNode>;
+  nodeMap: Map<string, TodoNode>;
   /** The tree is still loading, so nodeMap would reject every live id. */
   isLoading: boolean;
   /** A task arriving from a "[[" link click in another tab (#370). */
   pendingSelectTaskId?: string | null;
-  /** Persist the app-wide task selection (tree.setSelectedTaskId). */
+  /** Persist the app-wide task selection (tree.setSelectedTodoId). */
   onSelect: (id: string) => void;
   /** Reveal the Desktop detail surface (rightSidebar.open). */
   onOpenWide: () => void;
@@ -36,7 +36,7 @@ export interface UseTaskDetailTargetParams {
 
 export interface TaskDetailTarget {
   /** The task the narrow sheet is showing, or null while it is closed. */
-  sheetTask: TaskNode | null;
+  sheetTask: TodoNode | null;
   /** A narrow card tap: select the task and open the sheet on it. */
   openSheet: (id: string) => void;
   closeSheet: () => void;
@@ -93,7 +93,7 @@ export function useTaskDetailTarget({
    * so it can't re-fire.
    *
    * isLoading gates the whole thing: arriving from another tab mounts the board
-   * (and its TaskTreeProvider) fresh, so nodeMap is still empty on the first
+   * (and its TodoTreeProvider) fresh, so nodeMap is still empty on the first
    * render — checking then would reject every live task. The effect reruns when
    * the load lands.
    */

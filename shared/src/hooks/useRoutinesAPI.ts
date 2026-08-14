@@ -3,7 +3,7 @@ import type { RoutineNode, FrequencyType } from "../types/routine";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
-import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useDomainLoad } from "./useDomainLoad";
 import { useSyncDomains } from "./useSyncDomains";
 

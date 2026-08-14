@@ -31,7 +31,7 @@ import type { NoteConnection } from "../types/wikiTag";
  *
  * Replace each stub with the real items_meta + <role>_payload
  * implementation in DU-C / DU-D — same pattern as DU-B-3
- * SupabaseTasksService.
+ * SupabaseTodosService.
  */
 
 function _pendingDuRewrite(method: string, domain: string): never {

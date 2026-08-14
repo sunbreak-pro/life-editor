@@ -370,7 +370,7 @@ export * from "./Connect";
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
 export * from "./schedule";
 // Kanban (K1) — Tasks board primitives (card / column / board) + pure
-// column builders. Pure presentational: the host maps TaskNode[] →
+// column builders. Pure presentational: the host maps TodoNode[] →
 // columns and injects copy (§6.4). Folder + Status views; Tag view is K2.
 export * from "./Kanban";
 // Empty state + skeleton (Materials mini-plan Step 1) — the brief-standard

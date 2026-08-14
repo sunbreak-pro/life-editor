@@ -4,7 +4,7 @@ import { useRoutinesAPI } from "../src/hooks/useRoutinesAPI";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import { stubDataService } from "./helpers/dataServiceStub";
 import type { RoutineNode } from "../src/types/routine";
-import type { UndoRedoLike } from "../src/hooks/useTaskTreeHistory";
+import type { UndoRedoLike } from "../src/hooks/useTodoTreeHistory";
 
 /*
  * Undoing a routine deletion (#708, decision D-20260812-sched-2 = A).

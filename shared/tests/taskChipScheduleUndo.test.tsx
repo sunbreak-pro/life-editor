@@ -5,13 +5,13 @@ import { UndoRedoProvider } from "../src/context/UndoRedoContext";
 import { useUndoRedoContext } from "../src/hooks/useUndoRedoContext";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
-import { TaskTreeProvider } from "../src/context/TaskTreeContext";
-import { useTaskTreeContext } from "../src/hooks/useTaskTreeContext";
-import { TASK_HISTORY_LABELS } from "../src/hooks/useTaskTreeHistory";
+import { TodoTreeProvider } from "../src/context/TodoTreeContext";
+import { useTodoTreeContext } from "../src/hooks/useTodoTreeContext";
+import { TODO_HISTORY_LABELS } from "../src/hooks/useTodoTreeHistory";
 import en from "../src/i18n/locales/en.json";
 import ja from "../src/i18n/locales/ja.json";
 import type { DataService } from "../src/services/DataService";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * #569 — the Schedule section's task-chip gestures are undoable.
@@ -29,7 +29,7 @@ import type { TaskNode } from "../src/types/taskTree";
  * next reload.
  */
 
-const PLACED: TaskNode = {
+const PLACED: TodoNode = {
   id: "task-placed",
   type: "task",
   title: "write the report",
@@ -43,7 +43,7 @@ const PLACED: TaskNode = {
 };
 
 /** The #298 staging shape: on the calendar, day known, time still TBD. */
-const CANDIDATE: TaskNode = {
+const CANDIDATE: TodoNode = {
   id: "task-candidate",
   type: "task",
   title: "call the dentist",
@@ -56,7 +56,7 @@ const CANDIDATE: TaskNode = {
 };
 
 /** Never been near the calendar — what the tray's "add from tasks" offers. */
-const UNSCHEDULED: TaskNode = {
+const UNSCHEDULED: TodoNode = {
   id: "task-unscheduled",
   type: "task",
   title: "book the flights",
@@ -81,11 +81,11 @@ function SyncStub({ children }: { children: ReactNode }) {
 }
 
 function makeTaskDS() {
-  const synced: TaskNode[][] = [];
+  const synced: TodoNode[][] = [];
   const ds = {
-    fetchTaskTree: async () => [PLACED, CANDIDATE, UNSCHEDULED],
-    fetchDeletedTasks: async () => [],
-    syncTaskTree: async (nodes: TaskNode[]) => {
+    fetchTodoTree: async () => [PLACED, CANDIDATE, UNSCHEDULED],
+    fetchDeletedTodos: async () => [],
+    syncTodoTree: async (nodes: TodoNode[]) => {
       synced.push(nodes);
     },
   } as unknown as DataService;
@@ -102,7 +102,7 @@ function makeTaskDS() {
  * must stay out of the history (KanbanView.tsx:447).
  */
 function ChipProbe() {
-  const { nodes, updateNode } = useTaskTreeContext();
+  const { nodes, updateNode } = useTodoTreeContext();
   const placed = nodes.find((n) => n.id === PLACED.id);
   const candidate = nodes.find((n) => n.id === CANDIDATE.id);
   const unscheduled = nodes.find((n) => n.id === UNSCHEDULED.id);
@@ -131,7 +131,7 @@ function ChipProbe() {
               scheduledEndAt: "2026-03-09T15:00:00.000Z",
               isAllDay: false,
             },
-            { undoLabel: "taskChipPlace" },
+            { undoLabel: "todoChipPlace" },
           )
         }
       >
@@ -147,7 +147,7 @@ function ChipProbe() {
               scheduledEndAt: "2026-03-10T14:00:00.000Z",
               isAllDay: false,
             },
-            { undoLabel: "taskChipMove" },
+            { undoLabel: "todoChipMove" },
           )
         }
       >
@@ -159,7 +159,7 @@ function ChipProbe() {
           updateNode(
             PLACED.id,
             { scheduledEndAt: "2026-03-09T11:30:00.000Z" },
-            { undoLabel: "taskChipResize" },
+            { undoLabel: "todoChipResize" },
           )
         }
       >
@@ -171,7 +171,7 @@ function ChipProbe() {
           updateNode(
             PLACED.id,
             { scheduledAt: "2026-03-09T00:00:00.000Z", isAllDay: true },
-            { undoLabel: "taskChipAllDay" },
+            { undoLabel: "todoChipAllDay" },
           )
         }
       >
@@ -183,7 +183,7 @@ function ChipProbe() {
           updateNode(
             UNSCHEDULED.id,
             { scheduledAt: "2026-03-09T00:00:00.000Z", isAllDay: true },
-            { undoLabel: "taskAddToToday" },
+            { undoLabel: "todoAddToToday" },
           )
         }
       >
@@ -199,7 +199,7 @@ function ChipProbe() {
               scheduledEndAt: PLACED.scheduledEndAt,
               isAllDay: false,
             },
-            { undoLabel: "taskChipMove" },
+            { undoLabel: "todoChipMove" },
           )
         }
       >
@@ -231,14 +231,14 @@ async function mount(ds: DataService, onApplied?: (label: string) => void) {
     >
       <UndoProbe />
       <SyncStub>
-        <TaskTreeProvider dataService={ds}>
+        <TodoTreeProvider dataService={ds}>
           <ChipProbe />
-        </TaskTreeProvider>
+        </TodoTreeProvider>
       </SyncStub>
     </UndoRedoProvider>,
   );
   // Flush the provider's initial fetch — until it lands, every write is
-  // dropped by the not-loaded guard (useTaskTreeAPI).
+  // dropped by the not-loaded guard (useTodoTreeAPI).
   await act(async () => {});
 }
 
@@ -341,12 +341,12 @@ describe("Schedule task-chip writes are undoable (#569)", () => {
 
   // The label is a KEY the host looks up (UndoRedoHost.tsx), and a missing
   // entry does not throw — i18next falls back to the raw key, so the toast
-  // reads "Undid: taskChipMove". Nothing on screen says it is broken, which is
+  // reads "Undid: todoChipMove". Nothing on screen says it is broken, which is
   // exactly why this is worth a lockstep test rather than a review habit.
   it("every label has copy in both catalogs", () => {
     const enLabels = en.undoRedo.labels as Record<string, string | undefined>;
     const jaLabels = ja.undoRedo.labels as Record<string, string | undefined>;
-    for (const label of TASK_HISTORY_LABELS) {
+    for (const label of TODO_HISTORY_LABELS) {
       expect(enLabels[label], `en: ${label}`).toBeTruthy();
       expect(jaLabels[label], `ja: ${label}`).toBeTruthy();
     }
@@ -361,11 +361,11 @@ describe("Schedule task-chip writes are undoable (#569)", () => {
     await click("undo");
     await click("redo");
     // Same command both ways — the toast names the gesture, not the direction.
-    expect(applied).toEqual(["taskChipMove", "taskChipMove"]);
+    expect(applied).toEqual(["todoChipMove", "todoChipMove"]);
 
     await click("add-today");
     await click("undo");
-    expect(applied[applied.length - 1]).toBe("taskAddToToday");
+    expect(applied[applied.length - 1]).toBe("todoAddToToday");
   });
 
   // Regression guard for the Tasks side (#569 DoD): the board saves a title on

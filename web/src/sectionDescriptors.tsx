@@ -5,7 +5,7 @@ import {
   RoutineProvider,
   ScheduleItemsProvider,
   CalendarProvider,
-  TaskTreeProvider,
+  TodoTreeProvider,
   WikiTagsUnifiedProvider,
   type DataService,
   type PageContainerWidth,
@@ -141,11 +141,11 @@ export const SECTION_DESCRIPTORS: Readonly<
    * WikiTagsUnifiedProvider provides both the Event Tag/Link surface for
    * ScheduleItemsView (DU-F Step 7) and the life-tag <select> for CalendarView
    * (life-tags S2: calendars.tag_id FKs wiki_tags(id) ON DELETE CASCADE — the
-   * folder-scoped view is now a tag-scoped view, so TaskTreeProvider is no
+   * folder-scoped view is now a tag-scoped view, so TodoTreeProvider is no
    * longer needed on that count).
    *
-   * TaskTreeProvider is OUTERMOST here (schedule redesign A-1): the Calendar
-   * reads scheduled TaskNodes to render task=blue chips. Provider order (§6.2)
+   * TodoTreeProvider is OUTERMOST here (schedule redesign A-1): the Calendar
+   * reads scheduled TodoNodes to render task=blue chips. Provider order (§6.2)
    * places TaskTree before Calendar, and TaskTree depends on neither WikiTags
    * nor Calendar, so it sits at the very outside. #411 folded the Kanban in as
    * the Todo tab. It needs the same two Providers it had in Materials
@@ -160,7 +160,7 @@ export const SECTION_DESCRIPTORS: Readonly<
     tabBand: "schedule",
     narrowHeader: "tabs",
     body: ({ ds, nav }) => (
-      <TaskTreeProvider dataService={ds} persistSelection>
+      <TodoTreeProvider dataService={ds} persistSelection>
         <WikiTagsUnifiedProvider dataService={ds}>
           <CalendarProvider dataService={ds}>
             <RoutineProvider dataService={ds}>
@@ -181,7 +181,7 @@ export const SECTION_DESCRIPTORS: Readonly<
             </RoutineProvider>
           </CalendarProvider>
         </WikiTagsUnifiedProvider>
-      </TaskTreeProvider>
+      </TodoTreeProvider>
     ),
   },
   /*

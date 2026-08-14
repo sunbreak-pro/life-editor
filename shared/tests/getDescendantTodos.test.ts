@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   collectDescendantIds,
   isDescendantOf,
-} from "../src/utils/getDescendantTasks";
-import type { TaskNode } from "../src/types/taskTree";
+} from "../src/utils/getDescendantTodos";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * KI-016 anchor: the canonical visited-Set pattern. These tests pin the
@@ -13,7 +13,7 @@ import type { TaskNode } from "../src/types/taskTree";
  * loop a hard failure.
  */
 
-function task(id: string, parentId: string | null): TaskNode {
+function todo(id: string, parentId: string | null): TodoNode {
   return {
     id,
     type: "task",
@@ -24,12 +24,12 @@ function task(id: string, parentId: string | null): TaskNode {
   };
 }
 
-// S3 (#225): getDescendantTasks was deleted (zero callers). collectDescendantIds
+// S3 (#225): getDescendantTodos was deleted (zero callers). collectDescendantIds
 // and isDescendantOf remain the canonical KI-016 visited-guard helpers.
 
 describe("collectDescendantIds (KI-016 visited guard)", () => {
   it("returns the node plus all descendant ids", () => {
-    const nodes = [task("root", null), task("a", "root"), task("b", "a")];
+    const nodes = [todo("root", null), todo("a", "root"), todo("b", "a")];
     expect([...collectDescendantIds("root", nodes)].sort()).toEqual([
       "a",
       "b",
@@ -38,7 +38,7 @@ describe("collectDescendantIds (KI-016 visited guard)", () => {
   });
 
   it("cycle A<->B terminates and collects each id once", () => {
-    const nodes = [task("A", "B"), task("B", "A")];
+    const nodes = [todo("A", "B"), todo("B", "A")];
     const ids = collectDescendantIds("A", nodes);
     expect(ids.has("A")).toBe(true);
     expect(ids.has("B")).toBe(true);
@@ -49,21 +49,21 @@ describe("collectDescendantIds (KI-016 visited guard)", () => {
 describe("isDescendantOf (KI-016 visited guard)", () => {
   it("finds a nested descendant", () => {
     const nodes = [
-      task("root", null),
-      task("mid", "root"),
-      task("leaf", "mid"),
+      todo("root", null),
+      todo("mid", "root"),
+      todo("leaf", "mid"),
     ];
     expect(isDescendantOf("root", "leaf", nodes)).toBe(true);
     expect(isDescendantOf("mid", "root", nodes)).toBe(false);
   });
 
   it("2-node cycle terminates for absent target", () => {
-    const nodes = [task("A", "B"), task("B", "A")];
+    const nodes = [todo("A", "B"), todo("B", "A")];
     expect(isDescendantOf("A", "ghost", nodes)).toBe(false);
   });
 
   it("2-node cycle still finds directly reachable child", () => {
-    const nodes = [task("A", "B"), task("B", "A")];
+    const nodes = [todo("A", "B"), todo("B", "A")];
     expect(isDescendantOf("A", "B", nodes)).toBe(true);
   });
 });

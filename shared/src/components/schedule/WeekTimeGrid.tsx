@@ -62,7 +62,7 @@ export interface WeekTimeGridItem {
   /**
    * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
    * Repeat glyph, "event" (default) = 紫 face + border, "task" = blue face +
-   * CheckSquare glyph (scheduled TaskNode — the same mark the nav uses for
+   * CheckSquare glyph (scheduled TodoNode — the same mark the nav uses for
    * the Todos section, #593). Distinguishes provenance without relying on
    * color alone.
    */
