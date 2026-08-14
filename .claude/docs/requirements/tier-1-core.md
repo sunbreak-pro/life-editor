@@ -27,7 +27,7 @@
 ### Boundary
 
 - やる:
-  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TaskNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）
+  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TodoNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）
   - **朝刊の保存規約（`extractBriefing`）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
   - **夕刊規約（Step 3・決定録 1 + 6）**: Daily 内「夕刊」見出しセクション（英 alias: Evening）・朝刊と同じ規約・DDL ゼロ。**1 行でも成立**（書くハードルを上げない）。気分（五段階）はテキスト規約「気分: n/5」で夕刊セクション内に保存。入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ（loop-friction-fixes F-6 — 保存先は Daily のまま・Daily 側から直接書いても同じ場所に落ちる）
   - **宣言規約（Step 4・DDL ゼロ）**: Daily 内「宣言」見出しセクション（英 alias: Intention / Intentions）。朝刊紙面の「今日の宣言」欄で編集（保存 = 行ごと段落のセクション差し替えマージ — 朝刊・夕刊セクションを壊さない）・夕刊タブは同セクションを再掲するが、wide は「今朝の宣言」として表示専用・narrow（<768px）は「今日の宣言」の編集欄（#391 — モバイルの取捨の正本は `docs/requirements/mobile-scope.md` #3）。講評は翌朝刊の朝刊セクションが担う（`get_today_context` は Daily 本文を素で読むため MCP 変更なし）
@@ -54,8 +54,8 @@
 ### Dependencies
 
 - DB Tables: 専用テーブルなし（保存先 = `dailies_payload.content_json` 内の見出しセクション — DDL ゼロ）
-- 読み取り: ScheduleItem（今日の約束）/ TaskNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
-- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Tasks / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
+- 読み取り: ScheduleItem（今日の約束）/ TodoNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
+- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
 - 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
 
 ### Known Issues / Tech Debt
@@ -78,18 +78,18 @@
 
 ---
 
-## Feature: Tasks (TaskTree)
+## Feature: Todos (TodoTree)
 
 **Tier**: 1
-**Status**: ◎完成（基本機能）
-**Owner Provider/Module**: `TaskTreeProvider` / `frontend/src/components/Tasks/` / `src-tauri/src/commands/task_commands.rs` / `src-tauri/src/db/task_repository.rs`
+**Status**: ◎完成（基本機能）— 旧称 Tasks / TaskTree（#831 で Todo へ改名。`items_meta.role` と id 接頭辞の `task` は据え置き）
+**Owner Provider/Module**: `TodoTreeProvider` / `frontend/src/components/Tasks/` / `src-tauri/src/commands/task_commands.rs` / `src-tauri/src/db/task_repository.rs`
 **MCP Coverage**: `list_todos` / `get_todo` / `create_todo` / `update_todo` / `delete_todo` / `get_todo_tree`
 **Supports Value Prop**: V1 / V2 / V3
 **Stack** (2026-05-24 並立期): Tauri SQLite (`frontend/` + `src-tauri/`) → Supabase Postgres (`shared/` + `web/`, 移行 SSOT Phase 2 + DU-B 進行中)
 
 ### Purpose
 
-TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TaskNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。**入れ子（親子）は 2026-07-27 #418 でユーザー判断により退役** — `parentId` はデータモデルとして残り MCP `create_todo(parent_id)` 等からは書けるが、UI から親子を作る導線は無い）
+TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（プロジェクト / ルーチン素材）を同一モデルで扱う。すべての特化機能（タイマー・スケジュール・テンプレート）が TodoNode を起点に繋がる。（フォルダノードは 2026-07-11 life-tags 統一 #225 で退役 — 整理はタグ、進捗はステータスの役割分担。**入れ子（親子）は 2026-07-27 #418 でユーザー判断により退役** — `parentId` はデータモデルとして残り MCP `create_todo(parent_id)` 等からは書けるが、UI から親子を作る導線は無い）
 
 ### Boundary
 
@@ -100,7 +100,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - ~~`folderType='complete'` による DONE タスク自動集約フォルダ~~ → **Retired (2026-07-11 #225)**: status=DONE の沈み込み並べ替えが後継
   - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `workDurationMinutes` / `timeMemo` / `color` / `icon` / `content` を保持
   - ソフトデリート（`is_deleted` + `deleted_at`）+ ゴミ箱からの復元 / 完全削除
-  - UndoRedo（`useTaskTreeHistory` 経由、Cmd+Z / Cmd+Shift+Z）
+  - UndoRedo（`useTodoTreeHistory` 経由、Cmd+Z / Cmd+Shift+Z）
   - MCP 6 ツールによる Claude からの CRUD + ツリー取得
 - やらない:
   - 複数ユーザーでの共有 / コメント / 権限管理（§1 Non-Goals）
@@ -111,12 +111,12 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 - [ ] AC1: タスクを作成すると `parentId`（UI からは常に root = `null`）と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換。~~任意のタスク配下にサブタスクを作成できる~~ → UI 導線は 2026-07-27 #418 で退役 — MCP `create_todo(parent_id)` は依然 parentId を書ける）
 - [ ] AC2: タスク行をクリックすると `NOT_STARTED → IN_PROGRESS → DONE` の順にステータス遷移し、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される
-- [ ] ~~AC3: TaskNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される~~ → **Retired (2026-07-27 #418)**: 入れ子の退役に伴い「中央ドロップ = 階層移動」は達成対象外。並び替えは同一階層内のみで、非兄弟へのドロップは拒否される（循環ガード `isDescendantOf` は存続）
+- [ ] ~~AC3: TodoNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される~~ → **Retired (2026-07-27 #418)**: 入れ子の退役に伴い「中央ドロップ = 階層移動」は達成対象外。並び替えは同一階層内のみで、非兄弟へのドロップは拒否される（循環ガード `isDescendantOf` は存続）
 - [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
 - [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
 - [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される（2026-07-14 注記: **未達** — `scheduledAt` / `scheduledEndAt` / `isAllDay` は型・Mapper・MCP に存在するが UI 出現 0 件。旧 DayFlow は退役済みのため表示先は Calendar（Week / Day / Month / 今日の流れ）に読み替え。Schedule 再設計 Step 1–3 で実装予定 → `docs/vision/plans/2026-07-14-schedule-redesign.md`）
-- [ ] AC8: 実行中タスクには TaskTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
+- [ ] AC8: 実行中タスクには TodoTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
 - [ ] AC9: Claude Code が MCP `get_todo_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
 - [ ] ~~AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ~~ → **Retired (2026-07-11 #225)**: 色はタグ（life-tags）側が保持 — folder→tag 変換で色は tag へ継承済み
 
@@ -125,7 +125,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - DB Tables: `tasks` / `task_templates`（旧 `task_tags` / `task_tag_definitions` は V60 で撤去済）
 - IPC Commands: `db_tasks_fetch_tree` / `db_tasks_fetch_deleted` / `db_tasks_create` / `db_tasks_update` / `db_tasks_sync_tree` / `db_tasks_soft_delete` / `db_tasks_restore` / `db_tasks_permanent_delete` / `app_migrate_from_local_storage`
 - 他機能: Schedule（`scheduledAt` 経由で双方向同期）/ Templates（タスクツリー構造の保存 / 展開）/ CalendarTags（単一タグ付与・フィルタ）/ UndoRedo（履歴統合）/ Timer（実行中残り時間表示）
-- 非対応: WikiTags は対象外。Task は RichTextEditor を持たないため `#tag` インライン記法による付与経路がなく、UI 経由のタグ付与も提供しない（タグ管理は CalendarTags に集約）
+- 非対応: WikiTags は対象外。Todo は RichTextEditor を持たないため `#tag` インライン記法による付与経路がなく、UI 経由のタグ付与も提供しない（タグ管理は CalendarTags に集約）
 
 ### Known Issues / Tech Debt
 
@@ -155,7 +155,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Purpose
 
-1 日の運用（Day）と反復パターン（Routine）とカテゴリ分類（Calendar Tag）を独立した Provider で管理しつつ、Routine → ScheduleItems の自動同期 / backfill によって「ルーチン定義 1 回で日々の予定が自動展開される」状態を作る。Tasks / Notes / WikiTags とも紐付き、1 日の運用中枢として機能する。
+1 日の運用（Day）と反復パターン（Routine）とカテゴリ分類（Calendar Tag）を独立した Provider で管理しつつ、Routine → ScheduleItems の自動同期 / backfill によって「ルーチン定義 1 回で日々の予定が自動展開される」状態を作る。Todos / Notes / WikiTags とも紐付き、1 日の運用中枢として機能する。
 
 > 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `archive/2026-07-11-event-routine-unification.md`（COMPLETED・#474 で archive 移動。本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
 >
@@ -190,7 +190,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] ~~AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags は DU-F で全プラットフォーム撤去済みのため形骸化。分類の後継 = カレンダー台帳（calendars）のタグフィルタ（再設計 Step 6 で配線）
 - [ ] AC8: Claude Code が MCP `list_schedule` を呼ぶと、指定日 / 日付範囲の ScheduleItem（Routine 由来含む）が UI と同じ内容で返る（handler の Supabase 化は #256 で完了 — 実データでの一致確認は未実施）
 - [ ] ~~AC9: Mobile（iOS）では CalendarTagsProvider は hydrate されず、タグ関連 UI が出現せず、他機能（Calendar 月表示 / Routine）は動作する~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags 全撤去により前提が消滅。Mobile の責務は再設計 Step 5 で List（今日）+ FAB に絞る
-- [ ] AC10: ドラッグで ScheduleItem の時間 / 日付を変更すると DB に永続化され、Tasks (`scheduledAt`) と双方向同期される（2026-07-14 注記: 前段のドラッグ永続化は実装済み。Tasks 双方向同期は**未達** — 再設計 Step 2 で実装予定）
+- [ ] AC10: ドラッグで ScheduleItem の時間 / 日付を変更すると DB に永続化され、Todos (`scheduledAt`) と双方向同期される（2026-07-14 注記: 前段のドラッグ永続化は実装済み。Todos 双方向同期は**未達** — 再設計 Step 2 で実装予定）
 
 ### 競合解決ルール（Routine 自動生成 × 手動編集 — 2026-07-14 文書化）
 
@@ -206,7 +206,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 - DB Tables: `schedule_items` / `routines` / `routine_logs` / `routine_groups` / `routine_tag_definitions` / `routine_tag_assignments` / `calendars` / `calendar_tag_definitions` / `calendar_tag_assignments`
 - IPC Commands: `db_schedule_items_fetch_by_date[_all|_range]` / `db_schedule_items_create|update|delete|soft_delete|restore` / `db_routines_fetch_all|create|update|delete|soft_delete|restore|permanent_delete` / `db_routine_tags_*` / `db_routine_groups_*` / `db_calendar_tags_*`
-- 他機能: Tasks（`scheduledAt` 経由で双方向同期）/ Notes（`noteId` 連携）/ WikiTags / Reminders
+- 他機能: Todos（`scheduledAt` 経由で双方向同期）/ Notes（`noteId` 連携）/ WikiTags / Reminders
 - 外部サービス（将来）: Google Calendar (ICS 購読 → OAuth) → **見送り（2026-07-14 路線変更 — ICS 経路含む）**: 再開条件は上記 Boundary「やらない」/ `tier-3-experimental.md` §Google Calendar 連携を参照
 
 ### Known Issues / Tech Debt
@@ -246,7 +246,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 ### Boundary
 
 - やる:
-  - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`NoteNodeType` は `"note"` 単一・`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Tasks と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
+  - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`NoteNodeType` は `"note"` 単一・`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Todos と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）
@@ -361,7 +361,7 @@ TaskTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Purpose
 
-家計簿・読書記録・習慣トラッカー・連絡先など、Tasks / Schedule / Notes で表現しきれない「ユーザー固有スキーマのリスト + フィルタ + 集計」用途を、汎用 DB として提供する。特化 UI を作らずに済ませることで「1 アプリで生活データ全網羅」を実現する（§1 V3）。
+家計簿・読書記録・習慣トラッカー・連絡先など、Todos / Schedule / Notes で表現しきれない「ユーザー固有スキーマのリスト + フィルタ + 集計」用途を、汎用 DB として提供する。特化 UI を作らずに済ませることで「1 アプリで生活データ全網羅」を実現する（§1 V3）。
 
 ### Boundary
 
@@ -428,7 +428,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Boundary
 
 - やる:
-  - Tasks / Daily / Notes / Schedule / Wiki Tags / Content / Search の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
+  - Todos / Daily / Notes / Schedule / Wiki Tags / Content / Search の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
   - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
@@ -445,8 +445,8 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 
 - [ ] AC1: Life Editor 起動中に `claude` コマンドを実行すると、MCP Server `life-editor` が自動接続され、`/mcp` コマンドで全ツールが列挙される（起動導線だったアプリ内ターミナルは 2026-07-05 退役・常設起動導線は再設計中 → §Terminal）
 - [ ] AC2: Claude に「今日の Todo 一覧を見せて」と指示すると MCP `list_todos` が呼ばれ、UI で表示されている内容と同じ Todo が返る
-- [ ] AC3: Claude が `create_todo` でタスクを作成すると、Life Editor UI の TaskTree に新規タスクが表示される（リロード後に即時反映）
-- [ ] AC4: `search_all` で複数ドメイン（tasks / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
+- [ ] AC3: Claude が `create_todo` でタスクを作成すると、Life Editor UI の TodoTree に新規タスクが表示される（リロード後に即時反映）
+- [ ] AC4: `search_all` で複数ドメイン（todos / notes / memos / schedule）を横断検索でき、マッチ結果が正しいドメイン情報付きで返る
 - [ ] AC5: `tag_entity` で WikiTag を任意エンティティに付与し、`search_by_tag` / `get_entity_tags` で取得できる（UI 側のタグ一覧と一致）
 - ~~AC6: ファイル系ツールが life-editor 管理下のディレクトリで動作し、不正パスは拒否される~~ → **撤回（2026-07-26 #362 でファイル系ツールを退役）**
 - [ ] AC7: MCP Server が異常終了しても Life Editor 本体は影響を受けず、再起動で再接続できる
@@ -511,7 +511,7 @@ Desktop（primary creation device）↔ iOS（consumption + quick capture）間�
 ### Acceptance Criteria
 
 - [ ] AC1: `sync_configure(url, token)` が成功すると `sync_enabled=true` / `sync_url` / `sync_token` / `sync_device_id` が `app_settings` に保存され、次回以降の `sync_trigger` が利用可能
-- [ ] AC2: Desktop で Task を作成 → `sync_trigger` → iOS で `sync_trigger` すると iOS 側の UI に同じ Task が表示される（逆も成立）
+- [ ] AC2: Desktop で Todo を作成 → `sync_trigger` → iOS で `sync_trigger` すると iOS 側の UI に同じ Todo が表示される（逆も成立）
 - [ ] AC3: 同一レコードを 2 デバイスで同時編集した場合、`version` + `updated_at` による last-write-wins で新しい方が保持される
 - [ ] AC4: 新規デバイスで `sync_full_download` を呼ぶと、対応 13 テーブルの全レコードがダウンロードされ、以降は差分同期に切り替わる
 - [ ] AC5: 未対応テーブル（例: `databases`）の変更は同期対象外で、ローカルのみに残る（将来対応時に import 必要）
