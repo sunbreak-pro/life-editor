@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "./cn";
-import { FOCUS_RING } from "./styleTokens";
+import { FOCUS_RING_ON_ACCENT } from "./styleTokens";
 
 /**
  * The one placement definition for the narrow layout's floating "+" (#632).
@@ -70,7 +70,12 @@ export function MobileFab({ onClick, label, icon, className }: MobileFabProps) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={cn(FAB_PLACEMENT, FAB_SURFACE, FOCUS_RING, className)}
+      className={cn(
+        FAB_PLACEMENT,
+        FAB_SURFACE,
+        FOCUS_RING_ON_ACCENT,
+        className,
+      )}
     >
       {icon ?? <Plus aria-hidden className="size-6" />}
     </button>

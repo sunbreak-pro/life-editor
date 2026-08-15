@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "../cn";
 import { SegmentedControl, type SegmentedOption } from "../SegmentedControl";
+import { FOCUS_RING_ON_ACCENT } from "../styleTokens";
 
 /*
  * ScheduleToolbar (W8 target-IA) — the Calendar-tab toolbar: Today / ◀▶ /
@@ -154,7 +155,10 @@ export function ScheduleToolbar({
         <button
           type="button"
           onClick={onAddEvent}
-          className="flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-[7px] text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg"
+          className={cn(
+            "flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-[7px] text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
+            FOCUS_RING_ON_ACCENT,
+          )}
         >
           <Plus aria-hidden className="size-4" />
           {addEventLabel}
