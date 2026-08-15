@@ -368,12 +368,14 @@ export {
 } from "./utils/routineScheduleSync";
 export {
   todosToCalendarChips,
+  todoScheduleSlot,
   todoChipId,
   isTodoChip,
   unwrapTodoChipId,
   localDateTimeToISO,
   TODO_CHIP_PREFIX,
   type TodoCalendarChip,
+  type TodoScheduleSlot,
 } from "./utils/todoCalendarChips";
 // #625: Event <-> Todo conversion — the host-side decisions (what blocks a
 // conversion, where a converted Todo lands). The write itself is a
