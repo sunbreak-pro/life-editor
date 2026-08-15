@@ -7,8 +7,8 @@
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
 - 前回: **#628 = PR #681 / #625 = PR #684 とも merge 済み**（#684 は 2026-08-10 17:14Z）。どちらも重ティアのフルチェーン（role-engineer → role-qa 独立監査 → 指摘全修正）
-- 現在: **#870（ルーチンのテンプレート時刻が変更前になる）を実装 → PR #900 open（2026-08-15 時点の実測）**。#789 / #774 / #790 / #708 は PR #798 / #804 / #813 / #858 とも **merge 済み**
-- 次: ① #877（Mobile の Schedule todo に設定日付を出す）② #878（Mobile Calendar のメインを最初から月ビューに・日付横アイコンと月シートは廃止 = #692 で入れた導線の巻き戻し）③ `CalendarTab.tsx` は **#878 と refactor-core の #889（分割の残件）が同じ巨大ホストを触る**ので、着手前に必ず `git fetch` して向こうのブランチを確認する
+- 現在: **#870 → #877 → #878 を 1 Issue = 1 PR で消化（2026-08-15）**。**PR #900 / #915 / #916 が open**（本 tracker 更新時点の実測）。6 ゲート + docs-lint すべて exit 0。#789 / #774 / #790 / #708 は PR #798 / #804 / #813 / #858 とも merge 済み
+- 次: ① 3 PR の merge 待ち（P-001）② `section:schedule` の非 `[refactor-core]` open は 0 になる ③ **#878 は `CalendarTab.tsx` と `MonthGrid` を触る**ので、refactor-core の #889（CalendarTab を分割し切る）が動き出したら merge 順序を確認する
 - **narrow の実測は「390px の同一オリジン iframe」で取れる**（2026-08-11 実測）: `resize_window` は OS 側で効かず `innerWidth` が 2560 のままだったが、iframe の中では `matchMedia("(min-width: 768px)")` が false になり Mobile 分岐が描かれる。§7.4 の「dev server は chat-main のみ」は**起動の話**なので、既に立っている 5173 を読むだけなら worktree からでも実測できる
 - **#691 の実測サマリ**: 行高は所要時間に依らず一律 43px（180 分も 60 分も同じ）／ 終了時刻は `AgendaItem.endTime` として渡っているのに描画されない（`AgendaList.tsx:24` vs `:137-139`）／ 空き 60 分でも隙間 0px ／ **進行中の予定が現在線の上（過去側）に出る**（分割が開始時刻だけを見る = `AgendaList.tsx:100-102`）／ 予定 0 件の日は今日でも現在線が出ない（線が timed の map の内側にしかない）／ **#593 の Todo アクセントは narrow で無傷**（ドット rgb(91,140,255) + CheckSquare・幅分岐が構造的に無い）／ ただし Todo 行は status 無しで完了不可（`CalendarTab.tsx:1188-1196`）かつタップ no-op（`:471` が `if (isWide)`）
 - **#692 は MonthGrid の作り替えではなく配線で足りる**（2026-08-11 実測）: `MonthGrid` は narrow 用 `compact` モードを実装済み（`MonthGrid.tsx:62-63` + `shared/tests/monthGrid.test.tsx:73-110`）だが `CalendarTab` から一度も渡されていない。セルは `min-h-14` = 56px でタップ標的として足りる
@@ -43,6 +43,8 @@
 
 ## 直近の完了
 
+- **#878 Mobile Calendar のメインを月ビューに** 🟡（2026-08-15 — **PR #916 open**）。メイン = 月グリッド + **その下に選択日のリスト**（日別リストの置き場所はユーザー選択 = 2026-08-15）。#692 の月シートと日付横シェブロンは i18n キー 2 本ごと退役。**narrow の `effView` は常に `"month"`** なので矢印が月送りになり、日はセルタップで選ぶ。`MonthGrid` に任意の `selectedKey` を追加（**印はセル側** = today バッジと両立させるため。未指定なら `aria-selected` すら出さない — 全セルが false を名乗ると「選ぶものがある」と読み上げられる）。`docs/requirements/mobile-scope.md` の #4 行も同 PR で更新 — 詳細は history 2026-08-15
+- **#877 Mobile の Schedule todo に設定日付が出ない** 🟡（2026-08-15 — **PR #915 open**）。narrow では todo 詳細シートが todo に触れる唯一の入口なのに、日付だけ一言も出ていなかった。`TodoDetailPanel` に**読み取り専用**の日時行（キャプションと値は対で必須）。**値はチップと同じ導出**（`todosToCalendarChips` から `todoScheduleSlot()` を切り出し）— 終了時刻が無ければ 60 分・退化スパンは終日、という外から見えない 2 規則があり、実装が 2 つあるとそこだけ食い違う — 詳細は history 2026-08-15
 - **#870 時刻変更 + 繰り返し ON を 1 Save でやるとテンプレート時刻が変更前になる** 🟡（2026-08-15 — **PR #900 open**）。エディタは「繰り返し → フィールド patch」の順で送る（フィールド側が scope ダイアログを出すので最後でなければならない）ため、変換時の `selected` はまだ変更前の時刻を持つ。**Save がフィールド patch を繰り返しと一緒に渡し、変換分岐がそれを種に重ねる**形にした。種は 1 つ（テンプレート / 楽観 routine / 変換が確保する日付が全部そこから派生）なので片方だけ新しい値になれない。**実際に動いたキーだけ**重ねる（未編集キーを `undefined` で潰さない）— 詳細は history 2026-08-15
 - **#708 繰り返し削除の Undo でカスケードごと戻す** ✅（2026-08-13 — **PR #858 merge 済み**）
 - **#789 Kanban 詳細から削除しても rightSidebar の殻が残る** ✅（2026-08-13 — **PR #798 merge 済み**）。削除と「予定に変換」はどちらも**行そのものが盤面から消える出口**なので、後始末を `closeDetailShell`（選択解除 + wide のみ `rightSidebar.close()`）に集約した。**ヘルパーに寄せたのは 2 経路が割れることがこのバグの形だから** — 削除だけ直すと今度は変換と食い違う。narrow は無変更（detail = BottomSheet で、殻は `isWide` の effect の担当）。テストの tree モックに `refetch` が無く、**変換の成功分岐が例外で失敗バナーへ流れていた**ので併せて追加 — 詳細は history 2026-08-13
@@ -78,7 +80,7 @@
 
 ## 予定
 
-- **現在の section:schedule キュー（2026-08-15 実測）**: **#870 = PR #900 open（merge 待ち = P-001）／ #877 → #878 が未着手**。同ラベルの **#889 / #893 / #897 は `[refactor-core]` 宛て**で当レーンの担当外
+- **現在の section:schedule キュー（2026-08-15 実測）**: **#870 / #877 / #878 とも PR 提出済み（#900 / #915 / #916・merge 待ち = P-001）**。同ラベルの **#889 / #893 / #897 は `[refactor-core]` 宛て**で当レーンの担当外
 - **`CalendarTab.tsx` の同時編集に注意**: #878（Mobile 月ビュー）と #889（CalendarTab を分割し切る・refactor-core）が同じホストを触る。着手前に `git fetch` して向こうの open ブランチ / PR を確認する
 - **outbox 2026-08-10 に起票依頼 2 件**: ① Notes / Tasks 詳細シートの `vh` → `svh` 展開（#633 の水平展開）② mobile の Todo チップ詳細シート（#564 / #626 follow-up）
 - **chat-main への起票依頼 2 件が outbox 2026-08-02 (3) に積んである**（どちらも QA の実測付き既存欠陥）: ① series 編集（this-and-future / all）の undo がアンカー 1 日だけ戻る ② TaskTree undo の全ツリースナップショットが後続の silent 書き込みを巻き戻す（タイトル入力中 Ctrl+Z で踏める）
