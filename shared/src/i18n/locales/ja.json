@@ -264,7 +264,6 @@
       "empty": "ノートはまだありません",
       "trash": "ゴミ箱",
       "content": "内容",
-      "links": "リンク",
       "deleteNote": "ノートを削除",
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
@@ -291,13 +290,9 @@
       "searchPlaceholder": "タイトルで検索…",
       "noCandidates": "該当するアイテムがありません",
       "selfLink": "自分自身にはリンクできません。",
-      "outgoing": "ここからのリンク",
-      "backlinks": "ここへのリンク",
-      "outgoingEmpty": "リンクはまだありません",
-      "backlinksEmpty": "被リンクはまだありません",
-      "loading": "リンクを読み込み中…",
+      "pickerLabelShort": "リンク",
       "open": "{{title}} を開く",
-      "remove": "{{title}} へのリンクを削除"
+      "remove": "{{title}} とのリンクを削除"
     },
     "daily": {
       "toToday": "今日へ",
