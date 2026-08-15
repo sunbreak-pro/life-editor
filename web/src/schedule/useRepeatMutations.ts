@@ -165,6 +165,32 @@ export interface UseRepeatMutationsArgs {
   dismissOccurrence: (id: string) => void;
 }
 
+/**
+ * The field edits committed by the same save press as a frequency change
+ * (#870). Only the four the routine template is built from: the editor sends
+ * its whole patch, but `isAllDay` and `memo` describe the one occurrence and
+ * have no template field to land on.
+ */
+export type RepeatSaveFields = Partial<
+  Pick<ScheduleItem, "title" | "date" | "startTime" | "endTime">
+>;
+
+/**
+ * Keep only the keys the press actually moved. Spreading the patch whole would
+ * lay `title: undefined` over a title the seed has — "not edited" and "cleared"
+ * are the same shape in an optional-field patch, and the seed row must read as
+ * the former.
+ */
+function definedSeedFields(fields?: RepeatSaveFields): RepeatSaveFields {
+  const out: RepeatSaveFields = {};
+  if (!fields) return out;
+  if (fields.title !== undefined) out.title = fields.title;
+  if (fields.date !== undefined) out.date = fields.date;
+  if (fields.startTime !== undefined) out.startTime = fields.startTime;
+  if (fields.endTime !== undefined) out.endTime = fields.endTime;
+  return out;
+}
+
 export function useRepeatMutations({
   setRangeItems,
   patchRange,
@@ -224,7 +250,7 @@ export function useRepeatMutations({
   // flow soft-deleted the seed BEFORE the replacement was durable, so any
   // failure in the chain vanished the event beyond a reload.
   const handleChangeRepeat = useCallback(
-    (patch: Partial<FrequencyEditorValue>) => {
+    (patch: Partial<FrequencyEditorValue>, fields?: RepeatSaveFields) => {
       if (!selected) return;
       if (selected.routineId != null) {
         if (Object.keys(patch).length === 0) return;
@@ -318,7 +344,16 @@ export function useRepeatMutations({
       // type can reach this branch (the editor offers nothing else).
       const type = patch.frequencyType;
       if (!type) return;
-      const seed = selected;
+      // #870: the seed is the selected row with the SAME save's field edits
+      // laid over it. `selected` is the committed item, and the field patch is
+      // written after this call returns (the pane sends the repeat first, see
+      // its save()), so reading the times straight off `selected` templates the
+      // series on the values the user just replaced: the seed day showed the
+      // new time and every generated day the old one. Everything below derives
+      // from `seed` — the template, the optimistic routine the materialiser
+      // uses, and the day the conversion claims — so the overlay has to happen
+      // here rather than at each use, or the two would disagree.
+      const seed = { ...selected, ...definedSeedFields(fields) };
       // #407: one conversion per seed at a time. Check-and-claim is a single
       // call so the two cannot drift apart (#434).
       if (!beginConversion(seed.id)) return;

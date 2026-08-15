@@ -250,8 +250,9 @@ export function MainScreen({ session }: { session: Session }) {
   const sectionBody = descriptor.body({
     ds,
     nav,
-    // Briefing hosts its narrow band inside its own body (under the masthead);
-    // every other section puts it in the PageContainer header below.
+    // Briefing hosts its narrow band inside its own body (at the top of the
+    // paper, above the masthead — #879); every other section puts it in the
+    // PageContainer header below.
     narrowTabRow: descriptor.narrowHeaderInBody ? narrowRow : undefined,
     loadingFallback: sectionLoadingFallback,
   });
@@ -325,7 +326,11 @@ export function MainScreen({ session }: { session: Session }) {
          * asked for.
          */}
         <PageContainer
-          width={descriptor.width}
+          width={
+            !isWide && descriptor.narrowWidth
+              ? descriptor.narrowWidth
+              : descriptor.width
+          }
           header={
             descriptor.narrowHeaderInBody ? undefined : (narrowRow ?? undefined)
           }

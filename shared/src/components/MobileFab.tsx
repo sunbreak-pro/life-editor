@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "./cn";
-import { FOCUS_RING } from "./styleTokens";
+import { FOCUS_RING_ON_ACCENT } from "./styleTokens";
 
 /**
  * The one placement definition for the narrow layout's floating "+" (#632).
@@ -29,18 +29,14 @@ import { FOCUS_RING } from "./styleTokens";
  *   - an auto-height anchor pins the button to the END OF THE CONTENT rather
  *     than to the visible box, so it scrolls away with the document.
  *
- * Schedule satisfies both: it renders through PageContainer `width="fluid"`,
- * a padding-free box with a definite height, so CalendarTab's wrapper spans the
- * section. **Notes does not yet.** Materials is not full-bleed
- * (`ownsFullBleed` in web/src/MainScreen.tsx), so it renders through
- * `width="wide"` — a page scroller wrapping an auto-height `px-lumen-gutter`
- * block. NotesView's `h-full` root therefore computes to auto and sits 16px
- * inside the gutter, which means its FAB parks at the end of the note list and
- * lands 40px from the section edge where Schedule's lands 24px. Closing that
- * gap means putting Materials on the fluid variant for the narrow layout, which
- * also moves scroll ownership for Daily — queued as `D-20260810-mobile-3` and
- * deliberately NOT done here (MainScreen.tsx is outside #632's scope, and the
- * change needs a real browser to confirm).
+ * Both current hosts satisfy both halves through PageContainer `width="fluid"`,
+ * a padding-free box with a definite height. Schedule always renders that way;
+ * Materials does so on the NARROW layout only (`narrowWidth` in
+ * web/src/sectionDescriptors.tsx), which is what #875 fixed — until then it
+ * rendered through `width="wide"`, a page scroller wrapping an auto-height
+ * `px-lumen-gutter` block, so NotesView's `h-full` root computed to auto and the
+ * FAB parked at the end of the note list, 40px inside the edge where
+ * Schedule's sat at 24px.
  *
  * Clearance: the button occupies OFFSET + SIZE = 24 + 56 = 80px of the bottom
  * strip, so the list under it needs at least that much bottom padding or the
@@ -70,7 +66,12 @@ export function MobileFab({ onClick, label, icon, className }: MobileFabProps) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={cn(FAB_PLACEMENT, FAB_SURFACE, FOCUS_RING, className)}
+      className={cn(
+        FAB_PLACEMENT,
+        FAB_SURFACE,
+        FOCUS_RING_ON_ACCENT,
+        className,
+      )}
     >
       {icon ?? <Plus aria-hidden className="size-6" />}
     </button>

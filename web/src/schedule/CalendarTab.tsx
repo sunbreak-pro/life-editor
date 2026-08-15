@@ -45,6 +45,7 @@ import {
   minutesToTime,
   isTodoChip,
   unwrapTodoChipId,
+  todoScheduleSlot,
   frequencyLabel,
   nextRoutineOccurrence,
   applyRepeatFilter,
@@ -92,6 +93,7 @@ import {
   formatLongDate,
   formatPeriodLabel,
   formatShortDate,
+  formatTodoSchedule,
   useScheduleCopy,
 } from "./scheduleCopy";
 
@@ -2080,6 +2082,21 @@ export function CalendarTab({
         savedLabel={t("todoDetail.saved")}
         unsavedLabel={t("todoDetail.unsaved")}
         deleteLabel={t("todoDetail.todoDelete")}
+        // #877: which day the todo is set for. On narrow this sheet is the
+        // only way into a todo, and it named the title, the status and the
+        // tags while staying silent about the one field that decides where the
+        // row appears — so a todo pulled up from the day list could not answer
+        // "is this today's?". Read from the same helper the chips are built
+        // from (todoScheduleSlot), so the row and the chip cannot disagree.
+        scheduleLabel={t("todoDetail.schedule")}
+        scheduleText={formatTodoSchedule(
+          i18n.language,
+          todoScheduleSlot(todoDetailTodo),
+          {
+            allDay: t("scheduleScreen.allDay"),
+            unscheduled: t("todoDetail.scheduleNone"),
+          },
+        )}
         // #736: the panel reports its pending title here; the three exits
         // below read the flag before they tear the panel down. A ref rather
         // than state — nothing on screen depends on it, and re-rendering

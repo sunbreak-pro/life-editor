@@ -25,6 +25,7 @@ const LABELS: BriefingLabels = {
   intentionTitle: "INTENTION",
   intentionCaption: "Saved",
   intentionPlaceholder: "Declare today…",
+  goalsTitle: "GOALS",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
@@ -96,6 +97,14 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
+const GOAL_LABELS = {
+  week: { title: "WEEK", range: "8/10 – 8/16", placeholder: "This week…" },
+  month: { title: "MONTH", range: "August", placeholder: "This month…" },
+  year: { title: "YEAR", range: "2026", placeholder: "This year…" },
+};
+
+const NO_GOALS = { week: "", month: "", year: "" };
+
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleScheduleItem = vi.fn();
   const onToggleTodo = vi.fn();
@@ -106,6 +115,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onJumpToTodos = vi.fn();
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
+  const onGoalChange = vi.fn();
+  const onGoalBlur = vi.fn();
   const result = render(
     <BriefingView
       loading={false}
@@ -117,6 +128,10 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       intentionText=""
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
+      goals={NO_GOALS}
+      goalLabels={GOAL_LABELS}
+      onGoalChange={onGoalChange}
+      onGoalBlur={onGoalBlur}
       onToggleScheduleItem={onToggleScheduleItem}
       onToggleTodo={onToggleTodo}
       onDeleteScheduleItem={onDeleteScheduleItem}
@@ -138,6 +153,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     onJumpToTodos,
     onIntentionChange,
     onIntentionBlur,
+    onGoalChange,
+    onGoalBlur,
   };
 }
 
@@ -436,6 +453,43 @@ describe("Briefing narrow-width tab switcher (#318)", () => {
   it("renders no band when the host passes null", () => {
     expect(bandCount(renderView({ tabSwitcher: null }).container)).toBe(0);
     expect(bandCount(renderEvening({ tabSwitcher: null }).container)).toBe(0);
+  });
+});
+
+/*
+ * #879 — the band carries the narrow layout's hamburger (#609), and every
+ * other section draws that row at the top of the page. Briefing used to print
+ * its masthead above it, so the one screen with a title band had its chrome in
+ * a different order than the rest. Asserted as DOM order (jsdom has no
+ * layout — CLAUDE.md §7.1), which is what decides the stacking here.
+ */
+describe("Briefing narrow-width header order (#879)", () => {
+  const switcher = <button type="button">夕刊</button>;
+
+  /** True when the switcher band precedes the masthead in document order. */
+  function bandPrecedesMasthead(container: HTMLElement): boolean {
+    const band = container.querySelector(
+      "div.border-b.border-lumen-border.px-2.py-3",
+    );
+    const masthead = container.querySelector("header");
+    if (band === null || masthead === null) return false;
+    return (
+      (band.compareDocumentPosition(masthead) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+      0
+    );
+  }
+
+  it("puts the band above the masthead in the morning paper", () => {
+    const { container } = renderView({ tabSwitcher: switcher });
+    expect(screen.getByText("BRIEFING")).toBeTruthy();
+    expect(bandPrecedesMasthead(container)).toBe(true);
+  });
+
+  it("puts the band above the masthead in the evening paper", () => {
+    const { container } = renderEvening({ tabSwitcher: switcher });
+    expect(screen.getByText("EVENING")).toBeTruthy();
+    expect(bandPrecedesMasthead(container)).toBe(true);
   });
 });
 

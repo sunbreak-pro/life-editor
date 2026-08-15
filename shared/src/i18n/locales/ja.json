@@ -166,7 +166,8 @@
       "clear": "Todo を解除",
       "select": "Todo を選ぶ",
       "clearSelection": "選択を外す",
-      "emptyHint": "紐付けられる Todo がありません。予定で Todo を作成すると選べるようになります。"
+      "emptyHint": "紐付けられる Todo がありません。予定で Todo を作成すると選べるようになります。",
+      "untitled": "無題のTodo"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -219,6 +220,8 @@
     "todoDeleteConfirm": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
     "todoDeleteCascadeConfirm": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
     "status": "ステータス",
+    "schedule": "日時",
+    "scheduleNone": "未設定",
     "statusNotStarted": "未着手",
     "statusInProgress": "進行中",
     "statusDone": "完了",
@@ -263,7 +266,6 @@
       "empty": "ノートはまだありません",
       "trash": "ゴミ箱",
       "content": "内容",
-      "links": "リンク",
       "deleteNote": "ノートを削除",
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
@@ -290,13 +292,9 @@
       "searchPlaceholder": "タイトルで検索…",
       "noCandidates": "該当するアイテムがありません",
       "selfLink": "自分自身にはリンクできません。",
-      "outgoing": "ここからのリンク",
-      "backlinks": "ここへのリンク",
-      "outgoingEmpty": "リンクはまだありません",
-      "backlinksEmpty": "被リンクはまだありません",
-      "loading": "リンクを読み込み中…",
+      "pickerLabelShort": "リンク",
       "open": "{{title}} を開く",
-      "remove": "{{title}} へのリンクを削除"
+      "remove": "{{title}} とのリンクを削除"
     },
     "daily": {
       "toToday": "今日へ",
@@ -836,6 +834,7 @@
   "notesView": {
     "unpin": "ピン解除",
     "pin": "ピン留め",
+    "pinned": "ピン留め中",
     "detailTitle": "ノート",
     "moreActions": "その他の操作"
   },
@@ -892,6 +891,16 @@
     "noBriefing": "今日の朝刊はまだ届いていません。デイリーに「朝刊」見出しのセクションが書かれると、ここに表示されます。",
     "intentionTitle": "今日の宣言",
     "intentionPlaceholder": "今日は何をやり遂げますか。一行から宣言できます…",
+    "goalsTitle": "これからの目標",
+    "goals": {
+      "noteTitle": "目標",
+      "weekTitle": "今週",
+      "monthTitle": "今月",
+      "yearTitle": "今年",
+      "weekPlaceholder": "今週やり遂げることを一行から…",
+      "monthPlaceholder": "今月やり遂げることを一行から…",
+      "yearPlaceholder": "今年やり遂げることを一行から…"
+    },
     "scheduleTitle": "今日のスケジュール",
     "addScheduleItem": "今日のスケジュールに追加",
     "noSchedule": "今日のスケジュールはありません",

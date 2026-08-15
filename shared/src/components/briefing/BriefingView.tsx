@@ -24,6 +24,9 @@ import {
 } from "../Analytics/WorkBreakBalance";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { IntentionField } from "./IntentionField";
+import { BRIEFING_HINT_CLASS } from "./briefingStyles";
+import { GoalsBlock, type GoalsBlockLabels } from "./GoalsBlock";
+import type { GoalPeriod } from "./goalSections";
 
 /*
  * BriefingView — the morning-paper home surface (Briefing plan Step 1).
@@ -102,6 +105,8 @@ export interface BriefingLabels {
    */
   intentionCaption?: string;
   intentionPlaceholder: string;
+  /** Heading of the 週 / 月 / 年 goals block (#872). */
+  goalsTitle: string;
   scheduleTitle: string;
   /** Accessible name + tooltip of the schedule section's「+」 (#623). */
   addScheduleItem: string;
@@ -149,6 +154,18 @@ export interface BriefingViewProps {
   onIntentionChange: (text: string) => void;
   /** Blur — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
+  /**
+   * Standing 週 / 月 / 年 goals (#872) — text per period, newline-separated.
+   * They live in one reserved note (goalSections.ts), not in the daily, and
+   * never roll over: only the labels below say which period is showing.
+   */
+  goals: Record<GoalPeriod, string>;
+  /** Copy of the three goal fields, period ranges included (host-formatted). */
+  goalLabels: GoalsBlockLabels;
+  /** Every keystroke in a goal field — same draft + debounce deal as 宣言. */
+  onGoalChange: (period: GoalPeriod, text: string) => void;
+  /** Blur on a goal field — the host flushes a pending debounced save. */
+  onGoalBlur: () => void;
   /** Completes / un-completes a schedule item (host → DataService). */
   onToggleScheduleItem: (id: string) => void;
   /** Completes / un-completes a todo or carryover row (host → DataService). */
@@ -211,9 +228,7 @@ function BlockHead({
         {title}
       </h3>
       {hint !== undefined && (
-        <span className="text-xs tracking-wider text-lumen-briefing-kohaku">
-          {hint}
-        </span>
+        <span className={BRIEFING_HINT_CLASS}>{hint}</span>
       )}
       {action}
     </div>
@@ -351,6 +366,10 @@ export function BriefingView({
   intentionText,
   onIntentionChange,
   onIntentionBlur,
+  goals,
+  goalLabels,
+  onGoalChange,
+  onGoalBlur,
   onToggleScheduleItem,
   onToggleTodo,
   onDeleteScheduleItem,
@@ -375,6 +394,19 @@ export function BriefingView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
+      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
+          ABOVE the masthead (#879): the band carries the hamburger that
+          opens the drawer (#609), and every other section draws that row at
+          the very top of the page (PageContainer's header slot). Below the
+          title it was Briefing's own header order, one screen out of step
+          with the rest. On the wide layout the slot is undefined, so the
+          paper still opens on its masthead — nothing moves there. */}
+      {tabSwitcher != null && (
+        <div className="border-b border-lumen-border px-2 py-3">
+          {tabSwitcher}
+        </div>
+      )}
+
       {/* ── Masthead — the title and the focus line below deliberately keep
           the newspaper serif (#269) regardless of the Settings font; body
           copy follows the global preference (#556) ────────────────── */}
@@ -386,13 +418,6 @@ export function BriefingView({
           {data.dateLine}
         </p>
       </header>
-
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ────────── */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
 
       {/* ── Focus line ───────────────────────────────────────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
@@ -439,6 +464,17 @@ export function BriefingView({
           placeholder={labels.intentionPlaceholder}
           onChange={onIntentionChange}
           onBlur={onIntentionBlur}
+        />
+      </section>
+
+      {/* ── Standing goals: week → month → year (#872) ───────────── */}
+      <section className="border-b border-lumen-border py-5">
+        <BlockHead title={labels.goalsTitle} />
+        <GoalsBlock
+          values={goals}
+          labels={goalLabels}
+          onChange={onGoalChange}
+          onBlur={onGoalBlur}
         />
       </section>
 

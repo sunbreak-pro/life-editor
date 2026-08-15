@@ -89,4 +89,18 @@ describe("AudioMixer", () => {
     expect(pending.onSave).toHaveBeenCalledOnce();
     expect(clean.onSave).not.toHaveBeenCalled();
   });
+
+  /*
+   * Same button, second copy: this class string and PomodoroSettings' SAVE_BTN
+   * were written identically, so the #880 band showed up in both places. The
+   * assertion is duplicated on purpose — the two constants are not shared, and
+   * a guard on only one of them would let the other drift back.
+   */
+  it("draws its focus ring with outline, not a colored ring offset (#880)", () => {
+    renderMixer({ dirty: true });
+    const classes = screen.getByRole("button", { name: "Save" }).className;
+
+    expect(classes).not.toMatch(/ring-offset/);
+    expect(classes).toContain("focus-visible:outline-lumen-text");
+  });
 });

@@ -280,6 +280,34 @@
   scrollbar-color: var(--color-border-strong) transparent;
 }
 
+/* Nested-theme aliases (#887). Tailwind emits every `@theme` variable below
+   onto `:root`, and a custom property's own `var()` is substituted where the
+   property is DECLARED, not where it is used. So `--color-lumen-bg:
+   var(--color-bg-primary)` freezes to the ROOT theme's color and is inherited
+   unchanged by every descendant — a subtree that opts into the other theme via
+   `data-theme` still received the app's current colors. That is why the light /
+   dark / system cards in Settings all painted identically (#887): the theme
+   scopes above were correct, but the lumen-* layer never re-resolved.
+
+   Re-declaring the aliases under the bare `[data-theme]` attribute fixes it —
+   the selector matches BOTH themes, so each declaration resolves against the
+   `--color-*` values in scope on that element (the root for the app, the card
+   for a miniature). These are unlayered, so they also win over Tailwind's
+   `@layer theme` output on the root itself; the values still come from the one
+   set of `--color-*` definitions above, so nothing can drift.
+
+   Only the tokens painted inside a nested-theme subtree are listed. If a
+   fixed-theme mock starts using another lumen-* color, add its alias line here
+   (never a copy of the color value). */
+[data-theme] {
+  --color-lumen-bg: var(--color-bg-primary);
+  --color-lumen-bg-subsidebar: var(--color-bg-subsidebar);
+  --color-lumen-surface-sunken: var(--color-surface-sunken);
+  --color-lumen-border: var(--color-border);
+  --color-lumen-accent: var(--color-accent);
+  --color-lumen-accent-subtle: var(--color-accent-subtle);
+}
+
 @theme {
   --color-lumen-bg: var(--color-bg-primary);
   --color-lumen-bg-secondary: var(--color-bg-secondary);

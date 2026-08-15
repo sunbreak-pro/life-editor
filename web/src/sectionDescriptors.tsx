@@ -92,14 +92,24 @@ export interface SectionDescriptor {
    * for the document surfaces where PageContainer owns the vertical scroll.
    */
   readonly width: PageContainerWidth;
+  /**
+   * Width to use on the NARROW layout instead of `width` (omitted = same at
+   * both). Materials is the case this exists for (#875): its desktop surfaces
+   * want the page scroller ("wide"), while its narrow surfaces are written as
+   * full-height self-scrolling lists — and only under "fluid" does their
+   * `h-full` resolve against a definite box, which is what a floating "+"
+   * needs to pin to the screen edge instead of to the end of the list.
+   */
+  readonly narrowWidth?: PageContainerWidth;
   /** Tab band shown by the standard SectionHeader (omitted = plain title). */
   readonly tabBand?: TabBandId;
   readonly narrowHeader: NarrowHeader;
   /**
    * Draw the narrow row inside the body (via `ctx.narrowTabRow`) instead of in
    * the PageContainer header. Briefing only: its body is a centered "paper"
-   * that re-issues the band under the masthead (#318 / #609), so a second row
-   * above it would push the paper down for one button.
+   * that re-issues the band as its own first row, above the masthead (#318 /
+   * #609 / #879), so a second row above it would push the paper down for one
+   * button.
    */
   readonly narrowHeaderInBody?: boolean;
   readonly body: (ctx: SectionBodyContext) => ReactNode;
@@ -191,6 +201,12 @@ export const SECTION_DESCRIPTORS: Readonly<
    */
   materials: {
     width: "wide",
+    // Narrow: the section box owns its height and each tab scrolls inside it
+    // (NotesMobileList and DailyView's narrow branch are both already written
+    // that way — `h-full` roots over an inner `overflow-y-auto`). Under "wide"
+    // those roots collapse to auto and the page scroller takes over, which is
+    // what parked the Notes "+" at the end of the list (#875).
+    narrowWidth: "fluid",
     tabBand: "materials",
     narrowHeader: "tabs+hamburger",
     body: ({ ds, nav }) => (

@@ -89,4 +89,37 @@ describe("PomodoroTimer", () => {
       screen.queryByRole("button", { name: "-5 min" }),
     ).not.toBeInTheDocument();
   });
+
+  /*
+   * #881 — on a short phone the fullscreen transport ran into the rows above
+   * and below it. jsdom has no layout (rules/frontend.md), so the heights
+   * themselves are what this pins: the classes, not the resulting boxes. The
+   * numbers matter because they are the whole fix — a later "make the mobile
+   * face bolder" pass that puts 72px back would reopen the issue silently.
+   */
+  describe("fullscreen transport sizing (#881)", () => {
+    it("draws the main button at 56px and reset/skip at the 44px touch floor", () => {
+      renderTimer({ variant: "fullscreen" });
+      expect(screen.getByRole("button", { name: "Start" })).toHaveClass(
+        "h-14",
+        "w-14",
+      );
+      for (const name of ["Reset", "Skip"]) {
+        expect(screen.getByRole("button", { name })).toHaveClass(
+          "h-11",
+          "w-11",
+        );
+      }
+    });
+
+    it("keeps the Card variant's transport at the same 44px round buttons", () => {
+      renderTimer({ variant: "card" });
+      for (const name of ["Reset", "Skip"]) {
+        expect(screen.getByRole("button", { name })).toHaveClass(
+          "h-11",
+          "w-11",
+        );
+      }
+    });
+  });
 });

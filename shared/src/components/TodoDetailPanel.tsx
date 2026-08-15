@@ -9,7 +9,7 @@ import { Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
-import { FOCUS_RING } from "./styleTokens";
+import { FOCUS_RING, FOCUS_RING_ON_ACCENT } from "./styleTokens";
 
 /*
  * Todo detail panel (W7). The selected todo's detail, which the Kanban host
@@ -140,6 +140,24 @@ export interface TodoDetailPanelProps {
   /** Already-translated name for the delete button (#775). Pair with
    *  `onDelete`; when either is absent the delete row is omitted. */
   deleteLabel?: string;
+  /**
+   * Read-only "when is this todo" row (#877). Both halves arrive already
+   * translated and already formatted (§6.4): the host owns the locale, and it
+   * is also the only side that knows the todo's schedule fields — the panel
+   * receives a title and a status, not a TodoNode.
+   *
+   * Read-only on purpose. Placing a todo is a drag on the calendar (and the
+   * tray's "add to today"), so an editor here would be a second way to write
+   * the same field, on the one surface that cannot show where the result
+   * lands. What was missing was never the editing — it was that on Mobile this
+   * sheet is the ONLY way into a todo, and it did not say which day the todo
+   * was set for at all.
+   *
+   * Paired like the rows around it: the row renders only when both are given,
+   * so a host cannot ship a caption with nothing under it.
+   */
+  scheduleLabel?: string;
+  scheduleText?: string;
   /** Already-translated caption preceding the tag row (§6.4). Paired with
    *  `tagsSlot`; when either is absent the tag row is omitted. */
   tagsLabel?: string;
@@ -152,7 +170,7 @@ export interface TodoDetailPanelProps {
 
 const SAVE_BTN = cn(
   "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
-  FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
   "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
 );
 
@@ -177,6 +195,8 @@ function TodoDetailFields({
   savedLabel,
   unsavedLabel,
   deleteLabel,
+  scheduleLabel,
+  scheduleText,
   tagsLabel,
   tagsSlot,
 }: Omit<TodoDetailPanelProps, "className">) {
@@ -263,6 +283,21 @@ function TodoDetailFields({
           </button>
         )}
       </div>
+
+      {/* #877: the schedule row. Same caption treatment as the status above it
+          — this is another fact ABOUT the todo, not another control — and it
+          sits directly under status because the two answer the pair of
+          questions a day list raises: how far along is it, and when is it. */}
+      {scheduleLabel && scheduleText && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+            {scheduleLabel}
+          </span>
+          <span className="min-w-0 text-sm text-lumen-text">
+            {scheduleText}
+          </span>
+        </div>
+      )}
 
       {tagsSlot != null && (
         <div className="flex items-center gap-2">

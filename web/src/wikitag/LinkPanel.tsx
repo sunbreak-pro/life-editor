@@ -7,8 +7,6 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
-  ArrowLeft,
-  ArrowUpRight,
   CalendarDays,
   CheckSquare,
   FileText,
@@ -25,11 +23,19 @@ import {
 } from "@life-editor/shared";
 
 /*
- * LinkPanel — outgoing + incoming item↔item links for a single item.
+ * LinkPanel — the item↔item links of a single item, as a chip row.
  *
  * Self-contained: reads both directions from useWikiTagsUnifiedContext's bulk
  * cache (`getLinksForItem`), so a list of N rows costs one query per table
  * instead of two per row.
+ *
+ * #884 moved it out of the Notes rightSidebar and onto the detail header, right
+ * of the "+ tag" pill, and dropped DIRECTION from the vocabulary: a link is a
+ * relation between two items, so both ends show it and neither is captioned
+ * "from" or "to". The two stored directions are therefore merged into one list
+ * keyed by the OTHER item — a pair linked both ways is one chip, and removing
+ * it clears every row that binds the pair. The storage model is untouched;
+ * only what the user is asked to think about got smaller.
  *
  * #749 brought the panel up to the level of the app's two newer link surfaces,
  * which it had fallen a generation behind:
@@ -179,9 +185,27 @@ export function LinkPanel({
     return map;
   }, [targets]);
 
+  /*
+   * One entry per LINKED ITEM, not per stored link row (#884). `linkIds` keeps
+   * every row that binds the pair — both the outgoing and the incoming one when
+   * the two items were linked from each side — so removing the chip removes the
+   * relation rather than half of it.
+   */
+  const linked = useMemo(() => {
+    const byItem = new Map<string, { targetId: string; linkIds: string[] }>();
+    const add = (targetId: string, linkId: string) => {
+      const entry = byItem.get(targetId);
+      if (entry) entry.linkIds.push(linkId);
+      else byItem.set(targetId, { targetId, linkIds: [linkId] });
+    };
+    for (const l of outgoing) add(l.toItemId, l.id);
+    for (const l of incoming) add(l.fromItemId, l.id);
+    return [...byItem.values()];
+  }, [outgoing, incoming]);
+
   const linkedIds = useMemo(
-    () => new Set(outgoing.map((l) => l.toItemId)),
-    [outgoing],
+    () => new Set(linked.map((entry) => entry.targetId)),
+    [linked],
   );
 
   const candidates = useMemo(() => {
@@ -234,9 +258,11 @@ export function LinkPanel({
     }
   };
 
-  const handleDelete = async (linkId: string) => {
+  const handleDelete = async (linkIds: string[]) => {
     try {
-      await wiki.deleteItemLink(linkId);
+      // Sequential, not Promise.all: the Context mutator rewrites the same bulk
+      // cache each time, and two writes landing together can drop one update.
+      for (const linkId of linkIds) await wiki.deleteItemLink(linkId);
     } catch (err) {
       console.error("deleteItemLink failed", err);
     }
@@ -286,37 +312,28 @@ export function LinkPanel({
     }
   };
 
-  const renderLinkRow = (
-    key: string,
-    targetId: string,
-    direction: "outgoing" | "incoming",
-    onRemove?: () => void,
-  ) => {
+  /** One linked item, as a chip sitting beside the tag pills. */
+  const renderChip = (entry: { targetId: string; linkIds: string[] }) => {
+    const { targetId, linkIds } = entry;
     const role = targetsById.get(targetId)?.role;
     const Icon = roleIcon(role);
     const title = itemTitle(targetId);
-    // A row opens only when BOTH halves are known: the host has a navigator,
+    // A chip opens only when BOTH halves are known: the host has a navigator,
     // and the pool told us the target's role (the route keys off it). An id
     // whose item is gone from the pool stays a plain, honest label.
     const openTarget = onNavigateToItem && role ? { id: targetId, role } : null;
-    const DirectionIcon = direction === "outgoing" ? ArrowUpRight : ArrowLeft;
 
     const body = (
       <>
         <Icon size={12} aria-hidden className="shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-left">{title}</span>
-        <DirectionIcon
-          size={11}
-          aria-hidden
-          className="shrink-0 text-lumen-text-tertiary"
-        />
+        <span className="max-w-[12rem] truncate text-left">{title}</span>
       </>
     );
 
     return (
-      <li
-        key={key}
-        className="flex items-center gap-1 rounded-lumen-sm border border-lumen-border bg-lumen-bg px-1.5 py-1 text-xs text-lumen-text"
+      <span
+        key={targetId}
+        className="inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-1.5 py-1 text-xs text-lumen-text"
       >
         {openTarget ? (
           <button
@@ -324,187 +341,135 @@ export function LinkPanel({
             title={targetId}
             onClick={() => onNavigateToItem?.(openTarget)}
             aria-label={t("materials.links.open", { title })}
-            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lumen-sm px-0.5 py-0.5 text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+            className="inline-flex min-w-0 items-center gap-1.5 rounded-lumen-sm px-0.5 text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
           >
             {body}
           </button>
         ) : (
           <span
             title={targetId}
-            className="flex min-w-0 flex-1 items-center gap-1.5 px-0.5 py-0.5"
+            className="inline-flex min-w-0 items-center gap-1.5 px-0.5"
           >
             {body}
           </span>
         )}
-        {onRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={t("materials.links.remove", { title })}
-            className="shrink-0 rounded-lumen-sm p-0.5 text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-          >
-            <X size={10} aria-hidden />
-          </button>
-        )}
-      </li>
+        <button
+          type="button"
+          onClick={() => void handleDelete(linkIds)}
+          aria-label={t("materials.links.remove", { title })}
+          className="shrink-0 rounded-lumen-sm p-0.5 text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+        >
+          <X size={10} aria-hidden />
+        </button>
+      </span>
     );
   };
 
   const listboxId = `link-picker-${itemId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
   return (
-    <section
+    <div
+      role="group"
       aria-label={t("materials.links.panelLabel")}
-      className="space-y-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-2"
+      className="inline-flex flex-wrap items-center gap-1.5"
     >
-      <header className="flex items-center gap-1.5 text-xs font-semibold text-lumen-text-secondary">
-        <Link2 size={12} aria-hidden />
-        <span>{t("materials.links.panelLabel")}</span>
-        <div ref={pickerRef} className="relative ml-auto">
-          <button
-            type="button"
-            onClick={() => (pickerOpen ? closePicker() : openPicker())}
-            aria-label={t("materials.links.add")}
-            aria-expanded={pickerOpen}
-            className="inline-flex items-center gap-0.5 rounded-lumen-sm border border-dashed border-lumen-border px-1.5 py-0.5 text-xs font-normal text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-          >
-            <Plus size={12} aria-hidden />
-          </button>
-
-          {pickerOpen && (
-            <div
-              role="dialog"
-              aria-label={t("materials.links.pickerDialog")}
-              className="absolute right-0 top-full z-20 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md"
-            >
-              <input
-                type="text"
-                autoFocus
-                role="combobox"
-                aria-expanded
-                aria-controls={listboxId}
-                aria-autocomplete="list"
-                aria-label={t("materials.links.searchLabel")}
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  // A narrower list is a different list — start at its top.
-                  setHighlightIndex(0);
-                }}
-                onKeyDown={handlePickerKeyDown}
-                placeholder={t("materials.links.searchPlaceholder")}
-                className="w-full rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-xs font-normal text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-              />
-              {candidates.length === 0 ? (
-                <p className="mt-2 px-1 py-1 text-xs font-normal text-lumen-text-tertiary">
-                  {t("materials.links.noCandidates")}
-                </p>
-              ) : (
-                <div
-                  id={listboxId}
-                  role="listbox"
-                  aria-label={t("materials.links.pickerDialog")}
-                  className="mt-2 max-h-48 overflow-y-auto"
-                >
-                  {candidates.map((target, index) => {
-                    const isActive = index === activeIndex;
-                    const Icon = roleIcon(target.role);
-                    return (
-                      <button
-                        key={target.id}
-                        type="button"
-                        role="option"
-                        aria-selected={isActive}
-                        onMouseEnter={() => setHighlightIndex(index)}
-                        onClick={() => void handleAdd(target)}
-                        className={[
-                          "flex w-full items-center gap-2 rounded-lumen-sm px-1.5 py-1.5 text-left text-xs font-normal",
-                          isActive
-                            ? "bg-lumen-accent-subtle text-lumen-text"
-                            : "text-lumen-text-secondary hover:bg-lumen-hover",
-                        ].join(" ")}
-                      >
-                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
-                          <Icon size={12} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1 truncate">
-                          {target.label}
-                        </span>
-                        <span className="shrink-0 text-[0.6875rem] text-lumen-text-tertiary">
-                          {roleLabels[target.role] ?? target.role}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
+      {loading && <span className="text-xs text-lumen-text-secondary">…</span>}
+      {!loading && linked.map(renderChip)}
 
       {error && (
-        <p
-          role="alert"
-          className="rounded-lumen-sm border border-lumen-danger px-2 py-1 text-xs text-lumen-danger"
-        >
+        <span role="alert" className="text-xs text-lumen-danger">
           {error}
-        </p>
+        </span>
       )}
 
-      {loading ? (
-        <p className="text-xs text-lumen-text-secondary">
-          {t("materials.links.loading")}
-        </p>
-      ) : (
-        <div className="space-y-2.5">
-          <div>
-            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-lumen-text-tertiary">
-              <ArrowUpRight size={11} aria-hidden />
-              <span>{t("materials.links.outgoing")}</span>
-              <span className="ml-auto font-mono font-normal">
-                {outgoing.length}
-              </span>
-            </div>
-            {outgoing.length === 0 ? (
-              <p className="rounded-lumen-sm bg-lumen-surface-sunken px-2 py-1.5 text-xs text-lumen-text-secondary">
-                {t("materials.links.outgoingEmpty")}
+      {/* The "+ link" pill mirrors the sibling "+ tag" pill it sits next to:
+          same dashed outline, and the word only while there is nothing yet to
+          read the row by. */}
+      <div ref={pickerRef} className="relative">
+        <button
+          type="button"
+          onClick={() => (pickerOpen ? closePicker() : openPicker())}
+          aria-label={t("materials.links.add")}
+          aria-expanded={pickerOpen}
+          className="inline-flex items-center gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+        >
+          <Link2 size={12} aria-hidden />
+          <Plus size={12} aria-hidden />
+          {linked.length === 0 && !loading && (
+            <span>{t("materials.links.pickerLabelShort")}</span>
+          )}
+        </button>
+
+        {pickerOpen && (
+          <div
+            role="dialog"
+            aria-label={t("materials.links.pickerDialog")}
+            className="absolute right-0 top-full z-20 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md"
+          >
+            <input
+              type="text"
+              autoFocus
+              role="combobox"
+              aria-expanded
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-label={t("materials.links.searchLabel")}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                // A narrower list is a different list — start at its top.
+                setHighlightIndex(0);
+              }}
+              onKeyDown={handlePickerKeyDown}
+              placeholder={t("materials.links.searchPlaceholder")}
+              className="w-full rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-xs font-normal text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+            />
+            {candidates.length === 0 ? (
+              <p className="mt-2 px-1 py-1 text-xs font-normal text-lumen-text-tertiary">
+                {t("materials.links.noCandidates")}
               </p>
             ) : (
-              <ul className="space-y-0.5">
-                {outgoing.map((link) =>
-                  renderLinkRow(
-                    link.id,
-                    link.toItemId,
-                    "outgoing",
-                    () => void handleDelete(link.id),
-                  ),
-                )}
-              </ul>
+              <div
+                id={listboxId}
+                role="listbox"
+                aria-label={t("materials.links.pickerDialog")}
+                className="mt-2 max-h-48 overflow-y-auto"
+              >
+                {candidates.map((target, index) => {
+                  const isActive = index === activeIndex;
+                  const Icon = roleIcon(target.role);
+                  return (
+                    <button
+                      key={target.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onMouseEnter={() => setHighlightIndex(index)}
+                      onClick={() => void handleAdd(target)}
+                      className={[
+                        "flex w-full items-center gap-2 rounded-lumen-sm px-1.5 py-1.5 text-left text-xs font-normal",
+                        isActive
+                          ? "bg-lumen-accent-subtle text-lumen-text"
+                          : "text-lumen-text-secondary hover:bg-lumen-hover",
+                      ].join(" ")}
+                    >
+                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
+                        <Icon size={12} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {target.label}
+                      </span>
+                      <span className="shrink-0 text-[0.6875rem] text-lumen-text-tertiary">
+                        {roleLabels[target.role] ?? target.role}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
-          <div>
-            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-lumen-text-tertiary">
-              <ArrowLeft size={11} aria-hidden />
-              <span>{t("materials.links.backlinks")}</span>
-              <span className="ml-auto font-mono font-normal">
-                {incoming.length}
-              </span>
-            </div>
-            {incoming.length === 0 ? (
-              <p className="rounded-lumen-sm bg-lumen-surface-sunken px-2 py-1.5 text-xs text-lumen-text-secondary">
-                {t("materials.links.backlinksEmpty")}
-              </p>
-            ) : (
-              <ul className="space-y-0.5">
-                {incoming.map((link) =>
-                  renderLinkRow(link.id, link.fromItemId, "incoming"),
-                )}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-    </section>
+        )}
+      </div>
+    </div>
   );
 }
