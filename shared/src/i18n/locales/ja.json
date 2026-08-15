@@ -838,6 +838,7 @@
   "notesView": {
     "unpin": "ピン解除",
     "pin": "ピン留め",
+    "pinned": "ピン留め中",
     "detailTitle": "ノート",
     "moreActions": "その他の操作"
   },

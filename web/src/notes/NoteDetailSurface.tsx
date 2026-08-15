@@ -23,6 +23,8 @@ export interface NoteDetailLabels {
   title: string;
   pin: string;
   unpin: string;
+  /** Name of the "this note is pinned" marker beside the kebab (#885). */
+  pinned: string;
   delete: string;
   moreActions: string;
   content: string;
@@ -67,6 +69,7 @@ export function NoteDetailSurface({
       titleLabel={labels.title}
       pinLabel={labels.pin}
       unpinLabel={labels.unpin}
+      pinnedLabel={labels.pinned}
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
       tagsSlot={

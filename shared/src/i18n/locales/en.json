@@ -839,6 +839,7 @@
   "notesView": {
     "unpin": "Unpin",
     "pin": "Pin",
+    "pinned": "Pinned",
     "detailTitle": "Note",
     "moreActions": "More actions"
   },

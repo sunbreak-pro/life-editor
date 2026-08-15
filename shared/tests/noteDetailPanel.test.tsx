@@ -19,6 +19,7 @@ const LABELS = {
   unpinLabel: "Pin note",
   deleteLabel: "Delete note",
   moreActionsLabel: "More actions",
+  pinnedLabel: "Pinned",
   contentLabel: "Content",
 };
 
@@ -43,6 +44,41 @@ describe("NoteDetailPanel", () => {
     expect(screen.getByText("design")).toBeInTheDocument();
     expect(screen.getByText("editor slot")).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
+  });
+
+  // #885: pinned state has to read from the header itself, not only from inside
+  // the opened kebab menu — and at both widths, which this one panel serves.
+  it("marks a pinned note immediately left of the kebab", () => {
+    const { rerender } = render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="pinned"
+        isPinned
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    const marker = screen.getByRole("img", { name: "Pinned" });
+    const kebab = screen.getByRole("button", { name: "More actions" });
+    // The kebab's positioned wrapper is the marker's next sibling.
+    expect(marker.nextElementSibling?.contains(kebab)).toBe(true);
+
+    rerender(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="loose"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(
+      screen.queryByRole("img", { name: "Pinned" }),
+    ).not.toBeInTheDocument();
   });
 
   it("commits a title edit on blur", () => {
