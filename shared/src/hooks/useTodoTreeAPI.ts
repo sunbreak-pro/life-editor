@@ -13,6 +13,7 @@ import {
 } from "./useTodoTreeHistory";
 import { logServiceError } from "../utils/logError";
 import { collectDescendantIds } from "../utils/getDescendantTodos";
+import { useDomainLoad } from "./useDomainLoad";
 import { useSyncDomains } from "./useSyncDomains";
 import {
   getTodoSelection,
@@ -49,8 +50,6 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   const persistSelection = options.persistSelection ?? false;
 
   const [nodes, setNodes] = useState<TodoNode[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   // Pure selection state (W7). DataService-independent — mirrors Notes'
   // `selectedNoteId` (useNotesUnifiedAPI). Drives the todo detail the Kanban
@@ -83,8 +82,8 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   // One-shot RESTORE (#282): re-select the todo the user had open before the
   // provider unmounted (Materials tab/section switch). The id lives in the
   // module-level materialsSelectionStore, which outlives this React tree.
-  // Called from the load path's async continuation below (#586 — setState
-  // there is an async callback, not the effect body), so it only ever sees a
+  // Called from the load path's `apply` below (#586 — setState there is an
+  // async callback, not the effect body), so it only ever sees a
   // SUCCESSFULLY loaded set: a failed fetch never reaches it, which is what
   // keeps a transient error from consuming the one-shot (restoredRef) or
   // erasing the remembered selection — the next successful reload retries.
@@ -110,33 +109,30 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     [persistSelection],
   );
 
-  // Load from DataService on mount (including soft-deleted todos)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [active, deleted] = await Promise.all([
-          ds.fetchTodoTree(),
-          ds.fetchDeletedTodos(),
-        ]);
-        if (!cancelled) {
-          const all = [...active, ...deleted];
-          setNodes(all);
-          loadedRef.current = true;
-          restoreSelection(all);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load todos");
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion, restoreSelection]);
+  // Load from DataService on mount and on every todos bump (including
+  // soft-deleted todos), through the shared load effect (#672 / #891). Same
+  // three states as the hand-written version it replaces, plus #296's error
+  // un-latch, which this hook was missing: one transient failure used to
+  // leave the error card up for the rest of the session.
+  const { isLoading, error } = useDomainLoad({
+    domain: "TodoTree",
+    dataService: ds,
+    version: syncVersion,
+    load: (service) =>
+      Promise.all([service.fetchTodoTree(), service.fetchDeletedTodos()]),
+    apply: ([active, deleted]) => {
+      const all = [...active, ...deleted];
+      setNodes(all);
+      loadedRef.current = true;
+      restoreSelection(all);
+    },
+    fallbackMessage: "Failed to load todos",
+    // The board (KanbanView) swaps itself for a skeleton while this is true,
+    // and Realtime echoes the tab's own writes back, so a bump-driven re-read
+    // must not flip it — matching the effect this replaces, which only ever
+    // wrote `false`.
+    refetchReportsLoading: false,
+  });
 
   const refetch = useCallback(async () => {
     try {

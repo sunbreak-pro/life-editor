@@ -60,6 +60,22 @@ export interface UseDomainLoadOptions<T> {
   apply: (data: T) => void;
   /** Error text when the thrown value is not an `Error`. */
   fallbackMessage: string;
+  /**
+   * Whether a RE-read (a version / anchor / service change after the first one
+   * settled) reports `isLoading` again. Default true — the Schedule and
+   * Calendar views swap their body for a loading line and would otherwise
+   * leave a stale list on screen while it is re-read.
+   *
+   * Pass false for a view that must keep showing what it has: Realtime echoes
+   * a tab's OWN writes back to it (`syncDomains.ts`), so every local edit
+   * bumps the counter, and a board that swaps itself for a skeleton on each
+   * bump blinks on every keystroke-driven save. `useTodoTreeAPI` (#891) and
+   * the tag graph (#300) are the two that need this; their hand-written
+   * effects only ever wrote `false`, never back to `true`.
+   *
+   * Either way `isLoading` stays a derived value — nothing writes it.
+   */
+  refetchReportsLoading?: boolean;
 }
 
 export interface DomainLoadState {
@@ -84,7 +100,12 @@ interface SettledLoad {
 export function useDomainLoad<T>(
   options: UseDomainLoadOptions<T>,
 ): DomainLoadState {
-  const { dataService, version, anchor } = options;
+  const {
+    dataService,
+    version,
+    anchor,
+    refetchReportsLoading = true,
+  } = options;
 
   const [settled, setSettled] = useState<SettledLoad | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,9 +148,10 @@ export function useDomainLoad<T>(
 
   const isLoading =
     settled === null ||
-    settled.dataService !== dataService ||
-    settled.version !== version ||
-    settled.anchor !== anchor;
+    (refetchReportsLoading &&
+      (settled.dataService !== dataService ||
+        settled.version !== version ||
+        settled.anchor !== anchor));
 
   return useMemo(() => ({ isLoading, error, setError }), [isLoading, error]);
 }
