@@ -21,7 +21,7 @@ import { isImeComposing } from "../../utils/imeGuard";
 import {
   FIELD,
   FIELD_LABEL,
-  FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
   FOCUS_RING_TIGHT,
 } from "../styleTokens";
 
@@ -352,7 +352,7 @@ function sameRepeat(
 
 const SAVE_BTN = cn(
   "rounded-lumen-md bg-lumen-accent px-4 py-2 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
-  FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
   "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
 );
 

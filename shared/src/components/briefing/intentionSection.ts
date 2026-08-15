@@ -35,7 +35,7 @@ import {
   INTENTION_HEADING_RE,
   findSectionRange,
   parseDailyDoc,
-  textOf,
+  sectionLines,
   type TipTapNode,
 } from "./dailySections";
 
@@ -47,23 +47,6 @@ export interface ExtractedIntentionSection {
   text: string | null;
   /** True when the daily contains a 宣言 heading at all. */
   hasSection: boolean;
-}
-
-/** Section nodes → one trimmed line per block (list items line-by-line). */
-function sectionLines(nodes: TipTapNode[]): string[] {
-  const lines: string[] = [];
-  for (const node of nodes) {
-    const blocks =
-      (node.type === "bulletList" || node.type === "orderedList") &&
-      Array.isArray(node.content)
-        ? node.content
-        : [node];
-    for (const block of blocks) {
-      const line = textOf(block).trim();
-      if (line !== "") lines.push(line);
-    }
-  }
-  return lines;
 }
 
 /**

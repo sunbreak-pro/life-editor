@@ -6,6 +6,7 @@ import {
   formatMonthTitle,
   formatPeriodLabel,
   formatShortDate,
+  formatTodoSchedule,
   useScheduleCopy,
 } from "../src/schedule/scheduleCopy";
 
@@ -154,6 +155,56 @@ describe("useScheduleCopy", () => {
 
   it("wraps that duration into the free-gap line (#691)", () => {
     expect(render().formatGapLabel(90)).toBe("1 hr 30 min free");
+  });
+
+  // #877: the todo detail sheet's schedule row. The three answers are "this
+  // day, this span", "this day, all of it", and "no day at all" — the last one
+  // being a real answer rather than a blank, since saying nothing is exactly
+  // what the sheet used to do.
+  it("names the day and the span of a scheduled todo (#877)", () => {
+    const copy = { allDay: "All-day", unscheduled: "Not scheduled" };
+    const timed = formatTodoSchedule(
+      "en",
+      {
+        date: "2026-08-15",
+        startTime: "13:00",
+        endTime: "14:00",
+        isAllDay: false,
+      },
+      copy,
+    );
+    expect(timed).toContain("13:00 – 14:00");
+    // The year travels with it (#353's reasoning): the sheet opens from a chip
+    // on whatever day the calendar is parked on.
+    expect(timed).toContain("2026");
+
+    expect(
+      formatTodoSchedule(
+        "en",
+        {
+          date: "2026-08-15",
+          startTime: "00:00",
+          endTime: "00:00",
+          isAllDay: true,
+        },
+        copy,
+      ),
+    ).toContain("All-day");
+    // …and no 00:00–00:00, which is what an all-day slot carries underneath.
+    expect(
+      formatTodoSchedule(
+        "en",
+        {
+          date: "2026-08-15",
+          startTime: "00:00",
+          endTime: "00:00",
+          isAllDay: true,
+        },
+        copy,
+      ),
+    ).not.toContain("00:00");
+
+    expect(formatTodoSchedule("en", null, copy)).toBe("Not scheduled");
   });
 
   it("fills the repeat editor's labels", () => {

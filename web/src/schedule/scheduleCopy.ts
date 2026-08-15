@@ -8,6 +8,7 @@ import {
   type ItemCreatePanelLabels,
   type ScheduleStatus,
   type SegmentedOption,
+  type TodoScheduleSlot,
 } from "@life-editor/shared";
 
 /*
@@ -70,6 +71,38 @@ export function formatMonthTitle(language: string, dateKey: string): string {
     year: "numeric",
     month: "long",
   }).format(dateFromKey(dateKey));
+}
+
+/** Copy the todo schedule line needs, already translated (§6.4). */
+export interface TodoScheduleCopy {
+  /** "終日" — the day is claimed whole. */
+  allDay: string;
+  /** "未設定" — the todo carries no schedule at all. */
+  unscheduled: string;
+}
+
+/**
+ * "When is this todo", for the todo detail panel's read-only row (#877).
+ *
+ * The YEAR is included for the same reason the creation panel spells it out
+ * (#353): the sheet opens from a chip on whatever day the calendar is parked
+ * on, and a todo set for next January would otherwise read as this one.
+ *
+ * A null slot is a todo with no schedule — which is a real answer, not a gap.
+ * Saying nothing at all is how the panel got here.
+ */
+export function formatTodoSchedule(
+  language: string,
+  slot: TodoScheduleSlot | null,
+  copy: TodoScheduleCopy,
+): string {
+  if (slot == null) return copy.unscheduled;
+  const day = formatLongDate(language, slot.date);
+  // Same en dash the week range uses, so the two time spans on this screen are
+  // punctuated alike.
+  return slot.isAllDay
+    ? `${day} ${copy.allDay}`
+    : `${day} ${slot.startTime} – ${slot.endTime}`;
 }
 
 export interface PeriodLabelInput {

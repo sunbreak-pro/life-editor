@@ -71,6 +71,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 - i18n は props 経由（部品フック内で `useTranslation()` 禁止）。文言は `react-i18next` の en / ja 両 catalog に追加
 - DataService はコールバック注入（フック内で `getDataService()` 直呼び禁止）
 - ジェネリクスで型外部化
+- **`lumen-*` はネストした `data-theme` に追随しない**（#887）: `@theme` の別名（`--color-lumen-bg: var(--color-bg-primary)`）は Tailwind が `:root` に出し、**宣言された要素**で中身が確定して子孫はその確定値を継承する。サブツリーに `data-theme="dark"` を付けても lumen-\* 側は塗り替わらない（Settings のテーマカード 3 枚が同じ見た目になっていた原因）。**部分テーマで使うトークンは `tokens.css` の `[data-theme]` エイリアスブロックに 1 行足す**（色値のコピーは禁止・守り = `shared/tests/tokensNestedTheme.test.ts`）
 - 詳細 → `docs/vision/coding-principles.md §5`
 
 ## Schedule Provider 分割

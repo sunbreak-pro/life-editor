@@ -100,7 +100,7 @@ function Probe() {
 
 async function renderTimer() {
   render(
-    <TimerProvider dataService={makeDS()}>
+    <TimerProvider dataService={makeDS()} untitledTodoTitle="Untitled todo">
       <Probe />
     </TimerProvider>,
     { wrapper: syncWrapper },

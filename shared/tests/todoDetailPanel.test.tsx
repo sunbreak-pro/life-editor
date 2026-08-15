@@ -504,6 +504,50 @@ describe("TodoDetailPanel — save button (#713)", () => {
     ).toBe("renamed elsewhere");
   });
 
+  // #877: on narrow this panel is the ONLY way into a todo, and it named the
+  // title, the status and the tags while never saying which day the todo was
+  // set for. The row is paired like the ones around it, so a host that has
+  // nothing to say renders nothing rather than a caption over a blank.
+  it("shows the schedule row only when the host fills both halves (#877)", () => {
+    const { rerender } = render(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Buy milk"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(screen.queryByText("Scheduled")).toBeNull();
+
+    rerender(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Buy milk"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        scheduleLabel="Scheduled"
+        {...LABELS}
+      />,
+    );
+    // A caption with nothing under it is worse than no row at all.
+    expect(screen.queryByText("Scheduled")).toBeNull();
+
+    rerender(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Buy milk"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        scheduleLabel="Scheduled"
+        scheduleText="August 15, 2026 13:00 – 14:00"
+        {...LABELS}
+      />,
+    );
+    expect(screen.getByText("Scheduled")).toBeTruthy();
+    expect(screen.getByText("August 15, 2026 13:00 – 14:00")).toBeTruthy();
+  });
+
   it("reports the pending state to the host, and clears it on unmount", () => {
     const onDirtyChange = vi.fn();
     const { unmount } = render(

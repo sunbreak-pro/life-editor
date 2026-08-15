@@ -6,6 +6,7 @@ import {
   unwrapTodoChipId,
   localDateTimeToISO,
   todosToCalendarChips,
+  todoScheduleSlot,
 } from "../src/utils/todoCalendarChips";
 import { makeTodo } from "./helpers/nodeFixtures";
 
@@ -205,6 +206,50 @@ describe("localDateTimeToISO (#297)", () => {
 
     expect(localDateTimeToISO(chip.date, chip.startTime)).toBe(ISO);
     expect(localDateTimeToISO(chip.date, chip.endTime)).toBe(ISO_END);
+  });
+
+  // #877: the same answer the chips are built from, for a surface that only
+  // wants to SAY when a todo is. Two of the rules are invisible from the
+  // outside — an absent end means a 60-minute block, and a degenerate span
+  // becomes all-day — and a second implementation would disagree on exactly
+  // those, leaving the detail panel reading "13:00–13:00" under a chip parked
+  // in the all-day lane.
+  it("answers WHEN a single todo is, with the chips' own rules", () => {
+    const start = new Date(ISO);
+    expect(
+      todoScheduleSlot(makeTodo({ id: "task-a", scheduledAt: ISO })),
+    ).toEqual({
+      date: localKey(start),
+      startTime: localTime(start),
+      // No explicit end: the default 60-minute block.
+      endTime: localTime(new Date(start.getTime() + 60 * 60_000)),
+      isAllDay: false,
+    });
+
+    expect(
+      todoScheduleSlot(
+        makeTodo({ id: "task-b", scheduledAt: ISO, isAllDay: true }),
+      ),
+    ).toEqual({
+      date: localKey(start),
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+    });
+
+    // #562's rescue: an end at or before the start has no drawable block, so
+    // it reads as an all-day candidate rather than an inverted span.
+    expect(
+      todoScheduleSlot(
+        makeTodo({ id: "task-c", scheduledAt: ISO, scheduledEndAt: ISO }),
+      )?.isAllDay,
+    ).toBe(true);
+
+    // No schedule at all is a real answer — the panel says "not scheduled".
+    expect(todoScheduleSlot(makeTodo({ id: "task-d" }))).toBeNull();
+    expect(
+      todoScheduleSlot(makeTodo({ id: "task-e", scheduledAt: "nonsense" })),
+    ).toBeNull();
   });
 
   it("normalises a 24:00 end to the next day's 00:00 (same instant)", () => {

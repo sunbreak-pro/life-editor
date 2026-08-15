@@ -73,6 +73,30 @@ export function parseDailyDoc(
 }
 
 /**
+ * Section nodes → one trimmed line per block (list items line-by-line).
+ *
+ * The line model every "plain-line surface" section shares: 宣言
+ * (intentionSection) and the 週/月/年 goals (goalSections) both read their
+ * section back as LINES, and both write it back as one paragraph per line.
+ * Blank blocks are dropped, so a section of only whitespace reads as empty.
+ */
+export function sectionLines(nodes: TipTapNode[]): string[] {
+  const lines: string[] = [];
+  for (const node of nodes) {
+    const blocks =
+      (node.type === "bulletList" || node.type === "orderedList") &&
+      Array.isArray(node.content)
+        ? node.content
+        : [node];
+    for (const block of blocks) {
+      const line = textOf(block).trim();
+      if (line !== "") lines.push(line);
+    }
+  }
+  return lines;
+}
+
+/**
  * Locate a heading section among top-level nodes: [start, end) where start
  * is the first heading matching `headingRe` and end is the next heading
  * (any text) or the document end.
