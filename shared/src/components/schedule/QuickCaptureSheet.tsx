@@ -49,6 +49,13 @@ export function QuickCaptureSheet({
       onClose={onClose}
       title={sheetTitle}
       closeLabel={closeLabel}
+      /*
+       * Full height (#874). This is the create FORM — date, times, a repeat
+       * section, a tab row — not a one-field quick add, and every field in it
+       * summons the keyboard. Partial, it left a live strip of calendar
+       * showing that re-flowed on each focus.
+       */
+      fullScreen
     >
       <ItemCreatePanel {...panel} />
     </BottomSheet>

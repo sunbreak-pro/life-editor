@@ -129,6 +129,24 @@ describe("MobileTodoList detail sheet (#470)", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onCloseDetail).toHaveBeenCalled();
   });
+
+  /*
+   * #874 — the detail takes the whole screen rather than rising part-way up it.
+   * Pinned at the WIRING level, not just in BottomSheet's own tests: the prop is
+   * one word, and dropping it here would leave every component test green while
+   * putting the strip of list — and the lurch it makes when the keyboard opens
+   * — straight back on screen.
+   */
+  it("gives the detail the whole screen (#874)", () => {
+    renderList({
+      detailTodoId: "task-a",
+      detail: <div>detail panel</div>,
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Todo details" });
+    expect(dialog.className).toContain("h-full");
+    expect(dialog.className).not.toContain("max-w-lg");
+  });
 });
 
 describe("MobileTodoList status filter", () => {

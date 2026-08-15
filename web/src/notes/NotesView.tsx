@@ -397,7 +397,10 @@ export function NotesView({
       {isWide && <RightSidebarPortal>{sidebarList}</RightSidebarPortal>}
 
       {/*
-       * Mobile detail sheet — 92% height, FULL edit (#471, mobile-scope #7).
+       * Mobile detail screen — full height, FULL edit (#471, mobile-scope #7).
+       * It took the whole screen as of #874: at the 92vh it ran before, the
+       * strip of list showing under it re-flowed every time the keyboard came
+       * up for the title or the body.
        * It hosts the same <NoteDetailSurface> the Desktop main content uses, so
        * title / tags / pin / delete / body are one implementation on both
        * surfaces: anything added to the note detail later reaches the phone for
@@ -411,39 +414,35 @@ export function NotesView({
           onClose={sheet.closeSheet}
           title={t("materials.notes.detailTitle")}
           closeLabel={t("common.close")}
-          className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
+          fullScreen
         >
           {sheetNote && (
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <NoteDetailSurface
-                note={sheetNote}
-                labels={detailLabels}
-                locked={password.isGated(sheetNote)}
-                onUnlock={password.requestUnlock}
-                onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-                onTogglePin={notes.togglePin}
-                // Deleting closes the sheet on its own: the note leaves the
-                // active pool, so useNoteSheetTarget drops the id.
-                onDelete={(id) => notes.softDeleteNote(id)}
-                contentEditor={
-                  sheetReady ? (
-                    // The sheet's OWN note object, not selectedNote: they are
-                    // the same row in the same array, and reading the sheet's
-                    // removes any dependence on the selection having caught up.
-                    <NoteBodyEditor
-                      note={sheetNote}
-                      linking={linking}
-                      onNavigateToItem={onNavigateToItem}
-                      onSave={(id, content) =>
-                        notes.updateNote(id, { content })
-                      }
-                    />
-                  ) : (
-                    <SkeletonList rows={4} rowHeight={20} gap={8} />
-                  )
-                }
-              />
-            </div>
+            <NoteDetailSurface
+              note={sheetNote}
+              labels={detailLabels}
+              locked={password.isGated(sheetNote)}
+              onUnlock={password.requestUnlock}
+              onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+              onTogglePin={notes.togglePin}
+              // Deleting closes the sheet on its own: the note leaves the
+              // active pool, so useNoteSheetTarget drops the id.
+              onDelete={(id) => notes.softDeleteNote(id)}
+              contentEditor={
+                sheetReady ? (
+                  // The sheet's OWN note object, not selectedNote: they are
+                  // the same row in the same array, and reading the sheet's
+                  // removes any dependence on the selection having caught up.
+                  <NoteBodyEditor
+                    note={sheetNote}
+                    linking={linking}
+                    onNavigateToItem={onNavigateToItem}
+                    onSave={(id, content) => notes.updateNote(id, { content })}
+                  />
+                ) : (
+                  <SkeletonList rows={4} rowHeight={20} gap={8} />
+                )
+              }
+            />
           )}
         </BottomSheet>
       )}

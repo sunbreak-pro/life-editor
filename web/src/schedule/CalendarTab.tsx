@@ -2165,10 +2165,10 @@ export function CalendarTab({
    * detail surface at all — the tap was dropped before it could ask for one
    * (itemTapRoute) — so the row read as broken next to an event that opens.
    *
-   * A BottomSheet rather than the overlay, matching the event editor beside it:
-   * capped at 92svh with an inner scroller for the same reason (#633) — without
-   * them a tall panel pushes the sheet's top edge off the viewport and the only
-   * thing left to scroll is the document.
+   * A BottomSheet rather than the overlay, matching the event editor beside it,
+   * and full-height since #874 — the 92svh cap left a strip of day list showing
+   * that jumped every time the keyboard opened. The scroller #633 asked for now
+   * comes with `fullScreen` rather than being rebuilt here.
    */
   const todoDetailSheetEl = (
     <BottomSheet
@@ -2176,11 +2176,9 @@ export function CalendarTab({
       onClose={closeTodoDetail}
       title={t("materials.todos.detailTitle")}
       closeLabel={t("common.close")}
-      className="flex max-h-[92svh] flex-col overflow-hidden"
+      fullScreen
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {todoDetailBody}
-      </div>
+      {todoDetailBody}
     </BottomSheet>
   );
 
@@ -2520,11 +2518,14 @@ export function CalendarTab({
         labels={createPanelLabels}
       />
 
-      {/* #633: cap + inner scroller, like the Notes/Todos detail sheets — without
-          them a tall editor pushes the sheet's top edge past the viewport and
-          the only thing left to scroll is the document (= pull-to-refresh).
-          svh, not vh: 100vh is the URL-bar-hidden viewport, so a vh cap can
-          still overflow while the bar is showing (#631's trap). */}
+      {/* Full height, like the Notes/Todos detail screens. The cap and the
+          hand-rolled scroller this used to carry (#633) both moved into
+          <BottomSheet fullScreen> with #874: the cap because a 92svh editor
+          left a live strip of calendar behind it that re-flowed on every
+          keyboard open, and the scroller because every full-height host needed
+          the same one — without it a tall editor pushes its own top edge past
+          the viewport and the only thing left to scroll is the document
+          (= pull-to-refresh). */}
       <BottomSheet
         open={!!editorPane}
         // #628: the sheet's close button, its backdrop and Escape all funnel
@@ -2534,11 +2535,9 @@ export function CalendarTab({
         }}
         title={t("scheduleScreen.detailTitle")}
         closeLabel={t("common.close")}
-        className="flex max-h-[92svh] flex-col overflow-hidden"
+        fullScreen
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {editorPane}
-        </div>
+        {editorPane}
       </BottomSheet>
 
       {/* #761: narrow's todo detail. Mounted after the editor sheet, though

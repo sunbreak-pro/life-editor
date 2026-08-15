@@ -7,11 +7,22 @@ import { AppShell, type AppShellSection } from "../src/components";
  * with the shrinking viewport and covered the text the user was typing. The
  * shell now stands the bar down while the keyboard is on screen.
  *
+ * #874 changed HOW it stands down: invisible, not unmounted. Unmounting handed
+ * the bar's height back to <main>, so opening the keyboard re-flowed the whole
+ * screen — visible as a lurch behind any panel the user was typing into. So
+ * these tests now check that the bar keeps its BOX and loses its paint.
+ *
  * jsdom has neither matchMedia nor visualViewport, so both are stubbed: the
  * first pins the narrow layout, the second plays the keyboard. What this file
- * can pin is the DECISION (bar rendered / not rendered) — jsdom has no layout,
+ * can pin is the DECISION (bar painted / not painted) — jsdom has no layout,
  * so the resulting look is a 👀 gate on a real phone, not something a test can
  * answer (CLAUDE.md §7.1).
+ *
+ * The stand-down reads as a class rather than as `toBeVisible()` or a dropped
+ * role for one reason: no Tailwind stylesheet is loaded here, so `invisible`
+ * computes to nothing and jsdom still reports the bar as shown. In a browser
+ * the same class is `visibility: hidden`, which does take the bar out of the
+ * accessibility tree and the tab order — that part is the 👀 gate's to confirm.
  */
 
 const Dot = () => <span data-testid="icon">•</span>;
@@ -91,6 +102,13 @@ function renderShell() {
 
 const tabBar = () => screen.queryByRole("navigation", { name: "More" });
 
+/**
+ * The stand-down wrapper the shell puts around the bar. Read off the bar rather
+ * than by a test id: the wrapper exists to reserve layout, and a hook added
+ * just for the test would be a second reason for it to exist.
+ */
+const tabBarBox = () => tabBar()?.parentElement ?? null;
+
 afterEach(() => {
   // @ts-expect-error — clear the stubs between tests.
   delete window.matchMedia;
@@ -105,16 +123,33 @@ describe("AppShell narrow — soft keyboard (#608)", () => {
     const viewport = mockVisualViewport(844);
     renderShell();
 
-    expect(tabBar()).toBeInTheDocument();
+    expect(tabBarBox()).not.toHaveClass("invisible");
 
     // Keyboard opens: the visible area loses ~340px.
     viewport.setHeight(500);
-    expect(tabBar()).not.toBeInTheDocument();
+    expect(tabBarBox()).toHaveClass("invisible");
     // The section body is untouched — the bar steps aside, the screen does not.
     expect(screen.getByText("section body")).toBeInTheDocument();
 
     viewport.setHeight(844);
+    expect(tabBarBox()).not.toHaveClass("invisible");
+  });
+
+  it("keeps the bar's box in the layout while it is stood down (#874)", () => {
+    mockMatchMedia(false);
+    const viewport = mockVisualViewport(844);
+    renderShell();
+
+    viewport.setHeight(500);
+
+    /*
+     * The bar is still MOUNTED — this is the whole fix. Unmount it and <main>
+     * grows into the freed strip, which is the re-flow #874 was reported as:
+     * the page appearing to heave up behind an open panel the moment the
+     * keyboard arrives.
+     */
     expect(tabBar()).toBeInTheDocument();
+    expect(tabBarBox()).toHaveClass("shrink-0");
   });
 
   it("ignores a shrink the size of a browser toolbar", () => {
@@ -125,7 +160,7 @@ describe("AppShell narrow — soft keyboard (#608)", () => {
     // The address bar sliding back in is not a keyboard; hiding navigation for
     // it would make the bar flicker on every scroll.
     viewport.setHeight(784);
-    expect(tabBar()).toBeInTheDocument();
+    expect(tabBarBox()).not.toHaveClass("invisible");
   });
 
   it("keeps the bar when the platform has no visualViewport at all", () => {
@@ -133,5 +168,6 @@ describe("AppShell narrow — soft keyboard (#608)", () => {
     renderShell(); // no visualViewport stub — older browsers, jsdom, Electron
 
     expect(tabBar()).toBeInTheDocument();
+    expect(tabBarBox()).not.toHaveClass("invisible");
   });
 });
