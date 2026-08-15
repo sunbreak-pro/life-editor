@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -246,12 +246,10 @@ export function CalendarTab({
     rangeEnd,
     step,
     goToday,
-    // #692: Mobile's month overview. Open ⇒ effView is "month", so the fetch
-    // window, the step size and the period label all follow without a second
-    // switch here.
-    monthSheetOpen,
-    openMonthSheet,
-    closeMonthSheet,
+    // #878: Mobile's main view IS the month, so `effView` is "month" there and
+    // the fetch window, the step size and the period label follow without a
+    // second switch here. A cell tap moves the anchor — which is the day the
+    // list under the grid shows.
     pickMonthDay,
   } = useCalendarNav(isWide);
 
@@ -959,6 +957,13 @@ export function CalendarTab({
   const todayLabel = useMemo(
     () => formatFullDayKey(i18n.language, today),
     [today, i18n.language],
+  );
+
+  // #878: the day the Mobile list under the month grid is showing. No year —
+  // the header right above it names the month and the year already.
+  const anchorDayLabel = useMemo(
+    () => formatFullDayKey(i18n.language, anchorDate),
+    [anchorDate, i18n.language],
   );
 
   // Month-cell accessible names (MonthGrid falls back to the raw ISO key —
@@ -2326,18 +2331,25 @@ export function CalendarTab({
 
   // ── Mobile ───────────────────────────────────────────────────────────────
   //
-  // #467 Step 5-c: one screen — the anchored day as a list, plus the FAB. The
-  // Timeline and Month options went with the switcher. Both were Desktop
-  // surfaces shrunk to fit: a 24-hour time grid on a phone puts the whole day
-  // behind a scroll and turns every block into a drag target too small to hit,
-  // and a month grid leaves cells that show a count instead of what is in them.
-  // The list answers the question narrow is actually for ("what is next?")
-  // without either, and the day steppers below reach every other day.
+  // One screen — the month grid, the picked day's list under it, and the FAB
+  // (#878, ユーザー確定 2026-08-15). Still no switcher: narrow has one view, it
+  // is just no longer the same view as the drawer beside it.
   //
-  // What was lost with them is the picker for a far-off day — prev/next only
-  // walks one day at a time now. That is the accepted trade of "単画面 + FAB"
-  // (Epic #290 Step 5-c); the repeats tab in the drawer covers the case that
-  // actually needed a jump (a routine whose next occurrence is weeks out).
+  // #467 made this a bare day list, and #692 hung the month off the header on a
+  // sheet. What that left was a main area showing a day list next to a drawer
+  // showing a day list — the same UI answering the same question twice — while
+  // the month, the one thing the drawer cannot show, was behind a tap. So the
+  // two swapped places: the calendar is the main view, the day is what a cell
+  // tap chooses, and the drawer keeps today's flow.
+  //
+  // The Timeline option does NOT come back with it: a 24-hour time grid on a
+  // phone puts the whole day behind a scroll and turns every block into a drag
+  // target too small to hit. And the month is `compact` here (day badge + dot
+  // row), which is what makes 42 cells legible — the dots say WHERE something
+  // is, the list under the grid says WHAT.
+  //
+  // The steppers now page by MONTHS (`effView` is "month" on narrow), so a
+  // far-off day is two taps rather than the day-at-a-time walk #467 accepted.
   return (
     <>
       {sidebarPortal}
@@ -2354,27 +2366,13 @@ export function CalendarTab({
               openLabel={t("scheduleScreen.openMenu")}
               closeLabel={t("scheduleScreen.closeMenu")}
             />
-            {/* #692: the date label is narrow's only route to the month —
-                #467 left no switcher to hang one on, and a second header
-                control would undo "単画面 + FAB". Tapping the label the user
-                already reads for "where am I?" answers "and what does the
-                month look like?". */}
-            <button
-              type="button"
-              onClick={openMonthSheet}
-              aria-haspopup="dialog"
-              aria-expanded={monthSheetOpen}
-              aria-label={t("scheduleScreen.openMonthView", {
-                date: periodLabel,
-              })}
-              className="flex min-h-8 min-w-0 flex-1 items-center gap-1 rounded-lumen-md px-1 text-left text-sm font-semibold text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-            >
-              <span className="min-w-0 truncate">{periodLabel}</span>
-              <ChevronDown
-                aria-hidden
-                className="size-4 shrink-0 text-lumen-text-secondary"
-              />
-            </button>
+            {/* #878: the month the grid below is showing. It is a heading
+                again, not a control — #692's chevron opened the month on a
+                sheet, and with the month AS the main view there is nothing
+                left for a tap to reveal. */}
+            <h2 className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-lumen-text">
+              {periodLabel}
+            </h2>
             <div className="flex gap-1">
               <button
                 type="button"
@@ -2402,32 +2400,79 @@ export function CalendarTab({
             </button>
           </div>
           {rangeErrorBanner}
-          <div className="min-h-0 flex-1 overflow-y-auto pb-24">
-            {showLoading ? (
-              loadingCard
-            ) : showError ? (
-              errorCard
-            ) : (
-              <AgendaList
-                items={toAgenda(
-                  anchorDayItems,
-                  rangeTodoChips.filter((c) => c.date === anchorDate),
-                )}
-                nowMinutes={anchorDate === today ? nowMinutes : null}
-                onToggleComplete={handleAgendaToggle}
-                onItemActivate={handleItemActivate}
-                onItemDoubleClick={handleItemOpenDetail}
-                selectedId={selectedId}
-                /* #691: Mobile stands in for the week grid here, so the row
-                   has to say how long it runs and where the day is free.
-                   Desktop's sidebar column stays one line tall (no props). */
-                dayflow
-                formatGapLabel={formatGapLabel}
-                labels={anchorAgendaLabels}
-                className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-              />
-            )}
-          </div>
+          {showLoading ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+              {loadingCard}
+            </div>
+          ) : showError ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+              {errorCard}
+            </div>
+          ) : (
+            <>
+              {/*
+               * #878: the month grid IS narrow's main view now.
+               *
+               * Consumption only, as it was on the sheet (#692): a cell hands
+               * back its day and nothing else, so `onSelectDay` is
+               * `pickMonthDay` and NOT the Desktop `handleMonthCreate` that
+               * opens the creation panel (#224). Mobile keeps one way to make
+               * things — the FAB.
+               *
+               * `compact` is what makes 42 cells legible on a phone (day badge
+               * + a dot row rather than title chips), and no item handlers are
+               * passed: the dots are a density cue and the day underneath stays
+               * the tap target. What a dot IS is answered by the list below.
+               */}
+              <div className="shrink-0">
+                <MonthGrid
+                  compact
+                  monthKey={anchorDate}
+                  items={monthItems}
+                  todayKey={today}
+                  selectedKey={anchorDate}
+                  weekStartsOn={weekStartsOn}
+                  weekdayLabels={weekdayLabels}
+                  onSelectDay={pickMonthDay}
+                  formatMoreCount={(n) =>
+                    t("scheduleScreen.moreCount", { count: n })
+                  }
+                  formatDayLabel={formatFullDay}
+                  ariaLabel={t("scheduleScreen.calendar")}
+                />
+              </div>
+              {/*
+               * The picked day, underneath — the half of the pair the grid
+               * cannot answer (a dot says "something is here", not what). It
+               * names its own day because the header above now names the MONTH:
+               * without it, a list of times has nothing saying which day they
+               * belong to.
+               */}
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-24">
+                <p className="shrink-0 text-xs text-lumen-text-secondary">
+                  {anchorDayLabel}
+                </p>
+                <AgendaList
+                  items={toAgenda(
+                    anchorDayItems,
+                    rangeTodoChips.filter((c) => c.date === anchorDate),
+                  )}
+                  nowMinutes={anchorDate === today ? nowMinutes : null}
+                  onToggleComplete={handleAgendaToggle}
+                  onItemActivate={handleItemActivate}
+                  onItemDoubleClick={handleItemOpenDetail}
+                  selectedId={selectedId}
+                  /* #691: Mobile stands in for the week grid here, so the row
+                     has to say how long it runs and where the day is free.
+                     Desktop's sidebar column stays one line tall (no props). */
+                  dayflow
+                  formatGapLabel={formatGapLabel}
+                  labels={anchorAgendaLabels}
+                  className="rounded-md border border-lumen-border bg-lumen-bg px-2"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* FAB → creation panel. */}
@@ -2436,62 +2481,6 @@ export function CalendarTab({
           label={t("scheduleScreen.addEvent")}
         />
       </div>
-
-      {/*
-       * #692: the month overview. Consumption only — a cell hands back its day
-       * and nothing else, so `onSelectDay` is `pickMonthDay`, NOT the Desktop
-       * `handleMonthCreate` that opens the creation panel (#224). Mobile keeps
-       * one way to create things: the FAB.
-       *
-       * `compact` is what makes 42 cells legible on a phone (day badge + a dot
-       * row rather than title chips), and no item handlers are passed — the
-       * dots are a density cue, and the day underneath stays the tap target.
-       */}
-      <BottomSheet
-        open={monthSheetOpen}
-        onClose={closeMonthSheet}
-        title={t("scheduleScreen.monthSheetTitle")}
-        closeLabel={t("common.close")}
-        className="flex max-h-[85svh] flex-col overflow-hidden"
-      >
-        <div className="flex shrink-0 items-center gap-2 pb-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
-            {periodLabel}
-          </span>
-          {/* Same `step` as the header — with the sheet open it pages by
-              months, which is the whole point of flipping effView. */}
-          <button
-            type="button"
-            aria-label={t("scheduleScreen.prev")}
-            onClick={() => step(-1)}
-            className={ICON_BTN}
-          >
-            <ChevronLeft aria-hidden className="size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={t("scheduleScreen.next")}
-            onClick={() => step(1)}
-            className={ICON_BTN}
-          >
-            <ChevronRight aria-hidden className="size-4" />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <MonthGrid
-            compact
-            monthKey={anchorDate}
-            items={monthItems}
-            todayKey={today}
-            weekStartsOn={weekStartsOn}
-            weekdayLabels={weekdayLabels}
-            onSelectDay={pickMonthDay}
-            formatMoreCount={(n) => t("scheduleScreen.moreCount", { count: n })}
-            formatDayLabel={formatFullDay}
-            ariaLabel={t("scheduleScreen.calendar")}
-          />
-        </div>
-      </BottomSheet>
 
       {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
           empty-slot tap opens with the tapped slot's time prefilled. Same panel
