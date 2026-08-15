@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-15 - #870 ルーチンのテンプレート時刻が変更前になる（PR #900）
+
+#### 概要
+
+時刻変更と繰り返し ON を 1 回の Save で行うと、その日は新しい時刻・翌日以降は変更前の時刻で並ぶバグを直した。原因は「Save の送信順」と「テンプレートの読み元」の食い違いで、Save がフィールド patch を繰り返しと一緒に渡し、手動→変換分岐がそれを種に重ねる形にした。6 ゲート（shared / web の lint・build・test）exit 0。merge は未（P-001）。
+
+#### 変更点
+
+- **送信順は変えずに、渡す物を増やした**: `EventEditorPane` は繰り返しを先に送る（フィールド patch が this/future/all ダイアログを出すので最後でなければならない = #279 / #712 の設計）。順序を入れ替えると 1 ジェスチャで 2 回聞くか、聞く前に系列を書き換えるかになるので、**先に行く側に patch を持たせる**方を選んだ（`onChangeRepeat(repeatEdits, patch)`）
+- **種は 1 つに保つ**（`useRepeatMutations.ts` の `const seed = { ...selected, ...definedSeedFields(fields) }`）: 変換後の派生物は **ルーチンのテンプレート・可視範囲を埋める楽観 routine・変換が確保する日付（sourceDate / frequencyStartDate / windowStart）** の 3 つあり、全部 `seed` から作られる。Issue が「片方だけ直すとズレる」と書いていたのはここで、**種の時点で合成すれば下流は勝手に揃う**
+- **実際に動いたキーだけ重ねる**（`definedSeedFields`）: patch は全フィールド optional なので、そのまま spread すると「未編集」が `title: undefined` として種を潰す。「編集していない」と「空にした」が同じ形になる patch では、重ね方を明示するしかない
+- **既存シリーズ側（`selected.routineId != null`）は触っていない**: あちらの時刻はスコープダイアログ経由で入り、reconcile の rule-2 テンプレートは**変更前**の値であることが正しい（手編集された行を守るため）。同じ「seed が古い」に見えても意味が逆
+- **`date` も重ねた**（Issue の方向性どおり）: 日移動 + 繰り返し ON を 1 Save でやると、旧日付を sourceDate で確保したまま行が新日付へ動いて**新日付に生成行と種行が二重に並ぶ**。新日付で確保すれば種行がそのスロットを持つ
+- テスト: web 側に 2 件（同一 Save の時刻がテンプレートと materialiser の両方に届く / フィールド未編集なら item 自身の値が残る）、shared 側に 1 件（同じ press の時刻を繰り返しと一緒に運ぶ）。既存 3 assertion を 2 引数へ更新
+- 検証: `cd shared && npm run lint / build / test`（0 errors・233 files 2134 pass）+ `cd web && npm run lint / build / test`（0 errors・44 files 396 pass）すべて exit 0。実ブラウザ検証は §7.4 により merge 後 chat-main
+
 ### 2026-08-13 - /goal 一括 4 件（#789 / #774 / #708 / #790）— PR 3 本 + 判断キュー 1 件
 
 #### 概要
