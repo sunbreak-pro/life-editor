@@ -70,6 +70,38 @@ describe("MonthGrid", () => {
     expect(onSelectDay).not.toHaveBeenCalled();
   });
 
+  /*
+   * #878 — the picked day. Mobile's month grid now has a list under it, and
+   * without a mark the grid cannot say which of its 42 cells that list belongs
+   * to. Marked on the CELL, so a day that is both today and picked still reads
+   * as today (the badge is today's).
+   */
+  it("marks the picked day without disturbing the today badge", () => {
+    renderGrid({ selectedKey: "2026-07-20" });
+    const picked = screen
+      .getByRole("button", { name: "2026-07-20" })
+      .closest("[role='gridcell']");
+    expect(picked?.className).toContain("ring-lumen-accent");
+    expect(picked?.getAttribute("aria-selected")).toBe("true");
+    // Today keeps its own cue, and is not the picked cell here.
+    expect(screen.getByText("9").className).toContain("bg-lumen-accent");
+    expect(
+      screen
+        .getByRole("button", { name: "2026-07-09" })
+        .closest("[role='gridcell']")
+        ?.getAttribute("aria-selected"),
+    ).toBe("false");
+  });
+
+  it("says nothing about selection when the host picks no day", () => {
+    // A grid whose every cell reports aria-selected="false" tells a screen
+    // reader there is a selection to make — the Desktop month view has none.
+    renderGrid();
+    for (const cell of screen.getAllByRole("gridcell")) {
+      expect(cell.getAttribute("aria-selected")).toBeNull();
+    }
+  });
+
   it("renders dots instead of chips in compact mode", () => {
     renderGrid({ compact: true });
     // No chip buttons in compact mode — only the per-cell day-select buttons.
