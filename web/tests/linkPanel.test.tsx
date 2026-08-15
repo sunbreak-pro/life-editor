@@ -28,7 +28,12 @@ const state = vi.hoisted(() => ({
   incoming: [] as unknown[],
   loading: false,
   createItemLink: vi.fn(() => Promise.resolve()),
-  deleteItemLink: vi.fn(() => Promise.resolve()),
+  // Typed signature, not a bare `vi.fn(() => …)`: the #884 suite reads
+  // `mock.calls[n][0]` to assert WHICH link rows a chip removal deleted, and an
+  // argument-less mock types its calls as the empty tuple.
+  deleteItemLink: vi.fn<(linkId: string) => Promise<void>>(() =>
+    Promise.resolve(),
+  ),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
