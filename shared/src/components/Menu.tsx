@@ -159,7 +159,12 @@ export function Menu({
 
 /*
  * A single menu row. tabIndex=-1 (roving focus is driven by <Menu>); the
- * focused row lights up via focus:bg-lumen-hover. "danger" tints the label with
+ * focused row lights up via focus-visible:bg-lumen-hover — NOT plain focus:.
+ * <Menu> focuses the first enabled row on open (WAI-ARIA), so a plain focus:
+ * tint made that row look permanently hovered when the menu was opened by
+ * pointer (#886). focus-visible only paints when the UA judges the focus
+ * keyboard-driven, which is exactly the roving-focus case we want lit.
+ * "danger" tints the label with
  * the danger token. Disabled rows are inert + tertiary-toned. lumen-* only.
  *
  * onSelect does NOT close the menu — that stays the host's responsibility
@@ -191,8 +196,8 @@ export function MenuItem({
         disabled
           ? "cursor-not-allowed text-lumen-text-tertiary"
           : variant === "danger"
-            ? "text-lumen-danger hover:bg-lumen-hover focus:bg-lumen-hover"
-            : "text-lumen-text hover:bg-lumen-hover focus:bg-lumen-hover",
+            ? "text-lumen-danger hover:bg-lumen-hover focus-visible:bg-lumen-hover"
+            : "text-lumen-text hover:bg-lumen-hover focus-visible:bg-lumen-hover",
         className,
       )}
     >

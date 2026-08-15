@@ -378,6 +378,23 @@ describe("Menu / MenuItem", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // #886: <Menu> focuses the first row on open, so a plain focus: tint made
+  // that row (Pin / Unpin in the note kebab) look permanently hovered.
+  it("tints the focused row via focus-visible, not plain focus", () => {
+    render(
+      <Menu open onClose={() => {}} label="Actions">
+        <MenuItem onSelect={() => {}}>Rename</MenuItem>
+        <MenuItem onSelect={() => {}} variant="danger">
+          Delete
+        </MenuItem>
+      </Menu>,
+    );
+    for (const item of screen.getAllByRole("menuitem")) {
+      expect(item).toHaveClass("focus-visible:bg-lumen-hover");
+      expect(item.className).not.toMatch(/(?:^|\s)focus:bg-lumen-hover/);
+    }
+  });
+
   it("does not fire onSelect for a disabled item", () => {
     const onSelect = vi.fn();
     render(
