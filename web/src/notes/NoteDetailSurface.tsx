@@ -44,6 +44,12 @@ export interface NoteDetailSurfaceProps {
   onDelete: (noteId: string) => void;
   /** The body: the editor, or a skeleton while it is still arriving. */
   contentEditor: ReactNode;
+  /**
+   * The note's item links, rendered right of the tag row (#884). Optional
+   * because the host only builds the panel where it can also supply the
+   * cross-role candidate pool and the navigation route.
+   */
+  linksSlot?: ReactNode;
 }
 
 export function NoteDetailSurface({
@@ -56,6 +62,7 @@ export function NoteDetailSurface({
   onTogglePin,
   onDelete,
   contentEditor,
+  linksSlot,
 }: NoteDetailSurfaceProps) {
   return (
     <NoteDetailPanel
@@ -77,6 +84,7 @@ export function NoteDetailSurface({
         // detail uses, so the two tag rows stay one design.
         <TagPicker itemId={note.id} itemRole="note" showLabel size="sm" />
       }
+      linksSlot={linksSlot}
       contentLabel={labels.content}
       contentEditor={
         <LockedBodyGate

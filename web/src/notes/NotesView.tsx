@@ -133,12 +133,9 @@ export function NotesView({
     verifyNotePassword: notes.verifyNotePassword,
   });
 
+  // Host state: the side list unmounts on narrow, so keeping the disclosure's
+  // open/closed there would forget the user's choice across a resize.
   const [trashOpen, setTrashOpen] = useState(false);
-  // Sidebar Links panel (F-3 #260) — collapsed by default; the links moved
-  // here from the note body so reading/writing stays unobstructed. Both
-  // disclosures are host state: the side list unmounts on narrow, so keeping
-  // them there would forget the user's choice across a resize.
-  const [linksOpen, setLinksOpen] = useState(false);
   // Mobile-only: the note whose detail sheet is open + the quick-add sheet.
   const sheet = useNoteSheetTarget({
     isWide,
@@ -266,8 +263,6 @@ export function NotesView({
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
-        links: t("materials.notes.links"),
-        linksEmpty: t("materials.notes.mainEmpty"),
         trash: t("materials.notes.trash"),
         untitled: t("materials.notes.untitled"),
         restoreNote: (title) => t("materials.notes.restoreNote", { title }),
@@ -280,23 +275,6 @@ export function NotesView({
       onDeleteNote={notes.softDeleteNote}
       onCreateNote={() => notes.createNote()}
       dnd={dnd}
-      linksOpen={linksOpen}
-      onToggleLinks={() => setLinksOpen((v) => !v)}
-      linksPanel={
-        selected ? (
-          <LinkPanel
-            itemId={selected.id}
-            resolveTitle={linking.resolveTitle}
-            // The same cross-role pool the body's "[[" menu searches, so both
-            // pickers offer the same items — and the panel can name a Todo /
-            // Daily target instead of falling back to an id fragment (#749).
-            loadTargets={linking.loadLinkTargets}
-            // Row clicks reuse the "[[" navigation route (#475): the shell
-            // switches section + tab and hands the target id to the view.
-            onNavigateToItem={onNavigateToItem}
-          />
-        ) : null
-      }
       trashOpen={trashOpen}
       onToggleTrash={() => setTrashOpen((v) => !v)}
       deletedNotes={notes.deletedNotes}
@@ -332,9 +310,9 @@ export function NotesView({
 
   // ---- Desktop main editor --------------------------------------------
   //
-  // The selected note's detail (meta row + tags + TipTap body) as the tab's
-  // MAIN content — a centered surface (links live in the sidebar Links panel
-  // — F-3 #260). Nothing selected → the select-or-create empty state. #375:
+  // The selected note's detail (meta row + tags + links + TipTap body) as the
+  // tab's MAIN content — a centered surface. Nothing selected → the
+  // select-or-create empty state. #375:
   // the folder guards on the tags / editor slots are gone with the folder type
   // — every selectable row is a note with a body.
   //
@@ -363,6 +341,21 @@ export function NotesView({
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           onTogglePin={notes.togglePin}
           onDelete={(id) => notes.softDeleteNote(id)}
+          // The note's item links, beside the tags (#884 — they were a
+          // rightSidebar disclosure until this Issue).
+          linksSlot={
+            <LinkPanel
+              itemId={selected.id}
+              resolveTitle={linking.resolveTitle}
+              // The same cross-role pool the body's "[[" menu searches, so both
+              // pickers offer the same items — and the panel can name a Todo /
+              // Daily target instead of falling back to an id fragment (#749).
+              loadTargets={linking.loadLinkTargets}
+              // Chip clicks reuse the "[[" navigation route (#475): the shell
+              // switches section + tab and hands the target id to the view.
+              onNavigateToItem={onNavigateToItem}
+            />
+          }
           contentEditor={
             <NoteBodyEditor
               note={selected}

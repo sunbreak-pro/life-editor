@@ -11,10 +11,14 @@ import { cn } from "./cn";
  * `labels` (no useTranslation). Two variants:
  *
  *  - "card"       — Desktop: a bordered Card, 200px ring, pill main button.
- *  - "fullscreen" — Mobile: no Card chrome, 270px ring, 72px icon-only main
+ *  - "fullscreen" — Mobile: no Card chrome, 270px ring, 56px icon-only main
  *                   button, a flex-1 spacer pushing the transport to the base,
  *                   and an optional `todoSlot` (the todo chip/picker) between
  *                   the dots and the spacer.
+ *
+ * The transport's round buttons are 44px in BOTH variants (#881) — the
+ * fullscreen face is taller everywhere else, so it was the transport that ran
+ * out of room first on a short phone.
  *
  * The host (WorkScreen) reads useTimerContext and feeds these. The ring arc
  * encodes the REMAINING fraction: dashoffset = C × progress/100 (progress =
@@ -188,8 +192,13 @@ export function PomodoroTimer({
   ) : null;
 
   // Transport: a round reset, the phase-tinted main button, a round skip.
-  const roundSize = isFull ? "h-[52px] w-[52px]" : "h-11 w-11";
-  const roundIcon = isFull ? 20 : 18;
+  // Both variants sit at 44px — the minimum comfortable touch target. The
+  // fullscreen face used to run 52px, which stacked with the 72px main button
+  // pushed the transport into the rows above and below it on a short phone
+  // (#881); coming back to the Card variant's size buys that height back
+  // without dropping under the touch minimum.
+  const roundSize = "h-11 w-11";
+  const roundIcon = 18;
   const secondaryBtn = cn(
     "flex items-center justify-center rounded-full border border-lumen-border-strong bg-lumen-bg text-lumen-text-secondary",
     "hover:bg-lumen-hover disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-lumen-bg",
@@ -202,9 +211,9 @@ export function PomodoroTimer({
       ? labels.resume
       : labels.start;
   const mainIcon = isRunning ? (
-    <Pause size={isFull ? 28 : 16} aria-hidden="true" />
+    <Pause size={isFull ? 22 : 16} aria-hidden="true" />
   ) : (
-    <Play size={isFull ? 28 : 16} aria-hidden="true" />
+    <Play size={isFull ? 22 : 16} aria-hidden="true" />
   );
   const onMain = isRunning ? onPause : onStart;
 
@@ -225,7 +234,7 @@ export function PomodoroTimer({
           onClick={onMain}
           aria-label={mainLabel}
           className={cn(
-            "flex h-[72px] w-[72px] items-center justify-center rounded-full shadow-lumen-md",
+            "flex h-14 w-14 items-center justify-center rounded-full shadow-lumen-md",
             PHASE_BUTTON[phase],
           )}
         >

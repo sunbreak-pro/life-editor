@@ -166,7 +166,8 @@
       "clear": "Clear todo",
       "select": "Choose a todo",
       "clearSelection": "Clear selection",
-      "emptyHint": "No todos to link. Create a todo in Schedule to select one."
+      "emptyHint": "No todos to link. Create a todo in Schedule to select one.",
+      "untitled": "Untitled todo"
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -264,7 +265,6 @@
       "empty": "No notes yet",
       "trash": "Trash",
       "content": "Content",
-      "links": "Links",
       "deleteNote": "Delete note",
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
@@ -291,13 +291,9 @@
       "searchPlaceholder": "Search by title…",
       "noCandidates": "No items match",
       "selfLink": "An item cannot link to itself.",
-      "outgoing": "Links from here",
-      "backlinks": "Links to here",
-      "outgoingEmpty": "No links yet",
-      "backlinksEmpty": "No backlinks yet",
-      "loading": "Loading links…",
+      "pickerLabelShort": "Link",
       "open": "Open {{title}}",
-      "remove": "Remove link to {{title}}"
+      "remove": "Remove link with {{title}}"
     },
     "daily": {
       "toToday": "Today",

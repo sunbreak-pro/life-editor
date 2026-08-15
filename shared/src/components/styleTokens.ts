@@ -13,6 +13,27 @@ export const FOCUS_RING =
 export const FOCUS_RING_TIGHT =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
+/**
+ * Focus affordance for accent-FILLED controls (primary buttons, the FAB).
+ *
+ * FOCUS_RING is wrong on these in two ways, which together read as white lines
+ * running inside the Save button (#880):
+ *
+ * 1. Its ring color IS the control's own fill. The ring lands outside the
+ *    button and merges with it, so the button looks bigger than it is and the
+ *    offset gap looks like a line carved inside it rather than a gap around it.
+ * 2. It paints that gap `lumen-bg` — the page background — but these controls
+ *    sit on `lumen-bg-secondary` (settings blocks) or `lumen-bg-subsidebar`
+ *    (the mobile drawer). A hardcoded gap color can only ever match one
+ *    surface; everywhere else it shows up as a stray lighter band.
+ *
+ * `outline` fixes both. Its offset gap is genuinely transparent, so it shows
+ * whatever surface is actually behind the control, and the outline color
+ * contrasts with the fill instead of repeating it.
+ */
+export const FOCUS_RING_ON_ACCENT =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumen-text";
+
 /** Standard form-field shell (schedule editors). */
 export const FIELD =
   "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";

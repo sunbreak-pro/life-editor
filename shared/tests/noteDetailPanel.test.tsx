@@ -7,10 +7,10 @@ import { NoteDetailPanel } from "../src/components";
  * presentation: title debounce-and-flush commits on blur, and the pin / delete
  * actions now live behind a single kebab (#284) — opening it exposes the pin
  * toggle (label reflects the pin state) and delete, each firing the injected
- * callback. The tag / content sections render only when their slot is provided
- * (additive slots; the links slot moved to the rightSidebar Links panel —
- * F-3 #260). The rightSidebar plumbing is covered elsewhere and deliberately
- * not re-tested here.
+ * callback. The tag / links / content sections render only when their slot is
+ * provided (additive slots; the links slot came BACK into this header from the
+ * rightSidebar in #884, and shares the tag row). The rightSidebar plumbing is
+ * covered elsewhere and deliberately not re-tested here.
  */
 
 const LABELS = {

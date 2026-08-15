@@ -375,6 +375,19 @@ export function BriefingView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
+      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
+          ABOVE the masthead (#879): the band carries the hamburger that
+          opens the drawer (#609), and every other section draws that row at
+          the very top of the page (PageContainer's header slot). Below the
+          title it was Briefing's own header order, one screen out of step
+          with the rest. On the wide layout the slot is undefined, so the
+          paper still opens on its masthead — nothing moves there. */}
+      {tabSwitcher != null && (
+        <div className="border-b border-lumen-border px-2 py-3">
+          {tabSwitcher}
+        </div>
+      )}
+
       {/* ── Masthead — the title and the focus line below deliberately keep
           the newspaper serif (#269) regardless of the Settings font; body
           copy follows the global preference (#556) ────────────────── */}
@@ -386,13 +399,6 @@ export function BriefingView({
           {data.dateLine}
         </p>
       </header>
-
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ────────── */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
 
       {/* ── Focus line ───────────────────────────────────────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">

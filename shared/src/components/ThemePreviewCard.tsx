@@ -1,8 +1,22 @@
-import { Check } from "lucide-react";
+import { Check, Moon, Sun, SunMoon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "./cn";
 
 /** How the miniature mock is painted: a fixed theme, or a light/dark split. */
 export type ThemePreview = "light" | "dark" | "split";
+
+/*
+ * Day / night glyph shown next to the label, so the options stay tellable
+ * apart by SHAPE and not by the mock's color alone (#887 — the miniatures had
+ * gone identical, leaving nothing else to read). lucide line icons, never
+ * emoji: emoji render as a different typeface per platform and cannot take a
+ * lumen-* color.
+ */
+const PAINT_ICON: Record<ThemePreview, LucideIcon> = {
+  light: Sun,
+  dark: Moon,
+  split: SunMoon,
+};
 
 export interface ThemePreviewCardProps<V extends string = string> {
   /** Which value this card selects (e.g. "light" / "dark" / "system"). */
@@ -30,8 +44,12 @@ export interface ThemePreviewCardProps<V extends string = string> {
  * (used by the "system" option) shows a light half + a dark half. This relies
  * on tokens.css exposing both `[data-theme="light"]` and `[data-theme="dark"]`
  * scopes (the light scope was added so a fixed-light preview works even while
- * the app itself is dark). The outer chrome (border / label / check) uses the
- * live app theme.
+ * the app itself is dark) AND on its `[data-theme]` alias block re-resolving
+ * the lumen-* layer per subtree — without the latter the mocks all inherit the
+ * root theme's frozen colors and every card looks the same (#887). The outer
+ * chrome (border / label / check) uses the live app theme.
+ *
+ * The label carries a sun / moon / sun-moon glyph as a second, color-free cue.
  */
 export function ThemePreviewCard<V extends string = string>({
   value,
@@ -43,6 +61,7 @@ export function ThemePreviewCard<V extends string = string>({
   const paint: ThemePreview =
     preview ??
     (value === "light" ? "light" : value === "dark" ? "dark" : "split");
+  const PaintIcon = PAINT_ICON[paint];
 
   return (
     <button
@@ -95,13 +114,21 @@ export function ThemePreviewCard<V extends string = string>({
 
       <span
         className={cn(
-          "text-center text-sm",
+          "flex items-center justify-center gap-1.5 text-sm",
           selected
             ? "font-medium text-lumen-text"
             : "text-lumen-text-secondary",
         )}
       >
-        {label}
+        <PaintIcon
+          size={14}
+          aria-hidden="true"
+          className="shrink-0"
+          data-theme-glyph={paint}
+        />
+        {/* min-w-0 so the copy can wrap instead of overflowing the card: the
+            three cards share a 3-column grid and the font size is user-set. */}
+        <span className="min-w-0">{label}</span>
       </span>
     </button>
   );

@@ -1,5 +1,33 @@
 # HISTORY (chat-work-refine)
 
+### 2026-08-15 - #882 Todo 未選択のタイマー開始に「無題のTodo」を作る
+
+#### 概要
+
+Todo を選ばずタイマーを開始すると、セッション行が紐付け先なしで保存されていた。Analytics はその手の行を全部 1 つの名無しの山（`__none__` = `shared/src/utils/analyticsAggregation.ts:346`）に入れるため、「1 時間作業した」は残るのに「何を」が残らない。WORK を未紐付けで開始したら本物の Todo を 1 件作り、それに対してセッションを開くようにした。PR #907 open（Closes #882・merge = 人手 P-001）。
+
+#### 変更点
+
+- **`shared/src/context/TimerContext.tsx`**: `startSession` に mint 経路を追加。`generateId("task")` + `createTodo` → 返った id で `startTimerSession` を開く。作った Todo は `SET_ACTIVE_TODO` で active にも据える（チップに名前が出るので勝手な紐付けが見える + 同じ稼働の後続フェーズが使い回す。ADVANCE / RESET とも `...state` で activeTodo を保つことを reducer で確認済み）
+- **意図的な境界 2 つ**: 休憩では作らない（休憩を Todo に紐付けると「やっていない時間」がその Todo の作業時間に混ざる。既に選択済みの Todo を休憩が引き継ぐ既存挙動は非変更）／ `createTodo` が失敗しても紐付けなしでセッション行は開く（紐付けが消えるのが直したいバグで、記録ごと消えるのはより悪い）
+- **タイトルはホスト注入**（`untitledTodoTitle` prop・必須）: Provider は `shared/` にあり shared は useTranslation を呼ばない規約（`rules/frontend.md`）。`web/src/TimerHost.tsx` が `t("work.todoSelector.untitled")` を解決。i18n は en / ja 両方に追加（ja =「無題のTodo」）
+- **テスト**: `shared/tests/timerUntitledTodo.test.tsx` 新規 6 件（作られる / 作った id でセッションが開く / activeTodo に載る / 作成失敗でも記録は残る / 選択済みなら作らない / 休憩では作らない）。`timerProviderAutoStart` の DS スタブに `createTodo` を追加 — このスイートは Todo 未選択で WORK を開始するので新経路を通る
+- **検証**: shared lint（0 error）/ build / test 2139、web lint / build / test 394 — すべて exit 0
+
+### 2026-08-15 - #881 Mobile のスタート / 停止アイコンが上下の要素と被る
+
+#### 概要
+
+fullscreen（Mobile）のタイマー面だけ操作列が Desktop より大きく描かれていた（メイン 72px・左右 52px）。上に 270px リング・セッションドット・Todo チップが積まれるので、縦が短い端末では最後に置かれるこの列が押し出され、スタート / 停止が上下と重なる。Desktop 相当まで落とした。PR #904 open（Closes #881・merge = 人手 P-001）。
+
+#### 変更点
+
+- **`shared/src/components/PomodoroTimer.tsx`**: 左右の丸ボタンを両 variant とも 44px に統一（`roundSize` / `roundIcon` の分岐そのものを削除）、メインを 72→56px（アイコン 28→22）。縦に約 16px 戻る
+- **縮小幅はユーザー確定**: 元の Issue 文「デスクトップ時より 5px ほど小さく」は、Mobile が現状 Desktop より*大きい*ため基準が一意に決まらなかった。3 案を提示して「Desktop 相当まで落とす」を選択（2026-08-15）。44px はここから先へ縮めない下限（指で押せる最小 + Card variant が元からこの値）
+- **テスト**: `shared/tests/pomodoroTimer.test.tsx` に 2 件追加。jsdom にレイアウトが無いのでクラス名を固定する形（後から「Mobile を大きく」の変更が入って再発するのを防ぐのが目的）
+- **未検証**: 重なりが実際に解消したかは実ブラウザ確認が要る（worktree では回せない — §7.4）。merge 後 chat-main 側の宿題
+- **検証**: shared lint（0 error）/ build / test 2135、web lint / build / test 394 — すべて exit 0
+
 ### 2026-08-13 - #781 残り 3 箇所の window.confirm / alert を ConfirmDialog へ
 
 #### 概要

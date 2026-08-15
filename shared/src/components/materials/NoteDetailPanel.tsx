@@ -126,6 +126,12 @@ export interface NoteDetailPanelProps {
   moreActionsLabel: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
+  /**
+   * Host-injected item-link UI, shown in the SAME row as `tagsSlot` and to its
+   * right (#884). Tags and links are both "what this note is attached to", so
+   * they read as one row rather than one header field and one sidebar panel.
+   */
+  linksSlot?: ReactNode;
   /** Already-translated caption above the content editor. */
   contentLabel: string;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
@@ -155,6 +161,7 @@ export function NoteDetailPanel({
   deleteLabel,
   moreActionsLabel,
   tagsSlot,
+  linksSlot,
   contentLabel,
   contentEditor,
   variant = "sidebar",
@@ -245,9 +252,13 @@ export function NoteDetailPanel({
         </div>
       </div>
 
-      {/* Tag row — host-injected TagPicker (chips + "+ tag" pill). */}
-      {tagsSlot != null && (
-        <div className="flex flex-wrap items-center gap-1.5">{tagsSlot}</div>
+      {/* Tag row — host-injected TagPicker (chips + "+ tag" pill), followed by
+          the item links (#884): same row, links to the right of the tags. */}
+      {(tagsSlot != null || linksSlot != null) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tagsSlot}
+          {linksSlot}
+        </div>
       )}
 
       {/* Content — injected editor + a min-height floor via the wrapper. The
