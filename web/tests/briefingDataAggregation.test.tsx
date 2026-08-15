@@ -114,7 +114,12 @@ describe("useBriefingData — todo aggregation (#892)", () => {
     expect(result.current.data.carryover).toEqual([]);
   });
 
-  it("leaves deleted todos and non-task nodes out of every block", async () => {
+  it("leaves deleted todos out of every block", async () => {
+    // The hook also filters on `type === "task"`, which TodoNodeType makes
+    // unreachable (it is single-valued — #375). That guard is about rows the
+    // DB could hand back, not about anything expressible here, so there is no
+    // honest fixture for it: writing one would need a cast that claims the
+    // model allows something it does not.
     const { result } = renderData({
       todos: [
         makeTodo({
@@ -124,11 +129,6 @@ describe("useBriefingData — todo aggregation (#892)", () => {
         makeTodo({
           id: "t-dead",
           isDeleted: true,
-          scheduledAt: localDateTimeToISO(TODAY, "09:00"),
-        }),
-        makeTodo({
-          id: "t-folder",
-          type: "folder",
           scheduledAt: localDateTimeToISO(TODAY, "09:00"),
         }),
       ],
