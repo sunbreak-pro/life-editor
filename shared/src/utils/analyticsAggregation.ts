@@ -31,6 +31,13 @@ import {
  *
  * The first day of the week is the stored `useWeekStart` pref, NOT a hardcoded
  * Monday — the same pref the calendar grids key on, so the two agree.
+ *
+ * #780 unified the numbers only. The graphics next to them stayed on other
+ * windows: the mobile week bars drew a rolling 7 days and the Work tab's weekly
+ * buckets started on a hardcoded Monday, so the same card could show a number
+ * and a chart covering different days. #860 (D-20260813-briefing-1 = A) moved
+ * both onto `startOfCalendarWeek`. `aggregateByDay` still exists and still
+ * means "the last N days" — WorkTimeChart's 14-day view wants exactly that.
  */
 
 /**
@@ -48,6 +55,25 @@ export function createdWithinRange<T extends { createdAt: string }>(
     const key = dateKeyOfInstant(item.createdAt);
     return key !== null && key >= startKey && key <= endKey;
   });
+}
+
+/**
+ * Local midnight on the first day of the calendar week containing `d`.
+ *
+ * The ONE piece of step-back math in this file — `calendarWeekRange`, the
+ * mobile week bars and the Work tab's weekly buckets all start here, so they
+ * cannot drift apart. It replaced a private Monday-hardcoded `startOfWeek()`
+ * that only the weekly buckets used, which is exactly how the Work tab ended
+ * up ignoring the pref every other week window reads (#860).
+ *
+ * `weekStartsOn` is required for the same reason it is on `calendarWeekRange`:
+ * a default would silently pick a week for a caller that forgot the pref.
+ */
+function startOfCalendarWeek(d: Date, weekStartsOn: WeekStartsOn): Date {
+  const start = new Date(d);
+  start.setDate(d.getDate() - ((d.getDay() - weekStartsOn + 7) % 7));
+  start.setHours(0, 0, 0, 0);
+  return start;
 }
 
 /**
@@ -70,9 +96,7 @@ export function calendarWeekRange(
   startKey: string;
   endKey: string;
 } {
-  const start = new Date(now);
-  start.setDate(now.getDate() - ((now.getDay() - weekStartsOn + 7) % 7));
-  start.setHours(0, 0, 0, 0);
+  const start = startOfCalendarWeek(now, weekStartsOn);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   return { startKey: toDateStr(start), endKey: toDateStr(end) };
@@ -159,15 +183,6 @@ export interface WorkStreak {
   longestStreak: number;
 }
 
-function startOfWeek(d: Date): Date {
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-  const start = new Date(d);
-  start.setDate(diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
 function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
@@ -211,13 +226,63 @@ export function aggregateByDay(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Work minutes per day across the CALENDAR week containing `now` — the window
+ * `calendarWeekRange` defines, so a "this week" total and the bars drawn beside
+ * it always cover the same days (#860 / D-20260813-briefing-1 = A).
+ *
+ * Always 7 buckets in calendar order, starting on the `useWeekStart` day. The
+ * mobile card used to draw `aggregateByDay(sessions, 7)` — a rolling 7 days
+ * ending today — so mid-week its bars and the number above them ran on two
+ * different windows. The accepted cost of the switch: mid-week the days that
+ * have not happened yet come back as zeros, i.e. empty bars.
+ */
+export function aggregateCalendarWeekByDay(
+  sessions: TimerSession[],
+  now: Date,
+  weekStartsOn: WeekStartsOn,
+): DayBucket[] {
+  const work = getWorkSessions(sessions);
+  const start = startOfCalendarWeek(now, weekStartsOn);
+
+  const map = new Map<string, DayBucket>();
+
+  // Pre-fill the whole week so the future days render as empty bars rather
+  // than shortening the row.
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = toDateStr(d);
+    map.set(key, { date: key, totalMinutes: 0, sessionCount: 0 });
+  }
+
+  for (const s of work) {
+    const key = toDateStr(new Date(s.startedAt));
+    const bucket = map.get(key);
+    if (bucket) {
+      bucket.totalMinutes += (s.duration ?? 0) / 60;
+      bucket.sessionCount += 1;
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Work minutes per calendar week, most recent `weeks` windows.
+ *
+ * `weekStartsOn` is required (#860): the buckets used to start on a hardcoded
+ * Monday, so with the pref set to Sunday the Work tab sliced the same sessions
+ * along a different boundary than every "this week" number in the app.
+ */
 export function aggregateByWeek(
   sessions: TimerSession[],
   weeks: number,
+  weekStartsOn: WeekStartsOn,
 ): DayBucket[] {
   const work = getWorkSessions(sessions);
   const now = new Date();
-  const currentWeekStart = startOfWeek(now);
+  const currentWeekStart = startOfCalendarWeek(now, weekStartsOn);
 
   const map = new Map<string, DayBucket>();
 
@@ -230,7 +295,7 @@ export function aggregateByWeek(
 
   for (const s of work) {
     const started = new Date(s.startedAt);
-    const weekStart = startOfWeek(started);
+    const weekStart = startOfCalendarWeek(started, weekStartsOn);
     const key = toDateStr(weekStart);
     const bucket = map.get(key);
     if (bucket) {
