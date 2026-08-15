@@ -25,6 +25,7 @@ const LABELS: BriefingLabels = {
   intentionTitle: "INTENTION",
   intentionCaption: "Saved",
   intentionPlaceholder: "Declare today…",
+  goalsTitle: "GOALS",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
@@ -96,6 +97,14 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
+const GOAL_LABELS = {
+  week: { title: "WEEK", range: "8/10 – 8/16", placeholder: "This week…" },
+  month: { title: "MONTH", range: "August", placeholder: "This month…" },
+  year: { title: "YEAR", range: "2026", placeholder: "This year…" },
+};
+
+const NO_GOALS = { week: "", month: "", year: "" };
+
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleScheduleItem = vi.fn();
   const onToggleTodo = vi.fn();
@@ -106,6 +115,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onJumpToTodos = vi.fn();
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
+  const onGoalChange = vi.fn();
+  const onGoalBlur = vi.fn();
   const result = render(
     <BriefingView
       loading={false}
@@ -117,6 +128,10 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       intentionText=""
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
+      goals={NO_GOALS}
+      goalLabels={GOAL_LABELS}
+      onGoalChange={onGoalChange}
+      onGoalBlur={onGoalBlur}
       onToggleScheduleItem={onToggleScheduleItem}
       onToggleTodo={onToggleTodo}
       onDeleteScheduleItem={onDeleteScheduleItem}
@@ -138,6 +153,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     onJumpToTodos,
     onIntentionChange,
     onIntentionBlur,
+    onGoalChange,
+    onGoalBlur,
   };
 }
 

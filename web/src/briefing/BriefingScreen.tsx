@@ -9,10 +9,12 @@ import {
   RepeatScopeDialog,
   RightSidebarPortal,
   TodayTodoTray,
+  goalPeriodRanges,
   hasIntentionToReport,
   todayDateKey,
   useMediaQuery,
   useTranslation,
+  useWeekStartPref,
   type BriefingTab,
   type DataService,
   type ItemCreateNoteDraft,
@@ -22,6 +24,7 @@ import type { NavDestination } from "../hooks/useShellNavigation";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
+import { useGoalsDoc } from "./hooks/useGoalsDoc";
 
 /*
  * Briefing host shell (Briefing plan Step 1). Owns data fetching (it may
@@ -109,6 +112,11 @@ export function BriefingScreen({
     flushIntention,
   } = useDailySections(ds, todayKey, dailyContent, setDailyContent);
 
+  // 週 / 月 / 年 goals (#872) — their own document (the reserved goals note),
+  // so their read + save chain is separate from the daily's sections.
+  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(ds);
+  const { weekStartsOn } = useWeekStartPref();
+
   // Nothing stored AND nothing typed = the day has no declaration yet, so
   // there is no save state to report. Reporting「保存済み」over an untouched
   // empty field reads as "already done" (#427) — omit the caption entirely
@@ -133,6 +141,7 @@ export function BriefingScreen({
       intentionTitle: t("briefing.intentionTitle"),
       intentionCaption,
       intentionPlaceholder: t("briefing.intentionPlaceholder"),
+      goalsTitle: t("briefing.goalsTitle"),
       scheduleTitle: t("briefing.scheduleTitle"),
       addScheduleItem: t("briefing.addScheduleItem"),
       noSchedule: t("briefing.noSchedule"),
@@ -152,6 +161,41 @@ export function BriefingScreen({
     }),
     [t, intentionCaption],
   );
+  // Goal field copy (#872). The period RANGES are computed, not translated:
+  // the texts never roll over, so the label is the only thing that says which
+  // week / month / year is on the page. The week follows the user's week-start
+  // preference — the same boundary the calendar grids and the Analytics week
+  // buckets use (#860), never a hard-coded Monday.
+  const goalRanges = useMemo(
+    () =>
+      goalPeriodRanges(
+        todayKey,
+        weekStartsOn,
+        i18n.language.startsWith("ja") ? "ja-JP" : "en-US",
+      ),
+    [todayKey, weekStartsOn, i18n.language],
+  );
+  const goalLabels = useMemo(
+    () => ({
+      week: {
+        title: t("briefing.goals.weekTitle"),
+        range: goalRanges.week,
+        placeholder: t("briefing.goals.weekPlaceholder"),
+      },
+      month: {
+        title: t("briefing.goals.monthTitle"),
+        range: goalRanges.month,
+        placeholder: t("briefing.goals.monthPlaceholder"),
+      },
+      year: {
+        title: t("briefing.goals.yearTitle"),
+        range: goalRanges.year,
+        placeholder: t("briefing.goals.yearPlaceholder"),
+      },
+    }),
+    [t, goalRanges],
+  );
+
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
   const streakLabels = useMemo(
@@ -514,7 +558,11 @@ export function BriefingScreen({
     <>
       {todoTrayPortal}
       <BriefingView
-        loading={loading}
+        // The goals note is a SECOND async document, and its fields are
+        // editable — offering them before it answers hands the user an empty
+        // box over goals that exist, and the keystroke typed there overwrites
+        // them once the debounce fires. Same skeleton, one gate.
+        loading={loading || goalsLoading}
         data={data}
         labels={labels}
         streakLabels={streakLabels}
@@ -523,6 +571,10 @@ export function BriefingScreen({
         intentionText={intentionText}
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}
+        goals={goals}
+        goalLabels={goalLabels}
+        onGoalChange={handleGoalChange}
+        onGoalBlur={flushGoals}
         onToggleScheduleItem={handleToggleScheduleItem}
         onToggleTodo={handleToggleTodo}
         onDeleteScheduleItem={handleDeleteScheduleItem}
