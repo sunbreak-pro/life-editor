@@ -1,9 +1,4 @@
-import {
-  Circle,
-  CircleDashed,
-  CheckCircle2,
-  type LucideIcon,
-} from "lucide-react";
+import { Circle, CheckCircle2, type LucideIcon } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import type { TranslationKey } from "../i18n/resources";
 
@@ -14,15 +9,10 @@ import type { TranslationKey } from "../i18n/resources";
  * were byte-identical live here.
  */
 
-export const STATUS_ORDER: readonly TodoStatus[] = [
-  "NOT_STARTED",
-  "IN_PROGRESS",
-  "DONE",
-];
+export const STATUS_ORDER: readonly TodoStatus[] = ["NOT_STARTED", "DONE"];
 
 export const STATUS_ICON: Record<TodoStatus, LucideIcon> = {
   NOT_STARTED: Circle,
-  IN_PROGRESS: CircleDashed,
   DONE: CheckCircle2,
 };
 
@@ -33,14 +23,12 @@ export const STATUS_ICON: Record<TodoStatus, LucideIcon> = {
  */
 export const STATUS_TEXT_KEY: Record<TodoStatus, TranslationKey> = {
   NOT_STARTED: "todoDetail.statusNotStarted",
-  IN_PROGRESS: "todoDetail.statusInProgress",
   DONE: "todoDetail.statusDone",
 };
 
 /** Structural subset of each surface's already-translated label object. */
 export interface StatusLabelSet {
   statusNotStarted: string;
-  statusInProgress: string;
   statusDone: string;
 }
 
@@ -51,8 +39,6 @@ export function statusLabel(
   switch (status) {
     case "NOT_STARTED":
       return labels.statusNotStarted;
-    case "IN_PROGRESS":
-      return labels.statusInProgress;
     case "DONE":
       return labels.statusDone;
   }

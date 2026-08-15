@@ -106,13 +106,13 @@ export {
   TodoStatusChoices,
   type TodoStatusChoicesProps,
 } from "./TodoStatusChoices";
-// The list-row half of the same idea (#796): one button cycling through the
-// three statuses, for rows with no width for the full picker.
+// The list-row half of the same idea (#796): one checkbox for rows with no
+// width for the full picker (#873 replaced the three-status cycle with it).
 export {
-  TodoStatusCycleButton,
-  nextTodoStatus,
-  type TodoStatusCycleButtonProps,
-} from "./TodoStatusCycleButton";
+  TodoStatusCheckbox,
+  toggledTodoStatus,
+  type TodoStatusCheckboxProps,
+} from "./TodoStatusCheckbox";
 // Todo add dialog (W-UX) — small centered overlay to create a todo. Pure
 // presentation: host injects copy, receives create intent via onSubmit
 // (§3.1 / §6.4).

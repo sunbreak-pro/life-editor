@@ -367,7 +367,6 @@ const EVENING_LABELS: EveningLabels = {
   noTodos: "No todos",
   todoStatus: "Status",
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   upcomingTitle: "UPCOMING",
   noUpcoming: "Nothing upcoming",
@@ -594,35 +593,36 @@ describe("Intention caption omission (#427)", () => {
 });
 
 /*
- * #796 — the REMAINING TODOS rows speak the Todo's real three statuses.
+ * #796 — the REMAINING TODOS rows speak the Todo's real status.
  *
  * The block drew a checkbox-shaped <span> with nothing listening to it, which
- * both flattened Not started / In progress / Done into two values and left the
- * row unpressable. It is one button now, cycling in the same order the Todos
- * side has always used, and a row moved to Done stays listed struck through so
- * the press is visible and reversible.
+ * left the row unpressable. It is a real control now, and a row moved to Done
+ * stays listed struck through so the press is visible and reversible. #873 took
+ * the status set down to two values, so the control is a checkbox and reports
+ * checked / unchecked rather than cycling.
  */
-describe("EveningView remaining todos, three statuses (#796)", () => {
+describe("EveningView remaining todos, status control (#796 / #873)", () => {
   const TODOS = [
     { id: "t1", title: "Write the report", status: "NOT_STARTED" as const },
-    { id: "t2", title: "Book the room", status: "IN_PROGRESS" as const },
+    { id: "t2", title: "Book the room", status: "NOT_STARTED" as const },
     { id: "t3", title: "Send the invite", status: "DONE" as const },
   ];
 
   it("names each row's current status", () => {
     renderEvening({ todos: TODOS });
-    expect(screen.getByLabelText("Status: Not started")).toBeTruthy();
-    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getAllByLabelText("Status: Not started")).toHaveLength(2);
     expect(screen.getByLabelText("Status: Done")).toBeTruthy();
   });
 
-  it("advances one step per press, wrapping at Done", () => {
+  it("checks an unfinished row and unchecks a done one", () => {
     const { onSetTodoStatus } = renderEvening({ todos: TODOS });
-    fireEvent.click(screen.getByLabelText("Status: Not started"));
-    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t1", "IN_PROGRESS");
-    fireEvent.click(screen.getByLabelText("Status: In progress"));
-    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t2", "DONE");
-    fireEvent.click(screen.getByLabelText("Status: Done"));
+    const [first] = screen.getAllByLabelText("Status: Not started");
+    expect(first.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(first);
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t1", "DONE");
+    const done = screen.getByLabelText("Status: Done");
+    expect(done.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(done);
     expect(onSetTodoStatus).toHaveBeenLastCalledWith("t3", "NOT_STARTED");
   });
 
@@ -638,11 +638,9 @@ describe("EveningView remaining todos, three statuses (#796)", () => {
 
   it("gives every control the phone minimum touch target", () => {
     renderEvening({ todos: TODOS });
-    for (const label of ["Not started", "In progress", "Done"]) {
+    for (const el of screen.getAllByRole("checkbox")) {
       // mobile-scope.md: 44px is the floor, and a 16px box cannot meet it.
-      expect(screen.getByLabelText(`Status: ${label}`).className).toContain(
-        "min-h-11",
-      );
+      expect(el.className).toContain("min-h-11");
     }
   });
 });

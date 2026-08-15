@@ -39,7 +39,7 @@ const STATUS_COL_PREFIX = "status-";
 function parseStatusColumnId(columnId: string): TodoStatus | null {
   if (!columnId.startsWith(STATUS_COL_PREFIX)) return null;
   const raw = columnId.slice(STATUS_COL_PREFIX.length);
-  if (raw === "NOT_STARTED" || raw === "IN_PROGRESS" || raw === "DONE") {
+  if (raw === "NOT_STARTED" || raw === "DONE") {
     return raw;
   }
   return null;

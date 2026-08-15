@@ -285,19 +285,20 @@ describe("the chip gestures", () => {
     );
   });
 
-  // A plain binary toggle, NOT the tree's 3-state cycle — the tray shows a
-  // checkbox, and a press that landed on IN_PROGRESS would read as a no-op.
+  // A plain binary toggle. It predates #873 (when the tree still cycled through
+  // three values) and is kept because the chip must write a status even for a
+  // todo that has none — an unset row is unfinished, so a press means DONE.
   it("toggles a todo between done and not-started only", () => {
     const { hook, setTodoStatus } = renderChips([
       timed("done", TODAY, "09:00", { status: "DONE" }),
-      timed("half", TODAY, "09:00", { status: "IN_PROGRESS" }),
+      timed("unset", TODAY, "09:00", { status: undefined }),
     ]);
 
     act(() => hook.result.current.handleTodoToggleComplete("done"));
     expect(setTodoStatus).toHaveBeenCalledWith("done", "NOT_STARTED");
 
-    act(() => hook.result.current.handleTodoToggleComplete("half"));
-    expect(setTodoStatus).toHaveBeenLastCalledWith("half", "DONE");
+    act(() => hook.result.current.handleTodoToggleComplete("unset"));
+    expect(setTodoStatus).toHaveBeenLastCalledWith("unset", "DONE");
   });
 
   it("stages 'add to today' onto today, not onto the grid's day", () => {

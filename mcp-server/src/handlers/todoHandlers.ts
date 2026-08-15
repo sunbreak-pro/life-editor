@@ -33,10 +33,10 @@ import {
  * Column-set deltas vs the legacy SQLite shape:
  *   - `type` → `task_type`, `"order"` → `sort_order`, `parent_id` →
  *     `parent_item_id` (now an items_meta ref).
- *   - `status` is UPPERCASE in the DB (CHECK NOT_STARTED|IN_PROGRESS|DONE).
- *     The MCP tool contract keeps the lowercase vocabulary it always had,
- *     so this module translates in both directions — a caller can feed a
- *     `get_todo` result straight back into `update_todo`.
+ *   - `status` is UPPERCASE in the DB (the CHECK still allows the retired
+ *     IN_PROGRESS, see #873). The MCP tool contract keeps the lowercase
+ *     vocabulary it always had, so this module translates in both directions —
+ *     a caller can feed a `get_todo` result straight back into `update_todo`.
  *   - title / created_at / is_deleted live on items_meta, not the payload.
  *
  * life-tags S3 (#225) retired the folder node type. Legacy `task_type =
@@ -64,9 +64,11 @@ const PAYLOAD_COLUMNS =
   "item_id, parent_item_id, task_type, status, content, time_memo, " +
   "scheduled_at, scheduled_end_at, is_all_day, completed_at, sort_order";
 
+// #873: a todo is either done or it is not. `in_progress` is gone from the
+// tool contract as well as the app — a caller that still sends it gets the
+// error below rather than a value nothing else in the system understands.
 const STATUS_TO_DB: Record<string, string> = {
   not_started: "NOT_STARTED",
-  in_progress: "IN_PROGRESS",
   done: "DONE",
 };
 
@@ -75,15 +77,23 @@ export function toDbStatus(status: string): string {
   const mapped = STATUS_TO_DB[status.toLowerCase()];
   if (!mapped) {
     throw new Error(
-      `Invalid status "${status}" (expected not_started|in_progress|done)`,
+      `Invalid status "${status}" (expected not_started|done)`,
     );
   }
   return mapped;
 }
 
-/** DB vocabulary → tool vocabulary, so callers see one set of values. */
+/**
+ * DB vocabulary → tool vocabulary, so callers see one set of values.
+ *
+ * Rows written before #873 still carry IN_PROGRESS (the CHECK was left alone),
+ * and they read back as `not_started` — the same fold `todoMapper.toStatus`
+ * does for the app, so both sides describe such a todo identically.
+ */
 export function toToolStatus(status: string | null): string | null {
-  return status === null ? null : status.toLowerCase();
+  if (status === null) return null;
+  if (status === "IN_PROGRESS") return "not_started";
+  return status.toLowerCase();
 }
 
 /**

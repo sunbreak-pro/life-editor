@@ -95,7 +95,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 - やる:
   - フラットなタスクリスト（`task` 単一種、`parentId` + `order` で順序管理。旧 `folder` 種は 2026-07-11 #225 で退役・整理は life-tags へ。**入れ子は 2026-07-27 #418 で退役** — `parentId` 列と legacy な親子行は残るが、UI 側の階層移動 API（`moveNodeInto` / `moveNode` の親変更分岐）と DnD hook は撤去済み）
-  - 3 段階ステータス（`NOT_STARTED` / `IN_PROGRESS` / `DONE`）+ DONE 時の紙吹雪演出 + `completedAt` 記録
+  - 2 値ステータス（`NOT_STARTED` / `DONE`）+ DONE 時の紙吹雪演出 + `completedAt` 記録（3 段階の中間値 `IN_PROGRESS` は 2026-08-16 #873 で退役 = D-20260815-materials-1 = B。DB の CHECK は旧値を許したままなので、#873 以前に書かれた行は読み出し時に `NOT_STARTED` へ畳まれる）
   - DnD による並び替え（同一階層内のみ）+ 無限ループ検出と拒否通知。~~中央ドロップ → 階層移動~~ → **Retired (2026-07-27 #418)**
   - ~~`folderType='complete'` による DONE タスク自動集約フォルダ~~ → **Retired (2026-07-11 #225)**: status=DONE の沈み込み並べ替えが後継
   - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `workDurationMinutes` / `timeMemo` / `color` / `icon` / `content` を保持
@@ -110,7 +110,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 ### Acceptance Criteria
 
 - [ ] AC1: タスクを作成すると `parentId`（UI からは常に root = `null`）と `order` が DB に即時保存される（アプリ再起動後も順序維持。旧「フォルダ配下」表現は 2026-07-11 #225 で置換。~~任意のタスク配下にサブタスクを作成できる~~ → UI 導線は 2026-07-27 #418 で退役 — MCP `create_todo(parent_id)` は依然 parentId を書ける）
-- [ ] AC2: タスク行をクリックすると `NOT_STARTED → IN_PROGRESS → DONE` の順にステータス遷移し、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される
+- [ ] AC2: タスク行のチェックボックスを押すと `NOT_STARTED ⇄ DONE` が切り替わり、DONE への遷移時のみ紙吹雪が発火して `completedAt` が記録される（2026-08-16 #873 まではクリックごとに `NOT_STARTED → IN_PROGRESS → DONE` を巡回していた）
 - [ ] ~~AC3: TodoNode を別ノード中央にドロップすると子として階層移動し、上部 25% / 下部 25% にドロップすると兄弟として並び替わる。自ノード配下への移動は拒否され Toast で通知される~~ → **Retired (2026-07-27 #418)**: 入れ子の退役に伴い「中央ドロップ = 階層移動」は達成対象外。並び替えは同一階層内のみで、非兄弟へのドロップは拒否される（循環ガード `isDescendantOf` は存続）
 - [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
 - [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Star } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
-import { TodoStatusCycleButton } from "../TodoStatusCycleButton";
+import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import { IntentionField } from "./IntentionField";
 
 /*
@@ -80,7 +80,6 @@ export interface EveningLabels {
    */
   todoStatus: string;
   statusNotStarted: string;
-  statusInProgress: string;
   statusDone: string;
   upcomingTitle: string;
   noUpcoming: string;
@@ -294,7 +293,7 @@ export function EveningView({
               >
                 {/* 朱 is the user's own action voice on the paper, so the
                     control wears it rather than the app accent. */}
-                <TodoStatusCycleButton
+                <TodoStatusCheckbox
                   status={todo.status}
                   onChange={(next) => onSetTodoStatus(todo.id, next)}
                   labels={labels}

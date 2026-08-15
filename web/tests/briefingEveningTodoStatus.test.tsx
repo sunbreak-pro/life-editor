@@ -103,31 +103,37 @@ describe.each([
 ])("evening REMAINING TODOS status — %s (#796)", (_label, wide) => {
   beforeEach(() => setWidth(wide));
 
-  it("writes the status the cycle landed on, with completedAt", async () => {
+  it("writes the status the press landed on, with completedAt", async () => {
     const updateTodo = vi.fn(
       (id: string, updates: Partial<TodoNode>): Promise<TodoNode> =>
         Promise.resolve({ ...OPEN_TODO, ...updates, id }),
     );
     await renderEvening(updateTodo);
 
-    // Not started → In progress: no completion stamp yet.
+    // Not started → Done: stamped, which is what keeps the row on today's
+    // paper rather than dropping it as a stale carryover.
     await act(async () => {
       screen.getByLabelText("Status: Not started").click();
     });
     expect(updateTodo.mock.calls[0]?.[0]).toBe("t-open");
-    expect(updateTodo.mock.calls[0]?.[1]).toEqual({
-      status: "IN_PROGRESS",
+    expect(updateTodo.mock.calls[0]?.[1]?.status).toBe("DONE");
+    expect(typeof updateTodo.mock.calls[0]?.[1]?.completedAt).toBe("string");
+    await screen.findByLabelText("Status: Done");
+
+    // Done → Not started: the stamp comes back off with it.
+    await act(async () => {
+      screen.getByLabelText("Status: Done").click();
+    });
+    expect(updateTodo.mock.calls[1]?.[1]).toEqual({
+      status: "NOT_STARTED",
       completedAt: undefined,
     });
-    await screen.findByLabelText("Status: In progress");
+    await screen.findByLabelText("Status: Not started");
 
-    // In progress → Done: stamped, which is what keeps the row on today's
-    // paper rather than dropping it as a stale carryover.
+    // Back to Done — a row that has been checked stays listed, struck through.
     await act(async () => {
-      screen.getByLabelText("Status: In progress").click();
+      screen.getByLabelText("Status: Not started").click();
     });
-    expect(updateTodo.mock.calls[1]?.[1]?.status).toBe("DONE");
-    expect(typeof updateTodo.mock.calls[1]?.[1]?.completedAt).toBe("string");
 
     // Still listed, struck through — the press has to stay visible.
     await waitFor(() =>
@@ -151,12 +157,12 @@ describe.each([
     await act(async () => {
       screen.getByLabelText("Status: Not started").click();
     });
-    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
 
     await act(async () => {
       settle();
     });
-    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
   });
 
   it("puts the old status back when the write fails", async () => {

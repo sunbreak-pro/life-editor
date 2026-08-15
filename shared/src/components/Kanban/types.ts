@@ -105,7 +105,6 @@ export interface KanbanLabels {
   segmentedGroupLabel: string;
   /** Status chip / column labels per status. */
   statusNotStarted: string;
-  statusInProgress: string;
   statusDone: string;
   /** Card / column a11y + empty states. */
   cardAriaLabel: (title: string, statusText: string) => string;

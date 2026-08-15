@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { cn } from "../cn";
-import { TodoStatusCycleButton } from "../TodoStatusCycleButton";
+import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
 
 /*
@@ -84,12 +84,14 @@ export interface TodayTodoTrayProps {
   addable: TodayTodoAddableRow[];
   onToggleComplete: (id: string) => void;
   /**
-   * Opt in to the three-status control (#796): rows render
-   * <TodoStatusCycleButton> over `row.status` instead of the binary checkbox,
-   * and this receives the status the press lands on. Briefing passes it so its
-   * tray and its paper say the same thing about a Todo; Schedule has not asked
-   * for it and keeps the checkbox until it does. Needs labels.status +
-   * labels.statusLabels.
+   * Write the row's `status` instead of its `completed` flag (#796): rows
+   * render <TodoStatusCheckbox> over `row.status`, and this receives the status
+   * the press lands on. Briefing passes it so its tray and its paper say the
+   * same thing about a Todo; Schedule has not asked for it and keeps its own
+   * checkbox until it does. Needs labels.status + labels.statusLabels.
+   *
+   * Both branches are binary since #873 — what still separates them is which
+   * field the press writes, not how many values it offers.
    */
   onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTodo: (id: string) => void;
@@ -143,7 +145,7 @@ function TodoRow({
     <li className="flex flex-col border-b border-lumen-border">
       <div className="flex items-center gap-2">
         {onSetStatus && statusLabel && statusLabels ? (
-          <TodoStatusCycleButton
+          <TodoStatusCheckbox
             status={row.status ?? (row.completed ? "DONE" : "NOT_STARTED")}
             onChange={(next) => onSetStatus(row.id, next)}
             labels={statusLabels}

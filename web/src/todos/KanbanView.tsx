@@ -550,7 +550,6 @@ export function KanbanView({
       viewTag: t("kanban.viewTag"),
       segmentedGroupLabel: t("kanban.segmentedGroupLabel"),
       statusNotStarted: t("todoDetail.statusNotStarted"),
-      statusInProgress: t("todoDetail.statusInProgress"),
       statusDone: t("todoDetail.statusDone"),
       cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
       emptyColumn: t("kanban.emptyColumn"),
@@ -882,7 +881,6 @@ export function KanbanView({
             cardLabels={labels}
             labels={{
               statusNotStarted: t("todoDetail.statusNotStarted"),
-              statusInProgress: t("todoDetail.statusInProgress"),
               statusDone: t("todoDetail.statusDone"),
               filterLabel: t("materials.todos.filterLabel"),
               detailTitle: t("materials.todos.detailTitle"),

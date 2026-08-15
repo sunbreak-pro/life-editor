@@ -141,7 +141,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   [
     "list_todos",
     {
-      status: "in_progress",
+      status: "not_started",
       date_range: { start: "2026-08-01", end: "2026-08-31" },
       parent_id: "task-1",
       include_content: true,
@@ -158,7 +158,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
       scheduled_at: "2026-08-11T09:00:00Z",
       scheduled_end_at: "2026-08-11T10:00:00Z",
       is_all_day: false,
-      status: "in_progress",
+      status: "not_started",
       content: "# notes",
     },
   ],

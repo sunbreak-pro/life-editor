@@ -20,7 +20,6 @@ const LABELS: KanbanLabels = {
   viewTag: "By tag",
   segmentedGroupLabel: "Switch view",
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
   emptyColumn: "No todos here yet",
@@ -117,7 +116,7 @@ describe("KanbanBoard layout (#565)", () => {
   it("leaves the status view on the fixed-width horizontal strip", () => {
     render(
       <KanbanBoard
-        columns={makeColumns(["Not started", "In progress", "Done"])}
+        columns={makeColumns(["Not started", "Done"])}
         labels={LABELS}
         viewMode="status"
         onSelectCard={() => {}}
