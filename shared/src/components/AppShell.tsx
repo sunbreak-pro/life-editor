@@ -3,6 +3,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { WIDE_QUERY } from "../constants/breakpoints";
 import { useSoftKeyboard } from "../hooks/useSoftKeyboard";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { cn } from "./cn";
 import { SidebarNav, type SidebarNavSection } from "./SidebarNav";
 import { BottomTabBar } from "./BottomTabBar";
 import { RightSidebar } from "./RightSidebar";
@@ -230,7 +231,20 @@ export function AppShell({
   return (
     <div className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
-      {!keyboardOpen && (
+      {/*
+       * The bar stands down while typing (#608) by going INVISIBLE, not by
+       * unmounting (#874). Unmounting gave its height back to <main>, so every
+       * soft keyboard re-flowed the whole screen upward — and with a sheet open
+       * over it, the user watched the page heave behind the panel they were
+       * typing into. `invisible` is visibility:hidden, which keeps the box in
+       * the layout while taking the bar out of the tab order and the
+       * accessibility tree, so the stand-down still holds and nothing moves.
+       *
+       * This costs nothing in room: `interactive-widget` is left at its default
+       * (web/index.html), so the layout viewport does not shrink for the
+       * keyboard — the reserved strip is under it either way.
+       */}
+      <div className={cn("shrink-0", keyboardOpen && "invisible")}>
         <BottomTabBar
           sections={bottomSections}
           activeSection={activeSection}
@@ -244,7 +258,7 @@ export function AppShell({
           }}
           actions={bottomBarActions}
         />
-      )}
+      </div>
       {detailPanelLabels && (
         <MobileDrawer
           title={detailPanelLabels.title}

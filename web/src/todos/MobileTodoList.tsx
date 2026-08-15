@@ -171,19 +171,19 @@ export function MobileTodoList({
         </div>
       )}
 
-      {/* Detail sheet (#470) — tall and scrollable, so the rich-text body has
-          room while the card list stays visible behind it. The panel inside is
-          host-built; this list only owns the shell. */}
+      {/* Detail screen (#470) — scrollable, so the rich-text body has room. It
+          covers the card list rather than leaving a strip of it showing (#874):
+          the strip moved whenever the keyboard opened, which read as the list
+          heaving behind the panel. The panel inside is host-built; this list
+          only owns the shell. */}
       <BottomSheet
         open={detailTodoId !== null}
         onClose={onCloseDetail}
         title={labels.detailTitle}
         closeLabel={labels.close}
-        className="flex max-h-[92vh] min-h-[70vh] flex-col overflow-hidden"
+        fullScreen
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {detail}
-        </div>
+        {detail}
       </BottomSheet>
 
       <QuickAddSheet
