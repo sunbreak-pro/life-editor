@@ -211,8 +211,19 @@ export interface EventEditorPaneProps {
    * for a manual item). Called by the SAVE BUTTON only (#712), carrying every
    * repeat field the user changed in one patch; while the pane is open the
    * edits live in its draft.
+   *
+   * `fields` is the SAME press's field patch (empty when only the repeat
+   * moved). It travels with the frequency because turning a repeat on spins a
+   * routine up out of this occurrence: a host reading the times off the live
+   * item would template the series on the values the user just replaced, and
+   * every generated day would carry them (#870). The pane cannot send the
+   * fields first instead — they are what raises the this/future/all dialog
+   * (#279), which must stay last and be asked once.
    */
-  onChangeRepeat?: (patch: Partial<FrequencyEditorValue>) => void;
+  onChangeRepeat?: (
+    patch: Partial<FrequencyEditorValue>,
+    fields: EventEditorPatch,
+  ) => void;
   /** "なし" selected — host turns the repeat off (detach the series). Also
    *  deferred to the save button (#712). */
   onDetachRepeat?: () => void;
@@ -452,7 +463,11 @@ function EventEditorFields({
     // spot and the save press always came after it.
     if (repeatDirty) {
       if (repeatEdits === null) onDetachRepeat?.();
-      else if (repeatEdits) onChangeRepeat?.(repeatEdits);
+      // The field patch rides along (#870). Going first means the host has not
+      // seen the new times yet when it builds the routine template, so the
+      // press has to hand them over rather than leave them to be read off the
+      // item a moment later.
+      else if (repeatEdits) onChangeRepeat?.(repeatEdits, patch);
     }
     // Last, and skipped when only the repeat moved: an empty patch would still
     // raise the this/future/all scope dialog (#279) on a routine occurrence,

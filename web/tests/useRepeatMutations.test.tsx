@@ -402,6 +402,68 @@ describe("turning a repeat on", () => {
     );
   });
 
+  // #870: the editor sends the repeat BEFORE the field patch (its scope dialog
+  // has to stay last), so a time changed in the same press has not reached
+  // `selected` yet. Reading the template off `selected` alone put the new time
+  // on the seed day and the old one on every generated day after it.
+  it("templates the series on times changed by the same save press", async () => {
+    const h = renderRepeat({
+      selected: occurrence({
+        routineId: null,
+        startTime: "09:00",
+        endTime: "09:30",
+      }),
+    });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat(
+        { frequencyType: "daily" },
+        { title: "Evening run", startTime: "13:00", endTime: "13:30" },
+      ),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({
+        title: "Evening run",
+        startTime: "13:00",
+        endTime: "13:30",
+      }),
+    );
+    // The same values have to reach the materialiser: it is what fills the rest
+    // of the visible range, and the reported symptom was those days — not the
+    // template — showing the pre-edit time.
+    await waitFor(() =>
+      expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalled(),
+    );
+    expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalledWith(
+      // Never before today or before the seed day — a repeat starts at the
+      // occurrence it was turned on from.
+      TODAY,
+      RANGE_END,
+      [expect.objectContaining({ startTime: "13:00", endTime: "13:30" })],
+    );
+  });
+
+  // The other half of the same fix: a press that moved only the frequency
+  // sends an empty field patch, and an absent key must read as "leave it" —
+  // spreading it whole would blank the title the seed already has.
+  it("keeps the item's own values when the press changed no fields", async () => {
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }, {}),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({
+        title: "Morning run",
+        startTime: "07:00",
+        endTime: "07:30",
+        sourceDate: TODAY,
+      }),
+    );
+  });
+
   it("says so when the conversion did not land", async () => {
     const h = renderRepeat({ selected: occurrence({ routineId: null }) });
     h.convertEventToRoutine.mockRejectedValueOnce(new Error("refused"));
