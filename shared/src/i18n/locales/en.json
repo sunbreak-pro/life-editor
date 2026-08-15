@@ -892,6 +892,16 @@
     "noBriefing": "No briefing yet. Write a \"Briefing\" heading section in today's daily and it will appear here.",
     "intentionTitle": "TODAY'S INTENTION",
     "intentionPlaceholder": "What will you get done today? One line is enough…",
+    "goalsTitle": "GOALS AHEAD",
+    "goals": {
+      "noteTitle": "Goals",
+      "weekTitle": "THIS WEEK",
+      "monthTitle": "THIS MONTH",
+      "yearTitle": "THIS YEAR",
+      "weekPlaceholder": "What will you get done this week? One line is enough…",
+      "monthPlaceholder": "What will you get done this month? One line is enough…",
+      "yearPlaceholder": "What will you get done this year? One line is enough…"
+    },
     "scheduleTitle": "TODAY'S SCHEDULE",
     "addScheduleItem": "Add to today's schedule",
     "noSchedule": "Nothing scheduled today",
