@@ -326,7 +326,11 @@ export function MainScreen({ session }: { session: Session }) {
          * asked for.
          */}
         <PageContainer
-          width={descriptor.width}
+          width={
+            !isWide && descriptor.narrowWidth
+              ? descriptor.narrowWidth
+              : descriptor.width
+          }
           header={
             descriptor.narrowHeaderInBody ? undefined : (narrowRow ?? undefined)
           }

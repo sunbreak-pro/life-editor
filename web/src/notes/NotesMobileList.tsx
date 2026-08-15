@@ -246,14 +246,14 @@ export function NotesMobileList({
       )}
 
       {/*
-       * Floating "+" quick-add. Size and offsets come from the shared MobileFab
-       * (#632), but NOT the anchoring: Materials renders through PageContainer
-       * `width="wide"`, so the `relative` ancestor this lands in is
-       * content-height and sits inside the page gutter. The button therefore
-       * still parks at the end of the list (40px in, vs Schedule's 24px)
-       * instead of holding the corner of the section box. Fixing that is a
-       * scroll-ownership change in MainScreen — see MobileFab's HOST CONTRACT
-       * and D-20260810-mobile-3.
+       * Floating "+" quick-add — size, offsets AND anchoring from the shared
+       * MobileFab (#632). The anchoring half only started holding in #875: on
+       * the narrow layout Materials now renders through PageContainer
+       * `width="fluid"` (`narrowWidth` in sectionDescriptors), so the root above
+       * is a definite-height, padding-free box and the button keeps the corner
+       * of the section box while the list scrolls under it — same 24px inset as
+       * Schedule's. The list's own `pb-24` is what keeps the last row from
+       * hiding beneath it.
        */}
       <MobileFab onClick={onQuickAdd} label={labels.quickAdd} />
     </div>
