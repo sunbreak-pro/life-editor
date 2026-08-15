@@ -17,3 +17,8 @@
  */
 export { stubDataService } from "../../../shared/tests/helpers/dataServiceStub";
 export { makeNote, makeTodo } from "../../../shared/tests/helpers/nodeFixtures";
+export {
+  createBumpableSync,
+  type BumpableSync,
+  type BumpableSyncHandle,
+} from "../../../shared/tests/helpers/bumpableSync";
