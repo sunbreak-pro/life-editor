@@ -151,9 +151,38 @@ describe("EventEditorPane — repeat draft (#712)", () => {
     pickType("Daily");
     fireEvent.click(saveButton());
     expect(onChangeRepeat).toHaveBeenCalledTimes(1);
-    expect(onChangeRepeat).toHaveBeenCalledWith({ frequencyType: "daily" });
+    // #870: the repeat goes first, so it carries the same press's fields with
+    // it — a host building a routine template out of this event has nowhere
+    // else to read them from yet.
+    expect(onChangeRepeat).toHaveBeenCalledWith(
+      { frequencyType: "daily" },
+      { title: "Gym (long)" },
+    );
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledWith("r1", { title: "Gym (long)" });
+  });
+
+  // #870: the case the bug was reported on — a manual event whose time is
+  // changed and whose repeat is turned on in ONE press. The host templates the
+  // series off this call, so a time missing here becomes every generated day
+  // carrying the old one.
+  it("carries a time changed in the same press as the repeat", () => {
+    const { onChangeRepeat, onSave } = renderPane(manualItem, null);
+    // Grabbed before the change: typing opens the option list, which carries
+    // the same accessible name.
+    const start = screen.getByLabelText("Start");
+    fireEvent.change(start, { target: { value: "13:00" } });
+    fireEvent.blur(start);
+    pickType("Daily");
+    fireEvent.click(saveButton());
+    expect(onChangeRepeat).toHaveBeenCalledWith(
+      expect.objectContaining({ frequencyType: "daily" }),
+      expect.objectContaining({ startTime: "13:00" }),
+    );
+    expect(onSave).toHaveBeenCalledWith(
+      "m1",
+      expect.objectContaining({ startTime: "13:00" }),
+    );
   });
 
   it("sends no field patch when only the repeat moved", () => {
@@ -181,10 +210,11 @@ describe("EventEditorPane — repeat draft (#712)", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Mon" }));
     fireEvent.click(saveButton());
-    expect(onChangeRepeat).toHaveBeenCalledWith({
-      frequencyType: "weekdays",
-      frequencyDays: [1, 4],
-    });
+    // Nothing else moved, so the field patch that rides along (#870) is empty.
+    expect(onChangeRepeat).toHaveBeenCalledWith(
+      { frequencyType: "weekdays", frequencyDays: [1, 4] },
+      {},
+    );
   });
 
   it("lets the last weekday be cleared — the seed applies once, not forever", () => {
@@ -198,10 +228,10 @@ describe("EventEditorPane — repeat draft (#712)", () => {
       "false",
     );
     fireEvent.click(saveButton());
-    expect(onChangeRepeat).toHaveBeenCalledWith({
-      frequencyType: "weekdays",
-      frequencyDays: [],
-    });
+    expect(onChangeRepeat).toHaveBeenCalledWith(
+      { frequencyType: "weekdays", frequencyDays: [] },
+      {},
+    );
   });
 
   it("defers the detach to the button too", () => {
