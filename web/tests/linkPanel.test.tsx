@@ -214,6 +214,52 @@ describe("LinkPanel — rows open their target (#749)", () => {
   });
 });
 
+describe("LinkPanel — direction is not part of the vocabulary (#884)", () => {
+  it("shows a pair linked from both sides once, and removes both rows", async () => {
+    state.outgoing = [link({ id: "l1", from: "note-1", to: "note-2" })];
+    state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+
+    const remove = await screen.findAllByRole("button", {
+      name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
+    });
+    expect(remove).toHaveLength(1);
+
+    fireEvent.click(remove[0]);
+
+    await waitFor(() => expect(state.deleteItemLink).toHaveBeenCalledTimes(2));
+    expect(state.deleteItemLink.mock.calls.map((c) => c[0])).toEqual([
+      "l1",
+      "l2",
+    ]);
+  });
+
+  it("offers a remove action on a backlink too", async () => {
+    state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
+      }),
+    );
+
+    expect(state.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l2");
+  });
+
+  it("keeps an item already linked only inbound out of the picker", async () => {
+    state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    await openPicker();
+
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining("Order the tiles"),
+      expect.stringContaining("2026-08-12"),
+    ]);
+  });
+});
+
 describe("LinkPanel — title resolution (#749)", () => {
   it("names a non-note target from the cross-role pool", async () => {
     state.outgoing = [link({ id: "l1", to: "daily-2026-08-12" })];

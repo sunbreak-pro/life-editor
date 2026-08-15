@@ -7,10 +7,10 @@ import { NoteDetailPanel } from "../src/components";
  * presentation: title debounce-and-flush commits on blur, and the pin / delete
  * actions now live behind a single kebab (#284) — opening it exposes the pin
  * toggle (label reflects the pin state) and delete, each firing the injected
- * callback. The tag / content sections render only when their slot is provided
- * (additive slots; the links slot moved to the rightSidebar Links panel —
- * F-3 #260). The rightSidebar plumbing is covered elsewhere and deliberately
- * not re-tested here.
+ * callback. The tag / links / content sections render only when their slot is
+ * provided (additive slots; the links slot came BACK into this header from the
+ * rightSidebar in #884, and shares the tag row). The rightSidebar plumbing is
+ * covered elsewhere and deliberately not re-tested here.
  */
 
 const LABELS = {
@@ -43,6 +43,46 @@ describe("NoteDetailPanel", () => {
     expect(screen.getByText("design")).toBeInTheDocument();
     expect(screen.getByText("editor slot")).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
+  });
+
+  // #884: links sit in the SAME row as the tags, to their right — not in a
+  // separate section further down and not in the sidebar.
+  it("puts the links slot in the tag row, after the tags", () => {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="Supabase migration notes"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        tagsSlot={<span>design</span>}
+        linksSlot={<span>linked note</span>}
+        {...LABELS}
+      />,
+    );
+    const tags = screen.getByText("design");
+    const links = screen.getByText("linked note");
+    expect(tags.parentElement).toBe(links.parentElement);
+    expect(
+      tags.compareDocumentPosition(links) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("renders the links slot even with no tag slot", () => {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="t"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        linksSlot={<span>linked note</span>}
+        {...LABELS}
+      />,
+    );
+    expect(screen.getByText("linked note")).toBeInTheDocument();
   });
 
   it("commits a title edit on blur", () => {
