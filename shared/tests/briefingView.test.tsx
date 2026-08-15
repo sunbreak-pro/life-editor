@@ -440,6 +440,43 @@ describe("Briefing narrow-width tab switcher (#318)", () => {
 });
 
 /*
+ * #879 — the band carries the narrow layout's hamburger (#609), and every
+ * other section draws that row at the top of the page. Briefing used to print
+ * its masthead above it, so the one screen with a title band had its chrome in
+ * a different order than the rest. Asserted as DOM order (jsdom has no
+ * layout — CLAUDE.md §7.1), which is what decides the stacking here.
+ */
+describe("Briefing narrow-width header order (#879)", () => {
+  const switcher = <button type="button">夕刊</button>;
+
+  /** True when the switcher band precedes the masthead in document order. */
+  function bandPrecedesMasthead(container: HTMLElement): boolean {
+    const band = container.querySelector(
+      "div.border-b.border-lumen-border.px-2.py-3",
+    );
+    const masthead = container.querySelector("header");
+    if (band === null || masthead === null) return false;
+    return (
+      (band.compareDocumentPosition(masthead) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+      0
+    );
+  }
+
+  it("puts the band above the masthead in the morning paper", () => {
+    const { container } = renderView({ tabSwitcher: switcher });
+    expect(screen.getByText("BRIEFING")).toBeTruthy();
+    expect(bandPrecedesMasthead(container)).toBe(true);
+  });
+
+  it("puts the band above the masthead in the evening paper", () => {
+    const { container } = renderEvening({ tabSwitcher: switcher });
+    expect(screen.getByText("EVENING")).toBeTruthy();
+    expect(bandPrecedesMasthead(container)).toBe(true);
+  });
+});
+
+/*
  * #410 — the jump action used to be a bare 13px ↗ sitting right after the
  * title, so it was both hard to hit and never in the same place twice (the
  * title length moved it). It now carries a visible「編集」label and is pinned

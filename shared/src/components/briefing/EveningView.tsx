@@ -187,6 +187,16 @@ export function EveningView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
+      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
+          ABOVE the masthead (#879), same order as the morning paper: the
+          hamburger row belongs at the top of the screen the way every other
+          section draws it. Undefined on the wide layout — nothing moves. */}
+      {tabSwitcher != null && (
+        <div className="border-b border-lumen-border px-2 py-3">
+          {tabSwitcher}
+        </div>
+      )}
+
       {/* ── Masthead — the title deliberately keeps the newspaper serif
           (#269) regardless of the Settings font; body copy follows the
           global preference (#556) ─────────────────────────────────── */}
@@ -198,13 +208,6 @@ export function EveningView({
           {dateLine}
         </p>
       </header>
-
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ────────── */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
 
       {/* ── Mood (気分: n/5 convention behind the stars) ─────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
