@@ -346,3 +346,24 @@ describe("PomodoroSettings — blank numeric fields (#624)", () => {
     expect(screen.getByText("Enter a number for Work")).toBeInTheDocument();
   });
 });
+
+describe("PomodoroSettings — save button focus affordance (#880)", () => {
+  /*
+   * jsdom has no layout, so the bug itself (a pale band drawn between the
+   * button and its ring) cannot be SEEN here. What can be pinned is the class
+   * that draws it: `ring-offset-*` paints the gap a fixed color — `lumen-bg`,
+   * the page background — while this button sits on `lumen-bg-secondary` in
+   * the panel and `lumen-bg-subsidebar` in the mobile drawer. Any reappearance
+   * of that utility on an accent-FILLED control is the bug coming back.
+   */
+  it("draws its focus ring with outline, not a colored ring offset", () => {
+    renderSettings();
+    const classes = saveButton().className;
+
+    expect(classes).not.toMatch(/ring-offset/);
+    expect(classes).toContain("focus-visible:outline-offset-2");
+    // The outline must contrast with the fill. Repeating `lumen-accent` here
+    // would merge the ring into the button and put the gap back inside it.
+    expect(classes).toContain("focus-visible:outline-lumen-text");
+  });
+});

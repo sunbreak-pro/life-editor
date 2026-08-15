@@ -9,7 +9,7 @@ import { Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
-import { FOCUS_RING } from "./styleTokens";
+import { FOCUS_RING, FOCUS_RING_ON_ACCENT } from "./styleTokens";
 
 /*
  * Todo detail panel (W7). The selected todo's detail, which the Kanban host
@@ -152,7 +152,7 @@ export interface TodoDetailPanelProps {
 
 const SAVE_BTN = cn(
   "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
-  FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
   "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
 );
 

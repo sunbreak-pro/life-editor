@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "../cn";
-import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING_ON_ACCENT,
+  FOCUS_RING_TIGHT,
+} from "../styleTokens";
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { TimeRangeField } from "../TimeRangeField";
@@ -188,7 +193,7 @@ export interface ItemCreatePanelProps {
 // the field the submit depends on, so a dead-but-lit button would give the user
 // nothing to look at when a click does nothing.
 const DISABLED_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
-const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg ${DISABLED_BTN}`;
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover ${FOCUS_RING_ON_ACCENT} ${DISABLED_BTN}`;
 const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${DISABLED_BTN}`;
 const HINT = "py-3 text-center text-xs text-lumen-text-secondary";
 
