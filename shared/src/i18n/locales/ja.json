@@ -166,7 +166,8 @@
       "clear": "Todo を解除",
       "select": "Todo を選ぶ",
       "clearSelection": "選択を外す",
-      "emptyHint": "紐付けられる Todo がありません。予定で Todo を作成すると選べるようになります。"
+      "emptyHint": "紐付けられる Todo がありません。予定で Todo を作成すると選べるようになります。",
+      "untitled": "無題のTodo"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",

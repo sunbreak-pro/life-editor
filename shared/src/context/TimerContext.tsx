@@ -9,6 +9,8 @@ import {
 } from "react";
 import type { DataService } from "../services/DataService";
 import type { PomodoroPreset } from "../types/timer";
+import type { TodoNode } from "../types/todoTree";
+import { generateId } from "../utils/generateId";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
@@ -48,10 +50,23 @@ import {
  *
  * `onSessionComplete` is an optional host hook fired when a phase reaches 0
  * (the host plays the chime / sends a notification — shared has no audio).
+ *
+ * A WORK phase started with no todo attached mints one first (#882). The log
+ * row would otherwise carry a null todo id, and Analytics buckets those into a
+ * single nameless "__none__" pile — so an hour worked without picking a todo
+ * left no way to tell, later, WHAT that hour was. The placeholder is a real
+ * Todo, so it shows up under its own name and the user can rename it (or swap
+ * the attribution) after the fact. Its title comes from the host: shared never
+ * calls useTranslation (rules/frontend.md).
  */
 export interface TimerProviderProps {
   children: ReactNode;
   dataService: DataService;
+  /**
+   * Title for the Todo minted when a WORK phase starts unattributed (#882) —
+   * e.g. t("work.todoSelector.untitled").
+   */
+  untitledTodoTitle: string;
   /** Fired when a phase completes (host plays sound / notifies). */
   onSessionComplete?: (completedPhase: TimerPhase) => void;
 }
@@ -59,6 +74,7 @@ export interface TimerProviderProps {
 export function TimerProvider({
   children,
   dataService: ds,
+  untitledTodoTitle,
   onSessionComplete,
 }: TimerProviderProps) {
   const syncVersion = useSyncDomains("timer");
@@ -132,14 +148,57 @@ export function TimerProvider({
   // --- session log helpers ---
   const startSession = useCallback(
     (phase: TimerPhase, todoId: string | null) => {
+      const open = (id: string | null) =>
+        ds
+          .startTimerSession(phase, id ?? undefined)
+          .then((session) => {
+            currentSessionIdRef.current = session.id;
+          })
+          .catch((e) => logServiceError("Timer", "startTimerSession", e));
+
+      // Only WORK is minted for (#882). A break is not work: hanging a todo on
+      // it would inflate that todo's logged time with the time spent NOT on it.
+      // Breaks still inherit an already-chosen todo, exactly as before — that
+      // is the pre-existing attribution and this change does not touch it.
+      if (todoId !== null || phase !== "WORK") {
+        void open(todoId);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const placeholder: TodoNode = {
+        id: generateId("task"),
+        type: "task",
+        title: untitledTodoTitle,
+        status: "NOT_STARTED",
+        // Root level, like every other quick-create entry — the timer has no
+        // place-in-the-tree control and re-parenting belongs to Materials.
+        parentId: null,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
       void ds
-        .startTimerSession(phase, todoId ?? undefined)
-        .then((session) => {
-          currentSessionIdRef.current = session.id;
+        .createTodo(placeholder)
+        .then((saved) => {
+          // Publishing it as the active todo is half the fix: the chip now
+          // names the row being logged to, so the user can see it and swap it
+          // — and every later phase of this run reuses it instead of minting
+          // a second placeholder (ADVANCE / RESET both preserve activeTodo).
+          dispatch({
+            type: "SET_ACTIVE_TODO",
+            todo: { id: saved.id, title: saved.title },
+          });
+          return open(saved.id);
         })
-        .catch((e) => logServiceError("Timer", "startTimerSession", e));
+        .catch((e) => {
+          logServiceError("Timer", "createTodo (unattributed work session)", e);
+          // Losing the attribution is the bug being fixed; losing the whole
+          // session row would be worse, so fall back to the old behaviour.
+          return open(null);
+        });
     },
-    [ds],
+    [ds, untitledTodoTitle],
   );
 
   const closeSession = useCallback(
