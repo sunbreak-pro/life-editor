@@ -98,8 +98,9 @@ export interface SectionDescriptor {
   /**
    * Draw the narrow row inside the body (via `ctx.narrowTabRow`) instead of in
    * the PageContainer header. Briefing only: its body is a centered "paper"
-   * that re-issues the band under the masthead (#318 / #609), so a second row
-   * above it would push the paper down for one button.
+   * that re-issues the band as its own first row, above the masthead (#318 /
+   * #609 / #879), so a second row above it would push the paper down for one
+   * button.
    */
   readonly narrowHeaderInBody?: boolean;
   readonly body: (ctx: SectionBodyContext) => ReactNode;
