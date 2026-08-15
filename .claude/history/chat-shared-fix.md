@@ -1,5 +1,24 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-15 - #880 Save ボタンの白い帯と #874 Mobile パネルの全画面化
+
+#### 概要
+
+Mobile の見た目バグ 2 連。どちらも報告された症状と原因が別の場所にあった。#880 = 「Save ボタンの中に白い線」の正体はボタン自身ではなく**フォーカス枠の色がボタンの地色と同じ**だったこと（PR #909 open）。#874 = 「ボトムパネルの背後が持ち上がる」の正体はパネルではなく**シェルがキーボード検知でタブバーを unmount していた**こと（PR #917 open）。両方 Closes 付き・main から個別分岐・全ゲート緑。merge はユーザー手番（P-001）。
+
+#### 変更点
+
+- **#880 の原因（2 段重ね）**: `FOCUS_RING`（`styleTokens.ts:9`）は ring 色が `lumen-accent` で、accent 地のボタンに当てると**リングがボタンと同化して一回り大きく見える**。その内側に挟まる `ring-offset` の帯が「ボタンの中の線」に見えていた。さらに offset 色は `lumen-bg`（ページ背景）固定なのに、これらのボタンが載る面は `lumen-bg-secondary` / `lumen-bg-subsidebar` — **固定色の隙間は 1 つの面にしか合わせられない**
+- **#880 の修正**: `FOCUS_RING_ON_ACCENT` を新設し `outline` + `outline-offset` へ。outline の隙間は**透明**なので実際に背後にある面が出る。色も `lumen-text` にして地色と分離。accent 地の 8 箇所に適用（PomodoroSettings / AudioMixer の重複した Save 2 つ / TodoDetailPanel / EventEditorPane / ItemCreatePanel / ScheduleToolbar / MobileFab / NotePasswordDialog）。`FOCUS_RING` 本体は非 accent の約 40 箇所に波及するため据え置き
+- **#880 の silent-fail 検査**: outline 系 3 クラスはリポジトリ初使用のため、known-issues 015（無効な Tailwind クラスは無言で効かない）を踏まないよう**生成 CSS を実測**。`web/dist` に `outline-2` / `outline-offset-2` / `outline-lumen-text` が出力され、`@property --tw-outline-style` の `initial-value: solid` も存在することを確認
+- **#874 の原因**: `AppShell.tsx:233` の `{!keyboardOpen && <BottomTabBar/>}`。バーが消えるとその高さが `<main>` に返り、上のものが詰め直される。**パネルは `fixed` で浮いているので何も押していない**
+- **#874 の修正（2 つ）**: (1) シェルはバーを unmount せず `invisible` に。箱が残るので何も詰まらず、`visibility:hidden` はタブ順とアクセシビリティツリーから外れるので #608 の意図は保持。`interactive-widget` 既定でレイアウトビューポートが縮まないため場所の無駄もない。**これだけで DoD は全シートについて満たされる**。(2) `BottomSheet` に `fullScreen` を追加し、詳細・編集系 5 箇所に適用（Notes 詳細 / Todos 詳細 / Schedule の todo 詳細・イベント編集 / Schedule 作成）
+- **#874 の方針はユーザー確定**（2026-08-15）: 手段 = 「全画面化 + 原因も直す」、対象 = 「詳細・編集系のみ」。短いシート（クイック追加 / Trash 確認 / グラフ設定 / More / ポモドーロ Todo 選択）はシートのまま
+- **月シートを外した判断**: #916 が月シートを機能ごと削除する PR のため、`fullScreen` を足せば確実にコンフリクトし、しかも消える予定のブロックへの作業になる。(1) で月シートの持ち上がりは解消するので未修正部分は残らない。#916 見送り時のみ別途起票 = `D-20260815-shared-fix-1`
+- **role-qa の指摘反映**: 必須クラス `overflow-hidden` が 6 箇所の `className` に漏れていた → `fullScreen` 側へ移動。スクローラが呼び出し側と部品側で二重 → 呼び出し側 4 つを削除。ヘッダ帯に `shrink-0`（唯一の出口を載せた帯）。`closeOnBackdrop` が全画面では死ぬ旨を型に明記
+- **テストの置き所**: `bottomSheetFullScreen.test.tsx` 新規（ジオメトリ / 出口 / スワイプ無効 / 内側スクローラ）、`mobileTodoList.test.tsx` に**配線の固定**を 1 本（`fullScreen` は 1 語なので、外しても部品テストは全部緑のまま通る）、`appShellSoftKeyboard.test.tsx` を「バーが消える」→「箱を残して見えなくなる」に更新。jsdom はスタイルシートを読まないため全部クラス名 assertion で、見た目は実機ゲート
+- **未確認**: 両 Issue とも実機目視は未実施（worktree では実ブラウザ検証をしない規約）。#874 は全画面に**しなかった**シートでキーボードの上に残る不可視の帯が新しく生じるため、そこが merge 後の主な確認対象
+
 ### 2026-08-14 - #831 機能名 Tasks → Todos の全 docs 展開と、stacked merge 取りこぼしの復旧
 
 #### 概要
