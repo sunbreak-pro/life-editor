@@ -5,8 +5,8 @@ import {
   formatDateKey,
   generateId,
   localDateTimeToISO,
-  pickAddableTasks,
-  tasksToCalendarChips,
+  pickAddableTodos,
+  todosToCalendarChips,
   useSyncDomains,
   useTranslation,
   useUndoRedoOptional,
@@ -14,7 +14,7 @@ import {
   type BriefingCarryoverEntry,
   type BriefingData,
   type BriefingScheduleEntry,
-  type BriefingTaskEntry,
+  type BriefingTodoEntry,
   type DataService,
   type EveningScheduleEntry,
   type EveningTodoEntry,
@@ -22,7 +22,8 @@ import {
   type ItemCreateOption,
   type NoteNode,
   type ScheduleItem,
-  type TaskNode,
+  type TodoNode,
+  type TodoStatus,
   type TimerSession,
   type TodayTodoRow,
   type WikiTagConnectionUnified,
@@ -35,13 +36,13 @@ import {
  *
  * Data sources (all EXISTING APIs — Step 1 ships with zero DDL):
  *   - fetchScheduleItemsByDate(today)     → 今日の予定
- *   - fetchTaskTree()                     → 今日の Todo / 持ち越し / trend widget
+ *   - fetchTodoTree()                     → 今日の Todo / 持ち越し / trend widget
  *   - fetchTimerSessions()                → streak + work/break widgets
  *   - getDailyByDateUnified(today)        → the "Briefing"/「朝刊」 section
  *     (extractBriefing convention — written later by MCP write_briefing,
  *     or by hand in the Daily editor today)
  *   - listNotesUnified() + listAllTagConnections()
- *     → task↔note item links resolved to note titles =「その目的」chips
+ *     → todo↔note item links resolved to note titles =「その目的」chips
  *       (read-only Goal links; the unified graph already supports them)
  *
  * Re-fetches on every Realtime `syncVersion` bump (same pattern as
@@ -52,11 +53,11 @@ import {
 
 /*
  * LOCAL "YYYY-MM-DD" from a stored scheduledAt (#413 fix). This used to slice
- * the first 10 chars, which reads the UTC day: in JST an all-day task staged
+ * the first 10 chars, which reads the UTC day: in JST an all-day todo staged
  * at local midnight is stored as `…T15:00:00Z` on the PREVIOUS date, so the
- * paper filed every such task under 持ち越し「2日目」 instead of 今日の Todo
+ * paper filed every such todo under 持ち越し「2日目」 instead of 今日の Todo
  * — including the ones the new rightSidebar tray adds. The tray itself keys
- * on the LOCAL day (tasksToCalendarChips), and now so does the paper.
+ * on the LOCAL day (todosToCalendarChips), and now so does the paper.
  */
 const dateKeyOf = dateKeyOfInstant;
 
@@ -77,7 +78,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   const { t, i18n } = useTranslation();
   const syncVersion = useSyncDomains(
     "schedule",
-    "tasks",
+    "todos",
     "timer",
     "dailies",
     "notes",
@@ -87,7 +88,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   const [loading, setLoading] = useState(true);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [tomorrowItems, setTomorrowItems] = useState<ScheduleItem[]>([]);
-  const [taskNodes, setTaskNodes] = useState<TaskNode[]>([]);
+  const [todoNodes, setTodoNodes] = useState<TodoNode[]>([]);
   const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
   const [notes, setNotes] = useState<NoteNode[]>([]);
@@ -103,7 +104,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
 
   // Global undo stack (#304). Optional so the hook still runs in tests and
   // outside UndoRedoProvider; when it IS there, a delete from the paper is
-  // reversible exactly like the same delete made in Schedule or Tasks.
+  // reversible exactly like the same delete made in Schedule or Todos.
   const undoRedo = useUndoRedoOptional();
   const push = undoRedo?.push;
 
@@ -112,11 +113,11 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   useEffect(() => {
     // loading starts true (useState) so the initial fetch shows the skeleton;
     // re-fetches on syncVersion bumps keep the (still-valid) paper visible
-    // until the fresh data resolves (same pattern as WorkScreen's task fetch).
+    // until the fresh data resolves (same pattern as WorkScreen's todo fetch).
     let cancelled = false;
     void Promise.allSettled([
       ds.fetchScheduleItemsByDate(todayKey),
-      ds.fetchTaskTree(),
+      ds.fetchTodoTree(),
       ds.fetchTimerSessions(),
       ds.getDailyByDateUnified(todayKey),
       ds.listNotesUnified(),
@@ -124,9 +125,9 @@ export function useBriefingData(ds: DataService, todayKey: string) {
       ds.fetchScheduleItemsByDate(tomorrowKey),
     ]).then((results) => {
       if (cancelled) return;
-      const [sched, tasks, sess, daily, allNotes, links, tomorrow] = results;
+      const [sched, todos, sess, daily, allNotes, links, tomorrow] = results;
       if (sched.status === "fulfilled") setScheduleItems(sched.value);
-      if (tasks.status === "fulfilled") setTaskNodes(tasks.value);
+      if (todos.status === "fulfilled") setTodoNodes(todos.value);
       if (sess.status === "fulfilled") setSessions(sess.value);
       if (daily.status === "fulfilled")
         setDailyContent(daily.value?.content ?? null);
@@ -190,14 +191,23 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [scheduleItems],
   );
 
-  const liveTasks = useMemo(
-    () => taskNodes.filter((n) => n.type === "task" && n.isDeleted !== true),
-    [taskNodes],
+  const liveTodos = useMemo(
+    () => todoNodes.filter((n) => n.type === "task" && n.isDeleted !== true),
+    [todoNodes],
   );
 
-  const todayTasks = useMemo<BriefingTaskEntry[]>(
+  // Not started / In progress / Done by todo id (#796). The paper's rows and
+  // the tray's chips both flattened status to a boolean; this is what they read
+  // it back from, so neither has to carry its own copy of the rule.
+  const statusById = useMemo(() => {
+    const map = new Map<string, TodoStatus>();
+    for (const n of liveTodos) map.set(n.id, n.status ?? "NOT_STARTED");
+    return map;
+  }, [liveTodos]);
+
+  const todayTodos = useMemo<BriefingTodoEntry[]>(
     () =>
-      liveTasks
+      liveTodos
         .filter((n) => dateKeyOf(n.scheduledAt) === todayKey)
         .map((n) => ({
           id: n.id,
@@ -205,12 +215,12 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           status: n.status ?? "NOT_STARTED",
           purposes: purposesOf(n.id),
         })),
-    [liveTasks, todayKey, purposesOf],
+    [liveTodos, todayKey, purposesOf],
   );
 
   const carryover = useMemo<BriefingCarryoverEntry[]>(
     () =>
-      liveTasks
+      liveTodos
         .filter((n) => {
           const key = dateKeyOf(n.scheduledAt);
           if (key === null || key >= todayKey) return false;
@@ -232,7 +242,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           daysLabel: t("briefing.carryoverDays", { count: days + 1 }),
           completed: node.status === "DONE",
         })),
-    [liveTasks, todayKey, t],
+    [liveTodos, todayKey, t],
   );
 
   const dateLine = useMemo(() => {
@@ -250,38 +260,54 @@ export function useBriefingData(ds: DataService, todayKey: string) {
       dateLine,
       briefing: extractBriefing(dailyContent),
       schedule,
-      tasks: todayTasks,
+      todos: todayTodos,
       carryover,
       sessions,
-      taskNodes: liveTasks,
+      todoNodes: liveTodos,
     }),
     [
       dateLine,
       dailyContent,
       schedule,
-      todayTasks,
+      todayTodos,
       carryover,
       sessions,
-      liveTasks,
+      liveTodos,
     ],
   );
 
-  //「残りの Todo」— today's unfinished + open carryover (display only).
-  const remainingTodos = useMemo<EveningTodoEntry[]>(
-    () => [
-      ...todayTasks
-        .filter((task) => task.status !== "DONE")
-        .map(({ id, title }) => ({ id, title })),
-      ...carryover
-        .filter((item) => !item.completed)
-        .map((item) => ({
-          id: item.id,
-          title: item.title,
-          meta: item.daysLabel,
+  //「残りの Todo」— today's unfinished + open carryover, each carrying its real
+  // Not started / In progress / Done status (#796).
+  //
+  // A row moved to DONE **today** stays on the list (struck through) instead of
+  // vanishing under the finger that tapped it: a control you cannot see the
+  // result of is not a control, and taking a mis-tap back must not mean going
+  // to another screen. Same "completed today still counts" rule the carryover
+  // block already used, so a todo closed yesterday is still gone.
+  const remainingTodos = useMemo<EveningTodoEntry[]>(() => {
+    const dayStart = Date.parse(`${todayKey}T00:00:00`);
+    return [
+      ...liveTodos
+        .filter((n) => dateKeyOf(n.scheduledAt) === todayKey)
+        .filter(
+          (n) =>
+            n.status !== "DONE" ||
+            (n.completedAt !== undefined &&
+              Date.parse(n.completedAt) >= dayStart),
+        )
+        .map((n) => ({
+          id: n.id,
+          title: n.title,
+          status: n.status ?? "NOT_STARTED",
         })),
-    ],
-    [todayTasks, carryover],
-  );
+      ...carryover.map((item) => ({
+        id: item.id,
+        title: item.title,
+        meta: item.daysLabel,
+        status: statusById.get(item.id) ?? "NOT_STARTED",
+      })),
+    ];
+  }, [liveTodos, todayKey, carryover, statusById]);
 
   //「今後の予定」— the rest of today (from now) + all of tomorrow.
   const upcoming = useMemo<EveningScheduleEntry[]>(() => {
@@ -327,44 +353,70 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [ds],
   );
 
-  const handleToggleTask = useCallback(
-    (id: string) => {
-      const target = taskNodes.find((n) => n.id === id);
-      if (target === undefined) return;
-      const done = target.status === "DONE";
+  /**
+   * Write a Todo's status (#796). `completedAt` follows it — DONE stamps the
+   * moment, anything else clears it — because that stamp is what decides
+   * whether a closed todo still belongs on today's paper.
+   *
+   * The new status is painted BEFORE the write resolves and rolled back if it
+   * fails. `updateTodo` is several sequential requests, and a status control
+   * that does not move until they all return reads as broken.
+   */
+  const handleSetTodoStatus = useCallback(
+    (id: string, status: TodoStatus) => {
+      const target = todoNodes.find((n) => n.id === id);
+      if (target === undefined || target.status === status) return;
+      const patch = {
+        status,
+        completedAt: status === "DONE" ? new Date().toISOString() : undefined,
+      };
+
+      setTodoNodes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, ...patch } : n)),
+      );
       void ds
-        .updateTask(
-          id,
-          done
-            ? { status: "NOT_STARTED", completedAt: undefined }
-            : { status: "DONE", completedAt: new Date().toISOString() },
-        )
+        .updateTodo(id, patch)
         .then((updated) => {
-          setTaskNodes((prev) =>
+          setTodoNodes((prev) =>
             prev.map((n) => (n.id === updated.id ? updated : n)),
           );
         })
-        // The row also renders in the rightSidebar tray now (#413), so a
-        // failed write is worth a console line instead of an unhandled
-        // rejection: the checkbox just stays put and nothing says why.
+        // The row renders on the paper and in the rightSidebar tray (#413), so
+        // a failed write puts the ORIGINAL node back — an optimistic status
+        // that survives its own failure is a lie about what is stored.
         .catch((err) => {
-          console.error("[BriefingScreen] task completion toggle failed", err);
+          console.error("[BriefingScreen] todo status write failed", err);
+          setTodoNodes((prev) => prev.map((n) => (n.id === id ? target : n)));
         });
     },
-    [ds, taskNodes],
+    [ds, todoNodes],
+  );
+
+  /** Binary completion, still what the morning paper's rows speak (#796 gave
+   *  the three statuses to the evening rows and the tray only). */
+  const handleToggleTodo = useCallback(
+    (id: string) => {
+      const target = todoNodes.find((n) => n.id === id);
+      if (target === undefined) return;
+      handleSetTodoStatus(
+        id,
+        target.status === "DONE" ? "NOT_STARTED" : "DONE",
+      );
+    },
+    [todoNodes, handleSetTodoStatus],
   );
 
   // ── Creating into today (#623) ───────────────────────────────────────
   /*
    * The paper's「+」opens Schedule's shared <ItemCreatePanel>, so the same
-   * three creates it offers there have to work here: a new event, a new task,
-   * and placing an existing task — each landing on the day the paper is
+   * three creates it offers there have to work here: a new event, a new todo,
+   * and placing an existing todo — each landing on the day the paper is
    * showing. The writes go through `ds` because Briefing mounts none of the
-   * Schedule / TaskTree providers (§3.1 — the boundary, not the providers, is
+   * Schedule / TodoTree providers (§3.1 — the boundary, not the providers, is
    * what the rule is about), and the results are folded straight into the
    * fetched state so the paper updates without waiting for the Realtime bump.
    *
-   * `useSyncDomains("schedule", "tasks", …)` at the top of this hook is what
+   * `useSyncDomains("schedule", "todos", …)` at the top of this hook is what
    * makes the OTHER direction work — a row created here shows up in Schedule
    * as soon as Realtime reports it, and vice versa.
    */
@@ -414,7 +466,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           // Direction is item → note, matching DailyView and Schedule's own
           // attachment: the thing with the date owns the link, and the note
           // sees it as a backlink. The created row is folded into the link
-          // state so a task's「その目的」chip appears with it.
+          // state so a todo's「その目的」chip appears with it.
           if (noteId !== null) {
             const link = await ds.createItemLink(
               generateId("link"),
@@ -461,7 +513,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     [ds, todayKey, attachNote],
   );
 
-  const handleCreateTask = useCallback(
+  const handleCreateTodo = useCallback(
     (
       title: string,
       start: string,
@@ -471,9 +523,9 @@ export function useBriefingData(ds: DataService, todayKey: string) {
       const now = new Date().toISOString();
       // Root-level (parentId null), like every other quick-create entry: the
       // panel carries no place-in-the-tree control and re-parenting belongs to
-      // the Tasks section.
+      // the Todos section.
       void ds
-        .createTask({
+        .createTodo({
           id: generateId("task"),
           type: "task",
           title,
@@ -487,50 +539,50 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           updatedAt: now,
         })
         .then((saved) => {
-          setTaskNodes((prev) => [...prev, saved]);
+          setTodoNodes((prev) => [...prev, saved]);
           attachNote(saved.id, note);
         })
         .catch((err) => {
-          console.error("[BriefingScreen] task create failed", err);
+          console.error("[BriefingScreen] todo create failed", err);
         });
     },
     [ds, todayKey, attachNote],
   );
 
-  const handlePlaceTask = useCallback(
+  const handlePlaceTodo = useCallback(
     (
-      taskId: string,
+      todoId: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      // `isAllDay: false` rides along because a task given a concrete window
+      // `isAllDay: false` rides along because a todo given a concrete window
       // is by definition not an all-day candidate — leaving the flag alone is
       // what kept placed chips rendering in the all-day lane (timedPlacement).
       void ds
-        .updateTask(taskId, {
+        .updateTodo(todoId, {
           scheduledAt: localDateTimeToISO(todayKey, start),
           scheduledEndAt: localDateTimeToISO(todayKey, end),
           isAllDay: false,
         })
         .then((updated) => {
-          setTaskNodes((prev) =>
+          setTodoNodes((prev) =>
             prev.map((n) => (n.id === updated.id ? updated : n)),
           );
           attachNote(updated.id, note);
         })
         .catch((err) => {
-          console.error("[BriefingScreen] task placement failed", err);
+          console.error("[BriefingScreen] todo placement failed", err);
         });
     },
     [ds, todayKey, attachNote],
   );
 
   // ── Row deletes (#585) ───────────────────────────────────────────────
-  // The paper writes through `ds` rather than the Schedule / TaskTree
+  // The paper writes through `ds` rather than the Schedule / TodoTree
   // providers (MainScreen mounts this screen bare), so the optimistic list
   // update and the undo command are spelled out here instead of coming free
-  // from useScheduleItemsAPI / useTaskTreeHistory. The DataService calls
+  // from useScheduleItemsAPI / useTodoTreeHistory. The DataService calls
   // themselves are the EXISTING delete paths — same soft delete, same Trash,
   // same restore — so a row deleted from the paper behaves like one deleted
   // from its own section.
@@ -638,12 +690,12 @@ export function useBriefingData(ds: DataService, todayKey: string) {
 
   const closeDeleteScope = useCallback(() => setDeleteScopeItem(null), []);
 
-  const handleDeleteTask = useCallback(
+  const handleDeleteTodo = useCallback(
     (id: string) => {
-      const target = taskNodes.find((n) => n.id === id);
+      const target = todoNodes.find((n) => n.id === id);
       if (target === undefined) return;
       const markDeleted = (deleted: boolean) => {
-        setTaskNodes((prev) =>
+        setTodoNodes((prev) =>
           prev.map((n) =>
             n.id === id
               ? {
@@ -656,49 +708,51 @@ export function useBriefingData(ds: DataService, todayKey: string) {
         );
       };
       markDeleted(true);
-      ds.softDeleteTask(id).catch((err) => {
-        console.error("[BriefingScreen] task delete failed", err);
+      ds.softDeleteTodo(id).catch((err) => {
+        console.error("[BriefingScreen] todo delete failed", err);
       });
-      push?.("taskTree", {
-        label: "deleteTask",
+      push?.("todoTree", {
+        label: "deleteTodo",
         undo: () => {
           markDeleted(false);
-          void ds.restoreTask(id).catch((err) => {
-            console.error("[BriefingScreen] task delete undo failed", err);
+          void ds.restoreTodo(id).catch((err) => {
+            console.error("[BriefingScreen] todo delete undo failed", err);
           });
         },
         redo: () => {
           markDeleted(true);
-          void ds.softDeleteTask(id).catch((err) => {
-            console.error("[BriefingScreen] task delete redo failed", err);
+          void ds.softDeleteTodo(id).catch((err) => {
+            console.error("[BriefingScreen] todo delete redo failed", err);
           });
         },
       });
     },
-    [ds, taskNodes, push],
+    [ds, todoNodes, push],
   );
 
   // ── Today's Todo tray (rightSidebar — #413) ──────────────────────────
   // The SAME <TodayTodoTray> the Schedule rightSidebar mounts (#298), backed
-  // by the same pure selectors: today's task chips split into placed (has a
-  // time) and unplaced (all-day candidate), plus pickAddableTasks for the
-  // "add from tasks" picker. One implementation, two hosts — a second copy
+  // by the same pure selectors: today's todo chips split into placed (has a
+  // time) and unplaced (all-day candidate), plus pickAddableTodos for the
+  // "add from todos" picker. One implementation, two hosts — a second copy
   // here would drift the moment one side is fixed.
   //
-  // Host difference: Briefing mounts no TaskTreeProvider (MainScreen renders
+  // Host difference: Briefing mounts no TodoTreeProvider (MainScreen renders
   // this screen bare and injects the DataService instead), so completion and
-  // "add to today" write through ds.updateTask rather than the provider's
-  // setTaskStatus / updateNode. Both end up on the same items_meta +
-  // tasks_payload columns (taskUpdatesToPatches), so the two trays agree.
+  // "add to today" write through ds.updateTodo rather than the provider's
+  // setTodoStatus / updateNode. Both end up on the same items_meta +
+  // tasks_payload columns (todoUpdatesToPatches), so the two trays agree.
   //
   // "Today" here is Briefing's own todayKey (todayDateKey — day-start-hour
   // aware, #373), NOT Schedule's plain calendar key: the tray sits beside the
   // paper's 今日の Todo list and has to agree with it. The two definitions
   // differ only between midnight and the configured day-start hour.
   const todayChips = useMemo(
-    () => tasksToCalendarChips(liveTasks, todayKey, todayKey),
-    [liveTasks, todayKey],
+    () => todosToCalendarChips(liveTodos, todayKey, todayKey),
+    [liveTodos, todayKey],
   );
+  // The chips carry a completed flag, not the three-way status the tray now
+  // shows (#796) — read it back off the todo the chip came from (statusById).
   const todoPlaced = useMemo<TodayTodoRow[]>(
     () =>
       todayChips
@@ -708,30 +762,36 @@ export function useBriefingData(ds: DataService, todayKey: string) {
           title: c.title,
           timeLabel: c.startTime,
           completed: c.completed,
+          status: statusById.get(c.id) ?? "NOT_STARTED",
         })),
-    [todayChips],
+    [todayChips, statusById],
   );
   const todoUnplaced = useMemo<TodayTodoRow[]>(
     () =>
       todayChips
         .filter((c) => c.isAllDay)
-        .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
-    [todayChips],
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          completed: c.completed,
+          status: statusById.get(c.id) ?? "NOT_STARTED",
+        })),
+    [todayChips, statusById],
   );
-  const todoAddable = useMemo(() => pickAddableTasks(liveTasks), [liveTasks]);
+  const todoAddable = useMemo(() => pickAddableTodos(liveTodos), [liveTodos]);
 
   // "Add to today" (案 c staging — the same write Schedule's tray makes):
-  // scheduledAt = today's local midnight + all-day, so the task lands in the
+  // scheduledAt = today's local midnight + all-day, so the todo lands in the
   // unplaced group; giving it a time (a Schedule drag) promotes it to placed.
   const handleAddTodoCandidate = useCallback(
-    (taskId: string) => {
+    (todoId: string) => {
       void ds
-        .updateTask(taskId, {
+        .updateTodo(todoId, {
           scheduledAt: localDateTimeToISO(todayKey, "00:00"),
           isAllDay: true,
         })
         .then((updated) => {
-          setTaskNodes((prev) =>
+          setTodoNodes((prev) =>
             prev.map((n) => (n.id === updated.id ? updated : n)),
           );
         })
@@ -751,16 +811,17 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     remainingTodos,
     upcoming,
     handleToggleScheduleItem,
-    handleToggleTask,
+    handleToggleTodo,
+    handleSetTodoStatus,
     handleDeleteScheduleItem,
-    handleDeleteTask,
+    handleDeleteTodo,
     deleteScopeItem,
     handleDeleteScopeChoose,
     closeDeleteScope,
     noteOptions,
     handleCreateEvent,
-    handleCreateTask,
-    handlePlaceTask,
+    handleCreateTodo,
+    handlePlaceTodo,
     todoPlaced,
     todoUnplaced,
     todoAddable,

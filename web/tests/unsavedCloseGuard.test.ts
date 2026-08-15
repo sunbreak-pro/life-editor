@@ -4,7 +4,7 @@ import { decideUnsavedClose } from "../src/schedule/unsavedCloseGuard";
 /*
  * The guard CalendarTab runs on every exit from the event editor (#628). Pinned
  * here rather than through the component because CalendarTab needs the whole
- * Schedule Provider chain to render — the same reason taskChipUndoWiring's
+ * Schedule Provider chain to render — the same reason todoChipUndoWiring's
  * writes live in their own module.
  */
 

@@ -23,7 +23,7 @@ const Dot = () => <span>•</span>;
 
 function makeCommands(spy: () => void): Command[] {
   return [
-    { id: "a", title: "Open Tasks", category: "Go to", icon: Dot, action: spy },
+    { id: "a", title: "Open Todos", category: "Go to", icon: Dot, action: spy },
     {
       id: "b",
       title: "Open Notes",
@@ -177,7 +177,7 @@ describe("CommandPalette", () => {
         noResultsLabel="No results"
       />,
     );
-    expect(screen.queryByText("Open Tasks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Open Todos")).not.toBeInTheDocument();
   });
 
   it("filters commands by query and shows the no-results label", () => {
@@ -193,7 +193,7 @@ describe("CommandPalette", () => {
     const input = screen.getByPlaceholderText("Type a command...");
     fireEvent.change(input, { target: { value: "trash" } });
     expect(screen.getByText("Open Trash")).toBeInTheDocument();
-    expect(screen.queryByText("Open Tasks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Open Todos")).not.toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "zzz" } });
     expect(screen.getByText("No results")).toBeInTheDocument();
@@ -212,7 +212,7 @@ describe("CommandPalette", () => {
       />,
     );
     const input = screen.getByPlaceholderText("Type a command...");
-    // first item ("Open Tasks") is selected by default → Enter fires it
+    // first item ("Open Todos") is selected by default → Enter fires it
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -237,8 +237,8 @@ describe("CommandPalette", () => {
 describe("TrashView", () => {
   const groups: TrashGroup[] = [
     {
-      category: "tasks",
-      title: "Tasks",
+      category: "todos",
+      title: "Todos",
       items: [{ id: "t1", label: "Buy milk" }],
     },
     { category: "notes", title: "Notes", items: [] },
@@ -247,7 +247,7 @@ describe("TrashView", () => {
   it("shows the global empty state when every category is empty", () => {
     render(
       <TrashView
-        groups={[{ category: "tasks", title: "Tasks", items: [] }]}
+        groups={[{ category: "todos", title: "Todos", items: [] }]}
         onRestore={() => {}}
         onPermanentDelete={() => {}}
         labels={TRASH_LABELS}
@@ -268,7 +268,7 @@ describe("TrashView", () => {
     );
     expect(screen.getByText("Buy milk")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Restore" }));
-    expect(onRestore).toHaveBeenCalledWith("tasks", "t1");
+    expect(onRestore).toHaveBeenCalledWith("todos", "t1");
   });
 
   it("requires confirmation before permanent delete", () => {
@@ -293,7 +293,7 @@ describe("TrashView", () => {
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Delete permanently" }),
     );
-    expect(onPermanentDelete).toHaveBeenCalledWith("tasks", "t1");
+    expect(onPermanentDelete).toHaveBeenCalledWith("todos", "t1");
   });
 });
 
@@ -376,6 +376,23 @@ describe("Menu / MenuItem", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // #886: <Menu> focuses the first row on open, so a plain focus: tint made
+  // that row (Pin / Unpin in the note kebab) look permanently hovered.
+  it("tints the focused row via focus-visible, not plain focus", () => {
+    render(
+      <Menu open onClose={() => {}} label="Actions">
+        <MenuItem onSelect={() => {}}>Rename</MenuItem>
+        <MenuItem onSelect={() => {}} variant="danger">
+          Delete
+        </MenuItem>
+      </Menu>,
+    );
+    for (const item of screen.getAllByRole("menuitem")) {
+      expect(item).toHaveClass("focus-visible:bg-lumen-hover");
+      expect(item.className).not.toMatch(/(?:^|\s)focus:bg-lumen-hover/);
+    }
   });
 
   it("does not fire onSelect for a disabled item", () => {

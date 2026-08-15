@@ -3,7 +3,7 @@
  * top-level sections (target IA, 2026-07-05). Everything the hosts need to
  * render navigation is derived from ONE ordered list here:
  *
- *   - the `SectionId` union (types/taskTree.ts re-exports it)
+ *   - the `SectionId` union (types/todoTree.ts re-exports it)
  *   - the desktop sidebar order (main vs. utility groups)
  *   - the mobile bottom-bar order (fixed 4 + More overflow)
  *   - each section's icon and its `section.*` i18n label key

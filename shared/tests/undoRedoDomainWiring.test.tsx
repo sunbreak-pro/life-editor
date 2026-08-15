@@ -8,23 +8,23 @@ import { uniformDomainVersions } from "../src/context/syncDomains";
 import { ScheduleItemsProvider } from "../src/context/ScheduleItemsContext";
 import { DailiesUnifiedProvider } from "../src/context/DailiesUnifiedContext";
 import { NotesUnifiedProvider } from "../src/context/NotesUnifiedContext";
-import { TaskTreeProvider } from "../src/context/TaskTreeContext";
+import { TodoTreeProvider } from "../src/context/TodoTreeContext";
 import { RoutineProvider } from "../src/context/RoutineContext";
 import { useRoutineContext } from "../src/hooks/useRoutineContext";
 import { useScheduleItemsContext } from "../src/hooks/useScheduleItemsContext";
 import { useDailiesUnifiedContext } from "../src/hooks/useDailiesUnifiedContext";
 import { useNotesUnifiedContext } from "../src/hooks/useNotesUnifiedContext";
-import { useTaskTreeContext } from "../src/hooks/useTaskTreeContext";
+import { useTodoTreeContext } from "../src/hooks/useTodoTreeContext";
 import { resetMaterialsSelection } from "../src/state/materialsSelectionStore";
 import type { DataService } from "../src/services/DataService";
-import type { UndoRedoLike } from "../src/hooks/useTaskTreeHistory";
+import type { UndoRedoLike } from "../src/hooks/useTodoTreeHistory";
 import type { ScheduleItemsViewMirror } from "../src/hooks/useScheduleItemsAPI";
 import type { ScheduleItem } from "../src/types/schedule";
 import { todayCalendarKey } from "../src/utils/dateKey";
 
 /*
  * #304 child-2 — domain providers auto-connect to the ambient global UndoRedo
- * stack (useUndoRedoOptional), mirroring TaskTreeProvider. Per domain
+ * stack (useUndoRedoOptional), mirroring TodoTreeProvider. Per domain
  * (schedule / daily / note) this verifies the two wired behaviours:
  *  1. a domain mutation pushes onto the GLOBAL stack (canUndo flips true
  *     outside the domain provider), and
@@ -78,8 +78,8 @@ function NoteProbe() {
   return <button onClick={() => createNote("N")}>mutate</button>;
 }
 
-function TaskProbe() {
-  const { addNode } = useTaskTreeContext();
+function TodoProbe() {
+  const { addNode } = useTodoTreeContext();
   return <button onClick={() => addNode("task", null, "T")}>mutate</button>;
 }
 
@@ -109,10 +109,10 @@ const noteDS = {
   createNoteUnified: async () => ({}),
 } as unknown as DataService;
 
-const taskDS = {
-  fetchTaskTree: async () => [],
-  fetchDeletedTasks: async () => [],
-  syncTaskTree: async () => {},
+const todoDS = {
+  fetchTodoTree: async () => [],
+  fetchDeletedTodos: async () => [],
+  syncTodoTree: async () => {},
 } as unknown as DataService;
 
 const routineDS = {
@@ -345,11 +345,11 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
   // Regression for the child-1 unmount-clear effect: it depended on the
   // reactive context value, so its cleanup re-ran after every push and wiped
   // the history immediately ("canUndo" never survived a mutation).
-  it("taskTree: push survives (child-1 clear-on-every-push regression)", async () => {
+  it("todoTree: push survives (child-1 clear-on-every-push regression)", async () => {
     await expectPushAndClearOnUnmount(
-      <TaskTreeProvider dataService={taskDS}>
-        <TaskProbe />
-      </TaskTreeProvider>,
+      <TodoTreeProvider dataService={todoDS}>
+        <TodoProbe />
+      </TodoTreeProvider>,
     );
   });
 

@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { TasksPayloadRow } from "../src/services/taskMapper";
+import type { TasksPayloadRow } from "../src/services/todoMapper";
 import type { ItemsMetaRow } from "../src/services/itemsMeta";
 
 /*
- * life-tags S3 (#225) — legacy folder-row filtering. SupabaseTasksService's
- * fetchTaskTree / fetchDeletedTasks must exclude rows whose tasks_payload
+ * life-tags S3 (#225) — legacy folder-row filtering. SupabaseTodosService's
+ * fetchTodoTree / fetchDeletedTodos must exclude rows whose tasks_payload
  * task_type = 'folder' (prod still has a handful, active + soft-deleted),
  * while keeping:
- *   - rows with task_type = 'task' or NULL (a plain / legacy task), and
- *   - orphan tolerance: a task still pointing at an excluded folder parent
+ *   - rows with task_type = 'task' or NULL (a plain / legacy todo), and
+ *   - orphan tolerance: a todo still pointing at an excluded folder parent
  *     surfaces with its (now-dangling) parentId intact until the data
  *     migration reparents it.
  *
- * The SupabaseTasksService class is not exported, so the test drives the real
+ * The SupabaseTodosService class is not exported, so the test drives the real
  * fetch through createSupabaseDataService() with getSupabaseClient() mocked to
  * a minimal PostgREST-shaped stub. The stub ignores the query-level
  * .eq/.in filters (the client-side folder filter is what's under test) and
@@ -68,7 +68,7 @@ function meta(id: string, isDeleted: boolean): ItemsMetaRow {
 
 function payload(
   itemId: string,
-  taskType: "task" | "folder" | null,
+  todoType: "task" | "folder" | null,
   parentItemId: string | null = null,
 ): TasksPayloadRow {
   return {
@@ -76,8 +76,8 @@ function payload(
     user_id: "u",
     parent_item_id: parentItemId,
     parent_item_role: "task",
-    task_type: taskType,
-    folder_type: taskType === "folder" ? "normal" : null,
+    task_type: todoType,
+    folder_type: todoType === "folder" ? "normal" : null,
     start_at: null,
     due_at: null,
     status: null,
@@ -105,7 +105,7 @@ describe("legacy folder-row filtering (S3 #225)", () => {
     state.payloads = [];
   });
 
-  it("fetchTaskTree drops task_type='folder' rows, keeps 'task'/NULL and folder-parented tasks", async () => {
+  it("fetchTodoTree drops task_type='folder' rows, keeps 'task'/NULL and folder-parented todos", async () => {
     state.metas = [
       meta("t1", false),
       meta("f1", false), // legacy folder — must be excluded
@@ -115,12 +115,12 @@ describe("legacy folder-row filtering (S3 #225)", () => {
     state.payloads = [
       payload("t1", "task"),
       payload("f1", "folder"),
-      payload("t2", null), // NULL task_type → plain task, survives
-      payload("t3", "task", "f1"), // task under the (excluded) folder — survives
+      payload("t2", null), // NULL task_type → plain todo, survives
+      payload("t3", "task", "f1"), // todo under the (excluded) folder — survives
     ];
 
     const ds = createSupabaseDataService();
-    const nodes = await ds.fetchTaskTree();
+    const nodes = await ds.fetchTodoTree();
     const ids = nodes.map((n) => n.id).sort();
 
     expect(ids).toEqual(["t1", "t2", "t3"]);
@@ -129,12 +129,12 @@ describe("legacy folder-row filtering (S3 #225)", () => {
     expect(nodes.find((n) => n.id === "t3")?.parentId).toBe("f1");
   });
 
-  it("fetchDeletedTasks drops soft-deleted folder rows, keeps trashed tasks", async () => {
+  it("fetchDeletedTodos drops soft-deleted folder rows, keeps trashed todos", async () => {
     state.metas = [meta("td", true), meta("fd", true)];
     state.payloads = [payload("td", "task"), payload("fd", "folder")];
 
     const ds = createSupabaseDataService();
-    const nodes = await ds.fetchDeletedTasks();
+    const nodes = await ds.fetchDeletedTodos();
 
     expect(nodes.map((n) => n.id)).toEqual(["td"]);
   });

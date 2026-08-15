@@ -7,7 +7,7 @@ import {
   type DataService,
   type ScheduleItem,
   type SyncDomain,
-  type TaskNode,
+  type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
@@ -48,7 +48,7 @@ function scheduleItem(over: Partial<ScheduleItem> & { id: string }) {
   } as ScheduleItem;
 }
 
-function taskNode(over: Partial<TaskNode> & { id: string }) {
+function todoNode(over: Partial<TodoNode> & { id: string }) {
   return {
     type: "task",
     title: "Write report",
@@ -60,7 +60,7 @@ function taskNode(over: Partial<TaskNode> & { id: string }) {
     createdAt: "2026-08-10T00:00:00.000Z",
     updatedAt: "2026-08-10T00:00:00.000Z",
     ...over,
-  } as TaskNode;
+  } as TodoNode;
 }
 
 const MANUAL = scheduleItem({ id: "s-manual", title: "Dentist" });
@@ -71,7 +71,7 @@ const ROUTINE = scheduleItem({
   endTime: "07:15",
   routineId: "r1",
 });
-const TASK = taskNode({ id: "t1", title: "Write report" });
+const TODO = todoNode({ id: "t1", title: "Write report" });
 
 function makeDS(over: Partial<DataService> = {}): DataService {
   return stubDataService({
@@ -80,7 +80,7 @@ function makeDS(over: Partial<DataService> = {}): DataService {
       .mockImplementation((date: string) =>
         Promise.resolve(date === TODAY ? [MANUAL, ROUTINE] : []),
       ),
-    fetchTaskTree: vi.fn().mockResolvedValue([TASK]),
+    fetchTodoTree: vi.fn().mockResolvedValue([TODO]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
@@ -94,8 +94,8 @@ function makeDS(over: Partial<DataService> = {}): DataService {
     softDeleteRoutine: vi
       .fn()
       .mockResolvedValue({ deletedScheduleItemIds: ["s-routine"] }),
-    softDeleteTask: vi.fn().mockResolvedValue(undefined),
-    restoreTask: vi.fn().mockResolvedValue(undefined),
+    softDeleteTodo: vi.fn().mockResolvedValue(undefined),
+    restoreTodo: vi.fn().mockResolvedValue(undefined),
     ...over,
   });
 }
@@ -217,7 +217,7 @@ describe("Briefing row delete (#585)", () => {
     const button = row?.querySelector('button[title="Delete this todo"]');
     fireEvent.click(button as HTMLElement);
 
-    expect(ds.softDeleteTask).toHaveBeenCalledWith("t1");
+    expect(ds.softDeleteTodo).toHaveBeenCalledWith("t1");
     await waitFor(() => expect(screen.queryByText("Write report")).toBeNull());
   });
 });

@@ -8,7 +8,7 @@ import {
   FileText,
 } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
@@ -27,7 +27,7 @@ import { StreakDisplay, type StreakDisplayLabels } from "./StreakDisplay";
 
 export interface OverviewTabLabels {
   /** Stat-card titles. */
-  tasks: string;
+  todos: string;
   events: string;
   notes: string;
   work: string;
@@ -47,7 +47,7 @@ export interface OverviewTabLabels {
 
 interface OverviewTabProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   /** Schedule items for today (host: fetchScheduleItemsByDateRange today,today). */
   todayItems: ScheduleItem[];
   notes: NoteNode[];
@@ -70,12 +70,12 @@ export function OverviewTab({
   const { weekStartsOn } = useWeekStartPref();
 
   const stats = useMemo(() => {
-    // Tasks
-    const tasks = nodes.filter((n) => n.type === "task");
-    const completedTasks = tasks.filter((n) => n.status === "DONE");
-    const taskRate =
-      tasks.length > 0
-        ? Math.round((completedTasks.length / tasks.length) * 100)
+    // Todos
+    const todos = nodes.filter((n) => n.type === "task");
+    const completedTodos = todos.filter((n) => n.status === "DONE");
+    const todoRate =
+      todos.length > 0
+        ? Math.round((completedTodos.length / todos.length) * 100)
         : 0;
 
     // Events (today)
@@ -120,9 +120,9 @@ export function OverviewTab({
         : 0;
 
     return {
-      totalTasks: tasks.length,
-      completedTasks: completedTasks.length,
-      taskRate,
+      totalTodos: todos.length,
+      completedTodos: completedTodos.length,
+      todoRate,
       todayEvents: todayItems.length,
       todayEventsCompleted: todayCompleted.length,
       totalNotes: activeNotes.length,
@@ -152,10 +152,10 @@ export function OverviewTab({
       <div className="grid grid-cols-3 gap-3">
         <AnalyticsStatCard
           icon={<BarChart3 size={16} />}
-          label={labels.tasks}
-          value={stats.totalTasks}
+          label={labels.todos}
+          value={stats.totalTodos}
           tone="mint"
-          subtitle={`${stats.completedTasks} ${labels.completed} (${stats.taskRate}%)`}
+          subtitle={`${stats.completedTodos} ${labels.completed} (${stats.todoRate}%)`}
         />
         <AnalyticsStatCard
           icon={<CalendarCheck2 size={16} />}

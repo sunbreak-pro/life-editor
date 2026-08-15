@@ -8,7 +8,7 @@ import { BottomSheet } from "../src/components";
  * also stopped the NATIVE event, and React dispatches portal events from the
  * portal container (document.body) — so nothing inside a sheet ever reached a
  * document-level mousedown listener. Every click-outside popover placed inside
- * a sheet (the TagPicker in the mobile task detail is the first) then had no way
+ * a sheet (the TagPicker in the mobile todo detail is the first) then had no way
  * to close. Dismissal now checks the press actually landed on the backdrop, so
  * the panel no longer has to swallow the event.
  */

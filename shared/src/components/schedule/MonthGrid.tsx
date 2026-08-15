@@ -35,6 +35,17 @@ export interface MonthGridProps {
   items: MonthGridItem[];
   /** Date key to mark as "today", or null. */
   todayKey?: string | null;
+  /**
+   * Date key the host is currently SHOWING elsewhere, or null (#878). Marks
+   * the cell rather than the day badge, so a day that is both today and picked
+   * still reads as today.
+   *
+   * Needed once the grid stopped being an overview and became a picker: on
+   * Mobile the list under it shows this day, and without the mark the grid
+   * cannot say which of its 42 cells the list belongs to. Omit it entirely and
+   * the cells render exactly as before, `aria-selected` included.
+   */
+  selectedKey?: string | null;
   /** Week start: 0 = Sunday (default), 1 = Monday. */
   weekStartsOn?: 0 | 1;
   /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
@@ -95,6 +106,7 @@ export function MonthGrid({
   monthKey,
   items,
   todayKey,
+  selectedKey,
   weekStartsOn = 0,
   weekdayLabels,
   onSelectDay,
@@ -163,13 +175,22 @@ export function MonthGrid({
           const { m, d } = parseDateKey(dateKey);
           const inMonth = m === monthNum;
           const isToday = !!todayKey && dateKey === todayKey;
+          const isSelected = !!selectedKey && dateKey === selectedKey;
           const dayItems = byDay.get(dateKey) ?? [];
           const overflow = Math.max(0, dayItems.length - maxChips);
           return (
             <div
               key={dateKey}
               role="gridcell"
-              className="relative min-h-14 border-b border-r border-lumen-border last:border-r-0"
+              // Only once a host actually picks a day: a grid whose every cell
+              // says aria-selected="false" tells a screen reader there is a
+              // selection to make, and the overview (#692) has none.
+              aria-selected={selectedKey ? isSelected : undefined}
+              className={cn(
+                "relative min-h-14 border-b border-r border-lumen-border last:border-r-0",
+                isSelected &&
+                  "bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent",
+              )}
             >
               {/* Full-cell day-select target (keyboard reachable). Chips sit
                   above it with pointer-events re-enabled. */}
@@ -249,7 +270,7 @@ export function MonthGrid({
                         title={it.title}
                         className={cn(
                           "pointer-events-auto rounded px-1 py-0.5 text-left text-xs font-medium",
-                          // #593: task chips carry the CheckSquare todo mark,
+                          // #593: todo chips carry the CheckSquare todo mark,
                           // matching the week grid, so the cue does not vanish
                           // when the same item is viewed by month.
                           it.variant === "task"

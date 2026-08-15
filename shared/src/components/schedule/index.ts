@@ -62,8 +62,8 @@ export {
   type ScheduleSidebarTabsProps,
   type ScheduleSidebarTab,
 } from "./ScheduleSidebarTabs";
-// A-3 (#298): rightSidebar "Today's Todo" tray — placed / unplaced task groups
-// + an "add from tasks" picker. Pure presentation (§3.1 / §6.4).
+// A-3 (#298): rightSidebar "Today's Todo" tray — placed / unplaced todo groups
+// + an "add from todos" picker. Pure presentation (§3.1 / §6.4).
 export {
   TodayTodoTray,
   type TodayTodoTrayProps,
@@ -85,8 +85,8 @@ export {
   type QuickCaptureSheetProps,
   type QuickCaptureLabels,
 } from "./QuickCaptureSheet";
-// #376: unified creation panel (event / task tabs, "new" or "place an existing
-// task") backing both the Desktop creation overlay and the Mobile
+// #376: unified creation panel (event / todo tabs, "new" or "place an existing
+// todo") backing both the Desktop creation overlay and the Mobile
 // QuickCaptureSheet. Supersedes the event-only EventCreateFields (#299).
 export {
   ItemCreatePanel,

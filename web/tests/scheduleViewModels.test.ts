@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ScheduleItem, TaskCalendarChip } from "@life-editor/shared";
+import type { ScheduleItem, TodoCalendarChip } from "@life-editor/shared";
 import {
   toAgendaItems,
   toEditorItem,
@@ -14,7 +14,7 @@ import {
  * rendered in jsdom (whole Provider chain + real grid layout), so nothing
  * covered them and #675 is about to move the code they sit in. What has to
  * survive that move is not "a mapper exists" but the exact per-surface shape:
- * which id a task chip gets, which surface derives a status and which leaves it
+ * which id a todo chip gets, which surface derives a status and which leaves it
  * off, and whether the list comes back sorted.
  *
  * `now` is fixed at 2026-08-12 10:00 local so the derived statuses are facts
@@ -44,8 +44,8 @@ function event(over: Partial<ScheduleItem> & { id: string }): ScheduleItem {
 }
 
 function chip(
-  over: Partial<TaskCalendarChip> & { id: string },
-): TaskCalendarChip {
+  over: Partial<TodoCalendarChip> & { id: string },
+): TodoCalendarChip {
   return {
     date: "2026-08-12",
     title: over.id,
@@ -81,9 +81,9 @@ describe("toWeekGridItems", () => {
     expect(vm.variant).toBe("routine");
   });
 
-  it("prefixes task chip ids and leaves their status off", () => {
+  it("prefixes todo chip ids and leaves their status off", () => {
     const [vm] = toWeekGridItems([], [chip({ id: "task-1" })], NOW);
-    expect(vm.id).toBe("taskchip-task-1");
+    expect(vm.id).toBe("todochip-task-1");
     expect(vm.variant).toBe("task");
     // Deliberate: #761 wired chip status into the AGENDA only. Deriving one
     // here would put a status tag on every grid chip — a UI change, which C6
@@ -97,7 +97,7 @@ describe("toWeekGridItems", () => {
       [chip({ id: "t-1" })],
       NOW,
     );
-    expect(vms.map((v) => v.id)).toEqual(["e-1", "e-2", "taskchip-t-1"]);
+    expect(vms.map((v) => v.id)).toEqual(["e-1", "e-2", "todochip-t-1"]);
   });
 });
 
@@ -110,7 +110,7 @@ describe("toMonthGridItems", () => {
   });
 
   it("keeps provenance, completion and all-day, and prefixes chip ids", () => {
-    const [ev, task] = toMonthGridItems(
+    const [ev, todo] = toMonthGridItems(
       [event({ id: "e-1", routineId: "r-1", completed: true })],
       [chip({ id: "t-1", isAllDay: true })],
     );
@@ -122,8 +122,8 @@ describe("toMonthGridItems", () => {
       completed: true,
       isAllDay: undefined,
     });
-    expect(task).toEqual({
-      id: "taskchip-t-1",
+    expect(todo).toEqual({
+      id: "todochip-t-1",
       date: "2026-08-12",
       title: "t-1",
       variant: "task",
@@ -145,12 +145,12 @@ describe("toAgendaItems", () => {
     );
     expect(vms.map((v) => v.id)).toEqual([
       "e-allday",
-      "taskchip-t-mid",
+      "todochip-t-mid",
       "e-late",
     ]);
   });
 
-  it("derives a status for task chips too, unlike the grids (#761)", () => {
+  it("derives a status for todo chips too, unlike the grids (#761)", () => {
     const [vm] = toAgendaItems(
       [],
       [chip({ id: "t-1", startTime: "09:00", endTime: "09:30" })],

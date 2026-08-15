@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { TagWorkTimeChart } from "../src/components/Analytics/TagWorkTimeChart";
 import type { TimerSession } from "../src/types/timer";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 
 /*
  * #334: the aggregation tests cover the buckets; this covers the mapping from
@@ -71,10 +71,10 @@ function assignment(itemId: string, tagId: string): WikiTagAssignment {
   };
 }
 
-function session(id: number, taskId: string | null, minutes: number) {
+function session(id: number, todoId: string | null, minutes: number) {
   return {
     id,
-    taskId,
+    todoId,
     sessionType: "WORK",
     startedAt: new Date("2026-07-11T10:00:00"),
     completedAt: new Date("2026-07-11T10:30:00"),
@@ -84,8 +84,8 @@ function session(id: number, taskId: string | null, minutes: number) {
   } as unknown as TimerSession;
 }
 
-/** Live task tree stand-in — ids absent from it read as trashed (#428). */
-function liveTasks(...ids: string[]): TaskNode[] {
+/** Live todo tree stand-in — ids absent from it read as trashed (#428). */
+function liveTodos(...ids: string[]): TodoNode[] {
   return ids.map((id, i) => ({
     id,
     type: "task",
@@ -113,7 +113,7 @@ describe("TagWorkTimeChart slice mapping (#334)", () => {
     render(
       <TagWorkTimeChart
         sessions={sessions}
-        nodes={liveTasks(...tags.map((_, i) => `task-${i}`), "task-none")}
+        nodes={liveTodos(...tags.map((_, i) => `task-${i}`), "task-none")}
         assignments={assignments}
         tags={tags}
         labels={LABELS}
@@ -135,7 +135,7 @@ describe("TagWorkTimeChart slice mapping (#334)", () => {
     render(
       <TagWorkTimeChart
         sessions={[session(1, "task-a", 30), session(2, "task-b", 10)]}
-        nodes={liveTasks("task-a", "task-b")}
+        nodes={liveTodos("task-a", "task-b")}
         assignments={[
           assignment("task-a", "tag-a"),
           assignment("task-b", "tag-b"),
@@ -152,7 +152,7 @@ describe("TagWorkTimeChart slice mapping (#334)", () => {
     render(
       <TagWorkTimeChart
         sessions={[]}
-        nodes={liveTasks("task-a")}
+        nodes={liveTodos("task-a")}
         assignments={[assignment("task-a", "tag-a")]}
         tags={[tag("tag-a", "Tag A", "#ff0000")]}
         labels={LABELS}

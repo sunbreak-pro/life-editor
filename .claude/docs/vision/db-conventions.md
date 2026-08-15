@@ -13,7 +13,7 @@
 
 > 注: 旧 Tauri 時代の「全テーブルに version カラム」は遺物で未使用。LWW cursor は `items_meta.updated_at` が正（CLAUDE.md §3.3）。
 >
-> 適用対象: `shared/src/services/*Mapper.ts` + `supabase/migrations/0008+` で導入された `items_meta + <role>_payload` 2 行分割モデル。DU-B (Tasks) で確立した規約を、DU-C/D/E/F に向けて先に固定する。
+> 適用対象: `shared/src/services/*Mapper.ts` + `supabase/migrations/0008+` で導入された `items_meta + <role>_payload` 2 行分割モデル。DU-B (Todos) で確立した規約を、DU-C/D/E/F に向けて先に固定する。
 
 ### 10.1 2 行分割マッピング（5 role 共通）
 
@@ -23,17 +23,17 @@
 - `typeToRows(node, userId): { meta, payload }` — TS 型 → 2 行（INSERT 用）
 - `typeUpdatesToPatches(updates, userId, now): { metaPatch, payloadPatch }` — Partial 更新
 
-実装例: `shared/src/services/taskMapper.ts`（DU-B-2 で確立）。
+実装例: `shared/src/services/todoMapper.ts`（DU-B-2 で確立）。
 
 ### 10.2 DB-Q2: `updated_at` bump は mapper の責務
 
 `items_meta.updated_at` は Cloud Sync の LWW cursor（`<role>_payload` には `updated_at` 列を持たせない＝単一所有）。**payload 単独更新でも必ず `items_meta.updated_at` を bump する**。`typeUpdatesToPatches` は `metaPatch.updated_at = now` を**無条件**注入する設計にする（`now` は呼び出し側から注入 → mapper の純粋性 + テスト可能性）。
 
-**UPSERT 経路の落とし穴**: `typeToRows` の `metaInsertRow` は `updated_at` を含めない（DB DEFAULT `now()` 任せ）。これは fresh INSERT 専用の前提で、PostgREST `.upsert()` が既存行に当たって UPDATE に転じる経路では UPDATE-side trigger が無いため `updated_at` が古いまま残る。`syncTaskTree` 系の bulk upsert では caller 側で `{ ...meta, updated_at: now }` を spread して bump を強制する（`SupabaseDataService.syncTaskTree` 参照）。
+**UPSERT 経路の落とし穴**: `typeToRows` の `metaInsertRow` は `updated_at` を含めない（DB DEFAULT `now()` 任せ）。これは fresh INSERT 専用の前提で、PostgREST `.upsert()` が既存行に当たって UPDATE に転じる経路では UPDATE-side trigger が無いため `updated_at` が古いまま残る。`syncTodoTree` 系の bulk upsert では caller 側で `{ ...meta, updated_at: now }` を spread して bump を強制する（`SupabaseDataService.syncTodoTree` 参照）。
 
 ### 10.3 Generated 列の書き込み禁止
 
-`<role>_payload.parent_item_role` は `generated always as ('<role>') stored` で固定値を持つ生成列。PG は INSERT/UPDATE に値を指定すると SQLSTATE 42601 で reject する。Write 用型（例: `TasksPayloadWriteRow = Omit<TasksPayloadRow, "parent_item_role">`）で**型レベルから除外**し、ランタイムでも mapper の `taskNodeToRows().payload` が `hasOwnProperty("parent_item_role") === false` になることをテストで確認する（`shared/tests/taskMapper.test.ts` 参照）。
+`<role>_payload.parent_item_role` は `generated always as ('<role>') stored` で固定値を持つ生成列。PG は INSERT/UPDATE に値を指定すると SQLSTATE 42601 で reject する。Write 用型（例: `TasksPayloadWriteRow = Omit<TasksPayloadRow, "parent_item_role">`）で**型レベルから除外**し、ランタイムでも mapper の `todoNodeToRows().payload` が `hasOwnProperty("parent_item_role") === false` になることをテストで確認する（`shared/tests/todoMapper.test.ts` 参照）。
 
 ### 10.4 同 role 内親子の DB-level 強制（composite FK）
 

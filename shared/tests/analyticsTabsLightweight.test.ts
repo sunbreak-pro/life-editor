@@ -39,7 +39,7 @@ describe("Analytics tab vocabulary stays chart-free", () => {
   it("keeps the canonical order the view renders", () => {
     expect(ANALYTICS_TAB_ORDER).toEqual([
       "overview",
-      "tasks",
+      "todos",
       "work",
       "schedule",
     ]);

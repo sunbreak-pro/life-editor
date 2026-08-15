@@ -4,7 +4,6 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
-  Link2,
   Search,
   Trash2,
   RotateCcw,
@@ -52,9 +51,6 @@ export interface NotesSidebarListLabels {
   expandGroup: string;
   deleteNote: string;
   assignTagHint: string;
-  links: string;
-  /** Shown in the Links panel when no note is selected. */
-  linksEmpty: string;
   trash: string;
   /** Stands in for an empty title, on screen and in the two labels below. */
   untitled: string;
@@ -102,12 +98,6 @@ export interface NotesSidebarListProps {
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
-  // Links disclosure — the panel itself is built by the host (it needs the
-  // link-target pool), so this only owns the open/closed chrome.
-  linksOpen: boolean;
-  onToggleLinks: () => void;
-  linksPanel: ReactNode | null;
-
   // Trash disclosure.
   trashOpen: boolean;
   onToggleTrash: () => void;
@@ -140,9 +130,6 @@ export function NotesSidebarList({
   onDeleteNote,
   onCreateNote,
   dnd,
-  linksOpen,
-  onToggleLinks,
-  linksPanel,
   trashOpen,
   onToggleTrash,
   deletedNotes,
@@ -260,38 +247,8 @@ export function NotesSidebarList({
         </DndContext>
       )}
 
-      {/* Links panel — the selected note's item↔item links, moved out of the
-          note body (F-3 #260). Same divider + disclosure structure as the
-          Trash section below (layout-standard v2 "panel under the divider"). */}
-      <div className="border-t border-lumen-border pt-1">
-        <button
-          type="button"
-          onClick={onToggleLinks}
-          aria-expanded={linksOpen}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          {linksOpen ? (
-            <ChevronDown size={13} aria-hidden className="shrink-0" />
-          ) : (
-            <ChevronRight size={13} aria-hidden className="shrink-0" />
-          )}
-          <Link2 size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">{labels.links}</span>
-        </button>
-        {linksOpen &&
-          (linksPanel ? (
-            <div className="pb-2">{linksPanel}</div>
-          ) : (
-            <p className="px-1 pb-2 text-xs text-lumen-text-tertiary">
-              {labels.linksEmpty}
-            </p>
-          ))}
-      </div>
-
-      {/* Trash section. */}
+      {/* Trash section. (The Links disclosure that used to sit above it moved
+          into the note detail header, beside the tags — #884.) */}
       <div className="border-t border-lumen-border pt-1">
         <button
           type="button"
@@ -360,7 +317,7 @@ export function NotesSidebarList({
        * master now lives in the app shell's left sidebar (above ⌘K), reachable
        * from every section including this one. Two doors to the same panel is
        * one too many, and the panel's scope outgrew this sidebar anyway — it
-       * lists items of every kind (tasks / events / notes / dailies), so
+       * lists items of every kind (todos / events / notes / dailies), so
        * presenting it as a Notes feature misdescribed it.
        */}
     </div>

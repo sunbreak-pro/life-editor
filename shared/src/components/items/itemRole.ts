@@ -14,7 +14,7 @@ import {
  * picker (#412) both render from THIS module, so the two never drift into
  * two different visual languages for the same four kinds.
  *
- * Scope note: `items_meta` carries five roles (task / event / routine / note /
+ * Scope note: `items_meta` carries five roles (todo / event / routine / note /
  * daily), but only four are user-facing kinds. Routine is an implementation
  * detail — the UI presents it as "an Event with a repeat setting" and it owns
  * no tag surface (CLAUDE.md §4, 2026-07-11 #185) — so it is deliberately NOT
@@ -41,8 +41,8 @@ export function resolveItemRole(
 /**
  * Per-kind icon. Each one is the icon that kind ALREADY wears elsewhere in the
  * app, so a badge reads as the same thing the user clicked to get there:
- * note/daily match the Materials tab icons and task matches Schedule's Todo
- * tab icon (MainScreen MATERIALS_ICON / SCHEDULE_ICON — task moved sections in
+ * note/daily match the Materials tab icons and todo matches Schedule's Todo
+ * tab icon (MainScreen MATERIALS_ICON / SCHEDULE_ICON — todo moved sections in
  * #411) plus the "[[" link suggestions; event matches the Schedule section icon
  * (sections.ts). Unknown gets a question mark, never a kind's icon.
  */

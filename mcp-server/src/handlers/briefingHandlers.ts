@@ -19,7 +19,7 @@ import { fetchByIdChunks } from "../utils/pagination.js";
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
  *
  *   get_today_context — everything the morning-paper writer needs in one
- *     call: today's events, scheduled/overdue/in-progress tasks, recent
+ *     call: today's events, scheduled/overdue/in-progress todos, recent
  *     dailies (the 夕刊 material) and the state of today's daily.
  *   get_week_context — the same day-shaped material for 7 days at once, for
  *     the weekly review (#782 ③).
@@ -75,7 +75,7 @@ interface EventRow {
   memo: string | null;
 }
 
-interface ScheduledTaskRow {
+interface ScheduledTodoRow {
   item_id: string;
   scheduled_at: string | null;
   scheduled_end_at: string | null;
@@ -83,7 +83,7 @@ interface ScheduledTaskRow {
   status: string | null;
 }
 
-interface OpenTaskRow {
+interface OpenTodoRow {
   item_id: string;
   due_at: string | null;
   status: string | null;
@@ -93,16 +93,16 @@ interface OpenTaskRow {
 
 const EVENT_COLUMNS =
   "item_id, start_at, start_time, end_time, is_all_day, done, memo";
-const SCHEDULED_TASK_COLUMNS =
+const SCHEDULED_TODO_COLUMNS =
   "item_id, scheduled_at, scheduled_end_at, is_all_day, status";
-const OPEN_TASK_COLUMNS = "item_id, due_at, status, priority, scheduled_at";
+const OPEN_TODO_COLUMNS = "item_id, due_at, status, priority, scheduled_at";
 
 /*
  * The three item shapes a context tool returns. Both tools hand back the same
  * ones — a day inside get_week_context is exactly a get_today_context day —
  * so they are formatted here once rather than per tool.
  *
- * Bodies are deliberately absent: an event's memo is a line, but a task's
+ * Bodies are deliberately absent: an event's memo is a line, but a todo's
  * content is a document, and a week of them would swamp the context the
  * caller came here to save. `title` is resolved through items_meta, which is
  * also the liveness check — callers filter on `titleById.has(...)` first.
@@ -120,8 +120,8 @@ function formatEvent(row: EventRow, titleById: Map<string, string>) {
   };
 }
 
-function formatScheduledTask(
-  row: ScheduledTaskRow,
+function formatScheduledTodo(
+  row: ScheduledTodoRow,
   titleById: Map<string, string>,
 ) {
   return {
@@ -134,9 +134,9 @@ function formatScheduledTask(
   };
 }
 
-/** `sinceIso` is the instant a task counts as carried over from before. */
-function formatOpenTask(
-  row: OpenTaskRow,
+/** `sinceIso` is the instant a todo counts as carried over from before. */
+function formatOpenTodo(
+  row: OpenTodoRow,
   titleById: Map<string, string>,
   sinceIso: string,
 ) {
@@ -149,7 +149,7 @@ function formatOpenTask(
     priority: row.priority,
     // Compared as instants, not strings: PostgREST renders timestamptz as
     // `+00:00` while toISOString ends `.000Z`, and at the same second the
-    // string order puts `+` before `.` — a midnight-of-the-window task would
+    // string order puts `+` before `.` — a midnight-of-the-window todo would
     // read as carried over.
     carriedOver:
       row.scheduled_at !== null &&
@@ -158,11 +158,11 @@ function formatOpenTask(
 }
 
 /**
- * Merge the carry-over and in-progress queries: a task can answer both, and
+ * Merge the carry-over and in-progress queries: a todo can answer both, and
  * the briefing lists it once.
  */
-function mergeOpenTasks(...rowSets: OpenTaskRow[][]): Map<string, OpenTaskRow> {
-  const byId = new Map<string, OpenTaskRow>();
+function mergeOpenTodos(...rowSets: OpenTodoRow[][]): Map<string, OpenTodoRow> {
+  const byId = new Map<string, OpenTodoRow>();
   for (const rows of rowSets)
     for (const row of rows) byId.set(row.item_id, row);
   return byId;
@@ -214,11 +214,11 @@ export async function getTodayContext(args: { date?: string }) {
   const date = assertDateKey(args.date ?? localToday());
   const { client } = await getSupabase();
 
-  // Today's events (live, not dismissed) + tasks scheduled onto today.
+  // Today's events (live, not dismissed) + todos scheduled onto today.
   const { startIso, endIso } = localDayUtcRange(date);
   const [
     { data: eventPayloads, error: eErr },
-    { data: scheduledTaskRows, error: sErr },
+    { data: scheduledTodoRows, error: sErr },
     { data: carryoverRows, error: cErr },
     { data: inProgressRows, error: iErr },
     recentDailyPayloads,
@@ -232,49 +232,49 @@ export async function getTodayContext(args: { date?: string }) {
       .order("start_time", { ascending: true, nullsFirst: false }),
     client
       .from("tasks_payload")
-      .select(SCHEDULED_TASK_COLUMNS)
+      .select(SCHEDULED_TODO_COLUMNS)
       .not("scheduled_at", "is", null)
       .gte("scheduled_at", startIso)
       .lt("scheduled_at", endIso)
       .order("scheduled_at", { ascending: true }),
     // Carry-over: scheduled BEFORE today and not yet DONE — the same
     // definition BriefingScreen uses for 持ち越し. `due_at` is a dead
-    // column (taskNodeToRows always writes NULL); `scheduled_at` is the
+    // column (todoNodeToRows always writes NULL); `scheduled_at` is the
     // field the app actually populates. NB: a plain .neq("status",
     // "DONE") would also drop NULL-status rows (SQL three-valued
     // logic), so NULL is allowed explicitly.
     client
       .from("tasks_payload")
-      .select(OPEN_TASK_COLUMNS)
+      .select(OPEN_TODO_COLUMNS)
       .eq("task_type", "task")
       .not("scheduled_at", "is", null)
       .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
     client
       .from("tasks_payload")
-      .select(OPEN_TASK_COLUMNS)
+      .select(OPEN_TODO_COLUMNS)
       .eq("task_type", "task")
       .eq("status", "IN_PROGRESS"),
     fetchDailies(addDays(date, -3), addDays(date, -1)),
     fetchDailies(date, date),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
-  if (sErr) throw new Error(`scheduled tasks: ${sErr.message}`);
-  if (cErr) throw new Error(`carry-over tasks: ${cErr.message}`);
-  if (iErr) throw new Error(`in-progress tasks: ${iErr.message}`);
+  if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
+  if (cErr) throw new Error(`carry-over todos: ${cErr.message}`);
+  if (iErr) throw new Error(`in-progress todos: ${iErr.message}`);
 
-  // Merge the two open-task queries (a task can be both carried over and
+  // Merge the two open-todo queries (a todo can be both carried over and
   // in-progress) and resolve titles + liveness via items_meta in one shot.
   const events = (eventPayloads ?? []) as EventRow[];
-  const scheduledTasks = (scheduledTaskRows ?? []) as ScheduledTaskRow[];
-  const openTaskById = mergeOpenTasks(
-    (carryoverRows ?? []) as OpenTaskRow[],
-    (inProgressRows ?? []) as OpenTaskRow[],
+  const scheduledTodos = (scheduledTodoRows ?? []) as ScheduledTodoRow[];
+  const openTodoById = mergeOpenTodos(
+    (carryoverRows ?? []) as OpenTodoRow[],
+    (inProgressRows ?? []) as OpenTodoRow[],
   );
   const titleById = await resolveTitles([
     ...events.map((r) => r.item_id),
-    ...scheduledTasks.map((r) => r.item_id),
-    ...openTaskById.keys(),
+    ...scheduledTodos.map((r) => r.item_id),
+    ...openTodoById.keys(),
   ]);
 
   const todayDaily = todayDailyPayloads[0] ?? null;
@@ -287,12 +287,12 @@ export async function getTodayContext(args: { date?: string }) {
     events: events
       .filter((e) => titleById.has(e.item_id))
       .map((e) => formatEvent(e, titleById)),
-    scheduledTasks: scheduledTasks
+    scheduledTodos: scheduledTodos
       .filter((t) => titleById.has(t.item_id))
-      .map((t) => formatScheduledTask(t, titleById)),
-    openTasks: [...openTaskById.values()]
+      .map((t) => formatScheduledTodo(t, titleById)),
+    openTodos: [...openTodoById.values()]
       .filter((t) => titleById.has(t.item_id))
-      .map((t) => formatOpenTask(t, titleById, startIso)),
+      .map((t) => formatOpenTodo(t, titleById, startIso)),
     recentDailies: recentDailyPayloads.map((d) => ({
       date: d.date,
       text: contentPlainText(d.content_json),
@@ -310,8 +310,8 @@ export async function getTodayContext(args: { date?: string }) {
  * get_today_context.
  *
  * A review used to cost seven get_today_context calls, six of which returned
- * the same open-task list. Here the whole window is four queries: the days
- * are grouped in-app from one range read per source, and the open tasks are
+ * the same open-todo list. Here the whole window is four queries: the days
+ * are grouped in-app from one range read per source, and the open todos are
  * measured once, against the START of the week.
  */
 export async function getWeekContext(args: { start_date?: string }) {
@@ -333,7 +333,7 @@ export async function getWeekContext(args: { start_date?: string }) {
   const { endIso } = localDayUtcRange(endDate);
   const [
     { data: eventPayloads, error: eErr },
-    { data: scheduledTaskRows, error: sErr },
+    { data: scheduledTodoRows, error: sErr },
     { data: carryoverRows, error: cErr },
     { data: inProgressRows, error: iErr },
     dailyPayloads,
@@ -348,7 +348,7 @@ export async function getWeekContext(args: { start_date?: string }) {
       .order("start_time", { ascending: true, nullsFirst: false }),
     client
       .from("tasks_payload")
-      .select(SCHEDULED_TASK_COLUMNS)
+      .select(SCHEDULED_TODO_COLUMNS)
       .not("scheduled_at", "is", null)
       .gte("scheduled_at", startIso)
       .lt("scheduled_at", endIso)
@@ -358,37 +358,37 @@ export async function getWeekContext(args: { start_date?: string }) {
     // getTodayContext — a plain .neq would drop NULL-status rows too.
     client
       .from("tasks_payload")
-      .select(OPEN_TASK_COLUMNS)
+      .select(OPEN_TODO_COLUMNS)
       .eq("task_type", "task")
       .not("scheduled_at", "is", null)
       .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
     client
       .from("tasks_payload")
-      .select(OPEN_TASK_COLUMNS)
+      .select(OPEN_TODO_COLUMNS)
       .eq("task_type", "task")
       .eq("status", "IN_PROGRESS"),
     fetchDailies(startDate, endDate),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
-  if (sErr) throw new Error(`scheduled tasks: ${sErr.message}`);
-  if (cErr) throw new Error(`carry-over tasks: ${cErr.message}`);
-  if (iErr) throw new Error(`in-progress tasks: ${iErr.message}`);
+  if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
+  if (cErr) throw new Error(`carry-over todos: ${cErr.message}`);
+  if (iErr) throw new Error(`in-progress todos: ${iErr.message}`);
 
   const events = (eventPayloads ?? []) as EventRow[];
-  const scheduledTasks = (scheduledTaskRows ?? []) as ScheduledTaskRow[];
-  const openTaskById = mergeOpenTasks(
-    (carryoverRows ?? []) as OpenTaskRow[],
-    (inProgressRows ?? []) as OpenTaskRow[],
+  const scheduledTodos = (scheduledTodoRows ?? []) as ScheduledTodoRow[];
+  const openTodoById = mergeOpenTodos(
+    (carryoverRows ?? []) as OpenTodoRow[],
+    (inProgressRows ?? []) as OpenTodoRow[],
   );
   const titleById = await resolveTitles([
     ...events.map((r) => r.item_id),
-    ...scheduledTasks.map((r) => r.item_id),
-    ...openTaskById.keys(),
+    ...scheduledTodos.map((r) => r.item_id),
+    ...openTodoById.keys(),
   ]);
 
   const eventsByDate = groupByDate(events, (e) => e.start_at);
-  const tasksByDate = groupByDate(scheduledTasks, (t) =>
+  const todosByDate = groupByDate(scheduledTodos, (t) =>
     t.scheduled_at === null ? null : localDateKey(t.scheduled_at),
   );
   // One daily per date is the id convention (`daily-<YYYY-MM-DD>`), so two
@@ -407,9 +407,9 @@ export async function getWeekContext(args: { start_date?: string }) {
       events: (eventsByDate.get(date) ?? [])
         .filter((e) => titleById.has(e.item_id))
         .map((e) => formatEvent(e, titleById)),
-      scheduledTasks: (tasksByDate.get(date) ?? [])
+      scheduledTodos: (todosByDate.get(date) ?? [])
         .filter((t) => titleById.has(t.item_id))
-        .map((t) => formatScheduledTask(t, titleById)),
+        .map((t) => formatScheduledTodo(t, titleById)),
       // The whole daily text, like get_today_context's recentDailies: it is
       // the 夕刊 material the review is written from.
       daily: {
@@ -423,9 +423,9 @@ export async function getWeekContext(args: { start_date?: string }) {
     startDate,
     endDate,
     days,
-    openTasks: [...openTaskById.values()]
+    openTodos: [...openTodoById.values()]
       .filter((t) => titleById.has(t.item_id))
-      .map((t) => formatOpenTask(t, titleById, startIso)),
+      .map((t) => formatOpenTodo(t, titleById, startIso)),
   };
 }
 

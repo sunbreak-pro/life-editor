@@ -7,6 +7,7 @@ import { useTimerContext } from "../src/hooks/useTimerContext";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
+import type { TodoNode } from "../src/types/todoTree";
 import { stubDataService } from "./helpers/dataServiceStub";
 import type { TimerPhase } from "../src/context/timerReducer";
 
@@ -47,6 +48,9 @@ function makeDS(overrides?: { autoStartBreaks?: boolean }): DataService {
       targetSessions: 4,
     }),
     fetchPomodoroPresets: async () => [],
+    // These runs start WORK with no todo picked, so the provider mints a
+    // placeholder first (#882) before it opens the session row.
+    createTodo: async (node: TodoNode): Promise<TodoNode> => node,
     startTimerSession: async () => ({
       id: 1,
       phase: "WORK",
@@ -54,7 +58,7 @@ function makeDS(overrides?: { autoStartBreaks?: boolean }): DataService {
       endedAt: null,
       durationSeconds: 0,
       completed: false,
-      taskId: null,
+      todoId: null,
     }),
     endTimerSession: async () => {},
   });
@@ -80,13 +84,14 @@ async function renderTimer(opts: {
   render(
     <TimerProvider
       dataService={makeDS({ autoStartBreaks: opts.autoStartBreaks })}
+      untitledTodoTitle="Untitled todo"
       onSessionComplete={opts.onSessionComplete}
     >
       <Probe />
     </TimerProvider>,
     { wrapper: syncWrapper },
   );
-  // Let the settings fetch land (microtasks only — no timer advance needed).
+  // Let the settings fetch land (microtodos only — no timer advance needed).
   await act(async () => {});
   expect(screen.getByTestId("remaining").textContent).toBe("60");
 }

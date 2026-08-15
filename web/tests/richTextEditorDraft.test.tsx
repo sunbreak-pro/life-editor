@@ -6,8 +6,8 @@ import { RichTextEditor } from "../src/notes/RichTextEditor";
  * The editor's two persistence modes (#713).
  *
  * `onUpdate` is the original and the default everywhere: an 800ms debounce,
- * flushed on unmount and on tab close. `onDraftChange` is the opt-in the task
- * body takes — report, never persist — because TaskDetailPanel commits from a
+ * flushed on unmount and on tab close. `onDraftChange` is the opt-in the todo
+ * body takes — report, never persist — because TodoDetailPanel commits from a
  * save button now. Notes and Daily are deliberately outside Epic #627, so the
  * point of this suite is as much what did NOT change as what did.
  *
@@ -103,7 +103,7 @@ describe("RichTextEditor — auto-save mode (Notes / Daily, unchanged)", () => {
   });
 });
 
-describe("RichTextEditor — draft mode (#713, the task body)", () => {
+describe("RichTextEditor — draft mode (#713, the todo body)", () => {
   it("reports every change immediately instead of persisting it", () => {
     const onDraftChange = vi.fn();
     const { container } = render(

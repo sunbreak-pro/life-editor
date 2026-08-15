@@ -35,7 +35,7 @@ export const PREVIEW_LENGTH = 100;
  * jsonb value or TipTap JSON string → a short plain-text preview (#702 ①).
  *
  * The one preview used by every list-shaped tool. `search_all` grew its own
- * copy of this line three times over while `list_tasks` / `list_notes`
+ * copy of this line three times over while `list_todos` / `list_notes`
  * returned whole documents instead — the reason a single note read used to
  * cost a whole collection of TipTap JSON.
  */

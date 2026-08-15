@@ -23,7 +23,7 @@ export interface SearchableItem {
 export interface ItemSearchOptions {
   /**
    * Cap per role, so one crowded surface cannot push the others off the list.
-   * Per role rather than overall: 200 notes would otherwise bury the one task
+   * Per role rather than overall: 200 notes would otherwise bury the one todo
    * the query also matched, and the user has no way to ask for the rest.
    */
   perRoleLimit?: number;

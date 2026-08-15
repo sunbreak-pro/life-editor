@@ -11,7 +11,7 @@ import {
 
 /*
  * scheduleItemMapper vitest suite (DU-C-2 — 2026-05-24). Mirrors the
- * taskMapper.test.ts / routineMapper.test.ts structure: 2-row mapper
+ * todoMapper.test.ts / routineMapper.test.ts structure: 2-row mapper
  * invariants exercised end-to-end without any DB fixture or mock layer.
  *
  * Mandatory cases per DU-C 子計画書 §"Acceptance Criteria":

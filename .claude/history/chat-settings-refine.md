@@ -1,5 +1,21 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-08-15 - テーマ切替カードの light / dark が区別できない不具合修正（Issue #887 / PR #905）
+
+#### 概要
+
+Settings のテーマ切替カード 3 枚（ライト / ダーク / システム）が同じ見た目で、選択中のモードを色から読み取れなかった。原因は色の値ではなく `lumen-*` 別名の**解決タイミング**。Tailwind は `@theme` の別名（`--color-lumen-bg: var(--color-bg-primary)`）を `:root` に出力するが、CSS カスタムプロパティの `var()` は**宣言された要素**で置換されるため、別名は root のテーマ色で確定し子孫はその確定値を継承する。カードの `data-theme` サブツリーは下敷きの `--color-*` を切り替えていたが、実際に塗りに使う `lumen-*` 側は解決済みだった（`data-theme` スコープ自体は正しく、ミニチュア設計も正しかった）。
+
+#### 変更点
+
+- **shared/src/styles/tokens.css**: 裸の `[data-theme]` 属性セレクタで `lumen-*` 別名を再宣言するブロックを追加（light / dark の両方に当たるので、各宣言はその要素でスコープに入っている `--color-*` を見て解決される）。レイヤー外に置いたので Tailwind が `@layer theme` の `:root` に出す同名定義にも勝つ。列挙はネストしたテーマで塗る 6 トークンのみ・全て `var()` 経由で色値のコピーはゼロ
+- **shared/src/components/ThemePreviewCard.tsx**: ラベル左に lucide の昼/夜グリフ（`Sun` / `Moon` / `SunMoon`）を 14px で追加し、色以外の手がかりを一本持たせた（絵文字は不可 = Issue 明記）。ラベルは `min-w-0` で 3 列モバイルグリッドでも折り返せるように
+- **ビルド後 CSS で実証**: `[data-theme]{--color-lumen-bg:var(--color-bg-primary);…}` が `@layer` の外に出力され、`.bg-lumen-bg{background-color:var(--color-lumen-bg)}` が使用箇所で引く形になっていることを `web/dist` の生成物で確認
+- **テスト**: `shared/tests/tokensNestedTheme.test.ts` 新規（別名ブロックを落とすと無言で元の症状に戻るため tokens.css の宣言を固定。色値コピーの混入も検出）・`shared/tests/themePreviewCard.test.tsx` に 3 枚のグリフ差分とミニチュアの固定テーマ検査を追加
+- **docs**: `.claude/rules/frontend.md` のデザイン規約に落とし穴を 1 行追加（`lumen-*` はネストした `data-theme` に追随しない／部分テーマで使うトークンは別名ブロックに足す）
+- **検証**: shared lint 0 errors / `tsc -b` OK / 2152 tests pass、web lint 0 errors / build OK / 394 tests pass、`scripts/docs-lint.sh` OK。実ブラウザ確認は §7.4 に従い merge 後 chat-main 側
+- **worktree**: 本レーンの worktree が `workspaces/life-editor/workspaces/life-editor/settings-refine` と二重ネストしている（過去の相対パス作成の名残）。リポジトリ**外**なので Orca の除外条件には当たらず実害はパス長のみと判断し、作り直さず作業した
+
 ### 2026-07-11 - Settings フォント種別が本文に効かない不具合修正（Issue #228 / PR #233）
 
 #### 概要

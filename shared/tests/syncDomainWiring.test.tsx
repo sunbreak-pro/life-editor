@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useNotesUnifiedAPI } from "../src/hooks/useNotesUnifiedAPI";
-import { useTaskTreeAPI } from "../src/hooks/useTaskTreeAPI";
+import { useTodoTreeAPI } from "../src/hooks/useTodoTreeAPI";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import { SYNC_DOMAINS, type SyncDomain } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
@@ -65,7 +65,7 @@ describe("useNotesUnifiedAPI listens to the notes domain only", () => {
     renderHook(() => useNotesUnifiedAPI({ dataService: ds }), { wrapper });
     await waitFor(() => expect(listNotesUnified).toHaveBeenCalledTimes(1));
 
-    // Editing a task, a routine, the tag graph, the timer or the sound
+    // Editing a todo, a routine, the tag graph, the timer or the sound
     // settings must not re-pull the note list — that cross-domain traffic is
     // what #499 measured as ~86 REST requests for one note edit.
     act(() => {
@@ -78,34 +78,34 @@ describe("useNotesUnifiedAPI listens to the notes domain only", () => {
   });
 });
 
-describe("useTaskTreeAPI listens to the tasks domain only", () => {
+describe("useTodoTreeAPI listens to the todos domain only", () => {
   function setup() {
-    const fetchTaskTree = vi.fn(async () => []);
+    const fetchTodoTree = vi.fn(async () => []);
     const ds = {
-      fetchTaskTree,
-      fetchDeletedTasks: async () => [],
+      fetchTodoTree,
+      fetchDeletedTodos: async () => [],
     } as unknown as DataService;
-    return { ds, fetchTaskTree };
+    return { ds, fetchTodoTree };
   }
 
-  it("refetches when the tasks domain moves", async () => {
-    const { ds, fetchTaskTree } = setup();
-    renderHook(() => useTaskTreeAPI({ dataService: ds }), { wrapper });
-    await waitFor(() => expect(fetchTaskTree).toHaveBeenCalledTimes(1));
+  it("refetches when the todos domain moves", async () => {
+    const { ds, fetchTodoTree } = setup();
+    renderHook(() => useTodoTreeAPI({ dataService: ds }), { wrapper });
+    await waitFor(() => expect(fetchTodoTree).toHaveBeenCalledTimes(1));
 
-    act(() => sync.bump("tasks"));
-    await waitFor(() => expect(fetchTaskTree).toHaveBeenCalledTimes(2));
+    act(() => sync.bump("todos"));
+    await waitFor(() => expect(fetchTodoTree).toHaveBeenCalledTimes(2));
   });
 
   it("ignores every other domain", async () => {
-    const { ds, fetchTaskTree } = setup();
-    renderHook(() => useTaskTreeAPI({ dataService: ds }), { wrapper });
-    await waitFor(() => expect(fetchTaskTree).toHaveBeenCalledTimes(1));
+    const { ds, fetchTodoTree } = setup();
+    renderHook(() => useTodoTreeAPI({ dataService: ds }), { wrapper });
+    await waitFor(() => expect(fetchTodoTree).toHaveBeenCalledTimes(1));
 
     act(() => {
-      for (const domain of otherDomains("tasks")) sync.bump(domain);
+      for (const domain of otherDomains("todos")) sync.bump(domain);
     });
     await act(async () => {});
-    expect(fetchTaskTree).toHaveBeenCalledTimes(1);
+    expect(fetchTodoTree).toHaveBeenCalledTimes(1);
   });
 });

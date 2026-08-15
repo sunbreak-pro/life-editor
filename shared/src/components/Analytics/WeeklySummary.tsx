@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import {
   calendarWeekRange,
   getWorkSessions,
@@ -20,7 +20,7 @@ export interface WeeklySummaryLabels {
 
 interface WeeklySummaryProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   labels: WeeklySummaryLabels;
 }
 
@@ -39,7 +39,7 @@ export function WeeklySummary({
       const d = formatDateKey(new Date(s.startedAt));
       return d >= range.startKey && d <= range.endKey;
     });
-    const completedTasks = nodes.filter((n) => {
+    const completedTodos = nodes.filter((n) => {
       if (n.type !== "task" || !n.completedAt) return false;
       // LOCAL day of the stored UTC instant (#420) — the week range above is
       // built from local dates, so a sliced UTC key disagreed at the edges.
@@ -51,7 +51,7 @@ export function WeeklySummary({
     return {
       workMinutes: work.reduce((sum, s) => sum + (s.duration ?? 0) / 60, 0),
       sessionCount: work.length,
-      completedTasks,
+      completedTodos,
     };
   }, [sessions, nodes, weekStartsOn]);
 
@@ -68,7 +68,7 @@ export function WeeklySummary({
         />
         <SummaryRow
           label={labels.completedLabel}
-          value={String(stats.completedTasks)}
+          value={String(stats.completedTodos)}
         />
       </div>
     </ChartCard>

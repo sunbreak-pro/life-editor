@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { FOCUS_RING } from "@life-editor/shared";
+import { FOCUS_RING, FOCUS_RING_ON_ACCENT } from "@life-editor/shared";
 
 /*
  * Note password / edit-lock dialog (S3, required incl. UI). Wires the
@@ -186,7 +186,7 @@ export function NotePasswordDialog({
               type="submit"
               disabled={busy}
               aria-busy={busy}
-              className={`rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING}`}
+              className={`rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING_ON_ACCENT}`}
             >
               {labels.submit}
             </button>

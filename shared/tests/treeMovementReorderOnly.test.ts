@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useTaskTreeMovement } from "../src/hooks/useTaskTreeMovement";
+import { useTodoTreeMovement } from "../src/hooks/useTodoTreeMovement";
 import { useNoteTreeMovement } from "../src/hooks/useNoteTreeMovement";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type { NoteNode } from "../src/types/note";
 
 /*
@@ -16,12 +16,12 @@ import type { NoteNode } from "../src/types/note";
  * today, so the type checker alone would not notice.
  */
 
-function task(
+function todo(
   id: string,
   order: number,
   parentId: string | null = null,
   isDeleted = false,
-): TaskNode {
+): TodoNode {
   return {
     id,
     type: "task",
@@ -49,11 +49,11 @@ function note(id: string, order: number, parentId: string | null): NoteNode {
   };
 }
 
-function setupTasks(nodes: TaskNode[]) {
+function setupTodos(nodes: TodoNode[]) {
   const persistWithHistory =
-    vi.fn<(current: TaskNode[], updated: TaskNode[]) => void>();
+    vi.fn<(current: TodoNode[], updated: TodoNode[]) => void>();
   const { result } = renderHook(() =>
-    useTaskTreeMovement(nodes, persistWithHistory),
+    useTodoTreeMovement(nodes, persistWithHistory),
   );
   return { api: result.current, persistWithHistory };
 }
@@ -70,10 +70,10 @@ function setupNotes(notes: NoteNode[]) {
 const orderOf = (nodes: { id: string; order: number }[]) =>
   Object.fromEntries(nodes.map((n) => [n.id, n.order]));
 
-describe("useTaskTreeMovement — reorder only (#418)", () => {
+describe("useTodoTreeMovement — reorder only (#418)", () => {
   it("reorders siblings and rewrites order densely", () => {
-    const nodes = [task("A", 0), task("B", 1), task("C", 2)];
-    const { api, persistWithHistory } = setupTasks(nodes);
+    const nodes = [todo("A", 0), todo("B", 1), todo("C", 2)];
+    const { api, persistWithHistory } = setupTodos(nodes);
 
     expect(api.moveNode("A", "C", "below")).toEqual({ success: true });
     const [, updated] = persistWithHistory.mock.calls[0];
@@ -82,8 +82,8 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
   });
 
   it("rejects a drop onto a node in another parent instead of re-parenting", () => {
-    const nodes = [task("P", 0), task("child", 0, "P"), task("Q", 1)];
-    const { api, persistWithHistory } = setupTasks(nodes);
+    const nodes = [todo("P", 0), todo("child", 0, "P"), todo("Q", 1)];
+    const { api, persistWithHistory } = setupTodos(nodes);
 
     expect(api.moveNode("Q", "child", "above")).toEqual({
       success: false,
@@ -98,8 +98,8 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
   // the path a re-parent regression would come back through, so it needs its
   // own pin — the reverse direction above was already rejected pre-#418.
   it("rejects lifting a child row out by dropping it next to a root node", () => {
-    const nodes = [task("P", 0), task("child", 0, "P"), task("Q", 1)];
-    const { api, persistWithHistory } = setupTasks(nodes);
+    const nodes = [todo("P", 0), todo("child", 0, "P"), todo("Q", 1)];
+    const { api, persistWithHistory } = setupTodos(nodes);
 
     expect(api.moveNode("child", "Q", "below")).toEqual({
       success: false,
@@ -110,8 +110,8 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
   });
 
   it("still refuses to move a soft-deleted node", () => {
-    const nodes = [task("A", 0, null, true), task("B", 1)];
-    const { api, persistWithHistory } = setupTasks(nodes);
+    const nodes = [todo("A", 0, null, true), todo("B", 1)];
+    const { api, persistWithHistory } = setupTodos(nodes);
 
     expect(api.moveNode("A", "B", "below")).toEqual({
       success: false,
@@ -122,12 +122,12 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
 
   it("moveToRoot lifts a legacy child row out and re-packs its old siblings", () => {
     const nodes = [
-      task("P", 0),
-      task("child", 0, "P"),
-      task("sibling", 1, "P"),
-      task("Q", 1),
+      todo("P", 0),
+      todo("child", 0, "P"),
+      todo("sibling", 1, "P"),
+      todo("Q", 1),
     ];
-    const { api, persistWithHistory } = setupTasks(nodes);
+    const { api, persistWithHistory } = setupTodos(nodes);
 
     expect(api.moveToRoot("child")).toEqual({ success: true });
     const [, updated] = persistWithHistory.mock.calls[0];
@@ -141,7 +141,7 @@ describe("useTaskTreeMovement — reorder only (#418)", () => {
   });
 
   it("exposes no nesting API", () => {
-    const { api } = setupTasks([task("A", 0)]);
+    const { api } = setupTodos([todo("A", 0)]);
     expect(Object.keys(api).sort()).toEqual(["moveNode", "moveToRoot"]);
   });
 });
@@ -187,7 +187,7 @@ describe("useNoteTreeMovement — reorder only (#418)", () => {
     expect(notes.find((n) => n.id === "child")!.parentId).toBe("P");
   });
 
-  // Deliberate asymmetry with Tasks (pre-dates #418, kept on purpose): Notes
+  // Deliberate asymmetry with Todos (pre-dates #418, kept on purpose): Notes
   // has no isDeleted guard, so a soft-deleted note is simply filtered out of
   // the sibling list and reports `node_not_found`, not `deleted_node`. Pinned
   // so a future "let's make these two hooks symmetric" pass has to be explicit

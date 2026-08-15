@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { dateKeyOfInstant, formatDateKey } from "../src/utils/dateKey";
-import { localDateTimeToISO } from "../src/utils/taskCalendarChips";
+import { localDateTimeToISO } from "../src/utils/todoCalendarChips";
 
 /*
- * #413 regression guard. The Briefing paper used to bucket tasks with
+ * #413 regression guard. The Briefing paper used to bucket todos with
  * `scheduledAt.slice(0, 10)`, which reads the UTC calendar day. The "add to
  * today" write stores local midnight (`localDateTimeToISO(key, "00:00")`), so
- * east of UTC every all-day task was filed one day early — it vanished from
+ * east of UTC every all-day todo was filed one day early — it vanished from
  * 今日の Todo and reappeared under 持ち越し「2日目」. These tests pin the
  * local-day reading and the round-trip with the write helper.
  */

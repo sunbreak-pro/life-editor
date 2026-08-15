@@ -9,7 +9,7 @@ import {
  * widened folder inside-zone (0.2–0.8 = middle 60%) and the simple
  * above/below split for non-folders, plus boundary inclusivity and ratio
  * clamping. "below" on a folder is a sibling-after reorder applied at the
- * host layer (TaskTree parity) — there is no expanded-folder special case
+ * host layer (TodoTree parity) — there is no expanded-folder special case
  * — so this stays a pure geometry test.
  */
 

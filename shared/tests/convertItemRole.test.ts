@@ -71,9 +71,9 @@ const EVENT_PAYLOAD = {
   is_deleted_cache: false,
 };
 
-const TASK_META = { ...EVENT_META, role: "task" };
+const TODO_META = { ...EVENT_META, role: "task" };
 
-const TASK_PAYLOAD = {
+const TODO_PAYLOAD = {
   item_id: "item-1",
   user_id: USER_ID,
   parent_item_id: null,
@@ -165,25 +165,25 @@ function writeSequence(ops: Op[]): string[] {
     .map((o) => `${o.table}:${o.kind}`);
 }
 
-describe("convertEventToTask (#625)", () => {
+describe("convertEventToTodo (#625)", () => {
   // A factory, not a constant: the mock SHIFTS its queues, so a shared array
   // would carry one test's consumption into the next.
   const happy = () => ({
     "items_meta:select": [
       { data: EVENT_META, error: null },
-      { data: TASK_META, error: null },
+      { data: TODO_META, error: null },
     ],
     "events_payload:select": [{ data: EVENT_PAYLOAD, error: null }],
-    "tasks_payload:upsert": [{ data: TASK_PAYLOAD, error: null }],
+    "tasks_payload:upsert": [{ data: TODO_PAYLOAD, error: null }],
     "items_meta:update": [{ data: [{ id: "item-1" }], error: null }],
     "events_payload:delete": [{ data: null, error: null }],
   });
 
-  it("writes the task payload, re-roles the meta, then drops the event payload", async () => {
+  it("writes the todo payload, re-roles the meta, then drops the event payload", async () => {
     const { client, ops } = makeClient({ results: happy() });
     const svc = new SupabaseItemConversionService(client);
 
-    const node = await svc.convertEventToTask("item-1", { order: 0 });
+    const node = await svc.convertEventToTodo("item-1", { order: 0 });
 
     expect(writeSequence(ops)).toEqual([
       "tasks_payload:upsert",
@@ -206,10 +206,10 @@ describe("convertEventToTask (#625)", () => {
     expect(node.id).toBe("item-1");
   });
 
-  it("carries the event's own values into the task row it writes", async () => {
+  it("carries the event's own values into the todo row it writes", async () => {
     const { client, ops } = makeClient({ results: happy() });
     const svc = new SupabaseItemConversionService(client);
-    await svc.convertEventToTask("item-1", { order: 3 });
+    await svc.convertEventToTodo("item-1", { order: 3 });
 
     const written = ops.find(
       (o) => o.table === "tasks_payload" && o.kind === "upsert",
@@ -225,7 +225,7 @@ describe("convertEventToTask (#625)", () => {
       content: "bring the card",
       // #739 (D-20260811-sched-1 = B, superseding D-20260810-sched-3): the
       // slot is KEPT. tasks_payload has the columns for it — the very ones the
-      // calendar draws task chips from — so a 10:00 event becomes a 10:00 Todo
+      // calendar draws todo chips from — so a 10:00 event becomes a 10:00 Todo
       // chip instead of vanishing off the day it was booked on.
       is_all_day: false,
     });
@@ -258,7 +258,7 @@ describe("convertEventToTask (#625)", () => {
       },
     });
     const svc = new SupabaseItemConversionService(client);
-    await svc.convertEventToTask("item-1", { order: 0 });
+    await svc.convertEventToTodo("item-1", { order: 0 });
 
     const written = ops.find(
       (o) => o.table === "tasks_payload" && o.kind === "upsert",
@@ -289,7 +289,7 @@ describe("convertEventToTask (#625)", () => {
         "tasks_payload:upsert": [
           {
             data: {
-              ...TASK_PAYLOAD,
+              ...TODO_PAYLOAD,
               status: "DONE",
               completed_at: "2026-08-10T02:00:00.000Z",
             },
@@ -299,7 +299,7 @@ describe("convertEventToTask (#625)", () => {
       },
     });
     const svc = new SupabaseItemConversionService(client);
-    const node = await svc.convertEventToTask("item-1", { order: 0 });
+    const node = await svc.convertEventToTodo("item-1", { order: 0 });
 
     // The dialog warns about time and repeat, never about progress — a done
     // event coming back as an untouched Todo is silent data loss.
@@ -316,7 +316,7 @@ describe("convertEventToTask (#625)", () => {
   it("never touches the tag or link tables — that is what keeping the id buys", async () => {
     const { client, ops } = makeClient({ results: happy() });
     const svc = new SupabaseItemConversionService(client);
-    await svc.convertEventToTask("item-1", { order: 0 });
+    await svc.convertEventToTodo("item-1", { order: 0 });
 
     // Tags and "[[ ]]" edges reference items_meta.id with no role of their own,
     // so a conversion that re-roles in place has nothing to migrate. A future
@@ -339,7 +339,7 @@ describe("convertEventToTask (#625)", () => {
     const svc = new SupabaseItemConversionService(client);
 
     await expect(
-      svc.convertEventToTask("item-1", { order: 0 }),
+      svc.convertEventToTodo("item-1", { order: 0 }),
     ).rejects.toBeInstanceOf(ItemConversionError);
     expect(writeSequence(ops)).toEqual([]);
   });
@@ -356,7 +356,7 @@ describe("convertEventToTask (#625)", () => {
     const svc = new SupabaseItemConversionService(client);
 
     await expect(
-      svc.convertEventToTask("item-1", { order: 0 }),
+      svc.convertEventToTodo("item-1", { order: 0 }),
     ).rejects.toMatchObject({ reason: "trashed" });
     expect(writeSequence(ops)).toEqual([]);
   });
@@ -374,11 +374,11 @@ describe("convertEventToTask (#625)", () => {
     const svc = new SupabaseItemConversionService(client);
 
     await expect(
-      svc.convertEventToTask("item-1", { order: 0 }),
+      svc.convertEventToTodo("item-1", { order: 0 }),
     ).rejects.toThrow(/items_meta role/);
 
     // One compensating write, and the item is untouched: still role 'event',
-    // still holding its own payload, with the half-written task row removed.
+    // still holding its own payload, with the half-written todo row removed.
     expect(writeSequence(ops)).toEqual([
       "tasks_payload:upsert",
       "items_meta:update",
@@ -403,7 +403,7 @@ describe("convertEventToTask (#625)", () => {
     const svc = new SupabaseItemConversionService(client);
 
     await expect(
-      svc.convertEventToTask("item-1", { order: 0 }),
+      svc.convertEventToTodo("item-1", { order: 0 }),
     ).rejects.toBeInstanceOf(ItemConversionError);
     expect(writeSequence(ops)).toEqual([
       "tasks_payload:upsert",
@@ -426,12 +426,12 @@ describe("convertEventToTask (#625)", () => {
     // Past the role flip the item IS a Todo for every reader, so reporting a
     // failure would send the user looking for something that already worked.
     // The leftover row is invisible and swept by the §10.5 detection query.
-    const node = await svc.convertEventToTask("item-1", { order: 0 });
+    const node = await svc.convertEventToTodo("item-1", { order: 0 });
     expect(node.id).toBe("item-1");
   });
 });
 
-describe("convertTaskToEvent (#625)", () => {
+describe("convertTodoToEvent (#625)", () => {
   const PLACEMENT = {
     date: "2026-08-11",
     startTime: "00:00",
@@ -441,12 +441,12 @@ describe("convertTaskToEvent (#625)", () => {
 
   const happy = () => ({
     "items_meta:select": [
-      { data: TASK_META, error: null },
+      { data: TODO_META, error: null },
       { data: EVENT_META, error: null },
     ],
     // Two reads: the row itself, then the children probe (empty).
     "tasks_payload:select": [
-      { data: TASK_PAYLOAD, error: null },
+      { data: TODO_PAYLOAD, error: null },
       { data: [], error: null },
     ],
     "events_payload:upsert": [{ data: EVENT_PAYLOAD, error: null }],
@@ -454,11 +454,11 @@ describe("convertTaskToEvent (#625)", () => {
     "tasks_payload:delete": [{ data: null, error: null }],
   });
 
-  it("writes the event payload, re-roles the meta, then drops the task payload", async () => {
+  it("writes the event payload, re-roles the meta, then drops the todo payload", async () => {
     const { client, ops } = makeClient({ results: happy() });
     const svc = new SupabaseItemConversionService(client);
 
-    const item = await svc.convertTaskToEvent("item-1", PLACEMENT);
+    const item = await svc.convertTodoToEvent("item-1", PLACEMENT);
 
     expect(writeSequence(ops)).toEqual([
       "events_payload:upsert",
@@ -475,7 +475,7 @@ describe("convertTaskToEvent (#625)", () => {
     ]);
 
     // The placement the host computed reaches the payload verbatim, and the
-    // task body lands in the event memo (the dialog only warns about status).
+    // todo body lands in the event memo (the dialog only warns about status).
     const written = ops.find(
       (o) => o.table === "events_payload" && o.kind === "upsert",
     )!;
@@ -500,7 +500,7 @@ describe("convertTaskToEvent (#625)", () => {
         "tasks_payload:select": [
           {
             data: {
-              ...TASK_PAYLOAD,
+              ...TODO_PAYLOAD,
               status: "DONE",
               completed_at: "2026-08-10T02:00:00.000Z",
             },
@@ -511,7 +511,7 @@ describe("convertTaskToEvent (#625)", () => {
       },
     });
     const svc = new SupabaseItemConversionService(client);
-    await svc.convertTaskToEvent("item-1", PLACEMENT);
+    await svc.convertTodoToEvent("item-1", PLACEMENT);
 
     const written = ops.find(
       (o) => o.table === "events_payload" && o.kind === "upsert",
@@ -525,9 +525,9 @@ describe("convertTaskToEvent (#625)", () => {
   it("refuses a todo with children before writing anything", async () => {
     const { client, ops } = makeClient({
       results: {
-        "items_meta:select": [{ data: TASK_META, error: null }],
+        "items_meta:select": [{ data: TODO_META, error: null }],
         "tasks_payload:select": [
-          { data: TASK_PAYLOAD, error: null },
+          { data: TODO_PAYLOAD, error: null },
           { data: [{ item_id: "child-1" }], error: null },
         ],
       },
@@ -535,7 +535,7 @@ describe("convertTaskToEvent (#625)", () => {
     const svc = new SupabaseItemConversionService(client);
 
     await expect(
-      svc.convertTaskToEvent("item-1", PLACEMENT),
+      svc.convertTodoToEvent("item-1", PLACEMENT),
     ).rejects.toMatchObject({ reason: "children" });
     expect(writeSequence(ops)).toEqual([]);
   });
@@ -550,7 +550,7 @@ describe("convertTaskToEvent (#625)", () => {
     });
     const svc = new SupabaseItemConversionService(client);
 
-    await expect(svc.convertTaskToEvent("item-1", PLACEMENT)).rejects.toThrow(
+    await expect(svc.convertTodoToEvent("item-1", PLACEMENT)).rejects.toThrow(
       /items_meta role/,
     );
 

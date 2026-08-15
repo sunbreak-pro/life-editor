@@ -8,7 +8,7 @@ import { POSTGREST_PAGE_SIZE } from "../src/services/postgrestFetchAll";
 
 /*
  * #674 / C7 — the shared items_meta + <role>_payload meta-first join, pulled
- * out of eight hand-written copies (Tasks / Routines / Notes / Dailies × live
+ * out of eight hand-written copies (Todos / Routines / Notes / Dailies × live
  * + Trash).
  *
  * These tests pin the parts the call sites relied on and that a reader cannot

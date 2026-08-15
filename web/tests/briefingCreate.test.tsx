@@ -7,7 +7,7 @@ import {
   type DataService,
   type ScheduleItem,
   type SyncDomain,
-  type TaskNode,
+  type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
@@ -44,7 +44,7 @@ const EXISTING = {
   updatedAt: "2026-08-10T00:00:00.000Z",
 } as ScheduleItem;
 
-/** An unscheduled leaf task — the pool the "existing task" source offers. */
+/** An unscheduled leaf todo — the pool the "existing todo" source offers. */
 const UNPLACED = {
   id: "t-free",
   type: "task",
@@ -54,7 +54,7 @@ const UNPLACED = {
   order: 0,
   createdAt: "2026-08-10T00:00:00.000Z",
   updatedAt: "2026-08-10T00:00:00.000Z",
-} as TaskNode;
+} as TodoNode;
 
 function makeDS(over: Partial<DataService> = {}): DataService {
   return stubDataService({
@@ -63,7 +63,7 @@ function makeDS(over: Partial<DataService> = {}): DataService {
       .mockImplementation((date: string) =>
         Promise.resolve(date === TODAY ? [EXISTING] : []),
       ),
-    fetchTaskTree: vi.fn().mockResolvedValue([UNPLACED]),
+    fetchTodoTree: vi.fn().mockResolvedValue([UNPLACED]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
@@ -73,12 +73,12 @@ function makeDS(over: Partial<DataService> = {}): DataService {
       .mockImplementation((id: string, date: string, title: string) =>
         Promise.resolve({ ...EXISTING, id, date, title }),
       ),
-    createTask: vi
+    createTodo: vi
       .fn()
-      .mockImplementation((node: TaskNode) => Promise.resolve(node)),
-    updateTask: vi
+      .mockImplementation((node: TodoNode) => Promise.resolve(node)),
+    updateTodo: vi
       .fn()
-      .mockImplementation((id: string, patch: Partial<TaskNode>) =>
+      .mockImplementation((id: string, patch: Partial<TodoNode>) =>
         Promise.resolve({ ...UNPLACED, id, ...patch }),
       ),
     createNoteUnified: vi.fn(),
@@ -138,7 +138,7 @@ describe("Briefing create panel (#623)", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("creates a task scheduled into today's window", async () => {
+  it("creates a todo scheduled into today's window", async () => {
     const ds = makeDS();
     renderScreen(ds);
     await openPanel();
@@ -147,16 +147,16 @@ describe("Briefing create panel (#623)", () => {
     typeTitle("Write the deck");
     fireEvent.click(screen.getByRole("button", { name: "Add todo" }));
 
-    await waitFor(() => expect(ds.createTask).toHaveBeenCalled());
-    const node = vi.mocked(ds.createTask).mock.calls[0][0];
+    await waitFor(() => expect(ds.createTodo).toHaveBeenCalled());
+    const node = vi.mocked(ds.createTodo).mock.calls[0][0];
     expect(node.title).toBe("Write the deck");
     expect(node.scheduledAt?.slice(0, 10)).toBe(TODAY);
-    // A task given a concrete window is not an all-day candidate.
+    // A todo given a concrete window is not an all-day candidate.
     expect(node.isAllDay).toBe(false);
     expect(await screen.findByText("Write the deck")).toBeTruthy();
   });
 
-  it("places an existing task into today", async () => {
+  it("places an existing todo into today", async () => {
     const ds = makeDS();
     renderScreen(ds);
     await openPanel();
@@ -166,12 +166,12 @@ describe("Briefing create panel (#623)", () => {
     fireEvent.click(screen.getByRole("option", { name: "Draft the proposal" }));
     fireEvent.click(screen.getByRole("button", { name: "Place at this time" }));
 
-    await waitFor(() => expect(ds.updateTask).toHaveBeenCalled());
-    const [id, patch] = vi.mocked(ds.updateTask).mock.calls[0];
+    await waitFor(() => expect(ds.updateTodo).toHaveBeenCalled());
+    const [id, patch] = vi.mocked(ds.updateTodo).mock.calls[0];
     expect(id).toBe("t-free");
     expect(patch.scheduledAt?.slice(0, 10)).toBe(TODAY);
     expect(patch.isAllDay).toBe(false);
-    expect(ds.createTask).not.toHaveBeenCalled();
+    expect(ds.createTodo).not.toHaveBeenCalled();
   });
 
   it("'add and open' creates, then hands over to Schedule", async () => {
@@ -204,6 +204,6 @@ describe("Briefing create panel (#623)", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(ds.createScheduleItem).not.toHaveBeenCalled();
-    expect(ds.createTask).not.toHaveBeenCalled();
+    expect(ds.createTodo).not.toHaveBeenCalled();
   });
 });

@@ -23,7 +23,7 @@ import {
  * The header field has said "検索・コマンド実行" since #306, but the palette only
  * ever matched navigation commands: typing an existing note's title answered
  * "no results". This hook is what makes the label true — it turns a query into
- * palette rows for notes / tasks / events / dailies, each of which opens its
+ * palette rows for notes / todos / events / dailies, each of which opens its
  * item through the shell's existing item-nav route (the same one a "[[" link
  * click takes).
  *
@@ -51,7 +51,7 @@ const ROLE_ICON: Record<SearchableItemRole, LucideIcon> = {
  */
 const ROLE_LABEL_KEY: Record<SearchableItemRole, string> = {
   note: "section.notes",
-  task: "section.tasks",
+  task: "section.todos",
   event: "section.schedule",
   daily: "section.daily",
 };
@@ -72,14 +72,14 @@ export function usePaletteItemSearch({
   const { t } = useTranslation();
   // Every domain this pool reads. Under-declaring here is a silent stale the
   // user has no way to fix (rules/frontend.md §Sync).
-  const syncVersion = useSyncDomains("notes", "dailies", "tasks", "schedule");
+  const syncVersion = useSyncDomains("notes", "dailies", "todos", "schedule");
 
   const fetchPool = useCallback(async (): Promise<SearchableItem[]> => {
     if (!dataService) return EMPTY_POOL;
-    const [notes, dailies, tasks, events] = await Promise.all([
+    const [notes, dailies, todos, events] = await Promise.all([
       dataService.listNotesUnified(),
       dataService.listDailiesUnified(),
-      dataService.fetchTaskTree(),
+      dataService.fetchTodoTree(),
       dataService.fetchEvents(),
     ]);
     const pool: SearchableItem[] = [];
@@ -87,12 +87,12 @@ export function usePaletteItemSearch({
       if (n.isDeleted) continue;
       pool.push({ id: n.id, role: "note", title: n.title || "(untitled)" });
     }
-    for (const task of tasks) {
-      if (task.isDeleted) continue;
+    for (const todo of todos) {
+      if (todo.isDeleted) continue;
       pool.push({
-        id: task.id,
+        id: todo.id,
         role: "task",
-        title: task.title || "(untitled)",
+        title: todo.title || "(untitled)",
       });
     }
     for (const ev of events) {

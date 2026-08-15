@@ -21,7 +21,7 @@ import { DAY_START_HOUR_STORAGE_KEY } from "../src/utils/dateKey";
 const LABELS = {
   title: "Today",
   workTime: "Work time",
-  completedTasks: "Completed",
+  completedTodos: "Completed",
   pomodoroCount: "Pomodoros",
   formatHours: (minutes: number) => `${Math.round(minutes)}m`,
 };
@@ -30,7 +30,7 @@ function session(startedAt: string): TimerSession {
   const at = new Date(startedAt);
   return {
     id: 1,
-    taskId: "task-1",
+    todoId: "task-1",
     sessionType: "WORK",
     startedAt: at,
     completedAt: at,

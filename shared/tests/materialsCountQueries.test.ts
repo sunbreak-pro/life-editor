@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SupabaseTasksService } from "../src/services/SupabaseTasksService";
+import { SupabaseTodosService } from "../src/services/SupabaseTodosService";
 import { SupabaseNotesUnifiedService } from "../src/services/SupabaseNotesUnifiedService";
 import { SupabaseDailiesUnifiedService } from "../src/services/SupabaseDailiesUnifiedService";
 
@@ -78,10 +78,10 @@ function makeStub(result: CountResult) {
 
 const OK = (count: number | null): CountResult => ({ count, error: null });
 
-describe("countUnfinishedTasks", () => {
-  it("asks for a header-only exact count over the live task rows", async () => {
+describe("countUnfinishedTodos", () => {
+  it("asks for a header-only exact count over the live todo rows", async () => {
     const { client, rec } = makeStub(OK(3));
-    const n = await new SupabaseTasksService(client).countUnfinishedTasks();
+    const n = await new SupabaseTodosService(client).countUnfinishedTodos();
 
     expect(n).toBe(3);
     expect(rec.table).toBe("items_meta");
@@ -97,7 +97,7 @@ describe("countUnfinishedTasks", () => {
 
   it("excludes DONE and legacy folders WITHOUT dropping null-valued rows", async () => {
     const { client, rec } = makeStub(OK(0));
-    await new SupabaseTasksService(client).countUnfinishedTasks();
+    await new SupabaseTodosService(client).countUnfinishedTodos();
 
     expect(rec.or).toEqual([
       [
@@ -111,15 +111,15 @@ describe("countUnfinishedTasks", () => {
   it("reads a missing count as zero rather than NaN", async () => {
     const { client } = makeStub(OK(null));
     await expect(
-      new SupabaseTasksService(client).countUnfinishedTasks(),
+      new SupabaseTodosService(client).countUnfinishedTodos(),
     ).resolves.toBe(0);
   });
 
   it("throws on a query error so the caller can keep its last known count", async () => {
     const { client } = makeStub({ count: null, error: { message: "boom" } });
     await expect(
-      new SupabaseTasksService(client).countUnfinishedTasks(),
-    ).rejects.toThrow(/countUnfinishedTasks failed: boom/);
+      new SupabaseTodosService(client).countUnfinishedTodos(),
+    ).rejects.toThrow(/countUnfinishedTodos failed: boom/);
   });
 });
 

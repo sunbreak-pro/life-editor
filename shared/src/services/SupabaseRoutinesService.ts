@@ -20,7 +20,7 @@ import { todayDateKey } from "../utils/dateKey";
 
 /*
  * DU-C-3: SupabaseRoutinesService over items_meta (role='routine') +
- * routines_payload. Same pattern as SupabaseTasksService — pure mapping
+ * routines_payload. Same pattern as SupabaseTodosService — pure mapping
  * lives in routineMapper.ts; this class is the I/O layer.
  *
  * NOT MODELLED HERE:
@@ -83,7 +83,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
 
   /**
    * INSERT items_meta + routines_payload with R2 hard-delete recovery.
-   * Mirrors createTask (DU-B-3): if the payload INSERT fails, the meta
+   * Mirrors createTodo (DU-B-3): if the payload INSERT fails, the meta
    * orphan is hard-deleted to keep the 1:1 invariant.
    *
    * The frontend signature is (id, title, optional schedule + frequency
@@ -147,7 +147,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       );
       return rowsToRoutineNode(metaRow, payloadRow);
     } catch (err) {
-      // R2 orphan recovery — same pattern as createTask.
+      // R2 orphan recovery — same pattern as createTodo.
       await this.client.from("items_meta").delete().eq("id", meta.id);
       throw err;
     }
@@ -589,7 +589,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const eventIds = eventRows.map((r) => r.item_id);
 
     // 2. Hard-delete event items_meta rows. events_payload cascades via
-    //    the 0008 item_id FK. Done one-by-one to mirror the Tasks
+    //    the 0008 item_id FK. Done one-by-one to mirror the Todos
     //    descendants-first pattern (NO ACTION-friendly).
     for (const eid of eventIds) {
       const { error } = await this.client

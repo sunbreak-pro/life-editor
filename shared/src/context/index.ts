@@ -70,11 +70,11 @@ export {
   type ShortcutConfigContextValue,
 } from "./ShortcutConfigContextValue";
 
-export { TaskTreeProvider } from "./TaskTreeContext";
+export { TodoTreeProvider } from "./TodoTreeContext";
 export {
-  TaskTreeContext,
-  type TaskTreeContextValue,
-} from "./TaskTreeContextValue";
+  TodoTreeContext,
+  type TodoTreeContextValue,
+} from "./TodoTreeContextValue";
 
 // DU-G G4: Pattern A Provider in the "Unified naming" surface. The legacy
 // Daily Provider / Context were retired; the hook body now calls
@@ -137,7 +137,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
 } from "./TimerContextValue";
-export type { TimerPhase, ActiveTask } from "./timerReducer";
+export type { TimerPhase, ActiveTodo } from "./timerReducer";
 
 // Audio (W3-C): Pattern A + OPTIONAL hook. NOT a §2 Mobile 省略 Provider —
 // it is mounted on native mobile too (the completion chime belongs to the

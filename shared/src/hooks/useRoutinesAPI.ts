@@ -3,7 +3,7 @@ import type { RoutineNode, FrequencyType } from "../types/routine";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
-import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useDomainLoad } from "./useDomainLoad";
 import { useSyncDomains } from "./useSyncDomains";
 
@@ -13,7 +13,7 @@ import { useSyncDomains } from "./useSyncDomains";
  * injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton → `options.dataService`
  * - host UndoRedo Context        → `options.undoRedo` (no-op default;
- *   real UndoRedo lands in S6, same as tasks/daily/notes)
+ *   real UndoRedo lands in S6, same as todos/daily/notes)
  *
  * Must sit inside a Sync Provider (reads `useSyncContext`) — CLAUDE.md
  * §6.2 places Routine after Sync and as the first of the Schedule trio
@@ -229,7 +229,17 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   const deleteRoutine = useCallback(
     async (
       id: string,
-      opts?: { skipUndo?: boolean },
+      opts?: {
+        skipUndo?: boolean;
+        /**
+         * Fired after an undo or redo has finished moving the cascaded
+         * occurrences (#708). The routine list lives here, but the rows those
+         * ids name live in the host's visible-range store — only the host can
+         * put them back on the grid, and it has no other signal that an undo
+         * touched them.
+         */
+        onCascadeChanged?: () => void;
+      },
       // `landed` (#408): the optimistic drop below happens either way, so a
       // caller that also shows the routine's occurrences needs to know the
       // write failed — otherwise the list loses the row while the calendar
@@ -257,14 +267,40 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       }
 
       if (target && !opts?.skipUndo) {
+        // The cascade softDeleteRoutine just trashed: every live occurrence
+        // plus the hand-made event the repeat was grown from (#296 attaches
+        // the seed in place, so it is one of these rows). Undo has to bring
+        // these exact ids back — see below.
+        const cascade = result.deletedScheduleItemIds;
+        const onCascadeChanged = opts?.onCascadeChanged;
         push("routine", {
           label: "deleteRoutine",
+          // The one place in this hook that writes BEFORE it paints. Putting
+          // the routine back in the live list is what wakes the generator, and
+          // the generator skips a day only where it can SEE an occurrence —
+          // its reads filter is_deleted, so a still-trashed row is invisible
+          // and it mints a fresh id for today instead (#708). The user is then
+          // left with a repeat that looks restored but whose rows are not the
+          // ones they deleted, and with their hand-made seed event still in
+          // the trash. So: rows back, then routine, then paint.
           undo: () => {
-            setRoutines((prev) => [...prev, target]);
-            setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
-            ds.restoreRoutine(id).catch((e) =>
-              logServiceError("Routines", "undoDelete", e),
-            );
+            void (async () => {
+              try {
+                await ds.bulkRestoreScheduleItems(cascade);
+              } catch (e) {
+                logServiceError("Routines", "undoDeleteCascade", e);
+              }
+              try {
+                await ds.restoreRoutine(id);
+              } catch (e) {
+                logServiceError("Routines", "undoDelete", e);
+              }
+              setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
+              setRoutines((prev) =>
+                prev.some((r) => r.id === id) ? prev : [...prev, target],
+              );
+              onCascadeChanged?.();
+            })();
           },
           redo: () => {
             setRoutines((prev) => prev.filter((r) => r.id !== id));
@@ -276,9 +312,16 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
               };
               return [redoDeleted, ...prev];
             });
-            ds.softDeleteRoutine(id).catch((e) =>
-              logServiceError("Routines", "redoDelete", e),
-            );
+            void (async () => {
+              // softDeleteRoutine re-runs the whole cascade, so redo does not
+              // replay the id list — it re-reads whatever is live now.
+              try {
+                await ds.softDeleteRoutine(id);
+              } catch (e) {
+                logServiceError("Routines", "redoDelete", e);
+              }
+              onCascadeChanged?.();
+            })();
           },
         });
       }

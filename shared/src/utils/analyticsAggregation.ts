@@ -1,5 +1,5 @@
 import type { TimerSession } from "../types/timer";
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
 // The live tag data (DataService.listAllWikiTagsUnified / listAllTagAssignments)
@@ -20,7 +20,7 @@ import {
 /*
  * "This week" has ONE meaning in Analytics: the CALENDAR week containing now
  * (`calendarWeekRange`). Every card under that label — work minutes, completed
- * tasks, notes — reads the same window.
+ * todos, notes — reads the same window.
  *
  * It used to mean two things at once: the notes cards ran on a rolling 7-day
  * window (`createdWithinLastDays`) while the work / completed cards beside them
@@ -31,6 +31,13 @@ import {
  *
  * The first day of the week is the stored `useWeekStart` pref, NOT a hardcoded
  * Monday — the same pref the calendar grids key on, so the two agree.
+ *
+ * #780 unified the numbers only. The graphics next to them stayed on other
+ * windows: the mobile week bars drew a rolling 7 days and the Work tab's weekly
+ * buckets started on a hardcoded Monday, so the same card could show a number
+ * and a chart covering different days. #860 (D-20260813-briefing-1 = A) moved
+ * both onto `startOfCalendarWeek`. `aggregateByDay` still exists and still
+ * means "the last N days" — WorkTimeChart's 14-day view wants exactly that.
  */
 
 /**
@@ -48,6 +55,25 @@ export function createdWithinRange<T extends { createdAt: string }>(
     const key = dateKeyOfInstant(item.createdAt);
     return key !== null && key >= startKey && key <= endKey;
   });
+}
+
+/**
+ * Local midnight on the first day of the calendar week containing `d`.
+ *
+ * The ONE piece of step-back math in this file — `calendarWeekRange`, the
+ * mobile week bars and the Work tab's weekly buckets all start here, so they
+ * cannot drift apart. It replaced a private Monday-hardcoded `startOfWeek()`
+ * that only the weekly buckets used, which is exactly how the Work tab ended
+ * up ignoring the pref every other week window reads (#860).
+ *
+ * `weekStartsOn` is required for the same reason it is on `calendarWeekRange`:
+ * a default would silently pick a week for a caller that forgot the pref.
+ */
+function startOfCalendarWeek(d: Date, weekStartsOn: WeekStartsOn): Date {
+  const start = new Date(d);
+  start.setDate(d.getDate() - ((d.getDay() - weekStartsOn + 7) % 7));
+  start.setHours(0, 0, 0, 0);
+  return start;
 }
 
 /**
@@ -70,9 +96,7 @@ export function calendarWeekRange(
   startKey: string;
   endKey: string;
 } {
-  const start = new Date(now);
-  start.setDate(now.getDate() - ((now.getDay() - weekStartsOn + 7) % 7));
-  start.setHours(0, 0, 0, 0);
+  const start = startOfCalendarWeek(now, weekStartsOn);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   return { startKey: toDateStr(start), endKey: toDateStr(end) };
@@ -84,9 +108,9 @@ export interface DayBucket {
   sessionCount: number;
 }
 
-export interface TaskBucket {
-  taskId: string;
-  taskName: string;
+export interface TodoBucket {
+  todoId: string;
+  todoName: string;
   totalMinutes: number;
   sessionCount: number;
 }
@@ -116,7 +140,7 @@ export interface TimelineBlock {
   startMinute: number;
   durationMinutes: number;
   sessionType: string;
-  taskId: string | null;
+  todoId: string | null;
 }
 
 export interface CompletionTrendBucket {
@@ -133,8 +157,8 @@ export interface StagnationBucket {
 /**
  * One slice of the tag work-time ring. A discriminated union so a "tag" slice
  * is statically guaranteed to carry a name — the two synthetic buckets ("other"
- * = tags past the top-N cap, folded together; "untagged" = work on a task with
- * no tag, or with no task at all) carry none, because the host supplies their
+ * = tags past the top-N cap, folded together; "untagged" = work on a todo with
+ * no tag, or with no todo at all) carry none, because the host supplies their
  * labels: the shared tree holds no strings.
  */
 export type TagWorkTimeBucket =
@@ -157,15 +181,6 @@ export type TagWorkTimeBucket =
 export interface WorkStreak {
   currentStreak: number;
   longestStreak: number;
-}
-
-function startOfWeek(d: Date): Date {
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-  const start = new Date(d);
-  start.setDate(diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
 }
 
 function startOfMonth(d: Date): Date {
@@ -211,13 +226,63 @@ export function aggregateByDay(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Work minutes per day across the CALENDAR week containing `now` — the window
+ * `calendarWeekRange` defines, so a "this week" total and the bars drawn beside
+ * it always cover the same days (#860 / D-20260813-briefing-1 = A).
+ *
+ * Always 7 buckets in calendar order, starting on the `useWeekStart` day. The
+ * mobile card used to draw `aggregateByDay(sessions, 7)` — a rolling 7 days
+ * ending today — so mid-week its bars and the number above them ran on two
+ * different windows. The accepted cost of the switch: mid-week the days that
+ * have not happened yet come back as zeros, i.e. empty bars.
+ */
+export function aggregateCalendarWeekByDay(
+  sessions: TimerSession[],
+  now: Date,
+  weekStartsOn: WeekStartsOn,
+): DayBucket[] {
+  const work = getWorkSessions(sessions);
+  const start = startOfCalendarWeek(now, weekStartsOn);
+
+  const map = new Map<string, DayBucket>();
+
+  // Pre-fill the whole week so the future days render as empty bars rather
+  // than shortening the row.
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = toDateStr(d);
+    map.set(key, { date: key, totalMinutes: 0, sessionCount: 0 });
+  }
+
+  for (const s of work) {
+    const key = toDateStr(new Date(s.startedAt));
+    const bucket = map.get(key);
+    if (bucket) {
+      bucket.totalMinutes += (s.duration ?? 0) / 60;
+      bucket.sessionCount += 1;
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Work minutes per calendar week, most recent `weeks` windows.
+ *
+ * `weekStartsOn` is required (#860): the buckets used to start on a hardcoded
+ * Monday, so with the pref set to Sunday the Work tab sliced the same sessions
+ * along a different boundary than every "this week" number in the app.
+ */
 export function aggregateByWeek(
   sessions: TimerSession[],
   weeks: number,
+  weekStartsOn: WeekStartsOn,
 ): DayBucket[] {
   const work = getWorkSessions(sessions);
   const now = new Date();
-  const currentWeekStart = startOfWeek(now);
+  const currentWeekStart = startOfCalendarWeek(now, weekStartsOn);
 
   const map = new Map<string, DayBucket>();
 
@@ -230,7 +295,7 @@ export function aggregateByWeek(
 
   for (const s of work) {
     const started = new Date(s.startedAt);
-    const weekStart = startOfWeek(started);
+    const weekStart = startOfCalendarWeek(started, weekStartsOn);
     const key = toDateStr(weekStart);
     const bucket = map.get(key);
     if (bucket) {
@@ -270,21 +335,21 @@ export function aggregateByMonth(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function aggregateByTask(
+export function aggregateByTodo(
   sessions: TimerSession[],
-  taskNameMap: Map<string, string>,
-): TaskBucket[] {
+  todoNameMap: Map<string, string>,
+): TodoBucket[] {
   const work = getWorkSessions(sessions);
-  const map = new Map<string, TaskBucket>();
+  const map = new Map<string, TodoBucket>();
 
   for (const s of work) {
-    const tid = s.taskId ?? "__none__";
+    const tid = s.todoId ?? "__none__";
     let bucket = map.get(tid);
     if (!bucket) {
       bucket = {
-        taskId: tid,
-        taskName:
-          taskNameMap.get(tid) ?? (tid === "__none__" ? "No Task" : tid),
+        todoId: tid,
+        todoName:
+          todoNameMap.get(tid) ?? (tid === "__none__" ? "No Todo" : tid),
         totalMinutes: 0,
         sessionCount: 0,
       };
@@ -430,7 +495,7 @@ export function aggregateDailyTimeline(
       startMinute: started.getMinutes(),
       durationMinutes: s.duration / 60,
       sessionType: s.sessionType,
-      taskId: s.taskId,
+      todoId: s.todoId,
     });
   }
 
@@ -440,9 +505,9 @@ export function aggregateDailyTimeline(
   );
 }
 
-/** Task completion trend: completed tasks per day */
-export function aggregateTaskCompletionTrend(
-  nodes: TaskNode[],
+/** Todo completion trend: completed todos per day */
+export function aggregateTodoCompletionTrend(
+  nodes: TodoNode[],
   days: number,
 ): CompletionTrendBucket[] {
   const now = new Date();
@@ -474,8 +539,8 @@ export function aggregateTaskCompletionTrend(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Task stagnation: distribution of incomplete task ages */
-export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
+/** Todo stagnation: distribution of incomplete todo ages */
+export function aggregateTodoStagnation(nodes: TodoNode[]): StagnationBucket[] {
   const now = new Date();
   const buckets: StagnationBucket[] = [
     {
@@ -524,69 +589,69 @@ export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
 
 /**
  * Work time by life-tag — the successor of the retired folder aggregation
- * (#334 / life-tags §Step 4: the Tasks domain has no folder nodes since #225,
+ * (#334 / life-tags §Step 4: the Todos domain has no folder nodes since #225,
  * so `aggregateByFolder` always returned [] while its unguarded parent climb
  * could still hang on a cyclic `parentId`). Attribution runs off
- * `wiki_tag_assignments` instead of the task tree, so no ancestor walk exists
+ * `wiki_tag_assignments` instead of the todo tree, so no ancestor walk exists
  * here at all.
  *
  * Rules:
  * - Only WORK sessions count (same filter as every other work-time chart).
- * - A session's minutes are split evenly across its task's tags.
- * - Work on an untagged task — or with no task at all — lands in the trailing
+ * - A session's minutes are split evenly across its todo's tags.
+ * - Work on an untagged todo — or with no todo at all — lands in the trailing
  *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
  *   rather than dropped, so no tag's share is overstated.
- * - Work on a task that is NOT in `liveTasks` is dropped entirely — see the
+ * - Work on a todo that is NOT in `liveTodos` is dropped entirely — see the
  *   trash rule below. The condition is literally "absent from the live tree",
- *   which is wider than "trashed": `fetchTaskTree` also drops purged rows, R2
+ *   which is wider than "trashed": `fetchTodoTree` also drops purged rows, R2
  *   orphans (meta with no payload) and legacy folder rows
- *   (`SupabaseDataService.fetchTaskTree`). Sessions attached to any of those
+ *   (`SupabaseDataService.fetchTodoTree`). Sessions attached to any of those
  *   disappear from this ring rather than reading as untagged.
  * - Assignments pointing at a tag that is not in `tags` (deleted / filtered)
  *   are ignored rather than surfaced as a raw id; that work reads as untagged.
  *
- * Trash rule (#428, finishing what #365 started): a trashed task's assignments
+ * Trash rule (#428, finishing what #365 started): a trashed todo's assignments
  * stop being returned by `listAllTagAssignments`, so before this its minutes did
  * not vanish — they silently piled into "untagged", which reads as "work on a
- * task I never tagged". Analytics excludes trashed items everywhere else
- * (`fetchTaskTree` is live-only, so the completion trend and stagnation charts
+ * todo I never tagged". Analytics excludes trashed items everywhere else
+ * (`fetchTodoTree` is live-only, so the completion trend and stagnation charts
  * never saw them), and Connect already drops any edge whose endpoint is not a
  * live node; this aligns the ring with both. Restoring an item brings its work
  * back for free — nothing is mutated.
  *
  * Consequence: the buckets sum to the work logged on LIVE items, not to the
  * grand total the Work tab reports (which still counts every session). The two
- * differ by exactly the time spent on trashed tasks — the same kind of gap as
- * the Tasks tab not listing trashed tasks.
+ * differ by exactly the time spent on trashed todos — the same kind of gap as
+ * the Todos tab not listing trashed todos.
  *
  * Assignments are matched by `itemId` — item ids are unique across roles, so
- * a note/daily/event assignment simply never matches a session's `taskId`.
+ * a note/daily/event assignment simply never matches a session's `todoId`.
  */
 export function aggregateWorkTimeByTag(
   sessions: TimerSession[],
   assignments: WikiTagAssignmentUnified[],
   tags: WikiTagUnified[],
-  liveTasks: TaskNode[],
+  liveTodos: TodoNode[],
   limit: number = 10,
 ): TagWorkTimeBucket[] {
   const work = getWorkSessions(sessions);
   const tagMap = new Map(
     tags.filter((t) => !t.isDeleted).map((t) => [t.id, t] as const),
   );
-  // `fetchTaskTree` is already live-only; the isDeleted guard keeps callers
+  // `fetchTodoTree` is already live-only; the isDeleted guard keeps callers
   // that hand over a wider list (or a stale cache) from reviving trashed work.
-  const liveTaskIds = new Set(
-    liveTasks.filter((n) => !n.isDeleted).map((n) => n.id),
+  const liveTodoIds = new Set(
+    liveTodos.filter((n) => !n.isDeleted).map((n) => n.id),
   );
 
   // itemId -> its tag ids (Set: the same tag can be assigned twice — e.g.
   // inline text plus a manual chip — and double counting would skew the split).
-  const taskTags = new Map<string, Set<string>>();
+  const todoTags = new Map<string, Set<string>>();
   for (const a of assignments) {
     if (a.isDeleted || !tagMap.has(a.tagId)) continue;
-    const set = taskTags.get(a.itemId);
+    const set = todoTags.get(a.itemId);
     if (set) set.add(a.tagId);
-    else taskTags.set(a.itemId, new Set([a.tagId]));
+    else todoTags.set(a.itemId, new Set([a.tagId]));
   }
 
   const minutesByTag = new Map<string, number>();
@@ -594,13 +659,13 @@ export function aggregateWorkTimeByTag(
 
   for (const s of work) {
     const minutes = (s.duration ?? 0) / 60;
-    // A session that names a task no longer in the live tree is work on a
-    // trashed (or purged) task — dropped, NOT folded into untagged (#428).
-    // A missing task id is different: that is genuine task-less work. Tested
+    // A session that names a todo no longer in the live tree is work on a
+    // trashed (or purged) todo — dropped, NOT folded into untagged (#428).
+    // A missing todo id is different: that is genuine todo-less work. Tested
     // for truthiness, matching the tag lookup on the next line — an empty
-    // `taskId` would otherwise count as "trashed" here and as "no task" there.
-    if (s.taskId && !liveTaskIds.has(s.taskId)) continue;
-    const tagIds = s.taskId ? taskTags.get(s.taskId) : undefined;
+    // `todoId` would otherwise count as "trashed" here and as "no todo" there.
+    if (s.todoId && !liveTodoIds.has(s.todoId)) continue;
+    const tagIds = s.todoId ? todoTags.get(s.todoId) : undefined;
     if (!tagIds || tagIds.size === 0) {
       untaggedMinutes += minutes;
       continue;

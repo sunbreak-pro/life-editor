@@ -17,7 +17,7 @@ import { MaterialsCountsBridge } from "../src/MaterialsCountsBridge";
  * Two behaviours worth a test, both of which are silent when broken:
  *
  *   1. Domain scoping — the bridge is mounted app-wide, so if one domain's
- *      bump refetches all three, every note keystroke pulls tasks and dailies
+ *      bump refetches all three, every note keystroke pulls todos and dailies
  *      too. That is exactly the regression #499 removed, and nothing in the UI
  *      would show it coming back.
  *
@@ -38,7 +38,7 @@ function zeroVersions(): Record<SyncDomain, number> {
 
 function makeDS(over: Partial<DataService> = {}): DataService {
   return stubDataService({
-    countUnfinishedTasks: vi.fn().mockResolvedValue(3),
+    countUnfinishedTodos: vi.fn().mockResolvedValue(3),
     countLiveNotes: vi.fn().mockResolvedValue(7),
     countLiveDailies: vi.fn().mockResolvedValue(9),
     ...over,
@@ -77,7 +77,7 @@ describe("MaterialsCountsBridge", () => {
     const { onCounts } = setup(ds);
 
     await waitFor(() =>
-      expect(onCounts).toHaveBeenCalledWith({ tasks: 3, notes: 7, daily: 9 }),
+      expect(onCounts).toHaveBeenCalledWith({ todos: 3, notes: 7, daily: 9 }),
     );
   });
 
@@ -93,13 +93,13 @@ describe("MaterialsCountsBridge", () => {
     });
     const { onCounts } = setup(ds);
 
-    // Tasks and notes have resolved by now; dailies has not.
+    // Todos and notes have resolved by now; dailies has not.
     await waitFor(() => expect(ds.countLiveNotes).toHaveBeenCalled());
     expect(onCounts).not.toHaveBeenCalled();
 
     releaseDailies(9);
     await waitFor(() =>
-      expect(onCounts).toHaveBeenCalledWith({ tasks: 3, notes: 7, daily: 9 }),
+      expect(onCounts).toHaveBeenCalledWith({ todos: 3, notes: 7, daily: 9 }),
     );
   });
 
@@ -113,13 +113,13 @@ describe("MaterialsCountsBridge", () => {
 
     await waitFor(() =>
       expect(onCounts).toHaveBeenLastCalledWith({
-        tasks: 3,
+        todos: 3,
         notes: 8,
         daily: 9,
       }),
     );
     // The other two never ran a second time — that is the #499 invariant.
-    expect(ds.countUnfinishedTasks).toHaveBeenCalledTimes(1);
+    expect(ds.countUnfinishedTodos).toHaveBeenCalledTimes(1);
     expect(ds.countLiveDailies).toHaveBeenCalledTimes(1);
     expect(ds.countLiveNotes).toHaveBeenCalledTimes(2);
   });
@@ -137,6 +137,6 @@ describe("MaterialsCountsBridge", () => {
 
     // A failed pull must not publish notes: 0 — the badge would read as
     // "no notes" when the notes are merely unreachable.
-    expect(onCounts).toHaveBeenLastCalledWith({ tasks: 3, notes: 7, daily: 9 });
+    expect(onCounts).toHaveBeenLastCalledWith({ todos: 3, notes: 7, daily: 9 });
   });
 });

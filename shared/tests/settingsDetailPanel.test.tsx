@@ -4,14 +4,14 @@ import { SettingsDetailPanel } from "../src/components";
 
 /*
  * Settings rightSidebar body. Pure presentation: renders the appearance
- * preview (tasks) + the tips list from injected copy.
+ * preview (todos) + the tips list from injected copy.
  */
 describe("SettingsDetailPanel", () => {
-  it("renders the preview tasks, summary, and tips", () => {
+  it("renders the preview todos, summary, and tips", () => {
     render(
       <SettingsDetailPanel
         fontPx={16}
-        tasks={[
+        todos={[
           { label: "買い物リストを作る", done: false },
           { label: "コーヒー豆を注文する", done: true },
           { label: "夕食の下ごしらえをする", done: false },

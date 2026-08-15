@@ -22,7 +22,7 @@ Branch: claude/design-shell
 - **ナビ構成（目標 IA・2026-07-05 ユーザー承認。`IA.md` が正本）**:
   - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（lucide: Clock / Library / Network / Timer / BarChart3。`IA.md:19-25`）
   - サイドバー最下部ユーティリティ枠（本流から視覚分離）: Settings / Trash（lucide: Settings / Trash2。`IA.md:26-27`）
-  - 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面（`IA.md:19-27`）
+  - 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面（`IA.md:19-27`）
   - フッター: コマンドパレット起動（⌘K）/ ユーザー表示（email）/ サインアウト（`IA.md:29`、`SidebarNav.tsx:104-135`）
   - 展開 240px / 折畳 64px（アイコンのみ）は現行踏襲（`IA.md:30`、`AppShell.tsx:70-73` で `SIDEBAR_COLLAPSED_KEY` にローカル保持）
   - Mobile: 下部固定 4 タブ = Schedule / Materials / Work / Analytics + "More"（More はボトムシートで Connect / Settings / Trash。`IA.md:42`）
@@ -48,7 +48,7 @@ Branch: claude/design-shell
 - **状態の現状**: サイドバー = 展開 / 折畳の 2 状態（永続）。下部タブ = 通常 / More シート open。⌘K = 閉 / 開（+ 検索 0 件）。Toast = 空 / 1〜複数枚。OfflineBanner = online（非表示）/ offline（表示）
 - **現状の課題**（デザイン観点で改善したい点。これがプロンプトの「良くしたい方向」）:
   1. サイドバーが 10 個フラットで、本流とユーティリティ（設定・ゴミ箱）の区別が無い。**目標 IA の「本流 5 + ユーティリティ枠 2」視覚分離が未実装**
-  2. **header タブという概念自体が無い**。Tasks / Notes / Daily / Tags が独立の nav 行に散っており、Materials への統合と上部タブが要る（この brief で標準を定義）
+  2. **header タブという概念自体が無い**。Todos / Notes / Daily / Tags が独立の nav 行に散っており、Materials への統合と上部タブが要る（この brief で標準を定義）
   3. Trash が本流セクションと同列で、危険操作（完全削除）への入口が目立ちすぎる。ユーティリティ枠へ沈めたい
   4. Mobile 下部タブが `maxVisible=4` の自動 overflow で、固定 4 タブの中身が並び順依存。IA 決定（Schedule / Materials / Work / Analytics）に明示的に合わせたい
   5. サイドバーのアクティブ表現が「薄いグレー背景 + アイコンだけ accent」で選択の主張が弱い。左端アクセントバー等の標準が無い
@@ -67,12 +67,12 @@ Branch: claude/design-shell
 - **header タブ標準（この brief が定義。他の全 brief が参照する基準）**:
   - **形状**: メインコンテンツ最上部の水平タブ列。左寄せ、タブ間 8px、下端に `border` の薄い区切り線を全幅で引き、その上にタブが乗る（Notion / ブラウザのタブ下線式）
   - **アクティブ表現**: アクティブタブ = **`accent` 色の 2px 下線（タブ幅ぴったり）+ ラベル `text-primary` + `font-medium`**。非アクティブ = ラベル `text-secondary` + 下線なし、ホバーで `text-primary` + `hover` 背景。色だけに頼らず「太さ + 下線 + 濃度」の 3 点でアクティブを示す（不変式 5）
-  - **件数バッジ**: **意味のあるタブにだけ付ける**（全タブには付けない）。バッジ = ラベル右の小型ピル（`accent-subtle` 背景 + `accent` 文字、等幅数字、角丸 6px）。例: Materials の Tasks（未完タスク数「12」）。0 件・数値に意味が無いタブ（Overview / Graph 等）は付けない（Trash はタブなし単画面のため header タブのバッジ対象ではない。カテゴリ件数は画面内表示で扱う）
+  - **件数バッジ**: **意味のあるタブにだけ付ける**（全タブには付けない）。バッジ = ラベル右の小型ピル（`accent-subtle` 背景 + `accent` 文字、等幅数字、角丸 6px）。例: Materials の Todos（未完タスク数「12」）。0 件・数値に意味が無いタブ（Overview / Graph 等）は付けない（Trash はタブなし単画面のため header タブのバッジ対象ではない。カテゴリ件数は画面内表示で扱う）
   - **Mobile での継承**: header タブは Mobile ではタブ列の代わりに**セグメントコントロール**（`bg-secondary` の角丸トラックに、アクティブセグメントだけ `bg-primary` + 影の押し出し表現）。タブが 4 つ（Materials）でも横スクロールせず等分割で収める
 - **rightSidebar（詳細パネル）標準（2026-07-05 Turn 2 で追加。この brief が定義し、他の全 brief が参照する基準）**:
   - **トグル**: 各画面の header タブ行の右端（`margin-left: auto`）に PanelRight 型アイコンボタン（28×28・角丸 6px）。closed = `text-secondary`・hover で `hover` 背景 / open = `accent` 文字 + `accent-subtle` 地。タブなし単画面（Work / Settings / Trash）では画面最上部の右端に同アイコン（デザイン上未例示のための補完標準）
   - **パネル**: 右端の幅 320px（min 240px）・押し込み式（メイン領域が縮む。overlay 禁止）。背景 `bg-subsidebar` + 左 `border`。左端 6px のリサイズハンドル（hover で accent 30%）。上部 48px（サイドバーヘッダーと同高）に「詳細」タイトル + 閉じる X
-  - **中身**: セクション文脈の詳細・補助 UI を portal する枠（旧 frontend `RightSidebarContext` パターンの目標 IA 版・`ios-additions.md` G-3 が先行事例）。生成例 = タスク選択中の `TaskDetailPanel`（タイトル / ステータス / 内容）。セクションごとの中身は各画面 brief の将来 iterate に委ねる
+  - **中身**: セクション文脈の詳細・補助 UI を portal する枠（旧 frontend `RightSidebarContext` パターンの目標 IA 版・`ios-additions.md` G-3 が先行事例）。生成例 = タスク選択中の `TodoDetailPanel`（タイトル / ステータス / 内容）。セクションごとの中身は各画面 brief の将来 iterate に委ねる
   - **Mobile 継承**: セグメントコントロール行の左端に Menu ボタン（36×36・`border` 付き・角丸 8px）→ 左から幅 320px の drawer + 黒 30% スクリム。中身は Desktop と同一。More ボトムシート（ナビ）とは役割分離
   - **実装への注意（生成デザイン未定義・規約優先で補完）**: aria 属性が全面的に無い（実装で必須補完）/ タスク未選択の空状態未デザイン / drawer の safe-area 未処理 / パレット外 hex 2 色（`#bfdbfe`・`#25252b`）は既存 lumen トークンへ丸める
 - **使う既存部品**: AppShell / SidebarNav / NavItem / BottomTabBar / BottomSheet / CommandPalette / Toast / OfflineBanner はすべて既存。ゼロから発明せず、この部品語彙で目標 IA に組み替える
@@ -105,7 +105,7 @@ Branch: claude/design-shell
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -227,7 +227,7 @@ Branch: claude/design-shell
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 

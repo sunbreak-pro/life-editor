@@ -42,7 +42,7 @@ export {
 } from "./materials/materialsCounts";
 
 // Types
-export type { TaskNode, NodeType, TaskStatus } from "./types/taskTree";
+export type { TodoNode, TodoNodeType, TodoStatus } from "./types/todoTree";
 export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
 export type { DailyNode } from "./types/daily";
 export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
@@ -52,16 +52,16 @@ export type { RoutineNode, FrequencyType } from "./types/routine";
 export type { ScheduleItem } from "./types/schedule";
 export type { CalendarNode } from "./types/calendar";
 
-// Tasks domain — context (Pattern A) + hooks
+// Todos domain — context (Pattern A) + hooks
 export {
   SyncProvider,
   SyncContext,
   type WebSyncContextValue,
-  TaskTreeProvider,
-  TaskTreeContext,
-  type TaskTreeContextValue,
+  TodoTreeProvider,
+  TodoTreeContext,
+  type TodoTreeContextValue,
 } from "./context";
-export { useTaskTreeContext } from "./hooks/useTaskTreeContext";
+export { useTodoTreeContext } from "./hooks/useTodoTreeContext";
 export { useSyncContext } from "./hooks/useSyncContext";
 // #499 — refetch keyed to the domains a consumer reads, so one domain's write
 // no longer re-pulls (or, for the timer, re-WRITES) every other domain.
@@ -206,6 +206,15 @@ export {
 // #508 — Escape / Tab trap / focus restore for aria-modal surfaces. Backs
 // Modal and BottomSheet; exported so web-side dialogs can stop hand-rolling it.
 export { useDialogA11y, type DialogA11yOptions } from "./hooks/useDialogA11y";
+// #792 — the swipe-to-close gesture behind BottomSheet / MobileDrawer.
+// Exported so a web-side overlay that enters from an edge can take the same
+// one-thumb exit instead of inventing a second gesture with its own threshold.
+export {
+  useSwipeToDismiss,
+  type SwipeToDismiss,
+  type SwipeToDismissOptions,
+  type SwipeDismissDirection,
+} from "./hooks/useSwipeToDismiss";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
@@ -250,14 +259,14 @@ export {
   type NavShortcutId,
 } from "./hooks/useGlobalShortcuts";
 export {
-  useTaskTreeAPI,
-  type UseTaskTreeAPIOptions,
-} from "./hooks/useTaskTreeAPI";
+  useTodoTreeAPI,
+  type UseTodoTreeAPIOptions,
+} from "./hooks/useTodoTreeAPI";
 export {
   createNoopUndoRedo,
   type UndoRedoLike,
-  type TaskHistoryLabel,
-} from "./hooks/useTaskTreeHistory";
+  type TodoHistoryLabel,
+} from "./hooks/useTodoTreeHistory";
 // UndoRedo (Issue #304) — global single-stack manager + context + hooks.
 export {
   UndoRedoManager,
@@ -277,7 +286,7 @@ export {
 export type {
   AddNodeOptions,
   UpdateNodeOptions,
-} from "./hooks/useTaskTreeCRUD";
+} from "./hooks/useTodoTreeCRUD";
 
 // Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // DU-G G4: the legacy Daily Provider / context hook / API hook were
@@ -358,32 +367,34 @@ export {
   type RoutineSyncCreate,
 } from "./utils/routineScheduleSync";
 export {
-  tasksToCalendarChips,
-  taskChipId,
-  isTaskChip,
-  unwrapTaskChipId,
+  todosToCalendarChips,
+  todoScheduleSlot,
+  todoChipId,
+  isTodoChip,
+  unwrapTodoChipId,
   localDateTimeToISO,
-  TASK_CHIP_PREFIX,
-  type TaskCalendarChip,
-} from "./utils/taskCalendarChips";
+  TODO_CHIP_PREFIX,
+  type TodoCalendarChip,
+  type TodoScheduleSlot,
+} from "./utils/todoCalendarChips";
 // #625: Event <-> Todo conversion — the host-side decisions (what blocks a
 // conversion, where a converted Todo lands). The write itself is a
-// DataService method (convertEventToTask / convertTaskToEvent).
+// DataService method (convertEventToTodo / convertTodoToEvent).
 export {
   eventToTodoBlock,
   todoToEventBlock,
-  taskToEventPlacement,
-  // #739: the mirror of taskToEventPlacement — an event's slot, kept as the
+  todoToEventPlacement,
+  // #739: the mirror of todoToEventPlacement — an event's slot, kept as the
   // Todo's chip slot (D-20260811-sched-1).
-  eventToTaskSlot,
+  eventToTodoSlot,
   type EventToTodoBlock,
   type TodoToEventBlock,
   type EventPlacement,
   type EventSlot,
-  type TaskChipSlot,
+  type TodoChipSlot,
 } from "./utils/itemConversion";
-// A-3 (#298): "add from tasks" selector for the Today's Todo tray.
-export { pickAddableTasks, type AddableTask } from "./utils/todayTodo";
+// A-3 (#298): "add from todos" selector for the Today's Todo tray.
+export { pickAddableTodos, type AddableTodo } from "./utils/todayTodo";
 // Schedule host domain helpers (#280, extracted from web CalendarTab /
 // scheduleLabels): pure label mapping, view-mode normalisation + visible
 // range, and the optimistic-create row factory.
@@ -502,7 +513,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
   type TimerPhase,
-  type ActiveTask,
+  type ActiveTodo,
 } from "./context";
 export { useTimerContext } from "./hooks/useTimerContext";
 export {
@@ -546,15 +557,16 @@ export {
   type SoundPresetDef,
 } from "./constants/sounds";
 
-// Tasks domain — tree utilities (host UI builds on these)
+// Todos domain — tree utilities (host UI builds on these)
 export {
   collectDescendantIds,
   isDescendantOf,
-} from "./utils/getDescendantTasks";
-// Shared UI class-string tokens + task-status visuals (C5 dedup) — the web
+} from "./utils/getDescendantTodos";
+// Shared UI class-string tokens + todo-status visuals (C5 dedup) — the web
 // host imports these through the barrel.
 export {
   FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
   FOCUS_RING_TIGHT,
   TAP_TARGET,
 } from "./components/styleTokens";
@@ -564,7 +576,7 @@ export {
   STATUS_TEXT_KEY,
   statusLabel,
   type StatusLabelSet,
-} from "./components/taskStatusVisuals";
+} from "./components/todoStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";

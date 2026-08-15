@@ -7,7 +7,7 @@ import {
   type AnalyticsTab,
   type DateRange,
   type TimerSession,
-  type TaskNode,
+  type TodoNode,
   type ScheduleItem,
   type NoteNode,
   type RoutineNode,
@@ -23,15 +23,15 @@ import {
  * hosts) and i18n `t` resolution, then injects both into the pure shared
  * <AnalyticsView>. The shared tree never calls useTranslation / getDataService.
  *
- * Data surface (only what the 4 kept tabs need): timer sessions, task tree,
+ * Data surface (only what the 4 kept tabs need): timer sessions, todo tree,
  * today's schedule items (Overview), routines, notes, tags + tag assignments
- * (unified API — Overview counts and the Tasks tab's tag work-time ring, #334),
+ * (unified API — Overview counts and the Todos tab's tag work-time ring, #334),
  * and the pomodoro daily target from timer settings. The
  * Schedule tab's items are fetched separately, per selected date range (see the
  * scheduleRange effect + AnalyticsView.onScheduleRangeChange), so we no longer
  * load all history up front.
  *
- * v2 §1 adoption (#208): the Overview/Tasks/Work/Schedule tab band is lifted
+ * v2 §1 adoption (#208): the Overview/Todos/Work/Schedule tab band is lifted
  * into the shell's standard SectionHeader (MainScreen owns `analyticsTab`, same
  * as Materials / Schedule). This host just forwards that tab state down to the
  * pure <AnalyticsView>; the shared view then drops its in-body tab band and
@@ -49,7 +49,7 @@ interface AnalyticsScreenProps {
 // Data fetched once on mount (independent of the selected analytics range).
 interface AnalyticsData {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   todayItems: ScheduleItem[];
   notes: NoteNode[];
   routines: RoutineNode[];
@@ -95,7 +95,7 @@ export function AnalyticsScreen({
 
     void Promise.all([
       ds.fetchTimerSessions(),
-      ds.fetchTaskTree(),
+      ds.fetchTodoTree(),
       ds.fetchScheduleItemsByDateRange(today, today),
       ds.fetchAllRoutines(),
       ds.listNotesUnified(),
@@ -176,7 +176,7 @@ export function AnalyticsScreen({
     setScheduleRange(range);
   }, []);
 
-  const taskNameMap = useMemo(() => {
+  const todoNameMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const n of data.nodes) {
       map.set(n.id, n.title || n.id);
@@ -200,7 +200,7 @@ export function AnalyticsScreen({
       tabsLabel: t("analytics.tabsLabel"),
       tabs: {
         overview: t("analytics.tabs.overview"),
-        tasks: t("analytics.tabs.tasks"),
+        todos: t("analytics.tabs.todos"),
         schedule: t("analytics.tabs.schedule"),
         work: t("analytics.tabs.work"),
       },
@@ -237,12 +237,12 @@ export function AnalyticsScreen({
         month: t("analytics.period.month"),
       },
       workTime: t("analytics.workTime"),
-      taskWorkTime: t("analytics.taskWorkTime"),
+      todoWorkTime: t("analytics.todoWorkTime"),
       totalWorkTime: t("analytics.totalWorkTime"),
       sessions: t("analytics.sessions"),
       avgPerDay: t("analytics.avgPerDay"),
       overview: {
-        tasks: t("analytics.overview.tasks"),
+        todos: t("analytics.overview.todos"),
         events: t("analytics.overview.events"),
         notes: t("analytics.overview.notes"),
         work: t("analytics.overview.work"),
@@ -257,7 +257,7 @@ export function AnalyticsScreen({
       todayCard: {
         title: t("analytics.today.title"),
         workTime: t("analytics.today.workTime"),
-        completedTasks: t("analytics.today.completedTasks"),
+        completedTodos: t("analytics.today.completedTodos"),
         pomodoroCount: t("analytics.today.pomodoroCount"),
       },
       weekly: {
@@ -305,13 +305,13 @@ export function AnalyticsScreen({
         title: t("analytics.timeline.title"),
         noSessions: t("analytics.timeline.noSessions"),
       },
-      taskTrend: {
-        title: t("analytics.taskTrend.title"),
-        completedCount: t("analytics.taskTrend.completedCount"),
+      todoTrend: {
+        title: t("analytics.todoTrend.title"),
+        completedCount: t("analytics.todoTrend.completedCount"),
       },
       stagnation: {
         title: t("analytics.stagnation.title"),
-        tasks: t("analytics.stagnation.tasks"),
+        todos: t("analytics.stagnation.todos"),
       },
       tagTime: {
         title: t("analytics.tagTime.title"),
@@ -353,7 +353,7 @@ export function AnalyticsScreen({
       initialLoading={initialLoading}
       notes={data.notes}
       routines={data.routines}
-      taskNameMap={taskNameMap}
+      todoNameMap={todoNameMap}
       tags={data.tags}
       assignments={data.assignments}
       targetPerDay={data.targetPerDay}

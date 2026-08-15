@@ -80,7 +80,7 @@
 
 ### V3: Notion 的汎用 DB + 特化機能の両立
 
-- **根拠**: Tasks / Schedule / Notes / Memo は特化テーブル（CRUD 高速、ドメイン制約あり）、家計簿・読書記録・習慣トラッカーなどは汎用 Database で表現
+- **根拠**: Todos / Schedule / Notes / Memo は特化テーブル（CRUD 高速、ドメイン制約あり）、家計簿・読書記録・習慣トラッカーなどは汎用 Database で表現
 - **比較**: Notion は全部汎用 DB（タスク特化機能が弱い、リマインダー・タイマー・ルーチンが二級市民）、Apple Reminders / TickTick は特化のみで汎用 DB なし
 
 ---
@@ -110,8 +110,8 @@
 
 ### Provider セット差分（詳細）
 
-- **デスクトップ Provider**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
-- **モバイル Provider**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → TaskTree → Calendar → Template → Memo → Note → Routine → ScheduleItems → Timer
+- **デスクトップ Provider**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TodoTree → Calendar → Template → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- **モバイル Provider**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → TodoTree → Calendar → Template → Memo → Note → Routine → ScheduleItems → Timer
 
 モバイルで省略: ScreenLock, FileExplorer, CalendarTags, Audio, WikiTag, ShortcutConfig
 

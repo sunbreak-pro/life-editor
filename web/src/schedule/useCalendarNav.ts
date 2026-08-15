@@ -25,30 +25,23 @@ export function useCalendarNav(isWide: boolean) {
   const desktopView = normalizeDesktopView(view);
 
   /*
-   * #692: narrow's one overview — the month grid on a sheet, opened from the
-   * header's date label (D-20260811-sched-2 = A). The switcher #467 retired
-   * does NOT come back: there is still no "view" to choose on Mobile, only a
-   * sheet that is open or shut.
+   * #878: narrow IS the month now (ユーザー確定 2026-08-15). The sheet #692 put
+   * behind the header's date label is retired with it — a panel that has to be
+   * asked for is the wrong shape for the thing the section is FOR, and the day
+   * list it covered up read as a copy of the drawer beside it. The main area
+   * shows the month grid with the anchored day's list underneath, so the two
+   * surfaces answer different questions again.
    *
-   * The flag lives here rather than in the render branch because everything
-   * that makes the grid usable reads `effView`: the fetch window (a sheet on
-   * the day range would draw 42 empty cells), the step size, and the period
-   * label. Flipping one line flips all three.
+   * Pinning the view HERE rather than at the render branch is what keeps the
+   * rest honest: the fetch window (a day range would draw 42 empty cells), the
+   * step size (the header arrows page months, and the day is picked by tapping
+   * a cell) and the period label all read `effView`. One line moves all three.
    *
-   * Wide has the switcher's own month view and never mounts the sheet, so the
-   * request only counts on narrow — that also means a window widened while the
-   * sheet is open cannot leave a stale "month" behind.
+   * `view` still holds whatever Desktop last chose, which is why narrow must
+   * not read it — a window narrowed while on "day" would page by days under a
+   * month grid.
    */
-  const [monthSheetRequested, setMonthSheetRequested] = useState(false);
-  const monthSheetOpen = !isWide && monthSheetRequested;
-
-  // #467: Mobile is a single day list — the switcher and its Month / Timeline
-  // options are gone, so narrow has no view of its own to normalise. Pinning
-  // it HERE rather than at the render branch is what keeps `step` and the fetch
-  // window honest: `view` still holds whatever Desktop last chose, so a
-  // window narrowed while on "month" would otherwise page by months and fetch
-  // a whole grid to draw one day's list.
-  const effView = isWide ? desktopView : monthSheetOpen ? "month" : "list";
+  const effView = isWide ? desktopView : "month";
 
   // Week-start pref (#217): read once per mount (same reload semantics as the
   // other lightweight prefs — a Settings change applies on section re-entry).
@@ -91,13 +84,11 @@ export function useCalendarNav(isWide: boolean) {
   );
   const goToday = useCallback(() => setAnchorDate(today), [today]);
 
-  const openMonthSheet = useCallback(() => setMonthSheetRequested(true), []);
-  const closeMonthSheet = useCallback(() => setMonthSheetRequested(false), []);
-  // Consumption only (#692): a cell hands back the day, never a new item. The
-  // sheet shuts on the way out so the tap lands on that day's Dayflow (#691).
+  // Consumption only (#692): a cell hands back the day, never a new item.
+  // Since #878 that day is what the list under the grid shows, so the tap has
+  // somewhere to land without anything opening or closing.
   const pickMonthDay = useCallback((dateKey: string) => {
     setAnchorDate(dateKey);
-    setMonthSheetRequested(false);
   }, []);
 
   return {
@@ -116,9 +107,6 @@ export function useCalendarNav(isWide: boolean) {
     rangeEnd,
     step,
     goToday,
-    monthSheetOpen,
-    openMonthSheet,
-    closeMonthSheet,
     pickMonthDay,
   };
 }

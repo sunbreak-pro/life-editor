@@ -1,7 +1,7 @@
 import type { DataService } from "@life-editor/shared";
 import { RoutineScheduleSync } from "./RoutineScheduleSync";
 import { CalendarTab } from "./CalendarTab";
-import { KanbanView } from "../tasks/KanbanView";
+import { KanbanView } from "../todos/KanbanView";
 
 /*
  * Schedule section host (target IA). #408 retired the Routines header tab —
@@ -16,18 +16,18 @@ import { KanbanView } from "../tasks/KanbanView";
  * MainScreen schedule block) so the Routine→schedule_items generator keeps
  * running while the user moves between tabs. DataService is injected (§6.4)
  * and only reaches the shared hooks through the domain Providers MainScreen
- * wraps around this screen — including the TaskTree + WikiTags pair the Kanban
- * needs, which the calendar was already using for its task chips.
+ * wraps around this screen — including the TodoTree + WikiTags pair the Kanban
+ * needs, which the calendar was already using for its todo chips.
  */
 export type ScheduleTab = "calendar" | "todo";
 
 export function ScheduleScreen({
   dataService,
   tab,
-  onOpenTasks,
-  pendingNewTask,
-  onConsumeNewTask,
-  pendingSelectTaskId,
+  onOpenTodos,
+  pendingNewTodo,
+  onConsumeNewTodo,
+  pendingSelectTodoId,
   onConsumePendingSelect,
   pendingSelectEvent,
   onConsumePendingEvent,
@@ -36,18 +36,18 @@ export function ScheduleScreen({
   dataService: DataService;
   tab: ScheduleTab;
   /** Open the Todo tab (A-3 tray title click → the full board). */
-  onOpenTasks: () => void;
-  /** Shell "new task" intent, forwarded to the board (see KanbanViewProps). */
-  pendingNewTask?: boolean;
-  onConsumeNewTask?: () => void;
-  /** A task to open, arrived from a "[[" link click (#370). */
-  pendingSelectTaskId?: string | null;
+  onOpenTodos: () => void;
+  /** Shell "new todo" intent, forwarded to the board (see KanbanViewProps). */
+  pendingNewTodo?: boolean;
+  onConsumeNewTodo?: () => void;
+  /** A todo to open, arrived from a "[[" link click (#370). */
+  pendingSelectTodoId?: string | null;
   onConsumePendingSelect?: () => void;
   /** An event to open, arrived from a palette search hit (#503). */
   pendingSelectEvent?: { id: string; date: string } | null;
   onConsumePendingEvent?: () => void;
   /**
-   * Navigate to a "[[" link target from the task body (#507) — the board needs
+   * Navigate to a "[[" link target from the todo body (#507) — the board needs
    * it for the same reason Notes and Daily do: only MainScreen knows how to
    * switch section + tab.
    */
@@ -61,7 +61,7 @@ export function ScheduleScreen({
       {tab === "calendar" ? (
         <CalendarTab
           dataService={dataService}
-          onOpenTasks={onOpenTasks}
+          onOpenTodos={onOpenTodos}
           pendingSelectEvent={pendingSelectEvent}
           onConsumePendingEvent={onConsumePendingEvent}
         />
@@ -72,9 +72,9 @@ export function ScheduleScreen({
         // is the flex-1 slot, since here it has the RoutineScheduleSync sibling.
         <div className="flex min-h-0 flex-1 flex-col">
           <KanbanView
-            pendingNewTask={pendingNewTask}
-            onConsumeNewTask={onConsumeNewTask}
-            pendingSelectTaskId={pendingSelectTaskId}
+            pendingNewTodo={pendingNewTodo}
+            onConsumeNewTodo={onConsumeNewTodo}
+            pendingSelectTodoId={pendingSelectTodoId}
             onConsumePendingSelect={onConsumePendingSelect}
             dataService={dataService}
             onNavigateToItem={onNavigateToItem}

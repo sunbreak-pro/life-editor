@@ -15,7 +15,7 @@ import { contentJsonToString, contentStringToJson } from "./contentJson";
  * notes_payload (per-role business columns) split (0008). DU-D Step 5
  * (0014_notes_payload_parent_fk.sql) further hardens parent_item_id with a
  * composite FK that blocks cross-role parenting at the DB layer — same
- * pattern as DU-B Step 1 (0009) for tasks.
+ * pattern as DU-B Step 1 (0009) for todos.
  *
  * Replaced the legacy single-table Notes mapper, which was retired in
  * DU-G G4; this 2-row mapper is now the only Notes mapper.
@@ -173,7 +173,7 @@ export const NOTES_PAYLOAD_LIST_COLUMNS =
 // NOTE_TYPES still includes the legacy "folder" value: the DB column keeps
 // it (rollback), and a folder row must be *recognisable*
 // (isLegacyNoteFolderRow) even though it can no longer be materialised as a
-// distinct NoteNodeType. Mirrors taskMapper's NODE_TYPES after S3 (#225).
+// distinct NoteNodeType. Mirrors todoMapper's NODE_TYPES after S3 (#225).
 const NOTE_TYPES: ReadonlySet<string> = new Set(["folder", "note"]);
 
 /**
@@ -381,7 +381,7 @@ export function noteUpdatesToPatches(
 
   // -- payload side --
   const payloadPatch: NotesPayloadUpdatePatch = {};
-  void userId; // reserved for future identity bumps (parity with taskMapper)
+  void userId; // reserved for future identity bumps (parity with todoMapper)
 
   if ("type" in updates && updates.type !== undefined)
     payloadPatch.note_type = updates.type;

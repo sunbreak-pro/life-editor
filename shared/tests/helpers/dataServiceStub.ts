@@ -19,7 +19,7 @@ import type { DataService } from "../../src/services/DataService";
  *            ^ names are checked          ^ shapes are not
  *
  * Loose values are deliberate, not laziness. Suites routinely hand back a
- * three-field object where the real signature returns a full TaskNode,
+ * three-field object where the real signature returns a full TodoNode,
  * because the subject only reads `id` / `title` / `isDeleted`. Demanding the
  * true return type there would force every suite to build nodes it never
  * looks at — which is the duplication this helper exists to remove.

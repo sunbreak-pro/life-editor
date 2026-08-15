@@ -42,7 +42,7 @@ import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
  * headless bridges inside it, and the Mobile 省略 gate — moved to
  * `AppProviders.tsx` in #676 (a); each section's own Provider nesting stays in
  * its descriptor row. Every domain reads `useSyncDomains` to know when the
- * data IT owns changed, so since #499 a note edit does not refetch the task
+ * data IT owns changed, so since #499 a note edit does not refetch the todo
  * tree, the tag graph, or the timer settings.
  *
  * Section routing is a local `useState` switch (no React Router — the
@@ -78,7 +78,7 @@ export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
   // Navigation half (hooks split — useShellNavigation): the section switch
   // (§3.2), the lifted in-section tab states, and the pending-intent stashes
-  // (new-task flag / "[[" item-nav) the destination views consume on mount.
+  // (new-todo flag / "[[" item-nav) the destination views consume on mount.
   /*
    * #753: a section change unmounts the whole body, so a draft inside it is
    * discarded by an act the panel never sees. Every navigation runs past the
@@ -215,7 +215,7 @@ export function MainScreen({ session }: { session: Session }) {
   // MOBILE_HAMBURGER_SECTIONS set and the per-section switcher constants are
   // gone: Materials/Briefing get hamburger + segmented, Schedule the segmented
   // alone (its Calendar body draws its own hamburger and its Todo body closes
-  // the drawer outright below 768px — the mobile Kanban carries task detail in
+  // the drawer outright below 768px — the mobile Kanban carries todo detail in
   // its own bottom sheet, #470), Connect/Work/Settings the hamburger alone.
   const detailHamburger = (
     <RightSidebarToggle
@@ -250,8 +250,9 @@ export function MainScreen({ session }: { session: Session }) {
   const sectionBody = descriptor.body({
     ds,
     nav,
-    // Briefing hosts its narrow band inside its own body (under the masthead);
-    // every other section puts it in the PageContainer header below.
+    // Briefing hosts its narrow band inside its own body (at the top of the
+    // paper, above the masthead — #879); every other section puts it in the
+    // PageContainer header below.
     narrowTabRow: descriptor.narrowHeaderInBody ? narrowRow : undefined,
     loadingFallback: sectionLoadingFallback,
   });
@@ -265,8 +266,8 @@ export function MainScreen({ session }: { session: Session }) {
      *
      * The shortcut handlers are handed over rather than wired here because the
      * executor has to sit inside the ShortcutConfig Provider, which is inside
-     * the chain; nav:* + new-task route through the target-IA mapping
-     * (handleNavigate / handleNewTask → Materials + tab + create dialog), and
+     * the chain; nav:* + new-todo route through the target-IA mapping
+     * (handleNavigate / handleNewTodo → Materials + tab + create dialog), and
      * undo / redo route through the ambient UndoRedo context inside
      * GlobalShortcuts itself (#304 / PR #316).
      */
@@ -277,7 +278,7 @@ export function MainScreen({ session }: { session: Session }) {
         onNavigate: nav.handleNavigate,
         onOpenSettings: () => setSection("settings"),
         onTogglePalette: () => setPaletteOpen((v) => !v),
-        onNewTask: nav.handleNewTask,
+        onNewTodo: nav.handleNewTodo,
       }}
     >
       {/*
@@ -325,7 +326,11 @@ export function MainScreen({ session }: { session: Session }) {
          * asked for.
          */}
         <PageContainer
-          width={descriptor.width}
+          width={
+            !isWide && descriptor.narrowWidth
+              ? descriptor.narrowWidth
+              : descriptor.width
+          }
           header={
             descriptor.narrowHeaderInBody ? undefined : (narrowRow ?? undefined)
           }

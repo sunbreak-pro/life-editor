@@ -25,7 +25,7 @@ paths:
 
 ## Sync の再取得はドメイン単位（#499）
 
-Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/context/syncDomains.ts` の tasks / notes / dailies / schedule / tags / calendars / timer / audio）に振り分けられる。データを読む effect は `useSyncDomains("notes", …)` で**自分が読むドメインを全部宣言**し、その戻り値を deps に入れる。
+Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/context/syncDomains.ts` の todos / notes / dailies / schedule / tags / calendars / timer / audio）に振り分けられる。データを読む effect は `useSyncDomains("notes", …)` で**自分が読むドメインを全部宣言**し、その戻り値を deps に入れる。
 
 - **申告漏れは無言の stale になる**（更新が来ず、ユーザーに直す手段がない）。1 つの effect が複数ドメインを読むなら全部並べる。過剰宣言は余計な fetch 1 回で済むので、迷ったら足す側に倒す
 - 新しいテーブルを `REALTIME_TABLES` に足したら `syncDomains.ts` の対応表にも足す（`syncDomains.test.ts` の lockstep が落ちる）
@@ -37,11 +37,11 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 
 - **グローバル層**（外→内）: I18n → Theme（`main.tsx`）→ Toast → Sync → UndoRedo（`UndoRedoHost` 経由）→ ShortcutConfig → Audio → Timer（`TimerHost` 経由）→ RightSidebar（`MainScreen.tsx`）
 - **セクション層**（section switch の内側。セクションごとに独立した鎖で、横並びの兄弟関係）:
-  - Materials: WikiTagsUnified → TaskTree / NotesUnified / DailiesUnified
+  - Materials: WikiTagsUnified → TodoTree / NotesUnified / DailiesUnified
   - Schedule: Calendar → Routine → ScheduleItems
   - Analytics: AnalyticsFilter（`components/Analytics/AnalyticsView.tsx` 内）
 - **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider、TimerProvider → AudioProvider）。**#676 (c) で Audio と Timer を入れ替えた** — 完了チャイムを鳴らすのは Timer 側なので Audio が外。旧構成では ref（`chimeRef` + `AudioChimeBridge`）で内→外へ関数を渡し戻していた
-- **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TaskTreeContext.tsx` の unmount 時 UndoRedo stack clear）
+- **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TodoTreeContext.tsx` の unmount 時 UndoRedo stack clear）
 - **Mobile 省略ガードは配線済み**（#320）: web ホスト（`web/src/MainScreen.tsx` の ShortcutConfigHost）が `isNativeMobile()`（`utils/platform.ts`）で native mobile 時に ShortcutConfig Provider を省略する（一覧は CLAUDE.md §2 が正）。Audio は Provider 維持（完了チャイム維持 = `docs/requirements/mobile-scope.md` #10/#11）で Ambient mixer UI のみ `WorkScreen.tsx` 側で native 省略。省略 Provider は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）— 消費側は null ガードで no-op にする
 
 ## Pattern A（Context/Provider 標準 — 3 ファイル）
@@ -71,6 +71,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 - i18n は props 経由（部品フック内で `useTranslation()` 禁止）。文言は `react-i18next` の en / ja 両 catalog に追加
 - DataService はコールバック注入（フック内で `getDataService()` 直呼び禁止）
 - ジェネリクスで型外部化
+- **`lumen-*` はネストした `data-theme` に追随しない**（#887）: `@theme` の別名（`--color-lumen-bg: var(--color-bg-primary)`）は Tailwind が `:root` に出し、**宣言された要素**で中身が確定して子孫はその確定値を継承する。サブツリーに `data-theme="dark"` を付けても lumen-\* 側は塗り替わらない（Settings のテーマカード 3 枚が同じ見た目になっていた原因）。**部分テーマで使うトークンは `tokens.css` の `[data-theme]` エイリアスブロックに 1 行足す**（色値のコピーは禁止・守り = `shared/tests/tokensNestedTheme.test.ts`）
 - 詳細 → `docs/vision/coding-principles.md §5`
 
 ## Schedule Provider 分割
@@ -82,10 +83,11 @@ Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/c
 jsdom にレイアウトが無い（座標がすべて 0）という環境の事実の正本は **CLAUDE.md §7.1**。`shared/tests/` も同じで、`elementFromPoint` は null・画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は検証できない。
 
 - 規約: UI の入力経路は座標に依存しない形で組む — DOM イベント + `closest("[data-…]")` で対象を引く（実例 = `web/src/notes/itemLinkNode.ts` の `handleDOMEvents.click`）
-- **規約（ボタンの処理をどう固定するか。[`D-20260812-refactor-2`](../decisions/D-20260812-refactor-2.md) = A+B）: 既定は Testing Library で画面ごと render してハンドラを叩き、引数と呼び先を assert する**（実例 = `web/tests/trashScreenActions.test.tsx`）。**純関数を切り出して直接呼ぶ形は、その画面が jsdom に載らないときの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等。実例 = `web/src/schedule/taskChipUndoWiring.ts`）— 載る画面で使うとテスト専用の間接層が 1 枚増えるだけになる
+- **規約（ボタンの処理をどう固定するか。[`D-20260812-refactor-2`](../decisions/D-20260812-refactor-2.md) = A+B）: 既定は Testing Library で画面ごと render してハンドラを叩き、引数と呼び先を assert する**（実例 = `web/tests/trashScreenActions.test.tsx`）。**純関数を切り出して直接呼ぶ形は、その画面が jsdom に載らないときの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等。実例 = `web/src/schedule/todoChipUndoWiring.ts`）— 載る画面で使うとテスト専用の間接層が 1 枚増えるだけになる
 
 ## Gotchas
 
+- **`cn` は tailwind-merge ではない**（`shared/src/components/cn.ts` = ただの文字列連結）。同じプロパティのクラスを 2 つ載せると**後から渡した方ではなく CSS の記述順が勝つ** — Tailwind v4 は接尾辞順に吐くので `.max-w-[860px]` は `.max-w-md` より上に来て負ける。**既定値を呼び出し側に上書きさせたい部品は `className` 任せにせず prop で出し分ける**（実例 = `Modal` の `size` / `padded`。860px を渡したタグ編集パネルが 448px で描かれていた = #830）
 - **IME**: keydown 処理は **`isImeComposing(e)`（`shared/src/utils/imeGuard.ts`）必須**（日本語入力破壊防止）。`isComposing` を直に見ない — WebKit（macOS + iOS = 主ターゲット）は変換を**確定する** Enter を `isComposing: false` + `keyCode === 229` で飛ばすため、フラグ単独だと一番まずいキーだけ素通りする（#737。React 合成イベント・native イベントのどちらも同じヘルパで受ける）
 - **リッチテキスト**: TipTap
-- **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断）。`moveNode` は同一階層の並び替え専用で、親を変える API（旧 `moveNodeInto`）は Tasks / Notes とも存在しない
+- **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断）。`moveNode` は同一階層の並び替え専用で、親を変える API（旧 `moveNodeInto`）は Todos / Notes とも存在しない

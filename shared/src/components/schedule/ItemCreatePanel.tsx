@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "../cn";
-import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING_ON_ACCENT,
+  FOCUS_RING_TIGHT,
+} from "../styleTokens";
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { TimeRangeField } from "../TimeRangeField";
@@ -15,19 +20,19 @@ import { isImeComposing } from "../../utils/imeGuard";
  *
  * Three tabs, but only TWO of them create something:
  *   - event: creates a ScheduleItem, exactly as before.
- *   - task:  either creates a NEW TaskNode already scheduled into the target
- *            slot, or takes an EXISTING unscheduled task and gives it that slot
- *            (Tasks AC7). This is the timed sibling of the #298 "Today's Todo"
+ *   - todo:  either creates a NEW TodoNode already scheduled into the target
+ *            slot, or takes an EXISTING unscheduled todo and gives it that slot
+ *            (Todos AC7). This is the timed sibling of the #298 "Today's Todo"
  *            tray: the tray declares "today, time TBD" (all-day staging), this
  *            panel says "this day, this time".
  *   - note:  STAGES a note (new or existing) to be linked to whatever the panel
  *            creates — "book the meeting, and have its minutes ready" in one
  *            pass. A note has no time of its own, so it cannot be a creation
- *            target here; the submit stays the event/task one and the panel
+ *            target here; the submit stays the event/todo one and the panel
  *            remembers which of the two was last chosen (`target`).
  *
- * The item title and the times are shared across the event/task tabs on purpose
- * — realising halfway through that "歯医者" is a task rather than an event
+ * The item title and the times are shared across the event/todo tabs on purpose
+ * — realising halfway through that "歯医者" is a todo rather than an event
  * should not cost the typing. The note's own title is separate state, since it
  * names a different thing.
  *
@@ -44,12 +49,12 @@ import { isImeComposing } from "../../utils/imeGuard";
 
 /** Which tab is showing. Only `event` / `task` can be a creation target. */
 export type ItemCreateType = "event" | "task" | "note";
-/** Within the task and note tabs: make a new one, or pick one that exists. */
+/** Within the todo and note tabs: make a new one, or pick one that exists. */
 export type ItemCreateSource = "new" | "existing";
 
-/** One row of a picker (an existing task, or an existing note). */
+/** One row of a picker (an existing todo, or an existing note). */
 export interface ItemCreateOption {
-  /** Source TaskNode / NoteNode id. */
+  /** Source TodoNode / NoteNode id. */
   id: string;
   title: string;
 }
@@ -66,13 +71,13 @@ export interface ItemCreatePanelLabels {
   /** Already-translated accessible name for the item-type tablist. */
   typeLabel: string;
   typeEvent: string;
-  typeTask: string;
+  typeTodo: string;
   typeNote: string;
   /** Already-translated aria-label for the shared item-title input. */
   title: string;
   /** Per-type placeholder for the item-title input. */
   eventPlaceholder: string;
-  taskPlaceholder: string;
+  todoPlaceholder: string;
   /** Field label of the read-only target-day row. */
   date: string;
   startTime: string;
@@ -80,28 +85,28 @@ export interface ItemCreatePanelLabels {
   /** Event submit pair (#354 — create, and create-then-open-the-editor). */
   addEvent: string;
   addEventAndOpen: string;
-  /** Task submit — one label per source, because the acts differ. */
-  addTask: string;
-  placeTask: string;
-  /** Accessible name for the new / existing radiogroup (task and note tabs). */
+  /** Todo submit — one label per source, because the acts differ. */
+  addTodo: string;
+  placeTodo: string;
+  /** Accessible name for the new / existing radiogroup (todo and note tabs). */
   sourceLabel: string;
   sourceNew: string;
   sourceExisting: string;
-  /** Task picker. */
-  searchTasks: string;
-  /** Shown when the task pool itself is empty (nothing left to place). */
-  taskPickerEmpty: string;
-  /** Shown when the task search query matches nothing. */
-  taskPickerNoMatch: string;
+  /** Todo picker. */
+  searchTodos: string;
+  /** Shown when the todo pool itself is empty (nothing left to place). */
+  todoPickerEmpty: string;
+  /** Shown when the todo search query matches nothing. */
+  todoPickerNoMatch: string;
   /** Note tab. */
   noteTitleLabel: string;
   notePlaceholder: string;
   searchNotes: string;
   notePickerEmpty: string;
   notePickerNoMatch: string;
-  /** Explains that the note rides along with the event / task being created. */
+  /** Explains that the note rides along with the event / todo being created. */
   noteLinkHint: string;
-  /** Heading of the staged-note row shown on the event / task tabs. */
+  /** Heading of the staged-note row shown on the event / todo tabs. */
   attachedNote: string;
   /** Accessible name for the button that unstages the note. */
   clearNote: string;
@@ -130,12 +135,12 @@ export interface ItemCreatePanelProps {
   /** Seeds the item-title field. Default empty. */
   initialTitle?: string;
   /**
-   * The pool the "existing task" source picks from — the host's unscheduled,
-   * incomplete leaf tasks (`pickAddableTasks`, the same pool the #298 tray
-   * offers). Already-scheduled tasks are deliberately absent: re-timing one is
+   * The pool the "existing todo" source picks from — the host's unscheduled,
+   * incomplete leaf todos (`pickAddableTodos`, the same pool the #298 tray
+   * offers). Already-scheduled todos are deliberately absent: re-timing one is
    * a drag on the grid, not a create gesture.
    */
-  existingTasks: ItemCreateOption[];
+  existingTodos: ItemCreateOption[];
   /** The pool the "existing note" source picks from (live notes). */
   existingNotes: ItemCreateOption[];
   /** Fired with the trimmed (non-empty) title, the times, and the staged note. */
@@ -161,20 +166,20 @@ export interface ItemCreatePanelProps {
     end: string,
     note: ItemCreateNoteDraft | null,
   ) => void;
-  /** Create a new task scheduled into the target day + window. */
-  onCreateTask: (
+  /** Create a new todo scheduled into the target day + window. */
+  onCreateTodo: (
     title: string,
     start: string,
     end: string,
     note: ItemCreateNoteDraft | null,
   ) => void;
   /**
-   * Give an EXISTING task the target day + window. No "and open" twin: the
-   * Schedule section has no task detail editor (task chips stay read-only
+   * Give an EXISTING todo the target day + window. No "and open" twin: the
+   * Schedule section has no todo detail editor (todo chips stay read-only
    * there — #297), so the follow-up the event pair offers has no counterpart.
    */
-  onPlaceTask: (
-    taskId: string,
+  onPlaceTodo: (
+    todoId: string,
     start: string,
     end: string,
     note: ItemCreateNoteDraft | null,
@@ -188,12 +193,12 @@ export interface ItemCreatePanelProps {
 // the field the submit depends on, so a dead-but-lit button would give the user
 // nothing to look at when a click does nothing.
 const DISABLED_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
-const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg ${DISABLED_BTN}`;
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover ${FOCUS_RING_ON_ACCENT} ${DISABLED_BTN}`;
 const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${DISABLED_BTN}`;
 const HINT = "py-3 text-center text-xs text-lumen-text-secondary";
 
 /**
- * Search field + single-select list, shared by the task and note pickers.
+ * Search field + single-select list, shared by the todo and note pickers.
  * Capped height with its own scroll: a pool is the whole backlog, and letting
  * it grow would push the times and the submit button out of a Mobile sheet.
  */
@@ -268,8 +273,8 @@ function PickerList({
 }
 
 /**
- * Resolve the TASK selection THROUGH the current query, so narrowing past the
- * picked row drops it from both the highlight and the submit — the picked task
+ * Resolve the TODO selection THROUGH the current query, so narrowing past the
+ * picked row drops it from both the highlight and the submit — the picked todo
  * IS what the submit acts on, and acting on something the user can no longer
  * see would be a silent surprise.
  *
@@ -294,27 +299,27 @@ export function ItemCreatePanel({
   initialStart = "09:00",
   initialEnd = "10:00",
   initialTitle = "",
-  existingTasks,
+  existingTodos,
   existingNotes,
   onSubmitEvent,
   onSubmitEventAndOpen,
-  onCreateTask,
-  onPlaceTask,
+  onCreateTodo,
+  onPlaceTodo,
   formatDuration,
   labels,
 }: ItemCreatePanelProps) {
   const [type, setType] = useState<ItemCreateType>("event");
   // The note tab creates nothing, so the submit keeps acting on whichever of
-  // event / task was last open. Without this the footer would have nothing to
+  // event / todo was last open. Without this the footer would have nothing to
   // do while the note tab is showing.
   const [target, setTarget] = useState<"event" | "task">("event");
   const [title, setTitle] = useState(initialTitle);
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
 
-  const [taskSource, setTaskSource] = useState<ItemCreateSource>("new");
-  const [taskQuery, setTaskQuery] = useState("");
-  const [pickedTaskId, setPickedTaskId] = useState<string | null>(null);
+  const [todoSource, setTodoSource] = useState<ItemCreateSource>("new");
+  const [todoQuery, setTodoQuery] = useState("");
+  const [pickedTodoId, setPickedTodoId] = useState<string | null>(null);
 
   const [noteSource, setNoteSource] = useState<ItemCreateSource>("new");
   const [noteTitle, setNoteTitle] = useState("");
@@ -326,15 +331,15 @@ export function ItemCreatePanel({
     if (next !== "note") setTarget(next);
   };
 
-  const pickedTask = resolvePicked(existingTasks, taskQuery, pickedTaskId);
-  // By id alone, unlike the task above: the note is staged, then the user
-  // leaves for the event / task tab to actually submit. Dropping it because
+  const pickedTodo = resolvePicked(existingTodos, todoQuery, pickedTodoId);
+  // By id alone, unlike the todo above: the note is staged, then the user
+  // leaves for the event / todo tab to actually submit. Dropping it because
   // the search box it was picked in still holds a narrower query would throw
   // the attachment away between picking it and using it.
   const pickedNote = pickedNoteId
     ? (existingNotes.find((o) => o.id === pickedNoteId) ?? null)
     : null;
-  const placing = target === "task" && taskSource === "existing";
+  const placing = target === "task" && todoSource === "existing";
 
   // What rides along with the create. A blank new-note title stages nothing —
   // opening the note tab and changing your mind must not create an "Untitled".
@@ -367,25 +372,25 @@ export function ItemCreatePanel({
   };
   const submitPrimary = () => {
     if (placing) {
-      if (!pickedTask) return;
-      onPlaceTask(pickedTask.id, start, end, stagedNote);
+      if (!pickedTodo) return;
+      onPlaceTodo(pickedTodo.id, start, end, stagedNote);
       return;
     }
-    submitTitled(target === "event" ? onSubmitEvent : onCreateTask);
+    submitTitled(target === "event" ? onSubmitEvent : onCreateTodo);
   };
   // What the footer needs before it can act. Read on the note tab too, where
-  // neither the title field nor the task picker is on screen.
-  const canSubmit = placing ? !!pickedTask : !!title.trim();
+  // neither the title field nor the todo picker is on screen.
+  const canSubmit = placing ? !!pickedTodo : !!title.trim();
 
-  const source = type === "note" ? noteSource : taskSource;
-  const setSource = type === "note" ? setNoteSource : setTaskSource;
+  const source = type === "note" ? noteSource : todoSource;
+  const setSource = type === "note" ? setNoteSource : setTodoSource;
 
   return (
     <div className="flex flex-col gap-3">
       <SegmentedControl
         options={[
           { id: "event", label: labels.typeEvent },
-          { id: "task", label: labels.typeTask },
+          { id: "task", label: labels.typeTodo },
           { id: "note", label: labels.typeNote },
         ]}
         value={type}
@@ -436,14 +441,14 @@ export function ItemCreatePanel({
         </>
       ) : placing ? (
         <PickerList
-          options={existingTasks}
-          query={taskQuery}
-          onQueryChange={setTaskQuery}
-          pickedId={pickedTask?.id ?? null}
-          onPick={setPickedTaskId}
-          searchLabel={labels.searchTasks}
-          emptyLabel={labels.taskPickerEmpty}
-          noMatchLabel={labels.taskPickerNoMatch}
+          options={existingTodos}
+          query={todoQuery}
+          onQueryChange={setTodoQuery}
+          pickedId={pickedTodo?.id ?? null}
+          onPick={setPickedTodoId}
+          searchLabel={labels.searchTodos}
+          emptyLabel={labels.todoPickerEmpty}
+          noMatchLabel={labels.todoPickerNoMatch}
         />
       ) : (
         <input
@@ -453,13 +458,13 @@ export function ItemCreatePanel({
             if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
           }}
           placeholder={
-            type === "event" ? labels.eventPlaceholder : labels.taskPlaceholder
+            type === "event" ? labels.eventPlaceholder : labels.todoPlaceholder
           }
           aria-label={labels.title}
           className={FIELD}
         />
       )}
-      {/* Staged note, echoed on the event / task tabs: the note tab is one
+      {/* Staged note, echoed on the event / todo tabs: the note tab is one
           click away, so without this the attachment would be invisible at the
           moment the user commits to it. */}
       {stagedNote && type !== "note" && (
@@ -532,7 +537,7 @@ export function ItemCreatePanel({
             onClick={submitPrimary}
             className={PRIMARY_BTN}
           >
-            {placing ? labels.placeTask : labels.addTask}
+            {placing ? labels.placeTodo : labels.addTodo}
           </button>
         )}
       </div>

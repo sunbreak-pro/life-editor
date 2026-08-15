@@ -25,7 +25,7 @@ import { TrashScreen } from "../src/trash/TrashScreen";
  * `vi.fn()` callbacks, so it is blind to the host wiring underneath — the two
  * switch statements at the bottom of TrashScreen.tsx that decide WHICH of the
  * ten service methods a click reaches. A copy-paste slip there (notes routed to
- * restoreTask) leaves every existing test green while the wrong row comes back
+ * restoreTodo) leaves every existing test green while the wrong row comes back
  * from the trash. The routing tables below are that missing assertion: for each
  * of the five categories, click the button and assert both the method that fired
  * and the id it carried, plus that no sibling method fired at all.
@@ -49,9 +49,9 @@ interface CategorySpec {
 const CATEGORIES: CategorySpec[] = [
   {
     region: "Todos",
-    fetch: "fetchDeletedTasks",
-    restore: "restoreTask",
-    remove: "permanentDeleteTask",
+    fetch: "fetchDeletedTodos",
+    restore: "restoreTodo",
+    remove: "permanentDeleteTodo",
     rows: [
       { id: "task-1", title: "Buy milk" },
       // Empty title — pins the host's `|| Untitled` fallback.
@@ -191,7 +191,7 @@ describe("TrashScreen — permanent delete routes through the confirm dialog", (
 });
 
 describe("TrashScreen — the arguments the host derives before the call", () => {
-  it("labels a daily by its date and an untitled task by the fallback", async () => {
+  it("labels a daily by its date and an untitled todo by the fallback", async () => {
     await renderTrash();
     // Both come from the host's row mapping, and both are the label the
     // confirm dialog then quotes back — a wrong field silently deletes the
@@ -238,7 +238,7 @@ describe("TrashScreen — the arguments the host derives before the call", () =>
     const { fns } = await renderTrash();
     // Hold the write open so the in-flight frame is observable.
     let release!: () => void;
-    fns.restoreTask.mockImplementation(
+    fns.restoreTodo.mockImplementation(
       () => new Promise<void>((resolve) => (release = resolve)),
     );
 
@@ -264,7 +264,7 @@ describe("TrashScreen — the arguments the host derives before the call", () =>
 describe("TrashScreen — what the screen shows after the call returns", () => {
   it("re-fetches so the restored row leaves the list", async () => {
     const { fns } = await renderTrash();
-    expect(fns.fetchDeletedTasks).toHaveBeenCalledTimes(1);
+    expect(fns.fetchDeletedTodos).toHaveBeenCalledTimes(1);
 
     fireEvent.click(
       within(row("Notes", "Design memo")).getByRole("button", {
@@ -276,7 +276,7 @@ describe("TrashScreen — what the screen shows after the call returns", () => {
       expect(screen.queryByRole("region", { name: "Notes" })).toBeNull(),
     );
     // Every category is re-read, not just the one that changed.
-    expect(fns.fetchDeletedTasks).toHaveBeenCalledTimes(2);
+    expect(fns.fetchDeletedTodos).toHaveBeenCalledTimes(2);
   });
 
   it("retries the whole fetch from the error card", async () => {

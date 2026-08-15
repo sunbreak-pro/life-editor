@@ -8,7 +8,7 @@ import {
 /*
  * QuickCaptureSheet — the Mobile quick-capture form inside a BottomSheet. Since
  * #299 it is a thin frame around the shared creation fields; since #376 those
- * fields are the unified <ItemCreatePanel> (event / task tabs), so the Mobile
+ * fields are the unified <ItemCreatePanel> (event / todo tabs), so the Mobile
  * FAB reaches everything the Desktop overlay does.
  *
  * The frame owns nothing but the sheet: every prop below is forwarded verbatim
@@ -49,6 +49,13 @@ export function QuickCaptureSheet({
       onClose={onClose}
       title={sheetTitle}
       closeLabel={closeLabel}
+      /*
+       * Full height (#874). This is the create FORM — date, times, a repeat
+       * section, a tab row — not a one-field quick add, and every field in it
+       * summons the keyboard. Partial, it left a live strip of calendar
+       * showing that re-flowed on each focus.
+       */
+      fullScreen
     >
       <ItemCreatePanel {...panel} />
     </BottomSheet>

@@ -5,7 +5,7 @@ import {
   RoutineProvider,
   ScheduleItemsProvider,
   CalendarProvider,
-  TaskTreeProvider,
+  TodoTreeProvider,
   WikiTagsUnifiedProvider,
   type DataService,
   type PageContainerWidth,
@@ -92,14 +92,24 @@ export interface SectionDescriptor {
    * for the document surfaces where PageContainer owns the vertical scroll.
    */
   readonly width: PageContainerWidth;
+  /**
+   * Width to use on the NARROW layout instead of `width` (omitted = same at
+   * both). Materials is the case this exists for (#875): its desktop surfaces
+   * want the page scroller ("wide"), while its narrow surfaces are written as
+   * full-height self-scrolling lists — and only under "fluid" does their
+   * `h-full` resolve against a definite box, which is what a floating "+"
+   * needs to pin to the screen edge instead of to the end of the list.
+   */
+  readonly narrowWidth?: PageContainerWidth;
   /** Tab band shown by the standard SectionHeader (omitted = plain title). */
   readonly tabBand?: TabBandId;
   readonly narrowHeader: NarrowHeader;
   /**
    * Draw the narrow row inside the body (via `ctx.narrowTabRow`) instead of in
    * the PageContainer header. Briefing only: its body is a centered "paper"
-   * that re-issues the band under the masthead (#318 / #609), so a second row
-   * above it would push the paper down for one button.
+   * that re-issues the band as its own first row, above the masthead (#318 /
+   * #609 / #879), so a second row above it would push the paper down for one
+   * button.
    */
   readonly narrowHeaderInBody?: boolean;
   readonly body: (ctx: SectionBodyContext) => ReactNode;
@@ -111,7 +121,7 @@ export const SECTION_DESCRIPTORS: Readonly<
   /*
    * Briefing (Briefing plan Step 1) — the morning-paper home surface and the
    * default landing section (useStartupSection). Crosses four domains
-   * (schedule / tasks / timer / dailies) read-only, so it uses no per-section
+   * (schedule / todos / timer / dailies) read-only, so it uses no per-section
    * Provider — BriefingScreen calls the injected DataService directly (same
    * pattern as TrashScreen) and re-fetches on Realtime syncVersion bumps,
    * which is how a briefing written by Claude via MCP appears without a
@@ -141,18 +151,18 @@ export const SECTION_DESCRIPTORS: Readonly<
    * WikiTagsUnifiedProvider provides both the Event Tag/Link surface for
    * ScheduleItemsView (DU-F Step 7) and the life-tag <select> for CalendarView
    * (life-tags S2: calendars.tag_id FKs wiki_tags(id) ON DELETE CASCADE — the
-   * folder-scoped view is now a tag-scoped view, so TaskTreeProvider is no
+   * folder-scoped view is now a tag-scoped view, so TodoTreeProvider is no
    * longer needed on that count).
    *
-   * TaskTreeProvider is OUTERMOST here (schedule redesign A-1): the Calendar
-   * reads scheduled TaskNodes to render task=blue chips. Provider order (§6.2)
-   * places TaskTree before Calendar, and TaskTree depends on neither WikiTags
+   * TodoTreeProvider is OUTERMOST here (schedule redesign A-1): the Calendar
+   * reads scheduled TodoNodes to render todo=blue chips. Provider order (§6.2)
+   * places TodoTree before Calendar, and TodoTree depends on neither WikiTags
    * nor Calendar, so it sits at the very outside. #411 folded the Kanban in as
    * the Todo tab. It needs the same two Providers it had in Materials
-   * (TaskTree + WikiTags) and both are already on this branch, so the tab
-   * reuses them rather than nesting a second pair — one task store for the
+   * (TodoTree + WikiTags) and both are already on this branch, so the tab
+   * reuses them rather than nesting a second pair — one todo store for the
    * calendar chips, the Todo tray and the board. `persistSelection` moved with
-   * the board: it is what re-opens the task the user was reading after a tab
+   * the board: it is what re-opens the todo the user was reading after a tab
    * switch (#282).
    */
   schedule: {
@@ -160,7 +170,7 @@ export const SECTION_DESCRIPTORS: Readonly<
     tabBand: "schedule",
     narrowHeader: "tabs",
     body: ({ ds, nav }) => (
-      <TaskTreeProvider dataService={ds} persistSelection>
+      <TodoTreeProvider dataService={ds} persistSelection>
         <WikiTagsUnifiedProvider dataService={ds}>
           <CalendarProvider dataService={ds}>
             <RoutineProvider dataService={ds}>
@@ -168,10 +178,10 @@ export const SECTION_DESCRIPTORS: Readonly<
                 <ScheduleScreen
                   dataService={ds}
                   tab={nav.scheduleTab}
-                  onOpenTasks={() => nav.setScheduleTab("todo")}
-                  pendingNewTask={nav.pendingNewTask}
-                  onConsumeNewTask={nav.consumeNewTask}
-                  pendingSelectTaskId={nav.pendingTaskSelect}
+                  onOpenTodos={() => nav.setScheduleTab("todo")}
+                  pendingNewTodo={nav.pendingNewTodo}
+                  onConsumeNewTodo={nav.consumeNewTodo}
+                  pendingSelectTodoId={nav.pendingTodoSelect}
                   onConsumePendingSelect={nav.consumeItemNav}
                   pendingSelectEvent={nav.pendingEventSelect}
                   onConsumePendingEvent={nav.consumeItemNav}
@@ -181,7 +191,7 @@ export const SECTION_DESCRIPTORS: Readonly<
             </RoutineProvider>
           </CalendarProvider>
         </WikiTagsUnifiedProvider>
-      </TaskTreeProvider>
+      </TodoTreeProvider>
     ),
   },
   /*
@@ -191,6 +201,12 @@ export const SECTION_DESCRIPTORS: Readonly<
    */
   materials: {
     width: "wide",
+    // Narrow: the section box owns its height and each tab scrolls inside it
+    // (NotesMobileList and DailyView's narrow branch are both already written
+    // that way — `h-full` roots over an inner `overflow-y-auto`). Under "wide"
+    // those roots collapse to auto and the page scroller takes over, which is
+    // what parked the Notes "+" at the end of the list (#875).
+    narrowWidth: "fluid",
     tabBand: "materials",
     narrowHeader: "tabs+hamburger",
     body: ({ ds, nav }) => (
@@ -243,9 +259,9 @@ export const SECTION_DESCRIPTORS: Readonly<
     ),
   },
   /*
-   * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset editor.
+   * Work (W3-B) — Pomodoro timer + TodoSelector + settings/preset editor.
    * TimerProvider is mounted at the shell level; this view reads
-   * useTimerContext + fetches the task list via the injected DataService.
+   * useTimerContext + fetches the todo list via the injected DataService.
    */
   work: {
     width: "wide",
@@ -253,8 +269,8 @@ export const SECTION_DESCRIPTORS: Readonly<
     body: ({ ds }) => <WorkScreen dataService={ds} />,
   },
   /*
-   * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule). Host
-   * fetches sessions/tasks/schedule/routines via DataService and injects data
+   * Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Host
+   * fetches sessions/todos/schedule/routines via DataService and injects data
    * + t into the pure shared <AnalyticsView>.
    */
   analytics: {

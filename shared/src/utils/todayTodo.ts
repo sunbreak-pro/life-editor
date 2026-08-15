@@ -1,33 +1,33 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 
 /*
  * todayTodo (schedule redesign A-3 / #298) — pure selectors backing the
  * rightSidebar "Today's Todo" tray. No React, no DataService; the Schedule host
  * feeds the output into <TodayTodoTray>.
  *
- * The tray's two groups (placed / unplaced-today) reuse `tasksToCalendarChips`
- * (split by isAllDay). This module owns the third surface: the "add from tasks"
- * picker — the pool of tasks a user can promote into today's candidates.
+ * The tray's two groups (placed / unplaced-today) reuse `todosToCalendarChips`
+ * (split by isAllDay). This module owns the third surface: the "add from todos"
+ * picker — the pool of todos a user can promote into today's candidates.
  */
 
-export interface AddableTask {
+export interface AddableTodo {
   id: string;
   title: string;
 }
 
 /**
- * Tasks eligible to be added as today's candidates: incomplete, not yet
+ * Todos eligible to be added as today's candidates: incomplete, not yet
  * scheduled, and a LEAF (no children) — parents are organisational, the todo
  * lives on the leaf. Input is expected to be already free of soft-deleted nodes
- * (useTaskTreeAPI.nodes), but isDeleted is filtered defensively. Input order is
+ * (useTodoTreeAPI.nodes), but isDeleted is filtered defensively. Input order is
  * preserved so the picker matches the tree's ordering.
  */
-export function pickAddableTasks(tasks: TaskNode[]): AddableTask[] {
+export function pickAddableTodos(todos: TodoNode[]): AddableTodo[] {
   const parentIds = new Set<string>();
-  for (const t of tasks) {
+  for (const t of todos) {
     if (!t.isDeleted && t.parentId != null) parentIds.add(t.parentId);
   }
-  return tasks
+  return todos
     .filter(
       (t) =>
         !t.isDeleted &&

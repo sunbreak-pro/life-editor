@@ -64,16 +64,16 @@ Mobile が使う `fetch_by_date_range` は `is_dismissed` を見ないため、D
 - **開発者**: 新機能追加時に「Desktop は Provider、Mobile は直呼び」のボイラープレートが二系統分発生、保守コスト増
 - **QA**: dismissed/未来月イベントの振る舞いがプラットフォーム非対称で再現困難
 
-頻度は日常操作で常時。特に `MemoProvider` の mutation 経路を意図的に使う Daily Memo や Task detail から編集した際に顕著。
+頻度は日常操作で常時。特に `MemoProvider` の mutation 経路を意図的に使う Daily Memo や Todo detail から編集した際に顕著。
 
 ## Fix / Workaround
 
 恒久対応として Phase B を `.claude/docs/vision/plans/2026-04-20-mobile-data-parity-phase-a-b.md` の計画に沿って実施（2026-04-20 同日）:
 
-1. `MobileCalendarView` を `useScheduleItemsContext()` / `useTaskTreeContext()` 経由に書き換え
+1. `MobileCalendarView` を `useScheduleItemsContext()` / `useTodoTreeContext()` 経由に書き換え
    - `monthItems` / `tasks` ローカル state 撤去、`monthlyScheduleItems` + `allNodes.filter(type=task)` を購読
    - Provider の `loadScheduleItemsForMonth`（42-day grid）を使用 → 月カレンダーのグリッド padding も正しくカバーされる副次改善
-   - CRUD は `toggleComplete` / `updateScheduleItem` / `createScheduleItem` / `softDeleteScheduleItem` / `setTaskStatus` / `updateNode` に置換。await/再 fetch は Provider の optimistic update に委譲
+   - CRUD は `toggleComplete` / `updateScheduleItem` / `createScheduleItem` / `softDeleteScheduleItem` / `setTodoStatus` / `updateNode` に置換。await/再 fetch は Provider の optimistic update に委譲
 2. `MobileMemoView` を `useMemoContext()` 経由に書き換え、`ds.fetchAllMemos` / `ds.upsertMemo` 直呼び撤去。Provider の `upsertMemo` は UndoRedo 対応済み
 3. `schedule_item_repository.rs::fetch_by_date_range` に `is_dismissed = 0` フィルタを追加（`fetch_by_date` と対称化）
 

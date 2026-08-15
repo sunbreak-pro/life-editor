@@ -8,7 +8,7 @@
  *
  * It lives here rather than inline in CalendarTab because CalendarTab needs the
  * whole Schedule Provider chain to render, so anything reachable only from
- * inside it cannot be exercised by a test (same reason taskChipUndoWiring was
+ * inside it cannot be exercised by a test (same reason todoChipUndoWiring was
  * pulled out). The two facts worth pinning are small and easy to get wrong:
  * asking when there is nothing to discard (which teaches the user to dismiss
  * the dialog unread), and clearing the pending flag on a REFUSED close (which

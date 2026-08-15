@@ -3,7 +3,7 @@
  *
  * Supersedes the legacy `wikiTag.ts` definitions that were modelled around
  * Tauri's polymorphic `entityType` ("task"|"daily"|"note"). The unified
- * model lives on top of `items_meta` (5 roles: task/event/routine/note/
+ * model lives on top of `items_meta` (5 roles: todo/event/routine/note/
  * daily) — tags hang off any item by `itemId`, links are items↔items.
  *
  * Naming clash with `wikiTag.ts` is intentional: callers pick by import

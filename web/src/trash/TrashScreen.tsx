@@ -44,8 +44,8 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   const categoryTitle = useCallback(
     (category: TrashCategory): string => {
       switch (category) {
-        case "tasks":
-          return t("trash.tasks");
+        case "todos":
+          return t("trash.todos");
         case "notes":
           return t("trash.notes");
         case "dailies":
@@ -63,8 +63,8 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   // setState out of this callback lets the effect + action handlers update
   // state only AFTER an await (react-hooks/set-state-in-effect).
   const fetchGroups = useCallback(async (): Promise<TrashGroup[]> => {
-    const [tasks, notes, dailies, routines, events] = await Promise.all([
-      ds.fetchDeletedTasks(),
+    const [todos, notes, dailies, routines, events] = await Promise.all([
+      ds.fetchDeletedTodos(),
       ds.fetchDeletedNotesUnified(),
       ds.fetchDeletedDailiesUnified(),
       ds.fetchDeletedRoutines(),
@@ -72,9 +72,9 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
     ]);
     return [
       {
-        category: "tasks",
-        title: categoryTitle("tasks"),
-        items: tasks.map((x) => ({ id: x.id, label: x.title || untitled })),
+        category: "todos",
+        title: categoryTitle("todos"),
+        items: todos.map((x) => ({ id: x.id, label: x.title || untitled })),
       },
       {
         category: "notes",
@@ -263,8 +263,8 @@ function restoreByCategory(
   id: string,
 ): Promise<void> {
   switch (category) {
-    case "tasks":
-      return ds.restoreTask(id);
+    case "todos":
+      return ds.restoreTodo(id);
     case "notes":
       return ds.restoreNoteUnified(id);
     case "dailies":
@@ -282,8 +282,8 @@ function permanentDeleteByCategory(
   id: string,
 ): Promise<void> {
   switch (category) {
-    case "tasks":
-      return ds.permanentDeleteTask(id);
+    case "todos":
+      return ds.permanentDeleteTodo(id);
     case "notes":
       return ds.permanentDeleteNoteUnified(id);
     case "dailies":

@@ -20,7 +20,7 @@ import { FOCUS_RING } from "../styleTokens";
  */
 
 /*
- * Title field. Mirrors NoteTitleInput / TaskTitleInput debounce-and-flush
+ * Title field. Mirrors NoteTitleInput / TodoTitleInput debounce-and-flush
  * exactly: a local draft, a 300ms debounced persist, an immediate flush on
  * blur, and a final flush on unmount. The parent remounts this via
  * `key={noteId}` so a note switch re-seeds the draft cleanly. The key
@@ -114,12 +114,24 @@ export interface NoteDetailPanelProps {
   pinLabel: string;
   /** Already-translated aria-label for the pin toggle when unpinned. */
   unpinLabel: string;
+  /**
+   * Already-translated name of the "this note is pinned" marker shown left of
+   * the kebab (#885). Omitted → the marker is drawn without an accessible name
+   * (decorative), never dropped: the state has to be visible either way.
+   */
+  pinnedLabel?: string;
   /** Already-translated aria-label for the delete button. */
   deleteLabel: string;
   /** Already-translated aria-label for the kebab (more-actions) trigger. */
   moreActionsLabel: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
+  /**
+   * Host-injected item-link UI, shown in the SAME row as `tagsSlot` and to its
+   * right (#884). Tags and links are both "what this note is attached to", so
+   * they read as one row rather than one header field and one sidebar panel.
+   */
+  linksSlot?: ReactNode;
   /** Already-translated caption above the content editor. */
   contentLabel: string;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
@@ -145,9 +157,11 @@ export function NoteDetailPanel({
   titleLabel,
   pinLabel,
   unpinLabel,
+  pinnedLabel,
   deleteLabel,
   moreActionsLabel,
   tagsSlot,
+  linksSlot,
   contentLabel,
   contentEditor,
   variant = "sidebar",
@@ -178,6 +192,20 @@ export function NoteDetailPanel({
           onCommit={onTitleCommit}
           isMain={isMain}
         />
+        {/* Pinned marker (#885) — immediately left of the kebab, so the state
+            reads at a glance instead of only inside the opened menu. Not a
+            button: unpinning stays the menu's job, and a second control on the
+            same act would be two ways to do one thing. Same place at both
+            widths, because both host this panel. */}
+        {isPinned && (
+          <Pin
+            size={14}
+            {...(pinnedLabel
+              ? { role: "img", "aria-label": pinnedLabel }
+              : { "aria-hidden": true })}
+            className="shrink-0 fill-current text-lumen-accent"
+          />
+        )}
         <div className="relative shrink-0">
           <button
             ref={menuTriggerRef}
@@ -224,9 +252,13 @@ export function NoteDetailPanel({
         </div>
       </div>
 
-      {/* Tag row — host-injected TagPicker (chips + "+ tag" pill). */}
-      {tagsSlot != null && (
-        <div className="flex flex-wrap items-center gap-1.5">{tagsSlot}</div>
+      {/* Tag row — host-injected TagPicker (chips + "+ tag" pill), followed by
+          the item links (#884): same row, links to the right of the tags. */}
+      {(tagsSlot != null || linksSlot != null) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tagsSlot}
+          {linksSlot}
+        </div>
       )}
 
       {/* Content — injected editor + a min-height floor via the wrapper. The

@@ -1,12 +1,12 @@
 /*
  * Kanban view models + labels (K1). Pure data shapes consumed by the
  * Kanban primitives (KanbanCard / KanbanColumn / KanbanBoard). The host
- * (web/electron/capacitor) maps its TaskNode[] into these models and
+ * (web/electron/capacitor) maps its TodoNode[] into these models and
  * injects i18n copy — the primitives never call useTranslation /
  * getDataService (CLAUDE.md §6.4).
  */
 
-import type { TaskStatus } from "../../types/taskTree";
+import type { TodoStatus } from "../../types/todoTree";
 
 /**
  * Which axis the board groups cards by.
@@ -30,14 +30,14 @@ export interface KanbanCardTag {
 }
 
 /**
- * A single task rendered as a card. `status` is normalized to a non-null
- * TaskStatus by the column builder (folders are excluded from cards).
+ * A single todo rendered as a card. `status` is normalized to a non-null
+ * TodoStatus by the column builder (folders are excluded from cards).
  */
 export interface KanbanCardModel {
   id: string;
   title: string;
-  status: TaskStatus;
-  /** Tags assigned to this task. Rendered as chips on the status view;
+  status: TodoStatus;
+  /** Tags assigned to this todo. Rendered as chips on the status view;
    *  omitted on the tag view (the column already conveys the tag). */
   tags?: KanbanCardTag[];
 }
@@ -58,7 +58,7 @@ export interface KanbanColumnModel {
   accentColor?: string;
   /** Status columns render a round/solid status icon in the header instead
    *  of a plain dot; tag columns use the dot. */
-  statusKind?: TaskStatus;
+  statusKind?: TodoStatus;
   /** Tag columns render a round (vs squared) header dot. */
   roundDot?: boolean;
   /** When true the header shows a color-picker control that calls

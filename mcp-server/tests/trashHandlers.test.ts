@@ -103,7 +103,7 @@ describe("restoreItem", () => {
     );
 
     await expect(restoreItem({ id: "daily-2026-08-12" })).rejects.toThrow(
-      /restore_item supports tasks, notes and schedule items; daily-2026-08-12 is a "daily"/,
+      /restore_item supports todos, notes and schedule items; daily-2026-08-12 is a "daily"/,
     );
     expect(stub.writes()).toEqual([]);
   });

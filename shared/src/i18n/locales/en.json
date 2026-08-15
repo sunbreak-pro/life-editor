@@ -6,8 +6,8 @@
     "shortcutLabels": {
       "commandPalette": "Open command palette",
       "openSettings": "Open settings",
-      "newTask": "Create new todo",
-      "goToTasks": "Go to Todos",
+      "newTodo": "Create new todo",
+      "goToTodos": "Go to Todos",
       "goToDaily": "Go to Daily",
       "goToNotes": "Go to Notes",
       "goToSchedule": "Go to Schedule",
@@ -52,7 +52,7 @@
       "previewTitle": "Today's todos",
       "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
       "tipsHeading": "Tips",
-      "tasks": {
+      "todos": {
         "shopping": "Make a shopping list",
         "coffee": "Order coffee beans",
         "dinner": "Prep dinner"
@@ -112,7 +112,7 @@
   "trash": {
     "empty": "Trash is empty",
     "emptyDescription": "Deleted items will appear here.",
-    "tasks": "Todos",
+    "todos": "Todos",
     "notes": "Notes",
     "restore": "Restore",
     "deletePermanently": "Delete permanently",
@@ -160,18 +160,19 @@
       "BREAK": "Break",
       "LONG_BREAK": "Long Break"
     },
-    "taskSelector": {
+    "todoSelector": {
       "heading": "Linked Todo",
       "placeholder": "Select a todo…",
       "clear": "Clear todo",
       "select": "Choose a todo",
       "clearSelection": "Clear selection",
-      "emptyHint": "No todos to link. Create a todo in Schedule to select one."
+      "emptyHint": "No todos to link. Create a todo in Schedule to select one.",
+      "untitled": "Untitled todo"
     },
     "completion": {
       "title": "Session {{index}} complete",
-      "body": "Logged {{minutes}} min to “{{task}}”. Take a {{breakMinutes}}-minute break.",
-      "bodyNoTask": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
+      "body": "Logged {{minutes}} min to “{{todo}}”. Take a {{breakMinutes}}-minute break.",
+      "bodyNoTodo": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
       "startBreak": "Start break",
       "oneMore": "One more session",
       "close": "Close"
@@ -212,13 +213,15 @@
   "timer": {
     "work": "WORK"
   },
-  "taskDetail": {
+  "todoDetail": {
     "titleLabel": "Todo title",
     "delete": "Delete",
     "todoDelete": "Delete todo",
     "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
     "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "status": "Status",
+    "schedule": "Scheduled",
+    "scheduleNone": "Not scheduled",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
     "statusDone": "Done",
@@ -238,7 +241,7 @@
     "colorPickerLabel": "Change color",
     "colorClearLabel": "Default color",
     "colorCustomLabel": "Custom",
-    "addTask": "Add",
+    "addTodo": "Add",
     "addDialogTitle": "Add todo",
     "addTitleLabel": "Title",
     "addTitlePlaceholder": "Enter a title",
@@ -246,7 +249,7 @@
     "addCancel": "Cancel"
   },
   "materials": {
-    "tasks": {
+    "todos": {
       "filterLabel": "Filter by status",
       "statusGroupLabel": "Change status",
       "detailTitle": "Todo details",
@@ -255,8 +258,8 @@
       "quickAddSubmit": "Add",
       "empty": "No todos yet",
       "addCta": "Add todo",
-      "taskCount_one": "{{count}} todo",
-      "taskCount_other": "{{count}} todos"
+      "todoCount_one": "{{count}} todo",
+      "todoCount_other": "{{count}} todos"
     },
     "notes": {
       "searchPlaceholder": "Search notes…",
@@ -264,7 +267,6 @@
       "empty": "No notes yet",
       "trash": "Trash",
       "content": "Content",
-      "links": "Links",
       "deleteNote": "Delete note",
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
@@ -291,13 +293,9 @@
       "searchPlaceholder": "Search by title…",
       "noCandidates": "No items match",
       "selfLink": "An item cannot link to itself.",
-      "outgoing": "Links from here",
-      "backlinks": "Links to here",
-      "outgoingEmpty": "No links yet",
-      "backlinksEmpty": "No backlinks yet",
-      "loading": "Loading links…",
+      "pickerLabelShort": "Link",
       "open": "Open {{title}}",
-      "remove": "Remove link to {{title}}"
+      "remove": "Remove link with {{title}}"
     },
     "daily": {
       "toToday": "Today",
@@ -463,8 +461,6 @@
     "viewDay": "Day",
     "viewWeek": "Week",
     "viewMonth": "Month",
-    "openMonthView": "{{date}} — open month view",
-    "monthSheetTitle": "Month view",
     "today": "Today",
     "prev": "Previous",
     "next": "Next",
@@ -473,16 +469,16 @@
     "addItem": "Add item",
     "itemTypeLabel": "Item type",
     "typeEvent": "Event",
-    "typeTask": "Todo",
+    "typeTodo": "Todo",
     "typeNote": "Note",
     "sourceLabel": "How to add",
     "sourceNew": "New",
     "sourceExisting": "From existing",
-    "taskPlaceholder": "Enter a todo…",
-    "searchTasks": "Search todos",
-    "taskPickerNoMatch": "No matching todos",
-    "addTask": "Add todo",
-    "placeTask": "Place at this time",
+    "todoPlaceholder": "Enter a todo…",
+    "searchTodos": "Search todos",
+    "todoPickerNoMatch": "No matching todos",
+    "addTodo": "Add todo",
+    "placeTodo": "Place at this time",
     "noteTitleLabel": "Note title",
     "notePlaceholder": "Enter a note title…",
     "searchNotes": "Search notes",
@@ -581,7 +577,7 @@
     "todoAddHeading": "Add from todos",
     "todoAddAction": "Add to today",
     "todoEmptyAddable": "No unscheduled todos",
-    "todoOpenInTasks": "Open in Todos",
+    "todoOpenInTodos": "Open in Todos",
     "durationMin": "{{m}} min",
     "durationHour": "{{h}} hr",
     "durationHourMin": "{{h}} hr {{m}} min",
@@ -631,12 +627,12 @@
     },
     "tabs": {
       "overview": "Overview",
-      "tasks": "Todos",
+      "todos": "Todos",
       "schedule": "Schedule",
       "work": "Work"
     },
     "workTime": "Work Time",
-    "taskWorkTime": "Work Time by Todo",
+    "todoWorkTime": "Work Time by Todo",
     "period": {
       "day": "Day",
       "week": "Week",
@@ -649,7 +645,7 @@
     "today": {
       "title": "Today",
       "workTime": "Work Time",
-      "completedTasks": "Completed",
+      "completedTodos": "Completed",
       "pomodoroCount": "Pomodoros"
     },
     "weekly": {
@@ -694,13 +690,13 @@
       "title": "Daily Timeline",
       "noSessions": "No sessions for this day"
     },
-    "taskTrend": {
+    "todoTrend": {
       "title": "Todo Completion Trend",
       "completedCount": "Completed"
     },
     "stagnation": {
       "title": "Todo Age Distribution",
-      "tasks": "todos"
+      "todos": "todos"
     },
     "tagTime": {
       "title": "Work Time by Tag",
@@ -709,7 +705,7 @@
       "other": "Other tags"
     },
     "overview": {
-      "tasks": "Todos",
+      "todos": "Todos",
       "events": "Events",
       "notes": "Notes",
       "work": "Work Time",
@@ -748,12 +744,12 @@
     "undone": "Undid: {{label}}",
     "redone": "Redid: {{label}}",
     "labels": {
-      "taskTreeChange": "todo change",
-      "taskChipPlace": "todo placement",
-      "taskChipMove": "todo move",
-      "taskChipResize": "todo duration change",
-      "taskChipAllDay": "todo moved to all-day",
-      "taskAddToToday": "adding a todo to today",
+      "todoTreeChange": "todo change",
+      "todoChipPlace": "todo placement",
+      "todoChipMove": "todo move",
+      "todoChipResize": "todo duration change",
+      "todoChipAllDay": "todo moved to all-day",
+      "todoAddToToday": "adding a todo to today",
       "createScheduleItem": "event creation",
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",
@@ -783,7 +779,7 @@
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
   "tabs": {
-    "tasks": "Todos",
+    "todos": "Todos",
     "schedule": "Schedule",
     "overview": "Overview"
   },
@@ -794,7 +790,7 @@
     "goTo": "Go to"
   },
   "section": {
-    "tasks": "Todos",
+    "todos": "Todos",
     "daily": "Daily",
     "notes": "Notes",
     "materials": "Materials",
@@ -839,6 +835,7 @@
   "notesView": {
     "unpin": "Unpin",
     "pin": "Pin",
+    "pinned": "Pinned",
     "detailTitle": "Note",
     "moreActions": "More actions"
   },
@@ -863,7 +860,7 @@
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTask": "Todo"
+    "roleTodo": "Todo"
   },
   "auth": {
     "productName": "Life Editor",
@@ -895,13 +892,23 @@
     "noBriefing": "No briefing yet. Write a \"Briefing\" heading section in today's daily and it will appear here.",
     "intentionTitle": "TODAY'S INTENTION",
     "intentionPlaceholder": "What will you get done today? One line is enough…",
+    "goalsTitle": "GOALS AHEAD",
+    "goals": {
+      "noteTitle": "Goals",
+      "weekTitle": "THIS WEEK",
+      "monthTitle": "THIS MONTH",
+      "yearTitle": "THIS YEAR",
+      "weekPlaceholder": "What will you get done this week? One line is enough…",
+      "monthPlaceholder": "What will you get done this month? One line is enough…",
+      "yearPlaceholder": "What will you get done this year? One line is enough…"
+    },
     "scheduleTitle": "TODAY'S SCHEDULE",
     "addScheduleItem": "Add to today's schedule",
     "noSchedule": "Nothing scheduled today",
     "routineTag": "Routine",
     "allDay": "All day",
-    "tasksTitle": "TODAY'S TODOS — AND WHY",
-    "noTasks": "No todos scheduled for today",
+    "todosTitle": "TODAY'S TODOS — AND WHY",
+    "noTodos": "No todos scheduled for today",
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",
@@ -909,9 +916,9 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteScheduleHint": "Delete this event",
-    "deleteTaskHint": "Delete this todo",
+    "deleteTodoHint": "Delete this todo",
     "jumpToSchedule": "Open in Schedule",
-    "jumpToTasks": "Open in Todos",
+    "jumpToTodos": "Open in Todos",
     "tabsLabel": "Morning / Evening",
     "tabs": {
       "morning": "Morning",
@@ -920,10 +927,8 @@
     "todo": {
       "title": "Today's Todo",
       "placedHeading": "Scheduled",
-      "unplacedHeading": "Candidates",
-      "emptyPlaced": "Nothing scheduled with a time yet",
-      "emptyUnplaced": "No candidates for today",
-      "addHeading": "Add from todos",
+      "emptyPlaced": "Nothing on today's list yet",
+      "addHeading": "Todos list",
       "addAction": "Add to today",
       "emptyAddable": "No unscheduled todos"
     },

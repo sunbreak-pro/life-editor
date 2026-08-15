@@ -14,7 +14,7 @@ import { useSyncDomains } from "./useSyncDomains";
  * Same shape as `useItemLinkTargets` (web/src/notes): the four user-facing
  * roles are fetched straight off the injected DataService (§3.1 — no
  * `getDataService()` here) and re-fetched on every Sync `syncVersion` bump, so
- * a task tagged elsewhere (or via MCP) shows up without a reload.
+ * a todo tagged elsewhere (or via MCP) shows up without a reload.
  *
  * Deliberate gaps, both of which render as the neutral "unknown kind" badge
  * rather than vanishing from the list (an assignment we cannot name is still
@@ -46,7 +46,7 @@ export function useTaggedItemIndex(
   /** Skip fetching entirely while false (the panel is closed). */
   enabled = true,
 ): UseTaggedItemIndexResult {
-  const syncVersion = useSyncDomains("tasks", "notes", "dailies", "schedule");
+  const syncVersion = useSyncDomains("todos", "notes", "dailies", "schedule");
   const [index, setIndex] =
     useState<ReadonlyMap<string, TaggedItemInfo>>(EMPTY_INDEX);
   // True once the first fetch lands. `loading` is DERIVED from it below
@@ -60,17 +60,17 @@ export function useTaggedItemIndex(
     if (!enabled) return;
     let cancelled = false;
     void (async () => {
-      const [notes, dailies, tasks, events] = await Promise.all([
+      const [notes, dailies, todos, events] = await Promise.all([
         dataService.listNotesUnified(),
         dataService.listDailiesUnified(),
-        dataService.fetchTaskTree(),
+        dataService.fetchTodoTree(),
         dataService.fetchEvents(),
       ]);
       if (cancelled) return;
       const next = new Map<string, TaggedItemInfo>();
-      for (const task of tasks) {
-        if (task.isDeleted) continue;
-        next.set(task.id, { role: "task", title: task.title });
+      for (const todo of todos) {
+        if (todo.isDeleted) continue;
+        next.set(todo.id, { role: "task", title: todo.title });
       }
       for (const event of events) {
         if (event.isDeleted) continue;

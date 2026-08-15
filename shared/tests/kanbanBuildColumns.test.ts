@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { TaskNode } from "../src/types/taskTree";
+import type { TodoNode } from "../src/types/todoTree";
 import type { KanbanLabels } from "../src/components/Kanban/types";
 import {
   buildStatusColumns,
@@ -8,15 +8,15 @@ import {
 
 /*
  * Column builders (life-tags S1: folder view retired; S3 #225: folder node
- * type removed). Pure mapping from the active TaskNode set →
+ * type removed). Pure mapping from the active TodoNode set →
  * KanbanColumnModel[] per view mode. Tests pin: status grouping, order
- * sorting, deleted-node exclusion, transitional orphan tolerance (a task
+ * sorting, deleted-node exclusion, transitional orphan tolerance (a todo
  * pointing at a legacy — now excluded — folder parent still surfaces), and
  * the tag-by view (one column per tag + a trailing untagged bucket, multi-tag
  * fan-out).
  */
 
-function makeNode(overrides: Partial<TaskNode> & { id: string }): TaskNode {
+function makeNode(overrides: Partial<TodoNode> & { id: string }): TodoNode {
   return {
     type: "task",
     title: overrides.id,
@@ -35,7 +35,7 @@ const LABELS: KanbanLabels = {
   statusInProgress: "In progress",
   statusDone: "Done",
   cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
-  emptyColumn: "No tasks here yet",
+  emptyColumn: "No todos here yet",
   placeholderHint: "Tag view is coming soon",
   countAriaLabel: (n) => `${n}`,
   untagged: "No tag",
@@ -59,8 +59,8 @@ describe("buildStatusColumns", () => {
     ]);
   });
 
-  it("groups tasks by status, treating missing status as NOT_STARTED", () => {
-    const nodes: TaskNode[] = [
+  it("groups todos by status, treating missing status as NOT_STARTED", () => {
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", status: "IN_PROGRESS" }),
       makeNode({ id: "t2", status: "DONE" }),
       makeNode({ id: "t3" }), // no status → NOT_STARTED
@@ -72,12 +72,12 @@ describe("buildStatusColumns", () => {
     expect(byId["status-DONE"].cards.map((c) => c.id)).toEqual(["t2"]);
   });
 
-  it("surfaces a task that still points at a legacy (excluded) folder parent", () => {
+  it("surfaces a todo that still points at a legacy (excluded) folder parent", () => {
     // Transitional invariant (life-tags S3): the legacy folder row is dropped
     // by the fetch filter and can no longer be constructed as a node, but a
-    // task still referencing that (now-missing) parent id must appear by
+    // todo still referencing that (now-missing) parent id must appear by
     // status all the same.
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", parentId: "f1-legacy", status: "DONE" }),
       makeNode({ id: "t2", parentId: null, status: "DONE" }),
     ];
@@ -86,8 +86,8 @@ describe("buildStatusColumns", () => {
     expect(done.cards.map((c) => c.id).sort()).toEqual(["t1", "t2"]);
   });
 
-  it("excludes deleted tasks", () => {
-    const nodes: TaskNode[] = [
+  it("excludes deleted todos", () => {
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", status: "NOT_STARTED" }),
       makeNode({ id: "tdel", status: "NOT_STARTED", isDeleted: true }),
     ];
@@ -102,16 +102,16 @@ describe("buildTagColumns", () => {
   const VIOLET = { id: "tagV", name: "Idea", color: "#8b5cf6" };
 
   it("makes one column per tag (in order) + a trailing untagged bucket", () => {
-    const nodes: TaskNode[] = [
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", order: 0 }),
       makeNode({ id: "t2", order: 1 }),
       makeNode({ id: "t3", order: 2 }),
     ];
-    const tagsByTask = new Map([
+    const tagsByTodo = new Map([
       ["t1", [RED, VIOLET]],
       ["t2", [RED]],
     ]);
-    const cols = buildTagColumns(nodes, [RED, VIOLET], tagsByTask, LABELS);
+    const cols = buildTagColumns(nodes, [RED, VIOLET], tagsByTodo, LABELS);
     expect(cols.map((c) => c.id)).toEqual([
       "tag-tagR",
       "tag-tagV",
@@ -128,54 +128,54 @@ describe("buildTagColumns", () => {
     expect(untagged.colorEditable).toBeFalsy();
   });
 
-  it("places a multi-tag task in every matching column", () => {
-    const nodes: TaskNode[] = [makeNode({ id: "t1", order: 0 })];
-    const tagsByTask = new Map([["t1", [RED, VIOLET]]]);
-    const cols = buildTagColumns(nodes, [RED, VIOLET], tagsByTask, LABELS);
+  it("places a multi-tag todo in every matching column", () => {
+    const nodes: TodoNode[] = [makeNode({ id: "t1", order: 0 })];
+    const tagsByTodo = new Map([["t1", [RED, VIOLET]]]);
+    const cols = buildTagColumns(nodes, [RED, VIOLET], tagsByTodo, LABELS);
     expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]); // RED
     expect(cols[1].cards.map((c) => c.id)).toEqual(["t1"]); // VIOLET
   });
 
-  it("collects only untagged tasks in the untagged bucket", () => {
-    const nodes: TaskNode[] = [
+  it("collects only untagged todos in the untagged bucket", () => {
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", order: 0 }),
       makeNode({ id: "t2", order: 1 }),
       makeNode({ id: "t3", order: 2 }),
     ];
-    const tagsByTask = new Map([["t1", [RED]]]);
-    const cols = buildTagColumns(nodes, [RED], tagsByTask, LABELS);
+    const tagsByTodo = new Map([["t1", [RED]]]);
+    const cols = buildTagColumns(nodes, [RED], tagsByTodo, LABELS);
     const untagged = cols[cols.length - 1];
     expect(untagged.id).toBe("tag-__none__");
     expect(untagged.cards.map((c) => c.id)).toEqual(["t2", "t3"]);
   });
 
-  it("keeps a tag with no tasks as an empty column", () => {
+  it("keeps a tag with no todos as an empty column", () => {
     const cols = buildTagColumns([], [RED], new Map(), LABELS);
     expect(cols.map((c) => c.id)).toEqual(["tag-tagR", "tag-__none__"]);
     expect(cols[0].cards).toEqual([]);
   });
 
-  it("excludes deleted tasks", () => {
-    const nodes: TaskNode[] = [
+  it("excludes deleted todos", () => {
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", order: 1 }),
       makeNode({ id: "tdel", order: 2, isDeleted: true }),
     ];
-    const tagsByTask = new Map([
+    const tagsByTodo = new Map([
       ["t1", [RED]],
       ["tdel", [RED]],
     ]);
-    const cols = buildTagColumns(nodes, [RED], tagsByTask, LABELS);
+    const cols = buildTagColumns(nodes, [RED], tagsByTodo, LABELS);
     expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]);
     const untagged = cols[cols.length - 1];
     expect(untagged.cards.map((c) => c.id)).toEqual([]);
   });
 
-  it("surfaces a task pointing at a legacy (missing) folder parent in its tag column", () => {
-    const nodes: TaskNode[] = [
+  it("surfaces a todo pointing at a legacy (missing) folder parent in its tag column", () => {
+    const nodes: TodoNode[] = [
       makeNode({ id: "t1", parentId: "f1-legacy", order: 1 }),
     ];
-    const tagsByTask = new Map([["t1", [RED]]]);
-    const cols = buildTagColumns(nodes, [RED], tagsByTask, LABELS);
+    const tagsByTodo = new Map([["t1", [RED]]]);
+    const cols = buildTagColumns(nodes, [RED], tagsByTodo, LABELS);
     expect(cols[0].cards.map((c) => c.id)).toEqual(["t1"]);
   });
 });

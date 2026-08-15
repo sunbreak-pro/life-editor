@@ -33,6 +33,7 @@ Error: Electron uninstall
 - Windows 機で `desktop` の dev 起動ができない。ホットリロードでの UI 確認が丸ごと使えず、毎回 `build:win`（数分）を回す羽目になる
 - **build と CI が緑のまま壊れている**ため、実際に dev を叩くまで誰も気づかない。#530 では 08-02 から 08-13 まで未計測のまま残っていた
 - 再 clone / `node_modules` 作り直しのたびに再発しうる
+- **worktree ごとに再発する**（2026-08-13 実測）: worktree は `node_modules` を共有しないため、メインリポジトリ側を直しても各 worktree は壊れたまま残る。#837 の実機確認で win-verify worktree が同じ `Error: Electron uninstall` を出した（`dist/` は 8/2 の npm install 時点のまま = `LICENSES.chromium.html` 1 個だけ）
 
 ## Fix / Workaround
 
@@ -46,6 +47,16 @@ powershell -NoProfile -Command "Expand-Archive -LiteralPath '$LOCALAPPDATA\elect
 printf "electron.exe" > desktop/node_modules/electron/path.txt
 
 # 3. 確認
+node -e "console.log(require('electron'))"   # → ...\dist\electron.exe が出れば OK
+```
+
+### 近道: 同じマシンに復旧済みの clone / worktree があるとき
+
+zip の展開（115MB）より速く、確実。展開済みの `dist/` をまるごとコピーして `path.txt` を書くだけでよい（2026-08-13 に win-verify worktree で実測・約 1 分）:
+
+```bash
+cp -r <復旧済み>/desktop/node_modules/electron/dist/. <対象>/desktop/node_modules/electron/dist/
+printf "electron.exe" > <対象>/desktop/node_modules/electron/path.txt
 node -e "console.log(require('electron'))"   # → ...\dist\electron.exe が出れば OK
 ```
 

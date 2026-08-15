@@ -72,7 +72,7 @@ export interface MetaFirstJoinOptions<
   payloadLabel: string;
   /**
    * Post-join predicate: return `false` to drop the pair before mapping.
-   * Used for the legacy folder rows (#225 S3 tasks / #375 notes), which are
+   * Used for the legacy folder rows (#225 S3 todos / #375 notes), which are
    * filtered in-app rather than with a PostgREST `.neq` — an inequality would
    * also drop NULL `*_type` rows and silently hide plain legacy items.
    */

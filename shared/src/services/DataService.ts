@@ -1,4 +1,4 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 import type {
   TimerSettings,
   TimerSession,
@@ -31,17 +31,17 @@ import type {
  * Kinds of calendar-displayed data the user can bulk soft-delete from
  * Settings → Data → "Calendar データ一括削除".
  *
- * - "tasks":    scheduled tasks (type='task' AND scheduled_at IS NOT NULL)
+ * - "todos":    scheduled todos (type='task' AND scheduled_at IS NOT NULL)
  * - "events":   schedule_items with no routine_id (manual events)
  * - "routines": routines + their non-completed derived schedule_items (cascade)
  * - "dailies":  dailies rows
  * - "notes":    notes rows
  */
 export type CalendarDataKind =
-  "tasks" | "events" | "routines" | "dailies" | "notes";
+  "todos" | "events" | "routines" | "dailies" | "notes";
 
 export interface BulkSoftDeleteResult {
-  tasks: number;
+  todos: number;
   events: number;
   routines: number;
   /** Routine-derived schedule_items removed by the routine cascade. */
@@ -54,7 +54,7 @@ export interface BulkSoftDeleteResult {
  * DataService is split into one interface per routing domain (#671 C4 S5).
  *
  * The split is not cosmetic: each domain interface is the contract of
- * exactly ONE Supabase service class (SupabaseTasksService,
+ * exactly ONE Supabase service class (SupabaseTodosService,
  * SupabaseTimerService, ...), so those classes can carry a real
  * `implements` clause instead of being typed only by the
  * `as unknown as DataService` cast in SupabaseDataService's Proxy.
@@ -69,25 +69,25 @@ export interface BulkSoftDeleteResult {
  */
 
 // ---------------------------------------------------------------------------
-// Tasks — SupabaseTasksService
+// Todos — SupabaseTodosService
 // ---------------------------------------------------------------------------
 
-export interface TasksDataService {
-  fetchTaskTree(): Promise<TaskNode[]>;
+export interface TodosDataService {
+  fetchTodoTree(): Promise<TodoNode[]>;
   /**
-   * Live, unfinished task count for the badge (#511) — a number, not a
+   * Live, unfinished todo count for the badge (#511) — a number, not a
    * list, so the read carries no row bodies. Meaning of the number:
    * materials/materialsCounts.ts.
    */
-  countUnfinishedTasks(): Promise<number>;
-  fetchDeletedTasks(): Promise<TaskNode[]>;
-  createTask(node: TaskNode): Promise<TaskNode>;
-  updateTask(id: string, updates: Partial<TaskNode>): Promise<TaskNode>;
-  syncTaskTree(nodes: TaskNode[]): Promise<void>;
-  softDeleteTask(id: string): Promise<void>;
-  restoreTask(id: string): Promise<void>;
-  permanentDeleteTask(id: string): Promise<void>;
-  migrateTasksToBackend(nodes: TaskNode[]): Promise<void>;
+  countUnfinishedTodos(): Promise<number>;
+  fetchDeletedTodos(): Promise<TodoNode[]>;
+  createTodo(node: TodoNode): Promise<TodoNode>;
+  updateTodo(id: string, updates: Partial<TodoNode>): Promise<TodoNode>;
+  syncTodoTree(nodes: TodoNode[]): Promise<void>;
+  softDeleteTodo(id: string): Promise<void>;
+  restoreTodo(id: string): Promise<void>;
+  permanentDeleteTodo(id: string): Promise<void>;
+  migrateTodosToBackend(nodes: TodoNode[]): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ export interface TimerDataService {
   ): Promise<TimerSettings>;
   startTimerSession(
     sessionType: SessionType,
-    taskId?: string,
+    todoId?: string,
   ): Promise<TimerSession>;
   endTimerSession(
     id: number,
@@ -126,7 +126,7 @@ export interface TimerDataService {
     label: string | null,
   ): Promise<TimerSession>;
   fetchTimerSessions(): Promise<TimerSession[]>;
-  fetchSessionsByTaskId(taskId: string): Promise<TimerSession[]>;
+  fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;
@@ -390,6 +390,14 @@ export interface ScheduleItemsDataService {
    * was #296's worst data-loss path.
    */
   bulkSoftDeleteScheduleItems(ids: string[]): Promise<number>;
+  /**
+   * Inverse of bulkSoftDeleteScheduleItems. Undoing a routine deletion has to
+   * bring back the exact rows softDeleteRoutine trashed — occurrences AND the
+   * seed event the user made by hand (#708) — and one restore call per row is
+   * a round trip per occurrence for a routine that has been running for
+   * months. Chunked like its inverse, for the same reason.
+   */
+  bulkRestoreScheduleItems(ids: string[]): Promise<number>;
   fetchEvents(): Promise<ScheduleItem[]>;
 }
 
@@ -413,30 +421,30 @@ export interface ItemConversionDataService {
    * and shows the user nothing.
    *
    * Date / time span / all-day / reminder are dropped (D-20260810-sched-3 —
-   * the host confirms that first); the memo survives as the task body and a
+   * the host confirms that first); the memo survives as the todo body and a
    * done event becomes a DONE Todo. A routine-derived event is REJECTED
    * (D-20260810-sched-5): a Todo cannot carry a repeat. `order` is the host's,
-   * so the new row lands like a freshly added task.
+   * so the new row lands like a freshly added todo.
    */
-  convertEventToTask(
+  convertEventToTodo(
     eventId: string,
     init: { order: number },
-  ): Promise<TaskNode>;
+  ): Promise<TodoNode>;
   /**
    * Turn a Todo into an event, keeping its id — the mirror of
-   * convertEventToTask, same ordering and same compensation.
+   * convertEventToTodo, same ordering and same compensation.
    *
    * The status is dropped (D-20260810-sched-4 — the host confirms first),
-   * except that a DONE Todo arrives completed rather than open; the task body
+   * except that a DONE Todo arrives completed rather than open; the todo body
    * survives as the event memo, and a child Todo loses its parent link (events
    * have no hierarchy). A Todo WITH CHILDREN is REJECTED (same ruling): 0009's
    * composite FK would reject the role UPDATE anyway, and the service checks
    * first so the caller gets a reason instead of an FK error mid-sequence —
    * soft-deleted children count, since they hold the FK just the same. The
-   * placement is the host's (`taskToEventPlacement`).
+   * placement is the host's (`todoToEventPlacement`).
    */
-  convertTaskToEvent(
-    taskId: string,
+  convertTodoToEvent(
+    todoId: string,
     init: {
       date: string;
       startTime: string;
@@ -503,7 +511,7 @@ export interface WikiTagsUnifiedDataService {
 
 export interface NotesUnifiedDataService {
   listNotesUnified(): Promise<NoteNode[]>;
-  /** Live note count for the badge (#511) — see countUnfinishedTasks. */
+  /** Live note count for the badge (#511) — see countUnfinishedTodos. */
   countLiveNotes(): Promise<number>;
   getNoteUnified(id: string): Promise<NoteNode | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
@@ -537,7 +545,7 @@ export interface NotesUnifiedDataService {
 
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
-  /** Live daily count for the badge (#511) — see countUnfinishedTasks. */
+  /** Live daily count for the badge (#511) — see countUnfinishedTodos. */
   countLiveDailies(): Promise<number>;
   getDailyByDateUnified(date: string): Promise<DailyNode | null>;
   upsertDailyByDateUnified(date: string, content: string): Promise<DailyNode>;
@@ -606,7 +614,7 @@ export interface NoteLinksDataService {
  */
 export interface DataService
   extends
-    TasksDataService,
+    TodosDataService,
     TimerDataService,
     AudioDataService,
     CalendarsDataService,

@@ -1,11 +1,11 @@
 import { collectDescendantIds } from "@life-editor/shared";
-import type { ConfirmRequest, TaskNode } from "@life-editor/shared";
+import type { ConfirmRequest, TodoNode } from "@life-editor/shared";
 
 /*
  * Guard for the Todo tray's one-click delete (#573, a #555 follow-up).
  *
- * Tray rows come from todayTaskChips with no leaf filter, and softDelete
- * cascades through the subtree (useTaskTreeDeletion) — so a parent row
+ * Tray rows come from todayTodoChips with no leaf filter, and softDelete
+ * cascades through the subtree (useTodoTreeDeletion) — so a parent row
  * deleted from the tray silently took its children with it. Neither recovery
  * route holds the line: the undo stack clears when the section unmounts, and
  * Trash restores one row at a time. Hence the guard asks BEFORE the cascade;
@@ -19,17 +19,17 @@ import type { ConfirmRequest, TaskNode } from "@life-editor/shared";
  * all (#775 = there was no delete there). Both routes share the subtree count
  * so the two questions can never disagree about how many rows are going.
  *
- * Pure data, for the same reason as taskChipPanel.ts: CalendarTab needs the
+ * Pure data, for the same reason as todoChipPanel.ts: CalendarTab needs the
  * whole Provider stack plus real layout to render, so anything decided inside
  * it is invisible to every test we can afford to run. Pinned in
  * web/tests/todoTrayDeleteGuard.test.ts.
  *
  * #790 moved it out of schedule/ and into this host-neutral folder (NOT the
  * @life-editor/shared package — this is web's own). It had stayed under
- * schedule/ while tasks/ imported across the section boundary, which #786 left
+ * schedule/ while todos/ imported across the section boundary, which #786 left
  * deliberately: a parallel lane was editing schedule/ and the move would have
  * collided for no gain. Two sections ask this question now, so neither owns it,
- * and someone tidying schedule/ can no longer break Tasks by moving a file that
+ * and someone tidying schedule/ can no longer break Todos by moving a file that
  * looks local.
  */
 
@@ -45,10 +45,10 @@ export interface TodoDeleteCascade {
  * does not hold that id, so there is nothing to delete or ask about.
  *
  * `nodes` is the live tree (soft-deleted rows already excluded by
- * useTaskTreeAPI), so the count only ever names rows the user can still see.
+ * useTodoTreeAPI), so the count only ever names rows the user can still see.
  */
 export function todoDeleteTarget(
-  nodes: TaskNode[],
+  nodes: TodoNode[],
   id: string,
 ): TodoDeleteCascade | null {
   const node = nodes.find((n) => n.id === id);
@@ -69,7 +69,7 @@ export function todoDeleteTarget(
  * amount of friction.
  */
 export function todoDeleteCascade(
-  nodes: TaskNode[],
+  nodes: TodoNode[],
   id: string,
 ): TodoDeleteCascade | null {
   const target = todoDeleteTarget(nodes, id);
@@ -99,7 +99,7 @@ export interface TodoDetailDeleteCopy {
  * a question about a row that no longer exists can only produce a no-op write.
  */
 export async function confirmTodoDetailDelete(
-  nodes: TaskNode[],
+  nodes: TodoNode[],
   id: string,
   ask: (request: ConfirmRequest) => Promise<boolean>,
   copy: TodoDetailDeleteCopy,

@@ -21,7 +21,7 @@ import { RoutineContext } from "./RoutineContextValue";
  * port, but this Provider was the only one of the five domains never wired,
  * so those pushes went to a no-op history. An explicit `undoRedo` prop still
  * wins; with no provider it stays the no-op history. The stack is cleared on
- * unmount (child-1 safety valve — see TaskTreeContext.tsx for the rationale).
+ * unmount (child-1 safety valve — see TodoTreeContext.tsx for the rationale).
  */
 export function RoutineProvider({
   children,
@@ -34,7 +34,7 @@ export function RoutineProvider({
   });
 
   // Unmount-clear via ref — the context value identity changes on every stack
-  // mutation, so the cleanup must not depend on it (see TaskTreeContext.tsx
+  // mutation, so the cleanup must not depend on it (see TodoTreeContext.tsx
   // for the full rationale). Explicit injected undoRedo is the host's to
   // manage.
   const undoRedoRef = useRef(undoRedo);

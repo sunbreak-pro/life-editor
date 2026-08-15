@@ -11,7 +11,7 @@ import type { TranslationKey } from "@life-editor/shared";
  * The Dayflow tab keeps `emptyToday` unconditionally: that list IS today's, so
  * for it the two branches would say the same thing.
  *
- * Pure data, for the same reason as taskChipPanel.ts and unsavedCloseGuard.ts:
+ * Pure data, for the same reason as todoChipPanel.ts and unsavedCloseGuard.ts:
  * CalendarTab needs the whole Provider stack plus real layout to render, so a
  * decision made inside it is invisible to every test we can afford to run.
  * Pinned in web/tests/agendaEmptyLabel.test.ts.

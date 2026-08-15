@@ -29,7 +29,7 @@ import { cn } from "./cn";
 
 /** The five soft-delete categories surfaced in the web build (W2 scope). */
 export type TrashCategory =
-  "tasks" | "notes" | "dailies" | "routines" | "events";
+  "todos" | "notes" | "dailies" | "routines" | "events";
 
 export interface TrashItem {
   id: string;
@@ -39,7 +39,7 @@ export interface TrashItem {
 
 export interface TrashGroup {
   category: TrashCategory;
-  /** Already-translated section heading (e.g. "Tasks"). */
+  /** Already-translated section heading (e.g. "Todos"). */
   title: string;
   items: TrashItem[];
 }

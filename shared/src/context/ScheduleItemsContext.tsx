@@ -16,15 +16,15 @@ import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
  * (… → Routine → ScheduleItems → CalendarTags → …); the inner Provider
  * may depend on the outer one.
  *
- * ScheduleItems is enabled on Mobile too (Tasks/Schedule are core,
+ * ScheduleItems is enabled on Mobile too (Todos/Schedule are core,
  * CLAUDE.md §2), so no Optional variant is needed (it is not in the
  * Mobile 省略 Provider list — only CalendarTags from this trio is).
  *
  * #304 child-2: auto-connects to the ambient global UndoRedo stack when a
  * provider is mounted (useUndoRedoOptional), same pattern as
- * TaskTreeProvider. An explicit `undoRedo` prop still wins; with no
+ * TodoTreeProvider. An explicit `undoRedo` prop still wins; with no
  * provider it stays the no-op history. The stack is cleared on unmount
- * (child-1 safety valve — see TaskTreeContext.tsx for the rationale).
+ * (child-1 safety valve — see TodoTreeContext.tsx for the rationale).
  *
  * Scope (S4-4): schedule_items CRUD only. The Routine→schedule_items
  * generator is S4-5 and is NOT wired here.
@@ -40,7 +40,7 @@ export function ScheduleItemsProvider({
   });
 
   // Unmount-clear via ref — the context value identity changes on every stack
-  // mutation, so the cleanup must not depend on it (see TaskTreeContext.tsx
+  // mutation, so the cleanup must not depend on it (see TodoTreeContext.tsx
   // for the full rationale). Explicit injected undoRedo is the host's to
   // manage.
   const undoRedoRef = useRef(undoRedo);

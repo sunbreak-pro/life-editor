@@ -53,9 +53,9 @@ describe("shared i18n", () => {
 
   it("resolves the same key differently per language", async () => {
     await i18n.changeLanguage("en");
-    expect(i18n.t("section.tasks")).toBe("Todos");
+    expect(i18n.t("section.todos")).toBe("Todos");
     await i18n.changeLanguage("ja");
-    expect(i18n.t("section.tasks")).toBe("Todo");
+    expect(i18n.t("section.todos")).toBe("Todo");
     // restore default so test ordering stays neutral
     await i18n.changeLanguage("en");
   });
@@ -71,16 +71,16 @@ describe("shared i18n — plurals", () => {
   it("picks the singular form for count=1 in en", async () => {
     await i18n.changeLanguage("en");
 
-    expect(i18n.t("materials.tasks.taskCount", { count: 1 })).toBe("1 todo");
-    expect(i18n.t("materials.tasks.taskCount", { count: 2 })).toBe("2 todos");
-    expect(i18n.t("materials.tasks.taskCount", { count: 0 })).toBe("0 todos");
+    expect(i18n.t("materials.todos.todoCount", { count: 1 })).toBe("1 todo");
+    expect(i18n.t("materials.todos.todoCount", { count: 2 })).toBe("2 todos");
+    expect(i18n.t("materials.todos.todoCount", { count: 0 })).toBe("0 todos");
   });
 
   it("keeps the one Japanese form at every count", async () => {
     await i18n.changeLanguage("ja");
 
-    expect(i18n.t("materials.tasks.taskCount", { count: 1 })).toBe("Todo 1 件");
-    expect(i18n.t("materials.tasks.taskCount", { count: 2 })).toBe("Todo 2 件");
+    expect(i18n.t("materials.todos.todoCount", { count: 1 })).toBe("Todo 1 件");
+    expect(i18n.t("materials.todos.todoCount", { count: 2 })).toBe("Todo 2 件");
 
     await i18n.changeLanguage("en");
   });

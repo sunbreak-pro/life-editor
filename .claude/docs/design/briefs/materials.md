@@ -7,23 +7,23 @@ Owner-chat: design-materials-v2
 Branch: claude/design-materials-v2
 ---
 
-# Design Brief: Materials セクション（header タブ: Tasks Kanban / Notes / Daily / Tags）
+# Design Brief: Materials セクション（header タブ: Todos Kanban / Notes / Daily / Tags）
 
-> **2026-07-28 現在の実装との差分（履歴として本文は残す）**: 当時の 4 タブのうち **Tags は #310 で退役**、**Tasks Kanban は #411 で Schedule セクションの「Todo」タブへ移設**した。Materials は現在 Notes / Daily の 2 タブ。以下の Tasks / Tags に関する記述は当時の IA 決定の記録であり、Tasks タブの意匠そのもの（Kanban の中身）は移設先でもそのまま生きている。
+> **2026-07-28 現在の実装との差分（履歴として本文は残す）**: 当時の 4 タブのうち **Tags は #310 で退役**、**Todos Kanban は #411 で Schedule セクションの「Todo」タブへ移設**した。Materials は現在 Notes / Daily の 2 タブ。以下の Todos / Tags に関する記述は当時の IA 決定の記録であり、Todos タブの意匠そのもの（Kanban の中身）は移設先でもそのまま生きている。
 >
 > 目的: **この 1 ファイルだけで「ClaudeDesign に貼るプロンプト」とその根拠が完結する**こと。
-> **IA（2026-07-05 決定）**: Tasks / Notes / Daily / Tags は独立セクションではなく、サイドバー本流の **Materials 1 セクション**の中の **header タブ 4 つ**。§4 の各プロンプトはタブ切替を前提に、サイドバー Materials アクティブ + コンテンツ最上部の 4 タブ行を含めて指示する。§4 の各プロンプトは Desktop / Mobile のペア構造を維持する。
+> **IA（2026-07-05 決定）**: Todos / Notes / Daily / Tags は独立セクションではなく、サイドバー本流の **Materials 1 セクション**の中の **header タブ 4 つ**。§4 の各プロンプトはタブ切替を前提に、サイドバー Materials アクティブ + コンテンツ最上部の 4 タブ行を含めて指示する。§4 の各プロンプトは Desktop / Mobile のペア構造を維持する。
 >
 > **Version: 2（2026-07-05）** — v1（PR #137）からの改訂 3 点: ①§4 全プロンプトの共通前提を `_COMMON-CONTEXT.md` の **v2**（Lumen blue accent + 目標シェル構成）へ全文差し替え ②旧 accent 系 hex を一掃 ③4 サブ画面を「独立セクション」から「Materials の header タブ」へ再フレーム（§1 / §3 / §4）。共通前提ブロックは規約どおり要約せず全文を各プロンプト冒頭に埋め込む。header タブそのものの意匠（形・アクティブ表現）は shell brief（D7）が定義し、本 brief はそれを参照してタブの中身に集中する。
 
 ## 1. 画面要件ダイジェスト
 
-**Materials セクション共通**: Tasks / Notes / Daily / Tags は独立セクションではなく、サイドバー本流 **Materials 1 セクション**の header タブ 4 つ。4 タブは同じ「Materials（素材・記録）」として、新規作成導線・リスト密度・見出し・空状態・ローディングの意匠を統一する（§3 統一方針）。Mobile はいずれも Consumption（閲覧）+ Quick capture（最短記録）に責務を絞る。
+**Materials セクション共通**: Todos / Notes / Daily / Tags は独立セクションではなく、サイドバー本流 **Materials 1 セクション**の header タブ 4 つ。4 タブは同じ「Materials（素材・記録）」として、新規作成導線・リスト密度・見出し・空状態・ローディングの意匠を統一する（§3 統一方針）。Mobile はいずれも Consumption（閲覧）+ Quick capture（最短記録）に責務を絞る。
 
-### 1.1 Tasks (Kanban)
+### 1.1 Todos (Kanban)
 
-- **目的 / 主ユースケース**: 階層 TaskTree を SSOT とするタスク運用のカンバン表現。フォルダ / ステータス / タグの 3 ビューで列を組み替え、カード移動でステータス変更・フォルダ移動を行う（`tier-1-core.md:23`、実装 `web/src/tasks/KanbanView.tsx:36-64`）
-- **表示するデータ**: TaskNode（task / folder、数十〜200 ノード想定）。3 段階ステータス `NOT_STARTED / IN_PROGRESS / DONE`（`tier-1-core.md:29`）、フォルダ色（`tier-1-core.md:52`）、WikiTag チップ（カード最大 3 + "+N"、`shared/src/components/Kanban/KanbanCard.tsx:59-60`）
+- **目的 / 主ユースケース**: 階層 TodoTree を SSOT とするタスク運用のカンバン表現。フォルダ / ステータス / タグの 3 ビューで列を組み替え、カード移動でステータス変更・フォルダ移動を行う（`tier-1-core.md:23`、実装 `web/src/todos/KanbanView.tsx:36-64`）
+- **表示するデータ**: TodoNode（task / folder、数十〜200 ノード想定）。3 段階ステータス `NOT_STARTED / IN_PROGRESS / DONE`（`tier-1-core.md:29`）、フォルダ色（`tier-1-core.md:52`）、WikiTag チップ（カード最大 3 + "+N"、`shared/src/components/Kanban/KanbanCard.tsx:59-60`）
 - **主要操作**: カード DnD（ステータス列間 = ステータス変更 / フォルダ列間 = フォルダ移動、`KanbanView.tsx:46-52`）、カードクリック → 中央詳細モーダル（`KanbanView.tsx:322-357`）、「+ タスクを追加」ダイアログ（`KanbanView.tsx:358-374`）、カラム色編集（`KanbanView.tsx:188-203`）
 - **Desktop / Mobile の責務分割**: Desktop = 全機能（DnD・3 ビュー・色編集）。Mobile = **閲覧 + ステータス変更 + 最短追加のみ**。落とすもの: カード DnD / カラム横並び（ステータスチップフィルタ + 縦 1 カラムに置換）/ カラム色編集 / タグ別ビュー
 
@@ -54,10 +54,10 @@ Branch: claude/design-materials-v2
 
 ## 2. 現状 UI インベントリ
 
-### 2.1 Tasks (Kanban)
+### 2.1 Todos (Kanban)
 
-- **host 画面**: `web/src/tasks/KanbanView.tsx`（+ `useKanbanDnd.ts` / `KanbanColumnDroppable.tsx` / `KanbanCardDraggable.tsx` — @dnd-kit は web 側のみ）
-- **shared 部品**: `shared/src/components/Kanban/`（`KanbanBoard.tsx` / `KanbanColumn.tsx` / `KanbanCard.tsx` / `buildColumns.ts`）、`TaskDetailModal.tsx` / `TaskDetailPanel.tsx` / `TaskAddDialog.tsx` / `ColorPicker.tsx`
+- **host 画面**: `web/src/todos/KanbanView.tsx`（+ `useKanbanDnd.ts` / `KanbanColumnDroppable.tsx` / `KanbanCardDraggable.tsx` — @dnd-kit は web 側のみ）
+- **shared 部品**: `shared/src/components/Kanban/`（`KanbanBoard.tsx` / `KanbanColumn.tsx` / `KanbanCard.tsx` / `buildColumns.ts`）、`TaskDetailModal.tsx` / `TodoDetailPanel.tsx` / `TodoAddDialog.tsx` / `ColorPicker.tsx`
 - **特徴的 UI**: 全幅横スクロールのカラムストリップ（`KanbanBoard.tsx:8-11`、収まるとき中央寄せ `KanbanBoard.tsx:160-170`）。カラム = 幅 316px・max-h 560px・rounded-2xl・上端 4px アクセントバンド + 件数バッジ（`KanbanColumn.tsx:100-157`）。カード = 左端 4px ステータスバンド + アイコン付きステータスチップ + フォルダピル + タグチップ（`KanbanCard.tsx:2-11`、バンド色トークン `tokens.css:101-103`）。フォルダビューはカラムパネルにフォルダ色 10% / ヘッダー 18% のウォッシュ（`KanbanColumn.tsx:72-95`）。詳細モーダルはスケールイン animation（`tokens.css:295-334`）
 - **状態の現状**: empty = カラム単位の中央プレースホルダあり（`KanbanColumn.tsx:174-197`）/ loading = テキストのみ（`KanbanView.tsx:225-227`）/ error = 移動拒否 alert 文言（`KanbanView.tsx:313-320`）
 - **現状の課題**:
@@ -113,10 +113,10 @@ Branch: claude/design-materials-v2
 
 ## 3. デザイン方針（このセッションの提案）
 
-### Materials header タブ 4 つの統一方針（Tasks / Notes / Daily / Tags — プロンプトにも同趣旨を埋め込む）
+### Materials header タブ 4 つの統一方針（Todos / Notes / Daily / Tags — プロンプトにも同趣旨を埋め込む）
 
 - **header タブ標準は shell brief（D7）に委譲**: タブ行の形状・アクティブ表現・件数バッジ有無は shell brief が定義する。本 brief はそれを参照し、Materials 内 4 タブの**中身**の統一に集中する（二重定義を避ける）
-- **新規作成導線**: 4 タブとも主アクションを **header タブ行の右端の同じ位置**に置く（Tasks =「+ タスクを追加」/ Notes =「+ ノート」/ Tags =「+ タグ」/ Daily は当日エディタ直行の「今日へ」）。ボタンは accent 塗り・on-accent 文字で統一
+- **新規作成導線**: 4 タブとも主アクションを **header タブ行の右端の同じ位置**に置く（Todos =「+ タスクを追加」/ Notes =「+ ノート」/ Tags =「+ タグ」/ Daily は当日エディタ直行の「今日へ」）。ボタンは accent 塗り・on-accent 文字で統一
 - **リスト密度**: 一覧の行は高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent 枠 + hover 地。行内アイコン 14px / text-secondary
 - **セクション見出し**: 14px semibold + 丸括弧の件数（例「タグ（12）」）。件数は text-secondary
 - **空状態**: 領域中央に lucide アイコン（24〜28px・text-tertiary）+ 1 行メッセージ + 主アクション（accent 塗りボタン）の縦積み
@@ -142,9 +142,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 > 各プロンプトの冒頭に `_COMMON-CONTEXT.md`（v3）の水平線以降を全文コピー済み（要約・改変なし）。
 > プロンプトは日本語（コンポーネント名・色値は英語 / hex のまま）。本文にリポジトリパスは書かない。
-> Materials は 1 セクション・header タブ 4 つ（Tasks / Notes / Daily / Tags）。各プロンプトはサイドバー Materials アクティブ + コンテンツ最上部の 4 タブ行を含めて指示する。header タブそのものの意匠は shell brief 準拠。
+> Materials は 1 セクション・header タブ 4 つ（Todos / Notes / Daily / Tags）。各プロンプトはサイドバー Materials アクティブ + コンテンツ最上部の 4 タブ行を含めて指示する。header タブそのものの意匠は shell brief 準拠。
 
-### 4.1 Tasks — Kanban ボード
+### 4.1 Todos — Kanban ボード
 
 #### 4.1.1 Desktop 用
 
@@ -162,7 +162,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -226,11 +226,11 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ---
 
-## この画面: Materials —「Tasks」タブ（Kanban ボード。Desktop 1440×900・light / dark 両方）
+## この画面: Materials —「Todos」タブ（Kanban ボード。Desktop 1440×900・light / dark 両方）
 
-サイドバーは本流 5 セクションのうち **Materials** がアクティブ（Library アイコン）。コンテンツ最上部に Materials の header タブ行「Tasks / Notes / Daily / Tags」があり、現在は **Tasks** タブがアクティブ。この画面はその Tasks タブの中身（タスクをカンバンで運用）をデザインする。header タブ行の下は中央寄せ max-width を使わず全幅を使う（カラム群が収まるときは中央寄せ、あふれたら横スクロール）。header タブ自体の形状・アクティブ表現は共通シェルの標準に従う（左寄せの水平タブ列・下端に border の薄い区切り線を全幅で引く。アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし）。
+サイドバーは本流 5 セクションのうち **Materials** がアクティブ（Library アイコン）。コンテンツ最上部に Materials の header タブ行「Todos / Notes / Daily / Tags」があり、現在は **Todos** タブがアクティブ。この画面はその Todos タブの中身（タスクをカンバンで運用）をデザインする。header タブ行の下は中央寄せ max-width を使わず全幅を使う（カラム群が収まるときは中央寄せ、あふれたら横スクロール）。header タブ自体の形状・アクティブ表現は共通シェルの標準に従う（左寄せの水平タブ列・下端に border の薄い区切り線を全幅で引く。アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし）。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: header タブ行の右端に「+ タスクを追加」（accent 塗り・Plus アイコン）。4 タブとも新規作成は header タブ行右端の同じ位置に置く
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -240,7 +240,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ### レイアウト構造
 
-1. header タブ行（Materials 共通）: 左に「Tasks / Notes / Daily / Tags」の水平タブ（Tasks アクティブ）。右端に「+ タスクを追加」ボタン（accent 塗り・Plus アイコン付き）
+1. header タブ行（Materials 共通）: 左に「Todos / Notes / Daily / Tags」の水平タブ（Todos アクティブ）。右端に「+ タスクを追加」ボタン（accent 塗り・Plus アイコン付き）
 2. ツールバー（タブ直下 1 行）: 左に 3 択セグメンテッドコントロール「フォルダ / ステータス / タグ」— 角丸 12px の枠（bg-secondary 地）に入った 3 ボタン。各ボタンに lucide アイコン（Folder / CircleDot / Tag）+ ラベル。選択中は bg-primary + 小さな影で浮く
 3. ボード: 横並びのカラム列。カラムは幅 316px・角丸 16px・1px border + md 相当の影・最大高さ 560px。カラム間 16px
 4. カラムヘッダー（地は bg-secondary）: 上端いっぱいに高さ 4px のアクセント色バンド。中身は色ドット（フォルダ列 = 角丸四角 / タグ列 = 丸）またはステータスアイコン（ステータス列: Circle / CircleDashed / CheckCircle2）+ カラム名（15px bold・1 行省略）+ 右端に件数バッジ（丸ピル・bg-primary 地にアクセント色の数字）
@@ -289,7 +289,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -353,11 +353,11 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ---
 
-## この画面: Materials —「Tasks」タブ（Kanban。Mobile 390×844・light / dark 両方・下部タブバー込み・safe-area 考慮）
+## この画面: Materials —「Todos」タブ（Kanban。Mobile 390×844・light / dark 両方・下部タブバー込み・safe-area 考慮）
 
-下部固定タブバーは **Materials**（2 番目）がアクティブ。コンテンツ最上部にセグメントコントロール「Tasks | Notes | Daily | Tags」があり、現在は **Tasks**。Mobile の責務 = 閲覧 + ステータス変更 + 最短のタスク追加。Desktop から落とすもの: カードのドラッグ&ドロップ / カラムの横並び（ステータスチップフィルタ + 縦 1 カラムに置換）/ カラム色編集 / タグ別・フォルダ別ビュー。
+下部固定タブバーは **Materials**（2 番目）がアクティブ。コンテンツ最上部にセグメントコントロール「Todos | Notes | Daily | Tags」があり、現在は **Todos**。Mobile の責務 = 閲覧 + ステータス変更 + 最短のタスク追加。Desktop から落とすもの: カードのドラッグ&ドロップ / カラムの横並び（ステータスチップフィルタ + 縦 1 カラムに置換）/ カラム色編集 / タグ別・フォルダ別ビュー。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: header タブ行の右端に「+ タスクを追加」（accent 塗り・Plus アイコン）。4 タブとも新規作成は header タブ行右端の同じ位置に置く
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -367,7 +367,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ### レイアウト構造
 
-1. ヘッダー: 画面名「Materials」+ その下にセグメントコントロール「Tasks | Notes | Daily | Tags」（Tasks 選択）。右端に「+」アイコンボタン（accent 色）
+1. ヘッダー: 画面名「Materials」+ その下にセグメントコントロール「Todos | Notes | Daily | Tags」（Todos 選択）。右端に「+」アイコンボタン（accent 色）
 2. ステータスフィルタ: 「未着手 4 / 進行中 3 / 完了 2」の 3 チップを水平 1 行（件数付き）。選択中チップは accent-subtle 地 + accent 文字、未選択は border のみ。これが Desktop のカラムの代替
 3. カードリスト: 縦 1 カラム。カード意匠は Desktop と同一 — 左端 4px ステータスバンド（未着手 #38bdf8 / 進行中 #eab308 / 完了 #10b981）+ タイトル + ステータスチップ（アイコン + ラベル）+ フォルダピル + タグチップ最大 2
 4. カードタップ → ボトムシート（高さ 60% 目安・不透明パネル・黒 30% バックドロップ・上端に取っ手）: タイトル / フォルダピル / タグチップ / 本文の冒頭数行（読み取り）+ 下部に「未着手・進行中・完了」の 3 択ステータス切替（大きめのセグメント。1 タップで変更して閉じられる）
@@ -404,7 +404,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -470,9 +470,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Notes」タブ（階層ノート。Desktop 1440×900・light / dark 両方）
 
-サイドバーは **Materials** がアクティブ（Library アイコン）。コンテンツ最上部の Materials header タブ「Tasks / Notes / Daily / Tags」は **Notes** がアクティブ。この画面はその Notes タブの中身（長文ナレッジベース）をデザインする。左 = 階層ツリー（一覧）、右 = 選択ノートの詳細（リッチテキストエディタ）の 2 枚組（MasterDetail）。一覧 : 詳細 = 1 : 1.4。2 枚組のため header タブ行の下はコンテンツ幅 1080px 目安で組む。
+サイドバーは **Materials** がアクティブ（Library アイコン）。コンテンツ最上部の Materials header タブ「Todos / Notes / Daily / Tags」は **Notes** がアクティブ。この画面はその Notes タブの中身（長文ナレッジベース）をデザインする。左 = 階層ツリー（一覧）、右 = 選択ノートの詳細（リッチテキストエディタ）の 2 枚組（MasterDetail）。一覧 : 詳細 = 1 : 1.4。2 枚組のため header タブ行の下はコンテンツ幅 1080px 目安で組む。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: header タブ行の右端に「+ ノート」（accent 塗り）。4 タブとも新規作成は header タブ行右端の同じ位置に置く
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -527,7 +527,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -593,9 +593,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Notes」タブ（Mobile 390×844・light / dark 両方・下部タブバー込み・safe-area 考慮）
 
-下部固定タブバーは **Materials**（2 番目）がアクティブ。コンテンツ最上部のセグメントコントロール「Tasks | Notes | Daily | Tags」は **Notes**。Mobile の責務 = 閲覧 + 最短のノート追加。Desktop から落とすもの: ドラッグ&ドロップ並び替え / フォルダ作成・リネーム / パスワードの設定・変更（閲覧のための解除だけ残す）/ タグ・リンクの編集（表示のみ）/ ゴミ箱。
+下部固定タブバーは **Materials**（2 番目）がアクティブ。コンテンツ最上部のセグメントコントロール「Todos | Notes | Daily | Tags」は **Notes**。Mobile の責務 = 閲覧 + 最短のノート追加。Desktop から落とすもの: ドラッグ&ドロップ並び替え / フォルダ作成・リネーム / パスワードの設定・変更（閲覧のための解除だけ残す）/ タグ・リンクの編集（表示のみ）/ ゴミ箱。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: header タブ行の右端に「+ ノート」（accent 塗り）。4 タブとも新規作成は header タブ行右端の同じ位置に置く
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -605,7 +605,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ### レイアウト構造
 
-1. ヘッダー: 「Materials」+ セグメントコントロール「Tasks | Notes | Daily | Tags」（Notes 選択）+ 検索アイコン + 「+」アイコンボタン（最短追加）
+1. ヘッダー: 「Materials」+ セグメントコントロール「Todos | Notes | Daily | Tags」（Notes 選択）+ 検索アイコン + 「+」アイコンボタン（最短追加）
 2. 一覧: 先頭に「ピン留め」セクション（ピン付きノートを固定）。以降はフォルダ = 折りたたみ見出し行（Folder アイコン + 名前 + 件数）、ノート = 2 行リスト行（1 行目タイトル、2 行目に本文冒頭の抜粋を text-secondary で 1 行省略）。ロック付きは Lock アイコンを添え、抜粋は出さない
 3. ノートタップ → ほぼ全画面（高さ 92%）のボトムシート: 上端に取っ手 + 閉じるボタン、タイトル、本文の閲覧ビュー（読みやすい行間）。タグチップとリンクは下部に表示のみ。本文タップで最小限のテキスト編集に入れる
 4. ロック付きノート: シートを開く前にパスワード入力ダイアログ（不透明パネル + 黒 30% バックドロップ）
@@ -645,7 +645,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -711,9 +711,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Daily」タブ（日次ジャーナル。Desktop 1440×900・light / dark 両方）
 
-サイドバーは **Materials** がアクティブ（Library アイコン）。Materials header タブ「Tasks / Notes / Daily / Tags」は **Daily** がアクティブ。日付主軸の「その日の思考ログ」（1 日 1 エントリ）。header タブ行の下は左に日付ナビ + 過去エントリ一覧、右に大きめのリッチテキストエディタ。
+サイドバーは **Materials** がアクティブ（Library アイコン）。Materials header タブ「Todos / Notes / Daily / Tags」は **Daily** がアクティブ。日付主軸の「その日の思考ログ」（1 日 1 エントリ）。header タブ行の下は左に日付ナビ + 過去エントリ一覧、右に大きめのリッチテキストエディタ。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: Daily は「その日のエントリ」を直接編集するため、新規作成ボタンの代わりに header タブ行右端へ「今日へ」ボタンを置く（他タブの新規作成ボタンと同じ位置）
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -757,7 +757,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -823,9 +823,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Daily」タブ（Mobile 390×844・light / dark 両方・下部タブバー込み・safe-area 考慮）
 
-下部固定タブバーは **Materials**（2 番目）がアクティブ。セグメントコントロール「Tasks | Notes | Daily | Tags」は **Daily**。Mobile の責務 = 今日をすぐ書く + 過去を読む。Desktop から落とすもの: ピン・削除・ゴミ箱の管理 / タグ・リンク編集（表示のみ）/ 日付の自由ジャンプ（直近日付ストリップで代替）。
+下部固定タブバーは **Materials**（2 番目）がアクティブ。セグメントコントロール「Todos | Notes | Daily | Tags」は **Daily**。Mobile の責務 = 今日をすぐ書く + 過去を読む。Desktop から落とすもの: ピン・削除・ゴミ箱の管理 / タグ・リンク編集（表示のみ）/ 日付の自由ジャンプ（直近日付ストリップで代替）。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: Daily は「その日のエントリ」を直接編集するため、新規作成ボタンの代わりに header タブ行右端へ「今日へ」ボタンを置く（他タブの新規作成ボタンと同じ位置）
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -835,7 +835,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ### レイアウト構造
 
-1. ヘッダー: 「Materials」+ セグメントコントロール「Tasks | Notes | Daily | Tags」（Daily 選択）+ 今日の日付。右端にピン一覧アイコン
+1. ヘッダー: 「Materials」+ セグメントコントロール「Todos | Notes | Daily | Tags」（Daily 選択）+ 今日の日付。右端にピン一覧アイコン
 2. 日付ストリップ: 横スクロールの日付チップ（直近 2 週間ぶん。今日を右端に強調表示）。タップで切替
 3. エディタ: 日付見出し + リッチテキスト（プレースホルダ「今日は何があった？」）。Mobile は入力にフォーカスした最短の書き心地を優先
 4. 過去を読む: エディタ下に直近エントリの抜粋リスト（日付 + 抜粋 1 行）
@@ -865,7 +865,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -931,9 +931,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Tags」タブ（WikiTags 管理。Desktop 1440×900・light / dark 両方）
 
-サイドバーは **Materials** がアクティブ（Library アイコン）。Materials header タブ「Tasks / Notes / Daily / Tags」は **Tags** がアクティブ。Notes / Dailies / Schedule を横断する単一タグ体系のマスタ管理。header タブ行の下は左にタグ一覧、右にタググループ。
+サイドバーは **Materials** がアクティブ（Library アイコン）。Materials header タブ「Todos / Notes / Daily / Tags」は **Tags** がアクティブ。Notes / Dailies / Schedule を横断する単一タグ体系のマスタ管理。header タブ行の下は左にタグ一覧、右にタググループ。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: header タブ行の右端に「+ タグ」（accent 塗り）。4 タブとも新規作成は header タブ行右端の同じ位置に置く
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -975,7 +975,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -1041,9 +1041,9 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Tags」タブ（Mobile 390×844・light / dark 両方・下部タブバー込み・safe-area 考慮）
 
-下部固定タブバーは **Materials**（2 番目）がアクティブ。セグメントコントロール「Tasks | Notes | Daily | Tags」は **Tags**。Mobile の責務 = 閲覧 + 最短タグ追加。Desktop から落とすもの: リネーム / 削除 / 色変更 / グループ編集 / マージ。
+下部固定タブバーは **Materials**（2 番目）がアクティブ。セグメントコントロール「Todos | Notes | Daily | Tags」は **Tags**。Mobile の責務 = 閲覧 + 最短タグ追加。Desktop から落とすもの: リネーム / 削除 / 色変更 / グループ編集 / マージ。
 
-### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
+### Materials 4 タブ共通の意匠（Todos / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
 - 新規作成導線: header タブ行の右端に「+ タグ」（accent 塗り）。4 タブとも新規作成は header タブ行右端の同じ位置に置く
 - 一覧の行: 高さ 36px 前後・角丸 8px・1px border・地は bg-secondary。選択行は accent の枠線 + hover 色の地。行内アイコンは 14px で text-secondary
@@ -1053,7 +1053,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ### レイアウト構造
 
-1. ヘッダー: 「Materials」+ セグメントコントロール「Tasks | Notes | Daily | Tags」（Tags 選択）+ 右端「+」
+1. ヘッダー: 「Materials」+ セグメントコントロール「Todos | Notes | Daily | Tags」（Tags 選択）+ 右端「+」
 2. タグ一覧: タグ色ドット + タグ名 + 使用件数の 1 行リスト（縦スクロール）
 3. グループ: 折りたたみ見出しで下部にまとめる（閲覧のみ）
 4. 「+」→ 最短タグ追加ミニシート（タグ名 1 行 + 追加）

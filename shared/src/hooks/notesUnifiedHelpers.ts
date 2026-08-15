@@ -137,7 +137,7 @@ export function buildChildrenByParent(
 // expanded node. NOTE (#418): the nesting UI is retired — the movement hook
 // can no longer re-parent, so no drag can deepen the tree. Data-level
 // hierarchy is still writable though (`createNote({ parentId })`, and
-// MCP `create_task(parent_id)` on the task side), so this walk sees legacy
+// MCP `create_todo(parent_id)` on the todo side), so this walk sees legacy
 // rows plus anything a non-UI caller creates.
 export function flattenVisibleNotes(
   notes: NoteNode[],
@@ -199,7 +199,7 @@ export function filterAndSortNotes(
  * Collect `id`'s whole subtree in post-order (descendants before ancestor).
  * `seen` guards against a corrupted parentId cycle (e.g. a bad sync
  * round-trip) causing unbounded recursion — same OOM class as the
- * task-tree (known-issues 016). No DnD path creates hierarchy since #418,
+ * todo-tree (known-issues 016). No DnD path creates hierarchy since #418,
  * but `createNote({ parentId })` still can and data may arrive cyclic from
  * the server.
  */

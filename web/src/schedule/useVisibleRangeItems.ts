@@ -11,7 +11,7 @@ import type {
  * locally patchable copy: edits patch `rangeItems` optimistically, so only
  * navigation, an explicit reload(), a retry or a refreshKey bump refetches.
  *
- * Task chips are merged at the host's derived (map) layer — NEVER into
+ * Todo chips are merged at the host's derived (map) layer — NEVER into
  * `rangeItems` (this is the ScheduleItem mutation store).
  */
 export function useVisibleRangeItems(args: {

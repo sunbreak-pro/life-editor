@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Flame, Trophy, BarChart3 } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
@@ -11,7 +11,7 @@ import {
   todayCalendarKey,
 } from "../../utils/dateKey";
 import {
-  aggregateByDay,
+  aggregateCalendarWeekByDay,
   aggregateRoutineCompletion,
   calendarWeekRange,
   computeWorkStreak,
@@ -31,7 +31,7 @@ import type { AnalyticsLabels } from "./labels";
  */
 interface MobileAnalyticsViewProps {
   sessions: TimerSession[];
-  nodes: TaskNode[];
+  nodes: TodoNode[];
   todayItems: ScheduleItem[];
   /** Schedule items for the default (30d) range — routine rate + top routines. */
   scheduleItems: ScheduleItem[];
@@ -118,12 +118,15 @@ export function MobileAnalyticsView(
       if (d === null) return false;
       return d >= weekStart && d <= weekEnd;
     }).length;
-    const weekBars = aggregateByDay(sessions, 7);
+    // The SAME window as weekMinutes above (#860) — these bars used to be a
+    // rolling 7 days, so mid-week the row and the number beside it covered
+    // different days. Mid-week the not-yet-happened days now draw as empty.
+    const weekBars = aggregateCalendarWeekByDay(sessions, now, weekStartsOn);
     const weekMax = Math.max(...weekBars.map((b) => b.totalMinutes), 1);
 
-    // Tasks / notes / routine rate
-    const tasks = nodes.filter((n) => n.type === "task");
-    const completedTasks = tasks.filter((n) => n.status === "DONE").length;
+    // Todos / notes / routine rate
+    const todos = nodes.filter((n) => n.type === "task");
+    const completedTodos = todos.filter((n) => n.status === "DONE").length;
     const todayEventsCompleted = todayItems.filter((i) => i.completed).length;
     // #375: the `type === "note"` half of this filter went away with the
     // folder type (every NoteNode is a note now).
@@ -159,8 +162,8 @@ export function MobileAnalyticsView(
       weekCompleted,
       weekBars,
       weekMax,
-      totalTasks: tasks.length,
-      completedTasks,
+      totalTodos: todos.length,
+      completedTodos,
       todayEvents: todayItems.length,
       todayEventsCompleted,
       totalNotes: activeNotes.length,
@@ -219,7 +222,7 @@ export function MobileAnalyticsView(
             />
             <MiniCol
               value={String(model.completedToday)}
-              label={labels.todayCard.completedTasks}
+              label={labels.todayCard.completedTodos}
             />
             <MiniCol
               value={String(model.pomodoroCount)}
@@ -306,9 +309,9 @@ export function MobileAnalyticsView(
         {/* Stat 2×2 */}
         <div className="grid grid-cols-2 gap-3">
           <StatBox
-            value={model.totalTasks}
-            label={labels.overview.tasks}
-            subtitle={`${model.completedTasks} ${labels.overview.completed}`}
+            value={model.totalTodos}
+            label={labels.overview.todos}
+            subtitle={`${model.completedTodos} ${labels.overview.completed}`}
           />
           <StatBox
             value={model.todayEvents}

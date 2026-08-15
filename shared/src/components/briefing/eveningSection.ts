@@ -25,6 +25,7 @@
  */
 
 import { getDayStartHour } from "../../utils/dateKey";
+import { jsonDocEquals } from "../../utils/jsonDocEquals";
 import {
   EVENING_HEADING_RE,
   findSectionRange,
@@ -60,6 +61,17 @@ export function isEmptyDocJson(docJson: string): boolean {
   } catch {
     return true;
   }
+}
+
+/**
+ * Echo test for an evening body — "is this stored body the one my editor just
+ * emitted?" (#793). Null-aware wrapper over `jsonDocEquals`, which is where the
+ * reason lives: the daily body round-trips through a `jsonb` column that
+ * reorders object keys, so byte equality answers "no" to every save.
+ */
+export function eveningBodyEquals(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === b;
+  return jsonDocEquals(a, b);
 }
 
 export interface ExtractedEveningSection {

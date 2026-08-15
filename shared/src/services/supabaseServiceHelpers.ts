@@ -25,7 +25,7 @@ export function pgrstQuoteValue(value: string): string {
  * Two things this expresses, both load-bearing:
  *
  *   - `!inner` makes it an INNER JOIN, so an items_meta row whose payload
- *     row is missing (an R2 orphan — see SupabaseTasksService's header)
+ *     row is missing (an R2 orphan — see SupabaseTodosService's header)
  *     is NOT counted. The list reads skip those rows too (`if (!payload)
  *     continue`), so the badge keeps matching what the surface shows.
  *
@@ -44,7 +44,7 @@ export function livePayloadInnerJoin(
 }
 
 /**
- * Resolve the authenticated user id. Shared by SupabaseTasksService,
+ * Resolve the authenticated user id. Shared by SupabaseTodosService,
  * SupabaseRoutinesService, and SupabaseScheduleItemsService — every
  * write path that needs the caller's uid passes its client here rather
  * than duplicating the identical three-liner.

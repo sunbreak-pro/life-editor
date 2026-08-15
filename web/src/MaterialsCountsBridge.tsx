@@ -8,7 +8,7 @@ import {
 /*
  * Headless Materials badge bridge (plan 2026-07-08 Step 4).
  *
- * The Materials tab count badges (Tasks unfinished / Notes / Daily) need
+ * The Materials tab count badges (Todos unfinished / Notes / Daily) need
  * numbers for ALL surfaces at once, but each surface's Provider is mounted
  * per-tab inside the section body — so the shell can't read the counts from
  * context (they only exist while that tab is active). This tiny child sits
@@ -18,7 +18,7 @@ import {
  *
  * #499 — one effect per domain, not one effect for all three. This bridge is
  * mounted app-wide, so a single combined effect made it the last thing turning
- * every note keystroke into a task + note + daily re-pull: exactly the
+ * every note keystroke into a todo + note + daily re-pull: exactly the
  * cross-role traffic the domain split removes everywhere else. Each count now
  * refetches only when its own domain moves, and the last-known numbers live in
  * refs so the badges stay whole across a partial refresh.
@@ -36,19 +36,19 @@ export function MaterialsCountsBridge({
   dataService: DataService;
   onCounts: (counts: MaterialsCounts) => void;
 }) {
-  const tasksVersion = useSyncDomains("tasks");
+  const todosVersion = useSyncDomains("todos");
   const notesVersion = useSyncDomains("notes");
   const dailiesVersion = useSyncDomains("dailies");
 
-  const countsRef = useRef<MaterialsCounts>({ tasks: 0, notes: 0, daily: 0 });
+  const countsRef = useRef<MaterialsCounts>({ todos: 0, notes: 0, daily: 0 });
   // Which counts have arrived at least once. Publishing before all three have
   // landed would flash a real badge next to two zeros that only mean "not
   // fetched yet" — worse than showing no badges for another moment.
-  const arrivedRef = useRef({ tasks: false, notes: false, daily: false });
+  const arrivedRef = useRef({ todos: false, notes: false, daily: false });
 
   const report = useCallback(() => {
     const arrived = arrivedRef.current;
-    if (!arrived.tasks || !arrived.notes || !arrived.daily) return;
+    if (!arrived.todos || !arrived.notes || !arrived.daily) return;
     onCounts({ ...countsRef.current });
   }, [onCounts]);
 
@@ -57,18 +57,18 @@ export function MaterialsCountsBridge({
     // A failed refetch keeps the last known count (transient network / Realtime
     // blip) rather than flashing that badge back to zero.
     void ds
-      .countUnfinishedTasks()
+      .countUnfinishedTodos()
       .then((count) => {
         if (cancelled) return;
-        countsRef.current.tasks = count;
-        arrivedRef.current.tasks = true;
+        countsRef.current.todos = count;
+        arrivedRef.current.todos = true;
         report();
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [ds, tasksVersion, report]);
+  }, [ds, todosVersion, report]);
 
   useEffect(() => {
     let cancelled = false;

@@ -11,7 +11,7 @@ import { agendaEmptyKey } from "../src/schedule/agendaEmptyLabel";
  * The list is reachable at any date (arrows step a day, the month sheet jumps),
  * so what has to hold is the comparison itself. CalendarTab needs the whole
  * Provider chain to render, hence the decision is pinned here rather than
- * through the markup (same arrangement as taskChipPanel / unsavedCloseGuard).
+ * through the markup (same arrangement as todoChipPanel / unsavedCloseGuard).
  */
 const TODAY = "2026-08-12";
 

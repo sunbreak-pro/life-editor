@@ -70,13 +70,13 @@ describe("RightSidebar (Desktop panel)", () => {
   it("replaces the empty state with portalled content and restores it after unmount", () => {
     const { rerender } = renderPanel(
       <RightSidebarPortal>
-        <p>task detail body</p>
+        <p>todo detail body</p>
       </RightSidebarPortal>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Open details" }));
     // Content registered → empty state gone, portalled body shown.
     expect(screen.queryByText("Nothing selected yet")).not.toBeInTheDocument();
-    expect(screen.getByText("task detail body")).toBeInTheDocument();
+    expect(screen.getByText("todo detail body")).toBeInTheDocument();
 
     // Removing the portal cleans up registerContent (contentCount → 0). The
     // Provider stays mounted (panel still open), so the empty state returns
@@ -97,7 +97,7 @@ describe("RightSidebar (Desktop panel)", () => {
       </RightSidebarProvider>,
     );
     expect(screen.getByText("Nothing selected yet")).toBeInTheDocument();
-    expect(screen.queryByText("task detail body")).not.toBeInTheDocument();
+    expect(screen.queryByText("todo detail body")).not.toBeInTheDocument();
   });
 });
 

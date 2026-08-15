@@ -151,8 +151,17 @@ body {
   align-items: flex-start;
   gap: 0.5rem;
 }
+/* The checkbox must sit on the SAME optical centre as the first line of the
+   item's text (#883). The content column is a <div> whose first <p> carries the
+   0.4em top margin above a 1.6em line box, so its first line centres at
+   0.4em + 0.8em. Give the label the identical top margin and an explicit
+   one-line box, then centre the checkbox inside it — the two centres then track
+   each other instead of relying on a hand-tuned nudge. */
 .note-editor .ProseMirror ul[data-type="taskList"] li > label {
-  margin-top: 0.2em;
+  display: flex;
+  align-items: center;
+  height: 1.6em;
+  margin-top: 0.4em;
   user-select: none;
 }
 .note-editor .ProseMirror ul[data-type="taskList"] li > div {

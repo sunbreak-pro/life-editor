@@ -1,8 +1,8 @@
-import type { TaskNode } from "../types/taskTree";
+import type { TodoNode } from "../types/todoTree";
 
 /*
- * Sort a set of task ids so that **deeper nodes come first** (leaf-first
- * ordering). Used by `SupabaseTasksService.permanentDeleteTask` to delete
+ * Sort a set of todo ids so that **deeper nodes come first** (leaf-first
+ * ordering). Used by `SupabaseTodosService.permanentDeleteTodo` to delete
  * children before their parent, satisfying the composite FK
  * `ON DELETE NO ACTION` constraint introduced in migration 0009
  * (DB-Q3 v3-rev2): PostgREST would otherwise reject a parent DELETE
@@ -21,9 +21,9 @@ import type { TaskNode } from "../types/taskTree";
  */
 export function sortByDepthDesc(
   ids: readonly string[],
-  allNodes: readonly TaskNode[],
+  allNodes: readonly TodoNode[],
 ): string[] {
-  const nodeById = new Map<string, TaskNode>();
+  const nodeById = new Map<string, TodoNode>();
   for (const n of allNodes) nodeById.set(n.id, n);
 
   const depthCache = new Map<string, number>();

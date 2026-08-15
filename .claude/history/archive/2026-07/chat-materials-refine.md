@@ -1,5 +1,21 @@
 # HISTORY archive 2026-07 (chat-materials-refine)
 
+### 2026-07-19 - #300 tag chip ちらつき + #301 rightSidebar Notes 選択の遅延（PR #308）
+
+#### 概要
+
+section:materials の Issue キュー消化。#300（入力中の Tag 表示ちらつき）と #301（rightSidebar アイテム選択の遅延）を調査・修正し PR #308 を提出（Closes #300, #301・merge = こうだいさん）。両方とも根は同じ own-write Realtime echo 連鎖（typing → 800ms debounce 保存 → Supabase が自分の書き込みを自分にエコーバック → 300ms debounce 後 syncVersion bump）。
+
+#### 変更点
+
+- **調査（#300）**: 4 並列偵察（sync-refetch / TipTap decoration / context identity / 直近 regression の git 調査）→ 統合 → 上位仮説 2 件を敵対的検証（両方 CONFIRMED）のワークフローで root cause 特定
+- **#300 修正 1（tag chip 全般）**: `useWikiTagsUnifiedAPI` の `loading` が syncVersion bump のたびに true へ戻り、TagPicker/LinkPanel/Tags タブ全てが表示中の chip を unmount していた。`hasLoadedRef` で「初回ロード未完了時のみ loading」に変更 — 3 surface 同時に解消
+- **#300 修正 2（Daily editor 全体 remount）**: `DailyView` の own-echo 判定がバイト比較で、Postgres jsonb のキー順再配置により自分の保存エコーを外部編集と誤認し editor 全体を remount（カーソル飛び + `[[wiki-link]]` pill 明滅）。`jsonDocEquals`（新規 shared ユーティリティ・JSON 意味比較、非 JSON はバイト比較 fallback）に差し替え
+- **#301 修正（Notes 選択遅延）**: `useNotesUnifiedAPI` の sync-triggered list reload が syncVersion bump のたびに hydrated body キャッシュ（`contentLoadedIdsRef`）を全消去 — 入力はどこでやっても bump が飛ぶため、既読 Note の再選択がほぼ毎回ネットワーク往復（`ds.getNoteUnified`）になっていた。`updatedAt` 不変なら旧 body を維持する merge 方式に変更（実際に書き込まれた note のみ無効化）
+- **テスト**: 新規 3 ファイル 15 件（`jsonDocEquals.test.ts` / `wikiTagsRefreshLoading.test.tsx` / `notesHydrateCachePerf.test.tsx`）。shared vitest 132 files / 1067 tests green・shared tsc -b・web build 全 green
+- **プロセス注記**: #308 マージ待ちの間に #301 コミットを同ブランチへ push してしまい 2 Issue が 1 PR に同居（GitHub は同一ブランチ→main の PR を 1 つしか許さないため分割不可・PR タイトル/本文で両 Issue 明記して対応。次回は前 PR マージ後に次 Issue へ着手する運用に戻す）
+- **outbox**: follow-up 起票依頼 1 件（PR #289 由来・編集中 Note がタグ group 内で最新順ソートにより跳ねる現象）+ 上記プロセス注記を chat-main へ報告
+
 ### 2026-07-19 - #282 選択状態のタブ跨ぎ保持 + #283 rightSidebar ソート・フィルタ（PR #289）
 
 #### 概要

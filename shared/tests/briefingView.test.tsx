@@ -9,7 +9,7 @@ import {
 } from "../src/components";
 
 /*
- * BriefingView — pure morning-paper view. Every row (schedule / task /
+ * BriefingView — pure morning-paper view. Every row (schedule / todo /
  * carryover) exposes a title button (toggles completion) plus an icon-only
  * jump button (navigates to the owning section). The circle on schedule rows
  * still toggles too. This suite guards the click routing and the no-nested-
@@ -25,22 +25,23 @@ const LABELS: BriefingLabels = {
   intentionTitle: "INTENTION",
   intentionCaption: "Saved",
   intentionPlaceholder: "Declare today…",
+  goalsTitle: "GOALS",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
-  tasksTitle: "TASKS",
-  noTasks: "No tasks",
+  todosTitle: "TODOS",
+  noTodos: "No todos",
   vizTitle: "VIZ",
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
   edit: "Edit",
   delete: "Delete",
   deleteScheduleHint: "Delete this event",
-  deleteTaskHint: "Delete this todo",
+  deleteTodoHint: "Delete this todo",
   jumpToSchedule: "Open in Schedule",
-  jumpToTasks: "Open in Tasks",
+  jumpToTodos: "Open in Todos",
 };
 
 const STREAK_LABELS = {
@@ -79,7 +80,7 @@ const DATA: BriefingData = {
       isAllDay: false,
     },
   ],
-  tasks: [
+  todos: [
     { id: "t1", title: "Write report", status: "NOT_STARTED", purposes: [] },
     { id: "t2", title: "Ship feature", status: "DONE", purposes: [] },
   ],
@@ -93,19 +94,29 @@ const DATA: BriefingData = {
     },
   ],
   sessions: [],
-  taskNodes: [],
+  todoNodes: [],
 };
+
+const GOAL_LABELS = {
+  week: { title: "WEEK", range: "8/10 – 8/16", placeholder: "This week…" },
+  month: { title: "MONTH", range: "August", placeholder: "This month…" },
+  year: { title: "YEAR", range: "2026", placeholder: "This year…" },
+};
+
+const NO_GOALS = { week: "", month: "", year: "" };
 
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleScheduleItem = vi.fn();
-  const onToggleTask = vi.fn();
+  const onToggleTodo = vi.fn();
   const onDeleteScheduleItem = vi.fn();
-  const onDeleteTask = vi.fn();
+  const onDeleteTodo = vi.fn();
   const onAddScheduleItem = vi.fn();
   const onJumpToSchedule = vi.fn();
-  const onJumpToTasks = vi.fn();
+  const onJumpToTodos = vi.fn();
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
+  const onGoalChange = vi.fn();
+  const onGoalBlur = vi.fn();
   const result = render(
     <BriefingView
       loading={false}
@@ -117,27 +128,33 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       intentionText=""
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
+      goals={NO_GOALS}
+      goalLabels={GOAL_LABELS}
+      onGoalChange={onGoalChange}
+      onGoalBlur={onGoalBlur}
       onToggleScheduleItem={onToggleScheduleItem}
-      onToggleTask={onToggleTask}
+      onToggleTodo={onToggleTodo}
       onDeleteScheduleItem={onDeleteScheduleItem}
-      onDeleteTask={onDeleteTask}
+      onDeleteTodo={onDeleteTodo}
       onAddScheduleItem={onAddScheduleItem}
       onJumpToSchedule={onJumpToSchedule}
-      onJumpToTasks={onJumpToTasks}
+      onJumpToTodos={onJumpToTodos}
       {...props}
     />,
   );
   return {
     ...result,
     onToggleScheduleItem,
-    onToggleTask,
+    onToggleTodo,
     onDeleteScheduleItem,
-    onDeleteTask,
+    onDeleteTodo,
     onAddScheduleItem,
     onJumpToSchedule,
-    onJumpToTasks,
+    onJumpToTodos,
     onIntentionChange,
     onIntentionBlur,
+    onGoalChange,
+    onGoalBlur,
   };
 }
 
@@ -171,24 +188,24 @@ describe("BriefingView row actions", () => {
     ).toContain("line-through");
   });
 
-  it("toggles a task from its title button (no nav)", () => {
-    const { onToggleTask, onJumpToTasks } = renderView();
+  it("toggles a todo from its title button (no nav)", () => {
+    const { onToggleTodo, onJumpToTodos } = renderView();
     fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
-    expect(onToggleTask).toHaveBeenCalledWith("t1");
-    expect(onJumpToTasks).not.toHaveBeenCalled();
+    expect(onToggleTodo).toHaveBeenCalledWith("t1");
+    expect(onJumpToTodos).not.toHaveBeenCalled();
   });
 
-  it("jumps to Tasks from a task move button (no toggle)", () => {
-    const { onJumpToTasks, onToggleTask } = renderView();
-    // Move buttons for tasks and carryover share the label; the first two are
-    // the two task rows.
-    const jumps = screen.getAllByTitle("Open in Tasks");
+  it("jumps to Todos from a todo move button (no toggle)", () => {
+    const { onJumpToTodos, onToggleTodo } = renderView();
+    // Move buttons for todos and carryover share the label; the first two are
+    // the two todo rows.
+    const jumps = screen.getAllByTitle("Open in Todos");
     fireEvent.click(jumps[0]);
-    expect(onJumpToTasks).toHaveBeenCalledTimes(1);
-    expect(onToggleTask).not.toHaveBeenCalled();
+    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
+    expect(onToggleTodo).not.toHaveBeenCalled();
   });
 
-  it("strikes through a DONE task title", () => {
+  it("strikes through a DONE todo title", () => {
     renderView();
     expect(screen.getByText("Ship feature").className).toContain(
       "line-through",
@@ -196,14 +213,14 @@ describe("BriefingView row actions", () => {
   });
 
   it("toggles + jumps from a carryover row and strikes completed ones", () => {
-    const { onToggleTask, onJumpToTasks } = renderView();
+    const { onToggleTodo, onJumpToTodos } = renderView();
     fireEvent.click(screen.getByRole("button", { name: /Old todo/ }));
-    expect(onToggleTask).toHaveBeenCalledWith("c1");
+    expect(onToggleTodo).toHaveBeenCalledWith("c1");
 
-    const jumps = screen.getAllByTitle("Open in Tasks");
-    // task rows (2) then carryover rows (2): the third jump button is c1.
+    const jumps = screen.getAllByTitle("Open in Todos");
+    // todo rows (2) then carryover rows (2): the third jump button is c1.
     fireEvent.click(jumps[2]);
-    expect(onJumpToTasks).toHaveBeenCalledTimes(1);
+    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
 
     expect(screen.getByText("Finished carryover").className).toContain(
       "line-through",
@@ -246,15 +263,15 @@ describe("BriefingView row actions", () => {
     expect(onJumpToSchedule).not.toHaveBeenCalled();
   });
 
-  it("deletes a task row without toggling or navigating (#585)", () => {
-    const { onDeleteTask, onToggleTask, onJumpToTasks } = renderView();
+  it("deletes a todo row without toggling or navigating (#585)", () => {
+    const { onDeleteTodo, onToggleTodo, onJumpToTodos } = renderView();
     const deletes = screen.getAllByTitle("Delete this todo");
-    // Task rows only — carryover keeps the jump alone.
+    // Todo rows only — carryover keeps the jump alone.
     expect(deletes).toHaveLength(2);
     fireEvent.click(deletes[1]);
-    expect(onDeleteTask).toHaveBeenCalledWith("t2");
-    expect(onToggleTask).not.toHaveBeenCalled();
-    expect(onJumpToTasks).not.toHaveBeenCalled();
+    expect(onDeleteTodo).toHaveBeenCalledWith("t2");
+    expect(onToggleTodo).not.toHaveBeenCalled();
+    expect(onJumpToTodos).not.toHaveBeenCalled();
   });
 
   it("names every delete button by its visible label first (WCAG 2.5.3)", () => {
@@ -348,6 +365,10 @@ const EVENING_LABELS: EveningLabels = {
   savedCaption: "Saved",
   todosTitle: "REMAINING",
   noTodos: "No todos",
+  todoStatus: "Status",
+  statusNotStarted: "Not started",
+  statusInProgress: "In progress",
+  statusDone: "Done",
   upcomingTitle: "UPCOMING",
   noUpcoming: "Nothing upcoming",
   tomorrowTag: "Tomorrow",
@@ -357,6 +378,7 @@ const EVENING_LABELS: EveningLabels = {
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
   const onIntentionChange = vi.fn();
   const onIntentionBlur = vi.fn();
+  const onSetTodoStatus = vi.fn();
   const result = render(
     <EveningView
       loading={false}
@@ -369,12 +391,13 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
       todos={[]}
+      onSetTodoStatus={onSetTodoStatus}
       schedule={[]}
       labels={EVENING_LABELS}
       {...props}
     />,
   );
-  return { ...result, onIntentionChange, onIntentionBlur };
+  return { ...result, onIntentionChange, onIntentionBlur, onSetTodoStatus };
 }
 
 /**
@@ -434,6 +457,43 @@ describe("Briefing narrow-width tab switcher (#318)", () => {
 });
 
 /*
+ * #879 — the band carries the narrow layout's hamburger (#609), and every
+ * other section draws that row at the top of the page. Briefing used to print
+ * its masthead above it, so the one screen with a title band had its chrome in
+ * a different order than the rest. Asserted as DOM order (jsdom has no
+ * layout — CLAUDE.md §7.1), which is what decides the stacking here.
+ */
+describe("Briefing narrow-width header order (#879)", () => {
+  const switcher = <button type="button">夕刊</button>;
+
+  /** True when the switcher band precedes the masthead in document order. */
+  function bandPrecedesMasthead(container: HTMLElement): boolean {
+    const band = container.querySelector(
+      "div.border-b.border-lumen-border.px-2.py-3",
+    );
+    const masthead = container.querySelector("header");
+    if (band === null || masthead === null) return false;
+    return (
+      (band.compareDocumentPosition(masthead) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+      0
+    );
+  }
+
+  it("puts the band above the masthead in the morning paper", () => {
+    const { container } = renderView({ tabSwitcher: switcher });
+    expect(screen.getByText("BRIEFING")).toBeTruthy();
+    expect(bandPrecedesMasthead(container)).toBe(true);
+  });
+
+  it("puts the band above the masthead in the evening paper", () => {
+    const { container } = renderEvening({ tabSwitcher: switcher });
+    expect(screen.getByText("EVENING")).toBeTruthy();
+    expect(bandPrecedesMasthead(container)).toBe(true);
+  });
+});
+
+/*
  * #410 — the jump action used to be a bare 13px ↗ sitting right after the
  * title, so it was both hard to hit and never in the same place twice (the
  * title length moved it). It now carries a visible「編集」label and is pinned
@@ -442,7 +502,7 @@ describe("Briefing narrow-width tab switcher (#318)", () => {
 describe("Row edit action (#410)", () => {
   it("labels every jump button with the visible edit text", () => {
     renderView();
-    // 2 schedule rows + 2 task rows + 2 carryover rows.
+    // 2 schedule rows + 2 todo rows + 2 carryover rows.
     expect(screen.getAllByRole("button", { name: /Edit/ }).length).toBe(6);
   });
 
@@ -456,7 +516,7 @@ describe("Row edit action (#410)", () => {
     const jump = screen.getAllByTitle("Open in Schedule")[0];
     expect(jump.textContent).toContain("Edit");
     expect(jump.getAttribute("aria-label")).toBe("Edit: Open in Schedule");
-    expect(screen.getAllByLabelText("Edit: Open in Tasks").length).toBe(4);
+    expect(screen.getAllByLabelText("Edit: Open in Todos").length).toBe(4);
   });
 
   it("pins every row's action cluster to the right edge with padded hit targets", () => {
@@ -530,5 +590,59 @@ describe("Intention caption omission (#427)", () => {
   it("still renders the caption once the host supplies one", () => {
     renderView({ labels: { ...LABELS, intentionCaption: "Saved" } });
     expect(screen.getByText("Saved")).toBeTruthy();
+  });
+});
+
+/*
+ * #796 — the REMAINING TODOS rows speak the Todo's real three statuses.
+ *
+ * The block drew a checkbox-shaped <span> with nothing listening to it, which
+ * both flattened Not started / In progress / Done into two values and left the
+ * row unpressable. It is one button now, cycling in the same order the Todos
+ * side has always used, and a row moved to Done stays listed struck through so
+ * the press is visible and reversible.
+ */
+describe("EveningView remaining todos, three statuses (#796)", () => {
+  const TODOS = [
+    { id: "t1", title: "Write the report", status: "NOT_STARTED" as const },
+    { id: "t2", title: "Book the room", status: "IN_PROGRESS" as const },
+    { id: "t3", title: "Send the invite", status: "DONE" as const },
+  ];
+
+  it("names each row's current status", () => {
+    renderEvening({ todos: TODOS });
+    expect(screen.getByLabelText("Status: Not started")).toBeTruthy();
+    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
+  });
+
+  it("advances one step per press, wrapping at Done", () => {
+    const { onSetTodoStatus } = renderEvening({ todos: TODOS });
+    fireEvent.click(screen.getByLabelText("Status: Not started"));
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t1", "IN_PROGRESS");
+    fireEvent.click(screen.getByLabelText("Status: In progress"));
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t2", "DONE");
+    fireEvent.click(screen.getByLabelText("Status: Done"));
+    expect(onSetTodoStatus).toHaveBeenLastCalledWith("t3", "NOT_STARTED");
+  });
+
+  it("keeps a Done row listed, struck through", () => {
+    renderEvening({ todos: TODOS });
+    expect(screen.getByText("Send the invite").className).toContain(
+      "line-through",
+    );
+    expect(screen.getByText("Book the room").className).not.toContain(
+      "line-through",
+    );
+  });
+
+  it("gives every control the phone minimum touch target", () => {
+    renderEvening({ todos: TODOS });
+    for (const label of ["Not started", "In progress", "Done"]) {
+      // mobile-scope.md: 44px is the floor, and a 16px box cannot meet it.
+      expect(screen.getByLabelText(`Status: ${label}`).className).toContain(
+        "min-h-11",
+      );
+    }
   });
 });

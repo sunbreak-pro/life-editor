@@ -112,7 +112,7 @@ async function fetchEvents(
   return out;
 }
 
-interface ScheduledTaskRow {
+interface ScheduledTodoRow {
   item_id: string;
   scheduled_at: string;
   scheduled_end_at: string | null;
@@ -120,12 +120,12 @@ interface ScheduledTaskRow {
   status: string | null;
 }
 
-/** Tasks scheduled inside the given local-day window (timestamptz). */
-async function fetchScheduledTasks(startDate: string, endDate: string) {
+/** Todos scheduled inside the given local-day window (timestamptz). */
+async function fetchScheduledTodos(startDate: string, endDate: string) {
   const { client } = await getSupabase();
   const { startIso } = localDayUtcRange(startDate);
   const { endIso } = localDayUtcRange(endDate);
-  const { data: taskRows, error: tErr } = await client
+  const { data: todoRows, error: tErr } = await client
     .from("tasks_payload")
     .select("item_id, scheduled_at, scheduled_end_at, is_all_day, status")
     .not("scheduled_at", "is", null)
@@ -133,8 +133,8 @@ async function fetchScheduledTasks(startDate: string, endDate: string) {
     .lt("scheduled_at", endIso)
     .order("scheduled_at", { ascending: true });
   if (tErr) throw new Error(`list tasks_payload: ${tErr.message}`);
-  const tasks = (taskRows ?? []) as ScheduledTaskRow[];
-  if (tasks.length === 0) return [];
+  const todos = (todoRows ?? []) as ScheduledTodoRow[];
+  if (todos.length === 0) return [];
 
   const { data: metaRows, error: mErr } = await client
     .from("items_meta")
@@ -143,14 +143,14 @@ async function fetchScheduledTasks(startDate: string, endDate: string) {
     .eq("is_deleted", false)
     .in(
       "id",
-      tasks.map((t) => t.item_id),
+      todos.map((t) => t.item_id),
     );
-  if (mErr) throw new Error(`list task items_meta: ${mErr.message}`);
+  if (mErr) throw new Error(`list todo items_meta: ${mErr.message}`);
   const titleById = new Map<string, string>();
   for (const m of (metaRows ?? []) as { id: string; title: string }[])
     titleById.set(m.id, m.title);
 
-  return tasks
+  return todos
     .filter((t) => titleById.has(t.item_id))
     .map((t) => ({
       id: t.item_id,
@@ -227,24 +227,24 @@ export async function listSchedule(args: {
   if (args.start_date && args.end_date) {
     assertDateKey(args.start_date);
     assertDateKey(args.end_date);
-    const [scheduleItems, scheduledTasks] = await Promise.all([
+    const [scheduleItems, scheduledTodos] = await Promise.all([
       fetchEvents((q) =>
         q
           .gte("start_at", args.start_date)
           .lte("start_at", args.end_date)
           .eq("is_dismissed", false),
       ),
-      fetchScheduledTasks(args.start_date, args.end_date),
+      fetchScheduledTodos(args.start_date, args.end_date),
     ]);
-    return { scheduleItems, scheduledTasks };
+    return { scheduleItems, scheduledTodos };
   }
 
   const date = assertDateKey(args.date ?? localToday());
-  const [scheduleItems, scheduledTasks] = await Promise.all([
+  const [scheduleItems, scheduledTodos] = await Promise.all([
     fetchEvents((q) => q.eq("start_at", date).eq("is_dismissed", false)),
-    fetchScheduledTasks(date, date),
+    fetchScheduledTodos(date, date),
   ]);
-  return { scheduleItems, scheduledTasks };
+  return { scheduleItems, scheduledTodos };
 }
 
 export async function createScheduleItem(args: {

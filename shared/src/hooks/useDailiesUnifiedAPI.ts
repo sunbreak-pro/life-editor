@@ -3,7 +3,7 @@ import type { DailyNode } from "../types/daily";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
-import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import {
   getDailySelection,
@@ -15,7 +15,7 @@ import {
  * Options the host injects. The shared hook takes the DataService and a
  * host UndoRedo Context by injection so it is host-agnostic (CLAUDE.md
  * §6.4). `undoRedo` defaults to a no-op (web — real UndoRedo lands in S6,
- * same as the tasks domain). `useSyncContext` is read directly because it
+ * same as the todos domain). `useSyncContext` is read directly because it
  * is itself a shared Context (S1) the Provider order guarantees.
  */
 export interface UseDailiesUnifiedAPIOptions {

@@ -8,7 +8,7 @@ import {
 
 /*
  * Pure RoutineNode <-> 2-row (items_meta + routines_payload) mappers
- * (DU-C-2). Same pattern as `taskMapper.ts`: a domain `RoutineNode` is
+ * (DU-C-2). Same pattern as `todoMapper.ts`: a domain `RoutineNode` is
  * persisted as ONE row in `public.items_meta` (role='routine') + ONE row
  * in `public.routines_payload`. The mapper is the SSOT for the 2-row
  * shape; the data service does the 2 INSERT / 2 UPDATE / 2 SELECT
@@ -35,7 +35,7 @@ import {
  *   - `frequency_days` JSON <-> number[] coercion.
  *   - DB-Q2 enforcement: `metaPatch.updated_at = now` is ALWAYS emitted
  *     by `routineUpdatesToPatches`, regardless of which payload column
- *     the caller patched (same rule as `taskUpdatesToPatches`).
+ *     the caller patched (same rule as `todoUpdatesToPatches`).
  *
  * What this module does NOT own:
  *   - The orphan-cleanup `try/catch` after a failed payload INSERT
@@ -301,7 +301,7 @@ export function rowsToRoutineNode(
  * (FK `routines_payload.item_id -> items_meta.id` enforces this order).
  * If the payload INSERT fails, the caller must hard-delete the orphan
  * items_meta row (R2 Recovery Playbook — same rule as DU-B-3
- * SupabaseTasksService.createTask).
+ * SupabaseTodosService.createTodo).
  *
  * Parent-plan (DU-A) shape columns are written as `null` — they exist in
  * the schema for future contract consolidation but the current TS

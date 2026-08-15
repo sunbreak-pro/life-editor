@@ -8,7 +8,7 @@ import {
 
 /*
  * Pure ScheduleItem <-> 2-row (items_meta + events_payload) mappers
- * (DU-C-2). Same pattern as `taskMapper.ts` / `routineMapper.ts`: a
+ * (DU-C-2). Same pattern as `todoMapper.ts` / `routineMapper.ts`: a
  * domain `ScheduleItem` is persisted as ONE row in `public.items_meta`
  * (role='event') + ONE row in `public.events_payload`.
  *

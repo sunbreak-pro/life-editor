@@ -20,7 +20,7 @@ import { isImeComposing } from "@life-editor/shared";
 
 /*
  * Slash-command extension (web Notes/Daily editor). Types "/" to open a block
- * picker: headings 1–3 + bullet / ordered / checkbox (task) lists. Built on
+ * picker: headings 1–3 + bullet / ordered / checkbox (todo) lists. Built on
  * TipTap's Suggestion util; the floating menu is a ReactRenderer positioned
  * against the caret rect (no tippy dependency). Labels are injected by the host
  * (i18n stays out of the shared editor); the transforms delete the typed

@@ -233,7 +233,7 @@ export function AgendaList({
               strokeWidth={2.5}
             />
           )}
-          {/* Task provenance (#593): CheckSquare in the same slot as the
+          {/* Todo provenance (#593): CheckSquare in the same slot as the
               routine's Repeat, so the row's variant cue is a shape, not just
               the dot's hue. */}
           {variant === "task" && (
@@ -250,7 +250,7 @@ export function AgendaList({
                 check). All-day EVENTS keep the tag informational (they had no
                 toggle before), so pass onClick only when timed.
 
-                #761: a task row is the exception. A todo staged as "today,
+                #761: a todo row is the exception. A todo staged as "today,
                 time TBD" is all-day by construction (the #298 tray writes it
                 that way), and "done" is the one thing a todo always means —
                 withholding its toggle would leave the commonest row on the

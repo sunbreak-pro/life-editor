@@ -19,7 +19,7 @@ import { fetchLiveDailies } from "./dailyHandlers.js";
  *
  * Two matching strategies, picked per domain by what the column type
  * allows:
- *   - tasks: `items_meta.title` and `tasks_payload.content` are TEXT, so
+ *   - todos: `items_meta.title` and `tasks_payload.content` are TEXT, so
  *     both sides filter server-side with `ilike` and the union is merged
  *     in-app (PostgREST cannot OR across two tables in one request).
  *   - notes / dailies: bodies live in `content_json` (jsonb), which has no
@@ -34,7 +34,7 @@ import { fetchLiveDailies } from "./dailyHandlers.js";
  * search again.
  */
 
-const VALID_DOMAINS = ["tasks", "dailies", "notes"] as const;
+const VALID_DOMAINS = ["todos", "dailies", "notes"] as const;
 type Domain = (typeof VALID_DOMAINS)[number];
 
 /** Items a domain returns when the caller does not say. */
@@ -68,11 +68,11 @@ interface TasksPayloadRow {
   content: string | null;
 }
 
-const TASK_PAYLOAD_COLUMNS =
+const TODO_PAYLOAD_COLUMNS =
   "item_id, task_type, status, scheduled_at, content";
 
-/** Tasks whose title OR content matches, newest first, as one page. */
-async function searchTasks(pattern: string, offset: number, limit: number) {
+/** Todos whose title OR content matches, newest first, as one page. */
+async function searchTodos(pattern: string, offset: number, limit: number) {
   const { client } = await getSupabase();
 
   /*
@@ -95,13 +95,13 @@ async function searchTasks(pattern: string, offset: number, limit: number) {
           .order("created_at", { ascending: false })
           .order("id", { ascending: true })
           .range(from, to),
-      "search task items_meta",
+      "search todo items_meta",
     ),
     fetchAllPages<TasksPayloadRow>(
       (from, to) =>
         client
           .from("tasks_payload")
-          .select(TASK_PAYLOAD_COLUMNS)
+          .select(TODO_PAYLOAD_COLUMNS)
           .eq("task_type", "task")
           .ilike("content", pattern)
           .order("item_id", { ascending: true })
@@ -117,7 +117,7 @@ async function searchTasks(pattern: string, offset: number, limit: number) {
   for (const p of contentRows) payloadById.set(p.item_id, p);
 
   // Fill in each half's missing side: payloads for title-only hits, live
-  // metas for content-only hits (a content hit on a trashed task drops out).
+  // metas for content-only hits (a content hit on a trashed todo drops out).
   const missingPayloadIds = [...metaById.keys()].filter(
     (id) => !payloadById.has(id),
   );
@@ -129,7 +129,7 @@ async function searchTasks(pattern: string, offset: number, limit: number) {
     fetchByIdChunks<TasksPayloadRow>(missingPayloadIds, async (chunk) => {
       const { data, error } = await client
         .from("tasks_payload")
-        .select(TASK_PAYLOAD_COLUMNS)
+        .select(TODO_PAYLOAD_COLUMNS)
         .in("item_id", chunk);
       if (error) throw new Error(`search tasks_payload: ${error.message}`);
       return (data ?? []) as unknown as TasksPayloadRow[];
@@ -141,7 +141,7 @@ async function searchTasks(pattern: string, offset: number, limit: number) {
         .eq("role", "task")
         .eq("is_deleted", false)
         .in("id", chunk);
-      if (error) throw new Error(`search task items_meta: ${error.message}`);
+      if (error) throw new Error(`search todo items_meta: ${error.message}`);
       return (data ?? []) as unknown as ItemsMetaRow[];
     }),
   ]);
@@ -197,10 +197,10 @@ export async function searchAll(args: {
   const result: Record<string, DomainPage<unknown>> = {};
   let totalHits = 0;
 
-  if (domains.includes("tasks")) {
-    const tasks = await searchTasks(`%${args.query}%`, offset, limit);
-    result.tasks = tasks;
-    totalHits += tasks.total;
+  if (domains.includes("todos")) {
+    const todos = await searchTodos(`%${args.query}%`, offset, limit);
+    result.todos = todos;
+    totalHits += todos.total;
   }
 
   if (domains.includes("dailies")) {

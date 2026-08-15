@@ -1,5 +1,5 @@
 import type { NoteNode } from "../../src/types/note";
-import type { TaskNode } from "../../src/types/taskTree";
+import type { TodoNode } from "../../src/types/todoTree";
 
 /*
  * Shared node fixtures (#777).
@@ -15,7 +15,7 @@ import type { TaskNode } from "../../src/types/taskTree";
  *   - makeNote — five byte-identical copies (noteHydrationLedger,
  *     notesUnifiedCRUD, notesUnifiedHelpers, notesUnifiedLock,
  *     supabaseNotesUnifiedLock).
- *   - makeTask — two byte-identical copies (taskCalendarChips, todayTodo).
+ *   - makeTodo — two byte-identical copies (todoCalendarChips, todayTodo).
  *
  * Deliberately NOT folded in, and why:
  *   - The other seven `makeNote`s take a different second parameter — the
@@ -30,7 +30,7 @@ import type { TaskNode } from "../../src/types/taskTree";
  *     routine fires on, and each suite's default is chosen so the interesting
  *     case is the one it writes down. A shared default would have to pick one
  *     of them, silently changing what the other two suites test.
- *   - The other three `makeTask`s carry a `status` the two folded copies omit,
+ *   - The other three `makeTodo`s carry a `status` the two folded copies omit,
  *     and take the id positionally. Same reasoning as makeNote.
  */
 
@@ -58,10 +58,10 @@ export function makeNote(
 }
 
 /**
- * A root-level task with no status set — the shape the scheduling suites use,
+ * A root-level todo with no status set — the shape the scheduling suites use,
  * where only id / title / dates matter.
  */
-export function makeTask(over: Partial<TaskNode> = {}): TaskNode {
+export function makeTodo(over: Partial<TodoNode> = {}): TodoNode {
   return {
     id: "task-1",
     type: "task",

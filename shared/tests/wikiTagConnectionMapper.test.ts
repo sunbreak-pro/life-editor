@@ -13,7 +13,7 @@ import {
  * Cases:
  *   1. roundtrip row -> domain -> insert-row
  *   2. self-loop throws at mapper layer (defence-in-depth before DB CHECK)
- *   3. cross-role link is supported (task -> note etc)
+ *   3. cross-role link is supported (todo -> note etc)
  *   4. updates patch ALWAYS emits updated_at
  */
 

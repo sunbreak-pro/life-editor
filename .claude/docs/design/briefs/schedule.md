@@ -21,7 +21,7 @@ Branch: claude/design-schedule-v2
   - `ScheduleItem`（`shared/src/types/schedule.ts:1`）: `date` / `startTime` / `endTime` / `isAllDay` / `completed` / `memo` / `routineId`（`tier-1-core.md:95`）。週あたり 15〜40 件で Routine 由来が過半。例:「朝のストレッチ 7:00–7:15」「歯科検診 14:00–15:00」
   - `RoutineNode`: `frequencyType = "daily" | "weekdays" | "interval" | "group"`（`shared/src/types/routine.ts:4`）+ `frequencyDays`（曜日）/ `frequencyInterval`（N 日ごと）/ `frequencyStartDate`（起点日）（`tier-1-core.md:94`）。5〜15 件。例:「ジム 月水金 19:00–20:30」
   - ~~`RoutineGroup`: 名前 + 色 + 独自の頻度定義。`frequencyType="group"` のルーチンは所属グループの頻度の OR で発火~~ → **撤去済み（2026-07-26 #352・2026-07-14 決定の実施）**: グループ管理 UI が存在せず実質機能していなかったため。DB テーブルのみ残置（DDL ゼロ）。デザイン対象外
-- **主要操作**: 空きスロットクリックで 60 分イベント即作成（`web/src/schedule/ScheduleCalendarView.tsx:194`）/ ドラッグ移動・下端リサイズ（30 分スナップ、`shared/src/components/schedule/WeekTimeGrid.tsx:71` `:76`）/ 完了トグル / タイトル・時刻編集 / Routine の CRUD と頻度編集（`web/src/schedule/ScheduleView.tsx:27`）/ Routine 由来イベントは削除でなく Dismiss（この日だけスキップ。`web/src/schedule/ScheduleItemsView.tsx:24-31`）。ドラッグでの時刻変更は Tasks の `scheduledAt` と双方向同期（`tier-1-core.md:120`）
+- **主要操作**: 空きスロットクリックで 60 分イベント即作成（`web/src/schedule/ScheduleCalendarView.tsx:194`）/ ドラッグ移動・下端リサイズ（30 分スナップ、`shared/src/components/schedule/WeekTimeGrid.tsx:71` `:76`）/ 完了トグル / タイトル・時刻編集 / Routine の CRUD と頻度編集（`web/src/schedule/ScheduleView.tsx:27`）/ Routine 由来イベントは削除でなく Dismiss（この日だけスキップ。`web/src/schedule/ScheduleItemsView.tsx:24-31`）。ドラッグでの時刻変更は Todos の `scheduledAt` と双方向同期（`tier-1-core.md:120`）
 - **Desktop / Mobile の責務分割**（Mobile = Consumption + Quick capture）:
   - Desktop = 全機能。週タイムグリッドが主役
   - Mobile = **今日のアジェンダ閲覧 + 最短手数の予定追加のみ**。落とすもの: 週グリッド / Routine の作成・編集 / ドラッグ移動・リサイズ / Calendars（フォルダ別カレンダー）管理
@@ -46,7 +46,7 @@ Branch: claude/design-schedule-v2
 
 > **2026-07-28 #408 で retired**: 以下の「header タブ Calendar / Routines の 2 タブ」構成は当時の IA 決定であり、**Routines タブは廃止済み**。繰り返しの編集は Calendar のアイテム編集パネルに一本化し、一覧は rightSidebar の「繰り返し」タブ（`RepeatListPanel`）へ移った。本節以下の Routines タブ記述は履歴として残す。
 >
-> **2026-07-28 #411 で再構成**: header タブは再び 2 つになったが中身が違う — **Calendar / Todo**。Todo は Materials から移してきた Kanban（意匠は materials brief §Tasks が正）で、narrow では SegmentedControl として出る。
+> **2026-07-28 #411 で再構成**: header タブは再び 2 つになったが中身が違う — **Calendar / Todo**。Todo は Materials から移してきた Kanban（意匠は materials brief §Todos が正）で、narrow では SegmentedControl として出る。
 
 - **セクション構成（当時の目標 IA・Routines タブは #408 で退役）**: Schedule はサイドバー本流セクション。画面上部に **header タブ「Calendar」/「Routines」** の 2 タブを持つ（2026-07-05 IA 決定）。現状の「週グリッド + Routine 管理 + 本日リスト + calendars CRUD の 1 スクロール縦積み」を、この 2 タブに整理する。
   - **Calendar タブ**（既定）: 週タイムグリッド + 選択イベント編集の右パネル。従来の「週グリッド + 右エディタペーン」をこのタブに収める
@@ -79,7 +79,7 @@ Branch: claude/design-schedule-v2
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
@@ -206,7 +206,7 @@ Branch: claude/design-schedule-v2
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
 - 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
 - Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 

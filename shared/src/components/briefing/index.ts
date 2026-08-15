@@ -11,10 +11,26 @@ export {
   type BriefingData,
   type BriefingLabels,
   type BriefingScheduleEntry,
-  type BriefingTaskEntry,
+  type BriefingTodoEntry,
   type BriefingCarryoverEntry,
 } from "./BriefingView";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
+export {
+  GoalsBlock,
+  type GoalsBlockProps,
+  type GoalsBlockLabels,
+  type GoalFieldLabels,
+} from "./GoalsBlock";
+export {
+  GOALS_NOTE_ID,
+  GOAL_PERIODS,
+  extractGoals,
+  mergeGoalSection,
+  normalizeGoalText,
+  type ExtractedGoals,
+  type GoalPeriod,
+} from "./goalSections";
+export { goalPeriodRanges, type GoalPeriodRanges } from "./goalPeriods";
 export {
   extractIntentionSection,
   hasIntentionToReport,
@@ -32,6 +48,7 @@ export {
 export {
   extractEveningSection,
   mergeEveningSection,
+  eveningBodyEquals,
   isEmptyDocJson,
   moodLineText,
   defaultBriefingTab,

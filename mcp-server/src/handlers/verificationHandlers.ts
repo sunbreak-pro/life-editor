@@ -16,7 +16,7 @@ import {
   type SeededItem,
   type SeedRun,
 } from "../utils/verification.js";
-import { createTask } from "./taskHandlers.js";
+import { createTodo } from "./todoHandlers.js";
 import { createNote } from "./noteHandlers.js";
 import { createScheduleItem } from "./scheduleHandlers.js";
 
@@ -32,7 +32,7 @@ import { createScheduleItem } from "./scheduleHandlers.js";
  * pass with only the part a browser is needed for — what the screen looks like.
  *
  * The three:
- *   seed_verification_state    — build a day out of tasks / events / notes
+ *   seed_verification_state    — build a day out of todos / events / notes
  *   read_verification_state    — the stored rows, both halves of the 2-row
  *                                model, with nothing hidden
  *   cleanup_verification_state — delete exactly what was seeded, from the
@@ -43,7 +43,7 @@ import { createScheduleItem } from "./scheduleHandlers.js";
  * (D-20260812-shared-fix-3), and every tool here refuses to run unless the
  * process has been declared the verification one.
  *
- * Seeding goes through the ORDINARY write handlers (createTask /
+ * Seeding goes through the ORDINARY write handlers (createTodo /
  * createScheduleItem / createNote) rather than writing rows directly. A
  * fixture built by a private path would be a fixture of that path — the
  * orphan recovery, the §10.2 updated_at bump and the column defaults have to
@@ -70,7 +70,7 @@ const SEED_ROLE: Record<SeedKind, ItemRole> = {
  * `daily` is deliberately not seedable. A DailyNode's id is derived from its
  * date (`daily-<YYYY-MM-DD>`), so a seeded daily is indistinguishable from
  * one the account already wrote — and cleanup, which deletes by id, would
- * take the real entry with it. Tasks, events and notes all get random ids, so
+ * take the real entry with it. Todos, events and notes all get random ids, so
  * a seeded row can never collide with an existing one.
  */
 
@@ -78,9 +78,9 @@ interface SeedItemArg {
   kind: SeedKind;
   title?: string;
   content?: string;
-  /** task only. */
+  /** todo only. */
   status?: string;
-  /** event: clock time. task: sets scheduled_at on the seeded day. */
+  /** event: clock time. todo: sets scheduled_at on the seeded day. */
   start_time?: string;
   end_time?: string;
   is_all_day?: boolean;
@@ -91,7 +91,7 @@ interface SeedItemArg {
 /**
  * A day with the overlaps and leftovers that break layout code: two events
  * running over each other, an all-day banner, a finished todo, an open one,
- * and a task with no date at all.
+ * and a todo with no date at all.
  *
  * The Issue's example asks for a REPEATING event here. This server has no
  * routine write path (routines are a generation template — CLAUDE.md §4), so
@@ -132,8 +132,8 @@ const PRESETS: Record<string, SeedItemArg[]> = { busy_day: BUSY_DAY };
 
 /**
  * A local clock time on `date` as a UTC instant, for the timestamptz columns
- * tasks use. Same local-time convention as utils/localDate.ts — a UTC-based
- * conversion would drop a 09:00 JST task onto the previous day.
+ * todos use. Same local-time convention as utils/localDate.ts — a UTC-based
+ * conversion would drop a 09:00 JST todo onto the previous day.
  */
 function localInstant(date: string, time: string): string {
   return new Date(`${date}T${time}:00`).toISOString();
@@ -183,8 +183,8 @@ async function seedOne(
     return ledgerEntry("note", created.id, title);
   }
 
-  // A task lands on the seeded day when it is given a time or marked all-day;
-  // with neither it is an undated backlog task, which is a state worth being
+  // A todo lands on the seeded day when it is given a time or marked all-day;
+  // with neither it is an undated backlog todo, which is a state worth being
   // able to arrange too.
   let scheduledAt: string | undefined;
   let scheduledEndAt: string | undefined;
@@ -199,7 +199,7 @@ async function seedOne(
     }
   }
 
-  const created = await createTask({
+  const created = await createTodo({
     title,
     status: item.status,
     content: item.content,
@@ -362,14 +362,14 @@ async function readItems(
   };
 }
 
-/** Ids of everything sitting on one local day (events + scheduled tasks). */
+/** Ids of everything sitting on one local day (events + scheduled todos). */
 async function idsOnDate(date: string): Promise<string[]> {
   const { client } = await getSupabase();
   const { startIso, endIso } = localDayUtcRange(date);
 
   // A single day stays far below the PostgREST 1000-row cap, so these read
   // in one page — same assumption scheduleHandlers.fetchEvents makes.
-  const [events, tasks] = await Promise.all([
+  const [events, todos] = await Promise.all([
     client.from("events_payload").select("item_id").eq("start_at", date),
     client
       .from("tasks_payload")
@@ -380,12 +380,12 @@ async function idsOnDate(date: string): Promise<string[]> {
   ]);
   if (events.error)
     throw new Error(`read events_payload: ${events.error.message}`);
-  if (tasks.error)
-    throw new Error(`read tasks_payload: ${tasks.error.message}`);
+  if (todos.error)
+    throw new Error(`read tasks_payload: ${todos.error.message}`);
 
   const rows = [
     ...((events.data ?? []) as { item_id: string }[]),
-    ...((tasks.data ?? []) as { item_id: string }[]),
+    ...((todos.data ?? []) as { item_id: string }[]),
   ];
   return [...new Set(rows.map((r) => r.item_id))];
 }

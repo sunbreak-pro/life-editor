@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { NoteNode, NoteSortMode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
-import { createNoopUndoRedo, type UndoRedoLike } from "./useTaskTreeHistory";
+import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import { useNoteTreeMovement } from "./useNoteTreeMovement";
 import { useNoteHydrationLedger } from "./useNoteHydrationLedger";
@@ -37,10 +37,10 @@ import {
  * Host dependencies are injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton  → `options.dataService`
  * - host UndoRedo Context         → `options.undoRedo` (no-op default;
- *   real UndoRedo lands in S6, same as tasks/daily)
+ *   real UndoRedo lands in S6, same as todos/daily)
  *
  * #587 split — this file is the orchestrator (state, selection, the load /
- * restore effects, and composition), shaped after useTaskTreeAPI. The
+ * restore effects, and composition), shaped after useTodoTreeAPI. The
  * responsibilities live next door:
  * - notesUnifiedHelpers.ts    pure helpers (localStorage, node factory,
  *                             tree derivations, subtree collect)

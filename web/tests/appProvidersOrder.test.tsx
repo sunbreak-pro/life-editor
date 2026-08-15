@@ -59,7 +59,7 @@ function renderChain() {
         onNavigate: vi.fn(),
         onOpenSettings: vi.fn(),
         onTogglePalette: vi.fn(),
-        onNewTask: vi.fn(),
+        onNewTodo: vi.fn(),
       }}
     >
       <span data-testid="leaf" />

@@ -8,7 +8,7 @@ import type { ScheduleItem } from "../types/schedule";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
-import type { UndoRedoLike } from "./useTaskTreeHistory";
+import type { UndoRedoLike } from "./useTodoTreeHistory";
 import { isSameDate } from "./scheduleItemsHelpers";
 import type { ScheduleItemsMirrorAccess } from "./useScheduleItemsViewMirror";
 

@@ -8,7 +8,7 @@ import {
   Legend,
 } from "recharts";
 import type { TimerSession } from "../../types/timer";
-import type { TaskNode } from "../../types/taskTree";
+import type { TodoNode } from "../../types/todoTree";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { aggregateWorkTimeByTag } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
@@ -17,7 +17,7 @@ import { CHART_TOOLTIP_STYLE } from "./chartTheme";
 export interface TagWorkTimeChartLabels {
   title: string;
   noData: string;
-  /** Slice label for work on tasks that carry no tag. */
+  /** Slice label for work on todos that carry no tag. */
   untagged: string;
   /** Slice label for the tags folded together past the top-N cap. */
   other: string;
@@ -26,8 +26,8 @@ export interface TagWorkTimeChartLabels {
 
 interface TagWorkTimeChartProps {
   sessions: TimerSession[];
-  /** Live task tree (`fetchTaskTree` — trashed tasks are already absent). */
-  nodes: TaskNode[];
+  /** Live todo tree (`fetchTodoTree` — trashed todos are already absent). */
+  nodes: TodoNode[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   labels: TagWorkTimeChartLabels;
@@ -57,7 +57,7 @@ const OTHER_COLOR = "var(--color-lumen-text-secondary)";
  * Work time split by life-tag (#334). Replaces the folder-based "Project work
  * time" chart: folders are gone since #225, so that chart could only ever
  * render empty. A tag's slice is its share of real work time — sessions on
- * multi-tag tasks split their minutes evenly, tags past the top-N cap fold into
+ * multi-tag todos split their minutes evenly, tags past the top-N cap fold into
  * "other" and untagged work keeps its own slice, so the ring always adds up to
  * the time actually logged.
  */

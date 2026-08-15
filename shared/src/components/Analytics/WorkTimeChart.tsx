@@ -16,6 +16,7 @@ import {
   aggregateByMonth,
   type DayBucket,
 } from "../../utils/analyticsAggregation";
+import { useWeekStartPref } from "../../hooks/useWeekStart";
 import { ChartCard } from "./ChartCard";
 import { CHART_GRID, CHART_TICK_11, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
@@ -49,14 +50,21 @@ export function WorkTimeChart({
   labels,
   control,
 }: WorkTimeChartProps): React.JSX.Element {
+  // The weekly buckets start on the user's week-start day (#860). They used to
+  // start on a hardcoded Monday, so with the pref set to Sunday this chart cut
+  // the same sessions along a different boundary than the "this week" cards.
+  const { weekStartsOn } = useWeekStartPref();
+
   const data = useMemo(() => {
     let buckets: DayBucket[];
     switch (period) {
       case "day":
+        // Deliberately a rolling 14 days, not two calendar weeks — this view
+        // is "recently", and #860 left it alone.
         buckets = aggregateByDay(sessions, 14);
         break;
       case "week":
-        buckets = aggregateByWeek(sessions, 8);
+        buckets = aggregateByWeek(sessions, 8, weekStartsOn);
         break;
       case "month":
         buckets = aggregateByMonth(sessions, 6);
@@ -67,7 +75,7 @@ export function WorkTimeChart({
       label: formatDateLabel(b.date, period),
       hours: Math.round((b.totalMinutes / 60) * 10) / 10,
     }));
-  }, [sessions, period]);
+  }, [sessions, period, weekStartsOn]);
 
   return (
     <ChartCard title={labels.workTime} control={control}>

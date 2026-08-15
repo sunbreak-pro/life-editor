@@ -13,7 +13,7 @@ import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
  *
  * The neighbours stop at id/role/title. One hop with bodies attached is a
  * different tool with an unbounded result; a caller that decides to read one
- * follows up with get_note / get_task by id.
+ * follows up with get_note / get_todo by id.
  */
 
 interface ConnectionRow {

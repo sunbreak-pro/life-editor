@@ -9,7 +9,7 @@ import type {
   NotesUnifiedDataService,
   RoutinesDataService,
   ScheduleItemsDataService,
-  TasksDataService,
+  TodosDataService,
   TimerDataService,
   WikiTagsUnifiedDataService,
 } from "./DataService";
@@ -66,11 +66,11 @@ import {
   type ScheduleItemMethodName,
 } from "./SupabaseScheduleItemsService";
 import {
-  SupabaseTasksService,
-  PHASE2_TASKS_METHOD_NAMES,
-  PHASE2_TASKS_METHODS,
-  type TasksMethodName,
-} from "./SupabaseTasksService";
+  SupabaseTodosService,
+  PHASE2_TODOS_METHOD_NAMES,
+  PHASE2_TODOS_METHODS,
+  type TodosMethodName,
+} from "./SupabaseTodosService";
 import {
   SupabaseTimerService,
   PHASE2_TIMER_METHOD_NAMES,
@@ -121,8 +121,8 @@ type Mismatch<Iface, Names extends string> =
 
 // One assertion per routed domain. Each name is exported so the failure
 // surfaces at a named declaration rather than inside an unused local.
-export type TasksRoutingIsExact = AssertNever<
-  Mismatch<TasksDataService, TasksMethodName>
+export type TodosRoutingIsExact = AssertNever<
+  Mismatch<TodosDataService, TodosMethodName>
 >;
 export type TimerRoutingIsExact = AssertNever<
   Mismatch<TimerDataService, TimerMethodName>
@@ -160,7 +160,7 @@ export type NoteLinksRoutingIsExact = AssertNever<
 
 /** Every method name the Proxy can route, across all domains. */
 export type RoutedMethodName =
-  | TasksMethodName
+  | TodosMethodName
   | TimerMethodName
   | AudioMethodName
   | CalendarMethodName
@@ -192,10 +192,10 @@ export type DataServiceIsFullyRouted = AssertNever<
  */
 export const PHASE2_ROUTING_DOMAINS = [
   {
-    domain: "tasks",
-    names: PHASE2_TASKS_METHOD_NAMES,
-    methods: PHASE2_TASKS_METHODS,
-    service: SupabaseTasksService,
+    domain: "todos",
+    names: PHASE2_TODOS_METHOD_NAMES,
+    methods: PHASE2_TODOS_METHODS,
+    service: SupabaseTodosService,
   },
   {
     domain: "timer",

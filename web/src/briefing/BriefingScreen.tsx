@@ -9,10 +9,12 @@ import {
   RepeatScopeDialog,
   RightSidebarPortal,
   TodayTodoTray,
+  goalPeriodRanges,
   hasIntentionToReport,
   todayDateKey,
   useMediaQuery,
   useTranslation,
+  useWeekStartPref,
   type BriefingTab,
   type DataService,
   type ItemCreateNoteDraft,
@@ -22,6 +24,7 @@ import type { NavDestination } from "../hooks/useShellNavigation";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
+import { useGoalsDoc } from "./hooks/useGoalsDoc";
 
 /*
  * Briefing host shell (Briefing plan Step 1). Owns data fetching (it may
@@ -77,16 +80,17 @@ export function BriefingScreen({
     remainingTodos,
     upcoming,
     handleToggleScheduleItem,
-    handleToggleTask,
+    handleToggleTodo,
+    handleSetTodoStatus,
     handleDeleteScheduleItem,
-    handleDeleteTask,
+    handleDeleteTodo,
     deleteScopeItem,
     handleDeleteScopeChoose,
     closeDeleteScope,
     noteOptions,
     handleCreateEvent,
-    handleCreateTask,
-    handlePlaceTask,
+    handleCreateTodo,
+    handlePlaceTodo,
     todoPlaced,
     todoUnplaced,
     todoAddable,
@@ -107,6 +111,11 @@ export function BriefingScreen({
     handleIntentionChange,
     flushIntention,
   } = useDailySections(ds, todayKey, dailyContent, setDailyContent);
+
+  // 週 / 月 / 年 goals (#872) — their own document (the reserved goals note),
+  // so their read + save chain is separate from the daily's sections.
+  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(ds);
+  const { weekStartsOn } = useWeekStartPref();
 
   // Nothing stored AND nothing typed = the day has no declaration yet, so
   // there is no save state to report. Reporting「保存済み」over an untouched
@@ -132,25 +141,61 @@ export function BriefingScreen({
       intentionTitle: t("briefing.intentionTitle"),
       intentionCaption,
       intentionPlaceholder: t("briefing.intentionPlaceholder"),
+      goalsTitle: t("briefing.goalsTitle"),
       scheduleTitle: t("briefing.scheduleTitle"),
       addScheduleItem: t("briefing.addScheduleItem"),
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
-      tasksTitle: t("briefing.tasksTitle"),
-      noTasks: t("briefing.noTasks"),
+      todosTitle: t("briefing.todosTitle"),
+      noTodos: t("briefing.noTodos"),
       vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
       edit: t("briefing.edit"),
       delete: t("briefing.delete"),
       deleteScheduleHint: t("briefing.deleteScheduleHint"),
-      deleteTaskHint: t("briefing.deleteTaskHint"),
+      deleteTodoHint: t("briefing.deleteTodoHint"),
       jumpToSchedule: t("briefing.jumpToSchedule"),
-      jumpToTasks: t("briefing.jumpToTasks"),
+      jumpToTodos: t("briefing.jumpToTodos"),
     }),
     [t, intentionCaption],
   );
+  // Goal field copy (#872). The period RANGES are computed, not translated:
+  // the texts never roll over, so the label is the only thing that says which
+  // week / month / year is on the page. The week follows the user's week-start
+  // preference — the same boundary the calendar grids and the Analytics week
+  // buckets use (#860), never a hard-coded Monday.
+  const goalRanges = useMemo(
+    () =>
+      goalPeriodRanges(
+        todayKey,
+        weekStartsOn,
+        i18n.language.startsWith("ja") ? "ja-JP" : "en-US",
+      ),
+    [todayKey, weekStartsOn, i18n.language],
+  );
+  const goalLabels = useMemo(
+    () => ({
+      week: {
+        title: t("briefing.goals.weekTitle"),
+        range: goalRanges.week,
+        placeholder: t("briefing.goals.weekPlaceholder"),
+      },
+      month: {
+        title: t("briefing.goals.monthTitle"),
+        range: goalRanges.month,
+        placeholder: t("briefing.goals.monthPlaceholder"),
+      },
+      year: {
+        title: t("briefing.goals.yearTitle"),
+        range: goalRanges.year,
+        placeholder: t("briefing.goals.yearPlaceholder"),
+      },
+    }),
+    [t, goalRanges],
+  );
+
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
   const streakLabels = useMemo(
@@ -165,8 +210,8 @@ export function BriefingScreen({
   );
   const trendLabels = useMemo(
     () => ({
-      title: t("analytics.taskTrend.title"),
-      completedCount: t("analytics.taskTrend.completedCount"),
+      title: t("analytics.todoTrend.title"),
+      completedCount: t("analytics.todoTrend.completedCount"),
     }),
     [t],
   );
@@ -200,6 +245,13 @@ export function BriefingScreen({
         : t("materials.daily.unsaved"),
       todosTitle: t("briefing.evening.todosTitle"),
       noTodos: t("briefing.evening.noTodos"),
+      // The three statuses are worded ONCE, in the Todos section's own copy —
+      // a briefing.* paraphrase of「未着手」would be a second vocabulary for
+      // the same three values (#796).
+      todoStatus: t("todoDetail.status"),
+      statusNotStarted: t("todoDetail.statusNotStarted"),
+      statusInProgress: t("todoDetail.statusInProgress"),
+      statusDone: t("todoDetail.statusDone"),
       upcomingTitle: t("briefing.evening.upcomingTitle"),
       noUpcoming: t("briefing.evening.noUpcoming"),
       tomorrowTag: t("briefing.evening.tomorrowTag"),
@@ -247,11 +299,11 @@ export function BriefingScreen({
     () => ({
       typeLabel: t("scheduleScreen.itemTypeLabel"),
       typeEvent: t("scheduleScreen.typeEvent"),
-      typeTask: t("scheduleScreen.typeTask"),
+      typeTodo: t("scheduleScreen.typeTodo"),
       typeNote: t("scheduleScreen.typeNote"),
       title: t("scheduleScreen.title"),
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
-      taskPlaceholder: t("scheduleScreen.taskPlaceholder"),
+      todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
       date: t("scheduleScreen.date"),
       startTime: t("scheduleScreen.startTime"),
       endTime: t("scheduleScreen.endTime"),
@@ -260,11 +312,11 @@ export function BriefingScreen({
       sourceLabel: t("scheduleScreen.sourceLabel"),
       sourceNew: t("scheduleScreen.sourceNew"),
       sourceExisting: t("scheduleScreen.sourceExisting"),
-      addTask: t("scheduleScreen.addTask"),
-      placeTask: t("scheduleScreen.placeTask"),
-      searchTasks: t("scheduleScreen.searchTasks"),
-      taskPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
-      taskPickerNoMatch: t("scheduleScreen.taskPickerNoMatch"),
+      addTodo: t("scheduleScreen.addTodo"),
+      placeTodo: t("scheduleScreen.placeTodo"),
+      searchTodos: t("scheduleScreen.searchTodos"),
+      todoPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
+      todoPickerNoMatch: t("scheduleScreen.todoPickerNoMatch"),
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
       searchNotes: t("scheduleScreen.searchNotes"),
@@ -307,45 +359,54 @@ export function BriefingScreen({
     [handleCreateEvent, closeCreatePanel, onNavigate],
   );
 
-  const submitTask = useCallback(
+  const submitTodo = useCallback(
     (
       title: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      handleCreateTask(title, start, end, note);
+      handleCreateTodo(title, start, end, note);
       closeCreatePanel();
     },
-    [handleCreateTask, closeCreatePanel],
+    [handleCreateTodo, closeCreatePanel],
   );
 
-  const submitPlaceTask = useCallback(
+  const submitPlaceTodo = useCallback(
     (
-      taskId: string,
+      todoId: string,
       start: string,
       end: string,
       note: ItemCreateNoteDraft | null,
     ) => {
-      handlePlaceTask(taskId, start, end, note);
+      handlePlaceTodo(todoId, start, end, note);
       closeCreatePanel();
     },
-    [handlePlaceTask, closeCreatePanel],
+    [handlePlaceTodo, closeCreatePanel],
   );
 
   const todoTrayLabels = useMemo(
     () => ({
       placedHeading: t("briefing.todo.placedHeading"),
-      unplacedHeading: t("briefing.todo.unplacedHeading"),
       emptyPlaced: t("briefing.todo.emptyPlaced"),
-      emptyUnplaced: t("briefing.todo.emptyUnplaced"),
       addHeading: t("briefing.todo.addHeading"),
+      // A todo with no time is an all-day row on the merged list (#795) — the
+      // paper's own word for it, not a tray-only synonym.
+      allDay: t("briefing.allDay"),
       addAction: t("briefing.todo.addAction"),
       emptyAddable: t("briefing.todo.emptyAddable"),
       // Same action, same words as the paper's own rows — no near-duplicate
       // keys inside one namespace.
       complete: t("briefing.toggleComplete"),
-      openInTasks: t("briefing.jumpToTasks"),
+      openInTodos: t("briefing.jumpToTodos"),
+      // Same three statuses the paper's rows show — the tray must not disagree
+      // with the list it sits beside (#796).
+      status: t("todoDetail.status"),
+      statusLabels: {
+        statusNotStarted: t("todoDetail.statusNotStarted"),
+        statusInProgress: t("todoDetail.statusInProgress"),
+        statusDone: t("todoDetail.statusDone"),
+      },
     }),
     [t],
   );
@@ -393,8 +454,13 @@ export function BriefingScreen({
           placed={todoPlaced}
           unplaced={todoUnplaced}
           addable={todoAddable}
-          onToggleComplete={handleToggleTask}
-          onOpenTask={() => onNavigate({ section: "schedule", tab: "todo" })}
+          // One list, not「Todo 一覧 → 候補 → 予定済み」(#795). Picking a todo
+          // and it appearing where it now lives is ONE act; naming the middle
+          // of it「候補」made the tray describe its own bookkeeping.
+          singleList
+          onToggleComplete={handleToggleTodo}
+          onSetStatus={handleSetTodoStatus}
+          onOpenTodo={() => onNavigate({ section: "schedule", tab: "todo" })}
           onAddCandidate={handleAddTodoCandidate}
           labels={todoTrayLabels}
         />
@@ -413,12 +479,12 @@ export function BriefingScreen({
       <ItemCreatePanel
         key={todayKey}
         dateLabel={createDateLabel}
-        existingTasks={todoAddable}
+        existingTodos={todoAddable}
         existingNotes={noteOptions}
         onSubmitEvent={submitEvent}
         onSubmitEventAndOpen={submitEventAndOpen}
-        onCreateTask={submitTask}
-        onPlaceTask={submitPlaceTask}
+        onCreateTodo={submitTodo}
+        onPlaceTodo={submitPlaceTodo}
         formatDuration={formatDuration}
         labels={createPanelLabels}
       />
@@ -479,6 +545,7 @@ export function BriefingScreen({
           onIntentionChange={handleIntentionChange}
           onIntentionBlur={flushIntention}
           todos={remainingTodos}
+          onSetTodoStatus={handleSetTodoStatus}
           schedule={upcoming}
           labels={eveningLabels}
           tabSwitcher={tabSwitcher}
@@ -491,7 +558,11 @@ export function BriefingScreen({
     <>
       {todoTrayPortal}
       <BriefingView
-        loading={loading}
+        // The goals note is a SECOND async document, and its fields are
+        // editable — offering them before it answers hands the user an empty
+        // box over goals that exist, and the keystroke typed there overwrites
+        // them once the debounce fires. Same skeleton, one gate.
+        loading={loading || goalsLoading}
         data={data}
         labels={labels}
         streakLabels={streakLabels}
@@ -500,13 +571,19 @@ export function BriefingScreen({
         intentionText={intentionText}
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}
+        goals={goals}
+        goalLabels={goalLabels}
+        onGoalChange={handleGoalChange}
+        onGoalBlur={flushGoals}
         onToggleScheduleItem={handleToggleScheduleItem}
-        onToggleTask={handleToggleTask}
+        onToggleTodo={handleToggleTodo}
         onDeleteScheduleItem={handleDeleteScheduleItem}
-        onDeleteTask={handleDeleteTask}
+        onDeleteTodo={handleDeleteTodo}
         onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={() => onNavigate({ section: "schedule", tab: "calendar" })}
-        onJumpToTasks={() => onNavigate({ section: "schedule", tab: "todo" })}
+        onJumpToSchedule={() =>
+          onNavigate({ section: "schedule", tab: "calendar" })
+        }
+        onJumpToTodos={() => onNavigate({ section: "schedule", tab: "todo" })}
         tabSwitcher={tabSwitcher}
       />
       {deleteScopeDialog}

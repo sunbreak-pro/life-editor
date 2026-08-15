@@ -7,7 +7,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
  *   1. ADD BY TITLE. The former input took an `items_meta.id`, so linking to
  *      anything meant knowing its id. The picker filters the cross-role pool by
  *      title and hands `createItemLink` the id behind the row the user chose —
- *      including for roles the Notes context cannot see (a Task).
+ *      including for roles the Notes context cannot see (a Todo).
  *   2. OPEN A LINK. Rows were a <span> / an <li>; a click did nothing. They are
  *      buttons now and emit the same `{ id, role }` navigation intent a "[["
  *      link click emits (#475).
@@ -28,7 +28,12 @@ const state = vi.hoisted(() => ({
   incoming: [] as unknown[],
   loading: false,
   createItemLink: vi.fn(() => Promise.resolve()),
-  deleteItemLink: vi.fn(() => Promise.resolve()),
+  // Typed signature, not a bare `vi.fn(() => …)`: the #884 suite reads
+  // `mock.calls[n][0]` to assert WHICH link rows a chip removal deleted, and an
+  // argument-less mock types its calls as the empty tuple.
+  deleteItemLink: vi.fn<(linkId: string) => Promise<void>>(() =>
+    Promise.resolve(),
+  ),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -211,6 +216,52 @@ describe("LinkPanel — rows open their target (#749)", () => {
     );
 
     expect(state.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l1");
+  });
+});
+
+describe("LinkPanel — direction is not part of the vocabulary (#884)", () => {
+  it("shows a pair linked from both sides once, and removes both rows", async () => {
+    state.outgoing = [link({ id: "l1", from: "note-1", to: "note-2" })];
+    state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+
+    const remove = await screen.findAllByRole("button", {
+      name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
+    });
+    expect(remove).toHaveLength(1);
+
+    fireEvent.click(remove[0]);
+
+    await waitFor(() => expect(state.deleteItemLink).toHaveBeenCalledTimes(2));
+    expect(state.deleteItemLink.mock.calls.map((c) => c[0])).toEqual([
+      "l1",
+      "l2",
+    ]);
+  });
+
+  it("offers a remove action on a backlink too", async () => {
+    state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
+      }),
+    );
+
+    expect(state.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l2");
+  });
+
+  it("keeps an item already linked only inbound out of the picker", async () => {
+    state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    await openPicker();
+
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining("Order the tiles"),
+      expect.stringContaining("2026-08-12"),
+    ]);
   });
 });
 

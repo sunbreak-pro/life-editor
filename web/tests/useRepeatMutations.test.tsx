@@ -91,7 +91,14 @@ function renderRepeat(
   const ds = {
     convertEventToRoutine: vi.fn(() => Promise.resolve("routine-new")),
     updateRoutine: vi.fn(() => Promise.resolve(opts.templateLands ?? true)),
-    deleteRoutine: vi.fn(() =>
+    // Typed through the generic rather than named params: the body ignores
+    // both, and #708's assertion needs `mock.calls[0][1]` to be the opts bag.
+    deleteRoutine: vi.fn<
+      (
+        id: string,
+        opts?: { onCascadeChanged?: () => void },
+      ) => Promise<{ deletedScheduleItemIds: string[]; landed: boolean }>
+    >(() =>
       Promise.resolve({ deletedScheduleItemIds: ["occ-1"], landed: true }),
     ),
     detachRoutine: vi.fn(() =>
@@ -313,9 +320,29 @@ describe("delete scopes", () => {
     const h = renderRepeat();
     choose(h, { mode: "delete", item: occurrence() }, "all");
     await waitFor(() =>
-      expect(h.deleteRoutine).toHaveBeenCalledWith(ROUTINE_ID),
+      expect(h.deleteRoutine).toHaveBeenCalledWith(
+        ROUTINE_ID,
+        expect.anything(),
+      ),
     );
     expect(h.detachRoutine).not.toHaveBeenCalled();
+  });
+
+  // #708: an undo restores the occurrences and the seed event through the
+  // DataService, which this store never sees — so the delete has to hand the
+  // range re-read down with it, or the routine comes back to the list with an
+  // empty calendar under it.
+  it("hands the range re-read to deleteRoutine for the undo path", async () => {
+    const h = renderRepeat();
+    choose(h, { mode: "delete", item: occurrence() }, "all");
+    await waitFor(() => expect(h.deleteRoutine).toHaveBeenCalled());
+
+    const opts = h.deleteRoutine.mock.calls[0][1];
+    expect(h.reload).not.toHaveBeenCalled();
+    // `opts?.` because the arg is optional in the signature: if it were ever
+    // dropped the next assertion is what fails, and it says why.
+    opts?.onCascadeChanged?.();
+    expect(h.reload).toHaveBeenCalledTimes(1);
   });
 
   // #296: the days between today and a FUTURE anchor exist only on demand.
@@ -372,6 +399,68 @@ describe("turning a repeat on", () => {
     expect(h.convertEventToRoutine).toHaveBeenCalledWith(
       "occ-1",
       expect.objectContaining({ frequencyType: "daily", sourceDate: TODAY }),
+    );
+  });
+
+  // #870: the editor sends the repeat BEFORE the field patch (its scope dialog
+  // has to stay last), so a time changed in the same press has not reached
+  // `selected` yet. Reading the template off `selected` alone put the new time
+  // on the seed day and the old one on every generated day after it.
+  it("templates the series on times changed by the same save press", async () => {
+    const h = renderRepeat({
+      selected: occurrence({
+        routineId: null,
+        startTime: "09:00",
+        endTime: "09:30",
+      }),
+    });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat(
+        { frequencyType: "daily" },
+        { title: "Evening run", startTime: "13:00", endTime: "13:30" },
+      ),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({
+        title: "Evening run",
+        startTime: "13:00",
+        endTime: "13:30",
+      }),
+    );
+    // The same values have to reach the materialiser: it is what fills the rest
+    // of the visible range, and the reported symptom was those days — not the
+    // template — showing the pre-edit time.
+    await waitFor(() =>
+      expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalled(),
+    );
+    expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalledWith(
+      // Never before today or before the seed day — a repeat starts at the
+      // occurrence it was turned on from.
+      TODAY,
+      RANGE_END,
+      [expect.objectContaining({ startTime: "13:00", endTime: "13:30" })],
+    );
+  });
+
+  // The other half of the same fix: a press that moved only the frequency
+  // sends an empty field patch, and an absent key must read as "leave it" —
+  // spreading it whole would blank the title the seed already has.
+  it("keeps the item's own values when the press changed no fields", async () => {
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }, {}),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({
+        title: "Morning run",
+        startTime: "07:00",
+        endTime: "07:30",
+        sourceDate: TODAY,
+      }),
     );
   });
 

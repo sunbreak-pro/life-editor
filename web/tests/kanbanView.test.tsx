@@ -7,12 +7,12 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { DataService, TaskNode } from "@life-editor/shared";
+import type { DataService, TodoNode } from "@life-editor/shared";
 import {
   UnsavedGuardProvider,
   useUnsavedGuardOptional,
 } from "@life-editor/shared";
-import { KanbanView } from "../src/tasks/KanbanView";
+import { KanbanView } from "../src/todos/KanbanView";
 
 /*
  * #588 — the Todo board host. The board, its columns and the two column
@@ -22,7 +22,7 @@ import { KanbanView } from "../src/tasks/KanbanView";
  *
  * The editor and the tag picker are stubbed (TipTap + the tag master pull in a
  * ProseMirror instance and more contexts); the columns are built by the REAL
- * builders off fixture tasks, so a grouping regression still fails here.
+ * builders off fixture todos, so a grouping regression still fails here.
  *
  * No jest-dom in web/: presence is asserted through getBy* (which throws when
  * missing) and absence through queryBy* being null.
@@ -35,9 +35,9 @@ const state = vi.hoisted(() => ({
   selectedId: null as string | null,
   tags: [] as unknown[],
   assignments: {} as Record<string, unknown[]>,
-  setSelectedTaskId: vi.fn(),
-  setTaskStatus: vi.fn(),
-  toggleTaskStatus: vi.fn(),
+  setSelectedTodoId: vi.fn(),
+  setTodoStatus: vi.fn(),
+  toggleTodoStatus: vi.fn(),
   updateNode: vi.fn(),
   addNode: vi.fn(),
   softDelete: vi.fn(),
@@ -57,18 +57,18 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     }),
     useMediaQuery: () => state.isWide,
     useSyncDomains: () => 0,
-    useTaskTreeContext: () => ({
+    useTodoTreeContext: () => ({
       nodes: state.nodes,
       nodeMap: new Map(
-        (state.nodes as TaskNode[]).map((n) => [n.id, n] as const),
+        (state.nodes as TodoNode[]).map((n) => [n.id, n] as const),
       ),
       isLoading: state.isLoading,
-      selectedTask:
-        (state.nodes as TaskNode[]).find((n) => n.id === state.selectedId) ??
+      selectedTodo:
+        (state.nodes as TodoNode[]).find((n) => n.id === state.selectedId) ??
         null,
-      setSelectedTaskId: state.setSelectedTaskId,
-      setTaskStatus: state.setTaskStatus,
-      toggleTaskStatus: state.toggleTaskStatus,
+      setSelectedTodoId: state.setSelectedTodoId,
+      setTodoStatus: state.setTodoStatus,
+      toggleTodoStatus: state.toggleTodoStatus,
       updateNode: state.updateNode,
       addNode: state.addNode,
       softDelete: state.softDelete,
@@ -81,7 +81,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       allTags: state.tags,
       getTagsForItem: (id: string) => state.assignments[id] ?? [],
       setTagColor: vi.fn().mockResolvedValue(undefined),
-      // The "[[" plumbing useTaskLinking reads. A body save runs the #372
+      // The "[[" plumbing useTodoLinking reads. A body save runs the #372
       // delete-sync, so this half of the context is reachable from here now.
       createItemLink: vi.fn().mockResolvedValue(undefined),
       getLinksForItem: () => ({ outgoing: [], incoming: [] }),
@@ -128,7 +128,7 @@ vi.mock("../src/wikitag/TagPicker", () => ({
   TagPicker: () => <div data-testid="tag-picker" />,
 }));
 
-function task(over: Partial<TaskNode> & { id: string }): TaskNode {
+function todo(over: Partial<TodoNode> & { id: string }): TodoNode {
   return {
     type: "task",
     title: "Untitled",
@@ -139,11 +139,11 @@ function task(over: Partial<TaskNode> & { id: string }): TaskNode {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     ...over,
-  } as TaskNode;
+  } as TodoNode;
 }
 
-const MILK = task({ id: "task-a", title: "Buy milk" });
-const PLAN = task({ id: "task-b", title: "Write the plan", status: "DONE" });
+const MILK = todo({ id: "task-a", title: "Buy milk" });
+const PLAN = todo({ id: "task-b", title: "Write the plan", status: "DONE" });
 
 const WORK_TAG = {
   id: "tag-work",
@@ -197,9 +197,9 @@ describe("KanbanView — grouping", () => {
     // Status view = the three status columns, no tag headings. (The column
     // name also appears on each card's status chip, hence getAllByText.)
     expect(
-      screen.getAllByText("taskDetail.statusNotStarted").length,
+      screen.getAllByText("todoDetail.statusNotStarted").length,
     ).toBeGreaterThan(0);
-    screen.getAllByText("taskDetail.statusDone");
+    screen.getAllByText("todoDetail.statusDone");
     // No tag columns left (the tag itself stays visible as a card chip —
     // status view is where cards carry their tags).
     expect(screen.queryByText("kanban.untagged")).toBeNull();
@@ -208,21 +208,21 @@ describe("KanbanView — grouping", () => {
   });
 });
 
-describe("KanbanView — the task detail", () => {
+describe("KanbanView — the todo detail", () => {
   it("selects the card and opens the side panel on click", () => {
     render(<KanbanView />);
 
     fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
-    expect(state.setSelectedTaskId).toHaveBeenCalledExactlyOnceWith("task-a");
+    expect(state.setSelectedTodoId).toHaveBeenCalledExactlyOnceWith("task-a");
     expect(state.open).toHaveBeenCalled();
   });
 
-  it("renders the selected task's panel with its own editor", () => {
+  it("renders the selected todo's panel with its own editor", () => {
     state.selectedId = "task-a";
     render(<KanbanView />);
 
     const title = screen.getByLabelText(
-      "taskDetail.titleLabel",
+      "todoDetail.titleLabel",
     ) as HTMLInputElement;
     expect(title.value).toBe("Buy milk");
     expect(screen.getByTestId("editor").textContent).toBe("task-a");
@@ -230,7 +230,7 @@ describe("KanbanView — the task detail", () => {
 
   it("renders no panel while nothing is selected", () => {
     render(<KanbanView />);
-    expect(screen.queryByLabelText("taskDetail.titleLabel")).toBeNull();
+    expect(screen.queryByLabelText("todoDetail.titleLabel")).toBeNull();
   });
 });
 
@@ -240,11 +240,11 @@ describe("KanbanView — the task detail", () => {
  * cannot do on its own: it holds the body draft, because the editor is a web
  * dependency the shared panel only receives as a slot.
  */
-describe("KanbanView — the task detail save button (#713)", () => {
+describe("KanbanView — the todo detail save button (#713)", () => {
   // No jest-dom in web/ (see the header), so `disabled` is read off the node.
   const save = () =>
     screen.getByRole("button", {
-      name: "taskDetail.save",
+      name: "todoDetail.save",
     }) as HTMLButtonElement;
 
   it("gives the body editor the draft channel, not auto-save", () => {
@@ -257,7 +257,7 @@ describe("KanbanView — the task detail save button (#713)", () => {
     state.selectedId = "task-a";
     const { unmount } = render(<KanbanView />);
 
-    fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+    fireEvent.change(screen.getByLabelText("todoDetail.titleLabel"), {
       target: { value: "Buy oat milk" },
     });
     fireEvent.click(screen.getByText("type in the body"));
@@ -269,7 +269,7 @@ describe("KanbanView — the task detail save button (#713)", () => {
     state.selectedId = "task-a";
     render(<KanbanView />);
 
-    fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+    fireEvent.change(screen.getByLabelText("todoDetail.titleLabel"), {
       target: { value: "Buy oat milk" },
     });
     fireEvent.click(screen.getByText("type in the body"));
@@ -314,8 +314,8 @@ describe("KanbanView — the task detail save button (#713)", () => {
   });
 
   it("discards the body draft when the detail closes, not just on unmount", () => {
-    // The panel remounts per task and drops its own title draft, but the body
-    // draft is parked on the board — so reopening the SAME task must not find
+    // The panel remounts per todo and drops its own title draft, but the body
+    // draft is parked on the board — so reopening the SAME todo must not find
     // it still pending and offer to write what the user walked away from.
     state.selectedId = "task-a";
     const { rerender } = render(<KanbanView />);
@@ -357,10 +357,10 @@ describe("KanbanView — the task detail save button (#713)", () => {
 describe("KanbanView — the unsaved-close guard (#736)", () => {
   const ASK = "common.unsavedCloseConfirm";
   const sheet = () =>
-    screen.queryByRole("dialog", { name: "materials.tasks.detailTitle" });
+    screen.queryByRole("dialog", { name: "materials.todos.detailTitle" });
   const save = () =>
     screen.getByRole("button", {
-      name: "taskDetail.save",
+      name: "todoDetail.save",
     }) as HTMLButtonElement;
   const closeSheet = () =>
     fireEvent.click(screen.getByRole("button", { name: "common.close" }));
@@ -429,7 +429,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
 
   /*
    * The convert button unmounts the panel too (the selection is cleared once
-   * the row stops being a task). Before #713 the blur flush had already written
+   * the row stops being a todo). Before #713 the blur flush had already written
    * the new title so it rode along into the event; now it has to be asked
    * about, or the user watches their typing disappear.
    */
@@ -442,10 +442,10 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
    */
   describe("convert to event", () => {
     const dataService = {
-      convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
+      convertTodoToEvent: vi.fn().mockResolvedValue(undefined),
     } as unknown as DataService;
     const CONVERT_ASK = "itemConvert.toEventConfirm|Buy milk";
-    const CHILD = task({
+    const CHILD = todo({
       id: "task-a1",
       title: "Buy oat milk",
       parentId: "task-a",
@@ -454,7 +454,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
     beforeEach(() => {
       state.isWide = true;
       state.selectedId = "task-a";
-      vi.mocked(dataService.convertTaskToEvent).mockClear();
+      vi.mocked(dataService.convertTodoToEvent).mockClear();
     });
 
     const convert = () =>
@@ -473,7 +473,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
 
     it("asks about the draft before the conversion's own question", async () => {
       render(<KanbanView dataService={dataService} />);
-      fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+      fireEvent.change(screen.getByLabelText("todoDetail.titleLabel"), {
         target: { value: "Buy oat milk" },
       });
       convert();
@@ -483,17 +483,17 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
       await waitFor(() => expect(screen.queryByText(ASK)).toBeNull());
-      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+      expect(dataService.convertTodoToEvent).not.toHaveBeenCalled();
       // The refusal keeps the user where they were, draft and all.
       expect(
-        (screen.getByLabelText("taskDetail.titleLabel") as HTMLInputElement)
+        (screen.getByLabelText("todoDetail.titleLabel") as HTMLInputElement)
           .value,
       ).toBe("Buy oat milk");
     });
 
     it("hands over to the conversion once the draft is discarded", async () => {
       render(<KanbanView dataService={dataService} />);
-      fireEvent.change(screen.getByLabelText("taskDetail.titleLabel"), {
+      fireEvent.change(screen.getByLabelText("todoDetail.titleLabel"), {
         target: { value: "Buy oat milk" },
       });
       convert();
@@ -502,11 +502,11 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
       fireEvent.click(screen.getByRole("button", { name: "common.discard" }));
       // The second question replaces the first: one dialog, asked twice.
       await screen.findByText(CONVERT_ASK);
-      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+      expect(dataService.convertTodoToEvent).not.toHaveBeenCalled();
 
       answerConvert("itemConvert.toEvent");
       await waitFor(() =>
-        expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
+        expect(dataService.convertTodoToEvent).toHaveBeenCalled(),
       );
     });
 
@@ -516,7 +516,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
 
       await screen.findByText(CONVERT_ASK);
       expect(screen.queryByText(ASK)).toBeNull();
-      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+      expect(dataService.convertTodoToEvent).not.toHaveBeenCalled();
     });
 
     it("converts nothing when the question is refused", async () => {
@@ -526,9 +526,9 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
 
       answerConvert("common.cancel");
       await waitFor(() => expect(screen.queryByText(CONVERT_ASK)).toBeNull());
-      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
-      // Refused means nothing moved: the row is still a task, still selected.
-      expect(state.setSelectedTaskId).not.toHaveBeenCalledWith(null);
+      expect(dataService.convertTodoToEvent).not.toHaveBeenCalled();
+      // Refused means nothing moved: the row is still a todo, still selected.
+      expect(state.setSelectedTodoId).not.toHaveBeenCalledWith(null);
     });
 
     it("converts once the question is agreed to", async () => {
@@ -538,7 +538,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
 
       answerConvert("itemConvert.toEvent");
       await waitFor(() =>
-        expect(dataService.convertTaskToEvent).toHaveBeenCalledWith(
+        expect(dataService.convertTodoToEvent).toHaveBeenCalledWith(
           "task-a",
           expect.objectContaining({ isAllDay: expect.any(Boolean) }),
         ),
@@ -567,7 +567,7 @@ describe("KanbanView — the unsaved-close guard (#736)", () => {
         ).toBeNull(),
       );
       // Acknowledged, not agreed to: the FK guard still stands.
-      expect(dataService.convertTaskToEvent).not.toHaveBeenCalled();
+      expect(dataService.convertTodoToEvent).not.toHaveBeenCalled();
     });
   });
 });
@@ -620,7 +620,7 @@ describe("KanbanView — the shell teardown guard (#753)", () => {
     );
   const save = () =>
     screen.getByRole("button", {
-      name: "taskDetail.save",
+      name: "todoDetail.save",
     }) as HTMLButtonElement;
 
   it("lets the container through when nothing is pending", async () => {
@@ -680,8 +680,8 @@ describe("KanbanView — the shell teardown guard (#753)", () => {
 /*
  * #786 — the board's missing exit. A todo could be created here and never
  * removed: the Schedule tray, the day-view chip and #775's detail panel all had
- * a delete, while the Tasks board had none on EITHER width — #775 stopped at the
- * Schedule side, and the narrow sheet here is fed by the same renderTaskDetail
+ * a delete, while the Todos board had none on EITHER width — #775 stopped at the
+ * Schedule side, and the narrow sheet here is fed by the same renderTodoDetail
  * as the Desktop sidebar, so both gained it in one go (and would lose it in one
  * go, which is what these pin).
  *
@@ -691,16 +691,16 @@ describe("KanbanView — the shell teardown guard (#753)", () => {
  * Playwright.
  */
 describe("KanbanView — deleting a todo from the detail (#786)", () => {
-  const CHILD = task({
+  const CHILD = todo({
     id: "task-a1",
     title: "Buy oat milk",
     parentId: "task-a",
   });
   const del = () =>
     fireEvent.click(
-      screen.getByRole("button", { name: "taskDetail.todoDelete" }),
+      screen.getByRole("button", { name: "todoDetail.todoDelete" }),
     );
-  const answer = (label: "taskDetail.delete" | "common.cancel") =>
+  const answer = (label: "todoDetail.delete" | "common.cancel") =>
     fireEvent.click(screen.getByRole("button", { name: label }));
 
   it("asks before deleting, and names the row", async () => {
@@ -708,7 +708,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
     // A question, not a farewell: nothing is written until it is answered.
     expect(state.softDelete).not.toHaveBeenCalled();
   });
@@ -718,18 +718,18 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
     answer("common.cancel");
 
     await waitFor(() =>
       expect(
-        screen.queryByText("taskDetail.todoDeleteConfirm|Buy milk"),
+        screen.queryByText("todoDetail.todoDeleteConfirm|Buy milk"),
       ).toBeNull(),
     );
     expect(state.softDelete).not.toHaveBeenCalled();
     // Still on screen, still editable.
     expect(
-      (screen.getByLabelText("taskDetail.titleLabel") as HTMLInputElement)
+      (screen.getByLabelText("todoDetail.titleLabel") as HTMLInputElement)
         .value,
     ).toBe("Buy milk");
   });
@@ -739,8 +739,8 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
-    answer("taskDetail.delete");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
+    answer("todoDetail.delete");
 
     // softDelete (→ Trash + the undo entry), never a permanent delete.
     await waitFor(() =>
@@ -748,7 +748,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     );
     // What takes the panel down: the fixture selection is prop-driven here, so
     // the clearing call is the observable half of "the detail closes".
-    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+    expect(state.setSelectedTodoId).toHaveBeenCalledWith(null);
   });
 
   it("names how many children go with a parent row", async () => {
@@ -760,32 +760,32 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     // The count is the one thing the user cannot see from the detail — and it
     // comes from the SAME guard the Schedule side asks through, so the two
     // screens can never disagree about how many rows are going.
-    await screen.findByText("taskDetail.todoDeleteCascadeConfirm|Buy milk,1");
-    answer("taskDetail.delete");
+    await screen.findByText("todoDetail.todoDeleteCascadeConfirm|Buy milk,1");
+    answer("todoDetail.delete");
     await waitFor(() =>
       expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
     );
   });
 
   it("falls back to a placeholder for a row saved with no title", async () => {
-    state.nodes = [task({ id: "task-c", title: "" })];
+    state.nodes = [todo({ id: "task-c", title: "" })];
     state.selectedId = "task-c";
     render(<KanbanView />);
 
     del();
     // "Delete ""?" would be a dialog about nothing.
-    await screen.findByText("taskDetail.todoDeleteConfirm|common.untitled");
+    await screen.findByText("todoDetail.todoDeleteConfirm|common.untitled");
   });
 
   it("deletes from the mobile sheet, and closes it", async () => {
     state.isWide = false;
     render(<KanbanView />);
     fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
-    screen.getByRole("dialog", { name: "materials.tasks.detailTitle" });
+    screen.getByRole("dialog", { name: "materials.todos.detailTitle" });
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
-    answer("taskDetail.delete");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
+    answer("todoDetail.delete");
 
     await waitFor(() =>
       expect(state.softDelete).toHaveBeenCalledExactlyOnceWith("task-a"),
@@ -793,7 +793,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     // On a phone the sheet is the ONLY way to reach a todo, so leaving it open
     // over a row that no longer exists is the whole bug in miniature.
     expect(
-      screen.queryByRole("dialog", { name: "materials.tasks.detailTitle" }),
+      screen.queryByRole("dialog", { name: "materials.todos.detailTitle" }),
     ).toBeNull();
   });
 
@@ -806,7 +806,7 @@ describe("KanbanView — deleting a todo from the detail (#786)", () => {
     fireEvent.click(screen.getByText("type in the body"));
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
     expect(screen.queryByText("common.unsavedCloseConfirm")).toBeNull();
   });
 });
@@ -827,10 +827,10 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
   // beside #789 and so renamed everything except this block.
   const del = () =>
     fireEvent.click(
-      screen.getByRole("button", { name: "taskDetail.todoDelete" }),
+      screen.getByRole("button", { name: "todoDetail.todoDelete" }),
     );
   const agree = () =>
-    fireEvent.click(screen.getByRole("button", { name: "taskDetail.delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "todoDetail.delete" }));
 
   it("closes the desktop sidebar once the delete is agreed", async () => {
     state.selectedId = "task-a";
@@ -840,11 +840,11 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     expect(state.close).not.toHaveBeenCalled();
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
     agree();
 
     await waitFor(() => expect(state.close).toHaveBeenCalled());
-    expect(state.setSelectedTaskId).toHaveBeenCalledWith(null);
+    expect(state.setSelectedTodoId).toHaveBeenCalledWith(null);
   });
 
   it("keeps the shell open when the delete is refused", async () => {
@@ -852,12 +852,12 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     render(<KanbanView />);
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
     fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
 
     await waitFor(() =>
       expect(
-        screen.queryByText("taskDetail.todoDeleteConfirm|Buy milk"),
+        screen.queryByText("todoDetail.todoDeleteConfirm|Buy milk"),
       ).toBeNull(),
     );
     // The row is still there, so the panel showing it has to be too.
@@ -873,7 +873,7 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     const before = state.close.mock.calls.length;
 
     del();
-    await screen.findByText("taskDetail.todoDeleteConfirm|Buy milk");
+    await screen.findByText("todoDetail.todoDeleteConfirm|Buy milk");
     agree();
 
     await waitFor(() =>
@@ -884,7 +884,7 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
 
   it("closes it for the convert too", async () => {
     const dataService = {
-      convertTaskToEvent: vi.fn().mockResolvedValue(undefined),
+      convertTodoToEvent: vi.fn().mockResolvedValue(undefined),
     } as unknown as DataService;
     state.selectedId = "task-a";
     render(<KanbanView dataService={dataService} />);
@@ -905,7 +905,7 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
     );
 
     await waitFor(() =>
-      expect(dataService.convertTaskToEvent).toHaveBeenCalled(),
+      expect(dataService.convertTodoToEvent).toHaveBeenCalled(),
     );
     // The row left this board for the calendar — the panel that was framing it
     // has nothing left to show, and neither has the shell around it.
@@ -913,22 +913,22 @@ describe("KanbanView — the detail shell after the row goes (#789)", () => {
   });
 });
 
-describe("KanbanView — creating a task", () => {
+describe("KanbanView — creating a todo", () => {
   it("opens the add dialog from the board toolbar", () => {
     render(<KanbanView />);
 
     expect(screen.queryByText("kanban.addDialogTitle")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "kanban.addTask" }));
+    fireEvent.click(screen.getByRole("button", { name: "kanban.addTodo" }));
     screen.getByText("kanban.addDialogTitle");
   });
 
-  it("opens it for the shell's new-task intent, then clears the flag", () => {
-    const onConsumeNewTask = vi.fn();
-    render(<KanbanView pendingNewTask onConsumeNewTask={onConsumeNewTask} />);
+  it("opens it for the shell's new-todo intent, then clears the flag", () => {
+    const onConsumeNewTodo = vi.fn();
+    render(<KanbanView pendingNewTodo onConsumeNewTodo={onConsumeNewTodo} />);
 
     screen.getByText("kanban.addDialogTitle");
     // Cleared on arrival, so coming back to this tab never re-opens it.
-    expect(onConsumeNewTask).toHaveBeenCalled();
+    expect(onConsumeNewTodo).toHaveBeenCalled();
   });
 });
 
@@ -942,7 +942,7 @@ describe("KanbanView — mobile (narrow)", () => {
 
     expect(state.close).toHaveBeenCalled();
     // The mobile list is status-grouped regardless of the desktop grouping.
-    screen.getByRole("group", { name: "materials.tasks.filterLabel" });
+    screen.getByRole("group", { name: "materials.todos.filterLabel" });
     screen.getByRole("button", { name: /^Buy milk —/ });
   });
 
@@ -952,17 +952,17 @@ describe("KanbanView — mobile (narrow)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
 
-    screen.getByRole("dialog", { name: "materials.tasks.detailTitle" });
+    screen.getByRole("dialog", { name: "materials.todos.detailTitle" });
     const title = screen.getByLabelText(
-      "taskDetail.titleLabel",
+      "todoDetail.titleLabel",
     ) as HTMLInputElement;
     expect(title.value).toBe("Buy milk");
     // The touch status row replaces the desktop cycle button.
-    screen.getByRole("group", { name: "materials.tasks.statusGroupLabel" });
+    screen.getByRole("group", { name: "materials.todos.statusGroupLabel" });
   });
 
   it("has no add dialog — quick add is the mobile create path", () => {
     render(<KanbanView />);
-    expect(screen.queryByRole("button", { name: "kanban.addTask" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "kanban.addTodo" })).toBeNull();
   });
 });

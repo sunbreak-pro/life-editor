@@ -152,10 +152,10 @@ export function SettingsScreen() {
     });
   };
 
-  const detailTasks = [
-    { label: t("settings.detail.tasks.shopping"), done: false },
-    { label: t("settings.detail.tasks.coffee"), done: true },
-    { label: t("settings.detail.tasks.dinner"), done: false },
+  const detailTodos = [
+    { label: t("settings.detail.todos.shopping"), done: false },
+    { label: t("settings.detail.todos.coffee"), done: true },
+    { label: t("settings.detail.todos.dinner"), done: false },
   ];
 
   const detailTips = [
@@ -297,7 +297,7 @@ export function SettingsScreen() {
       <RightSidebarPortal>
         <SettingsDetailPanel
           fontPx={px}
-          tasks={detailTasks}
+          todos={detailTodos}
           tips={detailTips}
           labels={{
             previewHeading: t("settings.detail.previewHeading"),

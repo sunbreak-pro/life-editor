@@ -8,9 +8,9 @@ import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { PeriodSelector, type PeriodSelectorLabels } from "./PeriodSelector";
 import { WorkTimeChart, type WorkTimeChartLabels } from "./WorkTimeChart";
 import {
-  TaskWorkTimeChart,
-  type TaskWorkTimeChartLabels,
-} from "./TaskWorkTimeChart";
+  TodoWorkTimeChart,
+  type TodoWorkTimeChartLabels,
+} from "./TodoWorkTimeChart";
 import { WorkTimeHeatmap, type WorkTimeHeatmapLabels } from "./WorkTimeHeatmap";
 import {
   PomodoroCompletionRate,
@@ -39,12 +39,12 @@ export interface TimeTabLabels {
   pomodoroRate: PomodoroCompletionRateLabels;
   workBreak: WorkBreakBalanceLabels;
   timeline: DailyTimelineLabels;
-  taskWorkTime: TaskWorkTimeChartLabels;
+  todoWorkTime: TodoWorkTimeChartLabels;
 }
 
 interface TimeTabProps {
   sessions: TimerSession[];
-  taskNameMap: Map<string, string>;
+  todoNameMap: Map<string, string>;
   /** Pomodoro daily target (host: fetchTimerSettings().targetSessions). */
   targetPerDay: number;
   labels: TimeTabLabels;
@@ -58,7 +58,7 @@ const PERIOD_DAYS: Record<Period, number> = {
 
 export function TimeTab({
   sessions,
-  taskNameMap,
+  todoNameMap,
   targetPerDay,
   labels,
 }: TimeTabProps): React.JSX.Element {
@@ -129,10 +129,10 @@ export function TimeTab({
           labels={labels.workBreak}
         />
         <DailyTimeline sessions={sessions} labels={labels.timeline} />
-        <TaskWorkTimeChart
+        <TodoWorkTimeChart
           sessions={sessions}
-          taskNameMap={taskNameMap}
-          labels={labels.taskWorkTime}
+          todoNameMap={todoNameMap}
+          labels={labels.todoWorkTime}
         />
       </div>
     </div>

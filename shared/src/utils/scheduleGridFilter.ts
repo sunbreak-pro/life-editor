@@ -149,8 +149,8 @@ export function pickSelectableCalendars<C extends SelectableCalendar>(
 export interface CalendarLensResult<E, T> {
   /** Schedule rows the lens leaves on the grid. */
   events: E[];
-  /** Task chips the lens leaves on the grid. */
-  taskChips: T[];
+  /** Todo chips the lens leaves on the grid. */
+  todoChips: T[];
   /** Rows the lens folded away across BOTH layers (0 when it is off). */
   hiddenCount: number;
   /**
@@ -165,11 +165,11 @@ export interface CalendarLensResult<E, T> {
 /**
  * Apply the lens to every layer the grid draws.
  *
- * The grid stacks two independent sources — schedule rows and scheduled-task
- * chips — and both can carry life tags (`KanbanView` tags tasks with the same
- * `wiki_tags`, and a chip's id IS the task's `items_meta.id`). Narrowing only
+ * The grid stacks two independent sources — schedule rows and scheduled-todo
+ * chips — and both can carry life tags (`KanbanView` tags todos with the same
+ * `wiki_tags`, and a chip's id IS the todo's `items_meta.id`). Narrowing only
  * the schedule rows would hide the events of the other calendars while leaving
- * every task on screen, i.e. a lens that is not a lens.
+ * every todo on screen, i.e. a lens that is not a lens.
  *
  * Identity (`memberIds == null`) returns the SAME array references, matching
  * `applyCalendarFilter`'s contract so host memos downstream stay stable.
@@ -179,14 +179,14 @@ export function applyCalendarLens<
   T extends CalendarFilterable,
 >(
   events: E[],
-  taskChips: T[],
+  todoChips: T[],
   memberIds: ReadonlySet<string> | null | undefined,
 ): CalendarLensResult<E, T> {
   const e = applyCalendarFilter(events, memberIds);
-  const t = applyCalendarFilter(taskChips, memberIds);
+  const t = applyCalendarFilter(todoChips, memberIds);
   return {
     events: e.visible,
-    taskChips: t.visible,
+    todoChips: t.visible,
     hiddenCount: e.hiddenCount + t.hiddenCount,
     visibleCount: e.visible.length + t.visible.length,
   };

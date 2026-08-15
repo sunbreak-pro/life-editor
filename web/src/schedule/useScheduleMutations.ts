@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import {
-  isTaskChip,
+  isTodoChip,
   makeOptimisticScheduleItem,
   touchesSeries,
   type ScheduleItem,
@@ -57,22 +57,22 @@ export interface UseScheduleMutationsArgs
   toggleComplete: (id: string) => void;
   dismiss: (id: string) => void;
   deleteScheduleItem: (id: string) => void;
-  // Task-chip drag-to-write (#297 A-2). Task chips are derived from the
-  // TaskTree, not `rangeItems`, so the write lives in the host (which holds
-  // taskNodes + updateNode); this layer only routes a task-chip id to it.
+  // Todo-chip drag-to-write (#297 A-2). Todo chips are derived from the
+  // TodoTree, not `rangeItems`, so the write lives in the host (which holds
+  // todoNodes + updateNode); this layer only routes a todo-chip id to it.
   // Both receive the SYNTHETIC chip id (the host unwraps it). Required — the
   // sole consumer (CalendarTab) always wires them; a read-only host passes
   // no-op handlers rather than omitting them.
-  onMoveTaskChip: (
+  onMoveTodoChip: (
     chipId: string,
     dateISO: string,
     startISO: string,
     endISO: string,
   ) => void;
-  onResizeTaskChip: (chipId: string, endISO: string) => void;
-  // #562: a timed task chip dropped back onto the all-day lane — the host
-  // rewrites the TaskNode to an all-day candidate (isAllDay:true) on dateISO.
-  onDropTaskChipAllDay: (chipId: string, dateISO: string) => void;
+  onResizeTodoChip: (chipId: string, endISO: string) => void;
+  // #562: a timed todo chip dropped back onto the all-day lane — the host
+  // rewrites the TodoNode to an all-day candidate (isAllDay:true) on dateISO.
+  onDropTodoChipAllDay: (chipId: string, dateISO: string) => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -103,9 +103,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     updateFutureOccurrences,
     ensureRoutineItemsForDateRange,
     reconcileRoutineScheduleItems,
-    onMoveTaskChip,
-    onResizeTaskChip,
-    onDropTaskChipAllDay,
+    onMoveTodoChip,
+    onResizeTodoChip,
+    onDropTodoChipAllDay,
     onRepeatConvertFailed,
     copySuffix,
   } = args;
@@ -225,9 +225,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
 
   const handleToggle = useCallback(
     (id: string) => {
-      // A-1: task chips don't own a ScheduleItem completion. Completion for
-      // scheduled tasks is wired in Step 3 (TaskTree completion API). No-op.
-      if (isTaskChip(id)) return;
+      // A-1: todo chips don't own a ScheduleItem completion. Completion for
+      // scheduled todos is wired in Step 3 (TodoTree completion API). No-op.
+      if (isTodoChip(id)) return;
       // Provider first (#568 order invariant — see applyOccurrencePatch): its
       // undo command snapshots the completion pair through the view mirror,
       // and the snapshot must not depend on how promptly this store's `find`
@@ -281,11 +281,11 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
 
   const handleMoveItem = useCallback(
     (id: string, dateISO: string, startISO: string, endISO: string) => {
-      // A-2 (#297): a task chip drag writes scheduledAt/scheduledEndAt on the
-      // underlying TaskNode. The host owns that write (it holds taskNodes +
+      // A-2 (#297): a todo chip drag writes scheduledAt/scheduledEndAt on the
+      // underlying TodoNode. The host owns that write (it holds todoNodes +
       // updateNode); this layer only routes.
-      if (isTaskChip(id)) {
-        onMoveTaskChip(id, dateISO, startISO, endISO);
+      if (isTodoChip(id)) {
+        onMoveTodoChip(id, dateISO, startISO, endISO);
         return;
       }
       const item = findScheduleItem(id);
@@ -306,30 +306,30 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         endTime: endISO,
       });
     },
-    [findScheduleItem, applyOccurrencePatch, onMoveTaskChip, requestScope],
+    [findScheduleItem, applyOccurrencePatch, onMoveTodoChip, requestScope],
   );
 
-  // #562: drop on the all-day lane → back to all-day. A task chip routes to
-  // the host's TaskNode write; a ScheduleItem flips isAllDay on the single
+  // #562: drop on the all-day lane → back to all-day. A todo chip routes to
+  // the host's TodoNode write; a ScheduleItem flips isAllDay on the single
   // occurrence — same reasoning as #469: the routine template has no isAllDay
   // to propagate one to, so no scope dialog even for a routine occurrence.
   // The times are left as they are so an all-day OFF flip later restores them.
   const handleDropAllDay = useCallback(
     (id: string, dateISO: string) => {
-      if (isTaskChip(id)) {
-        onDropTaskChipAllDay(id, dateISO);
+      if (isTodoChip(id)) {
+        onDropTodoChipAllDay(id, dateISO);
         return;
       }
       applyOccurrencePatch(id, { date: dateISO, isAllDay: true });
     },
-    [applyOccurrencePatch, onDropTaskChipAllDay],
+    [applyOccurrencePatch, onDropTodoChipAllDay],
   );
 
   const handleResizeItem = useCallback(
     (id: string, endISO: string) => {
-      // A-2 (#297): a task chip resize writes scheduledEndAt (see handleMoveItem).
-      if (isTaskChip(id)) {
-        onResizeTaskChip(id, endISO);
+      // A-2 (#297): a todo chip resize writes scheduledEndAt (see handleMoveItem).
+      if (isTodoChip(id)) {
+        onResizeTodoChip(id, endISO);
         return;
       }
       const item = findScheduleItem(id);
@@ -339,7 +339,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       }
       applyOccurrencePatch(id, { endTime: endISO });
     },
-    [findScheduleItem, applyOccurrencePatch, onResizeTaskChip, requestScope],
+    [findScheduleItem, applyOccurrencePatch, onResizeTodoChip, requestScope],
   );
 
   // Delete routes every entry point (editor pane, context menu) through one

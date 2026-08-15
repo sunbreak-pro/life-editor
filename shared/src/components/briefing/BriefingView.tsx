@@ -7,7 +7,7 @@ import {
   Sunrise,
   Trash2,
 } from "lucide-react";
-import type { TaskNode, TaskStatus } from "../../types/taskTree";
+import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
 import {
@@ -15,15 +15,18 @@ import {
   type StreakDisplayLabels,
 } from "../Analytics/StreakDisplay";
 import {
-  TaskCompletionTrend,
-  type TaskCompletionTrendLabels,
-} from "../Analytics/TaskCompletionTrend";
+  TodoCompletionTrend,
+  type TodoCompletionTrendLabels,
+} from "../Analytics/TodoCompletionTrend";
 import {
   WorkBreakBalance,
   type WorkBreakBalanceLabels,
 } from "../Analytics/WorkBreakBalance";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { IntentionField } from "./IntentionField";
+import { BRIEFING_HINT_CLASS } from "./briefingStyles";
+import { GoalsBlock, type GoalsBlockLabels } from "./GoalsBlock";
+import type { GoalPeriod } from "./goalSections";
 
 /*
  * BriefingView — the morning-paper home surface (Briefing plan Step 1).
@@ -37,7 +40,7 @@ import { IntentionField } from "./IntentionField";
  * for context / annotations. All colors are lumen-* tokens (no hardcodes).
  *
  * The visual zone deliberately reuses the three Analytics widgets
- * (StreakDisplay / TaskCompletionTrend / WorkBreakBalance) — the Analytics
+ * (StreakDisplay / TodoCompletionTrend / WorkBreakBalance) — the Analytics
  * section shrink decision (redesign doc §3): the dashboards freeze, these
  * three move in here. Their labels are re-resolved by the host from the
  * existing analytics.* i18n keys, so no copy is duplicated.
@@ -56,10 +59,10 @@ export interface BriefingScheduleEntry {
 }
 
 /** One row of「今日の Todo」— host-shaped, purposes resolved to titles. */
-export interface BriefingTaskEntry {
+export interface BriefingTodoEntry {
   id: string;
   title: string;
-  status: TaskStatus;
+  status: TodoStatus;
   /** Titles of linked goal/notes (WikiTagsUnified item↔item links). */
   purposes: string[];
 }
@@ -80,12 +83,12 @@ export interface BriefingData {
   /** Extracted briefing (null → "no briefing yet" empty state). */
   briefing: ExtractedBriefing | null;
   schedule: BriefingScheduleEntry[];
-  tasks: BriefingTaskEntry[];
+  todos: BriefingTodoEntry[];
   carryover: BriefingCarryoverEntry[];
   /** Timer sessions — feeds StreakDisplay + WorkBreakBalance. */
   sessions: TimerSession[];
-  /** Full task tree — feeds TaskCompletionTrend. */
-  taskNodes: TaskNode[];
+  /** Full todo tree — feeds TodoCompletionTrend. */
+  todoNodes: TodoNode[];
 }
 
 export interface BriefingLabels {
@@ -102,21 +105,23 @@ export interface BriefingLabels {
    */
   intentionCaption?: string;
   intentionPlaceholder: string;
+  /** Heading of the 週 / 月 / 年 goals block (#872). */
+  goalsTitle: string;
   scheduleTitle: string;
   /** Accessible name + tooltip of the schedule section's「+」 (#623). */
   addScheduleItem: string;
   noSchedule: string;
   routineTag: string;
   allDay: string;
-  tasksTitle: string;
-  noTasks: string;
+  todosTitle: string;
+  noTodos: string;
   vizTitle: string;
   carryoverTitle: string;
   toggleComplete: string;
   /**
    * Visible label of every row's jump action —「編集」/ "Edit" (#410). It IS
    * the button's accessible name now that the action is no longer icon-only;
-   * `jumpToSchedule` / `jumpToTasks` moved to the hover tooltip, where the
+   * `jumpToSchedule` / `jumpToTodos` moved to the hover tooltip, where the
    * longer wording still says WHERE the jump lands without contradicting the
    * visible text (WCAG 2.5.3 Label in Name).
    */
@@ -130,10 +135,10 @@ export interface BriefingLabels {
   delete: string;
   /** Tooltip + accessible-name tail for a schedule row's delete. */
   deleteScheduleHint: string;
-  /** Tooltip + accessible-name tail for a task row's delete. */
-  deleteTaskHint: string;
+  /** Tooltip + accessible-name tail for a todo row's delete. */
+  deleteTodoHint: string;
   jumpToSchedule: string;
-  jumpToTasks: string;
+  jumpToTodos: string;
 }
 
 export interface BriefingViewProps {
@@ -141,7 +146,7 @@ export interface BriefingViewProps {
   data: BriefingData;
   labels: BriefingLabels;
   streakLabels: StreakDisplayLabels;
-  trendLabels: TaskCompletionTrendLabels;
+  trendLabels: TodoCompletionTrendLabels;
   balanceLabels: WorkBreakBalanceLabels;
   /** Today's declaration (宣言 — Step 4), newline-separated lines. */
   intentionText: string;
@@ -149,18 +154,30 @@ export interface BriefingViewProps {
   onIntentionChange: (text: string) => void;
   /** Blur — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
+  /**
+   * Standing 週 / 月 / 年 goals (#872) — text per period, newline-separated.
+   * They live in one reserved note (goalSections.ts), not in the daily, and
+   * never roll over: only the labels below say which period is showing.
+   */
+  goals: Record<GoalPeriod, string>;
+  /** Copy of the three goal fields, period ranges included (host-formatted). */
+  goalLabels: GoalsBlockLabels;
+  /** Every keystroke in a goal field — same draft + debounce deal as 宣言. */
+  onGoalChange: (period: GoalPeriod, text: string) => void;
+  /** Blur on a goal field — the host flushes a pending debounced save. */
+  onGoalBlur: () => void;
   /** Completes / un-completes a schedule item (host → DataService). */
   onToggleScheduleItem: (id: string) => void;
-  /** Completes / un-completes a task or carryover row (host → DataService). */
-  onToggleTask: (id: string) => void;
+  /** Completes / un-completes a todo or carryover row (host → DataService). */
+  onToggleTodo: (id: string) => void;
   /**
    * Deletes a schedule row (#585). The host decides what "delete" means for
    * the item — a manual event soft-deletes straight away, a routine-derived
    * one first asks which occurrences via Schedule's own RepeatScopeDialog.
    */
   onDeleteScheduleItem: (id: string) => void;
-  /** Deletes a task row (#585) — host → DataService soft delete. */
-  onDeleteTask: (id: string) => void;
+  /** Deletes a todo row (#585) — host → DataService soft delete. */
+  onDeleteTodo: (id: string) => void;
   /**
    * Opens the host's creation panel for THIS paper's day (#623). The view
    * holds no creation UI of its own — the host mounts Schedule's shared
@@ -169,8 +186,8 @@ export interface BriefingViewProps {
   onAddScheduleItem: () => void;
   /** Jumps to the Schedule section (host → nav). */
   onJumpToSchedule: () => void;
-  /** Jumps to the Tasks section (host → nav). */
-  onJumpToTasks: () => void;
+  /** Jumps to the Todos section (host → nav). */
+  onJumpToTodos: () => void;
   /**
    * In-body 朝刊/夕刊 switcher for the NARROW layout (#318). AppShell only
    * renders its header slot on the wide branch, so below 768px the
@@ -211,9 +228,7 @@ function BlockHead({
         {title}
       </h3>
       {hint !== undefined && (
-        <span className="text-xs tracking-wider text-lumen-briefing-kohaku">
-          {hint}
-        </span>
+        <span className={BRIEFING_HINT_CLASS}>{hint}</span>
       )}
       {action}
     </div>
@@ -351,13 +366,17 @@ export function BriefingView({
   intentionText,
   onIntentionChange,
   onIntentionBlur,
+  goals,
+  goalLabels,
+  onGoalChange,
+  onGoalBlur,
   onToggleScheduleItem,
-  onToggleTask,
+  onToggleTodo,
   onDeleteScheduleItem,
-  onDeleteTask,
+  onDeleteTodo,
   onAddScheduleItem,
   onJumpToSchedule,
-  onJumpToTasks,
+  onJumpToTodos,
   tabSwitcher,
 }: BriefingViewProps): React.JSX.Element {
   if (loading) {
@@ -375,6 +394,19 @@ export function BriefingView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
+      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
+          ABOVE the masthead (#879): the band carries the hamburger that
+          opens the drawer (#609), and every other section draws that row at
+          the very top of the page (PageContainer's header slot). Below the
+          title it was Briefing's own header order, one screen out of step
+          with the rest. On the wide layout the slot is undefined, so the
+          paper still opens on its masthead — nothing moves there. */}
+      {tabSwitcher != null && (
+        <div className="border-b border-lumen-border px-2 py-3">
+          {tabSwitcher}
+        </div>
+      )}
+
       {/* ── Masthead — the title and the focus line below deliberately keep
           the newspaper serif (#269) regardless of the Settings font; body
           copy follows the global preference (#556) ────────────────── */}
@@ -386,13 +418,6 @@ export function BriefingView({
           {data.dateLine}
         </p>
       </header>
-
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ────────── */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
 
       {/* ── Focus line ───────────────────────────────────────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
@@ -439,6 +464,17 @@ export function BriefingView({
           placeholder={labels.intentionPlaceholder}
           onChange={onIntentionChange}
           onBlur={onIntentionBlur}
+        />
+      </section>
+
+      {/* ── Standing goals: week → month → year (#872) ───────────── */}
+      <section className="border-b border-lumen-border py-5">
+        <BlockHead title={labels.goalsTitle} />
+        <GoalsBlock
+          values={goals}
+          labels={goalLabels}
+          onChange={onGoalChange}
+          onBlur={onGoalBlur}
         />
       </section>
 
@@ -512,61 +548,61 @@ export function BriefingView({
         )}
       </section>
 
-      {/* ── Today's tasks + purposes ─────────────────────────────── */}
+      {/* ── Today's todos + purposes ─────────────────────────────── */}
       <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.tasksTitle} />
-        {data.tasks.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">{labels.noTasks}</p>
+        <BlockHead title={labels.todosTitle} />
+        {data.todos.length === 0 ? (
+          <p className="text-sm text-lumen-text-secondary">{labels.noTodos}</p>
         ) : (
           <ul>
-            {data.tasks.map((task) => (
+            {data.todos.map((todo) => (
               <li
-                key={task.id}
+                key={todo.id}
                 className="border-b border-dashed border-lumen-border py-2.5 last:border-b-0"
               >
                 <div className="flex items-center gap-2.5">
                   <button
                     type="button"
-                    onClick={() => onToggleTask(task.id)}
+                    onClick={() => onToggleTodo(todo.id)}
                     className="flex min-w-0 items-center gap-2.5 text-left"
                   >
                     <span
                       aria-hidden="true"
                       className={
-                        task.status === "DONE"
+                        todo.status === "DONE"
                           ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
                           : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
                       }
                     >
-                      {task.status === "DONE" && <Check size={11} />}
+                      {todo.status === "DONE" && <Check size={11} />}
                     </span>
                     <span
                       className={
-                        task.status === "DONE"
+                        todo.status === "DONE"
                           ? "text-sm text-lumen-text-secondary line-through"
                           : "text-sm text-lumen-text"
                       }
                     >
-                      {task.title}
+                      {todo.title}
                     </span>
                   </button>
                   <RowActions>
                     <EditJumpButton
-                      onClick={onJumpToTasks}
+                      onClick={onJumpToTodos}
                       label={labels.edit}
-                      hint={labels.jumpToTasks}
+                      hint={labels.jumpToTodos}
                     />
                     <DeleteRowButton
-                      onClick={() => onDeleteTask(task.id)}
+                      onClick={() => onDeleteTodo(todo.id)}
                       label={labels.delete}
-                      hint={labels.deleteTaskHint}
+                      hint={labels.deleteTodoHint}
                     />
                   </RowActions>
                 </div>
-                {task.purposes.length > 0 && (
+                {todo.purposes.length > 0 && (
                   <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
                     <span className="font-semibold text-lumen-briefing-kohaku">
-                      ◈ {task.purposes.join(" ・ ")}
+                      ◈ {todo.purposes.join(" ・ ")}
                     </span>
                   </p>
                 )}
@@ -581,8 +617,8 @@ export function BriefingView({
         <BlockHead title={labels.vizTitle} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <StreakDisplay sessions={data.sessions} labels={streakLabels} />
-          <TaskCompletionTrend
-            nodes={data.taskNodes}
+          <TodoCompletionTrend
+            nodes={data.todoNodes}
             days={7}
             labels={trendLabels}
           />
@@ -611,7 +647,7 @@ export function BriefingView({
                 </span>
                 <button
                   type="button"
-                  onClick={() => onToggleTask(item.id)}
+                  onClick={() => onToggleTodo(item.id)}
                   className="flex min-w-0 items-center gap-2.5 text-left"
                 >
                   <span
@@ -630,13 +666,13 @@ export function BriefingView({
                 </button>
                 {/* Carryover keeps the jump alone: #585 scopes the delete to
                     今日のスケジュール and 今日の Todo, and a carryover row is
-                    a past day's task showing through — deleting it here would
+                    a past day's todo showing through — deleting it here would
                     act on a day the paper is not editing. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToTasks}
+                    onClick={onJumpToTodos}
                     label={labels.edit}
-                    hint={labels.jumpToTasks}
+                    hint={labels.jumpToTodos}
                   />
                 </RowActions>
               </li>

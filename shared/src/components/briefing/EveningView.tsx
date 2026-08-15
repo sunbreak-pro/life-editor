@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Star } from "lucide-react";
+import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
+import { TodoStatusCycleButton } from "../TodoStatusCycleButton";
 import { IntentionField } from "./IntentionField";
 
 /*
@@ -14,17 +16,25 @@ import { IntentionField } from "./IntentionField";
  * double-rule masthead, 朱 (lumen-briefing-shu) for marks, 琥珀
  * (lumen-briefing-kohaku) for annotations — lumen-* tokens only.
  *
- * The remaining-todo and upcoming-schedule blocks are DISPLAY ONLY (F-6:
- * they are never copied into the daily body — analysis reads raw data via
- * get_today_context; the body is the user's own reflection).
+ * Neither the remaining-todo nor the upcoming-schedule block is ever copied
+ * into the daily body (F-6: analysis reads raw data via get_today_context; the
+ * body is the user's own reflection). The todo rows are still ACTIONABLE
+ * though — closing the day means moving things along, and #796 gave them the
+ * same three statuses a Todo has everywhere else in the app.
  */
 
-/** One read-only row of「残りの Todo」(today's unfinished + open carryover). */
+/** One row of「残りの Todo」(today's unfinished + open carryover). */
 export interface EveningTodoEntry {
   id: string;
   title: string;
   /** Optional annotation, e.g. the carryover "N日目" label (host-formatted). */
   meta?: string;
+  /**
+   * Not started / In progress / Done — the Todo's real state, not a boolean
+   * flattening of it (#796). A row moved to DONE **today** stays on the list
+   * struck through rather than vanishing under the finger that tapped it.
+   */
+  status: TodoStatus;
 }
 
 /** One read-only row of「今後の予定」(rest of today + tomorrow). */
@@ -63,6 +73,15 @@ export interface EveningLabels {
   savedCaption: string;
   todosTitle: string;
   noTodos: string;
+  /**
+   * Copy for the per-row status control (#796) — `todoStatus` names what the
+   * button controls, the three `status*` members name each value. Same words
+   * the Todos section uses (todoDetail.*), injected rather than re-worded.
+   */
+  todoStatus: string;
+  statusNotStarted: string;
+  statusInProgress: string;
+  statusDone: string;
   upcomingTitle: string;
   noUpcoming: string;
   tomorrowTag: string;
@@ -100,6 +119,12 @@ export interface EveningViewProps {
   /** Blur while editable — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
   todos: EveningTodoEntry[];
+  /**
+   * Move a todo to the next status straight from the paper (#796). The block
+   * used to draw a checkbox-shaped <span> with nothing listening to it, which
+   * both flattened three states into two and left the row unpressable.
+   */
+  onSetTodoStatus: (id: string, status: TodoStatus) => void;
   schedule: EveningScheduleEntry[];
   labels: EveningLabels;
   /**
@@ -145,6 +170,7 @@ export function EveningView({
   onIntentionChange,
   onIntentionBlur,
   todos,
+  onSetTodoStatus,
   schedule,
   labels,
   tabSwitcher,
@@ -161,6 +187,16 @@ export function EveningView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
+      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
+          ABOVE the masthead (#879), same order as the morning paper: the
+          hamburger row belongs at the top of the screen the way every other
+          section draws it. Undefined on the wide layout — nothing moves. */}
+      {tabSwitcher != null && (
+        <div className="border-b border-lumen-border px-2 py-3">
+          {tabSwitcher}
+        </div>
+      )}
+
       {/* ── Masthead — the title deliberately keeps the newspaper serif
           (#269) regardless of the Settings font; body copy follows the
           global preference (#556) ─────────────────────────────────── */}
@@ -172,13 +208,6 @@ export function EveningView({
           {dateLine}
         </p>
       </header>
-
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ────────── */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
 
       {/* ── Mood (気分: n/5 convention behind the stars) ─────────── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
@@ -261,13 +290,26 @@ export function EveningView({
             {todos.map((todo) => (
               <li
                 key={todo.id}
-                className="flex items-center gap-2.5 border-b border-dashed border-lumen-border py-2 last:border-b-0"
+                className="flex items-center gap-1.5 border-b border-dashed border-lumen-border last:border-b-0"
               >
-                <span
-                  aria-hidden="true"
-                  className="h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
+                {/* 朱 is the user's own action voice on the paper, so the
+                    control wears it rather than the app accent. */}
+                <TodoStatusCycleButton
+                  status={todo.status}
+                  onChange={(next) => onSetTodoStatus(todo.id, next)}
+                  labels={labels}
+                  label={labels.todoStatus}
+                  accentClassName="text-lumen-briefing-shu"
                 />
-                <span className="text-sm text-lumen-text">{todo.title}</span>
+                <span
+                  className={
+                    todo.status === "DONE"
+                      ? "text-sm text-lumen-text-secondary line-through"
+                      : "text-sm text-lumen-text"
+                  }
+                >
+                  {todo.title}
+                </span>
                 {todo.meta !== undefined && (
                   <span className="text-xs font-bold text-lumen-briefing-shu">
                     {todo.meta}
