@@ -1,5 +1,42 @@
 # HISTORY (chat-main)
 
+### 2026-08-15 - #675 の実ブラウザ回帰検証（6 項目 PASS）→ CLOSE + #870 起票
+
+#### 概要
+
+#675（Schedule の巨大ホスト 3 本を責務ごとに分割）の DoD 最終項目「merge 後に chat-main で playwright」を実施し、**6 項目すべて PASS / FAIL 0** で close した。検証中に見つかった既存挙動の不具合 1 件を **#870** として切り出した。
+
+#### 実ブラウザ検証（main `5c86b05b` / dev server 5173）
+
+| 項目                   | 判定   | 実測                                                                                                    |
+| ---------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| 週表示                 | **OK** | 日付ヘッダ 8/9–8/15・00:00–23:00 グリッド・現在時刻ライン・既存 2 件とも正常                            |
+| 月表示                 | **OK** | August 2026 正常。Week ⇄ Month ⇄ Day を往復しても崩れなし                                               |
+| ドラッグ移動           | **OK** | Mon 19:00 → Thu 14:00。リロード後も保持（`PATCH items_meta` / `events_payload` とも 204）               |
+| リサイズ               | **OK** | 下端ハンドルで 14:00–15:00 → 14:00–17:00。リロード後も保持                                              |
+| 繰り返しのスコープ選択 | **OK** | This event only / This and following / All events の 3 つが別々に効いた（下記）                         |
+| Todo の追加と削除      | **OK** | ボード追加（2→3）→ トレイ「Add to today」→ 全日チップ → 時間帯へドラッグで 13:00–14:00 化 → 削除（3→2） |
+
+スコープの内訳: **This event only** = 8/15 だけ改名し 8/14 は不変 / **This and following** = 8/14 で 06:00 に変更 → 8/14・8/15 の両方が 06:00 / **All events** = 8/15 で 05:00 に変更 → 過去側の 8/14 も 05:00。**console error 0 件**（`Invalid hook call` / `Rendered more hooks than…` は一度も出ず）・Supabase **938 リクエストすべて 200/201/204**。
+
+#### 行数の測り方を誤っていた（自己訂正）
+
+前セッションで「`CalendarTab.tsx` が 2,392 → 2,562 行に**増えている**」と報告したが誤り。**分割前の基準を Issue 起票時点の数字にしていた**のが原因で、分割 PR #839 の直前直後で測ると **2,716 → 2,557 行（159 行減）**。起票から分割までの間に別の機能追加（モバイル day-list の Todo 行 #761、詳細パネルからの Todo 削除 #775 ほか）が 300 行以上足していた。**行数の増減を語るときは対象コミットの直前直後で測る** — 文書に書かれた過去の数字を基準にしない。
+
+#### DoD の数え方（コメントに明記した）
+
+- 「`useScheduleMutations` の引数が 28 個から実質半減」は達成扱いにしたが、内訳を残す。`UseScheduleMutationsArgs` が自前で持つのは **12 個**で、繰り返し系 **17 個**（`UseRepeatMutationsArgs` 19 個 − Omit 2 個）は `useRepeatMutations` へそのまま横流し → **ホストが渡す総数は 29 個で減っていない**。「公開インターフェースの diff がゼロ」と表裏の関係
+- 分割成果物のテストは実在: `shared/tests/useWeekTimeGridDrag.test.tsx` / `web/tests/useRepeatMutations.test.tsx` / `web/tests/useScheduleTodoChips.test.tsx` +（`useScheduleItemsAPI` 分割分）`agendaEmptyLabel` / `scheduleCopy` / `scheduleViewModels` / `calendarNavMonthSheet`
+
+#### 新規起票 #870（`type:bug` / `section:schedule`）
+
+時刻変更と繰り返し ON を**同じ Save** で行うと、生成されるルーチンのテンプレート時刻が**変更前**の値になる（当日だけ新時刻・翌日以降が旧時刻）。原因は `web/src/schedule/useRepeatMutations.ts:321` の `const seed = selected;` が下書きではなく確定済みの選択を読む点。**分割前の `useScheduleMutations.ts:628` にも同一行がある**ので #675 の退行ではない（`git show 82614e48^` で確認）。#712 で繰り返し系フィールドだけは「1 回の Save でまとめて渡る」形に直されており、時刻フィールドが取り残されている。
+
+#### 対象外と確認した 2 件（修正不要）
+
+- 繰り返しが翌週に生成されない = `CalendarTab.tsx:1207-1211` のコメントどおりの設計（ナビゲーションは fetch のみで materialize しない）
+- 「This and following」が手編集済みの回に届かない = `SupabaseScheduleItemsService.ts:680` の rule 2「手編集は系列編集に勝つ」どおりの仕様。最初これに引っかかり、汚染のない系列を作り直して再検証した
+
 ### 2026-08-14 - #831 の stacked merge 事故を検出して復旧 + D-20260813-briefing-1 の昇格（#860 起票）
 
 #### 概要
@@ -67,48 +104,5 @@ open Issue 23 件を実測して 11 レーンへ /goal で配り、chat-main 自
 - **`.mcp.json` は変更していない**（Scope 外 + 認証情報はユーザー手番）。併存方式は「検証用エントリをもう 1 本立て、その env でだけ credentials とフラグを渡す」と決め、スニペットを `db-conventions.md` §14 に記載
 - **検証**: mcp-server 12 files / 196 tests・shared 217 / 1980・web 32 / 269・docs-lint すべて exit 0。テストは Supabase をメモリ上の偽テーブルに差し替えて一巡を回す（実 DB には触れない）
 - **注意（実測で踏んだ）**: `npm run build \| tail` は exit code が tail のものになるため、`tsc` 未インストールの失敗が「緑」に見えた。パイプするなら `${PIPESTATUS[0]}` を見る（worktree-policy の既知の罠と同型）
-
-### 2026-08-11 - backlog 一斉棚卸し（Phase 1 並列調査 → Phase 2 実ブラウザ検証 → Phase 3 反映）
-
-#### 概要
-
-chat-main の backlog を 4 体並列の読み取り専用調査 + 実ブラウザ検証 1 体で棚卸しし、Issue 側へ反映した。**実ブラウザは PASS 5 / BLOCKED 3 / FAIL 0・回帰なし**。判断キューの回答 3 件を台帳へ昇格し、実測で浮いた課題 2 件を schedule レーンへ起票（#707 / #708）。**停止条件に 2 件当たったので、#627 の子 Issue 一斉起票と #321 の close は保留**して判断キューへ積んだ。
-
-#### Phase 2 実ブラウザ検証の結果（main = `da9ae58b` / dev server 5173）
-
-| 項目                                               | 判定                               | 実測                                                                                                                                                                                                                                                                 |
-| -------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **#681** blur は下書き保持・保存されない           | **PASS**                           | タイトル変更 → メモ欄へ blur で「Saved」→「Unsaved」・保存ボタン有効化・チップは旧タイトルのまま。Esc で破棄確認 → リロードしても DB は旧値（`items_meta.updated_at` 未更新）                                                                                        |
-| **#681** 保存ボタンで確定する                      | **PASS**                           | 保存 → チップ即更新・「Saved」復帰・ボタン disabled・リロード後も保持（`updated_at` 更新）                                                                                                                                                                           |
-| **#681** 繰り返しは保存ボタンを経由せず即時 commit | **PASS**（PR 記載どおりの caveat） | 未編集状態で「Daily」を押しただけで `POST items_meta` → `POST routines_payload` → `PATCH events_payload` → オカレンス一括 INSERT。表示は「Saved」のまま・Undo も無効                                                                                                 |
-| **#684** Event ⇄ Todo 変換で id 維持               | **PASS**                           | 往復とも `schedule-b7d3c2d2-5ce2-48a3-ae03-9b18671f8e3f` で完全一致（`PATCH items_meta` で role のみ差し替え）                                                                                                                                                       |
-| **#684** routine 由来は「変換は不可能です」        | **PASS**                           | 文言完全一致・書き込みリクエスト 0 件。ただし**ネイティブ `window.alert`**（`web/src/schedule/CalendarTab.tsx:1818`）→ #707 起票                                                                                                                                     |
-| **#684** 子を持つ Todo の変換拒否                  | **BLOCKED**                        | 子 Todo を作る UI が無く再現不可（`shared/src/components/TaskAddDialog.tsx:72` が常に `parentId: null`・既存データにも `parent_item_id` 0 件）。入れ子は #418 で退役済みなので到達不能な分岐                                                                         |
-| **#686** routine 作成の undo                       | **BLOCKED**                        | `createRoutine`（undo を積む唯一の関数 = `shared/src/hooks/useRoutinesAPI.ts:81,129`）の呼び出しが `web/src/` に 0 件。UI からの繰り返し作成は `convertEventToRoutine` 経由で意図的に undo なし（`useRoutinesAPI.ts:344-350`）                                       |
-| **#686** routine 更新の undo + 翻訳トースト        | **PASS**                           | 「毎日」→「曜日」を Undo で `frequency_type: daily` に復元。トースト「元に戻しました: 繰り返しの変更」= 生キーではない                                                                                                                                               |
-| **#686** routine 削除の undo + 翻訳トースト        | **PASS**（ただし要判断）           | `is_deleted: false` に戻りリスト復帰・トースト「元に戻しました: 繰り返しの削除」。**戻るのはルーチン行だけ**で、種イベント（`schedule-b7d3c2d2`）と元オカレンス（`si-1fe619b3` / `si-25634b94`）は削除済みのまま、当日分が新 id（`si-9d18df3c`）で再生成 → #708 起票 |
-
-console error は操作区間で 0 件（warning は `apple-mobile-web-app-capable` の deprecation のみ）。テストデータは全てゴミ箱送り・言語設定は English へ復帰済み。**保存ボタン経路に回帰なし**。
-
-#### Phase 1 調査の結果
-
-- **#587（Notes 神ファイル分割）**: 実測 `useNotesUnifiedAPI.ts` 967 → **431 行**、`SupabaseNotesUnifiedService.ts` 842 → **303 行**（PR #642 / #647 で着地）。DoD 1〜3 はコードで満たされる（公開 IF diff・呼び出し側 diff ともに `git show --stat` が空）。**落ちているのは DoD 4 だけ** = `notesUnifiedHelpers.ts`（220 行・純粋関数 11 本）のテスト参照が repo 全体で 0 件、`useNotesUnifiedCRUD.ts`（374 行）に専用テストなし → **open のまま維持**
-- **#627（保存ボタン統一 Epic）**: 起票時 5 行 → 実測 **19 行**（追加 12 / 削除 0 / 記述訂正 1）。Schedule は PR #681 で save-button 化済みだが繰り返しだけ immediate = 厳密には mixed。Settings 4 パネルは immediate だが**書き込み先が localStorage で DataService 非経由**。Briefing / Tags 画面は起票時に丸ごと抜けていた。`TaskDetailPanel` の Tasks / Schedule 両用は確認（実描画は `KanbanView.tsx:532` と `CalendarTab.tsx:2178` の 2 箇所のみ）
-- **#290（Schedule redesign Epic）**: Step 2〜7 が**コード上 9/9 DONE**・本文チェックボックスと実装の乖離なし・子 Issue 9 件すべて CLOSED。残は実ブラウザ検証のみ
-- **#321（Mobile UI/UX Epic）**: コード 8/8 DONE・子 Issue 11 件すべて CLOSED。ただし本文が想定しない open が 5 件（#691 / #692 と mobile 裁定 3 件）
-- **#512（パレット safe-area）**: 未着手。`CommandPalette.tsx:206-216` は `paddingTop: viewport.height * 0.12` のままで safe-area 参照なし。本文の引用行番号がドリフト（`:158-164` → 実際は `:206-216`）
-- **#530（Windows desktop）**: `cd desktop && npm run typecheck` / `npm run build` とも **exit 0**。`desktop/.env` は不在で、**`web/.env.local` は desktop ビルドに効かない**（electron-vite の `envDir` が `desktop/`）。今ある成果物は資格情報が `undefined` に置換されており、ログインすると落ちる。インストール済み実体は 08-02 04:17 UTC ビルドで **#548 の修正より前**なのでインストーラ作り直しが先
-
-#### 反映
-
-- Issue コメント: #587 / #290 / #512 / #530 / #321。**#627 は本文ごと実測表へ差し替え**（DoD 1・2 を [x] 化）
-- **判断キューの回答 3 件を台帳へ昇格**（`records.mjs index` 同一コミット）: **D-20260809-main-2 = A**（`records.mjs` に archive スキャンを足して `archive/INDEX.md` を生成）/ **D-20260804-main-1 = A**（Windows タスクスケジューラ + `claude -p` で 06:03・22:33 に発火）/ **D-20260810-main-3 = A**（STALE スキル 5 本を現行アーキで書き直す）
-- **新規起票**: **#707**（変換の確認・拒否をネイティブ dialog から in-app へ）/ **#708**（繰り返し削除の Undo で種イベントとオカレンスが戻らない — 方式 A/B/C の裁定が先）。どちらも `section:schedule` 単一レーン
-- **停止条件 2 件を判断キューへ**: **D-20260811-main-1**（#627 の対象範囲 — Settings / Briefing / 作成フォームを含めるか。差が 2 行を大きく超えたため子 Issue の一斉起票を保留）/ **D-20260811-main-2**（#321 のスコープ確定 — #692 は完了済み #467 の巻き戻しを含むため close 前に裁定が要る）
-
-#### 判明した運用上の事実
-
-- **`chore/tracker-main-20260811` は使えなかった**: 別 worktree（harness-loop）が占有中で、かつその PR #682 は既に MERGED。merge 済み PR のブランチへ後追い push しても main に届かないため、**`chore/tracker-main-20260811-2` を新設**した
-- サブエージェントの引用は全数スポットチェックした（`EventEditorPane.tsx:589` / `TaskDetailPanel.tsx:85,87` / `CommandPalette.tsx:206-216` / `useCalendarNav.ts:32` / `BriefingScreen.tsx:66` / `MobileShellActions.tsx:51-70` / `CalendarTab.tsx:1818` / `useRoutinesAPI.ts:344-350` / `TaskAddDialog.tsx:72` ほか）。**存在しない引用はゼロ**
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
