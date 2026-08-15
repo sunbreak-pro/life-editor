@@ -1,5 +1,19 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-16 - Issue sweep 開始 — 取り残しコミットの回収（PR #921）と #891 の 1 本目（PR #922）
+
+#### 概要
+
+自分宛の 4 本（#891 → #890 → #895 → #894）を消化する sweep に着手した。着手前の main 取り込みで、**PR #846 が merge された後に同ブランチへ push した 1 コミットが main に届いていない**ことが分かったので先に拾い直した。続けて #891 の 1 本目 `useTodoTreeAPI` を `useDomainLoad` へ載せ替えた。載せ替えは単純な差し替えでは済まず、そのままだと Kanban ボードが編集のたびに一瞬消える挙動変更になるため、共通フック側にオプトインを 1 つ足して回避した。
+
+#### 変更点
+
+- **取り残しコミットの回収（PR #921）**: `shared/tests/useDomainLoad.test.tsx`（188 行）+ 計画書 §C5 の Worklog 追記。merge 済み PR への後追い push だったため main に反映されていなかった。現在の main 取り込み後に実測して 4 passed を確認してから出し直した
+- **#891 の 1 本目（PR #922）**: `useTodoTreeAPI` の自前 load effect を撤去し `useDomainLoad` へ。`isLoading` / `error` の `useState` が消え、`isLoading` は settled 比較による導出値になった。**#296 の error un-latch がこのフックに初めて行き渡る**（従来は `error` を null に戻す経路が無く、一度失敗するとセッション終了までエラーが残った）
+- **`useDomainLoad` に `refetchReportsLoading`（既定 true）**: 既に載っている 3 本は挙動据え置き。TodoTree だけ false を渡す。旧 effect は `isLoading` を false に落とすだけで true に戻さないため再取得中もボードが出たままだったのに対し、`useDomainLoad` の既定は再取得中も true を返し `KanbanView` はその間ボードごとスケルトンに差し替える（`web/src/todos/KanbanView.tsx:643`）。Realtime は自分の書き込みも echo する（`shared/src/context/syncDomains.ts:9`）ので、既定のままなら編集のたびに板が消えていた。タググラフ（#300）も同じ性質なので後続 PR で再利用できる
+- **新規 `shared/tests/todoTreeLoadEffect.test.tsx`（6 ケース）**: 3 状態 / ドメイン単位の再取得（#499）/ 失敗しても settle する / #296 の un-latch / 再取得中もボードを消さない。最後の 1 件は `refetchReportsLoading` を落とすと実際に落ちることを実測で確認
+- **検証**: shared build・lint（error 0）・test 238 files 2,198 tests、web lint（error 0）・build・test 46 files 408 tests。`desktop/` は未変更のため対象外
+
 ### 2026-08-13 - C5（#672）を締める — 実装は着手前に着地済みで、残っていたのは共通基盤自体のテストだった（PR #846 open）
 
 #### 概要
