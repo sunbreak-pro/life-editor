@@ -90,6 +90,71 @@ function localTime(d: Date): string {
 }
 
 /**
+ * WHEN one todo sits on the calendar — the local day and span a chip would be
+ * drawn on, or null when the todo is not scheduled at all.
+ *
+ * #877 split this out of `todosToCalendarChips` so a surface that only wants to
+ * SAY when a todo is (the detail panel's schedule row) reads the same answer
+ * the grid draws. The rules below are not obvious enough to restate: an absent
+ * end means a 60-minute block, and a degenerate span becomes all-day. A second
+ * implementation would agree on the easy cases and disagree exactly on those
+ * two — the panel would read "13:00–13:00" under a chip sitting in the all-day
+ * lane.
+ */
+export interface TodoScheduleSlot {
+  /** Local YYYY-MM-DD of `scheduledAt`. */
+  date: string;
+  /** Local HH:MM start ("00:00" for all-day). */
+  startTime: string;
+  /** Local HH:MM end ("00:00" for all-day). */
+  endTime: string;
+  isAllDay: boolean;
+}
+
+/** Where a todo sits on the calendar, or null when it carries no schedule. */
+export function todoScheduleSlot(todo: TodoNode): TodoScheduleSlot | null {
+  if (todo.scheduledAt == null) return null;
+  const start = new Date(todo.scheduledAt);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const date = localDateKey(start);
+  const allDay: TodoScheduleSlot = {
+    date,
+    startTime: "00:00",
+    endTime: "00:00",
+    isAllDay: true,
+  };
+  if (todo.isAllDay === true) return allDay;
+
+  // Timed todo: local start; end from scheduledEndAt or a default 60-min block.
+  let end: Date;
+  if (todo.scheduledEndAt != null) {
+    const parsed = new Date(todo.scheduledEndAt);
+    end = Number.isNaN(parsed.getTime())
+      ? new Date(start.getTime() + DEFAULT_DURATION_MIN * 60_000)
+      : parsed;
+  } else {
+    end = new Date(start.getTime() + DEFAULT_DURATION_MIN * 60_000);
+  }
+
+  // Rescue (#562): a degenerate span (end instant <= start instant, e.g. the
+  // 00:00/00:00 rows an unclamped lane drop used to write) has no drawable
+  // block — the grid renders inverted HH:MM as a full-day band that todo
+  // chips offer no way to open. Surface it as an all-day candidate instead:
+  // that chip can be re-placed by drag, and the tray/todos side can edit it.
+  // A legitimate overnight span (end on the NEXT day) has end > start and is
+  // untouched.
+  if (end.getTime() <= start.getTime()) return allDay;
+
+  return {
+    date,
+    startTime: localTime(start),
+    endTime: localTime(end),
+    isAllDay: false,
+  };
+}
+
+/**
  * Convert scheduled todos into calendar chips whose LOCAL date falls within the
  * inclusive [rangeStartKey, rangeEndKey] window (YYYY-MM-DD strings compare
  * lexicographically = chronologically). Only todos with `scheduledAt` set are
@@ -103,69 +168,17 @@ export function todosToCalendarChips(
 ): TodoCalendarChip[] {
   const chips: TodoCalendarChip[] = [];
   for (const todo of todos) {
-    if (todo.scheduledAt == null) continue;
     if (todo.isDeleted) continue;
-    const start = new Date(todo.scheduledAt);
-    if (Number.isNaN(start.getTime())) continue;
-
-    const date = localDateKey(start);
+    const slot = todoScheduleSlot(todo);
+    if (slot == null) continue;
     // Multi-day spans: chip on the start date only (keep it simple for A-1).
-    if (date < rangeStartKey || date > rangeEndKey) continue;
-
-    const completed = todo.status === "DONE";
-
-    if (todo.isAllDay === true) {
-      chips.push({
-        id: todo.id,
-        date,
-        title: todo.title,
-        startTime: "00:00",
-        endTime: "00:00",
-        isAllDay: true,
-        completed,
-      });
-      continue;
-    }
-
-    // Timed todo: local start; end from scheduledEndAt or a default 60-min block.
-    let end: Date;
-    if (todo.scheduledEndAt != null) {
-      const parsed = new Date(todo.scheduledEndAt);
-      end = Number.isNaN(parsed.getTime())
-        ? new Date(start.getTime() + DEFAULT_DURATION_MIN * 60_000)
-        : parsed;
-    } else {
-      end = new Date(start.getTime() + DEFAULT_DURATION_MIN * 60_000);
-    }
-
-    // Rescue (#562): a degenerate span (end instant <= start instant, e.g. the
-    // 00:00/00:00 rows an unclamped lane drop used to write) has no drawable
-    // block — the grid renders inverted HH:MM as a full-day band that todo
-    // chips offer no way to open. Surface it as an all-day candidate instead:
-    // that chip can be re-placed by drag, and the tray/todos side can edit it.
-    // A legitimate overnight span (end on the NEXT day) has end > start and is
-    // untouched.
-    if (end.getTime() <= start.getTime()) {
-      chips.push({
-        id: todo.id,
-        date,
-        title: todo.title,
-        startTime: "00:00",
-        endTime: "00:00",
-        isAllDay: true,
-        completed,
-      });
-      continue;
-    }
+    if (slot.date < rangeStartKey || slot.date > rangeEndKey) continue;
 
     chips.push({
       id: todo.id,
-      date,
       title: todo.title,
-      startTime: localTime(start),
-      endTime: localTime(end),
-      isAllDay: false,
-      completed,
+      completed: todo.status === "DONE",
+      ...slot,
     });
   }
   return chips;

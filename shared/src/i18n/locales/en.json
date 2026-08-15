@@ -220,6 +220,8 @@
     "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
     "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "status": "Status",
+    "schedule": "Scheduled",
+    "scheduleNone": "Not scheduled",
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
     "statusDone": "Done",
