@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   BriefingView,
+  BriefingVizPanel,
   EveningView,
   type BriefingData,
   type BriefingLabels,
@@ -31,7 +32,6 @@ const LABELS: BriefingLabels = {
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
-  vizTitle: "VIZ",
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
   edit: "Edit",
@@ -120,9 +120,6 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       loading={false}
       data={DATA}
       labels={LABELS}
-      streakLabels={STREAK_LABELS}
-      trendLabels={TREND_LABELS}
-      balanceLabels={BALANCE_LABELS}
       intentionText=""
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
@@ -399,6 +396,65 @@ describe("Merged today's-schedule block (#939)", () => {
       },
     });
     expect(screen.getByText(/Ship the quarter/)).toBeTruthy();
+  });
+});
+
+/*
+ * #938 —「きのうまでの自分」left the paper's column for the shared detail
+ * panel. The paper must no longer print it (nor take the widget labels), and
+ * the panel component must render the same three widgets from the same
+ * BriefingData the paper is fed.
+ */
+describe("Visual zone moved to the detail panel (#938)", () => {
+  it("no longer prints the visual zone on the paper", () => {
+    renderView();
+    expect(screen.queryByText("Streak")).toBeNull();
+    expect(screen.queryByText("Trend")).toBeNull();
+    expect(screen.queryByText("Balance")).toBeNull();
+  });
+
+  it("leaves carryover as the paper's last section, unruled", () => {
+    const { container } = renderView();
+    const sections = container.querySelectorAll("section");
+    const last = sections[sections.length - 1]!;
+    expect(last.textContent).toContain("CARRYOVER");
+    // The rule above it is the previous section's border-b — a border of its
+    // own would double the line now that the viz section is gone.
+    expect(last.className).not.toContain("border-t");
+    expect(last.className).not.toContain("border-b");
+  });
+
+  it("renders the three widgets in the panel under one heading", () => {
+    render(
+      <BriefingVizPanel
+        sessions={[]}
+        todoNodes={[]}
+        title="VIZ"
+        streakLabels={STREAK_LABELS}
+        trendLabels={TREND_LABELS}
+        balanceLabels={BALANCE_LABELS}
+      />,
+    );
+    expect(screen.getByText("VIZ")).toBeTruthy();
+    expect(screen.getByText("Streak")).toBeTruthy();
+    expect(screen.getByText("Trend")).toBeTruthy();
+    expect(screen.getByText("Balance")).toBeTruthy();
+  });
+
+  it("stacks the panel in one column (the well is ~320px)", () => {
+    const { container } = render(
+      <BriefingVizPanel
+        sessions={[]}
+        todoNodes={[]}
+        title="VIZ"
+        streakLabels={STREAK_LABELS}
+        trendLabels={TREND_LABELS}
+        balanceLabels={BALANCE_LABELS}
+      />,
+    );
+    // The paper laid these out `sm:grid-cols-2`; at panel width that squeezes
+    // each chart below what its axis labels need.
+    expect(container.querySelectorAll(".sm\\:grid-cols-2")).toHaveLength(0);
   });
 });
 
