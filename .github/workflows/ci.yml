@@ -98,15 +98,23 @@ jobs:
         run: npm run test
         working-directory: web
 
-      # desktop = Electron 殻（#529 で追加）: 型検査 + electron-vite build。
-      # renderer root は ../web なので上の web — install が前提（web/node_modules
-      # から renderer 依存を解決する）。electron-builder パッケージングは回さない
-      # （理由はファイル冒頭コメント）
+      # desktop = Electron 殻（#529 で追加）: 型検査 + vitest + electron-vite
+      # build。renderer root は ../web なので上の web — install が前提
+      # （web/node_modules から renderer 依存を解決する）。electron-builder
+      # パッケージングは回さない（理由はファイル冒頭コメント）。
+      # test は #894 で追加: 型検査と build はどちらも「main と preload が同じ
+      # チャネル名を使っているか」を見られない（文字列リテラル同士で型が繋がら
+      # ないため、片方だけ改名しても両方通る）。tests/ipcContract.test.ts が
+      # ../../shared/src の型を直 import している点は mcp-server と同じ意図的な
+      # 結合で、authStorage の署名がどちらかで動いたら typecheck が落ちる。
       - name: desktop — install
         run: npm ci
         working-directory: desktop
       - name: desktop — typecheck
         run: npm run typecheck
+        working-directory: desktop
+      - name: desktop — test (vitest)
+        run: npm run test
         working-directory: desktop
       - name: desktop — build (electron-vite build)
         run: npm run build
