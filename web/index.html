@@ -21,9 +21,15 @@
       Both the manifest and the Apple-specific tags are needed: iOS Safari
       still honours `apple-mobile-web-app-*` + `apple-touch-icon` rather than
       reading them off the manifest.
+
+      `mobile-web-app-capable` and its `apple-` twin are likewise both needed,
+      not either/or (#947): Chrome reads the standard name only and logs a
+      deprecation warning when it finds just the Apple one, while iOS Safari
+      reads only the Apple one. Dropping either side loses a platform.
     -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Life Editor" />
     <!--
