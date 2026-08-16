@@ -23,7 +23,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
-import { RichTextEditor } from "../notes/RichTextEditor";
+import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
 import { useGoalsDoc } from "./hooks/useGoalsDoc";
@@ -534,7 +534,7 @@ export function BriefingScreen({
           mood={eveningMood}
           onSelectMood={handleSelectMood}
           editorSlot={
-            <RichTextEditor
+            <LazyRichTextEditor
               key={`evening:${todayKey}:${eveningGen}`}
               noteId={`evening-${todayKey}`}
               initialContent={eveningStored.bodyDocJson ?? undefined}

@@ -120,7 +120,8 @@ interface RichTextEditorBaseProps {
   onCreateNoteForLink?: (label: string) => Promise<{ id: string } | null>;
 }
 
-type RichTextEditorProps = RichTextEditorBaseProps & RichTextEditorPersistence;
+export type RichTextEditorProps = RichTextEditorBaseProps &
+  RichTextEditorPersistence;
 
 function tryParseJSON(str: string): Record<string, unknown> | string {
   try {

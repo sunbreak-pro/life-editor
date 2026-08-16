@@ -150,6 +150,13 @@ async function renderEvening(wide: boolean) {
     </SyncContext.Provider>,
   );
   await waitFor(() => expect(screen.getByText("CLOSING THE DAY")).toBeTruthy());
+  // The editor arrives on its own chunk since #991, so the masthead can be on
+  // screen a tick before `.tiptap` exists. Every test below drives real
+  // ProseMirror DOM, so waiting for it here rather than in each one keeps the
+  // failure ("editor did not mount") from meaning two different things.
+  await waitFor(() =>
+    expect(view.container.querySelector(".tiptap")).toBeTruthy(),
+  );
   return { ...view, read };
 }
 

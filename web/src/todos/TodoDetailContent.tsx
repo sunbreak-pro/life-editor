@@ -8,7 +8,7 @@ import {
 } from "@life-editor/shared";
 import { TodoBodyDraft } from "./TodoBodyDraft";
 import { type useTodoLinking } from "./hooks/useTodoLinking";
-import { RichTextEditor } from "../notes/RichTextEditor";
+import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { TagPicker } from "../wikitag/TagPicker";
 
 export interface TodoDetailContentProps {
@@ -108,7 +108,7 @@ export function TodoDetailContent({
               <TagPicker itemId={todo.id} itemRole="task" showLabel size="sm" />
             }
             contentEditor={
-              <RichTextEditor
+              <LazyRichTextEditor
                 noteId={todo.id}
                 initialContent={todo.content || undefined}
                 // #713: draft, not auto-save. `onDraftChange` (instead of
