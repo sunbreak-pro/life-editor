@@ -100,14 +100,14 @@
       "description": "The account you are signed in to, and where you change its password.",
       "emailLabel": "Signed in as",
       "newPassword": "New password",
-      "newPasswordHelper": "At least 6 characters",
+      "newPasswordHelper": "At least {{min}} characters",
       "confirmPassword": "New password (again)",
       "submit": "Change password",
       "busy": "Changing…",
       "done": "Password changed. Use the new one the next time you sign in.",
       "errors": {
         "mismatch": "The two passwords do not match",
-        "tooShort": "Use at least 6 characters",
+        "tooShort": "Use at least {{min}} characters",
         "samePassword": "That is the password you already have. Choose a different one.",
         "generic": "Could not change the password. Please wait a moment and try again."
       }
@@ -887,7 +887,7 @@
     "email": "Email address",
     "emailPlaceholder": "you@example.com",
     "password": "Password",
-    "passwordHelper": "At least 6 characters",
+    "passwordHelper": "At least {{min}} characters",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "busy": "Working…",
@@ -907,7 +907,7 @@
       "heading": "Set a new password",
       "description": "You reached this from the reset link. Enter a new password to finish.",
       "newPassword": "New password",
-      "newPasswordHelper": "At least 6 characters",
+      "newPasswordHelper": "At least {{min}} characters",
       "confirmPassword": "New password (again)",
       "submit": "Set the password",
       "busy": "Saving…"

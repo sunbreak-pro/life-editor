@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AuthCard, type AuthCardLabels } from "../src/components";
+import { PASSWORD_MIN_LENGTH } from "../src/constants/password";
 
 /*
  * Shell-independent pre-login card (target-IA D8). Mode toggle + email /
@@ -17,7 +18,7 @@ const LABELS: AuthCardLabels = {
   email: "Email address",
   emailPlaceholder: "you@example.com",
   password: "Password",
-  passwordHelper: "At least 6 characters",
+  passwordHelper: `At least ${PASSWORD_MIN_LENGTH} characters`,
   showPassword: "Show password",
   hidePassword: "Hide password",
   busy: "Working…",
@@ -114,6 +115,25 @@ describe("AuthCard", () => {
     expect(
       screen.queryByRole("button", { name: "Forgot your password?" }),
     ).toBeNull();
+  });
+
+  it("leaves the new-password floor off sign-in mode", () => {
+    // The account's existing password predates every raise of the minimum
+    // (#956). Enforced here, the browser would refuse to submit the real
+    // password and strand the owner outside their own account; the helper
+    // line would also be stating a rule that does not apply to it.
+    renderCard();
+    expect(screen.getByLabelText("Password")).not.toHaveAttribute("minlength");
+    expect(screen.queryByText(LABELS.passwordHelper)).toBeNull();
+  });
+
+  it("enforces and states the floor in sign-up mode", () => {
+    renderCard({ mode: "signUp" });
+    expect(screen.getByLabelText("Password")).toHaveAttribute(
+      "minlength",
+      String(PASSWORD_MIN_LENGTH),
+    );
+    expect(screen.getByText(LABELS.passwordHelper)).toBeInTheDocument();
   });
 
   it("shows the error band as an alert", () => {

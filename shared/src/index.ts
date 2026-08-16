@@ -22,6 +22,8 @@ export {
   type AuthResult,
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";
+// The password floor the screens enforce and the en / ja copy quotes (#956).
+export { PASSWORD_MIN_LENGTH } from "./constants/password";
 
 // Section registry (SSOT) — target-IA section list + derived nav views.
 // Hosts import these instead of hand-maintaining parallel section lists.
