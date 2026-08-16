@@ -96,7 +96,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   defineTool({
     name: "list_todos",
     description:
-      "List todos. Optionally filter by status (not_started/in_progress/done), date_range, or parent_id. " +
+      "List todos. Optionally filter by status (not_started/done), date_range, or parent_id. " +
       "Returns { todos, total, hasMore }: each entry carries a short contentPreview, not the whole body. " +
       "Use get_todo for one todo's full content, or include_content:true to get every body in the page.",
     inputSchema: {
@@ -104,7 +104,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {
         status: {
           type: "string",
-          enum: ["not_started", "in_progress", "done"],
+          enum: ["not_started", "done"],
           description: "Filter by todo status",
         },
         date_range: {
@@ -175,7 +175,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         is_all_day: { type: "boolean", description: "All-day event" },
         status: {
           type: "string",
-          enum: ["not_started", "in_progress", "done"],
+          enum: ["not_started", "done"],
           description: "Initial status (default: not_started)",
         },
         content: {
@@ -199,7 +199,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         title: { type: "string", description: "New title" },
         status: {
           type: "string",
-          enum: ["not_started", "in_progress", "done"],
+          enum: ["not_started", "done"],
           description: "New status",
         },
         scheduled_at: {
@@ -1000,7 +1000,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
               },
               status: {
                 type: "string",
-                enum: ["not_started", "in_progress", "done"],
+                enum: ["not_started", "done"],
                 description: "Todo status (todo only, default: not_started)",
               },
               start_time: {

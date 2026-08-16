@@ -240,7 +240,6 @@
     "schedule": "日時",
     "scheduleNone": "未設定",
     "statusNotStarted": "未着手",
-    "statusInProgress": "進行中",
     "statusDone": "完了",
     "content": "メモ",
     "tags": "タグ",

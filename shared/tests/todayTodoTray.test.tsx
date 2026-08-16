@@ -106,18 +106,17 @@ describe("TodayTodoTray #555 surfaces", () => {
 });
 
 /*
- * #796 — the tray's opt-in three-status control.
+ * #796 — the tray's opt-in status control (two-valued since #873).
  *
- * Briefing shows Not started / In progress / Done on its paper, so the tray it
- * mounts beside that paper has to say the same thing about a Todo. Schedule
- * has not asked for it, so the binary checkbox stays the default: leaving
- * `onSetStatus` off must change nothing there, which is what the "absent" case
- * below is for.
+ * Briefing shows Not started / Done on its paper, so the tray it mounts beside
+ * that paper has to say the same thing about a Todo — and write the same field.
+ * Schedule has not asked for it, so its own `completed` checkbox stays the
+ * default: leaving `onSetStatus` off must change nothing there, which is what
+ * the "absent" case below is for.
  */
-describe("TodayTodoTray three-status rows (#796)", () => {
+describe("TodayTodoTray status rows (#796)", () => {
   const statusLabels = {
     statusNotStarted: "Not started",
-    statusInProgress: "In progress",
     statusDone: "Done",
   };
   const statusRows = {
@@ -127,7 +126,7 @@ describe("TodayTodoTray three-status rows (#796)", () => {
         title: "Placed",
         timeLabel: "09:00",
         completed: false,
-        status: "IN_PROGRESS" as const,
+        status: "NOT_STARTED" as const,
       },
     ],
     unplaced: [
@@ -157,16 +156,16 @@ describe("TodayTodoTray three-status rows (#796)", () => {
     return { onSetStatus, onToggleComplete };
   }
 
-  it("replaces the checkbox with the status control", () => {
+  it("replaces the completed checkbox with the status control", () => {
     renderTray();
     expect(screen.queryByLabelText("complete")).toBeNull();
-    expect(screen.getByLabelText("Status: In progress")).toBeTruthy();
+    expect(screen.getByLabelText("Status: Not started")).toBeTruthy();
     expect(screen.getByLabelText("Status: Done")).toBeTruthy();
   });
 
   it("reports the status the press lands on", () => {
     const { onSetStatus, onToggleComplete } = renderTray();
-    fireEvent.click(screen.getByLabelText("Status: In progress"));
+    fireEvent.click(screen.getByLabelText("Status: Not started"));
     expect(onSetStatus).toHaveBeenCalledWith("task-1", "DONE");
     fireEvent.click(screen.getByLabelText("Status: Done"));
     expect(onSetStatus).toHaveBeenCalledWith("task-2", "NOT_STARTED");

@@ -28,7 +28,7 @@ describe("create_todo no longer needs a second call", () => {
 
   it("keeps status on the same vocabulary update_todo uses", () => {
     const status = props("create_todo").status as { enum?: string[] };
-    expect(status.enum).toEqual(["not_started", "in_progress", "done"]);
+    expect(status.enum).toEqual(["not_started", "done"]);
   });
 
   it("still needs nothing but a title", () => {

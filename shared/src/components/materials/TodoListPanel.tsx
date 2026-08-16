@@ -37,14 +37,12 @@ const VIEW_ICON: Record<KanbanViewMode, LucideIcon> = {
 // Status cue glyph — symbols, not copy (mirrors TodoDetailPanel's STATUS_GLYPH).
 const STATUS_GLYPH: Record<TodoStatus, string> = {
   NOT_STARTED: "○",
-  IN_PROGRESS: "◐",
   DONE: "●",
 };
 
 // Status band accent (design tokens — same CSS vars buildColumns uses).
 const STATUS_BAND: Record<TodoStatus, string> = {
   NOT_STARTED: "var(--color-status-todo-band)",
-  IN_PROGRESS: "var(--color-status-progress-band)",
   DONE: "var(--color-status-done-band)",
 };
 
@@ -56,7 +54,6 @@ export interface TodoListPanelLabels {
   groupingGroupLabel: string;
   /** Status label per status (row aria — paired with the glyph). */
   statusNotStarted: string;
-  statusInProgress: string;
   statusDone: string;
   /** Group collapse toggle aria (expanded → collapseGroup, collapsed → expandGroup). */
   expandGroup: string;

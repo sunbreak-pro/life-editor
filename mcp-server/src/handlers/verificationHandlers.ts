@@ -125,7 +125,7 @@ const BUSY_DAY: SeedItemArg[] = [
     status: "not_started",
     start_time: "14:00",
   },
-  { kind: "task", title: "日付なしの Todo", status: "in_progress" },
+  { kind: "task", title: "日付なしの Todo", status: "not_started" },
 ];
 
 const PRESETS: Record<string, SeedItemArg[]> = { busy_day: BUSY_DAY };

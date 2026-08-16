@@ -250,7 +250,6 @@ export function BriefingScreen({
       // the same three values (#796).
       todoStatus: t("todoDetail.status"),
       statusNotStarted: t("todoDetail.statusNotStarted"),
-      statusInProgress: t("todoDetail.statusInProgress"),
       statusDone: t("todoDetail.statusDone"),
       upcomingTitle: t("briefing.evening.upcomingTitle"),
       noUpcoming: t("briefing.evening.noUpcoming"),
@@ -404,7 +403,6 @@ export function BriefingScreen({
       status: t("todoDetail.status"),
       statusLabels: {
         statusNotStarted: t("todoDetail.statusNotStarted"),
-        statusInProgress: t("todoDetail.statusInProgress"),
         statusDone: t("todoDetail.statusDone"),
       },
     }),

@@ -25,9 +25,9 @@ describe("pickAddableTodos (#298)", () => {
   it("excludes DONE todos", () => {
     const done = makeTodo({ id: "a", status: "DONE" });
     const notStarted = makeTodo({ id: "b", status: "NOT_STARTED" });
-    const inProgress = makeTodo({ id: "c", status: "IN_PROGRESS" });
+    const unset = makeTodo({ id: "c", status: undefined });
     expect(
-      pickAddableTodos([done, notStarted, inProgress]).map((x) => x.id),
+      pickAddableTodos([done, notStarted, unset]).map((x) => x.id),
     ).toEqual(["b", "c"]);
   });
 

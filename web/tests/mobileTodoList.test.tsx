@@ -27,7 +27,6 @@ const CARD_LABELS: KanbanLabels = {
   viewTag: "By tag",
   segmentedGroupLabel: "Switch view",
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
   emptyColumn: "No todos here yet",
@@ -41,7 +40,6 @@ const CARD_LABELS: KanbanLabels = {
 
 const LABELS = {
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   filterLabel: "Filter by status",
   detailTitle: "Todo details",
@@ -61,16 +59,10 @@ const COLUMNS: KanbanColumnModel[] = [
     cards: [{ id: "task-a", title: "Buy milk", status: "NOT_STARTED" }],
   },
   {
-    id: "status-IN_PROGRESS",
-    title: "In progress",
-    statusKind: "IN_PROGRESS",
-    cards: [{ id: "task-b", title: "Write the plan", status: "IN_PROGRESS" }],
-  },
-  {
     id: "status-DONE",
     title: "Done",
     statusKind: "DONE",
-    cards: [],
+    cards: [{ id: "task-b", title: "Write the plan", status: "DONE" }],
   },
 ];
 
@@ -156,17 +148,21 @@ describe("MobileTodoList status filter", () => {
       screen.getByRole("button", { name: "Buy milk — Not started" }),
     ).not.toBeNull();
 
-    pickFilter("In progress");
+    pickFilter("Done");
     expect(
       screen.queryByRole("button", { name: "Buy milk — Not started" }),
     ).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Write the plan — In progress" }),
+      screen.getByRole("button", { name: "Write the plan — Done" }),
     ).not.toBeNull();
   });
 
   it("shows the empty state when the picked status has no cards", () => {
-    renderList();
+    renderList({
+      statusColumns: COLUMNS.map((c) =>
+        c.statusKind === "DONE" ? { ...c, cards: [] } : c,
+      ),
+    });
     pickFilter("Done");
     expect(screen.getByText("No todos yet")).not.toBeNull();
   });

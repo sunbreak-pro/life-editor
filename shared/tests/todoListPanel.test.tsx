@@ -17,7 +17,6 @@ const LABELS: TodoListPanelLabels = {
   viewTag: "Tag",
   groupingGroupLabel: "Group by",
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   expandGroup: "Expand group",
   collapseGroup: "Collapse group",
@@ -33,7 +32,7 @@ const COLUMNS: KanbanColumnModel[] = [
     accentColor: "var(--color-status-todo-band)",
     cards: [
       { id: "task-1", title: "Write plan", status: "NOT_STARTED" },
-      { id: "task-2", title: "Review PR", status: "IN_PROGRESS" },
+      { id: "task-2", title: "Review PR", status: "DONE" },
     ],
   },
   {

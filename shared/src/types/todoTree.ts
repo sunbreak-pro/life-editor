@@ -14,7 +14,12 @@ export type { SectionId } from "../sections";
 // but they no longer surface as TodoNode fields. The Notes side followed in
 // #375 (NoteNodeType is single-valued too), so the interim asymmetry is gone.
 export type TodoNodeType = "task";
-export type TodoStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
+// #873 (2026-08-16, D-20260815-materials-1 = B): a todo is either done or it
+// is not — the middle "IN_PROGRESS" value is retired from the domain, not just
+// from the UI. The DB CHECK still accepts the legacy value (no DDL), so rows
+// written before this change keep it; `todoMapper.toStatus` folds them into
+// NOT_STARTED on read, the same way `toNodeType` folds the legacy "folder".
+export type TodoStatus = "NOT_STARTED" | "DONE";
 
 export interface TodoNode {
   id: string;

@@ -38,7 +38,6 @@ interface Fixture {
   events?: Row[];
   scheduled?: Row[];
   carryover?: Row[];
-  inProgress?: Row[];
   dailies?: Row[];
 }
 
@@ -57,8 +56,6 @@ function install(fixture: Fixture): void {
         );
       }
       case "tasks_payload":
-        if (call.filters.status === "IN_PROGRESS")
-          return fixture.inProgress ?? [];
         if ("scheduled_at.gte" in call.bounds) return fixture.scheduled ?? [];
         return fixture.carryover ?? [];
       case "items_meta": {

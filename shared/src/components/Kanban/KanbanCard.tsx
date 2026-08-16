@@ -27,14 +27,12 @@ import type {
 // Left 4px band per status (lumen tokens — no hardcoded color, §6).
 const STATUS_BAND_CLASS: Record<TodoStatus, string> = {
   NOT_STARTED: "bg-lumen-status-todo-band",
-  IN_PROGRESS: "bg-lumen-status-progress-band",
   DONE: "bg-lumen-status-done-band",
 };
 
 // Chip face classes per status (lumen tokens — no hardcoded color, §6).
 const STATUS_CHIP_CLASS: Record<TodoStatus, string> = {
   NOT_STARTED: "bg-lumen-chip-task-bg text-lumen-chip-task-fg",
-  IN_PROGRESS: "bg-lumen-chip-progress-bg text-lumen-chip-progress-fg",
   DONE: "bg-lumen-chip-completed-bg text-lumen-chip-completed-fg",
 };
 
@@ -42,8 +40,6 @@ function statusText(status: TodoStatus, labels: KanbanLabels): string {
   switch (status) {
     case "NOT_STARTED":
       return labels.statusNotStarted;
-    case "IN_PROGRESS":
-      return labels.statusInProgress;
     case "DONE":
       return labels.statusDone;
   }

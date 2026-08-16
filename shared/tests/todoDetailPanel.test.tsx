@@ -185,7 +185,7 @@ describe("TodoDetailPanel (W7)", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Status" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Status" }));
     expect(onToggleStatus).toHaveBeenCalledWith("task-a");
     expect(onSave).not.toHaveBeenCalled();
   });

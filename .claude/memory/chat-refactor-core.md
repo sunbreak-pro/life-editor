@@ -7,9 +7,9 @@
 **対象**: `shared/src/**` / `web/src/**` / `mcp-server/**` / CI・tsconfig 群
 **計画書**: `.claude/docs/vision/plans/2026-08-10-core-refactor.md`
 
-- 前回: **#675 の 4 項目すべて merged**（PR #833 / #839 / #841 / #842）
-- 現在: **C5（#672）を締めた — PR #846 open**（書いた時点の実測）。着手して分かったのは**実装が着手前に全部 main へ着地済み**だったこと（PR-A+B = #769 / PR-C = #801 / PR-E = #686）。DoD の grep 系 3 項目・テスト件数・RoutineContext の UndoRedo 配線と i18n ラベルはすべて実測で充足。本レーンが足したのは共通化した `useDomainLoad` **自体**の直接テスト 4 件と計画書 §C5 の実態反映
-- 次: 実装セッション 1 の残り = **#671**。**merge 後の playwright は chat-main へ 2 件引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）と #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）
+- 前回: **C5（#672）完了・PR #846 merged**。ただし merge 後に同ブランチへ push した 1 コミット（`useDomainLoad` 直接テスト 188 行）が main に届いていなかったので、拾い直して **PR #921 open**
+- 現在: **Issue sweep で #891 → #890 → #895 → #894 の 4 本を担当**。#891 は 4 本のフックを 1 本 1 PR で載せ替える構成で、**1 本目 `useTodoTreeAPI` = PR #922 open**（書いた時点の実測）。載せ替えで 1 点だけ挙動が変わることが判明したため `useDomainLoad` に `refetchReportsLoading`（既定 true）を追加 — 旧 effect は再取得中に `isLoading` を true へ戻さず、KanbanView はその間ボードごとスケルトンに差し替えるので、Realtime の自己 echo で編集のたびに板が消えていた
+- 次: #891 の残り 3 本（`useNotesUnifiedAPI` / `useDailiesUnifiedAPI` / `useWikiTagsUnifiedAPI`。タググラフは #300 の性質上 `refetchReportsLoading: false` 側になる見込み）→ #890 → #895 → #894。**merge 後の playwright は chat-main へ引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）/ #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）/ #891 分（Materials・Tags の初回ロードとエラー復帰）
 
 ## 直近の完了
 
@@ -26,6 +26,8 @@
 
 ## 予定
 
+- **Issue sweep の残り**: #891 の 3 本 → #890（5 role の mapper 共通化）→ #895（mcp-server tools.ts のレジストリ分割）→ #894（desktop IPC 契約のロックステップ）
+- **#898 は着手判断そのものがユーザー手番**。実装せず A/B を判断キューへ積む（#677 は status:frozen で対象外）
 - 実装セッション 1 の残り: #671（#672 は chat-shared-fix が PR #801 で着手中・#673 は完了・#675 は 4 項目とも PR 化済み）
 - **C1 の後始末（別 PR・小さい）**: `shared/tsconfig.test.json` の除外 12 本 + `web` の 1 本を潰す。中身は fixture の型ズレと不要な `@ts-expect-error` 5 件で、1 本直すごとに `exclude` から 1 行消える（#690 の PR 本文に全件の内訳あり）
 - 実装セッション 2: 未調査領域の追加調査（計画書 §次セッションの調査計画 A-1〜A-6）→ #674 → #676(a) → #675
