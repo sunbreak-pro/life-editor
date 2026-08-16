@@ -23,3 +23,5 @@ cd web && npm run typecheck:tests      # 同上
 CLAUDE.md は全レーンが触る共有ファイルで、並行 PR で必ず衝突するため自分では編集していません。判断と反映をお願いします。
 
 なお `cd shared && npm run typecheck:tests` はこの Windows 機のローカルでは `error TS2688: Cannot find type definition file for 'node'` で落ちます（`shared/node_modules` に `@types/node` が無い）。CI では通っているので環境差です。ローカル手順として書くなら一言添えるか、`npm ci` のやり直しが要るかもしれません。
+
+**2026-08-16 追記（同じ罠で 2 回目）**: 上の記載漏れ、本日 PR #980（#955）でもう一度踏みました。ローカルで shared / web の lint・build・test を全部緑にして push したのに、CI の `web — typecheck tests` だけが落ちています（`DailyNode` に存在しない `type` フィールドをテストの fixture が渡していた）。`npm run build` が `web/tests/` を見ないという同じ理由です。1 日に 2 本の PR が同じ穴に落ちているので、§7.1 への 2 行追加の優先度を上げてもらえると助かります。
