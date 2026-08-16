@@ -53,6 +53,7 @@ import {
   type TodoCalendarChip,
   type ScheduleItem,
   type ItemCreateNoteDraft,
+  type ItemCreateSlot,
   type WeekTimeGridItem,
   type MonthGridItem,
   type AgendaItem,
@@ -87,7 +88,6 @@ import {
 } from "./scheduleViewModels";
 import {
   formatFullDay as formatFullDayKey,
-  formatLongDate,
   formatPeriodLabel,
   formatShortDate,
   formatTodoSchedule,
@@ -745,18 +745,13 @@ export function CalendarTab({
   // (which live in the detail editor, not this panel) were unreachable without
   // hunting for the item on the grid. The panel now offers both intents.
   const handleCreateSubmit = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       if (!createPanel) return;
       // #376: the note rides along with the create, but only once the row is
       // really there — `wiki_tag_connections` carries an FK to `items_meta`,
       // and the id handleCreate returns is the optimistic one (see the
       // ORDERING note in useCreatePanelNotes).
-      const id = handleCreate(createPanel.date, title, start, end, (saved) => {
+      const id = handleCreate(slot, title, (saved) => {
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
@@ -783,14 +778,9 @@ export function CalendarTab({
 
   // #354 secondary action: create, then land in the detail editor.
   const handleCreateSubmitAndOpen = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       if (!createPanel) return;
-      const id = handleCreate(createPanel.date, title, start, end, (saved) => {
+      const id = handleCreate(slot, title, (saved) => {
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
@@ -817,22 +807,22 @@ export function CalendarTab({
   // todo as "today, time TBD" (all-day); this panel commits it to a concrete
   // day + window, which is what makes it show up as a placed block rather than
   // an all-day candidate (the shape itself: todoChipUndoWiring.timedPlacement).
+  //
+  // The day comes off the slot, not off `createPanel` (#940): the panel's date
+  // field is what the user last said, and the gesture that opened it is only
+  // the seed. `createPanel` still gates the call — a submit with the panel
+  // closed is not a thing — but it no longer decides the day.
   const scheduleTodoAt = useCallback(
-    (start: string, end: string) => {
+    (slot: ItemCreateSlot) => {
       if (!createPanel) return null;
-      return timedPlacement(createPanel.date, start, end);
+      return timedPlacement(slot.date, slot.start, slot.end);
     },
     [createPanel],
   );
 
   const handleCreateTodoSubmit = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      const placement = scheduleTodoAt(start, end);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      const placement = scheduleTodoAt(slot);
       if (!placement) return;
       // Root-level todo (parentId null), matching every other "quick create"
       // entry — the panel carries no place-in-the-tree control, and the Todos
@@ -855,8 +845,7 @@ export function CalendarTab({
   const handlePlaceTodoSubmit = useCallback(
     (
       todoId: string,
-      start: string,
-      end: string,
+      slot: ItemCreateSlot,
       note: ItemCreateNoteDraft | null,
     ) => {
       if (!createPanel) return;
@@ -865,9 +854,9 @@ export function CalendarTab({
       // moved the todo back while leaving the note on it would be a half
       // reversal the toast claims was whole. See placeTodoWrite.
       const { patch, options } = placeTodoWrite(
-        createPanel.date,
-        start,
-        end,
+        slot.date,
+        slot.start,
+        slot.end,
         note != null,
       );
       updateNode(todoId, patch, options);
@@ -942,16 +931,11 @@ export function CalendarTab({
     [anchorDate, effView, isWide, i18n.language, weekStart, weekEnd],
   );
 
-  // #353: the creation panel is reachable from three gestures (toolbar /
-  // empty slot / month cell) and each carries its own target day, but only
-  // the times were visible — "which day am I adding to?" had no answer on
-  // screen. The year is included: the panel can be open on a day the user
-  // navigated months away to.
-  const createDateLabel = useMemo(
-    () =>
-      createPanel ? formatLongDate(i18n.language, createPanel.date) : undefined,
-    [createPanel, i18n.language],
-  );
+  // #353 put the target day on screen as a caption, because the three gestures
+  // that open the panel (toolbar / empty slot / month cell) each carry their
+  // own day and none of them said so. #940 turned that caption into the date
+  // input inside the panel, which formats itself — so the label is gone and
+  // the day is now something the user can change rather than only read.
 
   const todayLabel = useMemo(
     () => formatFullDayKey(i18n.language, today),
@@ -2064,8 +2048,11 @@ export function CalendarTab({
       {createPanel && (
         <ItemCreatePanel
           key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
-          dateLabel={createDateLabel}
-          initial={{ start: createPanel.start, end: createPanel.end }}
+          initial={{
+            date: createPanel.date,
+            start: createPanel.start,
+            end: createPanel.end,
+          }}
           pools={{ todos: todoAddable, notes: noteOptions }}
           handlers={{
             onSubmitEvent: handleCreateSubmit,
@@ -2380,8 +2367,13 @@ export function CalendarTab({
         onClose={() => setCreatePanel(null)}
         sheetTitle={t("scheduleScreen.addItem")}
         closeLabel={t("common.close")}
-        dateLabel={createDateLabel}
-        initial={{ start: createPanel?.start, end: createPanel?.end }}
+        initial={{
+          // The sheet outlives the open state (BottomSheet stays mounted), so
+          // the anchor day stands in while there is no gesture to read.
+          date: createPanel?.date ?? anchorDate,
+          start: createPanel?.start,
+          end: createPanel?.end,
+        }}
         pools={{ todos: todoAddable, notes: noteOptions }}
         handlers={{
           onSubmitEvent: handleCreateSubmit,
