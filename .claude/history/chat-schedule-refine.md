@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-16 (2) - #893 Schedule 共有部品の props ドリルを畳む（PR #936）
+
+#### 概要
+
+`WeekTimeGrid` 28 / `EventEditorPane` 19 / `ItemCreatePanel` 12 の props を、それぞれ 6 / 7 / 6 に畳んだ。挙動変更ゼロ — 各部品は束ねた prop を**本体がこれまで使っていたフラットな名前に戻して**受け取るので、シグネチャより下の行は 1 行も動いていない（デフォルト値も分解の右辺に据え置き）。8 ゲートすべて exit 0。merge は未（P-001）。
+
+#### 変更点
+
+- **バンドルの切り方**: `WeekTimeGrid` = `data`（描くもの）/ `labels`（固定コピー）/ `handlers`（操作面）/ `display`（ジオメトリ）/ `format`（計算コピー）。`EventEditorPane` = `item` / `labels` / `handlers` / `options` / `repeat` / `tagSlot`。`ItemCreatePanel` = `dateLabel` / `initial` / `pools` / `handlers` / `formatDuration` / `labels`
+- **束ねると型が守ってくれた 2 箇所**（整理以上の見返りはここ）: ① `EventEditorPane` の繰り返しセクションは `repeatLabels` + `repeatWeekdayLabels` + `onChangeRepeat` の**3 つの optional prop が全部揃ったときだけ**描画される作りで、2 つだけ渡すと**無言で何も出ない**（`showRepeat = !!onChangeRepeat && !!repeatLabels && !!repeatWeekdayLabels`）。必須メンバーを持つ 1 オブジェクトにして半端な配線をコンパイルエラーにした ② `ItemCreatePanel` の 4 つの書き込みは 4 つの独立した通知ではなく 1 つの能力で、3 つだけ配線したホストは「4 つ目のタブで押しても何も起きない送信ボタン」を出荷できた
+- **Issue ステップ 2（セクション層 Context から直接取る）は不採用**: `ItemCreatePanel` のホスト 3 つのうち **Briefing（`BriefingScreen.tsx:477`）は Schedule のセクション層 Provider の外**にいる。そのまま当てると Briefing が壊れるので、オブジェクト prop への束ね側だけで DoD（各 10 個以下）を満たした。Context 消費はゼロ
+- **Issue ステップ 3（描画重複の実測）**: 1:1 の重複は **1 件だけ** = `dotColorClasses` が `MonthGrid.tsx` と `AgendaList.tsx` に**バイト単位で同一**の 9 行として存在 → 新設 `shared/src/components/schedule/scheduleVariantVisuals.ts` に集約し、3 つの item 型が別々に書いていた `variant` のユニオンも `ScheduleItemVariant` として同居させた。**face マッピングは寄せない** — `variantBlockClasses`（WeekTimeGrid）と `chipFaceClasses`（MonthGrid）は同じ switch に見えて解決先のトークン族が違う（`schedule-*-bg` vs `chip-*-bg`。ブロックとチップは読まれるサイズが違うため意図的に別）。統合には族を選ぶ引数が要り、それは関数 2 つと同義。`TodayTodoTray` は共有する描画が無い
+- **DoD「既存テストが無改変で緑」は文字通りには成立しない**ので、次に強い形に置き換えた: **`it(...)` の中身・アサーション・操作手順は 1 行も変えず**、各テストファイル冒頭の render ファクトリだけが束ね直しを引き受ける。`renderPane(manualItem, { canEditDate: true })` のようなフラットな呼び出しはそのまま残るので、「同じケース・同じアサーションが、部品だけ差し替えて緑」が挙動変更ゼロの根拠になる
+- **ファクトリの `{...props}` スプレッドは明示マージに変える必要がある**（罠）: スプレッドは**束ごと置き換わる**ので、`{ existingTodos: [] }` がノート側のプールまで巻き添えで消す。オブジェクト prop を持つ部品のテストファクトリでは一律これを踏む
+- **検証**: shared lint 0 errors（既存 warning 3）/ shared build / shared test **240 files 2232 pass** / web lint 0 errors（既存 warning 4）/ web build / **web typecheck:tests** / web test **53 files 474 pass** / `LC_ALL=C docs-lint` — すべて exit 0
+- **申し送り（PR 本文に記載）**: 実ブラウザ検証は chat-main の手番。見てほしいのは ① 週 / 日ビューのドラッグ移動・リサイズ・空きスロット作成・終日ドロップ ② **エディタの繰り返しセクションが出ること**（分岐を書き換えた最重要点）と日付変更 / 終日トグル ③ 新規作成 3 経路（Desktop オーバーレイ / QuickCaptureSheet / **Briefing の「+」**）④ 月 / アジェンダの先頭ドット 3 色
+
 ### 2026-08-16 - #897 SupabaseScheduleItemsService の一括系にテストを足す（PR #929）
 
 #### 概要
