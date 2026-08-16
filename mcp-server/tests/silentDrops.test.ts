@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TOOLS, callTool } from "../src/tools.js";
 import { unknownArgNames, type ObjectSchema } from "../src/utils/toolSchema.js";
 import { isLegacyFolder } from "../src/handlers/todoHandlers.js";
@@ -13,10 +13,35 @@ import { rejection } from "./rejection.js";
  * unchanged. A wrong answer that announces itself costs one round trip; one
  * that looks right costs however long it takes to notice.
  *
- * No test here may reach a handler — handlers talk to Supabase. Each
- * rejection below is proof the call stopped before that: a handler reached
- * without credentials fails with "Supabase credentials missing" instead.
+ * Each guard lives INSIDE its handler, before the database step — so what
+ * these tests actually separate is "stopped at the guard" from "got through
+ * to the DB". The spy below is that line, named (#1011).
+ *
+ * It used to be read off the error text instead: a call that reached the DB
+ * without credentials failed with "Supabase credentials missing", so
+ * `.not.toMatch(/Supabase/)` stood in for "the guard held". That made the
+ * suite depend on the environment NOT being configured — on a machine with
+ * LIFE_EDITOR_SUPABASE_* exported the bare call succeeded, and the one test
+ * asserting the opposite failed. CI has no credentials, so it stayed green
+ * there and broke only for whoever actually uses the MCP server, in a way
+ * that reads like "my branch broke it".
  */
+
+const getSupabase = vi.fn(async () => {
+  // Stands in for the real client at the seam every handler goes through. It
+  // throws rather than returning a fake because no test here wants DB rows —
+  // they want to know whether this line was reached at all.
+  throw new Error("test stub: the database step was reached");
+});
+
+vi.mock("../src/supabase.js", () => ({
+  getSupabase: () => getSupabase(),
+  resetSupabaseForTests: () => {},
+}));
+
+beforeEach(() => {
+  getSupabase.mockClear();
+});
 
 const schemaOf = (name: string): ObjectSchema =>
   TOOLS.find((t) => t.name === name)?.inputSchema as ObjectSchema;
@@ -30,7 +55,7 @@ describe("list_schedule no longer answers for a day you did not ask about", () =
     );
 
     expect(error.message).toContain("end_date is required");
-    expect(error.message).not.toMatch(/Supabase/);
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 
   it("rejects a range missing its start", async () => {
@@ -41,7 +66,7 @@ describe("list_schedule no longer answers for a day you did not ask about", () =
     );
 
     expect(error.message).toContain("start_date is required");
-    expect(error.message).not.toMatch(/Supabase/);
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 
   it("rejects a single day and a range in the same call", async () => {
@@ -54,12 +79,19 @@ describe("list_schedule no longer answers for a day you did not ask about", () =
     );
 
     expect(error.message).toContain("mutually exclusive");
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 
   it("still lets a bare call mean today", async () => {
-    // Reaching Supabase IS the pass here: the window guard let it through.
-    const error = await rejection(callTool("list_schedule", {}));
-    expect(error.message).toMatch(/Supabase/);
+    // Reaching the database step IS the pass here: the window guard let a
+    // bare call through rather than demanding a date. Asserted on the spy,
+    // not on what the database then said — that part is the environment's
+    // business and was never this test's subject.
+    // Reached-or-not, not a count: listSchedule fans out to events and
+    // scheduled todos, so the number is how many queries the handler happens
+    // to make today, which this test has no opinion about.
+    await rejection(callTool("list_schedule", {}));
+    expect(getSupabase).toHaveBeenCalled();
   });
 
   it("says so in the schema, which is the only documentation the caller reads", () => {
@@ -81,7 +113,7 @@ describe("schedule writes check their own formats", () => {
     );
 
     expect(error.message).toMatch(/Invalid date/);
-    expect(error.message).not.toMatch(/Supabase/);
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 
   it("rejects a time that is not HH:MM", async () => {
@@ -95,7 +127,7 @@ describe("schedule writes check their own formats", () => {
     );
 
     expect(error.message).toMatch(/Invalid start_time/);
-    expect(error.message).not.toMatch(/Supabase/);
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 
   it("checks the same formats on update", async () => {
@@ -107,7 +139,7 @@ describe("schedule writes check their own formats", () => {
     );
 
     expect(error.message).toMatch(/Invalid end_time/);
-    expect(error.message).not.toMatch(/Supabase/);
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 });
 
