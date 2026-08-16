@@ -1,0 +1,332 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { ScheduleSidebar } from "../src/schedule/ScheduleSidebar";
+import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
+
+/*
+ * #889 — the Schedule rightSidebar, pulled out of CalendarTab.
+ *
+ * What is worth pinning here is not the markup (the parts underneath already
+ * have their own suites) but the LAYOUT RULES this component carries, every
+ * one of which is a silent failure when it breaks:
+ *
+ *   - "todo" is a Desktop-only tab, so a narrow render must fold it back to
+ *     the flow. Get this wrong and narrow draws the tray under a switcher that
+ *     shows nothing as active (#467).
+ *   - the repeat list withholds `onDelete` on narrow (#467): a whole series
+ *     must not be deletable from a fingertip-sized target. Passing it through
+ *     unconditionally leaves every other test green.
+ *   - the routine summary is Desktop-only, and its CTA is the only route from
+ *     the flow tab to the repeats tab.
+ *   - the repeat-filter notice (#466) shows only while the grid filter is on,
+ *     and its button is one of the two ways back off.
+ *
+ * `useTranslation` is stubbed to echo its key — these assertions are about
+ * wiring, and an echo makes the queries read as the key that produced them.
+ * <TagPicker> is stubbed because it talks to WikiTagsUnifiedContext, which this
+ * component neither owns nor needs to exercise.
+ *
+ * No jest-dom in web/: presence comes from getBy* throwing, absence from
+ * queryBy* being null (same convention as trashScreenActions.test.tsx).
+ */
+
+vi.mock("@life-editor/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@life-editor/shared")>()),
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
+vi.mock("../src/wikitag/TagPicker", () => ({
+  TagPicker: ({ itemId }: { itemId: string }) => <span>tag:{itemId}</span>,
+}));
+
+const TABS = [
+  { id: "flow", label: "Flow" },
+  { id: "todo", label: "Todo" },
+  { id: "repeats", label: "Repeats" },
+];
+
+function makeProps(
+  over: {
+    isWide?: boolean;
+    tab?: "flow" | "todo" | "repeats";
+    onTabChange?: (tab: "flow" | "todo" | "repeats") => void;
+    flow?: Partial<ScheduleSidebarProps["flow"]>;
+    repeats?: Partial<ScheduleSidebarProps["repeats"]>;
+    todo?: Partial<ScheduleSidebarProps["todo"]>;
+  } = {},
+): ScheduleSidebarProps {
+  return {
+    isWide: over.isWide ?? true,
+    tabs: TABS.filter((tb) => (over.isWide ?? true) || tb.id !== "todo"),
+    tab: over.tab ?? "flow",
+    onTabChange: over.onTabChange ?? vi.fn(),
+    flow: {
+      todayLabel: "Mon, Aug 16",
+      agenda: [],
+      agendaLabels: {
+        allDay: "All-day",
+        empty: "Nothing today",
+        nowLabel: "09:00",
+        complete: "Complete",
+        statusLabels: {
+          notStarted: "Not started",
+          inProgress: "In progress",
+          done: "Done",
+        },
+      },
+      nowMinutes: 540,
+      selectedId: null,
+      doneCount: 1,
+      totalCount: 3,
+      skipped: [],
+      summaryRows: [],
+      routineDoneCount: 0,
+      routineTotalCount: 0,
+      onToggleComplete: vi.fn(),
+      onItemActivate: vi.fn(),
+      onItemDoubleClick: vi.fn(),
+      onRestoreSkipped: vi.fn(),
+      ...over.flow,
+    },
+    repeats: {
+      hidden: false,
+      rows: [],
+      onOpen: vi.fn(),
+      onDelete: vi.fn(),
+      onShowHidden: vi.fn(),
+      ...over.repeats,
+    },
+    todo: {
+      placed: [],
+      unplaced: [],
+      addable: [],
+      onToggleComplete: vi.fn(),
+      onAddCandidate: vi.fn(),
+      onOpenTodo: vi.fn(),
+      onDelete: vi.fn(),
+      ...over.todo,
+    },
+  };
+}
+
+/** The flow tab is the only one that prints the day heading. */
+const flowIsShowing = () =>
+  screen.queryByText(/Mon, Aug 16/) !== null ||
+  screen.queryByText("Mon, Aug 16", { exact: false }) !== null;
+
+describe("ScheduleSidebar — which tab renders", () => {
+  it("folds the Desktop-only todo tab back to the flow on narrow (#467)", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: false,
+          tab: "todo",
+          todo: { placed: [{ id: "t1", title: "Buy milk", completed: false }] },
+        })}
+      />,
+    );
+    // The tray's own heading is the proof it is NOT showing.
+    expect(screen.queryByText("scheduleScreen.todoPlacedHeading")).toBeNull();
+    expect(screen.queryByText("Buy milk")).toBeNull();
+    expect(flowIsShowing()).toBe(true);
+  });
+
+  it("shows the tray on the same tab once the layout is wide", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: true,
+          tab: "todo",
+          todo: { placed: [{ id: "t1", title: "Buy milk", completed: false }] },
+        })}
+      />,
+    );
+    expect(screen.getByText("Buy milk")).toBeTruthy();
+    expect(flowIsShowing()).toBe(false);
+  });
+
+  it("keeps the chosen tab intact — folding is per-render, not a reset", () => {
+    // Same `tab="todo"` value goes in on both renders; only the width differs.
+    // A fold that wrote the state back would make the second render show flow.
+    const onTabChange = vi.fn();
+    const { unmount } = render(
+      <ScheduleSidebar
+        {...makeProps({ isWide: false, tab: "todo", onTabChange })}
+      />,
+    );
+    expect(onTabChange).not.toHaveBeenCalled();
+    unmount();
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: true,
+          tab: "todo",
+          onTabChange,
+          todo: { placed: [{ id: "t1", title: "Buy milk", completed: false }] },
+        })}
+      />,
+    );
+    expect(screen.getByText("Buy milk")).toBeTruthy();
+  });
+});
+
+describe("ScheduleSidebar — repeats tab", () => {
+  const row = {
+    id: "r1",
+    title: "Morning run",
+    timeLabel: "7:00",
+    frequencyLabel: "Daily",
+    nextLabel: "Aug 17",
+  };
+
+  it("offers the delete action on Desktop", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: true,
+          tab: "repeats",
+          repeats: { rows: [row] },
+        })}
+      />,
+    );
+    expect(
+      screen.getByLabelText("scheduleScreen.deleteRoutine: Morning run"),
+    ).toBeTruthy();
+  });
+
+  it("withholds it on narrow so a series cannot go on a fingertip target (#467)", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: false,
+          tab: "repeats",
+          repeats: { rows: [row] },
+        })}
+      />,
+    );
+    // The row itself is still there — viewing and navigating stay available.
+    expect(screen.getByText("Morning run")).toBeTruthy();
+    expect(
+      screen.queryByLabelText("scheduleScreen.deleteRoutine: Morning run"),
+    ).toBeNull();
+  });
+
+  it("shows the grid-filter notice only while the filter is on, and turns it back off (#466)", () => {
+    const onShowHidden = vi.fn();
+    const { unmount } = render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "repeats",
+          repeats: { hidden: false, onShowHidden },
+        })}
+      />,
+    );
+    expect(screen.queryByText("scheduleScreen.repeatFilterNotice")).toBeNull();
+    unmount();
+
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "repeats",
+          repeats: { hidden: true, onShowHidden },
+        })}
+      />,
+    );
+    expect(screen.getByText("scheduleScreen.repeatFilterNotice")).toBeTruthy();
+    fireEvent.click(screen.getByText("scheduleScreen.repeatFilterShow"));
+    expect(onShowHidden).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ScheduleSidebar — flow tab", () => {
+  const skipped = [
+    { id: "s1", title: "Standup", startTime: "09:00", isAllDay: false },
+  ];
+
+  it("restores a skipped occurrence by id (#296)", () => {
+    const onRestoreSkipped = vi.fn();
+    render(
+      <ScheduleSidebar
+        {...makeProps({ flow: { skipped, onRestoreSkipped } })}
+      />,
+    );
+    fireEvent.click(screen.getByText("scheduleScreen.restoreSkipped"));
+    expect(onRestoreSkipped).toHaveBeenCalledWith("s1");
+  });
+
+  it("renders no restore surface when nothing was skipped", () => {
+    render(<ScheduleSidebar {...makeProps()} />);
+    expect(screen.queryByText("scheduleScreen.restoreSkipped")).toBeNull();
+  });
+
+  it("keeps the routine summary on Desktop only", () => {
+    const summaryRows = [
+      {
+        id: "r1",
+        title: "Morning run",
+        timeLabel: "7:00",
+        frequencyLabel: "Daily",
+      },
+    ];
+    const { unmount } = render(
+      <ScheduleSidebar
+        {...makeProps({ isWide: true, flow: { summaryRows } })}
+      />,
+    );
+    expect(screen.getByText("scheduleScreen.summaryTitle")).toBeTruthy();
+    unmount();
+
+    render(
+      <ScheduleSidebar
+        {...makeProps({ isWide: false, flow: { summaryRows } })}
+      />,
+    );
+    expect(screen.queryByText("scheduleScreen.summaryTitle")).toBeNull();
+  });
+
+  it("routes the summary CTA to the repeats tab — the flow tab's only way there", () => {
+    const onTabChange = vi.fn();
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: true,
+          onTabChange,
+          flow: {
+            summaryRows: [
+              {
+                id: "r1",
+                title: "Morning run",
+                timeLabel: "7:00",
+                frequencyLabel: "Daily",
+              },
+            ],
+          },
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByText("scheduleScreen.openRoutinesCta"));
+    expect(onTabChange).toHaveBeenCalledWith("repeats");
+  });
+});
+
+describe("ScheduleSidebar — todo tab", () => {
+  it("hands the tray its own row extras and delete route", () => {
+    const onDelete = vi.fn();
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: true,
+          tab: "todo",
+          todo: {
+            placed: [{ id: "t1", title: "Buy milk", completed: false }],
+            onDelete,
+          },
+        })}
+      />,
+    );
+    // #555: the tray rows carry the same TagPicker the todo detail uses.
+    expect(screen.getByText("tag:t1")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("todoDetail.todoDelete"));
+    expect(onDelete).toHaveBeenCalledWith("t1");
+  });
+});

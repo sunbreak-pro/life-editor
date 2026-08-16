@@ -13,14 +13,10 @@ import {
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
-  TodayTodoTray,
   ScheduleToolbar,
   EventEditorPane,
-  RoutineSummaryCard,
-  RepeatListPanel,
   RightSidebarPortal,
   RightSidebarToggle,
-  ScheduleSidebarTabs,
   RepeatScopeDialog,
   QuickCaptureSheet,
   ItemCreatePanel,
@@ -71,6 +67,7 @@ import {
   type TranslationKey,
 } from "@life-editor/shared";
 import { CalendarView } from "./CalendarView";
+import { ScheduleSidebar } from "./ScheduleSidebar";
 import { TagPicker } from "../wikitag/TagPicker";
 import { TagColorControls } from "../wikitag/TagColorControls";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
@@ -1509,141 +1506,54 @@ export function CalendarTab({
       </div>
     ) : null;
 
-  // Shared rightSidebar (AppShell owns the frame — a push-in panel on Desktop,
-  // a drawer on Mobile). One portal either way so contentCount stays 1 (#299
-  // removed the old "詳細" tab — item detail now lives in a body-level overlay).
-  //
-  // #467: Mobile gets the same switcher minus "本日の Todo". The Todo board is
-  // its own SegmentedControl tab in the Schedule section there, so a second
-  // route to it inside the drawer would be a duplicate; "繰り返し" is the one
-  // that had no Mobile route at all (mobile-scope.md #5 — the list was
-  // unreachable from narrow since #408 retired the Routines header tab).
-  // A resize can leave "todo" selected with no tab to match it, which would
-  // draw the tray under a switcher that shows nothing as active. Fold it back
-  // to the flow rather than resetting the state — widening again returns the
-  // user to the tab they actually chose.
-  const activeSidebarTab =
-    !isWide && sidebarTab === "todo" ? "flow" : sidebarTab;
-
-  const flowBody = (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
-        {/* No heading on either layout: the switcher above already reads
-            "今日の流れ". It used to be Mobile-only, back when narrow had no
-            tabs at all (#467 gave it the same switcher). */}
-        <p className="text-xs text-lumen-text-secondary">
-          {todayLabel} ·{" "}
-          {t("scheduleScreen.doneSummary", {
-            done: todayDone,
-            total: todayTotal,
-          })}
-        </p>
-      </div>
-      <AgendaList
-        items={todayAgenda}
-        nowMinutes={nowMinutes}
-        onToggleComplete={handleAgendaToggle}
-        onItemActivate={handleItemActivate}
-        onItemDoubleClick={handleItemOpenDetail}
-        selectedId={selectedId}
-        labels={agendaLabels}
-      />
-      {/* Restore surface for skipped (dismissed) items — #296. */}
-      {skippedToday.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2">
-          <h4 className="text-xs font-semibold text-lumen-text-secondary">
-            {t("scheduleScreen.skippedTitle", {
-              count: skippedToday.length,
-            })}
-          </h4>
-          <ul className="flex flex-col gap-1">
-            {skippedToday.map((i) => (
-              <li
-                key={i.id}
-                className="flex items-center justify-between gap-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-xs text-lumen-text-secondary line-through">
-                  {i.isAllDay ? i.title : `${i.startTime} ${i.title}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleRestoreSkipped(i.id)}
-                  className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-                >
-                  {t("scheduleScreen.restoreSkipped")}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {/* Routine-completion summary rides the flow tab (Desktop only — Mobile
-          keeps its lean drawer). It used to live in the main-area <aside>,
-          which this change removed. */}
-      {isWide && (
-        <RoutineSummaryCard
-          routines={summaryRows}
-          completedCount={routineDone}
-          totalCount={routineTotal}
-          summaryText={t("scheduleScreen.doneSummary", {
-            done: routineDone,
-            total: routineTotal,
-          })}
-          labels={{
-            title: t("scheduleScreen.summaryTitle"),
-            empty: t("scheduleScreen.summaryEmpty"),
-            cta: t("scheduleScreen.openRoutinesCta"),
-          }}
-          onOpenRoutines={() => setSidebarTab("repeats")}
-        />
-      )}
-    </div>
-  );
-
-  // #408: the repeat list that replaces the retired Routines header tab.
-  //
-  // #467 put it on Mobile too, viewing only (mobile-scope.md #5): tapping a row
-  // still jumps the calendar to that routine's next occurrence — that is the
-  // reachability this panel exists for, and navigating is not editing — but
-  // `onDelete` is left off, so no row offers to take a whole series away on a
-  // touch target the size of a fingertip. `repeatsHidden` is Desktop-only
-  // state (narrow has no toggle), so the notice below never shows there.
-  //
-  // #466: while the grid filter is on, this list is the surface most likely to
-  // be read as the truth about what is scheduled ("the routine is right here,
-  // why is the calendar empty?"). Both the notice and the toolbar button read
-  // the SAME `repeatsHidden` state, so there is no second flag to fall out of
-  // step — and either one turns it back off.
-  const repeatsBody = (
-    <div className="flex flex-col gap-2">
-      {repeatsHidden && (
-        <div className="flex flex-col gap-1.5 rounded-md border border-lumen-accent bg-lumen-accent-subtle px-3 py-2">
-          <p className="text-xs text-lumen-text-secondary">
-            {t("scheduleScreen.repeatFilterNotice")}
-          </p>
-          <button
-            type="button"
-            onClick={handleToggleRepeats}
-            className="self-start rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {t("scheduleScreen.repeatFilterShow")}
-          </button>
-        </div>
-      )}
-      <RepeatListPanel
-        rows={repeatRows}
-        onOpen={handleOpenRepeat}
-        onDelete={isWide ? handleDeleteRepeat : undefined}
-        labels={{
-          empty: t("scheduleScreen.summaryEmpty"),
-          never: t("scheduleScreen.repeatNeverFires"),
-          delete: t("scheduleScreen.deleteRoutine"),
-          confirmDelete: t("scheduleScreen.repeatDeleteConfirm"),
-          confirm: t("scheduleScreen.delete"),
-          cancel: t("scheduleScreen.scopeCancel"),
+  // Shared rightSidebar (AppShell owns the frame -- a push-in panel on
+  // Desktop, a drawer on Mobile). One portal either way so contentCount stays
+  // 1 (#299 removed the old detail tab -- item detail now lives in a
+  // body-level overlay). #889 moved the three tab bodies into
+  // <ScheduleSidebar>; the layout fold that decides which one renders moved
+  // with them.
+  const sidebarPortal = (
+    <RightSidebarPortal>
+      <ScheduleSidebar
+        isWide={isWide}
+        tabs={sidebarTabs}
+        tab={sidebarTab}
+        onTabChange={setSidebarTab}
+        flow={{
+          todayLabel,
+          agenda: todayAgenda,
+          agendaLabels,
+          nowMinutes,
+          selectedId,
+          doneCount: todayDone,
+          totalCount: todayTotal,
+          skipped: skippedToday,
+          summaryRows,
+          routineDoneCount: routineDone,
+          routineTotalCount: routineTotal,
+          onToggleComplete: handleAgendaToggle,
+          onItemActivate: handleItemActivate,
+          onItemDoubleClick: handleItemOpenDetail,
+          onRestoreSkipped: handleRestoreSkipped,
+        }}
+        repeats={{
+          hidden: repeatsHidden,
+          rows: repeatRows,
+          onOpen: handleOpenRepeat,
+          onDelete: handleDeleteRepeat,
+          onShowHidden: handleToggleRepeats,
+        }}
+        todo={{
+          placed: todoPlaced,
+          unplaced: todoUnplaced,
+          addable: todoAddable,
+          onToggleComplete: handleTodoToggleComplete,
+          onAddCandidate: handleTodoAddCandidate,
+          onOpenTodo: onOpenTodos,
+          onDelete: handleTodoDelete,
         }}
       />
-    </div>
+    </RightSidebarPortal>
   );
 
   /*
@@ -1810,52 +1720,6 @@ export function CalendarTab({
       endConvert,
       t,
     ],
-  );
-
-  // A-3 (#298): "本日の Todo" tray — placed / unplaced todo groups + an add
-  // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
-  // #555: rows also soft-delete (softDeleteTodo → Trash) and carry the same
-  // <TagPicker> the todo detail uses, so tags attach without leaving the tray.
-  const todoBody = (
-    <TodayTodoTray
-      placed={todoPlaced}
-      unplaced={todoUnplaced}
-      addable={todoAddable}
-      onToggleComplete={handleTodoToggleComplete}
-      onAddCandidate={handleTodoAddCandidate}
-      onOpenTodo={() => onOpenTodos()}
-      onDelete={handleTodoDelete}
-      renderRowExtra={(row) => <TagPicker itemId={row.id} />}
-      labels={{
-        placedHeading: t("scheduleScreen.todoPlacedHeading"),
-        unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
-        emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
-        emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
-        addHeading: t("scheduleScreen.todoAddHeading"),
-        addAction: t("scheduleScreen.todoAddAction"),
-        emptyAddable: t("scheduleScreen.todoEmptyAddable"),
-        complete: t("scheduleScreen.complete"),
-        openInTodos: t("scheduleScreen.todoOpenInTodos"),
-        delete: t("todoDetail.todoDelete"),
-      }}
-    />
-  );
-
-  const sidebarPortal = (
-    <RightSidebarPortal>
-      <ScheduleSidebarTabs
-        tabs={sidebarTabs}
-        value={activeSidebarTab}
-        onChange={(id) => setSidebarTab(id as "flow" | "todo" | "repeats")}
-        label={t("scheduleScreen.detailPanelLabel")}
-      >
-        {activeSidebarTab === "flow"
-          ? flowBody
-          : activeSidebarTab === "todo"
-            ? todoBody
-            : repeatsBody}
-      </ScheduleSidebarTabs>
-    </RightSidebarPortal>
   );
 
   const calendarsModal = (
