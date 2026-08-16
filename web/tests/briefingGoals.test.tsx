@@ -10,6 +10,7 @@ import {
   SyncContext,
   SYNC_DOMAINS,
   extractGoals,
+  goalPeriodKeys,
   todayDateKey,
   type DataService,
   type NoteNode,
@@ -33,24 +34,42 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  */
 
 const TODAY = todayDateKey();
+/**
+ * The period keys the screen will compute (#957). `useWeekStartPref` has no
+ * Settings UI and nothing in this suite writes its localStorage key, so the
+ * screen resolves the default — Sunday.
+ */
+const KEYS = goalPeriodKeys(TODAY, 0);
 
-const STORED = JSON.stringify({
-  type: "doc",
-  content: [
-    {
-      type: "heading",
-      attrs: { level: 2 },
-      content: [{ type: "text", text: "週目標" }],
-    },
-    { type: "paragraph", content: [{ type: "text", text: "Ship the block" }] },
-    {
-      type: "heading",
-      attrs: { level: 2 },
-      content: [{ type: "text", text: "年目標" }],
-    },
-    { type: "paragraph", content: [{ type: "text", text: "Live by it" }] },
-  ],
-});
+function head(text: string) {
+  return {
+    type: "heading",
+    attrs: { level: 2 },
+    content: [{ type: "text", text }],
+  };
+}
+function body(text: string) {
+  return { type: "paragraph", content: [{ type: "text", text }] };
+}
+function noteDoc(...nodes: unknown[]): string {
+  return JSON.stringify({ type: "doc", content: nodes });
+}
+
+/** A note in the pre-#957 shape: heading words, no period key. */
+const STORED = noteDoc(
+  head("週目標"),
+  body("Ship the block"),
+  head("年目標"),
+  body("Live by it"),
+);
+
+/** The same goals already filed under this period's keys. */
+const STORED_KEYED = noteDoc(
+  head(`週目標 ${KEYS.week}`),
+  body("Ship the block"),
+  head(`年目標 ${KEYS.year}`),
+  body("Live by it"),
+);
 
 const syncValue: WebSyncContextValue = {
   syncVersion: 0,
@@ -174,7 +193,7 @@ describe("Briefing goals block (#872)", () => {
   });
 
   it("writes an edit back through the section merge, leaving the others", async () => {
-    const { ds, updateNoteUnified, read } = makeDS(STORED);
+    const { ds, updateNoteUnified, read } = makeDS(STORED_KEYED);
     renderScreen(ds);
     await waitFor(() => expect(weekField().value).toBe("Ship the block"));
 
@@ -183,7 +202,7 @@ describe("Briefing goals block (#872)", () => {
 
     await waitFor(() => expect(updateNoteUnified).toHaveBeenCalled());
     expect(updateNoteUnified.mock.calls[0]?.[0]).toBe("note-goals");
-    expect(extractGoals(read())).toEqual({
+    expect(extractGoals(read(), KEYS)).toEqual({
       week: "Ship it twice",
       month: null,
       year: "Live by it",
@@ -205,7 +224,7 @@ describe("Briefing goals block (#872)", () => {
     await waitFor(() => expect(createNoteUnified).toHaveBeenCalledTimes(1));
     expect(createNoteUnified.mock.calls[0]?.[0].id).toBe("note-goals");
     expect(updateNoteUnified).not.toHaveBeenCalled();
-    expect(extractGoals(read()).week).toBe("First goal");
+    expect(extractGoals(read(), KEYS).week).toBe("First goal");
   });
 
   /*
@@ -220,7 +239,7 @@ describe("Briefing goals block (#872)", () => {
     const readGate = new Promise<void>((resolve) => {
       answer = resolve;
     });
-    const { ds, updateNoteUnified } = makeDS(STORED, { readGate });
+    const { ds, updateNoteUnified } = makeDS(STORED_KEYED, { readGate });
     renderScreen(ds);
 
     // Let the paper's OWN batch settle — its data is ready, the note is not.
@@ -251,7 +270,7 @@ describe("Briefing goals block (#872)", () => {
     // Serialized: the note is created once and each later save re-reads the
     // freshest body, so no write can drop the section written before it.
     await waitFor(() => expect(updateNoteUnified).toHaveBeenCalledTimes(2));
-    expect(extractGoals(read())).toEqual({
+    expect(extractGoals(read(), KEYS)).toEqual({
       week: "Week goal",
       month: "Month goal",
       year: "Year goal",
@@ -265,19 +284,8 @@ describe("Briefing goals block (#872)", () => {
     // The response says the stored body is NOT what we wrote — someone else
     // (Notes side / another device) got there first. External wins: the draft
     // goes and the field shows what is actually stored.
-    const { ds } = makeDS(STORED, {
-      onUpdate: () =>
-        JSON.stringify({
-          type: "doc",
-          content: [
-            {
-              type: "heading",
-              attrs: { level: 2 },
-              content: [{ type: "text", text: "週目標" }],
-            },
-            { type: "paragraph", content: [{ type: "text", text: "Theirs" }] },
-          ],
-        }),
+    const { ds } = makeDS(STORED_KEYED, {
+      onUpdate: () => noteDoc(head(`週目標 ${KEYS.week}`), body("Theirs")),
     });
     renderScreen(ds);
     await waitFor(() => expect(weekField().value).toBe("Ship the block"));
@@ -303,6 +311,77 @@ describe("Briefing goals block (#872)", () => {
     expect(restoreNoteUnified.mock.invocationCallOrder[0]).toBeLessThan(
       updateNoteUnified.mock.invocationCallOrder[0] ?? 0,
     );
-    expect(extractGoals(read()).week).toBe("Still mine");
+    expect(extractGoals(read(), KEYS).week).toBe("Still mine");
+  });
+});
+
+/*
+ * #957 — the paper reads and writes the CURRENT period only, so a turnover
+ * empties the field on its own and the previous period stays in the note.
+ * Notes written before period keys existed are adopted once, in place.
+ */
+describe("Briefing goals rollover (#957)", () => {
+  /** Same week text, but filed under the week BEFORE this one. */
+  const LAST_WEEK = noteDoc(
+    head(`週目標 ${KEYS.week}-old`),
+    body("Last week's goal"),
+    head(`年目標 ${KEYS.year}`),
+    body("Live by it"),
+  );
+
+  it("leaves the field empty once the period has turned over", async () => {
+    const { ds } = makeDS(LAST_WEEK);
+    renderScreen(ds);
+
+    // The year has NOT turned over — waiting on it proves the note landed
+    // before we read the week field's emptiness.
+    await waitFor(() => expect(goalField("year").value).toBe("Live by it"));
+    expect(weekField().value).toBe("");
+  });
+
+  it("writes the new period beside the old one", async () => {
+    const { ds, updateNoteUnified, read } = makeDS(LAST_WEEK);
+    renderScreen(ds);
+    await waitFor(() => expect(goalField("year").value).toBe("Live by it"));
+
+    typeGoal("week", "This week's goal");
+
+    await waitFor(() => expect(updateNoteUnified).toHaveBeenCalled());
+    expect(extractGoals(read(), KEYS).week).toBe("This week's goal");
+    // The old section is still in the note, untouched.
+    expect(read()).toContain("Last week's goal");
+    expect(read()).toContain(`週目標 ${KEYS.week}-old`);
+  });
+
+  it("adopts a pre-#957 note and keys it once, on open", async () => {
+    const { ds, updateNoteUnified, read } = makeDS(STORED);
+    renderScreen(ds);
+
+    // The goals must not blink out on the morning this ships.
+    await waitFor(() => expect(weekField().value).toBe("Ship the block"));
+    await waitFor(() => expect(updateNoteUnified).toHaveBeenCalledTimes(1));
+    expect(read()).toContain(`週目標 ${KEYS.week}`);
+    expect(read()).toContain("Ship the block");
+  });
+
+  it("does not write on open once the note is already keyed", async () => {
+    const { ds, updateNoteUnified } = makeDS(STORED_KEYED);
+    renderScreen(ds);
+    await waitFor(() => expect(weekField().value).toBe("Ship the block"));
+    // Several flushes — one microtask turn would pass with or without a write.
+    for (let i = 0; i < 8; i++) await act(async () => undefined);
+    expect(updateNoteUnified).not.toHaveBeenCalled();
+  });
+
+  it("does not resurrect a trashed note just to key it", async () => {
+    const { ds, updateNoteUnified, restoreNoteUnified } = makeDS(STORED, {
+      trashed: true,
+    });
+    renderScreen(ds);
+    await waitFor(() => expect(weekField().value).toBe("Ship the block"));
+    for (let i = 0; i < 8; i++) await act(async () => undefined);
+    // Bringing it back is a repair the user asks for by writing a goal.
+    expect(updateNoteUnified).not.toHaveBeenCalled();
+    expect(restoreNoteUnified).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GOALS_NOTE_ID,
   GOAL_PERIODS,
+  adoptBareGoalHeadings,
   extractGoals,
+  goalPeriodKeys,
   mergeGoalSection,
   normalizeGoalText,
   useSyncDomains,
@@ -10,6 +12,7 @@ import {
   type DataService,
   type ExtractedGoals,
   type GoalPeriod,
+  type WeekStartsOn,
 } from "@life-editor/shared";
 
 /** Debounce for a goal textarea → section-merge save (flushed on blur). */
@@ -35,6 +38,12 @@ const GOAL_SAVE_DEBOUNCE_MS = 800;
  * period's range, and writes the whole document back — so saving the month goal
  * can never resurrect a stale week goal or clobber a Notes-side edit.
  *
+ * Since #957 every section carries a PERIOD KEY, so "its own range" means the
+ * CURRENT week / month / year. When a period turns over, its field is empty
+ * because that key has no section yet, and the previous one stays in the note
+ * as history the user reads from Notes. The keys come from the same call the
+ * paper's period labels do (goalPeriods.ts), so key and label always agree.
+ *
  * The REFETCH rides that same chain (useDailySections' daily is refetched by
  * its owner hook; this document's is not). A sync-driven read issued between
  * two saves would otherwise resolve last with a body from before the second
@@ -51,8 +60,19 @@ type GoalEchoes = Record<GoalPeriod, (string | null)[]>;
 
 const NO_ECHOES: GoalEchoes = { week: [], month: [], year: [] };
 
-export function useGoalsDoc(ds: DataService) {
+export function useGoalsDoc(
+  ds: DataService,
+  todayKey: string,
+  weekStartsOn: WeekStartsOn,
+) {
   const { t } = useTranslation();
+  // Which week / month / year the paper is standing in (#957). The SAME two
+  // inputs produce the label beside each field (goalPeriodRanges), so the key
+  // a save writes and the range the reader sees can never disagree.
+  const keys = useMemo(
+    () => goalPeriodKeys(todayKey, weekStartsOn),
+    [todayKey, weekStartsOn],
+  );
   // The goals live in a note, so a Realtime note change (Notes-side edit,
   // another device) must bring the paper along — under-declaring here is a
   // silent stale (rules/frontend.md §Sync).
@@ -77,7 +97,29 @@ export function useGoalsDoc(ds: DataService) {
     saveChainRef.current = saveChainRef.current.then(async () => {
       try {
         const note = await ds.getNoteUnified(GOALS_NOTE_ID);
-        if (!cancelled) setContent(note?.content ?? null);
+        let body = note?.content ?? null;
+        // One-shot rollover migration (#957): a note written before period
+        // keys existed carries BARE headings, and left alone they would be
+        // re-adopted as "this week" every week and never roll over. Rewriting
+        // them here is the only write the paper makes without the user typing,
+        // and it is bounded — the second read finds keyed headings and
+        // `adoptBareGoalHeadings` returns its input by identity.
+        //
+        // Guarded on an existing, live note: never create one (opening the
+        // paper must not litter Notes), and never resurrect a trashed one
+        // (that is a repair the user asks for by writing a goal — persistGoal
+        // owns it). Deliberately inside the read's own try/catch, so the
+        // failure paths this hook has stay at two.
+        if (note !== null && note.isDeleted !== true) {
+          const adopted = adoptBareGoalHeadings(body, keys);
+          if (adopted !== (body ?? "")) {
+            const updated = await ds.updateNoteUnified(GOALS_NOTE_ID, {
+              content: adopted,
+            });
+            body = updated.content ?? adopted;
+          }
+        }
+        if (!cancelled) setContent(body);
       } catch (err) {
         // A failed read leaves the previous text on the paper rather than
         // blanking fields the user may be typing into — but it must still
@@ -90,11 +132,11 @@ export function useGoalsDoc(ds: DataService) {
     return () => {
       cancelled = true;
     };
-  }, [ds, syncVersion]);
+  }, [ds, syncVersion, keys]);
 
   const stored = useMemo<ExtractedGoals>(
-    () => extractGoals(content),
-    [content],
+    () => extractGoals(content, keys),
+    [content, keys],
   );
 
   // Draft model (controlled textareas — no remounts): draft ?? stored is what
@@ -160,7 +202,12 @@ export function useGoalsDoc(ds: DataService) {
         try {
           const fresh = await ds.getNoteUnified(GOALS_NOTE_ID);
           const freshContent = fresh?.content ?? "";
-          const merged = mergeGoalSection(freshContent, period, normalized);
+          const merged = mergeGoalSection(
+            freshContent,
+            period,
+            keys[period],
+            normalized,
+          );
           if (merged === freshContent) {
             // No-op write (and, on a missing note, no note) — retire the echo.
             retireEcho();
@@ -200,7 +247,7 @@ export function useGoalsDoc(ds: DataService) {
         }
       });
     },
-    [ds, noteTitle],
+    [ds, noteTitle, keys],
   );
 
   const timersRef = useRef<Partial<Record<GoalPeriod, number>>>({});
