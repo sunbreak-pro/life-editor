@@ -65,3 +65,8 @@
 - D-20260815-materials-1: **B**（Todo のステータスを保存値ごと 2 値化する = `TodoStatus` を `NOT_STARTED` / `DONE` へ縮め、Kanban は 2 列・MCP の 3 値 API も破壊的変更。既存の IN_PROGRESS 行は読み出し時に未完側へ畳む → 実装 PR #926。2026-08-16 チャットの AskUserQuestion で回答・chat-materials-refine が転記）
 - D-20260815-materials-2: **A**（#876 でモバイルの詳細ボトムシート（#471）を畳む = メインが本文になるので同じものの二重表示をやめ、「一覧 → 選ぶ → メインで書く」1 本に揃える。同上）
 - D-20260816-shared-fix-1: **A**（`detectSessionInUrl` を全面 true にする。アプリ側の URL 解釈がゼロ件で Electron / Capacitor には URL パラメータが載らないため、実効の影響範囲は公開 Web URL に閉じる。recovery 限定の判定関数は期限切れリンクを無視して同じ無反応バグを再生産するので却下 → #919。2026-08-16 チャットの AskUserQuestion で回答・chat-shared-fix が転記）
+- D-20260815-shared-fix-1: **A**（#916（月シート廃止）を通す。回答時点で PR #916 / #917 とも merged 済みのため追加作業ゼロ = 月シート全画面化の起票は不要。2026-08-16 チャットで回答・chat-shared-fix が転記）
+- D-20260816-shared-fix-2: **A**（リカバリーは implicit フローのまま受け入れる。PKCE は殻から要求 → OS 既定ブラウザで開く導線が `code_verifier` の不一致で必ず失敗するため却下。同上）
+- D-20260816-shared-fix-3: **A**（ログイン中のパスワード変更に再認証を要求しない = 現状維持。"Secure password change" はリカバリー経路も同じ `updatePassword()` を通るので、ON にする前にリカバリーセッションの実測が要る。同上）
+- D-20260816-shared-fix-4: **A**（パスワードの最小長を 6 から 10-12 へ上げる。具体値は実装時に 1 つへ決め、定数と en / ja 文言で二重管理しない。Supabase の Minimum password length も揃える → 実装 Issue #956。同上）
+- D-20260816-shared-fix-5: **A**（再設定を完了せず離脱してもセッションは残す = 現状維持。閉じ忘れで締め出されるより「リンクを踏んだらとりあえず中に入れる」を採る。同上）
