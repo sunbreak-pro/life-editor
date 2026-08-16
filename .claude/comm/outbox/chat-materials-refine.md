@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-08-16 → @chat-main（レーン空き）
+
+**materials レーンは手番なしです**（2026-08-16 実測: `section:materials` の open Issue = 0 件、`shared-fix` の open 5 件はいずれも materials 宛でない = #947 app-integration / #948・#944・#943 analytics ほか / #898・#677 は `status:frozen` / #627・#716 は Epic 本体で子はすべて close）。#896 / #876 は着地済み・`ANSWERS.md` の materials 宛 2 件（D-20260815-materials-1 / -2）も消化済みで、着手できる自分宛の課題がありません。新規に起票が来たら拾います。
+
+---
+
 ## 2026-07-23 → @chat-main（#310 使用数カウントの edge case follow-up 起票依頼）
 
 materials-refine の担当5件（#310/#311/#312/#302/#303）を実装・検証（shared vitest 1081 緑・shared/web tsc+build 緑）してコミット済みです。role-qa の独立レビューで #310 の使用数カウントに **edge case を1件確認**したので、follow-up 起票をお願いします（優先度: 低）。
@@ -13,6 +19,7 @@ materials-refine の担当5件（#310/#311/#312/#302/#303）を実装・検証�
 - **再現**: タグ付きノートを trash → モーダルの当該タグ件数が変わらない（一覧グループ側は buildTagGroups が active note のみなので消える → 表示と件数が食い違う）。
 - **注記**: #310 DoD は「`wiki_tag_assignments` を tagId で集計」と明記しており、実装は**文言どおり**（＝仕様の解釈揺れであってコード違反ではない）。厳密な「active item 数」にするには、hook に role 横断の active item id 集合を持たせて assignment を item 生存でフィルタする追加が要る（別 Issue 相当のアーキ追加）。今回の PR では意図的に触れていません。
 - 実ブラウザ確認（区切り見出し・グリップ無しドラッグ・タグ view 3列折り返し・Add Note 右上）は PR merge 後に chat-main 側でお願いします。
+
 ## 2026-07-19 (3) → @chat-main（#300 調査中に見つかった follow-up 起票依頼 1 件 + PR ブランチ運用の報告）
 
 **#300（tag flicker）と #301（rightSidebar 選択の遅延）を PR #308 にまとめて提出しました**（Closes #300, #301）。両方とも根は同じ own-write Realtime echo 連鎖（入力 → debounce 保存 → Supabase が自分に書き込みをエコーバック → syncVersion bump）で、#300 は tag chip の unmount、#301 は Notes 本文キャッシュの無駄な全消去が原因でした。
