@@ -12,7 +12,12 @@ import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineNode } from "../../types/routine";
 import { aggregateRoutineCompletion } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
-import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
+import {
+  CHART_GRID,
+  CHART_HEIGHT_SM,
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+} from "./chartTheme";
 
 export interface RoutineCompletionChartLabels {
   title: string;
@@ -48,41 +53,39 @@ export function RoutineCompletionChart({
 
   return (
     <ChartCard title={labels.title}>
-      <div style={{ height: Math.max(160, data.length * 32 + 40) }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid {...CHART_GRID} />
-            <XAxis
-              type="number"
-              domain={[0, 100]}
-              tick={CHART_TICK}
-              tickFormatter={(v) => `${v}%`}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              tick={CHART_TICK}
-              width={100}
-            />
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number | undefined) => [
-                `${value ?? 0}%`,
-                labels.rate,
-              ]}
-            />
-            <Bar
-              dataKey="rate"
-              fill="var(--color-lumen-accent-secondary)"
-              radius={[0, 4, 4, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <ResponsiveContainer
+        width="100%"
+        height={Math.max(CHART_HEIGHT_SM, data.length * 32 + 40)}
+        minWidth={0}
+      >
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+        >
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis
+            type="number"
+            domain={[0, 100]}
+            tick={CHART_TICK}
+            allowDecimals={false}
+            tickFormatter={(v) => `${v}%`}
+          />
+          <YAxis type="category" dataKey="name" tick={CHART_TICK} width={100} />
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            formatter={(value: number | undefined) => [
+              `${value ?? 0}%`,
+              labels.rate,
+            ]}
+          />
+          <Bar
+            dataKey="rate"
+            fill="var(--color-lumen-accent-secondary)"
+            radius={[0, 4, 4, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </ChartCard>
   );
 }

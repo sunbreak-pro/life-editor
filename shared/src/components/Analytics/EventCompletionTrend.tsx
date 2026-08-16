@@ -11,7 +11,12 @@ import {
 import type { ScheduleItem } from "../../types/schedule";
 import { aggregateEventCompletionByDay } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
-import { CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE } from "./chartTheme";
+import {
+  CHART_GRID,
+  CHART_HEIGHT_MD,
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+} from "./chartTheme";
 
 export interface EventCompletionTrendLabels {
   title: string;
@@ -40,37 +45,31 @@ export function EventCompletionTrend({
 
   return (
     <ChartCard title={labels.title}>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart
-            data={data}
-            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-          >
-            <CartesianGrid {...CHART_GRID} />
-            <XAxis
-              dataKey="date"
-              tick={CHART_TICK}
-              interval="preserveStartEnd"
-            />
-            <YAxis tick={CHART_TICK} allowDecimals={false} />
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number | undefined) => [
-                value ?? 0,
-                labels.completed,
-              ]}
-            />
-            <Area
-              type="monotone"
-              dataKey="completed"
-              stroke="var(--color-lumen-accent)"
-              fill="var(--color-lumen-accent)"
-              fillOpacity={0.15}
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD} minWidth={0}>
+        <AreaChart
+          data={data}
+          margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+        >
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="date" tick={CHART_TICK} interval="preserveStartEnd" />
+          <YAxis tick={CHART_TICK} allowDecimals={false} />
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            formatter={(value: number | undefined) => [
+              value ?? 0,
+              labels.completed,
+            ]}
+          />
+          <Area
+            type="monotone"
+            dataKey="completed"
+            stroke="var(--color-lumen-accent)"
+            fill="var(--color-lumen-accent)"
+            fillOpacity={0.15}
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </ChartCard>
   );
 }
