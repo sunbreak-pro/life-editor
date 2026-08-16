@@ -6,9 +6,9 @@
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
-- 前回: **#893 = PR #936 merge 済み**（2026-08-16・main `1d91096b`）。3 部品の props を 28 → 6 / 19 → 7 / 12 → 6 に
-- 現在: **#889 = PR #941 open（1/n 本目）**。右サイドバー 3 タブを `web/src/schedule/ScheduleSidebar.tsx` へ。**2,578 → 2,446 行**。8 ゲートすべて exit 0（web test 54 files 485 pass = +11）
-- 次: **#889 の続き**（残る塊 = オーバーレイ群 ≈350 行 / Desktop・Mobile 2 本の return ≈350 行 = ステップ 2 / Event↔Todo 変換 ≈150 行 / state の 3 グループ化 = ステップ 3）。**加えて監査由来の #932 / #933 / #934 が `section:schedule` で起票された**ので担当キューは 4 本
+- 前回: **#889 = PR #941 merge 済み**（2026-08-16・main `8dd6691d`）。右サイドバー 3 タブを `web/src/schedule/ScheduleSidebar.tsx` へ
+- 現在: **監査由来 3 件 + #940 + #889 の 4 ユニットを一気に提出（2026-08-16・PR 8 本 open）**。#932 = PR #964 / #933 = PR #966 / #934 = PR #968 / #940 = PR #972 / #889 = PR #974（詳細フレーム）・#976（Event↔Todo 変換）・#982（時計 + オーバーレイ state）・#987（レンズ + Desktop 本体）。ほかに決定台帳 PR #959
+- 次: **#889 の残り**。`CalendarTab.tsx` は 4 ユニット合流後もまだ **1,000 行に届かない**（各 PR 単独では 2,442 → 2,288〜2,426）。**到達には `editorPane` / `sidebarPortal` / `popoverEl` の 3 塊（合計 700 行超）+ Mobile 本体の切り出しが要る**。`Closes #889` は 1,000 行を切る PR にだけ付ける
 - **#889 の抽出先は `shared/` ではなく `web/src/schedule/`**（2026-08-16 判断・PR #941 本文に記載）: Issue 本文は `shared/src/components/schedule/` と書いているが、切り出す対象は **shared に既にいる部品を組み合わせるだけの層**で、自分の文言は `useTranslation()` で解決している。shared へ押し込むと組み合わせ以外に何もしない層に約 25 個のラベルを通すことになり、#893 でその下の部品から取り除いた形そのものになる。#675 が剥がした 15 ファイルも全部 `web/src/schedule/` にいる
 - **ポータルは切り出し先に畳み込まない**（#889 の実測）: `RightSidebarPortal` は Provider 無しだと `null` を返す（`RightSidebarPortal.tsx:30`）ので、部品側に入れると**シェル一式を立てないテストから中の分岐が 1 つも見えない**。配置はホストの都合として呼び出し側に残す
 - **変異テストの当たり形**（#889 で実践・#897 の反省を反映）: 狙った規則 3 つを同時に潰したら**落ちたのはちょうど対応する 3 テストだけ**（8 件は緑）。件数ではなく「どれが落ちるか」が 1 対 1 で対応しているかを見る
@@ -51,7 +51,8 @@
 
 ## 直近の完了
 
-- **#889 CalendarTab 分割 1/n（右サイドバー）** 🟡（2026-08-16 — **PR #941 open**）。3 タブ（flow / todo / repeats）+ スイッチャー + レイアウト畳み込みを `web/src/schedule/ScheduleSidebar.tsx` へ。**2,578 → 2,446 行**。vitest 11 件は**マークアップではなく黙って壊れる規則**を固定（narrow の todo → flow 畳み込み / narrow で削除を渡さない / ルーチン集計 Desktop 限定 + その CTA が repeats への唯一の導線 / #466 フィルタ通知）。8 ゲート exit 0 — 詳細は history 2026-08-16 (3)
+- **監査由来 3 件 + #940 + #889 の 4 ユニット** 🟡（2026-08-16 — **PR #964 / #966 / #968 / #972 / #974 / #976 / #982 / #987 が open**）。**#932 の要点 = 復元が拒否されるのは「壊れた」ではなく「その日にはもう占有者がいる」**なので、全体を落とさず衝突分だけ残して呼び出し側に返す形にした（`bulkRestoreScheduleItems` の戻り値を `{restoredIds, conflictedIds}` へ）。**#933 は現行 3 経路からは到達不能な欠陥**（`routines` に同一 id が 2 つ入らない限り成立しない）と実測したうえで service 側で塞いだ — 成立条件が「呼び出し元が id を重複させない」というどこにも書かれていない前提で、破れたときの代償（バッチ全滅・無言・リトライ運任せ）が全く見合わないため。**#934 は「兄弟同士を 1 件ずつ消す理由が無い」**（順序制約は events → routine の間だけ）。**#940 は `dateLabel`（読むだけの文字列）を date input に変え、4 つの submit を `ItemCreateSlot` 1 個に畳んだ** — これが無いとホストが日付を自分の state から読んで、ユーザーが選んだ日を無言で無視する。**#889 の 4 ユニットは全て「重複か、2 回読んでいるか」**（詳細フレームが 2 リテラル / 変換 150 行が最大ファイルに埋没 / 時計が壁時計を 2 回読む / レンズの「出ない条件」がコメントだけ）— 詳細は history 2026-08-16 (4)
+- **#889 CalendarTab 分割 1/n（右サイドバー）** ✅（2026-08-16 — **PR #941 merge 済み**・main `8dd6691d`）。3 タブ（flow / todo / repeats）+ スイッチャー + レイアウト畳み込みを `web/src/schedule/ScheduleSidebar.tsx` へ。**2,578 → 2,446 行**。vitest 11 件は**マークアップではなく黙って壊れる規則**を固定（narrow の todo → flow 畳み込み / narrow で削除を渡さない / ルーチン集計 Desktop 限定 + その CTA が repeats への唯一の導線 / #466 フィルタ通知）。8 ゲート exit 0 — 詳細は history 2026-08-16 (3)
 - **#893 Schedule 共有部品の props ドリルを畳む** ✅（2026-08-16 — **PR #936 merge 済み**・main `1d91096b`）。**WeekTimeGrid 28 → 6 / EventEditorPane 19 → 7 / ItemCreatePanel 12 → 6**。挙動変更ゼロの担保は「各部品が束ねた prop を**本体がこれまで使っていたフラットな名前に戻して**受け取る」形（デフォルト値も分解の右辺に据え置き）。**DoD の「既存テスト無改変」は文字通りには成立しないので、ケース本体を 1 行も変えずファクトリだけ畳む形に置き換えた**（詳細は上の進行中ブロック）。ステップ 2（Context 直接消費）は Briefing がセクション層 Provider の外にいるため不採用。ステップ 3 の実測で `dotColorClasses` のバイト単位重複 1 件を発見 → `scheduleVariantVisuals.ts` へ。8 ゲートすべて exit 0（shared 240 files 2232 pass / web 53 files 474 pass）— 詳細は history 2026-08-16 (2)
 - **#897 SupabaseScheduleItemsService の一括系にテストを足す** ✅（2026-08-16 — **PR #929 merge 済み**・main `f82c451b`）。一括書き込み 4 本に vitest 19 ケース（5 本目 `updateFutureScheduleItemsByRoutine` は既存テストが押さえていた）。**一発で全部通ったので変異テストで実効性を実測した** — 重複排除の filter を外すと 3 件 fail / meta INSERT を消す + `deleted_at` を落とすと 6 件 fail。ついでに**クラスヘッダーが実装と食い違っていた**のを訂正（「ON CONFLICT ignoreDuplicates を使う」と書いてあるが実装は事前 SELECT 方式。PostgREST は **PARTIAL** unique index に ON CONFLICT を向けられない）。複合キーの綴りが 2 箇所に散っていたのを `routinePairKey()` に一本化。**Issue のステップ 2（bulkCreate と updateFuture の共通部分抽出）は共通の中核が実在しないので見送り** → 判断キュー D-20260816-sched-1。**独立監査 2 本（role-qa + sync-auditor）で Blocking 0 / 指摘 4 件を追いコミット `0eef4dd3` で全反映** — doc のドリフトが 1 箇所ではなく 4 箇所（うち `db-conventions.md` §10.8 は**そのレシピを規約として処方している**側）／ テストが見ていない契約 4 件（事前チェックのページング・dismissed 日の再生阻止・手動イベント判定の空振り・未認証経路）。監査が見つけた**既存欠陥 3 件は outbox へ起票依頼**（最優先 = Trash からの復元が partial UNIQUE で無言失敗）— 詳細は history 2026-08-16
 - **#878 Mobile Calendar のメインを月ビューに** 🟡（2026-08-15 — **PR #916 open**）。メイン = 月グリッド + **その下に選択日のリスト**（日別リストの置き場所はユーザー選択 = 2026-08-15）。#692 の月シートと日付横シェブロンは i18n キー 2 本ごと退役。**narrow の `effView` は常に `"month"`** なので矢印が月送りになり、日はセルタップで選ぶ。`MonthGrid` に任意の `selectedKey` を追加（**印はセル側** = today バッジと両立させるため。未指定なら `aria-selected` すら出さない — 全セルが false を名乗ると「選ぶものがある」と読み上げられる）。`docs/requirements/mobile-scope.md` の #4 行も同 PR で更新 — 詳細は history 2026-08-15
@@ -91,8 +92,9 @@
 
 ## 予定
 
-- **現在の section:schedule キュー（2026-08-16 夕方 実測）**: open は **#889 / #932 / #933 / #934 の 4 本**（#897 は close 済み・#893 は PR #936 提出済み）。**#932 / #933 / #934 は #897 の監査で見つけた既存欠陥を chat-main が起票したもの**で、outbox 経由の依頼がそのまま当レーンに戻ってきた形。**タイトルの `[refactor-core]` 接頭辞で担当を判断しない** — ラベル `section:schedule` が正で、refactor-core レーンは #890 / #894 / #895 を持つ
-- **優先度**: #932（Trash からの復元が partial UNIQUE で無言失敗 — ユーザーからは「復元したのに戻らない」としか見えない）> #933（バッチ内重複が事前チェックを素通りしてバッチ全滅）> #934（`permanentDeleteRoutine` の 500 往復）。#889 との順序はユーザー判断待ち
+- **section:schedule キューは #889 だけが残る**（2026-08-16 夜 実測）。#932 / #933 / #934 / #940 は PR 提出済みで、**merge はこうだいさんの手番**（P-001）。**タイトルの `[refactor-core]` 接頭辞で担当を判断しない** — ラベル `section:schedule` が正
+- **8 本の PR が同時に open していて、うち 5 本が `CalendarTab.tsx` を触る**（#972 / #974 / #976 / #982 / #987）。すべて main から独立に切ってあるので **merge 順によっては手で解消が要る**。#889 の 4 ユニットは互いに別の領域（詳細フレーム / 変換ブロック / state 宣言 / レンズ + 本体）を触るので衝突は限定的だが、**#972（#940）は `createOverlayEl` 周辺で #987 と近い**
+- **判断キュー D-20260816-sched-3 が open**（#933 の R2 全滅を撃ち直しに変えるか）。放置時は現状維持で、#966 の merge はブロックしない
 - **`CalendarTab.tsx` は #878（PR #916・merge 待ち）と #889 が同じホストを触る**。#889 に着手する前に `git fetch` して #916 の着地を確認し、着地後の main から切る（先に切ると真正コンフリクトになる）。**#893（PR #936）も CalendarTab を触る**ので、#936 の着地も同じく確認する
 - **`MonthGrid` 16 props / `TodayTodoTray` 12 props** は #893 の対象外だが同じ手当てが効く（2026-08-16 実測）。必要なら別 Issue で
 - **outbox 2026-08-10 に起票依頼 2 件**: ① Notes / Tasks 詳細シートの `vh` → `svh` 展開（#633 の水平展開）② mobile の Todo チップ詳細シート（#564 / #626 follow-up）
@@ -119,4 +121,4 @@
 - **PR は作った直後に merge されることがある**（2026-07-26 実測）。#393 は作成から数分で merge され、後から push した Step B のコミットは PR に入らなかった。**1 PR に段階を積むつもりなら、全部 push し終えてから PR を立てる**。取り残したら `git checkout -b <new> origin/main` + `git cherry-pick <sha>` で切り出せる（Step A の内容は既に main にあるので衝突は最小 — 実際 `shared/src/index.ts` の隣接追加 1 箇所だけだった）
 - ~~**`web` の lint は緑ではない**~~: `web/src/notes/NotesView.tsx:291` の main 由来 error は **2026-07-28 に解消済み**（origin/main `415cb185` で `cd web && npm run lint` が exit 0）。以後 lint 赤が出たら自分の変更を疑ってよい。なおセクションの標準ゲートは shared test / shared build / web build で lint を含まない
 - **`REALTIME_TABLES`（`shared/src/context/SyncContext.tsx`）は publication と完全一致が不変式**（`shared/tests/syncRealtimeTables.test.ts` がハードカウント込みで検証）。DDL を伴わないコード削除でテーブルを購読リストから外すとテストが落ちる — #352 で一度踏んだ
-- **`web` にテストランナーが無い**（scripts は dev / build / lint / preview のみ）。ホスト側のロジックはテストで守れないので、**判定ロジックは shared の純粋関数 / フックに寄せる**と vitest で pin できる（#352 の `seedFrequencyPatch`、#355 の `useDeferredAction` はこの方針）
+- ~~**`web` にテストランナーが無い**~~ = **もう嘘**（#475 で `web` にも vitest が入り、2026-08-16 時点で 54 files / 486 pass）。`cd web && npm run test` と `npm run typecheck:tests` が回る。**ただし「判定ロジックを純関数 / フックへ寄せる」方針は今も有効**で、理由が変わった: テストランナーが無いからではなく **jsdom にレイアウトが無く `CalendarTab` のような Provider 一式 + 実座標が要る画面が載らない**から（D-20260812-refactor-2 = 画面ごと描くのが既定・載らない画面だけ切り出しで逃がす）。#976 の `useItemConversion` がこの形
