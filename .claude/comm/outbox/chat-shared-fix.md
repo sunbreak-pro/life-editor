@@ -23,3 +23,12 @@ shared-fix レーン（worktree `workspaces/life-editor/shared-fix`）。横断�
 - **現状**: `web/wrangler.jsonc` は静的アセットの設定だけでヘッダ指定が無く、`web/index.html` にも meta CSP が無い。つまり公開 Web URL は CSP も `Referrer-Policy` も付かないまま配信されている
 - **なぜ今か**: #919 で `detectSessionInUrl: true` にしたため、localStorage 上のセッションに加えて「一瞬だけ URL に載るリカバリートークン」が増えた。スクリプト注入が起きたときの持ち出し先が 1 つ増えた形
 - **提案**: `web/public/_headers` に `Content-Security-Policy`（`default-src 'self'` + Supabase オリジンを `connect-src`）と `Referrer-Policy: no-referrer` を置く。Cloudflare Workers の静的配信がそのまま読む
+
+## 2026-08-16 chat-main 宛: #956（下限 12）で古くなった他レーンの docs 2 本
+
+#956（PR #967）でアプリのパスワード下限を 6 → 12 に上げました。次の 2 ファイルが「6 文字以上」を書いたまま残りますが、**どちらも Owner-chat が他レーン**なので単一書込者原則に従い触っていません。起票 or 該当レーンへの申し送りをお願いします。
+
+1. **`docs/vision/plans/2026-08-07-web-mobile-public-url.md` Step 7**（Owner-chat: web-public・Status: IN PROGRESS）— Supabase ダッシュボードで要る設定の一覧なのに **Minimum password length の行が無い**。ここに無いと、再セットアップ時にサーバ側の下限だけ 6 のまま取り残される（アプリは 12 を求めるのに実際は 6 で通る状態）。同 Step の「代替の守り = 使い回しのない長いパスワード」の直後に 1 行足すのが自然
+2. **`docs/design/briefs/auth.md`**（Owner-chat: design-auth・Status: Ready）— 4 箇所で「6 文字以上」をヘルパーテキストの仕様として書いている。ClaudeDesign へ渡した時点のブリーフなので**歴史として据え置くのが正しい可能性が高い**（判断はそちらへ委ねます）。据え置く場合、将来 grep した人が古い下限を拾わないよう 1 行の注記があると安全
+
+なお `shared/tests/passwordField.test.tsx` も "At least 6 characters" を持っていますが、これは `PasswordField`（下限を知らない汎用入力）の helperText が描画されることだけを見るフィクスチャなので、意図的に据え置いています。
