@@ -350,6 +350,75 @@ describe("bulkCreateScheduleItems — 2-row INSERT + Issue 011 idempotency", () 
     ]);
   });
 
+  /*
+   * #933 — the pre-check used to compare the batch against the DB only, so
+   * two rows inside ONE batch claiming the same (routine, date) sailed
+   * through to the INSERT. That INSERT is a single statement: 23505 rolls
+   * back every payload row, and the R2 cleanup then hard-deletes the metas
+   * for the whole batch. A 30-day fill with one duplicate produced zero
+   * events, and the retry was whenever the effect happened to fire again.
+   */
+  it("keeps the first of two rows in the SAME batch claiming one (routine, date)", async () => {
+    const { client, writes } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.bulkCreateScheduleItems([
+      item("si-first", { routineId: ROUTINE }),
+      item("si-dupe", { routineId: ROUTINE }),
+      item("si-other", { routineId: ROUTINE, date: "2026-08-21" }),
+    ]);
+
+    expect(ids(inserted(writes, "items_meta"), "id")).toEqual([
+      "si-first",
+      "si-other",
+    ]);
+    expect(ids(inserted(writes, "events_payload"), "item_id")).toEqual([
+      "si-first",
+      "si-other",
+    ]);
+  });
+
+  it("still writes the rest of the batch when a duplicate is dropped from it", async () => {
+    // The regression this Issue is really about: nothing is annihilated.
+    const { client, writes } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+    const days = Array.from({ length: 30 }, (_, i) =>
+      item(`si-${i}`, {
+        routineId: ROUTINE,
+        date: `2026-08-${String(i + 1).padStart(2, "0")}`,
+      }),
+    );
+
+    await svc.bulkCreateScheduleItems([
+      ...days,
+      // Same routine, same day as days[0] — the poison row.
+      item("si-dupe", { routineId: ROUTINE, date: "2026-08-01" }),
+    ]);
+
+    expect(inserted(writes, "items_meta")).toHaveLength(30);
+    expect(ids(inserted(writes, "items_meta"), "id")).not.toContain("si-dupe");
+  });
+
+  it("does not fold distinct manual events together (they all share the null pair)", async () => {
+    // routinePairKey spells a manual row "null|null", so a dedupe that
+    // forgot to exempt them would collapse every hand-made event on the
+    // batch into one.
+    const { client, writes } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.bulkCreateScheduleItems([
+      item("si-a"),
+      item("si-b"),
+      item("si-c"),
+    ]);
+
+    expect(ids(inserted(writes, "items_meta"), "id")).toEqual([
+      "si-a",
+      "si-b",
+      "si-c",
+    ]);
+  });
+
   it("ignores a soft-deleted pair when deduping (the partial UNIQUE only covers live rows)", async () => {
     const { client, writes } = makeClient({
       live: [

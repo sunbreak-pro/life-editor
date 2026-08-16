@@ -556,15 +556,29 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
       return { meta, payload: patchedPayload };
     });
 
-    // Pre-check: drop pairs whose (routine_item_id, source_date) already
-    // exists as a LIVE row. Only routine-generated pairs are checked —
-    // manual events (routine_item_id=null) are never deduplicated.
+    // Pre-check: drop pairs whose (routine_item_id, source_date) is already
+    // taken. Only routine-generated pairs are checked — manual events
+    // (routine_item_id=null) are never deduplicated, and they all share the
+    // key "null|null", so folding them together would collapse a day's
+    // hand-made events into one.
+    //
+    // Two claimants, not one (#933). The live rows in the DB are the obvious
+    // half; the other is THIS batch — nothing upstream promises the caller's
+    // list holds each (routine, date) once, and a duplicate that reaches the
+    // INSERT raises 23505 for the whole statement. Since a failed payload
+    // INSERT rolls back every row, the R2 cleanup then hard-deletes the metas
+    // for the entire batch: one duplicate turns a 30-day fill into zero
+    // events, and the only retry is whenever the effect next fires.
     const liveSet = await this.fetchLiveRoutinePairKeys(
       allPairs.map((p) => p.payload),
     );
+    const claimed = new Set<string>();
     const pairs = allPairs.filter((p) => {
       if (p.payload.routine_item_id === null) return true;
-      return !liveSet.has(routinePairKey(p.payload));
+      const key = routinePairKey(p.payload);
+      if (liveSet.has(key) || claimed.has(key)) return false;
+      claimed.add(key);
+      return true;
     });
 
     // All requested pairs were already live — idempotent no-op.
