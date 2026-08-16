@@ -28,7 +28,11 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 STAGED="$(git -C "$REPO_ROOT" diff --cached --name-status 2>/dev/null || true)"
 [ -n "$STAGED" ] || exit 0
 
-TRACKER_RE='\.claude/(memory|history)/chat-[^/]*\.md$'
+# ローリングアーカイブ（history が 5 件を超えたとき task-tracker が最古エントリを
+# `history/archive/YYYY-MM/chat-<self>.md` へ移す）も tracker として数える。ここを
+# 落とすと「アーカイブを伴う tracker commit」が毎回 BLOCKED になり、逃がし道の
+# [tracker-ok] が常用されて本来止めたい同梱を見逃す方向に効く（#1013）。
+TRACKER_RE='\.claude/(memory|history)/(archive/[0-9]{4}-[0-9]{2}/)?chat-[^/]*\.md$'
 # 追加 / 更新された tracker（削除 = D は対象外）
 TRACKER_TOUCHED="$(printf '%s\n' "$STAGED" | grep -E "^[AMR][0-9]*[[:space:]]" | grep -E "$TRACKER_RE" || true)"
 # tracker 以外に staged されているもの
