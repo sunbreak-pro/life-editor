@@ -1,5 +1,22 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-08-16 - #872 の判断 7 件を台帳へ昇格し、Todo を朝刊のスケジュールへ統合（#939・PR #969 open）
+
+#### 概要
+
+`ANSWERS.md` にまだ載っていなかった D-20260815-briefing-1〜7 の回答（1 / 2 / 4 / 5 / 6 = A・3 と 7 = B）を転記して台帳 7 本へ昇格し、キューを空にした。続けて #939 を実装 — 朝刊が「今日のスケジュール」と「今日の Todo と、その目的」で 2 回同じことを聞いていたのを 1 つのリストに畳んだ。
+
+#### 変更点
+
+- **昇格**: `.claude/decisions/D-20260815-briefing-1〜7.md` を新規作成（キュー原文をそのまま背景へ）。**`ANSWERS.md` に 7 行が無かった**ので、こうだいさんから口頭で示された回答を chat-briefing-refine が受任して転記した（`records.mjs check` が `status: answered` と ANSWERS 行の突合をゲートにしているため、行が無いと CI が落ちる）。#957 / #955 は起票済みなので再起票していない。
+- **A の条件履行**: D-20260815-briefing-6 = A に付いていた「スコープ表へ追記する」を実施 — `docs/requirements/mobile-scope.md` の冒頭更新履歴に 1 行と、#18 行に裁定 ID を追記した。目標ブロックが幅共通で書けることは **D-20260810-mobile-2 の矛盾に 1 件加わるだけ**で、解消は同判断の側という位置づけを明示。
+- **#939 の中身**: Todo 行を schedule の `<section>` 内へ移し、**Todo → 細い区切り線 → 終日 → 時刻付き**の順に。区切り線は装飾専用の `<li aria-hidden="true">` で、どちらかが 0 件なら出さない。Todo 行の完了トグル / 編集ジャンプ / 削除は同一のまま、空の時刻カラム（`w-14`）を挟んでタイトルの左端をスケジュール行と揃えた。
+- **並び順を view 側で持ち直した**: host（`useBriefingAggregation`）も終日を先に並べているが、区切り線の位置は view の約束なので stable partition を view に置き、暗黙の依存にしない。
+- **i18n**: `briefing.todosTitle` / `briefing.noTodos` を en / ja から削除（夕刊の `briefing.evening.*` は別キーなので残置）。空状態は Issue の DoD どおり既存の `briefing.noSchedule` を流用し、新しい文言を作らなかった。
+- **テスト**: `shared/tests/briefingView.test.tsx` に 8 ケース追加（並び順・区切り線 3 パターン・空状態の境界・移設後の 3 操作・目的行）。既存 2 件は前提が変わったので更新（空状態は `todos: []` も必要 / ルーチンタグの行が先頭 `<li>` でなくなった）。すべて DOM 順アサーションで座標非依存（CLAUDE.md §7.1）。
+- **ゲート**: shared（lint 0 error / build / test 243 files 2259 件）・web（lint 0 error / build / test 54 files 485 件）すべて exit 0。warning は shared 3 / web 4 とも既存分。`desktop/` 未変更のため typecheck 対象外。
+- **記録**: 実装プラン無しのため archive 対象なし。スコープ逸脱なし。AC 免除なし。実装中に浮上した判断もなし（#938 との隣接コンフリクトは PR 本文へ申し送り）。
+
 ### 2026-08-16 - Briefing データ層 2 本をテストで固定し 3 分割（#892・PR #924 open）
 
 #### 概要
@@ -64,18 +81,3 @@ Mobile 幅で Briefing だけヘッダーの並びが他画面と違った（題
 - **テスト**: `analyticsWeekWindow.test.tsx`（#780 の続きとして同ファイル）に固定日時 3 ケース — 週の途中（水 07-15）/ 週の初日 00:00（月 07-13）/ 週の最終日 23:30（日 07-19）— と pref 追従、およびモバイルカードを render して「数字とバーが同じ週」を押さえた（月曜開始 = Mon→Sun + 60m / 日曜開始 = Sun→Sat + 90m）。**呼び手側は別ファイル `workTimeChartWeekStart.test.tsx` を新設**（recharts は tagWorkTimeChart と同じ流儀で stub）— #860 は「#780 で関数だけ直して呼び手が旧窓のまま残った」事故なので、集計関数のテストだけでは同じ抜けを繰り返す。ラベル fixture は 3 コピー目になるところだったので `tests/helpers/analyticsLabels.ts` へ切り出した（既存 2 suite は据え置き）。
 - **ゲート**: shared（lint 0 error / build / test 2133 件）・web（lint 0 error / build / test 394 件）すべて exit 0。`records.mjs check`・`docs-lint` も OK。
 - **記録**: `decisions/D-20260813-briefing-1.md` の `implemented-by` に `#860` を追加。実装プランは無い課題なので archive 対象なし。スコープ逸脱なし（Issue の対象 2 箇所 + その呼び手のみ）、AC 免除なし、実装中に浮上した別判断もなし。
-
-### 2026-08-13 - Analytics「今週」の窓をカレンダー週へ統一（#780・PR #820 merged）
-
-#### 概要
-
-同じ「今週」ラベルの隣に別定義の数字が並んでいた状態を解消した。ノート数だけが直近 7 日のローリング窓で、作業時間・完了タスクは暦週を見ていた（#670 C3 は名前を付けただけ）。裁定 D-20260811-refactor-1 = A に従い暦週へ寄せ、週の開始曜日は `useWeekStart` の設定に追従させた。
-
-#### 変更点
-
-- **窓の共通化**: `calendarWeekRange(now, weekStartsOn)` の第 2 引数を**必須**にした（既定値を置くと読み忘れた呼び出し元が黙って別の週を選ぶため）。刻み方はカレンダーグリッドの `startOfWeekKey` と同式で、Analytics の週とグリッドの週が必ず同じ日に始まる。新ヘルパ `createdWithinRange` を追加し、`createdWithinLastDays` は呼び出し元ゼロ（`*.ts` / `*.tsx` 全数 grep で残存 0 = P-002）につき削除。
-- **消費側 3 箇所**: `MobileAnalyticsView` / `OverviewTab` のノート数を暦週へ、`WeeklySummary` の私有 `getWeekRange()`（月曜固定のコピー）を共通ヘルパへ統合。3 コンポーネントとも `useWeekStartPref()` で pref を読み、useMemo の deps に足した。WeeklySummary は Issue の Scope 外だが、残すと DoD の「月曜固定になっていない」を満たせないため含めた。
-- **表示値の変化（挙動変更ゼロの例外）**: ノート数は週の開始日より前が外れる。pref 既定が日曜始まりのため、モバイル / デスクトップ両方の「今週」の作業時間・完了タスク・セッション数が日〜土基準になる（旧: 月曜固定）。
-- **テスト**: `shared/tests/analyticsWeekWindow.test.tsx` を新規追加（12 件）。週初 00:00 ちょうどは入り 1 ミリ秒前は入らない / 週末が同じ週に留まる / pref 0・1 で窓が動く / **日付切替時刻 4 時でも窓は暦どおり**（#356 の pin）/ 8 日前のノートが落ちる。既存 `analyticsCompletedDayKey.test.tsx`（#420 ガード）は境界日を新しい窓の初日へ追随させた。
-- **ゲート**: shared・web の lint / build / test すべて exit 0（shared 1992 件 / web 269 件）。`records.mjs check`・`docs-lint` も OK。途中 1 回 vitest のワーカー起動タイムアウトで 7 ファイルが未起動になったが、単体再実行で全緑（環境フレークと確定）。
-- **判断キュー**: 実装中に「今週」カードの中へ残る別窓 2 つ（モバイル週バー = `aggregateByDay(sessions, 7)` の直近 7 日 / Work タブの `startOfWeek()` 月曜固定）を実測で発見。#780 の裁定文は「週バーは月〜日」を前提にしていたが事実と違った。表示が変わるため P-008 に従い実装せず D-20260813-briefing-1 として起票。
