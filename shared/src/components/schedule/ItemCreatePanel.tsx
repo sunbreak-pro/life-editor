@@ -112,37 +112,41 @@ export interface ItemCreatePanelLabels {
   clearNote: string;
 }
 
-export interface ItemCreatePanelProps {
-  /**
-   * The day the item will land on, already formatted for display (#353).
-   * The host owns the target date and the locale (§6.4), so it hands the
-   * finished string down. Read-only: the day comes from where the user
-   * opened the panel (toolbar → anchor day, empty slot / month cell → that
-   * cell's day), and changing it here would contradict that gesture.
-   *
-   * Optional because it tracks the host's OPEN-PANEL STATE, not its
-   * capabilities: with the panel closed there is no target day, and the
-   * Mobile frame (QuickCaptureSheet) stays mounted across that transition.
-   * `labels.date` is required precisely so a host cannot forget the row
-   * exists — only the value comes and goes. Absent ⇒ the row is skipped
-   * rather than rendered empty.
-   */
-  dateLabel?: string;
+/**
+ * Seed values for the panel's own draft state. One bundle rather than three
+ * `initial*` props (#893): they are read ONCE, at mount, and only ever travel
+ * together — a host that seeds the times but not the title is passing the same
+ * "where the gesture landed" fact, just partially.
+ */
+export interface ItemCreatePanelInitial {
   /** Seeds the start-time field (HH:MM). Default 09:00. */
-  initialStart?: string;
+  start?: string;
   /** Seeds the end-time field (HH:MM). Default 10:00. */
-  initialEnd?: string;
+  end?: string;
   /** Seeds the item-title field. Default empty. */
-  initialTitle?: string;
+  title?: string;
+}
+
+/** The two "pick an existing one" pools the panel offers. */
+export interface ItemCreatePanelPools {
   /**
    * The pool the "existing todo" source picks from — the host's unscheduled,
    * incomplete leaf todos (`pickAddableTodos`, the same pool the #298 tray
    * offers). Already-scheduled todos are deliberately absent: re-timing one is
    * a drag on the grid, not a create gesture.
    */
-  existingTodos: ItemCreateOption[];
+  todos: ItemCreateOption[];
   /** The pool the "existing note" source picks from (live notes). */
-  existingNotes: ItemCreateOption[];
+  notes: ItemCreateOption[];
+}
+
+/**
+ * Every write the panel can perform. Bundled (#893) because they are ONE
+ * capability, not four independent ones: a host that wires three of them ships
+ * a submit button that silently does nothing on the fourth tab, and the
+ * required-object shape makes that a compile error instead.
+ */
+export interface ItemCreatePanelHandlers {
   /** Fired with the trimmed (non-empty) title, the times, and the staged note. */
   onSubmitEvent: (
     title: string,
@@ -184,6 +188,28 @@ export interface ItemCreatePanelProps {
     end: string,
     note: ItemCreateNoteDraft | null,
   ) => void;
+}
+
+export interface ItemCreatePanelProps {
+  /**
+   * The day the item will land on, already formatted for display (#353).
+   * The host owns the target date and the locale (§6.4), so it hands the
+   * finished string down. Read-only: the day comes from where the user
+   * opened the panel (toolbar → anchor day, empty slot / month cell → that
+   * cell's day), and changing it here would contradict that gesture.
+   *
+   * Optional because it tracks the host's OPEN-PANEL STATE, not its
+   * capabilities: with the panel closed there is no target day, and the
+   * Mobile frame (QuickCaptureSheet) stays mounted across that transition.
+   * `labels.date` is required precisely so a host cannot forget the row
+   * exists — only the value comes and goes. Absent ⇒ the row is skipped
+   * rather than rendered empty.
+   */
+  dateLabel?: string;
+  /** Draft seeds, all optional. Omit entirely for the defaults. */
+  initial?: ItemCreatePanelInitial;
+  pools: ItemCreatePanelPools;
+  handlers: ItemCreatePanelHandlers;
   /** Formats the duration suffix on the end-time options (#553). */
   formatDuration?: (minutes: number) => string;
   labels: ItemCreatePanelLabels;
@@ -296,18 +322,22 @@ function resolvePicked(
 
 export function ItemCreatePanel({
   dateLabel,
-  initialStart = "09:00",
-  initialEnd = "10:00",
-  initialTitle = "",
-  existingTodos,
-  existingNotes,
-  onSubmitEvent,
-  onSubmitEventAndOpen,
-  onCreateTodo,
-  onPlaceTodo,
+  initial,
+  pools,
+  handlers,
   formatDuration,
   labels,
 }: ItemCreatePanelProps) {
+  // Unpacked back into the flat names the body has always used, so the bundles
+  // (#893) stay a wire-format change and nothing below has to know about them.
+  const {
+    start: initialStart = "09:00",
+    end: initialEnd = "10:00",
+    title: initialTitle = "",
+  } = initial ?? {};
+  const { todos: existingTodos, notes: existingNotes } = pools;
+  const { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo } =
+    handlers;
   const [type, setType] = useState<ItemCreateType>("event");
   // The note tab creates nothing, so the submit keeps acting on whichever of
   // event / todo was last open. Without this the footer would have nothing to

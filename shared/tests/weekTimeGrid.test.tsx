@@ -36,17 +36,25 @@ const items: WeekTimeGridItem[] = [
   },
 ];
 
-function renderGrid(props?: Partial<Parameters<typeof WeekTimeGrid>[0]>) {
+/**
+ * #893 folded the grid's props into bundles (`data` / `labels` / `handlers` /
+ * `display` / `format`). The cases below still describe their setup in flat
+ * terms and are unchanged from before that refactor — the folding happens
+ * here, which keeps "same cases, same assertions, still green" a usable
+ * no-behaviour-change proof.
+ */
+function renderGrid(props?: { days?: number }) {
   const onSelectItem = vi.fn();
   render(
     <WeekTimeGrid
-      weekStart="2026-06-14"
-      items={items}
-      weekdayLabels={WEEKDAYS}
-      allDayLabel="All-day"
-      todayKey="2026-06-14"
-      onSelectItem={onSelectItem}
-      {...props}
+      data={{
+        weekStart: "2026-06-14",
+        items,
+        todayKey: "2026-06-14",
+        days: props?.days,
+      }}
+      labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+      handlers={{ onSelectItem }}
     />,
   );
   return { onSelectItem };
@@ -116,10 +124,8 @@ describe("WeekTimeGrid — column alignment (#563)", () => {
   it("puts all three bands in the same scroll box", () => {
     const { container } = render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={items}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
+        data={{ weekStart: "2026-06-14", items }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
       />,
     );
     const scroll = container.querySelector<HTMLElement>(
@@ -137,11 +143,8 @@ describe("WeekTimeGrid — column alignment (#563)", () => {
   it("gives all three bands the same column template", () => {
     const { container } = render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        days={5}
-        items={items}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
+        data={{ weekStart: "2026-06-14", days: 5, items }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
       />,
     );
     const templates = bands(container).map(
@@ -196,11 +199,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onCreateAt = vi.fn();
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={[]}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onCreateAt={onCreateAt}
+        data={{ weekStart: "2026-06-14", items: [] }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onCreateAt }}
       />,
     );
     // Per-column catcher has aria-label `Create on <key>` (default). y=96px →
@@ -215,11 +216,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onMoveItem = vi.fn();
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={oneItem}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
+        data={{ weekStart: "2026-06-14", items: oneItem }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem }}
       />,
     );
     // pointerdown on the event body, then drag down 48px (= +60min) and release.
@@ -243,11 +242,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onResizeItem = vi.fn();
     const { container } = render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={oneItem}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onResizeItem={onResizeItem}
+        data={{ weekStart: "2026-06-14", items: oneItem }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onResizeItem }}
       />,
     );
     const handle = container.querySelector("span.cursor-ns-resize");
@@ -274,12 +271,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onDropAllDay = vi.fn();
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={oneItem}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
-        onDropAllDay={onDropAllDay}
+        data={{ weekStart: "2026-06-14", items: oneItem }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem, onDropAllDay }}
       />,
     );
     firePointerDown(screen.getByText("Standup"), 10, 10);
@@ -297,11 +291,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onMoveItem = vi.fn();
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={oneItem}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
+        data={{ weekStart: "2026-06-14", items: oneItem }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem }}
       />,
     );
     // Drag 09:00–09:30 far above the top edge: pre-#562 the snap went negative
@@ -337,13 +329,10 @@ describe("WeekTimeGrid — interactions", () => {
     ];
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={chip}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
-        onDropAllDay={onDropAllDay}
-        todoInteractive
+        data={{ weekStart: "2026-06-14", items: chip }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem, onDropAllDay }}
+        display={{ todoInteractive: true }}
       />,
     );
     firePointerDown(screen.getByText("Candidate"), 10, 10);
@@ -368,12 +357,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onSelectItem = vi.fn();
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={oneItem}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
-        onSelectItem={onSelectItem}
+        data={{ weekStart: "2026-06-14", items: oneItem }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem, onSelectItem }}
       />,
     );
     firePointerDown(screen.getByText("Standup"), 10, 10);
@@ -472,13 +458,10 @@ describe("WeekTimeGrid — interactions", () => {
     };
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={allDayChips}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={vi.fn()}
-        todoInteractive
-        {...handlers}
+        data={{ weekStart: "2026-06-14", items: allDayChips }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem: vi.fn(), ...handlers }}
+        display={{ todoInteractive: true }}
       />,
     );
     return handlers;
@@ -532,13 +515,10 @@ describe("WeekTimeGrid — interactions", () => {
     const onItemActivate = vi.fn();
     render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={allDayChips}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
-        onItemActivate={onItemActivate}
-        todoInteractive
+        data={{ weekStart: "2026-06-14", items: allDayChips }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem, onItemActivate }}
+        display={{ todoInteractive: true }}
       />,
     );
     firePointerDown(screen.getByText("Candidate"), 10, 10);
@@ -557,12 +537,9 @@ describe("WeekTimeGrid — interactions", () => {
     const onDropAllDay = vi.fn();
     const { container } = render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={oneItem}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
-        onDropAllDay={onDropAllDay}
+        data={{ weekStart: "2026-06-14", items: oneItem }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem, onDropAllDay }}
       />,
     );
     stubGridGeometry(container);
@@ -595,12 +572,10 @@ describe("WeekTimeGrid — interactions", () => {
     ];
     const { container } = render(
       <WeekTimeGrid
-        weekStart="2026-06-14"
-        items={chip}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        onMoveItem={onMoveItem}
-        todoInteractive
+        data={{ weekStart: "2026-06-14", items: chip }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem }}
+        display={{ todoInteractive: true }}
       />,
     );
     stubGridGeometry(container);

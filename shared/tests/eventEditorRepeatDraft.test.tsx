@@ -88,10 +88,15 @@ const weeklyRepeat: FrequencyEditorValue = {
   frequencyStartDate: null,
 };
 
+/**
+ * #893 folded the pane's props into bundles (`handlers` / `options` /
+ * `repeat`). The cases below still name the four callbacks flatly and are
+ * unchanged from before that refactor — the folding happens here.
+ */
 function renderPane(
   item: EventEditorItem,
   repeat: FrequencyEditorValue | null,
-  props?: Partial<Parameters<typeof EventEditorPane>[0]>,
+  props?: { repeatPending?: boolean },
 ) {
   const fns = {
     onSave: vi.fn(),
@@ -103,11 +108,15 @@ function renderPane(
     <EventEditorPane
       item={item}
       labels={LABELS}
-      repeat={repeat}
-      repeatLabels={REPEAT_LABELS}
-      repeatWeekdayLabels={WEEKDAYS}
-      {...fns}
-      {...props}
+      handlers={{ onSave: fns.onSave, onToggleComplete: fns.onToggleComplete }}
+      repeat={{
+        value: repeat,
+        labels: REPEAT_LABELS,
+        weekdayLabels: WEEKDAYS,
+        pending: props?.repeatPending,
+        onChange: fns.onChangeRepeat,
+        onDetach: fns.onDetachRepeat,
+      }}
     />,
   );
   return { ...fns, ...view };
@@ -254,13 +263,14 @@ describe("EventEditorPane — repeat draft (#712)", () => {
       <EventEditorPane
         item={routineItem}
         labels={LABELS}
-        repeat={weeklyRepeat}
-        repeatLabels={REPEAT_LABELS}
-        repeatWeekdayLabels={WEEKDAYS}
-        onSave={vi.fn()}
-        onToggleComplete={vi.fn()}
-        onChangeRepeat={vi.fn()}
-        onDetachRepeat={vi.fn()}
+        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        repeat={{
+          value: weeklyRepeat,
+          labels: REPEAT_LABELS,
+          weekdayLabels: WEEKDAYS,
+          onChange: vi.fn(),
+          onDetach: vi.fn(),
+        }}
       />,
     );
     pickType("Weekdays");

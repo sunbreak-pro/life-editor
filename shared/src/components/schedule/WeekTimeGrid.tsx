@@ -16,6 +16,7 @@ import {
   type HourRange,
 } from "../../utils/scheduleGridLayout";
 import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
+import type { ScheduleItemVariant } from "./scheduleVariantVisuals";
 
 /*
  * WeekTimeGrid (W8) — pure, presentational week/day time grid.
@@ -45,8 +46,15 @@ import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. All copy (weekday labels, "all-day", hour/date formatting)
  * is injected by the host already translated. lumen-* tokens only; the grid
- * surfaces and event blocks use opaque backgrounds (§5). `days={1}` collapses
- * it to a single-day column so the same primitive can back a day view.
+ * surfaces and event blocks use opaque backgrounds (§5). `data.days = 1`
+ * collapses it to a single-day column so the same primitive can back a day
+ * view.
+ *
+ * Props are grouped rather than flat (#893): `data` (what to draw) / `labels`
+ * (fixed copy) / `handlers` (the interaction surface) / `display` (geometry
+ * knobs) / `format` (computed copy). The grouping also states the read-only
+ * contract in one place — omit `handlers` entirely and no click catcher, drag
+ * or resize handle is rendered at all.
  */
 
 export interface WeekTimeGridItem {
@@ -66,16 +74,40 @@ export interface WeekTimeGridItem {
    * the Todos section, #593). Distinguishes provenance without relying on
    * color alone.
    */
-  variant?: "routine" | "event" | "task";
+  variant?: ScheduleItemVariant;
 }
 
-export interface WeekTimeGridProps {
+/**
+ * What the grid draws. One bundle rather than six flat props (#893) — every
+ * member is "the state of the view right now", and they change together when
+ * the host navigates.
+ */
+export interface WeekTimeGridData {
   /** First (left-most) day column, YYYY-MM-DD. */
   weekStart: string;
   /** Number of day columns; 7 = week, 1 = single day. Default 7. */
   days?: number;
   items: WeekTimeGridItem[];
   selectedId?: string | null;
+  /** Date key (YYYY-MM-DD) to highlight as "today", or null. */
+  todayKey?: string | null;
+  /**
+   * Current time as minutes-from-midnight. When set and inside the visible
+   * hourRange, a now-line (2px accent rule + left dot + gutter time label) is
+   * drawn in the `todayKey` column, and the body auto-scrolls near it on mount.
+   * null / out-of-range → no now-line. Also seeds the mount auto-scroll target
+   * (falls back to 08:00 when null).
+   */
+  nowMinutes?: number | null;
+}
+
+/**
+ * The grid's interaction surface. Every member is optional and every one of
+ * them is a capability switch, not just a notification: omitting `onCreateAt`
+ * renders no click catcher, omitting `onMoveItem` makes blocks undraggable.
+ * Omit the whole bundle for a read-only grid.
+ */
+export interface WeekTimeGridHandlers {
   onSelectItem?: (id: string) => void;
   /**
    * Single-click on an item block/chip → host opens a bubble popover anchored
@@ -124,6 +156,10 @@ export interface WeekTimeGridProps {
    * window instead of ever writing an inverted 00:00/00:00 span.
    */
   onDropAllDay?: (id: string, dateISO: string) => void;
+}
+
+/** Geometry and interaction knobs. Every member has a working default. */
+export interface WeekTimeGridDisplay {
   /**
    * When true, `variant: "task"` blocks are draggable/resizable like events
    * (schedule redesign A-2 / #297 — drag-to-write `scheduledAt`). Default
@@ -139,29 +175,6 @@ export interface WeekTimeGridProps {
   hourRange?: HourRange;
   /** Pixel height of one hour row in the scrollable body. Default 48. */
   hourHeight?: number;
-  /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
-  weekdayLabels: string[];
-  /** Already-translated label for the all-day lane (§6.4). */
-  allDayLabel: string;
-  /**
-   * Already-translated status-tag labels (#222). When supplied, each timed
-   * block renders its derived-status tag; omitted → no tag (read-only hosts).
-   */
-  statusLabels?: Record<ScheduleStatus, string>;
-  /** Already-translated accessible label for an empty-slot create target (§6.4). */
-  createSlotLabel?: string;
-  /** Date key (YYYY-MM-DD) to highlight as "today", or null. */
-  todayKey?: string | null;
-  /**
-   * Current time as minutes-from-midnight. When set and inside the visible
-   * hourRange, a now-line (2px accent rule + left dot + gutter time label) is
-   * drawn in the `todayKey` column, and the body auto-scrolls near it on mount.
-   * null / out-of-range → no now-line. Also seeds the mount auto-scroll target
-   * (falls back to 08:00 when null).
-   */
-  nowMinutes?: number | null;
-  /** Host-supplied formatter for the now-line gutter label. Default `HH:MM`. */
-  formatNowLabel?: (minutes: number) => string;
   /**
    * When true the scroll box follows the parent's height (`flex-1 min-h-0`)
    * instead of the default `max-h-[60vh]`, so the grid can fill a full-height
@@ -171,10 +184,46 @@ export interface WeekTimeGridProps {
    * alone — the default view is ~2 band-heights shorter than it used to be.
    */
   fillHeight?: boolean;
-  /** Host-supplied hour-axis formatter. Default zero-padded `HH:00`. */
-  formatHour?: (hour: number) => string;
-  /** Host-supplied day-heading date formatter. Default `M/D`. */
-  formatDayDate?: (dateKey: string) => string;
+}
+
+/**
+ * Fixed copy, injected already translated (§6.4 — the grid never calls
+ * useTranslation). The variable copy lives in `format` below.
+ */
+export interface WeekTimeGridLabels {
+  /** Weekday labels indexed 0 (Sun) – 6 (Sat). */
+  weekdays: string[];
+  /** Label for the all-day lane. */
+  allDay: string;
+  /**
+   * Status-tag labels (#222). When supplied, each timed block renders its
+   * derived-status tag; omitted → no tag (read-only hosts).
+   */
+  status?: Record<ScheduleStatus, string>;
+  /** Accessible label for an empty-slot create target. */
+  createSlot?: string;
+}
+
+/**
+ * Copy the host has to COMPUTE rather than hand over — locale-dependent
+ * formatting of a value the grid owns. Each has a working default; a host that
+ * cares about locale supplies its own.
+ */
+export interface WeekTimeGridFormat {
+  /** Hour-axis formatter. Default zero-padded `HH:00`. */
+  hour?: (hour: number) => string;
+  /** Day-heading date formatter. Default `M/D`. */
+  dayDate?: (dateKey: string) => string;
+  /** Now-line gutter label. Default `HH:MM`. */
+  nowLabel?: (minutes: number) => string;
+}
+
+export interface WeekTimeGridProps {
+  data: WeekTimeGridData;
+  labels: WeekTimeGridLabels;
+  handlers?: WeekTimeGridHandlers;
+  display?: WeekTimeGridDisplay;
+  format?: WeekTimeGridFormat;
   className?: string;
 }
 
@@ -200,7 +249,7 @@ const defaultFormatNowLabel = minutesToTime;
  * variant carries a non-hue cue — band / border / glyph — so provenance never
  * relies on hue alone.
  */
-function variantBlockClasses(variant: "routine" | "event" | "task"): string {
+function variantBlockClasses(variant: ScheduleItemVariant): string {
   switch (variant) {
     case "routine":
       return "bg-lumen-schedule-routine-bg text-lumen-chip-routine-fg";
@@ -212,35 +261,46 @@ function variantBlockClasses(variant: "routine" | "event" | "task"): string {
 }
 
 export function WeekTimeGrid({
-  weekStart,
-  days = 7,
-  items,
-  selectedId,
-  onSelectItem,
-  onItemActivate,
-  onItemDoubleClick,
-  onItemContextMenu,
-  onCreateAt,
-  onMoveItem,
-  onResizeItem,
-  onDropAllDay,
-  todoInteractive = false,
-  snapMinutesStep = DEFAULT_SNAP_MINUTES,
-  defaultCreateDuration = 60,
-  hourRange = [0, 24],
-  hourHeight = 48,
-  weekdayLabels,
-  allDayLabel,
-  statusLabels,
-  createSlotLabel,
-  todayKey,
-  nowMinutes,
-  formatNowLabel = defaultFormatNowLabel,
-  fillHeight = false,
-  formatHour = defaultFormatHour,
-  formatDayDate = defaultFormatDayDate,
+  data,
+  labels,
+  handlers,
+  display,
+  format,
   className,
 }: WeekTimeGridProps) {
+  // Unpacked back into the flat names the body has always used, so the #893
+  // bundles stay a wire-format change and nothing below has to know about
+  // them. Defaults live here, exactly where they used to.
+  const { weekStart, days = 7, items, selectedId, todayKey, nowMinutes } = data;
+  const {
+    onSelectItem,
+    onItemActivate,
+    onItemDoubleClick,
+    onItemContextMenu,
+    onCreateAt,
+    onMoveItem,
+    onResizeItem,
+    onDropAllDay,
+  } = handlers ?? {};
+  const {
+    todoInteractive = false,
+    snapMinutesStep = DEFAULT_SNAP_MINUTES,
+    defaultCreateDuration = 60,
+    hourRange = [0, 24],
+    hourHeight = 48,
+    fillHeight = false,
+  } = display ?? {};
+  const {
+    weekdays: weekdayLabels,
+    allDay: allDayLabel,
+    status: statusLabels,
+    createSlot: createSlotLabel,
+  } = labels;
+  const {
+    hour: formatHour = defaultFormatHour,
+    dayDate: formatDayDate = defaultFormatDayDate,
+    nowLabel: formatNowLabel = defaultFormatNowLabel,
+  } = format ?? {};
   const [startHour, endHour] = hourRange;
   const dayKeys = useMemo(
     () => weekDayKeys(weekStart, days),

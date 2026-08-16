@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import type { ReactNode } from "react";
 import {
   EventEditorPane,
   type EventEditorItem,
@@ -63,9 +64,22 @@ const manualItem: EventEditorItem = {
   isRoutine: false,
 };
 
+/**
+ * #893 folded the pane's props into bundles (`handlers` / `options` /
+ * `repeat`). The cases below still describe their setup in flat terms and are
+ * unchanged from before that refactor — the folding happens here, which is
+ * what keeps "same cases, same assertions, still green" a usable
+ * no-behaviour-change proof.
+ */
 function renderPane(
   item: EventEditorItem,
-  props?: Partial<Parameters<typeof EventEditorPane>[0]>,
+  props?: {
+    labels?: EventEditorLabels;
+    tagSlot?: ReactNode;
+    onDirtyChange?: (dirty: boolean) => void;
+    canEditDate?: boolean;
+    canEditAllDay?: boolean;
+  },
 ) {
   const fns = {
     onSave: vi.fn(),
@@ -73,7 +87,18 @@ function renderPane(
     onDismiss: vi.fn(),
     onDelete: vi.fn(),
   };
-  render(<EventEditorPane item={item} labels={LABELS} {...fns} {...props} />);
+  render(
+    <EventEditorPane
+      item={item}
+      labels={props?.labels ?? LABELS}
+      handlers={{ ...fns, onDirtyChange: props?.onDirtyChange }}
+      options={{
+        canEditDate: props?.canEditDate,
+        canEditAllDay: props?.canEditAllDay,
+      }}
+      tagSlot={props?.tagSlot}
+    />,
+  );
   return fns;
 }
 
@@ -164,8 +189,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        onSave={onSave}
-        onToggleComplete={vi.fn()}
+        handlers={{ onSave, onToggleComplete: vi.fn() }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -179,8 +203,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={{ ...manualItem, memo: "bring the card" }}
         labels={LABELS}
-        onSave={onSave}
-        onToggleComplete={vi.fn()}
+        handlers={{ onSave, onToggleComplete: vi.fn() }}
       />,
     );
     expect(saveButton()).toBeDisabled();
@@ -226,9 +249,8 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        onSave={onSave}
-        onToggleComplete={vi.fn()}
-        canEditDate
+        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        options={{ canEditDate: true }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Date"), {
@@ -253,8 +275,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={next}
         labels={LABELS}
-        onSave={onSave}
-        onToggleComplete={vi.fn()}
+        handlers={{ onSave, onToggleComplete: vi.fn() }}
       />,
     );
 
@@ -263,8 +284,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        onSave={vi.fn()}
-        onToggleComplete={vi.fn()}
+        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
       />,
     );
     rerenderWith(rerender, { ...manualItem, title: "Dentist (moved)" });
@@ -280,8 +300,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        onSave={onSave}
-        onToggleComplete={vi.fn()}
+        handlers={{ onSave, onToggleComplete: vi.fn() }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -301,8 +320,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        onSave={vi.fn()}
-        onToggleComplete={vi.fn()}
+        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -335,9 +353,11 @@ describe("EventEditorPane — dirty reporting for the close guard (#628)", () =>
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        onSave={vi.fn()}
-        onToggleComplete={vi.fn()}
-        onDirtyChange={onDirtyChange}
+        handlers={{
+          onSave: vi.fn(),
+          onToggleComplete: vi.fn(),
+          onDirtyChange,
+        }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Title"), {

@@ -477,12 +477,13 @@ export function BriefingScreen({
       <ItemCreatePanel
         key={todayKey}
         dateLabel={createDateLabel}
-        existingTodos={todoAddable}
-        existingNotes={noteOptions}
-        onSubmitEvent={submitEvent}
-        onSubmitEventAndOpen={submitEventAndOpen}
-        onCreateTodo={submitTodo}
-        onPlaceTodo={submitPlaceTodo}
+        pools={{ todos: todoAddable, notes: noteOptions }}
+        handlers={{
+          onSubmitEvent: submitEvent,
+          onSubmitEventAndOpen: submitEventAndOpen,
+          onCreateTodo: submitTodo,
+          onPlaceTodo: submitPlaceTodo,
+        }}
         formatDuration={formatDuration}
         labels={createPanelLabels}
       />

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { WeekTimeGrid, type WeekTimeGridItem } from "../src/components";
+import type { HourRange } from "../src/utils/scheduleGridLayout";
 
 /*
  * WeekTimeGrid W8 target-IA extensions: provenance color-coding (routine 藍 /
@@ -37,15 +38,26 @@ const ITEMS: WeekTimeGridItem[] = [
   },
 ];
 
-function renderGrid(props?: Partial<Parameters<typeof WeekTimeGrid>[0]>) {
+/**
+ * #893 folded the grid's props into bundles; the cases below still describe
+ * their setup in flat terms and are unchanged from before that refactor — the
+ * folding happens here.
+ */
+function renderGrid(props?: {
+  items?: WeekTimeGridItem[];
+  nowMinutes?: number | null;
+  hourRange?: HourRange;
+}) {
   return render(
     <WeekTimeGrid
-      weekStart="2026-07-05"
-      items={ITEMS}
-      weekdayLabels={WEEKDAYS}
-      allDayLabel="All-day"
-      todayKey="2026-07-09"
-      {...props}
+      data={{
+        weekStart: "2026-07-05",
+        items: props?.items ?? ITEMS,
+        todayKey: "2026-07-09",
+        nowMinutes: props?.nowMinutes,
+      }}
+      labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+      display={{ hourRange: props?.hourRange }}
     />,
   );
 }
@@ -131,12 +143,13 @@ describe("WeekTimeGrid — fillHeight", () => {
     expect(container.innerHTML).toContain("max-h-[60vh]");
     rerender(
       <WeekTimeGrid
-        weekStart="2026-07-05"
-        items={ITEMS}
-        weekdayLabels={WEEKDAYS}
-        allDayLabel="All-day"
-        todayKey="2026-07-09"
-        fillHeight
+        data={{
+          weekStart: "2026-07-05",
+          items: ITEMS,
+          todayKey: "2026-07-09",
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        display={{ fillHeight: true }}
       />,
     );
     expect(container.innerHTML).not.toContain("max-h-[60vh]");

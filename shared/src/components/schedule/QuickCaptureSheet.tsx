@@ -16,9 +16,11 @@ import {
  * host's job: its submit handlers clear the open-panel state, which flips
  * `open` here, so the sheet does not double-close.
  *
- * `initialStart` / `initialEnd` prefill the times (#299): the FAB opens with the
- * defaults, an empty-slot tap opens with the tapped slot's time. The BottomSheet
- * unmounts its children when closed, so the form re-seeds on every open.
+ * `initial.start` / `initial.end` prefill the times (#299): the FAB opens with
+ * the defaults, an empty-slot tap opens with the tapped slot's time. The
+ * BottomSheet unmounts its children when closed, so the form re-seeds on every
+ * open — which is also why a fresh `initial` object per render costs nothing:
+ * the panel reads it once, at mount.
  */
 
 export type QuickCaptureLabels = ItemCreatePanelLabels;
