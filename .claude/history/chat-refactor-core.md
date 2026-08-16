@@ -1,5 +1,26 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-16 - #891 の残り 3 本を PR 化して打ち止め（PR #949 / #950 / #951）
+
+#### 概要
+
+`useNotesUnifiedAPI` / `useDailiesUnifiedAPI` / `useWikiTagsUnifiedAPI` を `useDomainLoad` へ載せ替え、Issue の指定どおり 1 本 1 PR で出した。これで #891 の 4 本が揃う（1 本目 `useTodoTreeAPI` は PR #922 で merge 済み）。**3 本とも「同じ effect を同じ形で差し替える」では済まず、それぞれ違う理由で調整が要った**のが今回の中身。
+
+#### 変更点
+
+- **notes（PR #949）**: 素直に載る側。ただし **Trash の読み込みは別 effect に据え置いた** — 同じトリガ（mount + `notes` bump）だが独自の try/catch を持ち、Trash の失敗がツリー本体をブロックしない設計。load の `Promise.all` に畳むとこれが壊れる。effect の deps から `hydrateContent` / `mergeLoadedList` が消えたのは等価な整理（前者は `[ds, setNotes]`、後者は ref のみに依存し、どちらも `ds` 以外で identity が変わらない）
+- **dailies（PR #950）**: 4 本で一番「無言」だった。失敗をログに出すだけで、**ローディングの旗もエラー state も持っていなかった**ので、fetch 失敗が「まだ日記が無い」と見分けが付かない。よって `isLoading` / `error` は**このフックの新規フィールド**。UI は未配線（エラーカードの配線は見た目の変更なので範囲外）で、PR 本文に「不要なら戻せる」旨を明記した
+- **wikitags（PR #951）**: `refetchReportsLoading: false` では足りなかった。`loading = attemptInFlight && !hasLoaded` と書いた理由は**初回ロードが失敗した後**の挙動で、旧コードは次の試行で旗を立て直していた（`if (!hasLoadedRef.current) setLoading(true)`）。false 固定にすると「読み込み中」が「タグ 0 件」表示に変わる。`hasLoaded` は ref ではなく state（`loading` を導出するため再描画が要る）で、書き込みは `applyAll` の中だけ = effect 本体では書かない。また元の effect は **catch を 1 つも持っておらず** `void refresh()` で unhandled rejection になっていた。3 つの bulk read と 3 つの setter を `loadAll` / `applyAll` に名前を付けて、load effect と公開 API の `refresh` が drift しない形にした
+- **新規テスト 19 件**: `notesUnifiedLoadEffect`(7) / `dailiesUnifiedLoadEffect`(6) / `wikiTagsUnifiedLoadEffect`(6)。**3 本とも load 経路のテストはそれまで 1 本も無かった**。既存の #300 スイート（`wikiTagsRefreshLoading.test.tsx`）は 1 文字も触らず緑
+
+#### 検証
+
+3 ブランチそれぞれで `shared` / `web` の lint・build・test（計 6 ゲート）を exit 0 まで確認。shared 241 files / 2238〜2239 tests、web 54 files / 485 tests。lint の warning は既存分のみで error 0。
+
+#### 次
+
+#890（5 role の mapper 共通化）→ #894（desktop IPC 契約のロックステップ）→ #895（mcp-server tools.ts の分割）。**#891 を close するのは #951**（先行 2 本は close しない本文にしてある）。
+
 ### 2026-08-16 - Issue sweep 開始 — 取り残しコミットの回収（PR #921）と #891 の 1 本目（PR #922）
 
 #### 概要

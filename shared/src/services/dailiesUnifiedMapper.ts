@@ -1,9 +1,13 @@
 import type { DailyNode } from "../types/daily";
 import {
   ITEMS_META_COLUMNS,
+  assertItemsMetaPair,
+  toItemsMetaInsertRow,
+  toItemsMetaPatch,
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
+  type ItemsMetaPatchInput,
 } from "./itemsMeta";
 import { contentJsonToString, contentStringToJson } from "./contentJson";
 
@@ -120,16 +124,7 @@ export function rowsToDailyNode(
   meta: ItemsMetaDailyRow,
   payload: DailiesPayloadRow,
 ): DailyNode {
-  if (meta.id !== payload.item_id) {
-    throw new Error(
-      `dailiesUnifiedMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
-    );
-  }
-  if (meta.role !== "daily") {
-    throw new Error(
-      `dailiesUnifiedMapper: items_meta.role expected "daily" but got "${meta.role}"`,
-    );
-  }
+  assertItemsMetaPair("dailiesUnifiedMapper", "daily", meta, payload);
 
   const node: DailyNode = {
     id: assertDailyId(meta.id),
@@ -163,18 +158,17 @@ export function dailyNodeToRows(
   node: DailyNode,
   userId: string,
 ): { meta: ItemsMetaDailyInsertRow; payload: DailiesPayloadWriteRow } {
-  const meta: ItemsMetaDailyInsertRow = {
+  const meta: ItemsMetaDailyInsertRow = toItemsMetaInsertRow({
     id: assertDailyId(node.id),
-    user_id: userId,
+    userId,
     role: "daily",
     // items_meta.title is NOT NULL; reuse the date string as the title
     // (legacy daily UI never displayed a separate title — the date IS the
     // identity). Avoids surfacing a synthetic empty string.
     title: node.date,
-    is_deleted: node.isDeleted ?? false,
-    deleted_at: node.deletedAt ?? null,
-    version: 1,
-  };
+    isDeleted: node.isDeleted,
+    deletedAt: node.deletedAt,
+  });
 
   const payload: DailiesPayloadWriteRow = {
     item_id: assertDailyId(node.id),
@@ -206,11 +200,17 @@ export function dailyUpdatesToPatches(
   payloadPatch: DailiesPayloadUpdatePatch;
 } {
   // -- meta side --
-  const metaPatch: ItemsMetaDailyUpdatePatch = { updated_at: now };
-  if ("date" in updates && updates.date !== undefined)
-    metaPatch.title = updates.date;
-  if ("isDeleted" in updates) metaPatch.is_deleted = updates.isDeleted ?? false;
-  if ("deletedAt" in updates) metaPatch.deleted_at = updates.deletedAt ?? null;
+  // DB-Q2's `updated_at` bump lives in `toItemsMetaPatch` (#890). Daily has
+  // no title of its own — the date IS the identity, and items_meta.title
+  // mirrors it (see `dailyNodeToRows`).
+  const metaFields: ItemsMetaPatchInput = {};
+  if ("date" in updates) metaFields.title = updates.date;
+  if ("isDeleted" in updates) metaFields.isDeleted = updates.isDeleted;
+  if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
+  const metaPatch: ItemsMetaDailyUpdatePatch = toItemsMetaPatch(
+    metaFields,
+    now,
+  );
 
   // -- payload side --
   const payloadPatch: DailiesPayloadUpdatePatch = {};

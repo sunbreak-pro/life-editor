@@ -1,9 +1,13 @@
 import type { ScheduleItem } from "../types/schedule";
 import {
   ITEMS_META_COLUMNS,
+  assertItemsMetaPair,
+  toItemsMetaInsertRow,
+  toItemsMetaPatch,
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
+  type ItemsMetaPatchInput,
 } from "./itemsMeta";
 
 /*
@@ -192,16 +196,7 @@ export function rowsToScheduleItem(
   meta: ItemsMetaEventRow,
   payload: EventsPayloadRow,
 ): ScheduleItem {
-  if (meta.id !== payload.item_id) {
-    throw new Error(
-      `scheduleItemMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
-    );
-  }
-  if (meta.role !== "event") {
-    throw new Error(
-      `scheduleItemMapper: items_meta.role expected "event" but got "${meta.role}"`,
-    );
-  }
+  assertItemsMetaPair("scheduleItemMapper", "event", meta, payload);
 
   const item: ScheduleItem = {
     id: meta.id,
@@ -258,15 +253,14 @@ export function scheduleItemToRows(
   item: ScheduleItem,
   userId: string,
 ): { meta: ItemsMetaEventInsertRow; payload: EventsPayloadWriteRow } {
-  const meta: ItemsMetaEventInsertRow = {
+  const meta: ItemsMetaEventInsertRow = toItemsMetaInsertRow({
     id: item.id,
-    user_id: userId,
+    userId,
     role: "event",
     title: item.title,
-    is_deleted: item.isDeleted ?? false,
-    deleted_at: item.deletedAt ?? null,
-    version: 1,
-  };
+    isDeleted: item.isDeleted,
+    deletedAt: item.deletedAt,
+  });
 
   const payload: EventsPayloadWriteRow = {
     item_id: item.id,
@@ -345,13 +339,18 @@ export function scheduleItemUpdatesToPatches(
   payloadPatch: EventsPayloadUpdatePatch;
 } {
   // -- meta side --
-  // DB-Q2: ALWAYS bump updated_at.
-  const metaPatch: ItemsMetaEventUpdatePatch = { updated_at: now };
-  if ("title" in updates && updates.title !== undefined)
-    metaPatch.title = updates.title;
+  // DB-Q2's `updated_at` bump lives in `toItemsMetaPatch` (#890). Events
+  // SKIP a present-but-undefined `isDeleted` rather than normalising it to
+  // false the way todo / note / daily do — kept by not assigning the key.
+  const metaFields: ItemsMetaPatchInput = {};
+  if ("title" in updates) metaFields.title = updates.title;
   if ("isDeleted" in updates && updates.isDeleted !== undefined)
-    metaPatch.is_deleted = updates.isDeleted;
-  if ("deletedAt" in updates) metaPatch.deleted_at = updates.deletedAt ?? null;
+    metaFields.isDeleted = updates.isDeleted;
+  if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
+  const metaPatch: ItemsMetaEventUpdatePatch = toItemsMetaPatch(
+    metaFields,
+    now,
+  );
 
   // -- payload side --
   void userId;
