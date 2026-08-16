@@ -65,3 +65,4 @@
 - D-20260815-materials-1: **B**（Todo のステータスを保存値ごと 2 値化する = `TodoStatus` を `NOT_STARTED` / `DONE` へ縮め、Kanban は 2 列・MCP の 3 値 API も破壊的変更。既存の IN_PROGRESS 行は読み出し時に未完側へ畳む → 実装 PR #926。2026-08-16 チャットの AskUserQuestion で回答・chat-materials-refine が転記）
 - D-20260815-materials-2: **A**（#876 でモバイルの詳細ボトムシート（#471）を畳む = メインが本文になるので同じものの二重表示をやめ、「一覧 → 選ぶ → メインで書く」1 本に揃える。同上）
 - D-20260816-shared-fix-1: **A**（`detectSessionInUrl` を全面 true にする。アプリ側の URL 解釈がゼロ件で Electron / Capacitor には URL パラメータが載らないため、実効の影響範囲は公開 Web URL に閉じる。recovery 限定の判定関数は期限切れリンクを無視して同じ無反応バグを再生産するので却下 → #919。2026-08-16 チャットの AskUserQuestion で回答・chat-shared-fix が転記）
+- D-20260816-sched-1: **A**（#897 のステップ 2「bulkCreate と updateFuture の共通部分を切り出す」は見送る。挙げられた共通部分 3 つは名前が同じだけで中身が別物のため、抽象を被せても呼び出し元 1 つずつの間接層が増えるだけ。切り出しは bulkCreate 内部に留める = PR #929 の現状。2026-08-16 チャットで回答・chat-schedule-refine が転記を受任）
