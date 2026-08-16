@@ -7,7 +7,7 @@ import {
 // Cross-package TEST-ONLY import: the read half of the briefing convention
 // lives in shared. The round-trip below is the machine check for the DoD
 // "extractBriefing can render what write_briefing wrote".
-import { extractBriefing } from "../../shared/src/components/briefing/extractBriefing";
+import { extractBriefing } from "../../shared/src/components/briefing/extractBriefing.js";
 import {
   localToday,
   addDays,
