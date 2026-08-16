@@ -347,6 +347,50 @@ describe("PomodoroSettings — blank numeric fields (#624)", () => {
   });
 });
 
+/*
+ * #946 — the two columns must keep their inputs on one line even when the
+ * labels wrap to different heights.
+ *
+ * jsdom has no layout (CLAUDE.md §7.1), so the misalignment itself cannot be
+ * measured here; what can be pinned is the mechanism that removes it. The
+ * fields are grid cells, so each one gets the height of its row: making the
+ * field fill that height (`h-full`) and letting the CAPTION absorb the surplus
+ * (`grow`) leaves the input at the bottom of every cell. A fixed offset or a
+ * min-height on the caption would pass a screenshot in one language and break
+ * in the other, so their absence is asserted too.
+ */
+describe("PomodoroSettings — two-column field alignment (#946)", () => {
+  const cellOf = (label: string) =>
+    field(label).closest("label") as HTMLLabelElement;
+
+  it("stretches every field to its grid row and bottoms out the input", () => {
+    renderSettings();
+
+    // "Long break" and "Per set" share a row and are the pair that drifted.
+    for (const label of ["Work", "Break", "Long break", "Per set", "Target"]) {
+      const cell = cellOf(label);
+      expect(cell.className).toContain("flex-col");
+      expect(cell.className).toContain("h-full");
+
+      const caption = cell.querySelector("span") as HTMLSpanElement;
+      expect(caption).toHaveTextContent(label);
+      expect(caption.className).toContain("grow");
+    }
+  });
+
+  it("does not lean on a hard-coded height for the wrapped labels", () => {
+    renderSettings();
+
+    for (const label of ["Long break", "Per set"]) {
+      const caption = cellOf(label).querySelector("span") as HTMLSpanElement;
+      // en and ja wrap to different line counts, so any measured constant is
+      // wrong in the other catalog.
+      expect(caption.className).not.toMatch(/\b(min-)?h-\d/);
+      expect(caption.className).not.toMatch(/\[\d+px\]/);
+    }
+  });
+});
+
 describe("PomodoroSettings — save button focus affordance (#880)", () => {
   /*
    * jsdom has no layout, so the bug itself (a pale band drawn between the
