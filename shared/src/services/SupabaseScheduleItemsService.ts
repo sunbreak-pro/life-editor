@@ -31,8 +31,10 @@ import {
  *   - The Issue-011 partial UNIQUE (routine_item_id, source_date)
  *     WHERE routine_item_id IS NOT NULL AND is_deleted_cache=false
  *     enforces "at most one LIVE routine-generated event per (routine,
- *     date)". bulkCreate uses ON CONFLICT ignoreDuplicates to absorb
- *     collisions when the generator over-shoots.
+ *     date)". bulkCreate absorbs the generator's over-shoot by
+ *     pre-SELECTing the live pairs and dropping the collisions — NOT by
+ *     ON CONFLICT / ignoreDuplicates, which PostgREST cannot aim at a
+ *     PARTIAL unique index (see bulkCreateScheduleItems' own doc).
  *   - softDelete/restore on items_meta auto-propagates to
  *     events_payload.is_deleted_cache via the 0008 AFTER UPDATE
  *     trigger — no app-layer cascade needed.
@@ -44,6 +46,18 @@ import {
  *     reminders; the bulkCreate signature doesn't carry timezone info
  *     so we drop reminderOffset on the floor.
  */
+/**
+ * Composite key of the Issue-011 partial UNIQUE (routine_item_id,
+ * source_date). Both the pre-check lookup and the drop filter must spell
+ * it the same way, or the dedup silently stops matching.
+ */
+function routinePairKey(pair: {
+  routine_item_id: string | null;
+  source_date: string | null;
+}): string {
+  return `${pair.routine_item_id}|${pair.source_date}`;
+}
+
 // Exported for unit tests (mirrors SupabaseRoutinesService / detachRoutine):
 // updateFutureScheduleItemsByRoutine's conflict-rule filtering (#279) is
 // exercised against a query-builder mock.
@@ -488,6 +502,55 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
    * the same browser tab are serialised by the JS event loop. Multi-
    * tab race is possible but rare and handled by the fallback.
    */
+  /**
+   * The dedup half of bulkCreateScheduleItems' Issue-011 pre-check: given
+   * the payload rows about to be inserted, return the `routinePairKey`s
+   * that ALREADY exist as live rows. Manual events (routine_item_id null)
+   * are not eligible for the partial UNIQUE and are never looked up.
+   *
+   * Paged: the .in().in() filter is a CROSS-PRODUCT — the result scales
+   * with the existing live rows matching |routineIds| × |sourceDates|,
+   * not with the insert batch. A capped pre-check would let already-live
+   * pairs through to the INSERT and turn the whole batch into a 23505 →
+   * R2-cleanup throw.
+   */
+  private async fetchLiveRoutinePairKeys(
+    payloads: ReadonlyArray<{
+      routine_item_id: string | null;
+      source_date: string | null;
+    }>,
+  ): Promise<Set<string>> {
+    const routinePairs = payloads.filter(
+      (p) => p.routine_item_id !== null && p.source_date !== null,
+    );
+    const keys = new Set<string>();
+    if (routinePairs.length === 0) return keys;
+
+    const routineIds = Array.from(
+      new Set(routinePairs.map((p) => p.routine_item_id as string)),
+    );
+    const sourceDates = Array.from(
+      new Set(routinePairs.map((p) => p.source_date as string)),
+    );
+    const existing = await fetchAllPages<{
+      routine_item_id: string;
+      source_date: string;
+    }>(
+      (from, to) =>
+        this.client
+          .from("events_payload")
+          .select("routine_item_id, source_date")
+          .in("routine_item_id", routineIds)
+          .in("source_date", sourceDates)
+          .eq("is_deleted_cache", false)
+          .order("item_id")
+          .range(from, to),
+      "bulkCreateScheduleItems pre-check",
+    );
+    for (const r of existing) keys.add(routinePairKey(r));
+    return keys;
+  }
+
   async bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -545,47 +608,12 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     // Pre-check: drop pairs whose (routine_item_id, source_date) already
     // exists as a LIVE row. Only routine-generated pairs are checked —
     // manual events (routine_item_id=null) are never deduplicated.
-    const routinePairs = allPairs.filter(
-      (p) =>
-        p.payload.routine_item_id !== null && p.payload.source_date !== null,
+    const liveSet = await this.fetchLiveRoutinePairKeys(
+      allPairs.map((p) => p.payload),
     );
-    const liveSet = new Set<string>();
-    if (routinePairs.length > 0) {
-      const routineIds = Array.from(
-        new Set(routinePairs.map((p) => p.payload.routine_item_id as string)),
-      );
-      const sourceDates = Array.from(
-        new Set(routinePairs.map((p) => p.payload.source_date as string)),
-      );
-      // Paged: the .in().in() filter is a CROSS-PRODUCT — the result
-      // scales with the existing live rows matching |routineIds| ×
-      // |sourceDates|, not with the insert batch. A capped pre-check
-      // would let already-live pairs through to the INSERT and turn the
-      // whole batch into a 23505 → R2-cleanup throw.
-      const existing = await fetchAllPages<{
-        routine_item_id: string;
-        source_date: string;
-      }>(
-        (from, to) =>
-          this.client
-            .from("events_payload")
-            .select("routine_item_id, source_date")
-            .in("routine_item_id", routineIds)
-            .in("source_date", sourceDates)
-            .eq("is_deleted_cache", false)
-            .order("item_id")
-            .range(from, to),
-        "bulkCreateScheduleItems pre-check",
-      );
-      for (const r of existing) {
-        liveSet.add(`${r.routine_item_id}|${r.source_date}`);
-      }
-    }
-
     const pairs = allPairs.filter((p) => {
       if (p.payload.routine_item_id === null) return true;
-      const key = `${p.payload.routine_item_id}|${p.payload.source_date}`;
-      return !liveSet.has(key);
+      return !liveSet.has(routinePairKey(p.payload));
     });
 
     // All requested pairs were already live — idempotent no-op.
