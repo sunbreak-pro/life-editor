@@ -1,5 +1,32 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-16 - #897 SupabaseScheduleItemsService の一括系にテストを足す（PR #929）
+
+#### 概要
+
+テストが 1 本も無かった一括書き込み 4 本（`bulkCreateScheduleItems` / `bulkDeleteScheduleItems` / `bulkSoftDeleteScheduleItems` / `bulkRestoreScheduleItems`）に vitest 19 ケースを追加し、ついでに実装と食い違っていたクラスヘッダーのコメントと、2 箇所に散っていた複合キーの綴りを直した。挙動変更ゼロ。7 ゲート + `web typecheck:tests` + docs-lint すべて exit 0。merge は未（P-001）。
+
+#### 変更点
+
+- **5 本目の `updateFutureScheduleItemsByRoutine` は既存テストが押さえていた**（`updateFutureScheduleItemsByRoutine.test.ts` の 6 ケース）ので、新規は残り 4 本。Issue の「テスト参照は 1 本だけ」は**ファイル数の話でメソッド数ではない**
+- **一発で通るテストを信用しない**: 19 ケースが初回で全部 pass したので、実装に変異を入れて落ちることを実測した。重複排除の filter を外すと 3 件 fail / `items_meta` の INSERT を消す + soft-delete の `deleted_at` を落とすと 6 件 fail。**この確認をしないと「モックが実物から乖離していて何も見ていないテスト」が緑のまま残る**
+- **クラスヘッダーが実装と食い違っていた**（`SupabaseScheduleItemsService.ts:34`）: 「bulkCreate は ON CONFLICT ignoreDuplicates を使う」と書いてあるが、30 行下の `bulkCreateScheduleItems` 自身の doc は「PostgREST は **PARTIAL** unique index に ON CONFLICT を向けられないので事前 SELECT にした」と書いている。実装は後者。**Issue の DoD が「`ignoreDuplicates` による冪等化をテストで固定」と書いているのはこの古いコメントを読んだため**で、実際に固定したのは事前 SELECT 方式の冪等化
+- **複合キーの綴りが 2 箇所に散っていた**: `${routine_item_id}|${source_date}` を lookup 側と drop 側で別々に書いており、片方だけ変えると重複排除が黙って一致しなくなる。`routinePairKey()` に一本化し、事前チェック本体は private の `fetchLiveRoutinePairKeys()` へ切り出した
+- **Issue のステップ 2（bulkCreate と updateFuture の共通部分抽出）は見送った**。Issue が挙げた 3 つを実測した結果、共通の中核が実在しない —「ルーチン由来の行の絞り込み」は bulkCreate が**これから INSERT する行へのメモリ上の述語**・updateFuture が**1 routine への DB クエリ**で同名の別物 /「2 行分割の組み立て」は bulkCreate が既に共有 `scheduleItemToRows` を使い updateFuture はそもそも行を組み立てない /「冪等化オプション」は bulkCreate 専用。またぐ抽象は呼び出し元 1 つずつの間接層になり行数がむしろ増えるので、判断キュー D-20260816-sched-1 に A/B を積んで A（見送り）で進めた
+- **FK の実測**（migration 0008 / 0011）: `events_payload.item_id` → `items_meta(id)` は **ON DELETE CASCADE** なので `bulkDelete` は items_meta だけ消せばよい。一方 `(routine_item_id, routine_item_role)` の composite FK は **NO ACTION** で、こちらの子孫優先削除は `SupabaseRoutinesService.permanentDeleteRoutine` の責務（当サービスの担当外）
+- **`git checkout -- <file>` で変異を戻した後、cwd が web/ に残っていて `git add` が空振りした**。background の Bash で `cd shared` / `cd web` すると次の呼び出しの cwd がそこに残る（`cd` はセッションに効かないという注記は出るが、実際には残っていた）。**リポジトリ操作は毎回フルパスで `cd` し直す**
+- **変異テストの revert で未コミットの本命修正まで消した**（同セッションで実際に踏んだ）: 変異を入れたファイルに**まだ commit していない doc 修正が同居**していたので、`git checkout -- <file>` が両方を巻き戻した。**変異を入れる前にその時点の作業を commit するか、変異は別ファイル経由で入れる**
+
+#### 独立監査 2 本の指摘と反映（追いコミット `0eef4dd3`）
+
+- **doc のドリフトは 1 箇所ではなく 4 箇所だった**。初回コミットはクラスヘッダーだけ直していたが、同じ「ON CONFLICT ignoreDuplicates を使う」が `db-conventions.md` §10.8 / `scheduleItemMapper.ts` / `RoutineScheduleSync.tsx` に残っていた。**一番効くのは §10.8 で、ここは「そのレシピを規約として処方している」側**。次に partial UNIQUE な bulk 経路を書く人が従うと PostgREST が発行できない `onConflict` を書いて 400 を踏む。**1 箇所直したら同じ文言を全数 grep する**
+- **ヘルパーを前に挿したせいで公開メソッドの doc が 0 行になった**: `bulkCreateScheduleItems` の直前に `fetchLiveRoutinePairKeys` を入れたところ、その上にあった 33 行の「Why NOT upsert」doc がヘルパーに乗り移り、公開メソッド側の doc が消えた。しかも直したばかりのクラスヘッダーが `(see bulkCreateScheduleItems' own doc)` と存在しない doc を指していた。**private ヘルパーは公開メソッドの後ろに置く**
+- **テストが「実は見ていない」箇所が 4 件あった**（全部 mutation で確認）: ① 事前チェックの `.range()` を丸ごと消しても 19 件全部緑（本番では `fetchAllPages` が同じページを読み続けて**無限ループ**する経路）② 事前チェックが `is_deleted_cache` **だけ**で絞ることが「dismissed した日を再生成しない」唯一の担保なのに、`.eq("is_dismissed", false)` を足しても何も落ちない ③「手動イベントは重複排除しない」が空振り（手動のみのバッチは事前チェックが early-return するので判定を消しても通る）④ 未認証経路が未検証
+- **信号を 1 件に絞るためにモックの既定値を入れた**: dismissed のテストを足しただけでは、`.eq("is_dismissed", false)` 変異で `undefined !== false` により**全 dedup ケースが道連れで落ちる**。フィクスチャの `is_dismissed` を既定 false にして、変異で落ちるのがちょうど 1 件になる形にした。**「落ちた件数が多い = 良いテスト」ではない** — どの契約が壊れたか見分けられることが要る
+- **`bulkDelete` の「count of rows actually deleted」も嘘だった**（`count: "exact"` を付けていないので要求件数がそのまま返る）
+- **Issue のステップ 3（SupabaseRoutinesService との重複）の実測**: 1:1 の重複は 1 件だけで、`SupabaseRoutinesService.ts:594-603`（`permanentDeleteRoutine`）が event の `items_meta` を 1 件ずつ delete している。コメントは「Todos の descendants-first を真似て」と言うが、**削除対象の events は互いに兄弟で順序制約が無い**（順序が要るのは events → routine の間だけ）。chunk 化すれば 500 オカレンスで 500 往復が 3 往復。**DoD の「削除順序（子孫→親）」の実体はここ**で、当サービスの担当外
+- **監査が見つけた既存欠陥 3 件は outbox へ**（挙動変更を伴うので本 PR 外）: ① **Trash から予定を復元すると partial UNIQUE に弾かれて無言で失敗**（trash 中に生成器が同じ (routine, source_date) を作り直すと、復元時のトリガ UPDATE が 23505・`useRoutinesAPI.ts:289` が握り潰す）② バッチ内重複が事前チェックを素通りして 1 件の衝突でバッチ全滅 ③ 上記 `permanentDeleteRoutine` の chunk 化
+
 ### 2026-08-15 (2) - #877 todo の設定日付を出す / #878 Mobile Calendar を月ビュー主体に（PR #915 / #916）
 
 #### 概要
