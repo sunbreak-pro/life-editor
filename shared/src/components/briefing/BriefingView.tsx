@@ -10,18 +10,6 @@ import {
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
-import {
-  StreakDisplay,
-  type StreakDisplayLabels,
-} from "../Analytics/StreakDisplay";
-import {
-  TodoCompletionTrend,
-  type TodoCompletionTrendLabels,
-} from "../Analytics/TodoCompletionTrend";
-import {
-  WorkBreakBalance,
-  type WorkBreakBalanceLabels,
-} from "../Analytics/WorkBreakBalance";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { IntentionField } from "./IntentionField";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
@@ -39,11 +27,12 @@ import type { GoalPeriod } from "./goalSections";
  * 朱 lumen-briefing-shu for "today / action" marks, 琥珀 lumen-briefing-kohaku
  * for context / annotations. All colors are lumen-* tokens (no hardcodes).
  *
- * The visual zone deliberately reuses the three Analytics widgets
- * (StreakDisplay / TodoCompletionTrend / WorkBreakBalance) — the Analytics
- * section shrink decision (redesign doc §3): the dashboards freeze, these
- * three move in here. Their labels are re-resolved by the host from the
- * existing analytics.* i18n keys, so no copy is duplicated.
+ * The visual zone —「きのうまでの自分」, the three adopted Analytics widgets —
+ * used to be one of these sections. It lives in the shared detail panel now
+ * (#938 → BriefingVizPanel.tsx): everything the paper prints is about today,
+ * and three backward-looking charts in the middle of it kept breaking that
+ * thread while pushing 持ち越し below the fold. The host still computes the
+ * data from the same BriefingData it passes here.
  */
 
 /** One row of「今日のスケジュール」— today's schedule, host-shaped. */
@@ -89,9 +78,13 @@ export interface BriefingData {
   schedule: BriefingScheduleEntry[];
   todos: BriefingTodoEntry[];
   carryover: BriefingCarryoverEntry[];
-  /** Timer sessions — feeds StreakDisplay + WorkBreakBalance. */
+  /**
+   * Timer sessions. Not read by this view since #938 — they feed
+   * <BriefingVizPanel> in the detail panel, which the same host mounts from
+   * this same aggregate.
+   */
   sessions: TimerSession[];
-  /** Full todo tree — feeds TodoCompletionTrend. */
+  /** Full todo tree — same deal: <BriefingVizPanel>'s completion trend. */
   todoNodes: TodoNode[];
 }
 
@@ -123,7 +116,6 @@ export interface BriefingLabels {
   noSchedule: string;
   routineTag: string;
   allDay: string;
-  vizTitle: string;
   carryoverTitle: string;
   toggleComplete: string;
   /**
@@ -153,9 +145,6 @@ export interface BriefingViewProps {
   loading: boolean;
   data: BriefingData;
   labels: BriefingLabels;
-  streakLabels: StreakDisplayLabels;
-  trendLabels: TodoCompletionTrendLabels;
-  balanceLabels: WorkBreakBalanceLabels;
   /** Today's declaration (宣言 — Step 4), newline-separated lines. */
   intentionText: string;
   /** Every keystroke — the host owns draft state + debounced persistence. */
@@ -370,9 +359,6 @@ export function BriefingView({
   loading,
   data,
   labels,
-  streakLabels,
-  trendLabels,
-  balanceLabels,
   intentionText,
   onIntentionChange,
   onIntentionBlur,
@@ -638,27 +624,11 @@ export function BriefingView({
         )}
       </section>
 
-      {/* ── Visual zone — the 3 adopted Analytics widgets ────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.vizTitle} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StreakDisplay sessions={data.sessions} labels={streakLabels} />
-          <TodoCompletionTrend
-            nodes={data.todoNodes}
-            days={7}
-            labels={trendLabels}
-          />
-          <div className="sm:col-span-2">
-            <WorkBreakBalance
-              sessions={data.sessions}
-              days={7}
-              labels={balanceLabels}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Carryover ────────────────────────────────────────────── */}
+      {/* ── Carryover ─────────────────────────────────────────────
+          The paper's last section now that「きのうまでの自分」has moved to the
+          detail panel (#938). No border of its own, as before: the rule above
+          it is the previous section's `border-b`, so the ruled rhythm is
+          unchanged by the removal. */}
       {data.carryover.length > 0 && (
         <section className="py-5">
           <BlockHead title={labels.carryoverTitle} />
