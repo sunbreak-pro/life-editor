@@ -13,6 +13,8 @@ import {
 } from "../utils/pagination.js";
 import { fetchLiveNotes } from "./noteHandlers.js";
 import { fetchLiveDailies } from "./dailyHandlers.js";
+import { isLegacyFolder } from "./todoHandlers.js";
+import { escapeLikePattern } from "../utils/like.js";
 
 /*
  * search_all — Supabase edition (#360).
@@ -97,12 +99,18 @@ async function searchTodos(pattern: string, offset: number, limit: number) {
           .range(from, to),
       "search todo items_meta",
     ),
+    /*
+     * No query-side `task_type` filter. `.eq('task_type','task')` also drops
+     * NULL rows, and a NULL task_type IS a plain todo (pre-#225 rows) — the
+     * same hole #702 ② closed in `list_todos`, left open here. The retired
+     * folder type is excluded in-app below instead, by the one predicate both
+     * halves of this merge now share.
+     */
     fetchAllPages<TasksPayloadRow>(
       (from, to) =>
         client
           .from("tasks_payload")
           .select(TODO_PAYLOAD_COLUMNS)
-          .eq("task_type", "task")
           .ilike("content", pattern)
           .order("item_id", { ascending: true })
           .range(from, to),
@@ -153,8 +161,9 @@ async function searchTodos(pattern: string, offset: number, limit: number) {
     const payload = payloadById.get(id);
     if (!payload) continue;
     // A title hit can land on a retired folder row (task_type lives on the
-    // payload, so the items_meta query cannot exclude it) — S3 #225.
-    if (payload.task_type === "folder") continue;
+    // payload, so the items_meta query cannot exclude it) — S3 #225. Content
+    // hits reach here unfiltered too now, so this is the only folder guard.
+    if (isLegacyFolder(payload)) continue;
     merged.push({
       id,
       title: meta.title,
@@ -194,11 +203,29 @@ export async function searchAll(args: {
     : [...VALID_DOMAINS];
 
   const needle = args.query.toLowerCase();
-  const result: Record<string, DomainPage<unknown>> = {};
+  /*
+   * Keyed by Domain rather than by `string`, which is what lets a caller
+   * write `.todos` (#1003 / #1010).
+   *
+   * With an index signature, `return { ...result, totalHits }` types as
+   * `{ totalHits: number }` and NOTHING else: `number` is not assignable to
+   * `DomainPage<unknown>`, so TypeScript drops the index signature from the
+   * spread rather than widening it. Every domain key disappeared from the
+   * return type, and callers had been casting their way past it
+   * (`as Record<string, unknown>` in searchPaging.test.ts) instead of the
+   * signature being fixed. The domains are a closed set — VALID_DOMAINS —
+   * so naming them costs nothing and each is optional for the real reason:
+   * a domain answers only when it was asked for.
+   */
+  const result: Partial<Record<Domain, DomainPage<unknown>>> = {};
   let totalHits = 0;
 
   if (domains.includes("todos")) {
-    const todos = await searchTodos(`%${args.query}%`, offset, limit);
+    const todos = await searchTodos(
+      `%${escapeLikePattern(args.query)}%`,
+      offset,
+      limit,
+    );
     result.todos = todos;
     totalHits += todos.total;
   }

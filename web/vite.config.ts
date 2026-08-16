@@ -29,22 +29,28 @@ export default defineConfig({
   build: {
     // Establish a regression baseline so chunk bloat surfaces in CI output.
     chunkSizeWarningLimit: 600,
-    rollupOptions: {
-      output: {
-        // Split heavy vendors out of the index chunk. Only packages that
-        // actually exist in package.json are referenced here.
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-          if (id.includes("/react/") || id.includes("/react-dom/")) {
-            return "react-vendor";
-          }
-          if (id.includes("/@dnd-kit/")) return "dnd";
-          // @tiptap/* bundles ProseMirror (@tiptap/pm), the heaviest group.
-          if (id.includes("/@tiptap/")) return "editor";
-          if (id.includes("/@supabase/")) return "supabase";
-          return undefined;
-        },
-      },
-    },
+    /*
+     * No manualChunks (#991).
+     *
+     * Naming a vendor as its own chunk splits the FILE, not the download.
+     * Rollup still has to preload every chunk the entry graph reaches, so
+     * `@tiptap → "editor"` produced a tidy 356 KB file that index.html then
+     * listed under <link rel="modulepreload"> — the same bytes on the wire,
+     * now in two requests. Worse, it hid the problem: the index chunk looked
+     * smaller in the build output while the initial download had not moved.
+     *
+     * What actually moves bytes is a dynamic import boundary, and the ones
+     * that matter are now in place: Notes / Analytics / Connect (#676 (a)),
+     * the TipTap editor (notes/LazyRichTextEditor.tsx) and the briefing's two
+     * recharts widgets (shared BriefingVizPanel). With those, rollup's own
+     * chunking follows the boundaries instead of fighting them — vendors land
+     * in whichever async chunk needs them, and a vendor two async chunks share
+     * becomes a common chunk neither preloads.
+     *
+     * Measured on this branch: the initial download went from 2,090,518 B
+     * across 5 preloaded files to 1,343,984 B in one — gzip 586,034 →
+     * 360,518 B, a 38.5% cut. Removing manualChunks on its own was worth
+     * ~0.1% (#797); it only pays off next to the boundaries.
+     */
   },
 });

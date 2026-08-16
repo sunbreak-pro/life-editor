@@ -1,17 +1,61 @@
+import { lazy, Suspense } from "react";
 import type { TodoNode } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import {
   StreakDisplay,
   type StreakDisplayLabels,
 } from "../Analytics/StreakDisplay";
-import {
-  TodoCompletionTrend,
-  type TodoCompletionTrendLabels,
-} from "../Analytics/TodoCompletionTrend";
-import {
-  WorkBreakBalance,
-  type WorkBreakBalanceLabels,
-} from "../Analytics/WorkBreakBalance";
+import type { TodoCompletionTrendLabels } from "../Analytics/TodoCompletionTrend";
+import type { WorkBreakBalanceLabels } from "../Analytics/WorkBreakBalance";
+import { ChartCard } from "../Analytics/ChartCard";
+import { CHART_HEIGHT_MD } from "../Analytics/chartTheme";
+
+/*
+ * The two recharts-backed widgets load on demand (#991).
+ *
+ * Briefing is the default landing section (useStartupSection), so anything it
+ * imports statically is in the first download. recharts is ~245 KB of it, and
+ * these two charts were the only thing keeping it there — Analytics and
+ * Connect have been code-split since #676 (a). Measured on #797: lazy() was
+ * reaching 9% of a 2,090 KB initial bundle (gzip 586 KB).
+ *
+ * D-20260812-web-1 chose to leave this alone, and named its own condition for
+ * revisiting: "when the briefing's first paint is measured slow, not felt
+ * slow". #797 is that measurement, and #991 is the Issue it produced.
+ *
+ * StreakDisplay stays static on purpose — it draws a number and a row of
+ * marks, imports no charting library at all (grep: zero recharts references),
+ * and so costs nothing to keep. Deferring it would buy no bytes and add a
+ * second boundary for the panel to flicker through.
+ *
+ * `import type` for the label types: type-only imports are erased, so they
+ * name the same modules without pulling them into this chunk.
+ */
+const TodoCompletionTrend = lazy(() =>
+  import("../Analytics/TodoCompletionTrend").then((m) => ({
+    default: m.TodoCompletionTrend,
+  })),
+);
+
+const WorkBreakBalance = lazy(() =>
+  import("../Analytics/WorkBreakBalance").then((m) => ({
+    default: m.WorkBreakBalance,
+  })),
+);
+
+/**
+ * Placeholder that occupies exactly what the chart will. ChartCard is the same
+ * frame the real widget renders into and carries no charting code of its own,
+ * so the title lands in its final position and only the plot area fills in —
+ * the panel does not jump when the chunk arrives.
+ */
+function ChartPlaceholder({ title }: { title: string }) {
+  return (
+    <ChartCard title={title}>
+      <div style={{ height: CHART_HEIGHT_MD }} aria-hidden />
+    </ChartCard>
+  );
+}
 
 /*
  * 「きのうまでの自分」— the morning paper's visual zone, moved out of the
@@ -62,8 +106,28 @@ export function BriefingVizPanel({
       <h3 className="text-sm font-semibold text-lumen-text">{title}</h3>
       <div className="flex flex-col gap-3">
         <StreakDisplay sessions={sessions} labels={streakLabels} />
-        <TodoCompletionTrend nodes={todoNodes} days={7} labels={trendLabels} />
-        <WorkBreakBalance sessions={sessions} days={7} labels={balanceLabels} />
+        {/* One boundary around both charts, not one each: they arrive in the
+            same chunk, so two boundaries would only add a second way for the
+            panel to be half-drawn. */}
+        <Suspense
+          fallback={
+            <>
+              <ChartPlaceholder title={trendLabels.title} />
+              <ChartPlaceholder title={balanceLabels.title} />
+            </>
+          }
+        >
+          <TodoCompletionTrend
+            nodes={todoNodes}
+            days={7}
+            labels={trendLabels}
+          />
+          <WorkBreakBalance
+            sessions={sessions}
+            days={7}
+            labels={balanceLabels}
+          />
+        </Suspense>
       </div>
     </section>
   );

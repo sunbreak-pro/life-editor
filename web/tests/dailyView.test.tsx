@@ -185,9 +185,13 @@ beforeEach(() => {
 });
 
 describe("DailyView — the open day", () => {
-  it("mounts the editor for the selected date, not for today", () => {
+  it("mounts the editor for the selected date, not for today", async () => {
     render(<DailyView />);
-    expect(screen.getByTestId("editor").textContent).toBe(`daily-${YESTERDAY}`);
+    // findBy, not getBy: the editor is loaded on its own chunk since #991, so
+    // the first paint is the placeholder.
+    expect((await screen.findByTestId("editor")).textContent).toBe(
+      `daily-${YESTERDAY}`,
+    );
   });
 
   it("jumps the selection to today from the accent CTA", () => {

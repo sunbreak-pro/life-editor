@@ -185,7 +185,21 @@ export function BottomSheet({
           fullScreen
             ? "flex h-full w-full flex-col overflow-hidden"
             : "w-full max-w-lg rounded-t-2xl border-t border-lumen-border",
-          "bg-lumen-bg px-5 pb-6 pt-3 shadow-xl",
+          /*
+           * The bottom pad clears the home indicator (#1008). The panel is
+           * `items-end` inside a `fixed inset-0` parent, so its bottom edge
+           * IS the bottom of the screen — under iOS standalone a flat `pb-6`
+           * put the last row under the indicator bar. `max()` rather than a
+           * sum, matching AuthScreen (#805): 24px is already clearance on a
+           * phone whose inset is smaller, and where the inset is 0 (Desktop,
+           * Android browsers) the spacing is unchanged.
+           *
+           * fullScreen overrides this from the inline style above, where the
+           * inset is ADDED instead — that panel spans the whole screen, so it
+           * needs its own padding on top of the indicator rather than the
+           * larger of the two.
+           */
+          "bg-lumen-bg px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-xl",
           "transition-transform duration-200 ease-out",
           className,
         )}
