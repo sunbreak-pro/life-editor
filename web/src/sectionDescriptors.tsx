@@ -202,7 +202,7 @@ export const SECTION_DESCRIPTORS: Readonly<
   materials: {
     width: "wide",
     // Narrow: the section box owns its height and each tab scrolls inside it
-    // (NotesMobileList and DailyView's narrow branch are both already written
+    // (NotesView's main column and DailyView's narrow branch are both written
     // that way — `h-full` roots over an inner `overflow-y-auto`). Under "wide"
     // those roots collapse to auto and the page scroller takes over, which is
     // what parked the Notes "+" at the end of the list (#875).

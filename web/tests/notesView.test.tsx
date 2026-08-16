@@ -292,53 +292,68 @@ describe("NotesView — desktop (wide)", () => {
   });
 });
 
+/*
+ * #876 (ユーザー裁定 D-20260815-materials-2 = A) folded the two widths into one
+ * layout: the list is the detail panel's content at both — the push-in
+ * rightSidebar on Desktop, the hamburger's drawer on narrow — and the MAIN area
+ * shows the selected note's body. The 92%-then-fullscreen detail sheet (#471)
+ * and the separate mobile list surface that raised it are gone.
+ *
+ * The suite stubs RightSidebarPortal to render in place, so "in the panel" here
+ * means "rendered"; WHERE those nodes land is the panel's business.
+ */
 describe("NotesView — mobile (narrow)", () => {
   beforeEach(() => {
     state.isWide = false;
   });
 
-  it("opens the detail sheet on a row tap", () => {
+  it("puts the same list in the panel the desktop one uses", () => {
     render(<NotesView />);
 
-    // No sheet until something is tapped.
+    // Same grouped rows, and the Trash disclosure that used to be sidebar-only.
+    groupHeading("Work");
+    screen.getByRole("button", { name: "Alpha" });
+    screen.getByRole("button", { name: /materials\.notes\.trash/ });
+  });
+
+  it("selects into the main area and gets the drawer out of the way", () => {
+    render(<NotesView />);
+
+    // No sheet any more — the body is the main content.
     expect(screen.queryByRole("dialog")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
-    // Tapping also selects, which is what hydrates the body.
     expect(state.setSelectedNoteId).toHaveBeenCalledExactlyOnceWith("note-a");
-    screen.getByRole("dialog", { name: "materials.notes.detailTitle" });
+    // The drawer is a modal overlay: leaving it up would cover the note.
+    expect(state.close).toHaveBeenCalled();
+  });
+
+  it("renders the selected note's body as the main content", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
     expect(screen.getByTestId("editor").textContent).toBe("note-a");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("shows a skeleton, never an editor, until the body has arrived", () => {
-    // The list omits bodies; mounting the editor early would save the empty
-    // one on the first keystroke.
-    state.contentLoaded = false;
+  it("asks for a title first when creating, unlike the desktop pill", () => {
     render(<NotesView />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
-    screen.getByRole("dialog", { name: "materials.notes.detailTitle" });
-    expect(screen.queryByTestId("editor")).toBeNull();
-  });
-
-  it("opens quick-add from the floating button", () => {
-    render(<NotesView />);
-
+    // Two create affordances carry this label — the main toolbar pill and the
+    // list's own button. Both route through the host's one handler; the pill is
+    // the one a phone reaches without opening the drawer.
     fireEvent.click(
-      screen.getByRole("button", { name: "materials.notes.quickAddTitle" }),
+      screen.getAllByRole("button", { name: /materials\.notes\.addCta/ })[0],
     );
+    // Quick capture, not an untitled note straight into the editor.
     screen.getByRole("dialog", { name: "materials.notes.quickAddTitle" });
+    expect(state.createNote).not.toHaveBeenCalled();
   });
 
-  it("does not render the desktop side list", () => {
+  it("keeps the Links panel to Desktop, where #884 put it", () => {
+    state.selectedId = "note-a";
     render(<NotesView />);
 
-    // The Links / Trash disclosures are sidebar-only.
-    expect(
-      screen.queryByRole("button", { name: /materials\.notes\.trash/ }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "materials.notes.links" }),
-    ).toBeNull();
+    expect(screen.queryByTestId("link-panel")).toBeNull();
   });
 });

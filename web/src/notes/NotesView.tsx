@@ -10,7 +10,7 @@ import {
   EmptyState,
   SkeletonList,
   QuickAddSheet,
-  BottomSheet,
+  cn,
   type NoteSortMode,
   type DataService,
   WIDE_QUERY,
@@ -20,11 +20,9 @@ import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
 import { NotesSidebarList } from "./NotesSidebarList";
-import { NotesMobileList } from "./NotesMobileList";
 import { NoteDetailSurface } from "./NoteDetailSurface";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
-import { useNoteSheetTarget } from "./hooks/useNoteSheetTarget";
 import { useNotePassword } from "./hooks/useNotePassword";
 
 /*
@@ -35,15 +33,29 @@ import { useNotePassword } from "./hooks/useNotePassword";
  * nested note stays fully visible. #375 retired the folder note type itself;
  * legacy folder rows are dropped at fetch time and never reach this view.
  *
- *   - Desktop (isWide): the MAIN content is the selected note's editor — the
- *     shared <NoteDetailPanel variant="main"> in a centered surface. Nothing
- *     selected → the shared <EmptyState>. The grouped side list (search + sort,
- *     collapsible tag headings, draggable note rows, a "Trash (N)" row) is
- *     PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal.
- *   - Mobile (narrow): a sort + search + tag-filter header (#369), then the
- *     same tag groups as collapsible headings + ExcerptListItem rows, a
- *     92%-height detail sheet (the SAME note detail as the Desktop main, fully
- *     editable since #471 — mobile-scope #7), and a "+" QuickAddSheet.
+ * ONE LAYOUT, TWO WIDTHS (#876, ユーザー裁定 D-20260815-materials-2 = A). The
+ * MAIN content is the selected note's detail — title, tags, pin, delete and the
+ * TipTap body — and the grouped list is the detail PANEL's content at both
+ * widths, pushed there through <RightSidebarPortal>. Wide draws that panel as
+ * the push-in rightSidebar; narrow draws the same content in the <MobileDrawer>
+ * the section header's hamburger opens (`narrowHeader: "tabs+hamburger"` in
+ * sectionDescriptors), so "list → pick → write in the main area" is one flow
+ * rather than two.
+ *
+ * What #876 retired: the 92%-then-fullscreen detail BottomSheet (#471) and the
+ * separate mobile list surface that opened it. With the main area showing the
+ * body, the sheet was a second window onto the same note. Deleting it also
+ * removed the sheet's own note identity (`useNoteSheetTarget`) — the reason
+ * that existed was that the sheet opened a note SYNCHRONOUSLY while the list
+ * carries no bodies, so it needed its own `isContentLoaded` gate or the editor
+ * mounted over an empty body and saved that emptiness (#475). The selection
+ * never had that hole: `selectNote` hydrates the body BEFORE flipping the id
+ * (useNotesUnifiedAPI), so a surface keyed on `selectedNote` cannot open early.
+ *
+ * Narrow keeps two things of its own: the compact detail `variant` (the sheet's
+ * title sizing, not the page-level one), and title-first quick capture — the
+ * main toolbar's "+" opens the <QuickAddSheet> instead of creating an untitled
+ * note the way the Desktop pill does.
  *
  * Both halves render the SAME derived list (search → tag groups → sort → tag
  * filter) off the same state, so the two breakpoints never disagree (#369).
@@ -52,19 +64,14 @@ import { useNotePassword } from "./hooks/useNotePassword";
  * this view is DataService-free (§3.1) and takes copy from useTranslation →
  * props.
  *
- * Split (#588, zero behavior change). This file is the HOST: it owns the state
- * both surfaces read, the i18n → props hand-off, and the breakpoint switch.
- * The pieces:
+ * Split (#588). This file is the HOST: it owns the state both surfaces read,
+ * the i18n → props hand-off, and the breakpoint switch. The pieces:
  *   - hooks/useNoteListState — the derived list pipeline + sort/filter/collapse
  *   - hooks/useNoteLinking   — "[[" plumbing + cross-tab selection handoff
- *   - hooks/useNoteSheetTarget — which note the mobile sheet is showing
  *   - hooks/useNotePassword  — the password dialog + unlocked set
- *   - NotesSidebarList / NotesMobileList — the two list surfaces
- *   - NoteDetailSurface      — the detail panel both surfaces host
- *   - NoteListRows           — the Desktop draggable row + droppable heading
- * The derived list and the sheet target stay HERE because both surfaces read
- * them; computing them inside a surface would give each breakpoint its own
- * copy of the same state.
+ *   - NotesSidebarList       — the list surface (the panel's content)
+ *   - NoteDetailSurface      — the detail panel the main area hosts
+ *   - NoteListRows           — the draggable row + droppable heading
  */
 
 // Password dialog copy. Kept as local constants (the Notes i18n追い付き is
@@ -115,9 +122,12 @@ export function NotesView({
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const rightSidebar = useRightSidebarContext();
 
-  // On wide entry, open the shared rightSidebar so the note list (now the
-  // panel's content = this tab's nav) is visible. isOpen is non-persisted and
-  // starts false, so without this the list would be hidden on mount.
+  // On wide entry, open the shared rightSidebar so the note list (the panel's
+  // content = this tab's nav) is visible. isOpen is non-persisted and starts
+  // false, so without this the list would be hidden on mount. Narrow is left
+  // CLOSED on purpose even though the list lives there too (#876): the drawer
+  // is a modal overlay, and opening it on section entry would put a scrim over
+  // the note the user came back to read.
   useEffect(() => {
     if (isWide) rightSidebar.open();
     else rightSidebar.close();
@@ -133,16 +143,11 @@ export function NotesView({
     verifyNotePassword: notes.verifyNotePassword,
   });
 
-  // Host state: the side list unmounts on narrow, so keeping the disclosure's
-  // open/closed there would forget the user's choice across a resize.
+  // Host state: the list unmounts whenever the narrow drawer is closed, so
+  // keeping the disclosure's open/closed there would forget the user's choice
+  // every time they picked a note.
   const [trashOpen, setTrashOpen] = useState(false);
-  // Mobile-only: the note whose detail sheet is open + the quick-add sheet.
-  const sheet = useNoteSheetTarget({
-    isWide,
-    notes: notes.notes,
-    onSelect: notes.setSelectedNoteId,
-    isContentLoaded: notes.isContentLoaded,
-  });
+  // Narrow-only: the title-first quick-add sheet.
   const [addOpen, setAddOpen] = useState(false);
 
   // Derived side-list pipeline + sort/filter/collapse state (hooks split).
@@ -158,7 +163,6 @@ export function NotesView({
     showTagFilter,
     handleSearchChange,
     hasNotes,
-    searchActive,
   } = useNoteListState();
 
   // "[[" link plumbing + cross-tab pending-selection handoff (hooks split).
@@ -168,12 +172,6 @@ export function NotesView({
     dataService,
     pendingSelectNoteId,
     onConsumePendingSelect,
-    // The mobile sheet keys on its OWN note id, and its body is gated on
-    // selectedNote.id matching it — so a `[[link]]` tapped inside the sheet
-    // would move the selection while the sheet kept the old note's title and a
-    // skeleton body that never resolves (#475). Follow it across, but only
-    // while the sheet is open (Desktop leaves the id null).
-    onPendingSelected: sheet.followPending,
   });
 
   const handleAssignTag = useCallback(
@@ -191,10 +189,24 @@ export function NotesView({
 
   const selected = notes.selectedNote;
 
-  // Selecting from the side list fills the MAIN editor; the list stays open.
-  const handleSelectDesktop = (id: string) => {
-    notes.setSelectedNoteId(id);
-  };
+  // Picking from the list fills the MAIN editor. On wide the list is a pinned
+  // column and stays put; on narrow it is the modal drawer, so choosing a note
+  // also has to get out of the way of the thing it just opened.
+  const handleSelectNote = useCallback(
+    (id: string) => {
+      notes.setSelectedNoteId(id);
+      if (!isWide) rightSidebar.close();
+    },
+    [notes, isWide, rightSidebar],
+  );
+
+  // Wide creates an untitled note straight into the editor; narrow asks for the
+  // title first, because a phone's create is usually the whole capture (#876
+  // kept the QuickAddSheet the retired mobile list used to raise).
+  const handleAddNote = useCallback(() => {
+    if (isWide) notes.createNote();
+    else setAddOpen(true);
+  }, [isWide, notes]);
 
   if (notes.isLoading) {
     return (
@@ -205,9 +217,6 @@ export function NotesView({
   }
 
   // ---- i18n → props (§6.4) --------------------------------------------
-  //
-  // The list controls are the same controls at both widths, so the two label
-  // sets are built off the same keys.
 
   const listLabels = {
     searchPlaceholder: t("materials.notes.searchPlaceholder"),
@@ -231,34 +240,28 @@ export function NotesView({
     lockedHint: t("materials.notes.lockedHint"),
   };
 
-  // The controls both surfaces share (host-owned state, injected twice).
-  const listControls = {
-    searchQuery: notes.searchQuery,
-    onSearchChange: handleSearchChange,
-    sortModes,
-    sortMode: notes.sortMode,
-    onSortModeChange: (id: string) => notes.setSortMode(id as NoteSortMode),
-    sortDirection: notes.sortDirection,
-    onToggleDirection: () =>
-      notes.setSortDirection(notes.sortDirection === "asc" ? "desc" : "asc"),
-    directionLabel,
-    showTagFilter,
-    tagFilterChips,
-    tagFilter,
-    onTagFilterChange: setTagFilter,
-    hasNotes,
-    visibleGroups,
-    collapsedGroups,
-    onToggleGroup: toggleGroup,
-  };
-
-  // ---- Desktop side list ----------------------------------------------
-  //
-  // The tag-grouped note list, pushed into the shared rightSidebar (wide-only).
+  // ---- The list (the detail panel's content, both widths) --------------
 
   const sidebarList = (
     <NotesSidebarList
-      {...listControls}
+      searchQuery={notes.searchQuery}
+      onSearchChange={handleSearchChange}
+      sortModes={sortModes}
+      sortMode={notes.sortMode}
+      onSortModeChange={(id: string) => notes.setSortMode(id as NoteSortMode)}
+      sortDirection={notes.sortDirection}
+      onToggleDirection={() =>
+        notes.setSortDirection(notes.sortDirection === "asc" ? "desc" : "asc")
+      }
+      directionLabel={directionLabel}
+      showTagFilter={showTagFilter}
+      tagFilterChips={tagFilterChips}
+      tagFilter={tagFilter}
+      onTagFilterChange={setTagFilter}
+      hasNotes={hasNotes}
+      visibleGroups={visibleGroups}
+      collapsedGroups={collapsedGroups}
+      onToggleGroup={toggleGroup}
       labels={{
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
@@ -271,9 +274,9 @@ export function NotesView({
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
-      onSelectNote={handleSelectDesktop}
+      onSelectNote={handleSelectNote}
       onDeleteNote={notes.softDeleteNote}
-      onCreateNote={() => notes.createNote()}
+      onCreateNote={handleAddNote}
       dnd={dnd}
       trashOpen={trashOpen}
       onToggleTrash={() => setTrashOpen((v) => !v)}
@@ -283,48 +286,20 @@ export function NotesView({
     />
   );
 
-  // ---- Mobile body ----------------------------------------------------
-
-  const mobileBody = (
-    <NotesMobileList
-      {...listControls}
-      labels={{ ...listLabels, quickAdd: t("materials.notes.quickAddTitle") }}
-      searchActive={searchActive}
-      onOpenNote={sheet.openSheet}
-      onQuickAdd={() => setAddOpen(true)}
-    />
-  );
-
-  // ---- Mobile detail sheet --------------------------------------------
-
-  const sheetNote = sheet.sheetNote ?? null;
-  // The LIST omits note bodies (content=""); the body arrives only after the
-  // async hydrate driven by openSheet, and RichTextEditor ignores
-  // initialContent changes once mounted under a stable key — so the mount is
-  // gated on the body being HERE (isContentLoaded), not on the selection having
-  // moved. The selection outlives both the sheet and a list reload, so "the id
-  // matches" was true in a window where the body had been dropped and not yet
-  // re-fetched: the editor opened empty over a note that had text, and the
-  // first keystroke saved the empty version.
-  const sheetReady = sheet.sheetReady;
-
-  // ---- Desktop main editor --------------------------------------------
+  // ---- Main content: the selected note --------------------------------
   //
   // The selected note's detail (meta row + tags + links + TipTap body) as the
-  // tab's MAIN content — a centered surface. Nothing selected → the
-  // select-or-create empty state. #375:
-  // the folder guards on the tags / editor slots are gone with the folder type
-  // — every selectable row is a note with a body.
+  // tab's MAIN content. Nothing selected → the select-or-create empty state.
   //
-  // Main-content toolbar (#302): "+ Add Note" lives at the main-content
-  // top-right — same accent pill + position sense as the Todos board toolbar.
-  // Always present so a new note can be made with nothing selected.
-  const desktopMain = (
+  // Main-content toolbar (#302): "+ Add Note" at the main-content top-right —
+  // same accent pill + position sense as the Todos board toolbar. Always
+  // present so a new note can be made with nothing selected.
+  const mainContent = (
     <>
       <div className="flex items-center justify-end px-1 pb-3">
         <button
           type="button"
-          onClick={() => notes.createNote()}
+          onClick={handleAddNote}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           <Plus size={14} aria-hidden />
@@ -333,7 +308,9 @@ export function NotesView({
       </div>
       {selected ? (
         <NoteDetailSurface
-          variant="main"
+          // Page-level sizing on Desktop; narrow keeps the compact heading the
+          // retired sheet used, which is what a phone column has room for.
+          variant={isWide ? "main" : undefined}
           note={selected}
           labels={detailLabels}
           locked={password.isGated(selected)}
@@ -342,19 +319,23 @@ export function NotesView({
           onTogglePin={notes.togglePin}
           onDelete={(id) => notes.softDeleteNote(id)}
           // The note's item links, beside the tags (#884 — they were a
-          // rightSidebar disclosure until this Issue).
+          // rightSidebar disclosure until that Issue). Wide only, which is
+          // where #884 put them; narrow has never had a Links affordance, and
+          // #876 is about the layout rather than that scope call.
           linksSlot={
-            <LinkPanel
-              itemId={selected.id}
-              resolveTitle={linking.resolveTitle}
-              // The same cross-role pool the body's "[[" menu searches, so both
-              // pickers offer the same items — and the panel can name a Todo /
-              // Daily target instead of falling back to an id fragment (#749).
-              loadTargets={linking.loadLinkTargets}
-              // Chip clicks reuse the "[[" navigation route (#475): the shell
-              // switches section + tab and hands the target id to the view.
-              onNavigateToItem={onNavigateToItem}
-            />
+            isWide ? (
+              <LinkPanel
+                itemId={selected.id}
+                resolveTitle={linking.resolveTitle}
+                // The same cross-role pool the body's "[[" menu searches, so
+                // both pickers offer the same items — and the panel can name a
+                // Todo / Daily target instead of an id fragment (#749).
+                loadTargets={linking.loadLinkTargets}
+                // Chip clicks reuse the "[[" navigation route (#475): the shell
+                // switches section + tab and hands the target id to the view.
+                onNavigateToItem={onNavigateToItem}
+              />
+            ) : undefined
           }
           contentEditor={
             <NoteBodyEditor
@@ -378,10 +359,7 @@ export function NotesView({
                 ? t("materials.notes.mainEmpty")
                 : t("materials.notes.empty")
             }
-            cta={{
-              label: t("materials.notes.addCta"),
-              onClick: () => notes.createNote(),
-            }}
+            cta={{ label: t("materials.notes.addCta"), onClick: handleAddNote }}
           />
         </div>
       )}
@@ -390,64 +368,26 @@ export function NotesView({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {isWide ? desktopMain : mobileBody}
+      {/* Narrow renders through PageContainer `width="fluid"` (#875), a
+          definite-height box with no gutter of its own — so the main column
+          supplies its own padding AND owns the scroll. Wide keeps the page
+          scroller PageContainer `width="wide"` gives it. */}
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          !isWide && "overflow-y-auto px-4 pt-2",
+        )}
+      >
+        {mainContent}
+      </div>
 
-      {/* Note list — pushed into the shared rightSidebar as always-present nav
-          content (wide-only, so narrow never fills the MobileDrawer). */}
-      {isWide && <RightSidebarPortal>{sidebarList}</RightSidebarPortal>}
+      {/* The note list — the detail panel's content at BOTH widths (#876).
+          Wide: the push-in rightSidebar. Narrow: the hamburger's MobileDrawer,
+          which mounts this only while it is open. */}
+      <RightSidebarPortal>{sidebarList}</RightSidebarPortal>
 
-      {/*
-       * Mobile detail screen — full height, FULL edit (#471, mobile-scope #7).
-       * It took the whole screen as of #874: at the 92vh it ran before, the
-       * strip of list showing under it re-flowed every time the keyboard came
-       * up for the title or the body.
-       * It hosts the same <NoteDetailSurface> the Desktop main content uses, so
-       * title / tags / pin / delete / body are one implementation on both
-       * surfaces: anything added to the note detail later reaches the phone for
-       * free. The sheet's own header carries a generic label rather than the
-       * note's title, which the panel's first field already shows (and can now
-       * edit) — same call as the Todo sheet in #470.
-       */}
-      {!isWide && (
-        <BottomSheet
-          open={sheetNote != null}
-          onClose={sheet.closeSheet}
-          title={t("materials.notes.detailTitle")}
-          closeLabel={t("common.close")}
-          fullScreen
-        >
-          {sheetNote && (
-            <NoteDetailSurface
-              note={sheetNote}
-              labels={detailLabels}
-              locked={password.isGated(sheetNote)}
-              onUnlock={password.requestUnlock}
-              onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-              onTogglePin={notes.togglePin}
-              // Deleting closes the sheet on its own: the note leaves the
-              // active pool, so useNoteSheetTarget drops the id.
-              onDelete={(id) => notes.softDeleteNote(id)}
-              contentEditor={
-                sheetReady ? (
-                  // The sheet's OWN note object, not selectedNote: they are
-                  // the same row in the same array, and reading the sheet's
-                  // removes any dependence on the selection having caught up.
-                  <NoteBodyEditor
-                    note={sheetNote}
-                    linking={linking}
-                    onNavigateToItem={onNavigateToItem}
-                    onSave={(id, content) => notes.updateNote(id, { content })}
-                  />
-                ) : (
-                  <SkeletonList rows={4} rowHeight={20} gap={8} />
-                )
-              }
-            />
-          )}
-        </BottomSheet>
-      )}
-
-      {/* Mobile quick-add. */}
+      {/* Narrow quick capture: title first, then the note opens in the main
+          area behind this sheet. */}
       {!isWide && (
         <QuickAddSheet
           open={addOpen}
