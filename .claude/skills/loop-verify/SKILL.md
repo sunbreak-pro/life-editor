@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 ## 完了条件（機械検証可能）
 
-- CLAUDE.md §7.1 のコマンド（`dev` を除く）がすべて exit 0、**または**落ちた各件に「コード起因 / 環境起因」の結論と根拠 1 行がついている
+- `.github/workflows/ci.yml` の `verify` ジョブ + `docs-lint` ジョブと同じコマンドがすべて exit 0、**または**落ちた各件に「コード起因 / 環境起因」の結論と根拠 1 行がついている
 - 環境起因と結論したものが `.claude/docs/known-issues/INDEX.md` の既知パターンに載っているか、載っていなければ候補として書き出されている
 - コード起因で未修正のものが 1 件も残っていない（残るなら停止条件に当たっている）
 
@@ -37,7 +37,7 @@ disable-model-invocation: true
 
 ## 環境の事実（推論では埋まらないので明記する）
 
-- **コマンド一覧・ゲートの正本・実行上の注意（`shared` / `web` / `desktop` を別々に回す・lint の歩く範囲・TypeScript の版差・`LC_ALL=C`）は CLAUDE.md §7.1**。ここに転記しない
+- **コマンド一覧・ゲートの正本は `.github/workflows/ci.yml`**（`verify` ジョブのステップを上から `working-directory` ごとに打つ）。**実行上の注意（build はテストを見ない・lint の歩く範囲・TypeScript の版差・`LC_ALL=C`）は CLAUDE.md §7.1**。どちらもここに転記しない（D-20260816-main-2 = B）
 - **`web/tests/` の jsdom にレイアウトが無い**（要素の座標がすべて 0）。画面座標に依存する経路はここでは検証できない — 落ちていなくても「通った」と読まない
 - 実ブラウザ検証（playwright MCP）と dev server は **chat-main のみ**。worktree 側は build / 型検証まで
 
