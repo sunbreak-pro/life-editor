@@ -1,5 +1,22 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-08-16 - 紙面の保存失敗を Toast で拾い、#938 のコンフリクトを解消（#955・PR #980 open）
+
+#### 概要
+
+判断 D-20260815-briefing-7 = **B** の実装。紙面の書き込み 3 経路（宣言 / 夕刊 / 目標）はどれも保存失敗を `console.error` に飲み込み、draft を画面に残したまま先へ進んでいた — **保存されたように見えて、リロードした瞬間に消える**。穴の本体は「キャプションが無い」ではなく「失敗が無音」なので、3 経路まとめて直した。あわせて、#939 の着地で衝突した #938（PR #971）に origin/main を取り込んで解消した。
+
+#### 変更点
+
+- **仕組みは 1 本**: `useSaveFailureReport()`（`web/src/briefing/hooks/`）。i18n キーを `BriefingWriteTarget`（intention / evening / goals）から導出するので、4 本目の経路は「名前を足して呼ぶ」だけで載り、文言の足し忘れはキー名が画面に出て一発で分かる。
+- **`useToastOptional` を shared に追加**（`useRightSidebarOptional` と同じ形）。**投げる `useToast` はエラー経路に使えない** — ToastProvider が無い場所（既存の briefing テスト全部・単体レンダリング）で回復可能な保存失敗をクラッシュに格上げし、それらに不要な Provider を巻かせることになる。
+- **draft は消さない**（DoD 2 項目め）。ユーザーの唯一の控えなので、消したら Toast が警告している当のデータ消失を自分で起こす。Toast は 8 秒（既定 4 秒より長い — 領収書ではなく「画面のものは保存されていない」という唯一の通知で、たいてい別の欄を打っている最中に届くため）。
+- **目標ノートの読み取り catch だけ Toast を出さない**（意図的）: 打った文字が懸かっておらず、オフラインで開くたびに鳴らすと「本当に消える方の通知」まで反射で消される癖がつく。理由をコード内に明記。
+- **テスト**: `web/tests/briefingSaveFailure.test.tsx` 5 件。失敗はフックではなく **DataService 側に注入**（実際の失敗はそこで起きる）。3 経路それぞれ + 成功時は無言 + Provider 無しでクラッシュしない。**空振りでない裏取り**: 宣言側を `console.error` に戻すと 1 件目だけが落ちることを実測。
+- **#938 のコンフリクト解消**（PR #971）: #939 が先に着地し、削除対象のブロックが隣接していたため 5 ファイルで衝突。**すべて「隣り合う別々の行の削除」**だったので両方の削除を残す形で解消（labels 3 箇所 / セクション 2 つ / テストの describe は両方採用 / `mobile-scope.md` は main の #876 行を採用）。解消後に全ゲート再実測（shared 245 files 2305 件 / web 54 files 481 件・lint 0 error・`records.mjs check` / `docs-lint` OK）。
+- **ゲート（#955）**: shared（lint 0 error / build / test 246 files 2326 件）・web（lint 0 error / build / test 54 files 487 件）すべて exit 0。
+- **記録**: archive 対象なし。スコープ逸脱なし。AC 免除なし。実装中に浮上した判断なし。**merge 順の懸念は解消** — #957 が先に merge されたので #955 は期間キー化後の `useGoalsDoc` に対して書けており、両者にコンフリクトは無い。
+
 ### 2026-08-16 - 目標を期間キー付きで保存し、期間が変わったら履歴として残す（#957・PR #973 open）
 
 #### 概要
@@ -66,21 +83,3 @@
 - **分割**: `useBriefingFetch`（7 つの read と着地先 state・write 側が結果を畳み込む setter を含む）/ `useBriefingAggregation`（取得済み行 → 紙面ブロックの純粋な派生。state も DataService 呼び出しも持たない）/ `useBriefingWrites`（全ミューテーション + 楽観更新 + undo コマンド）。`useBriefingData` は 3 本を束ねるだけで、返り値は 1 キーも変えていない。継ぎ目はレイヤの積み重ねではなく **state** で、派生側 2 本は互いに依存しない。
 - **ゲート**: shared（lint 0 error / build / test 2192 件）・web（lint 0 error / build / test 458 件）すべて exit 0。warning は shared 3 / web 4 とも既存分。`desktop/` は未変更のため typecheck 対象外。
 - **記録**: 実装プランの無い課題なので archive 対象なし。スコープ逸脱なし（`BriefingScreen.tsx` の view 側・他セクション・`shared/` は無変更）。AC 免除なし — DoD 4 項目のうち残るのは「merge 後に chat-main で playwright」だけで、worktree では実ブラウザを持たないため PR 本文に申し送った。実装中に浮上した別判断もなし。
-
-### 2026-08-15 - 週・月・年の目標を朝刊に常設表示（#872・PR #914 open）
-
-#### 概要
-
-朝刊の「宣言」直下に週目標 / 月目標 / 年目標の 3 欄を常設し、その場で書けるようにした。保存先は予約 id `note-goals` の Note 1 枚で、本文に `## 週目標` / `## 月目標` / `## 年目標` の 3 セクションを持つ。**DDL ゼロ**なので `supabase db push` の手番が挟まらず PR 1 本で閉じた。
-
-#### 変更点
-
-- **保存の仕組み**: 既存の「宣言」をそのまま写した（`findSectionRange` +「読み直し → 自分の範囲だけ差し替え → 全文書き戻し」）。新テーブル / mapper / RLS / Realtime 登録がゼロで、副作用として Notes 側でも同じ目標を編集できる第 2 の導線がタダで付く。**ノートは初回保存時にだけ作る**（開いただけでは Notes に空ノートを残さない）。role-pm が比較した代替 3 案（期間アンカーの Daily / 新規 `goals` テーブル / localStorage）はいずれも却下 — 詳細は判断キュー D-20260815-briefing-1。
-- **期間の扱い**: 表示ラベルだけ（「今週 8/10–8/16」「8月」「2026年」）。自動リセットも履歴も持たない。週境界は `startOfWeekKey` 経由で `weekStartsOn` 設定に追従（月曜固定にしない = #860 で寄せた線）。
-- **配置**: 朝刊のみ（`EveningView.tsx` 不変）。幅共通で編集可（宣言・気分と同じ扱い）。
-- **QA が出した Blocking 1 件（着地前に修正）**: 目標ノートは朝刊本体とは別リクエストなのに `loading` に繋がっておらず、**まだ読み込み中の「空に見える欄」に打つと、後から届いた本物の目標が入力中の文字に置き換わって消えていた**（`pendingRef` のタイマーが後から発火するため。undo 経路なし）。フックが自前の loading を持って既存スケルトンゲートに合流する形にして、`pendingRef` 経由の経路ごと閉じた。
-- **同時に直した Important 2 件**: (1) 取得 effect が保存チェーンと直列化されておらず、保存中に走った再取得が後から解決すると表示だけ古い値に巻き戻った → 読みと書きを 1 本のチェーンに載せた。(2) `getNoteUnified` は `is_deleted` で絞らないため、Notes でゴミ箱に入れた目標ノートに**書き込み続けていた**（Notes からは見えず直せない・ゴミ箱を空にした瞬間に消える）→ 保存時に `restoreNoteUnified` を挟んで戻す。
-- **既存への影響**: `dailySections.ts` の `sectionLines` を private から共有 primitive へ昇格（関数本体は 1 文字も変えず移動のみ・`intentionSection.ts` は import 差し替えのみ）。`IntentionField` に任意 prop `labelledBy` を追加。hint スタイルは `briefingStyles.ts`（import 文ゼロのモジュール = 循環回避）へ切り出して `BlockHead` と共用。
-- **テスト**: `shared/tests/goalSections.test.ts`（14 件・パース / マージ / 他セクション不破壊 / 週開始曜日追従）と `web/tests/briefingGoals.test.tsx`（7 件）。後者はロードゲート（読込中はフィールドが存在せず `updateNoteUnified` が 0 回）/ 3 欄連続編集で書き込みが直列に走り 3 つとも残る / 保存中の外部変更の着地 / ゴミ箱復活の呼び順（`invocationCallOrder`）。**ロードゲートのテストは修正を巻き戻すとこの 1 本だけが落ちる**ことを実測済み（空振りテストでない裏取り）。
-- **ゲート**: shared（lint 0 error / build / test 2147 件）・web（lint 0 error / build / test 401 件）すべて exit 0。warning は shared 3 / web 4 とも既存分。
-- **記録**: 実装プランの無い課題なので archive 対象なし。スコープ逸脱なし（`supabase/migrations/` `syncDomains.ts` `EveningView.tsx` 無変更）。AC 免除なし。実装中に浮上した判断は D-20260815-briefing-7（保存状態キャプション）としてキューへ。
