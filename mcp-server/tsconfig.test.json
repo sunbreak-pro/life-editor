@@ -1,0 +1,66 @@
+{
+  /*
+   * Type-checks the SUITES (#1001) — the same hole shared/ and web/ closed in
+   * #668 C1, still open here at 20 files.
+   *
+   * tsconfig.json's `include` names src only, so every file under
+   * tests/ was compiled by esbuild at vitest startup, which strips types
+   * without checking them. A suite could assert against a shape src/ no longer
+   * has and still go green — and this package's tests carry real shared
+   * infrastructure now (tests/supabaseStub.ts and tests/searchSupabaseStub.ts
+   * are imported by other suites), which is exactly the kind of file that rots
+   * unseen.
+   *
+   * A separate config rather than a wider `include` on tsconfig.json, because
+   * that project emits dist/ and `npm run build` would then ship the suites.
+   *
+   * The overrides are the consequences of pointing the build's options at a
+   * wider tree:
+   *   rootDir — inherited as "src", which makes every tests/ file an error
+   *     ("not under rootDir") before any real checking happens.
+   *   noEmit — this config exists to check, not to produce a second dist/.
+   *   tsBuildInfoFile — its own path, so incremental state never collides
+   *     with the build's.
+   *
+   * `types` gains only "vite/client", for `import.meta.glob` in
+   * toolDomains.test.ts — vitest transforms that glob, so the suite needs
+   * Vite's ImportMeta augmentation to describe it. Not "vitest/globals":
+   * every suite imports describe/it/expect from "vitest" by name and
+   * vitest.config.ts does not set `globals`. vitest.config.ts itself stays
+   * outside `include`, matching shared/ and web/.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["node", "vite/client"],
+    /*
+     * Resolve the way the suites are actually RUN, not the way src/ ships.
+     *
+     * vitest hands these files to Vite, which resolves like a bundler. The
+     * build's Node16 setting is still the authority for src/ — `npm run build`
+     * checks that, and an extension it dislikes fails there. Inside tests/ the
+     * Node16 rule was describing a resolver that never runs, and it broke on
+     * the one file that crosses a package line: briefingSection.test.ts imports
+     * shared/src/.../extractBriefing to prove the round trip, and shared is
+     * compiled `module: ESNext` + `moduleResolution: bundler`, so its own
+     * extension-less imports are errors under Node16.
+     *
+     * Reproducing shared's whole compiler configuration here would make the
+     * check describe neither package. Matching the runner describes both.
+     *
+     * `rootDir` widens to the repo root for the same file — shared/ sits
+     * outside mcp-server/, and with `noEmit` rootDir only decides which inputs
+     * are allowed, not where anything is written.
+     */
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  /*
+   * There is deliberately no `exclude` here. If a suite will not compile, that
+   * suite is lying about the code — quarantining it puts the lie back.
+   */
+  "include": ["src", "tests"]
+}

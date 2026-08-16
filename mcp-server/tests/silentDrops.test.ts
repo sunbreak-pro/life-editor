@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { TOOLS, callTool } from "../src/tools.js";
 import { unknownArgNames, type ObjectSchema } from "../src/utils/toolSchema.js";
 import { isLegacyFolder } from "../src/handlers/todoHandlers.js";
+import { rejection } from "./rejection.js";
 
 /*
  * The three ways a call used to succeed at the wrong thing (#702 ②).
@@ -22,38 +23,42 @@ const schemaOf = (name: string): ObjectSchema =>
 
 describe("list_schedule no longer answers for a day you did not ask about", () => {
   it("rejects a range missing its end", async () => {
-    const error = await callTool("list_schedule", {
-      start_date: "2026-08-11",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("list_schedule", {
+        start_date: "2026-08-11",
+      }),
+    );
 
     expect(error.message).toContain("end_date is required");
     expect(error.message).not.toMatch(/Supabase/);
   });
 
   it("rejects a range missing its start", async () => {
-    const error = await callTool("list_schedule", {
-      end_date: "2026-08-12",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("list_schedule", {
+        end_date: "2026-08-12",
+      }),
+    );
 
     expect(error.message).toContain("start_date is required");
     expect(error.message).not.toMatch(/Supabase/);
   });
 
   it("rejects a single day and a range in the same call", async () => {
-    const error = await callTool("list_schedule", {
-      date: "2026-08-11",
-      start_date: "2026-08-11",
-      end_date: "2026-08-12",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("list_schedule", {
+        date: "2026-08-11",
+        start_date: "2026-08-11",
+        end_date: "2026-08-12",
+      }),
+    );
 
     expect(error.message).toContain("mutually exclusive");
   });
 
   it("still lets a bare call mean today", async () => {
     // Reaching Supabase IS the pass here: the window guard let it through.
-    const error = await callTool("list_schedule", {}).catch(
-      (e: unknown) => e as Error,
-    );
+    const error = await rejection(callTool("list_schedule", {}));
     expect(error.message).toMatch(/Supabase/);
   });
 
@@ -66,34 +71,40 @@ describe("list_schedule no longer answers for a day you did not ask about", () =
 
 describe("schedule writes check their own formats", () => {
   it("rejects a date that is not YYYY-MM-DD", async () => {
-    const error = await callTool("create_schedule_item", {
-      date: "2026/08/11",
-      title: "standup",
-      start_time: "09:00",
-      end_time: "09:15",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("create_schedule_item", {
+        date: "2026/08/11",
+        title: "standup",
+        start_time: "09:00",
+        end_time: "09:15",
+      }),
+    );
 
     expect(error.message).toMatch(/Invalid date/);
     expect(error.message).not.toMatch(/Supabase/);
   });
 
   it("rejects a time that is not HH:MM", async () => {
-    const error = await callTool("create_schedule_item", {
-      date: "2026-08-11",
-      title: "standup",
-      start_time: "9:00",
-      end_time: "09:15",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("create_schedule_item", {
+        date: "2026-08-11",
+        title: "standup",
+        start_time: "9:00",
+        end_time: "09:15",
+      }),
+    );
 
     expect(error.message).toMatch(/Invalid start_time/);
     expect(error.message).not.toMatch(/Supabase/);
   });
 
   it("checks the same formats on update", async () => {
-    const error = await callTool("update_schedule_item", {
-      id: "si-1",
-      end_time: "25:00",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("update_schedule_item", {
+        id: "si-1",
+        end_time: "25:00",
+      }),
+    );
 
     expect(error.message).toMatch(/Invalid end_time/);
     expect(error.message).not.toMatch(/Supabase/);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TOOLS, callTool } from "../src/tools.js";
+import { rejection } from "./rejection.js";
 
 /*
  * What the write tools ask for, and what they promise (#702 ③).
@@ -76,10 +77,12 @@ describe("an all-day event is not asked for times it discards", () => {
   });
 
   it("still refuses a timed event with no times", async () => {
-    const error = await callTool("create_schedule_item", {
-      date: "2026-08-11",
-      title: "standup",
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("create_schedule_item", {
+        date: "2026-08-11",
+        title: "standup",
+      }),
+    );
 
     expect(error.message).toMatch(/start_time and end_time are required/);
     expect(error.message).not.toMatch(/Supabase/);

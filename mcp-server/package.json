@@ -7,6 +7,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "_comment_typecheck_tests": "tests/ are outside tsconfig.json's include (that project emits dist/ and must not ship the suites), so they are checked by their own config — see tsconfig.test.json. Blocking in CI (#1001).",
+    "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
