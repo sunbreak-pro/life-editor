@@ -7,12 +7,14 @@
 **対象**: `shared/src/**` / `web/src/**` / `mcp-server/**` / CI・tsconfig 群
 **計画書**: `.claude/docs/vision/plans/2026-08-10-core-refactor.md`
 
-- 前回: **C5（#672）完了・PR #846 merged**。ただし merge 後に同ブランチへ push した 1 コミット（`useDomainLoad` 直接テスト 188 行）が main に届いていなかったので、拾い直して **PR #921 open**
-- 現在: **Issue sweep で #891 → #890 → #895 → #894 の 4 本を担当**。#891 は 4 本のフックを 1 本 1 PR で載せ替える構成で、**1 本目 `useTodoTreeAPI` = PR #922 open**（書いた時点の実測）。載せ替えで 1 点だけ挙動が変わることが判明したため `useDomainLoad` に `refetchReportsLoading`（既定 true）を追加 — 旧 effect は再取得中に `isLoading` を true へ戻さず、KanbanView はその間ボードごとスケルトンに差し替えるので、Realtime の自己 echo で編集のたびに板が消えていた
-- 次: #891 の残り 3 本（`useNotesUnifiedAPI` / `useDailiesUnifiedAPI` / `useWikiTagsUnifiedAPI`。タググラフは #300 の性質上 `refetchReportsLoading: false` 側になる見込み）→ #890 → #895 → #894。**merge 後の playwright は chat-main へ引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）/ #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）/ #891 分（Materials・Tags の初回ロードとエラー復帰）
+- 前回: **#921 / #922 / #923 とも merged**（`useDomainLoad` 直接テストの拾い直し・#891 の 1 本目 `useTodoTreeAPI`・前回の tracker）
+- 現在: **Issue sweep で #891 → #890 → #894 → #895 の 4 本を担当**。**#891 は 4 本すべて PR 化して打ち止め** — 残り 3 本を 1 本 1 PR で出した（**#949 notes / #950 dailies / #951 wikitags、いずれも open・6 ゲート全緑**）。**#891 を close するのは #951**（本文に明記）
+- **#891 で分かった 3 つの差分**（次に同型の載せ替えをやる人向け）: (1) **notes** — Trash の読み込みは同じトリガでも独自 try/catch を持つので load の `Promise.all` に畳めない（畳むと Trash の失敗がツリーを道連れにする）。別 effect に据え置いた。(2) **dailies** — 元から `isLoading` も `error` も**持っていなかった**ので、載せ替えは新規フィールドの追加になる。UI は未配線（エラーカードは見た目の変更なので範囲外）。(3) **wikitags** — `refetchReportsLoading: false` では足りず `loading = attemptInFlight && !hasLoaded` と書いた。**初回ロードが失敗した後の再試行**で旧コードは旗を立て直しており（`if (!hasLoadedRef.current) setLoading(true)`）、false 固定にすると「読み込み中」を「タグ 0 件」と表示してしまう
+- 次: **#890（5 role の mapper 共通化）→ #894（desktop IPC 契約のロックステップ）→ #895（mcp-server tools.ts の分割）**。**merge 後の playwright は chat-main へ引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）/ #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）/ #891 分（Materials・Tags の初回ロードとエラー復帰）
 
 ## 直近の完了
 
+- **#891 の残り 3 本 — PR #949 / #950 / #951 open・6 ゲート全緑** ✅（2026-08-16）: notes / dailies / wikitags を `useDomainLoad` へ。新規テスト 19 件（notes 7・dailies 6・wikitags 6）で、3 本とも load 経路のテストは**それまで 1 本も無かった**。#296 の un-latch（失敗後に読み直しが成功したらエラーが消える）が 4 ドメインすべてに行き渡った。既存の #300 スイート（`wikiTagsRefreshLoading.test.tsx`）は無改変で緑
 - **C5（#672）use\*API の load effect 共通化 + eslint baseline 退役 — PR #846 open** ✅（2026-08-13）: 実装は着手前に全部着地済み（#769 / #801 / #686）だったので、足したのは `useDomainLoad` の直接テスト 4 件。3 本のドメインスイート（計 16 ケース）は呼び出し側からしか叩けず、**superseded ガード**（2 本が同時に飛んで古い方が後着する並びを作れない）/ **dep 配列の `dataService`**（service を差し替えるスイートが 1 本も無い）/ **`load`・`apply` の ref ミラー**（dep に戻すと永久ループになるがドメインスイートは落ちず回り続ける）の 3 つに届いていなかった。逆テストで 3 つとも「守りを外すと対応テストだけ落ちる」ことを実測
 - **C8（#675）巨大ホスト 3 本の分割 — 4 項目すべて PR 化（#833 merged / #839・#841・#842 open）** ✅（2026-08-13）: 1 = CalendarTab の task 半分 → `useScheduleTaskChips`（2,716 → 2,553 行・16 tests）/ 2 = WeekTimeGrid のドラッグ → `useWeekTimeGridDrag`（921 → 719 行・7 tests + 既存 21 が無改造で通る）/ 4 = 繰り返し・スコープ → `useRepeatMutations`（1,041 → 456 行・16 tests。**この機構は今までテストが 1 つも無かった**）。全 PR で公開インターフェース不変・挙動変更ゼロ、各テストはソース変異で噛みを実測
 - **C8（#675）やること 3 = `useScheduleItemsAPI` の分割 — PR #833 merged** ✅（2026-08-13）: `shared/` 最後の未分割 API hook。727 → 239 行 + `useScheduleItemsViewMirror`（137）/ `useScheduleItemsCRUD`（459）/ `useScheduleItemsTrash`（73）。戻り値は無改造（`ScheduleItemsContextValue` がその `ReturnType`）。新規 22 tests は 3 本ともソースをわざと壊して落ちることを実測
@@ -26,7 +28,7 @@
 
 ## 予定
 
-- **Issue sweep の残り**: #891 の 3 本 → #890（5 role の mapper 共通化）→ #895（mcp-server tools.ts のレジストリ分割）→ #894（desktop IPC 契約のロックステップ）
+- **Issue sweep の残り**: #890（5 role の mapper 共通化）→ #894（desktop IPC 契約のロックステップ）→ #895（mcp-server tools.ts のレジストリ分割）
 - **#898 は着手判断そのものがユーザー手番**。実装せず A/B を判断キューへ積む（#677 は status:frozen で対象外）
 - 実装セッション 1 の残り: #671（#672 は chat-shared-fix が PR #801 で着手中・#673 は完了・#675 は 4 項目とも PR 化済み）
 - **C1 の後始末（別 PR・小さい）**: `shared/tsconfig.test.json` の除外 12 本 + `web` の 1 本を潰す。中身は fixture の型ズレと不要な `@ts-expect-error` 5 件で、1 本直すごとに `exclude` から 1 行消える（#690 の PR 本文に全件の内訳あり）
