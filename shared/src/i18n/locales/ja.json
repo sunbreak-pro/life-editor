@@ -287,7 +287,6 @@
       "untitled": "(無題)",
       "restoreNote": "{{title}} を復元",
       "permanentDeleteNote": "{{title}} を完全に削除",
-      "detailTitle": "ノートの詳細",
       "quickAddTitle": "ノートを追加",
       "quickAddPlaceholder": "タイトルを入力",
       "quickAddSubmit": "追加",
@@ -327,7 +326,6 @@
       "datePicker": "日付を選択",
       "dateStripLabel": "日付を選ぶ",
       "entriesCount": "エントリ（{{count}}）",
-      "pastEntries": "過去のエントリ",
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む"
     },
