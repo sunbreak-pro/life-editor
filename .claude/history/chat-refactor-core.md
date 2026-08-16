@@ -1,5 +1,29 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-16 - analytics のチャート 3 件を 1 PR に（PR #985 — #943 / #944 / #948）
+
+#### 概要
+
+自分の backlog が空いたのでレーンの無い analytics セクションを引き受けた。3 件とも `shared/src/components/Analytics/` に落ち、#943 と #944 は**同じ `WorkBreakBalance.tsx`** だったので 1 PR にまとめた（別々に出すと自分の PR 同士で衝突を直列化するだけ）。**3 件のうち 2 件は「Issue に書いてある原因」が実際とは違った**のが今回の中身。
+
+#### 変更点
+
+- **#943（ツールチップの系列名）**: 原因は Issue の通り、`formatter` が**要素 1 つの配列**を返していたこと。recharts は返り値が配列なら `[value, name]` に分解する（`DefaultTooltipContent.js:75-82`）ので、name が `undefined` になり名前の `<span>` ごと落ちる。3 系列の積み上げなので影響が最大だった。同じ 1 要素返しが `TodoStagnationChart` にもう 1 件あり、こちらも直した。**`TagWorkTimeChart` は直していない** — 配列ではなく**文字列**を返しており、非配列の返り値は「値だけ差し替えて名前は元のまま」という同じ契約のもう一方の正しい枝だから
+- **#944（0.25m 刻み）**: `WorkBreakBalance` の分軸（`Math.round` 済み）と `RoutineCompletionChart` の % 軸（同じく整数）に `allowDecimals={false}` を追加。**Issue が「付け忘れ」と名指ししていた時間軸 2 本（`WorkTimeChart` / `TodoWorkTimeChart`）はあえて直していない** — `hours` は `Math.round(分/60*10)/10` で小数第 1 位まで持つ設計なので、整数刻みにすると 1.5h の日が軸から読めなくなる。「整数で集計しているから一律で付けてよい」という Issue の前提が時間軸だけ成り立たない。**理由を両方のコードにコメントで残した**（同じ Issue が再起票されるのを止めるため）
+- **#948（`width(-1) and height(-1)` の警告）**: Issue は「初回マウント時に親の幅が確定していない経路が残っている」と推定していたが、**レイアウトの問題ではなかった**。インストール済み recharts 3.7.0 を読むと、`ResponsiveContainer` のサイズ state は既定の `initialDimension = {-1, -1}` から始まり（`responsiveContainerUtils.js:7-10` → `ResponsiveContainer.js:70-73`）、それを直す ResizeObserver は **effect**（同 :87-120）＝初回描画が警告を出した後にしか走らない。だから**どのチャートでも必ず 1 回出る**し、警告文自身が勧める `minWidth={0}` は最初から付いていて効くはずがなかった。判定式は 2 辺の **OR**（同 :135）なので、**高さを数値で渡せば消える**。ちょうど各チャートは高さ固定の `div`（`h-48` 等）で包まれていたので、その px をそのまま `height` に渡し、包んでいた `div` を外した。高さの出所が 1 箇所になり（`chartTheme.ts` の `CHART_HEIGHT_SM/MD/LG`）、幅は `"100%"` のままなので応答性も初回フレームの見え方も変わらない（幅が測れるまで何も描かないのは従来どおり）
+
+#### 検証
+
+- **console を読んで確かめた**（消えたと仮定しない）。`analyticsChartMount.test.tsx` は 10 チャート全部を **実物の recharts** に対してマウントし、`console.warn` のスパイで当該文言が 0 件であることを assert する。Analytics の既存スイートは全部 recharts を丸ごと mock しているが、今回は**渡し方**が主題なので mock すると検査対象が消える。各チャートには「データが無ければ null を返す」ガードを越えるだけの fixture を与えた（描かれていないチャートは警告を出しようがなく、空振りの緑になる）
+- 同ファイルで #944 の再現（1 分の作業セッション 1 件）を描画し、実際に引かれた Y 目盛を読む → `0m 1m 2m 3m 4m`。`analyticsTooltipFormatter.test.tsx` は 10 チャートの `formatter` を捕まえて契約を一括で固定した（配列を返すなら 2 要素・非配列は許可）
+- **新規 14 件が修正前のコードで落ちることを実測**（`git stash push -- shared/src/components/Analytics` して再実行）。10 件のマウント警告 + 目盛 1 件 + formatter 3 件
+- ゲートは §7.1 を全部: shared lint（error 0 / 既存 warning 3）・test 2323・build、web lint（error 0 / 既存 warning 4）・build・test 477。`desktop/` は未変更
+- **jsdom で本物の recharts を描かせるコツ**: `Element.prototype.getBoundingClientRect` を丸ごと差し替えると**目盛ラベルの文字幅測定まで巨大化して Y 軸ごと SVG から消える**（そして assert 対象が空になり気付けない）。`.recharts-responsive-container` の要素だけに限定して返す
+
+#### 次
+
+merge 待ち（P-001）。merge 後、ブラウザでの裏取り（Briefing / Analytics タブ一巡で警告 0 件・1440px と 390px の描画）は chat-main の手番 — worktree は dev server と playwright を持たない（§7.4）。
+
 ### 2026-08-16 - Issue sweep 完走 — #890 / #894 / #895 を PR 化（#958 / #960 / #963 open）
 
 #### 概要
