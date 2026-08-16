@@ -1,9 +1,13 @@
 import type { NoteNode, NoteNodeType } from "../types/note";
 import {
   ITEMS_META_COLUMNS,
+  assertItemsMetaPair,
+  toItemsMetaInsertRow,
+  toItemsMetaPatch,
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
+  type ItemsMetaPatchInput,
 } from "./itemsMeta";
 import { contentJsonToString, contentStringToJson } from "./contentJson";
 
@@ -245,16 +249,7 @@ export function rowsToNoteNode(
   meta: ItemsMetaNoteRow,
   payload: NotesPayloadRow,
 ): NoteNode {
-  if (meta.id !== payload.item_id) {
-    throw new Error(
-      `notesUnifiedMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
-    );
-  }
-  if (meta.role !== "note") {
-    throw new Error(
-      `notesUnifiedMapper: items_meta.role expected "note" but got "${meta.role}"`,
-    );
-  }
+  assertItemsMetaPair("notesUnifiedMapper", "note", meta, payload);
 
   const node: NoteNode = {
     id: meta.id,
@@ -316,15 +311,14 @@ export function noteNodeToRows(
   node: NoteNode,
   userId: string,
 ): { meta: ItemsMetaNoteInsertRow; payload: NotesPayloadWriteRow } {
-  const meta: ItemsMetaNoteInsertRow = {
+  const meta: ItemsMetaNoteInsertRow = toItemsMetaInsertRow({
     id: node.id,
-    user_id: userId,
+    userId,
     role: "note",
     title: node.title,
-    is_deleted: node.isDeleted ?? false,
-    deleted_at: node.deletedAt ?? null,
-    version: 1,
-  };
+    isDeleted: node.isDeleted,
+    deletedAt: node.deletedAt,
+  });
 
   const payload: NotesPayloadWriteRow = {
     item_id: node.id,
@@ -373,11 +367,12 @@ export function noteUpdatesToPatches(
   payloadPatch: NotesPayloadUpdatePatch;
 } {
   // -- meta side --
-  const metaPatch: ItemsMetaNoteUpdatePatch = { updated_at: now };
-  if ("title" in updates && updates.title !== undefined)
-    metaPatch.title = updates.title;
-  if ("isDeleted" in updates) metaPatch.is_deleted = updates.isDeleted ?? false;
-  if ("deletedAt" in updates) metaPatch.deleted_at = updates.deletedAt ?? null;
+  // DB-Q2's `updated_at` bump lives in `toItemsMetaPatch` (#890).
+  const metaFields: ItemsMetaPatchInput = {};
+  if ("title" in updates) metaFields.title = updates.title;
+  if ("isDeleted" in updates) metaFields.isDeleted = updates.isDeleted;
+  if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
+  const metaPatch: ItemsMetaNoteUpdatePatch = toItemsMetaPatch(metaFields, now);
 
   // -- payload side --
   const payloadPatch: NotesPayloadUpdatePatch = {};
