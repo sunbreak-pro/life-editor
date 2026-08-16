@@ -17,15 +17,8 @@ import {
   EventEditorPane,
   RightSidebarPortal,
   RightSidebarToggle,
-  RepeatScopeDialog,
-  QuickCaptureSheet,
-  ItemCreatePanel,
-  ItemActionPopover,
-  ItemDetailOverlay,
   CalendarLensRow,
   ResponsiveDetailFrame,
-  Modal,
-  ConfirmDialog,
   useConfirmDialog,
   useScheduleItemsRoutineSync,
   useDeferredAction,
@@ -58,7 +51,6 @@ import {
   WIDE_QUERY,
   type TranslationKey,
 } from "@life-editor/shared";
-import { CalendarView } from "./CalendarView";
 import { ScheduleSidebar } from "./ScheduleSidebar";
 import { TagPicker } from "../wikitag/TagPicker";
 import { TagColorControls } from "../wikitag/TagColorControls";
@@ -68,11 +60,12 @@ import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
 import { useScheduleOverlays } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
+import { ScheduleOverlays } from "./ScheduleOverlays";
 import { ScheduleTodoDetail } from "./ScheduleTodoDetail";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
-import { itemTapRoute, todoChipPanelModel } from "./todoChipPanel";
+import { itemTapRoute } from "./todoChipPanel";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
 import {
   toAgendaItems,
@@ -1506,37 +1499,6 @@ export function CalendarTab({
     closeTodoDetail: () => setTodoDetailId(null),
   });
 
-  const calendarsModal = (
-    <Modal
-      open={calendarsOpen}
-      onClose={() => setCalendarsOpen(false)}
-      title={t("scheduleScreen.calendarsTitle")}
-      size="lg"
-    >
-      <CalendarView />
-    </Modal>
-  );
-
-  // #279: this/future/all chooser — centered on every layout per the issue.
-  const scopeDialogEl = (
-    <RepeatScopeDialog
-      open={!!scopeRequest}
-      mode={scopeRequest?.mode ?? "edit"}
-      labels={{
-        title:
-          scopeRequest?.mode === "delete"
-            ? t("scheduleScreen.deleteScopeTitle")
-            : t("scheduleScreen.editScopeTitle"),
-        thisOnly: t("scheduleScreen.scopeThisOnly"),
-        thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
-        all: t("scheduleScreen.scopeAll"),
-        cancel: t("scheduleScreen.scopeCancel"),
-      }}
-      onChoose={handleScopeChoose}
-      onClose={closeScopeRequest}
-    />
-  );
-
   /*
    * #564: the chip behind an open bubble, when the bubble belongs to a TODO
    * chip rather than a schedule item.
@@ -1553,120 +1515,6 @@ export function CalendarTab({
    * the silently-dead click this Issue is about.
    */
   const popoverTodoChip = popover ? findTodoChip(popover.id) : null;
-  // The todo action set. Deliberately not the event one: a todo has no
-  // duplicate write and its detail lives in another section (todoChipPanel.ts).
-  const todoChipPanel = popoverTodoChip
-    ? todoChipPanelModel(
-        popoverTodoChip,
-        {
-          // NOT scheduleScreen.untitled — that one reads "無題の繰り返し",
-          // written for the repeat list. A todo is neither.
-          untitled: t("common.untitled"),
-          allDay: t("scheduleScreen.allDay"),
-          rename: t("scheduleScreen.rename"),
-          delete: t("todoDetail.todoDelete"),
-          convertToEvent: t("itemConvert.toEvent"),
-        },
-        {
-          onRename: (title) =>
-            updateNode(
-              popoverTodoChip.id,
-              { title },
-              // The catch-all tree label: a rename is not a move, so none of
-              // the position-shaped todoChip* words fit (useTodoTreeHistory).
-              { undoLabel: "todoTreeChange" },
-            ),
-          onDelete: () => handleTodoDelete(popoverTodoChip.id),
-          onConvertToEvent: () => handleConvertToEvent(popoverTodoChip.id),
-        },
-      )
-    : null;
-
-  // #299 single-click bubble (Desktop): summary + quick actions + "詳細を編集".
-  // `selected` is the popover's item (activate sets selectedId + popover to the
-  // same id); guard against a transient mismatch. Portalled to body → does not
-  // touch the rightSidebar contentCount invariant.
-  const popoverEl =
-    !isWide || !popover ? null : todoChipPanel ? (
-      <ItemActionPopover
-        key={popover.id}
-        position={{ x: popover.x, y: popover.y }}
-        summary={
-          <div className="flex flex-col gap-0.5">
-            <p className="truncate font-semibold text-lumen-text">
-              {todoChipPanel.title}
-            </p>
-            <p className="text-lumen-text-secondary">
-              {todoChipPanel.timeLabel}
-            </p>
-          </div>
-        }
-        actions={todoChipPanel.actions}
-        onEditDetail={() => handleItemOpenDetail(popover.id)}
-        // #626: the primary hand-off now opens the in-Schedule todo detail
-        // (tags editable in place); "open in Todos" moved inside that panel.
-        editDetailLabel={t("scheduleScreen.editDetail")}
-        label={t("scheduleScreen.itemActionsLabel")}
-        onClose={() => setPopover(null)}
-      />
-    ) : selected && selected.id === popover.id ? (
-      <ItemActionPopover
-        // Remount per item: without a mousedown in between (e.g. the keyboard
-        // contextmenu key) the id can swap while the bubble stays mounted,
-        // and a rename draft from the previous item would survive the swap.
-        key={popover.id}
-        position={{ x: popover.x, y: popover.y }}
-        summary={
-          <div className="flex flex-col gap-0.5">
-            <p className="truncate font-semibold text-lumen-text">
-              {selected.title || t("scheduleCalendar.newEvent")}
-            </p>
-            <p className="text-lumen-text-secondary">
-              {selected.isAllDay
-                ? t("scheduleScreen.allDay")
-                : `${selected.startTime}–${selected.endTime}`}
-            </p>
-          </div>
-        }
-        actions={[
-          // #551: rename rides the unified bubble as an inline input — the
-          // retired right-click menu was the only place it lived before.
-          {
-            id: "rename",
-            label: t("scheduleScreen.rename"),
-            inlineInput: {
-              value: selected.title,
-              ariaLabel: t("scheduleScreen.rename"),
-              onCommit: (title) => handleRename(popover.id, title),
-            },
-          },
-          {
-            id: "duplicate",
-            label: t("scheduleScreen.duplicate"),
-            onSelect: () => handleDuplicate(popover.id),
-          },
-          // #625: stays enabled for a routine occurrence too — selecting it
-          // then explains why a Todo cannot hold a repeat (D-20260810-sched-5,
-          // user-specified shape).
-          {
-            id: "convertToTodo",
-            label: t("itemConvert.toTodo"),
-            onSelect: () => handleConvertToTodo(popover.id),
-          },
-          {
-            id: "delete",
-            label: t("scheduleScreen.delete"),
-            danger: true,
-            onSelect: () => handleDelete(popover.id),
-          },
-        ]}
-        onEditDetail={() => handleItemOpenDetail(popover.id)}
-        editDetailLabel={t("scheduleScreen.editDetail")}
-        label={t("scheduleScreen.itemActionsLabel")}
-        onClose={() => setPopover(null)}
-      />
-    ) : null;
-
   // #299 detail-edit overlay (Desktop): the former rightSidebar "詳細" tab body
   // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
   // #628: Escape and the backdrop both land on this one onClose, so guarding it
@@ -1713,35 +1561,66 @@ export function CalendarTab({
     />
   );
 
-  // #299 item-creation overlay (Desktop): the shared creation panel in an
-  // ItemDetailOverlay-style modal. Keyed on the prefill so a new empty-slot
-  // click while open re-seeds the fields.
-  const createOverlayEl = (
-    <ItemDetailOverlay
-      open={isWide && !!createPanel}
-      title={t("scheduleScreen.addItem")}
-      onClose={() => setCreatePanel(null)}
-    >
-      {createPanel && (
-        <ItemCreatePanel
-          key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
-          initial={{
-            date: createPanel.date,
-            start: createPanel.start,
-            end: createPanel.end,
-          }}
-          pools={{ todos: todoAddable, notes: noteOptions }}
-          handlers={{
-            onSubmitEvent: handleCreateSubmit,
-            onSubmitEventAndOpen: handleCreateSubmitAndOpen,
-            onCreateTodo: handleCreateTodoSubmit,
-            onPlaceTodo: handlePlaceTodoSubmit,
-          }}
-          formatDuration={formatDuration}
-          labels={createPanelLabels}
-        />
-      )}
-    </ItemDetailOverlay>
+  /*
+   * #889: every body-level overlay, mounted once for both layouts.
+   *
+   * The two returns used to hand-list their own — and the lists had drifted:
+   * Desktop never mounted the <ConfirmDialog>, so every ask() there returned a
+   * promise nothing ever settled (a dirty editor could not be closed at all, a
+   * todo delete with children never ran, the Event↔Todo conversion stopped at
+   * the confirm). One element, placed by both branches, is what keeps the sets
+   * from parting again.
+   */
+  const overlaysEl = (
+    <ScheduleOverlays
+      isWide={isWide}
+      frames={{ editor: detailFrameEl, todoDetail: todoDetailFrameEl }}
+      popover={{
+        state: popover,
+        selected,
+        todoChip: popoverTodoChip,
+        onClose: () => setPopover(null),
+        onOpenDetail: handleItemOpenDetail,
+        itemActions: {
+          onRename: handleRename,
+          onDuplicate: handleDuplicate,
+          onConvertToTodo: handleConvertToTodo,
+          onDelete: handleDelete,
+        },
+        todoActions: {
+          // The catch-all tree label: a rename is not a move, so none of the
+          // position-shaped todoChip* words fit (useTodoTreeHistory).
+          onRename: (id, title) =>
+            updateNode(id, { title }, { undoLabel: "todoTreeChange" }),
+          onDelete: handleTodoDelete,
+          onConvertToEvent: handleConvertToEvent,
+        },
+      }}
+      create={{
+        panel: createPanel,
+        anchorDate,
+        onClose: () => setCreatePanel(null),
+        pools: { todos: todoAddable, notes: noteOptions },
+        handlers: {
+          onSubmitEvent: handleCreateSubmit,
+          onSubmitEventAndOpen: handleCreateSubmitAndOpen,
+          onCreateTodo: handleCreateTodoSubmit,
+          onPlaceTodo: handlePlaceTodoSubmit,
+        },
+        formatDuration,
+        labels: createPanelLabels,
+      }}
+      calendars={{
+        open: calendarsOpen,
+        onClose: () => setCalendarsOpen(false),
+      }}
+      scope={{
+        request: scopeRequest,
+        onChoose: handleScopeChoose,
+        onClose: closeScopeRequest,
+      }}
+      confirm={{ request: confirmRequest, onResolve: resolveConfirm }}
+    />
   );
 
   // #889: the Desktop main area, hoisted out of the return so the layout
@@ -1852,12 +1731,7 @@ export function CalendarTab({
           {rangeErrorBanner}
           {desktopBody}
         </div>
-        {calendarsModal}
-        {popoverEl}
-        {detailFrameEl}
-        {todoDetailFrameEl}
-        {createOverlayEl}
-        {scopeDialogEl}
+        {overlaysEl}
       </>
     );
   }
@@ -2015,61 +1889,7 @@ export function CalendarTab({
         />
       </div>
 
-      {/* Mobile creation panel (#299 → #376): the FAB opens with defaults, an
-          empty-slot tap opens with the tapped slot's time prefilled. Same panel
-          as the Desktop overlay, so the todo tab is reachable here too. */}
-      <QuickCaptureSheet
-        open={!!createPanel}
-        onClose={() => setCreatePanel(null)}
-        sheetTitle={t("scheduleScreen.addItem")}
-        closeLabel={t("common.close")}
-        initial={{
-          // The sheet outlives the open state (BottomSheet stays mounted), so
-          // the anchor day stands in while there is no gesture to read.
-          date: createPanel?.date ?? anchorDate,
-          start: createPanel?.start,
-          end: createPanel?.end,
-        }}
-        pools={{ todos: todoAddable, notes: noteOptions }}
-        handlers={{
-          onSubmitEvent: handleCreateSubmit,
-          onSubmitEventAndOpen: handleCreateSubmitAndOpen,
-          onCreateTodo: handleCreateTodoSubmit,
-          onPlaceTodo: handlePlaceTodoSubmit,
-        }}
-        formatDuration={formatDuration}
-        labels={createPanelLabels}
-      />
-
-      {/* The same two frame consts the Desktop branch places (#889) — the
-          width inside them picks the sheet here and the overlay there. Full
-          height on narrow, like the Notes/Todos detail screens; the cap and
-          the hand-rolled scroller this used to carry (#633) moved into
-          <BottomSheet fullScreen> with #874. */}
-      {detailFrameEl}
-
-      {/* #761: narrow's todo detail. Mounted after the editor, though the two
-          are never open together — a tap resolves to exactly one of them
-          (itemTapRoute). */}
-      {todoDetailFrameEl}
-
-      {scopeDialogEl}
-
-      {/* #707: mounted last so it portals ABOVE the editor overlay / sheet it
-          is usually asked from — the discard question has to sit on top of the
-          thing it is about. It holds no place in the tree while nothing is
-          being asked. */}
-      {confirmRequest && (
-        <ConfirmDialog
-          open
-          message={confirmRequest.message}
-          confirmLabel={confirmRequest.confirmLabel}
-          cancelLabel={confirmRequest.cancelLabel}
-          danger={confirmRequest.danger}
-          onConfirm={() => resolveConfirm(true)}
-          onCancel={() => resolveConfirm(false)}
-        />
-      )}
+      {overlaysEl}
     </>
   );
 }

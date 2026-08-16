@@ -73,19 +73,16 @@
 
 > 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み（2026-07-11 #197）。
 
-```bash
-cd shared && npm run lint       # eslint（CI ゲート — react-hooks 系は error）
-cd shared && npm run test       # vitest（本体ロジック / mapper）
-cd shared && npm run build      # 型検証 + dist 出力（tsc -b）
-cd web && npm run lint          # eslint（CI ゲート）
-cd web && npm run build         # web 型検証 + ビルド（tsc -b --force && vite build）
-cd web && npm run test          # vitest（renderer 側 — jsdom。#475 で追加）
-cd desktop && npm run typecheck # tsc --noEmit（CI ゲート。desktop/ を触った時のみ — #529）
-cd desktop && npm run build     # electron-vite build（同上。web の install/build が前提）
-cd web && npm run dev           # ローカル起動（vite）
-```
+**PR 前に回すゲートの正本は [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** — `verify` ジョブのステップ列（shared → web → desktop → mcp-server の順）と `docs-lint` ジョブがすべて。**ここにコマンドを列挙しない**（2026-08-16 D-20260816-main-2 = B / #1010）: 手で写した表は必ず CI から遅れ、実際に `typecheck:tests` と mcp-server の 2 系統が漏れて PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」で落ちた。
 
-PR 前は上のブロックの **lint / build / test をすべて**回す（`dev` 以外）。ゲート一覧の正本は `.github/workflows/ci.yml`（docs-lint は CI 専用ジョブ）。**`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で実際に CI だけが落ちた）。同様に **TypeScript の版が web だけ違う**（web = 6.x / shared・desktop = 5.6）: `web/tsconfig.json` が `../shared` を参照しているため `cd web && npm run build` は shared を **web 側の tsc** で検査する。片方だけ緑でも安心せず両方回す。`scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）。
+回し方 = `verify` ジョブを上から読み、各ステップの `working-directory` へ `cd` して同じ `npm run <script>` を打つ（`docs-lint` は `bash scripts/docs-lint.sh`）。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっており、`shared/` の変更だけで下流 3 つが落ちる。CI に無いローカル起動だけ別記: `cd web && npm run dev`（vite）。
+
+コマンド名からは読み取れない罠:
+
+- **`build` はテストファイルを見ず、`vitest` は型を見ない**。両方緑でも `typecheck:tests`（shared / web の独立ゲート）だけが赤くなる — 実装を触っていなくてもテストの型は壊れる
+- **`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で CI だけが落ちた）
+- **TypeScript の版が web だけ違う**（web = 6.x / shared・desktop = 5.6）: `web/tsconfig.json` が `../shared` を参照するため `cd web && npm run build` は shared を **web 側の tsc** で検査する。片方だけ緑でも安心しない
+- `scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 

@@ -133,6 +133,13 @@ jobs:
       - name: mcp-server — build (tsc)
         run: npm run build
         working-directory: mcp-server
+      # build が見るのは src だけ（tsconfig.json の include）。tests/ は vitest が
+      # 型を落として実行するだけなので、ここを足すまで 20 suite は一度も型検査
+      # されていなかった（#1001）— 初回の検査で 24 件の実ドリフトが出た。
+      # shared / web と同じ形。
+      - name: mcp-server — typecheck tests (tsc -p tsconfig.test.json)
+        run: npm run typecheck:tests
+        working-directory: mcp-server
       # vitest.config.ts が TZ を Asia/Tokyo に pin する。ランナーは UTC なので、
       # pin が無いと localDate の局所日付テストが別の意味で緑になる（実測: pin を
       # 外すと UTC で 2 件落ちる）
