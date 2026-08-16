@@ -51,7 +51,7 @@ function routine(
 
 type Entry = { label: string; undo: () => void; redo: () => void };
 
-function makeDS(opts?: { holdRestore?: boolean }) {
+function makeDS(opts?: { holdRestore?: boolean; conflicted?: boolean }) {
   const calls: string[] = [];
   let releaseRestore: (() => void) | undefined;
   const held = opts?.holdRestore
@@ -67,7 +67,10 @@ function makeDS(opts?: { holdRestore?: boolean }) {
   const bulkRestoreScheduleItems = vi.fn(async () => {
     calls.push("bulkRestoreScheduleItems");
     if (held) await held;
-    return CASCADE.length;
+    return {
+      restoredIds: [...(opts?.conflicted ? CASCADE.slice(1) : CASCADE)],
+      conflictedIds: opts?.conflicted ? [CASCADE[0]] : [],
+    };
   });
   const restoreRoutine = vi.fn(async () => {
     calls.push("restoreRoutine");
@@ -203,6 +206,29 @@ describe("routine delete undo restores the whole cascade (#708)", () => {
     );
     expect(view.result.current.routines).toHaveLength(0);
     expect(onCascadeChanged).toHaveBeenCalledTimes(2);
+  });
+
+  it("finishes the undo when part of the cascade is refused (#932)", async () => {
+    // A day the generator re-made while the repeat sat in the trash: its
+    // (routine, date) pair is taken, so that one occurrence stays trashed.
+    // Everything else — the seed event included — still comes back, and the
+    // repeat still returns to the live list. Before the partial restore, one
+    // such day threw and the whole cascade was lost.
+    const fixture = makeDS({ conflicted: true });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { view, entries } = await mountAndDelete(fixture.ds);
+
+    await act(async () => {
+      entries[0].undo();
+    });
+
+    await waitFor(() => expect(view.result.current.routines).toHaveLength(1));
+    expect(fixture.restoreRoutine).toHaveBeenCalledTimes(1);
+    expect(fixture.calls).toEqual([
+      "softDeleteRoutine",
+      "bulkRestoreScheduleItems",
+      "restoreRoutine",
+    ]);
   });
 
   it("still restores the routine when the cascade restore fails", async () => {

@@ -35,6 +35,10 @@ const state = vi.hoisted(() => {
     createItemLink: vi.fn(() => Promise.resolve()),
     syncInlineLinks: vi.fn(() => Promise.resolve()),
     outgoing: [] as { toItemId: string; isDeleted?: boolean }[],
+    /* #876: narrow puts the entry panel in the modal drawer, so picking
+     * a day has to close it. Null on Desktop-only renders is fine — the
+     * view reads the panel through the null-safe hook. */
+    closeDrawer: vi.fn(),
     /* The bodies the stubbed editor saves. WITH carries a resolved itemLink
      * atom for LINK_TARGET; WITHOUT is the same day after the user deleted it
      * again — which is the pair the #372 fold turns on. */
@@ -90,6 +94,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>
     ),
+    useRightSidebarOptional: () => ({ close: state.closeDrawer }),
   };
 });
 
@@ -172,6 +177,7 @@ beforeEach(() => {
   state.togglePin.mockClear();
   state.createItemLink.mockClear();
   state.syncInlineLinks.mockClear();
+  state.closeDrawer.mockClear();
   state.outgoing = [];
   // The save that persists the body is also the save that proves the day's
   // items_meta row exists — the parked edges wait on its resolved node.
@@ -338,7 +344,7 @@ describe("DailyView — mobile", () => {
     render(<DailyView />);
 
     // The strip is the last two weeks, so a 40-day-old entry is unreachable
-    // there — which is what the past-entries teaser below the editor is for.
+    // there — which is what the drawer's entry panel is for (#876).
     const strip = screen.getByRole("group", {
       name: "materials.daily.dateStripLabel",
     });
@@ -348,7 +354,13 @@ describe("DailyView — mobile", () => {
     expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(isoDay(-13));
   });
 
-  it("teases the two most recent OTHER entries and opens one on tap", () => {
+  /*
+   * #876 replaced the two-row "past entries" teaser under the editor with the
+   * SAME panel Desktop has, in the hamburger's drawer. What that buys is the
+   * whole list: the teaser showed two rows and the strip reaches fourteen days,
+   * so a 40-day-old entry had no route on a phone at all.
+   */
+  it("gets the desktop entry panel, whole, in the drawer", () => {
     state.dailies = [
       daily(TODAY),
       daily(YESTERDAY),
@@ -357,18 +369,38 @@ describe("DailyView — mobile", () => {
     ];
     render(<DailyView />);
 
-    screen.getByText("materials.daily.pastEntries");
-    screen.getByText(`entry for ${TODAY}`);
-    screen.getByText(`entry for ${LAST_WEEK}`);
-    // Two rows only, and never the day already open.
-    expect(screen.queryByText(`entry for ${YESTERDAY}`)).toBeNull();
-    expect(screen.queryByText(`entry for ${LONG_AGO}`)).toBeNull();
+    // Every entry, not a two-row teaser — LONG_AGO included.
+    screen.getByText("materials.daily.entriesCount|4");
+    screen.getByText(`entry for ${LONG_AGO}`);
+    // And the sort / filter controls that came with it.
+    screen.getByLabelText("materials.daily.filterLabel");
+  });
 
-    fireEvent.click(
-      screen.getByText(`entry for ${LAST_WEEK}`).closest("button") as
-        HTMLElement | HTMLButtonElement,
-    );
+  it("closes the drawer on the day it just opened", () => {
+    state.dailies = [daily(TODAY), daily(YESTERDAY), daily(LAST_WEEK)];
+    render(<DailyView />);
+
+    const entry = screen
+      .getAllByRole("button")
+      .find((b) => b.textContent?.includes(`entry for ${LAST_WEEK}`));
+    fireEvent.click(entry as HTMLElement);
+
     expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(LAST_WEEK);
+    // The drawer is a modal overlay: leaving it up would cover the entry.
+    expect(state.closeDrawer).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the desktop panel where it is", () => {
+    state.isWide = true;
+    state.dailies = [daily(TODAY), daily(LAST_WEEK)];
+    render(<DailyView />);
+
+    const entry = screen
+      .getAllByRole("button")
+      .find((b) => b.textContent?.includes(`entry for ${LAST_WEEK}`));
+    fireEvent.click(entry as HTMLElement);
+
+    expect(state.closeDrawer).not.toHaveBeenCalled();
   });
 
   it("keeps the same kebab actions the desktop header has", () => {

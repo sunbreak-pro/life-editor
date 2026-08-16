@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   TrashView,
+  isScheduleRestoreConflict,
   useTranslation,
   type DataService,
   type TrashBusy,
@@ -38,6 +39,14 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState<TrashBusy | null>(null);
+  /**
+   * Why a restore did not happen (#932). Separate from `error`, which swaps
+   * the whole screen for a retry card — the list is fine here, one row just
+   * declined to come back and the user needs to be told which way.
+   */
+  const [restoreNotice, setRestoreNotice] = useState<
+    "conflict" | "failed" | null
+  >(null);
 
   const untitled = t("common.untitled", { defaultValue: "Untitled" });
 
@@ -144,8 +153,14 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   const handleRestore = useCallback(
     async (category: TrashCategory, id: string) => {
       setBusy({ category, id, action: "restore" });
+      setRestoreNotice(null);
       try {
         await restoreByCategory(ds, category, id);
+        await reload();
+      } catch (e) {
+        // A refused restore used to leave via an unhandled rejection: the
+        // row stayed in the trash after the reload and nothing said why.
+        setRestoreNotice(isScheduleRestoreConflict(e) ? "conflict" : "failed");
         await reload();
       } finally {
         setBusy(null);
@@ -236,24 +251,45 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   }
 
   return (
-    <TrashView
-      groups={groups}
-      onRestore={(c, id) => void handleRestore(c, id)}
-      onPermanentDelete={(c, id) => void handlePermanentDelete(c, id)}
-      busy={busy}
-      labels={{
-        empty: t("trash.empty"),
-        emptyDescription: t("trash.emptyDescription"),
-        restore: t("trash.restore"),
-        restoring: t("trash.restoring"),
-        deleting: t("trash.deleting"),
-        deletePermanently: t("trash.deletePermanently"),
-        confirmMessage: t("trash.permanentDeleteConfirm", { name: "{name}" }),
-        cascadeWarning: t("trash.cascadeWarning"),
-        cancel: t("common.cancel"),
-        close: t("common.close"),
-      }}
-    />
+    <div className="flex flex-col gap-4">
+      {restoreNotice !== null && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary px-4 py-3"
+        >
+          <AlertCircle
+            size={18}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0 text-lumen-danger"
+          />
+          <p className="text-sm leading-relaxed text-lumen-text-secondary">
+            {t(
+              restoreNotice === "conflict"
+                ? "trash.restoreConflict"
+                : "trash.restoreFailed",
+            )}
+          </p>
+        </div>
+      )}
+      <TrashView
+        groups={groups}
+        onRestore={(c, id) => void handleRestore(c, id)}
+        onPermanentDelete={(c, id) => void handlePermanentDelete(c, id)}
+        busy={busy}
+        labels={{
+          empty: t("trash.empty"),
+          emptyDescription: t("trash.emptyDescription"),
+          restore: t("trash.restore"),
+          restoring: t("trash.restoring"),
+          deleting: t("trash.deleting"),
+          deletePermanently: t("trash.deletePermanently"),
+          confirmMessage: t("trash.permanentDeleteConfirm", { name: "{name}" }),
+          cascadeWarning: t("trash.cascadeWarning"),
+          cancel: t("common.cancel"),
+          close: t("common.close"),
+        }}
+      />
+    </div>
   );
 }
 

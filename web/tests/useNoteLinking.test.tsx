@@ -3,11 +3,13 @@ import { renderHook } from "@testing-library/react";
 
 /*
  * The pending-selection handoff (#475). A `[[link]]` click routes through
- * MainScreen and comes back as a note id to select — but SELECTING is not the
- * whole job: the mobile sheet keys on its own note id (useNoteSheetTarget) and
- * gates the body on `selectedNote.id` matching it, so a handoff that only moved
- * the selection left the sheet showing the previous note's title over a skeleton
- * that never resolved. `onPendingSelected` is the seam the host follows.
+ * MainScreen and comes back as a note id to select, and since #876 selecting IS
+ * the whole job: every surface reads `selectedNote`. It was not always so — the
+ * mobile detail sheet kept a note id of its own and gated its body on
+ * `selectedNote.id` matching it, so a handoff that only moved the selection
+ * left the sheet showing the previous note's title over a skeleton that never
+ * resolved. #876 retired the sheet, and with it the `onPendingSelected` seam
+ * the host used to follow.
  *
  * Below that, the Notes end of the shared "[[" → item_links wiring (#776). The
  * guards themselves are pinned in useInlineItemLinks.test; what these check is
@@ -43,32 +45,29 @@ beforeEach(() => {
 });
 
 describe("useNoteLinking pending handoff", () => {
-  it("selects the pending note and reports it to the host", () => {
-    const onPendingSelected = vi.fn();
+  it("selects the pending note and clears the flag", () => {
     const onConsumePendingSelect = vi.fn();
 
     renderHook(() =>
       useNoteLinking({
         pendingSelectNoteId: "note-2",
-        onPendingSelected,
         onConsumePendingSelect,
       }),
     );
 
     expect(setSelectedNoteId).toHaveBeenCalledWith("note-2");
-    expect(onPendingSelected).toHaveBeenCalledWith("note-2");
     expect(onConsumePendingSelect).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing without a pending id", () => {
-    const onPendingSelected = vi.fn();
+    const onConsumePendingSelect = vi.fn();
 
     renderHook(() =>
-      useNoteLinking({ pendingSelectNoteId: null, onPendingSelected }),
+      useNoteLinking({ pendingSelectNoteId: null, onConsumePendingSelect }),
     );
 
     expect(setSelectedNoteId).not.toHaveBeenCalled();
-    expect(onPendingSelected).not.toHaveBeenCalled();
+    expect(onConsumePendingSelect).not.toHaveBeenCalled();
   });
 });
 

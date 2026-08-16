@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { PASSWORD_MIN_LENGTH } from "@life-editor/shared";
 import { AuthScreen } from "../src/AuthScreen";
 
 /*
@@ -108,6 +109,28 @@ describe("AuthScreen — forgotten password", () => {
       expect(state.updatePassword).toHaveBeenCalledWith("correct-horse"),
     );
     expect(onRecoveryComplete).toHaveBeenCalled();
+  });
+
+  it("keeps a password under the floor off the recovery request", async () => {
+    // The reset card is the other half of #956's DoD: the floor has to hold on
+    // the way back in, not only in Settings. One under it, read from the
+    // constant, so the boundary follows the policy instead of a literal.
+    const justUnder = "a".repeat(PASSWORD_MIN_LENGTH - 1);
+    render(<AuthScreen recovery />);
+    fireEvent.change(screen.getByLabelText("auth.recovery.newPassword"), {
+      target: { value: justUnder },
+    });
+    fireEvent.change(screen.getByLabelText("auth.recovery.confirmPassword"), {
+      target: { value: justUnder },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "auth.recovery.submit" }),
+    );
+
+    expect(
+      await screen.findByText("settings.account.errors.tooShort"),
+    ).toBeTruthy();
+    expect(state.updatePassword).not.toHaveBeenCalled();
   });
 
   it("keeps a mistyped confirmation off the recovery request", async () => {

@@ -8,6 +8,7 @@ import { AuthBrandHeader } from "./AuthBrandHeader";
 import { Button } from "./Button";
 import { PasswordField, type PasswordFieldLabels } from "./PasswordField";
 import { SegmentedToggle } from "./SegmentedToggle";
+import { PASSWORD_MIN_LENGTH } from "../constants/password";
 
 export type AuthMode = "signIn" | "signUp";
 
@@ -55,6 +56,7 @@ export interface AuthCardProps {
   /** Opens the reset-request card. The link renders in sign-in mode only. */
   onForgotPassword: () => void;
   labels: AuthCardLabels;
+  /** Floor for a password being CREATED — sign-up mode only (see below). */
   passwordMinLength?: number;
   className?: string;
 }
@@ -80,7 +82,7 @@ export function AuthCard({
   onSubmit,
   onForgotPassword,
   labels,
-  passwordMinLength = 6,
+  passwordMinLength = PASSWORD_MIN_LENGTH,
   className,
 }: AuthCardProps) {
   const passwordId = useId();
@@ -150,10 +152,16 @@ export function AuthCard({
           >
             {labels.password}
           </label>
+          {/* Sign-up only (#956): the minimum is a rule for a password being
+              created, and an existing one predates every raise of it. Enforced
+              here it would refuse to submit the account's real password —
+              locking the owner out until they went through email recovery —
+              and the helper line would state a rule that does not apply to
+              what they are typing. */}
           <PasswordField
             id={passwordId}
             required
-            minLength={passwordMinLength}
+            minLength={mode === "signUp" ? passwordMinLength : undefined}
             autoComplete={
               mode === "signIn" ? "current-password" : "new-password"
             }
@@ -161,7 +169,7 @@ export function AuthCard({
             disabled={busy}
             onChange={onPasswordChange}
             labels={passwordLabels}
-            helperText={labels.passwordHelper}
+            helperText={mode === "signUp" ? labels.passwordHelper : undefined}
           />
         </div>
 

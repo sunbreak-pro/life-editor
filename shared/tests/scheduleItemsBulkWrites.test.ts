@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseScheduleItemsService } from "../src/services/SupabaseDataService";
 import {
+  isScheduleRestoreConflict,
+  type ScheduleRestoreConflictError,
+} from "../src/services/scheduleRestoreConflict";
+import {
   POSTGREST_IN_CHUNK_SIZE,
   POSTGREST_PAGE_SIZE,
 } from "../src/services/postgrestFetchAll";
@@ -39,6 +43,12 @@ interface LivePairRow {
   source_date: string;
   is_deleted_cache: boolean;
   /**
+   * The events_payload PK. Only the restore pre-check (#932) looks rows up
+   * this way — it starts from the ids being restored and has to learn their
+   * (routine, date) pair before it can ask whether the pair is taken.
+   */
+  item_id?: string;
+  /**
    * Present so a test can put a DISMISSED-but-live pair in the table. The
    * pre-check deliberately does NOT filter on it — see the dismissed case
    * below.
@@ -74,7 +84,21 @@ interface FailurePlan {
   payloadInsert?: string;
   metaDelete?: string;
   metaUpdate?: string;
+  /**
+   * Ids whose items_meta UPDATE trips the Issue-011 partial UNIQUE — the
+   * generator claiming the pair between the pre-check and the write (#932).
+   * Postgres cannot say WHICH row of a multi-row UPDATE collided, so a chunk
+   * containing any of these fails whole, exactly like the real thing.
+   */
+  metaUpdateConflictIds?: string[];
 }
+
+/** What PostgREST hands back for the partial UNIQUE. */
+const ROUTINE_PAIR_ERROR = {
+  code: "23505",
+  message:
+    'duplicate key value violates unique constraint "uq_events_payload_routine_date"',
+};
 
 class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   private mode: "select" | "insert" | "update" | "delete" | null = null;
@@ -137,7 +161,10 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
 
   private idsFromFilters(): string[] {
     const f = this.filters.find((x) => x.op === "in");
-    return f ? ((f.val as string[]) ?? []) : [];
+    if (f) return (f.val as string[]) ?? [];
+    // The single-row restore aims with .eq("id", …) rather than .in (#932).
+    const one = this.filters.find((x) => x.op === "eq" && x.col === "id");
+    return one ? [one.val as string] : [];
   }
 
   private resolve(): { data?: unknown; error: unknown } {
@@ -177,6 +204,9 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     }
     if (this.fail.metaUpdate)
       return { error: { message: this.fail.metaUpdate } };
+    const conflicts = this.fail.metaUpdateConflictIds;
+    if (conflicts && this.idsFromFilters().some((id) => conflicts.includes(id)))
+      return { error: ROUTINE_PAIR_ERROR };
     this.writes.push({
       op: "update",
       table: this.table,
@@ -347,6 +377,75 @@ describe("bulkCreateScheduleItems — 2-row INSERT + Issue 011 idempotency", () 
     expect(ids(inserted(writes, "items_meta"), "id")).toEqual(["si-fresh"]);
     expect(ids(inserted(writes, "events_payload"), "item_id")).toEqual([
       "si-fresh",
+    ]);
+  });
+
+  /*
+   * #933 — the pre-check used to compare the batch against the DB only, so
+   * two rows inside ONE batch claiming the same (routine, date) sailed
+   * through to the INSERT. That INSERT is a single statement: 23505 rolls
+   * back every payload row, and the R2 cleanup then hard-deletes the metas
+   * for the whole batch. A 30-day fill with one duplicate produced zero
+   * events, and the retry was whenever the effect happened to fire again.
+   */
+  it("keeps the first of two rows in the SAME batch claiming one (routine, date)", async () => {
+    const { client, writes } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.bulkCreateScheduleItems([
+      item("si-first", { routineId: ROUTINE }),
+      item("si-dupe", { routineId: ROUTINE }),
+      item("si-other", { routineId: ROUTINE, date: "2026-08-21" }),
+    ]);
+
+    expect(ids(inserted(writes, "items_meta"), "id")).toEqual([
+      "si-first",
+      "si-other",
+    ]);
+    expect(ids(inserted(writes, "events_payload"), "item_id")).toEqual([
+      "si-first",
+      "si-other",
+    ]);
+  });
+
+  it("still writes the rest of the batch when a duplicate is dropped from it", async () => {
+    // The regression this Issue is really about: nothing is annihilated.
+    const { client, writes } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+    const days = Array.from({ length: 30 }, (_, i) =>
+      item(`si-${i}`, {
+        routineId: ROUTINE,
+        date: `2026-08-${String(i + 1).padStart(2, "0")}`,
+      }),
+    );
+
+    await svc.bulkCreateScheduleItems([
+      ...days,
+      // Same routine, same day as days[0] — the poison row.
+      item("si-dupe", { routineId: ROUTINE, date: "2026-08-01" }),
+    ]);
+
+    expect(inserted(writes, "items_meta")).toHaveLength(30);
+    expect(ids(inserted(writes, "items_meta"), "id")).not.toContain("si-dupe");
+  });
+
+  it("does not fold distinct manual events together (they all share the null pair)", async () => {
+    // routinePairKey spells a manual row "null|null", so a dedupe that
+    // forgot to exempt them would collapse every hand-made event on the
+    // batch into one.
+    const { client, writes } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.bulkCreateScheduleItems([
+      item("si-a"),
+      item("si-b"),
+      item("si-c"),
+    ]);
+
+    expect(ids(inserted(writes, "items_meta"), "id")).toEqual([
+      "si-a",
+      "si-b",
+      "si-c",
     ]);
   });
 
@@ -596,7 +695,10 @@ describe("bulkSoftDeleteScheduleItems / bulkRestoreScheduleItems — Trash round
     const svc = new SupabaseScheduleItemsService(client);
 
     expect(await svc.bulkSoftDeleteScheduleItems([])).toBe(0);
-    expect(await svc.bulkRestoreScheduleItems([])).toBe(0);
+    expect(await svc.bulkRestoreScheduleItems([])).toEqual({
+      restoredIds: [],
+      conflictedIds: [],
+    });
     expect(writes).toHaveLength(0);
   });
 
@@ -624,9 +726,9 @@ describe("bulkSoftDeleteScheduleItems / bulkRestoreScheduleItems — Trash round
     const { client, writes } = makeClient();
     const svc = new SupabaseScheduleItemsService(client);
 
-    const count = await svc.bulkRestoreScheduleItems(["si-1"]);
+    const result = await svc.bulkRestoreScheduleItems(["si-1"]);
 
-    expect(count).toBe(1);
+    expect(result).toEqual({ restoredIds: ["si-1"], conflictedIds: [] });
     expect(writes).toHaveLength(1);
     const write = writes[0];
     if (write.op !== "update") throw new Error("expected an update");
@@ -668,5 +770,219 @@ describe("bulkSoftDeleteScheduleItems / bulkRestoreScheduleItems — Trash round
     await expect(svc.bulkRestoreScheduleItems(["si-1"])).rejects.toThrow(
       /bulkRestoreScheduleItems: update exploded/,
     );
+  });
+});
+
+/*
+ * #932 — restoring a routine occurrence whose day was re-generated while it
+ * sat in the trash.
+ *
+ * The setup every case below shares: trashing the occurrence flips
+ * is_deleted_cache, the partial UNIQUE stops counting it, and the generator
+ * mints a NEW live row for the same (routine, date). Restoring the old row
+ * then asks for two live rows on one pair, and the 0008 trigger's cache write
+ * is what Postgres rejects — from here it looks like the items_meta UPDATE
+ * simply exploded, which is how the whole batch used to be lost (and with it
+ * the hand-made seed event, which had nothing to do with the collision).
+ */
+describe("restore vs the Issue-011 partial UNIQUE (#932)", () => {
+  /** A trashed occurrence and the live row that took its pair over. */
+  const trashed = (
+    itemId: string,
+    routineId: string,
+    date: string,
+  ): LivePairRow => ({
+    item_id: itemId,
+    routine_item_id: routineId,
+    source_date: date,
+    is_deleted_cache: true,
+  });
+  const live = (
+    itemId: string,
+    routineId: string,
+    date: string,
+  ): LivePairRow => ({
+    item_id: itemId,
+    routine_item_id: routineId,
+    source_date: date,
+    is_deleted_cache: false,
+  });
+  /** The seed event the repeat was grown from — no pair, never blocked. */
+  const manual = (itemId: string): LivePairRow =>
+    ({
+      item_id: itemId,
+      routine_item_id: null,
+      source_date: null,
+      is_deleted_cache: true,
+    }) as unknown as LivePairRow;
+
+  const updatedIds = (writes: WriteRecord[]) =>
+    writes.flatMap((w) => (w.op === "update" ? w.ids : []));
+
+  it("leaves the re-taken day in the trash and brings everything else back", async () => {
+    const { client, writes } = makeClient({
+      live: [
+        trashed("si-old", "routine-1", "2026-08-16"),
+        live("si-new", "routine-1", "2026-08-16"),
+        trashed("si-free", "routine-1", "2026-08-17"),
+        manual("si-seed"),
+      ],
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    const result = await svc.bulkRestoreScheduleItems([
+      "si-old",
+      "si-free",
+      "si-seed",
+    ]);
+
+    expect(result.conflictedIds).toEqual(["si-old"]);
+    expect(result.restoredIds).toEqual(["si-free", "si-seed"]);
+    // The refused row is never written — the point is to stop the batch
+    // being rolled back by one collision.
+    expect(updatedIds(writes)).toEqual(["si-free", "si-seed"]);
+  });
+
+  it("restores nothing and reports every id when all the pairs are taken", async () => {
+    const { client, writes } = makeClient({
+      live: [
+        trashed("si-old", "routine-1", "2026-08-16"),
+        live("si-new", "routine-1", "2026-08-16"),
+      ],
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    const result = await svc.bulkRestoreScheduleItems(["si-old"]);
+
+    expect(result).toEqual({ restoredIds: [], conflictedIds: ["si-old"] });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("keeps only the first of two trashed rows that share a pair", async () => {
+    // Trash the day, let the generator re-make it, trash it again: two
+    // trashed rows now claim one pair. Restoring both would collide with
+    // each other, with nothing live to blame.
+    const { client } = makeClient({
+      live: [
+        trashed("si-first", "routine-1", "2026-08-16"),
+        trashed("si-second", "routine-1", "2026-08-16"),
+      ],
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    const result = await svc.bulkRestoreScheduleItems([
+      "si-first",
+      "si-second",
+    ]);
+
+    expect(result.restoredIds).toEqual(["si-first"]);
+    expect(result.conflictedIds).toEqual(["si-second"]);
+  });
+
+  it("re-runs a chunk id by id when a racing generator takes a pair mid-write", async () => {
+    // The pre-check said the pair was free; the generator claimed it before
+    // the UPDATE landed. PostgREST rolls the whole chunk back and cannot say
+    // which row lost, so the chunk is replayed one id at a time.
+    const { client, writes } = makeClient({
+      live: [
+        trashed("si-a", "routine-1", "2026-08-16"),
+        trashed("si-b", "routine-1", "2026-08-17"),
+      ],
+      fail: { metaUpdateConflictIds: ["si-b"] },
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    const result = await svc.bulkRestoreScheduleItems(["si-a", "si-b"]);
+
+    expect(result).toEqual({
+      restoredIds: ["si-a"],
+      conflictedIds: ["si-b"],
+    });
+    expect(updatedIds(writes)).toEqual(["si-a"]);
+  });
+
+  it("still throws when the chunk failed for a reason that is not a collision", async () => {
+    const { client } = makeClient({
+      live: [trashed("si-a", "routine-1", "2026-08-16")],
+      fail: { metaUpdate: "update exploded" },
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await expect(svc.bulkRestoreScheduleItems(["si-a"])).rejects.toThrow(
+      /bulkRestoreScheduleItems: update exploded/,
+    );
+  });
+
+  it("never leaves a >1-chunk restore half applied", async () => {
+    // The DoD case: collisions are resolved BEFORE any write, so the last
+    // chunk is as safe as the first. Every requested id comes back in
+    // exactly one of the two lists.
+    const total = POSTGREST_IN_CHUNK_SIZE + 50;
+    const rows: LivePairRow[] = [];
+    for (let i = 0; i < total; i += 1) {
+      const date = `2026-08-${String((i % 28) + 1).padStart(2, "0")}`;
+      rows.push(trashed(`si-${i}`, `routine-${i}`, date));
+      // Every tenth day was re-generated while the batch sat in the trash.
+      if (i % 10 === 0) rows.push(live(`si-new-${i}`, `routine-${i}`, date));
+    }
+    const { client, writes } = makeClient({ live: rows });
+    const svc = new SupabaseScheduleItemsService(client);
+    const ids = Array.from({ length: total }, (_, i) => `si-${i}`);
+
+    const result = await svc.bulkRestoreScheduleItems(ids);
+
+    expect(result.conflictedIds).toHaveLength(Math.ceil(total / 10));
+    expect(result.restoredIds.length + result.conflictedIds.length).toBe(total);
+    expect(new Set([...result.restoredIds, ...result.conflictedIds])).toEqual(
+      new Set(ids),
+    );
+    // Only the restorable ids are written, still chunked at the URL cap.
+    expect(updatedIds(writes)).toEqual(result.restoredIds);
+    expect(writes.map((w) => (w.op === "update" ? w.ids.length : -1))).toEqual([
+      POSTGREST_IN_CHUNK_SIZE,
+      result.restoredIds.length - POSTGREST_IN_CHUNK_SIZE,
+    ]);
+  });
+
+  it("single restore refuses a re-taken occurrence by name instead of a raw 23505", async () => {
+    const { client, writes } = makeClient({
+      live: [
+        trashed("si-old", "routine-1", "2026-08-16"),
+        live("si-new", "routine-1", "2026-08-16"),
+      ],
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    const err = await svc.restoreScheduleItem("si-old").catch((e) => e);
+
+    expect(isScheduleRestoreConflict(err)).toBe(true);
+    expect((err as ScheduleRestoreConflictError).conflictedIds).toEqual([
+      "si-old",
+    ]);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("single restore passes a free pair and a manual event straight through", async () => {
+    const { client, writes } = makeClient({
+      live: [trashed("si-free", "routine-1", "2026-08-17"), manual("si-seed")],
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.restoreScheduleItem("si-free");
+    await svc.restoreScheduleItem("si-seed");
+
+    expect(updatedIds(writes)).toEqual(["si-free", "si-seed"]);
+  });
+
+  it("single restore maps a raced 23505 onto the same refusal", async () => {
+    const { client } = makeClient({
+      live: [trashed("si-a", "routine-1", "2026-08-16")],
+      fail: { metaUpdateConflictIds: ["si-a"] },
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    const err = await svc.restoreScheduleItem("si-a").catch((e) => e);
+
+    expect(isScheduleRestoreConflict(err)).toBe(true);
   });
 });
