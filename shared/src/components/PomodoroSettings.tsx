@@ -529,8 +529,16 @@ function NumberField({
   onBlankBlur: (label: string) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs text-lumen-text-tertiary">{label}</span>
+    // #946 — the inputs of one grid row have to line up even when the two
+    // labels wrap to different heights ("Long break duration between sets"
+    // takes three lines beside a one-line "Sessions per set", and ja wraps at
+    // different widths again). `h-full` makes the field as tall as its row and
+    // `grow` on the caption hands the leftover height to the LABEL, so the
+    // input is pushed to the bottom of every cell — labels top-aligned, inputs
+    // bottom-aligned, in any language and at any drawer width. A fixed offset
+    // or min-height would only hold for the one string it was measured on.
+    <label className="flex h-full flex-col gap-1">
+      <span className="grow text-xs text-lumen-text-tertiary">{label}</span>
       <Input
         type="number"
         min={min}
