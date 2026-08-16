@@ -209,6 +209,9 @@ export { useSoftKeyboard } from "./hooks/useSoftKeyboard";
 // cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
 export { useDeferredAction } from "./hooks/useDeferredAction";
 export { useInFlightGuard } from "./hooks/useInFlightGuard";
+// #889: one minute-ticked clock in the two shapes a calendar reads it in —
+// a Date to compare across days, minutes-from-midnight to place a line.
+export { useMinuteClock } from "./hooks/useMinuteClock";
 // #430 → #503 — fetch a candidate pool only when something actually asks for
 // it, and re-read it only after a sync says it went stale. Backs the "[["
 // autocomplete and the palette's cross-item search.
