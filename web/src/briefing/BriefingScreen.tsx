@@ -113,9 +113,17 @@ export function BriefingScreen({
   } = useDailySections(ds, todayKey, dailyContent, setDailyContent);
 
   // 週 / 月 / 年 goals (#872) — their own document (the reserved goals note),
-  // so their read + save chain is separate from the daily's sections.
-  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(ds);
+  // so their read + save chain is separate from the daily's sections. The day
+  // and the week-start preference go IN because the sections are filed under a
+  // period key since #957: the same two inputs decide which section is read
+  // and written and which range is printed beside the field, so the pref has
+  // to be resolved before the hook runs, not after it.
   const { weekStartsOn } = useWeekStartPref();
+  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(
+    ds,
+    todayKey,
+    weekStartsOn,
+  );
 
   // Nothing stored AND nothing typed = the day has no declaration yet, so
   // there is no save state to report. Reporting「保存済み」over an untouched
@@ -161,11 +169,12 @@ export function BriefingScreen({
     }),
     [t, intentionCaption],
   );
-  // Goal field copy (#872). The period RANGES are computed, not translated:
-  // the texts never roll over, so the label is the only thing that says which
-  // week / month / year is on the page. The week follows the user's week-start
-  // preference — the same boundary the calendar grids and the Analytics week
-  // buckets use (#860), never a hard-coded Monday.
+  // Goal field copy (#872). The period RANGES are computed, not translated —
+  // they are the human-readable face of the same period the section is filed
+  // under (#957), so they take the identical inputs `goalPeriodKeys` does. The
+  // week follows the user's week-start preference — the same boundary the
+  // calendar grids and the Analytics week buckets use (#860), never a
+  // hard-coded Monday.
   const goalRanges = useMemo(
     () =>
       goalPeriodRanges(

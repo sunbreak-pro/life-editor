@@ -155,9 +155,11 @@ export interface BriefingViewProps {
   /** Blur — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
   /**
-   * Standing 週 / 月 / 年 goals (#872) — text per period, newline-separated.
-   * They live in one reserved note (goalSections.ts), not in the daily, and
-   * never roll over: only the labels below say which period is showing.
+   * The CURRENT 週 / 月 / 年 goals (#872) — text per period, newline-separated.
+   * They live in one reserved note (goalSections.ts), not in the daily, filed
+   * under a period key: when a period turns over its field comes back empty
+   * and the previous one stays in the note as history (#957). The paper only
+   * ever shows the period `goalLabels` names.
    */
   goals: Record<GoalPeriod, string>;
   /** Copy of the three goal fields, period ranges included (host-formatted). */
