@@ -29,7 +29,7 @@ export function useTodoLinking({ dataService }: { dataService?: DataService }) {
   const loadLinkTargets = useItemLinkTargets(dataService);
 
   // The Kanban is the only host of the todo body editor (both widths render
-  // through its renderTodoDetail), so it is the name a failed write reports.
+  // through its TodoDetailContent), so it is the name a failed write reports.
   const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("KanbanView");
 
   return {

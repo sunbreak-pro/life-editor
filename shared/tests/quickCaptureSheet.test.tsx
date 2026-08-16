@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { QuickCaptureSheet, type QuickCaptureLabels } from "../src/components";
+import {
+  QuickCaptureSheet,
+  type QuickCaptureLabels,
+  type ItemCreateSlot,
+} from "../src/components";
 
 /*
  * QuickCaptureSheet (#280, moved from web CalendarTab) — the Mobile FAB's
@@ -23,6 +27,7 @@ const LABELS: QuickCaptureLabels = {
   eventPlaceholder: "Event title",
   todoPlaceholder: "Todo title",
   date: "Date",
+  allDay: "All day",
   startTime: "Start",
   endTime: "End",
   addEvent: "Add",
@@ -50,8 +55,16 @@ const LABELS: QuickCaptureLabels = {
  * their setup in flat terms and are unchanged from before that refactor, so
  * the folding happens here (see itemCreatePanel.test.tsx for the same note).
  */
+/** The day the host seeds the sheet with, unless a case says otherwise. */
+const DATE = "2026-08-20";
+
+/** The submit payload the panel now carries (#940). */
+function slot(over?: Partial<ItemCreateSlot>): ItemCreateSlot {
+  return { date: DATE, start: "09:00", end: "10:00", isAllDay: false, ...over };
+}
+
 function renderSheet(props?: {
-  dateLabel?: string;
+  initialDate?: string;
   initialStart?: string;
   initialEnd?: string;
 }) {
@@ -66,8 +79,11 @@ function renderSheet(props?: {
       onClose={onClose}
       sheetTitle="Add item"
       closeLabel="Close"
-      dateLabel={props?.dateLabel}
-      initial={{ start: props?.initialStart, end: props?.initialEnd }}
+      initial={{
+        date: props?.initialDate ?? DATE,
+        start: props?.initialStart,
+        end: props?.initialEnd,
+      }}
       pools={{
         todos: [{ id: "task-1", title: "Draft the invoice" }],
         notes: [{ id: "note-1", title: "Standup minutes" }],
@@ -106,8 +122,7 @@ describe("QuickCaptureSheet", () => {
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Dentist",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
@@ -121,7 +136,11 @@ describe("QuickCaptureSheet", () => {
       target: { value: "  Gym  " },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Gym", "19:00", "20:30", null);
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Gym",
+      slot({ start: "19:00", end: "20:30" }),
+      null,
+    );
   });
 
   it("reaches the todo tab too — Mobile gets the same panel as Desktop (#376)", () => {
@@ -133,8 +152,7 @@ describe("QuickCaptureSheet", () => {
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Groceries",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
@@ -148,10 +166,13 @@ describe("QuickCaptureSheet", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("passes the target day through to the fields (#353)", () => {
+  it("passes the target day through to the field (#353 / #940)", () => {
     // Mobile reaches creation from the FAB and from an empty-slot tap, which
-    // target different days — the sheet must show which one it is holding.
-    renderSheet({ dateLabel: "Mon, July 27, 2026" });
-    expect(screen.getByText("Mon, July 27, 2026")).toBeInTheDocument();
+    // target different days — the sheet must show which one it is holding. A
+    // caption until #940; an input the user can change since.
+    renderSheet({ initialDate: "2026-07-27" });
+    expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe(
+      "2026-07-27",
+    );
   });
 });

@@ -25,19 +25,13 @@ import {
   TodoDetailPanel,
   STATUS_TEXT_KEY,
   StatusFilterChips,
-  BottomSheet,
+  ResponsiveDetailFrame,
   Modal,
   ConfirmDialog,
   useConfirmDialog,
   useScheduleItemsRoutineSync,
   useDeferredAction,
-  useInFlightGuard,
   useToast,
-  eventToTodoBlock,
-  todoToEventBlock,
-  todoToEventPlacement,
-  ItemConversionError,
-  logServiceError,
   minutesToTime,
   isTodoChip,
   unwrapTodoChipId,
@@ -53,6 +47,7 @@ import {
   type TodoCalendarChip,
   type ScheduleItem,
   type ItemCreateNoteDraft,
+  type ItemCreateSlot,
   type WeekTimeGridItem,
   type MonthGridItem,
   type AgendaItem,
@@ -74,6 +69,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
+import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
@@ -87,7 +83,6 @@ import {
 } from "./scheduleViewModels";
 import {
   formatFullDay as formatFullDayKey,
-  formatLongDate,
   formatPeriodLabel,
   formatShortDate,
   formatTodoSchedule,
@@ -745,18 +740,13 @@ export function CalendarTab({
   // (which live in the detail editor, not this panel) were unreachable without
   // hunting for the item on the grid. The panel now offers both intents.
   const handleCreateSubmit = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       if (!createPanel) return;
       // #376: the note rides along with the create, but only once the row is
       // really there — `wiki_tag_connections` carries an FK to `items_meta`,
       // and the id handleCreate returns is the optimistic one (see the
       // ORDERING note in useCreatePanelNotes).
-      const id = handleCreate(createPanel.date, title, start, end, (saved) => {
+      const id = handleCreate(slot, title, (saved) => {
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
@@ -783,14 +773,9 @@ export function CalendarTab({
 
   // #354 secondary action: create, then land in the detail editor.
   const handleCreateSubmitAndOpen = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       if (!createPanel) return;
-      const id = handleCreate(createPanel.date, title, start, end, (saved) => {
+      const id = handleCreate(slot, title, (saved) => {
         if (saved) attachNote(saved.id, note);
         else if (note) handleAttachError();
       });
@@ -817,22 +802,22 @@ export function CalendarTab({
   // todo as "today, time TBD" (all-day); this panel commits it to a concrete
   // day + window, which is what makes it show up as a placed block rather than
   // an all-day candidate (the shape itself: todoChipUndoWiring.timedPlacement).
+  //
+  // The day comes off the slot, not off `createPanel` (#940): the panel's date
+  // field is what the user last said, and the gesture that opened it is only
+  // the seed. `createPanel` still gates the call — a submit with the panel
+  // closed is not a thing — but it no longer decides the day.
   const scheduleTodoAt = useCallback(
-    (start: string, end: string) => {
+    (slot: ItemCreateSlot) => {
       if (!createPanel) return null;
-      return timedPlacement(createPanel.date, start, end);
+      return timedPlacement(slot.date, slot.start, slot.end);
     },
     [createPanel],
   );
 
   const handleCreateTodoSubmit = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      const placement = scheduleTodoAt(start, end);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      const placement = scheduleTodoAt(slot);
       if (!placement) return;
       // Root-level todo (parentId null), matching every other "quick create"
       // entry — the panel carries no place-in-the-tree control, and the Todos
@@ -855,8 +840,7 @@ export function CalendarTab({
   const handlePlaceTodoSubmit = useCallback(
     (
       todoId: string,
-      start: string,
-      end: string,
+      slot: ItemCreateSlot,
       note: ItemCreateNoteDraft | null,
     ) => {
       if (!createPanel) return;
@@ -865,9 +849,9 @@ export function CalendarTab({
       // moved the todo back while leaving the note on it would be a half
       // reversal the toast claims was whole. See placeTodoWrite.
       const { patch, options } = placeTodoWrite(
-        createPanel.date,
-        start,
-        end,
+        slot.date,
+        slot.start,
+        slot.end,
         note != null,
       );
       updateNode(todoId, patch, options);
@@ -942,16 +926,11 @@ export function CalendarTab({
     [anchorDate, effView, isWide, i18n.language, weekStart, weekEnd],
   );
 
-  // #353: the creation panel is reachable from three gestures (toolbar /
-  // empty slot / month cell) and each carries its own target day, but only
-  // the times were visible — "which day am I adding to?" had no answer on
-  // screen. The year is included: the panel can be open on a day the user
-  // navigated months away to.
-  const createDateLabel = useMemo(
-    () =>
-      createPanel ? formatLongDate(i18n.language, createPanel.date) : undefined,
-    [createPanel, i18n.language],
-  );
+  // #353 put the target day on screen as a caption, because the three gestures
+  // that open the panel (toolbar / empty slot / month cell) each carry their
+  // own day and none of them said so. #940 turned that caption into the date
+  // input inside the panel, which formats itself — so the label is gone and
+  // the day is now something the user can change rather than only read.
 
   const todayLabel = useMemo(
     () => formatFullDayKey(i18n.language, today),
@@ -1556,171 +1535,22 @@ export function CalendarTab({
     </RightSidebarPortal>
   );
 
-  /*
-   * #625: Event <-> Todo conversion.
-   *
-   * The write keeps the item's id, so both surfaces stay pointed at the same
-   * row and its tags/links survive — but the row changes ROLE, which means the
-   * list it was in stops holding it and another list starts. Neither store
-   * finds that out on its own here: the schedule range reloads and the todo
-   * tree refetches, and the item is simply gone from one surface and present
-   * on the other. No navigation (per the Issue) — jumping the user to the
-   * other section after a one-line action reads as losing their place.
-   *
-   * The guard is per-id and claimed synchronously (#434): the confirm dialog
-   * plus an async write is exactly the window in which a second click lands,
-   * and a second conversion of the same id would hit a row whose role has
-   * already moved — recoverable, but it would report a failure for something
-   * that actually worked.
-   *
-   * #739 (D-20260811-sched-1): Event→Todo now KEEPS the day and the time span
-   * — they land in the Todo's own chip slot — so the row does not leave the
-   * calendar, it changes what it IS. The only loss left is the repeat, which
-   * is what the dialog says and all it says.
-   */
-  const { begin: beginConvert, end: endConvert } = useInFlightGuard();
-
-  const handleConvertToTodo = useCallback(
-    (id: string) => {
-      const item =
-        rangeItems.find((i) => i.id === id) ??
-        contextItems.find((i) => i.id === id);
-      if (!item) return;
-      // D-20260810-sched-5, and the user asked for it in exactly this shape:
-      // the action stays enabled and ANSWERS with the reason. A greyed-out row
-      // teaches nothing.
-      if (eventToTodoBlock(item)) {
-        // Acknowledge-only: there is nothing to decide, so the dialog carries
-        // one button. The wording is the user's own (D-20260810-sched-5).
-        void askConfirm({
-          message: t("itemConvert.routineBlocked"),
-          confirmLabel: t("common.ok"),
-        });
-        return;
-      }
-      void askConfirm({
-        message: t("itemConvert.toTodoConfirm", {
-          title: item.title || t("scheduleCalendar.newEvent"),
-        }),
-        confirmLabel: t("itemConvert.toTodo"),
-        cancelLabel: t("common.cancel"),
-      }).then((ok) => {
-        if (!ok) return;
-        // Still claimed synchronously on the way out of the dialog (#434): the
-        // answer arrives in an event handler, so nothing runs between this and
-        // the write that could let a second click through.
-        if (!beginConvert(id)) return;
-        setPopover(null);
-        // order 0 = the top of the root group, the slot addNode aims a new
-        // todo at. It does NOT shift the existing siblings down the way
-        // addNode does: that would be a second, unrelated write over every
-        // root row, and a tie in sort_order only costs an arbitrary order
-        // between two rows.
-        void dataService
-          .convertEventToTodo(id, { order: 0 })
-          .then(() => {
-            reload();
-            void refetchTodos();
-          })
-          .then(() => showToast("success", t("itemConvert.toTodoDone")))
-          .catch((err) => {
-            logServiceError(
-              "ItemConversion",
-              `convertEventToTodo (${id})`,
-              err,
-            );
-            showToast("danger", t("itemConvert.failed"));
-          })
-          .finally(() => endConvert(id));
-      });
-    },
-    [
-      rangeItems,
-      contextItems,
-      dataService,
-      reload,
-      refetchTodos,
-      showToast,
-      askConfirm,
-      beginConvert,
-      endConvert,
-      t,
-    ],
-  );
-
-  const handleConvertToEvent = useCallback(
-    (id: string) => {
-      const todo = todoNodes.find((n) => n.id === id);
-      if (!todo) return;
-      // D-20260810-sched-4. The service repeats this check against the DB
-      // (soft-deleted children are invisible here but still hold the FK); this
-      // one exists so the common case gets a sentence instead of a red toast.
-      const blocked = todoToEventBlock(todoNodes, id);
-      if (blocked) {
-        void askConfirm({
-          message: t("itemConvert.childrenBlocked", {
-            title: blocked.title,
-            count: blocked.childCount,
-          }),
-          confirmLabel: t("common.ok"),
-        });
-        return;
-      }
-      void askConfirm({
-        // A child Todo loses its parent link (events have no hierarchy), and
-        // the dialog is the only place that can say so before it happens.
-        message: t(
-          todo.parentId != null
-            ? "itemConvert.toEventConfirmChild"
-            : "itemConvert.toEventConfirm",
-          { title: todo.title || t("common.untitled") },
-        ),
-        confirmLabel: t("itemConvert.toEvent"),
-        cancelLabel: t("common.cancel"),
-      }).then((ok) => {
-        if (!ok) return;
-        if (!beginConvert(id)) return;
-        setPopover(null);
-        setTodoDetailId(null);
-        void dataService
-          .convertTodoToEvent(id, todoToEventPlacement(todo, listDate))
-          .then(() => {
-            reload();
-            void refetchTodos();
-          })
-          .catch((err) => {
-            logServiceError(
-              "ItemConversion",
-              `convertTodoToEvent (${id})`,
-              err,
-            );
-            // The DB sees children the live tree cannot (trashed ones still
-            // hold the 0009 FK), so that refusal gets its own sentence —
-            // "conversion failed" would send the user looking for a network
-            // problem.
-            showToast(
-              "danger",
-              err instanceof ItemConversionError && err.reason === "children"
-                ? t("itemConvert.childrenBlockedServer")
-                : t("itemConvert.failed"),
-            );
-          })
-          .finally(() => endConvert(id));
-      });
-    },
-    [
-      todoNodes,
-      dataService,
-      listDate,
-      reload,
-      refetchTodos,
-      showToast,
-      askConfirm,
-      beginConvert,
-      endConvert,
-      t,
-    ],
-  );
+  // #625 Event <-> Todo conversion. The whole path — the two blocking
+  // checks, the five sentences the dialogs pick between, the per-id in-flight
+  // guard and the two store re-reads — lives in useItemConversion (#889).
+  const { handleConvertToTodo, handleConvertToEvent } = useItemConversion({
+    dataService,
+    rangeItems,
+    contextItems,
+    todoNodes,
+    listDate,
+    reload,
+    refetchTodos,
+    showToast,
+    askConfirm,
+    closePopover: () => setPopover(null),
+    closeTodoDetail: () => setTodoDetailId(null),
+  });
 
   const calendarsModal = (
     <Modal
@@ -1887,16 +1717,29 @@ export function CalendarTab({
   // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
   // #628: Escape and the backdrop both land on this one onClose, so guarding it
   // covers every Desktop exit at once.
-  const detailOverlayEl = (
-    <ItemDetailOverlay
-      open={isWide && overlayOpen && !!editorPane}
+  //
+  // #889: one frame const for both layouts. The overlay and the sheet used to
+  // be written out separately — the overlay here, the sheet at the end of the
+  // narrow branch — with the same title, the same body and the same close
+  // guard in each. What differs is only what "closed" MEANS: Desktop drops the
+  // overlay flag, Mobile clears the selection, because on Mobile the selection
+  // IS the sheet.
+  const detailFrameEl = (
+    <ResponsiveDetailFrame
+      wide={isWide}
+      open={isWide ? overlayOpen && !!editorPane : !!editorPane}
       title={t("scheduleScreen.detailTitle")}
+      closeLabel={t("common.close")}
+      // #628: Escape, the backdrop and the close button all land here, so the
+      // one guard covers every exit on either layout.
       onClose={() => {
-        void requestEditorClose(() => setOverlayOpen(false));
+        void requestEditorClose(() =>
+          isWide ? setOverlayOpen(false) : setSelectedId(null),
+        );
       }}
     >
       {editorPane}
-    </ItemDetailOverlay>
+    </ResponsiveDetailFrame>
   );
 
   /*
@@ -2020,36 +1863,22 @@ export function CalendarTab({
     </div>
   );
 
-  const todoDetailOverlayEl = (
-    <ItemDetailOverlay
-      open={isWide && !!todoDetailTodo}
-      title={t("materials.todos.detailTitle")}
-      onClose={closeTodoDetail}
-    >
-      {todoDetailBody}
-    </ItemDetailOverlay>
-  );
-
-  /*
-   * #761: the same panel on narrow. A todo row in the Mobile day list had no
-   * detail surface at all — the tap was dropped before it could ask for one
-   * (itemTapRoute) — so the row read as broken next to an event that opens.
-   *
-   * A BottomSheet rather than the overlay, matching the event editor beside it,
-   * and full-height since #874 — the 92svh cap left a strip of day list showing
-   * that jumped every time the keyboard opened. The scroller #633 asked for now
-   * comes with `fullScreen` rather than being rebuilt here.
-   */
-  const todoDetailSheetEl = (
-    <BottomSheet
-      open={!isWide && !!todoDetailTodo}
-      onClose={closeTodoDetail}
+  //
+  // #761 gave narrow the same panel: a todo row in the Mobile day list had no
+  // detail surface at all — the tap was dropped before it could ask for one
+  // (itemTapRoute) — so the row read as broken next to an event that opens.
+  // It arrives in a sheet, matching the event editor beside it, which is the
+  // same width split #889 folded into one frame here.
+  const todoDetailFrameEl = (
+    <ResponsiveDetailFrame
+      wide={isWide}
+      open={!!todoDetailTodo}
       title={t("materials.todos.detailTitle")}
       closeLabel={t("common.close")}
-      fullScreen
+      onClose={closeTodoDetail}
     >
       {todoDetailBody}
-    </BottomSheet>
+    </ResponsiveDetailFrame>
   );
 
   // #299 item-creation overlay (Desktop): the shared creation panel in an
@@ -2064,8 +1893,11 @@ export function CalendarTab({
       {createPanel && (
         <ItemCreatePanel
           key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
-          dateLabel={createDateLabel}
-          initial={{ start: createPanel.start, end: createPanel.end }}
+          initial={{
+            date: createPanel.date,
+            start: createPanel.start,
+            end: createPanel.end,
+          }}
           pools={{ todos: todoAddable, notes: noteOptions }}
           handlers={{
             onSubmitEvent: handleCreateSubmit,
@@ -2211,8 +2043,8 @@ export function CalendarTab({
         </div>
         {calendarsModal}
         {popoverEl}
-        {detailOverlayEl}
-        {todoDetailOverlayEl}
+        {detailFrameEl}
+        {todoDetailFrameEl}
         {createOverlayEl}
         {scopeDialogEl}
       </>
@@ -2380,8 +2212,13 @@ export function CalendarTab({
         onClose={() => setCreatePanel(null)}
         sheetTitle={t("scheduleScreen.addItem")}
         closeLabel={t("common.close")}
-        dateLabel={createDateLabel}
-        initial={{ start: createPanel?.start, end: createPanel?.end }}
+        initial={{
+          // The sheet outlives the open state (BottomSheet stays mounted), so
+          // the anchor day stands in while there is no gesture to read.
+          date: createPanel?.date ?? anchorDate,
+          start: createPanel?.start,
+          end: createPanel?.end,
+        }}
         pools={{ todos: todoAddable, notes: noteOptions }}
         handlers={{
           onSubmitEvent: handleCreateSubmit,
@@ -2393,32 +2230,17 @@ export function CalendarTab({
         labels={createPanelLabels}
       />
 
-      {/* Full height, like the Notes/Todos detail screens. The cap and the
-          hand-rolled scroller this used to carry (#633) both moved into
-          <BottomSheet fullScreen> with #874: the cap because a 92svh editor
-          left a live strip of calendar behind it that re-flowed on every
-          keyboard open, and the scroller because every full-height host needed
-          the same one — without it a tall editor pushes its own top edge past
-          the viewport and the only thing left to scroll is the document
-          (= pull-to-refresh). */}
-      <BottomSheet
-        open={!!editorPane}
-        // #628: the sheet's close button, its backdrop and Escape all funnel
-        // here, so one guard covers every Mobile exit too.
-        onClose={() => {
-          void requestEditorClose(() => setSelectedId(null));
-        }}
-        title={t("scheduleScreen.detailTitle")}
-        closeLabel={t("common.close")}
-        fullScreen
-      >
-        {editorPane}
-      </BottomSheet>
+      {/* The same two frame consts the Desktop branch places (#889) — the
+          width inside them picks the sheet here and the overlay there. Full
+          height on narrow, like the Notes/Todos detail screens; the cap and
+          the hand-rolled scroller this used to carry (#633) moved into
+          <BottomSheet fullScreen> with #874. */}
+      {detailFrameEl}
 
-      {/* #761: narrow's todo detail. Mounted after the editor sheet, though
-          the two are never open together — a tap resolves to exactly one of
-          them (itemTapRoute). */}
-      {todoDetailSheetEl}
+      {/* #761: narrow's todo detail. Mounted after the editor, though the two
+          are never open together — a tap resolves to exactly one of them
+          (itemTapRoute). */}
+      {todoDetailFrameEl}
 
       {scopeDialogEl}
 

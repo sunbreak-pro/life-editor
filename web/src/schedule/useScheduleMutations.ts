@@ -3,6 +3,7 @@ import {
   isTodoChip,
   makeOptimisticScheduleItem,
   touchesSeries,
+  type ItemCreateSlot,
   type ScheduleItem,
 } from "@life-editor/shared";
 import {
@@ -261,18 +262,28 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // `onSaved` fires when the row actually reached the DB (null = it did not).
   // The returned id names the optimistic row, so anything that writes with an
   // FK to it — the #376 note link — has to wait for this instead.
+  //
+  // The slot arrives whole (#940): the panel now owns the day and the all-day
+  // switch as well as the times, so the four travel together instead of the
+  // caller reading the date off its own state — which is how a panel that
+  // lets you change the day ends up creating on the day you left.
   const handleCreate = useCallback(
     (
-      date: string,
+      slot: ItemCreateSlot,
       title: string,
-      start: string,
-      end: string,
       onSaved?: (saved: ScheduleItem | null) => void,
     ): string => {
-      const id = createScheduleItem(date, title, start, end, { onSaved });
+      const { date, start, end, isAllDay } = slot;
+      const id = createScheduleItem(date, title, start, end, {
+        isAllDay,
+        onSaved,
+      });
       setRangeItems((prev) => [
         ...prev,
-        makeOptimisticScheduleItem(id, date, title, start, end),
+        {
+          ...makeOptimisticScheduleItem(id, date, title, start, end),
+          isAllDay,
+        },
       ]);
       return id;
     },

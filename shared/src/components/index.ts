@@ -74,6 +74,13 @@ export {
   type TimeRangeValue,
 } from "./TimeRangeField";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
+// #889: one detail body, whichever frame the width calls for — the overlay on
+// Desktop, the full-height sheet on Mobile. Schedule's two returns used to
+// spell each panel's frame twice.
+export {
+  ResponsiveDetailFrame,
+  type ResponsiveDetailFrameProps,
+} from "./ResponsiveDetailFrame";
 // Lumen shipping primitives (ClaudeDesign port). Pure presentation: lumen-*
 // tokens only (§3.1), opaque container surfaces (§3.5), props-injected copy
 // (§6). Toast = notification card + fixed stack; Menu = dropdown. (The legacy
@@ -287,14 +294,15 @@ export {
 // wiki_tag with usage counts, plus an expandable per-tag item list with
 // unassign. Pure presentational: DataService callbacks + labels injected
 // (§6.4). `tagIcon` resolves lucide names for the picker (and #311 tag
-// headings).
+// headings). #896 split the panel into ./tagEdit; these four names are
+// unchanged, and its own barrel is what keeps the internals internal.
 export {
   TagEditModal,
   type TagEditModalProps,
   type TagEditModalLabels,
   type TagEditRow,
   type TagEditItem,
-} from "./TagEditModal";
+} from "./tagEdit";
 export { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
 // Item-kind display contract (#409) — the SSOT for how a cross-role item list
 // announces what each row is. Shared with #412's item-side tag picker so both

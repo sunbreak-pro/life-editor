@@ -48,11 +48,19 @@ export function useScheduleItemsTrash(params: UseScheduleItemsTrashParams) {
         }
         return prev.filter((i) => i.id !== id);
       });
-      ds.restoreScheduleItem(id).catch((e) =>
-        logServiceError("ScheduleItems", "restore", e),
-      );
+      ds.restoreScheduleItem(id).catch((e) => {
+        logServiceError("ScheduleItems", "restore", e);
+        // The row is still trashed — a routine occurrence whose (routine,
+        // date) pair has been re-taken is refused outright (#932). Without
+        // this the optimistic paint stood: the item vanished from the trash
+        // and never appeared anywhere else, which is the "silent failure"
+        // in the issue title. Undo the paint and re-read the trash so the
+        // list matches the server.
+        setItems((prev) => prev.filter((i) => i.id !== id));
+        void loadDeletedScheduleItems();
+      });
     },
-    [ds, date, setItems, setDeletedItems],
+    [ds, date, setItems, setDeletedItems, loadDeletedScheduleItems],
   );
 
   const permanentDeleteScheduleItem = useCallback(

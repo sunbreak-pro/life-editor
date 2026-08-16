@@ -304,6 +304,25 @@ export interface RoutinesDataService {
 // Schedule items — SupabaseScheduleItemsService
 // ---------------------------------------------------------------------------
 
+/**
+ * Outcome of a restore that is allowed to come back partially (#932).
+ *
+ * Every requested id lands in exactly one of the two lists, so a caller can
+ * repaint from `restoredIds` and say something about `conflictedIds` without
+ * a second read.
+ */
+export interface ScheduleRestoreResult {
+  /** Rows now live again. */
+  restoredIds: string[];
+  /**
+   * Rows deliberately left in the trash: a live row already holds their
+   * (routine_item_id, source_date) pair, so bringing them back would break
+   * the Issue-011 partial UNIQUE. The day they belong to already has an
+   * occurrence — this is a refusal, not a failure.
+   */
+  conflictedIds: string[];
+}
+
 export interface ScheduleItemsDataService {
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]>;
   fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]>;
@@ -396,8 +415,14 @@ export interface ScheduleItemsDataService {
    * seed event the user made by hand (#708) — and one restore call per row is
    * a round trip per occurrence for a routine that has been running for
    * months. Chunked like its inverse, for the same reason.
+   *
+   * Partial by design (#932): an occurrence whose (routine, date) pair has
+   * been re-taken by a live row stays in the trash and comes back in
+   * `conflictedIds` — the alternative is the whole batch failing on one
+   * collision, which is what used to happen and what left the seed event
+   * trashed too.
    */
-  bulkRestoreScheduleItems(ids: string[]): Promise<number>;
+  bulkRestoreScheduleItems(ids: string[]): Promise<ScheduleRestoreResult>;
   fetchEvents(): Promise<ScheduleItem[]>;
 }
 

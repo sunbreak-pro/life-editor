@@ -11,13 +11,13 @@ import {
   useDailiesUnifiedContext,
   useLocalStorage,
   useMediaQuery,
+  useRightSidebarOptional,
   useTranslation,
   Menu,
   MenuItem,
   RightSidebarPortal,
   DailyEntriesPanel,
   DateStrip,
-  ExcerptListItem,
   SidebarListControls,
   cn,
   dailyContentToEditorContent,
@@ -53,14 +53,23 @@ import { useInlineItemLinks } from "../hooks/useInlineItemLinks";
  *
  *   - Desktop (isWide): a centered max-width 800px editor card (28px date
  *     heading + saved-state caption + pin / delete icon buttons + a plain-text
- *     body wired to upsertDaily-on-blur), a "今日へ" action row, and the past-
- *     entries UI PUSHED INTO THE SHARED rightSidebar via RightSidebarPortal +
- *     the new shared <DailyEntriesPanel> (today / yesterday jump, date picker,
- *     chronological entry list). The portal is rendered whenever wide — the
- *     panel is always-present content, not selection-driven.
+ *     body wired to upsertDaily-on-blur) and a "今日へ" action row.
  *   - Mobile (narrow): a "今日へ" + pin action row, a <DateStrip> of the last
- *     two weeks (entry-dot per day), the same editor card (19px date), and a
- *     "過去のエントリ" excerpt list of the two most recent other entries.
+ *     two weeks (entry-dot per day), and the same editor card (19px date).
+ *
+ * The past-entries UI — sort / direction / filter above the shared
+ * <DailyEntriesPanel> (today / yesterday jump, date picker, chronological entry
+ * list) — is PUSHED INTO THE SHARED detail panel via RightSidebarPortal at BOTH
+ * widths since #876 (ユーザー裁定 D-20260815-materials-2 = A): the push-in
+ * rightSidebar on Desktop, the hamburger's <MobileDrawer> on narrow. It is
+ * always-present content, not selection-driven.
+ *
+ * What #876 retired on narrow: the "過去のエントリ" teaser of the two most
+ * recent other entries, which sat under the editor. It was a fixed 2-row
+ * stand-in for a list there was nowhere to put (#369); the drawer is that
+ * place, and it carries the whole list with the sort and filter controls. The
+ * <DateStrip> stays on the body side — it is day NAVIGATION for the entry
+ * being written, not a list of what exists.
  *
  * The body is the shared Notes TipTap editor (F-1 #258 — headings are what
  * makes handwritten 朝刊/夕刊 sections visible to extractBriefing). The title
@@ -179,6 +188,9 @@ export function DailyView({
   const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("DailyView");
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
+  // Null-safe, like RightSidebarPortal's own read: this tab renders standalone
+  // in tests and has never required the panel Provider to draw its editor.
+  const rightSidebar = useRightSidebarOptional();
 
   // "[[" link-target pool (notes + dailies + todos, cross-domain). A loader,
   // not a list: nothing is fetched until the first "[[" (#430).
@@ -370,13 +382,6 @@ export function DailyView({
   const todayIso = useMemo(() => isoDay(0), []);
   const yesterdayIso = useMemo(() => isoDay(-1), []);
 
-  // Chronological entries (newest first) for the Mobile past-entries list.
-  // The desktop sidebar panel builds its own filtered/direction-aware list.
-  const sortedDailies = useMemo(
-    () => [...dailies].sort((a, b) => b.date.localeCompare(a.date)),
-    [dailies],
-  );
-
   // #283 desktop sidebar: persisted sort direction ("desc" = newest-first, the
   // prior default) + a non-persisted filter query. #369 adds the sort MODE —
   // also persisted, defaulting to "date" so the pre-#369 order is unchanged.
@@ -460,15 +465,6 @@ export function DailyView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekdayShort, getDailyForDate, dailies]);
 
-  // #369 decision — the mobile Daily list gets NO sort/filter controls. This is
-  // a fixed 2-row "recently written" teaser under the editor, not a browsable
-  // list: navigation on mobile is the DateStrip above. Controls would be taller
-  // than the thing they control. The desktop sidebar keeps the full set.
-  const mobilePast = useMemo(
-    () => sortedDailies.filter((d) => d.date !== selectedDate).slice(0, 2),
-    [sortedDailies, selectedDate],
-  );
-
   // "今日へ" accent CTA — jump the selection to today.
   const toTodayButton = (
     <button
@@ -543,6 +539,66 @@ export function DailyView({
     </div>
   );
 
+  /*
+   * Past entries — the detail panel's content at both widths (#876). Wide draws
+   * it in the push-in rightSidebar; narrow draws the same nodes in the
+   * hamburger's MobileDrawer, which mounts them only while it is open.
+   *
+   * Picking a day from here also CLOSES the drawer on narrow: it is a modal
+   * overlay, so leaving it up would cover the entry it just opened. On wide the
+   * panel is a pinned column and stays exactly where it was.
+   */
+  const selectDay = (date: string) => {
+    setSelectedDate(date);
+    if (!isWide) rightSidebar?.close();
+  };
+  const pastEntries = (
+    <RightSidebarPortal>
+      <div className="flex flex-col gap-2">
+        {/* Sort mode + direction + filter (#283, modes added in #369),
+            above the past-entries panel. */}
+        <SidebarListControls
+          modes={dailySortModes}
+          activeModeId={dailySortMode}
+          onModeChange={(id) => setDailySortMode(id as DailyListSortMode)}
+          sortLabel={t("materials.sidebar.sort")}
+          direction={dailySortDirection}
+          onToggleDirection={() =>
+            setDailySortDirection(
+              dailySortDirection === "desc" ? "asc" : "desc",
+            )
+          }
+          directionLabel={dailyDirectionLabel}
+          directionToggleLabel={t("materials.sidebar.toggleDirection")}
+          filter={{
+            value: dailyFilterQuery,
+            onChange: setDailyFilterQuery,
+            placeholder: t("materials.daily.filterPlaceholder"),
+            ariaLabel: t("materials.daily.filterLabel"),
+          }}
+        />
+        <DailyEntriesPanel
+          todayLabel={t("materials.daily.today")}
+          yesterdayLabel={t("materials.daily.yesterday")}
+          todaySelected={selectedDate === todayIso}
+          yesterdaySelected={selectedDate === yesterdayIso}
+          onSelectToday={() => selectDay(todayIso)}
+          onSelectYesterday={() => selectDay(yesterdayIso)}
+          pickerDate={selectedDate}
+          pickerLabel={selectedDate.replaceAll("-", "/")}
+          datePickerLabel={t("materials.daily.datePicker")}
+          onPickDate={selectDay}
+          entriesHeading={t("materials.daily.entriesCount", {
+            count: panelEntries.length,
+          })}
+          entries={panelEntries}
+          onSelectEntry={selectDay}
+          pinnedLabel={t("materials.daily.pinned")}
+        />
+      </div>
+    </RightSidebarPortal>
+  );
+
   // ---- Desktop --------------------------------------------------------
 
   if (isWide) {
@@ -572,52 +628,7 @@ export function DailyView({
           />
         </div>
 
-        {/* Past entries — always-present content pushed into the shared
-            rightSidebar (wide-only, so narrow never fills the MobileDrawer). */}
-        <RightSidebarPortal>
-          <div className="flex flex-col gap-2">
-            {/* Sort mode + direction + filter (#283, modes added in #369),
-                above the past-entries panel. */}
-            <SidebarListControls
-              modes={dailySortModes}
-              activeModeId={dailySortMode}
-              onModeChange={(id) => setDailySortMode(id as DailyListSortMode)}
-              sortLabel={t("materials.sidebar.sort")}
-              direction={dailySortDirection}
-              onToggleDirection={() =>
-                setDailySortDirection(
-                  dailySortDirection === "desc" ? "asc" : "desc",
-                )
-              }
-              directionLabel={dailyDirectionLabel}
-              directionToggleLabel={t("materials.sidebar.toggleDirection")}
-              filter={{
-                value: dailyFilterQuery,
-                onChange: setDailyFilterQuery,
-                placeholder: t("materials.daily.filterPlaceholder"),
-                ariaLabel: t("materials.daily.filterLabel"),
-              }}
-            />
-            <DailyEntriesPanel
-              todayLabel={t("materials.daily.today")}
-              yesterdayLabel={t("materials.daily.yesterday")}
-              todaySelected={selectedDate === todayIso}
-              yesterdaySelected={selectedDate === yesterdayIso}
-              onSelectToday={() => setSelectedDate(todayIso)}
-              onSelectYesterday={() => setSelectedDate(yesterdayIso)}
-              pickerDate={selectedDate}
-              pickerLabel={selectedDate.replaceAll("-", "/")}
-              datePickerLabel={t("materials.daily.datePicker")}
-              onPickDate={setSelectedDate}
-              entriesHeading={t("materials.daily.entriesCount", {
-                count: panelEntries.length,
-              })}
-              entries={panelEntries}
-              onSelectEntry={setSelectedDate}
-              pinnedLabel={t("materials.daily.pinned")}
-            />
-          </div>
-        </RightSidebarPortal>
+        {pastEntries}
       </div>
     );
   }
@@ -655,30 +666,7 @@ export function DailyView({
         />
       </div>
 
-      {mobilePast.length > 0 && (
-        <div className="flex flex-col gap-1.5 pb-4 pt-3">
-          <div className="px-0.5 text-xs uppercase tracking-wide text-lumen-text-tertiary">
-            {t("materials.daily.pastEntries")}
-          </div>
-          {mobilePast.map((d) => (
-            <ExcerptListItem
-              key={d.id}
-              title={entryDayLabel(d.date)}
-              excerpt={dailyContentExcerpt(d.content)}
-              meta={
-                d.isPinned ? (
-                  <Pin
-                    size={13}
-                    aria-label={t("materials.daily.pinned")}
-                    className="text-lumen-accent"
-                  />
-                ) : undefined
-              }
-              onClick={() => setSelectedDate(d.date)}
-            />
-          ))}
-        </div>
-      )}
+      {pastEntries}
     </div>
   );
 }

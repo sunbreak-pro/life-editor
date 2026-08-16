@@ -4,6 +4,7 @@ import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
+import { useDomainLoad } from "./useDomainLoad";
 import { useNoteTreeMovement } from "./useNoteTreeMovement";
 import { useNoteHydrationLedger } from "./useNoteHydrationLedger";
 import { useNotesUnifiedCRUD } from "./useNotesUnifiedCRUD";
@@ -66,8 +67,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const syncVersion = useSyncDomains("notes");
 
   const [notes, setNotes] = useState<NoteNode[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [deletedNotes, setDeletedNotes] = useState<NoteNode[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,43 +150,53 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     saveSortMode(mode);
   }, []);
 
-  // #282: flips only when a list fetch actually succeeded — the load effect's
-  // `finally` clears isLoading even on error, so isLoading alone cannot tell
-  // "loaded, id absent" apart from "load failed".
+  // #282: flips only when a list fetch actually succeeded — a load settles
+  // even on error, so isLoading alone cannot tell "loaded, id absent" apart
+  // from "load failed".
   const listLoadedRef = useRef(false);
+
+  // Load the tree on mount and on every notes bump, through the shared load
+  // effect (#672 / #891). Same three states as the hand-written version it
+  // replaces, plus #296's error un-latch, which this hook was missing: one
+  // transient failure used to leave the error card up for the rest of the
+  // session. `hydrateContent` and `mergeLoadedList` are no longer deps — the
+  // shared hook reads the callbacks through a ref, and both were stable
+  // against everything but `ds`, which is a dep here in its own right.
+  const { isLoading, error } = useDomainLoad({
+    domain: "Notes",
+    dataService: ds,
+    version: syncVersion,
+    load: (service) => service.listNotesUnified(),
+    apply: (loaded) => {
+      // #301/#607: the merge and both ledger updates live in
+      // useNoteHydrationLedger.mergeLoadedList — see the rationale there.
+      const { merged, stillHydrated } = mergeLoadedList(loaded);
+      setNotes(merged);
+      listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
+      // Keep the currently-open note's body correct after a sync-triggered
+      // reload (the editor is keyed by note id so it won't remount; this just
+      // refills `notes[id].content` so a later read of `selectedNote.content`
+      // is accurate). Skipped when the merge above already proved nothing
+      // wrote to it.
+      const openId = selectedNoteIdRef.current;
+      if (openId && !stillHydrated.has(openId)) void hydrateContent(openId);
+    },
+    fallbackMessage: "Failed to load notes",
+    // The old effect only ever wrote `isLoading` false, never back to true, so
+    // a bump-driven re-read left the tree on screen. Realtime echoes the tab's
+    // own writes back (syncDomains.ts), so reporting a re-read as loading here
+    // would blank the note list on every keystroke-driven save.
+    refetchReportsLoading: false,
+  });
+
+  // Trash list is loaded alongside the active tree (same trigger: initial
+  // mount + every syncVersion bump) so the Trash section is populated without
+  // the host having to call loadDeletedNotes(). Kept OUT of the load above on
+  // purpose: it has its own try/catch so a Trash failure never blocks the tree
+  // or raises the tree's error card.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const loaded = await ds.listNotesUnified();
-        if (!cancelled) {
-          // #301/#607: the merge and both ledger updates live in
-          // useNoteHydrationLedger.mergeLoadedList — see the rationale there.
-          const { merged, stillHydrated } = mergeLoadedList(loaded);
-          setNotes(merged);
-          listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
-          // Keep the currently-open note's body correct after a
-          // sync-triggered reload (the editor is keyed by note id so it
-          // won't remount; this just refills `notes[id].content` so a later
-          // read of `selectedNote.content` is accurate). Skipped when the
-          // merge above already proved nothing wrote to it.
-          const openId = selectedNoteIdRef.current;
-          if (openId && !stillHydrated.has(openId)) void hydrateContent(openId);
-        }
-      } catch (e) {
-        logServiceError("Notes", "fetch", e);
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load notes");
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    // Trash list is loaded alongside the active tree (same trigger:
-    // initial mount + every syncVersion bump) so the Trash section is
-    // populated without the host having to call loadDeletedNotes() —
-    // independent try/catch so a Trash failure never blocks the tree.
-    (async () => {
+    void (async () => {
       try {
         const deleted = await ds.fetchDeletedNotesUnified();
         if (!cancelled) setDeletedNotes(deleted);
@@ -198,7 +207,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     return () => {
       cancelled = true;
     };
-  }, [ds, syncVersion, hydrateContent, mergeLoadedList]);
+  }, [ds, syncVersion]);
 
   // One-shot RESTORE (#282): re-open the note the user had selected before the
   // provider unmounted (Materials tab/section switch). The id lives in the

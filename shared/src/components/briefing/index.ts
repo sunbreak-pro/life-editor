@@ -14,6 +14,10 @@ export {
   type BriefingTodoEntry,
   type BriefingCarryoverEntry,
 } from "./BriefingView";
+export {
+  BriefingVizPanel,
+  type BriefingVizPanelProps,
+} from "./BriefingVizPanel";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
 export {
   GoalsBlock,
@@ -24,13 +28,19 @@ export {
 export {
   GOALS_NOTE_ID,
   GOAL_PERIODS,
+  adoptBareGoalHeadings,
   extractGoals,
   mergeGoalSection,
   normalizeGoalText,
   type ExtractedGoals,
   type GoalPeriod,
 } from "./goalSections";
-export { goalPeriodRanges, type GoalPeriodRanges } from "./goalPeriods";
+export {
+  goalPeriodKeys,
+  goalPeriodRanges,
+  type GoalPeriodKeys,
+  type GoalPeriodRanges,
+} from "./goalPeriods";
 export {
   extractIntentionSection,
   hasIntentionToReport,

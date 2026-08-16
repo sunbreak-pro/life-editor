@@ -10,18 +10,6 @@ import {
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
-import {
-  StreakDisplay,
-  type StreakDisplayLabels,
-} from "../Analytics/StreakDisplay";
-import {
-  TodoCompletionTrend,
-  type TodoCompletionTrendLabels,
-} from "../Analytics/TodoCompletionTrend";
-import {
-  WorkBreakBalance,
-  type WorkBreakBalanceLabels,
-} from "../Analytics/WorkBreakBalance";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { IntentionField } from "./IntentionField";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
@@ -39,11 +27,12 @@ import type { GoalPeriod } from "./goalSections";
  * 朱 lumen-briefing-shu for "today / action" marks, 琥珀 lumen-briefing-kohaku
  * for context / annotations. All colors are lumen-* tokens (no hardcodes).
  *
- * The visual zone deliberately reuses the three Analytics widgets
- * (StreakDisplay / TodoCompletionTrend / WorkBreakBalance) — the Analytics
- * section shrink decision (redesign doc §3): the dashboards freeze, these
- * three move in here. Their labels are re-resolved by the host from the
- * existing analytics.* i18n keys, so no copy is duplicated.
+ * The visual zone —「きのうまでの自分」, the three adopted Analytics widgets —
+ * used to be one of these sections. It lives in the shared detail panel now
+ * (#938 → BriefingVizPanel.tsx): everything the paper prints is about today,
+ * and three backward-looking charts in the middle of it kept breaking that
+ * thread while pushing 持ち越し below the fold. The host still computes the
+ * data from the same BriefingData it passes here.
  */
 
 /** One row of「今日のスケジュール」— today's schedule, host-shaped. */
@@ -58,7 +47,11 @@ export interface BriefingScheduleEntry {
   isAllDay: boolean;
 }
 
-/** One row of「今日の Todo」— host-shaped, purposes resolved to titles. */
+/**
+ * One todo row of「今日のスケジュール」— host-shaped, purposes resolved to
+ * titles. Since #939 these ride inside the schedule block rather than under a
+ * heading of their own.
+ */
 export interface BriefingTodoEntry {
   id: string;
   title: string;
@@ -85,9 +78,13 @@ export interface BriefingData {
   schedule: BriefingScheduleEntry[];
   todos: BriefingTodoEntry[];
   carryover: BriefingCarryoverEntry[];
-  /** Timer sessions — feeds StreakDisplay + WorkBreakBalance. */
+  /**
+   * Timer sessions. Not read by this view since #938 — they feed
+   * <BriefingVizPanel> in the detail panel, which the same host mounts from
+   * this same aggregate.
+   */
   sessions: TimerSession[];
-  /** Full todo tree — feeds TodoCompletionTrend. */
+  /** Full todo tree — same deal: <BriefingVizPanel>'s completion trend. */
   todoNodes: TodoNode[];
 }
 
@@ -107,15 +104,18 @@ export interface BriefingLabels {
   intentionPlaceholder: string;
   /** Heading of the 週 / 月 / 年 goals block (#872). */
   goalsTitle: string;
+  /**
+   * Heading of the merged「今日のスケジュール」block (#939) — todos and
+   * schedule rows share it now, so it is also the heading a day with todos
+   * but no events reads under.
+   */
   scheduleTitle: string;
   /** Accessible name + tooltip of the schedule section's「+」 (#623). */
   addScheduleItem: string;
+  /** Empty state of the merged block — shown only when BOTH sides are empty. */
   noSchedule: string;
   routineTag: string;
   allDay: string;
-  todosTitle: string;
-  noTodos: string;
-  vizTitle: string;
   carryoverTitle: string;
   toggleComplete: string;
   /**
@@ -145,9 +145,6 @@ export interface BriefingViewProps {
   loading: boolean;
   data: BriefingData;
   labels: BriefingLabels;
-  streakLabels: StreakDisplayLabels;
-  trendLabels: TodoCompletionTrendLabels;
-  balanceLabels: WorkBreakBalanceLabels;
   /** Today's declaration (宣言 — Step 4), newline-separated lines. */
   intentionText: string;
   /** Every keystroke — the host owns draft state + debounced persistence. */
@@ -155,9 +152,11 @@ export interface BriefingViewProps {
   /** Blur — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
   /**
-   * Standing 週 / 月 / 年 goals (#872) — text per period, newline-separated.
-   * They live in one reserved note (goalSections.ts), not in the daily, and
-   * never roll over: only the labels below say which period is showing.
+   * The CURRENT 週 / 月 / 年 goals (#872) — text per period, newline-separated.
+   * They live in one reserved note (goalSections.ts), not in the daily, filed
+   * under a period key: when a period turns over its field comes back empty
+   * and the previous one stays in the note as history (#957). The paper only
+   * ever shows the period `goalLabels` names.
    */
   goals: Record<GoalPeriod, string>;
   /** Copy of the three goal fields, period ranges included (host-formatted). */
@@ -360,9 +359,6 @@ export function BriefingView({
   loading,
   data,
   labels,
-  streakLabels,
-  trendLabels,
-  balanceLabels,
   intentionText,
   onIntentionChange,
   onIntentionBlur,
@@ -391,6 +387,16 @@ export function BriefingView({
   }
 
   const { briefing } = data;
+
+  // All-day rows first, then the timed ones (#939). The host already sorts
+  // this way, but the divider's position is a promise the view makes — it has
+  // to sit between the todos and the FIRST all-day row — so the grouping is
+  // re-stated here instead of being inherited silently. Stable partition: the
+  // host's order inside each group is untouched.
+  const scheduleRows = [
+    ...data.schedule.filter((item) => item.isAllDay),
+    ...data.schedule.filter((item) => !item.isAllDay),
+  ];
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
@@ -478,7 +484,12 @@ export function BriefingView({
         />
       </section>
 
-      {/* ── Today's schedule ─────────────────────────────────────── */}
+      {/* ── Today's schedule — todos ride on top of it (#939) ────────
+          One list, not two sections: a todo placed on today and an all-day
+          event are the same promise to the reader, and the old separate
+          「今日の Todo と、その目的」heading made the page ask twice what the
+          day holds. Order is todos → hairline → all-day → timed, so the rows
+          run from "no clock at all" down to "at 09:00". */}
       <section className="border-b border-lumen-border py-5">
         <BlockHead
           title={labels.scheduleTitle}
@@ -489,13 +500,78 @@ export function BriefingView({
             />
           }
         />
-        {data.schedule.length === 0 ? (
+        {data.todos.length === 0 && data.schedule.length === 0 ? (
           <p className="text-sm text-lumen-text-secondary">
             {labels.noSchedule}
           </p>
         ) : (
           <ul className="space-y-1">
-            {data.schedule.map((item) => (
+            {data.todos.map((todo) => (
+              <li key={todo.id} className="py-1">
+                <div className="flex items-baseline gap-3">
+                  {/* The schedule rows' time column, empty: a todo has no
+                      clock, and holding the width is what keeps every title
+                      on one straight edge with the timed rows below. */}
+                  <span aria-hidden="true" className="w-14 flex-shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => onToggleTodo(todo.id)}
+                    className="flex min-w-0 items-center gap-2.5 text-left"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={
+                        todo.status === "DONE"
+                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
+                          : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
+                      }
+                    >
+                      {todo.status === "DONE" && <Check size={11} />}
+                    </span>
+                    <span
+                      className={
+                        todo.status === "DONE"
+                          ? "text-sm text-lumen-text-secondary line-through"
+                          : "text-sm text-lumen-text"
+                      }
+                    >
+                      {todo.title}
+                    </span>
+                  </button>
+                  <RowActions>
+                    <EditJumpButton
+                      onClick={onJumpToTodos}
+                      label={labels.edit}
+                      hint={labels.jumpToTodos}
+                    />
+                    <DeleteRowButton
+                      onClick={() => onDeleteTodo(todo.id)}
+                      label={labels.delete}
+                      hint={labels.deleteTodoHint}
+                    />
+                  </RowActions>
+                </div>
+                {/* Indented past the empty time column + checkbox so the
+                    purpose hangs under its own todo's title. */}
+                {todo.purposes.length > 0 && (
+                  <p className="ml-[82px] mt-0.5 text-xs text-lumen-text-secondary">
+                    <span className="font-semibold text-lumen-briefing-kohaku">
+                      ◈ {todo.purposes.join(" ・ ")}
+                    </span>
+                  </p>
+                )}
+              </li>
+            ))}
+            {/* The hairline between the two kinds of row. Decorative only —
+                it separates, it is not an item — and omitted entirely when
+                one side of it is empty. */}
+            {data.todos.length > 0 && data.schedule.length > 0 && (
+              <li
+                aria-hidden="true"
+                className="my-1.5 border-t border-lumen-border"
+              />
+            )}
+            {scheduleRows.map((item) => (
               <li key={item.id} className="flex items-baseline gap-3 py-1">
                 <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
                   {item.isAllDay ? labels.allDay : item.startTime}
@@ -548,91 +624,11 @@ export function BriefingView({
         )}
       </section>
 
-      {/* ── Today's todos + purposes ─────────────────────────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.todosTitle} />
-        {data.todos.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">{labels.noTodos}</p>
-        ) : (
-          <ul>
-            {data.todos.map((todo) => (
-              <li
-                key={todo.id}
-                className="border-b border-dashed border-lumen-border py-2.5 last:border-b-0"
-              >
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => onToggleTodo(todo.id)}
-                    className="flex min-w-0 items-center gap-2.5 text-left"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={
-                        todo.status === "DONE"
-                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
-                          : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                      }
-                    >
-                      {todo.status === "DONE" && <Check size={11} />}
-                    </span>
-                    <span
-                      className={
-                        todo.status === "DONE"
-                          ? "text-sm text-lumen-text-secondary line-through"
-                          : "text-sm text-lumen-text"
-                      }
-                    >
-                      {todo.title}
-                    </span>
-                  </button>
-                  <RowActions>
-                    <EditJumpButton
-                      onClick={onJumpToTodos}
-                      label={labels.edit}
-                      hint={labels.jumpToTodos}
-                    />
-                    <DeleteRowButton
-                      onClick={() => onDeleteTodo(todo.id)}
-                      label={labels.delete}
-                      hint={labels.deleteTodoHint}
-                    />
-                  </RowActions>
-                </div>
-                {todo.purposes.length > 0 && (
-                  <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
-                    <span className="font-semibold text-lumen-briefing-kohaku">
-                      ◈ {todo.purposes.join(" ・ ")}
-                    </span>
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ── Visual zone — the 3 adopted Analytics widgets ────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.vizTitle} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StreakDisplay sessions={data.sessions} labels={streakLabels} />
-          <TodoCompletionTrend
-            nodes={data.todoNodes}
-            days={7}
-            labels={trendLabels}
-          />
-          <div className="sm:col-span-2">
-            <WorkBreakBalance
-              sessions={data.sessions}
-              days={7}
-              labels={balanceLabels}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Carryover ────────────────────────────────────────────── */}
+      {/* ── Carryover ─────────────────────────────────────────────
+          The paper's last section now that「きのうまでの自分」has moved to the
+          detail panel (#938). No border of its own, as before: the rule above
+          it is the previous section's `border-b`, so the ruled rhythm is
+          unchanged by the removal. */}
       {data.carryover.length > 0 && (
         <section className="py-5">
           <BlockHead title={labels.carryoverTitle} />

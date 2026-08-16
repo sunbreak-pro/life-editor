@@ -4,6 +4,7 @@ import {
   ItemCreatePanel,
   type ItemCreatePanelLabels,
   type ItemCreateOption,
+  type ItemCreateSlot,
 } from "../src/components";
 
 /*
@@ -32,6 +33,7 @@ const LABELS: ItemCreatePanelLabels = {
   eventPlaceholder: "Event title",
   todoPlaceholder: "Todo title",
   date: "Date",
+  allDay: "All day",
   startTime: "Start",
   endTime: "End",
   addEvent: "Add",
@@ -68,6 +70,24 @@ const NOTES: ItemCreateOption[] = [
   { id: "note-2", title: "Weekly review" },
 ];
 
+/** The day the host seeds the panel with, unless a case says otherwise. */
+const DATE = "2026-08-20";
+
+/**
+ * The submit payload (#940). Every callback now carries one slot object
+ * instead of a start/end pair, so the cases below say what they always said —
+ * "with these times" — and the shape lives in one place.
+ */
+function slot(over?: Partial<ItemCreateSlot>): ItemCreateSlot {
+  return {
+    date: DATE,
+    start: "09:00",
+    end: "10:00",
+    isAllDay: false,
+    ...over,
+  };
+}
+
 /**
  * #893 folded the panel's props into bundles (`initial` / `pools` /
  * `handlers`). The cases below still describe their setup in flat terms and
@@ -80,7 +100,7 @@ const NOTES: ItemCreateOption[] = [
  * it. Each override merges into its bundle instead.
  */
 function renderPanel(props?: {
-  dateLabel?: string;
+  initialDate?: string;
   initialStart?: string;
   initialEnd?: string;
   initialTitle?: string;
@@ -93,8 +113,8 @@ function renderPanel(props?: {
   const onPlaceTodo = vi.fn();
   render(
     <ItemCreatePanel
-      dateLabel={props?.dateLabel}
       initial={{
+        date: props?.initialDate ?? DATE,
         start: props?.initialStart,
         end: props?.initialEnd,
         title: props?.initialTitle,
@@ -139,8 +159,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Dentist",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
@@ -162,8 +181,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Meeting",
-      "14:30",
-      "15:30",
+      slot({ start: "14:30", end: "15:30" }),
       null,
     );
   });
@@ -179,8 +197,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     fireEvent.click(screen.getByText("Add and edit"));
     expect(onSubmitEventAndOpen).toHaveBeenCalledWith(
       "Review",
-      "14:00",
-      "15:00",
+      slot({ start: "14:00", end: "15:00" }),
       null,
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
@@ -212,27 +229,153 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Standup",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
 
-  it("shows the target day read-only when the host supplies one (#353)", () => {
-    // The day comes from the gesture that opened the panel; offering an input
-    // here would contradict it. Asserting the element type (not just the
-    // absence of a label) so swapping in an unlabelled <input> also fails.
-    renderPanel({ dateLabel: "Mon, July 27, 2026" });
-    expect(screen.getByText("Date")).toBeInTheDocument();
-    expect(screen.getByText("Mon, July 27, 2026").tagName).toBe("P");
-    expect(screen.queryByLabelText("Date")).toBeNull();
-    // title + start + end, and nothing more.
-    expect(document.querySelectorAll("input")).toHaveLength(3);
+  it("seeds the date field from the day the panel was opened on (#940)", () => {
+    // #353 printed this day as a read-only caption; the gesture that opened
+    // the panel WAS the day. It is an input now (#940), still seeded by that
+    // gesture — the seed became a default rather than the only answer.
+    renderPanel();
+    const date = screen.getByLabelText("Date") as HTMLInputElement;
+    expect(date.type).toBe("date");
+    expect(date.value).toBe(DATE);
+  });
+});
+
+/*
+ * #940 — the day and the all-day switch. Before this the panel could only
+ * create on the day it was opened from, so booking next Tuesday meant
+ * navigating there first, and an all-day event could only be made by creating
+ * a timed one and editing it afterwards.
+ */
+describe("ItemCreatePanel — date and all-day (#940)", () => {
+  const setDate = (value: string) =>
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value } });
+  const addEvent = (title: string) => {
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: title },
+    });
+    fireEvent.click(screen.getByText("Add"));
+  };
+
+  it("creates on the day the user picked, not the one it opened on", () => {
+    const { onSubmitEvent } = renderPanel();
+    setDate("2026-09-01");
+    addEvent("Dentist");
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Dentist",
+      slot({ date: "2026-09-01" }),
+      null,
+    );
   });
 
-  it("skips the day row while the host has no target day (panel closed / opening)", () => {
+  it("carries the chosen day into the todo paths too", () => {
+    const { onCreateTodo, onPlaceTodo } = renderPanel();
+    setDate("2026-09-02");
+    openTodoTab();
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+      target: { value: "Write the report" },
+    });
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
+      "Write the report",
+      slot({ date: "2026-09-02" }),
+      null,
+    );
+
+    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Draft the invoice"));
+    fireEvent.click(screen.getByText("Place"));
+    expect(onPlaceTodo).toHaveBeenCalledWith(
+      "task-1",
+      slot({ date: "2026-09-02" }),
+      null,
+    );
+  });
+
+  it("restores the opening day when the field is cleared to blank", () => {
+    // A date input clears to "" mid-typing. Submitting that would create the
+    // item on no day at all, which is never what the user meant.
+    const { onSubmitEvent } = renderPanel();
+    const date = screen.getByLabelText("Date");
+    fireEvent.change(date, { target: { value: "" } });
+    fireEvent.blur(date);
+    expect((date as HTMLInputElement).value).toBe(DATE);
+    addEvent("Dentist");
+    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", slot(), null);
+  });
+
+  it("turns the times off screen while all-day is on, and submits the flag", () => {
+    const { onSubmitEvent } = renderPanel();
+    const toggle = screen.getByRole("switch", { name: "All day" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    // Hidden rather than disabled, matching EventEditorPane: nothing reads
+    // them, so leaving them on screen would make them look authoritative.
+    expect(screen.queryByLabelText("Start")).toBeNull();
+    expect(screen.queryByLabelText("End")).toBeNull();
+
+    addEvent("Holiday");
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Holiday",
+      slot({ isAllDay: true }),
+      null,
+    );
+  });
+
+  it("brings the times back when all-day is switched off again", () => {
     renderPanel();
-    expect(screen.queryByText("Date")).toBeNull();
+    const toggle = screen.getByRole("switch", { name: "All day" });
+    fireEvent.click(toggle);
+    fireEvent.click(toggle);
+    expect((screen.getByLabelText("Start") as HTMLInputElement).value).toBe(
+      "09:00",
+    );
+  });
+
+  it("offers all-day on the event tab only, and cannot leak it into a todo", () => {
+    // The switch is an event notion here (a todo has nowhere to show it), so
+    // leaving it on and switching tabs must not smuggle the flag across.
+    const { onCreateTodo } = renderPanel();
+    fireEvent.click(screen.getByRole("switch", { name: "All day" }));
+    openTodoTab();
+    expect(screen.queryByRole("switch", { name: "All day" })).toBeNull();
+    // The times are back, because the todo is timed whatever the event said.
+    screen.getByLabelText("Start");
+
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+      target: { value: "Write the report" },
+    });
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
+      "Write the report",
+      slot({ isAllDay: false }),
+      null,
+    );
+  });
+
+  it("keeps the date across a type-tab switch, like the title and times", () => {
+    const { onCreateTodo } = renderPanel();
+    setDate("2026-09-03");
+    openTodoTab();
+    expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe(
+      "2026-09-03",
+    );
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+      target: { value: "Ship it" },
+    });
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo).toHaveBeenCalledWith(
+      "Ship it",
+      slot({ date: "2026-09-03" }),
+      null,
+    );
   });
 });
 
@@ -249,8 +392,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the report",
-      "11:00",
-      "11:45",
+      slot({ start: "11:00", end: "11:45" }),
       null,
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
@@ -264,8 +406,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Groceries",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
@@ -279,7 +420,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     openTodoTab("existing");
     fireEvent.click(screen.getByText("Review PR 376"));
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTodo).toHaveBeenCalledWith("task-2", "16:00", "17:00", null);
+    expect(onPlaceTodo).toHaveBeenCalledWith("task-2", slot({ start: "16:00", end: "17:00" }), null);
   });
 
   it("does nothing until a todo is picked", () => {
@@ -375,7 +516,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", "09:00", "10:00", {
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot({ start: "09:00", end: "10:00" }), {
       kind: "new",
       title: "Minutes",
     });
@@ -391,7 +532,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", "09:00", "10:00", {
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot({ start: "09:00", end: "10:00" }), {
       kind: "existing",
       id: "note-2",
     });
@@ -407,8 +548,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the deck",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       { kind: "new", title: "Prep" },
     );
   });
@@ -427,8 +567,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the deck",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
@@ -444,8 +583,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Kickoff",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
@@ -465,8 +603,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     fireEvent.click(screen.getByText("Add"));
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Kickoff",
-      "09:00",
-      "10:00",
+      slot({ start: "09:00", end: "10:00" }),
       null,
     );
   });
@@ -489,7 +626,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", "09:00", "10:00", {
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot({ start: "09:00", end: "10:00" }), {
       kind: "existing",
       id: "note-2",
     });
@@ -501,7 +638,7 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     fireEvent.click(screen.getByText("Draft the invoice"));
     stageNewNote("Prep", "Todo");
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTodo).toHaveBeenCalledWith("task-1", "09:00", "10:00", {
+    expect(onPlaceTodo).toHaveBeenCalledWith("task-1", slot({ start: "09:00", end: "10:00" }), {
       kind: "new",
       title: "Prep",
     });
@@ -542,8 +679,7 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Dentist",
-      "13:00",
-      "13:30",
+      slot({ start: "13:00", end: "13:30" }),
       null,
     );
   });

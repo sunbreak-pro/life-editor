@@ -1,5 +1,8 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type { ScheduleItemsDataService } from "./DataService";
+import type {
+  ScheduleItemsDataService,
+  ScheduleRestoreResult,
+} from "./DataService";
 import type { ScheduleItem } from "../types/schedule";
 import {
   // DU-C-5: 2-row API (items_meta + events_payload)
@@ -12,10 +15,15 @@ import {
   type EventsPayloadRow,
 } from "./scheduleItemMapper";
 import {
+  chunkIds,
   fetchAllPages,
   fetchByIdChunks,
   forEachIdChunk,
 } from "./postgrestFetchAll";
+import {
+  ScheduleRestoreConflictError,
+  isRoutinePairViolation,
+} from "./scheduleRestoreConflict";
 import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import {
@@ -353,14 +361,31 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     if (error) throw new Error(`softDeleteScheduleItem: ${error.message}`);
   }
 
-  /** Inverse of softDeleteScheduleItem. Trigger updates the cache mirror. */
+  /**
+   * Inverse of softDeleteScheduleItem. Trigger updates the cache mirror.
+   *
+   * Throws `ScheduleRestoreConflictError` when the row is a routine
+   * occurrence whose (routine, date) pair is already held by a live row —
+   * the generator mints one as soon as the occurrence is trashed, so this is
+   * the common case, not an edge (#932). Letting the raw 23505 out instead
+   * would reach the UI as an unreadable constraint name.
+   */
   async restoreScheduleItem(id: string): Promise<void> {
+    const { restorable } = await this.resolveRestorableIds([id]);
+    if (restorable.length === 0) throw new ScheduleRestoreConflictError([id]);
+
     const now = new Date().toISOString();
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: false, deleted_at: null, updated_at: now })
       .eq("id", id);
-    if (error) throw new Error(`restoreScheduleItem: ${error.message}`);
+    if (!error) return;
+    // Lost the race: the generator claimed the pair between the pre-check
+    // and here. Same refusal, same shape.
+    if (isRoutinePairViolation(error)) {
+      throw new ScheduleRestoreConflictError([id]);
+    }
+    throw new Error(`restoreScheduleItem: ${error.message}`);
   }
 
   /** Hard purge (items_meta DELETE; events_payload cascades). */
@@ -556,15 +581,29 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
       return { meta, payload: patchedPayload };
     });
 
-    // Pre-check: drop pairs whose (routine_item_id, source_date) already
-    // exists as a LIVE row. Only routine-generated pairs are checked —
-    // manual events (routine_item_id=null) are never deduplicated.
+    // Pre-check: drop pairs whose (routine_item_id, source_date) is already
+    // taken. Only routine-generated pairs are checked — manual events
+    // (routine_item_id=null) are never deduplicated, and they all share the
+    // key "null|null", so folding them together would collapse a day's
+    // hand-made events into one.
+    //
+    // Two claimants, not one (#933). The live rows in the DB are the obvious
+    // half; the other is THIS batch — nothing upstream promises the caller's
+    // list holds each (routine, date) once, and a duplicate that reaches the
+    // INSERT raises 23505 for the whole statement. Since a failed payload
+    // INSERT rolls back every row, the R2 cleanup then hard-deletes the metas
+    // for the entire batch: one duplicate turns a 30-day fill into zero
+    // events, and the only retry is whenever the effect next fires.
     const liveSet = await this.fetchLiveRoutinePairKeys(
       allPairs.map((p) => p.payload),
     );
+    const claimed = new Set<string>();
     const pairs = allPairs.filter((p) => {
       if (p.payload.routine_item_id === null) return true;
-      return !liveSet.has(routinePairKey(p.payload));
+      const key = routinePairKey(p.payload);
+      if (liveSet.has(key) || claimed.has(key)) return false;
+      claimed.add(key);
+      return true;
     });
 
     // All requested pairs were already live — idempotent no-op.
@@ -839,19 +878,111 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
    * instead. Bringing the rows back BEFORE the routine returns to the live
    * list is what keeps the original ids.
    */
-  async bulkRestoreScheduleItems(ids: string[]): Promise<number> {
-    if (ids.length === 0) return 0;
+  async bulkRestoreScheduleItems(
+    ids: string[],
+  ): Promise<ScheduleRestoreResult> {
+    if (ids.length === 0) return { restoredIds: [], conflictedIds: [] };
+
+    const { restorable, conflicted } = await this.resolveRestorableIds(ids);
+    const restoredIds: string[] = [];
+    const conflictedIds = [...conflicted];
+    if (restorable.length === 0) return { restoredIds, conflictedIds };
+
     const now = new Date().toISOString();
-    await forEachIdChunk(
-      ids,
-      (chunk) =>
-        this.client
-          .from("items_meta")
-          .update({ is_deleted: false, deleted_at: null, updated_at: now })
-          .in("id", chunk),
-      "bulkRestoreScheduleItems",
+    const patch = { is_deleted: false, deleted_at: null, updated_at: now };
+    const update = (chunk: string[]) =>
+      this.client.from("items_meta").update(patch).in("id", chunk);
+
+    for (const chunk of chunkIds(restorable)) {
+      const { error } = await update(chunk);
+      if (!error) {
+        restoredIds.push(...chunk);
+        continue;
+      }
+      if (!isRoutinePairViolation(error)) {
+        throw new Error(`bulkRestoreScheduleItems: ${error.message}`);
+      }
+      // A racing generator claimed one of the pairs, and PostgREST cannot
+      // say which — the whole chunk was rolled back. Re-run it id by id so
+      // the loser is the only row left behind (DoD: never stop half-way
+      // with an unreported remainder).
+      for (const single of chunk) {
+        const { error: soloErr } = await update([single]);
+        if (!soloErr) {
+          restoredIds.push(single);
+        } else if (isRoutinePairViolation(soloErr)) {
+          conflictedIds.push(single);
+        } else {
+          throw new Error(`bulkRestoreScheduleItems: ${soloErr.message}`);
+        }
+      }
+    }
+    return { restoredIds, conflictedIds };
+  }
+
+  /**
+   * Split a restore batch into rows that can come back and rows whose
+   * (routine, date) pair is already taken by a live row (#932).
+   *
+   * Manual events (routine_item_id null) are never eligible for the
+   * Issue-011 partial UNIQUE, so they are always restorable — including
+   * the hand-made seed event a repeat was grown from (#296), which is the
+   * row the user most wants back.
+   *
+   * Two sources of collision, and both have to be caught here or the write
+   * throws: a pair already live in the DB, and two trashed rows inside this
+   * same batch sharing a pair (possible after repeated trash/regenerate
+   * cycles). For the latter the first id wins, matching the order the
+   * caller asked for.
+   */
+  private async resolveRestorableIds(
+    ids: readonly string[],
+  ): Promise<{ restorable: string[]; conflicted: string[] }> {
+    const rows = await fetchByIdChunks<{
+      item_id: string;
+      routine_item_id: string | null;
+      source_date: string | null;
+    }>(ids, (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("events_payload")
+            .select("item_id, routine_item_id, source_date")
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "restore pre-check",
+      ),
     );
-    return ids.length;
+    const pairKeyById = new Map<string, string>();
+    const routinePairs: Array<{
+      routine_item_id: string | null;
+      source_date: string | null;
+    }> = [];
+    for (const row of rows) {
+      if (row.routine_item_id === null || row.source_date === null) continue;
+      pairKeyById.set(row.item_id, routinePairKey(row));
+      routinePairs.push(row);
+    }
+
+    const liveSet = await this.fetchLiveRoutinePairKeys(routinePairs);
+    const restorable: string[] = [];
+    const conflicted: string[] = [];
+    const claimed = new Set<string>();
+    for (const id of ids) {
+      const key = pairKeyById.get(id);
+      if (key === undefined) {
+        restorable.push(id);
+        continue;
+      }
+      if (liveSet.has(key) || claimed.has(key)) {
+        conflicted.push(id);
+        continue;
+      }
+      claimed.add(key);
+      restorable.push(id);
+    }
+    return { restorable, conflicted };
   }
 }
 

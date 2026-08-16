@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import {
   BriefingView,
+  BriefingVizPanel,
   EveningView,
   ItemCreatePanel,
   ItemDetailOverlay,
@@ -18,6 +19,7 @@ import {
   type BriefingTab,
   type DataService,
   type ItemCreateNoteDraft,
+  type ItemCreateSlot,
   WIDE_QUERY,
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
@@ -113,9 +115,17 @@ export function BriefingScreen({
   } = useDailySections(ds, todayKey, dailyContent, setDailyContent);
 
   // 週 / 月 / 年 goals (#872) — their own document (the reserved goals note),
-  // so their read + save chain is separate from the daily's sections.
-  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(ds);
+  // so their read + save chain is separate from the daily's sections. The day
+  // and the week-start preference go IN because the sections are filed under a
+  // period key since #957: the same two inputs decide which section is read
+  // and written and which range is printed beside the field, so the pref has
+  // to be resolved before the hook runs, not after it.
   const { weekStartsOn } = useWeekStartPref();
+  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(
+    ds,
+    todayKey,
+    weekStartsOn,
+  );
 
   // Nothing stored AND nothing typed = the day has no declaration yet, so
   // there is no save state to report. Reporting「保存済み」over an untouched
@@ -147,9 +157,6 @@ export function BriefingScreen({
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
-      todosTitle: t("briefing.todosTitle"),
-      noTodos: t("briefing.noTodos"),
-      vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
       edit: t("briefing.edit"),
@@ -161,11 +168,12 @@ export function BriefingScreen({
     }),
     [t, intentionCaption],
   );
-  // Goal field copy (#872). The period RANGES are computed, not translated:
-  // the texts never roll over, so the label is the only thing that says which
-  // week / month / year is on the page. The week follows the user's week-start
-  // preference — the same boundary the calendar grids and the Analytics week
-  // buckets use (#860), never a hard-coded Monday.
+  // Goal field copy (#872). The period RANGES are computed, not translated —
+  // they are the human-readable face of the same period the section is filed
+  // under (#957), so they take the identical inputs `goalPeriodKeys` does. The
+  // week follows the user's week-start preference — the same boundary the
+  // calendar grids and the Analytics week buckets use (#860), never a
+  // hard-coded Monday.
   const goalRanges = useMemo(
     () =>
       goalPeriodRanges(
@@ -198,6 +206,8 @@ export function BriefingScreen({
 
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
+  // Since #938 they dress <BriefingVizPanel> in the detail panel rather than a
+  // section of the paper; the resolution is unchanged.
   const streakLabels = useMemo(
     () => ({
       title: t("analytics.streak.title"),
@@ -264,21 +274,14 @@ export function BriefingScreen({
   // rightSidebar's. No briefing-specific creation form: the same act would
   // otherwise exist in two implementations that drift apart.
   //
-  // No date picker — the target day is the day the paper is showing. That is
-  // the whole gesture ("add this to today"), and offering a different day here
-  // would contradict the「+」the user pressed.
+  // The panel opens on the day the paper is showing — that is the「+」gesture
+  // — but since #940 the day is an input rather than a caption, so "add this
+  // to today" is the default here, not the only thing on offer. Anything
+  // booked for another day is written and simply does not join today's paper
+  // (useBriefingWrites keeps the lists honest).
   const [createOpen, setCreateOpen] = useState(false);
   const openCreatePanel = useCallback(() => setCreateOpen(true), []);
   const closeCreatePanel = useCallback(() => setCreateOpen(false), []);
-
-  const createDateLabel = useMemo(() => {
-    const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
-    return new Date(`${todayKey}T00:00:00`).toLocaleDateString(locale, {
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-    });
-  }, [todayKey, i18n.language]);
 
   const formatDuration = useCallback(
     (minutes: number) => {
@@ -304,6 +307,7 @@ export function BriefingScreen({
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
       todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
       date: t("scheduleScreen.date"),
+      allDay: t("scheduleScreen.allDay"),
       startTime: t("scheduleScreen.startTime"),
       endTime: t("scheduleScreen.endTime"),
       addEvent: t("scheduleScreen.addEvent"),
@@ -329,13 +333,8 @@ export function BriefingScreen({
   );
 
   const submitEvent = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handleCreateEvent(title, start, end, note);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      handleCreateEvent(title, slot, note);
       closeCreatePanel();
     },
     [handleCreateEvent, closeCreatePanel],
@@ -345,13 +344,8 @@ export function BriefingScreen({
   // The paper has no event editor of its own, so the honest reading here is
   // to create and then go to Schedule, where that editor lives.
   const submitEventAndOpen = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handleCreateEvent(title, start, end, note);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      handleCreateEvent(title, slot, note);
       closeCreatePanel();
       onNavigate({ section: "schedule", tab: "calendar" });
     },
@@ -359,13 +353,8 @@ export function BriefingScreen({
   );
 
   const submitTodo = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handleCreateTodo(title, start, end, note);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      handleCreateTodo(title, slot, note);
       closeCreatePanel();
     },
     [handleCreateTodo, closeCreatePanel],
@@ -374,11 +363,10 @@ export function BriefingScreen({
   const submitPlaceTodo = useCallback(
     (
       todoId: string,
-      start: string,
-      end: string,
+      slot: ItemCreateSlot,
       note: ItemCreateNoteDraft | null,
     ) => {
-      handlePlaceTodo(todoId, start, end, note);
+      handlePlaceTodo(todoId, slot, note);
       closeCreatePanel();
     },
     [handlePlaceTodo, closeCreatePanel],
@@ -466,6 +454,32 @@ export function BriefingScreen({
     </RightSidebarPortal>
   );
 
+  // 「きのうまでの自分」(#938) — the paper's old visual zone, now a second
+  // panel in the SAME detail well as the tray above. Two <RightSidebarPortal>s
+  // stack in mount order, so no tab strip and no second sidebar mechanism: the
+  // tray (today) reads first, the charts (up to yesterday) below it.
+  //
+  // 朝刊 only. The tray is mounted on both papers because a todo list is as
+  // useful when closing the day as when starting it, but these three widgets
+  // are the morning paper's own block and 夕刊 is out of this Issue's scope.
+  //
+  // Narrow reaches it exactly the way it reaches the tray: since #609 the
+  // detail panel is a MobileDrawer opened from the hamburger at the left edge
+  // of the 朝刊/夕刊 band, so no width gate is needed here either
+  // (`docs/requirements/mobile-scope.md` #1).
+  const vizPortal = (
+    <RightSidebarPortal>
+      <BriefingVizPanel
+        sessions={data.sessions}
+        todoNodes={data.todoNodes}
+        title={t("briefing.vizTitle")}
+        streakLabels={streakLabels}
+        trendLabels={trendLabels}
+        balanceLabels={balanceLabels}
+      />
+    </RightSidebarPortal>
+  );
+
   // Keyed on the day so a paper that crosses midnight (or the day-start hour)
   // re-seeds the fields rather than keeping a draft aimed at yesterday.
   const createPanelOverlay = (
@@ -476,7 +490,7 @@ export function BriefingScreen({
     >
       <ItemCreatePanel
         key={todayKey}
-        dateLabel={createDateLabel}
+        initial={{ date: todayKey }}
         pools={{ todos: todoAddable, notes: noteOptions }}
         handlers={{
           onSubmitEvent: submitEvent,
@@ -556,6 +570,7 @@ export function BriefingScreen({
   return (
     <>
       {todoTrayPortal}
+      {vizPortal}
       <BriefingView
         // The goals note is a SECOND async document, and its fields are
         // editable — offering them before it answers hands the user an empty
@@ -564,9 +579,6 @@ export function BriefingScreen({
         loading={loading || goalsLoading}
         data={data}
         labels={labels}
-        streakLabels={streakLabels}
-        trendLabels={trendLabels}
-        balanceLabels={balanceLabels}
         intentionText={intentionText}
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}

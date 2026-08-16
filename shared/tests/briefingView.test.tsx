@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   BriefingView,
+  BriefingVizPanel,
   EveningView,
   type BriefingData,
   type BriefingLabels,
@@ -31,9 +32,6 @@ const LABELS: BriefingLabels = {
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
-  todosTitle: "TODOS",
-  noTodos: "No todos",
-  vizTitle: "VIZ",
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
   edit: "Edit",
@@ -122,9 +120,6 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       loading={false}
       data={DATA}
       labels={LABELS}
-      streakLabels={STREAK_LABELS}
-      trendLabels={TREND_LABELS}
-      balanceLabels={BALANCE_LABELS}
       intentionText=""
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
@@ -241,7 +236,9 @@ describe("BriefingView row actions", () => {
 
   it("keeps the + reachable when the day has nothing scheduled (#623)", () => {
     const { onAddScheduleItem } = renderView({
-      data: { ...DATA, schedule: [] },
+      // Both halves of the merged block are empty (#939) — that is what the
+      // empty state now means.
+      data: { ...DATA, schedule: [], todos: [] },
     });
     // The empty state is exactly when the button matters most — it must not
     // ride along with the row list.
@@ -288,6 +285,176 @@ describe("BriefingView row actions", () => {
   it("never nests a button inside another button", () => {
     const { container } = renderView();
     expect(container.querySelectorAll("button button").length).toBe(0);
+  });
+});
+
+/*
+ * #939 — 「今日の Todo と、その目的」is gone as a block of its own: the todo rows
+ * moved into 「今日のスケジュール」, above the all-day items, with a hairline
+ * between the two kinds of row. The order (todos → rule → all-day → timed) and
+ * the two empty states are the whole contract, so they are pinned by DOM order
+ * rather than by geometry (jsdom has no layout — CLAUDE.md §7.1).
+ */
+describe("Merged today's-schedule block (#939)", () => {
+  /** The one <ul> of the block headed by `scheduleTitle`. */
+  function scheduleList(): HTMLUListElement {
+    const section = screen.getByText("PROMISES").closest("section");
+    const list = section?.querySelector("ul");
+    if (list === null || list === undefined) {
+      throw new Error("the schedule block has no row list");
+    }
+    return list;
+  }
+
+  /** Row texts in DOM order; the hairline reads as "" (it has no content). */
+  function rowTexts(): string[] {
+    return Array.from(scheduleList().children).map(
+      (el) => el.textContent ?? "",
+    );
+  }
+
+  const ALL_DAY = {
+    id: "s3",
+    title: "Conference day",
+    startTime: "",
+    completed: false,
+    isRoutine: false,
+    isAllDay: true,
+  };
+
+  it("keeps the todo rows inside the schedule block, not a block of their own", () => {
+    renderView();
+    const section = screen.getByText("PROMISES").closest("section");
+    expect(section?.contains(screen.getByText("Write report"))).toBe(true);
+    // The retired heading had its own <section>; nothing else on the paper
+    // announces todos now.
+    expect(screen.queryByText("TODOS")).toBeNull();
+  });
+
+  it("runs todos → hairline → all-day → timed", () => {
+    renderView({ data: { ...DATA, schedule: [DATA.schedule[0], ALL_DAY] } });
+    const texts = rowTexts();
+    expect(texts[0]).toContain("Write report");
+    expect(texts[1]).toContain("Ship feature");
+    expect(texts[2]).toBe(""); // the hairline
+    expect(texts[3]).toContain("Conference day");
+    expect(texts[4]).toContain("Morning standup");
+  });
+
+  it("draws exactly one hairline, and only between the two kinds", () => {
+    renderView();
+    expect(
+      scheduleList().querySelectorAll('li[aria-hidden="true"]'),
+    ).toHaveLength(1);
+  });
+
+  it("drops the hairline when the day has no todos", () => {
+    renderView({ data: { ...DATA, todos: [] } });
+    expect(
+      scheduleList().querySelectorAll('li[aria-hidden="true"]'),
+    ).toHaveLength(0);
+    expect(rowTexts()[0]).toContain("Morning standup");
+  });
+
+  it("drops the hairline when the day has nothing scheduled", () => {
+    renderView({ data: { ...DATA, schedule: [] } });
+    expect(
+      scheduleList().querySelectorAll('li[aria-hidden="true"]'),
+    ).toHaveLength(0);
+    // A todo-only day still lists its todos — the empty state is not for it.
+    expect(screen.getByText("Write report")).toBeTruthy();
+    expect(screen.queryByText("Nothing scheduled")).toBeNull();
+  });
+
+  it("shows the empty state only when both halves are empty", () => {
+    renderView({ data: { ...DATA, schedule: [], todos: [] } });
+    expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+  });
+
+  it("keeps the todo row's toggle, jump and delete working after the move", () => {
+    const { onToggleTodo, onJumpToTodos, onDeleteTodo } = renderView();
+    fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
+    expect(onToggleTodo).toHaveBeenCalledWith("t1");
+    fireEvent.click(screen.getAllByTitle("Open in Todos")[0]);
+    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getAllByTitle("Delete this todo")[0]);
+    expect(onDeleteTodo).toHaveBeenCalledWith("t1");
+  });
+
+  it("still hangs a todo's purposes under its title", () => {
+    renderView({
+      data: {
+        ...DATA,
+        todos: [
+          {
+            id: "t1",
+            title: "Write report",
+            status: "NOT_STARTED",
+            purposes: ["Ship the quarter"],
+          },
+        ],
+      },
+    });
+    expect(screen.getByText(/Ship the quarter/)).toBeTruthy();
+  });
+});
+
+/*
+ * #938 —「きのうまでの自分」left the paper's column for the shared detail
+ * panel. The paper must no longer print it (nor take the widget labels), and
+ * the panel component must render the same three widgets from the same
+ * BriefingData the paper is fed.
+ */
+describe("Visual zone moved to the detail panel (#938)", () => {
+  it("no longer prints the visual zone on the paper", () => {
+    renderView();
+    expect(screen.queryByText("Streak")).toBeNull();
+    expect(screen.queryByText("Trend")).toBeNull();
+    expect(screen.queryByText("Balance")).toBeNull();
+  });
+
+  it("leaves carryover as the paper's last section, unruled", () => {
+    const { container } = renderView();
+    const sections = container.querySelectorAll("section");
+    const last = sections[sections.length - 1]!;
+    expect(last.textContent).toContain("CARRYOVER");
+    // The rule above it is the previous section's border-b — a border of its
+    // own would double the line now that the viz section is gone.
+    expect(last.className).not.toContain("border-t");
+    expect(last.className).not.toContain("border-b");
+  });
+
+  it("renders the three widgets in the panel under one heading", () => {
+    render(
+      <BriefingVizPanel
+        sessions={[]}
+        todoNodes={[]}
+        title="VIZ"
+        streakLabels={STREAK_LABELS}
+        trendLabels={TREND_LABELS}
+        balanceLabels={BALANCE_LABELS}
+      />,
+    );
+    expect(screen.getByText("VIZ")).toBeTruthy();
+    expect(screen.getByText("Streak")).toBeTruthy();
+    expect(screen.getByText("Trend")).toBeTruthy();
+    expect(screen.getByText("Balance")).toBeTruthy();
+  });
+
+  it("stacks the panel in one column (the well is ~320px)", () => {
+    const { container } = render(
+      <BriefingVizPanel
+        sessions={[]}
+        todoNodes={[]}
+        title="VIZ"
+        streakLabels={STREAK_LABELS}
+        trendLabels={TREND_LABELS}
+        balanceLabels={BALANCE_LABELS}
+      />,
+    );
+    // The paper laid these out `sm:grid-cols-2`; at panel width that squeezes
+    // each chart below what its axis labels need.
+    expect(container.querySelectorAll(".sm\\:grid-cols-2")).toHaveLength(0);
   });
 });
 
@@ -550,6 +717,9 @@ describe("Row edit action (#410)", () => {
     const { container } = renderView({
       data: {
         ...DATA,
+        // Todos now share the block and render first (#939), so the schedule
+        // row has to be picked by content rather than by being the first <li>.
+        todos: [],
         schedule: [{ ...DATA.schedule[0], isRoutine: true }],
       },
     });

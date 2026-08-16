@@ -1,0 +1,30 @@
+{
+  // Tests get their own project (#894), mirroring shared/tsconfig.test.json.
+  //
+  // Two reasons it cannot just join tsconfig.node.json:
+  //   - that project is `composite: true`, which requires every file reachable
+  //     from it to be listed. `tests/ipcContract.test.ts` imports a type from
+  //     `../shared/src/services/supabaseAuthStorage.ts` — the whole point, since
+  //     that is the declaration this pins the IPC contract against — and pulling
+  //     shared's tree into the app's project would be TS6307 for each file.
+  //   - shared/ is browser code and touches `window`, so it needs the DOM lib.
+  //     The main/preload project deliberately does NOT have it: those run in
+  //     Node, and lending them `window` would let a real DOM reference compile.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["tests/**/*", "src/shared/**/*", "src/preload/**/*"]
+}
