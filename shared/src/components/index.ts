@@ -74,6 +74,13 @@ export {
   type TimeRangeValue,
 } from "./TimeRangeField";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
+// #889: one detail body, whichever frame the width calls for — the overlay on
+// Desktop, the full-height sheet on Mobile. Schedule's two returns used to
+// spell each panel's frame twice.
+export {
+  ResponsiveDetailFrame,
+  type ResponsiveDetailFrameProps,
+} from "./ResponsiveDetailFrame";
 // Lumen shipping primitives (ClaudeDesign port). Pure presentation: lumen-*
 // tokens only (§3.1), opaque container surfaces (§3.5), props-injected copy
 // (§6). Toast = notification card + fixed stack; Menu = dropdown. (The legacy
