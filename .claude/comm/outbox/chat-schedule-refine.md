@@ -442,3 +442,23 @@ PR #488 が CI の `shared — lint` で落ちた原因は `react-hooks/refs`（
 - **検証**: jsdom のハーネスでマウント直後にダブルクリックを撃ち、`onActivate` の呼び出し **0 回**を確認。#523 / #524 の退行ではなく最初からこの形
 - **実害の大きさ**: 「開く」導線自体は `SelectedNodeCard` / `NodeDetailSheet` のボタンが生きているので、効かないショートカットが 1 本ある状態
 - **直し方**: `sel.on("dblclick.zoom", null)` の 1 行で通ります。ただし **d3 既定のダブルクリック拡大を捨てる**判断が要るので、判断キュー `D-20260801-sched-2` に積みました（回答があればこの worktree で実装を引き受けます）
+
+## 2026-08-16 — 起票依頼 3 件（#897 の監査で実測した既存欠陥・chat-main へ）
+
+PR #929（#897）の独立監査（role-qa + life-editor-sync-auditor）で、**この PR とは無関係に前から在る欠陥**が 3 件出ました。どれも挙動変更を伴うので #929 には載せていません。起票をお願いします（担当はこの worktree で引き受けられます）。
+
+### (1) 【最優先】Trash から予定を復元すると partial UNIQUE に弾かれて無言で失敗する（`section:schedule` + `type:bug` / sev:important 想定）
+
+再現の筋道: ルーチン由来のオカレンス 1 件を trash → 生成器が同じ (routine, source_date) で**新しい live 行**を作る（`is_deleted_cache=true` の行は事前チェックの liveSet に入らないため、これは設計どおり）→ ユーザーが Trash から復元 → `items_meta.is_deleted=false` → 0008 のトリガが `is_deleted_cache=false` に書き戻す → **その UPDATE が `uq_events_payload_routine_date` に 23505 で弾かれる**。
+
+- **無言になる理由**: ルーチンの undo 経路（`shared/src/hooks/useRoutinesAPI.ts:289`）が例外を `logServiceError` で握り潰し、ルーチン本体だけ復活させる。ユーザーには「復元したのにオカレンスが戻っていない」としか見えない
+- 200 件超では `forEachIdChunk` が逐次なので**前半チャンクだけ適用された中途半端な復元**が残る
+- 修正は `restoreScheduleItem` / `bulkRestoreScheduleItems` と呼び出し側にまたがる（対策案 = 復元対象の live ペアを `fetchLiveRoutinePairKeys` と同じ形で事前 SELECT し、衝突分は skip して呼び出し側に返す / または 23505 を掴んで id 単位にフォールバック）
+
+### (2) バッチ内の重複が事前チェックを素通りして 1 件の衝突でバッチ全滅（`section:schedule` / sev:minor 想定）
+
+`bulkCreateScheduleItems` の事前チェックは **DB としか照合しない**ので、`collectRoutineItemsForDates`（`shared/src/utils/routineScheduleSync.ts:130-157`）が同じ (routine, date) を 2 回積むだけで 23505 → R2 cleanup → **バッチ全滅**（30 日分の月埋めが 1 件の衝突で 0 件になる）。リトライは次の effect 発火任せ。`pairs` を `routinePairKey` で 1 行 dedupe すれば潰せます（`shared/src/services/SupabaseScheduleItemsService.ts` の同ヘルパを流用）。
+
+### (3) `permanentDeleteRoutine` がオカレンスを 1 件ずつ delete している（`section:schedule` + `area:structural` / sev:minor 想定）
+
+`shared/src/services/SupabaseRoutinesService.ts:594-603` が event の `items_meta` を **1 件ずつループで delete** している。コメントは「Todos の descendants-first を真似て 1 件ずつ」と言うが、**削除対象の events は互いに兄弟で順序制約が無い**（順序が要るのは events → routine の間だけ = 0011 composite FK の NO ACTION）。`bulkDeleteScheduleItems` と同じ `forEachIdChunk` に寄せれば **500 オカレンスのルーチンで 500 往復が 3 往復**になります。#897 の DoD が言う「削除順序（子孫→親）」の実体はここで、かつ未テストです。
