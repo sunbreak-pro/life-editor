@@ -146,7 +146,6 @@ describe("Briefing save failures reach the user (#955)", () => {
   it("says nothing when the save succeeds", async () => {
     const saved: DailyNode = {
       id: `daily-${TODAY}`,
-      type: "daily",
       date: TODAY,
       content: "",
       isDeleted: false,
