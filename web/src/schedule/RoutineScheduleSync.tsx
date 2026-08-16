@@ -47,9 +47,12 @@ import {
  * Idempotency: rapid date flips can fire many ensure passes. Duplicate
  * (routine_id, date) writes are absorbed by the 0008 partial UNIQUE
  * (routine_item_id, source_date) WHERE is_deleted_cache=false + the
- * DU-C-5 SupabaseScheduleItemsService.bulkCreateScheduleItems upsert
- * with onConflict ignoreDuplicates (Issue 011) — the generator never
- * accumulates duplicates even under month-flip spam.
+ * app-layer dedup inside DU-C-5
+ * SupabaseScheduleItemsService.bulkCreateScheduleItems, which
+ * pre-SELECTs the live pairs and drops the collisions (Issue 011 — NOT
+ * onConflict/ignoreDuplicates, which PostgREST cannot aim at a PARTIAL
+ * unique index) — the generator never accumulates duplicates even under
+ * month-flip spam.
  */
 export function RoutineScheduleSync({
   dataService,

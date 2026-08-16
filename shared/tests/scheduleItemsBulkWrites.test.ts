@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseScheduleItemsService } from "../src/services/SupabaseDataService";
-import { POSTGREST_IN_CHUNK_SIZE } from "../src/services/postgrestFetchAll";
+import {
+  POSTGREST_IN_CHUNK_SIZE,
+  POSTGREST_PAGE_SIZE,
+} from "../src/services/postgrestFetchAll";
 
 /*
  * #897 — the four bulk WRITE paths of SupabaseScheduleItemsService that had no
@@ -35,6 +38,18 @@ interface LivePairRow {
   routine_item_id: string;
   source_date: string;
   is_deleted_cache: boolean;
+  /**
+   * Present so a test can put a DISMISSED-but-live pair in the table. The
+   * pre-check deliberately does NOT filter on it — see the dismissed case
+   * below.
+   */
+  is_dismissed?: boolean;
+}
+
+/** One pre-check SELECT, recorded so paging can be asserted. */
+interface SelectRecord {
+  table: string;
+  range: [number, number] | null;
 }
 
 type WriteRecord =
@@ -74,6 +89,7 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     private readonly live: LivePairRow[],
     private readonly writes: WriteRecord[],
     private readonly fail: FailurePlan,
+    private readonly selects: SelectRecord[],
   ) {}
 
   select(columns = ""): this {
@@ -126,6 +142,7 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
 
   private resolve(): { data?: unknown; error: unknown } {
     if (this.mode === "select") {
+      this.selects.push({ table: this.table, range: this.rangeArgs });
       let rows = (
         this.live as unknown as Array<Record<string, unknown>>
       ).filter((r) => this.matches(r));
@@ -186,7 +203,15 @@ function makeClient(
   opts: { live?: LivePairRow[]; fail?: FailurePlan; authed?: boolean } = {},
 ) {
   const writes: WriteRecord[] = [];
-  const live = opts.live ?? [];
+  const selects: SelectRecord[] = [];
+  // Default is_dismissed so a row is only "dismissed" when a case says so.
+  // Without it, adding a stray `.eq("is_dismissed", false)` to the pre-check
+  // would fail EVERY dedup case on undefined !== false, and the one case that
+  // is actually about dismissal would stop being a distinguishable signal.
+  const live = (opts.live ?? []).map((r) => ({
+    is_dismissed: false,
+    ...r,
+  }));
   const fail = opts.fail ?? {};
   let authCalls = 0;
   const client = {
@@ -198,9 +223,9 @@ function makeClient(
           : { data: { user: { id: USER_ID } }, error: null };
       },
     },
-    from: (table: string) => new Builder(table, live, writes, fail),
+    from: (table: string) => new Builder(table, live, writes, fail, selects),
   } as unknown as SupabaseClient;
-  return { client, writes, authCalls: () => authCalls };
+  return { client, writes, selects, authCalls: () => authCalls };
 }
 
 function item(
@@ -342,6 +367,28 @@ describe("bulkCreateScheduleItems — 2-row INSERT + Issue 011 idempotency", () 
     expect(ids(inserted(writes, "items_meta"), "id")).toEqual(["si-1"]);
   });
 
+  it("keeps deduping a DISMISSED live pair — a skipped day must not be re-generated", async () => {
+    // The pre-check filters on is_deleted_cache ALONE. Adding
+    // `.eq("is_dismissed", false)` would read as a tightening but is exactly
+    // what would resurrect every day the user skipped: a dismissed
+    // occurrence still occupies its (routine, date) pair.
+    const { client, writes } = makeClient({
+      live: [
+        {
+          routine_item_id: ROUTINE,
+          source_date: "2026-08-20",
+          is_deleted_cache: false,
+          is_dismissed: true,
+        },
+      ],
+    });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.bulkCreateScheduleItems([item("si-1", { routineId: ROUTINE })]);
+
+    expect(writes).toHaveLength(0);
+  });
+
   it("never deduplicates manual events, even on a date a routine already owns", async () => {
     const { client, writes } = makeClient({
       live: [
@@ -354,9 +401,71 @@ describe("bulkCreateScheduleItems — 2-row INSERT + Issue 011 idempotency", () 
     });
     const svc = new SupabaseScheduleItemsService(client);
 
+    await svc.bulkCreateScheduleItems([
+      item("si-a"),
+      item("si-b"),
+      item("si-routine", { routineId: ROUTINE, date: "2026-08-21" }),
+    ]);
+
+    // The routine row is present so the pre-check actually runs — without it
+    // the helper early-returns and this case would pass even if the
+    // `routine_item_id === null` short-circuit were deleted.
+    expect(ids(inserted(writes, "items_meta"), "id")).toEqual([
+      "si-a",
+      "si-b",
+      "si-routine",
+    ]);
+  });
+
+  it("issues no pre-check query at all for a manual-only batch", async () => {
+    const { client, selects } = makeClient();
+    const svc = new SupabaseScheduleItemsService(client);
+
     await svc.bulkCreateScheduleItems([item("si-a"), item("si-b")]);
 
-    expect(ids(inserted(writes, "items_meta"), "id")).toEqual(["si-a", "si-b"]);
+    expect(selects).toHaveLength(0);
+  });
+
+  it("pages the pre-check instead of reading one capped page", async () => {
+    // The .in().in() filter is a cross-product: the result scales with the
+    // EXISTING live rows, not the insert batch, so a single un-ranged read
+    // would silently stop at the server's max-rows cap and let already-live
+    // pairs through to the INSERT — turning the whole batch into a 23505.
+    const dates = Array.from({ length: POSTGREST_PAGE_SIZE + 1 }, (_, i) =>
+      String(i).padStart(5, "0"),
+    );
+    const live: LivePairRow[] = dates.map((d) => ({
+      routine_item_id: ROUTINE,
+      source_date: d,
+      is_deleted_cache: false,
+    }));
+    const { client, writes, selects } = makeClient({ live });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await svc.bulkCreateScheduleItems([
+      ...dates.map((d, i) =>
+        item(`si-dupe-${i}`, { routineId: ROUTINE, date: d }),
+      ),
+      item("si-fresh", { routineId: ROUTINE, date: "fresh" }),
+    ]);
+
+    expect(selects.map((s) => s.range)).toEqual([
+      [0, POSTGREST_PAGE_SIZE - 1],
+      [POSTGREST_PAGE_SIZE, POSTGREST_PAGE_SIZE * 2 - 1],
+    ]);
+    // The pair on page 2 is the proof: a capped read would not have seen it,
+    // so its duplicate would have slipped through to the INSERT.
+    expect(ids(inserted(writes, "items_meta"), "id")).toEqual(["si-fresh"]);
+  });
+
+  it("writes nothing when the caller is not authenticated", async () => {
+    const { client, writes } = makeClient({ authed: false });
+    const svc = new SupabaseScheduleItemsService(client);
+
+    await expect(svc.bulkCreateScheduleItems([item("si-1")])).rejects.toThrow(
+      /not authenticated/,
+    );
+    expect(writes).toHaveLength(0);
   });
 
   it("writes nothing when every requested pair is already live", async () => {

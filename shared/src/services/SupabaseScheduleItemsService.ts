@@ -502,55 +502,6 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
    * the same browser tab are serialised by the JS event loop. Multi-
    * tab race is possible but rare and handled by the fallback.
    */
-  /**
-   * The dedup half of bulkCreateScheduleItems' Issue-011 pre-check: given
-   * the payload rows about to be inserted, return the `routinePairKey`s
-   * that ALREADY exist as live rows. Manual events (routine_item_id null)
-   * are not eligible for the partial UNIQUE and are never looked up.
-   *
-   * Paged: the .in().in() filter is a CROSS-PRODUCT — the result scales
-   * with the existing live rows matching |routineIds| × |sourceDates|,
-   * not with the insert batch. A capped pre-check would let already-live
-   * pairs through to the INSERT and turn the whole batch into a 23505 →
-   * R2-cleanup throw.
-   */
-  private async fetchLiveRoutinePairKeys(
-    payloads: ReadonlyArray<{
-      routine_item_id: string | null;
-      source_date: string | null;
-    }>,
-  ): Promise<Set<string>> {
-    const routinePairs = payloads.filter(
-      (p) => p.routine_item_id !== null && p.source_date !== null,
-    );
-    const keys = new Set<string>();
-    if (routinePairs.length === 0) return keys;
-
-    const routineIds = Array.from(
-      new Set(routinePairs.map((p) => p.routine_item_id as string)),
-    );
-    const sourceDates = Array.from(
-      new Set(routinePairs.map((p) => p.source_date as string)),
-    );
-    const existing = await fetchAllPages<{
-      routine_item_id: string;
-      source_date: string;
-    }>(
-      (from, to) =>
-        this.client
-          .from("events_payload")
-          .select("routine_item_id, source_date")
-          .in("routine_item_id", routineIds)
-          .in("source_date", sourceDates)
-          .eq("is_deleted_cache", false)
-          .order("item_id")
-          .range(from, to),
-      "bulkCreateScheduleItems pre-check",
-    );
-    for (const r of existing) keys.add(routinePairKey(r));
-    return keys;
-  }
-
   async bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -657,6 +608,60 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
       }
       throw err;
     }
+  }
+
+  /**
+   * The dedup half of bulkCreateScheduleItems' Issue-011 pre-check: given
+   * the payload rows about to be inserted, return the `routinePairKey`s
+   * that ALREADY exist as live rows. Manual events (routine_item_id null)
+   * are not eligible for the partial UNIQUE and are never looked up.
+   *
+   * `is_deleted_cache = false` is the ONLY liveness filter, and that is
+   * deliberate: adding `.eq("is_dismissed", false)` would read as a
+   * tightening but is what stops a DISMISSED day from being re-generated
+   * — a skipped occurrence still occupies its (routine, date) pair.
+   *
+   * Paged: the .in().in() filter is a CROSS-PRODUCT — the result scales
+   * with the existing live rows matching |routineIds| × |sourceDates|,
+   * not with the insert batch. A capped pre-check would let already-live
+   * pairs through to the INSERT and turn the whole batch into a 23505 →
+   * R2-cleanup throw.
+   */
+  private async fetchLiveRoutinePairKeys(
+    payloads: ReadonlyArray<{
+      routine_item_id: string | null;
+      source_date: string | null;
+    }>,
+  ): Promise<Set<string>> {
+    const routinePairs = payloads.filter(
+      (p) => p.routine_item_id !== null && p.source_date !== null,
+    );
+    const keys = new Set<string>();
+    if (routinePairs.length === 0) return keys;
+
+    const routineIds = Array.from(
+      new Set(routinePairs.map((p) => p.routine_item_id as string)),
+    );
+    const sourceDates = Array.from(
+      new Set(routinePairs.map((p) => p.source_date as string)),
+    );
+    const existing = await fetchAllPages<{
+      routine_item_id: string;
+      source_date: string;
+    }>(
+      (from, to) =>
+        this.client
+          .from("events_payload")
+          .select("routine_item_id, source_date")
+          .in("routine_item_id", routineIds)
+          .in("source_date", sourceDates)
+          .eq("is_deleted_cache", false)
+          .order("item_id")
+          .range(from, to),
+      "bulkCreateScheduleItems pre-check",
+    );
+    for (const r of existing) keys.add(routinePairKey(r));
+    return keys;
   }
 
   /**
@@ -784,8 +789,13 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
 
   /**
    * Bulk hard-delete (used by Cleanup tooling — not the user-facing
-   * trash path). Returns the count of rows actually deleted.
-   * events_payload cascades via the 0008 item_id FK.
+   * trash path). events_payload cascades via the 0008 item_id FK.
+   *
+   * Returns the REQUESTED count, not the affected one: the DELETEs go out
+   * without `count: "exact"`, so an id that no longer exists is
+   * indistinguishable from one that was removed. Same for the soft-delete
+   * / restore pair below. Callers read this as "the batch went through",
+   * never as "N rows existed".
    */
   async bulkDeleteScheduleItems(ids: string[]): Promise<number> {
     if (ids.length === 0) return 0;
