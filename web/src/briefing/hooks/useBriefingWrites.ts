@@ -6,6 +6,7 @@ import {
   useUndoRedoOptional,
   type DataService,
   type ItemCreateNoteDraft,
+  type ItemCreateSlot,
   type RepeatScope,
   type ScheduleItem,
   type TodoNode,
@@ -187,27 +188,29 @@ export function useBriefingWrites({
     [ds, setConnections],
   );
 
+  // The day and the all-day flag come off the slot the panel submitted (#940),
+  // not off `todayKey`. The paper is always about today, but the panel it
+  // opens is the Schedule one, and it can now book any day — so the write has
+  // to follow what the user picked, and the paper only shows back the rows
+  // that really do belong to today.
   const handleCreateEvent = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       void ds
         .createScheduleItem(
           generateId("event"),
-          todayKey,
+          slot.date,
           title,
-          start,
-          end,
+          slot.start,
+          slot.end,
           undefined,
           undefined,
           undefined,
-          false,
+          slot.isAllDay,
         )
         .then((saved) => {
-          setScheduleItems((prev) => [...prev, saved]);
+          if (saved.date === todayKey) {
+            setScheduleItems((prev) => [...prev, saved]);
+          }
           attachNote(saved.id, note);
         })
         .catch((err) => {
@@ -218,12 +221,7 @@ export function useBriefingWrites({
   );
 
   const handleCreateTodo = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       const now = new Date().toISOString();
       // Root-level (parentId null), like every other quick-create entry: the
       // panel carries no place-in-the-tree control and re-parenting belongs to
@@ -236,14 +234,16 @@ export function useBriefingWrites({
           status: "NOT_STARTED",
           parentId: null,
           order: 0,
-          scheduledAt: localDateTimeToISO(todayKey, start),
-          scheduledEndAt: localDateTimeToISO(todayKey, end),
+          scheduledAt: localDateTimeToISO(slot.date, slot.start),
+          scheduledEndAt: localDateTimeToISO(slot.date, slot.end),
           isAllDay: false,
           createdAt: now,
           updatedAt: now,
         })
         .then((saved) => {
-          setTodoNodes((prev) => [...prev, saved]);
+          if (slot.date === todayKey) {
+            setTodoNodes((prev) => [...prev, saved]);
+          }
           attachNote(saved.id, note);
         })
         .catch((err) => {
@@ -256,8 +256,7 @@ export function useBriefingWrites({
   const handlePlaceTodo = useCallback(
     (
       todoId: string,
-      start: string,
-      end: string,
+      slot: ItemCreateSlot,
       note: ItemCreateNoteDraft | null,
     ) => {
       // `isAllDay: false` rides along because a todo given a concrete window
@@ -265,13 +264,17 @@ export function useBriefingWrites({
       // what kept placed chips rendering in the all-day lane (timedPlacement).
       void ds
         .updateTodo(todoId, {
-          scheduledAt: localDateTimeToISO(todayKey, start),
-          scheduledEndAt: localDateTimeToISO(todayKey, end),
+          scheduledAt: localDateTimeToISO(slot.date, slot.start),
+          scheduledEndAt: localDateTimeToISO(slot.date, slot.end),
           isAllDay: false,
         })
         .then((updated) => {
+          // Placed onto another day, so it leaves today's paper rather than
+          // sitting there with a time that belongs elsewhere.
           setTodoNodes((prev) =>
-            prev.map((n) => (n.id === updated.id ? updated : n)),
+            slot.date === todayKey
+              ? prev.map((n) => (n.id === updated.id ? updated : n))
+              : prev.filter((n) => n.id !== updated.id),
           );
           attachNote(updated.id, note);
         })

@@ -10,6 +10,7 @@ import {
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { TimeRangeField } from "../TimeRangeField";
+import { AllDaySwitch } from "./AllDaySwitch";
 import { isImeComposing } from "../../utils/imeGuard";
 
 /*
@@ -78,8 +79,10 @@ export interface ItemCreatePanelLabels {
   /** Per-type placeholder for the item-title input. */
   eventPlaceholder: string;
   todoPlaceholder: string;
-  /** Field label of the read-only target-day row. */
+  /** Field label of the target-day input. */
   date: string;
+  /** Label and accessible name of the all-day switch (#940). */
+  allDay: string;
   startTime: string;
   endTime: string;
   /** Event submit pair (#354 — create, and create-then-open-the-editor). */
@@ -119,12 +122,43 @@ export interface ItemCreatePanelLabels {
  * "where the gesture landed" fact, just partially.
  */
 export interface ItemCreatePanelInitial {
+  /**
+   * The day the item lands on (YYYY-MM-DD), seeding the panel's own date
+   * field (#940).
+   *
+   * Required, and the reason `initial` itself became required: the panel used
+   * to take a pre-formatted `dateLabel` it only displayed, so a host that
+   * forgot it lost a caption. Now the value is what the submit carries, and a
+   * host that forgot it would create items on no day at all.
+   */
+  date: string;
   /** Seeds the start-time field (HH:MM). Default 09:00. */
   start?: string;
   /** Seeds the end-time field (HH:MM). Default 10:00. */
   end?: string;
   /** Seeds the item-title field. Default empty. */
   title?: string;
+}
+
+/**
+ * Where the new item lands — the panel's own answer, not the host's (#940).
+ *
+ * Bundled for the same reason the handlers were (#893): date / start / end /
+ * isAllDay are one fact with four fields, and threading them positionally
+ * through four callbacks is how a host ends up reading the day off its own
+ * state and quietly ignoring the one the user just picked.
+ */
+export interface ItemCreateSlot {
+  /** YYYY-MM-DD, as edited in the panel. */
+  date: string;
+  start: string;
+  end: string;
+  /**
+   * True only on the event target — a todo has no all-day notion here, and
+   * the switch is not rendered for it. When true the time fields are off
+   * screen and `start` / `end` are stale draft values the host must ignore.
+   */
+  isAllDay: boolean;
 }
 
 /** The two "pick an existing one" pools the panel offers. */
@@ -147,11 +181,10 @@ export interface ItemCreatePanelPools {
  * required-object shape makes that a compile error instead.
  */
 export interface ItemCreatePanelHandlers {
-  /** Fired with the trimmed (non-empty) title, the times, and the staged note. */
+  /** Fired with the trimmed (non-empty) title, the slot, and the staged note. */
   onSubmitEvent: (
     title: string,
-    start: string,
-    end: string,
+    slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
   ) => void;
   /**
@@ -166,15 +199,13 @@ export interface ItemCreatePanelHandlers {
    */
   onSubmitEventAndOpen: (
     title: string,
-    start: string,
-    end: string,
+    slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
   ) => void;
-  /** Create a new todo scheduled into the target day + window. */
+  /** Create a new todo scheduled into the chosen day + window. */
   onCreateTodo: (
     title: string,
-    start: string,
-    end: string,
+    slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
   ) => void;
   /**
@@ -184,30 +215,24 @@ export interface ItemCreatePanelHandlers {
    */
   onPlaceTodo: (
     todoId: string,
-    start: string,
-    end: string,
+    slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
   ) => void;
 }
 
 export interface ItemCreatePanelProps {
   /**
-   * The day the item will land on, already formatted for display (#353).
-   * The host owns the target date and the locale (§6.4), so it hands the
-   * finished string down. Read-only: the day comes from where the user
-   * opened the panel (toolbar → anchor day, empty slot / month cell → that
-   * cell's day), and changing it here would contradict that gesture.
+   * Draft seeds. Required since #940 — see `ItemCreatePanelInitial.date`.
    *
-   * Optional because it tracks the host's OPEN-PANEL STATE, not its
-   * capabilities: with the panel closed there is no target day, and the
-   * Mobile frame (QuickCaptureSheet) stays mounted across that transition.
-   * `labels.date` is required precisely so a host cannot forget the row
-   * exists — only the value comes and goes. Absent ⇒ the row is skipped
-   * rather than rendered empty.
+   * The day used to arrive as a pre-formatted `dateLabel` the panel only
+   * printed: where the user opened the panel WAS the day, so offering to
+   * change it here would have contradicted the gesture. It turned out the
+   * gesture is often only how the panel got opened — the toolbar「+」lands on
+   * the anchor day, and Briefing always says today — leaving no way to book
+   * next Tuesday without navigating there first. The row is now an input, and
+   * the host reads the day back off the submit.
    */
-  dateLabel?: string;
-  /** Draft seeds, all optional. Omit entirely for the defaults. */
-  initial?: ItemCreatePanelInitial;
+  initial: ItemCreatePanelInitial;
   pools: ItemCreatePanelPools;
   handlers: ItemCreatePanelHandlers;
   /** Formats the duration suffix on the end-time options (#553). */
@@ -321,7 +346,6 @@ function resolvePicked(
 }
 
 export function ItemCreatePanel({
-  dateLabel,
   initial,
   pools,
   handlers,
@@ -331,10 +355,11 @@ export function ItemCreatePanel({
   // Unpacked back into the flat names the body has always used, so the bundles
   // (#893) stay a wire-format change and nothing below has to know about them.
   const {
+    date: initialDate,
     start: initialStart = "09:00",
     end: initialEnd = "10:00",
     title: initialTitle = "",
-  } = initial ?? {};
+  } = initial;
   const { todos: existingTodos, notes: existingNotes } = pools;
   const { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo } =
     handlers;
@@ -344,8 +369,10 @@ export function ItemCreatePanel({
   // do while the note tab is showing.
   const [target, setTarget] = useState<"event" | "task">("event");
   const [title, setTitle] = useState(initialTitle);
+  const [date, setDate] = useState(initialDate);
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
+  const [allDay, setAllDay] = useState(false);
 
   const [todoSource, setTodoSource] = useState<ItemCreateSource>("new");
   const [todoQuery, setTodoQuery] = useState("");
@@ -388,22 +415,28 @@ export function ItemCreatePanel({
     else setPickedNoteId(null);
   };
 
+  // All-day belongs to the event target alone (#940), so the switch is only
+  // rendered there — and the slot spells the same rule, or turning it on and
+  // then switching to the todo tab would smuggle it into a todo that has no
+  // way to show it.
+  const isAllDay = target === "event" && allDay;
+  const slot: ItemCreateSlot = { date, start, end, isAllDay };
+
   const submitTitled = (
     handler: (
       t: string,
-      s: string,
-      e: string,
+      s: ItemCreateSlot,
       n: ItemCreateNoteDraft | null,
     ) => void,
   ) => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    handler(trimmed, start, end, stagedNote);
+    handler(trimmed, slot, stagedNote);
   };
   const submitPrimary = () => {
     if (placing) {
       if (!pickedTodo) return;
-      onPlaceTodo(pickedTodo.id, start, end, stagedNote);
+      onPlaceTodo(pickedTodo.id, slot, stagedNote);
       return;
     }
     submitTitled(target === "event" ? onSubmitEvent : onCreateTodo);
@@ -518,26 +551,56 @@ export function ItemCreatePanel({
           </button>
         </div>
       )}
-      {dateLabel && (
-        <div className={cn("flex flex-col gap-1", FIELD_LABEL)}>
-          {labels.date}
-          {/* Read-only, so a <p> rather than a disabled input: it is context
-              for the times below, not something the user can act on. */}
-          <p className="text-sm font-medium text-lumen-text">{dateLabel}</p>
-        </div>
-      )}
+      {/* Date + all-day (#940), laid out and worded exactly like the editing
+          side (EventEditorPane): same row, same switch, so "all day" does not
+          become two different controls depending on whether the row exists
+          yet. The date input keeps its own draft — changing it here books the
+          item elsewhere without moving the calendar the panel was opened
+          from. Clearing it back to blank restores the day the panel opened
+          on, since a create with no date is not a thing the user can mean. */}
+      <div className="flex items-end gap-2">
+        <label className="flex flex-1 flex-col gap-1.5">
+          <span className={FIELD_LABEL}>{labels.date}</span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            onBlur={() => {
+              if (!date) setDate(initialDate);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
+            }}
+            aria-label={labels.date}
+            className={cn(FIELD, "tabular-nums")}
+          />
+        </label>
+        {target === "event" && (
+          <AllDaySwitch
+            checked={allDay}
+            onToggle={() => setAllDay((v) => !v)}
+            label={labels.allDay}
+          />
+        )}
+      </div>
       {/* #553: the shared TimeRangeField replaces the native time pair —
-          typed entry + snapped lists, and the range invariant lives there. */}
-      <TimeRangeField
-        start={start}
-        end={end}
-        onChange={(next) => {
-          setStart(next.start);
-          setEnd(next.end);
-        }}
-        labels={{ start: labels.startTime, end: labels.endTime }}
-        formatDuration={formatDuration}
-      />
+          typed entry + snapped lists, and the range invariant lives there.
+          Hidden rather than disabled while all-day is on, matching
+          EventEditorPane: the switch that hides them keeps the focus, and a
+          locked pair would leave the times looking authoritative while
+          nothing reads them. */}
+      {!isAllDay && (
+        <TimeRangeField
+          start={start}
+          end={end}
+          onChange={(next) => {
+            setStart(next.start);
+            setEnd(next.end);
+          }}
+          labels={{ start: labels.startTime, end: labels.endTime }}
+          formatDuration={formatDuration}
+        />
+      )}
       {/* The footer always acts on `target`, so it survives a trip to the note
           tab unchanged. */}
       <div className="flex gap-2">
