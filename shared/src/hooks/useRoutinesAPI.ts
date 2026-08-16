@@ -286,7 +286,23 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           undo: () => {
             void (async () => {
               try {
-                await ds.bulkRestoreScheduleItems(cascade);
+                const { conflictedIds } =
+                  await ds.bulkRestoreScheduleItems(cascade);
+                // Not a failure: the generator already re-made those days
+                // while the repeat was in the trash, so the calendar shows
+                // an occurrence either way — only the id differs (#932).
+                // Everything else, seed event included, is back. Before the
+                // partial restore landed, ONE such day failed the whole
+                // batch and nothing came back at all.
+                if (conflictedIds.length > 0) {
+                  logServiceError(
+                    "Routines",
+                    "undoDeleteCascade",
+                    new Error(
+                      `${conflictedIds.length} occurrence(s) stayed in the trash: a live row already holds their (routine, date) pair`,
+                    ),
+                  );
+                }
               } catch (e) {
                 logServiceError("Routines", "undoDeleteCascade", e);
               }

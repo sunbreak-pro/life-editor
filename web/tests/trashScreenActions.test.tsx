@@ -7,7 +7,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { Mock } from "vitest";
-import type { DataService } from "@life-editor/shared";
+import {
+  ScheduleRestoreConflictError,
+  type DataService,
+} from "@life-editor/shared";
 import { TrashScreen } from "../src/trash/TrashScreen";
 
 /*
@@ -277,6 +280,50 @@ describe("TrashScreen — what the screen shows after the call returns", () => {
     );
     // Every category is re-read, not just the one that changed.
     expect(fns.fetchDeletedTodos).toHaveBeenCalledTimes(2);
+  });
+
+  /*
+   * #932 — a restore the DB refuses. The occurrence's (routine, date) pair was
+   * re-taken by the generator while the row sat in the trash, so the row stays
+   * where it is. It used to leave through an unhandled rejection: the reload
+   * put the row back on screen and nothing anywhere said why the click did
+   * nothing.
+   */
+  it("explains a refused restore without swapping the list for the error card", async () => {
+    const harness = makeHarness();
+    harness.fns.restoreScheduleItem.mockRejectedValueOnce(
+      new ScheduleRestoreConflictError(["event-1"]),
+    );
+    render(<TrashScreen dataService={harness.ds} />);
+    await screen.findByRole("region", { name: "Todos" });
+
+    fireEvent.click(
+      within(row("Events", "Dentist")).getByRole("button", {
+        name: "Restore",
+      }),
+    );
+
+    const notice = await screen.findByRole("status");
+    expect(notice.textContent).toContain("already has this repeating event");
+    // The list is still the list — a refusal is not a broken screen.
+    expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
+    within(screen.getByRole("region", { name: "Events" })).getByText("Dentist");
+  });
+
+  it("says something different when a restore simply broke", async () => {
+    const harness = makeHarness();
+    harness.fns.restoreNoteUnified.mockRejectedValueOnce(new Error("offline"));
+    render(<TrashScreen dataService={harness.ds} />);
+    await screen.findByRole("region", { name: "Todos" });
+
+    fireEvent.click(
+      within(row("Notes", "Design memo")).getByRole("button", {
+        name: "Restore",
+      }),
+    );
+
+    const notice = await screen.findByRole("status");
+    expect(notice.textContent).toContain("Couldn't restore");
   });
 
   it("retries the whole fetch from the error card", async () => {
