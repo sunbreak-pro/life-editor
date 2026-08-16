@@ -120,6 +120,13 @@ export {
 // #940: the all-day switch, shared by the creating and the editing side so
 // the control is the same object in both.
 export { AllDaySwitch, type AllDaySwitchProps } from "./AllDaySwitch";
+// #468: the calendar lens — the single-select chip row under the toolbar that
+// narrows the grid to one calendar (#889 lifted it out of CalendarTab).
+export {
+  CalendarLensRow,
+  type CalendarLensRowProps,
+  type CalendarLensRowLabels,
+} from "./CalendarLensRow";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {

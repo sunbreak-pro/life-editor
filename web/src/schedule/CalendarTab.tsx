@@ -24,7 +24,7 @@ import {
   ItemDetailOverlay,
   TodoDetailPanel,
   STATUS_TEXT_KEY,
-  StatusFilterChips,
+  CalendarLensRow,
   ResponsiveDetailFrame,
   Modal,
   ConfirmDialog,
@@ -2066,6 +2066,65 @@ export function CalendarTab({
     </ItemDetailOverlay>
   );
 
+  // #889: the Desktop main area, hoisted out of the return so the layout
+  // below reads as what it is — toolbar, lens, body, overlays. Same three
+  // states the narrow branch shows, in the wrappers Desktop needs.
+  const desktopBody = showLoading ? (
+    loadingCard
+  ) : showError ? (
+    errorCard
+  ) : desktopView === "month" ? (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <MonthGrid
+        monthKey={anchorDate}
+        items={monthItems}
+        todayKey={today}
+        weekStartsOn={weekStartsOn}
+        weekdayLabels={weekdayLabels}
+        onSelectDay={handleMonthCreate}
+        onItemActivate={handleItemActivate}
+        onItemDoubleClick={handleItemOpenDetail}
+        onItemContextMenu={handleItemContextMenu}
+        formatMoreCount={(n) => t("scheduleScreen.moreCount", { count: n })}
+        formatDayLabel={formatFullDay}
+        ariaLabel={t("scheduleScreen.calendar")}
+        className="h-full"
+      />
+    </div>
+  ) : (
+    // Item detail moved into a body-level overlay (#299), so the grid
+    // takes the full width the editor <aside> used to share.
+    <div className="min-h-0 flex-1">
+      <WeekTimeGrid
+        data={{
+          weekStart: desktopView === "day" ? anchorDate : weekStart,
+          days: desktopView === "day" ? 1 : 7,
+          items: gridItems,
+          selectedId,
+          todayKey: today,
+          nowMinutes,
+        }}
+        labels={{
+          weekdays: weekdayLabels,
+          allDay: t("scheduleScreen.allDay"),
+          status: statusLabels,
+          createSlot: t("scheduleCalendar.createSlot"),
+        }}
+        handlers={{
+          onItemActivate: handleItemActivate,
+          onItemDoubleClick: handleItemOpenDetail,
+          onItemContextMenu: handleItemContextMenu,
+          onCreateAt: handleGridCreateAt,
+          onMoveItem: handleMoveItem,
+          onResizeItem: handleResizeItem,
+          onDropAllDay: handleDropAllDay,
+        }}
+        display={{ todoInteractive: true, fillHeight: true }}
+        format={{ dayDate: formatDayDate }}
+      />
+    </div>
+  );
+
   // ── Desktop ────────────────────────────────────────────────────────────────
   if (isWide) {
     return (
@@ -2097,103 +2156,23 @@ export function CalendarTab({
               }),
             }}
           />
-          {/* #468 calendar lens. One row of single-select chips directly under
-              the toolbar — Desktop only, and rendered at all only when there
-              is a calendar to offer, so the empty case costs no vertical
-              space. While the tags are still loading (or their fetch failed)
-              `activeTagIds` is empty, so nothing is offered and the row simply
-              is not there — the safe direction: it appears once the data
-              lands, and it never offers a chip that would empty the grid.
-              The "N 件を非表示" line uses the lens's OWN count
-              (hiddenByCalendar, both grid layers), not a running total: rows
-              the repeat filter already folded away are reported by the toolbar
-              button instead, and adding the two would claim more missing rows
-              than there are. */}
-          {calendarChips.length > 0 && (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <StatusFilterChips
-                chips={calendarChips}
-                value={activeCalendar?.id ?? null}
-                onChange={handleSelectCalendar}
-                label={t("scheduleScreen.calendarFilterLabel")}
-                size="sm"
-              />
-              {activeCalendar && (
-                <>
-                  <span className="text-xs text-lumen-text-secondary">
-                    {t("scheduleScreen.calendarFilterHidden", {
-                      count: hiddenByCalendar,
-                    })}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectCalendar(null)}
-                    className="rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-                  >
-                    {t("scheduleScreen.calendarFilterShow")}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+          {/* #468 calendar lens — Desktop only. Its "why is this empty" rules
+              (no chips ⇒ no row; the hidden count is the lens's own, not a
+              running total) live in the component now (#889). */}
+          <CalendarLensRow
+            chips={calendarChips}
+            activeId={activeCalendar?.id ?? null}
+            onChange={handleSelectCalendar}
+            labels={{
+              filterLabel: t("scheduleScreen.calendarFilterLabel"),
+              hidden: t("scheduleScreen.calendarFilterHidden", {
+                count: hiddenByCalendar,
+              }),
+              showAll: t("scheduleScreen.calendarFilterShow"),
+            }}
+          />
           {rangeErrorBanner}
-          {showLoading ? (
-            loadingCard
-          ) : showError ? (
-            errorCard
-          ) : desktopView === "month" ? (
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <MonthGrid
-                monthKey={anchorDate}
-                items={monthItems}
-                todayKey={today}
-                weekStartsOn={weekStartsOn}
-                weekdayLabels={weekdayLabels}
-                onSelectDay={handleMonthCreate}
-                onItemActivate={handleItemActivate}
-                onItemDoubleClick={handleItemOpenDetail}
-                onItemContextMenu={handleItemContextMenu}
-                formatMoreCount={(n) =>
-                  t("scheduleScreen.moreCount", { count: n })
-                }
-                formatDayLabel={formatFullDay}
-                ariaLabel={t("scheduleScreen.calendar")}
-                className="h-full"
-              />
-            </div>
-          ) : (
-            // Item detail moved into a body-level overlay (#299), so the grid
-            // takes the full width the editor <aside> used to share.
-            <div className="min-h-0 flex-1">
-              <WeekTimeGrid
-                data={{
-                  weekStart: desktopView === "day" ? anchorDate : weekStart,
-                  days: desktopView === "day" ? 1 : 7,
-                  items: gridItems,
-                  selectedId,
-                  todayKey: today,
-                  nowMinutes,
-                }}
-                labels={{
-                  weekdays: weekdayLabels,
-                  allDay: t("scheduleScreen.allDay"),
-                  status: statusLabels,
-                  createSlot: t("scheduleCalendar.createSlot"),
-                }}
-                handlers={{
-                  onItemActivate: handleItemActivate,
-                  onItemDoubleClick: handleItemOpenDetail,
-                  onItemContextMenu: handleItemContextMenu,
-                  onCreateAt: handleGridCreateAt,
-                  onMoveItem: handleMoveItem,
-                  onResizeItem: handleResizeItem,
-                  onDropAllDay: handleDropAllDay,
-                }}
-                display={{ todoInteractive: true, fillHeight: true }}
-                format={{ dayDate: formatDayDate }}
-              />
-            </div>
-          )}
+          {desktopBody}
         </div>
         {calendarsModal}
         {popoverEl}
