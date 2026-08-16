@@ -13,12 +13,10 @@
 
 ## 直近の完了
 
+- #896 KanbanView / TagEditModal の分割 ✅（2026-08-16 — **PR #953 open**（Closes #896・merge = こうだいさん）。挙動変更ゼロ。`TagEditModal.tsx` 1,050 → `shared/src/components/tagEdit/` 8 ファイル（最大 394・公開名は barrel で 4 つに固定）、`web/src/todos/KanbanView.tsx` 946 → 384（`useKanbanColumns` / `KanbanBoardSurface` / `TodoDetailContent` / `useTodoDetailActions` / `useTodoAddDialog` / `TodoBodyDraft` へ）。4 出口が同じ ConfirmDialog と dirty ref を共有するため actions は 1 hook に集約。既存テスト**無改変**で緑 + `t()` キー 46 件・class 文字列 40 件の前後一致で挙動不変を機械照合。shared 2232 / web 485 + 両 lint / build すべて exit 0）
 - #873 Todo ステータスの 2 値化（保存値ごと）✅（2026-08-16 — **PR #926 open**（Closes #873・merge = こうだいさん）。裁定 D-20260815-materials-1 = B。`TodoStatus` を `NOT_STARTED | DONE` へ縮め、リスト行は `TodoStatusCheckbox`（`role="checkbox"`）に置換（旧 `TodoStatusCycleButton` は削除）。Kanban 2 列 / Mobile フィルタ 2 チップ / タッチ選択行 2 択はすべて `STATUS_ORDER` 由来で自動追随。**DDL なし** — CHECK は 3 値のままで、レガシー行は `todoMapper.toStatus` と MCP `toToolStatus` が `NOT_STARTED` / `not_started` へ畳む。MCP は裁定どおり破壊的変更（enum から `in_progress` 撤去・briefing の IN_PROGRESS クエリ撤去で open todo = carry-over のみ）。shared 2201 / web 408 / mcp 283 テスト + 両 `typecheck:tests` + docs-lint すべて exit 0）
 - materials 7 件連続処理（#886 / #883 / #884 / #885 / #875 を PR 化・#873 / #876 はキュー）✅（2026-08-15 — **PR #888 / #899 / #908 / #911 / #912 すべて open**（merge = こうだいさん）。1 Issue = 1 ブランチ = 1 PR。#886 = `MenuItem` の `focus:` → `focus-visible:`（開いた瞬間に先頭行へフォーカスが乗る WAI-ARIA 仕様のせいで Pin/Unpin だけ常時ホバー色だった）/ #883 = taskList ラベルを 1 行分の行ボックス + 同じ上マージンにして中心を一致 / #884 = Links を rightSidebar から詳細ヘッダーの [+Tag] 右へ移し方向マージ / #885 = kebab の左にピンマーカー / #875 = `SectionDescriptor.narrowWidth` で狭幅 Materials を fluid 化し FAB を画面端へ。未決 = D-20260815-materials-1（#873 の 2 値化の深さ）/ D-20260815-materials-2（#876 でモバイル詳細シートを畳むか））
-- #776 inline `[[` リンク配線の 3 つ写しを 1 実装へ ✅（2026-08-13 — **PR #808 open**（Closes #776・merge = こうだいさん）。新規 `web/src/hooks/useInlineItemLinks.ts` に重複ガード / inline エッジ作成 / 保存後 delete-sync を集約し、Notes / Tasks / Daily の 3 面がそこを通る。Daily の park / flush は Daily 固有として残し flush の内側だけ差し替え。console タグはホスト名を引数化（`useTaskLinking` に焼き付いていた `[KanbanView]` の写し痕を解消）。テスト +16 本（共有ガード 8 / Notes 3 / Daily 5 — Daily は park→保存→エッジ と #372 fold のどちらも初カバー）。8 ゲート exit 0）
-- #680 Notes の i18n 取りこぼし 3 点（ゴミ箱行 aria-label / 本文 placeholder / en の単複）✅（2026-08-11 — **PR #693 open**（Closes #680・merge = こうだいさん）。catalog に 4 キー追加 + `taskCount` を i18next 複数形へ。ja を実際に描画して読み戻す `web/tests/notesI18n.test.tsx` を新設（既存 notesView.test.tsx は `t` をキーのエコーに差し替えるため、この種のバグに構造的に無反応だった）。en/ja lockstep 検査を shared/tests/i18n.test.ts に追加）
 
 ## 予定
 
-- #896（KanbanView 948 行 / TagEditModal 1,050 行の分割 — タイトル prefix は [refactor-core] だが `section:materials` ラベルで自分宛）
 - #876（モバイルの一覧をサイドバーへ / メインは本文 — 裁定 D-20260815-materials-2 = A でボトムシートを畳む）

@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-16 - #896 KanbanView / TagEditModal の分割（PR #953）
+
+#### 概要
+
+Materials に残っていた 1,000 行級 2 本を、挙動変更ゼロで分割した。`TagEditModal.tsx` 1,050 行 → `shared/src/components/tagEdit/` 8 ファイル（最大 394）、`web/src/todos/KanbanView.tsx` 946 → 384 行。PR #953 提出（Closes #896・merge = こうだいさん）。
+
+#### 変更点
+
+- **TagEditModal**: 1 ファイル内に同居していた 4 コンポーネント（`TagEditModal` / `TagMasterList` / `TagDetailPane` / `TaggedItemList` / `TagIconPicker`）をそれぞれのファイルへ。加えて公開 props を `types.ts`、下書きオーバーレイの導出（`tagRowPatch` / `NO_EDITS`）を `tagRowPatch.ts` に分離。`tagEdit/index.ts` を置いて公開名を 4 つに絞り、列やピッカーは内部に留めた。app barrel 側は import 元が `./TagEditModal` → `./tagEdit` に変わっただけ
+- **KanbanView**: 残したのは配線のみ。`useKanbanColumns`（labels + 3 つの column model）/ `KanbanBoardSurface`（ツールバー + plain / DnD 分岐 + DragOverlay）/ `TodoDetailContent`（両幅が開く詳細パネル）/ `useTodoDetailActions`（4 つの出口と各々が先に聞く質問）/ `useTodoAddDialog` / `TodoBodyDraft` へ切り出し
+- **`useTodoDetailActions` を 1 本にした理由**: convert / delete / discard / shell teardown の 4 出口が**同じ ConfirmDialog と同じ dirty ref を共有**している。別インスタンスに割ると delete の確認が discard の確認の上に重なり得るし、convert が自分用の dirty フラグを読むとパネルが書く値とズレる
+- **コメントの再配置**: 元ファイルの設計コメントは削らず、記述対象のファイルへ移した（レイアウトの経緯 → `TagDetailPane` / `TagMasterList`、下書きオーバーレイ → `tagRowPatch.ts`、DnD の非対称 → `KanbanBoardSurface`）
+- **挙動不変の機械照合**: 分割前後で KanbanView 系の `t()` キー 46 件、TagEditModal 系の `lumen-*` を含む class 文字列 36 件、KanbanView 系の同 4 件がいずれも完全一致。既存テストは**無改変**（テストファイルの diff ゼロ）で緑
+- **検証**: shared lint（0 error / 既存 warning 3）・build・test 2232、web lint（0 error / 既存 warning 4 = すべて CalendarTab）・build・test 485 の 6 ゲートが exit 0。`desktop` は未変更のため対象外（当 worktree に `desktop/node_modules` 未インストール）
+
 ### 2026-08-16 - #873 Todo ステータスを保存値ごと 2 値化（PR #926）
 
 #### 概要
@@ -62,34 +77,3 @@ section:materials の 7 Issue を bug 先行の指定順で処理し、5 件を 
 - **lockstep 検査**: `shared/tests/i18n.test.ts` に en/ja のキー集合照合を追加。比較は**複数形サフィックスを剥いだ base key** で行う（en = one + other、ja = other なので、素のキー集合一致を要求すると i18next が決して読まない `taskCount_one` を ja に置く羽目になる）。`_other` は両側に必須。追加時点で既存キーの欠落はゼロ
 - **検証**: shared lint / build / test（192 files・1623 tests）・web lint / build / test（25 files・190 tests）・`LC_ALL=C bash scripts/docs-lint.sh` すべて exit 0
 
-### 2026-08-10 - #588 NotesView 925 行の分割 + materials 3 画面のテスト整備（PR #646）
-
-#### 概要
-
-`web/src/notes/NotesView.tsx`（925 行）を責務ごとに 5 ファイルへ分割し、NotesView / DailyView / KanbanView に web/tests のテスト 36 本を新設した。テストを先に敷いてから分割し、同じテストが分割の前後で緑であることを挙動不変の根拠にした。PR #646 提出（Closes #588・CI 緑・merge = こうだいさん）。
-
-#### 変更点
-
-- **テスト先行（commit ba05c3ab）**: `web/tests/{notesView,dailyView,kanbanView}.test.tsx` を新設（14 + 11 + 11 = 36 本）。ホストの配線だけを固定 = どの幅でどちらの面が出るか / クリックが何に届くか / 各面が何をマウントしてよいか。合成する shared の部品（`buildTagGroups` / column builders / list・sheet・panel）は本物のまま残し、派生リストの回帰がここで落ちるようにした。TipTap とタグピッカーのみスタブ
-- **分割（commit ee2c2fc1）**: `NotesSidebarList`（Desktop 側リスト）/ `NotesMobileList`（Mobile ヘッダ + グループ + FAB）/ `NoteDetailSurface`（両面が載せる詳細パネル + パスワードゲート）/ `NoteBodyEditor`（配線済みエディタ 1 つ — 手写しコピー 2 箇所を廃止）/ `hooks/useNotePassword`。ホスト 925 → 469 行
-- **ホストに残した判断**: 派生リストとシート対象は両面が読むため（面の内側で計算すると各ブレークポイントが同じ状態の別コピーを持つ）。Links / Trash の開閉も同じ理由（側リストは narrow で unmount するため、下ろすとリサイズで開閉を忘れる）
-- **挙動不変の根拠**: `t()` キー集合が分割前後で完全一致（機械照合・i18n catalog 追加なし）／分割前に緑だった NotesView 14 本が無修正で緑／`git diff origin/main -- shared/` が空
-- **検証**: shared lint 0 error・test 1512・build 緑／web lint 0・build 緑・test 160（18 files）。CI（typecheck + test + build / docs-lint）緑
-- **#587 との調整**: `useNotesUnifiedAPI` / `SupabaseNotesUnifiedService`（shared-fix レーン担当）には触っていない。着手前・PR 前に `git fetch` 済みで origin/main は動いていなかった
-- **環境**: 未追跡の `AGENTS.md` / `.agents/` / `.codex/`（main が 2026-08-09 にポインタ化した旧全文コピー版）が checkout を塞いだため `git stash push -u` で退避（stash@{0}・同種の退避は stash@{1} にも既存）
-
-### 2026-07-23 - materials-refine 担当5件（#310/#311/#312/#302/#303）実装 + main 取り込み
-
-#### 概要
-
-section:materials の担当5 Issue を実装・検証・ローカルコミット。放置されていた未コミット WIP が実は #310 の残り（タグ編集モーダル + アイコン + 使用数）だったので完成させ、Notes の見出し/行/生成導線と Kanban タグ view を刷新。origin/main 取り込みで #322 の barrel 破損（8 テスト落ち）も回収。push は権限拒否のためユーザー実行待ち。
-
-#### 変更点
-
-- **#310（tag 編集集約）**: 放置 WIP を完成 = shared `TagEditModal` + `tagIcon`（curated lucide picker）+ `wiki_tags.icon`（type/mapper/WIKI_TAGS_COLUMNS）+ migration `0022`（local-first・DDL push は🛑人手）+ `useWikiTagsUnifiedAPI` に `setTagIcon`/`countsByTag`（role 横断 active assignment 集計）+ NotesView サイドバー下部に編集導線。commit 15e9ef45
-- **#311（見出し区切り化）**: `DesktopTagHeading` を [アイコン]+[色帯 pill（TagPill と同 tint）]+[件数]+[罫線]へ。folder 風 `border-l` インデント撤去・モバイル見出しも同調。`NoteTagGroup` に `tagIcon` 追加 + buildTagGroups 単体テスト
-- **#312（グリップ撤去）**: `GripVertical` 撤去・行全体を drag activator に（既存 PointerSensor `distance:5` で click＝開く / drag＝タグ付与を切り分け）。a11y 追随で `<li>` の role を listitem に戻す（attributes の button 化がリスト構造を壊すため）。commit 018bb125
-- **#302（生成導線）**: Add Note を rightSidebar → メインコンテンツ右上へ移設（Tasks board toolbar と同位置感）。サイドバーは検索 + sort/filter 残置・モバイルは floating + 維持
-- **#303（Kanban タグ view）**: タグ view のみ `flex-wrap max-w-[980px]`（3×316+2×gap）で最大3列折り返し・縦スクロール化。status view は無変更
-- **git**: `merge origin/main`（MainScreen `headerControls` conflict を #322 側採用 → `HeaderUndoRedo` 重複解消・itemContextMenu 8 テスト回復）。リモート旧 `claude/materials-refine`（54 コミット）は全て squash merge 済みと確認（PR #264/#270/#289/#308）→ `--force-with-lease` 貼り替え方針
-- **QA / 残**: role-qa 独立レビュー PASS（Blocking 0）。使用数の trash 過大計上 edge case（note soft-delete が assignment に非波及）を outbox で chat-main へ低優先起票依頼。残ゲート = push（拒否→ユーザー）/ PR / `supabase db push` 0022 / merge / Issue close
