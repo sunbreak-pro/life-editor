@@ -120,14 +120,14 @@ async function search(
   domain: "todos" | "notes" | "dailies",
   args: { limit?: number; offset?: number } = {},
 ): Promise<Page & { totalHits: number }> {
-  const res = (await searchAll({
-    query: "alpha",
-    domains: [domain],
-    ...args,
-  })) as Record<string, unknown>;
+  // No `as Record<string, unknown>` here any more: searchAll used to return a
+  // type with no domain keys on it at all (the spread dropped the index
+  // signature — see the comment on `result` in searchHandlers.ts), and this
+  // cast was how the suite got past that. The keys are named now.
+  const res = await searchAll({ query: "alpha", domains: [domain], ...args });
   return {
     ...(res[domain] as unknown as Page),
-    totalHits: res.totalHits as number,
+    totalHits: res.totalHits,
   };
 }
 
