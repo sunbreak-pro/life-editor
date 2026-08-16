@@ -40,7 +40,7 @@ import {
   WIDE_QUERY,
   dateFromKey,
 } from "@life-editor/shared";
-import { RichTextEditor } from "../notes/RichTextEditor";
+import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import {
   useItemLinkTargets,
   type LoadItemLinkTargets,
@@ -137,7 +137,7 @@ function EditorCard({
           unmount/beforeunload, the onBlur-commit equivalent. The key remounts
           the editor on date switch / external content change only — never on
           our own save echo — so typing keeps cursor + IME state. */}
-      <RichTextEditor
+      <LazyRichTextEditor
         key={editorKey}
         noteId={`daily-${date}`}
         initialContent={initialContent}

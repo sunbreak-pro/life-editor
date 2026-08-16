@@ -217,7 +217,7 @@ describe("KanbanView — the todo detail", () => {
     expect(state.open).toHaveBeenCalled();
   });
 
-  it("renders the selected todo's panel with its own editor", () => {
+  it("renders the selected todo's panel with its own editor", async () => {
     state.selectedId = "task-a";
     render(<KanbanView />);
 
@@ -225,7 +225,10 @@ describe("KanbanView — the todo detail", () => {
       "todoDetail.titleLabel",
     ) as HTMLInputElement;
     expect(title.value).toBe("Buy milk");
-    expect(screen.getByTestId("editor").textContent).toBe("task-a");
+    // findBy, not getBy: the editor is loaded on its own chunk since #991, so
+    // the panel's own fields paint before it does. That order is the point —
+    // the title is usable while the editor is still on the wire.
+    expect((await screen.findByTestId("editor")).textContent).toBe("task-a");
   });
 
   it("renders no panel while nothing is selected", () => {
