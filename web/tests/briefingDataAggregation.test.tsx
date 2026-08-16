@@ -272,7 +272,7 @@ describe("useBriefingData — evening blocks (#892)", () => {
         makeTodo({
           id: "t-today",
           title: "Write report",
-          status: "IN_PROGRESS",
+          status: "NOT_STARTED",
           scheduledAt: localDateTimeToISO(TODAY, "09:00"),
         }),
         makeTodo({
@@ -283,7 +283,7 @@ describe("useBriefingData — evening blocks (#892)", () => {
         }),
         makeTodo({
           id: "t-carry",
-          status: "IN_PROGRESS",
+          status: "NOT_STARTED",
           scheduledAt: localDateTimeToISO(YESTERDAY, "09:00"),
         }),
       ],
@@ -295,8 +295,8 @@ describe("useBriefingData — evening blocks (#892)", () => {
     expect(
       result.current.remainingTodos.map((r) => [r.id, r.status, r.meta]),
     ).toEqual([
-      ["t-today", "IN_PROGRESS", undefined],
-      ["t-carry", "IN_PROGRESS", "day 2"],
+      ["t-today", "NOT_STARTED", undefined],
+      ["t-carry", "NOT_STARTED", "day 2"],
     ]);
   });
 
@@ -384,7 +384,7 @@ describe("useBriefingData — today's todo tray (#892)", () => {
       todos: [
         makeTodo({
           id: "t-progress",
-          status: "IN_PROGRESS",
+          status: "NOT_STARTED",
           scheduledAt: localDateTimeToISO(TODAY, "00:00"),
           isAllDay: true,
         }),
@@ -392,6 +392,6 @@ describe("useBriefingData — today's todo tray (#892)", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.todoUnplaced[0]?.status).toBe("IN_PROGRESS");
+    expect(result.current.todoUnplaced[0]?.status).toBe("NOT_STARTED");
   });
 });

@@ -98,10 +98,10 @@ describe("useBriefingData — todo status writes (#892)", () => {
     // The stamp is what decides whether a closed todo still belongs on today's
     // paper, so re-opening a row has to clear it rather than leave it behind.
     await act(async () =>
-      result.current.handleSetTodoStatus("t1", "IN_PROGRESS"),
+      result.current.handleSetTodoStatus("t1", "NOT_STARTED"),
     );
     expect(mockOf(ds, "updateTodo")).toHaveBeenLastCalledWith("t1", {
-      status: "IN_PROGRESS",
+      status: "NOT_STARTED",
       completedAt: undefined,
     });
   });
