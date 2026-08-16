@@ -1,43 +1,30 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { DESKTOP_IPC, type DesktopIpcApi } from "../shared/ipcContract";
 
 // Thin, serializable-only bridge. Business logic lives in shared/web; this only
 // exposes the desktop shell's local prefs (theme / window bounds / version)
 // plus the auth-session storage (#838).
 //
-// Risk 1 guard: keep the number of exposed functions <= 10. Current count = 7.
-const api = {
-  /** Read the persisted theme preference ("light" | "dark" | "system"). */
-  getTheme: (): Promise<"light" | "dark" | "system"> =>
-    ipcRenderer.invoke("config:getTheme"),
-  /** Persist the theme preference and apply it to the OS color scheme. */
-  setTheme: (theme: "light" | "dark" | "system"): Promise<typeof theme> =>
-    ipcRenderer.invoke("config:setTheme", theme),
-  /** Read the last persisted window bounds. */
-  getWindowBounds: (): Promise<{
-    width: number;
-    height: number;
-    x?: number;
-    y?: number;
-  }> => ipcRenderer.invoke("window:getBounds"),
-  /** Read the desktop app version (from package.json at runtime). */
-  getAppVersion: (): Promise<string> => ipcRenderer.invoke("app:getVersion"),
-  /**
-   * Supabase auth-session storage (#838). The packaged renderer runs on
-   * file://, where localStorage is not reliably persisted, so the session is
-   * stored in the main process (safeStorage-encrypted) instead. Consumed by
-   * shared/src/services/supabaseAuthStorage.ts via `window.desktop.authStorage`.
-   */
+// The channel names and the call signatures both come from ../shared/
+// ipcContract (#894) — main reads the same names, so renaming one end alone
+// no longer compiles. The `DesktopIpcApi` annotation is what makes a missing
+// or mistyped method a build error here rather than a runtime rejection in
+// the packaged app.
+const api: DesktopIpcApi = {
+  getTheme: () => ipcRenderer.invoke(DESKTOP_IPC.getTheme),
+  setTheme: (theme) => ipcRenderer.invoke(DESKTOP_IPC.setTheme, theme),
+  getWindowBounds: () => ipcRenderer.invoke(DESKTOP_IPC.getWindowBounds),
+  getAppVersion: () => ipcRenderer.invoke(DESKTOP_IPC.getAppVersion),
   authStorage: {
-    getItem: (key: string): Promise<string | null> =>
-      ipcRenderer.invoke("authStorage:getItem", key),
-    setItem: (key: string, value: string): Promise<void> =>
-      ipcRenderer.invoke("authStorage:setItem", key, value),
-    removeItem: (key: string): Promise<void> =>
-      ipcRenderer.invoke("authStorage:removeItem", key),
+    getItem: (key) => ipcRenderer.invoke(DESKTOP_IPC.authStorageGetItem, key),
+    setItem: (key, value) =>
+      ipcRenderer.invoke(DESKTOP_IPC.authStorageSetItem, key, value),
+    removeItem: (key) =>
+      ipcRenderer.invoke(DESKTOP_IPC.authStorageRemoveItem, key),
   },
 };
 
 // contextIsolation is on, so expose via contextBridge only.
 contextBridge.exposeInMainWorld("desktop", api);
 
-export type DesktopApi = typeof api;
+export type DesktopApi = DesktopIpcApi;
