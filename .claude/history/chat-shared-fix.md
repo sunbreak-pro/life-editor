@@ -1,5 +1,25 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-16 - #919 パスワードの変更 / 再設定の導線
+
+#### 概要
+
+パスワードを忘れると、アプリ側から二度と復旧できなかった（2026-08-15 に実際に詰まり、SQL エディタから `auth.users.encrypted_password` を直接書き換えて復旧している）。原因は 2 つで、リカバリーリンクを踏んでもアプリが URL のトークンを一切読まないことと、パスワード変更を呼ぶ実装がどこにも無いこと。両方を塞いで PR #930（open・Closes #919）。全ゲート緑 + `web` の `typecheck:tests` も実行。merge はユーザー手番（P-001）。
+
+#### 変更点
+
+- **`detectSessionInUrl: false` → `true`**（`D-20260816-shared-fix-1` = A）。切り替え前に測ったのは 3 点: アプリ側に URL を解釈する経路が 1 件も無い（React Router なし・`location.hash` / `location.search` / `URLSearchParams` の参照がゼロ）/ Electron は `file://`・Capacitor は `capacitor://localhost` でパラメータが載らない / supabase-js は callback パラメータが載っているときだけ URL を読む（`GoTrueClient._initialize` の `callbackUrlType` ガード）。**実効の影響範囲は公開 Web URL に閉じる**
+- **却下した B**（recovery 限定の判定関数）が危ないのは、期限切れリンクが `type` を持たない `#error=…` で来るため。判定関数が偽を返すとそれごと無視され、#919 と同じ「踏んでも無反応」を再生産する
+- **忘れた側の導線**: `AuthCard` に「パスワードを忘れた場合」（サインインモードのみ）→ `PasswordResetRequestCard` → メール → `PasswordRecoveryCard`。**リカバリーリンクはユーザーをサインインさせてしまう**ので、セッションの有無だけで判定すると MainScreen に着地して再設定手段が消える。`web/src/App.tsx` が `PASSWORD_RECOVERY` を拾って振り分ける
+- **覚えている側の導線**: Settings に `SettingsAccount` カード（ユーザー確定・同 D ファイル末尾）。この画面の他カードと違い即時反映にせず明示的な送信ボタン。アドレスは `getSession()` から 1 回読む（`sectionDescriptors` が props 無しで描くため、1 文字列のために contract を広げない判断）
+- **共通化**: `AuthCard` から下地クラス（`authSurface.ts`）・ブランドヘッダ・アラート帯を切り出して 3 枚のカードで共有。確認帯用に `success-subtle` を `danger-subtle` と同じレシピ（不透明・bg-secondary に事前合成）で追加
+- **リンク要求の返答はアドレスの有無で変えない**。Supabase 自身が開示しないので、画面が「登録済みアドレス判定機」にならないようにする。テストで文言ごと固定
+- **security-reviewer 通過後の追加修正 3 件**（Blocking 0・以下はすべてこのブランチが新しく作った穴）: (1) `PASSWORD_RECOVERY` は 1 度しか飛ばないのにセッションはリロードを生き延びるため、再設定カードで F5 を押すと忘れたままのパスワードでアプリに入れた → 「まだ設定していない」印を sessionStorage に置き、セッションが無いときは印を捨てる (2) supabase-js は成功時に `location.hash` を空代入するだけ・期限切れでは例外を投げるので何も消さない → 読み終わったあと `history.replaceState` で落とす。**空代入が 1 つ新しい履歴エントリを作るので、生トークンを持つ 1 つ前のエントリはページ内から消せない**（消すには PKCE） (3) 連打ガードが `busy`（そのレンダー時点の値）を見ていた → ref へ
+- **実装せずキューへ**（`D-20260816-shared-fix-2`〜`-5`）: implicit フローのセッション固定面（PKCE 切替は殻からの要求導線を壊すので設計判断）/ 変更時の再認証（Secure password change は**リカバリー経路も同じ `updatePassword()` を通る**ので、ON にする前に実測しないと「忘れた人が再設定できない」最悪形に戻る）/ 最小長 6→10-12 / 未再設定で離脱したときのサインアウト
+- **outbox へ 1 件**: 公開 Web に CSP と `Referrer-Policy` が未設定（#919 の diff 外の既存の穴。URL に一瞬載るトークンが増えたぶん持ち出し先が 1 つ増えた）
+- **テスト**: `authScreenRecovery`（忘れた側 2 経路 + 確認欄のタイプミスが Supabase に届かないこと）/ `settingsAccountCard`（`updateUser({ password })` は無条件に成功するのでクライアント側で止まることを固定）/ `appRecoveryGate`（再設定を終える前にアプリ本体へ抜けられないこと 6 件）
+- **未確認**: メールを受け取ってリンクを踏む一連の流れ。Supabase ダッシュボード（Redirect URLs 登録 / テンプレート確認 / 実送信）が 🛑 ユーザー手番のため、そこが済むまで通し確認できない
+
 ### 2026-08-15 - #880 Save ボタンの白い帯と #874 Mobile パネルの全画面化
 
 #### 概要
@@ -64,29 +84,3 @@ shared-fix 2 連。#838 = 同じ端末で毎回ログインし直しになる問
 - **#827**: `tokens.css` に `color-scheme: light/dark`（テーマ属性スコープ・ThemePreviewCard の入れ子 light も考慮）+ `:root` の `scrollbar-color: var(--color-border-strong) transparent`（継承でアプリ全域・トークン経由でハードコード無し）。jsdom はスクロールバーを描けないため宣言のピン留めテストで回帰を防止
 - **申し送り**: 実測系 DoD（パッケージ版 Electron 再起動 / モバイル殻再起動 / ダークテーマ目視）は merge 後 chat-main 実測 — 両 PR 本文に記載済み
 
-### 2026-08-13 - #782 MCP 棚卸しの残り 3 塊を 3 PR で実装
-
-#### 概要
-
-#702 Step 1 棚卸しで挙がったが Step 2 に入らなかった「追加」寄り 3 塊を、Issue の区切りどおり独立 3 PR（main から個別に分岐）で実装。① 欠けている操作 = PR #822（書いた時点で merged）/ ② 戻り値の穴 = PR #828 / ③ 文脈ツール横展開 = PR #832（どちらも open）。各塊とも role-engineer 実装 → role-qa 独立監査 → Blocking/Important を修正して commit の流れ。
-
-#### 変更点
-
-- **① 欠けている操作（#822）**: `restore_item`（task/note/event・live id は書き込みゼロの no-op）/ `delete_note` / `untag_entity`（tag_entity の revive と対になる soft delete）/ `update_note.is_pinned`。記録型スタブ `tests/supabaseStub.ts` 新設（書き込みは await 実行時にカウント — QA 指摘反映）。VALID_CALLS と公開ツール一覧の網羅テスト追加。docs は AC8 の「MCP 経由では削除できない」を反転、Notes/WikiTags の Coverage 列挙を参照化
-- **② 戻り値の穴（#828）**: `get_daily` を exists/isTrashed/hasBriefing の 3 分岐に（trash の本文は返さない）。`search_all` を per-domain {results,total,hasMore} + offset に刷新、dailies に id。tasks は server 側 .limit 撤去 → in-app merge で total 正確化 + id タイブレーク（QA 指摘）。limit/offset の明示 null は未指定扱い（validator の寛容則と整合 — QA 指摘）
-- **③ 文脈ツール（#832）**: `get_week_context`（範囲クエリ 4 本・宣言コメントと一致）/ `get_note_context`（note+tags+links/backlinks）。getTodayContext の整形を共有ヘルパ化（戻り値不変を characterization テストで初めて固定）。carriedOver の文字列比較 → instant 比較（PostgREST `+00:00` vs `.000Z` で週初日 0:00 が誤って持ち越し扱い — QA 検出の実バグ・get_today_context も同時修正）
-- **合流事故 2 件の検出と収束**: main が 2 度赤くなっていた（#822 の網羅テスト × #700 の 3 ツール = mcp / #788 系 × 別 PR = web kanban）。前者は当レーンが検出し #829（chat-main）と両側から修復 → 重複行は #832 側で削除。後者も #829 が修復済みを確認し、最新 main を #832 に merge して統合ツリーで全ゲート再実測
-- **見送り分の行き先**: QA Suggestion のうち別課題級 4 件は outbox（`comm/outbox/chat-shared-fix.md`）へ起票依頼として記載
-
-### 2026-08-13 - #672 schedule hook の導出 loading 化と eslint baseline の退役
-
-#### 概要
-
-#672 の最終 PR。baseline 3 ファイルの最後だった `useScheduleItemsAPI` を `useDomainLoad`（#769 の共通 load effect）へ移植し、`shared/eslint.config.js` の BASELINE ブロックを削除のみの diff で全撤去した。PR #801（書いた時点で open）。calendars / routines（PR #769）・routine UndoRedo（PR #686）は merge 済みだったため、本セッションの残作業はこの 1 本のみ。
-
-#### 変更点
-
-- **useScheduleItemsAPI**: load effect を `useDomainLoad` へ移植。anchored date は `anchor` として渡し、日付切替は Realtime bump と同じ経路でロードを再開始する。loading は導出（同期 `setIsLoading(true)` の削除 = render 1 回分の実変更・lint ロンダリングではない）。trash 読みは独立 effect のまま deps から `date` を除去（trash は日付アンカー無し・TrashView は開時に命令的再取得）
-- **eslint.config.js**: BASELINE ブロック 30 行を削除のみで撤去。`react-hooks/set-state-in-effect` が shared/ 全域で有効に
-- **テスト**: `scheduleItemsLoadEffect.test.tsx` 新規 5 件（routinesLoadEffect と同契約 + date アンカー再開始）。DoD の grep 3 点（baseline 0 / 削除のみ / hooks 配下 `setIsLoading(true)` 0 件）を実測達成 — useDomainLoad のコメント文言も文字列一致しないよう書き換えた
-- **申し送り**: merge 後の playwright（Schedule 初回描画 / 日付切替 / Realtime bump / Calendar 管理ビュー）は chat-main 宛てに PR 本文へ記載。完了で #672 を手動 close（PR に Closes を付けなかった理由）
