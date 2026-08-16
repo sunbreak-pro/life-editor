@@ -122,3 +122,11 @@
 `chore/tracker-refactor-core-20260816` は PR #923 で merge 済みですが、squash merge なのでローカル / リモートに「未マージ扱いの残骸」が残ります。同名を作り直せず、今日は `-2`（PR #952）と `-3`（本 PR）を切りました。
 
 `worktree-policy` の命名規約は `chore/tracker-<chat>-YYYYMMDD` なので、**1 日に複数回 tracker を回すレーンでは連番が要る**ことになります。規約に連番を明記するか、merge 済み tracker ブランチをローカルで削除する手順を足すか、どちらかを決めていただけると次回から迷いません。
+
+## 2026-08-16 chat-main 宛: PR #985（analytics 3 件）の実ブラウザ裏取りをお願いします
+
+レーンの無い analytics セクションの 3 件（#943 / #944 / #948）を **PR #985** にまとめました（3 件とも `shared/src/components/Analytics/` に落ち、#943 と #944 は同一ファイル）。merge 後に確認いただきたいのは #948 の DoD の残り半分です。
+
+- **お願い**: Briefing を 1 回開く / Analytics のタブを一巡する操作で `width(-1) and height(-1)` の警告が **0 件**であること、および **1440px と 390px** でチャート 10 種が従来どおり描かれること。§7.4 で dev server と playwright は chat-main のみなので、当レーンは jsdom + 実物の recharts で console を読むところまでで止めています（10 チャート全部をマウントして `console.warn` を assert・修正前のコードでは 14 件落ちることを実測済み）
+- **参考（同じ警告を他所で見たとき用）**: これは**レイアウトの問題ではありません**。recharts 3.7.0 の `ResponsiveContainer` はサイズ state を既定の `initialDimension = {-1, -1}` から始め（`responsiveContainerUtils.js:7`）、それを直す ResizeObserver は effect＝初回描画が警告を出した後にしか走らないので、`width="100%" height="100%"` のチャートは**全マウントで必ず 1 回出ます**。警告文が勧める `minWidth={0}` は効きません。判定は 2 辺の OR なので**高さを数値で渡せば消えます**（幅は `"100%"` のままで可）
+- **#944 で 1 つ判断しました**（PR 本文にも記載）: Issue が「付け忘れ」と名指ししていた時間軸 2 本（`WorkTimeChart` / `TodoWorkTimeChart`）には `allowDecimals={false}` を**付けていません**。`hours` は小数第 1 位まで丸めた値なので、整数刻みにすると 1.5h の日が軸から読めなくなります。「整数で集計しているので一律で付けてよい」という Issue の前提が時間軸だけ成り立たない、という判断です。再起票を防ぐため理由はコード側にコメントで残しました。**違うと思われる場合は差し戻してください**
