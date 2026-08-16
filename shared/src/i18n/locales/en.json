@@ -147,6 +147,8 @@
     "reload": "Reload",
     "restoring": "Restoring…",
     "deleting": "Deleting…",
+    "restoreConflict": "That day already has this repeating event, so the deleted one stays here. Delete the one on the calendar first if you want this exact item back.",
+    "restoreFailed": "Couldn't restore that item. Please try again in a moment.",
     "cascadeWarning": "Related sub-items and tag assignments are deleted together.",
     "permanentDeleteConfirm": "\"{{name}}\" will be permanently deleted. This cannot be undone."
   },
