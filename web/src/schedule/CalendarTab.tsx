@@ -25,7 +25,7 @@ import {
   TodoDetailPanel,
   STATUS_TEXT_KEY,
   StatusFilterChips,
-  BottomSheet,
+  ResponsiveDetailFrame,
   Modal,
   ConfirmDialog,
   useConfirmDialog,
@@ -1871,16 +1871,29 @@ export function CalendarTab({
   // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
   // #628: Escape and the backdrop both land on this one onClose, so guarding it
   // covers every Desktop exit at once.
-  const detailOverlayEl = (
-    <ItemDetailOverlay
-      open={isWide && overlayOpen && !!editorPane}
+  //
+  // #889: one frame const for both layouts. The overlay and the sheet used to
+  // be written out separately — the overlay here, the sheet at the end of the
+  // narrow branch — with the same title, the same body and the same close
+  // guard in each. What differs is only what "closed" MEANS: Desktop drops the
+  // overlay flag, Mobile clears the selection, because on Mobile the selection
+  // IS the sheet.
+  const detailFrameEl = (
+    <ResponsiveDetailFrame
+      wide={isWide}
+      open={isWide ? overlayOpen && !!editorPane : !!editorPane}
       title={t("scheduleScreen.detailTitle")}
+      closeLabel={t("common.close")}
+      // #628: Escape, the backdrop and the close button all land here, so the
+      // one guard covers every exit on either layout.
       onClose={() => {
-        void requestEditorClose(() => setOverlayOpen(false));
+        void requestEditorClose(() =>
+          isWide ? setOverlayOpen(false) : setSelectedId(null),
+        );
       }}
     >
       {editorPane}
-    </ItemDetailOverlay>
+    </ResponsiveDetailFrame>
   );
 
   /*
@@ -2004,36 +2017,22 @@ export function CalendarTab({
     </div>
   );
 
-  const todoDetailOverlayEl = (
-    <ItemDetailOverlay
-      open={isWide && !!todoDetailTodo}
-      title={t("materials.todos.detailTitle")}
-      onClose={closeTodoDetail}
-    >
-      {todoDetailBody}
-    </ItemDetailOverlay>
-  );
-
-  /*
-   * #761: the same panel on narrow. A todo row in the Mobile day list had no
-   * detail surface at all — the tap was dropped before it could ask for one
-   * (itemTapRoute) — so the row read as broken next to an event that opens.
-   *
-   * A BottomSheet rather than the overlay, matching the event editor beside it,
-   * and full-height since #874 — the 92svh cap left a strip of day list showing
-   * that jumped every time the keyboard opened. The scroller #633 asked for now
-   * comes with `fullScreen` rather than being rebuilt here.
-   */
-  const todoDetailSheetEl = (
-    <BottomSheet
-      open={!isWide && !!todoDetailTodo}
-      onClose={closeTodoDetail}
+  //
+  // #761 gave narrow the same panel: a todo row in the Mobile day list had no
+  // detail surface at all — the tap was dropped before it could ask for one
+  // (itemTapRoute) — so the row read as broken next to an event that opens.
+  // It arrives in a sheet, matching the event editor beside it, which is the
+  // same width split #889 folded into one frame here.
+  const todoDetailFrameEl = (
+    <ResponsiveDetailFrame
+      wide={isWide}
+      open={!!todoDetailTodo}
       title={t("materials.todos.detailTitle")}
       closeLabel={t("common.close")}
-      fullScreen
+      onClose={closeTodoDetail}
     >
       {todoDetailBody}
-    </BottomSheet>
+    </ResponsiveDetailFrame>
   );
 
   // #299 item-creation overlay (Desktop): the shared creation panel in an
@@ -2198,8 +2197,8 @@ export function CalendarTab({
         </div>
         {calendarsModal}
         {popoverEl}
-        {detailOverlayEl}
-        {todoDetailOverlayEl}
+        {detailFrameEl}
+        {todoDetailFrameEl}
         {createOverlayEl}
         {scopeDialogEl}
       </>
@@ -2385,32 +2384,17 @@ export function CalendarTab({
         labels={createPanelLabels}
       />
 
-      {/* Full height, like the Notes/Todos detail screens. The cap and the
-          hand-rolled scroller this used to carry (#633) both moved into
-          <BottomSheet fullScreen> with #874: the cap because a 92svh editor
-          left a live strip of calendar behind it that re-flowed on every
-          keyboard open, and the scroller because every full-height host needed
-          the same one — without it a tall editor pushes its own top edge past
-          the viewport and the only thing left to scroll is the document
-          (= pull-to-refresh). */}
-      <BottomSheet
-        open={!!editorPane}
-        // #628: the sheet's close button, its backdrop and Escape all funnel
-        // here, so one guard covers every Mobile exit too.
-        onClose={() => {
-          void requestEditorClose(() => setSelectedId(null));
-        }}
-        title={t("scheduleScreen.detailTitle")}
-        closeLabel={t("common.close")}
-        fullScreen
-      >
-        {editorPane}
-      </BottomSheet>
+      {/* The same two frame consts the Desktop branch places (#889) — the
+          width inside them picks the sheet here and the overlay there. Full
+          height on narrow, like the Notes/Todos detail screens; the cap and
+          the hand-rolled scroller this used to carry (#633) moved into
+          <BottomSheet fullScreen> with #874. */}
+      {detailFrameEl}
 
-      {/* #761: narrow's todo detail. Mounted after the editor sheet, though
-          the two are never open together — a tap resolves to exactly one of
-          them (itemTapRoute). */}
-      {todoDetailSheetEl}
+      {/* #761: narrow's todo detail. Mounted after the editor, though the two
+          are never open together — a tap resolves to exactly one of them
+          (itemTapRoute). */}
+      {todoDetailFrameEl}
 
       {scopeDialogEl}
 
