@@ -80,10 +80,12 @@ function Harness({ onSave }: { onSave: () => void }) {
       <EventEditorPane
         item={item}
         labels={LABELS}
-        onSave={onSave}
-        onToggleComplete={vi.fn()}
-        onDirtyChange={(dirty) => {
-          dirtyRef.current = dirty;
+        handlers={{
+          onSave,
+          onToggleComplete: vi.fn(),
+          onDirtyChange: (dirty) => {
+            dirtyRef.current = dirty;
+          },
         }}
       />
     </BottomSheet>

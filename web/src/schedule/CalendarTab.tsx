@@ -1411,7 +1411,7 @@ export function CalendarTab({
   const editorPane = editorItem ? (
     <EventEditorPane
       item={editorItem}
-      originDetail={originDetail}
+      labels={editorLabels}
       // #628: one commit per press, carrying everything that changed. It goes
       // to handleUpdate whole — that is what keeps a routine occurrence's
       // scope dialog (#279) to one appearance and makes cancelling it discard
@@ -1419,23 +1419,29 @@ export function CalendarTab({
       // more, so the day move and the all-day flip are plain capabilities
       // rather than callbacks: the pane holds them in its draft until the
       // button.
-      onSave={handleUpdate}
-      onDirtyChange={(dirty) => {
-        editorDirtyRef.current = dirty;
+      handlers={{
+        onSave: handleUpdate,
+        onToggleComplete: handleToggle,
+        onDirtyChange: (dirty) => {
+          editorDirtyRef.current = dirty;
+        },
+        onDismiss: handleDismiss,
+        onDelete: handleDelete,
       }}
-      canEditDate
-      canEditAllDay
-      formatDuration={formatDuration}
-      onToggleComplete={handleToggle}
-      onDismiss={handleDismiss}
-      onDelete={handleDelete}
-      labels={editorLabels}
-      repeat={repeatValue}
-      repeatWeekdayLabels={weekdayLabels}
-      repeatLabels={repeatLabels}
-      onChangeRepeat={handleChangeRepeat}
-      onDetachRepeat={handleDetachRepeat}
-      repeatPending={repeatConverting}
+      options={{
+        originDetail,
+        canEditDate: true,
+        canEditAllDay: true,
+        formatDuration,
+      }}
+      repeat={{
+        value: repeatValue,
+        weekdayLabels,
+        labels: repeatLabels,
+        pending: repeatConverting,
+        onChange: handleChangeRepeat,
+        onDetach: handleDetachRepeat,
+      }}
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is
@@ -2195,14 +2201,14 @@ export function CalendarTab({
         <ItemCreatePanel
           key={`${createPanel.date}-${createPanel.start}-${createPanel.end}`}
           dateLabel={createDateLabel}
-          initialStart={createPanel.start}
-          initialEnd={createPanel.end}
-          existingTodos={todoAddable}
-          existingNotes={noteOptions}
-          onSubmitEvent={handleCreateSubmit}
-          onSubmitEventAndOpen={handleCreateSubmitAndOpen}
-          onCreateTodo={handleCreateTodoSubmit}
-          onPlaceTodo={handlePlaceTodoSubmit}
+          initial={{ start: createPanel.start, end: createPanel.end }}
+          pools={{ todos: todoAddable, notes: noteOptions }}
+          handlers={{
+            onSubmitEvent: handleCreateSubmit,
+            onSubmitEventAndOpen: handleCreateSubmitAndOpen,
+            onCreateTodo: handleCreateTodoSubmit,
+            onPlaceTodo: handlePlaceTodoSubmit,
+          }}
           formatDuration={formatDuration}
           labels={createPanelLabels}
         />
@@ -2310,26 +2316,31 @@ export function CalendarTab({
             // takes the full width the editor <aside> used to share.
             <div className="min-h-0 flex-1">
               <WeekTimeGrid
-                weekStart={desktopView === "day" ? anchorDate : weekStart}
-                days={desktopView === "day" ? 1 : 7}
-                items={gridItems}
-                selectedId={selectedId}
-                onItemActivate={handleItemActivate}
-                onItemDoubleClick={handleItemOpenDetail}
-                onItemContextMenu={handleItemContextMenu}
-                onCreateAt={handleGridCreateAt}
-                onMoveItem={handleMoveItem}
-                onResizeItem={handleResizeItem}
-                onDropAllDay={handleDropAllDay}
-                todoInteractive
-                weekdayLabels={weekdayLabels}
-                allDayLabel={t("scheduleScreen.allDay")}
-                statusLabels={statusLabels}
-                createSlotLabel={t("scheduleCalendar.createSlot")}
-                todayKey={today}
-                nowMinutes={nowMinutes}
-                fillHeight
-                formatDayDate={formatDayDate}
+                data={{
+                  weekStart: desktopView === "day" ? anchorDate : weekStart,
+                  days: desktopView === "day" ? 1 : 7,
+                  items: gridItems,
+                  selectedId,
+                  todayKey: today,
+                  nowMinutes,
+                }}
+                labels={{
+                  weekdays: weekdayLabels,
+                  allDay: t("scheduleScreen.allDay"),
+                  status: statusLabels,
+                  createSlot: t("scheduleCalendar.createSlot"),
+                }}
+                handlers={{
+                  onItemActivate: handleItemActivate,
+                  onItemDoubleClick: handleItemOpenDetail,
+                  onItemContextMenu: handleItemContextMenu,
+                  onCreateAt: handleGridCreateAt,
+                  onMoveItem: handleMoveItem,
+                  onResizeItem: handleResizeItem,
+                  onDropAllDay: handleDropAllDay,
+                }}
+                display={{ todoInteractive: true, fillHeight: true }}
+                format={{ dayDate: formatDayDate }}
               />
             </div>
           )}
@@ -2506,14 +2517,14 @@ export function CalendarTab({
         sheetTitle={t("scheduleScreen.addItem")}
         closeLabel={t("common.close")}
         dateLabel={createDateLabel}
-        initialStart={createPanel?.start}
-        initialEnd={createPanel?.end}
-        existingTodos={todoAddable}
-        existingNotes={noteOptions}
-        onSubmitEvent={handleCreateSubmit}
-        onSubmitEventAndOpen={handleCreateSubmitAndOpen}
-        onCreateTodo={handleCreateTodoSubmit}
-        onPlaceTodo={handlePlaceTodoSubmit}
+        initial={{ start: createPanel?.start, end: createPanel?.end }}
+        pools={{ todos: todoAddable, notes: noteOptions }}
+        handlers={{
+          onSubmitEvent: handleCreateSubmit,
+          onSubmitEventAndOpen: handleCreateSubmitAndOpen,
+          onCreateTodo: handleCreateTodoSubmit,
+          onPlaceTodo: handlePlaceTodoSubmit,
+        }}
         formatDuration={formatDuration}
         labels={createPanelLabels}
       />

@@ -4,8 +4,20 @@
  * navigation (mirrors the Connect sub-barrel re-exporting its graph builders).
  * The global components/index.ts re-exports this with `export *`.
  */
+// #893 step 3: the one piece of rendering the calendar surfaces genuinely
+// shared verbatim, plus the provenance union all three item types name.
+export type { ScheduleItemVariant } from "./scheduleVariantVisuals";
 export { WeekTimeGrid } from "./WeekTimeGrid";
-export type { WeekTimeGridProps, WeekTimeGridItem } from "./WeekTimeGrid";
+export type {
+  WeekTimeGridProps,
+  WeekTimeGridItem,
+  // #893: the prop bundles.
+  WeekTimeGridData,
+  WeekTimeGridLabels,
+  WeekTimeGridHandlers,
+  WeekTimeGridDisplay,
+  WeekTimeGridFormat,
+} from "./WeekTimeGrid";
 // Target-IA presentational parts (W8): month grid + day agenda + toolbar +
 // event editor + routine summary/editor. Pure presentation (§3.1 / §6.4).
 export {
@@ -30,6 +42,10 @@ export {
   type EventEditorPaneProps,
   type EventEditorItem,
   type EventEditorLabels,
+  // #893: the prop bundles — handlers / options / repeat section.
+  type EventEditorHandlers,
+  type EventEditorOptions,
+  type EventEditorRepeat,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";
@@ -92,6 +108,9 @@ export {
   ItemCreatePanel,
   type ItemCreatePanelProps,
   type ItemCreatePanelLabels,
+  type ItemCreatePanelInitial,
+  type ItemCreatePanelPools,
+  type ItemCreatePanelHandlers,
   type ItemCreateOption,
   type ItemCreateNoteDraft,
   type ItemCreateType,

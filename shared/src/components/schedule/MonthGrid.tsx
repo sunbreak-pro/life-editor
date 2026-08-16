@@ -2,6 +2,10 @@ import { useMemo } from "react";
 import { CheckSquare } from "lucide-react";
 import { cn } from "../cn";
 import {
+  dotColorClasses,
+  type ScheduleItemVariant,
+} from "./scheduleVariantVisuals";
+import {
   monthGridKeys,
   parseDateKey,
   startOfMonthKey,
@@ -24,7 +28,7 @@ export interface MonthGridItem {
   id: string;
   date: string; // YYYY-MM-DD (local)
   title: string;
-  variant?: "routine" | "event" | "task";
+  variant?: ScheduleItemVariant;
   completed?: boolean;
   isAllDay?: boolean;
 }
@@ -80,7 +84,7 @@ export interface MonthGridProps {
 const CELL_FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset";
 
-function chipFaceClasses(variant: "routine" | "event" | "task"): string {
+function chipFaceClasses(variant: ScheduleItemVariant): string {
   switch (variant) {
     case "routine":
       return "bg-lumen-chip-routine-bg text-lumen-chip-routine-fg";
@@ -88,17 +92,6 @@ function chipFaceClasses(variant: "routine" | "event" | "task"): string {
       return "bg-lumen-chip-task-bg text-lumen-chip-task-fg";
     default:
       return "bg-lumen-chip-event-bg text-lumen-chip-event-fg";
-  }
-}
-
-function dotColorClasses(variant: "routine" | "event" | "task"): string {
-  switch (variant) {
-    case "routine":
-      return "bg-lumen-chip-routine-dot";
-    case "task":
-      return "bg-lumen-chip-task-dot";
-    default:
-      return "bg-lumen-chip-event-dot";
   }
 }
 

@@ -1,6 +1,10 @@
 import { Fragment, useMemo } from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
+import {
+  dotColorClasses,
+  type ScheduleItemVariant,
+} from "./scheduleVariantVisuals";
 import { minutesFromMidnight } from "../../utils/scheduleGridLayout";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
@@ -31,7 +35,7 @@ export interface AgendaItem {
   completed?: boolean;
   /** Derived status (#222) — drives the row-end status tag. */
   status?: ScheduleStatus;
-  variant?: "routine" | "event" | "task";
+  variant?: ScheduleItemVariant;
 }
 
 export interface AgendaListLabels {
@@ -97,17 +101,6 @@ const MAX_ROW_PX = 84;
 export function agendaRowHeightPx(minutes: number): number {
   if (!Number.isFinite(minutes) || minutes <= 0) return MIN_ROW_PX;
   return Math.min(MAX_ROW_PX, Math.max(MIN_ROW_PX, minutes * PX_PER_MINUTE));
-}
-
-function dotColorClasses(variant: "routine" | "event" | "task"): string {
-  switch (variant) {
-    case "routine":
-      return "bg-lumen-chip-routine-dot";
-    case "task":
-      return "bg-lumen-chip-task-dot";
-    default:
-      return "bg-lumen-chip-event-dot";
-  }
 }
 
 export function AgendaList({

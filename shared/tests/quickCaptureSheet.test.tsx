@@ -45,7 +45,16 @@ const LABELS: QuickCaptureLabels = {
   clearNote: "Remove the note",
 };
 
-function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
+/**
+ * #893 folded the panel's props into bundles; the cases below still describe
+ * their setup in flat terms and are unchanged from before that refactor, so
+ * the folding happens here (see itemCreatePanel.test.tsx for the same note).
+ */
+function renderSheet(props?: {
+  dateLabel?: string;
+  initialStart?: string;
+  initialEnd?: string;
+}) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
   const onCreateTodo = vi.fn();
@@ -57,14 +66,19 @@ function renderSheet(props?: Partial<Parameters<typeof QuickCaptureSheet>[0]>) {
       onClose={onClose}
       sheetTitle="Add item"
       closeLabel="Close"
-      existingTodos={[{ id: "task-1", title: "Draft the invoice" }]}
-      existingNotes={[{ id: "note-1", title: "Standup minutes" }]}
-      onSubmitEvent={onSubmitEvent}
-      onSubmitEventAndOpen={onSubmitEventAndOpen}
-      onCreateTodo={onCreateTodo}
-      onPlaceTodo={onPlaceTodo}
+      dateLabel={props?.dateLabel}
+      initial={{ start: props?.initialStart, end: props?.initialEnd }}
+      pools={{
+        todos: [{ id: "task-1", title: "Draft the invoice" }],
+        notes: [{ id: "note-1", title: "Standup minutes" }],
+      }}
+      handlers={{
+        onSubmitEvent,
+        onSubmitEventAndOpen,
+        onCreateTodo,
+        onPlaceTodo,
+      }}
       labels={LABELS}
-      {...props}
     />,
   );
   return {

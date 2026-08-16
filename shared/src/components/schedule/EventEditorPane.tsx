@@ -73,14 +73,19 @@ import {
  * choice performs a Dismiss (revival-safe). Dismiss ("skip this day") stays
  * routine-only; a manual item keeps the plain delete.
  *
- * Repeat section (#185 Step 3): when the host wires the repeat props
- * (`repeatLabels` + `repeatWeekdayLabels` + `onChangeRepeat`), every event
- * gains a "繰り返し" section backed by the shared <FrequencyEditor>. For a
+ * Repeat section (#185 Step 3): when the host wires the `repeat` prop, every
+ * event gains a "繰り返し" section backed by the shared <FrequencyEditor>. For a
  * routine-derived occurrence it replaces the old read-only "元 Routine" chip
  * and edits the whole series (host patches the source routine); "なし"
- * (onSelectNone → onDetachRepeat) turns the repeat off. For a manual item the
- * section starts at "なし" (value null) and choosing a frequency asks the host
- * to spin up a routine behind the scenes.
+ * (onSelectNone → repeat.onDetach) turns the repeat off. For a manual item the
+ * section starts at "なし" (`repeat.value` null) and choosing a frequency asks
+ * the host to spin up a routine behind the scenes.
+ *
+ * Props are grouped rather than flat (#893): `handlers` / `options` / `repeat`.
+ * The repeat bundle is the one that buys something beyond tidiness — the
+ * section used to appear only when three separate optional props were ALL
+ * supplied, so wiring two of them silently rendered nothing. Being one object
+ * with required members, a half-wired section is now a compile error.
  */
 
 export interface EventEditorItem {
@@ -150,10 +155,8 @@ export interface EventEditorLabels {
   delete: string;
 }
 
-export interface EventEditorPaneProps {
-  item: EventEditorItem;
-  /** Extra origin detail appended to the routine chip (e.g. "月・水・金"). */
-  originDetail?: string;
+/** Every mutation the pane can ask its host for. */
+export interface EventEditorHandlers {
   /**
    * Commit the pending draft (#628). Fires only from the save button (or Enter
    * in a single-line field), only when something changed, and exactly ONCE per
@@ -161,6 +164,7 @@ export interface EventEditorPaneProps {
    * (#279) must not be asked twice for one gesture (#553).
    */
   onSave: (id: string, patch: EventEditorPatch) => void;
+  onToggleComplete: (id: string) => void;
   /**
    * Report whether an unsaved draft is pending. The host owns the close
    * affordances (Esc, backdrop, close button, sheet dismissal) and is the only
@@ -169,6 +173,20 @@ export interface EventEditorPaneProps {
    * left believing a torn-down editor is still dirty.
    */
   onDirtyChange?: (dirty: boolean) => void;
+  /** Skip this occurrence (routine-generated items only). */
+  onDismiss?: (id: string) => void;
+  /**
+   * Delete. Manual items: plain single-item delete. Routine items (#279):
+   * the host MUST route this into the this/future/all scope dialog — a
+   * plain single-row delete would be revived by the generator (Issue 017).
+   */
+  onDelete?: (id: string) => void;
+}
+
+/** What the host permits, and how it formats. All optional, all off by default. */
+export interface EventEditorOptions {
+  /** Extra origin detail appended to the routine chip (e.g. "月・水・金"). */
+  originDetail?: string;
   /**
    * Allow moving the occurrence to another day (#469). False/omitted renders
    * the date read-only. Unlike the times this never propagates to a series —
@@ -185,27 +203,25 @@ export interface EventEditorPaneProps {
   canEditAllDay?: boolean;
   /** Formats the duration suffix on the end options (#553). */
   formatDuration?: (minutes: number) => string;
-  onToggleComplete: (id: string) => void;
-  /** Skip this occurrence (routine-generated items only). */
-  onDismiss?: (id: string) => void;
+}
+
+/**
+ * The repeat section (#185 Step 3). Supplying this object renders the section;
+ * omitting it falls back to the read-only origin chip. Everything the section
+ * cannot work without is required here on purpose — before #893 these were
+ * three independent optional props and wiring only some of them rendered
+ * nothing at all, with no warning.
+ */
+export interface EventEditorRepeat {
   /**
-   * Delete. Manual items: plain single-item delete. Routine items (#279):
-   * the host MUST route this into the this/future/all scope dialog — a
-   * plain single-row delete would be revived by the generator (Issue 017).
+   * The routine's frequency for a routine occurrence, or null for a manual
+   * item ("なし").
    */
-  onDelete?: (id: string) => void;
-  labels: EventEditorLabels;
-  /**
-   * Repeat section (#185 Step 3). Present the section only when the host
-   * wires it (labels + weekday labels + onChangeRepeat); otherwise the pane
-   * falls back to the read-only origin chip. `repeat` is the routine's
-   * frequency for a routine occurrence, or null for a manual item ("なし").
-   */
-  repeat?: FrequencyEditorValue | null;
-  repeatWeekdayLabels?: string[];
-  repeatLabels?: FrequencyEditorLabels;
+  value: FrequencyEditorValue | null;
+  weekdayLabels: string[];
+  labels: FrequencyEditorLabels;
   /** An Event→Repeats conversion is in flight — lock the section (#434). */
-  repeatPending?: boolean;
+  pending?: boolean;
   /**
    * Frequency patch — host applies it to the source routine (or creates one
    * for a manual item). Called by the SAVE BUTTON only (#712), carrying every
@@ -220,13 +236,21 @@ export interface EventEditorPaneProps {
    * fields first instead — they are what raises the this/future/all dialog
    * (#279), which must stay last and be asked once.
    */
-  onChangeRepeat?: (
+  onChange: (
     patch: Partial<FrequencyEditorValue>,
     fields: EventEditorPatch,
   ) => void;
   /** "なし" selected — host turns the repeat off (detach the series). Also
-   *  deferred to the save button (#712). */
-  onDetachRepeat?: () => void;
+   *  deferred to the save button (#712). Omit to hide the "なし" choice. */
+  onDetach?: () => void;
+}
+
+export interface EventEditorPaneProps {
+  item: EventEditorItem;
+  labels: EventEditorLabels;
+  handlers: EventEditorHandlers;
+  options?: EventEditorOptions;
+  repeat?: EventEditorRepeat;
   /**
    * Tag affordance for this row (#468). Injected rather than built here: the
    * tag layer talks to WikiTagsUnifiedContext, and this pane is pure
@@ -362,24 +386,18 @@ const SAVE_BTN = cn(
  *  the rest of the pending edits away.) */
 function EventEditorFields({
   item,
-  originDetail,
-  onSave,
-  onDirtyChange,
-  canEditDate,
-  canEditAllDay,
-  formatDuration,
-  onToggleComplete,
-  onDismiss,
-  onDelete,
   labels,
+  handlers,
+  options,
   repeat,
-  repeatWeekdayLabels,
-  repeatLabels,
-  repeatPending,
-  onChangeRepeat,
-  onDetachRepeat,
   tagSlot,
 }: Omit<EventEditorPaneProps, "className">) {
+  // Unpacked back into the flat names the body has always used, so the #893
+  // bundles stay a wire-format change and nothing below has to know about them.
+  const { onSave, onToggleComplete, onDirtyChange, onDismiss, onDelete } =
+    handlers;
+  const { originDetail, canEditDate, canEditAllDay, formatDuration } =
+    options ?? {};
   const [edits, setEdits] = useState<EventEditorEdits>({});
   // Live item underneath, the user's own edits on top (see EventEditorEdits).
   const draft: EventEditorDraft = { ...draftFromItem(item), ...edits };
@@ -388,7 +406,7 @@ function EventEditorFields({
 
   // The repeat draft (#712), overlaid on the live series the same way.
   const [repeatEdits, setRepeatEdits] = useState<RepeatEdits>(undefined);
-  const liveRepeat = repeat ?? null;
+  const liveRepeat = repeat?.value ?? null;
   const repeatDraft: FrequencyEditorValue | null =
     repeatEdits === undefined
       ? liveRepeat
@@ -416,11 +434,11 @@ function EventEditorFields({
   // exists (the next open would confirm before it had anything to discard).
   useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
-  // The repeat section renders only when the host fully wires it (labels +
-  // weekday labels + change handler). Existing hosts/tests that omit it keep
-  // the legacy read-only origin chip.
-  const showRepeat =
-    !!onChangeRepeat && !!repeatLabels && !!repeatWeekdayLabels;
+  // The repeat section renders only when the host wires it. Hosts/tests that
+  // omit the bundle keep the legacy read-only origin chip. (Before #893 this
+  // was three optional props ANDed together; the bundle makes "wired" a single
+  // fact the type system can hold.)
+  const showRepeat = !!repeat;
 
   /*
    * Seed the type-specific fields at the moment the TYPE changes, and only
@@ -442,15 +460,15 @@ function EventEditorFields({
       return { ...base, ...seeded };
     });
 
-  const repeatSection = showRepeat ? (
+  const repeatSection = repeat ? (
     <div className="flex flex-col gap-2 border-t border-lumen-border pt-3">
       <FrequencyEditor
         value={repeatDraft}
         onChange={editRepeat}
-        onSelectNone={onDetachRepeat ? () => setRepeatEdits(null) : undefined}
-        weekdayLabels={repeatWeekdayLabels}
-        labels={repeatLabels}
-        pending={repeatPending}
+        onSelectNone={repeat.onDetach ? () => setRepeatEdits(null) : undefined}
+        weekdayLabels={repeat.weekdayLabels}
+        labels={repeat.labels}
+        pending={repeat.pending}
       />
     </div>
   ) : null;
@@ -462,12 +480,12 @@ function EventEditorFields({
     // order this pane had before #712, when a frequency click wrote on the
     // spot and the save press always came after it.
     if (repeatDirty) {
-      if (repeatEdits === null) onDetachRepeat?.();
+      if (repeatEdits === null) repeat?.onDetach?.();
       // The field patch rides along (#870). Going first means the host has not
       // seen the new times yet when it builds the routine template, so the
       // press has to hand them over rather than leave them to be read off the
       // item a moment later.
-      else if (repeatEdits) onChangeRepeat?.(repeatEdits, patch);
+      else if (repeatEdits) repeat?.onChange(repeatEdits, patch);
     }
     // Last, and skipped when only the repeat moved: an empty patch would still
     // raise the this/future/all scope dialog (#279) on a routine occurrence,

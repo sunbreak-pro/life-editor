@@ -68,21 +68,48 @@ const NOTES: ItemCreateOption[] = [
   { id: "note-2", title: "Weekly review" },
 ];
 
-function renderPanel(props?: Partial<Parameters<typeof ItemCreatePanel>[0]>) {
+/**
+ * #893 folded the panel's props into bundles (`initial` / `pools` /
+ * `handlers`). The cases below still describe their setup in flat terms and
+ * are unchanged from before that refactor — the folding happens here, which is
+ * what makes "same cases, same assertions, still green" a usable no-behaviour-
+ * change proof.
+ *
+ * Note this cannot be a `{...props}` spread any more: a spread would REPLACE a
+ * whole bundle, so `{ existingTodos: [] }` would take the note pool down with
+ * it. Each override merges into its bundle instead.
+ */
+function renderPanel(props?: {
+  dateLabel?: string;
+  initialStart?: string;
+  initialEnd?: string;
+  initialTitle?: string;
+  existingTodos?: ItemCreateOption[];
+  existingNotes?: ItemCreateOption[];
+}) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
   const onCreateTodo = vi.fn();
   const onPlaceTodo = vi.fn();
   render(
     <ItemCreatePanel
-      existingTodos={TODOS}
-      existingNotes={NOTES}
-      onSubmitEvent={onSubmitEvent}
-      onSubmitEventAndOpen={onSubmitEventAndOpen}
-      onCreateTodo={onCreateTodo}
-      onPlaceTodo={onPlaceTodo}
+      dateLabel={props?.dateLabel}
+      initial={{
+        start: props?.initialStart,
+        end: props?.initialEnd,
+        title: props?.initialTitle,
+      }}
+      pools={{
+        todos: props?.existingTodos ?? TODOS,
+        notes: props?.existingNotes ?? NOTES,
+      }}
+      handlers={{
+        onSubmitEvent,
+        onSubmitEventAndOpen,
+        onCreateTodo,
+        onPlaceTodo,
+      }}
       labels={LABELS}
-      {...props}
     />,
   );
   return { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo };
