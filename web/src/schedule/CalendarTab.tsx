@@ -17,8 +17,6 @@ import {
   EventEditorPane,
   RightSidebarPortal,
   RightSidebarToggle,
-  TodoDetailPanel,
-  STATUS_TEXT_KEY,
   CalendarLensRow,
   ResponsiveDetailFrame,
   useConfirmDialog,
@@ -28,7 +26,6 @@ import {
   minutesToTime,
   isTodoChip,
   unwrapTodoChipId,
-  todoScheduleSlot,
   frequencyLabel,
   applyRepeatFilter,
   applyCalendarLens,
@@ -59,6 +56,7 @@ import { useScheduleMutations } from "./useScheduleMutations";
 import { useScheduleOverlays } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { ScheduleOverlays } from "./ScheduleOverlays";
+import { ScheduleTodoDetail } from "./ScheduleTodoDetail";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
@@ -75,7 +73,6 @@ import {
   formatFullDay as formatFullDayKey,
   formatPeriodLabel,
   formatShortDate,
-  formatTodoSchedule,
   useScheduleCopy,
 } from "./scheduleCopy";
 
@@ -1198,40 +1195,6 @@ export function CalendarTab({
     [askConfirm, t],
   );
 
-  /*
-   * #736: the todo-chip detail (TodoDetailPanel, below) commits on its own save
-   * button too, so the same silent discard was possible on this screen — the
-   * event editor beside it asked, and the todo panel did not.
-   *
-   * Guarded here rather than inside the panel because the three ways out of it
-   * all belong to this file: the overlay's own onClose (Escape, the backdrop,
-   * the close button), the convert-to-event button, and the "open in Todos"
-   * hand-off. Each tears the panel down, and the draft dies with it.
-   *
-   * The flag is NOT cleared on an agreed discard (unlike the event editor
-   * above): the panel is its only owner and re-reports `false` the moment it
-   * unmounts, so clearing here could only ever be wrong — the convert path asks
-   * its OWN question afterwards, and a refusal there leaves the draft on screen
-   * with the flag already wiped.
-   */
-  const todoDetailDirtyRef = useRef(false);
-  const requestTodoDetailClose = useCallback(
-    async (proceed: () => void) => {
-      const decision = await decideUnsavedClose({
-        dirty: todoDetailDirtyRef.current,
-        askDiscard: () =>
-          askConfirm({
-            message: t("common.unsavedCloseConfirm"),
-            confirmLabel: t("common.discard"),
-            cancelLabel: t("common.cancel"),
-            danger: true,
-          }),
-      });
-      if (decision.close) proceed();
-    },
-    [askConfirm, t],
-  );
-
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
     statusLabels,
@@ -1464,143 +1427,21 @@ export function CalendarTab({
     </ResponsiveDetailFrame>
   );
 
-  /*
-   * #626: todo-chip detail overlay (Desktop) — the same TodoDetailPanel +
-   * TagPicker pair Kanban renders, so a todo's tags are editable without
-   * leaving Schedule. Deliberately NOT EventEditorPane: that pane edits a
-   * schedule_item and a todo has none (#564), so the todo counterpart is the
-   * panel the Todos section already trusts. Resolved against the live tree —
-   * a todo deleted elsewhere while open simply closes the overlay.
-   *
-   * The #564 hand-off survives as the button under the panel: in-place editing
-   * covers tags/title/status, and anything deeper still lives in Todos.
-   *
-   * #761: the body is built once and framed twice — the Desktop overlay below,
-   * and the Mobile BottomSheet at the end of the narrow branch. One body rather
-   * than two copies: the save button, the convert and the hand-off each carry a
-   * guard, and a second literal is how one of the two layouts eventually loses
-   * one of them. Only ever one frame is mounted (the layouts are separate
-   * returns, and both frames render nothing while closed).
-   */
-  const todoDetailTodo =
-    todoDetailId != null
-      ? (todoNodes.find((n) => n.id === todoDetailId) ?? null)
-      : null;
-  // #736: every exit from the panel — Escape, the backdrop, the close button,
-  // the sheet's close button — funnels through this one guard.
-  const closeTodoDetail = () => {
-    void requestTodoDetailClose(() => setTodoDetailId(null));
-  };
-  const todoDetailBody = todoDetailTodo && (
-    <div className="flex flex-col gap-3">
-      <TodoDetailPanel
-        todoId={todoDetailTodo.id}
-        title={todoDetailTodo.title}
-        status={todoDetailTodo.status}
-        // #713: the same save button Todos now has. No content editor on
-        // this surface (the body stays in Todos), so the press only ever
-        // carries the title — but the panel's contract allows an empty
-        // patch, and writing one would raise a no-op undo entry.
-        onSave={(id, patch) => {
-          if (patch.title === undefined) return;
-          updateNode(id, patch, { undoLabel: "todoTreeChange" });
-        }}
-        onToggleStatus={toggleTodoStatus}
-        // #775: the panel's own delete, so the sheet that is Mobile's only way
-        // into a todo is not a one-way door. It fires raw — the confirm, the
-        // cascade count and the close all belong to the handler above.
-        onDelete={handleTodoDetailDelete}
-        titleLabel={t("todoDetail.titleLabel")}
-        statusLabel={t("todoDetail.status")}
-        statusText={t(STATUS_TEXT_KEY[todoDetailTodo.status ?? "NOT_STARTED"])}
-        saveLabel={t("todoDetail.save")}
-        savedLabel={t("todoDetail.saved")}
-        unsavedLabel={t("todoDetail.unsaved")}
-        deleteLabel={t("todoDetail.todoDelete")}
-        // #877: which day the todo is set for. On narrow this sheet is the
-        // only way into a todo, and it named the title, the status and the
-        // tags while staying silent about the one field that decides where the
-        // row appears — so a todo pulled up from the day list could not answer
-        // "is this today's?". Read from the same helper the chips are built
-        // from (todoScheduleSlot), so the row and the chip cannot disagree.
-        scheduleLabel={t("todoDetail.schedule")}
-        scheduleText={formatTodoSchedule(
-          i18n.language,
-          todoScheduleSlot(todoDetailTodo),
-          {
-            allDay: t("scheduleScreen.allDay"),
-            unscheduled: t("todoDetail.scheduleNone"),
-          },
-        )}
-        // #736: the panel reports its pending title here; the three exits
-        // below read the flag before they tear the panel down. A ref rather
-        // than state — nothing on screen depends on it, and re-rendering
-        // the whole calendar on every keystroke would be a steep price.
-        onDirtyChange={(dirty) => {
-          todoDetailDirtyRef.current = dirty;
-        }}
-        // Same omission as Kanban: TagPicker's own kind badge captions the
-        // row, so TodoDetailPanel's generic tagsLabel would repeat it.
-        tagsSlot={
-          <TagPicker
-            itemId={todoDetailTodo.id}
-            itemRole="task"
-            showLabel
-            size="sm"
-          />
-        }
-      />
-      {/* #625: the same convert the chip bubble offers. The panel is the
-              surface a user reaches for when the todo turns out to be an
-              appointment, so the action has to be here too — and this one
-              closes the overlay itself, since the row it is showing changes
-              role out from under it. #736: which is why a pending title has to
-              be asked about FIRST — the conversion unmounts the panel, and the
-              draft would go with it without a word. */}
-      <button
-        type="button"
-        onClick={() => {
-          void requestTodoDetailClose(() =>
-            handleConvertToEvent(todoDetailTodo.id),
-          );
-        }}
-        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        {t("itemConvert.toEvent")}
-      </button>
-      {/* #736: the hand-off leaves the section entirely, so it is a close
-              like any other as far as a pending title is concerned. */}
-      <button
-        type="button"
-        onClick={() => {
-          void requestTodoDetailClose(() => {
-            setTodoDetailId(null);
-            onOpenTodos();
-          });
-        }}
-        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        {t("scheduleScreen.todoOpenInTodos")}
-      </button>
-    </div>
-  );
-
-  //
-  // #761 gave narrow the same panel: a todo row in the Mobile day list had no
-  // detail surface at all — the tap was dropped before it could ask for one
-  // (itemTapRoute) — so the row read as broken next to an event that opens.
-  // It arrives in a sheet, matching the event editor beside it, which is the
-  // same width split #889 folded into one frame here.
   const todoDetailFrameEl = (
-    <ResponsiveDetailFrame
-      wide={isWide}
-      open={!!todoDetailTodo}
-      title={t("materials.todos.detailTitle")}
-      closeLabel={t("common.close")}
-      onClose={closeTodoDetail}
-    >
-      {todoDetailBody}
-    </ResponsiveDetailFrame>
+    <ScheduleTodoDetail
+      todoId={todoDetailId}
+      todoNodes={todoNodes}
+      isWide={isWide}
+      onClose={() => setTodoDetailId(null)}
+      writes={{
+        updateNode,
+        toggleStatus: toggleTodoStatus,
+        onDelete: handleTodoDetailDelete,
+      }}
+      onConvertToEvent={handleConvertToEvent}
+      onOpenTodos={onOpenTodos}
+      askConfirm={askConfirm}
+    />
   );
 
   /*
