@@ -2,6 +2,21 @@
 
 ローリングアーカイブ: `history/chat-briefing-refine.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-15 - Mobile の朝刊 / 夕刊ヘッダーをハンバーガー行の下へ（#879・PR #901 open）
+
+#### 概要
+
+Mobile 幅で Briefing だけヘッダーの並びが他画面と違った（題字帯がハンバーガー行の上に出ていた）ので、紙面内での順序を入れ替えた。他セクションはこの行をページ最上段（PageContainer の header スロット）に描くため、Briefing だけ 1 画面ぶんズレていた形。
+
+#### 変更点
+
+- **順序の入れ替え**: `BriefingView.tsx` / `EveningView.tsx` とも、タブ帯（`tabSwitcher` — narrow ではハンバーガーを載せている = #609）を紙面の最初の行にし、masthead をその下へ移した。Briefing は `narrowHeaderInBody: true` で帯を紙面の中に描く唯一のセクションなので、外に 1 行足すのではなく**中の順序だけ**を直した（外に足すとボタン 1 個のために紙面が押し下がる）。
+- **ワイド幅は無変更**: 帯のスロットは wide では undefined のまま。SectionHeader がタブを持ち、紙面は題字から始まる。
+- **テスト**: `shared/tests/briefingView.test.tsx` に #879 の describe を追加し、朝刊 / 夕刊それぞれで帯が masthead より前に来ることを `compareDocumentPosition` で押さえた。jsdom にレイアウトが無い（CLAUDE.md §7.1）ので、ここで並びを決めているのは DOM 順そのもの。
+- **コメント追随**: `web/src/MainScreen.tsx` と `web/src/sectionDescriptors.tsx` に「masthead の下に帯を再発行する」と書いてあった説明を実態に合わせた。
+- **ゲート**: shared（lint 0 error / build / test 2135 件）・web（lint 0 error / build / test 394 件）すべて exit 0。lint の warning は shared 3 / web 4 とも本 PR 対象外の既存分。
+- **記録**: 実装プランの無い課題なので archive 対象なし。スコープ逸脱なし・AC 免除なし・実装中に浮上した別判断もなし。
+
 ### 2026-08-14 - Analytics「今週」カードの週バーと Work タブ週次も暦週へ（#860・PR #868 merged）
 
 #### 概要
