@@ -589,17 +589,20 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const eventIds = eventRows.map((r) => r.item_id);
 
     // 2. Hard-delete event items_meta rows. events_payload cascades via
-    //    the 0008 item_id FK. Done one-by-one to mirror the Todos
-    //    descendants-first pattern (NO ACTION-friendly).
-    for (const eid of eventIds) {
-      const { error } = await this.client
-        .from("items_meta")
-        .delete()
-        .eq("id", eid);
-      if (error)
-        throw new Error(
-          `permanentDeleteRoutine event ${eid}: ${error.message}`,
-        );
+    //    the 0008 item_id FK.
+    //
+    //    Chunked, not one-by-one (#934). The ordering the NO ACTION FK
+    //    demands is between the events and the ROUTINE — step 2 before step
+    //    3 — not among the events themselves: they are siblings and nothing
+    //    references one from another. Deleting them one request at a time
+    //    bought no ordering guarantee and cost a round trip per occurrence,
+    //    so a routine with 500 occurrences took 500 of them.
+    if (eventIds.length > 0) {
+      await forEachIdChunk(
+        eventIds,
+        (chunk) => this.client.from("items_meta").delete().in("id", chunk),
+        "permanentDeleteRoutine events",
+      );
     }
 
     // 3. Hard-delete the routine items_meta row. routines_payload
