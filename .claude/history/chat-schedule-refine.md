@@ -4,7 +4,9 @@
 
 #### 概要
 
-D-20260816-sched-1 を台帳へ昇格（PR #959）したうえで、#932 / #933 / #934 / #940 を各 1 PR、#889 を 4 ユニットに割って提出した。全 PR で `shared` lint / build / test・`web` lint / build / test・`web typecheck:tests` の 7 本を exit 0 で確認。**merge はすべてこうだいさんの手番**（P-001）。
+D-20260816-sched-1 を台帳へ昇格（PR #959）したうえで、#932 / #933 / #934 / #940 を各 1 PR、#889 を 4 ユニットに割って提出した。全 PR で `shared` lint / build / test・`web` lint / build / test・`web typecheck:tests` の 7 本を exit 0 で確認。**8 本すべて同日中にこうだいさんが merge**（#964 / #966 / #968 / #972 / #974 / #976 / #982 / #987）。
+
+**運用面で 3 つ踏んだ**: ① **#982 だけ CI が一度も発火しなかった** — push しても空コミットでも close→reopen でも `gh run list --branch` がゼロ件で、origin/main を取り込んで push した時にようやく走った。`gh pr checks` の「no checks reported」は「遅い」ではなく「走っていない」。② **push-after-merge を 3 度目に踏んだ** — PR #959 が merge された後に積んだ tracker commit がブランチに取り残された（`chore/tracker-schedule-refine-20260816-5` へ cherry-pick で回収）。**tracker ブランチにも「PR を立てたら以後 push しない」が要る**。③ **merge 解決中の `git add -u`** が他レーンの tracker を巻き込み、guard が正しくブロックした（merge commit では unstage すると merge が壊れるので、この場合に限り理由付きの `[tracker-ok]`）。
 
 #### 変更点
 
