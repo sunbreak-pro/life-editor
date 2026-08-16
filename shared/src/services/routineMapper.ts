@@ -1,9 +1,13 @@
 import type { RoutineNode, FrequencyType } from "../types/routine";
 import {
   ITEMS_META_COLUMNS,
+  assertItemsMetaPair,
+  toItemsMetaInsertRow,
+  toItemsMetaPatch,
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
+  type ItemsMetaPatchInput,
 } from "./itemsMeta";
 
 /*
@@ -245,16 +249,7 @@ export function rowsToRoutineNode(
   meta: ItemsMetaRoutineRow,
   payload: RoutinesPayloadRow,
 ): RoutineNode {
-  if (meta.id !== payload.item_id) {
-    throw new Error(
-      `routineMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
-    );
-  }
-  if (meta.role !== "routine") {
-    throw new Error(
-      `routineMapper: items_meta.role expected "routine" but got "${meta.role}"`,
-    );
-  }
+  assertItemsMetaPair("routineMapper", "routine", meta, payload);
 
   const frequency = normaliseFrequency(
     payload.frequency_type,
@@ -311,15 +306,16 @@ export function routineNodeToRows(
   node: RoutineNode,
   userId: string,
 ): { meta: ItemsMetaRoutineInsertRow; payload: RoutinesPayloadWriteRow } {
-  const meta: ItemsMetaRoutineInsertRow = {
+  // RoutineNode's isDeleted / deletedAt are required, so the helper's
+  // `?? false` / `?? null` are unreachable here — same row either way.
+  const meta: ItemsMetaRoutineInsertRow = toItemsMetaInsertRow({
     id: node.id,
-    user_id: userId,
+    userId,
     role: "routine",
     title: node.title,
-    is_deleted: node.isDeleted,
-    deleted_at: node.deletedAt,
-    version: 1,
-  };
+    isDeleted: node.isDeleted,
+    deletedAt: node.deletedAt,
+  });
 
   const payload: RoutinesPayloadWriteRow = {
     item_id: node.id,
@@ -403,16 +399,19 @@ export function routineUpdatesToPatches(
   payloadPatch: RoutinesPayloadUpdatePatch;
 } {
   // -- meta side --
-  // DB-Q2: ALWAYS bump updated_at, even if the caller is only patching
-  // payload columns. Single point of enforcement.
-  const metaPatch: ItemsMetaRoutineUpdatePatch = { updated_at: now };
-  if ("title" in updates && updates.title !== undefined)
-    metaPatch.title = updates.title;
+  // DB-Q2's `updated_at` bump lives in `toItemsMetaPatch` (#890). Routines
+  // SKIP a present-but-undefined `isDeleted` rather than normalising it to
+  // false the way todo / note / daily do — kept by not assigning the key.
+  const metaFields: ItemsMetaPatchInput = {};
+  if ("title" in updates) metaFields.title = updates.title;
   if ("isDeleted" in updates && updates.isDeleted !== undefined)
-    metaPatch.is_deleted = updates.isDeleted;
-  if ("deletedAt" in updates) metaPatch.deleted_at = updates.deletedAt ?? null;
-  if ("version" in updates && updates.version !== undefined)
-    metaPatch.version = updates.version;
+    metaFields.isDeleted = updates.isDeleted;
+  if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
+  if ("version" in updates) metaFields.version = updates.version;
+  const metaPatch: ItemsMetaRoutineUpdatePatch = toItemsMetaPatch(
+    metaFields,
+    now,
+  );
 
   // -- payload side --
   void userId;
