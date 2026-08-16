@@ -5,6 +5,7 @@ import {
   type JsonSchema,
   type ObjectSchema,
 } from "../src/utils/toolSchema.js";
+import { rejection } from "./rejection.js";
 
 /*
  * The tool registry and its argument validator (#669 / core-refactor C2).
@@ -66,9 +67,11 @@ describe("every published tool is registered and validated", () => {
         schema.properties ?? {},
       )[0];
 
-      const error = await callTool(name, {
-        [property]: wrongTypedValue(propertySchema),
-      }).catch((e: unknown) => e as Error);
+      const error = await rejection(
+        callTool(name, {
+          [property]: wrongTypedValue(propertySchema),
+        }),
+      );
 
       expect(error).toBeInstanceOf(Error);
       // Not "Unknown tool" — the entry is wired to a handler.
@@ -120,10 +123,12 @@ describe("invalid arguments never reach a handler", () => {
   });
 
   it("reports every problem in one message", async () => {
-    const error = await callTool("create_schedule_item", {
-      date: 2026,
-      start_time: 9,
-    }).catch((e: unknown) => e as Error);
+    const error = await rejection(
+      callTool("create_schedule_item", {
+        date: 2026,
+        start_time: 9,
+      }),
+    );
 
     expect(error.message).toContain("date must be a string");
     expect(error.message).toContain("start_time must be a string");

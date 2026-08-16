@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { rejection } from "./rejection.js";
 
 /*
  * The verification harness's round trip (#700 Step 2): seed → read → clean up,
@@ -232,7 +233,7 @@ describe("the tools are inert outside verification mode", () => {
     ["read_verification_state", () => readVerificationState({ date: DATE })],
     ["cleanup_verification_state", () => cleanupVerificationState({})],
   ])("%s refuses to run", async (name, call) => {
-    const error = await call().catch((e: unknown) => e as Error);
+    const error = await rejection(call());
     expect(error).toBeInstanceOf(Error);
     expect(error.message).toContain(`${name} is disabled`);
     expect(error.message).toContain("LIFE_EDITOR_VERIFICATION_MODE=1");
