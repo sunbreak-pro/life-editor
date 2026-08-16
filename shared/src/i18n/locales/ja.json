@@ -100,14 +100,14 @@
       "description": "ログイン中のアカウントと、そのパスワードの変更。",
       "emailLabel": "ログイン中のメールアドレス",
       "newPassword": "新しいパスワード",
-      "newPasswordHelper": "6 文字以上",
+      "newPasswordHelper": "{{min}} 文字以上",
       "confirmPassword": "新しいパスワード（確認）",
       "submit": "パスワードを変更",
       "busy": "変更中…",
       "done": "パスワードを変更しました。次回のログインから新しいパスワードを使ってください。",
       "errors": {
         "mismatch": "2 つのパスワードが一致しません",
-        "tooShort": "6 文字以上にしてください",
+        "tooShort": "{{min}} 文字以上にしてください",
         "samePassword": "今と同じパスワードです。別のものにしてください。",
         "generic": "パスワードを変更できませんでした。少し待ってからやり直してください。"
       }
@@ -886,7 +886,7 @@
     "email": "メールアドレス",
     "emailPlaceholder": "you@example.com",
     "password": "パスワード",
-    "passwordHelper": "6 文字以上",
+    "passwordHelper": "{{min}} 文字以上",
     "showPassword": "パスワードを表示",
     "hidePassword": "パスワードを隠す",
     "busy": "処理中…",
@@ -906,7 +906,7 @@
       "heading": "新しいパスワードの設定",
       "description": "再設定リンクからこの画面に来ています。新しいパスワードを入力すると完了します。",
       "newPassword": "新しいパスワード",
-      "newPasswordHelper": "6 文字以上",
+      "newPasswordHelper": "{{min}} 文字以上",
       "confirmPassword": "新しいパスワード（確認）",
       "submit": "パスワードを設定",
       "busy": "保存中…"

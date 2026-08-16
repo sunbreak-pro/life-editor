@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { PASSWORD_MIN_LENGTH } from "@life-editor/shared";
 import { SettingsScreen } from "../src/settings/SettingsScreen";
 
 /*
@@ -91,16 +92,37 @@ describe("Settings account card", () => {
     expect(state.updatePassword).not.toHaveBeenCalled();
   });
 
-  it("refuses a password under the minimum without calling Supabase", async () => {
+  // The two sides of the floor (#956). One character under and exactly on it,
+  // rather than an obviously-short string, because the bug this guards is an
+  // off-by-one in the comparison — and the length is read from the constant so
+  // the boundary follows it instead of going stale at the old value.
+  it("refuses a password one character under the floor, without calling Supabase", async () => {
+    const justUnder = "a".repeat(PASSWORD_MIN_LENGTH - 1);
     render(<SettingsScreen />);
-    type("settings.account.newPassword", "short");
-    type("settings.account.confirmPassword", "short");
+    type("settings.account.newPassword", justUnder);
+    type("settings.account.confirmPassword", justUnder);
     press();
 
+    // The message quotes the same constant it was checked against — the `|n`
+    // tail is this file's `t` mock rendering the interpolation options.
     expect(
-      await screen.findByText("settings.account.errors.tooShort"),
+      await screen.findByText(
+        `settings.account.errors.tooShort|${PASSWORD_MIN_LENGTH}`,
+      ),
     ).toBeTruthy();
     expect(state.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it("accepts a password exactly at the floor", async () => {
+    const atFloor = "a".repeat(PASSWORD_MIN_LENGTH);
+    render(<SettingsScreen />);
+    type("settings.account.newPassword", atFloor);
+    type("settings.account.confirmPassword", atFloor);
+    press();
+
+    await waitFor(() =>
+      expect(state.updatePassword).toHaveBeenCalledWith(atFloor),
+    );
   });
 
   it("sends a matching password and confirms it landed", async () => {

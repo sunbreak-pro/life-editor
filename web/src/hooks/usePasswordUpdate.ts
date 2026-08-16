@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { updatePassword } from "@life-editor/shared";
+import { PASSWORD_MIN_LENGTH, updatePassword } from "@life-editor/shared";
 
 /** Already-translated copy for every outcome of a password change. */
 export interface PasswordUpdateMessages {
@@ -16,6 +16,7 @@ export interface PasswordUpdateMessages {
 }
 
 export interface UsePasswordUpdateOptions {
+  /** Defaults to the app-wide floor; the `tooShort` copy must quote the same. */
   minLength?: number;
   /** Runs after a successful change (e.g. leave the recovery screen). */
   onSuccess?: () => void;
@@ -50,7 +51,7 @@ export function usePasswordUpdate(
   messages: PasswordUpdateMessages,
   options: UsePasswordUpdateOptions = {},
 ): PasswordUpdateState {
-  const { minLength = 6, onSuccess } = options;
+  const { minLength = PASSWORD_MIN_LENGTH, onSuccess } = options;
   const [password, setPasswordValue] = useState("");
   const [confirmPassword, setConfirmPasswordValue] = useState("");
   const [error, setError] = useState<string | null>(null);
