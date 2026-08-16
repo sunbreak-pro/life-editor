@@ -95,6 +95,23 @@
       "hourLabel": "A new day starts at",
       "hint": "Applies to the Daily you land on and to routine sync. It takes effect the next time \"today\" is worked out, so reload to apply it to a screen you already have open."
     },
+    "account": {
+      "heading": "Account",
+      "description": "The account you are signed in to, and where you change its password.",
+      "emailLabel": "Signed in as",
+      "newPassword": "New password",
+      "newPasswordHelper": "At least 6 characters",
+      "confirmPassword": "New password (again)",
+      "submit": "Change password",
+      "busy": "Changing…",
+      "done": "Password changed. Use the new one the next time you sign in.",
+      "errors": {
+        "mismatch": "The two passwords do not match",
+        "tooShort": "Use at least 6 characters",
+        "samePassword": "That is the password you already have. Choose a different one.",
+        "generic": "Could not change the password. Please wait a moment and try again."
+      }
+    },
     "reset": {
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
@@ -876,6 +893,25 @@
     "busy": "Working…",
     "footerSignIn": "No account yet? Create one from \"Sign up\" above.",
     "footerSignUp": "Already have an account? Switch to \"Sign in\" above.",
+    "forgotPassword": "Forgot your password?",
+    "resetRequest": {
+      "heading": "Reset your password",
+      "description": "Enter the address you signed up with and we will email you a link to set a new password.",
+      "submit": "Send the reset link",
+      "busy": "Sending…",
+      "back": "Back to sign in",
+      "sent": "If that address has an account, a reset link is on its way. Open it in this browser.",
+      "error": "Could not send the reset link. Please wait a moment and try again."
+    },
+    "recovery": {
+      "heading": "Set a new password",
+      "description": "You reached this from the reset link. Enter a new password to finish.",
+      "newPassword": "New password",
+      "newPasswordHelper": "At least 6 characters",
+      "confirmPassword": "New password (again)",
+      "submit": "Set the password",
+      "busy": "Saving…"
+    },
     "errors": {
       "invalidCredentials": "Email or password is incorrect",
       "alreadyRegistered": "This email address is already registered",

@@ -53,6 +53,57 @@ export async function signIn(
   return toResult(data, error);
 }
 
+/*
+ * Where the recovery link should land (#919).
+ *
+ * The email link opens in the OS default browser, never inside the Electron
+ * or Capacitor shell, so the reset is always completed on the public web
+ * build. `window.location.origin` is right when the request itself was made
+ * from a browser (it keeps localhost working during `npm run dev`), but on the
+ * packaged shells the origin is `file://` / `capacitor://localhost` — not a
+ * URL Supabase can redirect to. Those fall back to the deployed web URL
+ * (migration SSOT §Web URL, #600); override with VITE_PUBLIC_WEB_URL if the
+ * deployment ever moves.
+ */
+const PUBLIC_WEB_URL =
+  (import.meta.env.VITE_PUBLIC_WEB_URL as string | undefined) ??
+  "https://life-editor.sunbreak-pro.workers.dev";
+
+export function passwordRecoveryRedirectUrl(): string {
+  if (typeof window === "undefined") return PUBLIC_WEB_URL;
+  const { protocol, origin } = window.location;
+  return protocol === "http:" || protocol === "https:"
+    ? origin
+    : PUBLIC_WEB_URL;
+}
+
+/**
+ * Send the "reset your password" email. Resolves with `error: null` whether or
+ * not the address has an account — Supabase deliberately does not disclose
+ * which, and the UI must not either.
+ */
+export async function sendPasswordResetEmail(
+  email: string,
+): Promise<{ error: string | null }> {
+  const { error } = await getSupabaseClient().auth.resetPasswordForEmail(
+    email,
+    { redirectTo: passwordRecoveryRedirectUrl() },
+  );
+  return { error: error ? error.message : null };
+}
+
+/**
+ * Set a new password for the CURRENT session. Serves both entry points: the
+ * signed-in change form and the post-recovery reset (the recovery link signs
+ * the user in, so by then this is an ordinary session).
+ */
+export async function updatePassword(
+  password: string,
+): Promise<{ error: string | null }> {
+  const { error } = await getSupabaseClient().auth.updateUser({ password });
+  return { error: error ? error.message : null };
+}
+
 export async function signOut(): Promise<{ error: string | null }> {
   const { error } = await getSupabaseClient().auth.signOut();
   return { error: error ? error.message : null };

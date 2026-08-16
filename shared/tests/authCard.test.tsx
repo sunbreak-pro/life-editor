@@ -23,6 +23,7 @@ const LABELS: AuthCardLabels = {
   busy: "Working…",
   footerSignIn: "No account yet?",
   footerSignUp: "Already have an account?",
+  forgotPassword: "Forgot your password?",
 };
 
 function renderCard(props?: Partial<Parameters<typeof AuthCard>[0]>) {
@@ -31,6 +32,7 @@ function renderCard(props?: Partial<Parameters<typeof AuthCard>[0]>) {
     onEmailChange: vi.fn(),
     onPasswordChange: vi.fn(),
     onSubmit: vi.fn(),
+    onForgotPassword: vi.fn(),
   };
   render(
     <AuthCard
@@ -60,9 +62,10 @@ describe("AuthCard", () => {
       "autocomplete",
       "current-password",
     );
-    expect(
-      screen.getByRole("button", { name: "Sign in" }),
-    ).toHaveAttribute("type", "submit");
+    expect(screen.getByRole("button", { name: "Sign in" })).toHaveAttribute(
+      "type",
+      "submit",
+    );
     expect(screen.getByText("No account yet?")).toBeInTheDocument();
   });
 
@@ -72,9 +75,10 @@ describe("AuthCard", () => {
       "autocomplete",
       "new-password",
     );
-    expect(
-      screen.getByRole("button", { name: "Sign up" }),
-    ).toHaveAttribute("type", "submit");
+    expect(screen.getByRole("button", { name: "Sign up" })).toHaveAttribute(
+      "type",
+      "submit",
+    );
     expect(screen.getByText("Already have an account?")).toBeInTheDocument();
   });
 
@@ -93,6 +97,23 @@ describe("AuthCard", () => {
       screen.getByRole("button", { name: "Sign in" }).closest("form")!,
     );
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the way out of a forgotten password", () => {
+    // The only entry point to recovery (#919) — losing it strands the user.
+    const { onForgotPassword } = renderCard();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Forgot your password?" }),
+    );
+    expect(onForgotPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps that link out of sign-up mode", () => {
+    // Nothing to have forgotten yet, and the link would discard the form.
+    renderCard({ mode: "signUp" });
+    expect(
+      screen.queryByRole("button", { name: "Forgot your password?" }),
+    ).toBeNull();
   });
 
   it("shows the error band as an alert", () => {

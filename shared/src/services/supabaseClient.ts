@@ -35,7 +35,18 @@ export function getSupabaseClient(): SupabaseClient {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      // #919 / D-20260816-shared-fix-1: ON so a password-recovery link is
+      // actually consumed. supabase-js only reads the URL when it carries
+      // callback parameters (GoTrueClient._initialize's `callbackUrlType`
+      // guard) — a plain launch still restores from storage as before.
+      // Measured before flipping this: the app parses no URLs at all (no
+      // router per CLAUDE.md §3.2; zero location.hash / location.search /
+      // URLSearchParams references across shared, web and desktop), and the
+      // packaged shells serve file:// (Electron loadFile) and
+      // capacitor://localhost, neither of which can carry parameters. So the
+      // only shell where this changes anything is the public web URL — which
+      // is exactly where the recovery link lands.
+      detectSessionInUrl: true,
       ...(storage ? { storage } : {}),
     },
   });

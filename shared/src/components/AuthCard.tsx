@@ -1,7 +1,10 @@
 import { useId } from "react";
 import type { FormEvent } from "react";
-import { CircleAlert, LoaderCircle, PenLine } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { cn } from "./cn";
+import { AUTH_SURFACE_CLASS } from "./authSurface";
+import { AuthAlert } from "./AuthAlert";
+import { AuthBrandHeader } from "./AuthBrandHeader";
 import { Button } from "./Button";
 import { PasswordField, type PasswordFieldLabels } from "./PasswordField";
 import { SegmentedToggle } from "./SegmentedToggle";
@@ -32,6 +35,8 @@ export interface AuthCardLabels {
   footerSignIn: string;
   /** Footer hint shown in sign-up mode. */
   footerSignUp: string;
+  /** Link to the reset-request card, shown in sign-in mode (#919). */
+  forgotPassword: string;
 }
 
 export interface AuthCardProps {
@@ -47,6 +52,8 @@ export interface AuthCardProps {
   busy: boolean;
   /** Fired on form submit (Enter / button). preventDefault is handled here. */
   onSubmit: () => void;
+  /** Opens the reset-request card. The link renders in sign-in mode only. */
+  onForgotPassword: () => void;
   labels: AuthCardLabels;
   passwordMinLength?: number;
   className?: string;
@@ -71,6 +78,7 @@ export function AuthCard({
   error,
   busy,
   onSubmit,
+  onForgotPassword,
   labels,
   passwordMinLength = 6,
   className,
@@ -91,23 +99,12 @@ export function AuthCard({
     <form
       onSubmit={handleSubmit}
       aria-busy={busy || undefined}
-      className={cn(
-        "flex w-full max-w-[400px] flex-col gap-4 rounded-lumen-lg border",
-        "border-lumen-border bg-lumen-bg-secondary p-5 shadow-lumen-md md:p-6",
-        className,
-      )}
+      className={cn(AUTH_SURFACE_CLASS, className)}
     >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-lumen-md bg-lumen-accent text-lumen-on-accent">
-            <PenLine aria-hidden className="h-4 w-4" />
-          </div>
-          <span className="text-lg font-semibold text-lumen-text">
-            {labels.productName}
-          </span>
-        </div>
-        <p className="text-sm text-lumen-text-secondary">{labels.tagline}</p>
-      </div>
+      <AuthBrandHeader
+        productName={labels.productName}
+        tagline={labels.tagline}
+      />
 
       {/* The design dims the toggle + fields while busy; the alert band and
           submit button stay at full strength (the button carries the spinner). */}
@@ -167,22 +164,22 @@ export function AuthCard({
             helperText={labels.passwordHelper}
           />
         </div>
+
+        {/* Sign-in only (#919): in sign-up mode there is no password to have
+            forgotten yet, and the link would just be a way to lose the form. */}
+        {mode === "signIn" ? (
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            disabled={busy}
+            className="self-start rounded-lumen-sm text-sm text-lumen-text-secondary underline-offset-2 transition-colors hover:text-lumen-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed"
+          >
+            {labels.forgotPassword}
+          </button>
+        ) : null}
       </div>
 
-      {error ? (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-lumen-md border border-lumen-danger bg-lumen-danger-subtle px-3 py-2.5"
-        >
-          <CircleAlert
-            aria-hidden
-            className="mt-0.5 h-4 w-4 shrink-0 text-lumen-danger"
-          />
-          <span className="text-sm leading-normal text-lumen-danger">
-            {error}
-          </span>
-        </div>
-      ) : null}
+      {error ? <AuthAlert message={error} /> : null}
 
       <Button type="submit" size="lg" disabled={busy} className="w-full">
         {busy ? (
