@@ -84,14 +84,17 @@ select p.item_id, m.role from events_payload p join items_meta m on m.id = p.ite
   - `trg_events_payload_init_cache` (BEFORE INSERT, 0011 新規): items_meta から現在の is_deleted を読んで cache 初期化。「soft-delete 済 items_meta → 後から events_payload INSERT」の保険。
 - **Routine→Event cascade はアプリ層責務**: trigger は events_payload.item_id 単位でしかミラーしない。Routine soft-delete → 由来 events 全体の soft-delete は `SupabaseRoutinesService.softDeleteRoutine` が events_payload WHERE routine_item_id=X の items_meta を `.in()` で一括 UPDATE。戻り値 `{ deletedScheduleItemIds }` で UI が in-memory 同期。
 
-### 10.8 bulkCreate ON CONFLICT 戦略（partial UNIQUE 系）
+### 10.8 bulkCreate の冪等化戦略（partial UNIQUE 系）
 
-partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/event テーブルへの bulk INSERT は、Supabase JS の `upsert(rows, { onConflict, ignoreDuplicates: true })` で冪等化する。
+partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/event テーブルへの bulk INSERT は、**事前 SELECT でアプリ層 dedup してから素の INSERT を撃つ**。
 
+- **`upsert(rows, { onConflict, ignoreDuplicates: true })` は使えない**（2026-08-16 に #897 で実測・旧記述を訂正）: PG の `ON CONFLICT` は partial unique index を狙えるが、**index の WHERE 述語を渡す必要がある**（planner が「その index が新しい行を覆う」ことを証明できないため）。Supabase JS の `onConflict` は PostgREST に**列名リストしか送れない**ので述語を渡す口が無く、PG は 400 `there is no unique or exclusion constraint matching the ON CONFLICT specification` で拒否する。非 partial な UNIQUE を足せば通るが、それは「soft-delete 後に同じ (routine, date) を作り直せる」という設計を壊すので採らない
+- 手順: ① 投入予定の (routine_item_ids, source_dates) について**既存の live ペアを事前 SELECT** ② 衝突する行を落とす（silent idempotent skip）③ items_meta → events_payload の順に素の INSERT を 2 本
 - 対象: `events_payload` の `(routine_item_id, source_date) WHERE routine_item_id IS NOT NULL AND is_deleted_cache = false`
-- 動作: 既に live な (routine, date) ペアがあれば silent skip → 生成器が month-flip 連打しても duplicate を作らない (Issue 011 contract)
 - ⚠️ `source_date` は generator 経路でのみ populate (routine_item_id 非 null の時 `start_at` から patch)。手動 event は source_date=null で partial UNIQUE は発火しない
-- R2 cleanup: payload upsert が例外 (NW / RLS / unexpected) で throw した場合のみ、INSERT 済 items_meta 群を `.in("id", ids)` で hard delete (孤児防止)。ignoreDuplicates の silent skip は throw しないので cleanup 対象外
+- ⚠️ **事前 SELECT の liveness フィルタは `is_deleted_cache = false` だけ**にする。`is_dismissed = false` を足すのは一見「絞り込みの強化」に見えるが、**ユーザーが skip した日を再生成させない唯一の担保がこれ**（dismissed なオカレンスも (routine, date) を占有している）
+- ⚠️ レース窓: 事前 SELECT と INSERT の間に別パスが同じペアを入れると partial UNIQUE が 23505 を投げる → R2 cleanup（書いたばかりの items_meta を hard delete）にフォールバックする。**silent skip は throw しない**ので cleanup 対象外
+- R2 cleanup: payload INSERT が例外 (NW / RLS / 23505) で throw した場合のみ、INSERT 済 items_meta 群を `.in("id", ids)` で hard delete (孤児防止)
 
 ## 11. PostgREST list read のページ分割規約（#172）
 

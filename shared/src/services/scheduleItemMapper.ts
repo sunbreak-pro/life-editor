@@ -52,9 +52,10 @@ import {
  * What this module does NOT own:
  *   - The orphan-cleanup `try/catch` after a failed payload INSERT
  *     (R2 → DU-C-5 SupabaseScheduleItemsService.createScheduleItem).
- *   - The partial UNIQUE conflict handler on bulkCreate (ON CONFLICT
- *     ignoreDuplicates lives in the service layer; the mapper only
- *     produces row shapes).
+ *   - The partial UNIQUE dedup on bulkCreate (a pre-SELECT of the live
+ *     (routine_item_id, source_date) pairs, NOT ON CONFLICT — PostgREST
+ *     cannot aim one at a PARTIAL index; it lives in the service layer
+ *     and the mapper only produces row shapes).
  *
  * Carries NO `@supabase/supabase-js` dependency: this module is pure.
  * The 0008 + 0011 migrations are the SSOT for column types — keep this
