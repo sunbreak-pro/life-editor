@@ -18,7 +18,12 @@ import {
 } from "../../utils/analyticsAggregation";
 import { useWeekStartPref } from "../../hooks/useWeekStart";
 import { ChartCard } from "./ChartCard";
-import { CHART_GRID, CHART_TICK_11, CHART_TOOLTIP_STYLE } from "./chartTheme";
+import {
+  CHART_GRID,
+  CHART_HEIGHT_MD,
+  CHART_TICK_11,
+  CHART_TOOLTIP_STYLE,
+} from "./chartTheme";
 
 export interface WorkTimeChartLabels {
   /** Chart heading + tooltip series name. */
@@ -79,41 +84,42 @@ export function WorkTimeChart({
 
   return (
     <ChartCard title={labels.workTime} control={control}>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart
-            data={data}
-            margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
-          >
-            <CartesianGrid {...CHART_GRID} />
-            <XAxis
-              dataKey="label"
-              tick={CHART_TICK_11}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              tick={CHART_TICK_11}
-              tickLine={false}
-              axisLine={false}
-              unit="h"
-            />
-            <Tooltip
-              cursor={{ fill: "var(--color-lumen-hover)" }}
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number | undefined) => [
-                `${value ?? 0}h`,
-                labels.workTime,
-              ]}
-            />
-            <Bar
-              dataKey="hours"
-              fill="var(--color-lumen-accent)"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD} minWidth={0}>
+        <BarChart
+          data={data}
+          margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+        >
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis
+            dataKey="label"
+            tick={CHART_TICK_11}
+            tickLine={false}
+            axisLine={false}
+          />
+          {/* No allowDecimals={false} here, unlike the count/minute axes
+              (#944): `hours` is rounded to one decimal above, so a 1.5h day
+              is real data and integer-only ticks would hide it. */}
+          <YAxis
+            tick={CHART_TICK_11}
+            tickLine={false}
+            axisLine={false}
+            unit="h"
+          />
+          <Tooltip
+            cursor={{ fill: "var(--color-lumen-hover)" }}
+            contentStyle={CHART_TOOLTIP_STYLE}
+            formatter={(value: number | undefined) => [
+              `${value ?? 0}h`,
+              labels.workTime,
+            ]}
+          />
+          <Bar
+            dataKey="hours"
+            fill="var(--color-lumen-accent)"
+            radius={[4, 4, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </ChartCard>
   );
 }

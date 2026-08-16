@@ -12,7 +12,7 @@ import type { TodoNode } from "../../types/todoTree";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { aggregateWorkTimeByTag } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
-import { CHART_TOOLTIP_STYLE } from "./chartTheme";
+import { CHART_HEIGHT_LG, CHART_TOOLTIP_STYLE } from "./chartTheme";
 
 export interface TagWorkTimeChartLabels {
   title: string;
@@ -109,40 +109,38 @@ export function TagWorkTimeChart({
 
   return (
     <ChartCard title={labels.title}>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              innerRadius={40}
-              paddingAngle={2}
-              label={({ name, percent }) =>
-                `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-              }
-              labelLine={{ strokeWidth: 1 }}
-            >
-              {data.map((d, index) => (
-                <Cell
-                  key={index}
-                  fill={d.color ?? COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number | undefined) =>
-                labels.formatHours(value ?? 0)
-              }
-            />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_LG} minWidth={0}>
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={80}
+            innerRadius={40}
+            paddingAngle={2}
+            label={({ name, percent }) =>
+              `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
+            }
+            labelLine={{ strokeWidth: 1 }}
+          >
+            {data.map((d, index) => (
+              <Cell
+                key={index}
+                fill={d.color ?? COLORS[index % COLORS.length]}
+              />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            formatter={(value: number | undefined) =>
+              labels.formatHours(value ?? 0)
+            }
+          />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+        </PieChart>
+      </ResponsiveContainer>
     </ChartCard>
   );
 }
