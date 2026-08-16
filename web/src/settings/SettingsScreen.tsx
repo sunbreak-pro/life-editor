@@ -14,6 +14,7 @@ import {
   useConfirmDialog,
   DEFAULT_SHORTCUTS,
   MAIN_SECTIONS,
+  PASSWORD_MIN_LENGTH,
   fontSizeToPx,
   useThemeContext,
   useShortcutConfig,
@@ -180,7 +181,9 @@ export function SettingsScreen() {
   const passwordMessages = useMemo(
     () => ({
       mismatch: t("settings.account.errors.mismatch"),
-      tooShort: t("settings.account.errors.tooShort"),
+      tooShort: t("settings.account.errors.tooShort", {
+        min: PASSWORD_MIN_LENGTH,
+      }),
       samePassword: t("settings.account.errors.samePassword"),
       generic: t("settings.account.errors.generic"),
       done: t("settings.account.done"),
@@ -337,7 +340,9 @@ export function SettingsScreen() {
             description: t("settings.account.description"),
             emailLabel: t("settings.account.emailLabel"),
             newPassword: t("settings.account.newPassword"),
-            newPasswordHelper: t("settings.account.newPasswordHelper"),
+            newPasswordHelper: t("settings.account.newPasswordHelper", {
+              min: PASSWORD_MIN_LENGTH,
+            }),
             confirmPassword: t("settings.account.confirmPassword"),
             showPassword: t("auth.showPassword"),
             hidePassword: t("auth.hidePassword"),

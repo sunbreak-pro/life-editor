@@ -33,6 +33,22 @@ import { useBriefingData } from "../src/briefing/hooks/useBriefingData";
 
 const TODAY = "2026-08-15";
 
+/**
+ * The slot the create panel now submits (#940): the day travels with the times
+ * instead of the hook reading it off `todayKey`, so these cases say which day
+ * they mean. Defaults to the paper's own day, which is what they all assumed.
+ */
+const slot = (
+  start: string,
+  end: string,
+  over?: { date?: string; isAllDay?: boolean },
+) => ({
+  date: over?.date ?? TODAY,
+  start,
+  end,
+  isAllDay: over?.isAllDay ?? false,
+});
+
 function renderData(
   seed: BriefingReadSeed = {},
   writes: Record<string, unknown> = {},
@@ -242,7 +258,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", "13:00", "14:00", null),
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), null),
     );
 
     expect(mockOf(ds, "createScheduleItem")).toHaveBeenCalledWith(
@@ -262,6 +278,34 @@ describe("useBriefingData — schedule writes (#892)", () => {
     );
   });
 
+  it("writes to another day when the panel picked one, and keeps it off today's paper (#940)", async () => {
+    // The paper is always about today, but the panel it opens is Schedule's
+    // and can now book any day. The write has to follow the picked day, and
+    // the row must not turn up on a paper it does not belong to.
+    const other = "2026-08-20";
+    const saved = scheduleItem({ id: "s-new", date: other, title: "Coffee" });
+    const { result, ds } = renderData(
+      {},
+      { createScheduleItem: vi.fn().mockResolvedValue(saved) },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () =>
+      result.current.handleCreateEvent(
+        "Coffee",
+        slot("13:00", "14:00", { date: other, isAllDay: true }),
+        null,
+      ),
+    );
+
+    const call = mockOf(ds, "createScheduleItem").mock.calls[0];
+    expect(call[1]).toBe(other);
+    expect(call[8]).toBe(true); // isAllDay rides along
+    expect(result.current.data.schedule.map((s) => s.id)).not.toContain(
+      "s-new",
+    );
+  });
+
   it("creates a todo on the paper's day with a concrete window", async () => {
     const saved = makeTodo({
       id: "task-new",
@@ -275,7 +319,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateTodo("Draft", "13:00", "14:00", null),
+      result.current.handleCreateTodo("Draft", slot("13:00", "14:00"), null),
     );
 
     expect(mockOf(ds, "createTodo")).toHaveBeenCalledWith(
@@ -309,7 +353,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handlePlaceTodo("t-loose", "13:00", "14:00", null),
+      result.current.handlePlaceTodo("t-loose", slot("13:00", "14:00"), null),
     );
 
     // A todo given a window is by definition not an all-day candidate —
@@ -341,7 +385,7 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() =>
-      result.current.handleCreateEvent("Coffee", "13:00", "14:00", {
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), {
         kind: "existing",
         id: "n1",
       }),
@@ -382,7 +426,7 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", "13:00", "14:00", {
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), {
         kind: "new",
         title: "Why this meeting",
       }),
@@ -420,7 +464,7 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", "13:00", "14:00", {
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), {
         kind: "existing",
         id: "n1",
       }),

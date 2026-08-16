@@ -14,17 +14,10 @@ export function useNoteLinking({
   dataService,
   pendingSelectNoteId,
   onConsumePendingSelect,
-  onPendingSelected,
 }: {
   dataService?: DataService;
   pendingSelectNoteId?: string | null;
   onConsumePendingSelect?: () => void;
-  /**
-   * The pending handoff moved the selection to this id. Selecting is not enough
-   * for surfaces the HOST keys on separately — the mobile detail sheet tracks
-   * its own note id — so the host follows them here (#475).
-   */
-  onPendingSelected?: (id: string) => void;
 }) {
   const notes = useNotesUnifiedContext();
   // "[[" → item_links, shared with Todos and Daily (#776). The edge write and
@@ -49,15 +42,22 @@ export function useNoteLinking({
   // list: nothing is fetched until a surface actually opens (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
 
-  // A link click from another tab lands here with a pending note id — select
-  // it once (the async note load resolves selectedNote afterwards), then clear.
+  /*
+   * A link click from another tab lands here with a pending note id — select
+   * it once (the async note load resolves selectedNote afterwards), then clear.
+   *
+   * Selecting is now the WHOLE handoff. It used to also report the id back to
+   * the host (`onPendingSelected`), because the mobile detail sheet tracked a
+   * note id of its own and would otherwise keep the old note's chrome over a
+   * body that never resolved (#475). #876 retired that sheet: every surface
+   * reads `selectedNote`, so moving the selection moves all of them.
+   */
   useEffect(() => {
     if (!pendingSelectNoteId) return;
     notes.setSelectedNoteId(pendingSelectNoteId);
-    onPendingSelected?.(pendingSelectNoteId);
     onConsumePendingSelect?.();
-    // notes.setSelectedNoteId / onConsumePendingSelect / onPendingSelected are
-    // stable enough; rerun only when a new pending id arrives.
+    // notes.setSelectedNoteId / onConsumePendingSelect are stable enough;
+    // rerun only when a new pending id arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSelectNoteId]);
 

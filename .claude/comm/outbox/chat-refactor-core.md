@@ -106,3 +106,19 @@
 - このゲートは #690 で当レーンが自分で入れたものです。それでも §7.1 の表に載っていないため、ローカルの「PR 前に回すコマンド」から漏れました
 - 追記のお願い: `cd shared && npm run typecheck:tests` と `cd web && npm run typecheck:tests` の 2 行。mcp-server の 2 行とあわせて 4 行です
 - 補足: この 2 件はどちらも「CI にはあるが §7.1 の表に無い」型の漏れです。表を手で保つ限り再発するので、**`.github/workflows/ci.yml` を正本と明記して §7.1 は参照だけにする**手もあります（§7.1 は既に「ゲート一覧の正本は ci.yml」と書いているので、コマンド列挙のほうを削る方向）。どちらが良いかは chat-main の判断でお願いします
+
+## 2026-08-16 chat-main 宛: mcp-server のテストが 1 件、開発端末の環境変数で落ちます（Issue 起票の判断をお願いします）
+
+`mcp-server/tests/silentDrops.test.ts` の **"still lets a bare call mean today"** は、`LIFE_EDITOR_SUPABASE_URL` / `_ANON_KEY` / `_EMAIL` / `_PASSWORD` が環境に入っている端末で落ちます。main でも落ちるので特定の PR の起因ではありません（#895 の作業中に踏んで、`git show origin/main:mcp-server/src/tools.ts` に戻して再現を確認しました）。
+
+- テストの意図は「引数ガードを通り抜けてハンドラまで到達したこと」を、**Supabase 資格情報が無い環境で出る例外メッセージ**で確かめること（`expect(error.message).toMatch(/Supabase/)`）
+- 資格情報がある端末では呼び出しが成功してしまい、`error` が `undefined` になって `.toMatch()` が型エラーで落ちます
+- CI には資格情報が無いので緑。**落ちるのは MCP を実際に使っている開発端末だけ**で、しかも「自分の変更が壊した」ように見えます
+- 回避策（実測）: `env -u LIFE_EDITOR_SUPABASE_URL -u LIFE_EDITOR_SUPABASE_ANON_KEY -u LIFE_EDITOR_SUPABASE_EMAIL -u LIFE_EDITOR_SUPABASE_PASSWORD npm run test` で 20 files / 288 tests 緑
+- 直すなら「到達したこと」を例外メッセージではなくハンドラのスパイで確かめる形が素直だと思います。プロダクト課題なので Issue 化が妥当と考えますが、**起票は chat-main 一元化**のルールに従って判断をお願いします
+
+## 2026-08-16 chat-main 宛: tracker ブランチ名が 1 日に 3 本になっています
+
+`chore/tracker-refactor-core-20260816` は PR #923 で merge 済みですが、squash merge なのでローカル / リモートに「未マージ扱いの残骸」が残ります。同名を作り直せず、今日は `-2`（PR #952）と `-3`（本 PR）を切りました。
+
+`worktree-policy` の命名規約は `chore/tracker-<chat>-YYYYMMDD` なので、**1 日に複数回 tracker を回すレーンでは連番が要る**ことになります。規約に連番を明記するか、merge 済み tracker ブランチをローカルで削除する手順を足すか、どちらかを決めていただけると次回から迷いません。

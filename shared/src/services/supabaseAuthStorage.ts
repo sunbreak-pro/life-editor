@@ -41,7 +41,20 @@ export interface AuthSessionStorage {
   removeItem(key: string): Promise<void>;
 }
 
-interface DesktopAuthStorageBridge {
+/**
+ * The shape `window.desktop.authStorage` is expected to have. Declared here
+ * rather than imported because `shared/` must not depend on `desktop/` (or on
+ * `electron`), which is exactly what makes it drift-prone: the real object is
+ * built in `desktop/src/preload/index.ts` from
+ * `desktop/src/shared/ipcContract.ts`, and nothing at this end would notice a
+ * rename there.
+ *
+ * Exported so it can be pinned against that contract from the side that CAN
+ * see both — `desktop/tests/ipcContract.test.ts` asserts the two types are
+ * mutually assignable, so a signature change on either end fails desktop's
+ * typecheck (#894).
+ */
+export interface DesktopAuthStorageBridge {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;

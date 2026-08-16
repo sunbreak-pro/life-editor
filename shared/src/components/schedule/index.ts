@@ -113,9 +113,13 @@ export {
   type ItemCreatePanelHandlers,
   type ItemCreateOption,
   type ItemCreateNoteDraft,
+  type ItemCreateSlot,
   type ItemCreateType,
   type ItemCreateSource,
 } from "./ItemCreatePanel";
+// #940: the all-day switch, shared by the creating and the editing side so
+// the control is the same object in both.
+export { AllDaySwitch, type AllDaySwitchProps } from "./AllDaySwitch";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {

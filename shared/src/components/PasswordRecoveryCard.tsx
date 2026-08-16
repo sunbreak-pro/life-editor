@@ -5,6 +5,7 @@ import {
   PasswordUpdateForm,
   type PasswordUpdateFormLabels,
 } from "./PasswordUpdateForm";
+import { PASSWORD_MIN_LENGTH } from "../constants/password";
 
 export interface PasswordRecoveryCardLabels extends PasswordUpdateFormLabels {
   productName: string;
@@ -49,7 +50,7 @@ export function PasswordRecoveryCard({
   busy,
   onSubmit,
   labels,
-  passwordMinLength = 6,
+  passwordMinLength = PASSWORD_MIN_LENGTH,
   className,
 }: PasswordRecoveryCardProps) {
   return (

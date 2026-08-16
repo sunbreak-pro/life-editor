@@ -8,6 +8,7 @@ import {
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { TimeRangeField } from "../TimeRangeField";
+import { AllDaySwitch } from "./AllDaySwitch";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import {
   FrequencyEditor,
@@ -18,12 +19,7 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
-import {
-  FIELD,
-  FIELD_LABEL,
-  FOCUS_RING_ON_ACCENT,
-  FOCUS_RING_TIGHT,
-} from "../styleTokens";
+import { FIELD, FIELD_LABEL, FOCUS_RING_ON_ACCENT } from "../styleTokens";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
@@ -592,21 +588,13 @@ function EventEditorFields({
           />
         </label>
         {canEditAllDay && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={draft.isAllDay}
-            onClick={toggleAllDay}
-            className={cn(
-              "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-sm font-medium transition-colors",
-              FOCUS_RING_TIGHT,
-              draft.isAllDay
-                ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
-                : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-            )}
-          >
-            {labels.allDay}
-          </button>
+          // Shared with ItemCreatePanel (#940) so "all day" is the same
+          // control whether the row is being made or edited.
+          <AllDaySwitch
+            checked={draft.isAllDay}
+            onToggle={toggleAllDay}
+            label={labels.allDay}
+          />
         )}
       </div>
 

@@ -257,6 +257,10 @@ export function useScheduleCopy({
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
       todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
       date: t("scheduleScreen.date"),
+      // #940: the same key the detail editor's switch uses, because it is the
+      // same switch — a second phrasing here would make "all day" read as two
+      // different settings between creating and editing.
+      allDay: t("scheduleScreen.allDay"),
       startTime: t("scheduleScreen.startTime"),
       endTime: t("scheduleScreen.endTime"),
       addEvent: t("scheduleScreen.addEvent"),

@@ -19,6 +19,7 @@ import {
   type BriefingTab,
   type DataService,
   type ItemCreateNoteDraft,
+  type ItemCreateSlot,
   WIDE_QUERY,
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
@@ -148,8 +149,6 @@ export function BriefingScreen({
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
-      todosTitle: t("briefing.todosTitle"),
-      noTodos: t("briefing.noTodos"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
       edit: t("briefing.edit"),
@@ -266,21 +265,14 @@ export function BriefingScreen({
   // rightSidebar's. No briefing-specific creation form: the same act would
   // otherwise exist in two implementations that drift apart.
   //
-  // No date picker — the target day is the day the paper is showing. That is
-  // the whole gesture ("add this to today"), and offering a different day here
-  // would contradict the「+」the user pressed.
+  // The panel opens on the day the paper is showing — that is the「+」gesture
+  // — but since #940 the day is an input rather than a caption, so "add this
+  // to today" is the default here, not the only thing on offer. Anything
+  // booked for another day is written and simply does not join today's paper
+  // (useBriefingWrites keeps the lists honest).
   const [createOpen, setCreateOpen] = useState(false);
   const openCreatePanel = useCallback(() => setCreateOpen(true), []);
   const closeCreatePanel = useCallback(() => setCreateOpen(false), []);
-
-  const createDateLabel = useMemo(() => {
-    const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
-    return new Date(`${todayKey}T00:00:00`).toLocaleDateString(locale, {
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-    });
-  }, [todayKey, i18n.language]);
 
   const formatDuration = useCallback(
     (minutes: number) => {
@@ -306,6 +298,7 @@ export function BriefingScreen({
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
       todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
       date: t("scheduleScreen.date"),
+      allDay: t("scheduleScreen.allDay"),
       startTime: t("scheduleScreen.startTime"),
       endTime: t("scheduleScreen.endTime"),
       addEvent: t("scheduleScreen.addEvent"),
@@ -331,13 +324,8 @@ export function BriefingScreen({
   );
 
   const submitEvent = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handleCreateEvent(title, start, end, note);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      handleCreateEvent(title, slot, note);
       closeCreatePanel();
     },
     [handleCreateEvent, closeCreatePanel],
@@ -347,13 +335,8 @@ export function BriefingScreen({
   // The paper has no event editor of its own, so the honest reading here is
   // to create and then go to Schedule, where that editor lives.
   const submitEventAndOpen = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handleCreateEvent(title, start, end, note);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      handleCreateEvent(title, slot, note);
       closeCreatePanel();
       onNavigate({ section: "schedule", tab: "calendar" });
     },
@@ -361,13 +344,8 @@ export function BriefingScreen({
   );
 
   const submitTodo = useCallback(
-    (
-      title: string,
-      start: string,
-      end: string,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handleCreateTodo(title, start, end, note);
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      handleCreateTodo(title, slot, note);
       closeCreatePanel();
     },
     [handleCreateTodo, closeCreatePanel],
@@ -376,11 +354,10 @@ export function BriefingScreen({
   const submitPlaceTodo = useCallback(
     (
       todoId: string,
-      start: string,
-      end: string,
+      slot: ItemCreateSlot,
       note: ItemCreateNoteDraft | null,
     ) => {
-      handlePlaceTodo(todoId, start, end, note);
+      handlePlaceTodo(todoId, slot, note);
       closeCreatePanel();
     },
     [handlePlaceTodo, closeCreatePanel],
@@ -504,7 +481,7 @@ export function BriefingScreen({
     >
       <ItemCreatePanel
         key={todayKey}
-        dateLabel={createDateLabel}
+        initial={{ date: todayKey }}
         pools={{ todos: todoAddable, notes: noteOptions }}
         handlers={{
           onSubmitEvent: submitEvent,

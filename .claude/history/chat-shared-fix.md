@@ -1,5 +1,20 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-16 - 回答済み判断 5 件の台帳昇格と、#956 パスワード最小長 6 → 12
+
+#### 概要
+
+前半は記録の片付け。#919 が積んだ判断がすべて A で回答されたので、`D-20260815-shared-fix-1` と `D-20260816-shared-fix-2`〜`-5` を `.claude/decisions/` 台帳へ昇格し、キューを空にした。後半はそのうち `-4` の実装 = パスワードの最小長を 6 → **12** へ（PR #967 open・Closes #956・全ゲート緑）。merge はユーザー手番（P-001）。tracker / 判断 / outbox はすべて `chore/tracker-shared-fix-20260816-2` 側で、実装ブランチには載せていない（D-20260801-main-1 / D-20260802-sched-1）。
+
+#### 変更点
+
+- **昇格 5 件**: `-1`（#916 を通す）は回答時点で PR #916 / #917 とも merged 済みのため追加作業ゼロ = 月シート全画面化の起票は不要と D ファイルに明記。`-2`（implicit のまま）/ `-3`（変更時の再認証なし）/ `-4`（最小長を上げる）/ `-5`（未再設定で離脱してもセッションを残す）。`ANSWERS.md` にも 5 行追記した — `records.mjs check` が `status: answered` の D ファイルと ANSWERS 行を突合するので、行が無いと昇格自体が検査で落ちる
+- **数値を 1 箇所に閉じた**（#956 の DoD）: `shared/src/constants/password.ts` の `PASSWORD_MIN_LENGTH` だけが 12 を持つ。en / ja の文言 4 キーは数字を捨てて `{{min}}` 差し込みに変え、`t()` の呼び出し側が同じ定数を渡す。差し込みキーの呼び出し側は grep で全数確認（web に 5 箇所・desktop / mobile に取り残しゼロ）— 1 箇所でも渡し忘れると画面に `{{min}}` がそのまま出るため
+- **サインイン欄には効かせない**（P-006 の実装者判断・PR 本文にも明記）: `AuthCard` の `minLength` とヘルパー文言は signUp モードのみ。下限は「これから作るパスワード」の規則で、いま使っているパスワードは引き上げより前に作られている。サインインにも効かせると、ブラウザが本物のパスワードの送信を拒否して、メール再設定を一周するまで自分のアカウントに入れなくなる
+- **テストは境界を定数から作る**: 下限ちょうど 1 文字下は Supabase を呼ばずに弾く / ちょうど下限は通る（`<` と `<=` の取り違えを留める）/ 再設定カード側でも弾く（DoD の「設定 / 再設定の両経路」の後半）/ signIn には `minlength` もヘルパーも出さない。リテラルの 12 を書くと次に下限を動かしたときテストだけ古い値に残るため、すべて `PASSWORD_MIN_LENGTH` から組み立てている
+- **🛑 残っている手番**: Supabase の Minimum password length を 12 へ。**アプリ側だけ上げてもサーバ側の下限は別**なので、揃えるまで「アプリは 12 を求めるのに実際は 6 で通る」状態が残る（手順は PR #967 本文）。既存パスワードが無効になることはない（Supabase の最小長は新規設定時のみ効く）
+- **outbox へ 1 件**: #956 で古くなった他レーンの docs 2 本（`plans/2026-08-07-web-mobile-public-url.md` Step 7 に Minimum password length の行が無い / `docs/design/briefs/auth.md` の「6 文字以上」4 箇所）。どちらも Owner-chat が別レーンなので単一書込者原則で触らず申し送りにした
+
 ### 2026-08-16 - #919 パスワードの変更 / 再設定の導線
 
 #### 概要
@@ -69,18 +84,3 @@ Mobile の見た目バグ 2 連。どちらも報告された症状と原因が�
 - **表示文字列の不変を機械証明**: i18n の葉の値を改名前後で集合比較 → 差分は各 catalog 1 件のみで、それも補間変数名（`{{task}}` → `{{todo}}`、コード側と同時改名）。レンダリング結果は不変
 - **型で捕まらない罠 2 種**: `Record<ItemRole, …>` 系のキーは `items_meta.role` そのものなので `task` 据え置き（`itemRole.task` の i18n キーも同様）。うち `itemLinkSuggestion` / `useShellNavigation` / mcp の `ROLE_PAYLOAD_TABLE` は `Record<string, …>` で **改名しても build が通ってしまう** — 手検査で発見（mcp 側の 1 件は verification suite が実行時に検出）
 - **見送り**: CLAUDE.md §8 Tier マップと tier-1-core 本文の機能名「Tasks」（プロダクト語彙のため別判断）。archive / history / memory / decisions / comm は `rules/records.md` に従い書き換えない
-
-### 2026-08-13 - #838 セッション永続の storage 差し替え + #827 ダークスクロールバー
-
-#### 概要
-
-shared-fix 2 連。#838 = 同じ端末で毎回ログインし直しになる問題を、Supabase auth の保存先をプラットフォーム別に差し替えて解消（PR #847・書いた時点で open）。#827 = ダークテーマでスクロールバーだけ白い問題を `color-scheme` + `scrollbar-color` で解消（PR #850・同 open）。どちらも Closes 付き・main から個別分岐・全ゲート緑（shared / web 各 lint+test+build、#838 は desktop typecheck+build も。desktop は本 worktree 初 install）。merge はユーザー手番（P-001）。
-
-#### 変更点
-
-- **#838 shared**: `services/supabaseAuthStorage.ts` 新設 = プラットフォーム判定の一元点（DoD）。Electron → preload の `window.desktop.authStorage` ブリッジ / native mobile → `window.Capacitor.Plugins.Preferences`（runtime global 経由 — shared に `@capacitor/*` import を入れない不変式を維持）/ web → localStorage 既定。ブリッジ不在時は従来挙動へフォールバック。resolver テスト 5 件
-- **#838 desktop**: `authStorage:*` IPC 3 本 + electron-store 保存。`safeStorage` で OS キーチェーン暗号化（refresh token を平文 localStorage に置かない — file:// 起因の消失と保管場所の両方を解決。app:// 配信案との比較理由は `setupAuthStorageIpc` のコメントに記録 = DoD）。暗号化不可環境は `plain:` マーカーで劣化動作
-- **#838 mobile**: `@capacitor/preferences@^8` を依存追加（lock 再生成は `--package-lock-only`）
-- **#827**: `tokens.css` に `color-scheme: light/dark`（テーマ属性スコープ・ThemePreviewCard の入れ子 light も考慮）+ `:root` の `scrollbar-color: var(--color-border-strong) transparent`（継承でアプリ全域・トークン経由でハードコード無し）。jsdom はスクロールバーを描けないため宣言のピン留めテストで回帰を防止
-- **申し送り**: 実測系 DoD（パッケージ版 Electron 再起動 / モバイル殻再起動 / ダークテーマ目視）は merge 後 chat-main 実測 — 両 PR 本文に記載済み
-
