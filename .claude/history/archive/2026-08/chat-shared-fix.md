@@ -1,5 +1,32 @@
 # HISTORY archive (chat-shared-fix) — 2026-08
 
+### 2026-08-13 - #782 MCP 棚卸しの残り 3 塊を 3 PR で実装
+
+#### 概要
+
+#702 Step 1 棚卸しで挙がったが Step 2 に入らなかった「追加」寄り 3 塊を、Issue の区切りどおり独立 3 PR（main から個別に分岐）で実装。① 欠けている操作 = PR #822（書いた時点で merged）/ ② 戻り値の穴 = PR #828 / ③ 文脈ツール横展開 = PR #832（どちらも open）。各塊とも role-engineer 実装 → role-qa 独立監査 → Blocking/Important を修正して commit の流れ。
+
+#### 変更点
+
+- **① 欠けている操作（#822）**: `restore_item`（task/note/event・live id は書き込みゼロの no-op）/ `delete_note` / `untag_entity`（tag_entity の revive と対になる soft delete）/ `update_note.is_pinned`。記録型スタブ `tests/supabaseStub.ts` 新設（書き込みは await 実行時にカウント — QA 指摘反映）。VALID_CALLS と公開ツール一覧の網羅テスト追加。docs は AC8 の「MCP 経由では削除できない」を反転、Notes/WikiTags の Coverage 列挙を参照化
+- **② 戻り値の穴（#828）**: `get_daily` を exists/isTrashed/hasBriefing の 3 分岐に（trash の本文は返さない）。`search_all` を per-domain {results,total,hasMore} + offset に刷新、dailies に id。tasks は server 側 .limit 撤去 → in-app merge で total 正確化 + id タイブレーク（QA 指摘）。limit/offset の明示 null は未指定扱い（validator の寛容則と整合 — QA 指摘）
+- **③ 文脈ツール（#832）**: `get_week_context`（範囲クエリ 4 本・宣言コメントと一致）/ `get_note_context`（note+tags+links/backlinks）。getTodayContext の整形を共有ヘルパ化（戻り値不変を characterization テストで初めて固定）。carriedOver の文字列比較 → instant 比較（PostgREST `+00:00` vs `.000Z` で週初日 0:00 が誤って持ち越し扱い — QA 検出の実バグ・get_today_context も同時修正）
+- **合流事故 2 件の検出と収束**: main が 2 度赤くなっていた（#822 の網羅テスト × #700 の 3 ツール = mcp / #788 系 × 別 PR = web kanban）。前者は当レーンが検出し #829（chat-main）と両側から修復 → 重複行は #832 側で削除。後者も #829 が修復済みを確認し、最新 main を #832 に merge して統合ツリーで全ゲート再実測
+- **見送り分の行き先**: QA Suggestion のうち別課題級 4 件は outbox（`comm/outbox/chat-shared-fix.md`）へ起票依頼として記載
+
+### 2026-08-13 - #672 schedule hook の導出 loading 化と eslint baseline の退役
+
+#### 概要
+
+#672 の最終 PR。baseline 3 ファイルの最後だった `useScheduleItemsAPI` を `useDomainLoad`（#769 の共通 load effect）へ移植し、`shared/eslint.config.js` の BASELINE ブロックを削除のみの diff で全撤去した。PR #801（書いた時点で open）。calendars / routines（PR #769）・routine UndoRedo（PR #686）は merge 済みだったため、本セッションの残作業はこの 1 本のみ。
+
+#### 変更点
+
+- **useScheduleItemsAPI**: load effect を `useDomainLoad` へ移植。anchored date は `anchor` として渡し、日付切替は Realtime bump と同じ経路でロードを再開始する。loading は導出（同期 `setIsLoading(true)` の削除 = render 1 回分の実変更・lint ロンダリングではない）。trash 読みは独立 effect のまま deps から `date` を除去（trash は日付アンカー無し・TrashView は開時に命令的再取得）
+- **eslint.config.js**: BASELINE ブロック 30 行を削除のみで撤去。`react-hooks/set-state-in-effect` が shared/ 全域で有効に
+- **テスト**: `scheduleItemsLoadEffect.test.tsx` 新規 5 件（routinesLoadEffect と同契約 + date アンカー再開始）。DoD の grep 3 点（baseline 0 / 削除のみ / hooks 配下 `setIsLoading(true)` 0 件）を実測達成 — useDomainLoad のコメント文言も文字列一致しないよう書き換えた
+- **申し送り**: merge 後の playwright（Schedule 初回描画 / 日付切替 / Realtime bump / Calendar 管理ビュー）は chat-main 宛てに PR 本文へ記載。完了で #672 を手動 close（PR に Closes を付けなかった理由）
+
 ### 2026-08-11 - #669 mcp-server の書き込み儀式を utils/items へ・tools.ts を宣言的レジストリ化
 
 #### 概要

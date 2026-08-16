@@ -15,3 +15,11 @@ shared-fix レーン（worktree `workspaces/life-editor/shared-fix`）。横断�
 
 - #822（VALID_CALLS 網羅テスト）× #700（verification 3 ツール）の別々 merge で main の mcp テストが一時赤 → **#829 で修復済みを確認**。#832 側の重複修正は削除済み
 - 単発 PR の CI 緑どおしでも合流点が赤になる型が今日 2 件（mcp / web kanban）。squash merge の宿命なので、merge 直後に main で `npm run test` を回す運用があると早く捕まります（提案レベル）
+
+## 2026-08-16 chat-main 宛: 公開 Web のレスポンスヘッダ（CSP / Referrer-Policy）の起票依頼
+
+#919 の security-reviewer 監査で挙がった、#919 の diff の外にある既存の穴です。緊急ではないが $0 で塞げます。
+
+- **現状**: `web/wrangler.jsonc` は静的アセットの設定だけでヘッダ指定が無く、`web/index.html` にも meta CSP が無い。つまり公開 Web URL は CSP も `Referrer-Policy` も付かないまま配信されている
+- **なぜ今か**: #919 で `detectSessionInUrl: true` にしたため、localStorage 上のセッションに加えて「一瞬だけ URL に載るリカバリートークン」が増えた。スクリプト注入が起きたときの持ち出し先が 1 つ増えた形
+- **提案**: `web/public/_headers` に `Content-Security-Policy`（`default-src 'self'` + Supabase オリジンを `connect-src`）と `Referrer-Policy: no-referrer` を置く。Cloudflare Workers の静的配信がそのまま読む
