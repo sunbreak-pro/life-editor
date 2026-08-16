@@ -18,15 +18,32 @@ export type StubTables = Record<string, StubRow[]>;
 
 /**
  * SQL LIKE pattern → the equivalent case-insensitive anchored RegExp.
- * LIKE's `\%` escape is NOT reproduced (a backslash is matched literally);
- * the `s` flag keeps `%` matching across newlines, as Postgres does.
+ *
+ * LIKE's backslash escape IS reproduced (#1003): `\%`, `\_` and `\\` mean the
+ * literal character, which is the whole point of escapeLikePattern and so the
+ * one thing a stub used to verify it must not simplify away. Scanning
+ * character by character rather than regex-replacing, because the escape has
+ * to be resolved BEFORE `%` and `_` become wildcards — two passes over the
+ * string cannot tell "escaped, then made a wildcard" from "wildcard".
+ *
+ * The `s` flag keeps `%` matching across newlines, as Postgres does.
  */
 function likeToRegExp(pattern: string): RegExp {
-  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(
-    `^${escaped.replace(/%/g, ".*").replace(/_/g, ".")}$`,
-    "is",
-  );
+  const quote = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let out = "";
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "\\" && i + 1 < pattern.length) {
+      out += quote(pattern[++i]);
+    } else if (c === "%") {
+      out += ".*";
+    } else if (c === "_") {
+      out += ".";
+    } else {
+      out += quote(c);
+    }
+  }
+  return new RegExp(`^${out}$`, "is");
 }
 
 function compare(a: unknown, b: unknown): number {
