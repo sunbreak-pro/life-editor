@@ -1,5 +1,21 @@
 # HISTORY (chat-work-refine)
 
+### 2026-08-16 - #946 Pomodoro Settings の 2 列で入力欄の縦位置が揃わない
+
+#### 概要
+
+Work > Pomodoro Settings の 5 つの数値フィールドは 2 列グリッドだが、セルが独立して上詰めになるため、ラベルの折り返し行数の差がそのまま入力欄の縦位置の差になっていた（en の "Long break duration between sets" = 3 行の隣に "Sessions per set" = 1 行）。行の高さを使う構造に直して揃えた。PR #984 open（Closes #946・merge = 人手 P-001）。
+
+#### 変更点
+
+- **`shared/src/components/PomodoroSettings.tsx`（`NumberField` のみ）**: セル（`<label>`）に `h-full`、キャプション（`<span>`）に `grow`。grid セルは元から行の高さを持つので、フィールドをその高さいっぱいに伸ばし、余りをラベル側に吸わせると入力欄がどのセルでも下端に来る。ラベルは上揃え・入力欄は下揃えになり、行数が何行違っても崩れない。親の `grid grid-cols-2 gap-3` は非変更
+- **ピクセル固定を採らなかった理由**: en は longBreak（3 行）> sessionsPerSet（1 行）だが ja は「セット間の休憩時間」< 「1セットあたりのセッション数」で長短が逆転する。オフセットや `min-h-*` はどちらかの catalog で必ず破綻する（Issue の第 3 案「ラベルを短くする」も同じ理由で見送り）
+- **挙動は非変更**: #714 のドラフト保存モデル・#624 の空欄ダイアログには一切触れていない（既存 2328 件が無修正で通過）
+- **テスト**: `shared/tests/pomodoroSettings.test.tsx` に #946 の describe 2 件（5 フィールドすべての `h-full` + キャプションの `grow` を固定 / 言語で壊れる固定高さが入っていないことを assert）。jsdom にレイアウトが無い（§7.1）ため段差そのものは測れず、既存 #880 と同じ「揃いを生む仕組みをクラスで固定する」形
+- **silent fail の実測潰し**（known-issue 015 の型）: `grow` はこのリポジトリで初出のユーティリティのため、ビルド後の `web/dist/assets/*.css` に `.grow{flex-grow:1}` が出ていることを確認
+- **未検証**: 実ブラウザでの見た目確認は worktree では回さない規約（§7.4）。merge 後 chat-main の宿題
+- **検証**: shared lint（0 error）/ build / test 2328、web lint / build / test 482 — すべて exit 0
+
 ### 2026-08-15 - #882 Todo 未選択のタイマー開始に「無題のTodo」を作る
 
 #### 概要
@@ -57,27 +73,4 @@ work セクションの Layout Standard v2 採用。Issue の前提「WorkScreen
 - **非変更の確認**: `SectionHeader` 本体・`AppShell.tsx` の diff ゼロ（DoD）。i18n 差分ゼロ
 - **検証**: shared lint（0 error）/ test 1512 / build、web lint / build / test 127 — すべて exit 0。余白の見た目確認は jsdom にレイアウトが無いため merge 後 chat-main（§7.4）
 
-### 2026-07-11 - #181 work 行消化（Layout Standard v1 adoption）
-
-#### 概要
-
-WorkScreen の独自レイアウトフレームを撤去し、MainScreen 側 PageContainer（width="reading", #180）へ幅・gutter・スクロールの所有権を移譲した。draft PR #192 で提出（merge = 人手ゲート）。
-
-#### 変更点
-
-- **WorkScreen desktop 分岐**: `max-w-[720px]` + `px-8` + `pb-6 pt-2` を撤去し `flex flex-col gap-4` のみに（commit 910af963）
-- **WorkScreen mobile 分岐**: `px-6 pb-4 pt-3` を撤去（fullscreen タイマーは `min-h-[72dvh]` 自己完結・横は標準 gutter で充足）
-- **検証**: shared build + test（94 files / 768 tests）+ web build pass。role-qa 独立レビュー PASS（ポータル/モーダルの clipping・stacking 影響なし実測確認）
-- **docs**: orders 台帳に消化記録を追記（commit cc1833b0）。#181 は本文編集権限が無かったためコメントで代理チェックを依頼
-
-### 2026-07-11 - #181 work 行の消し込み（PR #192 merged 確認）+ orders sync
-
-#### 概要
-
-セッション開始時に origin/main を取り込み（merge 成功・衝突は orders ファイル 1 行のみ・解消済み）。自分宛 Issue を確認: `section:work` 0 件 / `shared-fix` は #181 `[all]` のみ。#181 の work 行は PR #192 が既に merged だったため消し込みのみ。
-
-#### 変更点
-
-- **#181 消し込み**: main 上で WorkScreen が PageContainer 移譲済み（独自フレーム撤去・残 `max-w-full` はチップ用）を実測確認 → #181 本文 work 行を `[x]` にチェック（前回は merge 前で権限問題により代理依頼だった）+ 確認コメント（issuecomment-4944633540）。close は残行あり（schedule/settings/trash）のため chat-main 判断
-- **orders sync = PR #232**（docs-only・claude/work-refine → main, commit 02689d5e）: #181 行を「完了」へ更新 + 未コミットの merge 衝突解消を同梱。orders .md ledger 方式は retire 済みのため chat-main 判断で archive 可の旨を PR body / outbox に明記
-- **予告**: work の幅 wide 統一 + 標準ヘッダー新設後の余白調整は v2 adoption（Issue 未起票・起票は chat-main）で追随
+> 2026-07 のエントリ（#181 の 2 件）は `archive/2026-07/chat-work-refine.md` へ移動。
