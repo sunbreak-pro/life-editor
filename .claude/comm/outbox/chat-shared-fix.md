@@ -32,3 +32,24 @@ shared-fix レーン（worktree `workspaces/life-editor/shared-fix`）。横断�
 2. **`docs/design/briefs/auth.md`**（Owner-chat: design-auth・Status: Ready）— 4 箇所で「6 文字以上」をヘルパーテキストの仕様として書いている。ClaudeDesign へ渡した時点のブリーフなので**歴史として据え置くのが正しい可能性が高い**（判断はそちらへ委ねます）。据え置く場合、将来 grep した人が古い下限を拾わないよう 1 行の注記があると安全
 
 なお `shared/tests/passwordField.test.tsx` も "At least 6 characters" を持っていますが、これは `PasswordField`（下限を知らない汎用入力）の helperText が描画されることだけを見るフィクスチャなので、意図的に据え置いています。
+
+## 2026-08-16 chat-main 宛: #947 のついでに見た `web/index.html` の PWA meta 棚卸し（起票判断のお願い）
+
+#947（PR #977）で同ファイルを開いたので、残りの PWA meta も一通り見ました。**#947 の PR は 1 行 + コメントのみに留め、以下は diff に入れていません**（スコープを広げない方針）。結論から言うと **Chrome が警告を出すものは他に無く、直さないと壊れるものもゼロ**です。判断が要りそうなのは 1 件だけです。
+
+### 判断が要る 1 件: manifest の `theme_color` がライト固定でダークテーマと食い違う
+
+- `web/index.html` は `theme-color` を `prefers-color-scheme` で 2 本持っている（light = `#fbf4e8` / dark = `#101a2c`）が、`web/public/manifest.webmanifest` の `theme_color` は `#fbf4e8` の**ライト 1 色だけ**
+- manifest はメディアクエリを書けない仕様なので、これは書き漏らしではなく仕様上の制約。ただし **Android で「ホーム画面に追加」した後のタイトルバー / スプラッシュは manifest 側を見る**ため、夕刊テーマで使っていてもそこだけ朝刊色になる
+- 実害は「インストール済み Android で色が 1 箇所ちぐはぐ」だけ。N=1 かつ主導線が公開 Web URL（`D-20260807-main-1`）なので**優先度は低い**と見ています。起票するか放置か、判断をお願いします
+- `background_color`（スプラッシュの地色）も同じ理由で朝刊色固定です
+
+### 直さないのが正しいと判断した 3 件（記録のみ・対応不要）
+
+1. **`apple-mobile-web-app-title`** — 標準の対応物は manifest の `short_name`（"Life Editor" で設定済み）。iOS 16.4 以降の Safari は manifest を読むので理屈の上では重複だが、**それ以前の iOS はこの meta しか見ない**ので消すと古い端末でホーム画面名が URL になる。Chrome は警告を出さない
+2. **`apple-mobile-web-app-status-bar-style="black-translucent"`** — 標準の代替が存在しない Apple 専用。safe-area padding（#320）とセットで効いているので現状維持が正しい
+3. **`apple-touch-icon`** — manifest の `icons` に寄せられそうに見えるが、iOS はホーム画面アイコンをこのタグから取る。残すのが正解
+
+### 参考: 環境メモ（起票不要）
+
+この worktree の `desktop/node_modules` に `vitest` が入っておらず、`cd desktop && npm run test` が「コマンドが見つからない」で落ちていました（`package.json` には宣言済み・`npm ci` で解消）。CI は毎回 `npm ci` するため CI 側の問題ではありませんが、他レーンの worktree も古い install を抱えている可能性があります。
