@@ -203,6 +203,36 @@ export {
   type PasswordFieldProps,
   type PasswordFieldLabels,
 } from "./PasswordField";
+// Password recovery / change (#919). One form component serves both entry
+// points (signed-in change + post-recovery reset); the two cards wrap it in
+// the pre-login surface, SettingsAccount in the Settings column.
+export { AUTH_SURFACE_CLASS } from "./authSurface";
+export {
+  AuthAlert,
+  type AuthAlertProps,
+  type AuthAlertTone,
+} from "./AuthAlert";
+export { AuthBrandHeader, type AuthBrandHeaderProps } from "./AuthBrandHeader";
+export {
+  PasswordUpdateForm,
+  type PasswordUpdateFormProps,
+  type PasswordUpdateFormLabels,
+} from "./PasswordUpdateForm";
+export {
+  PasswordRecoveryCard,
+  type PasswordRecoveryCardProps,
+  type PasswordRecoveryCardLabels,
+} from "./PasswordRecoveryCard";
+export {
+  PasswordResetRequestCard,
+  type PasswordResetRequestCardProps,
+  type PasswordResetRequestCardLabels,
+} from "./PasswordResetRequestCard";
+export {
+  SettingsAccount,
+  type SettingsAccountProps,
+  type SettingsAccountLabels,
+} from "./SettingsAccount";
 export {
   SegmentedToggle,
   type SegmentedToggleProps,

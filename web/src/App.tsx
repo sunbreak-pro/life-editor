@@ -19,6 +19,15 @@ function App() {
   const { t } = useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  /*
+   * #919: a password-recovery link SIGNS THE USER IN — supabase-js reads the
+   * tokens out of the URL (detectSessionInUrl, D-20260816-shared-fix-1) and
+   * saves the session before it fires PASSWORD_RECOVERY. So the session gate
+   * below is not enough on its own: without this flag the app would swap
+   * straight to MainScreen and the user, who came here precisely because they
+   * cannot sign in, would never be offered a field to set a new password.
+   */
+  const [recovering, setRecovering] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -27,8 +36,12 @@ function App() {
       setSession(s);
       setReady(true);
     });
-    const sub = onAuthStateChange((_event, s) => {
+    const sub = onAuthStateChange((event, s) => {
       setSession(s);
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      // Signing out clears the flag too, so a stale recovery state cannot
+      // strand the next sign-in on the reset card.
+      if (event === "SIGNED_OUT") setRecovering(false);
     });
     return () => {
       active = false;
@@ -46,6 +59,10 @@ function App() {
       <div className="min-h-screen bg-lumen-bg text-lumen-text flex items-center justify-center">
         <p className="text-lumen-text-secondary">Loading…</p>
       </div>
+    );
+  } else if (recovering) {
+    body = (
+      <AuthScreen recovery onRecoveryComplete={() => setRecovering(false)} />
     );
   } else {
     body = session ? <MainScreen session={session} /> : <AuthScreen />;

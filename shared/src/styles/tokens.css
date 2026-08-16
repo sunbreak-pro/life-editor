@@ -82,6 +82,10 @@
   --color-briefing-kohaku: #8a5c06;
   --color-briefing-kohaku-subtle: #f6e7c8;
   --color-success: #0f7b6c;
+  /* Subtle success wash — the success counterpart of danger-subtle below,
+     added for the auth surfaces' confirmation band (#919). Same recipe:
+     success 6% pre-flattened against bg-secondary, opaque per §5. */
+  --color-success-subtle: #e7e4d3;
   --color-danger: #d92d20;
   /* Subtle danger wash — the flat face behind inline error/alert bands
      (Auth error band, ClaudeDesign Auth proposal). Opaque per §5: the
@@ -205,6 +209,8 @@
   --color-briefing-kohaku: #dcb267;
   --color-briefing-kohaku-subtle: #2e2513;
   --color-success: #4dab9a;
+  /* Dark counterpart: success 8% flattened against the dark bg-secondary. */
+  --color-success-subtle: #1c2f44;
   --color-danger: #ef4444;
   /* Dark counterpart: danger 8% flattened against the dark bg-secondary. */
   --color-danger-subtle: #2f2126;
@@ -331,6 +337,7 @@
   --color-lumen-bg-hover: var(--color-hover);
   --color-lumen-hover-strong: var(--color-hover);
   --color-lumen-success: var(--color-success);
+  --color-lumen-success-subtle: var(--color-success-subtle);
   --color-lumen-danger: var(--color-danger);
   --color-lumen-danger-subtle: var(--color-danger-subtle);
   /* Info / warning semantics + the recessed surface + the third text tier.

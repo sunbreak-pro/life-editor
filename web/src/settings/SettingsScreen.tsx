@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  SettingsAccount,
   SettingsAppearance,
   SettingsLanguage,
   SettingsShortcuts,
@@ -7,6 +8,7 @@ import {
   SettingsDayStart,
   SettingsReset,
   SettingsDetailPanel,
+  getSession,
   RightSidebarPortal,
   ConfirmDialog,
   useConfirmDialog,
@@ -26,6 +28,7 @@ import {
   type ShortcutId,
   WIDE_QUERY,
 } from "@life-editor/shared";
+import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
 
 /*
  * Settings screen (W1, web host — redesigned; §216 lightweight prefs). Single
@@ -151,6 +154,40 @@ export function SettingsScreen() {
       if (ok) resetLocalPreferences();
     });
   };
+
+  /*
+   * Account card (#919). The address is read from the session rather than
+   * threaded down from MainScreen: sectionDescriptors renders this screen with
+   * no props, and a one-shot read here is cheaper than widening that contract
+   * for a single string.
+   */
+  const [accountEmail, setAccountEmail] = useState("");
+  useEffect(() => {
+    let active = true;
+    void getSession()
+      .then((s) => {
+        if (active) setAccountEmail(s?.user.email ?? "");
+      })
+      // The address is decoration on a form that works without it, so a client
+      // that cannot even be constructed (no credentials — the shape tests run
+      // in) must not take the screen down with it.
+      .catch((e: unknown) => console.error("[settings] getSession", e));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const passwordMessages = useMemo(
+    () => ({
+      mismatch: t("settings.account.errors.mismatch"),
+      tooShort: t("settings.account.errors.tooShort"),
+      samePassword: t("settings.account.errors.samePassword"),
+      generic: t("settings.account.errors.generic"),
+      done: t("settings.account.done"),
+    }),
+    [t],
+  );
+  const passwordForm = usePasswordUpdate(passwordMessages);
 
   const detailTodos = [
     { label: t("settings.detail.todos.shopping"), done: false },
@@ -282,6 +319,33 @@ export function SettingsScreen() {
           />
         </div>
       )}
+
+      <div className={cardClass}>
+        <SettingsAccount
+          email={accountEmail}
+          password={passwordForm.password}
+          onPasswordChange={passwordForm.setPassword}
+          confirmPassword={passwordForm.confirmPassword}
+          onConfirmPasswordChange={passwordForm.setConfirmPassword}
+          error={passwordForm.error}
+          notice={passwordForm.notice}
+          confirmInvalid={passwordForm.confirmInvalid}
+          busy={passwordForm.busy}
+          onSubmit={passwordForm.submit}
+          labels={{
+            heading: t("settings.account.heading"),
+            description: t("settings.account.description"),
+            emailLabel: t("settings.account.emailLabel"),
+            newPassword: t("settings.account.newPassword"),
+            newPasswordHelper: t("settings.account.newPasswordHelper"),
+            confirmPassword: t("settings.account.confirmPassword"),
+            showPassword: t("auth.showPassword"),
+            hidePassword: t("auth.hidePassword"),
+            submit: t("settings.account.submit"),
+            busy: t("settings.account.busy"),
+          }}
+        />
+      </div>
 
       <div className={cardClass}>
         <SettingsReset
