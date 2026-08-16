@@ -32,7 +32,6 @@ const LABELS: KanbanLabels = {
   viewTag: "By tag",
   segmentedGroupLabel: "Switch board view",
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
   emptyColumn: "No todos here yet",
@@ -45,30 +44,24 @@ const LABELS: KanbanLabels = {
 };
 
 describe("buildStatusColumns", () => {
-  it("makes three fixed columns in NOT_STARTED / IN_PROGRESS / DONE order", () => {
+  it("makes two fixed columns in NOT_STARTED / DONE order (#873)", () => {
     const cols = buildStatusColumns([], LABELS);
-    expect(cols.map((c) => c.id)).toEqual([
-      "status-NOT_STARTED",
-      "status-IN_PROGRESS",
-      "status-DONE",
-    ]);
-    expect(cols.map((c) => c.title)).toEqual([
-      "Not started",
-      "In progress",
-      "Done",
-    ]);
+    expect(cols.map((c) => c.id)).toEqual(["status-NOT_STARTED", "status-DONE"]);
+    expect(cols.map((c) => c.title)).toEqual(["Not started", "Done"]);
   });
 
   it("groups todos by status, treating missing status as NOT_STARTED", () => {
     const nodes: TodoNode[] = [
-      makeNode({ id: "t1", status: "IN_PROGRESS" }),
+      makeNode({ id: "t1", status: "NOT_STARTED" }),
       makeNode({ id: "t2", status: "DONE" }),
       makeNode({ id: "t3" }), // no status → NOT_STARTED
     ];
     const cols = buildStatusColumns(nodes, LABELS);
     const byId = Object.fromEntries(cols.map((c) => [c.id, c]));
-    expect(byId["status-NOT_STARTED"].cards.map((c) => c.id)).toEqual(["t3"]);
-    expect(byId["status-IN_PROGRESS"].cards.map((c) => c.id)).toEqual(["t1"]);
+    expect(byId["status-NOT_STARTED"].cards.map((c) => c.id)).toEqual([
+      "t1",
+      "t3",
+    ]);
     expect(byId["status-DONE"].cards.map((c) => c.id)).toEqual(["t2"]);
   });
 

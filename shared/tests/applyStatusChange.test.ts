@@ -51,11 +51,11 @@ function lastPersisted(persistWithHistory: {
 }
 
 describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
-  it("moves a newly-DONE todo below its NOT_STARTED / IN_PROGRESS siblings", () => {
+  it("moves a newly-DONE todo below its unfinished siblings", () => {
     const nodes = [
       todo("a", 0, "NOT_STARTED"),
       todo("b", 1, "NOT_STARTED"),
-      todo("c", 2, "IN_PROGRESS"),
+      todo("c", 2, "NOT_STARTED"),
     ];
     const { result, persistWithHistory } = setup(nodes);
 
@@ -79,12 +79,12 @@ describe("applyStatusChange — DONE sinks below incomplete siblings", () => {
     ];
     const { result, persistWithHistory } = setup(nodes);
 
-    // c goes back to IN_PROGRESS → it must rise above the remaining DONE (b).
-    act(() => result.current.setTodoStatus("c", "IN_PROGRESS"));
+    // c goes back to NOT_STARTED → it must rise above the remaining DONE (b).
+    act(() => result.current.setTodoStatus("c", "NOT_STARTED"));
 
     const persisted = lastPersisted(persistWithHistory);
     const byId = new Map(persisted.map((n) => [n.id, n]));
-    expect(byId.get("c")!.status).toBe("IN_PROGRESS");
+    expect(byId.get("c")!.status).toBe("NOT_STARTED");
     expect(byId.get("c")!.order).toBeLessThan(byId.get("b")!.order);
     expect(persisted.map((n) => n.order).sort()).toEqual([0, 1, 2]);
   });

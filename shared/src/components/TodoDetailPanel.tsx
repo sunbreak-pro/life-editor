@@ -69,7 +69,6 @@ import { FOCUS_RING, FOCUS_RING_ON_ACCENT } from "./styleTokens";
 // (mirrors web TodoTreeView's STATUS_GLYPH). The textual label is injected.
 const STATUS_GLYPH: Record<TodoStatus, string> = {
   NOT_STARTED: "○",
-  IN_PROGRESS: "◐",
   DONE: "●",
 };
 
@@ -106,7 +105,7 @@ export interface TodoDetailPanelProps {
    * flag alone on an agreed discard and still not go stale (#736).
    */
   onDirtyChange?: (dirty: boolean) => void;
-  /** Cycle the todo status (host injects the toggle). */
+  /** Toggle the todo status (host injects the toggle). */
   onToggleStatus?: (id: string) => void;
   /**
    * Soft-delete the todo (#775). Fires RAW: the host owns the confirm, the
@@ -115,10 +114,10 @@ export interface TodoDetailPanelProps {
    */
   onDelete?: (id: string) => void;
   /**
-   * Replaces the built-in cycle button with a host-supplied status control —
-   * the touch <TodoStatusChoices> row on Mobile (#470). The caption still comes
-   * from `statusLabel`, and the row stacks (caption above) so three choices get
-   * the full width. Omitting it keeps the Desktop cycle button unchanged.
+   * Replaces the built-in checkbox with a host-supplied status control — the
+   * touch <TodoStatusChoices> row on Mobile (#470). The caption still comes
+   * from `statusLabel`, and the row stacks (caption above) so the choices get
+   * the full width. Omitting it keeps the Desktop checkbox unchanged.
    */
   statusControl?: ReactNode;
   /** Injected rich-text editor (host wires key={todoId} for remount). */
@@ -269,6 +268,10 @@ function TodoDetailFields({
         {statusControl ?? (
           <button
             type="button"
+            // #873: two values, so the control is a checkbox — a press sets
+            // done / not done rather than advancing through a cycle.
+            role="checkbox"
+            aria-checked={resolvedStatus === "DONE"}
             onClick={() => onToggleStatus?.(todoId)}
             aria-label={statusLabel}
             className={cn(

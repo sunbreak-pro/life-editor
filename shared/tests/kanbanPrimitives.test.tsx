@@ -21,7 +21,6 @@ const LABELS: KanbanLabels = {
   viewTag: "By tag",
   segmentedGroupLabel: "Switch view",
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
   cardAriaLabel: (title, statusText) => `${title} — ${statusText}`,
   emptyColumn: "No todos here yet",

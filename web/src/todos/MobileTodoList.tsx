@@ -44,7 +44,6 @@ import {
 export interface MobileTodoListLabels {
   /** Per-status chip / sheet labels (already-translated, §6.4). */
   statusNotStarted: string;
-  statusInProgress: string;
   statusDone: string;
   /** Accessible name for the filter chip group. */
   filterLabel: string;

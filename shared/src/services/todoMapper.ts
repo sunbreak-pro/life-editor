@@ -63,7 +63,12 @@ export interface TasksPayloadRow {
   folder_type: "normal" | "complete" | null;
   start_at: string | null;
   due_at: string | null;
-  status: TodoStatus | null;
+  /**
+   * The retired "IN_PROGRESS" stays in the row type for the same reason
+   * `task_type` keeps "folder": the CHECK constraint still accepts it and rows
+   * written before #873 still carry it. `toStatus` folds it into NOT_STARTED.
+   */
+  status: TodoStatus | "IN_PROGRESS" | null;
   is_expanded: boolean;
   content: string | null;
   work_duration_minutes: number | null;
@@ -125,11 +130,7 @@ export const TASKS_PAYLOAD_COLUMNS =
 // it (rollback), and a folder row must be *recognisable* (isLegacyFolderRow)
 // even though it can no longer be materialised as a distinct TodoNodeType.
 const NODE_TYPES: ReadonlySet<string> = new Set(["folder", "task"]);
-const TODO_STATUSES: ReadonlySet<string> = new Set([
-  "NOT_STARTED",
-  "IN_PROGRESS",
-  "DONE",
-]);
+const TODO_STATUSES: ReadonlySet<string> = new Set(["NOT_STARTED", "DONE"]);
 const PRIORITIES: ReadonlySet<number> = new Set([1, 2, 3, 4]);
 
 /**
@@ -165,11 +166,22 @@ export function isLegacyFolderRow(
   return payload.task_type === "folder";
 }
 
+/**
+ * Narrow a DB `status` value to the `TodoStatus` union.
+ *
+ * #873 (D-20260815-materials-1 = B): the domain dropped IN_PROGRESS, but the
+ * CHECK constraint still accepts it and rows written before the change still
+ * carry it. Those fold into NOT_STARTED here — a todo that was mid-flight is
+ * simply not done — the same defence-in-depth shape `toNodeType` uses for the
+ * legacy "folder". The value is only rewritten in the DB when the user next
+ * touches that todo's status, so no data migration is required.
+ */
 export function toStatus(value: string | null): TodoStatus | undefined {
   if (value === null) return undefined;
   if (TODO_STATUSES.has(value)) return value as TodoStatus;
+  if (value === "IN_PROGRESS") return "NOT_STARTED"; // legacy 3-value row
   throw new Error(
-    `tasks_payload: invalid status "${value}" (expected NOT_STARTED|IN_PROGRESS|DONE)`,
+    `tasks_payload: invalid status "${value}" (expected NOT_STARTED|DONE)`,
   );
 }
 

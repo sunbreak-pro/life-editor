@@ -9,10 +9,11 @@ import {
 } from "./todoStatusVisuals";
 
 /*
- * Touch status picker (#470) — the three statuses side by side, each set in a
- * single tap. The Desktop detail panel cycles through them with one button
- * (TodoDetailPanel's built-in control), which costs up to two extra taps and
- * hides the available values; on a phone the whole set is worth the width.
+ * Touch status picker (#470) — every status side by side, each set in a single
+ * tap. The Desktop detail panel toggles with one control (TodoDetailPanel's
+ * built-in button), which hides the available values; on a phone the whole set
+ * is worth the width. #873 took the set from three values down to two
+ * (未完 / 完了), so the row is now a pair.
  *
  * Toggle buttons (`aria-pressed`), not a radiogroup: a real radiogroup owes the
  * user arrow-key navigation with a roving tabindex, and this row exists for
@@ -42,7 +43,7 @@ export function TodoStatusChoices({
     <div
       role="group"
       aria-label={label}
-      className={cn("grid grid-cols-3 gap-1.5", className)}
+      className={cn("grid grid-cols-2 gap-1.5", className)}
     >
       {STATUS_ORDER.map((status) => {
         const Icon = STATUS_ICON[status];

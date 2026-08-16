@@ -37,7 +37,6 @@ interface Fixture {
   events?: Row[];
   scheduled?: Row[];
   carryover?: Row[];
-  inProgress?: Row[];
   dailies?: Row[];
   /** Item ids whose items_meta row is gone or trashed. */
   dead?: string[];
@@ -96,8 +95,6 @@ function install(fixture: Fixture): void {
         // The three todo reads, told apart by the filters that differ:
         // in-progress pins a status, and only the scheduled window has a
         // lower bound.
-        if (call.filters.status === "IN_PROGRESS")
-          return fixture.inProgress ?? [];
         if ("scheduled_at.gte" in call.bounds) return fixture.scheduled ?? [];
         return fixture.carryover ?? [];
       case "items_meta": {
@@ -262,12 +259,14 @@ describe("nothing from outside the week gets in", () => {
 });
 
 describe("open todos are counted once, against the start of the week", () => {
-  it("merges a todo that is both carried over and in progress", async () => {
+  it("lists a carried-over todo once, however many rows name it", async () => {
+    // #873 retired the second (IN_PROGRESS) query, but the id-keyed merge
+    // stays: one todo is one entry.
     const carried = openTodo("task-1", {
-      status: "IN_PROGRESS",
+      status: "NOT_STARTED",
       scheduled_at: "2026-08-05T00:00:00.000Z",
     });
-    install({ carryover: [carried], inProgress: [carried] });
+    install({ carryover: [carried, carried] });
 
     const week = await getWeekContext({ start_date: MONDAY });
 
@@ -277,7 +276,7 @@ describe("open todos are counted once, against the start of the week", () => {
         title: "title:task-1",
         scheduledAt: "2026-08-05T00:00:00.000Z",
         dueAt: null,
-        status: "IN_PROGRESS",
+        status: "NOT_STARTED",
         priority: 0,
         carriedOver: true,
       },
@@ -288,14 +287,12 @@ describe("open todos are counted once, against the start of the week", () => {
     install({
       carryover: [
         openTodo("task-before", { scheduled_at: "2026-08-05T00:00:00.000Z" }),
-      ],
-      // Scheduled inside the week: in progress, but nothing was carried.
-      inProgress: [
+        // Scheduled inside the week: open, but nothing was carried.
         openTodo("task-inside", {
-          status: "IN_PROGRESS",
+          status: "NOT_STARTED",
           scheduled_at: "2026-08-13T01:00:00.000Z",
         }),
-        openTodo("task-unscheduled", { status: "IN_PROGRESS" }),
+        openTodo("task-unscheduled", { status: "NOT_STARTED" }),
       ],
     });
 
@@ -316,9 +313,9 @@ describe("open todos are counted once, against the start of the week", () => {
       // 00:00 Monday JST exactly, spelled the way PostgREST returns
       // timestamptz. A string compare against toISOString's `.000Z` calls
       // this "before the week" (`+` sorts before `.`).
-      inProgress: [
+      carryover: [
         openTodo("task-midnight", {
-          status: "IN_PROGRESS",
+          status: "NOT_STARTED",
           scheduled_at: "2026-08-09T15:00:00+00:00",
         }),
       ],

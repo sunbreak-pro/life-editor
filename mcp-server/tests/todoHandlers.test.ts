@@ -15,8 +15,13 @@ import {
 describe("toDbStatus", () => {
   it("maps the tool vocabulary onto the DB CHECK values", () => {
     expect(toDbStatus("not_started")).toBe("NOT_STARTED");
-    expect(toDbStatus("in_progress")).toBe("IN_PROGRESS");
     expect(toDbStatus("done")).toBe("DONE");
+  });
+
+  it("rejects the retired in_progress value (#873)", () => {
+    // The CHECK constraint still accepts it, so nothing but this guard stops a
+    // caller from writing a status no surface can display.
+    expect(() => toDbStatus("in_progress")).toThrow(/Invalid status/);
   });
 
   it("accepts a value that is already uppercase", () => {
@@ -30,9 +35,13 @@ describe("toDbStatus", () => {
 
 describe("toToolStatus", () => {
   it("round-trips every DB value back to the tool vocabulary", () => {
-    for (const tool of ["not_started", "in_progress", "done"]) {
+    for (const tool of ["not_started", "done"]) {
       expect(toToolStatus(toDbStatus(tool))).toBe(tool);
     }
+  });
+
+  it("reads a legacy IN_PROGRESS row back as not_started (#873)", () => {
+    expect(toToolStatus("IN_PROGRESS")).toBe("not_started");
   });
 
   it("passes NULL through (legacy rows have no status)", () => {

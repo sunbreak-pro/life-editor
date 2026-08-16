@@ -5,6 +5,7 @@ import {
   todoNodeToRows,
   todoUpdatesToPatches,
   toNodeType,
+  toStatus,
   isLegacyFolderRow,
   type TasksPayloadRow,
   type TasksPayloadWriteRow,
@@ -91,14 +92,14 @@ describe("rowsToTodoNode ∘ todoNodeToRows roundtrip — 5 shapes", () => {
     expect(recovered.order).toBe(0);
   });
 
-  it("fully populated IN_PROGRESS todo — every optional field present", () => {
+  it("fully populated NOT_STARTED todo — every optional field present", () => {
     const node: TodoNode = {
       id: "task-2",
       type: "task",
       title: "beta",
       parentId: "task-parent",
       order: 3,
-      status: "IN_PROGRESS",
+      status: "NOT_STARTED",
       isExpanded: true,
       isDeleted: false,
       createdAt: "2026-05-23T10:00:00.000Z",
@@ -191,6 +192,51 @@ describe("S3 folder retirement — write shape + legacy detection", () => {
     expect(toNodeType("task")).toBe("task");
     expect(toNodeType(null)).toBe("task");
     expect(() => toNodeType("weird")).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1c. #873: the domain is two-valued, but rows written under the old three
+//     values are still in the DB (the CHECK constraint was left alone).
+// ---------------------------------------------------------------------------
+
+describe("#873 two-valued status — legacy row handling", () => {
+  it("toStatus folds a legacy IN_PROGRESS row into NOT_STARTED", () => {
+    expect(toStatus("IN_PROGRESS")).toBe("NOT_STARTED");
+    expect(toStatus("NOT_STARTED")).toBe("NOT_STARTED");
+    expect(toStatus("DONE")).toBe("DONE");
+    expect(toStatus(null)).toBeUndefined();
+    expect(() => toStatus("weird")).toThrow();
+  });
+
+  it("a legacy IN_PROGRESS row materialises as an unfinished todo", () => {
+    const meta: ItemsMetaRow = {
+      id: "task-legacy",
+      user_id: TEST_USER_ID,
+      role: "task",
+      title: "written before #873",
+      is_deleted: false,
+      deleted_at: null,
+      created_at: "2026-08-01T10:00:00.000Z",
+      updated_at: "2026-08-01T10:00:00.000Z",
+      version: 1,
+    };
+    const { payload } = todoNodeToRows(
+      {
+        id: "task-legacy",
+        type: "task",
+        title: "written before #873",
+        parentId: null,
+        order: 0,
+        createdAt: "2026-08-01T10:00:00.000Z",
+      },
+      TEST_USER_ID,
+    );
+    const legacyRow = reattachPayloadGeneratedCols({
+      ...payload,
+      status: "IN_PROGRESS",
+    });
+    expect(rowsToTodoNode(meta, legacyRow).status).toBe("NOT_STARTED");
   });
 });
 

@@ -4,7 +4,7 @@
  * calls these with the data it already has from useTodoTreeContext /
  * useWikiTagsUnifiedContext and injects the resolved status labels.
  *
- * Status view: three fixed columns keyed by status, cards = every active todo
+ * Status view: one fixed column per status, cards = every active todo
  * (regardless of any parent folder). Tag view: one column per tag (tag's own
  * color), cards = every todo carrying that tag, plus a trailing "untagged"
  * bucket. Folders are never cards and never group the board (life-tags S1
@@ -30,7 +30,6 @@ export type TagsByTodo = ReadonlyMap<string, KanbanCardTag[]>;
 /** Fixed status column order + their accent CSS vars (status-encoding hue). */
 const STATUS_BAND_VAR: Record<TodoStatus, string> = {
   NOT_STARTED: "var(--color-status-todo-band)",
-  IN_PROGRESS: "var(--color-status-progress-band)",
   DONE: "var(--color-status-done-band)",
 };
 
@@ -70,7 +69,7 @@ function toCard(
 }
 
 /**
- * Status view: three fixed columns (未着手 / 進行中 / 完了). Cards are every
+ * Status view: two fixed columns (未着手 / 完了 — #873 retired 進行中). Cards are every
  * active todo, grouped by status, each carrying its tags. Status colors are
  * fixed (not editable). Legacy folder nodes are ignored — the todo surfaces by
  * its status regardless of any parent folder.

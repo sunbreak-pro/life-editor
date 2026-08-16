@@ -201,13 +201,9 @@ export function useTodoTreeCRUD(
       const target = nodes.find((n) => n.id === id);
       if (!target || target.type !== "task") return;
 
-      const statusCycle: Record<string, TodoStatus> = {
-        NOT_STARTED: "IN_PROGRESS",
-        IN_PROGRESS: "DONE",
-        DONE: "NOT_STARTED",
-      };
-      const currentStatus = target.status ?? "NOT_STARTED";
-      const newStatus: TodoStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
+      // #873: two values, so this is a toggle rather than a cycle.
+      const newStatus: TodoStatus =
+        (target.status ?? "NOT_STARTED") === "DONE" ? "NOT_STARTED" : "DONE";
       applyStatusChange(id, newStatus);
     },
     [nodes, applyStatusChange],

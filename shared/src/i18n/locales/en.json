@@ -223,7 +223,6 @@
     "schedule": "Scheduled",
     "scheduleNone": "Not scheduled",
     "statusNotStarted": "Not started",
-    "statusInProgress": "In progress",
     "statusDone": "Done",
     "content": "Notes",
     "tags": "Tags",

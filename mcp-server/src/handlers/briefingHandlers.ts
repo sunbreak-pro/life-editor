@@ -158,8 +158,11 @@ function formatOpenTodo(
 }
 
 /**
- * Merge the carry-over and in-progress queries: a todo can answer both, and
- * the briefing lists it once.
+ * Collect the open-todo rows into an id-keyed map, listing each todo once.
+ *
+ * It took two query results until #873: carry-over plus everything marked
+ * IN_PROGRESS. That status is retired, so carry-over — scheduled before the
+ * window and not yet DONE — is now the whole definition of an open todo.
  */
 function mergeOpenTodos(...rowSets: OpenTodoRow[][]): Map<string, OpenTodoRow> {
   const byId = new Map<string, OpenTodoRow>();
@@ -220,7 +223,6 @@ export async function getTodayContext(args: { date?: string }) {
     { data: eventPayloads, error: eErr },
     { data: scheduledTodoRows, error: sErr },
     { data: carryoverRows, error: cErr },
-    { data: inProgressRows, error: iErr },
     recentDailyPayloads,
     todayDailyPayloads,
   ] = await Promise.all([
@@ -250,27 +252,18 @@ export async function getTodayContext(args: { date?: string }) {
       .not("scheduled_at", "is", null)
       .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
-    client
-      .from("tasks_payload")
-      .select(OPEN_TODO_COLUMNS)
-      .eq("task_type", "task")
-      .eq("status", "IN_PROGRESS"),
     fetchDailies(addDays(date, -3), addDays(date, -1)),
     fetchDailies(date, date),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
   if (cErr) throw new Error(`carry-over todos: ${cErr.message}`);
-  if (iErr) throw new Error(`in-progress todos: ${iErr.message}`);
 
-  // Merge the two open-todo queries (a todo can be both carried over and
-  // in-progress) and resolve titles + liveness via items_meta in one shot.
+  // Collect the open todos and resolve titles + liveness via items_meta in one
+  // shot.
   const events = (eventPayloads ?? []) as EventRow[];
   const scheduledTodos = (scheduledTodoRows ?? []) as ScheduledTodoRow[];
-  const openTodoById = mergeOpenTodos(
-    (carryoverRows ?? []) as OpenTodoRow[],
-    (inProgressRows ?? []) as OpenTodoRow[],
-  );
+  const openTodoById = mergeOpenTodos((carryoverRows ?? []) as OpenTodoRow[]);
   const titleById = await resolveTitles([
     ...events.map((r) => r.item_id),
     ...scheduledTodos.map((r) => r.item_id),
@@ -335,7 +328,6 @@ export async function getWeekContext(args: { start_date?: string }) {
     { data: eventPayloads, error: eErr },
     { data: scheduledTodoRows, error: sErr },
     { data: carryoverRows, error: cErr },
-    { data: inProgressRows, error: iErr },
     dailyPayloads,
   ] = await Promise.all([
     client
@@ -363,24 +355,15 @@ export async function getWeekContext(args: { start_date?: string }) {
       .not("scheduled_at", "is", null)
       .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
-    client
-      .from("tasks_payload")
-      .select(OPEN_TODO_COLUMNS)
-      .eq("task_type", "task")
-      .eq("status", "IN_PROGRESS"),
     fetchDailies(startDate, endDate),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
   if (cErr) throw new Error(`carry-over todos: ${cErr.message}`);
-  if (iErr) throw new Error(`in-progress todos: ${iErr.message}`);
 
   const events = (eventPayloads ?? []) as EventRow[];
   const scheduledTodos = (scheduledTodoRows ?? []) as ScheduledTodoRow[];
-  const openTodoById = mergeOpenTodos(
-    (carryoverRows ?? []) as OpenTodoRow[],
-    (inProgressRows ?? []) as OpenTodoRow[],
-  );
+  const openTodoById = mergeOpenTodos((carryoverRows ?? []) as OpenTodoRow[]);
   const titleById = await resolveTitles([
     ...events.map((r) => r.item_id),
     ...scheduledTodos.map((r) => r.item_id),

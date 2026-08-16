@@ -5,12 +5,12 @@ import { TodoDetailPanel, TodoStatusChoices } from "../src/components";
 /*
  * #470 — the Mobile touch status row, plus TodoDetailPanel's statusControl slot
  * it plugs into. The slot is additive: Desktop (no statusControl) must keep the
- * cycle button, which the last two cases pin down.
+ * built-in checkbox, which the last two cases pin down. #873 took the row from
+ * three choices to two.
  */
 
 const LABELS = {
   statusNotStarted: "Not started",
-  statusInProgress: "In progress",
   statusDone: "Done",
 };
 
@@ -34,13 +34,13 @@ describe("TodoStatusChoices (#470)", () => {
   it("marks only the current status as pressed", () => {
     render(
       <TodoStatusChoices
-        value="IN_PROGRESS"
+        value="DONE"
         onChange={() => {}}
         labels={LABELS}
         label="Change status"
       />,
     );
-    expect(screen.getByRole("button", { name: "In progress" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Done" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -92,7 +92,7 @@ describe("TodoDetailPanel statusControl slot (#470)", () => {
     unsavedLabel: "Unsaved",
   };
 
-  it("replaces the cycle button with the injected control", () => {
+  it("replaces the built-in checkbox with the injected control", () => {
     const onToggleStatus = vi.fn();
     render(
       <TodoDetailPanel
@@ -106,15 +106,15 @@ describe("TodoDetailPanel statusControl slot (#470)", () => {
       />,
     );
     expect(screen.getByText("status slot")).toBeInTheDocument();
-    // The cycle button is gone — it was the only element carrying the status
-    // caption as its accessible name.
+    // The built-in checkbox is gone — it was the only element carrying the
+    // status caption as its accessible name.
     expect(
-      screen.queryByRole("button", { name: "Status" }),
+      screen.queryByRole("checkbox", { name: "Status" }),
     ).not.toBeInTheDocument();
     expect(onToggleStatus).not.toHaveBeenCalled();
   });
 
-  it("keeps the cycle button when no control is injected (Desktop)", () => {
+  it("keeps the built-in checkbox when no control is injected (Desktop)", () => {
     render(
       <TodoDetailPanel
         todoId="task-a"
@@ -125,6 +125,25 @@ describe("TodoDetailPanel statusControl slot (#470)", () => {
         {...PANEL_LABELS}
       />,
     );
-    expect(screen.getByRole("button", { name: "Status" })).toBeInTheDocument();
+    const checkbox = screen.getByRole("checkbox", { name: "Status" });
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("reports a done todo as a checked checkbox (#873)", () => {
+    render(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Write the plan"
+        status="DONE"
+        onSave={() => {}}
+        onToggleStatus={() => {}}
+        {...PANEL_LABELS}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: "Status" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 });
