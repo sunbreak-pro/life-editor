@@ -18,6 +18,13 @@ import Store from "electron-store";
 // named exports (crashes at import time in the packaged app) — go through the
 // default export instead.
 import electronUpdater from "electron-updater";
+// Channel names are declared once and read by BOTH ends (#894) — see the
+// contract module's header for what used to go wrong when they were literals.
+import {
+  DESKTOP_IPC,
+  DESKTOP_IPC_CHANNELS,
+  type DesktopIpcHandlers,
+} from "../shared/ipcContract";
 
 const { autoUpdater } = electronUpdater;
 
@@ -353,24 +360,26 @@ function setupApplicationMenu(): void {
 // Kept intentionally tiny (theme + window prefs); business logic stays in
 // shared/web, not here.
 // ---------------------------------------------------------------------------
-function setupIpcHandlers(): void {
-  ipcMain.handle("config:getTheme", () => store.get("theme"));
+function prefsIpcHandlers() {
+  return {
+    [DESKTOP_IPC.getTheme]: () => store.get("theme"),
 
-  ipcMain.handle("config:setTheme", (_event, theme: unknown) => {
-    // Validate at the IPC boundary: the renderer can send any value regardless
-    // of the TS type, so whitelist before persisting/applying (an unchecked
-    // value would pollute the prefs JSON and be re-applied on next launch).
-    if (theme !== "light" && theme !== "dark" && theme !== "system") {
-      throw new Error(`config:setTheme: invalid theme ${String(theme)}`);
-    }
-    store.set("theme", theme);
-    nativeTheme.themeSource = theme;
-    return theme;
-  });
+    [DESKTOP_IPC.setTheme]: (_event: unknown, theme: unknown) => {
+      // Validate at the IPC boundary: the renderer can send any value regardless
+      // of the TS type, so whitelist before persisting/applying (an unchecked
+      // value would pollute the prefs JSON and be re-applied on next launch).
+      if (theme !== "light" && theme !== "dark" && theme !== "system") {
+        throw new Error(`config:setTheme: invalid theme ${String(theme)}`);
+      }
+      store.set("theme", theme);
+      nativeTheme.themeSource = theme;
+      return theme;
+    },
 
-  ipcMain.handle("window:getBounds", () => store.get("windowBounds"));
+    [DESKTOP_IPC.getWindowBounds]: () => store.get("windowBounds"),
 
-  ipcMain.handle("app:getVersion", () => app.getVersion());
+    [DESKTOP_IPC.getAppVersion]: () => app.getVersion(),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -398,33 +407,36 @@ function setupIpcHandlers(): void {
 const AUTH_ENC_PREFIX = "enc:";
 const AUTH_PLAIN_PREFIX = "plain:";
 
-function setupAuthStorageIpc(): void {
-  ipcMain.handle("authStorage:getItem", (_event, key: unknown) => {
-    if (typeof key !== "string") {
-      throw new Error("authStorage:getItem: invalid key");
-    }
-    const stored = store.get("authStorage")[key];
-    if (stored === undefined) return null;
-    if (stored.startsWith(AUTH_PLAIN_PREFIX)) {
-      return stored.slice(AUTH_PLAIN_PREFIX.length);
-    }
-    if (stored.startsWith(AUTH_ENC_PREFIX)) {
-      try {
-        return safeStorage.decryptString(
-          Buffer.from(stored.slice(AUTH_ENC_PREFIX.length), "base64"),
-        );
-      } catch {
-        // OS keychain changed or blob corrupt — treat as signed out (forces a
-        // fresh login) instead of crashing the renderer's auth init.
-        return null;
+function authStorageIpcHandlers() {
+  return {
+    [DESKTOP_IPC.authStorageGetItem]: (_event: unknown, key: unknown) => {
+      if (typeof key !== "string") {
+        throw new Error("authStorage:getItem: invalid key");
       }
-    }
-    return null;
-  });
+      const stored = store.get("authStorage")[key];
+      if (stored === undefined) return null;
+      if (stored.startsWith(AUTH_PLAIN_PREFIX)) {
+        return stored.slice(AUTH_PLAIN_PREFIX.length);
+      }
+      if (stored.startsWith(AUTH_ENC_PREFIX)) {
+        try {
+          return safeStorage.decryptString(
+            Buffer.from(stored.slice(AUTH_ENC_PREFIX.length), "base64"),
+          );
+        } catch {
+          // OS keychain changed or blob corrupt — treat as signed out (forces a
+          // fresh login) instead of crashing the renderer's auth init.
+          return null;
+        }
+      }
+      return null;
+    },
 
-  ipcMain.handle(
-    "authStorage:setItem",
-    (_event, key: unknown, value: unknown) => {
+    [DESKTOP_IPC.authStorageSetItem]: (
+      _event: unknown,
+      key: unknown,
+      value: unknown,
+    ) => {
       if (typeof key !== "string" || typeof value !== "string") {
         throw new Error("authStorage:setItem: invalid key/value");
       }
@@ -433,17 +445,36 @@ function setupAuthStorageIpc(): void {
         : AUTH_PLAIN_PREFIX + value;
       store.set("authStorage", { ...store.get("authStorage"), [key]: encoded });
     },
-  );
 
-  // signOut must reliably clear the persisted session (#838 DoD).
-  ipcMain.handle("authStorage:removeItem", (_event, key: unknown) => {
-    if (typeof key !== "string") {
-      throw new Error("authStorage:removeItem: invalid key");
-    }
-    const all = { ...store.get("authStorage") };
-    delete all[key];
-    store.set("authStorage", all);
-  });
+    // signOut must reliably clear the persisted session (#838 DoD).
+    [DESKTOP_IPC.authStorageRemoveItem]: (_event: unknown, key: unknown) => {
+      if (typeof key !== "string") {
+        throw new Error("authStorage:removeItem: invalid key");
+      }
+      const all = { ...store.get("authStorage") };
+      delete all[key];
+      store.set("authStorage", all);
+    },
+  };
+}
+
+/**
+ * Register every channel the contract declares (#894).
+ *
+ * The `DesktopIpcHandlers` annotation is the point: it is
+ * `Record<DesktopIpcChannel, …>`, so a channel added to `DESKTOP_IPC` — which
+ * the preload can immediately invoke — does not compile until a handler for
+ * it exists here. Before this, the two ends were independent string literals
+ * and a half-landed rename type-checked, built, and shipped.
+ */
+function setupIpc(): void {
+  const handlers: DesktopIpcHandlers = {
+    ...prefsIpcHandlers(),
+    ...authStorageIpcHandlers(),
+  };
+  for (const channel of DESKTOP_IPC_CHANNELS) {
+    ipcMain.handle(channel, handlers[channel]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -473,8 +504,7 @@ app.whenReady().then(() => {
   // Apply persisted theme to the OS-level color scheme on launch.
   nativeTheme.themeSource = store.get("theme");
 
-  setupIpcHandlers();
-  setupAuthStorageIpc();
+  setupIpc();
   setupApplicationMenu();
   setupTray();
   setupAutoUpdater();

@@ -5,6 +5,14 @@ export { createSupabaseDataService } from "./services/SupabaseDataService";
 // next to the sentence they show — a toast that says "failed" and nothing in
 // the console leaves a support question with no answer.
 export { ItemConversionError } from "./services/SupabaseItemConversionService";
+// #932: a refused restore ("that day already has its occurrence") is not the
+// same event as a restore that broke, and the trash host says a different
+// sentence for each.
+export type { ScheduleRestoreResult } from "./services/DataService";
+export {
+  ScheduleRestoreConflictError,
+  isScheduleRestoreConflict,
+} from "./services/scheduleRestoreConflict";
 export { logServiceError } from "./utils/logError";
 export {
   getDataService,

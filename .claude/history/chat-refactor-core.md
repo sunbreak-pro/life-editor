@@ -1,5 +1,48 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-16 - Issue sweep 完走 — #890 / #894 / #895 を PR 化（#958 / #960 / #963 open）
+
+#### 概要
+
+自分宛 4 本の sweep を最後まで通した。#891（4 本の PR）は merge 済みで、残る 3 本を 1 本 1 PR で出した。3 つとも「重複を消す」より「**壊れても何も言わない経路に、言うようにさせる**」のが中身だった。
+
+#### 変更点
+
+- **#890（PR #958）5 role mapper の items_meta 側**: `assertItemsMetaPair` / `toItemsMetaInsertRow` / `toItemsMetaPatch` を `itemsMeta.ts` に寄せた。**核心は `updated_at` の bump が 5 箇所 → 1 箇所**になったこと。bump 漏れは例外もログも出さず、書き込みはローカルに通って「そのドメインだけ他のデバイスに届かない」形で出る。既存 mapper テスト 105 件は無改変で緑。**揃えなかった差分を 2 つ保存**した — `{isDeleted: undefined}` の扱い（todo/note/daily は `?? false` で列を書き、event/routine は列ごとスキップ）と INSERT の `version`（Todos だけクライアント値を載せる）。payload 側と READ 方向は畳んでいない（似て見えるが `deletedAt` の出し方などが role ごとに違い、畳むと 1 つのルールで残り 4 つを黙って変えることになる）
+- **#894（PR #960）desktop の IPC 契約**: チャネル名を `desktop/src/shared/ipcContract.ts` に集約し、main の登録を `Record<DesktopIpcChannel, …>` 注釈の 1 つの表にした。**ハンドラの無いチャネルはコンパイルが通らない**。`shared/src/services/supabaseAuthStorage.ts` は `electron` を import できないので構造的宣言を残し、両方を見られる desktop 側テストで**双方向の代入可能性**を assert（署名がズレたら desktop の typecheck が落ちる）。desktop に vitest + 7 件 + CI ステップ
+- **#895（PR #963）mcp-server tools.ts**: 986 行の単一配列を `tools/<domain>.ts` × 11 へ逐語移動（`handlers/` と 1 対 1）。`tools.ts` は 1,120 → 93 行。`toolDomains.test.ts` が対応関係を検査する — 片方だけあると落ちるのと、**`tools.ts` が spread を 1 つ忘れると落ちる**。後者を明示的に見張ったのは、忘れても何も壊れて見えないから（`TOOLS` を歩くテストがそのツールを最初から見ず、Claude Code には「そんなツールは無い」と伝わる）
+
+#### 検証
+
+- 各ブランチで CLAUDE.md §7.1 のゲートを全部。shared 240〜243 files / 2232〜2251 tests、web 54 / 485、desktop 1 / 7、mcp-server 20 / 288。lint の warning は既存分のみで error 0。CI も #958 / #960 は緑（#963 は投入直後）
+- **噛みを 4 通り実測**: `toItemsMetaPatch` から bump を外す → 14 件落ちる / `shared` の bridge から引数を 1 つ落とす → desktop の typecheck が署名差分で落ちる / `DESKTOP_IPC` にチャネルを足してハンドラを書かない → main の typecheck と preload テストが落ちる / `...TRASH_TOOLS` を落とす → 3 件落ちる。すべて確認後に revert
+- **踏んだ罠**: `mcp-server` のテストは開発端末に `LIFE_EDITOR_SUPABASE_*` が入っていると `silentDrops.test.ts` の 1 件が落ちる（「Supabase に到達したこと」を例外メッセージで確かめるテストが、資格情報があると成功してしまう）。main でも落ちるので PR 起因ではない。`git show origin/main:mcp-server/src/tools.ts` に戻して再現を確認した上で outbox に投げた
+
+#### 次
+
+3 本とも merge 待ち（P-001 でユーザー手番）。merge 後、#960 だけはパッケージ版デスクトップの起動とログイン維持を一度見ておきたい。
+
+### 2026-08-16 - #891 の残り 3 本を PR 化して打ち止め（PR #949 / #950 / #951）
+
+#### 概要
+
+`useNotesUnifiedAPI` / `useDailiesUnifiedAPI` / `useWikiTagsUnifiedAPI` を `useDomainLoad` へ載せ替え、Issue の指定どおり 1 本 1 PR で出した。これで #891 の 4 本が揃う（1 本目 `useTodoTreeAPI` は PR #922 で merge 済み）。**3 本とも「同じ effect を同じ形で差し替える」では済まず、それぞれ違う理由で調整が要った**のが今回の中身。
+
+#### 変更点
+
+- **notes（PR #949）**: 素直に載る側。ただし **Trash の読み込みは別 effect に据え置いた** — 同じトリガ（mount + `notes` bump）だが独自の try/catch を持ち、Trash の失敗がツリー本体をブロックしない設計。load の `Promise.all` に畳むとこれが壊れる。effect の deps から `hydrateContent` / `mergeLoadedList` が消えたのは等価な整理（前者は `[ds, setNotes]`、後者は ref のみに依存し、どちらも `ds` 以外で identity が変わらない）
+- **dailies（PR #950）**: 4 本で一番「無言」だった。失敗をログに出すだけで、**ローディングの旗もエラー state も持っていなかった**ので、fetch 失敗が「まだ日記が無い」と見分けが付かない。よって `isLoading` / `error` は**このフックの新規フィールド**。UI は未配線（エラーカードの配線は見た目の変更なので範囲外）で、PR 本文に「不要なら戻せる」旨を明記した
+- **wikitags（PR #951）**: `refetchReportsLoading: false` では足りなかった。`loading = attemptInFlight && !hasLoaded` と書いた理由は**初回ロードが失敗した後**の挙動で、旧コードは次の試行で旗を立て直していた（`if (!hasLoadedRef.current) setLoading(true)`）。false 固定にすると「読み込み中」が「タグ 0 件」表示に変わる。`hasLoaded` は ref ではなく state（`loading` を導出するため再描画が要る）で、書き込みは `applyAll` の中だけ = effect 本体では書かない。また元の effect は **catch を 1 つも持っておらず** `void refresh()` で unhandled rejection になっていた。3 つの bulk read と 3 つの setter を `loadAll` / `applyAll` に名前を付けて、load effect と公開 API の `refresh` が drift しない形にした
+- **新規テスト 19 件**: `notesUnifiedLoadEffect`(7) / `dailiesUnifiedLoadEffect`(6) / `wikiTagsUnifiedLoadEffect`(6)。**3 本とも load 経路のテストはそれまで 1 本も無かった**。既存の #300 スイート（`wikiTagsRefreshLoading.test.tsx`）は 1 文字も触らず緑
+
+#### 検証
+
+3 ブランチそれぞれで `shared` / `web` の lint・build・test（計 6 ゲート）を exit 0 まで確認。shared 241 files / 2238〜2239 tests、web 54 files / 485 tests。lint の warning は既存分のみで error 0。
+
+#### 次
+
+#890（5 role の mapper 共通化）→ #894（desktop IPC 契約のロックステップ）→ #895（mcp-server tools.ts の分割）。**#891 を close するのは #951**（先行 2 本は close しない本文にしてある）。
+
 ### 2026-08-16 - Issue sweep 開始 — 取り残しコミットの回収（PR #921）と #891 の 1 本目（PR #922）
 
 #### 概要

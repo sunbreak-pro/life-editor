@@ -1,9 +1,13 @@
 import type { TodoNode, TodoNodeType, TodoStatus } from "../types/todoTree";
 import {
   ITEMS_META_COLUMNS,
+  assertItemsMetaPair,
+  toItemsMetaInsertRow,
+  toItemsMetaPatch,
   type ItemsMetaRow,
   type ItemsMetaInsertRow,
   type ItemsMetaUpdatePatch,
+  type ItemsMetaPatchInput,
 } from "./itemsMeta";
 
 /*
@@ -233,16 +237,7 @@ export function rowsToTodoNode(
   meta: ItemsMetaRow,
   payload: TasksPayloadRow,
 ): TodoNode {
-  if (meta.id !== payload.item_id) {
-    throw new Error(
-      `todoMapper: row mismatch — meta.id="${meta.id}" but payload.item_id="${payload.item_id}"`,
-    );
-  }
-  if (meta.role !== "task") {
-    throw new Error(
-      `todoMapper: items_meta.role expected "task" but got "${meta.role}"`,
-    );
-  }
+  assertItemsMetaPair("todoMapper", "task", meta, payload);
 
   const node: TodoNode = {
     id: meta.id,
@@ -301,15 +296,17 @@ export function todoNodeToRows(
   node: TodoNode,
   userId: string,
 ): { meta: ItemsMetaInsertRow; payload: TasksPayloadWriteRow } {
-  const meta: ItemsMetaInsertRow = {
+  const meta: ItemsMetaInsertRow = toItemsMetaInsertRow({
     id: node.id,
-    user_id: userId,
+    userId,
     role: "task",
     title: node.title,
-    is_deleted: node.isDeleted ?? false,
-    deleted_at: node.deletedAt ?? null,
-    version: node.version ?? 1,
-  };
+    isDeleted: node.isDeleted,
+    deletedAt: node.deletedAt,
+    // Todos is the one role that carries a client-side version onto the
+    // first INSERT; the other four always start at 1.
+    version: node.version,
+  });
 
   const payload: TasksPayloadWriteRow = {
     item_id: node.id,
@@ -374,15 +371,15 @@ export function todoUpdatesToPatches(
   now: string,
 ): { metaPatch: ItemsMetaUpdatePatch; payloadPatch: TasksPayloadUpdatePatch } {
   // -- meta side --
-  // DB-Q2: ALWAYS bump updated_at, even if the caller is only patching
-  // payload columns. This is the single point of enforcement.
-  const metaPatch: ItemsMetaUpdatePatch = { updated_at: now };
-  if ("title" in updates && updates.title !== undefined)
-    metaPatch.title = updates.title;
-  if ("isDeleted" in updates) metaPatch.is_deleted = updates.isDeleted ?? false;
-  if ("deletedAt" in updates) metaPatch.deleted_at = updates.deletedAt ?? null;
-  if ("version" in updates && updates.version !== undefined)
-    metaPatch.version = updates.version;
+  // DB-Q2's `updated_at` bump lives in `toItemsMetaPatch` (#890) — one
+  // implementation for all five roles. Presence is forwarded key by key so a
+  // partial UPDATE still touches only the columns the caller named.
+  const metaFields: ItemsMetaPatchInput = {};
+  if ("title" in updates) metaFields.title = updates.title;
+  if ("isDeleted" in updates) metaFields.isDeleted = updates.isDeleted;
+  if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
+  if ("version" in updates) metaFields.version = updates.version;
+  const metaPatch: ItemsMetaUpdatePatch = toItemsMetaPatch(metaFields, now);
 
   // -- payload side --
   const payloadPatch: TasksPayloadUpdatePatch = {};
