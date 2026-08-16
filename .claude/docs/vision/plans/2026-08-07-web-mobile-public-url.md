@@ -162,6 +162,9 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
    - 流出済みパスワード一覧（HaveIBeenPwned）との照合機能だが、[公式ドキュメント](https://supabase.com/docs/guides/auth/password-security)に "Leaked password protection is available on the Pro Plan and above." と明記されている。**本プロジェクトは「完成までコスト $0 厳守」（CLAUDE.md 冒頭）なので採らない**
    - 計画時に「トグル 1 つ・$0」と書いたのは調査漏れ。Step 2 で出た `auth_leaked_password_protection` の WARN は**恒久的に残る**ため、以後の `get_advisors(security)` はこの 1 件を既知として扱う（0 件にはならない）
    - 代替の守り: 新規サインアップを閉じたので**攻撃対象は既存 1 アカウントのみ**。使い回しのない長いパスワードにしておくことで実質的に補う
+4. **Authentication → Sign In / Providers → Minimum password length を 12 に**（同じ画面の Email プロバイダ設定内）
+   - アプリ側の下限は #956（PR #967）で 6 → **12** に上がった（定数 = `shared/src/constants/password.ts` の `PASSWORD_MIN_LENGTH`）。ここを揃えないと**画面は 12 を求めるのにサーバは 6 で通る**状態になり、実効ポリシーが弱いほうに張り付く
+   - 3 の Leaked password protection が無料プランで使えない以上、**長さが唯一の守り**になる（D-20260816-shared-fix-4 = A）。再セットアップのときもこの行を飛ばさない
 
 **実測結果（2026-08-09）✅ 通過**: 公開バンドルから anon key を取り出し `GET /auth/v1/settings` を叩いて確認（読み取りのみ・本番への書き込みなし）。`disable_signup: true` / `external.anonymous_users: false` / `external.email: true` = **新規登録は閉じ、匿名ログインも無く、メールログインだけが生きている**状態。
 
