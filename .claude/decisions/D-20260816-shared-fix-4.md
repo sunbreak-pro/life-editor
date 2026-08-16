@@ -16,7 +16,7 @@ refs:
   ]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#967"]
 promoted-to: null
 ---
 
@@ -43,5 +43,6 @@ promoted-to: null
 
 ## 波及
 
-- 実装 Issue = **#956**（`10-12` のうち具体値は実装時に 1 つへ決める。定数と en / ja 文言で数値を二重管理しないことが DoD）
-- Supabase ダッシュボード側の Minimum password length も同じ値へ揃える（🛑 こうだいさんの手番）
+- 実装 Issue = **#956** → PR **#967**（採った具体値は **12**。定数は `shared/src/constants/password.ts` の `PASSWORD_MIN_LENGTH` 1 箇所で、en / ja 文言は `{{min}}` 差し込みに変えて数値を持たない）
+- Supabase ダッシュボード側の Minimum password length も同じ値（12）へ揃える（🛑 こうだいさんの手番・手順は PR #967 本文）
+- 併走の実装者判断（P-006）: `AuthCard` の下限は signUp モードのみ。既存パスワードはどの引き上げよりも前に作られているため、サインイン欄に効かせると本人が自分のアカウントから締め出される
