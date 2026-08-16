@@ -21,6 +21,13 @@ export interface PasswordUpdateFormLabels {
 }
 
 export interface PasswordUpdateFormProps {
+  /**
+   * Address of the account the new password belongs to (#945). Rendered into
+   * a hidden `autocomplete="username"` input so a password manager knows which
+   * entry to update. Optional because the recovery link does not always carry
+   * an address — nothing is rendered when it is missing.
+   */
+  username?: string;
   password: string;
   onPasswordChange: (value: string) => void;
   confirmPassword: string;
@@ -56,6 +63,7 @@ export interface PasswordUpdateFormProps {
  * already translated (§6.4); lumen-* tokens only (§5).
  */
 export function PasswordUpdateForm({
+  username,
   password,
   onPasswordChange,
   confirmPassword,
@@ -88,6 +96,22 @@ export function PasswordUpdateForm({
       aria-busy={busy || undefined}
       className={cn("flex flex-col gap-4", className)}
     >
+      {/* #945: without a username in the form, a password manager cannot tell
+          which saved entry these two new-password fields belong to, and Chrome
+          says so in the console. Hidden rather than shown because the address
+          is not part of this request — the session already fixes whose password
+          changes. Read-only so nothing can be typed into a field nobody sees. */}
+      {username ? (
+        <input
+          type="text"
+          name="username"
+          autoComplete="username"
+          value={username}
+          readOnly
+          hidden
+        />
+      ) : null}
+
       {/* Dimmed while busy, matching AuthCard: the fields go quiet and the
           button carries the spinner at full strength. */}
       <div

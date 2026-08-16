@@ -126,6 +126,9 @@ function App() {
     body = (
       <AuthScreen
         recovery
+        // The recovery link already signed the user in, so the address is
+        // known here even though the reset card never asked for it (#945).
+        recoveryUsername={session.user.email}
         onRecoveryComplete={() => {
           setRecovering(false);
           writeRecoveryMark(false);

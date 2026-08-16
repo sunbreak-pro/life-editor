@@ -74,7 +74,10 @@ export function SettingsAccount({
         <span className="text-sm text-lumen-text">{email}</span>
       </div>
 
+      {/* The card already requires the address, so the password manager's
+          username (#945) can never go missing here. */}
       <PasswordUpdateForm
+        username={email}
         password={password}
         onPasswordChange={onPasswordChange}
         confirmPassword={confirmPassword}

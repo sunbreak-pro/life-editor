@@ -38,6 +38,12 @@ export interface AuthScreenProps {
    * reset card instead of the credentials card.
    */
   recovery?: boolean;
+  /**
+   * Address of the recovery session, handed to the password manager (#945).
+   * App reads it off the session the recovery link created; a session without
+   * an email simply leaves the field out.
+   */
+  recoveryUsername?: string;
   /** Called once the recovery password has been set. */
   onRecoveryComplete?: () => void;
 }
@@ -57,6 +63,7 @@ type View = "credentials" | "resetRequest";
 
 export function AuthScreen({
   recovery = false,
+  recoveryUsername,
   onRecoveryComplete,
 }: AuthScreenProps = {}) {
   const { t } = useTranslation();
@@ -166,6 +173,7 @@ export function AuthScreen({
   if (recovery) {
     card = (
       <PasswordRecoveryCard
+        username={recoveryUsername}
         password={recoveryForm.password}
         onPasswordChange={recoveryForm.setPassword}
         confirmPassword={recoveryForm.confirmPassword}
