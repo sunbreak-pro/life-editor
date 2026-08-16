@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { updatePassword } from "@life-editor/shared";
 
 /** Already-translated copy for every outcome of a password change. */
@@ -57,6 +57,9 @@ export function usePasswordUpdate(
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmInvalid, setConfirmInvalid] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The re-entry guard reads this, not `busy`: state lands on the next render,
+  // so two Enter presses in the same frame would both see `busy === false`.
+  const inFlight = useRef(false);
 
   // Typing again clears the previous verdict — leaving a stale "changed"
   // banner above a half-typed new value would read as if that one had landed.
@@ -76,9 +79,7 @@ export function usePasswordUpdate(
 
   const submit = useCallback(() => {
     void (async () => {
-      // Re-entry guard: `disabled={busy}` only lands on the next render, so
-      // rapid Enter presses could otherwise fire the call twice.
-      if (busy) return;
+      if (inFlight.current) return;
       setError(null);
       setNotice(null);
       setConfirmInvalid(false);
@@ -93,8 +94,10 @@ export function usePasswordUpdate(
         return;
       }
 
+      inFlight.current = true;
       setBusy(true);
       const result = await updatePassword(password);
+      inFlight.current = false;
       setBusy(false);
 
       if (result.error) {
@@ -116,7 +119,7 @@ export function usePasswordUpdate(
       if (messages.done) setNotice(messages.done);
       onSuccess?.();
     })();
-  }, [busy, password, confirmPassword, minLength, messages, onSuccess]);
+  }, [password, confirmPassword, minLength, messages, onSuccess]);
 
   return {
     password,
