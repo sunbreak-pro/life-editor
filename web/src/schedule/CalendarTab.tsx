@@ -30,13 +30,11 @@ import {
   unwrapTodoChipId,
   todoScheduleSlot,
   frequencyLabel,
-  nextRoutineOccurrence,
   applyRepeatFilter,
   applyCalendarLens,
   buildCalendarMemberIds,
   pickSelectableCalendars,
   useMinuteClock,
-  todayCalendarKey,
   type TodoCalendarChip,
   type ScheduleItem,
   type ItemCreateNoteDraft,
@@ -45,9 +43,6 @@ import {
   type MonthGridItem,
   type AgendaItem,
   type EventEditorItem,
-  type FrequencyEditorValue,
-  type RoutineSummaryRow,
-  type RepeatListRow,
   type StatusFilterChip,
   type DataService,
   MobileFab,
@@ -65,6 +60,7 @@ import { useScheduleOverlays } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { ScheduleOverlays } from "./ScheduleOverlays";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
+import { useScheduleRepeats } from "./useScheduleRepeats";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import { itemTapRoute } from "./todoChipPanel";
@@ -1082,144 +1078,31 @@ export function CalendarTab({
     return r ? frequencyLabel(r, freqCopy, weekdayLabels) : undefined;
   }, [selected, routines, freqCopy, weekdayLabels]);
 
-  // ── Repeat section (#185 Step 3) ───────────────────────────────────────────
-  // The source routine of the selected occurrence (null for a manual event).
-  const selectedRoutine = useMemo(() => {
-    if (!selected || selected.routineId == null) return null;
-    return routines.find((r) => r.id === selected.routineId) ?? null;
-  }, [selected, routines]);
-
-  // The frequency the <FrequencyEditor> edits. null = "なし" (manual event).
-  const repeatValue = useMemo<FrequencyEditorValue | null>(() => {
-    if (!selectedRoutine) return null;
-    return {
-      frequencyType: selectedRoutine.frequencyType,
-      frequencyDays: selectedRoutine.frequencyDays,
-      frequencyInterval: selectedRoutine.frequencyInterval,
-      frequencyStartDate: selectedRoutine.frequencyStartDate,
-    };
-  }, [selectedRoutine]);
-
-  const summaryRows = useMemo<RoutineSummaryRow[]>(
-    () =>
-      routines
-        .filter((r) => !r.isArchived && r.isVisible)
-        .map((r) => ({
-          id: r.id,
-          title: r.title,
-          timeLabel: r.startTime ?? "",
-          frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
-        })),
-    [routines, freqCopy, weekdayLabels],
-  );
-  const routineTodayItems = todayItems.filter((i) => i.routineId != null);
-  const routineDone = routineTodayItems.filter((i) => i.completed).length;
-  const routineTotal = routineTodayItems.length;
-
-  // #408 repeat list. Unlike summaryRows this is NOT filtered: the whole point
-  // of the panel is listing routines the calendar cannot show — an interval
-  // starting next month, archived / hidden ones, and the malformed ones that
-  // fire on no day at all (#407's zombies). Sorted by `order`, the same
-  // ordering the retired Routines tab used.
-  //
-  // The scan is skipped unless the tab is showing: a routine that fires on no
-  // day walks the full year before answering, so an unopened panel would pay
-  // that on every routine write. `listDate` rides the minute ticker rather
-  // than `today` (frozen at mount) — a stale key here is not a stale grid, it
-  // is a wrong date printed in the row and a jump to the wrong day.
-  const listDate = useMemo(() => todayCalendarKey(now), [now]);
-  const repeatRows = useMemo<RepeatListRow[]>(
-    () =>
-      sidebarTab !== "repeats"
-        ? []
-        : routines
-            .slice()
-            .sort((a, b) => a.order - b.order)
-            .map((r) => {
-              const next = nextRoutineOccurrence(r, listDate);
-              return {
-                id: r.id,
-                title: r.title || t("scheduleScreen.untitled"),
-                timeLabel: r.startTime ?? "",
-                frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
-                nextLabel: next ? formatFullDay(next) : null,
-              };
-            }),
-    [sidebarTab, routines, listDate, t, freqCopy, weekdayLabels, formatFullDay],
-  );
-
-  const handleOpenRepeat = useCallback(
-    (id: string) => {
-      const routine = routines.find((r) => r.id === id);
-      if (!routine) return;
-      const next = nextRoutineOccurrence(routine, listDate);
-      // The panel renders no-occurrence rows as static text, so this guard is
-      // belt-and-braces against a routine edited out from under the list.
-      if (!next) return;
-      // #520: the same reveal the palette needs, and here the first filter is
-      // not even a suspect — it is a certainty. The destination is by
-      // definition repeat-generated, so with #466 on it is folded away the
-      // moment it is fetched, and the lens hides it too unless the SERIES
-      // carries that calendar's tag. Jumping to a day where the thing jumped
-      // to is filtered out is exactly the unreachability this panel exists to
-      // fix (#408).
-      revealOnGrid();
-      setAnchorDate(next);
-      // #467: on Mobile this list lives in the drawer that covers the calendar,
-      // so a jump with the drawer left open lands on a day the user cannot see.
-      // Desktop's panel sits beside the grid, and `close` there would collapse
-      // a panel the user deliberately opened — hence the layout guard.
-      if (!isWide) closeSidebar?.();
-      void (async () => {
-        // Navigating only FETCHES a range — nothing on the nav path
-        // materialises occurrences (the generator covers today, and reconcile
-        // covers whatever range was visible at the time). So a jump onto a
-        // future-dated repeat would land on an empty day with nothing to open,
-        // which is exactly the reachability hole this panel exists to close.
-        try {
-          await ensureRoutineItemsForDateRange(next, next, [routine]);
-        } catch {
-          // Logged at the API layer; the reload below still returns the view
-          // to whatever the server actually has.
-        }
-        reload();
-      })();
-    },
-    [
-      routines,
-      listDate,
-      setAnchorDate,
-      isWide,
-      closeSidebar,
+  // ── Repeat section (#185 Step 3 / #408 / #889) ─────────────────────────────
+  const {
+    repeatValue,
+    summaryRows,
+    routineDone,
+    routineTotal,
+    listDate,
+    repeatRows,
+    handleOpenRepeat,
+    handleDeleteRepeat,
+  } = useScheduleRepeats({
+    routines,
+    selected,
+    todayItems,
+    sidebarTab,
+    now,
+    copy: { freq: freqCopy, weekdayLabels, formatFullDay },
+    nav: { setAnchorDate, revealOnGrid, isWide, closeSidebar },
+    writes: {
       ensureRoutineItemsForDateRange,
+      deleteRoutine,
       reload,
-      revealOnGrid,
-    ],
-  );
-
-  const handleDeleteRepeat = useCallback(
-    (id: string) => {
-      void (async () => {
-        // `onCascadeChanged` (#708): an undo restores the occurrences and the
-        // seed event straight through the DataService, so the visible range
-        // has to be re-read there too — same reason as the reload below.
-        const { landed } = await deleteRoutine(id, {
-          onCascadeChanged: reload,
-        });
-        // The calendar is on screen here (it never was behind the old Routines
-        // tab), so without this the deleted routine's occurrences linger until
-        // something else refetches the visible range.
-        reload();
-        // deleteRoutine drops the row optimistically and swallows the service
-        // error. Silence would leave the list short one row while every
-        // occurrence stays on the grid, with no way to tell which is true.
-        if (!landed) {
-          showToast("danger", t("scheduleScreen.repeatDeleteFailed"));
-        }
-      })();
+      showToast,
     },
-    [deleteRoutine, reload, showToast, t],
-  );
+  });
 
   // #466: flipping the filter on takes the selected occurrence off the grid.
   // The selection itself is what the popover and the editor read, so dropping
