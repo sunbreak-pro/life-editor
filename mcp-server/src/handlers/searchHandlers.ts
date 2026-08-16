@@ -203,7 +203,21 @@ export async function searchAll(args: {
     : [...VALID_DOMAINS];
 
   const needle = args.query.toLowerCase();
-  const result: Record<string, DomainPage<unknown>> = {};
+  /*
+   * Keyed by Domain rather than by `string`, which is what lets a caller
+   * write `.todos` (#1003 / #1010).
+   *
+   * With an index signature, `return { ...result, totalHits }` types as
+   * `{ totalHits: number }` and NOTHING else: `number` is not assignable to
+   * `DomainPage<unknown>`, so TypeScript drops the index signature from the
+   * spread rather than widening it. Every domain key disappeared from the
+   * return type, and callers had been casting their way past it
+   * (`as Record<string, unknown>` in searchPaging.test.ts) instead of the
+   * signature being fixed. The domains are a closed set — VALID_DOMAINS —
+   * so naming them costs nothing and each is optional for the real reason:
+   * a domain answers only when it was asked for.
+   */
+  const result: Partial<Record<Domain, DomainPage<unknown>>> = {};
   let totalHits = 0;
 
   if (domains.includes("todos")) {
