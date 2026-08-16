@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-16 - #897 SupabaseScheduleItemsService の一括系にテストを足す（PR #929）
+
+#### 概要
+
+テストが 1 本も無かった一括書き込み 4 本（`bulkCreateScheduleItems` / `bulkDeleteScheduleItems` / `bulkSoftDeleteScheduleItems` / `bulkRestoreScheduleItems`）に vitest 19 ケースを追加し、ついでに実装と食い違っていたクラスヘッダーのコメントと、2 箇所に散っていた複合キーの綴りを直した。挙動変更ゼロ。7 ゲート + `web typecheck:tests` + docs-lint すべて exit 0。merge は未（P-001）。
+
+#### 変更点
+
+- **5 本目の `updateFutureScheduleItemsByRoutine` は既存テストが押さえていた**（`updateFutureScheduleItemsByRoutine.test.ts` の 6 ケース）ので、新規は残り 4 本。Issue の「テスト参照は 1 本だけ」は**ファイル数の話でメソッド数ではない**
+- **一発で通るテストを信用しない**: 19 ケースが初回で全部 pass したので、実装に変異を入れて落ちることを実測した。重複排除の filter を外すと 3 件 fail / `items_meta` の INSERT を消す + soft-delete の `deleted_at` を落とすと 6 件 fail。**この確認をしないと「モックが実物から乖離していて何も見ていないテスト」が緑のまま残る**
+- **クラスヘッダーが実装と食い違っていた**（`SupabaseScheduleItemsService.ts:34`）: 「bulkCreate は ON CONFLICT ignoreDuplicates を使う」と書いてあるが、30 行下の `bulkCreateScheduleItems` 自身の doc は「PostgREST は **PARTIAL** unique index に ON CONFLICT を向けられないので事前 SELECT にした」と書いている。実装は後者。**Issue の DoD が「`ignoreDuplicates` による冪等化をテストで固定」と書いているのはこの古いコメントを読んだため**で、実際に固定したのは事前 SELECT 方式の冪等化
+- **複合キーの綴りが 2 箇所に散っていた**: `${routine_item_id}|${source_date}` を lookup 側と drop 側で別々に書いており、片方だけ変えると重複排除が黙って一致しなくなる。`routinePairKey()` に一本化し、事前チェック本体は private の `fetchLiveRoutinePairKeys()` へ切り出した
+- **Issue のステップ 2（bulkCreate と updateFuture の共通部分抽出）は見送った**。Issue が挙げた 3 つを実測した結果、共通の中核が実在しない —「ルーチン由来の行の絞り込み」は bulkCreate が**これから INSERT する行へのメモリ上の述語**・updateFuture が**1 routine への DB クエリ**で同名の別物 /「2 行分割の組み立て」は bulkCreate が既に共有 `scheduleItemToRows` を使い updateFuture はそもそも行を組み立てない /「冪等化オプション」は bulkCreate 専用。またぐ抽象は呼び出し元 1 つずつの間接層になり行数がむしろ増えるので、判断キュー D-20260816-sched-1 に A/B を積んで A（見送り）で進めた
+- **FK の実測**（migration 0008 / 0011）: `events_payload.item_id` → `items_meta(id)` は **ON DELETE CASCADE** なので `bulkDelete` は items_meta だけ消せばよい。一方 `(routine_item_id, routine_item_role)` の composite FK は **NO ACTION** で、こちらの子孫優先削除は `SupabaseRoutinesService.permanentDeleteRoutine` の責務（当サービスの担当外）
+- **`git checkout -- <file>` で変異を戻した後、cwd が web/ に残っていて `git add` が空振りした**。background の Bash で `cd shared` / `cd web` すると次の呼び出しの cwd がそこに残る（`cd` はセッションに効かないという注記は出るが、実際には残っていた）。**リポジトリ操作は毎回フルパスで `cd` し直す**
+
 ### 2026-08-15 (2) - #877 todo の設定日付を出す / #878 Mobile Calendar を月ビュー主体に（PR #915 / #916）
 
 #### 概要
