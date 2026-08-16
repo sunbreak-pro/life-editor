@@ -80,6 +80,29 @@ describe("Settings account card", () => {
     expect(await screen.findByText("me@example.com")).toBeTruthy();
   });
 
+  /*
+   * #945 — the field a password manager reads to decide WHICH saved entry the
+   * new password replaces. It is hidden, so no user-facing assertion can catch
+   * its loss; the guard has to name the attribute the browser keys off. The
+   * prop is optional on the form (the recovery card may not know an address),
+   * which is exactly why Settings — where the address is always known — needs
+   * its own pin against someone dropping the wiring.
+   */
+  it("carries the signed-in address as the password manager's username", async () => {
+    const { container } = render(<SettingsScreen />);
+    await screen.findByText("me@example.com");
+
+    const username = container.querySelector<HTMLInputElement>(
+      'input[autocomplete="username"]',
+    );
+    expect(username).not.toBeNull();
+    expect(username?.value).toBe("me@example.com");
+    // Hidden and read-only: it is context for the browser, not a field the
+    // owner is meant to see or edit on this card.
+    expect(username?.hidden).toBe(true);
+    expect(username?.readOnly).toBe(true);
+  });
+
   it("refuses a mismatched confirmation without calling Supabase", async () => {
     render(<SettingsScreen />);
     type("settings.account.newPassword", "correct-horse");
