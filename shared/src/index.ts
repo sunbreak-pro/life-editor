@@ -94,6 +94,7 @@ export {
   ToastProvider,
   ToastContext,
   useToast,
+  useToastOptional,
   type ToastContextValue,
   type ToastProviderProps,
   type ShowToastOptions,
