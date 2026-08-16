@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { DataService } from "../services/DataService";
 import type {
   WikiTag,
@@ -12,6 +12,7 @@ import {
   findStaleInlineLinks,
 } from "../utils/inlineLinkSync";
 import { useSyncDomains } from "./useSyncDomains";
+import { useDomainLoad } from "./useDomainLoad";
 
 /*
  * useWikiTagsUnifiedAPI (DU-C+ Step 4).
@@ -40,35 +41,79 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   // LinkPanel. Loaded once per refresh and bucketed by item below.
   const [allAssignments, setAllAssignments] = useState<WikiTagAssignment[]>([]);
   const [allConnections, setAllConnections] = useState<WikiTagConnection[]>([]);
-  const [loading, setLoading] = useState(true);
-  // #300: `loading` means "no data yet", NOT "a refresh is in flight". A
-  // syncVersion bump lands here ~1.1s after every typing pause (own-write
-  // Realtime echo), and every tag surface (TagPicker pills / LinkPanel /
-  // Tags-tab list) gates its already-rendered chips on this flag — flipping
-  // it during a background refetch unmounts them all for the round-trip,
-  // which is the reported flicker. Stale data stays visible instead.
-  const hasLoadedRef = useRef(false);
+  // Has a bulk load ever LANDED? State rather than a ref because `loading`
+  // below is derived from it and has to re-render when it flips. Written only
+  // from `applyAll`, which runs as an async callback, never from an effect
+  // body (#586 / #891 — see useDomainLoad's header for why that distinction
+  // is the whole point of this hook).
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!hasLoadedRef.current) setLoading(true);
-    try {
-      const [tags, assignments, connections] = await Promise.all([
-        ds.listAllWikiTagsUnified(),
-        ds.listAllTagAssignments(),
-        ds.listAllTagConnections(),
-      ]);
+  // The three bulk reads and the three setters, named once so the load effect
+  // below and the imperative `refresh` cannot drift apart.
+  const loadAll = useCallback(
+    (service: DataService) =>
+      Promise.all([
+        service.listAllWikiTagsUnified(),
+        service.listAllTagAssignments(),
+        service.listAllTagConnections(),
+      ]),
+    [],
+  );
+
+  const applyAll = useCallback(
+    ([tags, assignments, connections]: [
+      WikiTag[],
+      WikiTagAssignment[],
+      WikiTagConnection[],
+    ]) => {
       setAllTags(tags);
       setAllAssignments(assignments);
       setAllConnections(connections);
-      hasLoadedRef.current = true;
-    } finally {
-      setLoading(false);
-    }
-  }, [ds]);
+      setHasLoaded(true);
+    },
+    [],
+  );
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh, syncVersion]);
+  // Load on mount and on every tags bump, through the shared load effect
+  // (#672 / #891). `error` is new on this hook's surface — the effect this
+  // replaces had no catch at all, so a failed bulk load became an unhandled
+  // rejection and the tag surfaces just showed an empty graph. Nothing renders
+  // it yet (an error card is a visible change); what it buys now is that
+  // #296's un-latch is in place before any surface starts reading it.
+  const { isLoading: attemptInFlight, error } = useDomainLoad({
+    domain: "WikiTags",
+    dataService: ds,
+    version: syncVersion,
+    load: loadAll,
+    apply: applyAll,
+    fallbackMessage: "Failed to load tags",
+  });
+
+  /*
+   * #300: `loading` means "no data yet", NOT "a refresh is in flight". A
+   * syncVersion bump lands here ~1.1s after every typing pause (own-write
+   * Realtime echo), and every tag surface (TagPicker pills / LinkPanel /
+   * Tags-tab list) gates its already-rendered chips on this flag — flipping it
+   * during a background refetch unmounts them all for the round-trip, which is
+   * the reported flicker. Stale data stays visible instead.
+   *
+   * Written out as `in flight AND nothing has ever landed` rather than
+   * `refetchReportsLoading: false`, because the two differ after a FAILED
+   * first load: the old code re-armed its loading flag on the next attempt
+   * (`if (!hasLoadedRef.current) setLoading(true)`) and there genuinely is no
+   * data yet in that state. `refetchReportsLoading: false` would have left it
+   * false and reported "no tags" instead of "still trying".
+   */
+  const loading = attemptInFlight && !hasLoaded;
+
+  // Imperative reload, kept on the public surface (no in-repo caller today).
+  // Behaviour note: it no longer raises `loading` while in flight. That only
+  // ever applied before the first successful load — the flag was pinned false
+  // afterwards by the #300 rule above — and an imperative call cannot drive
+  // the shared effect's derived state without writing it from a render.
+  const refresh = useCallback(async () => {
+    applyAll(await loadAll(ds));
+  }, [applyAll, loadAll, ds]);
 
   // -- tag master ----------------------------------------------------------
 
@@ -305,6 +350,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       allConnections,
       countsByTag,
       loading,
+      error,
       refresh,
       createTag,
       renameTag,
@@ -328,6 +374,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       allConnections,
       countsByTag,
       loading,
+      error,
       refresh,
       createTag,
       renameTag,
