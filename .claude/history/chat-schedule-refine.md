@@ -1,5 +1,22 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-16 (3) - #889 CalendarTab 分割 1/n: 右サイドバーを切り出す（PR #941）
+
+#### 概要
+
+`CalendarTab` の右サイドバー（3 タブ = 今日の流れ / 本日の Todo / 繰り返し）と、その切り替え・レイアウト畳み込みを `web/src/schedule/ScheduleSidebar.tsx` へ切り出した。**2,578 → 2,446 行**。挙動変更ゼロ。8 ゲートすべて exit 0。**#889 は 1 PR で閉じない**（Issue 本文の指示）ので、これは 1 本目。
+
+#### 変更点
+
+- **抽出単位の選び方**: Issue のステップ 1 が最初に挙げている `flowBody` / `repeatsBody` / `todoBody` / `sidebarPortal` をそのまま 1 単位にした。この 4 つは「右サイドバーに何を出すか」という 1 つの問いの答えで、間に挟まっていた `handleConvertToTodo` / `handleConvertToEvent`（Event↔Todo 変換 ≈150 行）は別単位として残した
+- **抽出先は `shared/` ではなく `web/src/schedule/`**（Issue 本文からの逸脱・PR に明記）: 切り出す対象は **shared に既にいる部品（`AgendaList` / `TodayTodoTray` / `RepeatListPanel` / `RoutineSummaryCard`）を組み合わせるだけの層**で、自分の文言は `useTranslation()` で解決している。shared へ押し込むと**組み合わせ以外に何もしない層に約 25 個のラベル文字列を通す**ことになり、#893 でその下の部品から取り除いたばかりの形になる。#675 が `CalendarTab` から剥がした 15 ファイルも全部 `web/src/schedule/` にいる
+- **`<RightSidebarPortal>` は呼び出し側に残した**: ポータルは Provider 無しだと `null` を返す（`RightSidebarPortal.tsx:30`）ので、部品に畳み込むと**シェル一式を立てないテストから中の分岐が 1 つも見えない**。配置はホストの都合という責務の切り方としても正しい
+- **テスト 11 件はマークアップではなく「黙って壊れる規則」を固定**（`web/tests/scheduleSidebar.test.tsx`）: ① `todo` は Desktop 専用なので narrow では flow に畳む（#467 — 壊すとスイッチャーの下にトレイが出てどのタブもアクティブに見えない）② 繰り返し一覧は narrow で `onDelete` を渡さない（#467 — 指先サイズの標的から系列ごと消せる）③ ルーチン集計は Desktop のみで、その CTA が flow → repeats の唯一の導線 ④ #466 のフィルタ通知は ON のときだけ出て、そのボタンが OFF に戻す
+- **変異テストで実効性を実測**: ①②③ を潰す変異を同時に入れたら**落ちたのはちょうど対応する 3 テストだけ**（8 件は緑）。#897 では「落ちた件数が多い＝良いテスト」ではないと学んだが、今回は件数ではなく**どれが落ちるかが 1 対 1 で対応**しているのを確認できた
+- **`web typecheck:tests` が今回も効いた**: vitest は 11/11 緑なのに型は 2 件落ちていた（`skipped` の `isAllDay` が `ScheduleItem` 側で `boolean | undefined` / テストの `statusLabels` のキーが `ScheduleStatus` と不一致）。ローカルの既定コマンド一覧に無いゲートなので #889 の残りでも毎回回す
+- **変異前にコミットした**（#897 の教訓の適用）: #897 では `git checkout --` で変異を戻したときに同じファイルの未コミットの修正まで消した。今回は先に commit してから変異 → `git checkout --` で安全に復帰
+- **残り**: `CalendarTab` はまだ 2,446 行で DoD の 1,000 行に届かない。残る塊 = オーバーレイ群（popover / detail / todoDetail / create / scope ≈350 行）、Desktop・Mobile 2 本の return（≈350 行 = ステップ 2）、Event↔Todo 変換（≈150 行）、state の 3 グループ化（ステップ 3）
+
 ### 2026-08-16 (2) - #893 Schedule 共有部品の props ドリルを畳む（PR #936）
 
 #### 概要
