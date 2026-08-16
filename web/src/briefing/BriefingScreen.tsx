@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import {
   BriefingView,
+  BriefingVizPanel,
   EveningView,
   ItemCreatePanel,
   ItemDetailOverlay,
@@ -156,7 +157,6 @@ export function BriefingScreen({
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
-      vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
       edit: t("briefing.edit"),
@@ -206,6 +206,8 @@ export function BriefingScreen({
 
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
+  // Since #938 they dress <BriefingVizPanel> in the detail panel rather than a
+  // section of the paper; the resolution is unchanged.
   const streakLabels = useMemo(
     () => ({
       title: t("analytics.streak.title"),
@@ -452,6 +454,32 @@ export function BriefingScreen({
     </RightSidebarPortal>
   );
 
+  // 「きのうまでの自分」(#938) — the paper's old visual zone, now a second
+  // panel in the SAME detail well as the tray above. Two <RightSidebarPortal>s
+  // stack in mount order, so no tab strip and no second sidebar mechanism: the
+  // tray (today) reads first, the charts (up to yesterday) below it.
+  //
+  // 朝刊 only. The tray is mounted on both papers because a todo list is as
+  // useful when closing the day as when starting it, but these three widgets
+  // are the morning paper's own block and 夕刊 is out of this Issue's scope.
+  //
+  // Narrow reaches it exactly the way it reaches the tray: since #609 the
+  // detail panel is a MobileDrawer opened from the hamburger at the left edge
+  // of the 朝刊/夕刊 band, so no width gate is needed here either
+  // (`docs/requirements/mobile-scope.md` #1).
+  const vizPortal = (
+    <RightSidebarPortal>
+      <BriefingVizPanel
+        sessions={data.sessions}
+        todoNodes={data.todoNodes}
+        title={t("briefing.vizTitle")}
+        streakLabels={streakLabels}
+        trendLabels={trendLabels}
+        balanceLabels={balanceLabels}
+      />
+    </RightSidebarPortal>
+  );
+
   // Keyed on the day so a paper that crosses midnight (or the day-start hour)
   // re-seeds the fields rather than keeping a draft aimed at yesterday.
   const createPanelOverlay = (
@@ -542,6 +570,7 @@ export function BriefingScreen({
   return (
     <>
       {todoTrayPortal}
+      {vizPortal}
       <BriefingView
         // The goals note is a SECOND async document, and its fields are
         // editable — offering them before it answers hands the user an empty
@@ -550,9 +579,6 @@ export function BriefingScreen({
         loading={loading || goalsLoading}
         data={data}
         labels={labels}
-        streakLabels={streakLabels}
-        trendLabels={trendLabels}
-        balanceLabels={balanceLabels}
         intentionText={intentionText}
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}

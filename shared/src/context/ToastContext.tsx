@@ -14,6 +14,7 @@ import {
   type ToastViewportPosition,
 } from "../components/Toast";
 import { createContextHook } from "../hooks/createContextHook";
+import { createOptionalContextHook } from "../hooks/createOptionalContextHook";
 
 export interface ShowToastOptions {
   /**
@@ -129,3 +130,17 @@ export function ToastProvider({
 }
 
 export const useToast = createContextHook(ToastContext, "useToast");
+
+/*
+ * Null-safe variant (#955), same shape as `useRightSidebarOptional`
+ * (vision/coding-principles.md §4).
+ *
+ * The throwing hook is right for a button whose only job is to raise a toast —
+ * without a Provider it is broken and should say so. It is wrong for reporting
+ * a FAILURE: a save error path that itself throws because no Provider is
+ * mounted turns a recoverable failure into a crash, and it forces every
+ * standalone render and every existing test of the screen to wrap a Provider
+ * it does not otherwise need. Callers on an error path take this one and fall
+ * back to their log.
+ */
+export const useToastOptional = createOptionalContextHook(ToastContext);

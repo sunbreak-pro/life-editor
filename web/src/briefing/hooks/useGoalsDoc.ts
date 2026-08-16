@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSaveFailureReport } from "./useSaveFailureReport";
 import {
   GOALS_NOTE_ID,
   GOAL_PERIODS,
@@ -66,6 +67,9 @@ export function useGoalsDoc(
   weekStartsOn: WeekStartsOn,
 ) {
   const { t } = useTranslation();
+  // The save path used to swallow its failure into the console, leaving a
+  // draft on screen that looked saved until the next reload took it (#955).
+  const reportSaveFailure = useSaveFailureReport();
   // Which week / month / year the paper is standing in (#957). The SAME two
   // inputs produce the label beside each field (goalPeriodRanges), so the key
   // a save writes and the range the reader sees can never disagree.
@@ -124,6 +128,13 @@ export function useGoalsDoc(
         // A failed read leaves the previous text on the paper rather than
         // blanking fields the user may be typing into — but it must still
         // open the gate, or a hiccup strands the reader on the skeleton.
+        //
+        // The ONE catch on this hook that does not raise a toast (#955), on
+        // purpose: nothing the user typed is at stake here. A failed read
+        // shows the previous text, and a failed keying migration just leaves
+        // the headings bare for the next open to retry. Toasting a fetch on
+        // page load would also fire on every offline open, which trains the
+        // user to dismiss the notice that DOES mean lost writing.
         console.error("[BriefingScreen] goals note fetch failed", err);
       } finally {
         if (!cancelled) setGoalsLoading(false);
@@ -243,11 +254,11 @@ export function useGoalsDoc(
           });
           setContent(updated.content ?? merged);
         } catch (err) {
-          console.error("[BriefingScreen] goal section save failed", err);
+          reportSaveFailure("goals", err);
         }
       });
     },
-    [ds, noteTitle, keys],
+    [ds, noteTitle, keys, reportSaveFailure],
   );
 
   const timersRef = useRef<Partial<Record<GoalPeriod, number>>>({});

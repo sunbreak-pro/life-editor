@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { useSaveFailureReport } from "./useSaveFailureReport";
 import {
   eveningBodyEquals,
   extractEveningSection,
@@ -35,6 +36,10 @@ export function useDailySections(
   dailyContent: string | null,
   setDailyContent: Dispatch<SetStateAction<string | null>>,
 ) {
+  // Both writes below used to swallow their failure into the console, leaving
+  // a draft on screen that looked saved until the next reload took it (#955).
+  const reportSaveFailure = useSaveFailureReport();
+
   // ── Evening tab (#263 F-6) ───────────────────────────────────────────
   // The 夕刊 tab is a dedicated editing view of the daily's evening section.
   const eveningStored = useMemo(
@@ -97,11 +102,11 @@ export function useDailySections(
           const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
           setDailyContent(updated.content ?? merged);
         } catch (err) {
-          console.error("[BriefingScreen] evening section save failed", err);
+          reportSaveFailure("evening", err);
         }
       });
     },
-    [ds, todayKey, setDailyContent],
+    [ds, todayKey, setDailyContent, reportSaveFailure],
   );
 
   const handleEveningUpdate = useCallback(
@@ -190,11 +195,11 @@ export function useDailySections(
           const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
           setDailyContent(updated.content ?? merged);
         } catch (err) {
-          console.error("[BriefingScreen] intention section save failed", err);
+          reportSaveFailure("intention", err);
         }
       });
     },
-    [ds, todayKey, setDailyContent],
+    [ds, todayKey, setDailyContent, reportSaveFailure],
   );
 
   const intentionTimerRef = useRef<number | null>(null);

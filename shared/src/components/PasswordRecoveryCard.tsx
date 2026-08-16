@@ -17,6 +17,12 @@ export interface PasswordRecoveryCardLabels extends PasswordUpdateFormLabels {
 }
 
 export interface PasswordRecoveryCardProps {
+  /**
+   * Address of the recovered account, for the password manager (#945).
+   * Optional: the recovery session is what supplies it, and a session without
+   * an email address is possible — the field is then left out entirely.
+   */
+  username?: string;
   password: string;
   onPasswordChange: (value: string) => void;
   confirmPassword: string;
@@ -41,6 +47,7 @@ export interface PasswordRecoveryCardProps {
  * after it succeeds (§6.4).
  */
 export function PasswordRecoveryCard({
+  username,
   password,
   onPasswordChange,
   confirmPassword,
@@ -68,6 +75,7 @@ export function PasswordRecoveryCard({
         </p>
       </div>
       <PasswordUpdateForm
+        username={username}
         password={password}
         onPasswordChange={onPasswordChange}
         confirmPassword={confirmPassword}

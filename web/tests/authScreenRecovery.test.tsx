@@ -111,6 +111,30 @@ describe("AuthScreen — forgotten password", () => {
     expect(onRecoveryComplete).toHaveBeenCalled();
   });
 
+  /*
+   * #945 — the recovery card is where saving the new password matters most
+   * (the manager's stored one is the wrong one by definition), so it takes the
+   * address when the session has one and renders nothing when it does not.
+   * Leaving an empty username behind would be worse than none: the manager
+   * would associate the new password with a blank account.
+   */
+  it("hands the recovery session's address to the password manager", () => {
+    const { container } = render(
+      <AuthScreen recovery recoveryUsername="me@example.com" />,
+    );
+    const username = container.querySelector<HTMLInputElement>(
+      'input[autocomplete="username"]',
+    );
+    expect(username?.value).toBe("me@example.com");
+  });
+
+  it("omits the username field when the recovery session has no address", () => {
+    const { container } = render(<AuthScreen recovery />);
+    expect(
+      container.querySelector('input[autocomplete="username"]'),
+    ).toBeNull();
+  });
+
   it("keeps a password under the floor off the recovery request", async () => {
     // The reset card is the other half of #956's DoD: the floor has to hold on
     // the way back in, not only in Settings. One under it, read from the

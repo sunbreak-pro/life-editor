@@ -14,6 +14,10 @@ export {
   type BriefingTodoEntry,
   type BriefingCarryoverEntry,
 } from "./BriefingView";
+export {
+  BriefingVizPanel,
+  type BriefingVizPanelProps,
+} from "./BriefingVizPanel";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
 export {
   GoalsBlock,
