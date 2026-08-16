@@ -147,8 +147,6 @@ export function BriefingScreen({
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
-      todosTitle: t("briefing.todosTitle"),
-      noTodos: t("briefing.noTodos"),
       vizTitle: t("briefing.vizTitle"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),

@@ -942,8 +942,6 @@
     "noSchedule": "Nothing scheduled today",
     "routineTag": "Routine",
     "allDay": "All day",
-    "todosTitle": "TODAY'S TODOS — AND WHY",
-    "noTodos": "No todos scheduled for today",
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",

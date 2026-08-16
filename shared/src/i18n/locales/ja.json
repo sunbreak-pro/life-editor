@@ -941,8 +941,6 @@
     "noSchedule": "今日のスケジュールはありません",
     "routineTag": "ルーチン",
     "allDay": "終日",
-    "todosTitle": "今日の Todo と、その目的",
-    "noTodos": "今日に予定された Todo はありません",
     "vizTitle": "きのうまでの自分",
     "carryoverTitle": "持ち越し",
     "carryoverDays": "{{count}}日目",
