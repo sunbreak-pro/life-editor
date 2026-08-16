@@ -1,5 +1,21 @@
 # HISTORY (chat-main)
 
+### 2026-08-16 - outbox の起票依頼を全消化（25 件）+ 全レーンへの /goal 配布 + §7.1 の複製撤去（#1010）
+
+#### 概要
+
+8 レーンの outbox に溜まっていた起票依頼を全数照合して **25 件を起票**（#991〜#1015）、レーンごとの `/goal` プロンプトを作って配布した。あわせて、その中で最優先だった **#1010（§7.1 のコマンド表が CI から遅れている）を D-20260816-main-2 = B で実装**（PR #1020）し、相対パスで作られて入れ子になっていた worktree 2 本を正しい場所へ移した。
+
+#### 変更点
+
+- **起票 25 件**: perf 4（#991〜#994・#797 の実測レポート由来）/ schedule follow-up 6（#995〜#998・#1000 と横展開 #999）/ mcp-server・横断 5（#1001〜#1004・#1011 = #782 の QA 見送り分）/ 公開 Web 3（#1005 CSP・#1007 manifest 色・#1009 ステータスバー文字色）/ BottomSheet の safe-area #1008 / docs・環境 4（#1006・#1010・#1013・#1015）/ mobile-scope 追随 #1014
+- **7 月分の依頼はすべて起票済みだった**ことを実測で確認（#365 / #366 / #369 / #370 / #371 / #372 / #519）。未起票で残っていたのは 8 月分だけ
+- **`[all]` の二重着手を避けるため 1 Issue = 1 レーンに固定**。web/ 配下の #1005 / #1009 はタイトル prefix ごと `[web-public]` へ、Notes 側の #999 は materials-refine へ寄せた（#473 で 40 分の二重実装が起きた教訓）
+- **#1010 = D-20260816-main-2 = B**（ユーザー回答）: §7.1 のコマンド列挙を削除し、`.github/workflows/ci.yml` の `verify` + `docs-lint` を PR 前ゲートの正本と明記。回し方（各ステップの `working-directory` へ `cd`）と、コマンド名からは読めない罠 4 点（build はテストを見ず vitest は型を見ない / web の lint は `web/` しか歩かない / TypeScript の版が web だけ違う / docs-lint は `LC_ALL=C`）だけを残した。同じ表を指していた `loop-verify` スキルも `ci.yml` 参照へ付け替え（PR #1020）
+- **踏まれた回数**: `typecheck:tests` の漏れで PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」。追随依頼が 2 回出ても入らなかったので、表を直すのではなく複製そのものを畳んだ
+- **入れ子 worktree の是正**: `workspaces/life-editor/workspaces/life-editor/settings-refine`（2 段）と同 `.../workspaces/life-editor/work-refine`（3 段）を正しい階層へ `git worktree move`。**両方とも Orca のターミナルが掴んでいて「Device or resource busy」で 1 度失敗した** — `orca terminal list --json` で handle を特定し `orca terminal close` してから移動した（worktree-policy の Windows 節と同型の詰まり方）。空になった中間ディレクトリは `rmdir` で撤去
+- **副産物**: #1013（`pre-commit-tracker-guard.sh` が `history/archive/` 配下を tracker と認識せずブロックする）を起票。本 commit 自体がその穴に当たるため `[tracker-ok]` で通している
+
 ### 2026-08-15 - #675 の実ブラウザ回帰検証（6 項目 PASS）→ CLOSE + #870 起票
 
 #### 概要
@@ -86,23 +102,5 @@ open Issue 23 件を実測して 11 レーンへ /goal で配り、chat-main 自
 - **known-issues 033 新設**: `npm run dev` が `Error: Electron uninstall` で落ちる件。`node_modules/electron/dist` にライセンスファイル 1 個しか無く `path.txt` も欠けていた。**`build:win` は緑のまま**なので CI ゲートを素通りする（dev と electron-builder で Electron の入手経路が違う）。キャッシュ済み zip の手動展開で復旧。`path.txt` を `echo` で書くと改行がパスに混ざって `ENOENT` になる落とし穴つき（`printf` を使う）
 - **新規起票 2 件**: **#831** = コード上の名前を Task → Todo に統一する（画面表示は既に Todo・DB は据え置き。実測 = ファイル 55 本 / 出現 3,470 箇所。据え置きは ID prefix `task-` / `role: "task"` の値 / DB 列名の 3 点）。**#837** = userData が `%APPDATA%\desktop` に入り `productName: Life Editor` と一致しない
 - **#831 の着手条件**: `gh pr list --state open` が 0 件の谷間。起票直後に 11 レーンへ /goal が配られて open PR 4 件になったため、その旨を Issue にコメントして条件を明文化した
-
-### 2026-08-13 - #700 Step 2: 検証用 MCP ツール 3 本（投入 / 読み出し / 後片付け）
-
-#### 概要
-
-検証を画面操作に頼らず回すための MCP ツールを 3 本足した（PR #821 open）。撒き先は 2026-08-12 に確定した `D-20260812-shared-fix-3`（案 A = 検証専用アカウント + RLS 分離）に従う。**「何を撒いたかツール側が覚えている」形**にしたので、検証データの削除がユーザー手番のまま残らない。実装は `mcp-server/**` に閉じ、規約を `db-conventions.md` §14 に足しただけで実運用コードには触れていない。
-
-#### 変更点
-
-- **`seed_verification_state`**: 指定日に task / event / note をまとめて作る。`preset: "busy_day"` = 重なった予定 2 本 + 終日予定 + 完了済み Todo + 未着手 Todo + 日付なし Todo。**書き込みは既存の `createTask` / `createScheduleItem` / `createNote` を通す**（専用の書き込み経路を持つと「その経路の fixture」になり、orphan recovery や §10.2 の bump が実データと違ってしまうため）
-- **`read_verification_state`**: `items_meta` + `<role>_payload` の 2 行を 1 つの塊で返す。`run_id` / `date` / `id` のいずれか 1 つで選択（2 つ渡すと「聞かれていない条件で答える」ので拒否）。**soft delete された行も隠さず出す** — 「画面から消えた」と「行が消えた」を区別できるようにするのがこのツールの価値
-- **`cleanup_verification_state`**: 台帳の id だけを hard delete（payload → `items_meta` の順。composite FK が NO ACTION のため）。soft では Trash に残るので hard。dry_run あり
-- **台帳 = `mcp-server/.verification-ledger.json`**（git 非追跡）: 撒いた行を記録し、削除に成功した分だけ台帳から消す。**失敗した行は残るので再実行が復旧手順**になる。撒く途中で落ちた場合も書けた分は `finally` で記録される
-- **二重の安全弁**: ① RLS（全テーブル `auth.uid() = user_id`・MCP は anon key + `signInWithPassword` の一般ユーザーで service_role を使わない）② `LIFE_EDITOR_VERIFICATION_MODE=1` が無いと 3 ツールとも**書く前に throw**。パスワードからは接続先アカウントを判別できないので、宣言を要求する形にした
-- **daily は撒けない仕様**: id が日付由来（`daily-<YYYY-MM-DD>`）で実データと区別できず、id で消す cleanup が本物の日記を巻き込むため。task / event / note はランダム id なので衝突しない
-- **`.mcp.json` は変更していない**（Scope 外 + 認証情報はユーザー手番）。併存方式は「検証用エントリをもう 1 本立て、その env でだけ credentials とフラグを渡す」と決め、スニペットを `db-conventions.md` §14 に記載
-- **検証**: mcp-server 12 files / 196 tests・shared 217 / 1980・web 32 / 269・docs-lint すべて exit 0。テストは Supabase をメモリ上の偽テーブルに差し替えて一巡を回す（実 DB には触れない）
-- **注意（実測で踏んだ）**: `npm run build \| tail` は exit code が tail のものになるため、`tsc` 未インストールの失敗が「緑」に見えた。パイプするなら `${PIPESTATUS[0]}` を見る（worktree-policy の既知の罠と同型）
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
