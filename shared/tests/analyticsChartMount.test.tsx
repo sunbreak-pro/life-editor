@@ -46,8 +46,8 @@ describe("Analytics charts mount without recharts' -1 dimension warning (#948)",
       null,
     );
     const warnings = warnSpy.mock.calls
-      .map((args) => String(args[0]))
-      .filter((msg) => DIMENSION_WARNING.test(msg));
+      .map((args: unknown[]) => String(args[0]))
+      .filter((msg: string) => DIMENSION_WARNING.test(msg));
     expect(warnings).toEqual([]);
   });
 });
