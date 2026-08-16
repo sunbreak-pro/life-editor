@@ -5,6 +5,7 @@ import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
+import { useDomainLoad } from "./useDomainLoad";
 import {
   getDailySelection,
   setDailySelection,
@@ -73,20 +74,34 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     deletedDailiesRef.current = deletedDailies;
   }, [deletedDailies]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const loaded = await ds.listDailiesUnified();
-        if (!cancelled) setDailies(loaded);
-      } catch (e) {
-        logServiceError("Daily", "fetch", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion]);
+  /*
+   * Load on mount and on every dailies bump, through the shared load effect
+   * (#672 / #891). The hand-written effect this replaces logged a failure and
+   * then said nothing: it had no loading flag and no error state at all, so a
+   * failed read was indistinguishable from "you have no dailies yet" — an
+   * empty list, silently, for the rest of the session.
+   *
+   * `isLoading` / `error` are therefore NEW on this hook's surface rather than
+   * a rename of something that was already there. Nothing renders them yet;
+   * wiring a loading state or an error card into the Daily UI is a visible
+   * change and does not belong in a behaviour-preserving refactor. What they
+   * do buy now is that #296's un-latch (an error clears on the next successful
+   * read) is in place before any surface starts reading them, which is the
+   * thing the four hand-written copies each got wrong differently.
+   *
+   * `refetchReportsLoading: false` for the same reason as todos and notes:
+   * Realtime echoes this tab's own writes back, so a bump-driven re-read must
+   * not read as "no data yet" — every keystroke-driven save bumps the counter.
+   */
+  const { isLoading, error } = useDomainLoad({
+    domain: "Daily",
+    dataService: ds,
+    version: syncVersion,
+    load: (service) => service.listDailiesUnified(),
+    apply: setDailies,
+    fallbackMessage: "Failed to load dailies",
+    refetchReportsLoading: false,
+  });
 
   // Soft-delete by date. The retired Bridge resolved date → existing row →
   // softDeleteDailyUnified(id); a missing row is a silent no-op. Inlined
@@ -356,6 +371,8 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   return useMemo(
     () => ({
       dailies,
+      isLoading,
+      error,
       deletedDailies,
       selectedDate,
       setSelectedDate,
@@ -374,6 +391,8 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     }),
     [
       dailies,
+      isLoading,
+      error,
       deletedDailies,
       selectedDate,
       setSelectedDate,
