@@ -1,5 +1,23 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-08-16 - 「きのうまでの自分」を朝刊本文から右サイドバーへ（#938・PR #971 open）
+
+#### 概要
+
+朝刊が印刷しているものは全部「今日」なのに、真ん中に 3 枚の後ろ向きなグラフ（連続日数 / 直近 7 日の完了 / 作業と休憩の配分）が挟まっていて、上から読むと話の筋が途中で切れていた。しかも今日の話である「持ち越し」を 1 画面ぶん下へ押し下げていた。ブロックごと詳細パネルへ移した。
+
+#### 変更点
+
+- **載せ方**: 新設した共有部品 `BriefingVizPanel.tsx` を、**既存の `RightSidebarPortal` の 2 枚目**として差した。ポータルはマウント順に同じ well へ積まれるので、タブ帯も新しいサイドバー実装も要らない（上 = 今日の Todo トレイ / 下 = グラフ 3 枚）。
+- **朝刊のみ**。トレイは両紙面に載っているが、可視化は朝刊の持ち物で夕刊は Issue のスコープ外。
+- **Mobile は追加作業ゼロ**（Issue やること 4 の回答）: #609 で右サイドバーは narrow でも MobileDrawer として開くため、幅ガードを持たないこのパネルは同じハンバーガーから到達できる。閲覧専用のグラフなので Consumption の範囲内 → `mobile-scope.md` #1 行に 2 枚目のパネルが入ったことを記録。判断が割れる要素が無かったのでキューには積んでいない。
+- **集計は不変**: `useBriefingAggregation` の結果と `analytics.*` のラベル解決はそのままで、渡し先だけ替えた。`BriefingData` の `sessions` / `todoNodes` は残置（同じ host が紙面とパネルの両方へ配る）。
+- **パネル内は 1 カラム**。紙面の `sm:grid-cols-2` を持ち込むと well 幅（既定 320px）で軸ラベルが潰れる。
+- **罫線**: 持ち越しは従来どおり境界線なし。直前セクションの `border-b` が罫になるので、移設で罫の並びは変わらない（`border-t` を足すと二重線になる）。
+- **テスト**: `shared/tests/briefingView.test.tsx` に 4 ケース（紙面に出ない / 持ち越しが罫なしの最終セクション / パネルが見出し + 3 枚を描く / `sm:grid-cols-2` 不使用）。`web/tests/briefingVizPanel.test.tsx` を新規追加し、**ポータル先の DOM** で朝刊のみ・両幅・夕刊除外を検証（#609 のトレイと同じ流儀 — 「どちらのツリーに描かれるか」が本 Issue の本体）。
+- **ゲート**: shared（lint 0 error / build / test 244 files 2271 件）・web（lint 0 error / build / test 55 files 489 件）・`records.mjs check` / `docs-lint.sh` すべて OK。
+- **記録**: 実装プラン無しのため archive 対象なし。スコープ逸脱なし。AC 免除なし。実装中に浮上した判断なし。**merge 順だけ PR 本文へ申し送り**（#969 → #971 を続けて。逆順だと #939 側の削除の後方文脈が消える）。
+
 ### 2026-08-16 - #872 の判断 7 件を台帳へ昇格し、Todo を朝刊のスケジュールへ統合（#939・PR #969 open）
 
 #### 概要
@@ -65,19 +83,3 @@ Mobile 幅で Briefing だけヘッダーの並びが他画面と違った（題
 - **コメント追随**: `web/src/MainScreen.tsx` と `web/src/sectionDescriptors.tsx` に「masthead の下に帯を再発行する」と書いてあった説明を実態に合わせた。
 - **ゲート**: shared（lint 0 error / build / test 2135 件）・web（lint 0 error / build / test 394 件）すべて exit 0。lint の warning は shared 3 / web 4 とも本 PR 対象外の既存分。
 - **記録**: 実装プランの無い課題なので archive 対象なし。スコープ逸脱なし・AC 免除なし・実装中に浮上した別判断もなし。
-
-### 2026-08-14 - Analytics「今週」カードの週バーと Work タブ週次も暦週へ（#860・PR #868 merged）
-
-#### 概要
-
-#780 の続き。あちらは「今週」ラベルの**数字**だけを暦週へ寄せ、隣のグラフは別の窓のまま残っていた。裁定 D-20260813-briefing-1 = A に従い、モバイル週バー（直近 7 日）と Work タブ週次集計（月曜固定）の 2 つを暦週（`weekStartsOn` 追従）へ寄せた。
-
-#### 変更点
-
-- **起点の一本化**: `analyticsAggregation.ts` の私有 `startOfWeek()`（月曜固定）を削除し、`calendarWeekRange` が使っていた刻み方を `startOfCalendarWeek(d, weekStartsOn)` として切り出して両者で共有した。これで「週の始まり」の定義がファイル内に 1 つしかない。`weekStartsOn` は `calendarWeekRange` と同じく**必須引数**（既定値を置くと読み忘れた呼び手が黙って別の週を選ぶ — #860 自体がその事故）。
-- **モバイル週バー**: 新関数 `aggregateCalendarWeekByDay(sessions, now, weekStartsOn)` を追加し、`MobileAnalyticsView` の `aggregateByDay(sessions, 7)` を置換。同カード内の `weekMinutes` と同一の窓になったので、数字とバーの合計が必ず一致する。
-- **Work タブ週次**: `aggregateByWeek` に `weekStartsOn` を追加し、呼び手 `WorkTimeChart` が `useWeekStartPref()` で読んで渡す形にした（useMemo の deps にも追加）。`aggregateByDay(sessions, 14)` の日次ビューは「直近 14 日」の別窓なので裁定どおり不変。`aggregateByDay` 自体も存続。
-- **表示値の変化（挙動変更ゼロの例外・PR 本文に明記）**: (1) 週の途中では未来の日が空バーになり、バーの並びが「今日が右端」から「週初 → 週末」に変わる。(2) 週開始曜日が日曜の場合、Work タブ週次の境界が動く。
-- **テスト**: `analyticsWeekWindow.test.tsx`（#780 の続きとして同ファイル）に固定日時 3 ケース — 週の途中（水 07-15）/ 週の初日 00:00（月 07-13）/ 週の最終日 23:30（日 07-19）— と pref 追従、およびモバイルカードを render して「数字とバーが同じ週」を押さえた（月曜開始 = Mon→Sun + 60m / 日曜開始 = Sun→Sat + 90m）。**呼び手側は別ファイル `workTimeChartWeekStart.test.tsx` を新設**（recharts は tagWorkTimeChart と同じ流儀で stub）— #860 は「#780 で関数だけ直して呼び手が旧窓のまま残った」事故なので、集計関数のテストだけでは同じ抜けを繰り返す。ラベル fixture は 3 コピー目になるところだったので `tests/helpers/analyticsLabels.ts` へ切り出した（既存 2 suite は据え置き）。
-- **ゲート**: shared（lint 0 error / build / test 2133 件）・web（lint 0 error / build / test 394 件）すべて exit 0。`records.mjs check`・`docs-lint` も OK。
-- **記録**: `decisions/D-20260813-briefing-1.md` の `implemented-by` に `#860` を追加。実装プランは無い課題なので archive 対象なし。スコープ逸脱なし（Issue の対象 2 箇所 + その呼び手のみ）、AC 免除なし、実装中に浮上した別判断もなし。
