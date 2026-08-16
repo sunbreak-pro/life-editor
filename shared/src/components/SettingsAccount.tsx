@@ -3,6 +3,7 @@ import {
   PasswordUpdateForm,
   type PasswordUpdateFormLabels,
 } from "./PasswordUpdateForm";
+import { PASSWORD_MIN_LENGTH } from "../constants/password";
 
 export interface SettingsAccountLabels extends PasswordUpdateFormLabels {
   heading: string;
@@ -52,7 +53,7 @@ export function SettingsAccount({
   busy,
   onSubmit,
   labels,
-  passwordMinLength = 6,
+  passwordMinLength = PASSWORD_MIN_LENGTH,
 }: SettingsAccountProps) {
   return (
     <div className="flex flex-col gap-3" data-section-id="account">

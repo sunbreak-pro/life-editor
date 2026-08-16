@@ -58,7 +58,11 @@ export interface BriefingScheduleEntry {
   isAllDay: boolean;
 }
 
-/** One row of「今日の Todo」— host-shaped, purposes resolved to titles. */
+/**
+ * One todo row of「今日のスケジュール」— host-shaped, purposes resolved to
+ * titles. Since #939 these ride inside the schedule block rather than under a
+ * heading of their own.
+ */
 export interface BriefingTodoEntry {
   id: string;
   title: string;
@@ -107,14 +111,18 @@ export interface BriefingLabels {
   intentionPlaceholder: string;
   /** Heading of the 週 / 月 / 年 goals block (#872). */
   goalsTitle: string;
+  /**
+   * Heading of the merged「今日のスケジュール」block (#939) — todos and
+   * schedule rows share it now, so it is also the heading a day with todos
+   * but no events reads under.
+   */
   scheduleTitle: string;
   /** Accessible name + tooltip of the schedule section's「+」 (#623). */
   addScheduleItem: string;
+  /** Empty state of the merged block — shown only when BOTH sides are empty. */
   noSchedule: string;
   routineTag: string;
   allDay: string;
-  todosTitle: string;
-  noTodos: string;
   vizTitle: string;
   carryoverTitle: string;
   toggleComplete: string;
@@ -392,6 +400,16 @@ export function BriefingView({
 
   const { briefing } = data;
 
+  // All-day rows first, then the timed ones (#939). The host already sorts
+  // this way, but the divider's position is a promise the view makes — it has
+  // to sit between the todos and the FIRST all-day row — so the grouping is
+  // re-stated here instead of being inherited silently. Stable partition: the
+  // host's order inside each group is untouched.
+  const scheduleRows = [
+    ...data.schedule.filter((item) => item.isAllDay),
+    ...data.schedule.filter((item) => !item.isAllDay),
+  ];
+
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
       {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
@@ -478,7 +496,12 @@ export function BriefingView({
         />
       </section>
 
-      {/* ── Today's schedule ─────────────────────────────────────── */}
+      {/* ── Today's schedule — todos ride on top of it (#939) ────────
+          One list, not two sections: a todo placed on today and an all-day
+          event are the same promise to the reader, and the old separate
+          「今日の Todo と、その目的」heading made the page ask twice what the
+          day holds. Order is todos → hairline → all-day → timed, so the rows
+          run from "no clock at all" down to "at 09:00". */}
       <section className="border-b border-lumen-border py-5">
         <BlockHead
           title={labels.scheduleTitle}
@@ -489,13 +512,78 @@ export function BriefingView({
             />
           }
         />
-        {data.schedule.length === 0 ? (
+        {data.todos.length === 0 && data.schedule.length === 0 ? (
           <p className="text-sm text-lumen-text-secondary">
             {labels.noSchedule}
           </p>
         ) : (
           <ul className="space-y-1">
-            {data.schedule.map((item) => (
+            {data.todos.map((todo) => (
+              <li key={todo.id} className="py-1">
+                <div className="flex items-baseline gap-3">
+                  {/* The schedule rows' time column, empty: a todo has no
+                      clock, and holding the width is what keeps every title
+                      on one straight edge with the timed rows below. */}
+                  <span aria-hidden="true" className="w-14 flex-shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => onToggleTodo(todo.id)}
+                    className="flex min-w-0 items-center gap-2.5 text-left"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={
+                        todo.status === "DONE"
+                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
+                          : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
+                      }
+                    >
+                      {todo.status === "DONE" && <Check size={11} />}
+                    </span>
+                    <span
+                      className={
+                        todo.status === "DONE"
+                          ? "text-sm text-lumen-text-secondary line-through"
+                          : "text-sm text-lumen-text"
+                      }
+                    >
+                      {todo.title}
+                    </span>
+                  </button>
+                  <RowActions>
+                    <EditJumpButton
+                      onClick={onJumpToTodos}
+                      label={labels.edit}
+                      hint={labels.jumpToTodos}
+                    />
+                    <DeleteRowButton
+                      onClick={() => onDeleteTodo(todo.id)}
+                      label={labels.delete}
+                      hint={labels.deleteTodoHint}
+                    />
+                  </RowActions>
+                </div>
+                {/* Indented past the empty time column + checkbox so the
+                    purpose hangs under its own todo's title. */}
+                {todo.purposes.length > 0 && (
+                  <p className="ml-[82px] mt-0.5 text-xs text-lumen-text-secondary">
+                    <span className="font-semibold text-lumen-briefing-kohaku">
+                      ◈ {todo.purposes.join(" ・ ")}
+                    </span>
+                  </p>
+                )}
+              </li>
+            ))}
+            {/* The hairline between the two kinds of row. Decorative only —
+                it separates, it is not an item — and omitted entirely when
+                one side of it is empty. */}
+            {data.todos.length > 0 && data.schedule.length > 0 && (
+              <li
+                aria-hidden="true"
+                className="my-1.5 border-t border-lumen-border"
+              />
+            )}
+            {scheduleRows.map((item) => (
               <li key={item.id} className="flex items-baseline gap-3 py-1">
                 <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
                   {item.isAllDay ? labels.allDay : item.startTime}
@@ -542,70 +630,6 @@ export function BriefingView({
                     hint={labels.deleteScheduleHint}
                   />
                 </RowActions>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ── Today's todos + purposes ─────────────────────────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.todosTitle} />
-        {data.todos.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">{labels.noTodos}</p>
-        ) : (
-          <ul>
-            {data.todos.map((todo) => (
-              <li
-                key={todo.id}
-                className="border-b border-dashed border-lumen-border py-2.5 last:border-b-0"
-              >
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => onToggleTodo(todo.id)}
-                    className="flex min-w-0 items-center gap-2.5 text-left"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={
-                        todo.status === "DONE"
-                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
-                          : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                      }
-                    >
-                      {todo.status === "DONE" && <Check size={11} />}
-                    </span>
-                    <span
-                      className={
-                        todo.status === "DONE"
-                          ? "text-sm text-lumen-text-secondary line-through"
-                          : "text-sm text-lumen-text"
-                      }
-                    >
-                      {todo.title}
-                    </span>
-                  </button>
-                  <RowActions>
-                    <EditJumpButton
-                      onClick={onJumpToTodos}
-                      label={labels.edit}
-                      hint={labels.jumpToTodos}
-                    />
-                    <DeleteRowButton
-                      onClick={() => onDeleteTodo(todo.id)}
-                      label={labels.delete}
-                      hint={labels.deleteTodoHint}
-                    />
-                  </RowActions>
-                </div>
-                {todo.purposes.length > 0 && (
-                  <p className="ml-[26px] mt-0.5 text-xs text-lumen-text-secondary">
-                    <span className="font-semibold text-lumen-briefing-kohaku">
-                      ◈ {todo.purposes.join(" ・ ")}
-                    </span>
-                  </p>
-                )}
               </li>
             ))}
           </ul>

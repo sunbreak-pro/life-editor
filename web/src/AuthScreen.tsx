@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   AuthCard,
+  PASSWORD_MIN_LENGTH,
   PasswordRecoveryCard,
   PasswordResetRequestCard,
   sendPasswordResetEmail,
@@ -76,7 +77,9 @@ export function AuthScreen({
   const recoveryMessages = useMemo(
     () => ({
       mismatch: t("settings.account.errors.mismatch"),
-      tooShort: t("settings.account.errors.tooShort"),
+      tooShort: t("settings.account.errors.tooShort", {
+        min: PASSWORD_MIN_LENGTH,
+      }),
       samePassword: t("settings.account.errors.samePassword"),
       generic: t("settings.account.errors.generic"),
       // No success banner here: onRecoveryComplete hands the user straight to
@@ -97,7 +100,7 @@ export function AuthScreen({
     email: t("auth.email"),
     emailPlaceholder: t("auth.emailPlaceholder"),
     password: t("auth.password"),
-    passwordHelper: t("auth.passwordHelper"),
+    passwordHelper: t("auth.passwordHelper", { min: PASSWORD_MIN_LENGTH }),
     showPassword: t("auth.showPassword"),
     hidePassword: t("auth.hidePassword"),
     busy: t("auth.busy"),
@@ -177,7 +180,9 @@ export function AuthScreen({
           heading: t("auth.recovery.heading"),
           description: t("auth.recovery.description"),
           newPassword: t("auth.recovery.newPassword"),
-          newPasswordHelper: t("auth.recovery.newPasswordHelper"),
+          newPasswordHelper: t("auth.recovery.newPasswordHelper", {
+            min: PASSWORD_MIN_LENGTH,
+          }),
           confirmPassword: t("auth.recovery.confirmPassword"),
           showPassword: t("auth.showPassword"),
           hidePassword: t("auth.hidePassword"),
