@@ -48,7 +48,7 @@ import {
   applyCalendarLens,
   buildCalendarMemberIds,
   pickSelectableCalendars,
-  nowMinutesLocal,
+  useMinuteClock,
   todayCalendarKey,
   type TodoCalendarChip,
   type ScheduleItem,
@@ -75,6 +75,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
+import { useScheduleOverlays } from "./useScheduleOverlays";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
@@ -284,27 +285,26 @@ export function CalendarTab({
   // of `repeatsHidden` — the two compose as an AND and neither resets the
   // other.
   const [calendarFilterId, setCalendarFilterId] = useState<string | null>(null);
-  // #299 single-click bubble popover: anchor id + viewport coords (Desktop).
-  const [popover, setPopover] = useState<{
-    id: string;
-    x: number;
-    y: number;
-  } | null>(null);
-  // #299 detail-edit overlay open flag (Desktop; Mobile keeps the BottomSheet).
-  const [overlayOpen, setOverlayOpen] = useState(false);
-  // #299 event-creation panel: the target day + prefilled start/end. null =
-  // closed. Desktop shows it in an ItemDetailOverlay-style modal; Mobile in the
-  // QuickCaptureSheet. Replaces the old eager-create + Mobile `quickOpen`.
-  const [createPanel, setCreatePanel] = useState<{
-    date: string;
-    start: string;
-    end: string;
-  } | null>(null);
-  const [calendarsOpen, setCalendarsOpen] = useState(false);
-  const [nowMinutes, setNowMinutes] = useState(() => nowMinutesLocal());
-  // Real "now" Date, ticked alongside nowMinutes. Drives deriveScheduleStatus
-  // (#222) — nowMinutes alone (minutes-from-midnight) can't compare across days.
-  const [now, setNow] = useState(() => new Date());
+  // #889: everything that can be covering the grid — the single-click bubble
+  // (#299), the detail overlay, the creation panel (target day + prefilled
+  // window; Desktop shows it in an overlay, Mobile in the QuickCaptureSheet)
+  // and the calendars modal. One group, because they answer one question.
+  const {
+    popover,
+    setPopover,
+    overlayOpen,
+    setOverlayOpen,
+    createPanel,
+    setCreatePanel,
+    calendarsOpen,
+    setCalendarsOpen,
+  } = useScheduleOverlays();
+  // #889: one clock, two shapes. `now` compares across days for
+  // deriveScheduleStatus (#222); `nowMinutes` places the now-line and the
+  // agenda divider inside the day. They used to be two states read from the
+  // wall clock separately in one interval, which let them straddle a minute
+  // boundary and disagree.
+  const { now, nowMinutes } = useMinuteClock();
 
   /*
    * #520: the grid's two filters, dropped together whenever the user is being
@@ -366,16 +366,6 @@ export function CalendarTab({
     setSelectedId(pendingSelectEvent.id);
     onConsumePendingEvent?.();
   }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent, revealOnGrid]);
-
-  // 1-minute now ticker (drives the now-line + agenda divider). Cleared on
-  // unmount so it never leaks across section changes.
-  useEffect(() => {
-    const id = setInterval(() => {
-      setNowMinutes(nowMinutesLocal());
-      setNow(new Date());
-    }, 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   // #355: the bubble popover is deferred so a double-click can claim the
   // gesture before it appears. Cancelled on unmount by the hook.
@@ -526,7 +516,7 @@ export function CalendarTab({
       setSelectedId(id);
       if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
     },
-    [isWide, deferPopover],
+    [isWide, deferPopover, setPopover, setTodoDetailId],
   );
 
   // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
@@ -553,7 +543,7 @@ export function CalendarTab({
       setSelectedId(id);
       if (isWide) setOverlayOpen(true);
     },
-    [isWide],
+    [isWide, setOverlayOpen, setPopover, setTodoDetailId],
   );
 
   // #299 open the creation panel prefilled for a target day + time window.
@@ -562,7 +552,7 @@ export function CalendarTab({
       setPopover(null);
       setCreatePanel({ date, start, end });
     },
-    [],
+    [setCreatePanel, setPopover],
   );
   // Toolbar "Add event" / Mobile FAB → default 09:00–10:00 on the anchor day.
   const handleToolbarAdd = useCallback(
@@ -735,7 +725,7 @@ export function CalendarTab({
   const finishCreatePanel = useCallback(() => {
     setCreatePanel(null);
     setCalendarFilterId(null);
-  }, []);
+  }, [setCreatePanel]);
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
@@ -800,6 +790,7 @@ export function CalendarTab({
       handleAttachError,
       isWide,
       finishCreatePanel,
+      setOverlayOpen,
     ],
   );
 
@@ -892,7 +883,7 @@ export function CalendarTab({
       setSelectedId(id);
       if (isWide) setPopover({ id, x: pos.x, y: pos.y });
     },
-    [isWide, cancelPopover],
+    [isWide, cancelPopover, setPopover, setTodoDetailId],
   );
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -1253,7 +1244,7 @@ export function CalendarTab({
       setSelectedId(null);
       setPopover(null);
     }
-  }, [repeatsHidden, selected]);
+  }, [repeatsHidden, selected, setPopover]);
 
   // #468: same guard for the calendar lens. Picking a calendar the selected
   // row is not in takes it off the grid, and the popover + the editor both
@@ -1277,7 +1268,7 @@ export function CalendarTab({
         setPopover(null);
       }
     },
-    [selected, selectableCalendars, allAssignments],
+    [selected, selectableCalendars, allAssignments, setPopover],
   );
 
   const agendaLabels = {
@@ -1629,6 +1620,7 @@ export function CalendarTab({
       beginConvert,
       endConvert,
       t,
+      setPopover,
     ],
   );
 
@@ -1703,6 +1695,8 @@ export function CalendarTab({
       beginConvert,
       endConvert,
       t,
+      setPopover,
+      setTodoDetailId,
     ],
   );
 
