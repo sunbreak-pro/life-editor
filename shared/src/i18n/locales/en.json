@@ -952,6 +952,11 @@
     "deleteTodoHint": "Delete this todo",
     "jumpToSchedule": "Open in Schedule",
     "jumpToTodos": "Open in Todos",
+    "saveFailed": {
+      "intention": "Could not save today's intention. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
+      "evening": "Could not save the evening page. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
+      "goals": "Could not save your goals. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again."
+    },
     "tabsLabel": "Morning / Evening",
     "tabs": {
       "morning": "Morning",
