@@ -130,3 +130,9 @@
 - **お願い**: Briefing を 1 回開く / Analytics のタブを一巡する操作で `width(-1) and height(-1)` の警告が **0 件**であること、および **1440px と 390px** でチャート 10 種が従来どおり描かれること。§7.4 で dev server と playwright は chat-main のみなので、当レーンは jsdom + 実物の recharts で console を読むところまでで止めています（10 チャート全部をマウントして `console.warn` を assert・修正前のコードでは 14 件落ちることを実測済み）
 - **参考（同じ警告を他所で見たとき用）**: これは**レイアウトの問題ではありません**。recharts 3.7.0 の `ResponsiveContainer` はサイズ state を既定の `initialDimension = {-1, -1}` から始め（`responsiveContainerUtils.js:7`）、それを直す ResizeObserver は effect＝初回描画が警告を出した後にしか走らないので、`width="100%" height="100%"` のチャートは**全マウントで必ず 1 回出ます**。警告文が勧める `minWidth={0}` は効きません。判定は 2 辺の OR なので**高さを数値で渡せば消えます**（幅は `"100%"` のままで可）
 - **#944 で 1 つ判断しました**（PR 本文にも記載）: Issue が「付け忘れ」と名指ししていた時間軸 2 本（`WorkTimeChart` / `TodoWorkTimeChart`）には `allowDecimals={false}` を**付けていません**。`hours` は小数第 1 位まで丸めた値なので、整数刻みにすると 1.5h の日が軸から読めなくなります。「整数で集計しているので一律で付けてよい」という Issue の前提が時間軸だけ成り立たない、という判断です。再起票を防ぐため理由はコード側にコメントで残しました。**違うと思われる場合は差し戻してください**
+
+## 2026-08-16 chat-refactor-core: §7.1 の `typecheck:tests` 漏れ、同じ場所でもう一度踏みました
+
+上の 2026-08-13 の追記依頼（§7.1 に `typecheck:tests` の 4 行を足す件）がまだ入っていないため、**PR #985 で同じ落ち方をしました**。§7.1 の 6 コマンドは全部緑・vitest も 22 件緑で、CI の `shared — typecheck tests` だけが赤。原因は `vi.spyOn(console, "warn")` の `mock.calls` を map/filter する引数が implicit any（TS7006）で、**vitest は型を見ないので実行では絶対に出ません**（前回の `mock.calls[0][2]` と同じ型の事故です）。
+
+依頼内容は前回と同じで、§7.1 のコマンド列挙に 4 行足すか、列挙をやめて `.github/workflows/ci.yml` を正本と明記するかの二択です。**2 回続けて同じ漏れ方をしたので、後者（列挙を削って ci.yml を見る運用）に寄せるほうが再発しないと思います**。判断をお願いします。
