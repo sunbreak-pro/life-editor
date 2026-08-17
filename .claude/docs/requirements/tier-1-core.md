@@ -257,6 +257,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - 複数ユーザーでの共有・コメント（§1 Non-Goals）
   - MCP 経由の削除（安全性配慮により UI 限定、安易な Claude オペミス防止）
   - note_connections の多対多リレーション UI（Paper Boards で別途扱う）
+  - **Note ⇄ Todo / Event の相互変換（2026-08-18 ユーザー確定 #1043）** — ノートを Todo / 予定に変える路線も、その逆も取らない。ノートと予定・Todo の結び付けは item link（`[[`）とタグが担う。**Todo ⇄ Event のロール変換（#625 `itemConvert.*` / `SupabaseItemConversionService`）はこの決定の対象外で、そのまま残る**。着手時点（#1043）でノート側の変換入口・変換ロジック・i18n キーはいずれも実在せず、撤去対象は無かった — この行は「今後も作らない」ことの記録
 
 ### Acceptance Criteria
 
