@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { setStubTables } from "./searchSupabaseStub.js";
+import { setStubTables } from "./supabaseStub.js";
 import { searchAll } from "../src/handlers/searchHandlers.js";
 
 // Hoisted above the imports by vitest, so the handlers below bind to the stub.
 vi.mock("../src/supabase.js", async () => {
-  const stub = await import("./searchSupabaseStub.js");
+  const stub = await import("./supabaseStub.js");
   return { getSupabase: stub.getStubSupabase, resetSupabaseForTests: () => {} };
 });
 
