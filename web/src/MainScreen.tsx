@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import {
   getDataService,
   signOut,
@@ -24,11 +24,8 @@ import { AppProviders } from "./AppProviders";
 import { TagEditorHost } from "./tags/TagEditorHost";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
-import {
-  SECTION_DESCRIPTORS,
-  type NarrowHeader,
-  type TabBandId,
-} from "./sectionDescriptors";
+import { NarrowHeaderRow } from "./NarrowHeaderRow";
+import { SECTION_DESCRIPTORS, type TabBandId } from "./sectionDescriptors";
 import { useShellNavigation } from "./hooks/useShellNavigation";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
@@ -210,13 +207,17 @@ export function MainScreen({ session }: { session: Session }) {
     />
   );
 
-  // NARROW layout row — unchanged from v1 (v2 non-goal: mobile untouched).
-  // The shape comes from the descriptor (`narrowHeader`), so the old
-  // MOBILE_HAMBURGER_SECTIONS set and the per-section switcher constants are
-  // gone: Materials/Briefing get hamburger + segmented, Schedule the segmented
-  // alone (its Calendar body draws its own hamburger and its Todo body closes
-  // the drawer outright below 768px — the mobile Kanban carries todo detail in
-  // its own bottom sheet, #470), Connect/Work/Settings the hamburger alone.
+  // NARROW layout row. The per-section chrome comes from the descriptor
+  // (`narrowHeader`), so the old MOBILE_HAMBURGER_SECTIONS set and the
+  // per-section switcher constants are gone: Materials/Briefing get hamburger
+  // + segmented, Schedule the segmented alone (its Calendar body draws its own
+  // hamburger and its Todo body closes the drawer outright below 768px — the
+  // mobile Kanban carries todo detail in its own bottom sheet, #470),
+  // Connect/Work/Settings the hamburger alone, Analytics/Trash neither.
+  //
+  // What is NOT per-section is the right end (#1035): Undo/Redo rides on every
+  // narrow section, Analytics and Trash included, which is why the row itself
+  // is now unconditional even for the sections whose own chrome is empty.
   const detailHamburger = (
     <RightSidebarToggle
       variant="hamburger"
@@ -224,9 +225,33 @@ export function MainScreen({ session }: { session: Session }) {
       closeLabel={detailCloseLabel}
     />
   );
-  const narrowRow = isWide
-    ? undefined
-    : renderNarrowRow(descriptor.narrowHeader, band, detailHamburger);
+  // `flex-1` on every shape now, not just tabs+hamburger: the band shares the
+  // row with the actions at the right end, so it has to claim the space
+  // between them or they drift together.
+  const narrowTabs = band ? (
+    <SegmentedControl
+      className="flex-1"
+      options={band.defs}
+      value={band.active}
+      onChange={band.onSelect}
+      label={band.label}
+    />
+  ) : undefined;
+  const narrowRow = isWide ? undefined : (
+    <NarrowHeaderRow
+      shape={descriptor.narrowHeader}
+      tabs={narrowTabs}
+      hamburger={detailHamburger}
+      /*
+       * The same <HeaderUndoRedo> the wide header uses, so both widths drive
+       * the one global stack (#304). It is created here but RENDERED inside
+       * AppShell — which is inside the UndoRedo Provider AppProviders mounts —
+       * so the context resolves even though MainScreen's own body sits outside
+       * it. Same trick as `headerControls` above.
+       */
+      actions={<HeaderUndoRedo />}
+    />
+  );
 
   /*
    * Shared Suspense fallback for the code-split section bodies (#676 (a)).
@@ -367,39 +392,6 @@ export function MainScreen({ session }: { session: Session }) {
         dataService={ds}
       />
     </AppProviders>
-  );
-}
-
-/**
- * The narrow-layout row a descriptor asked for. Called on the narrow branch
- * only, so every arm is already width-gated. A `tabs*` shape without a band is
- * impossible by construction (the descriptor that asks for tabs also names a
- * tabBand), and falls back to no row rather than a half-drawn one.
- */
-function renderNarrowRow(
-  shape: NarrowHeader,
-  band: TabBand | undefined,
-  hamburger: ReactNode,
-): ReactNode {
-  if (shape === "none") return undefined;
-  if (shape === "hamburger")
-    return <div className="flex items-center">{hamburger}</div>;
-  if (!band) return undefined;
-  const segmented = (
-    <SegmentedControl
-      className={shape === "tabs+hamburger" ? "flex-1" : undefined}
-      options={band.defs}
-      value={band.active}
-      onChange={band.onSelect}
-      label={band.label}
-    />
-  );
-  if (shape === "tabs") return segmented;
-  return (
-    <div className="flex items-center gap-2">
-      {hamburger}
-      {segmented}
-    </div>
   );
 }
 
