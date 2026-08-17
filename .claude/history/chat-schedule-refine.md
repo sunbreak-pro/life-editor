@@ -1,5 +1,19 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-17 - main の赤（担当外 mcp-server）を解除し、#889 の 3 ユニットを着地させた
+
+#### 概要
+
+前夜提出した 4 PR（#990 / #1016 / #1018 / #1022）の merge 中に **main が CI 赤**になり、全レーンの PR が緑にできない状態になった。原因は `mcp-server` の `searchAll` の戻り値型で、schedule レーンの担当外だが修正を出している人がいなかったため、こうだいさんに確認のうえ着手（PR #1031）。あわせて #1018 のコンフリクト解消と、他レーン 2 本（#1029 / #1030）の CI 再発火まで見た。最終的に #889 の 3 ユニットは全部 merge 済み、`CalendarTab.tsx` は **2,234 → 1,778 行**。
+
+#### 変更点
+
+- **PR #1031（mcp-server / main の赤）**: `searchAll` が `{ totalHits: number }` だけを返していた。`return { ...result, totalHits }` で `number` が index signature（`DomainPage<unknown>`）に代入できず、**TS が signature を広げるのではなく丸ごと落とす**ためドメインのキーが全部消える。**実行時は正しく `.todos` を返しており、忘れているのは型だけ**。`result` を `Partial<Record<Domain, DomainPage<unknown>>>` に変えて根本から直し、`searchPaging.test.ts` の `as Record<string, unknown>`（型の嘘を迂回するためのキャスト）を外した。新規 `searchAllShape.test.ts` 6 件は **`as` を 1 つも使わず** `.todos` を読む形
+- **なぜ今日まで赤くならなかったか**: 支えが 2 本あって同時に外れた — 既存テストのキャスト迂回と、mcp-server に `typecheck:tests` ゲートが無かったこと。**#1010（D-20260816-main-2）がゲートを足し、#1003（PR #1021）が `.todos` を素直に読むテストを足した** = 単独ではどちらも緑の意味的な合流事故
+- **#1018 のコンフリクト解消**: #1016 が先に merge されて衝突。**衝突は import 2 行だけ**で、互いに「相手が消したものを自分はまだ持っている」形だったので**どちらも残さない**のが正解だった。本体は自動マージされ、`overlaysEl` が `frames.todoDetail` に新しい `<ScheduleTodoDetail>` を受け取る形で噛み合った
+- **`gh run rerun` の落とし穴**: pull_request の run は**記録済みの merge commit を再生する**ので、base が直っても古い base のまま同じエラーで落ちる。反映には新しい pull_request イベント（push or close→reopen）が要る
+- **merge ref の実測**: #1030 は close → reopen を 2 回やっても赤のままだった。`git fetch origin refs/pull/1030/merge` で GitHub が建てている merge commit を直接取ると**その時点では修正を含んでおり**、再計算の遅れだったと分かった（#1029 は 1 回で通った）。**再発火の前に「GitHub は今どの base で建てているか」を確かめる**のが正しい順序
+
 ### 2026-08-16 - 判断キュー 2 件の昇格と、#889 で見つかった Desktop の確認ダイアログ欠落
 
 #### 概要
