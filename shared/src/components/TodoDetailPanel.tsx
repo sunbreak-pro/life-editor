@@ -157,6 +157,18 @@ export interface TodoDetailPanelProps {
    */
   scheduleLabel?: string;
   scheduleText?: string;
+  /**
+   * Does this todo actually carry a date (#1040)? Dating a todo is a side
+   * feature — most todos never get one — so the row above is folded away by
+   * default and the caption becomes a disclosure the user opens when they want
+   * to know. A todo that HAS a date is the case the row was added for (#877),
+   * so it opens already expanded and reads exactly as it did before.
+   *
+   * A separate flag rather than sniffing `scheduleText`, because the "no date"
+   * wording is the host's ("未設定" / "Not scheduled" / …) and the panel is not
+   * the side that knows the locale.
+   */
+  scheduleSet?: boolean;
   /** Already-translated caption preceding the tag row (§6.4). Paired with
    *  `tagsSlot`; when either is absent the tag row is omitted. */
   tagsLabel?: string;
@@ -196,9 +208,21 @@ function TodoDetailFields({
   deleteLabel,
   scheduleLabel,
   scheduleText,
+  scheduleSet = false,
   tagsLabel,
   tagsSlot,
 }: Omit<TodoDetailPanelProps, "className">) {
+  // #1040: folded unless the todo already has a date. `undefined` = the user
+  // has not touched the disclosure, so it keeps following `scheduleSet` — the
+  // same "untouched fields track the live todo" idiom as `titleEdit` below.
+  // That matters while the panel is open: dropping the todo onto the calendar
+  // gives it a date, and the row should be showing it by the time the user
+  // looks back, not waiting for a press that answers a question they no longer
+  // have.
+  const [scheduleToggled, setScheduleToggled] = useState<boolean | undefined>(
+    undefined,
+  );
+  const scheduleOpen = scheduleToggled ?? scheduleSet;
   // `undefined` = untouched, so the field keeps following the live todo and a
   // rename made elsewhere still lands in front of the user instead of being
   // quietly pushed back by a stale draft (EventEditorEdits, same reasoning).
@@ -291,14 +315,29 @@ function TodoDetailFields({
           — this is another fact ABOUT the todo, not another control — and it
           sits directly under status because the two answer the pair of
           questions a day list raises: how far along is it, and when is it. */}
+      {/* #1040: folded by default. A date is a side feature of a todo, so the
+          caption became the disclosure that opens the row rather than a
+          permanent line reading "日時 未設定" on the majority of todos that
+          never get one. A todo that HAS a date opens expanded (`scheduleSet`),
+          which is the case #877 added the row for. */}
       {scheduleLabel && scheduleText && (
         <div className="flex items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+          <button
+            type="button"
+            onClick={() => setScheduleToggled(!scheduleOpen)}
+            aria-expanded={scheduleOpen}
+            className={cn(
+              "rounded-lumen-md px-1 py-0.5 text-xs uppercase tracking-wide text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              FOCUS_RING,
+            )}
+          >
             {scheduleLabel}
-          </span>
-          <span className="min-w-0 text-sm text-lumen-text">
-            {scheduleText}
-          </span>
+          </button>
+          {scheduleOpen && (
+            <span className="min-w-0 text-sm text-lumen-text">
+              {scheduleText}
+            </span>
+          )}
         </div>
       )}
 
