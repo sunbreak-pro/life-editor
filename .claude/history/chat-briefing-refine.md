@@ -1,5 +1,17 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-08-18 - フォーカスを夕刊入力へ移設 + Daily に夕刊カテゴリを新設（#1048 PR #1062 / #1046 PR #1068・ともに open）
+
+#### 概要
+
+/goal で briefing レーンの 2 Issue を PR open まで一気通貫。#1048 は朝刊の「今日のフォーカス」を Daily 参照（朝刊セクション先頭段落）から外し、夕刊の入力欄 →予約ノート `note-focus`（日付キー付きセクション・#872 の目標ノート方式）→ 翌朝表示の流れに変えた。#1046 は Daily 本文の下に「夕刊カテゴリ」カード（気分★ / 振り返り / その日のスケジュール）を新設し、夕刊の記録を本文エディタから分離した — 保存表現は従来の「夕刊」セクションのままで **DDL ゼロ・既存データ無変換**（移行方針は Issue body に追記済み）。どちらも origin/main 起点の独立ブランチで、CI verify 全ステップ + docs-lint をローカル全緑にしてから push した。
+
+#### 変更点
+
+- **#1048（PR #1062）**: shared `focusSections.ts` 新規（merge/extract・履歴保持）・`extractBriefing` は全段落を AI コメント化・`EveningView` に「明日のフォーカス」欄・web `useFocusNote.ts` 新規（draft/echo/失敗 Toast）・i18n で `noBriefing` → `noFocus`。mcp `write_briefing` は温存（follow-up 起票依頼を outbox へ・文言判断は D-20260818-briefing-1 としてキューへ）
+- **#1046（PR #1068）**: shared `stripEveningSection` / `eveningBodyLines` / `DailyEveningCard.tsx` 新規・web `DailyView` が夕刊抜き本文をマウントし保存時に `mergeEveningSection` で付け直す（本文編集が夕刊を落とせない）・`useDayScheduleSummary.ts` 新規（schedule ドメイン追従）
+- **テスト**: shared +22 本（focusSections 11 / strip・lines 6 / DailyEveningCard 5）・web +7 本（briefingFocus 4 / dailyView 3）・mcp round-trip を新契約に追随
+
 ### 2026-08-16 - 紙面の保存失敗を Toast で拾い、#938 のコンフリクトを解消（#955・PR #980 open）
 
 #### 概要
