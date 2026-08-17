@@ -88,6 +88,49 @@ describe("SegmentedControl", () => {
     expect(onChange).toHaveBeenCalledWith("tags");
   });
 
+  /*
+   * #1039 — the mobile section tab band shrinks, the touch target does not.
+   *
+   * jsdom has no layout (CLAUDE.md §7.1), so "the band is 4px shorter" is not
+   * measurable here; what IS pinnable is the contract that produces it — which
+   * size the classes come from, and that the smaller one still carries the
+   * invisible 44px hit area rather than dropping to its painted height.
+   */
+  it("keeps the roomier type and padding at the default size", () => {
+    renderControl();
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("text-sm");
+      expect(tab).toHaveClass("py-1.5");
+    }
+  });
+
+  it('steps the type down one at size="sm"', () => {
+    renderControl({ size: "sm" });
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("text-xs");
+      expect(tab).toHaveClass("px-2.5");
+      expect(tab).not.toHaveClass("text-sm");
+    }
+  });
+
+  it('hangs a 44px hit area over the smaller pill at size="sm"', () => {
+    renderControl({ size: "sm" });
+    for (const tab of screen.getAllByRole("tab")) {
+      // TAP_TARGET_TALL: a transparent ::after, the control's own width,
+      // centred on it at h-11 (44px). `relative` is what it hangs from.
+      expect(tab).toHaveClass("relative");
+      expect(tab).toHaveClass("after:h-11");
+      expect(tab).toHaveClass("after:inset-x-0");
+    }
+  });
+
+  it("leaves the default size without the overlay (it has no row to shrink)", () => {
+    renderControl();
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).not.toHaveClass("after:h-11");
+    }
+  });
+
   it("ignores arrow keys while disabled", () => {
     const { onChange } = renderControl({ disabled: true });
     fireEvent.keyDown(screen.getByRole("tab", { name: "Todos" }), {
