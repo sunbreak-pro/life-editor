@@ -387,6 +387,10 @@ function renderNarrowRow(
   if (!band) return undefined;
   const segmented = (
     <SegmentedControl
+      // The section tab band is the one segmented control whose height every
+      // narrow screen pays for, so it runs a step tighter than the in-panel
+      // ones (#1039). The 44px touch target rides along inside "sm".
+      size="sm"
       className={shape === "tabs+hamburger" ? "flex-1" : undefined}
       options={band.defs}
       value={band.active}

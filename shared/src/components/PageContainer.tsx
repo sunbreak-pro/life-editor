@@ -57,8 +57,14 @@ export function PageContainer({
 }: PageContainerProps) {
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
+      {/*
+       * Narrow keeps a tighter top gutter than wide (#1039). The only thing
+       * that lands here below 768px is the mobile section tab band, which
+       * every narrow screen pays for out of its content height; wide puts its
+       * chrome in AppShell's header slot instead, so md: is untouched.
+       */}
       {header && (
-        <div className="shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
+        <div className="shrink-0 px-lumen-gutter pt-2 md:px-lumen-gutter-wide md:pt-4">
           {header}
         </div>
       )}
