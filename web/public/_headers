@@ -1,0 +1,51 @@
+# Response headers for the public Web URL (#1005).
+#
+# Cloudflare Workers (Static Assets) reads this file straight out of the
+# assets directory — `web/public/` is copied verbatim into `dist/` by Vite,
+# and `wrangler.jsonc` points `assets.directory` at `dist/`. No Worker code
+# and no paid plan involved, so this stays inside the "完成まで $0" rule.
+#
+# Motivation: #919 turned on `detectSessionInUrl`, so a recovery token now
+# rides in the URL for a moment on top of the session already in
+# localStorage. That is one more thing a script injection could carry off,
+# and until now nothing constrained where an injected script may talk to.
+#
+# Sending this as a real response header (rather than a
+# `<meta http-equiv>` in index.html) is deliberate: meta cannot express
+# `frame-ancestors`, and it only applies once the parser reaches it.
+#
+# Directive-by-directive rationale — keep in sync when a dependency changes:
+#
+#   script-src 'self'
+#     The production bundle has no inline script: `vite build` emits
+#     `<script type="module" crossorigin src="/assets/...">` plus
+#     modulepreload links, nothing else. No `eval` / `new Function` in
+#     shared/ or web/ either (grepped 2026-08-17).
+#
+#   style-src 'self' 'unsafe-inline'
+#     `'unsafe-inline'` is required, not slack: @tiptap/core injects a
+#     `<style>` element at runtime (node_modules/@tiptap/core/dist/index.js —
+#     `document.createElement("style")`), which a strict style-src would kill
+#     and take the note editor with it. React / d3 set styles through the
+#     CSSOM, which CSP does not police, so they are not the reason.
+#
+#   img-src / media-src / connect-src … https://*.supabase.co
+#     Everything the app talks to is one Supabase project: PostgREST + Auth
+#     over https, Realtime over wss, and the `sounds` storage bucket for
+#     ambient audio (`SupabaseAudioService.getPublicUrl`). The exact project
+#     ref cannot be written here — it arrives as a build-time secret
+#     (`VITE_SUPABASE_URL`, baked in by Vite) while this file is static — so
+#     the origin is wildcarded at the subdomain. `data:` on img-src covers
+#     inline SVG data URIs.
+#
+#   frame-ancestors 'none' / object-src 'none' / base-uri / form-action
+#     Standard hardening: no framing (clickjacking), no plugins, no `<base>`
+#     rewrite of the relative asset paths, no off-site form posts.
+#
+#   Referrer-Policy: no-referrer
+#     Nothing here needs to tell another origin where the visitor came from,
+#     and the URL is exactly what #919 made sensitive.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co; media-src 'self' https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Referrer-Policy: no-referrer
