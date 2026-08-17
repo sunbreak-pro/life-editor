@@ -30,6 +30,7 @@ import {
   EVENING_HEADING_RE,
   findSectionRange,
   parseDailyDoc,
+  sectionLines,
   textOf,
   type TipTapNode,
 } from "./dailySections";
@@ -119,6 +120,40 @@ export function extractEveningSection(
       : JSON.stringify({ type: "doc", content: nodes }),
     hasSection: true,
   };
+}
+
+/**
+ * The reflection body as plain lines (#1046) — what the Daily tab's evening
+ * card prints. One line per block, list items line-by-line, blanks dropped
+ * (the same line model the 宣言 and goals surfaces read with).
+ */
+export function eveningBodyLines(bodyDocJson: string | null): string[] {
+  if (bodyDocJson === null) return [];
+  try {
+    const parsed = JSON.parse(bodyDocJson) as TipTapNode;
+    return sectionLines(parsed.content ?? []);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The daily WITHOUT its evening section (#1046) — what the Daily editor
+ * mounts now that the 夕刊 lives in its own category block below the body.
+ * Returns the input by identity when there is no section (a legacy plain-text
+ * daily passes through untouched, still converted lazily by the editor path).
+ */
+export function stripEveningSection(
+  contentJson: string | null | undefined,
+): string {
+  const original = contentJson ?? "";
+  const doc = parseDailyDoc(contentJson);
+  const body = doc.content ?? [];
+  const range = findSectionRange(body, EVENING_HEADING_RE);
+  if (range === null) return original;
+  body.splice(range.start, range.end - range.start);
+  doc.content = body;
+  return JSON.stringify(doc);
 }
 
 export interface EveningPatch {

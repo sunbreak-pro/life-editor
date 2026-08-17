@@ -330,7 +330,9 @@
       "dateStripLabel": "Select a date",
       "entriesCount": "Entries ({{count}})",
       "filterPlaceholder": "Filter entries…",
-      "filterLabel": "Filter entries"
+      "filterLabel": "Filter entries",
+      "eveningTitle": "EVENING",
+      "eveningScheduleTitle": "THE DAY'S SCHEDULE"
     },
     "tags": {
       "addPlaceholder": "Enter a tag name",

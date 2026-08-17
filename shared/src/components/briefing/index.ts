@@ -58,6 +58,8 @@ export {
 export {
   extractEveningSection,
   mergeEveningSection,
+  stripEveningSection,
+  eveningBodyLines,
   eveningBodyEquals,
   isEmptyDocJson,
   moodLineText,
