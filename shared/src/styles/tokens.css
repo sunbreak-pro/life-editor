@@ -286,6 +286,37 @@
   scrollbar-color: var(--color-border-strong) transparent;
 }
 
+/* Height of the app shell (#1037). Used by AppShell's narrow root and by the
+   host's `body { min-height }`, which have to agree — a body taller than the
+   shell becomes a document scroll that slides past the bottom tab bar (#631).
+   One definition here is what keeps them in step.
+
+   Why it is not just `100svh`: on iOS, a home-screen web app with
+   `black-translucent` + `viewport-fit=cover` draws UNDER the status bar by
+   shifting the document up, but the viewport height is never given that strip
+   back. `100svh` therefore comes out one status bar SHORT of the screen, and
+   the shell ends that far above the bottom edge — the band of blank space
+   under the tab bar that #791 saw and #1037 reported again after #805 shaved
+   the smaller part of it off. Adding the top inset back lands the shell on the
+   real bottom of the screen; the bar's own `pb-` then reserves the home
+   indicator, still the single reservation MobileFab's placement doc assumes.
+
+   Both guards are deliberate. `display-mode: standalone` keeps every browser
+   tab byte-identical (the report is only from the installed app), and
+   `env(safe-area-inset-top)` is the exact size of the strip that went missing
+   — it is 0 wherever no status bar is overlaid (Android, desktop, and iOS in
+   landscape, where the status bar hides), so the correction self-cancels
+   instead of over-shooting. */
+:root {
+  --app-shell-height: 100svh;
+}
+
+@media (display-mode: standalone) {
+  :root {
+    --app-shell-height: calc(100svh + env(safe-area-inset-top));
+  }
+}
+
 /* Nested-theme aliases (#887). Tailwind emits every `@theme` variable below
    onto `:root`, and a custom property's own `var()` is substituted where the
    property is DECLARED, not where it is used. So `--color-lumen-bg:
