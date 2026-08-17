@@ -106,7 +106,53 @@ describe("MonthGrid", () => {
     renderGrid({ compact: true });
     // No chip buttons in compact mode — only the per-cell day-select buttons.
     expect(screen.queryByRole("button", { name: "Gym" })).toBeNull();
+    // 7/09 holds exactly 3 items and the dot row caps at 3, so nothing is
+    // hidden and no remainder is printed — the chip figure ("+1 more", from
+    // the tighter cap of 2) must NOT leak into this density (#1045).
     expect(screen.queryByText("+1 more")).toBeNull();
+  });
+
+  /*
+   * The compact remainder (#1045). The dot row cuts at three and used to just
+   * stop, so a day with eight items looked identical to a day with three —
+   * which defeats the only thing dots are for (density).
+   *
+   * The count is asserted as a NUMBER, not as "there is a marker": it is
+   * computed against the dot cap, and the same cell already carries a second
+   * cap (2, for chips) that a plain presence check would happily accept.
+   */
+  describe("compact overflow count", () => {
+    const busyDay = (count: number): MonthGridItem[] =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `x${i}`,
+        date: "2026-07-09",
+        title: `Item ${i}`,
+        variant: "event" as const,
+      }));
+
+    it("counts what the dot row hides, not what the chip row would", () => {
+      renderGrid({ compact: true, items: busyDay(8) });
+      // 8 items, 3 dots → 5 hidden. Against the chip cap it would read "+6".
+      expect(screen.getByText("+5 more")).toBeInTheDocument();
+      expect(screen.queryByText("+6 more")).toBeNull();
+    });
+
+    it("prints one over the cap as +1", () => {
+      renderGrid({ compact: true, items: busyDay(4) });
+      expect(screen.getByText("+1 more")).toBeInTheDocument();
+    });
+
+    it("stays silent when the day fits inside the dots", () => {
+      renderGrid({ compact: true, items: busyDay(3) });
+      expect(screen.queryByText(/more$/)).toBeNull();
+    });
+
+    it("leaves the Desktop count on its own cap", () => {
+      // Same 8 items without `compact`: 2 chips → 6 hidden. The two densities
+      // share the formatter, so this is what keeps them from sharing the count.
+      renderGrid({ items: busyDay(8) });
+      expect(screen.getByText("+6 more")).toBeInTheDocument();
+    });
   });
 
   it("renders a todo chip with the blue todo face and the CheckSquare glyph (#593)", () => {
