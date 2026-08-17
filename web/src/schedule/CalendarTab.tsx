@@ -27,20 +27,13 @@ import {
   isTodoChip,
   unwrapTodoChipId,
   frequencyLabel,
-  applyRepeatFilter,
-  applyCalendarLens,
-  buildCalendarMemberIds,
-  pickSelectableCalendars,
   useMinuteClock,
   type TodoCalendarChip,
   type ScheduleItem,
   type ItemCreateNoteDraft,
   type ItemCreateSlot,
-  type WeekTimeGridItem,
-  type MonthGridItem,
   type AgendaItem,
   type EventEditorItem,
-  type StatusFilterChip,
   type DataService,
   MobileFab,
   WIDE_QUERY,
@@ -59,6 +52,7 @@ import { ScheduleOverlays } from "./ScheduleOverlays";
 import { ScheduleTodoDetail } from "./ScheduleTodoDetail";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useScheduleRepeats } from "./useScheduleRepeats";
+import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import { itemTapRoute } from "./todoChipPanel";
@@ -66,8 +60,6 @@ import { agendaEmptyKey } from "./agendaEmptyLabel";
 import {
   toAgendaItems,
   toEditorItem,
-  toMonthGridItems,
-  toWeekGridItems,
 } from "./scheduleViewModels";
 import {
   formatFullDay as formatFullDayKey,
@@ -252,20 +244,6 @@ export function CalendarTab({
   // section body has to survive being rendered without the shell's Provider
   // (standalone renders / tests). Outside it there is no drawer to close.
   const closeSidebar = useRightSidebarOptional()?.close;
-  // #466 Step 5-b: fold repeat-generated occurrences out of the GRID so the
-  // gaps left between one-off events are visible. Deliberately NOT persisted
-  // (see the decision in the Issue): a filter restored at startup shows a
-  // calendar missing its scaffolding, and the next event gets booked into a
-  // slot that only looks free. It resets with the section, and while it is on
-  // the toolbar button and the Repeats tab both say so.
-  const [repeatsHidden, setRepeatsHidden] = useState(false);
-  // #468: which calendar the grid is looking through, or null for all of them.
-  // Not persisted, for the same reason as the repeat filter above: a lens
-  // restored at startup shows a calendar that is missing most of the day, and
-  // the next event gets booked into a slot that only looks free. Independent
-  // of `repeatsHidden` — the two compose as an AND and neither resets the
-  // other.
-  const [calendarFilterId, setCalendarFilterId] = useState<string | null>(null);
   // #889: everything that can be covering the grid — the single-click bubble
   // (#299), the detail overlay, the creation panel (target day + prefilled
   // window; Desktop shows it in an overlay, Mobile in the QuickCaptureSheet)
@@ -286,67 +264,6 @@ export function CalendarTab({
   // wall clock separately in one interval, which let them straddle a minute
   // boundary and disagree.
   const { now, nowMinutes } = useMinuteClock();
-
-  /*
-   * #520: the grid's two filters, dropped together whenever the user is being
-   * TAKEN to a specific row.
-   *
-   * Both of them hide by row, and either one alone reproduces the whole bug:
-   * #466 folds away everything a repeat generated, #468 keeps only what
-   * carries one calendar's tag. Land on a row that either filter excludes and
-   * the day changes with nothing on it — the same "the button did nothing"
-   * shape as #434 S-1.
-   *
-   * Cleared unconditionally rather than only when the arriving row would in
-   * fact be hidden, because at that moment there is nothing to test: the
-   * palette hands over an id + a date, and the row is still being fetched (the
-   * anchor move is what starts the fetch). `fetchEvents` feeds that palette
-   * every live schedule item, repeat-generated occurrences included, so both
-   * filters are live suspects every time.
-   *
-   * This is the navigation counterpart of finishCreatePanel(), which reveals a
-   * row that was just CREATED and so touches only the lens — a brand-new event
-   * is never repeat-generated, and the repeat filter cannot be what is hiding
-   * it. Two junctions, one per intent: the next route that reveals a row joins
-   * one of them instead of re-opening the hole #506 closed for creation.
-   */
-  const revealOnGrid = useCallback(() => {
-    setRepeatsHidden(false);
-    setCalendarFilterId(null);
-  }, []);
-
-  /*
-   * Palette "open this event" intent (#503). Three moves, in this order: clear
-   * whatever is filtering the grid (#520), put the event's day in the window,
-   * then select it. The row itself may not be in `rangeItems` for another
-   * moment — the anchor change triggers the fetch and nothing pre-loads
-   * outside the window — but selection is by id, so it simply starts showing
-   * once the range lands.
-   *
-   * Consumed immediately (like pendingNewTodo), so coming back to the Calendar
-   * later does not re-select an event the user has moved on from. #467 retired
-   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
-   * the anchor is now the only day either layout draws from — moving it is the
-   * whole job.
-   */
-  useEffect(() => {
-    if (!pendingSelectEvent) return;
-    // Local setStates, which the cascading-render rule flags — the reveal
-    // included, since it sees through the callback. ONE directive because the
-    // rule reports only the first such call in an effect; put it above
-    // whichever line comes first, or the directive itself goes unused (a
-    // warning) and the real report moves.
-    //
-    // They fire once per arrival — a user navigating from the palette, not a
-    // render loop — and the intent exists only as a PROP, so there is no event
-    // handler inside this component to move them into. Same shape and same
-    // reasoning as the todo handoff (useTodoDetailTarget.ts:112).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    revealOnGrid();
-    setAnchorDate(pendingSelectEvent.date);
-    setSelectedId(pendingSelectEvent.id);
-    onConsumePendingEvent?.();
-  }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent, revealOnGrid]);
 
   // #355: the bubble popover is deferred so a double-click can claim the
   // gesture before it appears. Cancelled on unmount by the hook.
@@ -595,6 +512,69 @@ export function CalendarTab({
     );
   }, [selectedId, rangeItems, contextItems]);
 
+  // ── The grid's two filters, and everything drawn from them (#889) ─────────
+  const {
+    repeatsHidden,
+    hiddenRepeats,
+    activeCalendar,
+    calendarChips,
+    hiddenByCalendar,
+    gridItems,
+    monthItems,
+    anchorDayItems,
+    handleToggleRepeats,
+    handleSelectCalendar,
+    revealOnGrid,
+    clearCalendarLens,
+  } = useScheduleGridFilters({
+    rangeItems,
+    rangeTodoChips,
+    calendars,
+    allTags,
+    allAssignments,
+    isWide,
+    now,
+    anchorDate,
+    selected,
+    setSelectedId,
+    setPopover,
+  });
+
+  /*
+   * Palette "open this event" intent (#503). Three moves, in this order: clear
+   * whatever is filtering the grid (#520), put the event's day in the window,
+   * then select it. The row itself may not be in `rangeItems` for another
+   * moment — the anchor change triggers the fetch and nothing pre-loads
+   * outside the window — but selection is by id, so it simply starts showing
+   * once the range lands.
+   *
+   * Consumed immediately (like pendingNewTodo), so coming back to the Calendar
+   * later does not re-select an event the user has moved on from. #467 retired
+   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
+   * the anchor is now the only day either layout draws from — moving it is the
+   * whole job.
+   */
+  useEffect(() => {
+    if (!pendingSelectEvent) return;
+    // Local setStates, which the cascading-render rule flags. ONE directive
+    // because the rule reports only the first such call in an effect; it has
+    // to sit above whichever line comes first, or the directive itself goes
+    // unused (a warning) and the real report moves. Since #889 that is
+    // setSelectedId: the rule only sees LOCAL useState setters, and both
+    // revealOnGrid and setAnchorDate now arrive from hooks it cannot see
+    // through (useScheduleGridFilters / useCalendarNav).
+    //
+    // They fire once per arrival — a user navigating from the palette, not a
+    // render loop — and the intent exists only as a PROP, so there is no event
+    // handler inside this component to move them into. Same shape and same
+    // reasoning as the todo handoff (useTodoDetailTarget.ts:112).
+    revealOnGrid();
+    setAnchorDate(pendingSelectEvent.date);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedId(pendingSelectEvent.id);
+    onConsumePendingEvent?.();
+  }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent, revealOnGrid]);
+
   // Mutation layer (#280 → useScheduleMutations): every write path plus the
   // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
   const {
@@ -705,8 +685,8 @@ export function CalendarTab({
   // reveal, so the lens the user set stays where they put it.
   const finishCreatePanel = useCallback(() => {
     setCreatePanel(null);
-    setCalendarFilterId(null);
-  }, [setCreatePanel]);
+    clearCalendarLens();
+  }, [setCreatePanel, clearCalendarLens]);
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
@@ -934,89 +914,6 @@ export function CalendarTab({
   // writes and a hidden item stays editable from the flow tab. `hiddenRepeats`
   // rides along from the same call, so the toolbar's count cannot disagree
   // with what the grid actually dropped.
-  const { visible: repeatFilteredItems, hiddenCount: hiddenRepeats } = useMemo(
-    () => applyRepeatFilter(rangeItems, repeatsHidden),
-    [rangeItems, repeatsHidden],
-  );
-
-  // #468: the calendar lens, applied AFTER the repeat filter. Serial order
-  // matters for the counts, not the contents — running it second means a row
-  // the repeat filter already took away is not counted a second time here, so
-  // "N hidden" on the chip row never overshoots the rows actually missing.
-  //
-  // Only calendars whose tag still exists can be chosen — see
-  // pickSelectableCalendars for why a dangling one is never offered. The ledger
-  // modal shows those as invalid with delete as the only action (CalendarView).
-  const activeTagIds = useMemo(
-    () => new Set(allTags.map((tag) => tag.id)),
-    [allTags],
-  );
-  const selectableCalendars = useMemo(
-    () => pickSelectableCalendars(calendars, activeTagIds),
-    [calendars, activeTagIds],
-  );
-  // Resolving the selection through the SELECTABLE list is what makes a tag
-  // deleted mid-session degrade to "no filter" instead of an empty grid with
-  // no lit chip to turn off.
-  const activeCalendar = useMemo(
-    () => selectableCalendars.find((c) => c.id === calendarFilterId) ?? null,
-    [selectableCalendars, calendarFilterId],
-  );
-  // THE single application point of the lens, and the only place `isWide` gates
-  // it. The chip row that turns the lens off renders in the Desktop branch
-  // only, so a window narrowed below 768px while a calendar is picked would
-  // otherwise leave the grid filtered with nothing on screen able to clear it.
-  // Gating the membership set (rather than each consumer) means every layer
-  // below — grid rows, todo chips, chip counts — un-narrows together.
-  const calendarMemberIds = useMemo(
-    () =>
-      isWide && activeCalendar
-        ? buildCalendarMemberIds(allAssignments, activeCalendar.tagId)
-        : null,
-    [isWide, activeCalendar, allAssignments],
-  );
-  // Both grid layers go through the lens together. Narrowing only the schedule
-  // rows would hide the other calendars' events while every todo chip stayed
-  // put — todos carry the same life-tags (KanbanView) and a chip's id IS the
-  // todo's items_meta.id, so the same membership set applies unchanged.
-  // `hiddenByCalendar` is the total across both, so the "N hidden" line counts
-  // the todo chips it actually took away.
-  const {
-    events: gridRangeItems,
-    todoChips: gridTodoChips,
-    hiddenCount: hiddenByCalendar,
-  } = useMemo(
-    () =>
-      applyCalendarLens(repeatFilteredItems, rangeTodoChips, calendarMemberIds),
-    [repeatFilteredItems, rangeTodoChips, calendarMemberIds],
-  );
-
-  // Chip row data. The count comes out of the SAME call the grid uses, over the
-  // same post-repeat lists, so the number on a chip is exactly what clicking it
-  // leaves on screen — including the todo chips.
-  const calendarChips = useMemo<StatusFilterChip[]>(
-    () =>
-      selectableCalendars.map((c) => ({
-        id: c.id,
-        label: c.title,
-        count: applyCalendarLens(
-          repeatFilteredItems,
-          rangeTodoChips,
-          buildCalendarMemberIds(allAssignments, c.tagId),
-        ).visibleCount,
-      })),
-    [selectableCalendars, repeatFilteredItems, rangeTodoChips, allAssignments],
-  );
-
-  const gridItems = useMemo<WeekTimeGridItem[]>(
-    () => toWeekGridItems(gridRangeItems, gridTodoChips, now),
-    [gridRangeItems, now, gridTodoChips],
-  );
-  const monthItems = useMemo<MonthGridItem[]>(
-    () => toMonthGridItems(gridRangeItems, gridTodoChips),
-    [gridRangeItems, gridTodoChips],
-  );
-
   // Merge schedule items + todo chips into a single sorted agenda.
   //
   // #761: todo rows carry a derived status too. They used to be left without
@@ -1059,14 +956,6 @@ export function CalendarTab({
   const todayDone = todayItems.filter((i) => i.completed).length;
   const todayTotal = todayItems.length;
 
-  // The Mobile day list — #467 made it the only thing narrow draws, so this is
-  // the Mobile grid. Filtered like the Desktop grid is, though Mobile shows
-  // neither toggle; with both filters off it is the same array.
-  const anchorDayItems = useMemo(
-    () => gridRangeItems.filter((i) => i.date === anchorDate),
-    [gridRangeItems, anchorDate],
-  );
-
   const editorItem: EventEditorItem | null = toEditorItem(selected, now);
 
   const originDetail = useMemo(() => {
@@ -1100,44 +989,6 @@ export function CalendarTab({
       showToast,
     },
   });
-
-  // #466: flipping the filter on takes the selected occurrence off the grid.
-  // The selection itself is what the popover and the editor read, so dropping
-  // it here keeps them from pointing at a row that is no longer drawn. Only
-  // repeat-generated selections are affected — a manual event stays selected.
-  const handleToggleRepeats = useCallback(() => {
-    const next = !repeatsHidden;
-    setRepeatsHidden(next);
-    if (next && selected?.routineId != null) {
-      setSelectedId(null);
-      setPopover(null);
-    }
-  }, [repeatsHidden, selected, setPopover]);
-
-  // #468: same guard for the calendar lens. Picking a calendar the selected
-  // row is not in takes it off the grid, and the popover + the editor both
-  // read the selection — leaving it would point them at a row that is no
-  // longer drawn. Clearing the lens (id === null) never hides anything, so it
-  // keeps the selection.
-  const handleSelectCalendar = useCallback(
-    (id: string | null) => {
-      setCalendarFilterId(id);
-      if (id == null || !selected) return;
-      const cal = selectableCalendars.find((c) => c.id === id);
-      if (!cal) return;
-      const members = buildCalendarMemberIds(allAssignments, cal.tagId);
-      // Same membership test as the grid, routine inheritance included — a
-      // selected occurrence stays selected when its SERIES carries the tag.
-      const stillVisible =
-        members.has(selected.id) ||
-        (selected.routineId != null && members.has(selected.routineId));
-      if (!stillVisible) {
-        setSelectedId(null);
-        setPopover(null);
-      }
-    },
-    [selected, selectableCalendars, allAssignments, setPopover],
-  );
 
   const agendaLabels = {
     allDay: t("scheduleScreen.allDay"),
