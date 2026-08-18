@@ -4,6 +4,8 @@ import {
   todoToEventBlock,
   todoToEventPlacement,
   eventToTodoSlot,
+  eventRestore,
+  todoRestorePatch,
 } from "../src/utils/itemConversion";
 import { todosToCalendarChips } from "../src/utils/todoCalendarChips";
 import type { TodoNode } from "../src/types/todoTree";
@@ -239,5 +241,84 @@ describe("eventToTodoSlot (#739)", () => {
       endTime: "11:30",
       isAllDay: false,
     });
+  });
+});
+
+describe("todoRestorePatch (#997)", () => {
+  it("names every field an undo has to put back", () => {
+    // A literal key set on purpose: adding a TodoNode field without deciding
+    // whether an undo restores it turns this red, which is the only moment
+    // anyone will think about it.
+    expect(Object.keys(todoRestorePatch(todo())).sort()).toEqual([
+      "color",
+      "icon",
+      "isAllDay",
+      "isExpanded",
+      "order",
+      "parentId",
+      "priority",
+      "reminderEnabled",
+      "reminderOffset",
+      "scheduledAt",
+      "scheduledEndAt",
+      "status",
+      "timeMemo",
+      "workDurationMinutes",
+    ]);
+  });
+
+  it("keeps a null status null rather than promoting it", () => {
+    // The mapper branches on key PRESENCE, so a present-but-undefined key
+    // writes NULL (an exact restore) while an absent one leaves the column at
+    // whatever the conversion defaulted it to.
+    const patch = todoRestorePatch(todo({ status: undefined }));
+    expect("status" in patch).toBe(true);
+    expect(patch.status).toBeUndefined();
+  });
+
+  it("carries back the parent link the confirm dialog warned about", () => {
+    expect(todoRestorePatch(todo({ parentId: "task-parent" })).parentId).toBe(
+      "task-parent",
+    );
+  });
+});
+
+describe("eventRestore (#997)", () => {
+  it("hands back the event's own slot", () => {
+    expect(
+      eventRestore(
+        event({ date: "2026-08-14", startTime: "13:15", endTime: "14:45" }),
+      ).placement,
+    ).toEqual({
+      date: "2026-08-14",
+      startTime: "13:15",
+      endTime: "14:45",
+      isAllDay: false,
+    });
+  });
+
+  it("recovers an end time the forward conversion threw away", () => {
+    // An all-day event's chip slot carries no end at all (eventToTodoSlot
+    // drops it deliberately), so re-deriving the placement from the converted
+    // row could not put this back. Reading the snapshot can.
+    const before = event({
+      date: "2026-08-14",
+      startTime: "09:00",
+      endTime: "17:30",
+      isAllDay: true,
+    });
+    const slot = eventToTodoSlot({
+      date: before.date,
+      startTime: before.startTime,
+      endTime: before.endTime,
+      isAllDay: true,
+    });
+    expect(slot.scheduledEndAt).toBeUndefined();
+    expect(eventRestore(before).placement.endTime).toBe("17:30");
+  });
+
+  it("reports a dismissed event so the flag can go back", () => {
+    expect(eventRestore(event({ isDismissed: true })).dismissed).toBe(true);
+    expect(eventRestore(event()).dismissed).toBe(false);
   });
 });

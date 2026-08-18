@@ -416,6 +416,11 @@ export {
   // #739: the mirror of todoToEventPlacement — an event's slot, kept as the
   // Todo's chip slot (D-20260811-sched-1).
   eventToTodoSlot,
+  // #997: the field-level spec of an undo — what the inverse conversion
+  // cannot put back on its own.
+  eventRestore,
+  todoRestorePatch,
+  type EventRestore,
   type EventToTodoBlock,
   type TodoToEventBlock,
   type EventPlacement,
