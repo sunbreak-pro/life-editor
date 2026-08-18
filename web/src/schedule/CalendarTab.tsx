@@ -35,7 +35,7 @@ import {
   type AgendaItem,
   type EventEditorItem,
   type DataService,
-  MobileFab,
+  AddPill,
   WIDE_QUERY,
   type TranslationKey,
 } from "@life-editor/shared";
@@ -57,10 +57,7 @@ import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import { itemTapRoute } from "./todoChipPanel";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
-import {
-  toAgendaItems,
-  toEditorItem,
-} from "./scheduleViewModels";
+import { toAgendaItems, toEditorItem } from "./scheduleViewModels";
 import {
   formatFullDay as formatFullDayKey,
   formatPeriodLabel,
@@ -1495,11 +1492,12 @@ export function CalendarTab({
     <>
       {sidebarPortal}
       {/*
-       * #632: the FAB anchors to THIS wrapper, not the viewport. It has to be
-       * padding-free and span the section box — see MobileFab's host contract.
-       * The inner div keeps the gutter so the list still lines up.
+       * The narrow column. It used to be the FAB's anchor (#632) and carried
+       * `relative` for that; #1034 moved creation into the day-list header, so
+       * nothing is absolutely positioned in here any more. The inner div keeps
+       * the gutter so the list still lines up.
        */}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
           <div className="flex shrink-0 items-center gap-2">
             <RightSidebarToggle
@@ -1542,11 +1540,11 @@ export function CalendarTab({
           </div>
           {rangeErrorBanner}
           {showLoading ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+            <div className="min-h-0 flex-1 overflow-y-auto pb-3">
               {loadingCard}
             </div>
           ) : showError ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+            <div className="min-h-0 flex-1 overflow-y-auto pb-3">
               {errorCard}
             </div>
           ) : (
@@ -1589,38 +1587,44 @@ export function CalendarTab({
                * without it, a list of times has nothing saying which day they
                * belong to.
                */}
-              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-24">
-                <p className="shrink-0 text-xs text-lumen-text-secondary">
-                  {anchorDayLabel}
-                </p>
-                <AgendaList
-                  items={toAgenda(
-                    anchorDayItems,
-                    rangeTodoChips.filter((c) => c.date === anchorDate),
-                  )}
-                  nowMinutes={anchorDate === today ? nowMinutes : null}
-                  onToggleComplete={handleAgendaToggle}
-                  onItemActivate={handleItemActivate}
-                  onItemDoubleClick={handleItemOpenDetail}
-                  selectedId={selectedId}
-                  /* #691: Mobile stands in for the week grid here, so the row
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+                {/* #1034: creation lives here now, not in a floating "+".
+                    The row is `shrink-0` and OUTSIDE the scroller below, so
+                    the button stays put however long the day gets. The pill is
+                    the same shared part as Materials' 「+ノート」. */}
+                <div className="flex shrink-0 items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
+                    {anchorDayLabel}
+                  </p>
+                  <AddPill
+                    onClick={handleToolbarAdd}
+                    label={t("scheduleScreen.addCta")}
+                  />
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto pb-3">
+                  <AgendaList
+                    items={toAgenda(
+                      anchorDayItems,
+                      rangeTodoChips.filter((c) => c.date === anchorDate),
+                    )}
+                    nowMinutes={anchorDate === today ? nowMinutes : null}
+                    onToggleComplete={handleAgendaToggle}
+                    onItemActivate={handleItemActivate}
+                    onItemDoubleClick={handleItemOpenDetail}
+                    selectedId={selectedId}
+                    /* #691: Mobile stands in for the week grid here, so the row
                      has to say how long it runs and where the day is free.
                      Desktop's sidebar column stays one line tall (no props). */
-                  dayflow
-                  formatGapLabel={formatGapLabel}
-                  labels={anchorAgendaLabels}
-                  className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-                />
+                    dayflow
+                    formatGapLabel={formatGapLabel}
+                    labels={anchorAgendaLabels}
+                    className="rounded-md border border-lumen-border bg-lumen-bg px-2"
+                  />
+                </div>
               </div>
             </>
           )}
         </div>
-
-        {/* FAB → creation panel. */}
-        <MobileFab
-          onClick={handleToolbarAdd}
-          label={t("scheduleScreen.addEvent")}
-        />
       </div>
 
       {overlaysEl}

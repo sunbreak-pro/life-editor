@@ -498,6 +498,7 @@
     "prev": "前へ",
     "next": "次へ",
     "addEvent": "予定を追加",
+    "addCta": "追加",
     "addEventAndOpen": "追加して詳細へ",
     "addItem": "アイテムを追加",
     "itemTypeLabel": "種類",

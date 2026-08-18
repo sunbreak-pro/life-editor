@@ -5,10 +5,10 @@ import {
   MeasuringStrategy,
   closestCorners,
 } from "@dnd-kit/core";
-import { Plus } from "lucide-react";
 import {
   KanbanBoard,
   KanbanCard,
+  AddPill,
   useTranslation,
   type KanbanCardModel,
   type KanbanColumnModel,
@@ -65,18 +65,12 @@ export function KanbanBoardSurface({
     return null;
   }, [dnd.activeCardId, columns]);
 
-  // "+ Add" entry point in the board toolbar — opens the add dialog. Accent
-  // pill (mock): Plus 14 + 13px medium label, 8px radius.
+  // "+ Add" entry point in the board toolbar — opens the add dialog. The pill
+  // itself is the shared AddPill (#1034); this file used to carry its own copy
+  // of the recipe, byte-identical to NotesView's.
   const headerActions = (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={onAdd}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        <Plus size={14} aria-hidden />
-        {t("kanban.addTodo")}
-      </button>
+      <AddPill onClick={onAdd} label={t("kanban.addTodo")} />
     </div>
   );
 

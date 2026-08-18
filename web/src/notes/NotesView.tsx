@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 import {
   useNotesUnifiedContext,
   useWikiTagsUnifiedContext,
@@ -10,6 +10,7 @@ import {
   EmptyState,
   SkeletonList,
   QuickAddSheet,
+  AddPill,
   cn,
   type NoteSortMode,
   type DataService,
@@ -301,14 +302,7 @@ export function NotesView({
   const mainContent = (
     <>
       <div className="flex items-center justify-end px-1 pb-3">
-        <button
-          type="button"
-          onClick={handleAddNote}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-        >
-          <Plus size={14} aria-hidden />
-          {t("materials.notes.addCta")}
-        </button>
+        <AddPill onClick={handleAddNote} label={t("materials.notes.addCta")} />
       </div>
       {selected ? (
         <NoteDetailSurface
