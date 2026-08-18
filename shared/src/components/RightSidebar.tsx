@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { KeyboardEvent, PointerEvent } from "react";
+import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
 import { RightSidebarContents } from "./RightSidebarContents";
 
@@ -11,6 +11,14 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * per brief §3 (overlay 禁止). Opaque subsidebar surface + left border (§5).
  * A left-edge handle resizes the width (clamped 240–560px) via pointer capture
  * and ←/→ keys. Pure presentation: copy injected already-translated (§6.4).
+ *
+ * Opening slides it in from the right (#1050) instead of the layout jumping.
+ * The panel unmounts when closed, so the animation replays on each open and
+ * never re-runs on a resize (that changes `width`, not the mounted-ness).
+ * There is no matching CLOSE animation: the panel is gone from the tree the
+ * moment it closes, and keeping it mounted to animate out would hold its
+ * portal target — and whatever a section rendered into it — alive past the
+ * close. That trade is not worth a 200ms exit.
  */
 export interface RightSidebarProps {
   /** Already-translated panel title ("詳細"). */
@@ -91,8 +99,24 @@ export function RightSidebar({
   return (
     <aside
       ref={asideRef}
-      style={{ width: renderWidth }}
-      className="relative flex flex-shrink-0 flex-col border-l border-lumen-border bg-lumen-bg-subsidebar"
+      /*
+       * `--lumen-panel-w` feeds the open animation (#1050), which slides the
+       * panel in from the right by running `margin-right` from -width to 0.
+       *
+       * Animating the MARGIN rather than the width is what keeps the contents
+       * still: the panel is its final width for the whole slide, so nothing
+       * inside reflows, and <main> (flex-1) takes back the space frame by
+       * frame — the push-in this panel is supposed to be. The parent flex row
+       * is overflow-hidden, so the off-screen part is clipped rather than
+       * spilling. A width animation would squash every row inside it instead.
+       */
+      style={
+        {
+          width: renderWidth,
+          "--lumen-panel-w": `${renderWidth}px`,
+        } as CSSProperties
+      }
+      className="lumen-panel-in-right relative flex flex-shrink-0 flex-col border-l border-lumen-border bg-lumen-bg-subsidebar"
     >
       {/* Left-edge resize handle. role=separator + arrow keys for a11y. */}
       <div

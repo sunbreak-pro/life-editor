@@ -222,7 +222,17 @@ export {
 } from "./hooks/useLazyStalePool";
 // #508 — Escape / Tab trap / focus restore for aria-modal surfaces. Backs
 // Modal and BottomSheet; exported so web-side dialogs can stop hand-rolling it.
-export { useDialogA11y, type DialogA11yOptions } from "./hooks/useDialogA11y";
+export {
+  useDialogA11y,
+  hasOpenDialogLayer,
+  type DialogA11yOptions,
+} from "./hooks/useDialogA11y";
+// #1050 — drag in from the left screen edge to open the mobile drawer, the
+// entrance matching the swipe-out below.
+export {
+  useEdgeSwipeOpen,
+  type EdgeSwipeOpenOptions,
+} from "./hooks/useEdgeSwipeOpen";
 // #792 — the swipe-to-close gesture behind BottomSheet / MobileDrawer.
 // Exported so a web-side overlay that enters from an edge can take the same
 // one-thumb exit instead of inventing a second gesture with its own threshold.
