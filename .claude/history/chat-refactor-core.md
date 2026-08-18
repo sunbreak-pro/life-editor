@@ -1,5 +1,33 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-18 - shared-fix 2 件（#1012 = PR #1058 merged / #1038 = PR #1071 open）
+
+#### 概要
+
+自分宛の shared-fix 2 本。**片方はテストの横展開、もう片方は「測ってから案を出す」調査**で、どちらも「今そこにある挙動を固定する / 説明する」仕事だった。#1058 はユーザーが同日 merge 済み、#1071 は open。
+
+#### 変更点
+
+- **#1012（PR #1058・merged）ボタンの処理を引数から叩くテストの横展開**: #701 Step 2（Trash 1 画面）の形を Settings / Tags / Work / Daily へ。42 件。**Tags / Work / Daily は stub した context ではなく real Provider を fake DataService の上にマウント**した — この 3 画面は「配線が context の下にある」型で、context を stub すると検査対象そのものが消える。Tags は 5 つの identity 書き込みのうち 3 つが**同じ `updateWikiTagUnified`** でパッチのキーだけが違い、色が `{name}` で飛んでもパネル側のテストは全部緑のままになる。Daily は pin / delete が「日付 → 行を引く → **その行自身の id** で書く」経路なので、fixture の行 id を**わざと `daily-<date>` にしない**ことで、id を日付から組み立て直す実装が落ちるようにした。Work は「skip が WORK の行を閉じるが 2 本目を開かない」ことを見張る（開くと誰も取っていない休憩が `timer_sessions` に残り、後で Analytics に出る）。Settings だけは service を持たない画面なので、表の終点は setter（day-start の `Number()` 変換を含む）
+- **#1038（PR #1071・open）セクション切替の体感ロード**: 調査 Issue なのでコードは 1 行も変えていない。**使い捨ての vitest + jsdom ハーネス**で `SECTION_DESCRIPTORS[section].body(...)` をセクション層 Provider ごとマウントし、`DataService` を Proxy で包んで呼び出しを数え、`<Profiler>` の `onRender` で commit を数え、chunk は実ビルドの `dist` を `gzip -c` で自前計測した。結論は**「本数ではなくキャッシュが無いこと」** — セクションを離れると Provider ごと state が消え、戻ると `useDomainLoad` の `settled` が `null` から始まる（`useDomainLoad.ts:149`）ので、取り直しが返るまで骨組みが出る。materials 復帰 = 5 本を全件再取得・再利用 0 本。案は A（stale-while-revalidate = 本命）/ B（無駄取りの削減）/ C（hover プリフェッチ）の 3 本で、選択は D-20260818-refactor-1 としてキューへ
+
+#### 実測値（#1038）
+
+- **マウント 1 回あたり**: schedule 11 本 / briefing 8 / analytics 8 / connect 7 / materials 5 / trash 5 / work 1 / settings 0（commit は 2〜5）
+- **切替**: materials → work → materials の戻り = **5 本・キャッシュ利用 0**。Materials の**タブ**切替（notes → daily）= 4 本で、うち 3 本はタグ 3 点セットの取り直し（タブごとに `WikiTagsUnifiedProvider` を持つため — `sectionDescriptors.tsx:215` / `:233`）
+- **副産物**: schedule の 11 本中 3 本は Trash 専用の削除済み一覧で表示側に消費者がなく、しかも `TrashScreen.tsx:76-80` が 5 本を自前で取り直している。connect は自前の 2 本（`ConnectScreen.tsx:80-81`）が自分の Provider の読みと重複
+- **chunk（gzip・初回訪問のみ）**: 開いた瞬間は analytics 104 KB / connect 30 KB / materials 9 KB、エディタが出ると +121 KB、briefing の詳細パネルでグラフ +103 KB
+
+#### 検証
+
+- #1058: 新規 42 件を含め web 612 件緑。CI verify のステップ列を全通し（shared lint / build / typecheck:tests / test 2371、web lint / build / typecheck:tests / test、desktop typecheck / test / build、mcp-server build / typecheck:tests / test 301）+ docs-lint
+- #1071: コード無変更だが同じゲート列を全通し（web 570 = 本ブランチには #1012 のテストが載らないため）+ docs-lint OK
+- **ハーネスが吐いた偽の数値を 2 回踏んだ**（レポート付録 B に保存）: (1) `useTranslation` のモックが毎レンダー新しい `t` を返すと `[ds, t]` deps の effect（`WorkScreen.tsx:120`）が永久に再取得する。(2) Proxy が毎回新しい関数・配列を返すと identity 依存の経路が回り続け、Trash で 155,725 回の呼び出しを記録した。**どちらもアプリではなく計測装置の欠陥**で、identity を固定したら 5 本 / 2 commit に落ち着いた
+
+#### 次
+
+#1071 の merge（P-001）と D-20260818-refactor-1 の回答待ち。回答後に台帳へ昇格し、実装 Issue を起票する。
+
 ### 2026-08-16 - analytics のチャート 3 件を 1 PR に（PR #985 — #943 / #944 / #948）
 
 #### 概要

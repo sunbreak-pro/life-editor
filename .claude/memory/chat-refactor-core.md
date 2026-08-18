@@ -7,15 +7,17 @@
 **対象**: `shared/src/**` / `web/src/**` / `mcp-server/**` / CI・tsconfig 群
 **計画書**: `.claude/docs/vision/plans/2026-08-10-core-refactor.md`
 
-- 前回: **Issue sweep 完走**（#958 / #960 / #963 が open のまま merge 待ち・#891 は close 済み）
-- 現在: 自分の backlog が空になったので **analytics セクション（レーン無し）の 3 件を引き受け、PR #985 で 1 本にまとめた**（#943 / #944 / #948）。3 件とも `shared/src/components/Analytics/` に落ち、#943 と #944 は同じ `WorkBreakBalance.tsx` — 3 PR に割ると自分同士で衝突を直列化するだけなので 1 PR にした
+- 前回: **analytics のチャート 3 件を PR #985 で 1 本に**（#943 / #944 / #948 — merged）
+- 現在: **shared-fix 2 件を完了**（#1012 = PR #1058 merged / #1038 = PR #1071 open）。#1012 は #701 Step 2 の横展開で Settings / Tags / Work / Daily の 4 画面ぶんの actions テスト 42 件、#1038 はセクション切替コストの実測レポート（コード変更なし）
 - **#891 で分かった 3 つの差分**（次に同型の載せ替えをやる人向け）: (1) **notes** — Trash の読み込みは同じトリガでも独自 try/catch を持つので load の `Promise.all` に畳めない（畳むと Trash の失敗がツリーを道連れにする）。別 effect に据え置いた。(2) **dailies** — 元から `isLoading` も `error` も**持っていなかった**ので、載せ替えは新規フィールドの追加になる。UI は未配線（エラーカードは見た目の変更なので範囲外）。(3) **wikitags** — `refetchReportsLoading: false` では足りず `loading = attemptInFlight && !hasLoaded` と書いた。**初回ロードが失敗した後の再試行**で旧コードは旗を立て直しており（`if (!hasLoadedRef.current) setLoading(true)`）、false 固定にすると「読み込み中」を「タグ 0 件」と表示してしまう
 - **#948 で分かったこと（recharts を使う人向け）**: `width(-1) and height(-1)` の警告は**レイアウトの問題ではない**。`ResponsiveContainer` のサイズ state は recharts 既定の `initialDimension = {-1, -1}` から始まり（`responsiveContainerUtils.js:7`）、直すのは ResizeObserver の **effect** = 初回描画が終わって警告を出した後。つまり全チャート・全マウントで必ず出る。警告文が勧める `minWidth={0}` は最初から付いていて効かない。判定は 2 辺の **OR**（`ResponsiveContainer.js:135`）なので、**高さを数値で渡せば消える**（幅は `"100%"` のままで応答性は不変）
-- 次: **4 本の merge 待ち**（#958 / #960 / #963 / #985）。#898 は着手判断がユーザー手番（キュー済み）・#677 は status:frozen。**merge 後の playwright は chat-main へ引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）/ #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）/ #891 分（Materials・Tags の初回ロードとエラー復帰）
+- 次: **#1071（#1038 の調査レポート）の merge と、D-20260818-refactor-1 の回答待ち**。回答が付いたら実装 Issue を起票する（#1038 自体は調査までが Scope）。**2026-08-18 実測**: #958 / #960 / #963 / #985 / #1058 はすべて MERGED で、open は #1071 だけ。#898 は着手判断がユーザー手番（キュー済み）・#677 は status:frozen。**merge 後の playwright は chat-main へ引き継ぎ** — #675 分（週 / 月表示・ドラッグ・リサイズ・スコープ選択・Todo）/ #672 分（Schedule 初回描画 / 日付切替・Realtime bump 後にスケルトンが残らない・Calendar 管理ビューが refetch で白くならない・ルーチン Ctrl+Z で生成済み Event が孤児にならない）/ #891 分（Materials・Tags の初回ロードとエラー復帰）
 
 ## 直近の完了
 
-- **analytics のチャート 3 件 — PR #985 open** ✅（2026-08-16）: #943（ツールチップの系列名）/ #944（分軸の 0.25m 刻み）/ #948（recharts の -1 警告）を 1 PR で。**#944 は Issue が「付け忘れ」と書いていた時間軸 2 本を、あえて直さなかった** — `hours` は小数第 1 位まで丸めた値なので `allowDecimals={false}` にすると 1.5h の日が軸から消える。理由をコードのコメントに残して再起票を防いだ。新規テスト 14 件はすべて**修正前のコードで落ちることを実測**（src だけ stash して確認）
+- **#1038 セクション切替の体感ロード調査 — PR #1071 open** ✅（2026-08-18）: 体感の主因は本数ではなく「切替のたびに前回値を捨て、取り直しが返るまで骨組みを見せる」こと（materials 復帰 = 5 本を全件再取得・キャッシュ利用 0 本）。**使い捨ての jsdom ハーネス**で descriptor body をセクション層 Provider ごとマウントし、DataService を Proxy で数え `<Profiler>` で commit を数えた（本数と commit はデータ量に依存しないので実データ無しでも正しい。ミリ秒は主張しない = #994 の手番）。副産物 = schedule 11 本中 3 本が誰も表示に使わない Trash 用の削除済み一覧 / connect は自前 2 本が自 Provider と重複 / Materials はタブごとに WikiTags Provider を持つ。案 3 本を D-20260818-refactor-1 でキューへ
+- **#1012 ボタン → DataService の routing テスト横展開 — PR #1058 merged** ✅（2026-08-18）: Settings / Tags / Work / Daily の 4 画面 42 件。**Tags / Work / Daily は real Provider を fake DataService の上にマウント**して表の終点を service にした（stub context 止まりでは見えない配線がそこにある）。Daily は pin / delete が「日付 → 行 → その行の id」で書くので、**fixture の行 id をわざと `daily-<date>` にしない**ことで id をテンプレートから作り直す実装を落とせるようにした
+- **analytics のチャート 3 件 — PR #985 merged** ✅（2026-08-16）: #943（ツールチップの系列名）/ #944（分軸の 0.25m 刻み）/ #948（recharts の -1 警告）を 1 PR で。**#944 は Issue が「付け忘れ」と書いていた時間軸 2 本を、あえて直さなかった** — `hours` は小数第 1 位まで丸めた値なので `allowDecimals={false}` にすると 1.5h の日が軸から消える。理由をコードのコメントに残して再起票を防いだ。新規テスト 14 件はすべて**修正前のコードで落ちることを実測**（src だけ stash して確認）
 - **#895 mcp-server tools.ts の分割 — PR #963 open** ✅（2026-08-16）: 986 行の単一配列を `tools/<domain>.ts` × 11（`handlers/` と 1 対 1）へ逐語移動。`tools.ts` は 1,120 → 93 行。**対応関係を約束でなく検査にした**（`toolDomains.test.ts` 4 件）— 片方だけあると落ちる / `tools.ts` が spread を 1 つ忘れると落ちる。後者は**放っておくと何も壊れて見えない**（`TOOLS` を歩くテストがそのツールを最初から見ない）のが怖いところ。`...TRASH_TOOLS` を落として 3 件落ちることを実測
 - **#894 desktop の IPC 契約 — PR #960 open** ✅（2026-08-16）: 7 本のチャネル名を `desktop/src/shared/ipcContract.ts` に集約し、main の登録を `Record<DesktopIpcChannel, …>` 注釈の表に。**ハンドラの無いチャネルはコンパイルが通らない**。`shared` の構造的再宣言は `electron` を import できないので残し、両方を見られる desktop 側のテストで**双方向の代入可能性**を assert（署名がズレると desktop の typecheck が落ちる）。desktop に vitest + 7 件 + CI ステップ（#668 の mcp-server と同じ手当て）。テスト用 tsconfig を分けた理由 = アプリ側が `composite: true` で外部ファイルを列挙必須（TS6307）＋ shared は DOM lib が要るが main/preload には持たせたくない
 - **#890 5 role mapper の items_meta 側共通化 — PR #958 open** ✅（2026-08-16）: `assertItemsMetaPair` / `toItemsMetaInsertRow` / `toItemsMetaPatch` を `itemsMeta.ts` へ。**`updated_at` bump の実装が 5 箇所 → 1 箇所**（bump 漏れは例外もログも出さず「そのドメインだけ同期が来ない」形で出るのが怖い）。既存 mapper テスト 105 件は無改変で緑。**揃えなかった差分 2 つを保存**: `{isDeleted: undefined}` の扱い（todo/note/daily は `?? false`・event/routine はスキップ）と INSERT の `version`（Todos だけクライアント値）
@@ -34,7 +36,8 @@
 ## 予定
 
 - **merge 後に chat-main へ**: #948 のブラウザ側での裏取り（Briefing を開く / Analytics のタブ一巡で当該警告 0 件・1440px と 390px でチャートが従来どおり）。worktree では dev server / playwright を持てない（§7.4）ため、jsdom + 実 recharts で console を読むところまでが自分の担当
-- **Issue sweep は完了。残るのは merge 待ちの 3 本**（#958 / #960 / #963）— merge はユーザー手番（P-001）。merge 後、#963 の `mcp-server` は実挙動の確認が要らない（純粋な再配置 + テスト）が、#960 は**パッケージ版デスクトップの起動とログイン維持**を一度見ておきたい（IPC 登録経路が表になったため）
+- **D-20260818-refactor-1 の回答待ち**（#1038 の 3 案のどれから / キャッシュはメモリか localStorage か）。回答が付いたら台帳へ昇格 → 実装 Issue を起票。放置時は #1038 を調査完了のまま保留するので、作業はブロックしない
+- **#958 / #960 / #963 / #985 / #1058 は 2026-08-18 時点で全部 merged**。merge 後にやり残しているのは #960 の**パッケージ版デスクトップの起動とログイン維持**の目視（IPC 登録経路が表になったため）— chat-main 手番
 - **#898 は着手判断そのものがユーザー手番**。実装せず A/B を判断キューへ積む（#677 は status:frozen で対象外）
 - 実装セッション 1 の残り: #671（#672 は chat-shared-fix が PR #801 で着手中・#673 は完了・#675 は 4 項目とも PR 化済み）
 - **C1 の後始末（別 PR・小さい）**: `shared/tsconfig.test.json` の除外 12 本 + `web` の 1 本を潰す。中身は fixture の型ズレと不要な `@ts-expect-error` 5 件で、1 本直すごとに `exclude` から 1 行消える（#690 の PR 本文に全件の内訳あり）
