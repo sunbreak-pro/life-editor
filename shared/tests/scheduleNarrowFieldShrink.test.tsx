@@ -49,7 +49,6 @@ const EDITOR_LABELS: EventEditorLabels = {
   saved: "Saved",
   unsaved: "Unsaved",
   originRoutine: "Generated from routine",
-  originEvent: "Event",
   skipThisDay: "Skip this day",
   delete: "Delete",
 };

@@ -45,6 +45,13 @@ export function ItemRoleBadge({
     <span
       // The kind is announced once, by the chip: the icon is decorative and
       // the name is the accessible text (compact mode moves it to the label).
+      //
+      // `role="img"` on the compact shape (#1044) is what makes that label
+      // actually reach a screen reader: a bare <span> has the `generic` role,
+      // where ARIA naming is not reliably exposed. It also makes the glyph
+      // findable by `getByRole("img", { name })`, which is the only way to
+      // assert "the kind is still announced" once the word is gone.
+      role={compact ? "img" : undefined}
       aria-label={compact ? label : undefined}
       title={label}
       className={cn(

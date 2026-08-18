@@ -30,6 +30,12 @@ export interface ResponsiveDetailFrameProps {
   open: boolean;
   /** Already-translated heading (§6.4). */
   title: string;
+  /**
+   * One-glyph kind cue beside the title (#1044). Forwarded to both frames —
+   * which is the whole point of this part: a cue wired into only one of them
+   * is exactly the drift it exists to prevent.
+   */
+  titleIcon?: ReactNode;
   /** Already-translated accessible name for the sheet's close button. */
   closeLabel: string;
   onClose: () => void;
@@ -40,13 +46,19 @@ export function ResponsiveDetailFrame({
   wide,
   open,
   title,
+  titleIcon,
   closeLabel,
   onClose,
   children,
 }: ResponsiveDetailFrameProps) {
   if (wide) {
     return (
-      <ItemDetailOverlay open={open} title={title} onClose={onClose}>
+      <ItemDetailOverlay
+        open={open}
+        title={title}
+        titleIcon={titleIcon}
+        onClose={onClose}
+      >
         {children}
       </ItemDetailOverlay>
     );
@@ -60,6 +72,7 @@ export function ResponsiveDetailFrame({
       open={open}
       onClose={onClose}
       title={title}
+      titleIcon={titleIcon}
       closeLabel={closeLabel}
       fullScreen
     >

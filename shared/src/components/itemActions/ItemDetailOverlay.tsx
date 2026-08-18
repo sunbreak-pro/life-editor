@@ -30,6 +30,8 @@ export interface ItemDetailOverlayProps {
   open: boolean;
   /** Already-translated dialog title (rendered by <Modal>). */
   title?: string;
+  /** One-glyph kind cue beside the title (#1044) — forwarded to <Modal>. */
+  titleIcon?: ReactNode;
   onClose: () => void;
   /** Host-provided edit form / detail body. */
   children: ReactNode;
@@ -42,6 +44,7 @@ export interface ItemDetailOverlayProps {
 export function ItemDetailOverlay({
   open,
   title,
+  titleIcon,
   onClose,
   children,
   actions,
@@ -52,6 +55,7 @@ export function ItemDetailOverlay({
       open={open}
       onClose={onClose}
       title={title}
+      titleIcon={titleIcon}
       size="lg"
       className={className}
     >

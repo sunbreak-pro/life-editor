@@ -19,6 +19,7 @@ import {
   RightSidebarToggle,
   CalendarLensRow,
   ResponsiveDetailFrame,
+  ItemRoleBadge,
   useConfirmDialog,
   useScheduleItemsRoutineSync,
   useDeferredAction,
@@ -57,10 +58,8 @@ import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import { itemTapRoute } from "./todoChipPanel";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
-import {
-  toAgendaItems,
-  toEditorItem,
-} from "./scheduleViewModels";
+import { useScheduleRoleLabels } from "./scheduleRoleLabels";
+import { toAgendaItems, toEditorItem } from "./scheduleViewModels";
 import {
   formatFullDay as formatFullDayKey,
   formatPeriodLabel,
@@ -140,6 +139,7 @@ export function CalendarTab({
   onConsumePendingEvent?: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  const roleLabels = useScheduleRoleLabels();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const {
     items: contextItems,
@@ -1060,7 +1060,6 @@ export function CalendarTab({
     unsaved: t("scheduleScreen.unsaved"),
     seriesHint: t("scheduleScreen.seriesEditHint"),
     originRoutine: t("scheduleScreen.originRoutine"),
-    originEvent: t("scheduleScreen.originEvent"),
     skipThisDay: t("scheduleScreen.skipThisDay"),
     delete: t("scheduleScreen.delete"),
   };
@@ -1265,6 +1264,12 @@ export function CalendarTab({
       wide={isWide}
       open={isWide ? overlayOpen && !!editorPane : !!editorPane}
       title={t("scheduleScreen.detailTitle")}
+      // #1044: the kind is a glyph in the header now, not a word in the body.
+      // Always "event" — a routine OCCURRENCE is still an `items_meta.role =
+      // 'event'` row (the UI presents Routine as "an Event with a repeat"), and
+      // "routine" is outside the designed kind set, so it would resolve to the
+      // neutral fallback.
+      titleIcon={<ItemRoleBadge role="event" labels={roleLabels} compact />}
       closeLabel={t("common.close")}
       // #628: Escape, the backdrop and the close button all land here, so the
       // one guard covers every exit on either layout.
