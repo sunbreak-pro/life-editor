@@ -19,6 +19,7 @@ import {
  *   - fetchScheduleItemsByDate(today)     → 今日の予定
  *   - fetchTodoTree()                     → 今日の Todo / 持ち越し / trend widget
  *   - fetchTimerSessions()                → streak + work/break widgets
+ *     (follows the `sessions` domain since #993)
  *   - getDailyByDateUnified(today)        → the "Briefing"/「朝刊」 section
  *     (extractBriefing convention — written later by MCP write_briefing,
  *     or by hand in the Daily editor today)
@@ -68,7 +69,11 @@ export function useBriefingFetch(
   const syncVersion = useSyncDomains(
     "schedule",
     "todos",
-    "timer",
+    // #993: the session LOG, not the timer settings — Briefing reads
+    // fetchTimerSessions and nothing else from the timer family, so it follows
+    // the `sessions` counter (declaring `timer` here also woke it on every
+    // settings edit, and hid that TimerProvider was waking on every session).
+    "sessions",
     "dailies",
     "notes",
     "tags",
