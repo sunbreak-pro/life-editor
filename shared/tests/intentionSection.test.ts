@@ -218,8 +218,7 @@ describe("mergeIntentionSection", () => {
     );
     const merged = mergeIntentionSection(content, "宣言A\n宣言B");
     const briefing = extractBriefing(merged);
-    expect(briefing?.focus).toBe("focus line");
-    expect(briefing?.paragraphs).toEqual(["comment"]);
+    expect(briefing?.paragraphs).toEqual(["focus line", "comment"]);
     const evening = extractEveningSection(merged);
     expect(evening.mood).toBe(4);
     expect(textsOf(evening.bodyDocJson!)).toEqual(["振り返り"]);

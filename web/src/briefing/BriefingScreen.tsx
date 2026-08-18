@@ -26,6 +26,7 @@ import type { NavDestination } from "../hooks/useShellNavigation";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
+import { useFocusNote } from "./hooks/useFocusNote";
 import { useGoalsDoc } from "./hooks/useGoalsDoc";
 
 /*
@@ -127,6 +128,16 @@ export function BriefingScreen({
     weekStartsOn,
   );
 
+  // The focus note (#1048) — its own document too: the morning paper READS
+  // today's focus (written last evening), the evening paper EDITS tomorrow's.
+  const {
+    todayFocus,
+    focusDraft,
+    focusLoading,
+    handleFocusChange,
+    flushFocus,
+  } = useFocusNote(ds, todayKey);
+
   // Nothing stored AND nothing typed = the day has no declaration yet, so
   // there is no save state to report. Reporting「保存済み」over an untouched
   // empty field reads as "already done" (#427) — omit the caption entirely
@@ -147,7 +158,7 @@ export function BriefingScreen({
       focusLabel: t("briefing.focusLabel"),
       aiTitle: t("briefing.aiTitle"),
       aiSource: t("briefing.aiSource"),
-      noBriefing: t("briefing.noBriefing"),
+      noFocus: t("briefing.noFocus"),
       intentionTitle: t("briefing.intentionTitle"),
       intentionCaption,
       intentionPlaceholder: t("briefing.intentionPlaceholder"),
@@ -253,6 +264,8 @@ export function BriefingScreen({
       savedCaption: eveningSaved
         ? t("materials.daily.saved")
         : t("materials.daily.unsaved"),
+      focusTitle: t("briefing.evening.focusTitle"),
+      focusPlaceholder: t("briefing.evening.focusPlaceholder"),
       todosTitle: t("briefing.evening.todosTitle"),
       noTodos: t("briefing.evening.noTodos"),
       // The three statuses are worded ONCE, in the Todos section's own copy —
@@ -529,7 +542,7 @@ export function BriefingScreen({
       <>
         {todoTrayPortal}
         <EveningView
-          loading={loading}
+          loading={loading || focusLoading}
           dateLine={dateLine}
           mood={eveningMood}
           onSelectMood={handleSelectMood}
@@ -557,6 +570,9 @@ export function BriefingScreen({
           intentionEditable={intentionEditableOnEvening}
           onIntentionChange={handleIntentionChange}
           onIntentionBlur={flushIntention}
+          focusText={focusDraft}
+          onFocusChange={handleFocusChange}
+          onFocusBlur={flushFocus}
           todos={remainingTodos}
           onSetTodoStatus={handleSetTodoStatus}
           schedule={upcoming}
@@ -576,9 +592,10 @@ export function BriefingScreen({
         // editable — offering them before it answers hands the user an empty
         // box over goals that exist, and the keystroke typed there overwrites
         // them once the debounce fires. Same skeleton, one gate.
-        loading={loading || goalsLoading}
+        loading={loading || goalsLoading || focusLoading}
         data={data}
         labels={labels}
+        focusText={todayFocus}
         intentionText={intentionText}
         onIntentionChange={handleIntentionChange}
         onIntentionBlur={flushIntention}

@@ -146,7 +146,7 @@ describe("F-1 round trip with extractBriefing", () => {
   it("a heading+paragraph doc written by the editor is picked up by the briefing parser", () => {
     const briefing = extractBriefing(DOC);
     expect(briefing).not.toBeNull();
-    expect(briefing!.focus).toBe("今日のフォーカス");
+    expect(briefing!.paragraphs[0]).toBe("今日のフォーカス");
   });
 
   it("legacy plain text converted at read time stays paragraph-only (no false briefing)", () => {

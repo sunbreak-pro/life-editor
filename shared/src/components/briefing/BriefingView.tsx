@@ -93,7 +93,8 @@ export interface BriefingLabels {
   focusLabel: string;
   aiTitle: string;
   aiSource: string;
-  noBriefing: string;
+  /** Empty state of the focus line — no focus was written last evening. */
+  noFocus: string;
   intentionTitle: string;
   /**
    * Saved-state caption next to the intention title (host-computed).
@@ -145,6 +146,13 @@ export interface BriefingViewProps {
   loading: boolean;
   data: BriefingData;
   labels: BriefingLabels;
+  /**
+   * Today's focus line (#1048) — written the previous evening on the 夕刊
+   * paper into the reserved focus note (focusSections.ts), NOT read from the
+   * daily any more. Null = no focus was written; the line shows its empty
+   * state.
+   */
+  focusText: string | null;
   /** Today's declaration (宣言 — Step 4), newline-separated lines. */
   intentionText: string;
   /** Every keystroke — the host owns draft state + debounced persistence. */
@@ -359,6 +367,7 @@ export function BriefingView({
   loading,
   data,
   labels,
+  focusText,
   intentionText,
   onIntentionChange,
   onIntentionBlur,
@@ -425,19 +434,24 @@ export function BriefingView({
         </p>
       </header>
 
-      {/* ── Focus line ───────────────────────────────────────────── */}
+      {/* ── Focus line — written last evening on the 夕刊 (#1048) ── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
         <p className="mb-2 text-xs font-bold tracking-[0.3em] text-lumen-briefing-shu">
           {labels.focusLabel}
         </p>
-        {briefing?.focus !== null && briefing?.focus !== undefined ? (
-          <p className="font-serif text-xl font-semibold leading-relaxed text-lumen-text">
-            {briefing.focus}
-          </p>
+        {focusText !== null ? (
+          focusText.split("\n").map((line, i) => (
+            <p
+              key={i}
+              className="font-serif text-xl font-semibold leading-relaxed text-lumen-text"
+            >
+              {line}
+            </p>
+          ))
         ) : (
           <p className="flex items-center justify-center gap-2 text-sm text-lumen-text-secondary">
             <Sunrise size={16} aria-hidden="true" />
-            {labels.noBriefing}
+            {labels.noFocus}
           </p>
         )}
       </section>
