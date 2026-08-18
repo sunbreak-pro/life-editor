@@ -18,9 +18,9 @@ import { describe, expect, it } from "vitest";
  * editor back in the first download while the Notes split still looked intact.
  * Nothing errors, the build stays green, and only the dist listing shows it.
  *
- * NoteBodyEditor is the one allowed static importer: it lives inside NotesView,
- * which is itself lazy, so its copy is off the first download anyway and a
- * second boundary there would only delay typing.
+ * The allowed static importers all live inside NotesView, which is itself lazy,
+ * so their copy is off the first download anyway and a second boundary there
+ * would only delay typing.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -53,6 +53,9 @@ const ALLOWED = new Set([
   "notes/RichTextEditor.tsx",
   // Inside the already-lazy NotesView chunk; see the header.
   "notes/NoteBodyEditor.tsx",
+  // Same: the templates panel (#1047) is mounted by NotesView, so its copy of
+  // the editor rides in the Notes chunk rather than the first download.
+  "notes/NoteTemplateHost.tsx",
 ]);
 
 describe("the TipTap editor stays out of the initial chunk", () => {

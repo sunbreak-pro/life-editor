@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  NotesUnifiedDataService,
-} from "./DataService";
+import type { NotesUnifiedDataService } from "./DataService";
 import { noteNodeToRows, noteUpdatesToPatches } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
 import { SupabaseNotesUnifiedReads } from "./SupabaseNotesUnifiedReads";
@@ -54,6 +52,10 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
   listNotesUnified(): Promise<NoteNode[]> {
     return this.reads.listNotesUnified();
+  }
+
+  listNoteTemplatesUnified(): Promise<NoteNode[]> {
+    return this.reads.listNoteTemplatesUnified();
   }
 
   countLiveNotes(): Promise<number> {
@@ -288,6 +290,7 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
 export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "listNotesUnified",
+  "listNoteTemplatesUnified", // #1047
   "countLiveNotes",
   "getNoteUnified",
   "createNoteUnified",
@@ -305,6 +308,9 @@ export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "toggleNoteEditLockUnified",
 ] as const;
 
-export type NotesUnifiedMethodName = (typeof PHASE2_NOTES_UNIFIED_METHOD_NAMES)[number];
+export type NotesUnifiedMethodName =
+  (typeof PHASE2_NOTES_UNIFIED_METHOD_NAMES)[number];
 
-export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set(PHASE2_NOTES_UNIFIED_METHOD_NAMES);
+export const PHASE2_NOTES_UNIFIED_METHODS: ReadonlySet<string> = new Set(
+  PHASE2_NOTES_UNIFIED_METHOD_NAMES,
+);

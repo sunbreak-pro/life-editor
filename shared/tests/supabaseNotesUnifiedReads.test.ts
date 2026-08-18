@@ -294,7 +294,10 @@ describe("SupabaseNotesUnifiedReads", () => {
       const or = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "or",
       );
-      expect(or?.args[0]).toBe("note_type.is.null,note_type.neq.folder");
+      // #1047 folded the template exclusion into the same group.
+      expect(or?.args[0]).toBe(
+        "note_type.is.null,and(note_type.neq.folder,note_type.neq.template)",
+      );
     });
 
     it("throws a labelled error when the count read fails", async () => {

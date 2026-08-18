@@ -404,6 +404,104 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Note templates (#1047)
+  // -------------------------------------------------------------------------
+
+  /*
+   * A template is a notes row that the note-facing reads must behave as if they
+   * could not see: it has no place in the list, the badge count, Trash or a
+   * search hit, because it is a stamp rather than something the user wrote. The
+   * exclusion is the whole feature — get it wrong and the note list fills up
+   * with blanks named "(untitled template)" — so each read that feeds a surface
+   * is pinned separately rather than trusting the one shared `keep` clause to
+   * be wired into all of them.
+   */
+  describe("template row exclusion (#1047)", () => {
+    it("listNotesUnified drops note_type='template' rows", async () => {
+      const metas = [
+        makeMetaRow({ id: "note-plain" }),
+        makeMetaRow({ id: "note-tpl" }),
+      ];
+      const payloads = [
+        makePayloadRow({ item_id: "note-plain", note_type: "note" }),
+        makePayloadRow({ item_id: "note-tpl", note_type: "template" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: payloads, error: null });
+
+      const out = await service.listNotesUnified();
+
+      expect(out.map((n) => n.id)).toEqual(["note-plain"]);
+    });
+
+    it("fetchDeletedNotesUnified drops a soft-deleted template (Trash)", async () => {
+      const metas = [
+        makeMetaRow({
+          id: "note-T1",
+          is_deleted: true,
+          deleted_at: "2026-08-18T09:00:00.000Z",
+        }),
+        makeMetaRow({
+          id: "note-tpl",
+          is_deleted: true,
+          deleted_at: "2026-08-18T09:00:00.000Z",
+        }),
+      ];
+      const payloads = [
+        makePayloadRow({ item_id: "note-T1" }),
+        makePayloadRow({ item_id: "note-tpl", note_type: "template" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: payloads, error: null });
+
+      const out = await service.fetchDeletedNotesUnified();
+
+      expect(out.map((n) => n.id)).toEqual(["note-T1"]);
+    });
+
+    it("searchNotesUnified drops a template that matched on title", async () => {
+      const metas = [
+        makeMetaRow({ id: "note-T1", title: "weekly hit" }),
+        makeMetaRow({ id: "note-tpl", title: "weekly template" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: [], error: null }); // content hits
+      stub.stage("notes_payload", "select", {
+        data: [
+          makePayloadRow({ item_id: "note-T1" }),
+          makePayloadRow({ item_id: "note-tpl", note_type: "template" }),
+        ],
+        error: null,
+      });
+
+      const out = await service.searchNotesUnified("weekly");
+
+      expect(out.map((n) => n.id)).toEqual(["note-T1"]);
+    });
+
+    it("listNoteTemplatesUnified returns ONLY templates, typed as such", async () => {
+      const metas = [
+        makeMetaRow({ id: "note-plain" }),
+        makeMetaRow({ id: "note-tpl", title: "Weekly review" }),
+        makeMetaRow({ id: "notefolder-old" }),
+      ];
+      const payloads = [
+        makePayloadRow({ item_id: "note-plain", note_type: "note" }),
+        makePayloadRow({ item_id: "note-tpl", note_type: "template" }),
+        makePayloadRow({ item_id: "notefolder-old", note_type: "folder" }),
+      ];
+      stub.stage("items_meta", "select", { data: metas, error: null });
+      stub.stage("notes_payload", "select", { data: payloads, error: null });
+
+      const out = await service.listNoteTemplatesUnified();
+
+      expect(out.map((n) => n.id)).toEqual(["note-tpl"]);
+      expect(out[0].type).toBe("template");
+      expect(out[0].title).toBe("Weekly review");
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // searchNotesUnified
   // -------------------------------------------------------------------------
 

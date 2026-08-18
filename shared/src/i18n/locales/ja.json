@@ -301,6 +301,22 @@
       "sortTitle": "タイトル",
       "tagFilterLabel": "タグで絞り込む"
     },
+    "templates": {
+      "title": "テンプレート",
+      "menuEntry": "テンプレートを作成する",
+      "listHeading": "テンプレート",
+      "empty": "テンプレートはまだありません",
+      "new": "新規",
+      "nameLabel": "テンプレート名",
+      "namePlaceholder": "テンプレート名を入力…",
+      "untitled": "(無題のテンプレート)",
+      "content": "内容",
+      "delete": "テンプレートを削除",
+      "use": "このテンプレートからノートを作成",
+      "pickHint": "テンプレートを選ぶか、新しく作成してください。",
+      "noTagsHint": "テンプレートにはタグやリンクを付けられません。生成したノートには付けられます。",
+      "bodyPlaceholder": "テンプレートを書く…"
+    },
     "links": {
       "panelLabel": "リンク",
       "add": "リンクを追加",

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import { FileStack, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
 import { FOCUS_RING } from "../styleTokens";
@@ -124,6 +124,19 @@ export interface NoteDetailPanelProps {
   deleteLabel: string;
   /** Already-translated aria-label for the kebab (more-actions) trigger. */
   moreActionsLabel: string;
+  /**
+   * Open the note templates surface (#1047). Paired with
+   * `createTemplateLabel` — the item is drawn only when both are given, like
+   * every other optional row here, so a host cannot ship a menu entry with no
+   * name for it.
+   *
+   * It lives in the kebab rather than beside the "+" that makes notes because
+   * a template is not another kind of note to create — it is the drawer you
+   * open when you are about to write the same note for the fifth time.
+   */
+  onOpenTemplates?: () => void;
+  /** Already-translated label for the templates menu entry. */
+  createTemplateLabel?: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
   /**
@@ -160,6 +173,8 @@ export function NoteDetailPanel({
   pinnedLabel,
   deleteLabel,
   moreActionsLabel,
+  onOpenTemplates,
+  createTemplateLabel,
   tagsSlot,
   linksSlot,
   contentLabel,
@@ -238,6 +253,20 @@ export function NoteDetailPanel({
             >
               {isPinned ? pinLabel : unpinLabel}
             </MenuItem>
+            {/* #1047 — above the delete, below the pin: it opens a surface
+                rather than changing this note, so it does not belong next to
+                the destructive row. */}
+            {onOpenTemplates && createTemplateLabel && (
+              <MenuItem
+                icon={<FileStack size={14} aria-hidden />}
+                onSelect={() => {
+                  onOpenTemplates();
+                  setMenuOpen(false);
+                }}
+              >
+                {createTemplateLabel}
+              </MenuItem>
+            )}
             <MenuItem
               icon={<Trash2 size={14} aria-hidden />}
               variant="danger"
