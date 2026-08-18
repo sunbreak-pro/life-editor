@@ -1,5 +1,24 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-18 - 担当キューの残り 9 件を、1 Issue = 1 ブランチ = 1 PR で出し切った
+
+#### 概要
+
+`section:schedule` の残り 9 件（#1044 #1034 #1033 #1000 #998 #997 #996 #995 #889）をすべて PR にした。全部 origin/main から独立に切り、**1 本ごとに CI `verify` の全ステップ（shared → web → desktop → mcp-server）+ `docs-lint` をローカルで exit 0 まで通してから** push している。提出時点で #1080 / #1081 / #1082 / #1085 は merge 済み、残り 5 本 open。判断キュー 3 件と outbox の起票依頼 2 件を別ブランチに分けた。
+
+#### 変更点
+
+- **#996 = PR #1080（role ガードの横展開）**: schedule 系の `items_meta` UPDATE を全数監査して **18 箇所中 16 箇所が id だけで当てていた**ことを実測（`SupabaseScheduleItemsService` 8 / `SupabaseRoutinesService` 8）。全部に `.eq("role", ...)` を足して 18/18 に。**安全な結末はエラーではなく 0 行ヒット** — PostgREST は「1 行も当たらなかった UPDATE」をエラー無しの成功として返すので、古い操作は静かに消える。行を読み返す 3 本はさらに強く、`assertItemsMetaPair` が `task` 行を event として写すのを拒否して reject する。**DELETE と `SupabaseTodosService`（変換の反対側）は Issue のスコープ外なので触らず outbox で起票依頼**
+- **#1033 = PR #1081（narrow のハンバーガー）**: Schedule だけが `tabs` シェイプに乗っていて、その埋め合わせに **CalendarTab が 2 本目のハンバーガーを月見出しの行に自前で描いていた**。descriptor を `tabs+hamburger` に倒して自前の方を削除 — `NarrowHeaderRow`（#1035）が既に「ハンバーガー → タブ → アクション」の順で描くので**新しい描画コードはゼロ**。副作用として narrow の Todo タブでハンバーガーが空のドロワーを開くので、機構を足さずキューへ（D-20260818-sched-2）
+- **#1034 = PR #1082（FAB → 「+追加」）**: DoD の「同一の部品」を確かめたら **Materials の「+ノート」は部品ではなくインラインの `<button>` が 2 コピー**だった。`shared/src/components/AddPill.tsx` に切り出して 3 箇所とも差し替え。日付キャプションの行を `shrink-0` にしてアジェンダのスクローラの外へ出したので、予定がいくら伸びてもボタンは動かない。FAB 用の `pb-24` は 3 分岐すべてから削除。**`MobileFab` はホストがゼロになったが残した**（配置の理由が 3 件のバグから学んだ高価な部分・退役は P-002 の grep が要る別判断）
+- **#995 = PR #1085（sticky フッター）**: `BottomSheet` に footer スロットを足さず、**パネル 2 枚に opt-in の `stickyFooter` prop** を足す形にした。シートの子はパネル自身のカードなので固定したい行はもうその中にあり、シート側に足すと `ResponsiveDetailFrame` と `ItemDetailOverlay` の `actions` との整合が要る。**Desktop 不変は構造で担保**（既定 off + ホストが `!isWide` を渡す）。z-index はあえて付けない（TagPicker / TimeRangeField のポップオーバーが `z-20` で、上に積むと開いたドロップダウンを埋める）
+- **#1044 = PR #1088（ロール表示 → ヘッダーのグリフ）**: 実物は Issue の想定と 2 点ずれていた — 「Todo」は `TodoDetailPanel` ではなく **TagPicker がタグ行のキャプションに描いていた kind バッジ**で、**どちらのパネルもヘッダーを持っていない**（タイトルはフレーム側）。フレーム連鎖に `titleIcon` スロットを足し、`ItemRoleBadge` の compact に `role="img"` を付けた（素の `<span>` の `aria-label` は `generic` ロールで確実に露出しない = 言葉を消した面では退行になる）。**新規 i18n キーはゼロ**
+- **#998 = PR #1090（narrow の変換入口）**: Desktop の入口はバブルの中にあり `isWide` で描画が切られていたので、narrow には入口が存在しなかった。`EventEditorPane` に optional な `convert` バンドルを足して、**保存フッターの中ではなく削除の上**に置いた（フッターはパネル唯一のコミットで、#995 以降は固定ストリップ）。`requestEditorConvert` は閉じるときと同じガードを通すが**合意された破棄でも pending フラグをクリアしない**（変換はこの後に自分の質問を投げるので、拒否されると下書きが画面に残る）
+- **#997 = PR #1092（変換の Undo）**: 「逆変換 + スナップショットのパッチ」。逆変換だけでは**種類は正しいが形が違う行**に着地する（どちらの方向も自分を完全に指定した payload を UPSERT するので、触れていない列は NULL / false で返る）。`eventRestore` / `todoRestorePatch` を純関数として `shared/src/utils/itemConversion.ts` に置き、パッチのキー集合をリテラルでテストに固定した。Todo 側は **role を先に戻す**（`tasks_payload` はそれが着地するまで存在しない）ので呼び出し順序も assert
+- **#889 = PR #1094（作成パネルの抽出）**: 開く 4 本 + 確定する 5 本を `useScheduleCreateFlow.ts` へ。**1,636 → 1,479 行**。9 本のうち 3 本（`openCreatePanel` / `finishCreatePanel` / `scheduleTodoAt`）は外部呼び出しゼロなので private のまま。挙動保存は**機械で確認**した（rename を当てた HEAD 版と diff して、差分は依存配列 2 行だけ）。`useCreatePanelNotes` を残したのが「context-free = Provider 無しで `renderHook` に載る」を成立させていて、これが**この一連の処理が初めてテスト可能になった**理由
+- **#1000 = PR #1095（作らずに固定した）**: 求められている面は **#761 が #626 の上に既に載せていた**。作り直すと `todoDetailId` を奪い合い未保存ガードが二重化するので、代わりに継ぎ目 2 つを塞いだ — 日リストの合成 id と `itemTapRoute` の接頭辞判定が**一致している保証がどこにも無かった**こと、および `ScheduleTodoDetail` が narrow でシートであること（`wide` ハードコードへの退行は既存ケースを全部緑のまま通す）。production 行数ゼロ
+- **判断キュー 3 件 + outbox の起票依頼 2 件**を `chore/tracker-schedule-refine-20260818b` に分離（D-20260801-main-1 / D-20260802-sched-1）
+
 ### 2026-08-18 - Mobile narrow の 2 件: 追加パネルの溢れ（#1036）と月ビューのドット打ち切り（#1045）
 
 #### 概要
