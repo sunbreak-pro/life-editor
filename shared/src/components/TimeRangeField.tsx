@@ -283,9 +283,22 @@ export function TimeRangeField({
     return Math.min(Math.max(snapped, 0), 24 * 60 - stepMinutes);
   };
 
+  /*
+   * `min-w-0` is what lets the pair fit a phone (#1036). A flex item defaults
+   * to `min-width: auto`, which floors it at the CONTENT's min-content width —
+   * and an <input> reports the ~20-character box browsers give it by default,
+   * not the "HH:MM" it actually holds. Two of those plus the gap need ~370px,
+   * so at 375px the pair pushed out through the right edge of the sheet (the
+   * full-screen BottomSheet scrolls, so the overflow became a horizontal
+   * scrollbar rather than being clipped). `w-full` on the input cannot fix it:
+   * a percentage width is ignored while the parent computes its intrinsic
+   * minimum. Releasing the floor lets `flex-1` do what it already said.
+   */
+  const COMBO_COL = cn("flex min-w-0 flex-1 flex-col gap-1", FIELD_LABEL);
+
   return (
     <div className={cn("flex gap-2", className)}>
-      <label className={cn("flex flex-1 flex-col gap-1", FIELD_LABEL)}>
+      <label className={COMBO_COL}>
         {labels.start}
         <TimeCombo
           value={fmt(startMin)}
@@ -308,7 +321,7 @@ export function TimeRangeField({
           renderOption={fmt}
         />
       </label>
-      <label className={cn("flex flex-1 flex-col gap-1", FIELD_LABEL)}>
+      <label className={COMBO_COL}>
         {labels.end}
         <TimeCombo
           value={fmt(endMin)}

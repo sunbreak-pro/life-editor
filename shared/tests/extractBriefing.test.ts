@@ -32,34 +32,34 @@ describe("extractBriefing", () => {
     expect(extractBriefing(doc([h("Briefing"), p("")]))).toBeNull();
   });
 
-  it("extracts focus (first paragraph) + remaining paragraphs", () => {
+  it("extracts every paragraph as AI comment (#1048 — no focus split)", () => {
     const result = extractBriefing(
       doc([
         p("free intro text outside the section"),
         h("Briefing"),
-        p("広げず、深く。"),
         p("昨日の宣言3件のうち2件完了。"),
         p("今日はDDLを最初に。"),
       ]),
     );
     expect(result).toEqual({
-      focus: "広げず、深く。",
       paragraphs: ["昨日の宣言3件のうち2件完了。", "今日はDDLを最初に。"],
     });
   });
 
   it("accepts the 朝刊 marker and is case-insensitive", () => {
-    expect(extractBriefing(doc([h("朝刊"), p("focus")]))?.focus).toBe("focus");
-    expect(extractBriefing(doc([h("BRIEFING"), p("focus")]))?.focus).toBe(
-      "focus",
+    expect(extractBriefing(doc([h("朝刊"), p("comment")]))?.paragraphs).toEqual(
+      ["comment"],
     );
+    expect(
+      extractBriefing(doc([h("BRIEFING"), p("comment")]))?.paragraphs,
+    ).toEqual(["comment"]);
   });
 
   it("stops at the next heading", () => {
     const result = extractBriefing(
-      doc([h("Briefing"), p("focus"), h("Memo"), p("not part of briefing")]),
+      doc([h("Briefing"), p("comment"), h("Memo"), p("not part of briefing")]),
     );
-    expect(result).toEqual({ focus: "focus", paragraphs: [] });
+    expect(result).toEqual({ paragraphs: ["comment"] });
   });
 
   it("flattens marks/nested inline content to plain text", () => {
@@ -71,8 +71,8 @@ describe("extractBriefing", () => {
         { type: "text", text: "から。" },
       ],
     };
-    expect(extractBriefing(doc([h("Briefing"), rich]))?.focus).toBe(
+    expect(extractBriefing(doc([h("Briefing"), rich]))?.paragraphs).toEqual([
       "今日はDDLから。",
-    );
+    ]);
   });
 });

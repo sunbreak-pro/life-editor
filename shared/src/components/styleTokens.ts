@@ -54,3 +54,28 @@ export const FIELD_LABEL = "text-xs text-lumen-text-secondary";
  */
 export const TAP_TARGET =
   "inline-flex items-center justify-center min-h-lumen-tap-min min-w-lumen-tap-min";
+
+/**
+ * Invisible hit-area extension up to the 44px mobile floor (#1039).
+ *
+ * TAP_TARGET floors the control's own BOX, which is the right answer wherever
+ * the box is free to grow. In a dense row it is the wrong one: the mobile tab
+ * band was shrunk precisely so it would stop eating the page, and flooring the
+ * painted box back to 44px would undo the change it was asked for. This leaves
+ * the box alone and hangs a transparent `::after` over it instead, centred
+ * vertically at the full 44px — so the band reads smaller and taps larger.
+ *
+ * `inset-x-0` holds the extension to the control's OWN width, so a row of
+ * segments never reaches over its neighbours; it only claims the empty space
+ * directly above and below the row. That is what makes it safe in the tab band
+ * (the header's own padding above and the page gutter below are each wider
+ * than the ~6px it overhangs) and unsafe on a control that sits flush against
+ * something tappable — check the surroundings before reusing it.
+ *
+ * BottomSheet's close button solves the same problem the other way (a 44px box
+ * pulled back with negative margins). Use that when the control is alone in
+ * its row; use this when several sit side by side and their heights are what
+ * set the row's height.
+ */
+export const TAP_TARGET_TALL =
+  "relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']";

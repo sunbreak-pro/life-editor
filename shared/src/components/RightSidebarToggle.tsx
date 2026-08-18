@@ -1,5 +1,6 @@
 import { Menu, PanelRight } from "lucide-react";
 import { cn } from "./cn";
+import { TAP_TARGET_TALL } from "./styleTokens";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
 
 /*
@@ -9,7 +10,11 @@ import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
  *                        (PanelRight, 28×28). Open = accent text + accent-subtle
  *                        fill; closed = neutral with a hover surface.
  *  variant "hamburger" — Mobile: sits at the left end of the segment row
- *                        (Menu, 36×36, bordered) and opens the left drawer.
+ *                        (Menu, 32×32, bordered) and opens the left drawer.
+ *                        It shares the row's height with the segmented
+ *                        control, so it came down from 36 with it (#1039) and
+ *                        carries the same invisible 44px hit area — the row
+ *                        is what got shorter, not the target.
  *
  * aria-expanded reflects isOpen, and the aria-label flips with it (open ↔
  * close action) so the announced action always matches what a click will do.
@@ -43,7 +48,8 @@ export function RightSidebarToggle({
         aria-label={label}
         aria-expanded={isOpen}
         className={cn(
-          "grid h-9 w-9 flex-shrink-0 place-items-center rounded-lumen-md",
+          "grid h-8 w-8 flex-shrink-0 place-items-center rounded-lumen-md",
+          TAP_TARGET_TALL,
           "border border-lumen-border bg-lumen-bg text-lumen-text-secondary",
           "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",

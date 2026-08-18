@@ -24,7 +24,7 @@ import { useToastOptional, useTranslation } from "@life-editor/shared";
  */
 
 /** A write surface on the paper. Add a member, add its copy, done. */
-export type BriefingWriteTarget = "intention" | "evening" | "goals";
+export type BriefingWriteTarget = "intention" | "evening" | "goals" | "focus";
 
 export type ReportSaveFailure = (
   target: BriefingWriteTarget,

@@ -80,9 +80,15 @@ export function NoteDetailSurface({
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
       tagsSlot={
-        // itemRole (#412): the note detail adopts the same kind badge the todo
-        // detail uses, so the two tag rows stay one design.
-        <TagPicker itemId={note.id} itemRole="note" showLabel size="sm" />
+        // No leading caption (#1042). The row used to open with the shared
+        // kind badge (itemRole="note", #412), which spelled out "Note" one line
+        // under a note's own title on the only surface that can't be showing
+        // anything else — and it sat immediately left of the "+ Tag" button, so
+        // the header read "Note / Tag" as if the two were a pair. The pills and
+        // the "+ Tag" affordance already say what the row is. The badge stays
+        // where it still earns its place: the todo detail and the tag editor's
+        // item list, where the row IS about which kind of thing is tagged.
+        <TagPicker itemId={note.id} size="sm" />
       }
       linksSlot={linksSlot}
       contentLabel={labels.content}

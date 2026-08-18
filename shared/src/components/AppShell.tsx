@@ -226,10 +226,16 @@ export function AppShell({
   // would stack two paddings for one strip.
   //
   // box-sizing is border-box (Tailwind preflight), so these paddings come out
-  // of the 100svh box rather than adding to it: <main> shrinks, the shell
+  // of the shell's box rather than adding to it: <main> shrinks, the shell
   // still ends exactly at the bottom of the screen.
+  //
+  // That height is --app-shell-height (shared/src/styles/tokens.css), not a
+  // literal `100svh`: in the iOS home-screen app the small viewport comes out
+  // one status bar short of the screen, and the token adds that strip back
+  // (#1037). The host's `body { min-height }` reads the same token, which is
+  // the pairing #631 relies on.
   return (
-    <div className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
+    <div className="flex h-[var(--app-shell-height)] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       {/*
        * The bar stands down while typing (#608) by going INVISIBLE, not by

@@ -14,7 +14,8 @@ import {
 /*
  * MonthGrid (W8 target-IA) — pure, presentational month calendar. Desktop
  * renders a 7-column grid of cells (day-number badge + up to 2 provenance
- * chips + "他 N 件"); Mobile (`compact`) renders a day badge + a dot row.
+ * chips + "他 N 件"); Mobile (`compact`) renders a day badge + a dot row, capped
+ * at 3 dots and followed by the same "他 N 件" remainder (#1045).
  *
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. Weekday labels + the "他 N 件" formatter arrive already
@@ -70,11 +71,14 @@ export interface MonthGridProps {
    * untouched. Desktop-only (#223).
    */
   onItemContextMenu?: (id: string, pos: { x: number; y: number }) => void;
-  /** Already-translated "他 N 件" formatter (§6.4). */
+  /**
+   * Already-translated "他 N 件" formatter (§6.4). Both densities call it —
+   * the count differs (chips cut at 2, dots at 3) but the phrase must not.
+   */
   formatMoreCount: (n: number) => string;
   /** Accessible name for a day cell. Default = the raw date key. */
   formatDayLabel?: (dateKey: string) => string;
-  /** Mobile density: day badge + dot row instead of chips. */
+  /** Mobile density: up to 3 dots + the remainder, instead of chips. */
   compact?: boolean;
   /** Already-translated accessible name for the grid (§6.4). */
   ariaLabel?: string;
@@ -170,7 +174,13 @@ export function MonthGrid({
           const isToday = !!todayKey && dateKey === todayKey;
           const isSelected = !!selectedKey && dateKey === selectedKey;
           const dayItems = byDay.get(dateKey) ?? [];
-          const overflow = Math.max(0, dayItems.length - maxChips);
+          // Each density hides a different number of items, so each counts its
+          // own remainder (#1045). One shared `overflow` would have printed the
+          // chip figure under a dot row that cut at a different place.
+          const overflow = Math.max(
+            0,
+            dayItems.length - (compact ? maxDots : maxChips),
+          );
           return (
             <div
               key={dateKey}
@@ -218,17 +228,39 @@ export function MonthGrid({
                 </span>
 
                 {compact ? (
-                  <div className="flex gap-0.5">
-                    {dayItems.slice(0, maxDots).map((it) => (
-                      <span
-                        key={it.id}
-                        className={cn(
-                          "size-1.5 rounded-full",
-                          dotColorClasses(it.variant ?? "event"),
-                        )}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex gap-0.5">
+                      {dayItems.slice(0, maxDots).map((it) => (
+                        <span
+                          key={it.id}
+                          className={cn(
+                            "size-1.5 rounded-full",
+                            dotColorClasses(it.variant ?? "event"),
+                          )}
+                        />
+                      ))}
+                    </div>
+                    {/*
+                     * The remainder, spelled out (#1045). The dot row cuts at
+                     * three and used to just stop, so a day with eight items
+                     * looked exactly like a day with three — and the dots are a
+                     * DENSITY cue, which is the one thing that reading makes
+                     * wrong. The day underneath is still where "what are they"
+                     * gets answered; this only says how many are missing.
+                     *
+                     * Same `formatMoreCount` the Desktop overflow line uses, so
+                     * the two densities agree on the wording ("+N more" / "他 N
+                     * 件") rather than inventing a second phrase for the same
+                     * fact. `nowrap` keeps it on one line: a cell is ~1/7th of a
+                     * phone, and wrapping it would push the row taller than the
+                     * others and break the grid's even rows.
+                     */}
+                    {overflow > 0 && (
+                      <span className="whitespace-nowrap text-[0.625rem] leading-none text-lumen-text-tertiary tabular-nums">
+                        {formatMoreCount(overflow)}
+                      </span>
+                    )}
+                  </>
                 ) : (
                   <>
                     {dayItems.slice(0, maxChips).map((it) => (

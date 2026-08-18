@@ -3,6 +3,12 @@
 このチャットだけが書き込み可能。他チャットは読み取り専用。
 最新エントリを上に追記する（降順）。
 
+## 2026-08-18 → @chat-main（#1048 の follow-up Issue 起票依頼: write_briefing の focus 引数）
+
+#1048 でフォーカス行の読み取りを Daily の朝刊セクションから外し、専用ノート `note-focus`（日付キー付きセクション・#872 の目標ノート方式）へ移しました。shared の `extractBriefing` は朝刊セクションの**全段落を AI コメント**として読む形になっています。
+
+これに伴い **MCP `write_briefing` の `focus` 引数が宙に浮いています**: ツールは今も focus を先頭段落として Daily に書きますが、朝刊はそれをフォーカス行としては読まず、AI コメントの 1 段落目として表示します（Issue #1048 の Scope が shared + web だったため、mcp-server 側の API は温存しました。round-trip テストだけ新契約に追随済み）。follow-up として「write_briefing から focus 引数を外す（または note-focus へ書くよう変える）」の Issue 起票をお願いします。宛先は section:briefing が妥当です。
+
 ---
 
 ## 2026-08-16 → @chat-main（#892 完了・CLAUDE.md §7.1 の記載漏れ 1 件）

@@ -11,6 +11,7 @@ import {
   RightSidebarToggle,
   CommandSearchField,
   useMediaQuery,
+  useFirstAppearance,
   isMac,
   CommandPalette,
   useTranslation,
@@ -121,6 +122,23 @@ export function MainScreen({ session }: { session: Session }) {
   // decided (#676 (b)). Width, tab band, narrow row and body all read off it.
   const descriptor = SECTION_DESCRIPTORS[section];
 
+  /*
+   * Entrance animation for a section arriving for the FIRST time (#1049).
+   *
+   * Per section, not per switch: the second visit to a section is a return to
+   * something you have already seen, and re-playing the rise there is the
+   * "切替ごとに再生されて煩わしい" the Issue rules out. So briefing → schedule
+   * → briefing animates schedule alone.
+   *
+   * The three code-split bodies (Notes / Analytics / Connect) carry a caveat:
+   * their Suspense boundary lives INSIDE the descriptor body, so on a cold
+   * chunk this animates the box while the fallback is still in it. On a warm
+   * cache — which the chunk usually is, landing "within a frame or two" — the
+   * content is what rises. Moving the animation past the boundary would mean
+   * pushing it into all seven descriptor rows for the three that need it.
+   */
+  const sectionEntering = useFirstAppearance(section);
+
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
   // hamburger at the left of the segment row that opens the left drawer. The
@@ -230,6 +248,10 @@ export function MainScreen({ session }: { session: Session }) {
   // between them or they drift together.
   const narrowTabs = band ? (
     <SegmentedControl
+      // The section tab band is the one segmented control whose height every
+      // narrow screen pays for, so it runs a step tighter than the in-panel
+      // ones (#1039). The 44px touch target rides along inside "sm".
+      size="sm"
       className="flex-1"
       options={band.defs}
       value={band.active}
@@ -351,6 +373,9 @@ export function MainScreen({ session }: { session: Session }) {
          * asked for.
          */}
         <PageContainer
+          // The whole section box rises in, chrome included (#1049) — a tab
+          // band holding still above moving content reads as two surfaces.
+          className={sectionEntering ? "lumen-section-in" : undefined}
           width={
             !isWide && descriptor.narrowWidth
               ? descriptor.narrowWidth

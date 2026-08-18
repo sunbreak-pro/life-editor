@@ -559,7 +559,11 @@ export function ItemCreatePanel({
           from. Clearing it back to blank restores the day the panel opened
           on, since a create with no date is not a thing the user can mean. */}
       <div className="flex items-end gap-2">
-        <label className="flex flex-1 flex-col gap-1.5">
+        {/* `min-w-0` matches EventEditorPane's row (#1036) — without it the
+            date input's intrinsic width floors the flex item and the row
+            resolves by overflowing to the right, taking the all-day switch
+            with it. */}
+        <label className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
             type="date"
