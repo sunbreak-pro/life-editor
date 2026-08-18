@@ -1042,6 +1042,57 @@ export function CalendarTab({
     [askConfirm, t],
   );
 
+  // #625 Event <-> Todo conversion. The whole path — the two blocking
+  // checks, the five sentences the dialogs pick between, the per-id in-flight
+  // guard and the two store re-reads — lives in useItemConversion (#889).
+  // #998 hoisted it above `editorPane`, which now references
+  // handleConvertToTodo; it used to sit 150 lines further down.
+  const { handleConvertToTodo, handleConvertToEvent } = useItemConversion({
+    dataService,
+    rangeItems,
+    contextItems,
+    todoNodes,
+    listDate,
+    reload,
+    refetchTodos,
+    showToast,
+    askConfirm,
+    closePopover: () => setPopover(null),
+    closeTodoDetail: () => setTodoDetailId(null),
+    // #998: the row is about to stop being an event, so the surface that edits
+    // events cannot stay open on it. Both, because "closed" differs by layout —
+    // the overlay flag on Desktop, the selection on narrow (see detailFrameEl).
+    closeEditor: () => {
+      setOverlayOpen(false);
+      setSelectedId(null);
+    },
+  });
+
+  /*
+   * #998: the narrow sheet's convert entry runs the same unsaved-draft guard as
+   * the close — with one difference that matters. The pending flag is NOT
+   * cleared on an agreed discard: the conversion asks its OWN question next
+   * (the routine refusal, or the confirm), and a refusal there leaves the draft
+   * on screen. With the flag already wiped, the next exit would throw it away
+   * without asking. Same reasoning as ScheduleTodoDetail's requestClose (#736).
+   */
+  const requestEditorConvert = useCallback(
+    async (id: string) => {
+      const decision = await decideUnsavedClose({
+        dirty: editorDirtyRef.current,
+        askDiscard: () =>
+          askConfirm({
+            message: t("common.unsavedCloseConfirm"),
+            confirmLabel: t("common.discard"),
+            cancelLabel: t("common.cancel"),
+            danger: true,
+          }),
+      });
+      if (decision.close) handleConvertToTodo(id);
+    },
+    [askConfirm, t, handleConvertToTodo],
+  );
+
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
     statusLabels,
@@ -1098,6 +1149,20 @@ export function CalendarTab({
         onChange: handleChangeRepeat,
         onDetach: handleDetachRepeat,
       }}
+      // #998: narrow only. Desktop already reaches the conversion from the
+      // single-click bubble (#625) — ScheduleOverlays draws that when isWide —
+      // and a second entry inside the overlay would be a Desktop-visible change
+      // this Issue does not ask for.
+      convert={
+        isWide
+          ? undefined
+          : {
+              label: t("itemConvert.toTodo"),
+              onConvert: (id) => {
+                void requestEditorConvert(id);
+              },
+            }
+      }
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is
@@ -1214,23 +1279,6 @@ export function CalendarTab({
       />
     </RightSidebarPortal>
   );
-
-  // #625 Event <-> Todo conversion. The whole path — the two blocking
-  // checks, the five sentences the dialogs pick between, the per-id in-flight
-  // guard and the two store re-reads — lives in useItemConversion (#889).
-  const { handleConvertToTodo, handleConvertToEvent } = useItemConversion({
-    dataService,
-    rangeItems,
-    contextItems,
-    todoNodes,
-    listDate,
-    reload,
-    refetchTodos,
-    showToast,
-    askConfirm,
-    closePopover: () => setPopover(null),
-    closeTodoDetail: () => setTodoDetailId(null),
-  });
 
   /*
    * #564: the chip behind an open bubble, when the bubble belongs to a TODO

@@ -19,7 +19,12 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
-import { FIELD, FIELD_LABEL, FOCUS_RING_ON_ACCENT } from "../styleTokens";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING_ON_ACCENT,
+  FOCUS_RING_TIGHT,
+} from "../styleTokens";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
@@ -241,12 +246,33 @@ export interface EventEditorRepeat {
   onDetach?: () => void;
 }
 
+/**
+ * Event → Todo conversion entry (#625 / #998). Supplying this object renders
+ * the action; omitting it renders nothing. One bundle rather than an optional
+ * label plus an optional handler, for the #893 reason: wiring half of a split
+ * pair renders nothing at all and says nothing about it.
+ */
+export interface EventEditorConvert {
+  /** Already-translated — 「Todo に変換」 (`itemConvert.toTodo`). */
+  label: string;
+  /**
+   * Hand the id to the host, which owns BOTH questions this press can raise:
+   * the unsaved-draft discard (the conversion unmounts this pane, so the draft
+   * dies with it) and the routine refusal (D-20260810-sched-5). That is also
+   * why the button is never disabled on a routine occurrence — the action stays
+   * enabled and ANSWERS with the reason.
+   */
+  onConvert: (id: string) => void;
+}
+
 export interface EventEditorPaneProps {
   item: EventEditorItem;
   labels: EventEditorLabels;
   handlers: EventEditorHandlers;
   options?: EventEditorOptions;
   repeat?: EventEditorRepeat;
+  /** Event → Todo entry (#998). Omit to render no conversion action. */
+  convert?: EventEditorConvert;
   /**
    * Tag affordance for this row (#468). Injected rather than built here: the
    * tag layer talks to WikiTagsUnifiedContext, and this pane is pure
@@ -385,6 +411,16 @@ const SAVE_BTN = cn(
   "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
 );
 
+/**
+ * Secondary full-width action inside the pane (skip-this-day, convert).
+ * Outline rather than accent: neither is the pane's primary act — the save
+ * button is (#628).
+ */
+const SECONDARY_BTN = cn(
+  "rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover",
+  FOCUS_RING_TIGHT,
+);
+
 /** Inner fields, keyed by item.id from the pane so a selection change drops
  *  the pending edits cleanly. (The all-day flip used to be part of that key;
  *  since #628 it is a draft field of its own, and remounting on it would throw
@@ -395,6 +431,7 @@ function EventEditorFields({
   handlers,
   options,
   repeat,
+  convert,
   tagSlot,
   stickyFooter,
 }: Omit<EventEditorPaneProps, "className">) {
@@ -664,7 +701,7 @@ function EventEditorFields({
             <button
               type="button"
               onClick={() => onDismiss(item.id)}
-              className="rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              className={SECONDARY_BTN}
             >
               {labels.skipThisDay}
             </button>
@@ -695,6 +732,27 @@ function EventEditorFields({
           className={cn(FIELD, "min-h-[72px] resize-y")}
         />
       </label>
+
+      {/* #998: Event → Todo. Narrow's ONLY entry — the Desktop single-click
+          bubble (#625) is not drawn on this layout (ScheduleOverlays gates it
+          on isWide), so without this the sheet is a dead end for "this turned
+          out to be a task".
+
+          Above the delete rather than inside the save footer: that footer is
+          the pane's one commit (#628) and is a pinned strip on narrow (#995),
+          and an action that tears the pane down has no business riding it.
+
+          Never disabled on a routine occurrence — the host answers with the
+          reason instead (D-20260810-sched-5). */}
+      {convert && (
+        <button
+          type="button"
+          onClick={() => convert.onConvert(item.id)}
+          className={SECONDARY_BTN}
+        >
+          {convert.label}
+        </button>
+      )}
 
       {/* Delete. Manual: plain single-item delete. Routine (#279): the host
           opens the this/future/all scope dialog instead of deleting directly
