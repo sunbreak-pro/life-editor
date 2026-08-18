@@ -169,6 +169,46 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    /*
+     * Browser-UI tint follows the APP theme, not the OS (#1007). index.html
+     * authors the two `theme-color` metas with `prefers-color-scheme` so the
+     * pre-hydration paint is sensible, but themeMode defaults to "light" and
+     * can disagree with the OS — an OS-dark phone on the default theme got a
+     * dark Chrome/Android toolbar above a light 朝刊 page. Flip which meta
+     * APPLIES rather than writing a colour here: the two literals stay in
+     * index.html (the sanctioned hardcode, plans/2026-08-07-web-mobile-public-
+     * url.md §1) and no third copy lands in TS. A meta with no `media` always
+     * applies; "not all" never does, and the UA re-reads the metas on
+     * mutation. Both branches must run on EVERY pass — the light meta comes
+     * first in document order and the UA takes the first applying one, so
+     * setting only the winner would leave a stale winner ahead of it. Same
+     * principle as the `color-scheme` flip in tokens.css (#827): UA chrome
+     * tracks data-theme, not the OS. A host without the metas (jsdom, which
+     * never loads index.html) matches nothing and no-ops. The Electron
+     * renderer DOES have them — its root is ../web and it is fed this very
+     * index.html — but BrowserWindow draws its own chrome, so the flip runs
+     * there harmlessly.
+     *
+     * Go through setAttribute, not the `media` IDL property: jsdom does not
+     * reflect HTMLMetaElement.media, so `meta.media = …` would silently write
+     * an expando and leave the real attribute untouched — the fix would look
+     * applied in tests while doing nothing (caught by the case below).
+     *
+     * The manifest is deliberately NOT touched: it cannot express a media
+     * query, this meta overrides its `theme_color` for the toolbar anyway, and
+     * `background_color` (the splash ground) is baked in when the PWA is
+     * installed — no runtime code can repaint it, so one theme's splash stays
+     * mismatched by physics. It keeps the light pair, matching the default.
+     */
+    document
+      .querySelectorAll<HTMLMetaElement>("meta[data-theme-color]")
+      .forEach((meta) => {
+        if (meta.dataset.themeColor === theme) {
+          meta.removeAttribute("media");
+        } else {
+          meta.setAttribute("media", "not all");
+        }
+      });
     // Persist the RESOLVED value under the legacy key too so any early
     // pre-hydration reader (and back-compat consumers) sees the applied theme.
     try {

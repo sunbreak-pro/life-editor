@@ -64,14 +64,31 @@
       because <meta> cannot read CSS custom properties; these two literals and
       the manifest's colors are the only sanctioned exceptions to the
       "no hardcoded colors" rule (CLAUDE.md §6).
+
+      The `prefers-color-scheme` queries below only decide the FIRST paint.
+      The app theme is a user setting (light|dark|system, default light — it is
+      NOT the OS scheme; shared/src/context/ThemeContext.tsx), so once
+      ThemeProvider mounts it rewrites the `media` attributes to match the
+      resolved `data-theme`, selecting the metas by `data-theme-color` (#1007).
+      Do NOT drop that attribute: the updater no-ops silently without it and the
+      toolbar falls back to the OS scheme with nothing else failing (guard =
+      web/tests/themeColorMeta.test.ts).
+
+      The manifest deliberately keeps the LIGHT pair. A manifest cannot express
+      a media query, `<meta name="theme-color">` overrides its `theme_color` for
+      the toolbar anyway, and `background_color` is baked into the splash screen
+      at INSTALL time — no runtime theme can repaint it. Light matches the app's
+      default theme, so it is the right single value.
     -->
     <meta
       name="theme-color"
+      data-theme-color="light"
       media="(prefers-color-scheme: light)"
       content="#fbf4e8"
     />
     <meta
       name="theme-color"
+      data-theme-color="dark"
       media="(prefers-color-scheme: dark)"
       content="#101a2c"
     />
