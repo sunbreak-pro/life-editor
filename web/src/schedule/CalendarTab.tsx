@@ -1064,6 +1064,9 @@ export function CalendarTab({
   const editorPane = editorItem ? (
     <EventEditorPane
       item={editorItem}
+      // #995: narrow only — Desktop's <Modal> has no scroller for `sticky` to
+      // resolve against.
+      stickyFooter={!isWide}
       labels={editorLabels}
       // #628: one commit per press, carrying everything that changed. It goes
       // to handleUpdate whole — that is what keeps a routine occurrence's

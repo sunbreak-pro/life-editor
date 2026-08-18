@@ -88,6 +88,29 @@ function renderDetail(
   };
 }
 
+describe("ScheduleTodoDetail — the save footer (#995)", () => {
+  /*
+   * The pane is shared, and the sticky recipe lives there
+   * (shared/tests/detailSaveFooterSticky.test.tsx). What only this file can
+   * check is that the WIRING points the right way: a `stickyFooter={isWide}`
+   * typo would compile, pass every shared case, and pin the footer on exactly
+   * the surface the Issue says must not change.
+   */
+  const footerOf = () =>
+    screen.getByRole("button", { name: "todoDetail.save" })
+      .parentElement as HTMLElement;
+
+  it("pins the footer on Mobile, where the sheet scrolls", () => {
+    renderDetail({ isWide: false });
+    expect(footerOf().className).toContain("sticky");
+  });
+
+  it("leaves the Desktop overlay's footer in the flow", () => {
+    renderDetail({ isWide: true });
+    expect(footerOf().className).not.toContain("sticky");
+  });
+});
+
 /** Types into the title, which is what makes the panel report itself dirty. */
 function makeDirty() {
   const input = screen.getByLabelText("todoDetail.titleLabel");
