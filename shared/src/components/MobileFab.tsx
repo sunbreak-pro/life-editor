@@ -30,19 +30,27 @@ import { FOCUS_RING_ON_ACCENT } from "./styleTokens";
  *   - an auto-height anchor pins the button to the END OF THE CONTENT rather
  *     than to the visible box, so it scrolls away with the document.
  *
- * Both current hosts satisfy both halves through PageContainer `width="fluid"`,
- * a padding-free box with a definite height. Schedule always renders that way;
- * Materials does so on the NARROW layout only (`narrowWidth` in
- * web/src/sectionDescriptors.tsx), which is what #875 fixed — until then it
- * rendered through `width="wide"`, a page scroller wrapping an auto-height
- * `px-lumen-gutter` block, so NotesView's `h-full` root computed to auto and the
- * FAB parked at the end of the note list, 40px inside the edge where
- * Schedule's sat at 24px.
+ * NO HOST TODAY. Notes' FAB went with #876, Schedule's with #1034 (both moved
+ * to the `AddPill` in a list header, which is reachable without covering the
+ * last row). The component and its test are kept rather than retired: the
+ * placement reasoning above is the expensive part, it was learned from three
+ * separate bugs, and a future narrow surface that genuinely wants a floating
+ * "+" should start from it instead of rediscovering `fixed` the hard way.
+ * Retiring it is a separate call (P-002 wants the grep in the PR body).
+ *
+ * Historically both hosts satisfied both halves of the contract through
+ * PageContainer `width="fluid"`, a padding-free box with a definite height.
+ * Schedule always renders that way; Materials does so on the NARROW layout
+ * only (`narrowWidth` in web/src/sectionDescriptors.tsx), which is what #875
+ * fixed — until then it rendered through `width="wide"`, a page scroller
+ * wrapping an auto-height `px-lumen-gutter` block, so NotesView's `h-full` root
+ * computed to auto and the FAB parked at the end of the note list, 40px inside
+ * the edge where Schedule's sat at 24px.
  *
  * Clearance: the button occupies OFFSET + SIZE = 24 + 56 = 80px of the bottom
  * strip, so the list under it needs at least that much bottom padding or the
  * last row's right end sits beneath it and a "open this row" tap misses (#509).
- * Both current hosts use `pb-24` (96px) — keep new hosts on that number.
+ * Both former hosts used `pb-24` (96px) — keep new hosts on that number.
  */
 const FAB_PLACEMENT = "absolute bottom-6 right-6 z-30";
 

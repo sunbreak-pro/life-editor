@@ -499,6 +499,7 @@
     "prev": "Previous",
     "next": "Next",
     "addEvent": "Add event",
+    "addCta": "Add",
     "addEventAndOpen": "Add and edit",
     "addItem": "Add item",
     "itemTypeLabel": "Item type",
