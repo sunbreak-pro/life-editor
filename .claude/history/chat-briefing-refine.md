@@ -11,6 +11,7 @@
 - **#1048（PR #1062）**: shared `focusSections.ts` 新規（merge/extract・履歴保持）・`extractBriefing` は全段落を AI コメント化・`EveningView` に「明日のフォーカス」欄・web `useFocusNote.ts` 新規（draft/echo/失敗 Toast）・i18n で `noBriefing` → `noFocus`。mcp `write_briefing` は温存（follow-up 起票依頼を outbox へ・文言判断は D-20260818-briefing-1 としてキューへ）
 - **#1046（PR #1068）**: shared `stripEveningSection` / `eveningBodyLines` / `DailyEveningCard.tsx` 新規・web `DailyView` が夕刊抜き本文をマウントし保存時に `mergeEveningSection` で付け直す（本文編集が夕刊を落とせない）・`useDayScheduleSummary.ts` 新規（schedule ドメイン追従）
 - **テスト**: shared +22 本（focusSections 11 / strip・lines 6 / DailyEveningCard 5）・web +7 本（briefingFocus 4 / dailyView 3）・mcp round-trip を新契約に追随
+- **CI 赤の追修正（#1068・2026-08-18）**: ブランチ切断後に main へ入った `dailyScreenActions.test.tsx`（実 Provider 駆動）の DataService スタブに、夕刊カテゴリの読み取り `fetchScheduleItemsByDate` が無く 9 本が TypeError で全滅 — ローカル全緑でも CI は main と合流した merge ref で回るため。origin/main を取り込みスタブへ 1 行追加（9a7abbc6）→ 全ゲート再実測（shared 2411 / web 630）→ CI 緑
 
 ### 2026-08-16 - 紙面の保存失敗を Toast で拾い、#938 のコンフリクトを解消（#955・PR #980 open）
 

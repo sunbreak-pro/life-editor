@@ -12,7 +12,7 @@
 
 ## 予定
 
-- PR #1062（#1048）/ #1068（#1046）の CI とレビュー結果を確認する。両方 merge する場合、後の方で `shared/src/components/briefing/index.ts` と i18n に追加行のみの小競合が出うる（どちらも origin/main 起点の独立ブランチ）
+- PR #1062（#1048）/ #1068（#1046）は **CI 両方緑**（#1068 は初回赤 → main 由来の新スイート `dailyScreenActions` のスタブに `fetchScheduleItemsByDate` を追加して解消・origin/main 取り込み済み 2026-08-18）。merge はこうだいさんの手番。#1062 側は #1048 が origin/main 起点のままなので、#1068 が先に merge されたら取り込みが要るかもしれない
 - 未決: **D-20260818-briefing-1**（夕刊のフォーカス入力欄の見出し = 「明日のフォーカス」。放置時 A = 実装のまま）
 - outbox → chat-main: write_briefing の focus 引数の follow-up Issue 起票依頼（#1048 で朝刊がフォーカス行として読まなくなったため）
 - **#971 だけが未 merge**（#969 / #973 は merged）。#939 の着地でコンフリクトしたので origin/main を取り込んで解消し、全ゲート再実測済み（shared 2305 / web 481）。CI 待ち
