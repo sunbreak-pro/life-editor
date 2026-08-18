@@ -16,7 +16,6 @@ import {
   ScheduleToolbar,
   EventEditorPane,
   RightSidebarPortal,
-  RightSidebarToggle,
   CalendarLensRow,
   ResponsiveDetailFrame,
   useConfirmDialog,
@@ -1501,17 +1500,18 @@ export function CalendarTab({
        */}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
+          {/* #1033: no hamburger here any more — the shell draws the one
+              hamburger at the left edge of the tab band, where every other
+              narrow section has always had it. */}
           <div className="flex shrink-0 items-center gap-2">
-            <RightSidebarToggle
-              variant="hamburger"
-              openLabel={t("scheduleScreen.openMenu")}
-              closeLabel={t("scheduleScreen.closeMenu")}
-            />
             {/* #878: the month the grid below is showing. It is a heading
                 again, not a control — #692's chevron opened the month on a
                 sheet, and with the month AS the main view there is nothing
                 left for a tap to reveal. */}
-            <h2 className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-lumen-text">
+            {/* px-1 went with the hamburger (#1033): the heading is the
+                row's first item now, so it lines up with px-lumen-gutter and
+                the month grid below it. */}
+            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
               {periodLabel}
             </h2>
             <div className="flex gap-1">
