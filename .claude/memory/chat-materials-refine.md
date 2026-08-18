@@ -23,7 +23,8 @@
 
 ## 申し送り
 
-- 🛑 **0024 が未適用のまま #1075 が merge されている**（2026-08-18 `supabase migration list` で実測 — local に 0024、remote は空）。`supabase/migrations/0024_notes_template_type.sql` = `note_type` CHECK に `'template'` を追加するもので、**未適用の今はテンプレート作成が CHECK 違反で落ちる状態**。`cd C:/Users/user/orca/life-editor/supabase && npm run db:push`（RLS ゲートは実 DB に対し PASS 実測済み・push 自体はこうだいさんの手番）で解消する。push が通っていたはずの想定は誤りだったので、次セッションはここを最初に確認する
+- ✅ **0024 適用完了**（2026-08-18 こうだいさんが `npm run db:push` 実行 — RLS ゲート PASS → `Applying migration 0024_notes_template_type.sql`）。実測で `notes_payload_note_type_check` = `CHECK (note_type = ANY (ARRAY['folder','note','template']))` を確認済みで、#1075 のテンプレート機能は DB 側も揃った。**未適用の migration は現在ゼロ**（local / remote とも 0024 まで一致）
+- **Windows では `npm run db:push` を PowerShell / cmd から叩けない**（2026-08-18）。npm scripts が `bash ./scripts/*.sh` を呼ぶが、保存済み PATH の Git 関連は `C:\Program Files\Git\cmd` だけで `bash.exe`（実体 = `C:\Program Files\Git\bin`）が見えず `'bash' is not recognized` になる。**Git Bash か Claude Code の `!` プレフィックスから叩く**（`!cd /c/Users/user/orca/life-editor/supabase && npm run db:push`）。恒久対策として `C:\Program Files\Git\bin` を User PATH へ追加する案を提示済み（`usr\bin` は `find.exe` / `sort.exe` が Windows 標準と衝突するので入れない）
 - **`supabase/` は各 clone で `npm install` が要る**（2026-08-18）。未実施だと `npx` が CLI を毎回取得しに行き、そのプロンプトが RLS ゲートの CSV パースを壊す（PR #1083 で頑健化したが、install しておく方が速い）。orca の main clone と materials-refine worktree では実施済み
 - **#1040 は解釈を 1 つ置いた**: Issue の「日時の**設定** UI」を Scope + DoD に合わせて Todo 詳細の**読み取り専用の日時行**と読んだ。Todo に日時を実際に書くフォームは `shared/src/components/schedule/ItemCreatePanel.tsx`（schedule レーンの持ち物・#940 で日付と終日スイッチが入ったばかり）だけなので、そちらも畳むなら別 Issue が要る
 - `web/tests/briefingNarrowTray.test.tsx` が全 61 suite 同時実行で 1 回だけ落ちた（単独・再実行は緑）。既存のフレーク疑い
