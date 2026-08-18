@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
-import { useDialogA11y } from "../hooks/useDialogA11y";
+import { useDialogA11y, hasOpenDialogLayer } from "../hooks/useDialogA11y";
 import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
+import { useEdgeSwipeOpen } from "../hooks/useEdgeSwipeOpen";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
 import { RightSidebarContents } from "./RightSidebarContents";
 
@@ -18,8 +19,15 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * takes the Escape instead of the drawer's own document listener racing it
  * (#517). Scroll is not locked, matching BottomSheet.
  *
+ * It also SLIDES rather than appearing (#1050): the panel comes in from the
+ * left edge while the scrim fades up behind it, so the drawer reads as having
+ * arrived from somewhere. Both are CSS animations with no fill-mode on
+ * purpose — a `forwards` fill would keep its final transform applied and
+ * override the inline one the drag below writes.
+ *
  * Swiping the panel toward its own edge closes it (#792) — the drawer enters
- * from the left, so it leaves to the left. The gesture sits on the whole panel
+ * from the left, so it leaves to the left. Dragging in from the left screen
+ * edge is the matching entrance (#1050, useEdgeSwipeOpen). The gesture sits on the whole panel
  * rather than a grab strip (unlike BottomSheet): the exit axis is horizontal
  * and the contents scroll vertically, so the two never compete. `touch-pan-y`
  * says exactly that to the browser — keep owning vertical scroll, hand us the
@@ -48,7 +56,7 @@ export function MobileDrawer({
   // #753: Escape, the scrim and the close button are all the user asking, so
   // all three take the guarded route — the drawer holds the same portalled
   // panel the Desktop sidebar does, and closing it unmounts the draft inside.
-  const { isOpen, requestClose, contentCount, setPortalTarget } =
+  const { isOpen, open, requestClose, contentCount, setPortalTarget } =
     useRightSidebarContext();
   const panelRef = useDialogA11y<HTMLDivElement>({
     open: isOpen,
@@ -60,12 +68,29 @@ export function MobileDrawer({
     direction: "left",
     onDismiss: requestClose,
   });
+  /*
+   * …and the way back in (#1050). Mounted here rather than in AppShell because
+   * this component already exists exactly when the gesture should: AppShell
+   * renders it on the NARROW branch only, and only when the host asked for a
+   * detail panel at all. `open` and not `toggle`: a swipe in from the edge is
+   * an "open" gesture with a direction, so repeating it must not close what it
+   * just opened.
+   *
+   * The veto stands the gesture down whenever any aria-modal surface is up —
+   * a sheet, a modal, or this drawer itself — so a drag inside an open sheet
+   * cannot open the drawer behind it. Checked at press time, so it sees the
+   * state when the finger lands rather than at the last render.
+   */
+  useEdgeSwipeOpen({
+    onOpen: open,
+    shouldStart: () => !isOpen && !hasOpenDialogLayer(),
+  });
 
   if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex bg-black/30"
+      className="lumen-scrim-in fixed inset-0 z-50 flex bg-black/30"
       onMouseDown={requestClose}
     >
       <div
@@ -81,7 +106,7 @@ export function MobileDrawer({
             swipe.offset > 0 ? `translateX(-${swipe.offset}px)` : undefined,
           transition: swipe.dragging ? "none" : undefined,
         }}
-        className="flex h-full w-80 touch-pan-y flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out"
+        className="lumen-drawer-in-left flex h-full w-80 touch-pan-y flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out"
       >
         <RightSidebarContents
           title={title}

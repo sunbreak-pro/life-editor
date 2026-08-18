@@ -25,6 +25,18 @@ const layers: object[] = [];
  * empties the list and the trap quietly does nothing, which is the #475 shape:
  * a path no test can see. So the layout filter runs only where there is layout.
  */
+/**
+ * True while any `aria-modal` surface built on this hook is open (Modal /
+ * BottomSheet / MobileDrawer). Exposed for gestures that live OUTSIDE the
+ * dialog system and must stand down while something is on top of the page —
+ * the drawer's edge-swipe (#1050) would otherwise open it behind an open
+ * sheet. Read at gesture time, not at render time: what matters is the state
+ * when the finger lands.
+ */
+export function hasOpenDialogLayer(): boolean {
+  return layers.length > 0;
+}
+
 function hasLayout(): boolean {
   return document.body.getClientRects().length > 0;
 }
