@@ -1,5 +1,47 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-18 - [shared-fix] 保留 5 件の解消（PR 4 本 / close 1 件・うち 3 件は Issue の前提が誤っていた）
+
+#### 概要
+
+前回保留した #1002 / #993 / #992 に #1007 / #999 を足した 5 件を処理した。**PR を 4 本出し（#1072 / #1078 / #1084 が merged、#1091 が open）、#999 は根拠を書いて close**。5 件のうち **3 件は Issue 本文の前提そのものが事実と違っており**、指示どおり実装していたら 2 件は機能を壊していた。tracker / outbox / 判断キューは `chore/tracker-shared-fix-20260818` 側（D-20260801-main-1 / D-20260802-sched-1）。
+
+各ブランチで CI の `verify` ジョブ全ステップ + `docs-lint` の計 15 本をローカルで通してから push した。
+
+#### 一番効いたもの = 「前提を実装前に検算する」
+
+**3 件で前提が崩れた。しかも崩れ方が全部違う。**
+
+- **#993「`timer_sessions` に消費者が無い」→ 有る**。`web/src/briefing/hooks/useBriefingFetch.ts` が消費している。しかも後から生えたのではなく、**ドメイン分割を入れた #499 / PR #501 の時点から**で、`SyncContext.tsx` の "currently have no consumer" コメントはその 6 週間前（#70）に書かれた残骸だった。**判断キューに私が出した A / B は両方とも Briefing の streak / work-break を黙って更新停止させる案**で、こうだいさんに新案 C（ドメイン分割）を選んでもらって着地した
+- **#1007「manifest がライト固定なのが問題」→ 真の不具合は 1 段手前**。アプリのテーマは OS 追従ではなく明示設定で、しかも**既定が light**（`ThemeContext.tsx:51-68` が「意図的に system を既定にしない」と明記）。一方メタは `prefers-color-scheme` を見る。**ページはアプリ設定を、ツールバーは OS を見ていた**ので、OS ダーク機は既定のまま食い違う。インストール済み PWA に限らず素のブラウザで起きる、Issue より広い不具合だった
+- **#992「先に計測してから着手」→ 計測担当が未計測のまま close 済み**。#797 がレポート §6 表 3 行目を未計測のまま 2026-08-13 に close されていて、着手条件が宙に浮いていた
+
+#### 自分の過去の報告を 1 件撤回した（#1007）
+
+2026-08-16 の履歴に「`<meta name="theme-color">` が manifest を上書きするので**インストール済み Android のツールバーは今も正しくテーマに追従します**」と書き、close 推奨まで outbox に出していた。**前半は正しく、後半が誤り。** メタが追従するのは **OS** であってアプリのテーマではない。`themeMode` が `"system"` のときだけ成り立つ話を、既定でも成り立つと書いていた。
+
+同じ Issue で**2 回続けて precedence を確かめずに結論を出した**ことになる（起票時と close 推奨時）。outbox に撤回を追記済み。
+
+#### 「緑が空虚でないか」を毎回変異テストで測った
+
+4 本すべてで QA に変異テストを回させ、**どの変異でどのテストが落ちるかの 1 対 1 対応**を取った。結果、**2 件で「既存テストが何も守っていない」ことが実測で分かった**:
+
+- **#992**: `memo` の比較を `() => true` に固定（= 行が初回描画後まったく更新されなくなる、一番怖い壊れ方）しても**既存 648 件が 1 本も落ちない**。`web/tests/noteListRowsMemo.test.tsx` を 4 本足して塞いだ（変異を当てると 4 本とも、それぞれ別の理由で落ちる）
+- **#993**: この修正の実挙動を pin するテストが**リポジトリに 1 つも無かった**。`syncDomainWiring.test.tsx` は Notes と Todo しか掃いておらず、TimerProvider 周辺の 13 スタブは全ドメイン一斉 bump なのでどちらに転んでも緑。TimerProvider の describe を新設した
+
+#1002 では逆に**素通りが 4 本出た**が、実測で「旧スタブでも同様に緑 = この PR が作った穴ではない」と切り分けられた（`range` は fixture が最大 7 行なので `slice(0,1000)` と `slice(0,∞)` が同じ、`gt`/`lt`/`is`/`not`/`or` は `mcp-server/src` に 1 件も呼び出しが無い、など）。**素通りの理由まで詰めないと「穴」と「今は踏まない保険」の区別が付かない。**
+
+#### 判明したこと（罠 2 つ）
+
+- **jsdom は `HTMLMetaElement.media` を反射しない**（#1007）。計画どおり `meta.media = "not all"` と書いたら赤くなった。代入が属性ではなく expando に落ちて、`getAttribute("media")` は元のクエリのまま。`setAttribute` に直して解決。実ブラウザでは両方動くので、**テストを書いていなければ実機で気付くまで分からなかった**。`name` / `content` / `dataset` は反射するので紛らわしい
+- **検証と QA の変異テストを同時に走らせると偽の赤が出る**。#993 で `web:build` が「`SYNC_DOMAINS` に `sessions` が無い」で落ちたが、これは QA がまさに回していた変異 (c) そのものだった。以降は実装 → QA → 検証の直列に切り替えた
+
+#### スコープを守って外に出したもの
+
+- **#992 の根本原因**（`shared/src/components/RightSidebar.tsx:65` の未スロットル `setWidth` + `RightSidebarContext.tsx:72-97` が `width` を open/close と同じ context 値に同梱）は 1 ファイルで源を止められるが、`shared/` と全 RightSidebar 消費者に波及するので **P-008 に従って判断キューへ**（`D-20260818-shared-fix-1`）
+- **#992 の Kanban ラッパー 2 つの memo は意図的に外した**。`useKanbanDnd.ts:69` が `viewMode === "status"` のときだけ有効化し、既定の tag view では 1 度も描画されない。`kanbanView.test.tsx` は `beforeEach` で localStorage を消すので全テストが tag view で始まり、**テストが 1 件も通らない投機的な変更**になる
+- **#999 で見つけた `vh` の残り 7 箇所**（`WeekTimeGrid.tsx:437` の `max-h-[60vh]` ほか）は、どれも中央寄せのモーダルで #633 の罠とは形が違うため close コメントに記載のみ。sweep するかは chat-main の判断として outbox へ
+
 ### 2026-08-16 - [shared-fix] 子 Issue 9 件の処理（PR 5 本 / 保留 4 件）
 
 #### 概要
