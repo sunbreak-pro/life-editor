@@ -329,7 +329,9 @@
       "dateStripLabel": "日付を選ぶ",
       "entriesCount": "エントリ（{{count}}）",
       "filterPlaceholder": "エントリを絞り込む…",
-      "filterLabel": "エントリを絞り込む"
+      "filterLabel": "エントリを絞り込む",
+      "eveningTitle": "夕刊",
+      "eveningScheduleTitle": "この日のスケジュール"
     },
     "tags": {
       "addPlaceholder": "タグ名を入力",

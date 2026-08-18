@@ -152,6 +152,9 @@ function makeHarness(rows = [row(TODAY), row(YESTERDAY)]): Harness {
     listAllWikiTagsUnified: vi.fn(async () => []),
     listAllTagAssignments: vi.fn(async () => []),
     listAllTagConnections: vi.fn(async () => []),
+    // The evening card's schedule read (#1046) — a passive summary, so an
+    // empty day is the honest default here.
+    fetchScheduleItemsByDate: vi.fn(async () => []),
   };
   for (const method of WRITE_METHODS) {
     fns[method] = vi.fn(async () => ({ ...rows[0] }));

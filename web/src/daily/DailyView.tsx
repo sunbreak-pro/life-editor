@@ -17,12 +17,17 @@ import {
   MenuItem,
   RightSidebarPortal,
   DailyEntriesPanel,
+  DailyEveningCard,
   DateStrip,
   SidebarListControls,
   cn,
   dailyContentToEditorContent,
   dailyContentExcerpt,
   dailyContentHasRenderedContent,
+  extractEveningSection,
+  eveningBodyLines,
+  mergeEveningSection,
+  stripEveningSection,
   filterAndSortDailyEntries,
   jsonDocEquals,
   createPendingItemLinks,
@@ -46,6 +51,7 @@ import {
   type LoadItemLinkTargets,
 } from "../notes/useItemLinkTargets";
 import { useInlineItemLinks } from "../hooks/useInlineItemLinks";
+import { useDayScheduleSummary } from "./useDayScheduleSummary";
 
 /*
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
@@ -305,9 +311,25 @@ export function DailyView({
     setSyncedFrom({ date: selectedDate, content: selectedContent });
   }
 
+  // 夕刊カテゴリ (#1046): the evening section stays IN the stored content
+  // (same rows, same sync, same MCP reach — zero migration), but it no longer
+  // renders inside the body editor. The editor mounts the day WITHOUT it and
+  // the card below prints it, so the split is entirely presentational.
+  const eveningStored = useMemo(
+    () => extractEveningSection(selectedContent),
+    [selectedContent],
+  );
+  const eveningLines = useMemo(
+    () => eveningBodyLines(eveningStored.bodyDocJson),
+    [eveningStored],
+  );
+  const daySchedule = useDayScheduleSummary(dataService, selectedDate);
+
   // Lazy plain→TipTap conversion happens here, at read time; JSON is only
   // persisted when the editor emits an update (i.e. the user edited).
-  const editorContent = dailyContentToEditorContent(selectedContent);
+  const editorContent = dailyContentToEditorContent(
+    stripEveningSection(selectedContent),
+  );
   const editorKey = `${selectedDate}:${editorGen}`;
 
   const handleEditorUpdate = (json: string) => {
@@ -324,16 +346,26 @@ export function DailyView({
     if (selectedContent === "" && !dailyContentHasRenderedContent(json)) {
       return;
     }
-    setLastEmitted({ date: selectedDate, json });
+    // The editor emitted the day WITHOUT its evening section (#1046) — put
+    // the stored 夕刊 back before persisting, so a body edit can never drop
+    // what the evening paper wrote. Nothing stored → the merge returns the
+    // emitted doc untouched.
+    const full = mergeEveningSection(json, {
+      mood: eveningStored.mood,
+      bodyDocJson: eveningStored.bodyDocJson,
+    });
+    setLastEmitted({ date: selectedDate, json: full });
     // The date this callback closed over. The editor is remounted per date
     // (`key={editorKey}`), so an unmount flush fires the PREVIOUS instance's
     // callback — the one still holding the date it was rendered for.
     const date = selectedDate;
-    void upsertDaily(date, json).then((saved) => {
-      flushPendingLinks(date, saved, json);
+    void upsertDaily(date, full).then((saved) => {
+      flushPendingLinks(date, saved, full);
       // #372: drop inline-origin edges whose "[[ ]]" left the text. Edges the
-      // flush just created are not candidates — their targets are in `json`.
-      if (saved) syncSavedBody(saved.id, json);
+      // flush just created are not candidates — their targets are in `full`
+      // (the evening section can carry links of its own, so the fold must
+      // see the whole stored body, not just the editor's half).
+      if (saved) syncSavedBody(saved.id, full);
     });
   };
 
@@ -540,6 +572,33 @@ export function DailyView({
   );
 
   /*
+   * 夕刊カテゴリ (#1046) — under the body editor at both widths. Shown only
+   * when the day has something to close on (a mood, a reflection, or any
+   * schedule): an empty card under every blank past day would be noise, not
+   * a look back. Copy for the stars and the all-day tag comes from the
+   * briefing catalogue — they are the same concepts the papers name.
+   */
+  const showEveningCard =
+    eveningStored.mood !== null ||
+    eveningLines.length > 0 ||
+    daySchedule.length > 0;
+  const eveningCard = showEveningCard ? (
+    <DailyEveningCard
+      mood={eveningStored.mood}
+      reflectionLines={eveningLines}
+      schedule={daySchedule}
+      labels={{
+        title: t("materials.daily.eveningTitle"),
+        moodStars: [1, 2, 3, 4, 5].map((n) =>
+          t("briefing.evening.moodStar", { value: n }),
+        ),
+        scheduleTitle: t("materials.daily.eveningScheduleTitle"),
+        allDay: t("briefing.allDay"),
+      }}
+    />
+  ) : null;
+
+  /*
    * Past entries — the detail panel's content at both widths (#876). Wide draws
    * it in the push-in rightSidebar; narrow draws the same nodes in the
    * hamburger's MobileDrawer, which mounts them only while it is open.
@@ -626,6 +685,7 @@ export function DailyView({
             onNavigateToItem={onNavigateToItem}
             onResolvedLinkInserted={handleResolvedLinkInserted}
           />
+          {eveningCard}
         </div>
 
         {pastEntries}
@@ -664,6 +724,7 @@ export function DailyView({
           onNavigateToItem={onNavigateToItem}
           onResolvedLinkInserted={handleResolvedLinkInserted}
         />
+        {eveningCard}
       </div>
 
       {pastEntries}

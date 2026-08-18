@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   defaultBriefingTab,
   eveningBodyEquals,
+  eveningBodyLines,
   extractEveningSection,
   isEmptyDocJson,
   mergeEveningSection,
   moodLineText,
+  stripEveningSection,
 } from "../src/components/briefing/eveningSection";
 
 // ── TipTap fixture helpers (same shapes as mcp-server briefingSection tests) ──
@@ -326,5 +328,70 @@ describe("eveningBodyEquals", () => {
     expect(eveningBodyEquals(null, null)).toBe(true);
     expect(eveningBodyEquals(null, emitted)).toBe(false);
     expect(eveningBodyEquals(emitted, null)).toBe(false);
+  });
+});
+
+// ── stripEveningSection / eveningBodyLines (#1046) ───────────────────────
+
+describe("stripEveningSection", () => {
+  it("removes only the evening section, keeping everything else", () => {
+    const content = doc(
+      heading("朝刊"),
+      para("focus"),
+      heading("夕刊"),
+      para("気分: 4/5"),
+      para("振り返り"),
+      heading("メモ"),
+      para("あとで読む"),
+    );
+    expect(parse(stripEveningSection(content)).content).toEqual(
+      parse(
+        doc(
+          heading("朝刊"),
+          para("focus"),
+          heading("メモ"),
+          para("あとで読む"),
+        ),
+      ).content,
+    );
+  });
+
+  it("returns the input by identity when there is no section", () => {
+    const content = doc(heading("朝刊"), para("focus"));
+    expect(stripEveningSection(content)).toBe(content);
+  });
+
+  it("passes a legacy plain-text daily through untouched", () => {
+    expect(stripEveningSection("メモ1\nメモ2")).toBe("メモ1\nメモ2");
+    expect(stripEveningSection(null)).toBe("");
+    expect(stripEveningSection(undefined)).toBe("");
+  });
+
+  it("round-trips with mergeEveningSection (strip → edit → merge keeps 夕刊)", () => {
+    const content = doc(para("day note"), heading("夕刊"), para("気分: 3/5"));
+    const stored = extractEveningSection(content);
+    // The editor mounts the stripped half, the user appends a paragraph…
+    expect(parse(stripEveningSection(content)).content).toEqual([
+      para("day note"),
+    ]);
+    const edited = doc(para("day note"), para("appended"));
+    const full = mergeEveningSection(edited, {
+      mood: stored.mood,
+      bodyDocJson: stored.bodyDocJson,
+    });
+    expect(extractEveningSection(full).mood).toBe(3);
+    expect(parse(full).content[0]).toEqual(para("day note"));
+  });
+});
+
+describe("eveningBodyLines", () => {
+  it("returns the reflection as one line per block", () => {
+    const body = bodyDoc(para("一行目"), para("二行目"));
+    expect(eveningBodyLines(body)).toEqual(["一行目", "二行目"]);
+  });
+
+  it("returns [] for null / unparseable bodies", () => {
+    expect(eveningBodyLines(null)).toEqual([]);
+    expect(eveningBodyLines("not json")).toEqual([]);
   });
 });

@@ -108,11 +108,13 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
 vi.mock("../src/notes/RichTextEditor", () => ({
   RichTextEditor: ({
     noteId,
+    initialContent,
     onUpdate,
     onResolvedLinkInserted,
     loadLinkTargets,
   }: {
     noteId: string;
+    initialContent?: string;
     onUpdate?: (content: string) => void;
     onResolvedLinkInserted?: (targetId: string) => void;
     loadLinkTargets?: unknown;
@@ -120,6 +122,7 @@ vi.mock("../src/notes/RichTextEditor", () => ({
     <div
       data-testid="editor"
       data-link-pool={loadLinkTargets === undefined ? "off" : "on"}
+      data-initial-content={initialContent ?? ""}
     >
       {noteId}
       <button
@@ -414,5 +417,74 @@ describe("DailyView — mobile", () => {
       screen.getByRole("button", { name: "materials.daily.moreActions" }),
     );
     within(screen.getByRole("menu")).getByText("materials.daily.delete");
+  });
+});
+
+/*
+ * #1046 — 夕刊カテゴリ. The evening section stays in the STORED content
+ * (zero migration), but it no longer renders inside the body editor: the
+ * editor mounts the day without it, the card below prints it, and a body
+ * save re-attaches it so an edit can never drop what the evening wrote.
+ */
+describe("DailyView — evening category (#1046)", () => {
+  const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
+  const eveningDaily = daily(YESTERDAY, {
+    content: doc([
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "day note" }],
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "夕刊" }],
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "気分: 4/5" }],
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "夜の振り返りの一文" }],
+      },
+    ]),
+  });
+
+  it("renders mood + reflection in the card, not in the editor body", async () => {
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+
+    // The card: heading, 4/5 stars, the reflection line.
+    screen.getByText("materials.daily.eveningTitle");
+    screen.getByRole("img", { name: "briefing.evening.moodStar|4" });
+    screen.getByText("夜の振り返りの一文");
+
+    // The editor mounts the STRIPPED day — no 夕刊 heading, body text kept.
+    const editor = await screen.findByTestId("editor");
+    expect(editor.dataset.initialContent).toContain("day note");
+    expect(editor.dataset.initialContent).not.toContain("夕刊");
+  });
+
+  it("shows no card for a day without evening data", () => {
+    state.dailies = [daily(YESTERDAY)];
+    render(<DailyView />);
+    expect(screen.queryByText("materials.daily.eveningTitle")).toBeNull();
+  });
+
+  it("re-attaches the stored evening section on a body save", async () => {
+    state.dailies = [eveningDaily];
+    state.upsertDaily.mockResolvedValue(eveningDaily);
+    render(<DailyView />);
+
+    fireEvent.click(await screen.findByTestId("save-with-link"));
+
+    await vi.waitFor(() => expect(state.upsertDaily).toHaveBeenCalledTimes(1));
+    const savedContent = state.upsertDaily.mock.calls[0]?.[1] as string;
+    // The emitted body (bodyWithLink) carries no 夕刊 — the save must put the
+    // stored section back: heading + mood line + reflection, after the body.
+    expect(savedContent).toContain("夕刊");
+    expect(savedContent).toContain("気分: 4/5");
+    expect(savedContent).toContain("夜の振り返りの一文");
+    expect(savedContent).toContain("see ");
   });
 });

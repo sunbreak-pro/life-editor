@@ -26,6 +26,13 @@ export {
   type DailyEntriesPanelProps,
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
+// 夕刊カテゴリ (#1046) — the evening block under the Daily body editor.
+export {
+  DailyEveningCard,
+  type DailyEveningCardProps,
+  type DailyEveningCardLabels,
+  type DailyEveningScheduleEntry,
+} from "./DailyEveningCard";
 export {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,
