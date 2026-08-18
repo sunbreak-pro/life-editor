@@ -1,5 +1,26 @@
 # HISTORY (chat-mobile-refine)
 
+### 2026-08-18 - shared-fix 5 件を PR 化（#1014 / #1039 / #1035 / #1049 / #1050）
+
+#### 概要
+
+`shared-fix [mobile-refine]` の open 5 件を、それぞれ `origin/main` から切った独立ブランチで実装し PR まで出した。#1014 は docs のみ、残り 4 件は Mobile の chrome とモーションまわり。全 PR で CI `verify` ジョブのステップを上から全部ローカル実測 + `docs-lint` / `records.mjs check` を緑にしてから push。
+
+#### 変更点
+
+- **#1014 → PR #1056（merged）**: 係属していた `D-20260810-mobile-1` / `-2`（ともに = A）の docs 追随。§1 の Consumption を「1 タップ更新は含む」に緩め、#1 / #4 / #9 の目標列を実態へ、`#19` 完了トグル / `#20` 気分★ の行を新設。**目標ブロックは #872 で `#18` が既にあるため新規行を作らず注記のみ**にした（DoD は「3 行追加」だったが、数値の非複製原則を優先して PR 本文で逸脱を明示）
+- **#1039 → PR #1063（merged）**: narrow のタブ帯 36 → 32px、ヘッダー上余白 12 → 8px。`SegmentedControl` に `size="sm"` を足し、**セクションのタブ帯だけ**が採用（パネル内の用途は `md` 据え置き）。縮めるとタップ領域が痩せる問題は `TAP_TARGET_TALL`（透明な `::after` を高さ 44px でかぶせる）で解き、**36 → 44px と逆に広げた**
+- **#1035 → PR #1066（merged）**: narrow ヘッダー行の右端に Undo/Redo を全 7 セクションで表示。行を `web/src/NarrowHeaderRow.tsx` に切り出し、`NarrowHeader: "none"` の意味を「行なし」→「この行に何も出さない」へ変更（Analytics / Trash も行を持つ）
+- **#1049 → PR #1069（merged）**: セクション初回表示に 0.3s の fade + 8px rise。`useFirstAppearance`（key ごとに 1 回）で「切替のたびに再生」を回避
+- **#1050 → PR #1074（open）**: 左端からのスワイプインでドロワーを開く `useEdgeSwipeOpen` + 開くアニメーション 3 本（narrow ドロワー / scrim / wide パネル）
+
+#### 手順・知見
+
+- **`desktop` の `npm ci` が dev 依存を 133 個取りこぼしていた**（`vitest` ごと欠落 → `desktop typecheck` が `Cannot find module 'vitest/config'` で落ちる）。exit code は 0 だったので install ログのテールだけ見ていると気付けない。**`npm ci` の成功は「入りきった」を意味しない** — 落ちたときは `node_modules/.package-lock.json` のパッケージ数を `package-lock.json` と突き合わせる（513 対 646 で判明）
+- **5 本を並行ブランチで出すと MainScreen.tsx と tokens.css が必ず衝突する**。#1039 と #1049 が先に merge された結果、#1066 は MainScreen で、#1074 は tokens.css で CONFLICTING になった。どちらも「相手が消した関数に自分が 1 行足していた」型で、**消えた側の意図（`size="sm"`）を新しい構造へ移し替える**のが解消。tokens.css は両者とも純粋な追加ブロックなので並べるだけ
+- **`git merge origin/main` は他チャットの tracker commit を巻き込む**ので `pre-commit-tracker-guard` が止める。merge commit ではこれが正常なので `[tracker-ok]` で通す
+- **jsdom にレイアウトが無い制約下でのモーションのテスト**は「宣言のほう」を固定する形にした（`0.3s` / `both` / 最終フレームが `transform: none` / fill-mode 無し）。特に**アニメーションに `forwards` を付けるとドラッグのインライン transform に勝ってしまう**のはブラウザでしか出ない事故なので、CSS 側を読むテストで押さえる価値がある
+
 ### 2026-08-13 - Epic #716 の裁定 3 件の着地を実測
 
 #### 概要
@@ -75,18 +96,3 @@ Epic #321 に唯一残っていた「現状維持で確定する 9 行が本当�
 - **テスト**: `syncDomainWiring.test.tsx`（1 ドメインずつ bump して「自分のドメインで再取得 / 他 7 つでは再取得しない」を両方向で固定）/ `syncBumpQueue.test.ts`（バーストの複数ドメイン保持・flush 済みドメインを次バーストへ持ち越さない）/ `syncDomains.test.ts`（`REALTIME_TABLES` との lockstep）。既存 Sync スタブ 8 ファイルは全ドメイン一律 bump なので**配線ミスを素通りさせる** — これは QA の指摘で判明し、上記 wiring テストで塞いだ
 - **手順の変更**: 独立レビューを **PR 提出の前**に回した（#471 → #497、#473 → #500 と「レビュー反映が merge に間に合わず main に届かない」事故が 3 本連続したため。memory `push-after-merge-strands-commits` に運用ルールとして記録）
 - **未消化**: DoD の「リクエスト数の実測」は実ブラウザが要るため merge 後に chat-main 側で計測（PR 本文に明記）
-
-### 2026-07-31 - #473 コマンドパレットのモバイルタッチ導線（Epic #321 Phase 2）
-
-#### 概要
-
-コマンドパレットを物理キーボード（`Cmd/Ctrl+K`）専用から解放し、ボトムバー「その他」シート経由でタッチから開けるようにした（PR #498 open）。開けるようにした結果あらわになった、パレット側の 2 つの穴（ソフトキーボードで候補が隠れる / 背景タップで閉じられない）も同 PR で塞いだ。
-
-#### 変更点
-
-- **導線の置き場所**: 「その他」シートの Quick actions 先頭に「コマンドパレット」行（`web/src/MobileShellActions.tsx`）。消去法での確定 — header スロットは `AppShell` の wide ブランチ専用、`Cmd/Ctrl+K` は native mobile が省略する ShortcutConfig Provider 依存、固定タブはセクション移動用。全 narrow セクションが共有する chrome はこのシートだけで、#472 が Undo/Redo で同じ結論に達してスロットを開けている。並びは パレット → Undo → Redo（移動系を先に）。この行だけタップでシートを閉じる（自分の面を開くため）
-- **`useVisualViewport`（新規）**: `shared/src/hooks/useVisualViewport.ts`。`vh` はソフトキーボードで縮まないため、`visualViewport` から「実際に見えている範囲」を読む。`useSyncExternalStore` 実装（`useEffect` + `setState` は `react-hooks/set-state-in-effect` が error。スナップショットは値が動いたときだけ再生成しないと identity 比較で無限再レンダになる）。`web/src/notes/suggestionPopup.ts` が `[[` メニュー用にやっている計測の React 版
-- **`CommandPalette.tsx`**: 外側を「backdrop」+「visible area に合わせた frame」+「panel」の 3 段に分割。frame は API があれば `top/left/width/height` + `paddingTop = height*0.12` をインライン指定、無ければ従来の `pt-[12vh]` にフォールバック（キーボード非表示時は両者がピクセル一致 = Desktop 無変更）。panel を `flex max-h-full flex-col` にし、リストに `min-h-0` を追加（これが無いと flex 子はコンテンツ以下に縮まず 480px を保ってキーボードの裏へ戻る）
-- **背景タップ**: 閉じる判定を `mousedown` → `pointerdown` へ。iOS Safari は素の div に mousedown を合成しないため、Escape キーの無いスマホでは開いたら戻れない一方通行だった。行の実行は `mousedown` のまま（入力欄のフォーカスを保つ `preventDefault` がそこに依存）
-- **テスト**: パレットはテストゼロだった。`shared/tests/commandPalette.test.tsx` 10 件（visible viewport 追随・キーボードで縮む・オフセット追随・API 無し時のフォールバック・pointerdown 開閉・Desktop の Enter/矢印/Escape/絞り込み）、`web/tests/mobileShellActions.test.tsx` 3 件（行の並び順・シートを閉じる・履歴空でも活性）
-- **docs**: `mobile-scope.md` #17 行を実態へ追随。ついでに #16（Undo/Redo）行が #472 で解消済みなのに「タッチ導線ゼロ / 現状 no-op」のまま stale だったので併せて修正。§5 Phase 2 の該当 2 行も打ち消し済みに
