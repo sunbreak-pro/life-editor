@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-18 - RLS ゲートの誤検知修正（PR #1083）と known-issues 参照実績の実測（#1086 / #1087）
+
+#### 概要
+
+`npm run db:push` が Step 1 の RLS ゲートで止まる件を診断したところ、RLS 漏れは 1 件も無く、`npx` の CLI インストール確認プロンプトが stdout に混ざって CSV パースを壊していただけだった。ゲートを 2 点修正して PR 化し、併せて「known-issue は実際に読まれているのか」をトランスクリプト 784 ファイルの実測で検証して Issue 2 本に落とした。
+
+#### 変更点
+
+- **原因特定**: `supabase/node_modules` 不在 → `npx supabase db query` が CLI を取得しに行き `Need to install... / Ok to proceed? (y)` を **stdout** へ出力。プロンプトに改行が無いため本物の CSV ヘッダがその行末に連結され、`check-rls.sh:144` の `tail -n +2`（位置決め打ちのヘッダ捨て）がズレて npx の文言 2 行が offender 行に化けていた。`db-push.sh:75` は元から `npx --yes` で、付いていない呼び出しは `check-rls.sh:113` の 1 箇所だけだった
+- **修正 (PR #1083)**: (1) `check-rls.sh:113` を `npx --yes` に (2) 本体スライスを CSV ヘッダ位置に anchor（前置ノイズが何行あっても捨てる・引用と CR を許容・プロンプトが行頭を奪うため `^` アンカーでなく部分一致・ただしヘッダ全体で照合するので `*table_name*` という名のテーブルは従来通りブロック）(3) ヘッダ不在時は exit 2 = INCONCLUSIVE。従来は空 body になり **読んでいない出力に対して PASS を返しうる穴**があった
+- **self-test 追加**: A7（プロンプト混入でも all clear）/ A8（プロンプト混入が実 offender を隠さない）/ A9（sentinel はあるがヘッダ無し → inconclusive）。A1〜A9 緑。残る B*（sqlite3 未導入）と C3（CRLF チェックアウトに `^from \($` を grep）は変更前後で同一の環境要因
+- **実 DB 検証**: main clone で `npm install` 後に `npm run db:check-rls` = **PASS**（未修正スクリプトでも通った = 診断の裏取り）。`supabase migration list` で **未適用は 0024 のみ**、かつ #1075 は既に merged と判明 — 0024 未適用のままテンプレート機能が出ている状態を memory の申し送りへ記録
+- **known-issues の実測 (#1086 / #1087)**: `~/.claude/projects/` の 784 トランスクリプトを走査し (セッション, slug) で重複排除 → 679 件。うち 1 セッションで 15〜30 slug が出る 16 セッションが 6 割超を占める `ls` 由来の一括ヒットで、targeted に絞ると 031 = 51 / 027 = 31 / 他は全部 1 桁。その上位 2 件も `CLAUDE.md:68` と `memory/chat-main.md` からの自動注入で、自発参照ではない。30 本中 7 本（004 / 006 / 007 / 010 / 023 / 030 / 033）は参照 0。今回まさに 023 を読んで外した実例を #1087 の根拠に添えた
+- **起票**: #1086 = 計測スクリプト化（bulk / targeted の分離と自動注入元の別枠表示を DoD に明記）/ #1087 = 採否条件を「常時ロードされる場所から ID 参照を張れるか」に絞る。どちらも `shared-fix`。本来 Issue 起票は chat-main 一元だが、こうだいさんの明示的な例外許可で materials-refine が起票
+
 ### 2026-08-18 - section:materials の 5 件を 1 Issue 1 ブランチで PR 化（#1041 #1042 #1040 #1043 #1047）
 
 #### 概要
@@ -72,18 +87,3 @@ Materials に残っていた 1,000 行級 2 本を、挙動変更ゼロで分割
 - **テスト**: 新規 `shared/tests/todoStatusCheckbox.test.tsx`（role / aria-checked / 双方向トグル / 44px）+ mapper のレガシー畳み込み 2 本 + MCP の `in_progress` 拒否とレガシー読み出し 2 本。既存の 3 値前提テスト（applyStatusChange / briefingView / todayTodoTray / mobileTodoList / weekContext 等）を 2 値へ書き換え
 - **検証**: shared lint / build / typecheck:tests / test（2201）・web 同 4 種（408）・mcp-server build / test（283）・docs-lint すべて exit 0。mcp の `silentDrops` 1 件だけ落ちるが、開発機に `LIFE_EDITOR_SUPABASE_*` があると「認証情報が無い前提」の合格条件が崩れるためで本変更とは無関係（CI では緑）
 - **判断の台帳化**: D-20260815-materials-1（= B）と D-20260815-materials-2（= A・#876 でボトムシートを畳む）を `.claude/decisions/` へ昇格し、キューを空にした
-
-### 2026-08-15 - materials 7 件連続処理（PR #888 / #899 / #908 / #911 / #912 + 判断キュー 2 件）
-
-#### 概要
-
-section:materials の 7 Issue を bug 先行の指定順で処理し、5 件を 1 Issue = 1 ブランチ = 1 PR で提出、2 件（#873 / #876）はユーザー体験の分岐を含むため P-005 に従い判断キューへ回した。全 PR で `shared` / `web` の lint / build / test 6 ゲートが exit 0。UI の実ブラウザ確認は chat-main 手番のため worktree 側は型検証まで。
-
-#### 変更点
-
-- **#886（PR #888）**: `MenuItem` のフォーカス塗りを `focus:` → `focus-visible:`。`<Menu>` は開いた瞬間に先頭行へフォーカスを当てる（WAI-ARIA メニュー作法）ため、ポインタで開くと先頭の Pin / Unpin だけがホバー色で居座っていた。矢印キーのロービングフォーカスは従来どおり光る。回帰テストを `shared/tests/components.test.tsx` に追加
-- **#883（PR #899）**: taskList のラベルを `margin-top: 0.2em` の手当てから、本文 1 行目と同じ「上マージン 0.4em + 高さ 1.6em の行ボックス + 中央寄せ」に変更。フォントサイズや行間が変わっても両者の中心が一緒に動く。jsdom にレイアウトが無く縦位置は自動テスト不可（`web/src/index.css`）
-- **#884（PR #908）**: Links を rightSidebar の disclosure から詳細ヘッダーの [+Tag] 右隣へ移設（`NoteDetailPanel` に `linksSlot` を追加してタグ行を共有）。From / To の 2 ブロックを相手アイテム単位の 1 リストへマージし、両方向に張られたペアはチップ 1 個・× で対を結ぶ行を全消し。保存側のデータ構造は不変。方向系 i18n キー（outgoing / backlinks / 各 Empty / loading / `materials.notes.links`）を退役。**モバイルシートには渡していない**（従来モバイルに Links 導線が無かったため — PR 本文に申し送り）
-- **#885（PR #911）**: `NoteDetailPanel` の kebab 直左に塗りつぶしピンを表示（`pinnedLabel`・`notesView.pinned` を en/ja 追加）。ボタンではなくマーカー（解除はメニュー側のまま）。デスクトップ本文とモバイルシートが同じ部品を使うため 1 箇所で両幅に出る
-- **#875（PR #912）**: `SectionDescriptor` に `narrowWidth` を追加し、Materials は狭幅のみ `fluid`。MainScreen は section id で分岐せず descriptor の値を読む。Notes / Daily の狭幅は元から「`h-full` 外枠 + 内側 `overflow-y-auto`」で書かれており、この形が本来の想定。**Daily の狭幅もスクロール所有権が同時に変わる**ため、D-20260810-mobile-3 = B の懸念どおり merge 前に実機確認が要る旨を PR 本文に明記。`web/tests/sectionNarrowWidth.test.ts` を新設
-- **キューへ回した 2 件**: D-20260815-materials-1 = #873 の 2 値化を「表示だけ」か「保存値ごと」か（IN_PROGRESS は 12 ファイル参照・Kanban は 3 列・MCP も 3 値）。D-20260815-materials-2 = #876 でモバイルの詳細ボトムシート（#471 / mobile-scope #7）を畳むか。どちらも放置時は当該 Issue 保留
