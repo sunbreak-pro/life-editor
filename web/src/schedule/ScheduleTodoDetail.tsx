@@ -111,6 +111,8 @@ export function ScheduleTodoDetail({
   const body = todo && (
     <div className="flex flex-col gap-3">
       <TodoDetailPanel
+        // #995: narrow only — see the prop's doc on TodoDetailPanelProps.
+        stickyFooter={!isWide}
         todoId={todo.id}
         title={todo.title}
         status={todo.status}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 import {
   useNotesUnifiedContext,
   useWikiTagsUnifiedContext,
@@ -10,6 +10,7 @@ import {
   EmptyState,
   SkeletonList,
   QuickAddSheet,
+  AddPill,
   cn,
   type NoteSortMode,
   type DataService,
@@ -195,21 +196,28 @@ export function NotesView({
   // Picking from the list fills the MAIN editor. On wide the list is a pinned
   // column and stays put; on narrow it is the modal drawer, so choosing a note
   // also has to get out of the way of the thing it just opened.
+  // Depend on the two members, not the whole context objects: `notes` is a new
+  // object on every note edit / search keystroke and `rightSidebar` churns on
+  // every resize sample, which would hand every row a brand-new onSelect and
+  // defeat the memo on DesktopNoteRow. Both members are themselves useCallbacks.
+  const selectNote = notes.setSelectedNoteId;
+  const closeSidebar = rightSidebar.close;
   const handleSelectNote = useCallback(
     (id: string) => {
-      notes.setSelectedNoteId(id);
-      if (!isWide) rightSidebar.close();
+      selectNote(id);
+      if (!isWide) closeSidebar();
     },
-    [notes, isWide, rightSidebar],
+    [selectNote, isWide, closeSidebar],
   );
 
   // Wide creates an untitled note straight into the editor; narrow asks for the
   // title first, because a phone's create is usually the whole capture (#876
   // kept the QuickAddSheet the retired mobile list used to raise).
+  const createNote = notes.createNote;
   const handleAddNote = useCallback(() => {
-    if (isWide) notes.createNote();
+    if (isWide) createNote();
     else setAddOpen(true);
-  }, [isWide, notes]);
+  }, [isWide, createNote]);
 
   if (notes.isLoading) {
     return (
@@ -301,14 +309,7 @@ export function NotesView({
   const mainContent = (
     <>
       <div className="flex items-center justify-end px-1 pb-3">
-        <button
-          type="button"
-          onClick={handleAddNote}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-lumen-accent px-3.5 py-1.5 text-[0.8125rem] font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-        >
-          <Plus size={14} aria-hidden />
-          {t("materials.notes.addCta")}
-        </button>
+        <AddPill onClick={handleAddNote} label={t("materials.notes.addCta")} />
       </div>
       {selected ? (
         <NoteDetailSurface

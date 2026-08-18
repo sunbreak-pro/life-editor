@@ -176,6 +176,15 @@ export interface TodoDetailPanelProps {
    *  existing callers that omit it keep the original title/status/content
    *  layout unchanged. Rendered between the status row and the content editor. */
   tagsSlot?: ReactNode;
+  /**
+   * Pin the save footer to the bottom of the sheet's scroller (#995). Narrow
+   * only, and a PROP rather than a class the host appends to `className`: `cn`
+   * is plain concatenation (rules/frontend.md §Gotchas), and on Desktop this
+   * panel rides <Modal>, which has no scroller of its own — `sticky` there
+   * would resolve against the VIEWPORT and lift the footer off the card the
+   * moment the dialog outgrew the window.
+   */
+  stickyFooter?: boolean;
   className?: string;
 }
 
@@ -211,6 +220,7 @@ function TodoDetailFields({
   scheduleSet = false,
   tagsLabel,
   tagsSlot,
+  stickyFooter,
 }: Omit<TodoDetailPanelProps, "className">) {
   // #1040: folded unless the todo already has a date. `undefined` = the user
   // has not touched the disclosure, so it keeps following `scheduleSet` — the
@@ -392,7 +402,24 @@ function TodoDetailFields({
       {/* Save footer (#713) — the only commit. Disabled while there is nothing
           to write (#434 S-1), with the state spelled out beside it so "why can
           I not press this" has an answer on screen. */}
-      <div className="flex items-center justify-end gap-3 border-t border-lumen-border pt-3">
+      <div
+        className={cn(
+          "flex items-center justify-end gap-3 border-t border-lumen-border pt-3",
+          // Opaque, and the CARD's own token, so the fields scroll UNDER the
+          // pinned row rather than showing through it (§5 bans transparency on
+          // a primary surface anyway).
+          //
+          // No z-index on purpose: TagPicker's popover and TimeRangeField's
+          // listbox are `absolute z-20`, and a footer above them would bury an
+          // open dropdown. Last-in-DOM already puts it over ordinary flow.
+          //
+          // `-mb-3 pb-3` is height-neutral — the negative margin gives back
+          // exactly what the padding adds. It exists so the pinned row keeps
+          // the card's own breathing room instead of sitting flush on the
+          // scroll edge.
+          stickyFooter && "sticky bottom-0 -mb-3 bg-lumen-bg-secondary pb-3",
+        )}
+      >
         <span
           aria-live="polite"
           className={cn(

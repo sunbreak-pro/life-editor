@@ -16,7 +16,6 @@ import {
   ScheduleToolbar,
   EventEditorPane,
   RightSidebarPortal,
-  RightSidebarToggle,
   CalendarLensRow,
   ResponsiveDetailFrame,
   ItemRoleBadge,
@@ -31,12 +30,10 @@ import {
   useMinuteClock,
   type TodoCalendarChip,
   type ScheduleItem,
-  type ItemCreateNoteDraft,
-  type ItemCreateSlot,
   type AgendaItem,
   type EventEditorItem,
   type DataService,
-  MobileFab,
+  AddPill,
   WIDE_QUERY,
   type TranslationKey,
 } from "@life-editor/shared";
@@ -54,8 +51,8 @@ import { ScheduleTodoDetail } from "./ScheduleTodoDetail";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
+import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
-import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import { itemTapRoute } from "./todoChipPanel";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
@@ -84,8 +81,6 @@ import {
 
 const ICON_BTN =
   "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-// Default duration (minutes) prefilled when creating from an empty-slot click.
-const CREATE_DURATION_MIN = 60;
 /*
  * How long the single-click bubble waits for a possible double-click (#355).
  *
@@ -444,35 +439,6 @@ export function CalendarTab({
     [isWide, setOverlayOpen, setPopover, setTodoDetailId],
   );
 
-  // #299 open the creation panel prefilled for a target day + time window.
-  const openCreatePanel = useCallback(
-    (date: string, start: string, end: string) => {
-      setPopover(null);
-      setCreatePanel({ date, start, end });
-    },
-    [setCreatePanel, setPopover],
-  );
-  // Toolbar "Add event" / Mobile FAB → default 09:00–10:00 on the anchor day.
-  const handleToolbarAdd = useCallback(
-    () => openCreatePanel(anchorDate, "09:00", "10:00"),
-    [openCreatePanel, anchorDate],
-  );
-  // Empty-slot click (week/day grid) → prefill from the clicked slot time.
-  const handleGridCreateAt = useCallback(
-    (dateISO: string, minutes: number) =>
-      openCreatePanel(
-        dateISO,
-        minutesToTime(minutes),
-        minutesToTime(minutes + CREATE_DURATION_MIN),
-      ),
-    [openCreatePanel],
-  );
-  // Month-cell day click (Desktop) → default 09:00–10:00 on that day.
-  const handleMonthCreate = useCallback(
-    (day: string) => openCreatePanel(day, "09:00", "10:00"),
-    [openCreatePanel],
-  );
-
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
   // rangeItems optimistically; navigation, reload(), retry and Realtime
   // (syncVersion) refetch.
@@ -626,6 +592,34 @@ export function CalendarTab({
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
+  // #889: the creation panel's four openers and five committers, as one hook.
+  // It has to sit here rather than beside the other handlers — `handleCreate`
+  // comes out of the call above, and its own outputs are only read from the
+  // JSX far below.
+  const {
+    handleToolbarAdd,
+    handleGridCreateAt,
+    handleMonthCreate,
+    handleCreateSubmit,
+    handleCreateSubmitAndOpen,
+    handleCreateTodoSubmit,
+    handlePlaceTodoSubmit,
+  } = useScheduleCreateFlow({
+    createPanel,
+    setCreatePanel,
+    setPopover,
+    anchorDate,
+    isWide,
+    setSelectedId,
+    setOverlayOpen,
+    handleCreate,
+    addNode,
+    updateNode,
+    attachNote,
+    onAttachError: handleAttachError,
+    clearCalendarLens,
+  });
+
   /*
    * #761: the agenda's completion tag, for BOTH kinds of row. The lists mix
    * schedule items and todo chips, and the two have different write paths — a
@@ -666,160 +660,6 @@ export function CalendarTab({
     todoDetailId,
     cancelPopover,
   ]);
-
-  // #468: every panel path that actually PUTS something on the grid closes
-  // through here, and clearing the lens is the point. A brand-new row carries
-  // no tag, so while a calendar lens is on it is filtered out the instant it
-  // exists — no block on the grid, no toast, and any selection made below
-  // points at something nobody can see. The add button reads as broken.
-  // Showing the thing that was just created is what the click asked for;
-  // auto-filing it into the active calendar would be a write the user never
-  // asked for.
-  //
-  // Placing an EXISTING todo gets the same treatment: it only survives the lens
-  // if it already carries that calendar's tag, so otherwise it disappears from
-  // the very slot it was just dropped into.
-  //
-  // Cancelling the panel deliberately does NOT come through here (those call
-  // sites keep the bare setCreatePanel(null)): nothing new is on the grid to
-  // reveal, so the lens the user set stays where they put it.
-  const finishCreatePanel = useCallback(() => {
-    setCreatePanel(null);
-    clearCalendarLens();
-  }, [setCreatePanel, clearCalendarLens]);
-
-  // #299 create-panel submit: the panel carries the target day; the fields hand
-  // over the trimmed title + times. Reuses the mutation layer's single create.
-  //
-  // #354: the new row's id was previously dropped on the floor, so nothing on
-  // screen pointed at what had just been created and the memo / repeat fields
-  // (which live in the detail editor, not this panel) were unreachable without
-  // hunting for the item on the grid. The panel now offers both intents.
-  const handleCreateSubmit = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      if (!createPanel) return;
-      // #376: the note rides along with the create, but only once the row is
-      // really there — `wiki_tag_connections` carries an FK to `items_meta`,
-      // and the id handleCreate returns is the optimistic one (see the
-      // ORDERING note in useCreatePanelNotes).
-      const id = handleCreate(slot, title, (saved) => {
-        if (saved) attachNote(saved.id, note);
-        else if (note) handleAttachError();
-      });
-      finishCreatePanel();
-      // Desktop: select without opening anything — a quiet "here it is" that
-      // does not interrupt blocking out the next slot. It shows as a ring on
-      // the week/day grid (WeekTimeGrid) and a highlight in the sidebar
-      // agenda; MonthGrid takes no selectedId, so month-cell creation gets no
-      // marker (matching the pre-#354 behaviour there).
-      // Mobile deliberately selects NOTHING: there, selection IS the detail
-      // sheet (`editorPane` derives from it), so selecting would silently turn
-      // the plain create into the other button.
-      if (isWide) setSelectedId(id);
-    },
-    [
-      createPanel,
-      handleCreate,
-      attachNote,
-      handleAttachError,
-      isWide,
-      finishCreatePanel,
-    ],
-  );
-
-  // #354 secondary action: create, then land in the detail editor.
-  const handleCreateSubmitAndOpen = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      if (!createPanel) return;
-      const id = handleCreate(slot, title, (saved) => {
-        if (saved) attachNote(saved.id, note);
-        else if (note) handleAttachError();
-      });
-      // Clears the lens too: the overlay hides the grid at first, but closing
-      // it would otherwise drop the user back on a grid that does not draw the
-      // row their selection still points at.
-      finishCreatePanel();
-      setSelectedId(id);
-      // Desktop opens the body-level overlay; on Mobile the selection alone
-      // brings up the BottomSheet editor (the same path a tap takes).
-      if (isWide) setOverlayOpen(true);
-    },
-    [
-      createPanel,
-      handleCreate,
-      attachNote,
-      handleAttachError,
-      isWide,
-      finishCreatePanel,
-      setOverlayOpen,
-    ],
-  );
-
-  // #376 todo tab — the timed counterpart of the #298 tray. The tray stages a
-  // todo as "today, time TBD" (all-day); this panel commits it to a concrete
-  // day + window, which is what makes it show up as a placed block rather than
-  // an all-day candidate (the shape itself: todoChipUndoWiring.timedPlacement).
-  //
-  // The day comes off the slot, not off `createPanel` (#940): the panel's date
-  // field is what the user last said, and the gesture that opened it is only
-  // the seed. `createPanel` still gates the call — a submit with the panel
-  // closed is not a thing — but it no longer decides the day.
-  const scheduleTodoAt = useCallback(
-    (slot: ItemCreateSlot) => {
-      if (!createPanel) return null;
-      return timedPlacement(slot.date, slot.start, slot.end);
-    },
-    [createPanel],
-  );
-
-  const handleCreateTodoSubmit = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      const placement = scheduleTodoAt(slot);
-      if (!placement) return;
-      // Root-level todo (parentId null), matching every other "quick create"
-      // entry — the panel carries no place-in-the-tree control, and the Todos
-      // section is where re-parenting belongs.
-      addNode("task", null, title, {
-        ...placement,
-        // Same ordering rule as the event path: the node is optimistic until
-        // the tree sync lands, and the guard in useTodoTreeAPI can drop the
-        // write entirely (tree not loaded), which reports `null` here.
-        onSaved: (saved) => {
-          if (saved) attachNote(saved.id, note);
-          else if (note) handleAttachError();
-        },
-      });
-      finishCreatePanel();
-    },
-    [scheduleTodoAt, addNode, attachNote, handleAttachError, finishCreatePanel],
-  );
-
-  const handlePlaceTodoSubmit = useCallback(
-    (
-      todoId: string,
-      slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      if (!createPanel) return;
-      // Undoable only when no note rides along (#569): a note attaches a
-      // separate link row this panel has no un-write for, and an undo that
-      // moved the todo back while leaving the note on it would be a half
-      // reversal the toast claims was whole. See placeTodoWrite.
-      const { patch, options } = placeTodoWrite(
-        slot.date,
-        slot.start,
-        slot.end,
-        note != null,
-      );
-      updateNode(todoId, patch, options);
-      // No onSaved wait here, unlike the create paths: this todo was picked
-      // out of a pool that came from the DB, so its `items_meta` row is
-      // already there and the link's FK is satisfied right now.
-      attachNote(todoId, note);
-      finishCreatePanel();
-    },
-    [createPanel, updateNode, attachNote, finishCreatePanel],
-  );
 
   // ── Context menu (rename / duplicate / delete: handlers in the mutation
   // layer; only the menu position state lives here) ──────────────────────────
@@ -1046,6 +886,57 @@ export function CalendarTab({
     [askConfirm, t],
   );
 
+  // #625 Event <-> Todo conversion. The whole path — the two blocking
+  // checks, the five sentences the dialogs pick between, the per-id in-flight
+  // guard and the two store re-reads — lives in useItemConversion (#889).
+  // #998 hoisted it above `editorPane`, which now references
+  // handleConvertToTodo; it used to sit 150 lines further down.
+  const { handleConvertToTodo, handleConvertToEvent } = useItemConversion({
+    dataService,
+    rangeItems,
+    contextItems,
+    todoNodes,
+    listDate,
+    reload,
+    refetchTodos,
+    showToast,
+    askConfirm,
+    closePopover: () => setPopover(null),
+    closeTodoDetail: () => setTodoDetailId(null),
+    // #998: the row is about to stop being an event, so the surface that edits
+    // events cannot stay open on it. Both, because "closed" differs by layout —
+    // the overlay flag on Desktop, the selection on narrow (see detailFrameEl).
+    closeEditor: () => {
+      setOverlayOpen(false);
+      setSelectedId(null);
+    },
+  });
+
+  /*
+   * #998: the narrow sheet's convert entry runs the same unsaved-draft guard as
+   * the close — with one difference that matters. The pending flag is NOT
+   * cleared on an agreed discard: the conversion asks its OWN question next
+   * (the routine refusal, or the confirm), and a refusal there leaves the draft
+   * on screen. With the flag already wiped, the next exit would throw it away
+   * without asking. Same reasoning as ScheduleTodoDetail's requestClose (#736).
+   */
+  const requestEditorConvert = useCallback(
+    async (id: string) => {
+      const decision = await decideUnsavedClose({
+        dirty: editorDirtyRef.current,
+        askDiscard: () =>
+          askConfirm({
+            message: t("common.unsavedCloseConfirm"),
+            confirmLabel: t("common.discard"),
+            cancelLabel: t("common.cancel"),
+            danger: true,
+          }),
+      });
+      if (decision.close) handleConvertToTodo(id);
+    },
+    [askConfirm, t, handleConvertToTodo],
+  );
+
   const editorLabels = {
     complete: t("scheduleScreen.complete"),
     statusLabels,
@@ -1067,6 +958,9 @@ export function CalendarTab({
   const editorPane = editorItem ? (
     <EventEditorPane
       item={editorItem}
+      // #995: narrow only — Desktop's <Modal> has no scroller for `sticky` to
+      // resolve against.
+      stickyFooter={!isWide}
       labels={editorLabels}
       // #628: one commit per press, carrying everything that changed. It goes
       // to handleUpdate whole — that is what keeps a routine occurrence's
@@ -1098,6 +992,20 @@ export function CalendarTab({
         onChange: handleChangeRepeat,
         onDetach: handleDetachRepeat,
       }}
+      // #998: narrow only. Desktop already reaches the conversion from the
+      // single-click bubble (#625) — ScheduleOverlays draws that when isWide —
+      // and a second entry inside the overlay would be a Desktop-visible change
+      // this Issue does not ask for.
+      convert={
+        isWide
+          ? undefined
+          : {
+              label: t("itemConvert.toTodo"),
+              onConvert: (id) => {
+                void requestEditorConvert(id);
+              },
+            }
+      }
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is
@@ -1214,23 +1122,6 @@ export function CalendarTab({
       />
     </RightSidebarPortal>
   );
-
-  // #625 Event <-> Todo conversion. The whole path — the two blocking
-  // checks, the five sentences the dialogs pick between, the per-id in-flight
-  // guard and the two store re-reads — lives in useItemConversion (#889).
-  const { handleConvertToTodo, handleConvertToEvent } = useItemConversion({
-    dataService,
-    rangeItems,
-    contextItems,
-    todoNodes,
-    listDate,
-    reload,
-    refetchTodos,
-    showToast,
-    askConfirm,
-    closePopover: () => setPopover(null),
-    closeTodoDetail: () => setTodoDetailId(null),
-  });
 
   /*
    * #564: the chip behind an open bubble, when the bubble belongs to a TODO
@@ -1500,23 +1391,25 @@ export function CalendarTab({
     <>
       {sidebarPortal}
       {/*
-       * #632: the FAB anchors to THIS wrapper, not the viewport. It has to be
-       * padding-free and span the section box — see MobileFab's host contract.
-       * The inner div keeps the gutter so the list still lines up.
+       * The narrow column. It used to be the FAB's anchor (#632) and carried
+       * `relative` for that; #1034 moved creation into the day-list header, so
+       * nothing is absolutely positioned in here any more. The inner div keeps
+       * the gutter so the list still lines up.
        */}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
+          {/* #1033: no hamburger here any more — the shell draws the one
+              hamburger at the left edge of the tab band, where every other
+              narrow section has always had it. */}
           <div className="flex shrink-0 items-center gap-2">
-            <RightSidebarToggle
-              variant="hamburger"
-              openLabel={t("scheduleScreen.openMenu")}
-              closeLabel={t("scheduleScreen.closeMenu")}
-            />
             {/* #878: the month the grid below is showing. It is a heading
                 again, not a control — #692's chevron opened the month on a
                 sheet, and with the month AS the main view there is nothing
                 left for a tap to reveal. */}
-            <h2 className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-lumen-text">
+            {/* px-1 went with the hamburger (#1033): the heading is the
+                row's first item now, so it lines up with px-lumen-gutter and
+                the month grid below it. */}
+            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
               {periodLabel}
             </h2>
             <div className="flex gap-1">
@@ -1547,11 +1440,11 @@ export function CalendarTab({
           </div>
           {rangeErrorBanner}
           {showLoading ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+            <div className="min-h-0 flex-1 overflow-y-auto pb-3">
               {loadingCard}
             </div>
           ) : showError ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+            <div className="min-h-0 flex-1 overflow-y-auto pb-3">
               {errorCard}
             </div>
           ) : (
@@ -1594,38 +1487,44 @@ export function CalendarTab({
                * without it, a list of times has nothing saying which day they
                * belong to.
                */}
-              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-24">
-                <p className="shrink-0 text-xs text-lumen-text-secondary">
-                  {anchorDayLabel}
-                </p>
-                <AgendaList
-                  items={toAgenda(
-                    anchorDayItems,
-                    rangeTodoChips.filter((c) => c.date === anchorDate),
-                  )}
-                  nowMinutes={anchorDate === today ? nowMinutes : null}
-                  onToggleComplete={handleAgendaToggle}
-                  onItemActivate={handleItemActivate}
-                  onItemDoubleClick={handleItemOpenDetail}
-                  selectedId={selectedId}
-                  /* #691: Mobile stands in for the week grid here, so the row
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+                {/* #1034: creation lives here now, not in a floating "+".
+                    The row is `shrink-0` and OUTSIDE the scroller below, so
+                    the button stays put however long the day gets. The pill is
+                    the same shared part as Materials' 「+ノート」. */}
+                <div className="flex shrink-0 items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
+                    {anchorDayLabel}
+                  </p>
+                  <AddPill
+                    onClick={handleToolbarAdd}
+                    label={t("scheduleScreen.addCta")}
+                  />
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto pb-3">
+                  <AgendaList
+                    items={toAgenda(
+                      anchorDayItems,
+                      rangeTodoChips.filter((c) => c.date === anchorDate),
+                    )}
+                    nowMinutes={anchorDate === today ? nowMinutes : null}
+                    onToggleComplete={handleAgendaToggle}
+                    onItemActivate={handleItemActivate}
+                    onItemDoubleClick={handleItemOpenDetail}
+                    selectedId={selectedId}
+                    /* #691: Mobile stands in for the week grid here, so the row
                      has to say how long it runs and where the day is free.
                      Desktop's sidebar column stays one line tall (no props). */
-                  dayflow
-                  formatGapLabel={formatGapLabel}
-                  labels={anchorAgendaLabels}
-                  className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-                />
+                    dayflow
+                    formatGapLabel={formatGapLabel}
+                    labels={anchorAgendaLabels}
+                    className="rounded-md border border-lumen-border bg-lumen-bg px-2"
+                  />
+                </div>
               </div>
             </>
           )}
         </div>
-
-        {/* FAB → creation panel. */}
-        <MobileFab
-          onClick={handleToolbarAdd}
-          label={t("scheduleScreen.addEvent")}
-        />
       </div>
 
       {overlaysEl}

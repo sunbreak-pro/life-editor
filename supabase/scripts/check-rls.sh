@@ -109,8 +109,17 @@ ERR_FILE="$(mktemp -t rls_gate_err.XXXXXX)"
 cleanup() { rm -f "${OUT_FILE}" "${ERR_FILE}"; }
 trap cleanup EXIT
 
+# `--yes` is NOT optional. Without it, an `npx` that has to fetch the CLI
+# (i.e. `npm install` was never run in supabase/) prints its confirmation
+# prompt -- "Need to install the following packages: / supabase@<ver> /
+# Ok to proceed? (y)" -- to STDOUT, the very stream we parse as CSV. The
+# prompt is written without a trailing newline, so the real CSV header
+# gets appended to it and every subsequent line shifts, which used to
+# promote npx's own chatter to "offender rows": a FAIL with zero real
+# leaks, blocking db push. db-push.sh already passes --yes; this call was
+# the one that did not.
 set +e
-npx supabase db query \
+npx --yes supabase db query \
   --db-url "${SUPABASE_DB_URL}" \
   --file "${SQL_FILE}" \
   --output csv \
@@ -134,14 +143,53 @@ if ! grep -qF "${SENTINEL}" "${OUT_FILE}"; then
   exit 2
 fi
 
-# `--output csv` always emits the column header as EXACTLY line 1. We
-# drop it positionally with `tail -n +2` — NOT with `grep -v table_name`,
-# which is a substring match that would also silently swallow a real
-# data row for any future table whose name contains "table_name"
-# (false negative => that table escapes the BLOCKING set). The body
-# (everything from line 2 on) is the offender rows + the trailing
-# sentinel; we have already proven the sentinel is present above.
-BODY="$(tail -n +2 "${OUT_FILE}")"
+# Locate the CSV header and keep ONLY what follows it. We do NOT drop
+# line 1 positionally (`tail -n +2`): stdout is not guaranteed to start
+# with the header. Any tool in front of the query — `npx` fetching the
+# CLI being the case that actually bit us — can prepend its own lines,
+# and then a positional drop mis-aligns and every leftover noise line is
+# read as an offender row (false FAIL). Anchoring on the header instead
+# is self-correcting: however many lines of chatter precede it, they are
+# all discarded.
+#
+# We also do NOT filter with `grep -v table_name`: that is a substring
+# match that would silently swallow a real data row for any future table
+# whose name contains "table_name" (false NEGATIVE => that table escapes
+# the BLOCKING set). We match the FULL header line instead — a data row
+# cannot contain it, because a table name cannot contain a comma and no
+# reason in check-rls.sql's vocabulary is the literal "reason".
+#
+# Quotes and CR are stripped before comparing (CSV header quoting varies
+# by CLI version, and a CRLF file would otherwise never match). The
+# prompt that bit us had no trailing newline, so the header can land at
+# the END of a noise line — hence a substring test, not a `^` anchor.
+#
+# If the header never appears the output is not the CSV we think it is,
+# so the run is INCONCLUSIVE (exit 2) — never "all clear". Without this
+# branch, an unrecognisable stdout would yield an empty body and the gate
+# would report PASS on a query it never actually parsed.
+HEADER='table_name,reason,rls_enabled,policy_count'
+
+set +e
+BODY="$(awk -v hdr="${HEADER}" '
+  seen { print; next }
+  { line = $0; gsub(/["\r]/, "", line); if (index(line, hdr) > 0) seen = 1 }
+  END { if (!seen) exit 3 }
+' "${OUT_FILE}")"
+HEADER_STATUS=$?
+set -e
+
+if [[ "${HEADER_STATUS}" -ne 0 ]]; then
+  echo "ERROR: RLS check output has no CSV header row." >&2
+  echo "       Expected a line containing: ${HEADER}" >&2
+  echo "       The sentinel was present but the output could not be" >&2
+  echo "       parsed as this query's CSV — treat as UNVERIFIED." >&2
+  echo "----- CLI stdout -----" >&2
+  mask_dsn <"${OUT_FILE}" >&2
+  echo "----------------------" >&2
+  echo "Gate result: INCONCLUSIVE (exit 2)." >&2
+  exit 2
+fi
 
 # Offenders = every non-empty body line that is NOT:
 #   * the sentinel row,

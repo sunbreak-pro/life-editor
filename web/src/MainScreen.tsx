@@ -227,11 +227,12 @@ export function MainScreen({ session }: { session: Session }) {
 
   // NARROW layout row. The per-section chrome comes from the descriptor
   // (`narrowHeader`), so the old MOBILE_HAMBURGER_SECTIONS set and the
-  // per-section switcher constants are gone: Materials/Briefing get hamburger
-  // + segmented, Schedule the segmented alone (its Calendar body draws its own
-  // hamburger and its Todo body closes the drawer outright below 768px — the
-  // mobile Kanban carries todo detail in its own bottom sheet, #470),
-  // Connect/Work/Settings the hamburger alone, Analytics/Trash neither.
+  // per-section switcher constants are gone: Materials/Briefing/Schedule get
+  // hamburger + segmented, Connect/Work/Settings the hamburger alone,
+  // Analytics/Trash neither. Schedule joined the first group in #1033 — its
+  // Calendar body used to draw a SECOND hamburger inside the month heading
+  // row, so the same control sat in two different places depending on which
+  // section you were looking at.
   //
   // What is NOT per-section is the right end (#1035): Undo/Redo rides on every
   // narrow section, Analytics and Trash included, which is why the row itself

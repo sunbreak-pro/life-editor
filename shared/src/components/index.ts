@@ -156,6 +156,8 @@ export { RightSidebar, type RightSidebarProps } from "./RightSidebar";
 export { MobileDrawer, type MobileDrawerProps } from "./MobileDrawer";
 // The single placement definition for the narrow layout's floating "+" (#632).
 export { MobileFab, type MobileFabProps } from "./MobileFab";
+// The list-header counterpart of the FAB: the accent "+" pill (#302 / #1034).
+export { AddPill, type AddPillProps } from "./AddPill";
 export {
   RightSidebarToggle,
   type RightSidebarToggleProps,

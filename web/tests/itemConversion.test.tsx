@@ -96,6 +96,7 @@ function setup(over?: {
   const showToast = vi.fn();
   const closePopover = vi.fn();
   const closeTodoDetail = vi.fn();
+  const closeEditor = vi.fn();
   const view = renderHook(() =>
     useItemConversion({
       dataService,
@@ -109,6 +110,7 @@ function setup(over?: {
       askConfirm,
       closePopover,
       closeTodoDetail,
+      closeEditor,
     }),
   );
   return {
@@ -121,6 +123,7 @@ function setup(over?: {
     showToast,
     closePopover,
     closeTodoDetail,
+    closeEditor,
   };
 }
 
@@ -136,6 +139,8 @@ describe("useItemConversion — Event → Todo", () => {
     await waitFor(() => expect(h.reload).toHaveBeenCalledTimes(1));
     expect(h.refetchTodos).toHaveBeenCalledTimes(1);
     expect(h.closePopover).toHaveBeenCalledTimes(1);
+    // #998: the narrow sheet edits EVENTS, and this row has stopped being one.
+    expect(h.closeEditor).toHaveBeenCalledTimes(1);
   });
 
   it("writes nothing when the confirm is declined", async () => {
@@ -144,6 +149,9 @@ describe("useItemConversion — Event → Todo", () => {
 
     expect(h.convertEventToTodo).not.toHaveBeenCalled();
     expect(h.reload).not.toHaveBeenCalled();
+    // #998: a declined confirm must not drop the user's selection — the sheet
+    // stays on the row it was asking about.
+    expect(h.closeEditor).not.toHaveBeenCalled();
   });
 
   it("refuses a routine occurrence before it asks anything else", async () => {
@@ -156,6 +164,9 @@ describe("useItemConversion — Event → Todo", () => {
     expect(h.convertEventToTodo).not.toHaveBeenCalled();
     expect(h.askConfirm).toHaveBeenCalledTimes(1);
     expect(h.askConfirm.mock.calls[0][0]).not.toHaveProperty("cancelLabel");
+    // #998: the refusal has to leave the sheet open ON the row it is talking
+    // about, or the explanation names something the user can no longer see.
+    expect(h.closeEditor).not.toHaveBeenCalled();
   });
 
   it("does nothing for an id neither store holds", async () => {
@@ -187,6 +198,9 @@ describe("useItemConversion — Todo → Event", () => {
     expect(h.convertTodoToEvent.mock.calls[0][0]).toBe("task-1");
     await waitFor(() => expect(h.reload).toHaveBeenCalledTimes(1));
     expect(h.closeTodoDetail).toHaveBeenCalledTimes(1);
+    // #998 is one-directional: the event editor is not open on a todo, so the
+    // two closes must not cross-wire.
+    expect(h.closeEditor).not.toHaveBeenCalled();
   });
 
   it("refuses a todo that has children, before any write", async () => {

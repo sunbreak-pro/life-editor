@@ -19,7 +19,12 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
-import { FIELD, FIELD_LABEL, FOCUS_RING_ON_ACCENT } from "../styleTokens";
+import {
+  FIELD,
+  FIELD_LABEL,
+  FOCUS_RING_ON_ACCENT,
+  FOCUS_RING_TIGHT,
+} from "../styleTokens";
 
 /*
  * EventEditorPane (W8 target-IA) — the selected-event editor. Backs the
@@ -239,12 +244,33 @@ export interface EventEditorRepeat {
   onDetach?: () => void;
 }
 
+/**
+ * Event → Todo conversion entry (#625 / #998). Supplying this object renders
+ * the action; omitting it renders nothing. One bundle rather than an optional
+ * label plus an optional handler, for the #893 reason: wiring half of a split
+ * pair renders nothing at all and says nothing about it.
+ */
+export interface EventEditorConvert {
+  /** Already-translated — 「Todo に変換」 (`itemConvert.toTodo`). */
+  label: string;
+  /**
+   * Hand the id to the host, which owns BOTH questions this press can raise:
+   * the unsaved-draft discard (the conversion unmounts this pane, so the draft
+   * dies with it) and the routine refusal (D-20260810-sched-5). That is also
+   * why the button is never disabled on a routine occurrence — the action stays
+   * enabled and ANSWERS with the reason.
+   */
+  onConvert: (id: string) => void;
+}
+
 export interface EventEditorPaneProps {
   item: EventEditorItem;
   labels: EventEditorLabels;
   handlers: EventEditorHandlers;
   options?: EventEditorOptions;
   repeat?: EventEditorRepeat;
+  /** Event → Todo entry (#998). Omit to render no conversion action. */
+  convert?: EventEditorConvert;
   /**
    * Tag affordance for this row (#468). Injected rather than built here: the
    * tag layer talks to WikiTagsUnifiedContext, and this pane is pure
@@ -255,6 +281,15 @@ export interface EventEditorPaneProps {
    * nothing for the lens to find.
    */
   tagSlot?: ReactNode;
+  /**
+   * Pin the save footer to the bottom of the sheet's scroller (#995). Narrow
+   * only, and a PROP rather than a class the host appends to `className`: `cn`
+   * is plain concatenation (rules/frontend.md §Gotchas), and on Desktop this
+   * pane rides <Modal>, which has no scroller of its own — `sticky` there
+   * would resolve against the VIEWPORT and lift the footer off the card the
+   * moment the dialog outgrew the window.
+   */
+  stickyFooter?: boolean;
   className?: string;
 }
 
@@ -374,6 +409,16 @@ const SAVE_BTN = cn(
   "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
 );
 
+/**
+ * Secondary full-width action inside the pane (skip-this-day, convert).
+ * Outline rather than accent: neither is the pane's primary act — the save
+ * button is (#628).
+ */
+const SECONDARY_BTN = cn(
+  "rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover",
+  FOCUS_RING_TIGHT,
+);
+
 /** Inner fields, keyed by item.id from the pane so a selection change drops
  *  the pending edits cleanly. (The all-day flip used to be part of that key;
  *  since #628 it is a draft field of its own, and remounting on it would throw
@@ -384,7 +429,9 @@ function EventEditorFields({
   handlers,
   options,
   repeat,
+  convert,
   tagSlot,
+  stickyFooter,
 }: Omit<EventEditorPaneProps, "className">) {
   // Unpacked back into the flat names the body has always used, so the #893
   // bundles stay a wire-format change and nothing below has to know about them.
@@ -656,7 +703,7 @@ function EventEditorFields({
             <button
               type="button"
               onClick={() => onDismiss(item.id)}
-              className="rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              className={SECONDARY_BTN}
             >
               {labels.skipThisDay}
             </button>
@@ -683,6 +730,27 @@ function EventEditorFields({
         />
       </label>
 
+      {/* #998: Event → Todo. Narrow's ONLY entry — the Desktop single-click
+          bubble (#625) is not drawn on this layout (ScheduleOverlays gates it
+          on isWide), so without this the sheet is a dead end for "this turned
+          out to be a task".
+
+          Above the delete rather than inside the save footer: that footer is
+          the pane's one commit (#628) and is a pinned strip on narrow (#995),
+          and an action that tears the pane down has no business riding it.
+
+          Never disabled on a routine occurrence — the host answers with the
+          reason instead (D-20260810-sched-5). */}
+      {convert && (
+        <button
+          type="button"
+          onClick={() => convert.onConvert(item.id)}
+          className={SECONDARY_BTN}
+        >
+          {convert.label}
+        </button>
+      )}
+
       {/* Delete. Manual: plain single-item delete. Routine (#279): the host
           opens the this/future/all scope dialog instead of deleting directly
           — "this only" maps to Dismiss there, so the Issue 017 ghost-revival
@@ -703,7 +771,24 @@ function EventEditorFields({
           worse than one that is visibly off), with the state spelled out beside
           it so "why can I not press this" has an answer on screen rather than
           only in the button's opacity. */}
-      <div className="flex items-center justify-end gap-3 border-t border-lumen-border pt-3">
+      <div
+        className={cn(
+          "flex items-center justify-end gap-3 border-t border-lumen-border pt-3",
+          // Opaque, and the CARD's own token, so the fields scroll UNDER the
+          // pinned row rather than showing through it (§5 bans transparency on
+          // a primary surface anyway).
+          //
+          // No z-index on purpose: TagPicker's popover and TimeRangeField's
+          // listbox are `absolute z-20`, and a footer above them would bury an
+          // open dropdown. Last-in-DOM already puts it over ordinary flow.
+          //
+          // `-mb-4 pb-4` is height-neutral — the negative margin gives back
+          // exactly what the padding adds. It exists so the pinned row keeps
+          // the card's own breathing room instead of sitting flush on the
+          // scroll edge.
+          stickyFooter && "sticky bottom-0 -mb-4 bg-lumen-bg-secondary pb-4",
+        )}
+      >
         <span
           aria-live="polite"
           className={cn(
