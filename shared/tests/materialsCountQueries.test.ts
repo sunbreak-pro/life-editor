@@ -124,7 +124,7 @@ describe("countUnfinishedTodos", () => {
 });
 
 describe("countLiveNotes", () => {
-  it("counts live notes over an inner payload join, excluding legacy folders", async () => {
+  it("counts live notes over an inner payload join, excluding legacy folders and templates", async () => {
     const { client, rec } = makeStub(OK(7));
     const n = await new SupabaseNotesUnifiedService(client).countLiveNotes();
 
@@ -140,7 +140,10 @@ describe("countLiveNotes", () => {
     ]);
     expect(rec.or).toEqual([
       [
-        "note_type.is.null,note_type.neq.folder",
+        // #1047 added the template leg. The NULL leg stays mandatory — a bare
+        // `neq` chain would drop plain legacy notes whose note_type was never
+        // set, undercounting the badge.
+        "note_type.is.null,and(note_type.neq.folder,note_type.neq.template)",
         { referencedTable: "notes_payload" },
       ],
     ]);

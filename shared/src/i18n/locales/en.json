@@ -302,6 +302,22 @@
       "sortTitle": "Title",
       "tagFilterLabel": "Filter by tag"
     },
+    "templates": {
+      "title": "Templates",
+      "menuEntry": "Create a template",
+      "listHeading": "Templates",
+      "empty": "No templates yet",
+      "new": "New",
+      "nameLabel": "Template name",
+      "namePlaceholder": "Name this template…",
+      "untitled": "(untitled template)",
+      "content": "Content",
+      "delete": "Delete template",
+      "use": "Create a note from this template",
+      "pickHint": "Pick a template, or create a new one.",
+      "noTagsHint": "Templates carry no tags or links — the note you create from one does.",
+      "bodyPlaceholder": "Write the template…"
+    },
     "links": {
       "panelLabel": "Links",
       "add": "Add link",

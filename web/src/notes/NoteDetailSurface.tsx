@@ -29,6 +29,8 @@ export interface NoteDetailLabels {
   moreActions: string;
   content: string;
   lockedHint: string;
+  /** Kebab entry that opens the templates surface (#1047). */
+  createTemplate: string;
 }
 
 export interface NoteDetailSurfaceProps {
@@ -50,6 +52,8 @@ export interface NoteDetailSurfaceProps {
    * cross-role candidate pool and the navigation route.
    */
   linksSlot?: ReactNode;
+  /** Open the note templates surface from the kebab (#1047). */
+  onOpenTemplates?: () => void;
 }
 
 export function NoteDetailSurface({
@@ -63,6 +67,7 @@ export function NoteDetailSurface({
   onDelete,
   contentEditor,
   linksSlot,
+  onOpenTemplates,
 }: NoteDetailSurfaceProps) {
   return (
     <NoteDetailPanel
@@ -79,6 +84,8 @@ export function NoteDetailSurface({
       pinnedLabel={labels.pinned}
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
+      onOpenTemplates={onOpenTemplates}
+      createTemplateLabel={labels.createTemplate}
       tagsSlot={
         // No leading caption (#1042). The row used to open with the shared
         // kind badge (itemRole="note", #412), which spelled out "Note" one line

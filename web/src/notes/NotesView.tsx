@@ -21,6 +21,7 @@ import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
 import { NotesSidebarList } from "./NotesSidebarList";
 import { NoteDetailSurface } from "./NoteDetailSurface";
+import { NoteTemplateHost } from "./NoteTemplateHost";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
@@ -149,6 +150,8 @@ export function NotesView({
   const [trashOpen, setTrashOpen] = useState(false);
   // Narrow-only: the title-first quick-add sheet.
   const [addOpen, setAddOpen] = useState(false);
+  // The templates surface (#1047), opened from the note detail's kebab.
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   // Derived side-list pipeline + sort/filter/collapse state (hooks split).
   const {
@@ -238,6 +241,7 @@ export function NotesView({
     moreActions: t("notesView.moreActions"),
     content: t("materials.notes.content"),
     lockedHint: t("materials.notes.lockedHint"),
+    createTemplate: t("materials.templates.menuEntry"),
   };
 
   // ---- The list (the detail panel's content, both widths) --------------
@@ -318,6 +322,11 @@ export function NotesView({
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           onTogglePin={notes.togglePin}
           onDelete={(id) => notes.softDeleteNote(id)}
+          // #1047: the kebab entry, wired only when there is a DataService to
+          // read templates through — the same condition the "[[" pool has.
+          onOpenTemplates={
+            dataService ? () => setTemplatesOpen(true) : undefined
+          }
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue). Wide only, which is
           // where #884 put them; narrow has never had a Links affordance, and
@@ -397,6 +406,25 @@ export function NotesView({
           placeholder={t("materials.notes.quickAddPlaceholder")}
           submitLabel={t("materials.notes.quickAddSubmit")}
           onSubmit={(title) => notes.createNote(title)}
+        />
+      )}
+
+      {/* Note templates (#1047). Mounted only with a DataService, since that is
+          what the panel reads and writes templates through — they never enter
+          NotesUnifiedContext, which would otherwise have to carry rows it also
+          hides from every one of its consumers. */}
+      {dataService && (
+        <NoteTemplateHost
+          dataService={dataService}
+          open={templatesOpen}
+          isWide={isWide}
+          onClose={() => setTemplatesOpen(false)}
+          // The note itself is an ordinary note from here on: it lands in the
+          // list, opens in the main area, and takes tags and links normally —
+          // which is the half of "templates carry none" that matters.
+          onUseTemplate={(title, content) =>
+            notes.createNote(title, { initialContent: content })
+          }
         />
       )}
 

@@ -19,6 +19,13 @@ export {
 export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
+// Note templates (#1047) — the list + name + body surface, tag/link-free.
+export {
+  NoteTemplatePanel,
+  type NoteTemplatePanelProps,
+  type NoteTemplatePanelLabels,
+  type NoteTemplateSummary,
+} from "./NoteTemplatePanel";
 // The body-only password lock both note surfaces share (#526).
 export { LockedBodyGate, type LockedBodyGateProps } from "./LockedBodyGate";
 export {

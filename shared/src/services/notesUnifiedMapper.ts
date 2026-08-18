@@ -90,9 +90,10 @@ export interface NotesPayloadRow {
    * Raw DB vocabulary — NOT the domain `NoteNodeType`. "folder" is a legacy
    * value the column still accepts for rollback safety (#375 retired the
    * folder note type in the app); it is never written any more and such rows
-   * are dropped at fetch time (`isLegacyNoteFolderRow`).
+   * are dropped at fetch time (`isLegacyNoteFolderRow`). "template" is live
+   * (#1047) but likewise dropped by every read except the template list.
    */
-  note_type: "folder" | "note" | null;
+  note_type: "folder" | "note" | "template" | null;
   content_json: unknown;
   sort_order: number;
   is_pinned: boolean;
@@ -178,24 +179,33 @@ export const NOTES_PAYLOAD_LIST_COLUMNS =
 // it (rollback), and a folder row must be *recognisable*
 // (isLegacyNoteFolderRow) even though it can no longer be materialised as a
 // distinct NoteNodeType. Mirrors todoMapper's NODE_TYPES after S3 (#225).
-const NOTE_TYPES: ReadonlySet<string> = new Set(["folder", "note"]);
+const NOTE_TYPES: ReadonlySet<string> = new Set([
+  "folder",
+  "note",
+  "template", // #1047
+]);
 
 /**
  * Narrow a DB `note_type` value to the `NoteNodeType` union.
  *
- * #375: NoteNodeType is now single-valued ("note"). The DB column still
- * carries a legacy "folder" value for rows created before the retirement;
- * those rows are excluded upstream by the fetch filter
- * (`isLegacyNoteFolderRow` / SupabaseNotesUnifiedService), so this narrower
- * normally only ever sees "note" | null. A stray "folder" that reaches here
- * is coerced to "note" (defence-in-depth). A genuinely unknown value still
- * throws.
+ * #375: the legacy "folder" value stays in the DB column (rollback) but has no
+ * NoteNodeType of its own; those rows are excluded upstream by the fetch filter
+ * (`isLegacyNoteFolderRow`), so a stray one reaching here is coerced to "note"
+ * (defence-in-depth).
+ *
+ * #1047: "template" IS a member of the union — a template row materialises as a
+ * NoteNode whose `type` says what it is, which is how the template panel can
+ * hold one and the note list can tell it apart. Templates are likewise excluded
+ * upstream (`isNoteTemplateRow`), so this only sees one when the panel asked.
+ *
+ * A genuinely unknown value still throws.
  */
 export function toNoteNodeType(value: string | null): NoteNodeType {
   if (value === null) return "note"; // legacy / unset → note
+  if (value === "template") return "template"; // #1047
   if (NOTE_TYPES.has(value)) return "note"; // "note" | legacy "folder" → note
   throw new Error(
-    `notes_payload: invalid note_type "${value}" (expected folder|note)`,
+    `notes_payload: invalid note_type "${value}" (expected folder|note|template)`,
   );
 }
 
@@ -212,6 +222,19 @@ export function isLegacyNoteFolderRow(
   payload: Pick<NotesPayloadRow, "note_type">,
 ): boolean {
   return payload.note_type === "folder";
+}
+
+/**
+ * True when a notes_payload row is a note TEMPLATE (note_type = 'template',
+ * #1047). A template is a stamp, not a note: it must not appear in the note
+ * list, the search results, the tab's badge count or Trash, so every read that
+ * feeds those drops it the same way it drops legacy folders. The template panel
+ * is the one caller that asks for these rows, via `listNoteTemplatesUnified`.
+ */
+export function isNoteTemplateRow(
+  payload: Pick<NotesPayloadRow, "note_type">,
+): boolean {
+  return payload.note_type === "template";
 }
 
 // ---------------------------------------------------------------------------

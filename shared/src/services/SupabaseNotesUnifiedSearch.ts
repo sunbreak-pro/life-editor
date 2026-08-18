@@ -3,6 +3,7 @@ import {
   ITEMS_META_NOTE_COLUMNS,
   NOTES_PAYLOAD_COLUMNS,
   isLegacyNoteFolderRow,
+  isNoteTemplateRow,
   rowsToNoteNode,
   type ItemsMetaNoteRow,
   type NotesPayloadRow,
@@ -144,8 +145,11 @@ export class SupabaseNotesUnifiedSearch {
       const payload = payloadById.get(meta.id);
       if (!payload) continue;
       // A title hit can land on a retired folder row (note_type lives on the
-      // payload, so the items_meta query cannot exclude it) — #375.
-      if (isLegacyNoteFolderRow(payload)) continue;
+      // payload, so the items_meta query cannot exclude it) — #375. Same for a
+      // template (#1047): searching notes must not turn up the stamps, or
+      // opening a hit would drop the user into a surface Notes cannot show.
+      if (isLegacyNoteFolderRow(payload) || isNoteTemplateRow(payload))
+        continue;
       out.push(rowsToNoteNode(meta, payload));
     }
     // Order by updated_at DESC (legacy parity).

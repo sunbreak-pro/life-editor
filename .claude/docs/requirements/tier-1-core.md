@@ -246,7 +246,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 ### Boundary
 
 - やる:
-  - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`NoteNodeType` は `"note"` 単一・`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Todos と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
+  - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。**`NoteNodeType` は 2026-08-18 #1047 で `"note" | "template"` に再拡張**（テンプレートは `note_type='template'` の notes 行。一覧 / 検索 / 件数 / ゴミ箱からは同じ `keep` 節で除外され、`listNoteTemplatesUnified` だけが返す）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Todos と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）

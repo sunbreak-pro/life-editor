@@ -536,6 +536,17 @@ export interface WikiTagsUnifiedDataService {
 
 export interface NotesUnifiedDataService {
   listNotesUnified(): Promise<NoteNode[]>;
+  /**
+   * The note TEMPLATES (#1047) — `notes_payload.note_type = 'template'`.
+   *
+   * Its own read because it is the ONLY one that returns those rows: a template
+   * is excluded from `listNotesUnified`, `searchNotesUnified`, `countLiveNotes`
+   * and `fetchDeletedNotesUnified`, so NotesUnifiedContext never holds one and
+   * the template panel has to ask for them directly. Everything else about a
+   * template goes through the ordinary note methods (create / update / soft
+   * delete / get), because on the DB side that is exactly what it is.
+   */
+  listNoteTemplatesUnified(): Promise<NoteNode[]>;
   /** Live note count for the badge (#511) — see countUnfinishedTodos. */
   countLiveNotes(): Promise<number>;
   getNoteUnified(id: string): Promise<NoteNode | null>;

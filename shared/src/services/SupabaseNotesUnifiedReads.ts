@@ -4,6 +4,7 @@ import {
   NOTES_PAYLOAD_COLUMNS,
   NOTES_PAYLOAD_LIST_COLUMNS,
   isLegacyNoteFolderRow,
+  isNoteTemplateRow,
   rowsToNoteNode,
   rowsToNoteNodeLite,
   type ItemsMetaNoteRow,
@@ -47,6 +48,31 @@ export class SupabaseNotesUnifiedReads {
   }
 
   /**
+   * List the note TEMPLATES (role='note' AND note_type='template') — #1047.
+   *
+   * The exact inverse of the `keep` clause the two note lists use, and the ONLY
+   * read that returns template rows: everything else in the app treats them as
+   * if they were not there. Light payload columns like the note lists, because
+   * the panel shows names and fetches the body on select (getNoteUnified) for
+   * the same reason notes do — the body is the heavy column and the list does
+   * not render it.
+   */
+  listNoteTemplatesUnified(): Promise<NoteNode[]> {
+    return fetchMetaFirstJoin<ItemsMetaNoteRow, NotesPayloadListRow, NoteNode>({
+      client: this.client,
+      role: "note",
+      isDeleted: false,
+      metaColumns: ITEMS_META_NOTE_COLUMNS,
+      metaLabel: "listNoteTemplatesUnified meta failed",
+      payloadTable: "notes_payload",
+      payloadColumns: NOTES_PAYLOAD_LIST_COLUMNS,
+      payloadLabel: "listNoteTemplatesUnified payload failed",
+      keep: isNoteTemplateRow,
+      toDomain: rowsToNoteNodeLite,
+    });
+  }
+
+  /**
    * List soft-deleted notes (role='note' AND is_deleted=true). Same 2-query
    * meta+payload in-memory join as listNotesUnified — but with the deleted
    * filter flipped so the Trash view in NotesSection / WikiTagsView can
@@ -68,8 +94,8 @@ export class SupabaseNotesUnifiedReads {
 
   /**
    * Shared body of the two list reads: the items_meta + notes_payload join on
-   * the LIGHT payload column set, skipping orphan metas and legacy folder
-   * rows (#375). `label` reproduces each caller's own error strings verbatim
+   * the LIGHT payload column set, skipping orphan metas, legacy folder rows
+   * (#375) and templates (#1047). `label` reproduces each caller's own error strings verbatim
    * (`"<method> meta failed"` / `"<method> payload failed"`).
    */
   private listLite(isDeleted: boolean, label: string): Promise<NoteNode[]> {
@@ -87,7 +113,9 @@ export class SupabaseNotesUnifiedReads {
       payloadTable: "notes_payload",
       payloadColumns: NOTES_PAYLOAD_LIST_COLUMNS,
       payloadLabel: `${label} payload failed`,
-      keep: (payload) => !isLegacyNoteFolderRow(payload), // #375
+      // #375 folders, #1047 templates — neither is a note the list may show.
+      keep: (payload) =>
+        !isLegacyNoteFolderRow(payload) && !isNoteTemplateRow(payload),
       toDomain: rowsToNoteNodeLite,
     });
   }
@@ -114,9 +142,14 @@ export class SupabaseNotesUnifiedReads {
       )
       .eq("role", "note")
       .eq("is_deleted", false)
-      .or("note_type.is.null,note_type.neq.folder", {
-        referencedTable: "notes_payload",
-      });
+      // #1047 adds the template leg. Nested `and(...)` inside the `or(...)`
+      // rather than a second `.or()` call: two ORs would be AND-ed as separate
+      // groups, which happens to be right here but stops being obvious the
+      // moment a third value shows up.
+      .or(
+        "note_type.is.null,and(note_type.neq.folder,note_type.neq.template)",
+        { referencedTable: "notes_payload" },
+      );
     if (error) throw new Error(`countLiveNotes failed: ${error.message}`);
     return count ?? 0;
   }
