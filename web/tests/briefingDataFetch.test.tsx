@@ -93,7 +93,10 @@ describe("useBriefingData — fetching (#892)", () => {
     for (const domain of [
       "schedule",
       "todos",
-      "timer",
+      // #993: the session log lives on its own counter — Briefing reads
+      // fetchTimerSessions, so this is the domain its streak / work-break
+      // widgets follow.
+      "sessions",
       "dailies",
       "notes",
       "tags",
@@ -114,9 +117,12 @@ describe("useBriefingData — fetching (#892)", () => {
 
     // Reading the timer settings WRITES (#499), so an over-declared domain is
     // not merely wasted traffic — this is the assertion that keeps the list
-    // from being widened "just in case".
+    // from being widened "just in case". Since #993 the timer SETTINGS counter
+    // is one of the domains it must ignore: Briefing reads the session log,
+    // not the settings.
     act(() => harness.sync.bump("audio"));
     act(() => harness.sync.bump("calendars"));
+    act(() => harness.sync.bump("timer"));
 
     await Promise.resolve();
     expect(mockOf(ds, "fetchTodoTree").mock.calls.length).toBe(before);

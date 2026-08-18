@@ -25,10 +25,11 @@ paths:
 
 ## Sync の再取得はドメイン単位（#499）
 
-Realtime の変更通知は**ドメインごとのカウンタ**（`shared/src/context/syncDomains.ts` の todos / notes / dailies / schedule / tags / calendars / timer / audio）に振り分けられる。データを読む effect は `useSyncDomains("notes", …)` で**自分が読むドメインを全部宣言**し、その戻り値を deps に入れる。
+Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `shared/src/context/syncDomains.ts` の `SYNC_DOMAINS` が正）に振り分けられる。データを読む effect は `useSyncDomains("notes", …)` で**自分が読むドメインを全部宣言**し、その戻り値を deps に入れる。
 
 - **申告漏れは無言の stale になる**（更新が来ず、ユーザーに直す手段がない）。1 つの effect が複数ドメインを読むなら全部並べる。過剰宣言は余計な fetch 1 回で済むので、迷ったら足す側に倒す
 - 新しいテーブルを `REALTIME_TABLES` に足したら `syncDomains.ts` の対応表にも足す（`syncDomains.test.ts` の lockstep が落ちる）
+- **1 テーブル = 1 ドメインだが、読み手が分かれるなら既存ドメインに相乗りさせずドメインを分ける**（#993: 書き込みの多い `timer_sessions` を settings 系と同じ `timer` に載せていたため、ポモドーロ操作のたびに TimerProvider が設定 2 本を取り直していた）
 - 読み取りメソッドの中で書き込まない。`fetchTimerSettings` が「無ければ作る」upsert を毎回投げていたため、ノート編集が `timer_settings` に POST していた（#499 の実測）
 
 ## Provider 順序（依存制約）

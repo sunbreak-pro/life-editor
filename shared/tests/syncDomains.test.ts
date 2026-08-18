@@ -62,6 +62,15 @@ describe("syncDomains — payload tables", () => {
     expect(domainsForChange("routines_payload")).toEqual(["schedule"]);
   });
 
+  it("keeps the session log off the timer counter (#993)", () => {
+    // Reading the timer settings materialises a row (#499), so the
+    // write-heavy session log must not share TimerProvider's counter.
+    expect(domainsForChange("timer_sessions")).toEqual(["sessions"]);
+    expect(domainsForChange("timer_sessions")).not.toContain("timer");
+    expect(domainsForChange("timer_settings")).toEqual(["timer"]);
+    expect(domainsForChange("pomodoro_presets")).toEqual(["timer"]);
+  });
+
   it("leaves the timer alone when a note changes", () => {
     // The whole point: fetching timer settings WRITES, so a note edit that
     // bumped the timer domain would POST to timer_settings.

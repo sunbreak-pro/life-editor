@@ -55,16 +55,19 @@ import { getSupabaseClient } from "../services/supabaseClient";
  * (syncRealtimeTables.test.ts) enforces the union match.
  *
  * W3-B note: 0018 publishes all six timer/sound tables to supabase_realtime,
- * so the lockstep invariant requires subscribing to all six here. Of these
- * only `timer_settings` / `pomodoro_presets` have a live W3-B consumer (the
- * TimerProvider refetches settings + presets on a syncVersion bump). The
- * others are subscribed for invariant parity but currently have no consumer:
- *  - `timer_sessions` is write-heavy (a row per start/close). The 300 ms
- *    debounce collapses bursts, and the coarse refetch is cheap for the N=1
- *    build, so the extra bumps are tolerable; a future optimisation could
- *    drop it from the publication if it proves noisy.
- *  - the three sound tables (`sound_settings` / `playlists` /
- *    `playlist_items`) gain their consumer in W3-C (Audio Mixer).
+ * so the lockstep invariant requires subscribing to all six here. Their
+ * consumers differ, which is why they do NOT share one domain:
+ *  - `timer_settings` / `pomodoro_presets` are read by the TimerProvider,
+ *    which refetches both on a `timer` bump.
+ *  - `timer_sessions` is write-heavy (a row per start / pause / reset / phase
+ *    end) and its only reader is Briefing (useBriefingFetch →
+ *    fetchTimerSessions), so since #993 it routes to its OWN `sessions`
+ *    domain. Sharing `timer` made every pomodoro transition re-run
+ *    TimerProvider's settings + preset fetches — and fetching the settings
+ *    MATERIALISES the row, so it was not even a free read.
+ *  - of the three sound tables only `sound_settings` has a consumer so far
+ *    (AudioContext's `audio` domain); `playlists` / `playlist_items` are
+ *    subscribed for invariant parity and gain theirs with the Audio Mixer.
  */
 export const REALTIME_TABLES = [
   "items_meta",

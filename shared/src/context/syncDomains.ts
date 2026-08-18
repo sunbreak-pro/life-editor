@@ -20,6 +20,12 @@
  * cross-domain traffic, which is the bulk of it.
  */
 
+/*
+ * NOTE: this array is the ONLY declaration of the domain vocabulary — the
+ * `SyncDomain` union, `uniformDomainVersions` and every Sync stub in the test
+ * suites derive from it. Never hand-write a `Record<SyncDomain, number>`
+ * literal; a new domain would then silently miss that stub.
+ */
 export const SYNC_DOMAINS = [
   "todos",
   "notes",
@@ -29,6 +35,14 @@ export const SYNC_DOMAINS = [
   "calendars",
   "timer",
   "audio",
+  // #993: the timer SESSION LOG, split off the `timer` domain. The log is
+  // write-heavy (a row per start / pause / reset / phase end) while its only
+  // reader is Briefing's streak + work/break widgets; the settings and preset
+  // tables it used to share a counter with are read by TimerProvider, whose
+  // fetchTimerSettings materialises a row. One counter for both meant every
+  // pomodoro transition re-ran two settings fetches that could not have
+  // changed.
+  "sessions",
 ] as const;
 
 export type SyncDomain = (typeof SYNC_DOMAINS)[number];
@@ -76,7 +90,8 @@ const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   calendars: "calendars",
   timer_settings: "timer",
   pomodoro_presets: "timer",
-  timer_sessions: "timer",
+  // #993: its own domain — see SYNC_DOMAINS.
+  timer_sessions: "sessions",
   sound_settings: "audio",
   playlists: "audio",
   playlist_items: "audio",
