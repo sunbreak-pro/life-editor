@@ -686,6 +686,44 @@
 }
 
 /*
+ * Section entrance (#1049) — a section surfacing for the first time fades up
+ * into place instead of appearing fully formed.
+ *
+ * The rise is 8px and the fade starts at 0, both deliberately small: this runs
+ * on a surface the user is about to read, so it has to be over before it
+ * registers as a wait. 0.3s is the number the Issue asks for.
+ *
+ * WHO GETS IT is decided in JS (useFirstAppearance), not here — a class keyed
+ * on the section id would replay the animation on every switch back and forth,
+ * which the Issue rules out as 煩わしい. The class is applied to the section's
+ * PageContainer root, so the tab band rises with the body rather than sitting
+ * still above moving content.
+ *
+ * `to { transform: none }` rather than `translateY(0)`: with fill-mode `both`
+ * the final keyframe stays applied, and a lingering transform — even an
+ * identity one — makes the element a containing block for any `position:
+ * fixed` descendant for the rest of the session. `none` computes away.
+ *
+ * Reduced motion needs nothing here: the block below neutralises every
+ * animation app-wide, and `both` means the element lands on the `to` state
+ * immediately rather than being left mid-fade.
+ */
+@keyframes lumen-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lumen-section-in {
+  animation: lumen-section-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
  * Reduce-motion — three-state control (§216 lightweight prefs). The user
  * preference is reflected on <html> as data-reduce-motion:
  *   - attribute ABSENT → "system": follow the OS prefers-reduced-motion. The

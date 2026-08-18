@@ -139,10 +139,12 @@ describe("round-trip with shared extractBriefing (DoD)", () => {
       "講評パラグラフ 1",
       "講評パラグラフ 2",
     ]);
+    // #1048: the shared parser no longer splits a focus line off — the
+    // section reads back as plain paragraphs, focus first.
     const extracted = extractBriefing(content);
     expect(extracted).not.toBeNull();
-    expect(extracted?.focus).toBe("今日のフォーカス行");
     expect(extracted?.paragraphs).toEqual([
+      "今日のフォーカス行",
       "講評パラグラフ 1",
       "講評パラグラフ 2",
     ]);
@@ -152,8 +154,7 @@ describe("round-trip with shared extractBriefing (DoD)", () => {
     const existing = doc(heading("夕刊"), para("昨夜のメモ"));
     const content = upsertBriefingSection(existing, "フォーカス", ["講評"]);
     const extracted = extractBriefing(content);
-    expect(extracted?.focus).toBe("フォーカス");
-    expect(extracted?.paragraphs).toEqual(["講評"]);
+    expect(extracted?.paragraphs).toEqual(["フォーカス", "講評"]);
   });
 });
 

@@ -20,6 +20,12 @@ export {
 } from "./BriefingVizPanel";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
 export {
+  FOCUS_NOTE_ID,
+  extractFocus,
+  mergeFocusSection,
+  normalizeFocusText,
+} from "./focusSections";
+export {
   GoalsBlock,
   type GoalsBlockProps,
   type GoalsBlockLabels,

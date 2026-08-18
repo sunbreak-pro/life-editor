@@ -22,7 +22,7 @@ const LABELS: BriefingLabels = {
   focusLabel: "FOCUS",
   aiTitle: "AI",
   aiSource: "Claude",
-  noBriefing: "No briefing",
+  noFocus: "No focus",
   intentionTitle: "INTENTION",
   intentionCaption: "Saved",
   intentionPlaceholder: "Declare today…",
@@ -120,6 +120,7 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       loading={false}
       data={DATA}
       labels={LABELS}
+      focusText={null}
       intentionText=""
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
@@ -530,6 +531,8 @@ const EVENING_LABELS: EveningLabels = {
   intentionPlaceholder: "Declare today…",
   reflectionTitle: "CLOSING",
   savedCaption: "Saved",
+  focusTitle: "TOMORROW'S FOCUS",
+  focusPlaceholder: "Tomorrow's one thing…",
   todosTitle: "REMAINING",
   noTodos: "No todos",
   todoStatus: "Status",
@@ -556,6 +559,9 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       intentionEditable={false}
       onIntentionChange={onIntentionChange}
       onIntentionBlur={onIntentionBlur}
+      focusText=""
+      onFocusChange={vi.fn()}
+      onFocusBlur={vi.fn()}
       todos={[]}
       onSetTodoStatus={onSetTodoStatus}
       schedule={[]}

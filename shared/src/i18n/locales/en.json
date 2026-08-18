@@ -924,7 +924,8 @@
     "focusLabel": "TODAY'S FOCUS",
     "aiTitle": "A WORD ON YESTERDAY",
     "aiSource": "Claude ・ from the Briefing section",
-    "noBriefing": "No briefing yet. Write a \"Briefing\" heading section in today's daily and it will appear here.",
+    "noFocus": "No focus for today yet. Write it on the previous evening's paper and it will appear here.",
+    "focusNoteTitle": "Focus",
     "intentionTitle": "TODAY'S INTENTION",
     "intentionPlaceholder": "What will you get done today? One line is enough…",
     "goalsTitle": "GOALS AHEAD",
@@ -955,7 +956,8 @@
     "saveFailed": {
       "intention": "Could not save today's intention. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "evening": "Could not save the evening page. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
-      "goals": "Could not save your goals. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again."
+      "goals": "Could not save your goals. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
+      "focus": "Could not save tomorrow's focus. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again."
     },
     "tabsLabel": "Morning / Evening",
     "tabs": {
@@ -978,6 +980,8 @@
       "intentionPlaceholder": "Today's intention — one line is enough…",
       "reflectionTitle": "CLOSING THE DAY",
       "placeholder": "How was your day…",
+      "focusTitle": "TOMORROW'S FOCUS",
+      "focusPlaceholder": "The one thing to move forward tomorrow — one line…",
       "todosTitle": "REMAINING TODOS",
       "noTodos": "No todos left — all clear",
       "upcomingTitle": "COMING UP",

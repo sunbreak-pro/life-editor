@@ -242,6 +242,8 @@ export {
   type SwipeToDismissOptions,
   type SwipeDismissDirection,
 } from "./hooks/useSwipeToDismiss";
+// #1049 — "first time shown?", the gate behind the section entrance animation.
+export { useFirstAppearance } from "./hooks/useFirstAppearance";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider

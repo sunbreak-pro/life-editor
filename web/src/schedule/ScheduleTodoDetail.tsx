@@ -136,6 +136,10 @@ export function ScheduleTodoDetail({
         // appears — so a todo pulled up from the day list could not answer "is
         // this today's?". Read from the same helper the chips are built from
         // (todoScheduleSlot), so the row and the chip cannot disagree.
+        // #1040: folded unless this todo actually has one. Same helper the
+        // text below is formatted from, so the fold and the row can't disagree
+        // about whether there is a date.
+        scheduleSet={todoScheduleSlot(todo) != null}
         scheduleLabel={t("todoDetail.schedule")}
         scheduleText={formatTodoSchedule(
           i18n.language,
