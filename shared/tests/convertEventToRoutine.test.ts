@@ -26,7 +26,13 @@ interface WriteRecord {
   table: string;
   mode: "update" | "delete";
   patch: Record<string, unknown> | null;
+  /** The FIRST `.eq()` — the row address. */
   filter: { col: string; val: unknown };
+  /**
+   * Every `.eq()` in chain order. #996 added a second one (the role guard) to
+   * the items_meta bump, so the address alone no longer describes the write.
+   */
+  filters: Array<{ col: string; val: unknown }>;
   /** The `.is()` filter the #407 conditional attach adds (attach only). */
   isFilter?: { col: string; val: unknown };
 }
@@ -37,39 +43,47 @@ function makeClient(
   const writes: WriteRecord[] = [];
   const client = {
     from: (table: string) => ({
-      update: (patch: Record<string, unknown>) => ({
-        eq: (col: string, val: unknown) => {
-          const rec: WriteRecord = {
-            table,
-            mode: "update",
-            patch,
-            filter: { col, val },
-          };
-          writes.push(rec);
-          // Two consumer shapes: the items_meta bump is awaited straight
-          // off `.eq()` (thenable), while the events_payload attach chains
-          // `.is().select()` (#407 conditional attach) and reads the
-          // affected rows back.
-          return {
-            is: (isCol: string, isVal: unknown) => {
-              rec.isFilter = { col: isCol, val: isVal };
-              return {
-                select: () =>
-                  Promise.resolve(
-                    opts.attachError
-                      ? { data: null, error: { message: opts.attachError } }
-                      : opts.seedAlreadyAttached
-                        ? { data: [], error: null }
-                        : { data: [{ item_id: val }], error: null },
-                  ),
-              };
-            },
-            then: (
-              resolve: (v: { error: { message: string } | null }) => unknown,
-            ) => resolve({ error: null }),
-          };
-        },
-      }),
+      update: (patch: Record<string, unknown>) => {
+        const rec: WriteRecord = {
+          table,
+          mode: "update",
+          patch,
+          filter: { col: "", val: undefined },
+          filters: [],
+        };
+        // Three consumer shapes: the items_meta bump chains `.eq().eq()` and
+        // is awaited off the last one (#996 role guard), while the
+        // events_payload attach chains `.is().select()` (#407 conditional
+        // attach) and reads the affected rows back — so every link has to
+        // return the same chainable object.
+        const chain = {
+          eq: (col: string, val: unknown) => {
+            rec.filters.push({ col, val });
+            if (rec.filters.length === 1) {
+              rec.filter = { col, val };
+              writes.push(rec);
+            }
+            return chain;
+          },
+          is: (isCol: string, isVal: unknown) => {
+            rec.isFilter = { col: isCol, val: isVal };
+            return {
+              select: () =>
+                Promise.resolve(
+                  opts.attachError
+                    ? { data: null, error: { message: opts.attachError } }
+                    : opts.seedAlreadyAttached
+                      ? { data: [], error: null }
+                      : { data: [{ item_id: rec.filter.val }], error: null },
+                ),
+            };
+          },
+          then: (
+            resolve: (v: { error: { message: string } | null }) => unknown,
+          ) => resolve({ error: null }),
+        };
+        return chain;
+      },
       delete: () => ({
         eq: (col: string, val: unknown) => {
           writes.push({
@@ -77,6 +91,7 @@ function makeClient(
             mode: "delete",
             patch: null,
             filter: { col, val },
+            filters: [{ col, val }],
           });
           return Promise.resolve({ error: null });
         },
@@ -140,6 +155,12 @@ describe("convertEventToRoutine (#296)", () => {
     expect(bump).toBeDefined();
     expect(bump!.filter).toEqual({ col: "id", val: "event-1" });
     expect(typeof bump!.patch!.updated_at).toBe("string");
+    // #996: the seed is addressed by id AND role, so a seed converted to a
+    // Todo since the host read it is missed rather than bumped.
+    expect(bump!.filters).toEqual([
+      { col: "id", val: "event-1" },
+      { col: "role", val: "event" },
+    ]);
 
     // Nothing is ever deleted on the happy path.
     expect(writes.filter((w) => w.mode === "delete")).toHaveLength(0);

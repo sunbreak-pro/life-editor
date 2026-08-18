@@ -206,7 +206,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       const { error: mErr } = await this.client
         .from("items_meta")
         .update({ updated_at: now })
-        .eq("id", eventId);
+        .eq("id", eventId)
+        .eq("role", "event");
       if (mErr)
         throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
       // #407 double-conversion guard: attach ONLY while the seed is still
@@ -301,7 +302,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const { error: metaErr } = await this.client
       .from("items_meta")
       .update(metaPatch)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "routine");
     if (metaErr)
       throw new Error(`updateRoutine items_meta: ${metaErr.message}`);
 
@@ -387,7 +389,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const { error: routineErr } = await this.client
       .from("items_meta")
       .update({ is_deleted: true, deleted_at: now, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "routine");
     if (routineErr)
       throw new Error(`softDeleteRoutine routine: ${routineErr.message}`);
 
@@ -404,7 +407,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
           this.client
             .from("items_meta")
             .update({ is_deleted: true, deleted_at: now, updated_at: now })
-            .in("id", chunk),
+            .in("id", chunk)
+            .eq("role", "event"),
         "softDeleteRoutine events",
       );
     }
@@ -504,7 +508,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
           this.client
             .from("items_meta")
             .update({ is_deleted: true, deleted_at: now, updated_at: now })
-            .in("id", chunk),
+            .in("id", chunk)
+            .eq("role", "event"),
         "detachRoutine events",
       );
     }
@@ -528,7 +533,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
           this.client
             .from("items_meta")
             .update({ updated_at: now })
-            .in("id", chunk),
+            .in("id", chunk)
+            .eq("role", "event"),
         "detachRoutine survivors meta",
       );
     }
@@ -539,7 +545,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const { error: routineErr } = await this.client
       .from("items_meta")
       .update({ is_deleted: true, deleted_at: now, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "routine");
     if (routineErr)
       throw new Error(`detachRoutine routine: ${routineErr.message}`);
 
@@ -559,7 +566,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: false, deleted_at: null, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "routine");
     if (error) throw new Error(`restoreRoutine: ${error.message}`);
   }
 

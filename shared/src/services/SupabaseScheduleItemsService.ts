@@ -357,7 +357,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: true, deleted_at: now, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (error) throw new Error(`softDeleteScheduleItem: ${error.message}`);
   }
 
@@ -378,7 +379,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: false, deleted_at: null, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (!error) return;
     // Lost the race: the generator claimed the pair between the pre-check
     // and here. Same refusal, same shape.
@@ -430,7 +432,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const { error: mErr } = await this.client
       .from("items_meta")
       .update({ updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (mErr)
       throw new Error(`toggleScheduleItemComplete items_meta: ${mErr.message}`);
 
@@ -472,7 +475,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const { error: mErr } = await this.client
       .from("items_meta")
       .update({ updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (mErr)
       throw new Error(`dismissScheduleItem items_meta: ${mErr.message}`);
   }
@@ -489,7 +493,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const { error: mErr } = await this.client
       .from("items_meta")
       .update({ updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (mErr)
       throw new Error(`undismissScheduleItem items_meta: ${mErr.message}`);
   }
@@ -819,7 +824,11 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     await forEachIdChunk(
       ids,
       (chunk) =>
-        this.client.from("items_meta").update(metaPatch).in("id", chunk),
+        this.client
+          .from("items_meta")
+          .update(metaPatch)
+          .in("id", chunk)
+          .eq("role", "event"),
       "updateFutureScheduleItemsByRoutine items_meta",
     );
 
@@ -861,7 +870,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
         this.client
           .from("items_meta")
           .update({ is_deleted: true, deleted_at: now, updated_at: now })
-          .in("id", chunk),
+          .in("id", chunk)
+          .eq("role", "event"),
       "bulkSoftDeleteScheduleItems",
     );
     return ids.length;
@@ -891,7 +901,11 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const now = new Date().toISOString();
     const patch = { is_deleted: false, deleted_at: null, updated_at: now };
     const update = (chunk: string[]) =>
-      this.client.from("items_meta").update(patch).in("id", chunk);
+      this.client
+        .from("items_meta")
+        .update(patch)
+        .in("id", chunk)
+        .eq("role", "event");
 
     for (const chunk of chunkIds(restorable)) {
       const { error } = await update(chunk);
