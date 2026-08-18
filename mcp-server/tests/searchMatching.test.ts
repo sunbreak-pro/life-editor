@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { setStubTables, type StubRow } from "./searchSupabaseStub.js";
+import { setStubTables, type StubRow } from "./supabaseStub.js";
 import { searchAll } from "../src/handlers/searchHandlers.js";
 import { escapeLikePattern } from "../src/utils/like.js";
 
 // Hoisted above the imports by vitest, so the handler below binds to the stub.
 vi.mock("../src/supabase.js", async () => {
-  const stub = await import("./searchSupabaseStub.js");
+  const stub = await import("./supabaseStub.js");
   return { getSupabase: stub.getStubSupabase, resetSupabaseForTests: () => {} };
 });
 

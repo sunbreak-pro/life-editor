@@ -7,9 +7,8 @@
    * tests/ was compiled by esbuild at vitest startup, which strips types
    * without checking them. A suite could assert against a shape src/ no longer
    * has and still go green — and this package's tests carry real shared
-   * infrastructure now (tests/supabaseStub.ts and tests/searchSupabaseStub.ts
-   * are imported by other suites), which is exactly the kind of file that rots
-   * unseen.
+   * infrastructure now (tests/supabaseStub.ts is imported by other suites),
+   * which is exactly the kind of file that rots unseen.
    *
    * A separate config rather than a wider `include` on tsconfig.json, because
    * that project emits dist/ and `npm run build` would then ship the suites.
