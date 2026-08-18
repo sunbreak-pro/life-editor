@@ -541,10 +541,62 @@ describe("TodoDetailPanel — save button (#713)", () => {
         onSave={() => {}}
         scheduleLabel="Scheduled"
         scheduleText="August 15, 2026 13:00 – 14:00"
+        // #1040: the row folds unless the todo has a date, and this one does.
+        scheduleSet
         {...LABELS}
       />,
     );
     expect(screen.getByText("Scheduled")).toBeTruthy();
+    expect(screen.getByText("August 15, 2026 13:00 – 14:00")).toBeTruthy();
+  });
+
+  /*
+   * #1040. Dating a todo is a side feature, so the row #877 added is folded
+   * away on the todos that have no date — which is most of them — instead of
+   * spending a line on "Scheduled / Not scheduled". The two halves of the rule
+   * are: closed by default, and open from the start when there IS a date.
+   */
+  it("folds the schedule row until asked, unless the todo has a date (#1040)", () => {
+    const scheduleProps = {
+      scheduleLabel: "Scheduled",
+      scheduleText: "Not scheduled",
+    };
+    const { rerender } = render(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Buy milk"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        {...scheduleProps}
+        {...LABELS}
+      />,
+    );
+    // The caption is still there — it is the control that opens the row.
+    const toggle = screen.getByRole("button", { name: "Scheduled" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Not scheduled")).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.getByText("Not scheduled")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Scheduled" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+
+    // A dated todo needs no press: the row is what it was before #1040.
+    rerender(
+      <TodoDetailPanel
+        todoId="task-b"
+        title="Ship it"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        scheduleLabel="Scheduled"
+        scheduleText="August 15, 2026 13:00 – 14:00"
+        scheduleSet
+        {...LABELS}
+      />,
+    );
     expect(screen.getByText("August 15, 2026 13:00 – 14:00")).toBeTruthy();
   });
 
