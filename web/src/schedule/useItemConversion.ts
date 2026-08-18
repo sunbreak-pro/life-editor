@@ -87,6 +87,12 @@ export interface UseItemConversionArgs {
    * compatibility and is IGNORED by the provider: one stack, app-wide.
    */
   push?: UndoRedoLike["push"];
+  /**
+   * #998: the event-edit surface, which is about to be showing a row that has
+   * stopped being an event. Called only on a confirmed Event → Todo — a
+   * declined confirm or a refused routine leaves the sheet exactly as it was.
+   */
+  closeEditor: () => void;
 }
 
 export function useItemConversion({
@@ -102,6 +108,7 @@ export function useItemConversion({
   closePopover,
   closeTodoDetail,
   push,
+  closeEditor,
 }: UseItemConversionArgs) {
   const { t } = useTranslation();
   const { begin: beginConvert, end: endConvert } = useInFlightGuard();
@@ -275,6 +282,7 @@ export function useItemConversion({
         // the write that could let a second click through.
         if (!beginConvert(id)) return;
         closePopover();
+        closeEditor();
         // order 0 = the top of the root group, the slot addNode aims a new
         // todo at. It does NOT shift the existing siblings down the way
         // addNode does: that would be a second, unrelated write over every
@@ -311,6 +319,7 @@ export function useItemConversion({
       askConfirm,
       closePopover,
       pushEventToTodoUndo,
+      closeEditor,
       beginConvert,
       endConvert,
       t,

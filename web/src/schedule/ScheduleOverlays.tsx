@@ -41,7 +41,8 @@ import type {
  * above the editor overlay / sheet it is usually asked from (#707) — a discard
  * question has to sit on top of the thing it is about. The rest is free; the
  * creation surface and the detail frames are never open together (every submit
- * runs `finishCreatePanel()` before it selects or opens).
+ * runs `finishCreatePanel()` before it selects or opens — see
+ * useScheduleCreateFlow, #889).
  *
  * i18n is resolved here rather than injected: this is a web host module that
  * only arranges shared parts, and threading two dozen labels through it is the

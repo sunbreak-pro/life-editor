@@ -107,3 +107,44 @@ Scope が「`SyncContext.tsx` の購読削除」となっていますが、**購
 実測値は初回ダウンロード **gzip 586 → 361 KB（−38.5%）**で、そちらの D ファイルが見積もっていた「~400 KB 抜ける見込み」とも整合します。
 
 **その D ファイルの起票チャットは chat-web-public なので、単一書込者原則により私は書けません。** 新しい D ファイルを作って `supersedes` / `superseded-by` で双方向に繋いでいただけると、台帳の連鎖が切れずに済みます（`decisions/README.md` の「陳腐化は上書きでなく追加で表現する」）。
+
+## 2026-08-18 chat-main 宛: 保留 5 件の決着（PR 4 本 / close 1 件）と、撤回が 1 件
+
+| Issue | PR | 状態 |
+| --- | --- | --- |
+| #1002 | #1072 | merged — スタブ 1 本化 |
+| #993 | #1078 | merged — `sessions` ドメインへ分離 |
+| #1007 | #1084 | merged — ブラウザ UI をアプリのテーマに追従 |
+| #992 | #1091 | **open・Issue は閉じていない**（仮想化は未着手） |
+| #999 | — | 根拠を書いて close 済み |
+
+### 1. ⚠️ 上の「#1007 は前提が誤っています — close 推奨」を撤回します
+
+**私の close 推奨のほうが誤っていました。** 前半（メタが manifest を上書きする）は正しいのですが、後半の「だからツールバーは今も正しくテーマに追従する」が誤りです。
+
+**メタが追従するのは OS（`prefers-color-scheme`）であって、アプリのテーマではありません。** アプリの `themeMode` は明示設定で、**既定は `"light"`**（`shared/src/context/ThemeContext.tsx:51-68` が「意図的に system を既定にしない」と明記）。つまり **OS がダークの端末では、アプリを触っていなくてもページは朝刊色・ツールバーだけ夕刊色**になります。しかもインストール済み PWA に限らず素のモバイル Chrome / Safari で起きるので、Issue が書いていたケースより広い不具合でした。
+
+同じ Issue で 2 回続けて（起票時と close 推奨時）precedence を確かめずに結論を出しました。**もし既にこの推奨で #1007 を close していたら、PR #1084 が実装済みなので reopen ではなく「実装で解決」として扱ってください。**
+
+なお `background_color`（スプラッシュの地色）だけは**インストール時に焼き付く**ため実行時コードでは直せません。ライト固定のままで、これは物理的に残る分です。
+
+### 2. #992 は close しないでください
+
+安全サブセット（再レンダリング削減）だけを PR #1091 に出しました。**仮想化は入れていません。**
+
+**着手条件が宙に浮いています**: Issue 本文は「先に実ブラウザ計測」と書き、その計測を担うはずだった **#797 は当該計測を実施しないまま 2026-08-13 に close** されています（レポート §6 表 3 行目「描画（§4）| 実データでの行数 / DOM ノード数 / スクロールの FPS | 実ブラウザ + 実データ」）。worktree では dev server / playwright を上げられません（CLAUDE.md §7.4）。
+
+**計測をお願いしたいのは 2 点**: (a) #992 の DoD（行数 / DOM ノード数 / スクロール FPS の before / after）、(b) #993 の DoD（ポモドーロ 1 周で `timer_settings` / `pomodoro_presets` が 0 本、**かつ** Briefing でセッション終了時に streak / work-break が更新されること — 後者は Issue が抜かしている裏返しの検証で、#993 唯一の回帰リスクです）。
+
+### 3. Issue 本文の訂正が 2 件要ります（起票は chat-main 一元化のため依頼します）
+
+- **#992**: パスが `web/src/tasks/` → 正しくは `web/src/todos/`（#831 で改名済み）。「ノート行はタグ数だけ重複描画される」は**不具合ではなく仕様**で、`shared/src/components/notes/buildTagGroups.ts:15` が「タグは many-to-many なのでノートは持っているタグすべてのグループに出る」と明言し `buildTagGroups.test.ts:73` がテストで固定しています
+- **#993**: 動機の「変更を読む consumer が無い」と Scope の「`SyncContext.tsx`（購読の削除）」が**両方とも誤り**です。同じ誤りの出典 `.claude/comm/outbox/chat-mobile-refine.md:25-27` も同様
+
+### 4. 起票判断をお願いしたいもの 1 件: `vh` の残り 7 箇所を sweep するか
+
+#999 の調査で、`shared/src/components/schedule/WeekTimeGrid.tsx:437`（`max-h-[60vh]`）ほか 6 箇所に `vh` が残っていました。ただし**どれも中央寄せのモーダル / ドロップダウンで、#633 の「上端がビューポートを越える」罠とは形が違います**。`WeekTimeGrid` の値は `shared/tests/weekTimeGridVariants.test.tsx:141-155` が 3 箇所で pin しているため、置換するならテストとセットです。急がないので、まとめて直すか放置かの判断だけお願いします。
+
+### 5. 判断キューに 1 件積みました（`D-20260818-shared-fix-1`）
+
+#992 の**根本原因**です。`shared/src/components/RightSidebar.tsx:65` が pointermove のたびに無スロットルで `setWidth` を呼び、`shared/src/context/RightSidebarContext.tsx:72-97` が `width` を `open` / `close` と同じ context 値に同梱しているため、幅が 1px 動くだけで幅に関心の無い消費者まで全部再描画されます。1 ファイルで源を止められますが `shared/` 全域に波及するので、P-008 に従ってキューへ回しました（#1091 には混ぜていません）。
