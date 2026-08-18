@@ -82,6 +82,8 @@ web/wrangler.jsonc                     # 新規（Workers Static Assets の配�
    - 生成は scratchpad に `sharp` を入れたワンショットスクリプト（**`web/package.json` の devDependency には入れない**。1 回焼いたら PNG をコミットして終わり。音源と違い画像はコミット禁止対象ではない — CLAUDE.md §9 の禁止は `public/sounds/` のみ）
 3. **`web/index.html` の修正** ✅ — `<title>web</title>` を `Life Editor` に（**ホーム画面の名前になるので必須**）。`<link rel="manifest">` / `<link rel="apple-touch-icon">` / `apple-mobile-web-app-*` 3 種 / `theme-color`（light / dark の 2 本）を追加
 
+> **#1007 追記（2026-08-18）**: `theme-color` 2 本は完全な静的タグではなくなった。`prefers-color-scheme` が決めるのは最初の 1 描画だけで、`ThemeProvider` がマウント後に `data-theme-color` 属性でメタを選び、`media` 属性を書き換えてアプリのテーマ（既定 light・OS 追従ではない）に追従させる（`shared/src/context/ThemeContext.tsx`・守り = `web/tests/themeColorMeta.test.ts`）。**色ハードコードの許容例外は上記 78 行のまま変わらない** — 色値は `index.html` に置いたままで TS 側に複製しない設計。manifest は意図的に朝刊色のまま（メディアクエリを書けず、`background_color` はインストール時に焼き付くため実行時に直せない）。あわせて Step 1 冒頭の「**アプリの中身は 1 行も変わらない**」も、この 1 箇所（`ThemeProvider` の既存 effect）だけ崩れた。
+
 `vite-plugin-pwa` は**使わない**。あれは Service Worker の生成が主目的で、今回はそこを Non-goal にしているため、依存を増やすだけになる。`public/` に静的ファイルを置けば Vite がそのまま `dist/` へ通す。
 
 ### Step 2 — RLS 監査（🤖・公開前の必須ゲート）

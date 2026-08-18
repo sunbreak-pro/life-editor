@@ -121,6 +121,33 @@ printf '%s\nreviewed,allowlisted_review,t,4\nleaky,policy_anon_or_public,t,1\n%s
 expect_exit "A6 WARN + real offender => still BLOCKS" 1 \
   "${FIX_DIR}/mixed.csv"
 
+# A7 (npx-prompt regression): when `npm install` was never run in
+# supabase/, `npx` fetches the CLI and writes its confirmation prompt to
+# STDOUT — and the prompt has NO trailing newline, so the real CSV header
+# is appended to its last line. The old positional `tail -n +2` header
+# strip mis-aligned here and reported "supabase@<ver>" and the prompt line
+# as unprotected TABLES: a FAIL with zero real leaks that blocked db push
+# entirely. With the header-anchored slice, all of it is discarded.
+printf 'Need to install the following packages:\nsupabase@2.115.0\nOk to proceed? (y) %s\n%s\n' \
+  "${HDR}" "${SENT}" >"${FIX_DIR}/npxnoise.csv"
+expect_exit "A7 npx install prompt on stdout => still all clear" 0 \
+  "${FIX_DIR}/npxnoise.csv"
+
+# A8: the same pollution must NOT mask a genuine leak — the offender that
+# follows the header still BLOCKS.
+printf 'Need to install the following packages:\nsupabase@2.115.0\nOk to proceed? (y) %s\nleaky,rls_disabled,f,0\n%s\n' \
+  "${HDR}" "${SENT}" >"${FIX_DIR}/npxleak.csv"
+expect_exit "A8 npx prompt + real offender => still BLOCKS" 1 \
+  "${FIX_DIR}/npxleak.csv"
+
+# A9: sentinel present but NO header row at all -> the output is not the
+# CSV we think it is. Must be INCONCLUSIVE (exit 2), never "all clear":
+# an unparseable stdout would otherwise yield an empty body and the gate
+# would PASS on a query it never actually read.
+printf 'some unexpected output\n%s\n' "${SENT}" >"${FIX_DIR}/nohdr.csv"
+expect_exit "A9 sentinel without CSV header => inconclusive" 2 \
+  "${FIX_DIR}/nohdr.csv"
+
 # ---------------------------------------------------------------------------
 # PART B — qual heuristic parity (SEC-High-1).
 # ---------------------------------------------------------------------------

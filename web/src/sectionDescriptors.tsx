@@ -64,8 +64,9 @@ export type TabBandId = "materials" | "schedule" | "analytics" | "briefing";
  *    carry the app-global Undo/Redo, and these two sections simply contribute
  *    nothing to its left and middle
  *  - `hamburger`       — the detail-panel hamburger alone (Connect / Work / Settings)
- *  - `tabs`            — the segmented tab control alone (Schedule; its Calendar
- *    body draws its own hamburger and its Todo body closes the drawer outright)
+ *  - `tabs`            — the segmented tab control alone, no hamburger. No
+ *    section uses it today: Schedule was the last one, until #1033 moved its
+ *    hamburger out of the Calendar body and into the band
  *  - `tabs+hamburger`  — hamburger at the left edge, tabs filling the rest
  */
 export type NarrowHeader = "none" | "hamburger" | "tabs" | "tabs+hamburger";
@@ -172,7 +173,10 @@ export const SECTION_DESCRIPTORS: Readonly<
   schedule: {
     width: "fluid",
     tabBand: "schedule",
-    narrowHeader: "tabs",
+    // #1033: was "tabs" — the Calendar body drew a second hamburger of its own,
+    // left of the month heading. One hamburger, in the band, like every other
+    // section.
+    narrowHeader: "tabs+hamburger",
     body: ({ ds, nav }) => (
       <TodoTreeProvider dataService={ds} persistSelection>
         <WikiTagsUnifiedProvider dataService={ds}>

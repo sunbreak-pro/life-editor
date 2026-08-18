@@ -52,6 +52,12 @@ beforeEach(() => {
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-reduce-motion");
   document.documentElement.style.fontFamily = "";
+  // jsdom shares one document across the cases in a file — metas injected by
+  // the #1007 case would otherwise leak into (and be mutated by) its
+  // neighbours.
+  document
+    .querySelectorAll("meta[data-theme-color]")
+    .forEach((m) => m.remove());
 });
 
 afterEach(() => {
@@ -66,6 +72,33 @@ describe("ThemeProvider §216", () => {
     expect(result.current.themeMode).toBe("light");
     expect(result.current.theme).toBe("light");
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+  });
+
+  it("points the theme-color meta at the app theme, not the OS (#1007)", () => {
+    installMatchMedia(true); // OS prefers dark; app default is light
+    // setAttribute, not the `media` IDL property: jsdom does not reflect
+    // HTMLMetaElement.media, so assigning it would write an expando and this
+    // case would pass vacuously against an attribute that was never there.
+    const mk = (role: "light" | "dark", query: string, color: string) => {
+      const meta = document.createElement("meta");
+      meta.name = "theme-color";
+      meta.dataset.themeColor = role;
+      meta.setAttribute("media", query);
+      meta.content = color;
+      document.head.append(meta);
+      return meta;
+    };
+    const light = mk("light", "(prefers-color-scheme: light)", "#fbf4e8");
+    const dark = mk("dark", "(prefers-color-scheme: dark)", "#101a2c");
+
+    const { result } = renderHook(() => useThemeContext(), { wrapper });
+    // Default (light) app theme wins over the dark OS preference.
+    expect(light.hasAttribute("media")).toBe(false);
+    expect(dark.getAttribute("media")).toBe("not all");
+
+    act(() => result.current.setThemeMode("dark"));
+    expect(dark.hasAttribute("media")).toBe(false);
+    expect(light.getAttribute("media")).toBe("not all");
   });
 
   it("migrates an existing light-editor-theme=dark into themeMode default", () => {
