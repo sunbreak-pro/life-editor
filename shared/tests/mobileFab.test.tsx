@@ -6,7 +6,8 @@ import { MobileFab } from "../src/components";
  * #632 — the narrow layout's floating "+" had two placements: Schedule's
  * `fixed bottom-6 right-6` and Notes' `absolute bottom-5 right-5`. The fixed
  * one is the bug: mobile Chrome resolves `fixed` against the LAYOUT viewport
- * (URL-bar-hidden height) while the shell is `h-[100svh]`, so the button drifts
+ * (URL-bar-hidden height) while the shell is sized from the small viewport
+ * (`--app-shell-height`), so the button drifts
  * out of view as the URL bar collapses. These cases pin the single definition
  * both hosts now share — the containing block above all, since that is what
  * actually moved for Schedule.

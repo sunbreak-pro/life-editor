@@ -6,15 +6,20 @@
  * briefing INSIDE today's DailyNode content as a TipTap section:
  *
  *   heading (any level) whose text is "Briefing" / "朝刊"
- *     paragraph #1  → the focus line (今日のフォーカス)
- *     paragraph #2+ → the AI comment body (昨日の宣言への講評 etc.)
+ *     paragraphs → the AI comment body (昨日の宣言への講評 etc.)
  *   ...next heading ends the section.
+ *
+ * The focus line is NOT part of this section any more (#1048): it moved to
+ * the reserved focus note, written from the evening paper (focusSections.ts).
+ * Every paragraph here is AI comment — a writer that still leads with a focus
+ * line (the current write_briefing contract) simply has it read back as the
+ * first comment paragraph.
  *
  * Storing the briefing inside the existing dailies_payload row means Step 1
  * ships with ZERO DDL: the DailyNode is already synced, soft-deletable and
  * MCP-reachable. This parser is deliberately forgiving — a daily without the
- * section (or with unparseable content) yields `null` and the view shows the
- * "no briefing yet" empty state.
+ * section (or with unparseable content) yields `null` and the view hides the
+ * AI comment block.
  *
  * Pure data helper (no React, no DataService) — unit-tested in
  * extractBriefing.test.ts.
@@ -23,9 +28,7 @@
 import { BRIEFING_HEADING_RE, textOf, type TipTapNode } from "./dailySections";
 
 export interface ExtractedBriefing {
-  /** First paragraph of the section — rendered big as the focus line. */
-  focus: string | null;
-  /** Remaining paragraphs — rendered as the AI comment block. */
+  /** The section's paragraphs — rendered as the AI comment block. */
   paragraphs: string[];
 }
 
@@ -65,6 +68,5 @@ export function extractBriefing(
   }
   if (!inSection || texts.length === 0) return null;
 
-  const [focus, ...paragraphs] = texts;
-  return { focus: focus ?? null, paragraphs };
+  return { paragraphs: texts };
 }

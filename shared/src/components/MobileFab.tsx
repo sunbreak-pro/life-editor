@@ -8,7 +8,8 @@ import { FOCUS_RING_ON_ACCENT } from "./styleTokens";
  *
  * Why `absolute` and not `fixed`: on mobile Chrome `position: fixed` resolves
  * against the LAYOUT viewport, which stays at the large (URL-bar-hidden)
- * height. The shell is `h-[100svh]` — the small one — so a fixed `bottom-6`
+ * height. The shell is sized from the SMALL viewport (`--app-shell-height`,
+ * which is `100svh` outside the iOS home-screen app) — so a fixed `bottom-6`
  * lands below the visible area whenever the URL bar is showing, and appears to
  * slide as the bar collapses. Anchoring inside the shell instead pins the
  * button to the section box, which ends above the bottom tab bar and never

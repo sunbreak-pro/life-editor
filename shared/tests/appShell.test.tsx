@@ -232,4 +232,16 @@ describe("AppShell (narrow) — safe-area insets", () => {
     expect(owners).toHaveLength(1);
     expect(owners[0].tagName).toBe("NAV");
   });
+
+  it("takes its height from the shared shell token, not a literal viewport unit", () => {
+    mockMatchMedia(false);
+    renderShell();
+
+    // #1037: the iOS home-screen app hands out a small viewport one status bar
+    // SHORT of the screen, so a literal `h-[100svh]` ends the shell above the
+    // bottom edge and leaves a blank band under the tab bar. The token carries
+    // that correction (tokens.css) and the host's `body { min-height }` reads
+    // the same one — inlining either side back to `100svh` re-splits them.
+    expect(shellRoot().className).toContain("h-[var(--app-shell-height)]");
+  });
 });

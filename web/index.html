@@ -33,13 +33,31 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Life Editor" />
     <!--
-      `black-translucent` lets the app paint under the status bar, which is what
-      the safe-area padding above already accounts for.
+      Was `black-translucent`, which let the app paint under the status bar
+      (#320 / #805). The catch (#1009): that value also pins the status bar's
+      clock, signal and battery to WHITE, whatever colour is behind them. On 朝刊
+      (`#fbf4e8`, cream) they are white-on-cream and effectively unreadable —
+      #791's screenshot was taken at 23:14, i.e. 夕刊, which is why it never
+      showed.
+
+      There is no theme-aware option to reach for. iOS reads this meta ONCE at
+      launch (rewriting it later does nothing) and ignores `theme-color` and the
+      manifest's `theme_color` for the status bar entirely, so its only choices
+      are these three fixed values. `default` is the one that stays legible in
+      both editions; the cost is that 夕刊 gets a light strip along the top
+      instead of a continuous surface.
+
+      Consequences elsewhere, both self-cancelling — no code change needed:
+        - the web view now starts BELOW the status bar, so
+          env(safe-area-inset-top) is 0 and AppShell's `pt-` (#805) collapses;
+        - the same 0 disables the standalone height correction in
+          shared/src/styles/tokens.css (#1037), whose bug was black-translucent's
+          upward shift in the first place.
+
+      `viewport-fit=cover` above still earns its keep: the left/right insets and
+      the home indicator are unaffected by this value.
     -->
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <!--
       Status-bar tint per theme. Values are the resolved `--color-bg-primary`
       of each theme (朝刊 / 夕刊 — shared/src/styles/tokens.css). Hardcoded

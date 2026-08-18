@@ -28,10 +28,12 @@ html {
 /*
  * The app is a fixed shell, never a scrolling document (#631). Two rules keep
  * the document scroller inert on mobile:
- * - body min-height uses svh to match AppShell's narrow root (h-[100svh]).
- *   With vh, mobile Chrome sizes body to the large viewport (URL bar hidden),
- *   making body taller than the shell — that gap becomes a document scroll
- *   that slides past the bottom tab bar.
+ * - body min-height reads the SAME token as AppShell's narrow root
+ *   (--app-shell-height, shared/src/styles/tokens.css). With vh, mobile Chrome
+ *   sizes body to the large viewport (URL bar hidden), making body taller than
+ *   the shell — that gap becomes a document scroll that slides past the bottom
+ *   tab bar. Sharing the token means the iOS standalone correction (#1037)
+ *   cannot land on one of the two and not the other.
  * - overscroll-behavior must sit on the viewport scroller (html/body) to
  *   suppress pull-to-refresh; on inner divs it has no effect.
  */
@@ -44,7 +46,7 @@ body {
   margin: 0;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  min-height: 100svh;
+  min-height: var(--app-shell-height);
 }
 
 /*

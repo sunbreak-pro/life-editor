@@ -2,12 +2,37 @@ import { useRef } from "react";
 import type { KeyboardEvent } from "react";
 import { cn } from "./cn";
 import { stepSegmentFocus } from "./segmentedKeyNav";
+import { TAP_TARGET_TALL } from "./styleTokens";
 
 export interface SegmentedOption {
   id: string;
   /** Already-translated segment label (§6.4). */
   label: string;
 }
+
+/**
+ * How much vertical room a segment takes (#1039).
+ *
+ *  - "md" — the original. Every in-panel use (schedule editors, the sidebar
+ *    tab pair) keeps it: those sit in their own boxes where 4px changes
+ *    nothing, and shrinking the type there would just make them harder to read.
+ *  - "sm" — the mobile SECTION tab band, which is a different problem. It runs
+ *    the full width at the very top of every narrow screen, so its height is
+ *    subtracted from the content on all seven sections at once ("要素を圧迫
+ *    している"). One step down on the type and a slightly tighter gutter take
+ *    the band from 36px to 32px.
+ *
+ * The touch target does NOT follow the box down: "sm" carries TAP_TARGET_TALL,
+ * which hangs an invisible 44px hit area over the smaller pill. The band
+ * therefore ends up EASIER to hit than it was before this size existed (36px),
+ * while reading as less furniture.
+ */
+export type SegmentedControlSize = "md" | "sm";
+
+const SIZE_CLASSES: Record<SegmentedControlSize, string> = {
+  md: "px-3 py-1.5 text-sm",
+  sm: `px-2.5 py-1.5 text-xs ${TAP_TARGET_TALL}`,
+};
 
 export interface SegmentedControlProps {
   options: SegmentedOption[];
@@ -28,6 +53,8 @@ export interface SegmentedControlProps {
    * which is also what the ARIA authoring practices ask for on tabs.
    */
   disabled?: boolean;
+  /** Vertical density — see SegmentedControlSize. Default "md". */
+  size?: SegmentedControlSize;
   className?: string;
 }
 
@@ -40,7 +67,7 @@ export interface SegmentedControlProps {
  * stepSegmentFocus — the same keys as its two radiogroup siblings, #779).
  * Pure presentation: labels
  * injected already-translated (§6.4), lumen-* tokens only (§5). Segments carry
- * horizontal padding (px-3) so they stay visually separated even under
+ * horizontal padding at both sizes so they stay visually separated even under
  * intrinsic (w-auto) width, where flex-1 no longer pads them apart.
  */
 export function SegmentedControl({
@@ -49,6 +76,7 @@ export function SegmentedControl({
   onChange,
   label,
   disabled = false,
+  size = "md",
   className,
 }: SegmentedControlProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -91,7 +119,8 @@ export function SegmentedControl({
             onClick={disabled ? undefined : () => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
-              "flex-1 rounded-lumen-sm px-3 py-1.5 text-center text-sm",
+              "flex-1 rounded-lumen-sm text-center",
+              SIZE_CLASSES[size],
               "transition-colors focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
               disabled && "cursor-not-allowed opacity-60",

@@ -71,6 +71,13 @@ export interface EveningLabels {
   reflectionTitle: string;
   /** Saved-state caption next to the reflection title (host-computed). */
   savedCaption: string;
+  /**
+   * Heading of the 明日のフォーカス block (#1048) — the input whose text
+   * TOMORROW's morning paper prints as its focus line.
+   */
+  focusTitle: string;
+  /** Placeholder of the focus field. */
+  focusPlaceholder: string;
   todosTitle: string;
   noTodos: string;
   /**
@@ -117,6 +124,17 @@ export interface EveningViewProps {
   onIntentionChange: (text: string) => void;
   /** Blur while editable — the host flushes a pending debounced save. */
   onIntentionBlur: () => void;
+  /**
+   * Tomorrow's focus (#1048) — the draft-or-stored text of the focus note's
+   * section keyed to TOMORROW. Writing it here is part of closing the day;
+   * the next morning's paper prints it as「今日のフォーカス」. Editable at
+   * every width, like the mood stars.
+   */
+  focusText: string;
+  /** Every keystroke in the focus field — host owns draft + debounced save. */
+  onFocusChange: (text: string) => void;
+  /** Blur on the focus field — the host flushes a pending debounced save. */
+  onFocusBlur: () => void;
   todos: EveningTodoEntry[];
   /**
    * Move a todo to the next status straight from the paper (#796). The block
@@ -168,6 +186,9 @@ export function EveningView({
   intentionEditable,
   onIntentionChange,
   onIntentionBlur,
+  focusText,
+  onFocusChange,
+  onFocusBlur,
   todos,
   onSetTodoStatus,
   schedule,
@@ -277,6 +298,20 @@ export function EveningView({
         <div className="rounded-lumen-md border border-lumen-border bg-lumen-surface">
           {editorSlot}
         </div>
+      </section>
+
+      {/* ── Tomorrow's focus (#1048) — 朱, the user's own action voice:
+          closing today includes deciding tomorrow. The text lands in the
+          reserved focus note keyed to tomorrow, and tomorrow's morning
+          paper prints it as its focus line. ─────────────────────── */}
+      <section className="border-b border-lumen-border py-5">
+        <BlockHead title={labels.focusTitle} />
+        <IntentionField
+          value={focusText}
+          placeholder={labels.focusPlaceholder}
+          onChange={onFocusChange}
+          onBlur={onFocusBlur}
+        />
       </section>
 
       {/* ── Remaining todos (display only) ───────────────────────── */}

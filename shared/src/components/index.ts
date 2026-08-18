@@ -168,6 +168,7 @@ export {
 export {
   SegmentedControl,
   type SegmentedControlProps,
+  type SegmentedControlSize,
   type SegmentedOption,
 } from "./SegmentedControl";
 export {
