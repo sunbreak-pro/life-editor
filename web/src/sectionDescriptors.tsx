@@ -54,11 +54,15 @@ export type TabBandId = "materials" | "schedule" | "analytics" | "briefing";
 
 /**
  * The narrow-layout row that sits above the body (below 768px only — the wide
- * SectionHeader band lives in AppShell's header slot). v2 kept this layout
- * untouched (non-goal: mobile unchanged), so each value below is exactly the
- * row that section had pre-v2:
+ * SectionHeader band lives in AppShell's header slot). The value names what
+ * THIS SECTION puts in the row; the app-global controls at its right end are
+ * the same on all seven and are not described here (see NarrowHeaderRow).
+ * "alone" below therefore means "alone among the per-section chrome":
  *
- *  - `none`            — no row (Analytics / Trash never had one)
+ *  - `none`            — no chrome of its own (Analytics / Trash). Since
+ *    #1035 this no longer means "no row": the row is drawn regardless to
+ *    carry the app-global Undo/Redo, and these two sections simply contribute
+ *    nothing to its left and middle
  *  - `hamburger`       — the detail-panel hamburger alone (Connect / Work / Settings)
  *  - `tabs`            — the segmented tab control alone (Schedule; its Calendar
  *    body draws its own hamburger and its Todo body closes the drawer outright)
