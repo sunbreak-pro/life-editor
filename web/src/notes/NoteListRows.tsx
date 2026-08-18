@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   FileText,
@@ -26,7 +27,11 @@ import { tagDroppableId } from "./useNoteTagDnd";
 
 // ---- Desktop draggable note row -------------------------------------------
 
-export function DesktopNoteRow({
+// memo: the sidebar re-renders on things the rows do not care about (sidebar
+// resize, trash/add toggles, isWide flips). Every prop is a primitive or an
+// identity-stable object, so a pure parent re-render bails out here. Drag state
+// still arrives through @dnd-kit's context, which memo does not block.
+export const DesktopNoteRow = memo(function DesktopNoteRow({
   node,
   dragId,
   selected,
@@ -136,11 +141,14 @@ export function DesktopNoteRow({
       </button>
     </li>
   );
-}
+});
 
 // ---- Desktop droppable tag heading ----------------------------------------
 
-export function DesktopTagHeading({
+// memo for the same reason as the row above. Narrower in effect: `group` is
+// rebuilt whenever the list re-sorts (i.e. on note selection), so this one only
+// bails out on the resize / toggle re-renders. Headings are few either way.
+export const DesktopTagHeading = memo(function DesktopTagHeading({
   group,
   collapsed,
   onToggle,
@@ -216,4 +224,4 @@ export function DesktopTagHeading({
       </button>
     </div>
   );
-}
+});
