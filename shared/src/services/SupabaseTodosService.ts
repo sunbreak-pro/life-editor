@@ -58,6 +58,16 @@ import { requireSingleRow, requireRowPair } from "./postgrestSingle";
  *     the union of live + trashed pool so trashed children of a
  *     soft-deleted root are also purged in the right order.
  *
+ *   - #1099 role guard on every items_meta UPDATE: #625 converts an item
+ *     between Todo and Event while KEEPING its id (D-20260810-sched-2), so
+ *     `items_meta.id` alone stopped being a safe address. An undo entry, a
+ *     queued toast action or a stale detail panel still holding the id would
+ *     otherwise fire a Todo write at a row that is now an Event. Adding
+ *     `.eq("role", "task")` turns that into a zero-row miss instead of a
+ *     cross-role write. #996 (PR #1080) closed the Event/Routine side; this
+ *     is the Todo side. NOTE the role literal is "task", not "todo" — the
+ *     domain was renamed but the discriminator value stayed put (#831).
+ *
  * migrateTodosToBackend is a deliberate no-op on web (Supabase-native;
  * nothing to migrate). Kept to satisfy the DataService interface.
  */
@@ -83,7 +93,8 @@ export class SupabaseTodosService implements TodosDataService {
     const { error } = await this.client
       .from("items_meta")
       .update({ updated_at: now })
-      .eq("id", itemId);
+      .eq("id", itemId)
+      .eq("role", "task");
     if (error)
       throw new Error(`bumpItemsMetaUpdatedAt failed: ${error.message}`);
   }
@@ -250,12 +261,27 @@ export class SupabaseTodosService implements TodosDataService {
     );
 
     // items_meta UPDATE (metaPatch.updated_at is guaranteed present).
+    // The role filter (#1099) makes a converted row a zero-row miss rather
+    // than a cross-role write. This one method does not END at the miss,
+    // though: the read-back below rejects either way, so the caller learns
+    // the item moved instead of receiving a stale node. Which error it gets
+    // depends on whether conversion's best-effort payload drop landed — a
+    // missing tasks_payload row fails `requireRowPair`, a stray one reaches
+    // `rowsToTodoNode` and trips assertItemsMetaPair on role. The void write
+    // paths (softDelete / restore) have no read-back and therefore do end at
+    // the silent miss, which is the right outcome for a stale undo entry.
     const { error: metaErr } = await this.client
       .from("items_meta")
       .update(metaPatch)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "task");
     if (metaErr) throw new Error(`updateTodo items_meta: ${metaErr.message}`);
 
+    // No role filter needed on the payload table: `tasks_payload` only ever
+    // holds task rows, and conversion drops the row for the id it moves
+    // (SupabaseItemConversionService "drop tasks_payload"). A stray row left
+    // by a failed best-effort drop is an orphan the db-conventions §10.5
+    // detection query owns, not something a WHERE clause here can fix.
     if (Object.keys(payloadPatch).length > 0) {
       const { error: pErr } = await this.client
         .from("tasks_payload")
@@ -334,7 +360,8 @@ export class SupabaseTodosService implements TodosDataService {
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: true, deleted_at: now, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "task");
     if (error) throw new Error(`softDeleteTodo: ${error.message}`);
   }
 
@@ -344,7 +371,8 @@ export class SupabaseTodosService implements TodosDataService {
     const { error } = await this.client
       .from("items_meta")
       .update({ is_deleted: false, deleted_at: null, updated_at: now })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "task");
     if (error) throw new Error(`restoreTodo: ${error.message}`);
   }
 
