@@ -37,7 +37,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
 vi.mock("../src/wikitag/TagPicker", () => ({
   // itemRole is echoed so #1044's "the kind is named once" can be asserted:
   // passing it back would print a second 「Todo」 two rows under the header
-  // glyph.
+  // glyph. #1000's 「タグの付け外し」 clause reads the same element from the
+  // other end — it asks whether the tag surface is THERE and pointed at this
+  // row, which is itemId, not itemRole.
   TagPicker: ({ itemId, itemRole }: { itemId: string; itemRole?: string }) => (
     <div data-testid="tag-picker" data-item-role={itemRole ?? "none"}>
       {itemId}
@@ -133,6 +135,50 @@ describe("ScheduleTodoDetail — the save footer (#995)", () => {
   it("leaves the Desktop overlay's footer in the flow", () => {
     renderDetail({ isWide: true });
     expect(footerOf().className).not.toContain("sticky");
+  });
+});
+
+describe("ScheduleTodoDetail — the narrow frame (#1000)", () => {
+  /*
+   * The surface landed in #761 on top of #626. What was never pinned is that
+   * it is the SHEET on narrow and the OVERLAY on wide — a regression to a
+   * hardcoded `wide` would keep every existing case green while leaving narrow
+   * with a dialog it cannot close by touch.
+   *
+   * The BottomSheet is the only one of the two frames that draws a close
+   * button of its own; Modal has none. So the button's presence IS the frame.
+   */
+  it("puts narrow in the sheet, which carries its own exit", () => {
+    renderDetail({ isWide: false });
+    screen.getByRole("button", { name: "common.close" });
+  });
+
+  it("leaves Desktop on the overlay, which has no close button (#626 unchanged)", () => {
+    renderDetail({ isWide: true });
+    expect(screen.queryByRole("button", { name: "common.close" })).toBeNull();
+  });
+
+  it("routes the sheet's own exit through the unsaved guard too", async () => {
+    // The existing guard case exercises Escape, which is frame-agnostic. The
+    // sheet's button is the exit only narrow has.
+    const { askConfirm, onClose } = renderDetail({ isWide: false });
+    makeDirty();
+    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Desktop", true],
+    ["Mobile", false],
+  ])("offers tag editing against the todo on %s", (_name, isWide) => {
+    renderDetail({ isWide });
+    // itemId, not itemRole: #1044 stopped handing the picker a role on
+    // purpose (the header glyph names the kind once), and the case above
+    // pins that. What #1000 needs from this element is that it exists on
+    // narrow too, and that it is writing against THIS todo.
+    const picker = screen.getByTestId("tag-picker");
+    expect(picker.textContent).toBe("task-1");
   });
 });
 
