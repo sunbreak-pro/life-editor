@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-08-18 → @chat-main（担当キュー 9 件を PR 化・起票依頼 2 件 + 判断キュー 3 件）
+
+`section:schedule` の残り 9 件（#1044 #1034 #1033 #1000 #998 #997 #996 #995 #889）を **1 Issue = 1 ブランチ = 1 PR** で出しました。全部 origin/main から独立に切ってあり、ローカルで CI `verify` の全ステップ + `docs-lint` を通しています。
+
+| Issue | PR | 中身 |
+| --- | --- | --- |
+| #996 | #1080 | schedule 系の `items_meta` UPDATE 16 箇所に role ガード（18/18 が role 絞り込み済みに） |
+| #1033 | #1081 | narrow のハンバーガーをタブ帯左へ（自前の 2 本目を削除・descriptor 1 行） |
+| #1034 | #1082 | FAB → 日リストヘッダーの「+追加」。`AddPill` を新設し Materials の 2 コピーも差し替え |
+| #995 | #1085 | 詳細シートの保存フッターを sticky に（opt-in prop・Desktop は構造的に不変） |
+| #1044 | #1088 | ロール表示をヘッダーの一文字グリフへ（フレーム連鎖に `titleIcon` スロット） |
+| #998 | #1090 | narrow の予定編集シートに Event → Todo 変換入口 |
+| #997 | #1092 | 変換を Undo に載せる（逆変換 + スナップショットのパッチ） |
+| #889 | #1094 | 作成パネルの 9 ハンドラを `useScheduleCreateFlow` へ（1,636 → 1,479 行） |
+| #1000 | #1095 | **求められている面は既に存在**（#761）。作り直さず継ぎ目 2 つをテストで塞いだ |
+
+### 起票依頼 1: schedule 系の `items_meta` DELETE にも role ガードを
+
+#996 の DoD は UPDATE と明記されていたので DELETE は触っていません（P-008）。ただし**残余経路の危険は同じ**で、むしろ悪い — 古い undo が `permanentDeleteScheduleItem` を投げると、いまや Todo になっている行を hard delete します。
+
+対象 = `SupabaseScheduleItemsService.ts` の `deleteScheduleItem` / `permanentDeleteScheduleItem` / R2 cleanup / `bulkDeleteScheduleItems`、`SupabaseRoutinesService.ts` の purge 経路。ラベルは `section:schedule` / `type:task` / `sev:minor` / `area:schema` あたりでお願いします。
+
+### 起票依頼 2: 変換の**反対側**（`SupabaseTodosService.ts`）にも role ガードを
+
+#996 が塞いだのは Event / Routine 側だけです。変換は双方向なので、**Todo → Event の後に古い Todo 操作が当たる**同じ穴が `SupabaseTodosService.ts` の `items_meta` UPDATE 4 箇所に開いたままです（実測: 84 / 254 / 335 / 345 行）。
+
+Materials レーンの担当ファイルなので触っていません。ラベルは `section:materials`（または `shared-fix`）でお願いします。#996 の本文に「反対側は別 Issue」と 1 行足しておいてもらえると追跡しやすいです。
+
+### 判断キュー 3 件（`comm/decisions/chat-schedule-refine.md`）
+
+- **D-20260818-sched-1**（#997・#1092 の merge 前まで）: Undo は変換で破棄したフィールドまで戻すか。**A で実装済み**（安全側）
+- **D-20260818-sched-2**（#1033・いつでも）: narrow の Schedule→Todo タブでハンバーガーが空のドロワーを開く件。**A = 現状維持を推奨**
+- **D-20260818-sched-3**（#1000・#1095 の merge 前まで）: 「カレンダー上の Todo チップ」が日リストの行か月グリッドのドットか。**実機で 1 点だけ見てほしい**（詳細はキュー本文）
+
+### 実機確認をお願いしたいもの（merge 後・chat-main の手番）
+
+worktree からは dev server / playwright を上げていません（§7.4）。narrow の目視が要るのは #1033（ハンバーガーの位置）/ #1034（「+追加」の位置と FAB の消失）/ #995（長文メモで保存ボタンが常に見える）/ #1044（narrow・wide 双方でヘッダーが崩れない）/ #998（変換入口と拒否ダイアログ）/ #1000（日リストの Todo 行タップ）。#889 は挙動変更ゼロですが、週 / 月表示・ドラッグ移動・リサイズ・繰り返しスコープ選択・Todo 追加削除の一巡をお願いします。
+
+---
+
 ## 2026-08-11 → @chat-main（#628 / #625 完了・起票依頼 4 件）
 
 D-20260810-sched-1〜5 の全 A 回答を受けて残 2 Issue を実装しました。**#628 = PR #681（merge 済み）・#625 = PR #684（CI 緑なら merge 待ち）**。どちらも role-qa 独立監査（+ #625 は sync-auditor 並列）の指摘を全修正済みです。
