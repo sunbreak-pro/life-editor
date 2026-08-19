@@ -10,6 +10,7 @@ import {
   useTranslation,
   useMediaQuery,
   useRightSidebarOptional,
+  useUndoRedoOptional,
   WeekTimeGrid,
   MonthGrid,
   AgendaList,
@@ -270,6 +271,9 @@ export function CalendarTab({
   // The link lands after the panel has closed, so a failure has to be said out
   // loud — there is nothing left on screen to show it.
   const { showToast } = useToast();
+  // #997: optional, like every other Schedule consumer — a standalone render
+  // with no UndoRedoProvider simply records no history.
+  const undoRedo = useUndoRedoOptional();
   /*
    * #707: every "are you sure?" on this screen — the two conversions, their
    * two refusals, the cascade delete and the unsaved-draft discard — goes
@@ -910,6 +914,7 @@ export function CalendarTab({
       setOverlayOpen(false);
       setSelectedId(null);
     },
+    push: undoRedo?.push,
   });
 
   /*

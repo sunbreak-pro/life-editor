@@ -74,9 +74,17 @@ function setup(over?: {
   const convertTodoToEvent = vi.fn((id: string, placement?: unknown) =>
     (over?.convertTodoToEvent ?? (() => Promise.resolve({ id, placement })))(),
   );
+  // #997: the two writes an undo needs beyond the inverse conversion.
+  const updateTodo = vi.fn(async (id: string, patch: unknown) => ({
+    id,
+    patch,
+  }));
+  const dismissScheduleItem = vi.fn(async () => {});
   const dataService = {
     convertEventToTodo,
     convertTodoToEvent,
+    updateTodo,
+    dismissScheduleItem,
   } as unknown as DataService;
   // Typed through its parameter so a case can read the request back — the
   // presence of `cancelLabel` is what separates "decide this" from
@@ -96,6 +104,7 @@ function setup(over?: {
   const showToast = vi.fn();
   const closePopover = vi.fn();
   const closeTodoDetail = vi.fn();
+  const push = vi.fn();
   const closeEditor = vi.fn();
   const view = renderHook(() =>
     useItemConversion({
@@ -110,6 +119,7 @@ function setup(over?: {
       askConfirm,
       closePopover,
       closeTodoDetail,
+      push,
       closeEditor,
     }),
   );
@@ -124,6 +134,19 @@ function setup(over?: {
     closePopover,
     closeTodoDetail,
     closeEditor,
+    push,
+    updateTodo,
+    dismissScheduleItem,
+  };
+}
+
+/** The single command the last successful conversion pushed. */
+function pushedCommand(push: ReturnType<typeof vi.fn>) {
+  expect(push).toHaveBeenCalledTimes(1);
+  return push.mock.calls[0][1] as {
+    label: string;
+    undo: () => void | Promise<void>;
+    redo: () => void | Promise<void>;
   };
 }
 
@@ -149,6 +172,8 @@ describe("useItemConversion — Event → Todo", () => {
 
     expect(h.convertEventToTodo).not.toHaveBeenCalled();
     expect(h.reload).not.toHaveBeenCalled();
+    // #997: nothing happened, so there must be nothing on the stack to undo.
+    expect(h.push).not.toHaveBeenCalled();
     // #998: a declined confirm must not drop the user's selection — the sheet
     // stays on the row it was asking about.
     expect(h.closeEditor).not.toHaveBeenCalled();
@@ -224,5 +249,148 @@ describe("useItemConversion — Todo → Event", () => {
 
     expect(h.askConfirm.mock.calls[0][0]).toHaveProperty("cancelLabel");
     expect(h.convertTodoToEvent).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useItemConversion — undo (#997)", () => {
+  it("pushes nothing for a write that failed", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = setup({
+      convertEventToTodo: () => Promise.reject(new Error("offline")),
+    });
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+
+    await waitFor(() =>
+      expect(h.showToast).toHaveBeenCalledWith("danger", expect.anything()),
+    );
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it("labels the Event -> Todo command", async () => {
+    const h = setup();
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+    expect(pushedCommand(h.push).label).toBe("convertEventToTodo");
+  });
+
+  it("puts the event back on its OWN slot, dismissed flag included", async () => {
+    // Values deliberately unlike the fixture defaults, so the assertion cannot
+    // pass by landing on today's 09:00-10:00 by accident.
+    const h = setup({
+      items: [
+        event({
+          date: "2026-08-14",
+          startTime: "13:15",
+          endTime: "14:45",
+          isAllDay: false,
+          isDismissed: true,
+        }),
+      ],
+    });
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await pushedCommand(h.push).undo();
+    });
+
+    expect(h.convertTodoToEvent).toHaveBeenCalledWith("s-1", {
+      date: "2026-08-14",
+      startTime: "13:15",
+      endTime: "14:45",
+      isAllDay: false,
+    });
+    // convertTodoToEvent always writes is_dismissed = false, so without this
+    // the row would come back visible.
+    expect(h.dismissScheduleItem).toHaveBeenCalledWith("s-1");
+    expect(h.reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-runs the same forward conversion on redo", async () => {
+    const h = setup();
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+    const cmd = pushedCommand(h.push);
+
+    await act(async () => {
+      await cmd.undo();
+    });
+    await act(async () => {
+      await cmd.redo();
+    });
+
+    expect(h.convertEventToTodo).toHaveBeenCalledTimes(2);
+    expect(h.convertEventToTodo.mock.calls[1]).toEqual(["s-1", { order: 0 }]);
+  });
+
+  it("restores the Todo's role AND every field the conversion dropped", async () => {
+    const h = setup({
+      todos: [
+        todo({ id: "task-parent" }),
+        todo({
+          id: "task-1",
+          parentId: "task-parent",
+          order: 7,
+          status: "DONE",
+          isExpanded: true,
+          priority: 2,
+          color: "amber",
+          icon: "star",
+          timeMemo: "morning",
+          workDurationMinutes: 45,
+          reminderEnabled: true,
+          reminderOffset: 15,
+        }),
+      ],
+    });
+    await act(async () => h.view.result.current.handleConvertToEvent("task-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await pushedCommand(h.push).undo();
+    });
+
+    // The ROLE, back at the position it held.
+    expect(h.convertEventToTodo).toHaveBeenCalledWith("task-1", { order: 7 });
+    // The FIELDS the re-role cannot carry: convertEventToTodo builds its
+    // TodoNode from the event alone, so anything not in that literal comes
+    // back NULL or false.
+    expect(h.updateTodo).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({
+        parentId: "task-parent",
+        status: "DONE",
+        isExpanded: true,
+        priority: 2,
+        color: "amber",
+        icon: "star",
+        timeMemo: "morning",
+        workDurationMinutes: 45,
+        reminderEnabled: true,
+        reminderOffset: 15,
+      }),
+    );
+    // Order matters: tasks_payload does not exist until the re-role lands, so
+    // a patch sent first would have nothing to write onto.
+    expect(h.convertEventToTodo.mock.invocationCallOrder[0]).toBeLessThan(
+      h.updateTodo.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("reports a failed undo instead of going quiet", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = setup({
+      convertTodoToEvent: () => Promise.reject(new Error("offline")),
+    });
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await pushedCommand(h.push).undo();
+    });
+
+    // The manager console.errors a throwing command and still moves it to the
+    // redo stack, so a silent undo would look exactly like a working one.
+    expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
   });
 });
