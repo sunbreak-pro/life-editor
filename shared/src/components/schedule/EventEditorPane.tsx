@@ -148,8 +148,6 @@ export interface EventEditorLabels {
   seriesHint?: string;
   /** Origin chip copy for a routine-generated item. */
   originRoutine: string;
-  /** Origin chip copy for a manual (single) event. */
-  originEvent: string;
   /** "この日はスキップ" (routine only). */
   skipThisDay: string;
   /** "削除" — manual: plain delete / routine: opens the scope dialog (#279). */
@@ -669,9 +667,13 @@ function EventEditorFields({
         />
       )}
 
-      {/* Origin chip + provenance action (Issue 017). The repeat section
-          (#185) replaces the read-only routine chip when the host wires it;
-          otherwise the legacy chip renders. */}
+      {/* Provenance + its action (Issue 017), routine items only. The repeat
+          section (#185) replaces the read-only routine chip when the host
+          wires it; otherwise the legacy chip renders.
+          #1044: a MANUAL event no longer says 「予定」 here — the kind moved to
+          a one-glyph cue in the frame's header. 「ルーチンから生成」 stays,
+          because it is provenance rather than a kind, and it carries a detail
+          (「月・水・金」) that cannot be compressed into a glyph. */}
       {item.isRoutine ? (
         <>
           {/* #469 小粒: the fields above behave differently on a series, and
@@ -708,12 +710,7 @@ function EventEditorFields({
           )}
         </>
       ) : (
-        <>
-          <div className="flex items-center gap-1.5 self-start rounded-lumen-md bg-lumen-chip-event-bg px-2.5 py-1 text-xs font-medium text-lumen-chip-event-fg">
-            {labels.originEvent}
-          </div>
-          {repeatSection}
-        </>
+        repeatSection
       )}
 
       {/* Tags (#468). Sits right under the origin block because that is where

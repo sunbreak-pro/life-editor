@@ -39,7 +39,6 @@ const LABELS: EventEditorLabels = {
   saved: "Saved",
   unsaved: "Unsaved",
   originRoutine: "Generated from routine",
-  originEvent: "Event",
   skipThisDay: "Skip this day",
   delete: "Delete",
 };
@@ -129,6 +128,23 @@ describe("EventEditorPane — Issue 017 / #279 action gating", () => {
     renderPane(manualItem);
     expect(screen.getByText("Delete")).toBeInTheDocument();
     expect(screen.queryByText("Skip this day")).toBeNull();
+  });
+});
+
+describe("EventEditorPane — the body does not name the kind (#1044)", () => {
+  it("drops the manual item's 「予定」 chip", () => {
+    // It moved to a one-glyph cue in the frame's header. The body saying it a
+    // second time was the duplication the Issue is about.
+    renderPane(manualItem);
+    expect(screen.queryByText("Event")).toBeNull();
+  });
+
+  it("keeps a routine occurrence's provenance", () => {
+    // 「ルーチンから生成」 is not a KIND — it is where this row came from, and
+    // it carries a detail (「月・水・金」) no glyph can hold. The deletion above
+    // must not take it along.
+    renderPane(routineItem);
+    expect(screen.getByText(/Generated from routine/)).toBeInTheDocument();
   });
 });
 
