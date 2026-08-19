@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import {
+  ItemRoleBadge,
   ResponsiveDetailFrame,
   STATUS_TEXT_KEY,
   TodoDetailPanel,
@@ -12,6 +13,7 @@ import {
 import { TagPicker } from "../wikitag/TagPicker";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { formatTodoSchedule } from "./scheduleCopy";
+import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 
 /*
  * #626 / #761 / #889 — the Schedule section's own todo detail surface.
@@ -77,6 +79,7 @@ export function ScheduleTodoDetail({
   askConfirm,
 }: ScheduleTodoDetailProps) {
   const { t, i18n } = useTranslation();
+  const roleLabels = useScheduleRoleLabels();
   const todo =
     todoId != null ? (todoNodes.find((n) => n.id === todoId) ?? null) : null;
 
@@ -158,11 +161,10 @@ export function ScheduleTodoDetail({
         onDirtyChange={(dirty) => {
           dirtyRef.current = dirty;
         }}
-        // Same omission as Kanban: TagPicker's own kind badge captions the row,
-        // so TodoDetailPanel's generic tagsLabel would repeat it.
-        tagsSlot={
-          <TagPicker itemId={todo.id} itemRole="task" showLabel size="sm" />
-        }
+        // #1044: the kind is named ONCE, by the glyph in the frame's header,
+        // so the tag row goes back to captioning itself 「タグ」 — passing
+        // `itemRole` here would print a second 「Todo」 two rows below the first.
+        tagsSlot={<TagPicker itemId={todo.id} showLabel size="sm" />}
       />
       {/* #625: the panel is the surface a user reaches for when the todo turns
           out to be an appointment, so the action has to be here too — and this
@@ -201,6 +203,9 @@ export function ScheduleTodoDetail({
       wide={isWide}
       open={!!todo}
       title={t("materials.todos.detailTitle")}
+      // #1044: the kind, as a glyph, where the frame names the surface —
+      // replacing the word the tag row used to caption itself with.
+      titleIcon={<ItemRoleBadge role="task" labels={roleLabels} compact />}
       closeLabel={t("common.close")}
       // #736: every exit from the panel funnels through the one guard.
       onClose={() => {

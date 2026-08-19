@@ -39,7 +39,6 @@ const LABELS: EventEditorLabels = {
   saved: "Saved",
   unsaved: "Unsaved",
   originRoutine: "Generated from routine",
-  originEvent: "Event",
   skipThisDay: "Skip this day",
   delete: "Delete",
 };
@@ -79,6 +78,8 @@ function renderPane(
     onDirtyChange?: (dirty: boolean) => void;
     canEditDate?: boolean;
     canEditAllDay?: boolean;
+    /** #998: render the narrow sheet's Event -> Todo action. */
+    convert?: boolean;
   },
 ) {
   const fns = {
@@ -87,6 +88,7 @@ function renderPane(
     onDismiss: vi.fn(),
     onDelete: vi.fn(),
   };
+  const onConvert = vi.fn();
   render(
     <EventEditorPane
       item={item}
@@ -96,11 +98,19 @@ function renderPane(
         canEditDate: props?.canEditDate,
         canEditAllDay: props?.canEditAllDay,
       }}
+      convert={
+        props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined
+      }
       tagSlot={props?.tagSlot}
     />,
   );
-  return fns;
+  return { ...fns, onConvert };
 }
+
+/** #998: the narrow sheet's Event -> Todo action. */
+const CONVERT_LABEL = "Convert to Todo";
+const convertButton = () =>
+  screen.getByRole("button", { name: CONVERT_LABEL });
 
 const saveButton = () => screen.getByRole("button", { name: "Save" });
 
@@ -118,6 +128,51 @@ describe("EventEditorPane — Issue 017 / #279 action gating", () => {
     renderPane(manualItem);
     expect(screen.getByText("Delete")).toBeInTheDocument();
     expect(screen.queryByText("Skip this day")).toBeNull();
+  });
+});
+
+describe("EventEditorPane — the body does not name the kind (#1044)", () => {
+  it("drops the manual item's 「予定」 chip", () => {
+    // It moved to a one-glyph cue in the frame's header. The body saying it a
+    // second time was the duplication the Issue is about.
+    renderPane(manualItem);
+    expect(screen.queryByText("Event")).toBeNull();
+  });
+
+  it("keeps a routine occurrence's provenance", () => {
+    // 「ルーチンから生成」 is not a KIND — it is where this row came from, and
+    // it carries a detail (「月・水・金」) no glyph can hold. The deletion above
+    // must not take it along.
+    renderPane(routineItem);
+    expect(screen.getByText(/Generated from routine/)).toBeInTheDocument();
+  });
+});
+
+describe("EventEditorPane — Event -> Todo entry (#998)", () => {
+  it("renders the action when the host supplies the bundle", () => {
+    renderPane(manualItem, { convert: true });
+    expect(convertButton()).toBeInTheDocument();
+  });
+
+  it("hands the id to the host on press", () => {
+    const { onConvert } = renderPane(manualItem, { convert: true });
+    fireEvent.click(convertButton());
+    expect(onConvert).toHaveBeenCalledTimes(1);
+    expect(onConvert).toHaveBeenCalledWith("m1");
+  });
+
+  it("renders nothing without it — Desktop keeps its bubble", () => {
+    renderPane(manualItem);
+    expect(screen.queryByRole("button", { name: CONVERT_LABEL })).toBeNull();
+  });
+
+  it("stays ENABLED on a routine occurrence (D-20260810-sched-5)", () => {
+    // The ruling is explicit: do not grey it out, let the press ANSWER with
+    // the reason. A future "just disable it for routines" fails here.
+    const { onConvert } = renderPane(routineItem, { convert: true });
+    expect(convertButton()).toBeEnabled();
+    fireEvent.click(convertButton());
+    expect(onConvert).toHaveBeenCalledWith("r1");
   });
 });
 

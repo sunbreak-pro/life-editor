@@ -32,6 +32,12 @@ export interface ModalProps {
   onClose: () => void;
   /** Already-translated accessible title (props-injected i18n, §6.4). */
   title?: string;
+  /**
+   * One-glyph adornment rendered before the heading text (#1044). It never
+   * joins the dialog's accessible name — that comes from `aria-label={title}`
+   * below, so the glyph is additive redundancy rather than the only cue.
+   */
+  titleIcon?: ReactNode;
   /** id of a heading inside `children` that names the dialog — for consumers
       that render their own layout instead of the default `title` heading. */
   labelledBy?: string;
@@ -66,6 +72,7 @@ export function Modal({
   open,
   onClose,
   title,
+  titleIcon,
   labelledBy,
   children,
   size = "md",
@@ -106,12 +113,17 @@ export function Modal({
           <h2
             className={cn(
               "mb-3 text-base font-semibold text-lumen-text",
+              // Only becomes a flex row when there is a glyph to sit beside —
+              // every existing caller keeps a plain block <h2> with an inline
+              // <span> inside it, i.e. the same box and the same wrapping.
+              titleIcon ? "flex items-center gap-2" : null,
               // An unpadded panel still owes its heading an inset — only the
               // BODY rows asked to run edge to edge.
               padded ? null : "px-5 pt-5",
             )}
           >
-            {title}
+            {titleIcon}
+            <span className="min-w-0">{title}</span>
           </h2>
         ) : null}
         {children}

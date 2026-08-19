@@ -35,9 +35,11 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
 }));
 
 vi.mock("../src/wikitag/TagPicker", () => ({
-  // itemRole is echoed so #1000's 「タグの付け外し」 clause can be pinned on
-  // both widths: the picker is the tag surface, and it is only editable when
-  // it knows which kind of row it is writing against.
+  // itemRole is echoed so #1044's "the kind is named once" can be asserted:
+  // passing it back would print a second 「Todo」 two rows under the header
+  // glyph. #1000's 「タグの付け外し」 clause reads the same element from the
+  // other end — it asks whether the tag surface is THERE and pointed at this
+  // row, which is itemId, not itemRole.
   TagPicker: ({ itemId, itemRole }: { itemId: string; itemRole?: string }) => (
     <div data-testid="tag-picker" data-item-role={itemRole ?? "none"}>
       {itemId}
@@ -92,6 +94,26 @@ function renderDetail(
     askConfirm,
   };
 }
+
+describe("ScheduleTodoDetail — the kind cue (#1044)", () => {
+  it.each([
+    ["Desktop", true],
+    ["Mobile", false],
+  ])("names the kind once, in the header, on %s", (_name, isWide) => {
+    renderDetail({ isWide });
+    // The glyph carries the name (ItemRoleBadge compact = role="img"), and the
+    // tag row no longer repeats it.
+    screen.getByRole("img", { name: "itemRole.task" });
+    expect(
+      screen.getByTestId("tag-picker").getAttribute("data-item-role"),
+    ).toBe("none");
+  });
+
+  it("draws no glyph when nothing is selected", () => {
+    renderDetail({ todoId: null });
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+});
 
 describe("ScheduleTodoDetail — the save footer (#995)", () => {
   /*
@@ -151,9 +173,12 @@ describe("ScheduleTodoDetail — the narrow frame (#1000)", () => {
     ["Mobile", false],
   ])("offers tag editing against the todo on %s", (_name, isWide) => {
     renderDetail({ isWide });
+    // itemId, not itemRole: #1044 stopped handing the picker a role on
+    // purpose (the header glyph names the kind once), and the case above
+    // pins that. What #1000 needs from this element is that it exists on
+    // narrow too, and that it is writing against THIS todo.
     const picker = screen.getByTestId("tag-picker");
     expect(picker.textContent).toBe("task-1");
-    expect(picker.getAttribute("data-item-role")).toBe("task");
   });
 });
 

@@ -4,12 +4,16 @@ import {
   eventToTodoBlock,
   todoToEventBlock,
   todoToEventPlacement,
+  eventRestore,
+  todoRestorePatch,
   ItemConversionError,
   logServiceError,
   useTranslation,
   type DataService,
+  type EventPlacement,
   type ScheduleItem,
   type TodoNode,
+  type UndoRedoLike,
 } from "@life-editor/shared";
 
 /*
@@ -43,6 +47,17 @@ import {
  * does the same.
  */
 
+/*
+ * #997: the two undo labels. Not in TODO_HISTORY_LABELS — that closed union is
+ * for tree writes routed through `updateNode({ undoLabel })`; a conversion
+ * pushes directly, the way the schedule / routine / note commands do.
+ */
+const UNDO_LABEL_TO_TODO = "convertEventToTodo";
+const UNDO_LABEL_TO_EVENT = "convertTodoToEvent";
+
+/** The slot a converted Todo lands in: the top of the root group. */
+const CONVERT_TODO_ORDER = 0;
+
 export interface UseItemConversionArgs {
   dataService: DataService;
   /** Both stores the lookup walks — visible range first, then today's. */
@@ -64,6 +79,20 @@ export interface UseItemConversionArgs {
   /** Close the surfaces the action was invoked from. */
   closePopover: () => void;
   closeTodoDetail: () => void;
+  /**
+   * #997: the global undo stack's push. Optional so a host with no
+   * UndoRedoProvider (a standalone render, a test) simply records no history —
+   * the same shape every other Schedule consumer uses via
+   * `useUndoRedoOptional`. The `domain` argument exists for UndoRedoLike
+   * compatibility and is IGNORED by the provider: one stack, app-wide.
+   */
+  push?: UndoRedoLike["push"];
+  /**
+   * #998: the event-edit surface, which is about to be showing a row that has
+   * stopped being an event. Called only on a confirmed Event → Todo — a
+   * declined confirm or a refused routine leaves the sheet exactly as it was.
+   */
+  closeEditor: () => void;
 }
 
 export function useItemConversion({
@@ -78,9 +107,149 @@ export function useItemConversion({
   askConfirm,
   closePopover,
   closeTodoDetail,
+  push,
+  closeEditor,
 }: UseItemConversionArgs) {
   const { t } = useTranslation();
   const { begin: beginConvert, end: endConvert } = useInFlightGuard();
+
+  /*
+   * #997: both directions push one command, and both commands are "run the
+   * INVERSE conversion, then patch back what the inverse cannot carry".
+   *
+   * Why a patch is needed at all: each direction builds the new payload row
+   * from the old one and UPSERTs a row that fully specifies itself, so every
+   * column the builder does not mention comes back NULL or false. The inverse
+   * alone would land the user on a row of the right KIND and the wrong SHAPE —
+   * the parent link gone, the priority cleared, a dismissed occurrence
+   * un-dismissed. `eventRestore` / `todoRestorePatch` are the field-level spec
+   * of that difference (shared/src/utils/itemConversion.ts).
+   *
+   * Both closures re-claim the per-id in-flight guard (#434). Undo is a
+   * keyboard gesture and repeats readily, and a second inverse against a row
+   * whose role has already moved would report a failure for something that
+   * worked.
+   *
+   * The bodies are async and the manager awaits them, so the "Undid: ..." toast
+   * lands after the writes settle rather than in front of them.
+   */
+  const pushEventToTodoUndo = useCallback(
+    (before: ScheduleItem) => {
+      if (!push) return;
+      const id = before.id;
+      const { placement, dismissed } = eventRestore(before);
+      push("itemConversion", {
+        label: UNDO_LABEL_TO_TODO,
+        undo: async () => {
+          if (!beginConvert(id)) return;
+          try {
+            await dataService.convertTodoToEvent(id, placement);
+            // convertTodoToEvent always writes is_dismissed = false, so a
+            // dismissed occurrence would come back un-dismissed without this.
+            if (dismissed) await dataService.dismissScheduleItem(id);
+            reload();
+            await refetchTodos();
+          } catch (err) {
+            logServiceError(
+              "ItemConversion",
+              `undo convertEventToTodo (${id})`,
+              err,
+            );
+            showToast("danger", t("itemConvert.failed"));
+          } finally {
+            endConvert(id);
+          }
+        },
+        redo: async () => {
+          if (!beginConvert(id)) return;
+          try {
+            await dataService.convertEventToTodo(id, {
+              order: CONVERT_TODO_ORDER,
+            });
+            reload();
+            await refetchTodos();
+          } catch (err) {
+            logServiceError(
+              "ItemConversion",
+              `redo convertEventToTodo (${id})`,
+              err,
+            );
+            showToast("danger", t("itemConvert.failed"));
+          } finally {
+            endConvert(id);
+          }
+        },
+      });
+    },
+    [
+      push,
+      dataService,
+      reload,
+      refetchTodos,
+      showToast,
+      t,
+      beginConvert,
+      endConvert,
+    ],
+  );
+
+  const pushTodoToEventUndo = useCallback(
+    (before: TodoNode, placement: EventPlacement) => {
+      if (!push) return;
+      const id = before.id;
+      const patch = todoRestorePatch(before);
+      push("itemConversion", {
+        label: UNDO_LABEL_TO_EVENT,
+        undo: async () => {
+          if (!beginConvert(id)) return;
+          try {
+            // Role first: tasks_payload does not exist until this lands, so
+            // the field patch would have nothing to write onto.
+            await dataService.convertEventToTodo(id, { order: before.order });
+            await dataService.updateTodo(id, patch);
+            reload();
+            await refetchTodos();
+          } catch (err) {
+            logServiceError(
+              "ItemConversion",
+              `undo convertTodoToEvent (${id})`,
+              err,
+            );
+            showToast("danger", t("itemConvert.failed"));
+          } finally {
+            endConvert(id);
+          }
+        },
+        redo: async () => {
+          if (!beginConvert(id)) return;
+          try {
+            await dataService.convertTodoToEvent(id, placement);
+            reload();
+            await refetchTodos();
+          } catch (err) {
+            logServiceError(
+              "ItemConversion",
+              `redo convertTodoToEvent (${id})`,
+              err,
+            );
+            showToast("danger", t("itemConvert.failed"));
+          } finally {
+            endConvert(id);
+          }
+        },
+      });
+    },
+    [
+      push,
+      dataService,
+      reload,
+      refetchTodos,
+      showToast,
+      t,
+      beginConvert,
+      endConvert,
+    ],
+  );
 
   const handleConvertToTodo = useCallback(
     (id: string) => {
@@ -113,16 +282,20 @@ export function useItemConversion({
         // the write that could let a second click through.
         if (!beginConvert(id)) return;
         closePopover();
+        closeEditor();
         // order 0 = the top of the root group, the slot addNode aims a new
         // todo at. It does NOT shift the existing siblings down the way
         // addNode does: that would be a second, unrelated write over every
         // root row, and a tie in sort_order only costs an arbitrary order
         // between two rows.
         void dataService
-          .convertEventToTodo(id, { order: 0 })
+          .convertEventToTodo(id, { order: CONVERT_TODO_ORDER })
           .then(() => {
             reload();
             void refetchTodos();
+            // Pushed inside the success branch: a failed write or a declined
+            // confirm must leave nothing on the stack to "undo".
+            pushEventToTodoUndo(item);
           })
           .then(() => showToast("success", t("itemConvert.toTodoDone")))
           .catch((err) => {
@@ -145,6 +318,8 @@ export function useItemConversion({
       showToast,
       askConfirm,
       closePopover,
+      pushEventToTodoUndo,
+      closeEditor,
       beginConvert,
       endConvert,
       t,
@@ -185,11 +360,15 @@ export function useItemConversion({
         if (!beginConvert(id)) return;
         closePopover();
         closeTodoDetail();
+        // Computed once and reused by the redo, so the two can never disagree
+        // about where the event landed.
+        const placement = todoToEventPlacement(todo, listDate);
         void dataService
-          .convertTodoToEvent(id, todoToEventPlacement(todo, listDate))
+          .convertTodoToEvent(id, placement)
           .then(() => {
             reload();
             void refetchTodos();
+            pushTodoToEventUndo(todo, placement);
           })
           .catch((err) => {
             logServiceError(
@@ -221,6 +400,7 @@ export function useItemConversion({
       askConfirm,
       closePopover,
       closeTodoDetail,
+      pushTodoToEventUndo,
       beginConvert,
       endConvert,
       t,

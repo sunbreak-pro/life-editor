@@ -181,3 +181,96 @@ export function eventToTodoSlot(slot: EventSlot): TodoChipSlot {
     ? { scheduledAt, scheduledEndAt, isAllDay: false }
     : { scheduledAt, isAllDay: false };
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Undo (#997)
+ * ---------------------------------------------------------------------------
+ *
+ * The inverse of a conversion is the OTHER conversion — but only for the
+ * fields the other conversion happens to carry. Both directions build their
+ * new payload row from the old one and UPSERT a row that FULLY specifies
+ * itself, so every column the builder does not mention comes back NULL or
+ * false. Running the inverse alone therefore lands the user on a row that is
+ * the right KIND and the wrong SHAPE.
+ *
+ * So undo is "inverse conversion + a patch built from the pre-conversion
+ * snapshot", and these two helpers are the field-level spec of that patch.
+ * They are pure and live here for the reason the whole module does: the hosts
+ * that own the undo closures need the entire Provider stack plus real layout
+ * to render, so a decision made inside them is invisible to every test we can
+ * afford to run.
+ *
+ * WHY RESTORE THE DISCARDED FIELDS AT ALL. D-20260810-sched-3 ruled that the
+ * conversion DISCARDS what it cannot carry — but that is a ruling about
+ * converting, not about undoing. Undo means "the state before", and every
+ * other command on this stack restores a whole snapshot (a ScheduleItem, a
+ * todo-tree array). An undo that only half-returns is the one shape a user
+ * cannot recover from, because the second half is gone with no further
+ * gesture available. Queued for confirmation as D-20260818-sched-1; this is
+ * the safe default (it loses nothing) and the cheaper direction to reverse.
+ *
+ * NOT RESTORABLE, and deliberately absent below:
+ *   - `events_payload.reminder_at` — no DataService write path reaches it
+ *     (updateScheduleItem's patch type omits it and the mapper hardcodes
+ *     null). No UI sets an event reminder today, so the loss is theoretical.
+ *   - `events_payload.source_date` — only ever non-null on routine-derived
+ *     rows, which the conversion refuses outright (D-20260810-sched-5).
+ *   - `tasks_payload.start_at` / `due_at` / `original_parent_id` /
+ *     `folder_type` — no TodoNode field maps to them, and nothing reads them.
+ */
+
+/** What an undo has to put back on the EVENT side, from the pre-conversion row. */
+export interface EventRestore {
+  /** The event's OWN slot, not one re-derived from the todo chip it became. */
+  placement: EventPlacement;
+  /**
+   * `convertTodoToEvent` always writes `is_dismissed = false`, so a dismissed
+   * occurrence would quietly come back un-dismissed.
+   */
+  dismissed: boolean;
+}
+
+export function eventRestore(before: ScheduleItem): EventRestore {
+  return {
+    placement: {
+      date: before.date,
+      startTime: before.startTime,
+      endTime: before.endTime,
+      isAllDay: before.isAllDay ?? false,
+    },
+    dismissed: before.isDismissed === true,
+  };
+}
+
+/**
+ * The `tasks_payload` fields `convertEventToTodo` cannot reinstate.
+ *
+ * Every key is PRESENT even when its value is `undefined`, on purpose: the
+ * mapper branches on `"key" in updates`, so a present-but-undefined key writes
+ * NULL (an exact restore) while an absent key leaves the column at whatever
+ * the conversion defaulted it to.
+ *
+ * Excluded because they round-trip on their own: `title` (items_meta is never
+ * recreated, so it never moved), `content` (survives as the event memo),
+ * `completedAt`, `createdAt`, `version`. Excluded because patching them would
+ * touch meta for no reason: `isDeleted` / `deletedAt`.
+ */
+export function todoRestorePatch(before: TodoNode): Partial<TodoNode> {
+  return {
+    parentId: before.parentId,
+    order: before.order,
+    status: before.status,
+    isExpanded: before.isExpanded,
+    priority: before.priority,
+    color: before.color,
+    icon: before.icon,
+    timeMemo: before.timeMemo,
+    workDurationMinutes: before.workDurationMinutes,
+    reminderEnabled: before.reminderEnabled,
+    reminderOffset: before.reminderOffset,
+    scheduledAt: before.scheduledAt,
+    scheduledEndAt: before.scheduledEndAt,
+    isAllDay: before.isAllDay,
+  };
+}

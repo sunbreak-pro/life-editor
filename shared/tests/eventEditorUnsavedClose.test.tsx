@@ -41,7 +41,6 @@ const LABELS: EventEditorLabels = {
   saved: "Saved",
   unsaved: "Unsaved",
   originRoutine: "Generated from routine",
-  originEvent: "Event",
   skipThisDay: "Skip this day",
   delete: "Delete",
 };
@@ -61,14 +60,33 @@ const item: EventEditorItem = {
 
 const CONFIRM_COPY = "You have unsaved changes. Discard them and close?";
 
+const CONVERT_LABEL = "Convert to Todo";
+
 /** The host wiring CalendarTab uses, reduced to the parts under test. */
-function Harness({ onSave }: { onSave: () => void }) {
+function Harness({
+  onSave,
+  onConvert,
+}: {
+  onSave: () => void;
+  onConvert?: () => void;
+}) {
   const dirtyRef = useRef(false);
   const [open, setOpen] = useState(true);
   const close = () => {
     if (dirtyRef.current && !window.confirm(CONFIRM_COPY)) return;
     dirtyRef.current = false;
     setOpen(false);
+  };
+  /*
+   * #998: the same guard, with ONE deliberate difference — the flag is not
+   * cleared on an agreed discard. The conversion asks its own question next
+   * (the routine refusal, or its confirm), and a refusal there leaves the
+   * draft on screen; with the flag already wiped the next exit would throw it
+   * away without asking. Mirrors CalendarTab's requestEditorConvert.
+   */
+  const convert = () => {
+    if (dirtyRef.current && !window.confirm(CONFIRM_COPY)) return;
+    onConvert?.();
   };
   return (
     <BottomSheet
@@ -87,6 +105,9 @@ function Harness({ onSave }: { onSave: () => void }) {
             dirtyRef.current = dirty;
           },
         }}
+        convert={
+          onConvert ? { label: CONVERT_LABEL, onConvert: convert } : undefined
+        }
       />
     </BottomSheet>
   );
@@ -169,5 +190,47 @@ describe("EventEditorPane — unsaved-close guard (#628)", () => {
     fireEvent.click(screen.getByLabelText("Close"));
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(sheetIsOpen()).toBe(false);
+  });
+});
+
+describe("EventEditorPane — the convert entry guards the draft too (#998)", () => {
+  const convertButton = () =>
+    screen.getByRole("button", { name: CONVERT_LABEL });
+
+  it("converts without a word when nothing is pending", () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onConvert = vi.fn();
+    render(<Harness onSave={vi.fn()} onConvert={onConvert} />);
+    fireEvent.click(convertButton());
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(onConvert).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the draft when the discard is refused", () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const onConvert = vi.fn();
+    render(<Harness onSave={vi.fn()} onConvert={onConvert} />);
+    typeInTitle("Dentist checkup");
+    fireEvent.click(convertButton());
+    expect(confirmSpy).toHaveBeenCalledWith(CONFIRM_COPY);
+    expect(onConvert).not.toHaveBeenCalled();
+    expect(sheetIsOpen()).toBe(true);
+    expect(screen.getByLabelText("Title")).toHaveValue("Dentist checkup");
+  });
+
+  it("does NOT clear the pending flag on an agreed discard", () => {
+    // The one case that catches reusing the close guard verbatim: after an
+    // agreed convert, the sheet is still showing a pending draft, so the next
+    // exit has to ask again.
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onConvert = vi.fn();
+    render(<Harness onSave={vi.fn()} onConvert={onConvert} />);
+    typeInTitle("Dentist checkup");
+    fireEvent.click(convertButton());
+    expect(onConvert).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText("Close"));
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
   });
 });

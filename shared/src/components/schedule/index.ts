@@ -46,6 +46,8 @@ export {
   type EventEditorHandlers,
   type EventEditorOptions,
   type EventEditorRepeat,
+  // #998: the narrow sheet's Event → Todo entry.
+  type EventEditorConvert,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";

@@ -51,6 +51,27 @@ describe("shared i18n", () => {
     }
   });
 
+  /*
+   * #997: the two conversion labels are deliberately NOT in
+   * TODO_HISTORY_LABELS (that closed union is for tree writes routed through
+   * updateNode), so the lockstep test over that union does not reach them.
+   * Same silent failure as the routine labels above — a missing entry just
+   * shows the raw command name in the toast.
+   */
+  it("carries every conversion undo label in both catalogs", () => {
+    const labels = ["convertEventToTodo", "convertTodoToEvent"];
+    for (const lng of ["en", "ja"]) {
+      for (const label of labels) {
+        const entry = i18n.getResource(
+          lng,
+          "translation",
+          `undoRedo.labels.${label}`,
+        );
+        expect(entry, `${lng}/${label}`).toBeTypeOf("string");
+      }
+    }
+  });
+
   it("resolves the same key differently per language", async () => {
     await i18n.changeLanguage("en");
     expect(i18n.t("section.todos")).toBe("Todos");

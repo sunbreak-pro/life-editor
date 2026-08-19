@@ -12,6 +12,12 @@ export interface BottomSheetProps {
   /** Already-translated accessible title (props-injected i18n, §6.4). */
   title?: string;
   /**
+   * One-glyph kind cue beside the title (#1044). A SIBLING of the heading, not
+   * a child: the <h2> owns `flex-1 truncate`, so a glyph inside it would join
+   * the truncation zone and vanish first on a narrow screen.
+   */
+  titleIcon?: ReactNode;
+  /**
    * Already-translated name for the close button (§6.4). Required, not
    * optional: the button itself is unconditional (#525), so an optional label
    * would leave "a sheet whose only exit no screen reader can announce" as the
@@ -91,6 +97,7 @@ export function BottomSheet({
   open,
   onClose,
   title,
+  titleIcon,
   closeLabel,
   children,
   className,
@@ -244,6 +251,7 @@ export function BottomSheet({
            */}
           <div className="mb-3 flex min-h-6 items-center justify-between gap-2">
             {fullScreen && exitButton}
+            {titleIcon}
             {title ? (
               <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-lumen-text">
                 {title}

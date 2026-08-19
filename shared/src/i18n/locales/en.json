@@ -788,6 +788,8 @@
       "toggleScheduleItemComplete": "event completion toggle",
       "dismissScheduleItem": "event dismissal",
       "deleteScheduleItem": "event deletion",
+      "convertEventToTodo": "event-to-todo conversion",
+      "convertTodoToEvent": "todo-to-event conversion",
       "createRoutine": "repeat creation",
       "updateRoutine": "repeat update",
       "deleteRoutine": "repeat deletion",

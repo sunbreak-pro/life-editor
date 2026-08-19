@@ -181,12 +181,18 @@ export function KanbanView({
   // Desktop board card click → select + push the detail into the rightSidebar
   // panel (auto-open). Narrow uses the BottomSheet inside MobileTodoList, so
   // this handler is the wide-board path only.
+  // Depend on the two members, not the whole context objects: `tree` is a new
+  // object on every todo mutation and `rightSidebar` churns on every resize
+  // sample, either of which would hand the whole board a fresh onSelectCard.
+  // Both members are themselves useCallbacks.
+  const setSelectedTodoId = tree.setSelectedTodoId;
+  const openSidebar = rightSidebar.open;
   const handleSelectCard = useCallback(
     (id: string) => {
-      tree.setSelectedTodoId(id);
-      rightSidebar.open();
+      setSelectedTodoId(id);
+      openSidebar();
     },
-    [tree, rightSidebar],
+    [setSelectedTodoId, openSidebar],
   );
 
   // Add-todo dialog (W-UX) + the shell's global:new-task intent.
