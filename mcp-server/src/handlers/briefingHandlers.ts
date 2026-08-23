@@ -11,6 +11,12 @@ import {
   upsertBriefingSection,
   hasBriefingSection,
 } from "../utils/briefingSection.js";
+import {
+  FOCUS_NOTE_ID,
+  FOCUS_NOTE_TITLE,
+  mergeFocusSection,
+  normalizeFocusText,
+} from "../utils/focusSection.js";
 import { contentJsonToString, contentPlainText } from "../utils/content.js";
 import { insertItem, updatePayload } from "../utils/items.js";
 import { fetchByIdChunks } from "../utils/pagination.js";
@@ -23,10 +29,12 @@ import { fetchByIdChunks } from "../utils/pagination.js";
  *     dailies (the 夕刊 material) and the state of today's daily.
  *   get_week_context — the same day-shaped material for 7 days at once, for
  *     the weekly review (#782 ③).
- *   write_briefing — upserts the 朝刊 section into today's DailyNode
- *     content (dailies_payload.content_json), honouring the §10.2
- *     items_meta.updated_at bump. The section shape is the write half of
- *     shared/src/components/briefing/extractBriefing.ts.
+ *   write_briefing — two writes since #1048 / #1097: the focus goes into
+ *     the reserved focus note's per-day section (the read half =
+ *     shared focusSections.ts), and the comment paragraphs are upserted as
+ *     the 朝刊 section of the DailyNode content (read half =
+ *     shared extractBriefing.ts). Both honour the §10.2
+ *     items_meta.updated_at bump.
  */
 
 interface DailiesPayloadRow {
@@ -412,15 +420,70 @@ export async function getWeekContext(args: { start_date?: string }) {
   };
 }
 
-export async function writeBriefing(args: {
-  date?: string;
-  focus: string;
-  paragraphs?: string[];
-}) {
-  const date = assertDateKey(args.date ?? localToday());
-  const paragraphs = args.paragraphs ?? [];
+/**
+ * The focus half of write_briefing (#1097): upsert the date's section into
+ * the reserved focus note — the place the morning paper actually reads the
+ * focus from since #1048. Created on the first save, restored from the
+ * trash on write (a focus written into a trashed note stays what the paper
+ * reads, but the repair matches the web hook / the daily path below).
+ */
+async function writeFocusIntoNote(
+  date: string,
+  focus: string,
+): Promise<{ id: string; created: boolean }> {
   const { client } = await getSupabase();
+  const { data: existing, error: exErr } = await client
+    .from("notes_payload")
+    .select("item_id, content_json")
+    .eq("item_id", FOCUS_NOTE_ID)
+    .maybeSingle();
+  if (exErr) throw new Error(`focus notes_payload read: ${exErr.message}`);
 
+  if (existing) {
+    const current = contentJsonToString(
+      (existing as { content_json: unknown }).content_json,
+    );
+    const merged = mergeFocusSection(current, date, focus);
+    // A byte-identical merge is a no-op: writing it would only move the
+    // §10.2 LWW cursor (same skip as useFocusNote's).
+    if (merged !== current) {
+      await updatePayload(
+        "notes_payload",
+        FOCUS_NOTE_ID,
+        "note",
+        { content_json: JSON.parse(merged) },
+        { is_deleted: false, deleted_at: null },
+      );
+    }
+    return { id: FOCUS_NOTE_ID, created: false };
+  }
+
+  // First save creates the reserved note (§10.5 orphan recovery on the
+  // payload INSERT) — same shape as create_note.
+  const content = mergeFocusSection(null, date, focus);
+  await insertItem({
+    id: FOCUS_NOTE_ID,
+    role: "note",
+    title: FOCUS_NOTE_TITLE,
+    payloadTable: "notes_payload",
+    payload: {
+      parent_item_id: null,
+      note_type: "note",
+      content_json: JSON.parse(content),
+      sort_order: 0,
+      is_pinned: false,
+      is_edit_locked: false,
+    },
+  });
+  return { id: FOCUS_NOTE_ID, created: true };
+}
+
+/** The comment half of write_briefing: upsert the 朝刊 section (#256). */
+async function writeCommentIntoDaily(
+  date: string,
+  paragraphs: string[],
+): Promise<{ id: string; created: boolean }> {
+  const { client } = await getSupabase();
   const { data: existing, error: exErr } = await client
     .from("dailies_payload")
     .select("item_id, date, content_json")
@@ -432,7 +495,6 @@ export async function writeBriefing(args: {
     const row = existing as DailiesPayloadRow;
     const next = upsertBriefingSection(
       contentJsonToString(row.content_json),
-      args.focus,
       paragraphs,
     );
     // The meta patch rides along with the §10.2 LWW bump: a soft-deleted
@@ -445,14 +507,13 @@ export async function writeBriefing(args: {
       { content_json: JSON.parse(next) },
       { is_deleted: false, deleted_at: null },
     );
-
-    return { date, dailyId: row.item_id, created: false, focus: args.focus };
+    return { id: row.item_id, created: false };
   }
 
   // No daily yet — create the canonical `daily-<YYYY-MM-DD>` pair
   // (§10.5 orphan recovery on the payload INSERT).
   const id = `daily-${date}`;
-  const content = upsertBriefingSection(null, args.focus, paragraphs);
+  const content = upsertBriefingSection(null, paragraphs);
   await insertItem({
     id,
     role: "daily",
@@ -467,6 +528,32 @@ export async function writeBriefing(args: {
       is_edit_locked: false,
     },
   });
+  return { id, created: true };
+}
 
-  return { date, dailyId: id, created: true, focus: args.focus };
+export async function writeBriefing(args: {
+  date?: string;
+  focus: string;
+  paragraphs?: string[];
+}) {
+  const date = assertDateKey(args.date ?? localToday());
+  const focus = normalizeFocusText(args.focus);
+  if (focus === null) {
+    throw new Error("write_briefing: focus must be a non-empty string");
+  }
+  const paragraphs = (args.paragraphs ?? [])
+    .map((p) => p.trim())
+    .filter((p) => p !== "");
+
+  // The focus goes to the reserved focus note (#1048 moved the read there);
+  // the comment paragraphs stay in the daily's 朝刊 section. No paragraphs
+  // means no daily write at all — a heading-only section is invisible to
+  // extractBriefing, and creating a daily for it would be pure litter.
+  const focusNote = await writeFocusIntoNote(date, focus);
+  const daily =
+    paragraphs.length > 0
+      ? await writeCommentIntoDaily(date, paragraphs)
+      : null;
+
+  return { date, focus, focusNote, daily };
 }
