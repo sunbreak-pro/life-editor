@@ -164,6 +164,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   // against everything but `ds`, which is a dep here in its own right.
   const { isLoading, error } = useDomainLoad({
     domain: "Notes",
+    snapshotKey: "notes",
     dataService: ds,
     version: syncVersion,
     load: (service) => service.listNotesUnified(),

@@ -47,6 +47,7 @@ export function useCalendarsAPI(options: UseCalendarsAPIOptions) {
   // missing: a transient failure used to leave the error card up forever.
   const { isLoading, error } = useDomainLoad({
     domain: "Calendars",
+    snapshotKey: "calendars",
     dataService: ds,
     version: syncVersion,
     load: (service) => service.fetchCalendars(),

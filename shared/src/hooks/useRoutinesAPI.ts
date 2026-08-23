@@ -47,6 +47,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   // transient failure no longer keeps the error latched for the session.
   const { isLoading, error } = useDomainLoad({
     domain: "Routines",
+    snapshotKey: "routines",
     dataService: ds,
     version: syncVersion,
     load: (service) => service.fetchAllRoutines(),

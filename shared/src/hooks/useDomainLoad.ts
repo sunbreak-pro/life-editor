@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DataService } from "../services/DataService";
+import {
+  readDomainSnapshot,
+  writeDomainSnapshot,
+  type DomainSnapshotKey,
+} from "../state/domainSnapshotStore";
 import { logServiceError } from "../utils/logError";
 
 /*
@@ -31,6 +36,17 @@ import { logServiceError } from "../utils/logError";
  * The comparison is field-by-field rather than an object identity from
  * useMemo: a dropped memo cache is allowed by React and would read here as
  * "a new load is pending", flipping the UI back to its skeleton for no reason.
+ *
+ * STALE-WHILE-REVALIDATE (#1101, opt in with `snapshotKey`). Everything above
+ * describes a single mount. The cost the user actually feels is the SECOND
+ * one: switching sections unmounts the provider, `settled` starts at null
+ * again, and the screen shows its skeleton until the refetch lands — every
+ * time, forever (#1038's measurement: coming back to Materials re-read all
+ * five lists and reused none of them). `snapshotKey` keeps the last successful
+ * result in a module store that outlives the tree, replays it at the next
+ * mount, and lets the refetch overwrite it when it arrives. None of the
+ * loading rules above change; a mount that finds a snapshot simply starts out
+ * already-settled.
  */
 
 export interface UseDomainLoadOptions<T> {
@@ -76,6 +92,25 @@ export interface UseDomainLoadOptions<T> {
    * Either way `isLoading` stays a derived value — nothing writes it.
    */
   refetchReportsLoading?: boolean;
+  /**
+   * Opt in to stale-while-revalidate (#1101) under this store slot. Omit it
+   * and the hook behaves exactly as it always did: every mount starts empty.
+   *
+   * Given a key, each successful read is remembered in
+   * `state/domainSnapshotStore`, and the NEXT mount for the same
+   * (dataService, anchor) replays it through `apply` before its own read
+   * returns — so a section the user comes back to draws the list it had rather
+   * than a skeleton. That mount still fires its read and still overwrites with
+   * the answer; the snapshot only fills the gap.
+   *
+   * Two consequences, both accepted on purpose:
+   * - Briefly stale. A change made elsewhere (another device, MCP) is on
+   *   screen in its old form until the refetch lands. What the frame would
+   *   otherwise hold is an empty list, which is not more truthful.
+   * - `apply` runs one extra time per mount, so it has to be idempotent —
+   *   which every caller already is, since a Sync bump re-applies too.
+   */
+  snapshotKey?: DomainSnapshotKey;
 }
 
 export interface DomainLoadState {
@@ -104,10 +139,33 @@ export function useDomainLoad<T>(
     dataService,
     version,
     anchor,
+    snapshotKey,
     refetchReportsLoading = true,
   } = options;
 
-  const [settled, setSettled] = useState<SettledLoad | null>(null);
+  /*
+   * Looked up ONCE, at mount, and parked in state so a later render can never
+   * change it: this is "what was on screen when we left", and a read that
+   * landed in between must not retroactively become this mount's starting
+   * point (the effect below would then replay it a second time). A miss is
+   * null; a hit is a box, because a domain may legitimately have loaded null.
+   */
+  const [snapshot] = useState(() =>
+    snapshotKey === undefined
+      ? null
+      : readDomainSnapshot<T>(snapshotKey, dataService, anchor),
+  );
+
+  /*
+   * A mount that found a snapshot counts as already settled for the load it is
+   * about to fire. That single line is the behaviour change: `isLoading` is
+   * false from the first render, so the skeleton never gets its turn, and the
+   * read runs as a background revalidate instead of as the thing the screen is
+   * waiting on.
+   */
+  const [settled, setSettled] = useState<SettledLoad | null>(() =>
+    snapshot === null ? null : { dataService, version, anchor },
+  );
   const [error, setError] = useState<string | null>(null);
 
   // The callbacks are written inline by every caller, so they are new on every
@@ -120,6 +178,24 @@ export function useDomainLoad<T>(
     latest.current = options;
   });
 
+  /*
+   * Hand the snapshot over before the browser paints. A passive effect would
+   * not be enough: React is free to paint between the commit and the effect
+   * flush, and the frame it would paint there is exactly the empty list this
+   * whole thing exists to remove. `apply` is the caller's own setState, so it
+   * costs one extra render pass — a pre-paint one, which is why nothing
+   * blinks.
+   *
+   * `latest.current` still holds the mount render's options here (the mirror
+   * above is passive and runs after layout effects), which is the vintage we
+   * want: the callbacks belonging to the same render as the lookup. `snapshot`
+   * is state with no setter, so this runs exactly once.
+   */
+  useLayoutEffect(() => {
+    if (snapshot === null) return;
+    latest.current.apply(snapshot.data);
+  }, [snapshot]);
+
   useEffect(() => {
     const { domain, load, apply, fallbackMessage } = latest.current;
     let cancelled = false;
@@ -128,6 +204,13 @@ export function useDomainLoad<T>(
         const data = await load(dataService);
         if (cancelled) return;
         apply(data);
+        // #1101: remember it for the next mount. Deliberately after the
+        // cancelled guard — a superseded response is not what is on screen,
+        // and storing it would hand the older list back at the next mount.
+        const key = latest.current.snapshotKey;
+        if (key !== undefined) {
+          writeDomainSnapshot(key, dataService, anchor, data);
+        }
         // #296: un-latch. Without this one transient failure kept the error
         // card up for the rest of the session.
         setError(null);

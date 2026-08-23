@@ -95,6 +95,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
    */
   const { isLoading, error } = useDomainLoad({
     domain: "Daily",
+    snapshotKey: "dailies",
     dataService: ds,
     version: syncVersion,
     load: (service) => service.listDailiesUnified(),

@@ -116,6 +116,7 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   // leave the error card up for the rest of the session.
   const { isLoading, error } = useDomainLoad({
     domain: "TodoTree",
+    snapshotKey: "todoTree",
     dataService: ds,
     version: syncVersion,
     load: (service) =>
