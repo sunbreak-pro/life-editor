@@ -82,6 +82,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   // #296's un-latch is in place before any surface starts reading it.
   const { isLoading: attemptInFlight, error } = useDomainLoad({
     domain: "WikiTags",
+    snapshotKey: "wikiTags",
     dataService: ds,
     version: syncVersion,
     load: loadAll,

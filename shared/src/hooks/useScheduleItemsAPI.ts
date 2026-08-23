@@ -101,6 +101,10 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
   // can offer "undismiss".
   const { isLoading, error, setError } = useDomainLoad({
     domain: "ScheduleItems",
+    // #1101: the store keeps ONE entry per key, so only the most recently
+    // read date is served back. Leaving a section and returning hits it;
+    // stepping to another day is a miss, i.e. exactly today's behaviour.
+    snapshotKey: "scheduleItems",
     dataService: ds,
     version: syncVersion,
     anchor: date,
