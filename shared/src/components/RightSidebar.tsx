@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
 import { RightSidebarContents } from "./RightSidebarContents";
@@ -57,6 +57,59 @@ export function RightSidebar({
   } = useRightSidebarContext();
   const asideRef = useRef<HTMLElement>(null);
   const resizingRef = useRef(false);
+  /*
+   * #1103 — rAF throttle for the drag (D-20260818-shared-fix-1 = A).
+   *
+   * A pointermove fires far more often than the screen repaints, and every
+   * `setWidth` here is not just a React state update: it is `useLocalStorage`'s
+   * setter, so each call also does a synchronous JSON.stringify + setItem. And
+   * because RightSidebarContext keeps `width` in the same memoized value as
+   * `open` / `close`, one tick re-renders every consumer of that context —
+   * NotesView and KanbanView included — not just this panel.
+   *
+   * So we hold the newest width in a ref and commit it once per frame. Nothing
+   * outside this file changes: `setWidth` keeps its contract, it just gets
+   * called at the rate the screen can actually show.
+   */
+  const pendingWidthRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const queueWidth = (next: number) => {
+    // Last move inside the frame wins — intermediate positions are never drawn.
+    pendingWidthRef.current = next;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const queued = pendingWidthRef.current;
+      pendingWidthRef.current = null;
+      if (queued !== null) setWidth(queued);
+    });
+  };
+
+  /*
+   * Cancel the queued frame AND apply its value now. Called when the gesture
+   * ends, which is what keeps the release position from being thrown away: a
+   * pointerup one millisecond after the last pointermove would otherwise leave
+   * the newest width sitting in the ref with its frame cancelled by unmount.
+   */
+  const flushWidth = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    const queued = pendingWidthRef.current;
+    pendingWidthRef.current = null;
+    if (queued !== null) setWidth(queued);
+  };
+
+  // The file's first teardown. Null-checked so StrictMode's double-invoke and a
+  // close with no drag in flight are both no-ops.
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
 
   const onHandlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -69,17 +122,23 @@ export function RightSidebar({
     // Panel is pinned to the right; its right edge is fixed, so width is the
     // distance from the pointer to that edge — robust regardless of start point.
     const right = asideRef.current.getBoundingClientRect().right;
-    setWidth(clampWidth(right - e.clientX));
+    queueWidth(clampWidth(right - e.clientX));
   };
 
   const endResize = (e: PointerEvent<HTMLDivElement>) => {
     resizingRef.current = false;
+    flushWidth();
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
   };
 
   const onHandleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Arrow keys stay synchronous: they step from the CURRENT width, so N
+    // presses inside one frame have to be N steps, not one. Flushing first only
+    // stops a frame queued by an in-flight drag from landing after this press
+    // and undoing it — a no-op when nothing is pending, which is the norm.
+    flushWidth();
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       setWidth(clampWidth(width + KEY_STEP));
