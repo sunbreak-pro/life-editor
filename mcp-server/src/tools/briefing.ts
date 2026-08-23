@@ -47,7 +47,7 @@ export const BRIEFING_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "write_briefing",
     description:
-      "Write the morning briefing (朝刊) into the daily note for a date. Upserts a '朝刊' heading section at the top of the DailyNode content: paragraph 1 = the focus line (今日のフォーカス), following paragraphs = the AI comment body. An existing 朝刊 section is replaced; all other daily content (e.g. the 夕刊 section) is preserved. Creates the daily if it does not exist yet.",
+      "Write the morning briefing (朝刊) for a date, in two places the app reads from (#1048): the focus line (今日のフォーカス) is upserted as that date's section of the reserved focus note (`note-focus`), and the comment paragraphs are upserted as a '朝刊' heading section at the top of the DailyNode content. Existing sections are replaced in place; everything else — other days' focus history, the 夕刊 section — is preserved. Creates the focus note / the daily on first write. With no paragraphs, only the focus note is written and the daily is left untouched.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -58,13 +58,14 @@ export const BRIEFING_TOOLS: ToolDefinition[] = [
         },
         focus: {
           type: "string",
-          description: "The focus line — one short sentence, rendered large",
+          description:
+            "The focus line — one short sentence, rendered large. Written into the focus note's section for the date (not into the daily).",
         },
         paragraphs: {
           type: "array",
           items: { type: "string" },
           description:
-            "Comment body paragraphs (yesterday's review, priorities, encouragement, etc.)",
+            "AI comment body paragraphs (yesterday's review, priorities, encouragement, etc.), written into the daily's 朝刊 section",
         },
       },
       required: ["focus"],

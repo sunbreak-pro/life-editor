@@ -5,9 +5,13 @@
  * shared/src/components/briefing/extractBriefing.ts):
  *
  *   heading whose text is "Briefing" / "朝刊"
- *     paragraph #1  → the focus line (今日のフォーカス)
- *     paragraph #2+ → the AI comment body
+ *     every paragraph → the AI comment body
  *   ...the next heading (any text) ends the section.
+ *
+ * The focus line is NOT part of this section any more (#1048 / #1097): the
+ * reader treats all paragraphs as AI comment, so the focus moved to the
+ * reserved focus note (focusSection.ts) and this writer takes only the
+ * comment paragraphs.
  *
  * `upsertBriefingSection` merges that section into an existing DailyNode
  * TipTap document non-destructively: an existing briefing section is
@@ -31,7 +35,7 @@ export interface TipTapNode {
 /** Same marker as extractBriefing (case-insensitive, trimmed). */
 const BRIEFING_HEADING_RE = /^(briefing|朝刊)$/i;
 
-function textOf(node: TipTapNode): string {
+export function textOf(node: TipTapNode): string {
   if (typeof node.text === "string") return node.text;
   if (!Array.isArray(node.content)) return "";
   return node.content.map(textOf).join("");
@@ -45,31 +49,30 @@ function paragraph(text: string): TipTapNode {
 }
 
 /**
- * Build the briefing section nodes: heading "朝刊" + focus paragraph +
- * one paragraph per comment line. Empty/whitespace-only paragraphs are
- * dropped (extractBriefing ignores them anyway).
+ * Build the briefing section nodes: heading "朝刊" + one paragraph per
+ * comment line. Empty/whitespace-only paragraphs are dropped
+ * (extractBriefing ignores them anyway); when nothing remains this throws,
+ * because a heading-only section is invisible to the reader — callers skip
+ * the daily write instead of producing one.
  */
-export function buildBriefingSectionNodes(
-  focus: string,
-  paragraphs: string[],
-): TipTapNode[] {
-  const trimmedFocus = focus.trim();
-  if (trimmedFocus === "") {
-    throw new Error("write_briefing: focus must be a non-empty string");
-  }
+export function buildBriefingSectionNodes(paragraphs: string[]): TipTapNode[] {
   const body = paragraphs.map((p) => p.trim()).filter((p) => p !== "");
+  if (body.length === 0) {
+    throw new Error(
+      "write_briefing: paragraphs must contain at least one non-empty string",
+    );
+  }
   return [
     {
       type: "heading",
       attrs: { level: 2 },
       content: [{ type: "text", text: "朝刊" }],
     },
-    paragraph(trimmedFocus),
     ...body.map(paragraph),
   ];
 }
 
-function parseDoc(contentJson: string | null | undefined): TipTapNode {
+export function parseDoc(contentJson: string | null | undefined): TipTapNode {
   if (
     contentJson === null ||
     contentJson === undefined ||
@@ -82,13 +85,13 @@ function parseDoc(contentJson: string | null | undefined): TipTapNode {
     doc = JSON.parse(contentJson);
   } catch {
     throw new Error(
-      "write_briefing: existing daily content is not valid TipTap JSON — refusing to overwrite it",
+      "write_briefing: existing content is not valid TipTap JSON — refusing to overwrite it",
     );
   }
   const node = doc as TipTapNode;
   if (node === null || typeof node !== "object" || Array.isArray(node)) {
     throw new Error(
-      "write_briefing: existing daily content is not a TipTap document — refusing to overwrite it",
+      "write_briefing: existing content is not a TipTap document — refusing to overwrite it",
     );
   }
   if (!Array.isArray(node.content)) node.content = [];
@@ -139,12 +142,11 @@ export function hasBriefingSection(
  */
 export function upsertBriefingSection(
   contentJson: string | null | undefined,
-  focus: string,
   paragraphs: string[],
 ): string {
   const doc = parseDoc(contentJson);
   const body = doc.content ?? [];
-  const section = buildBriefingSectionNodes(focus, paragraphs);
+  const section = buildBriefingSectionNodes(paragraphs);
   const range = findBriefingRange(body);
   if (range) {
     body.splice(range.start, range.end - range.start, ...section);

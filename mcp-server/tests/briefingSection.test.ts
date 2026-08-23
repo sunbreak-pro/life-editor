@@ -32,28 +32,30 @@ function para(text: string) {
 }
 
 describe("buildBriefingSectionNodes", () => {
-  it("builds heading + focus + comment paragraphs", () => {
-    const nodes = buildBriefingSectionNodes("今日はPRを閉じる", [
+  it("builds heading + comment paragraphs (no focus paragraph — #1097)", () => {
+    const nodes = buildBriefingSectionNodes([
       "昨日は宣言どおり進んだ。",
       "午後は会議が続くので朝が勝負。",
     ]);
-    expect(nodes).toHaveLength(4);
+    expect(nodes).toHaveLength(3);
     expect(nodes[0].type).toBe("heading");
     expect(nodes[0].content?.[0].text).toBe("朝刊");
-    expect(nodes[1].content?.[0].text).toBe("今日はPRを閉じる");
+    expect(nodes[1].content?.[0].text).toBe("昨日は宣言どおり進んだ。");
   });
 
-  it("drops empty paragraphs and rejects an empty focus", () => {
-    const nodes = buildBriefingSectionNodes("focus", ["", "  ", "本文"]);
-    expect(nodes).toHaveLength(3);
-    expect(() => buildBriefingSectionNodes("   ", [])).toThrow(/focus/);
+  it("drops empty paragraphs and rejects an all-empty list", () => {
+    const nodes = buildBriefingSectionNodes(["", "  ", "本文"]);
+    expect(nodes).toHaveLength(2);
+    // A heading-only section is invisible to extractBriefing — the builder
+    // refuses it so the handler skips the daily write instead.
+    expect(() => buildBriefingSectionNodes(["", "  "])).toThrow(/paragraphs/);
   });
 });
 
 describe("upsertBriefingSection", () => {
   it("creates a fresh doc from empty content", () => {
     for (const empty of [null, undefined, ""]) {
-      const out = JSON.parse(upsertBriefingSection(empty, "焦点", ["本文"]));
+      const out = JSON.parse(upsertBriefingSection(empty, ["本文"]));
       expect(out.type).toBe("doc");
       expect(out.content[0].type).toBe("heading");
     }
@@ -61,38 +63,33 @@ describe("upsertBriefingSection", () => {
 
   it("prepends the section when the daily has other content", () => {
     const existing = doc(heading("夕刊"), para("今日の振り返り"));
-    const out = JSON.parse(
-      upsertBriefingSection(existing, "焦点", ["コメント"]),
-    );
+    const out = JSON.parse(upsertBriefingSection(existing, ["コメント"]));
     // briefing on top, 夕刊 section untouched below
     expect(out.content.map((n: { type: string }) => n.type)).toEqual([
       "heading",
       "paragraph",
-      "paragraph",
       "heading",
       "paragraph",
     ]);
-    expect(out.content[3].content[0].text).toBe("夕刊");
-    expect(out.content[4].content[0].text).toBe("今日の振り返り");
+    expect(out.content[2].content[0].text).toBe("夕刊");
+    expect(out.content[3].content[0].text).toBe("今日の振り返り");
   });
 
   it("replaces an existing briefing section in place, preserving neighbours", () => {
     const existing = doc(
       para("プリアンブル"),
       heading("朝刊"),
-      para("旧フォーカス"),
-      para("旧コメント"),
+      para("旧コメント 1"),
+      para("旧コメント 2"),
       heading("夕刊"),
       para("夜のメモ"),
     );
-    const out = JSON.parse(
-      upsertBriefingSection(existing, "新フォーカス", ["新コメント"]),
-    );
+    const out = JSON.parse(upsertBriefingSection(existing, ["新コメント"]));
     const texts = out.content.map((n: unknown) =>
       JSON.stringify(n),
     ) as string[];
-    expect(texts.some((t) => t.includes("旧フォーカス"))).toBe(false);
-    expect(texts.some((t) => t.includes("新フォーカス"))).toBe(true);
+    expect(texts.some((t) => t.includes("旧コメント"))).toBe(false);
+    expect(texts.some((t) => t.includes("新コメント"))).toBe(true);
     expect(out.content[0].content[0].text).toBe("プリアンブル");
     expect(out.content[out.content.length - 1].content[0].text).toBe(
       "夜のメモ",
@@ -106,7 +103,7 @@ describe("upsertBriefingSection", () => {
 
   it("matches the English 'Briefing' heading case-insensitively", () => {
     const existing = doc(heading("BRIEFING"), para("old"));
-    const out = JSON.parse(upsertBriefingSection(existing, "new", []));
+    const out = JSON.parse(upsertBriefingSection(existing, ["new"]));
     const headings = out.content.filter(
       (n: { type: string }) => n.type === "heading",
     );
@@ -114,17 +111,17 @@ describe("upsertBriefingSection", () => {
   });
 
   it("refuses to clobber unparseable existing content", () => {
-    expect(() => upsertBriefingSection("not json {", "f", [])).toThrow(
+    expect(() => upsertBriefingSection("not json {", ["p"])).toThrow(
       /refusing/,
     );
-    expect(() => upsertBriefingSection('"just a string"', "f", [])).toThrow(
+    expect(() => upsertBriefingSection('"just a string"', ["p"])).toThrow(
       /refusing/,
     );
   });
 
   it("is idempotent: writing twice keeps a single section", () => {
-    const once = upsertBriefingSection(null, "f1", ["p1"]);
-    const twice = upsertBriefingSection(once, "f2", ["p2"]);
+    const once = upsertBriefingSection(null, ["p1"]);
+    const twice = upsertBriefingSection(once, ["p2"]);
     expect(hasBriefingSection(twice)).toBe(true);
     const out = JSON.parse(twice);
     expect(
@@ -135,16 +132,15 @@ describe("upsertBriefingSection", () => {
 
 describe("round-trip with shared extractBriefing (DoD)", () => {
   it("extractBriefing renders exactly what write_briefing wrote", () => {
-    const content = upsertBriefingSection(null, "今日のフォーカス行", [
+    // #1097: the section carries ONLY comment paragraphs — the focus line
+    // lives in the focus note (see focusSection.test.ts's round-trip).
+    const content = upsertBriefingSection(null, [
       "講評パラグラフ 1",
       "講評パラグラフ 2",
     ]);
-    // #1048: the shared parser no longer splits a focus line off — the
-    // section reads back as plain paragraphs, focus first.
     const extracted = extractBriefing(content);
     expect(extracted).not.toBeNull();
     expect(extracted?.paragraphs).toEqual([
-      "今日のフォーカス行",
       "講評パラグラフ 1",
       "講評パラグラフ 2",
     ]);
@@ -152,9 +148,9 @@ describe("round-trip with shared extractBriefing (DoD)", () => {
 
   it("survives an upsert into a daily that already has 夕刊 content", () => {
     const existing = doc(heading("夕刊"), para("昨夜のメモ"));
-    const content = upsertBriefingSection(existing, "フォーカス", ["講評"]);
+    const content = upsertBriefingSection(existing, ["講評"]);
     const extracted = extractBriefing(content);
-    expect(extracted?.paragraphs).toEqual(["フォーカス", "講評"]);
+    expect(extracted?.paragraphs).toEqual(["講評"]);
   });
 });
 
