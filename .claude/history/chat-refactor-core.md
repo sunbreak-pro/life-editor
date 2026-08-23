@@ -1,5 +1,34 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-08-23 - #1101 セクション切替に stale-while-revalidate（PR #1108 open）
+
+#### 概要
+
+#1038 の調査で名指しした「切替のたびに前回値を捨てて、取り直しが返るまで骨組みを見せる」を潰した。**キャッシュを足す話ではなく、捨てた値の置き場所を作る話**で、`useDomainLoad` の外に 1 ファイル（モジュール store）を足しただけで済んでいる。案 A-1（メモリのみ）= D-20260818-refactor-1 のとおり。
+
+#### 変更点
+
+- **`shared/src/state/domainSnapshotStore.ts`（新規）**: `readDomainSnapshot` / `writeDomainSnapshot` / `clearDomainSnapshots` の 3 本だけ。React も storage も触らない。キーは**閉じた union 型**（7 ドメイン）にした — 自由文字列だと 2 つのフックが同じスロットを共有して**形の違う payload を渡し合っても型が通ってしまう**（store 自身は中身を検査できない）
+- **`useDomainLoad` に任意オプション `snapshotKey`**: 渡さなければ挙動は完全に据え置き。渡すと (1) mount 時に 1 回だけ store を引き（`useState` の初期化子）、(2) 命中していれば `settled` を現在の (dataService, version, anchor) で**埋めた状態で開始**し、(3) `useLayoutEffect` で `apply(snapshot)` を流し、(4) 読みが成功したら store を上書きする
+- **7 ドメインが opt-in**: calendars / dailies / notes / routines / scheduleItems / todoTree / wikiTags。`apply` の replay に副作用があるのは notes（`mergeLoadedList` + 開いているノートの再 hydrate）と todoTree（`restoreSelection`）だが、どちらも**新規 mount では ledger も選択も空**なので素通りする
+
+#### 効いた設計判断 3 つ
+
+- **replay は passive effect ではなく layout effect**。React は commit と passive effect flush の間に描いてよく、そこで描かれるフレームが**まさに消したかった空リスト**。layout effect なら描画前に確定する。代償は `apply`（= 呼び出し側の setState）ぶんの 1 パスだけで、それも描画前
+- **`isLoading` は派生値のまま**。命中時に埋めるのは `settled` の初期値だけで、`isLoading` を書く場所は増やしていない（#672 のヘッダが「loading は書かない」を延々と説明している手前、ここで書き戻したら台無しになる）
+- **store は 1 key = 1 エントリ**。anchor ごとに溜めると Schedule で 30 日辿れば 30 個になるので、直近の anchor だけ持ち、不一致は miss（= 従来挙動）に倒した。DataService の identity 一致も条件に入れてある（バックエンドが替わったら古い行は答えではない）
+
+#### 検証
+
+- 新規 `shared/tests/domainLoadSnapshot.test.tsx` 8 件。**全ケースが mount → unmount → 再 mount の形**で、DoD 3 本（往復で骨組みが挟まらない / 再取得で確実に差し替わる / localStorage に書かない）に加えて、失敗した再取得は store を上書きしない・race に負けた応答は保存しない・anchor 違いと service 違いでは出さない・`snapshotKey` 無しは据え置き、を固定
+- 「骨組みが挟まらない」は `renderHook` に paint が無いので、**再 mount が返った時点で `isLoading === false` かつ `apply` が前回値で呼ばれ済み**という 2 つの観測可能な半分に分けて assert した
+- CI verify のステップ列を全通し + docs-lint OK: shared（lint / build / typecheck:tests / test **265 files・2511**）、web（lint / build / typecheck:tests / test **77 files・705**）、desktop（typecheck / test 7 / electron-vite build）、mcp-server（build / typecheck:tests / test **22 files・301**）
+- **web の初回フル実行で `briefingEveningSavedCaption.test.tsx` が 1 本落ちたが本 PR とは無関係**。lazy import の TipTap が `waitFor` の 1s 以内に mount しないマシン負荷由来のタイムアウトで、単体で緑・同じ back-to-back 条件で再実行して緑・**stash した main ベースラインでも同条件で緑**を実測して切り分けた
+
+#### 次
+
+PR #1108 の merge 待ち（P-001）。実ブラウザでの体感確認は chat-main 手番（§7.4）。#1038 の案 B（無駄取りの削減）は #1101 の Scope 外なので、やるなら別 Issue の起票依頼を outbox へ。
+
 ### 2026-08-18 - shared-fix 2 件（#1012 = PR #1058 merged / #1038 = PR #1071 open）
 
 #### 概要
