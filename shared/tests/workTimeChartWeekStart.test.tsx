@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { WorkTimeChart } from "../src/components/Analytics/WorkTimeChart";
-import { WEEK_START_STORAGE_KEY } from "../src/hooks/useWeekStart";
 import type { TimerSession } from "../src/types/timer";
 
 /*
  * #860 — the Work tab half of the fix, at the CALLER.
  *
  * `analyticsWeekWindow.test.tsx` pins `aggregateByWeek` itself; this pins that
- * WorkTimeChart reads the `useWeekStart` pref and hands it over. The two are
- * worth separating because #860 exists precisely because #780 fixed a window
- * and left a caller on the old one — a green aggregation test says nothing
- * about what the chart asks for. It would also catch `weekStartsOn` falling
- * out of the useMemo deps, which lint only warns about here.
+ * WorkTimeChart hands it `WEEK_STARTS_ON` (Sunday, #1102) instead of cutting
+ * the sessions on a boundary of its own. The two are worth separating because
+ * #860 exists precisely because #780 fixed a window and left a caller on the
+ * old one — a green aggregation test says nothing about what the chart asks
+ * for.
  *
  * recharts' ResponsiveContainer needs ResizeObserver (absent in jsdom), so the
  * primitives are stubbed the way tagWorkTimeChart.test.tsx does, with
@@ -73,7 +72,7 @@ function bucketLines(): string[] {
   return screen.getAllByRole("listitem").map((el) => el.textContent ?? "");
 }
 
-describe("WorkTimeChart weekly buckets follow the week-start pref (#860)", () => {
+describe("WorkTimeChart weekly buckets start on Sunday (#860 / #1102)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(MID_WEEK);
@@ -81,7 +80,6 @@ describe("WorkTimeChart weekly buckets follow the week-start pref (#860)", () =>
 
   afterEach(() => {
     vi.useRealTimers();
-    localStorage.clear();
   });
 
   function renderWeekly(): void {
@@ -94,28 +92,18 @@ describe("WorkTimeChart weekly buckets follow the week-start pref (#860)", () =>
     );
   }
 
-  it("splits the two sessions across two weeks when the week starts on Monday", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "1");
+  it("opens the buckets on Sunday, so 07-12 and 07-13 share one", () => {
     renderWeekly();
 
     const lines = bucketLines();
-    // Sun 07-12 closes the week that began Mon 07-06; Mon 07-13 opens this one.
-    expect(lines).toContain("7/6~ = 0.5");
-    expect(lines).toContain("7/13~ = 1");
-  });
-
-  it("puts both in the current week when the week starts on Sunday", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "0");
-    renderWeekly();
-
-    const lines = bucketLines();
-    // The boundary moved: buckets now open on Sundays, so 07-12 joins 07-13.
+    // A Monday boundary would have split these two: Sun 07-12 would close the
+    // week that began 07-06, and Mon 07-13 would open the next one.
     expect(lines).toContain("7/12~ = 1.5");
     expect(lines.some((l) => l.startsWith("7/13~"))).toBe(false);
+    expect(lines.some((l) => l.startsWith("7/6~"))).toBe(false);
   });
 
-  it("keeps the day view on its rolling 14 days regardless of the pref", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "0");
+  it("keeps the day view on its rolling 14 days", () => {
     render(
       <WorkTimeChart
         sessions={SESSIONS}

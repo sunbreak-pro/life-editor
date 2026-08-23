@@ -6,6 +6,7 @@ import {
   type ScheduleItemVariant,
 } from "./scheduleVariantVisuals";
 import {
+  WEEK_STARTS_ON,
   monthGridKeys,
   parseDateKey,
   startOfMonthKey,
@@ -51,8 +52,6 @@ export interface MonthGridProps {
    * the cells render exactly as before, `aria-selected` included.
    */
   selectedKey?: string | null;
-  /** Week start: 0 = Sunday (default), 1 = Monday. */
-  weekStartsOn?: 0 | 1;
   /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
   weekdayLabels: string[];
   onSelectDay: (dateKey: string) => void;
@@ -104,7 +103,6 @@ export function MonthGrid({
   items,
   todayKey,
   selectedKey,
-  weekStartsOn = 0,
   weekdayLabels,
   onSelectDay,
   onSelectItem,
@@ -118,8 +116,8 @@ export function MonthGrid({
   className,
 }: MonthGridProps) {
   const rows = useMemo(
-    () => monthGridKeys(monthKey, weekStartsOn),
-    [monthKey, weekStartsOn],
+    () => monthGridKeys(monthKey, WEEK_STARTS_ON),
+    [monthKey],
   );
   const monthNum = parseDateKey(startOfMonthKey(monthKey)).m;
 
@@ -135,10 +133,11 @@ export function MonthGrid({
     return map;
   }, [items]);
 
-  // Header labels re-ordered so column 0 = weekStartsOn.
+  // Column 0 = Sunday (#1102) — the order `weekdayLabels` already arrives in,
+  // so the re-ordering the switchable week start needed is gone.
   const headerLabels = Array.from(
     { length: 7 },
-    (_, i) => weekdayLabels[(weekStartsOn + i) % 7] ?? "",
+    (_, i) => weekdayLabels[i] ?? "",
   );
 
   const maxChips = 2;
