@@ -19,7 +19,7 @@ import {
   createdWithinRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
-import { useWeekStartPref } from "../../hooks/useWeekStart";
+import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { TodayDashboard, type TodayDashboardLabels } from "./TodayDashboard";
 import { WeeklySummary, type WeeklySummaryLabels } from "./WeeklySummary";
@@ -67,8 +67,6 @@ export function OverviewTab({
   assignmentCount,
   labels,
 }: OverviewTabProps): React.JSX.Element {
-  const { weekStartsOn } = useWeekStartPref();
-
   const stats = useMemo(() => {
     // Todos
     const todos = nodes.filter((n) => n.type === "task");
@@ -89,7 +87,7 @@ export function OverviewTab({
     // The calendar week (#780) — this card used to run on a rolling 7 days
     // while every other "this week" number ran on the week, so the two
     // disagreed. Unified per D-20260811-refactor-1 = A.
-    const week = calendarWeekRange(now, weekStartsOn);
+    const week = calendarWeekRange(now, WEEK_STARTS_ON);
     const notesThisWeek = createdWithinRange(
       activeNotes,
       week.startKey,
@@ -143,7 +141,6 @@ export function OverviewTab({
     tagCount,
     assignmentCount,
     labels,
-    weekStartsOn,
   ]);
 
   return (
