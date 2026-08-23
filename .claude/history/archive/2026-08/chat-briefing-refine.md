@@ -2,6 +2,39 @@
 
 ローリングアーカイブ: `history/chat-briefing-refine.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-16 - #872 の判断 7 件を台帳へ昇格し、Todo を朝刊のスケジュールへ統合（#939・PR #969 open）
+
+#### 概要
+
+`ANSWERS.md` にまだ載っていなかった D-20260815-briefing-1〜7 の回答（1 / 2 / 4 / 5 / 6 = A・3 と 7 = B）を転記して台帳 7 本へ昇格し、キューを空にした。続けて #939 を実装 — 朝刊が「今日のスケジュール」と「今日の Todo と、その目的」で 2 回同じことを聞いていたのを 1 つのリストに畳んだ。
+
+#### 変更点
+
+- **昇格**: `.claude/decisions/D-20260815-briefing-1〜7.md` を新規作成（キュー原文をそのまま背景へ）。**`ANSWERS.md` に 7 行が無かった**ので、こうだいさんから口頭で示された回答を chat-briefing-refine が受任して転記した（`records.mjs check` が `status: answered` と ANSWERS 行の突合をゲートにしているため、行が無いと CI が落ちる）。#957 / #955 は起票済みなので再起票していない。
+- **A の条件履行**: D-20260815-briefing-6 = A に付いていた「スコープ表へ追記する」を実施 — `docs/requirements/mobile-scope.md` の冒頭更新履歴に 1 行と、#18 行に裁定 ID を追記した。目標ブロックが幅共通で書けることは **D-20260810-mobile-2 の矛盾に 1 件加わるだけ**で、解消は同判断の側という位置づけを明示。
+- **#939 の中身**: Todo 行を schedule の `<section>` 内へ移し、**Todo → 細い区切り線 → 終日 → 時刻付き**の順に。区切り線は装飾専用の `<li aria-hidden="true">` で、どちらかが 0 件なら出さない。Todo 行の完了トグル / 編集ジャンプ / 削除は同一のまま、空の時刻カラム（`w-14`）を挟んでタイトルの左端をスケジュール行と揃えた。
+- **並び順を view 側で持ち直した**: host（`useBriefingAggregation`）も終日を先に並べているが、区切り線の位置は view の約束なので stable partition を view に置き、暗黙の依存にしない。
+- **i18n**: `briefing.todosTitle` / `briefing.noTodos` を en / ja から削除（夕刊の `briefing.evening.*` は別キーなので残置）。空状態は Issue の DoD どおり既存の `briefing.noSchedule` を流用し、新しい文言を作らなかった。
+- **テスト**: `shared/tests/briefingView.test.tsx` に 8 ケース追加（並び順・区切り線 3 パターン・空状態の境界・移設後の 3 操作・目的行）。既存 2 件は前提が変わったので更新（空状態は `todos: []` も必要 / ルーチンタグの行が先頭 `<li>` でなくなった）。すべて DOM 順アサーションで座標非依存（CLAUDE.md §7.1）。
+- **ゲート**: shared（lint 0 error / build / test 243 files 2259 件）・web（lint 0 error / build / test 54 files 485 件）すべて exit 0。warning は shared 3 / web 4 とも既存分。`desktop/` 未変更のため typecheck 対象外。
+- **記録**: 実装プラン無しのため archive 対象なし。スコープ逸脱なし。AC 免除なし。実装中に浮上した判断もなし（#938 との隣接コンフリクトは PR 本文へ申し送り）。
+
+### 2026-08-16 - Briefing データ層 2 本をテストで固定し 3 分割（#892・PR #924 open）
+
+#### 概要
+
+`useBriefingData`（830 行）と `useDailySections` はテスト参照ゼロだった。Tier 1 画面のうち取得・集計・書き込みだけが無防備で、しかもここの壊れ方は全部「静かに」— read が飛ばなければブロックが空のまま、`useSyncDomains` からドメインが抜ければ二度と更新されない、ロールバックが効かなければ DB に無い状態が画面に残る。例外も出ずログも出ない。先にテスト 50 本で現状を固定し、その足場の上で 3 責務へ分けた。挙動変更ゼロ。
+
+#### 変更点
+
+- **順序**: 2 コミット構成。1 本目が分割**前**の実装に対するテスト、2 本目が分割。テストは 2 本目で 1 行も変えていないので、diff がそのまま「挙動が変わっていない」証拠になる（#673 と同じ「足場を先に置く」順序）。
+- **追加テスト 4 本 / 50 件**: `briefingDataFetch`（7 つの read・`allSettled` の耐性・sync ドメイン宣言を**両側から** = 読むドメインの bump で再取得する / `audio`・`calendars` では再取得しない）/ `briefingDataAggregation`（local day key #413・持ち越しの経過日数と 5 件上限・両方向リンクからの目的チップ・夕刊ブロック・トレイの placed/unplaced）/ `briefingDataWrites`（楽観更新とロールバック・`completedAt` の打刻とクリア・create → ノート添付の順序 #371・各 delete の undo コマンドが実際に何をするか）/ `briefingDailySections`（section-merge write = 保存のたび最新 daily を読み直す / 2 セクションを 1 本の直列チェーンに載せる / 宣言の debounce と unmount 時 flush）。
+- **空振りでないことの裏取り**: `dateKeyOf` を UTC slice に戻すと #413 のテストだけが落ち、`useSyncDomains` から `tags` を落とすと再取得のテストだけが落ちることを実測。
+- **テスト基盤**: ハーネスを共有化（`web/tests/helpers/briefingHarness.tsx`）。7 つの read を各 suite で手書きすると「1 つ stub し忘れて effect が `Promise.allSettled` の中で throw し、誰も報告しない」経路を 3 回作ることになる。UndoRedo は本物の Provider ではなく**記録するスタブ**にして、「スタックが受け取ったか」ではなく「受け取ったコマンドが何をするか」を assert できる形にした。`createBumpableSync` を web 側の helpers barrel に re-export。
+- **分割**: `useBriefingFetch`（7 つの read と着地先 state・write 側が結果を畳み込む setter を含む）/ `useBriefingAggregation`（取得済み行 → 紙面ブロックの純粋な派生。state も DataService 呼び出しも持たない）/ `useBriefingWrites`（全ミューテーション + 楽観更新 + undo コマンド）。`useBriefingData` は 3 本を束ねるだけで、返り値は 1 キーも変えていない。継ぎ目はレイヤの積み重ねではなく **state** で、派生側 2 本は互いに依存しない。
+- **ゲート**: shared（lint 0 error / build / test 2192 件）・web（lint 0 error / build / test 458 件）すべて exit 0。warning は shared 3 / web 4 とも既存分。`desktop/` は未変更のため typecheck 対象外。
+- **記録**: 実装プランの無い課題なので archive 対象なし。スコープ逸脱なし（`BriefingScreen.tsx` の view 側・他セクション・`shared/` は無変更）。AC 免除なし — DoD 4 項目のうち残るのは「merge 後に chat-main で playwright」だけで、worktree では実ブラウザを持たないため PR 本文に申し送った。実装中に浮上した別判断もなし。
+
 ### 2026-08-15 - 週・月・年の目標を朝刊に常設表示（#872・PR #914 open）
 
 #### 概要
