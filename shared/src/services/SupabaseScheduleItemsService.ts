@@ -380,8 +380,11 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
 
   /** Hard-delete via items_meta (events_payload cascades via 0008 FK). */
   async deleteScheduleItem(id: string): Promise<void> {
-    const q = this.client.from("items_meta");
-    const { error } = await q.delete().eq("id", id);
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id)
+      .eq("role", "event");
     if (error) throw new Error(`deleteScheduleItem: ${error.message}`);
   }
 
