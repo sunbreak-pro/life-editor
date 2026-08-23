@@ -125,6 +125,20 @@ else
   echo "docs-lint: warn — node が無いため (e) records check をスキップ" >&2
 fi
 
+# ---------------------------------------------------------------------------
+# (f) known-issue 参照計測スクリプトの自己検査（正本 = .claude/scripts/known-issue-usage.mjs）
+#     CI ランナーに ~/.claude/projects は無いので、実走査ではなく純関数
+#     （セッション鍵の畳み込み / bulk 判定 / 注入元検出 / 日付との衝突回避）
+#     だけを検査する。ここが唯一の機械ゲートで、無いと静かに腐る。
+# ---------------------------------------------------------------------------
+if command -v node >/dev/null 2>&1; then
+  KIU_OUT=$(node .claude/scripts/known-issue-usage.mjs --selftest 2>&1) || while IFS= read -r line; do
+    report "docs-lint(f) ${line}"
+  done <<<"${KIU_OUT}"
+else
+  echo "docs-lint: warn — node が無いため (f) known-issue-usage selftest をスキップ" >&2
+fi
+
 if [ "${FAIL}" -ne 0 ]; then
   echo "docs-lint: FAILED（上記の違反を修正してください。規約 = .claude/rules/docs-consistency.md）"
   exit 1
