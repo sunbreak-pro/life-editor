@@ -27,9 +27,9 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 
 ### スコープ境界（Issue に何を書くか）
 
-Issue はプロダクト課題（life-editor のコードを直せば直るもの）専用。**Claude Code の作業環境・hook・ツール挙動に関する知見は Issue 化せず `docs/known-issues/` + `rules/` で管理する**。
+**どこに書くかの判定も、`docs/known-issues/` に書いてよいかの採否条件も正本は [`rules/records.md`](../../rules/records.md) §2**（Issue かどうか = 「life-editor のコードを直せば直るか？」/ known-issue に書くか = 「常時ロード面から ID 参照を張れるか」。後者は D-20260823-shared-fix-1）。ここに条件を書き写さない — 2 箇所に別文言で載った時点で片方が古くなる。
 
-判定 = 「life-editor のコードを直せば直るか？」— No なら環境系として Issue 化しない（例: cwd 漂流 028 / formatter 挙動 026）。
+境界の実例だけ置く: cwd 漂流 028 / formatter 挙動 026 は、life-editor のコードを直しても直らないので Issue にしない。
 
 ## worktree 担当ルーティング（2026-07-10〜）
 

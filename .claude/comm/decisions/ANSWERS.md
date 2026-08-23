@@ -93,3 +93,5 @@
 - D-20260818-refactor-1: **A-1**（セクション切替に stale-while-revalidate をメモリのみで入れる。localStorage 永続化（A-2）と無駄取り削減（B）は不採用 → 実装 Issue #1101。同上）
 - D-20260818-shared-fix-1: **A**（サイドバーのリサイズを rAF で間引く 1 ファイル修正。width の context 分離（B）は shared 全域に波及するため不採用 → 実装 Issue #1103。同上）
 - D-20260819-main-1: **B**（残る `vh` 7 箇所は sweep せず放置。中央寄せのモーダルばかりで #633 の罠とは形が違う → #1100 を not planned で close。同上）
+- D-20260823-shared-fix-1: **C**（known-issue の採用条件 = 常時ロード面から ID 参照を張れること。張れないときは先に `rules/` へ 1 行足してから書く → 実装 Issue #1087。2026-08-23 chat-shared-fix の AskUserQuestion で回答・同セッションが転記）
+- D-20260823-shared-fix-2: **A**（参照 0 の 5 本を束で扱わない。007 / 010 = 削除・030 / 032 = 入口を張る・023 = 凍結。削除は不可逆のため P-007 で同期確認。同上）
