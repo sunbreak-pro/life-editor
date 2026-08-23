@@ -28,10 +28,11 @@ import {
  * (life-tags S1 retired the folder view + its move-into-folder / move-to-root
  * drop paths.)
  *
- * Drop-target resolution: @dnd-kit's `over` can be either a column (droppable)
- * or a card (sortable item). We resolve the destination COLUMN from either by
- * consulting the column models, so dropping onto a card lands in that card's
- * column.
+ * Drop-target resolution: `over` is the column droppable — cards stopped being
+ * drop targets in #992, so a card dropped onto another card resolves through
+ * the column underneath it. The card-id branch below stays anyway: it costs one
+ * Map lookup, and it is the only thing standing between a card droppable that
+ * gets re-enabled and a drop that silently does nothing.
  */
 
 const STATUS_COL_PREFIX = "status-";
@@ -77,8 +78,8 @@ export function useKanbanDnd({
     }),
   );
 
-  // card id → its column id (so dropping onto a card resolves to that column).
-  // Also: column id set, so we can tell a column-drop from a card-drop.
+  // card id → its column id (the drop's SOURCE column, and the fallback for a
+  // card-shaped `over`). Also: column id set, so we can tell the two apart.
   const { cardToColumn, columnIds } = useMemo(() => {
     const cardToColumn = new Map<string, string>();
     const columnIds = new Set<string>();
