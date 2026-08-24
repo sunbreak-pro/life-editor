@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, type Mock } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { agendaRowHeightPx } from "@life-editor/shared";
 import type {
   AgendaItem,
   MonthGridItem,
@@ -42,6 +43,11 @@ import type { CalendarNarrowLayoutProps } from "../src/schedule/CalendarNarrowLa
  *     on a phone.
  *   - the two "N hidden" counts are DIFFERENT numbers (#466 repeat filter vs
  *     #468 lens) and now travel in two separate prop bundles.
+ *   - each layout switches ON a capability in the part below it — narrow's
+ *     `dayflow` (#691), Desktop's `display` pair (#297 / #564 / #563). A
+ *     forwarded boolean is the one kind of prop whose loss changes nothing
+ *     about what renders, only about what the rendered thing can DO, so the
+ *     last two describes press the capability rather than look for the flag.
  *
  * `useTranslation` is stubbed to echo its key, with the count appended when
  * there is one — a plain echo would let the two hidden-counts above swap
@@ -180,7 +186,6 @@ function renderDesktop(
       anchorDate: ANCHOR,
       weekStart: WEEK_START,
       today: TODAY,
-      weekStartsOn: 0,
       monthItems: [MONTH_ITEM],
       gridItems: [GRID_ITEM],
       selectedId: null,
@@ -226,7 +231,6 @@ function renderNarrow(
     month: {
       anchorDate: ANCHOR,
       today: TODAY,
-      weekStartsOn: 0,
       weekdayLabels: WEEKDAYS,
       items: [MONTH_ITEM],
       formatDayLabel: (k) => k,
@@ -657,5 +661,157 @@ describe("the item gestures — three presses, three handlers, per surface", () 
     expect(daySpies.onToggleComplete).toHaveBeenCalledTimes(1);
     expect(daySpies.onToggleComplete).toHaveBeenCalledWith(AGENDA_ITEM.id);
     expect(daySpies.onAdd).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * `dayflow` (#691) is the flag that makes narrow's day list stand in for the
+ * week grid Mobile does not get: the row says when it ENDS and grows with how
+ * long it runs. Drop it and the list still renders every row, still opens them,
+ * still completes them — it just goes back to a column of identical one-line
+ * entries where a 15-minute errand and a 3-hour block look the same, which is
+ * the #467 shape the Issue replaced. Nothing else in this file would notice.
+ */
+describe("CalendarNarrowLayout — the day list carries the week grid's job (#691)", () => {
+  /** Three hours, so the height is nowhere near the floor a short row lands on. */
+  const LONG: AgendaItem = {
+    id: "event-long",
+    title: "長い予定",
+    startTime: "13:00",
+    endTime: "16:00",
+    status: "notStarted",
+  };
+
+  const rowOf = (title: string) =>
+    screen.getByText(title).closest("button") as HTMLElement;
+
+  it("prints the end time and sizes the row by its duration", () => {
+    renderNarrow({ day: { agenda: [LONG] } });
+
+    expect(screen.getByText(LONG.endTime)).toBeTruthy();
+    /*
+     * Read through the shared helper rather than hard-coded: the SCALE is
+     * AgendaList's business (its own suite owns the px-per-minute and the cap),
+     * and what this case is about is the flag arriving at all. Without it the
+     * row carries no inline height whatsoever, so any number fails it.
+     */
+    expect(rowOf(LONG.title).style.minHeight).toBe(
+      `${agendaRowHeightPx(180)}px`,
+    );
+  });
+
+  /*
+   * The free-gap markers ride their OWN prop (`formatGapLabel`) rather than
+   * `dayflow` — AgendaList draws them whenever the formatter is supplied. Two
+   * separate forwards, so they need two separate cases: pinning only the flag
+   * would leave the formatter free to go missing, taking 「空き」 with it while
+   * the end times stayed.
+   */
+  it("calls out the free stretch between two rows", () => {
+    renderNarrow({
+      day: {
+        agenda: [
+          { ...LONG, id: "event-am", startTime: "09:00", endTime: "10:00" },
+          { ...LONG, id: "event-pm", startTime: "11:00", endTime: "12:00" },
+        ],
+      },
+    });
+    // The fixture's formatter echoes the minutes it was handed — the hole here
+    // is 10:00→11:00, and it has to be measured, not assumed.
+    expect(screen.getByText("gap:60")).toBeTruthy();
+  });
+});
+
+/*
+ * Desktop's `display` bundle: two booleans that change no markup at all.
+ *
+ * `todoInteractive` (#297 / A-2) is what opts todo chips back into the drag
+ * machinery after A-1 made them read-only, and #564 is the regression it
+ * causes when it goes missing — a chip that answered a drag but not a click.
+ * The two halves are one switch: a movable block has NO onClick (the drag hook
+ * owns the gesture and turns a pointer-up below the threshold into the
+ * activation), so losing the flag moves a todo chip's activation from one route
+ * to the other. Each case below therefore presses BOTH ways round and requires
+ * the drag route to be the live one.
+ *
+ * `fillHeight` (#563) is asserted on the class, the way the sticky-footer cases
+ * are (scheduleEventEditor.test.tsx): jsdom has no layout, so nothing here can
+ * show the grid actually filling the tab — what it can show is the prop
+ * arriving, which is the half that breaks.
+ */
+describe("CalendarDesktopLayout — the week grid's capability switches", () => {
+  const TODO_BLOCK: WeekTimeGridItem = {
+    id: "task-block",
+    date: ANCHOR,
+    title: "Todoブロック",
+    startTime: "13:00",
+    endTime: "14:00",
+    variant: "task",
+  };
+  const TODO_CHIP: WeekTimeGridItem = {
+    id: "task-chip",
+    date: ANCHOR,
+    title: "終日Todo",
+    startTime: "00:00",
+    endTime: "00:00",
+    isAllDay: true,
+    variant: "task",
+  };
+
+  it("lets a todo block answer the drag route, and only that one (#297)", () => {
+    const { handlers } = renderDesktop({
+      view: "week",
+      data: { gridItems: [TODO_BLOCK] },
+    });
+    const block = screen.getByText(TODO_BLOCK.title);
+
+    // Read-only chips keep an onClick; movable ones do not. A press that lands
+    // here means the block was never handed to the drag hook.
+    fireEvent.click(block, { clientX: 1, clientY: 2 });
+    expect(handlers.onItemActivate).not.toHaveBeenCalled();
+
+    pressAndRelease(block, 5, 6);
+    expect(handlers.onItemActivate).toHaveBeenCalledTimes(1);
+    expect(handlers.onItemActivate).toHaveBeenCalledWith(TODO_BLOCK.id, {
+      x: 5,
+      y: 6,
+    });
+    // Still not a move — the pointer never travelled.
+    expect(handlers.onMoveItem).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The all-day lane's copy of the same switch (#298 "place"): an unplaced todo
+   * is dragged down out of the lane to gain a start time. It is the surface the
+   * #564 report actually came from — the chip a user taps first.
+   */
+  it("makes the all-day todo chip placeable, click route included (#298 / #564)", () => {
+    const { handlers } = renderDesktop({
+      view: "week",
+      data: { gridItems: [TODO_CHIP] },
+    });
+    const chip = screen.getByText(TODO_CHIP.title);
+
+    fireEvent.click(chip, { clientX: 1, clientY: 2 });
+    expect(handlers.onItemActivate).not.toHaveBeenCalled();
+
+    pressAndRelease(chip, 7, 8);
+    expect(handlers.onItemActivate).toHaveBeenCalledTimes(1);
+    expect(handlers.onItemActivate).toHaveBeenCalledWith(TODO_CHIP.id, {
+      x: 7,
+      y: 8,
+    });
+  });
+
+  it("hands the grid the tab's full height rather than a capped box (#563)", () => {
+    const { container } = renderDesktop({ view: "week" });
+    const scroller = container.querySelector(
+      '[data-week-grid="scroll"]',
+    ) as HTMLElement;
+
+    expect(scroller.className).toContain("flex-1");
+    // The default the flag replaces. Left in place, the calendar tab draws a
+    // 60vh grid with dead space under it however tall the window is.
+    expect(scroller.className).not.toContain("max-h-[60vh]");
   });
 });

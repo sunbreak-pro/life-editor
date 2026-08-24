@@ -11,7 +11,6 @@ import {
   type AgendaListLabels,
   type MonthGridItem,
   type ScheduleLoadState,
-  type WeekStartsOn,
 } from "@life-editor/shared";
 import type { ScheduleCopy } from "./scheduleCopy";
 
@@ -81,7 +80,6 @@ export interface CalendarNarrowMonth {
   /** The month rendered, and the cell marked as picked (they are one day). */
   anchorDate: string;
   today: string;
-  weekStartsOn: WeekStartsOn;
   weekdayLabels: ScheduleCopy["weekdayLabels"];
   items: MonthGridItem[];
   /**
@@ -228,7 +226,6 @@ export function CalendarNarrowLayout({
                 items={month.items}
                 todayKey={month.today}
                 selectedKey={month.anchorDate}
-                weekStartsOn={month.weekStartsOn}
                 weekdayLabels={month.weekdayLabels}
                 onSelectDay={month.onSelectDay}
                 formatMoreCount={(n) =>

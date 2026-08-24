@@ -11,7 +11,6 @@ import {
   type DesktopCalendarView,
   type MonthGridItem,
   type ScheduleLoadState,
-  type WeekStartsOn,
   type WeekTimeGridHandlers,
   type WeekTimeGridItem,
 } from "@life-editor/shared";
@@ -85,7 +84,6 @@ export interface CalendarDesktopData {
   /** First column of the "week" view. */
   weekStart: string;
   today: string;
-  weekStartsOn: WeekStartsOn;
   monthItems: MonthGridItem[];
   gridItems: WeekTimeGridItem[];
   selectedId: string | null;
@@ -185,7 +183,6 @@ export function CalendarDesktopLayout({
         monthKey={data.anchorDate}
         items={data.monthItems}
         todayKey={data.today}
-        weekStartsOn={data.weekStartsOn}
         weekdayLabels={labels.weekdays}
         onSelectDay={handlers.onMonthCreate}
         onItemActivate={handlers.onItemActivate}

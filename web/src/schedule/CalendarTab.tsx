@@ -16,8 +16,6 @@ import {
   useScheduleItemsRoutineSync,
   useDeferredAction,
   useToast,
-  isTodoChip,
-  unwrapTodoChipId,
   useMinuteClock,
   type EventEditorItem,
   type DataService,
@@ -27,7 +25,6 @@ import {
 import { ScheduleSidebar } from "./ScheduleSidebar";
 import { CalendarDesktopLayout } from "./CalendarDesktopLayout";
 import { CalendarNarrowLayout } from "./CalendarNarrowLayout";
-import { ScheduleEventEditor } from "./ScheduleEventEditor";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
@@ -45,7 +42,6 @@ import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
 import { useScheduleSelection } from "./useScheduleSelection";
 import { useScheduleDayLabels } from "./useScheduleDayLabels";
 import { useScheduleTodayAgenda } from "./useScheduleTodayAgenda";
-import { useEditorCloseGuard } from "./useEditorCloseGuard";
 import { toEditorItem } from "./scheduleViewModels";
 import { useScheduleCopy } from "./scheduleCopy";
 
@@ -306,20 +302,6 @@ export function CalendarTab({
    * `todoDetailId` moved in with it — it is the id of a TODO, which
    * `selectedId` cannot hold (#626).
    */
-  // Memoised because the hook keeps it in the deps of both delete handlers, and
-  // a fresh object per render would rebuild them on every keystroke elsewhere
-  // in this file.
-  const todoDeleteCopy = useMemo(
-    () => ({
-      confirm: (name: string) => t("todoDetail.todoDeleteConfirm", { name }),
-      cascadeConfirm: (name: string, count: number) =>
-        t("todoDetail.todoDeleteCascadeConfirm", { name, count }),
-      untitled: t("common.untitled"),
-      confirmLabel: t("todoDetail.delete"),
-      cancelLabel: t("common.cancel"),
-    }),
-    [t],
-  );
   const {
     rangeTodoChips,
     todayTodoChips,
@@ -345,7 +327,6 @@ export function CalendarTab({
     rangeStart,
     rangeEnd,
     askConfirm,
-    copy: todoDeleteCopy,
   });
 
   /*
@@ -580,22 +561,6 @@ export function CalendarTab({
     clearCalendarLens,
   });
 
-  /*
-   * #761: the agenda's completion tag, for BOTH kinds of row. The lists mix
-   * schedule items and todo chips, and the two have different write paths — a
-   * chip's completion is a TodoTree status, not a schedule_item's `completed`
-   * flag — so the row's id is what decides which one runs. Sending a chip id to
-   * `handleToggle` would look up a schedule_item that is not there and write
-   * nothing: the same silent no-op the Issue is about.
-   */
-  const handleAgendaToggle = useCallback(
-    (id: string) => {
-      if (isTodoChip(id)) handleTodoToggleComplete(unwrapTodoChipId(id));
-      else handleToggle(id);
-    },
-    [handleTodoToggleComplete, handleToggle],
-  );
-
   // #355: drop a bubble still waiting its turn the moment anything else
   // opens (the hook holds the why, and the list of what counts as anything).
   useCancelDeferredPopover({
@@ -660,6 +625,7 @@ export function CalendarTab({
   // today-anchored provider list), never from the grid's visible range.
   const {
     toAgenda,
+    handleAgendaToggle,
     todayItems,
     skippedToday,
     handleRestoreSkipped,
@@ -677,6 +643,8 @@ export function CalendarTab({
     routines,
     freqCopy,
     weekdayLabels,
+    handleToggle,
+    handleTodoToggleComplete,
   });
 
   const editorItem: EventEditorItem | null = toEditorItem(selected, now);
@@ -707,23 +675,9 @@ export function CalendarTab({
     },
   });
 
-  /*
-   * #628 / #998: the unsaved-draft gate in front of every way out of the
-   * editor. Both exits ask the same question and do different things with the
-   * answer, which is the whole reason they travel together
-   * (useEditorCloseGuard) rather than as two callbacks fifty lines apart.
-   */
-  const {
-    onDirtyChange: handleEditorDirtyChange,
-    requestClose: requestEditorClose,
-    requestDiscardKeepingFlag: requestEditorDiscard,
-  } = useEditorCloseGuard(askConfirm);
-
   // #625 Event <-> Todo conversion. The whole path — the two blocking
   // checks, the five sentences the dialogs pick between, the per-id in-flight
   // guard and the two store re-reads — lives in useItemConversion (#889).
-  // #998 hoisted it above `editorPane`, which now references
-  // handleConvertToTodo; it used to sit 150 lines further down.
   const { handleConvertToTodo, handleConvertToEvent } = useItemConversion({
     dataService,
     rangeItems,
@@ -745,54 +699,6 @@ export function CalendarTab({
     },
     push: undoRedo?.push,
   });
-
-  const editorPane = (
-    <ScheduleEventEditor
-      item={editorItem}
-      isWide={isWide}
-      // The SERIES id, when this occurrence came from one — the tag slot
-      // writes against it rather than against the regenerated row (#468).
-      routineId={selected?.routineId}
-      statusLabels={statusLabels}
-      // #628: one commit per press, carrying everything that changed. It goes
-      // to handleUpdate whole — that is what keeps a routine occurrence's
-      // scope dialog (#279) to one appearance and makes cancelling it discard
-      // the entire save rather than half of it. Nothing is written on blur any
-      // more, so the day move and the all-day flip are plain capabilities
-      // rather than callbacks: the pane holds them in its draft until the
-      // button.
-      handlers={{
-        onSave: handleUpdate,
-        onToggleComplete: handleToggle,
-        onDirtyChange: handleEditorDirtyChange,
-        onDismiss: handleDismiss,
-        onDelete: handleDelete,
-      }}
-      options={{
-        originDetail,
-        canEditDate: true,
-        canEditAllDay: true,
-        formatDuration,
-      }}
-      repeat={{
-        value: repeatValue,
-        weekdayLabels,
-        labels: repeatLabels,
-        pending: repeatConverting,
-        onChange: handleChangeRepeat,
-        onDetach: handleDetachRepeat,
-      }}
-      // #998: the narrow sheet's convert entry runs the unsaved-draft guard
-      // first, and on the variant that KEEPS the pending flag — the conversion
-      // asks its own question next, and a refusal there leaves the draft on
-      // screen (the reasoning is spelled out on requestDiscardKeepingFlag).
-      onConvertToTodo={(id) => {
-        void requestEditorDiscard().then((discarded) => {
-          if (discarded) handleConvertToTodo(id);
-        });
-      }}
-    />
-  );
 
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
@@ -876,10 +782,41 @@ export function CalendarTab({
       editor={{
         item: editorItem,
         overlayOpen,
-        pane: editorPane,
-        requestClose: requestEditorClose,
         onCloseOverlay: () => setOverlayOpen(false),
         onClearSelection: () => setSelectedId(null),
+        askConfirm,
+        // The SERIES id, when this occurrence came from one — the tag slot
+        // writes against it rather than against the regenerated row (#468).
+        routineId: selected?.routineId,
+        statusLabels,
+        // #628: one commit per press, carrying everything that changed. It goes
+        // to handleUpdate whole — that is what keeps a routine occurrence's
+        // scope dialog (#279) to one appearance and makes cancelling it discard
+        // the entire save rather than half of it. Nothing is written on blur any
+        // more, so the day move and the all-day flip are plain capabilities
+        // rather than callbacks: the pane holds them in its draft until the
+        // button.
+        handlers: {
+          onSave: handleUpdate,
+          onToggleComplete: handleToggle,
+          onDismiss: handleDismiss,
+          onDelete: handleDelete,
+        },
+        options: {
+          originDetail,
+          canEditDate: true,
+          canEditAllDay: true,
+          formatDuration,
+        },
+        repeat: {
+          value: repeatValue,
+          weekdayLabels,
+          labels: repeatLabels,
+          pending: repeatConverting,
+          onChange: handleChangeRepeat,
+          onDetach: handleDetachRepeat,
+        },
+        onConvertToTodo: handleConvertToTodo,
       }}
       todoDetail={{
         todoId: todoDetailId,

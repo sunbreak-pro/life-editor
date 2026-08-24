@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from "react";
 import {
   frequencyLabel,
+  isTodoChip,
+  unwrapTodoChipId,
   type AgendaItem,
   type FrequencyLabelCopy,
   type RoutineNode,
@@ -24,6 +26,9 @@ import { toAgendaItems } from "./scheduleViewModels";
  * `toAgenda` comes out with them although the narrow day list also calls it on
  * the ANCHOR day's rows: it is the merge itself (schedule items + todo chips,
  * sorted), and it is bound to `now` because every row carries a derived status.
+ * `handleAgendaToggle` followed it in on the same argument (#1000) — it is what
+ * a row of that merge does when pressed, and both surfaces the merge feeds pass
+ * it as their `onToggleComplete`.
  *
  * The memo boundaries and dependency lists below are exactly the ones that
  * stood in CalendarTab, and they are load-bearing rather than decorative:
@@ -57,6 +62,10 @@ export interface UseScheduleTodayAgendaArgs {
   routines: RoutineNode[];
   freqCopy: FrequencyLabelCopy;
   weekdayLabels: string[];
+  /** Schedule-item completion (useScheduleMutations) — see handleAgendaToggle. */
+  handleToggle: (id: string) => void;
+  /** TodoTree-status completion (useScheduleTodoChips) — the other half. */
+  handleTodoToggleComplete: (todoId: string) => void;
 }
 
 export function useScheduleTodayAgenda({
@@ -69,6 +78,8 @@ export function useScheduleTodayAgenda({
   routines,
   freqCopy,
   weekdayLabels,
+  handleToggle,
+  handleTodoToggleComplete,
 }: UseScheduleTodayAgendaArgs) {
   // Merge schedule items + todo chips into a single sorted agenda.
   //
@@ -118,8 +129,29 @@ export function useScheduleTodayAgenda({
     return r ? frequencyLabel(r, freqCopy, weekdayLabels) : undefined;
   }, [selected, routines, freqCopy, weekdayLabels]);
 
+  /*
+   * #761: the agenda's completion tag, for BOTH kinds of row. The lists mix
+   * schedule items and todo chips, and the two have different write paths — a
+   * chip's completion is a TodoTree status, not a schedule_item's `completed`
+   * flag — so the row's id is what decides which one runs. Sending a chip id to
+   * `handleToggle` would look up a schedule_item that is not there and write
+   * nothing: the same silent no-op the Issue is about.
+   *
+   * It lives with `toAgenda` rather than at the host's call site for the same
+   * reason that merge does: it is the merged agenda's toggle, answering for
+   * both lists the merge produces (the flow tab's and the narrow day list's).
+   */
+  const handleAgendaToggle = useCallback(
+    (id: string) => {
+      if (isTodoChip(id)) handleTodoToggleComplete(unwrapTodoChipId(id));
+      else handleToggle(id);
+    },
+    [handleTodoToggleComplete, handleToggle],
+  );
+
   return {
     toAgenda,
+    handleAgendaToggle,
     todayItems,
     skippedToday,
     handleRestoreSkipped,

@@ -1,9 +1,12 @@
-import type { ReactNode } from "react";
 import {
   ItemRoleBadge,
   ResponsiveDetailFrame,
   useTranslation,
+  type ConfirmRequest,
+  type EventEditorHandlers,
   type EventEditorItem,
+  type EventEditorOptions,
+  type EventEditorRepeat,
   type TodoCalendarChip,
 } from "@life-editor/shared";
 import {
@@ -14,7 +17,10 @@ import {
   ScheduleTodoDetail,
   type ScheduleTodoDetailProps,
 } from "./ScheduleTodoDetail";
+import { ScheduleEventEditor } from "./ScheduleEventEditor";
+import { useEditorCloseGuard } from "./useEditorCloseGuard";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
+import type { ScheduleCopy } from "./scheduleCopy";
 
 /*
  * The Calendar's overlay layer, assembled once for both layouts (#889).
@@ -24,6 +30,15 @@ import { useScheduleRoleLabels } from "./scheduleRoleLabels";
  * behind an open bubble, the event editor's frame, the todo detail's frame, and
  * the <ScheduleOverlays> element that consumed all three — and nothing else in
  * the host read any of them. Four names for one thing; this is the thing.
+ *
+ * #1000 brought in the fifth: the editor PANE, which #889 had left behind as a
+ * `pane` node prop. Its arrival is not about line count — it is what let
+ * useEditorCloseGuard come with it, and that hook's own header warns that its
+ * two exits must not sit apart. They had: `requestClose` was handed in here as
+ * a prop while `requestDiscardKeepingFlag` stayed at CalendarTab's call site,
+ * wrapping the pane's convert entry a hundred lines away. The hook is called
+ * here now, so the exits are three lines apart and the flag they disagree about
+ * (#998 — one clears it, one deliberately does not) has one reader.
  *
  * The rule the arrangement protects is #889's: ONE overlay set for both
  * layouts. The two returns used to hand-list their own and the lists had
@@ -45,22 +60,41 @@ import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 export interface ScheduleOverlayHostProps {
   isWide: boolean;
   /**
-   * The event editor's FRAME — the body arrives as `pane` because only the host
-   * can build it (it holds the draft, the repeat wiring and the tag slot).
+   * The event editor: the frame, the pane inside it and the unsaved-draft guard
+   * in front of both. What arrives here is the VALUES — the selection, the copy
+   * and the writes — because those are facts about the host's data; the wiring
+   * that turns them into a guarded surface is this file's.
    */
   editor: {
     /** The selection as the pane sees it (#673 `toEditorItem`), or null. */
     item: EventEditorItem | null;
     /** Desktop's overlay flag; narrow opens on the selection alone. */
     overlayOpen: boolean;
-    /** <ScheduleEventEditor>, already wired. */
-    pane: ReactNode;
-    /** #628 useEditorCloseGuard — runs `close` once the discard is agreed. */
-    requestClose: (close: () => void) => Promise<void>;
     /** What "closed" means on Desktop: drop the overlay flag. */
     onCloseOverlay: () => void;
     /** What it means on narrow: drop the selection, because it IS the sheet. */
     onClearSelection: () => void;
+    /** #707: the in-app dialog the discard question is asked through. */
+    askConfirm: (request: ConfirmRequest) => Promise<boolean>;
+    /**
+     * `selected.routineId` — the SERIES this occurrence was generated from, or
+     * null for a manual item. Only the tag slot reads it (#468).
+     */
+    routineId?: string | null;
+    /** Derived-status copy (#222) — the one label the host already owns. */
+    statusLabels: ScheduleCopy["statusLabels"];
+    /**
+     * `onDirtyChange` is deliberately NOT part of this: the guard below is the
+     * flag's only writer, and a host free to pass its own would be a second one.
+     */
+    handlers: Omit<EventEditorHandlers, "onDirtyChange">;
+    options: EventEditorOptions;
+    repeat: EventEditorRepeat;
+    /**
+     * Event → Todo (#625), UNGUARDED — the discard question in front of it is
+     * asked here, on the variant that keeps the pending flag (#998).
+     */
+    onConvertToTodo: (id: string) => void;
   };
   /** Straight through to <ScheduleTodoDetail>; only the width is ours. */
   todoDetail: Omit<ScheduleTodoDetailProps, "isWide">;
@@ -90,6 +124,40 @@ export function ScheduleOverlayHost({
   const { t } = useTranslation();
   const roleLabels = useScheduleRoleLabels();
   const { findTodoChip, ...popoverProps } = popover;
+
+  /*
+   * #628 / #998: the unsaved-draft gate in front of every way out of the
+   * editor. Both exits ask the same question and do different things with the
+   * answer, which is the whole reason they travel together (useEditorCloseGuard)
+   * rather than as two callbacks fifty lines apart — see the file header for
+   * where the two had drifted to before #1000 called the hook here.
+   */
+  const { onDirtyChange, requestClose, requestDiscardKeepingFlag } =
+    useEditorCloseGuard(editor.askConfirm);
+
+  const editorPane = (
+    <ScheduleEventEditor
+      item={editor.item}
+      isWide={isWide}
+      routineId={editor.routineId}
+      statusLabels={editor.statusLabels}
+      // The dirty flag is spread in LAST so it cannot be shadowed: the guard
+      // owns it (its ref is what both exits read), and the host is typed out of
+      // supplying one at all.
+      handlers={{ ...editor.handlers, onDirtyChange }}
+      options={editor.options}
+      repeat={editor.repeat}
+      // #998: the narrow sheet's convert entry runs the unsaved-draft guard
+      // first, and on the variant that KEEPS the pending flag — the conversion
+      // asks its own question next, and a refusal there leaves the draft on
+      // screen (the reasoning is spelled out on requestDiscardKeepingFlag).
+      onConvertToTodo={(id) => {
+        void requestDiscardKeepingFlag().then((discarded) => {
+          if (discarded) editor.onConvertToTodo(id);
+        });
+      }}
+    />
+  );
 
   /*
    * #564: the chip behind an open bubble, when the bubble belongs to a TODO
@@ -133,12 +201,12 @@ export function ScheduleOverlayHost({
       // #628: Escape, the backdrop and the close button all land here, so the
       // one guard covers every exit on either layout.
       onClose={() => {
-        void editor.requestClose(() =>
+        void requestClose(() =>
           isWide ? editor.onCloseOverlay() : editor.onClearSelection(),
         );
       }}
     >
-      {editor.pane}
+      {editorPane}
     </ResponsiveDetailFrame>
   );
 
