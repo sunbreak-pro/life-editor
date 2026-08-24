@@ -25,9 +25,12 @@ import {
  * #1098 is the same story one notch heavier. A wrong UPDATE stamps a row and
  * can be stamped back; a wrong DELETE removes the Todo's items_meta row and
  * takes its tasks_payload with it through the 0008 FK, and there is nothing
- * left to correct. The delete surface is ten sites across the two services —
- * three of them caller-supplied ids with no read-back, which is where the real
- * exposure lives.
+ * left to correct. The delete surface is ten sites across the two services.
+ * Five of them take a caller-supplied id and never read the row back; three of
+ * those five are on the EVENT side, and that is where the real exposure lives,
+ * because #625 only ever re-roles between 'event' and 'task'. The 'routine'
+ * guards hold the census rule rather than close a hole, and their source
+ * comments say so.
  *
  * WHAT "SAFE" LOOKS LIKE HERE
  * ===========================
@@ -59,9 +62,10 @@ import {
  *    `expect(converted).toEqual(snapshot)` would pass even on a successful
  *    delete. Every delete case reads `metaIds(db)` instead.
  * 2. A census assertion is only as good as its scanner. The static test at the
- *    bottom counts raw `.delete(` tokens and compares that with the number it
- *    found inside a scanned chain, so a DELETE written in a shape it cannot
- *    read fails as a mismatch instead of vanishing into "all clear".
+ *    bottom fails any `.from("items_meta")` it cannot follow to a verb, so a
+ *    DELETE written in a shape it cannot read is reported instead of vanishing
+ *    into "all clear" — and it reads the role off TOP-LEVEL chain links only,
+ *    so a filter buried in some argument cannot vouch for the WHERE clause.
  */
 
 interface Row {
@@ -751,9 +755,9 @@ describe("#1098 routine items_meta DELETE is role-guarded", () => {
       makeClient(db, writes, { routines_payload: "payload boom" }),
     );
 
-    await expect(
-      svc.createRoutine("rt-1", "Stretch"),
-    ).rejects.toThrow(/payload boom/);
+    await expect(svc.createRoutine("rt-1", "Stretch")).rejects.toThrow(
+      /payload boom/,
+    );
 
     expect(metaIds(db)).toEqual([]);
     expect(roleFilters(writes)).toEqual([
@@ -817,10 +821,16 @@ describe("#1098 routine items_meta DELETE is role-guarded", () => {
    * The only method with two guarded DELETEs carrying DIFFERENT roles — and
    * the only one where a miss is not silent.
    *
-   * The state seeded here is reachable rather than hypothetical: a conversion
-   * writes the new payload, flips items_meta.role, then drops the old payload
-   * (convertItemRole), so a run that dies between the last two steps leaves
-   * exactly this — a role='task' row still linked from events_payload.
+   * The state seeded here is reachable, but it takes TWO steps, and an earlier
+   * version of this comment claimed the first was enough. It is not.
+   * convertEventToTodo refuses a routine-linked event outright
+   * (D-20260810-sched-5), so a conversion dying between flipping items_meta.role
+   * and dropping the old payload can only leave a role='task' row whose stray
+   * events_payload record has a NULL routine link — harmless, since a null link
+   * references no routine. It becomes what is seeded below only once
+   * convertEventToRoutine attaches a routine to that leftover, which it will:
+   * its attach matches on `.is("routine_item_id", null)`, which is exactly what
+   * the leftover looks like. See permanentDeleteRoutine's own doc.
    *
    * In the real DB, sparing that occurrence means its events_payload row keeps
    * referencing the routine through the 0011 composite FK (ON DELETE NO
@@ -910,11 +920,41 @@ function blankComments(src: string): string {
   );
 }
 
+/** One `.name(args)` link of a chain, kept apart from its neighbours. */
+interface Segment {
+  name: string;
+  /** The argument list including its parentheses, e.g. `("role", "event")`. */
+  args: string;
+}
+
 interface Chain {
   /** The whole `.from("items_meta")…` call chain, comments blanked. */
   text: string;
+  /**
+   * The same chain as TOP-LEVEL links. Everything the census decides is
+   * decided from here, never from `text`: a flattened chain includes its own
+   * arguments, so a DELETE that mentions `.eq("role", …)` somewhere inside a
+   * nested sub-expression would read as guarded when its own WHERE clause is
+   * still id-only. `text` is for the offender message.
+   */
+  segments: Segment[];
   line: number;
   method: string;
+}
+
+/** The PostgREST verbs a chain can end in. A chain with none is unreadable. */
+const VERBS = new Set(["select", "insert", "update", "upsert", "delete"]);
+
+const isDelete = (c: Chain) => c.segments.some((s) => s.name === "delete");
+
+/** The role this chain filters on, from a top-level link only. */
+function roleOf(c: Chain): string | undefined {
+  for (const s of c.segments) {
+    if (s.name !== "eq" && s.name !== "in") continue;
+    const m = /^\(\s*"role",\s*"(\w+)"\s*\)$/.exec(s.args);
+    if (m) return m[1];
+  }
+  return undefined;
 }
 
 /**
@@ -932,6 +972,7 @@ function itemsMetaChains(blanked: string): Chain[] {
   ) {
     let cursor = i + NEEDLE.length;
     let text = NEEDLE;
+    const segments: Segment[] = [];
     for (;;) {
       while (cursor < blanked.length && /\s/.test(blanked[cursor])) cursor++;
       if (blanked[cursor] !== ".") break;
@@ -948,12 +989,17 @@ function itemsMetaChains(blanked: string): Chain[] {
           break;
         }
       }
+      segments.push({
+        name: blanked.slice(cursor + 1, name),
+        args: blanked.slice(name, end).replace(/\s+/g, " "),
+      });
       text += blanked.slice(cursor, end);
       cursor = end;
     }
     const before = blanked.slice(0, i);
     out.push({
       text,
+      segments,
       line: 1 + (before.match(/\n/g) ?? []).length,
       method: enclosingMethod(before),
     });
@@ -1010,22 +1056,35 @@ describe("#1098 census — every schedule-side items_meta DELETE names its role"
       readFileSync(resolve(SERVICE_DIR, file), "utf8").replace(/\r\n/g, "\n"),
     );
     const chains = itemsMetaChains(blanked);
-    const deletes = chains.filter((c) => c.text.includes(".delete("));
+    const deletes = chains.filter(isDelete);
 
-    it(`${file}: the scanner sees every DELETE in the file`, () => {
-      // Guards the guard. If a DELETE is ever written in a shape this scanner
-      // cannot read — a builder stashed in a const, a helper handed `from(...)`
-      // — it must surface as a mismatch, not as silent under-coverage.
-      const raw = (blanked.match(/\.delete\(/g) ?? []).length;
-      expect(
-        deletes.length,
-        `${file}: ${raw} .delete( calls in the file but only ${deletes.length} inside a scanned .from("items_meta") chain. A DELETE is being built in a shape this census cannot read (#1098) — inline the chain, or teach itemsMetaChains().`,
-      ).toBe(raw);
+    it(`${file}: every items_meta chain is one the scanner can read`, () => {
+      /*
+       * Guards the guard. A chain the walker cannot follow to a verb is
+       * invisible to the two assertions below, so it has to fail HERE — that
+       * is the shape a review probe used to slip an unguarded delete past this
+       * census with: `const q = this.client.from("items_meta");` on one line
+       * and `q.delete().eq("id", id)` on the next.
+       *
+       * This checks verbs rather than counting `.delete(` tokens across the
+       * file, which is what it used to do and got wrong twice over: an
+       * ordinary `from("events_payload").delete()` and an ordinary
+       * `claimed.delete(key)` on one of the Sets these services already hold
+       * would each break the count and report it as an unreadable items_meta
+       * chain, sending the next person after a defect that is not there.
+       */
+      const unreadable = chains
+        .filter((c) => !c.segments.some((s) => VERBS.has(s.name)))
+        .map(
+          (c) =>
+            `${file}:${c.line} ${c.method} — a .from("items_meta") that reaches no ${[...VERBS].join("/")} in one expression. Inline the chain, or teach itemsMetaChains() the new shape (#1098).`,
+        );
+      expect(unreadable).toEqual([]);
     });
 
     it(`${file}: no items_meta DELETE addresses a row by id alone`, () => {
       const offenders = deletes
-        .filter((c) => !/\.(eq|in)\("role"/.test(c.text))
+        .filter((c) => roleOf(c) === undefined)
         .map(
           (c) =>
             `${file}:${c.line} ${c.method} — ${c.text.replace(/\s+/g, " ")} — add .eq("role", "<role>") (#1098: #625 lets a row keep its id while changing role, so id alone can address a Todo)`,
@@ -1035,10 +1094,7 @@ describe("#1098 census — every schedule-side items_meta DELETE names its role"
 
     it(`${file}: the delete surface is exactly the pinned set`, () => {
       const actual = deletes
-        .map((c) => {
-          const role = /\.eq\("role",\s*"(\w+)"\)/.exec(c.text)?.[1];
-          return `${c.method} → ${role ?? "UNGUARDED"}`;
-        })
+        .map((c) => `${c.method} → ${roleOf(c) ?? "UNGUARDED"}`)
         .sort();
       expect(actual).toEqual([...EXPECTED[file]].sort());
     });
