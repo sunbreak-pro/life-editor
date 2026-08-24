@@ -13,7 +13,7 @@ import {
   type DataService,
   type ExtractedGoals,
   type GoalPeriod,
-  type WeekStartsOn,
+  WEEK_STARTS_ON,
 } from "@life-editor/shared";
 
 /** Debounce for a goal textarea → section-merge save (flushed on blur). */
@@ -61,22 +61,17 @@ type GoalEchoes = Record<GoalPeriod, (string | null)[]>;
 
 const NO_ECHOES: GoalEchoes = { week: [], month: [], year: [] };
 
-export function useGoalsDoc(
-  ds: DataService,
-  todayKey: string,
-  weekStartsOn: WeekStartsOn,
-) {
+export function useGoalsDoc(ds: DataService, todayKey: string) {
   const { t } = useTranslation();
   // The save path used to swallow its failure into the console, leaving a
   // draft on screen that looked saved until the next reload took it (#955).
   const reportSaveFailure = useSaveFailureReport();
   // Which week / month / year the paper is standing in (#957). The SAME two
   // inputs produce the label beside each field (goalPeriodRanges), so the key
-  // a save writes and the range the reader sees can never disagree.
-  const keys = useMemo(
-    () => goalPeriodKeys(todayKey, weekStartsOn),
-    [todayKey, weekStartsOn],
-  );
+  // a save writes and the range the reader sees can never disagree. The week
+  // start is fixed (#1102), which is what keeps a stored key from moving under
+  // a goal that was already written.
+  const keys = useMemo(() => goalPeriodKeys(todayKey, WEEK_STARTS_ON), [todayKey]);
   // The goals live in a note, so a Realtime note change (Notes-side edit,
   // another device) must bring the paper along — under-declaring here is a
   // silent stale (rules/frontend.md §Sync).

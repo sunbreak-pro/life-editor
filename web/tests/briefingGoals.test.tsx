@@ -12,6 +12,7 @@ import {
   extractGoals,
   goalPeriodKeys,
   todayDateKey,
+  WEEK_STARTS_ON,
   type DataService,
   type NoteNode,
   type SyncDomain,
@@ -35,11 +36,11 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 const TODAY = todayDateKey();
 /**
- * The period keys the screen will compute (#957). `useWeekStartPref` has no
- * Settings UI and nothing in this suite writes its localStorage key, so the
- * screen resolves the default — Sunday.
+ * The period keys the screen will compute (#957). The week start is fixed
+ * app-wide (#1102), so the suite reads the same constant the screen does —
+ * a stored preference can no longer move the key out from under a goal.
  */
-const KEYS = goalPeriodKeys(TODAY, 0);
+const KEYS = goalPeriodKeys(TODAY, WEEK_STARTS_ON);
 
 function head(text: string) {
   return {

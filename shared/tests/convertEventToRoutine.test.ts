@@ -84,18 +84,40 @@ function makeClient(
         };
         return chain;
       },
-      delete: () => ({
-        eq: (col: string, val: unknown) => {
-          writes.push({
-            table,
-            mode: "delete",
-            patch: null,
-            filter: { col, val },
-            filters: [{ col, val }],
-          });
-          return Promise.resolve({ error: null });
-        },
-      }),
+      /*
+       * Chainable, exactly like `update` above — and it has to be. #1098 gave
+       * the rollback a second `.eq()` (the role guard), and the old mock
+       * returned a bare Promise from the first one, so the chain died on
+       * `.eq is not a function`. That TypeError would never have surfaced:
+       * the rollback runs inside a catch that hands anything thrown to
+       * logServiceError (a console.warn tests/setup.ts does not fail on), and
+       * the write record had already been pushed by the first `.eq()`. Both
+       * rollback cases below would have stayed green while the rollback did
+       * nothing at all.
+       */
+      delete: () => {
+        const rec: WriteRecord = {
+          table,
+          mode: "delete",
+          patch: null,
+          filter: { col: "", val: undefined },
+          filters: [],
+        };
+        const chain = {
+          eq: (col: string, val: unknown) => {
+            rec.filters.push({ col, val });
+            if (rec.filters.length === 1) {
+              rec.filter = { col, val };
+              writes.push(rec);
+            }
+            return chain;
+          },
+          then: (
+            resolve: (v: { error: { message: string } | null }) => unknown,
+          ) => resolve({ error: null }),
+        };
+        return chain;
+      },
     }),
   } as unknown as SupabaseClient;
   return { client, writes };
@@ -181,6 +203,12 @@ describe("convertEventToRoutine (#296)", () => {
     expect(dels).toHaveLength(1);
     expect(dels[0].table).toBe("items_meta");
     expect(dels[0].filter).toEqual({ col: "id", val: "routine-1" });
+    // #1098: same shape as the #996 assertion on the meta bump above — the id
+    // alone no longer describes the address, so the role rides in the WHERE.
+    expect(dels[0].filters).toEqual([
+      { col: "id", val: "routine-1" },
+      { col: "role", val: "routine" },
+    ]);
   });
 
   it("rolls back and rethrows when the seed already belongs to a routine (#407 double-conversion guard)", async () => {
@@ -200,6 +228,10 @@ describe("convertEventToRoutine (#296)", () => {
     expect(dels).toHaveLength(1);
     expect(dels[0].table).toBe("items_meta");
     expect(dels[0].filter).toEqual({ col: "id", val: "routine-1" });
+    expect(dels[0].filters).toEqual([
+      { col: "id", val: "routine-1" },
+      { col: "role", val: "routine" },
+    ]);
   });
 
   it("propagates a createRoutine failure without touching anything", async () => {

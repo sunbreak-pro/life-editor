@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import type { DataService } from "@life-editor/shared";
+import type { DataService, TimerSession } from "@life-editor/shared";
 import { makeTodo, stubDataService } from "./helpers";
 import {
   briefingReads,
@@ -107,6 +107,58 @@ describe("useBriefingData — fetching (#892)", () => {
         expect(mockOf(ds, "fetchTodoTree").mock.calls.length).toBe(before + 1),
       );
     }
+  });
+
+  it("republishes the session log itself when the sessions domain moves", async () => {
+    // #993 — the loop above proves the EFFECT re-ran (it counts fetchTodoTree).
+    // It cannot tell that apart from a refetch whose rows are dropped on the
+    // way back, and dropping them is exactly what breaks Briefing's live
+    // streak. So this asserts on the read that matters and on the state the
+    // widgets are handed. `shared/tests/briefingVizPanelStreak.test.tsx` owns
+    // the other half — that those rows reach the number on screen.
+    const LATER: TimerSession[] = [
+      {
+        id: 1,
+        todoId: null,
+        sessionType: "WORK",
+        startedAt: new Date("2026-08-15T10:00:00Z"),
+        completedAt: new Date("2026-08-15T10:25:00Z"),
+        duration: 25 * 60,
+        completed: true,
+        label: null,
+      },
+    ];
+    const ds = stubDataService({
+      ...briefingReads(),
+      fetchTimerSessions: vi
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValue(LATER),
+    });
+    const { result, harness } = renderData(ds);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.data.sessions).toEqual([]);
+
+    act(() => harness.sync.bump("sessions"));
+
+    await waitFor(() => expect(result.current.data.sessions).toEqual(LATER));
+  });
+
+  it("does not re-read the session log when the timer SETTINGS domain moves", async () => {
+    // The mirror of the above, asserted on the session read rather than
+    // through fetchTodoTree. Since #993 split the two counters, a pomodoro
+    // press moves `sessions`, not `timer` — if Briefing drifted back onto
+    // `timer` this would start passing for the wrong reason, so both
+    // directions are pinned.
+    const ds = makeDS();
+    const { result, harness } = renderData(ds);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mockOf(ds, "fetchTimerSessions")).toHaveBeenCalledTimes(1);
+
+    act(() => harness.sync.bump("timer"));
+    await act(async () => {});
+
+    expect(mockOf(ds, "fetchTimerSessions")).toHaveBeenCalledTimes(1);
   });
 
   it("ignores domains it does not read", async () => {

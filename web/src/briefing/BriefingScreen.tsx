@@ -15,11 +15,11 @@ import {
   todayDateKey,
   useMediaQuery,
   useTranslation,
-  useWeekStartPref,
   type BriefingTab,
   type DataService,
   type ItemCreateNoteDraft,
   type ItemCreateSlot,
+  WEEK_STARTS_ON,
   WIDE_QUERY,
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
@@ -117,15 +117,12 @@ export function BriefingScreen({
 
   // 週 / 月 / 年 goals (#872) — their own document (the reserved goals note),
   // so their read + save chain is separate from the daily's sections. The day
-  // and the week-start preference go IN because the sections are filed under a
-  // period key since #957: the same two inputs decide which section is read
-  // and written and which range is printed beside the field, so the pref has
-  // to be resolved before the hook runs, not after it.
-  const { weekStartsOn } = useWeekStartPref();
+  // goes IN because the sections are filed under a period key since #957; the
+  // week start it is paired with is the app-wide constant (#1102), so the key a
+  // save writes cannot move under a goal that is already on screen.
   const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(
     ds,
     todayKey,
-    weekStartsOn,
   );
 
   // The focus note (#1048) — its own document too: the morning paper READS
@@ -182,17 +179,17 @@ export function BriefingScreen({
   // Goal field copy (#872). The period RANGES are computed, not translated —
   // they are the human-readable face of the same period the section is filed
   // under (#957), so they take the identical inputs `goalPeriodKeys` does. The
-  // week follows the user's week-start preference — the same boundary the
-  // calendar grids and the Analytics week buckets use (#860), never a
-  // hard-coded Monday.
+  // week is the app-wide start (#1102) — the same boundary the calendar
+  // grids and the Analytics week buckets use (#860), never a hard-coded
+  // Monday.
   const goalRanges = useMemo(
     () =>
       goalPeriodRanges(
         todayKey,
-        weekStartsOn,
+        WEEK_STARTS_ON,
         i18n.language.startsWith("ja") ? "ja-JP" : "en-US",
       ),
-    [todayKey, weekStartsOn, i18n.language],
+    [todayKey, i18n.language],
   );
   const goalLabels = useMemo(
     () => ({

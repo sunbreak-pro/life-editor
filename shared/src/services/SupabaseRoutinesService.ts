@@ -147,8 +147,15 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       );
       return rowsToRoutineNode(metaRow, payloadRow);
     } catch (err) {
-      // R2 orphan recovery — same pattern as createTodo.
-      await this.client.from("items_meta").delete().eq("id", meta.id);
+      // R2 orphan recovery — same pattern as createTodo. The role filter is
+      // the #1098 census guard, not a fix: this removes the row the INSERT
+      // above just created, which `routineNodeToRows` stamped role='routine'
+      // and whose id no caller holds yet.
+      await this.client
+        .from("items_meta")
+        .delete()
+        .eq("id", meta.id)
+        .eq("role", "routine");
       throw err;
     }
   }
@@ -240,10 +247,22 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       // blocked by the 0011 composite FK. Best-effort: a rollback failure
       // must not mask the original error.
       try {
+        // #1098 census guard, and the one DELETE on this path that reads its
+        // own result — so be precise about what a miss would cost. It is not
+        // a false alarm: under the miss-not-error contract a filtered-out row
+        // comes back `error: null` and the branch below stays QUIET. That is
+        // the expensive direction, because the log line is this site's whole
+        // product — it is what makes a #407 zombie findable at all. Suppress
+        // it and the zombie is created in silence. The only reason that is an
+        // acceptable trade is that the filter cannot miss here: `routineId`
+        // was minted by the createRoutine call above, and 'routine' is not a
+        // #625 conversion endpoint (conversion only re-roles task ⇄ event), so
+        // nothing can have moved this row out from under the rollback.
         const { error: rollbackErr } = await this.client
           .from("items_meta")
           .delete()
-          .eq("id", routineId);
+          .eq("id", routineId)
+          .eq("role", "routine");
         // supabase-js reports failures via the result, not by throwing —
         // the old unchecked call made a failed rollback silent, and what a
         // failed rollback leaves behind is exactly the #407 zombie: a live
@@ -343,10 +362,16 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    * permanentDeleteRoutine.
    */
   async deleteRoutine(id: string): Promise<void> {
+    // #1098: a caller-supplied id with no read-back, structurally the same
+    // exposure as deleteScheduleItem. It is not a live hole today — 'routine'
+    // is not a #625 conversion endpoint, which only re-roles between 'event'
+    // and 'task' — so this is the census rule holding rather than a bug being
+    // fixed. Said plainly here so nobody reads the filter as evidence of one.
     const { error } = await this.client
       .from("items_meta")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "routine");
     if (error) throw new Error(`deleteRoutine: ${error.message}`);
   }
 
@@ -578,6 +603,43 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    * routine_item_role). Hard-delete the dependent events_payload-
    * backed items_meta rows first (cascades to events_payload through
    * the 0008 item_id FK), then the routine itself.
+   *
+   * #1098 — THE ONE PLACE WHERE A ROLE MISS IS NOT SILENT. Everywhere else on
+   * the schedule path a filtered-out DELETE simply evaporates. Not here: if
+   * step 2's `role='event'` filter spares a row, that row's events_payload
+   * record survives still pointing at the routine, and the NO ACTION FK then
+   * makes step 3 fail — the purge throws instead of completing.
+   *
+   * That is still the side of the trade we want. The alternative is step 2
+   * hard-deleting a row that is now a Todo and cascading its tasks_payload
+   * away through the 0008 FK; a purge that refuses is recoverable and a
+   * deleted Todo is not.
+   *
+   * TWO ROUTES REACH IT, and the second is the cheap one — do not read the
+   * first and conclude this is unreachable:
+   *   (a) A conversion that died between flipping items_meta.role and
+   *       dropping the old events_payload row. convertEventToTodo's step 3 is
+   *       best-effort by design (db-conventions §10.5 names the leftover and
+   *       ships a detection query for it), so this needs no crash, just a
+   *       failed cleanup.
+   *   (b) convertEventToRoutine ATTACHING a routine to such a leftover. Its
+   *       meta bump above is `.eq("role","event")` but only checks `mErr`, so
+   *       a zero-row match on an already-converted id falls through silently;
+   *       the attach that follows filters on item_id and
+   *       `.is("routine_item_id", null)` and never looks at the role. The
+   *       conversion then reports SUCCESS, and the routine it created is one
+   *       that can never be purged.
+   * Route (b) is queued as a follow-up (check the bump's row count the way
+   * SupabaseItemConversionService.reRole already does); it is out of #1098's
+   * DELETE scope, not out of mind.
+   *
+   * KNOWN ROUGH EDGE, ALSO DEFERRED: when this fires, the caller gets
+   * Postgres's raw `violates foreign key constraint` text from step 3 rather
+   * than something naming the spared occurrence. The fix is for step 2 to
+   * `.select("id")` what it actually removed and throw a named error before
+   * step 3 runs — deliberately not done here because it would require
+   * reshaping permanentDeleteRoutine.test.ts's mock, which is outside this
+   * Issue's file scope (P-008).
    */
   async permanentDeleteRoutine(id: string): Promise<void> {
     // 1. Collect event items_meta ids that reference this routine
@@ -608,7 +670,16 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     if (eventIds.length > 0) {
       await forEachIdChunk(
         eventIds,
-        (chunk) => this.client.from("items_meta").delete().in("id", chunk),
+        // role='event', not 'routine': these ids came out of events_payload,
+        // so what step 2 removes is the OCCURRENCES. The two steps carrying
+        // different roles is what makes the split guardable at all — see the
+        // #1098 note in the doc above for what a miss costs here.
+        (chunk) =>
+          this.client
+            .from("items_meta")
+            .delete()
+            .in("id", chunk)
+            .eq("role", "event"),
         "permanentDeleteRoutine events",
       );
     }
@@ -618,7 +689,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const { error } = await this.client
       .from("items_meta")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "routine");
     if (error) throw new Error(`permanentDeleteRoutine: ${error.message}`);
   }
 }

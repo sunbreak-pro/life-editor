@@ -29,7 +29,6 @@ const REAL_KEYS = [
   "life-editor-shortcut-config", // context/ShortcutConfigContext.tsx
   "life-editor-startup-section", // hooks/useStartupSection.ts
   "life-editor-day-start-hour", // utils/dateKey.ts
-  "life-editor-week-start", // hooks/useWeekStart.ts
   // colon — per-surface view prefs
   "life-editor:kanban-view-mode", // components/Kanban/viewModeStorage.ts
   "life-editor:note-sort-mode", // hooks/notesUnifiedHelpers.ts

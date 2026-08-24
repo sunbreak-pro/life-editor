@@ -6,8 +6,8 @@ import {
   normalizeDesktopView,
   startOfWeekKey,
   todayCalendarKey,
-  useWeekStartPref,
   visibleCalendarRange,
+  WEEK_STARTS_ON,
 } from "@life-editor/shared";
 
 /*
@@ -43,17 +43,15 @@ export function useCalendarNav(isWide: boolean) {
    */
   const effView = isWide ? desktopView : "month";
 
-  // Week-start pref (#217): read once per mount (same reload semantics as the
-  // other lightweight prefs — a Settings change applies on section re-entry).
-  const { weekStartsOn } = useWeekStartPref();
+  // Sunday-started weeks (#1102): one app-wide constant, nothing to re-read.
   const weekStart = useMemo(
-    () => startOfWeekKey(anchorDate, weekStartsOn),
-    [anchorDate, weekStartsOn],
+    () => startOfWeekKey(anchorDate, WEEK_STARTS_ON),
+    [anchorDate],
   );
   const weekEnd = useMemo(() => addDaysKey(weekStart, 6), [weekStart]);
   const monthRows = useMemo(
-    () => monthGridKeys(anchorDate, weekStartsOn),
-    [anchorDate, weekStartsOn],
+    () => monthGridKeys(anchorDate, WEEK_STARTS_ON),
+    [anchorDate],
   );
 
   // Visible fetch window per effective view (day/list/time = single day).
@@ -99,7 +97,6 @@ export function useCalendarNav(isWide: boolean) {
     setView,
     desktopView,
     effView,
-    weekStartsOn,
     weekStart,
     weekEnd,
     monthRows,

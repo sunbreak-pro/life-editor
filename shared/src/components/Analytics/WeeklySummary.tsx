@@ -5,7 +5,7 @@ import {
   calendarWeekRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
-import { useWeekStartPref } from "../../hooks/useWeekStart";
+import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { dateKeyOfInstant, formatDateKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
@@ -29,12 +29,10 @@ export function WeeklySummary({
   nodes,
   labels,
 }: WeeklySummaryProps): React.JSX.Element {
-  const { weekStartsOn } = useWeekStartPref();
-
   const stats = useMemo(() => {
     // Was a private Mon-only copy of this window (#780) — the shared helper
-    // honours the week-start pref, so this card and the mobile one agree.
-    const range = calendarWeekRange(new Date(), weekStartsOn);
+    // takes the app-wide week start, so this card and the mobile one agree.
+    const range = calendarWeekRange(new Date(), WEEK_STARTS_ON);
     const work = getWorkSessions(sessions).filter((s) => {
       const d = formatDateKey(new Date(s.startedAt));
       return d >= range.startKey && d <= range.endKey;
@@ -53,7 +51,7 @@ export function WeeklySummary({
       sessionCount: work.length,
       completedTodos,
     };
-  }, [sessions, nodes, weekStartsOn]);
+  }, [sessions, nodes]);
 
   return (
     <ChartCard title={labels.title}>

@@ -200,7 +200,6 @@ export function CalendarTab({
     setView,
     desktopView,
     effView,
-    weekStartsOn,
     weekStart,
     weekEnd,
     rangeStart,
@@ -988,7 +987,6 @@ export function CalendarTab({
             anchorDate,
             weekStart,
             today,
-            weekStartsOn,
             monthItems,
             gridItems,
             selectedId,
@@ -1020,7 +1018,6 @@ export function CalendarTab({
           month={{
             anchorDate,
             today,
-            weekStartsOn,
             weekdayLabels,
             items: monthItems,
             onSelectDay: pickMonthDay,

@@ -259,7 +259,18 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
       );
       return rowsToScheduleItem(metaRow, payloadRow);
     } catch (err) {
-      await this.client.from("items_meta").delete().eq("id", meta.id);
+      // R2 orphan recovery. The role filter cannot change the outcome — this
+      // deletes the row the INSERT two statements up just created, and
+      // `scheduleItemToRows` stamped it role='event' — so it is here for the
+      // census in scheduleMetaRoleGuard.test.ts, not because a hole was found.
+      // Uniformity is the point: "every items_meta DELETE names its role" is a
+      // rule a reader can check, and "every one except the four that happen to
+      // be provably safe today" is not.
+      await this.client
+        .from("items_meta")
+        .delete()
+        .eq("id", meta.id)
+        .eq("role", "event");
       throw err;
     }
   }
@@ -337,12 +348,43 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     return rowsToScheduleItem(metaRow, payloadRow);
   }
 
+  /*
+   * WHY EVERY DELETE BELOW CARRIES `.eq("role", "event")` (#1098)
+   * =============================================================
+   * #996 put the role in the WHERE clause of every items_meta UPDATE on this
+   * path; DELETE was outside that DoD and is the heavier half. #625 lets a row
+   * change ROLE while keeping its id (D-20260810-sched-2), so `items_meta.id`
+   * alone stopped being a safe address the moment conversion shipped — and a
+   * Trash list rendered before the conversion, or a generator id list built
+   * before it, does not know that. Without the filter, PostgREST finds the row
+   * and removes it: the Todo's items_meta row is gone and its tasks_payload
+   * cascades away with it through the 0008 FK. A wrong UPDATE stamps a row; a
+   * wrong DELETE has nothing left to correct.
+   *
+   * The safe outcome is the same one #996 chose: a MISS, not an error.
+   * PostgREST reports zero matched rows as a success with no error, so the
+   * stale operation evaporates and the caller's `if (error)` never fires.
+   *
+   * ONE STRUCTURAL DIFFERENCE FROM #996, WORTH KNOWING BEFORE YOU "IMPROVE"
+   * THIS. Half of #996's UPDATE sites get a second layer for free: they read
+   * the row back through `rowsToScheduleItem` / `assertItemsMetaPair`, which
+   * refuses a wrong-role row and turns the miss into a loud throw. Not one of
+   * the DELETE sites has a read-back, so here the miss is silent everywhere —
+   * `permanentDeleteRoutine` in SupabaseRoutinesService being the lone
+   * exception, and only because a FK downstream notices (see the note there).
+   * Silent is deliberate: the purge callers are fire-and-forget
+   * (`useScheduleItemsTrash.ts` drops the row from the list and only logs), so
+   * making a miss throw would surface an error about a row the user no longer
+   * owns. `scheduleMetaRoleGuard.test.ts` pins the resolve-don't-throw shape.
+   */
+
   /** Hard-delete via items_meta (events_payload cascades via 0008 FK). */
   async deleteScheduleItem(id: string): Promise<void> {
     const { error } = await this.client
       .from("items_meta")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (error) throw new Error(`deleteScheduleItem: ${error.message}`);
   }
 
@@ -390,12 +432,29 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     throw new Error(`restoreScheduleItem: ${error.message}`);
   }
 
-  /** Hard purge (items_meta DELETE; events_payload cascades). */
+  /**
+   * Hard purge (items_meta DELETE; events_payload cascades).
+   *
+   * The role filter matters most here (#1098), and the reachable stale caller
+   * is a cross-device Trash race rather than anything on the undo stack — the
+   * schedule undo entries all go through softDelete/restore, so none of them
+   * can reach a hard delete. What can: device A has Trash open showing trashed
+   * event E; device B restores E and converts it to a Todo (that order is
+   * forced — convertEventToTodo refuses a trashed row); device A, still
+   * rendering the list it loaded before any of that, hits "delete
+   * permanently". Unguarded, the id still resolves and the Todo's items_meta
+   * row goes, taking its tasks_payload through the 0008 cascade.
+   *
+   * Heavier than `updateScheduleItem` for a second reason: there is no
+   * `rowsToScheduleItem` read-back downstream to refuse a wrong-role row after
+   * the fact, so the filter is the only thing standing there.
+   */
   async permanentDeleteScheduleItem(id: string): Promise<void> {
     const { error } = await this.client
       .from("items_meta")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("role", "event");
     if (error) throw new Error(`permanentDeleteScheduleItem: ${error.message}`);
   }
 
@@ -644,7 +703,21 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
       try {
         await forEachIdChunk(
           ids,
-          (chunk) => this.client.from("items_meta").delete().in("id", chunk),
+          // Same census guard as the single-row R2 cleanup above, and just as
+          // provably a no-op: these are the metas this call bulk-INSERTed a
+          // few lines up. It does not move the chunk budget either — a full
+          // POSTGREST_IN_CHUNK_SIZE chunk is 200 × `si-<uuid>` (39 chars) plus
+          // percent-encoded commas ≈ 8.4 KB of query string, so `&role=eq
+          // .event` adds 14 bytes to something already sized against the 16 KB
+          // proxy cap. (The helper's own header says "~25 chars per id", which
+          // undercounts a prefixed uuid — the conclusion holds, the figure
+          // does not.)
+          (chunk) =>
+            this.client
+              .from("items_meta")
+              .delete()
+              .in("id", chunk)
+              .eq("role", "event"),
           "bulkCreateScheduleItems R2 cleanup",
         );
       } catch {
@@ -849,7 +922,18 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     if (ids.length === 0) return 0;
     await forEachIdChunk(
       ids,
-      (chunk) => this.client.from("items_meta").delete().in("id", chunk),
+      // The widest blast radius of the ten guarded deletes (#1098): a
+      // caller-supplied array, hard-deleted, with one converted id anywhere in
+      // it enough to take a Todo along. The returned count does not change
+      // meaning — as the doc above already says, these DELETEs go out without
+      // `count: "exact"`, so a filtered-out id was already indistinguishable
+      // from one that no longer exists.
+      (chunk) =>
+        this.client
+          .from("items_meta")
+          .delete()
+          .in("id", chunk)
+          .eq("role", "event"),
       "bulkDeleteScheduleItems",
     );
     return ids.length;
