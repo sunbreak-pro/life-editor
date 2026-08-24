@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -11,59 +10,44 @@ import {
   useMediaQuery,
   useRightSidebarOptional,
   useUndoRedoOptional,
-  WeekTimeGrid,
-  MonthGrid,
-  AgendaList,
-  ScheduleToolbar,
-  EventEditorPane,
   RightSidebarPortal,
-  CalendarLensRow,
-  ResponsiveDetailFrame,
-  ItemRoleBadge,
+  ScheduleRangeErrorBanner,
   useConfirmDialog,
   useScheduleItemsRoutineSync,
   useDeferredAction,
   useToast,
-  minutesToTime,
   isTodoChip,
   unwrapTodoChipId,
-  frequencyLabel,
   useMinuteClock,
-  type TodoCalendarChip,
-  type ScheduleItem,
-  type AgendaItem,
   type EventEditorItem,
   type DataService,
-  AddPill,
   WIDE_QUERY,
   type TranslationKey,
 } from "@life-editor/shared";
 import { ScheduleSidebar } from "./ScheduleSidebar";
-import { TagPicker } from "../wikitag/TagPicker";
-import { TagColorControls } from "../wikitag/TagColorControls";
+import { CalendarDesktopLayout } from "./CalendarDesktopLayout";
+import { CalendarNarrowLayout } from "./CalendarNarrowLayout";
+import { ScheduleEventEditor } from "./ScheduleEventEditor";
+import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
-import { useScheduleOverlays } from "./useScheduleOverlays";
+import {
+  useCancelDeferredPopover,
+  useScheduleOverlays,
+} from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
-import { ScheduleOverlays } from "./ScheduleOverlays";
-import { ScheduleTodoDetail } from "./ScheduleTodoDetail";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
-import { decideUnsavedClose } from "./unsavedCloseGuard";
-import { itemTapRoute } from "./todoChipPanel";
-import { agendaEmptyKey } from "./agendaEmptyLabel";
-import { useScheduleRoleLabels } from "./scheduleRoleLabels";
-import { toAgendaItems, toEditorItem } from "./scheduleViewModels";
-import {
-  formatFullDay as formatFullDayKey,
-  formatPeriodLabel,
-  formatShortDate,
-  useScheduleCopy,
-} from "./scheduleCopy";
+import { useScheduleSelection } from "./useScheduleSelection";
+import { useScheduleDayLabels } from "./useScheduleDayLabels";
+import { useScheduleTodayAgenda } from "./useScheduleTodayAgenda";
+import { useEditorCloseGuard } from "./useEditorCloseGuard";
+import { toEditorItem } from "./scheduleViewModels";
+import { useScheduleCopy } from "./scheduleCopy";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -78,10 +62,19 @@ import {
  * reads its own visible range via loadDateRange and patches it optimistically
  * (mirrors the pre-target ScheduleCalendarView). i18n is resolved here and
  * injected into the pure parts (§6.4).
+ *
+ * #889 lifted the VIEW half and the loose hook groups out into sibling files
+ * under `web/src/schedule/`. The import block above is that inventory and is
+ * deliberately the only copy of it (§0) — the list this paragraph used to
+ * carry named four files and went stale on the very next extraction.
+ *
+ * What stays here is the wiring: the Provider reads, the order the hooks feed
+ * each other in, and the decisions the parts must not be free to answer for
+ * themselves — which of the two failure surfaces is right (#296), where the
+ * sidebar portal and the single shared overlay set are mounted, and which
+ * layout renders at all.
  */
 
-const ICON_BTN =
-  "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 /*
  * How long the single-click bubble waits for a possible double-click (#355).
  *
@@ -134,8 +127,7 @@ export function CalendarTab({
   /** Called once the intent has been acted on, so re-entry does not re-select. */
   onConsumePendingEvent?: () => void;
 }) {
-  const { t, i18n } = useTranslation();
-  const roleLabels = useScheduleRoleLabels();
+  const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const {
     items: contextItems,
@@ -222,18 +214,6 @@ export function CalendarTab({
     pickMonthDay,
   } = useCalendarNav(isWide);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  // Which rightSidebar tab is showing ("今日の流れ" / "本日の Todo" — the A-3
-  // tray, #298). The old "詳細" tab was removed in #299 (item detail now lives
-  // in a body-level overlay, not the rightSidebar).
-  // #408 added "repeats" — with the Routines header tab retired this is the
-  // only route to a routine whose occurrences are not in the visible range.
-  // #467 gave Mobile the same drawer minus "todo" (the Todo board is its own
-  // section tab there), so the value is normalised per layout at render.
-  const [sidebarTab, setSidebarTab] = useState<"flow" | "todo" | "repeats">(
-    "flow",
-  );
   // #467: jumping to a repeat's next occurrence has to put the calendar on
   // screen, and on Mobile the list that was tapped is a drawer sitting over it.
   // The OPTIONAL hook, for the same reason RightSidebarPortal uses it: a
@@ -369,79 +349,35 @@ export function CalendarTab({
     copy: todoDeleteCopy,
   });
 
-  // Selection = highlight only (#299). The grid ring follows selectedId; the
-  // duplicate handler re-selects the copy. Bubble / overlay opening is handled
-  // by the activate/open-detail handlers below.
-  const handleSelectItem = useCallback((id: string) => {
-    // A chip id is not a ScheduleItem id, and this path exists to point the
-    // schedule-item surfaces (editor pane / mutation layer) at a row. Todo
-    // chips DO answer a click since #564 — through handleItemActivate, which
-    // opens their own panel — so this guard is about the id's shape, not about
-    // chips being read-only.
-    if (isTodoChip(id)) return;
-    setSelectedId(id);
-  }, []);
-
-  // #299 single-click: open the bubble popover next to the item (Desktop). On
-  // Mobile a single tap opens the BottomSheet editor directly (selectedId →
-  // editorPane → sheet), matching the existing lean-drawer flow.
-  //
-  // #355: the bubble is held back for a beat. A double-click fires `click` on
-  // its first press and only announces itself afterwards, so opening the
-  // bubble straight away made it flash open and shut on every double-click.
-  // Selection stays immediate — it is the part that should feel instant, and
-  // the detail surface wants it anyway.
-  //
-  // #564: todo chips come through here too. They used to be dropped on the
-  // spot (the A-1 "read-only display" rule), which by now was only true of the
-  // click — #297/#298/#569 had made the same chip draggable, so the all-day
-  // lane ended up with chips that answered a drag but not a click. They open
-  // the same bubble with the todo action set (see todoChipPanel.ts).
-  //
-  // #761: on NARROW they used to be dropped instead, selection included, for
-  // want of a surface to send them to. They now open the todo detail sheet —
-  // see itemTapRoute.
-  const handleItemActivate = useCallback(
-    (id: string, pos: { x: number; y: number }) => {
-      if (itemTapRoute(id, isWide) === "todoSheet") {
-        // Deliberately not selected on the way in: `selectedId` drives the
-        // EVENT surfaces (the ring, the narrow editor sheet), and a chip id
-        // resolves none of them.
-        setTodoDetailId(unwrapTodoChipId(id));
-        return;
-      }
-      setSelectedId(id);
-      if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
-    },
-    [isWide, deferPopover, setPopover, setTodoDetailId],
-  );
-
-  // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
-  // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
-  // drives it). Closes any open bubble; one still waiting to appear is dropped
-  // by the "another surface opened" effect below (#355).
-  //
-  // #564: a todo chip's detail is not this overlay — EventEditorPane edits a
-  // schedule_item, and a todo has none. #626 gives the chip its own in-place
-  // surface on Desktop (TodoDetailPanel in an ItemDetailOverlay), so tags are
-  // editable without leaving Schedule.
-  //
-  // #761: narrow gets the same panel in a BottomSheet, so it no longer answers
-  // with a jump to another section. The Todos hand-off is still there — as a
-  // button inside the panel, where it is the user's choice rather than the only
-  // thing the row can do.
-  const handleItemOpenDetail = useCallback(
-    (id: string) => {
-      setPopover(null);
-      if (isTodoChip(id)) {
-        setTodoDetailId(unwrapTodoChipId(id));
-        return;
-      }
-      setSelectedId(id);
-      if (isWide) setOverlayOpen(true);
-    },
-    [isWide, setOverlayOpen, setPopover, setTodoDetailId],
-  );
+  /*
+   * #889: what is selected, and the four gestures that pick it — the tap, the
+   * activate, the open-detail and the long press / right-click. They read as
+   * four handlers and are one rule (see useScheduleSelection for the three
+   * questions all of them answer, and for what happened the last two times
+   * only one of the pair was updated).
+   *
+   * It sits HERE rather than beside the other state because it needs
+   * `setTodoDetailId` from the todo half above, and everything below —
+   * the grid filters, the mutation layer, the creation flow — takes
+   * `setSelectedId` from it.
+   */
+  const {
+    selectedId,
+    setSelectedId,
+    sidebarTab,
+    setSidebarTab,
+    handleSelectItem,
+    handleItemActivate,
+    handleItemOpenDetail,
+    handleItemContextMenu,
+  } = useScheduleSelection({
+    isWide,
+    deferPopover,
+    cancelPopover,
+    setPopover,
+    setOverlayOpen,
+    setTodoDetailId,
+  });
 
   // Visible-range optimistic store (#280 → useVisibleRangeItems): edits patch
   // rangeItems optimistically; navigation, reload(), retry and Realtime
@@ -483,6 +419,12 @@ export function CalendarTab({
   }, [selectedId, rangeItems, contextItems]);
 
   // ── The grid's two filters, and everything drawn from them (#889) ─────────
+  // #466: the grid's view of the range. The filter is applied HERE and nowhere
+  // upstream — `rangeItems` stays the whole truth for `selected`, the mutation
+  // layer and the context menu, so hiding a row never changes what an edit
+  // writes and a hidden item stays editable from the flow tab. `hiddenRepeats`
+  // rides along from the same call, so the toolbar's count cannot disagree
+  // with what the grid actually dropped.
   const {
     repeatsHidden,
     hiddenRepeats,
@@ -526,24 +468,39 @@ export function CalendarTab({
    */
   useEffect(() => {
     if (!pendingSelectEvent) return;
-    // Local setStates, which the cascading-render rule flags. ONE directive
-    // because the rule reports only the first such call in an effect; it has
-    // to sit above whichever line comes first, or the directive itself goes
-    // unused (a warning) and the real report moves. Since #889 that is
-    // setSelectedId: the rule only sees LOCAL useState setters, and both
-    // revealOnGrid and setAnchorDate now arrive from hooks it cannot see
-    // through (useScheduleGridFilters / useCalendarNav).
-    //
-    // They fire once per arrival — a user navigating from the palette, not a
-    // render loop — and the intent exists only as a PROP, so there is no event
+    // All three of these are setStates in an effect — the shape the
+    // cascading-render rule (react-hooks/set-state-in-effect) exists to catch.
+    // They are still deliberate, for the same reason they always were: they
+    // fire once per arrival (a user navigating from the palette, not a render
+    // loop), and the intent exists only as a PROP, so there is no event
     // handler inside this component to move them into. Same shape and same
     // reasoning as the todo handoff (useTodoDetailTarget.ts:112).
+    //
+    // The `eslint-disable-next-line` this block used to carry is GONE, and its
+    // absence is not a relaxation: the rule only sees LOCAL useState setters,
+    // and since #889 all three arrive from hooks it cannot see through
+    // (useScheduleGridFilters / useCalendarNav / useScheduleSelection), so
+    // there is nothing left here for it to report — or for a directive to
+    // suppress. Nothing forced the removal: a stale directive is a warning,
+    // and `eslint .` passes with warnings (measured on this config), so it
+    // could have sat here for years saying nothing. Putting the state back in
+    // this file would bring back both the report and the need for the line.
+    //
+    // `setSelectedId` joined the deps for the same reason and is inert: it is
+    // still React's own useState dispatch, handed straight out of the hook, so
+    // it never changes identity — exhaustive-deps simply cannot prove that
+    // through a custom hook and asks for it by name.
     revealOnGrid();
     setAnchorDate(pendingSelectEvent.date);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedId(pendingSelectEvent.id);
     onConsumePendingEvent?.();
-  }, [pendingSelectEvent, setAnchorDate, onConsumePendingEvent, revealOnGrid]);
+  }, [
+    pendingSelectEvent,
+    setAnchorDate,
+    onConsumePendingEvent,
+    revealOnGrid,
+    setSelectedId,
+  ]);
 
   // Mutation layer (#280 → useScheduleMutations): every write path plus the
   // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
@@ -640,56 +597,16 @@ export function CalendarTab({
     [handleTodoToggleComplete, handleToggle],
   );
 
-  // #355: whenever ANY other surface opens, drop a bubble still waiting its
-  // turn — it would otherwise surface on top of that surface a moment later.
-  // One effect rather than a cancel sprinkled through each opener: the openers
-  // are spread across this file and the mutation layer, and the next one added
-  // would silently miss it. Cancelling twice is harmless (the hook no-ops when
-  // nothing is pending).
-  useEffect(() => {
-    if (
-      overlayOpen ||
-      createPanel ||
-      calendarsOpen ||
-      scopeRequest ||
-      todoDetailId != null
-    ) {
-      cancelPopover();
-    }
-  }, [
+  // #355: drop a bubble still waiting its turn the moment anything else
+  // opens (the hook holds the why, and the list of what counts as anything).
+  useCancelDeferredPopover({
     overlayOpen,
     createPanel,
     calendarsOpen,
     scopeRequest,
     todoDetailId,
     cancelPopover,
-  ]);
-
-  // ── Context menu (rename / duplicate / delete: handlers in the mutation
-  // layer; only the menu position state lives here) ──────────────────────────
-
-  // #551: right-click opens the SAME bubble as a left-click — one panel for
-  // both gestures (the separate ScheduleItemContextMenu is retired). No #355
-  // deferral here: a contextmenu gesture is never the first half of a
-  // double-click, so the bubble can appear at once; cancelling a deferred
-  // left-click bubble keeps it from resurfacing elsewhere a beat later. On
-  // narrow the selection alone opens the BottomSheet editor, same as a tap.
-  const handleItemContextMenu = useCallback(
-    (id: string, pos: { x: number; y: number }) => {
-      // Same narrow routing as handleItemActivate — a long press is the
-      // gesture that produces this on a phone, and it must not land somewhere
-      // the tap beside it does not (#761).
-      if (itemTapRoute(id, isWide) === "todoSheet") {
-        cancelPopover();
-        setTodoDetailId(unwrapTodoChipId(id));
-        return;
-      }
-      cancelPopover();
-      setSelectedId(id);
-      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
-    },
-    [isWide, cancelPopover, setPopover, setTodoDetailId],
-  );
+  });
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
@@ -709,104 +626,61 @@ export function CalendarTab({
     formatGapLabel,
   } = useScheduleCopy({ isWide, notesError });
 
-  const formatDayDate = useCallback(
-    (key: string) => formatShortDate(i18n.language, key),
-    [i18n.language],
-  );
+  /*
+   * #889: the date/label derivations, in one hook. Everything in it is bound
+   * to a value that moves — the anchor day, today, the effective view, the
+   * minute clock — which is why these are memos here rather than pure helpers
+   * beside `formatShortDate` in scheduleCopy.ts.
+   *
+   * The dependency lists came out unchanged, deliberately: they are what keeps
+   * the calendar from re-formatting itself on every keystroke elsewhere in
+   * this file (`formatFullDay` alone feeds useScheduleRepeats' copy bundle).
+   */
+  const {
+    formatDayDate,
+    periodLabel,
+    todayLabel,
+    anchorDayLabel,
+    formatFullDay,
+    agendaLabels,
+    anchorAgendaLabels,
+  } = useScheduleDayLabels({
+    anchorDate,
+    today,
+    view: effView,
+    isWide,
+    weekStart,
+    weekEnd,
+    nowMinutes,
+    statusLabels,
+  });
 
-  const periodLabel = useMemo(
-    () =>
-      formatPeriodLabel({
-        language: i18n.language,
-        anchorDate,
-        view: effView,
-        isWide,
-        weekStart,
-        weekEnd,
-      }),
-    [anchorDate, effView, isWide, i18n.language, weekStart, weekEnd],
-  );
-
-  // #353 put the target day on screen as a caption, because the three gestures
-  // that open the panel (toolbar / empty slot / month cell) each carry their
-  // own day and none of them said so. #940 turned that caption into the date
-  // input inside the panel, which formats itself — so the label is gone and
-  // the day is now something the user can change rather than only read.
-
-  const todayLabel = useMemo(
-    () => formatFullDayKey(i18n.language, today),
-    [today, i18n.language],
-  );
-
-  // #878: the day the Mobile list under the month grid is showing. No year —
-  // the header right above it names the month and the year already.
-  const anchorDayLabel = useMemo(
-    () => formatFullDayKey(i18n.language, anchorDate),
-    [anchorDate, i18n.language],
-  );
-
-  // Month-cell accessible names (MonthGrid falls back to the raw ISO key —
-  // a screen reader would announce "2026-07-09").
-  const formatFullDay = useCallback(
-    (key: string) => formatFullDayKey(i18n.language, key),
-    [i18n.language],
-  );
-
-  // #466: the grid's view of the range. The filter is applied HERE and nowhere
-  // upstream — `rangeItems` stays the whole truth for `selected`, the mutation
-  // layer and the context menu, so hiding a row never changes what an edit
-  // writes and a hidden item stays editable from the flow tab. `hiddenRepeats`
-  // rides along from the same call, so the toolbar's count cannot disagree
-  // with what the grid actually dropped.
-  // Merge schedule items + todo chips into a single sorted agenda.
-  //
-  // #761: todo rows carry a derived status too. They used to be left without
-  // one — the A-3 note below said completion "lands in Step 3 (TodoTree API)",
-  // and it did (handleTodoToggleComplete, used by the tray since #298) — but
-  // the agenda was never wired to it, so the Mobile day list ended up with todo
-  // rows that showed no tag and answered no press while the event beside them
-  // did both. The status is derived exactly as an event's is: the chip carries
-  // the same date / start / all-day / completed facts.
-  const toAgenda = useCallback(
-    (arr: ScheduleItem[], chips: TodoCalendarChip[] = []): AgendaItem[] =>
-      toAgendaItems(arr, chips, now),
-    [now],
-  );
-
-  const todayItems = useMemo(
-    () => contextItems.filter((i) => !i.isDeleted && !i.isDismissed),
-    [contextItems],
-  );
-  // "この予定のみ削除" dismisses the row; pre-#296 nothing surfaced it again
-  // (not in Trash, no undismiss UI — effectively unrecoverable). The flow
-  // tab lists today's skipped items with a restore action.
-  const skippedToday = useMemo(
-    () => contextItems.filter((i) => !i.isDeleted && i.isDismissed),
-    [contextItems],
-  );
-  const handleRestoreSkipped = useCallback(
-    (id: string) => {
-      undismiss(id);
-      // Fast path; if the refetch races ahead of the undismiss write, the
-      // syncVersion-driven refetch reconciles once the write lands.
-      reload();
-    },
-    [undismiss, reload],
-  );
-  const todayAgenda = useMemo(
-    () => toAgenda(todayItems, todayTodoChips),
-    [todayItems, todayTodoChips, toAgenda],
-  );
-  const todayDone = todayItems.filter((i) => i.completed).length;
-  const todayTotal = todayItems.length;
+  // #889: TODAY, as the rightSidebar shows it — the merged agenda, its two
+  // counters, the skipped list and its restore, and the editor's "generated
+  // from" caption. Every one of them derives from `contextItems` (the
+  // today-anchored provider list), never from the grid's visible range.
+  const {
+    toAgenda,
+    todayItems,
+    skippedToday,
+    handleRestoreSkipped,
+    todayAgenda,
+    todayDone,
+    todayTotal,
+    originDetail,
+  } = useScheduleTodayAgenda({
+    contextItems,
+    todayTodoChips,
+    now,
+    undismiss,
+    reload,
+    selected,
+    routines,
+    freqCopy,
+    weekdayLabels,
+  });
 
   const editorItem: EventEditorItem | null = toEditorItem(selected, now);
-
-  const originDetail = useMemo(() => {
-    if (!selected || selected.routineId == null) return undefined;
-    const r = routines.find((x) => x.id === selected.routineId);
-    return r ? frequencyLabel(r, freqCopy, weekdayLabels) : undefined;
-  }, [selected, routines, freqCopy, weekdayLabels]);
 
   // ── Repeat section (#185 Step 3 / #408 / #889) ─────────────────────────────
   const {
@@ -834,61 +708,17 @@ export function CalendarTab({
     },
   });
 
-  const agendaLabels = {
-    allDay: t("scheduleScreen.allDay"),
-    empty: t("scheduleScreen.emptyToday"),
-    nowLabel: minutesToTime(nowMinutes),
-    complete: t("scheduleScreen.complete"),
-    statusLabels,
-  };
   /*
-   * #774: the same labels for the Mobile day list, whose empty state has to
-   * name the day it is actually showing. The list above is the Dayflow tab —
-   * always today — so it keeps `emptyToday` as it stands.
+   * #628 / #998: the unsaved-draft gate in front of every way out of the
+   * editor. Both exits ask the same question and do different things with the
+   * answer, which is the whole reason they travel together
+   * (useEditorCloseGuard) rather than as two callbacks fifty lines apart.
    */
-  const anchorAgendaLabels = {
-    ...agendaLabels,
-    empty: t(agendaEmptyKey(anchorDate, today)),
-  };
-  /*
-   * #628: an unsaved draft must not disappear silently. The pane owns the
-   * draft, so it reports the dirty flag here and the close affordances —
-   * Escape, backdrop, the sheet's close button — ask before they throw it away.
-   * A ref rather than state: nothing on screen depends on it, and re-rendering
-   * the whole calendar on every keystroke in the memo field would be a steep
-   * price for a flag only event handlers read. The pane clears it on unmount,
-   * so a closed editor can never leave a stale "dirty" behind.
-   *
-   * The decision itself sits in `decideUnsavedClose` (pinned in web/tests, same
-   * arrangement as todoChipUndoWiring): CalendarTab needs the whole Provider
-   * chain to render, so nothing reachable only from inside it can be tested.
-   */
-  const editorDirtyRef = useRef(false);
-  /*
-   * #707: the answer is awaited now, so the surfaces cannot branch on a return
-   * value any more — they hand in what closing MEANS for them and this runs it
-   * once the user has agreed. Same guard, same two facts it protects
-   * (`decideUnsavedClose`); only the question moved in-app.
-   */
-  const requestEditorClose = useCallback(
-    async (close: () => void) => {
-      const decision = await decideUnsavedClose({
-        dirty: editorDirtyRef.current,
-        askDiscard: () =>
-          askConfirm({
-            message: t("common.unsavedCloseConfirm"),
-            confirmLabel: t("common.discard"),
-            cancelLabel: t("common.cancel"),
-            // Throwing away typed-in work is the destructive answer here, even
-            // though nothing is deleted from the database.
-            danger: true,
-          }),
-      });
-      if (decision.clearDirty) editorDirtyRef.current = false;
-      if (decision.close) close();
-    },
-    [askConfirm, t],
-  );
+  const {
+    onDirtyChange: handleEditorDirtyChange,
+    requestClose: requestEditorClose,
+    requestDiscardKeepingFlag: requestEditorDiscard,
+  } = useEditorCloseGuard(askConfirm);
 
   // #625 Event <-> Todo conversion. The whole path — the two blocking
   // checks, the five sentences the dialogs pick between, the per-id in-flight
@@ -917,56 +747,14 @@ export function CalendarTab({
     push: undoRedo?.push,
   });
 
-  /*
-   * #998: the narrow sheet's convert entry runs the same unsaved-draft guard as
-   * the close — with one difference that matters. The pending flag is NOT
-   * cleared on an agreed discard: the conversion asks its OWN question next
-   * (the routine refusal, or the confirm), and a refusal there leaves the draft
-   * on screen. With the flag already wiped, the next exit would throw it away
-   * without asking. Same reasoning as ScheduleTodoDetail's requestClose (#736).
-   */
-  const requestEditorConvert = useCallback(
-    async (id: string) => {
-      const decision = await decideUnsavedClose({
-        dirty: editorDirtyRef.current,
-        askDiscard: () =>
-          askConfirm({
-            message: t("common.unsavedCloseConfirm"),
-            confirmLabel: t("common.discard"),
-            cancelLabel: t("common.cancel"),
-            danger: true,
-          }),
-      });
-      if (decision.close) handleConvertToTodo(id);
-    },
-    [askConfirm, t, handleConvertToTodo],
-  );
-
-  const editorLabels = {
-    complete: t("scheduleScreen.complete"),
-    statusLabels,
-    title: t("scheduleScreen.title"),
-    date: t("scheduleScreen.date"),
-    allDay: t("scheduleScreen.allDay"),
-    startTime: t("scheduleScreen.startTime"),
-    endTime: t("scheduleScreen.endTime"),
-    memo: t("scheduleScreen.memo"),
-    save: t("scheduleScreen.save"),
-    saved: t("scheduleScreen.saved"),
-    unsaved: t("scheduleScreen.unsaved"),
-    seriesHint: t("scheduleScreen.seriesEditHint"),
-    originRoutine: t("scheduleScreen.originRoutine"),
-    skipThisDay: t("scheduleScreen.skipThisDay"),
-    delete: t("scheduleScreen.delete"),
-  };
-
-  const editorPane = editorItem ? (
-    <EventEditorPane
+  const editorPane = (
+    <ScheduleEventEditor
       item={editorItem}
-      // #995: narrow only — Desktop's <Modal> has no scroller for `sticky` to
-      // resolve against.
-      stickyFooter={!isWide}
-      labels={editorLabels}
+      isWide={isWide}
+      // The SERIES id, when this occurrence came from one — the tag slot
+      // writes against it rather than against the regenerated row (#468).
+      routineId={selected?.routineId}
+      statusLabels={statusLabels}
       // #628: one commit per press, carrying everything that changed. It goes
       // to handleUpdate whole — that is what keeps a routine occurrence's
       // scope dialog (#279) to one appearance and makes cancelling it discard
@@ -977,9 +765,7 @@ export function CalendarTab({
       handlers={{
         onSave: handleUpdate,
         onToggleComplete: handleToggle,
-        onDirtyChange: (dirty) => {
-          editorDirtyRef.current = dirty;
-        },
+        onDirtyChange: handleEditorDirtyChange,
         onDismiss: handleDismiss,
         onDelete: handleDelete,
       }}
@@ -997,85 +783,36 @@ export function CalendarTab({
         onChange: handleChangeRepeat,
         onDetach: handleDetachRepeat,
       }}
-      // #998: narrow only. Desktop already reaches the conversion from the
-      // single-click bubble (#625) — ScheduleOverlays draws that when isWide —
-      // and a second entry inside the overlay would be a Desktop-visible change
-      // this Issue does not ask for.
-      convert={
-        isWide
-          ? undefined
-          : {
-              label: t("itemConvert.toTodo"),
-              onConvert: (id) => {
-                void requestEditorConvert(id);
-              },
-            }
-      }
-      tagSlot={
-        // #468: tagging is what files a row into a calendar, so without this
-        // the lens above would have nothing to find. A routine occurrence is
-        // tagged through its SERIES (the routine id): the occurrence rows are
-        // regenerated, so a tag on one of them would go missing the moment the
-        // generator re-materialises the range — and the user thinks of the
-        // series as the thing anyway (#185 presents Routine as "an Event with
-        // a repeat"). The role follows the id we actually write against, so it
-        // matches `items_meta.role` of that row rather than what the UI calls
-        // it.
-        //
-        // #551: the color controls write the TAG's color (setTagColor) — an
-        // item shows color only through its tags, so "change this item's
-        // color" and "change this tag's color" are the same act, and the hue
-        // updates everywhere that tag paints (pills, Kanban, lens chips).
-        <div className="flex flex-col gap-1.5">
-          <TagPicker
-            itemId={selected?.routineId ?? editorItem.id}
-            itemRole={selected?.routineId != null ? "routine" : "event"}
-          />
-          <TagColorControls itemId={selected?.routineId ?? editorItem.id} />
-        </div>
-      }
+      // #998: the narrow sheet's convert entry runs the unsaved-draft guard
+      // first, and on the variant that KEEPS the pending flag — the conversion
+      // asks its own question next, and a refusal there leaves the draft on
+      // screen (the reasoning is spelled out on requestDiscardKeepingFlag).
+      onConvertToTodo={(id) => {
+        void requestEditorDiscard().then((discarded) => {
+          if (discarded) handleConvertToTodo(id);
+        });
+      }}
     />
-  ) : null;
+  );
 
-  const loadingCard = (
-    <div className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-10 text-center text-sm text-lumen-text-secondary">
-      {t("scheduleScreen.loading")}
-    </div>
-  );
-  const errorCard = (
-    <div className="flex flex-col items-center gap-3 rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-10 text-center">
-      <p className="text-sm text-lumen-text-secondary">
-        {t("scheduleScreen.loadError")}
-      </p>
-      <button
-        type="button"
-        onClick={reload}
-        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        {t("scheduleScreen.retry")}
-      </button>
-    </div>
-  );
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
   // failure with stale items on screen degrades to the retry banner below
   // (#296 — blanking a populated calendar over a transient error reads as
   // "my items vanished").
   const showError = !!error || (rangeError && rangeItems.length === 0);
+  // The other half of that rule, and why the condition stayed behind when the
+  // three surfaces moved into shared/ (<ScheduleStateCards>): WHICH of them is
+  // right is a fact about this host's data, not something a card can look up.
   const rangeErrorBanner =
     rangeError && rangeItems.length > 0 ? (
-      <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2">
-        <p className="text-xs text-lumen-text-secondary">
-          {t("scheduleScreen.loadError")}
-        </p>
-        <button
-          type="button"
-          onClick={reload}
-          className="rounded-lumen-md border border-lumen-border-strong px-2.5 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-        >
-          {t("scheduleScreen.retry")}
-        </button>
-      </div>
+      <ScheduleRangeErrorBanner
+        labels={{
+          message: t("scheduleScreen.loadError"),
+          retry: t("scheduleScreen.retry"),
+        }}
+        onRetry={reload}
+      />
     ) : null;
 
   // Shared rightSidebar (AppShell owns the frame -- a push-in panel on
@@ -1129,91 +866,39 @@ export function CalendarTab({
   );
 
   /*
-   * #564: the chip behind an open bubble, when the bubble belongs to a TODO
-   * chip rather than a schedule item.
-   *
-   * Resolved against the unfiltered `rangeTodoChips` for the same reason
-   * `selected` reads `rangeItems`: the calendar lens narrows what the grid
-   * DRAWS, and a panel already on screen has to keep acting on its item even if
-   * the row behind it stops being drawn (a rename can move it out of the lens).
-   *
-   * `todayTodoChips` is the second half of the same pair `selected` uses
-   * (rangeItems ?? contextItems): the "今日の流れ" agenda always lists TODAY, so
-   * with the grid parked on another week its todo rows are in no range chip at
-   * all — and looking only at the range would leave that surface with exactly
-   * the silently-dead click this Issue is about.
-   */
-  const popoverTodoChip = popover ? findTodoChip(popover.id) : null;
-  // #299 detail-edit overlay (Desktop): the former rightSidebar "詳細" tab body
-  // (EventEditorPane) now rides a body-level modal. Mobile keeps the BottomSheet.
-  // #628: Escape and the backdrop both land on this one onClose, so guarding it
-  // covers every Desktop exit at once.
-  //
-  // #889: one frame const for both layouts. The overlay and the sheet used to
-  // be written out separately — the overlay here, the sheet at the end of the
-  // narrow branch — with the same title, the same body and the same close
-  // guard in each. What differs is only what "closed" MEANS: Desktop drops the
-  // overlay flag, Mobile clears the selection, because on Mobile the selection
-  // IS the sheet.
-  const detailFrameEl = (
-    <ResponsiveDetailFrame
-      wide={isWide}
-      open={isWide ? overlayOpen && !!editorPane : !!editorPane}
-      title={t("scheduleScreen.detailTitle")}
-      // #1044: the kind is a glyph in the header now, not a word in the body.
-      // Always "event" — a routine OCCURRENCE is still an `items_meta.role =
-      // 'event'` row (the UI presents Routine as "an Event with a repeat"), and
-      // "routine" is outside the designed kind set, so it would resolve to the
-      // neutral fallback.
-      titleIcon={<ItemRoleBadge role="event" labels={roleLabels} compact />}
-      closeLabel={t("common.close")}
-      // #628: Escape, the backdrop and the close button all land here, so the
-      // one guard covers every exit on either layout.
-      onClose={() => {
-        void requestEditorClose(() =>
-          isWide ? setOverlayOpen(false) : setSelectedId(null),
-        );
-      }}
-    >
-      {editorPane}
-    </ResponsiveDetailFrame>
-  );
-
-  const todoDetailFrameEl = (
-    <ScheduleTodoDetail
-      todoId={todoDetailId}
-      todoNodes={todoNodes}
-      isWide={isWide}
-      onClose={() => setTodoDetailId(null)}
-      writes={{
-        updateNode,
-        toggleStatus: toggleTodoStatus,
-        onDelete: handleTodoDetailDelete,
-      }}
-      onConvertToEvent={handleConvertToEvent}
-      onOpenTodos={onOpenTodos}
-      askConfirm={askConfirm}
-    />
-  );
-
-  /*
-   * #889: every body-level overlay, mounted once for both layouts.
-   *
-   * The two returns used to hand-list their own — and the lists had drifted:
-   * Desktop never mounted the <ConfirmDialog>, so every ask() there returned a
-   * promise nothing ever settled (a dirty editor could not be closed at all, a
-   * todo delete with children never ran, the Event↔Todo conversion stopped at
-   * the confirm). One element, placed by both branches, is what keeps the sets
-   * from parting again.
+   * #889: the whole overlay layer, in one element. The two detail frames and
+   * the chip lookup behind the bubble moved into <ScheduleOverlayHost> with the
+   * set they feed — WHERE it mounts is still this host's call (both returns
+   * below place it), but WHAT it contains no longer is.
    */
   const overlaysEl = (
-    <ScheduleOverlays
+    <ScheduleOverlayHost
       isWide={isWide}
-      frames={{ editor: detailFrameEl, todoDetail: todoDetailFrameEl }}
+      editor={{
+        item: editorItem,
+        overlayOpen,
+        pane: editorPane,
+        requestClose: requestEditorClose,
+        onCloseOverlay: () => setOverlayOpen(false),
+        onClearSelection: () => setSelectedId(null),
+      }}
+      todoDetail={{
+        todoId: todoDetailId,
+        todoNodes,
+        onClose: () => setTodoDetailId(null),
+        writes: {
+          updateNode,
+          toggleStatus: toggleTodoStatus,
+          onDelete: handleTodoDetailDelete,
+        },
+        onConvertToEvent: handleConvertToEvent,
+        onOpenTodos,
+        askConfirm,
+      }}
       popover={{
         state: popover,
         selected,
-        todoChip: popoverTodoChip,
+        findTodoChip,
         onClose: () => setPopover(null),
         onOpenDetail: handleItemOpenDetail,
         itemActions: {
@@ -1258,280 +943,106 @@ export function CalendarTab({
     />
   );
 
-  // #889: the Desktop main area, hoisted out of the return so the layout
-  // below reads as what it is — toolbar, lens, body, overlays. Same three
-  // states the narrow branch shows, in the wrappers Desktop needs.
-  const desktopBody = showLoading ? (
-    loadingCard
-  ) : showError ? (
-    errorCard
-  ) : desktopView === "month" ? (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <MonthGrid
-        monthKey={anchorDate}
-        items={monthItems}
-        todayKey={today}
-        weekStartsOn={weekStartsOn}
-        weekdayLabels={weekdayLabels}
-        onSelectDay={handleMonthCreate}
-        onItemActivate={handleItemActivate}
-        onItemDoubleClick={handleItemOpenDetail}
-        onItemContextMenu={handleItemContextMenu}
-        formatMoreCount={(n) => t("scheduleScreen.moreCount", { count: n })}
-        formatDayLabel={formatFullDay}
-        ariaLabel={t("scheduleScreen.calendar")}
-        className="h-full"
-      />
-    </div>
-  ) : (
-    // Item detail moved into a body-level overlay (#299), so the grid
-    // takes the full width the editor <aside> used to share.
-    <div className="min-h-0 flex-1">
-      <WeekTimeGrid
-        data={{
-          weekStart: desktopView === "day" ? anchorDate : weekStart,
-          days: desktopView === "day" ? 1 : 7,
-          items: gridItems,
-          selectedId,
-          todayKey: today,
-          nowMinutes,
-        }}
-        labels={{
-          weekdays: weekdayLabels,
-          allDay: t("scheduleScreen.allDay"),
-          status: statusLabels,
-          createSlot: t("scheduleCalendar.createSlot"),
-        }}
-        handlers={{
-          onItemActivate: handleItemActivate,
-          onItemDoubleClick: handleItemOpenDetail,
-          onItemContextMenu: handleItemContextMenu,
-          onCreateAt: handleGridCreateAt,
-          onMoveItem: handleMoveItem,
-          onResizeItem: handleResizeItem,
-          onDropAllDay: handleDropAllDay,
-        }}
-        display={{ todoInteractive: true, fillHeight: true }}
-        format={{ dayDate: formatDayDate }}
-      />
-    </div>
-  );
-
-  // ── Desktop ────────────────────────────────────────────────────────────────
-  if (isWide) {
-    return (
-      <>
-        {sidebarPortal}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pb-4 pt-3 md:px-lumen-gutter-wide">
-          <ScheduleToolbar
-            className="shrink-0 flex-wrap gap-y-2"
-            periodLabel={periodLabel}
-            onToday={goToday}
-            onPrev={() => step(-1)}
-            onNext={() => step(1)}
-            view={desktopView}
-            viewOptions={desktopViewOptions}
-            onChangeView={setView}
-            onToggleRepeats={handleToggleRepeats}
-            repeatsHidden={repeatsHidden}
-            onOpenSettings={() => setCalendarsOpen(true)}
-            onAddEvent={handleToolbarAdd}
-            addEventLabel={t("scheduleScreen.addEvent")}
-            labels={{
-              ...toolbarLabels,
-              hideRepeats: t("scheduleScreen.repeatFilterHide"),
-              // The count comes from the same call that dropped the rows
-              // (applyRepeatFilter), so the button can never claim a different
-              // number than the grid is missing.
-              repeatsHidden: t("scheduleScreen.repeatFilterHidden", {
-                count: hiddenRepeats,
-              }),
-            }}
-          />
-          {/* #468 calendar lens — Desktop only. Its "why is this empty" rules
-              (no chips ⇒ no row; the hidden count is the lens's own, not a
-              running total) live in the component now (#889). */}
-          <CalendarLensRow
-            chips={calendarChips}
-            activeId={activeCalendar?.id ?? null}
-            onChange={handleSelectCalendar}
-            labels={{
-              filterLabel: t("scheduleScreen.calendarFilterLabel"),
-              hidden: t("scheduleScreen.calendarFilterHidden", {
-                count: hiddenByCalendar,
-              }),
-              showAll: t("scheduleScreen.calendarFilterShow"),
-            }}
-          />
-          {rangeErrorBanner}
-          {desktopBody}
-        </div>
-        {overlaysEl}
-      </>
-    );
-  }
-
-  // ── Mobile ───────────────────────────────────────────────────────────────
+  // ── Both layouts ──────────────────────────────────────────────────────────
   //
-  // One screen — the month grid, the picked day's list under it, and the FAB
-  // (#878, ユーザー確定 2026-08-15). Still no switcher: narrow has one view, it
-  // is just no longer the same view as the drawer beside it.
+  // ONE return, with a ternary between the two bodies, so the portal and the
+  // overlay set are placed once instead of at the tail of two separate ones.
+  // That is #889's drift argument again: the two hand-listed overlay sets had
+  // parted far enough that Desktop lost its <ConfirmDialog> and every confirm
+  // asked there hung forever. What each body draws, and why, lives in its own
+  // header comment.
   //
-  // #467 made this a bare day list, and #692 hung the month off the header on a
-  // sheet. What that left was a main area showing a day list next to a drawer
-  // showing a day list — the same UI answering the same question twice — while
-  // the month, the one thing the drawer cannot show, was behind a tap. So the
-  // two swapped places: the calendar is the main view, the day is what a cell
-  // tap chooses, and the drawer keeps today's flow.
-  //
-  // The Timeline option does NOT come back with it: a 24-hour time grid on a
-  // phone puts the whole day behind a scroll and turns every block into a drag
-  // target too small to hit. And the month is `compact` here (day badge + dot
-  // row), which is what makes 42 cells legible — the dots say WHERE something
-  // is, the list under the grid says WHAT.
-  //
-  // The steppers now page by MONTHS (`effView` is "month" on narrow), so a
-  // far-off day is two taps rather than the day-at-a-time walk #467 accepted.
+  // The narrow day list's rows are still merged HERE, in the JSX. The reason
+  // outlived the collapse but changed shape: an untaken ternary branch is
+  // never evaluated, so the merge still never runs on a layout that does not
+  // draw it — it is no longer the early return that guarantees that.
   return (
     <>
       {sidebarPortal}
-      {/*
-       * The narrow column. It used to be the FAB's anchor (#632) and carried
-       * `relative` for that; #1034 moved creation into the day-list header, so
-       * nothing is absolutely positioned in here any more. The inner div keeps
-       * the gutter so the list still lines up.
-       */}
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
-          {/* #1033: no hamburger here any more — the shell draws the one
-              hamburger at the left edge of the tab band, where every other
-              narrow section has always had it. */}
-          <div className="flex shrink-0 items-center gap-2">
-            {/* #878: the month the grid below is showing. It is a heading
-                again, not a control — #692's chevron opened the month on a
-                sheet, and with the month AS the main view there is nothing
-                left for a tap to reveal. */}
-            {/* px-1 went with the hamburger (#1033): the heading is the
-                row's first item now, so it lines up with px-lumen-gutter and
-                the month grid below it. */}
-            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
-              {periodLabel}
-            </h2>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                aria-label={t("scheduleScreen.prev")}
-                onClick={() => step(-1)}
-                className={ICON_BTN}
-              >
-                <ChevronLeft aria-hidden className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label={t("scheduleScreen.next")}
-                onClick={() => step(1)}
-                className={ICON_BTN}
-              >
-                <ChevronRight aria-hidden className="size-4" />
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={goToday}
-              className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-            >
-              {t("scheduleScreen.today")}
-            </button>
-          </div>
-          {rangeErrorBanner}
-          {showLoading ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-              {loadingCard}
-            </div>
-          ) : showError ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-              {errorCard}
-            </div>
-          ) : (
-            <>
-              {/*
-               * #878: the month grid IS narrow's main view now.
-               *
-               * Consumption only, as it was on the sheet (#692): a cell hands
-               * back its day and nothing else, so `onSelectDay` is
-               * `pickMonthDay` and NOT the Desktop `handleMonthCreate` that
-               * opens the creation panel (#224). Mobile keeps one way to make
-               * things — the FAB.
-               *
-               * `compact` is what makes 42 cells legible on a phone (day badge
-               * + a dot row rather than title chips), and no item handlers are
-               * passed: the dots are a density cue and the day underneath stays
-               * the tap target. What a dot IS is answered by the list below.
-               */}
-              <div className="shrink-0">
-                <MonthGrid
-                  compact
-                  monthKey={anchorDate}
-                  items={monthItems}
-                  todayKey={today}
-                  selectedKey={anchorDate}
-                  weekStartsOn={weekStartsOn}
-                  weekdayLabels={weekdayLabels}
-                  onSelectDay={pickMonthDay}
-                  formatMoreCount={(n) =>
-                    t("scheduleScreen.moreCount", { count: n })
-                  }
-                  formatDayLabel={formatFullDay}
-                  ariaLabel={t("scheduleScreen.calendar")}
-                />
-              </div>
-              {/*
-               * The picked day, underneath — the half of the pair the grid
-               * cannot answer (a dot says "something is here", not what). It
-               * names its own day because the header above now names the MONTH:
-               * without it, a list of times has nothing saying which day they
-               * belong to.
-               */}
-              <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-                {/* #1034: creation lives here now, not in a floating "+".
-                    The row is `shrink-0` and OUTSIDE the scroller below, so
-                    the button stays put however long the day gets. The pill is
-                    the same shared part as Materials' 「+ノート」. */}
-                <div className="flex shrink-0 items-center justify-between gap-2">
-                  <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
-                    {anchorDayLabel}
-                  </p>
-                  <AddPill
-                    onClick={handleToolbarAdd}
-                    label={t("scheduleScreen.addCta")}
-                  />
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-                  <AgendaList
-                    items={toAgenda(
-                      anchorDayItems,
-                      rangeTodoChips.filter((c) => c.date === anchorDate),
-                    )}
-                    nowMinutes={anchorDate === today ? nowMinutes : null}
-                    onToggleComplete={handleAgendaToggle}
-                    onItemActivate={handleItemActivate}
-                    onItemDoubleClick={handleItemOpenDetail}
-                    selectedId={selectedId}
-                    /* #691: Mobile stands in for the week grid here, so the row
-                     has to say how long it runs and where the day is free.
-                     Desktop's sidebar column stays one line tall (no props). */
-                    dayflow
-                    formatGapLabel={formatGapLabel}
-                    labels={anchorAgendaLabels}
-                    className="rounded-md border border-lumen-border bg-lumen-bg px-2"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
+      {isWide ? (
+        <CalendarDesktopLayout
+          view={desktopView}
+          toolbar={{
+            periodLabel,
+            viewOptions: desktopViewOptions,
+            labels: toolbarLabels,
+            repeatsHidden,
+            hiddenRepeats,
+            onToday: goToday,
+            onPrev: () => step(-1),
+            onNext: () => step(1),
+            onChangeView: setView,
+            onToggleRepeats: handleToggleRepeats,
+            onOpenSettings: () => setCalendarsOpen(true),
+            onAddEvent: handleToolbarAdd,
+          }}
+          lens={{
+            chips: calendarChips,
+            activeId: activeCalendar?.id ?? null,
+            hiddenCount: hiddenByCalendar,
+            onChange: handleSelectCalendar,
+          }}
+          banner={rangeErrorBanner}
+          state={{ loading: showLoading, error: showError, onRetry: reload }}
+          data={{
+            anchorDate,
+            weekStart,
+            today,
+            weekStartsOn,
+            monthItems,
+            gridItems,
+            selectedId,
+            nowMinutes,
+          }}
+          labels={{ weekdays: weekdayLabels, status: statusLabels }}
+          handlers={{
+            onItemActivate: handleItemActivate,
+            onItemDoubleClick: handleItemOpenDetail,
+            onItemContextMenu: handleItemContextMenu,
+            onMonthCreate: handleMonthCreate,
+            onCreateAt: handleGridCreateAt,
+            onMoveItem: handleMoveItem,
+            onResizeItem: handleResizeItem,
+            onDropAllDay: handleDropAllDay,
+          }}
+          format={{ fullDay: formatFullDay, dayDate: formatDayDate }}
+        />
+      ) : (
+        <CalendarNarrowLayout
+          header={{
+            periodLabel,
+            onPrev: () => step(-1),
+            onNext: () => step(1),
+            onToday: goToday,
+          }}
+          banner={rangeErrorBanner}
+          state={{ loading: showLoading, error: showError, onRetry: reload }}
+          month={{
+            anchorDate,
+            today,
+            weekStartsOn,
+            weekdayLabels,
+            items: monthItems,
+            onSelectDay: pickMonthDay,
+            formatDayLabel: formatFullDay,
+          }}
+          day={{
+            anchorDayLabel,
+            agenda: toAgenda(
+              anchorDayItems,
+              rangeTodoChips.filter((c) => c.date === anchorDate),
+            ),
+            nowMinutes: anchorDate === today ? nowMinutes : null,
+            selectedId,
+            labels: anchorAgendaLabels,
+            formatGapLabel,
+            onAdd: handleToolbarAdd,
+            onToggleComplete: handleAgendaToggle,
+            onItemActivate: handleItemActivate,
+            onItemDoubleClick: handleItemOpenDetail,
+          }}
+        />
+      )}
       {overlaysEl}
     </>
   );

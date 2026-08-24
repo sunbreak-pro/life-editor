@@ -129,6 +129,19 @@ export {
   type CalendarLensRowProps,
   type CalendarLensRowLabels,
 } from "./CalendarLensRow";
+// #296: the calendar's status surfaces — the loading card, the "could not
+// load" card, and the quiet banner for a failed range fetch that still has
+// rows under it (#889 lifted them out of CalendarTab).
+export {
+  ScheduleLoadingCard,
+  ScheduleErrorCard,
+  ScheduleRangeErrorBanner,
+  type ScheduleLoadState,
+  type ScheduleLoadErrorLabels,
+  type ScheduleLoadingCardProps,
+  type ScheduleErrorCardProps,
+  type ScheduleRangeErrorBannerProps,
+} from "./ScheduleStateCards";
 // #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
 // in place of the round completion checkmark.
 export {
