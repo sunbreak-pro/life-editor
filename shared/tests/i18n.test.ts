@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
 import { i18n, LANGUAGE_STORAGE_KEY } from "../src/i18n";
 

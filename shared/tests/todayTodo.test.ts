@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
 import { pickAddableTodos } from "../src/utils/todayTodo";
 import { makeTodo } from "./helpers/nodeFixtures";

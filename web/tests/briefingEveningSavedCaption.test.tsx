@@ -13,6 +13,17 @@ import { stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
+ * The editor sits behind `lazy(() => import("../src/notes/RichTextEditor"))`
+ * since #991, so transforming and importing TipTap + ProseMirror happens INSIDE
+ * the `.tiptap` waitFor below — against its 1s default. Under load that is the
+ * whole budget, and the file fails with "editor did not mount" while asserting
+ * nothing (#1079 実測 5). Importing it here moves that cost to collect time,
+ * where no clock is running, and leaves lazy() resolving from the module cache.
+ * The suite still drives the REAL ProseMirror, which is the point of #793.
+ */
+await import("../src/notes/RichTextEditor");
+
+/*
  * 夕刊 (CLOSING THE DAY) の Saved / Unsaved キャプション (#793).
  *
  * The caption asks "has what I just typed been stored?", and the hook answers

@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, expect, it } from "vitest";
 import {
   defaultBriefingTab,

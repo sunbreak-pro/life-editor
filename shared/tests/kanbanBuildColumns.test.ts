@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
 import type { TodoNode } from "../src/types/todoTree";
 import type { KanbanLabels } from "../src/components/Kanban/types";

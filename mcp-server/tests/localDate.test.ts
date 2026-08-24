@@ -19,6 +19,9 @@ import {
  */
 describe("localDate", () => {
   it("runs under the pinned Asia/Tokyo timezone", () => {
+    // The RESOLVED zone, not just the env string: a threads worker can carry
+    // TZ=Asia/Tokyo in its env while its clock runs on the OS zone (#1079).
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe("Asia/Tokyo");
     expect(process.env.TZ).toBe("Asia/Tokyo");
     // Midnight UTC is 09:00 the same day in JST — the offset the ranges below
     // are written against.
