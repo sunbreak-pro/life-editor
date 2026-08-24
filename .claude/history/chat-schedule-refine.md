@@ -1,5 +1,27 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-24 - #1098 と #889 を出し切り、その過程で並行エージェントの事故を 1 件踏んだ
+
+#### 概要
+
+`items_meta` DELETE の role ガード（#1098 = PR #1113・**merge 済み** main `53ed85b0`）と、`CalendarTab.tsx` の分割完了（#889 = PR #1131 open・**1,538 → 983 行**で DoD の 1,000 行を達成）。加えて #1113 のコメントと census の誤りを直す追いかけ PR #1132 を open。3 本とも CI `verify` 全ステップ + `docs-lint` をローカルで exit 0。
+
+#### 変更点
+
+- **#1098 = PR #1113**: DELETE 10 箇所（`SupabaseScheduleItemsService` 5 / `SupabaseRoutinesService` 5）に role 絞り込み。**実害は 3 つだけ** = caller から id を受け取って読み戻さない `deleteScheduleItem` / `permanentDeleteScheduleItem` / `bulkDeleteScheduleItems`。残り 7 つ（R2 クリーンアップ 3・変換ロールバック・`deleteRoutine`・`permanentDeleteRoutine` の 2 つ）は**穴を塞いでいない**ので、コメントでそう書き分けた —「全部の DELETE が role を名乗る」は読み手が検算できるが「今日たまたま安全な 4 つを除いて全部」は検算できない
+- **`permanentDeleteRoutine` は miss が静かでない唯一の場所**: 0011 の複合 FK が `ON DELETE NO ACTION` なので、step 2 が 1 件見逃すとその `events_payload` 行が routine を指したまま残り、**step 3 が FK 違反で落ちる**。これは受ける側のトレードで、purge が失敗して診断可能な残骸が残るほうが、Todo を hard delete して `tasks_payload` ごと連鎖で飛ばすより回復できる
+- **テストは「対」で書く**: 変換済み行が残る、**かつ**同ロールの対照行はちゃんと消える。前者だけだと「何にも当たらないよう綴りを間違えたガード」も通る。**DELETE の生存はキャプチャした行オブジェクトで判定できない** — mock の delete 分岐は配列ごと差し替えるので、テスト側の参照は削除成功後も生き残る（`metaIds(db)` を語彙にした）
+- **static census を追加**（DoD の「数え上げテスト」）: 2 つのサービスをディスクから読み、DELETE 全数を `method → role` で pin。**3 つの site が `forEachIdChunk` のアロー内**にいるので正規表現では追えず、括弧の深さを数えながらチェーンを歩く walker にした。ガードを 2 箇所で外す変異テストで、それぞれ 3 本が赤くなるのを実測
+- **`convertEventToRoutine.test.ts` を同 PR で直した**: delete モックが最初の `.eq()` から**チェーンではなく Promise** を返していたので、足した role フィルタが `TypeError` になる。しかもそれは service の catch → `logServiceError` → `console.warn` に飲まれ、write レコードは最初の `.eq()` で push 済み。**ロールバックが何もしていないまま 2 ケースとも緑のままだった**
+- **【事故】並行エージェントが repo を書き換え、commit を reset した**: #1098 のレビュー中に `deleteScheduleItem` が検証用の形（`const q = this.client.from("items_meta");` + `q.delete().eq("id", id)` = ガード無し・チェーン分断）に書き換わり、その細工が最初の push に載った。犯人は**セッション中断を跨いで生きていた別ワークフローの implement エージェント**。停止させた role-qa は「書いていない」と答えたが、`git reflog` の `reset: moving to HEAD~1` が残っていた。**修復は追いコミットで**（force-push はしない）。皮肉なことに、この細工を捕まえたのは同 PR の census の自己チェック（`.delete(` 生カウント 5 対 walker 4 の不一致）
+- **#889 = PR #1131**: ビュー 4 本（`CalendarDesktopLayout` / `CalendarNarrowLayout` / `ScheduleOverlayHost` / `ScheduleEventEditor`）+ フック 5 本（`useScheduleSelection` / `useScheduleDayLabels` / `useEditorCloseGuard` / `useScheduleTodayAgenda` / `useCancelDeferredPopover`）へ分解し、**2 本の return を三項 1 本に統合**（どちらも `{sidebarPortal}` で開き `{overlaysEl}` で閉じていた = Desktop が `<ConfirmDialog>` を落としたのと同じ drift の形）。**挙動ゼロは className と `t()` キーの多重集合を機械照合して実証**（増減ゼロ・新規追加ゼロ）
+- **`ScheduleStateCards` だけ `shared/` へ**: 他は `web/src/schedule/`（`ScheduleSidebar` が確立した先例 = shared の部品を組むだけの層に 25 個のラベルを通さない）だが、これは**何も組んでいない純粋な markup** で `AgendaList` / `MonthGrid` と同類。当初 web に置いてヘッダーが `ScheduleSidebar` の理屈を引いていたのをレビューが指摘 — そのまま残すと「再利用可能な部品を shared から締め出す」先例になっていた
+- **転送コールバックこそがこの改修の壊れ方**: narrow の prev/next を入れ替えても 760 本が全部緑だった。**1 つ押して、その spy だけが動き、兄弟 spy は黙っている**形に書き直した（swap と prop 落としを区別できる）。9 本の item ジェスチャのうち 6 本が未検証だったのも埋めた
+- **新規 3 本が無検証だった**（`ScheduleOverlayHost` / `useScheduleTodayAgenda` / `useCancelDeferredPopover`）: レビューが「壊しても 776 本が全部緑」を実証。`isWide` の close 畳み込み swap で 7 本、`popoverTodoChip` を null にして 3 本、`!isDismissed` 落としで 3 本が落ちるところまで書いた
+- **新規テストのレース**: `ScheduleOverlayHost` の 4 ケースが `askConfirm`（**同期で呼ばれる中間**）を待っていて、`clearDirty` と `close()` が 2 マイクロタスク後に来る前に次へ進んでいた。ゲートを 1 回赤にした。**終端の効果を待つ**形に直し、6 回連続緑を実測
+- **main が動いていた**: 待っている間に #1102（PR #1126）が入り、週初め設定を配線ごと退役させていた。レビューはこれを「`weekStartsOn` という prop を新規追加した」と報告したが、**比較相手の main が動いた側**。取り込んで配線を落として解消
+- **#1132（追いかけ）**: #1113 のコメント 4 つの誤りを訂正。最大のものは `permanentDeleteRoutine` の「2 つの経路で到達する」— **`convertEventToTodo` は routine 由来のイベントを最初に突き返す**ので経路 (a) 単独では `routine_item_id` が NULL の残骸しか作れず FK には無害。(a) のあとに (b) が続いて初めて詰まる = **1 本の経路の 2 段階**で、(b) を直せば完全に閉じる。census の自己チェックも `.delete(` の生カウントから「`.from("items_meta")` が動詞に到達するか」へ差し替え（生カウントは `from("events_payload").delete()` と `claimed.delete(key)` で誤爆する — 両方実測）。role 判定も入れ子の引数テキストを読まないよう top-level リンク限定に
+
 ### 2026-08-18 - 担当キューの残り 9 件を、1 Issue = 1 ブランチ = 1 PR で出し切った
 
 #### 概要
