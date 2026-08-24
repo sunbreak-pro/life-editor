@@ -173,16 +173,13 @@ export {
   DEFAULT_DAY_START_HOUR,
 } from "./utils/dateKey";
 export { useDayStartHourPref } from "./hooks/useDayStartHour";
-// Week-start preference (#217, split from §216) — the calendar hosts wire it
-// into startOfWeekKey / monthGridKeys / MonthGrid; Settings owns the write UI.
+// Week start (#1102) — fixed on Sunday app-wide. The stored pref (#217) and
+// its hook are gone; the grid math keeps its `weekStartsOn` parameter, so
+// hosts hand it this constant instead of reading localStorage.
 export {
-  useWeekStartPref,
-  getWeekStartsOn,
-  parseWeekStart,
-  WEEK_START_STORAGE_KEY,
-  DEFAULT_WEEK_START,
+  WEEK_STARTS_ON,
   type WeekStartsOn,
-} from "./hooks/useWeekStart";
+} from "./utils/scheduleGridLayout";
 // Reset local preferences (§216) — clears the app's localStorage namespace and
 // reloads. Pure helpers for the host's confirm-then-reset flow.
 export {

@@ -436,6 +436,27 @@ export function addDaysKey(key: string, delta: number): string {
 }
 
 /**
+ * Week start day: 0 = Sunday, 1 = Monday.
+ *
+ * The app runs on Sunday and nothing switches it (#1102) — the stored
+ * week-start pref (#217) and its hook are gone. The type stays because the
+ * grid math below still takes the day as a parameter.
+ */
+export type WeekStartsOn = 0 | 1;
+
+/**
+ * The one week start the whole app reads (#1102). Consumers pass this to the
+ * grid math instead of resolving a preference.
+ *
+ * The math keeps its parameter rather than hardcoding 0 inside: the Monday case
+ * is the only thing that exercises the step-back arithmetic, and that
+ * arithmetic is exactly what drifted in #860 (the Work tab kept a private
+ * Monday-only copy). A test that can only ask for Sunday cannot tell a correct
+ * implementation from `return key`.
+ */
+export const WEEK_STARTS_ON: WeekStartsOn = 0;
+
+/**
  * Snap a date key back to the first day of its week.
  * `weekStartsOn`: 0 = Sunday (default), 1 = Monday.
  */

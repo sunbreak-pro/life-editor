@@ -208,7 +208,6 @@ export function CalendarTab({
     setView,
     desktopView,
     effView,
-    weekStartsOn,
     weekStart,
     weekEnd,
     rangeStart,
@@ -1271,7 +1270,6 @@ export function CalendarTab({
         monthKey={anchorDate}
         items={monthItems}
         todayKey={today}
-        weekStartsOn={weekStartsOn}
         weekdayLabels={weekdayLabels}
         onSelectDay={handleMonthCreate}
         onItemActivate={handleItemActivate}
@@ -1475,7 +1473,6 @@ export function CalendarTab({
                   items={monthItems}
                   todayKey={today}
                   selectedKey={anchorDate}
-                  weekStartsOn={weekStartsOn}
                   weekdayLabels={weekdayLabels}
                   onSelectDay={pickMonthDay}
                   formatMoreCount={(n) =>

@@ -16,6 +16,10 @@ import { KanbanCardDraggable } from "./KanbanCardDraggable";
  * in status view) and wraps its cards in a SortableContext. Feeds the
  * resulting refs/flags into the PURE shared <KanbanColumn> via its `dnd` +
  * `renderCard` props, so @dnd-kit stays entirely in web/.
+ *
+ * The SortableContext stays even though cards are no longer drop targets
+ * (#992): `useSortable` reads its items/index out of this context, and the
+ * keyboard sensor's coordinate getter is the sortable one.
  */
 export function KanbanColumnDroppable({
   column,

@@ -11,7 +11,6 @@ import {
   calendarWeekRange,
   createdWithinRange,
 } from "../src/utils/analyticsAggregation";
-import { WEEK_START_STORAGE_KEY } from "../src/hooks/useWeekStart";
 import { DAY_START_HOUR_STORAGE_KEY } from "../src/utils/dateKey";
 import type { NoteNode } from "../src/types/note";
 import type { TimerSession } from "../src/types/timer";
@@ -25,13 +24,15 @@ import { makeAnalyticsLabels } from "./helpers/analyticsLabels";
  * Three boundaries are pinned here, because each one moved a number:
  *   1. the week's first day counts from 00:00, its predecessor never does
  *      (the rolling window DID count the day before — this is the changed one);
- *   2. the first day is the `useWeekStart` pref, not a hardcoded Monday;
+ *   2. the first day is `WEEK_STARTS_ON` (Sunday, #1102), not a hardcoded
+ *      Monday;
  *   3. the day-start-hour pref does NOT shift it (#356) — Analytics is keyed on
  *      the wall calendar, so a 01:00 note belongs to that calendar day even
  *      when Daily's rollover would still call it yesterday.
  *
- * Dates: Mon 2026-07-13 sits in the Mon 07-13…Sun 07-19 week when the pref is
- * Monday, and in the Sun 07-12…Sat 07-18 week when it is Sunday (the default).
+ * Dates: Mon 2026-07-13 sits in the Mon 07-13…Sun 07-19 week when the math is
+ * ASKED for Monday (which only these pure-function cases do) and in the
+ * Sun 07-12…Sat 07-18 week the app itself runs on.
  * TZ is pinned to Asia/Tokyo (vitest.config.ts), where the stored UTC instant
  * and the local calendar day genuinely disagree.
  */
@@ -219,29 +220,23 @@ describe("Analytics 'notes this week' window (#780)", () => {
   });
 
   it("counts a note written at 01:00 on the week's first day", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "1");
-    renderNotesCard([note("monday-1am", new Date(2026, 6, 13, 1, 0, 0))]);
+    // Sun 07-12 is the first day of the week containing today (#1102), and the
+    // 4 AM rollover set above must not push it back a day (#356).
+    renderNotesCard([note("sunday-1am", new Date(2026, 6, 12, 1, 0, 0))]);
 
     expect(notesThisWeekText()).toContain(`+1 ${LABELS.thisWeek}`);
   });
 
   it("drops the previous week's last day — the rolling window kept it", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "1");
-    renderNotesCard([note("sunday-2330", new Date(2026, 6, 12, 23, 30, 0))]);
+    renderNotesCard([note("saturday-2330", new Date(2026, 6, 11, 23, 30, 0))]);
 
     expect(notesThisWeekText()).toContain(`+0 ${LABELS.thisWeek}`);
   });
 
-  it("counts that same note when the week starts on Sunday", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "0");
-    renderNotesCard([note("sunday-2330", new Date(2026, 6, 12, 23, 30, 0))]);
-
-    expect(notesThisWeekText()).toContain(`+1 ${LABELS.thisWeek}`);
-  });
-
-  it("drops a note from 8 days ago that the rolling 7-day window kept", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "1");
-    renderNotesCard([note("last-monday", new Date(2026, 6, 6, 12, 0, 0))]);
+  it("drops last week's days that the rolling 7-day window kept", () => {
+    // Tue 07-07 is inside the rolling 7 days ending today (07-07…07-13) and
+    // outside the calendar week (Sun 07-12…Sat 07-18) — the #780 difference.
+    renderNotesCard([note("last-tuesday", new Date(2026, 6, 7, 12, 0, 0))]);
 
     expect(notesThisWeekText()).toContain(`+0 ${LABELS.thisWeek}`);
   });
@@ -438,27 +433,11 @@ describe("Analytics mobile 'this week' card (#860)", () => {
     );
   }
 
-  it("draws Mon→Sun and totals only that week when the week starts on Monday", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "1");
+  it("draws Sun→Sat and totals 07-12 in", () => {
     renderMobileCard();
 
-    // A rolling 7 days from Wed would have read Thu,Fri,Sat,Sun,Mon,Tue,Wed.
-    expect(barDays()).toEqual([
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun",
-    ]);
-    expect(weekHeaderText()).toContain("60m");
-  });
-
-  it("draws Sun→Sat and totals 07-12 in when the week starts on Sunday", () => {
-    localStorage.setItem(WEEK_START_STORAGE_KEY, "0");
-    renderMobileCard();
-
+    // A rolling 7 days from Wed would have read Thu,Fri,Sat,Sun,Mon,Tue,Wed;
+    // a Monday-started week would have read Mon…Sun and totalled 60m.
     expect(barDays()).toEqual([
       "Sun",
       "Mon",

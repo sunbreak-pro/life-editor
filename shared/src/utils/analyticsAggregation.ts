@@ -10,7 +10,7 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
 } from "../types/wikiTagUnified";
-import type { WeekStartsOn } from "../hooks/useWeekStart";
+import type { WeekStartsOn } from "./scheduleGridLayout";
 import {
   dateKeyOfInstant,
   formatDateKey as toDateStr,
@@ -29,8 +29,8 @@ import {
  * displayed numbers, so it went to the decision queue and came back as
  * D-20260811-refactor-1 = A (calendar week), implemented here (#780).
  *
- * The first day of the week is the stored `useWeekStart` pref, NOT a hardcoded
- * Monday — the same pref the calendar grids key on, so the two agree.
+ * The first day of the week is the app-wide `WEEK_STARTS_ON` (Sunday, #1102),
+ * NOT a hardcoded Monday — the same day the calendar grids key on.
  *
  * #780 unified the numbers only. The graphics next to them stayed on other
  * windows: the mobile week bars drew a rolling 7 days and the Work tab's weekly
@@ -64,10 +64,10 @@ export function createdWithinRange<T extends { createdAt: string }>(
  * mobile week bars and the Work tab's weekly buckets all start here, so they
  * cannot drift apart. It replaced a private Monday-hardcoded `startOfWeek()`
  * that only the weekly buckets used, which is exactly how the Work tab ended
- * up ignoring the pref every other week window reads (#860).
+ * up ignoring the day every other week window reads (#860).
  *
  * `weekStartsOn` is required for the same reason it is on `calendarWeekRange`:
- * a default would silently pick a week for a caller that forgot the pref.
+ * a default would silently pick a week for a caller that forgot to pass one.
  */
 function startOfCalendarWeek(d: Date, weekStartsOn: WeekStartsOn): Date {
   const start = new Date(d);
@@ -79,9 +79,9 @@ function startOfCalendarWeek(d: Date, weekStartsOn: WeekStartsOn): Date {
 /**
  * The CALENDAR week containing `now`, as inclusive local date keys.
  *
- * `weekStartsOn` is required on purpose: it is a user pref (`useWeekStart`,
- * 0 = Sunday / 1 = Monday) and a default here would silently pick a week for
- * callers that forgot to read it. The step-back math is `startOfWeekKey`'s
+ * `weekStartsOn` is required on purpose: a default here would silently pick a
+ * week for callers that forgot to pass `WEEK_STARTS_ON` (Sunday, #1102), and
+ * the Monday case is what pins the math. The step-back math is `startOfWeekKey`'s
  * (`utils/scheduleGridLayout.ts`), so an Analytics week and a calendar grid
  * week always begin on the same day.
  *
@@ -231,7 +231,7 @@ export function aggregateByDay(
  * `calendarWeekRange` defines, so a "this week" total and the bars drawn beside
  * it always cover the same days (#860 / D-20260813-briefing-1 = A).
  *
- * Always 7 buckets in calendar order, starting on the `useWeekStart` day. The
+ * Always 7 buckets in calendar order, starting on `WEEK_STARTS_ON`. The
  * mobile card used to draw `aggregateByDay(sessions, 7)` — a rolling 7 days
  * ending today — so mid-week its bars and the number above them ran on two
  * different windows. The accepted cost of the switch: mid-week the days that
@@ -272,8 +272,8 @@ export function aggregateCalendarWeekByDay(
  * Work minutes per calendar week, most recent `weeks` windows.
  *
  * `weekStartsOn` is required (#860): the buckets used to start on a hardcoded
- * Monday, so with the pref set to Sunday the Work tab sliced the same sessions
- * along a different boundary than every "this week" number in the app.
+ * Monday of their own, so the Work tab sliced the same sessions along a
+ * different boundary than every "this week" number in the app.
  */
 export function aggregateByWeek(
   sessions: TimerSession[],

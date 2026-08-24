@@ -18,7 +18,7 @@ import {
   createdWithinRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
-import { useWeekStartPref } from "../../hooks/useWeekStart";
+import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { EmptyState } from "./EmptyState";
 import type { AnalyticsLabels } from "./labels";
 
@@ -67,8 +67,6 @@ export function MobileAnalyticsView(
     labels,
   } = props;
 
-  const { weekStartsOn } = useWeekStartPref();
-
   const model = useMemo(() => {
     // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics buckets
     // sessions by wall calendar date; the day-start-hour "today"
@@ -102,7 +100,7 @@ export function MobileAnalyticsView(
     const now = new Date();
     const { startKey: weekStart, endKey: weekEnd } = calendarWeekRange(
       now,
-      weekStartsOn,
+      WEEK_STARTS_ON,
     );
     const weekWork = getWorkSessions(sessions).filter((s) => {
       const d = formatDateKey(new Date(s.startedAt));
@@ -121,7 +119,7 @@ export function MobileAnalyticsView(
     // The SAME window as weekMinutes above (#860) — these bars used to be a
     // rolling 7 days, so mid-week the row and the number beside it covered
     // different days. Mid-week the not-yet-happened days now draw as empty.
-    const weekBars = aggregateCalendarWeekByDay(sessions, now, weekStartsOn);
+    const weekBars = aggregateCalendarWeekByDay(sessions, now, WEEK_STARTS_ON);
     const weekMax = Math.max(...weekBars.map((b) => b.totalMinutes), 1);
 
     // Todos / notes / routine rate
@@ -178,7 +176,6 @@ export function MobileAnalyticsView(
     scheduleItems,
     notes,
     routines,
-    weekStartsOn,
   ]);
 
   if (props.loading) {
