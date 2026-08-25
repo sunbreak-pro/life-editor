@@ -17,7 +17,24 @@ import { useScheduleTodoChips } from "../src/schedule/useScheduleTodoChips";
  * under test here is the wiring around them: which window each chip list is
  * drawn from, which group a chip lands in, and which of the two delete
  * questions a row gets.
+ *
+ * `useTranslation` is stubbed to echo its key with the interpolated values
+ * appended, because #1000 moved the delete copy INTO the hook (it was handed in
+ * as `copy` before). A plain key echo would not do: what the two delete
+ * assertions are actually about is that the row's title and the subtree count
+ * reach the sentence, and a bare key hides exactly that.
  */
+
+vi.mock("@life-editor/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@life-editor/shared")>()),
+  useTranslation: () => ({
+    t: (key: string, opts?: { name?: string; count?: number }) => {
+      if (!opts) return key;
+      const count = opts.count === undefined ? "" : `:${opts.count}`;
+      return `${key}:${opts.name}${count}`;
+    },
+  }),
+}));
 
 const TODAY = "2026-08-13";
 const RANGE_START = "2026-08-10";
@@ -70,15 +87,6 @@ function allDay(
   });
 }
 
-const COPY = {
-  confirm: (name: string) => `delete ${name}?`,
-  cascadeConfirm: (name: string, count: number) =>
-    `delete ${name} and ${count} more?`,
-  untitled: "(untitled)",
-  confirmLabel: "Delete",
-  cancelLabel: "Cancel",
-};
-
 function renderChips(
   todoNodes: TodoNode[],
   opts: {
@@ -106,7 +114,6 @@ function renderChips(
       rangeStart: opts.rangeStart ?? RANGE_START,
       rangeEnd: opts.rangeEnd ?? RANGE_END,
       askConfirm,
-      copy: COPY,
     }),
   );
   return { hook, updateNode, setTodoStatus, softDeleteTodo, askConfirm, asked };
@@ -341,7 +348,9 @@ describe("the two delete questions", () => {
     await waitFor(() => expect(softDeleteTodo).toHaveBeenCalledWith("parent"));
     // Two rows go with it, the grandchild included — the count is what the
     // user cannot see from a tray row.
-    expect(asked[0].message).toBe("delete Pack for the trip and 2 more?");
+    expect(asked[0].message).toBe(
+      "todoDetail.todoDeleteCascadeConfirm:Pack for the trip:2",
+    );
     expect(asked[0].danger).toBe(true);
   });
 
@@ -363,7 +372,9 @@ describe("the two delete questions", () => {
 
     act(() => hook.result.current.handleTodoDetailDelete("leaf"));
     await waitFor(() => expect(softDeleteTodo).toHaveBeenCalledWith("leaf"));
-    expect(asked[0].message).toBe("delete Water the plants?");
+    expect(asked[0].message).toBe(
+      "todoDetail.todoDeleteConfirm:Water the plants",
+    );
     // Closed FIRST and without the unsaved-draft guard: a pending title on a
     // row being deleted is not worth a second question.
     expect(hook.result.current.todoDetailId).toBeNull();

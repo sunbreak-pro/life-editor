@@ -5,6 +5,7 @@ import {
   pickAddableTodos,
   todosToCalendarChips,
   unwrapTodoChipId,
+  useTranslation,
   type AddableTodo,
   type ConfirmRequest,
   type TodoCalendarChip,
@@ -38,11 +39,17 @@ import {
  * reason it comes out as one piece: the two halves shared a file, not a
  * thought.
  *
- * Everything is injected (§3.1 / §6.4): provider callbacks, the visible
- * window, the confirm-dialog `ask`, and already-resolved copy. The hook owns
- * one piece of state — `todoDetailId` — because it is the id of a TODO behind
- * the detail overlay, which the host's `selectedId` cannot hold (that one
- * resolves schedule_items and a chip has none, #626).
+ * The DATA is injected (§3.1): provider callbacks, the visible window and the
+ * confirm-dialog `ask`. The COPY is not — this is a web host hook, so it
+ * resolves its own `t` (§6.4 allows the host side to; the "no useTranslation in
+ * parts" rule is about `shared/src/components/`), the same line
+ * `useScheduleCopy` and `useEditorCloseGuard` already draw. It arrived that way
+ * with #1000: the bundle was built in CalendarTab and read by nothing else
+ * there, so the host was carrying a memo purely to hand it straight back.
+ *
+ * The hook owns one piece of state — `todoDetailId` — because it is the id of a
+ * TODO behind the detail overlay, which the host's `selectedId` cannot hold
+ * (that one resolves schedule_items and a chip has none, #626).
  *
  * What was untestable here before: CalendarTab needs the whole Provider stack
  * plus real layout to render, and jsdom has neither, so a swapped group or a
@@ -68,7 +75,6 @@ export interface UseScheduleTodoChipsArgs {
   rangeStart: string;
   rangeEnd: string;
   askConfirm: (request: ConfirmRequest) => Promise<boolean>;
-  copy: TodoDetailDeleteCopy;
 }
 
 export interface ScheduleTodoChipsApi {
@@ -109,8 +115,25 @@ export function useScheduleTodoChips({
   rangeStart,
   rangeEnd,
   askConfirm,
-  copy,
 }: UseScheduleTodoChipsArgs): ScheduleTodoChipsApi {
+  const { t } = useTranslation();
+
+  // The words for this hook's own two delete dialogs (#1000 moved them in from
+  // CalendarTab, which had no other reader for them). Memoised because both
+  // delete handlers below keep it in their deps, and a fresh object per render
+  // would rebuild the pair on every keystroke anywhere in the calendar.
+  const copy = useMemo<TodoDetailDeleteCopy>(
+    () => ({
+      confirm: (name: string) => t("todoDetail.todoDeleteConfirm", { name }),
+      cascadeConfirm: (name: string, count: number) =>
+        t("todoDetail.todoDeleteCascadeConfirm", { name, count }),
+      untitled: t("common.untitled"),
+      confirmLabel: t("todoDetail.delete"),
+      cancelLabel: t("common.cancel"),
+    }),
+    [t],
+  );
+
   // #626: todo-chip detail overlay — the UNWRAPPED TodoNode id behind an open
   // todo detail, or null. Separate from the host's selectedId/overlayOpen
   // because those resolve schedule_items and a chip has none.

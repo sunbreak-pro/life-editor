@@ -27,15 +27,22 @@ import { SECTION_DESCRIPTORS } from "../src/sectionDescriptors";
  * regression being guarded — a second hamburger creeping back into the date
  * row — breaks neither the build nor any render.
  *
+ * #889 moved that date row out of CalendarTab into <CalendarNarrowLayout>, so
+ * both files are read and joined. Pinning only the host would leave the gate
+ * pointing at a file the row no longer lives in — passing forever, and blind
+ * to the one place the toggle could actually come back.
+ *
  * No jest-dom in web/: presence is asserted through getBy* (which throws when
  * missing) and absence through queryBy* being null.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
-const calendarTab = readFileSync(
-  resolve(here, "../src/schedule/CalendarTab.tsx"),
-  "utf8",
-).replace(/\r\n/g, "\n");
+const narrowSource = [
+  "../src/schedule/CalendarTab.tsx",
+  "../src/schedule/CalendarNarrowLayout.tsx",
+]
+  .map((rel) => readFileSync(resolve(here, rel), "utf8").replace(/\r\n/g, "\n"))
+  .join("\n");
 
 describe("narrow Schedule hamburger (#1033)", () => {
   it("asks the shell for the hamburger + tabs row", () => {
@@ -72,13 +79,13 @@ describe("narrow Schedule hamburger (#1033)", () => {
 
   it("no longer draws its own toggle in the date row", () => {
     // The symbol, not the JSX: re-adding either the import or the element
-    // fails, and there is no other legitimate use of it in this file.
-    expect(calendarTab).not.toContain("RightSidebarToggle");
+    // fails, and neither file has another legitimate use of it.
+    expect(narrowSource).not.toContain("RightSidebarToggle");
   });
 
   it("took the hand-rolled copy with it", () => {
-    // These two catalog keys had exactly one call site, here. Leaving the
-    // reference behind would resurrect them.
-    expect(calendarTab).not.toMatch(/scheduleScreen\.(open|close)Menu/);
+    // These two catalog keys had exactly one call site, in the date row.
+    // Leaving the reference behind in either file would resurrect them.
+    expect(narrowSource).not.toMatch(/scheduleScreen\.(open|close)Menu/);
   });
 });
