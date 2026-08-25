@@ -118,3 +118,5 @@
 - **配布方式の判断 = 既存レーンへの /goal（サブエージェントは不採用）**: chat-main は `main` 専有で `git checkout <feature>` 禁止のため実装ブランチが切れない / `isolation: worktree` の一時 worktree は `node_modules` を持たず lint・test・build が通らない / Windows は worktree 削除が `Permission denied` で残骸化する。対して既存 11 レーンは npm install 済みで、Issue のラベルがレーンとほぼ 1:1 に対応していた
 - **配布は実質不要だった**: 6 レーン分の /goal を用意した直後に取り直したところ **#838 / #830 / #826 / #827 / #672 / #793 が既に merge 済み**（06:31〜06:33 に集中）。**新規に渡す必要があったのは #795（briefing）と #708（schedule）の 2 本だけ**で、残りは貼ると二重指示になるため取り下げた
 - **レーン割り当てを Issue 側へ明示（6 件）**: `shared-fix` ラベルは複数レーンが自分宛と解釈しうるため（#473 = 40 分の二重実装）、#838 / #827 → shared-fix、#797 / #792 → mobile-refine、#831 → 保留、#837 → chat-main とコメントした。うち #838 / #827 は書いた直後に merge されて空振り
+
+> 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
