@@ -612,26 +612,42 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    *
    * That is still the side of the trade we want. The alternative is step 2
    * hard-deleting a row that is now a Todo and cascading its tasks_payload
-   * away through the 0008 FK; a purge that refuses is recoverable and a
-   * deleted Todo is not.
+   * away through the 0008 FK; nothing is destroyed by a purge that refuses,
+   * and everything is by the other one.
    *
-   * TWO ROUTES REACH IT, and the second is the cheap one — do not read the
-   * first and conclude this is unreachable:
-   *   (a) A conversion that died between flipping items_meta.role and
-   *       dropping the old events_payload row. convertEventToTodo's step 3 is
+   * Be precise about what "recoverable" buys, though, because it is less than
+   * it sounds at the UI seam: `useRoutinesAPI.permanentDeleteRoutine` drops
+   * the row from `deletedRoutines` optimistically and hands the rejection to
+   * `logServiceError`. So the user watches the routine leave Trash while it is
+   * still in the database, and no message says otherwise. The data is intact
+   * and diagnosable; the screen is lying. Surfacing it is the deferred rough
+   * edge below.
+   *
+   * ONE ROUTE, IN TWO STEPS — and (a) on its own is harmless, so do not read
+   * it alone and conclude the hazard is close at hand:
+   *   (a) A conversion that died between flipping items_meta.role and dropping
+   *       the old events_payload row. convertEventToTodo's step 3 is
    *       best-effort by design (db-conventions §10.5 names the leftover and
    *       ships a detection query for it), so this needs no crash, just a
-   *       failed cleanup.
-   *   (b) convertEventToRoutine ATTACHING a routine to such a leftover. Its
-   *       meta bump above is `.eq("role","event")` but only checks `mErr`, so
-   *       a zero-row match on an already-converted id falls through silently;
-   *       the attach that follows filters on item_id and
-   *       `.is("routine_item_id", null)` and never looks at the role. The
-   *       conversion then reports SUCCESS, and the routine it created is one
-   *       that can never be purged.
-   * Route (b) is queued as a follow-up (check the bump's row count the way
-   * SupabaseItemConversionService.reRole already does); it is out of #1098's
-   * DELETE scope, not out of mind.
+   *       failed cleanup. What it leaves is a role='task' row with a stray
+   *       events_payload record whose routine_item_id is NULL — because
+   *       convertEventToTodo REFUSES a routine-linked event outright
+   *       (SupabaseItemConversionService: `if (payload.routine_item_id != null)
+   *       throw`, D-20260810-sched-5). A null link references no routine, so
+   *       the NO ACTION FK has nothing to hold and no purge can wedge yet.
+   *   (b) convertEventToRoutine then ATTACHING a routine to that leftover, at
+   *       which point it does. Its meta bump above is `.eq("role","event")`
+   *       but only checks `mErr`, so a zero-row match on an already-converted
+   *       id falls through silently; the attach that follows filters on
+   *       item_id and `.is("routine_item_id", null)` — which is exactly what a
+   *       route-(a) leftover looks like — and never looks at the role. The
+   *       conversion reports SUCCESS, and the routine it created is one that
+   *       can never be purged.
+   * So (b) is not a second way in, it is the second half of the only way in —
+   * which means fixing it closes this hazard completely rather than narrowing
+   * it. Queued as a follow-up (check the bump's row count the way
+   * SupabaseItemConversionService.reRole already does); out of #1098's DELETE
+   * scope, not out of mind.
    *
    * KNOWN ROUGH EDGE, ALSO DEFERRED: when this fires, the caller gets
    * Postgres's raw `violates foreign key constraint` text from step 3 rather
