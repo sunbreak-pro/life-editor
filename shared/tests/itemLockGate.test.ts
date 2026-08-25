@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ItemLockGate, nextItemVersion } from "../src/services/itemLockGate";

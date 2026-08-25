@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseRoutinesService } from "../src/services/SupabaseDataService";

@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createSyncBumpQueue } from "../src/context/syncBumpQueue";
 import type { SyncDomain } from "../src/context/syncDomains";

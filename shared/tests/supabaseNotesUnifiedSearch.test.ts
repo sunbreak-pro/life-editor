@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SupabaseNotesUnifiedSearch } from "../src/services/SupabaseNotesUnifiedSearch";
 import type { NoteNode } from "../src/types/note";

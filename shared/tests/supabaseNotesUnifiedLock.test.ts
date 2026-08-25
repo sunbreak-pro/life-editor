@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { SupabaseNotesUnifiedLock } from "../src/services/SupabaseNotesUnifiedLock";
 import { hashPassword } from "../src/utils/passwordHash";

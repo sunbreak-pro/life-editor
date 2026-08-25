@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
 import { nextRoutineOccurrence } from "../src/utils/routineScheduleSync";
 import type { RoutineNode } from "../src/types/routine";

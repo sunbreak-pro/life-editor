@@ -1,3 +1,4 @@
+// @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { TasksPayloadRow } from "../src/services/todoMapper";
 import type { ItemsMetaRow } from "../src/services/itemsMeta";
