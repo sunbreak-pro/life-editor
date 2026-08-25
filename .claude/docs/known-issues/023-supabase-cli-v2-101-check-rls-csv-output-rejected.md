@@ -1,6 +1,6 @@
 # 023: Supabase CLI v2.101 で `check-rls` 系 sql 出力が CSV 化され流し直しが拒否される
 
-**Status**: Fixed (運用ルール化)
+**Status**: Fixed (運用ルール化) — **凍結**（2026-08-23 / D-20260823-shared-fix-2: 参照 0 かつ検証不能のため入口を張らない。CLI バージョン依存で、回避策は Dashboard SQL Editor 手動 Run）
 **Category**: Tooling
 **Severity**: Minor
 

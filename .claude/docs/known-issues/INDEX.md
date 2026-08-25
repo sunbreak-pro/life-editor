@@ -26,6 +26,7 @@
 
 > - **027**（Notes/Daily plaintext password）は追跡を GitHub Issue [#118](https://github.com/sunbreak-pro/life-editor/issues/118) へ移行済み。本ディレクトリの 027 本文は参照用（file Status は Active (Backlog) のまま。集計では Active に計上）。
 > - **Issue 追跡は 027→#118 のみ**。026 / 028 は環境系のため本ディレクトリが正（起票済みだった #117 / #119 は整理のため close 済み）。
+> - **2026-08-23（D-20260823-shared-fix-2）**: 参照実績の実測（#1086）で参照 0 だった 5 本を仕分けた。**007 / 010 は削除**（Tauri + D1 期の前提で、現行スタックに対応するコードが無い）/ **030 / 032 は `rules/records.md` と CLAUDE.md §7.2 から入口を張った**（今日も再現する）/ **023 は凍結**（検証不能）。以後の採否条件 = `rules/records.md` §2。
 
 ## Monitoring（すぐ対処しないが監視）
 
@@ -45,10 +46,8 @@
 | 001 | [Cloud Sync 立ち上げ schema/FK 3 連戦（予約語 / FK 順序 / schema drift）](./001-cloud-sync-bootstrap-schema-fk.md)                                            | Bug/Schema          | 2026-04-18 |
 | 004 | [sync_last_synced_at が空で毎回 1970 から fullpush](./004-sync-last-synced-at-not-persisted.md)                                                               | Bug                 | 2026-04-20 |
 | 005 | [tasks.updated_at が NULL（Cloud Sync 対象除外）](./005-tasks-updated-at-null-on-creation.md)                                                                 | Bug/Schema          | 2026-04-20 |
-| 007 | [XcodeGen 再生成で pbxproj 設定が消える](./007-xcodegen-pbxproj-config-drift.md)                                                                              | Tooling             | 2026-04-18 |
 | 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md)                              | Bug/Sync            | 2026-04-20 |
 | 009 | [Mobile 画面が Provider をバイパスして DataService 直呼び（データ伝播が非対称）](./009-mobile-data-parity-provider-bypass.md)                                 | Structural          | 2026-04-20 |
-| 010 | [Notes 移動/並び替えと Memos 削除/復元が delta sync から脱落](./010-notes-memos-mutation-skipped-by-delta-sync.md)                                            | Bug/Sync            | 2026-04-20 |
 | 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                                               | Bug/Schema/Sync     | 2026-04-21 |
 | 012 | [/sync/changes LIMIT=500 + client hasMore 未処理で初回 pull が途切れる](./012-sync-changes-limit-500-truncates-large-initial-pull.md)                         | Bug/Sync            | 2026-04-22 |
 | 013 | [delta sync cursor の 2 根本欠陥（timestamp 形式混在 + 非単調 LWW）](./013-delta-sync-cursor-design-flaws.md)                                                 | Bug/Sync/Structural | 2026-04-24 |

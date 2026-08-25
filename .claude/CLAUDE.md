@@ -92,6 +92,8 @@
 
 `<type>: <subject>` — type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`（詳細・破壊的操作の境界は `git-workflow` スキル）
 
+- **本文の行頭 `#` は git に無警告で捨てられる**（`core.commentChar` 既定 = `#`）。Issue 番号で行を始めず、`git commit -F` には `--cleanup=verbatim` を付ける（[known-issues 032](./docs/known-issues/032-git-commit-message-hash-line-dropped.md)）
+
 - **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。同スキルは「全プロジェクト共通」と書いているが、本プロジェクトは POLICY **P-001「merge と main への取り込みは常にユーザー」を優先**する。`Bash(gh pr merge*)` は `permissions.ask` に入れて機械側でも担保済み — Claude は条件が揃っても自分で merge しない
 
 ### 7.3 Plan Gate Convention
