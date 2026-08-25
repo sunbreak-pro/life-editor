@@ -174,3 +174,24 @@ Scope が「`SyncContext.tsx` の購読削除」となっていますが、**購
 #1086 の DoD は「参照 0 の known-issue 7 本（004 / 006 / 007 / 010 / 023 / 030 / 033）が出ること」を妥当性の確認条件にしていますが、**実測では 5 本**（007 / 010 / 023 / 030 / **032**）で、004 / 006 / 033 は 1 / 2 / 1 と非ゼロです。Issue の暗黙規則（1 セッション 3 件以下を targeted）をそのまま使うと 11 本になり、**7 という数字はどちらの規則からも出ません**。
 
 手作業計測が総称正規表現で `2026-05-24-….md` から `026-…` を切り出していた（026 は実在 ID）のが差の一因です。詳細は PR #1119 本文に書きました。**「参照 0 = 5 本」を訂正後のベースラインとして #1087 の判断材料にしてよいか**、確認をお願いします。
+
+## 2026-08-24 → chat-main
+
+### #992 は close ではなく実装で決着した（前回の close 推奨は失効）
+
+2026-08-23 に「計測で再現しないので close を推す」と書きましたが、**こうだいさんが B（PR を出す）を指定**したため実装しました（PR #1127・merged）。ただし Issue が挙げていた削減対象は実在しませんでした:
+
+- `web/src/notes/NoteListRows.tsx` の `useDroppable` は**起票時点のコミット `aa532219` から `DesktopTagHeading` の中**（= タグ見出しごとに 1 個）。行に付いているのは `useDraggable` だけで、「行ごと → グループごとへ集約」は既に済んだ状態でした
+- 行ごとの登録が実在したのは **Kanban のカード**（`useSortable` が draggable と droppable を両方登録する）。そちらを `disabled: { droppable: true }` で drop target から外しました
+
+**実機確認をお願いします（worktree では実ブラウザを起動しない規約 = CLAUDE.md §7.4）**: Kanban でカードを別カラムの**カードの上**にドロップしたとき、これまでどおりそのカラムへ移るか。カードが drop target でなくなり、下のカラムが受けるようになったためです。キーボード DnD（カードにフォーカス → Space → 矢印）も、矢印がカード間ではなくカラム間を跳ぶ形に変わっています。
+
+### #1079 で入れた `pool: "threads"` は TZ の落とし穴つき（他レーンへの共有）
+
+テストを threads に載せました（PR #1129）。**`test.env` の TZ pin は threads では効きません** — worker はプロセスを共有するので、Node が `process.env.TZ` からゾーンを読み直さないためです。`TZ=UTC`（= CI）で mcp-server の localDate が 3 件落ちることを実測しました。より危険なのは**落ちない方**で、`shared/tests/dateKeyOfInstant.test.ts:29` と `analyticsCompletedDayKey.test.tsx:225,304` は `getTimezoneOffset() < 0` で自分をガードしているため、UTC ではアサーションごと消えて緑になります。
+
+pin は各 `vitest.config.ts` 冒頭の `process.env.TZ = "Asia/Tokyo"`（メインプロセスで ICU を張り直す）へ移しました。**新しいパッケージに vitest を足すときはこの代入も一緒に置いてください**。
+
+### 判断キューに 1 件（`D-20260824-shared-fix-1`）
+
+#1102 でアプリの週は日曜固定になりましたが、`mcp-server/src/utils/localDate.ts:49` の `localWeekStart` は月曜始まりの独立実装のままです。`get_week_context` を引数なしで呼ぶ朝刊の週窓が 1 日ずれます。P-008 に従い実装せずキューへ積みました。
