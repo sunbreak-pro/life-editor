@@ -137,7 +137,7 @@ describe("TimerProvider listens to the timer domain only (#993)", () => {
   function mount(ds: DataService) {
     return render(
       <SyncHarness>
-        <TimerProvider dataService={ds} untitledTodoTitle="Untitled">
+        <TimerProvider dataService={ds}>
           <div />
         </TimerProvider>
       </SyncHarness>,

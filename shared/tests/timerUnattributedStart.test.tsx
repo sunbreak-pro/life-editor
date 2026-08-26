@@ -7,25 +7,24 @@ import { useTimerContext } from "../src/hooks/useTimerContext";
 import { SyncContext } from "../src/context/SyncContextValue";
 import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
-import type { TodoNode } from "../src/types/todoTree";
 import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
- * #882 — a WORK phase started with no todo picked mints one.
+ * #1116 — a WORK phase started with no todo picked creates NOTHING.
  *
- * Before this, `startTimerSession` was handed `undefined` and the row landed
- * with a null todo id. Analytics buckets every such row into one nameless
- * "__none__" pile (analyticsAggregation.ts), so the log could say an hour was
- * worked but never WHAT on. What these pin is the seam that closes it: the
- * mint happens, the session is opened against the MINTED id rather than
- * against nothing, and the placeholder becomes the active todo so the rest of
- * the run reuses it.
+ * The inverse of this file used to live here as timerUntitledTodo.test.tsx:
+ * #882 had the Provider mint an "Untitled todo" so Analytics could bucket the
+ * hour under a name instead of one nameless "__none__" pile. Running the timer
+ * without picking a todo is the ordinary way to use it, though, so the mint
+ * dropped a junk row into the user's real Todo list on every plain Start — and
+ * it minted the id with `generateId("task")`, which yields `task-<uuid>` and
+ * breaks the CLAUDE.md §4 invariant that every Todo id is `task-<ts+counter>`.
  *
- * The three cases that must NOT mint are pinned just as hard — a stray
- * "Untitled todo" appearing every time a break starts would be its own bug.
+ * What these pin is that the seam is closed from both ends: no write happens,
+ * and the session row is opened anyway with a null task_id (the column is
+ * nullable and FK-free — 0018_timer_audio_tables.sql), so the log still
+ * records that an hour was worked.
  */
-
-const UNTITLED = "Untitled todo";
 
 function syncWrapper({ children }: { children: ReactNode }) {
   return createElement(
@@ -81,7 +80,7 @@ function Probe() {
 
 async function renderTimer() {
   render(
-    <TimerProvider dataService={makeDS()} untitledTodoTitle={UNTITLED}>
+    <TimerProvider dataService={makeDS()}>
       <Probe />
     </TimerProvider>,
     { wrapper: syncWrapper },
@@ -100,10 +99,6 @@ async function click(name: string) {
 beforeEach(() => {
   createTodo.mockReset();
   startTimerSession.mockReset();
-  createTodo.mockImplementation(async (node: TodoNode): Promise<TodoNode> => ({
-    ...node,
-    id: "task-minted",
-  }));
   startTimerSession.mockResolvedValue({
     id: 1,
     phase: "WORK",
@@ -115,54 +110,32 @@ beforeEach(() => {
   });
 });
 
-describe("TimerProvider — unattributed WORK start (#882)", () => {
-  it("mints a placeholder todo with the host's title", async () => {
+describe("TimerProvider — unattributed WORK start (#1116)", () => {
+  it("mints no placeholder todo", async () => {
     await renderTimer();
     await click("start");
 
-    expect(createTodo).toHaveBeenCalledOnce();
-    expect(createTodo.mock.calls[0][0]).toMatchObject({
-      type: "task",
-      title: UNTITLED,
-      status: "NOT_STARTED",
-      // Root level: the timer carries no place-in-the-tree control.
-      parentId: null,
-    });
+    expect(createTodo).not.toHaveBeenCalled();
   });
 
-  it("opens the session against the minted id, not against nothing", async () => {
+  it("opens the session anyway, with a null task id", async () => {
     await renderTimer();
     await click("start");
 
-    expect(startTimerSession).toHaveBeenCalledExactlyOnceWith(
-      "WORK",
-      "task-minted",
-    );
+    // The hour is still logged — only the attribution is left empty.
+    expect(startTimerSession).toHaveBeenCalledExactlyOnceWith("WORK", undefined);
   });
 
-  it("publishes the placeholder as the active todo", async () => {
+  it("leaves the active-todo chip empty", async () => {
     await renderTimer();
     expect(screen.getByTestId("active").textContent).toBe("(none)");
 
     await click("start");
-    // The chip now names the row being logged to — which is what lets the
-    // user notice it and rename or swap it.
-    expect(screen.getByTestId("active").textContent).toBe(UNTITLED);
+    // Nothing was minted, so there is nothing to publish as the active todo.
+    expect(screen.getByTestId("active").textContent).toBe("(none)");
   });
 
-  it("still logs the session when the mint fails", async () => {
-    createTodo.mockRejectedValue(new Error("offline"));
-    await renderTimer();
-    await click("start");
-
-    // Losing the attribution is the bug; losing the row entirely is worse.
-    expect(startTimerSession).toHaveBeenCalledExactlyOnceWith(
-      "WORK",
-      undefined,
-    );
-  });
-
-  it("mints nothing when a todo is already picked", async () => {
+  it("still passes a picked todo straight through", async () => {
     await renderTimer();
     await click("pick");
     await click("start");
@@ -174,7 +147,7 @@ describe("TimerProvider — unattributed WORK start (#882)", () => {
     );
   });
 
-  it("mints nothing for a break — a break is not work", async () => {
+  it("creates nothing for a break either", async () => {
     await renderTimer();
     await click("to-break");
     await click("start");

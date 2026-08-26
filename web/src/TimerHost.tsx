@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   TimerProvider,
   useAudioContext,
-  useTranslation,
   type DataService,
 } from "@life-editor/shared";
 
@@ -36,14 +35,9 @@ export function TimerHost({
   children: ReactNode;
 }) {
   const audio = useAudioContext();
-  const { t } = useTranslation();
   return (
     <TimerProvider
       dataService={dataService}
-      // #882 — the title of the Todo minted for an unattributed WORK phase.
-      // Resolved here because the Provider lives in shared, which never calls
-      // useTranslation itself (rules/frontend.md).
-      untitledTodoTitle={t("work.todoSelector.untitled")}
       onSessionComplete={audio?.playCompletionChime}
     >
       {children}

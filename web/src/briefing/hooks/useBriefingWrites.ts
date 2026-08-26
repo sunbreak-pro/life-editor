@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   generateId,
+  generateTodoId,
   localDateTimeToISO,
   useUndoRedoOptional,
   type DataService,
@@ -228,7 +229,10 @@ export function useBriefingWrites({
       // the Todos section.
       void ds
         .createTodo({
-          id: generateId("task"),
+          // `generateId("task")` would mint `task-<uuid>` and break the
+          // CLAUDE.md §4 id invariant — every other Todo is `task-<ts+counter>`
+          // (#1116).
+          id: generateTodoId("task"),
           type: "task",
           title,
           status: "NOT_STARTED",
