@@ -5,21 +5,49 @@
 
 ---
 
+## 2026-08-24 → @chat-main（#1098 / #889 完了報告 + 起票依頼 2 件）
+
+`section:schedule` の 2 件を出し切りました。
+
+| Issue                                                | PR    | 状態                                             |
+| ---------------------------------------------------- | ----- | ------------------------------------------------ |
+| #1098 schedule 系 `items_meta` DELETE の role ガード | #1113 | **merge 済み**（main `53ed85b0`）                |
+| #889 `CalendarTab.tsx` を分割し切る                  | #1131 | open — **1,538 → 983 行**（DoD の 1,000 行達成） |
+| （#1113 の追いかけ・コメントと census の精度）       | #1132 | open                                             |
+
+3 本ともローカルで CI `verify` の全ステップ（shared → web → desktop → mcp-server）+ `docs-lint` を exit 0 まで通してあります。#889 は実ブラウザ検証（週 / 月表示・ドラッグ移動・リサイズ・繰り返しスコープ選択・Todo 追加削除）が **merge 後 chat-main の手番**です（§7.4）。
+
+### 起票依頼 (1)【#1098 の反対側】`SupabaseTodosService` の `items_meta` DELETE も id だけで当てている（`section:materials` + `area:schema` / sev:minor 想定）
+
+#625 の変換は **event ⇄ task の両方向**に role を移すので、#1098 が schedule 側で塞いだ穴は**半分だけ**です。`shared/src/services/SupabaseTodosService.ts` の `items_meta` DELETE（`permanentDeleteTodo` ほか、L240 付近を含む）は今も id 単独で、変換後の id を握ったままの古い削除操作が **いまや Event になっている行を hard delete** します。
+
+- **#1099 は CLOSED ですが UPDATE 側だけ**でした（#996 の反対側）。DELETE は誰も見ていません
+- 再現の筋道は #1113 の `permanentDeleteScheduleItem` のコメントに書いた**クロスデバイスの Trash レース**をそのまま裏返した形: 端末 A が Trash に trash 済み Todo T を表示 → 端末 B が T を復元して Event に変換（`convertTodoToEvent` は trash 済み行を拒むのでこの順序は強制される）→ 端末 A が古い一覧のまま「完全に削除」を押す
+- 直し方は #1098 と同型で、**#1113 の `shared/tests/scheduleMetaRoleGuard.test.ts` の census がそのまま流用できます**（チェーンを歩く walker + `method → role` の pin）。ファイルパスと期待リストを差し替えるだけです
+
+### 起票依頼 (2)【#1098 で確定した follow-up】`convertEventToRoutine` の meta bump が 0 行ヒットを見逃す（`section:schedule` / sev:minor 想定）
+
+`SupabaseRoutinesService.convertEventToRoutine` の seed meta bump は `.eq("role","event")` を持ちますが **`mErr` しか見ていない**ので、既に Todo へ変換済みの id を渡されても 0 行ヒットのまま素通りします。続く attach は `item_id` と `.is("routine_item_id", null)` だけで絞り role を見ないため、**変換は SUCCESS を報告し、生成された routine は二度と purge できません**（#1113 の `permanentDeleteRoutine` の doc に経緯あり）。
+
+- **これが唯一の到達経路です**（PR #1132 で訂正済み）。`convertEventToTodo` は routine 由来のイベントを最初に突き返すので、変換が途中で死んでも残るのは `routine_item_id` が NULL の `events_payload` 残骸だけ = FK には無害。**その残骸に routine を繋ぐこの経路が塞がれれば、FK ウェッジは完全に消えます**
+- 直し方は `SupabaseItemConversionService.reRole` と同じで、bump に `.select("id")` を足して 0 行なら投げる
+- 併せて（任意）: ウェッジが起きたとき `permanentDeleteRoutine` の呼び出し側（`useRoutinesAPI.ts:517`）が楽観削除 + `logServiceError` なので、**ユーザーには Trash から消えたように見えて DB には残ります**。step 2 が `.select("id")` で実際に消した分を確かめ、名前付きのエラーを step 3 の前に投げるのが筋です
+
 ## 2026-08-18 → @chat-main（担当キュー 9 件を PR 化・起票依頼 2 件 + 判断キュー 3 件）
 
 `section:schedule` の残り 9 件（#1044 #1034 #1033 #1000 #998 #997 #996 #995 #889）を **1 Issue = 1 ブランチ = 1 PR** で出しました。全部 origin/main から独立に切ってあり、ローカルで CI `verify` の全ステップ + `docs-lint` を通しています。
 
-| Issue | PR | 中身 |
-| --- | --- | --- |
-| #996 | #1080 | schedule 系の `items_meta` UPDATE 16 箇所に role ガード（18/18 が role 絞り込み済みに） |
-| #1033 | #1081 | narrow のハンバーガーをタブ帯左へ（自前の 2 本目を削除・descriptor 1 行） |
-| #1034 | #1082 | FAB → 日リストヘッダーの「+追加」。`AddPill` を新設し Materials の 2 コピーも差し替え |
-| #995 | #1085 | 詳細シートの保存フッターを sticky に（opt-in prop・Desktop は構造的に不変） |
-| #1044 | #1088 | ロール表示をヘッダーの一文字グリフへ（フレーム連鎖に `titleIcon` スロット） |
-| #998 | #1090 | narrow の予定編集シートに Event → Todo 変換入口 |
-| #997 | #1092 | 変換を Undo に載せる（逆変換 + スナップショットのパッチ） |
-| #889 | #1094 | 作成パネルの 9 ハンドラを `useScheduleCreateFlow` へ（1,636 → 1,479 行） |
-| #1000 | #1095 | **求められている面は既に存在**（#761）。作り直さず継ぎ目 2 つをテストで塞いだ |
+| Issue | PR    | 中身                                                                                    |
+| ----- | ----- | --------------------------------------------------------------------------------------- |
+| #996  | #1080 | schedule 系の `items_meta` UPDATE 16 箇所に role ガード（18/18 が role 絞り込み済みに） |
+| #1033 | #1081 | narrow のハンバーガーをタブ帯左へ（自前の 2 本目を削除・descriptor 1 行）               |
+| #1034 | #1082 | FAB → 日リストヘッダーの「+追加」。`AddPill` を新設し Materials の 2 コピーも差し替え   |
+| #995  | #1085 | 詳細シートの保存フッターを sticky に（opt-in prop・Desktop は構造的に不変）             |
+| #1044 | #1088 | ロール表示をヘッダーの一文字グリフへ（フレーム連鎖に `titleIcon` スロット）             |
+| #998  | #1090 | narrow の予定編集シートに Event → Todo 変換入口                                         |
+| #997  | #1092 | 変換を Undo に載せる（逆変換 + スナップショットのパッチ）                               |
+| #889  | #1094 | 作成パネルの 9 ハンドラを `useScheduleCreateFlow` へ（1,636 → 1,479 行）                |
+| #1000 | #1095 | **求められている面は既に存在**（#761）。作り直さず継ぎ目 2 つをテストで塞いだ           |
 
 ### 起票依頼 1: schedule 系の `items_meta` DELETE にも role ガードを
 
