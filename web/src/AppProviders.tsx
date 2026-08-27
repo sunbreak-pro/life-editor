@@ -7,7 +7,9 @@ import {
   ShortcutConfigProvider,
   SyncProvider,
   ToastProvider,
+  TourProvider,
   type DataService,
+  type SectionId,
 } from "@life-editor/shared";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
@@ -38,6 +40,11 @@ import { UndoRedoHost } from "./UndoRedoHost";
  *   pair, and the old `chimeRef` + AudioChimeBridge back-channel is gone.
  * - RightSidebar is innermost so the shell AND the palette/tag-editor
  *   siblings the host renders as `children` all sit inside it.
+ * - Tour (#1122) sits inside RightSidebar, i.e. innermost of all: nothing
+ *   reads it, it reads the section switch the host passes down, and its
+ *   overlay is a shell-level sibling of the palette. It is GLOBAL rather than
+ *   section-layer because a tour crosses sections — a section-layer Provider
+ *   is unmounted by the very navigation the tour asks for.
  *
  * Two headless bridges are interleaved rather than hoisted, because each has
  * to sit inside a specific Provider: MaterialsCountsBridge refetches on
@@ -55,6 +62,12 @@ export interface AppProvidersProps {
   onMaterialsCounts: ComponentProps<typeof MaterialsCountsBridge>["onCounts"];
   /** Forwarded verbatim to the headless global shortcut executor. */
   shortcuts: ComponentProps<typeof GlobalShortcuts>;
+  /** The section on screen right now — the tour needs it to know whether its
+   *  next step is reachable from here (#1122). */
+  currentSection: SectionId;
+  /** Section switch, handed to the tour so it can walk across sections.
+   *  Shared must not import web's navigation, so it arrives as a prop. */
+  onNavigateToSection: (section: SectionId) => void;
   /** The shell and its shell-level siblings (palette, tag editor). */
   children: ReactNode;
 }
@@ -63,6 +76,8 @@ export function AppProviders({
   dataService,
   onMaterialsCounts,
   shortcuts,
+  currentSection,
+  onNavigateToSection,
   children,
 }: AppProvidersProps) {
   const { t } = useTranslation();
@@ -79,7 +94,14 @@ export function AppProviders({
             <GlobalShortcuts {...shortcuts} />
             <AudioProvider dataService={dataService}>
               <TimerHost dataService={dataService}>
-                <RightSidebarProvider>{children}</RightSidebarProvider>
+                <RightSidebarProvider>
+                  <TourProvider
+                    currentSection={currentSection}
+                    onNavigateToSection={onNavigateToSection}
+                  >
+                    {children}
+                  </TourProvider>
+                </RightSidebarProvider>
               </TimerHost>
             </AudioProvider>
           </ShortcutConfigHost>

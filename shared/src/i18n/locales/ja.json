@@ -1005,5 +1005,17 @@
       "noUpcoming": "この先の予定はありません",
       "tomorrowTag": "明日"
     }
+  },
+  "tour": {
+    "dialogLabel": "チュートリアルのステップ",
+    "next": "次へ",
+    "done": "完了",
+    "skip": "スキップ",
+    "progress": "{{current}} / {{total}}",
+    "waitingForAction": "実際に操作すると次に進みます",
+    "steps": {
+      "briefingIntro": "ここが朝刊です。その日の予定・メモ・残っている項目が 1 ページにまとまります。起動したとき最初に開く画面です。",
+      "materialsCapture": "ここから追加します。Todo・ノート・デイリーはすべてこのボタンから始まります。"
+    }
   }
 }
