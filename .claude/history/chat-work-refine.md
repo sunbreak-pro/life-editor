@@ -1,5 +1,23 @@
 # HISTORY (chat-work-refine)
 
+### 2026-08-27 - #1116 タイマーの `Untitled todo` 自動生成を止め、Todo ID の形を固定した
+
+#### 概要
+
+Work で Linked Todo を `No Todo` のまま Start すると実 DB に `Untitled todo` が 1 件作られていた（#994 の計測で判明）。これは #882 で意図的に入れた挙動だが、「Todo に紐付けず回す」がタイマーの普通の使い方なので、既定操作のたびに Todo リストへゴミが積まれる形になっていた。加えてその ID が `task-<uuid>` で、CLAUDE.md §4 の TodoNode 不変式（`task-<timestamp+counter>`）から外れていた。両方直した。PR #1143 open（Closes #1116・merge = 人手 P-001）。
+
+#### 変更点
+
+- **`shared/src/context/TimerContext.tsx`**: `startSession` の mint 経路を丸ごと撤去し、`startTimerSession(phase, todoId ?? undefined)` の 1 本に。`untitledTodoTitle` prop も削除（`web/src/TimerHost.tsx` の `useTranslation` ごと不要に）。i18n `work.todoSelector.untitled` は他に参照が無いので en / ja 両方から削除
+- **DDL 変更なし（判断の根拠）**: `timer_sessions.task_id` は `text`（NOT NULL でなく FK も無い — `supabase/migrations/0018_timer_audio_tables.sql:163`）。「セッションを作るために Todo が要る」という制約は元から存在せず、null で素直に入る
+- **ID 不変式**: 正しい生成器は `useTodoTreeAPI.ts` 内の module-local `generateId(type)` だけに存在し、外から呼べなかった。だから他経路は名前が似ている `utils/generateId.ts` の `generateId("task")`（= `task-<uuid>`）に手が伸びていた。前者を `generateTodoId` として `utils/generateId.ts` へ移し export、フックはそれを使う形に
+- **スコープ外を 1 箇所だけ塞いだ**: `web/src/briefing/hooks/useBriefingWrites.ts` の朝刊クイック作成が同じ `generateId("task")` を呼ぶ唯一の残りだった。Issue 本文の「Todo を作る経路は必ず通す」に該当するため同 PR で切替（PR 本文に明記）
+- **本番 DB の実測**（Issue が要求した確認）: `role='task'` かつ `id !~ '^task-[0-9]+$'` は #1116 報告の 1 行のみ（`task-7df08c2d-…`・既にソフトデリート済み）。他は退役済みの `folder-*` 9 行。データ側の後始末は不要
+- **テスト**: `timerUntitledTodo.test.tsx` → `timerUnattributedStart.test.tsx` に反転（作らない / `task_id = null` で開く / チップが空のまま / 選択済みは素通し / 休憩も同様）。`generateTodoId.test.ts` 新規 4 件（形・単調増加・時計シード・`generateId("task")` では満たさないこと）。`web/tests/workScreenActions.test.tsx` の該当ケースも反転（`createTodo` は `WRITE_METHODS` に含まれるので `expectOnlyWrite` がそのまま「他は何も書いていない」を担保する）
+- **失われたもの（PR 本文にも明記）**: #882 の目的（未紐付けの時間に名前を付ける）は撤回され、Analytics 上は再び無名の `__none__` にまとまる。両立が要るなら `timer_sessions.label`（既存の空き列）を使う別案になる
+- **検証**: CI の `verify` ジョブと同じステップ列をローカルで全通し — shared lint / build / typecheck:tests / test 2551、web lint / build / typecheck:tests / test 849、desktop typecheck / test / build、mcp-server build / typecheck:tests / test 318、`bash scripts/docs-lint.sh` OK。すべて exit 0
+- **未検証**: 実ブラウザ確認は worktree では回さない規約（§7.4）。merge 後 chat-main の宿題
+
 ### 2026-08-16 - #946 Pomodoro Settings の 2 列で入力欄の縦位置が揃わない
 
 #### 概要
@@ -59,18 +77,4 @@ fullscreen（Mobile）のタイマー面だけ操作列が Desktop より大き�
 - **grep 0 件化**: 説明文として `window.confirm` を含んでいたコメント 5 ファイル分を言い換え（`ConfirmDialog.tsx` / `components/index.ts` / `TagEditModal.tsx` / `CalendarTab.tsx` / `unsavedCloseGuard.ts`）。禁止が grep で機械的に確認できる状態にするため。挙動変更なし
 - **検証**: shared lint（0 error）/ build / test 1980、web lint / build / test 275、`scripts/docs-lint.sh` OK — すべて exit 0。実ブラウザ確認（リセットのキャンセルで何も消えない）は merge 後 chat-main（§7.4）
 
-### 2026-08-10 - #590 Layout Standard v2 adoption（work）
-
-#### 概要
-
-work セクションの Layout Standard v2 採用。Issue の前提「WorkScreen に SectionHeader 参照がゼロ」は見るファイルが違っただけで、標準ヘッダーは既に出ていた（`web/src/MainScreen.tsx:312` の既定分岐がタブ帯を持たないセクション全部に `title=section.work` 付き `<SectionHeader>` を渡している）。残っていた「タイマー面との縦の余白・視覚的な重複の調整」だけを実施し PR #641 で提出（open・merge = 人手 P-001）。
-
-#### 変更点
-
-- **カードスタックのリズム統一**: wide 分岐の `gap-4` → `gap-6`。先に v2 を採用した Settings（`SettingsScreen.tsx:160`）/ Trash（`TrashScreen.tsx:174`）と同値で、work だけが孤立値だった（P-006 = 余白のミクロ判断は既存パターン踏襲）。スタック自身は最初のカードの上に padding を足さないため、ヘッダー行と PageContainer の `py-6` が二重取りにならないことを確認
-- **stale コメント解消**: ファイル冒頭の `width="reading"` 中央寄せの記述が #210/#305 の wide 統一で古くなっていた分（v2 計画 Worklog が「adoption で解消」と明記していた宿題）
-- **テスト新規 3 件**（`web/tests/workScreenLayout.test.tsx`）: body がセクション名をどこにも出さない（画面上の heading は shell の 1 つだけ）/ `PomodoroSettings` が detail panel で開閉し body 側に出ない / 768px 未満でタスクピッカーと設定が両方到達可能。timer は Sync Provider 依存を避けるためローカル stub（#590 のスコープが `TimerContext.tsx` 非接触のため）
-- **非変更の確認**: `SectionHeader` 本体・`AppShell.tsx` の diff ゼロ（DoD）。i18n 差分ゼロ
-- **検証**: shared lint（0 error）/ test 1512 / build、web lint / build / test 127 — すべて exit 0。余白の見た目確認は jsdom にレイアウトが無いため merge 後 chat-main（§7.4）
-
-> 2026-07 のエントリ（#181 の 2 件）は `archive/2026-07/chat-work-refine.md` へ移動。
+> 2026-07 のエントリ（#181 の 2 件）は `archive/2026-07/chat-work-refine.md`、#590 は `archive/2026-08/chat-work-refine.md` へ移動。

@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
-- #946 Pomodoro Settings の 2 列でラベル行数が違うと入力欄が揃わない ✅（2026-08-16）: **PR #984 open**（Closes #946・merge = 人手 P-001）。grid セルの高さを使う構造修正（フィールドに `h-full` + キャプションに `grow`）で、en / ja のどちらでラベルが何行に折り返しても入力欄が下端で揃う。ピクセル固定は不採用
-- #882 Todo 未選択でタイマー開始したら「無題のTodo」を自動作成 ✅（2026-08-15）: **PR #907 open**（Closes #882・merge = 人手 P-001）。WORK を Todo 未選択で開始したら本物の Todo を 1 件作って紐付け、activeTodo にも据える。休憩では作らない / 作成失敗でもセッション行は残す、の 2 つを意図的な境界としてテストで固定
-- #881 Mobile のスタート / 停止アイコンが上下と被る ✅（2026-08-15）: **PR #904 open**（Closes #881・merge = 人手 P-001）。fullscreen の操作列を Desktop 相当へ（メイン 72→56px・左右 52→44px）。縮小幅はユーザー確定（選択肢提示で「Desktop 相当まで落とす」）
+- #1116 リンク先 Todo 未選択のタイマー開始で `Untitled todo` が自動生成される（ID も §4 違反） ✅（2026-08-27）: **PR #1143 open**（Closes #1116・merge = 人手 P-001）。#882 で入れた mint を撤去し `task_id = null` で記録（`timer_sessions.task_id` は nullable + FK なしで **DDL 変更なし**）。ID 側は `useTodoTreeAPI` の private 生成器を `generateTodoId` として shared util へ出し、朝刊クイック作成の `generateId("task")` も切替。本番の UUID task 行は報告済みの 1 件（削除済み）のみで後始末不要
+- #946 Pomodoro Settings の 2 列でラベル行数が違うと入力欄が揃わない ✅（2026-08-16）: **PR #984 merged**（Closes #946）。grid セルの高さを使う構造修正（フィールドに `h-full` + キャプションに `grow`）で、en / ja のどちらでラベルが何行に折り返しても入力欄が下端で揃う。ピクセル固定は不採用
+- #882 Todo 未選択でタイマー開始したら「無題のTodo」を自動作成 ✅（2026-08-15）: **PR #907 merged**（Closes #882）。→ **#1116 で撤回**（既定操作でゴミ行が増える方が害が大きい、とユーザー判断）
 
 ## 予定
 
