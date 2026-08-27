@@ -15,7 +15,6 @@
 
 - **🛑 こうだいさん手番が 2 件たまっている**（どちらも Supabase ダッシュボード）: ① #919 = Authentication → URL Configuration に公開 Web URL を登録 / Reset Password テンプレートの確認 / 実際に 1 通届くかの実測 ② #956 = Sign In / Providers → Email → **Minimum password length を 6 → 12**（手順は PR #967 本文）
 - **判断キューに 1 件積んだ（未回答）**: D-20260827-shared-fix-1 = ツアーの進捗を localStorage のままにするか、`tour_progress` テーブル + DataService ドメインを増やすか。放置時は A（PR #1154 は A で出してある）。差し替え先は `shared/src/hooks/useTourProgress.ts` の 1 ファイルに閉じてある
-- **#1134 の実機確認が未消化**: Issue は「実機確認が必須・机上検証だけで close しない」と書いていたが、こうだいさんが PR merge と同時に close した。iOS 実機（Safari + ホーム画面 PWA）でタップ時に拡大しないこと / ピンチズームが効くこと / フォントサイズ最小でも 16px を割らないこと / 日本語 IME が壊れていないことは未確認のまま
 - **#1122 は「まだ画面に何も出ない」状態で merge される**: `autoStart` 既定 false、shipping した 2 ステップの `data-tour-id` はどの要素にも付いていない（Scope が「付与は各セクション Issue 側」と明記）。Epic #1121 の子 Issue が anchor を足して初めて動く
 - **chat-main の手番（実機確認）**: #992 = PR #1127 merged 後の Kanban ドラッグの当たり判定。#947 / #874 / #880 の実機確認も未消化のまま
 - 自分宛で残っている open Issue: **#1115**（Briefing がエディタを即時マウントして RichTextEditor chunk が初回ロードに入る — #994 の実測由来。#1114 と同じレポートの別項）
