@@ -294,6 +294,7 @@
       "quickAddSubmit": "Add",
       "lockedHint": "This note is locked",
       "mainEmpty": "Select a note or create a new one",
+      "recentHeading": "Recently opened",
       "untagged": "No tag",
       "collapseGroup": "Collapse group",
       "expandGroup": "Expand group",
