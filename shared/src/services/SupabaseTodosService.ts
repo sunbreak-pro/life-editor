@@ -68,6 +68,16 @@ import { requireSingleRow, requireRowPair } from "./postgrestSingle";
  *     is the Todo side. NOTE the role literal is "task", not "todo" — the
  *     domain was renamed but the discriminator value stayed put (#831).
  *
+ *   - #1139 role guard on every items_meta DELETE: the same exposure one
+ *     notch heavier, and the half #1099 did not cover. A wrong UPDATE
+ *     stamps a row and can be stamped back; a wrong DELETE removes the row
+ *     and takes its tasks_payload with it through the 0008 ON DELETE
+ *     CASCADE, and there is nothing left to correct. #1098 (PR #1113)
+ *     closed the Event/Routine half of the delete surface; this is the
+ *     Todo half. Both DELETE sites below carry `.eq("role", "task")`, and
+ *     todoMetaRoleGuard.test.ts pins that as a census rather than a sample
+ *     so a delete added later cannot quietly skip it.
+ *
  * migrateTodosToBackend is a deliberate no-op on web (Supabase-native;
  * nothing to migrate). Kept to satisfy the DataService interface.
  */
@@ -237,7 +247,21 @@ export class SupabaseTodosService implements TodosDataService {
       // R2 hard-delete: remove the orphan meta. A failure here is
       // logged via the thrown error context but does NOT mask the
       // original payload-INSERT failure (rethrow err, not cleanupErr).
-      await this.client.from("items_meta").delete().eq("id", meta.id);
+      //
+      // The role filter (#1139) cannot change the outcome at this site:
+      // `meta.id` was minted by this very call and the row it addresses was
+      // inserted three statements up with role='task', so no other role can
+      // be sitting on that id. It is written anyway so that "every
+      // items_meta DELETE names its role" stays a rule a reader can check
+      // rather than one carrying a remembered exception. What it DOES buy is
+      // the opposite failure mode: a typo'd filter here leaves the orphan
+      // behind, which is the exact R2 violation this cleanup exists to
+      // prevent — so the test for it asserts the orphan is really gone.
+      await this.client
+        .from("items_meta")
+        .delete()
+        .eq("id", meta.id)
+        .eq("role", "task");
       throw err;
     }
   }
@@ -384,6 +408,28 @@ export class SupabaseTodosService implements TodosDataService {
    * also purged in a single call. tasks_payload rows are cleaned up by
    * the 0008 ON DELETE CASCADE FK to items_meta — only items_meta
    * needs explicit DELETE statements.
+   *
+   * #1139 role guard — and unlike the UPDATE paths, this one is NOT already
+   * protected by the pool it just read. `collectDescendantIds` seeds its
+   * result with `id` ITSELF before it ever consults the pool, so the
+   * caller-supplied id reaches the loop below even though both fetches filter
+   * role='task' and neither of them saw it. That is the Trash race #1139
+   * describes: device B restores a trashed Todo and converts it to an Event
+   * (conversion keeps the id — D-20260810-sched-2), device A's stale Trash
+   * list still offers "delete permanently", and without the role in the WHERE
+   * clause that one click hard-deletes the Event's items_meta row and its
+   * events_payload with it. With the filter it is a zero-row miss, which
+   * PostgREST reports as a plain success — the right outcome for an
+   * operation aimed at a row the caller no longer owns.
+   *
+   * Descendants can only enter `idsToDelete` through the role-filtered pool,
+   * so for them the guard closes a narrower window: a child converted between
+   * the read and its own DELETE is spared. If that child's tasks_payload row
+   * is still around (conversion's payload drop is best-effort), the 0009
+   * composite FK is ON DELETE NO ACTION and the PARENT's DELETE is rejected
+   * — the purge throws instead of completing. That is the same trade #1098
+   * took for permanentDeleteRoutine and for the same reason: a refused purge
+   * leaves a diagnosable leftover, a cross-role hard delete leaves nothing.
    */
   async permanentDeleteTodo(id: string): Promise<void> {
     const [live, deleted] = await Promise.all([
@@ -400,7 +446,8 @@ export class SupabaseTodosService implements TodosDataService {
       const { error } = await this.client
         .from("items_meta")
         .delete()
-        .eq("id", did);
+        .eq("id", did)
+        .eq("role", "task");
       if (error)
         throw new Error(`permanentDeleteTodo ${did}: ${error.message}`);
     }
