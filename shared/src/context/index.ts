@@ -164,3 +164,12 @@ export {
   UndoRedoContext,
   type UndoRedoContextValue,
 } from "./UndoRedoContextValue";
+
+// Tour (#1122): Pattern A. REQUIRED global-layer Provider — a tour crosses
+// sections, and a section-layer Provider is torn down on the very navigation
+// the tour asks for. Mounts innermost in the global chain (inside
+// RightSidebar) so the overlay is a shell-level sibling of the palette. The
+// section switch is injected (currentSection / onNavigateToSection): shared
+// must not reach into web's navigation.
+export { TourProvider, type TourProviderProps } from "./TourContext";
+export { TourContext, type TourContextValue } from "./TourContextValue";

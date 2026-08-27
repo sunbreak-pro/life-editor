@@ -683,3 +683,17 @@ export {
 // key gets annotated with, so a key that reaches t() through a variable is
 // checked where it is written down.
 export type { TranslationKey } from "./i18n/resources";
+// #1122 — the tutorial tour's position. REQUIRED Provider (throws outside it),
+// unlike the Mobile 省略 ones: a step whose control is absent on a phone is
+// handled by the anchor fallback, not by dropping the Provider.
+export {
+  TourProvider,
+  type TourProviderProps,
+  TourContext,
+  type TourContextValue,
+} from "./context";
+export { useTourContext } from "./hooks/useTourContext";
+// Tour progress persistence (#1122). The single place that knows WHERE the
+// position is stored — see the file header for why that is localStorage and
+// not DataService today.
+export { useTourProgress, parseTourProgress } from "./hooks/useTourProgress";

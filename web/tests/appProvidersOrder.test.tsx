@@ -36,6 +36,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   ShortcutConfigProvider: h.marker("ShortcutConfig"),
   AudioProvider: h.marker("Audio"),
   RightSidebarProvider: h.marker("RightSidebar"),
+  TourProvider: h.marker("Tour"),
 }));
 vi.mock("../src/UndoRedoHost", () => ({ UndoRedoHost: h.marker("UndoRedo") }));
 vi.mock("../src/TimerHost", () => ({ TimerHost: h.marker("Timer") }));
@@ -61,6 +62,8 @@ function renderChain() {
         onTogglePalette: vi.fn(),
         onNewTodo: vi.fn(),
       }}
+      currentSection="briefing"
+      onNavigateToSection={vi.fn()}
     >
       <span data-testid="leaf" />
     </AppProviders>,
@@ -88,7 +91,10 @@ describe("AppProviders", () => {
     // Audio OUTSIDE Timer is the load-bearing pair: the Timer's
     // onSessionComplete rings a chime that Audio owns, so a swap here brings
     // the ref back-channel with it. RightSidebar innermost is what lets the
-    // shell and its palette/tag-editor siblings all portal into the panel.
+    // shell and its palette/tag-editor siblings all portal into the panel,
+    // and Tour inside THAT (#1122) is what puts the tour overlay in the same
+    // shell-level band as the palette — it reads the section switch from
+    // props, and nothing reads it, so it is the one that can go last.
     expect(providersAround(screen.getByTestId("leaf"))).toEqual([
       "Toast",
       "Sync",
@@ -97,6 +103,7 @@ describe("AppProviders", () => {
       "Audio",
       "Timer",
       "RightSidebar",
+      "Tour",
     ]);
   });
 
@@ -118,7 +125,10 @@ describe("AppProviders", () => {
     const chain = providersAround(screen.getByTestId("leaf"));
     expect(chain).not.toContain("ShortcutConfig");
     // Audio is deliberately NOT gated — the completion chime is part of the
-    // Mobile-Full work timer (mobile-scope.md #10/#11).
+    // Mobile-Full work timer (mobile-scope.md #10/#11). Tour is not gated
+    // either (#1122): it is not on the mobile omission roster, and a step
+    // whose control is absent on a phone is handled by the anchor fallback
+    // rather than by tearing the Provider out.
     expect(chain).toEqual([
       "Toast",
       "Sync",
@@ -126,6 +136,7 @@ describe("AppProviders", () => {
       "Audio",
       "Timer",
       "RightSidebar",
+      "Tour",
     ]);
     // The executor still mounts; it goes inert via the optional hook rather
     // than disappearing.

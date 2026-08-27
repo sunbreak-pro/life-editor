@@ -427,3 +427,8 @@ export * from "./materials";
 // Notes (life-tags unification S1) — pure tag-heading grouping (buildTagGroups)
 // for the Notes side list. UI-free: the interactive list + DnD stay host-side.
 export * from "./notes";
+// Tutorial tour (#1122) — the step vocabulary + registry, the data-tour-id
+// anchor helpers, and the spotlight/bubble primitive. Pure presentation: the
+// overlay takes every piece of state and all copy as props (§6.4); the
+// Provider that owns the position lives in ../context/TourContext.
+export * from "./tour";

@@ -1007,5 +1007,17 @@
       "noUpcoming": "Nothing coming up",
       "tomorrowTag": "Tomorrow"
     }
+  },
+  "tour": {
+    "dialogLabel": "Tutorial step",
+    "next": "Next",
+    "done": "Done",
+    "skip": "Skip",
+    "progress": "{{current}} / {{total}}",
+    "waitingForAction": "Try it to continue",
+    "steps": {
+      "briefingIntro": "This is your briefing — the day's plan, notes and open items in one page. It is what opens when you launch the app.",
+      "materialsCapture": "Add something here. Todos, notes and daily entries all start from this one button."
+    }
   }
 }

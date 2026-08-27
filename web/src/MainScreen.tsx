@@ -28,6 +28,7 @@ import { MobileShellActions } from "./MobileShellActions";
 import { NarrowHeaderRow } from "./NarrowHeaderRow";
 import { SECTION_DESCRIPTORS, type TabBandId } from "./sectionDescriptors";
 import { useShellNavigation } from "./hooks/useShellNavigation";
+import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
 
@@ -328,6 +329,8 @@ export function MainScreen({ session }: { session: Session }) {
         onTogglePalette: () => setPaletteOpen((v) => !v),
         onNewTodo: nav.handleNewTodo,
       }}
+      currentSection={section}
+      onNavigateToSection={setSection}
     >
       {/*
        * W5 app shell — responsive single shell (wide sidebar ↔ narrow bottom
@@ -417,6 +420,15 @@ export function MainScreen({ session }: { session: Session }) {
         onClose={() => setTagEditorOpen(false)}
         dataService={ds}
       />
+
+      {/*
+       * Tutorial tour overlay (#1122), mounted beside the palette for the same
+       * reason: it has to be able to open over any section, and the tour walks
+       * between them. Renders nothing until a step's anchor resolves, which is
+       * why it is safe to mount before the sections carry their data-tour-id
+       * attributes.
+       */}
+      <TourHost />
     </AppProviders>
   );
 }
