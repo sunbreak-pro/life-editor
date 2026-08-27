@@ -11,7 +11,11 @@ import {
   type ItemsMetaRoutineRow,
   type RoutinesPayloadRow,
 } from "./routineMapper";
-import { fetchAllPages, forEachIdChunk } from "./postgrestFetchAll";
+import {
+  fetchAllPages,
+  forEachIdChunk,
+  forEachIdChunkReturning,
+} from "./postgrestFetchAll";
 import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
@@ -175,6 +179,11 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    *      a half-converted routine+seed pair. A pre-attach bump that never
    *      reaches the attach is a harmless spurious cursor advance (the
    *      seed's payload is unchanged).
+   *      The order carries a second job since #1140: the bump is `.eq("role",
+   *      "event")` AND reads its row count back, so it is the only place the
+   *      conversion checks that the seed is still an event. Running it first
+   *      is what keeps the role-blind attach from ever touching a row that
+   *      stopped being one.
    *   3. Attach the seed: events_payload.routine_item_id + source_date :=
    *      the seed's own day (the (routine, source_date) partial UNIQUE then
    *      treats the seed as that day's occurrence, so the generator will
@@ -210,13 +219,30 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     );
     try {
       const now = new Date().toISOString();
-      const { error: mErr } = await this.client
+      // #1140: the bump reads its own row count, which makes this write the
+      // ROLE GATE for the whole conversion — the attach below filters on
+      // item_id + `.is("routine_item_id", null)` and never looks at the role,
+      // so nothing downstream can tell an event from a former event. Checking
+      // `mErr` alone let a zero-row match fall through silently: a seed already
+      // re-roled to 'task' by convertEventToTodo missed the bump, and the
+      // attach then bound the routine to the stray events_payload row that a
+      // half-finished conversion leaves behind (§10.5). The conversion reported
+      // SUCCESS and produced a routine no purge could ever remove — the 0011
+      // composite FK is NO ACTION, and permanentDeleteRoutine's step 2 deletes
+      // `role='event'` rows, so it can never clear a reference held by a
+      // role='task' row. Same shape as SupabaseItemConversionService.reRole.
+      const { data: bumped, error: mErr } = await this.client
         .from("items_meta")
         .update({ updated_at: now })
         .eq("id", eventId)
-        .eq("role", "event");
+        .eq("role", "event")
+        .select("id");
       if (mErr)
         throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
+      if (!bumped || bumped.length === 0)
+        throw new Error(
+          `convertEventToRoutine meta bump: seed ${eventId} is not a live "event" item (already converted to a Todo, or removed)`,
+        );
       // #407 double-conversion guard: attach ONLY while the seed is still
       // unattached. The host decides manual-vs-series on its (async,
       // clobberable) optimistic routineId, so a second conversion for the
@@ -636,26 +662,30 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    *       throw`, D-20260810-sched-5). A null link references no routine, so
    *       the NO ACTION FK has nothing to hold and no purge can wedge yet.
    *   (b) convertEventToRoutine then ATTACHING a routine to that leftover, at
-   *       which point it does. Its meta bump above is `.eq("role","event")`
-   *       but only checks `mErr`, so a zero-row match on an already-converted
-   *       id falls through silently; the attach that follows filters on
-   *       item_id and `.is("routine_item_id", null)` — which is exactly what a
-   *       route-(a) leftover looks like — and never looks at the role. The
-   *       conversion reports SUCCESS, and the routine it created is one that
-   *       can never be purged.
+   *       which point it does. Its meta bump used to check only `mErr`, so a
+   *       zero-row match on an already-converted id fell through silently; the
+   *       attach that follows filters on item_id and `.is("routine_item_id",
+   *       null)` — which is exactly what a route-(a) leftover looks like — and
+   *       never looks at the role. The conversion reported SUCCESS, and the
+   *       routine it created was one that could never be purged.
    * So (b) is not a second way in, it is the second half of the only way in —
-   * which means fixing it closes this hazard completely rather than narrowing
-   * it. Queued as a follow-up (check the bump's row count the way
-   * SupabaseItemConversionService.reRole already does); out of #1098's DELETE
-   * scope, not out of mind.
+   * which is why CLOSING it closes this hazard completely rather than
+   * narrowing it. #1140 did that: the bump now reads its row count back and
+   * refuses a seed that is no longer an event, so nothing can attach a routine
+   * to a role='task' row any more. Step 2 below therefore has no reachable
+   * producer left — keep its guard anyway, because "no producer" is a claim
+   * about today's call graph, not an invariant the database enforces.
    *
-   * KNOWN ROUGH EDGE, ALSO DEFERRED: when this fires, the caller gets
-   * Postgres's raw `violates foreign key constraint` text from step 3 rather
-   * than something naming the spared occurrence. The fix is for step 2 to
-   * `.select("id")` what it actually removed and throw a named error before
-   * step 3 runs — deliberately not done here because it would require
-   * reshaping permanentDeleteRoutine.test.ts's mock, which is outside this
-   * Issue's file scope (P-008).
+   * WHAT STEP 2 SAYS WHEN IT DOES MISS (#1140): it reads back the ids it
+   * actually removed and throws naming the survivors, instead of letting step
+   * 3 surface Postgres's raw `violates foreign key constraint`. Reporting is
+   * the whole product here — the purge already refused either way. Note the
+   * one false alarm this accepts: an occurrence hard-deleted by someone else
+   * between step 1's read and step 2's write is also a shortfall, and it
+   * throws even though the FK is clear. That window is sub-millisecond in a
+   * single-user app and a retry re-reads step 1 and succeeds, which is a
+   * cheaper trade than an extra round trip on every purge to tell the two
+   * apart.
    */
   async permanentDeleteRoutine(id: string): Promise<void> {
     // 1. Collect event items_meta ids that reference this routine
@@ -684,7 +714,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     //    bought no ordering guarantee and cost a round trip per occurrence,
     //    so a routine with 500 occurrences took 500 of them.
     if (eventIds.length > 0) {
-      await forEachIdChunk(
+      const removed = await forEachIdChunkReturning<{ id: string }>(
         eventIds,
         // role='event', not 'routine': these ids came out of events_payload,
         // so what step 2 removes is the OCCURRENCES. The two steps carrying
@@ -695,9 +725,21 @@ export class SupabaseRoutinesService implements RoutinesDataService {
             .from("items_meta")
             .delete()
             .in("id", chunk)
-            .eq("role", "event"),
+            .eq("role", "event")
+            .select("id"),
         "permanentDeleteRoutine events",
       );
+      if (removed.length !== eventIds.length) {
+        const gone = new Set(removed.map((r) => r.id));
+        const spared = eventIds.filter((eventId) => !gone.has(eventId));
+        // Name a handful, not all of them: a long-lived routine can spare
+        // hundreds and the message is read in a console line.
+        const sample = spared.slice(0, 5).join(", ");
+        const rest = spared.length > 5 ? `, +${spared.length - 5} more` : "";
+        throw new Error(
+          `permanentDeleteRoutine events: ${spared.length} of ${eventIds.length} occurrence(s) referencing routine ${id} were not removed (${sample}${rest}) — they are no longer role='event', so the 0011 composite FK would block the purge`,
+        );
+      }
     }
 
     // 3. Hard-delete the routine items_meta row. routines_payload
