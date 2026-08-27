@@ -84,7 +84,6 @@ async function renderTimer(opts: {
   render(
     <TimerProvider
       dataService={makeDS({ autoStartBreaks: opts.autoStartBreaks })}
-      untitledTodoTitle="Untitled todo"
       onSessionComplete={opts.onSessionComplete}
     >
       <Probe />

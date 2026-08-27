@@ -655,7 +655,7 @@ export {
 // #376: hosts that write a row through the injected DataService (rather than
 // through a domain Provider) need the canonical id shape too — the Schedule
 // creation panel creates a Note without mounting the Notes Provider.
-export { generateId } from "./utils/generateId";
+export { generateId, generateTodoId } from "./utils/generateId";
 // Fair-share truncation for the role-concatenated "[[" candidate pool (#370).
 export { balanceByRole } from "./utils/balanceByRole";
 // The one IME guard every keydown handler asks (#737) — web has its own

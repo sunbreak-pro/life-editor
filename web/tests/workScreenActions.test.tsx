@@ -113,10 +113,7 @@ async function renderWork(): Promise<Harness> {
   const harness = makeHarness();
   render(
     <SyncWrapper>
-      <TimerProvider
-        dataService={harness.ds}
-        untitledTodoTitle="work.todoSelector.untitled"
-      >
+      <TimerProvider dataService={harness.ds}>
         <WorkScreen dataService={harness.ds} />
       </TimerProvider>
     </SyncWrapper>,
@@ -165,28 +162,22 @@ describe("WorkScreen — starting logs the session the chip names", () => {
     press("work.controls.start");
 
     await waitFor(() => expect(fns.startTimerSession).toHaveBeenCalled());
-    // The id comes from the picked row, and nothing is minted — the whole
-    // point of having picked one (#882).
+    // The id comes from the picked row — the whole point of having picked one.
     expectOnlyWrite(fns, "startTimerSession", ["WORK", "task-1"]);
   });
 
-  it("start with nothing picked mints a todo and logs against THAT id", async () => {
+  it("start with nothing picked logs the session and creates NO todo", async () => {
     const { fns } = await renderWork();
 
     press("work.controls.start");
 
     await waitFor(() => expect(fns.startTimerSession).toHaveBeenCalled());
-    // #882: an unattributed WORK row would land in Analytics' nameless pile,
-    // so a placeholder todo is created first and the session carries its id.
-    expect(fns.createTodo).toHaveBeenCalledTimes(1);
-    // The placeholder is a real root-level task carrying the host's own title,
-    // so it shows up under its own name in Analytics and can be renamed.
-    expect(fns.createTodo.mock.calls[0][0]).toMatchObject({
-      type: "task",
-      title: "work.todoSelector.untitled",
-      parentId: null,
-    });
-    expect(fns.startTimerSession.mock.calls).toEqual([["WORK", "task-minted"]]);
+    // #1116: this used to mint an "Untitled todo" first (#882) so Analytics had
+    // a name for the hour. Starting without picking a todo is the ordinary way
+    // to use the timer, so that put a junk row in the real list every time.
+    // The session is logged with a null task_id instead — createTodo is a
+    // WRITE_METHOD, so expectOnlyWrite is what pins that nothing else fired.
+    expectOnlyWrite(fns, "startTimerSession", ["WORK", undefined]);
   });
 
   it("only picking a todo writes nothing at all", async () => {

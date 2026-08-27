@@ -185,8 +185,7 @@
       "clear": "Clear todo",
       "select": "Choose a todo",
       "clearSelection": "Clear selection",
-      "emptyHint": "No todos to link. Create a todo in Schedule to select one.",
-      "untitled": "Untitled todo"
+      "emptyHint": "No todos to link. Create a todo in Schedule to select one."
     },
     "completion": {
       "title": "Session {{index}} complete",

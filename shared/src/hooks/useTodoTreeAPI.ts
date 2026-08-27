@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import type { TodoNode, TodoNodeType } from "../types/todoTree";
+import type { TodoNode } from "../types/todoTree";
 import type { DataService } from "../services/DataService";
 import { useTodoTreeCRUD } from "./useTodoTreeCRUD";
 import { useTodoTreeDeletion } from "./useTodoTreeDeletion";
@@ -13,6 +13,7 @@ import {
 } from "./useTodoTreeHistory";
 import { logServiceError } from "../utils/logError";
 import { collectDescendantIds } from "../utils/getDescendantTodos";
+import { generateTodoId } from "../utils/generateId";
 import { useDomainLoad } from "./useDomainLoad";
 import { useSyncDomains } from "./useSyncDomains";
 import {
@@ -20,11 +21,6 @@ import {
   setTodoSelection,
   clearTodoSelection,
 } from "../state/materialsSelectionStore";
-
-let idCounter = Date.now();
-function generateId(type: TodoNodeType): string {
-  return `${type}-${++idCounter}`;
-}
 
 /**
  * Options the host injects. The Tauri version reached into a module
@@ -243,7 +239,7 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
-    generateId,
+    generateTodoId,
   );
   const {
     softDelete: rawSoftDelete,
