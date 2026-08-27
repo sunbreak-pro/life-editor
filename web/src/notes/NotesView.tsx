@@ -9,7 +9,6 @@ import {
   RightSidebarPortal,
   EmptyState,
   SkeletonList,
-  QuickAddSheet,
   AddPill,
   cn,
   type NoteSortMode,
@@ -54,10 +53,11 @@ import { useNotePassword } from "./hooks/useNotePassword";
  * never had that hole: `selectNote` hydrates the body BEFORE flipping the id
  * (useNotesUnifiedAPI), so a surface keyed on `selectedNote` cannot open early.
  *
- * Narrow keeps two things of its own: the compact detail `variant` (the sheet's
- * title sizing, not the page-level one), and title-first quick capture — the
- * main toolbar's "+" opens the <QuickAddSheet> instead of creating an untitled
- * note the way the Desktop pill does.
+ * Narrow keeps ONE thing of its own: the compact detail `variant` (the sheet's
+ * title sizing, not the page-level one). Creating is now identical at both
+ * widths — #1147 retired the narrow title-first <QuickAddSheet>, so "+" makes
+ * an Untitled note and opens the editor on a phone exactly as the Desktop pill
+ * always has.
  *
  * Both halves render the SAME derived list (search → tag groups → sort → tag
  * filter) off the same state, so the two breakpoints never disagree (#369).
@@ -150,7 +150,6 @@ export function NotesView({
   // every time they picked a note.
   const [trashOpen, setTrashOpen] = useState(false);
   // Narrow-only: the title-first quick-add sheet.
-  const [addOpen, setAddOpen] = useState(false);
   // The templates surface (#1047), opened from the note detail's kebab.
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -210,14 +209,22 @@ export function NotesView({
     [selectNote, isWide, closeSidebar],
   );
 
-  // Wide creates an untitled note straight into the editor; narrow asks for the
-  // title first, because a phone's create is usually the whole capture (#876
-  // kept the QuickAddSheet the retired mobile list used to raise).
+  // ONE create at both widths (#1147, ユーザー指示): "+" makes an Untitled note
+  // and drops straight into the editor. Narrow used to raise a title-first
+  // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
+  // which put a form between the user and the thing they wanted to write in.
+  // The sheet is gone; `createNote()` with no title falls back to "Untitled"
+  // (useNotesUnifiedCRUD) and selects the new note, so the body is already
+  // mounted when the drawer gets out of the way.
+  //
+  // Closing the drawer is the same move `handleSelectNote` makes and for the
+  // same reason: on narrow it is a modal overlay, so leaving it up would cover
+  // the editor the create just opened.
   const createNote = notes.createNote;
   const handleAddNote = useCallback(() => {
-    if (isWide) createNote();
-    else setAddOpen(true);
-  }, [isWide, createNote]);
+    createNote();
+    if (!isWide) closeSidebar();
+  }, [createNote, isWide, closeSidebar]);
 
   if (notes.isLoading) {
     return (
@@ -395,20 +402,6 @@ export function NotesView({
           Wide: the push-in rightSidebar. Narrow: the hamburger's MobileDrawer,
           which mounts this only while it is open. */}
       <RightSidebarPortal>{sidebarList}</RightSidebarPortal>
-
-      {/* Narrow quick capture: title first, then the note opens in the main
-          area behind this sheet. */}
-      {!isWide && (
-        <QuickAddSheet
-          open={addOpen}
-          onClose={() => setAddOpen(false)}
-          title={t("materials.notes.quickAddTitle")}
-          closeLabel={t("common.close")}
-          placeholder={t("materials.notes.quickAddPlaceholder")}
-          submitLabel={t("materials.notes.quickAddSubmit")}
-          onSubmit={(title) => notes.createNote(title)}
-        />
-      )}
 
       {/* Note templates (#1047). Mounted only with a DataService, since that is
           what the panel reads and writes templates through — they never enter

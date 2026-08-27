@@ -336,7 +336,7 @@ describe("NotesView — mobile (narrow)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("asks for a title first when creating, unlike the desktop pill", () => {
+  it("creates straight into the editor, the way the desktop pill does", () => {
     render(<NotesView />);
 
     // Two create affordances carry this label — the main toolbar pill and the
@@ -345,9 +345,13 @@ describe("NotesView — mobile (narrow)", () => {
     fireEvent.click(
       screen.getAllByRole("button", { name: /materials\.notes\.addCta/ })[0],
     );
-    // Quick capture, not an untitled note straight into the editor.
-    screen.getByRole("dialog", { name: "materials.notes.quickAddTitle" });
-    expect(state.createNote).not.toHaveBeenCalled();
+    // #1147: no title-first sheet in between. `createNote()` takes no title, so
+    // useNotesUnifiedCRUD's "Untitled" fallback names it and selects it.
+    expect(state.createNote).toHaveBeenCalledExactlyOnceWith();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // Same reason selecting closes it: the drawer is a modal overlay, so
+    // leaving it up would cover the note that was just opened.
+    expect(state.close).toHaveBeenCalled();
   });
 
   it("keeps the Links panel to Desktop, where #884 put it", () => {
