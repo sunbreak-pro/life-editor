@@ -1,5 +1,27 @@
 # HISTORY archive (chat-shared-fix) — 2026-08
 
+### 2026-08-16 - #947 標準名の `mobile-web-app-capable` を併記して起動時の常駐警告を消した
+
+#### 概要
+
+Chrome が起動のたびに出していた deprecation 警告 1 件を、`web/index.html` に標準名の meta を **1 行足す**ことで消した（PR #977 open・Closes #947・CLAUDE.md §7.1 の全ゲート緑）。merge はユーザー手番（P-001）。tracker / outbox は `chore/tracker-shared-fix-20260816-3` 側で、実装ブランチには載せていない（D-20260801-main-1 / D-20260802-sched-1）。
+
+なお本セッション冒頭の「回答済み判断 5 件の昇格」は**着手前に完了済みだった**（PR #970 merged）。D ファイル 2 本の内容も指示どおり — `-1` に「#916 / #917 とも merged 済みで追加作業ゼロ」、`-4` に「#956 → PR #967 で着地」が入っていることを実測して確認した。
+
+#### 変更点
+
+- **置き換えではなく併記**にした。警告文が `Please include <meta name="mobile-web-app-capable">` と読めるため apple 版を消す修正を誘うが、**Chrome は標準名しか読まず iOS Safari は apple 版しか読まない**ので、片方を消すとそちらのプラットフォームが standalone 起動を失う。同じ勘違いが再発しないよう、既存の PWA コメントブロックにその理由を 1 段落足した（Issue 本文の「コメントも 1 文添える」に対応）
+- **ビルド後の実測で確認した**: `web/dist/index.html` に `mobile-web-app-capable` / `apple-mobile-web-app-capable` の 2 本が載ることを grep で確認。vite が meta を素通しすることを目で見ておかないと「ソースにはあるが配信物に無い」を見逃す
+
+#### 判明したこと（環境）
+
+- **`$?` をパイプの後ろで読むと嘘をつく**。`npm run test 2>&1 | tail -8 && echo "EXIT: $?"` は `tail` の終了コードを出すため、`desktop` の gate が実際は落ちているのに `EXIT: 0` と表示された。`${PIPESTATUS[0]}` で取り直して初めて赤と分かった。**exit code より出力内容（`passed` / `0 errors`）を先に読む**のが確実
+- **この worktree の `desktop/node_modules` に `vitest` が入っていなかった**（`package.json` には宣言済み = install が古い）。`npm ci` で解消。CI は毎回 `npm ci` するため CI 側は無事だが、他レーンの worktree も同じ穴を抱えている可能性がある（outbox に情報共有として記載）
+
+#### 差分に入れなかったもの（スコープ維持）
+
+同ファイルの PWA meta を一通り棚卸ししたが、Chrome が警告を出すものは他に無し。`apple-mobile-web-app-title` / `-status-bar-style` / `apple-touch-icon` の 3 つは**残すのが正しい**と判断した（いずれも標準側に完全な代替が無いか、古い iOS がそのタグしか読まない）。唯一の要判断は manifest の `theme_color` がライト 1 色固定でダークテーマと食い違う点で、これは outbox へ回して起票判断を chat-main に委ねた。
+
 ### 2026-08-16 - 回答済み判断 5 件の台帳昇格と、#956 パスワード最小長 6 → 12
 
 #### 概要
