@@ -12,6 +12,13 @@
  * Kept in `constants/` rather than in a CSS token because it is consumed by
  * `window.matchMedia`, not by the stylesheet. If a CSS-side breakpoint is
  * ever added, the two must be changed together.
+ *
+ * That happened in #1134: the mobile text-field font floor is a CSS
+ * `@media (max-width: 767px)` block in `styles/tokens.css`, repeated for the
+ * note editor in `web/src/index.css`. A media query cannot read a custom
+ * property, so those two literals cannot be replaced by this constant — they
+ * are pinned to it by `web/tests/fieldFontFloorLockstep.test.ts` instead.
+ * Moving this number means moving those two blocks in the same change.
  */
 
 /** Wide-layout threshold in px. */

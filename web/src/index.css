@@ -63,6 +63,25 @@ body {
   font-size: 0.875rem;
   line-height: 1.6;
 }
+/*
+ * The editor body needs its own copy of the mobile font floor (#1134).
+ *
+ * tokens.css floors `[contenteditable="true"]`, which is what TipTap puts on
+ * this element — but that selector is (0,1,0) and this one is (0,2,0), and both
+ * are unlayered, so the declaration above wins and the note body keeps
+ * auto-zooming on iOS. Repeating the floor here, next to the size it floors, is
+ * the version that actually applies.
+ *
+ * Scoped to the same 767px as tokens.css rather than flooring at every width:
+ * 0.875rem is the deliberate desktop reading size and there is no reason to
+ * grow it there. `.note-editor.daily-editor .ProseMirror` (below) only touches
+ * flex/min-height, so Daily inherits this untouched.
+ */
+@media (max-width: 767px) {
+  .note-editor .ProseMirror {
+    font-size: max(var(--field-font-size-min), 0.875rem);
+  }
+}
 .note-editor .ProseMirror p {
   margin: 0.4em 0;
 }

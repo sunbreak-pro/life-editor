@@ -86,8 +86,15 @@ function NoteTitleInput({
         // date title, 2026-07-19: the only visual difference between Notes and
         // Daily should be the tag/link affordances). Compact "sidebar" keeps the
         // bordered small input.
+        //
+        // `[--field-font-size:28px]` opts this one field out of the mobile font
+        // floor (#1134 / styles/tokens.css). That floor exists to lift fields
+        // ABOVE iOS's 16px auto-zoom trigger, and it resolves to the parent's
+        // size when a field has no override — which would quietly flatten this
+        // heading to body size on a phone. 28px is already well over the
+        // trigger, so the override only has to repeat the size beside it.
         isMain
-          ? "border-none bg-transparent px-0 py-0.5 text-[28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary"
+          ? "border-none bg-transparent px-0 py-0.5 text-[28px] [--field-font-size:28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary"
           : "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium",
         FOCUS_RING,
       )}
