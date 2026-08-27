@@ -36,6 +36,7 @@ const state = vi.hoisted(() => ({
   resetLocalPreferences: vi.fn(),
   updatePassword: vi.fn(),
   getSession: vi.fn(),
+  restartTour: vi.fn(),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -74,6 +75,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       dayStartHour: 4,
       setDayStartHour: state.setDayStartHour,
     }),
+    // A REQUIRED Provider that is not mounted here — useTourContext throws
+    // outside it by design (#1122), so the card's one wire is stubbed like
+    // every other sink on this screen.
+    useTourContext: () => ({ restart: state.restartTour }),
     resetLocalPreferences: state.resetLocalPreferences,
     getSession: state.getSession,
     updatePassword: state.updatePassword,
@@ -94,6 +99,7 @@ const SINKS = [
   "setDayStartHour",
   "resetLocalPreferences",
   "updatePassword",
+  "restartTour",
 ] as const;
 
 const sink = (name: (typeof SINKS)[number]): Mock => state[name];
@@ -207,6 +213,19 @@ describe("SettingsScreen — the preference selects", () => {
     fireEvent.click(screen.getByRole("radio", { name: "settings.japanese" }));
 
     expectOnlySink("setLanguage", ["ja"]);
+  });
+
+  it("tutorial card → the tour's restart, and nothing else", () => {
+    render(<SettingsScreen />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.tutorial.button" }),
+    );
+
+    // The card sits directly above the Reset card and takes the same
+    // heading + one-button shape, so a crossed wire here would wipe the
+    // device's preferences instead of replaying the tour (#1123).
+    expectOnlySink("restartTour", []);
   });
 });
 

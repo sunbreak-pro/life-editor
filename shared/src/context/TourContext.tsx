@@ -60,9 +60,14 @@ export interface TourProviderProps {
    */
   onNavigateToSection?: (section: SectionId) => void;
   /**
-   * Begin on mount when the tour has neither been completed nor skipped.
-   * Default false: the anchors ship with the section Issues, so the host turns
-   * this on once there is something to point at.
+   * Offer the tour on mount when it has neither been completed nor skipped
+   * (#1123 — the web host passes true; see AppProviders).
+   *
+   * Default false so a host that mounts the Provider for its `restart` alone
+   * does not start walking sections behind the user's back. An offered run
+   * that turns out to have nothing to show puts the user back where it found
+   * them (see `startSectionRef`), so turning it on before the section Issues
+   * have added their anchors costs a few frames and nothing else.
    */
   autoStart?: boolean;
   /**
@@ -104,6 +109,23 @@ export function TourProvider({
   /** id of the step currently ON SCREEN, so leaving its section is
    *  distinguishable from never having reached it. */
   const shownStepIdRef = useRef<string | null>(null);
+  const currentSectionRef = useRef(currentSection);
+  /*
+   * Where the user was standing when this run began, and whether the tour has
+   * moved them since. Together they undo a run that showed NOTHING (#1123).
+   *
+   * The probe navigates BEFORE it knows whether the step is displayable —
+   * it has to, since the anchor cannot exist until its section is mounted. So
+   * a tour with no reachable anchors walks the user across every section in
+   * its list and leaves them in the last one, and the host writes each of
+   * those to `life-editor-last-section` on the way (useShellNavigation), which
+   * makes the detour the place the app opens NEXT time too. Harmless while the
+   * tour was opened on purpose from Settings — the user asked for it — but the
+   * auto-start below offers it unprompted on first run, and an offer that
+   * silently relocates the user is worse than no offer.
+   */
+  const startSectionRef = useRef<SectionId | null>(null);
+  const navigatedRef = useRef(false);
 
   // Synced in an effect, not during render (react-hooks/refs — the same shape
   // NoteDetailPanel's onCommitRef uses). `useRef(x)` seeds each one correctly
@@ -114,6 +136,7 @@ export function TourProvider({
     stepsRef.current = steps;
     navigateRef.current = onNavigateToSection;
     progressRef.current = progress;
+    currentSectionRef.current = currentSection;
   });
 
   const stepsKey = stepIds.join(" ");
@@ -158,9 +181,22 @@ export function TourProvider({
       setIndex(0);
       if (shownAnyRef.current) {
         persist({ stepId: null, completed: true, skipped: false });
+      } else {
+        // Nothing was ever displayable. The resume point was never moved (see
+        // `reason`), so the tour is still waiting where it was — and the
+        // sections the probe walked through on the way were never SHOWN to
+        // anyone, so put the user back where the run found them.
+        const back = startSectionRef.current;
+        if (
+          navigatedRef.current &&
+          back &&
+          back !== currentSectionRef.current
+        ) {
+          navigateRef.current?.(back);
+        }
       }
-      // else: nothing was ever displayable. The resume point was never moved
-      // (see `reason`), so the tour is still waiting where it was.
+      startSectionRef.current = null;
+      navigatedRef.current = false;
     },
     [persist],
   );
@@ -171,6 +207,8 @@ export function TourProvider({
     const resumeAt = list.findIndex((s) => s.id === progressRef.current.stepId);
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
+    startSectionRef.current = currentSectionRef.current;
+    navigatedRef.current = false;
     setAnchorElement(null);
     setIndex(resumeAt >= 0 ? resumeAt : 0);
     setIsRunning(true);
@@ -182,6 +220,8 @@ export function TourProvider({
   const restart = useCallback(() => {
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
+    startSectionRef.current = currentSectionRef.current;
+    navigatedRef.current = false;
     setAnchorElement(null);
     setIndex(0);
     setIsRunning(stepsRef.current.length > 0);
@@ -263,6 +303,7 @@ export function TourProvider({
         return;
       }
       navigate(step.section);
+      navigatedRef.current = true;
     }
 
     const deadline = now() + anchorTimeoutMs;
@@ -289,7 +330,20 @@ export function TourProvider({
     };
   }, [anchorTimeoutMs, currentSection, goTo, index, isRunning, pause, stepsKey]);
 
-  /** Auto-start once per mount, when the host asked for it. */
+  /*
+   * Offer the tour once per mount, when the host asked for it (#1123).
+   *
+   * The two end states are read from `progress`, which `useLocalStorage` seeds
+   * SYNCHRONOUSLY in its `useState` initialiser — so "skipped" is already
+   * known on the very first render and a dismissed tour never flashes back on
+   * a reload. Reading it from an effect instead would auto-start first and
+   * learn about the dismissal after.
+   *
+   * `autoStartedRef` makes it once per MOUNT rather than once per session:
+   * `restart()` from Settings clears both flags, and without the latch this
+   * effect would re-fire on that state change and start a second run over the
+   * top of the one the user just asked for.
+   */
   const autoStartedRef = useRef(false);
   useEffect(() => {
     if (!autoStart || autoStartedRef.current) return;
