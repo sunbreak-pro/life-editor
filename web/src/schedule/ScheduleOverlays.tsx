@@ -7,15 +7,16 @@ import {
   Modal,
   QuickCaptureSheet,
   RepeatScopeDialog,
+  TagFilterPanel,
   useTranslation,
   type ConfirmRequest,
   type ItemCreatePanelHandlers,
   type ItemCreatePanelLabels,
   type ItemCreatePanelPools,
   type ScheduleItem,
+  type TagFilterPanelProps,
   type TodoCalendarChip,
 } from "@life-editor/shared";
-import { CalendarView } from "./CalendarView";
 import { todoChipPanelModel } from "./todoChipPanel";
 import type {
   SchedulePopover,
@@ -94,7 +95,12 @@ export interface ScheduleOverlaysProps {
     formatDuration: (minutes: number) => string;
     labels: ItemCreatePanelLabels;
   };
-  calendars: { open: boolean; onClose: () => void };
+  /** #1173 — the tag-filter panel the toolbar's filter button opens. */
+  tagFilter: {
+    open: boolean;
+    onClose: () => void;
+    panel: TagFilterPanelProps;
+  };
   scope: {
     request: { mode: "edit" | "delete" } | null;
     onChoose: ComponentProps<typeof RepeatScopeDialog>["onChoose"];
@@ -111,7 +117,7 @@ export function ScheduleOverlays({
   frames,
   popover,
   create,
-  calendars,
+  tagFilter,
   scope,
   confirm,
 }: ScheduleOverlaysProps) {
@@ -286,12 +292,12 @@ export function ScheduleOverlays({
   return (
     <>
       <Modal
-        open={calendars.open}
-        onClose={calendars.onClose}
-        title={t("scheduleScreen.calendarsTitle")}
+        open={tagFilter.open}
+        onClose={tagFilter.onClose}
+        title={t("scheduleScreen.filterTitle")}
         size="lg"
       >
-        <CalendarView />
+        <TagFilterPanel {...tagFilter.panel} />
       </Modal>
       {bubble}
       {createFrame}

@@ -9,7 +9,7 @@ import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
 import type { NoteNode } from "../types/note";
 
-import type { CalendarNode } from "../types/calendar";
+import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
@@ -174,21 +174,28 @@ export interface AudioDataService {
 }
 
 // ---------------------------------------------------------------------------
-// Calendars — SupabaseCalendarsService
+// Tag groups — SupabaseTagGroupsService
 // ---------------------------------------------------------------------------
 
-export interface CalendarsDataService {
-  fetchCalendars(): Promise<CalendarNode[]>;
-  createCalendar(
+/*
+ * #1173 replaced the `calendars` domain with this one. A calendar was a saved
+ * view over ONE tag; a group is the same saved view over MANY, so the four
+ * methods line up one-for-one and the routing table simply swapped services.
+ * The `calendars` TABLE still exists — dropping it is DDL, which is the
+ * user's gate (CLAUDE.md §7.3) — but nothing reads or writes it any more.
+ */
+export interface TagGroupsDataService {
+  fetchTagGroups(): Promise<TagGroupNode[]>;
+  createTagGroup(
     id: string,
-    title: string,
-    tagId: string,
-  ): Promise<CalendarNode>;
-  updateCalendar(
+    name: string,
+    tagIds: readonly string[],
+  ): Promise<TagGroupNode>;
+  updateTagGroup(
     id: string,
-    updates: Partial<Pick<CalendarNode, "title" | "tagId" | "order">>,
-  ): Promise<CalendarNode>;
-  deleteCalendar(id: string): Promise<void>;
+    updates: { name?: string; tagIds?: readonly string[] },
+  ): Promise<TagGroupNode>;
+  deleteTagGroup(id: string): Promise<void>;
 }
 
 // Calendar Tags domain removed in DU-F Step 3-5 (DB DROPped in DU-C+
@@ -609,7 +616,7 @@ export interface DataService
     TodosDataService,
     TimerDataService,
     AudioDataService,
-    CalendarsDataService,
+    TagGroupsDataService,
     RoutinesDataService,
     ScheduleItemsDataService,
     ItemConversionDataService,

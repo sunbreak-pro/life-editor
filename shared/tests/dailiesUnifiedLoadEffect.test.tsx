@@ -137,10 +137,11 @@ describe("useDailiesUnifiedAPI load effect (#891)", () => {
     renderHook(() => useDailiesUnifiedAPI({ dataService: ds }), { wrapper });
     await waitFor(() => expect(listDailiesUnified).toHaveBeenCalledTimes(1));
 
-    // A note edit or a calendar edit must not re-pull the daily list (#499).
+    // A note edit or an audio-settings edit must not re-pull the daily list
+    // (#499).
     act(() => {
       sync.bump("notes");
-      sync.bump("calendars");
+      sync.bump("audio");
     });
     await act(async () => {});
     expect(listDailiesUnified).toHaveBeenCalledTimes(1);

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type {
-  CalendarNode,
   ScheduleItem,
+  TagGroupNode,
   TodoCalendarChip,
   WikiTagAssignmentUnified,
   WikiTagUnified,
@@ -19,13 +19,15 @@ import type { UseScheduleGridFiltersArgs } from "../src/schedule/useScheduleGrid
  *   1. The lens runs AFTER the repeat filter, and the order decides the
  *      COUNTS. Run it over the unfiltered list and a row the repeat filter
  *      already took away is counted twice, so "N hidden" overshoots.
- *   2. `isWide` gates the membership SET, not each consumer. The chip row that
- *      turns the lens off is Desktop-only, so a window narrowed with a
- *      calendar picked would otherwise leave the grid filtered with nothing on
- *      screen able to clear it.
+ *   2. `isWide` gates the membership SET, not each consumer. The controls that
+ *      turn the lens off are Desktop-only, so a window narrowed with tags
+ *      picked would otherwise leave the grid filtered with nothing on screen
+ *      able to clear it.
  *   3. Turning the repeat filter ON drops a repeat-generated selection (#466).
- *   4. Picking a calendar the selection is not in drops it too (#468) — but
+ *   4. Narrowing the tag set past the selection drops it too (#468) — but
  *      CLEARING the lens keeps it, because clearing hides nothing.
+ *   5. The lit chip is DERIVED from the tag set, never stored beside it
+ *      (#1173), so the two cannot disagree after an untick.
  *
  * Rules 3 and 4 used to be two nearly-identical callbacks sitting 200 lines
  * from the filters they guard, which is how one gets updated without the
@@ -83,11 +85,10 @@ const tag = (id: string): WikiTagUnified => ({
   deletedAt: null,
 });
 
-const calendar = (id: string, tagId: string): CalendarNode => ({
+const group = (id: string, ...tagIds: string[]): TagGroupNode => ({
   id,
-  title: id,
-  tagId,
-  order: 0,
+  name: id,
+  tagIds,
   createdAt: STAMP,
   updatedAt: STAMP,
 });
@@ -107,7 +108,7 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
   const args: UseScheduleGridFiltersArgs = {
     rangeItems: [],
     rangeTodoChips: [],
-    calendars: [],
+    tagGroups: [],
     allTags: [],
     allAssignments: [],
     isWide: true,
@@ -128,7 +129,8 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
 describe("useScheduleGridFilters — rule 1: the counts do not double-count", () => {
   /*
    * One row that BOTH filters would hide: it is repeat-generated AND carries
-   * no calendar tag. Run the lens over the unfiltered list and it is counted
+   * none of the lens's tags. Run the lens over the unfiltered list and it is
+   * counted
    * once by each, so the two "N hidden" lines together claim more rows than
    * the grid is actually missing.
    */
@@ -139,7 +141,7 @@ describe("useScheduleGridFilters — rule 1: the counts do not double-count", ()
     ];
     const { hook } = setup({
       rangeItems,
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [assign("manual-tagged", "tag-1")],
     });
@@ -147,10 +149,10 @@ describe("useScheduleGridFilters — rule 1: the counts do not double-count", ()
     // Both filters on: the repeat row is gone via the repeat filter, and the
     // lens must not report it a second time.
     act(() => hook.result.current.handleToggleRepeats());
-    act(() => hook.result.current.handleSelectCalendar("cal-1"));
+    act(() => hook.result.current.handleSelectGroup("group-1"));
 
     expect(hook.result.current.hiddenRepeats).toBe(1);
-    expect(hook.result.current.hiddenByCalendar).toBe(0);
+    expect(hook.result.current.hiddenByTags).toBe(0);
     // And the one row both filters left alone is what the grid draws.
     expect(hook.result.current.monthItems.map((i) => i.id)).toEqual([
       "manual-tagged",
@@ -160,12 +162,12 @@ describe("useScheduleGridFilters — rule 1: the counts do not double-count", ()
   it("counts a lens-only exclusion normally", () => {
     const { hook } = setup({
       rangeItems: [item("tagged"), item("untagged")],
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [assign("tagged", "tag-1")],
     });
-    act(() => hook.result.current.handleSelectCalendar("cal-1"));
-    expect(hook.result.current.hiddenByCalendar).toBe(1);
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    expect(hook.result.current.hiddenByTags).toBe(1);
     expect(hook.result.current.hiddenRepeats).toBe(0);
   });
 
@@ -175,15 +177,15 @@ describe("useScheduleGridFilters — rule 1: the counts do not double-count", ()
     const { hook } = setup({
       rangeItems: [item("tagged-event")],
       rangeTodoChips: [chip("task-1"), chip("task-2")],
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [
         assign("tagged-event", "tag-1"),
         assign("task-1", "tag-1"),
       ],
     });
-    expect(hook.result.current.calendarChips).toEqual([
-      { id: "cal-1", label: "cal-1", count: 2 },
+    expect(hook.result.current.groupChips).toEqual([
+      { id: "group-1", label: "group-1", count: 2 },
     ]);
   });
 });
@@ -191,44 +193,44 @@ describe("useScheduleGridFilters — rule 1: the counts do not double-count", ()
 describe("useScheduleGridFilters — rule 2: narrow un-narrows everything", () => {
   /*
    * The chip row that turns the lens off renders on Desktop only. A window
-   * narrowed below 768px with a calendar picked would otherwise leave the grid
+   * narrowed below 768px with a group picked would otherwise leave the grid
    * filtered with no way on screen to clear it.
    */
-  it("ignores a picked calendar on narrow", () => {
+  it("ignores a picked group on narrow", () => {
     const shared = {
       rangeItems: [item("tagged"), item("untagged")],
       rangeTodoChips: [chip("task-1")],
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [assign("tagged", "tag-1")],
     };
     const wide = setup({ ...shared, isWide: true });
-    act(() => wide.hook.result.current.handleSelectCalendar("cal-1"));
-    expect(wide.hook.result.current.hiddenByCalendar).toBe(2);
+    act(() => wide.hook.result.current.handleSelectGroup("group-1"));
+    expect(wide.hook.result.current.hiddenByTags).toBe(2);
 
     const narrow = setup({ ...shared, isWide: false });
-    act(() => narrow.hook.result.current.handleSelectCalendar("cal-1"));
+    act(() => narrow.hook.result.current.handleSelectGroup("group-1"));
     // Every layer un-narrows together, chips included.
-    expect(narrow.hook.result.current.hiddenByCalendar).toBe(0);
+    expect(narrow.hook.result.current.hiddenByTags).toBe(0);
     expect(narrow.hook.result.current.monthItems).toHaveLength(3);
   });
 
   /*
-   * Resolving through the SELECTABLE list is what makes a tag deleted
+   * Resolving through the ACTIVE tag list is what makes a tag deleted
    * mid-session degrade to "no filter" rather than an empty grid with no lit
-   * chip to turn off.
+   * chip to turn off. A group left with no live tag is not offered at all.
    */
-  it("degrades to no filter when the calendar's tag is gone", () => {
+  it("degrades to no filter when the group's tags are gone", () => {
     const { hook } = setup({
       rangeItems: [item("a"), item("b")],
-      calendars: [calendar("cal-1", "tag-gone")],
+      tagGroups: [group("group-1", "tag-gone")],
       allTags: [],
       allAssignments: [],
     });
-    act(() => hook.result.current.handleSelectCalendar("cal-1"));
-    expect(hook.result.current.activeCalendar).toBeNull();
-    expect(hook.result.current.hiddenByCalendar).toBe(0);
-    expect(hook.result.current.calendarChips).toEqual([]);
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    expect(hook.result.current.activeGroupId).toBeNull();
+    expect(hook.result.current.hiddenByTags).toBe(0);
+    expect(hook.result.current.groupChips).toEqual([]);
   });
 });
 
@@ -266,16 +268,16 @@ describe("useScheduleGridFilters — rules 3 and 4: the selection guards", () =>
     expect(setSelectedId).not.toHaveBeenCalled();
   });
 
-  it("drops a selection the picked calendar excludes (#468)", () => {
+  it("drops a selection the picked group excludes (#468)", () => {
     const outsider = item("outsider");
     const { hook, setSelectedId, setPopover } = setup({
       rangeItems: [item("tagged"), outsider],
       selected: outsider,
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [assign("tagged", "tag-1")],
     });
-    act(() => hook.result.current.handleSelectCalendar("cal-1"));
+    act(() => hook.result.current.handleSelectGroup("group-1"));
     expect(setSelectedId).toHaveBeenCalledWith(null);
     expect(setPopover).toHaveBeenCalledWith(null);
   });
@@ -290,32 +292,32 @@ describe("useScheduleGridFilters — rules 3 and 4: the selection guards", () =>
     const { hook, setSelectedId } = setup({
       rangeItems: [occurrence],
       selected: occurrence,
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [assign("routine-1", "tag-1")],
     });
-    act(() => hook.result.current.handleSelectCalendar("cal-1"));
+    act(() => hook.result.current.handleSelectGroup("group-1"));
     expect(setSelectedId).not.toHaveBeenCalled();
   });
 
   /*
-   * TWO guards enforce this, not one: the explicit `id == null` early return,
-   * and the `!cal` lookup that follows (no calendar has a null id, so a clear
-   * never resolves one). Removing the first changes no behaviour — it is
-   * belt-and-braces, and this case pins the OUTCOME rather than either guard.
+   * The guard is `next.length === 0`, shared by every route that changes the
+   * tag set: a chip cleared, the last checkbox unticked, "show all". An empty
+   * lens hides nothing, so there is no selection to protect from it. This case
+   * pins the OUTCOME rather than the guard.
    */
   it("keeps the selection when the lens is CLEARED — clearing hides nothing", () => {
     const outsider = item("outsider");
     const { hook, setSelectedId } = setup({
       rangeItems: [outsider],
       selected: outsider,
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [],
     });
-    act(() => hook.result.current.handleSelectCalendar("cal-1"));
+    act(() => hook.result.current.handleSelectGroup("group-1"));
     setSelectedId.mockClear();
-    act(() => hook.result.current.handleSelectCalendar(null));
+    act(() => hook.result.current.handleSelectGroup(null));
     expect(setSelectedId).not.toHaveBeenCalled();
   });
 });
@@ -328,17 +330,17 @@ describe("useScheduleGridFilters — the two ways filters get cleared", () => {
   it("revealOnGrid drops both", () => {
     const { hook } = setup({
       rangeItems: [item("manual"), item("occ", { routineId: "r" })],
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [],
     });
     act(() => {
       hook.result.current.handleToggleRepeats();
-      hook.result.current.handleSelectCalendar("cal-1");
+      hook.result.current.handleSelectGroup("group-1");
     });
     act(() => hook.result.current.revealOnGrid());
     expect(hook.result.current.repeatsHidden).toBe(false);
-    expect(hook.result.current.activeCalendar).toBeNull();
+    expect(hook.result.current.activeGroupId).toBeNull();
     expect(hook.result.current.hiddenRepeats).toBe(0);
   });
 
@@ -347,19 +349,19 @@ describe("useScheduleGridFilters — the two ways filters get cleared", () => {
    * repeat-generated, so that filter was never hiding it — and dropping it too
    * would undo a setting the user did not ask about.
    */
-  it("clearCalendarLens leaves the repeat filter alone", () => {
+  it("clearTagLens leaves the repeat filter alone", () => {
     const { hook } = setup({
       rangeItems: [item("occ", { routineId: "r" })],
-      calendars: [calendar("cal-1", "tag-1")],
+      tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [],
     });
     act(() => {
       hook.result.current.handleToggleRepeats();
-      hook.result.current.handleSelectCalendar("cal-1");
+      hook.result.current.handleSelectGroup("group-1");
     });
-    act(() => hook.result.current.clearCalendarLens());
-    expect(hook.result.current.activeCalendar).toBeNull();
+    act(() => hook.result.current.clearTagLens());
+    expect(hook.result.current.activeGroupId).toBeNull();
     expect(hook.result.current.repeatsHidden).toBe(true);
   });
 });
@@ -392,5 +394,135 @@ describe("useScheduleGridFilters — what each surface draws", () => {
     });
     expect(hook.result.current.gridItems).toHaveLength(2);
     expect(hook.result.current.monthItems).toHaveLength(2);
+  });
+});
+
+describe("useScheduleGridFilters — rule 5: the many-tag lens (#1173)", () => {
+  /*
+   * The union is the whole reason the one-tag calendar became a many-tag
+   * group. Ticking a second tag ADDS its rows; an intersection would make the
+   * obvious act — "also show me home" — empty the grid, since almost nothing
+   * carries two life tags at once.
+   */
+  it("unions the ticked tags rather than intersecting them", () => {
+    const { hook } = setup({
+      rangeItems: [item("work-row"), item("home-row"), item("untagged")],
+      allTags: [tag("tag-work"), tag("tag-home")],
+      allAssignments: [
+        assign("work-row", "tag-work"),
+        assign("home-row", "tag-home"),
+      ],
+    });
+
+    act(() => hook.result.current.handleToggleTag("tag-work"));
+    expect(hook.result.current.monthItems.map((i) => i.id)).toEqual([
+      "work-row",
+    ]);
+
+    act(() => hook.result.current.handleToggleTag("tag-home"));
+    expect(hook.result.current.monthItems.map((i) => i.id)).toEqual([
+      "work-row",
+      "home-row",
+    ]);
+    // Only the untagged row is missing, and the count says so.
+    expect(hook.result.current.hiddenByTags).toBe(1);
+  });
+
+  it("unticking the last tag turns the lens off entirely", () => {
+    const { hook } = setup({
+      rangeItems: [item("work-row"), item("untagged")],
+      allTags: [tag("tag-work")],
+      allAssignments: [assign("work-row", "tag-work")],
+    });
+    act(() => hook.result.current.handleToggleTag("tag-work"));
+    expect(hook.result.current.hiddenByTags).toBe(1);
+    act(() => hook.result.current.handleToggleTag("tag-work"));
+    // Not "a lens that owns nothing" — no lens at all.
+    expect(hook.result.current.hiddenByTags).toBe(0);
+    expect(hook.result.current.monthItems).toHaveLength(2);
+    expect(hook.result.current.selectedTagIds).toEqual([]);
+  });
+
+  /*
+   * Rule 5: `activeGroupId` is derived from the tick list, so reaching a
+   * group's exact tag set BY HAND lights its chip, and unticking one tag of an
+   * applied group puts it out again. Storing the id beside the ticks would let
+   * the chip stay lit over a set that is no longer that group.
+   */
+  it("derives the lit chip from the ticks, in both directions", () => {
+    const { hook } = setup({
+      rangeItems: [item("work-row")],
+      tagGroups: [group("group-1", "tag-work", "tag-home")],
+      allTags: [tag("tag-work"), tag("tag-home")],
+      allAssignments: [assign("work-row", "tag-work")],
+    });
+
+    // Reached by hand, in the other order: still this group.
+    act(() => hook.result.current.handleToggleTag("tag-home"));
+    act(() => hook.result.current.handleToggleTag("tag-work"));
+    expect(hook.result.current.activeGroupId).toBe("group-1");
+
+    // One tag off: no longer this group, but the grid stays narrowed.
+    act(() => hook.result.current.handleToggleTag("tag-home"));
+    expect(hook.result.current.activeGroupId).toBeNull();
+    expect(hook.result.current.selectedTagIds).toEqual(["tag-work"]);
+  });
+
+  it("applying a group copies its tags into the tick list", () => {
+    const { hook } = setup({
+      rangeItems: [item("work-row")],
+      tagGroups: [group("group-1", "tag-work", "tag-home")],
+      allTags: [tag("tag-work"), tag("tag-home")],
+      allAssignments: [assign("work-row", "tag-work")],
+    });
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    expect(hook.result.current.selectedTagIds).toEqual([
+      "tag-work",
+      "tag-home",
+    ]);
+    expect(hook.result.current.activeGroupId).toBe("group-1");
+  });
+
+  /*
+   * A group holding a soft-deleted tag keeps its chip and stays applicable —
+   * the dead id simply drops out of the union. Treating the group as broken
+   * instead would take away a working filter over a tag the user still has.
+   */
+  it("drops only the dead tag from a partly-deleted group", () => {
+    const { hook } = setup({
+      rangeItems: [item("work-row"), item("untagged")],
+      tagGroups: [group("group-1", "tag-work", "tag-gone")],
+      allTags: [tag("tag-work")],
+      allAssignments: [assign("work-row", "tag-work")],
+    });
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    expect(hook.result.current.selectedTagIds).toEqual(["tag-work"]);
+    expect(hook.result.current.activeGroupId).toBe("group-1");
+    expect(hook.result.current.groupChips).toEqual([
+      { id: "group-1", label: "group-1", count: 1 },
+    ]);
+  });
+
+  /*
+   * The number next to a tag in the panel is what ticking it ALONE would
+   * leave — the only reading that survives the union, where ticking a second
+   * tag can only ever add rows.
+   */
+  it("counts each tag as if it were the only one ticked", () => {
+    const { hook } = setup({
+      rangeItems: [item("work-row"), item("home-row"), item("untagged")],
+      rangeTodoChips: [chip("task-1")],
+      allTags: [tag("tag-work"), tag("tag-home")],
+      allAssignments: [
+        assign("work-row", "tag-work"),
+        assign("task-1", "tag-work"),
+        assign("home-row", "tag-home"),
+      ],
+    });
+    act(() => hook.result.current.handleToggleTag("tag-work"));
+    // Unchanged by what is ticked: the count answers "what would this tag
+    // show", not "what does the current lens show".
+    expect(hook.result.current.tagCounts.get("tag-work")).toBe(2);
+    expect(hook.result.current.tagCounts.get("tag-home")).toBe(1);
   });
 });

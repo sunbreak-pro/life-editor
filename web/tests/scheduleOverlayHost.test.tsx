@@ -62,16 +62,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-/*
- * The calendars modal renders <CalendarView>, which reads CalendarContext. It
- * is closed in every case here, so the body never mounts — but the module is
- * still imported, and stubbing keeps that import from dragging a Provider
- * requirement into a suite about wiring.
- */
-vi.mock("../src/schedule/CalendarView", () => ({
-  CalendarView: () => <div data-testid="calendar-view" />,
-}));
-
 vi.mock("../src/schedule/ScheduleTodoDetail", () => ({
   ScheduleTodoDetail: ({
     todoId,
@@ -323,7 +313,40 @@ function renderHost(
       formatDuration: (m: number) => `${m}分`,
       labels: CREATE_LABELS,
     },
-    calendars: { open: false, onClose: vi.fn() },
+    // #1173: <TagFilterPanel> is pure presentation, so a closed modal needs
+    // only a prop bag — the retired <CalendarView> had to be module-mocked
+    // here because it reached for CalendarContext on import.
+    tagFilter: {
+      open: false,
+      onClose: vi.fn(),
+      panel: {
+        tags: [],
+        selectedTagIds: [],
+        onToggleTag: vi.fn(),
+        onClear: vi.fn(),
+        groups: [],
+        onSaveGroup: vi.fn(),
+        onApplyGroup: vi.fn(),
+        onRenameGroup: vi.fn(),
+        onDeleteGroup: vi.fn(),
+        labels: {
+          tagsHeading: "tags",
+          tagsLabel: "tags",
+          noTags: "no tags",
+          tagsLoading: "loading",
+          clear: "clear",
+          selectedCount: "0 selected",
+          groupsHeading: "groups",
+          groupsEmpty: "no groups",
+          namePlaceholder: "name",
+          save: "save",
+          saveHint: "hint",
+          apply: "apply",
+          renameGroup: "rename",
+          groupEmpty: "empty",
+        },
+      },
+    },
     scope: { request: null, onChoose: vi.fn(), onClose: vi.fn() },
     confirm: { request: null, onResolve: vi.fn() },
   };

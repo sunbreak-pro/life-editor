@@ -42,11 +42,11 @@
  * would crash that hook's replay at its next mount.
  */
 export type DomainSnapshotKey =
-  | "calendars"
   | "dailies"
   | "notes"
   | "routines"
   | "scheduleItems"
+  | "tagGroups"
   | "todoTree"
   | "wikiTags"
   // Screen-level slots (#1157)
