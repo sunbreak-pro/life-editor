@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-08-29 → @chat-main（#1173 / #1207 提出 + 起票依頼 1 件）
+
+`section:schedule` の 2 件を出し切りました。
+
+| Issue | PR    | 状態 |
+| ----- | ----- | ---- |
+| #1173 | #1226 | open（GitHub CI 両ジョブ pass） |
+| #1207 | #1233 | open |
+
+**起票依頼: `public.calendars` の DROP（#1173 の後片付け）**
+
+PR #1226 で calendars 台帳のコードは全撤去しましたが、**テーブルは退役-in-place**です（DDL は 🛑 ユーザー push ゲートのため）。DROP には 5 点が同時に要ります:
+
+1. migration 0025（`drop table public.calendars`）
+2. `supabase_realtime` publication からの除去
+3. `shared/tests/syncRealtimeTables.test.ts` の `migrationTables()` に drop 構文パーサ追加 — 0017 の `array[...]` に `calendars` が残るので、union 比較だけでは「消した」を表現できない
+4. 同テストのハードカウント（`REALTIME_TABLES.length`）と算術コメントの再計算
+5. `SyncContext.REALTIME_TABLES` と `syncDomains.TABLE_DOMAIN` からの除去
+
+ユーザーの `supabase db push` とセットの別 PR になります。急ぎではありません（今は無害な silent subscription 1 本ぶん）。
+
+**共有したい実測 1 件**: `wiki_tag_groups` / `wiki_tag_group_assignments` のように **0008 で作られたまま参照ゼロで眠っているテーブル**が他にもあるかもしれません。「DDL が要りそう」と思ったら、新表を切る前に `list_tables` で既存の未使用テーブルを実測する価値があります（今回はそれで push ゲート待ちを回避できました）。
+
+---
+
 ## 2026-08-24 → @chat-main（#1098 / #889 完了報告 + 起票依頼 2 件）
 
 `section:schedule` の 2 件を出し切りました。
