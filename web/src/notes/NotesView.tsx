@@ -12,6 +12,8 @@ import {
   SkeletonList,
   AddPill,
   TemplateSavedPanel,
+  TemplateListPanel,
+  TemplateApplyPanel,
   cn,
   type NoteSortMode,
   type DataService,
@@ -32,6 +34,9 @@ import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
 import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
+import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
+import { useNoteTemplateApply } from "./hooks/useNoteTemplateApply";
+import { TemplateEditHost } from "./TemplateEditHost";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -199,6 +204,47 @@ export function NotesView({
 
   const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
 
+  // Saved templates: the sidebar disclosure + the draft the centre panel edits
+  // (#1180). Reads and writes go straight out through the DataService — see the
+  // hook's header for why templates are not on the notes context.
+  const templateLibrary = useNoteTemplateLibrary(dataService);
+
+  /*
+   * The two template hooks meet here. #1179 WRITES one from the note kebab,
+   * #1180 READS the list for the sidebar — and nothing connects them, because
+   * the list only re-reads on the sync counter and a local write does not bump
+   * it. Without this, the template you just registered is missing from the very
+   * list that is supposed to hold it until the next push.
+   *
+   * Both edges of `savedId` matter: it is set when the write lands, and cleared
+   * when the receipt closes, which is where the name the user typed is
+   * committed.
+   */
+  const refreshTemplates = templateLibrary.refresh;
+  const registeredId = templates.savedId;
+  const lastRegistered = useRef(registeredId);
+  useEffect(() => {
+    if (lastRegistered.current === registeredId) return;
+    lastRegistered.current = registeredId;
+    refreshTemplates();
+  }, [registeredId, refreshTemplates]);
+
+  // Pouring a saved template into the open note (#1181). The picker reads
+  // through the DataService (templates are not on the notes context); the WRITE
+  // is the context, because the thing being changed is an ordinary note.
+  const templateApply = useNoteTemplateApply(dataService);
+  /*
+   * Remount signal for the body editor. RichTextEditor ignores initialContent
+   * once mounted, so replacing the body under the same note has to change the
+   * key or the user keeps looking at what they just agreed to discard.
+   *
+   * The unmount FLUSH is not a hazard here: the editor persists on an 800ms
+   * debounce, and reaching this point costs three deliberate clicks (kebab →
+   * entry → confirm), so anything typed before them has long since been
+   * written.
+   */
+  const [bodyEpoch, setBodyEpoch] = useState(0);
+
   const selected = notes.selectedNote;
 
   /*
@@ -365,6 +411,18 @@ export function NotesView({
     });
   }, [registerTemplate, selected, t]);
 
+  // #1181: the confirmed apply. Body only — the note keeps its own title, and
+  // the epoch bump is what makes the editor show the new body (see above).
+  const updateNote = notes.updateNote;
+  const applyPending = templateApply.pending;
+  const closeApply = templateApply.close;
+  const handleApplyTemplate = useCallback(() => {
+    if (!selected || !applyPending) return;
+    updateNote(selected.id, { content: applyPending.content });
+    setBodyEpoch((n) => n + 1);
+    closeApply();
+  }, [applyPending, closeApply, selected, updateNote]);
+
   if (notes.isLoading) {
     return (
       <div className="px-4 pt-4">
@@ -396,6 +454,7 @@ export function NotesView({
     content: t("materials.notes.content"),
     lockedHint: t("materials.notes.lockedHint"),
     registerTemplate: t("materials.templates.menuEntry"),
+    applyTemplate: t("materials.templates.applyMenuEntry"),
   };
 
   // ---- The list (the detail panel's content, both widths) --------------
@@ -441,6 +500,28 @@ export function NotesView({
       deletedNotes={notes.deletedNotes}
       onRestoreNote={notes.restoreNote}
       onPermanentDeleteNote={notes.permanentDeleteNote}
+      // #1180 — only with a DataService, which is what templates are read and
+      // written through (the same condition the "[[" pool has).
+      templatesSlot={
+        dataService ? (
+          <TemplateListPanel
+            templates={templateLibrary.templates}
+            loading={templateLibrary.loading}
+            open={templateLibrary.listOpen}
+            onToggle={templateLibrary.toggleList}
+            onEdit={templateLibrary.beginEdit}
+            onDelete={templateLibrary.remove}
+            labels={{
+              heading: t("materials.templates.sidebarHeading"),
+              empty: t("materials.templates.empty"),
+              untitled: t("materials.templates.untitled"),
+              edit: t("materials.templates.edit"),
+              delete: t("materials.templates.delete"),
+              loading: t("common.loading"),
+            }}
+          />
+        ) : undefined
+      }
     />
   );
 
@@ -491,6 +572,15 @@ export function NotesView({
               ? handleRegisterTemplate
               : undefined
           }
+          // #1181: same DataService condition, plus the password gate. The
+          // lock covers the body (#526) and applying REPLACES the body, so
+          // offering it while the gate is up would let a note be overwritten
+          // by someone who cannot see what they are overwriting.
+          onApplyTemplate={
+            dataService && !password.isGated(selected)
+              ? templateApply.begin
+              : undefined
+          }
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue). Wide only, which is
           // where #884 put them; narrow has never had a Links affordance, and
@@ -529,6 +619,7 @@ export function NotesView({
               <NoteBodyEditor
                 note={selected}
                 linking={linking}
+                remountToken={bodyEpoch}
                 onNavigateToItem={onNavigateToItem}
                 onSave={(id, content) => notes.updateNote(id, { content })}
                 // Borderless — sit flush inside the detail card so the note
@@ -624,6 +715,37 @@ export function NotesView({
           nameLabel: t("materials.templates.nameLabel"),
           namePlaceholder: t("materials.templates.namePlaceholder"),
           done: t("materials.templates.savedDone"),
+        }}
+      />
+
+      {/* Editing one saved template (#1180). Mounted at the view's top level
+          rather than inside the sidebar portal: on narrow that portal is the
+          MobileDrawer, and a panel living inside it would go away with the
+          drawer that opened it. */}
+      {dataService && <TemplateEditHost library={templateLibrary} />}
+
+      {/* Pouring a template into this note (#1181) — picker, then confirm.
+          Mounted at the view level rather than beside the kebab so the dialog
+          survives the menu closing under it. */}
+      <TemplateApplyPanel
+        open={templateApply.open}
+        templates={templateApply.templates}
+        loading={templateApply.loading}
+        pending={templateApply.pending}
+        onPick={templateApply.pick}
+        onConfirm={handleApplyTemplate}
+        onCancel={templateApply.close}
+        labels={{
+          pickTitle: t("materials.templates.applyPickTitle"),
+          confirmTitle: t("materials.templates.applyConfirmTitle"),
+          pickHint: t("materials.templates.applyPickHint"),
+          empty: t("materials.templates.applyEmpty"),
+          untitled: t("materials.templates.untitled"),
+          loading: t("common.loading"),
+          confirmBody: (name) =>
+            t("materials.templates.applyConfirmBody", { name }),
+          cancel: t("common.cancel"),
+          apply: t("materials.templates.applyConfirm"),
         }}
       />
 

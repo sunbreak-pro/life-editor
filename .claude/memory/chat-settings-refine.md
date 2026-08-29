@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
-- Settings 3 課題を各ブランチで実装し PR まで（#1174 rightSidebar カテゴリタブ + Schedule 初期ビュー / PR #1218 open・#1182 狭幅の文字サイズ 3 段階 / PR #1223 open・#1200 セルフ退会 + 狭幅ログアウト / PR #1229 open。#1200 は 🛑 人手ゲート 2 手が `G-20260829-settings-1` として decisions キューに残る）✅（2026-08-29）
+- #1174 merge 後の追随（2 本のコンフリクト解消）: #1182 / #1200 のブランチへ main を取り込み、Settings 画面・i18n catalog・shared barrel の衝突を手で解消して再 push。#1174 が Appearance / Account カードを `general` カテゴリの内側へ移したのが原因で、#1200 側はさらに main の `passwordRecoveryRedirectUrl` → `authRedirectUrl` 改名（#1197）も当たった（PR #1223 CI 緑 / PR #1229 は再走中）✅（2026-08-30）
+- Settings 3 課題を各ブランチで実装し PR まで（#1174 rightSidebar カテゴリタブ + Schedule 初期ビュー / PR #1218 merged・#1182 狭幅の文字サイズ 3 段階 / PR #1223 open・#1200 セルフ退会 + 狭幅ログアウト / PR #1229 open。#1200 は 🛑 人手ゲート 2 手が `G-20260829-settings-1` として decisions キューに残る）✅（2026-08-29）
 - チュートリアルの初回自動開始と Settings 再実行導線（#1122 の TourProvider に `autoStart` を渡す＋`SettingsTutorial` カードから `restart`・アンカー不在の空振り走行は開始地点へ戻す guard 付き・Issue #1123 / PR #1164 merged）✅（2026-08-28）
-- パスワード変更フォームに hidden username を追加しパスワードマネージャに紐付け可能に（`PasswordUpdateForm` に optional `username`・Settings は必須 email を、リセット画面は recovery session の email を渡す・Issue #945 / PR #978 merged）✅（2026-08-16）
 
 ## 予定
 

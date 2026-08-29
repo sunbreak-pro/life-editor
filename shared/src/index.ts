@@ -27,7 +27,13 @@ export {
   sendPasswordResetEmail,
   resendConfirmationEmail,
   updatePassword,
+  // Renamed on main (#1197): the redirect now serves sign-up confirmation as
+  // well as password recovery.
   authRedirectUrl,
+  // Self-service account deletion (#1200) — the Edge Function call plus the
+  // local session teardown that has to follow it.
+  deleteAccount,
+  DELETE_ACCOUNT_FUNCTION,
   type AuthResult,
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";
@@ -296,6 +302,12 @@ export {
   FONT_SIZE_PX,
   DEFAULT_FONT_SIZE_PX,
   fontSizeToPx,
+  // Mobile size presets (#1182) — the three stops the narrow layout offers,
+  // expressed as steps on the same 1-10 scale.
+  MOBILE_FONT_SIZE_STEPS,
+  DEFAULT_MOBILE_FONT_SIZE_STEP,
+  nearestMobileFontSize,
+  type MobileFontSizeStep,
 } from "./constants/fontSize";
 export { ShortcutConfigProvider } from "./context";
 export {

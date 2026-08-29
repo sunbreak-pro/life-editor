@@ -1,5 +1,23 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-29 - #1173 カレンダー台帳の退役（タグフィルタ + グループ）と #1207 セグメント揃え
+
+#### 概要
+
+Calendar ツールバーの歯車をフィルタアイコンに差し替え、既存 WikiTag のマルチセレクト + 名前付き Group でカレンダー台帳を完全代替した（PR #1226・GitHub CI 両ジョブ pass）。あわせて、ドロワーのセグメントラベルが折り返しの有無で縦位置がずれる件を直した（PR #1233）。どちらも origin/main から独立に切り、CI `verify` の全 14 ステップをローカルで exit 0。
+
+#### 変更点
+
+- **なぜ台帳が要らなかったか（#1173）**: `calendars` 行は `{ title, tagId }` = **ちょうど 1 つのタグへの保存済みビュー**。「カレンダーを作る」は「タグフィルタに名前を付けて保存する」以上のことを一度もしていなかったので、ユーザーに 2 つ目の名詞を発明させていただけだった。歯車という導線もその意味を隠していた
+- **DDL ゼロで着地（最重要）**: `wiki_tag_groups` + `wiki_tag_group_assignments`（0008 tables 10/11）が**作られたまま参照ゼロ・本番 0 行**で残っており、RLS 4 ポリシー・`supabase_realtime` publication・`REALTIME_TABLES` がすべて済んでいた。新表を切ると 🛑 ユーザー `supabase db push` まで機能が死ぬので流用を選択。親 + join の正しいモデルも同時に手に入った（判断台帳 = `D-20260829-sched-1`）
+- **述語は UNION（OR）**: タグを 2 つ目に足す行為は「それも見せて」と読める。AND だと life-tag は 1 アイテム 1 個が普通なのでほぼ空になる。`|tagIds| = 1` で現行挙動に厳密退化するため、#468 で固定した既存テストがそのまま真
+- **チップは保存せず導出**（rule 5）: グループ適用は「そのタグをチェックリストへコピーする」なので、点いているチップはチェックの関数。別に持つと、適用後に 1 つ外した瞬間に嘘になる
+- **`public.calendars` は退役-in-place**: `REALTIME_TABLES` に残したまま `schedule` ドメインへ再ルート。これで `syncRealtimeTables.test.ts` の publication 突合とハードカウントが**無改変で緑**（`routine_groups` が #352 以降取っている形と同じ）。DROP は別 PR で outbox に申し送り
+- **`tagGroups` は独自 sync ドメイン**（#993 の逆向き）: `tags` に相乗りさせると、グループを保存するたび `useWikiTagsUnifiedAPI` の bulk 3 本（タグ + 全ページ assignment + connection）を引き直すことになる
+- **#1207 は 1 段下で直した**: `ScheduleSidebarTabs` は `{ id, label }` を素通しするだけで、padding もラベルの箱も `SegmentedControl` のもの。トラックが全セグメントを最も高いものへ引き伸ばすため、ブロック要素だと 1 行ラベルが上端に貼り付く。セグメント自身を flex 中央寄せにして解決（折り返さない既存 5 consumer は見た目不変）
+- **反省 — 検証後に触ったコードを検証し直さなかった**: `TagFilterPanel` のリネーム欄を verify 完走後に足し、`useEffect` 内 `setState` が `react-hooks/set-state-in-effect` で CI だけ赤になった。repo 既存の「render 中に調整する」形（`ColorPicker` の `prevSeed`）へ直して再検証（PR #1226 の 2 コミット目）。**ゲートを通した後にソースを触ったら、そのゲートの緑は無効**
+- **ローカル検証の罠 2 つ**: (1) `cd` した persistent shell から background で走らせると cwd がずれて**全ステップが「ディレクトリが無い」で失敗しているのに最後の echo で exit 0 に化ける** → 絶対パス + `FAIL` フラグ集約に変更。(2) `docs-lint.sh` は長時間走ると Git Bash の fork 枯渇（`Resource temporarily unavailable`）で刺さる — GitHub 側の docs-lint ジョブで代替した
+
 ### 2026-08-29 - #1168 merge 後の 2 巡目（#1187 のツアーアンカー付け替え）
 
 #### 概要
