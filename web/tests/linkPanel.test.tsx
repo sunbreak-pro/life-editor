@@ -26,6 +26,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 const state = vi.hoisted(() => ({
   outgoing: [] as unknown[],
   incoming: [] as unknown[],
+  // #1172: the related popover derives "shares a tag" from the same bulk
+  // assignment cache TagPicker reads, so the fake context has to carry it.
+  assignments: [] as unknown[],
+  tagsForItem: [] as unknown[],
   loading: false,
   createItemLink: vi.fn(() => Promise.resolve()),
   // Typed signature, not a bare `vi.fn(() => …)`: the #884 suite reads
@@ -42,6 +46,8 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     ...actual,
     useWikiTagsUnifiedContext: () => ({
       loading: state.loading,
+      allAssignments: state.assignments,
+      getTagsForItem: () => state.tagsForItem,
       getLinksForItem: () => ({
         outgoing: state.outgoing,
         incoming: state.incoming,
@@ -84,6 +90,8 @@ async function openPicker(): Promise<HTMLElement> {
 beforeEach(() => {
   state.outgoing = [];
   state.incoming = [];
+  state.assignments = [];
+  state.tagsForItem = [];
   state.loading = false;
   state.createItemLink.mockClear();
   state.deleteItemLink.mockClear();
