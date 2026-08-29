@@ -38,9 +38,9 @@
 
 ## 直近の完了
 
+- [chat-main] **AI 連携の可視化（段階 1）+ Claude 起動導線（段階 2）の計画書 2 本作成 → #1210 / #1211 起票 + docs PR #1212 open** ✅（2026-08-29）— $0 制約（アプリから API を呼ばない）のまま、段階 1 = Settings AI カード + MCP ツールカタログ（ビルド時生成 JSON）+ Briefing 帰属バッジ / 段階 2 = IPC `claude:launch` + OS ターミナル spawn（Blocked by #1210・Step 0 に UI 置き場の 🛑 確認）。**PR #1212 の merge 前はレーンから計画書が見えない**ので、配布は merge 後
 - [chat-main] **Open Issue 一斉消化 fan-out r4 の計画書作成（PR #1208 open）+ 宛先振り直し 4 件** ✅（2026-08-29）— 28 open Issue を Wave 1 = 6 レーン 19 件 / Wave 2 = 2 件（merge gate 付き）/ chat-main 3 件 / Epic 2 / 凍結 2 に分配し、`/goal`・`/loop`・`/schedule` の貼り付け文字列と停止条件を計画書へ同梱。main はローカル未コミットの tracker 2 ファイルが merge 済み #1203 と同一と実測して restore（二重 PR 回避）→ 9 コミット取り込みで `b95561cf`
 - [chat-main] **配布品質監査（Web 完結）→ #1197〜#1202 起票 + ドロワーアイコン変更 PR #1195 + スワイプ touch バグ修正 PR #1205（#1204）** ✅（2026-08-29）— ユーザー裁定: メール確認 = 実装 / サインアップ = 開放 / 配布 = 限定人数（無料枠の見立て = 安全圏 10〜20 人）/ ポリシー = 作成。**スワイプ開閉（#792/#1050）はタッチ実機で 0% 発火だったことを CDP 実測で確定**（touch-action: auto → 20px で pointercancel）→ #1204 起票 → PR #1205 で修正、再検証は全項目 PASS（縦スクロール非干渉 0/19 prevented・7 セクション回帰 42/42）。#1195 / #1205 とも merge はユーザー手番。#1202 は chat-main 手番（CLAUDE.md 整合 + D 台帳起こし）
-- [chat-main] **Connect 後継の方針確定（案 1 Related パネル + 案 2 Tag hub 採用・Tag 起点一本化）→ #1171 / #1172 起票 + #1153 役割分担コメント** ✅（2026-08-29）— どちらも **Blocked by #1152**（connect-refine が退役実行中）。着地後に connect レーン（#1171）と materials レーン（#1172）へ `/goal` を配る。#1153 との境界 = 時間軸の入口は Calendar / トピック軸の入口は Connect。タグの lucide アイコン + カラーは設定 UI まで実装済みだったので #1171 の表示要件に畳み込んだ
 
 ## 予定
 
