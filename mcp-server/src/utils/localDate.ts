@@ -42,13 +42,22 @@ export function addDays(date: string, n: number): string {
 }
 
 /**
- * The Monday of the local week containing `date` (#782 ③). A week runs
- * Mon→Sun here, but `getDay()` counts from Sunday (0), so the index is
- * shifted before it is subtracted.
+ * The Sunday of the local week containing `date` (#782 ③ / #1138).
+ *
+ * A week runs Sun→Sat, matching the app: `WEEK_STARTS_ON` in
+ * shared/src/utils/scheduleGridLayout.ts is 0 and nothing switches it (#1102).
+ * This used to start on Monday, which put the MCP window one day off the app's
+ * — and the week-goal period key IS the week's start date (#872 / #957), so
+ * the briefing Claude writes and the week the app shows were pointing at
+ * different weeks (D-20260824-shared-fix-1 = A).
+ *
+ * `getDay()` already counts from Sunday, so the index IS the offset and no
+ * shift is needed. Equivalent to shared's `startOfWeekKey(key, 0)`, whose
+ * `(dow - 0 + 7) % 7` collapses to `dow`.
  */
 export function localWeekStart(date: string): string {
   const weekday = new Date(`${date}T00:00:00`).getDay();
-  return addDays(date, -((weekday + 6) % 7));
+  return addDays(date, -weekday);
 }
 
 /**

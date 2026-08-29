@@ -30,14 +30,14 @@ export const BRIEFING_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "get_week_context",
     description:
-      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Monday to Sunday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
+      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Sunday to Saturday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
     inputSchema: {
       type: "object" as const,
       properties: {
         start_date: {
           type: "string",
           description:
-            "First day of the 7-day window, YYYY-MM-DD (default: the Monday of the current local week)",
+            "First day of the 7-day window, YYYY-MM-DD (default: the Sunday of the current local week)",
         },
       },
     },
