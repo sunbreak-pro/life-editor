@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, type Mock } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { agendaRowHeightPx } from "@life-editor/shared";
 import type {
-  AgendaItem,
   MonthGridItem,
   ScheduleLoadState,
   WeekTimeGridItem,
@@ -38,16 +36,17 @@ import type { CalendarNarrowLayoutProps } from "../src/schedule/CalendarNarrowLa
  *     panel on it (#224), narrow only moves the picked day (#878). One
  *     callback wired to the other layout's handler is invisible in review.
  *   - the same `monthItems` render at two densities (#878): Desktop draws
- *     title chips, narrow draws dots and answers "what is it" with the list
- *     underneath. A compact grid that lost its flag would put 42 cells of text
- *     on a phone.
+ *     title chips, narrow draws dots and answers "what is it" in the drawer
+ *     (#1148 — the list that used to answer it under the grid is gone). A
+ *     compact grid that lost its flag would put 42 cells of text on a phone.
  *   - the two "N hidden" counts are DIFFERENT numbers (#466 repeat filter vs
  *     #468 lens) and now travel in two separate prop bundles.
- *   - each layout switches ON a capability in the part below it — narrow's
- *     `dayflow` (#691), Desktop's `display` pair (#297 / #564 / #563). A
- *     forwarded boolean is the one kind of prop whose loss changes nothing
- *     about what renders, only about what the rendered thing can DO, so the
- *     last two describes press the capability rather than look for the flag.
+ *   - Desktop switches ON capabilities in the part below it — the `display`
+ *     pair (#297 / #564 / #563). A forwarded boolean is the one kind of prop
+ *     whose loss changes nothing about what renders, only about what the
+ *     rendered thing can DO, so the last describe presses the capability
+ *     rather than looks for the flag. Narrow's counterpart (`dayflow`, #691)
+ *     went to scheduleSidebar.test.tsx with the list it belongs to (#1148).
  *
  * `useTranslation` is stubbed to echo its key, with the count appended when
  * there is one — a plain echo would let the two hidden-counts above swap
@@ -112,24 +111,6 @@ const GRID_ITEM: WeekTimeGridItem = {
   title: "週グリッドの予定",
   startTime: "10:00",
   endTime: "11:00",
-};
-const AGENDA_ITEM: AgendaItem = {
-  id: "event-1",
-  title: "日リストの予定",
-  startTime: "10:00",
-  endTime: "11:00",
-  // #222 replaced the round check with the status tag, so a row without a
-  // status has no completion control at all — and `onToggleComplete` would be
-  // a prop nothing can reach.
-  status: "notStarted",
-};
-
-const AGENDA_LABELS = {
-  allDay: "agenda.allDay",
-  empty: "agenda.empty",
-  nowLabel: "09:00",
-  complete: "agenda.complete",
-  statusLabels: STATUS_LABELS,
 };
 
 function renderDesktop(
@@ -207,7 +188,6 @@ function renderNarrow(
     state?: Partial<ScheduleLoadState>;
     banner?: ReactNode;
     month?: Partial<CalendarNarrowLayoutProps["month"]>;
-    day?: Partial<CalendarNarrowLayoutProps["day"]>;
   } = {},
 ) {
   const onRetry: Mock = vi.fn();
@@ -218,12 +198,6 @@ function renderNarrow(
     onToday: vi.fn(),
   };
   const monthSpies = { onSelectDay: vi.fn() };
-  const daySpies = {
-    onAdd: vi.fn(),
-    onToggleComplete: vi.fn(),
-    onItemActivate: vi.fn(),
-    onItemDoubleClick: vi.fn(),
-  };
   const props: CalendarNarrowLayoutProps = {
     header,
     banner: over.banner ?? null,
@@ -237,19 +211,9 @@ function renderNarrow(
       ...monthSpies,
       ...over.month,
     },
-    day: {
-      anchorDayLabel: "Thu, August 20",
-      agenda: [AGENDA_ITEM],
-      nowMinutes: null,
-      selectedId: null,
-      labels: AGENDA_LABELS,
-      formatGapLabel: (m) => `gap:${m}`,
-      ...daySpies,
-      ...over.day,
-    },
   };
   const utils = render(<CalendarNarrowLayout {...props} />);
-  return { ...utils, onRetry, header, monthSpies, daySpies };
+  return { ...utils, onRetry, header, monthSpies };
 }
 
 /** The calendar itself — both layouts name their grid with the same key. */
@@ -407,35 +371,43 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
   });
 });
 
-describe("CalendarNarrowLayout — the month grid and the day under it", () => {
-  it("draws the picked day's caption and its list below the grid", () => {
+describe("CalendarNarrowLayout — the month grid, alone (#1148)", () => {
+  /*
+   * #878 gave narrow a month grid with the picked day's list under it. #1148
+   * took the list away: the drawer beside this layout was already showing a
+   * day list, so the phone carried two of the same shape while the month — the
+   * only thing this view can show — got a third of the screen.
+   *
+   * What that means for THIS file is that narrow's main area now has exactly
+   * one job. The cases the list owned (its rows, its gestures, its `dayflow`
+   * height, its create pill) moved to scheduleSidebar.test.tsx with the list;
+   * what stays here is that nothing of it is left behind.
+   */
+  it("draws the grid and nothing under it", () => {
     renderNarrow();
-    expect(screen.getByText("Thu, August 20")).toBeTruthy();
-    expect(screen.getByText(AGENDA_ITEM.title)).toBeTruthy();
     expect(calendarShowing()).toBe(true);
+    // The caption the old list printed, and the pill that sat beside it.
+    expect(screen.queryByText("scheduleScreen.addCta")).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
   });
 
-  it("only picks the day when a month cell is tapped (#878)", () => {
+  it("hands a tapped cell's day straight back (#878 / #1148)", () => {
+    // Still ONE callback, and still not Desktop's `handleMonthCreate` (#224).
+    // What the host does with the day grew a second half in #1148 (open the
+    // drawer), and that half is deliberately invisible from here — this layout
+    // knows nothing about a sidebar.
     const { monthSpies } = renderNarrow();
     fireEvent.click(screen.getByLabelText(ANCHOR));
     expect(monthSpies.onSelectDay).toHaveBeenCalledWith(ANCHOR);
   });
 
-  it("creates from the day-list header (#1034)", () => {
-    const { daySpies } = renderNarrow();
-    fireEvent.click(screen.getByText("scheduleScreen.addCta"));
-    expect(daySpies.onAdd).toHaveBeenCalledTimes(1);
-  });
-
-  /*
-   * The add pill lives INSIDE the fold, with the list it belongs to. Left
-   * outside it, a failed fetch would offer "add to this day" above a card
-   * saying the day could not be read.
-   */
-  it("takes the add affordance away with the list", () => {
+  it("folds the grid away on an error, leaving the chrome", () => {
+    // The fold cases above assert this for both widths; repeated here because
+    // narrow now has nothing else inside the fold, so a fold that stopped
+    // working would leave a blank main area rather than a partial one.
     renderNarrow({ state: { error: true } });
-    expect(screen.queryByText("scheduleScreen.addCta")).toBeNull();
-    expect(screen.queryByText(AGENDA_ITEM.title)).toBeNull();
+    expect(calendarShowing()).toBe(false);
+    expect(errorCardShowing()).toBe(true);
   });
 });
 
@@ -445,14 +417,17 @@ describe("the same month, two densities (#878)", () => {
    * something is, and the list underneath says WHAT. Lose the flag and the
    * grid puts Desktop's title chips into cells a seventh of a phone wide.
    */
-  it("Desktop names the items in the cells; narrow leaves that to the list", () => {
+  it("Desktop names the items in the cells; narrow draws dots instead", () => {
     const wide = renderDesktop({ view: "month" });
     expect(screen.getByText(MONTH_ITEM.title)).toBeTruthy();
     wide.unmount();
 
+    // Since #1148 the answer to "what is that dot?" is the drawer rather than
+    // a list under the grid — but the density rule this case guards is
+    // unchanged, and it is the half that would put 42 cells of text on a
+    // phone.
     renderNarrow();
     expect(screen.queryByText(MONTH_ITEM.title)).toBeNull();
-    expect(screen.getByText(AGENDA_ITEM.title)).toBeTruthy();
   });
 
   /*
@@ -641,85 +616,6 @@ describe("the item gestures — three presses, three handlers, per surface", () 
     expect(handlers.onMoveItem).not.toHaveBeenCalled();
   });
 
-  it("narrow keeps the day list's three apart", () => {
-    const { daySpies } = renderNarrow();
-    const row = screen.getByText(AGENDA_ITEM.title);
-
-    fireEvent.click(row, { clientX: 5, clientY: 6 });
-    fireEvent.doubleClick(row);
-    // Completion is the status tag since #222, and it sits OUTSIDE the row
-    // button — pressing it must not read as opening the row.
-    fireEvent.click(screen.getByLabelText(AGENDA_LABELS.complete));
-
-    expect(daySpies.onItemActivate).toHaveBeenCalledTimes(1);
-    expect(daySpies.onItemActivate).toHaveBeenCalledWith(AGENDA_ITEM.id, {
-      x: 5,
-      y: 6,
-    });
-    expect(daySpies.onItemDoubleClick).toHaveBeenCalledTimes(1);
-    expect(daySpies.onItemDoubleClick).toHaveBeenCalledWith(AGENDA_ITEM.id);
-    expect(daySpies.onToggleComplete).toHaveBeenCalledTimes(1);
-    expect(daySpies.onToggleComplete).toHaveBeenCalledWith(AGENDA_ITEM.id);
-    expect(daySpies.onAdd).not.toHaveBeenCalled();
-  });
-});
-
-/*
- * `dayflow` (#691) is the flag that makes narrow's day list stand in for the
- * week grid Mobile does not get: the row says when it ENDS and grows with how
- * long it runs. Drop it and the list still renders every row, still opens them,
- * still completes them — it just goes back to a column of identical one-line
- * entries where a 15-minute errand and a 3-hour block look the same, which is
- * the #467 shape the Issue replaced. Nothing else in this file would notice.
- */
-describe("CalendarNarrowLayout — the day list carries the week grid's job (#691)", () => {
-  /** Three hours, so the height is nowhere near the floor a short row lands on. */
-  const LONG: AgendaItem = {
-    id: "event-long",
-    title: "長い予定",
-    startTime: "13:00",
-    endTime: "16:00",
-    status: "notStarted",
-  };
-
-  const rowOf = (title: string) =>
-    screen.getByText(title).closest("button") as HTMLElement;
-
-  it("prints the end time and sizes the row by its duration", () => {
-    renderNarrow({ day: { agenda: [LONG] } });
-
-    expect(screen.getByText(LONG.endTime)).toBeTruthy();
-    /*
-     * Read through the shared helper rather than hard-coded: the SCALE is
-     * AgendaList's business (its own suite owns the px-per-minute and the cap),
-     * and what this case is about is the flag arriving at all. Without it the
-     * row carries no inline height whatsoever, so any number fails it.
-     */
-    expect(rowOf(LONG.title).style.minHeight).toBe(
-      `${agendaRowHeightPx(180)}px`,
-    );
-  });
-
-  /*
-   * The free-gap markers ride their OWN prop (`formatGapLabel`) rather than
-   * `dayflow` — AgendaList draws them whenever the formatter is supplied. Two
-   * separate forwards, so they need two separate cases: pinning only the flag
-   * would leave the formatter free to go missing, taking 「空き」 with it while
-   * the end times stayed.
-   */
-  it("calls out the free stretch between two rows", () => {
-    renderNarrow({
-      day: {
-        agenda: [
-          { ...LONG, id: "event-am", startTime: "09:00", endTime: "10:00" },
-          { ...LONG, id: "event-pm", startTime: "11:00", endTime: "12:00" },
-        ],
-      },
-    });
-    // The fixture's formatter echoes the minutes it was handed — the hole here
-    // is 10:00→11:00, and it has to be measured, not assumed.
-    expect(screen.getByText("gap:60")).toBeTruthy();
-  });
 });
 
 /*
