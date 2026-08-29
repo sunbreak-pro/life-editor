@@ -306,7 +306,11 @@
     },
     "templates": {
       "title": "Templates",
-      "menuEntry": "Create a template",
+      "menuEntry": "Register as template",
+      "defaultName": "{{title}} template",
+      "savedTitle": "Template created",
+      "savedHint": "You can find it in the right sidebar (Show details).",
+      "savedDone": "Done",
       "listHeading": "Templates",
       "empty": "No templates yet",
       "new": "New",

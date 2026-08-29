@@ -305,7 +305,11 @@
     },
     "templates": {
       "title": "テンプレート",
-      "menuEntry": "テンプレートを作成する",
+      "menuEntry": "テンプレートとして登録する",
+      "defaultName": "{{title}}のテンプレート",
+      "savedTitle": "テンプレートを作成しました",
+      "savedHint": "右側のサイドバー（詳細を開く）から確認できます。",
+      "savedDone": "完了",
       "listHeading": "テンプレート",
       "empty": "テンプレートはまだありません",
       "new": "新規",

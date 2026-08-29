@@ -33,8 +33,8 @@ export interface NoteDetailLabels {
   moreActions: string;
   content: string;
   lockedHint: string;
-  /** Kebab entry that opens the templates surface (#1047). */
-  createTemplate: string;
+  /** Kebab entry that registers this note as a template (#1179). */
+  registerTemplate: string;
 }
 
 export interface NoteDetailSurfaceProps {
@@ -56,8 +56,13 @@ export interface NoteDetailSurfaceProps {
    * cross-role candidate pool and the navigation route.
    */
   linksSlot?: ReactNode;
-  /** Open the note templates surface from the kebab (#1047). */
-  onOpenTemplates?: () => void;
+  /**
+   * Register this note as a template from the kebab (#1179). Absent when the
+   * host cannot write templates (no DataService) or must not copy this body
+   * out — a password-gated note (#526) would otherwise leak through a surface
+   * the lock does not cover.
+   */
+  onRegisterTemplate?: () => void;
 }
 
 export function NoteDetailSurface({
@@ -71,7 +76,7 @@ export function NoteDetailSurface({
   onDelete,
   contentEditor,
   linksSlot,
-  onOpenTemplates,
+  onRegisterTemplate,
 }: NoteDetailSurfaceProps) {
   return (
     <NoteDetailPanel
@@ -88,8 +93,8 @@ export function NoteDetailSurface({
       pinnedLabel={labels.pinned}
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
-      onOpenTemplates={onOpenTemplates}
-      createTemplateLabel={labels.createTemplate}
+      onRegisterTemplate={onRegisterTemplate}
+      registerTemplateLabel={labels.registerTemplate}
       tagsSlot={
         // No leading caption (#1042). The row used to open with the shared
         // kind badge (itemRole="note", #412), which spelled out "Note" one line
