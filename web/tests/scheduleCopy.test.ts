@@ -103,17 +103,22 @@ describe("useScheduleCopy", () => {
       }),
     ).result.current;
 
-  it("gives wide three sidebar tabs and narrow two", () => {
-    expect(render({ isWide: true }).sidebarTabs.map((x) => x.id)).toEqual([
-      "flow",
-      "todo",
-      "repeats",
-    ]);
-    // Narrow reaches the tray from the flow instead — a tab with nothing
-    // behind it would leave the switcher showing no active item after a resize.
-    expect(render({ isWide: false }).sidebarTabs.map((x) => x.id)).toEqual([
-      "flow",
-      "repeats",
+  it("gives the same three sidebar tabs at both widths (#1153)", () => {
+    // The Todo tab used to be withheld from narrow, which reached its todos
+    // through the section's own Todo tab instead. That tab is retired, so
+    // withholding this one would leave the phone with no route to a todo.
+    const ids = ["flow", "todo", "repeats"];
+    expect(render({ isWide: true }).sidebarTabs.map((x) => x.id)).toEqual(ids);
+    expect(render({ isWide: false }).sidebarTabs.map((x) => x.id)).toEqual(ids);
+  });
+
+  it("puts the tour's todo anchor on the todo tab and nowhere else (#1124)", () => {
+    // The anchor moved here when #1153 retired the section's own Todo tab.
+    // `resolveTourAnchor` takes the FIRST match in the document, so a second
+    // segment carrying it would decide the step's target by render order.
+    const withId = render().sidebarTabs.filter((x) => x.tourId);
+    expect(withId.map((x) => [x.id, x.tourId])).toEqual([
+      ["todo", "schedule-todo-tab"],
     ]);
   });
 

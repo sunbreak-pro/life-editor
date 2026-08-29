@@ -110,7 +110,10 @@ describe("useShellNavigation — the leave guard (#753)", () => {
     act(() => result.current.handleNewTodo());
     await guard.answer(true);
     await waitFor(() => expect(result.current.pendingNewTodo).toBe(true));
-    expect(result.current.scheduleTab).toBe("todo");
+    // #1153: the destination is the SECTION — the Todo tab it used to name is
+    // retired, and the tray the intent means is a sidebar tab the section
+    // itself opens.
+    expect(result.current.section).toBe("schedule");
   });
 
   it("stashes a '[[' jump only once the move is agreed", async () => {

@@ -1,6 +1,6 @@
 import { type DataService } from "@life-editor/shared";
-import { useItemLinkTargets } from "../../notes/useItemLinkTargets";
-import { useInlineItemLinks } from "../../hooks/useInlineItemLinks";
+import { useItemLinkTargets } from "../notes/useItemLinkTargets";
+import { useInlineItemLinks } from "../hooks/useInlineItemLinks";
 
 /*
  * "[[" link plumbing for the todo body (#507) — the todo-side twin of
@@ -30,7 +30,12 @@ export function useTodoLinking({ dataService }: { dataService?: DataService }) {
 
   // The Kanban is the only host of the todo body editor (both widths render
   // through its TodoDetailContent), so it is the name a failed write reports.
-  const { mirrorInlineLink, syncSavedBody } = useInlineItemLinks("KanbanView");
+  // The surface's own name, for console errors. It said "KanbanView" until
+  // #1153 retired that board — a tag copied along with the hook and then left
+  // pointing at a file that no longer exists, which is precisely the failure
+  // useInlineItemLinks takes `hostTag` as an argument to avoid.
+  const { mirrorInlineLink, syncSavedBody } =
+    useInlineItemLinks("ScheduleTodoDetail");
 
   return {
     loadLinkTargets,

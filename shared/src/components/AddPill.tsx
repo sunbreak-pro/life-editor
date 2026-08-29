@@ -14,8 +14,9 @@ import { tourAnchor } from "./tour/anchor";
  * copy becomes a definition.
  *
  * Hosts today: `web/src/notes/NotesView.tsx` (「+ノート」),
- * `web/src/todos/KanbanBoardSurface.tsx` (「+Todo」),
- * `web/src/schedule/CalendarTab.tsx` (「+追加」, narrow only).
+ * `web/src/schedule/CalendarNarrowLayout.tsx` (「+追加」, narrow only),
+ * `web/src/schedule/ScheduleSidebar.tsx` (「+Todo」 — inherited from the
+ * Kanban board's toolbar when #1153 retired it).
  *
  * The host keeps the row: this part is the button and nothing else, because
  * the three placements differ (right-aligned in a padded strip, in a toolbar's

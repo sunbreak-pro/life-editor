@@ -10,6 +10,7 @@ import type {
 import { ScheduleOverlayHost } from "../src/schedule/ScheduleOverlayHost";
 import type { ScheduleOverlayHostProps } from "../src/schedule/ScheduleOverlayHost";
 import type { ScheduleEventEditorProps } from "../src/schedule/ScheduleEventEditor";
+import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail";
 
 /*
  * #889 / #1000 — the Calendar's overlay layer, assembled once for both layouts.
@@ -283,10 +284,18 @@ function renderHost(
       writes: {
         updateNode: vi.fn(),
         toggleStatus: vi.fn(),
+        setStatus: vi.fn(),
         onDelete: vi.fn(),
       },
       onConvertToEvent: vi.fn(),
-      onOpenTodos: vi.fn(),
+      // #1153: the detail inherited the board's body editor, so it takes the
+      // "[[" bundle too. Stubbed whole — this suite is about WHERE the frames
+      // mount, not what the panel inside one does.
+      linking: {
+        loadLinkTargets: vi.fn(),
+        handleResolvedLinkInserted: vi.fn(),
+        handleBodySaved: vi.fn(),
+      } as unknown as ScheduleTodoDetailProps['linking'],
       askConfirm,
       ...over.todoDetail,
     },

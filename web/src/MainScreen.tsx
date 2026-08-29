@@ -49,8 +49,10 @@ import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
  * (IA.md 2026-07-05) collapses the old flat sections into 5 mainline + 2
  * utility, with the document surfaces (Notes / Daily) folded under a single
  * "Materials" section addressed by an in-section tab (`materialsTab`). Todos
- * left that group in #411 and are now Schedule's second tab (`scheduleTab`),
- * next to the calendar they get scheduled onto.
+ * left that group in #411 for Schedule's second tab, and #1153 retired that
+ * tab too: they live in the Schedule section's own rightSidebar now, which is
+ * the section's state rather than the shell's — so Schedule appears in no tab
+ * band below.
  *
  * This host only wires the SHELL. Section identity/order/icons come from the
  * shared registry (SSOT — shared/src/sections.ts, derived inside
@@ -100,14 +102,12 @@ export function MainScreen({ session }: { session: Session }) {
     utilitySections,
     mobileSections,
     materialsTabDefs,
-    scheduleTabDefs,
     analyticsTabDefs,
     briefingTabDefs,
     shellLabels,
   } = useShellChrome({
     setSection,
     setMaterialsTab: nav.setMaterialsTab,
-    setScheduleTab: nav.setScheduleTab,
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
@@ -179,12 +179,6 @@ export function MainScreen({ session }: { session: Session }) {
       active: nav.materialsTab,
       onSelect: (id) => nav.setMaterialsTab(id as typeof nav.materialsTab),
       label: t("section.materials"),
-    },
-    schedule: {
-      defs: scheduleTabDefs,
-      active: nav.scheduleTab,
-      onSelect: (id) => nav.setScheduleTab(id as typeof nav.scheduleTab),
-      label: t("section.schedule"),
     },
     analytics: {
       defs: analyticsTabDefs,

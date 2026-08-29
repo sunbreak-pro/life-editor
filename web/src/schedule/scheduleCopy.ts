@@ -3,6 +3,7 @@ import {
   buildWeekdayLabels,
   dateFromKey,
   useTranslation,
+  TOUR_ANCHORS,
   type FrequencyEditorLabels,
   type FrequencyLabelCopy,
   type ItemCreatePanelLabels,
@@ -157,7 +158,7 @@ export interface ScheduleCopy {
     openSettings: string;
     view: string;
   };
-  sidebarTabs: { id: string; label: string }[];
+  sidebarTabs: { id: string; label: string; tourId?: string }[];
   repeatLabels: FrequencyEditorLabels;
   statusLabels: Record<ScheduleStatus, string>;
   createPanelLabels: ItemCreatePanelLabels;
@@ -168,7 +169,6 @@ export interface ScheduleCopy {
 }
 
 export function useScheduleCopy({
-  isWide,
   notesError,
 }: ScheduleCopyOptions): ScheduleCopy {
   const { t } = useTranslation();
@@ -204,20 +204,30 @@ export function useScheduleCopy({
     [t],
   );
 
-  // Narrow has no Todo tab — the tray is reachable from the flow instead.
+  /*
+   * The same three tabs at both widths since #1153.
+   *
+   * Narrow used to get two: the Todo tab was Desktop-only because the phone
+   * reached its todos through the section's own Todo tab instead. That tab is
+   * retired, so withholding this one would leave narrow with no route to a
+   * todo at all — which is a removal, not the reduction the Issue asked for.
+   */
   const sidebarTabs = useMemo(
-    () =>
-      isWide
-        ? [
-            { id: "flow", label: t("scheduleScreen.todayFlow") },
-            { id: "todo", label: t("scheduleScreen.tabTodo") },
-            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-          ]
-        : [
-            { id: "flow", label: t("scheduleScreen.todayFlow") },
-            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-          ],
-    [isWide, t],
+    () => [
+      { id: "flow", label: t("scheduleScreen.todayFlow") },
+      {
+        id: "todo",
+        label: t("scheduleScreen.tabTodo"),
+        // #1124: the tour points here to open the todos. It used to point at
+        // the section's own Todo tab, which #1153 retired along with the board
+        // behind it — this switcher is the route now. Only this segment
+        // carries an id: the tour has no step on 今日の流れ or 繰り返し, and an
+        // anchor nothing asks for is a selector waiting to be misread.
+        tourId: TOUR_ANCHORS.scheduleTodoTab,
+      },
+      { id: "repeats", label: t("scheduleScreen.tabRepeats") },
+    ],
+    [t],
   );
 
   const repeatLabels = useMemo<FrequencyEditorLabels>(

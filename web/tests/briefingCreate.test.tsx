@@ -186,10 +186,9 @@ describe("Briefing create panel (#623)", () => {
     // The paper has no event editor of its own, so "open" means the section
     // that does — named in the target-IA destination vocabulary (#676 (b)):
     // the Schedule section, on its Calendar tab.
-    expect(onNavigate).toHaveBeenCalledWith({
-      section: "schedule",
-      tab: "calendar",
-    });
+    // #1153: Schedule is one surface, so the hand-off names a section and
+            // nothing else — there is no tab left to pick.
+    expect(onNavigate).toHaveBeenCalledWith({ section: "schedule" });
   });
 
   it("writes nothing when the panel is dismissed", async () => {

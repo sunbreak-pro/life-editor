@@ -1,15 +1,19 @@
 /*
- * Kanban color presets (K2). A curated palette for folder / tag colors,
- * shown in the column-header color picker. These are user-data colors
+ * Item color presets. A curated palette for folder / tag colors, shown in the
+ * shared <ColorPicker>. These are user-data colors
  * (they tint folder/tag chrome), so they are applied via inline styles /
  * CSS vars — the §6 "no hardcoded color" rule targets THEME chrome
  * (lumen-* tokens), not user-chosen data colors (mirrors the existing
- * KanbanColumn accent + KanbanCard folder-dot inline styles).
+ * tag chip inline styles).
+ *
+ * Lived at Kanban/colors.ts until #1153 retired the board around it; the
+ * picker outlived its first host, so the palette moved out rather than being
+ * deleted with the folder it happened to sit in.
  *
  * 12 hues, laid out as 2 rows of 6 in the picker. Tuned to read on both
  * light and dark themes.
  */
-export const KANBAN_COLOR_PRESETS: readonly string[] = [
+export const ITEM_COLOR_PRESETS: readonly string[] = [
   "#2563eb", // blue
   "#0ea5e9", // sky
   "#14b8a6", // teal

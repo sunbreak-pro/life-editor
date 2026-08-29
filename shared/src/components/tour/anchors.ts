@@ -24,11 +24,18 @@ export const TOUR_ANCHORS = {
   scheduleAddEvent: "schedule-add-event",
   /** The calendar surface itself: where a created event can be found again. */
   scheduleCalendar: "schedule-calendar",
-  /** The section tab that opens the Todo sheet. */
+  /**
+   * The tab that opens the todos — the Schedule sidebar's switcher since
+   * #1153 retired the section's own Todo tab.
+   */
   scheduleTodoTab: "schedule-todo-tab",
-  /** The Todo sheet's create control. */
+  /** The todo tray's create control. */
   scheduleTodoAdd: "schedule-todo-add",
-  /** The Todo sheet's list surface. */
+  /**
+   * The todo tray's list surface. Named `...Board` for the Kanban board it
+   * pointed at first (#1124); the value it carries is what the registry and
+   * the tray agree on, so it is left alone rather than renamed across both.
+   */
   scheduleTodoBoard: "schedule-todo-board",
 } as const;
 

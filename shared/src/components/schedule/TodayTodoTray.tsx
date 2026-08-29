@@ -62,6 +62,12 @@ export interface TodayTodoTrayLabels {
   addHeading: string;
   /** Accessible name for the per-todo "add to today" button. */
   addAction: string;
+  /**
+   * Accessible name for opening an UNSCHEDULED row's detail (pair with
+   * `onOpenAddable`). Separate from `openInTodos`: that one names where the
+   * placed rows go, and since #1153 the two can be different places.
+   */
+  openAddable?: string;
   emptyAddable: string;
   /** Accessible name for the per-row completion toggle. */
   complete: string;
@@ -96,6 +102,15 @@ export interface TodayTodoTrayProps {
   onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTodo: (id: string) => void;
   onAddCandidate: (id: string) => void;
+  /**
+   * Open an UNSCHEDULED row's detail (#1153). Optional, and the reason it is
+   * separate from `onOpenTodo` is that the two groups answer to different
+   * hosts: Schedule made this list the home of every todo that has no day yet,
+   * so its rows have to be readable and editable, while Briefing's tray is a
+   * staging list and leaves them as plain text. Without it the title stays a
+   * <span>, exactly as before.
+   */
+  onOpenAddable?: (id: string) => void;
   /** Soft-delete the row's todo (#555). Rendered only with labels.delete. */
   onDelete?: (id: string) => void;
   /** Extra content under the title row (#555 — the host's tag surface). */
@@ -303,6 +318,7 @@ export function TodayTodoTray({
   onSetStatus,
   onOpenTodo,
   onAddCandidate,
+  onOpenAddable,
   onDelete,
   renderRowExtra,
   singleList,
@@ -355,9 +371,26 @@ export function TodayTodoTray({
                 key={a.id}
                 className="flex items-center gap-2 border-b border-lumen-border"
               >
-                <span className="min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text">
-                  {a.title}
-                </span>
+                {onOpenAddable ? (
+                  // #1153: the same title, as the way in. A button only when
+                  // the host has somewhere to open — a dead one would be worse
+                  // than the plain text it replaces.
+                  <button
+                    type="button"
+                    title={labels.openAddable}
+                    onClick={() => onOpenAddable(a.id)}
+                    className={cn(
+                      "min-w-0 flex-1 truncate py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent",
+                      FOCUS,
+                    )}
+                  >
+                    {a.title}
+                  </button>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text">
+                    {a.title}
+                  </span>
+                )}
                 <button
                   type="button"
                   aria-label={labels.addAction}
