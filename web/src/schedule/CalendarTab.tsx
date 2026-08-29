@@ -17,6 +17,8 @@ import {
   useDeferredAction,
   useToast,
   useMinuteClock,
+  useTourAction,
+  TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
   WIDE_QUERY,
@@ -533,6 +535,43 @@ export function CalendarTab({
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
+  /*
+   * Tutorial tour reporting (#1124). Two of the Schedule steps advance on a
+   * real write, so the host tells the tour when one lands. Wrapped HERE rather
+   * than inside useScheduleMutations / useScheduleCreateFlow on purpose: those
+   * two are deliberately context-free so they render under `renderHook` with
+   * no Provider at all (see their headers), and reaching into a Context from
+   * inside them would take that away. CalendarTab already needs the whole
+   * Provider chain, so the coupling costs nothing new here.
+   *
+   * `reportTourAction` is stable for the component's lifetime (useTourAction),
+   * so neither wrapper adds a dependency that changes as the tour walks.
+   */
+  const reportTourAction = useTourAction();
+
+  const handleCreateReported = useCallback<typeof handleCreate>(
+    (slot, title, onSaved) => {
+      const id = handleCreate(slot, title, onSaved);
+      reportTourAction(TOUR_ACTIONS.scheduleEventCreated);
+      return id;
+    },
+    [handleCreate, reportTourAction],
+  );
+
+  const handleUpdateReported = useCallback<typeof handleUpdate>(
+    (id, patch) => {
+      handleUpdate(id, patch);
+      // Only a TIME edit advances the step, because that is what the step
+      // asks for — renaming the event teaches nothing about the calendar.
+      // Read off the patch rather than the item: the pane sends only the
+      // fields the user actually changed.
+      if (patch.startTime !== undefined || patch.endTime !== undefined) {
+        reportTourAction(TOUR_ACTIONS.scheduleEventTimeChanged);
+      }
+    },
+    [handleUpdate, reportTourAction],
+  );
+
   // #889: the creation panel's four openers and five committers, as one hook.
   // It has to sit here rather than beside the other handlers — `handleCreate`
   // comes out of the call above, and its own outputs are only read from the
@@ -553,7 +592,7 @@ export function CalendarTab({
     isWide,
     setSelectedId,
     setOverlayOpen,
-    handleCreate,
+    handleCreate: handleCreateReported,
     addNode,
     updateNode,
     attachNote,
@@ -797,7 +836,7 @@ export function CalendarTab({
         // rather than callbacks: the pane holds them in its draft until the
         // button.
         handlers: {
-          onSave: handleUpdate,
+          onSave: handleUpdateReported,
           onToggleComplete: handleToggle,
           onDismiss: handleDismiss,
           onDelete: handleDelete,

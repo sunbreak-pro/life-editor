@@ -176,10 +176,7 @@ export { useDayStartHourPref } from "./hooks/useDayStartHour";
 // Week start (#1102) — fixed on Sunday app-wide. The stored pref (#217) and
 // its hook are gone; the grid math keeps its `weekStartsOn` parameter, so
 // hosts hand it this constant instead of reading localStorage.
-export {
-  WEEK_STARTS_ON,
-  type WeekStartsOn,
-} from "./utils/scheduleGridLayout";
+export { WEEK_STARTS_ON, type WeekStartsOn } from "./utils/scheduleGridLayout";
 // Reset local preferences (§216) — clears the app's localStorage namespace and
 // reloads. Pure helpers for the host's confirm-then-reset flow.
 export {
@@ -693,6 +690,9 @@ export {
   type TourContextValue,
 } from "./context";
 export { useTourContext } from "./hooks/useTourContext";
+// The producer side of the tour (#1124): optional and stable, so a write
+// handler can report an action without depending on the tour being mounted.
+export { useTourAction } from "./hooks/useTourAction";
 // Tour progress persistence (#1122). The single place that knows WHERE the
 // position is stored — see the file header for why that is localStorage and
 // not DataService today.

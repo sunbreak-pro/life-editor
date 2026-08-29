@@ -6,6 +6,8 @@ import {
   MonthGrid,
   ScheduleErrorCard,
   ScheduleLoadingCard,
+  TOUR_ANCHORS,
+  tourAnchor,
   useTranslation,
   type AgendaItem,
   type AgendaListLabels,
@@ -219,7 +221,12 @@ export function CalendarNarrowLayout({
              * passed: the dots are a density cue and the day underneath stays
              * the tap target. What a dot IS is answered by the list below.
              */}
-            <div className="shrink-0">
+            {/* #1124: the narrow half of the `scheduleCalendar` anchor — the
+                grid is where a created event is found again on this width. */}
+            <div
+              {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
+              className="shrink-0"
+            >
               <MonthGrid
                 compact
                 monthKey={month.anchorDate}
@@ -254,6 +261,7 @@ export function CalendarNarrowLayout({
                 <AddPill
                   onClick={day.onAdd}
                   label={t("scheduleScreen.addCta")}
+                  tourId={TOUR_ANCHORS.scheduleAddEvent}
                 />
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto pb-3">
