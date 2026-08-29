@@ -11,7 +11,6 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
-export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
 // Note templates (#1047) — the list + name + body surface, tag/link-free.

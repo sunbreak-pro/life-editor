@@ -334,11 +334,16 @@ describe("DailyView — desktop entry panel", () => {
     screen.getByText("materials.daily.entriesCount|1");
   });
 
-  it("does not render the mobile date strip", () => {
+  it("offers no today / yesterday jump beside the picker (#1189)", () => {
     render(<DailyView />);
-    expect(
-      screen.queryByRole("group", { name: "materials.daily.dateStripLabel" }),
-    ).toBeNull();
+    // Both set the same selected date the picker and the rows set, so from the
+    // outside they read as a filter that did nothing.
+    expect(screen.queryByText("materials.daily.today")).toBeNull();
+    expect(screen.queryByText("materials.daily.yesterday")).toBeNull();
+    // What is left above the list: the picker, the search and the sort.
+    screen.getByLabelText("materials.daily.datePicker");
+    screen.getByLabelText("materials.daily.filterLabel");
+    screen.getByLabelText("materials.sidebar.sort");
   });
 });
 
@@ -347,18 +352,15 @@ describe("DailyView — mobile", () => {
     state.isWide = false;
   });
 
-  it("navigates by the date strip instead of the entry panel", () => {
+  it("has no date strip over the editor (#1189)", () => {
     render(<DailyView />);
 
-    // The strip is the last two weeks, so a 40-day-old entry is unreachable
-    // there — which is what the drawer's entry panel is for (#876).
-    const strip = screen.getByRole("group", {
-      name: "materials.daily.dateStripLabel",
-    });
-    const days = within(strip).getAllByRole("button");
-    expect(days.length).toBe(14);
-    fireEvent.click(days[0]);
-    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(isoDay(-13));
+    // The strip only ever reached the last fourteen days, which is the range
+    // the drawer's entry list already covers — and every day it offered was a
+    // day the picker offers too.
+    expect(
+      screen.queryByRole("group", { name: "materials.daily.dateStripLabel" }),
+    ).toBeNull();
   });
 
   /*
