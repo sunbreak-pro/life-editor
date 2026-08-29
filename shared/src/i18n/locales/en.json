@@ -110,6 +110,28 @@
         "tooShort": "Use at least {{min}} characters",
         "samePassword": "That is the password you already have. Choose a different one.",
         "generic": "Could not change the password. Please wait a moment and try again."
+      },
+      "signOut": {
+        "heading": "Sign out",
+        "description": "End this session on this device. Your data stays where it is.",
+        "button": "Sign out"
+      },
+      "delete": {
+        "heading": "Delete account",
+        "description": "Permanently erase this account and everything in it. There is no Trash behind this and no way to undo it.",
+        "button": "Delete account",
+        "title": "Delete this account?",
+        "body": "This erases the account {{email}} and every piece of data belonging to it.",
+        "consequences": {
+          "data": "Todos, notes, dailies, schedule, tags, timers and sounds are deleted from the server.",
+          "login": "You will not be able to sign in with this address again.",
+          "irreversible": "Nothing goes to Trash. This cannot be undone or restored."
+        },
+        "typePrompt": "Type {{email}} to confirm",
+        "inputLabel": "Email address confirmation",
+        "confirm": "Delete permanently",
+        "busy": "Deleting…",
+        "error": "Could not delete the account. Nothing was removed — please wait a moment and try again."
       }
     },
     "tutorial": {

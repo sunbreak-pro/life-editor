@@ -27,7 +27,13 @@ export {
   sendPasswordResetEmail,
   resendConfirmationEmail,
   updatePassword,
+  // Renamed on main (#1197): the redirect now serves sign-up confirmation as
+  // well as password recovery.
   authRedirectUrl,
+  // Self-service account deletion (#1200) — the Edge Function call plus the
+  // local session teardown that has to follow it.
+  deleteAccount,
+  DELETE_ACCOUNT_FUNCTION,
   type AuthResult,
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";
