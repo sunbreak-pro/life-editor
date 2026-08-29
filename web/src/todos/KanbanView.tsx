@@ -14,9 +14,14 @@ import {
   useTranslation,
   readKanbanViewMode,
   persistKanbanViewMode,
+  tourAnchor,
+  useTourAction,
+  TOUR_ACTIONS,
+  TOUR_ANCHORS,
   type DataService,
   type KanbanViewMode,
   type TodoDetailPatch,
+  type TodoStatus,
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { useKanbanDnd } from "./useKanbanDnd";
@@ -203,6 +208,61 @@ export function KanbanView({
     onConsumeNewTodo,
   });
 
+  /*
+   * Tutorial tour reporting (#1124). Three of the Schedule steps live on this
+   * screen, and each one waits for the write rather than the click.
+   *
+   * "The Todo sheet is open" is reported ON MOUNT, because this component
+   * mounts exactly when the tab does — which covers every route in (the tab
+   * band, the tray title, the `nav:tasks` shortcut, the palette) without any
+   * of them knowing about the tour. Known gap: a user ALREADY on this tab when
+   * the step becomes current gets no mount, so the step waits until they leave
+   * and come back. Reachable only by restarting the tour from Settings while
+   * sitting on the board — `scheduleTab` is not persisted, so a reload always
+   * lands on Calendar.
+   */
+  const reportTourAction = useTourAction();
+  useEffect(() => {
+    reportTourAction(TOUR_ACTIONS.scheduleTodoTabOpened);
+  }, [reportTourAction]);
+
+  // Members off `tree` are pulled out so the wrappers below depend on the
+  // functions rather than on the whole context value (the same reason
+  // handleSelectCard does it above).
+  const nodeMap = tree.nodeMap;
+  const toggleTodoStatus = tree.toggleTodoStatus;
+  const setTodoStatus = tree.setTodoStatus;
+
+  const handleAddSubmitReported = useCallback<typeof handleAddSubmit>(
+    (input) => {
+      handleAddSubmit(input);
+      reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
+    },
+    [handleAddSubmit, reportTourAction],
+  );
+
+  const handleToggleStatusReported = useCallback(
+    (id: string) => {
+      // Read the status BEFORE the flip: only finishing a todo advances the
+      // step, and re-opening one must not. Two values since #873, so "not
+      // DONE" is the whole test.
+      const completes = (nodeMap.get(id)?.status ?? "NOT_STARTED") !== "DONE";
+      toggleTodoStatus(id);
+      if (completes) reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
+    },
+    [nodeMap, reportTourAction, toggleTodoStatus],
+  );
+
+  const handleSetTodoStatusReported = useCallback(
+    (id: string, status: TodoStatus) => {
+      setTodoStatus(id, status);
+      if (status === "DONE") {
+        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
+      }
+    },
+    [reportTourAction, setTodoStatus],
+  );
+
   // The host owns viewMode (it drives column building), so the board runs
   // controlled and its own persistence is inert. Persist here instead, sharing
   // one storage key with the board via the shared helper — the chosen view
@@ -229,7 +289,7 @@ export function KanbanView({
   const dnd = useKanbanDnd({
     viewMode,
     columns,
-    setTodoStatus: tree.setTodoStatus,
+    setTodoStatus: handleSetTodoStatusReported,
   });
 
   if (tree.isLoading) {
@@ -252,7 +312,7 @@ export function KanbanView({
   const detailProps = {
     onSaveDetail: saveTodoDetail,
     dirtyRef: detailDirtyRef,
-    onToggleStatus: tree.toggleTodoStatus,
+    onToggleStatus: handleToggleStatusReported,
     onDelete: handleDeleteFromDetail,
     onConvert: dataService ? handleConvertFromDetail : undefined,
     loadLinkTargets,
@@ -261,7 +321,14 @@ export function KanbanView({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // #1124: the tour's "finish one of them" step points here rather than at a
+    // single control, because completing has three routes (drag to Done, the
+    // Desktop detail's toggle, the narrow status row) and singling one out
+    // would teach the other two as wrong.
+    <div
+      {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
+      className="flex h-full min-h-0 flex-col"
+    >
       {moveError && (
         <p
           role="alert"
@@ -314,7 +381,10 @@ export function KanbanView({
               quickAddPlaceholder: t("materials.todos.quickAddPlaceholder"),
               quickAddSubmit: t("materials.todos.quickAddSubmit"),
             }}
-            onQuickAdd={(title) => tree.addNode("task", null, title)}
+            onQuickAdd={(title) => {
+              tree.addNode("task", null, title);
+              reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
+            }}
             detailTodoId={sheetTodo ? sheetTodo.id : null}
             onSelectTodo={detail.openSheet}
             // #736: the sheet funnels Escape, the backdrop and its close button
@@ -332,7 +402,7 @@ export function KanbanView({
                     <TodoStatusChoices
                       value={sheetTodo.status ?? "NOT_STARTED"}
                       onChange={(status) =>
-                        tree.setTodoStatus(sheetTodo.id, status)
+                        handleSetTodoStatusReported(sheetTodo.id, status)
                       }
                       labels={labels}
                       label={t("materials.todos.statusGroupLabel")}
@@ -359,7 +429,7 @@ export function KanbanView({
         <TodoAddDialog
           open={addOpen}
           onClose={() => setAddOpen(false)}
-          onSubmit={handleAddSubmit}
+          onSubmit={handleAddSubmitReported}
           labels={{
             title: t("kanban.addDialogTitle"),
             titleLabel: t("kanban.addTitleLabel"),

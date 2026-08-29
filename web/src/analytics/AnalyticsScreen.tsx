@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AnalyticsView,
   useTranslation,
@@ -15,6 +15,8 @@ import {
   type WikiTagAssignmentUnified,
   formatDateKey,
   todayCalendarKey,
+  useDomainLoad,
+  useSyncDomains,
 } from "@life-editor/shared";
 
 /*
@@ -30,6 +32,14 @@ import {
  * Schedule tab's items are fetched separately, per selected date range (see the
  * scheduleRange effect + AnalyticsView.onScheduleRangeChange), so we no longer
  * load all history up front.
+ *
+ * Both loads run through `useDomainLoad` (#1157). Before that they were two
+ * hand-written effects keyed on `[ds]` / `[ds, scheduleRange]`, which had two
+ * consequences: the dashboard skeleton came back on every return to the
+ * section (#1038 §3.1), and nothing here declared a Sync domain, so the
+ * numbers never moved until the screen was remounted (#1136). The mount load
+ * now replays its last result from the `analyticsSummary` slot before paint
+ * and re-reads behind it, and both loads follow `useSyncDomains`.
  *
  * v2 §1 adoption (#208): the Overview/Todos/Work/Schedule tab band is lifted
  * into the shell's standard SectionHeader (MainScreen owns `analyticsTab`, same
@@ -75,104 +85,127 @@ export function AnalyticsScreen({
   onTabChange,
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t } = useTranslation();
+  // Everything this screen reads, declared (rules/frontend.md §Sync). Missing
+  // declarations are a silent stale, and this screen had none at all — a
+  // finished pomodoro or a ticked todo left the dashboard showing yesterday
+  // until the section was remounted (#1136). `sessions` and `timer` are
+  // separate domains since #993: the session LOG and the pomodoro target.
+  const syncVersion = useSyncDomains(
+    "sessions",
+    "todos",
+    "schedule",
+    "notes",
+    "tags",
+    "timer",
+  );
   const [data, setData] = useState<AnalyticsData>(EMPTY);
-  // First-load flag: drives AnalyticsView's skeleton so the dashboard lays out
-  // its frame instead of flashing zeros before the mount fetch resolves.
-  const [initialLoading, setInitialLoading] = useState(true);
 
   // Schedule tab data — fetched per selected range, not up front.
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [scheduleRange, setScheduleRange] = useState<DateRange | null>(null);
-  const [scheduleLoading, setScheduleLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    // Wall calendar day (#356): the Overview's today stats come from schedule
-    // items, and the Schedule domain keys its grids on the calendar — a 2 AM
-    // edit belongs to the new date. The day-start-hour "today" (todayDateKey)
-    // is Daily / routine sync's boundary and stays out of Analytics.
-    const today = todayCalendarKey();
+  // Wall calendar day (#356): the Overview's today stats come from schedule
+  // items, and the Schedule domain keys its grids on the calendar — a 2 AM
+  // edit belongs to the new date. The day-start-hour "today" (todayDateKey)
+  // is Daily / routine sync's boundary and stays out of Analytics.
+  const today = todayCalendarKey();
 
-    void Promise.all([
-      ds.fetchTimerSessions(),
-      ds.fetchTodoTree(),
-      ds.fetchScheduleItemsByDateRange(today, today),
-      ds.fetchAllRoutines(),
-      ds.listNotesUnified(),
-      ds.listAllWikiTagsUnified(),
-      ds.listAllTagAssignments(),
-      ds.fetchTimerSettings(),
-    ])
-      .then(
-        ([
-          sessions,
-          nodes,
-          todayItems,
-          routines,
-          notes,
-          tags,
-          assignments,
-          timerSettings,
-        ]) => {
-          if (cancelled) return;
-          setData({
-            sessions,
-            nodes,
-            todayItems,
-            routines,
-            notes,
-            tags,
-            assignments,
-            targetPerDay: timerSettings.targetSessions ?? 4,
-          });
-          setInitialLoading(false);
-        },
-      )
-      .catch(() => {
-        if (cancelled) return;
-        setData(EMPTY);
-        setInitialLoading(false);
-      });
+  // First-load flag: drives AnalyticsView's skeleton so the dashboard lays out
+  // its frame instead of flashing zeros before the mount fetch resolves.
+  const { isLoading: initialLoading } = useDomainLoad<AnalyticsData>({
+    domain: "Analytics",
+    dataService: ds,
+    version: syncVersion,
+    anchor: today,
+    snapshotKey: "analyticsSummary",
+    // Six domains feed this screen, so a bump lands often — and Realtime
+    // echoes this tab's own writes back. Swapping the dashboard for its
+    // skeleton on each one would make the numbers flicker while working.
+    refetchReportsLoading: false,
+    load: async (service) => {
+      const [
+        sessions,
+        nodes,
+        todayItems,
+        routines,
+        notes,
+        tags,
+        assignments,
+        timerSettings,
+      ] = await Promise.all([
+        service.fetchTimerSessions(),
+        service.fetchTodoTree(),
+        service.fetchScheduleItemsByDateRange(today, today),
+        service.fetchAllRoutines(),
+        service.listNotesUnified(),
+        service.listAllWikiTagsUnified(),
+        service.listAllTagAssignments(),
+        service.fetchTimerSettings(),
+      ]);
+      return {
+        sessions,
+        nodes,
+        todayItems,
+        routines,
+        notes,
+        tags,
+        assignments,
+        targetPerDay: timerSettings.targetSessions ?? 4,
+      };
+    },
+    apply: setData,
+    fallbackMessage: "Failed to load analytics",
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [ds]);
+  const rangeFrom = scheduleRange ? formatDateKey(scheduleRange.start) : null;
+  const rangeTo = scheduleRange ? formatDateKey(scheduleRange.end) : null;
 
-  // Fetch schedule items for exactly the selected range. AnalyticsView reports
-  // the range (incl. its initial default) via onScheduleRangeChange below, so
-  // this runs once on mount and again whenever the user changes the range.
-  useEffect(() => {
-    if (!scheduleRange) return;
-    let cancelled = false;
+  /*
+   * Fetch schedule items for exactly the selected range. AnalyticsView reports
+   * the range (incl. its initial default) via onScheduleRangeChange below, so
+   * this runs once on mount and again whenever the user changes the range.
+   *
+   * The anchor is the range itself, so changing it reports loading again with
+   * nothing to write by hand — which is what the old
+   * `handleScheduleRangeChange` had to do to stay off
+   * react-hooks/set-state-in-effect.
+   *
+   * NO snapshotKey, and it is not an oversight. `useDomainLoad` looks a
+   * snapshot up ONCE, in a mount-render useState initializer, and on the mount
+   * render `scheduleRange` is still null — the range arrives afterwards, from a
+   * passive effect inside AnalyticsFilterProvider, which is a CHILD of this
+   * screen. There is therefore no render at which a lookup for the real window
+   * could happen, so a key here would only ever be written and never read.
+   * Making it work would mean duplicating that Provider's preset default up
+   * here, which is the one place the default is allowed to live.
+   *
+   * Its OWN counter, not the six-domain one above. `isLoading` is derived from
+   * `version`, so sharing the summary's counter made a finished pomodoro (a
+   * `sessions` bump this read does not care about) put the Schedule tab's
+   * skeleton back mid-session. This read touches one method, so it follows one
+   * domain — the "over-declare if in doubt" rule in rules/frontend.md §Sync
+   * prices an extra fetch, not an extra skeleton.
+   */
+  const scheduleSyncVersion = useSyncDomains("schedule");
+  const { isLoading: rangeLoading } = useDomainLoad<ScheduleItem[]>({
+    domain: "Analytics schedule range",
+    dataService: ds,
+    version: scheduleSyncVersion,
+    anchor: rangeFrom === null ? undefined : `${rangeFrom}:${rangeTo}`,
+    load: (service) =>
+      rangeFrom === null || rangeTo === null
+        ? Promise.resolve<ScheduleItem[]>([])
+        : service.fetchScheduleItemsByDateRange(rangeFrom, rangeTo),
+    apply: setScheduleItems,
+    fallbackMessage: "Failed to load the schedule range",
+  });
+  // No range yet means AnalyticsView has not reported its preset, which is a
+  // load that has not started — not one that finished empty.
+  const scheduleLoading = rangeLoading || scheduleRange === null;
 
-    const from = formatDateKey(scheduleRange.start);
-    const to = formatDateKey(scheduleRange.end);
-
-    void ds
-      .fetchScheduleItemsByDateRange(from, to)
-      .then((items) => {
-        if (cancelled) return;
-        setScheduleItems(items);
-        setScheduleLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setScheduleItems([]);
-        setScheduleLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, scheduleRange]);
-
+  // The range anchor drives `rangeLoading` on its own now, so this only has to
+  // record what the user picked.
   const handleScheduleRangeChange = useCallback((range: DateRange) => {
-    // Flip the loading flag here (a callback), not synchronously inside the
-    // fetch effect — the effect body would trip react-hooks/set-state-in-effect
-    // and cost an extra render. AnalyticsView calls this on mount and on every
-    // range change, i.e. exactly when a new fetch is about to run.
-    setScheduleLoading(true);
     setScheduleRange(range);
   }, []);
 

@@ -1,5 +1,18 @@
 # HISTORY (chat-main)
 
+### 2026-08-29 - Connect 後継（Tag hub + Related パネル）の方針確定と起票
+
+#### 概要
+
+connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機能の後継案 4 つ（Related パネル / Tag hub / Claude 製つながりダイジェスト / 局所ミニグラフ）を比較し、ユーザー確定で案 1 + 案 2 を採用。#1171 / #1172 として起票し、#1153 へ役割分担コメントを残した。
+
+#### 変更点
+
+- **方針確定（2026-08-29 ユーザー確定）**: 新 Connect は Tag 起点の hub ページ（力学グラフは復活させない）。#1153 との役割分担 = 時間軸の入口は Calendar / トピック軸の入口は Connect（「今日への配置」は Calendar サイドバー残留）。タグ無しアイテムは「未分類」疑似タグで受ける
+- **起票**: #1171（[connect] Tag hub セクション新設・`section:connect`）/ #1172（[materials] LinkPanel の Related パネル化・`section:materials`）。どちらも **Blocked by #1152** を本文に明記
+- **#1153 コメント**: 旧カンバンの「タグ軸で Todo を眺めて整理する」役割は #1171 が引き取り、サイドバー側にタグ別グルーピングを作り込まない旨を明記
+- **実測の副産物**: タグの lucide アイコン + カラーはデータ列（`wiki_tags.icon` / `color`）も設定 UI（TagIconPicker / TagColorControls）も実装済みで、欠けているのは表示面（TagPill 等）だけ — 新規機能ではなく #1171 の表示要件として畳み込んだ
+
 ### 2026-08-23 - #994 モバイル体感の実ブラウザ計測 6 項目（PR #1112）+ follow-up 3 件起票
 
 #### 概要
@@ -8,14 +21,14 @@
 
 #### 実測値
 
-| 項目 | 実測 | 判定 |
-| --- | --- | --- |
-| 再レンダリング | 初回 14 commit / 切替は Schedule だけ 164.5 ms（Materials の 13 倍） | Schedule が突出（#1101 の対象） |
-| ポモドーロの REST | 開始 1.1 秒で 5 本、残り 59 秒は 0 本、停止時 1 本 | 約 6 本・長さに比例しない |
-| 実データの行数 / FPS | ノート 5 / Todo 4 / Event 0 → スクロールできるリストが 0 | FPS 測定不能 |
-| ツールチップ | 1 hover = 1 commit・5.72 ms、60 fps 維持 | 実害なし |
-| Slow 4G + CPU 4x | FCP 2,820 / LCP 3,860 / TBT 430 ms | "needs improvement" 帯 |
-| lucide eager/lazy | eager 99.6%（466.5 KB raw / 1,704 モジュール） | 最大の改善余地 |
+| 項目                 | 実測                                                                 | 判定                            |
+| -------------------- | -------------------------------------------------------------------- | ------------------------------- |
+| 再レンダリング       | 初回 14 commit / 切替は Schedule だけ 164.5 ms（Materials の 13 倍） | Schedule が突出（#1101 の対象） |
+| ポモドーロの REST    | 開始 1.1 秒で 5 本、残り 59 秒は 0 本、停止時 1 本                   | 約 6 本・長さに比例しない       |
+| 実データの行数 / FPS | ノート 5 / Todo 4 / Event 0 → スクロールできるリストが 0             | FPS 測定不能                    |
+| ツールチップ         | 1 hover = 1 commit・5.72 ms、60 fps 維持                             | 実害なし                        |
+| Slow 4G + CPU 4x     | FCP 2,820 / LCP 3,860 / TBT 430 ms                                   | "needs improvement" 帯          |
+| lucide eager/lazy    | eager 99.6%（466.5 KB raw / 1,704 モジュール）                       | 最大の改善余地                  |
 
 #### 変更点
 
@@ -102,21 +115,5 @@
 - **D-20260813-briefing-1 = A**: 「今週」カードの週バー（直近 7 日）と Work タブ週次集計（月曜固定）を両方とも暦週へ寄せる。台帳 `decisions/D-20260813-briefing-1.md` を作成 → `ANSWERS.md` へ 1 行転記 → `comm/decisions/chat-briefing-refine.md` を空に
 - **#860 起票**: `[analytics]` / `section:analytics`（briefing-refine レーン）。対象は `MobileAnalyticsView.tsx:121` の `aggregateByDay(sessions, 7)` と `analyticsAggregation.ts:162` の私有 `startOfWeek()` の 2 箇所で、`WorkTimeChart.tsx:56` の 14 日窓は対象外と本文に明記
 - **レーン投入の順序を保留に**: #860 / #675 のプロンプトは用意済みだが、#831 が `shared/src/components` と `web/src` を丸ごと触るため投入を止めた。とくに #675 のやること 1（taskChips 抽出）は改名対象そのもの。**大規模改名は後・細かい作業が先**の順序をユーザーへ提示した
-
-### 2026-08-13 - #837 userData を productName 配下へ（PR #857 open）+ /goal 再配布が実質不要だった件
-
-#### 概要
-
-#837（デスクトップの設定が `%APPDATA%\desktop` に落ちて `productName` と一致しない件）を実装して PR #857 を出した。あわせて「次の一斉フェーズを /goal 配布とサブエージェントのどちらで回すか」の選定依頼に答え、前者と判断した上で配布直前に実測を取り直したところ、**各レーンは前回の /goal でまだ自走しており、こちらが配る前に 6 件を merge まで運んでいた**。
-
-#### 変更点
-
-- **#837 の修正**（`desktop/src/main/index.ts`）: `app.setName("Life Editor")` と `app.setPath("userData", <appData>/Life Editor)` を **Store 生成より前**に実行する。`app.getPath("userData")` は `app.getName()` 由来で、`app.getName()` は asar 内 `package.json` の `name`（= `desktop`）を返すため electron-builder の `productName` は効いていなかった。解決済みパスは初回読み取りでキャッシュされるので、順序そのものが修正の一部
-- **旧 config の引き継ぎ**: 旧 `%APPDATA%\desktop\config.json` を新しい場所へ 1 回だけ copy（move ではない）。新側に config があればスキップするので、以降の編集が古い内容で上書きされることはない
-- **実測（Windows 11 / `npm run dev`）**: Electron 4 プロセス起動（#545 の健康判定基準）+ `%APPDATA%\Life Editor\config.json` に旧値がそのまま（`theme=system` / `closeToTray=true` / `bounds 2560x1392`）。ゲート = desktop typecheck exit 0 / electron-vite build exit 0 / docs-lint OK（desktop に lint・test スクリプトは無い）
-- **known-issue 033 に 2 点追記**: ① **worktree ごとに再発する** — `node_modules` を共有しないため、メイン clone を直しても worktree は壊れたまま残る（今回 win-verify で再発し、実機確認が一度空振りした） ② 復旧の近道 = 修復済み clone の `dist/` をコピーして `printf` で `path.txt` を書く（115MB の zip 展開より速い）
-- **配布方式の判断 = 既存レーンへの /goal（サブエージェントは不採用）**: chat-main は `main` 専有で `git checkout <feature>` 禁止のため実装ブランチが切れない / `isolation: worktree` の一時 worktree は `node_modules` を持たず lint・test・build が通らない / Windows は worktree 削除が `Permission denied` で残骸化する。対して既存 11 レーンは npm install 済みで、Issue のラベルがレーンとほぼ 1:1 に対応していた
-- **配布は実質不要だった**: 6 レーン分の /goal を用意した直後に取り直したところ **#838 / #830 / #826 / #827 / #672 / #793 が既に merge 済み**（06:31〜06:33 に集中）。**新規に渡す必要があったのは #795（briefing）と #708（schedule）の 2 本だけ**で、残りは貼ると二重指示になるため取り下げた
-- **レーン割り当てを Issue 側へ明示（6 件）**: `shared-fix` ラベルは複数レーンが自分宛と解釈しうるため（#473 = 40 分の二重実装）、#838 / #827 → shared-fix、#797 / #792 → mobile-refine、#831 → 保留、#837 → chat-main とコメントした。うち #838 / #827 は書いた直後に merge されて空振り
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

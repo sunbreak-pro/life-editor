@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-29 - #1168 merge 後の 2 巡目（#1187 のツアーアンカー付け替え）
+
+#### 概要
+
+PR #1168（#1124 のツアー）が main に着地したため、予告どおり後着地側の #1187 が 6 ファイルの衝突を解消し、Todo 系ツアーアンカー 3 本を退役した Kanban 板からサイドバーのトレイへ付け替えた。MERGEABLE + CLEAN に復帰（`b2753770`）。
+
+#### 変更点
+
+- **コンフリクト解消（6 件）**: `useShellChrome.tsx` は #1153 のタブ帯退役を採用（`scheduleTabDefs` ごと削除・不要になった `TOUR_ANCHORS` import も落とした）/ `CalendarTab.tsx` は import 両取り / `KanbanView` `KanbanBoardSurface` `MobileTodoList` `kanbanView.test.tsx` の 4 件は modify/delete で削除を採用
+- **アンカーの付け替え**: `schedule-todo-tab` → サイドバーの switcher（`SegmentedOption` に任意の `tourId` を新設し `ScheduleSidebarTab` は構造的に素通し。`HeaderTabs` が #1124 で持った受け口と同型）/ `schedule-todo-add` → トレイの作成ピル / `schedule-todo-board` → トレイ本体
+- **報告の付け替え**: 「Todo を開いた」は `ScheduleSidebar` の effect（`RightSidebarPortal` が閉じている間 children を描かないので、生きている = 見えている）。完了は `CalendarTab` で `setTodoStatus` / `toggleTodoStatus` を源流で包み、トレイのチェック・詳細のトグル・詳細のステータス行の 3 経路を 1 箇所で拾う。作成は `handleCreateTodo`（唯一 todo を作る経路）
+- **文言**: `scheduleCompleteTodo` が「カードを完了列へドラッグ」、`scheduleOpenTodos` が「Todo シート」と消えた板を教えていたので en / ja とも現在の面に合わせた
+- **テスト**: 板と一緒に消えた 3 ケースを `web/tests/scheduleTourTodos.test.tsx` へ（サイドバー側は実描画 8 件・`CalendarTab` 側はソーステキスト assertion）。`scheduleCopy.test.ts` に「`tourId` を持つのは todo タブだけ」を追加
+- **検証**: CI `verify` の全ステップ + `docs-lint` をローカルで exit 0（shared 2,533 / web 836）
+
 ### 2026-08-29 - PR #1168 / #1187 のコンフリクト解消
 
 #### 概要

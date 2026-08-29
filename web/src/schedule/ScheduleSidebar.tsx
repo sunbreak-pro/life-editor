@@ -1,10 +1,12 @@
 import {
   useTranslation,
+  AddPill,
   AgendaList,
   RepeatListPanel,
   RoutineSummaryCard,
   ScheduleSidebarTabs,
   TodayTodoTray,
+  TOUR_ANCHORS,
   type AgendaItem,
   type RepeatListRow,
   type RoutineSummaryRow,
@@ -35,14 +37,29 @@ import { TagPicker } from "../wikitag/TagPicker";
  * folds, is the code that stood inline in CalendarTab.
  */
 
-/** "今日の流れ" — today's agenda, the skipped-item restore list, and the routine summary. */
+/**
+ * "今日の流れ" — the agenda, the skipped-item restore list, and the routine
+ * summary.
+ *
+ * NOT ALWAYS TODAY SINCE #1148. Narrow's main area is the month grid alone
+ * now, so this tab is where a tapped day is read — the host feeds it the
+ * ANCHOR day's agenda and label on narrow, and today's on Desktop, which is
+ * unchanged. The tab's name is still 今日の流れ because on Desktop that is
+ * exactly what it is; on narrow the heading row below names the day it is
+ * actually showing, which it always did.
+ */
 export interface ScheduleSidebarFlow {
   /** Already-formatted heading day (the host owns the locale). */
   todayLabel: string;
   agenda: AgendaItem[];
-  /** Shared AgendaList copy, built once by the host (the day list reuses it). */
+  /** Shared AgendaList copy, built once by the host. */
   agendaLabels: React.ComponentProps<typeof AgendaList>["labels"];
-  nowMinutes: number;
+  /**
+   * Minutes-from-midnight for the now-line, or null when the day on show is
+   * not today (#1148). A now-line on a day that is not today points at an
+   * hour that has no meaning there, which is worse than no line at all.
+   */
+  nowMinutes: number | null;
   selectedId: string | null;
   doneCount: number;
   totalCount: number;
@@ -66,6 +83,23 @@ export interface ScheduleSidebarFlow {
   onItemActivate: (id: string, pos: { x: number; y: number }) => void;
   onItemDoubleClick: (id: string) => void;
   onRestoreSkipped: (id: string) => void;
+  /**
+   * Row-duration + free-gap rendering (#691). Narrow stands in for the week
+   * grid, so its rows say how long they run and where the day is free;
+   * Desktop's column stays one line tall and leaves both off. Arrived here
+   * with the day list in #1148.
+   */
+  dayflow?: boolean;
+  formatGapLabel?: (minutes: number) => string;
+  /**
+   * The create action, in the heading row (#1148 option A). Present on narrow
+   * ONLY: this became the phone's single create route when the day list that
+   * held #1034's pill was removed, while Desktop already has the toolbar
+   * button and does not want a second one.
+   */
+  onAdd?: () => void;
+  /** Already-translated label for that pill. */
+  addLabel?: string;
 }
 
 /** "繰り返し" — the routine list that replaced the retired Routines header tab (#408). */
@@ -90,11 +124,18 @@ export interface ScheduleSidebarTodo {
   onDelete: (id: string) => void;
 }
 
+/**
+ * The three tabs, as an id. Named since #1148 because a second file decides
+ * which one to show (narrowDayTap forces "flow" on a day tap) and a re-declared
+ * union in the caller would drift silently.
+ */
+export type ScheduleSidebarTabId = "flow" | "todo" | "repeats";
+
 export interface ScheduleSidebarProps {
   isWide: boolean;
   tabs: ScheduleSidebarTab[];
-  tab: "flow" | "todo" | "repeats";
-  onTabChange: (tab: "flow" | "todo" | "repeats") => void;
+  tab: ScheduleSidebarTabId;
+  onTabChange: (tab: ScheduleSidebarTabId) => void;
   flow: ScheduleSidebarFlow;
   repeats: ScheduleSidebarRepeats;
   todo: ScheduleSidebarTodo;
@@ -109,9 +150,9 @@ export interface ScheduleSidebarProps {
  * the state — widening again returns the user to the tab they actually chose.
  */
 function activeScheduleSidebarTab(
-  tab: "flow" | "todo" | "repeats",
+  tab: ScheduleSidebarTabId,
   isWide: boolean,
-): "flow" | "todo" | "repeats" {
+): ScheduleSidebarTabId {
   return !isWide && tab === "todo" ? "flow" : tab;
 }
 
@@ -129,17 +170,36 @@ export function ScheduleSidebar({
 
   const flowBody = (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
-        {/* No heading on either layout: the switcher above already reads
-            "今日の流れ". It used to be Mobile-only, back when narrow had no
-            tabs at all (#467 gave it the same switcher). */}
-        <p className="text-xs text-lumen-text-secondary">
+      {/* No heading on either layout: the switcher above already reads
+          "今日の流れ". It used to be Mobile-only, back when narrow had no
+          tabs at all (#467 gave it the same switcher).
+
+          #1148 put the create pill on this row rather than adding a second
+          one: the day caption and the way to add to that day belong together,
+          and the row is outside the scroller below — which is the whole of
+          #1034's argument for a pill over a floating FAB, carried across from
+          the day list that used to host it.
+
+          #1124: the pill therefore carries the narrow half of the
+          `scheduleAddEvent` tour anchor — it moved here with the create route
+          itself. It cannot collide with the wide half on ScheduleToolbar: the
+          pill renders only when `onAdd` is passed, which CalendarTab does only
+          on narrow. */}
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
           {flow.todayLabel} ·{" "}
           {t("scheduleScreen.doneSummary", {
             done: flow.doneCount,
             total: flow.totalCount,
           })}
         </p>
+        {flow.onAdd && flow.addLabel && (
+          <AddPill
+            onClick={flow.onAdd}
+            label={flow.addLabel}
+            tourId={TOUR_ANCHORS.scheduleAddEvent}
+          />
+        )}
       </div>
       <AgendaList
         items={flow.agenda}
@@ -148,6 +208,8 @@ export function ScheduleSidebar({
         onItemActivate={flow.onItemActivate}
         onItemDoubleClick={flow.onItemDoubleClick}
         selectedId={flow.selectedId}
+        dayflow={flow.dayflow}
+        formatGapLabel={flow.formatGapLabel}
         labels={flow.agendaLabels}
       />
       {/* Restore surface for skipped (dismissed) items — #296. */}
@@ -283,7 +345,7 @@ export function ScheduleSidebar({
     <ScheduleSidebarTabs
       tabs={tabs}
       value={active}
-      onChange={(id) => onTabChange(id as "flow" | "todo" | "repeats")}
+      onChange={(id) => onTabChange(id as ScheduleSidebarTabId)}
       label={t("scheduleScreen.detailPanelLabel")}
     >
       {active === "flow"

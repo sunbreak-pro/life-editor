@@ -6,6 +6,8 @@ import {
   extractFocus,
   mergeFocusSection,
   normalizeFocusText,
+  useDomainLoad,
+  writeDomainSnapshot,
   useSyncDomains,
   useTranslation,
   type DataService,
@@ -45,34 +47,48 @@ export function useFocusNote(ds: DataService, todayKey: string) {
   const syncVersion = useSyncDomains("notes");
 
   const [content, setContent] = useState<string | null>(null);
-  // Same gate as the goals note: the evening field must not render empty over
-  // a focus that DOES exist — a keystroke typed into that window would
-  // overwrite the stored text once the debounce fires.
-  const [focusLoading, setFocusLoading] = useState(true);
 
   // ONE chain for the read AND the writes (useGoalsDoc's reasoning): a refetch
   // resolving after a later save would roll the shown text back.
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
-  useEffect(() => {
-    let cancelled = false;
-    saveChainRef.current = saveChainRef.current.then(async () => {
-      try {
-        const note = await ds.getNoteUnified(FOCUS_NOTE_ID);
-        if (!cancelled) setContent(note?.content ?? null);
-      } catch (err) {
-        // A failed read keeps the previous text but must open the gate, or a
-        // hiccup strands the paper on the skeleton. No toast on a read —
-        // nothing the user typed is at stake (#955's reasoning).
-        console.error("[BriefingScreen] focus note fetch failed", err);
-      } finally {
-        if (!cancelled) setFocusLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion]);
+  // Same gate as the goals note: the evening field must not render empty over
+  // a focus that DOES exist — a keystroke typed into that window would
+  // overwrite the stored text once the debounce fires.
+  //
+  // #1157: that gate used to start closed on EVERY mount, so returning to
+  // Briefing showed the skeleton even though the note had not changed. The
+  // read now runs through `useDomainLoad` under `briefingFocus`, which
+  // replays the last body before paint and re-reads behind it. The read is
+  // still queued on `saveChainRef` — the ordering guarantee is the point of
+  // the chain, and `useDomainLoad` does not provide one.
+  const { isLoading: focusLoading } = useDomainLoad<string | null>({
+    domain: "Briefing focus note",
+    dataService: ds,
+    version: syncVersion,
+    snapshotKey: "briefingFocus",
+    // A note bump is usually this tab's own save echoing back; blanking the
+    // field mid-edit is exactly what the gate exists to prevent.
+    refetchReportsLoading: false,
+    load: (service) => {
+      const read = saveChainRef.current.then(() =>
+        service.getNoteUnified(FOCUS_NOTE_ID).then((note) => note?.content ?? null),
+      );
+      // The chain must stay a Promise<void> that never rejects: a failed read
+      // that poisoned it would take every later save down with it.
+      saveChainRef.current = read.then(
+        () => undefined,
+        () => undefined,
+      );
+      return read;
+    },
+    apply: setContent,
+    // A failed read keeps the previous text and still opens the gate, or a
+    // hiccup strands the paper on the skeleton. Nothing is toasted — nothing
+    // the user typed is at stake on a read (#955's reasoning) — so this
+    // message is only ever logged.
+    fallbackMessage: "Failed to load the focus note",
+  });
 
   /** Today's focus — the morning paper's line, written last evening. */
   const todayFocus = useMemo(
@@ -107,6 +123,24 @@ export function useFocusNote(ds: DataService, todayKey: string) {
   }
 
   const noteTitle = t("briefing.focusNoteTitle");
+
+  /*
+   * A save invalidates the slot the read filled, and `useDomainLoad` only ever
+   * writes it from a read IT fired. Left alone, the ordinary way to finish an
+   * evening — type a focus, click another section — flushes the save on blur
+   * and unmounts in the same tick, so the Realtime echo that would normally
+   * re-read arrives with nobody listening. The next visit would then replay the
+   * PRE-EDIT body with the gate already open, which is the exact window
+   * `focusLoading` exists to close (a keystroke landing there is merged over
+   * the stored text by the debounce). Recording the body we just wrote keeps
+   * the slot and the screen saying the same thing.
+   */
+  const rememberFocusBody = useCallback(
+    (body: string) => {
+      writeDomainSnapshot<string | null>("briefingFocus", ds, undefined, body);
+    },
+    [ds],
+  );
 
   const persistFocus = useCallback(
     (text: string) => {
@@ -143,6 +177,7 @@ export function useFocusNote(ds: DataService, todayKey: string) {
               updatedAt: now,
             });
             setContent(created.content ?? merged);
+            rememberFocusBody(created.content ?? merged);
             return;
           }
           // A trashed note is invisible from Notes but still what the paper
@@ -155,12 +190,13 @@ export function useFocusNote(ds: DataService, todayKey: string) {
             content: merged,
           });
           setContent(updated.content ?? merged);
+          rememberFocusBody(updated.content ?? merged);
         } catch (err) {
           reportSaveFailure("focus", err);
         }
       });
     },
-    [ds, noteTitle, tomorrowKey, reportSaveFailure],
+    [ds, noteTitle, tomorrowKey, reportSaveFailure, rememberFocusBody],
   );
 
   const timerRef = useRef<number | undefined>(undefined);

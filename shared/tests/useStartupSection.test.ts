@@ -52,7 +52,7 @@ describe("resolveInitialSection", () => {
 
 describe("persistLastSection", () => {
   it("writes the last section to localStorage", () => {
-    persistLastSection("connect");
-    expect(localStorage.getItem(LAST_KEY)).toBe("connect");
+    persistLastSection("materials");
+    expect(localStorage.getItem(LAST_KEY)).toBe("materials");
   });
 });

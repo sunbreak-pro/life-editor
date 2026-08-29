@@ -1,5 +1,22 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-08-28 - チュートリアルの初回自動開始と Settings 再実行導線（Issue #1123 / PR #1164）
+
+#### 概要
+
+#1122 で入ったツアー基盤（TourProvider / ステップ定義 / スポットライト / 進捗永続化）に、入口 2 つを配線した。初回起動での自動開始は host が `autoStart` を渡すだけ、Settings の「やり直す」は新規カードから `restart()` を叩くだけで、ツアーの状態は 1 つも増やしていない。ただし `autoStart` をそのまま入れると実害が出るので guard を 1 つ足した — アンカー探索はステップのセクションへ**遷移してからでないと**表示可否を判定できないため、`data-tour-id` がまだどこにも無い現在のアプリでは、無言でセクションを 2 つ渡り歩いて最後の場所にユーザーを置き去りにする。しかも host が道中の各セクションを `life-editor-last-section` に書くので、次回起動もその寄り道先が開く。
+
+#### 変更点
+
+- **web/src/AppProviders.tsx**: `TourProvider` に `autoStart`。完了・スキップの判定は Provider の永続状態（`useLocalStorage` は初期化子で同期的に読むので、スキップ済みのツアーがリロードで一瞬出ることはない）
+- **shared/src/components/SettingsTutorial.tsx（新規）**: Reset カードと同じ形の純粋部品。`onRestart` は forward せず `() => onRestart()` で呼ぶ（クリックイベントが第 1 引数に流れ込むのを避ける）。完了・スキップ後はここが唯一の戻り道なので、条件表示にせず常設
+- **web/src/settings/SettingsScreen.tsx**: Reset の上に配置し `useTourContext().restart` を接続。ツアーは必須 Provider なので `useShortcutConfig` のような null 分岐は無し
+- **shared/src/context/TourContext.tsx**: 走行開始時のセクションと「遷移したか」を ref で覚え、**1 ステップも表示できずに終わった走行**だけ開始地点へ戻す。表示できたステップがある走行は最後のステップの場所で終わる（従来どおり）
+- **i18n**: `settings.tutorial.{heading,description,button}` を en / ja 両方へ
+- **DataService の文面について**: Issue は「進捗を DataService 経由で」と書いているが、基盤 PR が積んだ判断キュー `D-20260827-shared-fix-1` の A（localStorage 据え置き）が既定のまま。差し替え先は `useTourProgress.ts` 1 ファイル
+- **テスト**: shared に auto-start 5 本（初回で開く / スキップ後は黙る / 完了後は黙る / 空振り走行は開始地点へ戻す / 歩いた走行は戻さない）、web に「Tutorial カード → `restart` だけが発火」1 本。戻す guard は無効化して実際に落ちることを確認済み
+- **検証**: CI の `verify` ステップ全段（shared lint / build / typecheck:tests / 2598 tests、web lint / build / typecheck:tests / 855 tests、desktop typecheck / 7 tests / build、mcp-server build / typecheck:tests / 318 tests）と docs-lint をローカルで全緑。実ブラウザ確認は §7.4 に従い merge 後 chat-main 側
+
 ### 2026-08-16 - パスワード変更フォームに hidden username を追加（Issue #945 / PR #978）
 
 #### 概要
@@ -63,17 +80,3 @@ Settings 機能棚卸し（Workflow で 147 候補 → 約 40 整理・ユーザ
 - **検証**: shared build（tsc -b）/ shared test 810 pass / web build すべて緑（メイン独立実測 2 回）。role-qa 独立レビュー PASS（Blocking 0）。指摘 2 件（SettingsSegment の矢印キー a11y・起動候補 MAIN_SECTIONS 化）は同 PR で修正・再検証済
 - **分離**: 週始まり→#217（schedule-refine）・日付ロールオーバー→#218（docs-workspace）に shared-fix で切り出し（読み手が他 worktree のため）
 - **表示確認**: §7.4 に従い実ブラウザ目視は PR merge 後 chat-main の playwright で
-
-### 2026-07-11 - Settings: Layout Standard v2 adoption（本文内タイトル行撤去・PR #211）
-
-#### 概要
-
-Layout Standard v2 で shell が標準 SectionHeader を持つようになったのに合わせ、SettingsScreen 本文内の自前タイトル行を撤去してタイトルを shell に一本化した。前セッションの未 commit 分（同内容）が /clear 前に消えていたためやり直した。
-
-#### 変更点
-
-- **web/src/settings/SettingsScreen.tsx**: 本文内の `<h1>{t("settings.title")}</h1>` + 説明文 `<div>` を撤去（外側のカード縦積みコンテナは維持）。冒頭コメントを v2 実態へ更新（タイトルは shell 所有・本文内ヘッダーなし）
-- **shared/src/i18n/locales/{en,ja}.json**: 孤立キー `settings.title` / `settings.pageDescription` を除去（shell タイトルは別キー `section.settings`。frozen な `frontend/` は独自 locale を持ちビルドグラフ外で影響なし）
-- **着手前**: CLAUDE.md §7.4 の二段階 pull で origin/main 取り込み（競合ゼロ）。Issue #209 起票 → 実装
-- **検証**: shared build（tsc -b）/ web build（tsc -b + vite）/ eslint pass、vitest 803/803（`SupabaseDailiesUnifiedService` の `setDailyPasswordUnified` は順序依存フレーキーで本変更と無関係・別途調査要）。role-qa 独立レビュー PASS（Blocker 0・scope 越境なし）
-- **PR**: #211（Closes #209, Refs #181）commit 7d3469de。実ブラウザでのタイトル二重解消・DetailPanel 開閉・全幅カード列の目視は §7.4 に従い merge 後に chat-main で実測

@@ -10,7 +10,7 @@ Owner-chat: frontend (orchestrator)
 
 ## 決定事項（2026-07-05・ユーザー承認済み 4 点）
 
-1. **サイドバーは本流 5 + ユーティリティ枠 2（Settings / Trash）の計 7 セクションに集約**（Materials 内は header タブ）
+1. **サイドバーは本流 5 + ユーティリティ枠 2（Settings / Trash）の計 7 セクションに集約**（Materials 内は header タブ）— *2026-08-29 更新: Connect 退役（#1152）と Briefing 追加を経て、現在は本流 5（Briefing / Schedule / Materials / Work / Analytics）+ ユーティリティ 2。セクション集合の正本は `shared/src/sections.ts` の registry*
 2. **Trash はサイドバー最下部のユーティリティ枠**（Settings と並置・ナビ本流から視覚分離）
 3. **Mobile の下部固定 4 タブ = Schedule / Materials / Work / Analytics**（5 個目は More → ボトムシート）
 4. **rightSidebar（詳細パネル）を全画面標準に追加**（2026-07-05 App Shell デザイン Turn 2 でユーザー指示: Desktop 全パネルに開閉アイコン / Mobile は左上ハンバーガー → drawer に同一内容。詳細 → 下記「rightSidebar」節）
@@ -21,7 +21,7 @@ Owner-chat: frontend (orchestrator)
 | -------------------- | ---------- | ---------------------------------- | ----------------- |
 | 本流                 | Schedule   | Calendar（週グリッド）/ Routines   | Clock             |
 | 本流                 | Materials  | Todos / Notes / Daily / Tags       | Library           |
-| 本流                 | Connect    | Graph / Backlinks                  | Network           |
+| ~~本流~~ **retired** | ~~Connect~~ | ~~Graph / Backlinks~~（2026-08-29 退役 = #1152。本流は 4 に） | ~~Network~~ |
 | 本流                 | Work       | （タブなし・単画面）               | Timer             |
 | 本流                 | Analytics  | Overview / Todos / Work / Schedule | BarChart3         |
 | 下部ユーティリティ枠 | Settings   | （タブなし・縦一列）               | Settings          |
@@ -34,13 +34,13 @@ Owner-chat: frontend (orchestrator)
 
 - **Schedule**: Calendar / Routines の 2 タブ。カレンダー台帳の管理 UI（現 `CalendarView`）を第 3 タブにするか Routines 内・モーダルに畳むかは D1 brief の提案に委ねる
 - **Materials**: Todos / Notes / Daily / Tags の 4 タブ。タブ間で「新規作成」導線の位置・リスト密度・空状態の意匠を統一する
-- **Connect**: Graph 主タブ + Backlinks。Backlinks を独立タブにせず選択ノード時のサイドパネルに畳む案も可（D3 brief の提案に委ねる）
+- ~~**Connect**: Graph 主タブ + Backlinks~~ — **セクションごと退役（2026-08-29 = #1152）**。力学グラフは検索・タグ・バックリンクと役割が重複していたため撤去し、データ（タグ / アイテム間リンク）と取り出し口は温存。関係をたどる導線は Notes の LinkPanel とコマンドパレット検索が担う
 - **Analytics**: 現行 4 タブ（Overview / Todos / Work / Schedule）を維持
 - タブ UI 自体（形状・アクティブ表現）は D7 shell brief が定義し、各画面 brief はそれを参照する
 
 ## Mobile（Consumption + Quick capture）
 
-- 下部固定 4 タブ: **Schedule / Materials / Work / Analytics** + **More**（ボトムシート: Connect / Settings / Trash）
+- 下部固定 4 タブ: **Schedule / Materials / Work / Analytics** + **More**（ボトムシート: ~~Connect~~ / Settings / Trash — Connect は 2026-08-29 退役 = #1152）
 - header タブは Mobile ではセグメントコントロール等の小型表現で継承（例: Materials 上部に Todos|Notes|Daily|Tags）
 - safe-area inset 対応・タブバー込みで 390×844
 

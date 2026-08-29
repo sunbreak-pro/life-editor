@@ -8,6 +8,8 @@ import {
 import { cn } from "../cn";
 import { SegmentedControl, type SegmentedOption } from "../SegmentedControl";
 import { FOCUS_RING_ON_ACCENT } from "../styleTokens";
+import { tourAnchor } from "../tour/anchor";
+import { TOUR_ANCHORS } from "../tour/anchors";
 
 /*
  * ScheduleToolbar (W8 target-IA) — the Calendar-tab toolbar: Today / ◀▶ /
@@ -155,6 +157,10 @@ export function ScheduleToolbar({
         <button
           type="button"
           onClick={onAddEvent}
+          // #1124 tour anchor. The narrow layout's <AddPill> carries the same
+          // id — only one of the two layouts is ever mounted, so the tour
+          // finds whichever create control this width actually shows.
+          {...tourAnchor(TOUR_ANCHORS.scheduleAddEvent)}
           className={cn(
             "flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-[7px] text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
             FOCUS_RING_ON_ACCENT,

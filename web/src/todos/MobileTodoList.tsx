@@ -10,6 +10,8 @@ import {
   STATUS_ORDER,
   statusLabel,
   cn,
+  tourAnchor,
+  TOUR_ANCHORS,
   type KanbanColumnModel,
   type KanbanLabels,
   type StatusFilterChip,
@@ -138,6 +140,7 @@ export function MobileTodoList({
           type="button"
           onClick={() => setAddOpen(true)}
           aria-label={labels.addCta}
+          {...tourAnchor(TOUR_ANCHORS.scheduleTodoAdd)}
           className={cn(
             "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
             "bg-lumen-accent text-lumen-on-accent shadow-lumen-sm",

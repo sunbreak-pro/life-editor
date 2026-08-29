@@ -893,6 +893,6 @@ export function aggregateRoutineCompletion(
  * and it branched on `assignment.entityType`, a field the unified
  * `WikiTagAssignment` does not have. Wiring it to live data would therefore have
  * returned all-zero counts without a type error or an exception — a silent wrong
- * number, not a crash. Connect builds its tag counts from the unified shapes
- * (`buildGraphModel`); anything new here should start from those too.
+ * number, not a crash. Anything new here should start from the unified shapes
+ * (`WikiTag` / `WikiTagAssignment`), which is what every live consumer reads.
  */

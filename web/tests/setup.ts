@@ -1,6 +1,7 @@
 // Vitest global setup for the web suite. Loaded via vitest.config.ts `setupFiles`.
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 import { cleanup } from "@testing-library/react";
+import { clearDomainSnapshots } from "@life-editor/shared";
 
 /*
  * jsdom implements no layout and therefore no `elementFromPoint`, but
@@ -19,6 +20,17 @@ import { cleanup } from "@testing-library/react";
 if (typeof document.elementFromPoint !== "function") {
   document.elementFromPoint = () => null;
 }
+
+/*
+ * The stale-while-revalidate store (#1101 / #1157) is a module-level Map, so it
+ * outlives every render in a file and would carry one test's rows into the
+ * next. Today the DataService identity check hides that — each suite builds a
+ * fresh stub — but a suite that reuses one `ds` across two tests would silently
+ * skip its fetch and fail somewhere unrelated.
+ */
+beforeEach(() => {
+  clearDomainSnapshots();
+});
 
 afterEach(() => {
   cleanup();
