@@ -4,7 +4,7 @@ import {
   useRoutineContext,
   useSyncDomains,
   useTodoTreeContext,
-  useCalendarContext,
+  useTagGroupContext,
   useWikiTagsUnifiedContext,
   useTranslation,
   useMediaQuery,
@@ -32,6 +32,7 @@ import { CalendarNarrowLayout } from "./CalendarNarrowLayout";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
+import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
@@ -177,7 +178,7 @@ export function CalendarTab({
   // Realtime change cursor: rows written outside the visible-range store
   // (the always-on generator, undo, another device) refetch the range when
   // this bumps (#296 — pre-fix they stayed invisible until navigation).
-  const syncVersion = useSyncDomains("schedule", "calendars");
+  const syncVersion = useSyncDomains("schedule");
   // Range materialiser (#279): after an Event→Repeats conversion, the new
   // routine's occurrences are generated for the visible range right away —
   // the always-on RoutineScheduleSync only covers today.
@@ -251,13 +252,13 @@ export function CalendarTab({
     [reportTourAction, todoNodes, toggleTodoStatus],
   );
 
-  // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
-  // view over ONE life tag, so the grid needs both halves — the ledger (which
-  // calendars exist, and which tag each points at) and the assignments (which
-  // items carry that tag). Both are already bulk-loaded on this branch
-  // (MainScreen mounts CalendarProvider + WikiTagsUnifiedProvider around the
-  // Schedule tree), so this adds no fetch.
-  const { calendars } = useCalendarContext();
+  // #468 / #1173: saved tag groups as a filter lens. A group is a named set
+  // of life tags, so the grid needs both halves — the groups (which exist, and
+  // which tags each collects) and the assignments (which items carry those
+  // tags). Both are already bulk-loaded on this branch (sectionDescriptors
+  // mounts TagGroupProvider + WikiTagsUnifiedProvider around the Schedule
+  // tree), so this adds no fetch.
+  const { tagGroups } = useTagGroupContext();
   const { allTags, allAssignments } = useWikiTagsUnifiedContext();
 
   // Navigation + visible fetch window (#280 → useCalendarNav).
@@ -298,7 +299,7 @@ export function CalendarTab({
   // #889: everything that can be covering the grid — the single-click bubble
   // (#299), the detail overlay, the creation panel (target day + prefilled
   // window; Desktop shows it in an overlay, Mobile in the QuickCaptureSheet)
-  // and the calendars modal. One group, because they answer one question.
+  // and the tag-filter panel. One group, because they answer one question.
   const {
     popover,
     setPopover,
@@ -306,8 +307,8 @@ export function CalendarTab({
     setOverlayOpen,
     createPanel,
     setCreatePanel,
-    calendarsOpen,
-    setCalendarsOpen,
+    tagFilterOpen,
+    setTagFilterOpen,
   } = useScheduleOverlays();
   // #889: one clock, two shapes. `now` compares across days for
   // deriveScheduleStatus (#222); `nowMinutes` places the now-line and the
@@ -488,20 +489,23 @@ export function CalendarTab({
   const {
     repeatsHidden,
     hiddenRepeats,
-    activeCalendar,
-    calendarChips,
-    hiddenByCalendar,
+    selectedTagIds,
+    activeGroupId,
+    groupChips,
+    tagCounts,
+    hiddenByTags,
     gridItems,
     monthItems,
     anchorDayItems,
     handleToggleRepeats,
-    handleSelectCalendar,
+    handleSelectGroup,
+    handleToggleTag,
     revealOnGrid,
-    clearCalendarLens,
+    clearTagLens,
   } = useScheduleGridFilters({
     rangeItems,
     rangeTodoChips,
-    calendars,
+    tagGroups,
     allTags,
     allAssignments,
     isWide,
@@ -510,6 +514,18 @@ export function CalendarTab({
     selected,
     setSelectedId,
     setPopover,
+  });
+
+  // #1173: everything the filter panel draws, assembled from the two Contexts
+  // and the filter state above. It lives in a hook rather than inside the
+  // panel because the panel is pure presentation (§3.1 / §6.4) — that is what
+  // makes it testable in jsdom, which this host is not.
+  const tagFilterPanel = useTagFilterPanel({
+    selectedTagIds,
+    tagCounts,
+    onToggleTag: handleToggleTag,
+    onClear: clearTagLens,
+    onApplyGroup: handleSelectGroup,
   });
 
   /*
@@ -674,7 +690,7 @@ export function CalendarTab({
     updateNode,
     attachNote,
     onAttachError: handleAttachError,
-    clearCalendarLens,
+    clearTagLens,
   });
 
   // #355: drop a bubble still waiting its turn the moment anything else
@@ -682,7 +698,7 @@ export function CalendarTab({
   useCancelDeferredPopover({
     overlayOpen,
     createPanel,
-    calendarsOpen,
+    tagFilterOpen,
     scopeRequest,
     todoDetailId,
     cancelPopover,
@@ -704,7 +720,11 @@ export function CalendarTab({
     createPanelLabels,
     formatDuration,
     formatGapLabel,
-  } = useScheduleCopy({ isWide, notesError });
+  } = useScheduleCopy({
+    isWide,
+    notesError,
+    selectedTagCount: selectedTagIds.length,
+  });
 
   /*
    * #889: the date/label derivations, in one hook. Everything in it is bound
@@ -1123,9 +1143,10 @@ export function CalendarTab({
         formatDuration,
         labels: createPanelLabels,
       }}
-      calendars={{
-        open: calendarsOpen,
-        onClose: () => setCalendarsOpen(false),
+      tagFilter={{
+        open: tagFilterOpen,
+        onClose: () => setTagFilterOpen(false),
+        panel: tagFilterPanel,
       }}
       scope={{
         request: scopeRequest,
@@ -1167,14 +1188,17 @@ export function CalendarTab({
             onNext: () => step(1),
             onChangeView: setView,
             onToggleRepeats: handleToggleRepeats,
-            onOpenSettings: () => setCalendarsOpen(true),
+            onOpenFilter: () => setTagFilterOpen(true),
+            filterActive: selectedTagIds.length > 0,
             onAddEvent: handleToolbarAdd,
           }}
           lens={{
-            chips: calendarChips,
-            activeId: activeCalendar?.id ?? null,
-            hiddenCount: hiddenByCalendar,
-            onChange: handleSelectCalendar,
+            chips: groupChips,
+            activeId: activeGroupId,
+            hiddenCount: hiddenByTags,
+            onChange: handleSelectGroup,
+            filtered: selectedTagIds.length > 0,
+            onClear: clearTagLens,
           }}
           banner={rangeErrorBanner}
           state={{ loading: showLoading, error: showError, onRetry: reload }}

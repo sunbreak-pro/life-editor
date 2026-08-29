@@ -32,7 +32,14 @@ export const SYNC_DOMAINS = [
   "dailies",
   "schedule",
   "tags",
-  "calendars",
+  // #1173: the saved multi-tag filters, split off `tags` for the #993 reason
+  // in reverse. Their two tables are read only by the Schedule section's
+  // TagGroupProvider, while the `tags` counter moves on every tag edit AND
+  // every assignment — sharing it would re-pull the group list on each of
+  // those, and (worse, since the traffic is bigger) saving a group would
+  // re-pull the whole tag graph: tags + fully-paginated assignments +
+  // connections, which is what WikiTagsUnifiedProvider does on a `tags` bump.
+  "tagGroups",
   "timer",
   "audio",
   // #993: the timer SESSION LOG, split off the `timer` domain. The log is
@@ -82,12 +89,18 @@ const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   routines_payload: "schedule",
   routine_groups: "schedule",
   routine_group_assignments: "schedule",
+  // #1173 retired the `calendars` CODE but not the table (DDL is the user's
+  // gate — CLAUDE.md §7.3), and it is still in the `supabase_realtime`
+  // publication, so REALTIME_TABLES must keep it and this map must route it.
+  // Nothing reads or writes it any more; the subscription is simply silent,
+  // exactly like `routine_groups` above. It rides `schedule` because that is
+  // the section it belonged to — the domain it used to own is gone.
+  calendars: "schedule",
   wiki_tags: "tags",
-  wiki_tag_groups: "tags",
-  wiki_tag_group_assignments: "tags",
+  wiki_tag_groups: "tagGroups",
+  wiki_tag_group_assignments: "tagGroups",
   wiki_tag_assignments: "tags",
   wiki_tag_connections: "tags",
-  calendars: "calendars",
   timer_settings: "timer",
   pomodoro_presets: "timer",
   // #993: its own domain — see SYNC_DOMAINS.

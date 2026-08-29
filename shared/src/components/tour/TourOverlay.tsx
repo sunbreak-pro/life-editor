@@ -46,6 +46,19 @@ import type { TourLabels } from "./labels";
  * make the step impossible to finish with a keyboard, which is worse than not
  * trapping at all. Both modes close on Escape; the non-modal one stands down
  * when a real dialog is open above it so one Escape still closes one layer.
+ *
+ * STANDING DOWN FOR A POPOVER (#1192): the bubble always sits at the anchor's
+ * bottom-left, which is exactly where a control that opens something puts what
+ * it opens. On the tag step the two landed on top of each other and the
+ * picker's options could not be clicked at all — `elementFromPoint` on an
+ * option returned the bubble. Rather than teach the placement to dodge (it
+ * would have to measure a popover it does not know about, and jsdom has no
+ * layout to test it with), an action step hides its bubble while its anchor
+ * holds an expanded control. Nothing is lost: such a step advances on the deed
+ * the host reports, never on this bubble, and the bubble comes back the moment
+ * the popover closes if the deed has not been done. Only action steps — a
+ * modal step's bubble carries its own Next button, so hiding it would strand
+ * the tour.
  */
 
 /** Gap between the anchor and the bubble, and the spotlight's breathing room. */
@@ -102,6 +115,7 @@ export function TourOverlay({
 
   const [panelNode, setPanelNode] = useState<HTMLDivElement | null>(null);
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
+  const [anchorExpanded, setAnchorExpanded] = useState(false);
   const [placement, setPlacement] = useState<ClampedPlacement>({
     top: SPOTLIGHT_GAP,
     left: SPOTLIGHT_GAP,
@@ -174,7 +188,46 @@ export function TourOverlay({
     };
   }, [anchorElement, copy, panelNode]);
 
+  /*
+   * Watch the anchor for a control that has opened something (#1192).
+   *
+   * `aria-expanded="true"` rather than the popover's own `role="dialog"`,
+   * because it is the state the CONTROL publishes and it reads the same on a
+   * menu, a combobox or a disclosure — the next anchor that opens something
+   * will already be wearing it. Matched as a DESCENDANT as well as on the
+   * anchor itself: `materials-note-tag` is a wrapper span around TagPicker, so
+   * the flag lives one level down, and an anchor pointing straight at a button
+   * is just as plausible.
+   *
+   * `"true"` is spelled out because React renders the attribute either way —
+   * `[aria-expanded]` alone matches a closed control too.
+   *
+   * `childList` alongside `attributes`, since the picker MOUNTS and UNMOUNTS
+   * its popover: a control that swaps the whole node in never flips a flag for
+   * an attributes-only observer to see.
+   */
+  useEffect(() => {
+    const read = () =>
+      setAnchorExpanded(
+        anchorElement.matches('[aria-expanded="true"]') ||
+          anchorElement.querySelector('[aria-expanded="true"]') !== null,
+      );
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(anchorElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["aria-expanded"],
+    });
+    return () => observer.disconnect();
+  }, [anchorElement]);
+
   if (typeof document === "undefined") return null;
+
+  // See STANDING DOWN FOR A POPOVER above. After the hooks, so the observer
+  // keeps running and can bring the bubble back.
+  if (waitsForAction && anchorExpanded) return null;
 
   const isLast = stepNumber >= totalSteps;
 

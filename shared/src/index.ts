@@ -25,8 +25,11 @@ export {
   getSession,
   onAuthStateChange,
   sendPasswordResetEmail,
+  resendConfirmationEmail,
   updatePassword,
-  passwordRecoveryRedirectUrl,
+  // Renamed on main (#1197): the redirect now serves sign-up confirmation as
+  // well as password recovery.
+  authRedirectUrl,
   // Self-service account deletion (#1200) — the Edge Function call plus the
   // local session teardown that has to follow it.
   deleteAccount,
@@ -66,7 +69,7 @@ export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
 // Schedule domain types (S4-2 DataService surface; contexts land S4-3+)
 export type { RoutineNode, FrequencyType } from "./types/routine";
 export type { ScheduleItem } from "./types/schedule";
-export type { CalendarNode } from "./types/calendar";
+export type { TagGroupNode } from "./types/tagGroup";
 
 // Todos domain — context (Pattern A) + hooks
 export {
@@ -179,6 +182,14 @@ export {
   DEFAULT_STARTUP_SECTION,
   type StartupSectionPref,
 } from "./hooks/useStartupSection";
+// Schedule initial-view preference (#1174) — same shape: a pure resolver that
+// seeds useCalendarNav's useState, plus the Settings-side pref hook.
+export {
+  resolveInitialCalendarView,
+  useScheduleInitialViewPref,
+  DEFAULT_SCHEDULE_INITIAL_VIEW,
+  SCHEDULE_INITIAL_VIEWS,
+} from "./hooks/useScheduleInitialView";
 // Day-start (rollover) hour preference (#218, split from §216) — pure readers
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {
@@ -491,20 +502,20 @@ export {
 } from "./utils/eventEditorSave";
 // #466 Step 5-b: the Calendar grid's repeat filter (view-layer narrowing —
 // the host keeps its unfiltered store for selection / mutation).
-// #468 adds the calendar lens, which composes with it as an independent AND.
+// #468 adds the tag lens, which composes with it as an independent AND
+// (#1173 widened it from one calendar's tag to a group's tag set).
 export {
   applyRepeatFilter,
   applyCalendarFilter,
   applyCalendarLens,
-  buildCalendarMemberIds,
-  pickSelectableCalendars,
+  buildTagMemberIds,
+  pickGroupTagIds,
   type RepeatFilterable,
   type RepeatFilterResult,
   type CalendarFilterable,
   type CalendarFilterResult,
   type CalendarLensResult,
   type CalendarMemberAssignment,
-  type SelectableCalendar,
 } from "./utils/scheduleGridFilter";
 // #503 — cross-item title matching for the command palette (pure; the host
 // owns the fetching and the DataService boundary).
@@ -519,16 +530,16 @@ export {
   type UseScheduleItemsRoutineSyncOptions,
 } from "./hooks/useScheduleItemsRoutineSync";
 
-// Calendars domain (S4-6) — Pattern A + DI hook. VERSIONED but
-// PHYSICAL-delete (S4-0: 0006 omits is_deleted). Enabled on Mobile too,
-// so plain (throwing) context hook only — no Optional variant.
-export { CalendarProvider } from "./context";
-export { CalendarContext, type CalendarContextValue } from "./context";
-export { useCalendarContext } from "./hooks/useCalendarContext";
+// Tag-group domain (#1173, took the retired `calendars` slot) — Pattern A +
+// DI hook. VERSIONED + soft-delete, on the `tags` sync domain. Mounted at
+// both widths, so plain (throwing) context hook only — no Optional variant.
+export { TagGroupProvider } from "./context";
+export { TagGroupContext, type TagGroupContextValue } from "./context";
+export { useTagGroupContext } from "./hooks/useTagGroupContext";
 export {
-  useCalendarsAPI,
-  type UseCalendarsAPIOptions,
-} from "./hooks/useCalendarsAPI";
+  useTagGroupsAPI,
+  type UseTagGroupsAPIOptions,
+} from "./hooks/useTagGroupsAPI";
 
 // CalendarTags domain was removed in DU-F Step 3-5 (DB DROPped in DU-C+
 // 0012; UI + shared layer purged in cohort). WikiTags Unified is the

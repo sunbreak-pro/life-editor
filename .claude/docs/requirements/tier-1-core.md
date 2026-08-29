@@ -169,7 +169,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - **Routine backfill**: 1 週間先まで未生成の ScheduleItem を自動生成（`ensureRoutineItemsForWeek`）→ **やらない（2026-07-26 #352 で撤去）**: `ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` / `syncScheduleItemsWithRoutines` は一度も配線されないデッドコードだったため削除した。現行の materialise は表示中日付の `ensureRoutineItemsForDate`（2026-07-19 #279 で creation-only 化 — 既存行の diff 更新は行わない）と可視範囲の `ensureRoutineItemsForDateRange` の 2 本
   - **Routine 変更の反映**: **頻度**を変更したときに materialise 済みの未来 occurrence へ reconciliation → **配線済み（2026-07-26 #352）**: `reconcileRoutineScheduleItems` が繰り返し設定の編集（Calendar のイベント詳細）で発火し、発火日から外れた未来行を soft-delete / 新たに発火する日を生成する。done / dismissed / 過去 / 手動編集済みの行は対象外（下記「競合解決ルール」1-3・vitest = `shared/tests/reconcileRoutine.test.tsx`）。**掃除と再生成は表示中の範囲に閉じる**。**窓の外は自動では拾われない**（2026-07-28 #408 で実測 — ナビゲーションは `loadDateRange` で取得するだけで生成しない）ので、rightSidebar の繰り返し一覧から次回オカレンスへ飛ぶ経路だけが `ensureRoutineItemsForDateRange` を明示的に打つ。**タイトル / 時刻**の系列伝播は範囲選択ダイアログ → `updateFutureScheduleItemsByRoutine`（#279）。旧 Routines タブ（今日から 6 週間の固定窓・同ダイアログ無し）は #408 で退役
   - **カスケード削除**: Routine 削除時に紐づく ScheduleItem も削除（配線済み。繰り返し解除 = `detachRoutine` は過去実績を保全 — #185 実装済み）
-  - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与 → CalendarTags は DU-F で全プラットフォーム撤去済み（履歴）。分類の後継 = カレンダー台帳（calendars）のタグフィルタ配線（再設計 Step 6）+ life-tags
+  - **Calendar Tag**: 色・名前の CRUD、ScheduleItem への複数付与 → CalendarTags は DU-F で全プラットフォーム撤去済み（履歴）。分類の後継 = カレンダー台帳（calendars）のタグフィルタ配線（再設計 Step 6）+ life-tags。**2026-08-29 #1173 で台帳ごと退役**: 「カレンダー」は 1 タグのフィルタに名前を付けただけだったので、多タグの**グループ**（`wiki_tag_groups` + `wiki_tag_group_assignments` — DDL 追加なし）へ置換し、ツールバーの歯車をフィルタアイコン + タグのマルチセレクトに差し替えた。`public.calendars` テーブルは残置（DROP は 🛑 ユーザー push ゲート）
   - **3 サブタブ UI**: Calendar（月 / 週 / 日）/ DayFlow（1 日の時系列）/ Routine（定義一覧 + 達成率）→ 本行は Tauri 期の履歴（2026-07-14 注記）: DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Routine（Repeats）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）
   - Preview 編集 UI（編集内容の即時プレビュー）、タイムドラッグによる時刻変更
   - MCP 5 ツール（個別 ScheduleItem の CRUD + toggle 完了）
@@ -187,7 +187,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] AC4: `set_schedule_complete(id, completed: true)` で ScheduleItem を完了すると `completed=true` + `completedAt` が保存され、`routineId` がある場合は `routine_logs` に日次完了が記録される
 - [ ] AC5: Calendar ビューの月 / 週 / 日表示が同じデータを一貫して表示し、どの画面で編集しても即時相互反映される（`useScheduleItemsContext` 共有）
 - [ ] AC6: ScheduleItem を編集モードに入ると編集内容がリアルタイムでプレビュー表示され、キャンセル時は変更前の状態に戻る
-- [ ] ~~AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags は DU-F で全プラットフォーム撤去済みのため形骸化。分類の後継 = カレンダー台帳（calendars）のタグフィルタ（再設計 Step 6 で配線）
+- [ ] ~~AC7: Calendar Tag を作成して ScheduleItem に複数付与すると、Calendar / DayFlow 上でタグ色がアイテムの縁取り / バッジに反映される~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags は DU-F で全プラットフォーム撤去済みのため形骸化。分類の後継 = カレンダー台帳（calendars）のタグフィルタ（再設計 Step 6 で配線）→ さらに 2026-08-29 #1173 で台帳も退役し、後継は**タググループ**のマルチセレクトフィルタ
 - [ ] AC8: Claude Code が MCP `list_schedule` を呼ぶと、指定日 / 日付範囲の ScheduleItem（Routine 由来含む）が UI と同じ内容で返る（handler の Supabase 化は #256 で完了 — 実データでの一致確認は未実施）
 - [ ] ~~AC9: Mobile（iOS）では CalendarTagsProvider は hydrate されず、タグ関連 UI が出現せず、他機能（Calendar 月表示 / Routine）は動作する~~ → **Retired (2026-07-14 再設計 Step 0)**: CalendarTags 全撤去により前提が消滅。Mobile の責務は再設計 Step 5 で List（今日）+ FAB に絞る
 - [ ] AC10: ドラッグで ScheduleItem の時間 / 日付を変更すると DB に永続化され、Todos (`scheduledAt`) と双方向同期される（2026-07-14 注記: 前段のドラッグ永続化は実装済み。Todos 双方向同期は**未達** — 再設計 Step 2 で実装予定）

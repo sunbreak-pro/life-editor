@@ -147,10 +147,11 @@ describe("useTodoTreeAPI load effect (#891)", () => {
     renderHook(() => useTodoTreeAPI({ dataService: ds }), { wrapper });
     await waitFor(() => expect(fetchTodoTree).toHaveBeenCalledTimes(1));
 
-    // A note edit or a calendar edit must not re-pull the todo tree (#499).
+    // A note edit or an audio-settings edit must not re-pull the todo tree
+    // (#499).
     act(() => {
       sync.bump("notes");
-      sync.bump("calendars");
+      sync.bump("audio");
     });
     await act(async () => {});
     expect(fetchTodoTree).toHaveBeenCalledTimes(1);

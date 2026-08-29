@@ -9,8 +9,10 @@ import { getSupabaseClient } from "./supabaseClient";
  * Phase 1 Email + Password auth wrapper.
  *
  * Thin, typed surface over supabase-auth so the web UI never touches the
- * raw client. Assumes "Confirm email" is OFF in the Supabase project
- * (Phase 1 constraint) — signUp returns an active session immediately.
+ * raw client. Works with "Confirm email" either ON or OFF (#1197): with it
+ * off signUp returns a live session, with it on it returns none and the
+ * caller gets `pendingConfirmation` instead. The project setting is the
+ * owner's to flip in the dashboard; nothing here reads it.
  *
  * OAuth / magic link / Apple Sign-in are explicitly out of scope here.
  */
@@ -19,6 +21,12 @@ export interface AuthResult {
   /** null on success, a human-readable message on failure. */
   error: string | null;
   session: Session | null;
+  /**
+   * signUp only. True when the account was created but Supabase started no
+   * session because the address has to be confirmed first — the one outcome
+   * that is neither an error nor a way in, and so needs a screen of its own.
+   */
+  pendingConfirmation?: boolean;
 }
 
 function toResult(
@@ -38,8 +46,21 @@ export async function signUp(
   const { data, error } = await getSupabaseClient().auth.signUp({
     email,
     password,
+    // Same reasoning as the recovery link: the mail opens in the OS default
+    // browser, never inside the Electron or Capacitor shell.
+    options: { emailRedirectTo: authRedirectUrl() },
   });
-  return toResult(data, error);
+  if (error) return { ...toResult(data, error), pendingConfirmation: false };
+  /*
+   * Confirm email ON: no session, but a user row came back and the mail is
+   * out. Note what this ALSO covers — signing up with an address that is
+   * already registered returns exactly this shape (an obfuscated user with
+   * no identities), because Supabase refuses to disclose which addresses
+   * exist. Telling those two apart is not ours to do, and the screen this
+   * drives says the same thing either way: check your inbox.
+   */
+  const pendingConfirmation = !data.session && Boolean(data.user);
+  return { ...toResult(data, error), pendingConfirmation };
 }
 
 export async function signIn(
@@ -54,7 +75,7 @@ export async function signIn(
 }
 
 /*
- * Where the recovery link should land (#919).
+ * Where an emailed auth link should land (#919 recovery, #1197 confirmation).
  *
  * The email link opens in the OS default browser, never inside the Electron
  * or Capacitor shell, so the reset is always completed on the public web
@@ -69,7 +90,7 @@ const PUBLIC_WEB_URL =
   (import.meta.env.VITE_PUBLIC_WEB_URL as string | undefined) ??
   "https://life-editor.sunbreak-pro.workers.dev";
 
-export function passwordRecoveryRedirectUrl(): string {
+export function authRedirectUrl(): string {
   if (typeof window === "undefined") return PUBLIC_WEB_URL;
   const { protocol, origin } = window.location;
   return protocol === "http:" || protocol === "https:"
@@ -87,8 +108,28 @@ export async function sendPasswordResetEmail(
 ): Promise<{ error: string | null }> {
   const { error } = await getSupabaseClient().auth.resetPasswordForEmail(
     email,
-    { redirectTo: passwordRecoveryRedirectUrl() },
+    { redirectTo: authRedirectUrl() },
   );
+  return { error: error ? error.message : null };
+}
+
+/**
+ * Send the confirmation mail again (#1197). The first one expires, and it is
+ * the only way back into an account that was created but never verified —
+ * without this the user has to guess whether waiting or re-registering is
+ * the way out.
+ *
+ * Resolves with `error: null` for an address that is already confirmed or
+ * does not exist, for the same non-disclosure reason as the reset mail.
+ */
+export async function resendConfirmationEmail(
+  email: string,
+): Promise<{ error: string | null }> {
+  const { error } = await getSupabaseClient().auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: authRedirectUrl() },
+  });
   return { error: error ? error.message : null };
 }
 
