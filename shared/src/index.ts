@@ -704,7 +704,10 @@ export {
   TourContext,
   type TourContextValue,
 } from "./context";
-export { useTourContext } from "./hooks/useTourContext";
+export {
+  useTourContext,
+  useTourContextOptional,
+} from "./hooks/useTourContext";
 // Tour progress persistence (#1122). The single place that knows WHERE the
 // position is stored — see the file header for why that is localStorage and
 // not DataService today.
