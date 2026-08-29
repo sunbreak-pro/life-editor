@@ -318,7 +318,11 @@
       "use": "Create a note from this template",
       "pickHint": "Pick a template, or create a new one.",
       "noTagsHint": "Templates carry no tags or links — the note you create from one does.",
-      "bodyPlaceholder": "Write the template…"
+      "bodyPlaceholder": "Write the template…",
+      "sidebarHeading": "Templates",
+      "edit": "Edit template",
+      "editTitle": "Edit template",
+      "save": "Save"
     },
     "links": {
       "panelLabel": "Links",

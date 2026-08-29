@@ -56,6 +56,8 @@ const ALLOWED = new Set([
   // Same: the templates panel (#1047) is mounted by NotesView, so its copy of
   // the editor rides in the Notes chunk rather than the first download.
   "notes/NoteTemplateHost.tsx",
+  // Same again: the template EDIT panel (#1180), mounted by NotesView.
+  "notes/TemplateEditHost.tsx",
 ]);
 
 describe("the TipTap editor stays out of the initial chunk", () => {

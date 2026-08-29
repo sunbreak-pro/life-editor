@@ -11,6 +11,7 @@ import {
   ExcerptListItem,
   SkeletonList,
   AddPill,
+  TemplateListPanel,
   cn,
   type NoteSortMode,
   type DataService,
@@ -30,6 +31,8 @@ import { NoteTemplateHost } from "./NoteTemplateHost";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
+import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
+import { TemplateEditHost } from "./TemplateEditHost";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -194,6 +197,11 @@ export function NotesView({
   );
 
   const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
+
+  // Saved templates: the sidebar disclosure + the draft the centre panel edits
+  // (#1180). Reads and writes go straight out through the DataService — see the
+  // hook's header for why templates are not on the notes context.
+  const templates = useNoteTemplateLibrary(dataService);
 
   const selected = notes.selectedNote;
 
@@ -423,6 +431,28 @@ export function NotesView({
       deletedNotes={notes.deletedNotes}
       onRestoreNote={notes.restoreNote}
       onPermanentDeleteNote={notes.permanentDeleteNote}
+      // #1180 — only with a DataService, which is what templates are read and
+      // written through (the same condition the "[[" pool has).
+      templatesSlot={
+        dataService ? (
+          <TemplateListPanel
+            templates={templates.templates}
+            loading={templates.loading}
+            open={templates.listOpen}
+            onToggle={templates.toggleList}
+            onEdit={templates.beginEdit}
+            onDelete={templates.remove}
+            labels={{
+              heading: t("materials.templates.sidebarHeading"),
+              empty: t("materials.templates.empty"),
+              untitled: t("materials.templates.untitled"),
+              edit: t("materials.templates.edit"),
+              delete: t("materials.templates.delete"),
+              loading: t("common.loading"),
+            }}
+          />
+        ) : undefined
+      }
     />
   );
 
@@ -590,6 +620,12 @@ export function NotesView({
           }
         />
       )}
+
+      {/* Editing one saved template (#1180). Mounted at the view's top level
+          rather than inside the sidebar portal: on narrow that portal is the
+          MobileDrawer, and a panel living inside it would go away with the
+          drawer that opened it. */}
+      {dataService && <TemplateEditHost library={templates} />}
 
       {password.dialog && (
         <NotePasswordDialog
