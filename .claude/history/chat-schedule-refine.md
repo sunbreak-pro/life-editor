@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-29 - /goal 4 件（#1140 / #1124 / #1148 / #1153）を全部 PR まで
+
+#### 概要
+
+schedule-refine の担当 4 件を 1 Issue = 1 ブランチ = 1 PR で提出した。#1140 は merge 済み（PR #1163）、残り 3 本は open（#1168 / #1178 / #1187）。4 本とも origin/main から独立に切り、CI `verify` の全ステップ + `docs-lint` をローカルで exit 0。
+
+#### 変更点
+
+- **#1140 変換の role ゲート（PR #1163・merge 済み）**: `convertEventToRoutine` の `items_meta` bump は `.eq("role","event")` を持ちながら `mErr` しか見ておらず、0 行ヒットが無言で素通りしていた。続く attach は `item_id` + `.is("routine_item_id", null)` だけで絞り role を見ないので、Todo へ変換済みの id を渡すと **§10.5 の残骸にルーチンが繋がり、変換は SUCCESS を返すのに二度と purge できない routine ができる**（0011 の FK が NO ACTION で、purge の step 2 は `role='event'` しか消さない）。bump に `.select("id")` を足し、0 行なら名前付きエラーで止める。**bump が attach より前に走ることが唯一の防具**なので、その順序の意味を doc に書き足した
+- **#1140 の副作用 2 つ**: purge の step 2 が読み戻して取りこぼしを名指しする（従来は step 3 で Postgres の生 FK メッセージが出るだけで、どの occurrence が原因か分からなかった）。`useRoutinesAPI.permanentDeleteRoutine` は拒否されたら楽観削除を戻す — **今までは Trash から消えて DB に残り、再試行の手がかりも消えていた**。チャンク書き込みの読み戻し用に `forEachIdChunkReturning` を追加
+- **#1124 Schedule のツアーステップ（PR #1168）**: #1122 の `TourProvider` の上に 5 ステップ（予定を作る → 時間を変える → Todo シートを開く → Todo を作る → 完了）+ `data-tour-id` + ja/en コピー。**全ステップが `advanceOn: action`** で、ボタンを見せるだけでは進まない。アンカーは「ステップ開始時に画面にある物」しか使えないため、開かせたい物（編集パネルの時刻欄）ではなく durable な面（カレンダー / ボード）を指す。通知はホスト（CalendarTab / KanbanView）側で包み、context-free なフックには触っていない。`useTourAction` は optional（保存はツアーの有無を気にしない）かつ identity 固定（ツアーが進むたびにハンドラを作り直さない）
+- **#1148 narrow の日リスト退役（PR #1178）**: メインを月グリッド単独にし、日付タップでアンカー移動 + ドロワーがその日を開く。「今日の流れ」タブが narrow で選択日追従になり（ラベル / アジェンダ / #774 の空状態 / #691 の dayflow）、**選択日が今日でなければ now ラインを出さない**。Desktop は 1px も動かさず、マージも `isWide` の裏に置いたまま上へ移した。作成ピルはサイドバー見出し行へ（`D-20260827-sched-1` = A）。主役のジェスチャーは `selectNarrowDay` として独立モジュールに切り出し、テスト可能にした（CalendarTab は jsdom に載らない）
+- **#1153 Todo カンバンの退役（PR #1187・計画書 → 実装の 2 commit）**: Schedule をタブ無しの 1 画面に戻し、Todo を右サイドバーのトレイへ縮退。**-4,600 行**。トレイの行タップが詳細オーバーレイを開き、未スケジュール行のタイトルもボタン化、作成ピルを見出し行に追加。詳細オーバーレイが**カンバンの本文エディタと `[[` 配線を引き取った**（DoD が明記していた部分）。サイドバーの Todo タブは narrow でも出るようにした（退役前は狭幅が専用タブから触っていたため、畳んだままだとスマホから Todo に触れなくなる）。シェルの 3 経路（`nav:tasks` / `global:new-task` / `[[` の task）は「行き先」から「セクションへ移動してフラグを立て、セクションが消費する」形へ
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-schedule-todo-tab-retirement.md`（#1153 の Issue が計画先行を要求。IN PROGRESS のまま — archive は merge 後）
+- **判断台帳**: `D-20260827-sched-1`（#1148 の作成ピルの置き場 = A。Issue が推奨案を提示していたためキューには積まず、理由と却下した B を台帳へ）
+
 ### 2026-08-24 - #1098 と #889 を出し切り、その過程で並行エージェントの事故を 1 件踏んだ
 
 #### 概要
