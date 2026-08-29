@@ -24,6 +24,13 @@ import { describe, expect, it } from "vitest";
  * lazySections.ts and the JSX into sectionDescriptors.tsx. The guard followed
  * them, and the boundary check is anchored on the component name rather than
  * on the old `section === "…" &&` guard the descriptor table replaced.
+ *
+ * #1158 added a fourth assertion per section: the idle warm-up must list the
+ * SAME specifier. The two tables are separate on purpose (see the comment in
+ * lazySections.ts), and separate tables drift — a section retired from one and
+ * left in the other leaves an `import()` of a deleted module, which fails the
+ * web build in whichever unrelated PR does the retiring. This is what forces
+ * the two rows to move together.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -34,6 +41,7 @@ const read = (rel: string): string =>
 
 const lazySections = read("../src/lazySections.ts");
 const descriptors = read("../src/sectionDescriptors.tsx");
+const mainScreen = read("../src/MainScreen.tsx");
 // A static import anywhere on the path from the shell to the screen re-merges
 // the chunk, so BOTH files are checked for one.
 const sources = `${lazySections}\n${descriptors}`;
@@ -69,6 +77,13 @@ describe("the section descriptor table keeps the heavy bodies code-split", () =>
       expect(staticImport.test(sources)).toBe(false);
     });
 
+    it(`warms ${name} from the same module`, () => {
+      const warmed = new RegExp(
+        `SECTION_CHUNK_LOADERS[\\s\\S]*?import\\("${escape(path)}"\\)`,
+      );
+      expect(warmed.test(lazySections)).toBe(true);
+    });
+
     it(`renders ${name} behind a Suspense boundary`, () => {
       // Anchored on the component rather than counting <Suspense> tags: a
       // global count passes as soon as any two unrelated boundaries exist
@@ -78,4 +93,14 @@ describe("the section descriptor table keeps the heavy bodies code-split", () =>
       expect(guarded.test(descriptors)).toBe(true);
     });
   }
+
+  it("still calls the warm-up from the shell", () => {
+    // Without a call site the loader table is inert and every assertion above
+    // keeps passing, so the guard would go on protecting nothing.
+    expect(
+      /useEffect\(\(\)\s*=>\s*\{[\s\S]{0,200}?prefetchLazySections\(\)/.test(
+        mainScreen,
+      ),
+    ).toBe(true);
+  });
 });
