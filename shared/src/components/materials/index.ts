@@ -11,16 +11,28 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
-export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
-// Note templates (#1047) — the list + name + body surface, tag/link-free.
+// The "registered as a template" confirmation (#1179) — name field + where
+// the new template now lives.
 export {
-  NoteTemplatePanel,
-  type NoteTemplatePanelProps,
-  type NoteTemplatePanelLabels,
-  type NoteTemplateSummary,
-} from "./NoteTemplatePanel";
+  TemplateSavedPanel,
+  type TemplateSavedPanelProps,
+  type TemplateSavedPanelLabels,
+} from "./TemplateSavedPanel";
+// The saved-templates disclosure in the Notes rightSidebar + the centre panel
+// that edits one (#1180).
+export {
+  TemplateListPanel,
+  type TemplateListPanelProps,
+  type TemplateListPanelLabels,
+  type TemplateListItem,
+} from "./TemplateListPanel";
+export {
+  TemplateEditPanel,
+  type TemplateEditPanelProps,
+  type TemplateEditPanelLabels,
+} from "./TemplateEditPanel";
 // Pouring a saved template into the open note (#1181) — picker + confirm.
 export {
   TemplateApplyPanel,

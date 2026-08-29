@@ -33,8 +33,8 @@ export interface NoteDetailLabels {
   moreActions: string;
   content: string;
   lockedHint: string;
-  /** Kebab entry that opens the templates surface (#1047). */
-  createTemplate: string;
+  /** Kebab entry that registers this note as a template (#1179). */
+  registerTemplate: string;
   /** Kebab entry that pours a saved template into this note (#1181). */
   applyTemplate: string;
 }
@@ -58,8 +58,13 @@ export interface NoteDetailSurfaceProps {
    * cross-role candidate pool and the navigation route.
    */
   linksSlot?: ReactNode;
-  /** Open the note templates surface from the kebab (#1047). */
-  onOpenTemplates?: () => void;
+  /**
+   * Register this note as a template from the kebab (#1179). Absent when the
+   * host cannot write templates (no DataService) or must not copy this body
+   * out — a password-gated note (#526) would otherwise leak through a surface
+   * the lock does not cover.
+   */
+  onRegisterTemplate?: () => void;
   /**
    * Open the apply-a-template picker from the kebab (#1181). Absent when the
    * host cannot read templates (no DataService) or must not overwrite this
@@ -80,7 +85,7 @@ export function NoteDetailSurface({
   onDelete,
   contentEditor,
   linksSlot,
-  onOpenTemplates,
+  onRegisterTemplate,
   onApplyTemplate,
 }: NoteDetailSurfaceProps) {
   return (
@@ -98,8 +103,8 @@ export function NoteDetailSurface({
       pinnedLabel={labels.pinned}
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
-      onOpenTemplates={onOpenTemplates}
-      createTemplateLabel={labels.createTemplate}
+      onRegisterTemplate={onRegisterTemplate}
+      registerTemplateLabel={labels.registerTemplate}
       onApplyTemplate={onApplyTemplate}
       applyTemplateLabel={labels.applyTemplate}
       tagsSlot={

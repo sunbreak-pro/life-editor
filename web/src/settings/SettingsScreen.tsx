@@ -1,30 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Lightbulb, SlidersHorizontal } from "lucide-react";
 import {
   SettingsAccount,
   SettingsAppearance,
   SettingsLanguage,
   SettingsShortcuts,
   SettingsGeneral,
+  SettingsSchedule,
   SettingsDayStart,
   SettingsReset,
   SettingsTutorial,
+  SettingsTabsNav,
   SettingsDetailPanel,
+  DeleteAccountDialog,
+  EmptyState,
+  Modal,
+  Button,
   getSession,
+  signOut,
+  deleteAccount,
   RightSidebarPortal,
   ConfirmDialog,
   useConfirmDialog,
   DEFAULT_SHORTCUTS,
   MAIN_SECTIONS,
+  SECTIONS,
   PASSWORD_MIN_LENGTH,
   fontSizeToPx,
   useThemeContext,
   useShortcutConfig,
   useStartupSectionPref,
+  useScheduleInitialViewPref,
   useDayStartHourPref,
+  useRightSidebarOptional,
   useTourContext,
   resetLocalPreferences,
   useMediaQuery,
   useTranslation,
+  type SettingsTabItem,
   type ShortcutRow,
   type ShortcutCategory,
   type KeyBinding,
@@ -34,20 +47,46 @@ import {
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
 
 /*
- * Settings screen (W1, web host — redesigned; §216 lightweight prefs). Single
- * column of cards (opaque, immediate-apply, no save button) — the order below
- * is the layout. The section title lives in the shell's
- * standard SectionHeader (Layout Standard v2, #209). Width + gutter + scroll
- * are owned by the PageContainer wrapper in MainScreen. This is the HOST side:
- * it owns the hooks (useThemeContext / useShortcutConfig / useStartupSectionPref
- * / useDayStartHourPref / useTranslation / media query) and injects values +
- * setters + already-translated copy into the shared PURE primitives
- * (CLAUDE.md §6.4). The
- * Shortcuts card is Desktop-only (ShortcutConfig is a Mobile 省略 Provider —
- * §2). The Reset card owns the destructive confirm + clear-and-reload (kept out
- * of the pure primitive). A live appearance preview + tips are pushed into the
- * shared detail panel via RightSidebarPortal.
+ * Settings screen (W1, web host — redesigned; §216 lightweight prefs). This is
+ * the HOST side: it owns the hooks (useThemeContext / useShortcutConfig /
+ * useStartupSectionPref / useScheduleInitialViewPref / useDayStartHourPref /
+ * useTranslation / media query) and injects values + setters +
+ * already-translated copy into the shared PURE primitives (CLAUDE.md §6.4).
+ * The section title lives in the shell's standard SectionHeader (Layout
+ * Standard v2, #209); width + gutter + scroll are owned by the PageContainer
+ * wrapper in MainScreen.
+ *
+ * #1174 turned the screen into CATEGORIES. The rightSidebar face used to hold
+ * an appearance preview + tips; it now holds the category list, and the body
+ * below shows one category at a time:
+ *
+ *   General — every preference that was already here, in the order it was in
+ *   Schedule — the initial calendar view (the first per-section preference)
+ *   briefing / materials / work / analytics — receptacles, so the list is the
+ *     whole map of what Settings will cover rather than only what exists today
+ *   Tips — not a category at all: the last row raises the old preview + tips
+ *     panel in the CENTRE of the screen, which is where something you read
+ *     belongs (it was competing with the controls for the same 320px column).
+ *
+ * The Shortcuts card stays Desktop-only (ShortcutConfig is a Mobile 省略
+ * Provider — §2) and the Reset card still owns the destructive confirm +
+ * clear-and-reload (kept out of the pure primitive).
  */
+
+/** Category ids, in the order the rightSidebar lists them (#1174). */
+const SECTION_TAB_IDS = [
+  "briefing",
+  "schedule",
+  "materials",
+  "work",
+  "analytics",
+] as const;
+
+type SettingsTabId = "general" | (typeof SECTION_TAB_IDS)[number];
+
+/** The one row that opens a dialog instead of swapping the body. */
+const TIPS_ROW_ID = "tips";
+
 export function SettingsScreen() {
   const { t } = useTranslation();
   const {
@@ -66,6 +105,7 @@ export function SettingsScreen() {
   const { pref: startupPref, setPref: setStartupPref } =
     useStartupSectionPref();
   const { dayStartHour, setDayStartHour } = useDayStartHourPref();
+  const { initialView, setInitialView } = useScheduleInitialViewPref();
   /*
    * Tutorial re-run (#1123). REQUIRED Provider, unlike useShortcutConfig below
    * — the tour is global and mounted on every shell, so there is no null case
@@ -79,6 +119,32 @@ export function SettingsScreen() {
   // where ShortcutConfigHost skips the Provider (#320) — the Shortcuts card
   // below renders only when the value is present.
   const shortcuts = useShortcutConfig();
+
+  const [tab, setTab] = useState<SettingsTabId>("general");
+  const [tipsOpen, setTipsOpen] = useState(false);
+
+  /*
+   * #1174: the detail panel is this screen's NAVIGATION now, not a decoration
+   * beside it, so Settings asks for it once on the way in — a fresh session
+   * starts with the panel closed (RightSidebarProvider), which would have left
+   * the category list reachable only through the header toggle.
+   *
+   * Wide only, and once per visit: on narrow the same face is a modal drawer
+   * over the content, and throwing that up the moment someone opens Settings
+   * is a different (worse) thing than pushing a column aside. The ref is what
+   * keeps a later resize from re-opening a panel the user closed on purpose.
+   *
+   * Optional hook (§4): outside a Provider — the screen's own suites, a
+   * standalone render — this is simply null and nothing happens.
+   */
+  const rightSidebar = useRightSidebarOptional();
+  const openPanel = rightSidebar?.open;
+  const askedForPanelRef = useRef(false);
+  useEffect(() => {
+    if (askedForPanelRef.current || !isWide || !openPanel) return;
+    askedForPanelRef.current = true;
+    openPanel();
+  }, [isWide, openPanel]);
 
   const px = fontSizeToPx(fontSize);
   const fontSizeValue = t("settings.fontSizeValue", {
@@ -109,6 +175,42 @@ export function SettingsScreen() {
     ],
     [t],
   );
+
+  /*
+   * The category list. The five per-section rows take their icon AND their
+   * label key from the section registry (sections.ts SSOT) rather than a
+   * second literal list here, so a settings category cannot end up wearing a
+   * different glyph or name than the sidebar row it belongs to. General and
+   * Tips are this screen's own, so they bring their own.
+   */
+  const tabs: SettingsTabItem[] = useMemo(() => {
+    const sectionRows = SECTION_TAB_IDS.map((id) => {
+      const def = SECTIONS.find((s) => s.id === id);
+      const Icon = def?.icon;
+      return {
+        id,
+        // No defaultValue: `labelKey` is typed as the catalog's key union
+        // (#726), so a section whose label was never translated is a compile
+        // error rather than a row that quietly says "work".
+        label: def ? t(def.labelKey) : id,
+        icon: Icon ? <Icon size={16} /> : null,
+      };
+    });
+    return [
+      {
+        id: "general",
+        label: t("settings.tabs.general"),
+        icon: <SlidersHorizontal size={16} />,
+      },
+      ...sectionRows,
+      {
+        id: TIPS_ROW_ID,
+        label: t("settings.tabs.tips"),
+        icon: <Lightbulb size={16} />,
+        opensPanel: true,
+      },
+    ];
+  }, [t]);
 
   const rows: ShortcutRow[] = useMemo(() => {
     if (!shortcuts) return [];
@@ -201,6 +303,49 @@ export function SettingsScreen() {
   );
   const passwordForm = usePasswordUpdate(passwordMessages);
 
+  /*
+   * Account deletion (#1200). The host owns the whole flow because it is the
+   * only place that can: the card raises a request, the dialog collects the
+   * typed address, and this is where the Edge Function is called.
+   *
+   * Nothing is reset on success. The account is gone, `deleteAccount()` has
+   * already thrown the local token away, and the SIGNED_OUT that follows takes
+   * this screen down with it — clearing state here would only be racing the
+   * unmount. On FAILURE the dialog stays open with the message, because the
+   * account still exists and the user may well want to try again.
+   */
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const openDelete = () => {
+    setDeleteInput("");
+    setDeleteError(null);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    void deleteAccount()
+      .then(({ error }) => {
+        setDeleteBusy(false);
+        if (error) setDeleteError(t("settings.account.delete.error"));
+      })
+      .catch((e: unknown) => {
+        console.error("[settings] deleteAccount", e);
+        setDeleteBusy(false);
+        setDeleteError(t("settings.account.delete.error"));
+      });
+  };
+
+  const deleteConsequences = [
+    t("settings.account.delete.consequences.data"),
+    t("settings.account.delete.consequences.login"),
+    t("settings.account.delete.consequences.irreversible"),
+  ];
+
   const detailTodos = [
     { label: t("settings.detail.todos.shopping"), done: false },
     { label: t("settings.detail.todos.coffee"), done: true },
@@ -225,165 +370,239 @@ export function SettingsScreen() {
   const cardClass =
     "rounded-lumen-lg border border-lumen-border bg-lumen-bg p-5 shadow-lumen-sm md:px-6";
 
+  // A category with nothing in it yet still gets a card, not a blank column:
+  // the row is reachable from the list, so it has to say WHY it is empty.
+  const placeholder = (
+    <div className={cardClass}>
+      <EmptyState
+        icon={<SlidersHorizontal />}
+        message={t("settings.placeholder.message")}
+      />
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6 pb-12">
-      <div className={cardClass}>
-        <SettingsAppearance
-          themeMode={themeMode}
-          fontSize={fontSize}
-          fontFamily={fontFamily}
-          reduceMotion={reduceMotion}
-          onThemeModeChange={setThemeMode}
-          onFontSizeChange={setFontSize}
-          onFontFamilyChange={setFontFamily}
-          onReduceMotionChange={setReduceMotion}
-          touch={!isWide}
-          labels={{
-            heading: t("settings.appearance"),
-            theme: t("settings.theme"),
-            light: t("settings.light"),
-            dark: t("settings.dark"),
-            system: t("settings.themeSystem"),
-            fontSize: t("settings.fontSize"),
-            fontSizeValue,
-            fontSizeSmall: t("settings.fontSizeSmall"),
-            fontSizeLarge: t("settings.fontSizeLarge"),
-            previewText: t("settings.previewText"),
-            fontFamily: t("settings.fontFamilyLabel"),
-            fontFamilyDesc: t("settings.fontFamilyDesc"),
-            fontFamilySystem: t("settings.fontFamilySystem"),
-            fontFamilySerif: t("settings.fontFamilySerif"),
-            fontFamilyMono: t("settings.fontFamilyMono"),
-            reduceMotion: t("settings.reduceMotionLabel"),
-            reduceMotionDesc: t("settings.reduceMotionDesc"),
-            reduceMotionSystem: t("settings.reduceMotionSystem"),
-            reduceMotionReduce: t("settings.reduceMotionReduce"),
-            reduceMotionOff: t("settings.reduceMotionOff"),
-          }}
-        />
-      </div>
+      {tab === "general" && (
+        <>
+          <div className={cardClass}>
+            <SettingsAppearance
+              themeMode={themeMode}
+              fontSize={fontSize}
+              fontFamily={fontFamily}
+              reduceMotion={reduceMotion}
+              onThemeModeChange={setThemeMode}
+              onFontSizeChange={setFontSize}
+              onFontFamilyChange={setFontFamily}
+              onReduceMotionChange={setReduceMotion}
+              touch={!isWide}
+              labels={{
+                heading: t("settings.appearance"),
+                theme: t("settings.theme"),
+                light: t("settings.light"),
+                dark: t("settings.dark"),
+                system: t("settings.themeSystem"),
+                fontSize: t("settings.fontSize"),
+                fontSizeValue,
+                fontSizeSmall: t("settings.fontSizeSmall"),
+                fontSizeLarge: t("settings.fontSizeLarge"),
+                fontSizePresetSmall: t("settings.fontSizePresetSmall"),
+                fontSizePresetMedium: t("settings.fontSizePresetMedium"),
+                fontSizePresetLarge: t("settings.fontSizePresetLarge"),
+                fontSizePx: t("settings.fontSizePx", { px }),
+                previewText: t("settings.previewText"),
+                fontFamily: t("settings.fontFamilyLabel"),
+                fontFamilyDesc: t("settings.fontFamilyDesc"),
+                fontFamilySystem: t("settings.fontFamilySystem"),
+                fontFamilySerif: t("settings.fontFamilySerif"),
+                fontFamilyMono: t("settings.fontFamilyMono"),
+                reduceMotion: t("settings.reduceMotionLabel"),
+                reduceMotionDesc: t("settings.reduceMotionDesc"),
+                reduceMotionSystem: t("settings.reduceMotionSystem"),
+                reduceMotionReduce: t("settings.reduceMotionReduce"),
+                reduceMotionOff: t("settings.reduceMotionOff"),
+              }}
+            />
+          </div>
 
-      <div className={cardClass}>
-        <SettingsGeneral
-          value={startupPref}
-          onChange={(value) => setStartupPref(value as typeof startupPref)}
-          options={startupOptions}
-          labels={{
-            heading: t("settings.startup.heading"),
-            description: t("settings.startup.description"),
-            sectionLabel: t("settings.startup.sectionLabel"),
-          }}
-        />
-      </div>
+          <div className={cardClass}>
+            <SettingsGeneral
+              value={startupPref}
+              onChange={(value) => setStartupPref(value as typeof startupPref)}
+              options={startupOptions}
+              labels={{
+                heading: t("settings.startup.heading"),
+                description: t("settings.startup.description"),
+                sectionLabel: t("settings.startup.sectionLabel"),
+              }}
+            />
+          </div>
 
-      <div className={cardClass}>
-        <SettingsDayStart
-          value={dayStartHour}
-          onChange={setDayStartHour}
-          labels={{
-            heading: t("settings.dayStart.heading"),
-            description: t("settings.dayStart.description"),
-            hourLabel: t("settings.dayStart.hourLabel"),
-            hint: t("settings.dayStart.hint"),
-          }}
-        />
-      </div>
+          <div className={cardClass}>
+            <SettingsDayStart
+              value={dayStartHour}
+              onChange={setDayStartHour}
+              labels={{
+                heading: t("settings.dayStart.heading"),
+                description: t("settings.dayStart.description"),
+                hourLabel: t("settings.dayStart.hourLabel"),
+                hint: t("settings.dayStart.hint"),
+              }}
+            />
+          </div>
 
-      <div className={cardClass}>
-        <SettingsLanguage
-          language={language}
-          onLanguageChange={setLanguage}
-          stacked={!isWide}
-          labels={{
-            heading: t("settings.language"),
-            description: t("settings.languageDesc"),
-            english: t("settings.english"),
-            japanese: t("settings.japanese"),
-          }}
-        />
-      </div>
+          <div className={cardClass}>
+            <SettingsLanguage
+              language={language}
+              onLanguageChange={setLanguage}
+              stacked={!isWide}
+              labels={{
+                heading: t("settings.language"),
+                description: t("settings.languageDesc"),
+                english: t("settings.english"),
+                japanese: t("settings.japanese"),
+              }}
+            />
+          </div>
 
-      {isWide && shortcuts && (
+          {isWide && shortcuts && (
+            <div className={cardClass}>
+              <SettingsShortcuts
+                rows={rows}
+                config={shortcuts.config}
+                onRebind={shortcuts.setBinding}
+                onResetOne={shortcuts.resetBinding}
+                onResetAll={shortcuts.resetAll}
+                getConflictLabel={getConflictLabel}
+                labels={{
+                  heading: t("settings.shortcuts.heading"),
+                  resetAll: t("settings.shortcuts.resetAll"),
+                  change: t("settings.shortcuts.change"),
+                  reset: t("settings.shortcuts.reset"),
+                  modified: t("settings.shortcuts.modified"),
+                  cancel: t("settings.shortcuts.cancel"),
+                  done: t("settings.shortcuts.done"),
+                  editTitle: t("settings.shortcuts.editTitle"),
+                  editDescription: t("settings.shortcuts.editDescription"),
+                  waiting: t("settings.shortcuts.waiting"),
+                  conflictTemplate: t("settings.shortcuts.conflict", {
+                    action: "{{action}}",
+                  }),
+                  categories: categoryLabels,
+                }}
+              />
+            </div>
+          )}
+
+          <div className={cardClass}>
+            <SettingsAccount
+              email={accountEmail}
+              password={passwordForm.password}
+              onPasswordChange={passwordForm.setPassword}
+              confirmPassword={passwordForm.confirmPassword}
+              onConfirmPasswordChange={passwordForm.setConfirmPassword}
+              error={passwordForm.error}
+              notice={passwordForm.notice}
+              confirmInvalid={passwordForm.confirmInvalid}
+              busy={passwordForm.busy}
+              onSubmit={passwordForm.submit}
+              labels={{
+                heading: t("settings.account.heading"),
+                description: t("settings.account.description"),
+                emailLabel: t("settings.account.emailLabel"),
+                newPassword: t("settings.account.newPassword"),
+                newPasswordHelper: t("settings.account.newPasswordHelper", {
+                  min: PASSWORD_MIN_LENGTH,
+                }),
+                confirmPassword: t("settings.account.confirmPassword"),
+                showPassword: t("auth.showPassword"),
+                hidePassword: t("auth.hidePassword"),
+                submit: t("settings.account.submit"),
+                busy: t("settings.account.busy"),
+                signOutHeading: t("settings.account.signOut.heading"),
+                signOutDescription: t("settings.account.signOut.description"),
+                signOutButton: t("settings.account.signOut.button"),
+                deleteHeading: t("settings.account.delete.heading"),
+                deleteDescription: t("settings.account.delete.description"),
+                deleteButton: t("settings.account.delete.button"),
+              }}
+              onSignOut={() => void signOut()}
+              onDeleteAccount={openDelete}
+            />
+          </div>
+
+          <div className={cardClass}>
+            <SettingsTutorial
+              onRestart={restartTour}
+              labels={{
+                heading: t("settings.tutorial.heading"),
+                description: t("settings.tutorial.description"),
+                button: t("settings.tutorial.button"),
+              }}
+            />
+          </div>
+
+          <div className={cardClass}>
+            <SettingsReset
+              onReset={handleReset}
+              labels={{
+                heading: t("settings.reset.heading"),
+                description: t("settings.reset.description"),
+                button: t("settings.reset.button"),
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      {tab === "schedule" && (
         <div className={cardClass}>
-          <SettingsShortcuts
-            rows={rows}
-            config={shortcuts.config}
-            onRebind={shortcuts.setBinding}
-            onResetOne={shortcuts.resetBinding}
-            onResetAll={shortcuts.resetAll}
-            getConflictLabel={getConflictLabel}
+          <SettingsSchedule
+            initialView={initialView}
+            onInitialViewChange={setInitialView}
             labels={{
-              heading: t("settings.shortcuts.heading"),
-              resetAll: t("settings.shortcuts.resetAll"),
-              change: t("settings.shortcuts.change"),
-              reset: t("settings.shortcuts.reset"),
-              modified: t("settings.shortcuts.modified"),
-              cancel: t("settings.shortcuts.cancel"),
-              done: t("settings.shortcuts.done"),
-              editTitle: t("settings.shortcuts.editTitle"),
-              editDescription: t("settings.shortcuts.editDescription"),
-              waiting: t("settings.shortcuts.waiting"),
-              conflictTemplate: t("settings.shortcuts.conflict", {
-                action: "{{action}}",
-              }),
-              categories: categoryLabels,
+              heading: t("settings.schedule.heading"),
+              description: t("settings.schedule.description"),
+              initialViewLabel: t("settings.schedule.initialViewLabel"),
+              day: t("settings.schedule.day"),
+              week: t("settings.schedule.week"),
+              month: t("settings.schedule.month"),
+              hint: t("settings.schedule.hint"),
             }}
           />
         </div>
       )}
 
-      <div className={cardClass}>
-        <SettingsAccount
-          email={accountEmail}
-          password={passwordForm.password}
-          onPasswordChange={passwordForm.setPassword}
-          confirmPassword={passwordForm.confirmPassword}
-          onConfirmPasswordChange={passwordForm.setConfirmPassword}
-          error={passwordForm.error}
-          notice={passwordForm.notice}
-          confirmInvalid={passwordForm.confirmInvalid}
-          busy={passwordForm.busy}
-          onSubmit={passwordForm.submit}
-          labels={{
-            heading: t("settings.account.heading"),
-            description: t("settings.account.description"),
-            emailLabel: t("settings.account.emailLabel"),
-            newPassword: t("settings.account.newPassword"),
-            newPasswordHelper: t("settings.account.newPasswordHelper", {
-              min: PASSWORD_MIN_LENGTH,
-            }),
-            confirmPassword: t("settings.account.confirmPassword"),
-            showPassword: t("auth.showPassword"),
-            hidePassword: t("auth.hidePassword"),
-            submit: t("settings.account.submit"),
-            busy: t("settings.account.busy"),
-          }}
-        />
-      </div>
-
-      <div className={cardClass}>
-        <SettingsTutorial
-          onRestart={restartTour}
-          labels={{
-            heading: t("settings.tutorial.heading"),
-            description: t("settings.tutorial.description"),
-            button: t("settings.tutorial.button"),
-          }}
-        />
-      </div>
-
-      <div className={cardClass}>
-        <SettingsReset
-          onReset={handleReset}
-          labels={{
-            heading: t("settings.reset.heading"),
-            description: t("settings.reset.description"),
-            button: t("settings.reset.button"),
-          }}
-        />
-      </div>
+      {tab !== "general" && tab !== "schedule" && placeholder}
 
       <RightSidebarPortal>
+        <SettingsTabsNav
+          className="p-3"
+          tabs={tabs}
+          value={tab}
+          onSelect={(id) => {
+            if (id === TIPS_ROW_ID) {
+              setTipsOpen(true);
+              return;
+            }
+            setTab(id as SettingsTabId);
+          }}
+          label={t("settings.tabs.navLabel")}
+        />
+      </RightSidebarPortal>
+
+      {/*
+       * Tips, centred (#1174). The same panel the rightSidebar used to hold —
+       * its live appearance preview reads the SAME `fontSize` / `themeMode`
+       * the cards above write, so opening it after a change shows the change.
+       */}
+      <Modal
+        open={tipsOpen}
+        onClose={() => setTipsOpen(false)}
+        title={t("settings.tabs.tips")}
+        size="lg"
+        padded={false}
+      >
         <SettingsDetailPanel
           fontPx={px}
           todos={detailTodos}
@@ -399,7 +618,35 @@ export function SettingsScreen() {
             tipsHeading: t("settings.detail.tipsHeading"),
           }}
         />
-      </RightSidebarPortal>
+        <div className="flex justify-end px-5 pb-5">
+          <Button variant="secondary" onClick={() => setTipsOpen(false)}>
+            {t("common.close")}
+          </Button>
+        </div>
+      </Modal>
+
+      <DeleteAccountDialog
+        open={deleteOpen}
+        email={accountEmail}
+        value={deleteInput}
+        onValueChange={setDeleteInput}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteOpen(false)}
+        busy={deleteBusy}
+        error={deleteError}
+        labels={{
+          title: t("settings.account.delete.title"),
+          body: t("settings.account.delete.body", { email: accountEmail }),
+          consequences: deleteConsequences,
+          typePrompt: t("settings.account.delete.typePrompt", {
+            email: accountEmail,
+          }),
+          inputLabel: t("settings.account.delete.inputLabel"),
+          confirm: t("settings.account.delete.confirm"),
+          busyLabel: t("settings.account.delete.busy"),
+          cancel: t("common.cancel"),
+        }}
+      />
 
       {confirmRequest && (
         <ConfirmDialog

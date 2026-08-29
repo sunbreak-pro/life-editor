@@ -280,10 +280,11 @@ describe("DailyView — the kebab writes to the row the date resolves to", () =>
     await renderDaily(harness);
     // Opened explicitly rather than relied on as the default: the selection
     // store is module-level and outlives the tree by design (#282), so what
-    // "the open day" is depends on where the session left off.
-    fireEvent.click(
-      screen.getByRole("button", { name: "materials.daily.today" }),
-    );
+    // "the open day" is depends on where the session left off. #1189 retired
+    // the "today" quick-jump, so the date picker is the way to say which day.
+    fireEvent.change(screen.getByLabelText("materials.daily.datePicker"), {
+      target: { value: TODAY },
+    });
 
     kebab();
     menuItem("materials.daily.delete");
@@ -324,10 +325,11 @@ describe("DailyView — the editor's save", () => {
       </SyncWrapper>,
     );
     await screen.findByTestId("editor");
-    // Jump to a day with no stored entry: the date picker's "yesterday".
-    fireEvent.click(
-      screen.getByRole("button", { name: "materials.daily.yesterday" }),
-    );
+    // Jump to a day with no stored entry. The picker is the only route to one
+    // since #1189 — the entry list can only offer days that already exist.
+    fireEvent.change(screen.getByLabelText("materials.daily.datePicker"), {
+      target: { value: YESTERDAY },
+    });
 
     fireEvent.click(screen.getByTestId("save-empty"));
 

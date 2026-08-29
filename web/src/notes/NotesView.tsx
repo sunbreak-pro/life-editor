@@ -11,6 +11,8 @@ import {
   ExcerptListItem,
   SkeletonList,
   AddPill,
+  TemplateSavedPanel,
+  TemplateListPanel,
   TemplateApplyPanel,
   cn,
   type NoteSortMode,
@@ -20,6 +22,7 @@ import {
   tourAnchor,
   useRecentNoteIds,
   resolveRecentNotes,
+  dateKeyOfInstant,
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { NoteBodyEditor } from "./NoteBodyEditor";
@@ -27,11 +30,13 @@ import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
 import { NotesSidebarList } from "./NotesSidebarList";
 import { NoteDetailSurface } from "./NoteDetailSurface";
-import { NoteTemplateHost } from "./NoteTemplateHost";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
+import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
+import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
 import { useNoteTemplateApply } from "./hooks/useNoteTemplateApply";
+import { TemplateEditHost } from "./TemplateEditHost";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -156,9 +161,11 @@ export function NotesView({
   // keeping the disclosure's open/closed there would forget the user's choice
   // every time they picked a note.
   const [trashOpen, setTrashOpen] = useState(false);
-  // Narrow-only: the title-first quick-add sheet.
-  // The templates surface (#1047), opened from the note detail's kebab.
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+
+  // "Register this note as a template" (#1179) + the receipt panel it opens.
+  // Writes go straight out through the DataService, which is why it is not on
+  // the notes context — see the hook's header.
+  const templates = useNoteTemplateRegister(dataService);
 
   // Derived side-list pipeline + sort/filter/collapse state (hooks split).
   const {
@@ -196,6 +203,31 @@ export function NotesView({
   );
 
   const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
+
+  // Saved templates: the sidebar disclosure + the draft the centre panel edits
+  // (#1180). Reads and writes go straight out through the DataService — see the
+  // hook's header for why templates are not on the notes context.
+  const templateLibrary = useNoteTemplateLibrary(dataService);
+
+  /*
+   * The two template hooks meet here. #1179 WRITES one from the note kebab,
+   * #1180 READS the list for the sidebar — and nothing connects them, because
+   * the list only re-reads on the sync counter and a local write does not bump
+   * it. Without this, the template you just registered is missing from the very
+   * list that is supposed to hold it until the next push.
+   *
+   * Both edges of `savedId` matter: it is set when the write lands, and cleared
+   * when the receipt closes, which is where the name the user typed is
+   * committed.
+   */
+  const refreshTemplates = templateLibrary.refresh;
+  const registeredId = templates.savedId;
+  const lastRegistered = useRef(registeredId);
+  useEffect(() => {
+    if (lastRegistered.current === registeredId) return;
+    lastRegistered.current = registeredId;
+    refreshTemplates();
+  }, [registeredId, refreshTemplates]);
 
   // Pouring a saved template into the open note (#1181). The picker reads
   // through the DataService (templates are not on the notes context); the WRITE
@@ -365,6 +397,20 @@ export function NotesView({
     notifyTour("item-created");
   }, [createNote, isWide, closeSidebar, notifyTour]);
 
+  // #1179: the kebab entry registers the OPEN note as a template in one press.
+  // The default name is derived here rather than in the hook because the name
+  // is copy, and copy is the host's (§6.4) — the hook takes it as a string.
+  const registerTemplate = templates.register;
+  const handleRegisterTemplate = useCallback(() => {
+    if (!selected) return;
+    registerTemplate({
+      name: t("materials.templates.defaultName", {
+        title: selected.title || t("materials.notes.untitled"),
+      }),
+      content: selected.content,
+    });
+  }, [registerTemplate, selected, t]);
+
   // #1181: the confirmed apply. Body only — the note keeps its own title, and
   // the epoch bump is what makes the editor show the new body (see above).
   const updateNote = notes.updateNote;
@@ -407,7 +453,7 @@ export function NotesView({
     moreActions: t("notesView.moreActions"),
     content: t("materials.notes.content"),
     lockedHint: t("materials.notes.lockedHint"),
-    createTemplate: t("materials.templates.menuEntry"),
+    registerTemplate: t("materials.templates.menuEntry"),
     applyTemplate: t("materials.templates.applyMenuEntry"),
   };
 
@@ -454,6 +500,28 @@ export function NotesView({
       deletedNotes={notes.deletedNotes}
       onRestoreNote={notes.restoreNote}
       onPermanentDeleteNote={notes.permanentDeleteNote}
+      // #1180 — only with a DataService, which is what templates are read and
+      // written through (the same condition the "[[" pool has).
+      templatesSlot={
+        dataService ? (
+          <TemplateListPanel
+            templates={templateLibrary.templates}
+            loading={templateLibrary.loading}
+            open={templateLibrary.listOpen}
+            onToggle={templateLibrary.toggleList}
+            onEdit={templateLibrary.beginEdit}
+            onDelete={templateLibrary.remove}
+            labels={{
+              heading: t("materials.templates.sidebarHeading"),
+              empty: t("materials.templates.empty"),
+              untitled: t("materials.templates.untitled"),
+              edit: t("materials.templates.edit"),
+              delete: t("materials.templates.delete"),
+              loading: t("common.loading"),
+            }}
+          />
+        ) : undefined
+      }
     />
   );
 
@@ -492,10 +560,17 @@ export function NotesView({
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           onTogglePin={notes.togglePin}
           onDelete={(id) => notes.softDeleteNote(id)}
-          // #1047: the kebab entry, wired only when there is a DataService to
-          // read templates through — the same condition the "[[" pool has.
-          onOpenTemplates={
-            dataService ? () => setTemplatesOpen(true) : undefined
+          // #1179: the kebab entry, wired only when there is a DataService to
+          // write templates through — the same condition the "[[" pool has.
+          //
+          // A password-gated note is left OUT of it. The lock covers the body
+          // (#526) and registering would copy that body into a surface the
+          // lock does not reach, so the entry is absent exactly while the
+          // gate is up rather than shipping a way around it.
+          onRegisterTemplate={
+            dataService && !password.isGated(selected)
+              ? handleRegisterTemplate
+              : undefined
           }
           // #1181: same DataService condition, plus the password gate. The
           // lock covers the body (#526) and applying REPLACES the body, so
@@ -522,6 +597,15 @@ export function NotesView({
                 // Chip clicks reuse the "[[" navigation route (#475): the shell
                 // switches section + tab and hands the target id to the view.
                 onNavigateToItem={onNavigateToItem}
+                // #1172: which day this note belongs to, for the "that day's
+                // daily" relation. Derived here because only the host knows
+                // what a NOTE's day is (the day it was written), and through
+                // dateKeyOfInstant rather than a slice — the stored string is
+                // UTC, so slicing it reads the wrong calendar day in JST
+                // before 09:00 (#413).
+                relatedDailyDate={
+                  dateKeyOfInstant(selected.createdAt) ?? undefined
+                }
               />
             ) : undefined
           }
@@ -613,24 +697,32 @@ export function NotesView({
           which mounts this only while it is open. */}
       <RightSidebarPortal>{sidebarList}</RightSidebarPortal>
 
-      {/* Note templates (#1047). Mounted only with a DataService, since that is
-          what the panel reads and writes templates through — they never enter
-          NotesUnifiedContext, which would otherwise have to carry rows it also
-          hides from every one of its consumers. */}
-      {dataService && (
-        <NoteTemplateHost
-          dataService={dataService}
-          open={templatesOpen}
-          isWide={isWide}
-          onClose={() => setTemplatesOpen(false)}
-          // The note itself is an ordinary note from here on: it lands in the
-          // list, opens in the main area, and takes tags and links normally —
-          // which is the half of "templates carry none" that matters.
-          onUseTemplate={(title, content) =>
-            notes.createNote(title, { initialContent: content })
-          }
-        />
-      )}
+      {/* The receipt for "register as template" (#1179). Registering has no
+          other visible result — the new row lands in a list this screen does
+          not show — so the panel both confirms it happened and says where the
+          template went. The name field is here because the derived default
+          ("<note> のテンプレート") is worth changing often enough that doing so
+          should not cost a second trip. */}
+      <TemplateSavedPanel
+        open={templates.savedId != null}
+        name={templates.name}
+        onNameChange={templates.setName}
+        onNameCommit={templates.commitName}
+        onClose={templates.close}
+        labels={{
+          title: t("materials.templates.savedTitle"),
+          hint: t("materials.templates.savedHint"),
+          nameLabel: t("materials.templates.nameLabel"),
+          namePlaceholder: t("materials.templates.namePlaceholder"),
+          done: t("materials.templates.savedDone"),
+        }}
+      />
+
+      {/* Editing one saved template (#1180). Mounted at the view's top level
+          rather than inside the sidebar portal: on narrow that portal is the
+          MobileDrawer, and a panel living inside it would go away with the
+          drawer that opened it. */}
+      {dataService && <TemplateEditHost library={templateLibrary} />}
 
       {/* Pouring a template into this note (#1181) — picker, then confirm.
           Mounted at the view level rather than beside the kebab so the dialog

@@ -8,7 +8,11 @@ import type {
   FontFamily,
   ReduceMotion,
 } from "../context/ThemeContextValue";
-import { fontSizeToPx } from "../constants/fontSize";
+import {
+  fontSizeToPx,
+  MOBILE_FONT_SIZE_STEPS,
+  nearestMobileFontSize,
+} from "../constants/fontSize";
 
 export interface SettingsAppearanceProps {
   themeMode: ThemeMode;
@@ -19,7 +23,13 @@ export interface SettingsAppearanceProps {
   onFontSizeChange: (size: FontSize) => void;
   onFontFamilyChange: (family: FontFamily) => void;
   onReduceMotionChange: (reduceMotion: ReduceMotion) => void;
-  /** Larger touch targets (Mobile): bumps the slider thumb. */
+  /*
+   * The narrow (Mobile) rendering of the font-size control. It used to mean
+   * "same 10-step slider, bigger thumb"; since #1182 it swaps the slider for
+   * THREE named presets — ten stops under a thumb is a control nobody can
+   * aim, which is what 「段階の幅として使いにくい」 was describing. The value
+   * handed back is still a step on the same 1-10 scale.
+   */
   touch?: boolean;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
   labels: {
@@ -34,6 +44,13 @@ export interface SettingsAppearanceProps {
     fontSizeValue: string;
     fontSizeSmall: string;
     fontSizeLarge: string;
+    /** Mobile preset names (`touch`); e.g. "Small" / "Medium" / "Large". */
+    fontSizePresetSmall: string;
+    fontSizePresetMedium: string;
+    fontSizePresetLarge: string;
+    /** Bare px readout for the preset row, e.g. "18px" — the preset group
+        has no step number to report, so `fontSizeValue` would read wrong. */
+    fontSizePx: string;
     /** Live preview sentence rendered at the current font size. */
     previewText: string;
     /** Font-family group. */
@@ -57,7 +74,8 @@ export interface SettingsAppearanceProps {
  * from the host (it owns useThemeContext), copy via `labels`. lumen-* tokens
  * only, no hardcoded colors (CLAUDE.md §6.4).
  *   - Theme = light/dark miniature preview radios + a "system" (OS-follow) card.
- *   - Font size = discrete tick slider + a live preview sentence at the px.
+ *   - Font size = a discrete tick slider (pointer) or three named presets
+ *     (`touch`, #1182), plus a live preview sentence at the resolved px.
  *   - Font family = 3-way segment (system/serif/mono).
  *   - Reduce motion = 3-way segment (system/reduce/off).
  */
@@ -117,20 +135,42 @@ export function SettingsAppearance({
             {labels.fontSize}
           </span>
           <span className="text-sm tabular-nums text-lumen-text-secondary">
-            {labels.fontSizeValue}
+            {touch ? labels.fontSizePx : labels.fontSizeValue}
           </span>
         </div>
-        <SteppedSlider
-          value={fontSize}
-          min={1}
-          max={10}
-          onChange={onFontSizeChange}
-          ariaLabel={labels.fontSize}
-          valueText={labels.fontSizeValue}
-          minLabel={labels.fontSizeSmall}
-          maxLabel={labels.fontSizeLarge}
-          size={touch ? "lg" : "md"}
-        />
+        {touch ? (
+          /*
+           * #1182. The value handed back is still a step on the 1–10 scale,
+           * so the setter, the stored pref and the root px are untouched —
+           * only how many stops the phone offers changed. The selected preset
+           * is the NEAREST one to whatever is stored rather than an exact
+           * match, so a size chosen on Desktop still lights a segment up.
+           */
+          <SettingsSegment<string>
+            label={labels.fontSize}
+            value={String(nearestMobileFontSize(fontSize))}
+            onChange={(value) => onFontSizeChange(Number(value))}
+            options={MOBILE_FONT_SIZE_STEPS.map((step, i) => ({
+              value: String(step),
+              label: [
+                labels.fontSizePresetSmall,
+                labels.fontSizePresetMedium,
+                labels.fontSizePresetLarge,
+              ][i],
+            }))}
+          />
+        ) : (
+          <SteppedSlider
+            value={fontSize}
+            min={1}
+            max={10}
+            onChange={onFontSizeChange}
+            ariaLabel={labels.fontSize}
+            valueText={labels.fontSizeValue}
+            minLabel={labels.fontSizeSmall}
+            maxLabel={labels.fontSizeLarge}
+          />
+        )}
         <p
           className={cn("mt-1 leading-normal text-lumen-text")}
           style={{ fontSize: `${px}px` }}

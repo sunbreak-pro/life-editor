@@ -144,6 +144,13 @@ export interface ScheduleCopyOptions {
   isWide: boolean;
   /** The note list failed to load; the picker must not claim "no notes yet". */
   notesError: boolean;
+  /**
+   * How many tags are narrowing the grid right now (#1173). The toolbar's
+   * filter button says the NUMBER while it is on, for the same reason the
+   * repeat toggle does (#466): an empty slot on a filtered grid otherwise
+   * reads as free time.
+   */
+  selectedTagCount: number;
 }
 
 export interface ScheduleCopy {
@@ -155,7 +162,8 @@ export interface ScheduleCopy {
     today: string;
     prev: string;
     next: string;
-    openSettings: string;
+    openFilter: string;
+    filterActive: string;
     view: string;
   };
   sidebarTabs: { id: string; label: string; tourId?: string }[];
@@ -170,6 +178,7 @@ export interface ScheduleCopy {
 
 export function useScheduleCopy({
   notesError,
+  selectedTagCount,
 }: ScheduleCopyOptions): ScheduleCopy {
   const { t } = useTranslation();
 
@@ -198,10 +207,13 @@ export function useScheduleCopy({
       today: t("scheduleScreen.today"),
       prev: t("scheduleScreen.prev"),
       next: t("scheduleScreen.next"),
-      openSettings: t("scheduleScreen.openSettings"),
+      openFilter: t("scheduleScreen.openFilter"),
+      filterActive: t("scheduleScreen.filterActive", {
+        count: selectedTagCount,
+      }),
       view: t("scheduleScreen.viewLabel"),
     }),
-    [t],
+    [t, selectedTagCount],
   );
 
   /*

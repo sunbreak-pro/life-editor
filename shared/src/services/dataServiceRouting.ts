@@ -1,6 +1,6 @@
 import type {
   AudioDataService,
-  CalendarsDataService,
+  TagGroupsDataService,
   DailiesUnifiedDataService,
   DataService,
   ItemConversionDataService,
@@ -18,11 +18,11 @@ import {
   type AudioMethodName,
 } from "./SupabaseAudioService";
 import {
-  SupabaseCalendarsService,
-  PHASE2_CALENDAR_METHOD_NAMES,
-  PHASE2_CALENDAR_METHODS,
-  type CalendarMethodName,
-} from "./SupabaseCalendarsService";
+  SupabaseTagGroupsService,
+  PHASE2_TAG_GROUP_METHOD_NAMES,
+  PHASE2_TAG_GROUP_METHODS,
+  type TagGroupMethodName,
+} from "./SupabaseTagGroupsService";
 import {
   SupabaseDailiesUnifiedService,
   PHASE2_DAILIES_UNIFIED_METHOD_NAMES,
@@ -118,8 +118,8 @@ export type TimerRoutingIsExact = AssertNever<
 export type AudioRoutingIsExact = AssertNever<
   Mismatch<AudioDataService, AudioMethodName>
 >;
-export type CalendarsRoutingIsExact = AssertNever<
-  Mismatch<CalendarsDataService, CalendarMethodName>
+export type TagGroupsRoutingIsExact = AssertNever<
+  Mismatch<TagGroupsDataService, TagGroupMethodName>
 >;
 export type RoutinesRoutingIsExact = AssertNever<
   Mismatch<RoutinesDataService, RoutinesMethodName>
@@ -145,7 +145,7 @@ export type RoutedMethodName =
   | TodosMethodName
   | TimerMethodName
   | AudioMethodName
-  | CalendarMethodName
+  | TagGroupMethodName
   | RoutinesMethodName
   | ScheduleItemMethodName
   | ItemConversionMethodName
@@ -190,10 +190,10 @@ export const PHASE2_ROUTING_DOMAINS = [
     service: SupabaseAudioService,
   },
   {
-    domain: "calendars",
-    names: PHASE2_CALENDAR_METHOD_NAMES,
-    methods: PHASE2_CALENDAR_METHODS,
-    service: SupabaseCalendarsService,
+    domain: "tagGroups",
+    names: PHASE2_TAG_GROUP_METHOD_NAMES,
+    methods: PHASE2_TAG_GROUP_METHODS,
+    service: SupabaseTagGroupsService,
   },
   {
     domain: "routines",

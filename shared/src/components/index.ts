@@ -222,6 +222,13 @@ export {
   type AuthAlertProps,
   type AuthAlertTone,
 } from "./AuthAlert";
+// The gap between "signed up" and "signed in" when Confirm email is ON
+// (#1197). Same auth face as the other pre-login cards.
+export {
+  EmailConfirmationCard,
+  type EmailConfirmationCardProps,
+  type EmailConfirmationCardLabels,
+} from "./EmailConfirmationCard";
 export { AuthBrandHeader, type AuthBrandHeaderProps } from "./AuthBrandHeader";
 export {
   PasswordUpdateForm,
@@ -270,6 +277,12 @@ export {
   type SettingsGeneralOption,
 } from "./SettingsGeneral";
 export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
+// Account deletion confirmation (#1200) — type-the-address gate, deliberately
+// not a plain ConfirmDialog (nothing is recoverable behind this one).
+export {
+  DeleteAccountDialog,
+  type DeleteAccountDialogProps,
+} from "./DeleteAccountDialog";
 // Tutorial re-run card (#1123). The only way back to the tour once it has been
 // finished or skipped — the host wires the button to TourContext's `restart`.
 export {
@@ -281,6 +294,18 @@ export {
   SettingsDayStart,
   type SettingsDayStartProps,
 } from "./SettingsDayStart";
+// Settings rightSidebar category list + the Schedule tab's card (#1174). The
+// nav replaced the tips/preview panel on that face; the tips moved to a
+// centered panel the last nav row opens.
+export {
+  SettingsTabsNav,
+  type SettingsTabsNavProps,
+  type SettingsTabItem,
+} from "./SettingsTabsNav";
+export {
+  SettingsSchedule,
+  type SettingsScheduleProps,
+} from "./SettingsSchedule";
 export {
   SettingsSegment,
   type SettingsSegmentProps,
@@ -412,6 +437,11 @@ export * from "./briefing";
 // (#1152 retired the force-directed graph; the tags, item links and search it
 // read from all stayed). Pure presentational: data + copy injected (§6.4).
 export * from "./Backlinks";
+// TagHub (#1171) — the Connect section's body, and what the retired graph was
+// replaced BY: a tag-first hub (pick a topic, read its items by kind) instead
+// of one picture of every relationship at once. Pure presentational — the
+// derivation is a pure function and the host injects data + copy (§6.4).
+export * from "./TagHub";
 // Schedule (W8) — week/day time grid primitive + pure layout/date helpers.
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.

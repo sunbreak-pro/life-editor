@@ -3,6 +3,7 @@ import {
   PasswordUpdateForm,
   type PasswordUpdateFormLabels,
 } from "./PasswordUpdateForm";
+import { Button } from "./Button";
 import { PASSWORD_MIN_LENGTH } from "../constants/password";
 
 export interface SettingsAccountLabels extends PasswordUpdateFormLabels {
@@ -10,6 +11,14 @@ export interface SettingsAccountLabels extends PasswordUpdateFormLabels {
   description: string;
   /** Row label above the signed-in address. */
   emailLabel: string;
+  /** Sign-out row (#1200) — the narrow layout has no sidebar to hold one. */
+  signOutHeading: string;
+  signOutDescription: string;
+  signOutButton: string;
+  /** Account deletion (#1200). The button only OPENS the confirmation. */
+  deleteHeading: string;
+  deleteDescription: string;
+  deleteButton: string;
 }
 
 export interface SettingsAccountProps {
@@ -27,6 +36,10 @@ export interface SettingsAccountProps {
   confirmInvalid?: boolean;
   busy: boolean;
   onSubmit: () => void;
+  /** Ends the session. Present on BOTH layouts — see the note below. */
+  onSignOut: () => void;
+  /** Opens the deletion confirmation; never deletes on its own (#1200). */
+  onDeleteAccount: () => void;
   labels: SettingsAccountLabels;
   passwordMinLength?: number;
 }
@@ -52,6 +65,8 @@ export function SettingsAccount({
   confirmInvalid = false,
   busy,
   onSubmit,
+  onSignOut,
+  onDeleteAccount,
   labels,
   passwordMinLength = PASSWORD_MIN_LENGTH,
 }: SettingsAccountProps) {
@@ -91,6 +106,51 @@ export function SettingsAccount({
         passwordMinLength={passwordMinLength}
         className="max-w-[400px]"
       />
+
+      <div aria-hidden="true" className="my-1 h-px bg-lumen-border" />
+
+      {/*
+       * Sign out (#1200). It also lives at the foot of the Desktop sidebar,
+       * but the sidebar is the WIDE layout only — on narrow there is a bottom
+       * tab bar and no sign-out anywhere, so the only route out of the account
+       * was clearing site data. Here it is reachable from both, and Settings
+       * is where someone looks for it either way.
+       */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-medium text-lumen-text">
+            {labels.signOutHeading}
+          </span>
+          <span className="text-sm text-lumen-text-secondary">
+            {labels.signOutDescription}
+          </span>
+        </div>
+        <Button variant="secondary" onClick={onSignOut}>
+          {labels.signOutButton}
+        </Button>
+      </div>
+
+      <div aria-hidden="true" className="my-1 h-px bg-lumen-border" />
+
+      {/*
+       * Deletion. The button opens a confirmation that asks the address to be
+       * typed out — this is the one action in the app with nothing behind it
+       * (no Trash, no undo, no restore), so one mis-tap must not be enough.
+       * The host owns that dialog and the call; this card only asks.
+       */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-lumen-danger">
+          {labels.deleteHeading}
+        </span>
+        <p className="text-sm text-lumen-text-secondary">
+          {labels.deleteDescription}
+        </p>
+        <div>
+          <Button variant="danger" onClick={onDeleteAccount}>
+            {labels.deleteButton}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

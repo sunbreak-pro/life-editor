@@ -78,7 +78,7 @@ export interface UseScheduleCreateFlowArgs {
   /** Reports a note that could not be attached because the row never landed. */
   onAttachError: () => void;
   /** Why every committer runs finishCreatePanel — see the #468 comment below. */
-  clearCalendarLens: () => void;
+  clearTagLens: () => void;
 }
 
 /** The seven handlers the JSX asks for. The other three stay private. */
@@ -121,7 +121,7 @@ export function useScheduleCreateFlow({
   updateNode,
   attachNote,
   onAttachError,
-  clearCalendarLens,
+  clearTagLens,
 }: UseScheduleCreateFlowArgs): ScheduleCreateFlowApi {
   // #299 open the creation panel prefilled for a target day + time window.
   const openCreatePanel = useCallback(
@@ -170,8 +170,8 @@ export function useScheduleCreateFlow({
   // reveal, so the lens the user set stays where they put it.
   const finishCreatePanel = useCallback(() => {
     setCreatePanel(null);
-    clearCalendarLens();
-  }, [setCreatePanel, clearCalendarLens]);
+    clearTagLens();
+  }, [setCreatePanel, clearTagLens]);
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
