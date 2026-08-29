@@ -1,9 +1,9 @@
 // SectionId is derived from the section registry (SSOT) — see
 // shared/src/sections.ts. Re-exported here because CLAUDE.md §3.2 documents
-// `types/todoTree.ts::SectionId` as the canonical reference. The 7-section
-// target IA set (schedule / materials / connect / work / analytics / settings
-// / trash) is defined once in the registry; the old REPL section is retired
-// (§8).
+// `types/todoTree.ts::SectionId` as the canonical reference. The set itself is
+// listed ONCE, in the registry — this comment used to name the members and was
+// left describing a line-up two retirements out of date, so it no longer does
+// (CLAUDE.md §0, 数値の非複製原則).
 export type { SectionId } from "../sections";
 
 // life-tags S3 (2026-07-11 #225): the Todos domain no longer has a folder

@@ -7,11 +7,15 @@ import {
 
 /*
  * Materials mini-plan Step 4 — Daily past-entries panel (rightSidebar, Desktop).
- * Pure presentation: the today / yesterday toggles report state via
- * aria-pressed and fire injected callbacks, the native date picker forwards its
- * value, the heading + entry rows render from props, and clicking an entry
- * fires onSelectEntry with the entry date. rightSidebar plumbing is covered
- * elsewhere and deliberately not re-tested here.
+ * Pure presentation: the native date picker forwards its value, the heading +
+ * entry rows render from props, and clicking an entry fires onSelectEntry with
+ * the entry date. rightSidebar plumbing is covered elsewhere and deliberately
+ * not re-tested here.
+ *
+ * #1189 removed the today / yesterday toggles that this suite used to pin. They
+ * set the same selected date the picker and the rows set, so they read as a
+ * filter that did nothing — the last assertion below is what remains of them:
+ * the panel offers exactly one way to reach a day that has no entry yet.
  */
 
 const ENTRIES: DailyEntriesPanelEntry[] = [
@@ -31,8 +35,6 @@ const ENTRIES: DailyEntriesPanelEntry[] = [
 ];
 
 const LABELS = {
-  todayLabel: "Today",
-  yesterdayLabel: "Yesterday",
   pickerLabel: "2026/07/05",
   datePickerLabel: "Pick a date",
   entriesHeading: "Entries (2)",
@@ -43,10 +45,6 @@ function renderPanel(
   overrides: Partial<React.ComponentProps<typeof DailyEntriesPanel>> = {},
 ) {
   const props: React.ComponentProps<typeof DailyEntriesPanel> = {
-    todaySelected: true,
-    yesterdaySelected: false,
-    onSelectToday: () => {},
-    onSelectYesterday: () => {},
     pickerDate: "2026-07-05",
     onPickDate: () => {},
     entries: ENTRIES,
@@ -70,26 +68,12 @@ describe("DailyEntriesPanel", () => {
     expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
   });
 
-  it("reflects the selected date via the toggles' aria-pressed", () => {
+  it("offers no day jump beside the picker (#1189)", () => {
     renderPanel();
-    expect(screen.getByRole("button", { name: "Today" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Yesterday" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-  });
-
-  it("fires onSelectToday / onSelectYesterday on toggle click", () => {
-    const onSelectToday = vi.fn();
-    const onSelectYesterday = vi.fn();
-    renderPanel({ onSelectToday, onSelectYesterday });
-    fireEvent.click(screen.getByRole("button", { name: "Today" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yesterday" }));
-    expect(onSelectToday).toHaveBeenCalledTimes(1);
-    expect(onSelectYesterday).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Today" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Yesterday" })).toBeNull();
+    // Every remaining button in the panel is an entry row.
+    expect(screen.getAllByRole("button")).toHaveLength(ENTRIES.length);
   });
 
   it("forwards a picked date through the native input", () => {

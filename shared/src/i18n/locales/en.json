@@ -146,6 +146,10 @@
       "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected.",
       "confirmButton": "Reset and reload"
     },
+    "fontSizePresetSmall": "Small",
+    "fontSizePresetMedium": "Medium",
+    "fontSizePresetLarge": "Large",
+    "fontSizePx": "{{px}}px",
     "tabs": {
       "navLabel": "Settings categories",
       "general": "General",
@@ -394,10 +398,7 @@
       "delete": "Delete entry",
       "moreActions": "More actions",
       "placeholder": "Write about your day…",
-      "today": "Today",
-      "yesterday": "Yesterday",
       "datePicker": "Pick a date",
-      "dateStripLabel": "Select a date",
       "entriesCount": "Entries ({{count}})",
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
@@ -827,6 +828,7 @@
     "daily": "Daily",
     "notes": "Notes",
     "materials": "Materials",
+    "connect": "Connect",
     "schedule": "Schedule",
     "work": "Work",
     "analytics": "Analytics",
@@ -870,6 +872,19 @@
     "incomingLinks": "Links to this note",
     "empty": "No notes link here yet.",
     "selectHint": "Select an item to see what links to it."
+  },
+  "connect": {
+    "tagsHeading": "Tags",
+    "filterPlaceholder": "Filter tags…",
+    "filterLabel": "Filter tags by name",
+    "listLabel": "Tags",
+    "empty": "No tags or items yet.",
+    "filterEmpty": "No matching tag",
+    "tagEmpty": "Nothing is filed under this tag yet.",
+    "selectHint": "Pick a tag to see everything filed under it.",
+    "back": "Back to tags",
+    "untagged": "Untagged",
+    "itemCount": "{{count}} items"
   },
   "blockMenu": {
     "turnInto": "Turn Into",

@@ -146,6 +146,10 @@
       "confirm": "ローカルの設定をすべてリセットしてアプリを再読み込みしますか？この端末のテーマ・フォント・ショートカット・レイアウトの設定が消えます。同期済みのデータには影響しません。",
       "confirmButton": "リセットして再読み込み"
     },
+    "fontSizePresetSmall": "小",
+    "fontSizePresetMedium": "中",
+    "fontSizePresetLarge": "大",
+    "fontSizePx": "{{px}}px",
     "tabs": {
       "navLabel": "設定カテゴリ",
       "general": "一般",
@@ -393,10 +397,7 @@
       "delete": "エントリを削除",
       "moreActions": "その他の操作",
       "placeholder": "今日のことを書く…",
-      "today": "今日",
-      "yesterday": "昨日",
       "datePicker": "日付を選択",
-      "dateStripLabel": "日付を選ぶ",
       "entriesCount": "エントリ（{{count}}）",
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
@@ -826,6 +827,7 @@
     "daily": "デイリー",
     "notes": "ノート",
     "materials": "素材",
+    "connect": "つながり",
     "schedule": "予定",
     "work": "集中",
     "analytics": "分析",
@@ -869,6 +871,19 @@
     "incomingLinks": "このノートへのリンク",
     "empty": "このノートへのリンクはまだありません。",
     "selectHint": "アイテムを選ぶと、そこへのリンクが一覧に出ます。"
+  },
+  "connect": {
+    "tagsHeading": "タグ",
+    "filterPlaceholder": "タグを絞り込む…",
+    "filterLabel": "タグ名で絞り込む",
+    "listLabel": "タグ",
+    "empty": "タグもアイテムもまだありません。",
+    "filterEmpty": "一致するタグはありません",
+    "tagEmpty": "このタグが付いたアイテムはまだありません。",
+    "selectHint": "タグを選ぶと、そこに集まったものが一覧に出ます。",
+    "back": "タグ一覧へ戻る",
+    "untagged": "未分類",
+    "itemCount": "{{count}} 件"
   },
   "blockMenu": {
     "turnInto": "変換",
