@@ -38,6 +38,12 @@ type FailurePlan = Record<string, string>;
 
 class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   private mode: "select" | "delete" | null = null;
+  /**
+   * A `.select()` chained after `.delete()` — PostgREST hands back the rows it
+   * actually removed. #1140 made step 2 read that count, which is the only
+   * way it can tell a spared row from a deleted one before step 3 runs.
+   */
+  private returning = false;
   private filters: Filter[] = [];
   private rangeArgs: [number, number] | null = null;
 
@@ -46,10 +52,13 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     private readonly eventIds: string[],
     private readonly deletes: DeleteRecord[],
     private readonly fail: FailurePlan,
+    /** Ids the `role='event'` filter does NOT match (converted since). */
+    private readonly spared: string[],
   ) {}
 
   select(): this {
-    this.mode = "select";
+    if (this.mode === null) this.mode = "select";
+    else this.returning = true;
     return this;
   }
   delete(): this {
@@ -92,7 +101,13 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     const message = this.fail[ids[0] ?? ""];
     if (message) return { error: { message } };
     this.deletes.push({ table: this.table, ids });
-    return { error: null };
+    // `ids` is the ADDRESS the request named; what comes back is what the
+    // role filter actually matched. They differ exactly when a row stopped
+    // being an event, which is the case #1140 has to be able to see.
+    const removed = ids.filter((id) => !this.spared.includes(id));
+    return this.returning
+      ? { data: removed.map((id) => ({ id })), error: null }
+      : { error: null };
   }
 
   then<TResult1 = { data?: unknown; error: unknown }, TResult2 = never>(
@@ -108,10 +123,15 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   }
 }
 
-function makeClient(eventIds: string[], fail: FailurePlan = {}) {
+function makeClient(
+  eventIds: string[],
+  fail: FailurePlan = {},
+  spared: string[] = [],
+) {
   const deletes: DeleteRecord[] = [];
   const client = {
-    from: (table: string) => new Builder(table, eventIds, deletes, fail),
+    from: (table: string) =>
+      new Builder(table, eventIds, deletes, fail, spared),
   } as unknown as SupabaseClient;
   return { client, deletes };
 }
@@ -184,5 +204,44 @@ describe("permanentDeleteRoutine — delete order and round trips (#934)", () =>
       /permanentDeleteRoutine events: delete exploded/,
     );
     expect(deletes).toHaveLength(0);
+  });
+
+  /*
+   * #1140. A shortfall used to be invisible here: the sweep reported no
+   * error (PostgREST calls a zero-row DELETE a success), step 3 went ahead,
+   * and the 0011 NO ACTION FK rejected it with Postgres's raw
+   * `violates foreign key constraint` — a message naming the constraint but
+   * not the occurrence, arriving from the wrong step.
+   *
+   * The producer for this state is closed as of the same Issue (the
+   * convertEventToRoutine bump now refuses a non-event seed), so what these
+   * two cases hold is the second line rather than the first.
+   */
+  it("names the occurrences it could not remove instead of leaving it to the FK", async () => {
+    const { client, deletes } = makeClient(["si-1", "si-2"], {}, ["si-2"]);
+    const svc = new SupabaseRoutinesService(client);
+
+    await expect(svc.permanentDeleteRoutine(ROUTINE)).rejects.toThrow(
+      /permanentDeleteRoutine events: 1 of 2 occurrence\(s\) referencing routine routine-1 were not removed \(si-2\)/,
+    );
+
+    // Step 2 ran (and applied to si-1); step 3 did not. The routine staying
+    // put is what keeps it purgeable later — the alternative was a purge
+    // that reported success over a row it could never remove.
+    expect(deletes).toEqual([{ table: "items_meta", ids: ["si-1", "si-2"] }]);
+  });
+
+  it("still purges when every occurrence really was an event", async () => {
+    // The guard must not fire on the happy path — a false alarm here strands
+    // the routine in the database with nothing on screen to say so.
+    const { client, deletes } = makeClient(["si-1", "si-2"]);
+    const svc = new SupabaseRoutinesService(client);
+
+    await expect(svc.permanentDeleteRoutine(ROUTINE)).resolves.toBeUndefined();
+
+    expect(deletes).toEqual([
+      { table: "items_meta", ids: ["si-1", "si-2"] },
+      { table: "items_meta", ids: [ROUTINE] },
+    ]);
   });
 });

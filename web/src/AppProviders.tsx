@@ -44,7 +44,9 @@ import { UndoRedoHost } from "./UndoRedoHost";
  *   reads it, it reads the section switch the host passes down, and its
  *   overlay is a shell-level sibling of the palette. It is GLOBAL rather than
  *   section-layer because a tour crosses sections — a section-layer Provider
- *   is unmounted by the very navigation the tour asks for.
+ *   is unmounted by the very navigation the tour asks for. It is also above
+ *   the sections themselves, which is what lets Settings' Tutorial card
+ *   (#1123) reach `restart` from inside the section switch.
  *
  * Two headless bridges are interleaved rather than hoisted, because each has
  * to sit inside a specific Provider: MaterialsCountsBridge refetches on
@@ -98,6 +100,11 @@ export function AppProviders({
                   <TourProvider
                     currentSection={currentSection}
                     onNavigateToSection={onNavigateToSection}
+                    // #1123: the tour offers itself on first run. "First run"
+                    // is the Provider's own persisted state — it stays quiet
+                    // once the tour has been finished or skipped, and Settings'
+                    // Tutorial card is what brings it back after that.
+                    autoStart
                   >
                     {children}
                   </TourProvider>

@@ -59,6 +59,8 @@ where m.role = 'task' and p.item_id is null;
 
 **逆向きの残骸（#625 Event↔Todo 変換）**: role 付け替えは「新 payload UPSERT → `items_meta.role` UPDATE → 旧 payload DELETE」の順で走る（`SupabaseItemConversionService`）。孤児 meta を絶対に作らない代わりに、最後の DELETE が落ちると **role と一致しない payload 行**が残る。読み取りは role で絞ってから join するので UI からは完全に不可視・無害（meta の hard delete で CASCADE 消滅する）が、放置量は把握しておきたいので検出クエリを持つ:
 
+> **「無害」は 2026-08-28 に条件付きから無条件になった**（#1140）。それまでは 1 本だけ悪用経路があり、`convertEventToRoutine` の seed meta bump が 0 行ヒットを検査していなかったため、role='task' に化けた行の events_payload 残骸へルーチンを繋げてしまえた。繋がると 0011 composite FK（NO ACTION）が purge を永久に拒否する。bump が行数を読み戻すようになって塞がった経路なので、**この残骸に role を見ずに書き込む新しい経路を足さないこと**。
+
 ```sql
 -- #625: role と一致しない payload 行（変換の中断残骸）
 select p.item_id, m.role from tasks_payload  p join items_meta m on m.id = p.item_id where m.role <> 'task';

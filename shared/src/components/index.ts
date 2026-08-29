@@ -270,6 +270,12 @@ export {
   type SettingsGeneralOption,
 } from "./SettingsGeneral";
 export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
+// Tutorial re-run card (#1123). The only way back to the tour once it has been
+// finished or skipped — the host wires the button to TourContext's `restart`.
+export {
+  SettingsTutorial,
+  type SettingsTutorialProps,
+} from "./SettingsTutorial";
 // Day-start hour card (#373) — the write side of the #218 rollover pref.
 export {
   SettingsDayStart,

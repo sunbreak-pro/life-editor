@@ -217,16 +217,12 @@ export const SECTION_DESCRIPTORS: Readonly<
     narrowWidth: "fluid",
     tabBand: "materials",
     narrowHeader: "tabs+hamburger",
-    body: ({ ds, nav }) => (
+    body: ({ ds, nav, loadingFallback }) => (
       <>
         {nav.materialsTab === "notes" && (
           <WikiTagsUnifiedProvider dataService={ds}>
             <NotesUnifiedProvider dataService={ds}>
-              <Suspense
-                fallback={
-                  <p className="text-lumen-text-secondary">Loading notes…</p>
-                }
-              >
+              <Suspense fallback={loadingFallback}>
                 <NotesView
                   dataService={ds}
                   onNavigateToItem={nav.navigateToItem}

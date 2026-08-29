@@ -112,6 +112,11 @@
         "generic": "パスワードを変更できませんでした。少し待ってからやり直してください。"
       }
     },
+    "tutorial": {
+      "heading": "チュートリアル",
+      "description": "アプリの使い方を順番に案内します。初回起動時に一度だけ自動で始まります。ここから何度でもやり直せます。",
+      "button": "チュートリアルをやり直す"
+    },
     "reset": {
       "heading": "リセットとローカルデータ",
       "description": "この端末に保存された設定（テーマ・フォント・ショートカット・レイアウト）をすべて消して再読み込みします。同期済みのデータには影響しません。",
@@ -288,11 +293,9 @@
       "untitled": "(無題)",
       "restoreNote": "{{title}} を復元",
       "permanentDeleteNote": "{{title}} を完全に削除",
-      "quickAddTitle": "ノートを追加",
-      "quickAddPlaceholder": "タイトルを入力",
-      "quickAddSubmit": "追加",
       "lockedHint": "このノートはロックされています",
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
+      "recentHeading": "最近開いたノート",
       "untagged": "未分類",
       "collapseGroup": "グループを折りたたむ",
       "expandGroup": "グループを展開",

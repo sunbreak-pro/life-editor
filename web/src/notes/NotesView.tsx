@@ -8,8 +8,8 @@ import {
   useRightSidebarContext,
   RightSidebarPortal,
   EmptyState,
+  ExcerptListItem,
   SkeletonList,
-  QuickAddSheet,
   AddPill,
   cn,
   type NoteSortMode,
@@ -17,6 +17,8 @@ import {
   WIDE_QUERY,
   useTourContextOptional,
   tourAnchor,
+  useRecentNoteIds,
+  resolveRecentNotes,
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { NoteBodyEditor } from "./NoteBodyEditor";
@@ -56,10 +58,11 @@ import { useNotePassword } from "./hooks/useNotePassword";
  * never had that hole: `selectNote` hydrates the body BEFORE flipping the id
  * (useNotesUnifiedAPI), so a surface keyed on `selectedNote` cannot open early.
  *
- * Narrow keeps two things of its own: the compact detail `variant` (the sheet's
- * title sizing, not the page-level one), and title-first quick capture — the
- * main toolbar's "+" opens the <QuickAddSheet> instead of creating an untitled
- * note the way the Desktop pill does.
+ * Narrow keeps ONE thing of its own: the compact detail `variant` (the sheet's
+ * title sizing, not the page-level one). Creating is now identical at both
+ * widths — #1147 retired the narrow title-first <QuickAddSheet>, so "+" makes
+ * an Untitled note and opens the editor on a phone exactly as the Desktop pill
+ * always has.
  *
  * Both halves render the SAME derived list (search → tag groups → sort → tag
  * filter) off the same state, so the two breakpoints never disagree (#369).
@@ -152,7 +155,6 @@ export function NotesView({
   // every time they picked a note.
   const [trashOpen, setTrashOpen] = useState(false);
   // Narrow-only: the title-first quick-add sheet.
-  const [addOpen, setAddOpen] = useState(false);
   // The templates surface (#1047), opened from the note detail's kebab.
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -298,6 +300,15 @@ export function NotesView({
     [setTagFilter, notifyTour],
   );
 
+  // #1149: what the empty state offers to select. Resolved against the live
+  // notes array on every render rather than stored with titles, which is what
+  // keeps a renamed note's row current and drops a deleted one — `notes.notes`
+  // has already had soft-deleted rows filtered out of it, so an id that no
+  // longer resolves simply does not appear. Cheap enough to leave unmemoised:
+  // it walks at most RECENT_NOTES_LIMIT ids and only the empty state reads it.
+  const recentNoteIds = useRecentNoteIds();
+  const recentNotes = resolveRecentNotes(recentNoteIds, notes.notes);
+
   // Picking from the list fills the MAIN editor. On wide the list is a pinned
   // column and stays put; on narrow it is the modal drawer, so choosing a note
   // also has to get out of the way of the thing it just opened.
@@ -315,17 +326,26 @@ export function NotesView({
     [selectNote, isWide, closeSidebar],
   );
 
-  // Wide creates an untitled note straight into the editor; narrow asks for the
-  // title first, because a phone's create is usually the whole capture (#876
-  // kept the QuickAddSheet the retired mobile list used to raise).
+  // ONE create at both widths (#1147, ユーザー指示): "+" makes an Untitled note
+  // and drops straight into the editor. Narrow used to raise a title-first
+  // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
+  // which put a form between the user and the thing they wanted to write in.
+  // The sheet is gone; `createNote()` with no title falls back to "Untitled"
+  // (useNotesUnifiedCRUD) and selects the new note, so the body is already
+  // mounted when the drawer gets out of the way.
+  //
+  // Closing the drawer is the same move `handleSelectNote` makes and for the
+  // same reason: on narrow it is a modal overlay, so leaving it up would cover
+  // the editor the create just opened.
   const createNote = notes.createNote;
   const handleAddNote = useCallback(() => {
-    if (isWide) createNote();
-    else setAddOpen(true);
-    // #1125: the capture step is satisfied by starting a create at either
-    // width — narrow's sheet ends in one too.
+    createNote();
+    if (!isWide) closeSidebar();
+    // #1125: the capture step is satisfied by a real create — and since #1147
+    // retired the narrow title-first sheet, that is now the same create at
+    // both widths.
     notifyTour("item-created");
-  }, [isWide, createNote, notifyTour]);
+  }, [createNote, isWide, closeSidebar, notifyTour]);
 
   if (notes.isLoading) {
     return (
@@ -487,15 +507,46 @@ export function NotesView({
         />
       ) : (
         <div className="flex min-h-[50vh] items-center justify-center">
-          <EmptyState
-            icon={<FileText aria-hidden />}
-            message={
-              hasNotes
-                ? t("materials.notes.mainEmpty")
-                : t("materials.notes.empty")
-            }
-            cta={{ label: t("materials.notes.addCta"), onClick: handleAddNote }}
-          />
+          {/* #1149: "select a note or create a new one" used to be the whole
+              screen, which asked the user to pick from nothing. The recently
+              OPENED notes go underneath it as things to actually pick. With no
+              history (first run, everything deleted) the list is absent and
+              this is exactly the centred icon + line + CTA it always was. */}
+          <div className="flex w-full max-w-sm flex-col items-center">
+            <EmptyState
+              icon={<FileText aria-hidden />}
+              message={
+                hasNotes
+                  ? t("materials.notes.mainEmpty")
+                  : t("materials.notes.empty")
+              }
+              cta={{
+                label: t("materials.notes.addCta"),
+                onClick: handleAddNote,
+              }}
+            />
+            {recentNotes.length > 0 && (
+              <nav
+                aria-label={t("materials.notes.recentHeading")}
+                className="w-full pb-8"
+              >
+                <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-lumen-text-tertiary">
+                  {t("materials.notes.recentHeading")}
+                </h2>
+                <ul className="flex flex-col gap-1.5">
+                  {recentNotes.map((note) => (
+                    <li key={note.id}>
+                      <ExcerptListItem
+                        title={note.title || t("materials.notes.untitled")}
+                        leading={<FileText aria-hidden />}
+                        onClick={() => handleSelectNote(note.id)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+          </div>
         </div>
       )}
     </>
@@ -520,20 +571,6 @@ export function NotesView({
           Wide: the push-in rightSidebar. Narrow: the hamburger's MobileDrawer,
           which mounts this only while it is open. */}
       <RightSidebarPortal>{sidebarList}</RightSidebarPortal>
-
-      {/* Narrow quick capture: title first, then the note opens in the main
-          area behind this sheet. */}
-      {!isWide && (
-        <QuickAddSheet
-          open={addOpen}
-          onClose={() => setAddOpen(false)}
-          title={t("materials.notes.quickAddTitle")}
-          closeLabel={t("common.close")}
-          placeholder={t("materials.notes.quickAddPlaceholder")}
-          submitLabel={t("materials.notes.quickAddSubmit")}
-          onSubmit={(title) => notes.createNote(title)}
-        />
-      )}
 
       {/* Note templates (#1047). Mounted only with a DataService, since that is
           what the panel reads and writes templates through — they never enter
