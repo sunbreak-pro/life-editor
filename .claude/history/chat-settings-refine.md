@@ -1,5 +1,18 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-08-30 - #1174 merge 後のコンフリクト解消（PR #1223 / #1229）
+
+#### 概要
+
+#1218（#1174）が main に入った結果、同じ Settings 画面を触る #1182 / #1229 の 2 本が衝突した。指示どおり 3 本とも origin/main から独立に切っていたので想定内で、各 PR 本文に予告してあった箇所がそのまま当たった。両ブランチへ main を取り込み、手で解消して CI 相当をローカル全緑にしてから再 push（merge は P-001 でユーザー手番のまま）。
+
+#### 変更点
+
+- **衝突の中身**: #1174 が Appearance / Account / Tutorial / Reset の各カードを `{tab === "general" && (…)}` の内側へ 2 段インデントし直したため、同じカードの `labels={{…}}` や props を足した 2 本と行が重なった。i18n catalog は両側が `settings` 配下の末尾へ別々のキーを足していたための衝突で、和集合を取れば済む種類
+- **PR #1223（#1182）**: `en/ja.json` は和集合（`tabs` / `placeholder` / `schedule` と `fontSizePreset*` / `fontSizePx` は互いに素）。`SettingsScreen.tsx` は main の構造を採り、こちらの寄与である 4 行のラベルだけを新しいインデントで移植した
+- **PR #1229（#1200）**: 同じ Settings 画面に加えて `shared/src/index.ts` も衝突。main が #1197 で `passwordRecoveryRedirectUrl` を `authRedirectUrl` へ改名しており、こちらが直後に `deleteAccount` / `DELETE_ACCOUNT_FUNCTION` を足していたため。改名側を採って 2 つの export を並べ直した。`SettingsScreen.tsx` は **重複が生じる形の衝突**で、main 側に Account / Tutorial / Reset の 3 カードが `general` の内側として既に存在し、こちらの同じ 3 カードが下にもう一組残っていた。main 側を残して重複を落とし、#1200 の寄与（sign-out / delete のラベル 6 行と `onSignOut` / `onDeleteAccount`）を生き残った側の Account カードへ移植。`DeleteAccountDialog` はカテゴリ条件の外（モーダルなので正しい位置）
+- **検証**: 2 ブランチそれぞれで CI `verify` の全ステップ（shared / web / desktop / mcp-server）と `docs-lint` をローカル全緑。GitHub 側も #1223 が緑（#1229 は push 直後で再走中）。#1229 の merge commit は main 取り込みで他レーンの tracker が混ざり pre-commit-tracker-guard が誤検知したので、unstage せず `[tracker-ok]` で通した（既知の運用）
+
 ### 2026-08-29 - Settings 3 課題を各ブランチで実装し PR まで（#1174 / #1182 / #1200）
 
 #### 概要
@@ -63,17 +76,3 @@ Settings のテーマ切替カード 3 枚（ライト / ダーク / システ�
 - **docs**: `.claude/rules/frontend.md` のデザイン規約に落とし穴を 1 行追加（`lumen-*` はネストした `data-theme` に追随しない／部分テーマで使うトークンは別名ブロックに足す）
 - **検証**: shared lint 0 errors / `tsc -b` OK / 2152 tests pass、web lint 0 errors / build OK / 394 tests pass、`scripts/docs-lint.sh` OK。実ブラウザ確認は §7.4 に従い merge 後 chat-main 側
 - **worktree**: 本レーンの worktree が `workspaces/life-editor/workspaces/life-editor/settings-refine` と二重ネストしている（過去の相対パス作成の名残）。リポジトリ**外**なので Orca の除外条件には当たらず実害はパス長のみと判断し、作り直さず作業した
-
-### 2026-07-11 - Settings フォント種別が本文に効かない不具合修正（Issue #228 / PR #233）
-
-#### 概要
-
-Settings → Appearance → Font で Serif/Monospace を選んでも本文の書体が変わらない不具合を修正。ThemeContext は選択フォントを `document.documentElement.style.fontFamily`（`<html>`）に書き、継承で本文に届ける設計だが、`web/src/index.css` が `body { font-family: var(--font-sans) }` を body に直接当てていて継承値を毎回上書きしていたのが原因。CSS 1 ファイルのみで修正（ThemeContext は無変更）。
-
-#### 変更点
-
-- **web/src/index.css**: `font-family: var(--font-sans)` を body から外し、新設 `html { font-family: var(--font-sans) }` へ移設。body は継承のみ（margin/bg/color/min-height 維持）。system は inline を `""` で消去し `html` ルールへフォールバック
-- **カスケード実測（独立 QA・ビルド済み CSS）**: 未レイヤーの html ルールは Tailwind v4 `@layer base` preflight に勝つ（二重に堅牢で preflight の `--default-font-family` も `var(--font-sans)` 解決）。`<html>` inline style は最優先。form 要素は preflight `font:inherit` で継承鎖に乗る。`code`/`pre` は preflight monospace 明示で Serif 選択時も等幅維持 → 本文だけ書体が変わる（#228 意図どおり）
-- **検証**: `cd web && npm run build` exit 0 / `cd shared && npm run test` 845 pass（`themeContext.test.tsx` の font-family アサーション含む・ThemeContext 無変更で緑）。role-qa 独立レビュー PASS（Blocker 0・scope 越境なし）
-- **PR**: #233（Closes #228）commit f9ccb3e3。実ブラウザ `getComputedStyle(document.body).fontFamily` の最終実測は §7.4 に従い merge 後に chat-main の playwright で
-- **#181 [all] layout-standard**: settings 行は既に main で対応済み（commit 7c4c3723 / PR #193・MainScreen PageContainer が幅所有・`web/src/settings` にローカル max-w なし）を確認 → Issue の settings チェックボックスを ✅ 化＋根拠コメント投稿。close は chat-main に委譲（全行消化待ち）
