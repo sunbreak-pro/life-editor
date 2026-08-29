@@ -957,7 +957,7 @@
     "progress": "{{current}} / {{total}}",
     "waitingForAction": "Try it to continue",
     "steps": {
-      "briefingIntro": "This is your briefing — the day's plan, notes and open items in one page. It is what opens when you launch the app.",
+      "briefingIntro": "This is the Briefing — the day on one page. You do not write it: Claude Code fills it in through the desktop app's MCP connection. On the web on its own it stays empty, which is normal rather than broken.",
       "scheduleCreateEvent": "Start here to put something on the calendar. Add one event — the tour waits until it exists, not until you press the button.",
       "scheduleAdjustEvent": "Open the event you just made and change its time. Plans move; this is how you move them.",
       "scheduleOpenTodos": "Todos live in the same section as the calendar. Open the Todo tab.",
