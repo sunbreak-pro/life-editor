@@ -1,5 +1,18 @@
 # HISTORY (chat-main)
 
+### 2026-08-29 - Open Issue 一斉消化 fan-out r4 計画書（PR #1208）
+
+#### 概要
+
+open Issue 28 件・open PR 0 本の実測スナップショットから、凍結 2 件（#898 / #677）を除く全 Issue を PR に到達させる fan-out r4 計画書を作成し PR #1208 として open した。宛先振り直し 4 件も同日実施。実装は本計画書の `/goal` を各レーンへ貼ってから（このセッションでは着手しない）。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-open-issue-fanout-r4.md` 新規。Wave 1 = 6 レーン 19 件（schedule 2 / materials 6 / settings 3 / connect 1 / shared-fix 4 / web-public 3）、Wave 2 = #1194（gate: #1174 merge）+ #1184（gate: Wave 1 UI 系 merge）、chat-main 手番 = #1202 / #1137 / #1135 + r3 計画書の COMPLETED 化。貼り付け用 `/goal` 8 本・`/loop`・`/schedule`（任意）と停止条件を同梱
+- **宛先振り直し**: #1197 / #1198 / #1199 → `[web-public]`、#1184 → `[refactor-core]` にタイトル prefix 変更（ラベルは維持。shared-fix 9 件集中の是正）
+- **縄張り**: `MainScreen.tsx` の 2 レーン交差は #1199 先行 + #1171 側 rebase で緩和 / Backlinks 部品は #1171・#1172 とも読み取り専用 / tour は Wave 1 中 shared-fix 専有 / パネル統一の先回り禁止（#1184 = Wave 2）を明記
+- **main 同期**: ローカル未コミットだった tracker 2 ファイルは merge 済み PR #1203 と同一内容と実測（`git diff origin/main` 空）→ restore で二重 PR を回避し、`git pull --ff-only` で 9 コミット取り込み（`b95561cf`）
+
 ### 2026-08-29 - 配布品質監査（Web 完結）+ ドロワーアイコン変更 PR #1195 + 配布要件 6 件起票
 
 #### 概要
@@ -75,60 +88,5 @@ connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機�
 - **踏まれた回数**: `typecheck:tests` の漏れで PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」。追随依頼が 2 回出ても入らなかったので、表を直すのではなく複製そのものを畳んだ
 - **入れ子 worktree の是正**: `workspaces/life-editor/workspaces/life-editor/settings-refine`（2 段）と同 `.../workspaces/life-editor/work-refine`（3 段）を正しい階層へ `git worktree move`。**両方とも Orca のターミナルが掴んでいて「Device or resource busy」で 1 度失敗した** — `orca terminal list --json` で handle を特定し `orca terminal close` してから移動した（worktree-policy の Windows 節と同型の詰まり方）。空になった中間ディレクトリは `rmdir` で撤去
 - **副産物**: #1013（`pre-commit-tracker-guard.sh` が `history/archive/` 配下を tracker と認識せずブロックする）を起票。本 commit 自体がその穴に当たるため `[tracker-ok]` で通している
-
-### 2026-08-15 - #675 の実ブラウザ回帰検証（6 項目 PASS）→ CLOSE + #870 起票
-
-#### 概要
-
-#675（Schedule の巨大ホスト 3 本を責務ごとに分割）の DoD 最終項目「merge 後に chat-main で playwright」を実施し、**6 項目すべて PASS / FAIL 0** で close した。検証中に見つかった既存挙動の不具合 1 件を **#870** として切り出した。
-
-#### 実ブラウザ検証（main `5c86b05b` / dev server 5173）
-
-| 項目                   | 判定   | 実測                                                                                                    |
-| ---------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| 週表示                 | **OK** | 日付ヘッダ 8/9–8/15・00:00–23:00 グリッド・現在時刻ライン・既存 2 件とも正常                            |
-| 月表示                 | **OK** | August 2026 正常。Week ⇄ Month ⇄ Day を往復しても崩れなし                                               |
-| ドラッグ移動           | **OK** | Mon 19:00 → Thu 14:00。リロード後も保持（`PATCH items_meta` / `events_payload` とも 204）               |
-| リサイズ               | **OK** | 下端ハンドルで 14:00–15:00 → 14:00–17:00。リロード後も保持                                              |
-| 繰り返しのスコープ選択 | **OK** | This event only / This and following / All events の 3 つが別々に効いた（下記）                         |
-| Todo の追加と削除      | **OK** | ボード追加（2→3）→ トレイ「Add to today」→ 全日チップ → 時間帯へドラッグで 13:00–14:00 化 → 削除（3→2） |
-
-スコープの内訳: **This event only** = 8/15 だけ改名し 8/14 は不変 / **This and following** = 8/14 で 06:00 に変更 → 8/14・8/15 の両方が 06:00 / **All events** = 8/15 で 05:00 に変更 → 過去側の 8/14 も 05:00。**console error 0 件**（`Invalid hook call` / `Rendered more hooks than…` は一度も出ず）・Supabase **938 リクエストすべて 200/201/204**。
-
-#### 行数の測り方を誤っていた（自己訂正）
-
-前セッションで「`CalendarTab.tsx` が 2,392 → 2,562 行に**増えている**」と報告したが誤り。**分割前の基準を Issue 起票時点の数字にしていた**のが原因で、分割 PR #839 の直前直後で測ると **2,716 → 2,557 行（159 行減）**。起票から分割までの間に別の機能追加（モバイル day-list の Todo 行 #761、詳細パネルからの Todo 削除 #775 ほか）が 300 行以上足していた。**行数の増減を語るときは対象コミットの直前直後で測る** — 文書に書かれた過去の数字を基準にしない。
-
-#### DoD の数え方（コメントに明記した）
-
-- 「`useScheduleMutations` の引数が 28 個から実質半減」は達成扱いにしたが、内訳を残す。`UseScheduleMutationsArgs` が自前で持つのは **12 個**で、繰り返し系 **17 個**（`UseRepeatMutationsArgs` 19 個 − Omit 2 個）は `useRepeatMutations` へそのまま横流し → **ホストが渡す総数は 29 個で減っていない**。「公開インターフェースの diff がゼロ」と表裏の関係
-- 分割成果物のテストは実在: `shared/tests/useWeekTimeGridDrag.test.tsx` / `web/tests/useRepeatMutations.test.tsx` / `web/tests/useScheduleTodoChips.test.tsx` +（`useScheduleItemsAPI` 分割分）`agendaEmptyLabel` / `scheduleCopy` / `scheduleViewModels` / `calendarNavMonthSheet`
-
-#### 新規起票 #870（`type:bug` / `section:schedule`）
-
-時刻変更と繰り返し ON を**同じ Save** で行うと、生成されるルーチンのテンプレート時刻が**変更前**の値になる（当日だけ新時刻・翌日以降が旧時刻）。原因は `web/src/schedule/useRepeatMutations.ts:321` の `const seed = selected;` が下書きではなく確定済みの選択を読む点。**分割前の `useScheduleMutations.ts:628` にも同一行がある**ので #675 の退行ではない（`git show 82614e48^` で確認）。#712 で繰り返し系フィールドだけは「1 回の Save でまとめて渡る」形に直されており、時刻フィールドが取り残されている。
-
-#### 対象外と確認した 2 件（修正不要）
-
-- 繰り返しが翌週に生成されない = `CalendarTab.tsx:1207-1211` のコメントどおりの設計（ナビゲーションは fetch のみで materialize しない）
-- 「This and following」が手編集済みの回に届かない = `SupabaseScheduleItemsService.ts:680` の rule 2「手編集は系列編集に勝つ」どおりの仕様。最初これに引っかかり、汚染のない系列を作り直して再検証した
-
-### 2026-08-14 - #831 の stacked merge 事故を検出して復旧 + D-20260813-briefing-1 の昇格（#860 起票）
-
-#### 概要
-
-#831（コード上の Task → Todo 改名）の 3 PR が**すべて MERGED 表示のまま、main に届いたのは PR-A だけ**という状態を検出し、復旧 PR #865 の着地まで見届けた。あわせて判断キュー D-20260813-briefing-1 をユーザー回答 = A で確定し、台帳へ昇格して実装 Issue #860 を起票した。
-
-#### 変更点
-
-- **事故の正体 = stacked PR の base 張り替えレース**: #861（base=main）が 01:44:14Z、#862 が **01:44:24Z**（10 秒差）に merge。GitHub が #862 の base を main へ張り替える前に merge されたため、#862 は PR-A のブランチへ、#863 は #862 のブランチへ入った。3 本とも MERGED 表示になるので PR state だけ見ると気付けない（memory `stacked-pr-base-retarget-race` / #397 と同型）
-- **検出の決め手は 3 角度**: ① `gh pr view <n> --json mergeCommit` の SHA を `git merge-base --is-ancestor <sha> origin/main` にかけると #861 = IN / #862・#863 = NOT ② main の `mcp-server/src/tools.ts` に `list_tasks` / `create_task`、i18n に `typeTask` / `noTasks` が残存 ③ `git diff --stat origin/main origin/claude/shared-fix-831-task-to-todo-mcp-docs` が **284 files / +3,461 / −3,478**
-- **⚠️ 変数名の grep で誤検出しかけた**: `TaskNode` の件数で判定したら `setTaskNodes` というローカル変数に当たり、一瞬「PR-A も壊れている」と読み違えた。**改名の着地判定は型名ではなく「その PR でしか生まれない成果物」で行う** — MCP ツール名・i18n キー名・リネーム後のファイル名（`useScheduleTodoChips.test.tsx` 等）が該当する
-- **復旧はやり直し不要だった**: 3 ブランチとも remote に健在で、`-mcp-docs` が PR-B + PR-C の commit を両方持っていた → main を取り込んで base=main の PR 1 本（#865）にまとめて着地。実装の書き直しはゼロ
-- **着地の再確認**: `list_tasks` / `typeTask` が 0 ヒット、リネーム後ファイル 3 本が main のツリーに出現、#831 は `Closes` で自動 CLOSED
-- **据え置き 3 点は無事**: `TodoNodeType = "task"`（型名だけ変わり `generateId` は `task-` を作り続ける）/ `role: "task"` が `SupabaseTodosService.ts:110,180` + `todoMapper.ts:61,295` の 4 箇所とも残存 / `tasks_payload` が mcp-server 各ハンドラで健在
-- **D-20260813-briefing-1 = A**: 「今週」カードの週バー（直近 7 日）と Work タブ週次集計（月曜固定）を両方とも暦週へ寄せる。台帳 `decisions/D-20260813-briefing-1.md` を作成 → `ANSWERS.md` へ 1 行転記 → `comm/decisions/chat-briefing-refine.md` を空に
-- **#860 起票**: `[analytics]` / `section:analytics`（briefing-refine レーン）。対象は `MobileAnalyticsView.tsx:121` の `aggregateByDay(sessions, 7)` と `analyticsAggregation.ts:162` の私有 `startOfWeek()` の 2 箇所で、`WorkTimeChart.tsx:56` の 14 日窓は対象外と本文に明記
-- **レーン投入の順序を保留に**: #860 / #675 のプロンプトは用意済みだが、#831 が `shared/src/components` と `web/src` を丸ごと触るため投入を止めた。とくに #675 のやること 1（taskChips 抽出）は改名対象そのもの。**大規模改名は後・細かい作業が先**の順序をユーザーへ提示した
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
