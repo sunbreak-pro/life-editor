@@ -18,6 +18,10 @@ export {
   BriefingVizPanel,
   type BriefingVizPanelProps,
 } from "./BriefingVizPanel";
+export {
+  EveningReflectionPreview,
+  type EveningReflectionPreviewProps,
+} from "./EveningReflectionPreview";
 export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
 export {
   FOCUS_NOTE_ID,

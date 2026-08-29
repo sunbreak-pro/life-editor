@@ -936,6 +936,7 @@
       "intentionPlaceholder": "Today's intention — one line is enough…",
       "reflectionTitle": "CLOSING THE DAY",
       "placeholder": "How was your day…",
+      "startEditing": "Write today's reflection",
       "focusTitle": "TOMORROW'S FOCUS",
       "focusPlaceholder": "The one thing to move forward tomorrow — one line…",
       "todosTitle": "REMAINING TODOS",

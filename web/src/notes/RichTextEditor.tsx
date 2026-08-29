@@ -105,6 +105,25 @@ interface RichTextEditorBaseProps {
   /** Enable the "/" slash-command block menu (default: true). */
   slashMenu?: boolean;
   /**
+   * Put the caret at the END of the document on mount (default: false).
+   *
+   * For a host that mounts this editor IN RESPONSE to a gesture — Briefing's
+   * evening reflection swaps a preview for the editor when the user presses it
+   * (#1115) — an unfocused editor is indistinguishable from the preview it
+   * replaced, so the press reads as dead and the next keystroke goes nowhere.
+   * Off by default: Notes, Daily and the todo detail mount the editor as part
+   * of opening a screen, where stealing focus would fight the user.
+   *
+   * The end of the document, not the pressed position: mapping a click
+   * coordinate back to a document position needs `posAtCoords`, and jsdom has
+   * no layout, so that path cannot be tested here at all (#475 is what happens
+   * when it rots unnoticed).
+   *
+   * Applied once per Editor instance, from `onCreate` below — see it for why
+   * not TipTap's own `autofocus` option.
+   */
+  autoFocus?: boolean;
+  /**
    * Loader for the "[[" link autocomplete pool (`useItemLinkTargets`). Presence
    * enables the suggestion + click navigation; `undefined` leaves both off (the
    * itemLink node is still registered so stored links round-trip). It is a
@@ -140,6 +159,7 @@ export function RichTextEditor({
   placeholder,
   className = "rounded-md border border-lumen-border bg-lumen-bg p-3",
   slashMenu = true,
+  autoFocus = false,
   loadLinkTargets,
   onNavigateToItem,
   onResolvedLinkInserted,
@@ -160,11 +180,13 @@ export function RichTextEditor({
   const onResolvedInsertedRef = useRef(onResolvedLinkInserted);
   const onCreateNoteRef = useRef(onCreateNoteForLink);
   const onNavigateRef = useRef(onNavigateToItem);
+  const autoFocusRef = useRef(autoFocus);
   const linkEnabled = loadLinkTargets !== undefined;
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
     onDraftChangeRef.current = onDraftChange;
+    autoFocusRef.current = autoFocus;
     loadLinkTargetsRef.current = loadLinkTargets;
     onResolvedInsertedRef.current = onResolvedLinkInserted;
     onCreateNoteRef.current = onCreateNoteForLink;
@@ -326,6 +348,27 @@ export function RichTextEditor({
           latestContentRef.current = null;
           debounceRef.current = null;
         }, 800);
+      },
+      onCreate: ({ editor: created }) => {
+        /*
+         * #1115's focus, and NOT through TipTap's own `autofocus` option.
+         *
+         * `scrollIntoView: false`, because the only host that asks for focus
+         * does so on a press of the very block being replaced — it is already
+         * on screen, and a scroll can only move the page out from under the
+         * user. It is also what makes this testable: the scroll runs
+         * ProseMirror's `coordsAtPos` -> `getClientRects`, which jsdom does
+         * not implement, and it throws from a setTimeout after the test has
+         * already finished (rules/frontend.md §テスト環境の制約).
+         *
+         * `onCreate` rather than an effect, because `editor.commands` reads
+         * through the ProseMirror view and the view does not exist yet at the
+         * first effect that sees a non-null editor. Through the ref rather
+         * than the prop, because this config is built once per [noteId].
+         */
+        if (autoFocusRef.current) {
+          created.commands.focus("end", { scrollIntoView: false });
+        }
       },
       editorProps: {
         attributes: { class: "note-editor-content outline-none" },
