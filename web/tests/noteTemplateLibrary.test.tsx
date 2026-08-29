@@ -122,6 +122,11 @@ function template(id: string, title: string, content = ""): NoteNode {
 
 const WEEKLY = template("note-t1", "Weekly review", "<p>saved body</p>");
 const STANDUP = template("note-t2", "Standup");
+/** A real note — the kebab's "register as template" (#1179) needs one open. */
+const ALPHA = {
+  ...template("note-a", "Alpha", "<p>weekly review</p>"),
+  type: "note",
+} as NoteNode;
 
 const updates: Array<{ id: string; patch: Partial<NoteNode> }> = [];
 const softDeleted: string[] = [];
@@ -250,6 +255,41 @@ describe("saved templates in the Notes sidebar (#1180)", () => {
 
     await waitFor(() => expect(softDeleted).toEqual(["note-t2"]));
     expect(screen.queryByText("Standup")).toBeNull();
+  });
+
+  it("picks up a template registered from the note kebab", async () => {
+    // #1179 writes through a different hook than the one this list reads with,
+    // and the read only re-runs on the sync counter — which a local write does
+    // not move. Registering and then not seeing it is the failure this pins.
+    const rows: NoteNode[] = [WEEKLY];
+    const ds = stubDataService({
+      listNoteTemplatesUnified: async () => [...rows],
+      getNoteUnified: async (id: string) =>
+        rows.find((r) => r.id === id) ?? null,
+      updateNoteUnified: async (id: string, patch: Partial<NoteNode>) => ({
+        ...WEEKLY,
+        ...patch,
+        id,
+      }),
+      softDeleteNoteUnified: async () => {},
+      createNoteUnified: async (node: NoteNode) => {
+        rows.push(node);
+        return node;
+      },
+    });
+    state.notes = [ALPHA];
+    state.selectedId = "note-a";
+
+    render(<NotesView dataService={ds} />);
+    await openTemplates();
+    expect(screen.getByText("Weekly review")).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("notesView.moreActions"));
+    fireEvent.click(screen.getByText("materials.templates.menuEntry"));
+
+    expect(
+      await screen.findByText("materials.templates.defaultName|Alpha"),
+    ).toBeTruthy();
   });
 
   it("leaves the disclosure out with no DataService to read through", () => {

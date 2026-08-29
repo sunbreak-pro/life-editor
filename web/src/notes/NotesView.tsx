@@ -11,6 +11,7 @@ import {
   ExcerptListItem,
   SkeletonList,
   AddPill,
+  TemplateSavedPanel,
   TemplateListPanel,
   cn,
   type NoteSortMode,
@@ -30,6 +31,7 @@ import { NoteDetailSurface } from "./NoteDetailSurface";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
+import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
 import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
 import { TemplateEditHost } from "./TemplateEditHost";
 
@@ -202,7 +204,27 @@ export function NotesView({
   // Saved templates: the sidebar disclosure + the draft the centre panel edits
   // (#1180). Reads and writes go straight out through the DataService — see the
   // hook's header for why templates are not on the notes context.
-  const templates = useNoteTemplateLibrary(dataService);
+  const templateLibrary = useNoteTemplateLibrary(dataService);
+
+  /*
+   * The two template hooks meet here. #1179 WRITES one from the note kebab,
+   * #1180 READS the list for the sidebar — and nothing connects them, because
+   * the list only re-reads on the sync counter and a local write does not bump
+   * it. Without this, the template you just registered is missing from the very
+   * list that is supposed to hold it until the next push.
+   *
+   * Both edges of `savedId` matter: it is set when the write lands, and cleared
+   * when the receipt closes, which is where the name the user typed is
+   * committed.
+   */
+  const refreshTemplates = templateLibrary.refresh;
+  const registeredId = templates.savedId;
+  const lastRegistered = useRef(registeredId);
+  useEffect(() => {
+    if (lastRegistered.current === registeredId) return;
+    lastRegistered.current = registeredId;
+    refreshTemplates();
+  }, [registeredId, refreshTemplates]);
 
   const selected = notes.selectedNote;
 
@@ -451,12 +473,12 @@ export function NotesView({
       templatesSlot={
         dataService ? (
           <TemplateListPanel
-            templates={templates.templates}
-            loading={templates.loading}
-            open={templates.listOpen}
-            onToggle={templates.toggleList}
-            onEdit={templates.beginEdit}
-            onDelete={templates.remove}
+            templates={templateLibrary.templates}
+            loading={templateLibrary.loading}
+            open={templateLibrary.listOpen}
+            onToggle={templateLibrary.toggleList}
+            onEdit={templateLibrary.beginEdit}
+            onDelete={templateLibrary.remove}
             labels={{
               heading: t("materials.templates.sidebarHeading"),
               empty: t("materials.templates.empty"),
@@ -649,7 +671,7 @@ export function NotesView({
           rather than inside the sidebar portal: on narrow that portal is the
           MobileDrawer, and a panel living inside it would go away with the
           drawer that opened it. */}
-      {dataService && <TemplateEditHost library={templates} />}
+      {dataService && <TemplateEditHost library={templateLibrary} />}
 
       {password.dialog && (
         <NotePasswordDialog

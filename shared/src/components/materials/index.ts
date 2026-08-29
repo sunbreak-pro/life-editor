@@ -17,11 +17,10 @@ export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
 // The "registered as a template" confirmation (#1179) — name field + where
 // the new template now lives.
 export {
-  NoteTemplatePanel,
-  type NoteTemplatePanelProps,
-  type NoteTemplatePanelLabels,
-  type NoteTemplateSummary,
-} from "./NoteTemplatePanel";
+  TemplateSavedPanel,
+  type TemplateSavedPanelProps,
+  type TemplateSavedPanelLabels,
+} from "./TemplateSavedPanel";
 // The saved-templates disclosure in the Notes rightSidebar + the centre panel
 // that edits one (#1180).
 export {

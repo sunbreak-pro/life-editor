@@ -53,10 +53,8 @@ const ALLOWED = new Set([
   "notes/RichTextEditor.tsx",
   // Inside the already-lazy NotesView chunk; see the header.
   "notes/NoteBodyEditor.tsx",
-  // Same: the templates panel (#1047) is mounted by NotesView, so its copy of
-  // the editor rides in the Notes chunk rather than the first download.
-  "notes/NoteTemplateHost.tsx",
-  // Same again: the template EDIT panel (#1180), mounted by NotesView.
+  // Same: the template EDIT panel (#1180) is mounted by NotesView, so its copy
+  // of the editor rides in the Notes chunk rather than the first download.
   "notes/TemplateEditHost.tsx",
 ]);
 

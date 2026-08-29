@@ -50,6 +50,8 @@ export interface NoteTemplateLibrary {
   cancelEdit: () => void;
   saveEdit: () => void;
   remove: (id: string) => void;
+  /** Re-read the list. For writes this hook did not make — see #1179 below. */
+  refresh: () => void;
 }
 
 export function useNoteTemplateLibrary(
@@ -63,6 +65,10 @@ export function useNoteTemplateLibrary(
   const [listOpen, setListOpen] = useState(false);
   const [draft, setDraft] = useState<NoteTemplateDraft | null>(null);
   const notesVersion = useSyncDomains("notes");
+  // Bumped by `refresh()`. The sync counter above only moves on a PUSH, so a
+  // template written locally by another hook (#1179 registers one from the note
+  // kebab) leaves this list correct-looking and one row short.
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (!dataService) return;
@@ -82,7 +88,7 @@ export function useNoteTemplateLibrary(
     return () => {
       cancelled = true;
     };
-  }, [dataService, notesVersion]);
+  }, [dataService, notesVersion, reloadToken]);
 
   const beginEdit = useCallback(
     (id: string) => {
@@ -148,6 +154,8 @@ export function useNoteTemplateLibrary(
     [dataService],
   );
 
+  const refresh = useCallback(() => setReloadToken((v) => v + 1), []);
+
   return {
     templates: templates ?? [],
     loading: templates === null,
@@ -160,5 +168,6 @@ export function useNoteTemplateLibrary(
     cancelEdit,
     saveEdit,
     remove,
+    refresh,
   };
 }
