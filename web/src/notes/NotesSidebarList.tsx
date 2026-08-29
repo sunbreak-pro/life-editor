@@ -17,6 +17,7 @@ import {
   type NoteNode,
   type NoteTagGroup,
   FOCUS_RING,
+  tourAnchor,
 } from "@life-editor/shared";
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
@@ -172,13 +173,20 @@ export function NotesSidebarList({
 
       {/* Tag filter (#369) — solo one tag group; the active chip clears it. */}
       {showTagFilter && (
-        <StatusFilterChips
-          chips={tagFilterChips}
-          value={tagFilter}
-          onChange={onTagFilterChange}
-          label={labels.tagFilter}
-          size="sm"
-        />
+        // #1125 anchors the tour's "follow a tag" step here. CONDITIONAL by
+        // nature: the row only renders with more than one group to choose
+        // between, so a user with a single tag has no anchor and the tour
+        // skips that step rather than waiting on a control that will not
+        // appear (anchor.ts).
+        <div {...tourAnchor("materials-tag-filter")}>
+          <StatusFilterChips
+            chips={tagFilterChips}
+            value={tagFilter}
+            onChange={onTagFilterChange}
+            label={labels.tagFilter}
+            size="sm"
+          />
+        </div>
       )}
 
       {error && (
