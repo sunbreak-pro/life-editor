@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FileStack, MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import { FileDown, FileStack, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
 import { FOCUS_RING } from "../styleTokens";
@@ -149,6 +149,18 @@ export interface NoteDetailPanelProps {
   onRegisterTemplate?: () => void;
   /** Already-translated label for the register-as-template menu entry. */
   registerTemplateLabel?: string;
+  /**
+   * Pour a saved template into THIS note (#1181) — the other direction from
+   * the entry above, and the one that was missing. Paired with
+   * `applyTemplateLabel` on the same all-or-nothing rule as every optional row
+   * here.
+   *
+   * It opens a picker + confirm rather than acting on the press: applying
+   * replaces the note's body.
+   */
+  onApplyTemplate?: () => void;
+  /** Already-translated label for the apply-a-template menu entry. */
+  applyTemplateLabel?: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
   /**
@@ -187,6 +199,8 @@ export function NoteDetailPanel({
   moreActionsLabel,
   onRegisterTemplate,
   registerTemplateLabel,
+  onApplyTemplate,
+  applyTemplateLabel,
   tagsSlot,
   linksSlot,
   contentLabel,
@@ -277,6 +291,22 @@ export function NoteDetailPanel({
                 }}
               >
                 {registerTemplateLabel}
+              </MenuItem>
+            )}
+            {/* #1181 — directly under the entry that files a template, because
+                the two are the same subject read in opposite directions. It
+                stays above the delete: applying is destructive to the BODY,
+                not to the note, and grouping it with the row that removes the
+                note would overstate it. */}
+            {onApplyTemplate && applyTemplateLabel && (
+              <MenuItem
+                icon={<FileDown size={14} aria-hidden />}
+                onSelect={() => {
+                  onApplyTemplate();
+                  setMenuOpen(false);
+                }}
+              >
+                {applyTemplateLabel}
               </MenuItem>
             )}
             <MenuItem

@@ -35,6 +35,8 @@ export interface NoteDetailLabels {
   lockedHint: string;
   /** Kebab entry that registers this note as a template (#1179). */
   registerTemplate: string;
+  /** Kebab entry that pours a saved template into this note (#1181). */
+  applyTemplate: string;
 }
 
 export interface NoteDetailSurfaceProps {
@@ -63,6 +65,13 @@ export interface NoteDetailSurfaceProps {
    * the lock does not cover.
    */
   onRegisterTemplate?: () => void;
+  /**
+   * Open the apply-a-template picker from the kebab (#1181). Absent when the
+   * host cannot read templates (no DataService) or must not overwrite this
+   * body — a password-gated note (#526) would otherwise have its hidden
+   * content replaced from a surface the lock does not cover.
+   */
+  onApplyTemplate?: () => void;
 }
 
 export function NoteDetailSurface({
@@ -77,6 +86,7 @@ export function NoteDetailSurface({
   contentEditor,
   linksSlot,
   onRegisterTemplate,
+  onApplyTemplate,
 }: NoteDetailSurfaceProps) {
   return (
     <NoteDetailPanel
@@ -95,6 +105,8 @@ export function NoteDetailSurface({
       moreActionsLabel={labels.moreActions}
       onRegisterTemplate={onRegisterTemplate}
       registerTemplateLabel={labels.registerTemplate}
+      onApplyTemplate={onApplyTemplate}
+      applyTemplateLabel={labels.applyTemplate}
       tagsSlot={
         // No leading caption (#1042). The row used to open with the shared
         // kind badge (itemRole="note", #412), which spelled out "Note" one line

@@ -33,6 +33,13 @@ export {
   type TemplateEditPanelProps,
   type TemplateEditPanelLabels,
 } from "./TemplateEditPanel";
+// Pouring a saved template into the open note (#1181) — picker + confirm.
+export {
+  TemplateApplyPanel,
+  type TemplateApplyPanelProps,
+  type TemplateApplyPanelLabels,
+  type TemplateApplyItem,
+} from "./TemplateApplyPanel";
 // The body-only password lock both note surfaces share (#526).
 export { LockedBodyGate, type LockedBodyGateProps } from "./LockedBodyGate";
 export {
