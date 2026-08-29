@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: COMPLETED # 2026-08-29 起案・同日実装・PR #1230 merged / Issue #1171 CLOSED
 Created: 2026-08-29
 Branch: claude/connect-1171-tag-hub
 Owner-chat: connect-refine
@@ -146,10 +146,16 @@ DDL なし。既存の `wiki_tags` / `wiki_tag_assignments` と 4 ドメイン�
 - Issue: #1171 / 相手方 = #1152（削除・salvage）・#1153（役割分担）
 - 前フェーズ計画書: [`2026-08-29-connect-section-retirement.md`](./2026-08-29-connect-section-retirement.md)
 - 既存部品: `shared/src/components/tagEdit/`（#409 / #740 のタグ編集）・`shared/src/components/items/itemRole.ts`（#409 の種別契約）・`shared/src/components/TagHeadingIcon.tsx`（#311）
-- 規約: [`rules/frontend.md`](../../../rules/frontend.md)（セクション追加の 2 箇所 / Provider 順序 / テストの既定）
+- 規約: [`rules/frontend.md`](../rules/frontend.md)（セクション追加の 2 箇所 / Provider 順序 / テストの既定）
 
 ---
 
 ## Worklog
 
 - 2026-08-29: 着手前調査で「DataService への追加ゼロ・視覚言語も既存部品で足りる」ことを確認（実測 1 / 4）。A-5（code-split）は重いベンダー依存が無いので採らず、静的 import で入れる
+- 2026-08-29: CI verify 全ステップ + docs-lint をローカルで全通し、`origin/main`（#1199 の PR #1215 着地後）へ rebase してから PR #1230 を open。Acceptance Criteria は全項目クリア（`MainScreen.tsx` / `Backlinks/**` / `utils/itemLinks.ts` の diff ゼロも実測）
+- 2026-08-30: PR #1230 merged / Issue #1171 CLOSED を確認し archive へ移動。相対パスを `.claude/archive/` 基準へ貼り替え（`Previous:` の兄弟リンクは前計画も同時に移したのでそのまま有効）
+- 2026-08-30: **乖離レビュー**（archive 前の必須 3 行）
+  1. **スコープ逸脱**: あり、ただし計画時に宣言済み。Issue の Scope に無い docs 4 本（`IA.md` / `briefs/connect.md` / `tier-2-supporting.md` / `rules/frontend.md`）を本計画の Scope へ足した — いずれも #1152 が「Connect は退役した」と現況として書いた場所で、放置すると実在するセクションを docs が「無い」と言う状態になるため。§Issue の Scope 宣言との差分に理由を明記し、PR #1230 本文にも書いた。コード側の逸脱は無し
+  2. **AC 免除**: なし。狭幅レイアウトの見た目確認だけは jsdom にレイアウトが無いため機械検証の対象外で、これは AC ではなく Risks に書いた前提どおり（実ブラウザ確認は merge 後 chat-main の担当 = CLAUDE.md §7.4）
+  3. **途中で出た判断の行き先**: TagPill へのアイコン展開 → 本計画の §スコープ外に「今回は入れない」と判断を明記（Issue が計画書に委ねた点なので、キューではなくここが行き先）/ `useDomainLoad` の snapshot slot → 同じく §スコープ外（follow-up 候補）/ `web/tests/briefingEveningLazyMount.test.tsx` のフル実行時 flake → `comm/outbox/chat-connect-refine.md` の起票依頼。破棄した指摘は無し

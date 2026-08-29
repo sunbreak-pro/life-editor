@@ -14,7 +14,7 @@ Branch: claude/design-brief-connect
 >
 > ⚠️ **Connect セクション自体は同日 Tag hub として再新設された（#1171）** — 中身は別物（タグ一覧 → 種類別のアイテム一覧）で、
 > グラフは復活していない。新 Connect の仕様の正本は Issue #1171 と
-> [`../../vision/plans/2026-08-29-connect-tag-hub.md`](../../vision/plans/2026-08-29-connect-tag-hub.md)。
+> [`archive/2026-08-29-connect-tag-hub.md`](../../../archive/2026-08-29-connect-tag-hub.md)。
 
 > 目的: **この 1 ファイルだけで「ClaudeDesign に貼るプロンプト」とその根拠が完結する**こと。
 > ClaudeDesign はリポジトリを読めないため、§4 のプロンプト本文は自己完結させる

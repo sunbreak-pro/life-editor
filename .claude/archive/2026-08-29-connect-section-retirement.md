@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: COMPLETED # 2026-08-29 起案・同日実装・PR #1175 merged / Issue #1152 CLOSED
 Created: 2026-08-29
 Branch: claude/connect-1152-retire-section
 Owner-chat: connect-refine
@@ -78,7 +78,7 @@ web/tests/lazySectionChunks.test.ts
 ### スコープ外に出したもの（P-008 — 実装せずキューへ）
 
 - **`shared/package.json` / `web/package.json` の d3 依存 4 本 + 型定義 4 本の削除**。本 PR 後は未使用になるが、Issue の Scope 宣言に package.json が無く、lockfile 再生成まで含むと差分の性格が変わる。`comm/outbox/` に follow-up Issue の起票依頼を出す
-- `docs/reports/` 配下の Connect 記述。**当時の実測記録**であり現況を語る文書ではないため書き換えない（`../../../rules/docs-consistency.md` の歴史注記の扱いに従う）
+- `docs/reports/` 配下の Connect 記述。**当時の実測記録**であり現況を語る文書ではないため書き換えない（`../rules/docs-consistency.md` の歴史注記の扱いに従う）
 
 ---
 
@@ -128,19 +128,24 @@ DDL なし。`wiki_tag_connections` を含むテーブルは一切変更しな�
 - **最大のリスク = 救出漏れ**。Connect 配下には LinkPanel と同名概念の部品が複数あるため、削除前に grep で呼び出し元ゼロを確認してから消す（実測 1 の手順）
 - `web/tests/lazySectionChunks.test.ts` は「lazy のまま静的 import されていないこと」を守る番人。エントリを消すだけで、残る 2 本の守りは緩めない
 - docs-lint (a) の相対リンク検査に引っかかるため、退役注記から消えたファイルへリンクしない
-- `LC_ALL=C` 無しで `scripts/docs-lint.sh` を回すと日本語 Status 行が偽陽性になる（`../../../CLAUDE.md` §7.1）
+- `LC_ALL=C` 無しで `scripts/docs-lint.sh` を回すと日本語 Status 行が偽陽性になる（`../CLAUDE.md` §7.1）
 
 ---
 
 ## References
 
 - Issue: #1152
-- 先例: 旧 `terminal` セクション退役（#146・D-20260705-main-1 → `../../../CLAUDE.md` §3.2 / §8）
-- 温存対象の正本: `../../requirements/tier-2-supporting.md`（WikiTags）・`../../requirements/mobile-scope.md`
+- 先例: 旧 `terminal` セクション退役（#146・D-20260705-main-1 → `../CLAUDE.md` §3.2 / §8）
+- 温存対象の正本: `../docs/requirements/tier-2-supporting.md`（WikiTags）・`../docs/requirements/mobile-scope.md`
 
 ---
 
 ## Worklog
 
 - 2026-08-29: 着手前調査で「LinkPanel が backlink 部品を使用」という Issue の前提が実物と異なることを確認（実測 1）。依頼どおり移設で進め、削除可否はユーザー判断へ回す
+- 2026-08-30: PR #1175 merged / Issue #1152 CLOSED を確認し archive へ移動。移動に伴い本文の相対パスを `.claude/archive/` 基準へ貼り替えた（`../CLAUDE.md` / `../rules/…` / `../docs/requirements/…`）
+- 2026-08-30: **乖離レビュー**（archive 前の必須 3 行。実施は #1171 セッションで、根拠は本計画の Worklog・`history/chat-connect-refine.md` の 2026-08-29 エントリ・`comm/` の記録）
+  1. **スコープ逸脱**: あり。`docs/design/IA.md` と `docs/design/briefs/connect.md` を sweep 中に Scope へ追加した（下の 2026-08-29 の行が理由）。どちらも決定本文は書き換えず注記のみ
+  2. **AC 免除**: なし。Acceptance Criteria は全項目を満たして PR を出した
+  3. **途中で出た判断の行き先**: d3 依存 8 本の削除 → `comm/outbox/chat-connect-refine.md` の起票依頼（P-008）/ 呼び出し元ゼロになった backlink 部品 3 つの保持可否 → 判断キュー `D-20260829-connect-1`（**2026-08-30 時点で未回答**・放置時＝保持）。破棄した指摘は無し
 - 2026-08-29: docs sweep 中に Scope を 2 本追加した（当初は「記録なので触らない」に分類していた）。`docs/design/IA.md` は `Status: APPROVED` の**現況を語る SSOT** で「本流 5 = … Connect …」と書いており、放置すると後続セッションが Connect を再追加しかねないため退役注記を入れた。`docs/design/briefs/connect.md` は退役済み画面のデザイン投入先に見えるため冒頭に警告を 1 段落。どちらも**決定本文は書き換えず注記のみ**（`rules/docs-consistency.md` §2 の歴史注記の作法）
