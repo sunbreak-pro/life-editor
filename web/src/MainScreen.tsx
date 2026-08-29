@@ -132,14 +132,14 @@ export function MainScreen({ session }: { session: Session }) {
    * "切替ごとに再生されて煩わしい" the Issue rules out. So briefing → schedule
    * → briefing animates schedule alone.
    *
-   * The three code-split bodies (Notes / Analytics / Connect) carry a caveat:
+   * The two code-split bodies (Notes / Analytics) carry a caveat:
    * their Suspense boundary lives INSIDE the descriptor body, so on a cold
    * chunk this animates the box while the fallback is still in it. Since #1158
    * the warm-up below normally settles those chunks before the first switch,
    * so the content is what rises; the caveat still stands for a switch made
    * inside the first couple of seconds, and on a Save-Data connection where
    * the warm-up is skipped. Moving the animation past the boundary would mean
-   * pushing it into all seven descriptor rows for the three that need it.
+   * pushing it into all seven descriptor rows for the two that need it.
    */
   const sectionEntering = useFirstAppearance(section);
 
