@@ -4,8 +4,8 @@ import {
   applyRepeatFilter,
   applyCalendarFilter,
   applyCalendarLens,
-  buildCalendarMemberIds,
-  pickSelectableCalendars,
+  buildTagMemberIds,
+  pickGroupTagIds,
 } from "../src/utils/scheduleGridFilter";
 
 /*
@@ -82,23 +82,44 @@ const assignments = [
   { itemId: "si-9", tagId: "tag-gone" }, // owned by a soft-deleted tag
 ];
 
-describe("buildCalendarMemberIds", () => {
+describe("buildTagMemberIds", () => {
   it("collects the items carrying one tag", () => {
-    expect([...buildCalendarMemberIds(assignments, "tag-work")]).toEqual([
+    expect([...buildTagMemberIds(assignments, ["tag-work"])]).toEqual([
       "r-1",
       "si-2",
     ]);
   });
 
-  it("owns nothing when the calendar is bound to nothing", () => {
-    // A calendar whose tag_id is missing must not degrade into "everything" —
-    // that would silently turn a broken filter into a no-op the user can't see.
-    expect(buildCalendarMemberIds(assignments, null).size).toBe(0);
-    expect(buildCalendarMemberIds(assignments, undefined).size).toBe(0);
+  it("unions across tags rather than intersecting them (#1173)", () => {
+    // The whole point of the many-tag lens: ticking a second tag ADDS its
+    // rows. An intersection would make the obvious act — "also show me home"
+    // — empty the grid, since almost nothing carries two life tags at once.
+    expect([...buildTagMemberIds(assignments, ["tag-work", "tag-home"])]).toEqual(
+      ["r-1", "si-2", "si-3", "r-2"],
+    );
+  });
+
+  it("counts an item carrying two of the tags exactly once", () => {
+    const both = [
+      { itemId: "si-2", tagId: "tag-work" },
+      { itemId: "si-2", tagId: "tag-home" },
+    ];
+    expect([...buildTagMemberIds(both, ["tag-work", "tag-home"])]).toEqual([
+      "si-2",
+    ]);
+  });
+
+  it("owns nothing when the lens is bound to nothing", () => {
+    // A lens with no tags must not degrade into "everything" — that would
+    // silently turn a broken filter into a no-op the user can't see. "No
+    // filter" is signalled by a null member set, not by an empty tag list.
+    expect(buildTagMemberIds(assignments, null).size).toBe(0);
+    expect(buildTagMemberIds(assignments, undefined).size).toBe(0);
+    expect(buildTagMemberIds(assignments, []).size).toBe(0);
   });
 
   it("returns an empty set for a tag nobody carries", () => {
-    expect(buildCalendarMemberIds(assignments, "tag-unused").size).toBe(0);
+    expect(buildTagMemberIds(assignments, ["tag-unused"]).size).toBe(0);
   });
 });
 
@@ -118,7 +139,7 @@ describe("applyCalendarFilter", () => {
     // which is every occurrence it has.
     const { visible, hiddenCount } = applyCalendarFilter(
       rows,
-      buildCalendarMemberIds(assignments, "tag-work"),
+      buildTagMemberIds(assignments, ["tag-work"]),
     );
     expect(visible.map((r) => r.id)).toEqual(["si-1", "si-2"]);
     expect(hiddenCount).toBe(2);
@@ -137,13 +158,13 @@ describe("applyCalendarFilter", () => {
 
   it("does not mutate the input", () => {
     const input = [...rows];
-    applyCalendarFilter(input, buildCalendarMemberIds(assignments, "tag-work"));
+    applyCalendarFilter(input, buildTagMemberIds(assignments, ["tag-work"]));
     expect(input).toEqual(rows);
   });
 });
 
 describe("composition (repeat → calendar)", () => {
-  const memberIds = buildCalendarMemberIds(assignments, "tag-work");
+  const memberIds = buildTagMemberIds(assignments, ["tag-work"]);
 
   it("applies serially and reports the two hidden counts separately", () => {
     const repeat = applyRepeatFilter(rows, true);
@@ -184,31 +205,38 @@ describe("composition (repeat → calendar)", () => {
  * the removal WAS the assertion. The real rule is the one below: the decision
  * is made against the ACTIVE tag list, not against the assignments.
  */
-describe("pickSelectableCalendars", () => {
-  const ledger = [
-    { id: "cal-work", title: "Work", tagId: "tag-work" },
-    { id: "cal-gone", title: "Old project", tagId: "tag-gone" },
-    { id: "cal-home", title: "Home", tagId: "tag-home" },
-  ];
+describe("pickGroupTagIds", () => {
+  const groupTags = ["tag-work", "tag-gone", "tag-home"];
   // `allTags` is active-only, so a soft-deleted tag is simply absent from it.
   const activeTagIds = new Set(["tag-work", "tag-home"]);
 
-  it("drops a calendar whose tag is not in the active list", () => {
-    expect(pickSelectableCalendars(ledger, activeTagIds).map((c) => c.id))
-      // cal-gone would match zero rows forever; offering it as a chip means
-      // offering a click that empties the grid with no explanation.
-      .toEqual(["cal-work", "cal-home"]);
+  it("drops a tag that is not in the active list", () => {
+    // tag-gone would match zero rows forever; leaving it in the union means
+    // carrying a member that can only ever contribute nothing.
+    expect(pickGroupTagIds(groupTags, activeTagIds)).toEqual([
+      "tag-work",
+      "tag-home",
+    ]);
   });
 
-  it("offers nothing while the tag list is empty (loading / failed fetch)", () => {
-    // The safe direction: no chip row at all, rather than a row of chips that
-    // all read as broken. It fills in by itself once the tags land.
-    expect(pickSelectableCalendars(ledger, new Set())).toEqual([]);
+  it("keeps the group's own order", () => {
+    // The order a group's tags were ticked in survives the filtering, so the
+    // panel and the member-set build agree on what "this group" is.
+    expect(pickGroupTagIds(["tag-home", "tag-work"], activeTagIds)).toEqual([
+      "tag-home",
+      "tag-work",
+    ]);
   });
 
-  it("keeps every calendar when all their tags are active", () => {
-    const all = new Set(["tag-work", "tag-gone", "tag-home"]);
-    expect(pickSelectableCalendars(ledger, all)).toHaveLength(3);
+  it("keeps nothing while the tag list is empty (loading / failed fetch)", () => {
+    // The safe direction: the host offers no chip at all, rather than one that
+    // reads as broken. It fills in by itself once the tags land.
+    expect(pickGroupTagIds(groupTags, new Set())).toEqual([]);
+  });
+
+  it("keeps every tag when all of them are active", () => {
+    const all = new Set(groupTags);
+    expect(pickGroupTagIds(groupTags, all)).toHaveLength(3);
   });
 });
 
@@ -222,7 +250,7 @@ describe("applyCalendarLens", () => {
   // task-1 carries tag-work directly; task-2 carries nothing.
   const todoChips = [{ id: "task-1" }, { id: "task-2" }];
   const withTodos = [...assignments, { itemId: "task-1", tagId: "tag-work" }];
-  const work = buildCalendarMemberIds(withTodos, "tag-work");
+  const work = buildTagMemberIds(withTodos, ["tag-work"]);
 
   it("narrows todo chips with the same membership set as the rows", () => {
     const lens = applyCalendarLens(rows, todoChips, work);
@@ -245,7 +273,7 @@ describe("applyCalendarLens", () => {
     // same call, so this holds for every calendar in the ledger, not just the
     // selected one.
     for (const tagId of ["tag-work", "tag-home", "tag-unused"]) {
-      const members = buildCalendarMemberIds(withTodos, tagId);
+      const members = buildTagMemberIds(withTodos, [tagId]);
       const chipCount = applyCalendarLens(
         rows,
         todoChips,

@@ -4,7 +4,7 @@ import {
   NotesUnifiedProvider,
   RoutineProvider,
   ScheduleItemsProvider,
-  CalendarProvider,
+  TagGroupProvider,
   TodoTreeProvider,
   WikiTagsUnifiedProvider,
   type DataService,
@@ -150,20 +150,21 @@ export const SECTION_DESCRIPTORS: Readonly<
   /*
    * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each inner
    * Provider may read the outer one (ScheduleItems sits INSIDE Routine).
-   * CalendarProvider is NOT part of the pair — kept higher and enabled on
-   * Mobile (§2). The Routine→schedule_items generator (S4-5) is the headless
-   * RoutineScheduleSync, mounted inside the Providers.
+   * TagGroupProvider is NOT part of the pair — it took CalendarProvider's slot
+   * in #1173 and, like it, is mounted at both widths. The Routine→
+   * schedule_items generator (S4-5) is the headless RoutineScheduleSync,
+   * mounted inside the Providers.
    *
    * WikiTagsUnifiedProvider provides both the Event Tag/Link surface for
-   * ScheduleItemsView (DU-F Step 7) and the life-tag <select> for CalendarView
-   * (life-tags S2: calendars.tag_id FKs wiki_tags(id) ON DELETE CASCADE — the
-   * folder-scoped view is now a tag-scoped view, so TodoTreeProvider is no
-   * longer needed on that count).
+   * ScheduleItemsView (DU-F Step 7) and the tag list the filter panel ticks
+   * (#1173). It sits OUTSIDE TagGroupProvider because a group is a set of the
+   * tags it serves — the panel resolves group ids against that list, never the
+   * other way round.
    *
    * TodoTreeProvider is OUTERMOST here (schedule redesign A-1): the Calendar
    * reads scheduled TodoNodes to render todo=blue chips. Provider order (§6.2)
-   * places TodoTree before Calendar, and TodoTree depends on neither WikiTags
-   * nor Calendar, so it sits at the very outside. #411 folded the Kanban in as
+   * places TodoTree before the tag pair, and TodoTree depends on neither, so
+   * it sits at the very outside. #411 folded the Kanban in as
    * the Todo tab. It needs the same two Providers it had in Materials
    * (TodoTree + WikiTags) and both are already on this branch, so the tab
    * reuses them rather than nesting a second pair — one todo store for the
@@ -183,7 +184,7 @@ export const SECTION_DESCRIPTORS: Readonly<
     body: ({ ds, nav }) => (
       <TodoTreeProvider dataService={ds} persistSelection>
         <WikiTagsUnifiedProvider dataService={ds}>
-          <CalendarProvider dataService={ds}>
+          <TagGroupProvider dataService={ds}>
             <RoutineProvider dataService={ds}>
               <ScheduleItemsProvider dataService={ds}>
                 <ScheduleScreen
@@ -200,7 +201,7 @@ export const SECTION_DESCRIPTORS: Readonly<
                 />
               </ScheduleItemsProvider>
             </RoutineProvider>
-          </CalendarProvider>
+          </TagGroupProvider>
         </WikiTagsUnifiedProvider>
       </TodoTreeProvider>
     ),

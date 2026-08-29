@@ -20,6 +20,19 @@
 
 /** `data-tour-id` values, by the element that wears one. */
 export const TOUR_ANCHORS = {
+  /**
+   * Briefing's 朝刊 tab, in the section's tab band (#1201).
+   *
+   * The band rather than anything inside the page, because the page is the
+   * one part that is NOT dependable: BriefingView returns a skeleton with no
+   * masthead while it loads, and the tab defaults to 夕刊 after 17:00, which
+   * renders a different view entirely. The band is drawn from the section
+   * descriptor, so it is there at both widths, in both tabs, and before any
+   * data arrives. Exactly one control carries it at a time — AppShell renders
+   * its header slot only when wide, and the narrow segmented control only
+   * when not.
+   */
+  briefingMorningTab: "briefing-morning-tab",
   /** Schedule's primary create control — toolbar button (wide) / pill (narrow). */
   scheduleAddEvent: "schedule-add-event",
   /** The calendar surface itself: where a created event can be found again. */

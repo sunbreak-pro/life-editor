@@ -32,7 +32,7 @@ Owner-chat: frontend (orchestrator)
 
 ## header タブの大枠（詳細は各 brief が肉付け・提案してよい範囲）
 
-- **Schedule**: Calendar / Routines の 2 タブ。カレンダー台帳の管理 UI（現 `CalendarView`）を第 3 タブにするか Routines 内・モーダルに畳むかは D1 brief の提案に委ねる
+- **Schedule**: Calendar / Routines の 2 タブ。カレンダー台帳の管理 UI（現 `CalendarView`）を第 3 タブにするか Routines 内・モーダルに畳むかは D1 brief の提案に委ねる → **決着（2026-08-29 #1173）**: どちらでもなく、台帳ごと退役。ツールバーのフィルタアイコンから開くタグ絞り込みパネル（マルチセレクト + 保存グループ）が後継
 - **Materials**: Todos / Notes / Daily / Tags の 4 タブ。タブ間で「新規作成」導線の位置・リスト密度・空状態の意匠を統一する
 - **Connect**: タブなし・単画面の **Tag hub**（タグ一覧 → 選んだタグの Note / Todo / Event / Daily を種類別に一覧・2026-08-29 = #1171）。~~Graph 主タブ + Backlinks~~ は同日退役（#1152）— 力学グラフは検索・タグ・バックリンクと役割が重複していたため撤去し、データ（タグ / アイテム間リンク）と取り出し口は温存した。関係を**リンク**でたどる導線は Notes の LinkPanel とコマンドパレット検索、**トピック**でたどる導線がこの Tag hub
 - **Analytics**: 現行 4 タブ（Overview / Todos / Work / Schedule）を維持

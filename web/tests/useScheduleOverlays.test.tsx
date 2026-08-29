@@ -43,13 +43,13 @@ describe("useScheduleOverlays — four facts about one question", () => {
     popover: null,
     overlayOpen: false,
     createPanel: null,
-    calendarsOpen: false,
+    tagFilterOpen: false,
   };
   const snapshot = (api: Api) => ({
     popover: api.popover,
     overlayOpen: api.overlayOpen,
     createPanel: api.createPanel,
-    calendarsOpen: api.calendarsOpen,
+    tagFilterOpen: api.tagFilterOpen,
   });
 
   const BUBBLE = { id: "event-1", x: 12, y: 34 };
@@ -76,9 +76,9 @@ describe("useScheduleOverlays — four facts about one question", () => {
       { createPanel: PANEL },
     ],
     [
-      "the calendars modal",
-      (api) => api.setCalendarsOpen(true),
-      { calendarsOpen: true },
+      "the tag-filter panel",
+      (api) => api.setTagFilterOpen(true),
+      { tagFilterOpen: true },
     ],
   ];
 
@@ -101,7 +101,7 @@ describe("useScheduleOverlays — four facts about one question", () => {
 const NOTHING_OPEN: Omit<UseCancelDeferredPopoverArgs, "cancelPopover"> = {
   overlayOpen: false,
   createPanel: null,
-  calendarsOpen: false,
+  tagFilterOpen: false,
   scopeRequest: null,
   todoDetailId: null,
 };
@@ -119,7 +119,7 @@ const TERMS: [name: string, open: Partial<Watched>][] = [
     "the creation panel",
     { createPanel: { date: "2026-08-16", start: "09:00", end: "10:00" } },
   ],
-  ["the calendars modal", { calendarsOpen: true }],
+  ["the tag-filter panel", { tagFilterOpen: true }],
   [
     "#279's scope chooser (from the mutation layer)",
     { scopeRequest: { mode: "edit" } },
@@ -171,7 +171,7 @@ describe("useCancelDeferredPopover — every surface drops a waiting bubble (#35
   it("stands down again once the surface closes", () => {
     const { rerender, cancelPopover } = renderWatcher({
       ...NOTHING_OPEN,
-      calendarsOpen: true,
+      tagFilterOpen: true,
     });
     expect(cancelPopover).toHaveBeenCalledTimes(1);
 
@@ -188,7 +188,7 @@ describe("useCancelDeferredPopover — every surface drops a waiting bubble (#35
    */
   it("cancels once for a change that opens two surfaces together", () => {
     const { rerender, cancelPopover } = renderWatcher();
-    rerender({ ...NOTHING_OPEN, overlayOpen: true, calendarsOpen: true });
+    rerender({ ...NOTHING_OPEN, overlayOpen: true, tagFilterOpen: true });
     expect(cancelPopover).toHaveBeenCalledTimes(1);
   });
 });

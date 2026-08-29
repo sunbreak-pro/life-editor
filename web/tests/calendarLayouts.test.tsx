@@ -90,7 +90,8 @@ const TOOLBAR_LABELS = {
   today: "toolbar.today",
   prev: "toolbar.prev",
   next: "toolbar.next",
-  openSettings: "toolbar.openSettings",
+  openFilter: "toolbar.openFilter",
+  filterActive: "toolbar.filterActive",
   view: "toolbar.view",
 };
 
@@ -130,7 +131,7 @@ function renderDesktop(
     onNext: vi.fn(),
     onChangeView: vi.fn(),
     onToggleRepeats: vi.fn(),
-    onOpenSettings: vi.fn(),
+    onOpenFilter: vi.fn(),
     onAddEvent: vi.fn(),
   };
   const handlers = {
@@ -151,6 +152,7 @@ function renderDesktop(
       labels: TOOLBAR_LABELS,
       repeatsHidden: false,
       hiddenRepeats: 0,
+      filterActive: false,
       ...toolbarSpies,
       ...over.toolbar,
     },
@@ -159,6 +161,8 @@ function renderDesktop(
       activeId: null,
       hiddenCount: 0,
       onChange: vi.fn(),
+      filtered: false,
+      onClear: vi.fn(),
       ...over.lens,
     },
     banner: over.banner ?? null,
@@ -357,16 +361,17 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
     renderDesktop({
       toolbar: { repeatsHidden: true, hiddenRepeats: 3 },
       lens: {
-        chips: [{ id: "cal-1", label: "Work" }],
-        activeId: "cal-1",
+        chips: [{ id: "group-1", label: "Work" }],
+        activeId: "group-1",
         hiddenCount: 5,
+        filtered: true,
       },
     });
     expect(
       screen.getByText("scheduleScreen.repeatFilterHidden:3"),
     ).toBeTruthy();
     expect(
-      screen.getByText("scheduleScreen.calendarFilterHidden:5"),
+      screen.getByText("scheduleScreen.groupFilterHidden:5"),
     ).toBeTruthy();
   });
 });
@@ -473,7 +478,7 @@ type ToolbarSpy =
   | "onNext"
   | "onChangeView"
   | "onToggleRepeats"
-  | "onOpenSettings"
+  | "onOpenFilter"
   | "onAddEvent";
 
 /** Each toolbar control: the spy it must reach, how to press it, what it carries. */
@@ -490,8 +495,8 @@ const TOOLBAR_CASES: [ToolbarSpy, () => HTMLElement, unknown[]][] = [
     [],
   ],
   [
-    "onOpenSettings",
-    () => screen.getByLabelText(TOOLBAR_LABELS.openSettings),
+    "onOpenFilter",
+    () => screen.getByLabelText(TOOLBAR_LABELS.openFilter),
     [],
   ],
   ["onAddEvent", () => screen.getByText("scheduleScreen.addEvent"), []],

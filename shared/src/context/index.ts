@@ -106,11 +106,11 @@ export {
   type ScheduleItemsContextValue,
 } from "./ScheduleItemsContextValue";
 
-export { CalendarProvider } from "./CalendarContext";
+export { TagGroupProvider } from "./TagGroupContext";
 export {
-  CalendarContext,
-  type CalendarContextValue,
-} from "./CalendarContextValue";
+  TagGroupContext,
+  type TagGroupContextValue,
+} from "./TagGroupContextValue";
 
 // DU-F note: CalendarTagsProvider was removed in DU-F Step 3-5 (DB DROPped
 // in DU-C+ 0012; UI + shared layer purged in cohort). WikiTagsUnified now

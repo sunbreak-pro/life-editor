@@ -173,7 +173,7 @@ describe("useBriefingData — fetching (#892)", () => {
     // is one of the domains it must ignore: Briefing reads the session log,
     // not the settings.
     act(() => harness.sync.bump("audio"));
-    act(() => harness.sync.bump("calendars"));
+    act(() => harness.sync.bump("audio"));
     act(() => harness.sync.bump("timer"));
 
     await Promise.resolve();
