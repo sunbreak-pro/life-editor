@@ -182,7 +182,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
   - タグのマージ（`merge` コマンドで重複統合）
   - MCP 4 ツール（Claude から横断検索・タグ付与）
 - やらない:
-  - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。再利用可能な部品として `shared/src/components/Backlinks/BacklinkView.tsx` と `shared/src/utils/itemLinks.ts` が残っている
+  - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。再利用可能な部品として `shared/src/components/Backlinks/BacklinkView.tsx` と `shared/src/utils/itemLinks.ts` が残っている。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
   - 複数 entity_type を跨ぐリレーション型タグ（Database の relation プロパティで別対応）
   - 権限管理（個人利用前提、§1 Non-Goals）
   - ~~Todos へのタグ付与（Todo は RichTextEditor を持たないため UI 上で付与経路がなく、タグ管理は CalendarTags に集約。MCP `tag_entity` の entity_type='task' も将来要件として保留）~~ → **2026-07-11 #225 で解除**: life-tags 統一により Todos へのタグ付与は「やる」側（Kanban tag ビュー / assignments）

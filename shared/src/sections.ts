@@ -16,8 +16,13 @@
  * Pure data (DataService-free, no useTranslation): the icon is a lucide
  * component and the label is an i18n KEY — hosts resolve copy via props
  * (CLAUDE.md §6.4). Retired sections never appear here: the old REPL (#146)
- * and Connect, whose force-directed graph went with it (#1152 — the tags,
- * item links and search it read from are all still live).
+ * is gone for good.
+ *
+ * `connect` is back (#1171) and is NOT the section #1152 retired. That one was
+ * a force-directed graph of every item at once; this one is a tag hub — pick a
+ * topic, read its items. The id is reused because it names the same place in
+ * the IA ("the topic-axis entrance"), which is what the sidebar, the mobile
+ * bottom bar and the command palette all derive from.
  */
 import type { LucideIcon } from "lucide-react";
 import type { TranslationKey } from "./i18n/resources";
@@ -25,6 +30,7 @@ import {
   Sunrise,
   Clock,
   Library,
+  Tags,
   Timer,
   BarChart3,
   Settings,
@@ -98,6 +104,25 @@ export const SECTIONS = [
     labelKey: "section.materials",
     mobileOrder: 2,
   },
+  /*
+   * Connect (#1171) — the topic-axis entrance, paired with Schedule's
+   * time-axis one. Sits straight after Materials because those three are the
+   * ways INTO the records (when / what / about what), and before Work, which
+   * is a thing you do rather than a thing you read.
+   *
+   * `mobileOrder: 5` puts it in the More sheet, not the fixed bottom four.
+   * Deliberate: the phone's job is consumption and quick capture (§2), and the
+   * four that already hold those slots are the ones a phone opens first. It is
+   * also the slot the retired Connect held, so adding this section moves no
+   * other row on the bottom bar.
+   */
+  {
+    id: "connect",
+    group: "main",
+    icon: Tags,
+    labelKey: "section.connect",
+    mobileOrder: 5,
+  },
   {
     id: "work",
     group: "main",
@@ -117,14 +142,14 @@ export const SECTIONS = [
     group: "utility",
     icon: Settings,
     labelKey: "section.settings",
-    mobileOrder: 5,
+    mobileOrder: 6,
   },
   {
     id: "trash",
     group: "utility",
     icon: Trash2,
     labelKey: "section.trash",
-    mobileOrder: 6,
+    mobileOrder: 7,
   },
 ] as const satisfies readonly SectionDef[];
 

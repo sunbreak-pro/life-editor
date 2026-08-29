@@ -12,6 +12,7 @@ import {
   type SectionId,
 } from "@life-editor/shared";
 import { TrashScreen } from "./trash/TrashScreen";
+import { ConnectScreen } from "./connect/ConnectScreen";
 import { DailyView } from "./daily/DailyView";
 import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
@@ -248,6 +249,32 @@ export const SECTION_DESCRIPTORS: Readonly<
           </WikiTagsUnifiedProvider>
         )}
       </>
+    ),
+  },
+  /*
+   * Connect (#1171) — the tag hub. One Provider, WikiTagsUnified, because the
+   * tag master and the assignment cache are the only STATE it needs; the four
+   * item lists it reads across (todos / events / notes / dailies) are
+   * read-only, so ConnectScreen fetches them straight off the injected
+   * DataService rather than mounting four more Providers — the same choice
+   * Briefing and Trash make for the same reason.
+   *
+   * "fluid": the hub is a two-pane surface that owns its own height and
+   * scrolls each pane independently (rail on the left, items on the right), so
+   * PageContainer must not take the vertical scroll off it.
+   *
+   * Not code-split, unlike Notes and Analytics: those two carry vendor stacks
+   * (TipTap / recharts) and this carries React and icons the entry chunk
+   * already has, so a lazy() row here would buy nothing and cost the
+   * two-table upkeep in lazySections.ts (#1158).
+   */
+  connect: {
+    width: "fluid",
+    narrowHeader: "hamburger",
+    body: ({ ds, nav }) => (
+      <WikiTagsUnifiedProvider dataService={ds}>
+        <ConnectScreen dataService={ds} onNavigateToItem={nav.navigateToItem} />
+      </WikiTagsUnifiedProvider>
     ),
   },
   /*
