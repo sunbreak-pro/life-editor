@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   getDataService,
   signOut,
@@ -27,6 +27,7 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import { NarrowHeaderRow } from "./NarrowHeaderRow";
 import { SECTION_DESCRIPTORS, type TabBandId } from "./sectionDescriptors";
+import { prefetchLazySections } from "./lazySections";
 import { useShellNavigation } from "./hooks/useShellNavigation";
 import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
@@ -131,14 +132,30 @@ export function MainScreen({ session }: { session: Session }) {
    * "切替ごとに再生されて煩わしい" the Issue rules out. So briefing → schedule
    * → briefing animates schedule alone.
    *
-   * The three code-split bodies (Notes / Analytics / Connect) carry a caveat:
+   * The two code-split bodies (Notes / Analytics) carry a caveat:
    * their Suspense boundary lives INSIDE the descriptor body, so on a cold
-   * chunk this animates the box while the fallback is still in it. On a warm
-   * cache — which the chunk usually is, landing "within a frame or two" — the
-   * content is what rises. Moving the animation past the boundary would mean
-   * pushing it into all seven descriptor rows for the three that need it.
+   * chunk this animates the box while the fallback is still in it. Since #1158
+   * the warm-up below normally settles those chunks before the first switch,
+   * so the content is what rises; the caveat still stands for a switch made
+   * inside the first couple of seconds, and on a Save-Data connection where
+   * the warm-up is skipped. Moving the animation past the boundary would mean
+   * pushing it into all seven descriptor rows for the two that need it.
    */
   const sectionEntering = useFirstAppearance(section);
+
+  /*
+   * Fetch the code-split section bodies in the background (#1158). Runs after
+   * the load event and then at idle, so it cannot compete with first paint.
+   *
+   * NO CLEANUP, on purpose. The callback touches no state and no DOM — it
+   * populates the module registry, which stays useful whether or not this
+   * component is still mounted — and a cleanup that cancelled it would be run
+   * by StrictMode's throwaway first mount, leaving the warm-up permanently
+   * unscheduled in dev. The idempotence guard lives in lazySections.ts.
+   */
+  useEffect(() => {
+    void prefetchLazySections();
+  }, []);
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
