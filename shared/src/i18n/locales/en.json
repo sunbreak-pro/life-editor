@@ -401,67 +401,6 @@
       "sortCreated": "Created"
     }
   },
-  "connect": {
-    "title": "Connect",
-    "graph": {
-      "search": "Search nodes...",
-      "nodeTypes": "Node Types",
-      "tags": "Tags",
-      "tagFilterPlaceholder": "Filter tags…",
-      "tagFilterLabel": "Filter tags by name",
-      "tagFilterEmpty": "No tags match",
-      "localGraph": "Local Graph",
-      "display": "Display",
-      "forces": "Forces",
-      "showOrphans": "Show orphans",
-      "showLabels": "Show labels",
-      "repel": "Repel",
-      "linkDistance": "Link distance",
-      "center": "Center",
-      "collide": "Collide",
-      "clearFilters": "Clear filters",
-      "noMatch": "No nodes match the current filters",
-      "reheat": "Reheat",
-      "resetView": "Reset view",
-      "closePanel": "Close panel",
-      "depth": "Depth",
-      "off": "off",
-      "connections": "Connections",
-      "addLink": "Add link",
-      "removeLink": "Remove link",
-      "linkTargetPlaceholder": "Link to id…",
-      "linkCreateFailed": "Failed to add link",
-      "linkDeleteFailed": "Failed to remove link",
-      "selectNodeHint": "Select a node on the canvas to enable Local Graph",
-      "links": "links",
-      "tagsShort": "tags",
-      "typeNote": "Note",
-      "typeDaily": "Daily",
-      "typeTag": "Tag",
-      "loading": "Preparing the graph…",
-      "zoom": "Zoom",
-      "viewBacklinks": "Backlinks {{count}}",
-      "hintKeys": "Esc clear · ⌘F search · R reheat"
-    },
-    "empty": {
-      "title": "No connections yet",
-      "hint": "Add tags or links to your notes and they'll spread out here."
-    },
-    "search": {
-      "noMatch": "Nothing matches \"{{query}}\"",
-      "clear": "Clear search"
-    },
-    "sidebar": {
-      "settingsTab": "Graph settings",
-      "backlinksTab": "Backlinks",
-      "incomingLinks": "Links to this note"
-    },
-    "mobile": {
-      "linksTab": "Connections",
-      "backlinksTab": "Backlinks",
-      "settingsTitle": "Graph settings"
-    }
-  },
   "schedule": {
     "complete": "Complete"
   },
@@ -834,7 +773,6 @@
     "schedule": "Schedule",
     "work": "Work",
     "analytics": "Analytics",
-    "connect": "Connect",
     "tags": "Tags",
     "settings": "Settings",
     "trash": "Trash",
@@ -872,7 +810,9 @@
     "moreActions": "More actions"
   },
   "backlinks": {
-    "empty": "No notes link here yet."
+    "incomingLinks": "Links to this note",
+    "empty": "No notes link here yet.",
+    "selectHint": "Select an item to see what links to it."
   },
   "blockMenu": {
     "turnInto": "Turn Into",

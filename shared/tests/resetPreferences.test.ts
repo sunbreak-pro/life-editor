@@ -39,8 +39,6 @@ const REAL_KEYS = [
   // dot — layout / canvas state (#718)
   "life-editor.shell.sidebar-collapsed", // components/AppShell.tsx
   "life-editor.shell.right-sidebar-width", // context/RightSidebarContext.tsx
-  "life-editor.connect.pointGraph.positions", // components/Connect/graph/graphStorage.ts
-  "life-editor.connect.pointGraph.viewport", // same
 ];
 
 beforeEach(() => {
@@ -95,9 +93,11 @@ describe("resetLocalPreferences", () => {
   });
 
   it("clears the dot-namespaced layout state too (#718)", () => {
-    // These four survived a reset before #718: the shell kept its collapsed
-    // sidebar and stored width, and the Connect graph kept the node positions
-    // and viewport it had saved.
+    // These survived a reset before #718: the shell kept its collapsed sidebar
+    // and its stored width. Two more lived in this family — the Connect
+    // graph's saved node positions and viewport — and left the list with the
+    // section (#1152); a browser that still holds them is still swept, since
+    // the match is on the `life-editor.` prefix, not on this list.
     const dotKeys = REAL_KEYS.filter((k) => k.startsWith("life-editor."));
     for (const key of dotKeys) localStorage.setItem(key, "x");
 

@@ -17,7 +17,7 @@ paths:
 
 - **アイデンティティ = `shared/src/sections.ts` の registry**（`SectionId` / nav 順 / グループ / アイコン / i18n key / mobile 順）
 - **web ホストの描き方 = `web/src/sectionDescriptors.tsx` の `SECTION_DESCRIPTORS`**（PageContainer の width / ヘッダーのタブ帯 / 狭幅レイアウトの行 / body とその section 層 Provider）。`Record<SectionId, …>` なので registry に足すと descriptor 行が無い間はコンパイルが通らない
-- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics / Connect）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`）
+- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`。3 本目だった Connect は #1152 でセクションごと退役）
 
 ## 命名（プロジェクト固有のみ）
 
