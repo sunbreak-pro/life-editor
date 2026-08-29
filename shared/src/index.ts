@@ -25,8 +25,9 @@ export {
   getSession,
   onAuthStateChange,
   sendPasswordResetEmail,
+  resendConfirmationEmail,
   updatePassword,
-  passwordRecoveryRedirectUrl,
+  authRedirectUrl,
   type AuthResult,
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";
@@ -175,6 +176,14 @@ export {
   DEFAULT_STARTUP_SECTION,
   type StartupSectionPref,
 } from "./hooks/useStartupSection";
+// Schedule initial-view preference (#1174) — same shape: a pure resolver that
+// seeds useCalendarNav's useState, plus the Settings-side pref hook.
+export {
+  resolveInitialCalendarView,
+  useScheduleInitialViewPref,
+  DEFAULT_SCHEDULE_INITIAL_VIEW,
+  SCHEDULE_INITIAL_VIEWS,
+} from "./hooks/useScheduleInitialView";
 // Day-start (rollover) hour preference (#218, split from §216) — pure readers
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {

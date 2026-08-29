@@ -53,9 +53,6 @@ const ALLOWED = new Set([
   "notes/RichTextEditor.tsx",
   // Inside the already-lazy NotesView chunk; see the header.
   "notes/NoteBodyEditor.tsx",
-  // Same: the templates panel (#1047) is mounted by NotesView, so its copy of
-  // the editor rides in the Notes chunk rather than the first download.
-  "notes/NoteTemplateHost.tsx",
 ]);
 
 describe("the TipTap editor stays out of the initial chunk", () => {

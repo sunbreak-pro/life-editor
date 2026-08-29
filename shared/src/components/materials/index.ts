@@ -14,13 +14,13 @@ export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
 export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
-// Note templates (#1047) — the list + name + body surface, tag/link-free.
+// The "registered as a template" confirmation (#1179) — name field + where
+// the new template now lives.
 export {
-  NoteTemplatePanel,
-  type NoteTemplatePanelProps,
-  type NoteTemplatePanelLabels,
-  type NoteTemplateSummary,
-} from "./NoteTemplatePanel";
+  TemplateSavedPanel,
+  type TemplateSavedPanelProps,
+  type TemplateSavedPanelLabels,
+} from "./TemplateSavedPanel";
 // The body-only password lock both note surfaces share (#526).
 export { LockedBodyGate, type LockedBodyGateProps } from "./LockedBodyGate";
 export {

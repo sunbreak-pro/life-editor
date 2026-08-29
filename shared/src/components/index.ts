@@ -222,6 +222,13 @@ export {
   type AuthAlertProps,
   type AuthAlertTone,
 } from "./AuthAlert";
+// The gap between "signed up" and "signed in" when Confirm email is ON
+// (#1197). Same auth face as the other pre-login cards.
+export {
+  EmailConfirmationCard,
+  type EmailConfirmationCardProps,
+  type EmailConfirmationCardLabels,
+} from "./EmailConfirmationCard";
 export { AuthBrandHeader, type AuthBrandHeaderProps } from "./AuthBrandHeader";
 export {
   PasswordUpdateForm,
@@ -281,6 +288,18 @@ export {
   SettingsDayStart,
   type SettingsDayStartProps,
 } from "./SettingsDayStart";
+// Settings rightSidebar category list + the Schedule tab's card (#1174). The
+// nav replaced the tips/preview panel on that face; the tips moved to a
+// centered panel the last nav row opens.
+export {
+  SettingsTabsNav,
+  type SettingsTabsNavProps,
+  type SettingsTabItem,
+} from "./SettingsTabsNav";
+export {
+  SettingsSchedule,
+  type SettingsScheduleProps,
+} from "./SettingsSchedule";
 export {
   SettingsSegment,
   type SettingsSegmentProps,
@@ -421,6 +440,14 @@ export * from "./schedule";
 // rows, no spinners). Pure presentation: props-injected copy, lumen-* tokens
 // (§3.1 / §5).
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+// Render-crash floor (#1199). Class component by necessity — React exposes
+// the catch hooks on classes only. Copy is injected, so the host decides
+// which of the two variants (page / section) it is mounting.
+export {
+  ErrorBoundary,
+  type ErrorBoundaryProps,
+  type ErrorBoundaryLabels,
+} from "./ErrorBoundary";
 export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
 // / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the

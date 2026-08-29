@@ -17,7 +17,7 @@ Branch: claude/design-auth
 ## 1. 画面要件ダイジェスト
 
 - **目的 / 主ユースケース**: **未ログイン時に全画面で表示される、アプリの入口**。Supabase Auth の Email + Password でサインイン / サインアップする。認証に成功するとアプリのシェル（サイドバー付き本体）へ切り替わる。N=1 の個人ツールなので、集客・訴求のためのランディングではなく「自分が確実にログインできる」ことだけを目的にした最小構成。
-  - Phase 1 は Email + Password のみ（`web/src/AuthScreen.tsx:9`）。confirm-email は OFF 前提で、サインアップすると即ログインする（`web/src/AuthScreen.tsx:5-7,27-31`）
+  - Phase 1 は Email + Password のみ（`web/src/AuthScreen.tsx:9`）。confirm-email は OFF 前提で、サインアップすると即ログインする（`web/src/AuthScreen.tsx:5-7,27-31`）— **brief 作成時点の記述**。第三者配布に向けて #1197 で確認 ON にも対応済み（サインアップ後は「メールを確認してください」カードに入る）
   - 認証は `shared` の `signIn` / `signUp` を呼ぶ（`web/src/AuthScreen.tsx:2,20`）。成功後のセッション反映は App 側の認証リスナが担う（画面自身は遷移を持たない）
   - Cloud Sync は Desktop ↔ iOS 間で同じ状態を保つ双方向同期層で、この認証がその入口（`.claude/docs/requirements/tier-1-core.md:392-403`）。旧 Tauri 時代は「Web / 認証 UI はやらない」が non-goal だったが（`.claude/docs/requirements/tier-1-core.md:416`）、Web 移行で Supabase Auth の認証 UI を持つ方針に変わり、その最初の画面が本 AuthScreen
 - **表示するデータ**: 入力フォームのみ。リスト・一覧データは無い。要素は ①モード（signIn / signUp）②メールアドレス ③パスワード（6 文字以上）④送信ボタン ⑤モード切替リンク。サンプルのメール値はユーザー本人の `fstprog@gmail.com`
