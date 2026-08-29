@@ -5,7 +5,6 @@ import { logServiceError } from "../utils/logError";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
-import { useNoteTreeMovement } from "./useNoteTreeMovement";
 import { useNoteHydrationLedger } from "./useNoteHydrationLedger";
 import { useNotesUnifiedCRUD } from "./useNotesUnifiedCRUD";
 import { useNotesUnifiedTrash } from "./useNotesUnifiedTrash";
@@ -326,11 +325,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     [push, syncToDb],
   );
 
-  const { moveNode, moveToRoot } = useNoteTreeMovement(
-    notes,
-    persistWithHistory,
-  );
-
   const { createNote, updateNote, softDeleteNote, togglePin } =
     useNotesUnifiedCRUD({
       ds,
@@ -396,8 +390,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       restoreNote,
       permanentDeleteNote,
       persistWithHistory,
-      moveNode,
-      moveToRoot,
       setNotePassword,
       removeNotePassword,
       verifyNotePassword,
@@ -430,8 +422,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       restoreNote,
       permanentDeleteNote,
       persistWithHistory,
-      moveNode,
-      moveToRoot,
       setNotePassword,
       removeNotePassword,
       verifyNotePassword,

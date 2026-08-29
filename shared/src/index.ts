@@ -56,7 +56,6 @@ export {
 
 // Types
 export type { TodoNode, TodoNodeType, TodoStatus } from "./types/todoTree";
-export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
 export type { DailyNode } from "./types/daily";
 export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
 
@@ -331,9 +330,10 @@ export {
 // Note domain — context (Pattern A) + hooks (DI: dataService/undoRedo).
 // DU-G G4: the legacy Note Provider / context hook / API hook were
 // retired; the Unified surface below is the only Notes API. The
-// `useNoteTreeMovement` helper (pure tree-move logic, no @dnd-kit) is
-// retained and consumed by `useNotesUnifiedAPI`; it stays exported for
-// host/test use. `NoteSortDirection` now lives on `useNotesUnifiedAPI`.
+// `useNoteTreeMovement` helper went with the rest of the tree-movement
+// chain in #1156 (nesting is retired for good — #418), so the Notes API no
+// longer exposes `moveNode` / `moveToRoot`. `NoteSortDirection` now lives on
+// `useNotesUnifiedAPI`.
 export { NotesUnifiedProvider } from "./context";
 export { NotesUnifiedContext, type NotesUnifiedContextValue } from "./context";
 export { useNotesUnifiedContext } from "./hooks/useNotesUnifiedContext";
@@ -342,7 +342,6 @@ export {
   type UseNotesUnifiedAPIOptions,
   type NoteSortDirection,
 } from "./hooks/useNotesUnifiedAPI";
-export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // First of the Schedule trio (§6.2). routines CRUD only; the generator
@@ -611,10 +610,6 @@ export {
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";
-export {
-  computeNoteDropIntent,
-  type NoteDropPosition,
-} from "./utils/noteDropIntent";
 // Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
 // `sortedFilteredNotes` comparator, so the host list + the extracted util
 // share one ordering source.

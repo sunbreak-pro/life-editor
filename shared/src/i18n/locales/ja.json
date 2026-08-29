@@ -860,11 +860,6 @@
     "empty": "表示する詳細はありません",
     "resize": "詳細パネルの幅を変更"
   },
-  "notes": {
-    "sortUpdated": "更新日順",
-    "sortCreated": "作成日順",
-    "sortTitle": "タイトル順"
-  },
   "notesView": {
     "unpin": "ピン解除",
     "pin": "ピン留め",

@@ -13,19 +13,12 @@ import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
-import type { NoteConnection } from "../types/wikiTag";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
   WikiTagConnectionOrigin,
 } from "../types/wikiTagUnified";
-import type {
-  NoteLink,
-  NoteLinkPayload,
-  BacklinkHit,
-  UnlinkedMention,
-} from "../types/noteLink";
 
 /**
  * Kinds of calendar-displayed data the user can bulk soft-delete from
@@ -604,43 +597,6 @@ export interface DailiesUnifiedDataService {
   toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
 }
 
-// ---------------------------------------------------------------------------
-// Note Connections — SupabaseNoteConnectionService
-// ---------------------------------------------------------------------------
-
-export interface NoteConnectionsDataService {
-  fetchNoteConnections(): Promise<NoteConnection[]>;
-  createNoteConnection(
-    sourceNoteId: string,
-    targetNoteId: string,
-  ): Promise<NoteConnection>;
-  deleteNoteConnection(id: string): Promise<void>;
-  deleteNoteConnectionByPair(
-    sourceNoteId: string,
-    targetNoteId: string,
-  ): Promise<void>;
-}
-
-// ---------------------------------------------------------------------------
-// Note Links (Obsidian-style [[...]] syntax) — SupabaseNoteLinkService
-// ---------------------------------------------------------------------------
-
-export interface NoteLinksDataService {
-  fetchAllNoteLinks(): Promise<NoteLink[]>;
-  fetchForwardLinksForNote(sourceNoteId: string): Promise<NoteLink[]>;
-  fetchBacklinksForNote(targetNoteId: string): Promise<BacklinkHit[]>;
-  upsertNoteLinksForNote(
-    sourceNoteId: string,
-    links: NoteLinkPayload[],
-  ): Promise<void>;
-  upsertNoteLinksForDaily(
-    sourceDailyDate: string,
-    links: NoteLinkPayload[],
-  ): Promise<void>;
-  deleteNoteLinksForNote(sourceNoteId: string): Promise<void>;
-  fetchUnlinkedMentions(sourceNoteId: string): Promise<UnlinkedMention[]>;
-}
-
 /**
  * The whole data surface the frontend may reach (CLAUDE.md §3.1).
  *
@@ -659,6 +615,4 @@ export interface DataService
     ItemConversionDataService,
     WikiTagsUnifiedDataService,
     NotesUnifiedDataService,
-    DailiesUnifiedDataService,
-    NoteConnectionsDataService,
-    NoteLinksDataService {}
+    DailiesUnifiedDataService {}
