@@ -331,6 +331,15 @@
       "open": "{{title}} を開く",
       "remove": "{{title}} とのリンクを削除"
     },
+    "related": {
+      "open": "関連を開く",
+      "dialog": "関連アイテム",
+      "links": "リンク",
+      "sharedTags": "同じタグのアイテム",
+      "sameDayDaily": "同じ日のデイリー",
+      "empty": "関連するアイテムはまだありません",
+      "sectionCount": "{{label}}（{{count}}）"
+    },
     "daily": {
       "toToday": "今日へ",
       "saved": "保存済み",

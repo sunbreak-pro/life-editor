@@ -332,6 +332,15 @@
       "open": "Open {{title}}",
       "remove": "Remove link with {{title}}"
     },
+    "related": {
+      "open": "Show related",
+      "dialog": "Related items",
+      "links": "Links",
+      "sharedTags": "Shares a tag",
+      "sameDayDaily": "That day’s daily",
+      "empty": "Nothing related yet",
+      "sectionCount": "{{label}} ({{count}})"
+    },
     "daily": {
       "toToday": "Today",
       "saved": "Saved",
