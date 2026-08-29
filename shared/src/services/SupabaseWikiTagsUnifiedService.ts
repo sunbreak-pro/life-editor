@@ -148,9 +148,9 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
    * trash" from "removed by the user" on restore), so assignment-only
    * filtering leaves rows pointing at trashed items. Those skewed the counting
    * consumers of this cache: the Tag edit modal's usage count (the reported
-   * symptom) and Analytics tag aggregation. The Connect graph was already
-   * correct — `buildGraphModel` drops any edge whose endpoint is not a
-   * rendered node, and trashed items never become nodes.
+   * symptom) and Analytics tag aggregation. (The Connect graph, retired in
+   * #1152, was already correct: it dropped any edge whose endpoint was not a
+   * rendered node, and trashed items never became nodes.)
    *
    * The `items_meta!inner(is_deleted)` embed + `.eq("items_meta.is_deleted",
    * false)` pushes the liveness join into PostgREST, so this stays ONE

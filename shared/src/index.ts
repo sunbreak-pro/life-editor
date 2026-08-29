@@ -176,10 +176,7 @@ export { useDayStartHourPref } from "./hooks/useDayStartHour";
 // Week start (#1102) — fixed on Sunday app-wide. The stored pref (#217) and
 // its hook are gone; the grid math keeps its `weekStartsOn` parameter, so
 // hosts hand it this constant instead of reading localStorage.
-export {
-  WEEK_STARTS_ON,
-  type WeekStartsOn,
-} from "./utils/scheduleGridLayout";
+export { WEEK_STARTS_ON, type WeekStartsOn } from "./utils/scheduleGridLayout";
 // Reset local preferences (§216) — clears the app's localStorage namespace and
 // reloads. Pure helpers for the host's confirm-then-reset flow.
 export {
@@ -652,6 +649,11 @@ export {
   extractItemLinkTargets,
   findStaleInlineLinks,
 } from "./utils/inlineLinkSync";
+// #1152: derivations over an already-fetched `wiki_tag_connections` array,
+// kept when the Connect graph they used to feed was retired. A host holding
+// the raw connections wants these; one inside the WikiTagsUnifiedProvider
+// wants `getLinksForItem` instead.
+export { backlinkSourceIds, resolveLinkId } from "./utils/itemLinks";
 // #376: hosts that write a row through the injected DataService (rather than
 // through a domain Provider) need the canonical id shape too — the Schedule
 // creation panel creates a Note without mounting the Notes Provider.

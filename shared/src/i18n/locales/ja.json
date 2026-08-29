@@ -397,67 +397,6 @@
       "sortCreated": "作成日時"
     }
   },
-  "connect": {
-    "title": "コネクト",
-    "graph": {
-      "search": "ノードを検索...",
-      "nodeTypes": "ノード種別",
-      "tags": "タグ",
-      "tagFilterPlaceholder": "タグを絞り込む…",
-      "tagFilterLabel": "タグ名で絞り込む",
-      "tagFilterEmpty": "一致するタグはありません",
-      "localGraph": "ローカルグラフ",
-      "display": "表示",
-      "forces": "物理",
-      "showOrphans": "孤立ノードを表示",
-      "showLabels": "ラベルを表示",
-      "repel": "反発",
-      "linkDistance": "リンク距離",
-      "center": "中心引力",
-      "collide": "衝突半径",
-      "clearFilters": "フィルタ解除",
-      "noMatch": "条件に一致するノードがありません",
-      "reheat": "再配置",
-      "resetView": "ビューをリセット",
-      "closePanel": "パネルを閉じる",
-      "depth": "深さ",
-      "off": "オフ",
-      "connections": "接続",
-      "addLink": "リンクを追加",
-      "removeLink": "リンクを削除",
-      "linkTargetPlaceholder": "リンク先 id…",
-      "linkCreateFailed": "リンクの追加に失敗しました",
-      "linkDeleteFailed": "リンクの削除に失敗しました",
-      "selectNodeHint": "キャンバスでノードを選択するとローカルグラフが有効になります",
-      "links": "リンク",
-      "tagsShort": "タグ",
-      "typeNote": "ノート",
-      "typeDaily": "デイリー",
-      "typeTag": "タグ",
-      "loading": "グラフを準備しています…",
-      "zoom": "ズーム",
-      "viewBacklinks": "バックリンク {{count}}",
-      "hintKeys": "Esc 選択解除 · ⌘F 検索 · R 再配置"
-    },
-    "empty": {
-      "title": "まだつながりがありません",
-      "hint": "ノートにタグやリンクを付けると、ここに広がっていきます"
-    },
-    "search": {
-      "noMatch": "「{{query}}」に一致するものがありません",
-      "clear": "検索をクリア"
-    },
-    "sidebar": {
-      "settingsTab": "グラフ設定",
-      "backlinksTab": "バックリンク",
-      "incomingLinks": "このノートへのリンク"
-    },
-    "mobile": {
-      "linksTab": "つながり",
-      "backlinksTab": "バックリンク",
-      "settingsTitle": "グラフ設定"
-    }
-  },
   "schedule": {
     "complete": "完了"
   },
@@ -830,7 +769,6 @@
     "schedule": "予定",
     "work": "集中",
     "analytics": "分析",
-    "connect": "つながり",
     "tags": "タグ",
     "settings": "設定",
     "trash": "ゴミ箱",
@@ -873,7 +811,9 @@
     "moreActions": "その他の操作"
   },
   "backlinks": {
-    "empty": "このノートへのリンクはまだありません。"
+    "incomingLinks": "このノートへのリンク",
+    "empty": "このノートへのリンクはまだありません。",
+    "selectHint": "アイテムを選ぶと、そこへのリンクが一覧に出ます。"
   },
   "blockMenu": {
     "turnInto": "変換",
