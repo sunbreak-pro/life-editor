@@ -123,6 +123,23 @@
       "button": "Reset preferences",
       "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected.",
       "confirmButton": "Reset and reload"
+    },
+    "tabs": {
+      "navLabel": "Settings categories",
+      "general": "General",
+      "tips": "Tips"
+    },
+    "placeholder": {
+      "message": "Settings for this section will land here as they arrive."
+    },
+    "schedule": {
+      "heading": "Schedule",
+      "description": "How the Schedule section opens and behaves.",
+      "initialViewLabel": "Opens on",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid."
     }
   },
   "timerSettings": {
