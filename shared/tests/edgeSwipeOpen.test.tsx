@@ -33,6 +33,22 @@ function pointerEvent(type: string, clientX: number, clientY: number): Event {
   });
 }
 
+/**
+ * A touchmove jsdom can build. jsdom has no TouchEvent constructor either, so
+ * the touch list is attached by hand — `touches.length` and `clientX/clientY`
+ * are the whole surface the hook reads.
+ */
+function touchMove(
+  clientX: number,
+  clientY: number,
+  count = 1,
+): Event & { touches: unknown } {
+  const event = new Event("touchmove", { bubbles: true, cancelable: true });
+  const touches = Array.from({ length: count }, () => ({ clientX, clientY }));
+  Object.defineProperty(event, "touches", { value: touches });
+  return event as Event & { touches: unknown };
+}
+
 /** One press-drag-release on window, from (x, y) by (dx, dy). */
 function swipeFrom(
   x: number,
@@ -110,13 +126,35 @@ describe("useEdgeSwipeOpen", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("survives an 8px vertical wobble at the head of a rightward pull", () => {
+    // #1204: the old one-sample axis lock read this wobble as "vertical" and
+    // dropped the press for good, so the 80px pull that followed did nothing.
+    const onOpen = renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 4, 300));
+    fireEvent(window, pointerEvent("pointermove", 4, 308));
+    fireEvent(window, pointerEvent("pointermove", 84, 300));
+    fireEvent(window, pointerEvent("pointerup", 84, 300));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens on a diagonal whose dx and dy arrive equal", () => {
+    // #1204: `dx > dy` was false at exactly 45°, so a diagonal pull off the
+    // edge never committed to either axis and released as nothing.
+    const onOpen = renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 4, 300));
+    fireEvent(window, pointerEvent("pointermove", 14, 310));
+    fireEvent(window, pointerEvent("pointermove", 84, 370));
+    fireEvent(window, pointerEvent("pointerup", 84, 370));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   it("stands down when shouldStart vetoes the press", () => {
     const onOpen = renderProbe(() => false);
     swipeFrom(4, 300, { dx: 120 });
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it("never cancels the event, so the press still reaches the page", () => {
+  it("never cancels the pointer stream, so the press still reaches the page", () => {
     renderProbe();
     const down = pointerEvent("pointerdown", 4, 300);
     fireEvent(window, down);
@@ -124,6 +162,64 @@ describe("useEdgeSwipeOpen", () => {
     fireEvent(window, move);
     expect(down.defaultPrevented).toBe(false);
     expect(move.defaultPrevented).toBe(false);
+  });
+});
+
+/*
+ * #1204: on a real finger the browser claimed the pan and cancelled the pointer
+ * stream at ~20px, so the threshold above was unreachable. These pin the one
+ * place the hook now cancels anything — and, more importantly, the three places
+ * it still must not.
+ */
+describe("useEdgeSwipeOpen touch defence", () => {
+  it("holds the browser off for an edge-born rightward touch", () => {
+    renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 4, 300));
+    const move = touchMove(24, 302);
+    fireEvent(window, move);
+    expect(move.defaultPrevented).toBe(true);
+  });
+
+  it("leaves a touch that started away from the edge alone", () => {
+    renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 200, 300));
+    const move = touchMove(320, 300);
+    fireEvent(window, move);
+    expect(move.defaultPrevented).toBe(false);
+  });
+
+  it("leaves vertical scrolling alone from its very first sample", () => {
+    renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 4, 300));
+    // Undecided, but leaning vertical: the browser keeps the gesture.
+    const first = touchMove(4, 306);
+    fireEvent(window, first);
+    expect(first.defaultPrevented).toBe(false);
+    // …and once it is unmistakably a scroll, the press is gone for good.
+    const later = touchMove(4, 340);
+    fireEvent(window, later);
+    expect(later.defaultPrevented).toBe(false);
+  });
+
+  it("never fights a second finger — pinch and zoom stay the browser's", () => {
+    renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 4, 300));
+    const move = touchMove(60, 300, 2);
+    fireEvent(window, move);
+    expect(move.defaultPrevented).toBe(false);
+  });
+
+  it("refuses the native drag a leftover text selection would start", () => {
+    renderProbe();
+    fireEvent(window, pointerEvent("pointerdown", 4, 300));
+    const tracked = new Event("dragstart", { bubbles: true, cancelable: true });
+    fireEvent(window, tracked);
+    expect(tracked.defaultPrevented).toBe(true);
+
+    fireEvent(window, pointerEvent("pointerup", 4, 300));
+    const idle = new Event("dragstart", { bubbles: true, cancelable: true });
+    fireEvent(window, idle);
+    expect(idle.defaultPrevented).toBe(false);
   });
 });
 

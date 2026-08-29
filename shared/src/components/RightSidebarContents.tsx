@@ -57,8 +57,16 @@ export function RightSidebarContents({
       </div>
       {/* Scrollable well. The portal target div is always mounted so a
           RightSidebarPortal can attach; the empty state shows over it while
-          no section has registered content. */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          no section has registered content.
+
+          `touch-pan-y` says what this element actually does: it scrolls
+          vertically and nothing else. Left at the default `auto` it advertised
+          horizontal panning it cannot perform, and inside <MobileDrawer> that
+          was enough for the browser to claim a finger sliding left and cancel
+          the pointer stream — swipe-to-close (#792) never reached its
+          threshold on a real touch (#1204). Harmless in the Desktop
+          <RightSidebar>, which has no horizontal gesture either. */}
+      <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto p-3">
         {contentCount === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
             <PanelRight size={24} className="text-lumen-text-tertiary" />
