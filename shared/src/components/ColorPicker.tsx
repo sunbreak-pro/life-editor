@@ -6,7 +6,7 @@
  * all copy arrives as props. No DataService / no useTranslation here.
  *
  * Affordances (Desktop parity):
- *   - a curated preset swatch grid (KANBAN_COLOR_PRESETS by default)
+ *   - a curated preset swatch grid (ITEM_COLOR_PRESETS by default)
  *   - a native <input type="color"> for a free-form custom hue
  *   - a "clear / default color" option
  *
@@ -14,13 +14,13 @@
  * floating popover) so a parent with `overflow-hidden` (e.g. a Kanban column)
  * never clips it. Click-outside + Esc close it.
  *
- * Color is user data, applied via inline style (allowed — see Kanban/colors).
+ * Color is user data, applied via inline style (allowed — see colorPresets).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Palette } from "lucide-react";
 import { cn } from "./cn";
-import { KANBAN_COLOR_PRESETS } from "./Kanban/colors";
+import { ITEM_COLOR_PRESETS } from "./colorPresets";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -46,7 +46,7 @@ export function ColorPicker({
   clearLabel,
   customLabel,
   onPick,
-  presets = KANBAN_COLOR_PRESETS,
+  presets = ITEM_COLOR_PRESETS,
 }: ColorPickerProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);

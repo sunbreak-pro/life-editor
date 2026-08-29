@@ -84,7 +84,7 @@ web/tests/** / shared/tests/**
 ## Acceptance Criteria (機械検証可能)
 
 - [ ] CI `verify` の全ステップ（shared → web → desktop → mcp-server）と `docs-lint` がローカルで exit 0
-- [ ] `grep -rn "KanbanView\|components/Kanban" shared/src web/src` が 0 件
+- [ ] `grep -rn "from \"[^\"]*Kanban" shared/src web/src` が 0 件（**生きた参照**が対象。歴史的経緯を語るコメントは残す — `rules/docs-consistency.md` §2 の「旧称と分かる注記付きで残す」に該当）
 - [ ] `grep -rn "scheduleTab\|ScheduleTab" web/src` が 0 件
 - [ ] Schedule セクションにタブ帯が無い（`SECTION_DESCRIPTORS.schedule.tabBand` が undefined）
 - [ ] 未スケジュール Todo の閲覧・今日への配置・作成・完了・詳細編集・`[[` 着地が Calendar 画面内で完結する（各々テストで固定）
@@ -113,3 +113,7 @@ web/tests/** / shared/tests/**
 ## Worklog
 
 - 2026-08-29: 計画作成。実装前調査で「トレイが既に未スケジュール一覧と配置導線を持つ」「Schedule に既に Todo 詳細面がある（本文だけ無い）」の 2 点が分かり、作業の中心が **新規作成ではなく差し替えと撤去** になった
+- 2026-08-29: 実装完了。計画から動いた点 3 つ:
+  1. **AC の grep を「生きた参照」に狭めた**（上記）。`KanbanView` の名前は 7 箇所のコメントに残っており、どれも「なぜ今この形なのか」を語る歴史的記述で、消すと理由が消える。ただし **1 箇所だけ生きていた** — `useTodoLinking` が `useInlineItemLinks("KanbanView")` とコンソール用のホスト名を渡していた。これは実在しないファイルを指す名前になるので `"ScheduleTodoDetail"` に直した（`useInlineItemLinks` が `hostTag` を引数に取っている理由そのもの）
+  2. **`Kanban/colors.ts` だけ生き残った**。`ColorPicker`（タグの色）が `KANBAN_COLOR_PRESETS` を使っており、板より長生きした。`components/colorPresets.ts` へ出して `ITEM_COLOR_PRESETS` に改名（消費者 1 件）
+  3. **作成ダイアログの開閉は effect ではなく描画中の state 調整**にした。effect 内の同期 setState は `react-hooks/set-state-in-effect` が正しく落とす。退役した `useTodoAddDialog` が同じフラグに対して使っていた React 公式パターンをそのまま持ち越した

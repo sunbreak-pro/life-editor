@@ -167,10 +167,7 @@ export interface ScheduleCopy {
   formatGapLabel: (minutes: number) => string;
 }
 
-export function useScheduleCopy({
-  isWide,
-  notesError,
-}: ScheduleCopyOptions): ScheduleCopy {
+export function useScheduleCopy({ notesError }: ScheduleCopyOptions): ScheduleCopy {
   const { t } = useTranslation();
 
   const weekdayLabels = useMemo(() => buildWeekdayLabels(t), [t]);
@@ -204,20 +201,21 @@ export function useScheduleCopy({
     [t],
   );
 
-  // Narrow has no Todo tab — the tray is reachable from the flow instead.
+  /*
+   * The same three tabs at both widths since #1153.
+   *
+   * Narrow used to get two: the Todo tab was Desktop-only because the phone
+   * reached its todos through the section's own Todo tab instead. That tab is
+   * retired, so withholding this one would leave narrow with no route to a
+   * todo at all — which is a removal, not the reduction the Issue asked for.
+   */
   const sidebarTabs = useMemo(
-    () =>
-      isWide
-        ? [
-            { id: "flow", label: t("scheduleScreen.todayFlow") },
-            { id: "todo", label: t("scheduleScreen.tabTodo") },
-            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-          ]
-        : [
-            { id: "flow", label: t("scheduleScreen.todayFlow") },
-            { id: "repeats", label: t("scheduleScreen.tabRepeats") },
-          ],
-    [isWide, t],
+    () => [
+      { id: "flow", label: t("scheduleScreen.todayFlow") },
+      { id: "todo", label: t("scheduleScreen.tabTodo") },
+      { id: "repeats", label: t("scheduleScreen.tabRepeats") },
+    ],
+    [t],
   );
 
   const repeatLabels = useMemo<FrequencyEditorLabels>(

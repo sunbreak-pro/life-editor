@@ -50,7 +50,7 @@ import type { ShellNavigation } from "./hooks/useShellNavigation";
  * `useShellNavigation` and the translated defs in `useShellChrome`; a
  * descriptor only names WHICH band its chrome shows, so the two never drift.
  */
-export type TabBandId = "materials" | "schedule" | "analytics" | "briefing";
+export type TabBandId = "materials" | "analytics" | "briefing";
 
 /**
  * The narrow-layout row that sits above the body (below 768px only — the wide
@@ -172,7 +172,9 @@ export const SECTION_DESCRIPTORS: Readonly<
    */
   schedule: {
     width: "fluid",
-    tabBand: "schedule",
+    // #1153: no tab band. The section is one surface again — the Todo board
+    // that was its second tab is retired and its list lives in the section's
+    // own rightSidebar, which is not shell state and needs no band.
     // #1033: was "tabs" — the Calendar body drew a second hamburger of its own,
     // left of the month heading. One hamburger, in the band, like every other
     // section.
@@ -185,10 +187,10 @@ export const SECTION_DESCRIPTORS: Readonly<
               <ScheduleItemsProvider dataService={ds}>
                 <ScheduleScreen
                   dataService={ds}
-                  tab={nav.scheduleTab}
-                  onOpenTodos={() => nav.setScheduleTab("todo")}
                   pendingNewTodo={nav.pendingNewTodo}
                   onConsumeNewTodo={nav.consumeNewTodo}
+                  pendingTodoTray={nav.pendingTodoTray}
+                  onConsumeTodoTray={nav.consumeTodoTray}
                   pendingSelectTodoId={nav.pendingTodoSelect}
                   onConsumePendingSelect={nav.consumeItemNav}
                   pendingSelectEvent={nav.pendingEventSelect}

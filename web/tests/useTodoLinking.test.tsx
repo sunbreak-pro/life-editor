@@ -26,7 +26,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   useSyncDomains: () => 0,
 }));
 
-const { useTodoLinking } = await import("../src/todos/hooks/useTodoLinking");
+const { useTodoLinking } = await import("../src/schedule/useTodoLinking");
 
 function link(from: string, to: string) {
   const { result } = renderHook(() => useTodoLinking({}));

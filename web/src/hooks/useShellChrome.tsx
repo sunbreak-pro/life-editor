@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  CheckSquare,
   CalendarDays,
   FileText,
   type LucideIcon,
@@ -20,9 +19,7 @@ import {
   type SectionId,
   type SectionDef,
   type Command,
-  type TranslationKey,
 } from "@life-editor/shared";
-import type { ScheduleTab } from "../schedule/ScheduleScreen";
 import type { MaterialsTab } from "./useShellNavigation";
 
 /*
@@ -49,28 +46,10 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
  * Todo tray in the Calendar's rightSidebar pulls from the same todos. The
  * union itself lives with the screen that switches on it (ScheduleScreen).
  */
-const SCHEDULE_TABS: readonly ScheduleTab[] = ["calendar", "todo"];
-
-/*
- * The tab band reuses existing copy rather than minting synonyms: "Calendar"
- * already names the grid, and "Todos" is the section label the surface carried
- * in Materials. Note the rightSidebar's own "Today's Todo" tray is a different
- * thing — today's slice, not the whole board.
- */
-const SCHEDULE_TAB_LABEL_KEY: Record<ScheduleTab, TranslationKey> = {
-  calendar: "scheduleScreen.calendar",
-  todo: "section.todos",
-};
-
-const SCHEDULE_ICON: Record<ScheduleTab, LucideIcon> = {
-  calendar: CalendarDays,
-  todo: CheckSquare,
-};
 
 export function useShellChrome({
   setSection,
   setMaterialsTab,
-  setScheduleTab,
 }: {
   // Deliberately narrower than the useState setters the shell passes in:
   // the commands memo lists these in its deps and stays cached only while
@@ -78,7 +57,6 @@ export function useShellChrome({
   // hand it a per-render closure and every render rebuilds the palette list.
   setSection: (id: SectionId) => void;
   setMaterialsTab: (tab: MaterialsTab) => void;
-  setScheduleTab: (tab: ScheduleTab) => void;
 }) {
   const { t } = useTranslation();
 
@@ -107,22 +85,12 @@ export function useShellChrome({
         setMaterialsTab(tab);
       },
     }));
-    // Schedule's two tabs get their own entries too (#411), the same shape
-    // Materials uses. The bare "Schedule" section command above keeps whatever
-    // tab was last open (sticky, like Materials), so these are the only way to
-    // ask for a specific one.
-    const scheduleCmds = SCHEDULE_TABS.map<Command>((tab) => ({
-      id: `schedule-${tab}`,
-      title: t(SCHEDULE_TAB_LABEL_KEY[tab]),
-      category: goTo,
-      icon: SCHEDULE_ICON[tab],
-      action: () => {
-        setSection("schedule");
-        setScheduleTab(tab);
-      },
-    }));
-    return [...sectionCmds, ...materialsCmds, ...scheduleCmds];
-  }, [t, setSection, setMaterialsTab, setScheduleTab]);
+    // #1153: Schedule's two per-tab entries went with the tabs. The bare
+    // "Schedule" section command above is the whole of it now — asking for the
+    // todo tray specifically is nav:tasks, which raises an intent the section
+    // consumes rather than setting shell state.
+    return [...sectionCmds, ...materialsCmds];
+  }, [t, setSection, setMaterialsTab]);
 
   // W5 app shell: section lists (icon node + translated label). i18n is
   // resolved here and injected — the shared shell never calls useTranslation
@@ -176,22 +144,6 @@ export function useShellChrome({
     [t, materialsCounts],
   );
 
-  // Schedule in-section tab defs (Calendar / Todo — #411). Todo keeps the
-  // unfinished-todo badge it wore in Materials; the same bridge still feeds it,
-  // so the count follows the surface rather than the section it used to sit in.
-  const scheduleTabDefs = useMemo(
-    () =>
-      SCHEDULE_TABS.map((id) => ({
-        id,
-        label: t(SCHEDULE_TAB_LABEL_KEY[id]),
-        badge:
-          id === "todo" && materialsCounts.todos > 0
-            ? materialsCounts.todos
-            : undefined,
-      })),
-    [t, materialsCounts],
-  );
-
   // Analytics in-section tab defs (Overview / Todos / Work / Schedule). No
   // count badges — these tabs are views, not item lists. Order comes from the
   // shared ANALYTICS_TAB_ORDER (SSOT) so the shell band and AnalyticsView's
@@ -241,7 +193,6 @@ export function useShellChrome({
     utilitySections,
     mobileSections,
     materialsTabDefs,
-    scheduleTabDefs,
     analyticsTabDefs,
     briefingTabDefs,
     shellLabels,

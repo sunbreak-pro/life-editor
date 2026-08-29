@@ -30,7 +30,7 @@ const REAL_KEYS = [
   "life-editor-startup-section", // hooks/useStartupSection.ts
   "life-editor-day-start-hour", // utils/dateKey.ts
   // colon — per-surface view prefs
-  "life-editor:kanban-view-mode", // components/Kanban/viewModeStorage.ts
+  "life-editor:kanban-view-mode", // writer retired with the board (#1153)
   "life-editor:note-sort-mode", // hooks/notesUnifiedHelpers.ts
   "life-editor:note-sort-direction", // same (#718 — renamed from bare)
   "life-editor:note-tree-expanded", // same (#718 — renamed from bare)

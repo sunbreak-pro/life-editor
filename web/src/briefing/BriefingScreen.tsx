@@ -357,7 +357,7 @@ export function BriefingScreen({
     (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       handleCreateEvent(title, slot, note);
       closeCreatePanel();
-      onNavigate({ section: "schedule", tab: "calendar" });
+      onNavigate({ section: "schedule" });
     },
     [handleCreateEvent, closeCreatePanel, onNavigate],
   );
@@ -456,7 +456,7 @@ export function BriefingScreen({
           singleList
           onToggleComplete={handleToggleTodo}
           onSetStatus={handleSetTodoStatus}
-          onOpenTodo={() => onNavigate({ section: "schedule", tab: "todo" })}
+          onOpenTodo={() => onNavigate({ section: "schedule" })}
           onAddCandidate={handleAddTodoCandidate}
           labels={todoTrayLabels}
         />
@@ -605,10 +605,8 @@ export function BriefingScreen({
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTodo={handleDeleteTodo}
         onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={() =>
-          onNavigate({ section: "schedule", tab: "calendar" })
-        }
-        onJumpToTodos={() => onNavigate({ section: "schedule", tab: "todo" })}
+        onJumpToSchedule={() => onNavigate({ section: "schedule" })}
+        onJumpToTodos={() => onNavigate({ section: "schedule" })}
         tabSwitcher={tabSwitcher}
       />
       {deleteScopeDialog}

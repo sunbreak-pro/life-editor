@@ -1,5 +1,6 @@
 import {
   useTranslation,
+  AddPill,
   AgendaList,
   RepeatListPanel,
   RoutineSummaryCard,
@@ -79,15 +80,29 @@ export interface ScheduleSidebarRepeats {
   onShowHidden: () => void;
 }
 
-/** "本日の Todo" — the A-3 tray (#298). Desktop only. */
+/**
+ * "本日の Todo" — the A-3 tray (#298), and since #1153 the app's only todo
+ * surface.
+ *
+ * It was Desktop-only and mostly a staging list: rows jumped to the Kanban tab
+ * for anything real. That tab is retired, so the three things it was the route
+ * to now live here — opening a todo, opening an UNSCHEDULED one, and making a
+ * new one.
+ */
 export interface ScheduleSidebarTodo {
   placed: TodayTodoRow[];
   unplaced: TodayTodoRow[];
   addable: TodayTodoAddableRow[];
   onToggleComplete: (id: string) => void;
   onAddCandidate: (id: string) => void;
-  onOpenTodo: () => void;
+  /** Open a PLACED row's detail. Took an id in #1153 — it used to be the
+   *  zero-argument jump to the board. */
+  onOpenTodo: (id: string) => void;
+  /** Open an UNSCHEDULED row's detail (#1153). */
+  onOpenAddable: (id: string) => void;
   onDelete: (id: string) => void;
+  /** Make a todo with no day yet (#1153). */
+  onAdd: () => void;
 }
 
 export interface ScheduleSidebarProps {
@@ -100,20 +115,15 @@ export interface ScheduleSidebarProps {
   todo: ScheduleSidebarTodo;
 }
 
-/**
- * Which tab actually renders. "todo" is Desktop-only (Mobile reaches the Todo
- * board through its own section tab, and "repeats" is unreachable from narrow
- * since #408 retired the Routines header tab). A resize can leave "todo"
- * selected with no tab to match it, which would draw the tray under a switcher
- * that shows nothing as active. Fold it back to the flow rather than resetting
- * the state — widening again returns the user to the tab they actually chose.
+/*
+ * All three tabs render at both widths since #1153.
+ *
+ * "todo" used to be Desktop-only — Mobile reached the Todo board through the
+ * section's own tab — so a resize could leave it selected with no tab to match,
+ * and it was folded back to the flow. The board is gone and this tray is the
+ * only todo surface there is, so withholding it from narrow would mean the
+ * phone has none. The fold went with the reason for it.
  */
-function activeScheduleSidebarTab(
-  tab: "flow" | "todo" | "repeats",
-  isWide: boolean,
-): "flow" | "todo" | "repeats" {
-  return !isWide && tab === "todo" ? "flow" : tab;
-}
 
 export function ScheduleSidebar({
   isWide,
@@ -125,7 +135,7 @@ export function ScheduleSidebar({
   todo,
 }: ScheduleSidebarProps) {
   const { t } = useTranslation();
-  const active = activeScheduleSidebarTab(tab, isWide);
+  const active = tab;
 
   const flowBody = (
     <div className="flex flex-col gap-3">
@@ -250,33 +260,49 @@ export function ScheduleSidebar({
     </div>
   );
 
-  // A-3 (#298): "本日の Todo" tray — placed / unplaced todo groups + an add
-  // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
-  // #555: rows also soft-delete (softDeleteTodo → Trash) and carry the same
-  // <TagPicker> the todo detail uses, so tags attach without leaving the tray.
+  /*
+   * A-3 (#298): the "本日の Todo" tray — placed / unplaced groups + the
+   * unscheduled pool. #555: rows also soft-delete (softDeleteTodo → Trash) and
+   * carry the same <TagPicker> the todo detail uses, so tags attach without
+   * leaving the tray.
+   *
+   * #1153 put the create pill in a heading row ABOVE the tray rather than
+   * inside a group: it makes a todo with no day, which belongs to none of the
+   * three groups underneath. Outside the scroller and not floating, for the
+   * reason D-20260827-sched-1 gives.
+   */
   const todoBody = (
-    <TodayTodoTray
+    <div className="flex flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-end">
+        <AddPill onClick={todo.onAdd} label={t("scheduleScreen.todoAddCta")} />
+      </div>
+      <TodayTodoTray
       placed={todo.placed}
       unplaced={todo.unplaced}
       addable={todo.addable}
-      onToggleComplete={todo.onToggleComplete}
-      onAddCandidate={todo.onAddCandidate}
-      onOpenTodo={todo.onOpenTodo}
-      onDelete={todo.onDelete}
-      renderRowExtra={(row) => <TagPicker itemId={row.id} />}
-      labels={{
-        placedHeading: t("scheduleScreen.todoPlacedHeading"),
-        unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
-        emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
-        emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
-        addHeading: t("scheduleScreen.todoAddHeading"),
-        addAction: t("scheduleScreen.todoAddAction"),
-        emptyAddable: t("scheduleScreen.todoEmptyAddable"),
-        complete: t("scheduleScreen.complete"),
-        openInTodos: t("scheduleScreen.todoOpenInTodos"),
-        delete: t("todoDetail.todoDelete"),
-      }}
-    />
+        onToggleComplete={todo.onToggleComplete}
+        onAddCandidate={todo.onAddCandidate}
+        onOpenTodo={todo.onOpenTodo}
+        onOpenAddable={todo.onOpenAddable}
+        onDelete={todo.onDelete}
+        renderRowExtra={(row) => <TagPicker itemId={row.id} />}
+        labels={{
+          placedHeading: t("scheduleScreen.todoPlacedHeading"),
+          unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
+          emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
+          emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
+          addHeading: t("scheduleScreen.todoAddHeading"),
+          addAction: t("scheduleScreen.todoAddAction"),
+          emptyAddable: t("scheduleScreen.todoEmptyAddable"),
+          complete: t("scheduleScreen.complete"),
+          // #1153: both open the same detail now — the label no longer
+          // promises a trip to another surface.
+          openInTodos: t("scheduleScreen.todoOpenDetail"),
+          openAddable: t("scheduleScreen.todoOpenDetail"),
+          delete: t("todoDetail.todoDelete"),
+        }}
+      />
+    </div>
   );
 
   return (

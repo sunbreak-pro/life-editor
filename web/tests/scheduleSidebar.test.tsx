@@ -10,9 +10,10 @@ import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
  * have their own suites) but the LAYOUT RULES this component carries, every
  * one of which is a silent failure when it breaks:
  *
- *   - "todo" is a Desktop-only tab, so a narrow render must fold it back to
- *     the flow. Get this wrong and narrow draws the tray under a switcher that
- *     shows nothing as active (#467).
+ *   - every tab renders at both widths since #1153. The Todo tray used to be
+ *     Desktop-only (narrow reached its todos through the section's own Todo
+ *     tab); that tab is retired, so a narrow fold would leave the phone with
+ *     no route to a todo at all.
  *   - the repeat list withholds `onDelete` on narrow (#467): a whole series
  *     must not be deletable from a fingertip-sized target. Passing it through
  *     unconditionally leaves every other test green.
@@ -103,7 +104,9 @@ function makeProps(
       onToggleComplete: vi.fn(),
       onAddCandidate: vi.fn(),
       onOpenTodo: vi.fn(),
+      onOpenAddable: vi.fn(),
       onDelete: vi.fn(),
+      onAdd: vi.fn(),
       ...over.todo,
     },
   };
@@ -115,7 +118,9 @@ const flowIsShowing = () =>
   screen.queryByText("Mon, Aug 16", { exact: false }) !== null;
 
 describe("ScheduleSidebar — which tab renders", () => {
-  it("folds the Desktop-only todo tab back to the flow on narrow (#467)", () => {
+  it("draws the todo tray on narrow too (#1153)", () => {
+    // #467 folded this tab back to the flow, because narrow had a whole Todo
+    // tab of its own. It does not any more, so the fold would be a removal.
     render(
       <ScheduleSidebar
         {...makeProps({
@@ -125,10 +130,9 @@ describe("ScheduleSidebar — which tab renders", () => {
         })}
       />,
     );
-    // The tray's own heading is the proof it is NOT showing.
-    expect(screen.queryByText("scheduleScreen.todoPlacedHeading")).toBeNull();
-    expect(screen.queryByText("Buy milk")).toBeNull();
-    expect(flowIsShowing()).toBe(true);
+    expect(screen.getByText("scheduleScreen.todoPlacedHeading")).toBeTruthy();
+    expect(screen.getByText("Buy milk")).toBeTruthy();
+    expect(flowIsShowing()).toBe(false);
   });
 
   it("shows the tray on the same tab once the layout is wide", () => {
@@ -328,5 +332,83 @@ describe("ScheduleSidebar — todo tab", () => {
     expect(screen.getByText("tag:t1")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("todoDetail.todoDelete"));
     expect(onDelete).toHaveBeenCalledWith("t1");
+  });
+});
+
+/*
+ * #1153 — the tray as the app's ONLY todo surface.
+ *
+ * Every route into a todo used to end at the Kanban tab: a row press, the
+ * unscheduled list, "make a new one". The tab is retired, so each of those had
+ * to land somewhere here instead, and none of them changes the tray's shape
+ * enough for the cases above to notice if it went missing.
+ */
+describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
+  const withTray = (
+    over: Partial<ScheduleSidebarProps["todo"]> = {},
+  ): ScheduleSidebarProps =>
+    makeProps({
+      tab: "todo",
+      todo: {
+        placed: [{ id: "t1", title: "Buy milk", completed: false }],
+        addable: [{ id: "t2", title: "Book the dentist" }],
+        ...over,
+      },
+    });
+
+  it("opens a placed row's detail instead of jumping to a board", () => {
+    const onOpenTodo = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onOpenTodo })} />);
+
+    fireEvent.click(screen.getByText("Buy milk"));
+
+    // With the id: the zero-argument version was the jump to the tab, and
+    // dropping the id would open whatever the detail happened to hold.
+    expect(onOpenTodo).toHaveBeenCalledWith("t1");
+  });
+
+  it("opens an UNSCHEDULED row's detail without placing it", () => {
+    // The two are different presses on one row — the title reads it, the "+"
+    // puts it on today — and conflating them would schedule a todo the user
+    // only meant to look at.
+    const onOpenAddable = vi.fn();
+    const onAddCandidate = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />);
+
+    fireEvent.click(screen.getByText("Book the dentist"));
+
+    expect(onOpenAddable).toHaveBeenCalledWith("t2");
+    expect(onAddCandidate).not.toHaveBeenCalled();
+  });
+
+  it("still places an unscheduled todo on today from the same row", () => {
+    const onOpenAddable = vi.fn();
+    const onAddCandidate = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoAddAction" }),
+    );
+
+    expect(onAddCandidate).toHaveBeenCalledWith("t2");
+    expect(onOpenAddable).not.toHaveBeenCalled();
+  });
+
+  it("offers the create pill above the tray", () => {
+    // Above rather than inside a group: a new todo has no day, so it belongs
+    // to none of the three groups underneath.
+    const onAdd = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onAdd })} />);
+
+    fireEvent.click(screen.getByText("scheduleScreen.todoAddCta"));
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the create pill off the other tabs", () => {
+    // It creates a TODO. On the flow or the repeat list it would read as
+    // creating whatever that tab is showing.
+    render(<ScheduleSidebar {...makeProps({ tab: "flow" })} />);
+    expect(screen.queryByText("scheduleScreen.todoAddCta")).toBeNull();
   });
 });
