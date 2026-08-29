@@ -194,6 +194,18 @@ export {
 } from "./utils/migrateLegacyPreferenceKeys";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
+// #1149 — recently OPENED notes, the candidates the Materials empty state
+// offers instead of telling the user to select from nothing. Persistent, unlike
+// the session-scoped materialsSelectionStore next to it.
+export {
+  getRecentNoteIds,
+  recordNoteOpened,
+  subscribeRecentNotes,
+  clearRecentNotes,
+  resolveRecentNotes,
+  RECENT_NOTES_LIMIT,
+} from "./state/recentNotesStore";
+export { useRecentNoteIds } from "./hooks/useRecentNotes";
 // #473 — the on-screen area, which the soft keyboard shrinks and `vh` does not.
 export {
   useVisualViewport,

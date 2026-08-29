@@ -295,6 +295,7 @@
       "permanentDeleteNote": "{{title}} を完全に削除",
       "lockedHint": "このノートはロックされています",
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
+      "recentHeading": "最近開いたノート",
       "untagged": "未分類",
       "collapseGroup": "グループを折りたたむ",
       "expandGroup": "グループを展開",

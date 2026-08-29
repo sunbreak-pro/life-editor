@@ -27,6 +27,7 @@ import {
   setNotesSelection,
   clearNotesSelection,
 } from "../state/materialsSelectionStore";
+import { recordNoteOpened } from "../state/recentNotesStore";
 
 /**
  * DU-G G4: behaviour-preserving port of the former legacy Notes hook, with the
@@ -126,6 +127,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       if (isContentLoaded(id)) {
         setSelectedNoteId(id);
         setNotesSelection(id); // #282
+        recordNoteOpened(id); // #1149: feeds the empty state's candidates
         return;
       }
       void (async () => {
@@ -134,6 +136,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         if (ok) {
           setSelectedNoteId(id);
           setNotesSelection(id); // #282
+          recordNoteOpened(id); // #1149: feeds the empty state's candidates
         }
       })();
     },
