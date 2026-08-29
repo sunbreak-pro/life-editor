@@ -87,6 +87,9 @@ export const REALTIME_TABLES = [
   "wiki_tag_group_assignments",
   "wiki_tag_assignments",
   "wiki_tag_connections",
+  // #1173 retired the calendars CODE; the table (and its publication entry)
+  // stay, so this subscription stays too and is simply silent — same shape as
+  // the routine_groups pair above.
   "calendars",
   // W3 timer/audio (0018)
   "timer_settings",

@@ -51,11 +51,11 @@ Branch: claude/design-schedule-v2
 - **セクション構成（当時の目標 IA・Routines タブは #408 で退役）**: Schedule はサイドバー本流セクション。画面上部に **header タブ「Calendar」/「Routines」** の 2 タブを持つ（2026-07-05 IA 決定）。現状の「週グリッド + Routine 管理 + 本日リスト + calendars CRUD の 1 スクロール縦積み」を、この 2 タブに整理する。
   - **Calendar タブ**（既定）: 週タイムグリッド + 選択イベント編集の右パネル。従来の「週グリッド + 右エディタペーン」をこのタブに収める
   - **Routines タブ**: ルーチンの一覧 + 編集フォーム。従来 Sheet ドロワーへ畳んでいたルーチン管理を、header タブの独立画面（MasterDetail の 2 枚組意匠）に昇格させる
-  - **カレンダー台帳（現 CalendarView = フォルダ別カレンダーの CRUD）の置き場（提案）**: **第 3 タブには昇格させない**。フォルダ別カレンダーは利用頻度が低く常設タブにするほどでないため、Calendar タブのツールバー右端の歯車 / overflow メニューから開く**軽量モーダル**に畳む。header タブは Calendar / Routines の 2 つに保ち、ナビをすっきりさせる
+  - **カレンダー台帳（現 CalendarView = フォルダ別カレンダーの CRUD）の置き場（提案）**: **第 3 タブには昇格させない**。フォルダ別カレンダーは利用頻度が低く常設タブにするほどでないため、Calendar タブのツールバー右端の歯車 / overflow メニューから開く**軽量モーダル**に畳む。header タブは Calendar / Routines の 2 つに保ち、ナビをすっきりさせる → **2026-08-29 #1173 で決着**: 台帳そのものを退役し、同じ軽量モーダルの中身を**タグのマルチセレクト + 保存グループ**（`TagFilterPanel`）に置き換えた。導線は歯車ではなくフィルタアイコン
 - **残す意匠 / 変える意匠**:
   - 残す: クリック作成 → 即編集の操作モデル（30 分スナップ / 60 分デフォルト）、ドラッグ移動 + 下端リサイズ、Today ボタン + 週送りシェブロン、右ペーンエディタ、日曜始まり、終日レーン、完了 = 取り消し線 + 減光、フラット寄りの密度感
   - 変える: (a) スケジュールを**全幅レイアウト**に昇格 (b) **routine = 藍 / 単発 event = 紫の色符号 + 繰り返しアイコン**で由来を可視化（色だけに頼らない） (c) now line + 今日列の薄い地色 (d) エディタに由来表示 /「この日はスキップ」/ 削除 / メモを追加 (e) **Routine 管理を縦積みから header タブ「Routines」へ昇格**（現状の 1 スクロール縦積みを解体） (f) 空・ローディング・エラー状態の設計 (g) Mobile に FAB + 最小入力シートの Quick capture
-- **使う既存部品**: Button / Card / BottomSheet（Mobile エディタ・Quick capture）/ Sheet / Menu（イベント操作・calendars モーダル）/ Toast(操作フィードバック) / Sidebar / CommandPalette / MasterDetail（Routines タブの一覧 + 編集）/ header タブの標準意匠（形状・アクティブ表現は shell brief が定義するものを参照）
+- **使う既存部品**: Button / Card / BottomSheet（Mobile エディタ・Quick capture）/ Sheet / Menu（イベント操作・絞り込みモーダル — #1173 以前は calendars モーダル）/ Toast(操作フィードバック) / Sidebar / CommandPalette / MasterDetail（Routines タブの一覧 + 編集）/ header タブの標準意匠（形状・アクティブ表現は shell brief が定義するものを参照）
 - **新規に必要な部品候補**（部品層への追加候補として列挙のみ。実装しない）: ScheduleEventBlock（routine / event / 完了の色符号 + バッジ内蔵ブロック）、NowIndicator(現在時刻ライン)、RoutineFrequencyChip（「毎日」「月・水・金」「3 日ごと」「グループ: 平日夜」表示チップ）、ScheduleQuickAddSheet（タイトル + 時刻だけの最小作成シート）、FloatingActionButton、SegmentedControl（他セクションの Mobile header タブ継承に使う横断候補。schedule 自体は Mobile で Routines を落とすため未使用）
 
 ## 4. ClaudeDesign プロンプト
@@ -151,7 +151,7 @@ Branch: claude/design-schedule-v2
 
 - 左サイドバー（展開 240px）: 本流セクション「Schedule」（Clock アイコン）がアクティブ
 - **header タブ（画面上部の水平タブ）**（#408 で retired — Routines タブは廃止し Schedule のヘッダーは単一タイトルへ）: 「Calendar」/「Routines」の 2 タブ。既定は「Calendar」。タブは下線式（アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし。タブ列の下端に border の薄い区切り線を全幅で引く）でアクティブを示し、セクション見出しの直下に置く（この画面のフレームは Calendar タブ表示が基本。1 枚だけ Routines タブに切り替えた状態も描く）
-- ツールバー（header タブの下・1 行）: 左から「今日」ボタン / ◀ ▶ の週送りアイコンボタン / 週範囲ラベル「7/5 – 7/11」。右端に「+ 予定を追加」のプライマリボタン（accent 地 + on-accent 文字）、その左に歯車アイコンボタン（フォルダ別カレンダーの管理モーダルを開く導線。モーダル自体は今回描かない）
+- ツールバー（header タブの下・1 行）: 左から「今日」ボタン / ◀ ▶ の週送りアイコンボタン / 週範囲ラベル「7/5 – 7/11」。右端に「+ 予定を追加」のプライマリボタン（accent 地 + on-accent 文字）、その左にフィルタアイコンボタン（タグの絞り込みパネルを開く導線。モーダル自体は今回描かない。2026-08-29 #1173 で歯車から差し替え — 絞り込み中は accent の枠 + 地色で点灯する）
 - 主役（Calendar タブの中身） = **週タイムグリッド**（ツールバー直下、画面幅いっぱい）:
   - 左端に時間軸の列(幅 52px 程度)。「07:00」〜「23:00」あたりが見えていて、上下にスクロールできる気配を出す
   - 上端に曜日ヘッダー行「日 7/5 … 土 7/11」。**今日（木 7/9）の列はヘッダーを accent 文字 + 太字にし、列全体に極薄の地色**を敷いて一目で分かるように
@@ -335,6 +335,6 @@ Mobile のスケジュールは「閲覧 + 素早い記録」に責務を絞る�
 - 分業: 生成 = claude.ai/design 側（ユーザーがプロンプト投入）/ Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
 - 移植先候補: `shared/src/components/schedule/`（WeekTimeGrid の拡張 + 新規部品は §3 の候補リストを参照。生成結果を見てから確定）
 - 生成デザインへのフィードバックで本 brief の §4 を更新した場合、Status と履歴を追記する
-- **スコープ注記**: Routine 管理 UI は header タブ「Routines」（Desktop フレーム 4・MasterDetail の 2 枚組）でカバーする。calendars（フォルダ別カレンダー）の CRUD は Calendar タブのツールバー歯車から開く軽量モーダルに畳む提案（§3）。モーダル内部の詳細意匠は本 brief では意図的に対象外（必要になれば §4 の iterate で追加する）
+- **スコープ注記**: Routine 管理 UI は header タブ「Routines」（Desktop フレーム 4・MasterDetail の 2 枚組）でカバーする。calendars（フォルダ別カレンダー）の CRUD は Calendar タブのツールバー歯車から開く軽量モーダルに畳む提案（§3）→ #1173 で台帳ごと退役し、同じモーダルはタグ絞り込みパネルになった。モーダル内部の詳細意匠は本 brief では意図的に対象外（必要になれば §4 の iterate で追加する）
 - **palette 同期状況（v2・2026-07-05）**: 本 brief は `_COMMON-CONTEXT.md` **v2**（accent = Lumen blue `#1d4ed8` 系・`shared/src/styles/tokens.css` の PR #135 に同期済み）を §4 の共通前提ブロックに全文埋め込み済み。v1 の旧 accent 系 hex は一掃済み。今後 `_COMMON-CONTEXT.md` が更新された場合は、§4 の共通前提ブロックを再コピーすること（全文コピー・改変禁止の規則に従う）→ 2026-07-05: **v3**（rightSidebar + ハンバーガー追加）へ再コピー済み
 - **整合監査 fix（2026-07-05・chat-frontend）**: header タブの表現を「下線 or 塗り」の両論併記から shell brief 定義の標準（2px accent 下線式）へ確定

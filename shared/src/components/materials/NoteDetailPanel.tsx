@@ -132,18 +132,23 @@ export interface NoteDetailPanelProps {
   /** Already-translated aria-label for the kebab (more-actions) trigger. */
   moreActionsLabel: string;
   /**
-   * Open the note templates surface (#1047). Paired with
-   * `createTemplateLabel` — the item is drawn only when both are given, like
+   * Register THIS note as a template (#1179). Paired with
+   * `registerTemplateLabel` — the item is drawn only when both are given, like
    * every other optional row here, so a host cannot ship a menu entry with no
    * name for it.
    *
+   * It replaced the entry that opened an empty template workshop (#1047). The
+   * template someone wants is nearly always the note already in front of them,
+   * and re-typing it into a second surface was the whole cost of the old
+   * route; the confirmation panel is where the name gets adjusted afterwards.
+   *
    * It lives in the kebab rather than beside the "+" that makes notes because
-   * a template is not another kind of note to create — it is the drawer you
-   * open when you are about to write the same note for the fifth time.
+   * registering is something done TO the open note, not another kind of note
+   * to create.
    */
-  onOpenTemplates?: () => void;
-  /** Already-translated label for the templates menu entry. */
-  createTemplateLabel?: string;
+  onRegisterTemplate?: () => void;
+  /** Already-translated label for the register-as-template menu entry. */
+  registerTemplateLabel?: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
   /**
@@ -180,8 +185,8 @@ export function NoteDetailPanel({
   pinnedLabel,
   deleteLabel,
   moreActionsLabel,
-  onOpenTemplates,
-  createTemplateLabel,
+  onRegisterTemplate,
+  registerTemplateLabel,
   tagsSlot,
   linksSlot,
   contentLabel,
@@ -260,18 +265,18 @@ export function NoteDetailPanel({
             >
               {isPinned ? pinLabel : unpinLabel}
             </MenuItem>
-            {/* #1047 — above the delete, below the pin: it opens a surface
-                rather than changing this note, so it does not belong next to
-                the destructive row. */}
-            {onOpenTemplates && createTemplateLabel && (
+            {/* #1179 — above the delete, below the pin: it files a COPY of
+                this note somewhere else rather than changing or destroying it,
+                so it does not belong next to the destructive row. */}
+            {onRegisterTemplate && registerTemplateLabel && (
               <MenuItem
                 icon={<FileStack size={14} aria-hidden />}
                 onSelect={() => {
-                  onOpenTemplates();
+                  onRegisterTemplate();
                   setMenuOpen(false);
                 }}
               >
-                {createTemplateLabel}
+                {registerTemplateLabel}
               </MenuItem>
             )}
             <MenuItem

@@ -129,7 +129,15 @@ export function SegmentedControl({
             onClick={disabled ? undefined : () => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
-              "flex-1 rounded-lumen-sm text-center",
+              // A FLEX box, not a plain block (#1207). The track stretches
+              // every segment to the tallest one, so as soon as one label
+              // wraps, a one-line label sits pinned at the top of its own
+              // button while its neighbours fill theirs — the three labels
+              // stop sharing a baseline. Centring inside each segment lines
+              // them up whatever the line count. Single-line rows are
+              // unaffected: the height is still content + padding, and the
+              // text was already in the middle of it.
+              "flex flex-1 items-center justify-center rounded-lumen-sm text-center",
               SIZE_CLASSES[size],
               "transition-colors focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",

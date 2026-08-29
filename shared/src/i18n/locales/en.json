@@ -123,6 +123,23 @@
       "button": "Reset preferences",
       "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected.",
       "confirmButton": "Reset and reload"
+    },
+    "tabs": {
+      "navLabel": "Settings categories",
+      "general": "General",
+      "tips": "Tips"
+    },
+    "placeholder": {
+      "message": "Settings for this section will land here as they arrive."
+    },
+    "schedule": {
+      "heading": "Schedule",
+      "description": "How the Schedule section opens and behaves.",
+      "initialViewLabel": "Opens on",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid."
     }
   },
   "timerSettings": {
@@ -306,7 +323,11 @@
     },
     "templates": {
       "title": "Templates",
-      "menuEntry": "Create a template",
+      "menuEntry": "Register as template",
+      "defaultName": "{{title}} template",
+      "savedTitle": "Template created",
+      "savedHint": "You can find it in the right sidebar (Show details).",
+      "savedDone": "Done",
       "listHeading": "Templates",
       "empty": "No templates yet",
       "new": "New",
@@ -331,6 +352,15 @@
       "pickerLabelShort": "Link",
       "open": "Open {{title}}",
       "remove": "Remove link with {{title}}"
+    },
+    "related": {
+      "open": "Show related",
+      "dialog": "Related items",
+      "links": "Links",
+      "sharedTags": "Shares a tag",
+      "sameDayDaily": "That day’s daily",
+      "empty": "Nothing related yet",
+      "sectionCount": "{{label}} ({{count}})"
     },
     "daily": {
       "toToday": "Today",
@@ -465,25 +495,6 @@
     "attachedNote": "Linked note",
     "clearNote": "Remove the note",
     "noteAttachFailed": "Couldn't link the note. It is not attached to what you just added.",
-    "openSettings": "Manage calendars",
-    "calendarsTitle": "Calendars",
-    "calendarFilterLabel": "Filter by calendar",
-    "calendarFilterHidden": "{{count}} hidden",
-    "calendarFilterShow": "Show every calendar",
-    "calendarsLoading": "Loading calendars…",
-    "calendarsLoadError": "Couldn't load calendars: {{error}}",
-    "calendarsHeadingCount": "Calendars ({{count}})",
-    "calendarsNoTags": "Create a tag first. A calendar is a view over the items carrying one life tag, so there is nothing to point it at yet.",
-    "calendarTagsLoading": "Loading tags…",
-    "calendarTitlePlaceholder": "Calendar name",
-    "calendarTagSelectLabel": "Life tag",
-    "calendarTagSelectPlaceholder": "Pick a tag…",
-    "calendarAdd": "Add",
-    "calendarTitleAria": "Name of {{title}}",
-    "calendarTagPrefix": "tag: {{name}}",
-    "calendarTagMissing": "This tag is gone, so this calendar can never match anything. Delete it and make a new one.",
-    "calendarDelete": "Delete",
-    "calendarsEmpty": "No calendars yet.",
     "title": "Title",
     "date": "Date",
     "startTime": "Start",
@@ -570,7 +581,28 @@
     "scopeThisOnly": "This event only",
     "scopeThisAndFuture": "This and following events",
     "scopeAll": "All events (including past)",
-    "scopeCancel": "Cancel"
+    "scopeCancel": "Cancel",
+    "openFilter": "Filter by tag",
+    "filterActive": "Filtered by {{count}} tags",
+    "filterTitle": "Filter by tag",
+    "groupFilterLabel": "Filter by group",
+    "groupFilterHidden": "{{count}} hidden",
+    "groupFilterShow": "Show everything",
+    "filterTagsHeading": "Tags",
+    "filterTagsLabel": "Tags to show",
+    "filterTagsLoading": "Loading tags…",
+    "filterNoTags": "Create a tag first. The grid is filtered by the life tags your items carry, so there is nothing to narrow it by yet.",
+    "filterClear": "Clear",
+    "filterSelectedCount": "{{count}} selected",
+    "filterGroupsHeading": "Saved groups",
+    "filterGroupsEmpty": "No groups yet. Tick some tags above and name the set to save it.",
+    "filterGroupNamePlaceholder": "Group name",
+    "filterGroupSave": "Save group",
+    "filterGroupSaveHint": "Tick at least one tag to save a group.",
+    "filterGroupApply": "Apply",
+    "filterGroupRename": "Group name",
+    "filterGroupDelete": "Delete {{name}}",
+    "filterGroupEmpty": "Every tag in this group is gone."
   },
   "analytics": {
     "title": "Analytics",
@@ -871,6 +903,16 @@
       "submit": "Set the password",
       "busy": "Saving…"
     },
+    "confirm": {
+      "heading": "Check your inbox",
+      "description": "A confirmation link is on its way to this address.",
+      "hint": "Open it to finish creating your account. Nothing after a few minutes? Look in the spam folder, or send the link again.",
+      "resend": "Send the link again",
+      "busy": "Sending…",
+      "sent": "Sent. Use the newest link — the earlier ones stop working.",
+      "error": "Could not send the link. Please wait a moment and try again.",
+      "back": "Back to sign in"
+    },
     "legal": {
       "consent": "By creating an account you agree to the following.",
       "terms": "Terms of Service",
@@ -881,7 +923,8 @@
     "errors": {
       "invalidCredentials": "Email or password is incorrect",
       "alreadyRegistered": "This email address is already registered",
-      "noSession": "Signed up, but no session was started. Check that confirm-email is disabled (Phase 1).",
+      "noSession": "Signed up, but no session was started. Try signing in with the address and password you just used.",
+      "emailNotConfirmed": "This address has not been confirmed yet. Open the link in the sign-up email, or have it sent again.",
       "generic": "Authentication failed. Please wait a moment and try again."
     }
   },
@@ -964,7 +1007,7 @@
     "progress": "{{current}} / {{total}}",
     "waitingForAction": "Try it to continue",
     "steps": {
-      "briefingIntro": "This is your briefing — the day's plan, notes and open items in one page. It is what opens when you launch the app.",
+      "briefingIntro": "This is the Briefing — the day on one page. You do not write it: Claude Code fills it in through the desktop app's MCP connection. On the web on its own it stays empty, which is normal rather than broken.",
       "scheduleCreateEvent": "Start here to put something on the calendar. Add one event — the tour waits until it exists, not until you press the button.",
       "scheduleAdjustEvent": "Open the event you just made and change its time. Plans move; this is how you move them.",
       "scheduleOpenTodos": "Todos live in the same section as the calendar. Open the Todo tab.",
@@ -975,5 +1018,13 @@
       "materialsNoteTag": "Give it a tag. Tags are how a note joins everything else about the same thing.",
       "materialsTagFollow": "Pick a tag here to see only what carries it — that is how you get back to related notes later."
     }
+  },
+  "errorBoundary": {
+    "appTitle": "Something went wrong",
+    "appDescription": "The app hit an unexpected error. Reloading the page usually clears it.",
+    "sectionTitle": "This section could not be shown",
+    "sectionDescription": "Try again, move to another section, or reload the page if it keeps happening.",
+    "retry": "Try again",
+    "reload": "Reload"
   }
 }

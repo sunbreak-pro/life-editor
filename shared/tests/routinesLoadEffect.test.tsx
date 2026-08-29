@@ -108,7 +108,7 @@ describe("useRoutinesAPI load effect (#672)", () => {
 
     act(() => {
       sync.bump("notes");
-      sync.bump("calendars");
+      sync.bump("audio");
     });
     await act(async () => {});
     expect(fetchAllRoutines).toHaveBeenCalledTimes(1);

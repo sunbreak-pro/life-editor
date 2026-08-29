@@ -1,9 +1,9 @@
 import {
   ChevronLeft,
   ChevronRight,
+  ListFilter,
   Plus,
   Repeat,
-  Settings,
 } from "lucide-react";
 import { cn } from "../cn";
 import { SegmentedControl, type SegmentedOption } from "../SegmentedControl";
@@ -13,18 +13,31 @@ import { TOUR_ANCHORS } from "../tour/anchors";
 
 /*
  * ScheduleToolbar (W8 target-IA) — the Calendar-tab toolbar: Today / ◀▶ /
- * period label on the left; view segmented control + settings gear + primary
- * "add event" button on the right. Pure presentation (§3.1 / §6.4): every
- * label is injected already translated, every action is a callback. lumen-*
- * tokens only (§5).
+ * period label on the left; view segmented control + tag-filter button +
+ * primary "add event" button on the right. Pure presentation (§3.1 / §6.4):
+ * every label is injected already translated, every action is a callback.
+ * lumen-* tokens only (§5).
+ *
+ * #1173 replaced the settings GEAR with a filter icon. The gear opened a
+ * calendars ledger whose only job was saving tag filters, so it promised
+ * "settings for this screen" and delivered one narrow thing — and, being a
+ * gear, it read as the last place to look for a filter. The button now says
+ * what it does, and lights up while the grid is narrowed so the state and its
+ * way back out are the same control (the same rule the repeat toggle follows).
  */
 
 export interface ScheduleToolbarLabels {
   today: string;
   prev: string;
   next: string;
-  /** aria-label / tooltip for the settings gear (calendars modal). */
-  openSettings?: string;
+  /** aria-label / tooltip for the tag-filter button, filter OFF. */
+  openFilter?: string;
+  /**
+   * Same button, filter ON: what is currently narrowing the grid, count
+   * included (e.g. "Filtered by 2 tags"). The label carries the number for
+   * the #466 reason — an empty slot on a filtered grid reads as free time.
+   */
+  filterActive?: string;
   /** Accessible name for the view segmented control. */
   view?: string;
   /** Repeat filter, filter OFF: the action ("Hide repeats"). */
@@ -54,8 +67,10 @@ export interface ScheduleToolbarProps {
   onToggleRepeats?: () => void;
   /** Whether repeat-generated items are currently folded out of the grid. */
   repeatsHidden?: boolean;
-  /** Settings gear (calendars modal). Hidden when omitted. */
-  onOpenSettings?: () => void;
+  /** Opens the tag-filter panel. Hidden when omitted. */
+  onOpenFilter?: () => void;
+  /** Whether a tag filter is currently narrowing the grid. */
+  filterActive?: boolean;
   /** Primary add-event action. Hidden when omitted. */
   onAddEvent?: () => void;
   /** Already-translated label for the add-event button. */
@@ -77,7 +92,8 @@ export function ScheduleToolbar({
   onChangeView,
   onToggleRepeats,
   repeatsHidden = false,
-  onOpenSettings,
+  onOpenFilter,
+  filterActive = false,
   onAddEvent,
   addEventLabel,
   labels,
@@ -143,14 +159,19 @@ export function ScheduleToolbar({
         label={labels.view}
         className="w-auto"
       />
-      {onOpenSettings && (
+      {onOpenFilter && (
         <button
           type="button"
-          aria-label={labels.openSettings}
-          onClick={onOpenSettings}
-          className={ICON_BTN}
+          aria-label={filterActive ? labels.filterActive : labels.openFilter}
+          aria-pressed={filterActive}
+          onClick={onOpenFilter}
+          className={cn(
+            ICON_BTN,
+            filterActive &&
+              "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
+          )}
         >
-          <Settings aria-hidden className="size-3.5" />
+          <ListFilter aria-hidden className="size-3.5" />
         </button>
       )}
       {onAddEvent && (

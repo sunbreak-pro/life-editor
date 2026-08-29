@@ -282,9 +282,12 @@ describe("a missing anchor costs its own step, not the tour", () => {
     );
     startTour();
 
-    await waitFor(() => expect(state()).toContain("two|run"), {
-      timeout: 2000,
-    });
+    // `shownStep()` rather than `state()).toContain("two|run")`: the readout
+    // while the tour is still probing is `none|run|…`, and "none|run" contains
+    // "one|run" — a substring assertion here cannot tell a landed step from a
+    // step that never landed (#1193).
+    await waitFor(() => expect(shownStep()).toBe("two"), { timeout: 2000 });
+    expect(state()).toContain("2/2");
   });
 
   it("asks the host to navigate when the step lives elsewhere", async () => {
@@ -679,5 +682,151 @@ describe("the bubble is a dialog", () => {
 
     // …and the copy announces instead, since no focus move will do it.
     expect(screen.getByText("copy:one")).toHaveAttribute("aria-live", "polite");
+  });
+});
+
+/*
+ * Resuming a tour whose anchor is not there any more (#1193).
+ *
+ * The steps late in a section stand on what the earlier ones set up — a note
+ * is selected, the todo tab is open — and a reload starts from the empty
+ * state. Walking FORWARD from a stored position therefore meets the same kind
+ * of anchor at every step and shows nothing; and a run that shows nothing does
+ * not move the stored position, so the next reload does it again. That is why
+ * the tour never came back rather than merely coming back wrong.
+ *
+ * These use the same three-anchors-in-a-row shape as the tests above: which
+ * anchors exist is the whole input, and the direction of the give-up walk is
+ * the whole output.
+ */
+const RESUME_STEPS: readonly TourStep[] = [
+  {
+    id: "one",
+    section: "briefing",
+    anchor: "step-one",
+    copyKey: "tour.steps.briefingIntro",
+    advanceOn: { kind: "next" },
+  },
+  {
+    id: "two",
+    section: "briefing",
+    anchor: "step-two",
+    copyKey: "tour.steps.materialsCapture",
+    advanceOn: { kind: "next" },
+  },
+  {
+    id: "three",
+    section: "briefing",
+    anchor: "step-three",
+    copyKey: "tour.steps.materialsNoteBody",
+    advanceOn: { kind: "next" },
+  },
+];
+
+/** The reload case: progress on disk, nothing shown yet. */
+function seedResumeAt(stepId: string) {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ stepId, completed: false, skipped: false }),
+  );
+}
+
+/**
+ * The id of the step ON SCREEN, read as a field rather than as a substring of
+ * `state()`.
+ *
+ * `expect(state()).toContain("one|run")` looks like it asserts step "one" and
+ * does not: while the tour is probing with nothing displayed the readout is
+ * `none|run|…`, and "none|run" CONTAINS "one|run". Every rewind test below
+ * would have passed against a Provider that only ever walks forward. Caught by
+ * mutating the fix out and watching them stay green.
+ */
+const shownStep = (): string => state().split("|")[0];
+
+describe("a resumed run rewinds instead of skipping (#1193)", () => {
+  it("walks back to a step whose anchor is actually there", async () => {
+    seedResumeAt("three");
+    // Only the first anchor exists — the app is in the empty state a reload
+    // leaves behind, where "three" and "two" cannot be resolved.
+    render(<Harness steps={RESUME_STEPS} anchors={["step-one"]} />);
+
+    startTour();
+
+    await waitFor(() => expect(shownStep()).toBe("one"), { timeout: 2000 });
+    expect(state()).toContain("1/3");
+  });
+
+  it("stops at the first landable step rather than walking all the way back", async () => {
+    seedResumeAt("three");
+    render(<Harness steps={RESUME_STEPS} anchors={["step-one", "step-two"]} />);
+
+    startTour();
+
+    await waitFor(() => expect(shownStep()).toBe("two"), { timeout: 2000 });
+    expect(state()).toContain("2/3");
+  });
+
+  it("leaves the stored position alone while it rewinds", async () => {
+    // The rewind is a give-up, not a walk. Recording it would move the resume
+    // point BACKWARD through steps nobody chose to redo — the mirror image of
+    // the forward-walk bug the "gaveUp" reason exists to prevent.
+    seedResumeAt("three");
+    render(<Harness steps={RESUME_STEPS} anchors={["step-one"]} />);
+
+    startTour();
+    await waitFor(() => expect(shownStep()).toBe("one"), { timeout: 2000 });
+
+    expect(readProgress()).toEqual({
+      stepId: "three",
+      completed: false,
+      skipped: false,
+    });
+  });
+
+  it("still scans FORWARD on a fresh run", async () => {
+    // The forward scan is #1122's fallback: a first run has to walk past the
+    // steps whose sections have no anchors yet to reach the ones that do.
+    // Rewinding a fresh run would break that on the first step.
+    render(<Harness steps={RESUME_STEPS} anchors={["step-three"]} />);
+
+    startTour();
+
+    await waitFor(() => expect(shownStep()).toBe("three"), { timeout: 2000 });
+  });
+
+  it("goes forward again once a step has been shown", async () => {
+    // Resume lands on "two", so the run is no longer recovering a position.
+    // "three" having no anchor is then an ordinary skip — the shape
+    // `materials-tag-follow` really has, since the tag filter only renders
+    // with more than one group — and must not send the user back to "one".
+    seedResumeAt("two");
+    render(<Harness steps={RESUME_STEPS} anchors={["step-two"]} />);
+
+    startTour();
+    await waitFor(() => expect(shownStep()).toBe("two"), { timeout: 2000 });
+
+    fireEvent.click(screen.getByText(LABELS.next));
+
+    await waitFor(() => expect(state()).toContain("done"), { timeout: 2000 });
+    expect(shownStep()).toBe("none");
+  });
+
+  it("does not mark a run complete when the rewind finds nothing either", async () => {
+    // The invariant #1122 set: a run that displayed nothing is "the anchors
+    // are not there", never "the user finished". Running out of earlier steps
+    // must not turn into a completion.
+    seedResumeAt("three");
+    render(<Harness steps={RESUME_STEPS} anchors={[]} />);
+
+    startTour();
+
+    await waitFor(() => expect(state()).toContain("|idle"), { timeout: 3000 });
+    expect(shownStep()).toBe("none");
+    expect(state()).not.toContain("done");
+    expect(readProgress()).toEqual({
+      stepId: "three",
+      completed: false,
+      skipped: false,
+    });
   });
 });

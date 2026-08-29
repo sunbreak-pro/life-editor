@@ -44,20 +44,26 @@ export function applyRepeatFilter<T extends RepeatFilterable>(
   return { visible, hiddenCount: items.length - visible.length };
 }
 
-/* ── Calendar lens (#468) ─────────────────────────────────────────────────────
+/* ── Tag lens (#468, re-based on tag groups by #1173) ────────────────────────
  *
- * A `calendars` row is not a container — it is a saved view over ONE life tag,
- * so "is this row in that calendar?" is really "does this row carry that tag?".
- * The membership set is built once per (assignments, tag) pair and handed to
- * the narrowing function, which keeps the per-row test to a Set lookup.
+ * The lens is not a container — it is a set of life tags, so "is this row in
+ * the lens?" is really "does this row carry ANY of those tags?". The
+ * membership set is built once per (assignments, tags) pair and handed to the
+ * narrowing function, which keeps the per-row test to a Set lookup.
  *
- * The two filters compose as an independent AND (repeat → calendar), and each
+ * Membership is a UNION, not an intersection. #1173 turned the one-tag
+ * `calendars` row into a many-tag group, and an AND would have made the
+ * obvious act — ticking a second tag to also see that work — REMOVE rows,
+ * since almost nothing carries two life tags at once. "Show me Work or
+ * Personal" is what the picker looks like it does, so it is what it does.
+ *
+ * The two filters compose as an independent AND (repeat → tags), and each
  * reports its OWN hidden count. Chaining the counts instead would double-count
- * a repeat-generated row that the calendar filter would also have dropped, and
+ * a repeat-generated row that the tag filter would also have dropped, and
  * "N hidden" that overshoots the missing rows is worse than no number at all.
  */
 
-/** The minimum an item must expose to be tested for calendar membership. */
+/** The minimum an item must expose to be tested for lens membership. */
 export interface CalendarFilterable extends RepeatFilterable {
   /** `items_meta.id` of this row. */
   id: string;
@@ -71,44 +77,48 @@ export interface CalendarMemberAssignment {
 
 export interface CalendarFilterResult<T> {
   visible: T[];
-  /** How many rows the calendar lens folded away (0 when it is off). */
+  /** How many rows the tag lens folded away (0 when it is off). */
   hiddenCount: number;
 }
 
 /**
- * Collect the item ids carrying `tagId` — the membership set of one calendar.
+ * Collect the item ids carrying ANY of `tagIds` — the membership set of one
+ * lens (an ad-hoc tick list, or a saved group's tags).
  *
  * Pass the ALREADY active-only assignment list (the service filters both the
  * assignment and its item on `is_deleted`); this helper does no such filtering
- * of its own. A null/empty `tagId` yields an empty set rather than "everything",
- * because a calendar bound to nothing owns nothing.
+ * of its own. An empty/absent `tagIds` yields an empty set rather than
+ * "everything", because a lens bound to nothing owns nothing — the caller
+ * signals "no filter" by passing `null` to `applyCalendarFilter`, not by
+ * passing an empty tag list here.
  */
-export function buildCalendarMemberIds(
+export function buildTagMemberIds(
   assignments: readonly CalendarMemberAssignment[],
-  tagId: string | null | undefined,
+  tagIds: readonly string[] | null | undefined,
 ): Set<string> {
   const ids = new Set<string>();
-  if (!tagId) return ids;
+  if (!tagIds || tagIds.length === 0) return ids;
+  const wanted = new Set(tagIds);
   for (const a of assignments) {
-    if (a.tagId === tagId) ids.add(a.itemId);
+    if (wanted.has(a.tagId)) ids.add(a.itemId);
   }
   return ids;
 }
 
 /**
- * Narrow a grid list to one calendar's members.
+ * Narrow a grid list to the lens's members.
  *
  * `memberIds == null` is the identity case and returns the SAME array
  * reference, matching `applyRepeatFilter`'s contract — a host memo downstream
  * must not invalidate while the lens is off. An EMPTY set is NOT the same
- * thing: that is a chosen calendar that happens to own nothing, and it
+ * thing: that is a chosen tag set that happens to own nothing, and it
  * correctly empties the grid.
  *
  * Routine inheritance: occurrences generated from a Routine carry their own
  * ids, so tagging the series (the routine row) would otherwise match none of
- * them. A row belongs to the calendar if its own id OR its source routine's id
- * is in the set — which is also the only way a repeat can be filed at all,
- * since #185 hides Routine behind "an Event with a repeat".
+ * them. A row is in the lens if its own id OR its source routine's id is in
+ * the set — which is also the only way a repeat can be filed at all, since
+ * #185 hides Routine behind "an Event with a repeat".
  */
 export function applyCalendarFilter<T extends CalendarFilterable>(
   items: T[],
@@ -123,27 +133,27 @@ export function applyCalendarFilter<T extends CalendarFilterable>(
   return { visible, hiddenCount: items.length - visible.length };
 }
 
-/** The minimum a `calendars` row must expose to be offered as a lens. */
-export interface SelectableCalendar {
-  /** `wiki_tags(id)` this calendar is a saved view over. */
-  tagId: string;
-}
-
 /**
- * Drop calendars whose tag no longer exists.
+ * Drop the tag ids whose tag no longer exists.
  *
- * `calendars.tag_id` FKs `wiki_tags(id)` ON DELETE CASCADE, but a tag is
- * SOFT-deleted — the row survives, the cascade never fires, and the calendar is
- * left pointing at a tag no active list returns. Such a calendar matches zero
- * rows forever, and a chip that always empties the grid reads as a bug, so it
- * is never offered as a lens. Pass the ACTIVE tag ids (`allTags` is already
- * `is_deleted=false` filtered by the service).
+ * `wiki_tag_group_assignments.tag_id` FKs `wiki_tags(id)` ON DELETE CASCADE,
+ * but a tag is SOFT-deleted — the row survives, the cascade never fires, and
+ * the group is left holding an id no active list returns. A dead id can only
+ * ever contribute zero rows to the union, so it is dropped before the lens is
+ * built. Pass the ACTIVE tag ids (`allTags` is already `is_deleted=false`
+ * filtered by the service).
+ *
+ * A group left with NO live tags is the case the caller has to decide about:
+ * this returns an empty array, and offering that as a chip would be a filter
+ * that always empties the grid — which reads as a bug, so `useScheduleGrid
+ * Filters` keeps it out of the chip row (the same rule the retired
+ * `pickSelectableCalendars` enforced for a dangling one-tag calendar).
  */
-export function pickSelectableCalendars<C extends SelectableCalendar>(
-  calendars: readonly C[],
+export function pickGroupTagIds(
+  tagIds: readonly string[],
   activeTagIds: ReadonlySet<string>,
-): C[] {
-  return calendars.filter((c) => activeTagIds.has(c.tagId));
+): string[] {
+  return tagIds.filter((id) => activeTagIds.has(id));
 }
 
 export interface CalendarLensResult<E, T> {
@@ -168,8 +178,8 @@ export interface CalendarLensResult<E, T> {
  * The grid stacks two independent sources — schedule rows and scheduled-todo
  * chips — and both can carry life tags (`KanbanView` tags todos with the same
  * `wiki_tags`, and a chip's id IS the todo's `items_meta.id`). Narrowing only
- * the schedule rows would hide the events of the other calendars while leaving
- * every todo on screen, i.e. a lens that is not a lens.
+ * the schedule rows would hide the other tags' events while leaving every todo
+ * on screen, i.e. a lens that is not a lens.
  *
  * Identity (`memberIds == null`) returns the SAME array references, matching
  * `applyCalendarFilter`'s contract so host memos downstream stay stable.

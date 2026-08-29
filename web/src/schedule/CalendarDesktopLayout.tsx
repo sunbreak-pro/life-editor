@@ -65,18 +65,24 @@ export interface CalendarDesktopToolbar {
   onChangeView: (id: string) => void;
   onToggleRepeats: () => void;
   /** Open the calendars modal (the settings gear). */
-  onOpenSettings: () => void;
+  onOpenFilter: () => void;
+  /** Whether a tag filter is narrowing the grid (lights the button). */
+  filterActive: boolean;
   onAddEvent: () => void;
 }
 
 /** #468 calendar lens — the single-select chip row under the toolbar. */
 export interface CalendarDesktopLens {
   chips: CalendarLensRowProps["chips"];
-  /** The calendar in effect, or null while the grid shows everything. */
+  /** The saved group in effect, or null (unsaved tick list, or no filter). */
   activeId: string | null;
   /** Rows this lens takes off the grid — its own count, not a running total. */
   hiddenCount: number;
   onChange: CalendarLensRowProps["onChange"];
+  /** Whether the grid is narrowed at all — wider than `activeId != null`. */
+  filtered: boolean;
+  /** Clears the lens whatever set it (a chip, or an ad-hoc tick list). */
+  onClear: () => void;
 }
 
 /** Everything the two grids draw from. */
@@ -251,7 +257,8 @@ export function CalendarDesktopLayout({
         onChangeView={toolbar.onChangeView}
         onToggleRepeats={toolbar.onToggleRepeats}
         repeatsHidden={toolbar.repeatsHidden}
-        onOpenSettings={toolbar.onOpenSettings}
+        onOpenFilter={toolbar.onOpenFilter}
+        filterActive={toolbar.filterActive}
         onAddEvent={toolbar.onAddEvent}
         addEventLabel={t("scheduleScreen.addEvent")}
         labels={{
@@ -272,12 +279,14 @@ export function CalendarDesktopLayout({
         chips={lens.chips}
         activeId={lens.activeId}
         onChange={lens.onChange}
+        filtered={lens.filtered}
+        onClear={lens.onClear}
         labels={{
-          filterLabel: t("scheduleScreen.calendarFilterLabel"),
-          hidden: t("scheduleScreen.calendarFilterHidden", {
+          filterLabel: t("scheduleScreen.groupFilterLabel"),
+          hidden: t("scheduleScreen.groupFilterHidden", {
             count: lens.hiddenCount,
           }),
-          showAll: t("scheduleScreen.calendarFilterShow"),
+          showAll: t("scheduleScreen.groupFilterShow"),
         }}
       />
       {banner}

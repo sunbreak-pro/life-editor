@@ -4,6 +4,7 @@ import {
   addMonthsKey,
   monthGridKeys,
   normalizeDesktopView,
+  resolveInitialCalendarView,
   startOfWeekKey,
   todayCalendarKey,
   visibleCalendarRange,
@@ -20,7 +21,15 @@ import {
 export function useCalendarNav(isWide: boolean) {
   const today = useMemo(() => todayCalendarKey(), []);
   const [anchorDate, setAnchorDate] = useState(today);
-  const [view, setView] = useState("week");
+  /*
+   * #1174: the opening view is a preference now, not a literal. Seeded from
+   * localStorage through the pure resolver (lazy initialiser — read once, on
+   * the mount that creates the state) exactly like the startup-section pref
+   * seeds MainScreen's section. From here on `view` is live state the header's
+   * switcher owns, so changing the setting applies to the NEXT visit to
+   * Schedule rather than yanking the view out from under the user.
+   */
+  const [view, setView] = useState<string>(resolveInitialCalendarView);
 
   const desktopView = normalizeDesktopView(view);
 

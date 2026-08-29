@@ -123,6 +123,23 @@
       "button": "設定をリセット",
       "confirm": "ローカルの設定をすべてリセットしてアプリを再読み込みしますか？この端末のテーマ・フォント・ショートカット・レイアウトの設定が消えます。同期済みのデータには影響しません。",
       "confirmButton": "リセットして再読み込み"
+    },
+    "tabs": {
+      "navLabel": "設定カテゴリ",
+      "general": "一般",
+      "tips": "ヒント"
+    },
+    "placeholder": {
+      "message": "このセクションの設定は、用意でき次第ここに並びます。"
+    },
+    "schedule": {
+      "heading": "スケジュール",
+      "description": "スケジュールセクションの開き方と動き方を決めます。",
+      "initialViewLabel": "最初に開くビュー",
+      "day": "日",
+      "week": "週",
+      "month": "月",
+      "hint": "次にスケジュールを開いたときから反映されます。幅の狭い画面では常に月グリッドを表示します。"
     }
   },
   "timerSettings": {
@@ -305,7 +322,11 @@
     },
     "templates": {
       "title": "テンプレート",
-      "menuEntry": "テンプレートを作成する",
+      "menuEntry": "テンプレートとして登録する",
+      "defaultName": "{{title}}のテンプレート",
+      "savedTitle": "テンプレートを作成しました",
+      "savedHint": "右側のサイドバー（詳細を開く）から確認できます。",
+      "savedDone": "完了",
       "listHeading": "テンプレート",
       "empty": "テンプレートはまだありません",
       "new": "新規",
@@ -330,6 +351,15 @@
       "pickerLabelShort": "リンク",
       "open": "{{title}} を開く",
       "remove": "{{title}} とのリンクを削除"
+    },
+    "related": {
+      "open": "関連を開く",
+      "dialog": "関連アイテム",
+      "links": "リンク",
+      "sharedTags": "同じタグのアイテム",
+      "sameDayDaily": "同じ日のデイリー",
+      "empty": "関連するアイテムはまだありません",
+      "sectionCount": "{{label}}（{{count}}）"
     },
     "daily": {
       "toToday": "今日へ",
@@ -464,25 +494,6 @@
     "attachedNote": "紐づけるノート",
     "clearNote": "ノートを外す",
     "noteAttachFailed": "ノートを紐づけられませんでした。いま追加したアイテムにはリンクされていません。",
-    "openSettings": "カレンダーを管理",
-    "calendarsTitle": "カレンダー",
-    "calendarFilterLabel": "カレンダーで絞り込む",
-    "calendarFilterHidden": "{{count}} 件を非表示",
-    "calendarFilterShow": "すべてのカレンダーを表示",
-    "calendarsLoading": "カレンダーを読み込み中…",
-    "calendarsLoadError": "カレンダーを読み込めませんでした: {{error}}",
-    "calendarsHeadingCount": "カレンダー（{{count}}）",
-    "calendarsNoTags": "先にタグを作成してください。カレンダーは 1 つの life-tag が付いたアイテムのビューなので、まだ紐づけ先がありません。",
-    "calendarTagsLoading": "タグを読み込み中…",
-    "calendarTitlePlaceholder": "カレンダー名",
-    "calendarTagSelectLabel": "life-tag",
-    "calendarTagSelectPlaceholder": "タグを選択…",
-    "calendarAdd": "追加",
-    "calendarTitleAria": "{{title}} の名前",
-    "calendarTagPrefix": "タグ: {{name}}",
-    "calendarTagMissing": "このタグは削除済みです。このカレンダーは何にも一致しません。削除して作り直してください。",
-    "calendarDelete": "削除",
-    "calendarsEmpty": "カレンダーはまだありません。",
     "title": "タイトル",
     "date": "日付",
     "startTime": "開始",
@@ -569,7 +580,28 @@
     "scopeThisOnly": "この予定のみ",
     "scopeThisAndFuture": "この予定と今後の予定",
     "scopeAll": "すべての予定（過去分も含む）",
-    "scopeCancel": "キャンセル"
+    "scopeCancel": "キャンセル",
+    "openFilter": "タグで絞り込む",
+    "filterActive": "タグ {{count}} 件で絞り込み中",
+    "filterTitle": "タグで絞り込む",
+    "groupFilterLabel": "グループで絞り込む",
+    "groupFilterHidden": "{{count}} 件を非表示",
+    "groupFilterShow": "すべて表示",
+    "filterTagsHeading": "タグ",
+    "filterTagsLabel": "表示するタグ",
+    "filterTagsLoading": "タグを読み込み中…",
+    "filterNoTags": "先にタグを作成してください。この絞り込みはアイテムに付いた life-tag を見るので、まだ絞り込む対象がありません。",
+    "filterClear": "解除",
+    "filterSelectedCount": "{{count}} 件選択中",
+    "filterGroupsHeading": "保存したグループ",
+    "filterGroupsEmpty": "グループはまだありません。上でタグを選んで名前を付けると保存できます。",
+    "filterGroupNamePlaceholder": "グループ名",
+    "filterGroupSave": "グループを保存",
+    "filterGroupSaveHint": "タグを 1 つ以上選ぶと保存できます。",
+    "filterGroupApply": "適用",
+    "filterGroupRename": "グループ名",
+    "filterGroupDelete": "{{name}} を削除",
+    "filterGroupEmpty": "このグループのタグはすべて削除済みです。"
   },
   "analytics": {
     "title": "分析",
@@ -870,6 +902,16 @@
       "submit": "パスワードを設定",
       "busy": "保存中…"
     },
+    "confirm": {
+      "heading": "メールを確認してください",
+      "description": "確認リンクを次のアドレスに送りました。",
+      "hint": "リンクを開くと登録が完了します。数分たっても届かない場合は迷惑メールフォルダを確認するか、もう一度送ってください。",
+      "resend": "確認リンクを再送する",
+      "busy": "送信中…",
+      "sent": "再送しました。いちばん新しいリンクを開いてください（前のリンクは無効になります）。",
+      "error": "確認リンクを送れませんでした。少し待ってからやり直してください。",
+      "back": "ログイン画面へ戻る"
+    },
     "legal": {
       "consent": "アカウントを作成すると、以下に同意したものとみなされます。",
       "terms": "利用規約",
@@ -880,7 +922,8 @@
     "errors": {
       "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
       "alreadyRegistered": "このメールアドレスは既に登録されています",
-      "noSession": "登録は完了しましたが、セッションを開始できませんでした。confirm-email 設定（Phase 1 では無効）を確認してください。",
+      "noSession": "登録は完了しましたが、セッションを開始できませんでした。いま入力したアドレスとパスワードでログインし直してください。",
+      "emailNotConfirmed": "このアドレスはまだ確認が済んでいません。登録時のメールにあるリンクを開くか、確認リンクを再送してください。",
       "generic": "認証に失敗しました。時間をおいて再度お試しください。"
     }
   },
@@ -963,7 +1006,7 @@
     "progress": "{{current}} / {{total}}",
     "waitingForAction": "実際に操作すると次に進みます",
     "steps": {
-      "briefingIntro": "ここが朝刊です。その日の予定・メモ・残っている項目が 1 ページにまとまります。起動したとき最初に開く画面です。",
+      "briefingIntro": "ここが朝刊です。その日のことが 1 ページにまとまります。書くのはあなたではなく Claude Code で、デスクトップ版の MCP 連携を通して中身が入ります。Web だけで使っているあいだは空のままですが、それが正常で、壊れているわけではありません。",
       "scheduleCreateEvent": "ここから予定を入れます。1 件だけ作ってみてください。ボタンを押しただけでは進まず、実際にできたら次へ進みます。",
       "scheduleAdjustEvent": "いま作った予定を開いて、時間を変えてみましょう。予定はずれるものなので、直し方から覚えます。",
       "scheduleOpenTodos": "Todo はカレンダーと同じセクションにあります。Todo タブを開いてください。",
@@ -974,5 +1017,13 @@
       "materialsNoteTag": "タグを 1 つ付けてみてください。タグは、同じ話題のアイテム同士をつなぐ目印です。",
       "materialsTagFollow": "ここでタグを選ぶと、そのタグが付いたものだけが並びます。あとから関連するノートに戻る道になります。"
     }
+  },
+  "errorBoundary": {
+    "appTitle": "問題が発生しました",
+    "appDescription": "予期しないエラーが起きました。再読み込みすると直ることがほとんどです。",
+    "sectionTitle": "このセクションを表示できませんでした",
+    "sectionDescription": "再試行するか、他のセクションへ移動してください。続く場合はページを再読み込みしてください。",
+    "retry": "再試行",
+    "reload": "再読み込み"
   }
 }

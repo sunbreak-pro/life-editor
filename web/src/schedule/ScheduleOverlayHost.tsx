@@ -106,7 +106,7 @@ export interface ScheduleOverlayHostProps {
     findTodoChip: (chipId: string) => TodoCalendarChip | null;
   };
   create: ScheduleOverlaysProps["create"];
-  calendars: ScheduleOverlaysProps["calendars"];
+  tagFilter: ScheduleOverlaysProps["tagFilter"];
   scope: ScheduleOverlaysProps["scope"];
   confirm: ScheduleOverlaysProps["confirm"];
 }
@@ -117,7 +117,7 @@ export function ScheduleOverlayHost({
   todoDetail,
   popover,
   create,
-  calendars,
+  tagFilter,
   scope,
   confirm,
 }: ScheduleOverlayHostProps) {
@@ -219,7 +219,7 @@ export function ScheduleOverlayHost({
       }}
       popover={{ ...popoverProps, todoChip: popoverTodoChip }}
       create={create}
-      calendars={calendars}
+      tagFilter={tagFilter}
       scope={scope}
       confirm={confirm}
     />

@@ -95,11 +95,18 @@ describe("formatPeriodLabel", () => {
 });
 
 describe("useScheduleCopy", () => {
-  const render = (over: { isWide?: boolean; notesError?: boolean } = {}) =>
+  const render = (
+    over: {
+      isWide?: boolean;
+      notesError?: boolean;
+      selectedTagCount?: number;
+    } = {},
+  ) =>
     renderHook(() =>
       useScheduleCopy({
         isWide: over.isWide ?? true,
         notesError: over.notesError ?? false,
+        selectedTagCount: over.selectedTagCount ?? 0,
       }),
     ).result.current;
 
