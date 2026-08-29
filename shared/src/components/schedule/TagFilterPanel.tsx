@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { isImeComposing } from "../../utils/imeGuard";
@@ -139,7 +139,15 @@ function GroupNameField({
   label: string;
 }) {
   const [draft, setDraft] = useState(name);
-  useEffect(() => setDraft(name), [name]);
+  // Re-seed when the name changes from outside — adjusted during render (the
+  // React "information from previous renders" pattern, as in ColorPicker) so
+  // the stale value never paints (#586). An effect would be a cascading render
+  // and is what `react-hooks/set-state-in-effect` exists to stop.
+  const [prevName, setPrevName] = useState(name);
+  if (prevName !== name) {
+    setPrevName(name);
+    setDraft(name);
+  }
 
   const commit = () => {
     const next = draft.trim();
