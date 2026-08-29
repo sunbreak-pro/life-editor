@@ -43,6 +43,23 @@ describe("SegmentedControl", () => {
     ]);
   });
 
+  it("centres each segment's label so wrapped and unwrapped ones line up", () => {
+    /*
+     * Regression guard for #1207. The track stretches every segment to the
+     * tallest one, so the moment a label wraps to two lines a one-line
+     * neighbour stays pinned at the top of its own button — which is what the
+     * Schedule drawer showed at 390px ("Today's flow" / "Today's Todo" wrapped,
+     * "Repeats" did not). jsdom has no layout, so the height itself is not
+     * observable here; the flex centring that fixes it is.
+     */
+    renderControl();
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("flex");
+      expect(tab).toHaveClass("items-center");
+      expect(tab).toHaveClass("justify-center");
+    }
+  });
+
   it("pads each segment horizontally so intrinsic-width labels stay separated", () => {
     // Regression guard for #183: under w-auto the segments must not collapse
     // into a run-on label (e.g. "DayWeekMonth"). px-3 keeps them apart.
