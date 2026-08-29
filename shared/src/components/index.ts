@@ -281,6 +281,18 @@ export {
   SettingsDayStart,
   type SettingsDayStartProps,
 } from "./SettingsDayStart";
+// Settings rightSidebar category list + the Schedule tab's card (#1174). The
+// nav replaced the tips/preview panel on that face; the tips moved to a
+// centered panel the last nav row opens.
+export {
+  SettingsTabsNav,
+  type SettingsTabsNavProps,
+  type SettingsTabItem,
+} from "./SettingsTabsNav";
+export {
+  SettingsSchedule,
+  type SettingsScheduleProps,
+} from "./SettingsSchedule";
 export {
   SettingsSegment,
   type SettingsSegmentProps,
