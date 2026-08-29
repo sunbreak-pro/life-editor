@@ -10,18 +10,20 @@ import {
 } from "../src/sections";
 
 /*
- * Section registry (SSOT) contract. These lock the target-IA 8-section set
- * (7 + Briefing, added by the Briefing plan Step 1 as the home surface),
+ * Section registry (SSOT) contract. These lock the current 7-section set,
  * both nav orders, and the icon/label coverage so the web host can derive its
  * nav from here (web/src/MainScreen.tsx) without parallel literal lists.
+ *
+ * The set has shrunk twice by retirement — the REPL section (#146) and then
+ * Connect with its force-directed graph (#1152) — so the "never includes"
+ * cases below are the guard against either being re-added by reflex.
  */
 describe("section registry", () => {
-  it("holds exactly the target-IA 8 sections in canonical (desktop) order", () => {
+  it("holds exactly the target-IA 7 sections in canonical (desktop) order", () => {
     expect(SECTION_IDS).toEqual([
       "briefing",
       "schedule",
       "materials",
-      "connect",
       "work",
       "analytics",
       "settings",
@@ -33,12 +35,15 @@ describe("section registry", () => {
     expect(SECTION_IDS).not.toContain("terminal");
   });
 
+  it("never includes the retired Connect section (#1152)", () => {
+    expect(SECTION_IDS).not.toContain("connect");
+  });
+
   it("splits mainline vs. utility groups", () => {
     expect(MAIN_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
-      "connect",
       "work",
       "analytics",
     ]);
@@ -47,14 +52,13 @@ describe("section registry", () => {
 
   it("orders the mobile bottom bar as fixed-4 + More overflow", () => {
     // Fixed 4 = briefing/schedule/materials/work;
-    // More = analytics/connect/settings/trash.
+    // More = analytics/settings/trash.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
       "work",
       "analytics",
-      "connect",
       "settings",
       "trash",
     ]);
@@ -77,8 +81,8 @@ describe("section registry", () => {
     expect(Object.keys(SECTION_ICONS).sort()).toEqual([...SECTION_IDS].sort());
   });
 
-  it("assigns each group correctly (main = 6, utility = 2)", () => {
-    expect(SECTIONS.filter((s) => s.group === "main")).toHaveLength(6);
+  it("assigns each group correctly (main = 5, utility = 2)", () => {
+    expect(SECTIONS.filter((s) => s.group === "main")).toHaveLength(5);
     expect(SECTIONS.filter((s) => s.group === "utility")).toHaveLength(2);
   });
 });

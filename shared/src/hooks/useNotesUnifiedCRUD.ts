@@ -14,6 +14,7 @@ import {
   setNotesSelection,
   clearNotesSelection,
 } from "../state/materialsSelectionStore";
+import { recordNoteOpened } from "../state/recentNotesStore";
 
 /**
  * Create / update / soft-delete / pin for useNotesUnifiedAPI (#587 split).
@@ -89,6 +90,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       if (opts?.select !== false) {
         setSelectedNoteId(id);
         setNotesSelection(id); // #282: restore the just-created note after a tab switch
+        recordNoteOpened(id); // #1149: a fresh note counts as opened
       }
       void trackWrite(
         id,
@@ -123,6 +125,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
             markLocalWrite(id); // #607
             setSelectedNoteId(id);
             setNotesSelection(id); // #282
+            recordNoteOpened(id); // #1149
             ds.createNoteUnified(
               buildNoteNode(id, newNote.title, resolvedParentId, now),
             )

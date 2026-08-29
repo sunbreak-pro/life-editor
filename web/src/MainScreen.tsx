@@ -229,7 +229,7 @@ export function MainScreen({ session }: { session: Session }) {
   // NARROW layout row. The per-section chrome comes from the descriptor
   // (`narrowHeader`), so the old MOBILE_HAMBURGER_SECTIONS set and the
   // per-section switcher constants are gone: Materials/Briefing/Schedule get
-  // hamburger + segmented, Connect/Work/Settings the hamburger alone,
+  // hamburger + segmented, Work/Settings the hamburger alone,
   // Analytics/Trash neither. Schedule joined the first group in #1033 — its
   // Calendar body used to draw a SECOND hamburger inside the month heading
   // row, so the same control sat in two different places depending on which

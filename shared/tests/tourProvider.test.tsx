@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   act,
   fireEvent,
@@ -436,6 +436,148 @@ describe("leaving and coming back", () => {
     startTour();
     // Falls back to the beginning rather than resuming at nothing.
     await waitFor(() => expect(state()).toContain("one|run"));
+  });
+});
+
+/**
+ * Like `Harness`, but the section state is REAL: a navigation request actually
+ * moves the host, the way MainScreen's `setSection` does. The auto-start suite
+ * needs that — what it checks is where the user ends up, and a harness that
+ * records navigation without applying it can never leave them anywhere.
+ */
+function AutoHarness({
+  steps = STEPS,
+  anchors,
+  initialSection = "briefing",
+  onNavigate,
+}: {
+  steps?: readonly TourStep[];
+  anchors: readonly string[];
+  initialSection?: SectionId;
+  onNavigate?: (id: SectionId) => void;
+}) {
+  const stable = useMemo(() => steps, [steps]);
+  const [section, setSection] = useState<SectionId>(initialSection);
+  const navigate = useCallback(
+    (id: SectionId) => {
+      onNavigate?.(id);
+      setSection(id);
+    },
+    [onNavigate],
+  );
+  return (
+    <TourProvider
+      steps={stable}
+      currentSection={section}
+      onNavigateToSection={navigate}
+      autoStart
+      anchorTimeoutMs={PROBE_MS}
+    >
+      {anchors.map((a) => (
+        <button key={a} type="button" data-tour-id={a}>
+          {a}
+        </button>
+      ))}
+      <Surface />
+      <span data-testid="section">{section}</span>
+    </TourProvider>
+  );
+}
+
+const shownSection = (): string =>
+  screen.getByTestId("section").textContent ?? "";
+
+describe("offering the tour on first run (#1123)", () => {
+  it("opens on its own when nothing has been recorded yet", async () => {
+    // Nobody presses "start": a first-run user has not been told the tour
+    // exists, so an offer that waits to be asked for is never taken.
+    render(<AutoHarness anchors={["step-one", "step-two"]} />);
+
+    await waitFor(() => expect(state()).toContain("one|run"));
+    expect(screen.getByText("copy:one")).toBeInTheDocument();
+  });
+
+  it("stays quiet after the tour was skipped", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ stepId: "one", completed: false, skipped: true }),
+    );
+    render(<AutoHarness anchors={["step-one", "step-two"]} />);
+
+    // The flag is read from the render that SEEDS the state (useLocalStorage
+    // initialises synchronously), so there is no window in which the tour
+    // opens and then discovers it was dismissed.
+    expect(state()).toContain("none|idle");
+    await afterFrame();
+    expect(state()).toContain("none|idle");
+
+    // …and it is still reachable on purpose, which is the Settings card.
+    fireEvent.click(screen.getByText("restart"));
+    await waitFor(() => expect(state()).toContain("one|run"));
+  });
+
+  it("stays quiet after the tour was completed", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ stepId: null, completed: true, skipped: false }),
+    );
+    render(<AutoHarness anchors={["step-one", "step-two"]} />);
+
+    expect(state()).toContain("none|idle");
+    await afterFrame();
+    expect(state()).toContain("none|idle");
+  });
+
+  it("puts the user back where it found them when no step could be shown", async () => {
+    // The state the app is in until the section Issues add their
+    // `data-tour-id` attributes — and the reason auto-start is safe to turn on
+    // before them. The probe has to navigate BEFORE it can know a step is
+    // undisplayable, so an unprompted run walks the user across sections; the
+    // host writes each one to `life-editor-last-section` on the way, which
+    // would make the detour the section the app opens next time too.
+    const seen: SectionId[] = [];
+    const steps: readonly TourStep[] = [
+      { ...STEPS[0], section: "analytics" },
+      { ...STEPS[1], section: "work" },
+    ];
+    render(
+      <AutoHarness
+        steps={steps}
+        anchors={[]}
+        initialSection="briefing"
+        onNavigate={(id) => seen.push(id)}
+      />,
+    );
+
+    await waitFor(() => expect(state()).toContain("none|idle"), {
+      timeout: 3000,
+    });
+    expect(seen).toContain("analytics");
+    expect(shownSection()).toBe("briefing");
+    // Still waiting, not spent: the resume point never moved either.
+    expect(readProgress()?.stepId ?? null).toBeNull();
+    expect(readProgress()?.completed ?? false).toBe(false);
+  });
+
+  it("leaves the user where the tour took them once a step was shown", async () => {
+    // The other side of the rule. A run the user actually WALKED ends on the
+    // section its last step was on — yanking them back from a place they were
+    // deliberately shown would undo the tour's own work.
+    const steps: readonly TourStep[] = [{ ...STEPS[0], section: "analytics" }];
+    render(
+      <AutoHarness
+        steps={steps}
+        anchors={["step-one"]}
+        initialSection="briefing"
+      />,
+    );
+
+    await waitFor(() => expect(state()).toContain("one|run"));
+    expect(shownSection()).toBe("analytics");
+
+    fireEvent.click(screen.getByText(LABELS.done));
+    await waitFor(() => expect(state()).toContain("none|idle|done"));
+    expect(shownSection()).toBe("analytics");
   });
 });
 

@@ -29,9 +29,17 @@
  */
 
 /**
- * The domains that opt in. A closed union rather than a free string so two
+ * The slots that opt in. A closed union rather than a free string so two
  * hooks cannot silently share one slot and hand each other a wrong-shaped
  * payload — the store itself cannot type-check what it holds.
+ *
+ * The first seven are DOMAINS (#1101): one shared list, read by whichever
+ * provider owns it. The rest are SCREENS (#1157) — four hosts that fetch for
+ * themselves rather than through a domain provider, so their slot is named
+ * after the screen. A screen must never borrow a domain's slot even when it
+ * reads the same table: `todoTree` holds a `[active, deleted]` 2-tuple that
+ * `useTodoTreeAPI` destructures, and a Work-shaped `TodoNode[]` written there
+ * would crash that hook's replay at its next mount.
  */
 export type DomainSnapshotKey =
   | "calendars"
@@ -40,7 +48,14 @@ export type DomainSnapshotKey =
   | "routines"
   | "scheduleItems"
   | "todoTree"
-  | "wikiTags";
+  | "wikiTags"
+  // Screen-level slots (#1157)
+  | "briefingPaper"
+  | "briefingGoals"
+  | "briefingFocus"
+  | "analyticsSummary"
+  | "trashLists"
+  | "workTodoOptions";
 
 interface DomainSnapshot {
   /** The DataService instance the data came from (identity compared). */

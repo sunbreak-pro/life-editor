@@ -1,15 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import {
   Button,
   Card,
   TrashView,
   isScheduleRestoreConflict,
+  useDomainLoad,
+  useSyncDomains,
   useTranslation,
   type DataService,
   type TrashBusy,
   type TrashCategory,
   type TrashGroup,
+  type DailyNode,
+  type NoteNode,
+  type RoutineNode,
+  type ScheduleItem,
+  type TodoNode,
 } from "@life-editor/shared";
 
 /*
@@ -24,6 +31,19 @@ import {
  * (Layout Standard v2), so loading renders only a pulsing skeleton
  * (design 1e), errors render a retryable card (1f), and the in-flight
  * action is passed down as a row-level TrashBusy marker (1g).
+ *
+ * The five reads run through `useDomainLoad` (#1157): the rows survive the
+ * section unmount in the `trashLists` slot, so returning to Trash draws the
+ * list it had instead of the skeleton (#1038 3.1), and the screen finally
+ * declares its Sync domains — a restore made anywhere else used to leave this
+ * list stale until it was remounted.
+ *
+ * FETCH AND LABELLING ARE SPLIT. `load` returns the raw rows and knows nothing
+ * about `t`; the memo below turns them into `TrashGroup[]`. Folding the
+ * grouping into the fetch (as it was) made `t` an input of the fetch, so a
+ * language switch re-read all five lists — and, worse, `useDomainLoad` reads
+ * `load` through a ref, which would have frozen the group titles at whatever
+ * language was in force when the read fired.
  */
 
 interface TrashScreenProps {
@@ -33,11 +53,37 @@ interface TrashScreenProps {
 /** Bar widths cycled per skeleton row so the placeholder list looks organic. */
 const SKELETON_LABEL_WIDTHS = ["w-2/5", "w-1/4", "w-1/3"];
 
+/** The five soft-delete lists, exactly as the DataService hands them over. */
+interface DeletedRows {
+  todos: TodoNode[];
+  notes: NoteNode[];
+  dailies: DailyNode[];
+  routines: RoutineNode[];
+  events: ScheduleItem[];
+}
+
+const NO_ROWS: DeletedRows = {
+  todos: [],
+  notes: [],
+  dailies: [],
+  routines: [],
+  events: [],
+};
+
+/*
+ * The screen renders a retry card rather than a message, so this text never
+ * reaches the user — but `useDomainLoad` keys "is there an error" on a string,
+ * and one constant keeps the two failure paths (the hook's own read, and the
+ * imperative `reload`) indistinguishable to the render below.
+ */
+const TRASH_FETCH_FAILED = "trash-fetch-failed";
+
 export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   const { t } = useTranslation();
-  const [groups, setGroups] = useState<TrashGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [rows, setRows] = useState<DeletedRows>(NO_ROWS);
+  // Only the error-card retry raises the skeleton by hand; the mount load has
+  // useDomainLoad's derived `isLoading` for that.
+  const [retrying, setRetrying] = useState(false);
   const [busy, setBusy] = useState<TrashBusy | null>(null);
   /**
    * Why a restore did not happen (#932). Separate from `error`, which swaps
@@ -68,87 +114,104 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
     [t],
   );
 
-  // Pure fetch: returns grouped data, NEVER touches React state. Keeping
-  // setState out of this callback lets the effect + action handlers update
-  // state only AFTER an await (react-hooks/set-state-in-effect).
-  const fetchGroups = useCallback(async (): Promise<TrashGroup[]> => {
-    const [todos, notes, dailies, routines, events] = await Promise.all([
-      ds.fetchDeletedTodos(),
-      ds.fetchDeletedNotesUnified(),
-      ds.fetchDeletedDailiesUnified(),
-      ds.fetchDeletedRoutines(),
-      ds.fetchDeletedScheduleItems(),
-    ]);
-    return [
+  // Every table this screen lists (rules/frontend.md Sync). routines and
+  // events both ride the `schedule` counter (syncDomains.ts).
+  const syncVersion = useSyncDomains("todos", "notes", "dailies", "schedule");
+
+  /** The five reads, DataService only — no `t`, no React state. */
+  const readAll = useCallback(
+    async (service: DataService): Promise<DeletedRows> => {
+      const [todos, notes, dailies, routines, events] = await Promise.all([
+        service.fetchDeletedTodos(),
+        service.fetchDeletedNotesUnified(),
+        service.fetchDeletedDailiesUnified(),
+        service.fetchDeletedRoutines(),
+        service.fetchDeletedScheduleItems(),
+      ]);
+      return { todos, notes, dailies, routines, events };
+    },
+    [],
+  );
+
+  const { isLoading, error, setError } = useDomainLoad<DeletedRows>({
+    domain: "Trash",
+    dataService: ds,
+    version: syncVersion,
+    snapshotKey: "trashLists",
+    // A Realtime bump is usually this screen's own restore echoing back, so
+    // swapping the list for the skeleton would flash on every action taken
+    // here.
+    refetchReportsLoading: false,
+    load: readAll,
+    apply: setRows,
+    fallbackMessage: TRASH_FETCH_FAILED,
+  });
+
+  const groups = useMemo<TrashGroup[]>(
+    () => [
       {
         category: "todos",
         title: categoryTitle("todos"),
-        items: todos.map((x) => ({ id: x.id, label: x.title || untitled })),
+        items: rows.todos.map((x) => ({ id: x.id, label: x.title || untitled })),
       },
       {
         category: "notes",
         title: categoryTitle("notes"),
-        items: notes.map((x) => ({ id: x.id, label: x.title || untitled })),
+        items: rows.notes.map((x) => ({ id: x.id, label: x.title || untitled })),
       },
       {
         category: "dailies",
         title: categoryTitle("dailies"),
-        items: dailies.map((x) => ({ id: x.id, label: x.date || untitled })),
+        items: rows.dailies.map((x) => ({
+          id: x.id,
+          label: x.date || untitled,
+        })),
       },
       {
         category: "routines",
         title: categoryTitle("routines"),
-        items: routines.map((x) => ({ id: x.id, label: x.title || untitled })),
+        items: rows.routines.map((x) => ({
+          id: x.id,
+          label: x.title || untitled,
+        })),
       },
       {
         category: "events",
         title: categoryTitle("events"),
-        items: events.map((x) => ({ id: x.id, label: x.title || untitled })),
+        items: rows.events.map((x) => ({
+          id: x.id,
+          label: x.title || untitled,
+        })),
       },
-    ];
-  }, [ds, categoryTitle, untitled]);
+    ],
+    [rows, categoryTitle, untitled],
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchGroups()
-      .then((next) => {
-        if (cancelled) return;
-        setGroups(next);
-        setError(false);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchGroups]);
-
+  /*
+   * The imperative refresh after a restore / permanent delete. It writes state
+   * directly instead of going through `useDomainLoad`, the same shape as
+   * useScheduleItemsAPI's `loadDate` and useWikiTagsUnifiedAPI's `refresh` —
+   * the hook only stores a snapshot for the reads IT fires. So the stored rows
+   * are one action stale for a moment; then the Realtime echo of that same
+   * write bumps `syncVersion`, the hook re-reads, and the snapshot catches up
+   * on its own.
+   */
   const reload = useCallback(async () => {
     try {
-      const next = await fetchGroups();
-      setGroups(next);
-      setError(false);
+      setRows(await readAll(ds));
+      setError(null);
     } catch {
-      setError(true);
+      setError(TRASH_FETCH_FAILED);
     }
-  }, [fetchGroups]);
+  }, [ds, readAll, setError]);
 
   // Full retry from the error card: back to the skeleton, then re-fetch.
+  // `isLoading` is derived inside useDomainLoad and cannot be raised from out
+  // here, so this one path carries its own flag.
   const retry = useCallback(() => {
-    setLoading(true);
-    setError(false);
-    void fetchGroups()
-      .then((next) => {
-        setGroups(next);
-        setError(false);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, [fetchGroups]);
+    setRetrying(true);
+    void reload().finally(() => setRetrying(false));
+  }, [reload]);
 
   const handleRestore = useCallback(
     async (category: TrashCategory, id: string) => {
@@ -184,7 +247,7 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
 
   // Layout Standard v2: the shell's SectionHeader owns the page title, so
   // the loading / error frames render only their state content (1e / 1f).
-  if (loading) {
+  if (isLoading || retrying) {
     return (
       <div className="flex flex-col gap-6">
         <div
@@ -216,7 +279,7 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
     );
   }
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex justify-center py-10">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import {
   useNotesUnifiedContext,
@@ -8,13 +8,17 @@ import {
   useRightSidebarContext,
   RightSidebarPortal,
   EmptyState,
+  ExcerptListItem,
   SkeletonList,
-  QuickAddSheet,
   AddPill,
   cn,
   type NoteSortMode,
   type DataService,
   WIDE_QUERY,
+  useTourContextOptional,
+  tourAnchor,
+  useRecentNoteIds,
+  resolveRecentNotes,
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { NoteBodyEditor } from "./NoteBodyEditor";
@@ -54,10 +58,11 @@ import { useNotePassword } from "./hooks/useNotePassword";
  * never had that hole: `selectNote` hydrates the body BEFORE flipping the id
  * (useNotesUnifiedAPI), so a surface keyed on `selectedNote` cannot open early.
  *
- * Narrow keeps two things of its own: the compact detail `variant` (the sheet's
- * title sizing, not the page-level one), and title-first quick capture — the
- * main toolbar's "+" opens the <QuickAddSheet> instead of creating an untitled
- * note the way the Desktop pill does.
+ * Narrow keeps ONE thing of its own: the compact detail `variant` (the sheet's
+ * title sizing, not the page-level one). Creating is now identical at both
+ * widths — #1147 retired the narrow title-first <QuickAddSheet>, so "+" makes
+ * an Untitled note and opens the editor on a phone exactly as the Desktop pill
+ * always has.
  *
  * Both halves render the SAME derived list (search → tag groups → sort → tag
  * filter) off the same state, so the two breakpoints never disagree (#369).
@@ -150,7 +155,6 @@ export function NotesView({
   // every time they picked a note.
   const [trashOpen, setTrashOpen] = useState(false);
   // Narrow-only: the title-first quick-add sheet.
-  const [addOpen, setAddOpen] = useState(false);
   // The templates surface (#1047), opened from the note detail's kebab.
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -193,6 +197,118 @@ export function NotesView({
 
   const selected = notes.selectedNote;
 
+  /*
+   * Tutorial tour reporting (#1125).
+   *
+   * `notifyAction` is a no-op unless the tour is running AND the step on screen
+   * waits for that exact event, so every call below costs nothing with the tour
+   * off — which is what keeps "ツアー無効時に挙動・見た目が一切変わらない" true
+   * without a single `if (tourRunning)` in the handlers.
+   *
+   * Read through the OPTIONAL hook. Reporting an action is not consuming the
+   * tour, and the throwing variant would make TourProvider a mount-time
+   * dependency of the Notes view — and of every suite that renders it on its
+   * own. Same call as `useUndoRedoOptional`.
+   */
+  const tour = useTourContextOptional();
+  const notifyAction = tour?.notifyAction;
+  const notifyTour = useCallback(
+    (event: string) => notifyAction?.(event),
+    [notifyAction],
+  );
+
+  /*
+   * "The note now carries a tag."
+   *
+   * Watched rather than wired to a button, because there are two routes to it
+   * — the picker in the detail header and a drag onto a tag heading — and the
+   * step teaches the outcome, not one control. Counting live assignments for
+   * the SELECTED note and firing only on an increase is what keeps a removal,
+   * a re-render or a note switch from being mistaken for a new tag.
+   */
+  const taggedCountRef = useRef<{ noteId: string | null; count: number }>({
+    noteId: null,
+    count: 0,
+  });
+  const selectedId = selected?.id ?? null;
+  const selectedTagCount = selectedId
+    ? getTagsForItem(selectedId).filter((a) => !a.isDeleted).length
+    : 0;
+  useEffect(() => {
+    const prev = taggedCountRef.current;
+    taggedCountRef.current = { noteId: selectedId, count: selectedTagCount };
+    // A different note is a fresh baseline, never an increase.
+    if (prev.noteId !== selectedId) return;
+    if (selectedTagCount > prev.count) notifyTour("tag-assigned");
+  }, [selectedId, selectedTagCount, notifyTour]);
+
+  /*
+   * "The user typed in the body."
+   *
+   * A DOM `input` listener on a wrapper, not a ProseMirror callback and not
+   * anything coordinate-based: jsdom has no layout, so a position-derived
+   * signal could not be tested at all (CLAUDE.md §7.1) — `posAtCoords` is the
+   * exact shape #475 broke on. Bubbled events also mean the editor keeps its
+   * own prop list; nothing about it changes in order to be observed.
+   *
+   * THE IME GUARD IS THE POINT OF THIS HANDLER. A Japanese conversion raises
+   * `input` for every keystroke of the PRE-EDIT string, so an unguarded
+   * listener advances the tour — moving the bubble and taking focus with it —
+   * while the user is still choosing a candidate and has committed nothing.
+   *
+   * Guarded twice on purpose. `composition{start,end}` is the reliable half
+   * (both fire in jsdom, so the guard is testable, which `InputEvent
+   * .isComposing` is not — jsdom leaves it false); `isComposing` is the half
+   * that still holds if an input arrives before compositionstart. Note this is
+   * NOT `isImeComposing` from utils: that one answers a KEYDOWN question and
+   * leans on `keyCode === 229` to catch the Enter that CONFIRMS a conversion.
+   * A confirming Enter is a real commit here, and the step should advance on
+   * it.
+   */
+  const composingRef = useRef(false);
+  const handleCompositionStart = useCallback(() => {
+    composingRef.current = true;
+  }, []);
+  const handleCompositionEnd = useCallback(() => {
+    composingRef.current = false;
+    // The commit itself is typing, and it is not guaranteed to be followed by
+    // another `input` — so report here rather than waiting for one.
+    notifyTour("note-typed");
+  }, [notifyTour]);
+  const handleBodyInput = useCallback(
+    (e: React.FormEvent<HTMLDivElement>) => {
+      if (composingRef.current) return;
+      const native = e.nativeEvent as Partial<InputEvent>;
+      if (native.isComposing === true) return;
+      notifyTour("note-typed");
+    },
+    [notifyTour],
+  );
+
+  /*
+   * "The user followed a tag to what else carries it."
+   *
+   * The filter chips are the in-Notes way to do that, so selecting one — and
+   * only selecting one; clearing back to "all" is not following anything — is
+   * what completes the step.
+   */
+  const handleTagFilterChange = useCallback(
+    (next: string | null) => {
+      setTagFilter(next);
+      if (next !== null) notifyTour("tag-filtered");
+    },
+    [setTagFilter, notifyTour],
+  );
+
+  // #1149: what the empty state offers to select. Resolved against the live
+  // notes array on every render rather than stored with titles, which is what
+  // keeps a renamed note's row current and drops a deleted one — `notes.notes`
+  // has already had soft-deleted rows filtered out of it, so an id that no
+  // longer resolves simply does not appear. Cheap enough to leave unmemoised:
+  // it walks at most RECENT_NOTES_LIMIT ids and only the empty state reads it.
+  const recentNoteIds = useRecentNoteIds();
+  const recentNotes = resolveRecentNotes(recentNoteIds, notes.notes);
+
   // Picking from the list fills the MAIN editor. On wide the list is a pinned
   // column and stays put; on narrow it is the modal drawer, so choosing a note
   // also has to get out of the way of the thing it just opened.
@@ -210,14 +326,26 @@ export function NotesView({
     [selectNote, isWide, closeSidebar],
   );
 
-  // Wide creates an untitled note straight into the editor; narrow asks for the
-  // title first, because a phone's create is usually the whole capture (#876
-  // kept the QuickAddSheet the retired mobile list used to raise).
+  // ONE create at both widths (#1147, ユーザー指示): "+" makes an Untitled note
+  // and drops straight into the editor. Narrow used to raise a title-first
+  // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
+  // which put a form between the user and the thing they wanted to write in.
+  // The sheet is gone; `createNote()` with no title falls back to "Untitled"
+  // (useNotesUnifiedCRUD) and selects the new note, so the body is already
+  // mounted when the drawer gets out of the way.
+  //
+  // Closing the drawer is the same move `handleSelectNote` makes and for the
+  // same reason: on narrow it is a modal overlay, so leaving it up would cover
+  // the editor the create just opened.
   const createNote = notes.createNote;
   const handleAddNote = useCallback(() => {
-    if (isWide) createNote();
-    else setAddOpen(true);
-  }, [isWide, createNote]);
+    createNote();
+    if (!isWide) closeSidebar();
+    // #1125: the capture step is satisfied by a real create — and since #1147
+    // retired the narrow title-first sheet, that is now the same create at
+    // both widths.
+    notifyTour("item-created");
+  }, [createNote, isWide, closeSidebar, notifyTour]);
 
   if (notes.isLoading) {
     return (
@@ -269,7 +397,7 @@ export function NotesView({
       showTagFilter={showTagFilter}
       tagFilterChips={tagFilterChips}
       tagFilter={tagFilter}
-      onTagFilterChange={setTagFilter}
+      onTagFilterChange={handleTagFilterChange}
       hasNotes={hasNotes}
       visibleGroups={visibleGroups}
       collapsedGroups={collapsedGroups}
@@ -309,7 +437,17 @@ export function NotesView({
   const mainContent = (
     <>
       <div className="flex items-center justify-end px-1 pb-3">
-        <AddPill onClick={handleAddNote} label={t("materials.notes.addCta")} />
+        {/* The tour points at the pill through this wrapper rather than at the
+            button itself: AddPill is a shared primitive with a fixed prop list
+            and no data-* passthrough, and the wrapper is the same box either
+            way (inline-flex, no padding of its own) so the spotlight lands on
+            the pill. */}
+        <span {...tourAnchor("materials-add")} className="inline-flex">
+          <AddPill
+            onClick={handleAddNote}
+            label={t("materials.notes.addCta")}
+          />
+        </span>
       </div>
       {selected ? (
         <NoteDetailSurface
@@ -348,29 +486,67 @@ export function NotesView({
             ) : undefined
           }
           contentEditor={
-            <NoteBodyEditor
-              note={selected}
-              linking={linking}
-              onNavigateToItem={onNavigateToItem}
-              onSave={(id, content) => notes.updateNote(id, { content })}
-              // Borderless — sit flush inside the detail card so the note body
-              // reads as a single clean surface, matching the Daily editor card
-              // (2026-07-18: align Notes main formatting to Daily).
-              className="pt-1"
-            />
+            <div
+              {...tourAnchor("materials-note-body")}
+              onInput={handleBodyInput}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
+            >
+              <NoteBodyEditor
+                note={selected}
+                linking={linking}
+                onNavigateToItem={onNavigateToItem}
+                onSave={(id, content) => notes.updateNote(id, { content })}
+                // Borderless — sit flush inside the detail card so the note
+                // body reads as a single clean surface, matching the Daily
+                // editor card (2026-07-18: align Notes formatting to Daily).
+                className="pt-1"
+              />
+            </div>
           }
         />
       ) : (
         <div className="flex min-h-[50vh] items-center justify-center">
-          <EmptyState
-            icon={<FileText aria-hidden />}
-            message={
-              hasNotes
-                ? t("materials.notes.mainEmpty")
-                : t("materials.notes.empty")
-            }
-            cta={{ label: t("materials.notes.addCta"), onClick: handleAddNote }}
-          />
+          {/* #1149: "select a note or create a new one" used to be the whole
+              screen, which asked the user to pick from nothing. The recently
+              OPENED notes go underneath it as things to actually pick. With no
+              history (first run, everything deleted) the list is absent and
+              this is exactly the centred icon + line + CTA it always was. */}
+          <div className="flex w-full max-w-sm flex-col items-center">
+            <EmptyState
+              icon={<FileText aria-hidden />}
+              message={
+                hasNotes
+                  ? t("materials.notes.mainEmpty")
+                  : t("materials.notes.empty")
+              }
+              cta={{
+                label: t("materials.notes.addCta"),
+                onClick: handleAddNote,
+              }}
+            />
+            {recentNotes.length > 0 && (
+              <nav
+                aria-label={t("materials.notes.recentHeading")}
+                className="w-full pb-8"
+              >
+                <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-lumen-text-tertiary">
+                  {t("materials.notes.recentHeading")}
+                </h2>
+                <ul className="flex flex-col gap-1.5">
+                  {recentNotes.map((note) => (
+                    <li key={note.id}>
+                      <ExcerptListItem
+                        title={note.title || t("materials.notes.untitled")}
+                        leading={<FileText aria-hidden />}
+                        onClick={() => handleSelectNote(note.id)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+          </div>
         </div>
       )}
     </>
@@ -395,20 +571,6 @@ export function NotesView({
           Wide: the push-in rightSidebar. Narrow: the hamburger's MobileDrawer,
           which mounts this only while it is open. */}
       <RightSidebarPortal>{sidebarList}</RightSidebarPortal>
-
-      {/* Narrow quick capture: title first, then the note opens in the main
-          area behind this sheet. */}
-      {!isWide && (
-        <QuickAddSheet
-          open={addOpen}
-          onClose={() => setAddOpen(false)}
-          title={t("materials.notes.quickAddTitle")}
-          closeLabel={t("common.close")}
-          placeholder={t("materials.notes.quickAddPlaceholder")}
-          submitLabel={t("materials.notes.quickAddSubmit")}
-          onSubmit={(title) => notes.createNote(title)}
-        />
-      )}
 
       {/* Note templates (#1047). Mounted only with a DataService, since that is
           what the panel reads and writes templates through — they never enter

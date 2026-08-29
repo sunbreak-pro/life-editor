@@ -13,9 +13,12 @@ import {
   useMediaQuery,
   isNativeMobile,
   useTranslation,
+  useDomainLoad,
+  useSyncDomains,
   SOUND_PRESETS,
   cn,
   type DataService,
+  type TodoNode,
   type TodoOption,
   type TimerPhase,
   type AudioMixerSound,
@@ -78,8 +81,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   const isWide = useMediaQuery(WIDE_QUERY, true);
   // Optional (Mobile 省略 Provider) — null when no AudioProvider mounted.
   const audio = useAudioContext();
-  const [todos, setTodos] = useState<TodoOption[]>([]);
-  const [todosLoading, setTodosLoading] = useState(true);
+  const [todoNodes, setTodoNodes] = useState<TodoNode[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
 
@@ -93,31 +95,41 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     [t],
   );
 
-  useEffect(() => {
-    // todosLoading starts true (useState) so the initial fetch shows the
-    // skeleton; the async .finally clears it. We avoid a synchronous
-    // setState(true) here (react-hooks/set-state-in-effect) — a re-fetch on
-    // ds change simply keeps the (still-valid) list visible until it resolves.
-    let cancelled = false;
-    void ds
-      .fetchTodoTree()
-      .then((nodes) => {
-        if (cancelled) return;
-        const options = nodes
-          .filter((n) => n.type === "task" && !n.isDeleted)
-          .map((n) => ({ id: n.id, title: n.title || t("common.untitled") }));
-        setTodos(options);
-      })
-      .catch(() => {
-        if (!cancelled) setTodos([]);
-      })
-      .finally(() => {
-        if (!cancelled) setTodosLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, t]);
+  // The pick list is todos, so it follows the todos counter — without this a
+  // task created in another section never appeared here until the screen was
+  // remounted (rules/frontend.md §Sync).
+  const syncVersion = useSyncDomains("todos");
+
+  // #1157: the read used to start from an empty list on every mount, so the
+  // selector showed its loading state each time Work was opened. It runs
+  // through `useDomainLoad` under `workTodoOptions` now — its OWN slot, not
+  // `todoTree`: that one holds the `[active, deleted]` tuple useTodoTreeAPI
+  // stores, and a bare array written there would break that hook's replay.
+  //
+  // `load` returns the RAW nodes and the labelling happens in the memo below.
+  // Folding `t` into the fetch made `t` a dependency of the load, and an
+  // unstable `t` (a test mock returning a fresh function each render) turned
+  // that into an endless refetch — the trap that timed the #1038 harness out
+  // at 20 s.
+  const { isLoading: todosLoading } = useDomainLoad<TodoNode[]>({
+    domain: "Work todo options",
+    dataService: ds,
+    version: syncVersion,
+    snapshotKey: "workTodoOptions",
+    // Editing a todo while the timer runs must not blank the picker.
+    refetchReportsLoading: false,
+    load: (service) => service.fetchTodoTree(),
+    apply: setTodoNodes,
+    fallbackMessage: "Failed to load todos",
+  });
+
+  const todos = useMemo<TodoOption[]>(
+    () =>
+      todoNodes
+        .filter((n) => n.type === "task" && !n.isDeleted)
+        .map((n) => ({ id: n.id, title: n.title || t("common.untitled") })),
+    [todoNodes, t],
+  );
 
   const phaseLabels = useMemo(
     (): Record<TimerPhase, string> => ({

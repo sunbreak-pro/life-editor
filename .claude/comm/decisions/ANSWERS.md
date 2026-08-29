@@ -96,3 +96,7 @@
 - D-20260823-shared-fix-1: **C**（known-issue の採用条件 = 常時ロード面から ID 参照を張れること。張れないときは先に `rules/` へ 1 行足してから書く → 実装 Issue #1087。2026-08-23 chat-shared-fix の AskUserQuestion で回答・同セッションが転記）
 - D-20260823-shared-fix-2: **A**（参照 0 の 5 本を束で扱わない。007 / 010 = 削除・030 / 032 = 入口を張る・023 = 凍結。削除は不可逆のため P-007 で同期確認。同上）
 - D-20260824-shared-fix-1: **A**（MCP の `localWeekStart` を日曜始まりへ揃える。#1102 でアプリが日曜固定になった以上、週目標の期間キーと `get_week_context` の週窓が別の週を指すのは通らない → 実装 Issue #1138。2026-08-26 チャットで回答・chat-main が転記）
+- D-20260827-shared-fix-1: **A**（ツアーの進捗は localStorage のまま。テーマ・フォント・言語と同じ端末ローカルの軽量設定として扱い、`tour_progress` テーブル + DataService ドメインは作らない。2026-08-28 チャットで回答・chat-main が転記）
+- D-20260828-materials-1: **A**（Materials 空状態の候補は「開いた履歴（MRU）」を新設して出す。`updatedAt` 降順は「最近編集した」であって「開いた」ではない。2026-08-28 チャットの AskUserQuestion で回答・chat-materials-refine が転記）
+- D-20260828-materials-2: **A**（「最近開いた」候補は今回 Notes タブだけ。Daily / Todos / Tags は別 Issue で追随し、見た目の割れは一時的に許容する。同上）
+- D-20260828-materials-3: **A**（#1147 では既定タイトル `Untitled` を触らない。`createNote` は shared にあり Desktop と MCP 経路にも効くため、i18n 化は別 Issue へ。同上）

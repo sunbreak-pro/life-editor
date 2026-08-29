@@ -4,8 +4,6 @@ import type {
   DailiesUnifiedDataService,
   DataService,
   ItemConversionDataService,
-  NoteConnectionsDataService,
-  NoteLinksDataService,
   NotesUnifiedDataService,
   RoutinesDataService,
   ScheduleItemsDataService,
@@ -37,16 +35,6 @@ import {
   PHASE2_ITEM_CONVERSION_METHODS,
   type ItemConversionMethodName,
 } from "./SupabaseItemConversionService";
-import {
-  SupabaseNoteConnectionService,
-  SupabaseNoteLinkService,
-  PHASE2_NOTE_CONNECTION_METHOD_NAMES,
-  PHASE2_NOTE_CONNECTION_METHODS,
-  PHASE2_NOTE_LINK_METHOD_NAMES,
-  PHASE2_NOTE_LINK_METHODS,
-  type NoteConnectionMethodName,
-  type NoteLinkMethodName,
-} from "./SupabaseNoteLinksService";
 import {
   SupabaseNotesUnifiedService,
   PHASE2_NOTES_UNIFIED_METHOD_NAMES,
@@ -151,12 +139,6 @@ export type NotesUnifiedRoutingIsExact = AssertNever<
 export type DailiesUnifiedRoutingIsExact = AssertNever<
   Mismatch<DailiesUnifiedDataService, DailiesUnifiedMethodName>
 >;
-export type NoteConnectionsRoutingIsExact = AssertNever<
-  Mismatch<NoteConnectionsDataService, NoteConnectionMethodName>
->;
-export type NoteLinksRoutingIsExact = AssertNever<
-  Mismatch<NoteLinksDataService, NoteLinkMethodName>
->;
 
 /** Every method name the Proxy can route, across all domains. */
 export type RoutedMethodName =
@@ -169,9 +151,7 @@ export type RoutedMethodName =
   | ItemConversionMethodName
   | WikiTagsUnifiedMethodName
   | NotesUnifiedMethodName
-  | DailiesUnifiedMethodName
-  | NoteConnectionMethodName
-  | NoteLinkMethodName;
+  | DailiesUnifiedMethodName;
 
 /**
  * Catches the case the per-domain assertions cannot see: a member declared
@@ -250,18 +230,6 @@ export const PHASE2_ROUTING_DOMAINS = [
     names: PHASE2_DAILIES_UNIFIED_METHOD_NAMES,
     methods: PHASE2_DAILIES_UNIFIED_METHODS,
     service: SupabaseDailiesUnifiedService,
-  },
-  {
-    domain: "noteConnections",
-    names: PHASE2_NOTE_CONNECTION_METHOD_NAMES,
-    methods: PHASE2_NOTE_CONNECTION_METHODS,
-    service: SupabaseNoteConnectionService,
-  },
-  {
-    domain: "noteLinks",
-    names: PHASE2_NOTE_LINK_METHOD_NAMES,
-    methods: PHASE2_NOTE_LINK_METHODS,
-    service: SupabaseNoteLinkService,
   },
 ] as const satisfies ReadonlyArray<{
   domain: string;

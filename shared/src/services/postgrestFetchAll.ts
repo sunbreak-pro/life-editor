@@ -20,7 +20,8 @@
  *     same write fires a Realtime event and SyncContext schedules another
  *     full refetch ~300 ms later (self-healing).
  *
- *   - fetchByIdChunks / forEachIdChunk: `.in(col, ids)` with an unbounded
+ *   - fetchByIdChunks / forEachIdChunk / forEachIdChunkReturning:
+ *     `.in(col, ids)` with an unbounded
  *     id list risks BOTH the max-rows cap on the result and URL-length
  *     limits (ids ride in the GET/PATCH/DELETE query string; ~25 chars
  *     per id × 1000 ids ≫ common 16 KB proxy caps). Chunking to
@@ -121,4 +122,32 @@ export async function forEachIdChunk(
     const { error } = await runChunk(chunk);
     if (error) throw new Error(`${label}: ${error.message}`);
   }
+}
+
+/**
+ * forEachIdChunk for a write that must READ BACK what it touched: the call
+ * site appends `.select(…)` and the rows of every chunk are concatenated.
+ * Chunking, sequencing and the `<label>: <message>` throw are identical —
+ * the only difference is that the caller can compare the affected rows
+ * against the ids it asked for.
+ *
+ * Use it where a filtered-out row is a FAULT rather than a no-op. Most
+ * filtered writes on this codebase are the latter (a miss evaporates and
+ * the next Realtime refetch papers over it), so reach for plain
+ * forEachIdChunk unless the miss has a consequence a later step cannot
+ * describe — permanentDeleteRoutine's occurrence sweep being the case that
+ * asked for this (#1140).
+ */
+export async function forEachIdChunkReturning<Row>(
+  ids: readonly string[],
+  runChunk: (chunk: string[]) => PromiseLike<PostgrestListResult>,
+  label: string,
+): Promise<Row[]> {
+  const out: Row[] = [];
+  for (const chunk of chunkIds(ids)) {
+    const { data, error } = await runChunk(chunk);
+    if (error) throw new Error(`${label}: ${error.message}`);
+    out.push(...((data as Row[] | null) ?? []));
+  }
+  return out;
 }

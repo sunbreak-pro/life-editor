@@ -7,6 +7,7 @@ import {
   SettingsGeneral,
   SettingsDayStart,
   SettingsReset,
+  SettingsTutorial,
   SettingsDetailPanel,
   getSession,
   RightSidebarPortal,
@@ -20,6 +21,7 @@ import {
   useShortcutConfig,
   useStartupSectionPref,
   useDayStartHourPref,
+  useTourContext,
   resetLocalPreferences,
   useMediaQuery,
   useTranslation,
@@ -64,6 +66,13 @@ export function SettingsScreen() {
   const { pref: startupPref, setPref: setStartupPref } =
     useStartupSectionPref();
   const { dayStartHour, setDayStartHour } = useDayStartHourPref();
+  /*
+   * Tutorial re-run (#1123). REQUIRED Provider, unlike useShortcutConfig below
+   * — the tour is global and mounted on every shell, so there is no null case
+   * and no card to hide. `restart` clears the stored position and walks from
+   * step one; the tour navigates itself off this screen from there.
+   */
+  const { restart: restartTour } = useTourContext();
   const isWide = useMediaQuery(WIDE_QUERY);
 
   // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
@@ -348,6 +357,17 @@ export function SettingsScreen() {
             hidePassword: t("auth.hidePassword"),
             submit: t("settings.account.submit"),
             busy: t("settings.account.busy"),
+          }}
+        />
+      </div>
+
+      <div className={cardClass}>
+        <SettingsTutorial
+          onRestart={restartTour}
+          labels={{
+            heading: t("settings.tutorial.heading"),
+            description: t("settings.tutorial.description"),
+            button: t("settings.tutorial.button"),
           }}
         />
       </div>

@@ -56,7 +56,6 @@ export {
 
 // Types
 export type { TodoNode, TodoNodeType, TodoStatus } from "./types/todoTree";
-export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
 export type { DailyNode } from "./types/daily";
 export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
 
@@ -79,6 +78,22 @@ export { useSyncContext } from "./hooks/useSyncContext";
 // #499 — refetch keyed to the domains a consumer reads, so one domain's write
 // no longer re-pulls (or, for the timer, re-WRITES) every other domain.
 export { useSyncDomains } from "./hooks/useSyncDomains";
+// The shared load effect (#672) + its stale-while-revalidate store (#1101).
+// Exported for the web HOSTS that fetch for themselves rather than through a
+// domain provider (#1157: Briefing / Analytics / Trash / Work) — hosts may
+// call the DataService directly (§6.4), and this is the one way to do it that
+// survives the section unmount. `clearDomainSnapshots` is test isolation:
+// the store is module-level and outlives a suite's renders.
+export {
+  useDomainLoad,
+  type UseDomainLoadOptions,
+  type DomainLoadState,
+} from "./hooks/useDomainLoad";
+export {
+  clearDomainSnapshots,
+  writeDomainSnapshot,
+  type DomainSnapshotKey,
+} from "./state/domainSnapshotStore";
 export {
   SYNC_DOMAINS,
   domainsForChange,
@@ -191,6 +206,18 @@ export {
 } from "./utils/migrateLegacyPreferenceKeys";
 // W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
 export { useMediaQuery } from "./hooks/useMediaQuery";
+// #1149 — recently OPENED notes, the candidates the Materials empty state
+// offers instead of telling the user to select from nothing. Persistent, unlike
+// the session-scoped materialsSelectionStore next to it.
+export {
+  getRecentNoteIds,
+  recordNoteOpened,
+  subscribeRecentNotes,
+  clearRecentNotes,
+  resolveRecentNotes,
+  RECENT_NOTES_LIMIT,
+} from "./state/recentNotesStore";
+export { useRecentNoteIds } from "./hooks/useRecentNotes";
 // #473 — the on-screen area, which the soft keyboard shrinks and `vh` does not.
 export {
   useVisualViewport,
@@ -328,9 +355,10 @@ export {
 // Note domain — context (Pattern A) + hooks (DI: dataService/undoRedo).
 // DU-G G4: the legacy Note Provider / context hook / API hook were
 // retired; the Unified surface below is the only Notes API. The
-// `useNoteTreeMovement` helper (pure tree-move logic, no @dnd-kit) is
-// retained and consumed by `useNotesUnifiedAPI`; it stays exported for
-// host/test use. `NoteSortDirection` now lives on `useNotesUnifiedAPI`.
+// `useNoteTreeMovement` helper went with the rest of the tree-movement
+// chain in #1156 (nesting is retired for good — #418), so the Notes API no
+// longer exposes `moveNode` / `moveToRoot`. `NoteSortDirection` now lives on
+// `useNotesUnifiedAPI`.
 export { NotesUnifiedProvider } from "./context";
 export { NotesUnifiedContext, type NotesUnifiedContextValue } from "./context";
 export { useNotesUnifiedContext } from "./hooks/useNotesUnifiedContext";
@@ -339,7 +367,6 @@ export {
   type UseNotesUnifiedAPIOptions,
   type NoteSortDirection,
 } from "./hooks/useNotesUnifiedAPI";
-export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // First of the Schedule trio (§6.2). routines CRUD only; the generator
@@ -608,10 +635,6 @@ export {
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";
-export {
-  computeNoteDropIntent,
-  type NoteDropPosition,
-} from "./utils/noteDropIntent";
 // Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
 // `sortedFilteredNotes` comparator, so the host list + the extracted util
 // share one ordering source.
@@ -649,6 +672,11 @@ export {
   extractItemLinkTargets,
   findStaleInlineLinks,
 } from "./utils/inlineLinkSync";
+// #1152: derivations over an already-fetched `wiki_tag_connections` array,
+// kept when the Connect graph they used to feed was retired. A host holding
+// the raw connections wants these; one inside the WikiTagsUnifiedProvider
+// wants `getLinksForItem` instead.
+export { backlinkSourceIds, resolveLinkId } from "./utils/itemLinks";
 // #376: hosts that write a row through the injected DataService (rather than
 // through a domain Provider) need the canonical id shape too — the Schedule
 // creation panel creates a Note without mounting the Notes Provider.
@@ -689,7 +717,10 @@ export {
   TourContext,
   type TourContextValue,
 } from "./context";
-export { useTourContext } from "./hooks/useTourContext";
+export {
+  useTourContext,
+  useTourContextOptional,
+} from "./hooks/useTourContext";
 // The producer side of the tour (#1124): optional and stable, so a write
 // handler can report an action without depending on the tour being mounted.
 export { useTourAction } from "./hooks/useTourAction";

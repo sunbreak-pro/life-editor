@@ -516,12 +516,29 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
 
   const permanentDeleteRoutine = useCallback(
     (id: string) => {
+      // #1140: the optimistic removal is PUT BACK when the purge refuses.
+      // A purge is the one write on this hook that the database can reject
+      // outright — the 0011 composite FK is NO ACTION, so a still-referencing
+      // occurrence makes it fail rather than partially apply. Dropping the row
+      // and only logging meant the routine left Trash on screen while it was
+      // still in the database, with nothing to click to try again: the user
+      // could neither see the failure nor recover from it. Restoring the row
+      // makes the screen match the data and puts the retry back in reach.
+      //
+      // Guarded with `some(id)` for the same reason restoreRoutine above is:
+      // StrictMode double-invokes the updater in dev, and this one runs from
+      // an async catch where a retry can overlap.
+      const purged = deletedRoutines.find((r) => r.id === id);
       setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
-      ds.permanentDeleteRoutine(id).catch((e) =>
-        logServiceError("Routines", "permanentDelete", e),
-      );
+      ds.permanentDeleteRoutine(id).catch((e) => {
+        logServiceError("Routines", "permanentDelete", e);
+        if (!purged) return;
+        setDeletedRoutines((prev) =>
+          prev.some((r) => r.id === id) ? prev : [...prev, purged],
+        );
+      });
     },
-    [ds],
+    [ds, deletedRoutines],
   );
 
   return useMemo(

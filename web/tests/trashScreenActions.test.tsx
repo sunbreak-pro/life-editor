@@ -12,6 +12,7 @@ import {
   type DataService,
 } from "@life-editor/shared";
 import { TrashScreen } from "../src/trash/TrashScreen";
+import { createBumpableSync } from "./helpers";
 
 /*
  * #701 Step 2 — one screen driven entirely through its buttons' ARGUMENTS.
@@ -20,7 +21,9 @@ import { TrashScreen } from "../src/trash/TrashScreen";
  * Testing Library and drive its handlers (B), and only fall back to extracting
  * a pure module (A) when the component cannot live in jsdom at all. Trash is
  * the demonstration screen — it is not Schedule (#701 reserves Schedule for
- * #673/#675), it needs no Provider stack, and every one of its buttons ends in
+ * #673/#675), it needs one Provider (Sync — #1157 put the five reads on
+ * useDomainLoad, which follows the Realtime counters), and every one of its
+ * buttons ends in
  * a DataService call whose ARGUMENT is the whole behavior.
  *
  * What that buys over the existing suites: shared/tests/trashView.test.tsx
@@ -131,10 +134,21 @@ function makeHarness(): Harness {
   return { ds: fns as unknown as DataService, fns };
 }
 
+/*
+ * TrashScreen reads `useSyncDomains` since #1157, and `useSyncContext` throws
+ * outside its Provider — so every render here goes through one. `bump` is
+ * unused by these tests; what matters is that the counter exists and never
+ * moves, so nothing refetches behind an assertion.
+ */
+function renderInSync(harness: Harness) {
+  const { wrapper } = createBumpableSync();
+  render(<TrashScreen dataService={harness.ds} />, { wrapper });
+}
+
 /** Renders and waits out the loading skeleton. */
 async function renderTrash(): Promise<Harness> {
   const harness = makeHarness();
-  render(<TrashScreen dataService={harness.ds} />);
+  renderInSync(harness);
   await screen.findByRole("region", { name: "Todos" });
   return harness;
 }
@@ -294,7 +308,7 @@ describe("TrashScreen — what the screen shows after the call returns", () => {
     harness.fns.restoreScheduleItem.mockRejectedValueOnce(
       new ScheduleRestoreConflictError(["event-1"]),
     );
-    render(<TrashScreen dataService={harness.ds} />);
+    renderInSync(harness);
     await screen.findByRole("region", { name: "Todos" });
 
     fireEvent.click(
@@ -313,7 +327,7 @@ describe("TrashScreen — what the screen shows after the call returns", () => {
   it("says something different when a restore simply broke", async () => {
     const harness = makeHarness();
     harness.fns.restoreNoteUnified.mockRejectedValueOnce(new Error("offline"));
-    render(<TrashScreen dataService={harness.ds} />);
+    renderInSync(harness);
     await screen.findByRole("region", { name: "Todos" });
 
     fireEvent.click(
@@ -331,7 +345,7 @@ describe("TrashScreen — what the screen shows after the call returns", () => {
     harness.fns.fetchDeletedRoutines.mockRejectedValueOnce(
       new Error("offline"),
     );
-    render(<TrashScreen dataService={harness.ds} />);
+    renderInSync(harness);
 
     const retry = await screen.findByRole("button", { name: "Reload" });
     fireEvent.click(retry);

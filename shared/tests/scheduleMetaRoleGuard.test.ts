@@ -46,9 +46,11 @@ import {
  * The one exception is `permanentDeleteRoutine`, whose two deletes are ordered
  * by an ON DELETE NO ACTION FK: a spared occurrence keeps its events_payload
  * row pointing at the routine, so the purge fails loudly rather than quietly.
- * Its case below pins the half that decides that — which rows each step
- * addresses, and in which order. The FK itself is not modelled here (no mock
- * enforces one), so the case says so rather than implying it proved the throw.
+ * Since #1140 the loud failure comes from step 2 itself — it reads back the
+ * rows it removed and refuses before step 3 is issued — so its case below
+ * pins the actual throw, not just the addressing that would provoke one. The
+ * FK is still not modelled here (no mock enforces one); it no longer has to
+ * be, because the service stops short of the write that would test it.
  *
  * Mock style mirrors scheduleItemsBulkWrites.test.ts / updateFuture
  * ScheduleItemsByRoutine.test.ts: single-use thenable PostgREST builders over
@@ -98,6 +100,13 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   private patch: Row = {};
   private filters: Filter[] = [];
   private singleRow = false;
+  /**
+   * A `.select()` chained AFTER a verb — PostgREST's "return what you
+   * touched". #1140 made permanentDeleteRoutine's occurrence sweep read its
+   * own row count back, so a DELETE can now be asked for its rows too, not
+   * just an UPDATE.
+   */
+  private returning = false;
 
   private inserted: Row[] = [];
 
@@ -110,6 +119,7 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
 
   select(): this {
     if (this.mode === null) this.mode = "select";
+    else this.returning = true;
     return this;
   }
   update(patch: Row): this {
@@ -229,11 +239,14 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
       });
       this.db[this.table] = rows.filter((r) => !this.matches(r));
       // PostgREST answers a DELETE with no error even when it matched nothing.
-      // That IS the contract: the stale operation evaporates.
-      return Promise.resolve({ data: null, error: null }).then(
-        onFulfilled,
-        onRejected,
-      );
+      // That IS the contract: the stale operation evaporates. With a trailing
+      // `.select()` it also hands back the rows it removed, which is the only
+      // way a caller can tell "matched nothing" from "matched everything"
+      // (#1140).
+      return Promise.resolve({
+        data: this.returning ? hit : null,
+        error: null,
+      }).then(onFulfilled, onRejected);
     }
     const data = this.singleRow ? (hit[0] ?? null) : hit;
     return Promise.resolve({ data, error: null }).then(onFulfilled, onRejected);
@@ -835,13 +848,15 @@ describe("#1098 routine items_meta DELETE is role-guarded", () => {
    *
    * In the real DB, sparing that occurrence means its events_payload row keeps
    * referencing the routine through the 0011 composite FK (ON DELETE NO
-   * ACTION), so step 3 is REJECTED and the purge throws. The mock has no FK to
-   * enforce, so what this case pins is the half that decides it: which rows
-   * each step addresses, and in which order. That is the trade #1098 chose —
-   * a purge that refuses leaves a diagnosable leftover, and a hard-deleted
-   * Todo leaves nothing.
+   * ACTION), so step 3 would be REJECTED. This mock enforces no FK — but since
+   * #1140 it does not have to, because step 2 now reads its own row count back
+   * and refuses BEFORE step 3 is issued. So the case pins the refusal itself,
+   * and the survivors it names, rather than only the addressing that leads to
+   * one. That is the trade #1098 chose, now stated by the service instead of
+   * by Postgres: a purge that refuses leaves a diagnosable leftover, and a
+   * hard-deleted Todo leaves nothing.
    */
-  it("permanentDeleteRoutine purges its occurrences and itself, sparing a converted one", async () => {
+  it("permanentDeleteRoutine refuses rather than purge past an occurrence it could not remove", async () => {
     const routine: Row = {
       id: "routine-1",
       role: "routine",
@@ -873,14 +888,19 @@ describe("#1098 routine items_meta DELETE is role-guarded", () => {
     };
     const svc = new SupabaseRoutinesService(makeClient(db, writes));
 
-    await svc.permanentDeleteRoutine("routine-1");
+    await expect(svc.permanentDeleteRoutine("routine-1")).rejects.toThrow(
+      /permanentDeleteRoutine events: 1 of 2 .*occ-converted/,
+    );
 
-    expect(metaIds(db)).toEqual(["occ-converted"]);
-    // Step 2 addresses the OCCURRENCES (role='event'), step 3 the routine —
-    // in that order, which is the ordering the NO ACTION FK demands.
+    // The live occurrence IS gone — step 2 applies before it complains, the
+    // same partial application forEachIdChunk has always had. The routine
+    // survives, which is the point: it stays purgeable once the stray row is
+    // dealt with, instead of the purge reporting success over a wedge.
+    expect(metaIds(db)).toEqual(["routine-1", "occ-converted"]);
+    // Only step 2 ran. Step 3 (role='routine') is never issued — in the real
+    // DB it is the one the NO ACTION FK would have rejected.
     expect(roleFilters(writes)).toEqual([
       { op: "eq", col: "role", val: "event" },
-      { op: "eq", col: "role", val: "routine" },
     ]);
   });
 });
