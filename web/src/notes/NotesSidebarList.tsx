@@ -99,6 +99,13 @@ export interface NotesSidebarListProps {
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
+  /**
+   * The saved-templates disclosure (#1180), built by the host because it owns
+   * the DataService the templates are read and written through. Rendered above
+   * Trash — both are collections this tab keeps out of the main list.
+   */
+  templatesSlot?: ReactNode;
+
   // Trash disclosure.
   trashOpen: boolean;
   onToggleTrash: () => void;
@@ -131,6 +138,7 @@ export function NotesSidebarList({
   onDeleteNote,
   onCreateNote,
   dnd,
+  templatesSlot,
   trashOpen,
   onToggleTrash,
   deletedNotes,
@@ -254,6 +262,8 @@ export function NotesSidebarList({
           </DragOverlay>
         </DndContext>
       )}
+
+      {templatesSlot}
 
       {/* Trash section. (The Links disclosure that used to sit above it moved
           into the note detail header, beside the tags — #884.) */}

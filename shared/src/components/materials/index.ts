@@ -20,6 +20,19 @@ export {
   type TemplateSavedPanelProps,
   type TemplateSavedPanelLabels,
 } from "./TemplateSavedPanel";
+// The saved-templates disclosure in the Notes rightSidebar + the centre panel
+// that edits one (#1180).
+export {
+  TemplateListPanel,
+  type TemplateListPanelProps,
+  type TemplateListPanelLabels,
+  type TemplateListItem,
+} from "./TemplateListPanel";
+export {
+  TemplateEditPanel,
+  type TemplateEditPanelProps,
+  type TemplateEditPanelLabels,
+} from "./TemplateEditPanel";
 // The body-only password lock both note surfaces share (#526).
 export { LockedBodyGate, type LockedBodyGateProps } from "./LockedBodyGate";
 export {

@@ -342,7 +342,11 @@
       "use": "このテンプレートからノートを作成",
       "pickHint": "テンプレートを選ぶか、新しく作成してください。",
       "noTagsHint": "テンプレートにはタグやリンクを付けられません。生成したノートには付けられます。",
-      "bodyPlaceholder": "テンプレートを書く…"
+      "bodyPlaceholder": "テンプレートを書く…",
+      "sidebarHeading": "テンプレート",
+      "edit": "テンプレートを編集",
+      "editTitle": "テンプレートの編集",
+      "save": "保存"
     },
     "links": {
       "panelLabel": "リンク",
