@@ -109,6 +109,48 @@ export async function signOut(): Promise<{ error: string | null }> {
   return { error: error ? error.message : null };
 }
 
+/** Name of the Edge Function that owns the privileged half of deletion. */
+export const DELETE_ACCOUNT_FUNCTION = "delete-account";
+
+/*
+ * Self-service account deletion (#1200).
+ *
+ * Nothing here can be done from the browser alone: `auth.admin` is not
+ * reachable with the anon key, which is exactly why the work lives in the
+ * `delete-account` Edge Function (supabase/functions/delete-account). It
+ * purges the caller's public.* rows through the RLS-scoped SQL function
+ * `public.delete_my_account()` (migration 0025) and then removes the
+ * auth.users row with service_role.
+ *
+ * The local session is cleared afterwards with `scope: "local"`. A normal
+ * sign-out would call the server to revoke a session whose user no longer
+ * exists — the call fails, and the app would be left holding a dead token
+ * that still looks like a session on the next launch. Local-only throws the
+ * token away without asking, which is the honest end state.
+ *
+ * `error` is a human-readable message on failure, exactly like the rest of
+ * this module. The delete either happened in full or not at all: the SQL
+ * function re-scans for leftovers and rolls its whole transaction back, so a
+ * failure never leaves a half-erased account.
+ */
+export async function deleteAccount(): Promise<{ error: string | null }> {
+  const client = getSupabaseClient();
+  const { error } = await client.functions.invoke(DELETE_ACCOUNT_FUNCTION, {
+    method: "POST",
+  });
+  if (error) {
+    return { error: error.message };
+  }
+  // Best-effort: the account is already gone, so a failure to tidy the local
+  // token must not be reported as "deletion failed".
+  try {
+    await client.auth.signOut({ scope: "local" });
+  } catch (e: unknown) {
+    console.error("[auth] local sign-out after deletion", e);
+  }
+  return { error: null };
+}
+
 export async function getSession(): Promise<Session | null> {
   const { data } = await getSupabaseClient().auth.getSession();
   return data.session ?? null;

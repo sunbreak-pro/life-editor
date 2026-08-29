@@ -27,6 +27,10 @@ export {
   sendPasswordResetEmail,
   updatePassword,
   passwordRecoveryRedirectUrl,
+  // Self-service account deletion (#1200) — the Edge Function call plus the
+  // local session teardown that has to follow it.
+  deleteAccount,
+  DELETE_ACCOUNT_FUNCTION,
   type AuthResult,
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";

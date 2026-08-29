@@ -270,6 +270,12 @@ export {
   type SettingsGeneralOption,
 } from "./SettingsGeneral";
 export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
+// Account deletion confirmation (#1200) — type-the-address gate, deliberately
+// not a plain ConfirmDialog (nothing is recoverable behind this one).
+export {
+  DeleteAccountDialog,
+  type DeleteAccountDialogProps,
+} from "./DeleteAccountDialog";
 // Tutorial re-run card (#1123). The only way back to the tour once it has been
 // finished or skipped — the host wires the button to TourContext's `restart`.
 export {
