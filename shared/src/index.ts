@@ -25,8 +25,9 @@ export {
   getSession,
   onAuthStateChange,
   sendPasswordResetEmail,
+  resendConfirmationEmail,
   updatePassword,
-  passwordRecoveryRedirectUrl,
+  authRedirectUrl,
   type AuthResult,
 } from "./services/SupabaseAuth";
 export type { Session } from "@supabase/supabase-js";
