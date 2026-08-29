@@ -1,5 +1,19 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-29 - PR #1168 / #1187 のコンフリクト解消
+
+#### 概要
+
+並行して main に着地した #1167（Materials のツアーステップ）と #1148（narrow の日別リスト退役）が原因で衝突していた 2 本の PR を、最新の `origin/main` に対して解決して push した。両方 MERGEABLE + CLEAN に復帰。
+
+#### 変更点
+
+- **#1168（`claude/sched-1124-schedule-tour-steps`・5 件）**: tour registry のヘッダコメント（Schedule 節と Materials 節を両方残す）/ en・ja の `tour.steps`（両側のキーを歩く順に）/ `shared/src/index.ts` の tour フック export（両方）/ `CalendarNarrowLayout.tsx`（#1148 の退役を採用し、`schedule-add-event` アンカーを `ScheduleSidebar` の見出し行のピルへ移設 — wide 側は `ScheduleToolbar` のままで、両者は `onAdd` の有無により同時に描画されない）
+- **重複フックの解消**: `useTourAction` が自前で作っていた optional context hook を、main が同目的で足した `useTourContextOptional` に寄せた（マーカーに出ない衝突）
+- **#1187（`claude/sched-1153-retire-todo-tab`・4 件）**: `CalendarTab.tsx` 3 hunk（import は両取り / `openSidebar` のコメントは両方の理由を併記 / 3 つ目は #1148 の narrow 値と #1153 の todo intent という無関係な 2 ブロックだったので並置）/ `ScheduleSidebar.tsx`（`activeScheduleSidebarTab` は呼び出し側ごと退役済みなので削除を採用）/ `scheduleSidebar.test.tsx`（両側の describe を残す）/ `mobile-scope.md`（#4 行は main 版、#1153 行はこちら）
+- **検証**: 両ブランチとも CI `verify` の全ステップ + `docs-lint` をローカルで exit 0。#1168 は GitHub Actions も緑
+- **残件**: #1124 のツアーアンカー 3 本（`scheduleTodoTab` / `scheduleTodoAdd` / `scheduleTodoBoard`）は #1153 が削除する面に付いている。付け替えは後着地側の担当（`2026-08-29-schedule-todo-tab-retirement.md` L100）で、#1168 を先に merge するなら #1187 側でもう 1 往復要る
+
 ### 2026-08-29 - /goal 4 件（#1140 / #1124 / #1148 / #1153）を全部 PR まで
 
 #### 概要
