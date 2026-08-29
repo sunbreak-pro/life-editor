@@ -193,7 +193,7 @@ async function getEvent(id: string) {
  * than the one asked (#702 ②).
  *
  * `start_date` alone fell through to the single-day branch and returned
- * TODAY: a caller who asked for "this week from Monday" got one day back,
+ * TODAY: a caller who asked for "this week from Sunday" got one day back,
  * with nothing in the result saying so. `date` alongside a range was
  * likewise dropped without a word. Both look like success, which is the
  * worst way to be wrong.
