@@ -1,5 +1,21 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-08-29 - Settings 3 課題を各ブランチで実装し PR まで（#1174 / #1182 / #1200）
+
+#### 概要
+
+settings レーンの open 3 件を「1 Issue = 1 ブランチ（origin/main 分岐）」で実装し、各ブランチで CI `verify` 相当をローカル全緑にしてから PR を開いた（merge は P-001 によりユーザー手番のため未実施）。3 本とも `web/src/settings/SettingsScreen.tsx` を触るので、指示どおり origin/main から独立に切った代償として Appearance カード周辺で手動 resolve が要る旨を各 PR 本文に明記した。
+
+#### 変更点
+
+- **#1174 → PR #1218（claude/settings-1174-settings-tabs）**: Settings を「カテゴリ」化。rightSidebar の面が外観プレビュー + Tips からカテゴリ一覧（General / Briefing / Schedule / Materials / Work / Analytics / Tips）に替わり、本文は 1 カテゴリずつ表示する。General は従来のカードを順序ごと保持。Schedule カテゴリが初のセクション別設定で、`useCalendarNav` の `useState("week")` ハードコードを `resolveInitialCalendarView()` 種まきに置換（startup-section pref と同じ形 = 純粋 resolver + lazy 初期化子。`normalizeDesktopView` を通すので退役済みの `list` / `time` でも描ける）。Tips はカテゴリではなく中央 Modal。5 つのセクション行はアイコンもラベル key も `sections.ts` registry 由来（サイドバー行と食い違えない）。新規 = `SettingsTabsNav` / `SettingsSchedule` / `useScheduleInitialView`
+- **#1182 → PR #1223（claude/settings-1182-mobile-size-steps）**: 狭幅の文字サイズを 3 段階プリセット（step 3 / 5 / 8 = 14 / 18 / 22px）に。既存 1–10 スケール上の step なので setter も保存値も root px も不変で、Desktop はスライダーのまま。中央 = step 5 = アプリ既定。保存済みの任意値は px 距離で最寄りに寄せ、同点（16px / 20px）は可読性側へ切り上げ。px 表示はスライダー用の「18px (5/10)」と別ラベルに分けた（3 段階の横で 5/10 は嘘になる）。`touch` prop の意味を「サムを大きく」から「狭幅レンダリング」へ拡張
+- **#1200 → PR #1229（claude/settings-1200-account-deletion）**: セルフ退会 + 狭幅のログアウト導線。ログアウトは Desktop サイドバー足元にしか無く、狭幅（ボトムタブ・サイドバー無し）では site data 消去以外に出口が無かったので Account カードへ移設。削除は 2 分割 — `public.delete_my_account()`（migration 0025・**SECURITY INVOKER** なので RLS が各 DELETE を呼び出し元に絞る）が public 配下を消し、Edge Function `delete-account` が service_role で `auth.users` の 1 行だけ消す。`auth.users` 向きの FK が 1 本も無い（実測）ため CASCADE は効かず一覧は手書きになるので、削除後に `pg_catalog` から `user_id` を持つ全テーブルを引き直して残行があれば **RAISE**（＝トランザクション巻き戻し＝全か無か。テーブル追加時に静かに残らない）。確認 UI は ConfirmDialog ではなく「自分のアドレスを打ち直す」ゲート（このアプリで唯一 Trash も undo も無い操作のため）
+- **🛑 人手ゲート**: #1200 は `cd supabase && npm run db:push` → `supabase functions deploy delete-account` の 2 手が要る（新規シークレットは不要 — service_role は Supabase が Edge Function に自動注入）。`comm/decisions/chat-settings-refine.md` に `G-20260829-settings-1` として控えた（同ファイルは #1200 ブランチ上に載っている）。ゲート未実施でも削除ボタンが 500 で失敗するだけでデータは 1 行も消えない
+- **テスト**: shared に `scheduleInitialView`（resolver の fallback）/ `mobileFontSizePresets`（対応付け + カードのコントロール入替）/ `deleteAccountDialog`（ゲートと許容ルール・busy ロック・backdrop 無効）、web に `settingsTabs`（行→本文の routing・Tips が本文を替えないこと）/ `settingsMobileFontSize`（狭幅版・既存 Settings スイートは全部 wide だった）/ `settingsAccountDeletion`（武装済み confirm 以外は `deleteAccount()` に届かないこと）
+- **検証**: 3 ブランチそれぞれで CI `verify` の全ステップ（shared lint / build / typecheck:tests / test、web 同、desktop typecheck / test / build、mcp-server build / typecheck:tests / test）と `docs-lint` をローカル実行し全緑。実ブラウザ・実機確認は §7.4 に従い merge 後 chat-main 側（#1182 の px 値の詰めと #1200 の実退会 E2E がここに残る）
+- **衝突対応**: 別セッション `connect-refine-a6` が同じ /goal を受けて本 worktree に入り、`claude/settings-1174-settings-tabs` を作って `SettingsScreen.tsx` / i18n を編集していた。SendMessage で名乗り合って解消（向こうが撤退）。先方の `SettingsTabsNav.tsx` / `SettingsSchedule.tsx` と barrel の export は revert せず引き継ぎ、`SCHEDULE_INITIAL_VIEWS` を足して整合させた
+
 ### 2026-08-28 - チュートリアルの初回自動開始と Settings 再実行導線（Issue #1123 / PR #1164）
 
 #### 概要
@@ -61,22 +77,3 @@ Settings → Appearance → Font で Serif/Monospace を選んでも本文の書
 - **検証**: `cd web && npm run build` exit 0 / `cd shared && npm run test` 845 pass（`themeContext.test.tsx` の font-family アサーション含む・ThemeContext 無変更で緑）。role-qa 独立レビュー PASS（Blocker 0・scope 越境なし）
 - **PR**: #233（Closes #228）commit f9ccb3e3。実ブラウザ `getComputedStyle(document.body).fontFamily` の最終実測は §7.4 に従い merge 後に chat-main の playwright で
 - **#181 [all] layout-standard**: settings 行は既に main で対応済み（commit 7c4c3723 / PR #193・MainScreen PageContainer が幅所有・`web/src/settings` にローカル max-w なし）を確認 → Issue の settings チェックボックスを ✅ 化＋根拠コメント投稿。close は chat-main に委譲（全行消化待ち）
-
-### 2026-07-11 - Settings 軽量プリファレンス拡張（Issue #216）
-
-#### 概要
-
-Settings 機能棚卸し（Workflow で 147 候補 → 約 40 整理・ユーザーが軽量セット選択）を受け、frontend only・移行非依存の 5 設定＋共通 prefs 基盤を実装した。新 Provider を足さず既存 ThemeContext を拡張。他 worktree のセクション部品には非接触。
-
-#### 変更点
-
-- **shared/src/context/ThemeContext(.tsx/Value.ts)**: `themeMode`(light/dark/**system**)を SSOT 化・`theme` は matchMedia 解決の派生値に。OS 変化購読（cleanup 付き）。`fontFamily`(system/serif/mono)・`reduceMotion`(system/reduce/off)を追加し documentElement へ反映。既存 `setTheme`/`toggleTheme` は後方互換。移行は「新規は light 既定」でサプライズ回避
-- **shared/src/styles/tokens.css**: reduce-motion を 3 状態対応（`:root:not([data-reduce-motion="off"])` で OS 追従を上書き可能化＋`[data-reduce-motion="reduce"]` で OS 非依存の強制減。打ち消しを kanban 限定→全体 `*` に一般化・0.001ms で transitionend 発火）
-- **新規**: `hooks/useStartupSection.ts`(resolveInitialSection/persistLastSection/useStartupSectionPref) / `utils/resetPreferences.ts`(life-editor 名前空間のみ削除) / `constants/fontFamily.ts` / pure primitive `SettingsSegment`・`SettingsGeneral`・`SettingsReset`
-- **web/src/MainScreen.tsx**: section state を起動時 pref から lazy init ＋ last-section 永続の 2 箇所のみ改修
-- **web/src/settings/SettingsScreen.tsx**: 5 設定のカード配線・reset の confirm 所有。起動候補は MAIN_SECTIONS（trash/settings 除外）
-- **i18n**: settings.* に 19 キー（en/ja 両 catalog・パリティ確認済）
-- **テスト**: themeContext / useStartupSection / resetPreferences の 3 単体テスト追加
-- **検証**: shared build（tsc -b）/ shared test 810 pass / web build すべて緑（メイン独立実測 2 回）。role-qa 独立レビュー PASS（Blocking 0）。指摘 2 件（SettingsSegment の矢印キー a11y・起動候補 MAIN_SECTIONS 化）は同 PR で修正・再検証済
-- **分離**: 週始まり→#217（schedule-refine）・日付ロールオーバー→#218（docs-workspace）に shared-fix で切り出し（読み手が他 worktree のため）
-- **表示確認**: §7.4 に従い実ブラウザ目視は PR merge 後 chat-main の playwright で
