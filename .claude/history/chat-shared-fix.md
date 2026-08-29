@@ -35,6 +35,7 @@
 - 新規 `shared/tests/tourLauncherModal.test.tsx`（10 ケース）/ `tourRegistry.test.ts` に 3 ケース追加 / 既存 `web/tests/settingsScreenActions.test.tsx` の「カード → restart」を 4 ケースへ差し替え（sink プールに `startTourSection` を追加したので隣の設定へ誤爆すると落ちる）
 - **Settings の rightSidebar が picker と同じ `section.*` ラベルを使う**ので、web 側のクエリは `within(dialog)` でスコープしないと 2 つ拾う。最初これで多重ヒットを踏んだ
 - `.github/workflows/ci.yml` の `verify` 全 15 ステップ + `docs-lint` をローカルで全緑（shared 272 files / 2654 tests・web 95 files / 902 tests・desktop 1/7・mcp 24/319）
+- **PR 直後に main が動いてコンフリクトした**（#1229 の account deletion と #1180/#1181 のテンプレ 3 面が着地）。衝突は 1 箇所だけで、`SettingsScreen.tsx` の `{confirmRequest && …}` の直上に**双方がダイアログを差し込んでいた**もの。どちらかを選ぶ話ではないので両方残した（`TourLauncherModal` → `DeleteAccountDialog` の順）。解決後に verify 15 ステップ + docs-lint を丸ごと取り直して全緑、GitHub CI も 2 ジョブとも pass
 - worktree 規約: ブランチを切るたび `.claude/comm/.session-branch` を更新。tracker は実装ブランチに載せず本コミットの専用ブランチへ（D-20260801-main-1）
 
 ### 2026-08-29 - [shared-fix] /goal 4 件を PR まで（ツアー系 3 件は「壊れていないのに一度も動いていなかった」種類のバグ）
