@@ -296,6 +296,12 @@ export {
   FONT_SIZE_PX,
   DEFAULT_FONT_SIZE_PX,
   fontSizeToPx,
+  // Mobile size presets (#1182) — the three stops the narrow layout offers,
+  // expressed as steps on the same 1-10 scale.
+  MOBILE_FONT_SIZE_STEPS,
+  DEFAULT_MOBILE_FONT_SIZE_STEP,
+  nearestMobileFontSize,
+  type MobileFontSizeStep,
 } from "./constants/fontSize";
 export { ShortcutConfigProvider } from "./context";
 export {

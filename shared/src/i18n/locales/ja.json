@@ -124,6 +124,10 @@
       "confirm": "ローカルの設定をすべてリセットしてアプリを再読み込みしますか？この端末のテーマ・フォント・ショートカット・レイアウトの設定が消えます。同期済みのデータには影響しません。",
       "confirmButton": "リセットして再読み込み"
     },
+    "fontSizePresetSmall": "小",
+    "fontSizePresetMedium": "中",
+    "fontSizePresetLarge": "大",
+    "fontSizePx": "{{px}}px",
     "tabs": {
       "navLabel": "設定カテゴリ",
       "general": "一般",
