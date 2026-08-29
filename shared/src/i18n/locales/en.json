@@ -864,11 +864,6 @@
     "empty": "Nothing selected yet",
     "resize": "Resize details panel"
   },
-  "notes": {
-    "sortUpdated": "Updated",
-    "sortCreated": "Created",
-    "sortTitle": "Title"
-  },
   "notesView": {
     "unpin": "Unpin",
     "pin": "Pin",
