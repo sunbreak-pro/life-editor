@@ -9,9 +9,10 @@ import { type SupabaseClient } from "@supabase/supabase-js";
  * widen a DELETE/SELECT). PostgREST's documented remedy is to wrap the
  * value in double quotes and backslash-escape any embedded `"` and `\`
  * — a quoted value is then treated literally regardless of reserved
- * chars. Both `searchNotes` (ilike pattern) and
- * `deleteNoteConnectionByPair` (eq id) route their interpolated values
- * through this single helper (DRY) so the escaping cannot drift apart.
+ * chars. `searchNotes` (ilike pattern) routes its interpolated values
+ * through this single helper so the escaping cannot drift apart; it was
+ * shared with `deleteNoteConnectionByPair` until note links were retired
+ * (#1156).
  */
 export function pgrstQuoteValue(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;

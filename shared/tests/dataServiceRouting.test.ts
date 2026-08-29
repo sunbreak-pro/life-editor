@@ -57,7 +57,7 @@ describe("DataService routing table", () => {
 
   it("resolves every routed name to a method on its owner class", () => {
     for (const { domain, names, service } of PHASE2_ROUTING_DOMAINS) {
-      // Reflect.get rather than an index cast: `service` is a union of 12
+      // Reflect.get rather than an index cast: `service` is a union of 10
       // class constructors, and `prototype as Record<string, unknown>` is
       // the kind of overlap tsc rejects once the suites are type-checked
       // (tsconfig.test.json). It is also literally what the Proxy does.

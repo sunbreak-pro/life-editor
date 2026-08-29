@@ -214,7 +214,7 @@
 
 - **IME（日本語入力）**: keydown 処理に `e.nativeEvent.isComposing` チェック必須（変換確定の Enter で誤発火しない）。
 - **silent transparent fail**: 未定義 `bg-lumen-*` は透明落ち。色は `@theme` 定義後に使う。
-- **DnD（@dnd-kit）**: ツリーの入れ子は #418 で退役。`moveNode` は同一階層の並び替え専用で、親を変える操作（旧 `moveNodeInto`）は存在しない。
+- **DnD（@dnd-kit）**: ツリーの入れ子は #418 で退役。ツリー移動の API 自体が存在しない（旧 `moveNode` / `moveToRoot` は #1156 で削除）。
 - **AudioContext**: `suspended` 開始。ユーザー操作後に `resume()` 必須（音系部品）。
 - **リッチテキスト**: TipTap を使用。
 

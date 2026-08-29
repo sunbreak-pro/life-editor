@@ -5,7 +5,24 @@ import {
   ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
-import type { GraphNode, GraphNodeType } from "./graph/graph-types";
+
+/**
+ * The item kinds a backlink row can point at. Formerly `GraphNodeType` from
+ * the Connect graph's data model; declared here now that the graph is gone
+ * (#1152), because the view only ever used it to pick a row icon.
+ */
+export type BacklinkNodeType = "note" | "daily" | "tag";
+
+/**
+ * The item the panel is showing backlinks FOR. A three-field subset of the
+ * old `GraphNode` — the only fields this view ever read.
+ */
+export interface BacklinkNode {
+  /** note.id / daily.id / `tag:<tagId>` */
+  id: string;
+  label: string;
+  type: BacklinkNodeType;
+}
 
 /** One incoming-link entry, already resolved to a display label by the host. */
 export interface BacklinkEntry {
@@ -14,39 +31,47 @@ export interface BacklinkEntry {
   /** resolved display label (host falls back to "Untitled") */
   label: string;
   /** node type of the source, for the row icon (defaults to note) */
-  type?: GraphNodeType;
+  type?: BacklinkNodeType;
 }
 
 export interface BacklinkViewLabels {
-  /** connect.sidebar.incomingLinks — "Links to this note" section header */
+  /** backlinks.incomingLinks — "Links to this note" section header */
   incomingLinks: string;
   /** backlinks.empty — selection has no incoming links */
   empty: string;
-  /** connect.graph.selectNodeHint — nothing selected yet */
+  /** backlinks.selectHint — nothing selected yet */
   selectHint: string;
 }
 
-const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
+const TYPE_ICON: Record<BacklinkNodeType, LucideIcon> = {
   note: FileText,
   daily: Calendar,
   tag: Hash,
 };
 
 interface BacklinkViewProps {
-  /** currently selected node (null = nothing selected) */
-  node: GraphNode | null;
+  /** the item whose backlinks these are (null = nothing selected) */
+  node: BacklinkNode | null;
   entries: BacklinkEntry[];
   labels: BacklinkViewLabels;
-  /** select a backlink source (re-centers the graph on it) */
+  /** open a backlink source */
   onSelect: (id: string) => void;
 }
 
 /*
- * Backlinks tab content for the shell rightSidebar (App Shell Turn 2). The
- *常設 aside w-64 frame is gone — this now renders straight into the panel well
- * of <ConnectSidebarPanel>. The host computes `entries` from the unified
- * item-link data and resolves labels; this part only renders + emits select
- * intents. lumen-* tokens, opaque surfaces (§5 / §6.4).
+ * "What links here", as a panel: a header card for the selected item, then the
+ * list of items that link TO it.
+ *
+ * Kept out of the Connect retirement (#1152). It was written as the Backlinks
+ * tab of the Connect sidebar, but nothing in it was ever about the graph — it
+ * takes a resolved node + entries and renders rows. It has NO caller today;
+ * it lives here as a ready-made surface for the next host that needs one, and
+ * the version with a caller is `web/src/wikitag/LinkPanel.tsx` (which took the
+ * icon + count treatment from this file but reads its own data).
+ *
+ * Presentational and injection-only: the host computes `entries` from the
+ * unified item-link data and resolves copy into `labels` — no DataService, no
+ * useTranslation (CLAUDE.md §6.4). lumen-* tokens, opaque surfaces.
  */
 export function BacklinkView({
   node,

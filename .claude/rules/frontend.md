@@ -17,7 +17,7 @@ paths:
 
 - **アイデンティティ = `shared/src/sections.ts` の registry**（`SectionId` / nav 順 / グループ / アイコン / i18n key / mobile 順）
 - **web ホストの描き方 = `web/src/sectionDescriptors.tsx` の `SECTION_DESCRIPTORS`**（PageContainer の width / ヘッダーのタブ帯 / 狭幅レイアウトの行 / body とその section 層 Provider）。`Record<SectionId, …>` なので registry に足すと descriptor 行が無い間はコンパイルが通らない
-- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics / Connect）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`）
+- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`。3 本目だった Connect は #1152 でセクションごと退役）
 
 ## 命名（プロジェクト固有のみ）
 
@@ -91,4 +91,4 @@ jsdom にレイアウトが無い（座標がすべて 0）という環境の事
 - **`cn` は tailwind-merge ではない**（`shared/src/components/cn.ts` = ただの文字列連結）。同じプロパティのクラスを 2 つ載せると**後から渡した方ではなく CSS の記述順が勝つ** — Tailwind v4 は接尾辞順に吐くので `.max-w-[860px]` は `.max-w-md` より上に来て負ける。**既定値を呼び出し側に上書きさせたい部品は `className` 任せにせず prop で出し分ける**（実例 = `Modal` の `size` / `padded`。860px を渡したタグ編集パネルが 448px で描かれていた = #830）
 - **IME**: keydown 処理は **`isImeComposing(e)`（`shared/src/utils/imeGuard.ts`）必須**（日本語入力破壊防止）。`isComposing` を直に見ない — WebKit（macOS + iOS = 主ターゲット）は変換を**確定する** Enter を `isComposing: false` + `keyCode === 229` で飛ばすため、フラグ単独だと一番まずいキーだけ素通りする（#737。React 合成イベント・native イベントのどちらも同じヘルパで受ける）
 - **リッチテキスト**: TipTap
-- **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断）。`moveNode` は同一階層の並び替え専用で、親を変える API（旧 `moveNodeInto`）は Todos / Notes とも存在しない
+- **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断、復活せず = 2026-08-27 確定）。**ツリー移動の API は Todos / Notes とも存在しない** — 旧 `moveNode` / `moveToRoot` は呼び出し元ゼロのまま残っていたため #1156 でフックごと削除した。並び替えは各リスト側の order 更新で行う

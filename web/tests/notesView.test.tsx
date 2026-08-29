@@ -57,6 +57,7 @@ const state = vi.hoisted(() => ({
   assignTagToItem: vi.fn(),
   open: vi.fn(),
   close: vi.fn(),
+  notifyAction: vi.fn(),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -103,6 +104,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       assignTagToItem: state.assignTagToItem,
     }),
     useRightSidebarContext: () => ({ open: state.open, close: state.close }),
+    // #1125: the view REPORTS to the tour through the optional hook, so a
+    // host without TourProvider still renders. Spied on here.
+    useTourContextOptional: () => ({ notifyAction: state.notifyAction }),
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>
     ),
@@ -353,6 +357,141 @@ describe("NotesView — desktop (wide)", () => {
 
     screen.getByRole("alert");
     screen.getByText("load failed");
+  });
+});
+
+/*
+ * #1125 — the tutorial tour's Materials steps. Two halves, and the second is
+ * the one worth having: WHERE each step points (`data-tour-id`, resolved by
+ * attribute because jsdom has no layout — CLAUDE.md §7.1), and WHAT counts as
+ * having done the thing, IME included.
+ */
+describe("NotesView — tour wiring (#1125)", () => {
+  function anchor(id: string): HTMLElement {
+    const el = document.querySelector<HTMLElement>(`[data-tour-id="${id}"]`);
+    if (!el) throw new Error(`no element carries data-tour-id="${id}"`);
+    return el;
+  }
+
+  it("anchors the create step on the add pill", () => {
+    render(<NotesView />);
+
+    // The wrapper is the anchor, and the pill is what it wraps — the spotlight
+    // has to land on the control, not on an empty box beside it.
+    within(anchor("materials-add")).getByRole("button", {
+      name: "materials.notes.addCta",
+    });
+  });
+
+  it("reports a create to the tour", () => {
+    render(<NotesView />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" })[0],
+    );
+
+    expect(state.notifyAction).toHaveBeenCalledWith("item-created");
+  });
+
+  it("anchors the body and the tag row on the selected note", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    within(anchor("materials-note-body")).getByTestId("editor");
+    within(anchor("materials-note-tag")).getByTestId("tag-picker");
+  });
+
+  it("reports typing in the body", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    fireEvent.input(anchor("materials-note-body"));
+
+    expect(state.notifyAction).toHaveBeenCalledWith("note-typed");
+  });
+
+  it("does NOT report mid-IME-composition input", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+    const body = anchor("materials-note-body");
+
+    // A Japanese conversion raises `input` for every keystroke of the pre-edit
+    // string. Advancing there moves the bubble and takes focus with it while
+    // the user is still choosing a candidate and has committed nothing.
+    fireEvent.compositionStart(body);
+    fireEvent.input(body);
+    fireEvent.input(body);
+    expect(state.notifyAction).not.toHaveBeenCalled();
+
+    // Confirming the conversion IS typing.
+    fireEvent.compositionEnd(body);
+    expect(state.notifyAction).toHaveBeenCalledWith("note-typed");
+  });
+
+  it("reports typing again once the composition is over", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+    const body = anchor("materials-note-body");
+
+    fireEvent.compositionStart(body);
+    fireEvent.compositionEnd(body);
+    state.notifyAction.mockClear();
+    fireEvent.input(body);
+
+    expect(state.notifyAction).toHaveBeenCalledWith("note-typed");
+  });
+
+  it("reports a tag arriving on the selected note, by any route", () => {
+    state.selectedId = "note-a";
+    const { rerender } = render(<NotesView />);
+    expect(state.notifyAction).not.toHaveBeenCalled();
+
+    // The picker and a drag onto a tag heading both end here, which is why the
+    // signal is the assignment count rather than one control's onClick.
+    state.assignments = {
+      "note-a": [
+        { itemId: "note-a", tagId: "tag-work", isDeleted: false },
+        { itemId: "note-a", tagId: "tag-two", isDeleted: false },
+      ],
+    };
+    rerender(<NotesView />);
+
+    expect(state.notifyAction).toHaveBeenCalledWith("tag-assigned");
+  });
+
+  it("anchors the follow step on the tag filter, and reports picking one", () => {
+    render(<NotesView />);
+
+    // Conditional by nature: the filter row only renders with more than one
+    // group to choose between, which is why the step tolerates a missing
+    // anchor rather than waiting forever (registry.ts).
+    const chips = anchor("materials-tag-filter");
+    const chip = within(chips).getAllByRole("button")[0];
+    fireEvent.click(chip);
+
+    expect(state.notifyAction).toHaveBeenCalledWith("tag-filtered");
+  });
+
+  it("does not treat clearing the tag filter as following one", () => {
+    render(<NotesView />);
+    const chips = anchor("materials-tag-filter");
+    const chip = within(chips).getAllByRole("button")[0];
+
+    fireEvent.click(chip); // select
+    state.notifyAction.mockClear();
+    fireEvent.click(chip); // the active chip clears it (#369)
+
+    expect(state.notifyAction).not.toHaveBeenCalledWith("tag-filtered");
+  });
+
+  it("does not mistake switching notes for a new tag", () => {
+    state.selectedId = "note-b"; // untagged
+    const { rerender } = render(<NotesView />);
+
+    state.selectedId = "note-a"; // carries one tag — a baseline, not a gain
+    rerender(<NotesView />);
+
+    expect(state.notifyAction).not.toHaveBeenCalledWith("tag-assigned");
   });
 });
 

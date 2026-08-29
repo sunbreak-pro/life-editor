@@ -40,12 +40,6 @@ import {
   SupabaseItemConversionService,
   PHASE2_ITEM_CONVERSION_METHODS,
 } from "./SupabaseItemConversionService";
-import {
-  SupabaseNoteLinkService,
-  SupabaseNoteConnectionService,
-  PHASE2_NOTE_LINK_METHODS,
-  PHASE2_NOTE_CONNECTION_METHODS,
-} from "./SupabaseNoteLinksService";
 /*
  * Phase 2 S1 Supabase implementation.
  *
@@ -54,7 +48,7 @@ import {
  * scheduling / versioning). Pure mapping lives in `todoMapper.ts`; this
  * file is the I/O layer only. Every other domain is ported too (daily /
  * notes / wiki-tags / routines / schedule / calendars / timer / audio /
- * item conversion / note links), so as of #671 C4 the "not implemented in
+ * item conversion), so as of #671 C4 the "not implemented in
  * phase 2" thrower below is unreachable for any DataService member — it
  * only answers properties nothing declares.
  *
@@ -88,13 +82,14 @@ export {
 /**
  * Create a Phase 2 Supabase-backed DataService.
  *
- * Implemented: the full todos domain (9 methods) + the full daily domain
- * (12 methods) + the notes domain (S3: 14 note methods + 7 note-link
- * methods + 4 note-connection methods — full CRUD / hierarchy / search /
- * soft-delete / versioning / password gate, plus versioned note links and
- * the relation-table note connections), plus the routines, schedule and
- * calendar domains and the timer / audio settings. Methods on domains not
- * yet ported throw "not implemented in phase 2".
+ * Every domain is implemented. The roster is NOT repeated here — the SSOT is
+ * `PHASE2_ROUTING_DOMAINS` in ./dataServiceRouting, one entry per domain with
+ * its method-name list, and `DataServiceIsFullyRouted` in that same file is a
+ * type-level assertion that the union of those lists is exactly `DataService`.
+ * A count written here would drift silently, and did: this block claimed 9
+ * todo / 12 daily / 14 note methods against actual sets of 10 / 14 / 16, and
+ * kept advertising the 11 note-link + note-connection methods for months after
+ * they went unused (deleted in #1156).
  *
  * Each domain is its own class; a single Proxy routes a property to the
  * service that owns it (allow-set lookup) and binds the call to that
@@ -113,8 +108,6 @@ export function createSupabaseDataService(): DataService {
   const notesUnifiedService = new SupabaseNotesUnifiedService(client);
   const dailiesUnifiedService = new SupabaseDailiesUnifiedService(client);
   const todosService = new SupabaseTodosService(client);
-  const noteLinkService = new SupabaseNoteLinkService(client);
-  const noteConnectionService = new SupabaseNoteConnectionService(client);
   const routinesService = new SupabaseRoutinesService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
@@ -132,8 +125,6 @@ export function createSupabaseDataService(): DataService {
   // by this map so adding a domain is one entry, no target juggling.
   const route = (prop: string): object | null => {
     if (PHASE2_TODOS_METHODS.has(prop)) return todosService;
-    if (PHASE2_NOTE_LINK_METHODS.has(prop)) return noteLinkService;
-    if (PHASE2_NOTE_CONNECTION_METHODS.has(prop)) return noteConnectionService;
     if (PHASE2_ROUTINES_METHODS.has(prop)) return routinesService;
     if (PHASE2_SCHEDULE_ITEM_METHODS.has(prop)) return scheduleItemsService;
     if (PHASE2_CALENDAR_METHODS.has(prop)) return calendarsService;
