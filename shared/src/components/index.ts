@@ -421,6 +421,14 @@ export * from "./schedule";
 // rows, no spinners). Pure presentation: props-injected copy, lumen-* tokens
 // (§3.1 / §5).
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+// Render-crash floor (#1199). Class component by necessity — React exposes
+// the catch hooks on classes only. Copy is injected, so the host decides
+// which of the two variants (page / section) it is mounting.
+export {
+  ErrorBoundary,
+  type ErrorBoundaryProps,
+  type ErrorBoundaryLabels,
+} from "./ErrorBoundary";
 export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
 // / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the
