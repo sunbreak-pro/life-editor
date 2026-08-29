@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   useTranslation,
   AddPill,
@@ -6,6 +7,10 @@ import {
   RoutineSummaryCard,
   ScheduleSidebarTabs,
   TodayTodoTray,
+  tourAnchor,
+  useTourAction,
+  TOUR_ACTIONS,
+  TOUR_ANCHORS,
   type AgendaItem,
   type RepeatListRow,
   type RoutineSummaryRow,
@@ -176,6 +181,23 @@ export function ScheduleSidebar({
   const { t } = useTranslation();
   const active = tab;
 
+  /*
+   * #1124: tell the tour the todos are on screen. This component only exists
+   * while the detail panel is showing it — RightSidebarPortal renders nothing
+   * when the panel is closed — so "the todo tab is active here" is the same
+   * fact the retired Kanban board reported on mount, and it covers every route
+   * in (the switcher, the `nav:tasks` intent, the palette) without any of them
+   * knowing about the tour.
+   *
+   * Reported from the sidebar rather than from CalendarTab on purpose: the tab
+   * id is host state that survives the panel being closed, so a host-side
+   * effect would announce a tray nobody can see and advance the step early.
+   */
+  const reportTourAction = useTourAction();
+  useEffect(() => {
+    if (active === "todo") reportTourAction(TOUR_ACTIONS.scheduleTodoTabOpened);
+  }, [active, reportTourAction]);
+
   const flowBody = (
     <div className="flex flex-col gap-3">
       {/* No heading on either layout: the switcher above already reads
@@ -186,7 +208,13 @@ export function ScheduleSidebar({
           one: the day caption and the way to add to that day belong together,
           and the row is outside the scroller below — which is the whole of
           #1034's argument for a pill over a floating FAB, carried across from
-          the day list that used to host it. */}
+          the day list that used to host it.
+
+          #1124: the pill therefore carries the narrow half of the
+          `scheduleAddEvent` tour anchor — it moved here with the create route
+          itself. It cannot collide with the wide half on ScheduleToolbar: the
+          pill renders only when `onAdd` is passed, which CalendarTab does only
+          on narrow. */}
       <div className="flex shrink-0 items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
           {flow.todayLabel} ·{" "}
@@ -196,7 +224,11 @@ export function ScheduleSidebar({
           })}
         </p>
         {flow.onAdd && flow.addLabel && (
-          <AddPill onClick={flow.onAdd} label={flow.addLabel} />
+          <AddPill
+            onClick={flow.onAdd}
+            label={flow.addLabel}
+            tourId={TOUR_ANCHORS.scheduleAddEvent}
+          />
         )}
       </div>
       <AgendaList
@@ -322,14 +354,27 @@ export function ScheduleSidebar({
    * reason D-20260827-sched-1 gives.
    */
   const todoBody = (
-    <div className="flex flex-col gap-2">
+    // #1124: the tour's "finish one of them" step points at the whole tray
+    // rather than at one control, because completing has three routes (the row
+    // checkbox, the detail's toggle, the detail's status row) and singling one
+    // out would teach the other two as wrong. It pointed at the Kanban board
+    // until #1153 retired it; this is the same argument on the surface that
+    // replaced it.
+    <div
+      {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
+      className="flex flex-col gap-2"
+    >
       <div className="flex shrink-0 items-center justify-end">
-        <AddPill onClick={todo.onAdd} label={t("scheduleScreen.todoAddCta")} />
+        <AddPill
+          onClick={todo.onAdd}
+          label={t("scheduleScreen.todoAddCta")}
+          tourId={TOUR_ANCHORS.scheduleTodoAdd}
+        />
       </div>
       <TodayTodoTray
-      placed={todo.placed}
-      unplaced={todo.unplaced}
-      addable={todo.addable}
+        placed={todo.placed}
+        unplaced={todo.unplaced}
+        addable={todo.addable}
         onToggleComplete={todo.onToggleComplete}
         onAddCandidate={todo.onAddCandidate}
         onOpenTodo={todo.onOpenTodo}

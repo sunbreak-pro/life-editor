@@ -18,8 +18,11 @@ import {
   useToast,
   useMinuteClock,
   TodoAddDialog,
+  useTourAction,
+  TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
+  type TodoStatus,
   WIDE_QUERY,
   type TranslationKey,
 } from "@life-editor/shared";
@@ -204,6 +207,50 @@ export function CalendarTab({
     softDelete: softDeleteTodo,
     refetch: refetchTodos,
   } = useTodoTreeContext();
+
+  /*
+   * Tutorial tour reporting (#1124), the todo half — moved here from the
+   * retired Kanban board by #1153.
+   *
+   * Wrapped at the SOURCE, before anything is handed either writer: completion
+   * has three routes now (the tray's checkbox, the detail's toggle, the
+   * detail's status row) and every one of them lands on one of these two
+   * functions. Wrapping the call sites instead would mean three copies of the
+   * "did this actually finish it?" test, and the tray's own route goes through
+   * useScheduleTodoChips a few lines down — a wrapper defined after that call
+   * would arrive too late for it.
+   *
+   * The event half sits further down with the create/update flow; both use
+   * this same reporter, which is stable for the component's lifetime.
+   */
+  const reportTourAction = useTourAction();
+
+  const setTodoStatusReported = useCallback(
+    (id: string, status: TodoStatus) => {
+      setTodoStatus(id, status);
+      if (status === "DONE") {
+        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
+      }
+    },
+    [reportTourAction, setTodoStatus],
+  );
+
+  const toggleTodoStatusReported = useCallback(
+    (id: string) => {
+      // Read the status BEFORE the flip: only finishing a todo advances the
+      // step, and re-opening one must not. Two values since #873, so "not
+      // DONE" is the whole test.
+      const completes =
+        (todoNodes.find((n) => n.id === id)?.status ?? "NOT_STARTED") !==
+        "DONE";
+      toggleTodoStatus(id);
+      if (completes) {
+        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
+      }
+    },
+    [reportTourAction, todoNodes, toggleTodoStatus],
+  );
+
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
   // view over ONE life tag, so the grid needs both halves — the ledger (which
   // calendars exist, and which tag each points at) and the assignments (which
@@ -354,7 +401,7 @@ export function CalendarTab({
   } = useScheduleTodoChips({
     todoNodes,
     updateNode,
-    setTodoStatus,
+    setTodoStatus: setTodoStatusReported,
     softDeleteTodo,
     today,
     rangeStart,
@@ -566,6 +613,42 @@ export function CalendarTab({
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
+  /*
+   * Tutorial tour reporting (#1124), the event half. Two of the Schedule steps
+   * advance on a real write, so the host tells the tour when one lands. Wrapped
+   * HERE rather than inside useScheduleMutations / useScheduleCreateFlow on
+   * purpose: those two are deliberately context-free so they render under
+   * `renderHook` with no Provider at all (see their headers), and reaching into
+   * a Context from inside them would take that away. CalendarTab already needs
+   * the whole Provider chain, so the coupling costs nothing new here.
+   *
+   * `reportTourAction` is declared with the todo wrappers above and is stable
+   * for the component's lifetime (useTourAction), so neither wrapper adds a
+   * dependency that changes as the tour walks.
+   */
+  const handleCreateReported = useCallback<typeof handleCreate>(
+    (slot, title, onSaved) => {
+      const id = handleCreate(slot, title, onSaved);
+      reportTourAction(TOUR_ACTIONS.scheduleEventCreated);
+      return id;
+    },
+    [handleCreate, reportTourAction],
+  );
+
+  const handleUpdateReported = useCallback<typeof handleUpdate>(
+    (id, patch) => {
+      handleUpdate(id, patch);
+      // Only a TIME edit advances the step, because that is what the step
+      // asks for — renaming the event teaches nothing about the calendar.
+      // Read off the patch rather than the item: the pane sends only the
+      // fields the user actually changed.
+      if (patch.startTime !== undefined || patch.endTime !== undefined) {
+        reportTourAction(TOUR_ACTIONS.scheduleEventTimeChanged);
+      }
+    },
+    [handleUpdate, reportTourAction],
+  );
+
   // #889: the creation panel's four openers and five committers, as one hook.
   // It has to sit here rather than beside the other handlers — `handleCreate`
   // comes out of the call above, and its own outputs are only read from the
@@ -586,7 +669,7 @@ export function CalendarTab({
     isWide,
     setSelectedId,
     setOverlayOpen,
-    handleCreate,
+    handleCreate: handleCreateReported,
     addNode,
     updateNode,
     attachNote,
@@ -737,8 +820,12 @@ export function CalendarTab({
       // Straight into the detail: a title alone is rarely the whole thought,
       // and this is the surface that can take the rest of it.
       setTodoDetailId(node.id);
+      // #1124: the only route that MAKES a todo, so it is the only one the
+      // tour's create step can wait on. The tray's "add to today" moves an
+      // existing one onto a day, which is not what the step teaches.
+      reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
     },
-    [addNode, setTodoDetailId],
+    [addNode, reportTourAction, setTodoDetailId],
   );
 
   const editorItem: EventEditorItem | null = toEditorItem(selected, now);
@@ -965,7 +1052,7 @@ export function CalendarTab({
         // rather than callbacks: the pane holds them in its draft until the
         // button.
         handlers: {
-          onSave: handleUpdate,
+          onSave: handleUpdateReported,
           onToggleComplete: handleToggle,
           onDismiss: handleDismiss,
           onDelete: handleDelete,
@@ -992,8 +1079,8 @@ export function CalendarTab({
         onClose: () => setTodoDetailId(null),
         writes: {
           updateNode,
-          toggleStatus: toggleTodoStatus,
-          setStatus: setTodoStatus,
+          toggleStatus: toggleTodoStatusReported,
+          setStatus: setTodoStatusReported,
           onDelete: handleTodoDetailDelete,
         },
         onConvertToEvent: handleConvertToEvent,

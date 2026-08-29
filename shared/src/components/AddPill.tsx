@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "./cn";
 import { FOCUS_RING_TIGHT } from "./styleTokens";
+import { tourAnchor } from "./tour/anchor";
 
 /**
  * The accent "+ 追加" pill that starts a create flow from a list header (#302).
@@ -43,14 +44,28 @@ export interface AddPillProps {
   label: string;
   /** Glyph override. Defaults to the 14px plus every current host wants. */
   icon?: ReactNode;
+  /**
+   * `data-tour-id` for the tutorial tour (#1124). A prop rather than a fixed
+   * value because this pill has three hosts and the tour points at two of
+   * them for different reasons — a hardcoded id would make whichever host
+   * rendered first answer for all of them.
+   */
+  tourId?: string;
   className?: string;
 }
 
-export function AddPill({ onClick, label, icon, className }: AddPillProps) {
+export function AddPill({
+  onClick,
+  label,
+  icon,
+  tourId,
+  className,
+}: AddPillProps) {
   return (
     <button
       type="button"
       onClick={onClick}
+      {...(tourId ? tourAnchor(tourId) : {})}
       className={cn(PILL, FOCUS_RING_TIGHT, className)}
     >
       {icon ?? <Plus size={14} aria-hidden />}

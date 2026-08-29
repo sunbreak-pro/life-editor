@@ -1,9 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import {
-  CalendarDays,
-  FileText,
-  type LucideIcon,
-} from "lucide-react";
+import { CalendarDays, FileText, type LucideIcon } from "lucide-react";
 import {
   useTranslation,
   isMac,

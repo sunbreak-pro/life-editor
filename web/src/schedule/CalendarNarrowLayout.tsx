@@ -4,6 +4,8 @@ import {
   MonthGrid,
   ScheduleErrorCard,
   ScheduleLoadingCard,
+  TOUR_ANCHORS,
+  tourAnchor,
   useTranslation,
   type MonthGridItem,
   type ScheduleLoadState,
@@ -206,7 +208,12 @@ export function CalendarNarrowLayout({
              * passed: the dots are a density cue and the day underneath stays
              * the tap target. What a dot IS is answered by the drawer.
              */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3">
+            {/* #1124: the narrow half of the `scheduleCalendar` anchor — the
+                grid is where a created event is found again on this width. */}
+            <div
+              {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
+              className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3"
+            >
               <MonthGrid
                 compact
                 className="flex-1"

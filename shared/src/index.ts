@@ -721,6 +721,9 @@ export {
   useTourContext,
   useTourContextOptional,
 } from "./hooks/useTourContext";
+// The producer side of the tour (#1124): optional and stable, so a write
+// handler can report an action without depending on the tour being mounted.
+export { useTourAction } from "./hooks/useTourAction";
 // Tour progress persistence (#1122). The single place that knows WHERE the
 // position is stored — see the file header for why that is localStorage and
 // not DataService today.

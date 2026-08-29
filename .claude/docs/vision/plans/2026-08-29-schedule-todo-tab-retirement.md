@@ -117,3 +117,8 @@ web/tests/** / shared/tests/**
   1. **AC の grep を「生きた参照」に狭めた**（上記）。`KanbanView` の名前は 7 箇所のコメントに残っており、どれも「なぜ今この形なのか」を語る歴史的記述で、消すと理由が消える。ただし **1 箇所だけ生きていた** — `useTodoLinking` が `useInlineItemLinks("KanbanView")` とコンソール用のホスト名を渡していた。これは実在しないファイルを指す名前になるので `"ScheduleTodoDetail"` に直した（`useInlineItemLinks` が `hostTag` を引数に取っている理由そのもの）
   2. **`Kanban/colors.ts` だけ生き残った**。`ColorPicker`（タグの色）が `KANBAN_COLOR_PRESETS` を使っており、板より長生きした。`components/colorPresets.ts` へ出して `ITEM_COLOR_PRESETS` に改名（消費者 1 件）
   3. **作成ダイアログの開閉は effect ではなく描画中の state 調整**にした。effect 内の同期 setState は `react-hooks/set-state-in-effect` が正しく落とす。退役した `useTodoAddDialog` が同じフラグに対して使っていた React 公式パターンをそのまま持ち越した
+- 2026-08-29: **#1168（#1124 のツアー）が先に main へ着地したため、後着地側の責務としてアンカー 3 本を付け替えた**（Risks の予告どおり）。付け替え先は計画の宣言どおり「サイドバーの todo タブ / 追加ピル / トレイ本体」。この回で計画から動いた点 3 つ:
+  1. **`SegmentedControl` に `tourId` を通した**。移設先のタブはセクションのタブ帯（`HeaderTabs` — #1124 が既に `tourId` を持たせていた）ではなくサイドバーの switcher なので、同じ受け口が無かった。`SegmentedOption` に任意プロパティを 1 つ足すだけで、`ScheduleSidebarTab` は構造的に素通しになる
+  2. **「Todo を開いた」の報告をホストではなくサイドバーから出した**。タブ id は CalendarTab の state で、パネルを閉じても残る。ホスト側の effect にすると「誰にも見えていないトレイ」を報告してステップを先に進めてしまう。`RightSidebarPortal` はパネルが閉じている間 children を描かないので、ScheduleSidebar が生きていること自体が「画面に出ている」と同義になる（退役した板が mount で報告していたのと同じ事実）
+  3. **ツアーの文言 2 本を直した**。`scheduleCompleteTodo` が「カードを完了列へドラッグ」と、無くなった板の操作を教えていた（`scheduleOpenTodos` の「Todo シート」も同様）。en / ja とも現在の面（トレイのチェック / Todo タブ）に合わせた
+  - テストの行き先: 板と一緒に消えた `kanbanView.test.tsx` のツアー 3 件は `web/tests/scheduleTourTodos.test.tsx` へ。サイドバー側（アンカー実在・タブを開くと進む）は実描画、CalendarTab 側（作成報告・status writer の包み）は `scheduleNarrowAdd.test.ts` と同じソーステキスト assertion（jsdom に載らない面の逃げ道 = `rules/frontend.md`）
