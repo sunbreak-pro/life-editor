@@ -18,7 +18,7 @@ import { ScheduleScreen } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
 // The three heavy screens, code-split behind lazy() — see lazySections.ts.
-import { AnalyticsScreen, ConnectScreen, NotesView } from "./lazySections";
+import { AnalyticsScreen, NotesView } from "./lazySections";
 import type { ShellNavigation } from "./hooks/useShellNavigation";
 
 /*
@@ -63,7 +63,7 @@ export type TabBandId = "materials" | "schedule" | "analytics" | "briefing";
  *    #1035 this no longer means "no row": the row is drawn regardless to
  *    carry the app-global Undo/Redo, and these two sections simply contribute
  *    nothing to its left and middle
- *  - `hamburger`       — the detail-panel hamburger alone (Connect / Work / Settings)
+ *  - `hamburger`       — the detail-panel hamburger alone (Work / Settings)
  *  - `tabs`            — the segmented tab control alone, no hamburger. No
  *    section uses it today: Schedule was the last one, until #1033 moved its
  *    hamburger out of the Calendar body and into the band
@@ -92,8 +92,8 @@ export interface SectionDescriptor {
    * PageContainer width (Issue #305 — every section is one centered column
    * clamped to max-w-lumen-wide; the px lives in tokens.css). What varies is
    * SCROLL OWNERSHIP: "fluid" for the canvas/board surfaces that own their
-   * full-bleed h-full layout and self-scroll inside the clamped box (Connect
-   * graph, both Schedule tabs, Analytics' own centered data column), "wide"
+   * full-bleed h-full layout and self-scroll inside the clamped box (both
+   * Schedule tabs, Analytics' own centered data column), "wide"
    * for the document surfaces where PageContainer owns the vertical scroll.
    */
   readonly width: PageContainerWidth;
@@ -246,20 +246,6 @@ export const SECTION_DESCRIPTORS: Readonly<
           </WikiTagsUnifiedProvider>
         )}
       </>
-    ),
-  },
-  /*
-   * Connect (W4; STEP 2 link editing) — node graph + backlink over the UNIFIED
-   * item-link model. ConnectScreen mounts its own WikiTagsUnifiedProvider
-   * internally. Legacy note_links are NOT used.
-   */
-  connect: {
-    width: "fluid",
-    narrowHeader: "hamburger",
-    body: ({ ds, loadingFallback }) => (
-      <Suspense fallback={loadingFallback}>
-        <ConnectScreen dataService={ds} />
-      </Suspense>
     ),
   },
   /*

@@ -408,10 +408,10 @@ export * from "./Analytics";
 // sessions + the daily's Briefing section) and injects data + labels (§6.4).
 // Reuses the 3 adopted Analytics widgets internally (Analytics shrink).
 export * from "./briefing";
-// Connect (W4) — Canvas 2D + d3-force node graph + backlink view over the
-// unified item-link model (listAllTagConnections / listLinksToItem). Pure
-// presentational: data + t injected (§6.4). Legacy note_links are NOT used.
-export * from "./Connect";
+// Backlinks — the "what links here" panel that outlived the Connect section
+// (#1152 retired the force-directed graph; the tags, item links and search it
+// read from all stayed). Pure presentational: data + copy injected (§6.4).
+export * from "./Backlinks";
 // Schedule (W8) — week/day time grid primitive + pure layout/date helpers.
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
@@ -428,7 +428,7 @@ export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
 // / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the
-// feature can grow exports without touching here (matches Analytics/Connect).
+// feature can grow exports without touching here (matches Analytics).
 export * from "./materials";
 // Notes (life-tags unification S1) — pure tag-heading grouping (buildTagGroups)
 // for the Notes side list. UI-free: the interactive list + DnD stay host-side.

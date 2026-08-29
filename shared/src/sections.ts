@@ -15,7 +15,9 @@
  *
  * Pure data (DataService-free, no useTranslation): the icon is a lucide
  * component and the label is an i18n KEY — hosts resolve copy via props
- * (CLAUDE.md §6.4). The old REPL section is retired (§8) and never appears here.
+ * (CLAUDE.md §6.4). Retired sections never appear here: the old REPL (#146)
+ * and Connect, whose force-directed graph went with it (#1152 — the tags,
+ * item links and search it read from are all still live).
  */
 import type { LucideIcon } from "lucide-react";
 import type { TranslationKey } from "./i18n/resources";
@@ -23,7 +25,6 @@ import {
   Sunrise,
   Clock,
   Library,
-  Network,
   Timer,
   BarChart3,
   Settings,
@@ -98,13 +99,6 @@ export const SECTIONS = [
     mobileOrder: 2,
   },
   {
-    id: "connect",
-    group: "main",
-    icon: Network,
-    labelKey: "section.connect",
-    mobileOrder: 5,
-  },
-  {
     id: "work",
     group: "main",
     icon: Timer,
@@ -123,14 +117,14 @@ export const SECTIONS = [
     group: "utility",
     icon: Settings,
     labelKey: "section.settings",
-    mobileOrder: 6,
+    mobileOrder: 5,
   },
   {
     id: "trash",
     group: "utility",
     icon: Trash2,
     labelKey: "section.trash",
-    mobileOrder: 7,
+    mobileOrder: 6,
   },
 ] as const satisfies readonly SectionDef[];
 

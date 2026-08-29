@@ -15,8 +15,7 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  * Each Materials tab mounts only its OWN domain Provider (Notes tab has no
  * DailiesUnifiedProvider and vice-versa), so neither view can read the other
  * domain from context. This hook fetches both lists straight off the injected
- * DataService (the §3.1 boundary — same pattern as ConnectScreen /
- * BriefingScreen).
+ * DataService (the §3.1 boundary — same pattern as BriefingScreen).
  *
  * Roles: notes → "note" (#375: every live note is openable now that the
  * folder type is gone), dailies → "daily" with the canonical `daily-<YYYY-MM-DD>`

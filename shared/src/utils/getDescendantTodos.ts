@@ -42,8 +42,8 @@ export function collectDescendantIds(
 /**
  * Checks if `childId` is a descendant of `parentId`.
  * Uses a parentMap + iterative BFS for O(n) performance.
- * Generic over any `{ id, parentId }` flat tree (TodoNode / NoteNode —
- * the note twin in useNoteTreeMovement re-exports this one).
+ * Generic over any `{ id, parentId }` flat tree (TodoNode / NoteNode). The
+ * cycle-safety cases live in tests/isDescendantOfCycle.test.ts.
  * @param parentId - The ancestor node to search from (root of the subtree)
  * @param childId - The node to find within the subtree
  * @param nodes - Flat array of all nodes

@@ -3,7 +3,6 @@ import type { TodoNode } from "../types/todoTree";
 import type { DataService } from "../services/DataService";
 import { useTodoTreeCRUD } from "./useTodoTreeCRUD";
 import { useTodoTreeDeletion } from "./useTodoTreeDeletion";
-import { useTodoTreeMovement } from "./useTodoTreeMovement";
 import {
   useTodoTreeHistory,
   createNoopUndoRedo,
@@ -281,11 +280,6 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     },
     [nodes, rawPermanentDelete, persistSelection],
   );
-  const { moveNode, moveToRoot } = useTodoTreeMovement(
-    nodes,
-    guardedPersistWithHistory,
-  );
-
   // Resolve the selected node from the live map (null when nothing is
   // selected or the id no longer exists). Mirrors Notes' `selectedNote`.
   const selectedTodo = useMemo(
@@ -318,8 +312,6 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
       softDelete,
       restoreNode,
       permanentDelete,
-      moveNode,
-      moveToRoot,
     }),
     [
       activeNodes,
@@ -345,8 +337,6 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
       softDelete,
       restoreNode,
       permanentDelete,
-      moveNode,
-      moveToRoot,
     ],
   );
 }

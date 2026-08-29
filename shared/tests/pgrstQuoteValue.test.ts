@@ -7,8 +7,8 @@ import { pgrstQuoteValue } from "../src/services/SupabaseDataService";
  * reserved chars (`,` `.` `:` `(` `)` whitespace) as grammar terminators
  * inside a filter value; the documented remedy is to double-quote the
  * value and backslash-escape embedded `"` and `\`. These tests pin the
- * break-out-prevention contract that searchNotes / deleteNoteConnectionByPair
- * both rely on.
+ * break-out-prevention contract that searchNotes relies on (it was shared
+ * with deleteNoteConnectionByPair until note links were retired in #1156).
  *
  * M1 KNOWN GAP — INTENTIONAL CURRENT-BEHAVIOUR RECORDING: SQL LIKE/ILIKE
  * wildcards `%` and `_` are NOT escaped by this helper (it only handles

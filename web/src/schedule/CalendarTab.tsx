@@ -17,6 +17,8 @@ import {
   useDeferredAction,
   useToast,
   useMinuteClock,
+  useTourAction,
+  TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
   WIDE_QUERY,
@@ -44,13 +46,15 @@ import { useScheduleDayLabels } from "./useScheduleDayLabels";
 import { useScheduleTodayAgenda } from "./useScheduleTodayAgenda";
 import { toEditorItem } from "./scheduleViewModels";
 import { useScheduleCopy } from "./scheduleCopy";
+import { selectNarrowDay } from "./narrowDayTap";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
  * (ScheduleToolbar / WeekTimeGrid / MonthGrid / AgendaList / EventEditorPane /
  * RoutineSummaryCard) into the day/week/month calendar, the "今日の流れ"
- * rightSidebar (RightSidebarPortal), and the Mobile list|time|month single
- * screen with a FAB + Quick-capture sheet.
+ * rightSidebar (RightSidebarPortal), and the Mobile month screen whose day
+ * taps open that same sidebar (#1148 — narrow's own day list was retired
+ * there, and the Quick-capture sheet is now reached from the sidebar's pill).
  *
  * Data flows ONLY through useScheduleItemsContext (§3.1). The provider is
  * anchored on today (MainScreen injects no `date`), so context.items backs the
@@ -214,7 +218,11 @@ export function CalendarTab({
   // The OPTIONAL hook, for the same reason RightSidebarPortal uses it: a
   // section body has to survive being rendered without the shell's Provider
   // (standalone renders / tests). Outside it there is no drawer to close.
-  const closeSidebar = useRightSidebarOptional()?.close;
+  const rightSidebar = useRightSidebarOptional();
+  const closeSidebar = rightSidebar?.close;
+  // #1148: narrow's day list is gone, so a month-cell tap is what puts a day's
+  // plans on screen — it opens the same drawer.
+  const openSidebar = rightSidebar?.open;
   // #889: everything that can be covering the grid — the single-click bubble
   // (#299), the detail overlay, the creation panel (target day + prefilled
   // window; Desktop shows it in an overlay, Mobile in the QuickCaptureSheet)
@@ -533,6 +541,43 @@ export function CalendarTab({
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
+  /*
+   * Tutorial tour reporting (#1124). Two of the Schedule steps advance on a
+   * real write, so the host tells the tour when one lands. Wrapped HERE rather
+   * than inside useScheduleMutations / useScheduleCreateFlow on purpose: those
+   * two are deliberately context-free so they render under `renderHook` with
+   * no Provider at all (see their headers), and reaching into a Context from
+   * inside them would take that away. CalendarTab already needs the whole
+   * Provider chain, so the coupling costs nothing new here.
+   *
+   * `reportTourAction` is stable for the component's lifetime (useTourAction),
+   * so neither wrapper adds a dependency that changes as the tour walks.
+   */
+  const reportTourAction = useTourAction();
+
+  const handleCreateReported = useCallback<typeof handleCreate>(
+    (slot, title, onSaved) => {
+      const id = handleCreate(slot, title, onSaved);
+      reportTourAction(TOUR_ACTIONS.scheduleEventCreated);
+      return id;
+    },
+    [handleCreate, reportTourAction],
+  );
+
+  const handleUpdateReported = useCallback<typeof handleUpdate>(
+    (id, patch) => {
+      handleUpdate(id, patch);
+      // Only a TIME edit advances the step, because that is what the step
+      // asks for — renaming the event teaches nothing about the calendar.
+      // Read off the patch rather than the item: the pane sends only the
+      // fields the user actually changed.
+      if (patch.startTime !== undefined || patch.endTime !== undefined) {
+        reportTourAction(TOUR_ACTIONS.scheduleEventTimeChanged);
+      }
+    },
+    [handleUpdate, reportTourAction],
+  );
+
   // #889: the creation panel's four openers and five committers, as one hook.
   // It has to sit here rather than beside the other handlers — `handleCreate`
   // comes out of the call above, and its own outputs are only read from the
@@ -553,7 +598,7 @@ export function CalendarTab({
     isWide,
     setSelectedId,
     setOverlayOpen,
-    handleCreate,
+    handleCreate: handleCreateReported,
     addNode,
     updateNode,
     attachNote,
@@ -618,6 +663,25 @@ export function CalendarTab({
     nowMinutes,
     statusLabels,
   });
+
+  /*
+   * #1148: a narrow month-cell tap moves the anchor AND opens the drawer on
+   * that day. `pickMonthDay` is unchanged and still the only thing that moves
+   * the anchor; the rest lives in `narrowDayTap.ts`, where it is reachable by
+   * a test — this host is not (rules/frontend.md §テスト環境の制約).
+   *
+   * Desktop does not get this: its sidebar is a push-in panel that is already
+   * visible, so there is nothing for `open()` to do, and its cells run
+   * `handleMonthCreate` (#224) instead.
+   */
+  const handleNarrowSelectDay = useCallback(
+    (dateKey: string) =>
+      selectNarrowDay(
+        { pickDay: pickMonthDay, setSidebarTab, openSidebar },
+        dateKey,
+      ),
+    [openSidebar, pickMonthDay, setSidebarTab],
+  );
 
   // #889: TODAY, as the rightSidebar shows it — the merged agenda, its two
   // counters, the skipped list and its restore, and the editor's "generated
@@ -720,6 +784,31 @@ export function CalendarTab({
       />
     ) : null;
 
+  /*
+   * #1148: what the flow tab shows on NARROW — the anchor day rather than
+   * today, because narrow no longer has a second list to read a picked day
+   * from. Desktop is untouched: it keeps today, its own labels and its
+   * now-line, which is why every field below is a fold rather than a
+   * replacement.
+   *
+   * Both are computed behind `isWide` on purpose. The merge and the two counts
+   * used to sit in the narrow JSX branch, where an untaken ternary is simply
+   * never evaluated; hoisting them up here without the guard would make
+   * Desktop pay for a list it does not draw.
+   */
+  const narrowDayAgenda = isWide
+    ? null
+    : toAgenda(
+        anchorDayItems,
+        rangeTodoChips.filter((c) => c.date === anchorDate),
+      );
+  const narrowDayCounts = isWide
+    ? null
+    : {
+        done: anchorDayItems.filter((i) => i.completed).length,
+        total: anchorDayItems.length,
+      };
+
   // Shared rightSidebar (AppShell owns the frame -- a push-in panel on
   // Desktop, a drawer on Mobile). One portal either way so contentCount stays
   // 1 (#299 removed the old detail tab -- item detail now lives in a
@@ -734,13 +823,27 @@ export function CalendarTab({
         tab={sidebarTab}
         onTabChange={setSidebarTab}
         flow={{
-          todayLabel,
-          agenda: todayAgenda,
-          agendaLabels,
-          nowMinutes,
+          // #1148: narrow follows the picked day; Desktop stays on today.
+          todayLabel: isWide ? todayLabel : anchorDayLabel,
+          agenda: narrowDayAgenda ?? todayAgenda,
+          // The anchor variant's empty state names the day it is showing
+          // (#774) — "今日は予定がありません" on some other day is a lie.
+          agendaLabels: isWide ? agendaLabels : anchorAgendaLabels,
+          // No now-line on a day that is not today: the hour it marks means
+          // nothing there.
+          nowMinutes: isWide || anchorDate === today ? nowMinutes : null,
           selectedId,
-          doneCount: todayDone,
-          totalCount: todayTotal,
+          doneCount: narrowDayCounts?.done ?? todayDone,
+          totalCount: narrowDayCounts?.total ?? todayTotal,
+          // #691, arriving with the day list: narrow stands in for the week
+          // grid, so its rows carry their duration and the gaps between them.
+          dayflow: !isWide,
+          formatGapLabel: isWide ? undefined : formatGapLabel,
+          // #1148 option A: the phone's only create route now lives on this
+          // heading row. Desktop keeps the toolbar button and gets no second
+          // one.
+          onAdd: isWide ? undefined : handleToolbarAdd,
+          addLabel: isWide ? undefined : t("scheduleScreen.addCta"),
           skipped: skippedToday,
           summaryRows,
           routineDoneCount: routineDone,
@@ -797,7 +900,7 @@ export function CalendarTab({
         // rather than callbacks: the pane holds them in its draft until the
         // button.
         handlers: {
-          onSave: handleUpdate,
+          onSave: handleUpdateReported,
           onToggleComplete: handleToggle,
           onDismiss: handleDismiss,
           onDelete: handleDelete,
@@ -888,10 +991,11 @@ export function CalendarTab({
   // asked there hung forever. What each body draws, and why, lives in its own
   // header comment.
   //
-  // The narrow day list's rows are still merged HERE, in the JSX. The reason
-  // outlived the collapse but changed shape: an untaken ternary branch is
-  // never evaluated, so the merge still never runs on a layout that does not
-  // draw it — it is no longer the early return that guarantees that.
+  // The narrow day's rows are still merged behind an `isWide` fold, just no
+  // longer in this JSX: #1148 moved the list itself into the drawer, so the
+  // merge moved up to where the sidebar's props are built. The guard came with
+  // it for the same reason it existed — Desktop must not pay to merge a list
+  // it does not draw.
   return (
     <>
       {sidebarPortal}
@@ -957,23 +1061,8 @@ export function CalendarTab({
             today,
             weekdayLabels,
             items: monthItems,
-            onSelectDay: pickMonthDay,
+            onSelectDay: handleNarrowSelectDay,
             formatDayLabel: formatFullDay,
-          }}
-          day={{
-            anchorDayLabel,
-            agenda: toAgenda(
-              anchorDayItems,
-              rangeTodoChips.filter((c) => c.date === anchorDate),
-            ),
-            nowMinutes: anchorDate === today ? nowMinutes : null,
-            selectedId,
-            labels: anchorAgendaLabels,
-            formatGapLabel,
-            onAdd: handleToolbarAdd,
-            onToggleComplete: handleAgendaToggle,
-            onItemActivate: handleItemActivate,
-            onItemDoubleClick: handleItemOpenDetail,
           }}
         />
       )}

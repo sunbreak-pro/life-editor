@@ -120,7 +120,7 @@
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
 - **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync（Briefing の正本 = [`2026-07-15-briefing-loop.md`](./docs/vision/plans/2026-07-15-briefing-loop.md)・requirements 節 = tier-1-core.md §Briefing / Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定 D-20260705-main-1・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持）
-- **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（File Explorer は退役 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持）
+- **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（File Explorer は退役 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持 / **Connect セクションと力学グラフは 2026-08-29 退役 = #1152**: タグ・アイテム間リンク・検索のデータと取り出し口は全部温存し、可視化だけを撤去。`SectionId` / nav / i18n から除去済み・backlink 部品は `shared/src/components/Backlinks/` + `shared/src/utils/itemLinks.ts` へ移設）
 - **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
 - 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 

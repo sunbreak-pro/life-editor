@@ -54,6 +54,7 @@ const {
   SectionHeader,
 } = await import("@life-editor/shared");
 const { WorkScreen } = await import("../src/work/WorkScreen");
+const { createBumpableSync } = await import("./helpers");
 
 type Timer = TimerContextValue;
 type WorkScreenDataService = Parameters<typeof WorkScreen>[0]["dataService"];
@@ -154,10 +155,17 @@ function NarrowShell({ children }: { children: ReactNode }) {
 }
 
 function renderWork(Shell: typeof WideShell) {
+  // WorkScreen reads `useSyncDomains` since #1157, and `useSyncContext` throws
+  // outside its Provider. The timer is still the local stub above — this adds
+  // the Sync Provider only, which is what the header comment's "TimerProvider
+  // needs a Sync Provider above it" was avoiding.
+  const { wrapper: SyncWrapper } = createBumpableSync();
   render(
-    <Shell>
-      <WorkScreen dataService={makeDS()} />
-    </Shell>,
+    <SyncWrapper>
+      <Shell>
+        <WorkScreen dataService={makeDS()} />
+      </Shell>
+    </SyncWrapper>,
   );
   return screen.getByTestId("work-main");
 }
