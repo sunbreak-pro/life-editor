@@ -79,6 +79,22 @@ export { useSyncContext } from "./hooks/useSyncContext";
 // #499 — refetch keyed to the domains a consumer reads, so one domain's write
 // no longer re-pulls (or, for the timer, re-WRITES) every other domain.
 export { useSyncDomains } from "./hooks/useSyncDomains";
+// The shared load effect (#672) + its stale-while-revalidate store (#1101).
+// Exported for the web HOSTS that fetch for themselves rather than through a
+// domain provider (#1157: Briefing / Analytics / Trash / Work) — hosts may
+// call the DataService directly (§6.4), and this is the one way to do it that
+// survives the section unmount. `clearDomainSnapshots` is test isolation:
+// the store is module-level and outlives a suite's renders.
+export {
+  useDomainLoad,
+  type UseDomainLoadOptions,
+  type DomainLoadState,
+} from "./hooks/useDomainLoad";
+export {
+  clearDomainSnapshots,
+  writeDomainSnapshot,
+  type DomainSnapshotKey,
+} from "./state/domainSnapshotStore";
 export {
   SYNC_DOMAINS,
   domainsForChange,

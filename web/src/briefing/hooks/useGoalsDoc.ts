@@ -8,6 +8,8 @@ import {
   goalPeriodKeys,
   mergeGoalSection,
   normalizeGoalText,
+  useDomainLoad,
+  writeDomainSnapshot,
   useSyncDomains,
   useTranslation,
   type DataService,
@@ -78,25 +80,38 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
   const syncVersion = useSyncDomains("notes");
 
   const [content, setContent] = useState<string | null>(null);
-  // The paper must not offer the fields before the note has answered. They
-  // would render empty over goals that DO exist, and a character typed into
-  // that window is both lost (the arriving note drops the draft) and
-  // destructive (the queued debounce still fires and overwrites the stored
-  // goal with it). The host folds this into the paper's existing skeleton
-  // gate, so the goals are covered exactly like the daily's own fields.
-  const [goalsLoading, setGoalsLoading] = useState(true);
 
   // ONE chain for the read AND the writes (see the header): a refetch that
   // resolves after a later save would otherwise roll the shown text back to a
   // body read before that save landed.
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
-  useEffect(() => {
-    let cancelled = false;
-    saveChainRef.current = saveChainRef.current.then(async () => {
-      try {
-        const note = await ds.getNoteUnified(GOALS_NOTE_ID);
-        let body = note?.content ?? null;
+  // The paper must not offer the fields before the note has answered. They
+  // would render empty over goals that DO exist, and a character typed into
+  // that window is both lost (the arriving note drops the draft) and
+  // destructive (the queued debounce still fires and overwrites the stored
+  // goal with it). The host folds this into the paper's existing skeleton
+  // gate, so the goals are covered exactly like the daily's own fields.
+  //
+  // #1157: the gate used to close again on every mount, which is why coming
+  // back to Briefing re-showed the skeleton over goals that had not moved.
+  // The read runs through `useDomainLoad` under `briefingGoals` now — last
+  // body replayed before paint, re-read behind it — while staying queued on
+  // `saveChainRef`, which `useDomainLoad` knows nothing about.
+  const { isLoading: goalsLoading } = useDomainLoad<string | null>({
+    domain: "Briefing goals note",
+    dataService: ds,
+    version: syncVersion,
+    // `keys` is a fresh object each time `todayKey` changes, and an anchor is
+    // compared with `!==`; the key it is derived from is the stable scalar.
+    anchor: todayKey,
+    snapshotKey: "briefingGoals",
+    // A note bump is usually this tab's own save echoing back.
+    refetchReportsLoading: false,
+    load: (service) => {
+      const read = saveChainRef.current.then(async () => {
+        const note = await service.getNoteUnified(GOALS_NOTE_ID);
+        const body = note?.content ?? null;
         // One-shot rollover migration (#957): a note written before period
         // keys existed carries BARE headings, and left alone they would be
         // re-adopted as "this week" every week and never roll over. Rewriting
@@ -107,38 +122,36 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
         // Guarded on an existing, live note: never create one (opening the
         // paper must not litter Notes), and never resurrect a trashed one
         // (that is a repair the user asks for by writing a goal — persistGoal
-        // owns it). Deliberately inside the read's own try/catch, so the
-        // failure paths this hook has stay at two.
-        if (note !== null && note.isDeleted !== true) {
-          const adopted = adoptBareGoalHeadings(body, keys);
-          if (adopted !== (body ?? "")) {
-            const updated = await ds.updateNoteUnified(GOALS_NOTE_ID, {
-              content: adopted,
-            });
-            body = updated.content ?? adopted;
-          }
-        }
-        if (!cancelled) setContent(body);
-      } catch (err) {
-        // A failed read leaves the previous text on the paper rather than
-        // blanking fields the user may be typing into — but it must still
-        // open the gate, or a hiccup strands the reader on the skeleton.
-        //
-        // The ONE catch on this hook that does not raise a toast (#955), on
-        // purpose: nothing the user typed is at stake here. A failed read
-        // shows the previous text, and a failed keying migration just leaves
-        // the headings bare for the next open to retry. Toasting a fetch on
-        // page load would also fire on every offline open, which trains the
-        // user to dismiss the notice that DOES mean lost writing.
-        console.error("[BriefingScreen] goals note fetch failed", err);
-      } finally {
-        if (!cancelled) setGoalsLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion, keys]);
+        // owns it).
+        if (note === null || note.isDeleted === true) return body;
+        const adopted = adoptBareGoalHeadings(body, keys);
+        if (adopted === (body ?? "")) return body;
+        const updated = await service.updateNoteUnified(GOALS_NOTE_ID, {
+          content: adopted,
+        });
+        return updated.content ?? adopted;
+      });
+      // Keep the chain a Promise<void> that never rejects — a failed read must
+      // not poison every save queued behind it.
+      saveChainRef.current = read.then(
+        () => undefined,
+        () => undefined,
+      );
+      return read;
+    },
+    apply: setContent,
+    // A failed read leaves the previous text on the paper rather than blanking
+    // fields the user may be typing into, and still opens the gate so a hiccup
+    // cannot strand the reader on the skeleton.
+    //
+    // This is the ONE failure on this hook that does not raise a toast (#955),
+    // on purpose: nothing the user typed is at stake. A failed read shows the
+    // previous text, and a failed keying migration just leaves the headings
+    // bare for the next open to retry. Toasting a fetch on page load would
+    // also fire on every offline open, which trains the user to dismiss the
+    // notice that DOES mean lost writing.
+    fallbackMessage: "Failed to load the goals note",
+  });
 
   const stored = useMemo<ExtractedGoals>(
     () => extractGoals(content, keys),
@@ -184,6 +197,22 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
   }
 
   const noteTitle = t("briefing.goals.noteTitle");
+
+  /*
+   * Same reason as useFocusNote's: `useDomainLoad` writes the slot only from a
+   * read it fired, and the usual way to leave the paper (blur flushes the
+   * debounce, the section unmounts in the same tick) means the Realtime echo
+   * that would re-read lands after this hook is gone. Without this the next
+   * visit replays the PRE-EDIT body with `goalsLoading` already false — a goal
+   * field rendered empty over a goal that exists, which is the destructive case
+   * the gate is documented to prevent.
+   */
+  const rememberGoalsBody = useCallback(
+    (body: string) => {
+      writeDomainSnapshot<string | null>("briefingGoals", ds, todayKey, body);
+    },
+    [ds, todayKey],
+  );
 
   const persistGoal = useCallback(
     (period: GoalPeriod, text: string) => {
@@ -234,6 +263,7 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
               updatedAt: now,
             });
             setContent(created.content ?? merged);
+            rememberGoalsBody(created.content ?? merged);
             return;
           }
           // The note may be in the trash (deleted from Notes): `getNoteUnified`
@@ -248,12 +278,13 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
             content: merged,
           });
           setContent(updated.content ?? merged);
+          rememberGoalsBody(updated.content ?? merged);
         } catch (err) {
           reportSaveFailure("goals", err);
         }
       });
     },
-    [ds, noteTitle, keys, reportSaveFailure],
+    [ds, noteTitle, keys, reportSaveFailure, rememberGoalsBody],
   );
 
   const timersRef = useRef<Partial<Record<GoalPeriod, number>>>({});
