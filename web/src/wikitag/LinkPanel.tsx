@@ -11,6 +11,7 @@ import {
   CheckSquare,
   FileText,
   Link2,
+  Network,
   Plus,
   X,
   type LucideIcon,
@@ -57,6 +58,29 @@ import {
  *     candidate pool doubles as the title source for every role it carries;
  *     the id fragment is now only the last resort.
  *
+ * #1172 made it a RELATED panel. #1152 retired the Connect section's
+ * force-directed graph, and the question that graph existed to answer — "what
+ * is this note sitting next to?" — is better asked from inside the note than
+ * from a map of everything. So beside the "+ link" pill there is now a
+ * "related" pill, and behind it the three relations that were never editable
+ * anyway:
+ *
+ *   - LINKS. Both stored directions, still merged into one list keyed by the
+ *     other item (#884): a relation is a relation, and neither end is "from".
+ *     They are the chips too — the chips are the editable summary, this is the
+ *     reading surface that sits beside the other two.
+ *   - SHARES A TAG. Anything else carrying a tag this item carries. Derived
+ *     from the same `allAssignments` bulk cache TagPicker reads, so it costs
+ *     no query — and already-linked items are left out, so each item appears
+ *     under one relation rather than two.
+ *   - THAT DAY'S DAILY. The daily for the item's own date, which the host
+ *     supplies as a key rather than an instant (only the host knows what
+ *     "its date" means for the role it is rendering).
+ *
+ * Every row here resolves through the SAME candidate pool the picker uses, so
+ * an item the pool cannot name is left out rather than shown as an id: a
+ * "related" list is for following, and a row with no role has nowhere to go.
+ *
  * Copy comes from the catalog through `useTranslation` — the same call the
  * sibling TagPicker makes. (The props-injected-labels rule is for the shared
  * component layer; this is web's own host layer.)
@@ -90,10 +114,20 @@ interface LinkPanelProps {
    * the rows stay non-interactive rather than pretending to be clickable.
    */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /**
+   * `YYYY-MM-DD` for the "that day's daily" relation (#1172). Supplied by the
+   * host because only it knows which of the item's dates counts as "its" day —
+   * a note's is when it was written, and another role's may not be either
+   * timestamp. Absent → the section is not shown at all.
+   */
+  relatedDailyDate?: string;
 }
 
 /** Keep the popover compact — the pool is balanced across roles, not sliced. */
 const MAX_CANDIDATES = 8;
+
+/** Rows per related section. The heading carries the true count (#1172). */
+const MAX_RELATED_ROWS = 8;
 
 const ROLE_ICON: Record<string, LucideIcon> = {
   note: FileText,
@@ -110,15 +144,18 @@ export function LinkPanel({
   resolveTitle,
   loadTargets,
   onNavigateToItem,
+  relatedDailyDate,
 }: LinkPanelProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [relatedOpen, setRelatedOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [targets, setTargets] = useState<LinkPanelTarget[]>([]);
   const [error, setError] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const relatedRef = useRef<HTMLDivElement | null>(null);
   // Last-write-wins for the pool: an open racing the mount load must not let
   // the older answer overwrite the newer one.
   const requestRef = useRef(0);
@@ -171,6 +208,22 @@ export function LinkPanel({
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [pickerOpen]);
 
+  // Same click-outside contract for the related popover — its own listener, so
+  // one popover closing never depends on the other's state.
+  useEffect(() => {
+    if (!relatedOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (
+        relatedRef.current &&
+        !relatedRef.current.contains(e.target as Node)
+      ) {
+        setRelatedOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [relatedOpen]);
+
   const roleLabels = useMemo<Record<string, string>>(
     () => ({
       note: t("itemRole.note"),
@@ -222,6 +275,51 @@ export function LinkPanel({
     // cut would hand all 8 slots to notes and never surface a todo (#370).
     return balanceByRole(pool, MAX_CANDIDATES);
   }, [targets, itemId, linkedIds, query]);
+
+  /*
+   * #1172 — the two relations that are not links.
+   *
+   * Both derive from caches the panel already holds (`allAssignments` is the
+   * same bulk read TagPicker uses; the pool is the picker's), so opening the
+   * related popover costs no query. Items the pool cannot name are dropped
+   * rather than shown as an id fragment: the navigation route keys off the
+   * role, and a row that cannot be followed is not a relation worth listing.
+   */
+  const sharedTagItems = useMemo(() => {
+    const mine = new Set(
+      wiki
+        .getTagsForItem(itemId)
+        .filter((a) => !a.isDeleted)
+        .map((a) => a.tagId),
+    );
+    if (mine.size === 0) return [] as LinkPanelTarget[];
+    const seen = new Set<string>();
+    const out: LinkPanelTarget[] = [];
+    for (const a of wiki.allAssignments) {
+      if (a.isDeleted || a.itemId === itemId) continue;
+      if (!mine.has(a.tagId)) continue;
+      if (seen.has(a.itemId)) continue;
+      seen.add(a.itemId);
+      // Already linked → it is in the links section. One item, one relation:
+      // listing it twice makes the panel look busier than the graph is.
+      if (linkedIds.has(a.itemId)) continue;
+      const target = targetsById.get(a.itemId);
+      if (target) out.push(target);
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+  }, [wiki, itemId, linkedIds, targetsById]);
+
+  const sameDayDaily = useMemo(() => {
+    if (!relatedDailyDate) return null;
+    // Daily ids are `daily-<YYYY-MM-DD>` (CLAUDE.md §4), so the day IS the
+    // lookup — no extra read to find out whether that entry exists.
+    const id = `daily-${relatedDailyDate}`;
+    if (linkedIds.has(id)) return null;
+    return targetsById.get(id) ?? null;
+  }, [relatedDailyDate, linkedIds, targetsById]);
+
+  const relatedCount =
+    linked.length + sharedTagItems.length + (sameDayDaily ? 1 : 0);
 
   // Clamp rather than reset-in-an-effect: the list also shrinks when the pool
   // lands or a link is added, and a stored index past the end would highlight
@@ -367,6 +465,66 @@ export function LinkPanel({
     );
   };
 
+  /** One related row: icon + title, opening the item if it can be opened. */
+  const renderRelatedRow = (id: string) => {
+    const role = targetsById.get(id)?.role;
+    const Icon = roleIcon(role);
+    const title = itemTitle(id);
+    const open = onNavigateToItem && role ? { id, role } : null;
+    const body = (
+      <>
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
+          <Icon size={12} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-left">{title}</span>
+      </>
+    );
+    return (
+      <li key={id}>
+        {open ? (
+          <button
+            type="button"
+            title={id}
+            onClick={() => {
+              onNavigateToItem?.(open);
+              setRelatedOpen(false);
+            }}
+            aria-label={t("materials.links.open", { title })}
+            className="flex w-full items-center gap-2 rounded-lumen-sm px-1.5 py-1.5 text-xs font-normal text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+          >
+            {body}
+          </button>
+        ) : (
+          <span
+            title={id}
+            className="flex w-full items-center gap-2 px-1.5 py-1.5 text-xs font-normal text-lumen-text-tertiary"
+          >
+            {body}
+          </span>
+        )}
+      </li>
+    );
+  };
+
+  /** A named group of related rows. Empty groups are not drawn at all. */
+  const renderRelatedSection = (label: string, ids: string[]) => {
+    if (ids.length === 0) return null;
+    return (
+      <div key={label} className="flex flex-col gap-0.5">
+        <p className="px-1.5 pt-1 text-[0.6875rem] uppercase tracking-wide text-lumen-text-tertiary">
+          {t("materials.related.sectionCount", {
+            label,
+            count: ids.length,
+          })}
+        </p>
+        {/* The heading counts them all; the list shows the first few. A
+            silently truncated list that also claimed the short number would
+            read as "that is everything". */}
+        <ul>{ids.slice(0, MAX_RELATED_ROWS).map(renderRelatedRow)}</ul>
+      </div>
+    );
+  };
+
   const listboxId = `link-picker-${itemId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
   return (
@@ -375,6 +533,8 @@ export function LinkPanel({
       aria-label={t("materials.links.panelLabel")}
       className="inline-flex flex-wrap items-center gap-1.5"
     >
+      {/* The chips below stay the LINK row — add, read, remove. The related
+          pill after them opens everything else this item sits next to. */}
       {loading && <span className="text-xs text-lumen-text-secondary">…</span>}
       {!loading && linked.map(renderChip)}
 
@@ -467,6 +627,51 @@ export function LinkPanel({
                     </button>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Related (#1172) — the same pill shape as its two neighbours, carrying
+          the count rather than a word, because it is the third control on a row
+          that already spells out what it is. */}
+      <div ref={relatedRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setRelatedOpen((v) => !v)}
+          aria-label={t("materials.related.open")}
+          aria-expanded={relatedOpen}
+          className="inline-flex items-center gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+        >
+          <Network size={12} aria-hidden />
+          <span>{relatedCount}</span>
+        </button>
+
+        {relatedOpen && (
+          <div
+            role="dialog"
+            aria-label={t("materials.related.dialog")}
+            className="absolute right-0 top-full z-20 mt-1 max-h-80 w-60 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md"
+          >
+            {relatedCount === 0 ? (
+              <p className="px-1.5 py-1 text-xs font-normal text-lumen-text-tertiary">
+                {t("materials.related.empty")}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {renderRelatedSection(
+                  t("materials.related.links"),
+                  linked.map((entry) => entry.targetId),
+                )}
+                {renderRelatedSection(
+                  t("materials.related.sharedTags"),
+                  sharedTagItems.map((target) => target.id),
+                )}
+                {renderRelatedSection(
+                  t("materials.related.sameDayDaily"),
+                  sameDayDaily ? [sameDayDaily.id] : [],
+                )}
               </div>
             )}
           </div>

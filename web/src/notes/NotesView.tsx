@@ -21,6 +21,7 @@ import {
   tourAnchor,
   useRecentNoteIds,
   resolveRecentNotes,
+  dateKeyOfInstant,
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { NoteBodyEditor } from "./NoteBodyEditor";
@@ -556,6 +557,15 @@ export function NotesView({
                 // Chip clicks reuse the "[[" navigation route (#475): the shell
                 // switches section + tab and hands the target id to the view.
                 onNavigateToItem={onNavigateToItem}
+                // #1172: which day this note belongs to, for the "that day's
+                // daily" relation. Derived here because only the host knows
+                // what a NOTE's day is (the day it was written), and through
+                // dateKeyOfInstant rather than a slice — the stored string is
+                // UTC, so slicing it reads the wrong calendar day in JST
+                // before 09:00 (#413).
+                relatedDailyDate={
+                  dateKeyOfInstant(selected.createdAt) ?? undefined
+                }
               />
             ) : undefined
           }

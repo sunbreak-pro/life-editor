@@ -43,7 +43,7 @@ export function useScheduleOverlays() {
   const [createPanel, setCreatePanel] = useState<ScheduleCreatePanel | null>(
     null,
   );
-  const [calendarsOpen, setCalendarsOpen] = useState(false);
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
 
   return {
     popover,
@@ -52,8 +52,8 @@ export function useScheduleOverlays() {
     setOverlayOpen,
     createPanel,
     setCreatePanel,
-    calendarsOpen,
-    setCalendarsOpen,
+    tagFilterOpen,
+    setTagFilterOpen,
   };
 }
 
@@ -78,7 +78,7 @@ export interface UseCancelDeferredPopoverArgs {
   overlayOpen: boolean;
   /** The creation panel, or null when it is closed. */
   createPanel: ScheduleCreatePanel | null;
-  calendarsOpen: boolean;
+  tagFilterOpen: boolean;
   /** #279's this/future/all chooser, parked until the user answers. */
   scopeRequest: { mode: "edit" | "delete" } | null;
   /** The todo chip's own detail surface (#626), or null. */
@@ -90,7 +90,7 @@ export interface UseCancelDeferredPopoverArgs {
 export function useCancelDeferredPopover({
   overlayOpen,
   createPanel,
-  calendarsOpen,
+  tagFilterOpen,
   scopeRequest,
   todoDetailId,
   cancelPopover,
@@ -99,7 +99,7 @@ export function useCancelDeferredPopover({
     if (
       overlayOpen ||
       createPanel ||
-      calendarsOpen ||
+      tagFilterOpen ||
       scopeRequest ||
       todoDetailId != null
     ) {
@@ -108,7 +108,7 @@ export function useCancelDeferredPopover({
   }, [
     overlayOpen,
     createPanel,
-    calendarsOpen,
+    tagFilterOpen,
     scopeRequest,
     todoDetailId,
     cancelPopover,

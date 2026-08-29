@@ -123,12 +123,22 @@ export {
 // the control is the same object in both.
 export { AllDaySwitch, type AllDaySwitchProps } from "./AllDaySwitch";
 // #468: the calendar lens — the single-select chip row under the toolbar that
-// narrows the grid to one calendar (#889 lifted it out of CalendarTab).
+// narrows the grid to one saved tag group (#889 lifted it out of CalendarTab;
+// #1173 re-based its chips off the retired one-tag calendars).
 export {
   CalendarLensRow,
   type CalendarLensRowProps,
   type CalendarLensRowLabels,
 } from "./CalendarLensRow";
+// #1173: the tag-filter panel behind the toolbar's filter button — the
+// multi-select + saved-group surface that replaced the calendars ledger.
+export {
+  TagFilterPanel,
+  type TagFilterPanelProps,
+  type TagFilterPanelLabels,
+  type TagFilterPanelTag,
+  type TagFilterPanelGroup,
+} from "./TagFilterPanel";
 // #296: the calendar's status surfaces — the loading card, the "could not
 // load" card, and the quiet banner for a failed range fetch that still has
 // rows under it (#889 lifted them out of CalendarTab).

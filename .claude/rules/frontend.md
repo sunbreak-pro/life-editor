@@ -17,7 +17,7 @@ paths:
 
 - **アイデンティティ = `shared/src/sections.ts` の registry**（`SectionId` / nav 順 / グループ / アイコン / i18n key / mobile 順）
 - **web ホストの描き方 = `web/src/sectionDescriptors.tsx` の `SECTION_DESCRIPTORS`**（PageContainer の width / ヘッダーのタブ帯 / 狭幅レイアウトの行 / body とその section 層 Provider）。`Record<SectionId, …>` なので registry に足すと descriptor 行が無い間はコンパイルが通らない
-- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`。3 本目だった Connect は #1152 でセクションごと退役）。同じファイルの `SECTION_CHUNK_LOADERS`（#1158 のアイドル先読み）は同じ specifier をもう一度並べるので、**重い body を足す / 消すときは `lazy()` 側と 2 箇所セットで直す** — 片方だけだと削除済みモジュールを `import()` することになり、守りのテストが落ちる
+- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`。3 本目だった旧 Connect は #1152 でセクションごと退役。#1171 の新 Connect = Tag hub は**意図的に分割していない** — 重いのはベンダースタック側で、この画面は React と既存アイコンしか持たないため分割しても取り出せる重量が無い）。同じファイルの `SECTION_CHUNK_LOADERS`（#1158 のアイドル先読み）は同じ specifier をもう一度並べるので、**重い body を足す / 消すときは `lazy()` 側と 2 箇所セットで直す** — 片方だけだと削除済みモジュールを `import()` することになり、守りのテストが落ちる
 
 ## 命名（プロジェクト固有のみ）
 
@@ -39,7 +39,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `sh
 - **グローバル層**（外→内）: I18n → Theme（`main.tsx`）→ Toast → Sync → UndoRedo（`UndoRedoHost` 経由）→ ShortcutConfig → Audio → Timer（`TimerHost` 経由）→ RightSidebar（`MainScreen.tsx`）
 - **セクション層**（section switch の内側。セクションごとに独立した鎖で、横並びの兄弟関係）:
   - Materials: WikiTagsUnified → TodoTree / NotesUnified / DailiesUnified
-  - Schedule: Calendar → Routine → ScheduleItems
+  - Schedule: TagGroup → Routine → ScheduleItems
   - Analytics: AnalyticsFilter（`components/Analytics/AnalyticsView.tsx` 内）
 - **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider、TimerProvider → AudioProvider）。**#676 (c) で Audio と Timer を入れ替えた** — 完了チャイムを鳴らすのは Timer 側なので Audio が外。旧構成では ref（`chimeRef` + `AudioChimeBridge`）で内→外へ関数を渡し戻していた
 - **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TodoTreeContext.tsx` の unmount 時 UndoRedo stack clear）
@@ -77,7 +77,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `sh
 
 ## Schedule Provider 分割
 
-- 現行は `CalendarProvider` → `RoutineProvider` → `ScheduleItemsProvider`（外→内）。`CalendarTagsProvider` は DU-F Step 3-5 で撤去済み（tag/link は `WikiTagsUnified` が引き継ぎ）、後方互換ファサード `useScheduleContext()` も現存しない — 個別 hook を直接使用する。複数参照される部品は `shared/src/components/schedule/` へ（背景 → `docs/vision/coding-principles.md §3`）
+- 現行は `TagGroupProvider` → `RoutineProvider` → `ScheduleItemsProvider`（外→内）。`TagGroupProvider` は #1173 で `CalendarProvider` の枠をそのまま引き継いだもの（カレンダー台帳 = 1 タグのフィルタ を、多タグの「グループ」へ置換）。`CalendarTagsProvider` は DU-F Step 3-5 で撤去済み（tag/link は `WikiTagsUnified` が引き継ぎ）、後方互換ファサード `useScheduleContext()` も現存しない — 個別 hook を直接使用する。複数参照される部品は `shared/src/components/schedule/` へ（背景 → `docs/vision/coding-principles.md §3`）
 
 ## テスト環境の制約（座標に依存する入力経路を作らない）
 

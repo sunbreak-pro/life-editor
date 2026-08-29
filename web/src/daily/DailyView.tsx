@@ -18,7 +18,6 @@ import {
   RightSidebarPortal,
   DailyEntriesPanel,
   DailyEveningCard,
-  DateStrip,
   SidebarListControls,
   cn,
   dailyContentToEditorContent,
@@ -38,7 +37,6 @@ import {
   type DailyEntriesPanelEntry,
   type DailyListDirection,
   type DailyListSortMode,
-  type DateStripDay,
   type DataService,
   FOCUS_RING_TIGHT as FOCUS_RING,
   formatDateKey,
@@ -60,12 +58,12 @@ import { useDayScheduleSummary } from "./useDayScheduleSummary";
  *   - Desktop (isWide): a centered max-width 800px editor card (28px date
  *     heading + saved-state caption + pin / delete icon buttons + a plain-text
  *     body wired to upsertDaily-on-blur) and a "今日へ" action row.
- *   - Mobile (narrow): a "今日へ" + pin action row, a <DateStrip> of the last
- *     two weeks (entry-dot per day), and the same editor card (19px date).
+ *   - Mobile (narrow): a "今日へ" + pin action row and the same editor card
+ *     (19px date).
  *
  * The past-entries UI — sort / direction / filter above the shared
- * <DailyEntriesPanel> (today / yesterday jump, date picker, chronological entry
- * list) — is PUSHED INTO THE SHARED detail panel via RightSidebarPortal at BOTH
+ * <DailyEntriesPanel> (date picker + chronological entry list) — is PUSHED INTO
+ * THE SHARED detail panel via RightSidebarPortal at BOTH
  * widths since #876 (ユーザー裁定 D-20260815-materials-2 = A): the push-in
  * rightSidebar on Desktop, the hamburger's <MobileDrawer> on narrow. It is
  * always-present content, not selection-driven.
@@ -73,9 +71,14 @@ import { useDayScheduleSummary } from "./useDayScheduleSummary";
  * What #876 retired on narrow: the "過去のエントリ" teaser of the two most
  * recent other entries, which sat under the editor. It was a fixed 2-row
  * stand-in for a list there was nowhere to put (#369); the drawer is that
- * place, and it carries the whole list with the sort and filter controls. The
- * <DateStrip> stays on the body side — it is day NAVIGATION for the entry
- * being written, not a list of what exists.
+ * place, and it carries the whole list with the sort and filter controls.
+ *
+ * What #1189 retired: the rightSidebar's "今日 / 昨日" pair and the narrow
+ * body's <DateStrip> of the last two weeks. Both moved the same selected date
+ * the entry rows and the date picker move, so both read as filters that did
+ * nothing — and the strip could only ever reach the last 14 days, which is the
+ * range the entry list covers best. Arbitrary days are reached through the
+ * picker, and "today" through the CTA that was always there.
  *
  * The body is the shared Notes TipTap editor (F-1 #258 — headings are what
  * makes handwritten 朝刊/夕刊 sections visible to extractBriefing). The title
@@ -186,7 +189,6 @@ export function DailyView({
     upsertDaily,
     deleteDaily,
     togglePin,
-    getDailyForDate,
   } = useDailiesUnifiedContext();
   // "[[" → item_links, shared with Notes and Todos (#776). Daily differs only
   // in WHEN the edge can be written (see the park / flush below); the write
@@ -412,7 +414,6 @@ export function DailyView({
   };
 
   const todayIso = useMemo(() => isoDay(0), []);
-  const yesterdayIso = useMemo(() => isoDay(-1), []);
 
   // #283 desktop sidebar: persisted sort direction ("desc" = newest-first, the
   // prior default) + a non-persisted filter query. #369 adds the sort MODE —
@@ -478,24 +479,6 @@ export function DailyView({
     dailySortDirection,
     dailyFilterQuery,
   ]);
-
-  // DateStrip window: the last 14 days, oldest → newest (today at the right).
-  const stripDays = useMemo<DateStripDay[]>(() => {
-    const arr: DateStripDay[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const iso = isoDay(-i);
-      const d = parseIso(iso);
-      arr.push({
-        date: iso,
-        weekdayLabel: weekdayShort.format(d),
-        dayLabel: `${d.getMonth() + 1}/${d.getDate()}`,
-        hasEntry: !!getDailyForDate(iso),
-      });
-    }
-    return arr;
-    // dailies drives getDailyForDate's result (it reads a ref).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekdayShort, getDailyForDate, dailies]);
 
   // "今日へ" accent CTA — jump the selection to today.
   const toTodayButton = (
@@ -637,12 +620,6 @@ export function DailyView({
           }}
         />
         <DailyEntriesPanel
-          todayLabel={t("materials.daily.today")}
-          yesterdayLabel={t("materials.daily.yesterday")}
-          todaySelected={selectedDate === todayIso}
-          yesterdaySelected={selectedDate === yesterdayIso}
-          onSelectToday={() => selectDay(todayIso)}
-          onSelectYesterday={() => selectDay(yesterdayIso)}
           pickerDate={selectedDate}
           pickerLabel={selectedDate.replaceAll("-", "/")}
           datePickerLabel={t("materials.daily.datePicker")}
@@ -701,14 +678,6 @@ export function DailyView({
         {toTodayButton}
         {actionsMenu("boxed")}
       </div>
-
-      <DateStrip
-        days={stripDays}
-        selectedDate={selectedDate}
-        onSelect={setSelectedDate}
-        label={t("materials.daily.dateStripLabel")}
-        className="pb-3"
-      />
 
       <div className="flex min-h-0 flex-1 flex-col">
         <EditorCard

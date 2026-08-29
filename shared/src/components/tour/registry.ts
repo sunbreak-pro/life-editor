@@ -10,11 +10,21 @@ import type { TourStep } from "./types";
  * A section Issue adds its step by appending a row, and nothing in the
  * runtime changes.
  *
- * `briefing-intro` is still the starter row #1122 shipped — its
- * `data-tour-id` is not in the app yet, which is safe rather than broken: a
- * step whose anchor is absent is skipped (see anchor.ts), and a tour that
- * could not show ANY step ends without marking itself complete, so it is
- * still waiting when that anchor arrives.
+ * `briefing-intro` is #1122's starter row, given a real anchor and real copy
+ * by #1201. It had pointed at `briefing-today`, a `data-tour-id` no component
+ * ever carried, so the step was skipped on every run — safe rather than
+ * broken (a step whose anchor is absent is skipped, see anchor.ts), but never
+ * seen. It stays row zero under its original id: the id is what a stored
+ * resume point names, so renaming it would reset every user's position.
+ *
+ * WHAT IT HAS TO SAY (#1201)
+ * ==========================
+ * Briefing is the one screen the user does not fill in — `write_briefing`
+ * over MCP does, which needs the desktop app and Claude Code. Someone on the
+ * web alone sees an empty page forever and has no way to tell that apart from
+ * a broken one. So this step explains the mechanism rather than pointing at a
+ * control, and it is the only `next` step in the list for that reason: there
+ * is nothing here to do.
  *
  * WHY THE SCHEDULE BLOCK IS SHAPED THE WAY IT IS (#1124)
  * ======================================================
@@ -48,7 +58,7 @@ export const TOUR_STEPS = [
   {
     id: "briefing-intro",
     section: "briefing",
-    anchor: "briefing-today",
+    anchor: TOUR_ANCHORS.briefingMorningTab,
     copyKey: "tour.steps.briefingIntro",
     advanceOn: { kind: "next" },
   },

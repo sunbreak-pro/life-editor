@@ -6,10 +6,12 @@
 
 ## 直近の完了
 
-- チュートリアルの初回自動開始と Settings 再実行導線（#1122 の TourProvider に `autoStart` を渡す＋`SettingsTutorial` カードから `restart`・アンカー不在の空振り走行は開始地点へ戻す guard 付き・Issue #1123 / PR #1164 open）✅（2026-08-28）
-- パスワード変更フォームに hidden username を追加しパスワードマネージャに紐付け可能に（`PasswordUpdateForm` に optional `username`・Settings は必須 email を、リセット画面は recovery session の email を渡す・Issue #945 / PR #978 open）✅（2026-08-16）
-- テーマ切替カードの light / dark が区別できない不具合修正（`tokens.css` に `[data-theme]` 別名ブロック追加＋lucide の昼/夜グリフ・Issue #887 / PR #905 merged）✅（2026-08-15）
+- Settings 3 課題を各ブランチで実装し PR まで（#1174 rightSidebar カテゴリタブ + Schedule 初期ビュー / PR #1218 open・#1182 狭幅の文字サイズ 3 段階 / PR #1223 open・#1200 セルフ退会 + 狭幅ログアウト / PR #1229 open。#1200 は 🛑 人手ゲート 2 手が `G-20260829-settings-1` として decisions キューに残る）✅（2026-08-29）
+- チュートリアルの初回自動開始と Settings 再実行導線（#1122 の TourProvider に `autoStart` を渡す＋`SettingsTutorial` カードから `restart`・アンカー不在の空振り走行は開始地点へ戻す guard 付き・Issue #1123 / PR #1164 merged）✅（2026-08-28）
+- パスワード変更フォームに hidden username を追加しパスワードマネージャに紐付け可能に（`PasswordUpdateForm` に optional `username`・Settings は必須 email を、リセット画面は recovery session の email を渡す・Issue #945 / PR #978 merged）✅（2026-08-16）
 
 ## 予定
 
+- #1200 のゲート後始末: ユーザーが `db push` と `functions deploy` を踏んだら、テストアカウントで実退会 E2E（再ログイン不可・当該 user_id の行 0 件）を確認して Issue を閉じる
+- #1182 の px 値詰め: 実機で 14 / 18 / 22px の当たりを見て、必要なら `MOBILE_FONT_SIZE_STEPS` を 1 行差し替える
 - life-tags: settings に tag 管理 UI を置くかの判断（兄弟計画 `2026-07-11-life-tags-unification.md` の詳細設計後・合図待ち）

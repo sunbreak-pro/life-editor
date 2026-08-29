@@ -33,9 +33,9 @@ import {
   PHASE2_SCHEDULE_ITEM_METHODS,
 } from "./SupabaseScheduleItemsService";
 import {
-  SupabaseCalendarsService,
-  PHASE2_CALENDAR_METHODS,
-} from "./SupabaseCalendarsService";
+  SupabaseTagGroupsService,
+  PHASE2_TAG_GROUP_METHODS,
+} from "./SupabaseTagGroupsService";
 import {
   SupabaseItemConversionService,
   PHASE2_ITEM_CONVERSION_METHODS,
@@ -47,7 +47,7 @@ import {
  * the 0003_tasks_full_schema.sql shape: hierarchy / soft-delete /
  * scheduling / versioning). Pure mapping lives in `todoMapper.ts`; this
  * file is the I/O layer only. Every other domain is ported too (daily /
- * notes / wiki-tags / routines / schedule / calendars / timer / audio /
+ * notes / wiki-tags / routines / schedule / tag-groups / timer / audio /
  * item conversion), so as of #671 C4 the "not implemented in
  * phase 2" thrower below is unreachable for any DataService member — it
  * only answers properties nothing declares.
@@ -110,7 +110,7 @@ export function createSupabaseDataService(): DataService {
   const todosService = new SupabaseTodosService(client);
   const routinesService = new SupabaseRoutinesService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
-  const calendarsService = new SupabaseCalendarsService(client);
+  const tagGroupsService = new SupabaseTagGroupsService(client);
   // #625: Event <-> Todo. Its own class rather than a method on either domain
   // service, because it writes BOTH payload tables plus items_meta — hanging
   // it off Todos or Schedule would make one of them the silent owner of the
@@ -127,7 +127,7 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_TODOS_METHODS.has(prop)) return todosService;
     if (PHASE2_ROUTINES_METHODS.has(prop)) return routinesService;
     if (PHASE2_SCHEDULE_ITEM_METHODS.has(prop)) return scheduleItemsService;
-    if (PHASE2_CALENDAR_METHODS.has(prop)) return calendarsService;
+    if (PHASE2_TAG_GROUP_METHODS.has(prop)) return tagGroupsService;
     if (PHASE2_ITEM_CONVERSION_METHODS.has(prop)) return itemConversionService;
     if (PHASE2_WIKI_TAGS_UNIFIED_METHODS.has(prop))
       return wikiTagsUnifiedService;
@@ -197,10 +197,13 @@ export type {
 // 2-row mapper still uses, remain here.
 export { toFrequencyType, parseFrequencyDays } from "./routineMapper";
 export {
-  rowToCalendar,
-  calendarToRow,
-  calendarUpdatesToPatch,
-} from "./calendarMapper";
-export type { CalendarRow, CalendarWriteRow } from "./calendarMapper";
+  rowsToTagGroups,
+  tagGroupUpdatesToPatch,
+  diffTagGroupMembers,
+} from "./tagGroupMapper";
+export type {
+  TagGroupRow,
+  TagGroupAssignmentRow,
+} from "./tagGroupMapper";
 // CalendarTag mappers removed in DU-F Step 3-5 (DB DROPped in DU-C+ 0012;
 // shared layer purged in cohort with the UI death-code).

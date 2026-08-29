@@ -150,7 +150,7 @@ describe("syncDomains — items_meta is routed by role", () => {
       expect(domains).not.toContain("timer");
       expect(domains).not.toContain("audio");
       expect(domains).not.toContain("tags");
-      expect(domains).not.toContain("calendars");
+      expect(domains).not.toContain("sessions");
     }
   });
 });
