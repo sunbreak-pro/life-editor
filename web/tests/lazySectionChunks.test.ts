@@ -4,17 +4,17 @@ import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /*
- * Code-split guard for the three heaviest section bodies (#676 (a)).
+ * Code-split guard for the heaviest section bodies (#676 (a)).
  *
- * Notes carries the TipTap editor stack, Analytics carries recharts and
- * Connect carries the d3 force/zoom stack. Each is reachable only through its
- * own row of the section descriptor table, so `lazySections.ts` loads it with
- * lazy() and the table renders it behind a <Suspense> boundary; that is what
- * keeps those bundles out of the initial chunk. A plain `import {
- * ConnectScreen } from "./connect/…"` added back later would silently undo it
- * — the app still works, the build still passes, and only the dist listing
- * (which nobody reads on a green PR) would show the regression. This test
- * reads the source instead.
+ * Notes carries the TipTap editor stack and Analytics carries recharts. (A
+ * third row, Connect with the d3 force/zoom stack, left with the section in
+ * #1152.) Each is reachable only through its own row of the section descriptor
+ * table, so `lazySections.ts` loads it with lazy() and the table renders it
+ * behind a <Suspense> boundary; that is what keeps those bundles out of the
+ * initial chunk. A plain `import { NotesView } from "./notes/…"` added back
+ * later would silently undo it — the app still works, the build still passes,
+ * and only the dist listing (which nobody reads on a green PR) would show the
+ * regression. This test reads the source instead.
  *
  * Source text rather than behaviour, deliberately: what is being protected is
  * a BUILD property (which module lands in which chunk). Rendering the table in
@@ -49,7 +49,6 @@ const sources = `${lazySections}\n${descriptors}`;
 const LAZY_SECTIONS = [
   { name: "NotesView", path: "./notes/NotesView" },
   { name: "AnalyticsScreen", path: "./analytics/AnalyticsScreen" },
-  { name: "ConnectScreen", path: "./connect/ConnectScreen" },
 ] as const;
 
 /** Escape a module specifier for use inside a RegExp. */
@@ -67,7 +66,7 @@ describe("the section descriptor table keeps the heavy bodies code-split", () =>
 
     it(`never imports ${name} statically, in any import form`, () => {
       // Anything ending in `from "<path>"` is a static import — named,
-      // default (`import ConnectScreen from …`), namespace (`import * as …`)
+      // default (`import NotesView from …`), namespace (`import * as …`)
       // or side-effect-only. Matching on the `from` clause instead of the
       // binding shape is what makes this airtight; an earlier version only
       // looked for `{ … }` and would have waved a default import through.

@@ -15,6 +15,7 @@ import {
   MOBILE_SECTIONS,
   EMPTY_MATERIALS_COUNTS,
   ANALYTICS_TAB_ORDER,
+  TOUR_ANCHORS,
   type AppShellSection,
   type MaterialsCounts,
   type SectionId,
@@ -188,6 +189,10 @@ export function useShellChrome({
           id === "todo" && materialsCounts.todos > 0
             ? materialsCounts.todos
             : undefined,
+        // #1124: the tour points at this tab to open the Todo sheet. Only the
+        // Todo tab carries an id — the tour has no step on Calendar, and an
+        // anchor nothing asks for is a selector waiting to be misread.
+        tourId: id === "todo" ? TOUR_ANCHORS.scheduleTodoTab : undefined,
       })),
     [t, materialsCounts],
   );

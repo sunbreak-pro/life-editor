@@ -9,6 +9,7 @@ import {
   KanbanBoard,
   KanbanCard,
   AddPill,
+  TOUR_ANCHORS,
   useTranslation,
   type KanbanCardModel,
   type KanbanColumnModel,
@@ -70,7 +71,11 @@ export function KanbanBoardSurface({
   // of the recipe, byte-identical to NotesView's.
   const headerActions = (
     <div className="flex items-center gap-2">
-      <AddPill onClick={onAdd} label={t("kanban.addTodo")} />
+      <AddPill
+        onClick={onAdd}
+        label={t("kanban.addTodo")}
+        tourId={TOUR_ANCHORS.scheduleTodoAdd}
+      />
     </div>
   );
 

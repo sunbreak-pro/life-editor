@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { agendaRowHeightPx, type AgendaItem } from "@life-editor/shared";
 import { ScheduleSidebar } from "../src/schedule/ScheduleSidebar";
 import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
 
@@ -20,6 +21,10 @@ import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
  *     the flow tab to the repeats tab.
  *   - the repeat-filter notice (#466) shows only while the grid filter is on,
  *     and its button is one of the two ways back off.
+ *   - the flow tab is TODAY on Desktop and the PICKED DAY on narrow (#1148),
+ *     which is three separate forwards — the now-line, the `dayflow` row
+ *     shape, and the create pill — none of which change the markup enough for
+ *     another case here to notice.
  *
  * `useTranslation` is stubbed to echo its key — these assertions are about
  * wiring, and an echo makes the queries read as the key that produced them.
@@ -328,5 +333,117 @@ describe("ScheduleSidebar — todo tab", () => {
     expect(screen.getByText("tag:t1")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("todoDetail.todoDelete"));
     expect(onDelete).toHaveBeenCalledWith("t1");
+  });
+});
+
+/*
+ * #1148 — the flow tab took over narrow's day list.
+ *
+ * Narrow's main area is the month grid alone now, so this tab is where a
+ * tapped day is read. Three capabilities came across with the list, and every
+ * one of them is a forwarded prop rather than a shape: lose it and the tab
+ * still renders every row, still opens them, still completes them. It just
+ * quietly stops being the thing it replaced.
+ *
+ * The HOST decides which day and which of these to switch on (CalendarTab
+ * folds on `isWide`); what this component owes is that the switches arrive.
+ */
+describe("ScheduleSidebar — the flow tab as narrow's day list (#1148)", () => {
+  /** Three hours, so the height is nowhere near the floor a short row lands on. */
+  const LONG: AgendaItem = {
+    id: "event-long",
+    title: "長い予定",
+    startTime: "13:00",
+    endTime: "16:00",
+    status: "notStarted",
+  };
+
+  const rowOf = (title: string) =>
+    screen.getByText(title).closest("button") as HTMLElement;
+
+  it("draws the now-line for today and drops it for any other day", () => {
+    // A now-line on a day that is not today marks an hour that means nothing
+    // there — which is why `nowMinutes` is nullable at all.
+    const withLine = render(
+      <ScheduleSidebar {...makeProps({ flow: { agenda: [LONG] } })} />,
+    );
+    expect(screen.getByText("09:00")).toBeTruthy();
+    withLine.unmount();
+
+    render(
+      <ScheduleSidebar
+        {...makeProps({ flow: { agenda: [LONG], nowMinutes: null } })}
+      />,
+    );
+    expect(screen.queryByText("09:00")).toBeNull();
+  });
+
+  it("prints the end time and sizes the row by its duration when dayflow is on", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({ flow: { agenda: [LONG], dayflow: true } })}
+      />,
+    );
+
+    expect(screen.getByText(LONG.endTime)).toBeTruthy();
+    /*
+     * Read through the shared helper rather than hard-coded: the SCALE is
+     * AgendaList's business (its own suite owns the px-per-minute and the
+     * cap), and what this case is about is the flag arriving at all. Without
+     * it the row carries no inline height whatsoever, so any number fails it.
+     */
+    expect(rowOf(LONG.title).style.minHeight).toBe(
+      `${agendaRowHeightPx(180)}px`,
+    );
+  });
+
+  it("leaves Desktop's rows one line tall", () => {
+    render(<ScheduleSidebar {...makeProps({ flow: { agenda: [LONG] } })} />);
+    expect(rowOf(LONG.title).style.minHeight).toBe("");
+  });
+
+  /*
+   * The free-gap markers ride their OWN prop (`formatGapLabel`) rather than
+   * `dayflow` — AgendaList draws them whenever the formatter is supplied. Two
+   * separate forwards, so they need two separate cases: pinning only the flag
+   * would leave the formatter free to go missing, taking 「空き」 with it while
+   * the end times stayed.
+   */
+  it("calls out the free stretch between two rows", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          flow: {
+            dayflow: true,
+            formatGapLabel: (m: number) => `gap:${m}`,
+            agenda: [
+              { ...LONG, id: "event-am", startTime: "09:00", endTime: "10:00" },
+              { ...LONG, id: "event-pm", startTime: "11:00", endTime: "12:00" },
+            ],
+          },
+        })}
+      />,
+    );
+    // The formatter echoes the minutes it was handed — the hole here is
+    // 10:00→11:00, and it has to be measured, not assumed.
+    expect(screen.getByText("gap:60")).toBeTruthy();
+  });
+
+  it("offers the create pill only when the host supplies one", () => {
+    // #1148 option A: narrow's single create route, carried over from the day
+    // list header #1034 put it in. Desktop passes neither half and keeps its
+    // toolbar button as the only one.
+    const onAdd = vi.fn();
+    const withPill = render(
+      <ScheduleSidebar
+        {...makeProps({ flow: { onAdd, addLabel: "add-cta" } })}
+      />,
+    );
+    fireEvent.click(screen.getByText("add-cta"));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    withPill.unmount();
+
+    render(<ScheduleSidebar {...makeProps()} />);
+    expect(screen.queryByText("add-cta")).toBeNull();
   });
 });

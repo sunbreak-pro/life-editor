@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
@@ -11,6 +12,11 @@ import type { DataService, TodoNode } from "@life-editor/shared";
 import {
   UnsavedGuardProvider,
   useUnsavedGuardOptional,
+  TourProvider,
+  useTourContext,
+  TOUR_ACTIONS,
+  TOUR_ANCHORS,
+  type TourStep,
 } from "@life-editor/shared";
 import { KanbanView } from "../src/todos/KanbanView";
 
@@ -168,6 +174,11 @@ beforeEach(() => {
   for (const value of Object.values(state)) {
     if (typeof value === "function" && "mockClear" in value) value.mockClear();
   }
+  // The real addNode RETURNS the node it made, and the add dialog reads its id
+  // to select it. Nothing submitted that dialog until #1124, so the stub could
+  // get away with returning undefined — and would have thrown the moment
+  // anything did.
+  state.addNode.mockReturnValue(todo({ id: "task-new", title: "New todo" }));
 });
 
 describe("KanbanView — loading", () => {
@@ -967,5 +978,144 @@ describe("KanbanView — mobile (narrow)", () => {
   it("has no add dialog — quick add is the mobile create path", () => {
     render(<KanbanView />);
     expect(screen.queryByRole("button", { name: "kanban.addTodo" })).toBeNull();
+  });
+});
+
+/*
+ * #1124 — the board's half of the Schedule tour.
+ *
+ * Two of the tour's five steps are satisfied here, and each one is a WRITE
+ * rather than a click: the tour must not be walkable by pressing the buttons
+ * it points at. What is only true in this file is the wiring — that the
+ * board's own create / complete paths are the ones reporting. That the board
+ * still works with NO tour mounted is every other test in this file, which
+ * renders it bare.
+ *
+ * The tour has to be RUNNING before the board mounts, which is also how it
+ * happens for real: child effects run before the parent's, so a tour that
+ * auto-started in the same commit would miss the board's mount report. The
+ * harness therefore shows the tab first and swaps the board in.
+ */
+describe("KanbanView — tour reporting (#1124)", () => {
+  const OPEN_STEP: TourStep = {
+    id: "open",
+    section: "schedule",
+    anchor: TOUR_ANCHORS.scheduleTodoTab,
+    copyKey: "tour.steps.scheduleOpenTodos",
+    advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoTabOpened },
+  };
+  const CREATE_STEP: TourStep = {
+    id: "create",
+    section: "schedule",
+    anchor: TOUR_ANCHORS.scheduleTodoAdd,
+    copyKey: "tour.steps.scheduleCreateTodo",
+    advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCreated },
+  };
+  const COMPLETE_STEP: TourStep = {
+    id: "complete",
+    section: "schedule",
+    anchor: TOUR_ANCHORS.scheduleTodoBoard,
+    copyKey: "tour.steps.scheduleCompleteTodo",
+    advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCompleted },
+  };
+
+  function TourState() {
+    const tour = useTourContext();
+    return <span data-testid="step">{tour.activeStep?.id ?? "none"}</span>;
+  }
+
+  function Harness({
+    board,
+    steps,
+  }: {
+    board: boolean;
+    steps: readonly TourStep[];
+  }) {
+    return (
+      <TourProvider
+        steps={steps}
+        currentSection="schedule"
+        autoStart
+        anchorTimeoutMs={120}
+      >
+        <button type="button" data-tour-id={TOUR_ANCHORS.scheduleTodoTab}>
+          tab
+        </button>
+        <TourState />
+        {board ? <KanbanView /> : null}
+      </TourProvider>
+    );
+  }
+
+  const step = () => screen.getByTestId("step").textContent;
+
+  async function frame() {
+    await act(async () => {
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    });
+  }
+
+  /** Start the tour on the tab step, then mount the board under it. */
+  async function mountBoard(steps: readonly TourStep[]) {
+    const view = render(<Harness board={false} steps={steps} />);
+    await frame();
+    expect(step()).toBe("open");
+    await act(async () => {
+      view.rerender(<Harness board steps={steps} />);
+    });
+    await frame();
+  }
+
+  it("reports the sheet as opened when the board mounts", async () => {
+    await mountBoard([OPEN_STEP, CREATE_STEP]);
+    // Every route into the tab (band, tray title, shortcut, palette) ends in
+    // this mount, which is why the report lives here and not on a handler.
+    expect(step()).toBe("create");
+  });
+
+  it("advances on a todo that was actually created, not on opening the dialog", async () => {
+    await mountBoard([OPEN_STEP, CREATE_STEP]);
+
+    fireEvent.click(screen.getByRole("button", { name: "kanban.addTodo" }));
+    // The dialog is open and nothing exists yet — the step must still be here.
+    screen.getByText("kanban.addDialogTitle");
+    expect(step()).toBe("create");
+
+    fireEvent.change(screen.getByLabelText("kanban.addTitleLabel"), {
+      target: { value: "Water the plants" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "kanban.addSubmit" }));
+    });
+    await frame();
+
+    expect(state.addNode).toHaveBeenCalled();
+    expect(step()).toBe("none");
+  });
+
+  it("advances when a todo is finished, and not when one is re-opened", async () => {
+    state.isWide = false;
+    await mountBoard([OPEN_STEP, COMPLETE_STEP]);
+    expect(step()).toBe("complete");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Buy milk —/ }));
+    const statuses = screen.getByRole("group", {
+      name: "materials.todos.statusGroupLabel",
+    });
+
+    // Re-opening is a status write too, and it must not count as finishing.
+    await act(async () => {
+      fireEvent.click(within(statuses).getByText("todoDetail.statusNotStarted"));
+    });
+    await frame();
+    expect(state.setTodoStatus).toHaveBeenCalledWith("task-a", "NOT_STARTED");
+    expect(step()).toBe("complete");
+
+    await act(async () => {
+      fireEvent.click(within(statuses).getByText("todoDetail.statusDone"));
+    });
+    await frame();
+    expect(state.setTodoStatus).toHaveBeenCalledWith("task-a", "DONE");
+    expect(step()).toBe("none");
   });
 });

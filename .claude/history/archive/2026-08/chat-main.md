@@ -2,6 +2,22 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-13 - #837 userData を productName 配下へ（PR #857 open）+ /goal 再配布が実質不要だった件
+
+#### 概要
+
+#837（デスクトップの設定が `%APPDATA%\desktop` に落ちて `productName` と一致しない件）を実装して PR #857 を出した。あわせて「次の一斉フェーズを /goal 配布とサブエージェントのどちらで回すか」の選定依頼に答え、前者と判断した上で配布直前に実測を取り直したところ、**各レーンは前回の /goal でまだ自走しており、こちらが配る前に 6 件を merge まで運んでいた**。
+
+#### 変更点
+
+- **#837 の修正**（`desktop/src/main/index.ts`）: `app.setName("Life Editor")` と `app.setPath("userData", <appData>/Life Editor)` を **Store 生成より前**に実行する。`app.getPath("userData")` は `app.getName()` 由来で、`app.getName()` は asar 内 `package.json` の `name`（= `desktop`）を返すため electron-builder の `productName` は効いていなかった。解決済みパスは初回読み取りでキャッシュされるので、順序そのものが修正の一部
+- **旧 config の引き継ぎ**: 旧 `%APPDATA%\desktop\config.json` を新しい場所へ 1 回だけ copy（move ではない）。新側に config があればスキップするので、以降の編集が古い内容で上書きされることはない
+- **実測（Windows 11 / `npm run dev`）**: Electron 4 プロセス起動（#545 の健康判定基準）+ `%APPDATA%\Life Editor\config.json` に旧値がそのまま（`theme=system` / `closeToTray=true` / `bounds 2560x1392`）。ゲート = desktop typecheck exit 0 / electron-vite build exit 0 / docs-lint OK（desktop に lint・test スクリプトは無い）
+- **known-issue 033 に 2 点追記**: ① **worktree ごとに再発する** — `node_modules` を共有しないため、メイン clone を直しても worktree は壊れたまま残る（今回 win-verify で再発し、実機確認が一度空振りした） ② 復旧の近道 = 修復済み clone の `dist/` をコピーして `printf` で `path.txt` を書く（115MB の zip 展開より速い）
+- **配布方式の判断 = 既存レーンへの /goal（サブエージェントは不採用）**: chat-main は `main` 専有で `git checkout <feature>` 禁止のため実装ブランチが切れない / `isolation: worktree` の一時 worktree は `node_modules` を持たず lint・test・build が通らない / Windows は worktree 削除が `Permission denied` で残骸化する。対して既存 11 レーンは npm install 済みで、Issue のラベルがレーンとほぼ 1:1 に対応していた
+- **配布は実質不要だった**: 6 レーン分の /goal を用意した直後に取り直したところ **#838 / #830 / #826 / #827 / #672 / #793 が既に merge 済み**（06:31〜06:33 に集中）。**新規に渡す必要があったのは #795（briefing）と #708（schedule）の 2 本だけ**で、残りは貼ると二重指示になるため取り下げた
+- **レーン割り当てを Issue 側へ明示（6 件）**: `shared-fix` ラベルは複数レーンが自分宛と解釈しうるため（#473 = 40 分の二重実装）、#838 / #827 → shared-fix、#797 / #792 → mobile-refine、#831 → 保留、#837 → chat-main とコメントした。うち #838 / #827 は書いた直後に merge されて空振り
+
 ### 2026-08-13 - #700 Step 2: 検証用 MCP ツール 3 本（投入 / 読み出し / 後片付け）
 
 #### 概要

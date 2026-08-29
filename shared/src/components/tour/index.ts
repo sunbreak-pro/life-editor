@@ -9,6 +9,7 @@ export {
   TOUR_ANCHOR_ATTRIBUTE,
   TOUR_ANCHOR_TIMEOUT_MS,
 } from "./anchor";
+export { TOUR_ACTIONS, TOUR_ANCHORS } from "./anchors";
 export { TOUR_STEPS, TOUR_STEP_IDS } from "./registry";
 export { TourOverlay, type TourOverlayProps } from "./TourOverlay";
 export type { TourLabels } from "./labels";

@@ -14,13 +14,14 @@
  *     Notes sort mode / direction, Notes tree expansion, Notes tag-group
  *     collapse, Daily sort mode / direction)
  *   - `life-editor.` (dot)    — the layout / canvas state (#718): the shell's
- *     sidebar-collapsed flag and right-sidebar width, plus the Connect graph's
- *     saved node positions and viewport
+ *     sidebar-collapsed flag and right-sidebar width (the Connect graph's
+ *     saved node positions and viewport were here until #1152 retired it)
  *
  * The dot family was missed until #718: "reset settings" left the sidebar
  * collapsed and the Connect graph pinned to its old layout. Adding a separator
  * here is enough BECAUSE the keys keep their names — nothing is renamed, so no
- * stored value is orphaned.
+ * stored value is orphaned. It is also why a retired surface needs no cleanup
+ * code: prefix matching still sweeps whatever it left behind in a browser.
  *
  * Three Notes keys used to carry no prefix at all and so survived a reset
  * (`note-tree-expanded`, `note-sort-direction`, `note-tag-groups-collapsed`).
