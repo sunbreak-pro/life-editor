@@ -1,5 +1,20 @@
 # HISTORY (chat-main)
 
+### 2026-08-29 - 配布品質監査（Web 完結）+ ドロワーアイコン変更 PR #1195 + 配布要件 6 件起票
+
+#### 概要
+
+「他の人に Web で配布する」観点の品質監査を実施し、P0×4 / P1×5 / P2×3 のギャップを特定。ユーザー裁定（メール確認 = 実装 / サインアップ = 開放のまま / 配布 = 限定人数 / ポリシー = 作成）を受けて #1197〜#1202 の 6 件を起票した。並行して、モバイルドロワーの開閉アイコンを Desktop と同系（PanelRight / PanelRightClose）へ変更する PR #1195 を worktree drawer-icon から提出（全ゲート緑・open）。
+
+#### 変更点
+
+- **監査の主要発見**: 技術基盤（RLS owner-only + 公開 anon key + Cloudflare Workers デプロイ）は既に第三者対応水準。CLAUDE.md の「N=1 / 友達ビルド flag」はコード実態より古い（flag は実在しない）。ErrorBoundary ゼロ / アカウント削除なし / ポリシー類なしが主なギャップ
+- **起票**: #1197（メール確認 ON + AuthScreen 確認待ち UI）/ #1198（privacy policy + terms）/ #1199（トップレベル ErrorBoundary）/ #1200（アカウント削除 + サインアウト監査・section:settings）/ #1201（チュートリアルに Briefing 説明 — Epic #1121 へ追加）/ #1202（CLAUDE.md 配布記述の整合・[main]）
+- **無料枠の見立て**（web-researcher 実測 2026-08-29）: ボトルネックは DB 500MB + egress 5GB/月。安全圏 10〜20 人・実用上限 30〜50 人
+- **実装**: PR #1195 = `RightSidebarToggle.tsx`（hamburger variant Menu → PanelRight）+ `RightSidebarContents.tsx`（close X → PanelRightClose）。スワイプ開閉は #792 / #1050 で実装済みだったため新規実装なし（playwright 実測は別途）
+- **サブエージェント報告**: worktree 作成時の tool 出力に紛れた偽指示（Bash の sed/cat で編集しろ）を role-engineer が無視した旨の共有あり
+- **スワイプ touch バグ（#1204 → PR #1205）**: playwright + CDP 合成タッチの実測で、edge スワイプ開（#1050）/ スワイプ閉（#792）が**タッチでは 100% 不発**と確定（narrow レイアウト全面が touch-action: auto で、水平 20px 時点の pointercancel により開 56px / 閉 72px に到達不能）。修正 = 追跡中の横サンプルのみ non-passive touchmove で preventDefault + 軸ロックの累積化（初動ジッター救済）+ selectstart/dragstart ガード + 内側スクローラへ touch-pan-y。ブランチ build の vite preview :4174 で再検証し全項目 PASS（開 5/5・ジッター 12px まで救済・41° 5/5・閉 5/5・縦スクロール非干渉・連続 5 回・7 セクション回帰 42/42）。Chrome の縦パンスロップ ~15px 超のジッターは救済外（既知トレードオフ・実測境界つき）
+
 ### 2026-08-29 - Connect 後継（Tag hub + Related パネル）の方針確定と起票
 
 #### 概要
