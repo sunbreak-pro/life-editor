@@ -892,10 +892,21 @@
       "submit": "Set the password",
       "busy": "Saving…"
     },
+    "confirm": {
+      "heading": "Check your inbox",
+      "description": "A confirmation link is on its way to this address.",
+      "hint": "Open it to finish creating your account. Nothing after a few minutes? Look in the spam folder, or send the link again.",
+      "resend": "Send the link again",
+      "busy": "Sending…",
+      "sent": "Sent. Use the newest link — the earlier ones stop working.",
+      "error": "Could not send the link. Please wait a moment and try again.",
+      "back": "Back to sign in"
+    },
     "errors": {
       "invalidCredentials": "Email or password is incorrect",
       "alreadyRegistered": "This email address is already registered",
-      "noSession": "Signed up, but no session was started. Check that confirm-email is disabled (Phase 1).",
+      "noSession": "Signed up, but no session was started. Try signing in with the address and password you just used.",
+      "emailNotConfirmed": "This address has not been confirmed yet. Open the link in the sign-up email, or have it sent again.",
       "generic": "Authentication failed. Please wait a moment and try again."
     }
   },

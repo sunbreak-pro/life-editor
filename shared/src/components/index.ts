@@ -222,6 +222,13 @@ export {
   type AuthAlertProps,
   type AuthAlertTone,
 } from "./AuthAlert";
+// The gap between "signed up" and "signed in" when Confirm email is ON
+// (#1197). Same auth face as the other pre-login cards.
+export {
+  EmailConfirmationCard,
+  type EmailConfirmationCardProps,
+  type EmailConfirmationCardLabels,
+} from "./EmailConfirmationCard";
 export { AuthBrandHeader, type AuthBrandHeaderProps } from "./AuthBrandHeader";
 export {
   PasswordUpdateForm,
