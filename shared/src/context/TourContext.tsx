@@ -62,6 +62,19 @@ import { TourContext, type TourContextValue } from "./TourContextValue";
  * in the document. Once any step has been shown the direction flips forward
  * for the rest of the run — from there the user is walking the tour, not
  * recovering a position.
+ *
+ * A RUN CAN BE ONE SECTION WIDE (#1194). `startSection` swaps the list the run
+ * walks for that section's slice of it, which costs the runtime nothing: every
+ * mechanism above — the probe, the give-up, the counter, the end — already
+ * works off "the list this run is walking" rather than off the registry.
+ *
+ * What a partial run does NOT do is touch storage. The persisted progress
+ * answers one question — has this user been offered the whole tour and
+ * finished or refused it — and a section replay is not an answer to it.
+ * Letting one write there would either mark the tour complete after four
+ * Materials steps or, on a Skip, retire the tour for good over a "not this
+ * bit". `persist` is the single choke point, so the seal is one guard rather
+ * than a rule every caller has to remember.
  */
 
 /** Monotonic-ish clock, falling back where `performance` is absent. */
@@ -85,7 +98,7 @@ export interface TourProviderProps {
    * Default false so a host that mounts the Provider for its `restart` alone
    * does not start walking sections behind the user's back. An offered run
    * that turns out to have nothing to show puts the user back where it found
-   * them (see `startSectionRef`), so turning it on before the section Issues
+   * them (see `originSectionRef`), so turning it on before the section Issues
    * have added their anchors costs a few frames and nothing else.
    */
   autoStart?: boolean;
@@ -112,6 +125,24 @@ export function TourProvider({
   const [index, setIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
+  /**
+   * The narrowed list a section run walks, or null for the whole tour (#1194).
+   * State rather than a ref because `totalSteps` is derived from it and the
+   * bubble's "3 / 4" has to re-render when it changes.
+   */
+  const [runSteps, setRunSteps] = useState<readonly TourStep[] | null>(null);
+  /**
+   * Bumped by every explicit start (#1194). The probe effect keys on
+   * primitives, and starting the SAME position twice changes none of them —
+   * pick Materials while a Materials run is already sitting at its first step
+   * and index, isRunning and the step ids all match, so the effect would not
+   * re-run and the bubble `setAnchorElement(null)` just cleared would never
+   * come back. This is the one dep that always changes.
+   */
+  const [runId, setRunId] = useState(0);
+
+  /** The list THIS RUN is walking — the registry, or one section of it. */
+  const activeSteps = runSteps ?? steps;
 
   /*
    * Refs for everything the probe effect reads but must not RESTART for.
@@ -120,7 +151,10 @@ export function TourProvider({
    * would reset the frame counter each render and the probe would never time
    * out. The effect keys on primitives instead (see its dep list).
    */
-  const stepsRef = useRef(steps);
+  const stepsRef = useRef(activeSteps);
+  /** The FULL list, which `start` / `restart` / `startSection` select from —
+   *  `stepsRef` may be holding one section's slice of it. */
+  const allStepsRef = useRef(steps);
   const navigateRef = useRef(onNavigateToSection);
   const progressRef = useRef(progress);
   /** Has any step actually been displayed since `start()`? */
@@ -143,13 +177,18 @@ export function TourProvider({
    * auto-start below offers it unprompted on first run, and an offer that
    * silently relocates the user is worse than no offer.
    */
-  const startSectionRef = useRef<SectionId | null>(null);
+  const originSectionRef = useRef<SectionId | null>(null);
   const navigatedRef = useRef(false);
   /**
    * This run began at a STORED position rather than at the top — the one case
    * where giving up walks backward instead of forward (#1193, see the header).
    */
   const resumedRef = useRef(false);
+  /**
+   * This run walks one section only, so it must not write progress (#1194 —
+   * see the header). Checked inside `persist`, which every write goes through.
+   */
+  const partialRef = useRef(false);
 
   // Synced in an effect, not during render (react-hooks/refs — the same shape
   // NoteDetailPanel's onCommitRef uses). `useRef(x)` seeds each one correctly
@@ -157,13 +196,19 @@ export function TourProvider({
   // before any handler can fire, and the probe effect below is declared after
   // this one, so it reads the current commit's values.
   useEffect(() => {
-    stepsRef.current = steps;
+    stepsRef.current = activeSteps;
+    allStepsRef.current = steps;
     navigateRef.current = onNavigateToSection;
     progressRef.current = progress;
     currentSectionRef.current = currentSection;
   });
 
-  const stepsKey = stepIds.join(" ");
+  /*
+   * Identity of the list the RUN is walking, for the probe effect's deps. Not
+   * `stepIds`: those name the whole registry and would not change when a
+   * section run narrows the list under a probe that is already waiting.
+   */
+  const activeKey = activeSteps.map((s) => s.id).join(" ");
 
   const persist = useCallback(
     (
@@ -173,6 +218,8 @@ export function TourProvider({
         skipped: boolean;
       }>,
     ) => {
+      // A section run is a replay, not progress through the tour (#1194).
+      if (partialRef.current) return;
       setProgress({ ...progressRef.current, ...patch });
     },
     [setProgress],
@@ -210,7 +257,7 @@ export function TourProvider({
         // `reason`), so the tour is still waiting where it was — and the
         // sections the probe walked through on the way were never SHOWN to
         // anyone, so put the user back where the run found them.
-        const back = startSectionRef.current;
+        const back = originSectionRef.current;
         if (
           navigatedRef.current &&
           back &&
@@ -219,22 +266,27 @@ export function TourProvider({
           navigateRef.current?.(back);
         }
       }
-      startSectionRef.current = null;
+      originSectionRef.current = null;
       navigatedRef.current = false;
+      partialRef.current = false;
+      setRunSteps(null);
     },
     [persist],
   );
 
   const start = useCallback(() => {
-    const list = stepsRef.current;
+    const list = allStepsRef.current;
     if (isRunning || list.length === 0) return;
+    partialRef.current = false;
+    setRunSteps(null);
+    setRunId((n) => n + 1);
     const resumeAt = list.findIndex((s) => s.id === progressRef.current.stepId);
     // `> 0`, not `>= 0`: resuming AT the first step is indistinguishable from
     // starting fresh, and there is nothing behind it to walk back to.
     resumedRef.current = resumeAt > 0;
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
-    startSectionRef.current = currentSectionRef.current;
+    originSectionRef.current = currentSectionRef.current;
     navigatedRef.current = false;
     setAnchorElement(null);
     setIndex(resumeAt >= 0 ? resumeAt : 0);
@@ -245,16 +297,48 @@ export function TourProvider({
   }, [isRunning, persist]);
 
   const restart = useCallback(() => {
+    partialRef.current = false;
+    setRunSteps(null);
+    setRunId((n) => n + 1);
     resumedRef.current = false;
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
-    startSectionRef.current = currentSectionRef.current;
+    originSectionRef.current = currentSectionRef.current;
     navigatedRef.current = false;
     setAnchorElement(null);
     setIndex(0);
-    setIsRunning(stepsRef.current.length > 0);
+    setIsRunning(allStepsRef.current.length > 0);
     setProgress({ stepId: null, completed: false, skipped: false });
   }, [setProgress]);
+
+  /*
+   * Walk one section, from its first step (#1194).
+   *
+   * Unconditional, unlike `start`: this is an explicit pick from the Settings
+   * launcher, so a tour that happens to be up is REPLACED rather than left in
+   * place ignoring the click.
+   *
+   * `originSectionRef` is left null on purpose. Its job is to undo a detour the
+   * probe took through sections nobody asked to see; here the section IS what
+   * was asked for, so landing there with nothing to show is still the right
+   * place to be left — bouncing the user back to Settings would read as the
+   * click having failed.
+   */
+  const startSection = useCallback((section: SectionId) => {
+    const list = allStepsRef.current.filter((s) => s.section === section);
+    if (list.length === 0) return;
+    partialRef.current = true;
+    resumedRef.current = false;
+    shownAnyRef.current = false;
+    shownStepIdRef.current = null;
+    originSectionRef.current = null;
+    navigatedRef.current = false;
+    setAnchorElement(null);
+    setRunSteps(list);
+    setRunId((n) => n + 1);
+    setIndex(0);
+    setIsRunning(true);
+  }, []);
 
   /**
    * Give up on the step at `from`, in whichever direction can still land
@@ -295,6 +379,8 @@ export function TourProvider({
       setAnchorElement(null);
       setIsRunning(false);
       persist({ stepId: step?.id ?? null, skipped });
+      partialRef.current = false;
+      setRunSteps(null);
     },
     [index, persist],
   );
@@ -391,7 +477,8 @@ export function TourProvider({
     index,
     isRunning,
     pause,
-    stepsKey,
+    activeKey,
+    runId,
   ]);
 
   /*
@@ -417,14 +504,15 @@ export function TourProvider({
     start();
   }, [autoStart, progress.completed, progress.skipped, start, steps.length]);
 
-  const activeStep = isRunning && anchorElement ? (steps[index] ?? null) : null;
+  const activeStep =
+    isRunning && anchorElement ? (activeSteps[index] ?? null) : null;
 
   const value = useMemo(
     (): TourContextValue => ({
       activeStep,
       anchorElement: activeStep ? anchorElement : null,
       stepNumber: activeStep ? index + 1 : 0,
-      totalSteps: steps.length,
+      totalSteps: activeSteps.length,
       isRunning,
       isComplete: progress.completed,
       isSkipped: progress.skipped,
@@ -433,10 +521,12 @@ export function TourProvider({
       skip,
       pause,
       restart,
+      startSection,
       notifyAction,
     }),
     [
       activeStep,
+      activeSteps.length,
       anchorElement,
       index,
       isRunning,
@@ -448,7 +538,7 @@ export function TourProvider({
       restart,
       skip,
       start,
-      steps.length,
+      startSection,
     ],
   );
 

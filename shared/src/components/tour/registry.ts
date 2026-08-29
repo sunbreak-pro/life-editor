@@ -1,3 +1,4 @@
+import type { SectionId } from "../../sections";
 import { TOUR_ACTIONS, TOUR_ANCHORS } from "./anchors";
 import type { TourStep } from "./types";
 
@@ -153,3 +154,32 @@ export const TOUR_STEPS = [
  * `useStartupSection.ts` applies to a stale section id.
  */
 export const TOUR_STEP_IDS: readonly string[] = TOUR_STEPS.map((s) => s.id);
+
+/**
+ * The sections a step list can actually teach, in walking order (#1194).
+ *
+ * Takes the list rather than reading the registry so the Provider's injected
+ * `steps` and the shipping registry derive the same way — a test that hands in
+ * two Materials steps gets `["materials"]`, not the shipping menu.
+ */
+export function tourSectionIds(
+  steps: readonly TourStep[],
+): readonly SectionId[] {
+  const seen: SectionId[] = [];
+  for (const step of steps) {
+    if (!seen.includes(step.section)) seen.push(step.section);
+  }
+  return seen;
+}
+
+/**
+ * Sections the shipping tour can start in — what the Settings launcher offers
+ * as pickable (#1194).
+ *
+ * DERIVED, never hand-listed. The launcher's menu is exactly "what the tour
+ * can teach", and a parallel literal would go stale the moment a section Issue
+ * appends a row: the same non-duplication rule CLAUDE.md §0 states for counts,
+ * applied to a set. Order follows the registry, so the menu reads in the order
+ * the full walkthrough walks.
+ */
+export const TOUR_SECTION_IDS: readonly SectionId[] = tourSectionIds(TOUR_STEPS);
