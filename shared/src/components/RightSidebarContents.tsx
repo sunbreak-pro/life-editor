@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { PanelRight, X } from "lucide-react";
+import { PanelRight, PanelRightClose } from "lucide-react";
 
 /*
  * Internal (NOT barrel-exported) shared body for the detail panel — reused by
@@ -16,7 +16,7 @@ import { PanelRight, X } from "lucide-react";
 export interface RightSidebarContentsProps {
   /** Already-translated panel title ("詳細" / "Details"). */
   title: string;
-  /** Already-translated aria-label for the close (X) button. */
+  /** Already-translated aria-label for the close button. */
   closeLabel: string;
   /** Already-translated empty-state copy (nothing selected). */
   emptyLabel: string;
@@ -45,16 +45,14 @@ export function RightSidebarContents({
     <>
       {/* 48px header — same height as the SidebarNav header. */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-lumen-border pl-4 pr-3">
-        <span className="text-sm font-semibold text-lumen-text">
-          {title}
-        </span>
+        <span className="text-sm font-semibold text-lumen-text">{title}</span>
         <button
           type="button"
           onClick={onClose}
           aria-label={closeLabel}
           className="grid h-7 w-7 place-items-center rounded-lumen-sm text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
-          <X size={16} />
+          <PanelRightClose size={16} />
         </button>
       </div>
       {/* Scrollable well. The portal target div is always mounted so a
