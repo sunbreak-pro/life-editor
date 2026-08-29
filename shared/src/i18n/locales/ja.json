@@ -549,6 +549,9 @@
     "todoEmptyUnplaced": "今日の候補はありません",
     "todoAddHeading": "Todo から追加",
     "todoAddAction": "今日の候補に追加",
+    "todoAddCta": "+ Todo",
+    "todoAddDialogTitle": "Todo を追加",
+    "todoOpenDetail": "この Todo を開く",
     "todoEmptyAddable": "未配置の Todo はありません",
     "todoOpenInTodos": "Todo で開く",
     "durationMin": "{{m}}分",
@@ -935,6 +938,7 @@
       "intentionPlaceholder": "今日の宣言。一行から書けます…",
       "reflectionTitle": "一日の締めくくり",
       "placeholder": "今日はどんな一日でしたか…",
+      "startEditing": "今日のふり返りを書く",
       "focusTitle": "明日のフォーカス",
       "focusPlaceholder": "明日いちばん進めたいことを一行で…",
       "todosTitle": "残りの Todo",
@@ -955,13 +959,21 @@
       "briefingIntro": "ここが朝刊です。その日の予定・メモ・残っている項目が 1 ページにまとまります。起動したとき最初に開く画面です。",
       "scheduleCreateEvent": "ここから予定を入れます。1 件だけ作ってみてください。ボタンを押しただけでは進まず、実際にできたら次へ進みます。",
       "scheduleAdjustEvent": "いま作った予定を開いて、時間を変えてみましょう。予定はずれるものなので、直し方から覚えます。",
-      "scheduleOpenTodos": "Todo はカレンダーと同じセクションにあります。Todo シートを開いてください。",
+      "scheduleOpenTodos": "Todo はカレンダーと同じセクションにあります。Todo タブを開いてください。",
       "scheduleCreateTodo": "Todo を 1 件追加します。「いつやるか」はまだ決めなくて大丈夫です。",
-      "scheduleCompleteTodo": "その Todo を完了にしてみましょう。カードを完了列へドラッグするか、開いてステータスを切り替えます。",
+      "scheduleCompleteTodo": "その Todo を完了にしてみましょう。トレイでチェックを付けるか、開いてステータスを切り替えます。",
       "materialsCapture": "ここから追加します。Todo・ノート・デイリーはすべてこのボタンから始まります。",
       "materialsNoteBody": "本文を数文字書いてみてください。入力するそばから保存されるので、保存ボタンを押す必要はありません。",
       "materialsNoteTag": "タグを 1 つ付けてみてください。タグは、同じ話題のアイテム同士をつなぐ目印です。",
       "materialsTagFollow": "ここでタグを選ぶと、そのタグが付いたものだけが並びます。あとから関連するノートに戻る道になります。"
     }
+  },
+  "errorBoundary": {
+    "appTitle": "問題が発生しました",
+    "appDescription": "予期しないエラーが起きました。再読み込みすると直ることがほとんどです。",
+    "sectionTitle": "このセクションを表示できませんでした",
+    "sectionDescription": "再試行するか、他のセクションへ移動してください。続く場合はページを再読み込みしてください。",
+    "retry": "再試行",
+    "reload": "再読み込み"
   }
 }

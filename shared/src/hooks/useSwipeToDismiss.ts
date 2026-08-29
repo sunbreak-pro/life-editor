@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 /*
@@ -22,6 +22,18 @@ import type { PointerEvent as ReactPointerEvent } from "react";
  *   other axis (scrolling the drawer's contents) is handed back to the browser
  *   and never revisited for that press, so a scroll cannot turn into a dismiss
  *   halfway through.
+ *
+ * - THE GESTURE IS DEFENDED FROM THE BROWSER, narrowly (#1204). A panel whose
+ *   contents scroll advertises `touch-action` the browser reads as "you may
+ *   pan here", and the moment it claims the pan it CANCELS the pointer stream —
+ *   `pointercancel` at ~20px, no `pointerup`, so the threshold below was
+ *   unreachable on a real finger while the mouse-driven check passed. Saying
+ *   `touch-pan-y` on the panel and on its scroller is the first half of the
+ *   answer; the second is the non-passive `touchmove` listener here, which
+ *   calls preventDefault ONLY while a tracked press is travelling along the
+ *   exit direction. A press moving along the other axis is never defended, so
+ *   scrolling the contents keeps working from its first sample, and a
+ *   multi-touch (pinch) is never defended at all.
  *
  * - REDUCED MOTION NEEDS NO CODE HERE. The snap-back is a CSS transition on the
  *   panel, and tokens.css already neutralises every transition app-wide under
@@ -65,6 +77,13 @@ const DEFAULT_THRESHOLD = 72;
 
 /** Movement needed before the gesture commits to an axis. */
 const AXIS_LOCK_DISTANCE = 8;
+
+/**
+ * Outward travel past which we start holding the browser off (#1204). Under
+ * Chrome's ~8px touch slop on purpose — by the time the browser is deciding
+ * whether to pan, we have already said no.
+ */
+const PAN_DEFENCE_DISTANCE = 4;
 
 /**
  * Pointer capture keeps move events coming after the finger leaves the element.
@@ -191,6 +210,56 @@ export function useSwipeToDismiss({
     },
     [reset],
   );
+
+  /*
+   * See the "DEFENDED FROM THE BROWSER" note above. These sit on window rather
+   * than on the panel because `touchmove` has to be registered non-passive to
+   * cancel anything, and React gives no way to say that. Every handler is inert
+   * unless this instance is tracking a press, so mounting them while the panel
+   * is closed costs nothing.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onTouchMove = (e: TouchEvent) => {
+      const start = startRef.current;
+      if (!start || !e.cancelable || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const travel = travelOf(touch.clientX - start.x, touch.clientY - start.y);
+      const cross = crossOf(touch.clientX - start.x, touch.clientY - start.y);
+      if (
+        !claimedRef.current &&
+        (travel < PAN_DEFENCE_DISTANCE || travel < Math.abs(cross))
+      )
+        return;
+      e.preventDefault();
+    };
+
+    /**
+     * A press landing on text the previous swipe left selected starts a native
+     * drag instead of a gesture — the reported "second swipe does nothing"
+     * (#1204). Refusing the drag leaves ordinary selection working, which
+     * killing `selectstart` outright would not.
+     */
+    const onDragStart = (e: Event) => {
+      if (startRef.current) e.preventDefault();
+    };
+
+    /** Once the swipe is ours, painting a selection behind it is never wanted. */
+    const onSelectStart = (e: Event) => {
+      if (claimedRef.current) e.preventDefault();
+    };
+
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("dragstart", onDragStart);
+    window.addEventListener("selectstart", onSelectStart);
+    return () => {
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("dragstart", onDragStart);
+      window.removeEventListener("selectstart", onSelectStart);
+    };
+  }, [travelOf, crossOf]);
 
   return {
     offset,

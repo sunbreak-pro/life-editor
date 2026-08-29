@@ -27,7 +27,7 @@ import type { TourStep } from "./types";
  * it.
  *
  * So each step points at the DURABLE surface the action happens on — the
- * calendar, the board — and waits for the write itself via `advanceOn`. The
+ * calendar, the todo tray — and waits for the write itself via `advanceOn`. The
  * spotlight says where to look; the action decides when the user is done. The
  * two steps whose target IS a durable control (the create pill, the Todo tab)
  * point straight at it.
@@ -82,9 +82,11 @@ export const TOUR_STEPS = [
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCreated },
   },
   {
-    // Completion has several routes (drag to Done, the detail's status row),
-    // so this points at the surface that holds them all rather than picking
-    // one and teaching the others as wrong.
+    // Completion has several routes (the row's own checkbox, the detail's
+    // toggle, the detail's status row), so this points at the surface that
+    // holds them all rather than picking one and teaching the others as wrong.
+    // It was the Kanban board until #1153 retired it; the tray that replaced
+    // it is the same argument on a smaller surface.
     id: "schedule-complete-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoBoard,

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   getDataService,
   signOut,
@@ -27,10 +27,12 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import { NarrowHeaderRow } from "./NarrowHeaderRow";
 import { SECTION_DESCRIPTORS, type TabBandId } from "./sectionDescriptors";
+import { prefetchLazySections } from "./lazySections";
 import { useShellNavigation } from "./hooks/useShellNavigation";
 import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 /*
  * Phase 2 S1+S2 host shell — target-IA wiring (App Shell).
@@ -49,8 +51,10 @@ import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
  * (IA.md 2026-07-05) collapses the old flat sections into 5 mainline + 2
  * utility, with the document surfaces (Notes / Daily) folded under a single
  * "Materials" section addressed by an in-section tab (`materialsTab`). Todos
- * left that group in #411 and are now Schedule's second tab (`scheduleTab`),
- * next to the calendar they get scheduled onto.
+ * left that group in #411 for Schedule's second tab, and #1153 retired that
+ * tab too: they live in the Schedule section's own rightSidebar now, which is
+ * the section's state rather than the shell's — so Schedule appears in no tab
+ * band below.
  *
  * This host only wires the SHELL. Section identity/order/icons come from the
  * shared registry (SSOT — shared/src/sections.ts, derived inside
@@ -100,14 +104,12 @@ export function MainScreen({ session }: { session: Session }) {
     utilitySections,
     mobileSections,
     materialsTabDefs,
-    scheduleTabDefs,
     analyticsTabDefs,
     briefingTabDefs,
     shellLabels,
   } = useShellChrome({
     setSection,
     setMaterialsTab: nav.setMaterialsTab,
-    setScheduleTab: nav.setScheduleTab,
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
@@ -131,14 +133,30 @@ export function MainScreen({ session }: { session: Session }) {
    * "切替ごとに再生されて煩わしい" the Issue rules out. So briefing → schedule
    * → briefing animates schedule alone.
    *
-   * The three code-split bodies (Notes / Analytics / Connect) carry a caveat:
+   * The two code-split bodies (Notes / Analytics) carry a caveat:
    * their Suspense boundary lives INSIDE the descriptor body, so on a cold
-   * chunk this animates the box while the fallback is still in it. On a warm
-   * cache — which the chunk usually is, landing "within a frame or two" — the
-   * content is what rises. Moving the animation past the boundary would mean
-   * pushing it into all seven descriptor rows for the three that need it.
+   * chunk this animates the box while the fallback is still in it. Since #1158
+   * the warm-up below normally settles those chunks before the first switch,
+   * so the content is what rises; the caveat still stands for a switch made
+   * inside the first couple of seconds, and on a Save-Data connection where
+   * the warm-up is skipped. Moving the animation past the boundary would mean
+   * pushing it into all seven descriptor rows for the two that need it.
    */
   const sectionEntering = useFirstAppearance(section);
+
+  /*
+   * Fetch the code-split section bodies in the background (#1158). Runs after
+   * the load event and then at idle, so it cannot compete with first paint.
+   *
+   * NO CLEANUP, on purpose. The callback touches no state and no DOM — it
+   * populates the module registry, which stays useful whether or not this
+   * component is still mounted — and a cleanup that cancelled it would be run
+   * by StrictMode's throwaway first mount, leaving the warm-up permanently
+   * unscheduled in dev. The idempotence guard lives in lazySections.ts.
+   */
+  useEffect(() => {
+    void prefetchLazySections();
+  }, []);
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
@@ -179,12 +197,6 @@ export function MainScreen({ session }: { session: Session }) {
       active: nav.materialsTab,
       onSelect: (id) => nav.setMaterialsTab(id as typeof nav.materialsTab),
       label: t("section.materials"),
-    },
-    schedule: {
-      defs: scheduleTabDefs,
-      active: nav.scheduleTab,
-      onSelect: (id) => nav.setScheduleTab(id as typeof nav.scheduleTab),
-      label: t("section.schedule"),
     },
     analytics: {
       defs: analyticsTabDefs,
@@ -389,7 +401,16 @@ export function MainScreen({ session }: { session: Session }) {
             descriptor.narrowHeaderInBody ? undefined : (narrowRow ?? undefined)
           }
         >
-          {sectionBody}
+          {/*
+           * #1199: the section-level catch. It sits INSIDE the shell on
+           * purpose — a screen that throws during render leaves the nav,
+           * header and palette alive, so the user can walk to another
+           * section instead of meeting a blank page. `resetKey` is that
+           * walk: a new section id clears the error without a reload.
+           */}
+          <AppErrorBoundary variant="section" resetKey={section}>
+            {sectionBody}
+          </AppErrorBoundary>
         </PageContainer>
       </AppShell>
 

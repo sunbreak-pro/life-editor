@@ -113,6 +113,13 @@ function install(fixture: Fixture): void {
 }
 
 const MONDAY = "2026-08-10";
+/**
+ * The start of the week the Monday fixture above sits in (#1138). A separate
+ * constant on purpose: every explicit-`start_date` test genuinely starts on
+ * that Monday, and its asserted UTC instants are derived from it — repointing
+ * MONDAY would silently rewrite six unrelated assertions.
+ */
+const SUNDAY = "2026-08-09";
 const WEEK = [
   "2026-08-10",
   "2026-08-11",
@@ -346,17 +353,17 @@ describe("open todos are counted once, against the start of the week", () => {
 });
 
 describe("the default week", () => {
-  it("starts on the Monday of the week the caller is in", async () => {
-    // A Thursday: the answer must be the Monday before it, not that Thursday.
+  it("starts on the Sunday of the week the caller is in", async () => {
+    // A Thursday: the answer must be the Sunday before it, not that Thursday.
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-13T10:00:00+09:00"));
     install({});
 
     const week = await getWeekContext({});
 
-    expect(week.startDate).toBe(MONDAY);
-    expect(week.endDate).toBe("2026-08-16");
-    expect(callTo("events_payload").bounds["start_at.gte"]).toBe(MONDAY);
+    expect(week.startDate).toBe(SUNDAY);
+    expect(week.endDate).toBe("2026-08-15");
+    expect(callTo("events_payload").bounds["start_at.gte"]).toBe(SUNDAY);
   });
 
   it("still refuses a date it cannot read", async () => {
@@ -372,7 +379,7 @@ describe("the default week", () => {
     );
   });
 
-  it("opens the window on an explicit start_date without snapping to Monday", async () => {
+  it("opens the window on an explicit start_date without snapping to the week start", async () => {
     install({});
 
     // A Wednesday: the declared contract is 7 days FROM it, not its week.
@@ -393,7 +400,10 @@ describe("what get_week_context publishes", () => {
 
   it("names the default and the line it draws, where the caller reads it", () => {
     const description = tool?.description ?? "";
-    expect(description).toMatch(/Monday/);
+    // The whole phrase, not a bare /Sunday/: the OLD text was "Monday to
+    // Sunday", so half a match would have kept passing and stopped guarding
+    // anything (#1138).
+    expect(description).toMatch(/Sunday to Saturday/);
     // The caller cannot guess that bodies are missing, nor what to do about it.
     expect(description).toMatch(/get_todo/);
   });

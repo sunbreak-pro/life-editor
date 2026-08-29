@@ -31,8 +31,10 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * rather than a grab strip (unlike BottomSheet): the exit axis is horizontal
  * and the contents scroll vertically, so the two never compete. `touch-pan-y`
  * says exactly that to the browser — keep owning vertical scroll, hand us the
- * horizontal moves. The hook additionally drops any press whose first 8px lean
- * vertical, so a scroll that wanders sideways cannot turn into a dismiss.
+ * horizontal moves. It has to be said on the scrolling well INSIDE the panel
+ * too, which is where #1204 found the real touch failing. The hook additionally
+ * hands back any press that commits to the vertical axis, so a scroll that
+ * wanders sideways cannot turn into a dismiss.
  *
  * §5: the drawer panel is opaque (bg-subsidebar); the black/30 scrim is the
  * allowed overlay exception (brief specifies .3 for this drawer). Safe-area

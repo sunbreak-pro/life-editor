@@ -34,6 +34,17 @@ function pointerEvent(type: string, clientX: number, clientY: number): Event {
 }
 
 /**
+ * A touchmove jsdom can build. jsdom has no TouchEvent constructor either, so
+ * the touch list is attached by hand — `touches.length` and `clientX/clientY`
+ * are the whole surface the hook reads.
+ */
+function touchMove(clientX: number, clientY: number): Event {
+  const event = new Event("touchmove", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "touches", { value: [{ clientX, clientY }] });
+  return event;
+}
+
+/**
  * One press-drag-release. Moves in two steps so the first one clears the
  * hook's 8px axis-lock distance and the second lands where the caller asked.
  */
@@ -188,5 +199,41 @@ describe("MobileDrawer swipe-to-close", () => {
     expect(
       screen.getByRole("dialog", { name: DRAWER_LABELS.title }),
     ).toBeInTheDocument();
+  });
+});
+
+/*
+ * #1204: on a real finger the browser claimed the pan and cancelled the pointer
+ * stream at ~20px, so the 72px threshold was unreachable and the swipe closed
+ * nothing. Both halves of the answer are pinned here — what the panel tells the
+ * browser, and what the hook cancels when telling is not enough.
+ */
+describe("MobileDrawer touch defence", () => {
+  it("declares its scrolling well vertical-only", () => {
+    const dialog = renderOpenDrawer();
+
+    const well = dialog.querySelector(".overflow-y-auto");
+
+    expect(well).toHaveClass("touch-pan-y");
+  });
+
+  it("holds the browser off once the finger heads for the exit edge", () => {
+    const dialog = renderOpenDrawer();
+
+    fireEvent(dialog, pointerEvent("pointerdown", 0, 0));
+    const move = touchMove(-20, 2);
+    fireEvent(window, move);
+
+    expect(move.defaultPrevented).toBe(true);
+  });
+
+  it("leaves a finger scrolling the contents alone", () => {
+    const dialog = renderOpenDrawer();
+
+    fireEvent(dialog, pointerEvent("pointerdown", 0, 0));
+    const move = touchMove(0, 40);
+    fireEvent(window, move);
+
+    expect(move.defaultPrevented).toBe(false);
   });
 });

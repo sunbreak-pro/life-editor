@@ -8,6 +8,14 @@ import {
   localToday,
   localWeekStart,
 } from "../src/utils/localDate.js";
+// Across the package line on purpose (#1138) — the precedent is
+// briefingSection.test.ts, and tsconfig.test.json widens rootDir for exactly
+// this. TEST-ONLY: mcp-server/src must not reach into shared, which has no
+// entry in this package's dependencies.
+import {
+  WEEK_STARTS_ON,
+  startOfWeekKey,
+} from "../../shared/src/utils/scheduleGridLayout.js";
 
 /*
  * These helpers exist because `toISOString().slice(0, 10)` is a UTC date, which
@@ -40,15 +48,46 @@ describe("localDate", () => {
     expect(addDays("2026-01-01", -1)).toBe("2025-12-31");
   });
 
-  it("walks back to Monday, and stays there (#782 ③)", () => {
-    // getDay() counts from Sunday, so Sunday is the day a naive shift sends
-    // forward into the week that has not started yet.
-    expect(localWeekStart("2026-08-10")).toBe("2026-08-10"); // Monday
-    expect(localWeekStart("2026-08-13")).toBe("2026-08-10"); // Thursday
-    expect(localWeekStart("2026-08-16")).toBe("2026-08-10"); // Sunday
-    expect(localWeekStart("2026-08-17")).toBe("2026-08-17"); // next Monday
-    // Across a month boundary, where the arithmetic is not "subtract from 10".
-    expect(localWeekStart("2026-09-02")).toBe("2026-08-31");
+  it("walks back to Sunday, and stays there (#782 ③ / #1138)", () => {
+    // Sunday itself is the case that catches a leftover Monday shift: the
+    // function must be idempotent there, and `-((weekday + 6) % 7)` would
+    // send it six days back into the previous week instead.
+    expect(localWeekStart("2026-08-16")).toBe("2026-08-16"); // Sunday
+    expect(localWeekStart("2026-08-10")).toBe("2026-08-09"); // Monday
+    expect(localWeekStart("2026-08-13")).toBe("2026-08-09"); // Thursday
+    // Saturday — the new last day of the week, which the Monday-era cases
+    // never covered.
+    expect(localWeekStart("2026-08-15")).toBe("2026-08-09");
+    expect(localWeekStart("2026-08-17")).toBe("2026-08-16"); // next Monday
+    // Across a month boundary, where the arithmetic is not "subtract from 9".
+    expect(localWeekStart("2026-09-02")).toBe("2026-08-30");
+  });
+
+  it("agrees with the app's own week start", () => {
+    // The drift #1138 fixes existed because these are two implementations of
+    // one rule in two packages that share no code (mcp-server depends on
+    // neither shared nor web). shared/tests/weekStartsSunday.test.ts scans
+    // only ../src and ../../web/src, so mcp-server was invisible to it — this
+    // is the net on this side. A test-only import: mcp-server's `src` must not
+    // reach into shared, and tsconfig.test.json is what allows it here.
+    const sweep = [
+      "2026-08-09",
+      "2026-08-10",
+      "2026-08-11",
+      "2026-08-12",
+      "2026-08-13",
+      "2026-08-14",
+      "2026-08-15",
+      "2026-08-16",
+      "2026-08-30",
+      "2026-08-31",
+      "2026-09-01",
+      "2026-12-31",
+      "2027-01-01",
+    ];
+    for (const key of sweep) {
+      expect(localWeekStart(key)).toBe(startOfWeekKey(key, WEEK_STARTS_ON));
+    }
   });
 
   it("buckets an instant back onto the local day it falls on", () => {

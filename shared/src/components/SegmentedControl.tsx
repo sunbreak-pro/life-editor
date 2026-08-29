@@ -3,11 +3,20 @@ import type { KeyboardEvent } from "react";
 import { cn } from "./cn";
 import { stepSegmentFocus } from "./segmentedKeyNav";
 import { TAP_TARGET_TALL } from "./styleTokens";
+import { tourAnchor } from "./tour/anchor";
 
 export interface SegmentedOption {
   id: string;
   /** Already-translated segment label (§6.4). */
   label: string;
+  /**
+   * `data-tour-id` for the tutorial tour (#1124). Per-segment rather than
+   * derived from `id` for the same reason HeaderTabs takes one: the ids here
+   * are host-local ("todo" is a Schedule sidebar tab and an Analytics tab),
+   * and `resolveTourAnchor` takes the FIRST match in the document, so a
+   * derived id would be ambiguous the moment two tracks share a segment name.
+   */
+  tourId?: string;
 }
 
 /**
@@ -116,6 +125,7 @@ export function SegmentedControl({
             aria-selected={active}
             aria-disabled={disabled || undefined}
             tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
+            {...(option.tourId ? tourAnchor(option.tourId) : {})}
             onClick={disabled ? undefined : () => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(

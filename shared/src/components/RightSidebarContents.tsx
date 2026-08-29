@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { PanelRight, X } from "lucide-react";
+import { PanelRight, PanelRightClose } from "lucide-react";
 
 /*
  * Internal (NOT barrel-exported) shared body for the detail panel — reused by
@@ -16,7 +16,7 @@ import { PanelRight, X } from "lucide-react";
 export interface RightSidebarContentsProps {
   /** Already-translated panel title ("詳細" / "Details"). */
   title: string;
-  /** Already-translated aria-label for the close (X) button. */
+  /** Already-translated aria-label for the close button. */
   closeLabel: string;
   /** Already-translated empty-state copy (nothing selected). */
   emptyLabel: string;
@@ -45,22 +45,28 @@ export function RightSidebarContents({
     <>
       {/* 48px header — same height as the SidebarNav header. */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-lumen-border pl-4 pr-3">
-        <span className="text-sm font-semibold text-lumen-text">
-          {title}
-        </span>
+        <span className="text-sm font-semibold text-lumen-text">{title}</span>
         <button
           type="button"
           onClick={onClose}
           aria-label={closeLabel}
           className="grid h-7 w-7 place-items-center rounded-lumen-sm text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
-          <X size={16} />
+          <PanelRightClose size={16} />
         </button>
       </div>
       {/* Scrollable well. The portal target div is always mounted so a
           RightSidebarPortal can attach; the empty state shows over it while
-          no section has registered content. */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          no section has registered content.
+
+          `touch-pan-y` says what this element actually does: it scrolls
+          vertically and nothing else. Left at the default `auto` it advertised
+          horizontal panning it cannot perform, and inside <MobileDrawer> that
+          was enough for the browser to claim a finger sliding left and cancel
+          the pointer stream — swipe-to-close (#792) never reached its
+          threshold on a real touch (#1204). Harmless in the Desktop
+          <RightSidebar>, which has no horizontal gesture either. */}
+      <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto p-3">
         {contentCount === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
             <PanelRight size={24} className="text-lumen-text-tertiary" />

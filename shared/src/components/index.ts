@@ -416,15 +416,19 @@ export * from "./Backlinks";
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
 export * from "./schedule";
-// Kanban (K1) — Todos board primitives (card / column / board) + pure
-// column builders. Pure presentational: the host maps TodoNode[] →
-// columns and injects copy (§6.4). Folder + Status views; Tag view is K2.
-export * from "./Kanban";
 // Empty state + skeleton (Materials mini-plan Step 1) — the brief-standard
 // blank/loading states (icon+message+accent CTA stack / same-shape pulse
 // rows, no spinners). Pure presentation: props-injected copy, lumen-* tokens
 // (§3.1 / §5).
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+// Render-crash floor (#1199). Class component by necessity — React exposes
+// the catch hooks on classes only. Copy is injected, so the host decides
+// which of the two variants (page / section) it is mounting.
+export {
+  ErrorBoundary,
+  type ErrorBoundaryProps,
+  type ErrorBoundaryLabels,
+} from "./ErrorBoundary";
 export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
 // / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the

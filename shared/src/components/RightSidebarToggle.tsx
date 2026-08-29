@@ -1,4 +1,4 @@
-import { Menu, PanelRight } from "lucide-react";
+import { PanelRight } from "lucide-react";
 import { cn } from "./cn";
 import { TAP_TARGET_TALL } from "./styleTokens";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
@@ -10,7 +10,11 @@ import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
  *                        (PanelRight, 28×28). Open = accent text + accent-subtle
  *                        fill; closed = neutral with a hover surface.
  *  variant "hamburger" — Mobile: sits at the left end of the segment row
- *                        (Menu, 32×32, bordered) and opens the left drawer.
+ *                        (PanelRight, 32×32, bordered) and opens the drawer.
+ *                        Same glyph as the panel variant on purpose: both open
+ *                        the detail panel, so they read as one control across
+ *                        breakpoints (the variant name is kept to avoid churn
+ *                        at the call sites).
  *                        It shares the row's height with the segmented
  *                        control, so it came down from 36 with it (#1039) and
  *                        carries the same invisible 44px hit area — the row
@@ -56,7 +60,7 @@ export function RightSidebarToggle({
           className,
         )}
       >
-        <Menu size={18} />
+        <PanelRight size={18} />
       </button>
     );
   }

@@ -10,11 +10,16 @@ import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail
  *
  * What is worth pinning here is not the panel's markup (TodoDetailPanel has its
  * own suite) but the #736 rule the surface carries: the panel commits on its
- * own save button, and there are THREE ways out of it — the frame's onClose,
- * the convert-to-event button, and the "open in Todos" hand-off. Every one of
- * them tears the panel down, so every one has to ask first. A new exit added
- * without the guard loses a user's typing with no message at all, and every
- * other test in the repo stays green while it happens.
+ * own save button, and every way out of it tears the panel down, so every one
+ * has to ask first. TWO of them since #1153 — the frame's onClose and the
+ * convert-to-event button; the third, the "open in Todos" hand-off, retired
+ * with the board it handed off to. A new exit added without the guard loses a
+ * user's typing with no message at all, and every other test in the repo stays
+ * green while it happens.
+ *
+ * #1153 also made this the app's ONLY todo detail, which is why the body
+ * editor and its "[[" wiring appear below: they were the board's, and losing
+ * them would have made the retirement a feature removal.
  *
  * The guard is also deliberately NOT cleared on an agreed discard — the panel
  * re-reports `false` the moment it unmounts, and the convert path asks its own
@@ -32,6 +37,43 @@ import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "ja" } }),
+}));
+
+/*
+ * The editor is stubbed the way kanbanView.test.tsx used to stub it: TipTap
+ * pulls in a whole ProseMirror instance, and what this file needs from it is
+ * the DRAFT CHANNEL — the body reaching the save press without an auto-save of
+ * its own (#713). The stub exposes that as a button, and re-exports the "[["
+ * props so a missing forward is visible rather than merely inert.
+ */
+vi.mock("../src/notes/LazyRichTextEditor", () => ({
+  LazyRichTextEditor: ({
+    noteId,
+    onDraftChange,
+    onNavigateToItem,
+    onResolvedLinkInserted,
+  }: {
+    noteId: string;
+    onDraftChange?: (content: string) => void;
+    onNavigateToItem?: (target: { id: string; role: string }) => void;
+    onResolvedLinkInserted?: (targetId: string) => void;
+  }) => (
+    <>
+      <div data-testid="editor">{noteId}</div>
+      <button type="button" onClick={() => onDraftChange?.("<p>本文</p>")}>
+        type in the body
+      </button>
+      <button
+        type="button"
+        onClick={() => onNavigateToItem?.({ id: "note-9", role: "note" })}
+      >
+        click a link
+      </button>
+      <button type="button" onClick={() => onResolvedLinkInserted?.("note-9")}>
+        insert a link
+      </button>
+    </>
+  ),
 }));
 
 vi.mock("../src/wikitag/TagPicker", () => ({
@@ -67,7 +109,16 @@ function renderDetail(
   const onDelete = vi.fn();
   const onClose = vi.fn();
   const onConvertToEvent = vi.fn();
-  const onOpenTodos = vi.fn();
+  const setStatus = vi.fn();
+  const onNavigateToItem = vi.fn();
+  // The "[[" bundle, as the host builds it (useTodoLinking). Stubbed whole:
+  // its own suite covers what it does, and what matters here is that all three
+  // members reach the editor.
+  const linking = {
+    loadLinkTargets: vi.fn(),
+    handleResolvedLinkInserted: vi.fn(),
+    handleBodySaved: vi.fn(),
+  };
   // Resolves only when a case decides — a guard that forgot to await would
   // fire its action before this ever settles, which is the failure mode.
   const askConfirm = vi.fn(() => Promise.resolve(true));
@@ -76,9 +127,16 @@ function renderDetail(
     todoNodes: [TODO],
     isWide: true,
     onClose,
-    writes: { updateNode, toggleStatus, onDelete, ...overrides.writes },
+    writes: {
+      updateNode,
+      toggleStatus,
+      setStatus,
+      onDelete,
+      ...overrides.writes,
+    },
     onConvertToEvent,
-    onOpenTodos,
+    linking: linking as unknown as ScheduleTodoDetailProps["linking"],
+    onNavigateToItem,
     askConfirm,
     ...overrides,
   };
@@ -90,7 +148,9 @@ function renderDetail(
     onDelete,
     onClose,
     onConvertToEvent,
-    onOpenTodos,
+    setStatus,
+    linking,
+    onNavigateToItem,
     askConfirm,
   };
 }
@@ -195,8 +255,9 @@ describe("ScheduleTodoDetail — the body", () => {
   ])("renders the same panel on %s (#761)", (_layout, isWide) => {
     renderDetail({ isWide });
     expect(screen.getByText("itemConvert.toEvent")).toBeTruthy();
-    expect(screen.getByText("scheduleScreen.todoOpenInTodos")).toBeTruthy();
     expect(screen.getByTestId("tag-picker").textContent).toBe(TODO.id);
+    // #1153: and the body, which is the half that used to live on the board.
+    expect(screen.getByTestId("editor").textContent).toBe(TODO.id);
   });
 
   it("shows nothing while closed", () => {
@@ -245,12 +306,10 @@ describe("ScheduleTodoDetail — the body", () => {
   });
 });
 
-describe("ScheduleTodoDetail — all three exits ask before discarding (#736)", () => {
+describe("ScheduleTodoDetail — both exits ask before discarding (#736)", () => {
+  // Two since #1153: the "open in Todos" hand-off went with the board.
   const EXITS: Array<[string, string, keyof ReturnType<typeof renderDetail>]> =
-    [
-      ["convert-to-event", "itemConvert.toEvent", "onConvertToEvent"],
-      ["open-in-Todos", "scheduleScreen.todoOpenInTodos", "onOpenTodos"],
-    ];
+    [["convert-to-event", "itemConvert.toEvent", "onConvertToEvent"]];
 
   it.each(EXITS)("%s asks first, then acts", async (_name, label, effect) => {
     const handles = renderDetail();
@@ -304,8 +363,95 @@ describe("ScheduleTodoDetail — all three exits ask before discarding (#736)", 
     fireEvent.click(screen.getByText("itemConvert.toEvent"));
     await waitFor(() => expect(handles.askConfirm).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByText("scheduleScreen.todoOpenInTodos"));
+    // The second press asks again rather than sailing through: the flag is
+    // deliberately not cleared by an agreed discard.
+    fireEvent.click(screen.getByText("itemConvert.toEvent"));
     await waitFor(() => expect(handles.askConfirm).toHaveBeenCalledTimes(2));
-    expect(handles.onOpenTodos).not.toHaveBeenCalled();
+    expect(handles.onConvertToEvent).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #1153 — the half that arrived when the board left.
+ *
+ * The body editor, its "[[" wiring and the narrow status row were the Kanban
+ * detail's, and the Issue's DoD keeps them: a retirement that quietly dropped
+ * body editing would be a feature removal wearing the word "縮退".
+ */
+describe("ScheduleTodoDetail — the body it inherited (#1153)", () => {
+  const typeInBody = () =>
+    fireEvent.click(screen.getByText("type in the body"));
+
+  it("carries title AND body in ONE write", async () => {
+    // Two writes would race each other through the same row and the loser
+    // would revert the winner (#713).
+    const { updateNode } = renderDetail();
+    makeDirty();
+    typeInBody();
+    fireEvent.click(screen.getByText("todoDetail.save"));
+
+    await waitFor(() => expect(updateNode).toHaveBeenCalledTimes(1));
+    expect(updateNode.mock.calls[0][1]).toEqual({
+      title: "書き換えた",
+      content: "<p>本文</p>",
+    });
+  });
+
+  it("saves a body with no title change", () => {
+    // The old surface skipped any save without a title, because it had no
+    // body to carry. Keeping that would silently drop body-only edits.
+    const { updateNode } = renderDetail();
+    typeInBody();
+    fireEvent.click(screen.getByText("todoDetail.save"));
+
+    expect(updateNode).toHaveBeenCalledTimes(1);
+    expect(updateNode.mock.calls[0][1]).toEqual({ content: "<p>本文</p>" });
+  });
+
+  it("runs the link delete-sync on the same press, and only with a body", () => {
+    // #372: edges whose "[[ ]]" left the text are dropped when the body
+    // lands. A title-only save has no body to diff, so it must not fire.
+    const { linking } = renderDetail();
+    makeDirty();
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(linking.handleBodySaved).not.toHaveBeenCalled();
+
+    typeInBody();
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(linking.handleBodySaved).toHaveBeenCalledWith(
+      TODO.id,
+      "<p>本文</p>",
+    );
+  });
+
+  it("wires the editor's two link routes through to the host", () => {
+    // Both were inert on the todo editor until #507 passed them down; this
+    // surface inherited the wiring, not just the editor.
+    const { linking, onNavigateToItem } = renderDetail();
+
+    fireEvent.click(screen.getByText("click a link"));
+    expect(onNavigateToItem).toHaveBeenCalledWith({
+      id: "note-9",
+      role: "note",
+    });
+
+    fireEvent.click(screen.getByText("insert a link"));
+    expect(linking.handleResolvedLinkInserted).toHaveBeenCalledWith(
+      TODO.id,
+      "note-9",
+    );
+  });
+
+  it("gives narrow the touch status row and Desktop the cycle button", () => {
+    // #470's split, kept: on narrow this sheet is the only way into a todo,
+    // and a cycle button is a poor target for a thumb.
+    const narrow = renderDetail({ isWide: false });
+    fireEvent.click(screen.getByText("todoDetail.statusDone"));
+    expect(narrow.setStatus).toHaveBeenCalledWith(TODO.id, "DONE");
+    narrow.unmount();
+
+    const wide = renderDetail({ isWide: true });
+    expect(screen.queryByText("todoDetail.statusDone")).toBeNull();
+    expect(wide.setStatus).not.toHaveBeenCalled();
   });
 });

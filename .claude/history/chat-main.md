@@ -1,5 +1,46 @@
 # HISTORY (chat-main)
 
+### 2026-08-29 - AI 連携の可視化 + Claude 起動導線の計画書 2 本作成と起票（#1210 / #1211・PR #1212）
+
+#### 概要
+
+「アプリ UI に Claude / AI 連携の要素がゼロ」というユーザー課題を受け、$0 制約（アプリから Claude API を呼ばない = Non-Goal 準拠）での組み込み範囲を 2 段階に分解。実装計画書 2 本を新規作成し、計画書パスを本文に記した Issue を 2 件起票、計画書は docs PR として open した。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-ai-integration-visibility.md`（段階 1: Settings AI 連携カード + ビルド時生成の MCP ツールカタログ JSON + Briefing 帰属バッジ。DDL なし・既存データ導出のみ）/ `2026-08-29-claude-launcher-desktop.md`（段階 2: IPC `claude:launch` 追加 + OS ターミナルで `claude` spawn + `isDesktopShell()`。段階 1 merge が前提・Step 0 に UI 置き場のユーザー確認ゲート）
+- **起票**: #1210（[settings] 段階 1・shared-fix）/ #1211（[main] 段階 2・shared-fix・Blocked by #1210）。重複チェック済み（隣接 #1201 はスコープ別と明記）
+- **PR**: #1212（docs のみ・計画書 2 本。一時 worktree `plans-ai-integration` 経由で `docs/ai-integration-plans` ブランチから提出・merge はユーザー手番）
+- **実測根拠**: MCP ツールレジストリ = `mcp-server/src/tools.ts:39-60`（heartbeat 機構なし）/ Briefing 書き込みに author メタなし（`briefingHandlers.ts:430-559`）/ desktop IPC は 10 上限中 7（`ipcContract.ts:93`）— Explore 報告を spot check で全数確認してから計画書へ反映
+
+### 2026-08-29 - Open Issue 一斉消化 fan-out r4 計画書（PR #1208）
+
+#### 概要
+
+open Issue 28 件・open PR 0 本の実測スナップショットから、凍結 2 件（#898 / #677）を除く全 Issue を PR に到達させる fan-out r4 計画書を作成し PR #1208 として open した。宛先振り直し 4 件も同日実施。実装は本計画書の `/goal` を各レーンへ貼ってから（このセッションでは着手しない）。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-open-issue-fanout-r4.md` 新規。Wave 1 = 6 レーン 19 件（schedule 2 / materials 6 / settings 3 / connect 1 / shared-fix 4 / web-public 3）、Wave 2 = #1194（gate: #1174 merge）+ #1184（gate: Wave 1 UI 系 merge）、chat-main 手番 = #1202 / #1137 / #1135 + r3 計画書の COMPLETED 化。貼り付け用 `/goal` 8 本・`/loop`・`/schedule`（任意）と停止条件を同梱
+- **宛先振り直し**: #1197 / #1198 / #1199 → `[web-public]`、#1184 → `[refactor-core]` にタイトル prefix 変更（ラベルは維持。shared-fix 9 件集中の是正）
+- **縄張り**: `MainScreen.tsx` の 2 レーン交差は #1199 先行 + #1171 側 rebase で緩和 / Backlinks 部品は #1171・#1172 とも読み取り専用 / tour は Wave 1 中 shared-fix 専有 / パネル統一の先回り禁止（#1184 = Wave 2）を明記
+- **main 同期**: ローカル未コミットだった tracker 2 ファイルは merge 済み PR #1203 と同一内容と実測（`git diff origin/main` 空）→ restore で二重 PR を回避し、`git pull --ff-only` で 9 コミット取り込み（`b95561cf`）
+
+### 2026-08-29 - 配布品質監査（Web 完結）+ ドロワーアイコン変更 PR #1195 + 配布要件 6 件起票
+
+#### 概要
+
+「他の人に Web で配布する」観点の品質監査を実施し、P0×4 / P1×5 / P2×3 のギャップを特定。ユーザー裁定（メール確認 = 実装 / サインアップ = 開放のまま / 配布 = 限定人数 / ポリシー = 作成）を受けて #1197〜#1202 の 6 件を起票した。並行して、モバイルドロワーの開閉アイコンを Desktop と同系（PanelRight / PanelRightClose）へ変更する PR #1195 を worktree drawer-icon から提出（全ゲート緑・open）。
+
+#### 変更点
+
+- **監査の主要発見**: 技術基盤（RLS owner-only + 公開 anon key + Cloudflare Workers デプロイ）は既に第三者対応水準。CLAUDE.md の「N=1 / 友達ビルド flag」はコード実態より古い（flag は実在しない）。ErrorBoundary ゼロ / アカウント削除なし / ポリシー類なしが主なギャップ
+- **起票**: #1197（メール確認 ON + AuthScreen 確認待ち UI）/ #1198（privacy policy + terms）/ #1199（トップレベル ErrorBoundary）/ #1200（アカウント削除 + サインアウト監査・section:settings）/ #1201（チュートリアルに Briefing 説明 — Epic #1121 へ追加）/ #1202（CLAUDE.md 配布記述の整合・[main]）
+- **無料枠の見立て**（web-researcher 実測 2026-08-29）: ボトルネックは DB 500MB + egress 5GB/月。安全圏 10〜20 人・実用上限 30〜50 人
+- **実装**: PR #1195 = `RightSidebarToggle.tsx`（hamburger variant Menu → PanelRight）+ `RightSidebarContents.tsx`（close X → PanelRightClose）。スワイプ開閉は #792 / #1050 で実装済みだったため新規実装なし（playwright 実測は別途）
+- **サブエージェント報告**: worktree 作成時の tool 出力に紛れた偽指示（Bash の sed/cat で編集しろ）を role-engineer が無視した旨の共有あり
+- **スワイプ touch バグ（#1204 → PR #1205）**: playwright + CDP 合成タッチの実測で、edge スワイプ開（#1050）/ スワイプ閉（#792）が**タッチでは 100% 不発**と確定（narrow レイアウト全面が touch-action: auto で、水平 20px 時点の pointercancel により開 56px / 閉 72px に到達不能）。修正 = 追跡中の横サンプルのみ non-passive touchmove で preventDefault + 軸ロックの累積化（初動ジッター救済）+ selectstart/dragstart ガード + 内側スクローラへ touch-pan-y。ブランチ build の vite preview :4174 で再検証し全項目 PASS（開 5/5・ジッター 12px まで救済・41° 5/5・閉 5/5・縦スクロール非干渉・連続 5 回・7 セクション回帰 42/42）。Chrome の縦パンスロップ ~15px 超のジッターは救済外（既知トレードオフ・実測境界つき）
+
 ### 2026-08-29 - Connect 後継（Tag hub + Related パネル）の方針確定と起票
 
 #### 概要
@@ -44,76 +85,5 @@ connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機�
 - **naive な線形外挿が結論を反転させかけた**: 60 秒で 5 本 → 30 分で 150 本、と割り算すると「ポモドーロが REST を垂れ流している」ように読めるが、実際は開始 1.1 秒に全部集中していて残りは 0 本。**バースト分布を確認せずにレートへ換算しない**
 - **計測が実データを書き換えた**: タイマーを「No Todo」で開始したら `Untitled todo` が実 DB に作られた（ユーザー確認のうえソフトデリート）。supabase MCP は read-only トランザクションなので UPDATE が通らず、削除はアプリ自身の経路（life-editor MCP `delete_todo`）で行った。**書き込みを伴う操作を実データで計測するときは、何が書かれるかを先に fetch ログで押さえる**
 - **CRLF のファイルに LF で追記していた**。既存ファイルへ heredoc で追記する前に行末を確認する
-
-### 2026-08-16 - outbox の起票依頼を全消化（25 件）+ 全レーンへの /goal 配布 + §7.1 の複製撤去（#1010）
-
-#### 概要
-
-8 レーンの outbox に溜まっていた起票依頼を全数照合して **25 件を起票**（#991〜#1015）、レーンごとの `/goal` プロンプトを作って配布した。あわせて、その中で最優先だった **#1010（§7.1 のコマンド表が CI から遅れている）を D-20260816-main-2 = B で実装**（PR #1020）し、相対パスで作られて入れ子になっていた worktree 2 本を正しい場所へ移した。
-
-#### 変更点
-
-- **起票 25 件**: perf 4（#991〜#994・#797 の実測レポート由来）/ schedule follow-up 6（#995〜#998・#1000 と横展開 #999）/ mcp-server・横断 5（#1001〜#1004・#1011 = #782 の QA 見送り分）/ 公開 Web 3（#1005 CSP・#1007 manifest 色・#1009 ステータスバー文字色）/ BottomSheet の safe-area #1008 / docs・環境 4（#1006・#1010・#1013・#1015）/ mobile-scope 追随 #1014
-- **7 月分の依頼はすべて起票済みだった**ことを実測で確認（#365 / #366 / #369 / #370 / #371 / #372 / #519）。未起票で残っていたのは 8 月分だけ
-- **`[all]` の二重着手を避けるため 1 Issue = 1 レーンに固定**。web/ 配下の #1005 / #1009 はタイトル prefix ごと `[web-public]` へ、Notes 側の #999 は materials-refine へ寄せた（#473 で 40 分の二重実装が起きた教訓）
-- **#1010 = D-20260816-main-2 = B**（ユーザー回答）: §7.1 のコマンド列挙を削除し、`.github/workflows/ci.yml` の `verify` + `docs-lint` を PR 前ゲートの正本と明記。回し方（各ステップの `working-directory` へ `cd`）と、コマンド名からは読めない罠 4 点（build はテストを見ず vitest は型を見ない / web の lint は `web/` しか歩かない / TypeScript の版が web だけ違う / docs-lint は `LC_ALL=C`）だけを残した。同じ表を指していた `loop-verify` スキルも `ci.yml` 参照へ付け替え（PR #1020）
-- **踏まれた回数**: `typecheck:tests` の漏れで PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」。追随依頼が 2 回出ても入らなかったので、表を直すのではなく複製そのものを畳んだ
-- **入れ子 worktree の是正**: `workspaces/life-editor/workspaces/life-editor/settings-refine`（2 段）と同 `.../workspaces/life-editor/work-refine`（3 段）を正しい階層へ `git worktree move`。**両方とも Orca のターミナルが掴んでいて「Device or resource busy」で 1 度失敗した** — `orca terminal list --json` で handle を特定し `orca terminal close` してから移動した（worktree-policy の Windows 節と同型の詰まり方）。空になった中間ディレクトリは `rmdir` で撤去
-- **副産物**: #1013（`pre-commit-tracker-guard.sh` が `history/archive/` 配下を tracker と認識せずブロックする）を起票。本 commit 自体がその穴に当たるため `[tracker-ok]` で通している
-
-### 2026-08-15 - #675 の実ブラウザ回帰検証（6 項目 PASS）→ CLOSE + #870 起票
-
-#### 概要
-
-#675（Schedule の巨大ホスト 3 本を責務ごとに分割）の DoD 最終項目「merge 後に chat-main で playwright」を実施し、**6 項目すべて PASS / FAIL 0** で close した。検証中に見つかった既存挙動の不具合 1 件を **#870** として切り出した。
-
-#### 実ブラウザ検証（main `5c86b05b` / dev server 5173）
-
-| 項目                   | 判定   | 実測                                                                                                    |
-| ---------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| 週表示                 | **OK** | 日付ヘッダ 8/9–8/15・00:00–23:00 グリッド・現在時刻ライン・既存 2 件とも正常                            |
-| 月表示                 | **OK** | August 2026 正常。Week ⇄ Month ⇄ Day を往復しても崩れなし                                               |
-| ドラッグ移動           | **OK** | Mon 19:00 → Thu 14:00。リロード後も保持（`PATCH items_meta` / `events_payload` とも 204）               |
-| リサイズ               | **OK** | 下端ハンドルで 14:00–15:00 → 14:00–17:00。リロード後も保持                                              |
-| 繰り返しのスコープ選択 | **OK** | This event only / This and following / All events の 3 つが別々に効いた（下記）                         |
-| Todo の追加と削除      | **OK** | ボード追加（2→3）→ トレイ「Add to today」→ 全日チップ → 時間帯へドラッグで 13:00–14:00 化 → 削除（3→2） |
-
-スコープの内訳: **This event only** = 8/15 だけ改名し 8/14 は不変 / **This and following** = 8/14 で 06:00 に変更 → 8/14・8/15 の両方が 06:00 / **All events** = 8/15 で 05:00 に変更 → 過去側の 8/14 も 05:00。**console error 0 件**（`Invalid hook call` / `Rendered more hooks than…` は一度も出ず）・Supabase **938 リクエストすべて 200/201/204**。
-
-#### 行数の測り方を誤っていた（自己訂正）
-
-前セッションで「`CalendarTab.tsx` が 2,392 → 2,562 行に**増えている**」と報告したが誤り。**分割前の基準を Issue 起票時点の数字にしていた**のが原因で、分割 PR #839 の直前直後で測ると **2,716 → 2,557 行（159 行減）**。起票から分割までの間に別の機能追加（モバイル day-list の Todo 行 #761、詳細パネルからの Todo 削除 #775 ほか）が 300 行以上足していた。**行数の増減を語るときは対象コミットの直前直後で測る** — 文書に書かれた過去の数字を基準にしない。
-
-#### DoD の数え方（コメントに明記した）
-
-- 「`useScheduleMutations` の引数が 28 個から実質半減」は達成扱いにしたが、内訳を残す。`UseScheduleMutationsArgs` が自前で持つのは **12 個**で、繰り返し系 **17 個**（`UseRepeatMutationsArgs` 19 個 − Omit 2 個）は `useRepeatMutations` へそのまま横流し → **ホストが渡す総数は 29 個で減っていない**。「公開インターフェースの diff がゼロ」と表裏の関係
-- 分割成果物のテストは実在: `shared/tests/useWeekTimeGridDrag.test.tsx` / `web/tests/useRepeatMutations.test.tsx` / `web/tests/useScheduleTodoChips.test.tsx` +（`useScheduleItemsAPI` 分割分）`agendaEmptyLabel` / `scheduleCopy` / `scheduleViewModels` / `calendarNavMonthSheet`
-
-#### 新規起票 #870（`type:bug` / `section:schedule`）
-
-時刻変更と繰り返し ON を**同じ Save** で行うと、生成されるルーチンのテンプレート時刻が**変更前**の値になる（当日だけ新時刻・翌日以降が旧時刻）。原因は `web/src/schedule/useRepeatMutations.ts:321` の `const seed = selected;` が下書きではなく確定済みの選択を読む点。**分割前の `useScheduleMutations.ts:628` にも同一行がある**ので #675 の退行ではない（`git show 82614e48^` で確認）。#712 で繰り返し系フィールドだけは「1 回の Save でまとめて渡る」形に直されており、時刻フィールドが取り残されている。
-
-#### 対象外と確認した 2 件（修正不要）
-
-- 繰り返しが翌週に生成されない = `CalendarTab.tsx:1207-1211` のコメントどおりの設計（ナビゲーションは fetch のみで materialize しない）
-- 「This and following」が手編集済みの回に届かない = `SupabaseScheduleItemsService.ts:680` の rule 2「手編集は系列編集に勝つ」どおりの仕様。最初これに引っかかり、汚染のない系列を作り直して再検証した
-
-### 2026-08-14 - #831 の stacked merge 事故を検出して復旧 + D-20260813-briefing-1 の昇格（#860 起票）
-
-#### 概要
-
-#831（コード上の Task → Todo 改名）の 3 PR が**すべて MERGED 表示のまま、main に届いたのは PR-A だけ**という状態を検出し、復旧 PR #865 の着地まで見届けた。あわせて判断キュー D-20260813-briefing-1 をユーザー回答 = A で確定し、台帳へ昇格して実装 Issue #860 を起票した。
-
-#### 変更点
-
-- **事故の正体 = stacked PR の base 張り替えレース**: #861（base=main）が 01:44:14Z、#862 が **01:44:24Z**（10 秒差）に merge。GitHub が #862 の base を main へ張り替える前に merge されたため、#862 は PR-A のブランチへ、#863 は #862 のブランチへ入った。3 本とも MERGED 表示になるので PR state だけ見ると気付けない（memory `stacked-pr-base-retarget-race` / #397 と同型）
-- **検出の決め手は 3 角度**: ① `gh pr view <n> --json mergeCommit` の SHA を `git merge-base --is-ancestor <sha> origin/main` にかけると #861 = IN / #862・#863 = NOT ② main の `mcp-server/src/tools.ts` に `list_tasks` / `create_task`、i18n に `typeTask` / `noTasks` が残存 ③ `git diff --stat origin/main origin/claude/shared-fix-831-task-to-todo-mcp-docs` が **284 files / +3,461 / −3,478**
-- **⚠️ 変数名の grep で誤検出しかけた**: `TaskNode` の件数で判定したら `setTaskNodes` というローカル変数に当たり、一瞬「PR-A も壊れている」と読み違えた。**改名の着地判定は型名ではなく「その PR でしか生まれない成果物」で行う** — MCP ツール名・i18n キー名・リネーム後のファイル名（`useScheduleTodoChips.test.tsx` 等）が該当する
-- **復旧はやり直し不要だった**: 3 ブランチとも remote に健在で、`-mcp-docs` が PR-B + PR-C の commit を両方持っていた → main を取り込んで base=main の PR 1 本（#865）にまとめて着地。実装の書き直しはゼロ
-- **着地の再確認**: `list_tasks` / `typeTask` が 0 ヒット、リネーム後ファイル 3 本が main のツリーに出現、#831 は `Closes` で自動 CLOSED
-- **据え置き 3 点は無事**: `TodoNodeType = "task"`（型名だけ変わり `generateId` は `task-` を作り続ける）/ `role: "task"` が `SupabaseTodosService.ts:110,180` + `todoMapper.ts:61,295` の 4 箇所とも残存 / `tasks_payload` が mcp-server 各ハンドラで健在
-- **D-20260813-briefing-1 = A**: 「今週」カードの週バー（直近 7 日）と Work タブ週次集計（月曜固定）を両方とも暦週へ寄せる。台帳 `decisions/D-20260813-briefing-1.md` を作成 → `ANSWERS.md` へ 1 行転記 → `comm/decisions/chat-briefing-refine.md` を空に
-- **#860 起票**: `[analytics]` / `section:analytics`（briefing-refine レーン）。対象は `MobileAnalyticsView.tsx:121` の `aggregateByDay(sessions, 7)` と `analyticsAggregation.ts:162` の私有 `startOfWeek()` の 2 箇所で、`WorkTimeChart.tsx:56` の 14 日窓は対象外と本文に明記
-- **レーン投入の順序を保留に**: #860 / #675 のプロンプトは用意済みだが、#831 が `shared/src/components` と `web/src` を丸ごと触るため投入を止めた。とくに #675 のやること 1（taskChips 抽出）は改名対象そのもの。**大規模改名は後・細かい作業が先**の順序をユーザーへ提示した
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

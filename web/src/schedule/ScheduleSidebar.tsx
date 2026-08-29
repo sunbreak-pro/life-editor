@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   useTranslation,
   AddPill,
@@ -6,6 +7,9 @@ import {
   RoutineSummaryCard,
   ScheduleSidebarTabs,
   TodayTodoTray,
+  tourAnchor,
+  useTourAction,
+  TOUR_ACTIONS,
   TOUR_ANCHORS,
   type AgendaItem,
   type RepeatListRow,
@@ -113,15 +117,29 @@ export interface ScheduleSidebarRepeats {
   onShowHidden: () => void;
 }
 
-/** "本日の Todo" — the A-3 tray (#298). Desktop only. */
+/**
+ * "本日の Todo" — the A-3 tray (#298), and since #1153 the app's only todo
+ * surface.
+ *
+ * It was Desktop-only and mostly a staging list: rows jumped to the Kanban tab
+ * for anything real. That tab is retired, so the three things it was the route
+ * to now live here — opening a todo, opening an UNSCHEDULED one, and making a
+ * new one.
+ */
 export interface ScheduleSidebarTodo {
   placed: TodayTodoRow[];
   unplaced: TodayTodoRow[];
   addable: TodayTodoAddableRow[];
   onToggleComplete: (id: string) => void;
   onAddCandidate: (id: string) => void;
-  onOpenTodo: () => void;
+  /** Open a PLACED row's detail. Took an id in #1153 — it used to be the
+   *  zero-argument jump to the board. */
+  onOpenTodo: (id: string) => void;
+  /** Open an UNSCHEDULED row's detail (#1153). */
+  onOpenAddable: (id: string) => void;
   onDelete: (id: string) => void;
+  /** Make a todo with no day yet (#1153). */
+  onAdd: () => void;
 }
 
 /**
@@ -141,20 +159,15 @@ export interface ScheduleSidebarProps {
   todo: ScheduleSidebarTodo;
 }
 
-/**
- * Which tab actually renders. "todo" is Desktop-only (Mobile reaches the Todo
- * board through its own section tab, and "repeats" is unreachable from narrow
- * since #408 retired the Routines header tab). A resize can leave "todo"
- * selected with no tab to match it, which would draw the tray under a switcher
- * that shows nothing as active. Fold it back to the flow rather than resetting
- * the state — widening again returns the user to the tab they actually chose.
+/*
+ * All three tabs render at both widths since #1153.
+ *
+ * "todo" used to be Desktop-only — Mobile reached the Todo board through the
+ * section's own tab — so a resize could leave it selected with no tab to match,
+ * and it was folded back to the flow. The board is gone and this tray is the
+ * only todo surface there is, so withholding it from narrow would mean the
+ * phone has none. The fold went with the reason for it.
  */
-function activeScheduleSidebarTab(
-  tab: ScheduleSidebarTabId,
-  isWide: boolean,
-): ScheduleSidebarTabId {
-  return !isWide && tab === "todo" ? "flow" : tab;
-}
 
 export function ScheduleSidebar({
   isWide,
@@ -166,7 +179,24 @@ export function ScheduleSidebar({
   todo,
 }: ScheduleSidebarProps) {
   const { t } = useTranslation();
-  const active = activeScheduleSidebarTab(tab, isWide);
+  const active = tab;
+
+  /*
+   * #1124: tell the tour the todos are on screen. This component only exists
+   * while the detail panel is showing it — RightSidebarPortal renders nothing
+   * when the panel is closed — so "the todo tab is active here" is the same
+   * fact the retired Kanban board reported on mount, and it covers every route
+   * in (the switcher, the `nav:tasks` intent, the palette) without any of them
+   * knowing about the tour.
+   *
+   * Reported from the sidebar rather than from CalendarTab on purpose: the tab
+   * id is host state that survives the panel being closed, so a host-side
+   * effect would announce a tray nobody can see and advance the step early.
+   */
+  const reportTourAction = useTourAction();
+  useEffect(() => {
+    if (active === "todo") reportTourAction(TOUR_ACTIONS.scheduleTodoTabOpened);
+  }, [active, reportTourAction]);
 
   const flowBody = (
     <div className="flex flex-col gap-3">
@@ -312,33 +342,62 @@ export function ScheduleSidebar({
     </div>
   );
 
-  // A-3 (#298): "本日の Todo" tray — placed / unplaced todo groups + an add
-  // picker. Desktop-only (it rides the tab switcher; Mobile shows only flow).
-  // #555: rows also soft-delete (softDeleteTodo → Trash) and carry the same
-  // <TagPicker> the todo detail uses, so tags attach without leaving the tray.
+  /*
+   * A-3 (#298): the "本日の Todo" tray — placed / unplaced groups + the
+   * unscheduled pool. #555: rows also soft-delete (softDeleteTodo → Trash) and
+   * carry the same <TagPicker> the todo detail uses, so tags attach without
+   * leaving the tray.
+   *
+   * #1153 put the create pill in a heading row ABOVE the tray rather than
+   * inside a group: it makes a todo with no day, which belongs to none of the
+   * three groups underneath. Outside the scroller and not floating, for the
+   * reason D-20260827-sched-1 gives.
+   */
   const todoBody = (
-    <TodayTodoTray
-      placed={todo.placed}
-      unplaced={todo.unplaced}
-      addable={todo.addable}
-      onToggleComplete={todo.onToggleComplete}
-      onAddCandidate={todo.onAddCandidate}
-      onOpenTodo={todo.onOpenTodo}
-      onDelete={todo.onDelete}
-      renderRowExtra={(row) => <TagPicker itemId={row.id} />}
-      labels={{
-        placedHeading: t("scheduleScreen.todoPlacedHeading"),
-        unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
-        emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
-        emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
-        addHeading: t("scheduleScreen.todoAddHeading"),
-        addAction: t("scheduleScreen.todoAddAction"),
-        emptyAddable: t("scheduleScreen.todoEmptyAddable"),
-        complete: t("scheduleScreen.complete"),
-        openInTodos: t("scheduleScreen.todoOpenInTodos"),
-        delete: t("todoDetail.todoDelete"),
-      }}
-    />
+    // #1124: the tour's "finish one of them" step points at the whole tray
+    // rather than at one control, because completing has three routes (the row
+    // checkbox, the detail's toggle, the detail's status row) and singling one
+    // out would teach the other two as wrong. It pointed at the Kanban board
+    // until #1153 retired it; this is the same argument on the surface that
+    // replaced it.
+    <div
+      {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
+      className="flex flex-col gap-2"
+    >
+      <div className="flex shrink-0 items-center justify-end">
+        <AddPill
+          onClick={todo.onAdd}
+          label={t("scheduleScreen.todoAddCta")}
+          tourId={TOUR_ANCHORS.scheduleTodoAdd}
+        />
+      </div>
+      <TodayTodoTray
+        placed={todo.placed}
+        unplaced={todo.unplaced}
+        addable={todo.addable}
+        onToggleComplete={todo.onToggleComplete}
+        onAddCandidate={todo.onAddCandidate}
+        onOpenTodo={todo.onOpenTodo}
+        onOpenAddable={todo.onOpenAddable}
+        onDelete={todo.onDelete}
+        renderRowExtra={(row) => <TagPicker itemId={row.id} />}
+        labels={{
+          placedHeading: t("scheduleScreen.todoPlacedHeading"),
+          unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
+          emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
+          emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
+          addHeading: t("scheduleScreen.todoAddHeading"),
+          addAction: t("scheduleScreen.todoAddAction"),
+          emptyAddable: t("scheduleScreen.todoEmptyAddable"),
+          complete: t("scheduleScreen.complete"),
+          // #1153: both open the same detail now — the label no longer
+          // promises a trip to another surface.
+          openInTodos: t("scheduleScreen.todoOpenDetail"),
+          openAddable: t("scheduleScreen.todoOpenDetail"),
+          delete: t("todoDetail.todoDelete"),
+        }}
+      />
+    </div>
   );
 
   return (
