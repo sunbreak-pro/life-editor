@@ -1,5 +1,18 @@
 # HISTORY (chat-main)
 
+### 2026-08-29 - AI 連携の可視化 + Claude 起動導線の計画書 2 本作成と起票（#1210 / #1211・PR #1212）
+
+#### 概要
+
+「アプリ UI に Claude / AI 連携の要素がゼロ」というユーザー課題を受け、$0 制約（アプリから Claude API を呼ばない = Non-Goal 準拠）での組み込み範囲を 2 段階に分解。実装計画書 2 本を新規作成し、計画書パスを本文に記した Issue を 2 件起票、計画書は docs PR として open した。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-ai-integration-visibility.md`（段階 1: Settings AI 連携カード + ビルド時生成の MCP ツールカタログ JSON + Briefing 帰属バッジ。DDL なし・既存データ導出のみ）/ `2026-08-29-claude-launcher-desktop.md`（段階 2: IPC `claude:launch` 追加 + OS ターミナルで `claude` spawn + `isDesktopShell()`。段階 1 merge が前提・Step 0 に UI 置き場のユーザー確認ゲート）
+- **起票**: #1210（[settings] 段階 1・shared-fix）/ #1211（[main] 段階 2・shared-fix・Blocked by #1210）。重複チェック済み（隣接 #1201 はスコープ別と明記）
+- **PR**: #1212（docs のみ・計画書 2 本。一時 worktree `plans-ai-integration` 経由で `docs/ai-integration-plans` ブランチから提出・merge はユーザー手番）
+- **実測根拠**: MCP ツールレジストリ = `mcp-server/src/tools.ts:39-60`（heartbeat 機構なし）/ Briefing 書き込みに author メタなし（`briefingHandlers.ts:430-559`）/ desktop IPC は 10 上限中 7（`ipcContract.ts:93`）— Explore 報告を spot check で全数確認してから計画書へ反映
+
 ### 2026-08-29 - Open Issue 一斉消化 fan-out r4 計画書（PR #1208）
 
 #### 概要
@@ -72,21 +85,5 @@ connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機�
 - **naive な線形外挿が結論を反転させかけた**: 60 秒で 5 本 → 30 分で 150 本、と割り算すると「ポモドーロが REST を垂れ流している」ように読めるが、実際は開始 1.1 秒に全部集中していて残りは 0 本。**バースト分布を確認せずにレートへ換算しない**
 - **計測が実データを書き換えた**: タイマーを「No Todo」で開始したら `Untitled todo` が実 DB に作られた（ユーザー確認のうえソフトデリート）。supabase MCP は read-only トランザクションなので UPDATE が通らず、削除はアプリ自身の経路（life-editor MCP `delete_todo`）で行った。**書き込みを伴う操作を実データで計測するときは、何が書かれるかを先に fetch ログで押さえる**
 - **CRLF のファイルに LF で追記していた**。既存ファイルへ heredoc で追記する前に行末を確認する
-
-### 2026-08-16 - outbox の起票依頼を全消化（25 件）+ 全レーンへの /goal 配布 + §7.1 の複製撤去（#1010）
-
-#### 概要
-
-8 レーンの outbox に溜まっていた起票依頼を全数照合して **25 件を起票**（#991〜#1015）、レーンごとの `/goal` プロンプトを作って配布した。あわせて、その中で最優先だった **#1010（§7.1 のコマンド表が CI から遅れている）を D-20260816-main-2 = B で実装**（PR #1020）し、相対パスで作られて入れ子になっていた worktree 2 本を正しい場所へ移した。
-
-#### 変更点
-
-- **起票 25 件**: perf 4（#991〜#994・#797 の実測レポート由来）/ schedule follow-up 6（#995〜#998・#1000 と横展開 #999）/ mcp-server・横断 5（#1001〜#1004・#1011 = #782 の QA 見送り分）/ 公開 Web 3（#1005 CSP・#1007 manifest 色・#1009 ステータスバー文字色）/ BottomSheet の safe-area #1008 / docs・環境 4（#1006・#1010・#1013・#1015）/ mobile-scope 追随 #1014
-- **7 月分の依頼はすべて起票済みだった**ことを実測で確認（#365 / #366 / #369 / #370 / #371 / #372 / #519）。未起票で残っていたのは 8 月分だけ
-- **`[all]` の二重着手を避けるため 1 Issue = 1 レーンに固定**。web/ 配下の #1005 / #1009 はタイトル prefix ごと `[web-public]` へ、Notes 側の #999 は materials-refine へ寄せた（#473 で 40 分の二重実装が起きた教訓）
-- **#1010 = D-20260816-main-2 = B**（ユーザー回答）: §7.1 のコマンド列挙を削除し、`.github/workflows/ci.yml` の `verify` + `docs-lint` を PR 前ゲートの正本と明記。回し方（各ステップの `working-directory` へ `cd`）と、コマンド名からは読めない罠 4 点（build はテストを見ず vitest は型を見ない / web の lint は `web/` しか歩かない / TypeScript の版が web だけ違う / docs-lint は `LC_ALL=C`）だけを残した。同じ表を指していた `loop-verify` スキルも `ci.yml` 参照へ付け替え（PR #1020）
-- **踏まれた回数**: `typecheck:tests` の漏れで PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」。追随依頼が 2 回出ても入らなかったので、表を直すのではなく複製そのものを畳んだ
-- **入れ子 worktree の是正**: `workspaces/life-editor/workspaces/life-editor/settings-refine`（2 段）と同 `.../workspaces/life-editor/work-refine`（3 段）を正しい階層へ `git worktree move`。**両方とも Orca のターミナルが掴んでいて「Device or resource busy」で 1 度失敗した** — `orca terminal list --json` で handle を特定し `orca terminal close` してから移動した（worktree-policy の Windows 節と同型の詰まり方）。空になった中間ディレクトリは `rmdir` で撤去
-- **副産物**: #1013（`pre-commit-tracker-guard.sh` が `history/archive/` 配下を tracker と認識せずブロックする）を起票。本 commit 自体がその穴に当たるため `[tracker-ok]` で通している
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

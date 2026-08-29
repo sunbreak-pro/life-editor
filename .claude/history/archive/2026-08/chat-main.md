@@ -2,6 +2,22 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-16 - outbox の起票依頼を全消化（25 件）+ 全レーンへの /goal 配布 + §7.1 の複製撤去（#1010）
+
+#### 概要
+
+8 レーンの outbox に溜まっていた起票依頼を全数照合して **25 件を起票**（#991〜#1015）、レーンごとの `/goal` プロンプトを作って配布した。あわせて、その中で最優先だった **#1010（§7.1 のコマンド表が CI から遅れている）を D-20260816-main-2 = B で実装**（PR #1020）し、相対パスで作られて入れ子になっていた worktree 2 本を正しい場所へ移した。
+
+#### 変更点
+
+- **起票 25 件**: perf 4（#991〜#994・#797 の実測レポート由来）/ schedule follow-up 6（#995〜#998・#1000 と横展開 #999）/ mcp-server・横断 5（#1001〜#1004・#1011 = #782 の QA 見送り分）/ 公開 Web 3（#1005 CSP・#1007 manifest 色・#1009 ステータスバー文字色）/ BottomSheet の safe-area #1008 / docs・環境 4（#1006・#1010・#1013・#1015）/ mobile-scope 追随 #1014
+- **7 月分の依頼はすべて起票済みだった**ことを実測で確認（#365 / #366 / #369 / #370 / #371 / #372 / #519）。未起票で残っていたのは 8 月分だけ
+- **`[all]` の二重着手を避けるため 1 Issue = 1 レーンに固定**。web/ 配下の #1005 / #1009 はタイトル prefix ごと `[web-public]` へ、Notes 側の #999 は materials-refine へ寄せた（#473 で 40 分の二重実装が起きた教訓）
+- **#1010 = D-20260816-main-2 = B**（ユーザー回答）: §7.1 のコマンド列挙を削除し、`.github/workflows/ci.yml` の `verify` + `docs-lint` を PR 前ゲートの正本と明記。回し方（各ステップの `working-directory` へ `cd`）と、コマンド名からは読めない罠 4 点（build はテストを見ず vitest は型を見ない / web の lint は `web/` しか歩かない / TypeScript の版が web だけ違う / docs-lint は `LC_ALL=C`）だけを残した。同じ表を指していた `loop-verify` スキルも `ci.yml` 参照へ付け替え（PR #1020）
+- **踏まれた回数**: `typecheck:tests` の漏れで PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」。追随依頼が 2 回出ても入らなかったので、表を直すのではなく複製そのものを畳んだ
+- **入れ子 worktree の是正**: `workspaces/life-editor/workspaces/life-editor/settings-refine`（2 段）と同 `.../workspaces/life-editor/work-refine`（3 段）を正しい階層へ `git worktree move`。**両方とも Orca のターミナルが掴んでいて「Device or resource busy」で 1 度失敗した** — `orca terminal list --json` で handle を特定し `orca terminal close` してから移動した（worktree-policy の Windows 節と同型の詰まり方）。空になった中間ディレクトリは `rmdir` で撤去
+- **副産物**: #1013（`pre-commit-tracker-guard.sh` が `history/archive/` 配下を tracker と認識せずブロックする）を起票。本 commit 自体がその穴に当たるため `[tracker-ok]` で通している
+
 ### 2026-08-15 - #675 の実ブラウザ回帰検証（6 項目 PASS）→ CLOSE + #870 起票
 
 #### 概要
