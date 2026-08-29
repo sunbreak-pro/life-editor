@@ -37,9 +37,9 @@
 
 ## 直近の完了
 
+- [chat-main] **配布品質監査（Web 完結）→ #1197〜#1202 起票 + ドロワーアイコン変更 PR #1195 open** ✅（2026-08-29）— ユーザー裁定: メール確認 = 実装 / サインアップ = 開放 / 配布 = 限定人数（無料枠の見立て = 安全圏 10〜20 人）/ ポリシー = 作成。スワイプ開閉は #792/#1050 で実装済みと判明（playwright 実測は結果待ち）。#1202 は chat-main 手番（CLAUDE.md 整合 + D 台帳起こし）
 - [chat-main] **Connect 後継の方針確定（案 1 Related パネル + 案 2 Tag hub 採用・Tag 起点一本化）→ #1171 / #1172 起票 + #1153 役割分担コメント** ✅（2026-08-29）— どちらも **Blocked by #1152**（connect-refine が退役実行中）。着地後に connect レーン（#1171）と materials レーン（#1172）へ `/goal` を配る。#1153 との境界 = 時間軸の入口は Calendar / トピック軸の入口は Connect。タグの lucide アイコン + カラーは設定 UI まで実装済みだったので #1171 の表示要件に畳み込んだ
 - [chat-main] **#994 モバイル体感の実ブラウザ計測 6 項目を完了（PR #1112 open）+ follow-up 3 件起票** ✅（2026-08-23）— playwright MCP の CDP を直接叩いて計測。**再レンダリング**はセクション切替で Schedule だけ 164.5 ms（Materials の 13 倍）と突出。**ポモドーロの REST は約 6 本で、長さに比例しない**（開始 1.1 秒に 5 本集中 → 残り 59 秒は 0 本 → 停止時 1 本）ので「1 分 5 本 → 30 分 150 本」の線形外挿は誤り。**ヒートマップのツールチップは実害なし**（`onMouseEnter` 単位で 1 commit 5.72 ms・60 fps 維持）で、Issue の「マウス追従」という前提自体が実装と違っていた。**Slow 4G + CPU 4x で FCP 2,820 / LCP 3,860 / TBT 430 ms**（LCP・TBT とも "needs improvement" 帯）。**#991 の修正は効いていた**（`modulepreload` から外れて FCP 636 ms）が、Briefing がエディタを即時描画するので初回総量は 523 KB のまま。計測の副作用で実 DB に `Untitled todo` が 1 件でき、ユーザー確認のうえソフトデリート（この挙動自体を #1116 に起票）
-- [chat-main] **outbox の起票依頼を全消化（25 件 = #991〜#1015）+ 全レーンへ /goal 配布 + #1010 実装（PR #1020）+ 入れ子 worktree 2 本の是正** ✅（2026-08-16）— 未起票で残っていたのは 8 月分だけで、7 月分は全件着地済みだった（重複チェックは `gh issue list --state all --search` で 7 キーワード分実測）。#1010 は表を直さず**複製そのものを畳む**方向（D-20260816-main-2 = B）。同じ表を指していた `loop-verify` スキルも `ci.yml` 参照へ付け替え。worktree の移動は Orca のターミナルが掴んでいて 1 度失敗し、`orca terminal close` で解放してから成功（Windows の「Device or resource busy」は worktree-policy の既知パターンと同型）
 
 ## 予定
 
