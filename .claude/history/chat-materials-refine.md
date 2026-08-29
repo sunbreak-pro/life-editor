@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-30 - PR #1221 の main マージ解決ミスを修復し、テンプレート 2 機能を両立させた
+
+#### 概要
+
+#1180（テンプレート一覧・編集）の PR #1221 で CI の `typecheck + test + build` が赤になっていた。原因は #1179（PR #1216）着地後の main 取り込みで、解決が「main が消した側を残し、main が足した側を落とす」形になっていたこと。両方残す形に直し、両立で露見した読み直しの穴も塞いだ。
+
+#### 変更点
+
+- **materials barrel**: 実在しない `./NoteTemplatePanel` の re-export を除去し、main の `TemplateSavedPanel` の export を復旧（CI が報告した TS2307 はこれ 1 件。tsc は 1 件目で止まるので、以下 2 つはログに出ていなかった）
+- **NotesView**: 本 PR の hook / panel を import しながら main の hook / panel を呼ぶ状態だった（`templates` の二重宣言）。両方を残し、register 側を `templates`・library 側を `templateLibrary` に改名して分離
+- **code-split allowlist**: main で削除済みの `notes/NoteTemplateHost.tsx` が `lazyEditorChunk.test.ts` の ALLOWED に復活していたので除去
+- **両立で出た穴**: 登録は #1179 の hook が書き、サイドバー一覧は #1180 の hook が読む。読み直しは sync カウンタでしか起きず、ローカル書き込みではカウンタが動かないため「登録したテンプレートが一覧に出ない」。library に `refresh()` を足し、`savedId` の両端（書き込みの着地・受領パネルの閉じ = 名前確定）で `NotesView` が呼ぶようにした
+- **テスト**: `web/tests/noteTemplateLibrary.test.tsx` に「三点メニューから登録したテンプレートを一覧が拾う」を追加（8 → 9 件）
+- **main の再取り込み**: Connect 復活 / related panel / Daily サイドバー等を衝突なしで取り込み、CI verify 相当をローカル全ステップ実行（shared 2631 / web 908 / desktop 7 / mcp 319・docs-lint OK）
+
 ### 2026-08-29 - Materials 6 Issue を 6 ブランチ / 6 PR に（#1179 #1180 #1181 #1172 #1189 #1183）
 
 #### 概要
@@ -77,22 +92,3 @@ chat-main が配った materials レーンの 5 件を、それぞれ `origin/ma
 - **既存テストを 3 本追随させた**: `materialsCountQueries` / `supabaseNotesUnifiedReads` は PostgREST の `or` 文字列を丸ごと固定していたのでテンプレート脚を含む形へ、`lazyEditorChunk` は `NoteTemplateHost` を許可リストへ（`NoteBodyEditor` と同じく既に lazy な NotesView の中）
 - **web の eslint に 1 つ引っかかった**: `react-hooks/set-state-in-effect`。effect 本体で `setLoading(true)` していたので、loading を「一覧がまだ null か」から導出する形に組み替え、setState はすべて promise のコールバック側へ寄せた
 - **検証**: 5 本すべてで docs-lint / shared（lint・build・typecheck:tests・test）/ web（同）/ desktop（typecheck・test・build）/ mcp-server（build・test）が exit 0
-
-### 2026-08-16 - #876 Mobile の Note / Daily を「一覧はサイドバー・メインは本文」へ（PR #962）
-
-#### 概要
-
-裁定 D-20260815-materials-2 = A（ボトムシートを畳む）に従い、Mobile の Note / Daily を Desktop と同じ 1 レイアウトにした。一覧は両幅とも詳細パネルの中身（narrow = ハンバーガーの `MobileDrawer`）、メインは選択中アイテムの本文。PR #962 提出（Closes #876・merge = こうだいさん）。
-
-#### 変更点
-
-- **配線は 1 行の話だった**: `RightSidebarPortal` の `isWide` ゲートを外すだけで一覧はそのままドロワーに入る。Materials は既に `narrowHeader: "tabs+hamburger"`（`sectionDescriptors.tsx`）なので導線も既存のものが効いた
-- **Notes の退役 2 件**: 92%→全画面の detail sheet（#471）と、それを開くためだけの `NotesMobileList`（261 行）。メインが本文になった以上シートは同じノートへの 2 つ目の窓になる
-- **副産物として穴が 1 つ消えた**: シートは一覧が本文を持たない状態でノートを**同期的に**開くため、自前の `isContentLoaded` ゲート（`useNoteSheetTarget`）が要り、無いと空本文の上にエディタが載って初打鍵で空を保存する（#475）。選択側にはこの穴が元から無い — `useNotesUnifiedAPI.selectNote` は id を切り替える**前に** hydrate する。よって `useNoteSheetTarget`（94 行）と `useNoteLinking` の `onPendingSelected` seam をまとめて落とせた
-- **Daily**: 過去エントリのパネル（並び替え / 方向 / 絞り込み + エントリ一覧）を両幅共通の `pastEntries` に集約してドロワーへ。narrow の「過去のエントリ」2 件テーザーは退役 — テーザーは 2 行、`DateStrip` は 14 日ぶんで、**40 日前のエントリはスマホから到達不能だった**。`DateStrip` は本文側に残置（あれは書いている日の移動であって一覧ではない）
-- **narrow 固有として残したもの**: 詰まったタイトルの `variant`（シートが使っていた方）と、タイトル先行の作成（ツールバーの「+」が `QuickAddSheet`）。一覧から選ぶとドロワーを閉じる（モーダルなので開いたものを自分で覆う）
-- **Links（#884）は wide 専用のまま**。#884 が明示的に決めた箇所で今回の裁定はレイアウトの話しかしていないため広げず、判断キュー `D-20260816-materials-1` に積んだ（放置時 = 現状維持）
-- **DailyView は null-safe hook に**: `useRightSidebarOptional` を使う（`RightSidebarPortal` 自身と同じ読み方）。この tab はテストで Provider 無しに単体 render されており、必須依存にすると 16 本が一斉に落ちる
-- **docs / i18n**: `mobile-scope.md` #7 / #8 をシート前提から「メイン本文」前提へ更新（裁定の申し送り）。孤児になった `materials.notes.detailTitle` / `materials.daily.pastEntries` を en / ja 両 catalog から撤去
-- **テスト**: 旧挙動を固定していた分を新挙動へ書き換え — `notesView.test.tsx` narrow 5 本 / `dailyView.test.tsx` narrow 3 本 / `useNoteLinking.test.tsx` handoff 2 本。`useNoteSheetTarget.test.tsx`（202 行）は面ごと削除
-- **検証**: shared lint / build / test（2232）、web lint / build / test（472）、`docs-lint.sh` すべて exit 0。jsdom にレイアウトが無いためドロワーの実際の重なり・スクロール所有権は自動テストで見えない → 実機の狭幅目視はこうだいさんの手番
