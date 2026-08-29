@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  act,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import {
   SyncContext,
   SYNC_DOMAINS,
@@ -161,10 +167,17 @@ async function renderEvening(wide: boolean) {
     </SyncContext.Provider>,
   );
   await waitFor(() => expect(screen.getByText("CLOSING THE DAY")).toBeTruthy());
-  // The editor arrives on its own chunk since #991, so the masthead can be on
-  // screen a tick before `.tiptap` exists. Every test below drives real
-  // ProseMirror DOM, so waiting for it here rather than in each one keeps the
-  // failure ("editor did not mount") from meaning two different things.
+  // #1115: the reflection rests as text and only swaps in the editor when the
+  // user asks for it, so every test below has to make that request first.
+  // Prefix match: the accessible name carries the stored lines after the
+  // action, so this fixture's "hello" is part of it (#1115).
+  fireEvent.click(
+    screen.getByRole("button", { name: /^Write today's reflection/ }),
+  );
+  // The editor arrives on its own chunk since #991, so the press can land a
+  // tick before `.tiptap` exists. Every test below drives real ProseMirror
+  // DOM, so waiting for it here rather than in each one keeps the failure
+  // ("editor did not mount") from meaning two different things.
   await waitFor(() =>
     expect(view.container.querySelector(".tiptap")).toBeTruthy(),
   );

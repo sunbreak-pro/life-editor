@@ -4,12 +4,14 @@ import { Plus } from "lucide-react";
 import {
   BriefingView,
   BriefingVizPanel,
+  EveningReflectionPreview,
   EveningView,
   ItemCreatePanel,
   ItemDetailOverlay,
   RepeatScopeDialog,
   RightSidebarPortal,
   TodayTodoTray,
+  eveningBodyLines,
   goalPeriodRanges,
   hasIntentionToReport,
   todayDateKey,
@@ -24,6 +26,7 @@ import {
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
+import { preloadRichTextEditor } from "../notes/preloadRichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
 import { useFocusNote } from "./hooks/useFocusNote";
@@ -289,6 +292,53 @@ export function BriefingScreen({
   // to today" is the default here, not the only thing on offer. Anything
   // booked for another day is written and simply does not join today's paper
   // (useBriefingWrites keeps the lists honest).
+  /*
+   * Whether the evening reflection is showing its editor or its text (#1115).
+   *
+   * It starts as text. The editor is TipTap, the single heaviest chunk in the
+   * app, and `defaultBriefingTab()` opens this paper from 17:00 on the default
+   * landing section — so mounting it on arrival fetched 118 KB gzip on every
+   * evening session whether or not anyone meant to write. The press is what
+   * asks for it.
+   *
+   * Reset as a render-phase adjustment rather than an effect (useDailySections'
+   * pattern): idempotent under StrictMode's double render, and it lands before
+   * paint.
+   *
+   * Reset on the TAB as well as the day, because the two tabs return different
+   * trees from this component — leaving the evening paper unmounts the editor
+   * either way, so a sticky latch would only mean the paper comes back already
+   * in edit mode (and, with the focus rule below, popping the on-screen
+   * keyboard). Arriving at the evening paper looks the same every time.
+   *
+   * `focusOnGen` is what keeps the focus tied to the PRESS. `eveningGen` is in
+   * the editor's key, and useDailySections bumps it whenever the stored body
+   * changes underneath us (another device, an MCP upsert_daily), so the editor
+   * remounts — and TipTap re-applies `autofocus` on every construction. Left
+   * unguarded, an external write while the caret sat in TOMORROW'S FOCUS would
+   * yank it back into the reflection mid-sentence. Recording the generation
+   * the press happened on means only that mount focuses.
+   */
+  const [editingEvening, setEditingEvening] = useState(false);
+  const [focusOnGen, setFocusOnGen] = useState<number | null>(null);
+  const editingScope = `${tab}:${todayKey}`;
+  const [editingScopeSeen, setEditingScopeSeen] = useState(editingScope);
+  if (editingScopeSeen !== editingScope) {
+    setEditingScopeSeen(editingScope);
+    if (editingEvening) setEditingEvening(false);
+    if (focusOnGen !== null) setFocusOnGen(null);
+  }
+
+  const startEditingEvening = useCallback(() => {
+    setEditingEvening(true);
+    setFocusOnGen(eveningGen);
+  }, [eveningGen]);
+
+  const eveningLines = useMemo(
+    () => eveningBodyLines(eveningStored.bodyDocJson),
+    [eveningStored],
+  );
+
   const [createOpen, setCreateOpen] = useState(false);
   const openCreatePanel = useCallback(() => setCreateOpen(true), []);
   const closeCreatePanel = useCallback(() => setCreateOpen(false), []);
@@ -544,14 +594,31 @@ export function BriefingScreen({
           mood={eveningMood}
           onSelectMood={handleSelectMood}
           editorSlot={
-            <LazyRichTextEditor
-              key={`evening:${todayKey}:${eveningGen}`}
-              noteId={`evening-${todayKey}`}
-              initialContent={eveningStored.bodyDocJson ?? undefined}
-              onUpdate={handleEveningUpdate}
-              placeholder={t("briefing.evening.placeholder")}
-              className="min-h-[180px] px-4 py-3"
-            />
+            editingEvening ? (
+              <LazyRichTextEditor
+                key={`evening:${todayKey}:${eveningGen}`}
+                noteId={`evening-${todayKey}`}
+                initialContent={eveningStored.bodyDocJson ?? undefined}
+                onUpdate={handleEveningUpdate}
+                placeholder={t("briefing.evening.placeholder")}
+                className="min-h-[180px] px-4 py-3"
+                autoFocus={focusOnGen === eveningGen}
+              />
+            ) : (
+              <EveningReflectionPreview
+                lines={eveningLines}
+                placeholder={t("briefing.evening.placeholder")}
+                editLabel={t("briefing.evening.startEditing")}
+                onStartEditing={startEditingEvening}
+                onPrefetch={preloadRichTextEditor}
+                // 244px, not the editor's own 180: `min-h-[180px]` never binds
+                // there because web/src/index.css gives `.note-editor
+                // .ProseMirror` a 220px min-height, so the mounted editor
+                // measures 220 + py-3. Matching the RESULT is what makes the
+                // swap not jump; matching the class would not.
+                className="min-h-[244px] px-4 py-3"
+              />
+            )
           }
           // Editable → the live draft (the field must echo every keystroke).
           // Read-only → the STORED text, never the draft: the read-back is

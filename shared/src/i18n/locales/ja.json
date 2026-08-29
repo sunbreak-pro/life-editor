@@ -938,6 +938,7 @@
       "intentionPlaceholder": "今日の宣言。一行から書けます…",
       "reflectionTitle": "一日の締めくくり",
       "placeholder": "今日はどんな一日でしたか…",
+      "startEditing": "今日のふり返りを書く",
       "focusTitle": "明日のフォーカス",
       "focusPlaceholder": "明日いちばん進めたいことを一行で…",
       "todosTitle": "残りの Todo",

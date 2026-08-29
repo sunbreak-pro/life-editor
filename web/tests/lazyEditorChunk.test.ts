@@ -71,6 +71,20 @@ describe("the TipTap editor stays out of the initial chunk", () => {
     ).toBe(true);
   });
 
+  it("is warmed through the same specifier as the boundary", () => {
+    // #1115 fetches the chunk ahead of the gesture that needs it. A different
+    // specifier here would emit a SECOND chunk — the warm-up would download
+    // TipTap twice and the boundary would still wait, with every assertion
+    // above still green.
+    // No CRLF normalisation needed: the assertion spans no line break.
+    const preload = readFileSync(
+      resolve(srcDir, "notes/preloadRichTextEditor.ts"),
+      "utf8",
+    );
+
+    expect(/import\("\.\/RichTextEditor"\)/.test(preload)).toBe(true);
+  });
+
   it("is never imported statically outside the allowed files", () => {
     // Anything ending in `from "…/RichTextEditor"` is a static import —
     // named, default, namespace or side-effect-only. Matching the `from`

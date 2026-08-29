@@ -20,6 +20,14 @@ import type { RichTextEditorProps } from "./RichTextEditor";
  * which is already behind lazy(), so its copy is off the first download
  * anyway — routing it through here would only add a second round trip between
  * "Notes opened" and "you can type".
+ *
+ * #1115: a boundary defers the FETCH only as long as nothing renders behind
+ * it. Briefing's evening paper rendered the editor on arrival, so the chunk
+ * still landed on every evening session; the fix is host-side (a preview that
+ * swaps on a gesture). Its companion `preloadRichTextEditor` lives in its own
+ * module — react-refresh/only-export-components will not let a component file
+ * export a plain function, the same rule that put lazySections.ts in its own
+ * file.
  */
 const RichTextEditorLazy = lazy(() =>
   import("./RichTextEditor").then((m) => ({ default: m.RichTextEditor })),
