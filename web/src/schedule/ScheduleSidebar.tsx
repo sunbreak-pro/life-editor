@@ -6,6 +6,7 @@ import {
   RoutineSummaryCard,
   ScheduleSidebarTabs,
   TodayTodoTray,
+  TOUR_ANCHORS,
   type AgendaItem,
   type RepeatListRow,
   type RoutineSummaryRow,
@@ -177,7 +178,13 @@ export function ScheduleSidebar({
           one: the day caption and the way to add to that day belong together,
           and the row is outside the scroller below — which is the whole of
           #1034's argument for a pill over a floating FAB, carried across from
-          the day list that used to host it. */}
+          the day list that used to host it.
+
+          #1124: the pill therefore carries the narrow half of the
+          `scheduleAddEvent` tour anchor — it moved here with the create route
+          itself. It cannot collide with the wide half on ScheduleToolbar: the
+          pill renders only when `onAdd` is passed, which CalendarTab does only
+          on narrow. */}
       <div className="flex shrink-0 items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
           {flow.todayLabel} ·{" "}
@@ -187,7 +194,11 @@ export function ScheduleSidebar({
           })}
         </p>
         {flow.onAdd && flow.addLabel && (
-          <AddPill onClick={flow.onAdd} label={flow.addLabel} />
+          <AddPill
+            onClick={flow.onAdd}
+            label={flow.addLabel}
+            tourId={TOUR_ANCHORS.scheduleAddEvent}
+          />
         )}
       </div>
       <AgendaList
