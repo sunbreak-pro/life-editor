@@ -431,6 +431,11 @@ export * from "./briefing";
 // (#1152 retired the force-directed graph; the tags, item links and search it
 // read from all stayed). Pure presentational: data + copy injected (§6.4).
 export * from "./Backlinks";
+// TagHub (#1171) — the Connect section's body, and what the retired graph was
+// replaced BY: a tag-first hub (pick a topic, read its items by kind) instead
+// of one picture of every relationship at once. Pure presentational — the
+// derivation is a pure function and the host injects data + copy (§6.4).
+export * from "./TagHub";
 // Schedule (W8) — week/day time grid primitive + pure layout/date helpers.
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
