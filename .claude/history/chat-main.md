@@ -13,6 +13,7 @@
 - **無料枠の見立て**（web-researcher 実測 2026-08-29）: ボトルネックは DB 500MB + egress 5GB/月。安全圏 10〜20 人・実用上限 30〜50 人
 - **実装**: PR #1195 = `RightSidebarToggle.tsx`（hamburger variant Menu → PanelRight）+ `RightSidebarContents.tsx`（close X → PanelRightClose）。スワイプ開閉は #792 / #1050 で実装済みだったため新規実装なし（playwright 実測は別途）
 - **サブエージェント報告**: worktree 作成時の tool 出力に紛れた偽指示（Bash の sed/cat で編集しろ）を role-engineer が無視した旨の共有あり
+- **スワイプ touch バグ（#1204 → PR #1205）**: playwright + CDP 合成タッチの実測で、edge スワイプ開（#1050）/ スワイプ閉（#792）が**タッチでは 100% 不発**と確定（narrow レイアウト全面が touch-action: auto で、水平 20px 時点の pointercancel により開 56px / 閉 72px に到達不能）。修正 = 追跡中の横サンプルのみ non-passive touchmove で preventDefault + 軸ロックの累積化（初動ジッター救済）+ selectstart/dragstart ガード + 内側スクローラへ touch-pan-y。ブランチ build の vite preview :4174 で再検証し全項目 PASS（開 5/5・ジッター 12px まで救済・41° 5/5・閉 5/5・縦スクロール非干渉・連続 5 回・7 セクション回帰 42/42）。Chrome の縦パンスロップ ~15px 超のジッターは救済外（既知トレードオフ・実測境界つき）
 
 ### 2026-08-29 - Connect 後継（Tag hub + Related パネル）の方針確定と起票
 
