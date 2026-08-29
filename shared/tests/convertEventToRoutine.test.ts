@@ -19,6 +19,9 @@ import type { RoutineNode } from "../src/types/routine";
  * seed. Pre-#407 the unconditional UPDATE re-pointed the seed and stranded
  * the first routine live with no referencing seed (a generator zombie).
  *
+ * The BUMP reads its rows back too since #1140, which is what makes it the
+ * role gate for the whole method — see the case at the bottom.
+ *
  * createRoutine itself is stubbed (own coverage elsewhere); the mock client
  * records update/delete writes so the tests pin the sequencing contract.
  */
@@ -39,7 +42,12 @@ interface WriteRecord {
 }
 
 function makeClient(
-  opts: { attachError?: string; seedAlreadyAttached?: boolean } = {},
+  opts: {
+    attachError?: string;
+    seedAlreadyAttached?: boolean;
+    /** #1140: the seed's items_meta row is no longer `role='event'`. */
+    seedNoLongerAnEvent?: boolean;
+  } = {},
 ) {
   const writes: WriteRecord[] = [];
   const client = {
@@ -52,10 +60,10 @@ function makeClient(
           filter: { col: "", val: undefined },
           filters: [],
         };
-        // Three consumer shapes: the items_meta bump chains `.eq().eq()` and
-        // is awaited off the last one (#996 role guard), while the
-        // events_payload attach chains `.is().select()` (#407 conditional
-        // attach) and reads the affected rows back — so every link has to
+        // Two consumer shapes, and BOTH now read their rows back: the
+        // items_meta bump chains `.eq().eq().select()` (#996 role guard +
+        // #1140 row-count check) and the events_payload attach chains
+        // `.is().select()` (#407 conditional attach) — so every link has to
         // return the same chainable object.
         const chain = {
           eq: (col: string, val: unknown) => {
@@ -66,6 +74,14 @@ function makeClient(
             }
             return chain;
           },
+          // Reached only by the bump — the attach's `.select()` hangs off the
+          // `.is()` link below, which returns its own object.
+          select: () =>
+            Promise.resolve(
+              opts.seedNoLongerAnEvent
+                ? { data: [], error: null }
+                : { data: [{ id: rec.filter.val }], error: null },
+            ),
           is: (isCol: string, isVal: unknown) => {
             rec.isFilter = { col: isCol, val: isVal };
             return {
@@ -79,9 +95,6 @@ function makeClient(
                 ),
             };
           },
-          then: (
-            resolve: (v: { error: { message: string } | null }) => unknown,
-          ) => resolve({ error: null }),
         };
         return chain;
       },
@@ -229,6 +242,44 @@ describe("convertEventToRoutine (#296)", () => {
     expect(dels).toHaveLength(1);
     expect(dels[0].table).toBe("items_meta");
     expect(dels[0].filter).toEqual({ col: "id", val: "routine-1" });
+    expect(dels[0].filters).toEqual([
+      { col: "id", val: "routine-1" },
+      { col: "role", val: "routine" },
+    ]);
+  });
+
+  /*
+   * #1140. The bump is the conversion's ONLY role check — the attach filters
+   * on item_id and `.is("routine_item_id", null)` and never looks at the
+   * role. So when the bump only checked `mErr`, a seed already re-roled to
+   * 'task' by convertEventToTodo missed it in silence and the attach bound
+   * the new routine to the stray events_payload row that a half-finished
+   * conversion leaves behind. The call returned a RoutineNode; what it had
+   * actually built was a routine referenced by a role='task' row, which
+   * permanentDeleteRoutine's `role='event'` sweep can never clear — the 0011
+   * composite FK is NO ACTION, so the purge was refused forever.
+   *
+   * The assertion that matters most is the one about the attach: refusing
+   * after the attach landed would leave the wedge in place and merely report
+   * it.
+   */
+  it("refuses a seed that is no longer an event, before the attach can wedge a purge (#1140)", async () => {
+    const { client, writes } = makeClient({ seedNoLongerAnEvent: true });
+    const svc = new SupabaseRoutinesService(client);
+    vi.spyOn(svc, "createRoutine").mockResolvedValue(ROUTINE);
+
+    await expect(
+      svc.convertEventToRoutine("event-1", "routine-1", INIT),
+    ).rejects.toThrow(/meta bump: seed event-1 is not a live "event" item/);
+
+    // The attach never ran: nothing on events_payload was written, so the
+    // stray payload row keeps its NULL routine link and references nothing.
+    expect(writes.filter((w) => w.table === "events_payload")).toHaveLength(0);
+
+    // And the routine created a moment ago is rolled back, so the refusal
+    // does not leave a live routine no seed points at (the #407 zombie).
+    const dels = writes.filter((w) => w.mode === "delete");
+    expect(dels).toHaveLength(1);
     expect(dels[0].filters).toEqual([
       { col: "id", val: "routine-1" },
       { col: "role", val: "routine" },

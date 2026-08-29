@@ -7,6 +7,7 @@ import {
   chunkIds,
   fetchByIdChunks,
   forEachIdChunk,
+  forEachIdChunkReturning,
 } from "../src/services/postgrestFetchAll";
 
 /*
@@ -163,6 +164,91 @@ describe("forEachIdChunk", () => {
         "softDeleteRoutine events",
       ),
     ).rejects.toThrow("softDeleteRoutine events: nope");
+    expect(calls).toBe(2);
+  });
+});
+
+/*
+ * forEachIdChunk's read-back sibling (#1140). The reason it exists is the
+ * asymmetry these cases pin: a filtered write that matches nothing is
+ * indistinguishable from one that matched everything unless the rows come
+ * back, because PostgREST reports both as `error: null`.
+ */
+describe("forEachIdChunkReturning", () => {
+  it("concatenates the rows every chunk actually touched", async () => {
+    const ids = makeRows(POSTGREST_IN_CHUNK_SIZE + 5).map((r) => r.id);
+    const batches: string[][] = [];
+    const rows = await forEachIdChunkReturning<{ id: string }>(
+      ids,
+      (chunk) => {
+        batches.push(chunk);
+        return Promise.resolve({
+          data: chunk.map((id) => ({ id })),
+          error: null,
+        });
+      },
+      "t",
+    );
+    expect(batches).toHaveLength(2);
+    expect(rows.map((r) => r.id)).toEqual(ids);
+  });
+
+  it("reports fewer rows than ids when the filter spared some", async () => {
+    // The shape permanentDeleteRoutine reads: same request, same lack of an
+    // error, fewer rows. Without the read-back the caller sees success.
+    const ids = ["a", "b", "c"];
+    const rows = await forEachIdChunkReturning<{ id: string }>(
+      ids,
+      (chunk) =>
+        Promise.resolve({
+          data: chunk.filter((id) => id !== "b").map((id) => ({ id })),
+          error: null,
+        }),
+      "t",
+    );
+    expect(rows.map((r) => r.id)).toEqual(["a", "c"]);
+  });
+
+  it("treats null data as no rows touched", async () => {
+    const rows = await forEachIdChunkReturning<{ id: string }>(
+      ["a"],
+      () => Promise.resolve({ data: null, error: null }),
+      "t",
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("never runs for an empty id list", async () => {
+    let calls = 0;
+    const rows = await forEachIdChunkReturning<{ id: string }>(
+      [],
+      () => {
+        calls++;
+        return Promise.resolve({ data: [], error: null });
+      },
+      "t",
+    );
+    expect(rows).toEqual([]);
+    expect(calls).toBe(0);
+  });
+
+  it("throws label-prefixed and stops on the first failing chunk", async () => {
+    const ids = makeRows(POSTGREST_IN_CHUNK_SIZE * 3).map((r) => r.id);
+    let calls = 0;
+    await expect(
+      forEachIdChunkReturning(
+        ids,
+        () => {
+          calls++;
+          return Promise.resolve(
+            calls === 2
+              ? { data: null, error: { message: "nope" } }
+              : { data: [], error: null },
+          );
+        },
+        "permanentDeleteRoutine events",
+      ),
+    ).rejects.toThrow("permanentDeleteRoutine events: nope");
     expect(calls).toBe(2);
   });
 });
