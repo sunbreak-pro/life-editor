@@ -968,5 +968,13 @@
       "materialsNoteTag": "Give it a tag. Tags are how a note joins everything else about the same thing.",
       "materialsTagFollow": "Pick a tag here to see only what carries it — that is how you get back to related notes later."
     }
+  },
+  "errorBoundary": {
+    "appTitle": "Something went wrong",
+    "appDescription": "The app hit an unexpected error. Reloading the page usually clears it.",
+    "sectionTitle": "This section could not be shown",
+    "sectionDescription": "Try again, move to another section, or reload the page if it keeps happening.",
+    "retry": "Try again",
+    "reload": "Reload"
   }
 }

@@ -32,6 +32,7 @@ import { useShellNavigation } from "./hooks/useShellNavigation";
 import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 /*
  * Phase 2 S1+S2 host shell — target-IA wiring (App Shell).
@@ -400,7 +401,16 @@ export function MainScreen({ session }: { session: Session }) {
             descriptor.narrowHeaderInBody ? undefined : (narrowRow ?? undefined)
           }
         >
-          {sectionBody}
+          {/*
+           * #1199: the section-level catch. It sits INSIDE the shell on
+           * purpose — a screen that throws during render leaves the nav,
+           * header and palette alive, so the user can walk to another
+           * section instead of meeting a blank page. `resetKey` is that
+           * walk: a new section id clears the error without a reload.
+           */}
+          <AppErrorBoundary variant="section" resetKey={section}>
+            {sectionBody}
+          </AppErrorBoundary>
         </PageContainer>
       </AppShell>
 
