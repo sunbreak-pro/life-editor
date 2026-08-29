@@ -3,10 +3,10 @@ import { Button } from "./Button";
 
 export interface SettingsTutorialProps {
   /**
-   * Fired when the user asks for the tour again. The HOST calls the tour's
-   * `restart()` — this primitive never reads context (CLAUDE.md §6.4).
+   * Fired when the user asks for the tutorial. The HOST opens the launcher
+   * modal from here — this primitive never reads context (CLAUDE.md §6.4).
    */
-  onRestart: () => void;
+  onOpen: () => void;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
   labels: {
     heading: string;
@@ -16,7 +16,7 @@ export interface SettingsTutorialProps {
 }
 
 /*
- * Tutorial re-run card (#1123 — the Settings half of #1121's tour).
+ * Tutorial card (#1123, re-pointed by #1194).
  *
  * The tour offers itself once, on first run, and never again after it is
  * finished or skipped (TourContext's auto-start gate). That makes this card
@@ -24,11 +24,17 @@ export interface SettingsTutorialProps {
  * rather than something that appears only while a tour is unfinished: a
  * control the user cannot find is the same as no control at all.
  *
- * `secondary` rather than `danger`: restarting discards the tour's own
- * position and nothing else, so it does not belong in the same visual class as
- * the Reset card below it.
+ * The button used to BE the restart — one press, back to step one, every
+ * section again. #1194 put a launcher in front of it instead: the same press
+ * now opens a modal that explains the app and lets the user pick a section,
+ * with "walk the whole thing" still on the menu. The card keeps its shape
+ * because the change is in what the door opens onto, not in where the door is.
+ *
+ * `secondary` rather than `danger`: opening the tutorial costs the user
+ * nothing, so it does not belong in the same visual class as the Reset card
+ * below it.
  */
-export function SettingsTutorial({ onRestart, labels }: SettingsTutorialProps) {
+export function SettingsTutorial({ onOpen, labels }: SettingsTutorialProps) {
   return (
     <div className="flex flex-col gap-3" data-section-id="tutorial">
       <div className="flex flex-col gap-1">
@@ -41,10 +47,10 @@ export function SettingsTutorial({ onRestart, labels }: SettingsTutorialProps) {
         </p>
       </div>
       <div>
-        {/* Called, not forwarded: `onRestart` is a zero-arg callback, and
-            handing the Button's own reference over would deliver the click
-            event as its first argument. */}
-        <Button variant="secondary" onClick={() => onRestart()}>
+        {/* Called, not forwarded: `onOpen` is a zero-arg callback, and handing
+            the Button's own reference over would deliver the click event as
+            its first argument. */}
+        <Button variant="secondary" onClick={() => onOpen()}>
           {labels.button}
         </Button>
       </div>

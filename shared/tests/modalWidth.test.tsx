@@ -50,7 +50,7 @@ describe("Modal — the caller's width wins, not the class order (#830)", () => 
   });
 
   it("gives every size exactly one width", () => {
-    for (const size of ["sm", "md", "lg", "xl", "panel"] as const) {
+    for (const size of ["sm", "md", "lg", "xl", "panel", "full"] as const) {
       const { unmount } = render(
         <Modal open onClose={vi.fn()} title="T" size={size}>
           body
@@ -59,6 +59,20 @@ describe("Modal — the caller's width wins, not the class order (#830)", () => 
       expect(panelClasses().match(ONE_MAX_WIDTH)).toHaveLength(1);
       unmount();
     }
+  });
+
+  it("gives the take-over size a ceiling of its own, not none at all", () => {
+    render(
+      <Modal open onClose={vi.fn()} title="T" size="full">
+        body
+      </Modal>,
+    );
+
+    // #1194's launcher wants the whole window. `max-w-none` is still ONE
+    // max-w-* class rather than the absence of one, which is what keeps the
+    // default from riding along beside it — the whole point of the record.
+    expect(panelClasses().match(ONE_MAX_WIDTH)).toEqual([" max-w-none"]);
+    expect(panel()).not.toHaveClass("max-w-md");
   });
 
   it("keeps w-full so a window narrower than the size still fits", () => {

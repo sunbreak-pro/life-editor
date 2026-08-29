@@ -136,8 +136,8 @@
     },
     "tutorial": {
       "heading": "Tutorial",
-      "description": "A short guided walk through the app. It runs once the first time you open Life Editor — start it again from here whenever you like.",
-      "button": "Run the tutorial again"
+      "description": "A short guided walk through the app. It runs once the first time you open Life Editor — open it from here whenever you want a section shown to you again.",
+      "button": "Open the tutorial"
     },
     "reset": {
       "heading": "Reset & local data",
@@ -1054,6 +1054,28 @@
     "skip": "Skip",
     "progress": "{{current}} / {{total}}",
     "waitingForAction": "Try it to continue",
+    "launcher": {
+      "title": "Welcome to Life Editor",
+      "intro": "Life Editor is one place to plan a day and to record it. Check what is coming up in the morning, look back on it at night.",
+      "sectionsHeading": "What each section is for",
+      "next": "Next: choose what to learn",
+      "pickerTitle": "What would you like to be shown?",
+      "pickerIntro": "Pick a section and the tutorial opens it and starts there. Sections the tutorial does not cover yet cannot be picked.",
+      "back": "Back",
+      "full": "Walk the whole tutorial from the start",
+      "fullDescription": "Every section in order, beginning at step one.",
+      "comingSoon": "Not ready yet",
+      "summary": {
+        "briefing": "The day on one page: what is coming up, and what you said you would do.",
+        "schedule": "Your calendar and your todos, side by side on the time axis.",
+        "materials": "Notes and daily entries — the things you write and come back to.",
+        "connect": "The topic axis: pick a tag and read everything filed under it.",
+        "work": "A timer for focused work, with sound to sit behind it.",
+        "analytics": "What your records add up to over a week or a month.",
+        "settings": "Appearance, language, shortcuts — the knobs for the app itself.",
+        "trash": "Deleted items, kept here so you can put them back."
+      }
+    },
     "steps": {
       "briefingIntro": "This is the Briefing — the day on one page. You do not write it: Claude Code fills it in through the desktop app's MCP connection. On the web on its own it stays empty, which is normal rather than broken.",
       "scheduleCreateEvent": "Start here to put something on the calendar. Add one event — the tour waits until it exists, not until you press the button.",

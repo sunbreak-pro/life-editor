@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { TOUR_ANCHORS } from "../src/components/tour/anchors";
-import { TOUR_STEPS, TOUR_STEP_IDS } from "../src/components/tour/registry";
+import {
+  TOUR_STEPS,
+  TOUR_STEP_IDS,
+  TOUR_SECTION_IDS,
+  tourSectionIds,
+} from "../src/components/tour/registry";
+import { TOUR_SECTION_SUMMARY_KEYS } from "../src/components/tour/launcher";
+import { SECTION_IDS } from "../src/sections";
 import en from "../src/i18n/locales/en.json";
 import ja from "../src/i18n/locales/ja.json";
 import { SECTIONS } from "../src/sections";
@@ -98,6 +105,40 @@ describe("tour registry", () => {
       expect(typeof copy).toBe("string");
       expect(copy as string).toMatch(/Claude Code/);
       expect(copy as string).toMatch(/MCP/);
+    }
+  });
+
+  it("derives the startable sections from the steps themselves", () => {
+    // #1194: the launcher's menu IS this list. Deriving it is what keeps a
+    // section from being offered before its steps exist (and from staying
+    // hidden after they land) without anyone remembering to edit a menu.
+    expect(TOUR_SECTION_IDS).toEqual([
+      ...new Set(TOUR_STEPS.map((s) => s.section)),
+    ]);
+  });
+
+  it("lists a section once, in the order the tour walks it", () => {
+    // Registry order, not sidebar order: the menu should read the same way the
+    // full walkthrough does. Five Schedule steps must contribute ONE row.
+    expect(
+      tourSectionIds([
+        { ...TOUR_STEPS[0], section: "materials" },
+        { ...TOUR_STEPS[0], section: "briefing" },
+        { ...TOUR_STEPS[0], section: "materials" },
+      ]),
+    ).toEqual(["materials", "briefing"]);
+  });
+
+  it("has a launcher summary for every live section, in both catalogs", () => {
+    // The map is `satisfies Record<SectionId, TranslationKey>`, so tsc already
+    // refuses a missing or untranslated-in-en entry. ja is the half the types
+    // cannot see, and a section reaching the welcome page with a blank line
+    // under it is exactly what #1194's first page is made of.
+    for (const id of SECTION_IDS) {
+      const key = TOUR_SECTION_SUMMARY_KEYS[id];
+      expect(typeof key).toBe("string");
+      expect(typeof lookup(en, key)).toBe("string");
+      expect(typeof lookup(ja, key)).toBe("string");
     }
   });
 

@@ -11,6 +11,7 @@ import {
   SettingsReset,
   SettingsTutorial,
   SettingsTabsNav,
+  TourLauncherModal,
   SettingsDetailPanel,
   DeleteAccountDialog,
   EmptyState,
@@ -25,6 +26,8 @@ import {
   DEFAULT_SHORTCUTS,
   MAIN_SECTIONS,
   SECTIONS,
+  TOUR_SECTION_IDS,
+  TOUR_SECTION_SUMMARY_KEYS,
   PASSWORD_MIN_LENGTH,
   fontSizeToPx,
   useThemeContext,
@@ -38,6 +41,7 @@ import {
   useMediaQuery,
   useTranslation,
   type SettingsTabItem,
+  type TourLauncherSection,
   type ShortcutRow,
   type ShortcutCategory,
   type KeyBinding,
@@ -107,12 +111,16 @@ export function SettingsScreen() {
   const { dayStartHour, setDayStartHour } = useDayStartHourPref();
   const { initialView, setInitialView } = useScheduleInitialViewPref();
   /*
-   * Tutorial re-run (#1123). REQUIRED Provider, unlike useShortcutConfig below
-   * — the tour is global and mounted on every shell, so there is no null case
-   * and no card to hide. `restart` clears the stored position and walks from
-   * step one; the tour navigates itself off this screen from there.
+   * Tutorial (#1123, given a launcher by #1194). REQUIRED Provider, unlike
+   * useShortcutConfig below — the tour is global and mounted on every shell,
+   * so there is no null case and no card to hide.
+   *
+   * Two doors, both of which navigate off this screen on their own: `restart`
+   * clears the stored position and walks every section from step one, and
+   * `startSection` walks one section without touching that position at all.
    */
-  const { restart: restartTour } = useTourContext();
+  const { restart: restartTour, startSection: startTourSection } =
+    useTourContext();
   const isWide = useMediaQuery(WIDE_QUERY);
 
   // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
@@ -122,6 +130,7 @@ export function SettingsScreen() {
 
   const [tab, setTab] = useState<SettingsTabId>("general");
   const [tipsOpen, setTipsOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   /*
    * #1174: the detail panel is this screen's NAVIGATION now, not a decoration
@@ -173,6 +182,36 @@ export function SettingsScreen() {
         label: t(s.labelKey, { defaultValue: s.id }),
       })),
     ],
+    [t],
+  );
+
+  /*
+   * The tutorial launcher's menu (#1194).
+   *
+   * MAIN_SECTIONS, not SECTIONS: the launcher's first page is "what this app
+   * is", and Settings and Trash are not places the app is for — they are the
+   * same two rows `startupOptions` above leaves out, for the same reason.
+   *
+   * `hasSteps` is read off TOUR_SECTION_IDS, which the registry derives from
+   * the step list itself. A section therefore becomes pickable the moment its
+   * steps land and not one edit sooner, and no literal here can claim a
+   * walkthrough that does not exist. Summary copy is keyed the same way the
+   * label is — through a typed key map, so an untranslated section fails at
+   * compile time rather than showing a raw key (#726).
+   */
+  const tourSections: TourLauncherSection[] = useMemo(
+    () =>
+      MAIN_SECTIONS.map((s) => {
+        const Icon = s.icon;
+        const id = s.id as TourLauncherSection["id"];
+        return {
+          id,
+          label: t(s.labelKey),
+          summary: t(TOUR_SECTION_SUMMARY_KEYS[id]),
+          icon: <Icon size={18} />,
+          hasSteps: TOUR_SECTION_IDS.includes(id),
+        };
+      }),
     [t],
   );
 
@@ -533,7 +572,7 @@ export function SettingsScreen() {
 
           <div className={cardClass}>
             <SettingsTutorial
-              onRestart={restartTour}
+              onOpen={() => setTutorialOpen(true)}
               labels={{
                 heading: t("settings.tutorial.heading"),
                 description: t("settings.tutorial.description"),
@@ -624,6 +663,44 @@ export function SettingsScreen() {
           </Button>
         </div>
       </Modal>
+
+      {/*
+       * The tutorial launcher (#1194) — the overview + section picker the
+       * Tutorial card now opens instead of restarting the tour outright.
+       *
+       * Both choices CLOSE IT FIRST. The tour draws a bubble over the section
+       * it navigates to, and this dialog is a portal above everything: leaving
+       * it up would put the tutorial behind its own launcher. Closing and
+       * starting land in the same commit (React batches both setStates), so
+       * the tour's anchor probe never runs against a screen the modal is
+       * still covering.
+       */}
+      <TourLauncherModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        sections={tourSections}
+        onSelectSection={(section) => {
+          setTutorialOpen(false);
+          startTourSection(section);
+        }}
+        onStartFull={() => {
+          setTutorialOpen(false);
+          restartTour();
+        }}
+        labels={{
+          title: t("tour.launcher.title"),
+          intro: t("tour.launcher.intro"),
+          sectionsHeading: t("tour.launcher.sectionsHeading"),
+          next: t("tour.launcher.next"),
+          pickerTitle: t("tour.launcher.pickerTitle"),
+          pickerIntro: t("tour.launcher.pickerIntro"),
+          back: t("tour.launcher.back"),
+          close: t("common.close"),
+          full: t("tour.launcher.full"),
+          fullDescription: t("tour.launcher.fullDescription"),
+          comingSoon: t("tour.launcher.comingSoon"),
+        }}
+      />
 
       <DeleteAccountDialog
         open={deleteOpen}

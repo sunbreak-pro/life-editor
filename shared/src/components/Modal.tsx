@@ -3,8 +3,11 @@ import type { ReactNode } from "react";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { cn } from "./cn";
 
-/** Panel width. `panel` is a two-column work surface, not a dialog. */
-export type ModalSize = "sm" | "md" | "lg" | "xl" | "panel";
+/**
+ * Panel width. `panel` is a two-column work surface, not a dialog; `full` is a
+ * take-over surface that keeps only the backdrop's own gutter.
+ */
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "panel" | "full";
 
 /*
  * One max-width per size, emitted INSTEAD of the default — never alongside it.
@@ -25,6 +28,9 @@ const MODAL_MAX_WIDTH: Record<ModalSize, string> = {
   lg: "max-w-lg", // 512px — item detail overlays
   xl: "max-w-[560px]", // shortcut editor
   panel: "max-w-[860px]", // two-column master–detail (tag editor, #740)
+  // Everything but the wrapper's own p-4 gutter. Still exactly ONE max-w-*
+  // class, so the emission-order trap above cannot reach it (#1194).
+  full: "max-w-none",
 };
 
 export interface ModalProps {
