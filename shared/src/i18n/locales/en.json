@@ -317,6 +317,13 @@
       "delete": "Delete template",
       "use": "Create a note from this template",
       "pickHint": "Pick a template, or create a new one.",
+      "applyMenuEntry": "Apply a template",
+      "applyPickTitle": "Apply a template",
+      "applyPickHint": "Pick the template to pour into this note.",
+      "applyEmpty": "No templates to apply yet",
+      "applyConfirmTitle": "Replace the body?",
+      "applyConfirmBody": "This replaces the note body with “{{name}}”. Whatever is written now is discarded.",
+      "applyConfirm": "Apply",
       "noTagsHint": "Templates carry no tags or links — the note you create from one does.",
       "bodyPlaceholder": "Write the template…"
     },

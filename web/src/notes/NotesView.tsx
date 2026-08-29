@@ -11,6 +11,7 @@ import {
   ExcerptListItem,
   SkeletonList,
   AddPill,
+  TemplateApplyPanel,
   cn,
   type NoteSortMode,
   type DataService,
@@ -30,6 +31,7 @@ import { NoteTemplateHost } from "./NoteTemplateHost";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
+import { useNoteTemplateApply } from "./hooks/useNoteTemplateApply";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -195,6 +197,22 @@ export function NotesView({
 
   const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
 
+  // Pouring a saved template into the open note (#1181). The picker reads
+  // through the DataService (templates are not on the notes context); the WRITE
+  // is the context, because the thing being changed is an ordinary note.
+  const templateApply = useNoteTemplateApply(dataService);
+  /*
+   * Remount signal for the body editor. RichTextEditor ignores initialContent
+   * once mounted, so replacing the body under the same note has to change the
+   * key or the user keeps looking at what they just agreed to discard.
+   *
+   * The unmount FLUSH is not a hazard here: the editor persists on an 800ms
+   * debounce, and reaching this point costs three deliberate clicks (kebab →
+   * entry → confirm), so anything typed before them has long since been
+   * written.
+   */
+  const [bodyEpoch, setBodyEpoch] = useState(0);
+
   const selected = notes.selectedNote;
 
   /*
@@ -347,6 +365,18 @@ export function NotesView({
     notifyTour("item-created");
   }, [createNote, isWide, closeSidebar, notifyTour]);
 
+  // #1181: the confirmed apply. Body only — the note keeps its own title, and
+  // the epoch bump is what makes the editor show the new body (see above).
+  const updateNote = notes.updateNote;
+  const applyPending = templateApply.pending;
+  const closeApply = templateApply.close;
+  const handleApplyTemplate = useCallback(() => {
+    if (!selected || !applyPending) return;
+    updateNote(selected.id, { content: applyPending.content });
+    setBodyEpoch((n) => n + 1);
+    closeApply();
+  }, [applyPending, closeApply, selected, updateNote]);
+
   if (notes.isLoading) {
     return (
       <div className="px-4 pt-4">
@@ -378,6 +408,7 @@ export function NotesView({
     content: t("materials.notes.content"),
     lockedHint: t("materials.notes.lockedHint"),
     createTemplate: t("materials.templates.menuEntry"),
+    applyTemplate: t("materials.templates.applyMenuEntry"),
   };
 
   // ---- The list (the detail panel's content, both widths) --------------
@@ -466,6 +497,15 @@ export function NotesView({
           onOpenTemplates={
             dataService ? () => setTemplatesOpen(true) : undefined
           }
+          // #1181: same DataService condition, plus the password gate. The
+          // lock covers the body (#526) and applying REPLACES the body, so
+          // offering it while the gate is up would let a note be overwritten
+          // by someone who cannot see what they are overwriting.
+          onApplyTemplate={
+            dataService && !password.isGated(selected)
+              ? templateApply.begin
+              : undefined
+          }
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue). Wide only, which is
           // where #884 put them; narrow has never had a Links affordance, and
@@ -495,6 +535,7 @@ export function NotesView({
               <NoteBodyEditor
                 note={selected}
                 linking={linking}
+                remountToken={bodyEpoch}
                 onNavigateToItem={onNavigateToItem}
                 onSave={(id, content) => notes.updateNote(id, { content })}
                 // Borderless — sit flush inside the detail card so the note
@@ -590,6 +631,31 @@ export function NotesView({
           }
         />
       )}
+
+      {/* Pouring a template into this note (#1181) — picker, then confirm.
+          Mounted at the view level rather than beside the kebab so the dialog
+          survives the menu closing under it. */}
+      <TemplateApplyPanel
+        open={templateApply.open}
+        templates={templateApply.templates}
+        loading={templateApply.loading}
+        pending={templateApply.pending}
+        onPick={templateApply.pick}
+        onConfirm={handleApplyTemplate}
+        onCancel={templateApply.close}
+        labels={{
+          pickTitle: t("materials.templates.applyPickTitle"),
+          confirmTitle: t("materials.templates.applyConfirmTitle"),
+          pickHint: t("materials.templates.applyPickHint"),
+          empty: t("materials.templates.applyEmpty"),
+          untitled: t("materials.templates.untitled"),
+          loading: t("common.loading"),
+          confirmBody: (name) =>
+            t("materials.templates.applyConfirmBody", { name }),
+          cancel: t("common.cancel"),
+          apply: t("materials.templates.applyConfirm"),
+        }}
+      />
 
       {password.dialog && (
         <NotePasswordDialog
