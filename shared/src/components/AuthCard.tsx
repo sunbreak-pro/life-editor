@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 import { cn } from "./cn";
 import { AUTH_SURFACE_CLASS } from "./authSurface";
@@ -56,6 +56,13 @@ export interface AuthCardProps {
   /** Opens the reset-request card. The link renders in sign-in mode only. */
   onForgotPassword: () => void;
   labels: AuthCardLabels;
+  /**
+   * Policy / terms links, rendered at the foot of the card (#1198). A node
+   * rather than labels: the host composes the sentence, decides which mode
+   * needs a consent line, and owns where the links lead — this card only
+   * has to place them where a signer-up will see them before submitting.
+   */
+  legalFooter?: ReactNode;
   /** Floor for a password being CREATED — sign-up mode only (see below). */
   passwordMinLength?: number;
   className?: string;
@@ -82,6 +89,7 @@ export function AuthCard({
   onSubmit,
   onForgotPassword,
   labels,
+  legalFooter,
   passwordMinLength = PASSWORD_MIN_LENGTH,
   className,
 }: AuthCardProps) {
@@ -206,6 +214,8 @@ export function AuthCard({
       <p className="text-center text-xs text-lumen-text-tertiary">
         {mode === "signIn" ? labels.footerSignIn : labels.footerSignUp}
       </p>
+
+      {legalFooter}
     </form>
   );
 }
