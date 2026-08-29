@@ -1,5 +1,34 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-29 - #1168 merge 後の 2 巡目（#1187 のツアーアンカー付け替え）
+
+#### 概要
+
+PR #1168（#1124 のツアー）が main に着地したため、予告どおり後着地側の #1187 が 6 ファイルの衝突を解消し、Todo 系ツアーアンカー 3 本を退役した Kanban 板からサイドバーのトレイへ付け替えた。MERGEABLE + CLEAN に復帰（`b2753770`）。
+
+#### 変更点
+
+- **コンフリクト解消（6 件）**: `useShellChrome.tsx` は #1153 のタブ帯退役を採用（`scheduleTabDefs` ごと削除・不要になった `TOUR_ANCHORS` import も落とした）/ `CalendarTab.tsx` は import 両取り / `KanbanView` `KanbanBoardSurface` `MobileTodoList` `kanbanView.test.tsx` の 4 件は modify/delete で削除を採用
+- **アンカーの付け替え**: `schedule-todo-tab` → サイドバーの switcher（`SegmentedOption` に任意の `tourId` を新設し `ScheduleSidebarTab` は構造的に素通し。`HeaderTabs` が #1124 で持った受け口と同型）/ `schedule-todo-add` → トレイの作成ピル / `schedule-todo-board` → トレイ本体
+- **報告の付け替え**: 「Todo を開いた」は `ScheduleSidebar` の effect（`RightSidebarPortal` が閉じている間 children を描かないので、生きている = 見えている）。完了は `CalendarTab` で `setTodoStatus` / `toggleTodoStatus` を源流で包み、トレイのチェック・詳細のトグル・詳細のステータス行の 3 経路を 1 箇所で拾う。作成は `handleCreateTodo`（唯一 todo を作る経路）
+- **文言**: `scheduleCompleteTodo` が「カードを完了列へドラッグ」、`scheduleOpenTodos` が「Todo シート」と消えた板を教えていたので en / ja とも現在の面に合わせた
+- **テスト**: 板と一緒に消えた 3 ケースを `web/tests/scheduleTourTodos.test.tsx` へ（サイドバー側は実描画 8 件・`CalendarTab` 側はソーステキスト assertion）。`scheduleCopy.test.ts` に「`tourId` を持つのは todo タブだけ」を追加
+- **検証**: CI `verify` の全ステップ + `docs-lint` をローカルで exit 0（shared 2,533 / web 836）
+
+### 2026-08-29 - PR #1168 / #1187 のコンフリクト解消
+
+#### 概要
+
+並行して main に着地した #1167（Materials のツアーステップ）と #1148（narrow の日別リスト退役）が原因で衝突していた 2 本の PR を、最新の `origin/main` に対して解決して push した。両方 MERGEABLE + CLEAN に復帰。
+
+#### 変更点
+
+- **#1168（`claude/sched-1124-schedule-tour-steps`・5 件）**: tour registry のヘッダコメント（Schedule 節と Materials 節を両方残す）/ en・ja の `tour.steps`（両側のキーを歩く順に）/ `shared/src/index.ts` の tour フック export（両方）/ `CalendarNarrowLayout.tsx`（#1148 の退役を採用し、`schedule-add-event` アンカーを `ScheduleSidebar` の見出し行のピルへ移設 — wide 側は `ScheduleToolbar` のままで、両者は `onAdd` の有無により同時に描画されない）
+- **重複フックの解消**: `useTourAction` が自前で作っていた optional context hook を、main が同目的で足した `useTourContextOptional` に寄せた（マーカーに出ない衝突）
+- **#1187（`claude/sched-1153-retire-todo-tab`・4 件）**: `CalendarTab.tsx` 3 hunk（import は両取り / `openSidebar` のコメントは両方の理由を併記 / 3 つ目は #1148 の narrow 値と #1153 の todo intent という無関係な 2 ブロックだったので並置）/ `ScheduleSidebar.tsx`（`activeScheduleSidebarTab` は呼び出し側ごと退役済みなので削除を採用）/ `scheduleSidebar.test.tsx`（両側の describe を残す）/ `mobile-scope.md`（#4 行は main 版、#1153 行はこちら）
+- **検証**: 両ブランチとも CI `verify` の全ステップ + `docs-lint` をローカルで exit 0。#1168 は GitHub Actions も緑
+- **残件**: #1124 のツアーアンカー 3 本（`scheduleTodoTab` / `scheduleTodoAdd` / `scheduleTodoBoard`）は #1153 が削除する面に付いている。付け替えは後着地側の担当（`2026-08-29-schedule-todo-tab-retirement.md` L100）で、#1168 を先に merge するなら #1187 側でもう 1 往復要る
+
 ### 2026-08-29 - /goal 4 件（#1140 / #1124 / #1148 / #1153）を全部 PR まで
 
 #### 概要
