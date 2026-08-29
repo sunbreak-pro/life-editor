@@ -43,6 +43,25 @@ import { TourContext, type TourContextValue } from "./TourContextValue";
  * the anchors exist yet", which is exactly the state of the app until the
  * section Issues add them. Marking it complete there would silently retire the
  * tour before anyone saw it.
+ *
+ * GIVING UP HAS A DIRECTION (#1193). Skipping forward is right for a fresh
+ * run — it is scanning for the first anchor the app actually has. It is wrong
+ * for a RESUMED one, because the position that was stored is precisely a step
+ * the user had reached, and the later steps in a section are the ones that
+ * assume what the earlier ones set up: a note is selected, the todo tab is
+ * open. A reload destroys exactly that, so walking forward from the stored
+ * point meets the same class of anchor every time and the run ends having
+ * shown nothing. Since a run that showed nothing does not move the resume
+ * point (above), the next reload repeats it — the tour is never seen again,
+ * with its progress sitting there saying it is unfinished.
+ *
+ * So a resumed run that has not managed to show anything yet walks BACKWARD
+ * instead, to a step whose anchor stands on its own. That both lands and
+ * REBUILDS the state the stored step needed: the user is asked to make a note
+ * again, and making one selects it, which is what puts the later anchors back
+ * in the document. Once any step has been shown the direction flips forward
+ * for the rest of the run — from there the user is walking the tour, not
+ * recovering a position.
  */
 
 /** Monotonic-ish clock, falling back where `performance` is absent. */
@@ -126,6 +145,11 @@ export function TourProvider({
    */
   const startSectionRef = useRef<SectionId | null>(null);
   const navigatedRef = useRef(false);
+  /**
+   * This run began at a STORED position rather than at the top — the one case
+   * where giving up walks backward instead of forward (#1193, see the header).
+   */
+  const resumedRef = useRef(false);
 
   // Synced in an effect, not during render (react-hooks/refs — the same shape
   // NoteDetailPanel's onCommitRef uses). `useRef(x)` seeds each one correctly
@@ -205,6 +229,9 @@ export function TourProvider({
     const list = stepsRef.current;
     if (isRunning || list.length === 0) return;
     const resumeAt = list.findIndex((s) => s.id === progressRef.current.stepId);
+    // `> 0`, not `>= 0`: resuming AT the first step is indistinguishable from
+    // starting fresh, and there is nothing behind it to walk back to.
+    resumedRef.current = resumeAt > 0;
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
     startSectionRef.current = currentSectionRef.current;
@@ -218,6 +245,7 @@ export function TourProvider({
   }, [isRunning, persist]);
 
   const restart = useCallback(() => {
+    resumedRef.current = false;
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
     startSectionRef.current = currentSectionRef.current;
@@ -227,6 +255,33 @@ export function TourProvider({
     setIsRunning(stepsRef.current.length > 0);
     setProgress({ stepId: null, completed: false, skipped: false });
   }, [setProgress]);
+
+  /**
+   * Give up on the step at `from`, in whichever direction can still land
+   * (#1193 — the header explains why the direction is not always forward).
+   *
+   * Backward only while a resumed run has shown NOTHING. Both halves of that
+   * condition are load-bearing: a fresh run scanning from step 0 must be
+   * allowed to walk past steps whose sections have no anchors yet, which is
+   * the fallback #1122 built the probe around; and once a step HAS been shown,
+   * a later missing anchor is an ordinary skip (`materials-tag-follow` only
+   * renders with two tag groups) and must not send the user back through
+   * steps they just finished.
+   *
+   * Running out of earlier steps ends the run rather than turning around. The
+   * end branch of `goTo` is what handles that correctly — with nothing shown
+   * it writes no `completed` and puts the user back where the run found them.
+   */
+  const giveUp = useCallback(
+    (from: number) => {
+      if (resumedRef.current && !shownAnyRef.current) {
+        goTo(from > 0 ? from - 1 : stepsRef.current.length, "gaveUp");
+        return;
+      }
+      goTo(from + 1, "gaveUp");
+    },
+    [goTo],
+  );
 
   const next = useCallback(() => {
     if (!isRunning) return;
@@ -297,9 +352,9 @@ export function TourProvider({
       }
       const navigate = navigateRef.current;
       if (!navigate) {
-        // No way to reach this step's section. Skipping keeps the rest of the
+        // No way to reach this step's section. Giving up keeps the rest of the
         // tour walkable instead of stalling on a section we cannot open.
-        goTo(index + 1, "gaveUp");
+        giveUp(index);
         return;
       }
       navigate(step.section);
@@ -322,13 +377,22 @@ export function TourProvider({
         raf = requestAnimationFrame(probe);
         return;
       }
-      goTo(index + 1, "gaveUp");
+      giveUp(index);
     };
     probe();
     return () => {
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [anchorTimeoutMs, currentSection, goTo, index, isRunning, pause, stepsKey]);
+  }, [
+    anchorTimeoutMs,
+    currentSection,
+    giveUp,
+    goTo,
+    index,
+    isRunning,
+    pause,
+    stepsKey,
+  ]);
 
   /*
    * Offer the tour once per mount, when the host asked for it (#1123).
