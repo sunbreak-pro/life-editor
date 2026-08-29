@@ -123,7 +123,11 @@
       "button": "Reset preferences",
       "confirm": "Reset all local preferences and reload the app? This clears theme, font, shortcut, and layout choices on this device. Your synced data is not affected.",
       "confirmButton": "Reset and reload"
-    }
+    },
+    "fontSizePresetSmall": "Small",
+    "fontSizePresetMedium": "Medium",
+    "fontSizePresetLarge": "Large",
+    "fontSizePx": "{{px}}px"
   },
   "timerSettings": {
     "targetSessions": "Daily Target Sessions"
