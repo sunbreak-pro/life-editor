@@ -49,6 +49,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useShortcutConfig: () => null,
     useStartupSectionPref: () => ({ pref: "last", setPref: vi.fn() }),
     useDayStartHourPref: () => ({ dayStartHour: 4, setDayStartHour: vi.fn() }),
+    // The tour Provider is not mounted in these renders, and useTourContext
+    // throws outside it by design (#1122) — Settings' Tutorial card (#1123)
+    // only needs a callable `restart` here.
+    useTourContext: () => ({ restart: vi.fn() }),
     resetLocalPreferences: vi.fn(),
     getSession: state.getSession,
     updatePassword: state.updatePassword,

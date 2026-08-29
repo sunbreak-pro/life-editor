@@ -112,6 +112,11 @@
         "generic": "Could not change the password. Please wait a moment and try again."
       }
     },
+    "tutorial": {
+      "heading": "Tutorial",
+      "description": "A short guided walk through the app. It runs once the first time you open Life Editor — start it again from here whenever you like.",
+      "button": "Run the tutorial again"
+    },
     "reset": {
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
