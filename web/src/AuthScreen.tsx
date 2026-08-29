@@ -5,6 +5,7 @@ import {
   PASSWORD_MIN_LENGTH,
   PasswordRecoveryCard,
   PasswordResetRequestCard,
+  i18n,
   resendConfirmationEmail,
   sendPasswordResetEmail,
   signIn,
@@ -15,6 +16,11 @@ import {
   type TranslationKey,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
+import { LegalView } from "./legal/LegalView";
+import {
+  legalDocument,
+  type LegalDocumentId,
+} from "./legal/legalContent";
 
 /*
  * Phase 1 auth entry (Email + Password), target-IA D8 (ClaudeDesign Auth
@@ -38,6 +44,10 @@ import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
  * App rather than from local state because the recovery link creates a REAL
  * session: without that gate the app would have swapped to MainScreen and the
  * user would never see a way to finish the reset.
+ *
+ * The policy / terms reader (#1198) sits beside them rather than on the
+ * canvas: it is a full page, not a card, and it takes over the screen when
+ * either the footer links or a `?legal=` URL asks for it.
  */
 
 export interface AuthScreenProps {
@@ -73,6 +83,46 @@ function errorKeyFor(raw: string): TranslationKey {
   return "auth.errors.generic";
 }
 
+/*
+ * The open document, kept in the address bar (#1198).
+ *
+ * There is no router (§3.2), and a policy nobody can link to is only half a
+ * policy — an app store form, a mail, a message to a friend all want a URL.
+ * `?legal=privacy` is the cheapest thing that gives one: the SPA is served
+ * for any query string, so the parameter survives a reload and a shared link
+ * opens straight onto the document.
+ */
+function readLegalParam(): LegalDocumentId | null {
+  try {
+    const value = new URLSearchParams(window.location.search).get("legal");
+    return value === "privacy" || value === "terms" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLegalParam(id: LegalDocumentId | null): void {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (id) params.set("legal", id);
+    else params.delete("legal");
+    const query = params.toString();
+    const { pathname, hash } = window.location;
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${pathname}${query ? `?${query}` : ""}${hash}`,
+    );
+  } catch {
+    // Then the document still opens; only the address bar misses out.
+  }
+}
+
+const LEGAL_LINK_CLASS =
+  "rounded-lumen-sm text-xs text-lumen-text-secondary underline " +
+  "underline-offset-2 transition-colors hover:text-lumen-text " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+
 type View = "credentials" | "resetRequest" | "confirmPending";
 
 export function AuthScreen({
@@ -102,6 +152,12 @@ export function AuthScreen({
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
+
+  // Policy / terms reader (#1198). Read from the URL on mount so a shared
+  // link lands on the document rather than on the sign-in form.
+  const [legalDoc, setLegalDoc] = useState<LegalDocumentId | null>(
+    readLegalParam,
+  );
 
   const recoveryMessages = useMemo(
     () => ({
@@ -227,6 +283,66 @@ export function AuthScreen({
     setView("resetRequest");
   };
 
+  const openLegal = (id: LegalDocumentId) => {
+    setLegalDoc(id);
+    writeLegalParam(id);
+  };
+
+  const closeLegal = () => {
+    setLegalDoc(null);
+    writeLegalParam(null);
+  };
+
+  /*
+   * A document wins over every card, including the recovery one: the reader
+   * is a full page, and the only way in is a deliberate click or a link that
+   * named it. Coming back returns to whatever card was underneath.
+   */
+  if (legalDoc) {
+    return (
+      <LegalView
+        document={legalDocument(legalDoc, i18n.language)}
+        backLabel={t("auth.legal.back")}
+        updatedLabel={t("auth.legal.updated")}
+        onBack={closeLegal}
+      />
+    );
+  }
+
+  /*
+   * Shown on the credentials card in both modes — the terms bind a reader as
+   * much as a signer-up — with the consent sentence added only where an
+   * account is actually being created (#1198).
+   */
+  const legalFooter = (
+    <div className="flex flex-col items-center gap-1.5">
+      {mode === "signUp" ? (
+        <p className="text-center text-xs text-lumen-text-tertiary">
+          {t("auth.legal.consent")}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-center gap-x-2">
+        <button
+          type="button"
+          onClick={() => openLegal("terms")}
+          className={LEGAL_LINK_CLASS}
+        >
+          {t("auth.legal.terms")}
+        </button>
+        <span aria-hidden className="text-xs text-lumen-text-tertiary">
+          ·
+        </span>
+        <button
+          type="button"
+          onClick={() => openLegal("privacy")}
+          className={LEGAL_LINK_CLASS}
+        >
+          {t("auth.legal.privacy")}
+        </button>
+      </div>
+    </div>
+  );
+
   let card: React.JSX.Element;
   if (recovery) {
     card = (
@@ -315,6 +431,7 @@ export function AuthScreen({
         onSubmit={() => void submit()}
         onForgotPassword={openResetRequest}
         labels={labels}
+        legalFooter={legalFooter}
       />
     );
   }
