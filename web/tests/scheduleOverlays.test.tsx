@@ -33,16 +33,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-/*
- * The calendars modal renders <CalendarView>, which reads CalendarContext. It
- * is closed in every case here, so the body never mounts — but the module is
- * still imported, and stubbing keeps that import from dragging a Provider
- * requirement into a suite about mounting order.
- */
-vi.mock("../src/schedule/CalendarView", () => ({
-  CalendarView: () => <div data-testid="calendar-view" />,
-}));
-
 const ITEM: ScheduleItem = {
   id: "event-1",
   date: "2026-08-16",
@@ -70,12 +60,41 @@ const CHIP: TodoCalendarChip = {
   completed: false,
 };
 
+/** A closed panel needs a prop bag; the panel itself is covered elsewhere. */
+const TAG_FILTER_PANEL: ScheduleOverlaysProps["tagFilter"]["panel"] = {
+  tags: [],
+  selectedTagIds: [],
+  onToggleTag: vi.fn(),
+  onClear: vi.fn(),
+  groups: [],
+  onSaveGroup: vi.fn(),
+  onApplyGroup: vi.fn(),
+  onRenameGroup: vi.fn(),
+  onDeleteGroup: vi.fn(),
+  labels: {
+    tagsHeading: "tags",
+    tagsLabel: "tags",
+    noTags: "no tags",
+    tagsLoading: "loading",
+    clear: "clear",
+    selectedCount: "0 selected",
+    groupsHeading: "groups",
+    groupsEmpty: "no groups",
+    namePlaceholder: "name",
+    save: "save",
+    saveHint: "hint",
+    apply: "apply",
+    renameGroup: "rename",
+    groupEmpty: "empty",
+  },
+};
+
 function renderOverlays(
   overrides: {
     isWide?: boolean;
     popover?: Partial<ScheduleOverlaysProps["popover"]>;
     create?: Partial<ScheduleOverlaysProps["create"]>;
-    calendars?: Partial<ScheduleOverlaysProps["calendars"]>;
+    tagFilter?: Partial<ScheduleOverlaysProps["tagFilter"]>;
     scope?: Partial<ScheduleOverlaysProps["scope"]>;
     confirm?: Partial<ScheduleOverlaysProps["confirm"]>;
     frames?: Partial<ScheduleOverlaysProps["frames"]>;
@@ -125,7 +144,14 @@ function renderOverlays(
       labels: CREATE_LABELS,
       ...overrides.create,
     },
-    calendars: { open: false, onClose: vi.fn(), ...overrides.calendars },
+    // #1173: the panel is pure presentation, so an empty prop bag is a valid
+    // closed modal — nothing here reaches a Context the way <CalendarView> did.
+    tagFilter: {
+      open: false,
+      onClose: vi.fn(),
+      panel: TAG_FILTER_PANEL,
+      ...overrides.tagFilter,
+    },
     scope: {
       request: null,
       onChoose: vi.fn(),

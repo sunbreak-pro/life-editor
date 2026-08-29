@@ -2,12 +2,12 @@ import { useCallback, useMemo, useState } from "react";
 import {
   applyCalendarLens,
   applyRepeatFilter,
-  buildCalendarMemberIds,
-  pickSelectableCalendars,
-  type CalendarNode,
+  buildTagMemberIds,
+  pickGroupTagIds,
   type MonthGridItem,
   type ScheduleItem,
   type StatusFilterChip,
+  type TagGroupNode,
   type TodoCalendarChip,
   type WeekTimeGridItem,
   type WikiTagUnified,
@@ -19,27 +19,34 @@ import { toMonthGridItems, toWeekGridItems } from "./scheduleViewModels";
  * What the calendar actually DRAWS (#889, extracted from CalendarTab).
  *
  * Two filters hide rows — #466 folds away everything a repeat generated, #468
- * keeps only what carries one calendar's tag — and everything downstream (the
+ * keeps only what carries the lens's tags — and everything downstream (the
  * week grid, the month grid, the Mobile day list, the chip counts) is derived
  * from their result. State, controls and derivation come out together because
- * each of the four rules below spans all three, and each is invisible in the
+ * each of the five rules below spans all three, and each is invisible in the
  * markup:
  *
  *   1. The lens runs AFTER the repeat filter, and the order matters for the
  *      COUNTS, not the contents: a row the repeat filter already took away
  *      must not be counted a second time, or "N hidden" overshoots the rows
  *      actually missing.
- *   2. `isWide` gates the MEMBERSHIP SET, not each consumer. The chip row that
- *      turns the lens off only renders on Desktop, so a window narrowed below
- *      768px with a calendar picked would otherwise leave the grid filtered
- *      with nothing on screen able to clear it. Gating one set means every
- *      layer below — grid rows, todo chips, counts — un-narrows together.
+ *   2. `isWide` gates the MEMBERSHIP SET, not each consumer. The controls that
+ *      turn the lens off (the chip row and the toolbar's filter button) only
+ *      render on Desktop, so a window narrowed below 768px with tags picked
+ *      would otherwise leave the grid filtered with nothing on screen able to
+ *      clear it. Gating one set means every layer below — grid rows, todo
+ *      chips, counts — un-narrows together.
  *   3. Flipping the repeat filter ON drops a repeat-generated selection
  *      (#466). The popover and the editor both read the selection, so leaving
  *      it would point them at a row that is no longer drawn.
- *   4. Picking a calendar the selection is not in drops it the same way
- *      (#468) — but CLEARING the lens never hides anything, so it keeps the
- *      selection.
+ *   4. Narrowing the tag set drops a selection that falls outside it (#468) —
+ *      but WIDENING it, and clearing it entirely, never hide anything, so
+ *      those keep the selection.
+ *   5. The lit chip is DERIVED from the tag set, never stored beside it
+ *      (#1173). A group is applied by copying its tags into the tick list, so
+ *      "which group is on" is a question about the ticks; storing the answer
+ *      separately would let the two disagree the moment the user unticks one
+ *      tag of an applied group — the chip would stay lit over a set that is no
+ *      longer that group.
  *
  * Rule 1 was a comment. Rules 3 and 4 were two nearly-identical callbacks 200
  * lines from the filters they guard, which is how one of them ends up updated
@@ -57,7 +64,8 @@ export interface UseScheduleGridFiltersArgs {
   rangeItems: ScheduleItem[];
   /** The same window's todo chips (#280), unfiltered. */
   rangeTodoChips: TodoCalendarChip[];
-  calendars: CalendarNode[];
+  /** Saved tag groups, offered as the chip row (#1173). */
+  tagGroups: TagGroupNode[];
   allTags: WikiTagUnified[];
   allAssignments: WikiTagAssignmentUnified[];
   isWide: boolean;
@@ -72,10 +80,17 @@ export interface UseScheduleGridFiltersArgs {
   setPopover: (popover: null) => void;
 }
 
+/** Same members, order-independent — the test behind rule 5. */
+function sameTagSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const seen = new Set(a);
+  return b.every((id) => seen.has(id));
+}
+
 export function useScheduleGridFilters({
   rangeItems,
   rangeTodoChips,
-  calendars,
+  tagGroups,
   allTags,
   allAssignments,
   isWide,
@@ -86,71 +101,106 @@ export function useScheduleGridFilters({
   setPopover,
 }: UseScheduleGridFiltersArgs) {
   const [repeatsHidden, setRepeatsHidden] = useState(false);
-  const [calendarFilterId, setCalendarFilterId] = useState<string | null>(null);
+  const [pickedTagIds, setPickedTagIds] = useState<string[]>([]);
 
   const { visible: repeatFilteredItems, hiddenCount: hiddenRepeats } = useMemo(
     () => applyRepeatFilter(rangeItems, repeatsHidden),
     [rangeItems, repeatsHidden],
   );
 
-  // Only calendars whose tag still exists can be chosen — see
-  // pickSelectableCalendars for why a dangling one is never offered. The ledger
-  // modal shows those as invalid with delete as the only action (CalendarView).
   const activeTagIds = useMemo(
     () => new Set(allTags.map((tag) => tag.id)),
     [allTags],
   );
-  const selectableCalendars = useMemo(
-    () => pickSelectableCalendars(calendars, activeTagIds),
-    [calendars, activeTagIds],
+  // A tag soft-deleted mid-session leaves its id behind in the tick list and
+  // in every group that held it. Resolving through the ACTIVE ids is what
+  // makes that degrade to "one fewer tag in the filter" instead of a grid that
+  // silently drops the rows it can no longer match.
+  const selectedTagIds = useMemo(
+    () => pickGroupTagIds(pickedTagIds, activeTagIds),
+    [pickedTagIds, activeTagIds],
   );
-  // Resolving the selection through the SELECTABLE list is what makes a tag
-  // deleted mid-session degrade to "no filter" instead of an empty grid with
-  // no lit chip to turn off.
-  const activeCalendar = useMemo(
-    () => selectableCalendars.find((c) => c.id === calendarFilterId) ?? null,
-    [selectableCalendars, calendarFilterId],
+  // Groups, with their dead tags dropped the same way. A group left with none
+  // is kept OUT of the chip row: it can only ever empty the grid, and a chip
+  // that always empties the grid reads as a bug (the rule the retired
+  // `pickSelectableCalendars` enforced for a dangling one-tag calendar).
+  const liveGroups = useMemo(
+    () =>
+      tagGroups
+        .map((group) => ({
+          ...group,
+          tagIds: pickGroupTagIds(group.tagIds, activeTagIds),
+        }))
+        .filter((group) => group.tagIds.length > 0),
+    [tagGroups, activeTagIds],
+  );
+  // Rule 5: derived, never stored.
+  const activeGroupId = useMemo(
+    () =>
+      selectedTagIds.length === 0
+        ? null
+        : (liveGroups.find((g) => sameTagSet(g.tagIds, selectedTagIds))?.id ??
+          null),
+    [liveGroups, selectedTagIds],
   );
   // Rule 2 above: THE single application point of the lens, and the only place
   // `isWide` gates it.
-  const calendarMemberIds = useMemo(
+  const tagMemberIds = useMemo(
     () =>
-      isWide && activeCalendar
-        ? buildCalendarMemberIds(allAssignments, activeCalendar.tagId)
+      isWide && selectedTagIds.length > 0
+        ? buildTagMemberIds(allAssignments, selectedTagIds)
         : null,
-    [isWide, activeCalendar, allAssignments],
+    [isWide, selectedTagIds, allAssignments],
   );
   // Both grid layers go through the lens together. Narrowing only the schedule
-  // rows would hide the other calendars' events while every todo chip stayed
-  // put — todos carry the same life-tags (KanbanView) and a chip's id IS the
-  // todo's items_meta.id, so the same membership set applies unchanged.
-  // `hiddenByCalendar` is the total across both, so the "N hidden" line counts
+  // rows would hide the other tags' events while every todo chip stayed put —
+  // todos carry the same life-tags (KanbanView) and a chip's id IS the todo's
+  // items_meta.id, so the same membership set applies unchanged.
+  // `hiddenByTags` is the total across both, so the "N hidden" line counts
   // the todo chips it actually took away.
   const {
     events: gridRangeItems,
     todoChips: gridTodoChips,
-    hiddenCount: hiddenByCalendar,
+    hiddenCount: hiddenByTags,
   } = useMemo(
-    () =>
-      applyCalendarLens(repeatFilteredItems, rangeTodoChips, calendarMemberIds),
-    [repeatFilteredItems, rangeTodoChips, calendarMemberIds],
+    () => applyCalendarLens(repeatFilteredItems, rangeTodoChips, tagMemberIds),
+    [repeatFilteredItems, rangeTodoChips, tagMemberIds],
   );
 
   // Chip row data. The count comes out of the SAME call the grid uses, over the
   // same post-repeat lists, so the number on a chip is exactly what clicking it
   // leaves on screen — including the todo chips.
-  const calendarChips = useMemo<StatusFilterChip[]>(
+  const groupChips = useMemo<StatusFilterChip[]>(
     () =>
-      selectableCalendars.map((c) => ({
-        id: c.id,
-        label: c.title,
+      liveGroups.map((group) => ({
+        id: group.id,
+        label: group.name,
         count: applyCalendarLens(
           repeatFilteredItems,
           rangeTodoChips,
-          buildCalendarMemberIds(allAssignments, c.tagId),
+          buildTagMemberIds(allAssignments, group.tagIds),
         ).visibleCount,
       })),
-    [selectableCalendars, repeatFilteredItems, rangeTodoChips, allAssignments],
+    [liveGroups, repeatFilteredItems, rangeTodoChips, allAssignments],
+  );
+
+  // Per-tag counts for the filter panel's checkbox list. Same derivation as a
+  // chip's, one tag wide: the number next to a tag is what ticking it ALONE
+  // would leave, which is the only reading that survives the union semantics
+  // (ticking a second tag can only ever add rows).
+  const tagCounts = useMemo<Map<string, number>>(
+    () =>
+      new Map(
+        allTags.map((tag) => [
+          tag.id,
+          applyCalendarLens(
+            repeatFilteredItems,
+            rangeTodoChips,
+            buildTagMemberIds(allAssignments, [tag.id]),
+          ).visibleCount,
+        ]),
+      ),
+    [allTags, repeatFilteredItems, rangeTodoChips, allAssignments],
   );
 
   const gridItems = useMemo<WeekTimeGridItem[]>(
@@ -180,14 +230,17 @@ export function useScheduleGridFilters({
     }
   }, [repeatsHidden, selected, setSelectedId, setPopover]);
 
-  // Rule 4 above (#468).
-  const handleSelectCalendar = useCallback(
-    (id: string | null) => {
-      setCalendarFilterId(id);
-      if (id == null || !selected) return;
-      const cal = selectableCalendars.find((c) => c.id === id);
-      if (!cal) return;
-      const members = buildCalendarMemberIds(allAssignments, cal.tagId);
+  /*
+   * Rule 4 above (#468), in one place for every route that changes the tag set
+   * — a chip, a checkbox, "show all". `next` is the tag list the grid is about
+   * to use; an EMPTY one is the identity case and can hide nothing, so the
+   * selection survives it untouched.
+   */
+  const applyTagIds = useCallback(
+    (next: string[]) => {
+      setPickedTagIds(next);
+      if (next.length === 0 || !selected) return;
+      const members = buildTagMemberIds(allAssignments, next);
       // Same membership test as the grid, routine inheritance included — a
       // selected occurrence stays selected when its SERIES carries the tag.
       const stillVisible =
@@ -198,7 +251,33 @@ export function useScheduleGridFilters({
         setPopover(null);
       }
     },
-    [selected, selectableCalendars, allAssignments, setSelectedId, setPopover],
+    [selected, allAssignments, setSelectedId, setPopover],
+  );
+
+  /** Chip row: apply a saved group, or clear (re-clicking the lit chip). */
+  const handleSelectGroup = useCallback(
+    (id: string | null) => {
+      if (id == null) {
+        applyTagIds([]);
+        return;
+      }
+      const group = liveGroups.find((g) => g.id === id);
+      if (!group) return;
+      applyTagIds(group.tagIds);
+    },
+    [liveGroups, applyTagIds],
+  );
+
+  /** Filter panel: one checkbox. */
+  const handleToggleTag = useCallback(
+    (tagId: string) => {
+      applyTagIds(
+        selectedTagIds.includes(tagId)
+          ? selectedTagIds.filter((id) => id !== tagId)
+          : [...selectedTagIds, tagId],
+      );
+    },
+    [selectedTagIds, applyTagIds],
   );
 
   /*
@@ -213,36 +292,38 @@ export function useScheduleGridFilters({
    */
   const revealOnGrid = useCallback(() => {
     setRepeatsHidden(false);
-    setCalendarFilterId(null);
+    setPickedTagIds([]);
   }, []);
 
   /*
    * #506: creation clears the LENS only, never the repeat filter.
    *
    * A row created into a filtered grid is invisible the moment it lands, and
-   * auto-filing it into the active calendar would be a write the user never
+   * auto-tagging it into the active filter would be a write the user never
    * asked for. The repeat filter stays because a new manual event is not
    * repeat-generated, so it was never hiding it. Cancelling the panel does NOT
    * come through here — nothing new is on the grid to reveal, so the lens the
    * user set stays where they put it.
    */
-  const clearCalendarLens = useCallback(() => setCalendarFilterId(null), []);
+  const clearTagLens = useCallback(() => setPickedTagIds([]), []);
 
   return {
     repeatsHidden,
     hiddenRepeats,
-    selectableCalendars,
-    activeCalendar,
-    calendarChips,
-    hiddenByCalendar,
+    selectedTagIds,
+    activeGroupId,
+    groupChips,
+    tagCounts,
+    hiddenByTags,
     gridRangeItems,
     gridTodoChips,
     gridItems,
     monthItems,
     anchorDayItems,
     handleToggleRepeats,
-    handleSelectCalendar,
+    handleSelectGroup,
+    handleToggleTag,
     revealOnGrid,
-    clearCalendarLens,
+    clearTagLens,
   };
 }

@@ -58,7 +58,7 @@ function setup(over?: {
     updateNode: vi.fn(),
     attachNote: vi.fn(),
     onAttachError: vi.fn(),
-    clearCalendarLens: vi.fn(),
+    clearTagLens: vi.fn(),
   };
   const view = renderHook(() =>
     useScheduleCreateFlow({
@@ -207,7 +207,7 @@ describe("useScheduleCreateFlow — every submit closes the panel and the lens",
     const h = setup();
     act(() => submit(h));
     expect(h.setCreatePanel).toHaveBeenCalledWith(null);
-    expect(h.clearCalendarLens).toHaveBeenCalledTimes(1);
+    expect(h.clearTagLens).toHaveBeenCalledTimes(1);
   });
 });
 

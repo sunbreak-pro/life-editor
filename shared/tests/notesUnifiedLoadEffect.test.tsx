@@ -142,10 +142,11 @@ describe("useNotesUnifiedAPI load effect (#891)", () => {
     renderHook(() => useNotesUnifiedAPI({ dataService: ds }), { wrapper });
     await waitFor(() => expect(listNotesUnified).toHaveBeenCalledTimes(1));
 
-    // A todo edit or a calendar edit must not re-pull the note tree (#499).
+    // A todo edit or an audio-settings edit must not re-pull the note tree
+    // (#499).
     act(() => {
       sync.bump("todos");
-      sync.bump("calendars");
+      sync.bump("audio");
     });
     await act(async () => {});
     expect(listNotesUnified).toHaveBeenCalledTimes(1);
