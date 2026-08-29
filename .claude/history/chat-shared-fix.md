@@ -1,5 +1,22 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-29 - [shared-fix] PR #1190 の CI 修正（コンフリクト解決が実装を丸ごと消していた）
+
+#### 概要
+
+こうだいさんの依頼で PR #1190（#1158 = セクションチャンクのアイドル先読み）の CI 赤を直した。**赤の原因は自分の実装ではなく、8/29 に打った main 取り込みマージ b7517bd6 のコンフリクト解決**。`web/src/lazySections.ts` を main 側で丸ごと採用したため `prefetchLazySections` の 135 行が消え、`MainScreen` の import だけが残って `TS2305` になっていた。最新 main（91009af9 = #1187 まで）を取り込み直して復元し、commit 7370ecc3 / CI 緑 / mergeable CLEAN。
+
+#### 変更点
+
+- **なぜコンフリクトが出たのか**: ブランチが古い main 由来で、その間に **#1152 が Connect セクションごと退役**して `lazySections.ts` から `ConnectScreen` の行が消えていた。同じファイルの同じ場所を両側が触ったため衝突し、解決で main 側を採ったときに**衝突していない追記部分（warm-up ブロック全体）まで一緒に落ちた**。`git diff origin/main...branch` で `lazySections.ts` が 1 行も出てこないのが決定的な症状だった
+- **2 本構成へ縮めた**: `web/src/connect/` が存在しないので 3 本目のローダーは削除済みモジュールへの `import()` になる。ローダー表・テストのモック・コメントをすべて Notes + Analytics に揃えた。これで **PR が「Connect を落として絞るか」として判断キューに投げようとしていた問いも消えた**（#1152 が先に答えを出した）
+- **実測を取り直した**: 元の PR 本文の数字（285 KB gzip / 10 .js / entry 921.85 kB）は 2 つの退役より前のもの。main を一度チェックアウトしてビルドし直し、**entry 848.77 → 849.47 kB raw（233.09 → 233.31 gzip）・dist は両側とも 7 .js + 1 .css・warm-up が引く union は約 272 KB gzip**（vite の gzip 列）。fan-out は推測せず **ビルド済みチャンクの静的 import 文を読んで**確かめた（`AnalyticsScreen` が `CartesianChart` と 2 つのウィジェットを、`NotesView` が `RichTextEditor` を静的に引く）
+- **監査で 1 件、コメントの事実誤認が出た**: フォールバック定数の説明が「jsdom, iOS ≤ 16.3」だったが、repo 同梱の caniuse-lite を引くと **`requestIdleCallback` は Safari が macOS でも iOS でも未出荷**（Technology Preview のみ）。スマホの導線が公開 Web URL（D-20260807-main-1）である以上、**実機では常に `load` + 2 秒の setTimeout が本番経路**で、4 秒のアイドル待ちは Chromium / Firefox / Electron 殻だけの話だった。挙動は `typeof` の feature test なので無傷だが、遅延を調整する人が最初に読む数字なので直した
+- **mutation check で守りの穴が 1 つ見つかった**: Save-Data ガード / offline ガード / MainScreen の呼び出し口はどれも外すとテストが赤くなるのに、**順次ループを `Promise.all` に変えても全部緑のまま通った**。モックが同期的に解決するので、どちらでも記録順が map 順になるため。「1 本ずつ」は帯域を食い潰さないための明示的な設計なので、**1 本目のロードを thenable で止めたまま 2 本目が始まっていないことを見る 8 個目のケース**を足し、改変を戻して赤化することまで確認した
+- **`rules/frontend.md` に 1 節**: `SECTION_CHUNK_LOADERS` と `lazy()` は同じ specifier を二重に持つので、重い body を足す / 消すときは 2 箇所セットで直す（片方だけだと削除済みモジュールを `import()` することになる）。今回の壊れ方そのものを次の人が踏まないようにするため
+- **検証**: ci.yml の `verify` 全ステップ + `docs-lint` をローカルで **15/15 緑**。GitHub 側も `typecheck + test + build` / `docs-lint` とも pass
+- **並行作業の退避**: このワークツリーに未コミットで載っていた #1138（MCP の週開始を日曜へ）を `git stash` に逃がしてから着手した。ブランチ側にコミットが 1 件も無いため、**変更は stash にしか存在しない**状態が続いている
+
 ### 2026-08-27 - [shared-fix] /goal 3 件を PR まで（1 件は Issue の指定が今のアーキで踏めず、1 件は自分のバグをレビューが捕まえた）
 
 #### 概要
@@ -131,40 +148,3 @@ Issue 本文は自分で「計測で実害が出なければ本 Issue は close 
 - **#992 の根本原因**（`shared/src/components/RightSidebar.tsx:65` の未スロットル `setWidth` + `RightSidebarContext.tsx:72-97` が `width` を open/close と同じ context 値に同梱）は 1 ファイルで源を止められるが、`shared/` と全 RightSidebar 消費者に波及するので **P-008 に従って判断キューへ**（`D-20260818-shared-fix-1`）
 - **#992 の Kanban ラッパー 2 つの memo は意図的に外した**。`useKanbanDnd.ts:69` が `viewMode === "status"` のときだけ有効化し、既定の tag view では 1 度も描画されない。`kanbanView.test.tsx` は `beforeEach` で localStorage を消すので全テストが tag view で始まり、**テストが 1 件も通らない投機的な変更**になる
 - **#999 で見つけた `vh` の残り 7 箇所**（`WeekTimeGrid.tsx:437` の `max-h-[60vh]` ほか）は、どれも中央寄せのモーダルで #633 の罠とは形が違うため close コメントに記載のみ。sweep するかは chat-main の判断として outbox へ
-
-### 2026-08-16 - [shared-fix] 子 Issue 9 件の処理（PR 5 本 / 保留 4 件）
-
-#### 概要
-
-#627 / #716 の子と、自分の outbox から起票された分がまとめて 9 件届いた。**PR を 5 本出し、4 件は理由つきで保留**。保留の 4 件はいずれも「難しいから」ではなく、実測または規約で着手が止まっている。tracker / outbox / 判断キューは `chore/tracker-shared-fix-20260816-4` 側で、実装ブランチには載せていない（D-20260801-main-1 / D-20260802-sched-1）。
-
-PR: #1027（#991）/ #1026（#1011）/ #1024（#1008）/ #1021（#1003）/ #1019（#1004・merged）/ #1017（#1001・merged）。
-
-#### 一番効いたもの = #991（初回ダウンロード −38.5%）
-
-**gzip 586,034 → 360,518 B、先読みファイル 5 → 1。** 測り方は `index.html` の `<script>` と `<link rel="modulepreload">` が指すファイルの合計（動的 import でしか届かないものは載らない = まさに論点）。
-
-なぜ #676 (a) の lazy 化が効いていなかったのか、が本題だった。**重い 2 つが別の入口から引き戻されていた**：
-
-- TipTap（389 KB）= Briefing / Daily / Todo 詳細の 3 画面が `RichTextEditor` を直 import。**Briefing は既定の着地セクション**なので 1 つあれば初回に載る
-- recharts（296 KB）= 朝刊のビジュアルパネル経由。**これは `shared` にあってバレルから出るので web 側では外せない** — 直す場所はパネル自身だった
-
-`manualChunks` の撤去も込み。**ファイルは分けるがダウンロードは分けない**（rollup はエントリのグラフが辿るチャンクを全部 preload する）ので、356 KB のきれいなファイルを作って `index.html` がそれを preload していただけ。ビルド出力の見た目だけ良くなるぶん質が悪い。
-
-Issue の「グラフ 3 枚」に対し **`StreakDisplay` は静的のまま残した** — grep で recharts を 1 行も import していないと確認済みで、遅延させてもバイトは減らずちらつく境界が増えるだけ。
-
-#### 実装不要と実測で確定した 2 件（close 推奨で outbox へ）
-
-- **#1007**: `<meta name="theme-color">` が manifest の `theme_color` を**上書きする**（MDN が明記）。`index.html` は既に `prefers-color-scheme` で 2 本持っているので、インストール済み Android のツールバーは今も正しい。manifest が効くのは起動直後の一瞬だけで、しかもメディアクエリを書けない仕様上どの色でも片方のテーマはちぐはぐになる。**起票時に precedence を確認しなかった自分の不正確な報告が発端**（#947 のついで棚卸し）
-- **#999**: 対象 2 つとも既に消滅。`NotesView` の詳細シートは #876（PR #962）が機能ごと廃止、`MobileTaskList.tsx` は #831 で `MobileTodoList.tsx` にリネーム済みでその詳細シートは #874（PR #917）で `fullScreen`。今の `BottomSheet` は `fixed inset-0` で **`92vh` はリポジトリ全体で 0 件**
-
-#### 判明したこと（罠 3 つ）
-
-- **テストに初めて型検査をかけると実ドリフトが出る**（#1001 = 24 件）。23 件が `await f().catch(e => e as Error)` で、`.catch()` が型を `Resolved | Error` に広げるため `.message` が片腕にしか無い。**しかも reject しなくなると `expected undefined to contain ...` という的外れな失敗文になる**罠つきだった
-- **環境の副作用をテストの判定に使うと、環境を持っている人の手元でだけ落ちる**（#1011）。「資格情報が無いと DB でエラー」を「ガードが効いた」の代理にしていたので、MCP を実際に使う端末でだけ赤くなり、しかも「自分のブランチが壊した」ように見えた。`getSupabase` のスパイに置き換えて両環境で 288/288
-- **`git checkout <file>` は index から復元する**ので、未 stage の編集は消える。#1003 の途中で「修正を戻して新テストが落ちることを確認する」ために使い、4 箇所の編集を作り直した。次からは `git stash push -- <file>` を使う
-
-#### 保留 2 件の理由（どちらも順序 / 前提）
-
-- **#1002** = 触る `searchSupabaseStub.ts` を open PR #1021 が変更中。共有テストインフラなので確実に衝突する → #1021 merge 後
-- **#993** = 購読リストに lockstep の見張りが 2 本（DB publication との完全一致 + 全テーブルのドメイン割当）。Scope どおり 1 行消すだけでは通らず、DDL を打つか不変式を変えるかの二択 → `D-20260816-shared-fix-6` としてキューへ
