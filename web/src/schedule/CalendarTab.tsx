@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -17,10 +17,12 @@ import {
   useDeferredAction,
   useToast,
   useMinuteClock,
+  TodoAddDialog,
   useTourAction,
   TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
+  type TodoStatus,
   WIDE_QUERY,
   type TranslationKey,
 } from "@life-editor/shared";
@@ -46,6 +48,7 @@ import { useScheduleDayLabels } from "./useScheduleDayLabels";
 import { useScheduleTodayAgenda } from "./useScheduleTodayAgenda";
 import { toEditorItem } from "./scheduleViewModels";
 import { useScheduleCopy } from "./scheduleCopy";
+import { useTodoLinking } from "./useTodoLinking";
 import { selectNarrowDay } from "./narrowDayTap";
 
 /*
@@ -110,13 +113,17 @@ const REPEAT_FAILURE_COPY_KEY: Record<
 
 export function CalendarTab({
   dataService,
-  onOpenTodos,
   pendingSelectEvent,
   onConsumePendingEvent,
+  pendingNewTodo = false,
+  onConsumeNewTodo,
+  pendingSelectTodoId = null,
+  onConsumePendingSelect,
+  pendingTodoTray = false,
+  onConsumeTodoTray,
+  onNavigateToItem,
 }: {
   dataService: DataService;
-  /** Jump to the Todos section (Today's Todo tray title click — A-3 / #298). */
-  onOpenTodos: () => void;
   /**
    * "Open this event" intent from the command palette (#503) — the same
    * pending-select idiom Notes / Daily / Kanban consume, plus the date: the
@@ -126,6 +133,23 @@ export function CalendarTab({
   pendingSelectEvent?: { id: string; date: string } | null;
   /** Called once the intent has been acted on, so re-entry does not re-select. */
   onConsumePendingEvent?: () => void;
+  /*
+   * The shell's three TODO intents (#1153). They used to be consumed by the
+   * Kanban tab; with that tab retired this host is where they land, and each
+   * one is the same pending-flag idiom the event intent above uses — consumed
+   * once, so re-entering the section never re-fires it.
+   */
+  /** global:new-task — open the tray and its create dialog. */
+  pendingNewTodo?: boolean;
+  onConsumeNewTodo?: () => void;
+  /** A todo to open, from a "[[" link click or the palette (#370 / #507). */
+  pendingSelectTodoId?: string | null;
+  onConsumePendingSelect?: () => void;
+  /** nav:tasks — just show the tray. */
+  pendingTodoTray?: boolean;
+  onConsumeTodoTray?: () => void;
+  /** Where a "[[" link inside a todo body goes (#507). */
+  onNavigateToItem?: (target: { id: string; role: string }) => void;
 }) {
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -183,6 +207,50 @@ export function CalendarTab({
     softDelete: softDeleteTodo,
     refetch: refetchTodos,
   } = useTodoTreeContext();
+
+  /*
+   * Tutorial tour reporting (#1124), the todo half — moved here from the
+   * retired Kanban board by #1153.
+   *
+   * Wrapped at the SOURCE, before anything is handed either writer: completion
+   * has three routes now (the tray's checkbox, the detail's toggle, the
+   * detail's status row) and every one of them lands on one of these two
+   * functions. Wrapping the call sites instead would mean three copies of the
+   * "did this actually finish it?" test, and the tray's own route goes through
+   * useScheduleTodoChips a few lines down — a wrapper defined after that call
+   * would arrive too late for it.
+   *
+   * The event half sits further down with the create/update flow; both use
+   * this same reporter, which is stable for the component's lifetime.
+   */
+  const reportTourAction = useTourAction();
+
+  const setTodoStatusReported = useCallback(
+    (id: string, status: TodoStatus) => {
+      setTodoStatus(id, status);
+      if (status === "DONE") {
+        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
+      }
+    },
+    [reportTourAction, setTodoStatus],
+  );
+
+  const toggleTodoStatusReported = useCallback(
+    (id: string) => {
+      // Read the status BEFORE the flip: only finishing a todo advances the
+      // step, and re-opening one must not. Two values since #873, so "not
+      // DONE" is the whole test.
+      const completes =
+        (todoNodes.find((n) => n.id === id)?.status ?? "NOT_STARTED") !==
+        "DONE";
+      toggleTodoStatus(id);
+      if (completes) {
+        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
+      }
+    },
+    [reportTourAction, todoNodes, toggleTodoStatus],
+  );
+
   // #468: the calendar ledger as a filter lens. A `calendars` row is a saved
   // view over ONE life tag, so the grid needs both halves — the ledger (which
   // calendars exist, and which tag each points at) and the assignments (which
@@ -222,6 +290,10 @@ export function CalendarTab({
   const closeSidebar = rightSidebar?.close;
   // #1148: narrow's day list is gone, so a month-cell tap is what puts a day's
   // plans on screen — it opens the same drawer.
+  //
+  // #1153: the todo tray is a sidebar tab now, so the intents that used to
+  // switch to a whole section have to be able to OPEN it too. A no-op on
+  // Desktop, where the panel is pushed in and already on screen.
   const openSidebar = rightSidebar?.open;
   // #889: everything that can be covering the grid — the single-click bubble
   // (#299), the detail overlay, the creation panel (target day + prefilled
@@ -329,7 +401,7 @@ export function CalendarTab({
   } = useScheduleTodoChips({
     todoNodes,
     updateNode,
-    setTodoStatus,
+    setTodoStatus: setTodoStatusReported,
     softDeleteTodo,
     today,
     rangeStart,
@@ -542,19 +614,18 @@ export function CalendarTab({
   });
 
   /*
-   * Tutorial tour reporting (#1124). Two of the Schedule steps advance on a
-   * real write, so the host tells the tour when one lands. Wrapped HERE rather
-   * than inside useScheduleMutations / useScheduleCreateFlow on purpose: those
-   * two are deliberately context-free so they render under `renderHook` with
-   * no Provider at all (see their headers), and reaching into a Context from
-   * inside them would take that away. CalendarTab already needs the whole
-   * Provider chain, so the coupling costs nothing new here.
+   * Tutorial tour reporting (#1124), the event half. Two of the Schedule steps
+   * advance on a real write, so the host tells the tour when one lands. Wrapped
+   * HERE rather than inside useScheduleMutations / useScheduleCreateFlow on
+   * purpose: those two are deliberately context-free so they render under
+   * `renderHook` with no Provider at all (see their headers), and reaching into
+   * a Context from inside them would take that away. CalendarTab already needs
+   * the whole Provider chain, so the coupling costs nothing new here.
    *
-   * `reportTourAction` is stable for the component's lifetime (useTourAction),
-   * so neither wrapper adds a dependency that changes as the tour walks.
+   * `reportTourAction` is declared with the todo wrappers above and is stable
+   * for the component's lifetime (useTourAction), so neither wrapper adds a
+   * dependency that changes as the tour walks.
    */
-  const reportTourAction = useTourAction();
-
   const handleCreateReported = useCallback<typeof handleCreate>(
     (slot, title, onSaved) => {
       const id = handleCreate(slot, title, onSaved);
@@ -711,6 +782,52 @@ export function CalendarTab({
     handleTodoToggleComplete,
   });
 
+  /*
+   * #1153: the two things the retired Todo tab owned, now owned here.
+   *
+   * `useTodoLinking` is the "[[" plumbing for the todo BODY — the detail
+   * overlay gained a body editor when the board that had one went away, and an
+   * editor without this opens no autocomplete and leaves a resolved link inert
+   * (#507). It is called at this level rather than inside the overlay because
+   * `dataService` lives here, exactly as Notes and Daily do it.
+   *
+   * `todoAddOpen` is the create dialog. Todos have no day when they are made
+   * — that is what the tray's unscheduled group IS — so this deliberately does
+   * NOT go through the calendar's creation panel, which exists to place
+   * something on a slot.
+   */
+  const todoLinking = useTodoLinking({ dataService });
+  const [todoAddOpen, setTodoAddOpen] = useState(false);
+
+  /*
+   * The create dialog opens from the shell intent by ADJUSTING STATE WHILE
+   * RENDERING rather than from the effect below — React's own pattern, and the
+   * shape the retired useTodoAddDialog used for exactly this flag. A
+   * synchronous setState inside an effect cascades an extra render pass, which
+   * is what react-hooks/set-state-in-effect objects to. The effect keeps the
+   * parts that are not local state (the tab, the drawer, the consume).
+   */
+  const [prevPendingNewTodo, setPrevPendingNewTodo] = useState(pendingNewTodo);
+  if (pendingNewTodo !== prevPendingNewTodo) {
+    setPrevPendingNewTodo(pendingNewTodo);
+    if (pendingNewTodo) setTodoAddOpen(true);
+  }
+
+  const handleCreateTodo = useCallback(
+    (input: { title: string }) => {
+      const node = addNode("task", null, input.title);
+      setTodoAddOpen(false);
+      // Straight into the detail: a title alone is rarely the whole thought,
+      // and this is the surface that can take the rest of it.
+      setTodoDetailId(node.id);
+      // #1124: the only route that MAKES a todo, so it is the only one the
+      // tour's create step can wait on. The tray's "add to today" moves an
+      // existing one onto a day, which is not what the step teaches.
+      reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
+    },
+    [addNode, reportTourAction, setTodoDetailId],
+  );
+
   const editorItem: EventEditorItem | null = toEditorItem(selected, now);
 
   // ── Repeat section (#185 Step 3 / #408 / #889) ─────────────────────────────
@@ -809,6 +926,35 @@ export function CalendarTab({
         total: anchorDayItems.length,
       };
 
+  /*
+   * #1153: the shell's todo intents, each consumed once.
+   *
+   * All three open the tray rather than only switching state, because on
+   * narrow the sidebar is a drawer: setting the tab of a panel nobody can see
+   * would make every one of these read as doing nothing.
+   */
+  useEffect(() => {
+    if (!pendingTodoTray) return;
+    setSidebarTab("todo");
+    openSidebar?.();
+    onConsumeTodoTray?.();
+  }, [onConsumeTodoTray, openSidebar, pendingTodoTray, setSidebarTab]);
+
+  useEffect(() => {
+    if (!pendingNewTodo) return;
+    setSidebarTab("todo");
+    openSidebar?.();
+    onConsumeNewTodo?.();
+  }, [onConsumeNewTodo, openSidebar, pendingNewTodo, setSidebarTab]);
+
+  useEffect(() => {
+    if (!pendingSelectTodoId) return;
+    // The detail is an overlay, not a tab, so this one does not touch the
+    // sidebar: a "[[" click asks for one todo, not for the list.
+    setTodoDetailId(pendingSelectTodoId);
+    onConsumePendingSelect?.();
+  }, [onConsumePendingSelect, pendingSelectTodoId, setTodoDetailId]);
+
   // Shared rightSidebar (AppShell owns the frame -- a push-in panel on
   // Desktop, a drawer on Mobile). One portal either way so contentCount stays
   // 1 (#299 removed the old detail tab -- item detail now lives in a
@@ -866,8 +1012,14 @@ export function CalendarTab({
           addable: todoAddable,
           onToggleComplete: handleTodoToggleComplete,
           onAddCandidate: handleTodoAddCandidate,
-          onOpenTodo: onOpenTodos,
+          // #1153: both groups open the same overlay. They used to jump to the
+          // Kanban tab, which no longer exists — and the overlay was already
+          // the surface a chip press opened, so this makes one detail answer
+          // for every route into a todo rather than two that could drift.
+          onOpenTodo: setTodoDetailId,
+          onOpenAddable: setTodoDetailId,
           onDelete: handleTodoDelete,
+          onAdd: () => setTodoAddOpen(true),
         }}
       />
     </RightSidebarPortal>
@@ -927,11 +1079,13 @@ export function CalendarTab({
         onClose: () => setTodoDetailId(null),
         writes: {
           updateNode,
-          toggleStatus: toggleTodoStatus,
+          toggleStatus: toggleTodoStatusReported,
+          setStatus: setTodoStatusReported,
           onDelete: handleTodoDetailDelete,
         },
         onConvertToEvent: handleConvertToEvent,
-        onOpenTodos,
+        linking: todoLinking,
+        onNavigateToItem,
         askConfirm,
       }}
       popover={{
@@ -1067,6 +1221,22 @@ export function CalendarTab({
         />
       )}
       {overlaysEl}
+      {/* #1153: mounted for BOTH layouts, like the overlay set beside it. The
+          two returns above used to hand-list their own overlays and drifted
+          (see the ScheduleOverlays header); a create dialog that existed on one
+          width only would be the same mistake with a new name. */}
+      <TodoAddDialog
+        open={todoAddOpen}
+        onClose={() => setTodoAddOpen(false)}
+        onSubmit={handleCreateTodo}
+        labels={{
+          title: t("scheduleScreen.todoAddDialogTitle"),
+          titleLabel: t("kanban.addTitleLabel"),
+          titlePlaceholder: t("kanban.addTitlePlaceholder"),
+          submit: t("kanban.addSubmit"),
+          cancel: t("kanban.addCancel"),
+        }}
+      />
     </>
   );
 }

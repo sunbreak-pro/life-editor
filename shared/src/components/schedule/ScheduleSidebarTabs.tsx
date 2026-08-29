@@ -6,6 +6,8 @@ export interface ScheduleSidebarTab {
   id: string;
   /** Already-translated tab label (§6.4). */
   label: string;
+  /** `data-tour-id` for the tutorial tour (#1124) — passed straight through. */
+  tourId?: string;
 }
 
 export interface ScheduleSidebarTabsProps {
@@ -41,7 +43,7 @@ export function ScheduleSidebarTabs({
   className,
 }: ScheduleSidebarTabsProps) {
   const single = tabs.length <= 1;
-  // ScheduleSidebarTab is structurally a SegmentedOption ({ id, label }).
+  // ScheduleSidebarTab is structurally a SegmentedOption ({ id, label, tourId }).
   const options: SegmentedOption[] = tabs;
   const activeLabel = tabs.find((t) => t.id === value)?.label;
 

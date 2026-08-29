@@ -8,7 +8,6 @@ import {
   type SectionId,
   type NavShortcutId,
 } from "@life-editor/shared";
-import type { ScheduleTab } from "../schedule/ScheduleScreen";
 
 /*
  * Navigation half of the app-shell host (extracted from MainScreen.tsx —
@@ -33,8 +32,12 @@ export type MaterialsTab = "notes" | "daily";
  */
 export type NavDestination =
   | { section: "materials"; tab: MaterialsTab }
-  | { section: "schedule"; tab: ScheduleTab }
-  | { section: Exclude<SectionId, "materials" | "schedule"> };
+  // Schedule lost its tab arm in #1153: the section is one surface again, and
+  // its todo tray is a sidebar tab the section itself owns. What used to be
+  // "which tab" is now an INTENT the section consumes (pendingTodoTray /
+  // pendingNewTodo / pendingItemNav), because a right-hand drawer is not
+  // addressable from out here.
+  | { section: Exclude<SectionId, "materials"> };
 
 /**
  * Where each nav:* binding lands. The shared executor only reports WHICH
@@ -43,10 +46,11 @@ export type NavDestination =
 const NAV_SHORTCUT_DESTINATION: Readonly<
   Record<NavShortcutId, NavDestination | null>
 > = {
-  // Both Schedule bindings set the tab explicitly — otherwise nav:schedule
-  // pressed right after nav:tasks would "go to Schedule" and still show Todos.
-  "nav:tasks": { section: "schedule", tab: "todo" },
-  "nav:schedule": { section: "schedule", tab: "calendar" },
+  // Both land on Schedule since #1153, and they are NOT the same press:
+  // nav:tasks also raises `pendingTodoTray` (see handleNavigate), which is what
+  // still makes it mean "my todos" rather than "the calendar".
+  "nav:tasks": { section: "schedule" },
+  "nav:schedule": { section: "schedule" },
   "nav:daily": { section: "materials", tab: "daily" },
   "nav:notes": { section: "materials", tab: "notes" },
   // The Tags tab was retired (#310) and nothing took its place, so this
@@ -64,11 +68,11 @@ const NAV_SHORTCUT_DESTINATION: Readonly<
 const ITEM_NAV_TARGET: Record<string, NavDestination | undefined> = {
   note: { section: "materials", tab: "notes" },
   daily: { section: "materials", tab: "daily" },
-  task: { section: "schedule", tab: "todo" },
+  task: { section: "schedule" },
   // Events joined in #503 (palette search). They are NOT offered by the "[["
   // autocomplete — that pool is built separately (useItemLinkTargets) — so
   // this route is reached from the palette only, for now.
-  event: { section: "schedule", tab: "calendar" },
+  event: { section: "schedule" },
 };
 
 /**
@@ -99,9 +103,6 @@ export function useShellNavigation({
     resolveInitialSection(),
   );
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("notes");
-  // Schedule's Calendar/Todo tab (#411), lifted here for the same reason as
-  // materialsTab: the standard SectionHeader renders the band.
-  const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   // Analytics's Overview/Todos/Work/Schedule tab, lifted here (v2 adoption
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab.
@@ -113,10 +114,18 @@ export function useShellNavigation({
   const [briefingTab, setBriefingTab] = useState<BriefingTab>(() =>
     defaultBriefingTab(),
   );
-  // global:new-task intent, consumed once by the Kanban when it mounts (see
+  // global:new-task intent, consumed once by the Schedule section (see
   // handleNewTodo). A boolean "pending" flag — not a nonce — so returning to
-  // the Todos tab later never re-opens the add dialog.
+  // the section later never re-opens the add dialog.
   const [pendingNewTodo, setPendingNewTodo] = useState(false);
+  /*
+   * nav:tasks intent (#1153). "Go to my todos" used to be a tab switch; the
+   * tray it now means is a sidebar tab the Schedule section owns, so the shell
+   * asks rather than sets. Same consume-once flag shape as pendingNewTodo —
+   * without it, arriving at Schedule by any other route would keep re-opening
+   * the drawer.
+   */
+  const [pendingTodoTray, setPendingTodoTray] = useState(false);
 
   // Startup section (§216): remember the last-visited section so the "resume"
   // startup preference can restore it on the next launch. Writes on every
@@ -154,7 +163,6 @@ export function useShellNavigation({
   const applyDestination = useCallback((dest: NavDestination) => {
     setSectionNow(dest.section);
     if (dest.section === "materials") setMaterialsTab(dest.tab);
-    else if (dest.section === "schedule") setScheduleTab(dest.tab);
   }, []);
 
   const navigateTo = useCallback(
@@ -177,17 +185,25 @@ export function useShellNavigation({
   const handleNavigate = useCallback(
     (id: NavShortcutId) => {
       const dest = NAV_SHORTCUT_DESTINATION[id];
-      if (dest) navigateTo(dest);
+      if (!dest) return;
+      // #1153: nav:tasks and nav:schedule now share a destination, so the
+      // intent is what tells them apart. Raised INSIDE the guard for the same
+      // reason handleNewTodo does it — a refused navigation must not leave a
+      // flag that opens the tray on the user's next visit.
+      guarded(() => {
+        applyDestination(dest);
+        if (id === "nav:tasks") setPendingTodoTray(true);
+      });
     },
-    [navigateTo],
+    [applyDestination, guarded],
   );
 
-  // global:new-task executor. Todo creation lives inside the Kanban (mounted
-  // per-tab behind its own Provider), so the shell can't call the create API
-  // directly. Instead it navigates to Schedule → Todo (#411) and raises a
-  // "pending new todo" flag; the Kanban consumes it on mount and opens its dialog
-  // (which auto-focuses the title input and creates the todo on submit via the
-  // TodoTree provider). That is the app's own create-and-focus entry — no new
+  // global:new-task executor. Todo creation lives behind the TodoTree
+  // Provider, which only the Schedule section mounts, so the shell can't call
+  // the create API directly. Instead it navigates to Schedule and raises a
+  // "pending new todo" flag; the section consumes it, opens the todo tray and
+  // its create dialog (which auto-focuses the title input and creates the todo
+  // on submit). That is the app's own create-and-focus entry — no new
   // DataService API, no title-less junk rows.
   //
   // #753: the intent and the move are raised together INSIDE the guard — a
@@ -195,20 +211,22 @@ export function useShellNavigation({
   // the next time the user went to Todos of their own accord.
   const handleNewTodo = useCallback(() => {
     guarded(() => {
-      applyDestination({ section: "schedule", tab: "todo" });
+      applyDestination({ section: "schedule" });
       setPendingNewTodo(true);
     });
   }, [guarded, applyDestination]);
-  // Kanban calls this once it has acted on the pending-new-todo flag.
+  // The Schedule section calls this once it has acted on the flag.
   const consumeNewTodo = useCallback(() => setPendingNewTodo(false), []);
+  const consumeTodoTray = useCallback(() => setPendingTodoTray(false), []);
 
   // "[[" wiki-link navigation (Issue #285). A resolved link click in the Notes
   // or Daily editor routes here; the shell owns the section + tab switch (the
   // target view lives behind a different domain Provider), then stashes a
   // pending selection the destination view consumes on mount — the same idiom
-  // as pendingNewTodo. Todos joined note / daily in #370 and now land on
-  // Schedule → Todo (#411); any other role has no selectable surface yet, so
-  // it no-ops.
+  // as pendingNewTodo. Todos joined note / daily in #370; since #1153 a task
+  // lands on Schedule and opens the todo DETAIL overlay rather than a tab (the
+  // tab is retired). Any other role has no selectable surface yet, so it
+  // no-ops.
   const [pendingItemNav, setPendingItemNav] = useState<{
     id: string;
     role: string;
@@ -260,8 +278,8 @@ export function useShellNavigation({
     setSection,
     materialsTab,
     setMaterialsTab,
-    scheduleTab,
-    setScheduleTab,
+    pendingTodoTray,
+    consumeTodoTray,
     analyticsTab,
     setAnalyticsTab,
     briefingTab,

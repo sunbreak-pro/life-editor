@@ -6,7 +6,9 @@ import { useWikiTagsUnifiedContext } from "@life-editor/shared";
  *
  * Notes, Todos and Daily each grew their own version of this: Notes and Todos
  * were verbatim copies whose only difference was the console tag (and the todo
- * hook still named `[KanbanView]` from where it was copied), while Daily had
+ * hook was still named `[KanbanView]` from where it was copied — fixed in
+ * #1153, when that board was retired and the name stopped resolving), while
+ * Daily had
  * the same three steps buried inside its park / flush machinery. A fourth
  * editing surface would have needed a fourth copy — which is exactly what the
  * todo hook's own header said it existed to prevent.
@@ -30,7 +32,8 @@ import { useWikiTagsUnifiedContext } from "@life-editor/shared";
  *
  * `hostTag` is the surface's own name for its console errors, passed in rather
  * than written here — a tag baked into shared code is how `[KanbanView]` ended
- * up inside a hook called `useTodoLinking`.
+ * up inside a hook called `useTodoLinking`, and stayed there for two Issues
+ * after the view itself was gone.
  */
 export function useInlineItemLinks(hostTag: string) {
   const { createItemLink, getLinksForItem, syncInlineLinks } =

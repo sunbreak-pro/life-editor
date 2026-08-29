@@ -13,14 +13,16 @@ import { useTourContextOptional } from "./useTourContext";
  * `useTourContext`. That hook throws outside the Provider
  * because a consumer of the tour's STATE outside it is a wiring mistake; a
  * producer of an action is the opposite case. Reporting is fire-and-forget
- * into a coach that may not be listening — under test (`KanbanView` renders
- * bare in web/tests), in a host that mounts a screen without the shell, or
+ * into a coach that may not be listening — under test (`ScheduleSidebar`
+ * renders bare in web/tests), in a host that mounts a screen without the shell,
+ * or
  * simply while no tour is running. None of those should crash a save.
  *
  * STABLE FOR THE LIFETIME OF THE COMPONENT. `notifyAction` is rebuilt whenever
  * the current step changes, so returning it directly would invalidate every
  * handler wrapped around it once per step — handlers that are themselves deps
- * of large memoised trees (CalendarTab's create flow, the Kanban board). The
+ * of large memoised trees (CalendarTab's create flow and its two status
+ * writers). The
  * ref keeps the identity fixed and reads the live function at call time, the
  * same shape TourContext.tsx uses for its own probe.
  */
