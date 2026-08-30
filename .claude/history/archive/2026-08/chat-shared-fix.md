@@ -1,5 +1,27 @@
 # HISTORY archive (chat-shared-fix) — 2026-08
 
+### 2026-08-27 - [shared-fix] /goal 3 件を PR まで（1 件は Issue の指定が今のアーキで踏めず、1 件は自分のバグをレビューが捕まえた）
+
+#### 概要
+
+こうだいさんの /goal「3 Issue それぞれに origin/main からのブランチ + CI verify 全ステップ緑 + PR」に着手し、**#1114 / #1134 / #1122 の 3 件すべてを完了**（PR #1142 / #1146 / #1154。#1142 と #1146 はその場でこうだいさんが merge）。
+
+着手前に **origin/main との差が 133 ファイルある古いブランチ**に居たことに気づいて切り直し、**手つかずの origin/main で verify 15 ステップのベースライン**を先に取った（以降の赤を「自分の変更由来か元から赤か」で切り分けるため）。全 3 ブランチとも 15 ステップ緑。
+
+#### 変更点
+
+- **#1114（PR #1142・merged）**: `tagIcon.ts` の `import { icons }` を curated 26 個の明示 import + 明示マップへ。Issue の「着手前に決めること」は **DB を引いて解消**した（`select distinct icon from wiki_tags where icon is not null` = `Clock` / `File` の 2 つだけで、どちらも curated の内側）ので判断キューは不要だった。効きは Issue の見積もり（−28%）より大きく、**同一ブランチで `git stash` 前後を実測して gzip 368.83 → 251.84 kB = −31.7%**（Issue の数字は #994 時点で、その後 main 側の最適化が入っていたため取り直した）。`TAG_ICON_CHOICES` は `Object.keys(TAG_ICONS)` 由来にしてリストとマップがドリフトしない形に
+- **自分のテストが自分のバグを捕まえた（#1114）**: `resolveTagIcon("toString")` を null にするテストを書いたら実際に落ちた — オブジェクトリテラルなので `TAG_ICONS["toString"]` が `Object.prototype.toString` に到達し、`createElement` に関数が渡る。**旧実装の `icons` 参照でも同じ穴が空いていた**ので、ついでに `Object.hasOwn` で塞いだ
+- **#1134（PR #1146・merged）**: iOS のオートズーム。**呼び出し側 30 箇所の掃除ではなく CSS のフロア 1 本**にした — `DailyEntriesPanel` の日付 input はサイズ指定を自分で持たず Tailwind preflight の `font: inherit` で親の 12.5px を拾うので、クラスを追う掃除では原理的に取りこぼす。`@layer` の**外**に置くのが要件（`text-sm` に勝つ必要がある / すぐ上の icon・tap フロアは逆に `@layer components` に置いて呼び出し側を勝たせている）で、**生成 CSS 上で utilities 層（offset 10761–56523）の外（62126）に出ていることを実測**して確かめた
+- **`max()` である理由と逃がし道（#1134）**: ベタ 16px でも DoD の「最小にしても 16px を割らない」は満たせるが、フォントサイズを 19〜25px に上げているユーザーの入力欄を 16px に固定してしまい逆行する。`1em` は親のサイズなので、意図的に大きい 28px タイトルだけ `[--field-font-size:28px]` で除外した（Tailwind の任意プロパティが生成 CSS に出ることも確認）。エディタ本文は `.note-editor .ProseMirror` が specificity で勝つため `web/src/index.css` にもう 1 本必要だった
+- **#1122（PR #1154・open）**: ツアー基盤。ステップを**データ**（`{id, section, anchor, copyKey, advanceOn}`）にして、`section` を `SectionId`・`copyKey` を `TranslationKey` で縛った（`sections.ts:45` と同じ手 — 空の吹き出しが画面に出る前に registry の定義位置で落ちる）。anchor は座標ではなく `data-tour-id` 属性（jsdom はレイアウトが無く rect が全部 0 なので、rect 判定にすると**テストでは全ステップが飛びブラウザでだけ正しく見える** = #475 の形になる）
+- **Issue の指定が今のアーキでは踏めなかった（#1122）**: 「進捗を DataService 経由で永続化」だが、`DataService` は 12 個のドメイン別 interface の合成で**汎用 KV も設定テーブルも無い**。文面どおりにやるとテーブル + ドメイン + `SupabaseTourService` + routing tuple + `SYNC_DOMAINS` 行 + migration が要り、最後にこうだいさんの `supabase db push`（🛑 人手ゲート）まで行かないと動かない。同種の軽量設定（テーマ / フォント / 言語 / ショートカット / 起動セクション）が全部 `useLocalStorage` なのでそれに揃え、**A/B を D-20260827-shared-fix-1 としてキューへ積んで作業は止めなかった**（P-008）。差し替え先は `useTourProgress.ts` の 1 ファイルに閉じてある
+- **レビューが high 1 件を捕まえた（#1122）**: 多観点（状態機械 / a11y / テストの空振り / 配線の波及）で洗って 18 件、1 件ずつ独立に反証にかけて残ったうち実害 9 件を反映。**最も重かったのは自分で書いたヘッダコメントと実装が逆になっていた件** — `goTo` が「飛ばして進んだ」ときも再開位置を書いていたため、anchor が 1 つも無い今の状態でツアーを回すと保存位置が最終ステップまで歩き、後からセクション Issue が最初の anchor を足した瞬間に「2 / 2」から始まって step 1 が二度と出ない。指摘を鵜呑みにせず自分で経路を追って確認してから、`goTo(next, reason)` で walked / gaveUp を分けた
+- **フレーム予算 → 実時間（#1122・レビュー由来）**: anchor 待ちを 12 フレームで打ち切っていたが、`currentSection` は `<Suspense>` のフォールバックが出た時点で切り替わるので、**遅延 import されたセクション本体（Notes / Analytics / Connect）が届く前に予算を使い切る**。コールドロードで該当ステップが必ず飛ぶため、実時間 2.5 秒に変えた（テストは Provider の prop で短縮）
+- **フォーカストラップを 2 種類に分けた（#1122）**: `advanceOn: { kind: "action" }` のステップは**指している当の控えをユーザーに操作させる**のが目的なので、トラップするとキーボードで完了できなくなる。非モーダル（`aria-modal` なし + `aria-live` で読み上げ）にし、スポットライトも全面スクリムではなく box-shadow にして `pointer-events: none` でページを覆う要素を作らない形にした。重ね順は z-45 = 画面クロムの上・ダイアログ帯（z-50）の下（指示された控えが Modal を開くことがあるため）
+- **ガードが本物かを変異テストで確認した**: 「unlayered であること」（#1134）と「1 つも表示できなければ完了にしない」（#1122）は、条件を潰すと該当テストだけが落ちることを実測してから戻した
+- **verify ログを 2 プロセスが同時に書いて壊れた**: kill 直後に同じログファイルへ再実行したため NUL 混じりになり `desktop — build` の判定だけが読めなくなった。単体で緑を確認したうえで、記録として信頼できるログを別ファイルに取り直した
+
 ### 2026-08-24 - [shared-fix] /goal 残り 4 件を PR まで（3 件は Issue の前提が実測で崩れていた）
 
 #### 概要
