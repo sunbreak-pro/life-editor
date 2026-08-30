@@ -15,6 +15,7 @@ import {
   getTodoSelection,
   getDailySelection,
 } from "../src/state/materialsSelectionStore";
+import { clearDomainSnapshots } from "../src/state/domainSnapshotStore";
 import { todayDateKey } from "../src/utils/dateKey";
 import type { DataService } from "../src/services/DataService";
 import type { NoteNode } from "../src/types/note";
@@ -111,6 +112,10 @@ const dailiesDS = {
 describe("Materials selection persistence (#282)", () => {
   beforeEach(() => {
     resetMaterialsSelection();
+    // #1101's snapshot store is module state and is keyed by DataService
+    // IDENTITY, so a test that reuses one `ds` across mounts (see the #1285
+    // case below) would otherwise inherit the previous test's snapshot.
+    clearDomainSnapshots();
   });
 
   it("Notes: restores the selected note after remount, hydrating the body first", async () => {
@@ -158,6 +163,51 @@ describe("Materials selection persistence (#282)", () => {
       expect(m2.result.current.selectedNoteId).toBe("note-1"),
     );
     expect(m2.result.current.selectedNote?.content).toBe("real body");
+    m2.unmount();
+  });
+
+  /*
+   * #1285 — the SAME DataService across the remount, which is what the app
+   * actually does when the user leaves Materials and comes back.
+   *
+   * The test above deliberately mounts a second `ds`, and that difference is
+   * what hid the bug for two Issues: #1101's snapshot store is keyed by
+   * DataService IDENTITY, so a fresh instance is always a MISS and the second
+   * mount starts out loading, exactly like a cold one. Reuse the instance and
+   * the snapshot HITS — `isLoading` is false on the very first render, which
+   * is where the old effect-based restore read a `notes` closure that was
+   * still `[]`, called that "the note is gone", cleared the store and burned
+   * its one-shot. The reported symptom is the second half of that: not merely
+   * unselected, but forgotten.
+   */
+  it("Notes: restores after a remount on the SAME service (warm snapshot)", async () => {
+    const full = makeNote("note-1", "real body");
+    const { ds, getNoteUnified } = makeNotesDS([full], async () => full);
+
+    const m1 = renderHook(() => useNotesUnifiedAPI({ dataService: ds }), {
+      wrapper: syncWrapper,
+    });
+    await waitFor(() => expect(m1.result.current.isLoading).toBe(false));
+    act(() => {
+      m1.result.current.setSelectedNoteId("note-1");
+    });
+    await waitFor(() =>
+      expect(m1.result.current.selectedNoteId).toBe("note-1"),
+    );
+    m1.unmount();
+
+    getNoteUnified.mockClear();
+    const m2 = renderHook(() => useNotesUnifiedAPI({ dataService: ds }), {
+      wrapper: syncWrapper,
+    });
+
+    await waitFor(() =>
+      expect(m2.result.current.selectedNoteId).toBe("note-1"),
+    );
+    expect(m2.result.current.selectedNote?.content).toBe("real body");
+    // The id is still remembered for the NEXT switch — the failure this pins
+    // erased it, so a second round trip could not have restored either.
+    expect(getNotesSelection()).toBe("note-1");
     m2.unmount();
   });
 
