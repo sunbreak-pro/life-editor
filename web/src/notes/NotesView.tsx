@@ -162,11 +162,6 @@ export function NotesView({
     verifyNotePassword: notes.verifyNotePassword,
   });
 
-  // Host state: the list unmounts whenever the narrow drawer is closed, so
-  // keeping the disclosure's open/closed there would forget the user's choice
-  // every time they picked a note.
-  const [trashOpen, setTrashOpen] = useState(false);
-
   // "Register this note as a template" (#1179) + the receipt panel it opens.
   // Writes go straight out through the DataService, which is why it is not on
   // the notes context — see the hook's header.
@@ -529,11 +524,6 @@ export function NotesView({
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
-        trash: t("materials.notes.trash"),
-        untitled: t("materials.notes.untitled"),
-        restoreNote: (title) => t("materials.notes.restoreNote", { title }),
-        permanentDeleteNote: (title) =>
-          t("materials.notes.permanentDeleteNote", { title }),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -541,11 +531,6 @@ export function NotesView({
       onDeleteNote={notes.softDeleteNote}
       onCreateNote={handleAddNote}
       dnd={dnd}
-      trashOpen={trashOpen}
-      onToggleTrash={() => setTrashOpen((v) => !v)}
-      deletedNotes={notes.deletedNotes}
-      onRestoreNote={notes.restoreNote}
-      onPermanentDeleteNote={notes.permanentDeleteNote}
       // #1180 — only with a DataService, which is what templates are read and
       // written through (the same condition the "[[" pool has).
       templatesSlot={
