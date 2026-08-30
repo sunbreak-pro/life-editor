@@ -24,5 +24,4 @@ export const TOUR_SECTION_SUMMARY_KEYS = {
   work: "tour.launcher.summary.work",
   analytics: "tour.launcher.summary.analytics",
   settings: "tour.launcher.summary.settings",
-  trash: "tour.launcher.summary.trash",
 } as const satisfies Readonly<Record<SectionId, TranslationKey>>;

@@ -34,10 +34,10 @@ import {
   Timer,
   BarChart3,
   Settings,
-  Trash2,
 } from "lucide-react";
 
-/** Sidebar grouping: mainline nav rows vs. the utility (settings/trash) set. */
+/** Sidebar grouping: mainline nav rows vs. the utility set (settings — Trash
+ *  moved inside it in #1293). */
 export type SectionGroup = "main" | "utility";
 
 export interface SectionDef {
@@ -66,9 +66,9 @@ export interface SectionDef {
  * in styles/tokens.css).
  *
  * The `rightSidebar` gate is likewise retired (v2 §3): every section shows
- * the detail-panel toggle. Sections without portal content (Analytics /
- * Trash) open the shared placeholder empty state until their refine pass
- * defines panel content.
+ * the detail-panel toggle. A section without portal content (Analytics) opens
+ * the shared placeholder empty state until its refine pass defines panel
+ * content.
  */
 
 /*
@@ -137,19 +137,20 @@ export const SECTIONS = [
     labelKey: "section.analytics",
     mobileOrder: 4,
   },
+  /*
+   * Settings is the only utility row left. Trash was the other one until
+   * #1293 moved it INSIDE Settings — it is a place you visit to undo
+   * something, not a place the app is for, and it was spending a permanent
+   * sidebar row (and a mobile More slot) on that. The view itself did not
+   * change: web/src/settings/SettingsScreen.tsx renders the same TrashScreen
+   * under a category row.
+   */
   {
     id: "settings",
     group: "utility",
     icon: Settings,
     labelKey: "section.settings",
     mobileOrder: 6,
-  },
-  {
-    id: "trash",
-    group: "utility",
-    icon: Trash2,
-    labelKey: "section.trash",
-    mobileOrder: 7,
   },
 ] as const satisfies readonly SectionDef[];
 
@@ -161,7 +162,7 @@ export const MAIN_SECTIONS: readonly SectionDef[] = SECTIONS.filter(
   (s) => s.group === "main",
 );
 
-/** Utility sidebar sections (settings / trash, in canonical order). */
+/** Utility sidebar sections (settings alone since #1293, in canonical order). */
 export const UTILITY_SECTIONS: readonly SectionDef[] = SECTIONS.filter(
   (s) => s.group === "utility",
 );
