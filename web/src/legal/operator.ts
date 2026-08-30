@@ -10,10 +10,12 @@
  * policy page is scraped, and an address on it becomes spam. The GitHub issue
  * tracker is a contact channel the owner already watches.
  *
- * The storage region is stated as "outside Japan" rather than as a region
- * name. That is true of both a US and an EU Supabase project, and a policy
- * that names the wrong country is worse than one that names none — the exact
- * region is queued for the owner to confirm (D-20260829-web-2).
+ * The storage region is named in legalContent §4: AWS ap-northeast-1
+ * (Tokyo). D-20260829-web-2 settled it on 2026-08-30, backed by measurement
+ * (the project's db host resolves into AWS's Tokyo IPv6 range; three
+ * independent sources agree). A policy that names the wrong region is worse
+ * than one that names none, so if the project ever migrates, §4 of both
+ * documents must move with it.
  */
 export const OPERATOR = {
   /** Public handle of the individual running the service. */
