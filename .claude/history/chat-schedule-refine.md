@@ -1,5 +1,21 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-30 - #1242 タグフィルタの aria-label に単数形を与えた
+
+#### 概要
+
+Schedule ツールバーのタグフィルタが、タグ 1 件選択で "Filtered by 1 tags" と読み上げられていた。`scheduleScreen.filterActive` を `_one` / `_other` に分けて i18next に形を選ばせた（PR #1267 open）。
+
+#### 変更点
+
+- **en / ja カタログ**: `shared/src/i18n/locales/en.json` の `filterActive` を `filterActive_one`（"Filtered by {{count}} tag"）と `filterActive_other` に分割。`ja.json` は `filterActive_other` へ改名（日本語は 1 形・既存 `todoCount_other` と同じ綴り）。**呼び出し側は無変更** — `web/src/schedule/scheduleCopy.ts:211` は既に `count` を渡していて、直す場所は「呼び出し側の三項」ではなくカタログの側だった
+- **前例をそのまま踏んだ**: `materials.todos.todoCount` が #680 で同じ壊れ方（"1 todos"）をして同じ形で直っている。テストも `shared/tests/i18n.test.ts` のその 2 本のすぐ下に置き、en は count 0/1/2・ja は 1/2 を `t()` 経由で assert する形を揃えた
+- **見つからなかった理由が構造にある**: この文字列は `ScheduleToolbar.tsx:165` の `aria-label` にしか行かないので、**画面を見ている限り絶対に出ない**。実ブラウザ巡回で読み上げを聞いて初めて出た（chat-main の #1226 merge 後 P4 巡回）
+- **分割は将来の退行を「静か」から「大声」に変えた**（実バンドルで実測）: 呼び出し側が `count` を落とすと、分割前は "Filtered by {{count}} tags" というそれらしい英文に落ちたが、素のキーが消えた今は生の `"scheduleScreen.filterActive"` が DOM に出る。逆に en を revert すると新テストが赤くなることも確認済み（テストがトートロジーでないことの担保）
+- **`i18nKeys.test.ts` は en/ja の非対称を最初から許す作り**: 複数形サフィックスを基底キーに畳んでから突き合わせるので、en が `_one` + `_other`・ja が `_other` だけという形はこのテストが受け入れるために書かれた形そのもの。`_other` 必須チェックもサフィックス付きキーだけを見るので ja 側も通る
+- **検証**: CI `verify` の全ステップ + `docs-lint` をローカルで exit 0（shared 274 files / 2,677 tests・web 100 files / 937 tests・desktop 1 file / 7 tests・mcp-server 24 files / 319 tests）。レビューで挙がった 2 件の指摘は独立検証で両方 refute（1 = ja テストが改名を pin しない → #778 で意図的にそう分割した設計・#680 と同一 / 2 = count→aria-label の配線が未固定 → 差分外の既存コードで、提案された修正では名指しの変異を検出できない）
+- **同じ潜在バグが 6 本残っている**（この PR の対象外・outbox へ起票依頼）: `scheduleScreen.repeatFilterHidden`（同じツールバーの**可視**ラベル "1 repeats hidden"）/ `materials.tags.usageCount`（"1 items"）/ `connect.itemCount`（"1 items"）/ `todos.todoDeleteCascadeConfirm`（破壊的確認の本文 "its 1 child todos"）/ `itemConvert.childrenBlocked`（"subtask(s)" のごまかし）/ `work.sidebar.sessions`（1 形かつ**呼び出し側が 1 つも無い**）。**5 本は aria-label ではなく画面に出る文字列なので、今回のより見え方が悪い**
+
 ### 2026-08-29 - #1173 カレンダー台帳の退役（タグフィルタ + グループ）と #1207 セグメント揃え
 
 #### 概要
