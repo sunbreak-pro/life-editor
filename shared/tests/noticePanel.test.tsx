@@ -130,3 +130,65 @@ describe("NoticePanel tone face", () => {
     expect(dark![1]).toContain(`--color-${tone}-subtle:`);
   });
 });
+
+describe("NoticePanel text variant", () => {
+  /*
+   * #1278 — the three in-form errors were bare <p>/<span> with a hand-typed
+   * role and a hardcoded tone class. What the variant has to keep is
+   * everything the band already centralised MINUS the chrome, so these pin
+   * both halves: the live region is still DERIVED from the tone, and none of
+   * the band's border / fill / glyph comes along for the ride.
+   */
+  it("keeps the tone-derived live region", () => {
+    render(<NoticePanel variant="text" tone="danger" message="Failed" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Failed");
+    // Assertive already; re-declaring politeness is the double-announce bug.
+    expect(screen.getByRole("alert").getAttribute("aria-live")).toBeNull();
+  });
+
+  it("is polite for the tones that do not interrupt", () => {
+    render(<NoticePanel variant="text" tone="info" message="Heads up" />);
+    expect(screen.getByRole("status").getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("draws no band: no border, no fill, no glyph", () => {
+    const { container } = render(
+      <NoticePanel variant="text" tone="danger" message="Failed" />,
+    );
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.className).not.toContain("border");
+    expect(el.className).not.toContain("bg-lumen");
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
+  it.each(TONES)("carries the literal %s text color", (tone) => {
+    // Same silent-fail reasoning as the band's face: a built
+    // `text-lumen-${tone}` is never emitted by Tailwind's scanner, and copy in
+    // the default color is not a failure anyone would catch in review.
+    const { container } = render(
+      <NoticePanel variant="text" tone={tone} message="x" />,
+    );
+    expect((container.firstElementChild as HTMLElement).className).toContain(
+      `text-lumen-${tone}`,
+    );
+  });
+
+  it("takes the dense size for a chip row", () => {
+    // LinkPanel's row is all text-xs. `cn` is concatenation, not
+    // tailwind-merge, so this cannot be a className — the base text-sm would
+    // win on source order (rules/frontend.md §Gotchas).
+    const { container } = render(
+      <NoticePanel variant="text" size="xs" message="x" />,
+    );
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.className).toContain("text-xs");
+    expect(el.className).not.toContain("text-sm");
+  });
+
+  it("exposes an id a field can describe itself by", () => {
+    // NotePasswordDialog's two inputs point aria-describedby at this node;
+    // without the prop the swap would silently drop that association.
+    render(<NoticePanel variant="text" id="err-1" message="x" />);
+    expect(screen.getByRole("status").getAttribute("id")).toBe("err-1");
+  });
+});

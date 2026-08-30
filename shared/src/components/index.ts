@@ -42,6 +42,7 @@ export {
   type NoticePanelProps,
   type NoticeTone,
   type NoticeVariant,
+  type NoticeSize,
   type NoticeAction,
 } from "./NoticePanel";
 // Item operation panels (Issue #307) — the generic Popover / DetailOverlay
