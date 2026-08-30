@@ -1,5 +1,9 @@
 import { useCallback, useState } from "react";
-import type { DataService, TemplateApplyItem } from "@life-editor/shared";
+import {
+  isEmptyDocJson,
+  type DataService,
+  type TemplateApplyItem,
+} from "@life-editor/shared";
 
 /*
  * Pouring a saved template into the open note (#1181).
@@ -19,6 +23,29 @@ import type { DataService, TemplateApplyItem } from "@life-editor/shared";
  * something it has not got — and the write itself stays with the host, because
  * the NOTE is the notes context's to update.
  */
+
+/*
+ * Is the open note's body empty? (#1255)
+ *
+ * The confirm step warns that what is written now will be discarded, and on an
+ * untouched note that sentence describes something that is not happening. This
+ * is what lets the host say the other thing instead.
+ *
+ * Deliberately one-sided: it answers `true` only when the body is PROVABLY
+ * empty, and every unreadable shape counts as written. A body is TipTap doc
+ * JSON today, but notes older than that editor hold raw HTML, and
+ * `isEmptyDocJson` reports a string it cannot parse as empty — exactly
+ * backwards for a caller that is deciding whether to DROP a warning. So
+ * anything that is not a JSON object is left alone: at worst the user is warned
+ * about a body that turns out to be blank, which is the harmless half of being
+ * wrong.
+ */
+export function isBlankNoteBody(content: string | null | undefined): boolean {
+  const body = (content ?? "").trim();
+  if (body === "") return true;
+  if (!body.startsWith("{")) return false;
+  return isEmptyDocJson(body);
+}
 
 export interface NoteTemplateApplyPending extends TemplateApplyItem {
   content: string;

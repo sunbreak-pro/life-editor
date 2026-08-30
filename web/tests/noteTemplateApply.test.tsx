@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { DataService, NoteNode } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
+import { isBlankNoteBody } from "../src/notes/hooks/useNoteTemplateApply";
 import { stubDataService } from "./helpers";
 
 /*
@@ -120,6 +121,11 @@ function note(over: Partial<NoteNode> & { id: string }): NoteNode {
 }
 
 const ALPHA = note({ id: "note-a", title: "Alpha", content: "<p>draft</p>" });
+/** What the editor emits for a note nobody has typed in yet. */
+const EMPTY_DOC = JSON.stringify({
+  type: "doc",
+  content: [{ type: "paragraph" }],
+});
 const WEEKLY = note({
   id: "note-t1",
   type: "template",
@@ -226,5 +232,103 @@ describe("apply a saved template to the open note (#1181)", () => {
     openKebab();
 
     expect(screen.queryByText("materials.templates.applyMenuEntry")).toBeNull();
+  });
+});
+
+/*
+ * #1255 — the confirm was unconditional, so a note with nothing in it was still
+ * told that "whatever is written now is discarded". The step stays (it is still
+ * a write, and cancelling it is still worth offering); only the sentence moves.
+ */
+describe("what the apply confirm claims is being discarded (#1255)", () => {
+  it("drops the discard warning when the note body is empty", async () => {
+    state.notes = [note({ id: "note-a", title: "Alpha", content: EMPTY_DOC })];
+    render(<NotesView dataService={makeDS()} />);
+    openKebab();
+    fireEvent.click(screen.getByText("materials.templates.applyMenuEntry"));
+    fireEvent.click(await screen.findByText("Weekly review"));
+
+    expect(
+      await screen.findByText(
+        "materials.templates.applyConfirmBodyEmpty|Weekly review",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("materials.templates.applyConfirmBody|Weekly review"),
+    ).toBeNull();
+  });
+
+  it("still applies the template from that shortened confirm", async () => {
+    state.notes = [note({ id: "note-a", title: "Alpha", content: EMPTY_DOC })];
+    render(<NotesView dataService={makeDS()} />);
+    openKebab();
+    fireEvent.click(screen.getByText("materials.templates.applyMenuEntry"));
+    fireEvent.click(await screen.findByText("Weekly review"));
+    await screen.findByText(
+      "materials.templates.applyConfirmBodyEmpty|Weekly review",
+    );
+    fireEvent.click(screen.getByText("materials.templates.applyConfirm"));
+
+    await waitFor(() => expect(state.updateNote).toHaveBeenCalled());
+    expect(state.updateNote).toHaveBeenCalledExactlyOnceWith("note-a", {
+      content: "<p>from the template</p>",
+    });
+  });
+
+  it("keeps warning when the body holds text", async () => {
+    state.notes = [
+      note({
+        id: "note-a",
+        title: "Alpha",
+        content: JSON.stringify({
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "draft" }] },
+          ],
+        }),
+      }),
+    ];
+    render(<NotesView dataService={makeDS()} />);
+    await pickWeekly();
+
+    expect(
+      screen.queryByText(
+        "materials.templates.applyConfirmBodyEmpty|Weekly review",
+      ),
+    ).toBeNull();
+  });
+});
+
+/*
+ * The predicate on its own, because its ONE-SIDEDNESS is the part a view test
+ * cannot show: it may only answer `true` for a body it has proven empty. Notes
+ * older than the TipTap editor hold raw HTML, and the doc-JSON reader reports
+ * anything it cannot parse as empty — which, for a caller deciding whether to
+ * DROP a warning, is the dangerous way to be wrong.
+ */
+describe("isBlankNoteBody", () => {
+  it("counts nothing, whitespace and an empty doc as blank", () => {
+    expect(isBlankNoteBody(undefined)).toBe(true);
+    expect(isBlankNoteBody(null)).toBe(true);
+    expect(isBlankNoteBody("   ")).toBe(true);
+    expect(isBlankNoteBody(EMPTY_DOC)).toBe(true);
+  });
+
+  it("counts a legacy HTML body as written, even an empty-looking one", () => {
+    expect(isBlankNoteBody("<p>draft</p>")).toBe(false);
+    expect(isBlankNoteBody("<p></p>")).toBe(false);
+  });
+
+  it("counts a doc with text as written", () => {
+    expect(
+      isBlankNoteBody(
+        JSON.stringify({
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "hi" }] },
+          ],
+        }),
+      ),
+    ).toBe(false);
   });
 });
