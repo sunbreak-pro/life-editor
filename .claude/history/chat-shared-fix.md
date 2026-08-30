@@ -1,5 +1,23 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-08-30 - [shared-fix] /goal 7 件を PR まで（3 件は Issue が名指したファイルに原因が無かった）
+
+#### 概要
+
+こうだいさんの /goal「7 件すべてを、CI verify のローカル全緑を経て PR open にする」を実行し、**PR #1305 / #1315 / #1321 / #1325 / #1327** の 5 本 + **判断キュー 1 件**（#1279）で全件到達した。#1283 と #1284 は Issue の指定どおり 1 ブランチにまとめてある。全 PR は open のまま（merge は P-001 でこうだいさんの手番）。
+
+**7 件のうち 3 件で「Issue が Scope に書いたファイルに原因が無かった」**。#1283 の「ヘッダー帯」は `AppShell.tsx` ではなく `SectionHeader.tsx`、#1284 の重複した × は `AppShell.tsx` ではなく Desktop と Mobile が**共有する** `RightSidebarContents.tsx`（だから breakpoint 条件が無かった）、#1276 の `repeatFilterHidden` の `t()` 呼び出し元は `ScheduleToolbar.tsx:151` ではなく `CalendarDesktopLayout.tsx:270`。着手前に読み取り専用エージェント 7 体で全件を先に洗ったので、実装前に全部つかまった。
+
+#### 変更点
+
+- **#1264（PR #1305）— 折り返しは「詰めた」結果だった**: 幅 264px の吹き出しフッターに ja の `スキップ`（64px）+ 14 文字の `実際に操作すると次に進みます`（168px）+ カウンタ（27px）で 275px。**flex の既定の答えは「全部を少しずつ縮める」**で、その数 px がカウンタを最後のスペースで割り、CJK は字の間ならどこでも折れるので `スキップ` が字の途中で割れた。固定サイズの 3 つを `shrink-0 whitespace-nowrap` にし、**行に `flex-wrap` を足した** — nowrap だけだと今度は文の側が 13 文字 + `す` 1 文字で折れる（直した見た目より悪い）。en は元から収まるので 1 行のまま。`w-72 → w-80` の幅拡張は却下（全ステップの吹き出しが動くうえ、長い文が来れば同じバグが再発する）
+- **#1276（PR #1315）— テストがバグを固定していた**: en を `_one` / `_other` に割り、ja は `_other` へ改名（#1242 / #680 と同じ機械的な形）。**`web/tests/connectScreen.test.tsx` が 7 箇所で `"Untagged: 1 items"` を期待していた** — この suite は意図的に本物のカタログを通しているので、非文法な文字列がそのまま pin されていた。`work.sidebar.sessions` は 4 パッケージ全走査で呼び出し元ゼロを実測し、P-002 で削除（`sessionsProgress` / `targetSessions` は生きている兄弟キー）。`shared/tests/tagHubView.test.tsx` の `${count} items` は**あえて触っていない** — あれは props 注入の `formatCount` スタブで、部品が複数形の意見を持たないことこそ §6.4 の趣旨
+- **#1275（PR #1321）— straight swap でも a11y は動く**: Trash の手組みバンド 2 箇所を `NoticePanel` へ。**両方に `role="status"` を明示した** — TrashScreen は元の markup が持っていたので維持（テスト 2 本も `findByRole("status")` で引いている）、TrashView の cascade 警告は元は role 無しで、`warning` の既定 `alert` にするとダイアログ自身の読み上げに割り込んで同じ行を繰り返す。「リファクタは読み上げの挙動を変えない」を通した
+- **#1278（PR #1325）— Issue の書き方どおりに実装すると壊れる**: Issue は `variant?: 'panel' | 'text'` と書いていたが、それは既存 `card` / `banner` の**改名**で `OfflineBanner` が壊れる。`variant` の 3 つ目の値として `text` を足した。**`size` prop が要るのは `cn` が tailwind-merge ではないから** — `className="text-xs"` は基底の `text-sm` に CSS 記述順で負け、しかも無言で（#830 の Modal と同じ罠）。`id` prop は `NotePasswordDialog` の 2 つの input が `aria-describedby` で指しているため。新規テスト 2 ファイル分 — `notePasswordDialog.test.tsx` はそもそもテストが 1 本も無く、`linkPanel.test.tsx` のエラー経路も未カバーだった。**`selfLink` ガードは UI から到達不能**（ピッカーの `candidates` が既に `target.id !== itemId` で除外済み）なので、実際に届く「書き込み失敗」でテストを書いた
+- **#1283 + #1284（PR #1327）— ファイル重複ゼロなので 1 ブランチ**: #1283 は行の `pt-4`（`pb` 無し）が原因で `self-center` が padding box の中心に落ちていた。行を `min-h-14 md:min-h-15` + 縦 padding ゼロにし、`pt-3 md:pt-4` は**タブ帯を持つときだけ**左カラムへ移した（タブの `-mb-px` 下線が行の `border-b` に重なる仕掛けを壊さないため）。**タイトルも同じ 7.5px ぶん下がっていた**ので、controls だけ中央化すると 2 つが割れる。`min-h-15` は Tailwind v4 の動的スペーシングなので、ビルド後の CSS で `calc(var(--spacing) * 15)` が出ていることを実測してから採用した。#1284 は `closeLabel` / `onClose` をペアで optional にして Desktop が渡さない形に。**`RightSidebarProps.closeLabel` は残さず削除**したので型検査が全呼び出し元を洗い、事前調査が見落としていた `web/tests/workScreenLayout.test.tsx` を捕まえた。`#753` の未保存ガードは無傷（× の `requestClose` と toggle の `toggle()` は別経路ではなく、`toggle()` が open 時に `requestClose` を呼ぶ）
+- **#1279 は実装せずキューへ**: `D-20260830-shared-fix-1`（PR #1328 + Issue コメント）。Issue 自身が「1 箇所なら公認 / 3 箇所以上なら部品化」の基準を持っていたので、3 通りの独立した grep で**実測 1 箇所**を確定させた。推奨は A（据え置き）だが、同じ右サイドバーの Todo 削除が既に `ConfirmDialog` 経由という反論（C）も併記。どちらを選んでも残る a11y 欠陥 2 つ（arming でフォーカスが body に落ちる / 問いが読み上げられない）も明記した — A を「見て問題なし」と読まれないように
+- **verify の回し方**: 全ブランチで ci.yml の verify 15 ステップ + docs-lint をローカル実行。`web — test` は**冷えた vite transform キャッシュで `briefingEveningLazyMount` が落ちる既知の flake**に 1 度当たったが、温めて回し直すと 102 files / 958 tests 緑（memory の記録どおり）
+
 ### 2026-08-30 - [shared-fix] #1194 = チュートリアルに目次を付けた（機構は足さず、run が歩く list を差し替えるだけ）
 
 #### 概要
@@ -100,20 +118,3 @@
 - **フォーカストラップを 2 種類に分けた（#1122）**: `advanceOn: { kind: "action" }` のステップは**指している当の控えをユーザーに操作させる**のが目的なので、トラップするとキーボードで完了できなくなる。非モーダル（`aria-modal` なし + `aria-live` で読み上げ）にし、スポットライトも全面スクリムではなく box-shadow にして `pointer-events: none` でページを覆う要素を作らない形にした。重ね順は z-45 = 画面クロムの上・ダイアログ帯（z-50）の下（指示された控えが Modal を開くことがあるため）
 - **ガードが本物かを変異テストで確認した**: 「unlayered であること」（#1134）と「1 つも表示できなければ完了にしない」（#1122）は、条件を潰すと該当テストだけが落ちることを実測してから戻した
 - **verify ログを 2 プロセスが同時に書いて壊れた**: kill 直後に同じログファイルへ再実行したため NUL 混じりになり `desktop — build` の判定だけが読めなくなった。単体で緑を確認したうえで、記録として信頼できるログを別ファイルに取り直した
-
-### 2026-08-24 - [shared-fix] /goal 残り 4 件を PR まで（3 件は Issue の前提が実測で崩れていた）
-
-#### 概要
-
-前セッションから続く /goal の残り **#1102 / #992 / #1087 / #1079** を、それぞれ「origin/main から切ったブランチ + CI verify 15 ステップ緑 + PR」で完了した（PR #1126 / #1127 / #1128 / #1129。#1126 と #1127 はその場でこうだいさんが merge）。これで対象 7 件すべてが PR に到達した。
-
-**4 件のうち 3 件は Issue 本文の前提が今日のコードと食い違っていた**。#992 は削減対象そのものが存在せず、#1079 は「設定 1 行」がそのままでは踏めず、#1087 は数え方が違った。前セッションで効いた「Issue 本文より今日のコードを信じる」を今回も先に置いたので、実装前に全部つかまった。
-
-#### 変更点
-
-- **#1102（PR #1126・merged）**: 週の始まりを日曜固定にし、`useWeekStartPref` と `life-editor-week-start` を撤去。**純関数の `weekStartsOn` 引数は残した** — 月曜ケースが step-back 演算を検証している唯一のテストで、#860 でドリフトしたのはまさにその演算。畳んだのは配線層（Analytics 4 コンポーネントのフック呼び出し / MonthGrid の prop / useCalendarNav の返り値 / useGoalsDoc の引数）。新テスト `weekStartsSunday.test.ts` が「古い "1" を localStorage に書いても境界が動かない」ことと「`shared/src` と `web/src` に退役シンボルが残っていない」ことを走査する（**取りこぼした消費者は型検査もテストも素通りするので、走査だけが網になる**）
-- **#992（PR #1127・merged）**: Issue の「行ごとの `useDroppable`」は**起票時点から存在しなかった**（`NoteListRows.tsx` の droppable は `DesktopTagHeading` 内 = タグ見出しごと 1 個）。行ごとの登録が実在したのは Kanban のカードで、`useSortable` が draggable と droppable を両方登録していた。**`useDraggable` への置換は不採用** — `sortableKeyboardCoordinates` が `droppableContainers.get(active.id)` を引くので、置換すると矢印キーの DnD が無言で死ぬ。`disabled: { droppable: true }` なら Map には残るのでキーボードは無傷、測定と衝突判定からは外れる（盤は `MeasuringStrategy.Always` なのでドラッグ 1 フレームごとにカード枚数ぶんの `getBoundingClientRect` が走っていた）。この経路はテスト 0 本だったので 2 本追加（修正前は 2 ではなく 8 で落ちることを実測）
-- **#1087（PR #1128）**: known-issue の採否条件を「常時ロードされる場所から ID 参照を張れるか」に変更（`rules/records.md` §2 が正本・`docs-workflow` は参照に）。**参照 0 は Issue の 7 本ではなく実測 5 本**（007 / 010 / 023 / 030 / 032）。束で扱わず 3 通りに割った: 前提ごと消えた 007 / 010 は削除、今日も再現する 030 / 032 は入口を張る（`rules/records.md` §4 と CLAUDE.md §7.2）、検証不能の 023 は凍結。判断 2 件は D-20260823-shared-fix-1 / -2 として台帳へ（削除は不可逆なので P-007 で同期確認・キューには積まなかった）
-- **#1079（PR #1129）**: `pool: "threads"` は**そのままでは入れられなかった**。この repo の TZ pin は `test.env` だけで、threads worker はプロセスを共有するため Node が `process.env.TZ` からゾーンを読み直さない — `TZ=UTC` で mcp-server の localDate が 3 件落ちる。**もっと危険なのは落ちない方**で、`dateKeyOfInstant` と `analyticsCompletedDayKey` は `getTimezoneOffset() < 0` で自分をガードしており UTC ではアサーションごと消えて緑になる（#413 / #420 が守っているバグが素通りする）。pin を config モジュールの代入へ移してメインプロセスで ICU を張り直し、canary も「解決済みゾーン」を見る形に直した。DOM を触らない shared の 86 本は node 環境へ（**拡張子での glob 分割は不可** — `.test.ts` の 35 本は DOM が要る）。jsdom 生成 226s → 147s CPU
-- **計測の作法**: この機は同じコマンドでも ±30% ぶれる（冷キャッシュ 116s / 温 69〜90s）ため、**同一ブランチで pool だけ入れ替えた対照**（68s → 59s = −13%）を PR の数字にした。ファイル編集直後の 1 回目は transform キャッシュが無効化されて必ず遅くなるので計測から除いた。Issue の「124s → 90s 以下」は達成（59s）だが、**Issue が測った −36% はこの機では再現していない**
-- **偵察**: 前セッションで API エラーにより欠けていた #1079 の偵察を含め、読み取り専用サブエージェント 7 体で先に洗った（#1079 の 5 問 / #992 の DnD 経路 / #1087 の実測と文面）。`useDraggable` がキーボード DnD を殺す件も、web でバレル置換が config なしには 1 行も通らない件も、この段階で判明している

@@ -1,5 +1,19 @@
 # chat-materials-refine outbox
 
+## 2026-08-30 (2) — materials 5 本（#1292 / #1285 / #1286 / #1287 / #1288）PR 提出 + 起票依頼 1 件
+
+2026-08-30 dispatch の materials 5 件を、全部 `origin/main` から独立に切って PR にしました（merge はこうだいさんの手番 = P-001）。各 PR で CI verify のステップ列（`npm ci` を除く 14 ステップ）をローカル実行して緑を確認済み。
+
+- **PR #1306 / #1292** — 削除済みアイテムへのリンクが id の羅列で出ていた。候補プールが soft-deleted を**捨てず、フラグを立てて**持つ形に変え、id を握っている面（LinkPanel の chip / related 行）は名前を引けるように。新しいリンク先を**出す**面（`[[` メニュー・picker・関連リスト）は各自の境界でフラグを落とす
+- **PR #1313 / #1285** — セクション往復で選択が消えるのは**新機能の不在ではなく #282 の故障**でした。#1101（stale-while-revalidate）でスナップショットが当たるマウントは 1 回目のレンダーから `isLoading` が false になり、復元 effect が空の `notes` クロージャを読んで「ノートが消えた」と判断し、**記憶ごと消して**いた
+- **PR #1316 / #1286** — Note サイドバーのごみ箱リスト撤去（Trash セクションと役割被り）
+- **PR #1319 / #1287** — 一覧行の共通ドキュメントアイコンをピン留めピンに置換（未ピン行も同じ幅のスロットで桁揃え）
+- **PR #1322 / #1288** — タグフィルタの複数選択化（OR）+ フィルタ未使用時のチップ行 / 一覧の上限
+
+**@chat-main（起票依頼 1 件・section:work か section:schedule）**: **#1292 の後半「リンクされているアイテムを削除するときに『紐づいているリンクも消えます』の確認パネルを出す」を分割起票してください。** #1292 の Scope 註が認めている分割です。理由 = Todo の削除確認は `web/src/schedule/useScheduleTodoChips.ts`（`handleTodoDelete` / `handleTodoDetailDelete`）にあり schedule レーン専有で、そこへリンク件数を渡すには `useWikiTagsUnifiedContext`（`getLinksForItem`）の持ち込みが要ります。one writer per artifact のため materials 側では触りませんでした。実装の目安 = 既存の `todoDeleteCascade` と同じ形で「子 N 件」に加えて「リンク M 件」を数え、`copy.cascadeConfirm` の隣に文言を 1 本足す。PR #1306 が着地していれば、削除後のリンクは id ではなく「タイトル（削除済み）」で残るので、**確認を出さなくても壊れて見えることはありません**（= 優先度は低め・sev:minor 相当）。
+
+**@chat-tags（#1291 の採用は materials 側の追随タスクとして記録済み）**: #1288 の提出時点で PR #1318 は open でしたが **merge 前**（`origin/main` の `shared/src/components/` に共通タグチップは存在せず）だったため、**採用は入れていません**。#1288 は Notes ローカルの `NoteTagFilterChips` を新設しています（`StatusFilterChips` は単一選択が契約で、もう一方の利用者が Mobile Todos のため広げない判断）。#1291 が着地したら、`useNoteListState.tagFilterChips` の `icon` スロット 1 箇所を共通部品へ差し替えるだけで採用できます。PR #1322 本文にも同じ記録を置きました。
+
 このチャットだけが書き込み可能。他チャットは読み取り専用。
 最新エントリを上に追記する（降順）。
 

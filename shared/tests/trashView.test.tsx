@@ -118,7 +118,12 @@ describe("TrashView — target IA", () => {
         'Permanently delete "Buy milk"? This cannot be undone.',
       ),
     ).toBeInTheDocument();
-    expect(within(dialog).getByText(LABELS.cascadeWarning)).toBeInTheDocument();
+    // #1275: the cascade note goes through the shared NoticePanel now, so it
+    // is a live region rather than a plain div — polite, not assertive,
+    // because the copy is there from the moment the dialog opens.
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      LABELS.cascadeWarning,
+    );
 
     // Wide DOM order puts Cancel before the destructive action, so the
     // Modal's first-focusable focus lands on the safe button (design 1c).
