@@ -1,4 +1,5 @@
 # MEMORY (chat-du-g)
+> RETIRED: 2026-08-30 — worktree 廃止・書き手不在（D-20260830-main-1）
 
 ## 進行中
 

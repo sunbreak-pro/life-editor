@@ -12,6 +12,11 @@ CLAUDE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 gen_memory_index() {
   local out="$CLAUDE_DIR/memory/INDEX.md"
+  # 退役マーカー契約 (#1135): chat-*.md の先頭 5 行以内に `> RETIRED: <日付> — <理由>`
+  # を置いたレーンは「進行中」の集計から外し、末尾の退役一覧にだけ名前を出す。
+  # マーカーの付与そのものは単一書込者ルールの例外裁定待ち（D-20260830-main-1）で、
+  # マーカーが 1 本も無い間この分岐は何もしない。
+  local retired=""
   {
     echo "# MEMORY INDEX (auto-generated — vendor regen-index.sh)"
     echo
@@ -22,12 +27,22 @@ gen_memory_index() {
     for f in "$CLAUDE_DIR"/memory/chat-*.md; do
       [ -f "$f" ] || continue
       local name; name="$(basename "$f" .md)"
+      if head -5 "$f" | grep -q '^> RETIRED:'; then
+        retired="$retired $name"
+        continue
+      fi
       awk -v chat="$name" '
         /^## 進行中/ { on=1; next }
         /^## / { on=0 }
         on && /^- / { printf "- [%s] %s\n", chat, substr($0, 3) }
       ' "$f"
     done
+    if [ -n "$retired" ]; then
+      echo
+      echo "## 退役レーン（RETIRED マーカー付き — 進行中の集計から除外）"
+      echo
+      for n in $retired; do echo "- $n"; done
+    fi
   } > "$out"
 }
 
