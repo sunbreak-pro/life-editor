@@ -34,6 +34,15 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  * Note the deliberate difference from the palette's pool: EVENTS are absent.
  * A "[[" link opens through ITEM_NAV_TARGET, which has no event route, so
  * offering one would insert a link whose click does nothing.
+ *
+ * #1292 — SOFT-DELETED ROWS ARE IN THE POOL, flagged rather than dropped. The
+ * pool used to skip them, which is correct for the two surfaces that OFFER a
+ * target (the "[[" menu, LinkPanel's picker) and wrong for the one that already
+ * HOLDS an id: an `item_links` edge outlives its target, so a link to a deleted
+ * todo found nothing to name it by and fell back to printing the id — the run
+ * of digits users reported. Both offering surfaces filter on the flag at their
+ * own edge, so the only behaviour that changes is that a dead link can say what
+ * it was.
  */
 export type LoadItemLinkTargetsOptions = LazyPoolOptions;
 export type LoadItemLinkTargets = LoadLazyPool<ItemLinkTarget[]>;
@@ -54,19 +63,27 @@ export function useItemLinkTargets(
     ]);
     const next: ItemLinkTarget[] = [];
     for (const n of notes) {
-      if (n.isDeleted) continue;
-      next.push({ id: n.id, label: n.title || "(untitled)", role: "note" });
+      next.push({
+        id: n.id,
+        label: n.title || "(untitled)",
+        role: "note",
+        isDeleted: !!n.isDeleted,
+      });
     }
     for (const d of dailies) {
-      if (d.isDeleted) continue;
-      next.push({ id: d.id, label: d.date, role: "daily" });
+      next.push({
+        id: d.id,
+        label: d.date,
+        role: "daily",
+        isDeleted: !!d.isDeleted,
+      });
     }
     for (const todo of todos) {
-      if (todo.isDeleted) continue;
       next.push({
         id: todo.id,
         label: todo.title || "(untitled)",
         role: "task",
+        isDeleted: !!todo.isDeleted,
       });
     }
     return next;
