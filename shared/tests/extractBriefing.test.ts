@@ -1,6 +1,9 @@
 // @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
-import { extractBriefing } from "../src/components/briefing/extractBriefing";
+import {
+  extractBriefing,
+  lastBriefingDate,
+} from "../src/components/briefing/extractBriefing";
 
 const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
 const h = (text: string, level = 2) => ({
@@ -75,5 +78,67 @@ describe("extractBriefing", () => {
     expect(extractBriefing(doc([h("Briefing"), rich]))?.paragraphs).toEqual([
       "今日はDDLから。",
     ]);
+  });
+});
+
+/*
+ * The Settings card's "last AI activity" line (#1210). What it must NOT do is
+ * as important as what it must: a daily the user threw away is not evidence of
+ * anything, and neither is a Briefing heading with no paragraphs under it.
+ */
+describe("lastBriefingDate", () => {
+  const daily = (date: string, content: string, isDeleted?: boolean) => ({
+    date,
+    content,
+    isDeleted,
+  });
+  const withBriefing = doc([h("Briefing"), p("a word on yesterday")]);
+  const withoutBriefing = doc([h("Memo"), p("nothing to see")]);
+
+  it("returns null for an empty list", () => {
+    expect(lastBriefingDate([])).toBeNull();
+  });
+
+  it("returns null when no daily carries a briefing section", () => {
+    expect(
+      lastBriefingDate([
+        daily("2026-08-29", withoutBriefing),
+        daily("2026-08-30", ""),
+      ]),
+    ).toBeNull();
+  });
+
+  it("picks the newest date, whatever order the list arrives in", () => {
+    expect(
+      lastBriefingDate([
+        daily("2026-08-28", withBriefing),
+        daily("2026-08-30", withBriefing),
+        daily("2026-08-29", withBriefing),
+      ]),
+    ).toBe("2026-08-30");
+  });
+
+  it("ignores dailies without a briefing section", () => {
+    expect(
+      lastBriefingDate([
+        daily("2026-08-28", withBriefing),
+        daily("2026-08-30", withoutBriefing),
+      ]),
+    ).toBe("2026-08-28");
+  });
+
+  it("ignores soft-deleted dailies", () => {
+    expect(
+      lastBriefingDate([
+        daily("2026-08-28", withBriefing),
+        daily("2026-08-30", withBriefing, true),
+      ]),
+    ).toBe("2026-08-28");
+  });
+
+  it("ignores a Briefing heading with no paragraphs under it", () => {
+    expect(
+      lastBriefingDate([daily("2026-08-30", doc([h("Briefing"), h("Memo")]))]),
+    ).toBeNull();
   });
 });

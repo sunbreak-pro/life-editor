@@ -143,6 +143,21 @@
       "heading": "ポリシーと規約",
       "description": "本アプリが利用者のデータをどう扱うか、そしてどの条件のもとで利用しているかを記した文書です。"
     },
+    "ai": {
+      "heading": "AI 連携",
+      "description": "このアプリのデータベースには Claude Code から直接つながります。パソコンで Claude Code を起動すると MCP サーバー経由で接続され、画面と同じ Todo・予定・ノート・デイリーを読み書きできます。アプリ自体が AI を呼ぶことはありません。",
+      "activityHeading": "最後の朝刊",
+      "activityValue": "{{date}} のデイリーに朝刊が書かれています。",
+      "activityNone": "朝刊が書かれたデイリーはまだありません。",
+      "activityLoading": "確認しています…",
+      "activityCaveat": "デイリーの「朝刊」見出しから読み取った日付です。手で書いた場合も同じように数えます。",
+      "toolsHeading": "Claude Code が使えるツール",
+      "toolsCount": "{{n}} 個",
+      "show": "一覧を開く",
+      "hide": "一覧を閉じる",
+      "argsLabel": "引数:",
+      "argsNone": "なし"
+    },
     "reset": {
       "heading": "リセットとローカルデータ",
       "description": "この端末に保存された設定（テーマ・フォント・ショートカット・レイアウト）をすべて消して再読み込みします。同期済みのデータには影響しません。",

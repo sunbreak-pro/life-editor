@@ -143,6 +143,21 @@
       "heading": "Policy and terms",
       "description": "What this app does with your data, and the terms you are using it under."
     },
+    "ai": {
+      "heading": "AI integration",
+      "description": "Claude Code connects straight to this app's database. Start it on your computer and it reaches the same todos, schedule, notes and dailies these screens show, through the MCP server. The app itself never calls an AI.",
+      "activityHeading": "Last briefing",
+      "activityValue": "A briefing is written in the daily for {{date}}.",
+      "activityNone": "No daily carries a briefing yet.",
+      "activityLoading": "Checking…",
+      "activityCaveat": "Read from the \"Briefing\" heading in your dailies. Anything you typed there yourself counts the same way.",
+      "toolsHeading": "Tools Claude Code can use",
+      "toolsCount": "{{n}} tools",
+      "show": "Show the list",
+      "hide": "Hide the list",
+      "argsLabel": "Arguments:",
+      "argsNone": "none"
+    },
     "reset": {
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",

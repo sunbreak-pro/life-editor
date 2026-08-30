@@ -14,6 +14,15 @@ export {
   isScheduleRestoreConflict,
 } from "./services/scheduleRestoreConflict";
 export { logServiceError } from "./utils/logError";
+// Build-time MCP tool catalog (#1210) — generated from mcp-server's registry
+// by `cd mcp-server && npm run catalog`, never hand-edited. shared/ cannot
+// import the registry itself without pulling the Supabase-backed handlers
+// into the browser bundle, so it crosses the package line as data.
+export {
+  MCP_TOOL_CATALOG,
+  toolArgNames,
+  type McpToolCatalogEntry,
+} from "./generated";
 export {
   getDataService,
   setDataServiceForTest,

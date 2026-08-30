@@ -4,6 +4,7 @@ import {
   Check,
   Circle,
   Plus,
+  Sparkles,
   Sunrise,
   Trash2,
 } from "lucide-react";
@@ -222,7 +223,9 @@ function BlockHead({
   action,
 }: {
   title: string;
-  hint?: string;
+  /* A node, not a string, since #1210: every other section passes plain text,
+     but the AI comment's hint is an attribution badge with an icon in it. */
+  hint?: ReactNode;
   action?: ReactNode;
 }) {
   return (
@@ -459,7 +462,28 @@ export function BriefingView({
       {/* ── AI comment (rest of the briefing section) ────────────── */}
       {briefing !== null && briefing.paragraphs.length > 0 && (
         <section className="border-b border-lumen-border py-5">
-          <BlockHead title={labels.aiTitle} hint={labels.aiSource} />
+          {/*
+           * Attribution badge (#1210). The wording is untouched — `aiSource`
+           * has said "Claude ・ from the Briefing section" since the block
+           * shipped — but it said it in the same small grey type every other
+           * section's hint uses, so the one paragraph on this page that was
+           * not written by the user read exactly like the ones that were. The
+           * icon and the bordered pill are the whole change: the same words,
+           * given a shape that separates them from an annotation.
+           */}
+          <BlockHead
+            title={labels.aiTitle}
+            hint={
+              <span
+                /* Colour and size come from BlockHead's own hint span, which
+                   already wears BRIEFING_HINT_CLASS — this adds only shape. */
+                className="inline-flex items-center gap-1 rounded-full border border-lumen-briefing-kohaku px-2 py-0.5"
+              >
+                <Sparkles size={11} aria-hidden="true" />
+                {labels.aiSource}
+              </span>
+            }
+          />
           <div className="rounded-lumen-md border-l-2 border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-4 py-3">
             {briefing.paragraphs.map((text, i) => (
               <p
