@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { i18n, type NoteNode } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
@@ -11,9 +11,10 @@ import { NotesView } from "../src/notes/NotesView";
  * just as happily as a translated one. So this suite keeps the REAL i18next
  * singleton, switches it to ja, and reads the rendered Japanese back.
  *
- * The two labels under test are the trash row's restore / permanently-delete
- * actions (icon-only buttons, so the aria-label IS the only name a screen
- * reader gets) and the note body's placeholder, which no call site was passing.
+ * What is left under test is the note body's PLACEHOLDER, which no call site
+ * was passing. The trash row's restore / permanently-delete labels used to be
+ * here too — #1286 removed that list from the sidebar (Trash owns recovery for
+ * the whole app), so the strings it was reading are gone with it.
  *
  * Only the context hooks are faked — the same set notesView.test.tsx fakes, and
  * for the same reason (the real ones need Providers, a DataService and a
@@ -101,63 +102,18 @@ function note(over: Partial<NoteNode> & { id: string }): NoteNode {
 }
 
 const ALPHA = note({ id: "note-a", title: "Alpha" });
-const TRASHED = note({ id: "note-z", title: "Old note", isDeleted: true });
-const TRASHED_BLANK = note({ id: "note-y", title: "", isDeleted: true });
-
-/**
- * Opens the "Trash (N)" disclosure. Its own label was already translated, so it
- * is found through the same catalog key the component renders — which keeps
- * this helper working in whichever language the test has selected.
- */
-function openTrash(): void {
-  const trash = i18n.t("materials.notes.trash");
-  fireEvent.click(screen.getByRole("button", { name: new RegExp(trash) }));
-}
 
 beforeEach(async () => {
   state.notes = [ALPHA];
-  state.deletedNotes = [TRASHED];
+  state.deletedNotes = [];
   state.selectedId = null;
   state.setSelectedNoteId.mockClear();
-  state.restoreNote.mockClear();
-  state.permanentDeleteNote.mockClear();
   await i18n.changeLanguage("ja");
 });
 
 // The singleton outlives this file; leave it on the default the others expect.
 afterAll(async () => {
   await i18n.changeLanguage("en");
-});
-
-describe("Notes i18n — trash row actions (#680)", () => {
-  it("names the restore / delete buttons in Japanese under ja", () => {
-    render(<NotesView />);
-    openTrash();
-
-    fireEvent.click(screen.getByLabelText("Old note を復元"));
-    expect(state.restoreNote).toHaveBeenCalledExactlyOnceWith("note-z");
-
-    fireEvent.click(screen.getByLabelText("Old note を完全に削除"));
-    expect(state.permanentDeleteNote).toHaveBeenCalledExactlyOnceWith("note-z");
-  });
-
-  it("falls back to the translated untitled placeholder for a blank title", () => {
-    state.deletedNotes = [TRASHED_BLANK];
-    render(<NotesView />);
-    openTrash();
-
-    screen.getByLabelText("(無題) を復元");
-    screen.getByLabelText("(無題) を完全に削除");
-  });
-
-  it("keeps the English wording under en", async () => {
-    await i18n.changeLanguage("en");
-    render(<NotesView />);
-    openTrash();
-
-    screen.getByLabelText("Restore Old note");
-    screen.getByLabelText("Permanently delete Old note");
-  });
 });
 
 describe("Notes i18n — body placeholder (#680)", () => {
