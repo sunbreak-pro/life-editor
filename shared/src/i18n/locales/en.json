@@ -396,7 +396,8 @@
       "selfLink": "An item cannot link to itself.",
       "pickerLabelShort": "Link",
       "open": "Open {{title}}",
-      "remove": "Remove link with {{title}}"
+      "remove": "Remove link with {{title}}",
+      "deletedTarget": "{{title}} (deleted)"
     },
     "related": {
       "open": "Show related",

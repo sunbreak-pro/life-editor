@@ -395,7 +395,8 @@
       "selfLink": "自分自身にはリンクできません。",
       "pickerLabelShort": "リンク",
       "open": "{{title}} を開く",
-      "remove": "{{title}} とのリンクを削除"
+      "remove": "{{title}} とのリンクを削除",
+      "deletedTarget": "{{title}}（削除済み）"
     },
     "related": {
       "open": "関連を開く",
