@@ -8,3 +8,6 @@
 （2026-08-19 昇格分 = D-20260818-shared-fix-1（回答 = A = rAF スロットル・実装 Issue #1103）— 同上。質問 / 転記 / 昇格は chat-main が代行した）
 （2026-08-26 昇格分 = D-20260824-shared-fix-1（回答 = A = 日曜に揃える・実装 Issue #1138）— 同上。質問 / 転記 / 昇格は chat-main が代行した）
 （2026-08-28 昇格分 = D-20260827-shared-fix-1（回答 = A = localStorage のまま）— 同上。質問 / 転記 / 昇格は chat-main が代行した）
+（2026-08-30 昇格分 = D-20260830-shared-fix-1（回答 = C = ConfirmDialog に寄せる・実装は #1279 で schedule-refine 推奨）— 同上。質問 / 転記 / 昇格は chat-main が代行した）
+
+（現在 open のエントリは無し）

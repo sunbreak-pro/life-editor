@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import type { RoutineNode, ScheduleItem } from "@life-editor/shared";
+import type {
+  ConfirmRequest,
+  RoutineNode,
+  ScheduleItem,
+} from "@life-editor/shared";
 import { useScheduleRepeats } from "../src/schedule/useScheduleRepeats";
 import type { UseScheduleRepeatsArgs } from "../src/schedule/useScheduleRepeats";
 
@@ -24,12 +28,23 @@ import type { UseScheduleRepeatsArgs } from "../src/schedule/useScheduleRepeats"
  *     repeat-generated, so with #466 on it is folded away the moment it is
  *     fetched.
  *
- * `useTranslation` is stubbed to echo its key.
+ * #1279 added a fourth: the series delete ASKS first, through the host's one
+ * dialog rather than the row arming itself in place. That guard is invisible in
+ * the markup too — the panel now reports the press and stops — so this is the
+ * only place the refusal path is checked at all.
+ *
+ * `useTranslation` is stubbed to echo its key, plus the interpolated name when
+ * the call passes one — the confirm has to name the row it is about, and an
+ * echo that dropped the variable could not tell a named sentence from a blank
+ * one.
  */
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, vars?: Record<string, unknown>) =>
+      vars ? `${key}:${String(vars.name)}` : key,
+  }),
 }));
 
 const NOW = new Date("2026-08-16T09:00:00");
@@ -94,6 +109,11 @@ function setup(
   );
   const reload = vi.fn();
   const showToast = vi.fn();
+  // #1279: agrees by default, so every test that is not ABOUT the question
+  // reads as it did before the dialog existed.
+  const askConfirm = vi.fn((request: ConfirmRequest) =>
+    Promise.resolve(Boolean(request)),
+  );
   const args: UseScheduleRepeatsArgs = {
     routines: [routine("routine-1")],
     selected: null,
@@ -122,6 +142,7 @@ function setup(
       reload,
       showToast,
     },
+    askConfirm,
     ...overrides,
   };
   const hook = renderHook(
@@ -140,6 +161,7 @@ function setup(
     deleteRoutine,
     reload,
     showToast,
+    askConfirm,
   };
 }
 
@@ -327,6 +349,58 @@ describe("useScheduleRepeats — opening a row (#408 / #520 / #467)", () => {
 });
 
 describe("useScheduleRepeats — deleting a row", () => {
+  /*
+   * #1279. Deleting takes the whole series, finished past occurrences
+   * included, and undo only restores the template — too much to hang on one
+   * press of a small icon. The panel used to arm the row instead; the question
+   * lives here now so the sidebar asks the same way for a repeat as it already
+   * did for a todo, and so the modal can own the focus and the announcement.
+   */
+  it("asks first, naming the row and painting the answer as destructive", async () => {
+    const { hook, askConfirm, deleteRoutine } = setup();
+    act(() => hook.result.current.handleDeleteRepeat("routine-1"));
+    await waitFor(() => expect(deleteRoutine).toHaveBeenCalled());
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(askConfirm).toHaveBeenCalledWith({
+      message: "scheduleScreen.repeatDeleteConfirm:routine-1",
+      confirmLabel: "scheduleScreen.delete",
+      cancelLabel: "scheduleScreen.scopeCancel",
+      danger: true,
+    });
+    // Asked BEFORE the write, not alongside it.
+    expect(askConfirm.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteRoutine.mock.invocationCallOrder[0],
+    );
+  });
+
+  // A refusal has to leave the screen exactly as it was — no write, and no
+  // re-read either, since nothing changed to re-read.
+  it("writes nothing when the question is refused", async () => {
+    const { hook, askConfirm, deleteRoutine, reload, showToast } = setup();
+    askConfirm.mockResolvedValue(false);
+    act(() => hook.result.current.handleDeleteRepeat("routine-1"));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalled());
+    expect(deleteRoutine).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The sentence has to name what the list names. A blank title renders as
+   * `scheduleScreen.untitled` in the row, so asking about "" would put an
+   * empty pair of quotes in front of the least recoverable action here.
+   */
+  it("falls back to the same untitled name the row shows", async () => {
+    const { hook, askConfirm } = setup({
+      routines: [routine("blank", { title: "" })],
+    });
+    act(() => hook.result.current.handleDeleteRepeat("blank"));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalled());
+    expect(askConfirm.mock.calls[0][0].message).toBe(
+      "scheduleScreen.repeatDeleteConfirm:scheduleScreen.untitled",
+    );
+  });
+
   it("re-reads the visible range and says nothing when it lands", async () => {
     const { hook, deleteRoutine, reload, showToast } = setup();
     act(() => hook.result.current.handleDeleteRepeat("routine-1"));

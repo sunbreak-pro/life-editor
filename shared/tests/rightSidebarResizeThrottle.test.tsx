@@ -32,7 +32,6 @@ import type { RightSidebarContextValue } from "../src/context/RightSidebarContex
 
 const LABELS = {
   title: "Details",
-  closeLabel: "Close details",
   emptyLabel: "Nothing selected yet",
   resizeLabel: "Resize details panel",
 };

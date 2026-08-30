@@ -143,6 +143,21 @@
       "heading": "Policy and terms",
       "description": "What this app does with your data, and the terms you are using it under."
     },
+    "ai": {
+      "heading": "AI integration",
+      "description": "Claude Code connects straight to this app's database. Start it on your computer and it reaches the same todos, schedule, notes and dailies these screens show, through the MCP server. The app itself never calls an AI.",
+      "activityHeading": "Last briefing",
+      "activityValue": "A briefing is written in the daily for {{date}}.",
+      "activityNone": "No daily carries a briefing yet.",
+      "activityLoading": "Checking…",
+      "activityCaveat": "Read from the \"Briefing\" heading in your dailies. Anything you typed there yourself counts the same way.",
+      "toolsHeading": "Tools Claude Code can use",
+      "toolsCount": "{{n}} tools",
+      "show": "Show the list",
+      "hide": "Hide the list",
+      "argsLabel": "Arguments:",
+      "argsNone": "none"
+    },
     "reset": {
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",
@@ -157,7 +172,13 @@
     "tabs": {
       "navLabel": "Settings categories",
       "general": "General",
+      "trash": "Trash",
       "tips": "Tips"
+    },
+    "trash": {
+      "heading": "Trash",
+      "description": "Deleted items stay here. Put them back, or remove them for good.",
+      "unavailable": "The trash cannot be read right now. Check your connection and reopen this."
     },
     "placeholder": {
       "message": "Settings for this section will land here as they arrive."
@@ -222,7 +243,6 @@
   "work": {
     "title": "Work",
     "sidebar": {
-      "sessions": "{{count}} sessions",
       "targetSessions": "Target",
       "sessionsProgress": "{{completed}} / {{target}} sessions"
     },
@@ -300,7 +320,8 @@
     "delete": "Delete",
     "todoDelete": "Delete todo",
     "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
-    "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
+    "todoDeleteCascadeConfirm_one": "Deleting \"{{name}}\" also deletes its {{count}} child todo. Delete anyway?",
+    "todoDeleteCascadeConfirm_other": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "status": "Status",
     "schedule": "Scheduled",
     "scheduleNone": "Not scheduled",
@@ -346,13 +367,10 @@
       "searchPlaceholder": "Search notes…",
       "addCta": "Note",
       "empty": "No notes yet",
-      "trash": "Trash",
       "content": "Content",
       "deleteNote": "Delete note",
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
-      "restoreNote": "Restore {{title}}",
-      "permanentDeleteNote": "Permanently delete {{title}}",
       "lockedHint": "This note is locked",
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
@@ -361,7 +379,11 @@
       "expandGroup": "Expand group",
       "assignTagHint": "Drop onto a tag to assign it",
       "sortTitle": "Title",
-      "tagFilterLabel": "Filter by tag"
+      "tagFilterLabel": "Filter by tag",
+      "tagFilterClear": "Clear tag filter",
+      "tagFilterMore": "+{{count}}",
+      "tagFilterLess": "Show fewer",
+      "groupMoreRows": "Show {{count}} more"
     },
     "templates": {
       "title": "Templates",
@@ -408,7 +430,8 @@
       "selfLink": "An item cannot link to itself.",
       "pickerLabelShort": "Link",
       "open": "Open {{title}}",
-      "remove": "Remove link with {{title}}"
+      "remove": "Remove link with {{title}}",
+      "deletedTarget": "{{title}} (deleted)"
     },
     "related": {
       "open": "Show related",
@@ -459,7 +482,8 @@
       "clearIcon": "Default icon",
       "colorClearLabel": "Default color",
       "colorCustomLabel": "Custom",
-      "usageCount": "{{count}} items",
+      "usageCount_one": "{{count}} item",
+      "usageCount_other": "{{count}} items",
       "itemsHeading": "Tagged items",
       "itemsEmpty": "Nothing carries this tag",
       "unassign": "Remove this tag",
@@ -511,7 +535,8 @@
     "toEventConfirm": "Convert \"{{title}}\" to an event? Its status will be lost.",
     "toEventConfirmChild": "Convert \"{{title}}\" to an event? Its status will be lost, and it will no longer belong to its parent Todo.",
     "routineBlocked": "A Todo has no repeat, so this cannot be converted.",
-    "childrenBlocked": "\"{{title}}\" has {{count}} subtask(s), so it cannot become an event. Move or delete them first.",
+    "childrenBlocked_one": "\"{{title}}\" has {{count}} subtask, so it cannot become an event. Move or delete it first.",
+    "childrenBlocked_other": "\"{{title}}\" has {{count}} subtasks, so it cannot become an event. Move or delete them first.",
     "childrenBlockedServer": "This Todo still has subtasks, so it cannot become an event. Subtasks in Trash count too — move them, or delete them permanently, first.",
     "failed": "Conversion failed"
   },
@@ -593,10 +618,11 @@
     "tabRepeats": "Repeats",
     "repeatNeverFires": "Fires on no day",
     "untitled": "Untitled repeat",
-    "repeatDeleteConfirm": "Delete \"{name}\" and all of its events?",
+    "repeatDeleteConfirm": "Delete \"{{name}}\" and all of its events?",
     "repeatDeleteFailed": "Couldn't delete this repeat. Its events are unchanged — try again.",
     "repeatFilterHide": "Hide repeats",
-    "repeatFilterHidden": "{{count}} repeats hidden",
+    "repeatFilterHidden_one": "{{count}} repeat hidden",
+    "repeatFilterHidden_other": "{{count}} repeats hidden",
     "repeatFilterNotice": "Repeat events are hidden on the calendar right now — a slot that looks free may not be.",
     "repeatFilterShow": "Show repeats again",
     "loading": "Loading…",
@@ -866,7 +892,6 @@
     "analytics": "Analytics",
     "tags": "Tags",
     "settings": "Settings",
-    "trash": "Trash",
     "briefing": "Briefing"
   },
   "nav": {
@@ -916,7 +941,8 @@
     "selectHint": "Pick a tag to see everything filed under it.",
     "back": "Back to tags",
     "untagged": "Untagged",
-    "itemCount": "{{count}} items"
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
   },
   "blockMenu": {
     "turnInto": "Turn Into",
@@ -1093,8 +1119,7 @@
         "connect": "The topic axis: pick a tag and read everything filed under it.",
         "work": "A timer for focused work, with sound to sit behind it.",
         "analytics": "What your records add up to over a week or a month.",
-        "settings": "Appearance, language, shortcuts — the knobs for the app itself.",
-        "trash": "Deleted items, kept here so you can put them back."
+        "settings": "Appearance, language, shortcuts — the knobs for the app itself."
       }
     },
     "steps": {

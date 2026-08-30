@@ -46,6 +46,7 @@
 ## 5. AI Integration
 
 - MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（ツール一覧はコードが正）
+- **ツールを足したら `cd mcp-server && npm run catalog` を回す**（#1210）: Settings の AI 連携カードはビルド時生成の `shared/src/generated/mcpToolCatalog.json` を読む。shared から registry を直 import すると handler 経由で Supabase クライアントがフロントのバンドルに混入するため、パッケージ境界をデータで跨ぐ。再生成漏れは `mcp-server/tests/toolCatalogFreshness.test.ts` が落ちて気付ける
 - `claude`（Claude Code）起動で MCP 自動接続（MCP Server は存続。起動導線だったアプリ内ターミナルは 2026-07-05 退役決定 = D-20260705-main-1 → §8。退役後の常設起動導線は生成デザイン確定後に再設計）
 
 ## 6. Coding Standards
@@ -120,7 +121,7 @@
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
 - **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync（Briefing の正本 = [`2026-07-15-briefing-loop.md`](./docs/vision/plans/2026-07-15-briefing-loop.md)・requirements 節 = tier-1-core.md §Briefing / Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定 D-20260705-main-1・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持）
-- **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（File Explorer は退役 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持 / **Connect の力学グラフは 2026-08-29 退役 = #1152**: タグ・アイテム間リンク・検索のデータと取り出し口は全部温存し、可視化だけを撤去。backlink 部品は `shared/src/components/Backlinks/` + `shared/src/utils/itemLinks.ts` へ移設 / **Connect セクション自体は同日 Tag hub として再新設 = #1171**: タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」で、時間軸の入口 = Calendar との役割分担は #1153 の決定。グラフは復活させない）
+- **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（**Trash は 2026-08-30 に Settings 配下へ移設 = #1293**: nav の独立セクションを畳み、`SectionId` からも外した。ビュー実体 = `shared/src/components/TrashView.tsx` + `web/src/trash/TrashScreen.tsx` は不変で、入口だけが Settings のカテゴリ行に移った / File Explorer は退役 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持 / **Connect の力学グラフは 2026-08-29 退役 = #1152**: タグ・アイテム間リンク・検索のデータと取り出し口は全部温存し、可視化だけを撤去。backlink 部品は `shared/src/components/Backlinks/` + `shared/src/utils/itemLinks.ts` へ移設 / **Connect セクション自体は同日 Tag hub として再新設 = #1171**: タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」で、時間軸の入口 = Calendar との役割分担は #1153 の決定。グラフは復活させない）
 - **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
 - 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 

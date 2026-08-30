@@ -30,8 +30,14 @@ describe("section registry", () => {
       "work",
       "analytics",
       "settings",
-      "trash",
     ]);
+  });
+
+  it("no longer carries Trash as a section of its own (#1293)", () => {
+    // It moved INSIDE Settings — a place you visit to undo something does not
+    // earn a permanent sidebar row or a mobile More slot. The view is still
+    // there; only its entrance moved.
+    expect(SECTION_IDS).not.toContain("trash");
   });
 
   it("never includes the retired REPL section", () => {
@@ -47,14 +53,15 @@ describe("section registry", () => {
       "work",
       "analytics",
     ]);
-    expect(UTILITY_SECTIONS.map((s) => s.id)).toEqual(["settings", "trash"]);
+    expect(UTILITY_SECTIONS.map((s) => s.id)).toEqual(["settings"]);
   });
 
   it("orders the mobile bottom bar as fixed-4 + More overflow", () => {
     // Fixed 4 = briefing/schedule/materials/work;
-    // More = analytics/connect/settings/trash. Adding Connect (#1171) moved
-    // nothing on the bar itself — it took the More slot the retired Connect
-    // had, which is what keeps the phone's four first-open sections stable.
+    // More = analytics/connect/settings. Adding Connect (#1171) moved nothing
+    // on the bar itself — it took the More slot the retired Connect had, which
+    // is what keeps the phone's four first-open sections stable. #1293 dropped
+    // Trash off the end of More for the same reason it left the sidebar.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
@@ -63,7 +70,6 @@ describe("section registry", () => {
       "analytics",
       "connect",
       "settings",
-      "trash",
     ]);
   });
 
@@ -84,12 +90,12 @@ describe("section registry", () => {
     expect(Object.keys(SECTION_ICONS).sort()).toEqual([...SECTION_IDS].sort());
   });
 
-  it("keeps the utility group to settings + trash, everything else mainline", () => {
+  it("keeps the utility group to settings alone, everything else mainline", () => {
     expect(
       SECTIONS.filter((s) => s.group === "utility").map((s) => s.id),
-    ).toEqual(["settings", "trash"]);
+    ).toEqual(["settings"]);
     expect(SECTIONS.filter((s) => s.group === "main")).toHaveLength(
-      SECTIONS.length - 2,
+      SECTIONS.length - 1,
     );
   });
 

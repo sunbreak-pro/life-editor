@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, RotateCcw, Trash2, X } from "lucide-react";
+import { RotateCcw, Trash2, X } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 import { Button } from "./Button";
 import { WIDE_QUERY } from "../constants/breakpoints";
 import { IconButton } from "./IconButton";
 import { Modal } from "./Modal";
+import { NoticePanel } from "./NoticePanel";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "./cn";
 
@@ -310,21 +311,16 @@ export function TrashView({
       <p className="text-sm leading-relaxed text-lumen-text">
         {confirmMessage}
       </p>
-      <div
-        className={cn(
-          "flex items-start gap-2.5 rounded-lumen-md",
-          "bg-lumen-chip-progress-bg p-3",
-        )}
-      >
-        <AlertTriangle
-          size={16}
-          aria-hidden="true"
-          className="mt-0.5 shrink-0 text-lumen-warning"
-        />
-        <span className="text-sm leading-relaxed text-lumen-text-secondary">
-          {labels.cascadeWarning}
-        </span>
-      </div>
+      {/* The cascade note is the shared band (#1184 / #1275), not a fourth
+          hand-built padding for the same job. role="status" rather than
+          warning's assertive default: this copy is here because the dialog
+          opened, not because the user just did something — an `alert` would
+          interrupt the dialog's own announcement to repeat one of its lines. */}
+      <NoticePanel
+        tone="warning"
+        role="status"
+        message={labels.cascadeWarning}
+      />
       {wide ? (
         <div className="flex justify-end gap-2.5">
           <Button variant="secondary" size="sm" onClick={closeConfirm}>

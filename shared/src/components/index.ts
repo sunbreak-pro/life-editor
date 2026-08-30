@@ -42,6 +42,7 @@ export {
   type NoticePanelProps,
   type NoticeTone,
   type NoticeVariant,
+  type NoticeSize,
   type NoticeAction,
 } from "./NoticePanel";
 // Item operation panels (Issue #307) — the generic Popover / DetailOverlay
@@ -298,6 +299,14 @@ export {
 // Policy + terms card (#1251) — the signed-in door to the documents #1198
 // shipped. Links only; the reader they open lives in the web host.
 export { SettingsLegal, type SettingsLegalProps } from "./SettingsLegal";
+// AI integration card (#1210) — what the MCP connection is, the tool catalog
+// generated from the server's own registry, and the last day a briefing was
+// written. No API call anywhere in it (the $0 rule).
+export {
+  SettingsAiIntegration,
+  type SettingsAiIntegrationProps,
+  type SettingsAiIntegrationLabels,
+} from "./SettingsAiIntegration";
 // Day-start hour card (#373) — the write side of the #218 rollover pref.
 export {
   SettingsDayStart,
@@ -364,6 +373,7 @@ export {
   type ItemRoleLabels,
 } from "./items/itemRole";
 export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
+export { TagPill, type TagPillProps } from "./TagPill";
 export {
   SettingsDetailPanel,
   type SettingsDetailPanelProps,

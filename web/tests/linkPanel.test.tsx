@@ -300,3 +300,102 @@ describe("LinkPanel — title resolution (#749)", () => {
     expect(screen.getByText("…12345678")).toBeTruthy();
   });
 });
+
+describe("LinkPanel — the refusal line (#1278)", () => {
+  /*
+   * A failed write is the only in-panel error a user can actually reach (the
+   * self-link guard at handleAdd is unreachable from the picker, which already
+   * filters `target.id !== itemId`), and until #1278 nothing asserted it at
+   * all. What is worth pinning is not the copy but the ANNOUNCEMENT: the line
+   * moved from a hand-typed role="alert" span to NoticePanel's tone-derived
+   * live region, and a screen reader is the only place that difference shows.
+   */
+  it("announces a failed link and leaves the picker open", async () => {
+    state.createItemLink.mockRejectedValueOnce(new Error("network is down"));
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    const input = await openPicker();
+
+    fireEvent.change(input, { target: { value: "tiles" } });
+    const options = await screen.findAllByRole("option");
+    fireEvent.click(options[0]);
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "network is down",
+    );
+    // The picker stays up: closePicker only runs on the success path, so the
+    // retry is one click away rather than behind reopening the popover.
+    expect(screen.getByRole("combobox")).toBeTruthy();
+  });
+});
+
+/*
+ * #1292 — a link whose target was deleted.
+ *
+ * The user-visible bug was the FALLBACK: `useItemLinkTargets` dropped
+ * soft-deleted rows, so a chip pointing at a deleted todo had nothing to name
+ * it by and printed a shortened id (`…56123478`) — reported as "the link turned
+ * into a run of digits". The pool now flags deleted rows instead of hiding
+ * them, which is what lets the chip keep the title AND say it is gone.
+ *
+ * The three assertions here are the three halves of that contract, and each is
+ * a way the fix could regress into a different lie: name it, mark it, and never
+ * offer it as a NEW link.
+ */
+const DELETED_TARGETS = [
+  ...TARGETS,
+  { id: "task-77", label: "Return the extra tiles", role: "task", isDeleted: true },
+];
+
+describe("LinkPanel — deleted link target (#1292)", () => {
+  const loadWithDeleted = vi.fn(() => Promise.resolve(DELETED_TARGETS));
+
+  beforeEach(() => loadWithDeleted.mockClear());
+
+  it("names a deleted target and marks it deleted instead of showing its id", async () => {
+    state.outgoing = [link({ id: "l1", to: "task-77" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadWithDeleted} />);
+
+    const label = i18n.t("materials.links.deletedTarget", {
+      title: "Return the extra tiles",
+    });
+    expect(await screen.findByText(label)).toBeTruthy();
+    // The old fallback, spelled out: the last 8 characters of the id.
+    expect(screen.queryByText("…-77")).toBeNull();
+    expect(screen.queryByText("task-77")).toBeNull();
+  });
+
+  it("does not open a deleted target", async () => {
+    const onNavigateToItem = vi.fn();
+    state.outgoing = [link({ id: "l1", to: "task-77" })];
+    render(
+      <LinkPanel
+        itemId="note-1"
+        loadTargets={loadWithDeleted}
+        onNavigateToItem={onNavigateToItem}
+      />,
+    );
+
+    const label = i18n.t("materials.links.deletedTarget", {
+      title: "Return the extra tiles",
+    });
+    const chip = await screen.findByText(label);
+    // A live chip wraps its label in a button; a dead one must not, so there is
+    // nothing to click that leads nowhere.
+    expect(chip.closest("button")).toBeNull();
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps a deleted item out of the picker's candidates", async () => {
+    render(<LinkPanel itemId="note-1" loadTargets={loadWithDeleted} />);
+    const input = await openPicker();
+
+    fireEvent.change(input, { target: { value: "tiles" } });
+
+    const options = await screen.findAllByRole("option");
+    const titles = options.map((o) => o.textContent ?? "");
+    expect(titles.some((tx) => tx.includes("Order the tiles"))).toBe(true);
+    expect(titles.some((tx) => tx.includes("Return the extra tiles"))).toBe(
+      false,
+    );
+  });
+});

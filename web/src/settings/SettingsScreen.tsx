@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lightbulb, SlidersHorizontal } from "lucide-react";
+import { Lightbulb, SlidersHorizontal, Trash2 } from "lucide-react";
 import {
   SettingsAccount,
+  SettingsAiIntegration,
   SettingsAppearance,
   SettingsLegal,
   SettingsLanguage,
@@ -41,6 +42,9 @@ import {
   resetLocalPreferences,
   useMediaQuery,
   useTranslation,
+  getDataService,
+  lastBriefingDate,
+  MCP_TOOL_CATALOG,
   type SettingsTabItem,
   type TourLauncherSection,
   type ShortcutRow,
@@ -50,6 +54,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
+import { TrashScreen } from "../trash/TrashScreen";
 import { openLegalDocument } from "../legal/legalUrl";
 
 /*
@@ -70,6 +75,10 @@ import { openLegalDocument } from "../legal/legalUrl";
  *   Schedule — the initial calendar view (the first per-section preference)
  *   briefing / materials / work / analytics — receptacles, so the list is the
  *     whole map of what Settings will cover rather than only what exists today
+ *   Trash — not a preference either, but a PLACE (#1293). It used to be a
+ *     sidebar section of its own, which spent a permanent nav row (and a
+ *     mobile More slot) on somewhere you visit to undo something. The view is
+ *     unchanged — the same <TrashScreen> renders under this row.
  *   Tips — not a category at all: the last row raises the old preview + tips
  *     panel in the CENTRE of the screen, which is where something you read
  *     belongs (it was competing with the controls for the same 320px column).
@@ -88,10 +97,13 @@ const SECTION_TAB_IDS = [
   "analytics",
 ] as const;
 
-type SettingsTabId = "general" | (typeof SECTION_TAB_IDS)[number];
+type SettingsTabId = "general" | "trash" | (typeof SECTION_TAB_IDS)[number];
 
 /** The one row that opens a dialog instead of swapping the body. */
 const TIPS_ROW_ID = "tips";
+
+/** The row that shows the Trash view rather than a set of preferences (#1293). */
+const TRASH_TAB_ID = "trash";
 
 export function SettingsScreen() {
   const { t } = useTranslation();
@@ -244,6 +256,15 @@ export function SettingsScreen() {
         icon: <SlidersHorizontal size={16} />,
       },
       ...sectionRows,
+      // Trash sits after the per-section rows and before Tips: it is the one
+      // row that opens a place rather than a set of preferences, and Tips is
+      // the one row that opens a dialog. Both belong at the end, in that
+      // order — the list stays "settings, then the ways out of it".
+      {
+        id: TRASH_TAB_ID,
+        label: t("settings.tabs.trash"),
+        icon: <Trash2 size={16} />,
+      },
       {
         id: TIPS_ROW_ID,
         label: t("settings.tabs.tips"),
@@ -330,6 +351,53 @@ export function SettingsScreen() {
     };
   }, []);
 
+  /*
+   * Last AI activity for the integration card (#1210).
+   *
+   * Read here rather than passed in: like `getSession()` above, this screen is
+   * rendered with no props, and the answer is one string. Dailies come back
+   * whole because that is the only list call there is — the derivation itself
+   * (newest day carrying a briefing section) is a pure helper in shared, so
+   * what runs here is a fetch and nothing else.
+   *
+   * `undefined` while in flight, `null` once we know there is nothing — the
+   * card shows a checking line for the first and a "not yet" sentence for the
+   * second, which are different facts. A failure (no credentials, offline)
+   * lands on `null` too: the card is decoration on a screen that works without
+   * it and must not take Settings down.
+   */
+  const [lastBriefing, setLastBriefing] = useState<string | null | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    let active = true;
+    // getDataService() THROWS SYNCHRONOUSLY when the app has no Supabase
+    // credentials — the shape suites run exactly there. Building the service
+    // inside the async body turns that into a rejection like any other, so the
+    // one `.catch` below covers both "could not connect" and "could not even
+    // be constructed"; a `.catch` on the promise alone would never see it.
+    const read = async () =>
+      lastBriefingDate(await getDataService().listDailiesUnified());
+    void read()
+      .then((date) => {
+        if (active) setLastBriefing(date);
+      })
+      .catch((e: unknown) => {
+        console.error("[settings] listDailiesUnified", e);
+        if (active) setLastBriefing(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const aiLastActivity =
+    lastBriefing === undefined
+      ? null
+      : lastBriefing === null
+        ? t("settings.ai.activityNone")
+        : t("settings.ai.activityValue", { date: lastBriefing });
+
   const passwordMessages = useMemo(
     () => ({
       mismatch: t("settings.account.errors.mismatch"),
@@ -407,6 +475,24 @@ export function SettingsScreen() {
       body: t("settings.detail.tips.palette.body"),
     },
   ];
+
+  /*
+   * The DataService for the Trash body (#1293). Settings is a HOST, so calling
+   * the singleton here is allowed (§6.4) — but `getDataService()` THROWS
+   * SYNCHRONOUSLY when the app has no Supabase credentials, which is exactly
+   * where the shape suites run. Catching it into `null` keeps that throw from
+   * taking the whole Settings screen down over one category nobody opened;
+   * the row then says why it is empty instead of showing a list it cannot
+   * fetch.
+   */
+  const trashService = useMemo(() => {
+    try {
+      return getDataService();
+    } catch (e: unknown) {
+      console.error("[settings] getDataService", e);
+      return null;
+    }
+  }, []);
 
   const cardClass =
     "rounded-lumen-lg border border-lumen-border bg-lumen-bg p-5 shadow-lumen-sm md:px-6";
@@ -584,6 +670,37 @@ export function SettingsScreen() {
           </div>
 
           {/*
+           * AI integration (#1210). General, not a per-section category: the
+           * MCP connection reaches every section's data, so it belongs with
+           * the settings that describe the app rather than under any one of
+           * them. Above Legal and Reset for the same reason Account is —
+           * things you read about the app, then things that change it.
+           */}
+          <div className={cardClass}>
+            <SettingsAiIntegration
+              tools={MCP_TOOL_CATALOG}
+              lastActivity={aiLastActivity}
+              labels={{
+                heading: t("settings.ai.heading"),
+                description: t("settings.ai.description"),
+                activityHeading: t("settings.ai.activityHeading"),
+                activityLoading: t("settings.ai.activityLoading"),
+                activityCaveat: t("settings.ai.activityCaveat"),
+                toolsHeading: t("settings.ai.toolsHeading"),
+                // The count comes from the generated catalog, never a literal
+                // here — the number moves when a tool is added (数値の非複製原則).
+                toolsCount: t("settings.ai.toolsCount", {
+                  n: MCP_TOOL_CATALOG.length,
+                }),
+                show: t("settings.ai.show"),
+                hide: t("settings.ai.hide"),
+                argsLabel: t("settings.ai.argsLabel"),
+                argsNone: t("settings.ai.argsNone"),
+              }}
+            />
+          </div>
+
+          {/*
            * #1251 — the documents shipped with #1198 but only the sign-in
            * screen linked them, so they became unreachable the moment an
            * account existed. The reader itself is mounted in App; this card
@@ -637,7 +754,39 @@ export function SettingsScreen() {
         </div>
       )}
 
-      {tab !== "general" && tab !== "schedule" && placeholder}
+      {tab === TRASH_TAB_ID && (
+        <>
+          {/*
+           * Heading in a card, list outside it: TrashView draws its own
+           * bordered group cards, so wrapping the whole thing would put a
+           * border inside a border.
+           */}
+          <div className={cardClass}>
+            <div className="flex flex-col gap-1">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-lumen-text">
+                <Trash2 size={16} className="text-lumen-text-secondary" />
+                <span>{t("settings.trash.heading")}</span>
+              </h3>
+              <p className="text-sm text-lumen-text-secondary">
+                {t("settings.trash.description")}
+              </p>
+            </div>
+          </div>
+          {trashService ? (
+            <TrashScreen dataService={trashService} />
+          ) : (
+            <div className={cardClass}>
+              <EmptyState
+                icon={<Trash2 />}
+                message={t("settings.trash.unavailable")}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {tab !== "general" && tab !== "schedule" && tab !== TRASH_TAB_ID &&
+        placeholder}
 
       <RightSidebarPortal>
         <SettingsTabsNav

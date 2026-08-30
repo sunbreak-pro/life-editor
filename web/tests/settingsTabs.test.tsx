@@ -29,6 +29,15 @@ import { SettingsScreen } from "../src/settings/SettingsScreen";
 const state = vi.hoisted(() => ({
   setInitialView: vi.fn(),
   getSession: vi.fn(),
+  /* Only the five reads TrashScreen makes; every list comes back empty, so
+     the Trash body settles on its own empty state. */
+  dataService: {
+    fetchDeletedTodos: () => Promise.resolve([]),
+    fetchDeletedNotesUnified: () => Promise.resolve([]),
+    fetchDeletedDailiesUnified: () => Promise.resolve([]),
+    fetchDeletedRoutines: () => Promise.resolve([]),
+    fetchDeletedScheduleItems: () => Promise.resolve([]),
+  },
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -64,6 +73,15 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     }),
     useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
     getSession: state.getSession,
+    // #1293 — the Trash row renders TrashScreen off the singleton, and the
+    // real getDataService() throws without Supabase credentials.
+    getDataService: () => state.dataService,
+    // TrashScreen declares its Sync domains. The real SyncProvider is mounted
+    // once near the top of the tree (AppProviders), which every section body
+    // renders inside — including this screen. This suite renders the screen on
+    // its own, so the counter is stubbed rather than the Realtime channel
+    // being stood up for a list that never changes here.
+    useSyncDomains: () => 0,
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>
     ),
@@ -78,6 +96,7 @@ const ROWS = [
   "section.materials",
   "section.work",
   "section.analytics",
+  "settings.tabs.trash",
   "settings.tabs.tips",
 ];
 
@@ -111,7 +130,7 @@ beforeEach(() => {
 });
 
 describe("SettingsScreen — the category list (#1174)", () => {
-  it("lists the seven rows in order, with Tips last", async () => {
+  it("lists the rows in order, with Trash then Tips last", async () => {
     await renderSettings();
 
     expect(rowLabels()).toEqual(ROWS);
@@ -156,6 +175,41 @@ describe("SettingsScreen — the category list (#1174)", () => {
     pressRow("settings.tabs.general");
 
     expect(generalOnScreen()).toBe(true);
+  });
+});
+
+/*
+ * #1293 — Trash as a Settings category.
+ *
+ * The row is not a preference card: it opens a PLACE, and it opens it inside a
+ * screen that used to render nothing but pure primitives. Three things have to
+ * hold for the move to be a move rather than a loss — the row exists, pressing
+ * it brings the actual trash view up (not the "nothing here yet" placeholder
+ * every other empty category gets), and General goes away while it is up.
+ */
+describe("SettingsScreen — the Trash category (#1293)", () => {
+  it("shows the trash view, not the empty-category placeholder", async () => {
+    await renderSettings();
+
+    pressRow("settings.tabs.trash");
+    await act(async () => {});
+
+    screen.getByText("settings.trash.heading");
+    // TrashView's own global empty state — proof the real view mounted.
+    screen.getByText("trash.empty");
+    expect(screen.queryByText("settings.placeholder.message")).toBeNull();
+    expect(generalOnScreen()).toBe(false);
+  });
+
+  it("leaves and comes back to General like any other category", async () => {
+    await renderSettings();
+
+    pressRow("settings.tabs.trash");
+    await act(async () => {});
+    pressRow("settings.tabs.general");
+
+    expect(generalOnScreen()).toBe(true);
+    expect(screen.queryByText("settings.trash.heading")).toBeNull();
   });
 });
 

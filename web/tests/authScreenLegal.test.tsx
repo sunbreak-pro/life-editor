@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { i18n } from "@life-editor/shared";
 import { AuthScreen } from "../src/AuthScreen";
 import { LegalReaderHost } from "../src/legal/LegalReaderHost";
@@ -58,6 +58,21 @@ function renderAuth() {
   );
 }
 
+/**
+ * Closing the reader steps back over the history entry it opened on (#1281),
+ * and jsdom — like a browser — traverses on a queued task: the URL has not
+ * moved when the click returns. So "comes back" is awaited on `popstate`.
+ */
+async function untilPopstate(run: () => void) {
+  await act(async () => {
+    const landed = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    run();
+    await landed;
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   setQuery("");
@@ -68,14 +83,17 @@ afterEach(() => {
 });
 
 describe("AuthScreen — policy and terms", () => {
-  it("opens the privacy policy from the auth card and comes back", () => {
+  it("opens the privacy policy from the auth card and comes back", async () => {
     renderAuth();
 
     fireEvent.click(screen.getByRole("button", { name: "auth.legal.privacy" }));
     expect(screen.getByText(EN.privacy.title)).toBeTruthy();
     expect(screen.getByText(EN.privacy.sections[0].heading)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "auth.legal.back" }));
+    await untilPopstate(() =>
+      fireEvent.click(screen.getByRole("button", { name: "auth.legal.back" })),
+    );
+    expect(screen.queryByText(EN.privacy.title)).toBeNull();
     expect(screen.getByRole("button", { name: "auth.signIn" })).toBeTruthy();
   });
 
@@ -86,13 +104,15 @@ describe("AuthScreen — policy and terms", () => {
     expect(screen.getByText(EN.terms.title)).toBeTruthy();
   });
 
-  it("keeps the open document in the address bar so it can be linked", () => {
+  it("keeps the open document in the address bar so it can be linked", async () => {
     renderAuth();
 
     fireEvent.click(screen.getByRole("button", { name: "auth.legal.terms" }));
     expect(window.location.search).toBe("?legal=terms");
 
-    fireEvent.click(screen.getByRole("button", { name: "auth.legal.back" }));
+    await untilPopstate(() =>
+      fireEvent.click(screen.getByRole("button", { name: "auth.legal.back" })),
+    );
     expect(window.location.search).toBe("");
   });
 

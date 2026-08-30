@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { Modal } from "./Modal";
 import { Button } from "./Button";
 import { Input } from "./Input";
+import { NoticePanel } from "./NoticePanel";
 
 export interface DeleteAccountDialogProps {
   open: boolean;
@@ -107,9 +108,11 @@ export function DeleteAccountDialog({
         </label>
 
         {error && (
-          <p role="alert" className="text-sm text-lumen-danger">
-            {error}
-          </p>
+          // Text variant (#1278): a bordered band inside a size="sm" modal
+          // that already carries a danger-tinted title glyph would read as a
+          // second dialog stacked on the first. role="alert" now comes from
+          // the tone rather than being typed out here.
+          <NoticePanel variant="text" tone="danger" message={error} />
         )}
 
         <div className="mt-1 flex justify-end gap-2">

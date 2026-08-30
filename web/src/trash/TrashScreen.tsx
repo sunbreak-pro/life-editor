@@ -3,6 +3,7 @@ import { AlertCircle, RotateCcw } from "lucide-react";
 import {
   Button,
   Card,
+  NoticePanel,
   TrashView,
   isScheduleRestoreConflict,
   useDomainLoad,
@@ -158,12 +159,18 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
       {
         category: "todos",
         title: categoryTitle("todos"),
-        items: rows.todos.map((x) => ({ id: x.id, label: x.title || untitled })),
+        items: rows.todos.map((x) => ({
+          id: x.id,
+          label: x.title || untitled,
+        })),
       },
       {
         category: "notes",
         title: categoryTitle("notes"),
-        items: rows.notes.map((x) => ({ id: x.id, label: x.title || untitled })),
+        items: rows.notes.map((x) => ({
+          id: x.id,
+          label: x.title || untitled,
+        })),
       },
       {
         category: "dailies",
@@ -383,38 +390,32 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   return (
     <div className="flex flex-col gap-4">
       {restoreNotice !== null && (
-        <div
+        // tone="warning", not danger: a restore that was refused or simply
+        // broke is something that did not go through, and the list is still
+        // the list — `danger` stays with the error card 30 lines up that
+        // replaces the whole screen. role="status" is kept from the markup
+        // this replaces (it overrides warning's assertive default): the notice
+        // sits above a list the user keeps working in.
+        <NoticePanel
+          tone="warning"
           role="status"
-          className="flex items-start gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary px-4 py-3"
-        >
-          <AlertCircle
-            size={18}
-            aria-hidden="true"
-            className="mt-0.5 shrink-0 text-lumen-danger"
-          />
-          <p className="text-sm leading-relaxed text-lumen-text-secondary">
-            {t(
-              restoreNotice === "conflict"
-                ? "trash.restoreConflict"
-                : "trash.restoreFailed",
-            )}
-          </p>
-        </div>
+          message={t(
+            restoreNotice === "conflict"
+              ? "trash.restoreConflict"
+              : "trash.restoreFailed",
+          )}
+        />
       )}
       {bulkFailures > 0 && (
-        <div
+        // The same band as the restore notice above (#1275): a bulk action
+        // that partly failed leaves the list standing, so it is a warning the
+        // user reads past, not the danger card that replaces the screen.
+        // role="status" for the same reason the neighbour keeps it.
+        <NoticePanel
+          tone="warning"
           role="status"
-          className="flex items-start gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary px-4 py-3"
-        >
-          <AlertCircle
-            size={18}
-            aria-hidden="true"
-            className="mt-0.5 shrink-0 text-lumen-danger"
-          />
-          <p className="text-sm leading-relaxed text-lumen-text-secondary">
-            {t("trash.bulkPartialFailure", { n: bulkFailures })}
-          </p>
-        </div>
+          message={t("trash.bulkPartialFailure", { n: bulkFailures })}
+        />
       )}
       <TrashView
         groups={groups}

@@ -13,7 +13,12 @@ import { MobileDrawer } from "./MobileDrawer";
 export interface DetailPanelLabels {
   /** Panel title ("詳細" / "Details"). */
   title: string;
-  /** aria-label for the close (X) button. */
+  /**
+   * aria-label for the close (X) button. NARROW LAYOUT ONLY since #1284 — the
+   * wide branch's <RightSidebar> dropped its in-panel × (the header's own
+   * <RightSidebarToggle> is the single close affordance there), so only
+   * <MobileDrawer> still draws a button carrying this name.
+   */
   close: string;
   /** Empty-state copy shown while nothing is registered. */
   empty: string;
@@ -38,7 +43,11 @@ export interface AppShellLabels {
   moreClose: string;
   /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
   shortcutHint?: string;
-  /** "Edit tags" sidebar footer row (#409) — wide layout only. */
+  /**
+   * "Edit tags" sidebar footer row (#409) — wide layout only. The narrow
+   * entry is one of the host's `bottomBarActions` rows (#1290), which carries
+   * its own label.
+   */
   tagEditor?: string;
   /**
    * Accessible label for the action group in the narrow "More" sheet (#472) —
@@ -68,9 +77,10 @@ export interface AppShellProps {
   onTogglePalette: () => void;
   /**
    * Opens the global tag editor (#409). Forwarded to the wide sidebar's footer
-   * row above ⌘K; the narrow layout has no sidebar, so the entry is
-   * wide-layout-only (mobile does not manage the tag master — §2 Consumption +
-   * Quick capture).
+   * row above ⌘K. The narrow branch does not read it: it has no sidebar, and
+   * its entry is a row the host composes into `bottomBarActions` (the "More"
+   * sheet — #1290, the same route the palette takes since #473), so mobile
+   * reaches the very same panel without the shell growing a second prop.
    */
   onOpenTagEditor?: () => void;
   userEmail: string;
@@ -198,7 +208,6 @@ export function AppShell({
             {detailPanelLabels && (
               <RightSidebar
                 title={detailPanelLabels.title}
-                closeLabel={detailPanelLabels.close}
                 emptyLabel={detailPanelLabels.empty}
                 resizeLabel={detailPanelLabels.resize}
               />

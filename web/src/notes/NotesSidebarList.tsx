@@ -1,33 +1,32 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
-import {
-  FileText,
-  ChevronRight,
-  ChevronDown,
-  Search,
-  Trash2,
-  RotateCcw,
-} from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import {
   EmptyState,
   SidebarListControls,
-  StatusFilterChips,
   NoticePanel,
   tagGroupKey as groupKey,
   cn,
-  type NoteNode,
   type NoteTagGroup,
   FOCUS_RING,
   tourAnchor,
 } from "@life-editor/shared";
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
+import { NoteTagFilterChips } from "./NoteTagFilterChips";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
  * The Desktop side list (extracted from NotesView.tsx — #588 split, zero
- * behavior change): search + sort + tag filter, the tag-grouped note rows, and
- * the Links / Trash disclosures under the divider.
+ * behavior change): search + sort + tag filter and the tag-grouped note rows.
+ *
+ * #1286 removed the trash disclosure that used to sit under the divider. It
+ * listed soft-deleted notes with restore / purge buttons — the same two actions
+ * the Trash SECTION offers for every domain, so the app asked the user to learn
+ * one recovery surface per place instead of one for the whole app. Recovery is
+ * now Trash's job alone; the note list only lists live notes. (The Links
+ * disclosure that used to sit above it moved to the note detail header in #884,
+ * so the divider itself has nothing left to separate.)
  *
  * The host pushes this into the shared rightSidebar (wide-only) — the panel
  * well supplies padding + scroll, so this is frameless natural-flow content.
@@ -53,17 +52,14 @@ export interface NotesSidebarListLabels {
   expandGroup: string;
   deleteNote: string;
   assignTagHint: string;
-  trash: string;
-  /** Stands in for an empty title, on screen and in the two labels below. */
-  untitled: string;
-  /*
-   * The trash row actions carry the note's title, so they arrive as builders
-   * rather than strings — the title's position inside the sentence is the
-   * translator's call (#680: these were hardcoded English until the catalog
-   * took them over).
-   */
-  restoreNote: (title: string) => string;
-  permanentDeleteNote: (title: string) => string;
+  /** Drop every tag-filter chip at once (#1288). */
+  clearTagFilter: string;
+  /** "+N" for the chips the capped filter row is not drawing (#1288). */
+  moreTagFilters: (count: number) => string;
+  /** Collapse the filter row back to its cap (#1288). */
+  fewerTagFilters: string;
+  /** "Show the remaining N notes in this group" (#1288). */
+  moreRows: (count: number) => string;
 }
 
 export interface NotesSidebarListProps {
@@ -85,8 +81,15 @@ export interface NotesSidebarListProps {
     count: number;
     icon: ReactNode;
   }[];
-  tagFilter: string | null;
-  onTagFilterChange: (id: string | null) => void;
+  /** Selected tag-group keys; empty = no filter (#1288). */
+  tagFilters: readonly string[];
+  onToggleTagFilter: (id: string) => void;
+  onClearTagFilters: () => void;
+  /**
+   * Rows drawn per group before the "show the rest" button, or null for no cap
+   * (#1288 — the host caps only while no tag is selected).
+   */
+  rowCap: number | null;
 
   // The list itself.
   error: string | null;
@@ -106,13 +109,6 @@ export interface NotesSidebarListProps {
    * Trash — both are collections this tab keeps out of the main list.
    */
   templatesSlot?: ReactNode;
-
-  // Trash disclosure.
-  trashOpen: boolean;
-  onToggleTrash: () => void;
-  deletedNotes: NoteNode[];
-  onRestoreNote: (id: string) => void;
-  onPermanentDeleteNote: (id: string) => void;
 }
 
 export function NotesSidebarList({
@@ -127,8 +123,10 @@ export function NotesSidebarList({
   directionLabel,
   showTagFilter,
   tagFilterChips,
-  tagFilter,
-  onTagFilterChange,
+  tagFilters,
+  onToggleTagFilter,
+  onClearTagFilters,
+  rowCap,
   error,
   hasNotes,
   visibleGroups,
@@ -140,12 +138,18 @@ export function NotesSidebarList({
   onCreateNote,
   dnd,
   templatesSlot,
-  trashOpen,
-  onToggleTrash,
-  deletedNotes,
-  onRestoreNote,
-  onPermanentDeleteNote,
 }: NotesSidebarListProps) {
+  /*
+   * Which groups the user has opened past `rowCap` (#1288). Local UI state, not
+   * host state and not persisted: it answers "I am looking at this group right
+   * now", and a cap that stayed open forever would undo the tidying the next
+   * time the list is opened. Collapse (the chevron) is the persisted one — that
+   * is a lasting statement about a tag, this is not.
+   */
+  const [openedGroups, setOpenedGroups] = useState<Set<string>>(new Set());
+  const openGroup = (key: string) =>
+    setOpenedGroups((prev) => new Set(prev).add(key));
+
   return (
     <div className="flex flex-col gap-2">
       {/* Search only. Create moved to the main-content top-right (#302); folder-
@@ -180,7 +184,8 @@ export function NotesSidebarList({
         directionToggleLabel={labels.toggleDirection}
       />
 
-      {/* Tag filter (#369) — solo one tag group; the active chip clears it. */}
+      {/* Tag filter (#369, multi-select since #1288) — each chip is a heading
+          to show; the row caps itself and offers a clear. */}
       {showTagFilter && (
         // #1125 anchors the tour's "follow a tag" step here. CONDITIONAL by
         // nature: the row only renders with more than one group to choose
@@ -188,12 +193,17 @@ export function NotesSidebarList({
         // skips that step rather than waiting on a control that will not
         // appear (anchor.ts).
         <div {...tourAnchor("materials-tag-filter")}>
-          <StatusFilterChips
+          <NoteTagFilterChips
             chips={tagFilterChips}
-            value={tagFilter}
-            onChange={onTagFilterChange}
-            label={labels.tagFilter}
-            size="sm"
+            value={tagFilters}
+            onToggle={onToggleTagFilter}
+            onClear={onClearTagFilters}
+            labels={{
+              group: labels.tagFilter,
+              clear: labels.clearTagFilter,
+              more: labels.moreTagFilters,
+              less: labels.fewerTagFilters,
+            }}
           />
         </div>
       )}
@@ -224,6 +234,13 @@ export function NotesSidebarList({
             {visibleGroups.map((group) => {
               const key = groupKey(group);
               const collapsed = collapsedGroups.has(key);
+              // #1288: cap the rows unless this group was opened by hand (or
+              // the host lifted the cap because a tag filter is on).
+              const capped =
+                rowCap !== null && !openedGroups.has(key) ? rowCap : null;
+              const shownNotes =
+                capped === null ? group.notes : group.notes.slice(0, capped);
+              const hiddenRows = group.notes.length - shownNotes.length;
               return (
                 <li key={key} className="flex flex-col gap-px">
                   <DesktopTagHeading
@@ -234,20 +251,38 @@ export function NotesSidebarList({
                     expandLabel={labels.expandGroup}
                   />
                   {!collapsed && (
-                    <ul className="flex flex-col gap-0.5">
-                      {group.notes.map((node) => (
-                        <DesktopNoteRow
-                          key={`${key}-${node.id}`}
-                          node={node}
-                          dragId={noteDraggableId(key, node.id)}
-                          selected={selectedNoteId === node.id}
-                          onSelect={onSelectNote}
-                          onDelete={onDeleteNote}
-                          deleteLabel={labels.deleteNote}
-                          dragHintLabel={labels.assignTagHint}
-                        />
-                      ))}
-                    </ul>
+                    <>
+                      <ul className="flex flex-col gap-0.5">
+                        {shownNotes.map((node) => (
+                          <DesktopNoteRow
+                            key={`${key}-${node.id}`}
+                            node={node}
+                            dragId={noteDraggableId(key, node.id)}
+                            selected={selectedNoteId === node.id}
+                            onSelect={onSelectNote}
+                            onDelete={onDeleteNote}
+                            deleteLabel={labels.deleteNote}
+                            dragHintLabel={labels.assignTagHint}
+                          />
+                        ))}
+                      </ul>
+                      {/* One-way on purpose: the button says how many are
+                          hidden, and once they are out there is nothing left
+                          for it to say. Folding the group again is what the
+                          heading's chevron is for. */}
+                      {hiddenRows > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => openGroup(key)}
+                          className={cn(
+                            "self-start rounded-lumen-md px-2 py-1 text-[11.5px] text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary",
+                            FOCUS_RING,
+                          )}
+                        >
+                          {labels.moreRows(hiddenRows)}
+                        </button>
+                      )}
+                    </>
                   )}
                 </li>
               );
@@ -262,71 +297,6 @@ export function NotesSidebarList({
       )}
 
       {templatesSlot}
-
-      {/* Trash section. (The Links disclosure that used to sit above it moved
-          into the note detail header, beside the tags — #884.) */}
-      <div className="border-t border-lumen-border pt-1">
-        <button
-          type="button"
-          onClick={onToggleTrash}
-          aria-expanded={trashOpen}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          {trashOpen ? (
-            <ChevronDown size={13} aria-hidden className="shrink-0" />
-          ) : (
-            <ChevronRight size={13} aria-hidden className="shrink-0" />
-          )}
-          <Trash2 size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">
-            {labels.trash}（{deletedNotes.length}）
-          </span>
-        </button>
-        {trashOpen && deletedNotes.length > 0 && (
-          <ul className="max-h-40 space-y-1 overflow-y-auto pb-2">
-            {deletedNotes.map((n) => {
-              const title = n.title || labels.untitled;
-              return (
-                <li
-                  key={n.id}
-                  className="flex items-center justify-between gap-2 px-1 text-sm"
-                >
-                  <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
-                    {title}
-                  </span>
-                  <span className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onRestoreNote(n.id)}
-                      aria-label={labels.restoreNote(title)}
-                      className={cn(
-                        "text-lumen-accent hover:opacity-80",
-                        FOCUS_RING,
-                      )}
-                    >
-                      <RotateCcw size={14} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onPermanentDeleteNote(n.id)}
-                      aria-label={labels.permanentDeleteNote(title)}
-                      className={cn(
-                        "text-lumen-danger hover:opacity-80",
-                        FOCUS_RING,
-                      )}
-                    >
-                      <Trash2 size={14} aria-hidden />
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
 
       {/*
        * The Notes-local tag edit entry (#310) was removed in #409: the tag

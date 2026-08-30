@@ -5,7 +5,7 @@ import {
   useTranslation,
   buildTagGroups,
   tagGroupKey as groupKey,
-  soloTagGroup,
+  filterTagGroups,
   sortNotesForList,
   useFrozenNoteSortKey,
   cn,
@@ -27,6 +27,13 @@ import {
 // Values saved under the old name are carried over at startup by
 // `migrateLegacyPreferenceKeys` — see shared/src/utils/.
 const LS_TAG_GROUPS_COLLAPSED = "life-editor:note-tag-groups-collapsed";
+
+/**
+ * Rows drawn per tag group while no tag filter is on (#1288). Small enough that
+ * a dozen headings still fit on one screen, large enough that most groups are
+ * shown whole and the expander never appears.
+ */
+const GROUP_ROW_CAP = 5;
 
 function loadCollapsedGroups(): Set<string> {
   try {
@@ -141,16 +148,26 @@ export function useNoteListState() {
       : t("materials.sidebar.oldest");
 
   /*
-   * #369 tag filter. The grouped list already shows every tag, but with a dozen
-   * tags you scroll past all of them to reach one — collapsing the rest by hand
-   * is the only narrowing that existed. This solos ONE group (click the active
-   * chip again for all), which is the whole filter semantics under a many-to-
-   * many tag model: "show notes carrying tag X" IS "show group X".
+   * #369 tag filter, widened to MULTI-select in #1288. The grouped list already
+   * shows every tag, but with a dozen tags you scroll past all of them to reach
+   * one — collapsing the rest by hand is the only narrowing that existed. A
+   * chip means "show this heading", which is the whole filter semantics under a
+   * many-to-many tag model: "show notes carrying tag X" IS "show group X". Two
+   * chips therefore show two headings (OR) — see filterTagGroups for why the
+   * intersection is not the useful reading here.
    *
    * Deliberately NOT persisted (matching the Daily filter query, #283): a
    * filter that survives a reload hides notes with no visible cause.
    */
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [tagFilters, setTagFilters] = useState<readonly string[]>([]);
+
+  const toggleTagFilter = useCallback((key: string) => {
+    setTagFilters((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  }, []);
+
+  const clearTagFilters = useCallback(() => setTagFilters([]), []);
 
   const tagFilterChips = useMemo(
     () =>
@@ -173,12 +190,26 @@ export function useNoteListState() {
     [sortedGroups],
   );
 
-  // soloTagGroup falls back to the full list when the selection goes stale —
-  // see its doc for why (a stale chip is unclickable, so it must not strand).
+  // filterTagGroups falls back to the full list when every selection goes stale
+  // — see its doc for why (a stale chip is unclickable, so it must not strand).
   const visibleGroups = useMemo(
-    () => soloTagGroup(sortedGroups, tagFilter),
-    [sortedGroups, tagFilter],
+    () => filterTagGroups(sortedGroups, tagFilters),
+    [sortedGroups, tagFilters],
   );
+
+  /*
+   * #1288 — the second half of the Issue: the list with NO filter on.
+   *
+   * Every tag is a heading and a note appears under every tag it carries, so an
+   * unfiltered vault of any size is a wall of rows in a ~240px column. Capping
+   * each group and letting the user open the ones they want turns it back into
+   * something scannable — headings first, contents on request.
+   *
+   * Only while nothing is selected: once a tag IS picked, that group is the
+   * thing the user asked to see, and hiding part of it would answer a narrower
+   * question than the one they asked.
+   */
+  const rowCap = tagFilters.length > 0 ? null : GROUP_ROW_CAP;
 
   // Only worth showing when there is more than one bucket to choose between.
   const showTagFilter = tagFilterChips.length > 1;
@@ -197,7 +228,7 @@ export function useNoteListState() {
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
-      setTagFilter(null);
+      setTagFilters([]);
     },
     [setSearchQuery],
   );
@@ -213,10 +244,12 @@ export function useNoteListState() {
     toggleGroup,
     sortModes,
     directionLabel,
-    tagFilter,
-    setTagFilter,
+    tagFilters,
+    toggleTagFilter,
+    clearTagFilters,
     tagFilterChips,
     visibleGroups,
+    rowCap,
     showTagFilter,
     handleSearchChange,
     hasNotes,

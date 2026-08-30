@@ -78,9 +78,21 @@ export function TagIconPicker({
              so the rows behind read straight through it (#552). It was never
              literally translucent; bg-secondary is the opaque step that makes
              the lift visible in BOTH themes (#f5ebda / #18243c), with the
-             strong border + lg shadow + z-50 popover stacking Menu.tsx uses. */
+             strong border + lg shadow + z-50 popover stacking Menu.tsx uses.
+             `w-max` is load-bearing, not a tidy-up (#1289): this box is
+             ABSOLUTE, so its containing block is the trigger — 32px wide — and
+             an auto width there shrink-to-fits into whatever that block allows,
+             floored by the content's MIN-content width. Tailwind's grid-cols-6
+             is `repeat(6, minmax(0, 1fr))`, whose min is literally 0, so the
+             floor was the 5 gaps (20px) and the panel painted ~32px wide while
+             its 28px icon buttons spilled out of their zero-width tracks across
+             the name field beside it. That is what "the icon editor breaks and
+             the background falls transparent" was: not a token that resolved to
+             nothing, but an opaque surface drawn at a sixth of the width of the
+             content sitting on it. ColorPicker never showed it because its
+             panel is IN FLOW, so its own width feeds the flex item's. */
           className={cn(
-            "absolute left-0 top-9 z-50 rounded-lumen-md p-2",
+            "absolute left-0 top-9 z-50 w-max rounded-lumen-md p-2",
             "border border-lumen-border-strong bg-lumen-bg-secondary shadow-lumen-lg",
           )}
         >

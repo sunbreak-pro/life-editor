@@ -162,11 +162,6 @@ export function NotesView({
     verifyNotePassword: notes.verifyNotePassword,
   });
 
-  // Host state: the list unmounts whenever the narrow drawer is closed, so
-  // keeping the disclosure's open/closed there would forget the user's choice
-  // every time they picked a note.
-  const [trashOpen, setTrashOpen] = useState(false);
-
   // "Register this note as a template" (#1179) + the receipt panel it opens.
   // Writes go straight out through the DataService, which is why it is not on
   // the notes context — see the hook's header.
@@ -178,10 +173,12 @@ export function NotesView({
     toggleGroup,
     sortModes,
     directionLabel,
-    tagFilter,
-    setTagFilter,
+    tagFilters,
+    toggleTagFilter,
+    clearTagFilters,
     tagFilterChips,
     visibleGroups,
+    rowCap,
     showTagFilter,
     handleSearchChange,
     hasNotes,
@@ -347,12 +344,16 @@ export function NotesView({
    * only selecting one; clearing back to "all" is not following anything — is
    * what completes the step.
    */
-  const handleTagFilterChange = useCallback(
-    (next: string | null) => {
-      setTagFilter(next);
-      if (next !== null) notifyTour("tag-filtered");
+  const handleToggleTagFilter = useCallback(
+    (key: string) => {
+      toggleTagFilter(key);
+      // #1288: with multi-select, "following a tag" is any press that ADDS one.
+      // Reporting on the toggle rather than on the resulting set keeps this out
+      // of the set's identity — un-pressing the last chip is clearing, not
+      // following, and the tour must not count it.
+      if (!tagFilters.includes(key)) notifyTour("tag-filtered");
     },
-    [setTagFilter, notifyTour],
+    [toggleTagFilter, tagFilters, notifyTour],
   );
 
   // #1149: what the empty state offers to select. Resolved against the live
@@ -519,8 +520,10 @@ export function NotesView({
       directionLabel={directionLabel}
       showTagFilter={showTagFilter}
       tagFilterChips={tagFilterChips}
-      tagFilter={tagFilter}
-      onTagFilterChange={handleTagFilterChange}
+      tagFilters={tagFilters}
+      onToggleTagFilter={handleToggleTagFilter}
+      onClearTagFilters={clearTagFilters}
+      rowCap={rowCap}
       hasNotes={hasNotes}
       visibleGroups={visibleGroups}
       collapsedGroups={collapsedGroups}
@@ -529,11 +532,10 @@ export function NotesView({
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
-        trash: t("materials.notes.trash"),
-        untitled: t("materials.notes.untitled"),
-        restoreNote: (title) => t("materials.notes.restoreNote", { title }),
-        permanentDeleteNote: (title) =>
-          t("materials.notes.permanentDeleteNote", { title }),
+        clearTagFilter: t("materials.notes.tagFilterClear"),
+        moreTagFilters: (count) => t("materials.notes.tagFilterMore", { count }),
+        fewerTagFilters: t("materials.notes.tagFilterLess"),
+        moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -541,11 +543,6 @@ export function NotesView({
       onDeleteNote={notes.softDeleteNote}
       onCreateNote={handleAddNote}
       dnd={dnd}
-      trashOpen={trashOpen}
-      onToggleTrash={() => setTrashOpen((v) => !v)}
-      deletedNotes={notes.deletedNotes}
-      onRestoreNote={notes.restoreNote}
-      onPermanentDeleteNote={notes.permanentDeleteNote}
       // #1180 — only with a DataService, which is what templates are read and
       // written through (the same condition the "[[" pool has).
       templatesSlot={
