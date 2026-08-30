@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AuthScreen } from "../src/AuthScreen";
+import { LegalReaderHost } from "../src/legal/LegalReaderHost";
 import { LEGAL_DOCUMENTS } from "../src/legal/legalContent";
 
 /*
@@ -10,6 +11,11 @@ import { LEGAL_DOCUMENTS } from "../src/legal/legalContent";
  * The `?legal=` case matters as much as the click: the app has no router, so
  * that query string is the only thing that makes "here is our privacy policy"
  * a link somebody can send.
+ *
+ * #1251 moved the reader itself to App, so these cases mount AuthScreen and
+ * LegalReaderHost together the way App does. That pairing IS the assertion:
+ * the screen only writes the URL, and something else has to be listening for
+ * a click to show anything at all.
  */
 
 const state = vi.hoisted(() => ({
@@ -41,6 +47,16 @@ function setQuery(search: string): void {
   window.history.replaceState({}, "", `${window.location.pathname}${search}`);
 }
 
+/** The pair App mounts: the screen that links, and the host that renders. */
+function renderAuth() {
+  return render(
+    <>
+      <AuthScreen />
+      <LegalReaderHost />
+    </>,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   setQuery("");
@@ -52,7 +68,7 @@ afterEach(() => {
 
 describe("AuthScreen — policy and terms", () => {
   it("opens the privacy policy from the auth card and comes back", () => {
-    render(<AuthScreen />);
+    renderAuth();
 
     fireEvent.click(screen.getByRole("button", { name: "auth.legal.privacy" }));
     expect(screen.getByText(EN.privacy.title)).toBeTruthy();
@@ -63,14 +79,14 @@ describe("AuthScreen — policy and terms", () => {
   });
 
   it("opens the terms from the auth card", () => {
-    render(<AuthScreen />);
+    renderAuth();
 
     fireEvent.click(screen.getByRole("button", { name: "auth.legal.terms" }));
     expect(screen.getByText(EN.terms.title)).toBeTruthy();
   });
 
   it("keeps the open document in the address bar so it can be linked", () => {
-    render(<AuthScreen />);
+    renderAuth();
 
     fireEvent.click(screen.getByRole("button", { name: "auth.legal.terms" }));
     expect(window.location.search).toBe("?legal=terms");
@@ -81,20 +97,20 @@ describe("AuthScreen — policy and terms", () => {
 
   it("opens straight to the document named in the query", () => {
     setQuery("?legal=privacy");
-    render(<AuthScreen />);
+    renderAuth();
 
     expect(screen.getByText(EN.privacy.title)).toBeTruthy();
   });
 
   it("ignores a query that names no document", () => {
     setQuery("?legal=nonsense");
-    render(<AuthScreen />);
+    renderAuth();
 
     expect(screen.getByRole("button", { name: "auth.signIn" })).toBeTruthy();
   });
 
   it("states the agreement only where an account is being created", () => {
-    render(<AuthScreen />);
+    renderAuth();
     expect(screen.queryByText("auth.legal.consent")).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "auth.signUp" }));

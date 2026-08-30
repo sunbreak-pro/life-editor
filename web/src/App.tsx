@@ -9,6 +9,7 @@ import {
 import { AuthScreen } from "./AuthScreen";
 import { MainScreen } from "./MainScreen";
 import { OfflineBanner } from "./components/OfflineBanner";
+import { LegalReaderHost } from "./legal/LegalReaderHost";
 
 /*
  * Root: session gate.
@@ -160,6 +161,16 @@ function App() {
     >
       <OfflineBanner />
       {body}
+      {/*
+       * #1251: the policy and the terms, mounted ABOVE the session gate.
+       * Living inside AuthScreen meant they vanished the moment you signed
+       * in, and a `?legal=` link was swallowed by the gate — terms you can
+       * only read while signed out are terms you cannot check when you
+       * finally have a reason to. It overlays `body` rather than replacing
+       * it, so reading mid-sentence costs neither the section you were in
+       * nor the note you were typing.
+       */}
+      <LegalReaderHost />
     </UnsavedGuardProvider>
   );
 }
