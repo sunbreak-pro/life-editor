@@ -52,6 +52,18 @@ const TRASH_LABELS: TrashViewLabels = {
   cascadeWarning: "Related sub-items and tag assignments are deleted together.",
   cancel: "Cancel",
   close: "Close",
+  selectItem: 'Select "{name}"',
+  selectGroup: "Select all {name}",
+  selectedCount: "{count} selected",
+  clearSelection: "Clear the selection",
+  restoreSelected: "Restore selected",
+  deleteSelected: "Delete selected",
+  emptyTrash: "Empty the trash",
+  confirmSelectionMessage:
+    "The {count} selected items will be permanently deleted.",
+  confirmEmptyMessage: "All {count} items in the trash will be deleted.",
+  restoringMany: "Restoring…",
+  deletingMany: "Deleting…",
 };
 
 describe("cn", () => {
@@ -250,6 +262,8 @@ describe("TrashView", () => {
         groups={[{ category: "todos", title: "Todos", items: [] }]}
         onRestore={() => {}}
         onPermanentDelete={() => {}}
+        onRestoreMany={() => {}}
+        onPermanentDeleteMany={() => {}}
         labels={TRASH_LABELS}
       />,
     );
@@ -263,6 +277,8 @@ describe("TrashView", () => {
         groups={groups}
         onRestore={onRestore}
         onPermanentDelete={() => {}}
+        onRestoreMany={() => {}}
+        onPermanentDeleteMany={() => {}}
         labels={TRASH_LABELS}
       />,
     );
@@ -278,6 +294,8 @@ describe("TrashView", () => {
         groups={groups}
         onRestore={() => {}}
         onPermanentDelete={onPermanentDelete}
+        onRestoreMany={() => {}}
+        onPermanentDeleteMany={() => {}}
         labels={TRASH_LABELS}
       />,
     );

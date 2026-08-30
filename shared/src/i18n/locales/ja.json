@@ -202,7 +202,19 @@
     "restoreConflict": "その日にはすでに同じ繰り返しの予定があるため、削除したほうはここに残ります。この予定自体を戻したい場合は、カレンダー側の予定を先に削除してください。",
     "restoreFailed": "予定を復元できませんでした。少し時間をおいて、もう一度お試しください。",
     "cascadeWarning": "関連する子項目やタグの割り当ても一緒に削除されます。",
-    "permanentDeleteConfirm": "「{{name}}」を完全に削除します。この操作は取り消せません。"
+    "permanentDeleteConfirm": "「{{name}}」を完全に削除します。この操作は取り消せません。",
+    "selectItem": "「{{name}}」を選択",
+    "selectGroup": "{{name}} をまとめて選択",
+    "selectedCount": "{{n}} 件を選択中",
+    "clearSelection": "選択を解除",
+    "restoreSelected": "選択したものを戻す",
+    "deleteSelected": "選択したものを削除",
+    "emptyTrash": "ゴミ箱を空にする",
+    "confirmSelectionMessage": "選択した {{n}} 件を完全に削除します。この操作は取り消せません。",
+    "confirmEmptyMessage": "ゴミ箱の {{n}} 件をすべて完全に削除します。この操作は取り消せません。",
+    "restoringMany": "戻しています…",
+    "deletingMany": "削除しています…",
+    "bulkPartialFailure": "{{n}} 件を処理できませんでした。残っているものはここにそのままあります。"
   },
   "updates": {
     "title": "アップデート"

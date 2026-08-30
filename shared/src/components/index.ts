@@ -384,6 +384,9 @@ export {
   type TrashCategory,
   type TrashBusy,
   type TrashBusyAction,
+  // Multi-select bulk restore / delete (#1294) — the host walks these refs
+  // through its own per-category switches.
+  type TrashRef,
 } from "./TrashView";
 // Work / Pomodoro (target-IA import) — pure timer face + phase badge + session
 // dots + todo selector/sheet + settings editor + completion modal.
