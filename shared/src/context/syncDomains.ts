@@ -89,13 +89,10 @@ const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   routines_payload: "schedule",
   routine_groups: "schedule",
   routine_group_assignments: "schedule",
-  // #1173 retired the `calendars` CODE but not the table (DDL is the user's
-  // gate — CLAUDE.md §7.3), and it is still in the `supabase_realtime`
-  // publication, so REALTIME_TABLES must keep it and this map must route it.
-  // Nothing reads or writes it any more; the subscription is simply silent,
-  // exactly like `routine_groups` above. It rides `schedule` because that is
-  // the section it belonged to — the domain it used to own is gone.
-  calendars: "schedule",
+  // (`calendars` sat here until #1277 dropped the table — #1173 had already
+  // removed the code, leaving a silent subscription that routed to `schedule`.
+  // Both lists lost it together; the lockstep test would fail if either had
+  // kept it.)
   wiki_tags: "tags",
   wiki_tag_groups: "tagGroups",
   wiki_tag_group_assignments: "tagGroups",
