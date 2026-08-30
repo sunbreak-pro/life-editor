@@ -112,9 +112,22 @@ export function ThemePreviewCard<V extends string = string>({
         </div>
       )}
 
+      {/*
+       * The glyph and the name sit on one line while they fit and stack when
+       * they do not. The card's width comes from a 3-column grid at the
+       * viewport's width, but the copy is sized by the user's font-size
+       * preference, so at the large preset (22px) "System" plus the glyph is
+       * wider than the card and used to run out of it (#1253). Three things
+       * keep it in: the row WRAPS, so the name gets a full line of its own
+       * with the glyph above it; `min-w-0` lets that line shrink to the card
+       * instead of holding its max-content width; and `break-words` splits a
+       * single word that is still too wide for a line of its own — the last
+       * resort, and the only one that survives an even narrower phone.
+       */}
       <span
         className={cn(
-          "flex items-center justify-center gap-1.5 text-sm",
+          "flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5",
+          "text-center text-sm",
           selected
             ? "font-medium text-lumen-text"
             : "text-lumen-text-secondary",
@@ -126,9 +139,7 @@ export function ThemePreviewCard<V extends string = string>({
           className="shrink-0"
           data-theme-glyph={paint}
         />
-        {/* min-w-0 so the copy can wrap instead of overflowing the card: the
-            three cards share a 3-column grid and the font size is user-set. */}
-        <span className="min-w-0">{label}</span>
+        <span className="min-w-0 break-words">{label}</span>
       </span>
     </button>
   );
