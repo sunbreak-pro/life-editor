@@ -1,5 +1,35 @@
 # HISTORY (chat-tags-docs)
 
+### 2026-08-30 - #1291 タグアイコンを共通チップへ
+
+#### 概要
+
+タグのアイコンが見出し / 一覧 / Tag hub には届いていてチップで止まっていたのを、共通部品側で埋めた（PR #1318 open）。
+
+#### 変更点
+
+- **`TagPill` を `web/src/wikitag/` → `shared/src/components/` へ移動**。「タグ名が出るところ全部」に出す部品が 1 ホストの中にいるのは筋が通らないため（CLAUDE.md §6）。`web/src/wikitag/index.ts` は shared から再エクスポートして旧パス参照を生かした
+- **先頭マークを色ドットから `TagHeadingIcon` のグリフへ**。見出し / hub と同じ 1 本の読み出し経路になり、「アイコンを編集したら全面が追随する」が構造で成立する。グリフ自体がタグ色で着色されるのでドットは重複だった。未設定は汎用 Tag グリフ（master list と同じ fallback）
+- **`TagHeadingIcon` に `size` prop を追加**（既定 15 = 従来値）。チップは見出しより小さい字送りのため
+- **採用した呼び出し側**: `TagPicker`（付与済みチップ + 候補リスト）/ `TagFilterPanel`（`TagFilterPanelTag` に `icon` 追加）/ `useTagFilterPanel`（`allTags` から流す）
+- **境界**: `web/src/notes/` は不可侵（#1288 が同面を再構成中）。保存済みグループの要約行は名前のカンマ列でチップではないため対象外
+- **テスト**: `shared/tests/tagChipIcon.test.tsx` 新規 5 件 + `tagFilterPanel.test.tsx` に 2 件追加。lucide が `<svg class="lucide lucide-star">` を刻むのでスナップショット無しでグリフを特定できる
+
+### 2026-08-30 - #1289 タグ編集パネルのアイコンピッカーが崩れる不具合
+
+#### 概要
+
+ピッカーを開くと行が崩れ背景が透けて見えた件。Issue の見立て（未定義 `bg-lumen-*` の透明落ち）は外れで、原因は**幅**だった（PR #1314 open）。
+
+#### 変更点
+
+- **原因**: ポップオーバーが `absolute` なので包含ブロックが 32px のトリガーボタン。そこでの `width: auto` は shrink-to-fit = `min(max(min-content, 32px), max-content)` で、中身の `grid-cols-6` は Tailwind では `repeat(6, minmax(0, 1fr))` = **min-content 0**。下限が gap 5 個分（20px）しかなく、**背景が約 32px 幅で描かれ 28px のアイコンボタンだけが幅 0 のトラックからはみ出して隣の名前入力に散っていた**
+- **`ColorPicker` で出なかった理由**: あちらのパネルは通常フローにいて、自分の幅が flex アイテムの幅に反映される
+- **修正**: `w-max` 1 つ。#552 が色トークンを 1 段上げて直そうとしたのは対症で、幅には触れていなかった
+- **テスト**: `shared/tests/tagIconPickerSurface.test.tsx` 新規 7 件。jsdom にレイアウトが無いので 204px そのものは測れないが、(a) ポップオーバーが自前の幅クラスを持つこと（`w-max` を外すと落ちるのを実測で確認）、(b) 塗っている `lumen-*` クラスが全て `tokens.css` に宣言済みであること、(c) その元値が light / dark 両スコープにあること、は宣言から検査できる
+- **申し送り**: 未定義 `bg-lumen-*` の無警告透明落ちを機械で捕まえるゲートは (b) の形で書ける。他の浮遊面にも横展開の余地あり
+
+
 ### 2026-08-13 - #777 テストの DataService スタブ / fixture を共有ヘルパへ集約
 
 #### 概要
