@@ -18,7 +18,7 @@ import { stubDataService } from "./helpers";
  *      filling in later is how #475 saved an empty body over a real one.
  *   3. Save writes name AND body together; Cancel writes nothing. Those two
  *      buttons are the whole difference between a template and a note here.
- *   4. delete is a soft delete of that row.
+ *   4. delete ASKS first (#1248), and soft-deletes that row on the answer.
  *
  * Mocking follows notesView.test.tsx. RichTextEditor is stubbed with a button
  * that fires `onDraftChange` — the draft-mode callback this panel wires (#713),
@@ -246,15 +246,43 @@ describe("saved templates in the Notes sidebar (#1180)", () => {
     expect(screen.queryByLabelText("materials.templates.nameLabel")).toBeNull();
   });
 
-  it("soft-deletes a template from its row", async () => {
+  it("asks before soft-deleting a template, then deletes it", async () => {
     render(<NotesView dataService={makeDS()} />);
     await openTemplates();
     fireEvent.click(
       screen.getByLabelText("materials.templates.delete: Standup"),
     );
 
+    // #1248: the press is the QUESTION. It used to be the delete itself, on a
+    // bin that sits beside the note list and whose row never reaches Trash.
+    expect(
+      await screen.findByText("materials.templates.deleteConfirmBody|Standup"),
+    ).toBeTruthy();
+    expect(softDeleted).toEqual([]);
+
+    fireEvent.click(
+      screen.getByText("materials.templates.deleteConfirmAction"),
+    );
+
     await waitFor(() => expect(softDeleted).toEqual(["note-t2"]));
     expect(screen.queryByText("Standup")).toBeNull();
+  });
+
+  it("keeps the template when the delete question is refused", async () => {
+    render(<NotesView dataService={makeDS()} />);
+    await openTemplates();
+    fireEvent.click(
+      screen.getByLabelText("materials.templates.delete: Standup"),
+    );
+    fireEvent.click(await screen.findByText("common.cancel"));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("materials.templates.deleteConfirmBody|Standup"),
+      ).toBeNull(),
+    );
+    expect(softDeleted).toEqual([]);
+    expect(screen.getByText("Standup")).toBeTruthy();
   });
 
   it("picks up a template registered from the note kebab", async () => {
