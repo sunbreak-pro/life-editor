@@ -22,7 +22,13 @@ export {
   EveningReflectionPreview,
   type EveningReflectionPreviewProps,
 } from "./EveningReflectionPreview";
-export { extractBriefing, type ExtractedBriefing } from "./extractBriefing";
+export {
+  extractBriefing,
+  // Settings' "last AI activity" line (#1210) — the newest day a briefing
+  // section exists for, read off the same convention this parser defines.
+  lastBriefingDate,
+  type ExtractedBriefing,
+} from "./extractBriefing";
 export {
   FOCUS_NOTE_ID,
   extractFocus,

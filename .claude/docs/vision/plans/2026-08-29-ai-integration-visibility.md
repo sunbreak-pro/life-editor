@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: IN PROGRESS
 Created: 2026-08-29
 Branch: feat/ai-integration-visibility
 Owner-chat: settings-refine
@@ -94,4 +94,18 @@ shared/tests/**  web/tests/**               (該当テスト)
 
 ## Worklog
 
-（実装中に記録）
+**2026-08-30 — Steps 1–5 実装（settings-refine / `feat/ai-integration-visibility`）**
+
+- Step 1: `mcp-server/scripts/dump-tool-catalog.mjs` + `npm run catalog`（`build && node scripts/…`）。**dist/ を読む**形にした — plain Node に TypeScript ローダが無く、`src/tools.ts` を直接は読めないため。registry の import 自体は副作用ゼロ（`getSupabase()` は遅延）。初回生成 = 35 ツール / 36 KB
+- Step 2: `SettingsAiIntegration.tsx`（pure primitive・labels 注入・`lumen-*` のみ）。カタログは**折りたたみ既定**（35 行は参照資料で、フォントサイズを変えに来た列には重い）。引数名は `toolArgNames()` が required を先頭に並べる
+- Step 3: `SettingsScreen.tsx` の general タブ、Legal の上に 1 枚。件数は `MCP_TOOL_CATALOG.length` から注入（数値の非複製原則）
+- Step 4: `BriefingView.tsx` の AI コメントに帰属バッジ。**文言は不変**（`aiSource` のまま）で、`BlockHead` の `hint` を `ReactNode` に広げ、Sparkles + 枠付きピルにした
+- 計画外の追加 2 点（いずれも計画の意図の範囲内と判断・P-008 のキュー行きではないと整理）:
+  - `extractBriefing.ts` に `lastBriefingDate(dailies)` を追加（Step 2 (c) の導出を pure helper にして単体テスト可能にするため。Scope の `shared/src/components/briefing/**` 内）
+  - CLAUDE.md §5 に「ツール追加時は `npm run catalog`」の 1 行（再生成漏れの運用則で、コードからは読み取れない）
+- 鮮度 AC の担保先: `mcp-server/tests/toolCatalogFreshness.test.ts`。**件数ではなく name / description / inputSchema の全一致**で比較する — 件数だけだと改名で緑になり、かつ数値の第 2 の正本を作ってしまう
+
+### 判明した制約
+
+- `shared/src/generated/` は `resolveJsonModule: true` + `include: ["src", "src/**/*.json"]` で既に通る（Risks 節の初手確認は空振り = 追加設定なし）
+- i18n の件数キーは `{{count}}` を避けて `{{n}}` にした — i18next は `count` を複数形トリガとして解釈するため
