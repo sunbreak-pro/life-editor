@@ -5,6 +5,7 @@
  */
 export {
   resolveTourAnchor,
+  resolveTourStepAnchor,
   tourAnchor,
   TOUR_ANCHOR_ATTRIBUTE,
   TOUR_ANCHOR_TIMEOUT_MS,

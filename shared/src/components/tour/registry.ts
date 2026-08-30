@@ -67,6 +67,40 @@ export const TOUR_STEPS = [
     id: "schedule-create-event",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleAddEvent,
+    // #1250: the create control is NOT durable on narrow. Wide has it in the
+    // toolbar, but #1148 moved the phone's only create route into the detail
+    // drawer's heading row — and that drawer starts closed every session
+    // (RightSidebarContext seeds `isOpen` false and does not persist it), so
+    // `<RightSidebarPortal>` renders nothing and the AddPill is not in the
+    // document at all. The probe waited out its 2.5s and skipped the step, on
+    // the only width where finding "add an event" is genuinely hard.
+    //
+    // The calendar is where the lesson still holds there. It is not a stand-in
+    // for the button: on narrow, tapping a day IS the first half of creating
+    // an event — `selectNarrowDay` moves the anchor day AND opens the drawer
+    // on it, which is what puts the AddPill on screen. So the spotlight lands
+    // on the surface the user must actually touch first, and the step still
+    // advances on the write rather than on any press.
+    //
+    // A FALLBACK rather than moving the attribute, so the drawer's own pill
+    // still wins whenever it IS on screen — a narrow user who had the panel
+    // open is pointed at the real control, not at the route to it.
+    //
+    // Three answers considered and rejected, so they are not re-proposed:
+    //   - point at the detail-panel hamburger instead. It carries
+    //     `aria-expanded`, so the #1192 stand-down would hide the bubble the
+    //     instant the user obeyed it.
+    //   - fork the registry by width. `totalSteps` and TOUR_SECTION_IDS are
+    //     both derived from this one list, so two lists means two tours.
+    //   - let both carriers wear the id and rely on document order. That is
+    //     right only by accident — `querySelector` returns the first match in
+    //     the document, which no layout promises.
+    //
+    // What this does NOT fix, and is not this step's to fix: the overlay is
+    // z-45 and MobileDrawer is z-50, so once that drawer opens the bubble is
+    // painted underneath it. Steps 4/5/6 anchor INSIDE the drawer and are
+    // therefore only ever "found" in the state where they cannot be read.
+    fallbackAnchor: TOUR_ANCHORS.scheduleCalendar,
     copyKey: "tour.steps.scheduleCreateEvent",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleEventCreated },
   },

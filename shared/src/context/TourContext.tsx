@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import {
-  resolveTourAnchor,
+  resolveTourStepAnchor,
   TOUR_ANCHOR_TIMEOUT_MS,
 } from "../components/tour/anchor";
 import { TOUR_STEPS } from "../components/tour/registry";
@@ -451,7 +451,7 @@ export function TourProvider({
     let raf = 0;
     const probe = () => {
       if (step.section === currentSection) {
-        const el = resolveTourAnchor(step.anchor);
+        const el = resolveTourStepAnchor(step);
         if (el) {
           shownAnyRef.current = true;
           shownStepIdRef.current = step.id;
