@@ -210,7 +210,6 @@
   "work": {
     "title": "Work",
     "sidebar": {
-      "sessions": "{{count}} sessions",
       "targetSessions": "Target",
       "sessionsProgress": "{{completed}} / {{target}} sessions"
     },
@@ -288,7 +287,8 @@
     "delete": "Delete",
     "todoDelete": "Delete todo",
     "todoDeleteConfirm": "Delete \"{{name}}\"? It goes to the trash, so you can restore it later.",
-    "todoDeleteCascadeConfirm": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
+    "todoDeleteCascadeConfirm_one": "Deleting \"{{name}}\" also deletes its {{count}} child todo. Delete anyway?",
+    "todoDeleteCascadeConfirm_other": "Deleting \"{{name}}\" also deletes its {{count}} child todos. Delete anyway?",
     "status": "Status",
     "schedule": "Scheduled",
     "scheduleNone": "Not scheduled",
@@ -447,7 +447,8 @@
       "clearIcon": "Default icon",
       "colorClearLabel": "Default color",
       "colorCustomLabel": "Custom",
-      "usageCount": "{{count}} items",
+      "usageCount_one": "{{count}} item",
+      "usageCount_other": "{{count}} items",
       "itemsHeading": "Tagged items",
       "itemsEmpty": "Nothing carries this tag",
       "unassign": "Remove this tag",
@@ -499,7 +500,8 @@
     "toEventConfirm": "Convert \"{{title}}\" to an event? Its status will be lost.",
     "toEventConfirmChild": "Convert \"{{title}}\" to an event? Its status will be lost, and it will no longer belong to its parent Todo.",
     "routineBlocked": "A Todo has no repeat, so this cannot be converted.",
-    "childrenBlocked": "\"{{title}}\" has {{count}} subtask(s), so it cannot become an event. Move or delete them first.",
+    "childrenBlocked_one": "\"{{title}}\" has {{count}} subtask, so it cannot become an event. Move or delete it first.",
+    "childrenBlocked_other": "\"{{title}}\" has {{count}} subtasks, so it cannot become an event. Move or delete them first.",
     "childrenBlockedServer": "This Todo still has subtasks, so it cannot become an event. Subtasks in Trash count too — move them, or delete them permanently, first.",
     "failed": "Conversion failed"
   },
@@ -584,7 +586,8 @@
     "repeatDeleteConfirm": "Delete \"{name}\" and all of its events?",
     "repeatDeleteFailed": "Couldn't delete this repeat. Its events are unchanged — try again.",
     "repeatFilterHide": "Hide repeats",
-    "repeatFilterHidden": "{{count}} repeats hidden",
+    "repeatFilterHidden_one": "{{count}} repeat hidden",
+    "repeatFilterHidden_other": "{{count}} repeats hidden",
     "repeatFilterNotice": "Repeat events are hidden on the calendar right now — a slot that looks free may not be.",
     "repeatFilterShow": "Show repeats again",
     "loading": "Loading…",
@@ -904,7 +907,8 @@
     "selectHint": "Pick a tag to see everything filed under it.",
     "back": "Back to tags",
     "untagged": "Untagged",
-    "itemCount": "{{count}} items"
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
   },
   "blockMenu": {
     "turnInto": "Turn Into",

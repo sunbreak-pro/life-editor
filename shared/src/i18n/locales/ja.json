@@ -210,7 +210,6 @@
   "work": {
     "title": "ワーク",
     "sidebar": {
-      "sessions": "{{count}} セッション",
       "targetSessions": "目標",
       "sessionsProgress": "{{completed}} / {{target}} セッション"
     },
@@ -288,7 +287,7 @@
     "delete": "削除",
     "todoDelete": "Todo を削除",
     "todoDeleteConfirm": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
-    "todoDeleteCascadeConfirm": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
+    "todoDeleteCascadeConfirm_other": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
     "status": "ステータス",
     "schedule": "日時",
     "scheduleNone": "未設定",
@@ -446,7 +445,7 @@
       "clearIcon": "デフォルトのアイコン",
       "colorClearLabel": "デフォルトの色",
       "colorCustomLabel": "カスタム",
-      "usageCount": "{{count}} 件",
+      "usageCount_other": "{{count}} 件",
       "itemsHeading": "付いているアイテム",
       "itemsEmpty": "このタグが付いたアイテムはありません",
       "unassign": "このタグを外す",
@@ -498,7 +497,7 @@
     "toEventConfirm": "「{{title}}」を予定に変換します。ステータスは失われます。よろしいですか？",
     "toEventConfirmChild": "「{{title}}」を予定に変換します。ステータスは失われ、親 Todo との関係も解除されます。よろしいですか？",
     "routineBlocked": "Todoに繰り返しの機能はないため、変換は不可能です",
-    "childrenBlocked": "「{{title}}」には子タスクが {{count}} 件あるため、予定に変換できません。先に子タスクを移動するか削除してください。",
+    "childrenBlocked_other": "「{{title}}」には子タスクが {{count}} 件あるため、予定に変換できません。先に子タスクを移動するか削除してください。",
     "childrenBlockedServer": "子タスクがあるため、予定に変換できません。ゴミ箱にある子 Todo も対象になります。先に移動するか、完全に削除してください。",
     "failed": "変換に失敗しました"
   },
@@ -583,7 +582,7 @@
     "repeatDeleteConfirm": "「{name}」と、その予定をすべて削除しますか？",
     "repeatDeleteFailed": "繰り返しを削除できませんでした。予定は変更されていません。もう一度お試しください。",
     "repeatFilterHide": "繰り返しを隠す",
-    "repeatFilterHidden": "繰り返し {{count}} 件を非表示",
+    "repeatFilterHidden_other": "繰り返し {{count}} 件を非表示",
     "repeatFilterNotice": "繰り返しの予定はいまカレンダーで非表示です。空いて見える時間に注意してください。",
     "repeatFilterShow": "繰り返しを表示に戻す",
     "loading": "読み込み中…",
@@ -902,7 +901,7 @@
     "selectHint": "タグを選ぶと、そこに集まったものが一覧に出ます。",
     "back": "タグ一覧へ戻る",
     "untagged": "未分類",
-    "itemCount": "{{count}} 件"
+    "itemCount_other": "{{count}} 件"
   },
   "blockMenu": {
     "turnInto": "変換",
