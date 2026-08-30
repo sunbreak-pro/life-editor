@@ -11,7 +11,6 @@ import {
   type PageContainerWidth,
   type SectionId,
 } from "@life-editor/shared";
-import { TrashScreen } from "./trash/TrashScreen";
 import { ConnectScreen } from "./connect/ConnectScreen";
 import { DailyView } from "./daily/DailyView";
 import { BriefingScreen } from "./briefing/BriefingScreen";
@@ -57,13 +56,13 @@ export type TabBandId = "materials" | "analytics" | "briefing";
  * The narrow-layout row that sits above the body (below 768px only — the wide
  * SectionHeader band lives in AppShell's header slot). The value names what
  * THIS SECTION puts in the row; the app-global controls at its right end are
- * the same on all seven and are not described here (see NarrowHeaderRow).
+ * the same on all of them and are not described here (see NarrowHeaderRow).
  * "alone" below therefore means "alone among the per-section chrome":
  *
- *  - `none`            — no chrome of its own (Analytics / Trash). Since
- *    #1035 this no longer means "no row": the row is drawn regardless to
- *    carry the app-global Undo/Redo, and these two sections simply contribute
- *    nothing to its left and middle
+ *  - `none`            — no chrome of its own (Analytics). Since #1035 this no
+ *    longer means "no row": the row is drawn regardless to carry the
+ *    app-global Undo/Redo, and the section simply contributes nothing to its
+ *    left and middle
  *  - `hamburger`       — the detail-panel hamburger alone (Work / Settings)
  *  - `tabs`            — the segmented tab control alone, no hamburger. No
  *    section uses it today: Schedule was the last one, until #1033 moved its
@@ -316,15 +315,5 @@ export const SECTION_DESCRIPTORS: Readonly<
     width: "wide",
     narrowHeader: "hamburger",
     body: () => <SettingsScreen />,
-  },
-  /*
-   * Trash (W2). Crosses all five soft-delete categories, so it uses no
-   * per-section Provider — TrashScreen calls the injected DataService directly
-   * and feeds the pure shared TrashView (§6.4).
-   */
-  trash: {
-    width: "wide",
-    narrowHeader: "none",
-    body: ({ ds }) => <TrashScreen dataService={ds} />,
   },
 };

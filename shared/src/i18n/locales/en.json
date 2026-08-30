@@ -172,7 +172,13 @@
     "tabs": {
       "navLabel": "Settings categories",
       "general": "General",
+      "trash": "Trash",
       "tips": "Tips"
+    },
+    "trash": {
+      "heading": "Trash",
+      "description": "Deleted items stay here. Put them back, or remove them for good.",
+      "unavailable": "The trash cannot be read right now. Check your connection and reopen this."
     },
     "placeholder": {
       "message": "Settings for this section will land here as they arrive."
@@ -870,7 +876,6 @@
     "analytics": "Analytics",
     "tags": "Tags",
     "settings": "Settings",
-    "trash": "Trash",
     "briefing": "Briefing"
   },
   "nav": {
@@ -1098,8 +1103,7 @@
         "connect": "The topic axis: pick a tag and read everything filed under it.",
         "work": "A timer for focused work, with sound to sit behind it.",
         "analytics": "What your records add up to over a week or a month.",
-        "settings": "Appearance, language, shortcuts — the knobs for the app itself.",
-        "trash": "Deleted items, kept here so you can put them back."
+        "settings": "Appearance, language, shortcuts — the knobs for the app itself."
       }
     },
     "steps": {
