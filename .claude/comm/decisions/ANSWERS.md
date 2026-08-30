@@ -105,3 +105,4 @@
 - D-20260829-web-1: **A**（Supabase の Confirm email を ON にする。コードは #1197 / PR #1219 で ON / OFF 両対応済み。**ダッシュボードの切替は 2026-08-30 にユーザーが実施済み**。本格配布時は独自 SMTP の用意を検討（内蔵送信元は通数制限が厳しい）。2026-08-30 チャットの AskUserQuestion で回答・chat-main が転記）
 - D-20260829-web-2: **A**（プライバシーポリシーにリージョン実名を書く。実測で db ホストが AWS `ap-northeast-1`（東京）の IPv6 帯に解決され 3 系統の独立ソースが一致。**従来の「いずれも日本国外」は Supabase について事実誤りだったため訂正込み** → 実装 PR #1296。merge 前にダッシュボード Project Settings → General の Region 表示との一致を要確認。同上）
 - D-20260829-web-3: **A**（運営者 = sunbreak-pro（個人）・連絡先 = GitHub Issues で確定。#1198 / PR #1222 の現行表記から変更なし。個人メールはスクレイピング対策で載せない方針を維持。同上）
+- D-20260830-shared-fix-1: **C**（ConfirmDialog に寄せる。`handleDeleteRepeat` の頭で既存の `askConfirm` を 1 回聞き、RepeatListPanel の armed 行と 3 ラベルを削除。同じサイドバーの Todo 削除（ScheduleTodoDetail.tsx:124）と形が揃い、フォーカス落ち・読み上げ不能の a11y 穴もモーダル側が引き受けて消える。実装先は schedule-refine 推奨 → #1279 の裁定コメント参照。2026-08-30 チャットの AskUserQuestion で回答・chat-main が代行して質問 / 転記 / 昇格）
