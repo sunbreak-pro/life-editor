@@ -5,7 +5,6 @@ import {
   PASSWORD_MIN_LENGTH,
   PasswordRecoveryCard,
   PasswordResetRequestCard,
-  i18n,
   resendConfirmationEmail,
   sendPasswordResetEmail,
   signIn,
@@ -16,11 +15,7 @@ import {
   type TranslationKey,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
-import { LegalView } from "./legal/LegalView";
-import {
-  legalDocument,
-  type LegalDocumentId,
-} from "./legal/legalContent";
+import { openLegalDocument } from "./legal/legalUrl";
 
 /*
  * Phase 1 auth entry (Email + Password), target-IA D8 (ClaudeDesign Auth
@@ -45,9 +40,10 @@ import {
  * session: without that gate the app would have swapped to MainScreen and the
  * user would never see a way to finish the reset.
  *
- * The policy / terms reader (#1198) sits beside them rather than on the
- * canvas: it is a full page, not a card, and it takes over the screen when
- * either the footer links or a `?legal=` URL asks for it.
+ * The policy / terms links in the footer open a reader this screen does not
+ * own: #1251 moved it up to App, above the session gate, so the same
+ * documents stay reachable after sign-in and a `?legal=` link works in both
+ * states. All that is left here is the door.
  */
 
 export interface AuthScreenProps {
@@ -83,40 +79,6 @@ function errorKeyFor(raw: string): TranslationKey {
   return "auth.errors.generic";
 }
 
-/*
- * The open document, kept in the address bar (#1198).
- *
- * There is no router (§3.2), and a policy nobody can link to is only half a
- * policy — an app store form, a mail, a message to a friend all want a URL.
- * `?legal=privacy` is the cheapest thing that gives one: the SPA is served
- * for any query string, so the parameter survives a reload and a shared link
- * opens straight onto the document.
- */
-function readLegalParam(): LegalDocumentId | null {
-  try {
-    const value = new URLSearchParams(window.location.search).get("legal");
-    return value === "privacy" || value === "terms" ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeLegalParam(id: LegalDocumentId | null): void {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (id) params.set("legal", id);
-    else params.delete("legal");
-    const query = params.toString();
-    const { pathname, hash } = window.location;
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${pathname}${query ? `?${query}` : ""}${hash}`,
-    );
-  } catch {
-    // Then the document still opens; only the address bar misses out.
-  }
-}
 
 const LEGAL_LINK_CLASS =
   "rounded-lumen-sm text-xs text-lumen-text-secondary underline " +
@@ -153,11 +115,6 @@ export function AuthScreen({
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
 
-  // Policy / terms reader (#1198). Read from the URL on mount so a shared
-  // link lands on the document rather than on the sign-in form.
-  const [legalDoc, setLegalDoc] = useState<LegalDocumentId | null>(
-    readLegalParam,
-  );
 
   const recoveryMessages = useMemo(
     () => ({
@@ -283,31 +240,6 @@ export function AuthScreen({
     setView("resetRequest");
   };
 
-  const openLegal = (id: LegalDocumentId) => {
-    setLegalDoc(id);
-    writeLegalParam(id);
-  };
-
-  const closeLegal = () => {
-    setLegalDoc(null);
-    writeLegalParam(null);
-  };
-
-  /*
-   * A document wins over every card, including the recovery one: the reader
-   * is a full page, and the only way in is a deliberate click or a link that
-   * named it. Coming back returns to whatever card was underneath.
-   */
-  if (legalDoc) {
-    return (
-      <LegalView
-        document={legalDocument(legalDoc, i18n.language)}
-        backLabel={t("auth.legal.back")}
-        updatedLabel={t("auth.legal.updated")}
-        onBack={closeLegal}
-      />
-    );
-  }
 
   /*
    * Shown on the credentials card in both modes — the terms bind a reader as
@@ -324,7 +256,7 @@ export function AuthScreen({
       <div className="flex flex-wrap items-center justify-center gap-x-2">
         <button
           type="button"
-          onClick={() => openLegal("terms")}
+          onClick={() => openLegalDocument("terms")}
           className={LEGAL_LINK_CLASS}
         >
           {t("auth.legal.terms")}
@@ -334,7 +266,7 @@ export function AuthScreen({
         </span>
         <button
           type="button"
-          onClick={() => openLegal("privacy")}
+          onClick={() => openLegalDocument("privacy")}
           className={LEGAL_LINK_CLASS}
         >
           {t("auth.legal.privacy")}

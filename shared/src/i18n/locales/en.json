@@ -139,6 +139,10 @@
       "description": "A short guided walk through the app. It runs once the first time you open Life Editor — open it from here whenever you want a section shown to you again.",
       "button": "Open the tutorial"
     },
+    "legal": {
+      "heading": "Policy and terms",
+      "description": "What this app does with your data, and the terms you are using it under."
+    },
     "reset": {
       "heading": "Reset & local data",
       "description": "Clear all preferences saved on this device (theme, font, shortcuts, layout) and reload. Synced data is not affected.",

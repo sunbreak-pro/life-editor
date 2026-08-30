@@ -295,6 +295,9 @@ export {
   SettingsTutorial,
   type SettingsTutorialProps,
 } from "./SettingsTutorial";
+// Policy + terms card (#1251) — the signed-in door to the documents #1198
+// shipped. Links only; the reader they open lives in the web host.
+export { SettingsLegal, type SettingsLegalProps } from "./SettingsLegal";
 // Day-start hour card (#373) — the write side of the #218 rollover pref.
 export {
   SettingsDayStart,

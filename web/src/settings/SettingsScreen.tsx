@@ -3,6 +3,7 @@ import { Lightbulb, SlidersHorizontal } from "lucide-react";
 import {
   SettingsAccount,
   SettingsAppearance,
+  SettingsLegal,
   SettingsLanguage,
   SettingsShortcuts,
   SettingsGeneral,
@@ -49,6 +50,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
+import { openLegalDocument } from "../legal/legalUrl";
 
 /*
  * Settings screen (W1, web host — redesigned; §216 lightweight prefs). This is
@@ -577,6 +579,29 @@ export function SettingsScreen() {
                 heading: t("settings.tutorial.heading"),
                 description: t("settings.tutorial.description"),
                 button: t("settings.tutorial.button"),
+              }}
+            />
+          </div>
+
+          {/*
+           * #1251 — the documents shipped with #1198 but only the sign-in
+           * screen linked them, so they became unreachable the moment an
+           * account existed. The reader itself is mounted in App; this card
+           * only asks for it by URL, which is why it needs nothing passed
+           * down through MainScreen to get here.
+           */}
+          <div className={cardClass}>
+            <SettingsLegal
+              onOpenPrivacy={() => openLegalDocument("privacy")}
+              onOpenTerms={() => openLegalDocument("terms")}
+              labels={{
+                heading: t("settings.legal.heading"),
+                description: t("settings.legal.description"),
+                // The same two words the sign-in footer uses, kept as one
+                // string: the `auth.` prefix records where the key was first
+                // needed, not who owns the wording.
+                privacy: t("auth.legal.privacy"),
+                terms: t("auth.legal.terms"),
               }}
             />
           </div>
