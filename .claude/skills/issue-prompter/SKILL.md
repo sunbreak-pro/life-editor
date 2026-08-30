@@ -92,5 +92,5 @@ open PR が既に紐づく Issue は**除外**する（本文・ブランチ名�
 - **Issue 一覧は git のブランチ状態に依存しない**が、`gh pr list` は origin が古いと取りこぼす。収集前に `git fetch origin main`
 - **worktree が `chore/tracker-*` ブランチにいるのは正常**（tracker 分離 = D-20260801-main-1）。着手中とは限らないので、手番の判定に使わない
 - **レーンの手番確認は `.claude/memory/INDEX.md`**。open Issue 数だけ見て「暇そう」と判断しない。
-  ただし INDEX の「進行中」は stale が多い実測がある（#1135 = 11 件中 9 件が実態と乖離）。INDEX は
-  参考に留め、迷ったら worktree のブランチ実測で裏取りする（#1135 の解決後にこの注意は外してよい）
+  退役レーンは RETIRED マーカーで「進行中」の集計から除外済み（#1135 / D-20260830-main-1）。
+  迷ったら worktree のブランチ実測で裏取りする
