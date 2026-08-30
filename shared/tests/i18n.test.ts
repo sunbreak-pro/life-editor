@@ -140,4 +140,45 @@ describe("shared i18n — plurals", () => {
 
     await i18n.changeLanguage("en");
   });
+
+  /*
+   * #1276: the five remaining single-form `{{count}}` keys, split the same
+   * way. Four of them reach the screen as visible text rather than an
+   * aria-label — a toolbar label, two list counts and a destructive confirm —
+   * and every call site already passes `count` without branching on it, so
+   * the catalog is the only place a singular can come from.
+   */
+  it("picks the singular form for count=1 on the #1276 keys in en", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(i18n.t("scheduleScreen.repeatFilterHidden", { count: 1 })).toBe(
+      "1 repeat hidden",
+    );
+    expect(i18n.t("scheduleScreen.repeatFilterHidden", { count: 3 })).toBe(
+      "3 repeats hidden",
+    );
+    expect(i18n.t("materials.tags.usageCount", { count: 1 })).toBe("1 item");
+    expect(i18n.t("materials.tags.usageCount", { count: 2 })).toBe("2 items");
+    expect(i18n.t("connect.itemCount", { count: 1 })).toBe("1 item");
+    expect(i18n.t("connect.itemCount", { count: 2 })).toBe("2 items");
+    expect(
+      i18n.t("todoDetail.todoDeleteCascadeConfirm", { name: "Trip", count: 1 }),
+    ).toBe('Deleting "Trip" also deletes its 1 child todo. Delete anyway?');
+    expect(
+      i18n.t("itemConvert.childrenBlocked", { title: "Trip", count: 1 }),
+    ).toBe(
+      '"Trip" has 1 subtask, so it cannot become an event. Move or delete it first.',
+    );
+  });
+
+  it("keeps the one Japanese form for the #1276 keys", async () => {
+    await i18n.changeLanguage("ja");
+
+    expect(i18n.t("scheduleScreen.repeatFilterHidden", { count: 1 })).toBe(
+      "繰り返し 1 件を非表示",
+    );
+    expect(i18n.t("connect.itemCount", { count: 1 })).toBe("1 件");
+
+    await i18n.changeLanguage("en");
+  });
 });
