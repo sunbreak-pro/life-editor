@@ -3,7 +3,7 @@
 > 補助機能 / Tier 1 の補完。Phase B-2 で各機能の要件を記入する。
 > テンプレ・記入手順は [README.md](./README.md) 参照。Tier 2 は AC を 3-5 件に簡略化可。
 
-**Tier 2 機能数**: 12（暫定、Phase B-2 で確定。うち File Explorer は退役 = 移行 SSOT Phase 5-A 決定 → 実効稼働は CLAUDE.md §8 の 11。本文は履歴として全 12 件を保持）
+**Tier 2 機能一覧**: 本文の Feature 見出しが正（うち File Explorer は退役 = 移行 SSOT Phase 5-A 決定。本文は履歴として保持）
 
 > ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` + `src-tauri/` は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 
@@ -182,7 +182,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
   - タグのマージ（`merge` コマンドで重複統合）
   - MCP 4 ツール（Claude から横断検索・タグ付与）
 - やらない:
-  - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。再利用可能な部品として `shared/src/components/Backlinks/BacklinkView.tsx` と `shared/src/utils/itemLinks.ts` が残っている。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
+  - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。当初は再利用可能な部品（`shared/src/components/Backlinks/BacklinkView.tsx` + `shared/src/utils/itemLinks.ts`）を残したが、呼び出し元ゼロの実測により #1239 で削除（D-20260829-connect-1 = B）。リンク一覧は `web/src/wikitag/LinkPanel.tsx` が unified link cache から自前描画する。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
   - 複数 entity_type を跨ぐリレーション型タグ（Database の relation プロパティで別対応）
   - 権限管理（個人利用前提、§1 Non-Goals）
   - ~~Todos へのタグ付与（Todo は RichTextEditor を持たないため UI 上で付与経路がなく、タグ管理は CalendarTags に集約。MCP `tag_entity` の entity_type='task' も将来要件として保留）~~ → **2026-07-11 #225 で解除**: life-tags 統一により Todos へのタグ付与は「やる」側（Kanban tag ビュー / assignments）
@@ -519,3 +519,27 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 - 全ソフトデリート対象テーブル（対象リストの正は CLAUDE.md §4 Data Model・本表は参考）: Todos / Notes / Memos / Routines / Databases / Templates / ScheduleItems + CustomSounds（FS）
 - IPC Commands: 各ドメインの `*_restore` / `*_permanent_delete` コマンド
+
+---
+
+## Feature: Connect (Tag hub)
+
+**Tier**: 2
+**Status**: ◎稼働中（2026-08-29 新設 = #1171）
+**Owner Provider/Module**: `shared/src/components/TagHub/` + `web/src/connect/ConnectScreen.tsx`
+**MCP Coverage**: —（データは WikiTags / リンクと共有。MCP 側の入口は `search_by_tag` / `search_all`）
+**Supports Value Prop**: 補助（タグ軸の閲覧導線）
+**Platform**: Web ホスト共通（Desktop / Mobile）
+
+### Purpose
+
+タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」。時間軸の入口 = Calendar との役割分担は #1153 の決定。旧 Connect の力学グラフは #1152 で退役済み（WikiTags 節「やらない」参照）で、本 Feature はその跡地に別物として再新設された。
+
+### Boundary
+
+- やる:
+  - タグ一覧 → タグ選択 → 種類別（Note / Todo / Event / Daily）のアイテム一覧
+  - タグ無しアイテムは「未分類」疑似タグで拾う
+- やらない:
+  - タグ / リンクの力学グラフ可視化（#1152 退役・復活させない）
+  - タグの作成・編集・マージ（WikiTags 管理 UI の領分）

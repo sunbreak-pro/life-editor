@@ -73,7 +73,7 @@ iOS クライアントは Desktop の Provider の一部を持たない（省略
 - **Mobile 省略 Provider（一覧は CLAUDE.md §2 が正）は Optional バリアント必須**
 - 必須 hook (`createContextHook`): Provider 外で throw → Desktop 用
 - Optional hook (`createOptionalContextHook`): Provider 外で null → Mobile 共有コンポーネントで `if (!ctx) return null` ガード
-- ファイル命名: `useFooContextOptional.ts`（`shared/src/hooks/` 配下 — `frontend/` は FROZEN）
+- ファイル命名: `useFooContextOptional.ts`（`shared/src/hooks/` 配下 — `frontend/` は削除済み（2026-07-11 #197））
 
 ---
 

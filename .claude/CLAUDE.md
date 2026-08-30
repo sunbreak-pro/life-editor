@@ -22,7 +22,7 @@
 
 - Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。MCP は Desktop 専用（Terminal は 2026-07-05 に機能ごと退役決定 = D-20260705-main-1 → §8。MCP Server 自体は存続）
 - **画面別 Mobile スコープの正本 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（#319 でユーザー確定 = D-20260723-main-1）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
-- **Mobile 省略ガードは配線済み**（#320）: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。実装状況とネストの正本はコード（`web/src/MainScreen.tsx`）・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
+- **Mobile 省略ガードは配線済み**（#320）: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。実装状況とネストの正本 = `web/src/AppProviders.tsx`（#676 で Provider 鎖と `isNativeMobile()` ゲートを移設済み）・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
 - **スマホからの主導線 = 公開 Web URL**（#600・2026-08-07 ユーザー確定 = D-20260807-main-1）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
 - Cloud Sync = サインアップした各ユーザーに有効（RLS owner-only で per-user 分離）。旧「友達ビルドは feature flag で無効」は実装に存在しない記述のため撤回（D-20260829-main-1）。配布・署名 → 移行 SSOT
 
@@ -33,21 +33,21 @@
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
 - **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 
-## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → `db-migration` スキル）
+## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → §7.3（ローカルファイル先行 → ユーザー db push）+ `supabase/migrations/`）
 
-- 約 20 テーブル（`items_meta` + `<role>_payload` モデル・移行済みドメインのみ。ドメイン一覧はコード / db-conventions が正）
+- `items_meta` + `<role>_payload` モデル（テーブル一覧は `supabase/migrations/` + db-conventions が正）
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 - **ID 不変式**: TodoNode `<type>-<timestamp+counter>`（`<type>` は `items_meta.role` の値。Todo は `task` のまま据え置き = #831） / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
 - **items_meta + composite FK**: 5 role（task / event / routine / note / daily）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照
 - **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（2026-07-11 #185 決定 = D-20260711-main-1）
-- **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象: Todos / Notes / Dailies / Routines / Databases / Templates
-- PropertyType 実装済み: text / number / select / date / checkbox。汎用 DB は MCP 未対応（新型追加時に MCP ツールも整備）
+- **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象の正 = `shared/src/components/TrashView.tsx::TrashCategory`（5 カテゴリ・Events 含む）
+- 汎用 Database は凍結（D-20260704-main-1）・現行スタックに実装なし。旧 PropertyType 5 種は退役スタック側の記録（requirements 参照）
 
 ## 5. AI Integration
 
 - MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（ツール一覧はコードが正）
 - **ツールを足したら `cd mcp-server && npm run catalog` を回す**（#1210）: Settings の AI 連携カードはビルド時生成の `shared/src/generated/mcpToolCatalog.json` を読む。shared から registry を直 import すると handler 経由で Supabase クライアントがフロントのバンドルに混入するため、パッケージ境界をデータで跨ぐ。再生成漏れは `mcp-server/tests/toolCatalogFreshness.test.ts` が落ちて気付ける
-- `claude`（Claude Code）起動で MCP 自動接続（MCP Server は存続。起動導線だったアプリ内ターミナルは 2026-07-05 退役決定 = D-20260705-main-1 → §8。退役後の常設起動導線は生成デザイン確定後に再設計）
+- `claude`（Claude Code）起動で MCP 自動接続（MCP Server は存続。起動導線だったアプリ内ターミナルは 2026-07-05 退役決定 = D-20260705-main-1 → §8。退役後の常設起動導線は生成デザイン確定後に再設計（計画 = `docs/vision/plans/2026-08-29-claude-launcher-desktop.md`・Draft））
 
 ## 6. Coding Standards
 
@@ -82,7 +82,7 @@
 
 - **`build` はテストファイルを見ず、`vitest` は型を見ない**。両方緑でも `typecheck:tests`（shared / web の独立ゲート）だけが赤くなる — 実装を触っていなくてもテストの型は壊れる
 - **`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で CI だけが落ちた）
-- **TypeScript の版が web だけ違う**（web = 6.x / shared・desktop = 5.6）: `web/tsconfig.json` が `../shared` を参照するため `cd web && npm run build` は shared を **web 側の tsc** で検査する。片方だけ緑でも安心しない
+- `web/tsconfig.json` が `../shared` を参照するため、`cd web && npm run build` は shared も **web 側の tsc** で検査する。片方だけ緑でも安心しない
 - `scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
@@ -103,7 +103,7 @@
 
 - **Scope 宣言**（触ってよいパス）・**Gate 列**（🤖 自律 / 👀 目視 / 🛑 人手 = DDL push・シークレット投入・PR merge・本番デプロイ）・**機械検証可能な Acceptance Criteria**
 - DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）
-- hooks 連動（検査内容の正本 = 各スクリプト。登録 = `.claude/settings.json`・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: SessionStart = `hooks/regen-index.sh`（INDEX 派生ビュー再生成）+ `hooks/session-start-check.sh`（informational only）/ PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）+ `hooks/pre-commit-tracker-guard.sh`（tracker の更新を実装コミットに混ぜたらブロック = D-20260801-main-1・逃がし道は `[tracker-ok]`）
+- hooks 連動（検査内容の正本 = 各スクリプト。SessionStart / PreToolUse の登録は `.claude/settings.json` が正・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）+ `hooks/pre-commit-tracker-guard.sh`（tracker の更新を実装コミットに混ぜたらブロック = D-20260801-main-1・逃がし道は `[tracker-ok]`）
 
 ### 7.4 Multi-chat Worktree Policy（要約 — 正本は `worktree-policy` スキル）
 
@@ -120,9 +120,9 @@
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
-- **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync（Briefing の正本 = [`2026-07-15-briefing-loop.md`](./docs/vision/plans/2026-07-15-briefing-loop.md)・requirements 節 = tier-1-core.md §Briefing / Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定 D-20260705-main-1・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持）
-- **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（**Trash は 2026-08-30 に Settings 配下へ移設 = #1293**: nav の独立セクションを畳み、`SectionId` からも外した。ビュー実体 = `shared/src/components/TrashView.tsx` + `web/src/trash/TrashScreen.tsx` は不変で、入口だけが Settings のカテゴリ行に移った / File Explorer は退役 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持 / **Connect の力学グラフは 2026-08-29 退役 = #1152**: タグ・アイテム間リンク・検索のデータと取り出し口は全部温存し、可視化だけを撤去。backlink 部品は `shared/src/components/Backlinks/` + `shared/src/utils/itemLinks.ts` へ移設 / **Connect セクション自体は同日 Tag hub として再新設 = #1171**: タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」で、時間軸の入口 = Calendar との役割分担は #1153 の決定。グラフは復活させない）
-- **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
+- **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync（Briefing の正本 = [`2026-07-15-briefing-loop.md`](./docs/vision/plans/2026-07-15-briefing-loop.md)・requirements 節 = tier-1-core.md §Briefing / Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定 D-20260705-main-1・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持）
+- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Connect（Tag hub）/ Trash（**Trash は 2026-08-30 に Settings 配下へ移設 = #1293**: nav の独立セクションを畳み、`SectionId` からも外した。ビュー実体 = `shared/src/components/TrashView.tsx` + `web/src/trash/TrashScreen.tsx` は不変で、入口だけが Settings のカテゴリ行に移った / File Explorer は退役 = Phase 5-A 決定 D-20260704-main-1・requirements 本体は保持 / **Connect の力学グラフは 2026-08-29 退役 = #1152**: タグ・アイテム間リンク・検索のデータと取り出し口は全部温存し、可視化だけを撤去。移設した backlink 部品は呼び出し元ゼロの実測により #1239 で削除（D-20260829-connect-1 = B）。リンク一覧の導線は `web/src/wikitag/LinkPanel.tsx` が自前描画 / **Connect セクション自体は同日 Tag hub として再新設 = #1171**: タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」で、時間軸の入口 = Calendar との役割分担は #1153 の決定。グラフは復活させない）
+- **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
 - 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 
 ## 9. Document System（要約 — 正本は `docs-workflow` スキル）
@@ -133,4 +133,4 @@ Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止�
 - **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
 - **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（回答済みキューを昇格・旧「ADR は作らない」は D-20260809-main-1 で SUPERSEDE。どこに書くかの判定 = `rules/records.md`）
-- **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
+- **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源バイナリは repo に置かない — 実体は Supabase Storage の public バケット `sounds` から配信（`shared/src/constants/sounds.ts`。`.gitignore` の機械ガードは無い）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
