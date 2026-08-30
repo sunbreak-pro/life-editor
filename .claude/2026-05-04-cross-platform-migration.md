@@ -219,7 +219,7 @@ life-editor/
 - Database(汎用 DB)機能 — Postgres での動的テーブル生成は難度高、一旦凍結
 - Mac App Store / Microsoft Store 申請
 - Linux ARM ARM64 対応（x86_64 のみ）
-- **Service Worker / オフラインキャッシュ**（2026-08-07 に一部改訂 = #600・計画書 [`docs/vision/plans/2026-08-07-web-mobile-public-url.md`](./docs/vision/plans/2026-08-07-web-mobile-public-url.md)）: 旧「PWA インストール体験」のうち **ホーム画面アイコン + standalone 表示は採用**した（スマホからの主導線を公開 Web URL に置くため）。Service Worker とオフライン閲覧は引き続き不採用 — 上の「オフライン編集」および §3 表の「Service Worker 不採用」と整合
+- **Service Worker / オフラインキャッシュ**（2026-08-07 に一部改訂 = #600・計画書 [`docs/vision/plans/2026-08-07-web-mobile-public-url.md`](./archive/2026-08-07-web-mobile-public-url.md)）: 旧「PWA インストール体験」のうち **ホーム画面アイコン + standalone 表示は採用**した（スマホからの主導線を公開 Web URL に置くため）。Service Worker とオフライン閲覧は引き続き不採用 — 上の「オフライン編集」および §3 表の「Service Worker 不採用」と整合
 - **学習用 Markdown ログの作成**（旧 `.claude/learning/web-first/` は廃止）
 - **iOS 友達配布**（Phase 1-5 期間は自分用のみ）
 

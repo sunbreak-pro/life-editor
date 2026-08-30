@@ -3,7 +3,7 @@ Status: COMPLETED — 公開完了（2026-08-09・#600 close・Cloudflare Worker
 Created: 2026-08-07
 Branch: claude/main-600-web-public-url
 Owner-chat: web-public
-Parent: ../../../2026-05-04-cross-platform-migration.md
+Parent: ../2026-05-04-cross-platform-migration.md
 ---
 
 # Plan: Web を公開 URL に置き、スマホからどこでも使えるようにする

@@ -78,7 +78,7 @@ Web-first 移行（Tauri → Electron + Capacitor + Web + Supabase）が並立�
 ### Phase 4: code-inventory と コード残骸リスト化（削除はしない）
 
 - [x] 4-1. `docs/code-inventory.md` を `archive/code-inventory-2026-04-25.md` へ移動。冒頭に ARCHIVED マーク + Web 移行による実態変化注記 + deletion-targets への参照リンク追加。死コード探索は git + 自動ツール (knip / ts-prune) に委譲する旨を明記。
-- [x] 4-2. 新規ファイル [`2026-05-23-cleanup-and-consolidation-deletion-targets.md`](../docs/vision/plans/2026-05-23-cleanup-and-consolidation-deletion-targets.md) を作成。削除対象を Tier A (Backend 全体) / Tier B (Frontend Tauri 依存層) / Tier C (依存パッケージ + scripts) の 3 階層で整理。
+- [x] 4-2. 新規ファイル [`2026-05-23-cleanup-and-consolidation-deletion-targets.md`](./2026-05-23-cleanup-and-consolidation-deletion-targets.md) を作成。削除対象を Tier A (Backend 全体) / Tier B (Frontend Tauri 依存層) / Tier C (依存パッケージ + scripts) の 3 階層で整理。
 - [x] 4-3. deletion-targets.md の各項目に「移行 SSOT Phase X 参照」列を追加。実削除は本ファイルではなく移行 SSOT 側で行う旨を冒頭で明示。Phase 5 実削除時のチェックリストも併記。
 - [x] 4-4. deletion-targets.md 内に **DataService 層の関係図** を ASCII art で記載。`frontend/src/services/data/` 19 domain ファイル ↔ TauriDataService ↔ SupabaseDataService の対応を可視化。DataService interface は CLAUDE.md §3.1 の恒久境界として維持する旨を併記。
 - [x] 4-5. `.mcp.json` を verify。`life-editor` MCP (DB_PATH / FILES_ROOT_PATH 絶対パスのみ、トークン無し) + `supabase` MCP (`SUPABASE_ACCESS_TOKEN: "${SUPABASE_ACCESS_TOKEN}"` プレースホルダ形式 + `--read-only` フラグ) ともに **CLAUDE.md §9 ルール準拠**。変更不要、現状維持。verify 結果を deletion-targets.md に記録。
