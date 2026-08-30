@@ -12,15 +12,17 @@ import {
  * row (the calendar itself can only show materialised occurrences), a row with
  * no next occurrence is not a dead button, and delete stays available on the
  * rows that have nowhere to navigate.
+ *
+ * #1279 took the question out of here: the row used to arm itself in place and
+ * ask, which is why the old suite pressed twice. The host asks now
+ * (useScheduleRepeats → <ConfirmDialog>), so `onDelete` is a REQUEST and fires
+ * on the first press — see useScheduleRepeats.test.tsx for the guard itself.
  */
 
 const LABELS: RepeatListPanelLabels = {
   empty: "No routines yet",
   never: "Fires on no day",
   delete: "Delete routine",
-  confirmDelete: 'Delete "{name}" and all of its events?',
-  confirm: "Delete",
-  cancel: "Cancel",
 };
 
 const rows: RepeatListRow[] = [
@@ -102,31 +104,33 @@ describe("RepeatListPanel", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Delete routine: Broken repeat" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(onDelete).toHaveBeenCalledWith("r-2");
   });
 
-  it("arms delete behind a confirm rather than firing on one click", () => {
-    // Delete takes the whole series, finished past occurrences included, and
-    // undo only restores the template — too much to hang on a stray click on
-    // a small icon.
+  it("requests the delete on the first press and asks nothing itself", () => {
+    // #1279: the guard did not go away, it moved. Keeping a second question
+    // here would ask twice for one act, so the panel reports the press and
+    // stops — the host's <ConfirmDialog> is what stands between a stray click
+    // and a series that undo only half restores.
     const { onDelete } = renderPanel();
     fireEvent.click(
       screen.getByRole("button", { name: "Delete routine: Morning run" }),
     );
-    expect(onDelete).not.toHaveBeenCalled();
-    expect(
-      screen.getByText('Delete "Morning run" and all of its events?'),
-    ).toBeInTheDocument();
+    expect(onDelete).toHaveBeenCalledWith("r-1");
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
-  it("backs out of an armed delete and restores the row", () => {
+  it("leaves the pressed row in place rather than swapping it out", () => {
+    // The old inline band replaced the row, which unmounted the button that
+    // had just been pressed and dropped focus to <body>. Nothing about the row
+    // moves now, so the press keeps its own focus target.
     const { onDelete } = renderPanel();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete routine: Morning run" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(onDelete).not.toHaveBeenCalled();
+    const trash = screen.getByRole("button", {
+      name: "Delete routine: Morning run",
+    });
+    fireEvent.click(trash);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(trash).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /^Morning run/ }),
     ).toBeInTheDocument();

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 
@@ -14,6 +13,20 @@ import { cn } from "../cn";
  * is expressed by leaving `onDelete` off rather than by a `readOnly` flag — one
  * source of truth for "is deleting offered here", with no second boolean to
  * fall out of step with the callback.
+ *
+ * #1279: deleting still asks first, but the question is no longer this panel's.
+ * The row used to ARM in place — it swapped itself for a confirm band — which
+ * left one sidebar asking in two visibly different ways, because the Todo
+ * delete beside it already went through <ConfirmDialog> (#707). Two defects
+ * rode along with the inline shape, both while the question was ON SCREEN and
+ * still unanswered: arming unmounted the very button that had been pressed, so
+ * focus fell to <body> before the user could answer, and the band carried no
+ * `role="alert"`, so a screen reader never announced what it was asking. The
+ * dialog takes focus and is named by the question itself, which fixes both.
+ * (What it does not fix is AFTER a confirmed delete: focus is restored to the
+ * trash button, which then unmounts with the row — the same <body> it always
+ * ended on. Only the refusal path lands somewhere.) `onDelete` therefore fires
+ * on the FIRST press here — it REQUESTS the delete rather than performing it.
  *
  * Pure presentation (§3.1 / §6.4): rows arrive already formatted and translated,
  * every action is a callback. lumen-* tokens only (§5).
@@ -41,12 +54,6 @@ export interface RepeatListPanelLabels {
   never: string;
   /** Accessible name for the per-row delete button. */
   delete: string;
-  /** Question shown in place of the row once delete is armed. */
-  confirmDelete: string;
-  /** Confirm the delete. */
-  confirm: string;
-  /** Back out of the armed delete. */
-  cancel: string;
 }
 
 export interface RepeatListPanelProps {
@@ -54,12 +61,15 @@ export interface RepeatListPanelProps {
   /** Navigate the calendar to this routine's next occurrence. */
   onOpen: (id: string) => void;
   /**
-   * Delete the whole series. **Omit to render the list read-only** — #467 puts
-   * this panel on Mobile, where the scope is viewing only (mobile-scope.md #5)
-   * and deleting a series is the least recoverable thing on this screen
-   * (`calendars` aside, undo restores the template but not the occurrences it
-   * cascaded). Without it no row shows the delete affordance at all, which is
-   * the honest shape: a control that is present but refuses reads as broken.
+   * REQUEST deletion of the whole series. The host puts the question (#1279),
+   * so this fires on the first press — it is not the write.
+   *
+   * **Omit to render the list read-only** — #467 puts this panel on Mobile,
+   * where the scope is viewing only (mobile-scope.md #5) and deleting a series
+   * is the least recoverable thing on this screen (undo restores the template
+   * but not the occurrences it cascaded). Without it no row shows the delete
+   * affordance at all, which is the honest shape: a control that is present
+   * but refuses reads as broken.
    */
   onDelete?: (id: string) => void;
   labels: RepeatListPanelLabels;
@@ -73,12 +83,6 @@ export function RepeatListPanel({
   labels,
   className,
 }: RepeatListPanelProps) {
-  // Delete is armed per row before it fires. It removes the whole series —
-  // including finished past occurrences — and undo only restores the routine
-  // template, not the cascaded occurrences, so a single stray click on a small
-  // icon is too cheap a way to reach it.
-  const [armed, setArmed] = useState<string | null>(null);
-
   if (rows.length === 0) {
     return (
       <p
@@ -124,35 +128,6 @@ export function RepeatListPanel({
         // place a routine with no occurrence exists at all (#407's zombies),
         // and hiding it on Mobile would make "why is nothing on my calendar?"
         // unanswerable there.
-        if (onDelete && armed === r.id) {
-          return (
-            <li
-              key={r.id}
-              className="flex items-center gap-2 rounded-lumen-md border border-lumen-danger bg-lumen-bg px-3 py-2"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
-                {labels.confirmDelete.replace("{name}", r.title)}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setArmed(null);
-                  onDelete(r.id);
-                }}
-                className="shrink-0 rounded-lumen-md bg-lumen-danger px-2.5 py-1 text-xs font-medium text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-              >
-                {labels.confirm}
-              </button>
-              <button
-                type="button"
-                onClick={() => setArmed(null)}
-                className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2.5 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-              >
-                {labels.cancel}
-              </button>
-            </li>
-          );
-        }
         return (
           <li
             key={r.id}
@@ -177,7 +152,7 @@ export function RepeatListPanel({
               <button
                 type="button"
                 aria-label={`${labels.delete}: ${r.title}`}
-                onClick={() => setArmed(r.id)}
+                onClick={() => onDelete(r.id)}
                 className="shrink-0 rounded-lumen-md p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
               >
                 <Trash2 aria-hidden className="size-4" />

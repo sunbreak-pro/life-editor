@@ -4,6 +4,7 @@ import {
   nextRoutineOccurrence,
   todayCalendarKey,
   useTranslation,
+  type ConfirmRequest,
   type FrequencyEditorValue,
   type FrequencyLabelCopy,
   type RepeatListRow,
@@ -23,18 +24,21 @@ import {
  * chips or the creation panel, which is why it comes out as one piece.
  *
  * Everything is injected (§3.1 / §6.4): provider callbacks, the already-
- * resolved copy, and the host's own navigation helpers. The hook owns no
- * state — the routines live in RoutineContext and the selection in the host.
+ * resolved copy, the host's own navigation helpers and its one confirm dialog
+ * (#1279). The hook owns no state — the routines live in RoutineContext and
+ * the selection in the host.
  *
  * What was untestable here before: CalendarTab needs the whole Provider stack
- * plus real layout to render, and jsdom has neither, so the two rules with
- * teeth in this file went unchecked. Both are about work that must NOT happen:
- * the repeat list skips its scan unless the tab is showing (a routine that
- * fires on no day walks a full year before answering, so an unopened panel
- * would pay that on every routine write), and `handleOpenRepeat` materialises
- * the destination day BEFORE navigating (nothing on the nav path generates
- * occurrences, so a jump onto a future-dated repeat would otherwise land on an
- * empty day — the exact unreachability #408 exists to fix).
+ * plus real layout to render, and jsdom has neither, so the rules with teeth
+ * in this file went unchecked. There are three, and none of them shows up in
+ * the markup. The repeat list skips its scan unless the tab is showing (a
+ * routine that fires on no day walks a full year before answering, so an
+ * unopened panel would pay that on every routine write). `handleOpenRepeat`
+ * materialises the destination day BEFORE navigating (nothing on the nav path
+ * generates occurrences, so a jump onto a future-dated repeat would otherwise
+ * land on an empty day — the exact unreachability #408 exists to fix). And
+ * since #1279 the series delete ASKS first, so a refused confirm has to write
+ * nothing and re-read nothing.
  */
 
 export interface UseScheduleRepeatsArgs {
@@ -78,6 +82,13 @@ export interface UseScheduleRepeatsArgs {
     reload: () => void;
     showToast: (kind: "danger", message: string) => void;
   };
+  /**
+   * #1279: the host's one in-app question (`useConfirmDialog` in CalendarTab).
+   * Not part of `writes` — it decides whether the write happens at all, and it
+   * is the same controller the todo delete beside this one already asks
+   * through (useScheduleTodoChips), which is the point of routing it here.
+   */
+  askConfirm: (request: ConfirmRequest) => Promise<boolean>;
 }
 
 export function useScheduleRepeats({
@@ -89,6 +100,7 @@ export function useScheduleRepeats({
   copy,
   nav,
   writes,
+  askConfirm,
 }: UseScheduleRepeatsArgs) {
   const { t } = useTranslation();
   const { freq: freqCopy, weekdayLabels, formatFullDay } = copy;
@@ -210,9 +222,45 @@ export function useScheduleRepeats({
     ],
   );
 
+  /*
+   * #1279: the question this asks used to live in the row itself — pressing
+   * the trash icon swapped the row for an inline confirm band. It moved here
+   * because the panel is the wrong owner for it: the Todo delete in the same
+   * sidebar already asks through <ConfirmDialog> (useScheduleTodoChips), so
+   * one surface was asking in two visibly different ways, and the inline band
+   * dropped focus to <body> the moment it appeared (it unmounted the button
+   * that had been pressed) while announcing nothing (no role="alert"). The
+   * dialog takes focus and is named by the question, so both holes close for
+   * the time the question is up. A CONFIRMED delete still ends on <body> —
+   * the dialog restores focus to the trash button and the row then unmounts
+   * with the routine — so it is the refusal that gains a landing place.
+   *
+   * Why ask at all: deleting takes the whole series, finished past
+   * occurrences included, and undo restores only the routine template, not the
+   * occurrences it cascaded. That rationale used to live on the armed state in
+   * RepeatListPanel and has no other home now.
+   *
+   * Asked BEFORE the write, and refusing simply returns — nothing is read or
+   * re-read on the way out. The name is resolved the same way the list spells
+   * it (`scheduleScreen.untitled` for a blank title), so the sentence names
+   * the row the user actually pressed. An id the list no longer holds still
+   * asks — with the fallback name — and still deletes: the routine may be gone
+   * from `routines` while its row is mid-unmount, and refusing there would
+   * silently swallow a delete the user did ask for.
+   */
   const handleDeleteRepeat = useCallback(
     (id: string) => {
       void (async () => {
+        const title =
+          routines.find((r) => r.id === id)?.title ||
+          t("scheduleScreen.untitled");
+        const confirmed = await askConfirm({
+          message: t("scheduleScreen.repeatDeleteConfirm", { name: title }),
+          confirmLabel: t("scheduleScreen.delete"),
+          cancelLabel: t("scheduleScreen.scopeCancel"),
+          danger: true,
+        });
+        if (!confirmed) return;
         // `onCascadeChanged` (#708): an undo restores the occurrences and the
         // seed event straight through the DataService, so the visible range
         // has to be re-read there too — same reason as the reload below.
@@ -231,7 +279,7 @@ export function useScheduleRepeats({
         }
       })();
     },
-    [deleteRoutine, reload, showToast, t],
+    [routines, askConfirm, deleteRoutine, reload, showToast, t],
   );
 
   return {
