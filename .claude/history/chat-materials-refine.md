@@ -1,5 +1,28 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-30 - materials 5 件を 5 PR に分割提出（#1292 / #1285 / #1286 / #1287 / #1288）
+
+#### 概要
+
+2026-08-30 dispatch の materials 5 件を、それぞれ `origin/main` から独立に切った 5 本の PR にした（#1306 / #1313 / #1316 / #1319 / #1322）。うち 2 件は「未実装の機能」ではなく**既存機能が別の PR に壊されていた**もので、そちらの診断が本体だった。
+
+#### 変更点
+
+- **#1292（PR #1306）— 削除済みリンクが id の羅列で出る**: 症状の出どころは `LinkPanel.itemTitle` の最後の手段（`…${id.slice(-8)}`）。そこへ落ちる理由が `useItemLinkTargets` が soft-deleted 行を**捨てて**いたことで、`item_links` の行はリンク先より長生きするため削除の瞬間に「名前を知っている場所」がゼロになる。プールを「捨てず、フラグを立てる」に変え、id を握っている面（chip / related 行）は名前を引ける・新しいリンク先を**出す**面（`[[` メニュー・picker・関連リスト）は各自の境界でフラグを落とす形にした
+- **id 短縮のフォールバックは残した**: プールに無いロール（event）は「削除済み」ではなく「名前が分からない」で、削除済みと言い切るのは逆方向の嘘になる。既存テストが `event-abcdef12345678` でこの経路を pin していたのも同じ理由
+- **`resolveTitle` を live-only にした**: notes 配列は Trash 用に soft-deleted 行を保持しているので、host 側の live lookup が削除済みノートに答えると「生きている」と見えてしまう。プールの判断を上書きしない形へ
+- **#1285（PR #1313）— セクション往復で選択が消える**: 「引き継ぐ」は #282 で実装済みで、**#1101（stale-while-revalidate）が壊していた**。スナップショットが当たったマウントは `useDomainLoad` で最初から settled 扱いになり `isLoading` が 1 レンダー目から false。復元 effect はそのレンダーのクロージャを読むので `notes` はまだ `[]` で、`notes.find(storedId)` の miss を「ノートが消えた」と解釈して `clearNotesSelection()` — 選択が落ちるだけでなく**記憶ごと消える**ので次の往復でも戻らない
+- **復元を「適用された配列を引数で受け取る」形に変えた**（隣の `useTodoTreeAPI` が最初からそうしている形）。クロージャを読まないので同種のズレが起こらない
+- **さらにスナップショット replay では復元しない**（`fetchLandedRef` を `load` の中で立てる）: replay は `useDomainLoad` の layout effect なので、そこで body の hydrate を始めると裏で走る再読み込みと重なる。その再読み込みの `mergeLoadedList` は `notesRef` を読み、React はそれを passive effect で更新するため**1 フラッシュ遅れることがあり、取ってきたばかりの body が merge で消える**（実測でテストが `expected '' to be 'real body'` で落ちた）。読み込みの着地を待つ = #1101 以前の正しいタイミングに戻すのが安全側
+- **既存テストがこのバグを 2 Issue ぶん隠していた**: `materialsSelectionPersistence.test.tsx` の再マウント検証は**別の DataService インスタンス**を渡していて、スナップショットは identity で引くため常に miss = 常にコールドマウント相当だった。同じ ds を使い回す回帰テストを 1 本追加し、修正前のフックで実際に落ちることを stash して実測した
+- **#1286（PR #1316）— サイドバーのごみ箱撤去**: Trash セクションと役割が被るため、props 5 本 + labels 4 本 + host の `trashOpen` state + 死にキー 3 本（en/ja）ごと撤去。162 行の純減。context 側の `deletedNotes` / `restoreNote` / `permanentDeleteNote` は TrashView が読むのでそのまま
+- **#1287（PR #1319）— 行頭アイコンの入れ替え**: 全行同じドキュメントアイコンを外し、その位置にピン留めピン。**未ピン行でも同じ幅のスロットを必ず描く**（詰めるとピン留め行の周りだけタイトル開始位置がずれて一覧がガタつく）。アイコンの不在は lucide が `aria-hidden` で名前を持たないため **svg の本数**（ピン留め行 2 / 通常行 1）で pin した
+- **#1288（PR #1322）— タグフィルタ複数選択 + 未フィルタ時の整理**: 選択は **OR**（一覧がタグ見出しでグループ化されているので、チップ = 「この見出しを出す」。AND は見出しの置き場が決まらない）。共有の `StatusFilterChips` は単一選択が契約でもう一方の利用者が Mobile Todos のため広げず、Notes ローカルの `NoteTagFilterChips` を新設した（one writer per artifact）。未フィルタ時のみチップ行 8 個上限（選択中は先頭へ寄せるので**効いているフィルタが隠れることはない**）+ グループ 5 行上限。タグを選んだ瞬間に行上限は外れる
+- **#1291 は採用していない**: tags レーンの PR #1318 がほぼ同時に open になったが merge 前で、`origin/main` の `shared/src/components/` に共通タグチップは無かった。追随の差し込み口（`useNoteListState.tagFilterChips` の `icon` スロット 1 箇所）を PR 本文と outbox に記録した
+- **#1292 の後半（削除時の確認パネル）は分割起票を outbox で依頼**: Todo の削除確認は `web/src/schedule/useScheduleTodoChips.ts` にあり schedule レーン専有。Issue の Scope 註が認めている分割で、DoD も「確認パネル**または**分割起票の記録」
+- **検証**: 各ブランチで CI verify の 14 ステップ（`npm ci` を除く全部）をローカル実行。#1285 / #1287 / #1288 は初回で全緑、#1292 / #1286 は `briefingEveningLazyMount.test.tsx` の既知フレーク（vite の transform キャッシュが冷えていると落ちる）のみで、温めて再実行して緑。docs-lint はいずれも `.claude/**` を触らないため回さず CI に委ねた
+- **運用で踏んだ罠 2 つ**: (1) バックグラウンド Bash の `timeout: 600000` は 10 分超で殺されうる上に `| tail` で出力ごと消える → **Monitor でステップ単位のイベントを流す**形に変えた（memory の verification-command-pitfalls 14 の実践）。(2) 検証の途中でファイルを直すと**途中の木を検証した結果**になる → lint 修正のあと頭から回し直した（同 11）
+
 ### 2026-08-30 - #1248 / #1255 — テンプレート削除に確認を挟み、空ノートに嘘の警告を出さなくした（PR #1260）
 
 #### 概要
@@ -63,24 +86,3 @@
 - **テストは 5 本追加 / 3 本更新**: 新規 `noteTemplateRegister`（8）/ `noteTemplateLibrary`（8）/ `noteTemplateApply`（7）/ `relatedPanel`（7）/ `taskListCheckboxSize`（3）。更新 = `linkPanel.test.tsx`（fake context に `allAssignments` / `getTagsForItem` 追加）・`dailyView.test.tsx` と `dailyScreenActions.test.tsx`（日を切り替える手段をピッカーへ）・`dailyEntriesPanel.test.tsx`（トグルのテストを「無いこと」へ）。#1181 の remount テストは**空 dep の effect で数える** — render body で数えると再レンダーも数えてしまい、key 変更を外しても緑のままになる。#1183 は CSS だけなので jsdom では何も測れず（要素の座標が 0）、`fieldFontFloorLockstep.test.ts` と同じくソーステキストを読む形にした
 - **独立ブランチ制約でこうした**: #1180 は旧工房を**触らない**（撤去は #1179 の担当。同じ行を 2 本で消すと衝突するだけ）。i18n の `materials.templates` ブロックは 3 本で挿入位置をずらした（#1179 = `menuEntry` 直後 / #1181 = `pickHint` 直後 / #1180 = `bodyPlaceholder` 直後）ので自動マージが効く
 - **検証**: 6 ブランチそれぞれで shared（lint / build / typecheck:tests / test）→ web（同 4 種）→ desktop（typecheck / test / build）→ mcp-server（build / typecheck:tests / test）+ `docs-lint` を全通し、すべて exit 0。GitHub CI も 6 本とも SUCCESS
-
-### 2026-08-27 - #1139 SupabaseTodosService の items_meta DELETE 2 箇所に role ガード（PR #1150）
-
-#### 概要
-
-#1099 が Todos 側の UPDATE 4 箇所で塞いだ穴の、DELETE 側にあたる残余経路を塞いだ。#1098（PR #1113）が schedule 側でやったことの Todo 版で、UPDATE より重い — 間違った UPDATE は押し直せるが、間違った DELETE は 0008 の CASCADE で payload ごと持っていくため戻せない。PR #1150 提出（Closes #1139・merge = こうだいさん）。
-
-#### 変更点
-
-- **穴の本体は `permanentDeleteTodo`**: このメソッドは `idsToDelete` を `fetchTodoTree()` + `fetchDeletedTodos()` から作り、どちらも `role='task'` で絞っているので一見自衛できている。実際はしていない — `collectDescendantIds` が**プールを見に行く前に `id` 自身を結果へ入れる**（`ids.add(id)`）ため、呼び出し元が渡した id はどちらの read も見ていなくても DELETE ループへ届く。これが Issue の筋道 3（端末 B が trash 済み Todo を復元して Event へ変換 → 端末 A が古い Trash 一覧のまま「完全に削除」）で、修正前はその 1 クリックが Event の `items_meta` 行と `events_payload` を落としていた
-- **子孫の窓は狭い**: 子孫は role 絞り込み済みプール経由でしか `idsToDelete` に入らないので、ガードが救うのは read と自分の DELETE の間に変換された子だけ。救った子の `tasks_payload` が残っていると（変換の payload drop は best-effort）0009 の複合 FK が ON DELETE NO ACTION なので**親の DELETE が拒否され purge が throw する**。#1098 が `permanentDeleteRoutine` で取ったのと同じ取引で、理由も同じ（拒否された purge は診断可能な残骸を残すが、ロール違いの hard delete は何も残さない）。この取引は doc comment に明記した
-- **`createTodo` の R2 孤児回収はノーオペ**: 同じ呼び出しが 3 文前に insert した行が相手で、`items_meta.id` は一意なので変換方向が存在しない。「すべての items_meta DELETE は role を名乗る」を読み手が検算できる規則のまま保つために付けた、と comment に書いた。実際に買えるのは逆側の失敗 — フィルタを打ち間違えると孤児が残り、それはこの回収処理が防いでいる当の R2 違反なので、テストは孤児が本当に消えたことを assert する
-- **テスト = 既存 `shared/tests/todoMetaRoleGuard.test.ts`（#1099 の pin）を #1113 と同じ形に育成**（10 → 16 ケース）。新規ファイルにしなかったのは PR #1113 の前例に合わせたため（モックが 1 つで済む）
-- **モックの穴を 2 つ塞いだ**: (1) delete 分岐はフィルタを適用していたが記録していなかったので、census assertion を書いても空配列を読んで誤って緑になる。(2) `insert()` がスタブで、`.insert().select().single()` がテーブルの先頭行を返していた — R2 回収へ到達するにはテーブル別の失敗スイッチ付きの本物の insert が要る
-- **DELETE の生存判定はテーブルから読む**: delete 分岐が配列を差し替えるため、テストが掴んでいる行オブジェクトは削除成功時も生き残る。`expect(converted).toEqual(snapshot)` はどちらでも通ってしまうので `metaIds(db)` ヘルパを置き、ヘッダにも罠として明記した
-- **`beforeFirstMetaDelete` フック（schedule 側のモックには無い）**: 子孫は「最初から変換済み」になれないので、purge の途中で role を動かすしか「救われた子が親を止めない」を pin する方法が無い。葉が先・1 件 miss・1 件 hit の順序を assert する
-- **census を `;` 分割から #1113 のチェーン walker へ差し替え**: 括弧の深さを数えてチェーンを歩き、role は**トップレベルのリンクからだけ**読む。verb に辿り着けない `.from("items_meta")` は「読めない」として落ちるので、走査できない形で書かれた DELETE は「異常なし」に消えず報告される。旧スキャナは文字列中の `;` や verb が先頭リンクでないチェーンで黙って数から漏れていた
-- **pin は 4 本**: DELETE 面（`createTodo → task` / `permanentDeleteTodo → task`）・#1099 の UPDATE 面を同じ walker で言い直したもの・role を WHERE に置けない 2 箇所（`createTodo → insert` / `syncTodoTree → upsert`。どちらも行本体に `role: "task"` が載る）。最後のペアを名指しで固定しておかないと、そこが他の assertion にとって無言の穴になる
-- **mutation 実測 4 通り**: `permanentDeleteTodo` のガード剥がしで 5 件赤（振る舞い 2 + census 3）、`createTodo` で 4 件赤（振る舞い 1 + census 3）、role を `"todo"` と誤記（#831 の罠）で 4 件赤（「live な Todo を purge できる」対照側が落ちるのが要点）、チェーンを 2 文に割って走査回避で 4 件赤（自己チェックが落ちる）
-- **スコープ外**: Notes / Dailies / ItemConversion 各サービスの `items_meta` DELETE（Issue が `SupabaseTodosService` を名指し・#625 が動かすのは `event` ⇄ `task` だけ）と、`updateTodo` の読み返し SELECT（READ であり、安全性は mapper の `assertItemsMetaPair` が持つ。既存の 2 ケースが pin 済み）
-- **検証**: shared（lint・build・typecheck:tests・test 270 files / 2561）/ web（同・87 / 849）/ desktop（typecheck・test 7・build）/ mcp-server（build・typecheck:tests・test 24 / 318）/ docs-lint、CI verify の 14 ステップ + docs-lint すべて初回で exit 0（フレークなし）
