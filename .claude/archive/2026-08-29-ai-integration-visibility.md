@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — Steps 1〜5 実装済み・#1210 close（PR #1307 merged・Settings AI カードは 2026-08-30 実ブラウザ検証 PASS）
 Created: 2026-08-29
 Branch: feat/ai-integration-visibility
 Owner-chat: settings-refine
@@ -109,3 +109,8 @@ shared/tests/**  web/tests/**               (該当テスト)
 
 - `shared/src/generated/` は `resolveJsonModule: true` + `include: ["src", "src/**/*.json"]` で既に通る（Risks 節の初手確認は空振り = 追加設定なし）
 - i18n の件数キーは `{{count}}` を避けて `{{n}}` にした — i18next は `count` を複数形トリガとして解釈するため
+## Archive 移動時の乖離レビュー（2026-08-31・chat-main 代行 = 2026-08-30 整合監査 PR #1331 の束 A）
+
+1. スコープ逸脱: なし（catalog 生成は mcp-server の build script + `shared/src/generated/` で計画どおり）
+2. AC 免除: なし（#1210 close。Settings の AI 連携カードは 2026-08-30 の実ブラウザ検証で PASS — 35 ツール描画を確認）
+3. 途中で出た判断の行き先: i18n の `{{count}}` → `{{n}}` 判断は本文「判明した制約」に記録済み。段階 2 は #1211 + `2026-08-29-claude-launcher-desktop.md` が別計画で追跡

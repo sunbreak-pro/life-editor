@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 2026-08-06 Phase 1（計測）/ 2（枠づくり）/ 4（維持機構）を実施。残 = Phase 3（移送）— 移行完了まで着手不可
+Status: DEFERRED # Phase 1（計測）/ 2（枠づくり）/ 4（維持機構）は 2026-08-06 実施済み。残 = Phase 3（移送）のみで、着手条件 = クロスプラットフォーム移行完了
 Created: 2026-08-04
 Branch: docs/context-cost-harness # 実装セッションのブランチ（配置 PR は docs/loop-harness-phase1）
 Owner-chat: main

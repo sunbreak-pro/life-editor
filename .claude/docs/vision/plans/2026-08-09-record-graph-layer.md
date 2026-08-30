@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 2026-08-09 基盤配置 + follow-up で §後続 6/7 消化。残 = D-20260809-main-2（archive 索引の再建方式）の回答待ち
+Status: IN PROGRESS # 基盤配置 + §後続 6/7 消化。D-20260809-main-2 は 2026-08-11 に A で回答済み — 残 = archive 索引生成の実装（#1337）
 Created: 2026-08-09
 Branch: claude/context-design-documentation-j95vnp
 Owner-chat: main # remote（claude.ai）セッションで起案。merge 後の管掌は chat-main

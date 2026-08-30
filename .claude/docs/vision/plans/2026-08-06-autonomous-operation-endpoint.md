@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 2026-08-06 案 B 確定 + クラウド実測完了（Step 1-3）。残 = 08-06 夜の試験運用 → Step 4 第 1 段 → Step 6 第 3 段
+Status: BLOCKED — Step 1-3 済み（案 B 確定 + クラウド実測）。試験運用以降は夜間発火の Task Scheduler 登録（D-20260804-main-1 = A・#1335）待ち
 Created: 2026-08-06
 Branch: docs/autonomy-endpoint
 Owner-chat: main

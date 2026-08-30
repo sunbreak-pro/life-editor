@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Phase 0 配置完了（PR #451 merge）・Phase 1 着手（2026-08-04 ユーザー裁定・インフラ配置済み）・Phase 2 の文書整備（goals.md 改訂 + routine-night.md 薄殻化）を 2026-08-06 に実施。発火有効化（D-20260804-main-1）・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3 が未消化
+Status: IN PROGRESS — Phase 0〜2 実施済み。発火有効化は D-20260804-main-1 = A で回答済み（2026-08-11）・Task Scheduler 登録が未実施（#1335）。Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3 も未消化
 Created: 2026-07-28
 Branch: main # 本書は設計書。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main

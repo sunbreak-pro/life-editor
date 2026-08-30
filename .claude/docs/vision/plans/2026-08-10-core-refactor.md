@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: DEFERRED — C1〜C9 は対象 Issue 全 close（2026-08-30 実測）。残 = C10（#677・移行完了後）と #898 で、どちらも status:frozen（D-20260816-main-1）
 Created: 2026-08-10
 Branch: docs/refactor-core-plan-20260810
 Owner-chat: refactor-core
@@ -323,3 +323,6 @@ session 2 の着手前に消化する。**優先度順**:
 ## Worklog
 
 - **2026-08-10（調査セッション）**: 8 領域を並列調査し 64 findings → 10 クラスタへ統合、上位 3 クラスタを懐疑的に再検証。主要数値をメインが全数 spot check（誤差はテスト本数の ±1 のみ）。調査中に **#587 の実装着地（PR #642 / #647 merged）と Issue の close 漏れ**を検出。feasibility で**前提の誤りを 2 件訂正**（TS 6.0 の strict 既定は true / DataService の差分 5 件は配線漏れではなく死に宣言）。
+## Worklog 追記（2026-08-31・chat-main = 2026-08-30 整合監査 PR #1331 の束 A）
+
+- C1〜C9 の対象 Issue（#668〜#676）は全 close を実測。残るのは C10（#677・移行完了後）と #898 のみで、どちらも status:frozen（D-20260816-main-1）のため本計画は DEFERRED とした。凍結解除の際に再開する
