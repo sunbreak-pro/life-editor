@@ -35,7 +35,7 @@ export interface LegalDocument {
 }
 
 /** Last revision of BOTH documents. Bump it whenever the text changes. */
-const UPDATED = "2026-08-29";
+const UPDATED = "2026-08-30";
 
 const ja: Record<LegalDocumentId, LegalDocument> = {
   privacy: {
@@ -88,7 +88,7 @@ const ja: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: "6. データの削除",
         paragraphs: [
-          "保存した内容とアカウントの削除をご希望の場合は、上記の連絡先までご連絡ください。合理的な期間内に削除します。アプリ内から自分で削除できる機能は準備中です。",
+          "アカウントと保存した内容は、アプリの「設定 → アカウント」から利用者ご自身で完全に削除できます。削除はその場で実行され、取り消しはできません。何らかの理由でこの操作ができない場合は、上記の連絡先までご連絡ください。合理的な期間内に削除します。",
         ],
       },
       {
@@ -228,7 +228,7 @@ const en: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: "6. Deleting your data",
         paragraphs: [
-          "To delete your account and everything stored with it, contact the address above and it will be removed within a reasonable period. An in-app delete is in preparation.",
+          "You can delete your account and everything stored with it yourself, from Settings → Account in the app. It takes effect immediately and cannot be undone. If that is not available to you for any reason, contact the address above and it will be removed within a reasonable period.",
         ],
       },
       {
