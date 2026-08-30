@@ -1,5 +1,21 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-08-30 - Connect 退役の後片付け 2 本（#1220 d3 依存 / #1239 backlink 部品）
+
+#### 概要
+
+`section:connect` の残り open Issue 2 本を別 PR で処理した。どちらも #1152 の退役が残した「コードは消えたが宣言だけ残っている」類で、PR #1256（d3）と #1258（backlink 部品）を open。CI verify 全ステップ + docs-lint はローカルで両方とも全通し。
+
+#### 変更点
+
+- **#1220（PR #1256）**: `d3-force` / `d3-quadtree` / `d3-selection` / `d3-zoom` + `@types` 4 本を shared / web 両 package.json から削除し lockfile 再生成（-275 行）。着手前に `grep -rn "from ['\"]d3" shared/src web/src desktop/src mcp-server/src` = 0 を再実測。**バンドルは縮まない**（誰も import していなかったので元から積まれていない）ため、効くのは install サイズとマニフェストの正確さだけ — PR 本文にも明記した。lockfile に残る `d3-array` / `d3-scale` 等は recharts の推移依存で正しく残る
+- **#1220 の追加 1 行**: `shared/package.json` の `_comment_sideEffects` が「Connect の d3 stack が initial chunk に乗っていた」を現在形で語っていたので #1152 / #1220 の日付を添えた過去形に。`sideEffects` **配列**は無改変（`analyticsTabsLightweight.test.ts` が pin しているのは配列の方で、Issue 本文の「コメントを pin」は取り違え）
+- **#1239（PR #1258）**: `shared/src/components/Backlinks/` + `shared/src/utils/itemLinks.ts` + テスト 2 本を削除（-413 行）。裁定 = `D-20260829-connect-1` = B。#1152 で「次のホストが要るはず」と救出したが呼び出し元は現れず、#1171 の Tag hub もタグ軸なので import しない（計画書 AC で diff 0 行を pin 済み）→ P-002 適用
+- **#1239 の Scope 外 1 本**: `shared/tests/itemLinks.test.ts`。Issue の Scope は `backlinkView.test.tsx` しか挙げていないが、削除対象を import しているので残すと `typecheck:tests` と vitest が落ちる。機械的な帰結だが scope 線を越えたので PR 本文に明記
+- **#1239 の判断点（要レビュー）**: DoD は「シンボル名の grep = 0」。退役理由を残すコメント 3 箇所（バレル 2 + `LinkPanel.tsx` の設計注記）に名前を残したため実測は **3**。`rules/docs-consistency.md` §2 の「歴史的記述は同じ行に注記して残す」に従った判断で、**実参照はゼロ**。字面どおり 0 にしたいならコメントから名前を落とす旨を PR 本文で確認中
+- **検証**: #1220 = shared 2675 / web 937 / desktop 7 / mcp-server 319、#1239 = shared 2666（削除した 9 ケース分の減）/ web 937 / desktop 7 / mcp-server 319。両方とも lint・build・typecheck:tests 全 exit 0、docs-lint OK
+- **権限の確認**: #1239 の対象はこのセッションで「読み取り専用・変更が要るなら outbox 依頼」と指示されていたパスだったため、着手前にこうだいさんへ確認し「このレーンで削除まで実行」の回答を得てから進めた
+
 ### 2026-08-30 - Connect 2 本（#1152 / #1171）の merge 後始末 — 計画書を archive へ
 
 #### 概要
