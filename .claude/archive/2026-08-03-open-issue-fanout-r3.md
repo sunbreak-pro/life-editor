@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED
 Created: 2026-08-03
 Branch: main # docs のみ。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -8,7 +8,7 @@ Owner-chat: main
 # Plan: Open Issue 一斉消化 fan-out ラウンド 3（2026-08-03）
 
 > **意図的に緩い計画書**。方向性・担当レーン・触ってよいパスだけを固定し、手順と DoD は各 Issue body を正本とする（転記しない — 数値の非複製原則）。
-> 前ラウンド = [`2026-07-30-open-issue-fanout-r2.md`](../../../archive/2026-07-30-open-issue-fanout-r2.md)（13 件全消化・COMPLETED 化と archive 移動は本ラウンドの #591 で実施済み）
+> 前ラウンド = [`2026-07-30-open-issue-fanout-r2.md`](2026-07-30-open-issue-fanout-r2.md)（13 件全消化・COMPLETED 化と archive 移動は本ラウンドの #591 で実施済み）
 
 ---
 
@@ -301,7 +301,7 @@ UI/UX の細かい改善 ／ リファクタ・技術的負債 ／ Mobile 追随
 ## References
 
 - CLAUDE.md §7.4（worktree / ブランチ運用）・§9（Issue dispatch / decision queue）
-- 前ラウンド: [`2026-07-30-open-issue-fanout-r2.md`](../../../archive/2026-07-30-open-issue-fanout-r2.md)（COMPLETED・#591 で archive 移動）
+- 前ラウンド: [`2026-07-30-open-issue-fanout-r2.md`](2026-07-30-open-issue-fanout-r2.md)（COMPLETED・#591 で archive 移動）
 - Epic: #290（Schedule redesign・schedule-refine）/ #321（Mobile UI/UX 追随）
 - 関連 memory: `push-after-merge-strands-commits` / `stacked-pr-base-retarget-race` / `all-label-issue-collision`
 
@@ -311,3 +311,8 @@ UI/UX の細かい改善 ／ リファクタ・技術的負債 ／ Mobile 追随
 
 - 2026-08-03: 現状実測（open PR ゼロ / open Issue 7 件のうち 4 件が schedule-refine / 他 8 レーン手待ち）→ 既存文書資産のタネ枯渇を確認（mobile-scope 全行完了・outbox 依頼はほぼ起票済み）→ コード実測から 9 件を起票 → 7 レーン分の貼り付けプロンプトを作成。方向性 3 本立てと起票主体は 2026-08-03 のユーザー選択
 - 2026-08-03: briefing の削除導線（#585）と schedule の 2 件（#592 旧名称統一 / #593 Todo チップのアクセント）はこうだいさんからの新規要望。#585 のルーチン行の扱いは「Schedule のパネルを流用して選択可能にする」で確定
+- 2026-08-30: COMPLETED 化 + archive 移動（chat-main・r4 の chat-main 手番）。対象 Issue #585〜#593 は全 CLOSED を `gh issue view` で確認
+- 乖離レビュー（archive 前必須 3 行）:
+  1. スコープ逸脱: 特になし。緩い計画書としてレーン表 + Issue body を正本に運用し、期中の追加 2 件（#592 / #593）はユーザー要望由来で Worklog 記録済み
+  2. AC 免除: なし（9 Issue すべて close 済み）。COMPLETED 化と archive 移動だけが r4 へ持ち越され、本 commit で解消
+  3. 途中で出た判断の行き先: #585 のルーチン行の扱いはユーザー確定済み（Worklog 2026-08-03）。期中の新規 findings はすべて GitHub Issues へ起票済みで、規約級の判断は発生せず
