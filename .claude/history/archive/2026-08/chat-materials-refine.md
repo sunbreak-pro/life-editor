@@ -1,3 +1,21 @@
+### 2026-08-29 - Materials 6 Issue を 6 ブランチ / 6 PR に（#1179 #1180 #1181 #1172 #1189 #1183）
+
+#### 概要
+
+2026-08-29 dispatch 分の 6 件を、1 Issue 1 ブランチ・全て `origin/main` から独立（ユーザー指示）に落とした。テンプレート 3 本（登録 → 一覧・編集 → 適用）+ Related パネル + Daily サイドバーの整理 + エディタのチェックボックス拡大。各本でローカル CI verify 14 ステップ + docs-lint を exit 0。PR #1216 / #1221 / #1227 / #1232 / #1236 / #1237（merge = こうだいさん）。
+
+#### 変更点
+
+- **#1179（PR #1216）テンプレートとして登録する**: 三点メニューを「テンプレートを作成する」→「テンプレートとして登録する」に刷新し、押下で**開いているノートの本文ごと**テンプレート行（`note_type='template'`）を 1 操作で作る。生成後に受領パネル（Modal・上部にテンプレート名の入力欄・初期値「{ノート名}のテンプレート」）。タグ / リンクは引き継がない（2026-08-29 ユーザー裁定・#1047 の前提維持）。**パスワードロック中は項目ごと出さない** — #526 のゲートは本文だけを覆うので、テンプレートへ複製するとロックの外へ本文が出る。旧工房（`NoteTemplateHost` / `NoteTemplatePanel` + `web/tests/noteTemplates.test.tsx`）はここで撤去
+- **#1180（PR #1221）rightSidebar の一覧 + 中央パネル編集**: Trash の上に「テンプレート」折りたたみ（件数つき）。各行に鉛筆（編集）と ゴミ箱（削除）。鉛筆で**本文を取得してから**中央パネル（通常ノートと同じ 28px ボーダーレスのタイトル + 本文、下部にキャンセル / 保存）を開く。エディタは **`onDraftChange`（#713 のドラフトモード）**で配線 — 既定の `onUpdate` は 800ms デバウンス + unmount フラッシュなので、素早い「保存」で最後の打鍵が落ち「キャンセル」でも書き込まれる。Escape とバックドロップは**どちらもキャンセル**。パネルは sidebar portal の外（View 直下）にマウント — 狭幅ではその portal が MobileDrawer で、中に置くとドロワーと一緒に消える
+- **#1181（PR #1227）テンプレートから反映する**: 三点メニューの 2 項目め。一覧 → 選択 → **破棄確認** → 現ノートの本文を置換。一覧クリックは何も書かない（browsing が下書きを消す設計にしない）。置き換えるのは**本文だけ** — テンプレート名でノートを改名するのは頼まれていない 2 つ目の編集。`NoteBodyEditor` に `remountToken` を追加（既定 0）: `RichTextEditor` はマウント後 `initialContent` を見ないので、key を変えないと「保存済み本文は差し替わったのに画面は元のまま」になる。ロック中は非表示（#1179 と同じ理由）
+- **#1172（PR #1232）LinkPanel を Related パネルへ**: 「+ リンク」の隣に関連ピル（件数）。3 セクション = **リンク**（送信 / 被リンクを #884 どおり相手アイテム単位で 1 リストに）/ **同じタグのアイテム**（TagPicker が読む `allAssignments` から導出・追加クエリなし・リンク済みは除外して 1 隣人 1 行）/ **同じ日のデイリー**（`daily-<YYYY-MM-DD>` の id lookup。日付は host が `dateKeyOfInstant` で渡す — `slice(0,10)` は UTC 文字列を切って JST 09:00 前に前日を指す = #413）。プールで名前が引けないアイテムは載せない（行の存在意義は辿れること・ナビは role がキー）。見出しに全件数・リストは先頭 8 件。**コンポーネント名は `LinkPanel` のまま**（改名すると `../src/wikitag` を差し替えている全スイートに波及する）
+- **#1189（PR #1236）Daily サイドバーの日付タブ撤去**: 「今日」「昨日」は entry 行やピッカーと同じ selectedDate を動かすだけなので、名前どおりの日以外では何も変わらず「壊れたフィルタ」に見えていた。狭幅本文の `DateStrip`（直近 14 日）も撤去 — 提供する日は全部ピッカーで届く範囲の部分集合。コンポーネント本体・`stripDays`・props・i18n 4 キーまで削除。**日付ピッカーは残した**（エントリが無い日を開く唯一の導線）
+- **#1183（PR #1237）エディタの Todo チェックボックス**: スラッシュコマンド「チェックボックスリスト」と `[] ` で出るチェックボックスが UA 既定（約 13px）だった。`1.05em` + `flex: none`。px でなく em にしたのは、エディタ本文のフォントが固定でない（モバイルのフィールド床 #1134）ことと、ラベルが 1.6em の行ボックス中央に置いている（#883）ことの両方に追随させるため
+- **テストは 5 本追加 / 3 本更新**: 新規 `noteTemplateRegister`（8）/ `noteTemplateLibrary`（8）/ `noteTemplateApply`（7）/ `relatedPanel`（7）/ `taskListCheckboxSize`（3）。更新 = `linkPanel.test.tsx`（fake context に `allAssignments` / `getTagsForItem` 追加）・`dailyView.test.tsx` と `dailyScreenActions.test.tsx`（日を切り替える手段をピッカーへ）・`dailyEntriesPanel.test.tsx`（トグルのテストを「無いこと」へ）。#1181 の remount テストは**空 dep の effect で数える** — render body で数えると再レンダーも数えてしまい、key 変更を外しても緑のままになる。#1183 は CSS だけなので jsdom では何も測れず（要素の座標が 0）、`fieldFontFloorLockstep.test.ts` と同じくソーステキストを読む形にした
+- **独立ブランチ制約でこうした**: #1180 は旧工房を**触らない**（撤去は #1179 の担当。同じ行を 2 本で消すと衝突するだけ）。i18n の `materials.templates` ブロックは 3 本で挿入位置をずらした（#1179 = `menuEntry` 直後 / #1181 = `pickHint` 直後 / #1180 = `bodyPlaceholder` 直後）ので自動マージが効く
+- **検証**: 6 ブランチそれぞれで shared（lint / build / typecheck:tests / test）→ web（同 4 種）→ desktop（typecheck / test / build）→ mcp-server（build / typecheck:tests / test）+ `docs-lint` を全通し、すべて exit 0。GitHub CI も 6 本とも SUCCESS
+
 ### 2026-08-27 - #1139 SupabaseTodosService の items_meta DELETE 2 箇所に role ガード（PR #1150）
 
 #### 概要
