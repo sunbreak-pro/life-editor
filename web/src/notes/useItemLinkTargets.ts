@@ -43,6 +43,23 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  * of digits users reported. Both offering surfaces filter on the flag at their
  * own edge, so the only behaviour that changes is that a dead link can say what
  * it was.
+ *
+ * #1334 — AND THE READS HAVE TO GO GET THEM. #1292 taught the pool to carry the
+ * flag but kept reading the three LIVE lists, every one of which filters
+ * `is_deleted = false` in its query (SupabaseTodosService.fetchTodoTree,
+ * SupabaseNotesUnifiedReads.listNotesUnified, listDailiesUnified). So the flag
+ * this hook set was structurally always false and the fallback still fired for
+ * every real deletion — green in `web/tests/linkPanel.test.tsx` only because
+ * that suite hands the panel a pool with a deleted row already in it. Each
+ * domain therefore reads BOTH buckets and concatenates them; the pairs are the
+ * same `is_deleted` split Trash already reads, so nothing new is queried, only
+ * the other half of what was there. An empty Trash costs one extra SELECT per
+ * domain — `fetchMetaFirstJoin` returns before touching the payload table when
+ * no meta row matches.
+ *
+ * Live rows come FIRST in each domain so the menu's ordering is untouched:
+ * both offering surfaces drop the deleted tail before ranking, and the only
+ * consumer that reaches it is a by-id lookup, which does not care about order.
  */
 export type LoadItemLinkTargetsOptions = LazyPoolOptions;
 export type LoadItemLinkTargets = LoadLazyPool<ItemLinkTarget[]>;
@@ -56,13 +73,17 @@ export function useItemLinkTargets(
 
   const fetchPool = useCallback(async (): Promise<ItemLinkTarget[]> => {
     if (!dataService) return EMPTY;
-    const [notes, dailies, todos] = await Promise.all([
-      dataService.listNotesUnified(),
-      dataService.listDailiesUnified(),
-      dataService.fetchTodoTree(),
-    ]);
+    const [notes, deletedNotes, dailies, deletedDailies, todos, deletedTodos] =
+      await Promise.all([
+        dataService.listNotesUnified(),
+        dataService.fetchDeletedNotesUnified(),
+        dataService.listDailiesUnified(),
+        dataService.fetchDeletedDailiesUnified(),
+        dataService.fetchTodoTree(),
+        dataService.fetchDeletedTodos(),
+      ]);
     const next: ItemLinkTarget[] = [];
-    for (const n of notes) {
+    for (const n of [...notes, ...deletedNotes]) {
       next.push({
         id: n.id,
         label: n.title || "(untitled)",
@@ -70,7 +91,7 @@ export function useItemLinkTargets(
         isDeleted: !!n.isDeleted,
       });
     }
-    for (const d of dailies) {
+    for (const d of [...dailies, ...deletedDailies]) {
       next.push({
         id: d.id,
         label: d.date,
@@ -78,7 +99,7 @@ export function useItemLinkTargets(
         isDeleted: !!d.isDeleted,
       });
     }
-    for (const todo of todos) {
+    for (const todo of [...todos, ...deletedTodos]) {
       next.push({
         id: todo.id,
         label: todo.title || "(untitled)",
