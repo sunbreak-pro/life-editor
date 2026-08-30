@@ -142,6 +142,77 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     [hydrateContent, isContentLoaded],
   );
 
+  /*
+   * One-shot RESTORE (#282): re-open the note the user had selected before the
+   * provider unmounted (Materials tab/section switch). The id lives in the
+   * module-level materialsSelectionStore, which outlives this React tree.
+   *
+   * CALLED FROM THE LOAD'S `apply`, WITH THE LIST IT JUST APPLIED (#1285) —
+   * not from an effect reading `notes`. The effect version broke the moment
+   * #1101 gave this domain a snapshot: a mount that finds one is already
+   * `settled`, so `isLoading` is false on the FIRST render and the restore
+   * effect ran that render's closure, where `notes` is still `[]`. It then read
+   * its own "the stored id is not in the list" branch as "the note is gone",
+   * cleared the store and burned the one-shot — which is exactly the reported
+   * bug: leave Materials, come back, and the note you had open is not merely
+   * unselected, it is forgotten. The first visit of a session looked fine
+   * because there is no snapshot yet.
+   *
+   * Taking the list as an ARGUMENT removes the class of bug rather than the
+   * instance, and matches what `useTodoTreeAPI` has always done next door.
+   * `apply` only runs on a SUCCESSFUL read, so a failed fetch still cannot
+   * consume the one-shot or erase the remembered id.
+   *
+   * NOT FROM THE SNAPSHOT REPLAY, only from the fetch (`fetchLandedRef` below).
+   * The replay runs in useDomainLoad's LAYOUT effect, so restoring there starts
+   * the body hydrate while the revalidating read is still in flight — and that
+   * read's own `mergeLoadedList` reads `notesRef`, which React updates in a
+   * passive effect and can therefore still be one flush behind the hydrate.
+   * The body it just fetched would be merged away. Waiting for the read costs
+   * one round trip and is exactly the timing this restore had before #1101
+   * introduced snapshots — the list still paints instantly from the snapshot,
+   * which is what that feature was for.
+   *
+   * Restore MUST take the same hydrate-first path as selectNote — the web editor
+   * initialises its content once per noteId and never re-syncs, so flipping
+   * selectedNoteId onto an un-hydrated id would open a blank editor over a note
+   * that has a body (DATA LOSS). A stored id absent from the loaded list, or a
+   * hydrate failure, clears the store entry (no retry loops).
+   */
+  const restoredRef = useRef(false);
+  /** Flipped by the read below, so `apply` can tell a fetch from a replay. */
+  const fetchLandedRef = useRef(false);
+  const restoreSelection = useCallback(
+    (loaded: NoteNode[]) => {
+      if (restoredRef.current) return;
+      restoredRef.current = true;
+      const storedId = getNotesSelection();
+      if (storedId === null) return;
+      if (selectedNoteIdRef.current !== null) return; // user already selected
+      const node = loaded.find((n) => n.id === storedId);
+      if (!node) {
+        clearNotesSelection(); // stale id — item gone since last session tab
+        return;
+      }
+      const token = ++selectTokenRef.current;
+      // Ref-read guard on purpose — see hydratedIdsRef's contract on the ledger.
+      if (hydratedIdsRef.current.has(storedId)) {
+        setSelectedNoteId(storedId);
+        return;
+      }
+      void (async () => {
+        const ok = await hydrateContent(storedId);
+        if (selectTokenRef.current !== token) return; // superseded by user select
+        if (ok) {
+          setSelectedNoteId(storedId);
+        } else {
+          clearNotesSelection(); // hydrate failed — drop the id, don't retry
+        }
+      })();
+    },
+    [hydrateContent, hydratedIdsRef],
+  );
+
   const setSortDirection = useCallback((dir: NoteSortDirection) => {
     setSortDirectionState(dir);
     saveSortDirection(dir);
@@ -151,11 +222,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     setSortModeState(mode);
     saveSortMode(mode);
   }, []);
-
-  // #282: flips only when a list fetch actually succeeded — a load settles
-  // even on error, so isLoading alone cannot tell "loaded, id absent" apart
-  // from "load failed".
-  const listLoadedRef = useRef(false);
 
   // Load the tree on mount and on every notes bump, through the shared load
   // effect (#672 / #891). Same three states as the hand-written version it
@@ -169,13 +235,21 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     snapshotKey: "notes",
     dataService: ds,
     version: syncVersion,
-    load: (service) => service.listNotesUnified(),
+    load: async (service) => {
+      const rows = await service.listNotesUnified();
+      // Set HERE, not in `apply`: this is the only point that is reachable
+      // solely by the read. The snapshot replay never runs it.
+      fetchLandedRef.current = true;
+      return rows;
+    },
     apply: (loaded) => {
       // #301/#607: the merge and both ledger updates live in
       // useNoteHydrationLedger.mergeLoadedList — see the rationale there.
       const { merged, stillHydrated } = mergeLoadedList(loaded);
       setNotes(merged);
-      listLoadedRef.current = true; // #282: restore gates on a SUCCESSFUL load
+      // #282 / #1285: the restore reads THIS list, not a render closure — and
+      // only once the read itself has landed (see restoreSelection's header).
+      if (fetchLandedRef.current) restoreSelection(merged);
       // Keep the currently-open note's body correct after a sync-triggered
       // reload (the editor is keyed by note id so it won't remount; this just
       // refills `notes[id].content` so a later read of `selectedNote.content`
@@ -211,51 +285,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       cancelled = true;
     };
   }, [ds, syncVersion]);
-
-  // One-shot RESTORE (#282): re-open the note the user had selected before the
-  // provider unmounted (Materials tab/section switch). The id lives in the
-  // module-level materialsSelectionStore, which outlives this React tree. Runs
-  // at most once per mount (restoredRef) and never fights a user action already
-  // in flight (bail if something is already selected). Restore MUST take the
-  // same hydrate-first path as selectNote — the web editor initialises its
-  // content once per noteId and never re-syncs, so flipping selectedNoteId onto
-  // an un-hydrated id would open a blank editor over a note that has a body
-  // (DATA LOSS). A stored id absent from the loaded list, or a hydrate failure,
-  // clears the store entry (no retry loops).
-  const restoredRef = useRef(false);
-  useEffect(() => {
-    if (restoredRef.current) return;
-    if (isLoading) return; // wait until the list has loaded
-    // A failed list fetch must NOT consume the one-shot nor clear the store —
-    // a transient error (offline blip) would otherwise permanently erase the
-    // remembered selection. `notes` in the deps retries after a successful
-    // reload (syncVersion) repopulates the list.
-    if (!listLoadedRef.current) return;
-    restoredRef.current = true;
-    const storedId = getNotesSelection();
-    if (storedId === null) return;
-    if (selectedNoteIdRef.current !== null) return; // user already selected
-    const node = notes.find((n) => n.id === storedId);
-    if (!node) {
-      clearNotesSelection(); // stale id — item gone since last session tab
-      return;
-    }
-    const token = ++selectTokenRef.current;
-    // Ref-read guard on purpose — see hydratedIdsRef's contract on the ledger.
-    if (hydratedIdsRef.current.has(storedId)) {
-      setSelectedNoteId(storedId);
-      return;
-    }
-    void (async () => {
-      const ok = await hydrateContent(storedId);
-      if (selectTokenRef.current !== token) return; // superseded by user select
-      if (ok) {
-        setSelectedNoteId(storedId);
-      } else {
-        clearNotesSelection(); // hydrate failed — drop the id, don't retry
-      }
-    })();
-  }, [isLoading, notes, hydrateContent, hydratedIdsRef]);
 
   // Tree derivations — pure functions of their inputs (notesUnifiedHelpers),
   // memoized here.
