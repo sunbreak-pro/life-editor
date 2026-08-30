@@ -106,4 +106,38 @@ describe("shared i18n — plurals", () => {
 
     await i18n.changeLanguage("en");
   });
+
+  /*
+   * #1242: the same single-form key, in the Schedule toolbar's tag filter.
+   * This one only ever reached an aria-label ("Filtered by 1 tags"), so
+   * nothing on screen looked wrong and only a screen reader heard it — which
+   * is why the assertion goes through t() with a count, the way
+   * scheduleCopy's toolbarLabels builds that label.
+   */
+  it("picks the singular tag-filter label for count=1 in en", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(i18n.t("scheduleScreen.filterActive", { count: 1 })).toBe(
+      "Filtered by 1 tag",
+    );
+    expect(i18n.t("scheduleScreen.filterActive", { count: 2 })).toBe(
+      "Filtered by 2 tags",
+    );
+    expect(i18n.t("scheduleScreen.filterActive", { count: 0 })).toBe(
+      "Filtered by 0 tags",
+    );
+  });
+
+  it("keeps the one Japanese tag-filter form at every count", async () => {
+    await i18n.changeLanguage("ja");
+
+    expect(i18n.t("scheduleScreen.filterActive", { count: 1 })).toBe(
+      "タグ 1 件で絞り込み中",
+    );
+    expect(i18n.t("scheduleScreen.filterActive", { count: 2 })).toBe(
+      "タグ 2 件で絞り込み中",
+    );
+
+    await i18n.changeLanguage("en");
+  });
 });
