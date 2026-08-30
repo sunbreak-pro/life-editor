@@ -1,6 +1,45 @@
 # HISTORY (chat-refactor-core)
 
-### 2026-08-23 - #1101 セクション切替に stale-while-revalidate（PR #1108 open）
+### 2026-08-30 - #1184 警告 / お知らせ / 確認パネルの共通化（PR #1259 open）
+
+#### 概要
+
+「その場でユーザーに伝える」が画面ごとに書き直されていた。同じ仕事で実装が 5 通り — auth カードはアイコン付きの枠帯、notes サイドバーは同じ帯からアイコンと下地を抜いたもの、ダイアログ 2 枚は素の赤い `<p>`、オフラインは全幅の帯、schedule は accent 色の箱に手書きのボタン入り。**パディングが 5 種類・ARIA role の考え方が 4 種類**あった。
+
+`NoticePanel` は **ConfirmDialog（#707）と対になる非モーダル側**で、分け方は「次の一手を誰が持つか」。ダイアログは進めない質問のために画面を奪い、パネルは読み飛ばせる報告をその場に置く。**訊くならダイアログ、伝えるならパネル**。
+
+#### 変更点
+
+- **`shared/src/components/NoticePanel.tsx`（新規）**: 4 トーン（`ToastVariant` と同じ語彙 — 同じ文言がトーストとその場表示で違う色になるのを防ぐ）/ `card` と `banner` の 2 レイアウト / 任意の見出し / トーン既定のグリフを差し替えも削除もできる `icon` / 「で、どうすればいいか」の `action` 枠 1 つ / トーン由来の live region を上書きする `role`
+- **`shared/src/styles/tokens.css`**: `info` と `warning` にも `-subtle` の面を追加（success / danger だけが持っていた）。既存レシピ = **トーンを 6%（light）/ 8%（dark）で bg-secondary に焼き込む**をそのまま適用し、**`success-subtle` が両テーマとも 1 バイト違わず再現したのでレシピを信用した**（`danger-subtle` は手で寄せてあるのか一致しない）
+- **AuthAlert は畳んで削除**。消費者 4 本が共通帯を直接描くようになった
+- **置換 4 箇所**: notes サイドバーのエラー帯（`icon={null}`）/ オフラインバナー（`variant="banner"`）/ schedule の繰り返しフィルタ通知（手書きボタン → `action` 枠）
+
+#### 効いた設計判断 3 つ
+
+- **トーンのクラスは静的な表で引く**。`bg-lumen-${tone}-subtle` と書くと Tailwind のスキャナに見えず、ユーティリティが吐かれないまま**エラーも出さずに透明落ちする**（§5・Toast の `TONE_BG` が同じ罠を書き残している）。ビルド後の `web/dist` の CSS に 4 トーンとも出ていることを実測した
+- **`icon={null}` と `icon` 未指定を区別する**。前者は「グリフ無し」、後者は「トーン既定を使う」。notes サイドバーは密な列なのでグリフの 16px が最初のタグ見出しを折り返しの外へ押し出す
+- **`role` は上書き可能にした**。既定は Toast と同じ導出（danger / warning は割り込む・info / success は polite）だが、**auth の帯は成功トーンでも割り込むのが正**（両方とも「今出したフォームの結果」）。`authCard.test.tsx` がそれを固定しているので、既定任せにすると静かに退行する
+
+#### 意図的に変えた見た目 1 つ
+
+オフラインバナーのトーンを `danger` → `warning` に下げた。**何も失敗していない**（アプリが「今できないこと」を伝えているだけ）で、`danger` は隣の画面で本物のエラーが使っている色だから。文言・`role="status"`・`WifiOff` は据え置き。§7.4 により実ブラウザの目視は merge 後の chat-main 手番。
+
+#### 残置換（子 Issue へ）
+
+全置換は Issue #1184 の DoD が明示的にスコープ外にしている。必要な判断ごとに 3 グループ — (1) フォーム内のエラー文言 3 箇所（`DeleteAccountDialog.tsx:110` / `NotePasswordDialog.tsx:171` / `LinkPanel.tsx:542`）は枠付きの帯が重すぎる可能性が高く「文字だけの 3 つ目の variant」の判断が要る / (2) Trash の復元通知（`TrashScreen.tsx:319`）はトーンを決めれば素直な置換 / (3) `RepeatListPanel.tsx:131` の armed 削除行は**あえてその場で確認している**別形状で API 設計から。**通知でないと判定して除外**したのは `ErrorBoundary`（全画面エラー）/ `SettingsAccount:142`（danger 色の見出し）/ `TrashScreen:254`（スケルトン）/ `MobileAnalyticsView:211`（accent の統計カード）。
+
+#### 検証
+
+`shared/tests/noticePanel.test.tsx` 23 件で、**5 つの前任者が食い違っていた点＝どれも画面では見えない部分**を固定した — どのトーンが読み上げに割り込むか / `role` の明示が既定に勝つか / assertive な帯に `aria-live` を付けないか / `icon={null}` と未指定の差 / 各トーンの面が**リテラルなクラス**で、その裏のトークンが**両テーマとも**定義されているか（片側だけだとそのテーマで帯が消える）。
+
+ローカルで CI `verify` ラダー全段を実測（shared 2698 / web 937 / desktop 7 / mcp-server 319 tests・docs-lint exit 0）。GitHub 側も `docs-lint` / `typecheck + test + build` の 2 ジョブとも pass。
+
+#### 踏んだ罠（環境）
+
+**バックグラウンド実行した検証スクリプトが「killed」と通知されても実際には走り続けていた**。それに気付かず前景で `desktop npm ci` を打ったため 2 つの npm が同じ `node_modules` を奪い合い、`EBUSY: rmdir .../node_modules/electron` で desktop の依存が半壊した（`tsc` / `vitest` が消えた）。同じ理由で stray 側の `mcp-server — typecheck:tests` も「tsc が見つからない」で落ちており、**どちらも実際のコードの問題ではない**。`npm ci` をやり直して復旧し、逐次で回し直して全段緑を確認した。教訓 = **killed 通知を信じず、npm を打つ前に出力ファイルの末尾で本当に止まったか確かめる**。
+
+### 2026-08-23 - #1101 セクション切替に stale-while-revalidate（PR #1108・2026-08-30 時点で merged）
 
 #### 概要
 

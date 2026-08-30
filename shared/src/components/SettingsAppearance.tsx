@@ -145,9 +145,15 @@ export function SettingsAppearance({
            * only how many stops the phone offers changed. The selected preset
            * is the NEAREST one to whatever is stored rather than an exact
            * match, so a size chosen on Desktop still lights a segment up.
+           *
+           * `hideLabel`: the heading row above already prints the group's name
+           * beside the px readout, and printing it again here stacked the same
+           * words twice (#1253). The radiogroup keeps the name for AT either
+           * way — only the second visible copy goes.
            */
           <SettingsSegment<string>
             label={labels.fontSize}
+            hideLabel
             value={String(nearestMobileFontSize(fontSize))}
             onChange={(value) => onFontSizeChange(Number(value))}
             options={MOBILE_FONT_SIZE_STEPS.map((step, i) => ({

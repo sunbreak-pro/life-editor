@@ -163,13 +163,13 @@
       "message": "このセクションの設定は、用意でき次第ここに並びます。"
     },
     "schedule": {
-      "heading": "スケジュール",
-      "description": "スケジュールセクションの開き方と動き方を決めます。",
+      "heading": "予定",
+      "description": "予定セクションの開き方と動き方を決めます。",
       "initialViewLabel": "最初に開くビュー",
       "day": "日",
       "week": "週",
       "month": "月",
-      "hint": "次にスケジュールを開いたときから反映されます。幅の狭い画面では常に月グリッドを表示します。"
+      "hint": "次に予定を開いたときから反映されます。幅の狭い画面では常に月グリッドを表示します。"
     }
   },
   "timerSettings": {
@@ -365,6 +365,8 @@
       "untitled": "(無題のテンプレート)",
       "content": "内容",
       "delete": "テンプレートを削除",
+      "deleteConfirmBody": "テンプレート「{{name}}」を削除しますか？削除したテンプレートはゴミ箱に入らないため、元に戻せません。",
+      "deleteConfirmAction": "削除する",
       "use": "このテンプレートからノートを作成",
       "pickHint": "テンプレートを選ぶか、新しく作成してください。",
       "applyMenuEntry": "テンプレートから反映する",
@@ -374,6 +376,8 @@
       "applyConfirmTitle": "本文を置き換えますか？",
       "applyConfirmBody": "「{{name}}」の内容でこのノートの本文を置き換えます。いま書かれている内容は破棄されます。",
       "applyConfirm": "反映する",
+      "applyConfirmTitleEmpty": "テンプレートを反映しますか？",
+      "applyConfirmBodyEmpty": "「{{name}}」の内容をこのノートの本文に書き込みます。本文はまだ空なので、失われるものはありません。",
       "noTagsHint": "テンプレートにはタグやリンクを付けられません。生成したノートには付けられます。",
       "bodyPlaceholder": "テンプレートを書く…",
       "sidebarHeading": "テンプレート",
@@ -620,7 +624,7 @@
     "scopeAll": "すべての予定（過去分も含む）",
     "scopeCancel": "キャンセル",
     "openFilter": "タグで絞り込む",
-    "filterActive": "タグ {{count}} 件で絞り込み中",
+    "filterActive_other": "タグ {{count}} 件で絞り込み中",
     "filterTitle": "タグで絞り込む",
     "groupFilterLabel": "グループで絞り込む",
     "groupFilterHidden": "{{count}} 件を非表示",

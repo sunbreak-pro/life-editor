@@ -1,3 +1,5 @@
+import type { TourStep } from "./types";
+
 /*
  * Anchor resolution for the tour (#1122).
  *
@@ -48,6 +50,24 @@ export function resolveTourAnchor(anchor: string): HTMLElement | null {
   const escaped = anchor.replace(/["\\]/g, "\\$&");
   return document.querySelector<HTMLElement>(
     `[${TOUR_ANCHOR_ATTRIBUTE}="${escaped}"]`,
+  );
+}
+
+/**
+ * Find the element a STEP points at — its anchor, or its fallback when the
+ * anchor is not in the document (#1250).
+ *
+ * Order is the whole of it: the primary wins whenever it is present, so a
+ * width that has the real control keeps pointing at the real control, and the
+ * fallback is reached only where the layout has put that control out of reach.
+ * A step with no fallback behaves exactly as before.
+ */
+export function resolveTourStepAnchor(
+  step: Pick<TourStep, "anchor" | "fallbackAnchor">,
+): HTMLElement | null {
+  return (
+    resolveTourAnchor(step.anchor) ??
+    (step.fallbackAnchor ? resolveTourAnchor(step.fallbackAnchor) : null)
   );
 }
 

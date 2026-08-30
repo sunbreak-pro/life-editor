@@ -1,4 +1,5 @@
 import { WifiOff } from "lucide-react";
+import { NoticePanel } from "@life-editor/shared";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 /*
@@ -11,18 +12,21 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
  *
  * Rendering:
  *   - Returns null while online (no layout cost in the common case).
- *   - Opaque `lumen-bg-secondary` surface with a `lumen-danger` bottom
- *     border + danger-colored text (CLAUDE.md §6.4 — no transparency on
- *     primary UI containers; tokens only, no hardcoded colors). This
- *     mirrors the existing error treatment in AuthScreen / TodoTreeView
- *     (border + text-lumen-danger) rather than introducing an undefined
- *     on-danger foreground token.
+ *   - <NoticePanel variant="banner"> (#1184) — the shared band, so this
+ *     strip and the inline notices elsewhere stop being three different
+ *     paddings for the same job. Tone is `warning` rather than `danger`:
+ *     nothing has failed, the app is telling you what it cannot do right
+ *     now, and `danger` is what an actual error uses one screen over.
+ *     The panel keeps the opaque §5 surface (each tone's `-subtle` face
+ *     is a pre-mixed flat color, never an alpha overlay).
  *
  * Accessibility:
- *   - role="status" + aria-live="polite" so screen readers announce the
- *     state change without stealing focus (it is informational, not an
- *     interrupting alert).
- *   - The icon is decorative (aria-hidden); the text carries the meaning.
+ *   - role="status" + aria-live="polite", passed explicitly to override
+ *     the tone default: a warning normally interrupts, but connectivity
+ *     is ambient state rather than the answer to something the user just
+ *     did, so it should be announced without stealing focus.
+ *   - WifiOff replaces the tone's own glyph; it is decorative
+ *     (aria-hidden), the text carries the meaning.
  */
 export function OfflineBanner(): React.JSX.Element | null {
   const online = useOnlineStatus();
@@ -30,15 +34,13 @@ export function OfflineBanner(): React.JSX.Element | null {
   if (online) return null;
 
   return (
-    <div
+    <NoticePanel
+      variant="banner"
+      tone="warning"
       role="status"
-      aria-live="polite"
-      className="flex w-full items-center justify-center gap-2 border-b border-lumen-danger bg-lumen-bg-secondary px-4 py-2 text-center text-sm font-medium text-lumen-danger"
-    >
-      <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-      <span>
-        オフラインです。オンライン時にご利用ください（You are offline）
-      </span>
-    </div>
+      icon={<WifiOff aria-hidden />}
+      message="オフラインです。オンライン時にご利用ください（You are offline）"
+      className="font-medium"
+    />
   );
 }

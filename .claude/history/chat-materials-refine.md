@@ -1,5 +1,22 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-30 - #1248 / #1255 — テンプレート削除に確認を挟み、空ノートに嘘の警告を出さなくした（PR #1260）
+
+#### 概要
+
+2026-08-30 の merge 後実ブラウザ検証（chat-main）で出た、Notes テンプレートの同じ一角の 2 件。押したら戻せない削除ボタンと、破棄するものが無いのに「破棄されます」と言う確認を、1 ブランチ 1 PR で直した。PR #1260 提出（Closes #1248 / #1255・merge = こうだいさん）。
+
+#### 変更点
+
+- **#1248 削除の確認**: `web/src/notes/NotesView.tsx` に `useConfirmDialog` を足し、`TemplateListPanel` の `onDelete` を `templateLibrary.remove` 直結から確認経由に変更。文言はテンプレート名入り・`danger`、確定したときだけ `softDeleteNoteUnified` が走る。ダイアログは **view の最上位**にマウント（narrow ではサイドバーが MobileDrawer で、その中に置くと開いた本体ごと消える — `TemplateEditHost` と同じ理由）
+- **Trash 復元は入れていない**: Issue が明示的にスコープ外としているため、代わりに「ゴミ箱に入らないため元に戻せません」と文言で断った。復元可能にするなら別 Issue
+- **#1255 空本文の出し分け**: `isBlankNoteBody`（`web/src/notes/hooks/useNoteTemplateApply.ts`）を追加し、空なら `applyConfirmTitleEmpty` / `applyConfirmBodyEmpty` に切り替える。確認ステップ自体は残した（書き込みであることに変わりはなく、やめられる価値がある）
+- **述語は意図的に片側だけ**: 空だと**証明できた**ときだけ `true`。TipTap 以前のノートは生 HTML を持ち、`isEmptyDocJson` はパースできない文字列を「空」と答えるので、**警告を落とすかどうかの判断にはちょうど裏返し**になる。doc JSON でないものは全部「書かれている」扱いにした
+- **i18n**: `deleteConfirmBody` / `deleteConfirmAction` / `applyConfirmTitleEmpty` / `applyConfirmBodyEmpty` を en / ja 両方に追加。三項は `t(cond ? "a" : "b")` ではなく `cond ? t("a") : t("b")` と書いた — `i18nKeys.test.ts` のリテラル走査に拾わせるため
+- **テスト**: `noteTemplateLibrary.test.tsx` に「押下は質問であって削除ではない」「拒否したら行が残る」、`noteTemplateApply.test.tsx` に空本文 3 件 + `isBlankNoteBody` の単体 3 件
+- **検証**: `ci.yml` の `verify` + `docs-lint` をローカルで頭から 15 ステップ実行し全緑（web は 100 files / 944 tests）
+- **既知の未処理**: 空本文でも Apply ボタンは `bg-lumen-danger` のまま。`TemplateApplyPanel` は #1255 の Scope 外なので触っていない
+
 ### 2026-08-30 - PR #1227 に main を取り込み、テンプレート 3 機能を両立させた
 
 #### 概要
@@ -67,20 +84,3 @@
 - **mutation 実測 4 通り**: `permanentDeleteTodo` のガード剥がしで 5 件赤（振る舞い 2 + census 3）、`createTodo` で 4 件赤（振る舞い 1 + census 3）、role を `"todo"` と誤記（#831 の罠）で 4 件赤（「live な Todo を purge できる」対照側が落ちるのが要点）、チェーンを 2 文に割って走査回避で 4 件赤（自己チェックが落ちる）
 - **スコープ外**: Notes / Dailies / ItemConversion 各サービスの `items_meta` DELETE（Issue が `SupabaseTodosService` を名指し・#625 が動かすのは `event` ⇄ `task` だけ）と、`updateTodo` の読み返し SELECT（READ であり、安全性は mapper の `assertItemsMetaPair` が持つ。既存の 2 ケースが pin 済み）
 - **検証**: shared（lint・build・typecheck:tests・test 270 files / 2561）/ web（同・87 / 849）/ desktop（typecheck・test 7・build）/ mcp-server（build・typecheck:tests・test 24 / 318）/ docs-lint、CI verify の 14 ステップ + docs-lint すべて初回で exit 0（フレークなし）
-
-### 2026-08-19 - #1099 SupabaseTodosService の items_meta UPDATE 4 箇所に role ガード（PR #1105）
-
-#### 概要
-
-#996（PR #1080）が Event / Routine 側で塞いだ穴の、Todo 側にあたる残余経路を塞いだ。#625 の変換は id を保ったまま role だけを動かす（D-20260810-sched-2）ため、Todo → Event を挟むと `items_meta.id` は安全な宛先ではなくなる。PR #1105 提出（Closes #1099・merge = こうだいさん）。
-
-#### 変更点
-
-- **`shared/src/services/SupabaseTodosService.ts` の `items_meta` UPDATE 4 箇所に `.eq("role", "task")`**: `bumpItemsMetaUpdatedAt`（private・現在は呼び出し無し）/ `updateTodo` / `softDeleteTodo` / `restoreTodo`。本 PR 前は 0 箇所だった
-- **role の値は `"task"` であって `"todo"` ではない**（#831 でドメイン名だけ改称・判別子は据え置き）。ドメイン名から書いたガードはどの行にも当たらず正当な書き込みまで全部 miss するので、テストには必ず live な Todo の対照行を添えた
-- **終わり方が 2 通りある**: `softDeleteTodo` / `restoreTodo` は 0 行ヒット（PostgREST はエラー無しの成功で返すので stale な undo エントリは静かに消える）。`updateTodo` は行を読み返すので reject する — 変換の best-effort な payload 掃除が着地していれば `requireRowPair` が、孤児が残っていれば `rowsToTodoNode` の `assertItemsMetaPair` が落とす
-- **スコープ外**: `syncTodoTree` の UPSERT 1 箇所（role は WHERE ではなく行本体に載る）と DELETE 2 箇所（`createTodo` の R2 孤児回収 / `permanentDeleteTodo` の purge）。Issue の DoD が UPDATE と明記しているため
-- **既存呼び出し側の実害を 1 点確認**: 変換 undo（`web/src/schedule/useItemConversion.ts:209`）だけが変換と `updateTodo` を続けて呼ぶが、先に `convertEventToTodo` で role を `task` へ戻す順序なので弾かれない
-- **テスト `shared/tests/todoMetaRoleGuard.test.ts`（新規・10 ケース）**: フィルタを実際に適用する in-memory PostgREST スタブ。`.single()` が 0 行をエラーで返す PostgREST の挙動（PGRST116）もスタブ側で再現（updateTodo の reject 経路がそこに乗るため）。振る舞いテストとは別に、ソースを読んで「UPDATE チェーンが 4 本・全部 role 付き」を assert する数え上げ 3 ケースを置いた — private で呼び出し元の無い `bumpItemsMetaUpdatedAt` は振る舞いから到達できず、将来ガード無しで足されたメソッドも素通りするため
-- **テストが効いていることを実測**: ガードの 4 行を剥がすと 10 ケース中 5 ケース（変換済み行の untouched 4 本 + 数え上げ 1 本）が落ちる
-- **検証**: docs-lint / shared（lint・build・typecheck:tests・test 2513）/ web（同・705）/ desktop（typecheck・test 7・build）/ mcp-server（build・typecheck:tests・test 301）すべて exit 0

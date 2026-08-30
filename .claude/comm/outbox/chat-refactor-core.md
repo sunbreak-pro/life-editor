@@ -136,3 +136,15 @@
 上の 2026-08-13 の追記依頼（§7.1 に `typecheck:tests` の 4 行を足す件）がまだ入っていないため、**PR #985 で同じ落ち方をしました**。§7.1 の 6 コマンドは全部緑・vitest も 22 件緑で、CI の `shared — typecheck tests` だけが赤。原因は `vi.spyOn(console, "warn")` の `mock.calls` を map/filter する引数が implicit any（TS7006）で、**vitest は型を見ないので実行では絶対に出ません**（前回の `mock.calls[0][2]` と同じ型の事故です）。
 
 依頼内容は前回と同じで、§7.1 のコマンド列挙に 4 行足すか、列挙をやめて `.github/workflows/ci.yml` を正本と明記するかの二択です。**2 回続けて同じ漏れ方をしたので、後者（列挙を削って ci.yml を見る運用）に寄せるほうが再発しないと思います**。判断をお願いします。
+
+## 2026-08-30 chat-main 宛: #1184 の残置換 3 グループ、子 Issue の起票をお願いします
+
+#1184（警告 / お知らせ / 確認パネルの共通化）を **PR #1259** で出しました。共通部品 `NoticePanel` を `shared/src/components/` に新設し、代表 4 箇所を置換済みです（AuthAlert を畳んで削除 + notes サイドバーのエラー帯 + オフラインバナー + schedule の繰り返しフィルタ通知）。Issue の DoD どおり全置換は本 PR のスコープ外にしているので、**残りを子 Issue に割るのをお願いします**。棚卸しは実測済みで、必要な判断ごとに 3 つに割れます。
+
+- **(1) フォーム内のエラー文言** — `shared/src/components/DeleteAccountDialog.tsx:110` / `web/src/notes/NotePasswordDialog.tsx:171` / `web/src/wikitag/LinkPanel.tsx:542`。3 つとも「素の `text-lumen-danger` な `<p>` / `<span>`」で、すでに詰まったコンテナの中にいます。**枠付きの帯は重すぎる可能性が高い**ので、単純な置換ではなく「文字だけの 3 つ目の `variant` を足すか否か」の判断が要ります
+- **(2) Trash の復元通知** — `web/src/trash/TrashScreen.tsx:319`。`AlertCircle` 付きの帯で、枠がニュートラル色。ほぼ素直な置換ですが、**今トーンを持っていない**ので何色にするかだけ決めれば済みます
+- **(3) インラインの確認行** — `shared/src/components/schedule/RepeatListPanel.tsx:131`。削除の「armed」行で、`ConfirmDialog` を開かず**あえてその場で確認している**別形状（答えが 2 つ・backdrop 無し）。共通化するなら API の設計判断が先に要ります
+
+**通知ではないと判定して除外したもの**（再棚卸しの手間を省くため実測結果を残します）: `ErrorBoundary`（全画面のエラー状態）/ `SettingsAccount:142`（danger 色の見出し）/ `TrashScreen:254`（ローディングのスケルトン）/ `MobileAnalyticsView:211`（accent 色の統計カード）。
+
+**1 点だけ見た目を変えています**（PR 本文にも記載）: オフラインバナーのトーンを `danger` → `warning` に下げました。何も失敗していない（アプリが「今できないこと」を伝えているだけ）で、`danger` は隣の画面で本物のエラーが使っている色だからです。文言・`role="status"`・`WifiOff` は据え置き。**merge 後の実ブラウザ確認は §7.4 どおり chat-main の手番**なので、ここだけ目視をお願いします。

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { i18n } from "@life-editor/shared";
 import { AuthScreen } from "../src/AuthScreen";
 import { LegalReaderHost } from "../src/legal/LegalReaderHost";
 import { LEGAL_DOCUMENTS } from "../src/legal/legalContent";
@@ -137,6 +138,30 @@ describe("legal documents", () => {
         expect(text).toContain("sunbreak-pro");
         expect(text).toContain("github.com/sunbreak-pro/life-editor/issues");
       }
+    }
+  });
+
+  /*
+   * #1252 — the policy and the app drifted apart: Settings → Account shipped
+   * the delete (#1200) while the deletion section still called it "in
+   * preparation". A policy that understates what the product does is the
+   * kind of wrong nobody notices until somebody relies on it.
+   *
+   * The catalog entry is the cheapest proof the feature exists — `exists`,
+   * not `t`, because `t` hands back the key itself for a missing one and
+   * would pass either way.
+   */
+  it("keeps the deletion section in step with what Settings actually offers", () => {
+    expect(i18n.exists("settings.account.delete.button")).toBe(true);
+
+    for (const locale of ["en", "ja"] as const) {
+      const section = LEGAL_DOCUMENTS[locale].privacy.sections.find((s) =>
+        /Deleting your data|データの削除/.test(s.heading),
+      );
+      expect(section).toBeTruthy();
+      const text = (section?.paragraphs ?? []).join(" ");
+      expect(text).not.toMatch(/in preparation|準備中/);
+      expect(text).toMatch(locale === "en" ? /Settings/ : /設定/);
     }
   });
 });

@@ -32,7 +32,9 @@ import type { TourLabels } from "./labels";
  * tokens.css, and the app-wide `prefers-reduced-motion` blocks in that same
  * file already flatten every CSS animation — so reduce-motion is honoured with
  * nothing to wire here. A rAF/WAAPI animation would have to re-implement it
- * and would be the one thing those blocks cannot reach.
+ * and would be the one thing those blocks cannot reach. The rAF loop further
+ * down is NOT animation and this rule does not reach it: it MEASURES, and it
+ * writes nothing unless the anchor really moved (#1249).
  *
  * STACKING: z-45 — above the app's page chrome (z-30 and below, plus the one
  * z-40 sticky grid header) and BELOW the z-50 dialog band. That ordering is
@@ -72,6 +74,30 @@ interface SpotlightRect {
   width: number;
   height: number;
 }
+
+/*
+ * Equality for the two measured values, so a re-measure that finds nothing
+ * moved costs no render (#1249).
+ *
+ * Load-bearing, not a micro-optimisation: the measure below runs once per
+ * animation frame, and `setState` with a fresh object literal is never
+ * `Object.is`-equal — without these the bubble would re-render 60 times a
+ * second for as long as a step is on screen.
+ */
+const sameSpotlight = (
+  a: SpotlightRect | null,
+  b: SpotlightRect | null,
+): boolean =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.top === b.top &&
+    a.left === b.left &&
+    a.width === b.width &&
+    a.height === b.height);
+
+const samePlacement = (a: ClampedPlacement, b: ClampedPlacement): boolean =>
+  a.top === b.top && a.left === b.left && a.maxHeight === b.maxHeight;
 
 export interface TourOverlayProps {
   /** The element being pointed at. Its rect is read for PLACEMENT only. */
@@ -158,34 +184,61 @@ export function TourOverlay({
         return;
       }
       const rect = anchorElement.getBoundingClientRect();
-      setSpotlight({
+      const next: SpotlightRect = {
         top: rect.top - SPOTLIGHT_GAP / 2,
         left: rect.left - SPOTLIGHT_GAP / 2,
         width: rect.width + SPOTLIGHT_GAP,
         height: rect.height + SPOTLIGHT_GAP,
-      });
+      };
+      setSpotlight((prev) => (sameSpotlight(prev, next) ? prev : next));
       // Feed the panel's REAL size back in, the way ItemActionPopover has to
       // (#826): a guessed height puts the last row off-screen where nothing
       // can reach it.
       const panel = panelNode?.getBoundingClientRect();
-      setPlacement(
-        clampToViewport(
-          { x: rect.left, y: rect.bottom + SPOTLIGHT_GAP },
-          panel?.width || ESTIMATED_PANEL.width,
-          panel?.height || ESTIMATED_PANEL.height,
-          SPOTLIGHT_GAP,
-        ),
+      const placed = clampToViewport(
+        { x: rect.left, y: rect.bottom + SPOTLIGHT_GAP },
+        panel?.width || ESTIMATED_PANEL.width,
+        panel?.height || ESTIMATED_PANEL.height,
+        SPOTLIGHT_GAP,
       );
+      setPlacement((prev) => (samePlacement(prev, placed) ? prev : placed));
     };
-    measure();
-    window.addEventListener("resize", measure);
-    // Capture phase: the app scrolls inside panes, not the document, so a
-    // bubbling listener on window would never see it.
-    window.addEventListener("scroll", measure, true);
-    return () => {
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
+
+    /*
+     * MEASURED EVERY FRAME, not on a list of events (#1249).
+     *
+     * This used to run once on mount and then only on `resize` and a
+     * capture-phase `scroll`. Both fire for the cases where the USER moves
+     * something; neither fires for the case that actually broke it, which is
+     * the anchor still settling under its own page. On narrow, Briefing's
+     * 朝刊/夕刊 switcher IS the anchor and it rides inside the body: the
+     * loading branch wraps it in `py-8` and the loaded one in a `py-3` bordered
+     * row (BriefingView.tsx), so the tab lifts ~20px the moment the fetch
+     * lands, and the taller content brings a scrollbar in with it that takes
+     * another ~8px off the tab's width. The tour had already measured the
+     * skeleton, so the spotlight sat low and wide over nothing — and a manual
+     * `resize` event snapped it right, which is what identified the cause.
+     *
+     * A ResizeObserver on the anchor was the cheaper-looking fix and is not
+     * enough: it sees the width change here only because a desktop-class
+     * scrollbar happens to appear, and on a real phone (overlay scrollbars) the
+     * anchor MOVES without ever changing size. Nothing observes movement
+     * directly — this is the same wall Floating UI's `autoUpdate` hits, and its
+     * answer is the same frame loop.
+     *
+     * The cost is one `getBoundingClientRect()` per frame while a step is on
+     * screen, and NO renders unless the box really moved (see `sameSpotlight` /
+     * `samePlacement`). That is bounded by the tour being open, which is a
+     * handful of steps once per user — and the alternative is a bubble that
+     * points at the wrong place on every screen whose content arrives late.
+     */
+    let raf = 0;
+    const tick = () => {
+      measure();
+      raf = requestAnimationFrame(tick);
     };
+    tick();
+    return () => cancelAnimationFrame(raf);
   }, [anchorElement, copy, panelNode]);
 
   /*

@@ -1,5 +1,21 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-08-30 - Settings の見た目の小傷 2 件（Issue #1243 / PR #1261・Issue #1253 / PR #1271）
+
+#### 概要
+
+chat-main が merge 後の実ブラウザ検証で拾った Settings の小傷 2 件を、1 Issue = 1 ブランチ（origin/main 分岐）で直した。どちらも機能は正常で、直したのは見え方だけ。merge は P-001 でユーザー手番のため未実施。
+
+#### 変更点
+
+- **#1243 → PR #1261**: ja だけカテゴリ行と本文見出しが同じ場所を別の名前で呼んでいた（行 = section registry の「予定」／見出し = `settings.schedule.heading` の「スケジュール」）。en は両方 "Schedule" で偶然一致していたので露出しなかった。`heading` / `description` に加えて **`hint` も揃えた** — Issue の Scope には無いが同じペイン内の連続した文で同じ対象を指しており、片方だけ直すと 1 行下に同じ食い違いが残るため。設定画面の外（朝刊 / 分析 / コマンドパレット等）の「スケジュール」は対象外
+- **#1243 の再発防止**: `shared/tests/settingsSectionNaming.test.ts` 新規。section registry の各セクションについて `settings.<id>.heading` があれば `section.<id>` と同値であることを en / ja で検査する。今日ペインを持つのは schedule だけだが、briefing / materials / work / analytics がペインを持ったら自動で対象に入る。`i18nKeys.test.ts` はキーの一致しか見ないのでこの種の**値**のズレは素通りしていた
+- **#1253 → PR #1271 (1) ラベル二重**: 見出し行が px 読み値と並べて名前を出し、その真下で `SettingsSegment` が同じ名前をもう一度出していた。`SettingsSegment` に `hideLabel` を足し、**可視コピーだけ**を落とす（radiogroup の `aria-label` は据え置き。`description` はホストのキャプションなので残す）
+- **#1253 → PR #1271 (2) テーマカードの溢れ**: カード幅は 3 列グリッド × 画面幅で決まるのに文字はユーザー設定で伸びるため、390px / 22px で glyph + "System" がカードを超えていた（Issue 実測 scrollWidth 102 > clientWidth 83）。ラベル行に 3 段の逃げ道を入れた — `flex-wrap`（名前が glyph の下に 1 行取れる）/ `min-w-0`（その行が max-content 幅を抱えずカード幅まで縮む）/ `break-words`（それでも入らない 1 単語を折る）。既存の `min-w-0` 単独では単語自体が折れず効いていなかった
+- **テスト**: `shared/tests/narrowFontSizePolish.test.tsx` 新規。**修正を一時的に戻すと 2 件とも落ちることを実測**（`expected [...] to have a length of 1 but got 2` / `expected 'min-w-0' to contain 'break-words'`）。溢れそのものは jsdom にレイアウトが無く測れないので「折返しが許可されているか」を固定した — 22px の実表示は §7.4 に従い merge 後 chat-main（390px / en・ja）へ送った
+- **検証**: 2 ブランチそれぞれで CI `verify` 全ステップ + `docs-lint` をローカル全緑（15/15）。GitHub Actions も両 PR で両ジョブ pass
+- **環境の罠**: #1243 の初回ローカル実行で `web — test` が `briefingEveningLazyMount` の 2 件で落ちたが、これは lazy import した tiptap の mount を `waitFor`（既定 1 秒）で待つテストがマシン混雑で間に合わなかったもの。同 run に vitest のワーカー起動タイムアウトも出ていた。`--maxWorkers=2` で 100 files / 937 tests 全緑・単体でも 7/7 緑・GitHub CI も緑で、変更は `shared/` の ja 文字列 3 本とテスト 1 本のみ（`web/` に差分ゼロ）なので環境起因と判断した。なお `scripts/docs-lint.sh` はこの Windows 機だと初回 20 分近くかかる（468 本の .md × 1 本あたり 4 プロセス起動）— ハングではない
+
 ### 2026-08-30 - #1174 merge 後のコンフリクト解消（PR #1223 / #1229）
 
 #### 概要
@@ -60,19 +76,3 @@ Settings > Account のパスワード変更フォームが new-password 2 本だ
 - **テスト**: `web/tests/settingsAccountCard.test.tsx` に「session のアドレスが hidden username として載る（hidden / readOnly も込み）」1 本、`web/tests/authScreenRecovery.test.tsx` に「recovery session のアドレスが渡る」「アドレスが無ければ入力ごと出ない」2 本。hidden 入力は目視で気付けないので、ブラウザが実際に読む属性 `input[autocomplete="username"]` を名指しで固定した
 - **i18n / トークン**: 新規文言ゼロ・スタイルゼロ（hidden 入力のためレイアウト差分なし）
 - **検証**: shared lint 0 errors / `tsc -b` OK / 2301 tests pass、web lint 0 errors / build OK / 480 tests pass。Chrome の DOM 警告が消えることの実機確認は §7.4 に従い merge 後 chat-main 側
-
-### 2026-08-15 - テーマ切替カードの light / dark が区別できない不具合修正（Issue #887 / PR #905）
-
-#### 概要
-
-Settings のテーマ切替カード 3 枚（ライト / ダーク / システム）が同じ見た目で、選択中のモードを色から読み取れなかった。原因は色の値ではなく `lumen-*` 別名の**解決タイミング**。Tailwind は `@theme` の別名（`--color-lumen-bg: var(--color-bg-primary)`）を `:root` に出力するが、CSS カスタムプロパティの `var()` は**宣言された要素**で置換されるため、別名は root のテーマ色で確定し子孫はその確定値を継承する。カードの `data-theme` サブツリーは下敷きの `--color-*` を切り替えていたが、実際に塗りに使う `lumen-*` 側は解決済みだった（`data-theme` スコープ自体は正しく、ミニチュア設計も正しかった）。
-
-#### 変更点
-
-- **shared/src/styles/tokens.css**: 裸の `[data-theme]` 属性セレクタで `lumen-*` 別名を再宣言するブロックを追加（light / dark の両方に当たるので、各宣言はその要素でスコープに入っている `--color-*` を見て解決される）。レイヤー外に置いたので Tailwind が `@layer theme` の `:root` に出す同名定義にも勝つ。列挙はネストしたテーマで塗る 6 トークンのみ・全て `var()` 経由で色値のコピーはゼロ
-- **shared/src/components/ThemePreviewCard.tsx**: ラベル左に lucide の昼/夜グリフ（`Sun` / `Moon` / `SunMoon`）を 14px で追加し、色以外の手がかりを一本持たせた（絵文字は不可 = Issue 明記）。ラベルは `min-w-0` で 3 列モバイルグリッドでも折り返せるように
-- **ビルド後 CSS で実証**: `[data-theme]{--color-lumen-bg:var(--color-bg-primary);…}` が `@layer` の外に出力され、`.bg-lumen-bg{background-color:var(--color-lumen-bg)}` が使用箇所で引く形になっていることを `web/dist` の生成物で確認
-- **テスト**: `shared/tests/tokensNestedTheme.test.ts` 新規（別名ブロックを落とすと無言で元の症状に戻るため tokens.css の宣言を固定。色値コピーの混入も検出）・`shared/tests/themePreviewCard.test.tsx` に 3 枚のグリフ差分とミニチュアの固定テーマ検査を追加
-- **docs**: `.claude/rules/frontend.md` のデザイン規約に落とし穴を 1 行追加（`lumen-*` はネストした `data-theme` に追随しない／部分テーマで使うトークンは別名ブロックに足す）
-- **検証**: shared lint 0 errors / `tsc -b` OK / 2152 tests pass、web lint 0 errors / build OK / 394 tests pass、`scripts/docs-lint.sh` OK。実ブラウザ確認は §7.4 に従い merge 後 chat-main 側
-- **worktree**: 本レーンの worktree が `workspaces/life-editor/workspaces/life-editor/settings-refine` と二重ネストしている（過去の相対パス作成の名残）。リポジトリ**外**なので Orca の除外条件には当たらず実害はパス長のみと判断し、作り直さず作業した

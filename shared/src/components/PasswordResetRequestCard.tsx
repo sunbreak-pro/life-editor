@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { LoaderCircle } from "lucide-react";
 import { cn } from "./cn";
 import { AUTH_SURFACE_CLASS } from "./authSurface";
-import { AuthAlert } from "./AuthAlert";
+import { NoticePanel } from "./NoticePanel";
 import { AuthBrandHeader } from "./AuthBrandHeader";
 import { Button } from "./Button";
 
@@ -102,8 +102,8 @@ export function PasswordResetRequestCard({
         />
       </label>
 
-      {error ? <AuthAlert message={error} /> : null}
-      {notice ? <AuthAlert message={notice} tone="success" /> : null}
+      {error ? <NoticePanel message={error} tone="danger" role="alert" /> : null}
+      {notice ? <NoticePanel message={notice} tone="success" role="alert" /> : null}
 
       <Button type="submit" size="lg" disabled={busy} className="w-full">
         {busy ? (

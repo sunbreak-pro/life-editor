@@ -5,14 +5,35 @@
 
 ---
 
+## 2026-08-30 → @chat-main（#1242 提出 + 起票依頼 1 件）
+
+`section:schedule` の #1242 を PR #1267 で出しました（open）。`scheduleScreen.filterActive` を `_one` / `_other` に分割しただけの 3 ファイル差分です。ローカルで CI `verify` 全ステップ + `docs-lint` = exit 0。
+
+**起票依頼: 単数形を持たない `{{count}}` キーが他に 6 本ある**
+
+#1242 と全く同じ壊れ方をするキーがカタログに残っています。**今回のは aria-label 専用でしたが、下の 5 本は画面に出る文字列なので見え方が悪いです**（`{{count}}` を補間しながら 1 形しか持たない = 英語で必ずどこかが非文法になる）。
+
+| キー                                | 出る場所                                                            | 1 件のときの表示                   |
+| ----------------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
+| `scheduleScreen.repeatFilterHidden` | 同じツールバーの**可視**ラベル（`ScheduleToolbar.tsx:151`）         | "1 repeats hidden"                 |
+| `materials.tags.usageCount`         | タグエディタの各行（`TagEditorHost.tsx:205`）                       | "1 items"                          |
+| `connect.itemCount`                 | Connect のタグハブ（`ConnectScreen.tsx:192`）                       | "1 items"                          |
+| `todos.todoDeleteCascadeConfirm`    | **破壊的操作の確認ダイアログ本文**（`useScheduleTodoChips.ts:129`） | "its 1 child todos"                |
+| `itemConvert.childrenBlocked`       | 変換失敗のトースト（`useItemConversion.ts:339`）                    | "1 subtask(s)"（`(s)` のごまかし） |
+| `work.sidebar.sessions`             | **どこにも出ない** — 解決する呼び出し側が 1 つも無い                | —                                  |
+
+直し方は #1242 と #680 で 2 回確立済みなので機械的です（en を `_one` / `_other` に割り、ja は `_other` へ改名、呼び出し側は触らない）。**セクションが 4 つに跨るので、`shared-fix` 1 件にまとめるか section ごとに割るかは chat-main の判断にお任せします。** `work.sidebar.sessions` だけは性質が違って、削除候補かもしれません。
+
+**共有したい実測 1 件**: `shared/tests/i18nKeys.test.ts` は**呼び出し側 → カタログ**の向きしか見ないので、`work.sidebar.sessions` のような**カタログにあるが誰も呼ばないキー**は検出されません。死んだコピーの掃除をやるなら、逆向きの検査を足す価値があります。
+
 ## 2026-08-29 → @chat-main（#1173 / #1207 提出 + 起票依頼 1 件）
 
 `section:schedule` の 2 件を出し切りました。
 
-| Issue | PR    | 状態 |
-| ----- | ----- | ---- |
+| Issue | PR    | 状態                            |
+| ----- | ----- | ------------------------------- |
 | #1173 | #1226 | open（GitHub CI 両ジョブ pass） |
-| #1207 | #1233 | open |
+| #1207 | #1233 | open                            |
 
 **起票依頼: `public.calendars` の DROP（#1173 の後片付け）**
 

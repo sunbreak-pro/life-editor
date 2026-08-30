@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, type Mock } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { ReactNode } from "react";
+import {
+  resolveTourAnchor,
+  resolveTourStepAnchor,
+  TOUR_ANCHORS,
+  TOUR_STEPS,
+} from "@life-editor/shared";
 import type {
   MonthGridItem,
   ScheduleLoadState,
@@ -714,5 +720,46 @@ describe("CalendarDesktopLayout — the week grid's capability switches", () => 
     // The default the flag replaces. Left in place, the calendar tab draws a
     // 60vh grid with dead space under it however tall the window is.
     expect(scroller.className).not.toContain("max-h-[60vh]");
+  });
+});
+
+/*
+ * The narrow month grid is what the create-event step points at on a phone
+ * (#1250).
+ *
+ * `schedule-add-event` has two carriers and only one of them is mounted at a
+ * time: the toolbar button on wide, and the drawer's AddPill on narrow (#1148
+ * moved the phone's create route in there). But the drawer starts CLOSED every
+ * session, so on narrow that id is not in the document at all and the step was
+ * skipped. The registry now falls back to `schedule-calendar`, which is the
+ * surface the phone's create route actually STARTS on — tapping a day is what
+ * opens the drawer with the pill in it.
+ *
+ * Pinned here because it is a fact about THIS component: the shared suite can
+ * prove the fallback is consulted, but only a real render can say the grid
+ * still wears the id it falls back to.
+ */
+describe("the create-event step's narrow anchor (#1250)", () => {
+  it("is carried by the month grid once the calendar is showing", () => {
+    renderNarrow();
+    expect(resolveTourAnchor(TOUR_ANCHORS.scheduleCalendar)).not.toBeNull();
+  });
+
+  it("is reached through the fallback, because the wide carrier is absent", () => {
+    renderNarrow();
+    const step = TOUR_STEPS.find((s) => s.id === "schedule-create-event");
+    if (!step) throw new Error("schedule-create-event left the registry");
+
+    // The primary is the toolbar button, which this layout does not draw —
+    // that absence IS the bug, so it is asserted rather than assumed.
+    expect(resolveTourAnchor(step.anchor)).toBeNull();
+    expect(resolveTourStepAnchor(step)).not.toBeNull();
+  });
+
+  it("has no anchor to offer while the first fetch is still in flight", () => {
+    // Honest about the remaining wait: the grid is behind the load fold, so
+    // the step leans on the probe's deadline exactly as every other step does.
+    renderNarrow({ state: { loading: true } });
+    expect(resolveTourAnchor(TOUR_ANCHORS.scheduleCalendar)).toBeNull();
   });
 });

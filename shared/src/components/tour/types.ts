@@ -40,6 +40,21 @@ export interface TourStep {
    *  An ATTRIBUTE, never a coordinate: jsdom has no layout, so a rect-based
    *  anchor would be untestable (CLAUDE.md §7.1 / rules/frontend.md). */
   readonly anchor: string;
+  /**
+   * Where to point when `anchor` is not in the document (#1250).
+   *
+   * For the case where the SAME lesson has a different target at a different
+   * width — not for "some other step's element will do". A layout can put the
+   * control a step teaches behind something that has to be opened first, and
+   * then the control is not a durable surface at that width even though it is
+   * one at the other. The fallback names the durable surface the lesson still
+   * holds on, so the step is shown instead of skipped.
+   *
+   * Optional and tried second, so nothing changes for a step whose primary
+   * anchor is where it always was. Absent on both ⇒ the step is skipped, which
+   * is still the fallback #1122 built the probe around.
+   */
+  readonly fallbackAnchor?: string;
   /** Catalog key for the step's copy. The host resolves it — shared
    *  primitives never call useTranslation (§6.4). */
   readonly copyKey: TranslationKey;

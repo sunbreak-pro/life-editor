@@ -14,6 +14,8 @@ import {
   TemplateSavedPanel,
   TemplateListPanel,
   TemplateApplyPanel,
+  ConfirmDialog,
+  useConfirmDialog,
   cn,
   type NoteSortMode,
   type DataService,
@@ -35,7 +37,10 @@ import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNotePassword } from "./hooks/useNotePassword";
 import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
 import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
-import { useNoteTemplateApply } from "./hooks/useNoteTemplateApply";
+import {
+  isBlankNoteBody,
+  useNoteTemplateApply,
+} from "./hooks/useNoteTemplateApply";
 import { TemplateEditHost } from "./TemplateEditHost";
 
 /*
@@ -423,6 +428,47 @@ export function NotesView({
     closeApply();
   }, [applyPending, closeApply, selected, updateNote]);
 
+  /*
+   * #1248: deleting a saved template asks first.
+   *
+   * The row's bin used to delete on the press. That was survivable while the
+   * list lived behind a modal, but #1180 put it in the sidebar next to the note
+   * list — a bin one slip away from the rows people click all day — and a
+   * deleted template does NOT land in Trash (the trash read filters templates
+   * out), so the press was both unguarded and unrecoverable. The question is
+   * the guard; the recovery half is deliberately out of scope here.
+   *
+   * The in-app <ConfirmDialog> (#707), not the browser's own: a native dialog
+   * lands outside the theme and freezes the page (#781). The name comes from
+   * the list this row was drawn from — the same string the user is looking at.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
+  const templateRows = templateLibrary.templates;
+  const removeTemplate = templateLibrary.remove;
+  const handleDeleteTemplate = useCallback(
+    (id: string) => {
+      const row = templateRows.find((tpl) => tpl.id === id);
+      const name = row?.title || t("materials.templates.untitled");
+      void askConfirm({
+        message: t("materials.templates.deleteConfirmBody", { name }),
+        confirmLabel: t("materials.templates.deleteConfirmAction"),
+        cancelLabel: t("common.cancel"),
+        danger: true,
+      }).then((ok) => {
+        if (ok) removeTemplate(id);
+      });
+    },
+    [askConfirm, removeTemplate, t, templateRows],
+  );
+
+  // #1255: what the apply confirm says depends on whether there is anything to
+  // discard. The copy call is the host's (§6.4), so the branch lives here.
+  const selectedBodyIsBlank = isBlankNoteBody(selected?.content);
+
   if (notes.isLoading) {
     return (
       <div className="px-4 pt-4">
@@ -510,7 +556,7 @@ export function NotesView({
             open={templateLibrary.listOpen}
             onToggle={templateLibrary.toggleList}
             onEdit={templateLibrary.beginEdit}
-            onDelete={templateLibrary.remove}
+            onDelete={handleDeleteTemplate}
             labels={{
               heading: t("materials.templates.sidebarHeading"),
               empty: t("materials.templates.empty"),
@@ -737,17 +783,36 @@ export function NotesView({
         onCancel={templateApply.close}
         labels={{
           pickTitle: t("materials.templates.applyPickTitle"),
-          confirmTitle: t("materials.templates.applyConfirmTitle"),
+          confirmTitle: selectedBodyIsBlank
+            ? t("materials.templates.applyConfirmTitleEmpty")
+            : t("materials.templates.applyConfirmTitle"),
           pickHint: t("materials.templates.applyPickHint"),
           empty: t("materials.templates.applyEmpty"),
           untitled: t("materials.templates.untitled"),
           loading: t("common.loading"),
           confirmBody: (name) =>
-            t("materials.templates.applyConfirmBody", { name }),
+            selectedBodyIsBlank
+              ? t("materials.templates.applyConfirmBodyEmpty", { name })
+              : t("materials.templates.applyConfirmBody", { name }),
           cancel: t("common.cancel"),
           apply: t("materials.templates.applyConfirm"),
         }}
       />
+
+      {/* #1248's question. Mounted last so it portals ABOVE the sidebar the
+          bin was pressed in — and it holds no place in the tree while nothing
+          is being asked. */}
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
+        />
+      )}
 
       {password.dialog && (
         <NotePasswordDialog

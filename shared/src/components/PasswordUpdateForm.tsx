@@ -2,7 +2,7 @@ import { useId } from "react";
 import type { FormEvent } from "react";
 import { LoaderCircle } from "lucide-react";
 import { cn } from "./cn";
-import { AuthAlert } from "./AuthAlert";
+import { NoticePanel } from "./NoticePanel";
 import { Button } from "./Button";
 import { PasswordField, type PasswordFieldLabels } from "./PasswordField";
 import { PASSWORD_MIN_LENGTH } from "../constants/password";
@@ -163,8 +163,8 @@ export function PasswordUpdateForm({
         </div>
       </div>
 
-      {error ? <AuthAlert message={error} /> : null}
-      {notice ? <AuthAlert message={notice} tone="success" /> : null}
+      {error ? <NoticePanel message={error} tone="danger" role="alert" /> : null}
+      {notice ? <NoticePanel message={notice} tone="success" role="alert" /> : null}
 
       <div>
         <Button

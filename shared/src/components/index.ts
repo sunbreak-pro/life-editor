@@ -33,6 +33,17 @@ export {
   type ConfirmDialogController,
   type ConfirmRequest,
 } from "./ConfirmDialog";
+// The non-modal half of the same pair (#1184): one band for every warning,
+// notice and inline refusal that stays on the screen it belongs to. Ask with
+// ConfirmDialog, tell with NoticePanel. Tones are ToastVariant's four so the
+// same message is the same color whether it arrives as a toast or in place.
+export {
+  NoticePanel,
+  type NoticePanelProps,
+  type NoticeTone,
+  type NoticeVariant,
+  type NoticeAction,
+} from "./NoticePanel";
 // Item operation panels (Issue #307) — the generic Popover / DetailOverlay
 // set + declarative ItemAction vocabulary. Any section reuses them for item
 // operations; #551 unified left/right click on the popover and retired the
@@ -217,11 +228,6 @@ export {
 // points (signed-in change + post-recovery reset); the two cards wrap it in
 // the pre-login surface, SettingsAccount in the Settings column.
 export { AUTH_SURFACE_CLASS } from "./authSurface";
-export {
-  AuthAlert,
-  type AuthAlertProps,
-  type AuthAlertTone,
-} from "./AuthAlert";
 // The gap between "signed up" and "signed in" when Confirm email is ON
 // (#1197). Same auth face as the other pre-login cards.
 export {
@@ -436,10 +442,10 @@ export * from "./Analytics";
 // sessions + the daily's Briefing section) and injects data + labels (§6.4).
 // Reuses the 3 adopted Analytics widgets internally (Analytics shrink).
 export * from "./briefing";
-// Backlinks — the "what links here" panel that outlived the Connect section
-// (#1152 retired the force-directed graph; the tags, item links and search it
-// read from all stayed). Pure presentational: data + copy injected (§6.4).
-export * from "./Backlinks";
+// (Backlinks — the "what links here" panel salvaged from the Connect
+// retirement (#1152) — was deleted in #1239. It never gained a caller: the
+// Notes LinkPanel draws its own rows off the unified link cache, and the tag
+// hub below is tag-axis. P-002, on a full grep.)
 // TagHub (#1171) — the Connect section's body, and what the retired graph was
 // replaced BY: a tag-first hub (pick a topic, read its items by kind) instead
 // of one picture of every relationship at once. Pure presentational — the

@@ -50,9 +50,10 @@ import {
  *   - ROWS ARE CLICKABLE. Outgoing / backlink rows were a <span> and an <li>;
  *     they are buttons now and route through the host's item navigation (the
  *     same `pendingSelect…` handoff a "[[" link click uses — #475), with the
- *     icon + count treatment of <BacklinkView>, which now lives at
- *     `shared/src/components/Backlinks/` (#1152 retired the Connect section it
- *     was written for; this panel never imported it, only its look).
+ *     icon + count treatment the old <BacklinkView> used. That component is
+ *     gone (#1152 retired the Connect section it was written for, #1239 deleted
+ *     the salvaged copy once no caller appeared) — this panel never imported
+ *     it, only borrowed its look, so nothing here changed when it went.
  *   - TITLES RESOLVE CROSS-ROLE. `resolveTitle` only knows the host's own
  *     domain (Notes), so a Note→Todo link rendered as an id fragment. The
  *     candidate pool doubles as the title source for every role it carries;

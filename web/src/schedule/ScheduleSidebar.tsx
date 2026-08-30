@@ -3,6 +3,7 @@ import {
   useTranslation,
   AddPill,
   AgendaList,
+  NoticePanel,
   RepeatListPanel,
   RoutineSummaryCard,
   ScheduleSidebarTabs,
@@ -313,18 +314,16 @@ export function ScheduleSidebar({
   const repeatsBody = (
     <div className="flex flex-col gap-2">
       {repeats.hidden && (
-        <div className="flex flex-col gap-1.5 rounded-md border border-lumen-accent bg-lumen-accent-subtle px-3 py-2">
-          <p className="text-xs text-lumen-text-secondary">
-            {t("scheduleScreen.repeatFilterNotice")}
-          </p>
-          <button
-            type="button"
-            onClick={repeats.onShowHidden}
-            className="self-start rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {t("scheduleScreen.repeatFilterShow")}
-          </button>
-        </div>
+        // The one notice here that owns a next step, so it carries the
+        // panel's `action` slot rather than a button of its own (#1184).
+        <NoticePanel
+          tone="info"
+          message={t("scheduleScreen.repeatFilterNotice")}
+          action={{
+            label: t("scheduleScreen.repeatFilterShow"),
+            onClick: repeats.onShowHidden,
+          }}
+        />
       )}
       <RepeatListPanel
         rows={repeats.rows}

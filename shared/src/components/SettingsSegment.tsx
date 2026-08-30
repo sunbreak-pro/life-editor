@@ -13,6 +13,14 @@ export interface SettingsSegmentProps<V extends string> {
   label: string;
   /** Optional caption under the label. */
   description?: string;
+  /**
+   * Drop the VISIBLE copy of the label, keeping it only as the radiogroup's
+   * accessible name. For hosts that already print that name themselves — the
+   * font-size row pairs it with a live px readout, so rendering it here too
+   * stacked the same words twice (#1253). A description, if given, still
+   * shows: it is the host's caption, not a second copy of the name.
+   */
+  hideLabel?: boolean;
   value: V;
   onChange: (value: V) => void;
   options: SettingsSegmentOption<V>[];
@@ -32,6 +40,7 @@ export interface SettingsSegmentProps<V extends string> {
 export function SettingsSegment<V extends string>({
   label,
   description,
+  hideLabel = false,
   value,
   onChange,
   options,
@@ -51,14 +60,18 @@ export function SettingsSegment<V extends string>({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-lumen-text">{label}</span>
-        {description && (
-          <span className="text-sm text-lumen-text-secondary">
-            {description}
-          </span>
-        )}
-      </div>
+      {(!hideLabel || description) && (
+        <div className="flex flex-col gap-0.5">
+          {!hideLabel && (
+            <span className="text-sm font-medium text-lumen-text">{label}</span>
+          )}
+          {description && (
+            <span className="text-sm text-lumen-text-secondary">
+              {description}
+            </span>
+          )}
+        </div>
+      )}
       <div
         role="radiogroup"
         aria-label={label}
