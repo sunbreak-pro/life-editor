@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: COMPLETED
 Created: 2026-08-29
 Branch: main # docs のみ。commit は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main
@@ -98,12 +98,12 @@ DoD は各 Issue body が正本。表には番号と 1 行だけ置く。**着�
 
 ## Acceptance Criteria (機械検証可能)
 
-- [ ] Wave 1 の 19 Issue すべてに、その番号を参照する PR が存在する（`gh pr list --state all --search "<#N>"` で判定）
-- [ ] Wave 2 の #1194 / #1184 に同上
-- [ ] chat-main 手番の #1202 / #1135 / #1137 に PR（または close 済み）
-- [ ] open Issue が Epic（#1121 #716）と凍結（#898 #677）のみになっている（`gh issue list --state open` で判定）
-- [ ] r3 計画書が COMPLETED + archive 済み
-- [ ] 完了時: 本計画の Status 更新 + archive 移動 + per-chat memory 更新（docs 追随 DoD）
+- [x] Wave 1 の 19 Issue すべてに、その番号を参照する PR が存在する（2026-08-30 実測: 19 件すべて close・merge 済み PR 付き）
+- [x] Wave 2 の #1194 / #1184 に同上（#1194 = PR #1246 / #1184 = PR #1259・とも merged）
+- [x] chat-main 手番の #1202 / #1135 / #1137 に PR（#1202 = PR #1280 / #1137 = PR #1282 / #1135 = PR #1295・とも merged）
+- [ ] open Issue が Epic（#1121 #716）と凍結（#898 #677）のみになっている — **免除**（r4 スコープでは #1135 のみ open 残・Worklog 乖離レビュー (2) 参照。r4 スナップショット後起票の #1210 / #1211 と 2026-08-30 新ラウンド #1264 / #1275〜#1294 は対象外）
+- [x] r3 計画書が COMPLETED + archive 済み（PR #1262）
+- [x] 完了時: 本計画の Status 更新 + archive 移動 + per-chat memory 更新（Status / 移動 = 本 PR・memory 追随は巡回の次回 tracker PR に畳む）
 
 ---
 
@@ -220,3 +220,7 @@ DoD は各 Issue body が正本。表には番号と 1 行だけ置く。**着�
 ## Worklog
 
 - 2026-08-29: 計画書作成（chat-main）。open Issue 28 / open PR 0 の実測スナップショットから 6 レーン 19 件 + Wave 2 の 2 件 + chat-main 3 件に分配。#1197 #1198 #1199 → `[web-public]`・#1184 → `[refactor-core]` の宛先振り直しを同日実施
+- 2026-08-30: 全消化を確認して COMPLETED 化 + archive 移動（chat-main・Step 9）。Wave 1 の 19 件と Wave 2 の #1194 / #1184 はすべて close（merge 済み PR 付き）、chat-main 手番 3 件も PR 着地。merge 後の実ブラウザ検証は各バッチで PASS（最終 = #1296 の legal §4 文面・巡回 1 回目）
+- 乖離レビュー (1) スコープ逸脱: なし（本計画書 PR が触ったのは本ファイルのみ。レーン実装・宛先振り直しは各 Issue / PR 側で完結）
+- 乖離レビュー (2) AC 免除: AC4「open Issue が Epic + 凍結のみ」は r4 スコープで #1135 だけが open 残。機構（RETIRED マーカー + 集計スキップ）は PR #1295 で着地済みで、close は方向 (b)（regen 時に gh で PR 実状態を引く案）の扱いをユーザーへ提示してから（P-001 = Issue close の確定は常にユーザー）。#1210 / #1211（r4 スナップショット後に起票）と #1264 / #1275〜#1294（2026-08-30 の新ラウンド）は r4 の対象外なので AC4 の判定に含めない
+- 乖離レビュー (3) 途中で出た判断の行き先: レーン発の判断はすべて処理済み — D-20260829-web-1〜3 / D-20260829-connect-1 は回答済み → 台帳昇格 PR #1297、#1184 の残置換 3 グループは #1275 / #1278 / #1279 として起票済み、#1200 の 🛑 2 手は G-20260829-settings-1（手 1 = 0025 適用済みを 2026-08-30 実測・手 2 = Edge Function deploy 待ち）。Epic #1121 / #716 の close 判定は実機確認後のユーザー手番として本計画の外で追跡
