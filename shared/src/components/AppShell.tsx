@@ -13,7 +13,12 @@ import { MobileDrawer } from "./MobileDrawer";
 export interface DetailPanelLabels {
   /** Panel title ("詳細" / "Details"). */
   title: string;
-  /** aria-label for the close (X) button. */
+  /**
+   * aria-label for the close (X) button. NARROW LAYOUT ONLY since #1284 — the
+   * wide branch's <RightSidebar> dropped its in-panel × (the header's own
+   * <RightSidebarToggle> is the single close affordance there), so only
+   * <MobileDrawer> still draws a button carrying this name.
+   */
   close: string;
   /** Empty-state copy shown while nothing is registered. */
   empty: string;
@@ -203,7 +208,6 @@ export function AppShell({
             {detailPanelLabels && (
               <RightSidebar
                 title={detailPanelLabels.title}
-                closeLabel={detailPanelLabels.close}
                 emptyLabel={detailPanelLabels.empty}
                 resizeLabel={detailPanelLabels.resize}
               />
