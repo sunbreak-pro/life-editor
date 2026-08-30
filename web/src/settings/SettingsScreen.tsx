@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Lightbulb, SlidersHorizontal } from "lucide-react";
 import {
   SettingsAccount,
+  SettingsAiIntegration,
   SettingsAppearance,
   SettingsLegal,
   SettingsLanguage,
@@ -41,6 +42,9 @@ import {
   resetLocalPreferences,
   useMediaQuery,
   useTranslation,
+  getDataService,
+  lastBriefingDate,
+  MCP_TOOL_CATALOG,
   type SettingsTabItem,
   type TourLauncherSection,
   type ShortcutRow,
@@ -330,6 +334,53 @@ export function SettingsScreen() {
     };
   }, []);
 
+  /*
+   * Last AI activity for the integration card (#1210).
+   *
+   * Read here rather than passed in: like `getSession()` above, this screen is
+   * rendered with no props, and the answer is one string. Dailies come back
+   * whole because that is the only list call there is — the derivation itself
+   * (newest day carrying a briefing section) is a pure helper in shared, so
+   * what runs here is a fetch and nothing else.
+   *
+   * `undefined` while in flight, `null` once we know there is nothing — the
+   * card shows a checking line for the first and a "not yet" sentence for the
+   * second, which are different facts. A failure (no credentials, offline)
+   * lands on `null` too: the card is decoration on a screen that works without
+   * it and must not take Settings down.
+   */
+  const [lastBriefing, setLastBriefing] = useState<string | null | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    let active = true;
+    // getDataService() THROWS SYNCHRONOUSLY when the app has no Supabase
+    // credentials — the shape suites run exactly there. Building the service
+    // inside the async body turns that into a rejection like any other, so the
+    // one `.catch` below covers both "could not connect" and "could not even
+    // be constructed"; a `.catch` on the promise alone would never see it.
+    const read = async () =>
+      lastBriefingDate(await getDataService().listDailiesUnified());
+    void read()
+      .then((date) => {
+        if (active) setLastBriefing(date);
+      })
+      .catch((e: unknown) => {
+        console.error("[settings] listDailiesUnified", e);
+        if (active) setLastBriefing(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const aiLastActivity =
+    lastBriefing === undefined
+      ? null
+      : lastBriefing === null
+        ? t("settings.ai.activityNone")
+        : t("settings.ai.activityValue", { date: lastBriefing });
+
   const passwordMessages = useMemo(
     () => ({
       mismatch: t("settings.account.errors.mismatch"),
@@ -579,6 +630,37 @@ export function SettingsScreen() {
                 heading: t("settings.tutorial.heading"),
                 description: t("settings.tutorial.description"),
                 button: t("settings.tutorial.button"),
+              }}
+            />
+          </div>
+
+          {/*
+           * AI integration (#1210). General, not a per-section category: the
+           * MCP connection reaches every section's data, so it belongs with
+           * the settings that describe the app rather than under any one of
+           * them. Above Legal and Reset for the same reason Account is —
+           * things you read about the app, then things that change it.
+           */}
+          <div className={cardClass}>
+            <SettingsAiIntegration
+              tools={MCP_TOOL_CATALOG}
+              lastActivity={aiLastActivity}
+              labels={{
+                heading: t("settings.ai.heading"),
+                description: t("settings.ai.description"),
+                activityHeading: t("settings.ai.activityHeading"),
+                activityLoading: t("settings.ai.activityLoading"),
+                activityCaveat: t("settings.ai.activityCaveat"),
+                toolsHeading: t("settings.ai.toolsHeading"),
+                // The count comes from the generated catalog, never a literal
+                // here — the number moves when a tool is added (数値の非複製原則).
+                toolsCount: t("settings.ai.toolsCount", {
+                  n: MCP_TOOL_CATALOG.length,
+                }),
+                show: t("settings.ai.show"),
+                hide: t("settings.ai.hide"),
+                argsLabel: t("settings.ai.argsLabel"),
+                argsNone: t("settings.ai.argsNone"),
               }}
             />
           </div>

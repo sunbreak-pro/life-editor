@@ -1,5 +1,24 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-08-30 - Settings 3 件（#1210 / PR #1307・#1293 / PR #1317・#1294 / PR #1323）
+
+#### 概要
+
+settings-refine レーンの open Issue 3 件を、1 課題 = 1 ブランチ（いずれも origin/main 分岐）で実装し PR まで出した。merge は P-001 でユーザー手番のため未実施。3 本とも CI `verify` の全ステップ + `docs-lint` をローカルで全緑にしてから push した。
+
+#### 変更点
+
+- **#1210 → PR #1307（AI 連携の可視化・段階 1）**: アプリの UI に Claude / MCP 連携の痕跡がゼロだった問題。$0 制約（アプリから API を呼ばない）と DDL なしのまま、既存データからの導出だけで 3 箇所に出した — Settings の「AI 連携」カード / ビルド時生成のツールカタログ / Briefing の帰属バッジ
+- **#1210 カタログの生成経路**: `mcp-server/scripts/dump-tool-catalog.mjs`（`npm run catalog` = `build && node`）が registry を `shared/src/generated/mcpToolCatalog.json` へ吐く（初回 35 本 / 36 KB）。**shared から registry を直 import できない** — `tools/<domain>.ts` が handler を、handler が Supabase クライアントを引き込むためフロントのバンドルに混入する。**dist/ を読む**形にしたのは plain Node に TypeScript ローダが無いから。registry の import 自体は副作用ゼロ（`getSupabase()` が遅延）
+- **#1210 鮮度の担保**: 生成は手動なのでカタログは drift しうる。`mcp-server/tests/toolCatalogFreshness.test.ts` が **件数ではなく name / description / inputSchema を全件突き合わせる** — 件数だけだと改名で緑になり、かつ数値の第 2 の正本を作ってしまう（数値の非複製原則）。`shared/src/generated/` は `resolveJsonModule` + `include: ["src", "src/**/*.json"]` で既に通り、tsconfig の追加設定は不要だった
+- **#1210 で踏んだ罠**: **`getDataService()` は同期で throw する**（Supabase 資格情報が無い環境 = shape suites）。promise の `.catch` では捕まらず、最初の実装は Settings を描画する **7 ファイル 48 テスト**を巻き添えにした。async 本体の中で構築して reject に落とす形に直し、`web/tests/settingsAiCard.test.tsx` に回帰テストを置いた。i18n の件数キーは `{{count}}` を避けて `{{n}}`（i18next が `count` を複数形トリガとして解釈する）
+- **#1293 → PR #1317（Trash を Settings 配下へ）**: `shared/src/sections.ts` から `trash` 行を落とすだけで `SectionId` / サイドバー順 / mobile 順 / コマンドパレットが追随し、`sectionDescriptors` は `Record<SectionId, …>` なので削除が型で強制された。i18n は `section.trash` → `settings.tabs.trash` に改名（存在しないセクションを説明していた `tour.launcher.summary.trash` も削除）。保存済み `last-section` が `"trash"` でも `resolveInitialSection()` が registry と突き合わせて Briefing に落とすので、アップグレード後の空セクション着地は起きない
+- **#1293 で分かったこと**: `TrashScreen` は `useSyncDomains` を使うので **SyncProvider が要る**。実アプリでは `AppProviders` が木の上位に 1 度だけ mount しており、セクション本体はその内側で描画されるため問題なし（`descriptor.body()` は要素を作るだけで hooks は走らない）。単体で画面を render する `web/tests/settingsTabs.test.tsx` だけカウンタを stub した。見出しはカード内・リストはカード外に置いた（`TrashView` が自前で枠付きカードを描くため丸ごと包むと枠が二重になる）
+- **#1294 → PR #1323（複数選択 + 一括削除）**: 行と見出しにチェックボックス、選択があるとバーが「N 件を選択中」＋ 戻す / 削除 / 解除 に変わる。**一括削除も 1 件削除と同じ確認ダイアログを通す**（文だけ差し替え）。「空にする」は選択不要だが `ghost` で右端 — 画面で一番破壊的なので「次に押すのはこれ」に見せない。選択は**現在の groups を通してから** host へ渡すので、復元やカスケードで消えた行の幽霊を削除しにいかない
+- **#1294 の host 側**: DataService に bulk の verb が無く、削除は子へカスケードするため親子を同じ選択に入れたら順番でしか処理できない。既存の 2 つのカテゴリ switch を **1 件ずつ順に**回し、失敗は throw せず**数える**（続行 → 生存行はリストに残る → 「N 件を処理できませんでした」）。DataService に bulk API を足す案は Mapper / sync まで波及するので採らず、Issue の要件（DataService 境界経由）は host のオーケストレーションで満たした
+- **#1294 の依存判定ミス**: Issue の前提 #1275 を着手時に実測して「PR 無し」と確認したが、**作業中の 22:30 JST に PR #1321 が立った**。触るファイル 3 本が丸ごと重なるため、PR 本文を訂正して merge 順（#1321 先）を明記した。**着手時の 1 回の実測を、作業が終わるまで有効な事実として扱ってはいけない**（`all-label-issue-collision` と同じ形の再発）
+- **環境**: `scripts/docs-lint.sh` はこの Windows 機で 15〜20 分（474 本の .md × 1 本あたり 4 プロセス）。並走させると `web/tests/briefingEveningLazyMount.test.tsx` が CPU 競合で `waitFor` タイムアウトするので、docs-lint と vitest は同時に回さない
+
 ### 2026-08-30 - Settings の見た目の小傷 2 件（Issue #1243 / PR #1261・Issue #1253 / PR #1271）
 
 #### 概要
@@ -61,18 +80,3 @@ settings レーンの open 3 件を「1 Issue = 1 ブランチ（origin/main 分
 - **DataService の文面について**: Issue は「進捗を DataService 経由で」と書いているが、基盤 PR が積んだ判断キュー `D-20260827-shared-fix-1` の A（localStorage 据え置き）が既定のまま。差し替え先は `useTourProgress.ts` 1 ファイル
 - **テスト**: shared に auto-start 5 本（初回で開く / スキップ後は黙る / 完了後は黙る / 空振り走行は開始地点へ戻す / 歩いた走行は戻さない）、web に「Tutorial カード → `restart` だけが発火」1 本。戻す guard は無効化して実際に落ちることを確認済み
 - **検証**: CI の `verify` ステップ全段（shared lint / build / typecheck:tests / 2598 tests、web lint / build / typecheck:tests / 855 tests、desktop typecheck / 7 tests / build、mcp-server build / typecheck:tests / 318 tests）と docs-lint をローカルで全緑。実ブラウザ確認は §7.4 に従い merge 後 chat-main 側
-
-### 2026-08-16 - パスワード変更フォームに hidden username を追加（Issue #945 / PR #978）
-
-#### 概要
-
-Settings > Account のパスワード変更フォームが new-password 2 本だけでできていたため、パスワードマネージャが「どの保存済みエントリを書き換えるのか」を判別できず、保存を提案しないか別エントリを更新していた（Chrome は開くたびに DOM 警告）。`PasswordUpdateForm` に optional な `username` を足し、渡されたときだけ hidden / readOnly の `autocomplete="username"` 入力をフォーム先頭に描くようにした。#956（floor 12 への引き上げ）を取り込んだ main から分岐しており、同 PR の定数・catalog には触れていない。
-
-#### 変更点
-
-- **shared/src/components/PasswordUpdateForm.tsx**: `username?: string` prop 追加＋ hidden / readOnly / `name="username"` の `autocomplete="username"` 入力。渡されないときは要素ごと描かない（空 username は「空アカウント」に紐付いて無いより悪くなるため）
-- **shared/src/components/SettingsAccount.tsx**: カードが既に必須 prop として持っている `email` をそのまま渡す（渡し忘れが型で起きない側）
-- **shared/src/components/PasswordRecoveryCard.tsx + web/src/AuthScreen.tsx + web/src/App.tsx**: recovery link は先にサインインを済ませるので、App が握る session の `user.email` を `recoveryUsername` → `username` と流す。マネージャの保存済みパスワードが定義上必ず古いこの画面が、保存が一番効く場所
-- **テスト**: `web/tests/settingsAccountCard.test.tsx` に「session のアドレスが hidden username として載る（hidden / readOnly も込み）」1 本、`web/tests/authScreenRecovery.test.tsx` に「recovery session のアドレスが渡る」「アドレスが無ければ入力ごと出ない」2 本。hidden 入力は目視で気付けないので、ブラウザが実際に読む属性 `input[autocomplete="username"]` を名指しで固定した
-- **i18n / トークン**: 新規文言ゼロ・スタイルゼロ（hidden 入力のためレイアウト差分なし）
-- **検証**: shared lint 0 errors / `tsc -b` OK / 2301 tests pass、web lint 0 errors / build OK / 480 tests pass。Chrome の DOM 警告が消えることの実機確認は §7.4 に従い merge 後 chat-main 側

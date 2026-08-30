@@ -181,8 +181,8 @@ export interface AudioDataService {
  * #1173 replaced the `calendars` domain with this one. A calendar was a saved
  * view over ONE tag; a group is the same saved view over MANY, so the four
  * methods line up one-for-one and the routing table simply swapped services.
- * The `calendars` TABLE still exists — dropping it is DDL, which is the
- * user's gate (CLAUDE.md §7.3) — but nothing reads or writes it any more.
+ * The `calendars` TABLE outlived its code because DDL is the user's gate
+ * (CLAUDE.md §7.3); migration 0026 drops it (#1277).
  */
 export interface TagGroupsDataService {
   fetchTagGroups(): Promise<TagGroupNode[]>;

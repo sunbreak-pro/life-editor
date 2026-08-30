@@ -1,4 +1,4 @@
-import { PanelRight } from "lucide-react";
+import { PanelRight, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "./cn";
 import { TAP_TARGET_TALL } from "./styleTokens";
 import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
@@ -7,13 +7,19 @@ import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
  * RightSidebarToggle — opens/closes the detail panel (App Shell Turn 2).
  *
  *  variant "panel"     — Desktop: sits at the right end of the header-tab row
- *                        (PanelRight, 28×28). Open = accent text + accent-subtle
- *                        fill; closed = neutral with a hover surface.
+ *                        (28×28). Open = accent text + accent-subtle fill;
+ *                        closed = neutral with a hover surface. The GLYPH
+ *                        flips with the state (#1284), mirroring what the left
+ *                        sidebar's collapse button has always done (SidebarNav:
+ *                        PanelLeftOpen while collapsed, PanelLeftClose while
+ *                        expanded) — so both ends of the shell answer "what
+ *                        will this click do?" the same way. Since #1284 it is
+ *                        also the panel's ONLY close affordance on Desktop.
  *  variant "hamburger" — Mobile: sits at the left end of the segment row
  *                        (PanelRight, 32×32, bordered) and opens the drawer.
- *                        Same glyph as the panel variant on purpose: both open
- *                        the detail panel, so they read as one control across
- *                        breakpoints (the variant name is kept to avoid churn
+ *                        Static glyph on purpose — the drawer is modal and
+ *                        covers this button, so there is no open state for it
+ *                        to reflect (the variant name is kept to avoid churn
  *                        at the call sites).
  *                        It shares the row's height with the segmented
  *                        control, so it came down from 36 with it (#1039) and
@@ -81,7 +87,7 @@ export function RightSidebarToggle({
         className,
       )}
     >
-      <PanelRight size={18} />
+      {isOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
     </button>
   );
 }

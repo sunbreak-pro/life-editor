@@ -58,6 +58,7 @@ export function useTagFilterPanel({
           id: tag.id,
           name: tag.name,
           color: tag.color,
+          icon: tag.icon,
           count: tagCounts.get(tag.id) ?? 0,
         })),
     [allTags, tagCounts],

@@ -13,6 +13,7 @@ import {
   Link2,
   Network,
   Plus,
+  Trash2,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -93,6 +94,11 @@ export interface LinkPanelTarget {
   id: string;
   label: string;
   role: string;
+  /**
+   * Soft-deleted (#1292). Present so an EXISTING link can still name its
+   * target; every list that offers a NEW one filters these out.
+   */
+  isDeleted?: boolean;
 }
 
 interface LinkPanelProps {
@@ -270,6 +276,9 @@ export function LinkPanel({
     const pool = targets.filter(
       (target) =>
         target.id !== itemId &&
+        // #1292: the pool carries soft-deleted rows so a dead link can be
+        // named. Offering one as a NEW link would mint an edge into the trash.
+        !target.isDeleted &&
         !linkedIds.has(target.id) &&
         (q ? target.label.toLowerCase().includes(q) : true),
     );
@@ -306,7 +315,10 @@ export function LinkPanel({
       // listing it twice makes the panel look busier than the graph is.
       if (linkedIds.has(a.itemId)) continue;
       const target = targetsById.get(a.itemId);
-      if (target) out.push(target);
+      // A deleted item is not a relation to follow (#1292) — the links section
+      // above shows dead ends because the user built them; this one would be
+      // inventing one.
+      if (target && !target.isDeleted) out.push(target);
     }
     return out.sort((a, b) => a.label.localeCompare(b.label));
   }, [wiki, itemId, linkedIds, targetsById]);
@@ -317,7 +329,8 @@ export function LinkPanel({
     // lookup — no extra read to find out whether that entry exists.
     const id = `daily-${relatedDailyDate}`;
     if (linkedIds.has(id)) return null;
-    return targetsById.get(id) ?? null;
+    const target = targetsById.get(id);
+    return target && !target.isDeleted ? target : null;
   }, [relatedDailyDate, linkedIds, targetsById]);
 
   const relatedCount =
@@ -370,15 +383,40 @@ export function LinkPanel({
     }
   };
 
-  const itemTitle = (id: string): string => {
+  /*
+   * How a row names its target, and what it says when the target is gone.
+   *
+   * #1292: deleting a linked todo used to leave the row printing `…56123478` —
+   * the id, shortened. The user's reading of that was "a run of digits", which
+   * is fair: it names nothing and looks like a bug. The pool now carries
+   * soft-deleted rows flagged, so the row can keep the TITLE the link was made
+   * with and mark it deleted instead.
+   *
+   * The id fragment survives as the third case only, for a target no side can
+   * name at all — a role outside the pool (an event), or a row not yet loaded.
+   * That is genuinely "unknown", not "deleted", and claiming otherwise would be
+   * the same lie in the other direction.
+   */
+  const resolveRow = (id: string): { title: string; deleted: boolean } => {
     const fromResolver = resolveTitle?.(id);
-    if (fromResolver) return fromResolver;
-    const fromPool = targetsById.get(id)?.label;
-    if (fromPool) return fromPool;
-    // Last resort: shorten the id — the full one stays in the row's title
-    // attribute, so a link that outlives its target is still identifiable.
-    return id.length > 12 ? `…${id.slice(-8)}` : id;
+    if (fromResolver) return { title: fromResolver, deleted: false };
+    const pooled = targetsById.get(id);
+    if (pooled?.label) {
+      return { title: pooled.label, deleted: !!pooled.isDeleted };
+    }
+    // The full id stays in the row's `title` attribute either way, so a link
+    // nothing can name is still identifiable on hover.
+    return {
+      title: id.length > 12 ? `…${id.slice(-8)}` : id,
+      deleted: false,
+    };
   };
+
+  /** The row's visible text — a deleted target is named AND said to be gone. */
+  const rowLabel = (row: { title: string; deleted: boolean }): string =>
+    row.deleted
+      ? t("materials.links.deletedTarget", { title: row.title })
+      : row.title;
 
   const handlePickerKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     // IME guard (rules/frontend.md §Gotchas): while a Japanese conversion is
@@ -417,25 +455,33 @@ export function LinkPanel({
   /** One linked item, as a chip sitting beside the tag pills. */
   const renderChip = (entry: { targetId: string; linkIds: string[] }) => {
     const { targetId, linkIds } = entry;
+    const row = resolveRow(targetId);
     const role = targetsById.get(targetId)?.role;
-    const Icon = roleIcon(role);
-    const title = itemTitle(targetId);
+    const Icon = row.deleted ? Trash2 : roleIcon(role);
+    const title = rowLabel(row);
     // A chip opens only when BOTH halves are known: the host has a navigator,
     // and the pool told us the target's role (the route keys off it). An id
-    // whose item is gone from the pool stays a plain, honest label.
-    const openTarget = onNavigateToItem && role ? { id: targetId, role } : null;
+    // whose item is gone from the pool stays a plain, honest label — and so
+    // does a DELETED one (#1292): its role still resolves, but there is nothing
+    // left to open, and the remove button beside it is the useful action.
+    const openTarget =
+      onNavigateToItem && role && !row.deleted ? { id: targetId, role } : null;
 
     const body = (
       <>
         <Icon size={12} aria-hidden className="shrink-0" />
-        <span className="max-w-[12rem] truncate text-left">{title}</span>
+        <span
+          className={`max-w-[12rem] truncate text-left${row.deleted ? " line-through" : ""}`}
+        >
+          {title}
+        </span>
       </>
     );
 
     return (
       <span
         key={targetId}
-        className="inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-1.5 py-1 text-xs text-lumen-text"
+        className={`inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-1.5 py-1 text-xs ${row.deleted ? "text-lumen-text-tertiary" : "text-lumen-text"}`}
       >
         {openTarget ? (
           <button
@@ -469,16 +515,21 @@ export function LinkPanel({
 
   /** One related row: icon + title, opening the item if it can be opened. */
   const renderRelatedRow = (id: string) => {
+    const row = resolveRow(id);
     const role = targetsById.get(id)?.role;
-    const Icon = roleIcon(role);
-    const title = itemTitle(id);
-    const open = onNavigateToItem && role ? { id, role } : null;
+    const Icon = row.deleted ? Trash2 : roleIcon(role);
+    const title = rowLabel(row);
+    const open = onNavigateToItem && role && !row.deleted ? { id, role } : null;
     const body = (
       <>
         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
           <Icon size={12} aria-hidden />
         </span>
-        <span className="min-w-0 flex-1 truncate text-left">{title}</span>
+        <span
+          className={`min-w-0 flex-1 truncate text-left${row.deleted ? " line-through" : ""}`}
+        >
+          {title}
+        </span>
       </>
     );
     return (

@@ -1,13 +1,6 @@
 import { memo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import {
-  FileText,
-  ChevronRight,
-  ChevronDown,
-  Lock,
-  Pin,
-  Trash2,
-} from "lucide-react";
+import { ChevronRight, ChevronDown, Lock, Pin, Trash2 } from "lucide-react";
 import {
   TagHeadingIcon,
   tagGroupKey as groupKey,
@@ -82,14 +75,25 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         FOCUS_RING,
       )}
     >
-      <FileText
-        size={14}
-        aria-hidden
-        className={cn(
-          "shrink-0",
-          selected ? "text-lumen-accent" : "text-lumen-text-secondary",
+      {/*
+       * The left glyph slot (#1287). It used to hold a document icon on EVERY
+       * row — identical on all of them, so it carried no information and only
+       * cost the width. The pin does: it is the one thing a row can differ by
+       * at a glance, and it used to sit after the title where it moved with the
+       * text length and was easy to miss.
+       *
+       * The <span> is always drawn, pinned or not. Reserving the width is what
+       * keeps every title starting at the same x — a slot that collapses when
+       * empty would ripple the whole list sideways around the pinned rows.
+       */}
+      <span
+        aria-hidden={!node.isPinned}
+        className="flex h-[14px] w-[14px] shrink-0 items-center justify-center"
+      >
+        {node.isPinned && (
+          <Pin size={13} aria-label="Pinned" className="text-lumen-accent" />
         )}
-      />
+      </span>
 
       <button
         type="button"
@@ -108,13 +112,6 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         >
           {node.title || "(untitled)"}
         </span>
-        {node.isPinned && (
-          <Pin
-            size={12}
-            aria-label="Pinned"
-            className="shrink-0 text-lumen-accent"
-          />
-        )}
         {node.hasPassword && (
           <Lock
             size={12}
