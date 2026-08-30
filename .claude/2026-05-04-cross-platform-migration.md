@@ -1,9 +1,9 @@
 ---
-Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。Phase 3（Electron 包装 #79）/ Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）、残は実機 golden path の目視ゲート。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。Phase 3（Electron 包装 #79）= Windows 実機 golden path 通過（#530・2026-08-13）・mac 実機は未。Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
 Created: 2026-05-04
-Updated: 2026-07-08
+Updated: 2026-08-31
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
-Project path: /Users/newlife/dev/apps/life-editor
+Project path: マシンごとに異なる（Mac / Windows でクローン位置が違うため固定パスは書かない）
 Branch: main（2026-05〜集約済み。旧 refactor/web-first-v2 は PR #3-9 merge 済で廃止 — CLAUDE.md ヘッダ参照）
 Supersedes:
   - `2026-04-29-web-first-migration.md`（archive から削除済・逐語は git 履歴参照）— Web First 単体構成（Electron 不採用）から本プランへ統合
@@ -188,7 +188,7 @@ life-editor/
     └── migrations/
 ```
 
-並立期間中の `frontend/` + `src-tauri/` は触らず維持。Phase 5 で削除（`cloud/` は 2026-06-28 に先行撤去済 — Supabase 直結で実行経路外の dead stack だったため）。
+`frontend/` + `src-tauri/` は両ツリーとも 2026-07-11 #197 で削除済み（復元 = git tag `pre-tauri-removal`。`cloud/` は 2026-06-28 に先行撤去済 — Supabase 直結で実行経路外の dead stack だったため）。
 
 ### 8. 配布・署名の現実（Mac App Store / Microsoft Store スコープ外）
 

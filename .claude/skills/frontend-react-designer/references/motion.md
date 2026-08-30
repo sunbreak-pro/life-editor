@@ -2,9 +2,9 @@
 
 > 既存 keyframes の流用、duration の 3 帯、prefers-reduced-motion 対応、過剰回避ルール。
 
-## §1 既存 keyframes 一覧 (FROZEN `frontend/src/index.css` 由来)
+## §1 既存 keyframes 一覧（正本 = `shared/src/styles/tokens.css`）
 
-以下の keyframes は **FROZEN な `frontend/src/index.css`（Tauri 時代）** に定義されている。現行の本流 CSS は `shared/src/styles/tokens.css` で、そこには今のところ `kanban-modal-*` 系 keyframes のみが移植済み。下記を shared コンポーネントで使うには **まず `shared/src/styles/tokens.css` に移植する必要がある**（未定義のまま class を書くと無効になる）。**新しい keyframes を増やす前に必ず流用を検討する**:
+既存 keyframes の出典は現行の本流 CSS **`shared/src/styles/tokens.css`**（一覧はコードが正 — `@keyframes` を grep。`kanban-*` / `lumen-*` 系が定義済み）。下表は旧 `frontend/src/index.css`（2026-07-11 #197 で削除済み）由来の歴史カタログで、**tokens.css に未移植** — 使うには git tag `pre-tauri-removal` から復元して tokens.css に移植する（未定義のまま class を書くと無効になる）。**新しい keyframes を増やす前に必ず流用を検討する**:
 
 | keyframe         | 用途                        | duration / easing      |
 | ---------------- | --------------------------- | ---------------------- |

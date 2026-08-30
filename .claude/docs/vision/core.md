@@ -34,12 +34,12 @@
 
 ### Elevator pitch
 
-カレンダー中心の AI 連携ワークスペース。タスク・スケジュール・メモ・知識・家計などを一つのデスクトップアプリに集約し、アプリ内ターミナルから Claude Code が MCP Server 経由で全データを自然言語で操作する。SQLite ローカル SSOT + Cloud Sync で Desktop ↔ iOS 間を同期しつつ、オフラインでも完全動作する。
+カレンダー中心の AI 連携ワークスペース。タスク・スケジュール・メモ・知識・家計などを一つのデスクトップアプリに集約し、アプリ内ターミナルから Claude Code が MCP Server 経由で全データを自然言語で操作する。SQLite ローカル SSOT + Cloud Sync で Desktop ↔ iOS 間を同期しつつ、オフラインでも完全動作する。（当時。現行 = Electron + Capacitor + Web + Supabase — 正本 = 移行 SSOT）
 
 ### 意図的に外したもの
 
 - **チームコラボレーション**: 個人利用前提。共有・コメント・権限管理は持たない
-- **Web UI**: Desktop / iOS のネイティブクライアントのみ提供
+- **Web UI**: Desktop / iOS のネイティブクライアントのみ提供（撤回済み — 公開 Web URL も配布対象 = D-20260807-main-1）
 - **特定用途特化アプリ**: 家計簿専用 / レシピ管理専用などのスペシャライズドアプリではない。Notion 的な汎用 DB で表現する
 - **Claude API 直接課金**: Max サブスクリプションの Claude Code ラッピング方式で AI コスト $0 を維持
 
@@ -79,7 +79,7 @@
 
 ### V2: ローカル SQLite が SSOT — オフライン完全動作 + マルチデバイス同期
 
-- **根拠**: rusqlite (WAL) + Tauri 2.0 + Cloud Sync（Cloudflare Workers + D1, 設計中）
+- **根拠**: rusqlite (WAL) + Tauri 2.0 + Cloud Sync（Cloudflare Workers + D1, 設計中）（当時。現行 = Electron + Capacitor + Web + Supabase — 正本 = 移行 SSOT）
 - **比較**: Notion はクラウド必須でオフライン制限、Obsidian は同期が Sync プラン（有料）か自前運用、Apple Reminders は Apple エコシステム外と連携困難
 
 ### V3: Notion 的汎用 DB + 特化機能の両立
@@ -94,7 +94,7 @@
 > ⚠️ **§4 反転点**: NG-2 (Web UI 提供しない) / NG-5 (モバイル単独起動サポートしない) は移行で撤回済。NG-1 / NG-3 / NG-4 / NG-6 は維持。
 
 - **NG-1: マルチテナント / チームコラボ機能は持たない**（個人利用前提、共有・権限・コメントなし）
-- **NG-2: Web UI は提供しない**（Desktop / iOS のネイティブのみ。閲覧も含めて）
+- **NG-2: Web UI は提供しない**（Desktop / iOS のネイティブのみ。閲覧も含めて）（撤回済み — 公開 Web URL も配布対象 = D-20260807-main-1）
 - **NG-3: 特定用途特化アプリの直接実装はしない**（家計簿専用 UI / レシピ専用 UI などは作らず、汎用 Database で実現）
 - **NG-4: Claude API 直接課金は使わない**（Max サブスク Claude Code ラッピングで $0 を維持。将来例外検討は留保）
 - **NG-5: モバイル単独起動（Desktop なし）はサポートしない**（Desktop が primary creation device、iOS は consumption + quick capture）
@@ -108,11 +108,13 @@
 
 ### 役割定義
 
-- **Desktop (macOS / Windows / Linux — Tauri 2.0)**: Primary creation device。すべての機能が揃う。コーディング、AI 対話、深い思考作業
-- **Mobile (iOS — Tauri 2.0)**: Consumption + Quick capture。外出時の参照・スケジュール確認・メモ追加
-- **Cloud (Cloudflare Workers + D1)**: Desktop ↔ iOS 間の SQLite テーブル双方向同期のみ。Web UI / 認証 UI は提供しない
+- **Desktop (macOS / Windows / Linux — Tauri 2.0)**: Primary creation device。すべての機能が揃う。コーディング、AI 対話、深い思考作業（当時。現行 = Electron — 正本 = 移行 SSOT）
+- **Mobile (iOS — Tauri 2.0)**: Consumption + Quick capture。外出時の参照・スケジュール確認・メモ追加（当時。現行 = Capacitor + 公開 Web URL — 正本 = 移行 SSOT）
+- **Cloud (Cloudflare Workers + D1)**: Desktop ↔ iOS 間の SQLite テーブル双方向同期のみ。Web UI / 認証 UI は提供しない（当時。現行 = Supabase + Web 配信は Cloudflare Workers — 正本 = 移行 SSOT）
 
 ### Provider セット差分（詳細）
+
+> ⚠️ この列挙は旧構成。撤去済み Provider（ScreenLock / FileExplorer / CalendarTags 等）を含む — 現行の正 = CLAUDE.md §2 + `web/src/AppProviders.tsx`
 
 - **デスクトップ Provider**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TodoTree → Calendar → Template → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - **モバイル Provider**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → TodoTree → Calendar → Template → Memo → Note → Routine → ScheduleItems → Timer
