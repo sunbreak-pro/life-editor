@@ -178,10 +178,12 @@ export function NotesView({
     toggleGroup,
     sortModes,
     directionLabel,
-    tagFilter,
-    setTagFilter,
+    tagFilters,
+    toggleTagFilter,
+    clearTagFilters,
     tagFilterChips,
     visibleGroups,
+    rowCap,
     showTagFilter,
     handleSearchChange,
     hasNotes,
@@ -347,12 +349,16 @@ export function NotesView({
    * only selecting one; clearing back to "all" is not following anything — is
    * what completes the step.
    */
-  const handleTagFilterChange = useCallback(
-    (next: string | null) => {
-      setTagFilter(next);
-      if (next !== null) notifyTour("tag-filtered");
+  const handleToggleTagFilter = useCallback(
+    (key: string) => {
+      toggleTagFilter(key);
+      // #1288: with multi-select, "following a tag" is any press that ADDS one.
+      // Reporting on the toggle rather than on the resulting set keeps this out
+      // of the set's identity — un-pressing the last chip is clearing, not
+      // following, and the tour must not count it.
+      if (!tagFilters.includes(key)) notifyTour("tag-filtered");
     },
-    [setTagFilter, notifyTour],
+    [toggleTagFilter, tagFilters, notifyTour],
   );
 
   // #1149: what the empty state offers to select. Resolved against the live
@@ -519,8 +525,10 @@ export function NotesView({
       directionLabel={directionLabel}
       showTagFilter={showTagFilter}
       tagFilterChips={tagFilterChips}
-      tagFilter={tagFilter}
-      onTagFilterChange={handleTagFilterChange}
+      tagFilters={tagFilters}
+      onToggleTagFilter={handleToggleTagFilter}
+      onClearTagFilters={clearTagFilters}
+      rowCap={rowCap}
       hasNotes={hasNotes}
       visibleGroups={visibleGroups}
       collapsedGroups={collapsedGroups}
@@ -529,6 +537,10 @@ export function NotesView({
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
+        clearTagFilter: t("materials.notes.tagFilterClear"),
+        moreTagFilters: (count) => t("materials.notes.tagFilterMore", { count }),
+        fewerTagFilters: t("materials.notes.tagFilterLess"),
+        moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
         trash: t("materials.notes.trash"),
         untitled: t("materials.notes.untitled"),
         restoreNote: (title) => t("materials.notes.restoreNote", { title }),

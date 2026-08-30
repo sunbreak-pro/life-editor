@@ -348,7 +348,11 @@
       "expandGroup": "グループを展開",
       "assignTagHint": "タグにドロップして付与",
       "sortTitle": "タイトル",
-      "tagFilterLabel": "タグで絞り込む"
+      "tagFilterLabel": "タグで絞り込む",
+      "tagFilterClear": "タグの絞り込みを解除",
+      "tagFilterMore": "+{{count}}",
+      "tagFilterLess": "折りたたむ",
+      "groupMoreRows": "残り {{count}} 件を表示"
     },
     "templates": {
       "title": "テンプレート",

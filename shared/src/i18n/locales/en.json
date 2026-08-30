@@ -349,7 +349,11 @@
       "expandGroup": "Expand group",
       "assignTagHint": "Drop onto a tag to assign it",
       "sortTitle": "Title",
-      "tagFilterLabel": "Filter by tag"
+      "tagFilterLabel": "Filter by tag",
+      "tagFilterClear": "Clear tag filter",
+      "tagFilterMore": "+{{count}}",
+      "tagFilterLess": "Show fewer",
+      "groupMoreRows": "Show {{count}} more"
     },
     "templates": {
       "title": "Templates",

@@ -4,7 +4,7 @@
 export {
   buildTagGroups,
   tagGroupKey,
-  soloTagGroup,
+  filterTagGroups,
   UNTAGGED_GROUP_KEY,
   type NoteTagGroup,
   type BuildTagGroupsInput,
