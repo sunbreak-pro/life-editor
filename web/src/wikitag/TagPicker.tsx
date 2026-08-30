@@ -3,12 +3,13 @@ import { Plus, Tag as TagIcon } from "lucide-react";
 import {
   isImeComposing,
   ItemRoleBadge,
+  TagHeadingIcon,
+  TagPill,
   TAP_TARGET,
   useTranslation,
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
 } from "@life-editor/shared";
-import { TagPill } from "./TagPill";
 
 /*
  * TagPicker — reusable Tag UI for a single items_meta row (DU-F Step 6).
@@ -177,6 +178,7 @@ export function TagPicker({
               key={a.id}
               name={tag.name}
               color={tag.color}
+              icon={tag.icon}
               size={size}
               removeLabel={t("materials.tags.pickerRemove", { name: tag.name })}
               onRemove={() => void handleUnassign(a.id)}
@@ -235,13 +237,11 @@ export function TagPicker({
                   onClick={() => void handleAssign(tag.id)}
                   className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
-                  {tag.color && (
-                    <span
-                      aria-hidden
-                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                  )}
+                  {/* The same glyph the chip above will draw once this tag is
+                      assigned, so the candidate and the result are recognisably
+                      the same tag (#1291). It replaces the colour dot, which
+                      only appeared for tags that had a colour. */}
+                  <TagHeadingIcon icon={tag.icon} color={tag.color} size={14} />
                   <span>{tag.name}</span>
                 </button>
               </li>

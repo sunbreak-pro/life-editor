@@ -364,6 +364,7 @@ export {
   type ItemRoleLabels,
 } from "./items/itemRole";
 export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
+export { TagPill, type TagPillProps } from "./TagPill";
 export {
   SettingsDetailPanel,
   type SettingsDetailPanelProps,
