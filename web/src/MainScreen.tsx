@@ -112,9 +112,11 @@ export function MainScreen({ session }: { session: Session }) {
     setMaterialsTab: nav.setMaterialsTab,
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // Global tag editor (#409). Opened from the sidebar footer row above ⌘K, so
-  // the tag master is reachable from every section — the panel itself is
-  // mount-on-open (TagEditorHost) and fetches nothing while closed.
+  // Global tag editor (#409). Opened from the sidebar footer row above ⌘K on
+  // the wide layout and from the bottom bar's "More" sheet on the narrow one
+  // (#1290), so the tag master is reachable from every section at every width
+  // — the panel itself is mount-on-open (TagEditorHost) and fetches nothing
+  // while closed. One state for both entries: there is a single panel.
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   // Narrow-width switch for the in-section tab controls (HeaderTabs ↔
   // Segmented). Independent of AppShell's own wide/narrow switch (same query,
@@ -367,16 +369,18 @@ export function MainScreen({ session }: { session: Session }) {
         detailPanelLabels={detailPanelLabels}
         header={sectionHeader}
         /*
-         * Narrow-only counterpart to `header` (#472). `header` is a wide-branch
-         * slot, so undo/redo and the command palette (#473) would otherwise be
-         * unreachable on mobile; AppShell hands these to the bottom bar's
-         * "More" sheet. A callback (not a node) because the rows read
-         * UndoRedoContext, and MainScreen's own body sits OUTSIDE the
-         * UndoRedo Provider that AppProviders mounts.
+         * Narrow-only counterpart to `header` AND to the sidebar footer (#472).
+         * `header` is a wide-branch slot, so undo/redo and the command palette
+         * (#473) would otherwise be unreachable on mobile; the sidebar is
+         * wide-only too, so the same goes for the tag editor (#1290). AppShell
+         * hands these to the bottom bar's "More" sheet. A callback (not a node)
+         * because the rows read UndoRedoContext, and MainScreen's own body sits
+         * OUTSIDE the UndoRedo Provider that AppProviders mounts.
          */
         bottomBarActions={(closeSheet) => (
           <MobileShellActions
             onOpenPalette={() => setPaletteOpen(true)}
+            onOpenTagEditor={() => setTagEditorOpen(true)}
             closeSheet={closeSheet}
           />
         )}
