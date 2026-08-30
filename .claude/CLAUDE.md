@@ -15,8 +15,8 @@
 
 ## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
 
-- AI と会話しながら生活を設計・記録・運用するパーソナル OS。ユーザーは作者本人のみ（N=1、macOS + iOS）
-- **Non-Goals**: マルチテナント / 特化専用アプリ / Claude API 直課金 / モバイル単独起動
+- AI と会話しながら生活を設計・記録・運用するパーソナル OS。主ユーザーは作者本人（macOS + iOS）だが、**限定人数（無料枠の安全圏 10〜20 人）への配布 + サインアップ開放**へ方針転換済み（2026-08-29 ユーザー裁定 = D-20260829-main-1。旧「N=1」記述は SUPERSEDE）
+- **Non-Goals**: マルチテナント（組織・共有・権限管理 — 各ユーザーは RLS で分離された個人ワークスペースのみ）/ 特化専用アプリ / Claude API 直課金 / モバイル単独起動
 
 ## 2. Platform
 
@@ -24,7 +24,7 @@
 - **画面別 Mobile スコープの正本 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（#319 でユーザー確定 = D-20260723-main-1）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
 - **Mobile 省略ガードは配線済み**（#320）: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。実装状況とネストの正本はコード（`web/src/MainScreen.tsx`）・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
 - **スマホからの主導線 = 公開 Web URL**（#600・2026-08-07 ユーザー確定 = D-20260807-main-1）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
-- Cloud Sync = 作者本人のみ（友達ビルドは feature flag で無効）。配布・署名 → 移行 SSOT
+- Cloud Sync = サインアップした各ユーザーに有効（RLS owner-only で per-user 分離）。旧「友達ビルドは feature flag で無効」は実装に存在しない記述のため撤回（D-20260829-main-1）。配布・署名 → 移行 SSOT
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
