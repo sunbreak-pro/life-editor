@@ -138,7 +138,7 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 - 決定: `D-20260807-main-1`（スマホの主導線 = 公開 Web URL）
 - 要件: [`docs/requirements/mobile-scope.md`](../docs/requirements/mobile-scope.md)（#7 Notes フル編集 / #8 materials Full）
 - 規約: CLAUDE.md §7.1（jsdom にレイアウトが無い）・§7.4（実ブラウザ検証は chat-main）・[`rules/frontend.md`](../rules/frontend.md)（IME / Provider 順序）
-- 前ラウンド: [`2026-08-03-open-issue-fanout-r3.md`](../docs/vision/plans/2026-08-03-open-issue-fanout-r3.md)（#585〜#593 は本計画の後に再開）
+- 前ラウンド: [`2026-08-03-open-issue-fanout-r3.md`](2026-08-03-open-issue-fanout-r3.md)（#585〜#593 は本計画の後に再開）
 
 ---
 
