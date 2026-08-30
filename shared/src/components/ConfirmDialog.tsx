@@ -8,10 +8,11 @@ import { Modal } from "./Modal";
  * more: every question and every refusal on screen is this component.
  *
  * A native dialog is drawn by the browser, so it lands outside the theme, the
- * fonts and the lumen-* tokens: on the same screen the repeat-delete guard
- * asks in-app and the conversion guard asked through the OS, which made one of
- * the two look like it came from somewhere else. It also freezes the page,
- * which is why Playwright cannot get past one.
+ * fonts and the lumen-* tokens: while both kinds were in use, two questions on
+ * the same screen looked like they came from two different applications. It
+ * also freezes the page, which is why Playwright cannot get past one. (The
+ * repeat-delete guard used to be the in-app half of that contrast; since #1279
+ * it is simply another caller of this component.)
  *
  * Two shapes, told apart by `cancelLabel` alone rather than by a `variant`
  * flag — one source of truth for "can this be refused", with no second boolean

@@ -24,18 +24,21 @@ import {
  * chips or the creation panel, which is why it comes out as one piece.
  *
  * Everything is injected (§3.1 / §6.4): provider callbacks, the already-
- * resolved copy, and the host's own navigation helpers. The hook owns no
- * state — the routines live in RoutineContext and the selection in the host.
+ * resolved copy, the host's own navigation helpers and its one confirm dialog
+ * (#1279). The hook owns no state — the routines live in RoutineContext and
+ * the selection in the host.
  *
  * What was untestable here before: CalendarTab needs the whole Provider stack
- * plus real layout to render, and jsdom has neither, so the two rules with
- * teeth in this file went unchecked. Both are about work that must NOT happen:
- * the repeat list skips its scan unless the tab is showing (a routine that
- * fires on no day walks a full year before answering, so an unopened panel
- * would pay that on every routine write), and `handleOpenRepeat` materialises
- * the destination day BEFORE navigating (nothing on the nav path generates
- * occurrences, so a jump onto a future-dated repeat would otherwise land on an
- * empty day — the exact unreachability #408 exists to fix).
+ * plus real layout to render, and jsdom has neither, so the rules with teeth
+ * in this file went unchecked. There are three, and none of them shows up in
+ * the markup. The repeat list skips its scan unless the tab is showing (a
+ * routine that fires on no day walks a full year before answering, so an
+ * unopened panel would pay that on every routine write). `handleOpenRepeat`
+ * materialises the destination day BEFORE navigating (nothing on the nav path
+ * generates occurrences, so a jump onto a future-dated repeat would otherwise
+ * land on an empty day — the exact unreachability #408 exists to fix). And
+ * since #1279 the series delete ASKS first, so a refused confirm has to write
+ * nothing and re-read nothing.
  */
 
 export interface UseScheduleRepeatsArgs {
@@ -225,8 +228,17 @@ export function useScheduleRepeats({
    * because the panel is the wrong owner for it: the Todo delete in the same
    * sidebar already asks through <ConfirmDialog> (useScheduleTodoChips), so
    * one surface was asking in two visibly different ways, and the inline band
-   * dropped focus to <body> (it unmounted the button that was pressed) while
-   * announcing nothing (no role="alert"). The dialog fixes both for free.
+   * dropped focus to <body> the moment it appeared (it unmounted the button
+   * that had been pressed) while announcing nothing (no role="alert"). The
+   * dialog takes focus and is named by the question, so both holes close for
+   * the time the question is up. A CONFIRMED delete still ends on <body> —
+   * the dialog restores focus to the trash button and the row then unmounts
+   * with the routine — so it is the refusal that gains a landing place.
+   *
+   * Why ask at all: deleting takes the whole series, finished past
+   * occurrences included, and undo restores only the routine template, not the
+   * occurrences it cascaded. That rationale used to live on the armed state in
+   * RepeatListPanel and has no other home now.
    *
    * Asked BEFORE the write, and refusing simply returns — nothing is read or
    * re-read on the way out. The name is resolved the same way the list spells

@@ -331,12 +331,14 @@ export function CalendarTab({
   // with no UndoRedoProvider simply records no history.
   const undoRedo = useUndoRedoOptional();
   /*
-   * #707: every "are you sure?" on this screen — the two conversions, their
-   * two refusals, the cascade delete and the unsaved-draft discard — goes
-   * through ONE in-app dialog. They used to be the browser's own alert /
-   * confirm, which draw outside the theme (so the same screen asked
-   * in two visibly different ways: this one through the OS, the repeat-delete
-   * guard in-app) and freeze the page hard enough to stall Playwright.
+   * #707: every "are you sure?" on this screen goes through ONE in-app dialog.
+   * Stated as the invariant rather than as a roster — the roster stood here
+   * for a while and was already one short (the todo detail's own delete, #775)
+   * by the time #1279 routed the repeat-series delete through here too. A list
+   * that has to be hand-updated goes stale without anything noticing.
+   *
+   * They used to be the browser's own alert / confirm, which draw outside the
+   * theme and freeze the page hard enough to stall Playwright.
    *
    * The answer arrives in a promise now, so each call site continues in a
    * `.then` instead of straight-line code. Everything the guards decide is

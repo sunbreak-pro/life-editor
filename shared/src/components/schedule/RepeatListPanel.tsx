@@ -18,11 +18,15 @@ import { cn } from "../cn";
  * The row used to ARM in place — it swapped itself for a confirm band — which
  * left one sidebar asking in two visibly different ways, because the Todo
  * delete beside it already went through <ConfirmDialog> (#707). Two defects
- * rode along with the inline shape: arming unmounted the very button that was
- * pressed, so focus fell to <body>, and the question carried no `role="alert"`,
- * so a screen reader never announced it. The host asks now (useScheduleRepeats)
- * and the dialog owns both. `onDelete` therefore fires on the FIRST press here
- * — it REQUESTS the delete rather than performing it.
+ * rode along with the inline shape, both while the question was ON SCREEN and
+ * still unanswered: arming unmounted the very button that had been pressed, so
+ * focus fell to <body> before the user could answer, and the band carried no
+ * `role="alert"`, so a screen reader never announced what it was asking. The
+ * dialog takes focus and is named by the question itself, which fixes both.
+ * (What it does not fix is AFTER a confirmed delete: focus is restored to the
+ * trash button, which then unmounts with the row — the same <body> it always
+ * ended on. Only the refusal path lands somewhere.) `onDelete` therefore fires
+ * on the FIRST press here — it REQUESTS the delete rather than performing it.
  *
  * Pure presentation (§3.1 / §6.4): rows arrive already formatted and translated,
  * every action is a callback. lumen-* tokens only (§5).
@@ -62,10 +66,10 @@ export interface RepeatListPanelProps {
    *
    * **Omit to render the list read-only** — #467 puts this panel on Mobile,
    * where the scope is viewing only (mobile-scope.md #5) and deleting a series
-   * is the least recoverable thing on this screen (`calendars` aside, undo
-   * restores the template but not the occurrences it cascaded). Without it no
-   * row shows the delete affordance at all, which is the honest shape: a
-   * control that is present but refuses reads as broken.
+   * is the least recoverable thing on this screen (undo restores the template
+   * but not the occurrences it cascaded). Without it no row shows the delete
+   * affordance at all, which is the honest shape: a control that is present
+   * but refuses reads as broken.
    */
   onDelete?: (id: string) => void;
   labels: RepeatListPanelLabels;
