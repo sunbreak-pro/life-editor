@@ -1,5 +1,21 @@
 # HISTORY (chat-web-public)
 
+### 2026-08-30 - #1281 法務リーダーに dialog の作法（#1251 の追随）
+
+#### 概要
+
+PR #1270 の merge 後実機検証で chat-main が出した非 BLOCKING 3 件（focus 管理なし / Escape で閉じない / アプリ内から開くとブラウザ戻るでアプリを離脱）を 1 本にまとめて PR #1309 を open にした。`origin/main` から独立に切った枝で、CI の `verify` 全ステップ + docs-lint をローカルで exit 0 まで通してある。merge は未（P-001）。
+
+#### 変更点
+
+- **focus / Escape**: `LegalReaderHost` を `role="dialog"` + `aria-modal` + `aria-labelledby`（文書タイトル）にし、**Modal / BottomSheet と同じ `useDialogA11y`** に乗せた。初期フォーカス（先頭の Back ボタン）・Tab トラップ・IME ガード付き Escape・body スクロールロック・閉じたら開いた元へフォーカスを返す、まで一式が hook 側にあるので、reader 側に独自実装は 1 行も無い。副産物として `hasOpenDialogLayer()` が true になり、文書を開いている間は drawer の端スワイプが立ち止まる
+- **Back ボタンを先頭フォーカスのままにした理由**: BottomSheet の `DIALOG_AUTOFOCUS_SKIP`（#525）を真似て Back を飛ばすと、次の focusable は本文中のリンクになり、文書の途中に着地する。本文が素のテキストなら panel 自身に落ちるが、文書によってはリンクが混ざるので Back を先頭に据える方が安定
+- **戻るボタン**: `legalUrl.ts` を **アプリ内から開くときは `pushState`** に切り替えた（採用。旧 `replaceState` は URL を書く最短手であって意図した選択ではなく、依存もゼロ）。押した entry には `history.state` にマーカーを載せ、リロードをまたいでも「下にアプリの entry がある」と分かるようにした。**内側から閉じる（Back / Escape）も同じ 1 歩戻り**にして、3 つの出口が同じ場所（開く前のアプリ・state ごと）へ着地する。文書の切替（terms ↔ privacy）は replace で entry を積まない
+- **共有リンク直開きだけは例外**: 下にアプリの entry が無いので `history.back()` すると**サイトの外へ出る**。この場合だけ従来どおり URL を書き換えて閉じる。テストで `history.back` を spy して「呼ばれない」ことを固定した
+- **テストの罠**: jsdom の履歴移動はブラウザと同じく**キュー経由の非同期**（`SessionHistory._queueHistoryTraversalTask` = setTimeout）。`history.back()` の直後に URL を見ても動いていないので、閉じる系の assert は `popstate` を待つヘルパ `untilPopstate` を通す。`authScreenLegal.test.tsx` の 2 ケースも同じ理由で async 化した。ついでに「comes back」のケースが**閉じたことを見ていなかった**（探していたサインインボタンは overlay の下で常に在る）ので、文書タイトルの消失を足した
+- **踏んだ罠（再発）**: 全件 vitest で `briefingEveningLazyMount.test.tsx` が 2 回落ちた（1 回目 1 件・2 回目 2 件）。単体では 7/7 緑で、`web/src/legal` への import 経路も無い。**全件並列だと TipTap の transform が 1 秒の `waitFor` に間に合わない**環境起因で、desktop / mcp-server / docs-lint を先に回してマシンが静かな状態で web の vitest を最後に置いたら 963/963 緑。「warm なら通る」だけでは足りず、**並走を減らす**のが効いた
+- **やらなかったこと**: 背後の DOM への `inert` / `aria-hidden`（Modal / BottomSheet も付けておらず、DoD は Tab トラップまで）。Capacitor のハードウェア戻るは pushState の恩恵を自然に受けるが未検証
+
 ### 2026-08-30 - 配布後の追随 2 件（#1252 ポリシー §6 の食い違い / #1251 サインイン中の導線）
 
 #### 概要
