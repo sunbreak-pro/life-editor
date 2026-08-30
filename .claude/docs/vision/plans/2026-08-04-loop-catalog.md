@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 2026-08-06 初期 4 本を配置し PR #595 merged（18da6b5f）。残 = 試験運用による反復上限の実測（子計画 Step 6/7）
+Status: DEFERRED # 初期カタログを配置し PR #595 merged（18da6b5f）。試験運用（子計画 Step 6/7）は 2026-08-06 以降 0 件で停止中 — カタログ一覧はコード（.claude/skills/loop-*）が正
 Created: 2026-08-04
 Branch: docs/loop-catalog # 実装セッションのブランチ（配置 PR は docs/loop-harness-phase1）
 Owner-chat: main

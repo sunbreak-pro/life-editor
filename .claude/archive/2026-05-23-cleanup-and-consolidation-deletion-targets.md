@@ -4,7 +4,7 @@ Created: 2026-05-24 (cleanup-and-consolidation Phase 4-2)
 Updated: 2026-05-24
 Branch: refactor/cleanup-and-consolidation
 Parent: 2026-05-23-cleanup-and-consolidation.md（本計画書）
-Migration SSOT: ../../../2026-05-04-cross-platform-migration.md（実削除フェーズの正本）
+Migration SSOT: ../2026-05-04-cross-platform-migration.md（実削除フェーズの正本）
 ---
 
 # Cleanup & Consolidation — 削除対象リスト
@@ -106,6 +106,6 @@ CLAUDE.md §9 と MEMORY 既知問題 (`feedback_mcp_json_token_placeholder.md`)
 
 ## 関連ドキュメント
 
-- 親計画書: [`2026-05-23-cleanup-and-consolidation.md`](../../../archive/2026-05-23-cleanup-and-consolidation.md)
-- 移行 SSOT: [`2026-05-04-cross-platform-migration.md`](../../../2026-05-04-cross-platform-migration.md)
-- archive 済 code 棚卸し: [`archive/code-inventory-2026-04-25.md`](../../../archive/code-inventory-2026-04-25.md) (2026-04-25 時点スナップショット、ARCHIVED マーク済 / Phase 4-1 で archive 移動済)
+- 親計画書: [`2026-05-23-cleanup-and-consolidation.md`](./2026-05-23-cleanup-and-consolidation.md)
+- 移行 SSOT: [`2026-05-04-cross-platform-migration.md`](../2026-05-04-cross-platform-migration.md)
+- archive 済 code 棚卸し: [`archive/code-inventory-2026-04-25.md`](./code-inventory-2026-04-25.md) (2026-04-25 時点スナップショット、ARCHIVED マーク済 / Phase 4-1 で archive 移動済)

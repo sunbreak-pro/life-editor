@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 2026-08-06 初期 4 本を配置し PR #595 merged（18da6b5f）。残 = Step 6 試験運用 / 7 定着判定 / 8 到達点の別計画書
+Status: DEFERRED # カタログ配置済み（PR #595 merged）。残 = Step 6 試験運用 / Step 7 定着判定は 0 件のまま停止中 — 一覧はコードが正
 Created: 2026-08-04
 Branch: docs/loop-catalog
 Owner-chat: main

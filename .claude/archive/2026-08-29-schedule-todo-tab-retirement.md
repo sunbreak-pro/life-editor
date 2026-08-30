@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — #1153 close 済み（実装 2026-08-29・archive 移動 2026-08-31 = PR #1331 監査の束 A）
 Created: 2026-08-29
 Branch: claude/sched-1153-retire-todo-tab
 Owner-chat: schedule-refine
@@ -122,3 +122,8 @@ web/tests/** / shared/tests/**
   2. **「Todo を開いた」の報告をホストではなくサイドバーから出した**。タブ id は CalendarTab の state で、パネルを閉じても残る。ホスト側の effect にすると「誰にも見えていないトレイ」を報告してステップを先に進めてしまう。`RightSidebarPortal` はパネルが閉じている間 children を描かないので、ScheduleSidebar が生きていること自体が「画面に出ている」と同義になる（退役した板が mount で報告していたのと同じ事実）
   3. **ツアーの文言 2 本を直した**。`scheduleCompleteTodo` が「カードを完了列へドラッグ」と、無くなった板の操作を教えていた（`scheduleOpenTodos` の「Todo シート」も同様）。en / ja とも現在の面（トレイのチェック / Todo タブ）に合わせた
   - テストの行き先: 板と一緒に消えた `kanbanView.test.tsx` のツアー 3 件は `web/tests/scheduleTourTodos.test.tsx` へ。サイドバー側（アンカー実在・タブを開くと進む）は実描画、CalendarTab 側（作成報告・status writer の包み）は `scheduleNarrowAdd.test.ts` と同じソーステキスト assertion（jsdom に載らない面の逃げ道 = `rules/frontend.md`）
+## Archive 移動時の乖離レビュー（2026-08-31・chat-main 代行 = 2026-08-30 整合監査 PR #1331 の束 A）
+
+1. スコープ逸脱: なし（SegmentedControl への tourId 追加などの計画内判断は上記 Worklog に記録済み）
+2. AC 免除: なし（#1153 close = DoD 消化・実装 PR merge 済み）
+3. 途中で出た判断の行き先: ツアー文言・報告位置の判断は Worklog に記録済み。後続の関連判断は D-20260830-shared-fix-1（#1279 = C）へ

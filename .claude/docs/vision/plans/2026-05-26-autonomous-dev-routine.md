@@ -1,5 +1,5 @@
 ---
-Status: BLOCKED — Night Routine 登録が trig_PENDING のまま（registration pending）。機構は実装済みだが夜 Routine の Anthropic Cloud 登録が未実施のため発火しない
+Status: BLOCKED — 夜間発火の基盤は D-20260804-main-1 = A（Windows Task Scheduler + claude -p）で 2026-08-11 に確定済み・登録が未実施（#1335）。旧記載の Anthropic Cloud 登録（trig_PENDING）は台帳退役（2026-08-04 Phase 1 改訂）で失効
 Created: 2026-05-26
 Branch: feat/autonomous-dev-routine
 Owner-chat: chat-main

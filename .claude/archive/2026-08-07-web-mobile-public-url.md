@@ -1,9 +1,9 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — 公開完了（2026-08-09・#600 close・Cloudflare Workers）。実機目視の残 2 件は #607 / #608 として Issue 側で追跡
 Created: 2026-08-07
 Branch: claude/main-600-web-public-url
 Owner-chat: web-public
-Parent: ../../../2026-05-04-cross-platform-migration.md
+Parent: ../2026-05-04-cross-platform-migration.md
 ---
 
 # Plan: Web を公開 URL に置き、スマホからどこでも使えるようにする
@@ -285,3 +285,8 @@ Supabase ダッシュボードでの手作業。**ここを飛ばすとログイ
   - **2 件とも公開 URL 化で生えたものではない**。同じ web バンドルが Capacitor 殻にも載っている以上、前から存在していたはず。**「実機で毎日触れる導線ができた」こと自体が検出力**になった、というのがこの計画の副次的な収穫
   - 「Briefing にハンバーガーが無い」は**バグではなく意図的な保留**だった（`BriefingScreen.tsx:209-214` に理由が明記され、`mobile-scope.md` #1 の Consumption スコープと整合）。ただし**判断がコードのコメントにしか無く追跡されていなかった**ので [#609](https://github.com/sunbreak-pro/life-editor/issues/609) に起票した。実機で「無い」と報告が上がった時点で、それは記録場所が足りていない証拠と見なす
   - 「画面上下に Chrome の UI が出る」は仕様。**「ホーム画面に追加」で standalone 起動すれば消える**ので、この計画で `display: standalone` を入れた目的そのものが答えになる。ブラウザタブのまま使う限りは消えない
+## Archive 移動時の乖離レビュー（2026-08-31・chat-main 代行 = 2026-08-30 整合監査 PR #1331 の束 A）
+
+1. スコープ逸脱: なし
+2. AC 免除: Step 8 実機の残 2 チェックは #607 / #608 として Issue 側で追跡し、本計画の完了から切り離した
+3. 途中で出た判断の行き先: #607 / #608 / #609 起票済み（上記 Worklog に記録）。standalone 起動の仕様説明も Worklog 参照
