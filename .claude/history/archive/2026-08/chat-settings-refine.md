@@ -1,5 +1,20 @@
 # HISTORY ARCHIVE (chat-settings-refine)
 
+### 2026-08-16 - パスワード変更フォームに hidden username を追加（Issue #945 / PR #978）
+
+#### 概要
+
+Settings > Account のパスワード変更フォームが new-password 2 本だけでできていたため、パスワードマネージャが「どの保存済みエントリを書き換えるのか」を判別できず、保存を提案しないか別エントリを更新していた（Chrome は開くたびに DOM 警告）。`PasswordUpdateForm` に optional な `username` を足し、渡されたときだけ hidden / readOnly の `autocomplete="username"` 入力をフォーム先頭に描くようにした。#956（floor 12 への引き上げ）を取り込んだ main から分岐しており、同 PR の定数・catalog には触れていない。
+
+#### 変更点
+
+- **shared/src/components/PasswordUpdateForm.tsx**: `username?: string` prop 追加＋ hidden / readOnly / `name="username"` の `autocomplete="username"` 入力。渡されないときは要素ごと描かない（空 username は「空アカウント」に紐付いて無いより悪くなるため）
+- **shared/src/components/SettingsAccount.tsx**: カードが既に必須 prop として持っている `email` をそのまま渡す（渡し忘れが型で起きない側）
+- **shared/src/components/PasswordRecoveryCard.tsx + web/src/AuthScreen.tsx + web/src/App.tsx**: recovery link は先にサインインを済ませるので、App が握る session の `user.email` を `recoveryUsername` → `username` と流す。マネージャの保存済みパスワードが定義上必ず古いこの画面が、保存が一番効く場所
+- **テスト**: `web/tests/settingsAccountCard.test.tsx` に「session のアドレスが hidden username として載る（hidden / readOnly も込み）」1 本、`web/tests/authScreenRecovery.test.tsx` に「recovery session のアドレスが渡る」「アドレスが無ければ入力ごと出ない」2 本。hidden 入力は目視で気付けないので、ブラウザが実際に読む属性 `input[autocomplete="username"]` を名指しで固定した
+- **i18n / トークン**: 新規文言ゼロ・スタイルゼロ（hidden 入力のためレイアウト差分なし）
+- **検証**: shared lint 0 errors / `tsc -b` OK / 2301 tests pass、web lint 0 errors / build OK / 480 tests pass。Chrome の DOM 警告が消えることの実機確認は §7.4 に従い merge 後 chat-main 側
+
 ### 2026-08-15 - テーマ切替カードの light / dark が区別できない不具合修正（Issue #887 / PR #905）
 
 #### 概要
