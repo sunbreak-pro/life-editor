@@ -592,7 +592,7 @@
     "tabRepeats": "繰り返し",
     "repeatNeverFires": "実行される日がありません",
     "untitled": "無題の繰り返し",
-    "repeatDeleteConfirm": "「{name}」と、その予定をすべて削除しますか？",
+    "repeatDeleteConfirm": "「{{name}}」と、その予定をすべて削除しますか？",
     "repeatDeleteFailed": "繰り返しを削除できませんでした。予定は変更されていません。もう一度お試しください。",
     "repeatFilterHide": "繰り返しを隠す",
     "repeatFilterHidden_other": "繰り返し {{count}} 件を非表示",

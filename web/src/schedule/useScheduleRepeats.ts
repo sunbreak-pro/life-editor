@@ -4,6 +4,7 @@ import {
   nextRoutineOccurrence,
   todayCalendarKey,
   useTranslation,
+  type ConfirmRequest,
   type FrequencyEditorValue,
   type FrequencyLabelCopy,
   type RepeatListRow,
@@ -78,6 +79,13 @@ export interface UseScheduleRepeatsArgs {
     reload: () => void;
     showToast: (kind: "danger", message: string) => void;
   };
+  /**
+   * #1279: the host's one in-app question (`useConfirmDialog` in CalendarTab).
+   * Not part of `writes` — it decides whether the write happens at all, and it
+   * is the same controller the todo delete beside this one already asks
+   * through (useScheduleTodoChips), which is the point of routing it here.
+   */
+  askConfirm: (request: ConfirmRequest) => Promise<boolean>;
 }
 
 export function useScheduleRepeats({
@@ -89,6 +97,7 @@ export function useScheduleRepeats({
   copy,
   nav,
   writes,
+  askConfirm,
 }: UseScheduleRepeatsArgs) {
   const { t } = useTranslation();
   const { freq: freqCopy, weekdayLabels, formatFullDay } = copy;
@@ -210,9 +219,36 @@ export function useScheduleRepeats({
     ],
   );
 
+  /*
+   * #1279: the question this asks used to live in the row itself — pressing
+   * the trash icon swapped the row for an inline confirm band. It moved here
+   * because the panel is the wrong owner for it: the Todo delete in the same
+   * sidebar already asks through <ConfirmDialog> (useScheduleTodoChips), so
+   * one surface was asking in two visibly different ways, and the inline band
+   * dropped focus to <body> (it unmounted the button that was pressed) while
+   * announcing nothing (no role="alert"). The dialog fixes both for free.
+   *
+   * Asked BEFORE the write, and refusing simply returns — nothing is read or
+   * re-read on the way out. The name is resolved the same way the list spells
+   * it (`scheduleScreen.untitled` for a blank title), so the sentence names
+   * the row the user actually pressed. An id the list no longer holds still
+   * asks — with the fallback name — and still deletes: the routine may be gone
+   * from `routines` while its row is mid-unmount, and refusing there would
+   * silently swallow a delete the user did ask for.
+   */
   const handleDeleteRepeat = useCallback(
     (id: string) => {
       void (async () => {
+        const title =
+          routines.find((r) => r.id === id)?.title ||
+          t("scheduleScreen.untitled");
+        const confirmed = await askConfirm({
+          message: t("scheduleScreen.repeatDeleteConfirm", { name: title }),
+          confirmLabel: t("scheduleScreen.delete"),
+          cancelLabel: t("scheduleScreen.scopeCancel"),
+          danger: true,
+        });
+        if (!confirmed) return;
         // `onCascadeChanged` (#708): an undo restores the occurrences and the
         // seed event straight through the DataService, so the visible range
         // has to be re-read there too — same reason as the reload below.
@@ -231,7 +267,7 @@ export function useScheduleRepeats({
         }
       })();
     },
-    [deleteRoutine, reload, showToast, t],
+    [routines, askConfirm, deleteRoutine, reload, showToast, t],
   );
 
   return {

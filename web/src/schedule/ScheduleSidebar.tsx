@@ -333,9 +333,6 @@ export function ScheduleSidebar({
           empty: t("scheduleScreen.summaryEmpty"),
           never: t("scheduleScreen.repeatNeverFires"),
           delete: t("scheduleScreen.deleteRoutine"),
-          confirmDelete: t("scheduleScreen.repeatDeleteConfirm"),
-          confirm: t("scheduleScreen.delete"),
-          cancel: t("scheduleScreen.scopeCancel"),
         }}
       />
     </div>

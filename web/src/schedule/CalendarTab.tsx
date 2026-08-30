@@ -874,6 +874,9 @@ export function CalendarTab({
       reload,
       showToast,
     },
+    // #1279: the series delete asks through the same dialog as everything else
+    // on this screen — the row used to arm itself in place instead.
+    askConfirm,
   });
 
   // #625 Event <-> Todo conversion. The whole path — the two blocking
