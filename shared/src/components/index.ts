@@ -33,6 +33,17 @@ export {
   type ConfirmDialogController,
   type ConfirmRequest,
 } from "./ConfirmDialog";
+// The non-modal half of the same pair (#1184): one band for every warning,
+// notice and inline refusal that stays on the screen it belongs to. Ask with
+// ConfirmDialog, tell with NoticePanel. Tones are ToastVariant's four so the
+// same message is the same color whether it arrives as a toast or in place.
+export {
+  NoticePanel,
+  type NoticePanelProps,
+  type NoticeTone,
+  type NoticeVariant,
+  type NoticeAction,
+} from "./NoticePanel";
 // Item operation panels (Issue #307) — the generic Popover / DetailOverlay
 // set + declarative ItemAction vocabulary. Any section reuses them for item
 // operations; #551 unified left/right click on the popover and retired the
@@ -217,11 +228,6 @@ export {
 // points (signed-in change + post-recovery reset); the two cards wrap it in
 // the pre-login surface, SettingsAccount in the Settings column.
 export { AUTH_SURFACE_CLASS } from "./authSurface";
-export {
-  AuthAlert,
-  type AuthAlertProps,
-  type AuthAlertTone,
-} from "./AuthAlert";
 // The gap between "signed up" and "signed in" when Confirm email is ON
 // (#1197). Same auth face as the other pre-login cards.
 export {

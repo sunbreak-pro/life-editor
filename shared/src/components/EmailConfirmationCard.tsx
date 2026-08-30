@@ -1,7 +1,7 @@
 import { LoaderCircle, MailCheck } from "lucide-react";
 import { cn } from "./cn";
 import { AUTH_SURFACE_CLASS } from "./authSurface";
-import { AuthAlert } from "./AuthAlert";
+import { NoticePanel } from "./NoticePanel";
 import { AuthBrandHeader } from "./AuthBrandHeader";
 import { Button } from "./Button";
 
@@ -88,8 +88,8 @@ export function EmailConfirmationCard({
         </div>
       </div>
 
-      {error ? <AuthAlert message={error} /> : null}
-      {notice ? <AuthAlert message={notice} tone="success" /> : null}
+      {error ? <NoticePanel message={error} tone="danger" role="alert" /> : null}
+      {notice ? <NoticePanel message={notice} tone="success" role="alert" /> : null}
 
       <Button
         type="button"

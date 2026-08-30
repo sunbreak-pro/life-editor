@@ -12,6 +12,7 @@ import {
   EmptyState,
   SidebarListControls,
   StatusFilterChips,
+  NoticePanel,
   tagGroupKey as groupKey,
   cn,
   type NoteNode,
@@ -198,12 +199,9 @@ export function NotesSidebarList({
       )}
 
       {error && (
-        <p
-          role="alert"
-          className="rounded-lumen-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
-        >
-          {error}
-        </p>
+        // No glyph: this band sits in a dense sidebar column where the
+        // extra 16px pushes the first tag heading off the fold.
+        <NoticePanel message={error} tone="danger" icon={null} />
       )}
 
       {/* Tag groups. */}

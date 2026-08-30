@@ -98,6 +98,13 @@
      accent bar + status dot on Toast and any inline status affordance. */
   --color-info: #2563eb;
   --color-warning: #b45309;
+  /* Subtle info / warning washes — the two tones the panel set was
+     missing (success + danger already had one). Same recipe as those:
+     the tone at 6% pre-flattened against bg-secondary, opaque per §5.
+     Added for the shared NoticePanel (#1184), whose four tones each
+     need a flat face. */
+  --color-info-subtle: #e9e3db;
+  --color-warning-subtle: #f1e2cd;
   --color-calendar-header: #f87171;
   --color-schedule-routine-bg: #ebf0fe;
   --color-schedule-other-bg: #f1f2f4;
@@ -216,6 +223,10 @@
   --color-danger-subtle: #2f2126;
   --color-info: #60a5fa;
   --color-warning: #fbbf24;
+  /* Dark counterparts: the tone at 8% flattened against the dark
+     bg-secondary, matching success-subtle / danger-subtle above. */
+  --color-info-subtle: #1e2e4b;
+  --color-warning-subtle: #2a303a;
   --color-calendar-header: #991b1b;
   --color-schedule-routine-bg: #1e293b;
   --color-schedule-other-bg: #1f2937;
@@ -375,6 +386,8 @@
      bg-lumen-info / bg-lumen-warning / bg-lumen-surface-sunken / text-lumen-* etc. */
   --color-lumen-info: var(--color-info);
   --color-lumen-warning: var(--color-warning);
+  --color-lumen-info-subtle: var(--color-info-subtle);
+  --color-lumen-warning-subtle: var(--color-warning-subtle);
   --color-lumen-surface-sunken: var(--color-surface-sunken);
   --color-lumen-text-tertiary: var(--color-text-tertiary);
   --color-lumen-calendar-header: var(--color-calendar-header);
