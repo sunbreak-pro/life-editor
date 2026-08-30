@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 import { cn } from "./cn";
 import { AUTH_SURFACE_CLASS } from "./authSurface";
-import { AuthAlert } from "./AuthAlert";
+import { NoticePanel } from "./NoticePanel";
 import { AuthBrandHeader } from "./AuthBrandHeader";
 import { Button } from "./Button";
 import { PasswordField, type PasswordFieldLabels } from "./PasswordField";
@@ -195,7 +195,7 @@ export function AuthCard({
         ) : null}
       </div>
 
-      {error ? <AuthAlert message={error} /> : null}
+      {error ? <NoticePanel message={error} tone="danger" role="alert" /> : null}
 
       <Button type="submit" size="lg" disabled={busy} className="w-full">
         {busy ? (
