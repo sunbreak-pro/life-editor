@@ -16,11 +16,20 @@ import { PanelRight, PanelRightClose } from "lucide-react";
 export interface RightSidebarContentsProps {
   /** Already-translated panel title ("詳細" / "Details"). */
   title: string;
-  /** Already-translated aria-label for the close button. */
-  closeLabel: string;
+  /**
+   * Close affordance for the panel header. Optional, and honoured only as a
+   * PAIR — pass neither and the header row is title-only.
+   *
+   * #1284: the Desktop <RightSidebar> passes neither. The SectionHeader's own
+   * <RightSidebarToggle> sits directly above the panel and is unconditional
+   * for every section, so an in-panel × was a second control for one job.
+   * <MobileDrawer> still passes both: it is a modal overlay that covers the
+   * narrow layout's toggle, so without this × there is no visible way out.
+   */
+  closeLabel?: string;
   /** Already-translated empty-state copy (nothing selected). */
   emptyLabel: string;
-  onClose: () => void;
+  onClose?: () => void;
   /** 0 ⇒ show the empty state; >0 ⇒ portalled content fills the well. */
   contentCount: number;
   setPortalTarget: (el: HTMLElement | null) => void;
@@ -46,14 +55,16 @@ export function RightSidebarContents({
       {/* 48px header — same height as the SidebarNav header. */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-lumen-border pl-4 pr-3">
         <span className="text-sm font-semibold text-lumen-text">{title}</span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={closeLabel}
-          className="grid h-7 w-7 place-items-center rounded-lumen-sm text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-        >
-          <PanelRightClose size={16} />
-        </button>
+        {onClose && closeLabel && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={closeLabel}
+            className="grid h-7 w-7 place-items-center rounded-lumen-sm text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            <PanelRightClose size={16} />
+          </button>
+        )}
       </div>
       {/* Scrollable well. The portal target div is always mounted so a
           RightSidebarPortal can attach; the empty state shows over it while

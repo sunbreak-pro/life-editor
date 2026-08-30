@@ -18,7 +18,6 @@ function renderToggle(variant: "panel" | "hamburger") {
       />
       <RightSidebar
         title="Details"
-        closeLabel="Close details"
         emptyLabel="Nothing selected yet"
         resizeLabel="Resize details panel"
       />
@@ -54,4 +53,37 @@ describe("RightSidebarToggle", () => {
       expect(btn).toHaveAccessibleName("Open details");
     },
   );
+
+  /*
+   * #1284 — the panel variant's glyph flips with the state, the way the left
+   * sidebar's collapse button always has. Nothing else in the suite can see
+   * that: the label and aria-expanded were already flipping, so a static glyph
+   * kept every assertion above green. lucide stamps its icon name onto the
+   * svg's class list, which is the only handle jsdom offers here (it has no
+   * layout, so nothing about the drawn shape is observable).
+   */
+  it("(panel) flips the glyph with the state, mirroring the left sidebar", () => {
+    renderToggle("panel");
+    const btn = screen.getByRole("button", { name: "Open details" });
+    const glyph = () => btn.querySelector("svg")?.getAttribute("class") ?? "";
+
+    expect(glyph()).toContain("lucide-panel-right-open");
+    fireEvent.click(btn);
+    expect(glyph()).toContain("lucide-panel-right-close");
+    fireEvent.click(btn);
+    expect(glyph()).toContain("lucide-panel-right-open");
+  });
+
+  it("(hamburger) keeps one glyph — the drawer covers the button", () => {
+    // Mobile behaviour must not change (#1284): the drawer is modal and sits
+    // over this control, so there is no open state for it to reflect.
+    renderToggle("hamburger");
+    const btn = screen.getByRole("button", { name: "Open details" });
+    const glyph = () => btn.querySelector("svg")?.getAttribute("class") ?? "";
+
+    expect(glyph()).toContain("lucide-panel-right");
+    fireEvent.click(btn);
+    expect(glyph()).toContain("lucide-panel-right");
+    expect(glyph()).not.toContain("lucide-panel-right-close");
+  });
 });

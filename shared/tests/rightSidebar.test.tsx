@@ -9,13 +9,13 @@ import { RightSidebarProvider } from "../src/context";
 
 /*
  * App Shell Turn 2 — Desktop push-in detail panel + portal plumbing. The panel
- * is hidden while closed, shows on open, X closes it, and the empty state gives
- * way to portalled content once a RightSidebarPortal registers (contentCount).
+ * is hidden while closed, shows on open, the header toggle closes it (#1284
+ * retired the in-panel X on Desktop), and the empty state gives way to
+ * portalled content once a RightSidebarPortal registers (contentCount).
  */
 
 const LABELS = {
   title: "Details",
-  close: "Close details",
   empty: "Nothing selected yet",
   resize: "Resize details panel",
 };
@@ -23,9 +23,9 @@ const LABELS = {
 function renderPanel(children?: React.ReactNode) {
   return render(
     <RightSidebarProvider>
-      {/* Toggle opens the panel; the panel reads the same context. The toggle's
-          open-state label is distinct from the panel's X so name queries stay
-          unambiguous. */}
+      {/* The toggle opens AND closes the panel — since #1284 it is the
+          panel's only close affordance on Desktop, so the cases below drive it
+          in both directions. */}
       <RightSidebarToggle
         variant="panel"
         openLabel="Open details"
@@ -33,7 +33,6 @@ function renderPanel(children?: React.ReactNode) {
       />
       <RightSidebar
         title={LABELS.title}
-        closeLabel={LABELS.close}
         emptyLabel={LABELS.empty}
         resizeLabel={LABELS.resize}
       />
@@ -45,19 +44,20 @@ function renderPanel(children?: React.ReactNode) {
 describe("RightSidebar (Desktop panel)", () => {
   it("is hidden while closed and appears once opened", () => {
     renderPanel();
-    // Closed: no title, no close button.
+    // Closed: no title.
     expect(screen.queryByText("Details")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open details" }));
     expect(screen.getByText("Details")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Close details" }),
-    ).toBeInTheDocument();
   });
 
-  it("closes when the X button is clicked", () => {
+  it("draws no close button of its own — the header toggle owns closing (#1284)", () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Open details" }));
-    fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+    // With the panel open the header toggle is the ONLY button in the tree;
+    // an in-panel X would be a second control for the same job. (The resize
+    // handle is role=separator, so it is not counted here.)
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
     expect(screen.queryByText("Details")).not.toBeInTheDocument();
   });
 
@@ -90,7 +90,6 @@ describe("RightSidebar (Desktop panel)", () => {
         />
         <RightSidebar
           title={LABELS.title}
-          closeLabel={LABELS.close}
           emptyLabel={LABELS.empty}
           resizeLabel={LABELS.resize}
         />

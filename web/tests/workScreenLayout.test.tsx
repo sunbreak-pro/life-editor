@@ -128,12 +128,7 @@ function WideShell({ children }: { children: ReactNode }) {
       />
       <div>
         <main data-testid="work-main">{children}</main>
-        <RightSidebar
-          title="detail"
-          closeLabel="close"
-          emptyLabel="empty"
-          resizeLabel="resize"
-        />
+        <RightSidebar title="detail" emptyLabel="empty" resizeLabel="resize" />
       </div>
     </RightSidebarProvider>
   );
