@@ -101,3 +101,4 @@
 - D-20260828-materials-2: **A**（「最近開いた」候補は今回 Notes タブだけ。Daily / Todos / Tags は別 Issue で追随し、見た目の割れは一時的に許容する。同上）
 - D-20260828-materials-3: **A**（#1147 では既定タイトル `Untitled` を触らない。`createNote` は shared にあり Desktop と MCP 経路にも効くため、i18n 化は別 Issue へ。同上）
 - D-20260829-connect-1: **B**（削除する。P-002 を適用 — BacklinkView（`shared/src/components/Backlinks/`）と `backlinkSourceIds` / `resolveLinkId`（`shared/src/utils/itemLinks.ts`）は呼び出し元ゼロの実測（PR #1175 本文 + 2026-08-30 chat-main 再実測・tag hub PR #1230 は import しない設計）を根拠に退役。バレル 2 箇所 + LinkPanel のコメント参照も追随 → 実装 Issue #1239。2026-08-30 チャットで回答・chat-main が転記）
+- D-20260830-main-1: **A**（chat-main に退役操作の権限を認める。`comm/README.md` に例外を明文化し、worktree を持たない 21 レーンの `memory/chat-*.md` へ `> RETIRED:` マーカーを付与 — 集計スキップの機構ともども実装 = PR #1295。2026-08-30 チャットの AskUserQuestion で回答・chat-main が転記）

@@ -1,4 +1,5 @@
 # MEMORY (chat-prototype-mobile)
+> RETIRED: 2026-08-30 — worktree 廃止・書き手不在（D-20260830-main-1）
 
 > 🧹 2026-06-27 chat-main 棚卸し: PR #40 / #46 / #48 は全て **MERGED** 済（gh 確認）。「merge 実行待ち」項目は解消。worktree/branch prune 済でレーン休眠。残りは 👀 実機目視のみ（ユーザー認可の cross-lane reconciliation）。
 

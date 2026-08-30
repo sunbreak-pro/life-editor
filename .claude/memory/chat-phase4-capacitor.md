@@ -1,4 +1,5 @@
 # MEMORY (chat-phase4-capacitor)
+> RETIRED: 2026-08-30 — worktree 廃止・書き手不在（D-20260830-main-1）
 
 > 🧹 2026-06-27 chat-main 棚卸し: PR #88 は **MERGED** 済（gh 確認）。worktree/branch prune 済でレーン休眠。本ファイルを実態へ同期（ユーザー認可の cross-lane reconciliation）。
 

@@ -1,4 +1,5 @@
 # chat-design-materials — memory
+> RETIRED: 2026-08-30 — worktree 廃止・書き手不在（D-20260830-main-1）
 
 > 単一書込者: design-materials チャットのみ。並行 design セッションとの worktree 共有競合のため task-tracker スキルを経由せず直書き（feedback_task_tracker_parallel_chat_override 準拠）。
 
