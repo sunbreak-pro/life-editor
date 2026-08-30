@@ -1,5 +1,18 @@
 # HISTORY (chat-main)
 
+### 2026-08-30 - fan-out r4 全着地の回収 + /loop 巡回 1 回目（決定昇格 PR #1297・#1296 検証 PASS）
+
+#### 概要
+
+（朝セッション分の追い付き込み）r4 の Wave 1 / Wave 2 全 PR と chat-main 手番 3 件（#1202 / #1137 / #1135 機構分）が merge 着地し、ユーザー実機フィードバック起点の新ラウンド #1275〜#1294 を起票済み。夕方から /loop 巡回（cron 毎時 7 分）を開始し、1 回目で回答済み決定 4 件の台帳昇格と #1296 の実ブラウザ検証を消化した。
+
+#### 変更点
+
+- **決定昇格（PR #1297 open・一時 worktree `decisions-promotion` 経由）**: D-20260829-web-1（A = Confirm email ON・ダッシュボード切替は 2026-08-30 ユーザー実施済み）/ web-2（A = リージョン実名明記・「いずれも日本国外」の事実誤り訂正 = PR #1296）/ web-3（A = 運営者 sunbreak-pro / 連絡先 GitHub Issues で確定）/ connect-1（B = backlink 部品 3 つを P-002 適用で削除 = #1239 / PR #1258）を `.claude/decisions/` へ昇格。キュー 2 ファイル（chat-web-public / chat-connect-refine）から消化済みエントリを削除（前例に合わせ chat-main が代行・records.mjs check 緑）
+- **#1296 実ブラウザ検証 PASS**: `?legal=privacy` で ja / en とも「AWS ap-northeast-1（東京 / Tokyo）」が本文 + 箇条書きに出ることを確認（`web/src/legal/legalContent.ts:74` / `:214`）。旧文面（いずれも日本国外 / transferred abroad）の DOM 全文検索 0 件・生 i18n キー露出 0・390px 横溢れなし・dark / light 崩れなし・8 セクション回帰で新規 console error 0
+- **巡回の実測**: open PR 0（CI 赤 / コンフリクト対象なし）・HEAD = origin/main で取り込み不要・outbox の起票依頼は全処理済み（#1184 残置換 3 グループ → #1275 / #1278 / #1279 起票済み）・未回答の判断キュー 0（settings の G-20260829-settings-1 は判断ではなく 🛑 ユーザー実行待ち 2 手 = `0025_delete_my_account.sql` の db:push → `delete-account` Edge Function deploy の順）
+- **副産物（起票せず記録のみ）**: 細幅で Settings ドロワーを開いたまま legal reader を開くと、同じ z-50 の後勝ちでドロワーが reader を覆う（`web/src/legal/LegalReaderHost.tsx:42`）。実際の操作順（ドロワーを閉じてから開く）では再現しない人工条件のみで #1251 / #1270 由来・#1296 とは無関係のため見送り
+
 ### 2026-08-29 - AI 連携の可視化 + Claude 起動導線の計画書 2 本作成と起票（#1210 / #1211・PR #1212）
 
 #### 概要
@@ -53,37 +66,5 @@ connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機�
 - **起票**: #1171（[connect] Tag hub セクション新設・`section:connect`）/ #1172（[materials] LinkPanel の Related パネル化・`section:materials`）。どちらも **Blocked by #1152** を本文に明記
 - **#1153 コメント**: 旧カンバンの「タグ軸で Todo を眺めて整理する」役割は #1171 が引き取り、サイドバー側にタグ別グルーピングを作り込まない旨を明記
 - **実測の副産物**: タグの lucide アイコン + カラーはデータ列（`wiki_tags.icon` / `color`）も設定 UI（TagIconPicker / TagColorControls）も実装済みで、欠けているのは表示面（TagPill 等）だけ — 新規機能ではなく #1171 の表示要件として畳み込んだ
-
-### 2026-08-23 - #994 モバイル体感の実ブラウザ計測 6 項目（PR #1112）+ follow-up 3 件起票
-
-#### 概要
-
-#797 が静的調査で止めた 6 項目を、playwright MCP の実ブラウザ（CDP で throttling）+ 作者本人の実 Supabase データで全数計測し、レポートに §8 として追記した（PR #1112 open）。実害が出た 3 点を **#1114 / #1115 / #1116** として起票し、**#992 は今の実データでは再現しない**ことを実測で確定した。
-
-#### 実測値
-
-| 項目                 | 実測                                                                 | 判定                            |
-| -------------------- | -------------------------------------------------------------------- | ------------------------------- |
-| 再レンダリング       | 初回 14 commit / 切替は Schedule だけ 164.5 ms（Materials の 13 倍） | Schedule が突出（#1101 の対象） |
-| ポモドーロの REST    | 開始 1.1 秒で 5 本、残り 59 秒は 0 本、停止時 1 本                   | 約 6 本・長さに比例しない       |
-| 実データの行数 / FPS | ノート 5 / Todo 4 / Event 0 → スクロールできるリストが 0             | FPS 測定不能                    |
-| ツールチップ         | 1 hover = 1 commit・5.72 ms、60 fps 維持                             | 実害なし                        |
-| Slow 4G + CPU 4x     | FCP 2,820 / LCP 3,860 / TBT 430 ms                                   | "needs improvement" 帯          |
-| lucide eager/lazy    | eager 99.6%（466.5 KB raw / 1,704 モジュール）                       | 最大の改善余地                  |
-
-#### 変更点
-
-- **レポート §8 追記**（`.claude/docs/reports/2026-08-13-mobile-performance.md`）: 計測環境・6 項目の実測値・副作用の記録。§6 の未計測表から §8 へ参照を張った。docs-lint 緑
-- **計測手法**: `__REACT_DEVTOOLS_GLOBAL_HOOK__` の shim を `addInitScript` で React より先に差し込み `onCommitFiberRoot` で commit 回数と `actualDuration` を集計。初期ロード系は `vite preview` の本番成果物 + CDP の `Network.emulateNetworkConditions` / `Emulation.setCPUThrottlingRate`。**コミット時間は dev ビルドでしか取れない**（本番 React は `actualDuration` を記録しない）ので、dev / prod を使い分けて注記した
-- **lucide の内訳は sourcemap の mappings を復号して出力バイトをモジュールへ帰属**させて算出。eager 466.5 KB / lazy 1.7 KB = **eager 99.6%**。原因は `shared/src/components/tagIcon.ts:19` の `import { icons }`（レジストリ**オブジェクト全体**の参照で tree-shaking が無効化される）。curated 26 個の明示マップに替えた一時パッチで **gzip 417.52 → 300.64 KB（−28.0%）** を実測 → パッチは破棄（`git diff` で確認）
-- **#992 の着手条件は満たされなかった**: `scrollHeight > clientHeight` の要素を全走査しても該当なし。仮想化は「今の重さを直す施策」ではなく「データが増えた後の先行投資」で、着手するなら合成データで閾値を先に決めるのが筋、と結論を残した
-- **起票 3 件**: #1114（lucide・`sev:important` / shared-fix）/ #1115（Briefing のエディタ即時マウント・shared-fix）/ #1116（`Untitled todo` 自動生成 + ID 規約違反・`type:bug` / section:work）
-
-#### 踏んだ罠
-
-- **`performance.getEntriesByType("resource")` は resource timing バッファ上限（既定 250 件）で溢れる**。Supabase への 211 リクエストが「0 件」に見えて接続先を疑いかけた。全数が要るときは `window.fetch` を差し替えて自前で記録する
-- **naive な線形外挿が結論を反転させかけた**: 60 秒で 5 本 → 30 分で 150 本、と割り算すると「ポモドーロが REST を垂れ流している」ように読めるが、実際は開始 1.1 秒に全部集中していて残りは 0 本。**バースト分布を確認せずにレートへ換算しない**
-- **計測が実データを書き換えた**: タイマーを「No Todo」で開始したら `Untitled todo` が実 DB に作られた（ユーザー確認のうえソフトデリート）。supabase MCP は read-only トランザクションなので UPDATE が通らず、削除はアプリ自身の経路（life-editor MCP `delete_todo`）で行った。**書き込みを伴う操作を実データで計測するときは、何が書かれるかを先に fetch ログで押さえる**
-- **CRLF のファイルに LF で追記していた**。既存ファイルへ heredoc で追記する前に行末を確認する
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

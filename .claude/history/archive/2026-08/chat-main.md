@@ -2,6 +2,38 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-23 - #994 モバイル体感の実ブラウザ計測 6 項目（PR #1112）+ follow-up 3 件起票
+
+#### 概要
+
+#797 が静的調査で止めた 6 項目を、playwright MCP の実ブラウザ（CDP で throttling）+ 作者本人の実 Supabase データで全数計測し、レポートに §8 として追記した（PR #1112 open）。実害が出た 3 点を **#1114 / #1115 / #1116** として起票し、**#992 は今の実データでは再現しない**ことを実測で確定した。
+
+#### 実測値
+
+| 項目                 | 実測                                                                 | 判定                            |
+| -------------------- | -------------------------------------------------------------------- | ------------------------------- |
+| 再レンダリング       | 初回 14 commit / 切替は Schedule だけ 164.5 ms（Materials の 13 倍） | Schedule が突出（#1101 の対象） |
+| ポモドーロの REST    | 開始 1.1 秒で 5 本、残り 59 秒は 0 本、停止時 1 本                   | 約 6 本・長さに比例しない       |
+| 実データの行数 / FPS | ノート 5 / Todo 4 / Event 0 → スクロールできるリストが 0             | FPS 測定不能                    |
+| ツールチップ         | 1 hover = 1 commit・5.72 ms、60 fps 維持                             | 実害なし                        |
+| Slow 4G + CPU 4x     | FCP 2,820 / LCP 3,860 / TBT 430 ms                                   | "needs improvement" 帯          |
+| lucide eager/lazy    | eager 99.6%（466.5 KB raw / 1,704 モジュール）                       | 最大の改善余地                  |
+
+#### 変更点
+
+- **レポート §8 追記**（`.claude/docs/reports/2026-08-13-mobile-performance.md`）: 計測環境・6 項目の実測値・副作用の記録。§6 の未計測表から §8 へ参照を張った。docs-lint 緑
+- **計測手法**: `__REACT_DEVTOOLS_GLOBAL_HOOK__` の shim を `addInitScript` で React より先に差し込み `onCommitFiberRoot` で commit 回数と `actualDuration` を集計。初期ロード系は `vite preview` の本番成果物 + CDP の `Network.emulateNetworkConditions` / `Emulation.setCPUThrottlingRate`。**コミット時間は dev ビルドでしか取れない**（本番 React は `actualDuration` を記録しない）ので、dev / prod を使い分けて注記した
+- **lucide の内訳は sourcemap の mappings を復号して出力バイトをモジュールへ帰属**させて算出。eager 466.5 KB / lazy 1.7 KB = **eager 99.6%**。原因は `shared/src/components/tagIcon.ts:19` の `import { icons }`（レジストリ**オブジェクト全体**の参照で tree-shaking が無効化される）。curated 26 個の明示マップに替えた一時パッチで **gzip 417.52 → 300.64 KB（−28.0%）** を実測 → パッチは破棄（`git diff` で確認）
+- **#992 の着手条件は満たされなかった**: `scrollHeight > clientHeight` の要素を全走査しても該当なし。仮想化は「今の重さを直す施策」ではなく「データが増えた後の先行投資」で、着手するなら合成データで閾値を先に決めるのが筋、と結論を残した
+- **起票 3 件**: #1114（lucide・`sev:important` / shared-fix）/ #1115（Briefing のエディタ即時マウント・shared-fix）/ #1116（`Untitled todo` 自動生成 + ID 規約違反・`type:bug` / section:work）
+
+#### 踏んだ罠
+
+- **`performance.getEntriesByType("resource")` は resource timing バッファ上限（既定 250 件）で溢れる**。Supabase への 211 リクエストが「0 件」に見えて接続先を疑いかけた。全数が要るときは `window.fetch` を差し替えて自前で記録する
+- **naive な線形外挿が結論を反転させかけた**: 60 秒で 5 本 → 30 分で 150 本、と割り算すると「ポモドーロが REST を垂れ流している」ように読めるが、実際は開始 1.1 秒に全部集中していて残りは 0 本。**バースト分布を確認せずにレートへ換算しない**
+- **計測が実データを書き換えた**: タイマーを「No Todo」で開始したら `Untitled todo` が実 DB に作られた（ユーザー確認のうえソフトデリート）。supabase MCP は read-only トランザクションなので UPDATE が通らず、削除はアプリ自身の経路（life-editor MCP `delete_todo`）で行った。**書き込みを伴う操作を実データで計測するときは、何が書かれるかを先に fetch ログで押さえる**
+- **CRLF のファイルに LF で追記していた**。既存ファイルへ heredoc で追記する前に行末を確認する
+
 ### 2026-08-16 - outbox の起票依頼を全消化（25 件）+ 全レーンへの /goal 配布 + §7.1 の複製撤去（#1010）
 
 #### 概要
