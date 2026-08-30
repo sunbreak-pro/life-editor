@@ -341,12 +341,27 @@ export function TourOverlay({
           {copy}
         </p>
 
-        <div className="mt-lumen-3 flex items-center justify-between gap-lumen-2">
-          <span className="text-xs text-lumen-text-tertiary">
+        {/*
+          The footer WRAPS, it does not squeeze (#1264). ja is the wide case:
+          「スキップ」next to the 14-character「実際に操作すると次に進みます」
+          overruns the w-72 bubble's 264px of inner width, and a flex row's
+          default answer to an overrun is to shrink every item a little. A few
+          px is all it takes — the counter broke as "1 /" + "4" and Skip as
+          「スキッ」+「プ」, because CJK offers a break between any two glyphs.
+
+          So the fixed-size bits are shrink-0 + whitespace-nowrap and the row
+          may wrap instead: the button cluster then takes a line of its own
+          (240px into 264px, so nothing has to shrink at all) and en, which
+          fits, still renders as a single row. ml-auto is what holds the
+          cluster against the right edge once it is alone on its line —
+          justify-between on its own would put it at the start.
+        */}
+        <div className="mt-lumen-3 flex flex-wrap items-center justify-between gap-lumen-2">
+          <span className="shrink-0 whitespace-nowrap text-xs text-lumen-text-tertiary">
             {labels.progress}
           </span>
 
-          <div className="flex items-center gap-lumen-2">
+          <div className="ml-auto flex items-center gap-lumen-2">
             <button
               type="button"
               onClick={onSkip}
@@ -354,8 +369,8 @@ export function TourOverlay({
               // not do (the BottomSheet close-button lesson, #525).
               data-dialog-autofocus="skip"
               className={cn(
-                "rounded-lumen-sm px-2 py-1 text-xs text-lumen-text-secondary",
-                "hover:text-lumen-text",
+                "shrink-0 whitespace-nowrap rounded-lumen-sm px-2 py-1 text-xs",
+                "text-lumen-text-secondary hover:text-lumen-text",
                 FOCUS_RING,
               )}
             >
@@ -371,7 +386,8 @@ export function TourOverlay({
                 type="button"
                 onClick={onNext}
                 className={cn(
-                  "rounded-lumen-sm bg-lumen-accent px-3 py-1 text-xs font-medium",
+                  "shrink-0 whitespace-nowrap rounded-lumen-sm bg-lumen-accent",
+                  "px-3 py-1 text-xs font-medium",
                   "text-lumen-on-accent hover:bg-lumen-accent-hover",
                   FOCUS_RING,
                 )}
