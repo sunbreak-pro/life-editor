@@ -1,5 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { FOCUS_RING, FOCUS_RING_ON_ACCENT } from "@life-editor/shared";
+import {
+  FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
+  NoticePanel,
+} from "@life-editor/shared";
 
 /*
  * Note password / edit-lock dialog (S3, required incl. UI). Wires the
@@ -168,9 +172,15 @@ export function NotePasswordDialog({
           )}
 
           {error && (
-            <p id={errId} role="alert" className="text-sm text-lumen-danger">
-              {error}
-            </p>
+            // Text variant (#1278): a max-w-sm dialog of two stacked fields
+            // has no room for a band around one line. `id` is what keeps both
+            // inputs' aria-describedby pointed at this message.
+            <NoticePanel
+              id={errId}
+              variant="text"
+              tone="danger"
+              message={error}
+            />
           )}
 
           <div className="flex justify-end gap-2 pt-1">

@@ -20,6 +20,7 @@ import {
 import {
   balanceByRole,
   isImeComposing,
+  NoticePanel,
   useTranslation,
   useWikiTagsUnifiedContext,
 } from "@life-editor/shared";
@@ -591,9 +592,9 @@ export function LinkPanel({
       {!loading && linked.map(renderChip)}
 
       {error && (
-        <span role="alert" className="text-xs text-lumen-danger">
-          {error}
-        </span>
+        // Text variant at the row's own xs size (#1278): this sits inline
+        // among the chips, where a band would break the row into two lines.
+        <NoticePanel variant="text" size="xs" tone="danger" message={error} />
       )}
 
       {/* The "+ link" pill mirrors the sibling "+ tag" pill it sits next to:

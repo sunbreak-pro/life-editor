@@ -301,6 +301,33 @@ describe("LinkPanel — title resolution (#749)", () => {
   });
 });
 
+describe("LinkPanel — the refusal line (#1278)", () => {
+  /*
+   * A failed write is the only in-panel error a user can actually reach (the
+   * self-link guard at handleAdd is unreachable from the picker, which already
+   * filters `target.id !== itemId`), and until #1278 nothing asserted it at
+   * all. What is worth pinning is not the copy but the ANNOUNCEMENT: the line
+   * moved from a hand-typed role="alert" span to NoticePanel's tone-derived
+   * live region, and a screen reader is the only place that difference shows.
+   */
+  it("announces a failed link and leaves the picker open", async () => {
+    state.createItemLink.mockRejectedValueOnce(new Error("network is down"));
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    const input = await openPicker();
+
+    fireEvent.change(input, { target: { value: "tiles" } });
+    const options = await screen.findAllByRole("option");
+    fireEvent.click(options[0]);
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "network is down",
+    );
+    // The picker stays up: closePicker only runs on the success path, so the
+    // retry is one click away rather than behind reopening the popover.
+    expect(screen.getByRole("combobox")).toBeTruthy();
+  });
+});
+
 /*
  * #1292 — a link whose target was deleted.
  *

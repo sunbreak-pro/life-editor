@@ -31,8 +31,14 @@ import { cn } from "./cn";
 
 export type NoticeTone = "info" | "success" | "warning" | "danger";
 
-/** Inset card inside a column, or a full-bleed strip across a surface. */
-export type NoticeVariant = "card" | "banner";
+/**
+ * Inset card inside a column, a full-bleed strip across a surface, or bare
+ * tone-colored copy for a container too tight to carry a band at all (#1278).
+ */
+export type NoticeVariant = "card" | "banner" | "text";
+
+/** Body size. Default "sm"; "xs" is for dense chip rows. */
+export type NoticeSize = "sm" | "xs";
 
 export interface NoticeAction {
   /** Already-translated label. */
@@ -55,8 +61,19 @@ export interface NoticePanelProps {
   icon?: ReactNode | null;
   /** The single "…and here is what to do about it" affordance. */
   action?: NoticeAction;
-  /** Layout. Default "card". */
+  /**
+   * Layout. Default "card". "text" drops the border, the fill and the padding
+   * and keeps only the tone color plus the live region — `title`, `icon` and
+   * `action` are not drawn in that variant.
+   */
   variant?: NoticeVariant;
+  /**
+   * Body size. Default "sm". A prop rather than a `className` because `cn` is
+   * plain concatenation, not tailwind-merge: a caller-supplied `text-xs` still
+   * loses to the base `text-sm` on CSS source order (rules/frontend.md
+   * §Gotchas — the same trap that drew an 860px panel at 448px in #830).
+   */
+  size?: NoticeSize;
   /**
    * Overrides the tone-derived live-region role. The default follows Toast:
    * danger / warning interrupt (`alert`), info / success are polite
@@ -65,6 +82,11 @@ export interface NoticePanelProps {
    * success that IS that answer (the auth surfaces do the latter).
    */
   role?: "alert" | "status";
+  /**
+   * DOM id for the message node, so the field that just failed can point its
+   * `aria-describedby` at it (NotePasswordDialog's two inputs do exactly that).
+   */
+  id?: string;
   className?: string;
 }
 
@@ -89,6 +111,12 @@ const TONE_TEXT: Record<NoticeTone, string> = {
   danger: "text-lumen-danger",
 };
 
+/* Looked up, not string-built, for the same scanner reason as TONE_SURFACE. */
+const SIZE_TEXT: Record<NoticeSize, string> = {
+  sm: "text-sm",
+  xs: "text-xs",
+};
+
 const TONE_ICON: Record<NoticeTone, ReactNode> = {
   info: <Info aria-hidden />,
   success: <CircleCheck aria-hidden />,
@@ -103,7 +131,9 @@ export function NoticePanel({
   icon,
   action,
   variant = "card",
+  size = "sm",
   role,
+  id,
   className,
 }: NoticePanelProps) {
   // Same derivation as Toast, so the two agree on which tones interrupt.
@@ -115,12 +145,44 @@ export function NoticePanel({
   // `icon === null` is "no glyph"; `undefined` is "use the tone's".
   const glyph = icon === undefined ? TONE_ICON[tone] : icon;
 
+  /*
+   * The text variant (#1278) is this same message with the band taken away:
+   * one line of tone-colored copy under the control it is complaining about.
+   * It exists because three in-form errors live in containers where a
+   * bordered, filled, padded band outweighs the field it belongs to — a small
+   * modal that already carries a danger-tinted title glyph, and a chip row.
+   *
+   * Leaving them as bare `<p className="text-lumen-danger">` was the
+   * per-screen re-invention #1184 set out to end, and routing them here buys
+   * the one thing every hand-rolled copy kept typing out by hand: the
+   * live-region role is DERIVED from the tone instead of chosen per site.
+   */
+  if (variant === "text") {
+    return (
+      <p
+        id={id}
+        role={resolvedRole}
+        aria-live={ariaLive}
+        className={cn(
+          "leading-normal",
+          SIZE_TEXT[size],
+          TONE_TEXT[tone],
+          className,
+        )}
+      >
+        {message}
+      </p>
+    );
+  }
+
   return (
     <div
+      id={id}
       role={resolvedRole}
       aria-live={ariaLive}
       className={cn(
-        "flex items-start gap-2 text-sm",
+        "flex items-start gap-2",
+        SIZE_TEXT[size],
         variant === "banner"
           ? // A strip owns the full width of its host and only draws the edge
             // it sits against, so it reads as part of the chrome.
