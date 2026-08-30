@@ -693,11 +693,12 @@ export {
   extractItemLinkTargets,
   findStaleInlineLinks,
 } from "./utils/inlineLinkSync";
-// #1152: derivations over an already-fetched `wiki_tag_connections` array,
-// kept when the Connect graph they used to feed was retired. A host holding
-// the raw connections wants these; one inside the WikiTagsUnifiedProvider
-// wants `getLinksForItem` instead.
-export { backlinkSourceIds, resolveLinkId } from "./utils/itemLinks";
+// (#1152 moved two `wiki_tag_connections` derivations here — backlinkSourceIds
+// and resolveLinkId — when the Connect graph that fed them was retired. No
+// caller ever appeared: the Notes LinkPanel reads both directions out of
+// WikiTagsUnifiedProvider's bulk cache via `getLinksForItem`, and the tag hub
+// that took the section's place (#1171) is tag-axis, not link-axis. Deleted in
+// #1239 under P-002; git history has them if a backlink surface wants them.)
 // #376: hosts that write a row through the injected DataService (rather than
 // through a domain Provider) need the canonical id shape too — the Schedule
 // creation panel creates a Note without mounting the Notes Provider.
@@ -738,10 +739,7 @@ export {
   TourContext,
   type TourContextValue,
 } from "./context";
-export {
-  useTourContext,
-  useTourContextOptional,
-} from "./hooks/useTourContext";
+export { useTourContext, useTourContextOptional } from "./hooks/useTourContext";
 // The producer side of the tour (#1124): optional and stable, so a write
 // handler can report an action without depending on the tour being mounted.
 export { useTourAction } from "./hooks/useTourAction";

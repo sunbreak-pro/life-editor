@@ -433,10 +433,10 @@ export * from "./Analytics";
 // sessions + the daily's Briefing section) and injects data + labels (§6.4).
 // Reuses the 3 adopted Analytics widgets internally (Analytics shrink).
 export * from "./briefing";
-// Backlinks — the "what links here" panel that outlived the Connect section
-// (#1152 retired the force-directed graph; the tags, item links and search it
-// read from all stayed). Pure presentational: data + copy injected (§6.4).
-export * from "./Backlinks";
+// (Backlinks — the "what links here" panel salvaged from the Connect
+// retirement (#1152) — was deleted in #1239. It never gained a caller: the
+// Notes LinkPanel draws its own rows off the unified link cache, and the tag
+// hub below is tag-axis. P-002, on a full grep.)
 // TagHub (#1171) — the Connect section's body, and what the retired graph was
 // replaced BY: a tag-first hub (pick a topic, read its items by kind) instead
 // of one picture of every relationship at once. Pure presentational — the
