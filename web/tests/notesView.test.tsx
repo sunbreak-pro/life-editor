@@ -558,3 +558,99 @@ describe("NotesView — mobile (narrow)", () => {
     expect(screen.queryByTestId("link-panel")).toBeNull();
   });
 });
+
+/*
+ * #1288 — the tag filter row, now multi-select, and the unfiltered list's cap.
+ *
+ * The suite's fixtures give one tagged group (Work → Alpha) and the untagged
+ * bucket (Beta), which is the smallest shape that can tell "two selections" and
+ * "one selection" apart at all.
+ */
+describe("NotesView — multi-select tag filter (#1288)", () => {
+  /** The filter chip whose visible text starts with this tag name. */
+  function filterChip(name: string): HTMLElement {
+    // The tour anchor is the row's own wrapper — the same handle the #1125
+    // cases use, resolved locally because theirs lives in another describe.
+    const row = document.querySelector<HTMLElement>(
+      '[data-tour-id="materials-tag-filter"]',
+    );
+    if (!row) throw new Error("the tag filter row is not on screen");
+    const found = within(row)
+      .getAllByRole("button")
+      .find((b) => b.textContent?.startsWith(name));
+    if (!found) throw new Error(`no filter chip named ${name}`);
+    return found;
+  }
+
+  it("shows both groups when two tags are selected", () => {
+    render(<NotesView />);
+
+    // One selected → only that heading. This is #369's behaviour, kept.
+    fireEvent.click(filterChip("Work"));
+    expect(screen.queryByText("Beta")).toBeNull();
+    screen.getByText("Alpha");
+
+    // Two selected → both. OR, not AND: a chip means "show this heading".
+    fireEvent.click(filterChip("materials.notes.untagged"));
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+  });
+
+  it("drops every selection at once through the clear button", () => {
+    render(<NotesView />);
+    fireEvent.click(filterChip("Work"));
+    expect(screen.queryByText("Beta")).toBeNull();
+
+    fireEvent.click(
+      screen.getByLabelText("materials.notes.tagFilterClear"),
+    );
+
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+    // The clear control is only drawn while there is something to clear.
+    expect(
+      screen.queryByLabelText("materials.notes.tagFilterClear"),
+    ).toBeNull();
+  });
+
+  it("caps an unfiltered group's rows and opens it on request", () => {
+    // Six notes under one tag — one past the cap, so exactly one row hides.
+    const many = ["A", "B", "C", "D", "E", "F"].map((n) =>
+      note({ id: `note-${n}`, title: `Note ${n}` }),
+    );
+    state.notes = many;
+    state.assignments = Object.fromEntries(
+      many.map((n) => [
+        n.id,
+        [{ itemId: n.id, tagId: "tag-work", isDeleted: false }],
+      ]),
+    );
+    render(<NotesView />);
+
+    expect(screen.queryByText("Note F")).toBeNull();
+    fireEvent.click(screen.getByText("materials.notes.groupMoreRows|1"));
+    screen.getByText("Note F");
+  });
+
+  it("does not cap a group the user filtered to", () => {
+    const many = ["A", "B", "C", "D", "E", "F"].map((n) =>
+      note({ id: `note-${n}`, title: `Note ${n}` }),
+    );
+    // BETA stays untagged so there are TWO buckets: the chip row only renders
+    // with more than one group to choose between (`showTagFilter`).
+    state.notes = [...many, BETA];
+    state.assignments = Object.fromEntries(
+      many.map((n) => [
+        n.id,
+        [{ itemId: n.id, tagId: "tag-work", isDeleted: false }],
+      ]),
+    );
+    render(<NotesView />);
+
+    fireEvent.click(filterChip("Work"));
+
+    // Asking for the tag IS asking for its contents — nothing is held back.
+    screen.getByText("Note F");
+    expect(screen.queryByText(/materials\.notes\.groupMoreRows/)).toBeNull();
+  });
+});

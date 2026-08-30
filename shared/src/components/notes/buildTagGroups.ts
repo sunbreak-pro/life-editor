@@ -56,22 +56,28 @@ export function tagGroupKey(group: Pick<NoteTagGroup, "tagId">): string {
 }
 
 /**
- * Narrow a grouped list down to one tag (#369 tag filter). `filterKey` is a
- * `tagGroupKey` value, or null for "no filter".
+ * Narrow a grouped list down to the selected tags (#1288; #369's solo-one
+ * `soloTagGroup` renamed and widened). `keys` are `tagGroupKey` values; an
+ * EMPTY list means "no filter".
  *
- * A key that matches nothing falls back to the FULL list rather than an empty
- * one. The chip that set the filter is rendered from these same groups, so a
+ * OR, not AND: a selected key means "show this heading", so two selections show
+ * two sections. Intersection has no heading to live under in a tag-grouped
+ * list, and under a many-to-many tag model it is the rarer question.
+ *
+ * Keys that match nothing fall back to the FULL list rather than an empty one.
+ * The chips that set the filter are rendered from these same groups, so a
  * selection can go stale underneath the user (the search box empties the group,
  * or the tag is deleted) — and once its chip is gone there is nothing left to
  * click to undo it. Showing everything is the recoverable end of that.
  */
-export function soloTagGroup(
+export function filterTagGroups(
   groups: NoteTagGroup[],
-  filterKey: string | null,
+  keys: readonly string[],
 ): NoteTagGroup[] {
-  if (filterKey === null) return groups;
-  const soloed = groups.filter((g) => tagGroupKey(g) === filterKey);
-  return soloed.length > 0 ? soloed : groups;
+  if (keys.length === 0) return groups;
+  const wanted = new Set(keys);
+  const kept = groups.filter((g) => wanted.has(tagGroupKey(g)));
+  return kept.length > 0 ? kept : groups;
 }
 
 function sortNotes(notes: NoteNode[]): NoteNode[] {
