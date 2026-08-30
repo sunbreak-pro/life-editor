@@ -2,6 +2,17 @@
 
 ## 進行中
 
+### 📦 Desktop 配布パッケージ化（mac .dmg / Windows NSIS）（着手日: 2026-08-30）
+
+**対象**: `.github/workflows/`・`desktop/`（package.json / electron-builder.yml / README）
+**計画書**: `.claude/docs/vision/plans/2026-08-30-desktop-app-packaging.md`
+
+- 現在: 現状調査 → **#1300（Windows + リリース基盤）/ #1301（macOS）を起票** → 計画書を **PR #1302 open**。調査の実測 = GitHub Release 0 本 / リリース自動化なし / `desktop/package.json` version が `0.0.0` / macOS は一度も未ビルド / `directories.buildResources` が実在しない `desktop/build/` を指す
+- 効いた前提: **repo が public なので macOS / Windows ランナーが無料** — tag 駆動の GitHub Actions を \$0 原則を壊さずに入れられる（private 化するとこの前提が崩れる）
+- 裏取り済み: **未署名 macOS は Apple Silicon で「壊れているため開けません」**（Big Sur / M1 以降は署名の存在自体を要求）。回避はシステム設定の「このまま開く」or `xattr -dr com.apple.quarantine`。**ad-hoc 署名（`identity: "-"`）はビルドしたマシンでしか動かないので配布の答えにならない**
+- 次: PR #1302 merge 後に #1300 から着手（version 実バージョン化 → `release-desktop.yml` → 空ビルドガード → Windows 実機受け入れ）→ #1301（mac ジョブ + Mac 実機受け入れ。**Mac 実機が要るので Windows 機だけの日は Step 8 を残して止めてよい**）
+- 保留: **D-20260830-main-1 = Intel Mac 向け x64 `.dmg` を配るか**（`macos-latest` は arm64 なのでクロスビルドになり CI で起動検証できない）。放置時は両アーキをビルドするが受け入れは arm64 のみ
+
 ### 🔧 Loop Engineering 親計画 Phase 1 + 2（夜間レーン 2 本 + 毎朝 digest）（着手日: 2026-08-04）
 
 **対象**: `.claude/automation/`・`.claude/settings.json`・`.claude/docs/vision/plans/`
