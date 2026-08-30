@@ -355,3 +355,80 @@ describe("TrashScreen — what the screen shows after the call returns", () => {
     expect(harness.fns.fetchDeletedRoutines).toHaveBeenCalledTimes(2);
   });
 });
+
+/*
+ * Bulk restore / delete (#1294), on the host side.
+ *
+ * shared/tests/trashView.test.tsx already pins WHICH refs a press hands over.
+ * What only this side can see is what the host then does with them: the same
+ * two category switches the single-row actions use, one row at a time, with a
+ * failure counted rather than thrown. The last case is the one that matters
+ * most — a bulk delete that dies halfway must leave the survivors listed and
+ * SAY how many it could not take, because the alternative is a list that
+ * silently disagrees with what the user just asked for.
+ */
+describe("TrashScreen — bulk actions (#1294)", () => {
+  const tick = async (label: string) => {
+    fireEvent.click(await screen.findByRole("checkbox", { name: label }));
+  };
+
+  it("routes a cross-category bulk restore to each category's own method", async () => {
+    const { fns } = await renderTrash();
+
+    await tick('Select "Buy milk"');
+    await tick('Select "Design memo"');
+    fireEvent.click(screen.getByRole("button", { name: "Restore selected" }));
+
+    await waitFor(() => expect(fns.restoreNoteUnified).toHaveBeenCalled());
+    expect(fns.restoreTodo.mock.calls).toEqual([["task-1"]]);
+    expect(fns.restoreNoteUnified.mock.calls).toEqual([["note-1"]]);
+    // Nothing that was not ticked moved.
+    expect(fns.restoreRoutine).not.toHaveBeenCalled();
+    expect(fns.permanentDeleteTodo).not.toHaveBeenCalled();
+  });
+
+  it("empties the trash across every category, once the confirm is answered", async () => {
+    const { fns } = await renderTrash();
+
+    fireEvent.click(screen.getByRole("button", { name: "Empty the trash" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(fns.permanentDeleteScheduleItem).toHaveBeenCalled(),
+    );
+    // Two todos, one of each of the other four — the whole fixture.
+    expect(fns.permanentDeleteTodo).toHaveBeenCalledTimes(2);
+    expect(fns.permanentDeleteNoteUnified).toHaveBeenCalledTimes(1);
+    expect(fns.permanentDeleteDailyUnified).toHaveBeenCalledTimes(1);
+    expect(fns.permanentDeleteRoutine).toHaveBeenCalledTimes(1);
+    expect(fns.restoreTodo).not.toHaveBeenCalled();
+  });
+
+  it("keeps going past a failure and says how many it could not handle", async () => {
+    const harness = makeHarness();
+    harness.fns.permanentDeleteTodo.mockRejectedValueOnce(new Error("offline"));
+    renderInSync(harness);
+    await screen.findByRole("region", { name: "Todos" });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all Todos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+
+    // The second row was still attempted after the first one threw.
+    await waitFor(() =>
+      expect(harness.fns.permanentDeleteTodo).toHaveBeenCalledTimes(2),
+    );
+    const notices = await screen.findAllByRole("status");
+    expect(notices.some((n) => n.textContent?.includes("1"))).toBe(true);
+    // …and the row that survived is still listed, not quietly gone.
+    within(screen.getByRole("region", { name: "Todos" })).getByText("Buy milk");
+  });
+});

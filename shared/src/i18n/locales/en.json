@@ -223,7 +223,19 @@
     "restoreConflict": "That day already has this repeating event, so the deleted one stays here. Delete the one on the calendar first if you want this exact item back.",
     "restoreFailed": "Couldn't restore that item. Please try again in a moment.",
     "cascadeWarning": "Related sub-items and tag assignments are deleted together.",
-    "permanentDeleteConfirm": "\"{{name}}\" will be permanently deleted. This cannot be undone."
+    "permanentDeleteConfirm": "\"{{name}}\" will be permanently deleted. This cannot be undone.",
+    "selectItem": "Select \"{{name}}\"",
+    "selectGroup": "Select all {{name}}",
+    "selectedCount": "{{n}} selected",
+    "clearSelection": "Clear the selection",
+    "restoreSelected": "Restore selected",
+    "deleteSelected": "Delete selected",
+    "emptyTrash": "Empty the trash",
+    "confirmSelectionMessage": "The {{n}} selected items will be permanently deleted. This cannot be undone.",
+    "confirmEmptyMessage": "All {{n}} items in the trash will be permanently deleted. This cannot be undone.",
+    "restoringMany": "Restoring…",
+    "deletingMany": "Deleting…",
+    "bulkPartialFailure": "{{n}} items could not be handled. Whatever is left is still here."
   },
   "updates": {
     "title": "Updates"

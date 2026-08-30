@@ -11,8 +11,10 @@ import {
   useTranslation,
   type DataService,
   type TrashBusy,
+  type TrashBusyAction,
   type TrashCategory,
   type TrashGroup,
+  type TrashRef,
   type DailyNode,
   type NoteNode,
   type RoutineNode,
@@ -94,6 +96,10 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   const [restoreNotice, setRestoreNotice] = useState<
     "conflict" | "failed" | null
   >(null);
+  /** A bulk run in flight (#1294) — disables the view, spins in the toolbar. */
+  const [bulkBusy, setBulkBusy] = useState<TrashBusyAction | null>(null);
+  /** How many rows a finished bulk run could not handle (0 = say nothing). */
+  const [bulkFailures, setBulkFailures] = useState(0);
 
   const untitled = t("common.untitled", { defaultValue: "Untitled" });
 
@@ -252,6 +258,67 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
     [ds, reload],
   );
 
+  /*
+   * Bulk restore / permanent delete (#1294).
+   *
+   * ONE ROW AT A TIME, and deliberately so. The DataService has no bulk verb —
+   * restore and delete are per-category calls — and firing them all at once
+   * would race the very thing the confirm warned about: a permanent delete
+   * cascades to children, so a parent and its child in the same selection can
+   * only be handled in order. Sequential also means a failure stops nothing:
+   * the row is counted and the run continues, which is what the user asked for
+   * when they selected fifteen things.
+   *
+   * Failures are COUNTED, not thrown. Everything that survived is still in the
+   * trash after the reload, so the honest report is "n could not be handled"
+   * next to a list that shows exactly which ones those are. A restore refused
+   * by the schedule's own conflict rule (#932) keeps its own message, since
+   * that one is a decision rather than a breakage.
+   */
+  const runBulk = useCallback(
+    async (
+      action: TrashBusyAction,
+      refs: TrashRef[],
+      run: (ref: TrashRef) => Promise<void>,
+    ) => {
+      if (refs.length === 0) return;
+      setBulkBusy(action);
+      setBulkFailures(0);
+      setRestoreNotice(null);
+      let failures = 0;
+      let conflict = false;
+      for (const ref of refs) {
+        try {
+          await run(ref);
+        } catch (e) {
+          failures += 1;
+          if (isScheduleRestoreConflict(e)) conflict = true;
+        }
+      }
+      setBulkFailures(failures);
+      if (conflict) setRestoreNotice("conflict");
+      await reload();
+      setBulkBusy(null);
+    },
+    [reload],
+  );
+
+  const handleRestoreMany = useCallback(
+    (refs: TrashRef[]) =>
+      runBulk("restore", refs, (ref) =>
+        restoreByCategory(ds, ref.category, ref.id),
+      ),
+    [ds, runBulk],
+  );
+
+  const handlePermanentDeleteMany = useCallback(
+    (refs: TrashRef[]) =>
+      runBulk("delete", refs, (ref) =>
+        permanentDeleteByCategory(ds, ref.category, ref.id),
+      ),
+    [ds, runBulk],
+  );
+
   // Layout Standard v2: the shell's SectionHeader owns the page title, so
   // the loading / error frames render only their state content (1e / 1f).
   if (isLoading || retrying) {
@@ -339,11 +406,25 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
           )}
         />
       )}
+      {bulkFailures > 0 && (
+        // The same band as the restore notice above (#1275): a bulk action
+        // that partly failed leaves the list standing, so it is a warning the
+        // user reads past, not the danger card that replaces the screen.
+        // role="status" for the same reason the neighbour keeps it.
+        <NoticePanel
+          tone="warning"
+          role="status"
+          message={t("trash.bulkPartialFailure", { n: bulkFailures })}
+        />
+      )}
       <TrashView
         groups={groups}
         onRestore={(c, id) => void handleRestore(c, id)}
         onPermanentDelete={(c, id) => void handlePermanentDelete(c, id)}
+        onRestoreMany={(refs) => void handleRestoreMany(refs)}
+        onPermanentDeleteMany={(refs) => void handlePermanentDeleteMany(refs)}
         busy={busy}
+        bulkBusy={bulkBusy}
         labels={{
           empty: t("trash.empty"),
           emptyDescription: t("trash.emptyDescription"),
@@ -355,6 +436,24 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
           cascadeWarning: t("trash.cascadeWarning"),
           cancel: t("common.cancel"),
           close: t("common.close"),
+          // The counts are substituted by TrashView, which is the only side
+          // that knows how many rows a press covers — `{count}` travels
+          // through the catalog as a literal, the same way `{name}` does.
+          selectItem: t("trash.selectItem", { name: "{name}" }),
+          selectGroup: t("trash.selectGroup", { name: "{name}" }),
+          selectedCount: t("trash.selectedCount", { n: "{count}" }),
+          clearSelection: t("trash.clearSelection"),
+          restoreSelected: t("trash.restoreSelected"),
+          deleteSelected: t("trash.deleteSelected"),
+          emptyTrash: t("trash.emptyTrash"),
+          confirmSelectionMessage: t("trash.confirmSelectionMessage", {
+            n: "{count}",
+          }),
+          confirmEmptyMessage: t("trash.confirmEmptyMessage", {
+            n: "{count}",
+          }),
+          restoringMany: t("trash.restoringMany"),
+          deletingMany: t("trash.deletingMany"),
         }}
       />
     </div>
