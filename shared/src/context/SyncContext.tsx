@@ -47,12 +47,13 @@ import { getSupabaseClient } from "../services/supabaseClient";
 /**
  * Every owned table whose changes should trigger a refetch. Mirrors the
  * 0008 unified schema (items_meta + 5 payloads + routine groups + the
- * wiki_tag graph) plus `calendars` (0006), and the W3 timer/audio tables
- * (0018). Kept in sync with the `supabase_realtime` publication declared
- * across 0017_realtime_publication.sql + 0018_timer_audio_tables.sql — a
- * table missing from EITHER side means that domain will not follow cross-tab
- * edits. Do not drop the wiki_tag_* rows. The lockstep test
- * (syncRealtimeTables.test.ts) enforces the union match.
+ * wiki_tag graph) and the W3 timer/audio tables (0018). Kept in sync with the
+ * `supabase_realtime` publication as the migrations leave it —
+ * 0017_realtime_publication.sql + 0018_timer_audio_tables.sql add,
+ * 0026_drop_calendars.sql removes — a table missing from EITHER side means
+ * that domain will not follow cross-tab edits. Do not drop the wiki_tag_*
+ * rows. The lockstep test (syncRealtimeTables.test.ts) replays those
+ * migrations in order and enforces the match.
  *
  * W3-B note: 0018 publishes all six timer/sound tables to supabase_realtime,
  * so the lockstep invariant requires subscribing to all six here. Their
@@ -87,10 +88,9 @@ export const REALTIME_TABLES = [
   "wiki_tag_group_assignments",
   "wiki_tag_assignments",
   "wiki_tag_connections",
-  // #1173 retired the calendars CODE; the table (and its publication entry)
-  // stay, so this subscription stays too and is simply silent — same shape as
-  // the routine_groups pair above.
-  "calendars",
+  // (#1173 retired the `calendars` CODE and #1277 dropped the table itself,
+  // so its subscription is gone from here — unlike the routine_groups pair
+  // above, whose tables still exist and are still published.)
   // W3 timer/audio (0018)
   "timer_settings",
   "pomodoro_presets",

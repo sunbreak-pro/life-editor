@@ -11,6 +11,12 @@
  * react-hooks/static-components, which web's eslint enforces in CI (#364).
  * Resolving straight into createElement keeps the same output without the
  * render-time declaration.
+ *
+ * #1291 made this the ONE read path for a stored icon everywhere a tag's name
+ * is shown — headings, the master list, the Tag hub, and now the chips. That is
+ * what makes "edit the icon and every surface follows" true by construction
+ * rather than by remembering to update each call site. Chips sit in smaller
+ * type than a heading, hence `size`.
  */
 
 import { createElement } from "react";
@@ -23,11 +29,17 @@ export interface TagHeadingIconProps {
   icon: string | null;
   /** Tag tint; null (untagged / no colour) falls back to the secondary text token. */
   color: string | null;
+  /** Glyph size in px. Default 15 = the heading size every pre-#1291 caller drew. */
+  size?: number;
 }
 
-export function TagHeadingIcon({ icon, color }: TagHeadingIconProps) {
+export function TagHeadingIcon({
+  icon,
+  color,
+  size = 15,
+}: TagHeadingIconProps) {
   return createElement(resolveTagIcon(icon) ?? Tag, {
-    size: 15,
+    size,
     "aria-hidden": true,
     className: "shrink-0 text-lumen-text-secondary",
     style: color ? { color } : undefined,

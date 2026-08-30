@@ -243,26 +243,20 @@ describe("NotesView — desktop (wide)", () => {
     expect(state.createNote).toHaveBeenCalled();
   });
 
-  it("keeps deleted notes behind the trash disclosure", () => {
+  it("does not offer a trash list of its own (#1286)", () => {
     render(<NotesView />);
 
-    // The row actions read `key|interpolation` here because this suite's `t` is
-    // a key echo. Whether the words come out Japanese is notesI18n's job (#680);
-    // this one only cares that the trash rows are gated behind the disclosure
-    // and wired to the right note.
-    const restore = "materials.notes.restoreNote|Old note";
-    const purge = "materials.notes.permanentDeleteNote|Old note";
-
-    expect(screen.queryByLabelText(restore)).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: /materials\.notes\.trash/ }),
-    );
-
-    fireEvent.click(screen.getByLabelText(restore));
-    expect(state.restoreNote).toHaveBeenCalledExactlyOnceWith("note-z");
-
-    fireEvent.click(screen.getByLabelText(purge));
-    expect(state.permanentDeleteNote).toHaveBeenCalledExactlyOnceWith("note-z");
+    // Recovery is the Trash SECTION's job, for every domain at once. The
+    // sidebar used to duplicate it for notes alone, so what is asserted is
+    // that nothing here names the deleted note: neither a row nor the
+    // disclosure that held them. A substring over the buttons rather than a
+    // name matcher, because this suite's `t` is a key echo — the disclosure
+    // read out as its catalog key, not as the word "Trash".
+    const buttons = screen.queryAllByRole("button");
+    expect(
+      buttons.some((b) => b.textContent?.includes("materials.notes.trash")),
+    ).toBe(false);
+    expect(screen.queryByText("Old note")).toBeNull();
   });
 
   it("deletes a note from its side-list row", () => {
@@ -513,10 +507,10 @@ describe("NotesView — mobile (narrow)", () => {
   it("puts the same list in the panel the desktop one uses", () => {
     render(<NotesView />);
 
-    // Same grouped rows, and the Trash disclosure that used to be sidebar-only.
+    // The same grouped rows the desktop sidebar draws. (#1286 removed the
+    // Trash disclosure that used to be checked here alongside them.)
     groupHeading("Work");
     screen.getByRole("button", { name: "Alpha" });
-    screen.getByRole("button", { name: /materials\.notes\.trash/ });
   });
 
   it("selects into the main area and gets the drawer out of the way", () => {

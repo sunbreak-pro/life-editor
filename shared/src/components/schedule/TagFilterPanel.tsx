@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { TagHeadingIcon } from "../TagHeadingIcon";
 import { isImeComposing } from "../../utils/imeGuard";
 import { FOCUS_RING_ON_ACCENT } from "../styleTokens";
 
@@ -28,8 +29,10 @@ import { FOCUS_RING_ON_ACCENT } from "../styleTokens";
 export interface TagFilterPanelTag {
   id: string;
   name: string;
-  /** Optional hex tint from `wiki_tags.color`; null renders a neutral dot. */
+  /** Optional hex tint from `wiki_tags.color`; tints the row's glyph. */
   color: string | null;
+  /** Stored lucide icon name from `wiki_tags.icon`; null → the generic glyph. */
+  icon: string | null;
   /** Rows this tag alone would leave on the grid. */
   count: number;
 }
@@ -241,14 +244,11 @@ export function TagFilterPanel({
                   onChange={() => onToggleTag(tag.id)}
                   className="size-4 shrink-0 accent-lumen-accent"
                 />
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-2.5 shrink-0 rounded-lumen-full",
-                    tag.color ? "" : "bg-lumen-border-strong",
-                  )}
-                  style={tag.color ? { backgroundColor: tag.color } : undefined}
-                />
+                {/* The tag's own glyph, not a colour dot (#1291): the same
+                    <TagHeadingIcon> the chips and the Tag hub draw, so a tag
+                    is recognisable here by the icon it was given rather than
+                    only by a tint that half the tags never set. */}
+                <TagHeadingIcon icon={tag.icon} color={tag.color} size={14} />
                 <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
                   {tag.name}
                 </span>

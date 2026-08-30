@@ -37,8 +37,8 @@ const LABELS: TagFilterPanelLabels = {
 };
 
 const TAGS = [
-  { id: "tag-work", name: "Work", color: "#336699", count: 4 },
-  { id: "tag-home", name: "Home", color: null, count: 2 },
+  { id: "tag-work", name: "Work", color: "#336699", icon: "Briefcase", count: 4 },
+  { id: "tag-home", name: "Home", color: null, icon: null, count: 2 },
 ];
 
 function group(over: Partial<TagFilterPanelGroup> = {}): TagFilterPanelGroup {
@@ -240,5 +240,27 @@ describe("TagFilterPanel — renaming a group", () => {
     const { onRenameGroup } = renderPanel({ groups: [group()] });
     fireEvent.blur(renameField());
     expect(onRenameGroup).not.toHaveBeenCalled();
+  });
+});
+
+describe("TagFilterPanel — the tag rows carry the tag's icon (#1291)", () => {
+  it("draws each tag's glyph where the colour dot used to be", () => {
+    renderPanel();
+    const rows = screen.getByRole("group", { name: LABELS.tagsLabel });
+
+    // lucide stamps its component name onto the <svg>. "Home" has no icon and
+    // no colour, so before #1291 it had no leading mark at all; it now gets the
+    // same generic tag glyph the editor's master list draws.
+    const glyphs = [...rows.querySelectorAll("svg")]
+      .map((svg) => /lucide-([a-z0-9-]+)/.exec(svg.getAttribute("class") ?? ""))
+      .filter((match): match is RegExpExecArray => match !== null)
+      .map((match) => match[1]);
+    expect(glyphs).toEqual(["briefcase", "tag"]);
+  });
+
+  it("tints the glyph with the tag colour", () => {
+    renderPanel();
+    const rows = screen.getByRole("group", { name: LABELS.tagsLabel });
+    expect(rows.querySelector("svg")).toHaveStyle({ color: "#336699" });
   });
 });

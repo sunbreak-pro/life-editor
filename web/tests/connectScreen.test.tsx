@@ -113,7 +113,7 @@ describe("ConnectScreen", () => {
     expect(railLabels()).toEqual([
       "Idle: 0 items",
       "Work: 4 items",
-      "Untagged: 1 items",
+      "Untagged: 1 item",
     ]);
   });
 
@@ -122,7 +122,7 @@ describe("ConnectScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
     expect(screen.queryByText("Deleted todo")).toBeNull();
     // …and it is not hiding in the untagged bucket either.
-    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 items" }));
+    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 item" }));
     expect(screen.queryByText("Deleted todo")).toBeNull();
   });
 
@@ -134,10 +134,10 @@ describe("ConnectScreen", () => {
         .getAllByRole("heading", { level: 3 })
         .map((h) => h.getAttribute("aria-label")),
     ).toEqual([
-      "Todo: 1 items",
-      "Event: 1 items",
-      "Note: 1 items",
-      "Daily: 1 items",
+      "Todo: 1 item",
+      "Event: 1 item",
+      "Note: 1 item",
+      "Daily: 1 item",
     ]);
   });
 
@@ -147,7 +147,7 @@ describe("ConnectScreen", () => {
     // By accessible NAME, not by text: the date also appears as the event
     // row's trailing detail, and only the daily row is named by it alone.
     expect(screen.getByRole("button", { name: "2026-08-29" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 items" }));
+    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 item" }));
     expect(screen.getByText("Untitled")).toBeTruthy();
   });
 

@@ -41,6 +41,13 @@ export interface ItemLinkTarget {
   id: string;
   label: string;
   role: string;
+  /**
+   * Soft-deleted (#1292). The pool carries these rows so a SURFACE THAT ALREADY
+   * HOLDS THE ID can still name it — a stored `item_links` edge outlives its
+   * target, and without the row the only thing left to draw was the id. Nothing
+   * that OFFERS a target may show one: the menu below drops them on load.
+   */
+  isDeleted?: boolean;
 }
 
 export interface ItemLinkSuggestionLabels {
@@ -140,7 +147,12 @@ async function buildItems(
   const q = query.trim().toLowerCase();
   // @tiptap/suggestion awaits this before calling onStart/onUpdate, so the
   // menu appears already populated — no empty flash on the first "[[".
-  const targets = await deps.loadTargets({ allowStale });
+  // Deleted rows ride along in the pool for LinkPanel's benefit (#1292); the
+  // menu wants live items only, so they come off here — once, before both the
+  // candidate list and the `exactMatch` test below read `targets`.
+  const targets = (await deps.loadTargets({ allowStale })).filter(
+    (t) => !t.isDeleted,
+  );
   const onResolvedInserted = deps.getOnResolvedInserted();
   const createNote = deps.getCreateNote();
 

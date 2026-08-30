@@ -1,23 +1,13 @@
 import type { ReactNode } from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
-import {
-  FileText,
-  ChevronRight,
-  ChevronDown,
-  Search,
-  Trash2,
-  RotateCcw,
-} from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import {
   EmptyState,
   SidebarListControls,
   StatusFilterChips,
   NoticePanel,
   tagGroupKey as groupKey,
-  cn,
-  type NoteNode,
   type NoteTagGroup,
-  FOCUS_RING,
   tourAnchor,
 } from "@life-editor/shared";
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
@@ -26,8 +16,15 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
  * The Desktop side list (extracted from NotesView.tsx — #588 split, zero
- * behavior change): search + sort + tag filter, the tag-grouped note rows, and
- * the Links / Trash disclosures under the divider.
+ * behavior change): search + sort + tag filter and the tag-grouped note rows.
+ *
+ * #1286 removed the trash disclosure that used to sit under the divider. It
+ * listed soft-deleted notes with restore / purge buttons — the same two actions
+ * the Trash SECTION offers for every domain, so the app asked the user to learn
+ * one recovery surface per place instead of one for the whole app. Recovery is
+ * now Trash's job alone; the note list only lists live notes. (The Links
+ * disclosure that used to sit above it moved to the note detail header in #884,
+ * so the divider itself has nothing left to separate.)
  *
  * The host pushes this into the shared rightSidebar (wide-only) — the panel
  * well supplies padding + scroll, so this is frameless natural-flow content.
@@ -53,17 +50,6 @@ export interface NotesSidebarListLabels {
   expandGroup: string;
   deleteNote: string;
   assignTagHint: string;
-  trash: string;
-  /** Stands in for an empty title, on screen and in the two labels below. */
-  untitled: string;
-  /*
-   * The trash row actions carry the note's title, so they arrive as builders
-   * rather than strings — the title's position inside the sentence is the
-   * translator's call (#680: these were hardcoded English until the catalog
-   * took them over).
-   */
-  restoreNote: (title: string) => string;
-  permanentDeleteNote: (title: string) => string;
 }
 
 export interface NotesSidebarListProps {
@@ -106,13 +92,6 @@ export interface NotesSidebarListProps {
    * Trash — both are collections this tab keeps out of the main list.
    */
   templatesSlot?: ReactNode;
-
-  // Trash disclosure.
-  trashOpen: boolean;
-  onToggleTrash: () => void;
-  deletedNotes: NoteNode[];
-  onRestoreNote: (id: string) => void;
-  onPermanentDeleteNote: (id: string) => void;
 }
 
 export function NotesSidebarList({
@@ -140,11 +119,6 @@ export function NotesSidebarList({
   onCreateNote,
   dnd,
   templatesSlot,
-  trashOpen,
-  onToggleTrash,
-  deletedNotes,
-  onRestoreNote,
-  onPermanentDeleteNote,
 }: NotesSidebarListProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -262,71 +236,6 @@ export function NotesSidebarList({
       )}
 
       {templatesSlot}
-
-      {/* Trash section. (The Links disclosure that used to sit above it moved
-          into the note detail header, beside the tags — #884.) */}
-      <div className="border-t border-lumen-border pt-1">
-        <button
-          type="button"
-          onClick={onToggleTrash}
-          aria-expanded={trashOpen}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          {trashOpen ? (
-            <ChevronDown size={13} aria-hidden className="shrink-0" />
-          ) : (
-            <ChevronRight size={13} aria-hidden className="shrink-0" />
-          )}
-          <Trash2 size={14} aria-hidden className="shrink-0" />
-          <span className="truncate">
-            {labels.trash}（{deletedNotes.length}）
-          </span>
-        </button>
-        {trashOpen && deletedNotes.length > 0 && (
-          <ul className="max-h-40 space-y-1 overflow-y-auto pb-2">
-            {deletedNotes.map((n) => {
-              const title = n.title || labels.untitled;
-              return (
-                <li
-                  key={n.id}
-                  className="flex items-center justify-between gap-2 px-1 text-sm"
-                >
-                  <span className="min-w-0 flex-1 truncate text-lumen-text-secondary line-through">
-                    {title}
-                  </span>
-                  <span className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onRestoreNote(n.id)}
-                      aria-label={labels.restoreNote(title)}
-                      className={cn(
-                        "text-lumen-accent hover:opacity-80",
-                        FOCUS_RING,
-                      )}
-                    >
-                      <RotateCcw size={14} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onPermanentDeleteNote(n.id)}
-                      aria-label={labels.permanentDeleteNote(title)}
-                      className={cn(
-                        "text-lumen-danger hover:opacity-80",
-                        FOCUS_RING,
-                      )}
-                    >
-                      <Trash2 size={14} aria-hidden />
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
 
       {/*
        * The Notes-local tag edit entry (#310) was removed in #409: the tag

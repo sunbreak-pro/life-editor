@@ -1,0 +1,1070 @@
+[
+  {
+    "name": "list_todos",
+    "description": "List todos. Optionally filter by status (not_started/done), date_range, or parent_id. Returns { todos, total, hasMore }: each entry carries a short contentPreview, not the whole body. Use get_todo for one todo's full content, or include_content:true to get every body in the page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_started",
+            "done"
+          ],
+          "description": "Filter by todo status"
+        },
+        "date_range": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "description": "Start date (ISO 8601)"
+            },
+            "end": {
+              "type": "string",
+              "description": "End date (ISO 8601)"
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "description": "Filter by scheduled date range"
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "Filter by parent todo ID"
+        },
+        "include_content": {
+          "type": "boolean",
+          "description": "Return each todo's full body alongside the preview (default: false). Costly — prefer get_todo."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max todos to return (default: 50). The result reports total and hasMore, so nothing is dropped silently."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_todo",
+    "description": "Get a single todo by ID, with its full body. `content` is TipTap JSON (what the editor stores); `contentText` is the same body as plain text — edit that one and write it back via update_todo, which takes Markdown.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Todo ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "get_todo_tree",
+    "description": "Get todos as a hierarchical tree structure. Returns todos with their children, tags, and metadata (excludes content — use get_todo for full content).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "root_id": {
+          "type": "string",
+          "description": "Todo ID to use as root (returns subtree). Omit for full tree."
+        },
+        "include_done": {
+          "type": "boolean",
+          "description": "Include completed todos (default: true)."
+        },
+        "max_depth": {
+          "type": "number",
+          "description": "Maximum tree depth (default: unlimited). 0 = root only, 1 = root + direct children, etc."
+        }
+      }
+    }
+  },
+  {
+    "name": "create_todo",
+    "description": "Create a new todo, body and status included — no follow-up update_todo needed.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Todo title"
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "Parent todo ID (optional)"
+        },
+        "scheduled_at": {
+          "type": "string",
+          "description": "Scheduled start (ISO 8601)"
+        },
+        "scheduled_end_at": {
+          "type": "string",
+          "description": "Scheduled end (ISO 8601)"
+        },
+        "is_all_day": {
+          "type": "boolean",
+          "description": "All-day event"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_started",
+            "done"
+          ],
+          "description": "Initial status (default: not_started)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "update_todo",
+    "description": "Update an existing todo. Only provide fields you want to change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Todo ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "New title"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_started",
+            "done"
+          ],
+          "description": "New status"
+        },
+        "scheduled_at": {
+          "type": "string",
+          "description": "New scheduled start (ISO 8601)"
+        },
+        "scheduled_end_at": {
+          "type": "string",
+          "description": "New scheduled end (ISO 8601)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+        },
+        "time_memo": {
+          "type": "string",
+          "description": "Free-text note about timing (e.g. '朝イチ', '30分'). Pass null to clear it."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "delete_todo",
+    "description": "Soft-delete a todo (moves to trash). Undo with restore_item.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Todo ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "get_daily",
+    "description": "Get the daily entry for a specific date. Returns exists (is there a readable daily), isTrashed (there is one, but it is in the trash — its body is withheld and writing to this date would restore it) and hasBriefing (the 朝刊 section is already written; write_briefing would replace it) alongside content. When exists is false, hasBriefing is always false — a trashed body is not read.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format"
+        }
+      },
+      "required": [
+        "date"
+      ]
+    }
+  },
+  {
+    "name": "upsert_daily",
+    "description": "Create or update a daily entry. Content is plain text and will be converted to TipTap JSON.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+        }
+      },
+      "required": [
+        "date",
+        "content"
+      ]
+    }
+  },
+  {
+    "name": "list_notes",
+    "description": "List notes, optionally filtered by a search query. Returns { notes, total, hasMore }: each entry carries a short contentPreview, not the whole body. Use get_note for one note's full content, or include_content:true to get every body in the page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query (matches title and content)"
+        },
+        "include_content": {
+          "type": "boolean",
+          "description": "Return each note's full body alongside the preview (default: false). Costly — prefer get_note."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max notes to return (default: 50). The result reports total and hasMore, so nothing is dropped silently."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_note",
+    "description": "Get a single note by ID, with its full body. `content` is TipTap JSON (what the editor stores); `contentText` is the same body as plain text — edit that one and write it back via update_note, which takes Markdown.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Note ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "create_note",
+    "description": "Create a new note.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Note title"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "update_note",
+    "description": "Update an existing note. Only provide fields you want to change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Note ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "New title"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+        },
+        "color": {
+          "type": "string",
+          "description": "Note icon color (hex, e.g. #E8D5F5)"
+        },
+        "is_pinned": {
+          "type": "boolean",
+          "description": "Pin the note to the top of the list"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "delete_note",
+    "description": "Soft-delete a note (moves to trash). Undo with restore_item.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Note ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "get_note_context",
+    "description": "Get everything needed to reorganise a note in one call: the note itself (content + contentText), its tags, and its WikiLink neighbours in both directions — links (this note points at them) and backlinks (they point at this note). Neighbours are id/role/title only; their bodies and tags are not included — follow up with get_note / get_todo by id for the ones you want to read.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Note ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "list_schedule",
+    "description": "List schedule items and scheduled todos for a specific date or date range. Pass either date (one day) or start_date AND end_date (a range) — half a range, or both forms at once, is an error rather than a silent fallback to today. Omit all three for today.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Single date in YYYY-MM-DD format. Defaults to today when no date and no range is given."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "Range start date (YYYY-MM-DD). Requires end_date; use date instead for a single day."
+        },
+        "end_date": {
+          "type": "string",
+          "description": "Range end date (YYYY-MM-DD). Requires start_date."
+        }
+      }
+    }
+  },
+  {
+    "name": "create_schedule_item",
+    "description": "Create a new schedule item (event) on the calendar. start_time and end_time are required unless is_all_day is true (an all-day event stores no times). For routine-based items, use todos instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format"
+        },
+        "title": {
+          "type": "string",
+          "description": "Event title"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "Start time in 24-hour HH:MM format (e.g. 09:00). Required unless is_all_day is true, which stores no times."
+        },
+        "end_time": {
+          "type": "string",
+          "description": "End time in 24-hour HH:MM format (e.g. 09:15). Required unless is_all_day is true, which stores no times."
+        },
+        "is_all_day": {
+          "type": "boolean",
+          "description": "All-day event (default: false)"
+        },
+        "memo": {
+          "type": "string",
+          "description": "Plain-text memo attached to the event"
+        }
+      },
+      "required": [
+        "date",
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "update_schedule_item",
+    "description": "Update an existing schedule item. Only provide fields you want to change. Setting is_all_day true clears the times; setting it false requires times (supplied here or already stored).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Schedule item ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "New title"
+        },
+        "date": {
+          "type": "string",
+          "description": "New date (YYYY-MM-DD) — moves the event"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "New start time in 24-hour HH:MM format (e.g. 09:00)"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "New end time in 24-hour HH:MM format (e.g. 09:15)"
+        },
+        "memo": {
+          "type": "string",
+          "description": "Memo/notes about the item"
+        },
+        "is_all_day": {
+          "type": "boolean",
+          "description": "All-day event flag. true clears start_time/end_time; false needs both (from this call or already stored)."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "delete_schedule_item",
+    "description": "Soft-delete a schedule item (moves it to trash; restorable with restore_item or from the Trash view).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Schedule item ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "set_schedule_complete",
+    "description": "Set whether a schedule item is complete. Replaces toggle_schedule_complete: pass the state you want, so the outcome does not depend on the current value and calling twice does not undo it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Schedule item ID"
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "true to mark it done, false to reopen it"
+        }
+      },
+      "required": [
+        "id",
+        "completed"
+      ]
+    }
+  },
+  {
+    "name": "set_schedule_dismissed",
+    "description": "Hide a schedule item from list/calendar views without deleting it, or bring it back. Used to skip routine occurrences for a given day. Replaces dismiss_schedule_item / undismiss_schedule_item.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Schedule item ID"
+        },
+        "dismissed": {
+          "type": "boolean",
+          "description": "true to hide it, false to show it again"
+        }
+      },
+      "required": [
+        "id",
+        "dismissed"
+      ]
+    }
+  },
+  {
+    "name": "get_today_context",
+    "description": "Get everything needed to write the morning briefing (朝刊) in one call: today's events, todos scheduled onto today, open todos (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Target date in YYYY-MM-DD (default: today in local time)"
+        }
+      }
+    }
+  },
+  {
+    "name": "get_week_context",
+    "description": "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Sunday to Saturday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "start_date": {
+          "type": "string",
+          "description": "First day of the 7-day window, YYYY-MM-DD (default: the Sunday of the current local week)"
+        }
+      }
+    }
+  },
+  {
+    "name": "write_briefing",
+    "description": "Write the morning briefing (朝刊) for a date, in two places the app reads from (#1048): the focus line (今日のフォーカス) is upserted as that date's section of the reserved focus note (`note-focus`), and the comment paragraphs are upserted as a '朝刊' heading section at the top of the DailyNode content. Existing sections are replaced in place; everything else — other days' focus history, the 夕刊 section — is preserved. Creates the focus note / the daily on first write. With no paragraphs, only the focus note is written and the daily is left untouched.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Target date in YYYY-MM-DD (default: today in local time)"
+        },
+        "focus": {
+          "type": "string",
+          "description": "The focus line — one short sentence, rendered large. Written into the focus note's section for the date (not into the daily)."
+        },
+        "paragraphs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "AI comment body paragraphs (yesterday's review, priorities, encouragement, etc.), written into the daily's 朝刊 section"
+        }
+      },
+      "required": [
+        "focus"
+      ]
+    }
+  },
+  {
+    "name": "search_all",
+    "description": "Search across todos, dailies, and notes. Use this to find information across all domains. Each requested domain answers as { results, total, hasMore }: total counts every match in that domain, results is the page cut by limit/offset, and hasMore says whether matches remain beyond it — page through with offset instead of re-searching with a bigger limit. totalHits is the sum of the per-domain totals. Daily hits carry the daily's id (the handle tag_entity / get_entity_tags take) as well as its date.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search keyword (case-insensitive substring match on title and content)"
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "todos",
+              "dailies",
+              "notes"
+            ]
+          },
+          "description": "Domains to search (default: all). Example: ['todos', 'notes']"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max results per domain (default: 10, positive integer). Each domain reports total and hasMore, so nothing is dropped silently."
+        },
+        "offset": {
+          "type": "number",
+          "description": "Rows to skip per domain (default: 0) — page with limit."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "generate_content",
+    "description": "PREFERRED tool for creating rich content in notes or dailies. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_daily when you need formatted output.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": [
+            "note",
+            "daily"
+          ],
+          "description": "Target entity type"
+        },
+        "target_id": {
+          "type": "string",
+          "description": "Existing note ID to update (omit to create a new note). Dailies are addressed by target_date instead."
+        },
+        "target_date": {
+          "type": "string",
+          "description": "Date for daily (YYYY-MM-DD). Defaults to today."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title for new note"
+        },
+        "structure": {
+          "type": "array",
+          "description": "Array of content blocks. Each block has a 'type' and type-specific fields.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "heading",
+                  "paragraph",
+                  "bulletList",
+                  "orderedList",
+                  "taskList",
+                  "toggleList",
+                  "callout",
+                  "codeBlock",
+                  "blockquote",
+                  "horizontalRule",
+                  "table"
+                ],
+                "description": "Block type"
+              },
+              "level": {
+                "type": "number",
+                "description": "Heading level (1-3)"
+              },
+              "fontSize": {
+                "type": "string",
+                "description": "Custom font size (e.g. '32px')"
+              },
+              "text": {
+                "type": "string",
+                "description": "Text content for heading, paragraph, callout, blockquote"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List items for bulletList/orderedList"
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "checked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "checked"
+                  ]
+                },
+                "description": "Task items for taskList"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Toggle list summary text"
+              },
+              "content": {
+                "type": "array",
+                "description": "Nested content blocks (for toggleList, callout, blockquote)"
+              },
+              "code": {
+                "type": "string",
+                "description": "Code content"
+              },
+              "language": {
+                "type": "string",
+                "description": "Code language (e.g. 'typescript')"
+              },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "default",
+                  "blue",
+                  "green",
+                  "yellow",
+                  "red",
+                  "purple"
+                ],
+                "description": "Callout color"
+              },
+              "iconName": {
+                "type": "string",
+                "description": "Callout icon name (Lucide icon, e.g. 'Lightbulb')"
+              },
+              "headers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Table header cells"
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "description": "Table data rows"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "required": [
+        "target",
+        "structure"
+      ]
+    }
+  },
+  {
+    "name": "format_content",
+    "description": "Read and restructure existing note/daily content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": [
+            "note",
+            "daily"
+          ],
+          "description": "Target entity type"
+        },
+        "target_id": {
+          "type": "string",
+          "description": "Note ID (required when target is note)"
+        },
+        "target_date": {
+          "type": "string",
+          "description": "Daily date (YYYY-MM-DD)"
+        },
+        "operations": {
+          "type": "array",
+          "description": "Operations to apply to content",
+          "items": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "wrap_callout",
+                  "wrap_toggle",
+                  "add_heading",
+                  "insert_block",
+                  "replace_all"
+                ],
+                "description": "Operation type"
+              },
+              "iconName": {
+                "type": "string",
+                "description": "Icon for callout"
+              },
+              "color": {
+                "type": "string",
+                "description": "Color for callout"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Summary for toggle"
+              },
+              "level": {
+                "type": "number",
+                "description": "Heading level"
+              },
+              "text": {
+                "type": "string",
+                "description": "Text content"
+              },
+              "fontSize": {
+                "type": "string",
+                "description": "Font size"
+              },
+              "position": {
+                "type": "string",
+                "enum": [
+                  "start",
+                  "end"
+                ],
+                "description": "Where to add heading"
+              },
+              "block": {
+                "type": "object",
+                "description": "Content block to insert"
+              },
+              "structure": {
+                "type": "array",
+                "description": "Full content structure for replace_all"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          }
+        }
+      },
+      "required": [
+        "target",
+        "operations"
+      ]
+    }
+  },
+  {
+    "name": "list_wiki_tags",
+    "description": "List all wiki tags. Tags are cross-domain labels that connect todos, dailies, and notes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Filter by tag name (optional)"
+        }
+      }
+    }
+  },
+  {
+    "name": "tag_entity",
+    "description": "Assign a wiki tag to a todo, daily, or note. Creates the tag if it doesn't exist.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tag_name": {
+          "type": "string",
+          "description": "Tag name"
+        },
+        "entity_id": {
+          "type": "string",
+          "description": "Entity ID"
+        },
+        "entity_type": {
+          "type": "string",
+          "enum": [
+            "task",
+            "daily",
+            "note"
+          ],
+          "description": "Entity type (optional). The real type is read from the item; supplying it asserts the item is of that type."
+        }
+      },
+      "required": [
+        "tag_name",
+        "entity_id"
+      ]
+    }
+  },
+  {
+    "name": "untag_entity",
+    "description": "Remove a wiki tag from a todo, daily, or note. Only this assignment goes away — the tag itself, and its other assignments, stay. Removing a tag that is not assigned is a no-op, not an error.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tag_name": {
+          "type": "string",
+          "description": "Tag name"
+        },
+        "entity_id": {
+          "type": "string",
+          "description": "Entity ID"
+        }
+      },
+      "required": [
+        "tag_name",
+        "entity_id"
+      ]
+    }
+  },
+  {
+    "name": "search_by_tag",
+    "description": "Search for todos, dailies, and notes by wiki tag name.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tag_name": {
+          "type": "string",
+          "description": "Tag name to search"
+        },
+        "entity_type": {
+          "type": "string",
+          "enum": [
+            "task",
+            "daily",
+            "note"
+          ],
+          "description": "Filter by entity type (optional)"
+        }
+      },
+      "required": [
+        "tag_name"
+      ]
+    }
+  },
+  {
+    "name": "get_entity_tags",
+    "description": "Get all wiki tags assigned to a specific entity (todo, daily, or note).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string",
+          "description": "Entity ID (todo, daily, or note)"
+        }
+      },
+      "required": [
+        "entity_id"
+      ]
+    }
+  },
+  {
+    "name": "restore_item",
+    "description": "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item. Restorable roles: todo, note, event (schedule item); a daily comes back through upsert_daily instead. Restoring an item that is not in the trash is a no-op, not an error. Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID of the trashed todo, note or schedule item"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "seed_verification_state",
+    "description": "VERIFICATION ONLY. Build a known state on one day — todos, events and notes — so a change can be checked without arranging data by hand in the UI. Writes through the ordinary create tools, records every row it creates in a ledger, and returns a run_id; read_verification_state reads that run back and cleanup_verification_state deletes exactly it. Disabled unless the server runs in verification mode against the verification account.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Day to place the fixture on, YYYY-MM-DD (default: today in local time)"
+        },
+        "preset": {
+          "type": "string",
+          "enum": [
+            "busy_day"
+          ],
+          "description": "Ready-made fixture. busy_day = two overlapping events + an all-day event + a done todo + an open todo + an undated todo."
+        },
+        "items": {
+          "type": "array",
+          "description": "Items to create, appended after any preset. At least one item (here or from a preset) is required.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "task",
+                  "event",
+                  "note"
+                ],
+                "description": "What to create. Dailies are not seedable: their id comes from the date, so a seeded one cannot be told apart from a real entry."
+              },
+              "title": {
+                "type": "string",
+                "description": "Title (a [verify] marker is prepended). Defaults to 'kind N'."
+              },
+              "content": {
+                "type": "string",
+                "description": "Markdown body (todo and note)"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "done"
+                ],
+                "description": "Todo status (todo only, default: not_started)"
+              },
+              "start_time": {
+                "type": "string",
+                "description": "HH:MM. Event: its start. Todo: schedules it at that time on the day — a todo with no time and no is_all_day stays undated."
+              },
+              "end_time": {
+                "type": "string",
+                "description": "HH:MM. Event: its end. Todo: its scheduled end."
+              },
+              "is_all_day": {
+                "type": "boolean",
+                "description": "All-day item. An all-day event stores no times; an all-day todo lands on the day's local midnight."
+              },
+              "memo": {
+                "type": "string",
+                "description": "Event memo (event only)"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        },
+        "label": {
+          "type": "string",
+          "description": "Free-text note stored with the run (e.g. the Issue being verified)"
+        }
+      }
+    }
+  },
+  {
+    "name": "read_verification_state",
+    "description": "VERIFICATION ONLY. Read what the DB actually stores, without going through the UI: both rows of the 2-row model (items_meta + <role>_payload) in one object per item. Soft-deleted items are included and flagged, so 'the screen stopped showing it' and 'the row is gone' can be told apart. Select by run_id (a seed run), date (everything on one local day), or id (one item) — exactly one of the three.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "description": "A run_id returned by seed_verification_state"
+        },
+        "date": {
+          "type": "string",
+          "description": "Local day (YYYY-MM-DD): events on it plus todos scheduled into it"
+        },
+        "id": {
+          "type": "string",
+          "description": "A single item id"
+        }
+      }
+    }
+  },
+  {
+    "name": "cleanup_verification_state",
+    "description": "VERIFICATION ONLY. Delete the rows seeded earlier — read from the ledger, not from the caller's memory — hard, so nothing is left in the trash. Defaults to every recorded run; pass run_id for one. Rows that fail to delete stay in the ledger so a re-run finishes them. Retire the verification account only after this reports the ledger empty: user_id has no FK to auth.users, so rows outlive a deleted account.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "description": "Clean one run (default: every run in the ledger)"
+        },
+        "dry_run": {
+          "type": "boolean",
+          "description": "Report what would be deleted and delete nothing"
+        }
+      }
+    }
+  }
+]
