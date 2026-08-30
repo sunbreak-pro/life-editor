@@ -71,11 +71,11 @@ const ja: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: "4. 保管先と委託先",
         paragraphs: [
-          "本サービスは、データの保管と配信を次の事業者に委託しています。いずれも日本国外のデータセンターで稼働しているため、利用者の情報は国外へ移転されます。",
+          "本サービスは、データの保管と配信を次の事業者に委託しています。データベースと認証情報の保管先は、Supabase が利用する AWS 東京リージョン（ap-northeast-1・日本国内）です。アプリの配信は Cloudflare の世界各地の拠点を経由するため、配信の過程で利用者の情報が国外で処理されることがあります。",
         ],
         bullets: [
-          "Supabase Inc.（データベース・認証）",
-          "Cloudflare, Inc.（Cloudflare Workers によるアプリ配信）",
+          "Supabase Inc.（データベース・認証 — AWS ap-northeast-1 / 東京）",
+          "Cloudflare, Inc.（Cloudflare Workers によるアプリ配信 — 世界各地のエッジ拠点）",
           "各社の取り扱いについては、それぞれのプライバシーポリシーもあわせてご確認ください",
         ],
       },
@@ -211,11 +211,11 @@ const en: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: "4. Where it is stored",
         paragraphs: [
-          "Storage and delivery are handled by the processors below. Both run outside Japan, so your data is transferred abroad.",
+          "Storage and delivery are handled by the processors below. The database and authentication data are hosted in Supabase's AWS Tokyo region (ap-northeast-1, inside Japan). Application delivery runs through Cloudflare's worldwide network, so data may be processed outside Japan in transit.",
         ],
         bullets: [
-          "Supabase Inc. (database and authentication)",
-          "Cloudflare, Inc. (application delivery via Cloudflare Workers)",
+          "Supabase Inc. (database and authentication — AWS ap-northeast-1, Tokyo)",
+          "Cloudflare, Inc. (application delivery via Cloudflare Workers — edge locations worldwide)",
           "Please also read their own privacy policies for how they handle data",
         ],
       },
